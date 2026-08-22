@@ -59,15 +59,19 @@ because absence before the first sighting means "not created yet". That is what
 lets a pool of twelve be started before the work exists, which is the only way to
 start twelve without the first few finishing before the last are running.
 
-That confirmation used to be a second and a half and is now a tenth of one. The
-difference is a ZiguratIP fix: a reader at READ COMMITTED used to *wait* on the
-lock of a row another transaction was rewriting, and by the time the wait ended
-the version it was waiting on had been retired and the replacement was at an
-address it had already passed — so for the whole length of a save, a partner
-asking after the machine was told it did not exist. It now takes the committed
-version sitting at the address it is already looking at, and waits for nobody.
-What is left is a real but narrow race, which is why the confirmation is still
-there at all.
+That confirmation used to be three hundred polls — a second and a half — and is
+now two. Both reductions are ZiguratIP fixes. A reader at READ COMMITTED used to
+*wait* on the lock of a row another transaction was rewriting, and by the time
+the wait ended the version it was waiting on had been retired and the replacement
+was at an address it had already passed: for the whole length of a save, a
+partner asking after the machine was told it did not exist. With the wait gone
+the same thing remained in miniature, because a scan spans time. A reader now
+takes the version that was current when its statement began, decided against a
+microsecond clock, so a machine being saved is there throughout and there exactly
+once.
+
+Two polls and not none, because a worker's `exists` and its next `claim` are
+separate transactions and a partner may drop the machine between them.
 
 That last number is a heuristic and is allowed to be: what it decides is only
 **when a worker goes home**. It cannot make two workers advance one machine, lose
@@ -100,6 +104,10 @@ rather than worked around here. See its `doc/concurrency.md`.
 * **A reader at READ COMMITTED waited for a writer, and then saw neither
   version** of the row it had waited for. A machine being saved did not exist as
   far as its partners were concerned, for as long as the save took.
+* **A scan had no fixed view**, so a row rewritten while one was running could be
+  counted twice or missed — 865 double counts in one run of three scanners
+  against a single writer. Version stamps were at one-second resolution, which
+  cannot tell two versions of a busy row apart.
 * **`TRANSACTION ISOLATION LEVEL` had never compiled.** The generated C++ used
   `->` on a value member, so every procedure carrying the documented clause
   failed to build.

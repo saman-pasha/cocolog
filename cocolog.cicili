@@ -156,28 +156,32 @@
   ;;; How many polls in a row a machine has to be out of sight before a worker
   ;;; believes it has finished rather than being mid-save.
   ;;;
-  ;;; IT USED TO BE THREE HUNDRED, and the reason is worth keeping because it is
-  ;;; the reason it can be twenty now. Saving a machine deletes its row and
-  ;;; inserts a replacement, and a reader at READ COMMITTED used to see NEITHER
-  ;;; version for the length of that transaction -- it waited on the old row's
-  ;;; lock, and by the time the wait ended the old version had been retired and
-  ;;; the new one was at an address the scan had already gone past. Under load
-  ;;; those windows ran together, so a fifth of a second of absence proved
-  ;;; nothing and a worker had to sit through one and a half.
+  ;;; IT USED TO BE THREE HUNDRED, and the story of how it got to two is the
+  ;;; story of two bugs in the database it talks to. Saving a machine deletes its
+  ;;; row and inserts a replacement. A reader at READ COMMITTED first WAITED on
+  ;;; the old row's lock -- and by the time the wait ended the old version had
+  ;;; been retired and the new one was at an address the reader had gone past, so
+  ;;; a machine being saved did not exist as far as its partners were concerned,
+  ;;; for as long as the save took. Under load those windows ran together and a
+  ;;; fifth of a second of absence proved nothing.
   ;;;
-  ;;; That is fixed in ZiguratIP: a reader at READ COMMITTED takes the committed
-  ;;; version sitting at the address it is already looking at, and waits for
-  ;;; nobody. A machine being saved is plainly there throughout. Twenty polls is
-  ;;; a tenth of a second of continuous absence, which is now a long time.
+  ;;; With the wait gone, what was left was the narrower version of the same
+  ;;; thing: a scan spans time, so one that passed the replacement before it was
+  ;;; committed could still reach the original after it was retired.
   ;;;
-  ;;; It is not nothing, because what remains is a real if narrow race -- a scan
-  ;;; can still pass the replacement before it is committed and reach the
-  ;;; original after it is retired. And a heuristic is allowed here in the first
-  ;;; place because what this number decides is only WHEN A WORKER GOES HOME. It
-  ;;; cannot make two workers advance one machine, lose a turn, or produce an
-  ;;; answer twice: the claim settles all of that exactly, inside one
-  ;;; SERIALIZABLE transaction.
-  (var const int CO_GONE_CONFIRM . 20)
+  ;;; Both are fixed in ZiguratIP. A reader takes the version that was current
+  ;;; when its statement began, decided against a microsecond clock, so a machine
+  ;;; being saved is there throughout and is there exactly once. `exists' is now
+  ;;; an answer rather than a symptom.
+  ;;;
+  ;;; Two polls, then, and not none -- a worker's `exists' and its next `claim'
+  ;;; are separate transactions, and a partner may drop the machine between them.
+  ;;; Asking twice costs ten milliseconds and covers it. And a number like this
+  ;;; is allowed to be a judgement in the first place because what it decides is
+  ;;; only WHEN A WORKER GOES HOME: it cannot make two workers advance one
+  ;;; machine, lose a turn, or produce an answer twice. The claim settles all of
+  ;;; that exactly, inside one SERIALIZABLE transaction.
+  (var const int CO_GONE_CONFIRM . 2)
 
   ;;; And how long a worker waits for a machine it has NEVER SEEN. Much longer,
   ;;; because absence means something different before the first sighting: not
