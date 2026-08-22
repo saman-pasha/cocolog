@@ -218,6 +218,26 @@
   ;;; order the array is in.
   (decl) (func co_m_atom_list ((co_engine * e) (char ** v) (size_t n)) (out size_t))
 
+  ;;; A list of TERMS the caller is already holding, same order, same reason.
+  (decl) (func co_m_list ((co_engine * e) (const size_t * items) (size_t n))
+               (out size_t))
+
+  ;;; How long a list is, or 0 if T is not a proper one -- a partial list
+  ;;; ending in a variable and an improper one ending in anything else are both
+  ;;; refused, because a module predicate that walked either would answer about
+  ;;; a list that is not there yet.
+  (decl) (func co_m_list_length ((co_engine * e) (size_t t) (size_t * out)) (out int))
+
+  ;;; A proper list as an ARRAY of term indices, which is what a C half wants
+  ;;; when it has to see the whole list at once -- sorting, mostly. The array
+  ;;; is malloc'd and the caller frees it; the indices in it are the list's own
+  ;;; elements and are good for the length of the call, like every other index.
+  ;;;
+  ;;; Answers 0 for anything that is not a proper list, and for an empty one
+  ;;; answers 1 with a null array and a count of 0.
+  (decl) (func co_m_list_array ((co_engine * e) (size_t t) (size_t ** out)
+                                (size_t * n)) (out int))
+
   ;;; ---- giving up ----
 
   ;;; Both answer -1 with the engine's `err' filled in, so a predicate can
@@ -425,6 +445,48 @@
           (for ((size_t i . n)) (> i 0) ((-- i))
             (set lst (co_cons (-> e m) (co_new_atom (-> e m) (nth (- i 1) v)) lst)))
           (return lst)))
+
+  (func co_m_list ((co_engine * e) (const size_t * items) (size_t n)) (out size_t)
+        (let ((size_t lst . #'(co_m_nil e)))
+          (for ((size_t i . n)) (> i 0) ((-- i))
+            (set lst (co_cons (-> e m) (nth (- i 1) items) lst)))
+          (return lst)))
+
+  ;;; Walks the spine once. `[]' is the atom that ends a list; anything else
+  ;;; that is not `.'/2 -- a variable, an atom, a number, another compound --
+  ;;; means this is not a proper list and the answer is 0 rather than a guess.
+  (func co_m_list_length ((co_engine * e) (size_t t) (size_t * out)) (out int)
+        (let ((co_machine * m . #'(-> e m)) (size_t n . 0) (size_t p . t))
+          (while 1
+            (set p (co_deref m p))
+            (if (co_m_is_atom e p)
+                (if (== 0 (strcmp (co_atom_name m (co_name_of m p)) "[]"))
+                    (block (set (cof out) n) (return 1))
+                  (return 0)))
+            (if (not (co_is_callable m p)) (return 0))
+            (if (!= (co_arity m p) 2) (return 0))
+            (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
+            (set n (+ n 1))
+            (set p (co_arg m p 1))))
+        (return 0))
+
+  (func co_m_list_array ((co_engine * e) (size_t t) (size_t ** out) (size_t * n))
+        (out int)
+        (let ((co_machine * m . #'(-> e m)) (size_t len . 0))
+          (set (cof out) nil)
+          (set (cof n) 0)
+          (if (not (co_m_list_length e t (aof len))) (return 0))
+          (if (== len 0) (return 1))
+          (let ((size_t * v . #'(cast (size_t *) (malloc (* len (sizeof size_t)))))
+                (size_t p . t))
+            (if (== v nil) (return 0))
+            (for ((size_t i . 0)) (< i len) ((++ i))
+              (set p (co_deref m p))
+              (set (nth i v) (co_arg m p 0))
+              (set p (co_arg m p 1)))
+            (set (cof out) v)
+            (set (cof n) len)
+            (return 1))))
 
   (func co_m_error ((co_engine * e) (const char * what) (const char * detail)) (out int)
         (if (== detail nil)

@@ -127,7 +127,8 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 | `lib/kb.cicili` | the clause store and its five backend hooks |
 | `lib/solve.cicili` | the engine and the builtin table |
 | `lib/module.cicili` | the module seam and the API a module is written against |
-| `lib/files.cicili` | SWI's Files library, as a module — the worked example |
+| `lib/files.cicili` | SWI's Files library, as a module — mostly C |
+| `lib/lists.cicili` | SWI's Lists library, as a module — mostly Prolog, because nondeterministic predicates cannot live in a C half |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |

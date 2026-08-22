@@ -15,7 +15,7 @@ different findings.
 | `test/syntax.cicili` | the reader and the writer against each other: precedence, associativity, the spacing that decides whether `-(1)` reads back as a compound or an integer, lists, curly terms, quoting, radix and character literals — 41 checks |
 | `test/solve.cicili` | backtracking, cut, negation, if-then-else, arithmetic, lists, term inspection, assert/retract, `:- dynamic` in all three spec shapes and as a goal, `listing`, a 50000-deep deterministic recursion that must leave no choice points, and a failing goal that must not grow the heap |
 | `test/module.cicili` | the module seam itself: no modules behaves as before modules, three at once, a module's Coco half calling its own C half, a module that is only clauses, precedence against both builtins and the knowledge base, a failing module predicate leaving no binding, and the Coco half coming back after the store is emptied — 22 checks |
-| `test/files/*.pl` | the Files library, run by **both swipl and cocolog** in the same fresh directory and compared byte for byte — 77 lines of agreement across three cases |
+| `test/files/*.pl` | the Files and Lists libraries, run by **both swipl and cocolog** in the same fresh directory and compared byte for byte — 194 lines of agreement across seven cases |
 | `test/state.cicili` | a machine run to one solution, frozen, its machine and store **freed**, thawed into new ones, and finishing the proof correctly; and `freeze(thaw(x)) == x` byte for byte |
 | `test/zigurat.cicili` | the Cicili binding against a real server: every parameter width, a cursor, and a Text large enough to matter |
 | `test/shared.cicili` | ten interpreters in sequence — one writes the knowledge base, a second built from nothing answers from it, a third suspends mid-proof and is freed, a fourth picks it up and finishes it, a fifth asserts at run time, a sixth sees it, a seventh retracts, an eighth agrees it is gone, a ninth declares two predicates dynamic and a tenth — which starts knowing nothing — warms its store and finds them declared and empty. Then the same knowledge base over HTTP, and a machine written over the binary protocol picked up over HTTP — 39 checks |
@@ -175,8 +175,21 @@ function pointers in `lib/solve.cicili` that a module fills in. A module carries
 predicates written in Cicili and clauses written in Prolog, and a program cannot
 tell which half answered it. MODULES.md is how to write one.
 
-`lib/files.cicili` is the first, and is SWI-Prolog's file-system predicates:
-seventeen in C, five in Prolog on top of three private primitives.
+Two ship, and they are mirror images of each other. `lib/files.cicili` is
+SWI's file-system predicates: seventeen in C, five in Prolog on three private
+primitives. `lib/lists.cicili` is all thirty-six of `library(lists)` the other
+way round — thirty-odd in Prolog, seven in C.
+
+**That shape is forced, not chosen.** `member/2`, `select/3`, `append/3` and
+`permutation/2` answer many times, and a module's C half cannot: it has no
+access to the choice stack, deliberately, so that no module can break the
+invariant suspension depends on. In the Coco half the engine provides the
+choice points, and a machine frozen mid-backtrack thaws in another process and
+goes on. Written in C they would work until the first `cocolog step`.
+
+Lists also needed `call/N` in the engine — `max_member/3` takes a comparison
+predicate and is `call(Pred, A, B)` and nothing else — and four SWI builtins
+cocolog lacked: `length/2`, `msort/2`, `sort/2` and `sort/4`.
 
 **It is checked against a real SWI rather than against its author.**
 `test/files/*.pl` are Prolog programs run twice — by `swipl` and by

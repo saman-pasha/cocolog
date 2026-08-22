@@ -1,0 +1,385 @@
+;;;; cocolog -- the Lists library, as a module
+;;;
+;;; SWI-Prolog's library(lists) -- all thirty-six exported predicates, read off
+;;; a running SWI rather than off a memory of one -- plus the four SWI BUILTINS
+;;; the library leans on that cocolog did not have: `length/2', `msort/2',
+;;; `sort/2' and `sort/4'. Those four are not part of library(lists) in SWI and
+;;; are marked as such below; they are here because half the library cannot be
+;;; written without them and a test cannot compare against SWI without them
+;;; either.
+;;;
+;;; IT IS THE MIRROR IMAGE OF lib/files.cicili. Files is seventeen predicates in
+;;; C and five in Prolog, because a file system is a syscall away. Lists is
+;;; thirty-odd in Prolog and six in C, because a list predicate is a couple of
+;;; clauses and because MOST OF THEM MUST BE NONDETERMINISTIC -- `member/2',
+;;; `select/3', `append/3' and `permutation/2' each answer many times, and a
+;;; module's C half cannot: it has no access to the choice stack, deliberately,
+;;; so that no module can break the invariant cocolog's suspension depends on.
+;;;
+;;; That is not a limitation being worked around. A nondeterministic predicate
+;;; belongs in the Coco half, where the ENGINE provides the choice points and a
+;;; frozen machine can be thawed in another process and go on backtracking
+;;; through it. Written in C it would work until the first `cocolog step'.
+;;;
+;;; WHAT THE C HALF IS FOR, then, is the things that are determinate and that C
+;;; is genuinely better at: sorting by the standard order of terms, and the
+;;; single-pass walks that Prolog would do with a recursion and a choice point
+;;; per element. Each of those is reached through a `$'-prefixed primitive and
+;;; wrapped in a clause, exactly as the Files module does it -- so `length/2'
+;;; is fast when the list is proper and still generative when it is not.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;;; ------------------------------------------------------------------
+;;;; The C half
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *lists-predicates*
+  '(("msort"      2 co_l_msort)
+    ("sort"       2 co_l_sort)
+    ("sort"       4 co_l_sort4)
+
+    ("$len"       2 co_l_len)
+    ("$rev"       2 co_l_rev)
+    ("$nth0"      3 co_l_nth0)
+    ("memberchk"  2 co_l_memberchk)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half
+;;;; ------------------------------------------------------------------
+;;; Joined with spaces: a Cicili string literal cannot carry a newline by
+;;; either route -- see MODULES.md -- and Prolog does not mind, because a
+;;; clause ends at its `.'. The commentary lives out here where a `%' cannot
+;;; swallow the rest of the program for want of a line ending.
+(DEFPARAMETER *lists-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+
+           ;; ---- length/2 -------------------------------------------------
+           ;; A SWI BUILTIN, not library(lists), and cocolog had none.
+           ;; The fast path is the C walk, which only answers for a PROPER
+           ;; list; everything else -- a partial list, both arguments unbound --
+           ;; falls through to the generative clauses, which is the mode
+           ;; `length(L, 3)' needs.
+           "length(L, N) :- '$len'(L, M), !, N = M."
+           "length(L, N) :- integer(N), !, N >= 0, '$len_make'(N, L)."
+           "length(L, N) :- '$len_gen'(L, 0, N)."
+           "'$len_make'(0, []) :- !."
+           "'$len_make'(N, [_|T]) :- M is N - 1, '$len_make'(M, T)."
+           "'$len_gen'([], N, N)."
+           "'$len_gen'([_|T], A, N) :- B is A + 1, '$len_gen'(T, B, N)."
+
+           ;; ---- append, member, and what is built on them ----------------
+           "append([], L, L)."
+           "append([H|T], L, [H|R]) :- append(T, L, R)."
+           "append(ListOfLists, List) :- '$append2'(ListOfLists, List)."
+           "'$append2'([], [])."
+           "'$append2'([L|Ls], As) :- append(L, Ws, As), '$append2'(Ls, Ws)."
+
+           "member(X, [X|_])."
+           "member(X, [_|T]) :- member(X, T)."
+
+           ;; ---- select and its relatives ---------------------------------
+           "select(X, [X|T], T)."
+           "select(X, [H|T], [H|R]) :- select(X, T, R)."
+           "select(X, [X|T], Y, [Y|T])."
+           "select(X, [H|T], Y, [H|R]) :- select(X, T, Y, R)."
+           "selectchk(X, L, R) :- select(X, L, R), !."
+           "selectchk(X, L, Y, R) :- select(X, L, Y, R), !."
+           "subtract([], _, [])."
+           "subtract([H|T], L, R) :- memberchk(H, L), !, subtract(T, L, R)."
+           "subtract([H|T], L, [H|R]) :- subtract(T, L, R)."
+           "intersection([], _, [])."
+           "intersection([H|T], L, [H|R]) :- memberchk(H, L), !, intersection(T, L, R)."
+           "intersection([_|T], L, R) :- intersection(T, L, R)."
+           "union([], L, L)."
+           "union([H|T], L, R) :- memberchk(H, L), !, union(T, L, R)."
+           "union([H|T], L, [H|R]) :- union(T, L, R)."
+           "subset([], _)."
+           "subset([H|T], L) :- memberchk(H, L), subset(T, L)."
+
+           ;; SWI deletes every element that COULD unify without binding
+           ;; anything: `\\+ Elem \\= X'. Plain unification would bind a
+           ;; variable in the list and delete the rest of it with it.
+           "delete([], _, [])."
+           "delete([H|T], X, R) :- \\+ H \\= X, !, delete(T, X, R)."
+           "delete([H|T], X, [H|R]) :- delete(T, X, R)."
+
+           ;; ---- position -------------------------------------------------
+           ;; nth0/3 and nth1/3 are determinate when the index is bound -- the
+           ;; C walk -- and enumerate when it is not.
+           "nth0(N, L, E) :- integer(N), !, N >= 0, '$nth0'(N, L, E)."
+           "nth0(N, L, E) :- var(N), '$nth_gen'(L, 0, N, E)."
+           "nth1(N, L, E) :- integer(N), !, N >= 1, M is N - 1, '$nth0'(M, L, E)."
+           "nth1(N, L, E) :- var(N), '$nth_gen'(L, 1, N, E)."
+           "'$nth_gen'([H|_], B, B, H)."
+           "'$nth_gen'([_|T], B, N, E) :- C is B + 1, '$nth_gen'(T, C, N, E)."
+           "nth0(N, L, E, R) :- integer(N), !, N >= 0, '$nth_sel'(L, 0, N, E, R)."
+           "nth0(N, L, E, R) :- '$nth_sel'(L, 0, N, E, R)."
+           "nth1(N, L, E, R) :- integer(N), !, N >= 1, '$nth_sel'(L, 1, N, E, R)."
+           "nth1(N, L, E, R) :- '$nth_sel'(L, 1, N, E, R)."
+           "'$nth_sel'([H|T], B, B, H, T)."
+           "'$nth_sel'([H|T], B, N, E, [H|R]) :- C is B + 1, '$nth_sel'(T, C, N, E, R)."
+
+           "last([X], X) :- !."
+           "last([_|T], X) :- last(T, X)."
+           "nextto(X, Y, [X,Y|_])."
+           "nextto(X, Y, [_|T]) :- nextto(X, Y, T)."
+           "prefix(P, L) :- append(P, _, L)."
+
+           ;; ---- shape ----------------------------------------------------
+           "reverse(L, R) :- '$rev'(L, S), !, R = S."
+           "reverse(L, R) :- '$rev_gen'(L, [], R)."
+           "'$rev_gen'([], A, A)."
+           "'$rev_gen'([H|T], A, R) :- '$rev_gen'(T, [H|A], R)."
+           "proper_length(L, N) :- '$len'(L, N)."
+           "same_length([], [])."
+           "same_length([_|T], [_|R]) :- same_length(T, R)."
+           "permutation(Xs, Ys) :- same_length(Xs, Ys), '$perm'(Xs, Ys)."
+           "'$perm'([], [])."
+           "'$perm'(L, [H|T]) :- select(H, L, R), '$perm'(R, T)."
+
+           "flatten(L, F) :- '$flatten'(L, [], F0), !, F = F0."
+           "'$flatten'(V, T, [V|T]) :- var(V), !."
+           "'$flatten'([], T, T) :- !."
+           "'$flatten'([H|R], T, F) :- !, '$flatten'(R, T, F0), '$flatten'(H, F0, F)."
+           "'$flatten'(A, T, [A|T])."
+
+           ;; ---- sets -----------------------------------------------------
+           ;; list_to_set/2 keeps the FIRST of each group and the original
+           ;; order, which is not what sorting would give.
+           "list_to_set(L, S) :- '$l2s'(L, [], S)."
+           "'$l2s'([], _, [])."
+           "'$l2s'([H|T], Seen, R) :- '$mem_eq'(H, Seen), !, '$l2s'(T, Seen, R)."
+           "'$l2s'([H|T], Seen, [H|R]) :- '$l2s'(T, [H|Seen], R)."
+           "'$mem_eq'(X, [Y|_]) :- X == Y, !."
+           "'$mem_eq'(X, [_|T]) :- '$mem_eq'(X, T)."
+           "is_set(L) :- '$len'(L, _), list_to_set(L, S), '$len'(S, N), '$len'(L, N)."
+
+           ;; run-length pairs: [a,a,b] becomes [a-2, b-1]
+           "clumped([], [])."
+           "clumped([H|T], [H-N|R]) :- '$clump'(T, H, 1, N, Rest), clumped(Rest, R)."
+           "'$clump'([H|T], X, A, N, Rest) :- H == X, !, B is A + 1, '$clump'(T, X, B, N, Rest)."
+           "'$clump'(L, _, N, N, L)."
+
+           ;; ---- arithmetic over a list -----------------------------------
+           "sum_list(L, S) :- '$sum'(L, 0, S)."
+           "'$sum'([], A, A)."
+           "'$sum'([H|T], A, S) :- B is A + H, '$sum'(T, B, S)."
+           "max_list([H|T], M) :- '$maxl'(T, H, M)."
+           "'$maxl'([], A, A)."
+           "'$maxl'([H|T], A, M) :- (H > A -> B = H ; B = A), '$maxl'(T, B, M)."
+           "min_list([H|T], M) :- '$minl'(T, H, M)."
+           "'$minl'([], A, A)."
+           "'$minl'([H|T], A, M) :- (H < A -> B = H ; B = A), '$minl'(T, B, M)."
+           "numlist(L, H, []) :- L > H, !, fail."
+           "numlist(L, H, R) :- '$numlist'(L, H, R)."
+           "'$numlist'(H, H, [H]) :- !."
+           "'$numlist'(L, H, [L|T]) :- M is L + 1, '$numlist'(M, H, T)."
+
+           ;; ---- the standard order over a list ---------------------------
+           ;; max_member/2 and min_member/2 use the STANDARD ORDER of terms and
+           ;; not arithmetic, so `max_member(M, [1, a])' is `a'.
+           "max_member(M, L) :- '$len'(L, N), N > 0, msort(L, S), last(S, M)."
+           "min_member(M, [H|T]) :- msort([H|T], [M|_])."
+           ;; the /3 forms take a comparison predicate, which is what call/N in
+           ;; the engine exists for
+           "max_member(P, M, [H|T]) :- '$max_by'(T, P, H, M)."
+           "'$max_by'([], _, A, A)."
+           "'$max_by'([H|T], P, A, M) :- (call(P, A, H) -> B = H ; B = A), '$max_by'(T, P, B, M)."
+           "min_member(P, M, [H|T]) :- '$min_by'(T, P, H, M)."
+           "'$min_by'([], _, A, A)."
+           "'$min_by'([H|T], P, A, M) :- (call(P, H, A) -> B = H ; B = A), '$min_by'(T, P, B, M).")))
+
+(generic decl-lists
+  ()
+
+  ;;; Registers the module. A target calls this after `co_module_init'.
+  (decl) (func co_lists_module () (out int))
+
+  ) ; decl-lists
+
+
+(generic impl-lists
+  ()
+
+  ;;; ---- sorting --------------------------------------------------------
+
+  ;;; The standard order of terms, through `co_compare', which is the same
+  ;;; comparison `compare/3', `@<' and the clause store already use -- so a
+  ;;; sorted list here and a `@<' test in a program cannot disagree.
+  ;;;
+  ;;; qsort(3) is not stable and SWI's msort/2 is; but msort/2 orders by the
+  ;;; standard order alone, under which two elements that compare equal are
+  ;;; indistinguishable, so stability is unobservable. `sort/4' is another
+  ;;; matter -- there the KEY is compared and the rest of the term is not --
+  ;;; and that one is sorted with an insertion pass instead.
+  (static) (var co_machine * co_l_sort_machine)
+
+  (static)
+  (func co_l_cmp ((const void * a) (const void * b)) (out int)
+        (return (co_compare co_l_sort_machine
+                            (cof (cast (const size_t *) a))
+                            (cof (cast (const size_t *) b)))))
+
+  ;;; Shared by msort/2 and sort/2: the only difference is whether elements
+  ;;; that compare equal are kept.
+  (static)
+  (func co_l_sort_common ((co_engine * e) (size_t g) (int dedup)) (out int)
+        (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
+          (if (not (co_m_list_array e (co_m_arg e g 0) (aof v) (aof n)))
+              (return (co_m_type_error e "a proper list" (co_m_arg e g 0))))
+          (set co_l_sort_machine (co_m_machine e))
+          (qsort v n (sizeof size_t) co_l_cmp)
+          (if dedup
+              (let ((size_t k . 0))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                  (if (or (== k 0)
+                          (!= 0 (co_compare (co_m_machine e)
+                                            (nth (- k 1) v) (nth i v))))
+                      (block (set (nth k v) (nth i v)) (set k (+ k 1)))))
+                (set n k)))
+          (set out (co_m_list e v n))
+          (free v)
+          (return (co_m_unify e (co_m_arg e g 1) out))))
+
+  (func co_l_msort ((co_engine * e) (size_t g)) (out int)
+        (return (co_l_sort_common e g 0)))
+
+  (func co_l_sort ((co_engine * e) (size_t g)) (out int)
+        (return (co_l_sort_common e g 1)))
+
+  ;;; `sort(+Key, +Order, +List, -Sorted)'. Key 0 is the whole term; Key N is
+  ;;; the Nth argument of it. Order is one of @< @=< @> @>= -- the two with the
+  ;;; `=' keep duplicates and the two without remove them, which is the rule
+  ;;; that catches everybody out and is exactly SWI's.
+  ;;;
+  ;;; INSERTION AND NOT qsort, because this one has to be STABLE: two terms
+  ;;; with equal keys and different bodies are distinguishable, so the order
+  ;;; they arrived in is observable and SWI keeps it.
+  (static)
+  (func co_l_key ((co_engine * e) (size_t t) (i64 k)) (out size_t)
+        (let ((co_machine * m . #'(co_m_machine e)))
+          (if (== k 0) (return t))
+          (set t (co_deref m t))
+          (if (not (co_is_callable m t)) (return t))
+          (if (> (cast u32 k) (co_arity m t)) (return t))
+          (return (co_arg m t (cast u32 (- k 1))))))
+
+  (func co_l_sort4 ((co_engine * e) (size_t g)) (out int)
+        (let ((i64 key . 0) (const char * order)
+              (size_t * v . nil) (size_t n . 0) (size_t out . 0)
+              (int descending . 0) (int keep . 0))
+
+          (if (not (co_m_int e (co_m_arg e g 0) (aof key)))
+              (return (co_m_type_error e "an integer key" (co_m_arg e g 0))))
+          (if (< key 0) (return (co_m_error e "sort/4: the key must not be negative" nil)))
+          (set order (co_m_atom e (co_m_arg e g 1)))
+          (if (== order nil)
+              (return (co_m_type_error e "an order" (co_m_arg e g 1))))
+          (cond
+            ((== 0 (strcmp order "@<"))  (block (set descending 0) (set keep 0)))
+            ((== 0 (strcmp order "@=<")) (block (set descending 0) (set keep 1)))
+            ((== 0 (strcmp order "@>"))  (block (set descending 1) (set keep 0)))
+            ((== 0 (strcmp order "@>=")) (block (set descending 1) (set keep 1)))
+            (#t (return (co_m_error e "sort/4: not an order" order))))
+
+          (if (not (co_m_list_array e (co_m_arg e g 2) (aof v) (aof n)))
+              (return (co_m_type_error e "a proper list" (co_m_arg e g 2))))
+
+          ;; insertion sort: stable, and n is small in every use this has
+          (for ((size_t i . 1)) (< i n) ((++ i))
+            (let ((size_t x . #'(nth i v)) (size_t j . i))
+              (while (> j 0)
+                (let ((int c . #'(co_compare (co_m_machine e)
+                                             (co_l_key e (nth (- j 1) v) key)
+                                             (co_l_key e x key))))
+                  (if descending (set c (- 0 c)))
+                  ;; strictly greater, so equal keys keep their arrival order
+                  (if (<= c 0) break)
+                  (set (nth j v) (nth (- j 1) v))
+                  (set j (- j 1))))
+              (set (nth j v) x)))
+
+          (if (not keep)
+              (let ((size_t k . 0))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                  (if (or (== k 0)
+                          (!= 0 (co_compare (co_m_machine e)
+                                            (co_l_key e (nth (- k 1) v) key)
+                                            (co_l_key e (nth i v) key))))
+                      (block (set (nth k v) (nth i v)) (set k (+ k 1)))))
+                (set n k)))
+
+          (set out (co_m_list e v n))
+          (free v)
+          (return (co_m_unify e (co_m_arg e g 3) out))))
+
+  ;;; ---- the determinate walks ------------------------------------------
+
+  ;;; Only for a PROPER list. A partial one is not an error here -- it is the
+  ;;; signal that the clause above should try the generative path instead.
+  (func co_l_len ((co_engine * e) (size_t g)) (out int)
+        (let ((size_t n . 0))
+          (if (not (co_m_list_length e (co_m_arg e g 0) (aof n))) (return 0))
+          (return (co_m_unify_int e (co_m_arg e g 1) (cast i64 n)))))
+
+  (func co_l_rev ((co_engine * e) (size_t g)) (out int)
+        (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
+          (if (not (co_m_list_array e (co_m_arg e g 0) (aof v) (aof n))) (return 0))
+          (for ((size_t i . 0)) (< i (/ n 2)) ((++ i))
+            (let ((size_t tmp . #'(nth i v)))
+              (set (nth i v) (nth (- (- n 1) i) v))
+              (set (nth (- (- n 1) i) v) tmp)))
+          (set out (co_m_list e v n))
+          (free v)
+          (return (co_m_unify e (co_m_arg e g 1) out))))
+
+  ;;; The index is already known to be a non-negative integer -- the clause
+  ;;; that calls this checked -- so out of range is a plain failure.
+  (func co_l_nth0 ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(co_m_machine e)) (i64 want . 0) (size_t p))
+          (if (not (co_m_int e (co_m_arg e g 0) (aof want))) (return 0))
+          (if (< want 0) (return 0))
+          (set p (co_m_arg e g 1))
+          (while (> want 0)
+            (set p (co_deref m p))
+            (if (not (co_is_callable m p)) (return 0))
+            (if (!= (co_arity m p) 2) (return 0))
+            (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
+            (set p (co_arg m p 1))
+            (set want (- want 1)))
+          (set p (co_deref m p))
+          (if (not (co_is_callable m p)) (return 0))
+          (if (!= (co_arity m p) 2) (return 0))
+          (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
+          (return (co_m_unify e (co_m_arg e g 2) (co_arg m p 0)))))
+
+  ;;; UNIFIES, and keeps the first that works -- `memberchk(X, [a,b])' binds X
+  ;;; to a. Every attempt that fails is wound back, because a builtin that
+  ;;; fails is not a choice point and the engine winds nothing back for it.
+  (func co_l_memberchk ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(co_m_machine e))
+              (size_t x . #'(co_m_arg e g 0))
+              (size_t p . #'(co_m_arg e g 1)))
+          (while 1
+            (set p (co_deref m p))
+            (if (not (co_is_callable m p)) (return 0))
+            (if (!= (co_arity m p) 2) (return 0))
+            (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
+            (let ((size_t mark . #'(co_m_mark e)))
+              (if (co_m_unify e x (co_arg m p 0)) (return 1))
+              (co_m_undo e mark))
+            (set p (co_arg m p 1)))
+          (return 0)))
+
+  ;;; ---- the module -----------------------------------------------------
+
+  (static) (co-emit-module-dispatch co_l_dispatch *lists-predicates*)
+
+  (co-defmodule co_lists_module "lists" co_l_dispatch *lists-prolog*)
+
+  ) ; impl-lists

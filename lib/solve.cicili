@@ -560,6 +560,40 @@
                    ;; its own, so a `!' inside it cannot cut the caller
                    (set (-> e goals) (co_k_push e (co_arg m g 0) (-> e nchoices) k)))
 
+                  ((and (> n 1) (== 0 (strcmp name "call")))
+                   ;; `call(G, A, B, ...)' -- G with the extra arguments added
+                   ;; to the end of it. This is what makes a predicate that
+                   ;; takes another predicate possible at all: `max_member/3'
+                   ;; in the lists library is `call(Pred, X, Y)' and nothing
+                   ;; else, and without this it could not be written.
+                   ;;
+                   ;; THE CLOSURE MAY ALREADY CARRY ARGUMENTS. `call(plus(1),
+                   ;; 2, X)' is `plus(1, 2, X)', so the goal built here is the
+                   ;; closure's own arguments followed by the call's -- which
+                   ;; is why it is rebuilt rather than the extra ones being
+                   ;; pushed onto it.
+                   (let ((size_t c . #'(co_deref m (co_arg m g 0))))
+                     (if (not (co_is_callable m c))
+                         (return (co_fail_err e "call/N needs a callable")))
+                     (let ((u32 have . #'(co_arity m c))
+                           (u32 extra . #'(- n 1)))
+                       (if (> (+ have extra) 255)
+                           (return (co_fail_err e "call/N: too many arguments")))
+                       (let ((size_t built)
+                             (size_t * args . #'(cast (size_t *)
+                                                      (malloc (* (+ have extra)
+                                                                 (sizeof size_t))))))
+                         (if (== args nil) (return (co_fail_err e "out of memory")))
+                         (for ((u32 i . 0)) (< i have) ((++ i))
+                           (set (nth i args) (co_arg m c i)))
+                         (for ((u32 i . 0)) (< i extra) ((++ i))
+                           (set (nth (+ have i) args) (co_arg m g (+ i 1))))
+                         (set built (co_make m (co_atom_name m (co_name_of m c))
+                                             (+ have extra) args))
+                         (free args)
+                         ;; opaque to cut, exactly as call/1 is
+                         (set (-> e goals) (co_k_push e built (-> e nchoices) k)))))) 
+
                   (#t
                    ;; ---- a builtin, or a predicate ----
                    (let ((int found . 0) (int rc . 0))

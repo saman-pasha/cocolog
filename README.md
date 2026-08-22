@@ -65,6 +65,7 @@ lib/solve.cicili       the engine: continuation, choice stack, cut, negation,
                        if-then-else, and the builtins
 lib/module.cicili      the module seam: a bridge between C and Coco
 lib/files.cicili       SWI's Files library, as a module
+lib/lists.cicili       SWI's Lists library, as a module
 lib/state.cicili       freeze and thaw
 lib/zigurat-kb.cicili  the knowledge base over Zigurat's binary protocol
 lib/zeytun-kb.cicili   the same, over Zeytun's HTTP pages (read only)
@@ -150,11 +151,19 @@ predicate, then the knowledge base — so a module can add to the language but
 cannot redefine `is` underneath a program, and is not shadowed by a clause
 somebody asserted.
 
-`lib/files.cicili` is the worked example: SWI-Prolog's file-system predicates,
-seventeen in C and five in Prolog on top of them. It is checked by running the
-same Prolog program under `swipl` and under `cocolog` and comparing the output
-byte for byte, which is the only kind of compatibility claim that cannot be
-fooled by its author — and it caught one on the first run.
+Two libraries ship, and they are deliberately mirror images. **Files** is
+seventeen predicates in C and five in Prolog, because a file system is a
+syscall away. **Lists** is thirty-odd in Prolog and seven in C, because
+`member/2` and `select/3` and `permutation/2` must answer *many times* and a
+module's C half cannot — it has no access to the choice stack, so a
+nondeterministic predicate belongs in the Coco half where the engine provides
+the choice points and a frozen machine can be thawed elsewhere and go on
+backtracking through it.
+
+Both are checked by running the same Prolog program under `swipl` and under
+`cocolog` and comparing the output byte for byte — the only kind of
+compatibility claim that cannot be fooled by its author. It caught one on the
+first run.
 
 **MODULES.md** is how to write one.
 

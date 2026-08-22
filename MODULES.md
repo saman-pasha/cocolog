@@ -156,6 +156,33 @@ call to it; and a dotted initialiser (`(var size_t n . 0)`) cannot be written
 inside a generic in a package where `nil` is `cocolog::nil` — a static is zero
 anyway.
 
+## Two libraries, at opposite extremes
+
+The two modules that ship are deliberately mirror images, because between them
+they show what each half is for.
+
+| | Files | Lists |
+|---|---|---|
+| C half | 17 predicates | 7 |
+| Coco half | 5 | 30-odd |
+| why | a file system is a syscall away | a list predicate is two clauses — **and most must be nondeterministic** |
+
+**That second reason is the important one.** `member/2`, `select/3`, `append/3`
+and `permutation/2` each answer many times, and a module's C half cannot: it
+has no access to the choice stack, deliberately. Written in C they would work
+until the first `cocolog step`. Written as clauses, the *engine* provides the
+choice points, and a machine frozen mid-backtrack can be thawed in another
+process and go on.
+
+So the rule is not "C is for speed and Prolog is for convenience". It is:
+
+* **nondeterministic → the Coco half**, always;
+* **needs the outside world, or the whole list at once → the C half**;
+* **both → a `$`-prefixed primitive in C wrapped in a clause**, which is how
+  `length/2` is a single C walk for a proper list and still generative for
+  `length(L, 3)`, and how `file_name_extension/3` splits one way and joins the
+  other.
+
 ## The Files library
 
 `lib/files.cicili`. SWI-Prolog's manual section *Files*, written to **match**
@@ -220,5 +247,49 @@ have; the /2 form is complete.
 **One known formatting divergence, and it is not this library's:** cocolog's
 writer puts spaces around `-`, so `write(a-b)` gives `a - b` where SWI gives
 `a-b`. The shared tests therefore write one value per line rather than printing
-compound terms. Worth fixing in `lib/syntax.cicili` one day; nothing here
-depends on it.
+compound terms, and `clumped/2` — which answers pairs — is taken apart before
+being written. Worth fixing in `lib/syntax.cicili` one day; nothing here
+depends on it, and the writer's reason for the spaces is real (`1- -2` must not
+come out as `1--2`), so it is a change with its own care to take.
+
+## The Lists library
+
+`lib/lists.cicili`. All **thirty-six** exported predicates of SWI's
+`library(lists)`, read off a running SWI rather than off a memory of one:
+
+`append/2` `append/3` `clumped/2` `delete/3` `flatten/2` `intersection/3`
+`is_set/1` `last/2` `list_to_set/2` `max_list/2` `max_member/2` `max_member/3`
+`member/2` `memberchk/2` `min_list/2` `min_member/2` `min_member/3` `nextto/3`
+`nth0/3` `nth0/4` `nth1/3` `nth1/4` `numlist/3` `permutation/2` `prefix/2`
+`proper_length/2` `reverse/2` `same_length/2` `select/3` `select/4`
+`selectchk/3` `selectchk/4` `subset/2` `subtract/3` `sum_list/2` `union/3`.
+
+Plus four SWI **builtins** that are not part of `library(lists)` and that
+cocolog did not have — `length/2`, `msort/2`, `sort/2`, `sort/4`. Half the
+library cannot be written without them and the shared tests could not compare
+without them either, so they are here and marked as what they are.
+
+In C, and only these: `msort/2` `sort/2` `sort/4` `memberchk/2` and the
+`$`-prefixed `$len` `$rev` `$nth0`. Sorting goes through `co_compare`, the same
+standard order `compare/3` and the clause store already use, so a sorted list
+and a `@<` test in a program cannot disagree. `sort/4` is an insertion sort
+rather than `qsort`, because it has to be **stable**: it compares the key and
+not the rest of the term, so two entries with equal keys are distinguishable
+and the order they arrived in is observable.
+
+Everything else is clauses.
+
+### It needed one thing from the engine
+
+`max_member/3` and `min_member/3` take a comparison predicate, so they are
+`call(Pred, A, B)` and nothing else — and cocolog had `call/1` only. `call/N`
+is now in `lib/solve.cicili`: it rebuilds the goal as the closure's own
+arguments followed by the call's, so `call(plus(1), 2, X)` is `plus(1, 2, X)`,
+and it is opaque to cut exactly as `call/1` is.
+
+### Where it parts from SWI
+
+The same one place as Files, and no other: **SWI throws where this fails.**
+`msort(notalist, _)` is a `type_error` there and false here; `length(_, -1)` is
+a `domain_error` there and false here. `test/files/lists_edge.pl` says so at
+the top rather than quietly omitting them.
