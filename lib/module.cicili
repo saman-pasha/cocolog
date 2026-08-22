@@ -445,9 +445,18 @@
           (let ((size_t n . 0) (size_t p . t))
             (while 1
               (set p (coco_deref m p))
+              ;; AN ATOM ENDS THE WALK OR FAILS IT; ANYTHING ELSE FALLS
+              ;; THROUGH to the cons checks below. Written as an if/else --
+              ;; `(if atom (if nil break) (return 0))' -- the else took every
+              ;; cons cell straight out of the function, so this loop only ever
+              ;; ran for the empty list and the code-list case the comment above
+              ;; describes was unreachable. `format("abc", [])' found it: a
+              ;; double-quoted format string is a code list, and it was rejected
+              ;; as not text.
               (if (coco_m_is_atom e p)
-                  (if (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]")) break)
-                (return 0))
+                  (block
+                   (if (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]")) break)
+                   (return 0)))
               (if (not (coco_is_callable m p)) (return 0))
               (if (!= (coco_arity m p) 2) (return 0))
               (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))

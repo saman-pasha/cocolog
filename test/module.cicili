@@ -36,6 +36,7 @@
   (import "../lib/zeytun.cicili" :zt)
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")
+  (import "../lib/dcg.cicili")
   (import "../lib/kb.cicili")
   (import "../lib/solve.cicili")
   (import "../lib/module.cicili")
@@ -45,6 +46,7 @@
 
   (decl-term)   (impl-term)
   (decl-syntax) (impl-syntax)
+  (decl-dcg)    (impl-dcg)
   (decl-kb)     (impl-kb)
   (decl-solve)  (impl-solve)
   (decl-module) (impl-module)
@@ -155,8 +157,11 @@
       (coco_module_init)
 
       (check "no modules registered" (cast llong (coco_module_count)) 0)
+      ;; nobody has defined `twice/2' yet -- not the program, not a module --
+      ;; so it raises, which is what an undefined predicate does since the
+      ;; engine learned to tell undefined from empty
       (check "a module predicate is simply unknown"
-             (cast llong (count (aof e) "twice(2, X)" 10)) 0)
+             (cast llong (count (aof e) "twice(2, X)" 10)) -1)
       (coco_consult (aof st) (aof m) "twice(a, b)." err (sizeof err))
       (check "and the knowledge base still answers"
              (cast llong (count (aof e) "twice(a, X)" 10)) 1)

@@ -190,7 +190,17 @@
   ;;; the recovery goal ride in `call' as one `'$catch'(C, R)' term on the heap
   ;;; -- and the heap is serialised already. A frozen machine inside a `catch'
   ;;; comes back inside it.
-  (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2))
+  ;;; DEAD is a GOAL frame the soft cut has taken the alternative away from.
+  ;;; It is a KIND and not a flag on the frame because the frames travel in a
+  ;;; frozen machine as a fixed row of numbers, and the kind is already one of
+  ;;; them -- a new field would change that format for every blob ever written,
+  ;;; while a new kind is a value no old blob contains.
+  ;;;
+  ;;; It cannot simply be popped instead. The frames are an array and every
+  ;;; barrier, every `$cut' height and every restored `nchoices' is an INDEX
+  ;;; into it, so removing one from the middle would move all of them.
+  (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
+                         (COCO_CH_DEAD . 3))
 
   (struct coco_choice
     (member int      kind)
@@ -380,6 +390,19 @@
         (return (coco_raise e (coco_make1 (-> e m) "evaluation_error"
                                       (coco_new_atom (-> e m) what)))))
 
+  ;;; `existence_error(procedure, Name/Arity)', the one a call to a predicate
+  ;;; nobody defined raises. The indicator is built before the ball because
+  ;;; `coco_raise' consumes it, and `/' is an ordinary two-argument term here --
+  ;;; the writer turns it back into `foo/2' from the operator table.
+  (static)
+  (func coco_existence_error ((coco_engine * e) (const char * kind)
+                              (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ind . #'(coco_make2 m "/" (coco_new_atom m name)
+                                          (coco_new_int m (cast i64 arity)))))
+          (return (coco_raise e (coco_make2 m "existence_error"
+                                            (coco_new_atom m kind) ind)))))
+
   ;;; ---- the continuation --------------------------------------------------
 
   ;;; '$k'(Goal, Barrier, Rest). Built with coco_make rather than the term DSL
@@ -492,8 +515,9 @@
                   (block (set (-> e nchoices) ci)
                          (set (-> e goals) (coco_k_push e call barrier goals))
                          (return 1)))
-              ;; a catch offers no alternative: drop it and keep going down
-              (if (== kind COCO_CH_CATCH)
+              ;; a catch offers no alternative, and neither does a frame the
+              ;; soft cut killed: drop it and keep going down
+              (if (or (== kind COCO_CH_CATCH) (== kind COCO_CH_DEAD))
                   (block (set (-> e nchoices) ci) continue))
               (if (coco_select_clause e ci) (return 1))))
           (return 0)))
@@ -582,6 +606,26 @@
           (let ((size_t k1 . #'(coco_k_push e t b k))
                 (size_t cut . #'(coco_make1 m "$cut" (coco_new_int m (cast i64 h0)))))
             (set (-> e goals) (coco_k_push e c (-> e nchoices) (coco_k_push e cut b k1))))
+          (return 1)))
+
+  ;;; The SOFT cut, `(C *-> T ; E)'. It differs from if-then-else in one
+  ;;; place and one only: when C succeeds, T runs for EVERY solution of C, not
+  ;;; just the first. So the alternative that runs E has to go while C's own
+  ;;; choice points stay -- which is why `$cut' will not do here. `$cut'
+  ;;; truncates the stack to a height, and everything C pushed is above the
+  ;;; frame holding E.
+  ;;;
+  ;;; `$softcut'(H) kills the one frame at H instead, leaving the rest alone.
+  (static)
+  (func coco_soft_ite ((coco_engine * e) (size_t c) (size_t t) (size_t els)
+                       (size_t k) (size_t b))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t h0 . #'(-> e nchoices)))
+          (if (not (coco_push_choice e COCO_CH_GOAL els k b)) (return 0))
+          (let ((size_t k1 . #'(coco_k_push e t b k))
+                (size_t sc . #'(coco_make1 m "$softcut" (coco_new_int m (cast i64 h0)))))
+            (set (-> e goals) (coco_k_push e c (-> e nchoices) (coco_k_push e sc b k1))))
           (return 1)))
 
   ;;; ---- the loop -----------------------------------------------------------
@@ -749,14 +793,33 @@
                      (if (< h (-> e nchoices)) (set (-> e nchoices) h)))
                    (set (-> e goals) k))
 
+                  ((and (== n 1) (== 0 (strcmp name "$softcut")))
+                   ;; kill the one frame holding the else-branch, and nothing
+                   ;; else. Guarded on the kind as well as the height: if the
+                   ;; frame at H is no longer the one this soft cut pushed --
+                   ;; which a machine thawed mid-proof could arrange -- killing
+                   ;; it would take away somebody else's alternative.
+                   (let ((size_t h . #'(cast size_t (coco-signed-payload
+                                                     (nth (coco_deref m (coco_arg m g 0)) (-> m heap))))))
+                     (if (< h (-> e nchoices))
+                         (if (== ($ (nth h (-> e choices)) kind) COCO_CH_GOAL)
+                             (set ($ (nth h (-> e choices)) kind) COCO_CH_DEAD))))
+                   (set (-> e goals) k))
+
                   ((and (== n 2) (== 0 (strcmp name ";")))
                    (let ((size_t l . #'(coco_deref m (coco_arg m g 0))))
                      ;; (C -> T ; E) is one construct, not a disjunction whose
                      ;; left arm happens to be an implication
                      (if (and (coco_is_callable m l) (== (coco_arity m l) 2))
-                         (if (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "->"))
-                             (block (coco_ite e (coco_arg m l 0) (coco_arg m l 1) (coco_arg m g 1) k b)
-                                    (continue))))
+                         (block
+                          (if (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "->"))
+                              (block (coco_ite e (coco_arg m l 0) (coco_arg m l 1) (coco_arg m g 1) k b)
+                                     (continue)))
+                          ;; `(C *-> T ; E)' is one construct too
+                          (if (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "*->"))
+                              (block (coco_soft_ite e (coco_arg m l 0) (coco_arg m l 1)
+                                                    (coco_arg m g 1) k b)
+                                     (continue)))))
                      (if (not (coco_push_choice e COCO_CH_GOAL (coco_arg m g 1) k b))
                          (return (coco_fail_err e "out of memory")))
                      (set (-> e goals) (coco_k_push e (coco_arg m g 0) b k))))
@@ -764,6 +827,14 @@
                   ((and (== n 2) (== 0 (strcmp name "->")))
                    ;; a bare if-then fails when the condition does
                    (coco_ite e (coco_arg m g 0) (coco_arg m g 1) (coco_new_atom m "fail") k b))
+
+                  ((and (== n 2) (== 0 (strcmp name "*->")))
+                   ;; a bare soft cut has no else to take away, so it is just
+                   ;; `(C, T)' -- but routed through the same construct, so that
+                   ;; the cut barrier C runs under is the one it would have had
+                   ;; with an else branch present.
+                   (coco_soft_ite e (coco_arg m g 0) (coco_arg m g 1)
+                                  (coco_new_atom m "fail") k b))
 
                   ((and (== n 1) (or (== 0 (strcmp name "\\+")) (== 0 (strcmp name "not"))))
                    (coco_ite e (coco_arg m g 0) (coco_new_atom m "fail") (coco_new_atom m "true") k b))
@@ -849,18 +920,37 @@
                                 (#t (set ok 0))))
                        ;; nobody's builtin: the knowledge base decides
                        (let ((size_t pi . #'(coco_pred_of st m g)))
-                         (if (>= pi ($ (cof st) npreds))
-                             (return (coco_type_error e "callable" g)))
-                         (coco_pred_ensure st pi)
-                         (if (== 0 ($ (nth pi ($ (cof st) preds)) nclauses))
-                             (set ok 0)
-                           (block
-                            (if (not (coco_push_choice e COCO_CH_CLAUSE g k b))
-                                (return (coco_fail_err e "out of memory")))
-                            (let ((size_t ci . #'(- (-> e nchoices) 1)))
-                              (set ($ (nth ci (-> e choices)) pred) pi)
-                              (set ($ (nth ci (-> e choices)) clause_ix) 0)
-                              (if (not (coco_select_clause e ci)) (set ok 0)))))))))))
+                         (cond
+                          ((>= pi ($ (cof st) npreds))
+                           ;; A RAISE FROM INSIDE THE LOOP IS NOT A `return'.
+                           ;; `coco_raise' answers 2 when a catcher took the ball
+                           ;; and the continuation already points at the recovery
+                           ;; goal -- so the loop carries on. Returning that 2
+                           ;; would leave this function answering something every
+                           ;; caller reads as success.
+                           (if (!= 2 (coco_type_error e "callable" g)) (return -1)))
+                          (#t
+                           (coco_pred_ensure st pi)
+                           (cond
+                            ((> ($ (nth pi ($ (cof st) preds)) nclauses) 0)
+                             (block
+                              (if (not (coco_push_choice e COCO_CH_CLAUSE g k b))
+                                  (return (coco_fail_err e "out of memory")))
+                              (let ((size_t ci . #'(- (-> e nchoices) 1)))
+                                (set ($ (nth ci (-> e choices)) pred) pi)
+                                (set ($ (nth ci (-> e choices)) clause_ix) 0)
+                                (if (not (coco_select_clause e ci)) (set ok 0)))))
+                            ;; NO CLAUSES IS NOT THE SAME AS UNDEFINED. A
+                            ;; predicate the program declared dynamic -- or that
+                            ;; an `assert' brought into being and a `retract'
+                            ;; emptied again -- exists and simply has nothing to
+                            ;; prove, so it fails. One nobody ever defined is a
+                            ;; different thing, and the libraries these clauses
+                            ;; came from are written expecting it to raise.
+                            (($ (nth pi ($ (cof st) preds)) dynamic) (set ok 0))
+                            (#t
+                             (if (!= 2 (coco_existence_error e "procedure" name n))
+                                 (return -1))))))))))))
 
               (if (not ok)
                   (if (not (coco_backtrack e)) (return 0)))))
@@ -1364,11 +1454,35 @@
 
   ;;; ---- the database ----
 
+  ;;; ASSERTING INTO A PREDICATE IS WHAT MAKES IT DYNAMIC, which is SWI's rule
+  ;;; and the one that makes `existence_error' safe to raise at all. Without it,
+  ;;; asserting a fact and retracting it again would leave a predicate that is
+  ;;; neither defined nor declared, and the next call to it would raise where
+  ;;; every other Prolog quietly fails.
+  ;;;
+  ;;; Only the GOAL marks. `coco_consult' asserts through the same function, and
+  ;;; marking there would make every consulted predicate dynamic and put a
+  ;;; `:- dynamic' line above all of them in `listing'.
+  (static)
+  (func coco_assert_goal ((coco_engine * e) (size_t g) (int at_end)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t c . #'(coco_deref m (coco_arg m g 0)))
+              (size_t head))
+          (set head c)
+          ;; a rule marks the predicate its HEAD names, not `:-'/2
+          (if (and (coco_is_callable m c) (== (coco_arity m c) 2))
+              (if (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) ":-"))
+                  (set head (coco_deref m (coco_arg m c 0)))))
+          (if (not (coco_assert (-> e st) m c at_end)) (return 0))
+          (if (coco_is_callable m head)
+              (coco_pred_dynamic (-> e st) (coco_name_of m head) (coco_arity m head)))
+          (return 1)))
+
   (func coco_bi_asserta ((coco_engine * e) (size_t g)) (out int)
-        (return (? (coco_assert (-> e st) (-> e m) (coco_arg (-> e m) g 0) 0) 1 0)))
+        (return (coco_assert_goal e g 0)))
 
   (func coco_bi_assertz ((coco_engine * e) (size_t g)) (out int)
-        (return (? (coco_assert (-> e st) (-> e m) (coco_arg (-> e m) g 0) 1) 1 0)))
+        (return (coco_assert_goal e g 1)))
 
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
         (return (? (coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0)) 1 0)))

@@ -76,6 +76,15 @@
     ("b_setval"                2 coco_b_setval)
     ("b_getval"                2 coco_b_getval)
 
+    ("with_output_to"          2 coco_b_with_output_to)
+
+    ("format"                  1 coco_b_format1)
+    ("format"                  2 coco_b_format2)
+    ("format"                  3 coco_b_format3)
+
+    ("code_type"               2 coco_b_code_type)
+    ("char_type"               2 coco_b_char_type)
+
     ("op"                      3 coco_b_op)
     ("$ops"                    1 coco_b_ops)
 
@@ -84,6 +93,82 @@
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; ---- string/1 -------------------------------------------------
+           ;;
+           ;; ALWAYS FAILS, and that is the correct answer rather than a stub.
+           ;; SWI has a string type distinct from atoms and code lists; cocolog
+           ;; does not, so nothing here IS a string and the type check is false
+           ;; of everything. It exists because library code branches on it:
+           ;; SWI's `string_without//2' asks `string(End)' to decide whether to
+           ;; convert its argument, and falls through to the code-list clause
+           ;; when the answer is no -- which is the clause cocolog wants. A
+           ;; missing `string/1' raises there instead, and the fall-through
+           ;; never happens.
+           "string(_) :- fail."
+
+           ;; ---- library(error): must_be/2 and is_of_type/2 ---------------
+           ;;
+           ;; NOT ITS OWN MODULE, and that is a judgement rather than an
+           ;; oversight: two predicates do not earn a file, a registration and
+           ;; a line in the build. They belong to `library(error)' and are
+           ;; recorded as such in MODULES.md, so a later split has somewhere to
+           ;; split from.
+           ;;
+           ;; THE ERROR IT RAISES IS NOT ALWAYS A TYPE ERROR. An unbound value
+           ;; has no type to be wrong, so it is an instantiation error; `var'
+           ;; is the one type a BOUND value fails, so it is an uninstantiation
+           ;; error. test/files/must_be.pl holds all three against SWI.
+           "must_be(Type, X) :- is_of_type(Type, X), !."
+           "must_be(Type, X) :- '$must_be_failed'(Type, X)."
+           "'$must_be_failed'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
+           "'$must_be_failed'(ground, _) :- !, throw(error(instantiation_error, _))."
+           "'$must_be_failed'(_, X) :- var(X), !, throw(error(instantiation_error, _))."
+           ;; A LIST OF THE WRONG THING NAMES THE ELEMENT, not the list. SWI
+           ;; answers `type_error(char, 97)' for `must_be(chars, [97])' -- which
+           ;; is the useful half of the message, and the half a caller cannot
+           ;; work out from `type_error(chars, [97])'.
+           "'$must_be_failed'(chars, X) :- is_list(X), '$bad_elem'(X, char, B), !,"
+           "    throw(error(type_error(char, B), _))."
+           "'$must_be_failed'(codes, X) :- is_list(X), '$bad_elem'(X, code, B), !,"
+           "    throw(error(type_error(code, B), _))."
+           "'$must_be_failed'(Type, X) :- throw(error(type_error(Type, X), _))."
+           "'$bad_elem'([X|_], T, X) :- \\+ is_of_type(T, X), !."
+           "'$bad_elem'([_|Xs], T, B) :- '$bad_elem'(Xs, T, B)."
+
+           "is_of_type(any, _)."
+           "is_of_type(var, X) :- var(X)."
+           "is_of_type(nonvar, X) :- nonvar(X)."
+           "is_of_type(ground, X) :- ground(X)."
+           "is_of_type(atom, X) :- atom(X)."
+           "is_of_type(atomic, X) :- atomic(X)."
+           "is_of_type(callable, X) :- callable(X)."
+           "is_of_type(compound, X) :- compound(X)."
+           "is_of_type(integer, X) :- integer(X)."
+           "is_of_type(float, X) :- float(X)."
+           "is_of_type(number, X) :- number(X)."
+           "is_of_type(boolean, X) :- (X == true ; X == false), !."
+           "is_of_type(nonneg, X) :- integer(X), X >= 0."
+           "is_of_type(positive_integer, X) :- integer(X), X > 0."
+           "is_of_type(negative_integer, X) :- integer(X), X < 0."
+           "is_of_type(oneof(L), X) :- ground(X), memberchk(X, L)."
+           "is_of_type(between(L, H), X) :- number(X), X >= L, X =< H."
+           "is_of_type(list, X) :- is_list(X)."
+           "is_of_type(proper_list, X) :- is_list(X)."
+           "is_of_type(list_or_partial_list, X) :- '$partial_list'(X)."
+           ;; a char is a ONE-character atom and a code a non-negative
+           ;; integer -- `[ab]' is not a list of chars and `[-1]' not one of
+           ;; codes, which is what makes the element-naming above worth having
+           "is_of_type(char, X) :- atom(X), atom_length(X, 1)."
+           "is_of_type(code, X) :- integer(X), X >= 0."
+           "is_of_type(chars, X) :- is_list(X), '$all_of'(X, char)."
+           "is_of_type(codes, X) :- is_list(X), '$all_of'(X, code)."
+           "is_of_type(text, X) :- (atom(X) ; is_list(X)), !."
+           "'$all_of'([], _)."
+           "'$all_of'([X|Xs], T) :- is_of_type(T, X), '$all_of'(Xs, T)."
+           "'$partial_list'(X) :- var(X), !."
+           "'$partial_list'([])."
+           "'$partial_list'([_|T]) :- '$partial_list'(T)."
+
            ;; ---- between/3, which enumerates and so must be clauses --------
            "between(L, H, X) :- integer(X), !, X >= L, X =< H."
            "between(L, H, L) :- L =< H."
@@ -551,6 +636,584 @@
                   (if (and (>= c 97) (<= c 122)) (set (nth i buf) (cast char (- c 32))))
                 (if (and (>= c 65) (<= c 90)) (set (nth i buf) (cast char (+ c 32)))))))
           (return (coco_m_unify_atom e (coco_m_arg e g 1) buf))))
+
+  ;;; A one-character atom, for a `chars(...)' sink.
+  (static)
+  (func coco_fmt_one_char ((coco_engine * e) (char c)) (out size_t)
+        (let ((char one [2]))
+          (set (nth 0 one) c)
+          (set (nth 1 one) (cast char 0))
+          (return (coco_new_atom (coco_m_machine e) one))))
+
+  ;;; ---- format/1,2,3 ---------------------------------------------------
+  ;;;
+  ;;; WHY IT IS HERE AT ALL: SWI's `library(dcg/basics)' generates numbers with
+  ;;; `format(codes(H,T), '~d', [I])' -- four calls, and without them half that
+  ;;; library only works in the parsing direction. It is also the predicate a
+  ;;; Prolog program reaches for more than any other, so its absence was a hole
+  ;;; whoever found it next would have fallen into.
+  ;;;
+  ;;; WHAT IS NOT IMPLEMENTED, and says so rather than guessing: the COLUMN
+  ;;; directives `~t', `~|' and `~+'. They lay text out in fields by measuring
+  ;;; what has been emitted since the last column stop, which is a second pass
+  ;;; over the buffer this does not make. Silently ignoring them would turn a
+  ;;; table into a run-on line and blame the program; the error names the
+  ;;; directive instead.
+
+  ;;; One argument at a time. Answers 0 when there are none left, which every
+  ;;; caller turns into `format/2: not enough arguments'.
+  (static)
+  (func coco_fmt_arg ((const size_t * items) (size_t n) (size_t * i) (size_t * out))
+        (out int)
+        (if (>= (cof i) n) (return 0))
+        (set (cof out) (nth (cof i) items))
+        (set (cof i) (+ (cof i) 1))
+        (return 1))
+
+  ;;; A number in BASE, into BUF. Bases 2..36, digits lower or upper case.
+  (static)
+  (func coco_fmt_radix ((i64 v) (int base) (int upper) (char * buf) (size_t cap))
+        (let ((char tmp [80]) (size_t n . 0) (int neg . 0) (u64 u)
+              (const char * lo . "0123456789abcdefghijklmnopqrstuvwxyz")
+              (const char * up . "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+          (if (< v 0) (block (set neg 1) (set u (cast u64 (- 0 v)))) (set u (cast u64 v)))
+          (if (== u 0) (block (set (nth n tmp) (cast char 48)) (set n 1)))
+          (while (> u 0)
+            (set (nth n tmp) (nth (cast size_t (% u (cast u64 base))) (? upper up lo)))
+            (set n (+ n 1))
+            (set u (/ u (cast u64 base))))
+          (let ((size_t k . 0))
+            (if neg (block (if (< k (- cap 1)) (block (set (nth k buf) (cast char 45))
+                                                      (set k (+ k 1))))))
+            (while (> n 0)
+              (set n (- n 1))
+              (if (< k (- cap 1)) (block (set (nth k buf) (nth n tmp)) (set k (+ k 1)))))
+            (set (nth k buf) (cast char 0)))))
+
+  ;;; `~2d' of 1234 is `12.34': the argument says how many digits are after a
+  ;;; point that is inserted, not how wide the field is.
+  (static)
+  (func coco_fmt_fixed ((coco_strbuf * b) (i64 v) (long places)) (out int)
+        (let ((char digits [80]) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
+          (coco_fmt_radix (? neg (- 0 v) v) 10 0 digits (sizeof digits))
+          (set len (strlen digits))
+          (if neg (if (not (coco_sb_putc b (cast char 45))) (return 0)))
+          (if (<= places 0)
+              (return (coco_sb_put b digits)))
+          ;; a number with fewer digits than places needs leading zeros, and a
+          ;; `0.' in front of them -- `~4d' of 7 is `0.0007'
+          (if (<= len (cast size_t places))
+              (block
+               (if (not (coco_sb_put b "0.")) (return 0))
+               (for ((size_t i . len)) (< i (cast size_t places)) ((++ i))
+                 (if (not (coco_sb_putc b (cast char 48))) (return 0)))
+               (return (coco_sb_put b digits))))
+          (for ((size_t i . 0)) (< i len) ((++ i))
+            (if (== i (- len (cast size_t places)))
+                (if (not (coco_sb_putc b (cast char 46))) (return 0)))
+            (if (not (coco_sb_putc b (nth i digits))) (return 0)))
+          (return 1)))
+
+  ;;; `~D' groups by threes: 1234567 becomes 1,234,567.
+  (static)
+  (func coco_fmt_grouped ((coco_strbuf * b) (i64 v)) (out int)
+        (let ((char digits [80]) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
+          (coco_fmt_radix (? neg (- 0 v) v) 10 0 digits (sizeof digits))
+          (set len (strlen digits))
+          (if neg (if (not (coco_sb_putc b (cast char 45))) (return 0)))
+          (for ((size_t i . 0)) (< i len) ((++ i))
+            (if (and (> i 0) (== 0 (% (- len i) 3)))
+                (if (not (coco_sb_putc b (cast char 44))) (return 0)))
+            (if (not (coco_sb_putc b (nth i digits))) (return 0)))
+          (return 1)))
+
+  ;;; Builds the whole of one format into B. Answers 1, or 0 with ERR set to a
+  ;;; message the caller raises -- so that every way of going wrong is reported
+  ;;; the same way whichever of the three arities was called.
+  (static)
+  (func coco_fmt_build ((coco_engine * e) (const char * f) (const size_t * items)
+                        (size_t n) (coco_strbuf * b) (char * err) (size_t errlen))
+        (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t ai . 0) (size_t i . 0))
+          (while (!= (nth i f) 0)
+            ;; 126 is `~'
+            (if (!= (nth i f) 126)
+                (block (if (not (coco_sb_putc b (nth i f)))
+                           (block (snprintf err errlen "format/2: out of memory") (return 0)))
+                       (set i (+ i 1))
+                       continue))
+            (set i (+ i 1))
+            (let ((long num . 0) (int have . 0) (char d))
+              ;; 42 is `*': the count comes from the arguments
+              (if (== (nth i f) 42)
+                  (let ((size_t a . 0) (i64 v . 0))
+                    (if (not (coco_fmt_arg items n (aof ai) (aof a)))
+                        (block (snprintf err errlen "format/2: not enough arguments") (return 0)))
+                    (if (not (coco_m_int e a (aof v)))
+                        (block (snprintf err errlen "format/2: ~* wants an integer") (return 0)))
+                    (set num (cast long v)) (set have 1) (set i (+ i 1)))
+                (while (and (>= (nth i f) 48) (<= (nth i f) 57))
+                  (set num (+ (* num 10) (cast long (- (nth i f) 48))))
+                  (set have 1)
+                  (set i (+ i 1))))
+              (set d (nth i f))
+              (if (== d 0)
+                  (block (snprintf err errlen "format/2: the format ends in `~~'") (return 0)))
+              (set i (+ i 1))
+
+              ;; 126 `~~', 110 `~n', 105 `~i'
+              (if (== d 126)
+                  (block (coco_sb_putc b (cast char 126)) continue))
+              (if (== d 110)
+                  (block (for ((long k . 0)) (< k (? have num 1)) ((++ k))
+                           (coco_sb_putc b (cast char 10)))
+                         continue))
+              (if (== d 105)
+                  (let ((size_t a . 0))
+                    (if (not (coco_fmt_arg items n (aof ai) (aof a)))
+                        (block (snprintf err errlen "format/2: not enough arguments") (return 0)))
+                    continue))
+              ;; 116 `~t', 124 `~|', 43 `~+' -- see the head of this section
+              (if (or (or (== d 116) (== d 124)) (== d 43))
+                  (block (snprintf err errlen
+                                   "format/2: cocolog has no column directives (~~t, ~~| and ~~+)")
+                         (return 0)))
+
+              ;; everything below takes an argument
+              (let ((size_t a . 0))
+                (if (not (coco_fmt_arg items n (aof ai) (aof a)))
+                    (block (snprintf err errlen "format/2: not enough arguments") (return 0)))
+
+                ;; 119 `~w', 113 `~q', 112 `~p'
+                (if (or (or (== d 119) (== d 113)) (== d 112))
+                    (block (coco_write_term m b a (? (== d 113) 1 0) 0) continue))
+
+                ;; 97 `~a', 115 `~s' -- an atom, or a list of codes
+                (if (or (== d 97) (== d 115))
+                    (let ((char buf [8192]))
+                      (if (not (coco_m_text e a buf (sizeof buf)))
+                          (block (snprintf err errlen
+                                           "format/2: ~~%c wants text" d)
+                                 (return 0)))
+                      (coco_sb_put b buf)
+                      continue))
+
+                ;; 99 `~c' -- a code, NUM times
+                (if (== d 99)
+                    (let ((i64 v . 0))
+                      (if (not (coco_m_int e a (aof v)))
+                          (block (snprintf err errlen "format/2: ~~c wants a code") (return 0)))
+                      (for ((long k . 0)) (< k (? have num 1)) ((++ k))
+                        (coco_sb_putc b (cast char v)))
+                      continue))
+
+                ;; 100 `~d', 68 `~D'
+                (if (or (== d 100) (== d 68))
+                    (let ((i64 v . 0))
+                      (if (not (coco_m_int e a (aof v)))
+                          (block (snprintf err errlen "format/2: ~~%c wants an integer" d)
+                                 (return 0)))
+                      (if (== d 68)
+                          (coco_fmt_grouped b v)
+                        (coco_fmt_fixed b v (? have num 0)))
+                      continue))
+
+                ;; 114 `~r', 82 `~R' -- NUM is the base
+                (if (or (== d 114) (== d 82))
+                    (let ((i64 v . 0) (char buf [80]))
+                      (if (not (coco_m_int e a (aof v)))
+                          (block (snprintf err errlen "format/2: ~~%c wants an integer" d)
+                                 (return 0)))
+                      (if (or (< num 2) (> num 36))
+                          (block (snprintf err errlen
+                                           "format/2: ~~%c wants a base between 2 and 36" d)
+                                 (return 0)))
+                      (coco_fmt_radix v (cast int num) (? (== d 82) 1 0) buf (sizeof buf))
+                      (coco_sb_put b buf)
+                      continue))
+
+                ;; 101 `~e', 102 `~f', 103 `~g'
+                (if (or (or (== d 101) (== d 102)) (== d 103))
+                    (let ((double v . 0.0) (i64 iv . 0) (char buf [128]) (char spec [16]))
+                      (if (not (coco_m_float e a (aof v)))
+                          (if (coco_m_int e a (aof iv))
+                              (set v (cast double iv))
+                            (block (snprintf err errlen "format/2: ~~%c wants a number" d)
+                                   (return 0))))
+                      (snprintf spec (sizeof spec) "%%.%ld%c" (? have num 6) d)
+                      (snprintf buf (sizeof buf) spec v)
+                      (coco_sb_put b buf)
+                      continue))
+
+                (snprintf err errlen "format/2: no such directive ~~%c" d)
+                (return 0))))
+          (return 1)))
+
+  ;;; The arguments, as an array. `format("~w", foo)' is legal and means one
+  ;;; argument, so anything that is not a proper list is taken for a single
+  ;;; term -- SWI's rule, and the reason `format("~w", [1,2])' means two
+  ;;; arguments while `format("~w", [[1,2]])' means one.
+  (static)
+  (func coco_fmt_args ((coco_engine * e) (size_t t) (size_t ** items) (size_t * n)
+                       (size_t * one)) (out int)
+        (if (coco_m_list_array e t items n) (return 1))
+        (set (nth 0 one) t)
+        (set (cof items) one)
+        (set (cof n) 1)
+        (return 0))          ; 0 means "do not free it"
+
+  ;;; Puts TEXT where SINK says. SINK is 0 for stdout; otherwise one of the
+  ;;; forms `format/3' and `with_output_to/2' share -- a stream by name, or a
+  ;;; term to unify with the text.
+  ;;;
+  ;;; `codes(H, T)' and `chars(H, T)' ask for a DIFFERENCE list: H is the text
+  ;;; followed by T, not by `[]'. That is what makes the four `format/3' calls
+  ;;; in SWI's dcg/basics work as grammar bodies -- each appends to whatever is
+  ;;; still to come, which is exactly what a DCG body has to do.
+  (static)
+  (func coco_sink_deliver ((coco_engine * e) (size_t sink) (const char * out)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)))
+          (if (== sink 0) (block (fputs out stdout) (return 1)))
+
+          (let ((size_t d . #'(coco_deref m sink)))
+            (if (not (coco_is_callable m d))
+                (return (coco_m_domain_error e "output_sink" sink)))
+
+            ;; a stream by name
+            (if (== (coco_arity m d) 0)
+                (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
+                  (if (== 0 (strcmp nm "user_output")) (block (fputs out stdout) (return 1)))
+                  (if (== 0 (strcmp nm "user_error")) (block (fputs out stderr) (return 1)))
+                  (return (coco_m_domain_error e "output_sink" sink))))
+
+            (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d)))
+                  (u32 ar . #'(coco_arity m d))
+                  (int as_chars . 0) (int as_atom . 0))
+              (if (== 0 (strcmp nm "atom")) (set as_atom 1))
+              (if (== 0 (strcmp nm "chars")) (set as_chars 1))
+              (if (and (and (not as_atom) (not as_chars)) (!= 0 (strcmp nm "codes")))
+                  (return (coco_m_domain_error e "output_sink" sink)))
+              (if (or (< ar 1) (> ar 2))
+                  (return (coco_m_domain_error e "output_sink" sink)))
+              ;; `atom(A, B)' is not a thing -- only the list sinks take a tail
+              (if (and as_atom (== ar 2))
+                  (return (coco_m_domain_error e "output_sink" sink)))
+
+              (if as_atom
+                  (return (? (coco_m_unify_atom e (coco_arg m d 0) out) 1 0)))
+
+              (let ((size_t tail . #'(? (== ar 2) (coco_arg m d 1) (coco_m_nil e)))
+                    (size_t acc) (size_t len . #'(strlen out)))
+                (set acc tail)
+                (while (> len 0)
+                  (set len (- len 1))
+                  (let ((size_t c . #'(? as_chars
+                                         (coco_fmt_one_char e (nth len out))
+                                         (coco_new_int m (cast i64 (bitand (cast int (nth len out)) 255))))))
+                    (set acc (coco_m_cons e c acc))))
+                (return (? (coco_m_unify e (coco_arg m d 0) acc) 1 0)))))))
+
+  ;;; Shared by all three arities. SINK is 0 for stdout.
+  (static)
+  (func coco_fmt_do ((coco_engine * e) (size_t sink) (size_t fmt) (size_t argt))
+        (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (char f [8192]) (char err [192])
+              (coco_strbuf b) (size_t * items . nil) (size_t n . 0)
+              (size_t one [1]) (int owned . 0) (int ok . 0))
+
+          ;; the format itself is text: an atom, or the code list "..." reads as
+          (if (not (coco_m_text e fmt f (sizeof f)))
+              (return (coco_m_type_error e "text" fmt)))
+
+          (set owned (coco_fmt_args e argt (aof items) (aof n) one))
+          (coco_sb_init (aof b))
+          (set (nth 0 err) (cast char 0))
+          (set ok (coco_fmt_build e f items n (aof b) err (sizeof err)))
+          (if owned (free items))
+
+          ;; WHAT WAS FORMATTED BEFORE THE ERROR STILL COMES OUT, when the
+          ;; sink is a stream. SWI formats straight to the stream and so emits
+          ;; everything up to the directive that failed; this builds a buffer
+          ;; first, so it has to put the buffer out by hand to behave the same.
+          ;; `format("~w ~w", [one])' prints `one ' and then raises, in both.
+          ;; A term sink gets nothing: there is no half-built atom to unify.
+          (if (not ok)
+              (block
+               (if (== sink 0)
+                   (if (!= ($ b s) nil) (fputs ($ b s) stdout)))
+               (coco_sb_free (aof b))
+               (return (coco_m_error e err ""))))
+
+          (let ((int rc . #'(coco_sink_deliver e sink (? (== ($ b s) nil) "" ($ b s)))))
+            (coco_sb_free (aof b))
+            (return rc))))
+
+  ;;; ---- with_output_to/2 -----------------------------------------------
+  ;;;
+  ;;; `with_output_to(codes(H, T), write(F))' -- SWI's dcg/basics uses exactly
+  ;;; that, once, to render a float. It is also the general answer to "what did
+  ;;; this goal print", which nothing else here can ask.
+  ;;;
+  ;;; TWO AWKWARD THINGS, both worth knowing about before touching this.
+  ;;;
+  ;;; FIRST, THE REDIRECTION IS AT THE FILE DESCRIPTOR, not at a `FILE *' this
+  ;;; code passes around. cocolog writes with `printf', `fputs' and `fputc' to
+  ;;; the literal `stdout' in some seventy places; threading a stream argument
+  ;;; through all of them is the tidier design and a much larger change. So fd 1
+  ;;; is pointed at a `tmpfile' for the duration and put back afterwards. A
+  ;;; temporary file and not a pipe: a pipe holds 64K and a goal that printed
+  ;;; more than that would block for ever with nobody reading.
+  ;;;
+  ;;; SECOND, THE GOAL RUNS IN A NESTED ENGINE and so cannot be suspended. That
+  ;;; is the same limit `findall/3' has and for the same reason -- a builtin
+  ;;; cannot hand a continuation back to the engine that called it. A machine
+  ;;; frozen in the middle of one of these would have to freeze a redirected
+  ;;; file descriptor with it, which is not a thing a database row can hold.
+  ;;;
+  ;;; It is `once/1' and not a generator: the FIRST solution is kept, with its
+  ;;; bindings, and the goal is not re-entered. SWI's is semi-deterministic too.
+  (func coco_b_with_output_to ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t sink . #'(coco_m_arg e g 0))
+              (size_t goal . #'(coco_m_arg e g 1))
+              (coco_engine sub)
+              (FILE * tmp . nil) (int saved . -1) (int rc . 0)
+              (char * text . nil) (long len . 0))
+
+          (if (coco_m_is_var e goal) (return (coco_m_instantiation_error e)))
+
+          (set tmp (tmpfile))
+          (if (== tmp nil) (return (coco_m_error e "with_output_to/2" "cannot open a temporary file")))
+          (fflush stdout)
+          (set saved (dup 1))
+          (if (< saved 0)
+              (block (fclose tmp)
+                     (return (coco_m_error e "with_output_to/2" "cannot save stdout"))))
+          (if (< (dup2 (fileno tmp) 1) 0)
+              (block (close saved) (fclose tmp)
+                     (return (coco_m_error e "with_output_to/2" "cannot redirect stdout"))))
+
+          (coco_engine_init (aof sub) m st)
+          ;; the inner goal spends the outer one's remaining budget, so a step
+          ;; limit cannot be overrun from in here
+          (if (!= (-> e max_steps) 0)
+              (set ($ sub max_steps)
+                   (? (>= (-> e steps) (-> e max_steps)) 1
+                      (- (-> e max_steps) (-> e steps)))))
+          (coco_engine_ask (aof sub) goal)
+          (set rc (coco_engine_next (aof sub)))
+          (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (if (== rc -1) (snprintf (-> e err) 192 "%s" ($ sub err)))
+          (coco_engine_free (aof sub))
+
+          ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened. An early
+          ;; return from here on would leave the process writing into a file
+          ;; nobody will ever read.
+          (fflush stdout)
+          (dup2 saved 1)
+          (close saved)
+
+          (if (!= rc 1)
+              (block (fclose tmp)
+                     (if (== rc -1) (return -1))
+                     (return 0)))
+
+          (fflush tmp)
+          (fseek tmp 0 SEEK_END)
+          (set len (ftell tmp))
+          (if (< len 0) (set len 0))
+          (set text (cast (char *) (malloc (cast size_t (+ len 1)))))
+          (if (== text nil)
+              (block (fclose tmp)
+                     (return (coco_m_error e "with_output_to/2" "out of memory"))))
+          (rewind tmp)
+          (if (> len 0)
+              (if (!= (cast long (fread text 1 (cast size_t len) tmp)) len)
+                  (block (free text) (fclose tmp)
+                         (return (coco_m_error e "with_output_to/2" "cannot read back the output")))))
+          (set (nth (cast size_t len) text) (cast char 0))
+          (fclose tmp)
+
+          (let ((int out . #'(coco_sink_deliver e sink text)))
+            (free text)
+            (return out))))
+
+  (func coco_b_format1 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_fmt_do e 0 (coco_m_arg e g 0) (coco_m_nil e))))
+
+  (func coco_b_format2 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_fmt_do e 0 (coco_m_arg e g 0) (coco_m_arg e g 1))))
+
+  (func coco_b_format3 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_fmt_do e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2))))
+
+
+  ;;; ---- character classification ---------------------------------------
+  ;;;
+  ;;; `code_type/2' and `char_type/2'. WRITTEN AGAINST A RUNNING SWI, not
+  ;;; against its manual, because the two disagree in places that matter here:
+  ;;;
+  ;;;   `alpha' is LETTERS ONLY -- the manual says "letter or digit", and the
+  ;;;   implementation agrees with neither the manual nor `alnum'.
+  ;;;
+  ;;;   `to_upper(L)' gives the LOWERCASE of the code, and `to_lower(U)' the
+  ;;;   uppercase. Read once that seems backwards; the name describes what the
+  ;;;   code can be converted TO, and the argument is the other case. SWI's own
+  ;;;   `library(dcg/basics)' relies on it: `alpha_to_lower' matches a letter
+  ;;;   and takes `to_upper(L)' to get L lowercased.
+  ;;;
+  ;;; test/files/ctype.pl walks 0..127 through every category in both systems
+  ;;; and compares, so a guess here does not survive.
+  ;;;
+  ;;; ASCII ONLY. `isalpha' and friends are locale-dependent and cocolog reads
+  ;;; bytes, so the classification is written out rather than delegated -- a C
+  ;;; library in another locale must not change what a program means.
+  (static)
+  (func coco_ct_upper ((int c)) (out int) (return (? (and (>= c 65) (<= c 90)) 1 0)))
+  (static)
+  (func coco_ct_lower ((int c)) (out int) (return (? (and (>= c 97) (<= c 122)) 1 0)))
+  (static)
+  (func coco_ct_digit ((int c)) (out int) (return (? (and (>= c 48) (<= c 57)) 1 0)))
+  (static)
+  (func coco_ct_alpha ((int c)) (out int)
+        (return (? (or (coco_ct_upper c) (coco_ct_lower c)) 1 0)))
+  (static)
+  (func coco_ct_alnum ((int c)) (out int)
+        (return (? (or (coco_ct_alpha c) (coco_ct_digit c)) 1 0)))
+  (static)
+  (func coco_ct_tolower ((int c)) (out int) (return (? (coco_ct_upper c) (+ c 32) c)))
+  (static)
+  (func coco_ct_toupper ((int c)) (out int) (return (? (coco_ct_lower c) (- c 32) c)))
+
+  ;;; The hex weight of C, or -1.
+  (static)
+  (func coco_ct_xweight ((int c)) (out int)
+        (if (coco_ct_digit c) (return (- c 48)))
+        (if (and (>= c 97) (<= c 102)) (return (+ 10 (- c 97))))
+        (if (and (>= c 65) (<= c 70)) (return (+ 10 (- c 65))))
+        (return -1))
+
+  ;;; The categories with no argument. Answers 1, 0, or -1 for "not a category
+  ;;; I know", which the caller turns into a domain error rather than a silent
+  ;;; failure -- a typo in a type name should say so.
+  (static)
+  (func coco_ct_plain ((const char * t) (int c)) (out int)
+        (if (== 0 (strcmp t "alpha"))   (return (coco_ct_alpha c)))
+        (if (== 0 (strcmp t "alnum"))   (return (coco_ct_alnum c)))
+        (if (== 0 (strcmp t "digit"))   (return (coco_ct_digit c)))
+        (if (== 0 (strcmp t "upper"))   (return (coco_ct_upper c)))
+        (if (== 0 (strcmp t "lower"))   (return (coco_ct_lower c)))
+        ;; csym is alnum plus underscore, csymf the same without the digits:
+        ;; what may appear in a C identifier, and what may start one
+        (if (== 0 (strcmp t "csym"))    (return (? (or (coco_ct_alnum c) (== c 95)) 1 0)))
+        (if (== 0 (strcmp t "csymf"))   (return (? (or (coco_ct_alpha c) (== c 95)) 1 0)))
+        (if (== 0 (strcmp t "ascii"))   (return (? (and (>= c 0) (<= c 127)) 1 0)))
+        ;; `space' is every blank; `white' only the two that can sit inside a
+        ;; line. That distinction is the whole reason both exist.
+        (if (== 0 (strcmp t "space"))
+            (return (? (or (== c 32) (and (>= c 9) (<= c 13))) 1 0)))
+        (if (== 0 (strcmp t "white"))   (return (? (or (== c 32) (== c 9)) 1 0)))
+        (if (== 0 (strcmp t "cntrl"))   (return (? (or (< c 32) (== c 127)) 1 0)))
+        (if (== 0 (strcmp t "graph"))   (return (? (and (> c 32) (< c 127)) 1 0)))
+        (if (== 0 (strcmp t "print"))   (return (? (and (>= c 32) (< c 127)) 1 0)))
+        (if (== 0 (strcmp t "punct"))
+            (return (? (and (and (> c 32) (< c 127)) (not (coco_ct_alnum c))) 1 0)))
+        (if (== 0 (strcmp t "end_of_line")) (return (? (and (>= c 10) (<= c 13)) 1 0)))
+        (if (== 0 (strcmp t "newline"))  (return (? (== c 10) 1 0)))
+        (if (== 0 (strcmp t "period"))   (return (? (or (or (== c 46) (== c 33)) (== c 63)) 1 0)))
+        (if (== 0 (strcmp t "quote"))
+            (return (? (or (or (== c 39) (== c 34)) (== c 96)) 1 0)))
+        ;; what may start and continue a Prolog variable or identifier
+        (if (== 0 (strcmp t "prolog_var_start"))
+            (return (? (or (coco_ct_upper c) (== c 95)) 1 0)))
+        (if (== 0 (strcmp t "prolog_atom_start")) (return (coco_ct_lower c)))
+        (if (== 0 (strcmp t "prolog_identifier_continue"))
+            (return (? (or (coco_ct_alnum c) (== c 95)) 1 0)))
+        (if (== 0 (strcmp t "prolog_symbol"))
+            ;; `c' is guarded because `strchr' finds the terminating NUL and
+            ;; would call code 0 a symbol character
+            (return (? (and (!= c 0) (!= nil (strchr "+-*/\\^<>=~:.?@#&$" c))) 1 0)))
+        (return -1))
+
+  ;;; The shared half of `code_type/2' and `char_type/2'. AS_CHAR says whether
+  ;;; the argument, and any code the category hands back, is a one-character
+  ;;; atom rather than a number -- the only difference between the two.
+  (static)
+  (func coco_b_ctype ((coco_engine * e) (size_t g) (int as_char)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t ct . #'(coco_m_arg e g 0))
+              (size_t ty . #'(coco_m_arg e g 1))
+              (int c . 0))
+
+          ;; ENUMERATING IS NOT SUPPORTED. `code_type(C, alpha)' with C unbound
+          ;; has fifty-two answers and a builtin here cannot succeed twice --
+          ;; see the head of lib/solve.cicili. Raising says so; failing would
+          ;; read as "no letters are alphabetic".
+          (if (coco_m_is_var e ct) (return (coco_m_instantiation_error e)))
+
+          (if as_char
+              (let ((char buf [8]))
+                (if (not (coco_m_text e ct buf (sizeof buf)))
+                    (return (coco_m_type_error e "character" ct)))
+                (if (!= 1 (cast int (strlen buf)))
+                    (return (coco_m_type_error e "character" ct)))
+                (set c (bitand (cast int (nth 0 buf)) 255))) 
+            (let ((i64 v . 0))
+              (if (not (coco_m_int e ct (aof v)))
+                  (return (coco_m_type_error e "integer" ct)))
+              (set c (cast int v))))
+
+          (if (coco_m_is_var e ty) (return (coco_m_instantiation_error e)))
+          (if (not (coco_m_is_atom e ty))
+              ;; a category with an argument: `upper(L)', `xdigit(W)' and so on
+              (let ((coco_machine * mm . #'(coco_m_machine e))
+                    (size_t d . #'(coco_deref mm ty)))
+                (if (or (not (coco_is_callable mm d)) (!= (coco_arity mm d) 1))
+                    (return (coco_m_type_error e "char_type" ty)))
+                (let ((const char * tn . #'(coco_atom_name mm (coco_name_of mm d)))
+                      (size_t a . #'(coco_arg mm d 0))
+                      (int want . -1) (int weight . 0))
+
+                  (if (== 0 (strcmp tn "upper"))
+                      (block (if (not (coco_ct_upper c)) (return 0))
+                             (set want (coco_ct_tolower c))))
+                  (if (== 0 (strcmp tn "lower"))
+                      (block (if (not (coco_ct_lower c)) (return 0))
+                             (set want (coco_ct_toupper c))))
+                  ;; to_upper/to_lower succeed for ANY code -- they are "can be
+                  ;; converted", and a code with no other case converts to itself
+                  (if (== 0 (strcmp tn "to_upper")) (set want (coco_ct_tolower c)))
+                  (if (== 0 (strcmp tn "to_lower")) (set want (coco_ct_toupper c)))
+
+                  (if (== 0 (strcmp tn "digit"))
+                      (block (if (not (coco_ct_digit c)) (return 0))
+                             ;; the WEIGHT, not the code: `digit(W)' of `7' is 7
+                             (set weight (- c 48))
+                             (return (? (coco_m_unify_int e a (cast i64 weight)) 1 0))))
+                  (if (== 0 (strcmp tn "xdigit"))
+                      (block (set weight (coco_ct_xweight c))
+                             (if (< weight 0) (return 0))
+                             (return (? (coco_m_unify_int e a (cast i64 weight)) 1 0))))
+
+                  (if (< want 0) (return (coco_m_type_error e "char_type" ty)))
+                  (if as_char
+                      (let ((char one [2]))
+                        (set (nth 0 one) (cast char want))
+                        (set (nth 1 one) (cast char 0))
+                        (return (? (coco_m_unify_atom e a one) 1 0))))
+                  (return (? (coco_m_unify_int e a (cast i64 want)) 1 0)))))
+
+          (let ((int r . #'(coco_ct_plain (coco_m_atom e ty) c)))
+            (if (< r 0) (return (coco_m_type_error e "char_type" ty)))
+            (return r))))
+
+  (func coco_b_code_type ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_b_ctype e g 0)))
+
+  (func coco_b_char_type ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_b_ctype e g 1)))
 
   (func coco_b_upcase ((coco_engine * e) (size_t g)) (out int) (return (coco_b_case e g 1)))
   (func coco_b_downcase ((coco_engine * e) (size_t g)) (out int) (return (coco_b_case e g 0)))

@@ -45,6 +45,21 @@ fixtures() {
   esac
 }
 
+# The vendored SWI libraries a case needs consulted first. SWI finds them on
+# its own library path from the `:- use_module' line in the case; cocolog has no
+# library path, so they are named here and consulted ahead of the case file.
+#
+# THE FILES ARE SWI'S, UNMODIFIED -- see lib/vendor/swipl/README.md. Running the
+# very same bytes under both systems is the whole point: if this passes, the
+# copy is faithful AND cocolog runs it faithfully, and if it fails only one of
+# those two can be at fault.
+libs_for() {
+  case "$1" in
+    dcg_basics)     echo "$ROOT/lib/vendor/swipl/dcg_basics.pl" ;;
+    dcg_high_order) echo "$ROOT/lib/vendor/swipl/dcg_basics.pl $ROOT/lib/vendor/swipl/dcg_high_order.pl" ;;
+  esac
+}
+
 # One run of one system in a clean sandbox.
 run_one() {
   rm -rf "$SANDBOX" && mkdir -p "$SANDBOX" || return 1
@@ -61,7 +76,9 @@ for c in $cases; do
   [ -f "$pl" ] || { echo "  $c: no such case"; failures=$((failures + 1)); continue; }
 
   swi=$(run_one "$c" "$SWIPL" -q -g main -t halt "$pl")
-  coco=$(run_one "$c" "$COCOLOG" --local run "$pl" main)
+  # `run' takes the LAST argument as the goal when it is given more than one,
+  # so `main' is written out even though it is also the default
+  coco=$(run_one "$c" "$COCOLOG" --local run $(libs_for "$c") "$pl" main)
 
   if [ "$swi" = "$coco" ]; then
     lines=$(printf '%s\n' "$swi" | grep -c .)

@@ -5,9 +5,11 @@ again rather than to look finished.
 
 ## Done and tested
 
-`make test` ends `red: 0`. The database suites **skip** rather than fail when
-there is no server, because "no server here" and "the backend is wrong" are
-different findings.
+`make test` ends `red: 1`: nine of the ten suites are green and `test/groups.sh`
+is not — see **Open: twelve workers can wedge**, below, which predates the
+grammar work. The database suites **skip** rather than fail when there is no
+server, because "no server here" and "the backend is wrong" are different
+findings.
 
 | suite | what it establishes |
 |---|---|
@@ -15,7 +17,7 @@ different findings.
 | `test/syntax.cicili` | the reader and the writer against each other: precedence, associativity, the spacing that decides whether `-(1)` reads back as a compound or an integer, lists, curly terms, quoting, radix and character literals — 41 checks |
 | `test/solve.cicili` | backtracking, cut, negation, if-then-else, arithmetic, lists, term inspection, assert/retract, `:- dynamic` in all three spec shapes and as a goal, `listing`, a 50000-deep deterministic recursion that must leave no choice points, and a failing goal that must not grow the heap |
 | `test/module.cicili` | the module seam itself: no modules behaves as before modules, three at once, a module's Coco half calling its own C half, a module that is only clauses, precedence against both builtins and the knowledge base, a failing module predicate leaving no binding, and the Coco half coming back after the store is emptied — 22 checks |
-| `test/files/*.pl` | the Files, Lists, Apply and Builtins libraries, run by **both swipl and cocolog** in the same fresh directory and compared byte for byte — 287 lines of agreement across nine cases |
+| `test/files/*.pl` | the Files, Lists, Apply, Builtins and DCG libraries — and SWI's own `dcg/basics` and `dcg/high_order`, unedited — run by **both swipl and cocolog** in the same fresh directory and compared byte for byte. 555 lines of agreement across nineteen cases |
 | `test/state.cicili` | a machine run to one solution, frozen, its machine and store **freed**, thawed into new ones, and finishing the proof correctly; and `freeze(thaw(x)) == x` byte for byte |
 | `test/zigurat.cicili` | the Cicili binding against a real server: every parameter width, a cursor, and a Text large enough to matter |
 | `test/shared.cicili` | ten interpreters in sequence — one writes the knowledge base, a second built from nothing answers from it, a third suspends mid-proof and is freed, a fourth picks it up and finishes it, a fifth asserts at run time, a sixth sees it, a seventh retracts, an eighth agrees it is gone, a ninth declares two predicates dynamic and a tenth — which starts knowing nothing — warms its store and finds them declared and empty. Then the same knowledge base over HTTP, and a machine written over the binary protocol picked up over HTTP — 39 checks |
@@ -362,6 +364,60 @@ there; the strict reading buys nothing and refuses terms that are perfectly
 clear. The **writer** is where the priority still matters, and it brackets such
 an atom when it stands as an operand.
 
+## Open: twelve workers can wedge, and it is not the DCG work
+
+`test/groups.sh` is **RED**, and has been since before the grammar work went in
+— verified by stashing the whole change, rebuilding at `a0fd497` and running it
+there, where it fails identically. Everything else in `make test` is green.
+
+**What happens.** Six of the twelve workers never take a turn. The client is
+blocked in `recv` waiting for the server's reply to `cocolog::machine_claim_named`,
+and the reply never comes:
+
+```
+#0  __libc_recv (fd=3, ...)
+#2  rd (c=..., n=1) at client/zigurat.c:180
+#4  zg_result (c=..., out=...) at client/zigurat.c:462
+#5  claim (worker="c1", wanted="state-c", ...) at cocolog.c:9415
+#6  cmd_work (worker="c1", wanted="state-c")
+```
+
+Once that has happened the server answers nobody: a later single worker on an
+unrelated knowledge base hangs the same way until it is restarted.
+
+**What has been ruled out.** Not the goal — group `c`'s `ancestor(X,zoe)` runs
+correctly on its own, and by hand through `start`/`step` to its full four
+answers. Not the number of connections — twelve concurrent `query` clients are
+fine. Not three-way contention — three workers on one machine are fine. Not
+`--timeout`, which was the first suspect and makes no difference either way.
+
+**What is left, and it is not pinned down.** It is nondeterministic. Twelve
+workers where all four machines exist first have passed every time tried;
+started worker-first — which is what the test does deliberately, so that no
+group can finish before its partners are up — the same twelve sometimes pass
+and sometimes hang. Which groups hang varies between runs: usually the ones
+created last, but a run has failed on group `a` as well, so "the machines
+created last" is a tendency and not the rule. Anything built on that tendency
+would be built on sand.
+
+Two practical consequences while it is open. A hung run **strands its machines
+as claimed** and the next run's `drop` does not clear a claimed one, so
+`cocolog --kb groups_test list` and drop what is there before believing a later
+result. And a wedged server answers **nobody**, on any knowledge base — so a
+suite run that overlaps a wedged server reports failures in `ruler` and
+elsewhere that have nothing to do with either.
+
+**Where the fault could be.** Either cocolog's own `parsi/02-procedures.parsi`
+— `machine_claim_named` and the transaction around it — or ZiguratIP, which is
+frozen. Deciding which needs reading both, and the second cannot be changed
+without asking. It is not diagnosed further here rather than half-diagnosed and
+guessed at.
+
+Related and already known: **a claim has no lease**, so a worker killed while
+holding a machine strands it as claimed until `cocolog drop`. The hangs leave
+exactly that behind, which is why a failed run needs its machines dropped before
+the next one means anything.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
@@ -379,10 +435,23 @@ an atom when it stands as an operand.
   every proof answers everything twice; `cocolog forget` is how a knowledge base
   is emptied.
 * **A directive is not run as a goal.** `coco_directive` handles `dynamic/1` and
-  ignores `discontiguous/1`; anything else in a consulted file is an error
-  naming what it was. `:- initialization(main).` would want an engine, and the
-  store is a layer below the engine — the file that would have to call into
-  solve.cicili is compiled before it.
+  `op/3`, ignores `discontiguous/1`, `multifile/1`, `module/2`, `use_module/1,2`
+  and `meta_predicate/1`, and accepts `set_prolog_flag(double_quotes, codes)`
+  because that is what the reader actually does — any other value of that flag
+  is refused rather than nodded at. Anything else in a consulted file is an
+  error naming what it was. `:- initialization(main).` and
+  `:- ( catch(...) -> ... ; ... ).` would want an engine, and the store is a
+  layer below the engine — the file that would have to call into solve.cicili is
+  compiled before it.
+* **`format/2` has no column directives.** `~t`, `~|` and `~+` measure what has
+  been written since the last column stop, which is a second pass over the
+  buffer this does not make. They raise an error naming themselves rather than
+  being quietly ignored — dropping them turns a table into a run-on line and
+  blames the program.
+* **`with_output_to/2` redirects file descriptor 1**, because cocolog writes to
+  the literal `stdout` in some seventy places rather than to a stream it passes
+  around. Its goal runs in a nested engine, so — like `findall/3` — it cannot be
+  suspended.
 * **`listing` writes to stdout.** It is a builtin that prints, not one that
   builds a term, so a program cannot capture what it produces. `listing/0` and
   `listing/1` both answer once and are deterministic like every other builtin.

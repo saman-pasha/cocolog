@@ -525,6 +525,7 @@
           ;; there is nothing for it to do -- but a file that says it is
           ;; deliberate should not be refused for saying so.
           (if (and (== n 1) (== 0 (strcmp name "discontiguous"))) (return 1))
+          (if (and (== n 1) (== 0 (strcmp name "multifile"))) (return 1))
 
           ;; `:- op(P, T, N)'. THIS ONE HAS TO BE HERE and not left to the
           ;; engine, because a declaration has to take effect for the REST OF
@@ -536,6 +537,51 @@
           ;; what a directive like this is about.
           (if (and (== n 3) (== 0 (strcmp name "op")))
               (return (coco_op_apply m g err errlen)))
+
+          ;; ---- what the head of a library file says --------------------
+          ;;
+          ;; ACCEPTED AND IGNORED, so that a file written for a Prolog with
+          ;; modules can be read here unedited. cocolog has ONE namespace: a
+          ;; `:- module(m, [a/1])' does not hide anything, so every predicate
+          ;; in such a file is callable whether the file exported it or not.
+          ;; That is a real difference and not a shim -- it is recorded in
+          ;; MODULES.md rather than pretended away. Refusing the directive
+          ;; would only mean editing every borrowed file, which buys nothing
+          ;; and loses the ability to diff a copy against its upstream.
+          ;;
+          ;; `use_module' and `ensure_loaded' name a file to load; cocolog is
+          ;; told what to consult on its command line instead, so a library
+          ;; that asks for another one is relying on the caller having listed
+          ;; both. `meta_predicate' exists to tell a module system which
+          ;; arguments to qualify, and with no modules there is nothing to say.
+          (if (and (== n 2) (== 0 (strcmp name "module"))) (return 1))
+          (if (and (<= n 2) (== 0 (strcmp name "use_module"))) (return 1))
+          (if (and (== n 1) (== 0 (strcmp name "ensure_loaded"))) (return 1))
+          (if (and (== n 1) (== 0 (strcmp name "meta_predicate"))) (return 1))
+
+          ;; `:- set_prolog_flag(double_quotes, codes)'. NOT accepted and
+          ;; ignored -- a flag is a request to read the rest of the file
+          ;; differently, and nodding at one cocolog will not honour would make
+          ;; every `"..."' in that file mean something other than it says.
+          ;; cocolog's reader has exactly one behaviour: a double-quoted string
+          ;; is a list of character codes. So the value that names it is
+          ;; accepted and every other value is refused, by name.
+          (if (and (== n 2) (== 0 (strcmp name "set_prolog_flag")))
+              (let ((size_t f . #'(coco_deref m (coco_arg m g 0)))
+                    (size_t v . #'(coco_deref m (coco_arg m g 1))))
+                (if (or (not (coco_is_callable m f)) (!= (coco_arity m f) 0))
+                    (block (snprintf err errlen "set_prolog_flag: the flag must be an atom")
+                           (return 0)))
+                (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m f)) "double_quotes"))
+                    (block (snprintf err errlen "set_prolog_flag: cocolog has no flag `%s'"
+                                     (coco_atom_name m (coco_name_of m f)))
+                           (return 0)))
+                (if (and (coco_is_callable m v) (== (coco_arity m v) 0)
+                         (== 0 (strcmp (coco_atom_name m (coco_name_of m v)) "codes")))
+                    (return 1))
+                (snprintf err errlen
+                          "set_prolog_flag: double_quotes is codes here and cannot be changed")
+                (return 0)))
 
           (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))
           (return 0)))
@@ -572,6 +618,23 @@
 
   (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int)
         (set clause (coco_deref m clause))
+
+        ;; A GRAMMAR RULE IS REWRITTEN HERE AND NOWHERE ELSE. Everything that
+        ;; puts a clause in the store comes through this function -- consulting
+        ;; a file, `assertz' in a running program, a module's own clauses on
+        ;; the way in -- so translating here is what makes `-->' mean the same
+        ;; thing by all three routes. What gets stored is the ordinary clause;
+        ;; nothing below this line has ever heard of a grammar.
+        (if (coco_dcg_is_rule m clause)
+            (let ((coco_dcg_err derr) (size_t rewritten))
+              (set ($ derr kind) COCO_DCG_OK)
+              (set ($ derr culprit) 0)
+              (set rewritten (coco_dcg_rule m clause (aof derr)))
+              ;; a rule that will not translate is not silently stored as a
+              ;; `-->'/2 fact, which is what returning 1 here would do
+              (if (== rewritten 0) (return 0))
+              (set clause rewritten)))
+
         ;; the head decides which predicate this belongs to
         (let ((size_t head . clause))
           (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2))

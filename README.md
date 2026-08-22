@@ -67,7 +67,12 @@ lib/module.cicili      the module seam: a bridge between C and Coco
 lib/files.cicili       SWI's Files library, as a module
 lib/lists.cicili       SWI's Lists library, as a module
 lib/apply.cicili       SWI's Apply library -- clauses only, no C at all
-lib/builtins.cicili    the ISO core builtins cocolog was missing
+lib/builtins.cicili    the ISO core builtins cocolog was missing, plus
+                       format/1,2,3, code_type/2 and must_be/2
+lib/dcg.cicili         definite clause grammars: the --> translation, and
+                       phrase/2,3
+lib/vendor/swipl/      SWI's dcg/basics and dcg/high_order, copied
+                       unmodified under their own BSD-2 headers
 lib/state.cicili       freeze and thaw
 lib/zigurat-kb.cicili  the knowledge base over Zigurat's binary protocol
 lib/zeytun-kb.cicili   the same, over Zeytun's HTTP pages (read only)
@@ -153,7 +158,7 @@ predicate, then the knowledge base — so a module can add to the language but
 cannot redefine `is` underneath a program, and is not shadowed by a clause
 somebody asserted.
 
-Four libraries ship, and they are deliberately spread across the range.
+Five libraries ship, and they are deliberately spread across the range.
 **Files** is seventeen predicates in C and five in Prolog, because a file
 system is a syscall away. **Lists** is thirty-odd in Prolog and seven in C,
 because `member/2` and `permutation/2` must answer *many times* and a module's
@@ -162,14 +167,46 @@ predicate belongs in the Coco half where the engine provides the choice points
 and a frozen machine can be thawed elsewhere and go on backtracking through it.
 **Apply** has no C half at all. **Builtins** is the ISO core cocolog was
 missing — `findall/3` and its family, `between/3`, the atom and term
-predicates, `clause/2` and `current_predicate/1`.
+predicates, `clause/2`, `current_predicate/1`, `format/1,2,3` and
+`code_type/2`. **DCG** is one C predicate and three clauses.
 
-Both are checked by running the same Prolog program under `swipl` and under
-`cocolog` and comparing the output byte for byte — the only kind of
-compatibility claim that cannot be fooled by its author. It caught one on the
-first run.
+Every one of them is checked by running the same Prolog program under `swipl`
+and under `cocolog` and comparing the output byte for byte — the only kind of
+compatibility claim that cannot be fooled by its author. It has caught five
+things that would otherwise have shipped looking right.
 
 **MODULES.md** is how to write one.
+
+## Grammars, and code borrowed rather than written
+
+`-->` works, and so does everything built on it. The translation lives in
+`lib/dcg.cicili` and runs inside `coco_assert` — the one function every clause
+passes through — so a grammar rule means the same thing consulted from a file,
+asserted by a running program, or arriving from the database.
+
+It is **written, not copied**. SWI's own `boot/dcg.pl` is half source-position
+terms and module qualification, machinery for a module system cocolog does not
+have; what is left once both are removed is short enough to write, and writing
+it keeps third-party code out of the core.
+
+Two of SWI's libraries **are** copied, byte for byte, under their own BSD-2
+headers: `library(dcg/basics)` and `library(dcg/high_order)`, in
+`lib/vendor/swipl/`. Nothing in them is edited. Instead the things they needed
+were built here — the soft cut `*->`, `code_type/2`, `must_be/2`,
+`format/1,2,3` with its `codes(H,T)` sink, `with_output_to/2`,
+`ord_intersection/3` and `ord_subtract/3`, and acceptance of the `:- module`
+and `:- use_module` lines a library file starts with. `test/files/run.sh`
+consults those very bytes into cocolog and runs the same test file under SWI,
+and the two agree exactly.
+
+```sh
+cocolog --local run lib/vendor/swipl/dcg_basics.pl my_grammar.pl main
+```
+
+cocolog has one namespace, so `:- module/2`'s export list is ignored and a
+vendored file's private predicates are callable. That is a real difference, not
+a shim; `lib/vendor/swipl/README.md` records it along with the provenance and
+checksums of both copies.
 
 ## What is stored, and how
 
@@ -268,7 +305,10 @@ what had to be fixed in ZiguratIP before any of this held.
 ## Status
 
 The interpreter, the serialisation, both transports, the schema and the
-concurrent arrangements are done and tested; `make test` ends `red: 0`.
+concurrent arrangements are done and tested. `make test` ends `red: 1`: nine of
+the ten suites are green, and `test/groups.sh` — twelve interpreters at once —
+can wedge the server when its workers start before their machines exist. That
+is open, predates the grammar work, and STATUS.md says what has been ruled out.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 

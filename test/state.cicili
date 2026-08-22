@@ -20,12 +20,14 @@
 
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")
+  (import "../lib/dcg.cicili")
   (import "../lib/kb.cicili")
   (import "../lib/solve.cicili")
   (import "../lib/state.cicili")
 
   (decl-term)   (impl-term)
   (decl-syntax) (impl-syntax)
+  (decl-dcg)    (impl-dcg)
   (decl-kb)     (impl-kb)
   (decl-solve)  (impl-solve)
   (decl-state)  (impl-state)

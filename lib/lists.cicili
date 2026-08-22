@@ -192,7 +192,33 @@
            "'$max_by'([H|T], P, A, M) :- (call(P, A, H) -> B = H ; B = A), '$max_by'(T, P, B, M)."
            "min_member(P, M, [H|T]) :- '$min_by'(T, P, H, M)."
            "'$min_by'([], _, A, A)."
-           "'$min_by'([H|T], P, A, M) :- (call(P, H, A) -> B = H ; B = A), '$min_by'(T, P, B, M).")))
+           "'$min_by'([H|T], P, A, M) :- (call(P, H, A) -> B = H ; B = A), '$min_by'(T, P, B, M)."
+
+           ;; ---- two of library(ordsets) ---------------------------------
+           ;;
+           ;; NOT SWI'S LISTS LIBRARY. They are here because SWI's
+           ;; `library(dcg/high_order)' imports them and they are the only two
+           ;; of ordsets it uses -- a whole module for two predicates that a
+           ;; sorted-merge writes in six clauses would be ceremony. MODULES.md
+           ;; records where they really belong.
+           ;;
+           ;; An ORDERED SET is a sorted list without duplicates, so both walk
+           ;; the two lists once and compare, rather than searching.
+           "ord_intersection([], _, [])."
+           "ord_intersection([_|_], [], [])."
+           "ord_intersection([A|As], [B|Bs], R) :- compare(O, A, B),"
+           "    '$ord_int'(O, A, As, B, Bs, R)."
+           "'$ord_int'(=, A, As, _, Bs, [A|R]) :- ord_intersection(As, Bs, R)."
+           "'$ord_int'(<, _, As, B, Bs, R) :- ord_intersection(As, [B|Bs], R)."
+           "'$ord_int'(>, A, As, _, Bs, R) :- ord_intersection([A|As], Bs, R)."
+
+           "ord_subtract([], _, [])."
+           "ord_subtract([A|As], [], [A|As])."
+           "ord_subtract([A|As], [B|Bs], R) :- compare(O, A, B),"
+           "    '$ord_sub'(O, A, As, B, Bs, R)."
+           "'$ord_sub'(=, _, As, _, Bs, R) :- ord_subtract(As, Bs, R)."
+           "'$ord_sub'(<, A, As, B, Bs, [A|R]) :- ord_subtract(As, [B|Bs], R)."
+           "'$ord_sub'(>, A, As, _, Bs, R) :- ord_subtract([A|As], Bs, R).")))
 
 (generic decl-lists
   ()

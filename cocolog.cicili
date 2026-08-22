@@ -100,6 +100,7 @@
   (import "./lib/zeytun.cicili" :zt)
   (import "./lib/term.cicili")
   (import "./lib/syntax.cicili")
+  (import "./lib/dcg.cicili")
   (import "./lib/kb.cicili")
   (import "./lib/solve.cicili")
   (import "./lib/module.cicili")
@@ -113,6 +114,11 @@
 
   (decl-term)   (impl-term)
   (decl-syntax) (impl-syntax)
+  ;; the grammar-rule translator comes BEFORE the knowledge base, because
+  ;; `coco_assert' calls it: every clause reaching the store passes through
+  ;; there, so that is the one place a `-->' rule can be rewritten no matter
+  ;; whether it was consulted from a file or asserted by a running program.
+  (decl-dcg)    (impl-dcg)
   (decl-kb)     (impl-kb)
   (decl-solve)  (impl-solve)
   (decl-module) (impl-module)
@@ -120,6 +126,8 @@
   (decl-lists)  (impl-lists)
   (decl-apply)  (impl-apply)
   (decl-builtins) (impl-builtins)
+  ;; ...and the half that needs an engine comes after there is one
+  (decl-dcg-module) (impl-dcg-module)
   (decl-state)  (impl-state)
   (decl-zigurat-kb) (impl-zigurat-kb)
   (decl-zeytun-kb)  (impl-zeytun-kb)
@@ -882,6 +890,9 @@
                    (return 0)))
         (if (not (coco_builtins_module))
             (block (fprintf stderr "cocolog: the builtins module would not register\n")
+                   (return 0)))
+        (if (not (coco_dcg_module))
+            (block (fprintf stderr "cocolog: the dcg module would not register\n")
                    (return 0)))
         (return 1))
 

@@ -40,6 +40,7 @@
   (import "../lib/zeytun.cicili" :zt)
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")
+  (import "../lib/dcg.cicili")
   (import "../lib/kb.cicili")
   (import "../lib/solve.cicili")
   (import "../lib/state.cicili")
@@ -48,6 +49,7 @@
 
   (decl-term)   (impl-term)
   (decl-syntax) (impl-syntax)
+  (decl-dcg)    (impl-dcg)
   (decl-kb)     (impl-kb)
   (decl-solve)  (impl-solve)
   (decl-state)  (impl-state)
@@ -163,8 +165,10 @@
         (check "having fetched the predicates it needed"
                (cast llong (> ($ st2 npreds) 0)) 1)
 
-        (check "a predicate that is not there just fails"
-               (cast llong (count (aof e2) "no_such_predicate(1)" 10)) 0)
+        ;; the shared store has no such name either, so this is the ordinary
+        ;; undefined-predicate raise and not something the backend did
+        (check "a predicate that is not there raises"
+               (cast llong (count (aof e2) "no_such_predicate(1)" 10)) -1)
 
         (coco_engine_free (aof e2))
         (coco_store_free (aof st2))
@@ -419,7 +423,8 @@
 
         (let ((size_t pq . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "queue") 1))
               (size_t ps . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "seen") 2))
-              (size_t pp . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "parent") 2)))
+              (size_t pp . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "ancestor") 2))
+              (size_t pa . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "parent") 2)))
           (check "including one declared but never written to"
                  (cast llong (< pq ($ stb npreds))) 1)
           (check "which comes back marked dynamic"
@@ -429,10 +434,20 @@
                  (cast llong (? (< ps ($ stb npreds))
                                 ($ (nth ps ($ stb preds)) dynamic) 0)) 1)
           ;; a predicate that merely has clauses was never declared, and
-          ;; warming must not claim it was
+          ;; warming must not claim it was. `ancestor/2' is the honest subject
+          ;; for that: it was consulted and nothing has ever asserted into it.
           (check "a predicate nobody declared is not dynamic"
                  (cast llong (? (< pp ($ stb npreds))
-                                ($ (nth pp ($ stb preds)) dynamic) 0)) 0))
+                                ($ (nth pp ($ stb preds)) dynamic) 0)) 0)
+          ;; `parent/2' was consulted the same way -- but an `assertz' upstream
+          ;; added a clause to it, and asserting into a predicate is what makes
+          ;; it dynamic, in SWI and now here. So the flag on it is not warming
+          ;; inventing one; it is a fact about the predicate that survived the
+          ;; trip through the database, which is the claim this suite exists to
+          ;; make.
+          (check "but one an assert wrote to is, and stays so across processes"
+                 (cast llong (? (< pa ($ stb npreds))
+                                ($ (nth pa ($ stb preds)) dynamic) 0)) 1))
 
         (check "the declared predicate has no clauses and still fails"
                (cast llong (count (aof eb) "queue(X)" 10)) 0)

@@ -46,6 +46,14 @@ turn, and what you get then is the next hazard.
 
 ## Three hazards, each of which has already cost a day
 
+**`test/groups.sh` is currently RED and it is not your change.** Twelve workers
+started before their machines can wedge the server — see STATUS.md. Two things
+follow. A hung run **strands its machines as claimed**, and the next run's
+`drop` does not clear a claimed one, so `cocolog --kb groups_test list` and drop
+what is there before believing a later result. And a wedged server answers
+NOBODY, on any knowledge base, so restart it before blaming whatever you were
+working on.
+
 **`red: 0` does not mean the suite passed.** `zigurat`, `shared`, `groups` and
 `ruler` SKIP rather than fail when there is no server, because "no server here"
 and "the backend is wrong" are different findings — and the runner prints
@@ -96,6 +104,10 @@ that read like C and are not:
   is genuinely dotted. A static is zero anyway.
 * **`(out (T *))` is wrong; `(out T *)` is right.** The parenthesised form
   emits a cast to a non-scalar type.
+* **`(cast unsigned char x)` is wrong** — a cast takes ONE type token, so a
+  two-word C type cannot be written. Mask instead: `(bitand (cast int c) 255)`.
+* **A `let` declares locals; `block` does not.** `(block (char err [256]) ...)`
+  fails with `unknown symbol: [`.
 * **An external `struct` needs a name**: `(@define (code "stat_t struct stat"))`,
   per `../cicili/doc/lib-std-c.md`. `(code "...")` is the raw-C escape for what
   `lib/std/c` does not declare — `glob` and `realpath`, in `lib/files.cicili`.
@@ -130,7 +142,9 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 | `lib/files.cicili` | SWI's Files library, as a module — mostly C |
 | `lib/lists.cicili` | SWI's Lists library, as a module — mostly Prolog, because nondeterministic predicates cannot live in a C half |
 | `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
-| `lib/builtins.cicili` | the ISO core builtins cocolog was missing |
+| `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2` |
+| `lib/dcg.cicili` | `-->` translation, `phrase/2,3`. Two generics: the translator sits BEFORE `kb` because `coco_assert` calls it, the module half after the engine |
+| `lib/vendor/swipl/` | SWI's `dcg/basics` and `dcg/high_order`, copied unmodified under their own BSD-2 headers. Do not edit them — see the README there |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |

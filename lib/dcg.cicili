@@ -1,0 +1,400 @@
+;;;; cocolog -- definite clause grammars
+;;;
+;;; `-->' is a notation for clauses that thread a difference list, and this
+;;; file is the rewriting that turns one into the other. `greeting --> [hello],
+;;; name.' becomes `greeting(S0, S) :- S0 = [hello|S1], name(S1, S).'
+;;;
+;;; WHY THIS IS C AND NOT CLAUSES, when `lists' and `apply' are clauses.
+;;; Every clause reaches the store through `coco_assert', and `coco_assert'
+;;; holds a machine and a store -- not an engine. A translator written in
+;;; Prolog could only be reached by running a goal, and there is nothing there
+;;; to run one with. Putting the rewriting below the engine also settles the
+;;; bootstrap question that would otherwise exist: the translator cannot be
+;;; written in the notation it is there to translate.
+;;;
+;;; It is a term rewriting with no search in it, which is what C is good at.
+;;;
+;;; WHY NOT COPY SWI'S. Its `boot/dcg.pl' is 375 lines of which about half are
+;;; source-position terms and `q(M,C,Pos)' module qualification threaded
+;;; through every clause -- machinery for a module system and an error reporter
+;;; cocolog does not have. What is left, once both are taken out, is what is
+;;; here. The SHAPES are SWI's and the conformance tests hold them to it; the
+;;; code is not.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;; The Coco half. `phrase/2,3' cannot be C: it has to CALL what it built, and
+;;; a builtin that returns to the engine cannot set a continuation. So the C
+;;; half translates and hands back the goal, and one clause calls it -- through
+;;; `call/1', which is also what makes a `!' inside a grammar body local to it.
+(DEFPARAMETER *dcg-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           "phrase(G, L) :- phrase(G, L, [])."
+           ;; THE LIST IS CHECKED AND THE BODY IS NOT, in that order, because
+           ;; that is what SWI does: `phrase(1, foo)' raises about `foo' and not
+           ;; about `1'. The body's own errors come out of `$dcg_goal'.
+           "phrase(G, L, R) :- '$dcg_list'(L), '$dcg_list'(R),"
+           "    '$dcg_goal'(G, L, R, Goal), call(Goal)."
+           ;; A VARIABLE OR A CONS CELL, and nothing else. A partial list is
+           ;; fine -- generating rather than parsing leaves the tail open -- and
+           ;; so, in SWI, is a list ending in a non-list, which is why this
+           ;; looks only at the outermost cell rather than walking to the end.
+           "'$dcg_list'(L) :- var(L), !."
+           "'$dcg_list'([]) :- !."
+           "'$dcg_list'([_|_]) :- !."
+           "'$dcg_list'(L) :- throw(error(type_error(list, L), _))."
+           ;; call_dcg/3 is phrase/3 WITHOUT that check -- SWI's own
+           ;; distinction, and the one `library(dcg/high_order)' calls.
+           "call_dcg(G, S0, S) :- '$dcg_goal'(G, S0, S, Goal), call(Goal).")))
+
+(DEFPARAMETER *dcg-predicates*
+  '(("$dcg_goal"  4 coco_dcg_bi_goal)))
+
+(generic decl-dcg
+  ()
+
+  ;;; What went wrong, for a caller that has to decide how to report it.
+  ;;; `culprit' is a heap index and only meaningful when the kind wants one.
+  (enum coco_dcg_ekind
+    (COCO_DCG_OK       . 0)
+    (COCO_DCG_INST     . 1)   ; a body or head that is still a variable
+    (COCO_DCG_CALLABLE . 2)   ; a number, or a shape no non-terminal can be
+    (COCO_DCG_OOM      . 3))
+
+  (struct coco_dcg_err
+    (member int    kind)
+    (member size_t culprit))
+
+  ;;; Translates `Head --> Body' into the clause it stands for, ON THE HEAP.
+  ;;; Answers 0 and leaves ERR alone when CLAUSE is not a grammar rule at all --
+  ;;; that is the ordinary case, not a failure -- and 0 with ERR filled in when
+  ;;; it is one and could not be translated.
+  (decl) (func coco_dcg_rule ((coco_machine * m) (size_t clause)
+                              (coco_dcg_err * err)) (out size_t))
+
+  ;;; Translates a grammar BODY threading S0 to S, which is what `phrase/3'
+  ;;; needs at run time for a body it was handed rather than one it read.
+  ;;; Answers 0 with ERR filled in.
+  (decl) (func coco_dcg_body ((coco_machine * m) (size_t body) (size_t s0)
+                              (size_t s) (coco_dcg_err * err)) (out size_t))
+
+  ;;; Whether CLAUSE is `_ --> _'. Cheap, for a caller that only wants to know
+  ;;; whether to bother.
+  (decl) (func coco_dcg_is_rule ((coco_machine * m) (size_t clause)) (out int))
+
+  ) ; decl-dcg
+
+
+(generic impl-dcg
+  ()
+
+  ;;; The two extra arguments go on the END, which is the whole convention:
+  ;;; `name' becomes `name(S0, S)' and `name(X)' becomes `name(X, S0, S)'.
+  ;;;
+  ;;; The argument indices are read out BEFORE anything is built. They are heap
+  ;;; indices and stay valid across a growth -- but reading them afterwards
+  ;;; would mean reading them off a term the new cells sit above, which is only
+  ;;; correct by accident.
+  (static)
+  (func coco_dcg_extend ((coco_machine * m) (size_t t) (size_t s0) (size_t s)
+                         (coco_dcg_err * err)) (out size_t)
+        (set t (coco_deref m t))
+        (if (coco-tag-is REF (nth t (-> m heap)))
+            (block (set (-> err kind) COCO_DCG_INST) (return 0)))
+        (if (not (coco_is_callable m t))
+            (block (set (-> err kind) COCO_DCG_CALLABLE)
+                   (set (-> err culprit) t)
+                   (return 0)))
+        (let ((u32 n . #'(coco_arity m t))
+              (const char * nm . #'(coco_atom_name m (coco_name_of m t)))
+              (size_t * args . nil)
+              (size_t out . 0))
+          (set args (cast (size_t *) (malloc (* (sizeof size_t) (+ (cast size_t n) 2)))))
+          (if (== args nil) (block (set (-> err kind) COCO_DCG_OOM) (return 0)))
+          (for ((u32 i . 0)) (< i n) ((++ i))
+            (set (nth (cast size_t i) args) (coco_arg m t i)))
+          (set (nth (cast size_t n) args) s0)
+          (set (nth (+ (cast size_t n) 1) args) s)
+          (set out (coco_make m nm (+ n 2) args))
+          (free args)
+          (if (== out 0) (set (-> err kind) COCO_DCG_OOM)
+            (block))
+          (return out)))
+
+  ;;; The shapes that are body syntax and can never be a non-terminal. A head
+  ;;; that is one of these is a program saying something it cannot mean --
+  ;;; `[a] --> b' would have to define a predicate called `.'/4.
+  (static)
+  (func coco_dcg_no_extend ((coco_machine * m) (size_t t)) (out int)
+        (set t (coco_deref m t))
+        (if (not (coco_is_callable m t)) (return 0))
+        (let ((u32 n . #'(coco_arity m t))
+              (const char * nm . #'(coco_atom_name m (coco_name_of m t))))
+          (if (== n 0)
+              (return (? (or (== 0 (strcmp nm "[]"))
+                             (== 0 (strcmp nm "{}"))
+                             (== 0 (strcmp nm "!"))) 1 0)))
+          (if (== n 1)
+              (return (? (or (== 0 (strcmp nm "{}"))
+                             (== 0 (strcmp nm "\\+"))) 1 0)))
+          (if (== n 2)
+              (return (? (or (== 0 (strcmp nm "."))
+                             (== 0 (strcmp nm ","))
+                             (== 0 (strcmp nm ";"))
+                             (== 0 (strcmp nm "|"))
+                             (== 0 (strcmp nm "->"))
+                             (== 0 (strcmp nm "*->"))
+                             (== 0 (strcmp nm "-->"))) 1 0)))
+          (return 0)))
+
+  ;;; A LIST OF TERMINALS IS OPENED AT TRANSLATION TIME, not walked at run
+  ;;; time: `[a,b]' with tail S becomes the term `[a,b|S]', and the goal is one
+  ;;; unification `S0 = [a,b|S]'. That is why matching a terminal costs nothing.
+  ;;;
+  ;;; Answers 0 for a list that does not end in `[]' -- a partial list is a
+  ;;; term whose tail is not known until run time, so there is nothing to open
+  ;;; and the caller emits an `append/3' instead.
+  (static)
+  (func coco_dcg_open ((coco_machine * m) (size_t l) (size_t tail)
+                       (size_t * out)) (out int)
+        (let ((size_t * items . nil) (size_t n . 0) (size_t cap . 0)
+              (size_t cur . #'(coco_deref m l)) (size_t acc))
+          ;; forwards to collect, backwards to build: a list can only be consed
+          ;; from its end, and the end is not known until the walk is done
+          (while 1
+            (if (not (coco_is_callable m cur)) (block (free items) (return 0)))
+            (if (== (coco_arity m cur) 0)
+                (block
+                 (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m cur)) "[]"))
+                     (block (free items) (return 0)))
+                 break))
+            (if (or (!= (coco_arity m cur) 2)
+                    (!= 0 (strcmp (coco_atom_name m (coco_name_of m cur)) ".")))
+                (block (free items) (return 0)))
+            (if (>= n cap)
+                (let ((size_t want . #'(? (== cap 0) 8 (* cap 2)))
+                      (size_t * bigger))
+                  (set bigger (cast (size_t *) (realloc items (* (sizeof size_t) want))))
+                  (if (== bigger nil) (block (free items) (return 0)))
+                  (set items bigger)
+                  (set cap want)))
+            (set (nth n items) (coco_arg m cur 0))
+            (set n (+ n 1))
+            (set cur (coco_deref m (coco_arg m cur 1))))
+          (set acc tail)
+          (while (> n 0)
+            (set n (- n 1))
+            (set acc (coco_cons m (nth n items) acc)))
+          (free items)
+          (set (cof out) acc)
+          (return 1)))
+
+  (func coco_dcg_body ((coco_machine * m) (size_t body) (size_t s0) (size_t s)
+                       (coco_dcg_err * err)) (out size_t)
+        (set body (coco_deref m body))
+
+        ;; A VARIABLE BODY IS RESOLVED AT RUN TIME, not refused here. `a --> B'
+        ;; is a legal rule; what B is only becomes known when the rule is used,
+        ;; and `phrase/3' is exactly the thing that translates it then.
+        (if (coco-tag-is REF (nth body (-> m heap)))
+            (let ((size_t args [3]))
+              (set (nth 0 args) body) (set (nth 1 args) s0) (set (nth 2 args) s)
+              (return (coco_make m "phrase" 3 args))))
+
+        (if (not (coco_is_callable m body))
+            (block (set (-> err kind) COCO_DCG_CALLABLE)
+                   (set (-> err culprit) body)
+                   (return 0)))
+
+        (let ((u32 n . #'(coco_arity m body))
+              (const char * nm . #'(coco_atom_name m (coco_name_of m body))))
+
+          ;; ---- terminals ----------------------------------------------
+          (if (and (== n 0) (== 0 (strcmp nm "[]")))
+              (return (coco_make2 m "=" s0 s)))
+
+          (if (and (== n 2) (== 0 (strcmp nm ".")))
+              (let ((size_t opened . 0))
+                (if (coco_dcg_open m body s (aof opened))
+                    (return (coco_make2 m "=" s0 opened)))
+                ;; a partial list: its tail is a variable, so the walk that
+                ;; opens it has to happen at run time
+                (let ((size_t args [3]))
+                  (set (nth 0 args) body) (set (nth 1 args) s) (set (nth 2 args) s0)
+                  (return (coco_make m "append" 3 args)))))
+
+          ;; ---- the things that consume nothing -------------------------
+          ;; Each is its own goal followed by `S = S0': the list comes out the
+          ;; way it went in. `!' keeps its position rather than being lifted,
+          ;; so that it cuts where it was written.
+          (if (and (== n 0) (== 0 (strcmp nm "!")))
+              (let ((size_t bang . #'(coco_new_atom m "!"))
+                    (size_t same . #'(coco_make2 m "=" s s0)))
+                (return (coco_make2 m "," bang same))))
+
+          (if (and (== n 0) (== 0 (strcmp nm "{}")))
+              (return (coco_make2 m "=" s s0)))
+
+          (if (and (== n 1) (== 0 (strcmp nm "{}")))
+              (let ((size_t g . #'(coco_arg m body 0))
+                    (size_t same . #'(coco_make2 m "=" s s0)))
+                (return (coco_make2 m "," g same))))
+
+          ;; ---- the control constructs ---------------------------------
+          ;; A conjunction threads: the first half runs from S0 to a fresh S1
+          ;; and the second from S1 on.
+          (if (and (== n 2) (== 0 (strcmp nm ",")))
+              (let ((size_t s1 . #'(coco_new_var m)) (size_t a) (size_t b))
+                (set a (coco_dcg_body m (coco_arg m body 0) s0 s1 err))
+                (if (== a 0) (return 0))
+                (set b (coco_dcg_body m (coco_arg m body 1) s1 s err))
+                (if (== b 0) (return 0))
+                (return (coco_make2 m "," a b))))
+
+          ;; A DISJUNCTION DOES NOT THREAD. Both branches run from S0 to the
+          ;; same S, because only one of them runs -- giving each its own
+          ;; output variable and joining them afterwards would make `(a ; [])'
+          ;; bind the output twice.
+          (if (and (== n 2) (or (== 0 (strcmp nm ";")) (== 0 (strcmp nm "|"))))
+              (let ((size_t a) (size_t b))
+                (set a (coco_dcg_body m (coco_arg m body 0) s0 s err))
+                (if (== a 0) (return 0))
+                (set b (coco_dcg_body m (coco_arg m body 1) s0 s err))
+                (if (== b 0) (return 0))
+                (return (coco_make2 m ";" a b))))
+
+          ;; if-then and soft cut thread like a conjunction: the condition
+          ;; consumes, and the branch carries on from where it stopped
+          (if (and (== n 2) (or (== 0 (strcmp nm "->")) (== 0 (strcmp nm "*->"))))
+              (let ((size_t s1 . #'(coco_new_var m)) (size_t c) (size_t t))
+                (set c (coco_dcg_body m (coco_arg m body 0) s0 s1 err))
+                (if (== c 0) (return 0))
+                (set t (coco_dcg_body m (coco_arg m body 1) s1 s err))
+                (if (== t 0) (return 0))
+                (return (coco_make2 m nm c t))))
+
+          ;; negation consumes nothing, whatever the goal inside it would have
+          ;; consumed had it succeeded -- so its output is thrown away
+          (if (and (== n 1) (== 0 (strcmp nm "\\+")))
+              (let ((size_t junk . #'(coco_new_var m)) (size_t c) (size_t same))
+                (set c (coco_dcg_body m (coco_arg m body 0) s0 junk err))
+                (if (== c 0) (return 0))
+                (set same (coco_make2 m "=" s s0))
+                (return (coco_make2 m "," (coco_make1 m "\\+" c) same))))
+
+          ;; ---- anything else is a non-terminal -------------------------
+          ;; `call(G, X)' lands here too and comes out `call(G, X, S0, S)',
+          ;; which is what call//N means. No special case is needed for it.
+          (return (coco_dcg_extend m body s0 s err))))
+
+  (func coco_dcg_is_rule ((coco_machine * m) (size_t clause)) (out int)
+        (set clause (coco_deref m clause))
+        (if (not (coco_is_callable m clause)) (return 0))
+        (if (!= (coco_arity m clause) 2) (return 0))
+        (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) "-->")) 1 0)))
+
+  (func coco_dcg_rule ((coco_machine * m) (size_t clause) (coco_dcg_err * err))
+        (out size_t)
+        (set clause (coco_deref m clause))
+        (if (not (coco_dcg_is_rule m clause)) (return 0))
+        (let ((size_t lp . #'(coco_deref m (coco_arg m clause 0)))
+              (size_t rp . #'(coco_arg m clause 1))
+              (size_t s0 . #'(coco_new_var m))
+              (size_t s  . #'(coco_new_var m)))
+
+          ;; PUSHBACK: `H, PB --> B' matches B and then puts PB back on the
+          ;; front of what is left. The head still spans S0 to S; the body runs
+          ;; S0 to a fresh S1, and the pushback is read as running from S --
+          ;; the rule's output -- to that same S1. Reading it backwards is what
+          ;; makes it a pushback rather than a second body.
+          (if (and (coco_is_callable m lp) (== (coco_arity m lp) 2)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m lp)) ",")))
+              (let ((size_t s1 . #'(coco_new_var m))
+                    (size_t h) (size_t b0) (size_t b1))
+                (if (coco_dcg_no_extend m (coco_arg m lp 0))
+                    (block (set (-> err kind) COCO_DCG_CALLABLE)
+                           (set (-> err culprit) (coco_deref m (coco_arg m lp 0)))
+                           (return 0)))
+                (set h (coco_dcg_extend m (coco_arg m lp 0) s0 s err))
+                (if (== h 0) (return 0))
+                (set b0 (coco_dcg_body m rp s0 s1 err))
+                (if (== b0 0) (return 0))
+                (set b1 (coco_dcg_body m (coco_arg m lp 1) s s1 err))
+                (if (== b1 0) (return 0))
+                (return (coco_make2 m ":-" h (coco_make2 m "," b0 b1)))))
+
+          (if (coco_dcg_no_extend m lp)
+              (block (set (-> err kind) COCO_DCG_CALLABLE)
+                     (set (-> err culprit) lp)
+                     (return 0)))
+          (let ((size_t h) (size_t bd))
+            (set h (coco_dcg_extend m lp s0 s err))
+            (if (== h 0) (return 0))
+            (set bd (coco_dcg_body m rp s0 s err))
+            (if (== bd 0) (return 0))
+            (return (coco_make2 m ":-" h bd)))))
+
+  ) ; impl-dcg
+
+
+;;;; ------------------------------------------------------------------
+;;;; The module
+;;;; ------------------------------------------------------------------
+;;; SPLIT FROM THE TRANSLATOR ABOVE, and the split is not cosmetic. The
+;;; translator is used by `coco_assert', which is emitted before the engine
+;;; exists at all, so it has to come before `kb'. This half calls the engine
+;;; through the module API and has to come after it. One file, two places in
+;;; the order.
+
+(generic decl-dcg-module
+  ()
+
+  (decl) (func coco_dcg_module () (out int))
+
+  ) ; decl-dcg-module
+
+
+(generic impl-dcg-module
+  ()
+
+  ;;; '$dcg_goal'(Body, S0, S, Goal) -- translate BODY at run time and hand the
+  ;;; goal back for a clause to `call'. This is what `phrase/3' is made of.
+  ;;;
+  ;;; A BUILTIN CANNOT CALL WHAT IT BUILT. It answers 1 and the engine puts the
+  ;;; caller's continuation back; there is no way from in here to say "and now
+  ;;; run this". So the goal is unified into the fourth argument and one clause
+  ;;; of Prolog does the calling.
+  (static)
+  (func coco_dcg_bi_goal ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t body . #'(coco_m_arg e g 0))
+              (coco_dcg_err err)
+              (size_t built))
+          (set ($ err kind) COCO_DCG_OK)
+          (set ($ err culprit) 0)
+          ;; A VARIABLE BODY IS AN ERROR HERE, though it is not an error inside
+          ;; a rule. In a rule the translator emits `phrase(V, ...)' and the
+          ;; question is asked again when V is known; by the time it is asked
+          ;; here, this IS that second time, and answering it with another
+          ;; `phrase' would be a loop with nothing to bind V in between.
+          (if (coco_m_is_var e body) (return (coco_m_instantiation_error e)))
+          (set built (coco_dcg_body m body (coco_m_arg e g 1) (coco_m_arg e g 2)
+                                    (aof err)))
+          (if (== built 0)
+              (cond ((== ($ err kind) COCO_DCG_INST)
+                     (return (coco_m_instantiation_error e)))
+                    ((== ($ err kind) COCO_DCG_CALLABLE)
+                     (return (coco_m_type_error e "callable" ($ err culprit))))
+                    (#t (return (coco_m_error e "out of memory" "translating a grammar body")))))
+          (return (? (coco_m_unify e (coco_m_arg e g 3) built) 1 0))))
+
+  (static) (coco-emit-module-dispatch coco_dcg_dispatch *dcg-predicates*)
+
+  (coco-defmodule coco_dcg_module "dcg" coco_dcg_dispatch *dcg-prolog*)
+
+  ) ; impl-dcg-module

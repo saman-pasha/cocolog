@@ -75,13 +75,20 @@
     ;; `dynamic' for an atom, finds `counter' where it wanted the `.', and says
     ;; so at the offset of the `/', which is a confusing place to be told that
     ;; an operator is missing.
-    (1150 fx  "dynamic" "discontiguous")
+    ;; `meta_predicate' and `multifile' are here for the sake of files
+    ;; borrowed from a Prolog that has modules: without the operator the
+    ;; directive is not even a term, and the file cannot be read at all.
+    (1150 fx  "dynamic" "discontiguous" "meta_predicate" "multifile")
     (1100 xfy ";")
-    (1050 xfy "->")
+    (1050 xfy "->" "*->")
     (1000 xfy ",")
     (900  fy  "\\+")
     (700  xfx "=" "\\=" "==" "\\==" "@<" "@>" "@=<" "@>=" "=.." "is"
               "=:=" "=\\=" "<" ">" "=<" ">=")
+    ;; module qualification. cocolog has one namespace, so `m:g' is only
+    ;; ever a term here -- but a borrowed file writes it, and a reader that
+    ;; cannot parse it cannot read the file.
+    (600  xfy ":")
     (500  yfx "+" "-")
     (400  yfx "*" "/" "//" "mod" "rem" "<<" ">>")
     (200  xfx "**")

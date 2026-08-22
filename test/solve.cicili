@@ -30,11 +30,13 @@
 
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")
+  (import "../lib/dcg.cicili")
   (import "../lib/kb.cicili")
   (import "../lib/solve.cicili")
 
   (decl-term)   (impl-term)
   (decl-syntax) (impl-syntax)
+  (decl-dcg)    (impl-dcg)
   (decl-kb)     (impl-kb)
   (decl-solve)  (impl-solve)
 
@@ -322,12 +324,63 @@
                (cast llong (count (aof e) "listing(d9/7)" 10)) 0)
         (check "listing/0 answers" (cast llong (count (aof e) "listing" 10)) 1))
 
+      ;; ---- grammar rules become ordinary clauses -------------------------
+      ;;
+      ;; test/files/dcg.pl holds the BEHAVIOUR against SWI. What is checked here
+      ;; is the SHAPE cocolog's own translator produces, which SWI is free to
+      ;; differ on -- its compiler lifts a leading unification into the head and
+      ;; this one does not, so `clause/2' shows something different there.
+      (let ((char err [256]))
+       (coco_consult (aof st) (aof m)
+                     "g1 --> [a], g2. g2 --> [b]. g3 --> []. g4 --> [x], !. g5, [p] --> [q]."
+                     err (sizeof err))
+
+       ;; the rule is stored under the non-terminal's name with TWO more
+       ;; arguments, so it is callable directly and `-->'/2 is not a predicate
+       (check "a grammar rule becomes a clause of arity+2"
+              (cast llong (count (aof e) "g1([a,b], [])" 10)) 1)
+       (check "and the two arguments are a difference list"
+              (cast llong (count (aof e) "g1([a,b,c], [c])" 10)) 1)
+       ;; `g3 --> []' consumes nothing, so its two arguments are the same list
+       (check "an empty body threads the list straight through"
+              (cast llong (count (aof e) "g3(L, L)" 10)) 1)
+
+       ;; the cut inside a body cuts the rule it is in and nothing outside it
+       (check "a cut in a body is local to the rule"
+              (cast llong (count (aof e) "g4([x], [])" 10)) 1)
+
+       ;; pushback: `g5, [p] --> [q]' eats q and leaves p in front of the rest
+       (check "a pushback rule puts its head back on the front"
+              (cast llong (count (aof e) "g5([q|R], [p|R])" 10)) 1)
+
+       ;; PHRASE/2,3 IS NOT CHECKED HERE. It is a clause in the dcg module's
+       ;; Coco half, and this target links the engine without the module seam --
+       ;; so `phrase' is an undefined predicate in it and raises, correctly.
+       ;; test/files/dcg.pl exercises it through the built program, against SWI.
+
+       ;; asserting a rule at RUN time goes through the same translation, which
+       ;; is the whole reason it lives in `coco_assert' and not in `consult'
+       (check "assert translates a grammar rule too"
+              (cast llong (count (aof e) "assertz((g6 --> [z])), g6([z], [])" 10)) 1))
+
       ;; ---- errors are reported, not guessed -------------------------------
       (check "an unbound goal is an error"    (cast llong (count (aof e) "X" 10)) -1)
       (check "arithmetic on a variable is an error"
              (cast llong (count (aof e) "X is Y + 1" 10)) -1)
-      (check "an unknown predicate just fails"
-             (cast llong (count (aof e) "no_such_thing(1)" 10)) 0)
+      ;; UNKNOWN AND EMPTY ARE DIFFERENT, and the difference is the whole reason
+      ;; a library written against SWI can be run here at all. Nobody ever
+      ;; defined `no_such_thing/1', so calling it raises; `declared_only/1' was
+      ;; declared and simply has nothing to prove, so it fails.
+      (check "an unknown predicate raises, as SWI does"
+             (cast llong (count (aof e) "no_such_thing(1)" 10)) -1)
+      (check "the ball is existence_error(procedure, Name/Arity)"
+             (cast llong (count (aof e)
+                                "catch(no_such_thing(1), error(E,_), true), E == existence_error(procedure, no_such_thing/1)"
+                                10)) 1)
+      (check "but a declared predicate with no clauses just fails"
+             (cast llong (count (aof e) "dynamic(declared_only/1), declared_only(_)" 10)) 0)
+      (check "and so does one an assert made and a retract emptied"
+             (cast llong (count (aof e) "assertz(made(1)), retract(made(1)), made(_)" 10)) 0)
 
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)

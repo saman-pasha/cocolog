@@ -289,6 +289,98 @@ nondeterministic as what they are given:** `maplist(member, Xs, Yss)`
 backtracks because `member/2` does, and that falls out of their being clauses
 rather than being arranged for.
 
+## Grammars, and a library that is borrowed rather than written
+
+`lib/dcg.cicili`, and `lib/vendor/swipl/`.
+
+### The translator is C, and lives below the engine
+
+Every clause reaches the store through `coco_assert`, and `coco_assert` holds a
+machine and a store — **not an engine**. A translator written in Prolog could
+only be reached by running a goal, and there is nothing there to run one with.
+So the rewriting is Cicili, and `lib/dcg.cicili` is imported before `kb`.
+
+That placement is what makes `-->` mean one thing by all three routes: consulted
+from a file, asserted by a running program, or arriving from the database. It
+also settles the bootstrap question that would otherwise exist — a translator
+written in the notation it exists to translate.
+
+The file therefore has **two generics**. `decl-dcg`/`impl-dcg` is the translator
+and goes before `kb`; `decl-dcg-module`/`impl-dcg-module` is the module half and
+goes after the engine, because it calls it.
+
+### phrase/2,3 is a clause, not a builtin
+
+A builtin cannot call what it built. It answers 1 and the engine puts the
+caller's continuation back; there is no way from inside one to say "and now run
+this". So the C half translates and hands the goal back, and one clause does the
+calling:
+
+```prolog
+phrase(G, L)    :- phrase(G, L, []).
+phrase(G, L, R) :- '$dcg_goal'(G, L, R, Goal), call(Goal).
+```
+
+Going through `call/1` is also what makes a `!` inside a grammar body local to
+it, which is what it should be.
+
+### Why SWI's boot/dcg.pl is not copied
+
+It is 375 lines, of which about half are source-position terms and `q(M,C,Pos)`
+module qualification threaded through every clause — machinery for a module
+system and an error reporter cocolog does not have. Its own author's comment
+reads *"It's a nice mess now and it should be redone from scratch."* What
+survives removing both is short enough to write, and writing it keeps the core
+free of third-party code.
+
+**The shapes are SWI's**, and `test/files/dcg.pl` holds them to it: terminals,
+`{}/1`, `!`, `,`, `;`, `->`, `*->`, `\+`, `call//N`, a variable body, and
+pushback. What is *not* compared is the translated clause's exact body — SWI's
+compiler lifts a leading unification into the head, so `clause/2` there shows
+`greeting([hello|S1], S) :- name(S1, S)` where cocolog leaves the unification in
+the body. Both prove the same things in the same order; pinning it would be
+testing SWI's clause compiler rather than this translation. cocolog's own shape
+is checked in `test/solve.cicili`.
+
+### Two libraries ARE copied
+
+`library(dcg/basics)` and `library(dcg/high_order)`, byte for byte, into
+`lib/vendor/swipl/`. They are BSD-2-Clause; so is cocolog, so there are no two
+licences to reconcile. **Nothing in them is edited** — the point of an
+unmodified copy is that `diff` against a newer upstream is meaningful, and
+`lib/vendor/swipl/README.md` carries the version, date and checksums that make
+that possible.
+
+Everything they needed was built here instead:
+
+| what the copy uses | what was built |
+|---|---|
+| `*->` | the soft cut, in `lib/solve.cicili` |
+| `format(codes(H,T), ...)` | `format/1,2,3`, above |
+| `with_output_to/2` | above |
+| `code_type/2`, `must_be/2`, `string/1` | above |
+| `ord_intersection/3`, `ord_subtract/3` | the Lists module, standing in for `library(ordsets)` |
+| `:- module`, `:- use_module`, `:- meta_predicate`, `:- multifile` | accepted and ignored by `coco_directive` |
+
+**`:- module/2`'s export list is ignored.** cocolog has one namespace, so every
+predicate in a vendored file is callable, including the ones upstream keeps
+private. That is a real difference in behaviour and is recorded rather than
+papered over.
+
+### The soft cut
+
+`(C *-> T ; E)` runs `T` for **every** solution of `C`, not just the first — so
+the alternative holding `E` has to go while `C`'s own choice points stay. A cut
+will not do: it truncates the stack to a height, and everything `C` pushed is
+above the frame holding `E`.
+
+`'$softcut'(H)` kills the one frame at `H` instead, by changing its **kind** to
+`COCO_CH_DEAD`. A kind and not a flag, because the frames travel in a frozen
+machine as a fixed row of numbers and the kind is already one of them — a new
+field would change that format for every blob ever written, while a new kind is
+a value no old blob contains. It cannot simply be popped: every barrier, every
+`$cut` height and every restored `nchoices` is an index into that array.
+
 ## The Builtins library
 
 `lib/builtins.cicili`. SWI has **655** built-in predicates. Most cannot exist
@@ -315,6 +407,62 @@ Thirty-eight remained, and they are all here:
 
 (`length/2`, `msort/2`, `sort/2` and `sort/4` are in the Lists module, which
 needed them first.)
+
+### What was added alongside the ISO core
+
+`format/1,2,3`, `with_output_to/2`, `code_type/2`, `char_type/2`, `must_be/2`
+and `is_of_type/2`, and `string/1`.
+
+None of these is ISO. They are here because SWI's `library(dcg/basics)` calls
+them and cocolog is meant to run that file unmodified — and because `format/2`
+is the predicate a Prolog program reaches for more than any other, so its
+absence was a hole rather than a choice.
+
+**`format/2` has no column directives.** `~t`, `~|` and `~+` lay text out in
+fields by measuring what has been written since the last column stop, which is
+a second pass this does not make. They raise an error naming themselves rather
+than being ignored — silently dropping them turns a table into a run-on line
+and blames the program. Everything else is there: `~w ~q ~p ~a ~d ~D ~s ~c ~e
+~f ~g ~r ~R ~n ~i ~~`, the numeric and `~*` argument prefixes, and the
+`atom(A)`, `codes(C)`, `codes(H,T)`, `chars(C)`, `chars(H,T)`, `user_output`
+and `user_error` sinks. The difference-list sinks are not decoration: they are
+what makes `format(codes(H,T), '~d', [I])` work as a grammar body, which is how
+SWI's `dcg/basics` generates every number it can also parse.
+
+**`code_type/2` was written against a running SWI, not against its manual**,
+because the two disagree. The manual calls `alpha` "a letter or digit"; the
+implementation says letters only. `to_upper(L)` reads as though `L` were the
+uppercase and it is the lowercase — `dcg/basics` depends on that, in
+`alpha_to_lower//1`. `test/files/ctype.pl` walks every code from 0 to 127
+through every category in both systems, which is the only way either of those
+would have been got right.
+
+**`string/1` always fails, and that is the answer rather than a stub.** cocolog
+has no string type, so nothing is a string. It exists because library code
+branches on it: SWI's `string_without//2` asks `string(End)` to decide whether
+to convert its argument and falls through to the code-list clause when the
+answer is no — which is the clause cocolog wants. A missing `string/1` raises
+there instead, and the fall-through never happens.
+
+**`with_output_to/2` redirects file descriptor 1**, not a stream this code
+passes around, because cocolog writes to the literal `stdout` in some seventy
+places. It uses a temporary file and not a pipe: a pipe holds 64K and a goal
+that printed more would block for ever with nobody reading. The goal runs in a
+nested engine, so — like `findall/3` — it cannot be suspended. A machine frozen
+inside one would have to freeze a redirected file descriptor with it.
+
+### An undefined predicate raises
+
+Calling something nobody defined used to fail quietly. It now raises
+`existence_error(procedure, Name/Arity)`, which is what SWI does and what every
+library written against SWI expects.
+
+**No clauses is not the same as undefined.** A predicate declared `dynamic`, or
+brought into being by an `assert` and emptied again by a `retract`, exists and
+simply has nothing to prove — so it fails. Asserting into a predicate is what
+makes it dynamic, which is SWI's rule and the thing that makes the distinction
+hold: without it, `assertz(f(1)), retract(f(1)), f(_)` would raise where every
+other Prolog fails.
 
 ### findall had to be an engine service
 

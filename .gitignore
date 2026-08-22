@@ -10,6 +10,8 @@ cocolog
 cocolog.c
 test/*.c
 test/cocolog_*_test
+# test/run.sh keeps each case's build log next to it
+test/.*.build
 
 # parsi/build.sh scratch
 parsi/.build.log
