@@ -1,0 +1,444 @@
+;;;; cocolog -- modules: the bridge between C and Coco
+;;;
+;;; A MODULE IS A PIECE OF COCOLOG WRITTEN BY SOMEBODY ELSE. It carries two
+;;; halves and either may be empty:
+;;;
+;;;   THE C HALF   predicates implemented in Cicili, for the things Prolog
+;;;                cannot reach on its own -- a syscall, a clock, a socket.
+;;;   THE COCO HALF  ordinary clauses, as text, consulted into the session when
+;;;                the module loads. Everything that is more clearly said in
+;;;                Prolog belongs here, and most of a library usually does.
+;;;
+;;; WHY IT IS A SEAM AND NOT A LIST. solve.cicili holds two null function
+;;; pointers and consults them; this file fills them in. A cocolog built
+;;; without a single module is the cocolog that existed before this file, byte
+;;; for byte, because the hooks stay null and the engine's dispatch is one
+;;; extra null check. That is the same arrangement kb.cicili uses for the
+;;; knowledge base, and for the same reason: the engine should not know how
+;;; many modules there are, or that there is such a thing as a module.
+;;;
+;;; WHERE A MODULE'S PREDICATES SIT IN THE ORDER. A goal is tried as
+;;;
+;;;   1. a control construct  (`,', `;', `->', `\+', `call', `!')
+;;;   2. a core builtin       (*builtins* in solve.cicili)
+;;;   3. a MODULE predicate   (here)
+;;;   4. the knowledge base
+;;;
+;;; so a module can add to the language but cannot quietly redefine `=' or
+;;; `is' underneath a program that was written before it was installed. It CAN
+;;; be shadowed by a clause in the knowledge base -- no: it cannot, because 4
+;;; comes after 3. A program that wants to override a module predicate has to
+;;; not load the module.
+;;;
+;;; THE RULES A MODULE PREDICATE MUST OBEY, and they are not style:
+;;;
+;;;   IT IS DETERMINISTIC. It answers 1 (once), 0, or -1, and never makes a
+;;;   choice point -- it has no access to the choice stack, deliberately, so
+;;;   that no module can break the invariant the engine's suspension depends
+;;;   on. A predicate that wants to answer several times returns a LIST and
+;;;   lets a clause in the Coco half take the list apart, which is also what
+;;;   makes it work after a machine has been frozen and thawed elsewhere.
+;;;
+;;;   IT LEAVES NOTHING BEHIND WHEN IT FAILS. Bindings made on the way to
+;;;   discovering that the answer is 0 must be undone: take `co_m_mark' first
+;;;   and `co_m_undo' back to it. The engine only winds the trail back at a
+;;;   choice point, and a builtin that fails is not one.
+;;;
+;;;   IT DOES NOT KEEP A TERM INDEX ACROSS A CALL. The heap moves. Indices are
+;;;   good for the length of one call and no longer, which is also why a module
+;;;   has no per-session state of its own: state that a frozen machine cannot
+;;;   carry with it is state that comes back wrong somewhere else.
+;;;
+;;; WHAT A MODULE CANNOT DO, and these are the honest limits: define an
+;;; operator (the reader's table is fixed at build time), leave a choice point,
+;;; or see the choice stack. The first is a real gap; the other two are the
+;;; price of being suspendable.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;;; ------------------------------------------------------------------
+;;;; The macro a module author writes
+;;;; ------------------------------------------------------------------
+
+;;; Emits the dispatcher for one module's C predicates, grouped by arity, so a
+;;; goal of arity 3 is never compared against a predicate of arity 1. This is
+;;; `co-emit-builtin-dispatch' in solve.cicili, one module along: same shape,
+;;; same reason. FOUND says whether the name belonged to this module at all,
+;;; which is what lets the engine fall through to the knowledge base.
+(DEFMACRO co-emit-module-dispatch (fname table)
+  (LET* ((rows (SYMBOL-VALUE table))
+         (arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND rows)) #'<)))
+    `(func ,fname ((co_engine * e) (const char * name) (u32 arity)
+                   (size_t g) (int * found)) (out int)
+       (set (cof found) 1)
+       (cond
+         ,@(MAPCAR
+            (LAMBDA (n)
+              `((== arity ,n)
+                (cond
+                  ,@(MAPCAR (LAMBDA (row) `((== 0 (strcmp name ,(FIRST row)))
+                                            (return (,(THIRD row) e g))))
+                            (REMOVE-IF-NOT (LAMBDA (r) (= (SECOND r) n)) rows))
+                  (#t (set (cof found) 0) (return 0)))))
+            arities)
+         (#t (set (cof found) 0) (return 0))))))
+
+;;; The whole of a module, from one form: the registration function a target
+;;; calls. Positional and not keyword arguments, because a macro does not
+;;; evaluate what it is given -- a `:prolog *files-prolog*' would splice the
+;;; SYMBOL and Cicili would go looking for a C name of that spelling. Here the
+;;; two data arguments are resolved with SYMBOL-VALUE at expansion time, so a
+;;; DEFPARAMETER holding the text is what you pass and its contents is what is
+;;; emitted.
+;;;
+;;;   (co-defmodule co_files_module "files" co_f_dispatch *files-prolog*)
+;;;
+;;; DISPATCH may be `nil' for a module that is only clauses, PROLOG omitted for
+;;; one that is only C, and INIT omitted in the usual case of no set-up.
+;;;
+;;; THE LAMBDA-LIST MARKERS ARE UPPERCASE -- `&OPTIONAL', not `&optional'.
+;;; Cicili's reader preserves case, so a lowercase one is the symbol `|&rest|'
+;;; and not `COMMON-LISP:&REST', and the macro is then called with the wrong
+;;; arity in a way whose error message names neither.
+(DEFMACRO co-defmodule (fname name dispatch &OPTIONAL prolog init)
+  (FLET ((datum (x) (COND ((NULL x) 'nil)
+                          ((AND (SYMBOLP x) (BOUNDP x)) (SYMBOL-VALUE x))
+                          (T x))))
+    `(func ,fname () (out int)
+       (return (co_module_register ,name
+                                   ,(OR dispatch 'nil)
+                                   ,(datum prolog)
+                                   ,(OR init 'nil))))))
+
+
+;;; Binds a module predicate's arguments, dereferenced, by position:
+;;;
+;;;   (co-mod-args e g ((path 0) (mode 1))
+;;;     ...path and mode are size_t term indices...)
+;;;
+;;; It is sugar for a `let' of `co_m_arg' calls and saves nothing but the
+;;; repetition -- which is the repetition every single predicate in a module
+;;; starts with, so it is worth a macro.
+(DEFMACRO co-mod-args (e g bindings &REST body)
+  `(let ,(MAPCAR (LAMBDA (b) `(size_t ,(FIRST b) . #'(co_m_arg ,e ,g ,(SECOND b))))
+                 bindings)
+     ,@body))
+
+
+(generic decl-module
+  ()
+
+  ;;; What a module is, from the engine's side. Both function pointers may be
+  ;;; null: a module that is only clauses has no `dispatch', and most have no
+  ;;; `init'.
+  (struct co_module
+    (member const char * name)
+    ;; the C half. Answers 1/0/-1 like any builtin, and sets FOUND to 0 if the
+    ;; name and arity were not this module's.
+    (member func dispatch ((co_engine * e) (const char * name) (u32 arity)
+                           (size_t g) (int * found)) (out int))
+    ;; the Coco half: clauses as text, consulted once per session
+    (member const char * prolog)
+    ;; run once per session, before the Coco half is consulted
+    (member func init ((co_engine * e)) (out int)))
+
+  ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
+  ;;; wants modules calls this once and then registers each one.
+  (decl) (func co_module_init ())
+
+  ;;; Adds one, by its pieces rather than by a descriptor the caller has to
+  ;;; find storage for. DISPATCH may be null for a module that is only clauses,
+  ;;; PROLOG null for one that is only C, INIT null for the usual case -- but
+  ;;; not both of the first two, which would be a module that does nothing.
+  ;;;
+  ;;; Answers 0 if it is out of memory or the module is empty; a target should
+  ;;; treat that as a build error rather than ignore it.
+  (decl) (func co_module_register ((const char * name)
+                                   (func dispatch ((co_engine * e) (const char * nm)
+                                                   (u32 arity) (size_t g)
+                                                   (int * found)) (out int))
+                                   (const char * prolog)
+                                   (func init ((co_engine * e)) (out int))) (out int))
+
+  ;;; Drops the registry. For a test that builds several; a program that
+  ;;; registers once at start-up need never call it.
+  (decl) (func co_module_free ())
+
+  (decl) (func co_module_count () (out size_t))
+  (decl) (func co_module_at ((size_t i)) (out const co_module *))
+
+  ;;; ---- the API a module's C half is written against ----------------------
+
+  ;;; Argument I of the goal, dereferenced. Good for the length of this call.
+  (decl) (func co_m_arg ((co_engine * e) (size_t g) (u32 i)) (out size_t))
+  (decl) (func co_m_machine ((co_engine * e)) (out co_machine *))
+
+  ;;; The trail, for a predicate that has to leave nothing behind when it
+  ;;; fails. Take the mark before the first unification, undo to it on the way
+  ;;; out with 0.
+  (decl) (func co_m_mark ((co_engine * e)) (out size_t))
+  (decl) (func co_m_undo ((co_engine * e) (size_t mark)))
+
+  ;;; ---- reading arguments ----
+
+  (decl) (func co_m_is_var ((co_engine * e) (size_t t)) (out int))
+  (decl) (func co_m_is_atom ((co_engine * e) (size_t t)) (out int))
+
+  ;;; An atom's name, or null if T is not an atom. The pointer is into the
+  ;;; machine's atom table and stays valid as long as the machine does.
+  (decl) (func co_m_atom ((co_engine * e) (size_t t)) (out const char *))
+
+  (decl) (func co_m_int ((co_engine * e) (size_t t) (i64 * out)) (out int))
+  (decl) (func co_m_float ((co_engine * e) (size_t t) (double * out)) (out int))
+
+  ;;; T AS TEXT, which is the one a module reaching outside the process needs:
+  ;;; an atom, an integer, or a list of character codes all become the obvious
+  ;;; string. The code-list case is not politeness -- cocolog reads "abc" as a
+  ;;; code list, so without it every double-quoted file name in a program would
+  ;;; be a type error.
+  ;;;
+  ;;; Answers 0 if T is none of those or does not fit in CAP.
+  (decl) (func co_m_text ((co_engine * e) (size_t t) (char * buf) (size_t cap)) (out int))
+
+  ;;; ---- writing answers ----
+
+  (decl) (func co_m_unify ((co_engine * e) (size_t t) (size_t u)) (out int))
+  (decl) (func co_m_unify_atom ((co_engine * e) (size_t t) (const char * s)) (out int))
+  (decl) (func co_m_unify_int ((co_engine * e) (size_t t) (i64 v)) (out int))
+  (decl) (func co_m_unify_float ((co_engine * e) (size_t t) (double v)) (out int))
+
+  (decl) (func co_m_nil ((co_engine * e)) (out size_t))
+  (decl) (func co_m_cons ((co_engine * e) (size_t h) (size_t t)) (out size_t))
+
+  ;;; A list of atoms, built from the END so that the result comes out in the
+  ;;; order the array is in.
+  (decl) (func co_m_atom_list ((co_engine * e) (char ** v) (size_t n)) (out size_t))
+
+  ;;; ---- giving up ----
+
+  ;;; Both answer -1 with the engine's `err' filled in, so a predicate can
+  ;;; `(return (co_m_error e "..." path))'. cocolog has no error TERMS -- see
+  ;;; STATUS.md -- so an error stops the query rather than being catchable.
+  (decl) (func co_m_error ((co_engine * e) (const char * what)
+                           (const char * detail)) (out int))
+  (decl) (func co_m_type_error ((co_engine * e) (const char * want)
+                                (size_t got)) (out int))
+
+  ) ; decl-module
+
+
+(generic impl-module
+  ()
+
+  ;; The registry. Grown by doubling like every other array in cocolog rather
+  ;; than fixed at some number nobody can justify, and holding the descriptors
+  ;; BY VALUE so that a module does not have to find somewhere to keep its own.
+  (static) (var co_module * co_modules)
+  (static) (var size_t co_nmodules)
+  (static) (var size_t co_modcap)
+
+  ;;; ---- the two hooks solve.cicili left --------------------------------
+
+  ;;; Every registered module in turn, until one claims the name. First
+  ;;; registered wins a collision, which makes the order in the target the
+  ;;; order of precedence and is the only sensible rule when two modules
+  ;;; disagree.
+  (static)
+  (func co_module_call ((co_engine * e) (const char * name) (u32 arity)
+                        (size_t g) (int * found)) (out int)
+        (set (cof found) 0)
+        (for ((size_t i . 0)) (< i co_nmodules) ((++ i))
+          (let ((co_module * mod . #'(aof (nth i co_modules))))
+            (if (!= (-> mod dispatch) nil)
+                (let ((int mine . 0)
+                      (int rc . #'((-> mod dispatch) e name arity g (aof mine))))
+                  (if mine (block (set (cof found) 1) (return rc)))))))
+        (return 0))
+
+  ;;; The Coco half of every module, into this store. Called by the engine when
+  ;;; a query starts, and guarded by a count on the STORE rather than a flag
+  ;;; here: a store that has been reset -- which is what thawing a machine does
+  ;;; -- has lost the clauses and has to be given them again, and the count
+  ;;; going back to zero is exactly that fact.
+  ;;;
+  ;;; THE HOOKS ARE MUTED WHILE IT RUNS. A module's clauses belong to the
+  ;;; build, not to the knowledge base: written through, they would be saved
+  ;;; into the shared database, come back on every fetch, and be listed as the
+  ;;; user's own -- and a second interpreter would then have two copies.
+  (static)
+  (func co_module_load ((co_store * st) (co_machine * m) (co_engine * e)) (out int)
+        (if (== co_nmodules 0) (return 1))
+        (if (>= (-> st libs) co_nmodules) (return 1))
+        (let ((char err [256]) (int ok . 1))
+          (co_store_mute st)
+          (for ((size_t i . 0)) (< i co_nmodules) ((++ i))
+            (let ((co_module * mod . #'(aof (nth i co_modules))))
+              (if (and ok (!= (-> mod init) nil))
+                  (if (not ((-> mod init) e)) (set ok 0)))
+              (if (and ok (!= (-> mod prolog) nil))
+                  (if (< (co_consult st m (-> mod prolog) err (sizeof err)) 0)
+                      (set ok 0)))))
+          (co_store_unmute st)
+          (set (-> st libs) co_nmodules)
+          (return ok)))
+
+  ;;; ---- the registry ---------------------------------------------------
+
+  (func co_module_init ()
+        (set co_nmodules 0)
+        (co_extern_install co_module_call co_module_load))
+
+  (func co_module_free ()
+        (free co_modules)
+        (set co_modules nil)
+        (set co_nmodules 0)
+        (set co_modcap 0))
+
+  (func co_module_register ((const char * name)
+                            (func dispatch ((co_engine * e) (const char * nm)
+                                            (u32 arity) (size_t g) (int * found))
+                                  (out int))
+                            (const char * prolog)
+                            (func init ((co_engine * e)) (out int))) (out int)
+        (if (== name nil) (return 0))
+        (if (and (== dispatch nil) (== prolog nil)) (return 0))
+        (if (>= co_nmodules co_modcap)
+            (let ((size_t ncap . #'(? (== co_modcap 0) 8 (* co_modcap 2)))
+                  (co_module * nb))
+              (set nb (cast (co_module *)
+                            (realloc co_modules (* ncap (sizeof co_module)))))
+              (if (== nb nil) (return 0))
+              (set co_modules nb)
+              (set co_modcap ncap)))
+        (let ((co_module * slot . #'(aof (nth co_nmodules co_modules))))
+          (memset slot 0 (sizeof co_module))
+          (set (-> slot name) name)
+          (set (-> slot dispatch) dispatch)
+          (set (-> slot prolog) prolog)
+          (set (-> slot init) init))
+        (set co_nmodules (+ co_nmodules 1))
+        (return 1))
+
+  (func co_module_count () (out size_t) (return co_nmodules))
+
+  (func co_module_at ((size_t i)) (out const co_module *)
+        (if (>= i co_nmodules) (return nil))
+        (return (aof (nth i co_modules))))
+
+  ;;; ---- the author's API -----------------------------------------------
+
+  (func co_m_arg ((co_engine * e) (size_t g) (u32 i)) (out size_t)
+        (return (co_deref (-> e m) (co_arg (-> e m) g i))))
+
+  (func co_m_machine ((co_engine * e)) (out co_machine *) (return (-> e m)))
+
+  (func co_m_mark ((co_engine * e)) (out size_t) (return ($ (cof (-> e m)) trail_len)))
+  (func co_m_undo ((co_engine * e) (size_t mark)) (co_undo_to (-> e m) mark))
+
+  (func co_m_is_var ((co_engine * e) (size_t t)) (out int)
+        (return (? (co-tag-is REF (nth t ($ (cof (-> e m)) heap))) 1 0)))
+
+  (func co_m_is_atom ((co_engine * e) (size_t t)) (out int)
+        (return (? (co-tag-is ATOM (nth t ($ (cof (-> e m)) heap))) 1 0)))
+
+  (func co_m_atom ((co_engine * e) (size_t t)) (out const char *)
+        (if (not (co_m_is_atom e t)) (return nil))
+        (return (co_atom_name (-> e m) (co_name_of (-> e m) t))))
+
+  (func co_m_int ((co_engine * e) (size_t t) (i64 * out)) (out int)
+        (if (not (co-tag-is INT (nth t ($ (cof (-> e m)) heap)))) (return 0))
+        (set (cof out) (co-signed-payload (nth t ($ (cof (-> e m)) heap))))
+        (return 1))
+
+  ;;; An integer is a float too, which is what every arithmetic reader in the
+  ;;; system already assumes: `size_file(F, 0)' should match a file of length
+  ;;; zero whether the program wrote 0 or 0.0.
+  (func co_m_float ((co_engine * e) (size_t t) (double * out)) (out int)
+        (let ((co_machine * m . #'(-> e m)) (i64 iv . 0))
+          (if (co_m_int e t (aof iv))
+              (block (set (cof out) (cast double iv)) (return 1)))
+          (let ((u64 c . #'(nth t ($ (cof m) heap))))
+            (if (not (co-tag-is FLT c)) (return 0))
+            (set (cof out) (nth (cast size_t (co-payload c)) ($ (cof m) floats)))
+            (return 1))))
+
+  ;;; An atom, an integer, or a list of codes. Anything else is 0 and the
+  ;;; caller decides whether that is a type error or a reason to fail.
+  (func co_m_text ((co_engine * e) (size_t t) (char * buf) (size_t cap)) (out int)
+        (let ((co_machine * m . #'(-> e m)) (i64 iv . 0))
+          (if (== cap 0) (return 0))
+          (set t (co_deref m t))
+
+          (if (co_m_is_atom e t)
+              (let ((const char * s . #'(co_atom_name m (co_name_of m t))))
+                (if (>= (strlen s) cap) (return 0))
+                (snprintf buf cap "%s" s)
+                (return 1)))
+
+          (if (co_m_int e t (aof iv))
+              (block (snprintf buf cap "%lld" (cast llong iv)) (return 1)))
+
+          ;; a list of character codes -- what "abc" reads as
+          (let ((size_t n . 0) (size_t p . t))
+            (while 1
+              (set p (co_deref m p))
+              (if (co_m_is_atom e p)
+                  (if (== 0 (strcmp (co_atom_name m (co_name_of m p)) "[]")) break)
+                (return 0))
+              (if (not (co_is_callable m p)) (return 0))
+              (if (!= (co_arity m p) 2) (return 0))
+              (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
+              (let ((size_t h . #'(co_deref m (co_arg m p 0))) (i64 c . 0))
+                (if (not (co_m_int e h (aof c))) (return 0))
+                (if (or (< c 1) (> c 255)) (return 0))
+                (if (>= (+ n 1) cap) (return 0))
+                (set (nth n buf) (cast char c))
+                (set n (+ n 1)))
+              (set p (co_arg m p 1)))
+            ;; an empty list is the empty string, not a failure: `atom_codes(X, [])'
+            (set (nth n buf) (cast char 0))
+            (return 1))))
+
+  (func co_m_unify ((co_engine * e) (size_t t) (size_t u)) (out int)
+        (return (? (co_unify (-> e m) t u) 1 0)))
+
+  (func co_m_unify_atom ((co_engine * e) (size_t t) (const char * s)) (out int)
+        (return (co_m_unify e t (co_new_atom (-> e m) s))))
+
+  (func co_m_unify_int ((co_engine * e) (size_t t) (i64 v)) (out int)
+        (return (co_m_unify e t (co_new_int (-> e m) v))))
+
+  (func co_m_unify_float ((co_engine * e) (size_t t) (double v)) (out int)
+        (return (co_m_unify e t (co_new_float (-> e m) v))))
+
+  (func co_m_nil ((co_engine * e)) (out size_t) (return (co_new_atom (-> e m) "[]")))
+
+  (func co_m_cons ((co_engine * e) (size_t h) (size_t t)) (out size_t)
+        (return (co_cons (-> e m) h t)))
+
+  (func co_m_atom_list ((co_engine * e) (char ** v) (size_t n)) (out size_t)
+        (let ((size_t lst . #'(co_m_nil e)))
+          (for ((size_t i . n)) (> i 0) ((-- i))
+            (set lst (co_cons (-> e m) (co_new_atom (-> e m) (nth (- i 1) v)) lst)))
+          (return lst)))
+
+  (func co_m_error ((co_engine * e) (const char * what) (const char * detail)) (out int)
+        (if (== detail nil)
+            (snprintf (-> e err) 192 "%s" what)
+          (snprintf (-> e err) 192 "%s: %s" what detail))
+        (return -1))
+
+  (func co_m_type_error ((co_engine * e) (const char * want) (size_t got)) (out int)
+        (let ((co_strbuf b))
+          (co_sb_init (aof b))
+          (co_write_term (-> e m) (aof b) got 1 0)
+          (snprintf (-> e err) 192 "%s expected, found %s" want
+                    (? (== ($ b s) nil) "a variable" ($ b s)))
+          (co_sb_free (aof b))
+          (return -1)))
+
+  ) ; impl-module

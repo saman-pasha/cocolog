@@ -14,6 +14,8 @@ different findings.
 | `test/term.cicili` | interning, unification, the trail undoing exactly, copying that renames consistently, the standard order, and the term DSL — 27 checks |
 | `test/syntax.cicili` | the reader and the writer against each other: precedence, associativity, the spacing that decides whether `-(1)` reads back as a compound or an integer, lists, curly terms, quoting, radix and character literals — 41 checks |
 | `test/solve.cicili` | backtracking, cut, negation, if-then-else, arithmetic, lists, term inspection, assert/retract, `:- dynamic` in all three spec shapes and as a goal, `listing`, a 50000-deep deterministic recursion that must leave no choice points, and a failing goal that must not grow the heap |
+| `test/module.cicili` | the module seam itself: no modules behaves as before modules, three at once, a module's Coco half calling its own C half, a module that is only clauses, precedence against both builtins and the knowledge base, a failing module predicate leaving no binding, and the Coco half coming back after the store is emptied — 22 checks |
+| `test/files/*.pl` | the Files library, run by **both swipl and cocolog** in the same fresh directory and compared byte for byte — 77 lines of agreement across three cases |
 | `test/state.cicili` | a machine run to one solution, frozen, its machine and store **freed**, thawed into new ones, and finishing the proof correctly; and `freeze(thaw(x)) == x` byte for byte |
 | `test/zigurat.cicili` | the Cicili binding against a real server: every parameter width, a cursor, and a Text large enough to matter |
 | `test/shared.cicili` | ten interpreters in sequence — one writes the knowledge base, a second built from nothing answers from it, a third suspends mid-proof and is freed, a fourth picks it up and finishes it, a fifth asserts at run time, a sixth sees it, a seventh retracts, an eighth agrees it is gone, a ninth declares two predicates dynamic and a tenth — which starts knowing nothing — warms its store and finds them declared and empty. Then the same knowledge base over HTTP, and a machine written over the binary protocol picked up over HTTP — 39 checks |
@@ -166,6 +168,39 @@ rather than worked around here. See its `doc/concurrency.md`.
   connected at once. The twelve did not get an error; they got silence until
   their own sockets timed out.
 
+## Modules, and the Files library
+
+`lib/module.cicili` adds a second seam beside the knowledge base one: two null
+function pointers in `lib/solve.cicili` that a module fills in. A module carries
+predicates written in Cicili and clauses written in Prolog, and a program cannot
+tell which half answered it. MODULES.md is how to write one.
+
+`lib/files.cicili` is the first, and is SWI-Prolog's file-system predicates:
+seventeen in C, five in Prolog on top of three private primitives.
+
+**It is checked against a real SWI rather than against its author.**
+`test/files/*.pl` are Prolog programs run twice — by `swipl` and by
+`cocolog --local run` — in a freshly made empty directory that is the same
+absolute path both times, and the two outputs compared byte for byte. That is
+the only form of compatibility claim that cannot be fooled by what the author
+believes SWI does, and it earned itself on the first run:
+`file_name_extension(B, E, '.bashrc')` gives `B = ''` and `E = bashrc` in SWI,
+because a leading dot **is** an extension separator. This library had the rule
+everybody would guess instead.
+
+Three things had to be added to make that comparison possible at all:
+
+* **`cocolog run FILE [GOAL]`** — consult and prove in one process, with no
+  database. Deliberately the shape of `swipl -q -g GOAL -t halt FILE`: nothing
+  is printed but what the program writes.
+* **A muted store.** A module's clauses belong to the build, not the knowledge
+  base. Written through they would be saved into the shared database, come back
+  on every fetch, and be listed as the user's own — and the next interpreter to
+  open the same knowledge base would hold two copies of the library.
+* **A `library` flag on a predicate**, so `listing` with no argument is the
+  program and not everything reachable. `listing(Name)` still shows a library
+  predicate, because asking for one by name is asking about that one.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
@@ -204,6 +239,15 @@ rather than worked around here. See its `doc/concurrency.md`.
 * **No error terms.** A goal that cannot be run reports through the engine's
   `err` string and stops the query, rather than throwing a Prolog `error/2` a
   program could catch. `catch/3` and `throw/1` are not implemented.
+* **A module cannot define an operator.** The reader's table is fixed at build
+  time, so a module whose predicates want infix syntax cannot have it. This is
+  the one real gap in the module seam; the other two — no choice points, no
+  per-session state — are the price of being suspendable and are not going to
+  change.
+* **The writer spaces `-` differently from SWI.** `write(a-b)` gives `a - b`
+  here and `a-b` there. Nothing depends on it and the shared tests write one
+  value per line rather than printing compound terms, but it is a divergence
+  and it is in `lib/syntax.cicili`, not in the Files library.
 * **No garbage collection.** The heap only grows within a solution; it is
   reclaimed on backtracking and on a new query. A long deterministic run that
   builds structure will grow until it ends.

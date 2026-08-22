@@ -11,6 +11,9 @@
 ;;;
 ;;;   cocolog [options] consult FILE...     read programs into the knowledge base
 ;;;   cocolog [options] query GOAL          prove it here and now
+;;;   cocolog [options] run FILE... [GOAL]  consult and prove, in one process;
+;;;                                          GOAL defaults to `main'. The shape
+;;;                                          of `swipl -q -g GOAL -t halt FILE'
 ;;;   cocolog [options] start NAME GOAL     begin a machine and suspend it
 ;;;   cocolog [options] step NAME           run it a while and suspend it again
 ;;;   cocolog [options] finish NAME         run it to the end
@@ -84,6 +87,12 @@
   ;; is holding. lib/std/c/posix declares it for inference; the header still
   ;; has to be included by the target that emits code.
   (include <unistd.h>)
+  ;; the Files module reaches stat, opendir, glob and realpath
+  (include <sys/stat.h>)
+  (include <sys/types.h>)
+  (include <dirent.h>)
+  (include <glob.h>)
+  (include <limits.h>)
   (include <zigurat.h>)
   (include <zeytun.h>)
 
@@ -93,6 +102,8 @@
   (import "./lib/syntax.cicili")
   (import "./lib/kb.cicili")
   (import "./lib/solve.cicili")
+  (import "./lib/module.cicili")
+  (import "./lib/files.cicili")
   (import "./lib/state.cicili")
   (import "./lib/zigurat-kb.cicili")
   (import "./lib/zeytun-kb.cicili")
@@ -101,6 +112,8 @@
   (decl-syntax) (impl-syntax)
   (decl-kb)     (impl-kb)
   (decl-solve)  (impl-solve)
+  (decl-module) (impl-module)
+  (decl-files)  (impl-files)
   (decl-state)  (impl-state)
   (decl-zigurat-kb) (impl-zigurat-kb)
   (decl-zeytun-kb)  (impl-zeytun-kb)
@@ -847,6 +860,56 @@
 
   ;;; ---- the command line ---------------------------------------------------
 
+  ;;; Every module this build carries. Registration is here and not inside the
+  ;;; modules because a build decides what it contains -- a module cannot add
+  ;;; itself, and the order is the order of precedence when two claim a name.
+  (func install_modules () (out int)
+        (co_module_init)
+        (if (not (co_files_module))
+            (block (fprintf stderr "cocolog: the files module would not register\n")
+                   (return 0)))
+        (return 1))
+
+  ;;; Consults FILES and proves GOAL once, in one process, with no database.
+  ;;;
+  ;;; WHAT IT IS FOR is running the same Prolog file under cocolog and under
+  ;;; another Prolog and comparing what they print -- which is how the Files
+  ;;; module is tested, because a library that claims to be SWI's has to be
+  ;;; checked against SWI rather than against its own author. It is deliberately
+  ;;; the shape of `swipl -q -g GOAL -t halt FILE': nothing is printed but what
+  ;;; the program itself writes, success is 0 and failure is 1.
+  (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
+        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z) (co_zt zt)
+              (char err [256]) (int rc . 0))
+          (co_machine_init (aof m))
+          (co_store_init (aof st))
+          (co_engine_init (aof e) (aof m) (aof st))
+          (set ($ e max_steps) 0)
+          (attach (aof z) (aof zt) (aof m) (aof st))
+
+          (for ((int i . from)) (< i argc) ((++ i))
+            (let ((char * text . #'(slurp (nth i argv))))
+              (if (== text nil)
+                  (block (co_engine_free (aof e)) (co_store_free (aof st))
+                         (co_machine_free (aof m)) (return 1)))
+              (if (< (co_consult (aof st) (aof m) text err (sizeof err)) 0)
+                  (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
+                         (free text) (co_engine_free (aof e)) (co_store_free (aof st))
+                         (co_machine_free (aof m)) (return 1)))
+              (free text)))
+
+          (if (not (co_engine_ask_text (aof e) goal))
+              (block (fprintf stderr "cocolog: %s\n" ($ e err))
+                     (co_engine_free (aof e)) (co_store_free (aof st))
+                     (co_machine_free (aof m)) (return 1)))
+          (set rc (co_engine_next (aof e)))
+          (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
+          (if (!= db nil) (if (== rc 1) (zg_commit db) (zg_rollback db)))
+          (co_engine_free (aof e))
+          (co_store_free (aof st))
+          (co_machine_free (aof m))
+          (return (? (== rc 1) 0 1))))
+
   (func main ((int argc) (char ** argv))
         (out int)
         (let ((int i . 1) (int rc . 0))
@@ -876,6 +939,7 @@
 
           (if (>= i argc) (block (usage) (return 1)))
 
+          (if (not (install_modules)) (return 1))
           (if (not (open_connection)) (return 1))
 
           (let ((const char * cmd . #'(nth i argv)))
@@ -884,6 +948,14 @@
                (if (>= (+ i 1) argc)
                    (block (fprintf stderr "cocolog: consult needs a file\n") (set rc 1))
                  (set rc (cmd_consult argc argv (+ i 1)))))
+              ((== 0 (strcmp cmd "run"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: run needs a file\n") (set rc 1))
+                 ;; the goal is the last argument when there is more than one,
+                 ;; and `main' when there is not -- which is the swipl default
+                 (set rc (? (>= (+ i 2) argc)
+                            (cmd_run (+ i 2) argv (+ i 1) "main")
+                            (cmd_run (- argc 1) argv (+ i 1) (nth (- argc 1) argv))))))
               ((== 0 (strcmp cmd "query"))
                (if (>= (+ i 1) argc)
                    (block (fprintf stderr "cocolog: query needs a goal\n") (set rc 1))

@@ -82,6 +82,24 @@ that read like C and are not:
 * **A function pointer in a variable is written as a `func` clause in type
   position.** `co_store_reset` in `lib/kb.cicili` is the worked example.
 
+* **A string literal cannot contain a newline** — as a real newline it lands
+  unescaped inside a C literal, as `\n` it is emitted as an escaped backslash.
+  A module's Prolog half is therefore joined with spaces; see MODULES.md.
+* **Lambda-list markers must be uppercase** in a macro: `&REST`, not `&rest`.
+  Case is preserved, so the lowercase one is a different symbol and the macro
+  is called with the wrong arity.
+* **A macro emits ONE form.** Several from one macro leaves the symbols
+  unregistered and the next reference is "unknown symbol".
+* **`new` is a Cicili macro**, so a local of that name is read as a call to it.
+* **A dotted initialiser** — `(var size_t n . 0)` — cannot be written inside a
+  generic in this package, because `nil` there is `cocolog::nil` and the form
+  is genuinely dotted. A static is zero anyway.
+* **`(out (T *))` is wrong; `(out T *)` is right.** The parenthesised form
+  emits a cast to a non-scalar type.
+* **An external `struct` needs a name**: `(@define (code "stat_t struct stat"))`,
+  per `../cicili/doc/lib-std-c.md`. `(code "...")` is the raw-C escape for what
+  `lib/std/c` does not declare — `glob` and `realpath`, in `lib/files.cicili`.
+
 `../cicili/doc/` is the reference, and `../cicili/lib/README.md` an index of
 what the language ships with. Read them rather than guessing at syntax — a
 wrong guess usually compiles to something that fails much later.
@@ -108,6 +126,8 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 | `lib/syntax.cicili` | the reader and the writer, from one operator table |
 | `lib/kb.cicili` | the clause store and its five backend hooks |
 | `lib/solve.cicili` | the engine and the builtin table |
+| `lib/module.cicili` | the module seam and the API a module is written against |
+| `lib/files.cicili` | SWI's Files library, as a module — the worked example |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |
@@ -123,7 +143,9 @@ transaction and a machine is many rows).
 
 ## Before saying something works
 
-Run `make test` with a server up, and check the eight case lines. A change to
+Run `make test` with a server up, and check the ten case lines. `files` also
+SKIPs without `swipl` (`apt-get install swi-prolog-nox`) — another green line
+that means nothing was run. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

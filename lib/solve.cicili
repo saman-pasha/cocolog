@@ -224,6 +224,31 @@
   (decl) (func co_builtin ((co_engine * e) (const char * name) (u32 arity)
                            (size_t g) (int * found)) (out int))
 
+  ;;; ---- the module seam ---------------------------------------------------
+  ;;;
+  ;;; TWO NULL FUNCTION POINTERS, and this file consults them and knows nothing
+  ;;; else about modules -- not what one is, nor how many there are. It is the
+  ;;; arrangement kb.cicili uses for the knowledge base, for the same reason: a
+  ;;; cocolog built without a module is the cocolog that existed before modules,
+  ;;; because the hooks stay null and the cost is one null check per goal that
+  ;;; was going to reach the knowledge base anyway.
+  ;;;
+  ;;; CALL runs a goal that is not a control construct and not a core builtin,
+  ;;; setting FOUND if some module owned the name and arity. It is consulted
+  ;;; AFTER the core builtins, so no module can redefine `=' or `is' underneath
+  ;;; a program, and BEFORE the knowledge base, so a module predicate is not
+  ;;; silently shadowed by a clause somebody asserted.
+  ;;;
+  ;;; LOAD is given a store and asked to put the modules' own clauses in it. It
+  ;;; runs when a query is asked rather than when a store is made, because a
+  ;;; store can be emptied under the engine -- thawing a machine does exactly
+  ;;; that -- and the clauses have to come back.
+  (decl) (func co_extern_install
+               ((func call ((co_engine * e) (const char * name) (u32 arity)
+                            (size_t g) (int * found)) (out int))
+                (func load ((co_store * st) (co_machine * m) (co_engine * e))
+                      (out int))))
+
   ;;; Puts back one choice-point frame read out of a frozen machine. The
   ;;; predicate arrives as a name and an arity rather than as an index -- see
   ;;; state.cicili for why -- and is interned into whatever store this machine
@@ -254,6 +279,25 @@
           (set (-> e choices) nb)
           (set (-> e choice_cap) ncap)
           (return 1)))
+
+  ;;; ---- the module seam -------------------------------------------------
+
+  ;; No initialiser: a static is null until `co_extern_install' says otherwise,
+  ;; and `. nil' cannot be written inside a generic in this package -- `nil'
+  ;; there is the symbol `cocolog::nil', which dots the form with something
+  ;; that is not a list and stops the specifier walking it.
+  (static) (var func co_extern_call ((co_engine * e) (const char * name)
+                                     (u32 arity) (size_t g) (int * found))
+                 (out int))
+  (static) (var func co_extern_load ((co_store * st) (co_machine * m)
+                                     (co_engine * e)) (out int))
+
+  (func co_extern_install
+        ((func call ((co_engine * e) (const char * name) (u32 arity)
+                     (size_t g) (int * found)) (out int))
+         (func load ((co_store * st) (co_machine * m) (co_engine * e)) (out int)))
+        (set co_extern_call call)
+        (set co_extern_load load))
 
   (static)
   (func co_fail_err ((co_engine * e) (const char * what)) (out int)
@@ -428,6 +472,15 @@
         (let ((co_machine * m . #'(-> e m))
               (co_store * st . #'(-> e st)))
 
+          ;; THE MODULES' OWN CLAUSES, IF THEY ARE NOT IN THIS STORE YET. Here
+          ;; and not in `co_engine_ask' because a store can be emptied under a
+          ;; running engine -- thawing a machine into it does exactly that --
+          ;; and this is the one function every path goes through. The hook's
+          ;; own guard makes the usual case two loads and a comparison.
+          (if (!= co_extern_load nil)
+              (if (not (co_extern_load st m e))
+                  (return (co_fail_err e "a module's clauses would not load"))))
+
           ;; a solution was reported last time; the next one is behind a
           ;; backtrack, not in front of the current continuation
           (if (-> e resume)
@@ -511,10 +564,13 @@
                    ;; ---- a builtin, or a predicate ----
                    (let ((int found . 0) (int rc . 0))
                      (set rc (co_builtin e name n g (aof found)))
+                     ;; not a core builtin: a module may still own it
+                     (if (and (not found) (!= co_extern_call nil))
+                         (set rc (co_extern_call e name n g (aof found))))
                      (if found
                          (block (if (== rc -1) (return -1))
                                 (if (== rc 1) (set (-> e goals) k) (set ok 0)))
-                       ;; not a builtin: the knowledge base decides
+                       ;; nobody's builtin: the knowledge base decides
                        (let ((size_t pi . #'(co_pred_of st m g)))
                          (if (>= pi ($ (cof st) npreds))
                              (return (co_fail_err e "goal is not callable")))
@@ -1095,13 +1151,20 @@
             (if (or (> (-> p nclauses) 0) (not dyn)) (fputs "\n" stdout))
             (return 1))))
 
+  ;;; `listing' with no argument is the PROGRAM, not everything reachable. A
+  ;;; module's clauses are in the same store -- that is what makes them
+  ;;; callable -- but a person asking what they have written does not want the
+  ;;; Files library back, any more than SWI's `listing' hands back library(lists).
+  ;;; `listing(Name)' still shows them: asking for one by name is asking about
+  ;;; that one specifically.
   (func co_bi_listing_all ((co_engine * e) (size_t g)) (out int)
         (co_store_warm (-> e st))
         ;; `npreds' is read each time round rather than once: `co_pred_ensure'
         ;; inside the listing can intern predicates the clauses it fetches
         ;; mention, and the loop should reach those too.
         (for ((size_t i . 0)) (< i ($ (cof (-> e st)) npreds)) ((++ i))
-          (co_listing_pred e i))
+          (if (not ($ (nth i ($ (cof (-> e st)) preds)) library))
+              (co_listing_pred e i)))
         (return 1))
 
   ;;; `listing(Name)' lists every arity of that name; `listing(Name/Arity)' the

@@ -49,7 +49,12 @@
     (member size_t   nclauses)
     (member size_t   clause_cap)
     (member int      dynamic)
-    (member int      loaded))
+    (member int      loaded)
+    ;; Came from a MODULE's Coco half rather than from the program. `listing'
+    ;; with no argument skips these -- a person listing what they wrote does
+    ;; not want the library back -- while `listing(Name)' still shows them,
+    ;; because asking for one by name is asking about it specifically.
+    (member int      library))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -116,10 +121,32 @@
     ;; interpreter opening the same kb tomorrow has to be told the same thing.
     (member func on_dynamic ((co_store * st) (void * ctx) (size_t pi)) (out int))
 
+    ;; How many MODULES have had their clauses consulted into this store. It
+    ;; lives here rather than beside the registry because it is a fact about
+    ;; this store and not about the build: `co_store_reset' -- which is what
+    ;; thawing a machine does -- takes the clauses with it, and the count going
+    ;; back to zero is exactly the statement that they have to be put back.
+    (member size_t    libs)
+
+    ;; Non-zero while the store is being filled from something that is not the
+    ;; knowledge base -- a module's clauses. See `co_store_mute'.
+    (member int       muted)
+
     (member int       oom))
 
   (decl) (func co_store_init ((co_store * st)))
   (decl) (func co_store_free ((co_store * st)))
+
+  ;; Stops the write-through hooks firing, and starts them again. A module's
+  ;; clauses belong to the BUILD and not to the knowledge base: written
+  ;; through, they would be saved into the shared database, come back on every
+  ;; fetch, and be listed as the user's own -- and the next interpreter to open
+  ;; the same knowledge base would then hold two copies of the library.
+  ;;
+  ;; It is a counter and not a flag, so that muting nests.
+  (decl) (func co_store_mute ((co_store * st)))
+  (decl) (func co_store_unmute ((co_store * st)))
+  (decl) (func co_store_is_muted ((co_store * st)) (out int))
 
   ;; Empties a store of everything it holds and leaves its BACKEND in place.
   ;; What a store contains -- clauses, predicates, cells -- is reloadable; the
@@ -249,6 +276,11 @@
         (free (-> st preds))
         (free (-> st cells))
         (memset st 0 (sizeof co_store)))
+
+  (func co_store_mute ((co_store * st))   (set (-> st muted) (+ (-> st muted) 1)))
+  (func co_store_unmute ((co_store * st)) (if (> (-> st muted) 0)
+                                              (set (-> st muted) (- (-> st muted) 1))))
+  (func co_store_is_muted ((co_store * st)) (out int) (return (? (> (-> st muted) 0) 1 0)))
 
   (func co_store_reset ((co_store * st))
         (let ((void * ctx . #'(-> st ctx)))
@@ -420,6 +452,7 @@
           ;; already declared: say so and do not tell the backend twice
           (if ($ (nth pi (-> st preds)) dynamic) (return 1))
           (set ($ (nth pi (-> st preds)) dynamic) 1)
+          (if (co_store_is_muted st) (return 1))
           (if (== (-> st on_dynamic) nil) (return 1))
           (return ((-> st on_dynamic) st (-> st ctx) pi))))
 
@@ -551,7 +584,9 @@
             (co_pred_ensure st pi)
             (set stored (co_store_put st m clause))
             (if (not (co_pred_add_clause st pi stored at_end)) (return 0))
-            (if (!= (-> st on_assert) nil)
+            ;; muted means this is a module's clause, not the program's
+            (if (co_store_is_muted st) (set ($ (nth pi (-> st preds)) library) 1))
+            (if (and (not (co_store_is_muted st)) (!= (-> st on_assert) nil))
                 ((-> st on_assert) st (-> st ctx) stored))
             (return 1))))
 
@@ -642,7 +677,8 @@
                        ;; left bound to what was retracted, and the term it is
                        ;; bound into is the copy this loop made on the heap. The
                        ;; hook keeps its own heap use to itself.
-                       (if (!= (-> st on_retract) nil)
+                       (if (and (not (co_store_is_muted st))
+                                (!= (-> st on_retract) nil))
                            ((-> st on_retract) st (-> st ctx) pi))
                        (return 1)))
                   (co_undo_to m tmark)

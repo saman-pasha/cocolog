@@ -1,0 +1,546 @@
+;;;; cocolog -- the Files library, as a module
+;;;
+;;; SWI-Prolog's file-system predicates (its manual section "Files"), written
+;;; against lib/module.cicili. It is the worked example of what a module is
+;;; for: the things that need a syscall are in the C half, the things that are
+;;; clearer as clauses are in the Coco half, and a program cannot tell which is
+;;; which.
+;;;
+;;; IT IS WRITTEN TO MATCH SWI AND NOT TO RESEMBLE IT. Every edge below was
+;;; read off a running SWI-Prolog 9 rather than guessed, because the ones that
+;;; matter are exactly the ones nobody guesses right:
+;;;
+;;;   file_base_name('/a/b/', X)         X = b        -- trailing slash first
+;;;   file_directory_name('/a/b/', X)    X = '/a'
+;;;   file_directory_name(abc, X)        X = '.'
+;;;   file_directory_name('/abc', X)     X = '/'
+;;;   file_name_extension(B, E, 'a.b.c') B = 'a.b', E = c
+;;;   file_name_extension(B, E, noext)   B = noext, E = ''
+;;;   file_name_extension(B, E, '/a/b.d/c')   E = ''  -- a dot in a DIRECTORY
+;;;                                                      is not an extension
+;;;   file_name_extension(x, '.md', F)   F = 'x.md'   -- a dotted Ext is taken
+;;;   working_directory(W, W)            W ends in '/'
+;;;   directory_files/2                  includes '.' and '..'
+;;;   access_file(missing, none)         true
+;;;   absolute_file_name/2               normalises '.' and '..', does NOT
+;;;                                      require the file to exist, does NOT
+;;;                                      resolve symbolic links
+;;;
+;;; test/files/*.pl are run against BOTH systems and their output compared, so
+;;; these are checked rather than asserted.
+;;;
+;;; WHERE IT PARTS FROM SWI, and it is one place: SWI THROWS where this FAILS.
+;;; `delete_file/1' on a file that is not there is an existence_error in SWI
+;;; and simply false here, because cocolog has no error terms at all and
+;;; `catch/3' with it -- see STATUS.md. Every predicate that can fail for a
+;;; reason the caller could not have tested for first says so through the
+;;; engine's `err', which stops the query rather than being catchable. The
+;;; shared tests therefore stay on the paths where the two agree, and the ones
+;;; that cannot agree are listed in MODULES.md rather than quietly skipped.
+;;;
+;;; NOT IMPLEMENTED, and why: `tmp_file_stream/3' and everything else that
+;;; hands back a stream, because cocolog has no streams -- there is no
+;;; `open/3', so there is nothing for such a predicate to answer with.
+;;; `absolute_file_name/3' takes an option list whose useful members
+;;; (file_type, access, solutions, expand) each imply machinery this library
+;;; does not have; the /2 form is complete.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+;;; Read by `co-emit-module-dispatch' to build the dispatcher, exactly as
+;;; *builtins* is read in solve.cicili. Adding a predicate is a line here and a
+;;; function below, and the two cannot drift apart.
+;;;
+;;; The three `$'-prefixed ones are not part of the library's surface: they are
+;;; the primitives the Coco half is built from, named so that a program that
+;;; calls them knows it is reaching under something.
+(DEFPARAMETER *files-predicates*
+  '(("exists_file"           1 co_f_exists_file)
+    ("exists_directory"      1 co_f_exists_directory)
+    ("access_file"           2 co_f_access_file)
+    ("size_file"             2 co_f_size_file)
+    ("time_file"             2 co_f_time_file)
+
+    ("delete_file"           1 co_f_delete_file)
+    ("rename_file"           2 co_f_rename_file)
+    ("make_directory"        1 co_f_make_directory)
+    ("delete_directory"      1 co_f_delete_directory)
+
+    ("directory_files"       2 co_f_directory_files)
+    ("expand_file_name"      2 co_f_expand_file_name)
+    ("absolute_file_name"    2 co_f_absolute_file_name)
+    ("same_file"             2 co_f_same_file)
+    ("read_link"             3 co_f_read_link)
+    ("tmp_file"              2 co_f_tmp_file)
+    ("working_directory"     2 co_f_working_directory)
+    ("is_absolute_file_name" 1 co_f_is_absolute)
+
+    ("$path_split"           3 co_f_path_split)
+    ("$ext_split"            3 co_f_ext_split)
+    ("$ext_join"             3 co_f_ext_join)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half
+;;;; ------------------------------------------------------------------
+;;; Joined with real `\n' escapes rather than written as one long string,
+;;; because a Cicili string literal is RAW -- it reaches C untouched, so a
+;;; newline in the source would be a newline inside a C string literal, which
+;;; does not compile. The joining happens at macro-expansion time and costs
+;;; nothing at run time.
+;;; A CICILI STRING LITERAL CANNOT CARRY A NEWLINE. Written as a real newline
+;;; it lands unescaped inside a C string literal, which does not compile;
+;;; written as `\n' it is emitted as an escaped backslash and arrives at the
+;;; reader as the two characters. So the clauses are joined with a SPACE, which
+;;; Prolog does not mind at all -- a clause ends at its `.', not at a line
+;;; ending -- and the commentary that would have been `%' lines lives out here
+;;; instead, where it is not in a string and cannot swallow the rest of the
+;;; program the way a `%' with no newline after it would.
+(DEFPARAMETER *files-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; the two halves of one split, so they cannot disagree
+           "file_base_name(Path, Base) :- '$path_split'(Path, _, Base)."
+           "file_directory_name(Path, Dir) :- '$path_split'(Path, Dir, _)."
+
+           ;; Splitting when the whole name is known, joining when it is not.
+           ;; The cut is what makes the splitting mode deterministic, which
+           ;; every builtin in cocolog has to be.
+           "file_name_extension(Base, Ext, File) :- nonvar(File), !, '$ext_split'(File, Base, Ext)."
+           "file_name_extension(Base, Ext, File) :- '$ext_join'(Base, Ext, File)."
+
+           ;; On a POSIX system a Prolog file name and an operating-system one
+           ;; are the same thing, in both directions.
+           "prolog_to_os_filename(F, F)."
+
+           ;; mkdir -p, and the reason the Coco half exists: it is a recursion
+           ;; over the C half, and it reads as one. `Parent \== Dir' is what
+           ;; stops it at the root, where the directory of `/' is `/'.
+           "make_directory_path(Dir) :- exists_directory(Dir), !."
+           "make_directory_path(Dir) :- file_directory_name(Dir, Parent), Parent \\== Dir, make_directory_path(Parent), make_directory(Dir).")))
+
+(generic decl-files
+  ()
+
+  ;;; Cicili has no `struct X' in type position -- a type is a name -- so the
+  ;;; two POSIX structs are given one. `stat_t' is what lib/std/c/posix
+  ;;; declares (`stat' would collide with the function), and both spellings are
+  ;;; the documented `@define' form from doc/lib-std-c.md. `DIR' needs none: it
+  ;;; is already a typedef in the header.
+  (@define (code "stat_t struct stat"))
+  (@define (code "dirent struct dirent"))
+
+  ;;; Registers the module. A target calls this after `co_module_init'.
+  (decl) (func co_files_module () (out int))
+
+  ) ; decl-files
+
+
+(generic impl-files
+  ()
+
+  ;;; PATH_MAX is not portable enough to rely on and not generous enough to be
+  ;;; safe where it is defined, so every buffer here is an explicit 4096 and
+  ;;; every read of one is bounded by `sizeof' of the buffer it is filling --
+  ;;; the capacity travels with the buffer rather than as a constant the two
+  ;;; could stop agreeing about.
+
+  ;;; ---- reading a path argument ----------------------------------------
+
+  ;;; Argument I of the goal as a path. Answers 1, or 0 having filled in the
+  ;;; engine's error -- so a caller writes
+  ;;;
+  ;;;   (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+  ;;;
+  ;;; and the -1 carries the message. An unbound argument is an instantiation
+  ;;; error and not a failure, which is what SWI does and what a program
+  ;;; debugging itself needs.
+  (static)
+  (func co_f_path ((co_engine * e) (size_t g) (u32 i) (char * out) (size_t cap))
+        (out int)
+        (let ((size_t t . #'(co_m_arg e g i)))
+          (if (co_m_is_var e t)
+              (block (co_m_error e "a file name is unbound" nil) (return 0)))
+          (if (not (co_m_text e t out cap))
+              (block (co_m_type_error e "a file name" t) (return 0)))
+          (return 1)))
+
+  ;;; ---- existence and access -------------------------------------------
+
+  (static)
+  (func co_f_stat_is ((const char * path) (int want_dir)) (out int)
+        (let ((stat_t sb))
+          (if (!= 0 (stat path (aof sb))) (return 0))
+          (if want_dir (return (? (S_ISDIR ($ sb st_mode)) 1 0)))
+          (return (? (S_ISREG ($ sb st_mode)) 1 0))))
+
+  (func co_f_exists_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (return (co_f_stat_is p 0))))
+
+  (func co_f_exists_directory ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (return (co_f_stat_is p 1))))
+
+  ;;; SWI's modes. `none' is true of anything, including a file that is not
+  ;;; there -- it asks for no access and gets it. `append' is `write', and
+  ;;; `search' is `execute' spelt for directories.
+  (func co_f_access_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (const char * mode))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (set mode (co_m_atom e (co_m_arg e g 1)))
+          (if (== mode nil)
+              (return (co_m_type_error e "an access mode" (co_m_arg e g 1))))
+          (if (== 0 (strcmp mode "none"))    (return 1))
+          (if (== 0 (strcmp mode "exist"))   (return (? (== 0 (access p F_OK)) 1 0)))
+          (if (== 0 (strcmp mode "read"))    (return (? (== 0 (access p R_OK)) 1 0)))
+          (if (or (== 0 (strcmp mode "write")) (== 0 (strcmp mode "append")))
+              (return (? (== 0 (access p W_OK)) 1 0)))
+          (if (or (== 0 (strcmp mode "execute")) (== 0 (strcmp mode "search")))
+              (return (? (== 0 (access p X_OK)) 1 0)))
+          (return (co_m_error e "not an access mode" mode))))
+
+  (func co_f_size_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (stat_t sb))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (if (!= 0 (stat p (aof sb))) (return 0))
+          (return (co_m_unify_int e (co_m_arg e g 1) (cast i64 ($ sb st_size))))))
+
+  ;;; A FLOAT, because SWI's is a float and a program comparing two of them
+  ;;; would otherwise get a different answer on each system.
+  (func co_f_time_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (stat_t sb))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (if (!= 0 (stat p (aof sb))) (return 0))
+          (return (co_m_unify_float e (co_m_arg e g 1)
+                                    (cast double ($ sb st_mtime))))))
+
+  ;;; ---- changing things ------------------------------------------------
+
+  (func co_f_delete_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (return (? (== 0 (unlink p)) 1 0))))
+
+  (func co_f_rename_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char a [4096]) (char b [4096]))
+          (if (not (co_f_path e g 0 a (sizeof a))) (return -1))
+          (if (not (co_f_path e g 1 b (sizeof b))) (return -1))
+          (return (? (== 0 (rename a b)) 1 0))))
+
+  (func co_f_make_directory ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (return (? (== 0 (mkdir p 0777)) 1 0))))
+
+  (func co_f_delete_directory ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (return (? (== 0 (rmdir p)) 1 0))))
+
+  ;;; ---- listing --------------------------------------------------------
+
+  ;;; EVERY entry, `.' and `..' included, because that is what SWI answers and
+  ;;; a program that filters them is portable while one that does not is
+  ;;; surprised on exactly one system. The order is the order the directory
+  ;;; gives them, which is also SWI's -- a program that needs an order sorts.
+  (func co_f_directory_files ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (DIR * d) (char ** names . nil)
+              (size_t n . 0) (size_t cap . 0) (int rc . 0))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (set d (opendir p))
+          (if (== d nil) (return 0))
+          (while 1
+            (let ((dirent * ent . #'(readdir d)))
+              (if (== ent nil) break)
+              (if (>= n cap)
+                  (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
+                        (char ** nb))
+                    (set nb (cast (char **) (realloc names (* ncap (sizeof (char *))))))
+                    (if (== nb nil) break)
+                    (set names nb)
+                    (set cap ncap)))
+              (set (nth n names) (strdup (-> ent d_name)))
+              (if (== (nth n names) nil) break)
+              (set n (+ n 1))))
+          (closedir d)
+          (set rc (co_m_unify e (co_m_arg e g 1) (co_m_atom_list e names n)))
+          (for ((size_t i . 0)) (< i n) ((++ i)) (free (nth i names)))
+          (free names)
+          (return rc)))
+
+  ;;; glob(3), which sorts by default -- and SWI's answer is sorted too, so the
+  ;;; default is what matches. No match is the EMPTY LIST and not a failure,
+  ;;; which is the one thing about this predicate everybody gets wrong.
+  ;;; GLOB GOES THROUGH THE RAW-C ESCAPE, which is the one place in cocolog
+  ;;; that does. `lib/std/c/posix' declares no `glob', and declaring it here
+  ;;; would emit a second prototype that conflicts with the header's -- the
+  ;;; same for `glob_t', whose typedef cannot be repeated. `(code ...)' is
+  ;;; Cicili's documented way of saying "this is C, pass it through", and four
+  ;;; lines of it is cheaper than a hand-written matcher that would have to get
+  ;;; brace expansion and multi-component patterns right to match SWI.
+  (func co_f_expand_file_name ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (int rc . 0) (int gr . 0)
+              (size_t n . 0) (char ** v . nil))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (code "glob_t gl; memset(&gl, 0, sizeof gl);")
+          (set gr (code "glob(p, GLOB_TILDE, NULL, &gl)"))
+          (if (== gr 0)
+              (block (set n (code "gl.gl_pathc"))
+                     (set v (code "gl.gl_pathv"))))
+          ;; No match is the EMPTY LIST and not a failure, which is the one
+          ;; thing about this predicate everybody gets wrong. Any other error
+          ;; is an error.
+          (if (and (!= gr 0) (!= gr (code "GLOB_NOMATCH")))
+              (block (code "globfree(&gl);")
+                     (return (co_m_error e "expand_file_name failed on" p))))
+          (set rc (co_m_unify e (co_m_arg e g 1) (co_m_atom_list e v n)))
+          (code "globfree(&gl);")
+          (return rc)))
+
+  ;;; ---- names ----------------------------------------------------------
+
+  ;;; `/' is 47 and `.' is 46. Cicili has no character literal -- see
+  ;;; CLAUDE.md -- so the codes are written out with the character named.
+
+  (static)
+  (func co_f_is_abs ((const char * p)) (out int)
+        (return (? (== (nth 0 p) (cast char 47)) 1 0)))
+
+  (func co_f_is_absolute ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (return (co_f_is_abs p))))
+
+  ;;; NORMALISED, NOT RESOLVED. `.' and `..' are folded away and a relative
+  ;;; name is taken against the working directory, but symbolic links are left
+  ;;; alone and the file need not exist -- all three of which are SWI's
+  ;;; behaviour and none of which is `realpath(3)'.
+  (static)
+  (func co_f_normalise ((const char * in) (char * out) (size_t cap)) (out int)
+        (let ((char work [8192]) (size_t len . 0))
+          (if (co_f_is_abs in)
+              (block (if (>= (strlen in) (sizeof work)) (return 0))
+                     (snprintf work (sizeof work) "%s" in))
+            (let ((char cwd [4096]))
+              (if (== nil (getcwd cwd (sizeof cwd))) (return 0))
+              (if (>= (+ (strlen cwd) (strlen in) 2) (sizeof work)) (return 0))
+              (snprintf work (sizeof work) "%s/%s" cwd in)))
+
+          ;; walk the components, keeping a stack of where each begins in OUT
+          (let ((size_t starts [512]) (size_t depth . 0) (char * p . work))
+            (set (nth 0 out) (cast char 47))   ; a leading `/'
+            (set len 1)
+            (while (!= (cast char 0) (nth 0 p))
+              (if (== (nth 0 p) (cast char 47)) (block (set p (+ p 1)) continue))
+              (let ((char * q . #'(strchr p 47))
+                    (size_t seg . 0))
+                (set seg (? (== q nil) (strlen p) (cast size_t (- q p))))
+                (cond
+                  ;; `.' -- nothing at all
+                  ((and (== seg 1) (== (nth 0 p) (cast char 46))) (block))
+                  ;; `..' -- back one component, unless already at the root
+                  ((and (== seg 2) (and (== (nth 0 p) (cast char 46))
+                                        (== (nth 1 p) (cast char 46))))
+                   (if (> depth 0)
+                       (block (set depth (- depth 1))
+                              (set len (nth depth starts)))))
+                  (#t
+                   (block
+                    (if (>= depth 512) (return 0))
+                    (if (>= (+ len seg 2) cap) (return 0))
+                    (set (nth depth starts) len)
+                    (set depth (+ depth 1))
+                    ;; a separator before every component but the first
+                    (if (> len 1) (block (set (nth len out) (cast char 47))
+                                         (set len (+ len 1))))
+                    (memcpy (+ out len) p seg)
+                    (set len (+ len seg)))))
+                (if (== q nil) break)
+                (set p (+ q 1))))
+            (set (nth len out) (cast char 0))
+            (return 1))))
+
+  (func co_f_absolute_file_name ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (char abs [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (if (not (co_f_normalise p abs (sizeof abs)))
+              (return (co_m_error e "the path will not fit" p)))
+          (return (co_m_unify_atom e (co_m_arg e g 1) abs))))
+
+  ;;; The directory and the base name of a path, in one call, because the two
+  ;;; library predicates want opposite halves of the same walk and doing it
+  ;;; twice would let them disagree.
+  ;;;
+  ;;;   '/a/b/c' -> '/a/b' and c        '/a/b/' -> '/a'  and b
+  ;;;   'abc'    -> '.'    and abc      '/'     -> '/'   and '/'
+  (func co_f_path_split ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (char dir [4096]) (char base [4096]) (size_t len))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (set len (strlen p))
+
+          ;; a bare root is its own directory and its own base name
+          (if (and (== len 1) (== (nth 0 p) (cast char 47)))
+              (block (snprintf dir (sizeof dir) "/")
+                     (snprintf base (sizeof base) "/"))
+            (block
+             ;; trailing slashes first: '/a/b/' is about b, not about ''
+             (while (and (> len 1) (== (nth (- len 1) p) (cast char 47)))
+               (set len (- len 1)))
+             (set (nth len p) (cast char 0))
+             (let ((char * slash . #'(strrchr p 47)))
+               (cond
+                 ((== slash nil)
+                  (block (snprintf dir (sizeof dir) ".")
+                         (snprintf base (sizeof base) "%s" p)))
+                 ((== slash p)
+                  ;; '/abc': the directory is the root itself
+                  (block (snprintf dir (sizeof dir) "/")
+                         (snprintf base (sizeof base) "%s" (+ slash 1))))
+                 (#t
+                  (block (set (nth 0 slash) (cast char 0))
+                         (snprintf dir (sizeof dir) "%s" p)
+                         (snprintf base (sizeof base) "%s" (+ slash 1))))))))
+
+          (let ((size_t mark . #'(co_m_mark e)))
+            (if (not (co_m_unify_atom e (co_m_arg e g 1) dir))
+                (block (co_m_undo e mark) (return 0)))
+            (if (not (co_m_unify_atom e (co_m_arg e g 2) base))
+                (block (co_m_undo e mark) (return 0))))
+          (return 1)))
+
+  ;;; A dot in a DIRECTORY component is not an extension: '/a/b.d/c' has none.
+  ;;;
+  ;;; A LEADING DOT IS ONE, THOUGH. SWI splits '.bashrc' into the empty base
+  ;;; name and the extension `bashrc', which is not what a person would say and
+  ;;; is what the shared test measured -- the first version of this function
+  ;;; had the intuitive rule, and test/files/names.pl caught it against a real
+  ;;; SWI in the first run. The rule is simply: the last dot that is after the
+  ;;; last slash, wherever it sits.
+  (func co_f_ext_split ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (char * dot) (char * slash))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (set dot (strrchr p 46))
+          (set slash (strrchr p 47))
+          (if (or (== dot nil)
+                  (and (!= slash nil) (< dot slash)))
+              ;; no extension: the base name is the whole thing and Ext is ''
+              (let ((size_t mark . #'(co_m_mark e)))
+                (if (not (co_m_unify_atom e (co_m_arg e g 1) p))
+                    (block (co_m_undo e mark) (return 0)))
+                (if (not (co_m_unify_atom e (co_m_arg e g 2) ""))
+                    (block (co_m_undo e mark) (return 0)))
+                (return 1)))
+          (let ((size_t mark . #'(co_m_mark e)) (char ext [4096]))
+            (snprintf ext (sizeof ext) "%s" (+ dot 1))
+            (set (nth 0 dot) (cast char 0))
+            (if (not (co_m_unify_atom e (co_m_arg e g 1) p))
+                (block (co_m_undo e mark) (return 0)))
+            (if (not (co_m_unify_atom e (co_m_arg e g 2) ext))
+                (block (co_m_undo e mark) (return 0)))
+            (return 1))))
+
+  ;;; Joining. An Ext written with its dot already on is taken as it is, which
+  ;;; is what SWI does: file_name_extension(x, '.md', F) gives 'x.md' and not
+  ;;; 'x..md'. An empty Ext adds no dot.
+  (func co_f_ext_join ((co_engine * e) (size_t g)) (out int)
+        (let ((char base [4096]) (char ext [4096]) (char out [4096]))
+          (if (not (co_f_path e g 0 base (sizeof base))) (return -1))
+          (if (not (co_f_path e g 1 ext (sizeof ext))) (return -1))
+          (if (== (cast char 0) (nth 0 ext))
+              (snprintf out (sizeof out) "%s" base)
+            (if (== (nth 0 ext) (cast char 46))
+                (snprintf out (sizeof out) "%s%s" base ext)
+              (snprintf out (sizeof out) "%s.%s" base ext)))
+          (return (co_m_unify_atom e (co_m_arg e g 2) out))))
+
+  ;;; ---- identity, links, temporaries, the working directory -------------
+
+  ;;; The same file and not merely the same name: device and inode, through
+  ;;; `stat' and so through any symbolic link.
+  (func co_f_same_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char a [4096]) (char b [4096]) (stat_t sa) (stat_t sb))
+          (if (not (co_f_path e g 0 a (sizeof a))) (return -1))
+          (if (not (co_f_path e g 1 b (sizeof b))) (return -1))
+          (if (!= 0 (stat a (aof sa))) (return 0))
+          (if (!= 0 (stat b (aof sb))) (return 0))
+          (return (? (and (== ($ sa st_dev) ($ sb st_dev))
+                          (== ($ sa st_ino) ($ sb st_ino))) 1 0))))
+
+  ;;; SWI answers both the raw link text and the fully resolved target.
+  (func co_f_read_link ((co_engine * e) (size_t g)) (out int)
+        (let ((char p [4096]) (char raw [4096]) (char full [4096]) (ssize_t n))
+          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (set n (readlink p raw (- (sizeof raw) 1)))
+          (if (< n 0) (return 0))
+          (set (nth n raw) (cast char 0))
+          ;; `realpath' is another the std POSIX declarations do not carry, so
+          ;; it goes the same way glob does.
+          (if (== 0 (code "(realpath(p, full) != NULL)")) (return 0))
+          (let ((size_t mark . #'(co_m_mark e)))
+            (if (not (co_m_unify_atom e (co_m_arg e g 1) raw))
+                (block (co_m_undo e mark) (return 0)))
+            (if (not (co_m_unify_atom e (co_m_arg e g 2) full))
+                (block (co_m_undo e mark) (return 0))))
+          (return 1)))
+
+  ;;; Enough to tell two temporary names apart within one process. Not a
+  ;;; guarantee of uniqueness against another process -- the pid in the name is
+  ;;; that -- and not a security claim: SWI's tmp_file/2 makes neither either.
+  (static)
+  (func co_f_tmp_seq () (out long)
+        (static) (var long seq)
+        (set seq (+ seq 1))
+        (return seq))
+
+  ;;; A name nothing is using yet, in the system's temporary directory. It is
+  ;;; a NAME and not a file: SWI's tmp_file/2 does not create one either, and
+  ;;; the caller is the one that knows what to put there.
+  (func co_f_tmp_file ((co_engine * e) (size_t g)) (out int)
+        (let ((char base [4096]) (char out [4096]) (const char * dir))
+          (if (not (co_f_path e g 0 base (sizeof base))) (return -1))
+          (set dir (getenv "TMPDIR"))
+          (if (== dir nil) (set dir "/tmp"))
+          (snprintf out (sizeof out) "%s/coco_%s_%d_%ld" dir base
+                    (cast int (getpid)) (cast long (co_f_tmp_seq)))
+          (return (co_m_unify_atom e (co_m_arg e g 1) out)))) 
+
+  ;;; SWI answers the working directory WITH A TRAILING SLASH, then changes to
+  ;;; New. `working_directory(W, W)' therefore reads it and puts it back, which
+  ;;; is the idiom for asking where you are.
+  (func co_f_working_directory ((co_engine * e) (size_t g)) (out int)
+        (let ((char cwd [4096]) (char with [4096]) (char dest [4096]))
+          (if (== nil (getcwd cwd (sizeof cwd)))
+              (return (co_m_error e "cannot read the working directory" nil)))
+          (let ((size_t len . #'(strlen cwd)))
+            (if (and (> len 0) (== (nth (- len 1) cwd) (cast char 47)))
+                (snprintf with (sizeof with) "%s" cwd)
+              (snprintf with (sizeof with) "%s/" cwd)))
+          (if (not (co_m_unify_atom e (co_m_arg e g 0) with)) (return 0))
+          ;; New may have become bound by that unification -- that is exactly
+          ;; what `working_directory(W, W)' does -- so it is read afterwards.
+          ;; The local is `dest' and not `new' because `new' is one of Cicili's
+          ;; own macros and a variable of that name is read as a call to it.
+          (if (not (co_f_path e g 1 dest (sizeof dest))) (return -1))
+          (if (!= 0 (chdir dest)) (return 0))
+          (return 1)))
+
+  ;;; ---- the module -----------------------------------------------------
+
+  ;;; The dispatcher, from the table at the top of this file, and the
+  ;;; registration function a target calls. Two macro calls and no hand-written
+  ;;; glue: everything that could fall out of step with the table is generated
+  ;;; from it.
+  (static) (co-emit-module-dispatch co_f_dispatch *files-predicates*)
+
+  (co-defmodule co_files_module "files" co_f_dispatch *files-prolog*)
+
+  ) ; impl-files

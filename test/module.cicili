@@ -1,0 +1,227 @@
+;;;; cocolog -- the module seam
+;;;
+;;; The Files module proves that a module WORKS; this proves that the seam is a
+;;; seam. What it establishes, and each was wrong at some point while it was
+;;; being written:
+;;;
+;;;   A cocolog with NO modules registered behaves exactly as one built before
+;;;   modules existed -- the hooks stay null and a goal falls through to the
+;;;   knowledge base.
+;;;
+;;;   TWO modules can be registered at once and each answers only its own
+;;;   names, with the first registered winning a collision.
+;;;
+;;;   A module's Coco half can call its own C half, and a clause in the
+;;;   knowledge base can call either.
+;;;
+;;;   A module predicate does NOT shadow a core builtin, and IS reached before
+;;;   the knowledge base.
+;;;
+;;;   The Coco half survives `co_store_reset' -- which is what thawing a
+;;;   machine does -- because the count that guards it lives on the store.
+;;;
+;;;   A failing module predicate leaves NO bindings behind.
+
+(source "module.c"
+  (make :std #t
+        :compile ("-I../client" "-c" "module.c")
+        :link ("-lmodule.o" "-L../build" "-lcocologc" "-lm"
+               "-o" "cocolog_module_test"))
+
+  (include <math.h>)
+  (include <zigurat.h>)
+  (include <zeytun.h>)
+
+  (import "../lib/zigurat.cicili" :zg)
+  (import "../lib/zeytun.cicili" :zt)
+  (import "../lib/term.cicili")
+  (import "../lib/syntax.cicili")
+  (import "../lib/kb.cicili")
+  (import "../lib/solve.cicili")
+  (import "../lib/module.cicili")
+  (import "../lib/state.cicili")
+  (import "../lib/zigurat-kb.cicili")
+  (import "../lib/zeytun-kb.cicili")
+
+  (decl-term)   (impl-term)
+  (decl-syntax) (impl-syntax)
+  (decl-kb)     (impl-kb)
+  (decl-solve)  (impl-solve)
+  (decl-module) (impl-module)
+  (decl-state)  (impl-state)
+  (decl-zigurat-kb) (impl-zigurat-kb)
+  (decl-zeytun-kb)  (impl-zeytun-kb)
+
+  (var int failures . 0)
+  (var int checks . 0)
+
+  (func check ((const char * what) (llong got) (llong want))
+        (set checks (+ checks 1))
+        (if (== got want)
+            (printf "ok   %-52s %lld\n" what got)
+          (block (printf "FAIL %-52s got %lld want %lld\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  ;;; ---- a first module: arithmetic the engine does not have ------------
+
+  ;;; `twice(X, Y)' -- Y is X doubled. Deliberately something no builtin does,
+  ;;; so that reaching it proves the dispatch and not a coincidence.
+  (func tm_twice ((co_engine * e) (size_t g)) (out int)
+        (co-mod-args e g ((x 0) (y 1))
+          (let ((i64 v . 0))
+            (if (not (co_m_int e x (aof v)))
+                (return (co_m_type_error e "an integer" x)))
+            (return (co_m_unify_int e y (* v 2))))))
+
+  ;;; Answers 1 only when both arguments unify with the same atom, and is
+  ;;; written to bind the FIRST and then fail, so that a test can prove the
+  ;;; binding was undone. A builtin that fails is not a choice point and the
+  ;;; engine winds nothing back for it -- see lib/module.cicili.
+  (func tm_never ((co_engine * e) (size_t g)) (out int)
+        (co-mod-args e g ((a 0) (b 1))
+          (let ((size_t mark . #'(co_m_mark e)))
+            (if (not (co_m_unify_atom e a "bound")) (block (co_m_undo e mark) (return 0)))
+            ;; and now give up, having bound A
+            (co_m_undo e mark)
+            (return (? (co_m_is_atom e b) 0 0)))))
+
+  ;;; A name that is ALSO a core builtin. The engine must never reach this.
+  (func tm_shadow ((co_engine * e) (size_t g)) (out int)
+        (return (co_m_error e "a module predicate shadowed a builtin" nil)))
+
+  (DEFPARAMETER *m1-predicates*
+    '(("twice"  2 tm_twice)
+      ("never"  2 tm_never)
+      ("atom"   1 tm_shadow)))
+
+  ;;; The Coco half calls the C half, which is the bridge in one clause.
+  (DEFPARAMETER *m1-prolog*
+    (FORMAT NIL "~{~A ~}"
+            (LIST "quadruple(X, Y) :- twice(X, H), twice(H, Y)."
+                  "from_module(yes).")))
+
+  (static) (co-emit-module-dispatch tm_m1_dispatch *m1-predicates*)
+  (co-defmodule tm_module_one "one" tm_m1_dispatch *m1-prolog*)
+
+  ;;; ---- a second module, to prove the registry holds more than one -----
+
+  (func tm_negate ((co_engine * e) (size_t g)) (out int)
+        (co-mod-args e g ((x 0) (y 1))
+          (let ((i64 v . 0))
+            (if (not (co_m_int e x (aof v)))
+                (return (co_m_type_error e "an integer" x)))
+            (return (co_m_unify_int e y (- 0 v))))))
+
+  ;;; The same name and arity as the first module's. The first registered wins,
+  ;;; so this must never run.
+  (func tm_twice_wrong ((co_engine * e) (size_t g)) (out int)
+        (return (co_m_error e "the second module won a collision" nil)))
+
+  (DEFPARAMETER *m2-predicates*
+    '(("negate" 2 tm_negate)
+      ("twice"  2 tm_twice_wrong)))
+
+  (static) (co-emit-module-dispatch tm_m2_dispatch *m2-predicates*)
+  (co-defmodule tm_module_two "two" tm_m2_dispatch)
+
+  ;;; ---- a third: clauses and no C at all -------------------------------
+
+  (DEFPARAMETER *m3-prolog*
+    (FORMAT NIL "~{~A ~}" (LIST "clauses_only(here).")))
+
+  (co-defmodule tm_module_three "three" nil *m3-prolog*)
+
+  ;;; ---- the harness ----------------------------------------------------
+
+  (func count ((co_engine * e) (const char * goal) (int limit)) (out int)
+        (let ((int n . 0) (int rc . 1))
+          (if (not (co_engine_ask_text e goal)) (return -1))
+          (while 1
+            (set rc (co_engine_next e))
+            (if (== rc -1) (return -1))
+            (if (== rc 0) break)
+            (set n (+ n 1))
+            (if (>= n limit) break))
+          (return n)))
+
+  (func main ()
+    ;; ================================================================
+    ;; With no modules registered at all.
+    ;; ================================================================
+    (let ((co_machine m) (co_store st) (co_engine e) (char err [256]))
+      (co_machine_init (aof m)) (co_store_init (aof st))
+      (co_engine_init (aof e) (aof m) (aof st))
+      (set ($ e max_steps) 1000000)
+      (co_module_init)
+
+      (check "no modules registered" (cast llong (co_module_count)) 0)
+      (check "a module predicate is simply unknown"
+             (cast llong (count (aof e) "twice(2, X)" 10)) 0)
+      (co_consult (aof st) (aof m) "twice(a, b)." err (sizeof err))
+      (check "and the knowledge base still answers"
+             (cast llong (count (aof e) "twice(a, X)" 10)) 1)
+
+      (co_engine_free (aof e)) (co_store_free (aof st)) (co_machine_free (aof m)))
+
+    ;; ================================================================
+    ;; With three.
+    ;; ================================================================
+    (let ((co_machine m) (co_store st) (co_engine e) (char err [256]))
+      (co_machine_init (aof m)) (co_store_init (aof st))
+      (co_engine_init (aof e) (aof m) (aof st))
+      (set ($ e max_steps) 1000000)
+
+      (co_module_init)
+      (check "registered the first"  (cast llong (tm_module_one)) 1)
+      (check "registered the second" (cast llong (tm_module_two)) 1)
+      (check "registered the third"  (cast llong (tm_module_three)) 1)
+      (check "three of them" (cast llong (co_module_count)) 3)
+
+      (check "a C predicate runs" (cast llong (count (aof e) "twice(21, 42)" 10)) 1)
+      (check "and answers wrongly when it should"
+             (cast llong (count (aof e) "twice(21, 43)" 10)) 0)
+      (check "the second module's own name works"
+             (cast llong (count (aof e) "negate(7, -7)" 10)) 1)
+
+      ;; the Coco half, calling the C half
+      (check "a clause from the module's Prolog half runs"
+             (cast llong (count (aof e) "from_module(yes)" 10)) 1)
+      (check "and it can call the module's C half"
+             (cast llong (count (aof e) "quadruple(3, 12)" 10)) 1)
+      (check "a module that is only clauses works too"
+             (cast llong (count (aof e) "clauses_only(here)" 10)) 1)
+
+      ;; precedence
+      (check "a module does NOT shadow a core builtin"
+             (cast llong (count (aof e) "atom(a)" 10)) 1)
+      (check "the first registered module wins a collision"
+             (cast llong (count (aof e) "twice(5, 10)" 10)) 1)
+
+      ;; a module predicate is reached BEFORE the knowledge base
+      (co_consult (aof st) (aof m) "twice(1, 999)." err (sizeof err))
+      (check "a clause cannot shadow a module predicate"
+             (cast llong (count (aof e) "twice(1, 999)" 10)) 0)
+      (check "the module answers instead"
+             (cast llong (count (aof e) "twice(1, 2)" 10)) 1)
+
+      ;; a failing module predicate leaves nothing behind
+      (check "a failing module predicate leaves no binding"
+             (cast llong (count (aof e) "never(X, y), X == bound" 10)) 0)
+      (check "and X is still free afterwards"
+             (cast llong (count (aof e) "(never(X, y) ; true), var(X)" 10)) 1)
+
+      ;; THE STORE'S COUNT, not a flag here: emptying the store -- which is
+      ;; what thawing a machine into it does -- has to bring the clauses back
+      (co_store_reset (aof st))
+      (check "the store forgot the module's clauses"
+             (cast llong ($ st libs)) 0)
+      (check "and they come back on the next query"
+             (cast llong (count (aof e) "from_module(yes)" 10)) 1)
+      (check "the count says so" (cast llong ($ st libs)) 3)
+
+      (co_engine_free (aof e)) (co_store_free (aof st)) (co_machine_free (aof m)))
+
+    (co_module_free)
+    (printf "\n%s: %d failure(s) in %d checks\n"
+            (? (== failures 0) "GREEN" "RED") failures checks)
+    (return (? (== failures 0) 0 1))))

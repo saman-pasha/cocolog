@@ -63,6 +63,8 @@ lib/syntax.cicili      the operator table, the reader and the writer
 lib/kb.cicili          the clause store, and the hook a backend fills in
 lib/solve.cicili       the engine: continuation, choice stack, cut, negation,
                        if-then-else, and the builtins
+lib/module.cicili      the module seam: a bridge between C and Coco
+lib/files.cicili       SWI's Files library, as a module
 lib/state.cicili       freeze and thaw
 lib/zigurat-kb.cicili  the knowledge base over Zigurat's binary protocol
 lib/zeytun-kb.cicili   the same, over Zeytun's HTTP pages (read only)
@@ -76,6 +78,8 @@ parsi/                 the schema and the pages, compiled into a ZiguratIP
 cocolog.cicili         the program
 test/                  the suite; groups.sh and ruler.sh are the concurrent
                        ones, and are crowds of processes rather than .cicili
+test/files/            Prolog programs run by BOTH swipl and cocolog, with
+                       their output compared line for line
 demo/family.pl         something to run it on
 ```
 
@@ -132,6 +136,27 @@ transaction; a machine is a header row plus a row per chunk, and over HTTP
 those would be separate transactions with no way to roll the first back when
 the third failed. Reading is another matter, so `listing` over HTTP shows
 exactly what `listing` over the binary protocol shows.
+
+## Modules: a bridge between C and Coco
+
+A module carries predicates written in Cicili and clauses written in Prolog, and
+a program cannot tell which half a predicate came from. `lib/solve.cicili` holds
+two null function pointers and consults them; `lib/module.cicili` fills them in.
+A cocolog built without a single module is the cocolog that existed before
+modules, because the hooks stay null.
+
+A goal is tried as a control construct, then a core builtin, then a module
+predicate, then the knowledge base — so a module can add to the language but
+cannot redefine `is` underneath a program, and is not shadowed by a clause
+somebody asserted.
+
+`lib/files.cicili` is the worked example: SWI-Prolog's file-system predicates,
+seventeen in C and five in Prolog on top of them. It is checked by running the
+same Prolog program under `swipl` and under `cocolog` and comparing the output
+byte for byte, which is the only kind of compatibility claim that cannot be
+fooled by its author — and it caught one on the first run.
+
+**MODULES.md** is how to write one.
 
 ## What is stored, and how
 

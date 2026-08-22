@@ -4,6 +4,7 @@
 #   sh test/run.sh              everything
 #   sh test/run.sh solve        one file
 #   sh test/run.sh groups       just the twelve-interpreter one
+#   sh test/run.sh files        just the SWI conformance one
 #   sh test/run.sh ruler        just the one-writer-many-readers one
 #
 # The database tests SKIP when there is no server, because "no server here" and
@@ -24,7 +25,7 @@ if [ ! -f "$CICILI/cicili.lisp" ]; then
   exit 1
 fi
 
-CASES="term syntax solve state zigurat shared"
+CASES="term syntax solve module state zigurat shared"
 [ -n "$1" ] && CASES="$1"
 
 red=0
@@ -51,21 +52,25 @@ for c in $CASES; do
   esac
 done
 
-# These two are not .cicili cases: each is a crowd of cocolog PROCESSES against
-# one server, so they are shell scripts and they need the built program rather
-# than a test binary. They run last because they are the slowest and because
-# everything above them has to be right for them to mean anything.
+# These are not .cicili cases: each drives the built PROGRAM rather than a test
+# binary, so they are shell scripts. They run last because they are the slowest
+# and because everything above them has to be right for them to mean anything.
 #
+#   files   the Files module, run against SWI-Prolog and compared line for line
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in groups ruler; do
+for c in files groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   if [ ! -x "$ROOT/cocolog" ]; then
     echo "SKIP (build cocolog first)"
     continue
   fi
-  out=$(sh "$HERE/$c.sh" 2>&1) || true
+  # `files' lives in its own directory because it is a harness plus a set of
+  # Prolog files that are read by two different Prologs
+  script="$HERE/$c.sh"
+  [ "$c" = files ] && script="$HERE/files/run.sh"
+  out=$(sh "$script" 2>&1) || true
   case $(echo "$out" | tail -1) in
     GREEN*) echo "GREEN" ;;
     SKIP*)  echo "SKIP" ;;
