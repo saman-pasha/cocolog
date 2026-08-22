@@ -125,7 +125,7 @@
   (decl-zeytun-kb)  (impl-zeytun-kb)
 
   ;;; Everything the command line said, in one place.
-  (struct co_opts
+  (struct coco_opts
     (member const char * kb)
     (member const char * host)
     (member const char * port)
@@ -142,7 +142,7 @@
     ;; host and port"; the string "none" means do not take turns at all.
     (member const char * lock))
 
-  (var co_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil })
+  (var coco_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil })
 
   ;;; The one connection, when there is one.
   (var zg_conn * db . nil)
@@ -162,15 +162,15 @@
   ;;; the design is actually for. Waiting longer than a poll hands the next
   ;;; turn to whoever is waiting, and costs a worker running alone twenty
   ;;; milliseconds a turn.
-  (var const useconds_t CO_POLL_US  . 5000)
-  (var const useconds_t CO_YIELD_US . 20000)
+  (var const useconds_t COCO_POLL_US  . 5000)
+  (var const useconds_t COCO_YIELD_US . 20000)
 
   ;;; How many consecutive polls a worker will wait for a machine that exists
-  ;;; but is claimed by somebody else. At CO_POLL_US that is about a minute --
+  ;;; but is claimed by somebody else. At COCO_POLL_US that is about a minute --
   ;;; long enough that a busy partner is never mistaken for a dead one, short
   ;;; enough that a machine stranded by a worker that was killed mid-turn does
   ;;; not keep the rest waiting for ever.
-  (var const int CO_IDLE_LIMIT . 12000)
+  (var const int COCO_IDLE_LIMIT . 12000)
 
   ;;; How many polls in a row a machine has to be out of sight before a worker
   ;;; believes it has finished rather than being mid-save.
@@ -200,7 +200,7 @@
   ;;; only WHEN A WORKER GOES HOME: it cannot make two workers advance one
   ;;; machine, lose a turn, or produce an answer twice. The claim settles all of
   ;;; that exactly, inside one SERIALIZABLE transaction.
-  (var const int CO_GONE_CONFIRM . 2)
+  (var const int COCO_GONE_CONFIRM . 2)
 
   ;;; And how long a worker waits for a machine it has NEVER SEEN. Much longer,
   ;;; because absence means something different before the first sighting: not
@@ -209,7 +209,7 @@
   ;;; and the only way to start twelve of them without the first few finishing
   ;;; the work before the last are running -- would otherwise decide in a second
   ;;; and a half that there was never anything to do.
-  (var const int CO_APPEAR_LIMIT . 4000)
+  (var const int COCO_APPEAR_LIMIT . 4000)
 
   (func usage ()
         (fprintf stderr "cocolog -- a Prolog interpreter with its knowledge base in Zigurat\n\n")
@@ -262,18 +262,18 @@
   ;;; turn, and the same answer twice is exactly what a suspendable machine
   ;;; must never do. So a turn buffers what it found and prints it after the
   ;;; commit, and a turn that fails throws the buffer away with the work.
-  (func show_answer ((co_engine * e) (int n) (co_strbuf * into))
-        (let ((co_strbuf b))
-          (co_sb_init (aof b))
-          (co_write_term ($ (cof e) m) (aof b) ($ (cof e) query) 0 0)
+  (func show_answer ((coco_engine * e) (int n) (coco_strbuf * into))
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_write_term ($ (cof e) m) (aof b) ($ (cof e) query) 0 0)
           (if (== into nil)
               (printf "  %d. %s\n" n (? (== ($ b s) nil) "true" ($ b s)))
-            (block (co_sb_put into "  ")
-                   (co_sb_put_i64 into (cast i64 n))
-                   (co_sb_put into ". ")
-                   (co_sb_put into (? (== ($ b s) nil) "true" ($ b s)))
-                   (co_sb_putc into (cast char 10))))
-          (co_sb_free (aof b))))
+            (block (coco_sb_put into "  ")
+                   (coco_sb_put_i64 into (cast i64 n))
+                   (coco_sb_put into ". ")
+                   (coco_sb_put into (? (== ($ b s) nil) "true" ($ b s)))
+                   (coco_sb_putc into (cast char 10))))
+          (coco_sb_free (aof b))))
 
   ;;; Opens the connection the options ask for, or leaves db null for --local.
   ;;;
@@ -331,48 +331,48 @@
   ;;; ---- the commands ------------------------------------------------------
 
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
-        (let ((co_machine m) (co_store st) (co_zg z) (char err [256]) (int total . 0))
-          (co_machine_init (aof m))
-          (co_store_init (aof st))
-          (if (not ($ opts local)) (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
+        (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [256]) (int total . 0))
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
           (for ((int i . from)) (< i argc) ((++ i))
             (let ((char * text . #'(slurp (nth i argv))) (int n))
-              (if (== text nil) (block (co_store_free (aof st)) (co_machine_free (aof m))
+              (if (== text nil) (block (coco_store_free (aof st)) (coco_machine_free (aof m))
                                        (return 1)))
-              (set n (co_consult (aof st) (aof m) text err (sizeof err)))
+              (set n (coco_consult (aof st) (aof m) text err (sizeof err)))
               (free text)
               (if (< n 0)
                   (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
-                         (co_store_free (aof st)) (co_machine_free (aof m))
+                         (coco_store_free (aof st)) (coco_machine_free (aof m))
                          (return 1)))
               (set total (+ total n))))
           (if (!= db nil) (zg_commit db))
           (printf "consulted %d clause(s) into '%s'\n" total ($ opts kb))
-          (co_store_free (aof st))
-          (co_machine_free (aof m))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
           (return 0)))
 
   ;;; Attaches whichever backend the options asked for. Both fill in the same
   ;;; hook; nothing below this line knows which.
-  (func attach ((co_zg * z) (co_zt * zt) (co_machine * m) (co_store * st))
+  (func attach ((coco_zg * z) (coco_zt * zt) (coco_machine * m) (coco_store * st))
         (if ($ opts local) (return))
         (if (!= ($ opts http) nil)
-            (co_zt_attach zt ($ opts host) ($ opts http) m st ($ opts kb))
-          (co_zg_attach z db m st ($ opts kb))))
+            (coco_zt_attach zt ($ opts host) ($ opts http) m st ($ opts kb))
+          (coco_zg_attach z db m st ($ opts kb))))
 
   (func cmd_query ((const char * goal)) (out int)
-        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z) (co_zt zt)
+        (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (int n . 0) (int rc . 1))
-          (co_machine_init (aof m))
-          (co_store_init (aof st))
-          (co_engine_init (aof e) (aof m) (aof st))
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
           (attach (aof z) (aof zt) (aof m) (aof st))
 
-          (if (not (co_engine_ask_text (aof e) goal))
+          (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
           (while 1
-            (set rc (co_engine_next (aof e)))
+            (set rc (coco_engine_next (aof e)))
             (if (!= rc 1) break)
             (set n (+ n 1))
             (show_answer (aof e) n nil)
@@ -389,32 +389,32 @@
               (if (== rc -1) (zg_rollback db) (zg_commit db)))
 
           (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n))
-          (co_engine_free (aof e))
-          (co_store_free (aof st))
-          (co_machine_free (aof m))
+          (coco_engine_free (aof e))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
           (return (? (== rc -1) 1 0))))
 
   ;;; Begins a machine and suspends it before it has done anything. What that
   ;;; is for: the machine exists in the database from this moment, so any
   ;;; worker can pick it up.
   (func cmd_start ((const char * name) (const char * goal)) (out int)
-        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z))
+        (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: start needs a database\n") (return 1)))
-          (co_machine_init (aof m))
-          (co_store_init (aof st))
-          (co_engine_init (aof e) (aof m) (aof st))
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
-          (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
-          (if (not (co_engine_ask_text (aof e) goal))
+          (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
-          (if (not (co_zg_save (aof z) (aof e) name goal))
+          (if (not (coco_zg_save (aof z) (aof e) name goal))
               (block (fprintf stderr "cocolog: %s\n" ($ z err)) (return 1)))
           (zg_commit db)
           (printf "started '%s'\n" name)
-          (co_engine_free (aof e))
-          (co_store_free (aof st))
-          (co_machine_free (aof m))
+          (coco_engine_free (aof e))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
           (return 0)))
 
   ;;; THE COMMAND THE DESIGN IS FOR. Pick a machine up, run it for a bounded
@@ -439,17 +439,17 @@
   ;;; original sin here: it made a turn that had actually been rolled back look
   ;;; exactly like a turn that had been saved.
   (func cmd_step ((const char * name) (int to_the_end)) (out int)
-        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z) (co_strbuf out)
+        (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_strbuf out)
               (int n . 0) (int rc . 1) (int done . 0)
               (int outcome . 0) (int broke . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: step needs a database\n")
                      (return (turn FAILED))))
-          (co_machine_init (aof m))
-          (co_store_init (aof st))
-          (co_engine_init (aof e) (aof m) (aof st))
-          (co_sb_init (aof out))
-          (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_engine_init (aof e) (aof m) (aof st))
+          (coco_sb_init (aof out))
+          (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
           (set outcome (turn FAILED))
 
           ;; ONE WAY OUT. There are now six things that can go wrong here and
@@ -457,7 +457,7 @@
           ;; run-once loop and the freeing is written once after it. The old
           ;; shape returned from the middle and leaked the machine each time.
           (while 1
-            (if (not (co_zg_load (aof z) (aof e) (aof m) (aof st) name))
+            (if (not (coco_zg_load (aof z) (aof e) (aof m) (aof st) name))
                 (block (fprintf stderr "cocolog: %s\n" ($ z err))
                        (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
                        break))
@@ -468,7 +468,7 @@
             (set ($ e max_steps) (? to_the_end 0 (+ ($ e steps) ($ opts steps))))
 
             (while 1
-              (set rc (co_engine_next (aof e)))
+              (set rc (coco_engine_next (aof e)))
               (if (!= rc 1) break)
               (set n (+ n 1))
               (show_answer (aof e) n (aof out))
@@ -489,11 +489,11 @@
             ;; The database half. Anything that fails in here takes the turn
             ;; with it, and the answer buffer goes unprinted along with it.
             (if done
-                (if (not (co_zg_drop (aof z) name))
+                (if (not (coco_zg_drop (aof z) name))
                     (block (fprintf stderr "cocolog: %s\n" ($ z err))
                            (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
                            break))
-              (if (not (co_zg_save (aof z) (aof e) name "suspended by step"))
+              (if (not (coco_zg_save (aof z) (aof e) name "suspended by step"))
                   (block (fprintf stderr "cocolog: %s\n" ($ z err))
                          (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
                          break)))
@@ -517,10 +517,10 @@
             (set outcome (? done (? broke (turn FAILED) (turn FINISHED)) (turn MORE)))
             break)
 
-          (co_sb_free (aof out))
-          (co_engine_free (aof e))
-          (co_store_free (aof st))
-          (co_machine_free (aof m))
+          (coco_sb_free (aof out))
+          (coco_engine_free (aof e))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
           (return outcome)))
 
   ;;; Redials, in place, after the server ended the connection.
@@ -537,7 +537,7 @@
   ;;; did not happen -- so the answer is to dial again and do the turn over.
   ;;;
   ;;; IT IS THE SAME zg_conn AFTERWARDS. Everything holding the connection --
-  ;;; every co_zg attached to it -- keeps working, which closing and reopening
+  ;;; every coco_zg attached to it -- keeps working, which closing and reopening
   ;;; would not allow.
   ;;;
   ;;; The wait grows with ATTEMPT and is nudged by the pid, so two workers that
@@ -724,9 +724,9 @@
                  ;; question that has to be asked more than once.
                  ;;
                  ;; A worker gives up only after the machine has been out of
-                 ;; sight CONTINUOUSLY for CO_GONE_CONFIRM polls. A partner
+                 ;; sight CONTINUOUSLY for COCO_GONE_CONFIRM polls. A partner
                  ;; between turns has committed and is yielding, so the row is
-                 ;; plainly there for CO_YIELD_US at a time; a run of absences
+                 ;; plainly there for COCO_YIELD_US at a time; a run of absences
                  ;; that long means it really has been dropped.
                  (if (== wanted nil) break)
                  (set got (exists worker wanted))
@@ -737,8 +737,8 @@
                             continue))
                  (if (== got 0)
                      (block (set gone (+ gone 1))
-                            (if (> gone (? seen CO_GONE_CONFIRM CO_APPEAR_LIMIT)) break)
-                            (usleep CO_POLL_US)
+                            (if (> gone (? seen COCO_GONE_CONFIRM COCO_APPEAR_LIMIT)) break)
+                            (usleep COCO_POLL_US)
                             continue))
                  (set gone 0)
                  (set seen 1)
@@ -746,11 +746,11 @@
                  ;; on it so that a machine stranded by a worker that died does
                  ;; not hold the rest here for ever.
                  (set idle (+ idle 1))
-                 (if (> idle CO_IDLE_LIMIT)
+                 (if (> idle COCO_IDLE_LIMIT)
                      (block (fprintf stderr "%s: '%s' stayed claimed by somebody else\n"
                                      worker wanted)
                             break))
-                 (usleep CO_POLL_US)
+                 (usleep COCO_POLL_US)
                  continue))
 
             (set idle 0)
@@ -780,7 +780,7 @@
             (set turns (+ turns 1))
             (if (turn-is FAILED rc) break)
             ;; Stand back and let somebody else have the next one.
-            (if (turn-is MORE rc) (usleep CO_YIELD_US)))
+            (if (turn-is MORE rc) (usleep COCO_YIELD_US)))
           ;; WHAT IT DID AND WHY IT STOPPED, in one line. A worker that ends
           ;; having taken no turns is either a scheduler working correctly --
           ;; its partners got there first -- or a bug, and the two are
@@ -851,17 +851,17 @@
           (return 0)))
 
   (func cmd_drop ((const char * name)) (out int)
-        (let ((co_machine m) (co_store st) (co_zg z))
+        (let ((coco_machine m) (coco_store st) (coco_zg z))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: drop needs a database\n") (return 1)))
-          (co_machine_init (aof m))
-          (co_store_init (aof st))
-          (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
-          (co_zg_drop (aof z) name)
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (coco_zg_drop (aof z) name)
           (zg_commit db)
           (printf "dropped '%s'\n" name)
-          (co_store_free (aof st))
-          (co_machine_free (aof m))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
           (return 0)))
 
   ;;; ---- the command line ---------------------------------------------------
@@ -870,17 +870,17 @@
   ;;; modules because a build decides what it contains -- a module cannot add
   ;;; itself, and the order is the order of precedence when two claim a name.
   (func install_modules () (out int)
-        (co_module_init)
-        (if (not (co_files_module))
+        (coco_module_init)
+        (if (not (coco_files_module))
             (block (fprintf stderr "cocolog: the files module would not register\n")
                    (return 0)))
-        (if (not (co_lists_module))
+        (if (not (coco_lists_module))
             (block (fprintf stderr "cocolog: the lists module would not register\n")
                    (return 0)))
-        (if (not (co_apply_module))
+        (if (not (coco_apply_module))
             (block (fprintf stderr "cocolog: the apply module would not register\n")
                    (return 0)))
-        (if (not (co_builtins_module))
+        (if (not (coco_builtins_module))
             (block (fprintf stderr "cocolog: the builtins module would not register\n")
                    (return 0)))
         (return 1))
@@ -894,35 +894,35 @@
   ;;; the shape of `swipl -q -g GOAL -t halt FILE': nothing is printed but what
   ;;; the program itself writes, success is 0 and failure is 1.
   (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
-        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z) (co_zt zt)
+        (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (char err [256]) (int rc . 0))
-          (co_machine_init (aof m))
-          (co_store_init (aof st))
-          (co_engine_init (aof e) (aof m) (aof st))
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
           (attach (aof z) (aof zt) (aof m) (aof st))
 
           (for ((int i . from)) (< i argc) ((++ i))
             (let ((char * text . #'(slurp (nth i argv))))
               (if (== text nil)
-                  (block (co_engine_free (aof e)) (co_store_free (aof st))
-                         (co_machine_free (aof m)) (return 1)))
-              (if (< (co_consult (aof st) (aof m) text err (sizeof err)) 0)
+                  (block (coco_engine_free (aof e)) (coco_store_free (aof st))
+                         (coco_machine_free (aof m)) (return 1)))
+              (if (< (coco_consult (aof st) (aof m) text err (sizeof err)) 0)
                   (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
-                         (free text) (co_engine_free (aof e)) (co_store_free (aof st))
-                         (co_machine_free (aof m)) (return 1)))
+                         (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
+                         (coco_machine_free (aof m)) (return 1)))
               (free text)))
 
-          (if (not (co_engine_ask_text (aof e) goal))
+          (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err))
-                     (co_engine_free (aof e)) (co_store_free (aof st))
-                     (co_machine_free (aof m)) (return 1)))
-          (set rc (co_engine_next (aof e)))
+                     (coco_engine_free (aof e)) (coco_store_free (aof st))
+                     (coco_machine_free (aof m)) (return 1)))
+          (set rc (coco_engine_next (aof e)))
           (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
           (if (!= db nil) (if (== rc 1) (zg_commit db) (zg_rollback db)))
-          (co_engine_free (aof e))
-          (co_store_free (aof st))
-          (co_machine_free (aof m))
+          (coco_engine_free (aof e))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
           (return (? (== rc 1) 0 1))))
 
   (func main ((int argc) (char ** argv))

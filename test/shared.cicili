@@ -72,11 +72,11 @@
                  (set failures (+ failures 1)))))
 
   ;; Counts the solutions of GOAL.
-  (func count ((co_engine * e) (const char * goal) (int limit)) (out int)
+  (func count ((coco_engine * e) (const char * goal) (int limit)) (out int)
         (let ((int n . 0) (int rc . 1))
-          (if (not (co_engine_ask_text e goal)) (return -1))
+          (if (not (coco_engine_ask_text e goal)) (return -1))
           (while 1
-            (set rc (co_engine_next e))
+            (set rc (coco_engine_next e))
             (if (== rc -1) (return -1))
             (if (== rc 0) break)
             (set n (+ n 1))
@@ -101,13 +101,13 @@
       ;; =================================================================
       ;; The first interpreter: it writes the knowledge base.
       ;; =================================================================
-      (let ((co_machine m1) (co_store st1) (co_engine e1) (co_zg z1)
+      (let ((coco_machine m1) (coco_store st1) (coco_engine e1) (coco_zg z1)
             (char err2 [256]))
-        (co_machine_init (aof m1))
-        (co_store_init (aof st1))
-        (co_engine_init (aof e1) (aof m1) (aof st1))
+        (coco_machine_init (aof m1))
+        (coco_store_init (aof st1))
+        (coco_engine_init (aof e1) (aof m1) (aof st1))
         (set ($ e1 max_steps) 5000000)
-        (co_zg_attach (aof z1) db (aof m1) (aof st1) KB)
+        (coco_zg_attach (aof z1) db (aof m1) (aof st1) KB)
 
         ;; start from an empty knowledge base, so the run is repeatable
         (let ((i64 gone . 0))
@@ -122,14 +122,14 @@
           (printf "     cleared %lld clause(s) from a previous run\n" (cast llong gone)))
 
         ;; Consulting fills the local store AND, because write-through is on,
-        ;; the database. Nothing in `co_consult' knows about the database: it
+        ;; the database. Nothing in `coco_consult' knows about the database: it
         ;; asserts, and asserting calls the hook.
         (check "the first interpreter consulted a program"
-               (cast llong (> (co_consult (aof st1) (aof m1)
+               (cast llong (> (coco_consult (aof st1) (aof m1)
                  "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
                  err2 (sizeof err2)) 0)) 1)
         (check "and a second batch"
-               (cast llong (> (co_consult (aof st1) (aof m1)
+               (cast llong (> (coco_consult (aof st1) (aof m1)
                  "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
                  err2 (sizeof err2)) 0)) 1)
 
@@ -138,21 +138,21 @@
 
         (check "committed the knowledge base" (cast llong (zg_commit db)) 1)
 
-        (co_engine_free (aof e1))
-        (co_store_free (aof st1))
-        (co_machine_free (aof m1)))
+        (coco_engine_free (aof e1))
+        (coco_store_free (aof st1))
+        (coco_machine_free (aof m1)))
 
       ;; =================================================================
       ;; A second interpreter, built from nothing, that was never told the
       ;; program. Every clause it uses is fetched from the database as the
       ;; proof reaches it.
       ;; =================================================================
-      (let ((co_machine m2) (co_store st2) (co_engine e2) (co_zg z2))
-        (co_machine_init (aof m2))
-        (co_store_init (aof st2))
-        (co_engine_init (aof e2) (aof m2) (aof st2))
+      (let ((coco_machine m2) (coco_store st2) (coco_engine e2) (coco_zg z2))
+        (coco_machine_init (aof m2))
+        (coco_store_init (aof st2))
+        (coco_engine_init (aof e2) (aof m2) (aof st2))
         (set ($ e2 max_steps) 5000000)
-        (co_zg_attach (aof z2) db (aof m2) (aof st2) KB)
+        (coco_zg_attach (aof z2) db (aof m2) (aof st2) KB)
 
         (check "a fresh interpreter starts with nothing"
                (cast llong ($ st2 npreds)) 0)
@@ -166,48 +166,48 @@
         (check "a predicate that is not there just fails"
                (cast llong (count (aof e2) "no_such_predicate(1)" 10)) 0)
 
-        (co_engine_free (aof e2))
-        (co_store_free (aof st2))
-        (co_machine_free (aof m2)))
+        (coco_engine_free (aof e2))
+        (coco_store_free (aof st2))
+        (coco_machine_free (aof m2)))
 
       ;; =================================================================
       ;; A machine suspended mid-proof by one interpreter and finished by
       ;; another.
       ;; =================================================================
-      (let ((co_machine m3) (co_store st3) (co_engine e3) (co_zg z3)
+      (let ((coco_machine m3) (coco_store st3) (coco_engine e3) (coco_zg z3)
             (int rc . 0))
-        (co_machine_init (aof m3))
-        (co_store_init (aof st3))
-        (co_engine_init (aof e3) (aof m3) (aof st3))
+        (coco_machine_init (aof m3))
+        (coco_store_init (aof st3))
+        (coco_engine_init (aof e3) (aof m3) (aof st3))
         (set ($ e3 max_steps) 5000000)
-        (co_zg_attach (aof z3) db (aof m3) (aof st3) KB)
+        (coco_zg_attach (aof z3) db (aof m3) (aof st3) KB)
 
-        (if (not (co_engine_ask_text (aof e3) "ancestor(tom,X)"))
+        (if (not (coco_engine_ask_text (aof e3) "ancestor(tom,X)"))
             (block (printf "FAIL could not ask\n") (set failures (+ failures 1))))
-        (set rc (co_engine_next (aof e3)))
+        (set rc (coco_engine_next (aof e3)))
         (check "the third interpreter found one solution" (cast llong rc) 1)
         (check "and is holding choice points" (cast llong (> ($ e3 nchoices) 0)) 1)
 
         (check "suspended itself into the database"
-               (cast llong (co_zg_save (aof z3) (aof e3) "half-done"
+               (cast llong (coco_zg_save (aof z3) (aof e3) "half-done"
                                        "stopped after the first answer")) 1)
         (check "and committed" (cast llong (zg_commit db)) 1)
 
         ;; everything the third interpreter had is now gone
-        (co_engine_free (aof e3))
-        (co_store_free (aof st3))
-        (co_machine_free (aof m3)))
+        (coco_engine_free (aof e3))
+        (coco_store_free (aof st3))
+        (coco_machine_free (aof m3)))
 
-      (let ((co_machine m4) (co_store st4) (co_engine e4) (co_zg z4)
+      (let ((coco_machine m4) (coco_store st4) (coco_engine e4) (coco_zg z4)
             (int n . 0) (int rc . 1))
-        (co_machine_init (aof m4))
-        (co_store_init (aof st4))
-        (co_engine_init (aof e4) (aof m4) (aof st4))
+        (coco_machine_init (aof m4))
+        (coco_store_init (aof st4))
+        (coco_engine_init (aof e4) (aof m4) (aof st4))
         ;; only the connection and the name of the knowledge base
-        (co_zg_attach (aof z4) db (aof m4) (aof st4) KB)
+        (coco_zg_attach (aof z4) db (aof m4) (aof st4) KB)
 
         (check "a fourth interpreter picked the machine up"
-               (cast llong (co_zg_load (aof z4) (aof e4) (aof m4) (aof st4) "half-done")) 1)
+               (cast llong (coco_zg_load (aof z4) (aof e4) (aof m4) (aof st4) "half-done")) 1)
         (if (== 0 (strlen ($ z4 err))) (block) (printf "     %s\n" ($ z4 err)))
 
         (check "it came back holding the choice points"
@@ -215,18 +215,18 @@
 
         ;; and now finish the proof the third interpreter started
         (while 1
-          (set rc (co_engine_next (aof e4)))
+          (set rc (coco_engine_next (aof e4)))
           (if (!= rc 1) break)
           (set n (+ n 1))
           (if (> n 20) break))
         (check "and finished the proof the third one started" (cast llong n) 4)
         (check "then ran out cleanly" (cast llong rc) 0)
 
-        (co_zg_drop (aof z4) "half-done")
+        (coco_zg_drop (aof z4) "half-done")
         (zg_commit db)
-        (co_engine_free (aof e4))
-        (co_store_free (aof st4))
-        (co_machine_free (aof m4)))
+        (coco_engine_free (aof e4))
+        (coco_store_free (aof st4))
+        (coco_machine_free (aof m4)))
 
       ;; =================================================================
       ;; The same knowledge base, read over HTTP. This interpreter never
@@ -234,14 +234,14 @@
       ;; only thing that differs is which function the store's one hook
       ;; points at.
       ;; =================================================================
-      (let ((co_machine m7) (co_store st7) (co_engine e7) (co_zt z7)
+      (let ((coco_machine m7) (coco_store st7) (coco_engine e7) (coco_zt z7)
             (const char * hport . #'(? (== (getenv "ZEYTUN_PORT") nil)
                                        "2190" (getenv "ZEYTUN_PORT"))))
-        (co_machine_init (aof m7))
-        (co_store_init (aof st7))
-        (co_engine_init (aof e7) (aof m7) (aof st7))
+        (coco_machine_init (aof m7))
+        (coco_store_init (aof st7))
+        (coco_engine_init (aof e7) (aof m7) (aof st7))
         (set ($ e7 max_steps) 5000000)
-        (co_zt_attach (aof z7) host hport (aof m7) (aof st7) KB)
+        (coco_zt_attach (aof z7) host hport (aof m7) (aof st7) KB)
 
         (check "an interpreter reading over HTTP starts with nothing"
                (cast llong ($ st7 npreds)) 0)
@@ -249,93 +249,93 @@
                (cast llong (count (aof e7) "ancestor(tom,X)" 100)) 5)
         (if (> (strlen ($ z7 err)) 0) (printf "     %s\n" ($ z7 err)))
 
-        (co_engine_free (aof e7))
-        (co_store_free (aof st7))
-        (co_machine_free (aof m7)))
+        (coco_engine_free (aof e7))
+        (coco_store_free (aof st7))
+        (coco_machine_free (aof m7)))
 
       ;; =================================================================
       ;; And a machine written over the binary protocol, picked up over HTTP.
       ;; =================================================================
-      (let ((co_machine m8) (co_store st8) (co_engine e8) (co_zg z8) (int rc))
-        (co_machine_init (aof m8))
-        (co_store_init (aof st8))
-        (co_engine_init (aof e8) (aof m8) (aof st8))
+      (let ((coco_machine m8) (coco_store st8) (coco_engine e8) (coco_zg z8) (int rc))
+        (coco_machine_init (aof m8))
+        (coco_store_init (aof st8))
+        (coco_engine_init (aof e8) (aof m8) (aof st8))
         (set ($ e8 max_steps) 5000000)
-        (co_zg_attach (aof z8) db (aof m8) (aof st8) KB)
-        (co_engine_ask_text (aof e8) "ancestor(tom,X)")
-        (set rc (co_engine_next (aof e8)))
+        (coco_zg_attach (aof z8) db (aof m8) (aof st8) KB)
+        (coco_engine_ask_text (aof e8) "ancestor(tom,X)")
+        (set rc (coco_engine_next (aof e8)))
         (check "a machine stopped for the HTTP reader" (cast llong rc) 1)
         (check "saved over the binary protocol"
-               (cast llong (co_zg_save (aof z8) (aof e8) "http-pickup"
+               (cast llong (coco_zg_save (aof z8) (aof e8) "http-pickup"
                                        "for the HTTP reader")) 1)
         (zg_commit db)
-        (co_engine_free (aof e8))
-        (co_store_free (aof st8))
-        (co_machine_free (aof m8)))
+        (coco_engine_free (aof e8))
+        (coco_store_free (aof st8))
+        (coco_machine_free (aof m8)))
 
-      (let ((co_machine m9) (co_store st9) (co_engine e9) (co_zt z9)
+      (let ((coco_machine m9) (coco_store st9) (coco_engine e9) (coco_zt z9)
             (int n . 0) (int rc . 1)
             (const char * hport . #'(? (== (getenv "ZEYTUN_PORT") nil)
                                        "2190" (getenv "ZEYTUN_PORT"))))
-        (co_machine_init (aof m9))
-        (co_store_init (aof st9))
-        (co_engine_init (aof e9) (aof m9) (aof st9))
-        (co_zt_attach (aof z9) host hport (aof m9) (aof st9) KB)
+        (coco_machine_init (aof m9))
+        (coco_store_init (aof st9))
+        (coco_engine_init (aof e9) (aof m9) (aof st9))
+        (coco_zt_attach (aof z9) host hport (aof m9) (aof st9) KB)
 
         (check "picked it up over HTTP"
-               (cast llong (co_zt_load (aof z9) (aof e9) (aof m9) (aof st9) "http-pickup")) 1)
+               (cast llong (coco_zt_load (aof z9) (aof e9) (aof m9) (aof st9) "http-pickup")) 1)
         (if (> (strlen ($ z9 err)) 0) (printf "     %s\n" ($ z9 err)))
         (while 1
-          (set rc (co_engine_next (aof e9)))
+          (set rc (coco_engine_next (aof e9)))
           (if (!= rc 1) break)
           (set n (+ n 1))
           (if (> n 20) break))
         (check "and finished the proof over HTTP" (cast llong n) 4)
 
-        (co_engine_free (aof e9))
-        (co_store_free (aof st9))
-        (co_machine_free (aof m9)))
+        (coco_engine_free (aof e9))
+        (coco_store_free (aof st9))
+        (coco_machine_free (aof m9)))
 
       ;; tidy up the machine the HTTP reader used
-      (let ((co_machine mz) (co_store stz) (co_zg zz))
-        (co_machine_init (aof mz)) (co_store_init (aof stz))
-        (co_zg_attach (aof zz) db (aof mz) (aof stz) KB)
-        (co_zg_drop (aof zz) "http-pickup")
+      (let ((coco_machine mz) (coco_store stz) (coco_zg zz))
+        (coco_machine_init (aof mz)) (coco_store_init (aof stz))
+        (coco_zg_attach (aof zz) db (aof mz) (aof stz) KB)
+        (coco_zg_drop (aof zz) "http-pickup")
         (zg_commit db)
-        (co_store_free (aof stz)) (co_machine_free (aof mz)))
+        (coco_store_free (aof stz)) (coco_machine_free (aof mz)))
 
       ;; =================================================================
       ;; assert/1 at run time reaches the database too.
       ;; =================================================================
-      (let ((co_machine m5) (co_store st5) (co_engine e5) (co_zg z5))
-        (co_machine_init (aof m5))
-        (co_store_init (aof st5))
-        (co_engine_init (aof e5) (aof m5) (aof st5))
+      (let ((coco_machine m5) (coco_store st5) (coco_engine e5) (coco_zg z5))
+        (coco_machine_init (aof m5))
+        (coco_store_init (aof st5))
+        (coco_engine_init (aof e5) (aof m5) (aof st5))
         (set ($ e5 max_steps) 5000000)
-        (co_zg_attach (aof z5) db (aof m5) (aof st5) KB)
+        (coco_zg_attach (aof z5) db (aof m5) (aof st5) KB)
 
         (check "asserted a new fact at run time"
                (cast llong (count (aof e5) "assertz(parent(jim,zed))" 10)) 1)
         (check "committed" (cast llong (zg_commit db)) 1)
 
-        (co_engine_free (aof e5))
-        (co_store_free (aof st5))
-        (co_machine_free (aof m5)))
+        (coco_engine_free (aof e5))
+        (coco_store_free (aof st5))
+        (coco_machine_free (aof m5)))
 
-      (let ((co_machine m6) (co_store st6) (co_engine e6) (co_zg z6))
-        (co_machine_init (aof m6))
-        (co_store_init (aof st6))
-        (co_engine_init (aof e6) (aof m6) (aof st6))
+      (let ((coco_machine m6) (coco_store st6) (coco_engine e6) (coco_zg z6))
+        (coco_machine_init (aof m6))
+        (coco_store_init (aof st6))
+        (coco_engine_init (aof e6) (aof m6) (aof st6))
         (set ($ e6 max_steps) 5000000)
-        (co_zg_attach (aof z6) db (aof m6) (aof st6) KB)
+        (coco_zg_attach (aof z6) db (aof m6) (aof st6) KB)
 
         ;; six now, because a sixth interpreter sees the fact the fifth asserted
         (check "a later interpreter sees it"
                (cast llong (count (aof e6) "ancestor(tom,X)" 100)) 6)
 
-        (co_engine_free (aof e6))
-        (co_store_free (aof st6))
-        (co_machine_free (aof m6)))
+        (coco_engine_free (aof e6))
+        (coco_store_free (aof st6))
+        (coco_machine_free (aof m6)))
 
       ;; =================================================================
       ;; retract/1 reaches the database as well -- which is the half that used
@@ -343,27 +343,27 @@
       ;; database never heard: the clause was back the next time the predicate
       ;; was fetched, and no other interpreter ever saw it go.
       ;; =================================================================
-      (let ((co_machine m7) (co_store st7) (co_engine e7) (co_zg z7))
-        (co_machine_init (aof m7))
-        (co_store_init (aof st7))
-        (co_engine_init (aof e7) (aof m7) (aof st7))
+      (let ((coco_machine m7) (coco_store st7) (coco_engine e7) (coco_zg z7))
+        (coco_machine_init (aof m7))
+        (coco_store_init (aof st7))
+        (coco_engine_init (aof e7) (aof m7) (aof st7))
         (set ($ e7 max_steps) 5000000)
-        (co_zg_attach (aof z7) db (aof m7) (aof st7) KB)
+        (coco_zg_attach (aof z7) db (aof m7) (aof st7) KB)
 
         (check "retracted the fact the fifth interpreter asserted"
                (cast llong (count (aof e7) "retract(parent(jim,zed))" 10)) 1)
         (check "committed" (cast llong (zg_commit db)) 1)
 
-        (co_engine_free (aof e7))
-        (co_store_free (aof st7))
-        (co_machine_free (aof m7)))
+        (coco_engine_free (aof e7))
+        (coco_store_free (aof st7))
+        (coco_machine_free (aof m7)))
 
-      (let ((co_machine m8) (co_store st8) (co_engine e8) (co_zg z8))
-        (co_machine_init (aof m8))
-        (co_store_init (aof st8))
-        (co_engine_init (aof e8) (aof m8) (aof st8))
+      (let ((coco_machine m8) (coco_store st8) (coco_engine e8) (coco_zg z8))
+        (coco_machine_init (aof m8))
+        (coco_store_init (aof st8))
+        (coco_engine_init (aof e8) (aof m8) (aof st8))
         (set ($ e8 max_steps) 5000000)
-        (co_zg_attach (aof z8) db (aof m8) (aof st8) KB)
+        (coco_zg_attach (aof z8) db (aof m8) (aof st8) KB)
 
         ;; back to five: an interpreter that never saw the assert or the
         ;; retract agrees with both
@@ -372,9 +372,9 @@
         (check "and the retracted fact itself is not there"
                (cast llong (count (aof e8) "parent(jim,zed)" 10)) 0)
 
-        (co_engine_free (aof e8))
-        (co_store_free (aof st8))
-        (co_machine_free (aof m8)))
+        (coco_engine_free (aof e8))
+        (coco_store_free (aof st8))
+        (coco_machine_free (aof m8)))
 
       ;; =================================================================
       ;; A DECLARATION OUTLIVES THE INTERPRETER THAT MADE IT. `:- dynamic'
@@ -383,12 +383,12 @@
       ;; predicate declared and never written to has to exist and be empty --
       ;; which is not the same as not being there.
       ;; =================================================================
-      (let ((co_machine ma) (co_store sta) (co_engine ea) (co_zg za))
-        (co_machine_init (aof ma))
-        (co_store_init (aof sta))
-        (co_engine_init (aof ea) (aof ma) (aof sta))
+      (let ((coco_machine ma) (coco_store sta) (coco_engine ea) (coco_zg za))
+        (coco_machine_init (aof ma))
+        (coco_store_init (aof sta))
+        (coco_engine_init (aof ea) (aof ma) (aof sta))
         (set ($ ea max_steps) 5000000)
-        (co_zg_attach (aof za) db (aof ma) (aof sta) KB)
+        (coco_zg_attach (aof za) db (aof ma) (aof sta) KB)
 
         ;; the extra parentheses are the whole difference between `dynamic/1'
         ;; applied to one comma term and `dynamic/2' applied to two arguments,
@@ -399,27 +399,27 @@
                (cast llong (count (aof ea) "dynamic((queue/1, seen/2))" 10)) 1)
         (check "committed" (cast llong (zg_commit db)) 1)
 
-        (co_engine_free (aof ea))
-        (co_store_free (aof sta))
-        (co_machine_free (aof ma)))
+        (coco_engine_free (aof ea))
+        (coco_store_free (aof sta))
+        (coco_machine_free (aof ma)))
 
-      (let ((co_machine mb) (co_store stb) (co_engine eb) (co_zg zb))
-        (co_machine_init (aof mb))
-        (co_store_init (aof stb))
-        (co_engine_init (aof eb) (aof mb) (aof stb))
+      (let ((coco_machine mb) (coco_store stb) (coco_engine eb) (coco_zg zb))
+        (coco_machine_init (aof mb))
+        (coco_store_init (aof stb))
+        (coco_engine_init (aof eb) (aof mb) (aof stb))
         (set ($ eb max_steps) 5000000)
-        (co_zg_attach (aof zb) db (aof mb) (aof stb) KB)
+        (coco_zg_attach (aof zb) db (aof mb) (aof stb) KB)
 
         (check "a fresh interpreter still starts with nothing"
                (cast llong ($ stb npreds)) 0)
         ;; warming is what `listing' does: ask the backend to name what it has
-        (check "warming it succeeds" (cast llong (co_store_warm (aof stb))) 1)
+        (check "warming it succeeds" (cast llong (coco_store_warm (aof stb))) 1)
         (check "and it learns of the predicates in the knowledge base"
                (cast llong (> ($ stb npreds) 0)) 1)
 
-        (let ((size_t pq . #'(co_pred_find (aof stb) (co_intern (aof mb) "queue") 1))
-              (size_t ps . #'(co_pred_find (aof stb) (co_intern (aof mb) "seen") 2))
-              (size_t pp . #'(co_pred_find (aof stb) (co_intern (aof mb) "parent") 2)))
+        (let ((size_t pq . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "queue") 1))
+              (size_t ps . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "seen") 2))
+              (size_t pp . #'(coco_pred_find (aof stb) (coco_intern (aof mb) "parent") 2)))
           (check "including one declared but never written to"
                  (cast llong (< pq ($ stb npreds))) 1)
           (check "which comes back marked dynamic"
@@ -437,9 +437,9 @@
         (check "the declared predicate has no clauses and still fails"
                (cast llong (count (aof eb) "queue(X)" 10)) 0)
 
-        (co_engine_free (aof eb))
-        (co_store_free (aof stb))
-        (co_machine_free (aof mb)))
+        (coco_engine_free (aof eb))
+        (coco_store_free (aof stb))
+        (coco_machine_free (aof mb)))
 
       ;; =================================================================
       ;; AN OPERATOR A PROGRAM DECLARED, and a clause that uses it, read by
@@ -452,43 +452,43 @@
       ;; the text would simply not parse and the predicate would look empty.
       ;; Stored functionally it needs no operator table at all.
       ;; =================================================================
-      (let ((co_machine mo) (co_store sto) (co_engine eo) (co_zg zo)
+      (let ((coco_machine mo) (coco_store sto) (coco_engine eo) (coco_zg zo)
             (char erro [256]))
-        (co_machine_init (aof mo))
-        (co_store_init (aof sto))
-        (co_engine_init (aof eo) (aof mo) (aof sto))
+        (coco_machine_init (aof mo))
+        (coco_store_init (aof sto))
+        (coco_engine_init (aof eo) (aof mo) (aof sto))
         (set ($ eo max_steps) 5000000)
-        (co_zg_attach (aof zo) db (aof mo) (aof sto) KB)
+        (coco_zg_attach (aof zo) db (aof mo) (aof sto) KB)
 
         (check "declared an operator and consulted clauses that use it"
-               (cast llong (co_consult (aof sto) (aof mo)
+               (cast llong (coco_consult (aof sto) (aof mo)
                  ":- op(700, xfx, ===>). rule(a ===> b). rule(b ===> c)."
                  erro (sizeof erro))) 2)
         (check "committed" (cast llong (zg_commit db)) 1)
 
-        (co_engine_free (aof eo))
-        (co_store_free (aof sto))
-        (co_machine_free (aof mo)))
+        (coco_engine_free (aof eo))
+        (coco_store_free (aof sto))
+        (coco_machine_free (aof mo)))
 
       ;; the operator table is global to the process, so it is put back to
       ;; what a fresh interpreter would have before the next one is built
-      (co_op_dyn_clear)
+      (coco_op_dyn_clear)
 
-      (let ((co_machine mp) (co_store stp) (co_engine ep) (co_zg zp))
-        (co_machine_init (aof mp))
-        (co_store_init (aof stp))
-        (co_engine_init (aof ep) (aof mp) (aof stp))
+      (let ((coco_machine mp) (coco_store stp) (coco_engine ep) (coco_zg zp))
+        (coco_machine_init (aof mp))
+        (coco_store_init (aof stp))
+        (coco_engine_init (aof ep) (aof mp) (aof stp))
         (set ($ ep max_steps) 5000000)
-        (co_zg_attach (aof zp) db (aof mp) (aof stp) KB)
+        (coco_zg_attach (aof zp) db (aof mp) (aof stp) KB)
 
         (check "an interpreter with NO such operator still reads the clauses"
                (cast llong (count (aof ep) "rule(X)" 10)) 2)
         (check "and can prove with them"
                (cast llong (count (aof ep) "rule(===>(a,Y))" 10)) 1)
 
-        (co_engine_free (aof ep))
-        (co_store_free (aof stp))
-        (co_machine_free (aof mp)))
+        (coco_engine_free (aof ep))
+        (coco_store_free (aof stp))
+        (coco_machine_free (aof mp)))
 
       (zg_commit db)
       (zg_close db)

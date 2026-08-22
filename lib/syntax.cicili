@@ -27,9 +27,9 @@
 ;;;
 ;;; THE LEXER IS WRITTEN IN CHARACTERS AND COMPILES TO NUMBERS. Cicili has no
 ;;; character literal -- a C `'a'` has no spelling in an s-expression -- so a
-;;; lexer written straight would be a wall of 97s and 122s. `co-ch',
-;;; `co-ch-between' and `co-ch-in' take the characters as strings and fold them
-;;; to their codes at expansion time, so the source says `(co-ch-between c "a" "z")'
+;;; lexer written straight would be a wall of 97s and 122s. `coco-ch',
+;;; `coco-ch-between' and `coco-ch-in' take the characters as strings and fold them
+;;; to their codes at expansion time, so the source says `(coco-ch-between c "a" "z")'
 ;;; and the C says `c >= 97 && c <= 122'. That is the whole reason the reader
 ;;; below is readable at all.
 
@@ -44,17 +44,17 @@
 ;;;; ------------------------------------------------------------------
 
 ;;; the code of the first character of S
-(DEFMACRO co-ch (s) (CHAR-CODE (CHAR (STRING s) 0)))
+(DEFMACRO coco-ch (s) (CHAR-CODE (CHAR (STRING s) 0)))
 
 ;;; LO <= C <= HI, with LO and HI written as characters
-(DEFMACRO co-ch-between (c lo hi)
+(DEFMACRO coco-ch-between (c lo hi)
   `(and (>= ,c ,(CHAR-CODE (CHAR (STRING lo) 0)))
         (<= ,c ,(CHAR-CODE (CHAR (STRING hi) 0)))))
 
 ;;; C is one of the characters in S. Expands to a chain of comparisons; the
 ;;; sets it is used on have a dozen members at most, and a C compiler turns
 ;;; that into a jump table or a bitmask better than a hand-rolled lookup would.
-(DEFMACRO co-ch-in (c s)
+(DEFMACRO coco-ch-in (c s)
   (LET ((codes (MAP 'LIST #'CHAR-CODE (STRING s))))
     (IF (NULL codes)
         0
@@ -88,7 +88,7 @@
     (200  xfy "^")
     (200  fy  "-" "+")))
 
-;;; The five types, as the numbers the C side uses. `co_op_type' in the emitted
+;;; The five types, as the numbers the C side uses. `coco_op_type' in the emitted
 ;;; code is one of these; the parser turns it into the two argument priorities.
 (DEFPARAMETER *op-types* '((xfx . 0) (xfy . 1) (yfx . 2) (fy . 3) (fx . 4)))
 
@@ -110,7 +110,7 @@
 ;;; One lookup function per class. Each answers 1 and fills in the priority and
 ;;; the type, or answers 0. Written as a cond over strcmp: the names are known
 ;;; here, so nothing is searched at run time.
-(DEFMACRO co-emit-op-lookup (fname class)
+(DEFMACRO coco-emit-op-lookup (fname class)
   (LET ((rows (ops-of-class class)))
     `(func ,fname ((const char * s) (int * prec) (int * type)) (out int)
        (cond
@@ -135,11 +135,11 @@
   (APPEND (MAPCAR (LAMBDA (r) (APPEND r '(0))) (ops-of-class :infix))
           (MAPCAR (LAMBDA (r) (APPEND r '(1))) (ops-of-class :prefix))))
 
-(DEFMACRO co-emit-op-static-count ()
-  `(func co_op_static_count () (out size_t) (return ,(LENGTH (op-static-rows)))))
+(DEFMACRO coco-emit-op-static-count ()
+  `(func coco_op_static_count () (out size_t) (return ,(LENGTH (op-static-rows)))))
 
-(DEFMACRO co-emit-op-static-at ()
-  `(func co_op_static_at ((size_t i) (const char ** name) (int * prec)
+(DEFMACRO coco-emit-op-static-at ()
+  `(func coco_op_static_at ((size_t i) (const char ** name) (int * prec)
                           (int * type) (int * kind)) (out int)
      (cond
        ,@(LET ((n -1))
@@ -157,11 +157,11 @@
 ;;; Is this name an operator at all? The writer asks, because an atom that is
 ;;; an operator has to be bracketed when it stands as an argument -- `f(-)' is
 ;;; fine but `- + -' is not what anyone meant.
-(DEFMACRO co-emit-op-any ()
+(DEFMACRO coco-emit-op-any ()
   (LET ((names (REMOVE-DUPLICATES
                 (MAPCAR #'FIRST (APPEND (ops-of-class :infix) (ops-of-class :prefix)))
                 :TEST #'STRING=)))
-    `(func co_op_is_any_static ((const char * s)) (out int)
+    `(func coco_op_is_any_static ((const char * s)) (out int)
        (cond
          ,@(MAPCAR (LAMBDA (n) `((== 0 (strcmp s ,n)) (return 1))) names)
          (#t (return 0))))))
@@ -177,23 +177,23 @@
   ;;; Token kinds. NAME covers every atom-shaped token -- alphabetic, symbolic,
   ;;; quoted and solo -- because what distinguishes them matters to the lexer
   ;;; and not at all to the parser.
-  (enum co_token
-    (CO_TK_EOF    . 0)
-    (CO_TK_NAME   . 1)
-    (CO_TK_VAR    . 2)
-    (CO_TK_INT    . 3)
-    (CO_TK_FLOAT  . 4)
-    (CO_TK_STRING . 5)
-    (CO_TK_PUNCT  . 6)
-    (CO_TK_END    . 7))
+  (enum coco_token
+    (COCO_TK_EOF    . 0)
+    (COCO_TK_NAME   . 1)
+    (COCO_TK_VAR    . 2)
+    (COCO_TK_INT    . 3)
+    (COCO_TK_FLOAT  . 4)
+    (COCO_TK_STRING . 5)
+    (COCO_TK_PUNCT  . 6)
+    (COCO_TK_END    . 7))
 
   ;;; Operator types, matching *op-types* above.
-  (enum co_optype
-    (CO_XFX . 0) (CO_XFY . 1) (CO_YFX . 2) (CO_FY . 3) (CO_FX . 4))
+  (enum coco_optype
+    (COCO_XFX . 0) (COCO_XFY . 1) (COCO_YFX . 2) (COCO_FY . 3) (COCO_FX . 4))
 
-  (decl) (func co_op_infix  ((const char * s) (int * prec) (int * type)) (out int))
-  (decl) (func co_op_prefix ((const char * s) (int * prec) (int * type)) (out int))
-  (decl) (func co_op_is_any ((const char * s)) (out int))
+  (decl) (func coco_op_infix  ((const char * s) (int * prec) (int * type)) (out int))
+  (decl) (func coco_op_prefix ((const char * s) (int * prec) (int * type)) (out int))
+  (decl) (func coco_op_is_any ((const char * s)) (out int))
 
   ;;; ---- operators a program declared -------------------------------------
   ;;;
@@ -206,15 +206,15 @@
   ;;; KIND is 0 for infix and 1 for prefix. cocolog's reader has no postfix, so
   ;;; there is no 2: `op/3' refuses `xf' and `yf' rather than accepting a
   ;;; declaration it would then ignore.
-  (decl) (func co_op_define ((const char * name) (int prec) (int type) (int kind))
+  (decl) (func coco_op_define ((const char * name) (int prec) (int type) (int kind))
                (out int))
-  (decl) (func co_op_dyn_clear ())
+  (decl) (func coco_op_dyn_clear ())
 
   ;;; The five specifiers cocolog's reader has, from their names. `xf' and `yf'
   ;;; are POSTFIX and the reader has none, so they are refused rather than
   ;;; accepted and then ignored -- which would leave a program believing it had
   ;;; declared something.
-  (decl) (func co_op_type_of ((const char * name) (int * type) (int * kind))
+  (decl) (func coco_op_type_of ((const char * name) (int * type) (int * kind))
                (out int))
 
   ;;; Applies an `op(Priority, Type, Name)' TERM, Name being one name or a list
@@ -222,36 +222,36 @@
   ;;; reachable from kb.cicili, which is compiled before the engine and cannot
   ;;; run a goal, because the declaration must take effect for the REST OF THE
   ;;; FILE being read and not after it.
-  (decl) (func co_op_apply ((co_machine * m) (size_t t) (char * err) (size_t errlen))
+  (decl) (func coco_op_apply ((coco_machine * m) (size_t t) (char * err) (size_t errlen))
                (out int))
 
   ;;; Whether a name is DECLARED of this kind, and what as: -1 when nothing was
   ;;; declared, 0 when a declaration hid it, 1 with the priority and type filled
   ;;; in. `current_op/3' asks so that it does not list a built-in that a
   ;;; declaration has replaced.
-  (decl) (func co_op_dyn_lookup_pub ((const char * s) (int kind) (int * prec)
+  (decl) (func coco_op_dyn_lookup_pub ((const char * s) (int kind) (int * prec)
                                      (int * type)) (out int))
-  (decl) (func co_op_dyn_count () (out size_t))
-  (decl) (func co_op_dyn_at ((size_t i) (const char ** name) (int * prec)
+  (decl) (func coco_op_dyn_count () (out size_t))
+  (decl) (func coco_op_dyn_at ((size_t i) (const char ** name) (int * prec)
                              (int * type) (int * kind)) (out int))
 
   ;;; The built-in table, one row at a time, for `current_op/3'.
-  (decl) (func co_op_static_count () (out size_t))
-  (decl) (func co_op_static_at ((size_t i) (const char ** name) (int * prec)
+  (decl) (func coco_op_static_count () (out size_t))
+  (decl) (func coco_op_static_at ((size_t i) (const char ** name) (int * prec)
                                 (int * type) (int * kind)) (out int))
 
   ;;; The reader. One of these reads a whole source text, clause by clause; the
   ;;; variable names of the clause just read stay in it so a caller can report
   ;;; `X = 1' rather than `_G17 = 1'.
-  (struct co_reader
-    (member co_machine * m)
+  (struct coco_reader
+    (member coco_machine * m)
     (member const char * src)
     (member size_t       pos)
     (member size_t       len)
 
     ;; the token in hand
     (member int          tok)
-    (member co_strbuf    text)
+    (member coco_strbuf    text)
     (member i64          ival)
     (member double       fval)
     (member int          layout_before)   ; was there space before this token?
@@ -271,33 +271,33 @@
     (member char         err [192])
     (member int          failed))
 
-  (decl) (func co_reader_init ((co_reader * r) (co_machine * m) (const char * src)))
-  (decl) (func co_reader_free ((co_reader * r)))
+  (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
+  (decl) (func coco_reader_free ((coco_reader * r)))
 
   ;;; Reads one clause, up to and including its terminating `.'. Answers 1 and
   ;;; sets OUT, 0 at clean end of input, -1 on a syntax error -- in which case
   ;;; `r->err' says what and where.
-  (decl) (func co_read_clause ((co_reader * r) (size_t * out)) (out int))
+  (decl) (func coco_read_clause ((coco_reader * r) (size_t * out)) (out int))
 
   ;;; Reads one term from a reader that is already going, and does NOT insist
   ;;; on a terminating `.'. The point of taking the reader rather than the text
   ;;; is that its variable names survive the call, so a caller can report
   ;;; `X = 1' rather than `_G17 = 1' -- which is what a REPL and the tests need
-  ;;; and what `co_read_term_from' cannot give, having freed its reader.
-  (decl) (func co_read_goal ((co_reader * r) (size_t * out)) (out int))
+  ;;; and what `coco_read_term_from' cannot give, having freed its reader.
+  (decl) (func coco_read_goal ((coco_reader * r) (size_t * out)) (out int))
 
   ;;; Reads a single term from a NUL-terminated string, with or without a
   ;;; trailing `.'. This is what the KB backends use on text out of the
   ;;; database, and what the REPL uses on a line typed at it.
-  (decl) (func co_read_term_from ((co_machine * m) (const char * src) (size_t * out)) (out int))
+  (decl) (func coco_read_term_from ((coco_machine * m) (const char * src) (size_t * out)) (out int))
 
   ;;; The writer. QUOTED puts quotes round an atom that needs them, so the
   ;;; output reads back; IGNORE_OPS writes `+(1,2)' instead of `1+2'. Canonical
   ;;; form -- what goes into the database -- is quoted with operators kept,
   ;;; which is both readable and re-readable.
-  (decl) (func co_write_term ((co_machine * m) (co_strbuf * b) (size_t t)
+  (decl) (func coco_write_term ((coco_machine * m) (coco_strbuf * b) (size_t t)
                               (int quoted) (int ignore_ops)) (out int))
-  (decl) (func co_write_canonical ((co_machine * m) (co_strbuf * b) (size_t t)) (out int))
+  (decl) (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
 
   ;;; THE FORM A CLAUSE IS STORED IN, which is quoted and with operators
   ;;; IGNORED -- `rule(===>(a,b))' and not `rule(a ===> b)'.
@@ -314,11 +314,11 @@
   ;;; Written functionally it needs no operator table at all, so it reads the
   ;;; same in every process for ever. `listing' still shows operators, because
   ;;; that is for a person.
-  (decl) (func co_write_storable ((co_machine * m) (co_strbuf * b) (size_t t)) (out int))
-  (decl) (func co_print_term ((co_machine * m) (FILE * f) (size_t t)))
+  (decl) (func coco_write_storable ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
+  (decl) (func coco_print_term ((coco_machine * m) (FILE * f) (size_t t)))
 
   ;;; True when NAME can be written without quotes.
-  (decl) (func co_atom_needs_quotes ((const char * name)) (out int))
+  (decl) (func coco_atom_needs_quotes ((const char * name)) (out int))
 
   ) ; decl-syntax
 
@@ -330,120 +330,120 @@
 (generic impl-syntax
   ()
 
-  (co-emit-op-lookup co_op_infix_static  :infix)
-  (co-emit-op-lookup co_op_prefix_static :prefix)
-  (co-emit-op-any)
-  (co-emit-op-static-count)
-  (co-emit-op-static-at)
+  (coco-emit-op-lookup coco_op_infix_static  :infix)
+  (coco-emit-op-lookup coco_op_prefix_static :prefix)
+  (coco-emit-op-any)
+  (coco-emit-op-static-count)
+  (coco-emit-op-static-at)
 
   ;;; ---- the table a program can add to -----------------------------------
 
-  (struct co_opdef
+  (struct coco_opdef
     (member char name [64])
     (member int  prec)
     (member int  type)
     (member int  kind))
 
-  (static) (var co_opdef * co_dynops)
-  (static) (var size_t co_ndynops)
-  (static) (var size_t co_dynopcap)
+  (static) (var coco_opdef * coco_dynops)
+  (static) (var size_t coco_ndynops)
+  (static) (var size_t coco_dynopcap)
 
   ;;; An entry for NAME of this kind, or the count if there is none.
   (static)
-  (func co_op_dyn_find ((const char * name) (int kind)) (out size_t)
-        (for ((size_t i . 0)) (< i co_ndynops) ((++ i))
-          (if (and (== ($ (nth i co_dynops) kind) kind)
-                   (== 0 (strcmp ($ (nth i co_dynops) name) name)))
+  (func coco_op_dyn_find ((const char * name) (int kind)) (out size_t)
+        (for ((size_t i . 0)) (< i coco_ndynops) ((++ i))
+          (if (and (== ($ (nth i coco_dynops) kind) kind)
+                   (== 0 (strcmp ($ (nth i coco_dynops) name) name)))
               (return i)))
-        (return co_ndynops))
+        (return coco_ndynops))
 
-  (func co_op_define ((const char * name) (int prec) (int type) (int kind)) (out int)
+  (func coco_op_define ((const char * name) (int prec) (int type) (int kind)) (out int)
         (if (or (== name nil) (>= (strlen name) 64)) (return 0))
-        (let ((size_t at . #'(co_op_dyn_find name kind)))
-          (if (< at co_ndynops)
-              (block (set ($ (nth at co_dynops) prec) prec)
-                     (set ($ (nth at co_dynops) type) type)
+        (let ((size_t at . #'(coco_op_dyn_find name kind)))
+          (if (< at coco_ndynops)
+              (block (set ($ (nth at coco_dynops) prec) prec)
+                     (set ($ (nth at coco_dynops) type) type)
                      (return 1)))
-          (if (>= co_ndynops co_dynopcap)
-              (let ((size_t ncap . #'(? (== co_dynopcap 0) 8 (* co_dynopcap 2)))
-                    (co_opdef * nb))
-                (set nb (cast (co_opdef *)
-                              (realloc co_dynops (* ncap (sizeof co_opdef)))))
+          (if (>= coco_ndynops coco_dynopcap)
+              (let ((size_t ncap . #'(? (== coco_dynopcap 0) 8 (* coco_dynopcap 2)))
+                    (coco_opdef * nb))
+                (set nb (cast (coco_opdef *)
+                              (realloc coco_dynops (* ncap (sizeof coco_opdef)))))
                 (if (== nb nil) (return 0))
-                (set co_dynops nb)
-                (set co_dynopcap ncap)))
-          (snprintf ($ (nth co_ndynops co_dynops) name) 64 "%s" name)
-          (set ($ (nth co_ndynops co_dynops) prec) prec)
-          (set ($ (nth co_ndynops co_dynops) type) type)
-          (set ($ (nth co_ndynops co_dynops) kind) kind)
-          (set co_ndynops (+ co_ndynops 1))
+                (set coco_dynops nb)
+                (set coco_dynopcap ncap)))
+          (snprintf ($ (nth coco_ndynops coco_dynops) name) 64 "%s" name)
+          (set ($ (nth coco_ndynops coco_dynops) prec) prec)
+          (set ($ (nth coco_ndynops coco_dynops) type) type)
+          (set ($ (nth coco_ndynops coco_dynops) kind) kind)
+          (set coco_ndynops (+ coco_ndynops 1))
           (return 1)))
 
-  (func co_op_dyn_clear () (set co_ndynops 0))
+  (func coco_op_dyn_clear () (set coco_ndynops 0))
 
-  (func co_op_type_of ((const char * name) (int * type) (int * kind)) (out int)
+  (func coco_op_type_of ((const char * name) (int * type) (int * kind)) (out int)
         (set (cof kind) 0)
-        (if (== 0 (strcmp name "xfx")) (block (set (cof type) CO_XFX) (return 1)))
-        (if (== 0 (strcmp name "xfy")) (block (set (cof type) CO_XFY) (return 1)))
-        (if (== 0 (strcmp name "yfx")) (block (set (cof type) CO_YFX) (return 1)))
+        (if (== 0 (strcmp name "xfx")) (block (set (cof type) COCO_XFX) (return 1)))
+        (if (== 0 (strcmp name "xfy")) (block (set (cof type) COCO_XFY) (return 1)))
+        (if (== 0 (strcmp name "yfx")) (block (set (cof type) COCO_YFX) (return 1)))
         (set (cof kind) 1)
-        (if (== 0 (strcmp name "fy"))  (block (set (cof type) CO_FY) (return 1)))
-        (if (== 0 (strcmp name "fx"))  (block (set (cof type) CO_FX) (return 1)))
+        (if (== 0 (strcmp name "fy"))  (block (set (cof type) COCO_FY) (return 1)))
+        (if (== 0 (strcmp name "fx"))  (block (set (cof type) COCO_FX) (return 1)))
         (return 0))
 
-  (func co_op_apply ((co_machine * m) (size_t t) (char * err) (size_t errlen)) (out int)
-        (let ((size_t p . #'(co_deref m (co_arg m t 0)))
-              (size_t ty . #'(co_deref m (co_arg m t 1)))
-              (size_t nm . #'(co_deref m (co_arg m t 2)))
+  (func coco_op_apply ((coco_machine * m) (size_t t) (char * err) (size_t errlen)) (out int)
+        (let ((size_t p . #'(coco_deref m (coco_arg m t 0)))
+              (size_t ty . #'(coco_deref m (coco_arg m t 1)))
+              (size_t nm . #'(coco_deref m (coco_arg m t 2)))
               (int type . 0) (int kind . 0) (i64 prec . 0))
 
-          (if (not (co-tag-is INT (nth p (-> m heap))))
+          (if (not (coco-tag-is INT (nth p (-> m heap))))
               (block (snprintf err errlen "op/3 wants a priority") (return 0)))
-          (set prec (co-signed-payload (nth p (-> m heap))))
+          (set prec (coco-signed-payload (nth p (-> m heap))))
           (if (or (< prec 0) (> prec 1200))
               (block (snprintf err errlen "op/3: priority out of range") (return 0)))
 
-          (if (not (co-tag-is ATOM (nth ty (-> m heap))))
+          (if (not (coco-tag-is ATOM (nth ty (-> m heap))))
               (block (snprintf err errlen "op/3 wants a specifier") (return 0)))
-          (if (not (co_op_type_of (co_atom_name m (co_name_of m ty)) (aof type) (aof kind)))
+          (if (not (coco_op_type_of (coco_atom_name m (coco_name_of m ty)) (aof type) (aof kind)))
               (block (snprintf err errlen "op/3: %s is not a specifier cocolog has"
-                               (co_atom_name m (co_name_of m ty)))
+                               (coco_atom_name m (coco_name_of m ty)))
                      (return 0)))
 
           ;; one name, or a list of them
-          (if (co-tag-is ATOM (nth nm (-> m heap)))
-              (let ((const char * one . #'(co_atom_name m (co_name_of m nm))))
+          (if (coco-tag-is ATOM (nth nm (-> m heap)))
+              (let ((const char * one . #'(coco_atom_name m (coco_name_of m nm))))
                 (if (!= 0 (strcmp one "[]"))
-                    (block (if (not (co_op_define one (cast int prec) type kind))
+                    (block (if (not (coco_op_define one (cast int prec) type kind))
                                (block (snprintf err errlen "op/3: %s will not fit" one)
                                       (return 0)))
                            (return 1)))))
 
           (while 1
-            (set nm (co_deref m nm))
-            (if (co-tag-is ATOM (nth nm (-> m heap)))
-                (if (== 0 (strcmp (co_atom_name m (co_name_of m nm)) "[]")) (return 1)))
-            (if (not (co_is_callable m nm))
+            (set nm (coco_deref m nm))
+            (if (coco-tag-is ATOM (nth nm (-> m heap)))
+                (if (== 0 (strcmp (coco_atom_name m (coco_name_of m nm)) "[]")) (return 1)))
+            (if (not (coco_is_callable m nm))
                 (block (snprintf err errlen "op/3 wants an atom or a list") (return 0)))
-            (if (!= (co_arity m nm) 2)
+            (if (!= (coco_arity m nm) 2)
                 (block (snprintf err errlen "op/3 wants an atom or a list") (return 0)))
-            (let ((size_t h . #'(co_deref m (co_arg m nm 0))))
-              (if (not (co-tag-is ATOM (nth h (-> m heap))))
+            (let ((size_t h . #'(coco_deref m (coco_arg m nm 0))))
+              (if (not (coco-tag-is ATOM (nth h (-> m heap))))
                   (block (snprintf err errlen "op/3 wants atoms in its list") (return 0)))
-              (if (not (co_op_define (co_atom_name m (co_name_of m h))
+              (if (not (coco_op_define (coco_atom_name m (coco_name_of m h))
                                      (cast int prec) type kind))
                   (block (snprintf err errlen "op/3: a name will not fit") (return 0))))
-            (set nm (co_arg m nm 1)))
+            (set nm (coco_arg m nm 1)))
           (return 1)))
-  (func co_op_dyn_count () (out size_t) (return co_ndynops))
+  (func coco_op_dyn_count () (out size_t) (return coco_ndynops))
 
-  (func co_op_dyn_at ((size_t i) (const char ** name) (int * prec)
+  (func coco_op_dyn_at ((size_t i) (const char ** name) (int * prec)
                       (int * type) (int * kind)) (out int)
-        (if (>= i co_ndynops) (return 0))
-        (set (cof name) ($ (nth i co_dynops) name))
-        (set (cof prec) ($ (nth i co_dynops) prec))
-        (set (cof type) ($ (nth i co_dynops) type))
-        (set (cof kind) ($ (nth i co_dynops) kind))
+        (if (>= i coco_ndynops) (return 0))
+        (set (cof name) ($ (nth i coco_dynops) name))
+        (set (cof prec) ($ (nth i coco_dynops) prec))
+        (set (cof type) ($ (nth i coco_dynops) type))
+        (set (cof kind) ($ (nth i coco_dynops) kind))
         (return 1))
 
   ;;; ---- the lookups the grammar actually calls ---------------------------
@@ -453,33 +453,33 @@
   ;;; answers 0, which is what `op(0, T, N)' means.
 
   (static)
-  (func co_op_dyn_lookup ((const char * s) (int kind) (int * prec) (int * type))
+  (func coco_op_dyn_lookup ((const char * s) (int kind) (int * prec) (int * type))
         (out int)
-        (let ((size_t at . #'(co_op_dyn_find s kind)))
-          (if (>= at co_ndynops) (return -1))
-          (if (== ($ (nth at co_dynops) prec) 0) (return 0))
-          (set (cof prec) ($ (nth at co_dynops) prec))
-          (set (cof type) ($ (nth at co_dynops) type))
+        (let ((size_t at . #'(coco_op_dyn_find s kind)))
+          (if (>= at coco_ndynops) (return -1))
+          (if (== ($ (nth at coco_dynops) prec) 0) (return 0))
+          (set (cof prec) ($ (nth at coco_dynops) prec))
+          (set (cof type) ($ (nth at coco_dynops) type))
           (return 1)))
 
-  (func co_op_dyn_lookup_pub ((const char * s) (int kind) (int * prec) (int * type))
+  (func coco_op_dyn_lookup_pub ((const char * s) (int kind) (int * prec) (int * type))
         (out int)
-        (return (co_op_dyn_lookup s kind prec type)))
+        (return (coco_op_dyn_lookup s kind prec type)))
 
-  (func co_op_infix ((const char * s) (int * prec) (int * type)) (out int)
-        (let ((int d . #'(co_op_dyn_lookup s 0 prec type)))
+  (func coco_op_infix ((const char * s) (int * prec) (int * type)) (out int)
+        (let ((int d . #'(coco_op_dyn_lookup s 0 prec type)))
           (if (>= d 0) (return d)))
-        (return (co_op_infix_static s prec type)))
+        (return (coco_op_infix_static s prec type)))
 
-  (func co_op_prefix ((const char * s) (int * prec) (int * type)) (out int)
-        (let ((int d . #'(co_op_dyn_lookup s 1 prec type)))
+  (func coco_op_prefix ((const char * s) (int * prec) (int * type)) (out int)
+        (let ((int d . #'(coco_op_dyn_lookup s 1 prec type)))
           (if (>= d 0) (return d)))
-        (return (co_op_prefix_static s prec type)))
+        (return (coco_op_prefix_static s prec type)))
 
-  (func co_op_is_any ((const char * s)) (out int)
+  (func coco_op_is_any ((const char * s)) (out int)
         (let ((int p . 0) (int t . 0))
-          (if (co_op_infix s (aof p) (aof t)) (return 1))
-          (if (co_op_prefix s (aof p) (aof t)) (return 1))
+          (if (coco_op_infix s (aof p) (aof t)) (return 1))
+          (if (coco_op_prefix s (aof p) (aof t)) (return 1))
           (return 0)))
 
   ;;; ---- character classes ---------------------------------------------
@@ -487,25 +487,25 @@
   ;;; makes a symbolic atom: `=..' and `-->' are one token each because a run
   ;;; of these characters is taken whole.
 
-  (static) (func co_is_lower ((int c)) (out int) (return (? (co-ch-between c "a" "z") 1 0)))
-  (static) (func co_is_upper ((int c)) (out int)
-                 (return (? (or (co-ch-between c "A" "Z") (== c (co-ch "_"))) 1 0)))
-  (static) (func co_is_digit ((int c)) (out int) (return (? (co-ch-between c "0" "9") 1 0)))
-  (static) (func co_is_alnum ((int c)) (out int)
-                 (return (? (or (co-ch-between c "a" "z")
-                                (or (co-ch-between c "A" "Z")
-                                    (or (co-ch-between c "0" "9") (== c (co-ch "_")))))
+  (static) (func coco_is_lower ((int c)) (out int) (return (? (coco-ch-between c "a" "z") 1 0)))
+  (static) (func coco_is_upper ((int c)) (out int)
+                 (return (? (or (coco-ch-between c "A" "Z") (== c (coco-ch "_"))) 1 0)))
+  (static) (func coco_is_digit ((int c)) (out int) (return (? (coco-ch-between c "0" "9") 1 0)))
+  (static) (func coco_is_alnum ((int c)) (out int)
+                 (return (? (or (coco-ch-between c "a" "z")
+                                (or (coco-ch-between c "A" "Z")
+                                    (or (coco-ch-between c "0" "9") (== c (coco-ch "_")))))
                             1 0)))
   ;;; The characters a symbolic atom is made of. The backslash is given as its
   ;;; code, not put in the string: this set ends with `$' only because a string
   ;;; ending in a backslash would not terminate (see the head of this file),
   ;;; and a set whose contents depend on their order is a trap. The colon joins
   ;;; it for symmetry.
-  (static) (func co_is_symbol ((int c)) (out int)
-                 (return (? (or (co-ch-in c "+-*/^<>=~.?@#&$")
+  (static) (func coco_is_symbol ((int c)) (out int)
+                 (return (? (or (coco-ch-in c "+-*/^<>=~.?@#&$")
                                 (or (== c 92) (== c 58)))
                             1 0)))
-  (static) (func co_is_space ((int c)) (out int)
+  (static) (func coco_is_space ((int c)) (out int)
                  (return (? (or (== c 32) (or (== c 9) (or (== c 10) (== c 13)))) 1 0)))
 
   ;;; WHETHER TWO PIECES OF OUTPUT NEED A SPACE BETWEEN THEM, which is the
@@ -518,39 +518,39 @@
   ;;; next. Either being 0 -- nothing written, nothing coming -- needs nothing.
   ;;; A solo character (`,' `;' `!' `|') is in neither class and so never takes
   ;;; a space, which is why SWI writes `a,-1' and not `a, -1'.
-  (static) (func co_needs_gap ((int a) (int b)) (out int)
+  (static) (func coco_needs_gap ((int a) (int b)) (out int)
                  (if (or (== a 0) (== b 0)) (return 0))
-                 (if (and (co_is_symbol a) (co_is_symbol b)) (return 1))
-                 (if (and (co_is_alnum a) (co_is_alnum b)) (return 1))
+                 (if (and (coco_is_symbol a) (coco_is_symbol b)) (return 1))
+                 (if (and (coco_is_alnum a) (coco_is_alnum b)) (return 1))
                  (return 0))
 
   ;;; The last character in a buffer, or 0 if it is empty.
-  (static) (func co_sb_last ((co_strbuf * b)) (out int)
+  (static) (func coco_sb_last ((coco_strbuf * b)) (out int)
                  (if (or (== ($ (cof b) s) nil) (== ($ (cof b) len) 0)) (return 0))
                  (return (bitand (cast int (nth (- ($ (cof b) len) 1) ($ (cof b) s)))
                                  255)))
 
   ;;; The first character of a buffer, or 0 if it is empty.
-  (static) (func co_sb_first ((co_strbuf * b)) (out int)
+  (static) (func coco_sb_first ((coco_strbuf * b)) (out int)
                  (if (or (== ($ (cof b) s) nil) (== ($ (cof b) len) 0)) (return 0))
                  (return (bitand (cast int (nth 0 ($ (cof b) s))) 255)))
 
   ;;; ---- the character stream -------------------------------------------
 
-  (static) (func co_peek_at ((co_reader * r) (size_t off)) (out int)
+  (static) (func coco_peek_at ((coco_reader * r) (size_t off)) (out int)
                  (if (>= (+ (-> r pos) off) (-> r len)) (return -1))
                  (return (cast int (cast uchar (nth (+ (-> r pos) off) (-> r src))))))
 
-  (static) (func co_peek ((co_reader * r)) (out int) (return (co_peek_at r 0)))
+  (static) (func coco_peek ((coco_reader * r)) (out int) (return (coco_peek_at r 0)))
 
-  (static) (func co_bump ((co_reader * r)) (set (-> r pos) (+ (-> r pos) 1)))
+  (static) (func coco_bump ((coco_reader * r)) (set (-> r pos) (+ (-> r pos) 1)))
 
   ;;; Records where and what, and answers 0 so every caller can `return' this
   ;;; call directly. The offset is into the source text the reader was given,
   ;;; which is what a caller loading a clause out of the database needs in
   ;;; order to say which clause would not read.
   (static)
-  (func co_fail ((co_reader * r) (const char * what)) (out int)
+  (func coco_fail ((coco_reader * r) (const char * what)) (out int)
         (snprintf (-> r err) 192 "syntax error at offset %lu: %s"
                   (cast ulong (-> r pos)) what)
         (set (-> r failed) 1)
@@ -560,23 +560,23 @@
   ;;; anything was skipped is recorded, because `f(' and `f (' are different
   ;;; things in Prolog and this is the only place that difference is visible.
   (static)
-  (func co_skip_layout ((co_reader * r)) (out int)
+  (func coco_skip_layout ((coco_reader * r)) (out int)
         (let ((int any . 0))
           (while 1
-            (let ((int c . #'(co_peek r)))
+            (let ((int c . #'(coco_peek r)))
               (cond
-                ((co_is_space c) (co_bump r) (set any 1))
-                ((== c (co-ch "%"))
+                ((coco_is_space c) (coco_bump r) (set any 1))
+                ((== c (coco-ch "%"))
                  (set any 1)
-                 (while (and (!= (co_peek r) -1) (!= (co_peek r) 10)) (co_bump r)))
-                ((and (== c (co-ch "/")) (== (co_peek_at r 1) (co-ch "*")))
+                 (while (and (!= (coco_peek r) -1) (!= (coco_peek r) 10)) (coco_bump r)))
+                ((and (== c (coco-ch "/")) (== (coco_peek_at r 1) (coco-ch "*")))
                  (set any 1)
-                 (co_bump r) (co_bump r)
-                 (while (and (!= (co_peek r) -1)
-                             (not (and (== (co_peek r) (co-ch "*"))
-                                       (== (co_peek_at r 1) (co-ch "/")))))
-                   (co_bump r))
-                 (if (!= (co_peek r) -1) (block (co_bump r) (co_bump r))))
+                 (coco_bump r) (coco_bump r)
+                 (while (and (!= (coco_peek r) -1)
+                             (not (and (== (coco_peek r) (coco-ch "*"))
+                                       (== (coco_peek_at r 1) (coco-ch "/")))))
+                   (coco_bump r))
+                 (if (!= (coco_peek r) -1) (block (coco_bump r) (coco_bump r))))
                 (#t (return any)))))
           (return any)))
 
@@ -585,196 +585,196 @@
   ;;; The escapes a quoted atom or a string may contain. Answers the character,
   ;;; or -1 if this is not an escape cocolog knows.
   (static)
-  (func co_escape_char ((int c)) (out int)
-        (cond ((== c (co-ch "n")) (return 10))
-              ((== c (co-ch "t")) (return 9))
-              ((== c (co-ch "r")) (return 13))
-              ((== c (co-ch "a")) (return 7))
-              ((== c (co-ch "b")) (return 8))
-              ((== c (co-ch "f")) (return 12))
-              ((== c (co-ch "v")) (return 11))
-              ((== c (co-ch "0")) (return 0))
+  (func coco_escape_char ((int c)) (out int)
+        (cond ((== c (coco-ch "n")) (return 10))
+              ((== c (coco-ch "t")) (return 9))
+              ((== c (coco-ch "r")) (return 13))
+              ((== c (coco-ch "a")) (return 7))
+              ((== c (coco-ch "b")) (return 8))
+              ((== c (coco-ch "f")) (return 12))
+              ((== c (coco-ch "v")) (return 11))
+              ((== c (coco-ch "0")) (return 0))
               ((== c 92) (return 92))          ; a backslash escapes itself
-              ((== c (co-ch "'")) (return 39))
+              ((== c (coco-ch "'")) (return 39))
               ((== c 34) (return 34))          ; a double quote; see below
               (#t (return -1))))
 
   ;;; A quoted item, ending at QUOTE. Doubling the quote is how a quote is
   ;;; written inside one -- 'it''s' -- and backslash escapes are accepted too.
   (static)
-  (func co_lex_quoted ((co_reader * r) (int quote)) (out int)
-        (co_bump r)
+  (func coco_lex_quoted ((coco_reader * r) (int quote)) (out int)
+        (coco_bump r)
         (while 1
-          (let ((int c . #'(co_peek r)))
+          (let ((int c . #'(coco_peek r)))
             (cond
-              ((== c -1) (return (co_fail r "unterminated quoted item")))
+              ((== c -1) (return (coco_fail r "unterminated quoted item")))
               ((== c quote)
-               (co_bump r)
-               (if (== (co_peek r) quote)
-                   (block (co_sb_putc (aof (-> r text)) (cast char quote)) (co_bump r))
+               (coco_bump r)
+               (if (== (coco_peek r) quote)
+                   (block (coco_sb_putc (aof (-> r text)) (cast char quote)) (coco_bump r))
                  (return 1)))
               ((== c 92)
-               (co_bump r)
-               (let ((int e . #'(co_escape_char (co_peek r))))
-                 (if (== e -1) (return (co_fail r "unknown escape")))
-                 (co_bump r)
-                 (co_sb_putc (aof (-> r text)) (cast char e))))
-              (#t (co_sb_putc (aof (-> r text)) (cast char c)) (co_bump r)))))
+               (coco_bump r)
+               (let ((int e . #'(coco_escape_char (coco_peek r))))
+                 (if (== e -1) (return (coco_fail r "unknown escape")))
+                 (coco_bump r)
+                 (coco_sb_putc (aof (-> r text)) (cast char e))))
+              (#t (coco_sb_putc (aof (-> r text)) (cast char c)) (coco_bump r)))))
         (return 1))
 
   ;;; A number. `0'c' is a character code, 0x/0o/0b are radix prefixes, and a
   ;;; `.' only starts a fraction when a digit follows it -- otherwise it is the
   ;;; end of the clause, which is why `f(1).' does not read as a float.
   (static)
-  (func co_lex_number ((co_reader * r)) (out int)
-        (if (and (== (co_peek r) (co-ch "0")) (== (co_peek_at r 1) (co-ch "'")))
-            (block (co_bump r) (co_bump r)
-                   (let ((int c . #'(co_peek r)))
-                     (if (== c -1) (return (co_fail r "unterminated character code")))
-                     (co_bump r)
+  (func coco_lex_number ((coco_reader * r)) (out int)
+        (if (and (== (coco_peek r) (coco-ch "0")) (== (coco_peek_at r 1) (coco-ch "'")))
+            (block (coco_bump r) (coco_bump r)
+                   (let ((int c . #'(coco_peek r)))
+                     (if (== c -1) (return (coco_fail r "unterminated character code")))
+                     (coco_bump r)
                      (if (== c 92)
-                         (let ((int e . #'(co_escape_char (co_peek r))))
-                           (if (== e -1) (return (co_fail r "unknown escape")))
-                           (co_bump r)
+                         (let ((int e . #'(coco_escape_char (coco_peek r))))
+                           (if (== e -1) (return (coco_fail r "unknown escape")))
+                           (coco_bump r)
                            (set c e)))
                      (set (-> r ival) (cast i64 c))
-                     (set (-> r tok) CO_TK_INT)
+                     (set (-> r tok) COCO_TK_INT)
                      (return 1))))
-        (if (== (co_peek r) (co-ch "0"))
-            (let ((int p . #'(co_peek_at r 1)) (int base . 0))
-              (cond ((or (== p (co-ch "x")) (== p (co-ch "X"))) (set base 16))
-                    ((or (== p (co-ch "o")) (== p (co-ch "O"))) (set base 8))
-                    ((or (== p (co-ch "b")) (== p (co-ch "B"))) (set base 2)))
+        (if (== (coco_peek r) (coco-ch "0"))
+            (let ((int p . #'(coco_peek_at r 1)) (int base . 0))
+              (cond ((or (== p (coco-ch "x")) (== p (coco-ch "X"))) (set base 16))
+                    ((or (== p (coco-ch "o")) (== p (coco-ch "O"))) (set base 8))
+                    ((or (== p (coco-ch "b")) (== p (coco-ch "B"))) (set base 2)))
               (if (!= base 0)
-                  (block (co_bump r) (co_bump r)
+                  (block (coco_bump r) (coco_bump r)
                          (let ((i64 v . 0) (int n . 0))
                            (while 1
-                             (let ((int c . #'(co_peek r)) (int d . -1))
-                               (cond ((co_is_digit c) (set d (- c (co-ch "0"))))
-                                     ((co-ch-between c "a" "f") (set d (+ 10 (- c (co-ch "a")))))
-                                     ((co-ch-between c "A" "F") (set d (+ 10 (- c (co-ch "A"))))))
+                             (let ((int c . #'(coco_peek r)) (int d . -1))
+                               (cond ((coco_is_digit c) (set d (- c (coco-ch "0"))))
+                                     ((coco-ch-between c "a" "f") (set d (+ 10 (- c (coco-ch "a")))))
+                                     ((coco-ch-between c "A" "F") (set d (+ 10 (- c (coco-ch "A"))))))
                                (if (or (== d -1) (>= d base)) break)
                                (set v (+ (* v (cast i64 base)) (cast i64 d)))
                                (set n (+ n 1))
-                               (co_bump r)))
-                           (if (== n 0) (return (co_fail r "digits expected after radix prefix")))
+                               (coco_bump r)))
+                           (if (== n 0) (return (coco_fail r "digits expected after radix prefix")))
                            (set (-> r ival) v)
-                           (set (-> r tok) CO_TK_INT)
+                           (set (-> r tok) COCO_TK_INT)
                            (return 1))))))
         ;; plain decimal, possibly a float
-        (co_sb_reset (aof (-> r text)))
-        (while (co_is_digit (co_peek r))
-          (co_sb_putc (aof (-> r text)) (cast char (co_peek r))) (co_bump r))
+        (coco_sb_reset (aof (-> r text)))
+        (while (coco_is_digit (coco_peek r))
+          (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
         (let ((int isfloat . 0))
-          (if (and (== (co_peek r) (co-ch ".")) (co_is_digit (co_peek_at r 1)))
+          (if (and (== (coco_peek r) (coco-ch ".")) (coco_is_digit (coco_peek_at r 1)))
               (block (set isfloat 1)
-                     (co_sb_putc (aof (-> r text)) (cast char (co-ch "."))) (co_bump r)
-                     (while (co_is_digit (co_peek r))
-                       (co_sb_putc (aof (-> r text)) (cast char (co_peek r))) (co_bump r))))
-          (if (or (== (co_peek r) (co-ch "e")) (== (co_peek r) (co-ch "E")))
+                     (coco_sb_putc (aof (-> r text)) (cast char (coco-ch "."))) (coco_bump r)
+                     (while (coco_is_digit (coco_peek r))
+                       (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))))
+          (if (or (== (coco_peek r) (coco-ch "e")) (== (coco_peek r) (coco-ch "E")))
               (let ((int off . 1))
-                (if (or (== (co_peek_at r 1) (co-ch "+")) (== (co_peek_at r 1) (co-ch "-")))
+                (if (or (== (coco_peek_at r 1) (coco-ch "+")) (== (coco_peek_at r 1) (coco-ch "-")))
                     (set off 2))
-                (if (co_is_digit (co_peek_at r (cast size_t off)))
+                (if (coco_is_digit (coco_peek_at r (cast size_t off)))
                     (block (set isfloat 1)
-                           (co_sb_putc (aof (-> r text)) (cast char (co_peek r))) (co_bump r)
+                           (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r)
                            (if (== off 2)
-                               (block (co_sb_putc (aof (-> r text)) (cast char (co_peek r)))
-                                      (co_bump r)))
-                           (while (co_is_digit (co_peek r))
-                             (co_sb_putc (aof (-> r text)) (cast char (co_peek r)))
-                             (co_bump r))))))
+                               (block (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r)))
+                                      (coco_bump r)))
+                           (while (coco_is_digit (coco_peek r))
+                             (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r)))
+                             (coco_bump r))))))
           (if isfloat
               (block (set (-> r fval) (strtod ($ (-> r text) s) nil))
-                     (set (-> r tok) CO_TK_FLOAT))
+                     (set (-> r tok) COCO_TK_FLOAT))
             (block (set (-> r ival) (cast i64 (strtoll ($ (-> r text) s) nil 10)))
-                   (set (-> r tok) CO_TK_INT))))
+                   (set (-> r tok) COCO_TK_INT))))
         (return 1))
 
   ;;; One token into the reader. Everything the parser knows about the input is
   ;;; what this leaves behind: the kind, the text, and whether layout preceded
   ;;; it.
   (static)
-  (func co_next_token ((co_reader * r)) (out int)
-        (set (-> r layout_before) (co_skip_layout r))
+  (func coco_next_token ((coco_reader * r)) (out int)
+        (set (-> r layout_before) (coco_skip_layout r))
         (set (-> r quoted) 0)
-        (co_sb_reset (aof (-> r text)))
-        (let ((int c . #'(co_peek r)))
+        (coco_sb_reset (aof (-> r text)))
+        (let ((int c . #'(coco_peek r)))
           (cond
-            ((== c -1) (set (-> r tok) CO_TK_EOF) (return 1))
+            ((== c -1) (set (-> r tok) COCO_TK_EOF) (return 1))
 
-            ((co_is_digit c) (return (co_lex_number r)))
+            ((coco_is_digit c) (return (coco_lex_number r)))
 
-            ((co_is_lower c)
-             (while (co_is_alnum (co_peek r))
-               (co_sb_putc (aof (-> r text)) (cast char (co_peek r))) (co_bump r))
-             (set (-> r tok) CO_TK_NAME)
+            ((coco_is_lower c)
+             (while (coco_is_alnum (coco_peek r))
+               (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+             (set (-> r tok) COCO_TK_NAME)
              (return 1))
 
-            ((co_is_upper c)
-             (while (co_is_alnum (co_peek r))
-               (co_sb_putc (aof (-> r text)) (cast char (co_peek r))) (co_bump r))
-             (set (-> r tok) CO_TK_VAR)
+            ((coco_is_upper c)
+             (while (coco_is_alnum (coco_peek r))
+               (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+             (set (-> r tok) COCO_TK_VAR)
              (return 1))
 
-            ((== c (co-ch "'"))
-             (if (not (co_lex_quoted r (co-ch "'"))) (return 0))
-             (set (-> r tok) CO_TK_NAME)
+            ((== c (coco-ch "'"))
+             (if (not (coco_lex_quoted r (coco-ch "'"))) (return 0))
+             (set (-> r tok) COCO_TK_NAME)
              (set (-> r quoted) 1)
              (return 1))
 
             ;; 34 is the double quote, written as its code: a Cicili string is
-            ;; raw, so "\"" holds a backslash AND a quote and `co-ch' would
+            ;; raw, so "\"" holds a backslash AND a quote and `coco-ch' would
             ;; answer with the backslash.
             ((== c 34)
-             (if (not (co_lex_quoted r 34)) (return 0))
-             (set (-> r tok) CO_TK_STRING)
+             (if (not (coco_lex_quoted r 34)) (return 0))
+             (set (-> r tok) COCO_TK_STRING)
              (return 1))
 
             ;; the bracket family, plus the two solo characters that are
             ;; punctuation rather than atoms
-            ((co-ch-in c "()[]{},|")
-             (co_sb_putc (aof (-> r text)) (cast char c)) (co_bump r)
-             (set (-> r tok) CO_TK_PUNCT)
+            ((coco-ch-in c "()[]{},|")
+             (coco_sb_putc (aof (-> r text)) (cast char c)) (coco_bump r)
+             (set (-> r tok) COCO_TK_PUNCT)
              (return 1))
 
             ;; `!' and `;' are atoms that stand alone
-            ((co-ch-in c "!;")
-             (co_sb_putc (aof (-> r text)) (cast char c)) (co_bump r)
-             (set (-> r tok) CO_TK_NAME)
+            ((coco-ch-in c "!;")
+             (coco_sb_putc (aof (-> r text)) (cast char c)) (coco_bump r)
+             (set (-> r tok) COCO_TK_NAME)
              (return 1))
 
-            ((co_is_symbol c)
-             (while (co_is_symbol (co_peek r))
-               (co_sb_putc (aof (-> r text)) (cast char (co_peek r))) (co_bump r))
+            ((coco_is_symbol c)
+             (while (coco_is_symbol (coco_peek r))
+               (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
              ;; a lone `.' followed by layout or nothing ends the clause
              (if (and (== ($ (-> r text) len) 1) (== (nth 0 ($ (-> r text) s)) (cast char 46)))
-                 (let ((int nxt . #'(co_peek r)))
-                   (if (or (== nxt -1) (or (co_is_space nxt) (== nxt (co-ch "%"))))
-                       (block (set (-> r tok) CO_TK_END) (return 1)))))
-             (set (-> r tok) CO_TK_NAME)
+                 (let ((int nxt . #'(coco_peek r)))
+                   (if (or (== nxt -1) (or (coco_is_space nxt) (== nxt (coco-ch "%"))))
+                       (block (set (-> r tok) COCO_TK_END) (return 1)))))
+             (set (-> r tok) COCO_TK_NAME)
              (return 1))
 
-            (#t (return (co_fail r "unexpected character")))))
+            (#t (return (coco_fail r "unexpected character")))))
         (return 1))
 
   ;;; ---- the parser -------------------------------------------------------
   ;;; Standard operator-precedence reading. The two mutually recursive halves
-  ;;; are declared first, because `co_parse_primary' has to call back into
-  ;;; `co_parse_term' for a bracketed subterm and for a prefix operator's
+  ;;; are declared first, because `coco_parse_primary' has to call back into
+  ;;; `coco_parse_term' for a bracketed subterm and for a prefix operator's
   ;;; argument.
 
-  (static) (decl) (func co_parse_term ((co_reader * r) (int maxprec)
+  (static) (decl) (func coco_parse_term ((coco_reader * r) (int maxprec)
                                        (size_t * out) (int * outprec)) (out int))
-  (static) (decl) (func co_parse_primary ((co_reader * r) (int maxprec)
+  (static) (decl) (func coco_parse_primary ((coco_reader * r) (int maxprec)
                                           (size_t * out) (int * outprec)) (out int))
 
   ;;; A variable by name, within the clause being read. `_' is anonymous: every
   ;;; occurrence is a different variable and none of them is recorded, which is
   ;;; exactly what makes `foo(_, _)' mean two unrelated things.
   (static)
-  (func co_var_for ((co_reader * r) (const char * name)) (out size_t)
-        (if (== 0 (strcmp name "_")) (return (co_new_var (-> r m))))
+  (func coco_var_for ((coco_reader * r) (const char * name)) (out size_t)
+        (if (== 0 (strcmp name "_")) (return (coco_new_var (-> r m))))
         (for ((size_t i . 0)) (< i (-> r nvars)) ((++ i))
           (if (== 0 (strcmp (nth i (-> r var_names)) name))
               (return (nth i (-> r var_cells)))))
@@ -782,13 +782,13 @@
             (let ((size_t ncap . #'(? (== (-> r var_cap) 0) 8 (* (-> r var_cap) 2)))
                   (char ** nn) (size_t * nc))
               (set nn (cast (char **) (realloc (-> r var_names) (* ncap (sizeof (char *))))))
-              (if (== nn nil) (return (co_new_var (-> r m))))
+              (if (== nn nil) (return (coco_new_var (-> r m))))
               (set (-> r var_names) nn)
               (set nc (cast (size_t *) (realloc (-> r var_cells) (* ncap (sizeof size_t)))))
-              (if (== nc nil) (return (co_new_var (-> r m))))
+              (if (== nc nil) (return (coco_new_var (-> r m))))
               (set (-> r var_cells) nc)
               (set (-> r var_cap) ncap)))
-        (let ((size_t v . #'(co_new_var (-> r m))))
+        (let ((size_t v . #'(coco_new_var (-> r m))))
           (set (nth (-> r nvars) (-> r var_names)) (strdup name))
           (set (nth (-> r nvars) (-> r var_cells)) v)
           (set (-> r nvars) (+ (-> r nvars) 1))
@@ -798,11 +798,11 @@
   ;;; takes an argument if one follows: in `X = -' the `-' is an atom, and the
   ;;; only thing that says so is that `.' comes next.
   (static)
-  (func co_starts_term ((co_reader * r)) (out int)
-        (cond ((== (-> r tok) CO_TK_INT)    (return 1))
-              ((== (-> r tok) CO_TK_FLOAT)  (return 1))
-              ((== (-> r tok) CO_TK_VAR)    (return 1))
-              ((== (-> r tok) CO_TK_STRING) (return 1))
+  (func coco_starts_term ((coco_reader * r)) (out int)
+        (cond ((== (-> r tok) COCO_TK_INT)    (return 1))
+              ((== (-> r tok) COCO_TK_FLOAT)  (return 1))
+              ((== (-> r tok) COCO_TK_VAR)    (return 1))
+              ((== (-> r tok) COCO_TK_STRING) (return 1))
               ;; A NAME USUALLY STARTS A TERM, and an operator name usually
               ;; does too -- `- - a' is prefix `-' applied to `-a', because the
               ;; second `-' can begin one. But an operator that is ONLY infix
@@ -810,35 +810,35 @@
               ;; the `-' before it is an atom and `=' is the operator between
               ;; them. Without this the reader took `-' as a prefix operator
               ;; applied to the atom `=' and stopped, leaving `a' unread.
-              ((== (-> r tok) CO_TK_NAME)
+              ((== (-> r tok) COCO_TK_NAME)
                (let ((int p . 0) (int t . 0))
-                 (if (and (co_op_infix ($ (-> r text) s) (aof p) (aof t))
-                          (not (co_op_prefix ($ (-> r text) s) (aof p) (aof t))))
+                 (if (and (coco_op_infix ($ (-> r text) s) (aof p) (aof t))
+                          (not (coco_op_prefix ($ (-> r text) s) (aof p) (aof t))))
                      (return 0))
                  (return 1)))
-              ((== (-> r tok) CO_TK_PUNCT)
-               (return (? (co-ch-in (cast int (nth 0 ($ (-> r text) s))) "([{") 1 0)))
+              ((== (-> r tok) COCO_TK_PUNCT)
+               (return (? (coco-ch-in (cast int (nth 0 ($ (-> r text) s))) "([{") 1 0)))
               (#t (return 0))))
 
   ;;; The token in hand is this punctuation mark.
   (static)
-  (func co_is_punct ((co_reader * r) (int c)) (out int)
-        (return (? (and (== (-> r tok) CO_TK_PUNCT)
+  (func coco_is_punct ((coco_reader * r) (int c)) (out int)
+        (return (? (and (== (-> r tok) COCO_TK_PUNCT)
                         (== (cast int (nth 0 ($ (-> r text) s))) c))
                    1 0)))
 
   ;;; `[ ... ]' after the bracket has been consumed.
   (static)
-  (func co_parse_list ((co_reader * r) (size_t * out)) (out int)
-        (if (co_is_punct r (co-ch "]"))
-            (block (if (not (co_next_token r)) (return 0))
-                   (set (cof out) (co_new_atom (-> r m) "[]"))
+  (func coco_parse_list ((coco_reader * r) (size_t * out)) (out int)
+        (if (coco_is_punct r (coco-ch "]"))
+            (block (if (not (coco_next_token r)) (return 0))
+                   (set (cof out) (coco_new_atom (-> r m) "[]"))
                    (return 1)))
         (let ((size_t * items . nil) (size_t n . 0) (size_t cap . 0)
               (size_t tail) (int prec) (int ok . 1))
           (while 1
             (let ((size_t item))
-              (if (not (co_parse_term r 999 (aof item) (aof prec)))
+              (if (not (coco_parse_term r 999 (aof item) (aof prec)))
                   (block (set ok 0) break))
               (if (>= n cap)
                   (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
@@ -847,23 +847,23 @@
                     (set cap ncap)))
               (set (nth n items) item)
               (set n (+ n 1)))
-            (if (not (co_is_punct r (co-ch ","))) break)
-            (if (not (co_next_token r)) (block (set ok 0) break)))
+            (if (not (coco_is_punct r (coco-ch ","))) break)
+            (if (not (coco_next_token r)) (block (set ok 0) break)))
           (if (not ok) (block (free items) (return 0)))
           ;; an explicit tail, or the empty list
           (set tail (cast size_t 0))
-          (if (co_is_punct r (co-ch "|"))
-              (block (if (not (co_next_token r)) (block (free items) (return 0)))
-                     (if (not (co_parse_term r 999 (aof tail) (aof prec)))
+          (if (coco_is_punct r (coco-ch "|"))
+              (block (if (not (coco_next_token r)) (block (free items) (return 0)))
+                     (if (not (coco_parse_term r 999 (aof tail) (aof prec)))
                          (block (free items) (return 0))))
-            (set tail (co_new_atom (-> r m) "[]")))
-          (if (not (co_is_punct r (co-ch "]")))
-              (block (free items) (return (co_fail r "expected ] closing a list"))))
-          (if (not (co_next_token r)) (block (free items) (return 0)))
+            (set tail (coco_new_atom (-> r m) "[]")))
+          (if (not (coco_is_punct r (coco-ch "]")))
+              (block (free items) (return (coco_fail r "expected ] closing a list"))))
+          (if (not (coco_next_token r)) (block (free items) (return 0)))
           ;; fold from the right, so [a,b|T] becomes '.'(a, '.'(b, T))
           (while (> n 0)
             (set n (- n 1))
-            (set tail (co_cons (-> r m) (nth n items) tail)))
+            (set tail (coco_cons (-> r m) (nth n items) tail)))
           (free items)
           (set (cof out) tail)
           (return 1)))
@@ -871,25 +871,25 @@
   ;;; A double-quoted item is a list of character codes -- the ISO default, and
   ;;; the one that makes "abc" something a Prolog program can take apart.
   (static)
-  (func co_string_to_list ((co_reader * r) (size_t * out)) (out int)
-        (let ((size_t tail . #'(co_new_atom (-> r m) "[]"))
+  (func coco_string_to_list ((coco_reader * r) (size_t * out)) (out int)
+        (let ((size_t tail . #'(coco_new_atom (-> r m) "[]"))
               (size_t n . #'($ (-> r text) len)))
           (while (> n 0)
             (set n (- n 1))
-            (let ((size_t c . #'(co_new_int (-> r m)
+            (let ((size_t c . #'(coco_new_int (-> r m)
                                             (cast i64 (cast uchar (nth n ($ (-> r text) s)))))))
-              (set tail (co_cons (-> r m) c tail))))
+              (set tail (coco_cons (-> r m) c tail))))
           (set (cof out) tail)
           (return 1)))
 
   ;;; `name(...)' -- the bracket has been consumed. Arguments read at 999 so a
   ;;; bare comma separates them instead of building a ','/2 term.
   (static)
-  (func co_parse_args ((co_reader * r) (const char * name) (size_t * out)) (out int)
+  (func coco_parse_args ((coco_reader * r) (const char * name) (size_t * out)) (out int)
         (let ((size_t * args . nil) (size_t n . 0) (size_t cap . 0) (int prec) (int ok . 1))
           (while 1
             (let ((size_t a))
-              (if (not (co_parse_term r 999 (aof a) (aof prec))) (block (set ok 0) break))
+              (if (not (coco_parse_term r 999 (aof a) (aof prec))) (block (set ok 0) break))
               (if (>= n cap)
                   (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
                     (set args (cast (size_t *) (realloc args (* ncap (sizeof size_t)))))
@@ -897,59 +897,59 @@
                     (set cap ncap)))
               (set (nth n args) a)
               (set n (+ n 1)))
-            (if (not (co_is_punct r (co-ch ","))) break)
-            (if (not (co_next_token r)) (block (set ok 0) break)))
+            (if (not (coco_is_punct r (coco-ch ","))) break)
+            (if (not (coco_next_token r)) (block (set ok 0) break)))
           (if (not ok) (block (free args) (return 0)))
-          (if (not (co_is_punct r (co-ch ")")))
-              (block (free args) (return (co_fail r "expected ) closing an argument list"))))
-          (if (not (co_next_token r)) (block (free args) (return 0)))
-          (set (cof out) (co_make (-> r m) name (cast u32 n) args))
+          (if (not (coco_is_punct r (coco-ch ")")))
+              (block (free args) (return (coco_fail r "expected ) closing an argument list"))))
+          (if (not (coco_next_token r)) (block (free args) (return 0)))
+          (set (cof out) (coco_make (-> r m) name (cast u32 n) args))
           (free args)
           (return 1)))
 
-  (func co_parse_primary ((co_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
+  (func coco_parse_primary ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
         (set (cof outprec) 0)
         (cond
-          ((== (-> r tok) CO_TK_INT)
-           (set (cof out) (co_new_int (-> r m) (-> r ival)))
-           (return (co_next_token r)))
+          ((== (-> r tok) COCO_TK_INT)
+           (set (cof out) (coco_new_int (-> r m) (-> r ival)))
+           (return (coco_next_token r)))
 
-          ((== (-> r tok) CO_TK_FLOAT)
-           (set (cof out) (co_new_float (-> r m) (-> r fval)))
-           (return (co_next_token r)))
+          ((== (-> r tok) COCO_TK_FLOAT)
+           (set (cof out) (coco_new_float (-> r m) (-> r fval)))
+           (return (coco_next_token r)))
 
-          ((== (-> r tok) CO_TK_VAR)
-           (set (cof out) (co_var_for r ($ (-> r text) s)))
-           (return (co_next_token r)))
+          ((== (-> r tok) COCO_TK_VAR)
+           (set (cof out) (coco_var_for r ($ (-> r text) s)))
+           (return (coco_next_token r)))
 
-          ((== (-> r tok) CO_TK_STRING)
-           (if (not (co_string_to_list r out)) (return 0))
-           (return (co_next_token r)))
+          ((== (-> r tok) COCO_TK_STRING)
+           (if (not (coco_string_to_list r out)) (return 0))
+           (return (coco_next_token r)))
 
-          ((co_is_punct r (co-ch "("))
-           (if (not (co_next_token r)) (return 0))
+          ((coco_is_punct r (coco-ch "("))
+           (if (not (coco_next_token r)) (return 0))
            (let ((int p))
-             (if (not (co_parse_term r 1200 out (aof p))) (return 0)))
-           (if (not (co_is_punct r (co-ch ")"))) (return (co_fail r "expected )")))
-           (return (co_next_token r)))
+             (if (not (coco_parse_term r 1200 out (aof p))) (return 0)))
+           (if (not (coco_is_punct r (coco-ch ")"))) (return (coco_fail r "expected )")))
+           (return (coco_next_token r)))
 
-          ((co_is_punct r (co-ch "["))
-           (if (not (co_next_token r)) (return 0))
-           (return (co_parse_list r out)))
+          ((coco_is_punct r (coco-ch "["))
+           (if (not (coco_next_token r)) (return 0))
+           (return (coco_parse_list r out)))
 
-          ((co_is_punct r (co-ch "{"))
-           (if (not (co_next_token r)) (return 0))
-           (if (co_is_punct r (co-ch "}"))
-               (block (set (cof out) (co_new_atom (-> r m) "{}"))
-                      (return (co_next_token r))))
+          ((coco_is_punct r (coco-ch "{"))
+           (if (not (coco_next_token r)) (return 0))
+           (if (coco_is_punct r (coco-ch "}"))
+               (block (set (cof out) (coco_new_atom (-> r m) "{}"))
+                      (return (coco_next_token r))))
            (let ((size_t inner) (int p))
-             (if (not (co_parse_term r 1200 (aof inner) (aof p))) (return 0))
-             (if (not (co_is_punct r (co-ch "}"))) (return (co_fail r "expected }")))
-             (if (not (co_next_token r)) (return 0))
-             (set (cof out) (co_make1 (-> r m) "{}" inner))
+             (if (not (coco_parse_term r 1200 (aof inner) (aof p))) (return 0))
+             (if (not (coco_is_punct r (coco-ch "}"))) (return (coco_fail r "expected }")))
+             (if (not (coco_next_token r)) (return 0))
+             (set (cof out) (coco_make1 (-> r m) "{}" inner))
              (return 1)))
 
-          ((== (-> r tok) CO_TK_NAME)
+          ((== (-> r tok) COCO_TK_NAME)
            ;; THE NAME HAS TO BE COPIED. `r->text' is one buffer reused by every
            ;; token, so the moment the next token is read the name is gone --
            ;; and the name is needed after the lookahead that decides what this
@@ -958,23 +958,23 @@
            ;; belongs to the token in hand and the lookahead replaces it.
            (let ((char name [256]) (int was_quoted . #'(-> r quoted)))
              (snprintf name (sizeof name) "%s" ($ (-> r text) s))
-             (if (not (co_next_token r)) (return 0))
+             (if (not (coco_next_token r)) (return 0))
 
              ;; f( with no space between is an application; `f (' is not
-             (if (and (co_is_punct r (co-ch "(")) (== (-> r layout_before) 0))
-                 (block (if (not (co_next_token r)) (return 0))
-                        (return (co_parse_args r name out))))
+             (if (and (coco_is_punct r (coco-ch "(")) (== (-> r layout_before) 0))
+                 (block (if (not (coco_next_token r)) (return 0))
+                        (return (coco_parse_args r name out))))
 
              ;; `-1' is the integer; `- 1' is -(1). Only the absence of layout
              ;; tells them apart.
              (if (and (== 0 (strcmp name "-")) (== (-> r layout_before) 0))
                  (block
-                  (if (== (-> r tok) CO_TK_INT)
-                      (block (set (cof out) (co_new_int (-> r m) (- 0 (-> r ival))))
-                             (return (co_next_token r))))
-                  (if (== (-> r tok) CO_TK_FLOAT)
-                      (block (set (cof out) (co_new_float (-> r m) (- 0.0 (-> r fval))))
-                             (return (co_next_token r))))))
+                  (if (== (-> r tok) COCO_TK_INT)
+                      (block (set (cof out) (coco_new_int (-> r m) (- 0 (-> r ival))))
+                             (return (coco_next_token r))))
+                  (if (== (-> r tok) COCO_TK_FLOAT)
+                      (block (set (cof out) (coco_new_float (-> r m) (- 0.0 (-> r fval))))
+                             (return (coco_next_token r))))))
 
              ;; a prefix operator, but only if it was written as one, and
              ;; something follows that it could apply to, and its priority fits
@@ -983,12 +983,12 @@
              ;; `-a', and quoting is the whole of the difference.
              (let ((int prec) (int type))
                (if (and (not was_quoted)
-                        (and (co_op_prefix name (aof prec) (aof type))
-                             (and (<= prec maxprec) (co_starts_term r))))
+                        (and (coco_op_prefix name (aof prec) (aof type))
+                             (and (<= prec maxprec) (coco_starts_term r))))
                    (let ((size_t arg) (int argprec)
-                         (int argmax . #'(? (== type CO_FY) prec (- prec 1))))
-                     (if (not (co_parse_term r argmax (aof arg) (aof argprec))) (return 0))
-                     (set (cof out) (co_make1 (-> r m) name arg))
+                         (int argmax . #'(? (== type COCO_FY) prec (- prec 1))))
+                     (if (not (coco_parse_term r argmax (aof arg) (aof argprec))) (return 0))
+                     (set (cof out) (coco_make1 (-> r m) name arg))
                      (set (cof outprec) prec)
                      (return 1))))
 
@@ -1000,36 +1000,36 @@
              ;; here -- the strict reading buys nothing and refuses terms that
              ;; are perfectly clear. The WRITER is where the priority matters,
              ;; and it brackets such an atom when it stands as an operand.
-             (set (cof out) (co_new_atom (-> r m) name))
+             (set (cof out) (coco_new_atom (-> r m) name))
              (set (cof outprec) 0)
              (return 1)))
 
-          (#t (return (co_fail r "expected a term")))))
+          (#t (return (coco_fail r "expected a term")))))
 
-  (func co_parse_term ((co_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
+  (func coco_parse_term ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
         (let ((size_t left) (int leftprec))
-          (if (not (co_parse_primary r maxprec (aof left) (aof leftprec))) (return 0))
+          (if (not (coco_parse_primary r maxprec (aof left) (aof leftprec))) (return 0))
           (while 1
             (let ((char name [256]) (int prec) (int type) (int have . 0))
               ;; `,' and `|' arrive as punctuation but are operators: the comma
               ;; is ','/2 and the bar is a 1100 disjunction outside a list.
               (cond
-                ((== (-> r tok) CO_TK_NAME)
+                ((== (-> r tok) COCO_TK_NAME)
                  (snprintf name (sizeof name) "%s" ($ (-> r text) s)) (set have 1))
-                ((co_is_punct r (co-ch ","))
+                ((coco_is_punct r (coco-ch ","))
                  (snprintf name (sizeof name) ",") (set have 1))
-                ((co_is_punct r (co-ch "|"))
+                ((coco_is_punct r (coco-ch "|"))
                  (snprintf name (sizeof name) ";") (set have 1)))
               (if (not have) break)
-              (if (not (co_op_infix name (aof prec) (aof type))) break)
+              (if (not (coco_op_infix name (aof prec) (aof type))) break)
               (if (> prec maxprec) break)
-              (let ((int lmax . #'(? (== type CO_YFX) prec (- prec 1)))
-                    (int rmax . #'(? (== type CO_XFY) prec (- prec 1))))
+              (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
+                    (int rmax . #'(? (== type COCO_XFY) prec (- prec 1))))
                 (if (> leftprec lmax) break)
-                (if (not (co_next_token r)) (return 0))
+                (if (not (coco_next_token r)) (return 0))
                 (let ((size_t right) (int rightprec))
-                  (if (not (co_parse_term r rmax (aof right) (aof rightprec))) (return 0))
-                  (set left (co_make2 (-> r m) name left right))
+                  (if (not (coco_parse_term r rmax (aof right) (aof rightprec))) (return 0))
+                  (set left (coco_make2 (-> r m) name left right))
                   (set leftprec prec)))))
           (set (cof out) left)
           (set (cof outprec) leftprec)
@@ -1037,57 +1037,57 @@
 
   ;;; ---- the reader's own surface -----------------------------------------
 
-  (func co_reader_init ((co_reader * r) (co_machine * m) (const char * src))
-        (memset r 0 (sizeof co_reader))
+  (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src))
+        (memset r 0 (sizeof coco_reader))
         (set (-> r m) m)
         (set (-> r src) src)
         (set (-> r len) (strlen src))
-        (co_sb_init (aof (-> r text)))
-        (co_next_token r))
+        (coco_sb_init (aof (-> r text)))
+        (coco_next_token r))
 
   (static)
-  (func co_reader_clear_vars ((co_reader * r))
+  (func coco_reader_clear_vars ((coco_reader * r))
         (for ((size_t i . 0)) (< i (-> r nvars)) ((++ i))
           (free (nth i (-> r var_names))))
         (set (-> r nvars) 0))
 
-  (func co_reader_free ((co_reader * r))
-        (co_reader_clear_vars r)
+  (func coco_reader_free ((coco_reader * r))
+        (coco_reader_clear_vars r)
         (free (-> r var_names))
         (free (-> r var_cells))
-        (co_sb_free (aof (-> r text)))
-        (memset r 0 (sizeof co_reader)))
+        (coco_sb_free (aof (-> r text)))
+        (memset r 0 (sizeof coco_reader)))
 
-  (func co_read_clause ((co_reader * r) (size_t * out)) (out int)
-        (co_reader_clear_vars r)
+  (func coco_read_clause ((coco_reader * r) (size_t * out)) (out int)
+        (coco_reader_clear_vars r)
         (if (-> r failed) (return -1))
-        (if (== (-> r tok) CO_TK_EOF) (return 0))
+        (if (== (-> r tok) COCO_TK_EOF) (return 0))
         (let ((size_t t) (int p))
-          (if (not (co_parse_term r 1200 (aof t) (aof p))) (return -1))
-          (if (!= (-> r tok) CO_TK_END)
-              (block (co_fail r "expected . ending a clause") (return -1)))
-          (if (not (co_next_token r)) (return -1))
+          (if (not (coco_parse_term r 1200 (aof t) (aof p))) (return -1))
+          (if (!= (-> r tok) COCO_TK_END)
+              (block (coco_fail r "expected . ending a clause") (return -1)))
+          (if (not (coco_next_token r)) (return -1))
           (set (cof out) t)
           (return 1)))
 
-  (func co_read_goal ((co_reader * r) (size_t * out)) (out int)
-        (co_reader_clear_vars r)
+  (func coco_read_goal ((coco_reader * r) (size_t * out)) (out int)
+        (coco_reader_clear_vars r)
         (if (-> r failed) (return 0))
-        (if (== (-> r tok) CO_TK_EOF) (return 0))
+        (if (== (-> r tok) COCO_TK_EOF) (return 0))
         (let ((size_t t) (int p))
-          (if (not (co_parse_term r 1200 (aof t) (aof p))) (return 0))
+          (if (not (coco_parse_term r 1200 (aof t) (aof p))) (return 0))
           (set (cof out) t)
           (return 1)))
 
-  (func co_read_term_from ((co_machine * m) (const char * src) (size_t * out)) (out int)
-        (let ((co_reader r) (int rc))
-          (co_reader_init (aof r) m src)
-          (if ($ r failed) (block (co_reader_free (aof r)) (return 0)))
-          (if (== ($ r tok) CO_TK_EOF) (block (co_reader_free (aof r)) (return 0)))
+  (func coco_read_term_from ((coco_machine * m) (const char * src) (size_t * out)) (out int)
+        (let ((coco_reader r) (int rc))
+          (coco_reader_init (aof r) m src)
+          (if ($ r failed) (block (coco_reader_free (aof r)) (return 0)))
+          (if (== ($ r tok) COCO_TK_EOF) (block (coco_reader_free (aof r)) (return 0)))
           (let ((size_t t) (int p))
-            (set rc (co_parse_term (aof r) 1200 (aof t) (aof p)))
+            (set rc (coco_parse_term (aof r) 1200 (aof t) (aof p)))
             (if rc (set (cof out) t)))
-          (co_reader_free (aof r))
+          (coco_reader_free (aof r))
           (return rc)))
 
   ;;; ---- the writer -------------------------------------------------------
@@ -1095,90 +1095,90 @@
   ;;; An atom needs no quotes when it is a lower-case alphanumeric word, a run
   ;;; of symbol characters, or one of the four names that stand alone. `,' is
   ;;; not among them: written bare it would be read as an argument separator.
-  (func co_atom_needs_quotes ((const char * name)) (out int)
+  (func coco_atom_needs_quotes ((const char * name)) (out int)
         (if (== (nth 0 name) (cast char 0)) (return 1))
         (if (or (== 0 (strcmp name "[]")) (or (== 0 (strcmp name "{}"))
                 (or (== 0 (strcmp name "!")) (== 0 (strcmp name ";")))))
             (return 0))
-        (if (co_is_lower (cast int (cast uchar (nth 0 name))))
+        (if (coco_is_lower (cast int (cast uchar (nth 0 name))))
             (block (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
-                     (if (not (co_is_alnum (cast int (cast uchar (nth i name)))))
+                     (if (not (coco_is_alnum (cast int (cast uchar (nth i name)))))
                          (return 1)))
                    (return 0)))
-        (if (co_is_symbol (cast int (cast uchar (nth 0 name))))
+        (if (coco_is_symbol (cast int (cast uchar (nth 0 name))))
             (block (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
-                     (if (not (co_is_symbol (cast int (cast uchar (nth i name)))))
+                     (if (not (coco_is_symbol (cast int (cast uchar (nth i name)))))
                          (return 1)))
                    (return 0)))
         (return 1))
 
   (static)
-  (func co_write_atom ((co_strbuf * b) (const char * name) (int quoted)) (out int)
-        (if (or (not quoted) (not (co_atom_needs_quotes name)))
-            (return (co_sb_put b name)))
-        (if (not (co_sb_putc b (cast char (co-ch "'")))) (return 0))
+  (func coco_write_atom ((coco_strbuf * b) (const char * name) (int quoted)) (out int)
+        (if (or (not quoted) (not (coco_atom_needs_quotes name)))
+            (return (coco_sb_put b name)))
+        (if (not (coco_sb_putc b (cast char (coco-ch "'")))) (return 0))
         (for ((size_t i . 0)) (!= (nth i name) (cast char 0)) ((++ i))
           (let ((int c . #'(cast int (cast uchar (nth i name)))))
             (cond
-              ((== c 39) (co_sb_put b "''"))
+              ((== c 39) (coco_sb_put b "''"))
               ;; a backslash is written doubled, and has to be written as two
               ;; characters: the literal that would say so cannot be spelt
-              ((== c 92) (co_sb_putc b (cast char 92)) (co_sb_putc b (cast char 92)))
-              ((== c 10) (co_sb_put b "\\n"))
-              ((== c 9)  (co_sb_put b "\\t"))
-              ((== c 13) (co_sb_put b "\\r"))
-              (#t (co_sb_putc b (cast char c))))))
-        (return (co_sb_putc b (cast char (co-ch "'")))))
+              ((== c 92) (coco_sb_putc b (cast char 92)) (coco_sb_putc b (cast char 92)))
+              ((== c 10) (coco_sb_put b "\\n"))
+              ((== c 9)  (coco_sb_put b "\\t"))
+              ((== c 13) (coco_sb_put b "\\r"))
+              (#t (coco_sb_putc b (cast char c))))))
+        (return (coco_sb_putc b (cast char (coco-ch "'")))))
 
-  (static) (decl) (func co_write_rec ((co_machine * m) (co_strbuf * b) (size_t t)
+  (static) (decl) (func coco_write_rec ((coco_machine * m) (coco_strbuf * b) (size_t t)
                                       (int quoted) (int ignore_ops) (int maxprec) (int operand)) (out int))
 
   ;;; `[a,b|T]'. Written iteratively rather than by recursing on the tail, so a
   ;;; ten-thousand-element list does not need ten thousand stack frames --
   ;;; a list is the one term shape deep enough for that to matter.
   (static)
-  (func co_write_list ((co_machine * m) (co_strbuf * b) (size_t t)
+  (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int quoted) (int ignore_ops)) (out int)
-        (co_sb_putc b (cast char (co-ch "[")))
+        (coco_sb_putc b (cast char (coco-ch "[")))
         (let ((int first . 1))
           (while 1
-            (set t (co_deref m t))
+            (set t (coco_deref m t))
             (let ((u64 c . #'(nth t (-> m heap))))
-              (if (and (co-tag-is FUN c) (== (co_arity m t) 2))
-                  (if (== 0 (strcmp (co_atom_name m (co_name_of m t)) "."))
+              (if (and (coco-tag-is FUN c) (== (coco_arity m t) 2))
+                  (if (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "."))
                       (block
-                       (if (not first) (co_sb_putc b (cast char (co-ch ","))))
+                       (if (not first) (coco_sb_putc b (cast char (coco-ch ","))))
                        (set first 0)
-                       (co_write_rec m b (co_arg m t 0) quoted ignore_ops 999 0)
-                       (set t (co_arg m t 1))
+                       (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops 999 0)
+                       (set t (coco_arg m t 1))
                        continue)))
               ;; not a list cell: either the proper end, or a partial list
-              (if (and (co-tag-is ATOM c)
-                       (== 0 (strcmp (co_atom_name m (co_name_of m t)) "[]")))
+              (if (and (coco-tag-is ATOM c)
+                       (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
                   break)
-              (co_sb_putc b (cast char (co-ch "|")))
-              (co_write_rec m b t quoted ignore_ops 999 0)
+              (coco_sb_putc b (cast char (coco-ch "|")))
+              (coco_write_rec m b t quoted ignore_ops 999 0)
               break)))
-        (return (co_sb_putc b (cast char (co-ch "]")))))
+        (return (coco_sb_putc b (cast char (coco-ch "]")))))
 
-  (func co_write_rec ((co_machine * m) (co_strbuf * b) (size_t t)
+  (func coco_write_rec ((coco_machine * m) (coco_strbuf * b) (size_t t)
                       (int quoted) (int ignore_ops) (int maxprec) (int operand)) (out int)
-        (set t (co_deref m t))
+        (set t (coco_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
             ;; an unbound variable prints by its cell, which is stable for as
             ;; long as the machine lives and unique across it
-            ((co-tag-is REF c)
-             (co_sb_put b "_G")
-             (return (co_sb_put_i64 b (cast i64 t))))
+            ((coco-tag-is REF c)
+             (coco_sb_put b "_G")
+             (return (coco_sb_put_i64 b (cast i64 t))))
 
-            ((co-tag-is INT c) (return (co_sb_put_i64 b (co-signed-payload c))))
+            ((coco-tag-is INT c) (return (coco_sb_put_i64 b (coco-signed-payload c))))
 
-            ((co-tag-is FLT c)
-             (return (co_sb_put_double b (nth (cast size_t (co-payload c)) (-> m floats)))))
+            ((coco-tag-is FLT c)
+             (return (coco_sb_put_double b (nth (cast size_t (coco-payload c)) (-> m floats)))))
 
-            ((co-tag-is ATOM c)
-             (let ((const char * name . #'(co_atom_name m (co_name_of m t))))
+            ((coco-tag-is ATOM c)
+             (let ((const char * name . #'(coco_atom_name m (coco_name_of m t))))
                ;; AN OPERATOR ATOM IS BRACKETED AS AN OPERAND AND NOWHERE
                ;; ELSE. `f(-)' and `[-]' and `[a,-]' are all fine as they
                ;; stand: an argument is read at priority 999 and a `-' followed
@@ -1188,34 +1188,34 @@
                ;;
                ;; It used to bracket in every position but the top, which is
                ;; safe and is not what SWI writes.
-               (if (and (co_op_is_any name) operand)
-                   (block (co_sb_putc b (cast char (co-ch "(")))
-                          (co_write_atom b name quoted)
-                          (return (co_sb_putc b (cast char (co-ch ")"))))))
-               (return (co_write_atom b name quoted))))
+               (if (and (coco_op_is_any name) operand)
+                   (block (coco_sb_putc b (cast char (coco-ch "(")))
+                          (coco_write_atom b name quoted)
+                          (return (coco_sb_putc b (cast char (coco-ch ")"))))))
+               (return (coco_write_atom b name quoted))))
 
-            ((co-tag-is FUN c)
-             (let ((const char * name . #'(co_atom_name m (co_name_of m t)))
-                   (u32 n . #'(co_arity m t)))
+            ((coco-tag-is FUN c)
+             (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
+                   (u32 n . #'(coco_arity m t)))
 
                (if (not ignore_ops)
                    (block
                     ;; lists and curly terms have their own surface syntax
                     (if (and (== n 2) (== 0 (strcmp name ".")))
-                        (return (co_write_list m b t quoted ignore_ops)))
+                        (return (coco_write_list m b t quoted ignore_ops)))
                     (if (and (== n 1) (== 0 (strcmp name "{}")))
-                        (block (co_sb_putc b (cast char (co-ch "{")))
-                               (co_write_rec m b (co_arg m t 0) quoted ignore_ops 1200 0)
-                               (return (co_sb_putc b (cast char (co-ch "}"))))))
+                        (block (coco_sb_putc b (cast char (coco-ch "{")))
+                               (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops 1200 0)
+                               (return (coco_sb_putc b (cast char (coco-ch "}"))))))
 
                     (let ((int prec) (int type))
                       ;; infix
-                      (if (and (== n 2) (co_op_infix name (aof prec) (aof type)))
-                          (let ((int lmax . #'(? (== type CO_YFX) prec (- prec 1)))
-                                (int rmax . #'(? (== type CO_XFY) prec (- prec 1)))
+                      (if (and (== n 2) (coco_op_infix name (aof prec) (aof type)))
+                          (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
+                                (int rmax . #'(? (== type COCO_XFY) prec (- prec 1)))
                                 (int paren . #'(? (> prec maxprec) 1 0)))
-                            (if paren (co_sb_putc b (cast char (co-ch "("))))
-                            (co_write_rec m b (co_arg m t 0) quoted ignore_ops lmax 1)
+                            (if paren (coco_sb_putc b (cast char (coco-ch "("))))
+                            (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops lmax 1)
                             ;; NO SPACES UNLESS THE TOKENS WOULD MERGE. `a-b',
                             ;; but `a mod b' and `1- -2'. The operator and the
                             ;; right operand are rendered into buffers of their
@@ -1223,31 +1223,31 @@
                             ;; first and last characters -- a quoted atom
                             ;; begins with a quote, a negative number with a
                             ;; minus, and neither is knowable from the term.
-                            (let ((co_strbuf ob) (co_strbuf rb))
-                              (co_sb_init (aof ob))
-                              (co_sb_init (aof rb))
+                            (let ((coco_strbuf ob) (coco_strbuf rb))
+                              (coco_sb_init (aof ob))
+                              (coco_sb_init (aof rb))
                               ;; THE COMMA IS NOT QUOTED IN OPERATOR POSITION.
-                              ;; `co_write_atom' would make it `','', which is
+                              ;; `coco_write_atom' would make it `','', which is
                               ;; right for the atom and wrong for the operator:
                               ;; `a:-b,c' would come out `a:-b','c' and read
                               ;; back as something else entirely. It is the only
-                              ;; operator in the table that `co_write_atom'
+                              ;; operator in the table that `coco_write_atom'
                               ;; quotes -- `;' and `|' it leaves alone.
                               (if (== 0 (strcmp name ","))
-                                  (co_sb_putc (aof ob) (cast char (co-ch ",")))
-                                (co_write_atom (aof ob) name quoted))
-                              (co_write_rec m (aof rb) (co_arg m t 1)
+                                  (coco_sb_putc (aof ob) (cast char (coco-ch ",")))
+                                (coco_write_atom (aof ob) name quoted))
+                              (coco_write_rec m (aof rb) (coco_arg m t 1)
                                             quoted ignore_ops rmax 1)
-                              (if (co_needs_gap (co_sb_last b) (co_sb_first (aof ob)))
-                                  (co_sb_putc b (cast char 32)))
-                              (if (!= ($ ob s) nil) (co_sb_put b ($ ob s)))
-                              (if (co_needs_gap (co_sb_last (aof ob))
-                                                (co_sb_first (aof rb)))
-                                  (co_sb_putc b (cast char 32)))
-                              (if (!= ($ rb s) nil) (co_sb_put b ($ rb s)))
-                              (co_sb_free (aof ob))
-                              (co_sb_free (aof rb)))
-                            (if paren (co_sb_putc b (cast char (co-ch ")"))))
+                              (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
+                                  (coco_sb_putc b (cast char 32)))
+                              (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
+                              (if (coco_needs_gap (coco_sb_last (aof ob))
+                                                (coco_sb_first (aof rb)))
+                                  (coco_sb_putc b (cast char 32)))
+                              (if (!= ($ rb s) nil) (coco_sb_put b ($ rb s)))
+                              (coco_sb_free (aof ob))
+                              (coco_sb_free (aof rb)))
+                            (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
                             (return 1)))
                       ;; PREFIX, where the merging rule is not quite the same.
                       ;; `-a' is fine and `-[a]' and `-f(x)' are fine, but
@@ -1265,59 +1265,59 @@
                       ;;
                       ;; An alphabetic prefix operator always takes one:
                       ;; `dynamic f/1', never `dynamicf/1'.
-                      (if (and (== n 1) (co_op_prefix name (aof prec) (aof type)))
-                          (let ((int amax . #'(? (== type CO_FY) prec (- prec 1)))
+                      (if (and (== n 1) (coco_op_prefix name (aof prec) (aof type)))
+                          (let ((int amax . #'(? (== type COCO_FY) prec (- prec 1)))
                                 (int paren . #'(? (> prec maxprec) 1 0)))
-                            (if paren (co_sb_putc b (cast char (co-ch "("))))
-                            (let ((co_strbuf ob) (co_strbuf ab))
-                              (co_sb_init (aof ob))
-                              (co_sb_init (aof ab))
-                              (co_write_atom (aof ob) name quoted)
-                              (co_write_rec m (aof ab) (co_arg m t 0)
+                            (if paren (coco_sb_putc b (cast char (coco-ch "("))))
+                            (let ((coco_strbuf ob) (coco_strbuf ab))
+                              (coco_sb_init (aof ob))
+                              (coco_sb_init (aof ab))
+                              (coco_write_atom (aof ob) name quoted)
+                              (coco_write_rec m (aof ab) (coco_arg m t 0)
                                             quoted ignore_ops amax 1)
-                              (if (co_needs_gap (co_sb_last b) (co_sb_first (aof ob)))
-                                  (co_sb_putc b (cast char 32)))
-                              (if (!= ($ ob s) nil) (co_sb_put b ($ ob s)))
-                              (let ((int last . #'(co_sb_last (aof ob)))
-                                    (int first . #'(co_sb_first (aof ab))))
-                                (if (or (co_needs_gap last first)
-                                        (and (co_is_symbol last)
-                                             (or (co_is_digit first)
-                                                 (== first (co-ch "(")))))
-                                    (co_sb_putc b (cast char 32))))
-                              (if (!= ($ ab s) nil) (co_sb_put b ($ ab s)))
-                              (co_sb_free (aof ob))
-                              (co_sb_free (aof ab)))
-                            (if paren (co_sb_putc b (cast char (co-ch ")"))))
+                              (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
+                                  (coco_sb_putc b (cast char 32)))
+                              (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
+                              (let ((int last . #'(coco_sb_last (aof ob)))
+                                    (int first . #'(coco_sb_first (aof ab))))
+                                (if (or (coco_needs_gap last first)
+                                        (and (coco_is_symbol last)
+                                             (or (coco_is_digit first)
+                                                 (== first (coco-ch "(")))))
+                                    (coco_sb_putc b (cast char 32))))
+                              (if (!= ($ ab s) nil) (coco_sb_put b ($ ab s)))
+                              (coco_sb_free (aof ob))
+                              (coco_sb_free (aof ab)))
+                            (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
                             (return 1))))))
 
                ;; canonical application
-               (co_write_atom b name quoted)
-               (co_sb_putc b (cast char (co-ch "(")))
+               (coco_write_atom b name quoted)
+               (coco_sb_putc b (cast char (coco-ch "(")))
                (for ((u32 i . 0)) (< i n) ((++ i))
-                 (if (> i 0) (co_sb_putc b (cast char (co-ch ","))))
-                 (co_write_rec m b (co_arg m t i) quoted ignore_ops 999 0))
-               (return (co_sb_putc b (cast char (co-ch ")"))))))
+                 (if (> i 0) (coco_sb_putc b (cast char (coco-ch ","))))
+                 (coco_write_rec m b (coco_arg m t i) quoted ignore_ops 999 0))
+               (return (coco_sb_putc b (cast char (coco-ch ")"))))))
 
-            (#t (return (co_sb_put b "<?>"))))))
+            (#t (return (coco_sb_put b "<?>"))))))
 
-  (func co_write_term ((co_machine * m) (co_strbuf * b) (size_t t)
+  (func coco_write_term ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int quoted) (int ignore_ops)) (out int)
-        (return (co_write_rec m b t quoted ignore_ops 1200 0)))
+        (return (coco_write_rec m b t quoted ignore_ops 1200 0)))
 
   ;;; What goes into the database: quoted, so it reads back, and with operators
   ;;; kept, so a person looking at the table can see what the clause says.
-  (func co_write_storable ((co_machine * m) (co_strbuf * b) (size_t t)) (out int)
-        (return (co_write_rec m b t 1 1 1200 0)))
+  (func coco_write_storable ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
+        (return (coco_write_rec m b t 1 1 1200 0)))
 
-  (func co_write_canonical ((co_machine * m) (co_strbuf * b) (size_t t)) (out int)
-        (return (co_write_rec m b t 1 0 1200 0)))
+  (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
+        (return (coco_write_rec m b t 1 0 1200 0)))
 
-  (func co_print_term ((co_machine * m) (FILE * f) (size_t t))
-        (let ((co_strbuf b))
-          (co_sb_init (aof b))
-          (co_write_rec m (aof b) t 0 0 1200 0)
+  (func coco_print_term ((coco_machine * m) (FILE * f) (size_t t))
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_write_rec m (aof b) t 0 0 1200 0)
           (if (!= ($ b s) nil) (fputs ($ b s) f))
-          (co_sb_free (aof b))))
+          (coco_sb_free (aof b))))
 
   ) ; impl-syntax

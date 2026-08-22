@@ -42,7 +42,7 @@
   ;;; they were asserted. `loaded' says the fetch hook has already been asked
   ;;; about this predicate, so a predicate that genuinely has no clauses is not
   ;;; re-fetched on every call.
-  (struct co_pred
+  (struct coco_pred
     (member u64      name)
     (member u32      arity)
     (member size_t * clauses)          ; indices into the store's cells
@@ -59,29 +59,29 @@
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
   ;;; that carries them is written out.
-  (decl) (struct co_store)
+  (decl) (struct coco_store)
 
   ;;; The clause store. `cells' is a second flat term array with the same
   ;;; encoding as the heap -- it shares the machine's atom and functor tables,
   ;;; so an atom id means the same thing in both.
-  (struct co_store
+  (struct coco_store
     (member u64 *     cells)
     (member size_t    len)
     (member size_t    cap)
 
-    (member co_pred * preds)
+    (member coco_pred * preds)
     (member size_t    npreds)
     (member size_t    pred_cap)
 
     ;; The backend. Called at most once per predicate, with the store to fill
     ;; in; answers 1 if it looked (whether or not it found anything) and 0 if
     ;; it could not. A null hook is a purely local knowledge base.
-    (member func fetch ((co_store * st) (void * ctx) (u64 name) (u32 arity)) (out int))
+    (member func fetch ((coco_store * st) (void * ctx) (u64 name) (u32 arity)) (out int))
     (member void *    ctx)
 
     ;; Set when a clause is asserted, so a backend can write through. Null for
     ;; a store that is not backed by anything.
-    (member func on_assert ((co_store * st) (void * ctx) (size_t clause)) (out int))
+    (member func on_assert ((coco_store * st) (void * ctx) (size_t clause)) (out int))
 
     ;; And when one is retracted. It takes the PREDICATE rather than the clause,
     ;; because by the time it runs the clause is no longer in the predicate's
@@ -94,7 +94,7 @@
     ;; fetched, and no other interpreter ever saw it go. An interpreter that can
     ;; assert into a shared knowledge base and not retract from it is halfway to
     ;; being one.
-    (member func on_retract ((co_store * st) (void * ctx) (size_t pi)) (out int))
+    (member func on_retract ((coco_store * st) (void * ctx) (size_t pi)) (out int))
 
     ;; Asks the backend to name every predicate it holds, so that the store
     ;; knows they exist. Null for a store that is not backed by anything, which
@@ -107,11 +107,11 @@
     ;; would answer "nothing", which is true of the store and false of the
     ;; knowledge base. It interns names only: what the clauses ARE is still
     ;; nobody's business until somebody calls one.
-    (member func warm ((co_store * st) (void * ctx)) (out int))
+    (member func warm ((coco_store * st) (void * ctx)) (out int))
 
     ;; Set when a predicate is declared -- `:- dynamic' and, when there is one,
     ;; whatever else a directive can say about a predicate. It takes the
-    ;; predicate rather than the property, because the store's `co_pred' is
+    ;; predicate rather than the property, because the store's `coco_pred' is
     ;; where the properties are and the backend can read them off it.
     ;;
     ;; A DECLARATION HAS TO OUTLIVE THE PROCESS THAT MADE IT. In a knowledge
@@ -119,23 +119,23 @@
     ;; a struct, because the program that declared it is the program that runs.
     ;; Here the clauses are shared and the declaration is about them, so an
     ;; interpreter opening the same kb tomorrow has to be told the same thing.
-    (member func on_dynamic ((co_store * st) (void * ctx) (size_t pi)) (out int))
+    (member func on_dynamic ((coco_store * st) (void * ctx) (size_t pi)) (out int))
 
     ;; How many MODULES have had their clauses consulted into this store. It
     ;; lives here rather than beside the registry because it is a fact about
-    ;; this store and not about the build: `co_store_reset' -- which is what
+    ;; this store and not about the build: `coco_store_reset' -- which is what
     ;; thawing a machine does -- takes the clauses with it, and the count going
     ;; back to zero is exactly the statement that they have to be put back.
     (member size_t    libs)
 
     ;; Non-zero while the store is being filled from something that is not the
-    ;; knowledge base -- a module's clauses. See `co_store_mute'.
+    ;; knowledge base -- a module's clauses. See `coco_store_mute'.
     (member int       muted)
 
     (member int       oom))
 
-  (decl) (func co_store_init ((co_store * st)))
-  (decl) (func co_store_free ((co_store * st)))
+  (decl) (func coco_store_init ((coco_store * st)))
+  (decl) (func coco_store_free ((coco_store * st)))
 
   ;; Stops the write-through hooks firing, and starts them again. A module's
   ;; clauses belong to the BUILD and not to the knowledge base: written
@@ -144,61 +144,61 @@
   ;; the same knowledge base would then hold two copies of the library.
   ;;
   ;; It is a counter and not a flag, so that muting nests.
-  (decl) (func co_store_mute ((co_store * st)))
-  (decl) (func co_store_unmute ((co_store * st)))
-  (decl) (func co_store_is_muted ((co_store * st)) (out int))
+  (decl) (func coco_store_mute ((coco_store * st)))
+  (decl) (func coco_store_unmute ((coco_store * st)))
+  (decl) (func coco_store_is_muted ((coco_store * st)) (out int))
 
   ;; Empties a store of everything it holds and leaves its BACKEND in place.
   ;; What a store contains -- clauses, predicates, cells -- is reloadable; the
-  ;; hooks that say where from are configuration, not contents. `co_thaw' is
+  ;; hooks that say where from are configuration, not contents. `coco_thaw' is
   ;; what wants the distinction: a resumed machine has to keep the connection
   ;; it is resuming against.
-  (decl) (func co_store_reset ((co_store * st)))
+  (decl) (func coco_store_reset ((coco_store * st)))
 
   ;;; Moves a term from the machine's heap into the store, and back. Both
-  ;;; rename variables consistently -- see co_varmap in term.cicili.
-  (decl) (func co_store_put ((co_store * st) (co_machine * m) (size_t t)) (out size_t))
-  (decl) (func co_store_get ((co_machine * m) (co_store * st) (size_t t)) (out size_t))
+  ;;; rename variables consistently -- see coco_varmap in term.cicili.
+  (decl) (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t))
+  (decl) (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
 
   ;;; The predicate a callable term belongs to, made if it is not there yet.
   ;;; Answers the index, or the store's predicate count if the term is not
   ;;; callable at all.
-  (decl) (func co_pred_of ((co_store * st) (co_machine * m) (size_t goal)) (out size_t))
-  (decl) (func co_pred_find ((co_store * st) (u64 name) (u32 arity)) (out size_t))
-  ;; Find or make, by name and arity rather than by a goal term. `co_thaw'
+  (decl) (func coco_pred_of ((coco_store * st) (coco_machine * m) (size_t goal)) (out size_t))
+  (decl) (func coco_pred_find ((coco_store * st) (u64 name) (u32 arity)) (out size_t))
+  ;; Find or make, by name and arity rather than by a goal term. `coco_thaw'
   ;; needs it: a choice point that was part way through a predicate remembers
   ;; which one by name, because the index depends on the order predicates were
   ;; first mentioned and a machine coming back elsewhere cannot rely on that.
-  (decl) (func co_pred_intern ((co_store * st) (u64 name) (u32 arity)) (out size_t))
+  (decl) (func coco_pred_intern ((coco_store * st) (u64 name) (u32 arity)) (out size_t))
 
   ;;; Asserts a clause given as a heap term -- `Head' or `Head :- Body'. AT_END
   ;;; is assertz, otherwise asserta. Answers 1, or 0 if the term is not a
   ;;; clause.
-  (decl) (func co_assert ((co_store * st) (co_machine * m) (size_t clause) (int at_end)) (out int))
+  (decl) (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int))
 
   ;;; Reads a whole program text and asserts every clause in it. Answers the
   ;;; number asserted, or -1 on a syntax error, leaving the message in ERR.
-  (decl) (func co_consult ((co_store * st) (co_machine * m) (const char * text)
+  (decl) (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
                            (char * err) (size_t errlen)) (out int))
 
   ;;; Splits a clause ON THE HEAP into head and body. A fact has no body and
   ;;; BODY is left 0; the engine reads that as `true' rather than building one.
   ;;;
   ;;; It takes a heap term and not a stored one because a clause is always
-  ;;; copied out of the store before it is used -- `co_store_get' first, this
+  ;;; copied out of the store before it is used -- `coco_store_get' first, this
   ;;; second. A version reading the store's own cells would have to duplicate
-  ;;; `co_arity' and `co_name_of' against a different array, and the one time
+  ;;; `coco_arity' and `coco_name_of' against a different array, and the one time
   ;;; that existed it was called with a heap index and read whatever the
   ;;; store's array happened to hold at that offset.
-  (decl) (func co_clause_parts ((co_machine * m) (size_t clause)
+  (decl) (func coco_clause_parts ((coco_machine * m) (size_t clause)
                                 (size_t * head) (size_t * body)))
 
   ;;; Makes sure a predicate's clauses are present, asking the backend once.
-  (decl) (func co_pred_ensure ((co_store * st) (size_t pi)) (out int))
+  (decl) (func coco_pred_ensure ((coco_store * st) (size_t pi)) (out int))
 
   ;;; Brings every predicate the backend holds into the store, by name only.
   ;;; Answers 1 whether or not there was a backend to ask.
-  (decl) (func co_store_warm ((co_store * st)) (out int))
+  (decl) (func coco_store_warm ((coco_store * st)) (out int))
 
   ;;; Declares NAME/ARITY dynamic: brings the predicate into being with no
   ;;; clauses, and marks it.
@@ -213,10 +213,10 @@
   ;;; It does NOT mark the predicate loaded. A dynamic predicate may perfectly
   ;;; well have clauses waiting in a shared knowledge base, put there by another
   ;;; interpreter, and declaring it here must not stop the backend being asked.
-  (decl) (func co_pred_dynamic ((co_store * st) (u64 name) (u32 arity)) (out int))
+  (decl) (func coco_pred_dynamic ((coco_store * st) (u64 name) (u32 arity)) (out int))
 
   ;;; Removes the first clause whose head and body unify with the given term.
-  (decl) (func co_retract ((co_store * st) (co_machine * m) (size_t clause)) (out int))
+  (decl) (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int))
 
   ;;; Declares every predicate a `dynamic' spec names. SPEC is a predicate
   ;;; indicator `Name/Arity', a comma conjunction of them, or a list of them --
@@ -227,16 +227,16 @@
   ;;;   :- dynamic [a/0, b/1].
   ;;;
   ;;; Answers 1, or 0 with ERR saying which part of the spec was not one.
-  (decl) (func co_dynamic_spec ((co_store * st) (co_machine * m) (size_t spec)
+  (decl) (func coco_dynamic_spec ((coco_store * st) (coco_machine * m) (size_t spec)
                                 (char * err) (size_t errlen)) (out int))
 
   ;;; True when T is the compound NAME of arity two -- `a/1', `a, b', `[a|b]'.
   ;;; Out here rather than kept to itself because `listing/1' asks the same
   ;;; question of its argument that `dynamic/1' does.
-  (decl) (func co_is_compound2 ((co_machine * m) (size_t t) (const char * name))
+  (decl) (func coco_is_compound2 ((coco_machine * m) (size_t t) (const char * name))
                (out int))
 
-  ;;; Applies one directive -- the G of a `:- G' read by `co_consult'.
+  ;;; Applies one directive -- the G of a `:- G' read by `coco_consult'.
   ;;;
   ;;; WHAT IT DOES NOT DO IS RUN G. A directive that is a goal wants an engine,
   ;;; and the store is a layer below the engine: this file is compiled before
@@ -245,7 +245,7 @@
   ;;; which is what a consulted file almost always carries. Anything else is
   ;;; refused by name rather than silently asserted as a clause whose head is
   ;;; `:-', which is what used to happen to every directive ever written.
-  (decl) (func co_directive ((co_store * st) (co_machine * m) (size_t g)
+  (decl) (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
                              (char * err) (size_t errlen)) (out int))
 
   ) ; decl-kb
@@ -255,7 +255,7 @@
   ()
 
   (static)
-  (func co_store_grow ((co_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
+  (func coco_store_grow ((coco_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
         (if (<= need (cof cap)) (return 1))
         (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
@@ -267,38 +267,38 @@
           (set (cof cap) ncap)
           (return 1)))
 
-  (func co_store_init ((co_store * st))
-        (memset st 0 (sizeof co_store)))
+  (func coco_store_init ((coco_store * st))
+        (memset st 0 (sizeof coco_store)))
 
-  (func co_store_free ((co_store * st))
+  (func coco_store_free ((coco_store * st))
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
           (free ($ (nth i (-> st preds)) clauses)))
         (free (-> st preds))
         (free (-> st cells))
-        (memset st 0 (sizeof co_store)))
+        (memset st 0 (sizeof coco_store)))
 
-  (func co_store_mute ((co_store * st))   (set (-> st muted) (+ (-> st muted) 1)))
-  (func co_store_unmute ((co_store * st)) (if (> (-> st muted) 0)
+  (func coco_store_mute ((coco_store * st))   (set (-> st muted) (+ (-> st muted) 1)))
+  (func coco_store_unmute ((coco_store * st)) (if (> (-> st muted) 0)
                                               (set (-> st muted) (- (-> st muted) 1))))
-  (func co_store_is_muted ((co_store * st)) (out int) (return (? (> (-> st muted) 0) 1 0)))
+  (func coco_store_is_muted ((coco_store * st)) (out int) (return (? (> (-> st muted) 0) 1 0)))
 
-  (func co_store_reset ((co_store * st))
+  (func coco_store_reset ((coco_store * st))
         (let ((void * ctx . #'(-> st ctx)))
           ;; The hooks are copied out and back through locals of their own
           ;; declared type -- a `func' clause in type position is a function
           ;; pointer, which is how a variable holds one.
-          (let ((func keep_fetch ((co_store * s) (void * c) (u64 n) (u32 a)) (out int)
+          (let ((func keep_fetch ((coco_store * s) (void * c) (u64 n) (u32 a)) (out int)
                       . #'(-> st fetch))
-                (func keep_assert ((co_store * s) (void * c) (size_t cl)) (out int)
+                (func keep_assert ((coco_store * s) (void * c) (size_t cl)) (out int)
                       . #'(-> st on_assert))
-                (func keep_retract ((co_store * s) (void * c) (size_t pi)) (out int)
+                (func keep_retract ((coco_store * s) (void * c) (size_t pi)) (out int)
                       . #'(-> st on_retract))
-                (func keep_warm ((co_store * s) (void * c)) (out int)
+                (func keep_warm ((coco_store * s) (void * c)) (out int)
                       . #'(-> st warm))
-                (func keep_dynamic ((co_store * s) (void * c) (size_t pi)) (out int)
+                (func keep_dynamic ((coco_store * s) (void * c) (size_t pi)) (out int)
                       . #'(-> st on_dynamic)))
-            (co_store_free st)
-            (co_store_init st)
+            (coco_store_free st)
+            (coco_store_init st)
             (set (-> st ctx) ctx)
             (set (-> st fetch) keep_fetch)
             (set (-> st on_assert) keep_assert)
@@ -307,8 +307,8 @@
             (set (-> st on_dynamic) keep_dynamic))))
 
   (static)
-  (func co_store_push ((co_store * st) (u64 c)) (out size_t)
-        (if (not (co_store_grow st (cast (void **) (aof (-> st cells)))
+  (func coco_store_push ((coco_store * st) (u64 c)) (out size_t)
+        (if (not (coco_store_grow st (cast (void **) (aof (-> st cells)))
                                 (aof (-> st cap)) (+ (-> st len) 1) (sizeof u64)))
             (return 0))
         (set (nth (-> st len) (-> st cells)) c)
@@ -316,121 +316,121 @@
         (return (- (-> st len) 1)))
 
   (static)
-  (func co_store_new_var ((co_store * st)) (out size_t)
-        (let ((size_t i . #'(co_store_push st 0)))
-          (set (nth i (-> st cells)) (co-cell REF i))
+  (func coco_store_new_var ((coco_store * st)) (out size_t)
+        (let ((size_t i . #'(coco_store_push st 0)))
+          (set (nth i (-> st cells)) (coco-cell REF i))
           (return i)))
 
   ;;; ---- moving terms between the heap and the store --------------------
-  ;;; Both directions are the reserve-then-fill walk `co_copy' uses, for the
+  ;;; Both directions are the reserve-then-fill walk `coco_copy' uses, for the
   ;;; same reason: an argument cannot be written where it will end up, because
   ;;; building it pushes.
 
   (static)
-  (func co_store_put_rec ((co_store * st) (co_machine * m) (size_t t) (co_varmap * vm))
+  (func coco_store_put_rec ((coco_store * st) (coco_machine * m) (size_t t) (coco_varmap * vm))
         (out size_t)
-        (set t (co_deref m t))
+        (set t (coco_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
-            ((co-tag-is REF c)
+            ((coco-tag-is REF c)
              (let ((size_t to . 0))
-               (if (co_varmap_get vm t (aof to)) (return to))
-               (set to (co_store_new_var st))
-               (co_varmap_put vm t to)
+               (if (coco_varmap_get vm t (aof to)) (return to))
+               (set to (coco_store_new_var st))
+               (coco_varmap_put vm t to)
                (return to)))
-            ((co-tag-is FUN c)
-             (let ((u32 n . #'(co_arity m t))
-                   (size_t h . #'(co_store_push st c))
+            ((coco-tag-is FUN c)
+             (let ((u32 n . #'(coco_arity m t))
+                   (size_t h . #'(coco_store_push st c))
                    (size_t base))
                (set base (+ h 1))
-               (for ((u32 i . 0)) (< i n) ((++ i)) (co_store_new_var st))
+               (for ((u32 i . 0)) (< i n) ((++ i)) (coco_store_new_var st))
                (for ((u32 i . 0)) (< i n) ((++ i))
-                 (let ((size_t a . #'(co_store_put_rec st m (co_arg m t i) vm)))
-                   (set (nth (+ base (cast size_t i)) (-> st cells)) (co-cell REF a))))
+                 (let ((size_t a . #'(coco_store_put_rec st m (coco_arg m t i) vm)))
+                   (set (nth (+ base (cast size_t i)) (-> st cells)) (coco-cell REF a))))
                (return h)))
             ;; A float's payload indexes the machine's float table, which the
             ;; store shares rather than copies -- the table only grows, so the
             ;; index stays good for as long as the machine does.
-            (#t (return (co_store_push st c))))))
+            (#t (return (coco_store_push st c))))))
 
-  (func co_store_put ((co_store * st) (co_machine * m) (size_t t)) (out size_t)
-        (let ((co_varmap vm . '{ nil nil 0 0 }) (size_t r))
-          (set r (co_store_put_rec st m t (aof vm)))
-          (co_varmap_free (aof vm))
+  (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
+        (let ((coco_varmap vm . '{ nil nil 0 0 }) (size_t r))
+          (set r (coco_store_put_rec st m t (aof vm)))
+          (coco_varmap_free (aof vm))
           (return r)))
 
   (static)
-  (func co_store_get_rec ((co_machine * m) (co_store * st) (size_t t) (co_varmap * vm))
+  (func coco_store_get_rec ((coco_machine * m) (coco_store * st) (size_t t) (coco_varmap * vm))
         (out size_t)
         ;; a store term is never bound, so the only dereferencing needed is the
         ;; one step a reserved argument slot introduces
-        (while (co-tag-is REF (nth t (-> st cells)))
-          (let ((size_t next . #'(cast size_t (co-payload (nth t (-> st cells))))))
+        (while (coco-tag-is REF (nth t (-> st cells)))
+          (let ((size_t next . #'(cast size_t (coco-payload (nth t (-> st cells))))))
             (if (== next t) break)
             (set t next)))
         (let ((u64 c . #'(nth t (-> st cells))))
           (cond
-            ((co-tag-is REF c)
+            ((coco-tag-is REF c)
              (let ((size_t to . 0))
-               (if (co_varmap_get vm t (aof to)) (return to))
-               (set to (co_new_var m))
-               (co_varmap_put vm t to)
+               (if (coco_varmap_get vm t (aof to)) (return to))
+               (set to (coco_new_var m))
+               (coco_varmap_put vm t to)
                (return to)))
-            ((co-tag-is FUN c)
-             (let ((u32 n . #'($ (nth (cast size_t (co-payload c)) (-> m functors)) arity))
-                   (size_t h . #'(co_push m c))
+            ((coco-tag-is FUN c)
+             (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity))
+                   (size_t h . #'(coco_push m c))
                    (size_t base))
                (set base (+ h 1))
-               (for ((u32 i . 0)) (< i n) ((++ i)) (co_new_var m))
+               (for ((u32 i . 0)) (< i n) ((++ i)) (coco_new_var m))
                (for ((u32 i . 0)) (< i n) ((++ i))
-                 (let ((size_t a . #'(co_store_get_rec m st (+ t (+ (cast size_t i) 1)) vm)))
-                   (co_set_arg m (+ base (cast size_t i)) a)))
+                 (let ((size_t a . #'(coco_store_get_rec m st (+ t (+ (cast size_t i) 1)) vm)))
+                   (coco_set_arg m (+ base (cast size_t i)) a)))
                (return h)))
-            (#t (return (co_push m c))))))
+            (#t (return (coco_push m c))))))
 
-  (func co_store_get ((co_machine * m) (co_store * st) (size_t t)) (out size_t)
-        (let ((co_varmap vm . '{ nil nil 0 0 }) (size_t r))
-          (set r (co_store_get_rec m st t (aof vm)))
-          (co_varmap_free (aof vm))
+  (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t)
+        (let ((coco_varmap vm . '{ nil nil 0 0 }) (size_t r))
+          (set r (coco_store_get_rec m st t (aof vm)))
+          (coco_varmap_free (aof vm))
           (return r)))
 
   ;;; ---- predicates -------------------------------------------------------
 
-  (func co_pred_find ((co_store * st) (u64 name) (u32 arity)) (out size_t)
+  (func coco_pred_find ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
           (if (and (== ($ (nth i (-> st preds)) name) name)
                    (== ($ (nth i (-> st preds)) arity) arity))
               (return i)))
         (return (-> st npreds)))
 
-  (static) (decl) (func co_pred_make ((co_store * st) (u64 name) (u32 arity)) (out size_t))
+  (static) (decl) (func coco_pred_make ((coco_store * st) (u64 name) (u32 arity)) (out size_t))
 
-  (func co_pred_intern ((co_store * st) (u64 name) (u32 arity)) (out size_t)
-        (return (co_pred_make st name arity)))
+  (func coco_pred_intern ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
+        (return (coco_pred_make st name arity)))
 
   (static)
-  (func co_pred_make ((co_store * st) (u64 name) (u32 arity)) (out size_t)
-        (let ((size_t i . #'(co_pred_find st name arity)))
+  (func coco_pred_make ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
+        (let ((size_t i . #'(coco_pred_find st name arity)))
           (if (< i (-> st npreds)) (return i))
-          (if (not (co_store_grow st (cast (void **) (aof (-> st preds)))
+          (if (not (coco_store_grow st (cast (void **) (aof (-> st preds)))
                                   (aof (-> st pred_cap)) (+ (-> st npreds) 1)
-                                  (sizeof co_pred)))
+                                  (sizeof coco_pred)))
               (return (-> st npreds)))
-          (memset (aof (nth (-> st npreds) (-> st preds))) 0 (sizeof co_pred))
+          (memset (aof (nth (-> st npreds) (-> st preds))) 0 (sizeof coco_pred))
           (set ($ (nth (-> st npreds) (-> st preds)) name) name)
           (set ($ (nth (-> st npreds) (-> st preds)) arity) arity)
           (set (-> st npreds) (+ (-> st npreds) 1))
           (return (- (-> st npreds) 1))))
 
-  (func co_pred_of ((co_store * st) (co_machine * m) (size_t goal)) (out size_t)
-        (set goal (co_deref m goal))
-        (if (not (co_is_callable m goal)) (return (-> st npreds)))
-        (return (co_pred_make st (co_name_of m goal) (co_arity m goal))))
+  (func coco_pred_of ((coco_store * st) (coco_machine * m) (size_t goal)) (out size_t)
+        (set goal (coco_deref m goal))
+        (if (not (coco_is_callable m goal)) (return (-> st npreds)))
+        (return (coco_pred_make st (coco_name_of m goal) (coco_arity m goal))))
 
   ;;; The backend is asked once per predicate and the answer is remembered
   ;;; whether or not it produced clauses -- otherwise a call to an undefined
   ;;; predicate inside a loop is a database round trip per iteration.
-  (func co_pred_ensure ((co_store * st) (size_t pi)) (out int)
+  (func coco_pred_ensure ((coco_store * st) (size_t pi)) (out int)
         (if (>= pi (-> st npreds)) (return 0))
         (if ($ (nth pi (-> st preds)) loaded) (return 1))
         (set ($ (nth pi (-> st preds)) loaded) 1)
@@ -439,86 +439,86 @@
                                  ($ (nth pi (-> st preds)) name)
                                  ($ (nth pi (-> st preds)) arity))))
 
-  (func co_store_warm ((co_store * st)) (out int)
+  (func coco_store_warm ((coco_store * st)) (out int)
         (if (== (-> st warm) nil) (return 1))
         (return ((-> st warm) st (-> st ctx))))
 
   ;;; `:- dynamic name/arity'. The predicate is INTERNED and not merely looked
   ;;; up: declaring one is how a program says it exists, and a dynamic
   ;;; predicate with no clauses yet is a predicate, not a typo.
-  (func co_pred_dynamic ((co_store * st) (u64 name) (u32 arity)) (out int)
-        (let ((size_t pi . #'(co_pred_intern st name arity)))
+  (func coco_pred_dynamic ((coco_store * st) (u64 name) (u32 arity)) (out int)
+        (let ((size_t pi . #'(coco_pred_intern st name arity)))
           (if (>= pi (-> st npreds)) (return 0))
           ;; already declared: say so and do not tell the backend twice
           (if ($ (nth pi (-> st preds)) dynamic) (return 1))
           (set ($ (nth pi (-> st preds)) dynamic) 1)
-          (if (co_store_is_muted st) (return 1))
+          (if (coco_store_is_muted st) (return 1))
           (if (== (-> st on_dynamic) nil) (return 1))
           (return ((-> st on_dynamic) st (-> st ctx) pi))))
 
   ;;; True when T is the compound NAME of arity one -- `:- G' and nothing else,
   ;;; so far, but it reads better than the test written out.
   (static)
-  (func co_is_compound1 ((co_machine * m) (size_t t) (const char * name)) (out int)
-        (set t (co_deref m t))
-        (if (not (co_is_callable m t)) (return 0))
-        (if (!= (co_arity m t) 1) (return 0))
-        (return (? (== 0 (strcmp (co_atom_name m (co_name_of m t)) name)) 1 0)))
+  (func coco_is_compound1 ((coco_machine * m) (size_t t) (const char * name)) (out int)
+        (set t (coco_deref m t))
+        (if (not (coco_is_callable m t)) (return 0))
+        (if (!= (coco_arity m t) 1) (return 0))
+        (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) name)) 1 0)))
 
   ;;; True when T is the compound NAME/2 -- the shape every spec is built from.
-  (func co_is_compound2 ((co_machine * m) (size_t t) (const char * name)) (out int)
-        (if (not (co_is_callable m t)) (return 0))
-        (if (!= (co_arity m t) 2) (return 0))
-        (return (? (== 0 (strcmp (co_atom_name m (co_name_of m t)) name)) 1 0)))
+  (func coco_is_compound2 ((coco_machine * m) (size_t t) (const char * name)) (out int)
+        (if (not (coco_is_callable m t)) (return 0))
+        (if (!= (coco_arity m t) 2) (return 0))
+        (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) name)) 1 0)))
 
-  (func co_dynamic_spec ((co_store * st) (co_machine * m) (size_t spec)
+  (func coco_dynamic_spec ((coco_store * st) (coco_machine * m) (size_t spec)
                          (char * err) (size_t errlen)) (out int)
-        (set spec (co_deref m spec))
+        (set spec (coco_deref m spec))
 
         ;; `a/1, b/2' -- what the reader makes of a comma separated list of
         ;; them, and the form nearly every Prolog file uses.
-        (if (co_is_compound2 m spec ",")
+        (if (coco_is_compound2 m spec ",")
             (block
-             (if (not (co_dynamic_spec st m (co_arg m spec 0) err errlen)) (return 0))
-             (return (co_dynamic_spec st m (co_arg m spec 1) err errlen))))
+             (if (not (coco_dynamic_spec st m (coco_arg m spec 0) err errlen)) (return 0))
+             (return (coco_dynamic_spec st m (coco_arg m spec 1) err errlen))))
 
         ;; `[a/1, b/2]' -- a list of them, which some do.
-        (if (co_is_compound2 m spec ".")
+        (if (coco_is_compound2 m spec ".")
             (block
-             (if (not (co_dynamic_spec st m (co_arg m spec 0) err errlen)) (return 0))
-             (return (co_dynamic_spec st m (co_arg m spec 1) err errlen))))
+             (if (not (coco_dynamic_spec st m (coco_arg m spec 0) err errlen)) (return 0))
+             (return (coco_dynamic_spec st m (coco_arg m spec 1) err errlen))))
 
         ;; the end of a list is not a spec and not an error either
-        (if (co-tag-is ATOM (nth spec (-> m heap)))
-            (if (== 0 (strcmp (co_atom_name m (co_name_of m spec)) "[]")) (return 1)))
+        (if (coco-tag-is ATOM (nth spec (-> m heap)))
+            (if (== 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "[]")) (return 1)))
 
-        (if (not (co_is_compound2 m spec "/"))
+        (if (not (coco_is_compound2 m spec "/"))
             (block (snprintf err errlen "dynamic: expected Name/Arity") (return 0)))
 
-        (let ((size_t nm . #'(co_deref m (co_arg m spec 0)))
-              (size_t ar . #'(co_deref m (co_arg m spec 1))))
-          (if (not (co-tag-is ATOM (nth nm (-> m heap))))
+        (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
+              (size_t ar . #'(coco_deref m (coco_arg m spec 1))))
+          (if (not (coco-tag-is ATOM (nth nm (-> m heap))))
               (block (snprintf err errlen "dynamic: the name must be an atom") (return 0)))
-          (if (not (co-tag-is INT (nth ar (-> m heap))))
+          (if (not (coco-tag-is INT (nth ar (-> m heap))))
               (block (snprintf err errlen "dynamic: the arity must be an integer") (return 0)))
-          (let ((i64 n . #'(co-signed-payload (nth ar (-> m heap)))))
+          (let ((i64 n . #'(coco-signed-payload (nth ar (-> m heap)))))
             (if (or (< n 0) (> n 255))
                 (block (snprintf err errlen "dynamic: arity out of range") (return 0)))
-            (if (not (co_pred_dynamic st (co_name_of m nm) (cast u32 n)))
+            (if (not (coco_pred_dynamic st (coco_name_of m nm) (cast u32 n)))
                 (block (snprintf err errlen "dynamic: out of memory") (return 0)))
             (return 1))))
 
-  (func co_directive ((co_store * st) (co_machine * m) (size_t g)
+  (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
                       (char * err) (size_t errlen)) (out int)
-        (set g (co_deref m g))
-        (if (not (co_is_callable m g))
+        (set g (coco_deref m g))
+        (if (not (coco_is_callable m g))
             (block (snprintf err errlen "a directive must be a callable term") (return 0)))
 
-        (let ((const char * name . #'(co_atom_name m (co_name_of m g)))
-              (u32 n . #'(co_arity m g)))
+        (let ((const char * name . #'(coco_atom_name m (coco_name_of m g)))
+              (u32 n . #'(coco_arity m g)))
 
           (if (and (== n 1) (== 0 (strcmp name "dynamic")))
-              (return (co_dynamic_spec st m (co_arg m g 0) err errlen)))
+              (return (coco_dynamic_spec st m (coco_arg m g 0) err errlen)))
 
           ;; Accepted and ignored on purpose. cocolog keeps a predicate's
           ;; clauses in one list however scattered they were in the file, so
@@ -535,27 +535,27 @@
           ;; instead: the operator table is the reader's, and the reader is
           ;; what a directive like this is about.
           (if (and (== n 3) (== 0 (strcmp name "op")))
-              (return (co_op_apply m g err errlen)))
+              (return (coco_op_apply m g err errlen)))
 
           (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))
           (return 0)))
 
   ;;; ---- asserting --------------------------------------------------------
 
-  (func co_clause_parts ((co_machine * m) (size_t clause) (size_t * head) (size_t * body))
-        (set clause (co_deref m clause))
+  (func coco_clause_parts ((coco_machine * m) (size_t clause) (size_t * head) (size_t * body))
+        (set clause (coco_deref m clause))
         (set (cof head) clause)
         (set (cof body) 0)
-        (if (not (co_is_callable m clause)) (return))
-        (if (!= (co_arity m clause) 2) (return))
-        (if (!= 0 (strcmp (co_atom_name m (co_name_of m clause)) ":-")) (return))
-        (set (cof head) (co_arg m clause 0))
-        (set (cof body) (co_arg m clause 1)))
+        (if (not (coco_is_callable m clause)) (return))
+        (if (!= (coco_arity m clause) 2) (return))
+        (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m clause)) ":-")) (return))
+        (set (cof head) (coco_arg m clause 0))
+        (set (cof body) (coco_arg m clause 1)))
 
   (static)
-  (func co_pred_add_clause ((co_store * st) (size_t pi) (size_t clause) (int at_end)) (out int)
-        (let ((co_pred * p . #'(aof (nth pi (-> st preds)))))
-          (if (not (co_store_grow st (cast (void **) (aof (-> p clauses)))
+  (func coco_pred_add_clause ((coco_store * st) (size_t pi) (size_t clause) (int at_end)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (if (not (coco_store_grow st (cast (void **) (aof (-> p clauses)))
                                   (aof (-> p clause_cap)) (+ (-> p nclauses) 1)
                                   (sizeof size_t)))
               (return 0))
@@ -570,15 +570,15 @@
           (set (-> p nclauses) (+ (-> p nclauses) 1))
           (return 1)))
 
-  (func co_assert ((co_store * st) (co_machine * m) (size_t clause) (int at_end)) (out int)
-        (set clause (co_deref m clause))
+  (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int)
+        (set clause (coco_deref m clause))
         ;; the head decides which predicate this belongs to
         (let ((size_t head . clause))
-          (if (and (co_is_callable m clause) (== (co_arity m clause) 2))
-              (if (== 0 (strcmp (co_atom_name m (co_name_of m clause)) ":-"))
-                  (set head (co_deref m (co_arg m clause 0)))))
-          (if (not (co_is_callable m head)) (return 0))
-          (let ((size_t pi . #'(co_pred_make st (co_name_of m head) (co_arity m head)))
+          (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2))
+              (if (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) ":-"))
+                  (set head (coco_deref m (coco_arg m clause 0)))))
+          (if (not (coco_is_callable m head)) (return 0))
+          (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored))
             (if (>= pi (-> st npreds)) (return 0))
             ;; THE PREDICATE IS FETCHED BEFORE THE CLAUSE IS ADDED, and that is
@@ -589,90 +589,90 @@
             ;; wholesale then replaced the shared one with it. Five facts in
             ;; the database became one.
             ;;
-            ;; It cannot recurse: co_pred_ensure marks the predicate loaded
+            ;; It cannot recurse: coco_pred_ensure marks the predicate loaded
             ;; before it calls the hook, so the asserts the hook itself makes
             ;; find it already loaded.
-            (co_pred_ensure st pi)
-            (set stored (co_store_put st m clause))
-            (if (not (co_pred_add_clause st pi stored at_end)) (return 0))
+            (coco_pred_ensure st pi)
+            (set stored (coco_store_put st m clause))
+            (if (not (coco_pred_add_clause st pi stored at_end)) (return 0))
             ;; muted means this is a module's clause, not the program's
-            (if (co_store_is_muted st) (set ($ (nth pi (-> st preds)) library) 1))
-            (if (and (not (co_store_is_muted st)) (!= (-> st on_assert) nil))
+            (if (coco_store_is_muted st) (set ($ (nth pi (-> st preds)) library) 1))
+            (if (and (not (coco_store_is_muted st)) (!= (-> st on_assert) nil))
                 ((-> st on_assert) st (-> st ctx) stored))
             (return 1))))
 
-  (func co_consult ((co_store * st) (co_machine * m) (const char * text)
+  (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
                     (char * err) (size_t errlen)) (out int)
-        (let ((co_reader r) (size_t t) (int rc . 1) (int n . 0) (size_t mark))
-          (co_reader_init (aof r) m text)
+        (let ((coco_reader r) (size_t t) (int rc . 1) (int n . 0) (size_t mark))
+          (coco_reader_init (aof r) m text)
           (while (== rc 1)
             ;; each clause is read on to the heap, copied into the store, and
             ;; the heap wound back -- so consulting a large file does not leave
             ;; a copy of it in the machine as well as in the store
             (set mark (-> m heap_len))
-            (set rc (co_read_clause (aof r) (aof t)))
+            (set rc (coco_read_clause (aof r) (aof t)))
             (if (== rc 1)
                 (block
                  ;; `:- G' IS A DIRECTIVE AND NOT A CLAUSE. It used to go
-                 ;; straight into co_assert, which took it for a clause whose
+                 ;; straight into coco_assert, which took it for a clause whose
                  ;; head was `:-' of arity one and filed it under a predicate of
                  ;; that name -- so `:- dynamic counter/1.' quietly became a
                  ;; fact nothing would ever call, and the file looked consulted.
-                 (if (co_is_compound1 m t ":-")
+                 (if (coco_is_compound1 m t ":-")
                      (block
-                      (if (not (co_directive st m (co_arg m t 0) err errlen))
-                          (block (co_reader_free (aof r)) (return -1)))
+                      (if (not (coco_directive st m (coco_arg m t 0) err errlen))
+                          (block (coco_reader_free (aof r)) (return -1)))
                       (set (-> m heap_len) mark))
                    (block
-                    (if (not (co_assert st m t 1))
+                    (if (not (coco_assert st m t 1))
                         (block (snprintf err errlen "not a clause")
-                               (co_reader_free (aof r))
+                               (coco_reader_free (aof r))
                                (return -1)))
                     (set (-> m heap_len) mark)
                     (set n (+ n 1)))))))
           (if (== rc -1)
               (block (snprintf err errlen "%s" ($ r err))
-                     (co_reader_free (aof r))
+                     (coco_reader_free (aof r))
                      (return -1)))
-          (co_reader_free (aof r))
+          (coco_reader_free (aof r))
           (return n)))
 
-  (func co_retract ((co_store * st) (co_machine * m) (size_t clause)) (out int)
-        (set clause (co_deref m clause))
+  (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)
+        (set clause (coco_deref m clause))
         (let ((size_t head . clause) (size_t body . 0) (int has_body . 0))
-          (if (and (co_is_callable m clause) (== (co_arity m clause) 2))
-              (if (== 0 (strcmp (co_atom_name m (co_name_of m clause)) ":-"))
-                  (block (set head (co_deref m (co_arg m clause 0)))
-                         (set body (co_arg m clause 1))
+          (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2))
+              (if (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) ":-"))
+                  (block (set head (coco_deref m (coco_arg m clause 0)))
+                         (set body (coco_arg m clause 1))
                          (set has_body 1))))
-          (if (not (co_is_callable m head)) (return 0))
+          (if (not (coco_is_callable m head)) (return 0))
           ;; INTERNED, not merely found. `retract' is a builtin, so its argument
           ;; is never solved as a goal and nothing has put the predicate in the
-          ;; store; with `co_pred_find' a fresh interpreter's first `retract'
+          ;; store; with `coco_pred_find' a fresh interpreter's first `retract'
           ;; failed against a knowledge base that plainly had the clause.
-          ;; Interning is what makes `co_pred_ensure' below able to ask.
-          (let ((size_t pi . #'(co_pred_intern st (co_name_of m head)
-                                               (co_arity m head))))
+          ;; Interning is what makes `coco_pred_ensure' below able to ask.
+          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
+                                               (coco_arity m head))))
             (if (>= pi (-> st npreds)) (return 0))
-            (co_pred_ensure st pi)
-            (let ((co_pred * p . #'(aof (nth pi (-> st preds)))))
+            (coco_pred_ensure st pi)
+            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
               (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
                 (let ((size_t mark . #'(-> m heap_len))
                       (size_t tmark . #'(-> m trail_len))
-                      (size_t cand . #'(co_store_get m st (nth i (-> p clauses))))
+                      (size_t cand . #'(coco_store_get m st (nth i (-> p clauses))))
                       (size_t chead . 0) (size_t cbody . 0) (int ok . 0))
                   ;; the candidate arrives as a fresh copy, so unifying against
                   ;; it cannot bind anything in the store
                   (set chead cand)
-                  (if (and (co_is_callable m cand) (== (co_arity m cand) 2))
-                      (if (== 0 (strcmp (co_atom_name m (co_name_of m cand)) ":-"))
-                          (block (set chead (co_arg m cand 0))
-                                 (set cbody (co_arg m cand 1)))))
-                  (set ok (co_unify m head chead))
+                  (if (and (coco_is_callable m cand) (== (coco_arity m cand) 2))
+                      (if (== 0 (strcmp (coco_atom_name m (coco_name_of m cand)) ":-"))
+                          (block (set chead (coco_arg m cand 0))
+                                 (set cbody (coco_arg m cand 1)))))
+                  (set ok (coco_unify m head chead))
                   (if (and ok has_body)
                       (if (== cbody 0)
                           (set ok 0)
-                        (set ok (co_unify m body cbody))))
+                        (set ok (coco_unify m body cbody))))
                   (if ok
                       (block
                        ;; drop it from the predicate; the cells stay in the
@@ -688,11 +688,11 @@
                        ;; left bound to what was retracted, and the term it is
                        ;; bound into is the copy this loop made on the heap. The
                        ;; hook keeps its own heap use to itself.
-                       (if (and (not (co_store_is_muted st))
+                       (if (and (not (coco_store_is_muted st))
                                 (!= (-> st on_retract) nil))
                            ((-> st on_retract) st (-> st ctx) pi))
                        (return 1)))
-                  (co_undo_to m tmark)
+                  (coco_undo_to m tmark)
                   (set (-> m heap_len) mark))))
             (return 0))))
 

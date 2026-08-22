@@ -23,12 +23,12 @@ catch(msort(notalist, _), error(type_error(T, V), _), true).
 %  T = list, V = notalist  --  in both systems
 ```
 
-`co_m_type_error`, `co_m_instantiation_error`, `co_m_domain_error`,
-`co_m_existence_error` and `co_m_error` all **throw**. Each answers what its
+`coco_m_type_error`, `coco_m_instantiation_error`, `coco_m_domain_error`,
+`coco_m_existence_error` and `coco_m_error` all **throw**. Each answers what its
 caller should return: **2** when a `catch/3` took the ball — the engine is by
 then pointed at the recovery goal and 2 is how a builtin says *leave my
 continuation alone* — and −1 when nothing caught it. A predicate writes
-`(return (co_m_type_error e "list" t))` and does not care which happened.
+`(return (coco_m_type_error e "list" t))` and does not care which happened.
 
 The second argument of `error/2` is left **unbound**. SWI puts a
 `context(Module:Name/Arity, Message)` there and no two systems agree on its
@@ -51,20 +51,20 @@ Two tables and two macro calls. Here is a whole module:
 (generic impl-clock
   ()
 
-  (func cl_now ((co_engine * e) (size_t g)) (out int)
-        (co-mod-args e g ((t 0))
-          (return (co_m_unify_int e t (cast i64 (time nil))))))
+  (func cl_now ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((t 0))
+          (return (coco_m_unify_int e t (cast i64 (time nil))))))
 
-  (func cl_sleep ((co_engine * e) (size_t g)) (out int)
-        (co-mod-args e g ((n 0))
+  (func cl_sleep ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((n 0))
           (let ((i64 v . 0))
-            (if (not (co_m_int e n (aof v)))
-                (return (co_m_type_error e "an integer" n)))
+            (if (not (coco_m_int e n (aof v)))
+                (return (coco_m_type_error e "an integer" n)))
             (sleep (cast unsigned v))
             (return 1))))
 
-  (static) (co-emit-module-dispatch cl_dispatch *clock-predicates*)
-  (co-defmodule cl_module "clock" cl_dispatch *clock-prolog*)
+  (static) (coco-emit-module-dispatch cl_dispatch *clock-predicates*)
+  (coco-defmodule cl_module "clock" cl_dispatch *clock-prolog*)
 
   ) ; impl-clock
 ```
@@ -72,11 +72,11 @@ Two tables and two macro calls. Here is a whole module:
 and in the target, after the imports and generic instantiations:
 
 ```lisp
-(co_module_init)
+(coco_module_init)
 (cl_module)
 ```
 
-`co-emit-module-dispatch` reads the table and emits the dispatcher **grouped by
+`coco-emit-module-dispatch` reads the table and emits the dispatcher **grouped by
 arity**, so a goal of arity 3 is never compared against a predicate of arity 1.
 It is `*builtins*` in `lib/solve.cicili` one module along: add a line to the
 table and write the function, and the dispatcher cannot fall out of step with
@@ -109,7 +109,7 @@ suspension depends on. A predicate that wants to answer several times returns a
 makes it work after a machine has been frozen and thawed in another process.
 
 **It leaves nothing behind when it fails.** Bindings made on the way to
-discovering the answer is 0 have to be undone: `co_m_mark` first, `co_m_undo`
+discovering the answer is 0 have to be undone: `coco_m_mark` first, `coco_m_undo`
 back to it. The engine winds the trail back at a choice point, and a builtin
 that fails is not one.
 
@@ -122,25 +122,25 @@ somewhere else.
 
 | | |
 |---|---|
-| `co_m_arg(e, g, i)` | argument *i*, dereferenced |
-| `co_m_machine(e)` | the machine, for the term DSL |
-| `co_m_mark(e)` / `co_m_undo(e, mark)` | the trail, for a predicate that may fail |
-| `co_m_is_var` / `co_m_is_atom` | what a term is |
-| `co_m_atom(e, t)` | an atom's name, or null |
-| `co_m_int` / `co_m_float` | a number, or 0 |
-| `co_m_text(e, t, buf, cap)` | an atom, an integer **or a code list** as a string |
-| `co_m_unify(e, t, u)` | plain unification |
-| `co_m_unify_atom` / `_int` / `_float` | unify with a fresh constant |
-| `co_m_nil` / `co_m_cons` / `co_m_atom_list` | building a list |
-| `co_m_error(e, what, detail)` | −1, with a message |
-| `co_m_type_error(e, want, got)` | −1, naming the term that was wrong |
+| `coco_m_arg(e, g, i)` | argument *i*, dereferenced |
+| `coco_m_machine(e)` | the machine, for the term DSL |
+| `coco_m_mark(e)` / `coco_m_undo(e, mark)` | the trail, for a predicate that may fail |
+| `coco_m_is_var` / `coco_m_is_atom` | what a term is |
+| `coco_m_atom(e, t)` | an atom's name, or null |
+| `coco_m_int` / `coco_m_float` | a number, or 0 |
+| `coco_m_text(e, t, buf, cap)` | an atom, an integer **or a code list** as a string |
+| `coco_m_unify(e, t, u)` | plain unification |
+| `coco_m_unify_atom` / `_int` / `_float` | unify with a fresh constant |
+| `coco_m_nil` / `coco_m_cons` / `coco_m_atom_list` | building a list |
+| `coco_m_error(e, what, detail)` | −1, with a message |
+| `coco_m_type_error(e, want, got)` | −1, naming the term that was wrong |
 
-`co_m_text` accepting a code list is not politeness: cocolog reads `"abc"` as a
+`coco_m_text` accepting a code list is not politeness: cocolog reads `"abc"` as a
 code list, so without it every double-quoted file name in a program would be a
 type error.
 
-`co-mod-args` binds arguments by position and is sugar for the `let` of
-`co_m_arg` calls that every predicate starts with.
+`coco-mod-args` binds arguments by position and is sugar for the `let` of
+`coco_m_arg` calls that every predicate starts with.
 
 ## What a module cannot do
 
@@ -188,7 +188,7 @@ what each half is for.
 | Coco half | 5 | 30-odd | 17 | 12 |
 | why | a file system is a syscall away | a list predicate is two clauses — **and most must be nondeterministic** | a goal applied to a list is `call/N` and nothing else | the core the engine could not reach on its own |
 
-`apply` has **no C half at all** — `co-defmodule` takes `nil` for the
+`apply` has **no C half at all** — `coco-defmodule` takes `nil` for the
 dispatcher — and it works, which is the cleanest demonstration the seam gets.
 
 **That second reason is the important one.** `member/2`, `select/3`, `append/3`
@@ -319,7 +319,7 @@ needed them first.)
 ### findall had to be an engine service
 
 It runs a goal to exhaustion, and a module cannot see the engine. So
-`lib/solve.cicili` grew `co_engine_findall`, which starts a **nested engine**
+`lib/solve.cicili` grew `coco_engine_findall`, which starts a **nested engine**
 on the same machine and store, and the module calls it. `forall/2` and
 `aggregate_all/3` are built on the same service.
 
@@ -387,7 +387,7 @@ library cannot be written without them and the shared tests could not compare
 without them either, so they are here and marked as what they are.
 
 In C, and only these: `msort/2` `sort/2` `sort/4` `memberchk/2` and the
-`$`-prefixed `$len` `$rev` `$nth0`. Sorting goes through `co_compare`, the same
+`$`-prefixed `$len` `$rev` `$nth0`. Sorting goes through `coco_compare`, the same
 standard order `compare/3` and the clause store already use, so a sorted list
 and a `@<` test in a program cannot disagree. `sort/4` is an insertion sort
 rather than `qsort`, because it has to be **stable**: it compares the key and

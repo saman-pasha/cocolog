@@ -34,112 +34,112 @@
                  (set failures (+ failures 1)))))
 
   (func main ()
-    (let ((co_machine m))
-      (co_machine_init (aof m))
+    (let ((coco_machine m))
+      (coco_machine_init (aof m))
 
       ;; ---- interning is by value, not by pointer ----------------------
-      (let ((u64 a1 . #'(co_intern (aof m) "foo"))
-            (u64 a2 . #'(co_intern (aof m) "foo"))
-            (u64 a3 . #'(co_intern (aof m) "bar")))
+      (let ((u64 a1 . #'(coco_intern (aof m) "foo"))
+            (u64 a2 . #'(coco_intern (aof m) "foo"))
+            (u64 a3 . #'(coco_intern (aof m) "bar")))
         (check "intern foo twice is one atom" (cast llong (== a1 a2)) 1)
         (check "intern bar differs"           (cast llong (!= a1 a3)) 1)
         (check "atom name round trips"
-               (cast llong (strcmp (co_atom_name (aof m) a1) "foo")) 0))
+               (cast llong (strcmp (coco_atom_name (aof m) a1) "foo")) 0))
 
       ;; enough distinct names to drive the bucket table through a rehash,
       ;; which is where an open-addressed probe goes wrong if it ever does
       (let ((char buf [32]))
         (for ((int i . 0)) (< i 400) ((++ i))
           (sprintf buf "name_%d" i)
-          (co_intern (aof m) buf))
+          (coco_intern (aof m) buf))
         (set (nth 0 buf) (cast char 0))
         (for ((int i . 0)) (< i 400) ((++ i))
           (sprintf buf "name_%d" i)
-          (if (!= (strcmp (co_atom_name (aof m) (co_intern (aof m) buf)) buf) 0)
+          (if (!= (strcmp (coco_atom_name (aof m) (coco_intern (aof m) buf)) buf) 0)
               (set failures (+ failures 1))))
         (check "400 names re-intern to themselves" (cast llong failures) 0))
 
       ;; ---- a fresh variable is unbound, and derefs to itself ----------
-      (let ((size_t v . #'(co_new_var (aof m))))
-        (check "fresh var derefs to itself" (cast llong (== (co_deref (aof m) v) v)) 1))
+      (let ((size_t v . #'(coco_new_var (aof m))))
+        (check "fresh var derefs to itself" (cast llong (== (coco_deref (aof m) v) v)) 1))
 
       ;; ---- integers keep their sign through the shift -----------------
-      (let ((size_t p . #'(co_new_int (aof m) 42))
-            (size_t n . #'(co_new_int (aof m) -7)))
+      (let ((size_t p . #'(coco_new_int (aof m) 42))
+            (size_t n . #'(coco_new_int (aof m) -7)))
         (check "positive int survives"
-               (cast llong (co-signed-payload (nth p ($ m heap)))) 42)
+               (cast llong (coco-signed-payload (nth p ($ m heap)))) 42)
         (check "negative int survives"
-               (cast llong (co-signed-payload (nth n ($ m heap)))) -7))
+               (cast llong (coco-signed-payload (nth n ($ m heap)))) -7))
 
       ;; ---- unification binds, and the trail undoes exactly ------------
-      (let ((size_t x . #'(co_new_var (aof m)))
-            (size_t one . #'(co_new_int (aof m) 1))
+      (let ((size_t x . #'(coco_new_var (aof m)))
+            (size_t one . #'(coco_new_int (aof m) 1))
             (size_t mark))
         (set mark ($ m trail_len))
-        (check "unify var with 1"    (cast llong (co_unify (aof m) x one)) 1)
-        (check "x now derefs to 1"   (cast llong (== (co_deref (aof m) x) one)) 1)
-        (co_undo_to (aof m) mark)
-        (check "undo unbinds x"      (cast llong (== (co_deref (aof m) x) x)) 1)
+        (check "unify var with 1"    (cast llong (coco_unify (aof m) x one)) 1)
+        (check "x now derefs to 1"   (cast llong (== (coco_deref (aof m) x) one)) 1)
+        (coco_undo_to (aof m) mark)
+        (check "undo unbinds x"      (cast llong (== (coco_deref (aof m) x) x)) 1)
         (check "trail back to mark"  (cast llong (== ($ m trail_len) mark)) 1))
 
       ;; ---- the term DSL builds what it says ---------------------------
-      (let ((size_t t1 . #'(co-term (aof m) (f ?X 2)))
-            (size_t t2 . #'(co-term (aof m) (f 1 2)))
-            (size_t t3 . #'(co-term (aof m) (f 1 3))))
-        (check "f/2 has arity 2"   (cast llong (co_arity (aof m) t1)) 2)
-        (check "f(X,2) ~ f(1,2)"   (cast llong (co_unify (aof m) t1 t2)) 1)
-        (check "f(1,2) !~ f(1,3)"  (cast llong (co_unify (aof m) t2 t3)) 0)
+      (let ((size_t t1 . #'(coco-term (aof m) (f ?X 2)))
+            (size_t t2 . #'(coco-term (aof m) (f 1 2)))
+            (size_t t3 . #'(coco-term (aof m) (f 1 3))))
+        (check "f/2 has arity 2"   (cast llong (coco_arity (aof m) t1)) 2)
+        (check "f(X,2) ~ f(1,2)"   (cast llong (coco_unify (aof m) t1 t2)) 1)
+        (check "f(1,2) !~ f(1,3)"  (cast llong (coco_unify (aof m) t2 t3)) 0)
         ;; after the successful unification above, X is 1
         (check "X bound to 1"
-               (cast llong (co-signed-payload
-                            (nth (co_deref (aof m) (co_arg (aof m) t1 0)) ($ m heap))))
+               (cast llong (coco-signed-payload
+                            (nth (coco_deref (aof m) (coco_arg (aof m) t1 0)) ($ m heap))))
                1))
 
       ;; ---- nesting, and the escape that reaches existing terms --------
-      (let ((size_t inner . #'(co-term (aof m) (g 7)))
+      (let ((size_t inner . #'(coco-term (aof m) (g 7)))
             (size_t outer))
-        (set outer (co-term (aof m) (h (splice inner) (g 7))))
-        (check "h(g(7), g(7)) arity"  (cast llong (co_arity (aof m) outer)) 2)
+        (set outer (coco-term (aof m) (h (splice inner) (g 7))))
+        (check "h(g(7), g(7)) arity"  (cast llong (coco_arity (aof m) outer)) 2)
         (check "the two g(7) unify"
-               (cast llong (co_unify (aof m) (co_arg (aof m) outer 0)
-                                             (co_arg (aof m) outer 1))) 1))
+               (cast llong (coco_unify (aof m) (coco_arg (aof m) outer 0)
+                                             (coco_arg (aof m) outer 1))) 1))
 
       ;; ---- copying renames consistently -------------------------------
-      (let ((size_t shared . #'(co-term (aof m) (pair ?A ?A)))
+      (let ((size_t shared . #'(coco-term (aof m) (pair ?A ?A)))
             (size_t copy))
-        (set copy (co_copy (aof m) shared))
-        (check "copy has the same arity" (cast llong (co_arity (aof m) copy)) 2)
+        (set copy (coco_copy (aof m) shared))
+        (check "copy has the same arity" (cast llong (coco_arity (aof m) copy)) 2)
         ;; the copy's two arguments are one variable, so binding through the
         ;; first must show through the second
-        (let ((size_t c0 . #'(co_deref (aof m) (co_arg (aof m) copy 0)))
-              (size_t c1 . #'(co_deref (aof m) (co_arg (aof m) copy 1))))
+        (let ((size_t c0 . #'(coco_deref (aof m) (coco_arg (aof m) copy 0)))
+              (size_t c1 . #'(coco_deref (aof m) (coco_arg (aof m) copy 1))))
           (check "copy shares its variable" (cast llong (== c0 c1)) 1))
         ;; and it is a DIFFERENT variable from the original's
-        (let ((size_t o0 . #'(co_deref (aof m) (co_arg (aof m) shared 0)))
-              (size_t c0 . #'(co_deref (aof m) (co_arg (aof m) copy 0))))
+        (let ((size_t o0 . #'(coco_deref (aof m) (coco_arg (aof m) shared 0)))
+              (size_t c0 . #'(coco_deref (aof m) (coco_arg (aof m) copy 0))))
           (check "copy is fresh"            (cast llong (!= o0 c0)) 1)))
 
       ;; ---- a deep term, to make the heap realloc under a copy ----------
-      (let ((size_t deep . #'(co_new_atom (aof m) "nil"))
+      (let ((size_t deep . #'(coco_new_atom (aof m) "nil"))
             (size_t before . #'($ m heap_cap)))
         (for ((int i . 0)) (< i 2000) ((++ i))
-          (set deep (co-term (aof m) (cons (splice deep) ?T))))
+          (set deep (coco-term (aof m) (cons (splice deep) ?T))))
         (check "heap grew during build" (cast llong (> ($ m heap_cap) before)) 1)
-        (let ((size_t d2 . #'(co_copy (aof m) deep)))
+        (let ((size_t d2 . #'(coco_copy (aof m) deep)))
           (check "deep copy unifies with its original"
-                 (cast llong (co_unify (aof m) deep d2)) 1)))
+                 (cast llong (coco_unify (aof m) deep d2)) 1)))
 
       ;; ---- the standard order of terms --------------------------------
-      (let ((size_t v . #'(co_new_var (aof m)))
-            (size_t i . #'(co_new_int (aof m) 3))
-            (size_t a . #'(co_new_atom (aof m) "abc"))
-            (size_t c . #'(co-term (aof m) (s 1))))
-        (check "Var < Number"   (cast llong (< (co_compare (aof m) v i) 0)) 1)
-        (check "Number < Atom"  (cast llong (< (co_compare (aof m) i a) 0)) 1)
-        (check "Atom < Compound"(cast llong (< (co_compare (aof m) a c) 0)) 1)
-        (check "a term equals itself" (cast llong (co_compare (aof m) c c)) 0))
+      (let ((size_t v . #'(coco_new_var (aof m)))
+            (size_t i . #'(coco_new_int (aof m) 3))
+            (size_t a . #'(coco_new_atom (aof m) "abc"))
+            (size_t c . #'(coco-term (aof m) (s 1))))
+        (check "Var < Number"   (cast llong (< (coco_compare (aof m) v i) 0)) 1)
+        (check "Number < Atom"  (cast llong (< (coco_compare (aof m) i a) 0)) 1)
+        (check "Atom < Compound"(cast llong (< (coco_compare (aof m) a c) 0)) 1)
+        (check "a term equals itself" (cast llong (coco_compare (aof m) c c)) 0))
 
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
-      (co_machine_free (aof m))
+      (coco_machine_free (aof m))
       (return (? (== failures 0) 0 1)))))

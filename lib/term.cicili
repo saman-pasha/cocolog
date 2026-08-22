@@ -54,8 +54,8 @@
 ;;;; The tag table, and the macros that read it
 ;;;; ------------------------------------------------------------------
 
-;;; name, value, and what the payload means. The C enum, the `co_mk_*'
-;;; constructors and the `co_is_*' testers are all generated from this.
+;;; name, value, and what the payload means. The C enum, the `coco_mk_*'
+;;; constructors and the `coco_is_*' testers are all generated from this.
 (DEFPARAMETER *cell-tags*
   '((REF  0 "the cell this one points at; itself when unbound")
     (ATOM 1 "an atom id -- an index into the name table")
@@ -70,13 +70,13 @@
     (SECOND row)))
 
 (DEFUN tag-name (name)
-  (INTERN (FORMAT NIL "CO_~A" (STRING name))))
+  (INTERN (FORMAT NIL "COCO_~A" (STRING name))))
 
 ;;; The enum exists for the generated C to be readable and for a debugger to
 ;;; print something better than 3. Nothing in the macros below reads it -- they
 ;;; splice the number -- so it costs one enum and no indirection.
-(DEFMACRO co-emit-tag-enum ()
-  `(enum co_tag
+(DEFMACRO coco-emit-tag-enum ()
+  `(enum coco_tag
      ,@(MAPCAR (LAMBDA (row) `(,(tag-name (FIRST row)) . ,(SECOND row)))
                *cell-tags*)))
 
@@ -89,25 +89,25 @@
 ;;; once, so they are macros -- and `tag-is' folds to a literal comparison.
 
 ;;; the tag of a cell
-(DEFMACRO co-tag (c) `(cast int (bitand ,c 7)))
+(DEFMACRO coco-tag (c) `(cast int (bitand ,c 7)))
 
 ;;; is this cell tagged NAME? NAME is a tag-table name, resolved here.
-(DEFMACRO co-tag-is (name c) `(== (cast int (bitand ,c 7)) ,(tag-value name)))
+(DEFMACRO coco-tag-is (name c) `(== (cast int (bitand ,c 7)) ,(tag-value name)))
 
 ;;; the raw payload, unsigned
-(DEFMACRO co-payload (c) `(>> ,c 3))
+(DEFMACRO coco-payload (c) `(>> ,c 3))
 
 ;;; the payload of an INT cell, signed -- an arithmetic shift, so the sign of a
 ;;; negative integer survives the round trip. C leaves >> on a signed type
 ;;; implementation-defined for negatives in the standard and arithmetic in
 ;;; every compiler this targets; the cast makes which one is meant explicit.
-(DEFMACRO co-signed-payload (c) `(>> (cast i64 ,c) 3))
+(DEFMACRO coco-signed-payload (c) `(>> (cast i64 ,c) 3))
 
 ;;; build a cell of tag NAME with payload V
-(DEFMACRO co-cell (name v) `(bitor (<< (cast u64 ,v) 3) ,(tag-value name)))
+(DEFMACRO coco-cell (name v) `(bitor (<< (cast u64 ,v) 3) ,(tag-value name)))
 
 ;;; build an INT cell from a signed value
-(DEFMACRO co-int-cell (v) `(bitor (<< (cast u64 (cast i64 ,v)) 3) ,(tag-value 'INT)))
+(DEFMACRO coco-int-cell (v) `(bitor (<< (cast u64 (cast i64 ,v)) 3) ,(tag-value 'INT)))
 
 
 ;;;; ------------------------------------------------------------------
@@ -124,7 +124,7 @@
 ;;;
 ;;; So the dance is written once, here, and the term is written as what it is:
 ;;;
-;;;     (co-term m (append (splice xs) (cons 1 nil) ?Rest))
+;;;     (coco-term m (append (splice xs) (cons 1 nil) ?Rest))
 ;;;
 ;;; expands to the opens, the reservations and the fixups, in order, with the
 ;;; shared variables lifted to the top so that two mentions of ?Rest are one
@@ -188,17 +188,17 @@
     ((INTEGERP expr)
      (LET ((s (next-local "i")))
        (VALUES s (APPEND locals (LIST `(size_t ,s)))
-               (APPEND stmts (LIST `(set ,s (co_new_int ,m ,expr)))))))
+               (APPEND stmts (LIST `(set ,s (coco_new_int ,m ,expr)))))))
 
     ((FLOATP expr)
      (LET ((s (next-local "f")))
        (VALUES s (APPEND locals (LIST `(size_t ,s)))
-               (APPEND stmts (LIST `(set ,s (co_new_float ,m ,expr)))))))
+               (APPEND stmts (LIST `(set ,s (coco_new_float ,m ,expr)))))))
 
     ((OR (STRINGP expr) (SYMBOLP expr))
      (LET ((s (next-local "a")))
        (VALUES s (APPEND locals (LIST `(size_t ,s)))
-               (APPEND stmts (LIST `(set ,s (co_new_atom ,m ,(atom-name-of expr))))))))
+               (APPEND stmts (LIST `(set ,s (coco_new_atom ,m ,(atom-name-of expr))))))))
 
     ((CONSP expr)
      (LET* ((n (LENGTH (CDR expr)))
@@ -209,23 +209,23 @@
        ;; placeholders are real unbound variables, so a term whose construction
        ;; is somehow abandoned half way is still a well-formed term.
        (SETF stmts (APPEND stmts
-                           (LIST `(set ,h (co_open_struct ,m ,(atom-name-of (CAR expr)) ,n))
+                           (LIST `(set ,h (coco_open_struct ,m ,(atom-name-of (CAR expr)) ,n))
                                  `(set ,b (+ ,h 1)))
-                           (LOOP REPEAT n COLLECT `(co_new_var ,m))))
+                           (LOOP REPEAT n COLLECT `(coco_new_var ,m))))
        ;; then each argument, wherever it lands, pointed at from its slot
        (LOOP FOR arg IN (CDR expr)
              FOR i FROM 0
              DO (MULTIPLE-VALUE-BIND (sym l s) (emit-term m arg vars locals stmts)
                   (SETF locals l
-                        stmts (APPEND s (LIST `(co_set_arg ,m (+ ,b ,i) ,sym))))))
+                        stmts (APPEND s (LIST `(coco_set_arg ,m (+ ,b ,i) ,sym))))))
        (VALUES h locals stmts)))
 
     (T (ERROR "cocolog: ~S is not a term" expr))))
 
-(DEFMACRO co-term (m expr)
+(DEFMACRO coco-term (m expr)
   (LET* ((vs (term-vars expr NIL))
          (vars (MAPCAR (LAMBDA (v) (CONS v (next-local "v"))) vs))
-         (var-locals (MAPCAR (LAMBDA (pair) `(size_t ,(CDR pair) . #'(co_new_var ,m))) vars)))
+         (var-locals (MAPCAR (LAMBDA (pair) `(size_t ,(CDR pair) . #'(coco_new_var ,m))) vars)))
     (MULTIPLE-VALUE-BIND (root locals stmts) (emit-term m expr vars NIL NIL)
       `(letn (,@var-locals ,@locals) ,@stmts ,root))))
 
@@ -236,24 +236,24 @@
 (generic decl-term
   ()
 
-  (co-emit-tag-enum)
+  (coco-emit-tag-enum)
 
   ;;; A name in the atom table. `hash' is kept beside the name so a lookup
   ;;; compares a word before it compares a string.
-  (struct co_atom
+  (struct coco_atom
     (member char *   name)
     (member size_t   len)
     (member u64      hash))
 
   ;;; {name, arity}. Interned, so two compounds with the same functor share an
   ;;; id and comparing functors is comparing integers.
-  (struct co_functor
+  (struct coco_functor
     (member u64      name)
     (member u32      arity))
 
   ;;; The machine. Everything in it is either a plain array of words or a
   ;;; length -- which is the whole point, and what `state.cicili' relies on.
-  (struct co_machine
+  (struct coco_machine
     ;; the term store
     (member u64 *      heap)
     (member size_t     heap_len)
@@ -265,14 +265,14 @@
     (member size_t     trail_cap)
 
     ;; interned names
-    (member co_atom *  atoms)
+    (member coco_atom *  atoms)
     (member size_t     atoms_len)
     (member size_t     atoms_cap)
     (member size_t *   atom_buckets)      ; open addressing, id+1, 0 is empty
     (member size_t     atom_bucket_cap)
 
     ;; interned functors
-    (member co_functor * functors)
+    (member coco_functor * functors)
     (member size_t     functors_len)
     (member size_t     functors_cap)
 
@@ -291,100 +291,100 @@
   ;;; are `non-copy' and own their storage through `letin', which is the right
   ;;; arrangement for a value and the wrong one for a scratch buffer passed
   ;;; down a recursion by pointer.
-  (struct co_strbuf
+  (struct coco_strbuf
     (member char *  s)
     (member size_t  len)
     (member size_t  cap))
 
-  (decl) (func co_sb_init ((co_strbuf * b)))
-  (decl) (func co_sb_free ((co_strbuf * b)))
-  (decl) (func co_sb_reset ((co_strbuf * b)))
-  (decl) (func co_sb_putc ((co_strbuf * b) (char c)) (out int))
-  (decl) (func co_sb_put ((co_strbuf * b) (const char * s)) (out int))
-  (decl) (func co_sb_put_len ((co_strbuf * b) (const char * s) (size_t n)) (out int))
+  (decl) (func coco_sb_init ((coco_strbuf * b)))
+  (decl) (func coco_sb_free ((coco_strbuf * b)))
+  (decl) (func coco_sb_reset ((coco_strbuf * b)))
+  (decl) (func coco_sb_putc ((coco_strbuf * b) (char c)) (out int))
+  (decl) (func coco_sb_put ((coco_strbuf * b) (const char * s)) (out int))
+  (decl) (func coco_sb_put_len ((coco_strbuf * b) (const char * s) (size_t n)) (out int))
   ;; Numbers, and only numbers. There is no printf-style appender here:
   ;; `va_start' takes the un-decayed last parameter and so is not something
   ;; Cicili declares (see lib/std/c/stdarg.cicili), and reaching for a `code'
   ;; escape to get one back would put an unchecked fragment in the middle of
   ;; the writer. Two fixed formatters cover everything the writer needs.
-  (decl) (func co_sb_put_i64 ((co_strbuf * b) (i64 v)) (out int))
-  (decl) (func co_sb_put_double ((co_strbuf * b) (double v)) (out int))
+  (decl) (func coco_sb_put_i64 ((coco_strbuf * b) (i64 v)) (out int))
+  (decl) (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int))
 
   ;; ---- lifecycle ----
-  (decl) (func co_machine_init ((co_machine * m)) (out int))
-  (decl) (func co_machine_free ((co_machine * m)))
+  (decl) (func coco_machine_init ((coco_machine * m)) (out int))
+  (decl) (func coco_machine_free ((coco_machine * m)))
 
   ;; ---- names ----
-  (decl) (func co_intern ((co_machine * m) (const char * name)) (out u64))
-  (decl) (func co_intern_len ((co_machine * m) (const char * name) (size_t len)) (out u64))
-  (decl) (func co_atom_name ((co_machine * m) (u64 id)) (out const char *))
-  (decl) (func co_functor_id ((co_machine * m) (u64 name) (u32 arity)) (out u64))
+  (decl) (func coco_intern ((coco_machine * m) (const char * name)) (out u64))
+  (decl) (func coco_intern_len ((coco_machine * m) (const char * name) (size_t len)) (out u64))
+  (decl) (func coco_atom_name ((coco_machine * m) (u64 id)) (out const char *))
+  (decl) (func coco_functor_id ((coco_machine * m) (u64 name) (u32 arity)) (out u64))
 
   ;; ---- heap ----
-  (decl) (func co_push ((co_machine * m) (u64 c)) (out size_t))
-  (decl) (func co_new_var ((co_machine * m)) (out size_t))
-  (decl) (func co_new_atom ((co_machine * m) (const char * name)) (out size_t))
-  (decl) (func co_new_int ((co_machine * m) (i64 v)) (out size_t))
-  (decl) (func co_new_float ((co_machine * m) (double v)) (out size_t))
+  (decl) (func coco_push ((coco_machine * m) (u64 c)) (out size_t))
+  (decl) (func coco_new_var ((coco_machine * m)) (out size_t))
+  (decl) (func coco_new_atom ((coco_machine * m) (const char * name)) (out size_t))
+  (decl) (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t))
+  (decl) (func coco_new_float ((coco_machine * m) (double v)) (out size_t))
   ;; opens a compound of ARITY and answers its header index; the caller then
   ;; pushes exactly ARITY argument cells
-  (decl) (func co_open_struct ((co_machine * m) (const char * name) (u32 arity)) (out size_t))
+  (decl) (func coco_open_struct ((coco_machine * m) (const char * name) (u32 arity)) (out size_t))
   ;; points a reserved argument cell at the term that was built for it. The
   ;; term DSL emits this rather than assigning into the heap itself: `->' wants
   ;; a pointer it can name, and the machine reaches the DSL as (aof m).
-  (decl) (func co_set_arg ((co_machine * m) (size_t slot) (size_t val)))
+  (decl) (func coco_set_arg ((coco_machine * m) (size_t slot) (size_t val)))
 
   ;; Builds a compound whose arguments already exist. The DSL cannot help the
   ;; reader or the engine, which discover their arguments at run time, so they
   ;; get this instead: the arguments are known before the header is pushed, so
   ;; nothing has to be reserved and fixed up and the argument cells are simply
   ;; pushed as references.
-  (decl) (func co_make ((co_machine * m) (const char * name) (u32 n) (const size_t * args)) (out size_t))
-  (decl) (func co_make1 ((co_machine * m) (const char * name) (size_t a)) (out size_t))
-  (decl) (func co_make2 ((co_machine * m) (const char * name) (size_t a) (size_t b)) (out size_t))
+  (decl) (func coco_make ((coco_machine * m) (const char * name) (u32 n) (const size_t * args)) (out size_t))
+  (decl) (func coco_make1 ((coco_machine * m) (const char * name) (size_t a)) (out size_t))
+  (decl) (func coco_make2 ((coco_machine * m) (const char * name) (size_t a) (size_t b)) (out size_t))
   ;; the list cell '.'(H, T) -- spelt out because the reader builds a great
   ;; many of them and `[H|T]' should not cost an array on the way past
-  (decl) (func co_cons ((co_machine * m) (size_t h) (size_t t)) (out size_t))
+  (decl) (func coco_cons ((coco_machine * m) (size_t h) (size_t t)) (out size_t))
 
   ;; ---- inspection ----
-  (decl) (func co_deref ((co_machine * m) (size_t t)) (out size_t))
-  (decl) (func co_arity ((co_machine * m) (size_t t)) (out u32))
-  (decl) (func co_name_of ((co_machine * m) (size_t t)) (out u64))
-  (decl) (func co_arg ((co_machine * m) (size_t t) (u32 i)) (out size_t))
-  (decl) (func co_is_callable ((co_machine * m) (size_t t)) (out int))
+  (decl) (func coco_deref ((coco_machine * m) (size_t t)) (out size_t))
+  (decl) (func coco_arity ((coco_machine * m) (size_t t)) (out u32))
+  (decl) (func coco_name_of ((coco_machine * m) (size_t t)) (out u64))
+  (decl) (func coco_arg ((coco_machine * m) (size_t t) (u32 i)) (out size_t))
+  (decl) (func coco_is_callable ((coco_machine * m) (size_t t)) (out int))
 
   ;; ---- binding and backtracking ----
-  (decl) (func co_bind ((co_machine * m) (size_t var) (size_t val)))
-  ;; Puts a cell on the trail without binding it. Only `co_thaw' wants this:
+  (decl) (func coco_bind ((coco_machine * m) (size_t var) (size_t val)))
+  ;; Puts a cell on the trail without binding it. Only `coco_thaw' wants this:
   ;; the heap it is restoring already holds the bindings, and what has to come
   ;; back is the record of which ones to undo.
-  (decl) (func co_trail_push ((co_machine * m) (size_t var)) (out int))
-  (decl) (func co_undo_to ((co_machine * m) (size_t mark)))
-  (decl) (func co_unify ((co_machine * m) (size_t a) (size_t b)) (out int))
+  (decl) (func coco_trail_push ((coco_machine * m) (size_t var)) (out int))
+  (decl) (func coco_undo_to ((coco_machine * m) (size_t mark)))
+  (decl) (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int))
 
   ;; ---- copying ----
   ;;; The variable map for one copy. It is a plain array of pairs scanned
   ;;; linearly: a clause has a handful of distinct variables, and a hash table
   ;;; over that would be slower and would have to be freed on every path.
   ;;;
-  ;;; It is declared here rather than hidden inside `co_copy' because the
+  ;;; It is declared here rather than hidden inside `coco_copy' because the
   ;;; clause store copies terms too -- out of the heap when a clause is
   ;;; asserted, back into it when one is used -- and the rule that one original
   ;;; variable becomes one fresh variable has to hold for all three.
-  (struct co_varmap
+  (struct coco_varmap
     (member size_t * from)
     (member size_t * to)
     (member size_t   len)
     (member size_t   cap))
 
-  (decl) (func co_varmap_get ((co_varmap * vm) (size_t from) (size_t * out_to)) (out int))
-  (decl) (func co_varmap_put ((co_varmap * vm) (size_t from) (size_t to)) (out int))
-  (decl) (func co_varmap_free ((co_varmap * vm)))
+  (decl) (func coco_varmap_get ((coco_varmap * vm) (size_t from) (size_t * out_to)) (out int))
+  (decl) (func coco_varmap_put ((coco_varmap * vm) (size_t from) (size_t to)) (out int))
+  (decl) (func coco_varmap_free ((coco_varmap * vm)))
 
   ;; a fresh copy of T with fresh variables, pushed on the heap
-  (decl) (func co_copy ((co_machine * m) (size_t t)) (out size_t))
+  (decl) (func coco_copy ((coco_machine * m) (size_t t)) (out size_t))
   ;; structural comparison: <0, 0, >0 in the standard order of terms
-  (decl) (func co_compare ((co_machine * m) (size_t a) (size_t b)) (out int))
+  (decl) (func coco_compare ((coco_machine * m) (size_t a) (size_t b)) (out int))
 
   ) ; decl-term
 
@@ -403,7 +403,7 @@
   ;;; the caller can carry on writing nonsense into a machine that is already
   ;;; finished, and nothing dereferences a null on the way there.
   (static)
-  (func co_grow ((co_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
+  (func coco_grow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
         (if (<= need (cof cap)) (return 1))
         (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
@@ -424,7 +424,7 @@
   ;;; 2^64, and for a table of a few thousand interned names the distribution
   ;;; is indistinguishable.
   (static)
-  (func co_hash ((const char * s) (size_t len)) (out u64)
+  (func coco_hash ((const char * s) (size_t len)) (out u64)
         (let ((u64 h . 5381))
           (for ((size_t i . 0)) (< i len) ((++ i))
             (set h (xor (* h 33) (cast u64 (cast uchar (nth i s))))))
@@ -432,8 +432,8 @@
 
   ;;; ---- lifecycle ----------------------------------------------------
 
-  (func co_machine_init ((co_machine * m)) (out int)
-        (memset m 0 (sizeof co_machine))
+  (func coco_machine_init ((coco_machine * m)) (out int)
+        (memset m 0 (sizeof coco_machine))
         (set (-> m atom_bucket_cap) 256)
         (set (-> m atom_buckets)
              (cast (size_t *) (calloc (-> m atom_bucket_cap) (sizeof size_t))))
@@ -441,7 +441,7 @@
             (block (set (-> m oom) 1) (return 0)))
         (return 1))
 
-  (func co_machine_free ((co_machine * m))
+  (func coco_machine_free ((coco_machine * m))
         (for ((size_t i . 0)) (< i (-> m atoms_len)) ((++ i))
           (free ($ (nth i (-> m atoms)) name)))
         (free (-> m atoms))
@@ -450,17 +450,17 @@
         (free (-> m floats))
         (free (-> m trail))
         (free (-> m heap))
-        (memset m 0 (sizeof co_machine)))
+        (memset m 0 (sizeof coco_machine)))
 
   ;;; ---- the character buffer ------------------------------------------
 
-  (func co_sb_init ((co_strbuf * b))
+  (func coco_sb_init ((coco_strbuf * b))
         (set (-> b s) nil) (set (-> b len) 0) (set (-> b cap) 0))
 
-  (func co_sb_free ((co_strbuf * b))
+  (func coco_sb_free ((coco_strbuf * b))
         (free (-> b s)) (set (-> b s) nil) (set (-> b len) 0) (set (-> b cap) 0))
 
-  (func co_sb_reset ((co_strbuf * b))
+  (func coco_sb_reset ((coco_strbuf * b))
         (set (-> b len) 0)
         (if (!= (-> b s) nil) (set (nth 0 (-> b s)) (cast char 0))))
 
@@ -468,7 +468,7 @@
   ;;; `len' at all times, so `b->s' is a C string the moment anything has been
   ;;; put in it and no caller has to remember to terminate it.
   (static)
-  (func co_sb_room ((co_strbuf * b) (size_t n)) (out int)
+  (func coco_sb_room ((coco_strbuf * b) (size_t n)) (out int)
         (if (< (+ (-> b len) (+ n 1)) (-> b cap)) (return 1))
         (let ((size_t ncap . #'(? (== (-> b cap) 0) 64 (-> b cap)))
               (char * ns))
@@ -479,29 +479,29 @@
           (set (-> b cap) ncap)
           (return 1)))
 
-  (func co_sb_putc ((co_strbuf * b) (char c)) (out int)
-        (if (not (co_sb_room b 1)) (return 0))
+  (func coco_sb_putc ((coco_strbuf * b) (char c)) (out int)
+        (if (not (coco_sb_room b 1)) (return 0))
         (set (nth (-> b len) (-> b s)) c)
         (set (-> b len) (+ (-> b len) 1))
         (set (nth (-> b len) (-> b s)) (cast char 0))
         (return 1))
 
-  (func co_sb_put_len ((co_strbuf * b) (const char * s) (size_t n)) (out int)
-        (if (not (co_sb_room b n)) (return 0))
+  (func coco_sb_put_len ((coco_strbuf * b) (const char * s) (size_t n)) (out int)
+        (if (not (coco_sb_room b n)) (return 0))
         (memcpy (+ (-> b s) (-> b len)) s n)
         (set (-> b len) (+ (-> b len) n))
         (set (nth (-> b len) (-> b s)) (cast char 0))
         (return 1))
 
-  (func co_sb_put ((co_strbuf * b) (const char * s)) (out int)
-        (return (co_sb_put_len b s (strlen s))))
+  (func coco_sb_put ((coco_strbuf * b) (const char * s)) (out int)
+        (return (coco_sb_put_len b s (strlen s))))
 
   ;;; The widest 64-bit integer is 20 characters and a sign, so 32 is room
   ;;; with the terminator and no arithmetic to get wrong.
-  (func co_sb_put_i64 ((co_strbuf * b) (i64 v)) (out int)
+  (func coco_sb_put_i64 ((coco_strbuf * b) (i64 v)) (out int)
         (let ((char tmp [32]))
           (snprintf tmp (sizeof tmp) "%lld" (cast llong v))
-          (return (co_sb_put b tmp))))
+          (return (coco_sb_put b tmp))))
 
   ;;; %.15g is the shortest form that reads back as the same double for every
   ;;; value a Prolog program is going to write, and it drops the trailing zeros
@@ -510,14 +510,14 @@
   ;;; reader has to be able to tell which one this was. 46/101/69 are '.', 'e'
   ;;; and 'E' -- a character literal is not something Cicili's reader carries,
   ;;; so the codes are written out.
-  (func co_sb_put_double ((co_strbuf * b) (double v)) (out int)
+  (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int)
         (let ((char tmp [40]) (int exact . 1))
           (snprintf tmp (sizeof tmp) "%.15g" v)
           (for ((int i . 0)) (!= (nth i tmp) (cast char 0)) ((++ i))
             (if (or (== (nth i tmp) 46) (or (== (nth i tmp) 101) (== (nth i tmp) 69)))
                 (set exact 0)))
-          (if (not (co_sb_put b tmp)) (return 0))
-          (if (== exact 1) (return (co_sb_put b ".0")))
+          (if (not (coco_sb_put b tmp)) (return 0))
+          (if (== exact 1) (return (coco_sb_put b ".0")))
           (return 1)))
 
   ;;; ---- names --------------------------------------------------------
@@ -525,7 +525,7 @@
   ;;; Rehash into a table of twice the size. Called only when the table is half
   ;;; full, so the probe below stays short.
   (static)
-  (func co_atoms_rehash ((co_machine * m)) (out int)
+  (func coco_atoms_rehash ((coco_machine * m)) (out int)
         (let ((size_t ncap . #'(* (-> m atom_bucket_cap) 2))
               (size_t * nb . #'(cast (size_t *) (calloc ncap (sizeof size_t)))))
           (if (== nb nil) (block (set (-> m oom) 1) (return 0)))
@@ -540,8 +540,8 @@
           (set (-> m atom_bucket_cap) ncap)
           (return 1)))
 
-  (func co_intern_len ((co_machine * m) (const char * name) (size_t len)) (out u64)
-        (let ((u64 h . #'(co_hash name len))
+  (func coco_intern_len ((coco_machine * m) (const char * name) (size_t len)) (out u64)
+        (let ((u64 h . #'(coco_hash name len))
               (size_t j))
           (set j (cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1)))))
           ;; probe: an occupied slot whose hash and bytes both match is the one
@@ -553,9 +553,9 @@
                   (return (cast u64 id))))
             (set j (bitand (+ j 1) (- (-> m atom_bucket_cap) 1))))
           ;; not there: append it
-          (if (not (co_grow m (cast (void **) (aof (-> m atoms)))
+          (if (not (coco_grow m (cast (void **) (aof (-> m atoms)))
                             (aof (-> m atoms_cap)) (+ (-> m atoms_len) 1)
-                            (sizeof co_atom)))
+                            (sizeof coco_atom)))
               (return 0))
           (let ((char * copy . #'(cast (char *) (malloc (+ len 1)))))
             (if (== copy nil) (block (set (-> m oom) 1) (return 0)))
@@ -569,17 +569,17 @@
               (set (nth j (-> m atom_buckets)) (+ id 1))
               ;; keep the table under half full, so probes stay short
               (if (>= (* (-> m atoms_len) 2) (-> m atom_bucket_cap))
-                  (co_atoms_rehash m))
+                  (coco_atoms_rehash m))
               (return (cast u64 id))))))
 
-  (func co_intern ((co_machine * m) (const char * name)) (out u64)
-        (return (co_intern_len m name (strlen name))))
+  (func coco_intern ((coco_machine * m) (const char * name)) (out u64)
+        (return (coco_intern_len m name (strlen name))))
 
-  (func co_atom_name ((co_machine * m) (u64 id)) (out const char *)
+  (func coco_atom_name ((coco_machine * m) (u64 id)) (out const char *)
         (if (>= (cast size_t id) (-> m atoms_len)) (return "<bad-atom>"))
         (return ($ (nth (cast size_t id) (-> m atoms)) name)))
 
-  (func co_functor_id ((co_machine * m) (u64 name) (u32 arity)) (out u64)
+  (func coco_functor_id ((coco_machine * m) (u64 name) (u32 arity)) (out u64)
         ;; Linear, and deliberately so: a program has tens of functors, not
         ;; thousands, and a hash table over two integers would cost more to
         ;; maintain than the scan costs to run.
@@ -587,9 +587,9 @@
           (if (and (== ($ (nth i (-> m functors)) name) name)
                    (== ($ (nth i (-> m functors)) arity) arity))
               (return (cast u64 i))))
-        (if (not (co_grow m (cast (void **) (aof (-> m functors)))
+        (if (not (coco_grow m (cast (void **) (aof (-> m functors)))
                           (aof (-> m functors_cap)) (+ (-> m functors_len) 1)
-                          (sizeof co_functor)))
+                          (sizeof coco_functor)))
             (return 0))
         (let ((size_t id . #'(-> m functors_len)))
           (set ($ (nth id (-> m functors)) name) name)
@@ -599,8 +599,8 @@
 
   ;;; ---- heap ---------------------------------------------------------
 
-  (func co_push ((co_machine * m) (u64 c)) (out size_t)
-        (if (not (co_grow m (cast (void **) (aof (-> m heap)))
+  (func coco_push ((coco_machine * m) (u64 c)) (out size_t)
+        (if (not (coco_grow m (cast (void **) (aof (-> m heap)))
                           (aof (-> m heap_cap)) (+ (-> m heap_len) 1)
                           (sizeof u64)))
             (return 0))
@@ -610,95 +610,95 @@
 
   ;;; A fresh variable is a REF pointing at itself. Its index is not known
   ;;; until it has been pushed, so it is pushed as 0 and then written -- which
-  ;;; is also why this cannot be a macro over `co_push'.
-  (func co_new_var ((co_machine * m)) (out size_t)
-        (let ((size_t i . #'(co_push m 0)))
-          (set (nth i (-> m heap)) (co-cell REF i))
+  ;;; is also why this cannot be a macro over `coco_push'.
+  (func coco_new_var ((coco_machine * m)) (out size_t)
+        (let ((size_t i . #'(coco_push m 0)))
+          (set (nth i (-> m heap)) (coco-cell REF i))
           (return i)))
 
-  (func co_new_atom ((co_machine * m) (const char * name)) (out size_t)
-        (return (co_push m (co-cell ATOM (co_intern m name)))))
+  (func coco_new_atom ((coco_machine * m) (const char * name)) (out size_t)
+        (return (coco_push m (coco-cell ATOM (coco_intern m name)))))
 
-  (func co_new_int ((co_machine * m) (i64 v)) (out size_t)
-        (return (co_push m (co-int-cell v))))
+  (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t)
+        (return (coco_push m (coco-int-cell v))))
 
-  (func co_new_float ((co_machine * m) (double v)) (out size_t)
-        (if (not (co_grow m (cast (void **) (aof (-> m floats)))
+  (func coco_new_float ((coco_machine * m) (double v)) (out size_t)
+        (if (not (coco_grow m (cast (void **) (aof (-> m floats)))
                           (aof (-> m floats_cap)) (+ (-> m floats_len) 1)
                           (sizeof double)))
             (return 0))
         (set (nth (-> m floats_len) (-> m floats)) v)
         (set (-> m floats_len) (+ (-> m floats_len) 1))
-        (return (co_push m (co-cell FLT (- (-> m floats_len) 1)))))
+        (return (coco_push m (coco-cell FLT (- (-> m floats_len) 1)))))
 
-  (func co_open_struct ((co_machine * m) (const char * name) (u32 arity)) (out size_t)
-        (let ((u64 f . #'(co_functor_id m (co_intern m name) arity)))
-          (return (co_push m (co-cell FUN f)))))
+  (func coco_open_struct ((coco_machine * m) (const char * name) (u32 arity)) (out size_t)
+        (let ((u64 f . #'(coco_functor_id m (coco_intern m name) arity)))
+          (return (coco_push m (coco-cell FUN f)))))
 
-  (func co_set_arg ((co_machine * m) (size_t slot) (size_t val))
-        (set (nth slot (-> m heap)) (co-cell REF val)))
+  (func coco_set_arg ((coco_machine * m) (size_t slot) (size_t val))
+        (set (nth slot (-> m heap)) (coco-cell REF val)))
 
-  (func co_make ((co_machine * m) (const char * name) (u32 n) (const size_t * args)) (out size_t)
-        (let ((size_t h . #'(co_open_struct m name n)))
+  (func coco_make ((coco_machine * m) (const char * name) (u32 n) (const size_t * args)) (out size_t)
+        (let ((size_t h . #'(coco_open_struct m name n)))
           (for ((u32 i . 0)) (< i n) ((++ i))
-            (co_push m (co-cell REF (nth (cast size_t i) args))))
+            (coco_push m (coco-cell REF (nth (cast size_t i) args))))
           (return h)))
 
-  (func co_make1 ((co_machine * m) (const char * name) (size_t a)) (out size_t)
-        (let ((size_t h . #'(co_open_struct m name 1)))
-          (co_push m (co-cell REF a))
+  (func coco_make1 ((coco_machine * m) (const char * name) (size_t a)) (out size_t)
+        (let ((size_t h . #'(coco_open_struct m name 1)))
+          (coco_push m (coco-cell REF a))
           (return h)))
 
-  (func co_make2 ((co_machine * m) (const char * name) (size_t a) (size_t b)) (out size_t)
-        (let ((size_t h . #'(co_open_struct m name 2)))
-          (co_push m (co-cell REF a))
-          (co_push m (co-cell REF b))
+  (func coco_make2 ((coco_machine * m) (const char * name) (size_t a) (size_t b)) (out size_t)
+        (let ((size_t h . #'(coco_open_struct m name 2)))
+          (coco_push m (coco-cell REF a))
+          (coco_push m (coco-cell REF b))
           (return h)))
 
-  (func co_cons ((co_machine * m) (size_t h) (size_t t)) (out size_t)
-        (return (co_make2 m "." h t)))
+  (func coco_cons ((coco_machine * m) (size_t h) (size_t t)) (out size_t)
+        (return (coco_make2 m "." h t)))
 
   ;;; ---- inspection ---------------------------------------------------
 
   ;;; Follow REF links to the cell that actually holds something. A variable
   ;;; that points at itself stops the walk, which is what makes "unbound" free.
-  (func co_deref ((co_machine * m) (size_t t)) (out size_t)
-        (while (co-tag-is REF (nth t (-> m heap)))
-          (let ((size_t next . #'(cast size_t (co-payload (nth t (-> m heap))))))
+  (func coco_deref ((coco_machine * m) (size_t t)) (out size_t)
+        (while (coco-tag-is REF (nth t (-> m heap)))
+          (let ((size_t next . #'(cast size_t (coco-payload (nth t (-> m heap))))))
             (if (== next t) (return t))
             (set t next)))
         (return t))
 
-  (func co_arity ((co_machine * m) (size_t t)) (out u32)
+  (func coco_arity ((coco_machine * m) (size_t t)) (out u32)
         (let ((u64 c . #'(nth t (-> m heap))))
-          (if (not (co-tag-is FUN c)) (return 0))
-          (return ($ (nth (cast size_t (co-payload c)) (-> m functors)) arity))))
+          (if (not (coco-tag-is FUN c)) (return 0))
+          (return ($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity))))
 
   ;;; The name of an atom or of a compound's functor -- the two things that can
   ;;; head a goal. Anything else answers with a name that cannot be interned by
   ;;; the reader, so a caller that forgets to check gets a mismatch rather than
   ;;; a wrong match.
-  (func co_name_of ((co_machine * m) (size_t t)) (out u64)
+  (func coco_name_of ((coco_machine * m) (size_t t)) (out u64)
         (let ((u64 c . #'(nth t (-> m heap))))
-          (cond ((co-tag-is ATOM c) (return (co-payload c)))
-                ((co-tag-is FUN c)
-                 (return ($ (nth (cast size_t (co-payload c)) (-> m functors)) name)))
+          (cond ((coco-tag-is ATOM c) (return (coco-payload c)))
+                ((coco-tag-is FUN c)
+                 (return ($ (nth (cast size_t (coco-payload c)) (-> m functors)) name)))
                 (#t (return (cast u64 -1))))))
 
   ;;; The i'th argument cell of a compound. The caller derefs it; the cell
   ;;; itself is usually a REF pointing at wherever the argument really lives,
-  ;;; because `co_copy' fills arguments in after it has reserved their slots.
-  (func co_arg ((co_machine * m) (size_t t) (u32 i)) (out size_t)
+  ;;; because `coco_copy' fills arguments in after it has reserved their slots.
+  (func coco_arg ((coco_machine * m) (size_t t) (u32 i)) (out size_t)
         (return (+ t (+ (cast size_t i) 1))))
 
-  (func co_is_callable ((co_machine * m) (size_t t)) (out int)
+  (func coco_is_callable ((coco_machine * m) (size_t t)) (out int)
         (let ((u64 c . #'(nth t (-> m heap))))
-          (return (? (or (co-tag-is ATOM c) (co-tag-is FUN c)) 1 0))))
+          (return (? (or (coco-tag-is ATOM c) (coco-tag-is FUN c)) 1 0))))
 
   ;;; ---- binding and backtracking --------------------------------------
 
-  (func co_trail_push ((co_machine * m) (size_t var)) (out int)
-        (if (not (co_grow m (cast (void **) (aof (-> m trail)))
+  (func coco_trail_push ((coco_machine * m) (size_t var)) (out int)
+        (if (not (coco_grow m (cast (void **) (aof (-> m trail)))
                           (aof (-> m trail_cap)) (+ (-> m trail_len) 1)
                           (sizeof size_t)))
             (return 0))
@@ -706,65 +706,65 @@
         (set (-> m trail_len) (+ (-> m trail_len) 1))
         (return 1))
 
-  (func co_bind ((co_machine * m) (size_t var) (size_t val))
-        (set (nth var (-> m heap)) (co-cell REF val))
-        (co_trail_push m var))
+  (func coco_bind ((coco_machine * m) (size_t var) (size_t val))
+        (set (nth var (-> m heap)) (coco-cell REF val))
+        (coco_trail_push m var))
 
   ;;; Unbind everything trailed since MARK, newest first. A variable is unbound
   ;;; by pointing it back at itself -- the same encoding a fresh one has, so
   ;;; there is nothing else to reset.
-  (func co_undo_to ((co_machine * m) (size_t mark))
+  (func coco_undo_to ((coco_machine * m) (size_t mark))
         (while (> (-> m trail_len) mark)
           (set (-> m trail_len) (- (-> m trail_len) 1))
           (let ((size_t v . #'(nth (-> m trail_len) (-> m trail))))
-            (set (nth v (-> m heap)) (co-cell REF v)))))
+            (set (nth v (-> m heap)) (coco-cell REF v)))))
 
   ;;; Recursive, and that is safe: this recurses over the DEPTH of a term and
   ;;; runs to completion inside one resolution step. The resolution loop itself
   ;;; is iterative -- see solve.cicili -- because that is the one that has to
   ;;; be suspendable.
-  (func co_unify ((co_machine * m) (size_t a) (size_t b)) (out int)
-        (set a (co_deref m a))
-        (set b (co_deref m b))
+  (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int)
+        (set a (coco_deref m a))
+        (set b (coco_deref m b))
         (if (== a b) (return 1))
         (let ((u64 ca . #'(nth a (-> m heap)))
               (u64 cb . #'(nth b (-> m heap))))
           ;; an unbound variable on either side: bind the younger to the older,
           ;; so a binding never points forward into heap that a later undo may
           ;; drop
-          (if (co-tag-is REF ca)
-              (block (if (co-tag-is REF cb)
-                         (block (if (> a b) (co_bind m a b) (co_bind m b a))
+          (if (coco-tag-is REF ca)
+              (block (if (coco-tag-is REF cb)
+                         (block (if (> a b) (coco_bind m a b) (coco_bind m b a))
                                 (return 1)))
-                     (co_bind m a b)
+                     (coco_bind m a b)
                      (return 1)))
-          (if (co-tag-is REF cb) (block (co_bind m b a) (return 1)))
+          (if (coco-tag-is REF cb) (block (coco_bind m b a) (return 1)))
           ;; two non-variables: same shape, or no
-          (if (!= (co-tag ca) (co-tag cb)) (return 0))
-          (cond ((co-tag-is ATOM ca) (return (? (== ca cb) 1 0)))
-                ((co-tag-is INT ca)  (return (? (== ca cb) 1 0)))
-                ((co-tag-is FLT ca)
-                 (return (? (== (nth (cast size_t (co-payload ca)) (-> m floats))
-                                (nth (cast size_t (co-payload cb)) (-> m floats)))
+          (if (!= (coco-tag ca) (coco-tag cb)) (return 0))
+          (cond ((coco-tag-is ATOM ca) (return (? (== ca cb) 1 0)))
+                ((coco-tag-is INT ca)  (return (? (== ca cb) 1 0)))
+                ((coco-tag-is FLT ca)
+                 (return (? (== (nth (cast size_t (coco-payload ca)) (-> m floats))
+                                (nth (cast size_t (coco-payload cb)) (-> m floats)))
                             1 0)))
-                ((co-tag-is FUN ca)
-                 (if (!= (co-payload ca) (co-payload cb)) (return 0))
-                 (let ((u32 n . #'(co_arity m a)))
+                ((coco-tag-is FUN ca)
+                 (if (!= (coco-payload ca) (coco-payload cb)) (return 0))
+                 (let ((u32 n . #'(coco_arity m a)))
                    (for ((u32 i . 0)) (< i n) ((++ i))
-                     (if (not (co_unify m (co_arg m a i) (co_arg m b i)))
+                     (if (not (coco_unify m (coco_arg m a i) (coco_arg m b i)))
                          (return 0)))
                    (return 1)))
                 (#t (return 0)))))
 
   ;;; ---- copying -------------------------------------------------------
 
-  (func co_varmap_get ((co_varmap * vm) (size_t from) (size_t * out_to)) (out int)
+  (func coco_varmap_get ((coco_varmap * vm) (size_t from) (size_t * out_to)) (out int)
         (for ((size_t i . 0)) (< i (-> vm len)) ((++ i))
           (if (== (nth i (-> vm from)) from)
               (block (set (cof out_to) (nth i (-> vm to))) (return 1))))
         (return 0))
 
-  (func co_varmap_put ((co_varmap * vm) (size_t from) (size_t to)) (out int)
+  (func coco_varmap_put ((coco_varmap * vm) (size_t from) (size_t to)) (out int)
         (if (>= (-> vm len) (-> vm cap))
             (let ((size_t ncap . #'(? (== (-> vm cap) 0) 16 (* (-> vm cap) 2)))
                   (size_t * nf) (size_t * nt))
@@ -786,103 +786,103 @@
   ;;; where it lands. The header is pushed, `arity' fresh variables are pushed
   ;;; behind it to hold the places, each argument is then copied wherever it
   ;;; falls, and the reserved cell is pointed at it. That is ordinary structure
-  ;;; sharing and `co_deref' already sees through it.
+  ;;; sharing and `coco_deref' already sees through it.
   ;;;
   ;;; NOTHING CACHES `m->heap'. Every push may realloc it, so every access goes
   ;;; through the machine. A local copy of that pointer is a use-after-free
   ;;; waiting for the heap to double.
   (static)
-  (func co_copy_rec ((co_machine * m) (size_t t) (co_varmap * vm)) (out size_t)
-        (set t (co_deref m t))
+  (func coco_copy_rec ((coco_machine * m) (size_t t) (coco_varmap * vm)) (out size_t)
+        (set t (coco_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
-            ((co-tag-is REF c)
+            ((coco-tag-is REF c)
              ;; unbound: one fresh variable per distinct original
              (let ((size_t to . 0))
-               (if (co_varmap_get vm t (aof to)) (return to))
-               (set to (co_new_var m))
-               (co_varmap_put vm t to)
+               (if (coco_varmap_get vm t (aof to)) (return to))
+               (set to (coco_new_var m))
+               (coco_varmap_put vm t to)
                (return to)))
-            ((co-tag-is FUN c)
-             (let ((u32 n . #'(co_arity m t))
-                   (size_t h . #'(co_push m c))
+            ((coco-tag-is FUN c)
+             (let ((u32 n . #'(coco_arity m t))
+                   (size_t h . #'(coco_push m c))
                    (size_t base))
                (set base (+ h 1))
-               (for ((u32 i . 0)) (< i n) ((++ i)) (co_new_var m))
+               (for ((u32 i . 0)) (< i n) ((++ i)) (coco_new_var m))
                (for ((u32 i . 0)) (< i n) ((++ i))
-                 (let ((size_t a . #'(co_copy_rec m (+ t (+ (cast size_t i) 1)) vm)))
-                   (set (nth (+ base (cast size_t i)) (-> m heap)) (co-cell REF a))))
+                 (let ((size_t a . #'(coco_copy_rec m (+ t (+ (cast size_t i) 1)) vm)))
+                   (set (nth (+ base (cast size_t i)) (-> m heap)) (coco-cell REF a))))
                (return h)))
             (#t
              ;; atoms, integers and floats are their own copy -- a FLT payload
              ;; indexes a table that copying does not disturb
-             (return (co_push m c))))))
+             (return (coco_push m c))))))
 
-  (func co_varmap_free ((co_varmap * vm))
+  (func coco_varmap_free ((coco_varmap * vm))
         (free (-> vm from)) (free (-> vm to))
         (set (-> vm from) nil) (set (-> vm to) nil)
         (set (-> vm len) 0) (set (-> vm cap) 0))
 
-  (func co_copy ((co_machine * m) (size_t t)) (out size_t)
-        (let ((co_varmap vm . '{ nil nil 0 0 })
+  (func coco_copy ((coco_machine * m) (size_t t)) (out size_t)
+        (let ((coco_varmap vm . '{ nil nil 0 0 })
               (size_t r))
-          (set r (co_copy_rec m t (aof vm)))
-          (co_varmap_free (aof vm))
+          (set r (coco_copy_rec m t (aof vm)))
+          (coco_varmap_free (aof vm))
           (return r)))
 
   ;;; ---- ordering -------------------------------------------------------
 
   ;;; The standard order of terms: Var < Number < Atom < Compound, compounds by
-  ;;; arity then name then arguments left to right. `co_compare' is what
+  ;;; arity then name then arguments left to right. `coco_compare' is what
   ;;; `@<', `==' and `sort' are built on.
   (static)
-  (func co_order_class ((co_machine * m) (size_t t)) (out int)
+  (func coco_order_class ((coco_machine * m) (size_t t)) (out int)
         (let ((u64 c . #'(nth t (-> m heap))))
-          (cond ((co-tag-is REF c)  (return 0))
-                ((co-tag-is FLT c)  (return 1))
-                ((co-tag-is INT c)  (return 1))
-                ((co-tag-is ATOM c) (return 2))
+          (cond ((coco-tag-is REF c)  (return 0))
+                ((coco-tag-is FLT c)  (return 1))
+                ((coco-tag-is INT c)  (return 1))
+                ((coco-tag-is ATOM c) (return 2))
                 (#t              (return 3)))))
 
   (static)
-  (func co_num_value ((co_machine * m) (size_t t)) (out double)
+  (func coco_num_value ((coco_machine * m) (size_t t)) (out double)
         (let ((u64 c . #'(nth t (-> m heap))))
-          (if (co-tag-is FLT c) (return (nth (cast size_t (co-payload c)) (-> m floats))))
-          (return (cast double (co-signed-payload c)))))
+          (if (coco-tag-is FLT c) (return (nth (cast size_t (coco-payload c)) (-> m floats))))
+          (return (cast double (coco-signed-payload c)))))
 
-  (func co_compare ((co_machine * m) (size_t a) (size_t b)) (out int)
-        (set a (co_deref m a))
-        (set b (co_deref m b))
+  (func coco_compare ((coco_machine * m) (size_t a) (size_t b)) (out int)
+        (set a (coco_deref m a))
+        (set b (coco_deref m b))
         (if (== a b) (return 0))
-        (let ((int ka . #'(co_order_class m a))
-              (int kb . #'(co_order_class m b)))
+        (let ((int ka . #'(coco_order_class m a))
+              (int kb . #'(coco_order_class m b)))
           (if (!= ka kb) (return (? (< ka kb) -1 1)))
           (cond
             ((== ka 0) (return (? (< a b) -1 (? (> a b) 1 0))))
             ((== ka 1)
-             (let ((double x . #'(co_num_value m a))
-                   (double y . #'(co_num_value m b)))
+             (let ((double x . #'(coco_num_value m a))
+                   (double y . #'(coco_num_value m b)))
                (if (< x y) (return -1))
                (if (> x y) (return 1))
                ;; equal as numbers, and that is not the end of it: 1 and 1.0
                ;; are different TERMS, so `1 == 1.0' must be false even though
                ;; `1 =:= 1.0' is true. The standard order puts the float first.
-               (let ((int fa . #'(? (co-tag-is FLT (nth a (-> m heap))) 1 0))
-                     (int fb . #'(? (co-tag-is FLT (nth b (-> m heap))) 1 0)))
+               (let ((int fa . #'(? (coco-tag-is FLT (nth a (-> m heap))) 1 0))
+                     (int fb . #'(? (coco-tag-is FLT (nth b (-> m heap))) 1 0)))
                  (if (== fa fb) (return 0))
                  (return (? fa -1 1)))))
             ((== ka 2)
-             (return (strcmp (co_atom_name m (co_name_of m a))
-                             (co_atom_name m (co_name_of m b)))))
+             (return (strcmp (coco_atom_name m (coco_name_of m a))
+                             (coco_atom_name m (coco_name_of m b)))))
             (#t
-             (let ((u32 na . #'(co_arity m a))
-                   (u32 nb . #'(co_arity m b)))
+             (let ((u32 na . #'(coco_arity m a))
+                   (u32 nb . #'(coco_arity m b)))
                (if (!= na nb) (return (? (< na nb) -1 1)))
-               (let ((int c . #'(strcmp (co_atom_name m (co_name_of m a))
-                                        (co_atom_name m (co_name_of m b)))))
+               (let ((int c . #'(strcmp (coco_atom_name m (coco_name_of m a))
+                                        (coco_atom_name m (coco_name_of m b)))))
                  (if (!= c 0) (return c)))
                (for ((u32 i . 0)) (< i na) ((++ i))
-                 (let ((int c . #'(co_compare m (co_arg m a i) (co_arg m b i))))
+                 (let ((int c . #'(coco_compare m (coco_arg m a i) (coco_arg m b i))))
                    (if (!= c 0) (return c))))
                (return 0))))))
 

@@ -7,7 +7,7 @@
 ;;; a goal applied to the elements of a list -- `call(Goal, X)' and nothing
 ;;; else -- so every one of them is two or three clauses and belongs in the
 ;;; Coco half. A module that is only clauses is a module the seam already
-;;; supports: `co-defmodule' takes `nil' for the dispatcher.
+;;; supports: `coco-defmodule' takes `nil' for the dispatcher.
 ;;;
 ;;; WHAT IT NEEDED FROM THE ENGINE WAS call/N, which the Lists library added
 ;;; for `max_member/3'. Without it not one predicate here could be written.
@@ -100,7 +100,7 @@
 (generic decl-apply
   ()
 
-  (decl) (func co_apply_module () (out int))
+  (decl) (func coco_apply_module () (out int))
 
   ) ; decl-apply
 
@@ -108,9 +108,9 @@
 (generic impl-apply
   ()
 
-  ;;; No dispatcher: there is no C half. `co-defmodule' takes `nil' for it, and
+  ;;; No dispatcher: there is no C half. `coco-defmodule' takes `nil' for it, and
   ;;; the seam has carried a clauses-only module since test/module.cicili
   ;;; proved it.
-  (co-defmodule co_apply_module "apply" nil *apply-prolog*)
+  (coco-defmodule coco_apply_module "apply" nil *apply-prolog*)
 
   ) ; impl-apply

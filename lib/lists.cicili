@@ -38,14 +38,14 @@
 ;;;; The C half
 ;;;; ------------------------------------------------------------------
 (DEFPARAMETER *lists-predicates*
-  '(("msort"      2 co_l_msort)
-    ("sort"       2 co_l_sort)
-    ("sort"       4 co_l_sort4)
+  '(("msort"      2 coco_l_msort)
+    ("sort"       2 coco_l_sort)
+    ("sort"       4 coco_l_sort4)
 
-    ("$len"       2 co_l_len)
-    ("$rev"       2 co_l_rev)
-    ("$nth0"      3 co_l_nth0)
-    ("memberchk"  2 co_l_memberchk)))
+    ("$len"       2 coco_l_len)
+    ("$rev"       2 coco_l_rev)
+    ("$nth0"      3 coco_l_nth0)
+    ("memberchk"  2 coco_l_memberchk)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The Coco half
@@ -197,8 +197,8 @@
 (generic decl-lists
   ()
 
-  ;;; Registers the module. A target calls this after `co_module_init'.
-  (decl) (func co_lists_module () (out int))
+  ;;; Registers the module. A target calls this after `coco_module_init'.
+  (decl) (func coco_lists_module () (out int))
 
   ) ; decl-lists
 
@@ -208,7 +208,7 @@
 
   ;;; ---- sorting --------------------------------------------------------
 
-  ;;; The standard order of terms, through `co_compare', which is the same
+  ;;; The standard order of terms, through `coco_compare', which is the same
   ;;; comparison `compare/3', `@<' and the clause store already use -- so a
   ;;; sorted list here and a `@<' test in a program cannot disagree.
   ;;;
@@ -217,40 +217,40 @@
   ;;; indistinguishable, so stability is unobservable. `sort/4' is another
   ;;; matter -- there the KEY is compared and the rest of the term is not --
   ;;; and that one is sorted with an insertion pass instead.
-  (static) (var co_machine * co_l_sort_machine)
+  (static) (var coco_machine * coco_l_sort_machine)
 
   (static)
-  (func co_l_cmp ((const void * a) (const void * b)) (out int)
-        (return (co_compare co_l_sort_machine
+  (func coco_l_cmp ((const void * a) (const void * b)) (out int)
+        (return (coco_compare coco_l_sort_machine
                             (cof (cast (const size_t *) a))
                             (cof (cast (const size_t *) b)))))
 
   ;;; Shared by msort/2 and sort/2: the only difference is whether elements
   ;;; that compare equal are kept.
   (static)
-  (func co_l_sort_common ((co_engine * e) (size_t g) (int dedup)) (out int)
+  (func coco_l_sort_common ((coco_engine * e) (size_t g) (int dedup)) (out int)
         (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
-          (if (not (co_m_list_array e (co_m_arg e g 0) (aof v) (aof n)))
-              (return (co_m_type_error e "list" (co_m_arg e g 0))))
-          (set co_l_sort_machine (co_m_machine e))
-          (qsort v n (sizeof size_t) co_l_cmp)
+          (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof v) (aof n)))
+              (return (coco_m_type_error e "list" (coco_m_arg e g 0))))
+          (set coco_l_sort_machine (coco_m_machine e))
+          (qsort v n (sizeof size_t) coco_l_cmp)
           (if dedup
               (let ((size_t k . 0))
                 (for ((size_t i . 0)) (< i n) ((++ i))
                   (if (or (== k 0)
-                          (!= 0 (co_compare (co_m_machine e)
+                          (!= 0 (coco_compare (coco_m_machine e)
                                             (nth (- k 1) v) (nth i v))))
                       (block (set (nth k v) (nth i v)) (set k (+ k 1)))))
                 (set n k)))
-          (set out (co_m_list e v n))
+          (set out (coco_m_list e v n))
           (free v)
-          (return (co_m_unify e (co_m_arg e g 1) out))))
+          (return (coco_m_unify e (coco_m_arg e g 1) out))))
 
-  (func co_l_msort ((co_engine * e) (size_t g)) (out int)
-        (return (co_l_sort_common e g 0)))
+  (func coco_l_msort ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_l_sort_common e g 0)))
 
-  (func co_l_sort ((co_engine * e) (size_t g)) (out int)
-        (return (co_l_sort_common e g 1)))
+  (func coco_l_sort ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_l_sort_common e g 1)))
 
   ;;; `sort(+Key, +Order, +List, -Sorted)'. Key 0 is the whole term; Key N is
   ;;; the Nth argument of it. Order is one of @< @=< @> @>= -- the two with the
@@ -261,42 +261,42 @@
   ;;; with equal keys and different bodies are distinguishable, so the order
   ;;; they arrived in is observable and SWI keeps it.
   (static)
-  (func co_l_key ((co_engine * e) (size_t t) (i64 k)) (out size_t)
-        (let ((co_machine * m . #'(co_m_machine e)))
+  (func coco_l_key ((coco_engine * e) (size_t t) (i64 k)) (out size_t)
+        (let ((coco_machine * m . #'(coco_m_machine e)))
           (if (== k 0) (return t))
-          (set t (co_deref m t))
-          (if (not (co_is_callable m t)) (return t))
-          (if (> (cast u32 k) (co_arity m t)) (return t))
-          (return (co_arg m t (cast u32 (- k 1))))))
+          (set t (coco_deref m t))
+          (if (not (coco_is_callable m t)) (return t))
+          (if (> (cast u32 k) (coco_arity m t)) (return t))
+          (return (coco_arg m t (cast u32 (- k 1))))))
 
-  (func co_l_sort4 ((co_engine * e) (size_t g)) (out int)
+  (func coco_l_sort4 ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 key . 0) (const char * order)
               (size_t * v . nil) (size_t n . 0) (size_t out . 0)
               (int descending . 0) (int keep . 0))
 
-          (if (not (co_m_int e (co_m_arg e g 0) (aof key)))
-              (return (co_m_type_error e "integer" (co_m_arg e g 0))))
-          (if (< key 0) (return (co_m_domain_error e "not_less_than_zero" (co_m_arg e g 0))))
-          (set order (co_m_atom e (co_m_arg e g 1)))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof key)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (if (< key 0) (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 0))))
+          (set order (coco_m_atom e (coco_m_arg e g 1)))
           (if (== order nil)
-              (return (co_m_domain_error e "order" (co_m_arg e g 1))))
+              (return (coco_m_domain_error e "order" (coco_m_arg e g 1))))
           (cond
             ((== 0 (strcmp order "@<"))  (block (set descending 0) (set keep 0)))
             ((== 0 (strcmp order "@=<")) (block (set descending 0) (set keep 1)))
             ((== 0 (strcmp order "@>"))  (block (set descending 1) (set keep 0)))
             ((== 0 (strcmp order "@>=")) (block (set descending 1) (set keep 1)))
-            (#t (return (co_m_domain_error e "order" (co_m_arg e g 1)))))
+            (#t (return (coco_m_domain_error e "order" (coco_m_arg e g 1)))))
 
-          (if (not (co_m_list_array e (co_m_arg e g 2) (aof v) (aof n)))
-              (return (co_m_type_error e "list" (co_m_arg e g 2))))
+          (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof v) (aof n)))
+              (return (coco_m_type_error e "list" (coco_m_arg e g 2))))
 
           ;; insertion sort: stable, and n is small in every use this has
           (for ((size_t i . 1)) (< i n) ((++ i))
             (let ((size_t x . #'(nth i v)) (size_t j . i))
               (while (> j 0)
-                (let ((int c . #'(co_compare (co_m_machine e)
-                                             (co_l_key e (nth (- j 1) v) key)
-                                             (co_l_key e x key))))
+                (let ((int c . #'(coco_compare (coco_m_machine e)
+                                             (coco_l_key e (nth (- j 1) v) key)
+                                             (coco_l_key e x key))))
                   (if descending (set c (- 0 c)))
                   ;; strictly greater, so equal keys keep their arrival order
                   (if (<= c 0) break)
@@ -308,78 +308,78 @@
               (let ((size_t k . 0))
                 (for ((size_t i . 0)) (< i n) ((++ i))
                   (if (or (== k 0)
-                          (!= 0 (co_compare (co_m_machine e)
-                                            (co_l_key e (nth (- k 1) v) key)
-                                            (co_l_key e (nth i v) key))))
+                          (!= 0 (coco_compare (coco_m_machine e)
+                                            (coco_l_key e (nth (- k 1) v) key)
+                                            (coco_l_key e (nth i v) key))))
                       (block (set (nth k v) (nth i v)) (set k (+ k 1)))))
                 (set n k)))
 
-          (set out (co_m_list e v n))
+          (set out (coco_m_list e v n))
           (free v)
-          (return (co_m_unify e (co_m_arg e g 3) out))))
+          (return (coco_m_unify e (coco_m_arg e g 3) out))))
 
   ;;; ---- the determinate walks ------------------------------------------
 
   ;;; Only for a PROPER list. A partial one is not an error here -- it is the
   ;;; signal that the clause above should try the generative path instead.
-  (func co_l_len ((co_engine * e) (size_t g)) (out int)
+  (func coco_l_len ((coco_engine * e) (size_t g)) (out int)
         (let ((size_t n . 0))
-          (if (not (co_m_list_length e (co_m_arg e g 0) (aof n))) (return 0))
-          (return (co_m_unify_int e (co_m_arg e g 1) (cast i64 n)))))
+          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 n)))))
 
-  (func co_l_rev ((co_engine * e) (size_t g)) (out int)
+  (func coco_l_rev ((coco_engine * e) (size_t g)) (out int)
         (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
-          (if (not (co_m_list_array e (co_m_arg e g 0) (aof v) (aof n))) (return 0))
+          (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof v) (aof n))) (return 0))
           (for ((size_t i . 0)) (< i (/ n 2)) ((++ i))
             (let ((size_t tmp . #'(nth i v)))
               (set (nth i v) (nth (- (- n 1) i) v))
               (set (nth (- (- n 1) i) v) tmp)))
-          (set out (co_m_list e v n))
+          (set out (coco_m_list e v n))
           (free v)
-          (return (co_m_unify e (co_m_arg e g 1) out))))
+          (return (coco_m_unify e (coco_m_arg e g 1) out))))
 
   ;;; The index is already known to be a non-negative integer -- the clause
   ;;; that calls this checked -- so out of range is a plain failure.
-  (func co_l_nth0 ((co_engine * e) (size_t g)) (out int)
-        (let ((co_machine * m . #'(co_m_machine e)) (i64 want . 0) (size_t p))
-          (if (not (co_m_int e (co_m_arg e g 0) (aof want))) (return 0))
+  (func coco_l_nth0 ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (i64 want . 0) (size_t p))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof want))) (return 0))
           (if (< want 0) (return 0))
-          (set p (co_m_arg e g 1))
+          (set p (coco_m_arg e g 1))
           (while (> want 0)
-            (set p (co_deref m p))
-            (if (not (co_is_callable m p)) (return 0))
-            (if (!= (co_arity m p) 2) (return 0))
-            (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
-            (set p (co_arg m p 1))
+            (set p (coco_deref m p))
+            (if (not (coco_is_callable m p)) (return 0))
+            (if (!= (coco_arity m p) 2) (return 0))
+            (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))
+            (set p (coco_arg m p 1))
             (set want (- want 1)))
-          (set p (co_deref m p))
-          (if (not (co_is_callable m p)) (return 0))
-          (if (!= (co_arity m p) 2) (return 0))
-          (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
-          (return (co_m_unify e (co_m_arg e g 2) (co_arg m p 0)))))
+          (set p (coco_deref m p))
+          (if (not (coco_is_callable m p)) (return 0))
+          (if (!= (coco_arity m p) 2) (return 0))
+          (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 2) (coco_arg m p 0)))))
 
   ;;; UNIFIES, and keeps the first that works -- `memberchk(X, [a,b])' binds X
   ;;; to a. Every attempt that fails is wound back, because a builtin that
   ;;; fails is not a choice point and the engine winds nothing back for it.
-  (func co_l_memberchk ((co_engine * e) (size_t g)) (out int)
-        (let ((co_machine * m . #'(co_m_machine e))
-              (size_t x . #'(co_m_arg e g 0))
-              (size_t p . #'(co_m_arg e g 1)))
+  (func coco_l_memberchk ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t x . #'(coco_m_arg e g 0))
+              (size_t p . #'(coco_m_arg e g 1)))
           (while 1
-            (set p (co_deref m p))
-            (if (not (co_is_callable m p)) (return 0))
-            (if (!= (co_arity m p) 2) (return 0))
-            (if (!= 0 (strcmp (co_atom_name m (co_name_of m p)) ".")) (return 0))
-            (let ((size_t mark . #'(co_m_mark e)))
-              (if (co_m_unify e x (co_arg m p 0)) (return 1))
-              (co_m_undo e mark))
-            (set p (co_arg m p 1)))
+            (set p (coco_deref m p))
+            (if (not (coco_is_callable m p)) (return 0))
+            (if (!= (coco_arity m p) 2) (return 0))
+            (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))
+            (let ((size_t mark . #'(coco_m_mark e)))
+              (if (coco_m_unify e x (coco_arg m p 0)) (return 1))
+              (coco_m_undo e mark))
+            (set p (coco_arg m p 1)))
           (return 0)))
 
   ;;; ---- the module -----------------------------------------------------
 
-  (static) (co-emit-module-dispatch co_l_dispatch *lists-predicates*)
+  (static) (coco-emit-module-dispatch coco_l_dispatch *lists-predicates*)
 
-  (co-defmodule co_lists_module "lists" co_l_dispatch *lists-prolog*)
+  (coco-defmodule coco_lists_module "lists" coco_l_dispatch *lists-prolog*)
 
   ) ; impl-lists

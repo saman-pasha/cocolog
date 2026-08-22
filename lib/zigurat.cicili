@@ -81,7 +81,7 @@
                   (out zg_conn *))
      (decl) (func zg_close ((zg_conn * c)))
      ;; Dials again down the same connection object, so everything holding the
-     ;; pointer -- a co_zg, above all -- stays valid across the recovery.
+     ;; pointer -- a coco_zg, above all -- stays valid across the recovery.
      (decl) (func zg_reopen ((zg_conn * c) (const char * host)
                              (const char * service) (int timeout_seconds))
                   (out int))

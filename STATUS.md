@@ -56,7 +56,7 @@ machine get finished by whichever worker reached it first.
 
 **And "gone" is not quite proof the first time you see it.** A worker gives up
 only after the machine has been out of sight *continuously* for
-`CO_GONE_CONFIRM` polls — and waits far longer for one it has never seen at all,
+`COCO_GONE_CONFIRM` polls — and waits far longer for one it has never seen at all,
 because absence before the first sighting means "not created yet". That is what
 lets a pool of twelve be started before the work exists, which is the only way to
 start twelve without the first few finishing before the last are running.
@@ -101,7 +101,7 @@ share. Four things had to change for that, and three of them were bugs.
 
 **A directive was asserted as a clause.** `:- dynamic counter/1.` in a consulted
 file was read as a term whose functor is `:-` and arity 1, and put in the store
-under a predicate called `:-`. `co_directive` handles the declarations that are
+under a predicate called `:-`. `coco_directive` handles the declarations that are
 about the store itself — `dynamic/1` in all three shapes a spec is written in
 (`a/1`, `a/1, b/2`, `[a/1, b/2]`), `discontiguous/1` parsed and deliberately
 ignored — and REFUSES anything else by name rather than storing it. Directives
@@ -199,7 +199,7 @@ tabling, foreign-interface and string families, and that is stated in
 MODULES.md rather than left to be discovered.
 
 `findall/3` had to be an ENGINE service — it runs a goal to exhaustion and a
-module cannot see the engine — so `co_engine_findall` starts a nested engine on
+module cannot see the engine — so `coco_engine_findall` starts a nested engine on
 the same machine and store. **Its solutions travel through the store and not
 the heap**, because backtracking truncates the heap to the choice point's mark
 and a copy made there during the search is gone by the time the search ends.
@@ -214,7 +214,7 @@ solution left its bindings on the trail — a predicate's final clause drops its
 own choice point, so there was no frame left to backtrack through and undo
 them. `findall(X, p(X,Y), L)` came back with Y still bound to whatever the last
 solution made it, which is invisible until something reuses Y and then sees one
-solution where there were four. `co_engine_findall` puts the machine back as it
+solution where there were four. `coco_engine_findall` puts the machine back as it
 was before building the answer, which also reclaims everything the search
 built.
 
@@ -270,7 +270,7 @@ rule as twenty golden cases and seven round-trips, because a writer that agrees
 with SWI and no longer reads back would be a worse writer.
 
 One real bug came out of it and is worth remembering: routing the operator
-through `co_write_atom` quoted the comma, so `a:-b,c` became `a:-b','c`, which
+through `coco_write_atom` quoted the comma, so `a:-b,c` became `a:-b','c`, which
 reads back as something else entirely. The comma is the only operator in the
 table that gets quoted, and it is now written directly.
 
@@ -309,7 +309,7 @@ cannot change that table, so it adds a second one consulted first — and an
 entry there with priority 0 hides the built-in of the same name, which is how
 `op(0, xfx, =)` takes one away.
 
-**`:- op(...)` is handled by `co_directive` and not by the engine**, because a
+**`:- op(...)` is handled by `coco_directive` and not by the engine**, because a
 declaration has to take effect for the *rest of the file being read*. A
 directive dealt with after the whole file was parsed would be too late to
 matter. That is why `lib/kb.cicili`, which is compiled below the engine and
@@ -325,7 +325,7 @@ and the predicate looked empty. Measured, not reasoned about — a fresh process
 answered `false.` to `rule(X)` for two clauses that were plainly there.
 
 Clauses are stored functionally now — `rule(===>(a,b))` — through
-`co_write_storable`, so they need no operator table at all and read the same in
+`coco_write_storable`, so they need no operator table at all and read the same in
 every process for ever. `listing` still shows operators, because that is for a
 person; `test/shared.cicili` proves the cross-process case.
 
@@ -378,7 +378,7 @@ an atom when it stands as an operand.
 * **`consult` asserts, it does not replace.** Consult the same file twice and
   every proof answers everything twice; `cocolog forget` is how a knowledge base
   is emptied.
-* **A directive is not run as a goal.** `co_directive` handles `dynamic/1` and
+* **A directive is not run as a goal.** `coco_directive` handles `dynamic/1` and
   ignores `discontiguous/1`; anything else in a consulted file is an error
   naming what it was. `:- initialization(main).` would want an engine, and the
   store is a layer below the engine — the file that would have to call into

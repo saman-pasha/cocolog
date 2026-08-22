@@ -54,11 +54,11 @@
 
   ;; Counts the solutions of GOAL, up to a limit so a runaway program fails the
   ;; test instead of hanging it. -1 means the engine reported an error.
-  (func count ((co_engine * e) (const char * goal) (int limit)) (out int)
+  (func count ((coco_engine * e) (const char * goal) (int limit)) (out int)
         (let ((int n . 0) (int rc . 1))
-          (if (not (co_engine_ask_text e goal)) (return -1))
+          (if (not (coco_engine_ask_text e goal)) (return -1))
           (while 1
-            (set rc (co_engine_next e))
+            (set rc (coco_engine_next e))
             (if (== rc -1) (return -1))
             (if (== rc 0) break)
             (set n (+ n 1))
@@ -68,31 +68,31 @@
   ;; The first solution's binding for the first variable of GOAL, written out.
   ;; The reader keeps the variable names of what it just read, which is the
   ;; only reason this can say "X" rather than a cell number.
-  (func first_binding ((co_engine * e) (const char * goal) (char * out) (size_t cap))
+  (func first_binding ((coco_engine * e) (const char * goal) (char * out) (size_t cap))
         (out int)
-        (let ((co_reader r) (size_t t) (int rc))
+        (let ((coco_reader r) (size_t t) (int rc))
           (set (nth 0 out) (cast char 0))
-          (co_reader_init (aof r) ($ (cof e) m) goal)
-          (if (not (co_read_goal (aof r) (aof t)))
-              (block (co_reader_free (aof r)) (return 0)))
-          (if (== ($ r nvars) 0) (block (co_reader_free (aof r)) (return 0)))
-          (co_engine_ask e t)
-          (set rc (co_engine_next e))
+          (coco_reader_init (aof r) ($ (cof e) m) goal)
+          (if (not (coco_read_goal (aof r) (aof t)))
+              (block (coco_reader_free (aof r)) (return 0)))
+          (if (== ($ r nvars) 0) (block (coco_reader_free (aof r)) (return 0)))
+          (coco_engine_ask e t)
+          (set rc (coco_engine_next e))
           (if (== rc 1)
-              (let ((co_strbuf b))
-                (co_sb_init (aof b))
-                (co_write_term ($ (cof e) m) (aof b) (nth 0 ($ r var_cells)) 0 0)
+              (let ((coco_strbuf b))
+                (coco_sb_init (aof b))
+                (coco_write_term ($ (cof e) m) (aof b) (nth 0 ($ r var_cells)) 0 0)
                 (snprintf out cap "%s" (? (== ($ b s) nil) "" ($ b s)))
-                (co_sb_free (aof b))))
-          (co_reader_free (aof r))
+                (coco_sb_free (aof b))))
+          (coco_reader_free (aof r))
           (return (? (== rc 1) 1 0))))
 
   (func main ()
-    (let ((co_machine m) (co_store st) (co_engine e) (char err [256]) (char buf [256])
+    (let ((coco_machine m) (coco_store st) (coco_engine e) (char err [256]) (char buf [256])
           (int clauses . 0))
-      (co_machine_init (aof m))
-      (co_store_init (aof st))
-      (co_engine_init (aof e) (aof m) (aof st))
+      (coco_machine_init (aof m))
+      (coco_store_init (aof st))
+      (coco_engine_init (aof e) (aof m) (aof st))
       ;; a runaway program stops rather than spinning; every goal below is far
       ;; inside this
       (set ($ e max_steps) 20000000)
@@ -100,28 +100,28 @@
       ;; A Cicili string is raw -- a newline in one reaches C as a newline
       ;; inside a literal, which C does not allow -- so the program is
       ;; consulted a few clauses at a time rather than as one block of text.
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "p(1). p(2). p(3). q(X) :- p(X), X > 1. first(X) :- p(X), !."
         err (sizeof err))))
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
         err (sizeof err))))
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
         err (sizeof err))))
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "append([],L,L). append([H|T],L,[H|R]) :- append(T,L,R)."
         err (sizeof err))))
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "nrev([],[]). nrev([H|T],R) :- nrev(T,RT), append(RT,[H],R)."
         err (sizeof err))))
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "len([],0). len([_|T],N) :- len(T,M), N is M + 1."
         err (sizeof err))))
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "count(0) :- !. count(N) :- N > 0, M is N - 1, count(M)."
         err (sizeof err))))
-      (set clauses (+ clauses (co_consult (aof st) (aof m)
+      (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "member(X,[X|_]). member(X,[_|T]) :- member(X,T)."
         err (sizeof err))))
       (check "consulted the program" (cast llong clauses) 22)
@@ -250,31 +250,31 @@
       ;; against all three shapes a spec is written in.
       (let ((char derr [256]))
         (check "a directive is applied and is not a clause"
-               (cast llong (co_consult (aof st) (aof m)
+               (cast llong (coco_consult (aof st) (aof m)
                                        ":- dynamic d1/1. d1(x). d1(y)."
                                        derr (sizeof derr))) 2)
-        (let ((size_t pi . #'(co_pred_find (aof st) (co_intern (aof m) "d1") 1)))
+        (let ((size_t pi . #'(coco_pred_find (aof st) (coco_intern (aof m) "d1") 1)))
           (check "and the predicate is marked dynamic"
                  (cast llong (? (< pi ($ st npreds))
                                 ($ (nth pi ($ st preds)) dynamic) 0)) 1))
 
         (check "a conjunction of indicators declares both"
-               (cast llong (co_consult (aof st) (aof m)
+               (cast llong (coco_consult (aof st) (aof m)
                                        ":- dynamic d2/0, d3/2."
                                        derr (sizeof derr))) 0)
         (check "the first of them"
-               (cast llong (< (co_pred_find (aof st) (co_intern (aof m) "d2") 0)
+               (cast llong (< (coco_pred_find (aof st) (coco_intern (aof m) "d2") 0)
                               ($ st npreds))) 1)
         (check "the second of them"
-               (cast llong (< (co_pred_find (aof st) (co_intern (aof m) "d3") 2)
+               (cast llong (< (coco_pred_find (aof st) (coco_intern (aof m) "d3") 2)
                               ($ st npreds))) 1)
 
         (check "a list of indicators does too"
-               (cast llong (co_consult (aof st) (aof m)
+               (cast llong (coco_consult (aof st) (aof m)
                                        ":- dynamic [d4/1, d5/3]."
                                        derr (sizeof derr))) 0)
         (check "and declares what is in the list"
-               (cast llong (< (co_pred_find (aof st) (co_intern (aof m) "d5") 3)
+               (cast llong (< (coco_pred_find (aof st) (coco_intern (aof m) "d5") 3)
                               ($ st npreds))) 1)
 
         ;; declaring a predicate is how a program says it exists: it has no
@@ -285,18 +285,18 @@
         ;; `discontiguous' is parsed and deliberately does nothing: cocolog
         ;; keeps a predicate's clauses in one list wherever they were written
         (check "discontiguous is accepted and ignored"
-               (cast llong (co_consult (aof st) (aof m) ":- discontiguous d6/1."
+               (cast llong (coco_consult (aof st) (aof m) ":- discontiguous d6/1."
                                        derr (sizeof derr))) 0)
 
         ;; and a directive nobody implements is REFUSED rather than quietly
         ;; asserted as a clause whose head is `:-', which is what used to happen
         (check "an unknown directive is an error"
-               (cast llong (co_consult (aof st) (aof m) ":- module(nonesuch)."
+               (cast llong (coco_consult (aof st) (aof m) ":- module(nonesuch)."
                                        derr (sizeof derr))) -1)
 
         (check "dynamic/1 works as a goal too"
                (cast llong (count (aof e) "dynamic(d7/2)" 10)) 1)
-        (let ((size_t pi . #'(co_pred_find (aof st) (co_intern (aof m) "d7") 2)))
+        (let ((size_t pi . #'(coco_pred_find (aof st) (coco_intern (aof m) "d7") 2)))
           (check "with the same effect"
                  (cast llong (? (< pi ($ st npreds))
                                 ($ (nth pi ($ st preds)) dynamic) 0)) 1))
@@ -306,7 +306,7 @@
         ;; declared it by doing so
         (check "retracting marks a predicate dynamic"
                (cast llong (count (aof e) "assertz(d8(1)), retract(d8(1))" 10)) 1)
-        (let ((size_t pi . #'(co_pred_find (aof st) (co_intern (aof m) "d8") 1)))
+        (let ((size_t pi . #'(coco_pred_find (aof st) (coco_intern (aof m) "d8") 1)))
           (check "even though nothing declared it"
                  (cast llong (? (< pi ($ st npreds))
                                 ($ (nth pi ($ st preds)) dynamic) 0)) 1))
@@ -333,7 +333,7 @@
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)
 
       (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
-      (co_engine_free (aof e))
-      (co_store_free (aof st))
-      (co_machine_free (aof m))
+      (coco_engine_free (aof e))
+      (coco_store_free (aof st))
+      (coco_machine_free (aof m))
       (return (? (== failures 0) 0 1)))))

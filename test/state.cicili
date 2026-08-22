@@ -47,43 +47,43 @@
   ;; The family tree both machines are given. Loaded into whichever store is
   ;; passed, so the resumed machine reads the same knowledge base the frozen
   ;; one was reading -- which is exactly what a shared database gives you.
-  (func load_kb ((co_store * st) (co_machine * m)) (out int)
+  (func load_kb ((coco_store * st) (coco_machine * m)) (out int)
         (let ((char err [256]) (int n . 0))
-          (set n (+ n (co_consult st m
+          (set n (+ n (coco_consult st m
             "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
             err (sizeof err))))
-          (set n (+ n (co_consult st m
+          (set n (+ n (coco_consult st m
             "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
             err (sizeof err))))
           (return n)))
 
   ;; Writes the current binding of the query's first variable into OUT.
-  (func binding_of ((co_engine * e) (size_t cell) (char * out) (size_t cap))
-        (let ((co_strbuf b))
-          (co_sb_init (aof b))
-          (co_write_term ($ (cof e) m) (aof b) cell 0 0)
+  (func binding_of ((coco_engine * e) (size_t cell) (char * out) (size_t cap))
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_write_term ($ (cof e) m) (aof b) cell 0 0)
           (snprintf out cap "%s" (? (== ($ b s) nil) "" ($ b s)))
-          (co_sb_free (aof b))))
+          (coco_sb_free (aof b))))
 
   (func main ()
-    (let ((co_machine m) (co_store st) (co_engine e)
-          (co_strbuf frozen) (char buf [256]) (char first [256])
+    (let ((coco_machine m) (coco_store st) (coco_engine e)
+          (coco_strbuf frozen) (char buf [256]) (char first [256])
           (size_t xcell))
-      (co_machine_init (aof m))
-      (co_store_init (aof st))
-      (co_engine_init (aof e) (aof m) (aof st))
+      (coco_machine_init (aof m))
+      (coco_store_init (aof st))
+      (coco_engine_init (aof e) (aof m) (aof st))
       (set ($ e max_steps) 10000000)
 
       (check "knowledge base loaded" (cast llong (load_kb (aof st) (aof m))) 7)
 
       ;; ---- run until one solution, then stop --------------------------
-      (let ((co_reader r) (size_t g) (int rc))
-        (co_reader_init (aof r) (aof m) "ancestor(tom, X)")
-        (co_read_goal (aof r) (aof g))
+      (let ((coco_reader r) (size_t g) (int rc))
+        (coco_reader_init (aof r) (aof m) "ancestor(tom, X)")
+        (coco_read_goal (aof r) (aof g))
         (set xcell (nth 0 ($ r var_cells)))
-        (co_reader_free (aof r))
-        (co_engine_ask (aof e) g)
-        (set rc (co_engine_next (aof e)))
+        (coco_reader_free (aof r))
+        (coco_engine_ask (aof e) g)
+        (set rc (coco_engine_next (aof e)))
         (check "the first solution came" (cast llong rc) 1)
         (binding_of (aof e) xcell first (sizeof first))
         (check_str "and it is the first child" first "bob"))
@@ -94,27 +94,27 @@
              (cast llong (> ($ e nchoices) 0)) 1)
 
       ;; ---- freeze ------------------------------------------------------
-      (co_sb_init (aof frozen))
-      (check "froze" (cast llong (co_freeze (aof e) (aof frozen))) 1)
+      (coco_sb_init (aof frozen))
+      (check "froze" (cast llong (coco_freeze (aof e) (aof frozen))) 1)
       (check "the frozen form is text" (cast llong (> ($ frozen len) 0)) 1)
       (printf "     frozen machine is %lu bytes\n" (cast ulong ($ frozen len)))
 
       ;; Keep a copy, then destroy everything the first machine had. Nothing
       ;; below can accidentally read the original: it is freed.
       (let ((char * blob . #'(strdup ($ frozen s))))
-        (co_sb_free (aof frozen))
-        (co_engine_free (aof e))
-        (co_store_free (aof st))
-        (co_machine_free (aof m))
+        (coco_sb_free (aof frozen))
+        (coco_engine_free (aof e))
+        (coco_store_free (aof st))
+        (coco_machine_free (aof m))
 
         ;; ---- thaw into a machine that never saw the query ---------------
-        (let ((co_machine m2) (co_store st2) (co_engine e2)
+        (let ((coco_machine m2) (coco_store st2) (coco_engine e2)
               (int rc) (int n . 0))
-          (co_machine_init (aof m2))
-          (co_store_init (aof st2))
-          (co_engine_init (aof e2) (aof m2) (aof st2))
+          (coco_machine_init (aof m2))
+          (coco_store_init (aof st2))
+          (coco_engine_init (aof e2) (aof m2) (aof st2))
 
-          (check "thawed" (cast llong (co_thaw (aof e2) (aof m2) (aof st2) blob)) 1)
+          (check "thawed" (cast llong (coco_thaw (aof e2) (aof m2) (aof st2) blob)) 1)
 
           ;; the knowledge base is loaded AFTER thawing, so its atoms intern
           ;; against the table the frozen heap refers to
@@ -125,46 +125,46 @@
 
           ;; ---- and now finish the proof in the second machine -----------
           (while 1
-            (set rc (co_engine_next (aof e2)))
+            (set rc (coco_engine_next (aof e2)))
             (if (!= rc 1) break)
             (set n (+ n 1))
             (if (> n 20) break))
           (check "the resumed machine found the rest" (cast llong n) 4)
           (check "and then ran out cleanly" (cast llong rc) 0)
 
-          (co_engine_free (aof e2))
-          (co_store_free (aof st2))
-          (co_machine_free (aof m2)))
+          (coco_engine_free (aof e2))
+          (coco_store_free (aof st2))
+          (coco_machine_free (aof m2)))
 
         ;; ---- a second round trip, to show the format is stable ----------
-        (let ((co_machine m3) (co_store st3) (co_engine e3) (co_strbuf again))
-          (co_machine_init (aof m3))
-          (co_store_init (aof st3))
-          (co_engine_init (aof e3) (aof m3) (aof st3))
-          (co_thaw (aof e3) (aof m3) (aof st3) blob)
+        (let ((coco_machine m3) (coco_store st3) (coco_engine e3) (coco_strbuf again))
+          (coco_machine_init (aof m3))
+          (coco_store_init (aof st3))
+          (coco_engine_init (aof e3) (aof m3) (aof st3))
+          (coco_thaw (aof e3) (aof m3) (aof st3) blob)
           (load_kb (aof st3) (aof m3))
-          (co_sb_init (aof again))
-          (co_freeze (aof e3) (aof again))
+          (coco_sb_init (aof again))
+          (coco_freeze (aof e3) (aof again))
           ;; Freezing what was just thawed must give the same text back. This
           ;; is what says the format loses nothing: any field that were not
           ;; carried would come back as a zero and show up here.
           (check_str "freeze(thaw(x)) == x" ($ again s) blob)
-          (co_sb_free (aof again))
-          (co_engine_free (aof e3))
-          (co_store_free (aof st3))
-          (co_machine_free (aof m3)))
+          (coco_sb_free (aof again))
+          (coco_engine_free (aof e3))
+          (coco_store_free (aof st3))
+          (coco_machine_free (aof m3)))
 
         ;; ---- a blob that is not one is refused, not guessed at ----------
-        (let ((co_machine m4) (co_store st4) (co_engine e4))
-          (co_machine_init (aof m4))
-          (co_store_init (aof st4))
-          (co_engine_init (aof e4) (aof m4) (aof st4))
+        (let ((coco_machine m4) (coco_store st4) (coco_engine e4))
+          (coco_machine_init (aof m4))
+          (coco_store_init (aof st4))
+          (coco_engine_init (aof e4) (aof m4) (aof st4))
           (check "rubbish is refused"
-                 (cast llong (co_thaw (aof e4) (aof m4) (aof st4) "not a machine")) 0)
+                 (cast llong (coco_thaw (aof e4) (aof m4) (aof st4) "not a machine")) 0)
           (check "and it says so" (cast llong (> (strlen ($ e4 err)) 0)) 1)
-          (co_engine_free (aof e4))
-          (co_store_free (aof st4))
-          (co_machine_free (aof m4)))
+          (coco_engine_free (aof e4))
+          (coco_store_free (aof st4))
+          (coco_machine_free (aof m4)))
 
         (free blob))
 
@@ -176,42 +176,42 @@
       ;; term, which the heap serialiser already carries. If that were not so
       ;; a machine could be suspended inside a catch and come back without it,
       ;; and the throw would escape to the top level instead of being caught.
-      (let ((co_machine m5) (co_store st5) (co_engine e5)
-            (co_strbuf f5) (char err5 [256]) (char * blob5 . nil))
-        (co_machine_init (aof m5))
-        (co_store_init (aof st5))
-        (co_engine_init (aof e5) (aof m5) (aof st5))
-        (co_consult (aof st5) (aof m5)
+      (let ((coco_machine m5) (coco_store st5) (coco_engine e5)
+            (coco_strbuf f5) (char err5 [256]) (char * blob5 . nil))
+        (coco_machine_init (aof m5))
+        (coco_store_init (aof st5))
+        (coco_engine_init (aof e5) (aof m5) (aof st5))
+        (coco_consult (aof st5) (aof m5)
                     "p(1). p(2). p(3). g(R) :- catch((p(X), X > 2, throw(got(X))), got(Y), R = caught(Y))."
                     err5 (sizeof err5))
         ;; a budget small enough to stop it part way through the catch
         (set ($ e5 max_steps) 6)
-        (co_engine_ask_text (aof e5) "g(R)")
+        (coco_engine_ask_text (aof e5) "g(R)")
         (check "it ran out of budget inside the catch"
-               (cast llong (co_engine_next (aof e5))) -1)
+               (cast llong (coco_engine_next (aof e5))) -1)
 
-        (co_sb_init (aof f5))
-        (check "froze from inside a catch" (cast llong (co_freeze (aof e5) (aof f5))) 1)
+        (coco_sb_init (aof f5))
+        (check "froze from inside a catch" (cast llong (coco_freeze (aof e5) (aof f5))) 1)
         (set blob5 (strdup ($ f5 s)))
-        (co_sb_free (aof f5))
-        (co_engine_free (aof e5))
-        (co_store_free (aof st5))
-        (co_machine_free (aof m5))
+        (coco_sb_free (aof f5))
+        (coco_engine_free (aof e5))
+        (coco_store_free (aof st5))
+        (coco_machine_free (aof m5))
 
-        (let ((co_machine m6) (co_store st6) (co_engine e6) (char err6 [256]))
-          (co_machine_init (aof m6))
-          (co_store_init (aof st6))
-          (co_engine_init (aof e6) (aof m6) (aof st6))
-          (check "thawed it" (cast llong (co_thaw (aof e6) (aof m6) (aof st6) blob5)) 1)
-          (co_consult (aof st6) (aof m6)
+        (let ((coco_machine m6) (coco_store st6) (coco_engine e6) (char err6 [256]))
+          (coco_machine_init (aof m6))
+          (coco_store_init (aof st6))
+          (coco_engine_init (aof e6) (aof m6) (aof st6))
+          (check "thawed it" (cast llong (coco_thaw (aof e6) (aof m6) (aof st6) blob5)) 1)
+          (coco_consult (aof st6) (aof m6)
                       "p(1). p(2). p(3). g(R) :- catch((p(X), X > 2, throw(got(X))), got(Y), R = caught(Y))."
                       err6 (sizeof err6))
           (set ($ e6 max_steps) 1000)
           (check "and the throw was still caught by the frame that came back"
-                 (cast llong (co_engine_next (aof e6))) 1)
-          (co_engine_free (aof e6))
-          (co_store_free (aof st6))
-          (co_machine_free (aof m6)))
+                 (cast llong (coco_engine_next (aof e6))) 1)
+          (coco_engine_free (aof e6))
+          (coco_store_free (aof st6))
+          (coco_machine_free (aof m6)))
         (free blob5))
 
       (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)

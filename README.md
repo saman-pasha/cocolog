@@ -197,18 +197,18 @@ handwritten interpreter would repeat:
 
 * **The cell tags are one table.** `*cell-tags*` in `lib/term.cicili` emits the
   C enum, the constructors and the testers, and because the macros know the
-  numbers at expansion time `(co-tag-is REF c)` folds to a comparison against a
+  numbers at expansion time `(coco-tag-is REF c)` folds to a comparison against a
   literal.
 * **The operator table is read by both halves of the grammar.** One
   `*operators*` list emits the reader's lookups and the writer's, so they cannot
   disagree about an operator.
 * **The lexer is written in characters and compiles to numbers.** Cicili has no
-  character literal, so `(co-ch-between c "a" "z")` becomes `c >= 97 && c <= 122`
+  character literal, so `(coco-ch-between c "a" "z")` becomes `c >= 97 && c <= 122`
   at expansion time and the reader stays readable.
 * **Builtins are a table.** `*builtins*` emits the dispatcher grouped by arity,
   so a goal of arity 3 is never compared against a builtin of arity 1 and the
   dispatcher cannot fall out of step with the table.
-* **Terms can be written as terms.** `(co-term m (append (splice xs) (cons 1 nil) ?Rest))`
+* **Terms can be written as terms.** `(coco-term m (append (splice xs) (cons 1 nil) ?Rest))`
   expands to the heap construction, reservations and fixups — the dance every
   hand-written term repeats, written once.
 

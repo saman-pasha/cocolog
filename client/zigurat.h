@@ -112,7 +112,7 @@ int  zg_is_open(const zg_conn *c);
  * WHY THIS EXISTS AND zg_close/zg_open WOULD NOT DO. A server-side exception
  * ends the connection (see zg_result), and under concurrent access ZiguratIP
  * raises transient ones -- so a worker that means to keep going has to redial.
- * By then the connection has been handed to things that hold it: a co_zg
+ * By then the connection has been handed to things that hold it: a coco_zg
  * knowledge-base backend keeps the pointer it was attached with. Closing and
  * opening would give a new pointer and leave every one of those dangling, so
  * this reuses the object and only replaces the socket underneath it.

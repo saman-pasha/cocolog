@@ -76,11 +76,11 @@ that read like C and are not:
   there is no local example to copy.
 * **`break` and `continue` are bare keyword symbols** — `break`, not `(break)`.
 * **Use `bitand`, `bitor`, `xor`** — not `&`, `|`, `^`.
-* **There is no character literal.** `(co-ch-between c "a" "z")` expands to the
+* **There is no character literal.** `(coco-ch-between c "a" "z")` expands to the
   numeric comparison; write characters through the macros, or as their codes
   with a comment saying which character.
 * **A function pointer in a variable is written as a `func` clause in type
-  position.** `co_store_reset` in `lib/kb.cicili` is the worked example.
+  position.** `coco_store_reset` in `lib/kb.cicili` is the worked example.
 
 * **A string literal cannot contain a newline** — as a real newline it lands
   unescaped inside a C literal, as `\n` it is emitted as an escaped backslash.
