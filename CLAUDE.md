@@ -10,13 +10,15 @@ work in here and what will bite you.
 | repo | role | frozen at |
 |---|---|---|
 | `../cicili` | the language cocolog is written in; used at BUILD time | `00ca101` |
-| `../ZiguratIP` | the database; used at RUN time and by `make schema` | `416b86f` |
+| `../ZiguratIP` | the database; used at RUN time and by `make schema` | **unfrozen** |
 
-No edits, commits, pushes, branch changes or `git add` in either. If a cocolog
-problem traces to a bug in the engine or the transpiler, **report it with a
-diagnosis and a proposed patch — do not apply it.** Six ZiguratIP engine faults
-were found and fixed under an earlier, explicit authorisation; that
-authorisation is withdrawn. Ask before assuming a new one.
+**cicili stays frozen**: no edits, commits, pushes, branch changes or `git add`
+in it. A cocolog problem that traces to the transpiler gets a diagnosis and a
+proposed patch, not an applied one.
+
+**ZiguratIP was unfrozen** to fix the twelve-worker slowdown, and carries the
+`TCP_NODELAY` change described in STATUS.md. Rebuild it and then `make schema`
+after touching it — see the hazard below.
 
 What the freeze still allows: `make schema` compiles cocolog's OWN Parsi objects
 into `$ZIGURATIP_HOME/ld`, and the server writes to `$ZIGURATIP_HOME/data`.
@@ -46,13 +48,19 @@ turn, and what you get then is the next hazard.
 
 ## Three hazards, each of which has already cost a day
 
-**`test/groups.sh` is currently RED and it is not your change.** Twelve workers
-started before their machines can wedge the server — see STATUS.md. Two things
-follow. A hung run **strands its machines as claimed**, and the next run's
-`drop` does not clear a claimed one, so `cocolog --kb groups_test list` and drop
-what is there before believing a later result. And a wedged server answers
-NOBODY, on any knowledge base, so restart it before blaming whatever you were
-working on.
+**A slow suite means the store needs compacting.** Deleted rows are kept under
+MVCC and nothing reclaims them, so every run leaves dead rows behind and every
+later read walks past them. `test/groups.sh` went from 12 seconds to 60 — its
+own `WORKER_TIMEOUT` — purely from accumulated history, which is what made it
+look like a hang. Both concurrency suites now run `cocolog compact` in setup; if
+you are benchmarking by hand, run it yourself first, and remember it is
+store-wide rather than per knowledge base.
+
+Two things follow when a run does go wrong. A killed worker **strands its
+machine as claimed**, and `drop` does not clear a claimed one — so
+`cocolog --kb groups_test list` and drop what is there before believing a later
+result. And a wedged server answers NOBODY on any knowledge base, so restart it
+before blaming whatever you were working on.
 
 **`red: 0` does not mean the suite passed.** `zigurat`, `shared`, `groups` and
 `ruler` SKIP rather than fail when there is no server, because "no server here"

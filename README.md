@@ -305,12 +305,18 @@ what had to be fixed in ZiguratIP before any of this held.
 ## Status
 
 The interpreter, the serialisation, both transports, the schema and the
-concurrent arrangements are done and tested. `make test` ends `red: 1`: nine of
-the ten suites are green, and `test/groups.sh` — twelve interpreters at once —
-can wedge the server when its workers start before their machines exist. That
-is open, predates the grammar work, and STATUS.md says what has been ruled out.
+concurrent arrangements are done and tested; `make test` ends `red: 0`.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
+
+**Run `cocolog compact` on a schedule.** A deleted row is kept under MVCC so
+that a transaction entitled to an earlier view can still read it, and nothing
+takes it away afterwards — so saving a machine, which rewrites its row, leaves a
+dead one behind every turn. Nothing breaks; everything gets slower, because
+every read walks past all of it. Twelve interpreters took 12 seconds against an
+empty store and 60 against one a few hundred test runs had been through.
+`compact` reclaims the dead rows and leaves the live ones, so it is safe against
+a knowledge base in use.
 
 cocolog is a client and modifies neither of the projects it uses — but running
 twelve of it at once turned up four faults in ZiguratIP, from unguarded B-tree

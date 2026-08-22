@@ -20,6 +20,7 @@
 ;;;   cocolog [options] work WORKER [MACHINE]
 ;;;                                          claim machines and advance them;
 ;;;                                          with MACHINE, only that one
+;;;   cocolog [options] compact           reclaim what deleted rows still hold
 ;;;   cocolog [options] forget [NAME ARITY] empty the knowledge base, or one
 ;;;                                          predicate of it
 ;;;   cocolog [options] list                what machines are suspended
@@ -228,6 +229,7 @@
         (fprintf stderr "  cocolog [options] finish NAME\n")
         (fprintf stderr "  cocolog [options] work WORKER [MACHINE]\n")
         (fprintf stderr "  cocolog [options] forget [NAME ARITY]\n")
+        (fprintf stderr "  cocolog [options] compact\n")
         (fprintf stderr "  cocolog [options] list\n")
         (fprintf stderr "  cocolog [options] drop NAME\n\n")
         (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
@@ -593,8 +595,23 @@
   ;;; to stop. `cocolog::machine_claim_named' answers the same empty string for
   ;;; "somebody else has it" and for "there is no such machine", and those are
   ;;; opposite instructions.
+  ;;; Looks at a machine without touching it. Answers -1 for a lost connection,
+  ;;; 0 if there is no such row, 1 if there is one somebody else is holding, and
+  ;;; 2 if there is one nobody holds.
+  ;;;
+  ;;; TELLING 1 FROM 2 IS WHAT MAKES A CROWD CHEAP. A worker whose machine is
+  ;;; busy used to find that out by ATTEMPTING THE CLAIM -- a write transaction,
+  ;;; at SERIALIZABLE, committed, several times a second, per waiting worker.
+  ;;; Twelve workers over four machines meant eight of them were always doing
+  ;;; that, and the eight idle ones cost more than the four doing the work: the
+  ;;; same run took 8s with one worker per machine and 52s with three. This is a
+  ;;; read at the default level and it answers the same question.
+  ;;;
+  ;;; It is only ever a HINT. Between this answering 2 and the claim landing, a
+  ;;; partner may have taken the machine -- so the claim stays exactly as
+  ;;; atomic as it was, and a claim that comes back empty is still the truth.
   (func exists ((const char * worker) (const char * name)) (out int)
-        (let ((zg_result_t r) (char cols [256]) (int rows . 0))
+        (let ((zg_result_t r) (char cols [256]) (int rows . 0) (int free . 0))
           (if (not (zg_call db "cocolog::machine_find")) (return -1))
           (if (not (zg_write_string db name)) (return -1))
           (while 1
@@ -610,11 +627,15 @@
                  (if (not (zg_read_string db kb (sizeof kb) nil)) (return -1))
                  (if (not (zg_read_string db status (sizeof status) nil)) (return -1))
                  (if (not (zg_read_int db (aof chunks) nil)) (return -1))
+                 ;; `suspended' is what machine_claim_named looks for; anything
+                 ;; else in this column is the name of the worker holding it
+                 (if (== 0 (strcmp status "suspended")) (set free 1))
                  (set rows (+ rows 1))))
               ((== r ZG_RETURN_VALUE) (zg_skip_field db))
               (#t (block))))
           (if (not (zg_commit db)) (return -1))
-          (return (? (> rows 0) 1 0))))
+          (if (== rows 0) (return 0))
+          (return (? free 2 1))))
 
   ;;; Claims one suspended machine for this worker, atomically.
   ;;;
@@ -685,11 +706,32 @@
   ;;; for and is why the group's answers still come out in order.
   (func cmd_work ((const char * worker) (const char * wanted)) (out int)
         (let ((char name [256]) (int turns . 0) (int idle . 0) (int gone . 0)
-              (int hurt . 0) (int rc . 0) (int got . 0) (int seen . 0))
+              (int hurt . 0) (int rc . 0) (int got . 0) (int seen . 0)
+              (int look . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: work needs a database\n") (return 1)))
           (while 1
-            (set got (claim worker wanted name (sizeof name)))
+            ;; A CHEAP READ BEFORE THE EXPENSIVE WRITE, when the machine is
+            ;; named. `exists' answers whether anyone is holding it, at the
+            ;; default isolation level and without writing anything; the claim
+            ;; is only attempted when the answer is that nobody is. See the
+            ;; head of `exists' for what that is worth -- it is the difference
+            ;; between eight idle workers costing nothing and costing more than
+            ;; the four doing the work.
+            ;;
+            ;; The answer is kept, because the code below needs the same fact
+            ;; and asking twice would give back half of what this saves.
+            (set look (? (== wanted nil) 2 (exists worker wanted)))
+            (if (== look -1)
+                (block
+                 (set hurt (+ hurt 1))
+                 (if (> hurt 40)
+                     (block (fprintf stderr "%s: giving up after %d lost connection(s)\n"
+                                     worker hurt)
+                            break))
+                 (if (not (recover worker hurt)) break)
+                 continue))
+            (set got (? (== look 2) (claim worker wanted name (sizeof name)) 0))
 
             (if (== got -1)
                 (block
@@ -718,8 +760,8 @@
                  ;; asks whether every member of a group took a turn was right
                  ;; to fail.
                  ;;
-                 ;; So ask. `exists' is one call and it answers the question the
-                 ;; worker actually has.
+                 ;; So ask -- which the top of the loop has already done, and
+                 ;; `look' is the answer.
                  ;; AND ONE READING OF `GONE' IS NOT PROOF EITHER. Saving a
                  ;; machine rewrites its row -- cocolog::machine_open deletes
                  ;; the old one and inserts a replacement -- and for as long as
@@ -737,13 +779,7 @@
                  ;; plainly there for COCO_YIELD_US at a time; a run of absences
                  ;; that long means it really has been dropped.
                  (if (== wanted nil) break)
-                 (set got (exists worker wanted))
-                 (if (== got -1)
-                     (block (set hurt (+ hurt 1))
-                            (if (> hurt 40) break)
-                            (if (not (recover worker hurt)) break)
-                            continue))
-                 (if (== got 0)
+                 (if (== look 0)
                      (block (set gone (+ gone 1))
                             (if (> gone (? seen COCO_GONE_CONFIRM COCO_APPEAR_LIMIT)) break)
                             (usleep COCO_POLL_US)
@@ -831,6 +867,47 @@
   ;;; behaviour for assertz and a trap for anything that loads a program more
   ;;; than once -- a test that runs repeatedly, most of all, where it looks
   ;;; like the interpreter has started producing duplicate answers.
+  ;;; Reclaims what the store is still holding on to.
+  ;;;
+  ;;; UNDER MVCC A DELETED ROW IS NOT GONE. It is kept so that a transaction
+  ;;; entitled to an earlier view can still read it, and nothing takes it away
+  ;;; afterwards. cocolog deletes constantly without anyone asking it to: saving
+  ;;; a machine rewrites its row, so a proof that takes thirty turns leaves
+  ;;; twenty-nine dead ones behind, and `forget' followed by `consult' leaves a
+  ;;; dead copy of every clause.
+  ;;;
+  ;;; The store therefore only ever grows, and every read walks what it grew
+  ;;; past. Measured: the same twelve interpreters over the same four machines
+  ;;; took 12 seconds against an empty store and 60 against one a few hundred
+  ;;; test runs had been through. Not more data to find -- more dead data to
+  ;;; walk past.
+  ;;;
+  ;;; IT IS NOT AN EMPTYING. ZiguratIP's TRUNCATE frees only rows that are
+  ;;; committed as deleted and that no running transaction can still be entitled
+  ;;; to; live rows are untouched. So this is safe against a knowledge base in
+  ;;; use, and safe to run while other interpreters are working.
+  ;;;
+  ;;; IT IS NOT PER KNOWLEDGE BASE either, and cannot be: dead rows have no kb
+  ;;; to belong to any more. It reclaims across the whole store.
+  (func cmd_compact () (out int)
+        (let ((zg_result_t r) (char cols [256]) (i64 live . 0))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: compact needs a database\n") (return 1)))
+          (if (not (zg_call db "cocolog::compact")) (return 1))
+          (while 1
+            (if (not (zg_result db (aof r)))
+                (block (fprintf stderr "cocolog: compact: %s\n" (zg_error db)) (return 1)))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
+              ((== r ZG_RETURN_VALUE) (zg_read_long db (aof live) nil))
+              ((== r ZG_CURSOR_FETCH) break)
+              (#t (block))))
+          (if (not (zg_commit db))
+              (block (fprintf stderr "cocolog: compact: %s\n" (zg_error db)) (return 1)))
+          (printf "compacted; %lld live row(s) remain\n" (cast llong live))
+          (return 0)))
+
   (func cmd_forget ((const char * name) (int arity)) (out int)
         (let ((zg_result_t r) (char cols [256]) (i64 gone . 0))
           (if ($ opts local)
@@ -1007,6 +1084,7 @@
                (if (>= (+ i 2) argc)
                    (set rc (cmd_forget nil 0))
                  (set rc (cmd_forget (nth (+ i 1) argv) (atoi (nth (+ i 2) argv))))))
+              ((== 0 (strcmp cmd "compact")) (set rc (cmd_compact)))
               ((== 0 (strcmp cmd "list")) (set rc (cmd_list)))
               ((== 0 (strcmp cmd "drop"))
                (if (>= (+ i 1) argc)

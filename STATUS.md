@@ -5,11 +5,9 @@ again rather than to look finished.
 
 ## Done and tested
 
-`make test` ends `red: 1`: nine of the ten suites are green and `test/groups.sh`
-is not — see **Open: twelve workers can wedge**, below, which predates the
-grammar work. The database suites **skip** rather than fail when there is no
-server, because "no server here" and "the backend is wrong" are different
-findings.
+`make test` ends `red: 0`. The database suites **skip** rather than fail when
+there is no server, because "no server here" and "the backend is wrong" are
+different findings.
 
 | suite | what it establishes |
 |---|---|
@@ -364,59 +362,70 @@ there; the strict reading buys nothing and refuses terms that are perfectly
 clear. The **writer** is where the priority still matters, and it brackets such
 an atom when it stands as an operand.
 
-## Open: twelve workers can wedge, and it is not the DCG work
+## Twelve workers: what was actually wrong
 
-`test/groups.sh` is **RED**, and has been since before the grammar work went in
-— verified by stashing the whole change, rebuilding at `a0fd497` and running it
-there, where it fails identically. Everything else in `make test` is green.
+`test/groups.sh` used to fail, and the cause was none of the things it looked
+like. It was not a deadlock, not the claim, not the SERIALIZABLE gate, and not
+the DCG work it appeared alongside. Written down because every one of those
+wrong answers looked right for a while.
 
-**What happens.** Six of the twelve workers never take a turn. The client is
-blocked in `recv` waiting for the server's reply to `cocolog::machine_claim_named`,
-and the reply never comes:
+**The symptom.** Six of twelve workers never took a turn. A client blocked in
+`recv` waiting for a reply to `cocolog::machine_claim_named`; the server, asked
+for a stack, had ninety idle pool threads and three waiting on
+`Transaction::_serialize_cv`. It looked exactly like a lock nobody released.
 
-```
-#0  __libc_recv (fd=3, ...)
-#2  rd (c=..., n=1) at client/zigurat.c:180
-#4  zg_result (c=..., out=...) at client/zigurat.c:462
-#5  claim (worker="c1", wanted="state-c", ...) at cocolog.c:9415
-#6  cmd_work (worker="c1", wanted="state-c")
-```
+**It was not.** Removing `TRANSACTION ISOLATION LEVEL SERIALIZABLE` from both
+procedures made it *slower* (58s against 52s). And run without a `timeout`
+wrapper the suite always **completed** — every worker finished, every answer
+appeared. Nothing was stuck. It was slow, and `WORKER_TIMEOUT` is 60 seconds.
 
-Once that has happened the server answers nobody: a later single worker on an
-unrelated knowledge base hangs the same way until it is restarted.
+**What it really was: dead rows, never reclaimed.** Under MVCC a deleted row is
+kept so that a transaction entitled to an earlier view can still read it, and
+ZiguratIP has no background vacuum. `cocolog::machine_open` saves a machine by
+deleting its row and inserting a replacement — so one proof of thirty turns
+leaves twenty-nine dead rows, and `forget` followed by `consult` leaves a dead
+copy of every clause. The store only ever grew, and every read walked past
+everything it had grown.
 
-**What has been ruled out.** Not the goal — group `c`'s `ancestor(X,zoe)` runs
-correctly on its own, and by hand through `start`/`step` to its full four
-answers. Not the number of connections — twelve concurrent `query` clients are
-fine. Not three-way contention — three workers on one machine are fine. Not
-`--timeout`, which was the first suspect and makes no difference either way.
+The measurements that settled it:
 
-**What is left, and it is not pinned down.** It is nondeterministic. Twelve
-workers where all four machines exist first have passed every time tried;
-started worker-first — which is what the test does deliberately, so that no
-group can finish before its partners are up — the same twelve sometimes pass
-and sometimes hang. Which groups hang varies between runs: usually the ones
-created last, but a run has failed on group `a` as well, so "the machines
-created last" is a tendency and not the rule. Anything built on that tendency
-would be built on sand.
+| | wall | server CPU |
+|---|---|---|
+| twelve workers, store with nothing in it | 12s | 9.8s |
+| twelve workers, store a few hundred runs had been through | 60s | — |
+| eight consult+forget cycles, netting zero rows | — | +32KB of file, every time |
 
-Two practical consequences while it is open. A hung run **strands its machines
-as claimed** and the next run's `drop` does not clear a claimed one, so
-`cocolog --kb groups_test list` and drop what is there before believing a later
-result. And a wedged server answers **nobody**, on any knowledge base — so a
-suite run that overlaps a wedged server reports failures in `ruler` and
-elsewhere that have nothing to do with either.
+Identical work, identical live data. **`cocolog compact` took a 35MB store down
+to 263 live rows and the suite back to 16 seconds**, stable over repeated runs.
 
-**Where the fault could be.** Either cocolog's own `parsi/02-procedures.parsi`
-— `machine_claim_named` and the transaction around it — or ZiguratIP, which is
-frozen. Deciding which needs reading both, and the second cannot be changed
-without asking. It is not diagnosed further here rather than half-diagnosed and
-guessed at.
+**What was fixed, in three places:**
 
-Related and already known: **a claim has no lease**, so a worker killed while
-holding a machine strands it as claimed until `cocolog drop`. The hangs leave
-exactly that behind, which is why a failed run needs its machines dropped before
-the next one means anything.
+* **`cocolog compact`** and the `cocolog::compact` procedure behind it —
+  ZiguratIP's `TRUNCATE` reclaims settled deleted rows and leaves live ones
+  alone, so this is a vacuum rather than an emptying and is safe against a
+  knowledge base in use. `test/groups.sh` and `test/ruler.sh` now run it in
+  setup, which is why they no longer get slower every time the suite is run.
+* **`TCP_NODELAY`, at both ends** (`client/zigurat.c`, and ZiguratIP's
+  `TCPServer::run`). The protocol is small request, small reply, wait — the
+  pattern Nagle coalesces and delayed ACK stalls for 40ms at a time. One step
+  against an idle server went from 155ms to 85ms.
+* **The client buffers its reads.** `rd_u8` asked the kernel for one byte at a
+  time: one `cocolog step` measured **957 `recvfrom` and 383 `sendto`** for a few
+  dozen bytes of conversation. Reads now fill 8KB at a time, which is 957 down
+  to 383 — one per exchange.
+
+Two smaller things fell out of it. A worker waiting on a busy machine used to
+find out by **attempting the claim** — a write transaction, at SERIALIZABLE,
+committed, several times a second per waiting worker; it now asks with a read
+and only writes when the answer is that nobody holds it. And the `--timeout`
+socket option is honoured but a wedged server still leaves a client waiting,
+because the server abandons the connection without a reply.
+
+**What is still true and unfixed:** the server never uses more than one core.
+Four machines with one worker each burn 97% of a single core and no more, on a
+four-core box, because `Memory::Streams` guards the two shared file streams with
+one pair of global mutexes. That is a ceiling on the whole design rather than a
+bug, and lifting it means giving each thread its own handle on the store.
 
 ## Known limitations, by choice
 

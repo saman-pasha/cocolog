@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -51,6 +53,9 @@
  * parameters -- and anything longer than this goes straight out rather than
  * being copied in, so it never has to be large. */
 #define ZG_OUT_SIZE 1024
+/* One page of read-ahead. Bigger than any single protocol value, so the common
+ * case is one syscall per exchange rather than one per byte. */
+#define ZG_IN_SIZE  8192
 
 struct zg_conn {
   int  fd;
@@ -64,6 +69,10 @@ struct zg_conn {
   /* Outgoing bytes, held back until something wants to read. See wr(). */
   unsigned char out[ZG_OUT_SIZE];
   size_t nout;
+  /* Incoming bytes, read ahead. See rd(). `pin' is how far the protocol has
+   * consumed and `nin' how far the socket has filled. */
+  unsigned char in[ZG_IN_SIZE];
+  size_t nin, pin;
 };
 
 /* ------------------------------------------------------------------ */
@@ -160,6 +169,8 @@ int zg_serialise(zg_conn *c, const char *path, int wait_seconds)
 static int lost(zg_conn *c, const char *what, const char *detail)
 {
   if (c->fd >= 0) { close(c->fd); c->fd = -1; }
+  /* Whatever was read ahead belonged to the connection that just died. */
+  c->nin = c->pin = 0;
   give_turn(c);
   return detail ? say2(c, what, detail) : say(c, what);
 }
@@ -168,22 +179,47 @@ static int flush_out(zg_conn *c);
 
 /* Reads exactly N bytes or fails. A short read is not an error condition the
  * protocol can recover from -- every value has a known length -- so it is
- * always looped. */
+ * always looped.
+ *
+ * IT READS AHEAD, and that is not an optimisation of the tidying-up kind. The
+ * protocol is made of small values -- a result byte, a length, a field -- and
+ * rd_u8 asks for exactly one byte. Unbuffered, that is one recv syscall per
+ * byte: one `cocolog step' against an idle server measured 957 recvfrom and
+ * 383 sendto for a few dozen bytes of actual conversation, and the syscalls,
+ * not the work, were what made twelve workers take a minute.
+ *
+ * Reading ahead is safe because this end owns the socket outright: anything
+ * the server has sent is this connection's, whether or not the protocol has
+ * asked for it yet. The buffer is emptied wherever the socket is replaced --
+ * see lost() and zg_redial -- because bytes from a connection that is gone
+ * must not be read as if they came from its successor. */
 static int rd(zg_conn *c, void *buf, size_t n)
 {
   unsigned char *p = (unsigned char *)buf;
   size_t got = 0;
   if (c->fd < 0) return say(c, "the connection is closed");
-  /* Nothing may sit unsent while this end waits for an answer to it. */
-  if (!flush_out(c)) return 0;
   while (got < n) {
-    ssize_t k = recv(c->fd, p + got, n - got, 0);
-    if (k == 0) return lost(c, "the server closed the connection", NULL);
-    if (k < 0) {
-      if (errno == EINTR) continue;
-      return lost(c, "read failed", strerror(errno));
+    size_t have = c->nin - c->pin;
+    if (have > 0) {
+      size_t take = (have < n - got) ? have : n - got;
+      memcpy(p + got, c->in + c->pin, take);
+      c->pin += take;
+      got += take;
+      continue;
     }
-    got += (size_t)k;
+    /* Nothing left in hand. Nothing of ours may sit unsent while this end
+     * waits for an answer to it, so the outgoing buffer goes first. */
+    if (!flush_out(c)) return 0;
+    c->nin = c->pin = 0;
+    {
+      ssize_t k = recv(c->fd, c->in, sizeof c->in, 0);
+      if (k == 0) return lost(c, "the server closed the connection", NULL);
+      if (k < 0) {
+        if (errno == EINTR) continue;
+        return lost(c, "read failed", strerror(errno));
+      }
+      c->nin = (size_t)k;
+    }
   }
   return 1;
 }
@@ -375,6 +411,7 @@ static int dial(zg_conn *c, const char *host, const char *service,
    * and sent us round to redial. */
   give_turn(c);
   c->nout = 0;              /* a fresh socket starts with an empty request */
+  c->nin = c->pin = 0;      /* ...and with nothing read ahead from the old one */
   c->transaction_id = 0;
 
   memset(&hints, 0, sizeof hints);
@@ -393,6 +430,21 @@ static int dial(zg_conn *c, const char *host, const char *service,
   freeaddrinfo(list);
 
   if (c->fd < 0) return say2(c, "cannot connect", strerror(errno));
+
+  /* NAGLE OFF. The protocol is a conversation of small messages -- write a
+     request, wait for the reply, write the next -- which is the exact pattern
+     Nagle's algorithm was written to batch and delayed ACK was written to
+     stall. Together they hold a small write for up to 40ms waiting for either
+     more data to coalesce or an ACK that the peer is not sending because it
+     has nothing to say yet. One turn of a worker is a few dozen of these
+     exchanges, so the cost is not the 40ms; it is 40ms several times over,
+     per turn, and it is what made twelve workers take a minute to do a
+     second's work. Best effort: a server that cannot set it still works,
+     slowly. */
+  {
+    int one = 1;
+    (void)setsockopt(c->fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
+  }
 
   if (timeout_seconds > 0) {
     struct timeval tv;
