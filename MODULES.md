@@ -365,9 +365,8 @@ would merge two groups whose witnesses merely happen to unify.
 
 Nothing from the list this module set out to close. What remains are the
 families cocolog has no architecture for — streams, modules, threads, tabling,
-the foreign interface — and one reader subtlety noted in `STATUS.md`: cocolog
-reads `'-' - a` as prefix `-` applied to `-a` where SWI reads infix `-` with
-the atom `-` on the left.
+the foreign interface — and the two places `STATUS.md` records where this
+reader and SWI's are lenient about different things.
 
 
 ## The Lists library

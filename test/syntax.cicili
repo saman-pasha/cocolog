@@ -181,12 +181,25 @@
       ;; operator would be read
       (trip (aof m) "-(-)"         "- (-)")
 
-      ;; NOT `'-' - a', and it is the READER and not the writer that differs:
-      ;; cocolog reads it as prefix `-' applied to `-a' where SWI reads infix
-      ;; `-' with the atom `-' on the left. Deciding whether an atom that is a
-      ;; prefix operator is an operator or an operand, when what follows is
-      ;; itself an operator, is a disambiguation this reader does not do. It is
-      ;; written down in STATUS.md rather than hidden by leaving the case out.
+      ;; ---- an atom that is a prefix operator, and what follows it -------
+      ;;
+      ;; THE RULE IS WHETHER THE NEXT TOKEN COULD START A TERM. `- - a' is
+      ;; prefix `-' applied to `-a', because the second `-' can begin one;
+      ;; `- = a' is infix `=' with the atom `-' on its left, because `=' is
+      ;; only ever infix and begins nothing. And a QUOTED atom is never a
+      ;; prefix operator at all, which is the whole difference between
+      ;; `- - a' and `'-' - a'.
+      (stable (aof m) "- - a")
+      (stable (aof m) "- = a")
+      (stable (aof m) "- * a")
+      (stable (aof m) "'-' - a")
+      (stable (aof m) "f(-, a)")
+      (stable (aof m) "- mod a")
+      (stable (aof m) "\\+ - a")
+
+      ;; NOT the errors: where SWI refuses `- \\+ a' as an operator clash this
+      ;; reader is lenient and reads something. Leniency is the direction that
+      ;; costs nothing: it accepts terms SWI rejects and misreads none.
 
       ;; and every one of them has to read back as what it was
       (stable (aof m) "f(-)")

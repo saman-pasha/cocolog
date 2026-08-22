@@ -256,6 +256,12 @@
     (member double       fval)
     (member int          layout_before)   ; was there space before this token?
 
+    ;; Was this NAME written in quotes? A QUOTED ATOM IS NOT AN OPERATOR:
+    ;; `'-' - a' is infix `-' with the atom `-' on its left, where `- - a' is
+    ;; prefix `-' applied to `-a'. The two are the same tokens and differ only
+    ;; in this, which is why the lexer has to remember it.
+    (member int          quoted)
+
     ;; the variables of the clause being read
     (member char **      var_names)
     (member size_t *     var_cells)
@@ -691,6 +697,7 @@
   (static)
   (func co_next_token ((co_reader * r)) (out int)
         (set (-> r layout_before) (co_skip_layout r))
+        (set (-> r quoted) 0)
         (co_sb_reset (aof (-> r text)))
         (let ((int c . #'(co_peek r)))
           (cond
@@ -713,6 +720,7 @@
             ((== c (co-ch "'"))
              (if (not (co_lex_quoted r (co-ch "'"))) (return 0))
              (set (-> r tok) CO_TK_NAME)
+             (set (-> r quoted) 1)
              (return 1))
 
             ;; 34 is the double quote, written as its code: a Cicili string is
@@ -795,7 +803,19 @@
               ((== (-> r tok) CO_TK_FLOAT)  (return 1))
               ((== (-> r tok) CO_TK_VAR)    (return 1))
               ((== (-> r tok) CO_TK_STRING) (return 1))
-              ((== (-> r tok) CO_TK_NAME)   (return 1))
+              ;; A NAME USUALLY STARTS A TERM, and an operator name usually
+              ;; does too -- `- - a' is prefix `-' applied to `-a', because the
+              ;; second `-' can begin one. But an operator that is ONLY infix
+              ;; cannot: in `- = a' the `=' is not the start of anything, so
+              ;; the `-' before it is an atom and `=' is the operator between
+              ;; them. Without this the reader took `-' as a prefix operator
+              ;; applied to the atom `=' and stopped, leaving `a' unread.
+              ((== (-> r tok) CO_TK_NAME)
+               (let ((int p . 0) (int t . 0))
+                 (if (and (co_op_infix ($ (-> r text) s) (aof p) (aof t))
+                          (not (co_op_prefix ($ (-> r text) s) (aof p) (aof t))))
+                     (return 0))
+                 (return 1)))
               ((== (-> r tok) CO_TK_PUNCT)
                (return (? (co-ch-in (cast int (nth 0 ($ (-> r text) s))) "([{") 1 0)))
               (#t (return 0))))
@@ -934,7 +954,9 @@
            ;; token, so the moment the next token is read the name is gone --
            ;; and the name is needed after the lookahead that decides what this
            ;; token is.
-           (let ((char name [256]))
+           ;; and so does WHETHER IT WAS QUOTED, for the same reason: the flag
+           ;; belongs to the token in hand and the lookahead replaces it.
+           (let ((char name [256]) (int was_quoted . #'(-> r quoted)))
              (snprintf name (sizeof name) "%s" ($ (-> r text) s))
              (if (not (co_next_token r)) (return 0))
 
@@ -954,11 +976,15 @@
                       (block (set (cof out) (co_new_float (-> r m) (- 0.0 (-> r fval))))
                              (return (co_next_token r))))))
 
-             ;; a prefix operator, but only if something follows that it could
-             ;; apply to and its priority fits where we are
+             ;; a prefix operator, but only if it was written as one, and
+             ;; something follows that it could apply to, and its priority fits
+             ;; where we are. WRITTEN AS ONE means unquoted: `'-' - a' is infix
+             ;; with the atom `-' on the left, and `- - a' is prefix applied to
+             ;; `-a', and quoting is the whole of the difference.
              (let ((int prec) (int type))
-               (if (and (co_op_prefix name (aof prec) (aof type))
-                        (and (<= prec maxprec) (co_starts_term r)))
+               (if (and (not was_quoted)
+                        (and (co_op_prefix name (aof prec) (aof type))
+                             (and (<= prec maxprec) (co_starts_term r))))
                    (let ((size_t arg) (int argprec)
                          (int argmax . #'(? (== type CO_FY) prec (- prec 1))))
                      (if (not (co_parse_term r argmax (aof arg) (aof argprec))) (return 0))
@@ -966,13 +992,16 @@
                      (set (cof outprec) prec)
                      (return 1))))
 
-             ;; otherwise a plain atom. An atom that is an operator carries its
-             ;; priority, so `X = (-)' brackets and `X = -' does not read as a
-             ;; prefix application of nothing.
+             ;; Otherwise a plain atom, AT PRIORITY 0 even when it is an
+             ;; operator. Carrying the operator's priority instead made `- * a'
+             ;; unreadable: the atom `-' came back at 500, `*' is 400 yfx and
+             ;; so admits a left operand of at most 400, and the reader gave up
+             ;; with the `*' unconsumed and `a' unread. Every Prolog is lenient
+             ;; here -- the strict reading buys nothing and refuses terms that
+             ;; are perfectly clear. The WRITER is where the priority matters,
+             ;; and it brackets such an atom when it stands as an operand.
              (set (cof out) (co_new_atom (-> r m) name))
-             (let ((int prec) (int type))
-               (if (co_op_infix name (aof prec) (aof type)) (set (cof outprec) prec)
-                 (if (co_op_prefix name (aof prec) (aof type)) (set (cof outprec) prec))))
+             (set (cof outprec) 0)
              (return 1)))
 
           (#t (return (co_fail r "expected a term")))))

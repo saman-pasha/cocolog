@@ -339,6 +339,29 @@ position but the top: `f((-))`, `[(-)]`. SWI brackets one only as an OPERAND —
 priority 999 and a `-` followed by `,` or `]` cannot be a prefix operator.
 `- (-)` and `(-)-a` are not fine, and are still bracketed.
 
+## The reader knows what can start a term
+
+An atom that is a prefix operator is only a prefix operator if what follows it
+could begin a term. `- - a` is prefix `-` applied to `-a`, because the second
+`-` can begin one. `- = a` is infix `=` with the **atom** `-` on its left,
+because `=` is only ever infix and begins nothing.
+
+The reader used to say that any name could start a term, so it read `- = a` as
+prefix `-` applied to the atom `=` and stopped with `a` unread. `- * a` and
+`- mod a` were misread the same way.
+
+**And a quoted atom is never a prefix operator.** `'-' - a` is infix with the
+atom `-` on the left where `- - a` is prefix applied to `-a` — the same tokens,
+differing only in the quotes, so the lexer has to remember which it saw.
+
+One more thing had to give: an operator atom used as a plain operand now has
+**priority 0**. Carrying the operator's priority made `- * a` unreadable — the
+atom `-` came back at 500, `*` is 400 yfx and admits a left operand of at most
+400, and the reader gave up with the `*` unconsumed. Every Prolog is lenient
+there; the strict reading buys nothing and refuses terms that are perfectly
+clear. The **writer** is where the priority still matters, and it brackets such
+an atom when it stands as an operand.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
@@ -374,11 +397,14 @@ priority 999 and a `-` followed by `,` or `]` cannot be a prefix operator.
 * **`asserta` rewrites its whole predicate** in the database, because putting a
   clause at the front changes every later clause's ordinal. O(n) per assert and
   always right.
-* **The reader does not disambiguate an operator atom before an operator.**
-  cocolog reads `'-' - a` as prefix `-` applied to `-a`; SWI reads infix `-`
-  with the atom `-` on the left. Deciding which, when an atom that is a prefix
-  operator is followed by something that is also an operator, is a lookahead
-  this reader does not do.
+* **The reader is lenient where SWI raises a syntax error.** `- \+ a` is an
+  operator clash in SWI — `\+` is 900 and `-` admits an argument of at most
+  200 — and this reader accepts it. Leniency is the safe direction: it accepts
+  terms SWI rejects and misreads none of them. `dynamic foo` as an argument is
+  the other way round: SWI accepts it and this reader wants brackets, because
+  `dynamic` is 1150 and an argument is read at 999.
+* **A list cell is `'.'`/2 and not SWI 7's `'[|]'`/2.** Deliberate: `.` is the
+  traditional and ISO name. It shows in `X =.. L` on a list and nowhere else.
 * **A module still cannot declare an operator from its C half**, though a
   program can with `op/3` and a module's Coco half can carry a `:- op(...)`.
   The remaining seam limits — no choice points, no per-session state — are the
