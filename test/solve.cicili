@@ -243,6 +243,85 @@
         (set growth (- a2 a1))
         (check "failed branches are reclaimed" (cast llong (< growth 200)) 1))
 
+      ;; ---- directives and declarations ------------------------------------
+      ;;
+      ;; `:- dynamic Spec.' in a consulted file and `dynamic(Spec)' as a goal
+      ;; are one implementation reached two ways, so both are checked, and
+      ;; against all three shapes a spec is written in.
+      (let ((char derr [256]))
+        (check "a directive is applied and is not a clause"
+               (cast llong (co_consult (aof st) (aof m)
+                                       ":- dynamic d1/1. d1(x). d1(y)."
+                                       derr (sizeof derr))) 2)
+        (let ((size_t pi . #'(co_pred_find (aof st) (co_intern (aof m) "d1") 1)))
+          (check "and the predicate is marked dynamic"
+                 (cast llong (? (< pi ($ st npreds))
+                                ($ (nth pi ($ st preds)) dynamic) 0)) 1))
+
+        (check "a conjunction of indicators declares both"
+               (cast llong (co_consult (aof st) (aof m)
+                                       ":- dynamic d2/0, d3/2."
+                                       derr (sizeof derr))) 0)
+        (check "the first of them"
+               (cast llong (< (co_pred_find (aof st) (co_intern (aof m) "d2") 0)
+                              ($ st npreds))) 1)
+        (check "the second of them"
+               (cast llong (< (co_pred_find (aof st) (co_intern (aof m) "d3") 2)
+                              ($ st npreds))) 1)
+
+        (check "a list of indicators does too"
+               (cast llong (co_consult (aof st) (aof m)
+                                       ":- dynamic [d4/1, d5/3]."
+                                       derr (sizeof derr))) 0)
+        (check "and declares what is in the list"
+               (cast llong (< (co_pred_find (aof st) (co_intern (aof m) "d5") 3)
+                              ($ st npreds))) 1)
+
+        ;; declaring a predicate is how a program says it exists: it has no
+        ;; clauses, so calling it fails, and failing is not an error
+        (check "a declared predicate with no clauses fails"
+               (cast llong (count (aof e) "d4(_)" 10)) 0)
+
+        ;; `discontiguous' is parsed and deliberately does nothing: cocolog
+        ;; keeps a predicate's clauses in one list wherever they were written
+        (check "discontiguous is accepted and ignored"
+               (cast llong (co_consult (aof st) (aof m) ":- discontiguous d6/1."
+                                       derr (sizeof derr))) 0)
+
+        ;; and a directive nobody implements is REFUSED rather than quietly
+        ;; asserted as a clause whose head is `:-', which is what used to happen
+        (check "an unknown directive is an error"
+               (cast llong (co_consult (aof st) (aof m) ":- module(nonesuch)."
+                                       derr (sizeof derr))) -1)
+
+        (check "dynamic/1 works as a goal too"
+               (cast llong (count (aof e) "dynamic(d7/2)" 10)) 1)
+        (let ((size_t pi . #'(co_pred_find (aof st) (co_intern (aof m) "d7") 2)))
+          (check "with the same effect"
+                 (cast llong (? (< pi ($ st npreds))
+                                ($ (nth pi ($ st preds)) dynamic) 0)) 1))
+
+        ;; anything retractable is dynamic whether or not anybody said so --
+        ;; a program that asserts into a predicate and takes it out again has
+        ;; declared it by doing so
+        (check "retracting marks a predicate dynamic"
+               (cast llong (count (aof e) "assertz(d8(1)), retract(d8(1))" 10)) 1)
+        (let ((size_t pi . #'(co_pred_find (aof st) (co_intern (aof m) "d8") 1)))
+          (check "even though nothing declared it"
+                 (cast llong (? (< pi ($ st npreds))
+                                ($ (nth pi ($ st preds)) dynamic) 0)) 1))
+
+        ;; `listing' writes to stdout, so what is checked here is that it runs
+        ;; and answers -- the shape of what it prints is the writer's business
+        ;; and syntax.cicili tests that against the reader
+        (check "listing/1 answers for a predicate that has clauses"
+               (cast llong (count (aof e) "listing(d1/1)" 10)) 1)
+        (check "listing/1 by bare name answers too"
+               (cast llong (count (aof e) "listing(d1)" 10)) 1)
+        (check "and fails for one nothing knows about"
+               (cast llong (count (aof e) "listing(d9/7)" 10)) 0)
+        (check "listing/0 answers" (cast llong (count (aof e) "listing" 10)) 1))
+
       ;; ---- errors are reported, not guessed -------------------------------
       (check "an unbound goal is an error"    (cast llong (count (aof e) "X" 10)) -1)
       (check "arithmetic on a variable is an error"

@@ -105,6 +105,7 @@
 
   (static) (decl) (func co_zt_fetch ((co_store * st) (void * ctx)
                                      (u64 name) (u32 arity)) (out int))
+  (static) (decl) (func co_zt_warm ((co_store * st) (void * ctx)) (out int))
 
   (func co_zt_attach ((co_zt * z) (const char * host) (const char * port)
                       (co_machine * m) (co_store * st) (const char * kb))
@@ -117,9 +118,70 @@
         (set (-> z st) st)
         (set (-> st ctx) (cast (void *) z))
         (set (-> st fetch) co_zt_fetch)
+        ;; Warming is a READ, so this backend can do it. What it cannot do is
+        ;; write, so `on_dynamic' is null with the rest of them.
+        (set (-> st warm) co_zt_warm)
         ;; No write-through: see the head of this file. A store attached to
         ;; this backend asserts locally and the database does not hear about it.
-        (set (-> st on_assert) nil))
+        (set (-> st on_assert) nil)
+        (set (-> st on_retract) nil)
+        (set (-> st on_dynamic) nil))
+
+  ;;; Every predicate the knowledge base holds, interned so that `listing' knows
+  ;;; they are there. The same page `co_zt_fetch' does not use: it answers
+  ;;;
+  ;;;   COCOLOG 1
+  ;;;   P <name> <arity>      one per CLAUSE, so names repeat
+  ;;;   D <name> <arity>      one per predicate DECLARED dynamic
+  ;;;   END
+  ;;;
+  ;;; Interning is idempotent, so the repeats cost nothing. Nothing is marked
+  ;;; loaded: what the clauses ARE is still nobody's business until somebody
+  ;;; calls one, which is what makes a shared knowledge base affordable.
+  (func co_zt_warm ((co_store * st) (void * ctx)) (out int)
+        (let ((co_zt * z . #'(cast (co_zt *) ctx))
+              (co_machine * m)
+              (char path [512]) (char err [256])
+              (char * body . nil)
+              (int ok . 1))
+          (set m (-> z m))
+
+          (if (not (co_zt_path path (sizeof path) "predicates" "kb" (-> z kb) nil nil))
+              (return (co_zt_fail z "the request path is too long" (-> z kb))))
+          (if (not (zt_get (-> z host) (-> z port) path (-> z timeout)
+                           (aof body) nil err (sizeof err)))
+              (return (co_zt_fail z "fetching predicates" err)))
+
+          ;; walked in place, a line at a time, exactly as `co_zt_fetch' does
+          (let ((char * p . body))
+            (while (and ok (!= (cast char 0) (nth 0 p)))
+              (let ((char * eol . #'(strchr p 10)))
+                (if (!= eol nil) (set (nth 0 eol) (cast char 0)))
+                ;; "P <name> <arity>" or "D <name> <arity>" -- 80 is `P', 68 `D'
+                (if (and (or (== (nth 0 p) (cast char 80)) (== (nth 0 p) (cast char 68)))
+                         (== (nth 1 p) (cast char 32)))
+                    (let ((int declared . #'(? (== (nth 0 p) (cast char 68)) 1 0))
+                          (char * cur . #'(+ p 2))
+                          (char * sp))
+                      ;; the name runs to the last space on the line: an atom
+                      ;; may contain spaces, the arity may not
+                      (set sp (strrchr cur 32))
+                      (if (!= sp nil)
+                          (block
+                           (set (nth 0 sp) (cast char 0))
+                           (let ((long ar . #'(strtol (+ sp 1) nil 10)))
+                             (zt_unescape cur)
+                             (let ((size_t pi . #'(co_pred_intern st (co_intern m cur)
+                                                                  (cast u32 ar))))
+                               (if (and declared (< pi (-> st npreds)))
+                                   (set ($ (nth pi (-> st preds)) dynamic) 1))))
+                           (set (nth 0 sp) (cast char 32))))))
+                (if (== eol nil) break)
+                (set (nth 0 eol) (cast char 10))
+                (set p (+ eol 1)))))
+
+          (free body)
+          (return ok)))
 
   ;;; The page answers
   ;;;

@@ -78,6 +78,44 @@
     ;; a store that is not backed by anything.
     (member func on_assert ((co_store * st) (void * ctx) (size_t clause)) (out int))
 
+    ;; And when one is retracted. It takes the PREDICATE rather than the clause,
+    ;; because by the time it runs the clause is no longer in the predicate's
+    ;; list and there is nothing left to hand over -- and because a backend that
+    ;; stores clauses by ordinal has to rewrite the whole predicate anyway, which
+    ;; is what `on_assert' already does.
+    ;;
+    ;; WITHOUT IT A RETRACT WAS LOCAL. It came out of the store in memory and the
+    ;; database never heard: the clause was back the next time the predicate was
+    ;; fetched, and no other interpreter ever saw it go. An interpreter that can
+    ;; assert into a shared knowledge base and not retract from it is halfway to
+    ;; being one.
+    (member func on_retract ((co_store * st) (void * ctx) (size_t pi)) (out int))
+
+    ;; Asks the backend to name every predicate it holds, so that the store
+    ;; knows they exist. Null for a store that is not backed by anything, which
+    ;; already knows everything it has.
+    ;;
+    ;; WHAT IT IS FOR IS `listing'. Clauses are fetched a predicate at a time
+    ;; and only when something calls one, which is what makes a shared knowledge
+    ;; base affordable -- but it also means a fresh interpreter knows of no
+    ;; predicate it has not already reached. `listing' asking what there is
+    ;; would answer "nothing", which is true of the store and false of the
+    ;; knowledge base. It interns names only: what the clauses ARE is still
+    ;; nobody's business until somebody calls one.
+    (member func warm ((co_store * st) (void * ctx)) (out int))
+
+    ;; Set when a predicate is declared -- `:- dynamic' and, when there is one,
+    ;; whatever else a directive can say about a predicate. It takes the
+    ;; predicate rather than the property, because the store's `co_pred' is
+    ;; where the properties are and the backend can read them off it.
+    ;;
+    ;; A DECLARATION HAS TO OUTLIVE THE PROCESS THAT MADE IT. In a knowledge
+    ;; base kept in the interpreter's own memory `:- dynamic' could be a flag on
+    ;; a struct, because the program that declared it is the program that runs.
+    ;; Here the clauses are shared and the declaration is about them, so an
+    ;; interpreter opening the same kb tomorrow has to be told the same thing.
+    (member func on_dynamic ((co_store * st) (void * ctx) (size_t pi)) (out int))
+
     (member int       oom))
 
   (decl) (func co_store_init ((co_store * st)))
@@ -131,8 +169,57 @@
   ;;; Makes sure a predicate's clauses are present, asking the backend once.
   (decl) (func co_pred_ensure ((co_store * st) (size_t pi)) (out int))
 
+  ;;; Brings every predicate the backend holds into the store, by name only.
+  ;;; Answers 1 whether or not there was a backend to ask.
+  (decl) (func co_store_warm ((co_store * st)) (out int))
+
+  ;;; Declares NAME/ARITY dynamic: brings the predicate into being with no
+  ;;; clauses, and marks it.
+  ;;;
+  ;;; WHAT IT IS FOR HERE, given that cocolog lets you assert into anything and
+  ;;; calling something undefined already fails rather than raising. Two things.
+  ;;; It makes a predicate that has no clauses YET exist, so `listing' can show
+  ;;; it and a reader of the program can see it was meant; and it says out loud
+  ;;; which predicates a program intends to change at run time, which is the
+  ;;; only documentation of that a Prolog file has.
+  ;;;
+  ;;; It does NOT mark the predicate loaded. A dynamic predicate may perfectly
+  ;;; well have clauses waiting in a shared knowledge base, put there by another
+  ;;; interpreter, and declaring it here must not stop the backend being asked.
+  (decl) (func co_pred_dynamic ((co_store * st) (u64 name) (u32 arity)) (out int))
+
   ;;; Removes the first clause whose head and body unify with the given term.
   (decl) (func co_retract ((co_store * st) (co_machine * m) (size_t clause)) (out int))
+
+  ;;; Declares every predicate a `dynamic' spec names. SPEC is a predicate
+  ;;; indicator `Name/Arity', a comma conjunction of them, or a list of them --
+  ;;; all three of which real Prolog files use, often in the same file:
+  ;;;
+  ;;;   :- dynamic counter/1.
+  ;;;   :- dynamic seen/2, queued/1.
+  ;;;   :- dynamic [a/0, b/1].
+  ;;;
+  ;;; Answers 1, or 0 with ERR saying which part of the spec was not one.
+  (decl) (func co_dynamic_spec ((co_store * st) (co_machine * m) (size_t spec)
+                                (char * err) (size_t errlen)) (out int))
+
+  ;;; True when T is the compound NAME of arity two -- `a/1', `a, b', `[a|b]'.
+  ;;; Out here rather than kept to itself because `listing/1' asks the same
+  ;;; question of its argument that `dynamic/1' does.
+  (decl) (func co_is_compound2 ((co_machine * m) (size_t t) (const char * name))
+               (out int))
+
+  ;;; Applies one directive -- the G of a `:- G' read by `co_consult'.
+  ;;;
+  ;;; WHAT IT DOES NOT DO IS RUN G. A directive that is a goal wants an engine,
+  ;;; and the store is a layer below the engine: this file is compiled before
+  ;;; solve.cicili and cannot call into it. What it handles is the directives
+  ;;; that are declarations about the store itself and need nothing else --
+  ;;; which is what a consulted file almost always carries. Anything else is
+  ;;; refused by name rather than silently asserted as a clause whose head is
+  ;;; `:-', which is what used to happen to every directive ever written.
+  (decl) (func co_directive ((co_store * st) (co_machine * m) (size_t g)
+                             (char * err) (size_t errlen)) (out int))
 
   ) ; decl-kb
 
@@ -165,18 +252,27 @@
 
   (func co_store_reset ((co_store * st))
         (let ((void * ctx . #'(-> st ctx)))
-          ;; The two hooks are copied out and back through locals of their own
+          ;; The hooks are copied out and back through locals of their own
           ;; declared type -- a `func' clause in type position is a function
           ;; pointer, which is how a variable holds one.
           (let ((func keep_fetch ((co_store * s) (void * c) (u64 n) (u32 a)) (out int)
                       . #'(-> st fetch))
                 (func keep_assert ((co_store * s) (void * c) (size_t cl)) (out int)
-                      . #'(-> st on_assert)))
+                      . #'(-> st on_assert))
+                (func keep_retract ((co_store * s) (void * c) (size_t pi)) (out int)
+                      . #'(-> st on_retract))
+                (func keep_warm ((co_store * s) (void * c)) (out int)
+                      . #'(-> st warm))
+                (func keep_dynamic ((co_store * s) (void * c) (size_t pi)) (out int)
+                      . #'(-> st on_dynamic)))
             (co_store_free st)
             (co_store_init st)
             (set (-> st ctx) ctx)
             (set (-> st fetch) keep_fetch)
-            (set (-> st on_assert) keep_assert))))
+            (set (-> st on_assert) keep_assert)
+            (set (-> st on_retract) keep_retract)
+            (set (-> st warm) keep_warm)
+            (set (-> st on_dynamic) keep_dynamic))))
 
   (static)
   (func co_store_push ((co_store * st) (u64 c)) (out size_t)
@@ -311,6 +407,95 @@
                                  ($ (nth pi (-> st preds)) name)
                                  ($ (nth pi (-> st preds)) arity))))
 
+  (func co_store_warm ((co_store * st)) (out int)
+        (if (== (-> st warm) nil) (return 1))
+        (return ((-> st warm) st (-> st ctx))))
+
+  ;;; `:- dynamic name/arity'. The predicate is INTERNED and not merely looked
+  ;;; up: declaring one is how a program says it exists, and a dynamic
+  ;;; predicate with no clauses yet is a predicate, not a typo.
+  (func co_pred_dynamic ((co_store * st) (u64 name) (u32 arity)) (out int)
+        (let ((size_t pi . #'(co_pred_intern st name arity)))
+          (if (>= pi (-> st npreds)) (return 0))
+          ;; already declared: say so and do not tell the backend twice
+          (if ($ (nth pi (-> st preds)) dynamic) (return 1))
+          (set ($ (nth pi (-> st preds)) dynamic) 1)
+          (if (== (-> st on_dynamic) nil) (return 1))
+          (return ((-> st on_dynamic) st (-> st ctx) pi))))
+
+  ;;; True when T is the compound NAME of arity one -- `:- G' and nothing else,
+  ;;; so far, but it reads better than the test written out.
+  (static)
+  (func co_is_compound1 ((co_machine * m) (size_t t) (const char * name)) (out int)
+        (set t (co_deref m t))
+        (if (not (co_is_callable m t)) (return 0))
+        (if (!= (co_arity m t) 1) (return 0))
+        (return (? (== 0 (strcmp (co_atom_name m (co_name_of m t)) name)) 1 0)))
+
+  ;;; True when T is the compound NAME/2 -- the shape every spec is built from.
+  (func co_is_compound2 ((co_machine * m) (size_t t) (const char * name)) (out int)
+        (if (not (co_is_callable m t)) (return 0))
+        (if (!= (co_arity m t) 2) (return 0))
+        (return (? (== 0 (strcmp (co_atom_name m (co_name_of m t)) name)) 1 0)))
+
+  (func co_dynamic_spec ((co_store * st) (co_machine * m) (size_t spec)
+                         (char * err) (size_t errlen)) (out int)
+        (set spec (co_deref m spec))
+
+        ;; `a/1, b/2' -- what the reader makes of a comma separated list of
+        ;; them, and the form nearly every Prolog file uses.
+        (if (co_is_compound2 m spec ",")
+            (block
+             (if (not (co_dynamic_spec st m (co_arg m spec 0) err errlen)) (return 0))
+             (return (co_dynamic_spec st m (co_arg m spec 1) err errlen))))
+
+        ;; `[a/1, b/2]' -- a list of them, which some do.
+        (if (co_is_compound2 m spec ".")
+            (block
+             (if (not (co_dynamic_spec st m (co_arg m spec 0) err errlen)) (return 0))
+             (return (co_dynamic_spec st m (co_arg m spec 1) err errlen))))
+
+        ;; the end of a list is not a spec and not an error either
+        (if (co-tag-is ATOM (nth spec (-> m heap)))
+            (if (== 0 (strcmp (co_atom_name m (co_name_of m spec)) "[]")) (return 1)))
+
+        (if (not (co_is_compound2 m spec "/"))
+            (block (snprintf err errlen "dynamic: expected Name/Arity") (return 0)))
+
+        (let ((size_t nm . #'(co_deref m (co_arg m spec 0)))
+              (size_t ar . #'(co_deref m (co_arg m spec 1))))
+          (if (not (co-tag-is ATOM (nth nm (-> m heap))))
+              (block (snprintf err errlen "dynamic: the name must be an atom") (return 0)))
+          (if (not (co-tag-is INT (nth ar (-> m heap))))
+              (block (snprintf err errlen "dynamic: the arity must be an integer") (return 0)))
+          (let ((i64 n . #'(co-signed-payload (nth ar (-> m heap)))))
+            (if (or (< n 0) (> n 255))
+                (block (snprintf err errlen "dynamic: arity out of range") (return 0)))
+            (if (not (co_pred_dynamic st (co_name_of m nm) (cast u32 n)))
+                (block (snprintf err errlen "dynamic: out of memory") (return 0)))
+            (return 1))))
+
+  (func co_directive ((co_store * st) (co_machine * m) (size_t g)
+                      (char * err) (size_t errlen)) (out int)
+        (set g (co_deref m g))
+        (if (not (co_is_callable m g))
+            (block (snprintf err errlen "a directive must be a callable term") (return 0)))
+
+        (let ((const char * name . #'(co_atom_name m (co_name_of m g)))
+              (u32 n . #'(co_arity m g)))
+
+          (if (and (== n 1) (== 0 (strcmp name "dynamic")))
+              (return (co_dynamic_spec st m (co_arg m g 0) err errlen)))
+
+          ;; Accepted and ignored on purpose. cocolog keeps a predicate's
+          ;; clauses in one list however scattered they were in the file, so
+          ;; there is nothing for it to do -- but a file that says it is
+          ;; deliberate should not be refused for saying so.
+          (if (and (== n 1) (== 0 (strcmp name "discontiguous"))) (return 1))
+
+          (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))
+          (return 0)))
+
   ;;; ---- asserting --------------------------------------------------------
 
   (func co_clause_parts ((co_machine * m) (size_t clause) (size_t * head) (size_t * body))
@@ -381,12 +566,24 @@
             (set mark (-> m heap_len))
             (set rc (co_read_clause (aof r) (aof t)))
             (if (== rc 1)
-                (block (if (not (co_assert st m t 1))
-                           (block (snprintf err errlen "not a clause")
-                                  (co_reader_free (aof r))
-                                  (return -1)))
-                       (set (-> m heap_len) mark)
-                       (set n (+ n 1)))))
+                (block
+                 ;; `:- G' IS A DIRECTIVE AND NOT A CLAUSE. It used to go
+                 ;; straight into co_assert, which took it for a clause whose
+                 ;; head was `:-' of arity one and filed it under a predicate of
+                 ;; that name -- so `:- dynamic counter/1.' quietly became a
+                 ;; fact nothing would ever call, and the file looked consulted.
+                 (if (co_is_compound1 m t ":-")
+                     (block
+                      (if (not (co_directive st m (co_arg m t 0) err errlen))
+                          (block (co_reader_free (aof r)) (return -1)))
+                      (set (-> m heap_len) mark))
+                   (block
+                    (if (not (co_assert st m t 1))
+                        (block (snprintf err errlen "not a clause")
+                               (co_reader_free (aof r))
+                               (return -1)))
+                    (set (-> m heap_len) mark)
+                    (set n (+ n 1)))))))
           (if (== rc -1)
               (block (snprintf err errlen "%s" ($ r err))
                      (co_reader_free (aof r))
@@ -403,7 +600,13 @@
                          (set body (co_arg m clause 1))
                          (set has_body 1))))
           (if (not (co_is_callable m head)) (return 0))
-          (let ((size_t pi . #'(co_pred_find st (co_name_of m head) (co_arity m head))))
+          ;; INTERNED, not merely found. `retract' is a builtin, so its argument
+          ;; is never solved as a goal and nothing has put the predicate in the
+          ;; store; with `co_pred_find' a fresh interpreter's first `retract'
+          ;; failed against a knowledge base that plainly had the clause.
+          ;; Interning is what makes `co_pred_ensure' below able to ask.
+          (let ((size_t pi . #'(co_pred_intern st (co_name_of m head)
+                                               (co_arity m head))))
             (if (>= pi (-> st npreds)) (return 0))
             (co_pred_ensure st pi)
             (let ((co_pred * p . #'(aof (nth pi (-> st preds)))))
@@ -431,6 +634,16 @@
                        (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
                          (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses))))
                        (set (-> p nclauses) (- (-> p nclauses) 1))
+                       ;; anything retractable is dynamic by definition, whether
+                       ;; or not anybody said so
+                       (set (-> p dynamic) 1)
+                       ;; and the database is told. NOTHING IS WOUND BACK HERE:
+                       ;; the whole point of `retract(counter(X))' is that X is
+                       ;; left bound to what was retracted, and the term it is
+                       ;; bound into is the copy this loop made on the heap. The
+                       ;; hook keeps its own heap use to itself.
+                       (if (!= (-> st on_retract) nil)
+                           ((-> st on_retract) st (-> st ctx) pi))
                        (return 1)))
                   (co_undo_to m tmark)
                   (set (-> m heap_len) mark))))

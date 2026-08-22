@@ -70,6 +70,12 @@
 (DEFPARAMETER *operators*
   '((1200 xfx ":-" "-->")
     (1200 fx  ":-" "?-")
+    ;; The declaration prefixes. `:- dynamic counter/1.' is only a term at all
+    ;; because `dynamic' is one of these -- without it the reader takes
+    ;; `dynamic' for an atom, finds `counter' where it wanted the `.', and says
+    ;; so at the offset of the `/', which is a confusing place to be told that
+    ;; an operator is missing.
+    (1150 fx  "dynamic" "discontiguous")
     (1100 xfy ";")
     (1050 xfy "->")
     (1000 xfy ",")

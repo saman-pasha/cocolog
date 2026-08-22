@@ -120,6 +120,10 @@
     ("assertz"      1 co_bi_assertz)
     ("retract"      1 co_bi_retract)
 
+    ("dynamic"      1 co_bi_dynamic)
+    ("listing"      0 co_bi_listing_all)
+    ("listing"      1 co_bi_listing)
+
     ("halt"         0 co_bi_halt)))
 
 ;;; Grouped by arity, so a goal of arity 3 never runs a strcmp against a
@@ -1035,6 +1039,113 @@
 
   (func co_bi_retract ((co_engine * e) (size_t g)) (out int)
         (return (? (co_retract (-> e st) (-> e m) (co_arg (-> e m) g 0)) 1 0)))
+
+  ;;; `dynamic(Spec)' as a goal, which is the same thing `:- dynamic Spec.'
+  ;;; does when a file is consulted -- one implementation, reached two ways.
+  (func co_bi_dynamic ((co_engine * e) (size_t g)) (out int)
+        (let ((char err [192]))
+          (if (not (co_dynamic_spec (-> e st) (-> e m) (co_arg (-> e m) g 0)
+                                    err (sizeof err)))
+              (return (co_fail_err e err)))
+          (return 1)))
+
+  ;;; ---- listing ------------------------------------------------------------
+
+  ;;; One predicate, written so that it reads back. A `:- dynamic' line first if
+  ;;; it is one, then a clause per line, then a blank line.
+  ;;;
+  ;;; IT ASKS THE BACKEND FIRST. A predicate whose clauses are still in the
+  ;;; database has an empty list here until somebody calls it, and a `listing'
+  ;;; that showed nothing for a predicate that plainly has clauses would be
+  ;;; worse than no listing at all.
+  ;;; Answers whether it printed anything: a predicate that is neither declared
+  ;;; nor has any clauses is one this store merely has a name for -- interned by
+  ;;; a call that failed, or left behind by retracting the last clause of
+  ;;; something never declared -- and listing a blank line for it says nothing.
+  (static)
+  (func co_listing_pred ((co_engine * e) (size_t pi)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (co_store * st . #'(-> e st))
+              (co_strbuf b))
+          (co_pred_ensure st pi)
+          (let ((co_pred * p . #'(aof (nth pi (-> st preds))))
+                (const char * nm . #'(co_atom_name m ($ (nth pi (-> st preds)) name)))
+                (int dyn . #'($ (nth pi (-> st preds)) dynamic)))
+
+            (if (and (not dyn) (== (-> p nclauses) 0)) (return 0))
+
+            (if dyn
+                (printf ":- dynamic %s/%u.\n\n" nm
+                        (cast unsigned ($ (nth pi (-> st preds)) arity))))
+
+            (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+              (let ((size_t mark . #'(-> m heap_len))
+                    (size_t t . #'(co_store_get m st (nth i (-> p clauses)))))
+                (co_sb_init (aof b))
+                ;; quoted, so an atom that needs them gets them and the line can
+                ;; be pasted back into a file
+                (co_write_term m (aof b) t 1 0)
+                (if (!= ($ b s) nil) (fputs ($ b s) stdout))
+                (fputs ".\n" stdout)
+                (co_sb_free (aof b))
+                ;; the clause was copied on to the heap only to be written
+                (set (-> m heap_len) mark)))
+            ;; the blank line separates predicates. A declared predicate with no
+            ;; clauses has already had one after its `:- dynamic' line.
+            (if (or (> (-> p nclauses) 0) (not dyn)) (fputs "\n" stdout))
+            (return 1))))
+
+  (func co_bi_listing_all ((co_engine * e) (size_t g)) (out int)
+        (co_store_warm (-> e st))
+        ;; `npreds' is read each time round rather than once: `co_pred_ensure'
+        ;; inside the listing can intern predicates the clauses it fetches
+        ;; mention, and the loop should reach those too.
+        (for ((size_t i . 0)) (< i ($ (cof (-> e st)) npreds)) ((++ i))
+          (co_listing_pred e i))
+        (return 1))
+
+  ;;; `listing(Name)' lists every arity of that name; `listing(Name/Arity)' the
+  ;;; one. Both are what other Prologs do, and a program that knows only the
+  ;;; name of what it asserted should not have to count its arguments.
+  (func co_bi_listing ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (co_store * st . #'(-> e st))
+              (size_t spec . #'(co_a e g 0))
+              (int shown . 0))
+
+          ;; ASKED BEFORE ANYTHING IS DECIDED, for either shape of argument.
+          ;; What the backend holds is not only which predicates there are but
+          ;; which of them were DECLARED, and a `listing(counter/1)' that found
+          ;; the clauses and missed the `:- dynamic' line would be quietly
+          ;; wrong in a way that reads back as a different program.
+          (co_store_warm st)
+
+          (if (co_is_compound2 m spec "/")
+              (let ((size_t nm . #'(co_deref m (co_arg m spec 0)))
+                    (size_t ar . #'(co_deref m (co_arg m spec 1))))
+                (if (not (co-tag-is ATOM (nth nm (-> m heap))))
+                    (return (co_fail_err e "listing/1 needs a name")))
+                (if (not (co-tag-is INT (nth ar (-> m heap))))
+                    (return (co_fail_err e "listing/1 needs an arity")))
+                ;; interned rather than merely looked up: a predicate this
+                ;; interpreter has not called yet is not in the store, and
+                ;; `listing' of it should say what the knowledge base holds
+                ;; rather than what this process happens to have reached.
+                (let ((size_t pi . #'(co_pred_intern st (co_name_of m nm)
+                                                     (cast u32 (co-signed-payload
+                                                                (nth ar (-> m heap)))))))
+                  (if (>= pi (-> st npreds)) (return 0))
+                  (return (co_listing_pred e pi)))))
+
+          (if (not (co-tag-is ATOM (nth spec (-> m heap))))
+              (return (co_fail_err e "listing/1 needs a name or Name/Arity")))
+
+          ;; By name: every arity of it. The store has no index from a name to
+          ;; its arities, so this is a walk -- over what warming put there.
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (if (== ($ (nth i (-> st preds)) name) (co_name_of m spec))
+                (if (co_listing_pred e i) (set shown 1))))
+          (return shown)))
 
   (func co_bi_halt ((co_engine * e) (size_t g)) (out int)
         (set (-> e halted) 1)

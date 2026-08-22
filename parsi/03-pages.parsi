@@ -82,15 +82,28 @@ END
 --
 --   COCOLOG 1
 --   P <name> <arity>
+--   D <name> <arity>
 --   ...
 --   END
 --
--- One line per CLAUSE, not per predicate -- the client folds them. Counting
--- distinct pairs would need a GROUP BY the language does not have, and a
--- client that is about to fetch the clauses anyway can fold a few hundred
+-- The P lines are one per CLAUSE, not per predicate -- the client folds them.
+-- Counting distinct pairs would need a GROUP BY the language does not have,
+-- and a client that is about to fetch the clauses anyway can fold a few hundred
 -- lines without noticing.
+--
+-- The D lines are the predicates DECLARED dynamic, and a predicate can have a
+-- D line and no P line: `:- dynamic queue/1.' and nothing else says the
+-- predicate is there and empty, which is not the same as its not being there.
+-- A client that reads only P is unaffected, which is why this is another line
+-- kind rather than another column.
+--
+-- NOTE the name: a PAGE and a PROCEDURE share one namespace and one compiled
+-- object, and pages are compiled last. `cocolog::predicates' as a procedure
+-- would be silently replaced by this page and every call to it would die with
+-- `undefined symbol: call' -- so the procedures next door are `predicates_of'
+-- and `props_of'.
 PAGE cocolog::predicates
-REQUIRES cocolog::clauses
+REQUIRES cocolog::clauses, cocolog::props
 BEGIN
 PUBLIC:
     OVERRIDE FUNCTION PAGE_LOAD() RETURNS Void
@@ -104,6 +117,9 @@ PUBLIC:
         SELECT 'P ', name, ' ', arity, nl
         FROM cocolog::clauses
         WHERE kb == p_kb;
+        SELECT 'D ', name, ' ', arity, nl
+        FROM cocolog::props
+        WHERE kb == p_kb AND dynamic == 1;
         ECHO 'END', nl;
     END
 END

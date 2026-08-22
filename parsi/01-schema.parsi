@@ -66,6 +66,34 @@ BEGIN
     STEP 1;
 END
 
+-- One row per predicate that has been DECLARED rather than merely written to:
+-- so far that means `:- dynamic'. It is a property of the predicate and not of
+-- any clause, and it has to outlive the process that declared it, or `:-
+-- dynamic' would mean nothing in a knowledge base that is shared -- the next
+-- interpreter to open the same kb would not know.
+--
+-- The row exists whether or not the predicate has clauses. That is the point:
+-- `:- dynamic queue/1.' followed by nothing says the predicate is there and
+-- empty, which is not the same thing as its not being there.
+TABLE cocolog::props
+BEGIN
+    COLUMN id      AS Long   PRIMARY KEY;
+    COLUMN kb      AS String INDEX KEY NOT NULL;
+    COLUMN name    AS String INDEX KEY NOT NULL;
+    COLUMN arity   AS Int    NOT NULL;
+    -- 1 if the predicate was declared dynamic. A column rather than the mere
+    -- existence of the row, because the next property to be stored -- and
+    -- `discontiguous' is already parsed and ignored -- belongs beside it.
+    COLUMN dynamic AS Int    NOT NULL;
+END
+
+SEQUENCE cocolog::props_seq
+BEGIN
+    FROM 1;
+    TO Long::MAX;
+    STEP 1;
+END
+
 -- One row per suspended machine. `chunks' is how many rows of state belong to
 -- it, so a loader knows whether it has them all before it tries to resume.
 TABLE cocolog::machines

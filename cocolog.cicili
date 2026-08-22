@@ -359,6 +359,16 @@
             (show_answer (aof e) n nil)
             (if (and (!= ($ opts answers) 0) (>= n ($ opts answers))) break))
           (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
+
+          ;; A QUERY CAN WRITE. `assert', `retract' and `dynamic' reach the
+          ;; database through the store's hooks, and until this commit was here
+          ;; every one of them was rolled back when the connection closed: the
+          ;; goal succeeded, said so, and changed nothing. A query that ended in
+          ;; an error is rolled back instead, whole -- half of a failed goal's
+          ;; assertions is not a state any program asked for.
+          (if (!= db nil)
+              (if (== rc -1) (zg_rollback db) (zg_commit db)))
+
           (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n))
           (co_engine_free (aof e))
           (co_store_free (aof st))

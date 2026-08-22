@@ -13,10 +13,10 @@ different findings.
 |---|---|
 | `test/term.cicili` | interning, unification, the trail undoing exactly, copying that renames consistently, the standard order, and the term DSL — 27 checks |
 | `test/syntax.cicili` | the reader and the writer against each other: precedence, associativity, the spacing that decides whether `-(1)` reads back as a compound or an integer, lists, curly terms, quoting, radix and character literals — 41 checks |
-| `test/solve.cicili` | backtracking, cut, negation, if-then-else, arithmetic, lists, term inspection, assert/retract, a 50000-deep deterministic recursion that must leave no choice points, and a failing goal that must not grow the heap — 57 checks |
+| `test/solve.cicili` | backtracking, cut, negation, if-then-else, arithmetic, lists, term inspection, assert/retract, `:- dynamic` in all three spec shapes and as a goal, `listing`, a 50000-deep deterministic recursion that must leave no choice points, and a failing goal that must not grow the heap |
 | `test/state.cicili` | a machine run to one solution, frozen, its machine and store **freed**, thawed into new ones, and finishing the proof correctly; and `freeze(thaw(x)) == x` byte for byte |
 | `test/zigurat.cicili` | the Cicili binding against a real server: every parameter width, a cursor, and a Text large enough to matter |
-| `test/shared.cicili` | six interpreters in sequence — one writes the knowledge base, a second built from nothing answers from it, a third suspends mid-proof and is freed, a fourth picks it up and finishes it, a fifth asserts at run time, a sixth sees it. Then the same knowledge base over HTTP, and a machine written over the binary protocol picked up over HTTP — 25 checks |
+| `test/shared.cicili` | ten interpreters in sequence — one writes the knowledge base, a second built from nothing answers from it, a third suspends mid-proof and is freed, a fourth picks it up and finishes it, a fifth asserts at run time, a sixth sees it, a seventh retracts, an eighth agrees it is gone, a ninth declares two predicates dynamic and a tenth — which starts knowing nothing — warms its store and finds them declared and empty. Then the same knowledge base over HTTP, and a machine written over the binary protocol picked up over HTTP — 39 checks |
 | `test/groups.sh` | **twelve interpreters at once over four machine states** — below |
 | `test/ruler.sh` | **one interpreter writing the knowledge base while eight read it** — below |
 | `client/probe.c` | the C client against a real server, including a clause made of nothing but the five HTML-escapable characters, asserted over the binary protocol and read back through a page unchanged |
@@ -91,6 +91,54 @@ genuinely reading while it was being written — the number of answers has to gr
 across the run, or they were only ever reading a finished program and the run
 proved nothing about concurrency.
 
+## The database is the knowledge base, all the way
+
+`:- dynamic`, `listing`, `assert` and `retract` now mean the same thing whether
+the clauses are in this process's memory or in a table several interpreters
+share. Four things had to change for that, and three of them were bugs.
+
+**A directive was asserted as a clause.** `:- dynamic counter/1.` in a consulted
+file was read as a term whose functor is `:-` and arity 1, and put in the store
+under a predicate called `:-`. `co_directive` handles the declarations that are
+about the store itself — `dynamic/1` in all three shapes a spec is written in
+(`a/1`, `a/1, b/2`, `[a/1, b/2]`), `discontiguous/1` parsed and deliberately
+ignored — and REFUSES anything else by name rather than storing it. Directives
+that are goals still want an engine, which the store is a layer below.
+
+**`retract` was local.** The clause came out of the store in memory and the
+database never heard: it was back the next time the predicate was fetched, and
+no other interpreter ever saw it go. An interpreter that can assert into a
+shared knowledge base and not retract from it is halfway to being one. The
+`on_retract` hook is the other half.
+
+**A query never committed.** `cocolog query` opened a transaction, proved the
+goal, printed the answers and closed the connection — so a goal that asserted
+or retracted said it had and changed nothing. It commits now, and rolls back
+whole when the goal ended in an error.
+
+**And a declaration has to outlive the process that made it.** In a knowledge
+base kept in memory `:- dynamic` can be a flag on a struct, because the program
+that declared it is the program that runs. Here the clauses are shared and the
+declaration is about them, so it is a row in `cocolog::props` and the `warm`
+hook brings it back. A predicate declared and never written to exists and is
+empty, which is not the same as its not being there — `listing` shows the
+difference and so does the store.
+
+Two smaller things fell out of it:
+
+* **A PAGE and a PROCEDURE of the same name are one object.** `cocolog::
+  predicates` was both, and pages are compiled last, so the procedure's `.so`
+  was silently replaced and every call to it died with `undefined symbol: call`.
+  The procedures are `predicates_of` and `props_of` now. Worth knowing before
+  naming anything in Parsi.
+* **Writing a predicate back must not clear its declaration.** Assert and
+  retract both rewrite the whole predicate, and the procedure they called to
+  clear it was `cocolog::forget` — which, once it also removed the `:- dynamic`
+  row, would have undeclared a predicate the moment anything was asserted into
+  it. They call `forget_clauses`; `forget` still takes the whole predicate,
+  declaration and all, because a predicate that is not there is not declared
+  either.
+
 ## What had to be fixed in ZiguratIP
 
 cocolog began as a client that modified nothing. Most of what follows was found
@@ -134,6 +182,14 @@ rather than worked around here. See its `doc/concurrency.md`.
 * **`consult` asserts, it does not replace.** Consult the same file twice and
   every proof answers everything twice; `cocolog forget` is how a knowledge base
   is emptied.
+* **A directive is not run as a goal.** `co_directive` handles `dynamic/1` and
+  ignores `discontiguous/1`; anything else in a consulted file is an error
+  naming what it was. `:- initialization(main).` would want an engine, and the
+  store is a layer below the engine — the file that would have to call into
+  solve.cicili is compiled before it.
+* **`listing` writes to stdout.** It is a builtin that prints, not one that
+  builds a term, so a program cannot capture what it produces. `listing/0` and
+  `listing/1` both answer once and are deterministic like every other builtin.
 * **Builtins are all deterministic.** One that could leave a choice point behind
   — `between/3`, `clause/2` — would need the engine's choice stack in its hands.
   They belong in a Prolog-level library instead, which does not yet exist.

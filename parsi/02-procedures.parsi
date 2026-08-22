@@ -54,9 +54,15 @@ BEGIN
     RETURN total;
 END
 
--- Every predicate in a knowledge base, as (name, arity, count). What a REPL
--- lists, and what a machine about to resume uses to warm its store.
-PROCEDURE cocolog::predicates(p_kb AS String)
+-- Every predicate in a knowledge base, one row per clause. What `listing'
+-- walks, and what a machine about to resume uses to warm its store.
+--
+-- NOT called `cocolog::predicates', because the PAGE of that name in
+-- 03-pages.parsi would take it. A page and a procedure share one namespace and
+-- one compiled object -- `_COCOLOG::PREDICATES_.so' -- and pages are compiled
+-- last, so the page wins and every call to the procedure dies with
+-- `undefined symbol: call'. The suffix matches `clauses_of' and `machines_of'.
+PROCEDURE cocolog::predicates_of(p_kb AS String)
 RETURNS Void
 REQUIRES cocolog::clauses
 BEGIN
@@ -65,8 +71,61 @@ BEGIN
     WHERE kb == p_kb;
 END
 
--- Removes a predicate outright. Answers how many clauses went.
-PROCEDURE cocolog::forget(p_kb AS String, p_name AS String, p_arity AS Int)
+-- ---------------------------------------------------------------------------
+-- Predicate properties
+-- ---------------------------------------------------------------------------
+
+-- Declares a predicate dynamic, idempotently. `:- dynamic foo/1.' twice, or in
+-- two interpreters at once, has to mean the same thing as once -- so the row is
+-- counted first and only inserted if it is not already there.
+--
+-- Answers 1 if it wrote a row and 0 if the declaration was already on record,
+-- which is what a caller wanting to know whether it said anything new asks.
+PROCEDURE cocolog::declare_dynamic(p_kb AS String, p_name AS String, p_arity AS Int)
+RETURNS Long
+REQUIRES cocolog::props, cocolog::props_seq
+BEGIN
+    DECLARE seen AS Long = 0;
+    SELECT seen = seen + 1
+    FROM cocolog::props
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+
+    IF seen > 0 BEGIN
+        RETURN 0;
+    END
+
+    DECLARE id AS Long = cocolog::props_seq::NEXT();
+    INSERT INTO cocolog::props VALUES (id, p_kb, p_name, p_arity, 1);
+    RETURN 1;
+END
+
+-- Every declared predicate in a knowledge base, as (name, arity, dynamic).
+-- Read alongside `predicates_of' when a store warms itself: that one says what
+-- has clauses, this one what has been declared, and a predicate can be in
+-- either without being in the other.
+PROCEDURE cocolog::props_of(p_kb AS String)
+RETURNS Void
+REQUIRES cocolog::props
+BEGIN
+    SELECT name, arity, dynamic
+    FROM cocolog::props
+    WHERE kb == p_kb;
+END
+
+-- ---------------------------------------------------------------------------
+-- Removing
+-- ---------------------------------------------------------------------------
+
+-- Removes a predicate's CLAUSES and leaves its declaration standing. Answers
+-- how many went.
+--
+-- This is what an assert or a retract calls, and it is not `forget'. Writing a
+-- predicate back means clearing it and inserting it again -- clauses are stored
+-- by ordinal, so putting one in the middle renumbers the rest -- and if that
+-- clearing took the `:- dynamic' row with it, then declaring a predicate and
+-- then asserting into it would undeclare it. Retracting a dynamic predicate's
+-- last clause leaves it declared and empty, which is exactly what it should be.
+PROCEDURE cocolog::forget_clauses(p_kb AS String, p_name AS String, p_arity AS Int)
 RETURNS Long
 REQUIRES cocolog::clauses
 BEGIN
@@ -81,14 +140,39 @@ BEGIN
     RETURN total;
 END
 
+-- Removes a predicate outright. Answers how many clauses went.
+--
+-- The declaration goes with it. `forget' is not `retract every clause' -- that
+-- would leave a dynamic predicate declared and empty, which is a real state and
+-- reachable by retracting -- it is "this predicate is not in this knowledge
+-- base", and a predicate that is not there is not declared either.
+PROCEDURE cocolog::forget(p_kb AS String, p_name AS String, p_arity AS Int)
+RETURNS Long
+REQUIRES cocolog::clauses, cocolog::props
+BEGIN
+    DECLARE total AS Long = 0;
+    SELECT total = total + 1
+    FROM cocolog::clauses
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+
+    DELETE FROM cocolog::clauses
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+
+    DELETE FROM cocolog::props
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+
+    RETURN total;
+END
+
 -- Empties a whole knowledge base. Used by the tests, which want a clean one.
 PROCEDURE cocolog::forget_all(p_kb AS String)
 RETURNS Long
-REQUIRES cocolog::clauses
+REQUIRES cocolog::clauses, cocolog::props
 BEGIN
     DECLARE total AS Long = 0;
     SELECT total = total + 1 FROM cocolog::clauses WHERE kb == p_kb;
     DELETE FROM cocolog::clauses WHERE kb == p_kb;
+    DELETE FROM cocolog::props WHERE kb == p_kb;
     RETURN total;
 END
 

@@ -95,23 +95,43 @@ once, at setup, for its `parsi` compiler.
 
 ## The knowledge base is a seam, not a dependency
 
-`lib/kb.cicili` gives the clause store two function pointers: `fetch`, called at
-most once per predicate, and `on_assert`. Everything above them is written
-against the store and knows nothing about where clauses come from.
+`lib/kb.cicili` gives the clause store five function pointers. Everything above
+them is written against the store and knows nothing about where clauses come
+from.
+
+| hook | when | what it is for |
+|---|---|---|
+| `fetch` | at most once per predicate, when something calls it | clauses arrive as the proof reaches them |
+| `on_assert` | a clause was added | write it through |
+| `on_retract` | a clause was removed | write that through too |
+| `on_dynamic` | a predicate was declared `dynamic` | a declaration is about the knowledge base, so it has to outlive the process |
+| `warm` | `listing` | name every predicate the knowledge base holds, without fetching any clauses |
+
+`on_assert` and `on_retract` both rewrite the WHOLE predicate. Clauses are
+stored by ordinal, and `asserta` puts one at the front — which changes the
+ordinal of every clause after it — so writing back only what changed would
+leave two clauses both claiming to be first. O(n) per assert, and always right.
+
+`warm` exists because the laziness that makes a shared knowledge base
+affordable also means a fresh interpreter knows of no predicate it has not
+already reached: `listing` asking what there is would answer "nothing", which
+is true of the store and false of the knowledge base. It interns names and
+declarations only — what the clauses ARE is still nobody's business until
+somebody calls one.
 
 That is three arrangements from one interpreter:
 
 * **local** — no hooks. Everything in memory.
-* **Zigurat** — `lib/zigurat-kb.cicili`. Clauses are fetched from a table as
-  the proof reaches them, and asserting writes through. Machines suspend and
-  resume here.
-* **Zeytun** — `lib/zeytun-kb.cicili`. The same reads over HTTP, for an
+* **Zigurat** — `lib/zigurat-kb.cicili`. All five. Machines suspend and resume
+  here.
+* **Zeytun** — `lib/zeytun-kb.cicili`. `fetch` and `warm`, over HTTP, for an
   interpreter that cannot open a socket to the binary port.
 
 The HTTP backend deliberately does not write. One HTTP request is one
 transaction; a machine is a header row plus a row per chunk, and over HTTP
 those would be separate transactions with no way to roll the first back when
-the third failed.
+the third failed. Reading is another matter, so `listing` over HTTP shows
+exactly what `listing` over the binary protocol shows.
 
 ## What is stored, and how
 

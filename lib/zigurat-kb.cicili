@@ -135,6 +135,11 @@
                                      (u64 name) (u32 arity)) (out int))
   (static) (decl) (func co_zg_on_assert ((co_store * st) (void * ctx)
                                          (size_t clause)) (out int))
+  (static) (decl) (func co_zg_on_retract ((co_store * st) (void * ctx)
+                                          (size_t pi)) (out int))
+  (static) (decl) (func co_zg_warm ((co_store * st) (void * ctx)) (out int))
+  (static) (decl) (func co_zg_on_dynamic ((co_store * st) (void * ctx)
+                                          (size_t pi)) (out int))
 
   (func co_zg_attach ((co_zg * z) (zg_conn * db) (co_machine * m)
                       (co_store * st) (const char * kb))
@@ -146,7 +151,10 @@
         (snprintf (-> z kb) 64 "%s" kb)
         (set (-> st ctx) (cast (void *) z))
         (set (-> st fetch) co_zg_fetch)
-        (set (-> st on_assert) co_zg_on_assert))
+        (set (-> st on_assert) co_zg_on_assert)
+        (set (-> st on_retract) co_zg_on_retract)
+        (set (-> st warm) co_zg_warm)
+        (set (-> st on_dynamic) co_zg_on_dynamic))
 
   ;;; ---- reading a predicate out of the database -------------------------
 
@@ -247,12 +255,16 @@
                 (const char * nm . #'(co_atom_name m ($ (nth pi (-> st preds)) name)))
                 (u32 ar . #'($ (nth pi (-> st preds)) arity)))
 
-            (if (not (zg_call (-> z db) "cocolog::forget"))
-                (return (co_zg_fail z "forget")))
+            ;; the CLAUSES, not the predicate: `cocolog::forget' would take the
+            ;; `:- dynamic' declaration with them, and this runs on every
+            ;; assert and every retract
+            (if (not (zg_call (-> z db) "cocolog::forget_clauses"))
+                (return (co_zg_fail z "forget_clauses")))
             (if (not (zg_write_string (-> z db) (-> z kb))) (return 0))
             (if (not (zg_write_string (-> z db) nm)) (return 0))
             (if (not (zg_write_int (-> z db) (cast i32 ar))) (return 0))
-            (if (not (co_zg_finish z (aof ignored))) (return (co_zg_fail z "forget")))
+            (if (not (co_zg_finish z (aof ignored)))
+                (return (co_zg_fail z "forget_clauses")))
 
             (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
               (let ((size_t mark . #'(-> m heap_len))
@@ -297,6 +309,107 @@
                       (set rc (co_zg_sync_pred z pi)))))
             (set (-> m heap_len) mark)
             (return rc))))
+
+  ;;; Every predicate in the knowledge base, by name and arity, interned into
+  ;;; the store so that `listing' knows they are there.
+  ;;;
+  ;;; `cocolog::predicates_of' answers one row per CLAUSE, so the same name and
+  ;;; arity arrive many times over; interning is idempotent, so they are simply
+  ;;; walked. Nothing is marked loaded -- the clauses themselves are still
+  ;;; fetched a predicate at a time, when something calls one.
+  (func co_zg_warm ((co_store * st) (void * ctx)) (out int)
+        (let ((co_zg * z . #'(cast (co_zg *) ctx))
+              (co_machine * m)
+              (int ok . 1)
+              (zg_result_t r)
+              (char cols [256]))
+          (set m (-> z m))
+
+          (if (not (zg_call (-> z db) "cocolog::predicates_of"))
+              (return (co_zg_fail z "predicates")))
+          (if (not (zg_write_string (-> z db) (-> z kb))) (return (co_zg_fail z "kb")))
+
+          (while ok
+            (if (not (zg_result (-> z db) (aof r))) (block (set ok 0) break))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN)
+               (if (not (zg_columns (-> z db) cols 256)) (set ok 0)))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((char nm [256]) (i32 ar . 0) (i64 ord . 0))
+                 (if (not (zg_read_string (-> z db) nm (sizeof nm) nil))
+                     (block (set ok 0) break))
+                 (if (not (zg_read_int (-> z db) (aof ar) nil)) (block (set ok 0) break))
+                 (if (not (zg_read_long (-> z db) (aof ord) nil)) (block (set ok 0) break))
+                 (co_pred_intern st (co_intern m nm) (cast u32 ar))))
+              ((== r ZG_RETURN_VALUE) (zg_skip_field (-> z db)))
+              (#t (block))))
+
+          (if (not ok) (return (co_zg_fail z "predicates")))
+
+          ;; And what has been DECLARED. A predicate can be in either list
+          ;; without being in the other: one declared and never written to has
+          ;; no clauses, and one merely asserted into was never declared.
+          (if (not (zg_call (-> z db) "cocolog::props_of"))
+              (return (co_zg_fail z "props_of")))
+          (if (not (zg_write_string (-> z db) (-> z kb))) (return (co_zg_fail z "kb")))
+
+          (set ok 1)
+          (while ok
+            (if (not (zg_result (-> z db) (aof r))) (block (set ok 0) break))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN)
+               (if (not (zg_columns (-> z db) cols 256)) (set ok 0)))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((char nm [256]) (i32 ar . 0) (i32 dyn . 0))
+                 (if (not (zg_read_string (-> z db) nm (sizeof nm) nil))
+                     (block (set ok 0) break))
+                 (if (not (zg_read_int (-> z db) (aof ar) nil)) (block (set ok 0) break))
+                 (if (not (zg_read_int (-> z db) (aof dyn) nil)) (block (set ok 0) break))
+                 (if dyn
+                     ;; the flag is set straight on the store rather than through
+                     ;; `co_pred_dynamic', which would call `on_dynamic' and
+                     ;; write back to the database the row it has just read
+                     (let ((size_t pi . #'(co_pred_intern st (co_intern m nm)
+                                                          (cast u32 ar))))
+                       (if (< pi ($ (cof st) npreds))
+                           (set ($ (nth pi (-> st preds)) dynamic) 1))))))
+              ((== r ZG_RETURN_VALUE) (zg_skip_field (-> z db)))
+              (#t (block))))
+
+          (if (not ok) (return (co_zg_fail z "props_of")))
+          (return 1)))
+
+  ;;; A predicate has just been declared dynamic. One row, idempotent at the
+  ;;; other end, so two interpreters declaring the same thing is not a conflict.
+  (func co_zg_on_dynamic ((co_store * st) (void * ctx) (size_t pi)) (out int)
+        (let ((co_zg * z . #'(cast (co_zg *) ctx))
+              (i64 wrote . 0))
+          (if (not (-> z write_through)) (return 1))
+          (if (>= pi ($ (cof st) npreds)) (return 0))
+          (if (not (zg_call (-> z db) "cocolog::declare_dynamic"))
+              (return (co_zg_fail z "declare_dynamic")))
+          (if (not (zg_write_string (-> z db) (-> z kb))) (return (co_zg_fail z "kb")))
+          (if (not (zg_write_string (-> z db)
+                                    (co_atom_name (-> z m)
+                                                  ($ (nth pi (-> st preds)) name))))
+              (return (co_zg_fail z "name")))
+          (if (not (zg_write_int (-> z db)
+                                 (cast i32 ($ (nth pi (-> st preds)) arity))))
+              (return (co_zg_fail z "arity")))
+          (if (not (co_zg_finish z (aof wrote)))
+              (return (co_zg_fail z "declare_dynamic")))
+          (return 1)))
+
+  ;;; A clause has just left a predicate. The whole predicate goes out again --
+  ;;; the same thing `on_assert' does, and for the same reason: clauses are
+  ;;; stored by ordinal, and taking one out of the middle renumbers every clause
+  ;;; after it.
+  (func co_zg_on_retract ((co_store * st) (void * ctx) (size_t pi)) (out int)
+        (let ((co_zg * z . #'(cast (co_zg *) ctx)))
+          (if (not (-> z write_through)) (return 1))
+          (return (co_zg_sync_pred z pi))))
 
   (func co_zg_consult ((co_zg * z) (const char * text)) (out int)
         (let ((char err [256]) (int n))
