@@ -231,7 +231,7 @@
   (func co_l_sort_common ((co_engine * e) (size_t g) (int dedup)) (out int)
         (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
           (if (not (co_m_list_array e (co_m_arg e g 0) (aof v) (aof n)))
-              (return (co_m_type_error e "a proper list" (co_m_arg e g 0))))
+              (return (co_m_type_error e "list" (co_m_arg e g 0))))
           (set co_l_sort_machine (co_m_machine e))
           (qsort v n (sizeof size_t) co_l_cmp)
           (if dedup
@@ -275,20 +275,20 @@
               (int descending . 0) (int keep . 0))
 
           (if (not (co_m_int e (co_m_arg e g 0) (aof key)))
-              (return (co_m_type_error e "an integer key" (co_m_arg e g 0))))
-          (if (< key 0) (return (co_m_error e "sort/4: the key must not be negative" nil)))
+              (return (co_m_type_error e "integer" (co_m_arg e g 0))))
+          (if (< key 0) (return (co_m_domain_error e "not_less_than_zero" (co_m_arg e g 0))))
           (set order (co_m_atom e (co_m_arg e g 1)))
           (if (== order nil)
-              (return (co_m_type_error e "an order" (co_m_arg e g 1))))
+              (return (co_m_domain_error e "order" (co_m_arg e g 1))))
           (cond
             ((== 0 (strcmp order "@<"))  (block (set descending 0) (set keep 0)))
             ((== 0 (strcmp order "@=<")) (block (set descending 0) (set keep 1)))
             ((== 0 (strcmp order "@>"))  (block (set descending 1) (set keep 0)))
             ((== 0 (strcmp order "@>=")) (block (set descending 1) (set keep 1)))
-            (#t (return (co_m_error e "sort/4: not an order" order))))
+            (#t (return (co_m_domain_error e "order" (co_m_arg e g 1)))))
 
           (if (not (co_m_list_array e (co_m_arg e g 2) (aof v) (aof n)))
-              (return (co_m_type_error e "a proper list" (co_m_arg e g 2))))
+              (return (co_m_type_error e "list" (co_m_arg e g 2))))
 
           ;; insertion sort: stable, and n is small in every use this has
           (for ((size_t i . 1)) (< i n) ((++ i))

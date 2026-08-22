@@ -156,19 +156,25 @@
   ;;; Argument I of the goal as a path. Answers 1, or 0 having filled in the
   ;;; engine's error -- so a caller writes
   ;;;
-  ;;;   (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+  ;;;   (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
   ;;;
   ;;; and the -1 carries the message. An unbound argument is an instantiation
   ;;; error and not a failure, which is what SWI does and what a program
   ;;; debugging itself needs.
+  ;;; RC CARRIES WHAT THE CALLER SHOULD RETURN when this fails, because the
+  ;;; error is now a THROW: if some `catch/3' took it the builtin must answer 1
+  ;;; and let the engine run the recovery goal, and if none did it must answer
+  ;;; -1. A plain 0 would be a silent failure in the first case, which is the
+  ;;; opposite of what the program asked for.
   (static)
-  (func co_f_path ((co_engine * e) (size_t g) (u32 i) (char * out) (size_t cap))
+  (func co_f_path ((co_engine * e) (size_t g) (u32 i) (char * out) (size_t cap)
+                   (int * rc))
         (out int)
         (let ((size_t t . #'(co_m_arg e g i)))
           (if (co_m_is_var e t)
-              (block (co_m_error e "a file name is unbound" nil) (return 0)))
+              (block (set (cof rc) (co_m_instantiation_error e)) (return 0)))
           (if (not (co_m_text e t out cap))
-              (block (co_m_type_error e "a file name" t) (return 0)))
+              (block (set (cof rc) (co_m_type_error e "atom" t)) (return 0)))
           (return 1)))
 
   ;;; ---- existence and access -------------------------------------------
@@ -181,24 +187,24 @@
           (return (? (S_ISREG ($ sb st_mode)) 1 0))))
 
   (func co_f_exists_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (return (co_f_stat_is p 0))))
 
   (func co_f_exists_directory ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (return (co_f_stat_is p 1))))
 
   ;;; SWI's modes. `none' is true of anything, including a file that is not
   ;;; there -- it asks for no access and gets it. `append' is `write', and
   ;;; `search' is `execute' spelt for directories.
   (func co_f_access_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (const char * mode))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]) (const char * mode))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (set mode (co_m_atom e (co_m_arg e g 1)))
           (if (== mode nil)
-              (return (co_m_type_error e "an access mode" (co_m_arg e g 1))))
+              (return (co_m_domain_error e "access_mode" (co_m_arg e g 1))))
           (if (== 0 (strcmp mode "none"))    (return 1))
           (if (== 0 (strcmp mode "exist"))   (return (? (== 0 (access p F_OK)) 1 0)))
           (if (== 0 (strcmp mode "read"))    (return (? (== 0 (access p R_OK)) 1 0)))
@@ -206,19 +212,19 @@
               (return (? (== 0 (access p W_OK)) 1 0)))
           (if (or (== 0 (strcmp mode "execute")) (== 0 (strcmp mode "search")))
               (return (? (== 0 (access p X_OK)) 1 0)))
-          (return (co_m_error e "not an access mode" mode))))
+          (return (co_m_domain_error e "access_mode" (co_m_arg e g 1)))))
 
   (func co_f_size_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (stat_t sb))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]) (stat_t sb))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (if (!= 0 (stat p (aof sb))) (return 0))
           (return (co_m_unify_int e (co_m_arg e g 1) (cast i64 ($ sb st_size))))))
 
   ;;; A FLOAT, because SWI's is a float and a program comparing two of them
   ;;; would otherwise get a different answer on each system.
   (func co_f_time_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (stat_t sb))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]) (stat_t sb))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (if (!= 0 (stat p (aof sb))) (return 0))
           (return (co_m_unify_float e (co_m_arg e g 1)
                                     (cast double ($ sb st_mtime))))))
@@ -226,24 +232,24 @@
   ;;; ---- changing things ------------------------------------------------
 
   (func co_f_delete_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (return (? (== 0 (unlink p)) 1 0))))
 
   (func co_f_rename_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char a [4096]) (char b [4096]))
-          (if (not (co_f_path e g 0 a (sizeof a))) (return -1))
-          (if (not (co_f_path e g 1 b (sizeof b))) (return -1))
+        (let ((int rc . 0) (char a [4096]) (char b [4096]))
+          (if (not (co_f_path e g 0 a (sizeof a) (aof rc))) (return rc))
+          (if (not (co_f_path e g 1 b (sizeof b) (aof rc))) (return rc))
           (return (? (== 0 (rename a b)) 1 0))))
 
   (func co_f_make_directory ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (return (? (== 0 (mkdir p 0777)) 1 0))))
 
   (func co_f_delete_directory ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (return (? (== 0 (rmdir p)) 1 0))))
 
   ;;; ---- listing --------------------------------------------------------
@@ -255,7 +261,7 @@
   (func co_f_directory_files ((co_engine * e) (size_t g)) (out int)
         (let ((char p [4096]) (DIR * d) (char ** names . nil)
               (size_t n . 0) (size_t cap . 0) (int rc . 0))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (set d (opendir p))
           (if (== d nil) (return 0))
           (while 1
@@ -290,7 +296,7 @@
   (func co_f_expand_file_name ((co_engine * e) (size_t g)) (out int)
         (let ((char p [4096]) (int rc . 0) (int gr . 0)
               (size_t n . 0) (char ** v . nil))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (code "glob_t gl; memset(&gl, 0, sizeof gl);")
           (set gr (code "glob(p, GLOB_TILDE, NULL, &gl)"))
           (if (== gr 0)
@@ -316,8 +322,8 @@
         (return (? (== (nth 0 p) (cast char 47)) 1 0)))
 
   (func co_f_is_absolute ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (return (co_f_is_abs p))))
 
   ;;; NORMALISED, NOT RESOLVED. `.' and `..' are folded away and a relative
@@ -370,8 +376,8 @@
             (return 1))))
 
   (func co_f_absolute_file_name ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (char abs [4096]))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]) (char abs [4096]))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (if (not (co_f_normalise p abs (sizeof abs)))
               (return (co_m_error e "the path will not fit" p)))
           (return (co_m_unify_atom e (co_m_arg e g 1) abs))))
@@ -383,8 +389,8 @@
   ;;;   '/a/b/c' -> '/a/b' and c        '/a/b/' -> '/a'  and b
   ;;;   'abc'    -> '.'    and abc      '/'     -> '/'   and '/'
   (func co_f_path_split ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (char dir [4096]) (char base [4096]) (size_t len))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]) (char dir [4096]) (char base [4096]) (size_t len))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (set len (strlen p))
 
           ;; a bare root is its own directory and its own base name
@@ -426,8 +432,8 @@
   ;;; SWI in the first run. The rule is simply: the last dot that is after the
   ;;; last slash, wherever it sits.
   (func co_f_ext_split ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (char * dot) (char * slash))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]) (char * dot) (char * slash))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (set dot (strrchr p 46))
           (set slash (strrchr p 47))
           (if (or (== dot nil)
@@ -452,9 +458,9 @@
   ;;; is what SWI does: file_name_extension(x, '.md', F) gives 'x.md' and not
   ;;; 'x..md'. An empty Ext adds no dot.
   (func co_f_ext_join ((co_engine * e) (size_t g)) (out int)
-        (let ((char base [4096]) (char ext [4096]) (char out [4096]))
-          (if (not (co_f_path e g 0 base (sizeof base))) (return -1))
-          (if (not (co_f_path e g 1 ext (sizeof ext))) (return -1))
+        (let ((int rc . 0) (char base [4096]) (char ext [4096]) (char out [4096]))
+          (if (not (co_f_path e g 0 base (sizeof base) (aof rc))) (return rc))
+          (if (not (co_f_path e g 1 ext (sizeof ext) (aof rc))) (return rc))
           (if (== (cast char 0) (nth 0 ext))
               (snprintf out (sizeof out) "%s" base)
             (if (== (nth 0 ext) (cast char 46))
@@ -467,9 +473,9 @@
   ;;; The same file and not merely the same name: device and inode, through
   ;;; `stat' and so through any symbolic link.
   (func co_f_same_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char a [4096]) (char b [4096]) (stat_t sa) (stat_t sb))
-          (if (not (co_f_path e g 0 a (sizeof a))) (return -1))
-          (if (not (co_f_path e g 1 b (sizeof b))) (return -1))
+        (let ((int rc . 0) (char a [4096]) (char b [4096]) (stat_t sa) (stat_t sb))
+          (if (not (co_f_path e g 0 a (sizeof a) (aof rc))) (return rc))
+          (if (not (co_f_path e g 1 b (sizeof b) (aof rc))) (return rc))
           (if (!= 0 (stat a (aof sa))) (return 0))
           (if (!= 0 (stat b (aof sb))) (return 0))
           (return (? (and (== ($ sa st_dev) ($ sb st_dev))
@@ -477,8 +483,8 @@
 
   ;;; SWI answers both the raw link text and the fully resolved target.
   (func co_f_read_link ((co_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (char raw [4096]) (char full [4096]) (ssize_t n))
-          (if (not (co_f_path e g 0 p (sizeof p))) (return -1))
+        (let ((int rc . 0) (char p [4096]) (char raw [4096]) (char full [4096]) (ssize_t n))
+          (if (not (co_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (set n (readlink p raw (- (sizeof raw) 1)))
           (if (< n 0) (return 0))
           (set (nth n raw) (cast char 0))
@@ -505,8 +511,8 @@
   ;;; a NAME and not a file: SWI's tmp_file/2 does not create one either, and
   ;;; the caller is the one that knows what to put there.
   (func co_f_tmp_file ((co_engine * e) (size_t g)) (out int)
-        (let ((char base [4096]) (char out [4096]) (const char * dir))
-          (if (not (co_f_path e g 0 base (sizeof base))) (return -1))
+        (let ((int rc . 0) (char base [4096]) (char out [4096]) (const char * dir))
+          (if (not (co_f_path e g 0 base (sizeof base) (aof rc))) (return rc))
           (set dir (getenv "TMPDIR"))
           (if (== dir nil) (set dir "/tmp"))
           (snprintf out (sizeof out) "%s/coco_%s_%d_%ld" dir base
@@ -517,7 +523,7 @@
   ;;; New. `working_directory(W, W)' therefore reads it and puts it back, which
   ;;; is the idiom for asking where you are.
   (func co_f_working_directory ((co_engine * e) (size_t g)) (out int)
-        (let ((char cwd [4096]) (char with [4096]) (char dest [4096]))
+        (let ((int rc . 0) (char cwd [4096]) (char with [4096]) (char dest [4096]))
           (if (== nil (getcwd cwd (sizeof cwd)))
               (return (co_m_error e "cannot read the working directory" nil)))
           (let ((size_t len . #'(strlen cwd)))
@@ -529,7 +535,7 @@
           ;; what `working_directory(W, W)' does -- so it is read afterwards.
           ;; The local is `dest' and not `new' because `new' is one of Cicili's
           ;; own macros and a variable of that name is read as a call to it.
-          (if (not (co_f_path e g 1 dest (sizeof dest))) (return -1))
+          (if (not (co_f_path e g 1 dest (sizeof dest) (aof rc))) (return rc))
           (if (!= 0 (chdir dest)) (return 0))
           (return 1)))
 

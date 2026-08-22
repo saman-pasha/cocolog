@@ -32,7 +32,7 @@
 ;;;
 ;;; THE RULES A MODULE PREDICATE MUST OBEY, and they are not style:
 ;;;
-;;;   IT IS DETERMINISTIC. It answers 1 (once), 0, or -1, and never makes a
+;;;   IT IS DETERMINISTIC. It answers 1 (once), 0, -1, or 2, and never makes a
 ;;;   choice point -- it has no access to the choice stack, deliberately, so
 ;;;   that no module can break the invariant the engine's suspension depends
 ;;;   on. A predicate that wants to answer several times returns a LIST and
@@ -238,15 +238,42 @@
   (decl) (func co_m_list_array ((co_engine * e) (size_t t) (size_t ** out)
                                 (size_t * n)) (out int))
 
-  ;;; ---- giving up ----
+  ;;; ---- giving up --------------------------------------------------------
+  ;;;
+  ;;; ALL FIVE THROW, and they throw the term SWI throws: `error(Formal, _)',
+  ;;; with Formal one of `type_error(Type, Culprit)', `instantiation_error',
+  ;;; `domain_error(Domain, Culprit)' or `existence_error(Kind, What)'. A
+  ;;; program can therefore write the portable
+  ;;;
+  ;;;   catch(Goal, error(type_error(T, V), _), Recovery)
+  ;;;
+  ;;; and have it mean the same thing here as there. They used to fill in the
+  ;;; engine's `err' and stop the query, which is why cocolog FAILED wherever
+  ;;; SWI threw and why the shared tests had to stay off those paths.
+  ;;;
+  ;;; THE SECOND ARGUMENT OF `error' IS LEFT UNBOUND. SWI puts a
+  ;;; `context(Module:Name/Arity, Message)' there, and no two systems agree on
+  ;;; its contents -- matching on `error(Formal, _)' is what portable code
+  ;;; does and is all that can be compared.
+  ;;;
+  ;;; EACH ANSWERS WHAT ITS CALLER SHOULD RETURN: 2 when a `catch/3' took the
+  ;;; ball -- the engine is then already pointed at the recovery goal and 2 is
+  ;;; how a builtin says "leave my continuation alone" -- and -1 when nothing
+  ;;; caught it, `err' saying so. A predicate still writes
+  ;;; `(return (co_m_type_error e "list" t))' and does not care which happened.
+  (decl) (func co_m_type_error ((co_engine * e) (const char * type)
+                                (size_t culprit)) (out int))
+  (decl) (func co_m_instantiation_error ((co_engine * e)) (out int))
+  (decl) (func co_m_domain_error ((co_engine * e) (const char * domain)
+                                  (size_t culprit)) (out int))
+  (decl) (func co_m_existence_error ((co_engine * e) (const char * kind)
+                                     (size_t what)) (out int))
 
-  ;;; Both answer -1 with the engine's `err' filled in, so a predicate can
-  ;;; `(return (co_m_error e "..." path))'. cocolog has no error TERMS -- see
-  ;;; STATUS.md -- so an error stops the query rather than being catchable.
+  ;;; For what SWI has no error for and cocolog does: a condition of this
+  ;;; implementation's own. It throws `error(cocolog_error(Atom), _)', so it is
+  ;;; catchable like the rest and cannot be mistaken for a standard one.
   (decl) (func co_m_error ((co_engine * e) (const char * what)
                            (const char * detail)) (out int))
-  (decl) (func co_m_type_error ((co_engine * e) (const char * want)
-                                (size_t got)) (out int))
 
   ) ; decl-module
 
@@ -502,19 +529,43 @@
             (set (cof n) len)
             (return 1))))
 
-  (func co_m_error ((co_engine * e) (const char * what) (const char * detail)) (out int)
-        (if (== detail nil)
-            (snprintf (-> e err) 192 "%s" what)
-          (snprintf (-> e err) 192 "%s: %s" what detail))
-        (return -1))
+  ;;; `error(Formal, _)' and then throw it. The context variable is fresh, so
+  ;;; the caller's `catch' pattern `error(F, _)' matches whatever it holds.
+  (static)
+  (func co_m_raise ((co_engine * e) (size_t formal)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t ball . #'(co_make2 m "error" formal (co_new_var m))))
+          ;; 2 and not 1: the engine must be told that the continuation is
+          ;; already set, or it puts the caller's back and the recovery goal
+          ;; never runs. See the dispatch in solve.cicili.
+          (return (? (co_m_thrown e ball) 2 -1))))
 
-  (func co_m_type_error ((co_engine * e) (const char * want) (size_t got)) (out int)
-        (let ((co_strbuf b))
-          (co_sb_init (aof b))
-          (co_write_term (-> e m) (aof b) got 1 0)
-          (snprintf (-> e err) 192 "%s expected, found %s" want
-                    (? (== ($ b s) nil) "a variable" ($ b s)))
-          (co_sb_free (aof b))
-          (return -1)))
+  (func co_m_type_error ((co_engine * e) (const char * type) (size_t culprit))
+        (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (return (co_m_raise e (co_make2 m "type_error"
+                                          (co_new_atom m type) culprit)))))
+
+  (func co_m_instantiation_error ((co_engine * e)) (out int)
+        (return (co_m_raise e (co_new_atom (-> e m) "instantiation_error"))))
+
+  (func co_m_domain_error ((co_engine * e) (const char * domain) (size_t culprit))
+        (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (return (co_m_raise e (co_make2 m "domain_error"
+                                          (co_new_atom m domain) culprit)))))
+
+  (func co_m_existence_error ((co_engine * e) (const char * kind) (size_t what))
+        (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (return (co_m_raise e (co_make2 m "existence_error"
+                                          (co_new_atom m kind) what)))))
+
+  (func co_m_error ((co_engine * e) (const char * what) (const char * detail)) (out int)
+        (let ((co_machine * m . #'(-> e m)) (char msg [192]))
+          (if (== detail nil)
+              (snprintf msg (sizeof msg) "%s" what)
+            (snprintf msg (sizeof msg) "%s: %s" what detail))
+          (return (co_m_raise e (co_make1 m "cocolog_error" (co_new_atom m msg))))))
 
   ) ; impl-module

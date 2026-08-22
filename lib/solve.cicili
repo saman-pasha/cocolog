@@ -179,7 +179,18 @@
 (generic decl-solve
   ()
 
-  (enum co_choice_kind (CO_CH_CLAUSE . 0) (CO_CH_GOAL . 1))
+  ;;; A CATCH frame is not an alternative and never offers one -- backtracking
+  ;;; through it pops it and keeps going. What it is is a MARK: `throw/1' walks
+  ;;; the stack looking for one whose catcher matches, and the trail and heap
+  ;;; marks every frame already carries are exactly what "put the machine back
+  ;;; as it was when the catch was entered" means.
+  ;;;
+  ;;; IT COSTS NOTHING IN state.cicili, which was the reason to do it this way.
+  ;;; A frame is written out field by field with its kind, and the catcher and
+  ;;; the recovery goal ride in `call' as one `'$catch'(C, R)' term on the heap
+  ;;; -- and the heap is serialised already. A frozen machine inside a `catch'
+  ;;; comes back inside it.
+  (enum co_choice_kind (CO_CH_CLAUSE . 0) (CO_CH_GOAL . 1) (CO_CH_CATCH . 2))
 
   (struct co_choice
     (member int      kind)
@@ -266,6 +277,16 @@
   (decl) (func co_engine_findall ((co_engine * e) (size_t template) (size_t goal)
                                   (size_t * out)) (out int))
 
+  ;;; Throws BALL, exactly as `throw/1' does. A module's C half uses this to
+  ;;; raise an error a program can catch, rather than filling in `err' and
+  ;;; stopping the query -- which is what every builtin here used to do and is
+  ;;; why cocolog failed where SWI threw.
+  ;;;
+  ;;; Answers 1 when a `catch/3' took it, in which case the caller must return
+  ;;; 1 as well and let the engine run the recovery goal; and 0 when nothing
+  ;;; caught it, in which case `err' says so and the caller returns -1.
+  (decl) (func co_m_thrown ((co_engine * e) (size_t ball)) (out int))
+
   (decl) (func co_extern_install
                ((func call ((co_engine * e) (const char * name) (u32 arity)
                             (size_t g) (int * found)) (out int))
@@ -326,6 +347,38 @@
   (func co_fail_err ((co_engine * e) (const char * what)) (out int)
         (snprintf (-> e err) 192 "%s" what)
         (return -1))
+
+  ;;; ---- errors a program can catch ---------------------------------------
+  ;;;
+  ;;; The core builtins used to stop the query through `co_fail_err', which is
+  ;;; why cocolog FAILED wherever SWI threw. They raise `error(Formal, _)' now,
+  ;;; exactly as the modules do -- the difference is only that these are on the
+  ;;; engine's side of the seam, so they build the term here rather than
+  ;;; through the module API.
+  ;;;
+  ;;; 2 means "the continuation is already set", which is what a caught throw
+  ;;; leaves behind; -1 means nothing caught it.
+  (static) (decl) (func co_throw ((co_engine * e) (size_t ball)) (out int))
+
+  (static)
+  (func co_raise ((co_engine * e) (size_t formal)) (out int)
+        (let ((size_t ball . #'(co_make2 (-> e m) "error" formal
+                                         (co_new_var (-> e m)))))
+          (return (? (== 1 (co_throw e ball)) 2 -1))))
+
+  (static)
+  (func co_type_error ((co_engine * e) (const char * type) (size_t culprit)) (out int)
+        (return (co_raise e (co_make2 (-> e m) "type_error"
+                                      (co_new_atom (-> e m) type) culprit))))
+
+  (static)
+  (func co_instantiation_error ((co_engine * e)) (out int)
+        (return (co_raise e (co_new_atom (-> e m) "instantiation_error"))))
+
+  (static)
+  (func co_evaluation_error ((co_engine * e) (const char * what)) (out int)
+        (return (co_raise e (co_make1 (-> e m) "evaluation_error"
+                                      (co_new_atom (-> e m) what)))))
 
   ;;; ---- the continuation --------------------------------------------------
 
@@ -439,8 +492,75 @@
                   (block (set (-> e nchoices) ci)
                          (set (-> e goals) (co_k_push e call barrier goals))
                          (return 1)))
+              ;; a catch offers no alternative: drop it and keep going down
+              (if (== kind CO_CH_CATCH)
+                  (block (set (-> e nchoices) ci) continue))
               (if (co_select_clause e ci) (return 1))))
           (return 0)))
+
+  ;;; ---- throwing ----------------------------------------------------------
+
+  ;;; Unwinds to the nearest enclosing `catch/3' whose catcher unifies with
+  ;;; BALL, and leaves the engine about to run that catch's recovery goal.
+  ;;; Answers 1 when it found one and -1 when nothing caught it.
+  ;;;
+  ;;; THE BALL GOES INTO THE STORE FIRST, and that is the whole difficulty.
+  ;;; Unwinding truncates the heap to the frame's mark, and the ball was built
+  ;;; above that mark -- by the time there is somewhere to put it, it is gone.
+  ;;; The store does not shrink, which is the property `assert' and `findall'
+  ;;; already rely on, so the ball is put there and read back out on to the
+  ;;; heap once the machine has been wound back.
+  ;;;
+  ;;; A CATCHER THAT DOES NOT MATCH MUST LEAVE NOTHING BEHIND. Trying it is a
+  ;;; unification, so it is done between a mark and an undo -- otherwise a
+  ;;; failed match would bind the catcher of an outer frame on the way past.
+  (static)
+  (func co_throw ((co_engine * e) (size_t ball)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (co_store * st . #'(-> e st))
+              (size_t cell . #'(co_store_put (-> e st) (-> e m) ball)))
+
+          (while (> (-> e nchoices) 0)
+            (let ((size_t ci . #'(- (-> e nchoices) 1))
+                  (int kind) (size_t call) (size_t goals) (size_t barrier))
+              (let ((co_choice * c . #'(aof (nth ci (-> e choices)))))
+                (set kind (-> c kind))
+                (set call (-> c call))
+                (set goals (-> c goals))
+                (set barrier (-> c barrier))
+                ;; back to how things stood when this frame was made
+                (co_undo_to m (-> c trail_mark))
+                (set ($ (cof m) heap_len) (-> c heap_mark)))
+
+              (if (!= kind CO_CH_CATCH)
+                  (block (set (-> e nchoices) ci) continue))
+
+              ;; `'$catch'(Catcher, Recovery)', built before the frame was
+              ;; pushed and so below its heap mark -- it survived the unwinding
+              (let ((size_t mark . #'($ (cof m) trail_len))
+                    (size_t fresh . #'(co_store_get m st cell))
+                    (size_t catcher . #'(co_arg m call 0))
+                    (size_t recovery . #'(co_arg m call 1)))
+                (if (co_unify m catcher fresh)
+                    (block (set (-> e nchoices) ci)
+                           (set (-> e goals) (co_k_push e recovery barrier goals))
+                           (return 1)))
+                (co_undo_to m mark))
+              (set (-> e nchoices) ci)))
+
+          ;; nothing caught it. The ball is read back one last time so that the
+          ;; message can name it, which is the difference between a report a
+          ;; person can act on and `an error occurred'.
+          (let ((co_strbuf b))
+            (co_sb_init (aof b))
+            (co_write_term m (aof b) (co_store_get m st cell) 1 0)
+            (snprintf (-> e err) 192 "uncaught exception: %s"
+                      (? (== ($ b s) nil) "?" ($ b s)))
+            (co_sb_free (aof b)))
+          (return -1)))
+
+  (func co_m_thrown ((co_engine * e) (size_t ball)) (out int)
+        (return (? (== 1 (co_throw e ball)) 1 0)))
 
   ;;; ---- calling ------------------------------------------------------------
 
@@ -580,9 +700,9 @@
 
               (let ((u64 gc . #'(nth g (-> m heap))))
                 (if (co-tag-is REF gc)
-                    (return (co_fail_err e "a goal is an unbound variable")))
+                    (return (co_instantiation_error e)))
                 (if (not (co_is_callable m g))
-                    (return (co_fail_err e "a goal is not callable"))))
+                    (return (co_type_error e "callable" g))))
 
               (let ((const char * name . #'(co_atom_name m (co_name_of m g)))
                     (u32 n . #'(co_arity m g)))
@@ -634,6 +754,27 @@
                    ;; its own, so a `!' inside it cannot cut the caller
                    (set (-> e goals) (co_k_push e (co_arg m g 0) (-> e nchoices) k)))
 
+                  ((and (== n 3) (== 0 (strcmp name "catch")))
+                   ;; The catcher and the recovery goal are put on the heap as
+                   ;; one term BEFORE the frame is pushed, so that the frame's
+                   ;; heap mark is above them and unwinding cannot take them.
+                   ;;
+                   ;; The goal runs under a barrier of its own, so a `!' inside
+                   ;; a `catch' is local to it -- the same rule `call/1'
+                   ;; follows, and what stops a cut from removing the very
+                   ;; frame that is meant to catch.
+                   (let ((size_t cr . #'(co_make2 m "$catch"
+                                                  (co_arg m g 1) (co_arg m g 2))))
+                     (if (not (co_push_choice e CO_CH_CATCH cr k b))
+                         (return (co_fail_err e "out of memory")))
+                     (set (-> e goals)
+                          (co_k_push e (co_arg m g 0) (-> e nchoices) k))))
+
+                  ((and (== n 1) (== 0 (strcmp name "throw")))
+                   ;; never fails and never simply succeeds: it either transfers
+                   ;; control to a recovery goal or ends the query
+                   (if (co_m_thrown e (co_arg m g 0)) (block) (return -1)))
+
                   ((and (> n 1) (== 0 (strcmp name "call")))
                    ;; `call(G, A, B, ...)' -- G with the extra arguments added
                    ;; to the end of it. This is what makes a predicate that
@@ -648,7 +789,7 @@
                    ;; pushed onto it.
                    (let ((size_t c . #'(co_deref m (co_arg m g 0))))
                      (if (not (co_is_callable m c))
-                         (return (co_fail_err e "call/N needs a callable")))
+                         (return (co_type_error e "callable" c)))
                      (let ((u32 have . #'(co_arity m c))
                            (u32 extra . #'(- n 1)))
                        (if (> (+ have extra) 255)
@@ -676,12 +817,21 @@
                      (if (and (not found) (!= co_extern_call nil))
                          (set rc (co_extern_call e name n g (aof found))))
                      (if found
-                         (block (if (== rc -1) (return -1))
-                                (if (== rc 1) (set (-> e goals) k) (set ok 0)))
+                         (block
+                          (if (== rc -1) (return -1))
+                          ;; 2 MEANS THE BUILTIN SET THE CONTINUATION ITSELF,
+                          ;; which is what a builtin that threw and was caught
+                          ;; has done: `co_throw' has already pointed the
+                          ;; engine at the recovery goal, and putting `k' back
+                          ;; here would throw that away and carry on as if
+                          ;; nothing had been raised.
+                          (cond ((== rc 2) (block))
+                                ((== rc 1) (set (-> e goals) k))
+                                (#t (set ok 0))))
                        ;; nobody's builtin: the knowledge base decides
                        (let ((size_t pi . #'(co_pred_of st m g)))
                          (if (>= pi ($ (cof st) npreds))
-                             (return (co_fail_err e "goal is not callable")))
+                             (return (co_type_error e "callable" g)))
                          (co_pred_ensure st pi)
                          (if (== 0 ($ (nth pi ($ (cof st) preds)) nclauses))
                              (set ok 0)
@@ -806,7 +956,7 @@
           ;; people; `//' is always integer division.
           ((== 0 (strcmp name "/"))
            (if both_int
-               (block (if (== bi 0) (return (co_fail_err e "division by zero")))
+               (block (if (== bi 0) (return (co_evaluation_error e "zero_divisor")))
                       (if (== 0 (% ai bi))
                           (block (set (cof iv) (/ ai bi)) (set (cof isf) 0))
                         (block (set (cof fv) (/ (cast double ai) (cast double bi)))
@@ -814,19 +964,19 @@
              (block (set (cof fv) (/ af bf)) (set (cof isf) 1)))
            (return 1))
           ((== 0 (strcmp name "//"))
-           (if (not both_int) (return (co_fail_err e "// wants two integers")))
-           (if (== bi 0) (return (co_fail_err e "division by zero")))
+           (if (not both_int) (return (co_type_error e "integer" 0)))
+           (if (== bi 0) (return (co_evaluation_error e "zero_divisor")))
            (set (cof iv) (/ ai bi)) (set (cof isf) 0) (return 1))
           ((== 0 (strcmp name "mod"))
-           (if (not both_int) (return (co_fail_err e "mod wants two integers")))
-           (if (== bi 0) (return (co_fail_err e "division by zero")))
+           (if (not both_int) (return (co_type_error e "integer" 0)))
+           (if (== bi 0) (return (co_evaluation_error e "zero_divisor")))
            ;; mod follows the sign of the divisor, rem follows the dividend
            (set (cof iv) (- (% ai bi) (? (and (!= (% ai bi) 0)
                                               (< (* (% ai bi) bi) 0)) (- 0 bi) 0)))
            (set (cof isf) 0) (return 1))
           ((== 0 (strcmp name "rem"))
-           (if (not both_int) (return (co_fail_err e "rem wants two integers")))
-           (if (== bi 0) (return (co_fail_err e "division by zero")))
+           (if (not both_int) (return (co_type_error e "integer" 0)))
+           (if (== bi 0) (return (co_evaluation_error e "zero_divisor")))
            (set (cof iv) (% ai bi)) (set (cof isf) 0) (return 1))
           ((== 0 (strcmp name "min"))
            (if both_int (block (set (cof iv) (? (< ai bi) ai bi)) (set (cof isf) 0))
@@ -839,10 +989,10 @@
           ((== 0 (strcmp name "**"))
            (set (cof fv) (pow af bf)) (set (cof isf) 1) (return 1))
           ((== 0 (strcmp name ">>"))
-           (if (not both_int) (return (co_fail_err e ">> wants two integers")))
+           (if (not both_int) (return (co_type_error e "integer" 0)))
            (set (cof iv) (>> ai bi)) (set (cof isf) 0) (return 1))
           ((== 0 (strcmp name "<<"))
-           (if (not both_int) (return (co_fail_err e "<< wants two integers")))
+           (if (not both_int) (return (co_type_error e "integer" 0)))
            (set (cof iv) (<< ai bi)) (set (cof isf) 0) (return 1))
           (#t (return (co_fail_err e "unknown arithmetic function")))))
 
@@ -858,7 +1008,7 @@
           (set t (co_deref m t))
           (let ((u64 c . #'(nth t (-> m heap))))
             (cond
-              ((co-tag-is REF c) (return (co_fail_err e "arithmetic on an unbound variable")))
+              ((co-tag-is REF c) (return (co_instantiation_error e)))
               ((co-tag-is INT c) (set (cof iv) (co-signed-payload c)) (set (cof isf) 0) (return 1))
               ((co-tag-is FLT c)
                (set (cof fv) (nth (cast size_t (co-payload c)) (-> m floats)))
@@ -869,7 +1019,7 @@
                      (block (set (cof fv) 3.14159265358979323846) (set (cof isf) 1) (return 1)))
                  (if (== 0 (strcmp nm "e"))
                      (block (set (cof fv) 2.71828182845904523536) (set (cof isf) 1) (return 1)))
-                 (return (co_fail_err e "that atom is not an arithmetic constant"))))
+                 (return (co_type_error e "evaluable" t))))
               (#t
                (let ((const char * nm . #'(co_atom_name m (co_name_of m t)))
                      (u32 n . #'(co_arity m t)))
@@ -986,12 +1136,12 @@
           (let ((size_t nt . #'(co_a e g 1))
                 (size_t at . #'(co_a e g 2)))
             (if (not (co-tag-is INT (nth at (-> m heap))))
-                (return (co_fail_err e "functor/3 needs the arity")))
+                (return (co_instantiation_error e)))
             (let ((i64 n . #'(co-signed-payload (nth at (-> m heap)))))
               (if (< n 0) (return (co_fail_err e "functor/3 wants an arity of 0 or more")))
               (if (== n 0) (return (? (co_unify m (co_arg m g 0) nt) 1 0)))
               (if (not (co-tag-is ATOM (nth nt (-> m heap))))
-                  (return (co_fail_err e "functor/3 needs an atom name")))
+                  (return (co_type_error e "atomic" (co_a e g 1))))
               (let ((size_t h . #'(co_open_struct m (co_atom_name m (co_name_of m nt))
                                                  (cast u32 n))))
                 (for ((i64 i . 0)) (< i n) ((++ i)) (co_new_var m))
@@ -1002,7 +1152,7 @@
               (size_t it . #'(co_a e g 0))
               (size_t t . #'(co_a e g 1)))
           (if (not (co-tag-is INT (nth it (-> m heap))))
-              (return (co_fail_err e "arg/3 needs the argument number")))
+              (return (co_instantiation_error e)))
           (if (not (co-tag-is FUN (nth t (-> m heap)))) (return 0))
           (let ((i64 i . #'(co-signed-payload (nth it (-> m heap))))
                 (u32 n . #'(co_arity m t)))
@@ -1078,7 +1228,7 @@
               (size_t t . #'(co_a e g 0))
               (co_strbuf b) (int r))
           (if (co-tag-is REF (nth t (-> m heap)))
-              (return (co_fail_err e "atom_length/2 needs its first argument")))
+              (return (co_instantiation_error e)))
           (co_text_of e t (aof b))
           (set r (co_unify m (co_arg m g 1) (co_new_int m (cast i64 ($ b len)))))
           (co_sb_free (aof b))
@@ -1125,7 +1275,7 @@
           (let ((co_strbuf b) (int r))
             (if (not (co_codes_to_text e (co_arg m g 1) (aof b)))
                 (block (co_sb_free (aof b))
-                       (return (co_fail_err e "atom_codes/2 needs one side given"))))
+                       (return (co_instantiation_error e))))
             (set r (co_unify m (co_arg m g 0)
                              (co_new_atom m (? (== ($ b s) nil) "" ($ b s)))))
             (co_sb_free (aof b))
@@ -1143,7 +1293,7 @@
           (let ((co_strbuf b) (size_t num) (int r))
             (if (not (co_codes_to_text e (co_arg m g 1) (aof b)))
                 (block (co_sb_free (aof b))
-                       (return (co_fail_err e "number_codes/2 needs one side given"))))
+                       (return (co_instantiation_error e))))
             ;; the reader is what decides what a number looks like, so it is
             ;; the reader that reads it back -- there is no second parser here
             (if (not (co_read_term_from m (? (== ($ b s) nil) "" ($ b s)) (aof num)))
@@ -1159,7 +1309,7 @@
               (size_t a . #'(co_a e g 0))
               (size_t b . #'(co_a e g 1)))
           (if (or (co-tag-is REF (nth a (-> m heap))) (co-tag-is REF (nth b (-> m heap))))
-              (return (co_fail_err e "atom_concat/3 needs its first two arguments")))
+              (return (co_instantiation_error e)))
           (let ((co_strbuf ab) (co_strbuf bb) (int r))
             (co_text_of e a (aof ab))
             (co_text_of e b (aof bb))

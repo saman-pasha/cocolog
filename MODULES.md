@@ -14,6 +14,27 @@ A program cannot tell which half a predicate came from, and that is the point.
 `lib/files.cicili` is the worked example: SWI-Prolog's file-system predicates,
 seventeen in C and seven in Prolog on top of them.
 
+## Errors are thrown, and they are SWI's
+
+A module predicate that cannot do what it was asked raises the term SWI raises:
+
+```prolog
+catch(msort(notalist, _), error(type_error(T, V), _), true).
+%  T = list, V = notalist  --  in both systems
+```
+
+`co_m_type_error`, `co_m_instantiation_error`, `co_m_domain_error`,
+`co_m_existence_error` and `co_m_error` all **throw**. Each answers what its
+caller should return: **2** when a `catch/3` took the ball — the engine is by
+then pointed at the recovery goal and 2 is how a builtin says *leave my
+continuation alone* — and −1 when nothing caught it. A predicate writes
+`(return (co_m_type_error e "list" t))` and does not care which happened.
+
+The second argument of `error/2` is left **unbound**. SWI puts a
+`context(Module:Name/Arity, Message)` there and no two systems agree on its
+contents; matching on `error(Formal, _)` is what portable code does and is all
+that can be compared.
+
 ## Writing one
 
 Two tables and two macro calls. Here is a whole module:
@@ -233,13 +254,15 @@ absolute_file_name/2                  normalises '.' and '..'; does not require
 
 ### Where it parts from SWI
 
-**SWI throws where this fails.** `delete_file/1` on a file that is not there is
-an `existence_error` in SWI and simply false here, because cocolog has no error
-terms and no `catch/3` — see `STATUS.md`. Anything that fails for a reason the
-caller could not have tested for first reports through the engine's `err`,
-which stops the query rather than being catchable. The shared tests therefore
-stay on the paths where the two agree; this is the list of what they cannot
-cover, rather than a set of quietly skipped cases.
+**It used to fail where SWI throws.** It does not any more: the module API's
+error constructors raise the term SWI raises, and `test/files/catch.pl`
+compares them. A predicate that cannot do what it was asked reports
+`error(type_error(list, notalist), _)` and a program catches it with the
+portable `catch(G, error(type_error(T, V), _), R)`.
+
+`delete_file/1` on a file that is not there is still a plain failure rather
+than an `existence_error` — the operating system's reasons are not modelled,
+only the argument errors are.
 
 **Not implemented:** `tmp_file_stream/3` and everything else that hands back a
 stream, because cocolog has no streams — there is no `open/3`, so there is
@@ -312,11 +335,6 @@ step` with a limit cannot be overrun by a `findall` inside it.
 
 Each for a reason rather than for want of time:
 
-* **`catch/3` and `throw/1`.** A catch is a new kind of choice-point frame, and
-  every kind of frame has to be written into a frozen machine and read back
-  (`lib/state.cicili`). It is the suspension format that makes this a change
-  rather than an addition. This is also the reason SWI throws where cocolog
-  fails, which is the one divergence the shared tests cannot cross.
 * **`bagof/3` and `setof/3`.** Not `findall` plus a sort. They **backtrack over
   the bindings of the free variables** of the goal, answering one group per
   witness, and that needs the engine to enumerate the groups. Shipping
@@ -364,7 +382,6 @@ and it is opaque to cut exactly as `call/1` is.
 
 ### Where it parts from SWI
 
-The same one place as Files, and no other: **SWI throws where this fails.**
-`msort(notalist, _)` is a `type_error` there and false here; `length(_, -1)` is
-a `domain_error` there and false here. `test/files/lists_edge.pl` says so at
-the top rather than quietly omitting them.
+`msort(notalist, _)` raises `type_error(list, notalist)` here now, as it does
+there. `length(_, -1)` is still a plain failure where SWI raises a
+`domain_error`, which is the last of these left.

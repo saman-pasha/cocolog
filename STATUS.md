@@ -204,9 +204,7 @@ the same machine and store. **Its solutions travel through the store and not
 the heap**, because backtracking truncates the heap to the choice point's mark
 and a copy made there during the search is gone by the time the search ends.
 
-Still missing, each for a reason: `catch/3` and `throw/1` (a catch is a new
-choice-point frame, and every frame has to be written into a frozen machine),
-`bagof/3` and `setof/3` (they backtrack over the free variables of the goal,
+Still missing, each for a reason: `bagof/3` and `setof/3` (they backtrack over the free variables of the goal,
 which findall-plus-sort is not), and `op/3` (the operator table is emitted at
 build time, which is what keeps the reader and the writer from disagreeing).
 
@@ -266,6 +264,33 @@ through `co_write_atom` quoted the comma, so `a:-b,c` became `a:-b','c`, which
 reads back as something else entirely. The comma is the only operator in the
 table that gets quoted, and it is now written directly.
 
+## catch/3 and throw/1, and errors that are SWI's
+
+A goal that cannot be run used to report through the engine's `err` string and
+stop the query. It now raises `error(Formal, _)` with the same Formal SWI
+raises, and a program catches it with the portable
+`catch(G, error(type_error(T, V), _), R)`. Ten error terms are compared against
+a running SWI in `test/files/catch.pl` and all ten agree.
+
+**A catch is a choice-point frame, and that is what made it affordable.** The
+engine already writes every frame into a frozen machine field by field with its
+kind, and the catcher and the recovery goal ride on the heap as one
+`'$catch'(C, R)` term — which the heap serialiser already carries. So a machine
+suspended *inside* a `catch` comes back inside it. `test/state.cicili` freezes
+one part-way through a guarded goal, thaws it into a new machine and store, and
+the throw is still caught by the frame that came back; `cocolog step` does the
+same thing five times over a real database.
+
+`throw/1` puts the ball in the **store** before unwinding, for the same reason
+`findall` does: unwinding truncates the heap to the frame's mark, and the ball
+was built above it.
+
+One thing had to change in the engine's dispatch and is worth remembering: a
+builtin that threw *and was caught* must answer **2**, not 1. The engine sets
+the continuation from the builtin's own `k` on a 1, which would throw away the
+recovery goal `throw/1` had just installed and carry on as if nothing had been
+raised. That bug printed nothing at all and returned success.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
@@ -301,9 +326,6 @@ table that gets quoted, and it is now written directly.
 * **`asserta` rewrites its whole predicate** in the database, because putting a
   clause at the front changes every later clause's ordinal. O(n) per assert and
   always right.
-* **No error terms.** A goal that cannot be run reports through the engine's
-  `err` string and stops the query, rather than throwing a Prolog `error/2` a
-  program could catch. `catch/3` and `throw/1` are not implemented.
 * **A module cannot define an operator.** The reader's table is fixed at build
   time, so a module whose predicates want infix syntax cannot have it. This is
   the one real gap in the module seam; the other two — no choice points, no

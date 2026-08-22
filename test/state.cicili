@@ -168,5 +168,51 @@
 
         (free blob))
 
+      ;; ---- a machine frozen INSIDE a catch/3 --------------------------
+      ;;
+      ;; A catch is a choice-point frame like any other, which is what makes
+      ;; this work at all: the frame is written out with its kind, and the
+      ;; catcher and the recovery goal ride on the heap in one `'$catch'(C,R)'
+      ;; term, which the heap serialiser already carries. If that were not so
+      ;; a machine could be suspended inside a catch and come back without it,
+      ;; and the throw would escape to the top level instead of being caught.
+      (let ((co_machine m5) (co_store st5) (co_engine e5)
+            (co_strbuf f5) (char err5 [256]) (char * blob5 . nil))
+        (co_machine_init (aof m5))
+        (co_store_init (aof st5))
+        (co_engine_init (aof e5) (aof m5) (aof st5))
+        (co_consult (aof st5) (aof m5)
+                    "p(1). p(2). p(3). g(R) :- catch((p(X), X > 2, throw(got(X))), got(Y), R = caught(Y))."
+                    err5 (sizeof err5))
+        ;; a budget small enough to stop it part way through the catch
+        (set ($ e5 max_steps) 6)
+        (co_engine_ask_text (aof e5) "g(R)")
+        (check "it ran out of budget inside the catch"
+               (cast llong (co_engine_next (aof e5))) -1)
+
+        (co_sb_init (aof f5))
+        (check "froze from inside a catch" (cast llong (co_freeze (aof e5) (aof f5))) 1)
+        (set blob5 (strdup ($ f5 s)))
+        (co_sb_free (aof f5))
+        (co_engine_free (aof e5))
+        (co_store_free (aof st5))
+        (co_machine_free (aof m5))
+
+        (let ((co_machine m6) (co_store st6) (co_engine e6) (char err6 [256]))
+          (co_machine_init (aof m6))
+          (co_store_init (aof st6))
+          (co_engine_init (aof e6) (aof m6) (aof st6))
+          (check "thawed it" (cast llong (co_thaw (aof e6) (aof m6) (aof st6) blob5)) 1)
+          (co_consult (aof st6) (aof m6)
+                      "p(1). p(2). p(3). g(R) :- catch((p(X), X > 2, throw(got(X))), got(Y), R = caught(Y))."
+                      err6 (sizeof err6))
+          (set ($ e6 max_steps) 1000)
+          (check "and the throw was still caught by the frame that came back"
+                 (cast llong (co_engine_next (aof e6))) 1)
+          (co_engine_free (aof e6))
+          (co_store_free (aof st6))
+          (co_machine_free (aof m6)))
+        (free blob5))
+
       (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
       (return (? (== failures 0) 0 1)))))

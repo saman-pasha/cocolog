@@ -201,9 +201,9 @@
                      (set tmpl (co_new_atom m "x")))
             (block
              (if (not (co_is_callable m spec))
-                 (return (co_m_type_error e "an aggregation spec" spec)))
+                 (return (co_m_domain_error e "aggregate_spec" spec)))
              (if (!= (co_arity m spec) 1)
-                 (return (co_m_type_error e "an aggregation spec" spec)))
+                 (return (co_m_domain_error e "aggregate_spec" spec)))
              (set what (co_atom_name m (co_name_of m spec)))
              (set tmpl (co_arg m spec 0))))
 
@@ -239,7 +239,7 @@
                         ;; it segfaulted on the first list of integers
                         (let ((size_t bad . #'(nth i v)))
                           (free v)
-                          (return (co_m_type_error e "a number" bad))))
+                          (return (co_m_type_error e "number" bad))))
                     (set acc (+ acc d))))
                 (free v)
                 (return (? all_int
@@ -257,13 +257,13 @@
                             (not (co_m_float e (nth i v) (aof b))))
                         (let ((size_t bad . #'(nth i v)))
                           (free v)
-                          (return (co_m_type_error e "a number" bad))))
+                          (return (co_m_type_error e "number" bad))))
                     (if (? want_max (> b a) (< b a)) (set best (nth i v)))))
                 (free v)
                 (return (co_m_unify e (co_m_arg e g 2) best))))
 
           (free v)
-          (return (co_m_error e "not an aggregation spec" what)))) 
+          (return (co_m_domain_error e "aggregate_spec" (co_m_arg e g 0))))) 
 
   ;;; ---- arithmetic in the small ----------------------------------------
 
@@ -277,7 +277,7 @@
           (if (co_m_int e (co_m_arg e g 1) (aof b))
               (block (if (<= b 0) (return 0))
                      (return (co_m_unify_int e (co_m_arg e g 0) (- b 1)))))
-          (return (co_m_error e "succ/2 needs one of its arguments bound" nil))))
+          (return (co_m_instantiation_error e))))
 
   ;;; `plus(?A, ?B, ?C)' -- any one of the three may be the unbound one.
   (func co_b_plus ((co_engine * e) (size_t g)) (out int)
@@ -289,7 +289,7 @@
           (if (and ha hb) (return (co_m_unify_int e (co_m_arg e g 2) (+ a b))))
           (if (and ha hc) (return (co_m_unify_int e (co_m_arg e g 1) (- c a))))
           (if (and hb hc) (return (co_m_unify_int e (co_m_arg e g 0) (- c b))))
-          (return (co_m_error e "plus/3 needs two of its arguments bound" nil))))
+          (return (co_m_instantiation_error e))))
 
   ;;; ---- terms ------------------------------------------------------------
 
@@ -378,12 +378,12 @@
           ;; the other way: a list of one-character atoms into an atom
           (let ((size_t * v . nil) (size_t n . 0) (char out [4096]))
             (if (not (co_m_list_array e (co_m_arg e g 1) (aof v) (aof n)))
-                (return (co_m_error e "atom_chars/2 needs one side bound" nil)))
+                (return (co_m_instantiation_error e)))
             (if (>= n (sizeof out)) (block (free v) (return 0)))
             (for ((size_t i . 0)) (< i n) ((++ i))
               (let ((const char * c . #'(co_m_atom e (co_deref m (nth i v)))))
                 (if (or (== c nil) (!= 1 (strlen c)))
-                    (block (free v) (return (co_m_type_error e "a character"
+                    (block (free v) (return (co_m_type_error e "character"
                                                              (nth i v)))))
                 (set (nth i out) (nth 0 c))))
             (set (nth n out) (cast char 0))
@@ -401,7 +401,7 @@
                 (set (nth 0 one) (cast char code))
                 (set (nth 1 one) (cast char 0))
                 (return (co_m_unify_atom e (co_m_arg e g 0) one))))
-          (return (co_m_error e "char_code/2 needs one of its arguments bound" nil))))
+          (return (co_m_instantiation_error e))))
 
   ;;; Like atom_chars but the atom has to read back as a number.
   (func co_b_number_chars ((co_engine * e) (size_t g)) (out int)
@@ -424,12 +424,12 @@
                   (return (co_m_unify e (co_m_arg e g 1) lst)))))
           ;; chars -> number
           (if (not (co_m_list_array e (co_m_arg e g 1) (aof v) (aof n)))
-              (return (co_m_error e "number_chars/2 needs one side bound" nil)))
+              (return (co_m_instantiation_error e)))
           (if (>= n (sizeof buf)) (block (free v) (return 0)))
           (for ((size_t i . 0)) (< i n) ((++ i))
             (let ((const char * c . #'(co_m_atom e (co_deref m (nth i v)))))
               (if (or (== c nil) (!= 1 (strlen c)))
-                  (block (free v) (return (co_m_type_error e "a character" (nth i v)))))
+                  (block (free v) (return (co_m_type_error e "character" (nth i v)))))
               (set (nth i buf) (nth 0 c))))
           (set (nth n buf) (cast char 0))
           (free v)
@@ -464,15 +464,17 @@
                 (return rc)))
           ;; atom -> number, and a FAILURE when the atom is not one, which is
           ;; the whole difference between this and `atom_to_term'
+          (if (co_m_is_var e (co_m_arg e g 0))
+              (return (co_m_instantiation_error e)))
           (if (not (co_m_text e (co_m_arg e g 0) buf (sizeof buf)))
-              (return (co_m_type_error e "an atom" (co_m_arg e g 0))))
+              (return (co_m_type_error e "atom" (co_m_arg e g 0))))
           (return (co_b_atom_to_number e buf (co_m_arg e g 1)))))
 
   (static)
   (func co_b_case ((co_engine * e) (size_t g) (int up)) (out int)
         (let ((char buf [4096]))
           (if (not (co_m_text e (co_m_arg e g 0) buf (sizeof buf)))
-              (return (co_m_type_error e "an atom" (co_m_arg e g 0))))
+              (return (co_m_type_error e "atom" (co_m_arg e g 0))))
           (for ((size_t i . 0)) (< i (strlen buf)) ((++ i))
             (let ((int c . #'(bitand (cast int (nth i buf)) 255)))
               (if up
@@ -495,7 +497,7 @@
                 (co_sb_free (aof b))
                 (return rc)))
           (if (not (co_m_text e (co_m_arg e g 1) buf (sizeof buf)))
-              (return (co_m_type_error e "an atom" (co_m_arg e g 1))))
+              (return (co_m_type_error e "atom" (co_m_arg e g 1))))
           (let ((size_t t . 0))
             (if (not (co_read_term_from m buf (aof t)))
                 (return (co_m_error e "term_to_atom/2 cannot read" buf)))
@@ -507,7 +509,7 @@
         (let ((char a [4096]) (char out [4096])
               (i64 before . 0) (i64 len . 0) (size_t n))
           (if (not (co_m_text e (co_m_arg e g 0) a (sizeof a)))
-              (return (co_m_type_error e "an atom" (co_m_arg e g 0))))
+              (return (co_m_type_error e "atom" (co_m_arg e g 0))))
           (if (not (co_m_int e (co_m_arg e g 1) (aof before))) (return 0))
           (if (not (co_m_int e (co_m_arg e g 2) (aof len))) (return 0))
           (set n (strlen a))
@@ -530,9 +532,9 @@
         (let ((char a [8192]) (char sep [256])
               (char ** parts . nil) (size_t n . 0) (size_t cap . 0) (int rc))
           (if (not (co_m_text e (co_m_arg e g 0) a (sizeof a)))
-              (return (co_m_type_error e "an atom" (co_m_arg e g 0))))
+              (return (co_m_type_error e "atom" (co_m_arg e g 0))))
           (if (not (co_m_text e (co_m_arg e g 1) sep (sizeof sep)))
-              (return (co_m_type_error e "a separator" (co_m_arg e g 1))))
+              (return (co_m_type_error e "atom" (co_m_arg e g 1))))
           (if (== 0 (strlen sep))
               (return (co_m_error e "atomic_list_concat/3 cannot split on an empty separator" nil)))
           (let ((char * p . a))
@@ -561,14 +563,14 @@
         (let ((size_t * v . nil) (size_t n . 0)
               (char sep [256]) (char out [8192]) (size_t len . 0))
           (if (not (co_m_list_array e (co_m_arg e g 0) (aof v) (aof n)))
-              (return (co_m_type_error e "a proper list" (co_m_arg e g 0))))
+              (return (co_m_type_error e "list" (co_m_arg e g 0))))
           (if (not (co_m_text e (co_m_arg e g 1) sep (sizeof sep)))
-              (block (free v) (return (co_m_type_error e "a separator" (co_m_arg e g 1)))))
+              (block (free v) (return (co_m_type_error e "atom" (co_m_arg e g 1)))))
           (set (nth 0 out) (cast char 0))
           (for ((size_t i . 0)) (< i n) ((++ i))
             (let ((char one [4096]))
               (if (not (co_m_text e (nth i v) one (sizeof one)))
-                  (block (free v) (return (co_m_type_error e "an atomic" (nth i v)))))
+                  (block (free v) (return (co_m_type_error e "atomic" (nth i v)))))
               (if (> i 0)
                   (block (if (>= (+ len (strlen sep)) (sizeof out))
                              (block (free v) (return 0)))
@@ -620,7 +622,7 @@
   (func co_b_tab ((co_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0))
           (if (not (co_m_int e (co_m_arg e g 0) (aof n)))
-              (return (co_m_type_error e "an integer" (co_m_arg e g 0))))
+              (return (co_m_type_error e "integer" (co_m_arg e g 0))))
           (for ((i64 i . 0)) (< i n) ((++ i)) (fputc 32 stdout))
           (return 1)))
 
@@ -633,7 +635,7 @@
               (co_store * st . #'(-> e st))
               (size_t head . #'(co_m_arg e g 0)))
           (if (not (co_is_callable m head))
-              (return (co_m_type_error e "a callable" head)))
+              (return (co_m_type_error e "callable" head)))
           (let ((size_t pi . #'(co_pred_intern st (co_name_of m head)
                                                (co_arity m head))))
             (if (>= pi ($ (cof st) npreds)) (return 0))
@@ -706,14 +708,14 @@
               (co_store * st . #'(-> e st))
               (size_t spec . #'(co_m_arg e g 0)))
           (if (not (co_is_compound2 m spec "/"))
-              (return (co_m_type_error e "Name/Arity" spec)))
+              (return (co_m_type_error e "predicate_indicator" spec)))
           (let ((size_t nm . #'(co_deref m (co_arg m spec 0)))
                 (size_t ar . #'(co_deref m (co_arg m spec 1)))
                 (i64 arity . 0))
             (if (not (co_m_is_atom e nm))
-                (return (co_m_type_error e "an atom" nm)))
+                (return (co_m_type_error e "atom" nm)))
             (if (not (co_m_int e ar (aof arity)))
-                (return (co_m_type_error e "an integer" ar)))
+                (return (co_m_type_error e "integer" ar)))
             (let ((size_t pi . #'(co_pred_intern st (co_name_of m nm) (cast u32 arity))))
               (if (>= pi ($ (cof st) npreds)) (return 1))
               (co_pred_ensure st pi)
@@ -750,7 +752,7 @@
   (func co_b_setval ((co_engine * e) (size_t g)) (out int)
         (let ((co_machine * m . #'(co_m_machine e))
               (size_t k . #'(co_m_arg e g 0)))
-          (if (not (co_m_is_atom e k)) (return (co_m_type_error e "an atom" k)))
+          (if (not (co_m_is_atom e k)) (return (co_m_type_error e "atom" k)))
           (let ((u64 name . #'(co_name_of m k))
                 (size_t cell . #'(co_store_put (-> e st) m (co_m_arg e g 1))))
             (for ((size_t i . 0)) (< i co_b_nglobals) ((++ i))
@@ -772,15 +774,14 @@
   (func co_b_getval ((co_engine * e) (size_t g)) (out int)
         (let ((co_machine * m . #'(co_m_machine e))
               (size_t k . #'(co_m_arg e g 0)))
-          (if (not (co_m_is_atom e k)) (return (co_m_type_error e "an atom" k)))
+          (if (not (co_m_is_atom e k)) (return (co_m_type_error e "atom" k)))
           (let ((u64 name . #'(co_name_of m k)))
             (for ((size_t i . 0)) (< i co_b_nglobals) ((++ i))
               (if (== ($ (nth i co_b_globals) name) name)
                   (return (co_m_unify e (co_m_arg e g 1)
                                       (co_store_get m (-> e st)
                                                     ($ (nth i co_b_globals) cell))))))
-            (return (co_m_error e "no global variable called"
-                                (co_atom_name m name))))))
+            (return (co_m_existence_error e "variable" (co_m_arg e g 0))))))
 
   ;;; ---- halting ----------------------------------------------------------
 

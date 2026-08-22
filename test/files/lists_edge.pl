@@ -1,11 +1,9 @@
 %  library(lists): the empty list, the one-element list, and the corners.
 %  Run by BOTH SWI-Prolog and cocolog, output compared.
 %
-%  WHAT IS NOT HERE, and why. SWI THROWS where cocolog FAILS: `msort(notalist,
-%  _)' is a type_error there and false here, and `length(_, -1)' is a
-%  domain_error there and false here -- cocolog has no error terms and no
-%  catch/3, so the two cannot be compared on those paths at all. They are
-%  listed in MODULES.md rather than quietly left out.
+%  The error paths are in catch.pl now, not left out: `msort(notalist, _)'
+%  raises type_error(list, notalist) in both systems. `length(_, -1)' is the
+%  last one that still differs -- a domain_error in SWI, a plain failure here.
 
 s(Label, Value) :- write(Label), write(=), write(Value), nl.
 yn(Goal, Label) :- ( call(Goal) -> s(Label, yes) ; s(Label, no) ).
