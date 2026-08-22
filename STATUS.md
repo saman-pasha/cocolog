@@ -214,6 +214,39 @@ Three things had to be added to make that comparison possible at all:
   program and not everything reachable. `listing(Name)` still shows a library
   predicate, because asking for one by name is asking about that one.
 
+## The writer agrees with SWI about spacing
+
+It used to put a space around every operator: `1 + 2 * 3`, `a - b`. SWI writes
+`1+2*3` and `a-b`, and the difference meant the shared tests could not print a
+compound term at all without measuring formatting rather than the library.
+
+**The rule is the reader's own tokeniser read backwards.** A space goes in
+exactly where the two pieces would otherwise lex as ONE token: `a` and `-` do
+not merge, so `a-b`; `-` and `-` do, so `1- -2`; `mod` and `b` do, so
+`a mod b`. A solo character never merges, which is why `a,-1` has no space.
+
+The operator and the right operand are rendered into buffers of their own
+before the decision, because it needs their real first and last characters — a
+quoted atom begins with a quote and a negative number with a minus, and neither
+is knowable from the term.
+
+Prefix position has one rule that is not a merge at all: **a digit after a
+symbolic prefix operator takes a space** — `- 1`, because `-1` is not the
+operator applied to one, it is the integer. `1-2` is right without one, so it
+is genuinely about prefix position. An opening parenthesis takes one too,
+which is what SWI does: `- (a+b)`.
+
+Sixty-two terms were compared against a running SWI 9 term by term; sixty-one
+now agree, and the one that does not is a *reader* gap — `:` is not an operator
+in cocolog — and nothing to do with spacing. `test/syntax.cicili` holds the
+rule as twenty golden cases and seven round-trips, because a writer that agrees
+with SWI and no longer reads back would be a worse writer.
+
+One real bug came out of it and is worth remembering: routing the operator
+through `co_write_atom` quoted the comma, so `a:-b,c` became `a:-b','c`, which
+reads back as something else entirely. The comma is the only operator in the
+table that gets quoted, and it is now written directly.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
@@ -257,10 +290,6 @@ Three things had to be added to make that comparison possible at all:
   the one real gap in the module seam; the other two — no choice points, no
   per-session state — are the price of being suspendable and are not going to
   change.
-* **The writer spaces `-` differently from SWI.** `write(a-b)` gives `a - b`
-  here and `a-b` there. Nothing depends on it and the shared tests write one
-  value per line rather than printing compound terms, but it is a divergence
-  and it is in `lib/syntax.cicili`, not in the Files library.
 * **No garbage collection.** The heap only grows within a solution; it is
   reclaimed on backtracking and on a new query. A long deterministic run that
   builds structure will grow until it ends.

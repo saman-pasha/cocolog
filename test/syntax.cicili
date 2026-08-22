@@ -108,18 +108,64 @@
         (check "foo is not an operator" (cast llong (co_op_is_any "foo")) 0))
 
       ;; ---- precedence and associativity --------------------------------
-      (trip (aof m) "1+2*3"        "1 + 2 * 3")
-      (trip (aof m) "(1+2)*3"      "(1 + 2) * 3")
-      (trip (aof m) "1-2-3"        "1 - 2 - 3")
-      (trip (aof m) "1-(2-3)"      "1 - (2 - 3)")
-      (trip (aof m) "a:-b,c"       "a :- b,c")
-      (trip (aof m) "X is 1+2"     "_V is 1 + 2")
+      (trip (aof m) "1+2*3"        "1+2*3")
+      (trip (aof m) "(1+2)*3"      "(1+2)*3")
+      (trip (aof m) "1-2-3"        "1-2-3")
+      (trip (aof m) "1-(2-3)"      "1-(2-3)")
+      (trip (aof m) "a:-b,c"       "a:-b,c")
+      (trip (aof m) "X is 1+2"     "_V is 1+2")
 
       ;; ---- the two that spacing decides --------------------------------
       ;; -(1) is a compound; -1 is an integer. Both must survive being written.
       (trip (aof m) "- 1"          "- 1")
       (trip (aof m) "-1"           "-1")
-      (trip (aof m) "1 - -2"       "1 - -2")
+      (trip (aof m) "1 - -2"       "1- -2")
+
+      ;; ---- spacing: a space appears only where two tokens would merge ----
+      ;;
+      ;; THE RULE IS THE TOKENISER READ BACKWARDS, and it is SWI's: `a' and
+      ;; `-' do not lex as one token, so `a-b'; `-' and `-' do, so `1- -2';
+      ;; `mod' and `b' do, so `a mod b'. Every line below was read off a
+      ;; running SWI-Prolog 9 and agrees with it exactly.
+      (trip (aof m) "a-b"          "a-b")
+      (trip (aof m) "a mod b"      "a mod b")
+      (trip (aof m) "1 rem 2"      "1 rem 2")
+      (trip (aof m) "a>=b"         "a>=b")
+      (trip (aof m) "1 =< 2"       "1=<2")
+      (trip (aof m) "a=..b"        "a=..b")
+      (trip (aof m) "a@<b"         "a@<b")
+      (trip (aof m) "1+(-2)"       "1+ -2")
+      (trip (aof m) "1*(-2)"       "1* -2")
+      (trip (aof m) "2 - (-3) - 4" "2- -3-4")
+      ;; a solo character never merges, so no space either side of `,' or `;'
+      (trip (aof m) "(a,-1)"       "a,-1")
+      (trip (aof m) "(a;-1)"       "a;-1")
+      ;; a quoted atom begins with a quote, which merges with nothing
+      (trip (aof m) "'hello world'-x" "'hello world'-x")
+
+      ;; ---- and prefix, where the rule is not quite the same --------------
+      ;;
+      ;; A DIGIT after a symbolic prefix operator takes a space even though
+      ;; the two do not merge as tokens -- `-1' is not `-' applied to 1, it is
+      ;; the integer. That is a rule about prefix position alone: `1-2' is
+      ;; right without one.
+      (trip (aof m) "-(a)"         "-a")
+      (trip (aof m) "-(1.5)"       "- 1.5")
+      (trip (aof m) "-(-(a))"      "- -a")
+      (trip (aof m) "\\+ (-1)"      "\\+ -1")
+      (trip (aof m) "-([a])"       "-[a]")
+      (trip (aof m) "-(f(x))"      "-f(x)")
+      ;; and an opening parenthesis takes one, which is what SWI does
+      (trip (aof m) "-(a+b)"       "- (a+b)")
+
+      ;; ---- every one of those has to read back as what it was ------------
+      (stable (aof m) "1- -2")
+      (stable (aof m) "- 1")
+      (stable (aof m) "-(a+b)")
+      (stable (aof m) "a mod b")
+      (stable (aof m) "1+ -2")
+      (stable (aof m) "(a,-1)")
+      (stable (aof m) "-(-(a))")
 
       ;; ---- an operator as an ordinary argument -------------------------
       (trip (aof m) "f(-)"         "f((-))")

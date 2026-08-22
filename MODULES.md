@@ -244,13 +244,12 @@ nothing for such a predicate to answer with. `absolute_file_name/3` takes an
 option list whose useful members each imply machinery this library does not
 have; the /2 form is complete.
 
-**One known formatting divergence, and it is not this library's:** cocolog's
-writer puts spaces around `-`, so `write(a-b)` gives `a - b` where SWI gives
-`a-b`. The shared tests therefore write one value per line rather than printing
-compound terms, and `clumped/2` — which answers pairs — is taken apart before
-being written. Worth fixing in `lib/syntax.cicili` one day; nothing here
-depends on it, and the writer's reason for the spaces is real (`1- -2` must not
-come out as `1--2`), so it is a change with its own care to take.
+**The writer used to disagree with SWI about spacing** — `write(a-b)` gave
+`a - b` — which meant the shared tests could not print a compound term at all.
+It does not any more: `lib/syntax.cicili` now puts a space exactly where the
+two tokens would otherwise lex as one, which is SWI's rule and the reader's own
+tokeniser read backwards. `test/syntax.cicili` pins it, and `clumped/2` is
+printed whole in `lists_shape.pl` rather than taken apart.
 
 ## The Lists library
 

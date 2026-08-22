@@ -1,9 +1,10 @@
 %  library(lists): membership, appending, selecting and position.
 %
 %  RUN BY BOTH SWI-PROLOG AND COCOLOG and the output compared. Only what both
-%  have may be used, and no compound term may be written -- the two writers
-%  space operators differently, so `a-b' would differ on formatting alone.
-%  A list IS written: both print `[a,b,c]' the same way.
+%  have may be used -- no findall/3, no format/2, no library(lists) helpers.
+%  Compound terms MAY now be written: cocolog's writer spaces operators the way
+%  SWI's does, so `a-b' is `a-b' on both sides. It did not always, and
+%  test/syntax.cicili is where that rule is pinned.
 
 s(Label, Value) :- write(Label), write(=), write(Value), nl.
 yn(Goal, Label) :- ( call(Goal) -> s(Label, yes) ; s(Label, no) ).

@@ -260,6 +260,33 @@
   (static) (func co_is_space ((int c)) (out int)
                  (return (? (or (== c 32) (or (== c 9) (or (== c 10) (== c 13)))) 1 0)))
 
+  ;;; WHETHER TWO PIECES OF OUTPUT NEED A SPACE BETWEEN THEM, which is the
+  ;;; whole of the writer's spacing rule and is the reader's tokeniser read
+  ;;; backwards: a space is needed exactly when the two would otherwise lex as
+  ;;; ONE token. `a' and `-' do not merge, so `a-b'; `-' and `-' do, so
+  ;;; `1- -2'; `mod' and `b' do, so `a mod b'.
+  ;;;
+  ;;; A is the last character already written and B the first of what comes
+  ;;; next. Either being 0 -- nothing written, nothing coming -- needs nothing.
+  ;;; A solo character (`,' `;' `!' `|') is in neither class and so never takes
+  ;;; a space, which is why SWI writes `a,-1' and not `a, -1'.
+  (static) (func co_needs_gap ((int a) (int b)) (out int)
+                 (if (or (== a 0) (== b 0)) (return 0))
+                 (if (and (co_is_symbol a) (co_is_symbol b)) (return 1))
+                 (if (and (co_is_alnum a) (co_is_alnum b)) (return 1))
+                 (return 0))
+
+  ;;; The last character in a buffer, or 0 if it is empty.
+  (static) (func co_sb_last ((co_strbuf * b)) (out int)
+                 (if (or (== ($ (cof b) s) nil) (== ($ (cof b) len) 0)) (return 0))
+                 (return (bitand (cast int (nth (- ($ (cof b) len) 1) ($ (cof b) s)))
+                                 255)))
+
+  ;;; The first character of a buffer, or 0 if it is empty.
+  (static) (func co_sb_first ((co_strbuf * b)) (out int)
+                 (if (or (== ($ (cof b) s) nil) (== ($ (cof b) len) 0)) (return 0))
+                 (return (bitand (cast int (nth 0 ($ (cof b) s))) 255)))
+
   ;;; ---- the character stream -------------------------------------------
 
   (static) (func co_peek_at ((co_reader * r) (size_t off)) (out int)
@@ -911,27 +938,78 @@
                                 (int paren . #'(? (> prec maxprec) 1 0)))
                             (if paren (co_sb_putc b (cast char (co-ch "("))))
                             (co_write_rec m b (co_arg m t 0) quoted ignore_ops lmax)
-                            ;; a comma binds to what precedes it; every other
-                            ;; operator gets spaces, which is what keeps
-                            ;; `1- -2' from coming out as `1--2'
-                            (if (== 0 (strcmp name ","))
-                                (co_sb_putc b (cast char (co-ch ",")))
-                              (block (co_sb_putc b (cast char 32))
-                                     (co_write_atom b name quoted)
-                                     (co_sb_putc b (cast char 32))))
-                            (co_write_rec m b (co_arg m t 1) quoted ignore_ops rmax)
+                            ;; NO SPACES UNLESS THE TOKENS WOULD MERGE. `a-b',
+                            ;; but `a mod b' and `1- -2'. The operator and the
+                            ;; right operand are rendered into buffers of their
+                            ;; own first, because deciding needs their actual
+                            ;; first and last characters -- a quoted atom
+                            ;; begins with a quote, a negative number with a
+                            ;; minus, and neither is knowable from the term.
+                            (let ((co_strbuf ob) (co_strbuf rb))
+                              (co_sb_init (aof ob))
+                              (co_sb_init (aof rb))
+                              ;; THE COMMA IS NOT QUOTED IN OPERATOR POSITION.
+                              ;; `co_write_atom' would make it `','', which is
+                              ;; right for the atom and wrong for the operator:
+                              ;; `a:-b,c' would come out `a:-b','c' and read
+                              ;; back as something else entirely. It is the only
+                              ;; operator in the table that `co_write_atom'
+                              ;; quotes -- `;' and `|' it leaves alone.
+                              (if (== 0 (strcmp name ","))
+                                  (co_sb_putc (aof ob) (cast char (co-ch ",")))
+                                (co_write_atom (aof ob) name quoted))
+                              (co_write_rec m (aof rb) (co_arg m t 1)
+                                            quoted ignore_ops rmax)
+                              (if (co_needs_gap (co_sb_last b) (co_sb_first (aof ob)))
+                                  (co_sb_putc b (cast char 32)))
+                              (if (!= ($ ob s) nil) (co_sb_put b ($ ob s)))
+                              (if (co_needs_gap (co_sb_last (aof ob))
+                                                (co_sb_first (aof rb)))
+                                  (co_sb_putc b (cast char 32)))
+                              (if (!= ($ rb s) nil) (co_sb_put b ($ rb s)))
+                              (co_sb_free (aof ob))
+                              (co_sb_free (aof rb)))
                             (if paren (co_sb_putc b (cast char (co-ch ")"))))
                             (return 1)))
-                      ;; prefix. The space after the operator is always there:
-                      ;; without it `-(1)' would be written `-1', which reads
-                      ;; back as the integer and not as the compound.
+                      ;; PREFIX, where the merging rule is not quite the same.
+                      ;; `-a' is fine and `-[a]' and `-f(x)' are fine, but
+                      ;; three things after a symbolic prefix operator need a
+                      ;; space and only one of them is a merge in the ordinary
+                      ;; sense:
+                      ;;
+                      ;;   a symbol character -- `- -a', the ordinary rule;
+                      ;;   a DIGIT -- `- 1', because `-1' is not the operator
+                      ;;     applied to 1, it is the integer minus one, and
+                      ;;     that is a rule about prefix position alone (`1-2'
+                      ;;     is right without a space);
+                      ;;   an opening parenthesis -- `- (a+b)', which SWI
+                      ;;     writes with a space and this follows.
+                      ;;
+                      ;; An alphabetic prefix operator always takes one:
+                      ;; `dynamic f/1', never `dynamicf/1'.
                       (if (and (== n 1) (co_op_prefix name (aof prec) (aof type)))
                           (let ((int amax . #'(? (== type CO_FY) prec (- prec 1)))
                                 (int paren . #'(? (> prec maxprec) 1 0)))
                             (if paren (co_sb_putc b (cast char (co-ch "("))))
-                            (co_write_atom b name quoted)
-                            (co_sb_putc b (cast char 32))
-                            (co_write_rec m b (co_arg m t 0) quoted ignore_ops amax)
+                            (let ((co_strbuf ob) (co_strbuf ab))
+                              (co_sb_init (aof ob))
+                              (co_sb_init (aof ab))
+                              (co_write_atom (aof ob) name quoted)
+                              (co_write_rec m (aof ab) (co_arg m t 0)
+                                            quoted ignore_ops amax)
+                              (if (co_needs_gap (co_sb_last b) (co_sb_first (aof ob)))
+                                  (co_sb_putc b (cast char 32)))
+                              (if (!= ($ ob s) nil) (co_sb_put b ($ ob s)))
+                              (let ((int last . #'(co_sb_last (aof ob)))
+                                    (int first . #'(co_sb_first (aof ab))))
+                                (if (or (co_needs_gap last first)
+                                        (and (co_is_symbol last)
+                                             (or (co_is_digit first)
+                                                 (== first (co-ch "(")))))
+                                    (co_sb_putc b (cast char 32))))
+                              (if (!= ($ ab s) nil) (co_sb_put b ($ ab s)))
+                              (co_sb_free (aof ob))
+                              (co_sb_free (aof ab)))
                             (if paren (co_sb_putc b (cast char (co-ch ")"))))
                             (return 1))))))
 

@@ -34,15 +34,16 @@ main :-
     ( list_to_set([a,b,a,c,b], S1) -> s(list_to_set, S1) ; true ),
     yn(is_set([a,b,c]), is_set_yes),
     yn(is_set([a,b,a]), is_set_no),
-    %  clumped/2 answers PAIRS, and a pair is the one thing these tests
-    %  cannot print: cocolog's writer spaces `-' where SWI does not, so
-    %  `a-2' would differ on formatting and say nothing about the library.
-    %  It is taken apart instead, which checks more of it than printing would.
-    ( clumped([a,a,b,c,c,c], C1) -> true ; C1 = [] ),
+    %  clumped/2 answers PAIRS, which these tests can now print: the writer
+    %  spaces operators the way SWI does, so `a-2' is `a-2' on both sides.
+    %  It is also taken apart, because the printed form alone would not show
+    %  that the counts are integers rather than something that prints like one.
+    ( clumped([a,a,b,c,c,c], C1) -> s(clumped, C1) ; s(clumped, no) ),
     ( C1 = [K1-V1, K2-V2, K3-V3] -> true ; K1 = no, V1 = no, K2 = no, V2 = no, K3 = no, V3 = no ),
     s(clumped_k1, K1), s(clumped_v1, V1),
     s(clumped_k2, K2), s(clumped_v2, V2),
     s(clumped_k3, K3), s(clumped_v3, V3),
+    yn(integer(V1), clumped_count_is_integer),
 
     %  ---- arithmetic over a list ----
     ( sum_list([1,2,3], A1) -> s(sum_list, A1) ; true ),
