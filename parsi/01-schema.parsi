@@ -105,7 +105,12 @@ BEGIN
     -- all: it is in the memory of whichever interpreter is running it.
     COLUMN status  AS String NOT NULL;
     COLUMN chunks  AS Int    NOT NULL;
-    COLUMN note    AS String;
+    -- NOT NULL, and the reason is not tidiness. An empty String lands in the
+    -- store as NULL, and a NULL column cannot be read back at all -- the engine
+    -- refuses the whole row with `NULL value'. Nothing cocolog does reads this
+    -- column, so that stayed hidden until TRUNCATE, which reads whole rows to
+    -- unlink their index entries, and so could never reclaim this table.
+    COLUMN note    AS String NOT NULL;
 END
 
 SEQUENCE cocolog::machines_seq

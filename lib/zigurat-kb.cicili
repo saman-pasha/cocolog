@@ -435,8 +435,16 @@
                        (and (zg_write_string (-> z db) (-> z kb))
                             (and (zg_write_string (-> z db) "suspended")
                                  (and (zg_write_int (-> z db) (cast i32 chunks))
+                                      ;; `-' AND NOT THE EMPTY STRING. An empty
+                                      ;; String lands in the store as NULL, and
+                                      ;; a NULL column cannot be read back --
+                                      ;; the engine refuses the whole row. The
+                                      ;; column is NOT NULL now, and this is
+                                      ;; what keeps it that way.
                                       (zg_write_string (-> z db)
-                                                       (? (== note nil) "" note)))))))
+                                                       (? (or (== note nil)
+                                                              (== 0 (strlen note)))
+                                                          "-" note)))))))
           (if (not ok) (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))
           (if (not (coco_zg_finish z (aof mid)))
               (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))

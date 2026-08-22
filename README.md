@@ -309,14 +309,13 @@ concurrent arrangements are done and tested; `make test` ends `red: 0`.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 
-**Run `cocolog compact` on a schedule.** A deleted row is kept under MVCC so
-that a transaction entitled to an earlier view can still read it, and nothing
-takes it away afterwards — so saving a machine, which rewrites its row, leaves a
-dead one behind every turn. Nothing breaks; everything gets slower, because
-every read walks past all of it. Twelve interpreters took 12 seconds against an
-empty store and 60 against one a few hundred test runs had been through.
-`compact` reclaims the dead rows and leaves the live ones, so it is safe against
-a knowledge base in use.
+**The store grows and nothing reclaims it.** A deleted row is kept under MVCC so
+that a transaction entitled to an earlier view can still read it, and there is no
+vacuum. Saving a machine rewrites its row, so a proof of thirty turns leaves
+twenty-nine dead ones. Nothing breaks; everything gets slower, because every read
+walks past all of it — twelve interpreters over four machines went from 14s to
+32s over five identical runs while the file grew 72KB. `TRUNCATE` is ZiguratIP's
+vacuum, but it cannot be used here: see STATUS.md.
 
 cocolog is a client and modifies neither of the projects it uses — but running
 twelve of it at once turned up four faults in ZiguratIP, from unguarded B-tree

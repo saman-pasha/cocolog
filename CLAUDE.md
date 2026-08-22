@@ -48,13 +48,13 @@ turn, and what you get then is the next hazard.
 
 ## Three hazards, each of which has already cost a day
 
-**A slow suite means the store needs compacting.** Deleted rows are kept under
-MVCC and nothing reclaims them, so every run leaves dead rows behind and every
-later read walks past them. `test/groups.sh` went from 12 seconds to 60 — its
-own `WORKER_TIMEOUT` — purely from accumulated history, which is what made it
-look like a hang. Both concurrency suites now run `cocolog compact` in setup; if
-you are benchmarking by hand, run it yourself first, and remember it is
-store-wide rather than per knowledge base.
+**A slow suite is the store ageing, not your change.** Deleted rows are kept
+under MVCC and nothing reclaims them, so every run leaves more behind and every
+later read walks past it. Twelve workers went from 14s to 32s over five identical
+runs. `test/groups.sh` allows 60s per worker, so a long-lived store will
+eventually push it over — and that reads as a hang. Restart from a fresh
+`$ZIGURATIP_HOME/data` if the numbers stop making sense. `TRUNCATE` would be the
+answer and currently cannot be used; STATUS.md says why.
 
 Two things follow when a run does go wrong. A killed worker **strands its
 machine as claimed**, and `drop` does not clear a claimed one — so

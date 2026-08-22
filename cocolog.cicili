@@ -20,7 +20,6 @@
 ;;;   cocolog [options] work WORKER [MACHINE]
 ;;;                                          claim machines and advance them;
 ;;;                                          with MACHINE, only that one
-;;;   cocolog [options] compact           reclaim what deleted rows still hold
 ;;;   cocolog [options] forget [NAME ARITY] empty the knowledge base, or one
 ;;;                                          predicate of it
 ;;;   cocolog [options] list                what machines are suspended
@@ -229,7 +228,6 @@
         (fprintf stderr "  cocolog [options] finish NAME\n")
         (fprintf stderr "  cocolog [options] work WORKER [MACHINE]\n")
         (fprintf stderr "  cocolog [options] forget [NAME ARITY]\n")
-        (fprintf stderr "  cocolog [options] compact\n")
         (fprintf stderr "  cocolog [options] list\n")
         (fprintf stderr "  cocolog [options] drop NAME\n\n")
         (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
@@ -867,47 +865,6 @@
   ;;; behaviour for assertz and a trap for anything that loads a program more
   ;;; than once -- a test that runs repeatedly, most of all, where it looks
   ;;; like the interpreter has started producing duplicate answers.
-  ;;; Reclaims what the store is still holding on to.
-  ;;;
-  ;;; UNDER MVCC A DELETED ROW IS NOT GONE. It is kept so that a transaction
-  ;;; entitled to an earlier view can still read it, and nothing takes it away
-  ;;; afterwards. cocolog deletes constantly without anyone asking it to: saving
-  ;;; a machine rewrites its row, so a proof that takes thirty turns leaves
-  ;;; twenty-nine dead ones behind, and `forget' followed by `consult' leaves a
-  ;;; dead copy of every clause.
-  ;;;
-  ;;; The store therefore only ever grows, and every read walks what it grew
-  ;;; past. Measured: the same twelve interpreters over the same four machines
-  ;;; took 12 seconds against an empty store and 60 against one a few hundred
-  ;;; test runs had been through. Not more data to find -- more dead data to
-  ;;; walk past.
-  ;;;
-  ;;; IT IS NOT AN EMPTYING. ZiguratIP's TRUNCATE frees only rows that are
-  ;;; committed as deleted and that no running transaction can still be entitled
-  ;;; to; live rows are untouched. So this is safe against a knowledge base in
-  ;;; use, and safe to run while other interpreters are working.
-  ;;;
-  ;;; IT IS NOT PER KNOWLEDGE BASE either, and cannot be: dead rows have no kb
-  ;;; to belong to any more. It reclaims across the whole store.
-  (func cmd_compact () (out int)
-        (let ((zg_result_t r) (char cols [256]) (i64 live . 0))
-          (if ($ opts local)
-              (block (fprintf stderr "cocolog: compact needs a database\n") (return 1)))
-          (if (not (zg_call db "cocolog::compact")) (return 1))
-          (while 1
-            (if (not (zg_result db (aof r)))
-                (block (fprintf stderr "cocolog: compact: %s\n" (zg_error db)) (return 1)))
-            (if (== r ZG_SUCCESSFUL_DONE) break)
-            (cond
-              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
-              ((== r ZG_RETURN_VALUE) (zg_read_long db (aof live) nil))
-              ((== r ZG_CURSOR_FETCH) break)
-              (#t (block))))
-          (if (not (zg_commit db))
-              (block (fprintf stderr "cocolog: compact: %s\n" (zg_error db)) (return 1)))
-          (printf "compacted; %lld live row(s) remain\n" (cast llong live))
-          (return 0)))
-
   (func cmd_forget ((const char * name) (int arity)) (out int)
         (let ((zg_result_t r) (char cols [256]) (i64 gone . 0))
           (if ($ opts local)
@@ -1084,7 +1041,6 @@
                (if (>= (+ i 2) argc)
                    (set rc (cmd_forget nil 0))
                  (set rc (cmd_forget (nth (+ i 1) argv) (atoi (nth (+ i 2) argv))))))
-              ((== 0 (strcmp cmd "compact")) (set rc (cmd_compact)))
               ((== 0 (strcmp cmd "list")) (set rc (cmd_list)))
               ((== 0 (strcmp cmd "drop"))
                (if (>= (+ i 1) argc)

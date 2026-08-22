@@ -362,70 +362,116 @@ there; the strict reading buys nothing and refuses terms that are perfectly
 clear. The **writer** is where the priority still matters, and it brackets such
 an atom when it stands as an operand.
 
-## Twelve workers: what was actually wrong
+## Twelve workers: what was actually wrong, and what still is
 
 `test/groups.sh` used to fail, and the cause was none of the things it looked
-like. It was not a deadlock, not the claim, not the SERIALIZABLE gate, and not
-the DCG work it appeared alongside. Written down because every one of those
-wrong answers looked right for a while.
+like. Written down because several wrong answers looked right for a while, and
+two of them were acted on before being checked.
 
-**The symptom.** Six of twelve workers never took a turn. A client blocked in
-`recv` waiting for a reply to `cocolog::machine_claim_named`; the server, asked
-for a stack, had ninety idle pool threads and three waiting on
-`Transaction::_serialize_cv`. It looked exactly like a lock nobody released.
+**It was never a hang.** Run without the `timeout` wrapper the suite always
+completed — every worker finished, every answer appeared. It was slow, and
+`WORKER_TIMEOUT` is 60 seconds.
 
-**It was not.** Removing `TRANSACTION ISOLATION LEVEL SERIALIZABLE` from both
-procedures made it *slower* (58s against 52s). And run without a `timeout`
-wrapper the suite always **completed** — every worker finished, every answer
-appeared. Nothing was stuck. It was slow, and `WORKER_TIMEOUT` is 60 seconds.
+**It was not the SERIALIZABLE gate**, though a profile showed 63 samples sitting
+on `_serialize_mutex` and three threads waiting on `_serialize_cv` with the
+counter at zero. Removing `TRANSACTION ISOLATION LEVEL SERIALIZABLE` from both
+procedures made it *slower* — 58s against 52s. The profile pointed at a queue
+that was a symptom.
 
-**What it really was: dead rows, never reclaimed.** Under MVCC a deleted row is
-kept so that a transaction entitled to an earlier view can still read it, and
-ZiguratIP has no background vacuum. `cocolog::machine_open` saves a machine by
-deleting its row and inserting a replacement — so one proof of thirty turns
-leaves twenty-nine dead rows, and `forget` followed by `consult` leaves a dead
-copy of every clause. The store only ever grew, and every read walked past
-everything it had grown.
+**What was actually fixed, and it was latency:**
 
-The measurements that settled it:
-
-| | wall | server CPU |
-|---|---|---|
-| twelve workers, store with nothing in it | 12s | 9.8s |
-| twelve workers, store a few hundred runs had been through | 60s | — |
-| eight consult+forget cycles, netting zero rows | — | +32KB of file, every time |
-
-Identical work, identical live data. **`cocolog compact` took a 35MB store down
-to 263 live rows and the suite back to 16 seconds**, stable over repeated runs.
-
-**What was fixed, in three places:**
-
-* **`cocolog compact`** and the `cocolog::compact` procedure behind it —
-  ZiguratIP's `TRUNCATE` reclaims settled deleted rows and leaves live ones
-  alone, so this is a vacuum rather than an emptying and is safe against a
-  knowledge base in use. `test/groups.sh` and `test/ruler.sh` now run it in
-  setup, which is why they no longer get slower every time the suite is run.
 * **`TCP_NODELAY`, at both ends** (`client/zigurat.c`, and ZiguratIP's
-  `TCPServer::run`). The protocol is small request, small reply, wait — the
-  pattern Nagle coalesces and delayed ACK stalls for 40ms at a time. One step
-  against an idle server went from 155ms to 85ms.
-* **The client buffers its reads.** `rd_u8` asked the kernel for one byte at a
-  time: one `cocolog step` measured **957 `recvfrom` and 383 `sendto`** for a few
-  dozen bytes of conversation. Reads now fill 8KB at a time, which is 957 down
-  to 383 — one per exchange.
+  `TCPServer::run`). Small request, small reply, wait: the pattern Nagle
+  coalesces and delayed ACK stalls 40ms at a time.
+* **The client read one byte at a time.** `rd_u8` called `recv` for a single
+  byte — one `cocolog step` measured **957 `recvfrom` and 383 `sendto`** for a
+  few dozen bytes of conversation. Reads now fill 8KB: 957 down to 383, one per
+  exchange. With NODELAY, 155ms per step became 85ms.
+* **A busy poll no longer writes.** A worker waiting on a claimed machine used
+  to find out by *attempting the claim* — a write transaction, at SERIALIZABLE,
+  committed, several times a second per waiting worker. It now asks with a read
+  and only writes when nobody holds it.
 
-Two smaller things fell out of it. A worker waiting on a busy machine used to
-find out by **attempting the claim** — a write transaction, at SERIALIZABLE,
-committed, several times a second per waiting worker; it now asks with a read
-and only writes when the answer is that nobody holds it. And the `--timeout`
-socket option is honoured but a wedged server still leaves a client waiting,
-because the server abandons the connection without a reply.
+`make test` ends `red: 0`, and `groups` runs in about 16 seconds.
 
-**What is still true and unfixed:** the server never uses more than one core.
-Four machines with one worker each burn 97% of a single core and no more, on a
-four-core box, because `Memory::Streams` guards the two shared file streams with
-one pair of global mutexes. That is a ceiling on the whole design rather than a
-bug, and lifting it means giving each thread its own handle on the store.
+### What is still wrong: the store only grows
+
+A deleted row is kept under MVCC so that a transaction entitled to an earlier
+view can still read it, and **there is no vacuum**. `machine_open` saves a
+machine by deleting its row and inserting a replacement, so a proof of thirty
+turns leaves twenty-nine dead rows; `forget` then `consult` leaves a dead copy of
+every clause. Eight consult+forget cycles netting *zero* rows added 32KB to the
+file every time.
+
+Measured, twelve workers over four machines, no compaction between runs:
+
+| run | wall | data file |
+|---|---|---|
+| 1 | 14s | 34736 KB |
+| 2 | 20s | 34752 KB |
+| 3 | 24s | 34776 KB |
+| 4 | 29s | 34792 KB |
+| 5 | 32s | 34808 KB |
+
+More than double, on identical work, while the file grew 72KB. It is not size —
+it is how many dead versions each index entry has to be walked past.
+
+**ZiguratIP's `TRUNCATE` is the vacuum, and cocolog cannot currently use it.**
+A `cocolog compact` command was built and then withdrawn, for two reasons:
+
+1. **It spends something real.** `TRUNCATE` gives up exactly the deleted
+   versions that `rollback_transaction_to` and SNAPSHOT are made of, so after it
+   the store cannot be read at a point in time before it ran. That is a
+   capability of the knowledge base, not a cache.
+2. **It does not work on any store cocolog has already written.** `TRUNCATE`
+   reads whole rows to unlink their index entries, and a NULL column cannot be
+   read back at all — the engine refuses the row with `NULL value`. `machines.note`
+   was nullable and the client wrote the empty string into it, which the store
+   keeps as NULL. Both are fixed going forward (the column is `NOT NULL`, the
+   client writes `-`), but every row already written carries a NULL and cannot
+   be reclaimed.
+
+So the growth is unmitigated. A store that has been worked hard for long enough
+will push `groups` past its 60s budget again, and the honest fix is a vacuum
+that does not cost point-in-time reads.
+
+### The server still uses only one core
+
+Four machines with one worker each burn 97% of a single core on a four-core box.
+`Memory::Streams` guards the two shared file streams with one global mutex pair,
+so every read in the engine serialises against every other. Under twelve workers
+16 of the sampled server stacks sat in `Memory::Streams::lock`.
+
+**An attempt was made and reverted.** `filestream` already keeps an `O_RDONLY`
+descriptor for `fsync`, so reads can be positional (`pread`) and need no shared
+file position: `_visible` and the cursor's hexmap walk were converted, and the
+server did move past one core, to 114%. It was reverted because it could not be
+validated — see below — not because it was shown wrong. Two of the failures
+attributed to it turned out to be a stale `demo` object compiled against a
+changed vtable, and a flaky test.
+
+Lifting the ceiling properly needs more than positional reads. A read at
+`REPEATABLE READ` or `SERIALIZABLE` **writes**: `_visible` takes a shared row
+lock by calling `_dump_control`. So "readers take a shared lock" is wrong at two
+of the four isolation levels, and the lock mode has to follow the level.
+
+### And the test that should validate all of it is broken
+
+`readers_do_not_queue_behind_staged_writes`, in ZiguratIP's own suite, fails
+**about one run in three** — measured 8 in 24 at `416b86f`, which predates all of
+this work. A reader sees another session's staged row.
+
+That rate is why the ceiling work could not be landed: a genuine regression and
+the usual flake are indistinguishable. It misled this work twice, and both
+mis-attributions were corrected only by measuring properly rather than by
+reading a short clean streak as a baseline.
+
+What is established about it is recorded in ZiguratIP's `doc/concurrency.md`: it
+is not an id collision, not the page-list race that was found and fixed
+alongside it, and `_read_committed` approves the row legitimately — the control
+block of a merely-staged row reads `offline_state = INSERTED` with a
+`create_time` before the reader's snapshot. The fault is upstream of the
+visibility rules.
 
 ## Known limitations, by choice
 
