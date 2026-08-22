@@ -120,6 +120,64 @@
            "atomic_list_concat(L, Sep, A) :- var(L), !, '$atom_split'(A, Sep, L)."
            "atomic_list_concat(L, Sep, A) :- '$atom_join'(L, Sep, A)."
 
+           ;; ---- keysort/2 --------------------------------------------------
+           ;; Sorting by the key and keeping duplicates, stably, is exactly
+           ;; what `sort/4' at key 1 with `@=<' does -- and stability is not
+           ;; incidental here: `bagof/3' groups by the key and the order within
+           ;; a group is the order the solutions came in.
+           "keysort(L, S) :- sort(1, @=<, L, S)."
+
+           ;; ---- bagof/3 and setof/3 ----------------------------------------
+           ;;
+           ;; NOT findall PLUS A SORT. They BACKTRACK, answering one solution
+           ;; per distinct binding of the goal's FREE VARIABLES -- the ones
+           ;; that appear in the goal, do not appear in the template, and were
+           ;; not existentially quantified with `^'. `bagof(X, p(X,Y), L)' over
+           ;; p(1,a), p(2,b), p(3,a) answers three times: Y=a with [1,3], then
+           ;; Y=b with [2], then Y=c with [1].
+           ;;
+           ;; The whole of it is: work out the witness, collect Witness-Template
+           ;; pairs with findall, sort them by witness, group the runs, and hand
+           ;; the groups to `member/2' -- which is where the backtracking comes
+           ;; from, and is why this is clauses and not C.
+           ;;
+           ;; AND THEY FAIL ON NO SOLUTIONS, where findall answers []. That is
+           ;; the other half of what makes them different predicates.
+
+           ;; `V^Goal' peeled off, however deep, with the quantified variables
+           ;; collected as they go.
+           "'$carets'(G, G2, Ex) :- nonvar(G), G = (V^G1), !, '$carets'(G1, G2, Ex1), Ex = [V|Ex1]."
+           "'$carets'(G, G, [])."
+
+           ;; membership and subtraction BY IDENTITY: these are variables, and
+           ;; two distinct free variables unify with each other while being
+           ;; different witnesses entirely.
+           "'$var_in'(X, [Y|_]) :- X == Y, !."
+           "'$var_in'(X, [_|T]) :- '$var_in'(X, T)."
+           "'$vars_minus'([], _, [])."
+           "'$vars_minus'([H|T], L, R) :- ( '$var_in'(H, L) -> R = R1 ; R = [H|R1] ), '$vars_minus'(T, L, R1)."
+
+           "'$witness'(T, G0, G, W) :- '$carets'(G0, G, Ex), term_variables(G, GV), term_variables(T, TV), term_variables(Ex, EV), '$vars_minus'(GV, TV, V1), '$vars_minus'(V1, EV, W)."
+
+           ;; runs of equal keys become one group. The keys are compared with
+           ;; `==' and not `=': unifying them would merge two groups whose
+           ;; witnesses merely happen to unify.
+           "'$group'([], [])."
+           "'$group'([K-V|T], [K-[V|Vs]|R]) :- '$same_key'(K, T, Vs, T1), '$group'(T1, R)."
+           "'$same_key'(K, [K1-V|T], [V|Vs], T1) :- K1 == K, !, '$same_key'(K, T, Vs, T1)."
+           "'$same_key'(_, T, [], T)."
+
+           "bagof(T, G0, B) :- '$witness'(T, G0, G, W), '$bagof'(W, T, G, B)."
+           ;; no free variables: one answer, and it is findall's -- except that
+           ;; an empty one is a failure
+           "'$bagof'([], T, G, B) :- !, findall(T, G, B), B \\== []."
+           "'$bagof'(W, T, G, B) :- Wt =.. ['$w'|W], findall(Wt-T, G, Pairs), Pairs \\== [], keysort(Pairs, Sorted), '$group'(Sorted, Groups), member(Wt-B, Groups)."
+
+           ;; setof is bagof with the group sorted, which also removes its
+           ;; duplicates -- and the groups themselves already arrive in witness
+           ;; order because keysort put them there.
+           "setof(T, G, S) :- bagof(T, G, B), sort(B, S)."
+
            ;; ---- print/1 is write/1 here; SWI routes it through portray -----
            "print(X) :- write(X)."
 

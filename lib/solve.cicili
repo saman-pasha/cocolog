@@ -612,6 +612,16 @@
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
               (int ok . 1) (int rc . 0))
 
+          ;; WHERE THE MACHINE STOOD BEFORE THE SEARCH. The sub-engine's last
+          ;; solution leaves its bindings on the trail: the final clause of a
+          ;; predicate drops its own choice point, so there is no frame left to
+          ;; backtrack through and undo them. Without this, `findall(X, p(X,Y),
+          ;; L)' comes back with Y still bound to whatever the last solution
+          ;; made it -- which is invisible until something reuses Y, and then
+          ;; the next goal sees one solution where there were four.
+          (let ((size_t tmark . #'($ (cof m) trail_len))
+                (size_t hmark . #'($ (cof m) heap_len)))
+
           (co_engine_init (aof sub) m st)
           ;; the inner search spends the outer one's remaining budget, so a
           ;; `cocolog step' with a step limit cannot be overrun by a findall
@@ -645,7 +655,16 @@
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           (co_engine_free (aof sub))
 
-          (if (not ok) (block (free kept) (return 0)))
+          (if (not ok) (block (co_undo_to m tmark)
+                              (set ($ (cof m) heap_len) hmark)
+                              (free kept)
+                              (return 0)))
+
+          ;; put the machine back as it was, THEN build the answer. The
+          ;; solutions are in the store and not on the heap, so truncating here
+          ;; costs nothing and reclaims everything the search built.
+          (co_undo_to m tmark)
+          (set ($ (cof m) heap_len) hmark)
 
           ;; back out of the store, in order, and on to the list
           (let ((size_t lst . #'(co_new_atom m "[]")))
@@ -653,7 +672,7 @@
               (set lst (co_cons m (co_store_get m st (nth (- i 1) kept)) lst)))
             (free kept)
             (set (cof out) lst))
-          (return 1)))
+          (return 1))))
 
   (func co_engine_ask_text ((co_engine * e) (const char * text)) (out int)
         (let ((size_t g))

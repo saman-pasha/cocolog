@@ -304,7 +304,8 @@ computed rather than remembered: the ISO built-in predicates plus the SWI
 extras everyone treats as core, minus the forty-eight cocolog already had.
 Thirty-eight remained, and they are all here:
 
-`findall/3` `findall/4` `forall/2` `aggregate_all/3` · `between/3` `succ/2`
+`findall/3` `findall/4` `bagof/3` `setof/3` `forall/2` `aggregate_all/3` ·
+`keysort/2` · `between/3` `succ/2`
 `plus/3` · `ground/1` `term_variables/2` `unify_with_occurs_check/2` ·
 `atom_chars/2` `char_code/2` `number_chars/2` `atom_number/2` `upcase_atom/2`
 `downcase_atom/2` `term_to_atom/2` `sub_atom/5` `atomic_list_concat/2`
@@ -331,15 +332,39 @@ shrinks, which is the property `assert` already relies on.
 The inner search spends the outer one's remaining step budget, so a `cocolog
 step` with a limit cannot be overrun by a `findall` inside it.
 
+### bagof/3 and setof/3 backtrack, so they are clauses
+
+They are **not** `findall` plus a sort. They answer once per distinct binding of
+the goal's **free variables** — the ones that appear in the goal, do not appear
+in the template, and were not quantified away with `^`:
+
+```prolog
+p(1,a). p(2,b). p(3,a). p(1,c).
+
+?- bagof(X, p(X,Y), L).
+Y = a, L = [1,3] ;  Y = b, L = [2] ;  Y = c, L = [1].
+```
+
+And they **fail** where `findall` answers `[]`. That is the other half of what
+makes them different predicates.
+
+The whole implementation is: work out the witness, collect `Witness-Template`
+pairs with `findall`, `keysort` them, group the runs, and hand the groups to
+`member/2` — which is where the backtracking comes from, and is why this is in
+the Coco half rather than in C. `keysort/2` is `sort(1, @=<, ...)`, and its
+**stability matters**: the order within a group is the order the solutions came
+in.
+
+Two details that are easy to get wrong and are why the tests exist: the witness
+variables are subtracted **by identity** (`==`), because two distinct free
+variables unify with each other while being different witnesses entirely; and
+the group keys are compared with `==` rather than `=`, because unifying them
+would merge two groups whose witnesses merely happen to unify.
+
 ### What is still missing, and why
 
 Each for a reason rather than for want of time:
 
-* **`bagof/3` and `setof/3`.** Not `findall` plus a sort. They **backtrack over
-  the bindings of the free variables** of the goal, answering one group per
-  witness, and that needs the engine to enumerate the groups. Shipping
-  findall-and-sort under those names would be a predicate that agrees with SWI
-  until the first free variable and then quietly does not.
 * **`op/3` and `current_op/3`.** The reader's operator table is emitted from
   `*operators*` at build time, which is what keeps the reader and the writer
   from disagreeing. A run-time table is a real change to `lib/syntax.cicili`

@@ -204,9 +204,23 @@ the same machine and store. **Its solutions travel through the store and not
 the heap**, because backtracking truncates the heap to the choice point's mark
 and a copy made there during the search is gone by the time the search ends.
 
-Still missing, each for a reason: `bagof/3` and `setof/3` (they backtrack over the free variables of the goal,
-which findall-plus-sort is not), and `op/3` (the operator table is emitted at
-build time, which is what keeps the reader and the writer from disagreeing).
+Still missing for a reason: `op/3` and `current_op/3`, because the operator
+table is emitted at build time, which is what keeps the reader and the writer
+from disagreeing.
+
+`bagof/3` and `setof/3` are in, and they are not findall plus a sort: they
+answer once per distinct binding of the goal's free variables and FAIL where
+findall answers `[]`. They are clauses, because the backtracking comes from
+`member/2` over the groups.
+
+**Implementing them found a real bug in `findall/3`.** The sub-engine's last
+solution left its bindings on the trail — a predicate's final clause drops its
+own choice point, so there was no frame left to backtrack through and undo
+them. `findall(X, p(X,Y), L)` came back with Y still bound to whatever the last
+solution made it, which is invisible until something reuses Y and then sees one
+solution where there were four. `co_engine_findall` puts the machine back as it
+was before building the answer, which also reclaims everything the search
+built.
 
 **It is checked against a real SWI rather than against its author.**
 `test/files/*.pl` are Prolog programs run twice — by `swipl` and by
@@ -338,6 +352,5 @@ raised. That bug printed nothing at all and returned success.
 ## Not started
 
 * A REPL. `cocolog query` runs one goal and exits.
-* `findall/3`, `bagof/3`, `setof/3`.
 * Strings as a type; `"abc"` reads as a code list, which is the ISO default.
 * Any indexing on the first argument. A predicate's clauses are tried in order.
