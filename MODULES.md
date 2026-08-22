@@ -305,7 +305,7 @@ extras everyone treats as core, minus the forty-eight cocolog already had.
 Thirty-eight remained, and they are all here:
 
 `findall/3` `findall/4` `bagof/3` `setof/3` `forall/2` `aggregate_all/3` ·
-`keysort/2` · `between/3` `succ/2`
+`keysort/2` · `op/3` `current_op/3` · `between/3` `succ/2`
 `plus/3` · `ground/1` `term_variables/2` `unify_with_occurs_check/2` ·
 `atom_chars/2` `char_code/2` `number_chars/2` `atom_number/2` `upcase_atom/2`
 `downcase_atom/2` `term_to_atom/2` `sub_atom/5` `atomic_list_concat/2`
@@ -361,14 +361,14 @@ variables unify with each other while being different witnesses entirely; and
 the group keys are compared with `==` rather than `=`, because unifying them
 would merge two groups whose witnesses merely happen to unify.
 
-### What is still missing, and why
+### What is still missing
 
-Each for a reason rather than for want of time:
+Nothing from the list this module set out to close. What remains are the
+families cocolog has no architecture for — streams, modules, threads, tabling,
+the foreign interface — and one reader subtlety noted in `STATUS.md`: cocolog
+reads `'-' - a` as prefix `-` applied to `-a` where SWI reads infix `-` with
+the atom `-` on the left.
 
-* **`op/3` and `current_op/3`.** The reader's operator table is emitted from
-  `*operators*` at build time, which is what keeps the reader and the writer
-  from disagreeing. A run-time table is a real change to `lib/syntax.cicili`
-  and to what a frozen machine has to carry.
 
 ## The Lists library
 

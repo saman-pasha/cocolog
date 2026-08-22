@@ -169,6 +169,25 @@
                 (co_sb_put b "0 "))
               (co_sb_putc b (cast char 10))))
 
+          ;; THE OPERATORS A PROGRAM DECLARED, and this is not a nicety. A
+          ;; machine's clauses live in the database as TEXT and are parsed on
+          ;; the way back in, so a clause that uses a declared operator cannot
+          ;; be read at all unless the declaration comes back with the machine.
+          ;;
+          ;; It is written LAST, so that a blob made before this section
+          ;; existed still reads: the reader stops when the text runs out.
+          (co_sb_put b "O ") (co_sb_put_sz b (co_op_dyn_count))
+          (co_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (co_op_dyn_count)) ((++ i))
+            (let ((const char * nm . nil) (int prec . 0) (int type . 0) (int kind . 0))
+              (if (co_op_dyn_at i (aof nm) (aof prec) (aof type) (aof kind))
+                  (block
+                   (co_sb_put_sz b (cast size_t prec)) (co_sb_putc b (cast char 32))
+                   (co_sb_put_sz b (cast size_t type)) (co_sb_putc b (cast char 32))
+                   (co_sb_put_sz b (cast size_t kind)) (co_sb_putc b (cast char 32))
+                   (co_sb_put_name b nm (strlen nm))
+                   (co_sb_putc b (cast char 10))))))
+
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
   ;;; ---- reading ------------------------------------------------------------
@@ -221,6 +240,18 @@
               (block (set (-> z bad) 1) (return 0)))
           (set (-> z pos) (+ (-> z pos) n))
           (return 1)))
+
+  ;;; Whether the next thing is this section, WITHOUT failing if it is not.
+  ;;; `co_scan_word' marks the blob bad on a mismatch, which is right for a
+  ;;; section that must be there and wrong for one that a machine frozen by an
+  ;;; older build simply does not have.
+  (static)
+  (func co_scan_section ((co_scan * z) (int tag)) (out int)
+        (co_scan_space z)
+        (if (>= (-> z pos) (-> z len)) (return 0))
+        (if (!= (bitand (cast int (nth (-> z pos) (-> z s))) 255) tag) (return 0))
+        (set (-> z pos) (+ (-> z pos) 1))
+        (return 1))
 
   (static)
   (func co_scan_double ((co_scan * z)) (out double)
@@ -337,6 +368,26 @@
                 (if (not (co_choice_restore e kind goals tmark hmark call cix barrier
                                             (? (== ($ nm s) nil) "" ($ nm s)) parity))
                     (block (set ok 0) break)))))
+
+          ;; ---- the operators, if this blob carries any ------------------
+          ;;
+          ;; OPTIONAL, because a machine frozen before this section existed has
+          ;; none and must still read. `co_scan_section' answers 0 at the end
+          ;; of the text, and that is not an error -- it is an older blob.
+          (if (and ok (not ($ z bad)))
+              (if (co_scan_section (aof z) 79)          ; `O'
+                  (let ((size_t nops . #'(co_scan_u64 (aof z) 10)))
+                    ;; a thawed machine's table is ITS table and not this
+                    ;; process's: whatever was declared here before is gone
+                    (co_op_dyn_clear)
+                    (for ((size_t i . 0)) (and ok (< i nops)) ((++ i))
+                      (let ((int prec . #'(cast int (co_scan_u64 (aof z) 10)))
+                            (int type . #'(cast int (co_scan_u64 (aof z) 10)))
+                            (int kind . #'(cast int (co_scan_u64 (aof z) 10))))
+                        (if (not (co_scan_name (aof z) (aof nm))) (block (set ok 0) break))
+                        (if (not (co_op_define (? (== ($ nm s) nil) "" ($ nm s))
+                                               prec type kind))
+                            (block (set ok 0) break)))))))
 
           (co_sb_free (aof nm))
           (if (or (not ok) ($ z bad))

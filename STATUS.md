@@ -204,10 +204,6 @@ the same machine and store. **Its solutions travel through the store and not
 the heap**, because backtracking truncates the heap to the choice point's mark
 and a copy made there during the search is gone by the time the search ends.
 
-Still missing for a reason: `op/3` and `current_op/3`, because the operator
-table is emitted at build time, which is what keeps the reader and the writer
-from disagreeing.
-
 `bagof/3` and `setof/3` are in, and they are not findall plus a sort: they
 answer once per distinct binding of the goal's free variables and FAIL where
 findall answers `[]`. They are clauses, because the backtracking comes from
@@ -305,6 +301,44 @@ the continuation from the builtin's own `k` on a 1, which would throw away the
 recovery goal `throw/1` had just installed and carry on as if nothing had been
 raised. That bug printed nothing at all and returned success.
 
+## op/3, and what it forced about the database
+
+`*operators*` is read at BUILD time and emits both halves of the grammar, which
+is what stops the reader and the writer disagreeing about an operator. `op/3`
+cannot change that table, so it adds a second one consulted first — and an
+entry there with priority 0 hides the built-in of the same name, which is how
+`op(0, xfx, =)` takes one away.
+
+**`:- op(...)` is handled by `co_directive` and not by the engine**, because a
+declaration has to take effect for the *rest of the file being read*. A
+directive dealt with after the whole file was parsed would be too late to
+matter. That is why `lib/kb.cicili`, which is compiled below the engine and
+cannot run a goal, reaches into `lib/syntax.cicili`: the operator table is the
+reader's, and this directive is about the reader.
+
+**And it exposed something the database had wrong all along.** A clause lives
+in ZiguratIP as text and is parsed by whichever process fetches it. Written
+with operators, `rule(a ===> b)` can only be read back by a process that has
+declared `===>` — and a second interpreter opening the same knowledge base has
+declared nothing. It did not fail loudly either: the text simply did not parse
+and the predicate looked empty. Measured, not reasoned about — a fresh process
+answered `false.` to `rule(X)` for two clauses that were plainly there.
+
+Clauses are stored functionally now — `rule(===>(a,b))` — through
+`co_write_storable`, so they need no operator table at all and read the same in
+every process for ever. `listing` still shows operators, because that is for a
+person; `test/shared.cicili` proves the cross-process case.
+
+A machine's declared operators also travel with it, in an optional `O` section
+of the frozen form. Optional so that a machine frozen by an older build still
+thaws.
+
+**One writer bug came out of it.** An operator atom was bracketed in every
+position but the top: `f((-))`, `[(-)]`. SWI brackets one only as an OPERAND —
+`f(-)` and `[a,-]` are fine as they stand, because an argument is read at
+priority 999 and a `-` followed by `,` or `]` cannot be a prefix operator.
+`- (-)` and `(-)-a` are not fine, and are still bracketed.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
@@ -340,11 +374,15 @@ raised. That bug printed nothing at all and returned success.
 * **`asserta` rewrites its whole predicate** in the database, because putting a
   clause at the front changes every later clause's ordinal. O(n) per assert and
   always right.
-* **A module cannot define an operator.** The reader's table is fixed at build
-  time, so a module whose predicates want infix syntax cannot have it. This is
-  the one real gap in the module seam; the other two — no choice points, no
-  per-session state — are the price of being suspendable and are not going to
-  change.
+* **The reader does not disambiguate an operator atom before an operator.**
+  cocolog reads `'-' - a` as prefix `-` applied to `-a`; SWI reads infix `-`
+  with the atom `-` on the left. Deciding which, when an atom that is a prefix
+  operator is followed by something that is also an operator, is a lookahead
+  this reader does not do.
+* **A module still cannot declare an operator from its C half**, though a
+  program can with `op/3` and a module's Coco half can carry a `:- op(...)`.
+  The remaining seam limits — no choice points, no per-session state — are the
+  price of being suspendable and are not going to change.
 * **No garbage collection.** The heap only grows within a solution; it is
   reclaimed on backtracking and on a new query. A long deterministic run that
   builds structure will grow until it ends.

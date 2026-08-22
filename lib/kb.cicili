@@ -526,6 +526,17 @@
           ;; deliberate should not be refused for saying so.
           (if (and (== n 1) (== 0 (strcmp name "discontiguous"))) (return 1))
 
+          ;; `:- op(P, T, N)'. THIS ONE HAS TO BE HERE and not left to the
+          ;; engine, because a declaration has to take effect for the REST OF
+          ;; THE FILE being read -- the clauses after it are parsed with it in
+          ;; force, and a directive handled after the whole file was read would
+          ;; be too late to matter. It is also why this file, which is compiled
+          ;; below the engine and cannot run a goal, reaches into syntax.cicili
+          ;; instead: the operator table is the reader's, and the reader is
+          ;; what a directive like this is about.
+          (if (and (== n 3) (== 0 (strcmp name "op")))
+              (return (co_op_apply m g err errlen)))
+
           (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))
           (return 0)))
 

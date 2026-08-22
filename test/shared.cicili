@@ -441,6 +441,55 @@
         (co_store_free (aof stb))
         (co_machine_free (aof mb)))
 
+      ;; =================================================================
+      ;; AN OPERATOR A PROGRAM DECLARED, and a clause that uses it, read by
+      ;; an interpreter that never made the declaration.
+      ;;
+      ;; This is the case that decides how a clause is STORED. Written with
+      ;; operators, `rule(a ===> b)' can only be read back by a process that
+      ;; has declared `===>' -- and a second interpreter opening the same
+      ;; knowledge base has declared nothing. It would not fail loudly either:
+      ;; the text would simply not parse and the predicate would look empty.
+      ;; Stored functionally it needs no operator table at all.
+      ;; =================================================================
+      (let ((co_machine mo) (co_store sto) (co_engine eo) (co_zg zo)
+            (char erro [256]))
+        (co_machine_init (aof mo))
+        (co_store_init (aof sto))
+        (co_engine_init (aof eo) (aof mo) (aof sto))
+        (set ($ eo max_steps) 5000000)
+        (co_zg_attach (aof zo) db (aof mo) (aof sto) KB)
+
+        (check "declared an operator and consulted clauses that use it"
+               (cast llong (co_consult (aof sto) (aof mo)
+                 ":- op(700, xfx, ===>). rule(a ===> b). rule(b ===> c)."
+                 erro (sizeof erro))) 2)
+        (check "committed" (cast llong (zg_commit db)) 1)
+
+        (co_engine_free (aof eo))
+        (co_store_free (aof sto))
+        (co_machine_free (aof mo)))
+
+      ;; the operator table is global to the process, so it is put back to
+      ;; what a fresh interpreter would have before the next one is built
+      (co_op_dyn_clear)
+
+      (let ((co_machine mp) (co_store stp) (co_engine ep) (co_zg zp))
+        (co_machine_init (aof mp))
+        (co_store_init (aof stp))
+        (co_engine_init (aof ep) (aof mp) (aof stp))
+        (set ($ ep max_steps) 5000000)
+        (co_zg_attach (aof zp) db (aof mp) (aof stp) KB)
+
+        (check "an interpreter with NO such operator still reads the clauses"
+               (cast llong (count (aof ep) "rule(X)" 10)) 2)
+        (check "and can prove with them"
+               (cast llong (count (aof ep) "rule(===>(a,Y))" 10)) 1)
+
+        (co_engine_free (aof ep))
+        (co_store_free (aof stp))
+        (co_machine_free (aof mp)))
+
       (zg_commit db)
       (zg_close db)
       (printf "\n%s: %d failure(s) in %d checks\n"

@@ -123,7 +123,7 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 | path | what |
 |---|---|
 | `lib/term.cicili` | cells, unification, the trail, copying |
-| `lib/syntax.cicili` | the reader and the writer, from one operator table |
+| `lib/syntax.cicili` | the reader and the writer, from one operator table, plus the run-time one `op/3` adds |
 | `lib/kb.cicili` | the clause store and its five backend hooks |
 | `lib/solve.cicili` | the engine and the builtin table |
 | `lib/module.cicili` | the module seam and the API a module is written against |

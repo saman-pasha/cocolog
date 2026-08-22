@@ -76,6 +76,9 @@
     ("b_setval"                2 co_b_setval)
     ("b_getval"                2 co_b_getval)
 
+    ("op"                      3 co_b_op)
+    ("$ops"                    1 co_b_ops)
+
     ("halt"                    1 co_b_halt1)))
 
 (DEFPARAMETER *builtins-prolog*
@@ -119,6 +122,12 @@
            "atomic_list_concat(L, A) :- '$atom_join'(L, '', A)."
            "atomic_list_concat(L, Sep, A) :- var(L), !, '$atom_split'(A, Sep, L)."
            "atomic_list_concat(L, Sep, A) :- '$atom_join'(L, Sep, A)."
+
+           ;; ---- current_op/3 -----------------------------------------------
+           ;; Enumerating is backtracking, so the C half hands over the whole
+           ;; table at once and `member/2' does the rest -- the same shape
+           ;; `current_predicate/1' has, and for the same reason.
+           "current_op(P, T, N) :- '$ops'(L), '$cp_member'(op(P, T, N), L)."
 
            ;; ---- keysort/2 --------------------------------------------------
            ;; Sorting by the key and keeping duplicates, stably, is exactly
@@ -206,6 +215,9 @@
                                              (size_t to)) (out int))
   (static) (decl) (func co_b_sort_terms ((co_machine * m) (size_t * v) (size_t n)))
   (static) (decl) (func co_b_case ((co_engine * e) (size_t g) (int up)) (out int))
+  (static) (decl) (func co_b_typename ((int type)) (out const char *))
+  (static) (decl) (func co_b_ops_push ((co_engine * e) (size_t ** v) (size_t * n)
+                                       (size_t * cap) (int dyn)))
 
   ;;; ---- all solutions ---------------------------------------------------
 
@@ -840,6 +852,109 @@
                                       (co_store_get m (-> e st)
                                                     ($ (nth i co_b_globals) cell))))))
             (return (co_m_existence_error e "variable" (co_m_arg e g 0))))))
+
+  ;;; ---- operators --------------------------------------------------------
+
+  (static)
+  (func co_b_typename ((int type)) (out const char *)
+        (if (== type CO_XFX) (return "xfx"))
+        (if (== type CO_XFY) (return "xfy"))
+        (if (== type CO_YFX) (return "yfx"))
+        (if (== type CO_FY)  (return "fy"))
+        (return "fx"))
+
+  ;;; `op(+Priority, +Type, +Name)'. Name may be a list of names, which is what
+  ;;; every real operator declaration uses. Priority 0 takes the operator away.
+  (func co_b_op ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(co_m_machine e))
+              (i64 prec . 0) (int type . 0) (int kind . 0)
+              (const char * ts)
+              (size_t * names . nil) (size_t n . 0))
+
+          (if (co_m_is_var e (co_m_arg e g 0)) (return (co_m_instantiation_error e)))
+          (if (not (co_m_int e (co_m_arg e g 0) (aof prec)))
+              (return (co_m_type_error e "integer" (co_m_arg e g 0))))
+          (if (or (< prec 0) (> prec 1200))
+              (return (co_m_domain_error e "operator_priority" (co_m_arg e g 0))))
+
+          (set ts (co_m_atom e (co_m_arg e g 1)))
+          (if (== ts nil)
+              (block (if (co_m_is_var e (co_m_arg e g 1))
+                         (return (co_m_instantiation_error e)))
+                     (return (co_m_type_error e "atom" (co_m_arg e g 1)))))
+          (if (not (co_op_type_of ts (aof type) (aof kind)))
+              (return (co_m_domain_error e "operator_specifier" (co_m_arg e g 1))))
+
+          ;; one name, or a list of them
+          (if (not (co_m_list_array e (co_m_arg e g 2) (aof names) (aof n)))
+              (let ((const char * one . #'(co_m_atom e (co_m_arg e g 2))))
+                (if (== one nil)
+                    (block (if (co_m_is_var e (co_m_arg e g 2))
+                               (return (co_m_instantiation_error e)))
+                           (return (co_m_type_error e "atom" (co_m_arg e g 2)))))
+                (if (not (co_op_define one (cast int prec) type kind))
+                    (return (co_m_error e "that operator name will not fit" one)))
+                (return 1)))
+
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((const char * one . #'(co_m_atom e (nth i names))))
+              (if (== one nil)
+                  (block (free names)
+                         (return (co_m_type_error e "atom" (nth i names)))))
+              (if (not (co_op_define one (cast int prec) type kind))
+                  (block (free names)
+                         (return (co_m_error e "that operator name will not fit" one))))))
+          (free names)
+          (return 1)))
+
+  ;;; Every operator there is, as `op(Priority, Type, Name)'. The DECLARED ones
+  ;;; first and the built-in ones after, with a built-in left out when a
+  ;;; declaration of the same name and kind has hidden it -- so what comes back
+  ;;; is what the reader would actually do, not two tables stuck together.
+  (func co_b_ops ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(co_m_machine e))
+              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
+
+          (co_b_ops_push e (aof v) (aof n) (aof cap) 1)
+          (co_b_ops_push e (aof v) (aof n) (aof cap) 0)
+
+          (set out (co_m_list e v n))
+          (free v)
+          (return (co_m_unify e (co_m_arg e g 0) out))))
+
+  ;;; DECLARED when `dyn', built-in otherwise. Pulled out because the two loops
+  ;;; are the same but for which table they read and whether they skip.
+  (static)
+  (func co_b_ops_push ((co_engine * e) (size_t ** v) (size_t * n) (size_t * cap)
+                       (int dyn))
+        (let ((co_machine * m . #'(co_m_machine e))
+              (size_t total . #'(? dyn (co_op_dyn_count) (co_op_static_count))))
+          (for ((size_t i . 0)) (< i total) ((++ i))
+            (let ((const char * name . nil) (int prec . 0)
+                  (int type . 0) (int kind . 0))
+              (if (not (? dyn (co_op_dyn_at i (aof name) (aof prec) (aof type) (aof kind))
+                          (co_op_static_at i (aof name) (aof prec) (aof type) (aof kind))))
+                  continue)
+              ;; a declaration with priority 0 is not an operator, and a
+              ;; built-in that one has hidden is not one either
+              (if (== prec 0) continue)
+              (if (not dyn)
+                  (let ((int dp . 0) (int dt . 0))
+                    (if (>= (co_op_dyn_lookup_pub name kind (aof dp) (aof dt)) 0)
+                        continue)))
+              (if (>= (cof n) (cof cap))
+                  (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (* (cof cap) 2)))
+                        (size_t * nb))
+                    (set nb (cast (size_t *) (realloc (cof v) (* ncap (sizeof size_t)))))
+                    (if (== nb nil) (return))
+                    (set (cof v) nb)
+                    (set (cof cap) ncap)))
+              (let ((size_t args [3]))
+                (set (nth 0 args) (co_new_int m (cast i64 prec)))
+                (set (nth 1 args) (co_new_atom m (co_b_typename type)))
+                (set (nth 2 args) (co_new_atom m name))
+                (set (nth (cof n) (cof v)) (co_make m "op" 3 args)))
+              (set (cof n) (+ (cof n) 1))))))
 
   ;;; ---- halting ----------------------------------------------------------
 

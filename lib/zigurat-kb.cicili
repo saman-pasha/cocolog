@@ -271,7 +271,7 @@
                     (size_t t . #'(co_store_get m st (nth i (-> p clauses))))
                     (co_strbuf b))
                 (co_sb_init (aof b))
-                (co_write_canonical m (aof b) t)
+                (co_write_storable m (aof b) t)
                 (if (not (zg_call (-> z db) "cocolog::assert_clause"))
                     (block (co_sb_free (aof b)) (set (-> m heap_len) mark)
                            (return (co_zg_fail z "assert_clause"))))

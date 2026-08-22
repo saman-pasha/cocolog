@@ -122,6 +122,38 @@
                    rows)
          (#t (return 0))))))
 
+;;; The whole table again, reachable one row at a time, so that
+;;; `current_op/3' can enumerate what was built in. TWO macros and not one,
+;;; because a Cicili macro emits ONE form -- several from one leaves the
+;;; symbols unregistered and the next reference to them is a link error, which
+;;; is exactly what happened here the first time.
+;;;
+;;; A generated `cond' over an index rather than an initialised array: an array
+;;; of structs would want a brace initialiser, and this way the one table still
+;;; emits everything.
+(DEFUN op-static-rows ()
+  (APPEND (MAPCAR (LAMBDA (r) (APPEND r '(0))) (ops-of-class :infix))
+          (MAPCAR (LAMBDA (r) (APPEND r '(1))) (ops-of-class :prefix))))
+
+(DEFMACRO co-emit-op-static-count ()
+  `(func co_op_static_count () (out size_t) (return ,(LENGTH (op-static-rows)))))
+
+(DEFMACRO co-emit-op-static-at ()
+  `(func co_op_static_at ((size_t i) (const char ** name) (int * prec)
+                          (int * type) (int * kind)) (out int)
+     (cond
+       ,@(LET ((n -1))
+           (MAPCAR (LAMBDA (row)
+                     (INCF n)
+                     `((== i ,n)
+                       (set (cof name) ,(FIRST row))
+                       (set (cof prec) ,(SECOND row))
+                       (set (cof type) ,(THIRD row))
+                       (set (cof kind) ,(FOURTH row))
+                       (return 1)))
+                   (op-static-rows)))
+       (#t (return 0)))))
+
 ;;; Is this name an operator at all? The writer asks, because an atom that is
 ;;; an operator has to be bracketed when it stands as an argument -- `f(-)' is
 ;;; fine but `- + -' is not what anyone meant.
@@ -129,7 +161,7 @@
   (LET ((names (REMOVE-DUPLICATES
                 (MAPCAR #'FIRST (APPEND (ops-of-class :infix) (ops-of-class :prefix)))
                 :TEST #'STRING=)))
-    `(func co_op_is_any ((const char * s)) (out int)
+    `(func co_op_is_any_static ((const char * s)) (out int)
        (cond
          ,@(MAPCAR (LAMBDA (n) `((== 0 (strcmp s ,n)) (return 1))) names)
          (#t (return 0))))))
@@ -162,6 +194,51 @@
   (decl) (func co_op_infix  ((const char * s) (int * prec) (int * type)) (out int))
   (decl) (func co_op_prefix ((const char * s) (int * prec) (int * type)) (out int))
   (decl) (func co_op_is_any ((const char * s)) (out int))
+
+  ;;; ---- operators a program declared -------------------------------------
+  ;;;
+  ;;; `*operators*' is read at BUILD time and emits both halves of the grammar,
+  ;;; which is what stops the reader and the writer disagreeing about an
+  ;;; operator. `op/3' cannot change that table, so it adds a second one that
+  ;;; is consulted FIRST -- and an entry there with priority 0 hides the built-in
+  ;;; of the same name, which is how `op(0, xfx, =)' takes one away.
+  ;;;
+  ;;; KIND is 0 for infix and 1 for prefix. cocolog's reader has no postfix, so
+  ;;; there is no 2: `op/3' refuses `xf' and `yf' rather than accepting a
+  ;;; declaration it would then ignore.
+  (decl) (func co_op_define ((const char * name) (int prec) (int type) (int kind))
+               (out int))
+  (decl) (func co_op_dyn_clear ())
+
+  ;;; The five specifiers cocolog's reader has, from their names. `xf' and `yf'
+  ;;; are POSTFIX and the reader has none, so they are refused rather than
+  ;;; accepted and then ignored -- which would leave a program believing it had
+  ;;; declared something.
+  (decl) (func co_op_type_of ((const char * name) (int * type) (int * kind))
+               (out int))
+
+  ;;; Applies an `op(Priority, Type, Name)' TERM, Name being one name or a list
+  ;;; of them. This is what a `:- op(...)' directive calls -- and it has to be
+  ;;; reachable from kb.cicili, which is compiled before the engine and cannot
+  ;;; run a goal, because the declaration must take effect for the REST OF THE
+  ;;; FILE being read and not after it.
+  (decl) (func co_op_apply ((co_machine * m) (size_t t) (char * err) (size_t errlen))
+               (out int))
+
+  ;;; Whether a name is DECLARED of this kind, and what as: -1 when nothing was
+  ;;; declared, 0 when a declaration hid it, 1 with the priority and type filled
+  ;;; in. `current_op/3' asks so that it does not list a built-in that a
+  ;;; declaration has replaced.
+  (decl) (func co_op_dyn_lookup_pub ((const char * s) (int kind) (int * prec)
+                                     (int * type)) (out int))
+  (decl) (func co_op_dyn_count () (out size_t))
+  (decl) (func co_op_dyn_at ((size_t i) (const char ** name) (int * prec)
+                             (int * type) (int * kind)) (out int))
+
+  ;;; The built-in table, one row at a time, for `current_op/3'.
+  (decl) (func co_op_static_count () (out size_t))
+  (decl) (func co_op_static_at ((size_t i) (const char ** name) (int * prec)
+                                (int * type) (int * kind)) (out int))
 
   ;;; The reader. One of these reads a whole source text, clause by clause; the
   ;;; variable names of the clause just read stay in it so a caller can report
@@ -215,6 +292,23 @@
   (decl) (func co_write_term ((co_machine * m) (co_strbuf * b) (size_t t)
                               (int quoted) (int ignore_ops)) (out int))
   (decl) (func co_write_canonical ((co_machine * m) (co_strbuf * b) (size_t t)) (out int))
+
+  ;;; THE FORM A CLAUSE IS STORED IN, which is quoted and with operators
+  ;;; IGNORED -- `rule(===>(a,b))' and not `rule(a ===> b)'.
+  ;;;
+  ;;; The difference matters exactly once, and then it matters completely. A
+  ;;; clause lives in the database as text and is parsed on the way back in, by
+  ;;; whichever process happens to fetch it. If it were written with operators,
+  ;;; a clause using one that `op/3' declared could only be read by a process
+  ;;; that had made the same declaration -- and a second interpreter opening
+  ;;; the same knowledge base has made no declarations at all. It would not
+  ;;; fail loudly either: the clause simply would not parse, and the predicate
+  ;;; would look empty.
+  ;;;
+  ;;; Written functionally it needs no operator table at all, so it reads the
+  ;;; same in every process for ever. `listing' still shows operators, because
+  ;;; that is for a person.
+  (decl) (func co_write_storable ((co_machine * m) (co_strbuf * b) (size_t t)) (out int))
   (decl) (func co_print_term ((co_machine * m) (FILE * f) (size_t t)))
 
   ;;; True when NAME can be written without quotes.
@@ -230,9 +324,157 @@
 (generic impl-syntax
   ()
 
-  (co-emit-op-lookup co_op_infix  :infix)
-  (co-emit-op-lookup co_op_prefix :prefix)
+  (co-emit-op-lookup co_op_infix_static  :infix)
+  (co-emit-op-lookup co_op_prefix_static :prefix)
   (co-emit-op-any)
+  (co-emit-op-static-count)
+  (co-emit-op-static-at)
+
+  ;;; ---- the table a program can add to -----------------------------------
+
+  (struct co_opdef
+    (member char name [64])
+    (member int  prec)
+    (member int  type)
+    (member int  kind))
+
+  (static) (var co_opdef * co_dynops)
+  (static) (var size_t co_ndynops)
+  (static) (var size_t co_dynopcap)
+
+  ;;; An entry for NAME of this kind, or the count if there is none.
+  (static)
+  (func co_op_dyn_find ((const char * name) (int kind)) (out size_t)
+        (for ((size_t i . 0)) (< i co_ndynops) ((++ i))
+          (if (and (== ($ (nth i co_dynops) kind) kind)
+                   (== 0 (strcmp ($ (nth i co_dynops) name) name)))
+              (return i)))
+        (return co_ndynops))
+
+  (func co_op_define ((const char * name) (int prec) (int type) (int kind)) (out int)
+        (if (or (== name nil) (>= (strlen name) 64)) (return 0))
+        (let ((size_t at . #'(co_op_dyn_find name kind)))
+          (if (< at co_ndynops)
+              (block (set ($ (nth at co_dynops) prec) prec)
+                     (set ($ (nth at co_dynops) type) type)
+                     (return 1)))
+          (if (>= co_ndynops co_dynopcap)
+              (let ((size_t ncap . #'(? (== co_dynopcap 0) 8 (* co_dynopcap 2)))
+                    (co_opdef * nb))
+                (set nb (cast (co_opdef *)
+                              (realloc co_dynops (* ncap (sizeof co_opdef)))))
+                (if (== nb nil) (return 0))
+                (set co_dynops nb)
+                (set co_dynopcap ncap)))
+          (snprintf ($ (nth co_ndynops co_dynops) name) 64 "%s" name)
+          (set ($ (nth co_ndynops co_dynops) prec) prec)
+          (set ($ (nth co_ndynops co_dynops) type) type)
+          (set ($ (nth co_ndynops co_dynops) kind) kind)
+          (set co_ndynops (+ co_ndynops 1))
+          (return 1)))
+
+  (func co_op_dyn_clear () (set co_ndynops 0))
+
+  (func co_op_type_of ((const char * name) (int * type) (int * kind)) (out int)
+        (set (cof kind) 0)
+        (if (== 0 (strcmp name "xfx")) (block (set (cof type) CO_XFX) (return 1)))
+        (if (== 0 (strcmp name "xfy")) (block (set (cof type) CO_XFY) (return 1)))
+        (if (== 0 (strcmp name "yfx")) (block (set (cof type) CO_YFX) (return 1)))
+        (set (cof kind) 1)
+        (if (== 0 (strcmp name "fy"))  (block (set (cof type) CO_FY) (return 1)))
+        (if (== 0 (strcmp name "fx"))  (block (set (cof type) CO_FX) (return 1)))
+        (return 0))
+
+  (func co_op_apply ((co_machine * m) (size_t t) (char * err) (size_t errlen)) (out int)
+        (let ((size_t p . #'(co_deref m (co_arg m t 0)))
+              (size_t ty . #'(co_deref m (co_arg m t 1)))
+              (size_t nm . #'(co_deref m (co_arg m t 2)))
+              (int type . 0) (int kind . 0) (i64 prec . 0))
+
+          (if (not (co-tag-is INT (nth p (-> m heap))))
+              (block (snprintf err errlen "op/3 wants a priority") (return 0)))
+          (set prec (co-signed-payload (nth p (-> m heap))))
+          (if (or (< prec 0) (> prec 1200))
+              (block (snprintf err errlen "op/3: priority out of range") (return 0)))
+
+          (if (not (co-tag-is ATOM (nth ty (-> m heap))))
+              (block (snprintf err errlen "op/3 wants a specifier") (return 0)))
+          (if (not (co_op_type_of (co_atom_name m (co_name_of m ty)) (aof type) (aof kind)))
+              (block (snprintf err errlen "op/3: %s is not a specifier cocolog has"
+                               (co_atom_name m (co_name_of m ty)))
+                     (return 0)))
+
+          ;; one name, or a list of them
+          (if (co-tag-is ATOM (nth nm (-> m heap)))
+              (let ((const char * one . #'(co_atom_name m (co_name_of m nm))))
+                (if (!= 0 (strcmp one "[]"))
+                    (block (if (not (co_op_define one (cast int prec) type kind))
+                               (block (snprintf err errlen "op/3: %s will not fit" one)
+                                      (return 0)))
+                           (return 1)))))
+
+          (while 1
+            (set nm (co_deref m nm))
+            (if (co-tag-is ATOM (nth nm (-> m heap)))
+                (if (== 0 (strcmp (co_atom_name m (co_name_of m nm)) "[]")) (return 1)))
+            (if (not (co_is_callable m nm))
+                (block (snprintf err errlen "op/3 wants an atom or a list") (return 0)))
+            (if (!= (co_arity m nm) 2)
+                (block (snprintf err errlen "op/3 wants an atom or a list") (return 0)))
+            (let ((size_t h . #'(co_deref m (co_arg m nm 0))))
+              (if (not (co-tag-is ATOM (nth h (-> m heap))))
+                  (block (snprintf err errlen "op/3 wants atoms in its list") (return 0)))
+              (if (not (co_op_define (co_atom_name m (co_name_of m h))
+                                     (cast int prec) type kind))
+                  (block (snprintf err errlen "op/3: a name will not fit") (return 0))))
+            (set nm (co_arg m nm 1)))
+          (return 1)))
+  (func co_op_dyn_count () (out size_t) (return co_ndynops))
+
+  (func co_op_dyn_at ((size_t i) (const char ** name) (int * prec)
+                      (int * type) (int * kind)) (out int)
+        (if (>= i co_ndynops) (return 0))
+        (set (cof name) ($ (nth i co_dynops) name))
+        (set (cof prec) ($ (nth i co_dynops) prec))
+        (set (cof type) ($ (nth i co_dynops) type))
+        (set (cof kind) ($ (nth i co_dynops) kind))
+        (return 1))
+
+  ;;; ---- the lookups the grammar actually calls ---------------------------
+  ;;;
+  ;;; The declared table first, then the built-in one. A declared entry with
+  ;;; priority 0 is not an operator: it hides the built-in and the lookup
+  ;;; answers 0, which is what `op(0, T, N)' means.
+
+  (static)
+  (func co_op_dyn_lookup ((const char * s) (int kind) (int * prec) (int * type))
+        (out int)
+        (let ((size_t at . #'(co_op_dyn_find s kind)))
+          (if (>= at co_ndynops) (return -1))
+          (if (== ($ (nth at co_dynops) prec) 0) (return 0))
+          (set (cof prec) ($ (nth at co_dynops) prec))
+          (set (cof type) ($ (nth at co_dynops) type))
+          (return 1)))
+
+  (func co_op_dyn_lookup_pub ((const char * s) (int kind) (int * prec) (int * type))
+        (out int)
+        (return (co_op_dyn_lookup s kind prec type)))
+
+  (func co_op_infix ((const char * s) (int * prec) (int * type)) (out int)
+        (let ((int d . #'(co_op_dyn_lookup s 0 prec type)))
+          (if (>= d 0) (return d)))
+        (return (co_op_infix_static s prec type)))
+
+  (func co_op_prefix ((const char * s) (int * prec) (int * type)) (out int)
+        (let ((int d . #'(co_op_dyn_lookup s 1 prec type)))
+          (if (>= d 0) (return d)))
+        (return (co_op_prefix_static s prec type)))
+
+  (func co_op_is_any ((const char * s)) (out int)
+        (let ((int p . 0) (int t . 0))
+          (if (co_op_infix s (aof p) (aof t)) (return 1))
+          (if (co_op_prefix s (aof p) (aof t)) (return 1))
+          (return 0)))
 
   ;;; ---- character classes ---------------------------------------------
   ;;; All five fold to comparisons against literals. `symbol' is the set that
@@ -860,7 +1102,7 @@
         (return (co_sb_putc b (cast char (co-ch "'")))))
 
   (static) (decl) (func co_write_rec ((co_machine * m) (co_strbuf * b) (size_t t)
-                                      (int quoted) (int ignore_ops) (int maxprec)) (out int))
+                                      (int quoted) (int ignore_ops) (int maxprec) (int operand)) (out int))
 
   ;;; `[a,b|T]'. Written iteratively rather than by recursing on the tail, so a
   ;;; ten-thousand-element list does not need ten thousand stack frames --
@@ -878,7 +1120,7 @@
                       (block
                        (if (not first) (co_sb_putc b (cast char (co-ch ","))))
                        (set first 0)
-                       (co_write_rec m b (co_arg m t 0) quoted ignore_ops 999)
+                       (co_write_rec m b (co_arg m t 0) quoted ignore_ops 999 0)
                        (set t (co_arg m t 1))
                        continue)))
               ;; not a list cell: either the proper end, or a partial list
@@ -886,12 +1128,12 @@
                        (== 0 (strcmp (co_atom_name m (co_name_of m t)) "[]")))
                   break)
               (co_sb_putc b (cast char (co-ch "|")))
-              (co_write_rec m b t quoted ignore_ops 999)
+              (co_write_rec m b t quoted ignore_ops 999 0)
               break)))
         (return (co_sb_putc b (cast char (co-ch "]")))))
 
   (func co_write_rec ((co_machine * m) (co_strbuf * b) (size_t t)
-                      (int quoted) (int ignore_ops) (int maxprec)) (out int)
+                      (int quoted) (int ignore_ops) (int maxprec) (int operand)) (out int)
         (set t (co_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
@@ -908,9 +1150,16 @@
 
             ((co-tag-is ATOM c)
              (let ((const char * name . #'(co_atom_name m (co_name_of m t))))
-               ;; an operator standing as an operand is bracketed, so that
-               ;; `f(-)' does not come out as something that reads as a prefix
-               (if (and (co_op_is_any name) (< maxprec 1200))
+               ;; AN OPERATOR ATOM IS BRACKETED AS AN OPERAND AND NOWHERE
+               ;; ELSE. `f(-)' and `[-]' and `[a,-]' are all fine as they
+               ;; stand: an argument is read at priority 999 and a `-' followed
+               ;; by a `,' or a `]' cannot be a prefix operator, so it comes
+               ;; back as the atom. `- (-)' and `(-)-a' are not fine, because
+               ;; there the atom really is where an operator would be read.
+               ;;
+               ;; It used to bracket in every position but the top, which is
+               ;; safe and is not what SWI writes.
+               (if (and (co_op_is_any name) operand)
                    (block (co_sb_putc b (cast char (co-ch "(")))
                           (co_write_atom b name quoted)
                           (return (co_sb_putc b (cast char (co-ch ")"))))))
@@ -927,7 +1176,7 @@
                         (return (co_write_list m b t quoted ignore_ops)))
                     (if (and (== n 1) (== 0 (strcmp name "{}")))
                         (block (co_sb_putc b (cast char (co-ch "{")))
-                               (co_write_rec m b (co_arg m t 0) quoted ignore_ops 1200)
+                               (co_write_rec m b (co_arg m t 0) quoted ignore_ops 1200 0)
                                (return (co_sb_putc b (cast char (co-ch "}"))))))
 
                     (let ((int prec) (int type))
@@ -937,7 +1186,7 @@
                                 (int rmax . #'(? (== type CO_XFY) prec (- prec 1)))
                                 (int paren . #'(? (> prec maxprec) 1 0)))
                             (if paren (co_sb_putc b (cast char (co-ch "("))))
-                            (co_write_rec m b (co_arg m t 0) quoted ignore_ops lmax)
+                            (co_write_rec m b (co_arg m t 0) quoted ignore_ops lmax 1)
                             ;; NO SPACES UNLESS THE TOKENS WOULD MERGE. `a-b',
                             ;; but `a mod b' and `1- -2'. The operator and the
                             ;; right operand are rendered into buffers of their
@@ -959,7 +1208,7 @@
                                   (co_sb_putc (aof ob) (cast char (co-ch ",")))
                                 (co_write_atom (aof ob) name quoted))
                               (co_write_rec m (aof rb) (co_arg m t 1)
-                                            quoted ignore_ops rmax)
+                                            quoted ignore_ops rmax 1)
                               (if (co_needs_gap (co_sb_last b) (co_sb_first (aof ob)))
                                   (co_sb_putc b (cast char 32)))
                               (if (!= ($ ob s) nil) (co_sb_put b ($ ob s)))
@@ -996,7 +1245,7 @@
                               (co_sb_init (aof ab))
                               (co_write_atom (aof ob) name quoted)
                               (co_write_rec m (aof ab) (co_arg m t 0)
-                                            quoted ignore_ops amax)
+                                            quoted ignore_ops amax 1)
                               (if (co_needs_gap (co_sb_last b) (co_sb_first (aof ob)))
                                   (co_sb_putc b (cast char 32)))
                               (if (!= ($ ob s) nil) (co_sb_put b ($ ob s)))
@@ -1018,24 +1267,27 @@
                (co_sb_putc b (cast char (co-ch "(")))
                (for ((u32 i . 0)) (< i n) ((++ i))
                  (if (> i 0) (co_sb_putc b (cast char (co-ch ","))))
-                 (co_write_rec m b (co_arg m t i) quoted ignore_ops 999))
+                 (co_write_rec m b (co_arg m t i) quoted ignore_ops 999 0))
                (return (co_sb_putc b (cast char (co-ch ")"))))))
 
             (#t (return (co_sb_put b "<?>"))))))
 
   (func co_write_term ((co_machine * m) (co_strbuf * b) (size_t t)
                        (int quoted) (int ignore_ops)) (out int)
-        (return (co_write_rec m b t quoted ignore_ops 1200)))
+        (return (co_write_rec m b t quoted ignore_ops 1200 0)))
 
   ;;; What goes into the database: quoted, so it reads back, and with operators
   ;;; kept, so a person looking at the table can see what the clause says.
+  (func co_write_storable ((co_machine * m) (co_strbuf * b) (size_t t)) (out int)
+        (return (co_write_rec m b t 1 1 1200 0)))
+
   (func co_write_canonical ((co_machine * m) (co_strbuf * b) (size_t t)) (out int)
-        (return (co_write_rec m b t 1 0 1200)))
+        (return (co_write_rec m b t 1 0 1200 0)))
 
   (func co_print_term ((co_machine * m) (FILE * f) (size_t t))
         (let ((co_strbuf b))
           (co_sb_init (aof b))
-          (co_write_rec m (aof b) t 0 0 1200)
+          (co_write_rec m (aof b) t 0 0 1200 0)
           (if (!= ($ b s) nil) (fputs ($ b s) f))
           (co_sb_free (aof b))))
 

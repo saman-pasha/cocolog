@@ -168,7 +168,30 @@
       (stable (aof m) "-(-(a))")
 
       ;; ---- an operator as an ordinary argument -------------------------
-      (trip (aof m) "f(-)"         "f((-))")
+      ;; AN OPERATOR ATOM IS BRACKETED AS AN OPERAND AND NOWHERE ELSE, which
+      ;; is SWI's rule. An argument is read at priority 999, so a `-' followed
+      ;; by a `,' or a `)' or a `]' cannot be a prefix operator and comes back
+      ;; as the atom -- there is nothing to protect it from.
+      (trip (aof m) "f(-)"         "f(-)")
+      (trip (aof m) "f(-,a)"       "f(-,a)")
+      (trip (aof m) "[-]"          "[-]")
+      (trip (aof m) "[a,-]"        "[a,-]")
+      (trip (aof m) "f(mod)"       "f(mod)")
+      ;; but as an operand it is bracketed, because there it really is where an
+      ;; operator would be read
+      (trip (aof m) "-(-)"         "- (-)")
+
+      ;; NOT `'-' - a', and it is the READER and not the writer that differs:
+      ;; cocolog reads it as prefix `-' applied to `-a' where SWI reads infix
+      ;; `-' with the atom `-' on the left. Deciding whether an atom that is a
+      ;; prefix operator is an operator or an operand, when what follows is
+      ;; itself an operator, is a disambiguation this reader does not do. It is
+      ;; written down in STATUS.md rather than hidden by leaving the case out.
+
+      ;; and every one of them has to read back as what it was
+      (stable (aof m) "f(-)")
+      (stable (aof m) "[a,-]")
+      (stable (aof m) "-(-)")
       (trip (aof m) "f(a,b)"       "f(a,b)")
 
       ;; ---- lists -------------------------------------------------------
