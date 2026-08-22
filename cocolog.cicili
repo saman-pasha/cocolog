@@ -154,22 +154,30 @@
   (var const int CO_IDLE_LIMIT . 12000)
 
   ;;; How many polls in a row a machine has to be out of sight before a worker
-  ;;; believes it has finished rather than being mid-save. At CO_POLL_US that is
-  ;;; a second and a half of continuous absence.
+  ;;; believes it has finished rather than being mid-save.
   ;;;
-  ;;; WHY IT IS GENEROUS, AND WHY A HEURISTIC IS ALLOWED HERE AT ALL. Saving a
-  ;;; machine deletes its row and inserts a replacement, and the replacement can
-  ;;; land at an address the scan has already gone past -- so for the length of
-  ;;; that transaction a reader sees neither version. Under load those windows
-  ;;; run together and a fifth of a second of absence proves nothing.
+  ;;; IT USED TO BE THREE HUNDRED, and the reason is worth keeping because it is
+  ;;; the reason it can be twenty now. Saving a machine deletes its row and
+  ;;; inserts a replacement, and a reader at READ COMMITTED used to see NEITHER
+  ;;; version for the length of that transaction -- it waited on the old row's
+  ;;; lock, and by the time the wait ended the old version had been retired and
+  ;;; the new one was at an address the scan had already gone past. Under load
+  ;;; those windows ran together, so a fifth of a second of absence proved
+  ;;; nothing and a worker had to sit through one and a half.
   ;;;
-  ;;; What this number decides is only WHEN A WORKER GOES HOME. It cannot make
-  ;;; two workers advance one machine, or lose a turn, or produce an answer
-  ;;; twice: the claim settles all of that exactly, inside one SERIALIZABLE
-  ;;; transaction. Guess low and a worker leaves early and its partners do its
-  ;;; share; guess high and it waits a second longer than it needed to. So it is
-  ;;; set high.
-  (var const int CO_GONE_CONFIRM . 300)
+  ;;; That is fixed in ZiguratIP: a reader at READ COMMITTED takes the committed
+  ;;; version sitting at the address it is already looking at, and waits for
+  ;;; nobody. A machine being saved is plainly there throughout. Twenty polls is
+  ;;; a tenth of a second of continuous absence, which is now a long time.
+  ;;;
+  ;;; It is not nothing, because what remains is a real if narrow race -- a scan
+  ;;; can still pass the replacement before it is committed and reach the
+  ;;; original after it is retired. And a heuristic is allowed here in the first
+  ;;; place because what this number decides is only WHEN A WORKER GOES HOME. It
+  ;;; cannot make two workers advance one machine, lose a turn, or produce an
+  ;;; answer twice: the claim settles all of that exactly, inside one
+  ;;; SERIALIZABLE transaction.
+  (var const int CO_GONE_CONFIRM . 20)
 
   ;;; And how long a worker waits for a machine it has NEVER SEEN. Much longer,
   ;;; because absence means something different before the first sighting: not

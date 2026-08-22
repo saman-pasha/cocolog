@@ -52,15 +52,22 @@ proved out and dropped — or busy in a partner, which is the normal state of
 affairs and no reason at all to stop. Treating the second as the first made every
 machine get finished by whichever worker reached it first.
 
-**And "gone" is not proof the first time you see it.** Saving a machine deletes
-its row and inserts a replacement, and the replacement can land at an address the
-scan has already passed, so for the length of that transaction a reader sees
-neither version. A worker therefore gives up only after the machine has been out
-of sight *continuously* for `CO_GONE_CONFIRM` polls — and waits far longer for
-one it has never seen at all, because absence before the first sighting means
-"not created yet". That is what lets a pool of twelve be started before the work
-exists, which is the only way to start twelve without the first few finishing
-before the last are running.
+**And "gone" is not quite proof the first time you see it.** A worker gives up
+only after the machine has been out of sight *continuously* for
+`CO_GONE_CONFIRM` polls — and waits far longer for one it has never seen at all,
+because absence before the first sighting means "not created yet". That is what
+lets a pool of twelve be started before the work exists, which is the only way to
+start twelve without the first few finishing before the last are running.
+
+That confirmation used to be a second and a half and is now a tenth of one. The
+difference is a ZiguratIP fix: a reader at READ COMMITTED used to *wait* on the
+lock of a row another transaction was rewriting, and by the time the wait ended
+the version it was waiting on had been retired and the replacement was at an
+address it had already passed — so for the whole length of a save, a partner
+asking after the machine was told it did not exist. It now takes the committed
+version sitting at the address it is already looking at, and waits for nobody.
+What is left is a real but narrow race, which is why the confirmation is still
+there at all.
 
 That last number is a heuristic and is allowed to be: what it decides is only
 **when a worker goes home**. It cannot make two workers advance one machine, lose
@@ -90,6 +97,9 @@ rather than worked around here. See its `doc/concurrency.md`.
   doing `WHERE indexed_column == value` at once read from each other's file
   position: `hexmap ends inside the chunk at NNNNN`, and often enough a dead
   server and a store to throw away.
+* **A reader at READ COMMITTED waited for a writer, and then saw neither
+  version** of the row it had waited for. A machine being saved did not exist as
+  far as its partners were concerned, for as long as the save took.
 * **`TRANSACTION ISOLATION LEVEL` had never compiled.** The generated C++ used
   `->` on a value member, so every procedure carrying the documented clause
   failed to build.
