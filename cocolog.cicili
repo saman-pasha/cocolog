@@ -17,6 +17,8 @@
 ;;;   cocolog [options] work WORKER [MACHINE]
 ;;;                                          claim machines and advance them;
 ;;;                                          with MACHINE, only that one
+;;;   cocolog [options] forget [NAME ARITY] empty the knowledge base, or one
+;;;                                          predicate of it
 ;;;   cocolog [options] list                what machines are suspended
 ;;;   cocolog [options] drop NAME           forget one
 ;;;
@@ -26,11 +28,46 @@
 ;;;   --http PORT    read over Zeytun instead of the binary protocol
 ;;;   --local        no database at all: everything in memory
 ;;;   --steps N      inferences per `step'  (default 2000)
+;;;   --timeout S    socket timeout, seconds (default 20)
+;;;   --lock PATH    where cocolog processes take turns; `none' for no lock
 ;;;   --answers N    stop after N solutions (default 10, 0 for all)
 ;;;
 ;;; WHY `step' PRINTS NOTHING MUCH. It is meant to be run by a script, over and
 ;;; over, possibly by several processes at once. What it says is whether the
 ;;; machine finished, and if so with what.
+
+;;;; ------------------------------------------------------------------
+;;;; What one turn came to
+;;;; ------------------------------------------------------------------
+;;; A WORKER HAS TO TELL FOUR THINGS APART, and only one of them used to have
+;;; a name. `step\' answered 0, 1 or 2 -- finished, something went wrong, more
+;;; to do -- which is enough for a person at a terminal and not enough for a
+;;; worker, because "something went wrong" covers both the case where running
+;;; it again is pointless (the program is bad) and the case where running it
+;;; again is exactly right (the connection went and nothing was committed).
+;;; Under one worker the two never had to be told apart. Under four they are
+;;; the difference between recovering and giving up.
+;;;
+;;; The table is here rather than as three defines so that the codes and the
+;;; reasons cannot drift apart, and so `turn-is\' folds to a comparison
+;;; against a literal.
+(DEFPARAMETER *turn-outcomes*
+  '((FINISHED 0 "proved out; the machine is gone from the database")
+    (FAILED   1 "the program is wrong -- running it again goes wrong again")
+    (MORE     2 "suspended with work left, and committed")
+    (LOST     3 "the connection ended mid-turn. NOTHING was committed, so the
+                 turn did not happen and may simply be done again")))
+
+(DEFUN turn-value (name)
+  (LET ((row (ASSOC name *turn-outcomes* :TEST #'STRING=)))
+    (UNLESS row (ERROR "cocolog: unknown turn outcome ~A" name))
+    (SECOND row)))
+
+;;; the code itself, for a `return\'
+(DEFMACRO turn (name) (turn-value name))
+
+;;; whether a code is that outcome
+(DEFMACRO turn-is (name v) `(== ,v ,(turn-value name)))
 
 (source "cocolog.c"
   (make :std #t
@@ -74,12 +111,38 @@
     (member const char * http)
     (member int          local)
     (member u64          steps)
-    (member int          answers))
+    ;; Seconds a socket operation may block. Short in a test, because a worker
+    ;; that is waiting on a server that will never answer should say so quickly
+    ;; rather than sit there for the default.
+    (member int          timeout)
+    (member int          answers)
+    ;; Where cocolog processes take turns, so that no two of them are inside
+    ;; ZiguratIP's storage engine at once. Null means "work one out from the
+    ;; host and port"; the string "none" means do not take turns at all.
+    (member const char * lock))
 
-  (var co_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 10 })
+  (var co_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil })
 
   ;;; The one connection, when there is one.
   (var zg_conn * db . nil)
+
+  ;;; HOW LONG A WORKER WAITS, and why there are two numbers rather than one.
+  ;;;
+  ;;; POLL is how often a worker with nothing to do asks again. Short, because
+  ;;; the machine it wants is usually in the middle of somebody else's turn and
+  ;;; will be free in milliseconds.
+  ;;;
+  ;;; YIELD is how long a worker waits after FINISHING a turn, before claiming
+  ;;; anything again -- and it is deliberately longer than POLL. Without it the
+  ;;; worker that has just put a machine down is the one that picks it up:
+  ;;; it is already awake, already connected, and its partner is asleep between
+  ;;; polls. One worker then runs the whole machine and the other never gets a
+  ;;; turn, which passes every test about ANSWERS and quietly fails the thing
+  ;;; the design is actually for. Waiting longer than a poll hands the next
+  ;;; turn to whoever is waiting, and costs a worker running alone twenty
+  ;;; milliseconds a turn.
+  (var const useconds_t CO_POLL_US  . 5000)
+  (var const useconds_t CO_YIELD_US . 20000)
 
   (func usage ()
         (fprintf stderr "cocolog -- a Prolog interpreter with its knowledge base in Zigurat\n\n")
@@ -89,6 +152,7 @@
         (fprintf stderr "  cocolog [options] step NAME\n")
         (fprintf stderr "  cocolog [options] finish NAME\n")
         (fprintf stderr "  cocolog [options] work WORKER [MACHINE]\n")
+        (fprintf stderr "  cocolog [options] forget [NAME ARITY]\n")
         (fprintf stderr "  cocolog [options] list\n")
         (fprintf stderr "  cocolog [options] drop NAME\n\n")
         (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
@@ -97,7 +161,10 @@
         (fprintf stderr "  --http PORT   read over Zeytun instead\n")
         (fprintf stderr "  --local       no database; all in memory\n")
         (fprintf stderr "  --steps N     inferences per step       (default 2000)\n")
-        (fprintf stderr "  --answers N   stop after N solutions    (default 10, 0 for all)\n"))
+        (fprintf stderr "  --timeout S   socket timeout in seconds  (default 20)\n")
+        (fprintf stderr "  --answers N   stop after N solutions    (default 10, 0 for all)\n")
+        (fprintf stderr "  --lock PATH   where cocolog processes take turns\n")
+        (fprintf stderr "                (default one per host and port; `none' to disable)\n"))
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
   (func slurp ((const char * path)) (out char *)
@@ -114,16 +181,30 @@
           (fclose f)
           (return buf)))
 
-  ;;; Prints the query as it now stands -- which is the answer. Printing the
-  ;;; query rather than a list of variable bindings is deliberate: a machine
-  ;;; that has been suspended and resumed no longer has the variable NAMES,
-  ;;; because those belong to the text that was read and not to the machine.
-  ;;; The instantiated goal says the same thing and survives the round trip.
-  (func show_answer ((co_engine * e) (int n))
+  ;;; The query as it now stands -- which is the answer. Writing the query
+  ;;; rather than a list of variable bindings is deliberate: a machine that has
+  ;;; been suspended and resumed no longer has the variable NAMES, because
+  ;;; those belong to the text that was read and not to the machine. The
+  ;;; instantiated goal says the same thing and survives the round trip.
+  ;;;
+  ;;; IT IS COLLECTED RATHER THAN PRINTED, and INTO is where. A turn's answers
+  ;;; are only true if the turn's state reaches the database: a worker that
+  ;;; printed as it went and then lost its connection would have announced
+  ;;; answers the rolled-back machine is going to produce again on the next
+  ;;; turn, and the same answer twice is exactly what a suspendable machine
+  ;;; must never do. So a turn buffers what it found and prints it after the
+  ;;; commit, and a turn that fails throws the buffer away with the work.
+  (func show_answer ((co_engine * e) (int n) (co_strbuf * into))
         (let ((co_strbuf b))
           (co_sb_init (aof b))
           (co_write_term ($ (cof e) m) (aof b) ($ (cof e) query) 0 0)
-          (printf "  %d. %s\n" n (? (== ($ b s) nil) "true" ($ b s)))
+          (if (== into nil)
+              (printf "  %d. %s\n" n (? (== ($ b s) nil) "true" ($ b s)))
+            (block (co_sb_put into "  ")
+                   (co_sb_put_i64 into (cast i64 n))
+                   (co_sb_put into ". ")
+                   (co_sb_put into (? (== ($ b s) nil) "true" ($ b s)))
+                   (co_sb_putc into (cast char 10))))
           (co_sb_free (aof b))))
 
   ;;; Opens the connection the options ask for, or leaves db null for --local.
@@ -134,13 +215,38 @@
   ;;; one in libc. Nothing warns -- it links, it runs, and it dies twenty
   ;;; thousand frames later inside a function that never called itself.
   (func open_connection () (out int)
-        (let ((char err [512]))
+        (let ((char err [512]) (char turnfile [512]) (const char * path))
           (if ($ opts local) (return 1))
-          (set db (zg_open ($ opts host) ($ opts port) 20 err (sizeof err)))
+          (set db (zg_open ($ opts host) ($ opts port) ($ opts timeout) err (sizeof err)))
           (if (== db nil)
               (block (fprintf stderr "cocolog: no server at %s:%s -- %s\n"
                               ($ opts host) ($ opts port) err)
                      (return 0)))
+
+          ;; TAKING TURNS IS ON BY DEFAULT, and that is a decision about
+          ;; ZiguratIP rather than about cocolog. Its storage engine serves
+          ;; every connection on its own thread through one shared pair of file
+          ;; streams, so two clients calling at the same moment read from each
+          ;; other's file position -- usually an exception, sometimes a dead
+          ;; server and a store that has to be thrown away. A program that only
+          ;; ever runs alone loses nothing by holding a lock nobody contends
+          ;; for, and one that does not knows nothing about the hazard until it
+          ;; loses a database to it. So: on unless asked otherwise.
+          ;;
+          ;; The path is per host and port, so that everything talking to one
+          ;; server takes turns with everything else talking to that server,
+          ;; and two servers on one machine do not queue behind each other.
+          (set path ($ opts lock))
+          (if (== path nil)
+              (block
+               (let ((const char * tmp . #'(getenv "TMPDIR")))
+                 (if (or (== tmp nil) (== (nth 0 tmp) (cast char 0))) (set tmp "/tmp"))
+                 (snprintf turnfile (sizeof turnfile) "%s/cocolog-%s-%s.turn"
+                           tmp ($ opts host) ($ opts port))
+                 (set path turnfile))))
+          (if (== 0 (strcmp path "none")) (set path nil))
+          (if (not (zg_serialise db path ($ opts timeout)))
+              (block (fprintf stderr "cocolog: %s\n" (zg_error db)) (return 0)))
           (return 1)))
 
   ;;; ---- the commands ------------------------------------------------------
@@ -190,7 +296,7 @@
             (set rc (co_engine_next (aof e)))
             (if (!= rc 1) break)
             (set n (+ n 1))
-            (show_answer (aof e) n)
+            (show_answer (aof e) n nil)
             (if (and (!= ($ opts answers) 0) (>= n ($ opts answers))) break))
           (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
           (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n))
@@ -230,54 +336,170 @@
   ;;; BUDGET IS NOT AN ERROR. The engine answers -1 when the step limit is
   ;;; reached, the same as for a real error -- so the two are told apart by
   ;;; asking whether the machine ran out of budget rather than by the code.
+  ;;;
+  ;;; A TURN IS ALL OR NOTHING, AND THAT IS WHAT MAKES A RETRY SAFE. The load,
+  ;;; the proving, the save and the commit are one unit: either the commit
+  ;;; lands and the turn's answers are printed, or the connection went and the
+  ;;; server rolled the whole transaction back and NOTHING is printed. Nothing
+  ;;; reaches the terminal from a turn that did not reach the database, so a
+  ;;; worker that redials and does the turn again cannot announce an answer
+  ;;; twice -- and announcing an answer twice is precisely the failure a
+  ;;; suspendable machine exists to avoid.
+  ;;;
+  ;;; Every call is checked for the same reason. An unchecked commit was the
+  ;;; original sin here: it made a turn that had actually been rolled back look
+  ;;; exactly like a turn that had been saved.
   (func cmd_step ((const char * name) (int to_the_end)) (out int)
-        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z)
-              (int n . 0) (int rc . 1) (int done . 0))
+        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z) (co_strbuf out)
+              (int n . 0) (int rc . 1) (int done . 0)
+              (int outcome . 0) (int broke . 0))
           (if ($ opts local)
-              (block (fprintf stderr "cocolog: step needs a database\n") (return 1)))
+              (block (fprintf stderr "cocolog: step needs a database\n")
+                     (return (turn FAILED))))
           (co_machine_init (aof m))
           (co_store_init (aof st))
           (co_engine_init (aof e) (aof m) (aof st))
+          (co_sb_init (aof out))
           (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (set outcome (turn FAILED))
 
-          (if (not (co_zg_load (aof z) (aof e) (aof m) (aof st) name))
-              (block (fprintf stderr "cocolog: %s\n" ($ z err)) (return 1)))
-
-          ;; The budget is counted from where this machine already was, so a
-          ;; machine resumed after a million inferences gets its own slice and
-          ;; not what is left of somebody else's.
-          (set ($ e max_steps) (? to_the_end 0 (+ ($ e steps) ($ opts steps))))
-
+          ;; ONE WAY OUT. There are now six things that can go wrong here and
+          ;; every one of them has three structures to free, so the body is a
+          ;; run-once loop and the freeing is written once after it. The old
+          ;; shape returned from the middle and leaked the machine each time.
           (while 1
-            (set rc (co_engine_next (aof e)))
-            (if (!= rc 1) break)
-            (set n (+ n 1))
-            (show_answer (aof e) n)
-            (if (and (!= ($ opts answers) 0) (>= n ($ opts answers)))
-                (block (set done 1) break)))
+            (if (not (co_zg_load (aof z) (aof e) (aof m) (aof st) name))
+                (block (fprintf stderr "cocolog: %s\n" ($ z err))
+                       (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
+                       break))
 
-          (if (== rc 0) (set done 1))
-          (if (and (== rc -1) (== 0 (strcmp ($ e err) "inference limit reached")))
-              (set done 0)
-            (if (== rc -1) (block (fprintf stderr "cocolog: %s\n" ($ e err)) (set done 1))))
+            ;; The budget is counted from where this machine already was, so a
+            ;; machine resumed after a million inferences gets its own slice
+            ;; and not what is left of somebody else's.
+            (set ($ e max_steps) (? to_the_end 0 (+ ($ e steps) ($ opts steps))))
 
-          (if done
-              (block (co_zg_drop (aof z) name)
-                     (printf "%s: finished after %llu inference(s), %d answer(s) this turn\n"
-                             name (cast ullong ($ e steps)) n))
-            (block (if (not (co_zg_save (aof z) (aof e) name "suspended by step"))
-                       (block (fprintf stderr "cocolog: %s\n" ($ z err)) (return 1)))
-                   (printf "%s: suspended at %llu inference(s), %d answer(s) this turn\n"
-                           name (cast ullong ($ e steps)) n)))
-          (zg_commit db)
+            (while 1
+              (set rc (co_engine_next (aof e)))
+              (if (!= rc 1) break)
+              (set n (+ n 1))
+              (show_answer (aof e) n (aof out))
+              (if (and (!= ($ opts answers) 0) (>= n ($ opts answers)))
+                  (block (set done 1) break)))
 
+            ;; A proof with no clauses left to try is finished. So is one that
+            ;; broke -- but that is the program's fault and it will break the
+            ;; same way next time, so it is FAILED and not something to retry.
+            (if (== rc 0) (set done 1))
+            (if (and (== rc -1) (== 0 (strcmp ($ e err) "inference limit reached")))
+                (set done 0)
+              (if (== rc -1)
+                  (block (fprintf stderr "cocolog: %s\n" ($ e err))
+                         (set done 1)
+                         (set broke 1))))
+
+            ;; The database half. Anything that fails in here takes the turn
+            ;; with it, and the answer buffer goes unprinted along with it.
+            (if done
+                (if (not (co_zg_drop (aof z) name))
+                    (block (fprintf stderr "cocolog: %s\n" ($ z err))
+                           (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
+                           break))
+              (if (not (co_zg_save (aof z) (aof e) name "suspended by step"))
+                  (block (fprintf stderr "cocolog: %s\n" ($ z err))
+                         (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
+                         break)))
+
+            ;; AN UNCHECKED COMMIT WAS THE ORIGINAL SIN HERE. It made a turn
+            ;; the server had rolled back look exactly like a turn that was
+            ;; saved, so a worker printed answers for work that had not
+            ;; happened and then did the same work again.
+            (if (not (zg_commit db))
+                (block (fprintf stderr "cocolog: %s: commit: %s\n" name (zg_error db))
+                       (set outcome (turn LOST))
+                       break))
+
+            ;; Committed. Only now is any of it true.
+            (if (!= ($ out s) nil) (fputs ($ out s) stdout))
+            (if done
+                (printf "%s: finished after %llu inference(s), %d answer(s) this turn\n"
+                        name (cast ullong ($ e steps)) n)
+              (printf "%s: suspended at %llu inference(s), %d answer(s) this turn\n"
+                      name (cast ullong ($ e steps)) n))
+            (set outcome (? done (? broke (turn FAILED) (turn FINISHED)) (turn MORE)))
+            break)
+
+          (co_sb_free (aof out))
           (co_engine_free (aof e))
           (co_store_free (aof st))
           (co_machine_free (aof m))
-          (return (? done 0 2))))    ; 2 means "there is more to do"
+          (return outcome)))
 
-  ;;; Claims one suspended machine for this worker, atomically. Answers 1 and
-  ;;; fills NAME, or 0 when the queue is empty.
+  ;;; Redials, in place, after the server ended the connection.
+  ;;;
+  ;;; WHY A WORKER HAS TO BE ABLE TO DO THIS AT ALL. ZiguratIP's request loop
+  ;;; answers every exception the same way: it writes EXCEPTION_THROWN and
+  ;;; breaks out of the loop, so a refusal ends the CONNECTION and not merely
+  ;;; the call. Under one client that never shows -- a client that got an error
+  ;;; was usually about to stop anyway. Under four it shows constantly, because
+  ;;; the storage engine raises transient errors when two threads are in it at
+  ;;; once (MVCCS/memory.cpp, Memory::_pointer, which seeks and reads the
+  ;;; shared hexmap stream without holding the mutex that truncate takes). The
+  ;;; error is not damage -- the store is intact afterwards and the work simply
+  ;;; did not happen -- so the answer is to dial again and do the turn over.
+  ;;;
+  ;;; IT IS THE SAME zg_conn AFTERWARDS. Everything holding the connection --
+  ;;; every co_zg attached to it -- keeps working, which closing and reopening
+  ;;; would not allow.
+  ;;;
+  ;;; The wait grows with ATTEMPT and is nudged by the pid, so two workers that
+  ;;; collided do not come back at the same instant and collide again.
+  (func recover ((const char * worker) (int attempt)) (out int)
+        (let ((useconds_t back . 0))
+          (if (== db nil) (return 0))
+          (set back (cast useconds_t (* 2000 (+ 1 (% (cast int (getpid)) 5)))))
+          (set back (cast useconds_t (* (cast int back) (+ 1 attempt))))
+          (usleep back)
+          (if (not (zg_reopen db ($ opts host) ($ opts port) ($ opts timeout)))
+              (block (fprintf stderr "%s: cannot redial %s:%s -- %s\n"
+                              worker ($ opts host) ($ opts port) (zg_error db))
+                     (return 0)))
+          (return 1)))
+
+  ;;; Puts a machine back in the pool. Best effort by nature: it is called
+  ;;; where a turn has already gone wrong.
+  ;;;
+  ;;; WHY IT IS NEEDED. The claim is committed before the machine is touched,
+  ;;; so a worker whose connection dies during the turn leaves the machine
+  ;;; marked as its own with none of the work done -- claimed by a worker that
+  ;;; is no longer doing anything about it. Nothing else would ever pick it up:
+  ;;; a claim looks only for `suspended'. So the worker that broke puts it
+  ;;; back itself, on its new connection.
+  (func release ((const char * worker) (const char * name)) (out int)
+        (let ((zg_result_t r))
+          (if (not (zg_call db "cocolog::machine_release"))
+              (block (fprintf stderr "%s: release '%s': %s\n" worker name (zg_error db))
+                     (return 0)))
+          (if (not (zg_write_string db name)) (return 0))
+          (while 1
+            (if (not (zg_result db (aof r))) (return 0))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_RETURN_VALUE) (zg_skip_field db))
+              ((== r ZG_CURSOR_FETCH) break)
+              (#t (block))))
+          (return (? (zg_commit db) 1 0))))
+
+  ;;; Claims one suspended machine for this worker, atomically.
+  ;;;
+  ;;;   1  it is ours, and NAME says which
+  ;;;   0  nothing is free -- either the queue is empty or another worker has it
+  ;;;  -1  the call did not happen: the connection is gone
+  ;;;
+  ;;; THOSE THREE USED TO BE TWO, and the missing one cost a day. A claim that
+  ;;; answered 0 for both "nobody is waiting" and "the server hung up" made a
+  ;;; worker whose connection had just died print `nothing left to do' and exit
+  ;;; successfully, while the machine it had been given sat in the database
+  ;;; still marked as its own. The run looked finished and had done nothing.
   ;;;
   ;;; THE CLAIM IS WHY SEVERAL WORKERS ARE A SCHEDULER AND NOT A RACE. Two that
   ;;; loaded the same machine would both advance it and both save it, and the
@@ -292,23 +514,14 @@
                (char * name) (size_t cap)) (out int)
         (let ((zg_result_t r) (char cols [256]) (int got . 0))
           (set (nth 0 name) (cast char 0))
-          ;; A CLAIM THAT FAILS SAYS WHY. It used to answer 0 for both "the
-          ;; queue is empty" and "the server refused it", and a worker that
-          ;; could not tell them apart reported "nothing left to do" when what
-          ;; had actually happened was a lock wait against another worker.
           (if (== wanted nil)
-              (block (if (not (zg_call db "cocolog::machine_claim"))
-                         (block (fprintf stderr "%s: claim: %s\n" worker (zg_error db))
-                                (return 0)))
-                     (if (not (zg_write_string db ($ opts kb))) (return 0)))
-            (block (if (not (zg_call db "cocolog::machine_claim_named"))
-                       (block (fprintf stderr "%s: claim: %s\n" worker (zg_error db))
-                              (return 0)))
-                   (if (not (zg_write_string db wanted)) (return 0))))
-          (if (not (zg_write_string db worker)) (return 0))
+              (block (if (not (zg_call db "cocolog::machine_claim")) (return -1))
+                     (if (not (zg_write_string db ($ opts kb))) (return -1)))
+            (block (if (not (zg_call db "cocolog::machine_claim_named")) (return -1))
+                   (if (not (zg_write_string db wanted)) (return -1))))
+          (if (not (zg_write_string db worker)) (return -1))
           (while 1
-            (if (not (zg_result db (aof r)))
-                (block (fprintf stderr "%s: claim: %s\n" worker (zg_error db)) break))
+            (if (not (zg_result db (aof r))) (return -1))
             (if (== r ZG_SUCCESSFUL_DONE) break)
             (cond
               ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
@@ -318,32 +531,89 @@
               (#t (block))))
           ;; The claim has to stand before the machine is touched, so it is
           ;; committed here rather than left to the end of the turn.
-          (zg_commit db)
+          (if (not (zg_commit db)) (return -1))
           (return (? (and got (!= (nth 0 name) (cast char 0))) 1 0))))
 
   ;;; Claim, advance, put back. A worker loop, and several of these against one
   ;;; server is the whole point of the project: the database is the run queue
   ;;; and a machine's state is the work item.
+  ;;;
+  ;;; WHAT MAKES IT SURVIVE THE OTHER THREE. Every database call here can fail
+  ;;; for a reason that has nothing to do with this worker -- another worker
+  ;;; happened to be inside the storage engine at the same moment -- and the
+  ;;; failure takes the connection with it. So the loop treats a lost
+  ;;; connection as a thing to recover from rather than a thing to stop for:
+  ;;;
+  ;;;   * a claim that could not be made      -> redial and claim again
+  ;;;   * a turn that could not be committed  -> redial, hand the machine back,
+  ;;;                                            and let anyone take it next
+  ;;;
+  ;;; and only a bounded number of times, so a worker facing a server that has
+  ;;; genuinely gone away says so and exits instead of spinning.
+  ;;;
+  ;;; HANDING IT BACK RATHER THAN RETRYING IT is deliberate. A worker that
+  ;;; insisted on redoing its own lost turn would be the one thing that can
+  ;;; starve the other member of the group; giving the machine up means the
+  ;;; partner may take that turn, which is the arrangement the whole thing is
+  ;;; for and is why the group's answers still come out in order.
   (func cmd_work ((const char * worker) (const char * wanted)) (out int)
-        (let ((char name [256]) (int turns . 0) (int idle . 0))
+        (let ((char name [256]) (int turns . 0) (int idle . 0)
+              (int hurt . 0) (int rc . 0) (int got . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: work needs a database\n") (return 1)))
-          ;; A named machine may be busy in another worker rather than gone, so
-          ;; a failed claim is a reason to wait rather than to stop -- but only
-          ;; for a while, or a worker whose partner died would spin forever.
           (while 1
-            (if (claim worker wanted name (sizeof name))
-                (block (printf "%s: took '%s'\n" worker name)
-                       (cmd_step name 0)
-                       (set turns (+ turns 1))
-                       (set idle 0))
-              (block
-               (if (== wanted nil) break)
-               (set idle (+ idle 1))
-               (if (> idle 200) break)
-               ;; 5ms, which is long enough not to hammer the server and short
-               ;; enough that the two workers of a group really do interleave
-               (usleep 5000))))
+            (set got (claim worker wanted name (sizeof name)))
+
+            (if (== got -1)
+                (block
+                 ;; The connection, not the queue. Redial and go round again;
+                 ;; nothing was committed, so there is nothing to undo.
+                 (set hurt (+ hurt 1))
+                 (if (> hurt 40)
+                     (block (fprintf stderr "%s: giving up after %d lost connection(s)\n"
+                                     worker hurt)
+                            break))
+                 (if (not (recover worker hurt)) break)
+                 continue))
+
+            (if (== got 0)
+                (block
+                 ;; A named machine may be busy in another worker rather than
+                 ;; gone, so an empty claim is a reason to wait rather than to
+                 ;; stop -- but only for a while, or a worker whose partner
+                 ;; died would spin forever.
+                 (if (== wanted nil) break)
+                 (set idle (+ idle 1))
+                 (if (> idle 400) break)
+                 (usleep CO_POLL_US)
+                 continue))
+
+            (set idle 0)
+            (printf "%s: took '%s'\n" worker name)
+            (set rc (cmd_step name 0))
+
+            (if (turn-is LOST rc)
+                (block
+                 (set hurt (+ hurt 1))
+                 (fprintf stderr "%s: lost the connection during '%s'; turn rolled back\n"
+                          worker name)
+                 (if (> hurt 40)
+                     (block (fprintf stderr "%s: giving up after %d lost connection(s)\n"
+                                     worker hurt)
+                            break))
+                 (if (not (recover worker hurt)) break)
+                 ;; The claim was committed, so the machine is still marked as
+                 ;; ours even though the turn is not. Put it back.
+                 (release worker name)
+                 continue))
+
+            ;; A turn that happened. FAILED means the program is wrong, and it
+            ;; will be wrong again, so the machine is left where cmd_step left
+            ;; it and this worker stops.
+            (set turns (+ turns 1))
+            (if (turn-is FAILED rc) break)
+            ;; Stand back and let somebody else have the next one.
+            (if (turn-is MORE rc) (usleep CO_YIELD_US)))
           (printf "%s: nothing left to do after %d turn(s)\n" worker turns)
           (return 0)))
 
@@ -368,6 +638,42 @@
               ((== r ZG_RETURN_VALUE) (zg_skip_field db))
               (#t (block))))
           (if (== rows 0) (printf "  no suspended machines in '%s'\n" ($ opts kb)))
+          (return 0)))
+
+  ;;; Forgets clauses. With no predicate, the whole knowledge base.
+  ;;;
+  ;;; WHY A PROGRAM THAT ONLY EVER ADDS CLAUSES NEEDS THIS. `consult' asserts;
+  ;;; it does not replace. Run it twice on the same file and the knowledge base
+  ;;; holds two copies of every clause, and a proof then answers everything
+  ;;; twice and a recursive one may not terminate at all. That is correct
+  ;;; behaviour for assertz and a trap for anything that loads a program more
+  ;;; than once -- a test that runs repeatedly, most of all, where it looks
+  ;;; like the interpreter has started producing duplicate answers.
+  (func cmd_forget ((const char * name) (int arity)) (out int)
+        (let ((zg_result_t r) (char cols [256]) (i64 gone . 0))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: forget needs a database\n") (return 1)))
+          (if (== name nil)
+              (block (if (not (zg_call db "cocolog::forget_all")) (return 1))
+                     (if (not (zg_write_string db ($ opts kb))) (return 1)))
+            (block (if (not (zg_call db "cocolog::forget")) (return 1))
+                   (if (not (zg_write_string db ($ opts kb))) (return 1))
+                   (if (not (zg_write_string db name)) (return 1))
+                   (if (not (zg_write_int db arity)) (return 1))))
+          (while 1
+            (if (not (zg_result db (aof r)))
+                (block (fprintf stderr "cocolog: forget: %s\n" (zg_error db)) (return 1)))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
+              ((== r ZG_RETURN_VALUE) (zg_read_long db (aof gone) nil))
+              ((== r ZG_CURSOR_FETCH) break)
+              (#t (block))))
+          (if (not (zg_commit db))
+              (block (fprintf stderr "cocolog: forget: %s\n" (zg_error db)) (return 1)))
+          (if (== name nil)
+              (printf "forgot %lld clause(s) in '%s'\n" (cast llong gone) ($ opts kb))
+            (printf "forgot %lld clause(s) of %s/%d\n" (cast llong gone) name arity))
           (return 0)))
 
   (func cmd_drop ((const char * name)) (out int)
@@ -406,6 +712,8 @@
                      ((== 0 (strcmp a "--port"))    (set ($ opts port) v))
                      ((== 0 (strcmp a "--http"))    (set ($ opts http) v))
                      ((== 0 (strcmp a "--steps"))   (set ($ opts steps) (strtoull v nil 10)))
+                     ((== 0 (strcmp a "--timeout")) (set ($ opts timeout) (atoi v)))
+                     ((== 0 (strcmp a "--lock"))    (set ($ opts lock) v))
                      ((== 0 (strcmp a "--answers")) (set ($ opts answers) (atoi v)))
                      (#t (block (fprintf stderr "cocolog: unknown option %s\n" a)
                                 (return 1)))))
@@ -442,6 +750,10 @@
                    (block (fprintf stderr "cocolog: work needs a worker name\n") (set rc 1))
                  (set rc (cmd_work (nth (+ i 1) argv)
                                    (? (>= (+ i 2) argc) nil (nth (+ i 2) argv))))))
+              ((== 0 (strcmp cmd "forget"))
+               (if (>= (+ i 2) argc)
+                   (set rc (cmd_forget nil 0))
+                 (set rc (cmd_forget (nth (+ i 1) argv) (atoi (nth (+ i 2) argv))))))
               ((== 0 (strcmp cmd "list")) (set rc (cmd_list)))
               ((== 0 (strcmp cmd "drop"))
                (if (>= (+ i 1) argc)

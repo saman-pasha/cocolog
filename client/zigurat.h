@@ -107,6 +107,54 @@ zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
 void zg_close(zg_conn *c);
 int  zg_is_open(const zg_conn *c);
 
+/* Dials again down the SAME zg_conn, so every pointer to it stays valid.
+ *
+ * WHY THIS EXISTS AND zg_close/zg_open WOULD NOT DO. A server-side exception
+ * ends the connection (see zg_result), and under concurrent access ZiguratIP
+ * raises transient ones -- so a worker that means to keep going has to redial.
+ * By then the connection has been handed to things that hold it: a co_zg
+ * knowledge-base backend keeps the pointer it was attached with. Closing and
+ * opening would give a new pointer and leave every one of those dangling, so
+ * this reuses the object and only replaces the socket underneath it.
+ *
+ * Answers 1, or 0 with the reason in zg_error. Whatever the old connection had
+ * open -- its transaction included -- is gone either way: this is recovery,
+ * not resumption. */
+int zg_reopen(zg_conn *c, const char *host, const char *service,
+              int timeout_seconds);
+
+/* Makes this connection take turns with every other process using the same
+ * PATH, so that no two of them are inside the server's storage engine at once.
+ * WAIT_SECONDS bounds how long a call will wait for its turn; 0 means wait for
+ * as long as it takes. Answers 1, or 0 with the reason in zg_error.
+ *
+ * WHY A CLIENT HAS TO DO THIS. ZiguratIP serves each connection on its own
+ * thread and gives each thread its own transaction -- Memory::transaction is
+ * `static thread_local' -- but the two streams a transaction reads and writes
+ * through, MVCCS/memory.hpp's `_hexmap_io' and `_data_io', are one pair shared
+ * by all of them. Memory::_pointer seeks one of them and then reads it, and
+ * takes no lock over the pair (Memory::truncate, on the same streams, takes
+ * both _hexmap_access and _data_access). Two threads in there at once
+ * therefore read from each other's file position. What comes back is
+ * `hexmap ends inside the chunk at NNNNN' -- and with four clients it is
+ * sometimes worse than an exception: the server dies and takes the store with
+ * it. Measured, repeatedly, with a program that does nothing but claim and
+ * release a row.
+ *
+ * ZiguratIP IS NOT OURS TO FIX -- cocolog uses it and does not modify it -- so
+ * cocolog stays out of the way instead. The lock is held for the length of one
+ * CALL and not for a transaction: the server's thread is blocked reading the
+ * socket between calls and is not in the engine then, so serialising the calls
+ * is enough to keep the engine single-threaded while leaving the interpreters
+ * to run at the same time as each other. Which is the point: four
+ * interpreters, proving concurrently, taking turns only on the wire.
+ *
+ * flock(2) is what it is built on, so it holds between processes on one
+ * machine and is released by the kernel if one of them dies -- a worker killed
+ * mid-call cannot wedge the rest. Workers on DIFFERENT machines share no such
+ * file and this does nothing for them; see STATUS.md. */
+int zg_serialise(zg_conn *c, const char *path, int wait_seconds);
+
 /* The last failure on this connection, or "" if there has not been one. */
 const char *zg_error(const zg_conn *c);
 

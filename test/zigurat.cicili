@@ -26,7 +26,7 @@
                   "-c" "zigurat.c")
         :link ("-lzigurat.o"
                "-L../build"
-               "-lcocologc" "-o" "cocolog_zg_test"))
+               "-lcocologc" "-o" "cocolog_zigurat_test"))
 
   (include <zigurat.h>)
 

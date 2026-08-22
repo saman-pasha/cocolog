@@ -8,6 +8,9 @@ its knowledge base in [ZiguratIP](https://github.com/saman-pasha/ziguratip).
 It uses both and modifies neither.
 
 ```console
+$ cocolog --kb demo forget                       # consult ADDS; it does not replace
+forgot 0 clause(s) in 'demo'
+
 $ cocolog --kb demo consult demo/family.pl
 consulted 12 clause(s) into 'demo'
 
@@ -161,8 +164,48 @@ stops by asking whether the previous character was one, so the closing quote of
 every string after it is read as code. The failure surfaces hundreds of lines
 later as `Package +-*/\^<>=~ does not exist`.
 
+## Four interpreters, two states
+
+```console
+$ sh test/groups.sh
+loading the program
+starting two machines
+four interpreters, two per machine
+ok   state-a produced its full answer set   ancestor(tom,ann) ... ancestor(tom,zoe)
+ok   state-b produced its full answer set   ancestor(bob,zoe) ... ancestor(tom,zoe)
+ok   state-a answered nothing twice         0
+ok   state-b answered nothing twice         0
+     turns: a1=3 a2=2 b1=4 b2=4
+ok   both interpreters of group A took turns
+ok   both interpreters of group B took turns
+ok   no machine left suspended              0
+```
+
+Four `cocolog work` processes against one server, two per machine. Each machine
+produces its full answer set exactly once however many workers produced it, and
+both members of each group do some of the work.
+
+**Two things had to be true for that, and neither is obvious.**
+
+`cocolog::machine_claim_named` does the find and the status change in one
+transaction, so exactly one worker holds a machine at a time; and a turn is all
+or nothing — its answers are buffered and printed only after the commit lands,
+so a worker that loses its connection mid-turn announces nothing, hands the
+machine back, and the partner redoes the turn from the state that was actually
+saved.
+
+**And cocolog takes turns on the wire.** ZiguratIP gives each connection its own
+thread and its own transaction, but the file streams underneath them are shared
+and unguarded, so two clients in the storage engine at once corrupt each other's
+file position. cocolog holds a `flock` for the length of each transaction rather
+than modify a database it does not own. The interpreters still run at the same
+time; only their transactions queue. See [STATUS.md](STATUS.md) — that section
+is worth reading before writing any other client of this server.
+
 ## Status
 
-The interpreter, the serialisation, both transports and the schema are done and
-tested. See [STATUS.md](STATUS.md) for what is finished, what is known to be
-missing, and the one open problem — concurrent writers against a single server.
+The interpreter, the serialisation, both transports, the schema and the
+four-interpreter arrangement are done and tested; `make test` ends `red: 0`.
+See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
+what is known to be missing — worker pools spanning more than one machine, above
+all.

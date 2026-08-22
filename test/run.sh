@@ -3,6 +3,7 @@
 #
 #   sh test/run.sh              everything
 #   sh test/run.sh solve        one file
+#   sh test/run.sh groups       just the four-interpreter one
 #
 # The database tests SKIP when there is no server, because "no server here" and
 # "the backend is wrong" are different findings. To run them, raise a ZiguratIP
@@ -48,6 +49,26 @@ for c in $CASES; do
             esac ;;
   esac
 done
+
+# groups.sh is not a .cicili case: it is four cocolog PROCESSES against one
+# server, so it is a shell script and it needs the built program rather than a
+# test binary. It runs last because it is the slowest and because everything
+# above it has to be right for it to mean anything.
+if [ -z "$1" ] || [ "$1" = groups ]; then
+  printf '%-10s ' "groups"
+  if [ ! -x "$ROOT/cocolog" ]; then
+    echo "SKIP (build cocolog first)"
+  else
+    out=$(sh "$HERE/groups.sh" 2>&1) || true
+    case $(echo "$out" | tail -1) in
+      GREEN*) echo "GREEN" ;;
+      SKIP*)  echo "SKIP" ;;
+      *)      echo "$out" | tail -1
+              echo "$out" | grep '^FAIL' | head -5
+              red=$((red + 1)) ;;
+    esac
+  fi
+fi
 
 echo
 echo "red: $red"

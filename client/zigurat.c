@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -45,10 +47,23 @@
 #define TDB_STRING    0x29u
 #define TDB_TEXT      0x49u
 
+/* One request is a few dozen bytes -- a verb, a name and a handful of
+ * parameters -- and anything longer than this goes straight out rather than
+ * being copied in, so it never has to be large. */
+#define ZG_OUT_SIZE 1024
+
 struct zg_conn {
   int  fd;
   uint64_t transaction_id;
   char err[512];
+  /* Taking turns: see zg_serialise. lockfd is -1 when nothing is serialised
+   * and `held' says whether this connection is holding the turn. */
+  int  lockfd;
+  int  held;
+  int  lockwait;
+  /* Outgoing bytes, held back until something wants to read. See wr(). */
+  unsigned char out[ZG_OUT_SIZE];
+  size_t nout;
 };
 
 /* ------------------------------------------------------------------ */
@@ -78,8 +93,78 @@ int zg_is_open(const zg_conn *c) { return (c && c->fd >= 0) ? 1 : 0; }
 uint64_t zg_transaction_id(const zg_conn *c) { return c ? c->transaction_id : 0; }
 
 /* ------------------------------------------------------------------ */
+/* taking turns                                                       */
+/* ------------------------------------------------------------------ */
+
+/* Waits for this connection's turn. Answers 1 immediately when nothing is
+ * serialised, or when this connection already holds it.
+ *
+ * IT IS A POLL AND NOT A BLOCKING flock, and the reason is a deadlock that a
+ * blocking one really does reach. A worker holding the turn can end up waiting
+ * on the server for a row another worker's uncommitted transaction has locked
+ * -- and that other worker is waiting for the turn so that it can commit and
+ * let go. Neither ever moves. Giving up after a bounded wait turns that into
+ * an ordinary failure: the caller redials, the abandoned transaction goes with
+ * the connection, and the row is free again.
+ *
+ * 2ms between tries. A call is short, so the wait is nearly always the first
+ * or second one, and a thousand of them still only add up to two seconds. */
+static int take_turn(zg_conn *c)
+{
+  int waited_ms = 0;
+  if (c->lockfd < 0 || c->held) return 1;
+  for (;;) {
+    if (flock(c->lockfd, LOCK_EX | LOCK_NB) == 0) { c->held = 1; return 1; }
+    if (errno != EWOULDBLOCK && errno != EINTR)
+      return say2(c, "cannot take the turn", strerror(errno));
+    if (c->lockwait > 0 && waited_ms >= c->lockwait * 1000)
+      return say(c, "timed out waiting for another cocolog process");
+    usleep(2000);
+    waited_ms += 2;
+  }
+}
+
+/* Gives the turn up. Safe to call when it is not held, which is what makes it
+ * usable on every path out of every verb. */
+static void give_turn(zg_conn *c)
+{
+  if (c->lockfd >= 0 && c->held) {
+    flock(c->lockfd, LOCK_UN);
+    c->held = 0;
+  }
+}
+
+int zg_serialise(zg_conn *c, const char *path, int wait_seconds)
+{
+  int fd;
+  if (!c) return 0;
+  if (c->lockfd >= 0) { give_turn(c); close(c->lockfd); c->lockfd = -1; }
+  if (!path || !*path) return 1;             /* asked for none: none it is */
+  fd = open(path, O_RDWR | O_CREAT, 0666);
+  if (fd < 0) return say2(c, "cannot open the turn file", strerror(errno));
+  c->lockfd   = fd;
+  c->lockwait = wait_seconds;
+  return 1;
+}
+
+/* ------------------------------------------------------------------ */
 /* the socket                                                         */
 /* ------------------------------------------------------------------ */
+
+/* A FAILED TRANSFER ENDS THE CONNECTION. This protocol has no resynchronising
+ * point: every value is a length the other side already committed to, so a read
+ * that stopped halfway or a write that did not land leaves the stream at an
+ * offset neither side agrees on. Carrying on down it reads one field as
+ * another. Both of these therefore drop the socket on their way out, and
+ * zg_is_open answers the question "is there anything left to talk to". */
+static int lost(zg_conn *c, const char *what, const char *detail)
+{
+  if (c->fd >= 0) { close(c->fd); c->fd = -1; }
+  give_turn(c);
+  return detail ? say2(c, what, detail) : say(c, what);
+}
+
+static int flush_out(zg_conn *c);
 
 /* Reads exactly N bytes or fails. A short read is not an error condition the
  * protocol can recover from -- every value has a known length -- so it is
@@ -89,19 +174,22 @@ static int rd(zg_conn *c, void *buf, size_t n)
   unsigned char *p = (unsigned char *)buf;
   size_t got = 0;
   if (c->fd < 0) return say(c, "the connection is closed");
+  /* Nothing may sit unsent while this end waits for an answer to it. */
+  if (!flush_out(c)) return 0;
   while (got < n) {
     ssize_t k = recv(c->fd, p + got, n - got, 0);
-    if (k == 0) return say(c, "the server closed the connection");
+    if (k == 0) return lost(c, "the server closed the connection", NULL);
     if (k < 0) {
       if (errno == EINTR) continue;
-      return say2(c, "read failed", strerror(errno));
+      return lost(c, "read failed", strerror(errno));
     }
     got += (size_t)k;
   }
   return 1;
 }
 
-static int wr(zg_conn *c, const void *buf, size_t n)
+/* Puts N bytes on the wire, now. */
+static int wr_now(zg_conn *c, const void *buf, size_t n)
 {
   const unsigned char *p = (const unsigned char *)buf;
   size_t sent = 0;
@@ -110,10 +198,54 @@ static int wr(zg_conn *c, const void *buf, size_t n)
     ssize_t k = send(c->fd, p + sent, n - sent, MSG_NOSIGNAL);
     if (k <= 0) {
       if (k < 0 && errno == EINTR) continue;
-      return say2(c, "write failed", strerror(errno));
+      return lost(c, "write failed", strerror(errno));
     }
     sent += (size_t)k;
   }
+  return 1;
+}
+
+/* Sends whatever wr() has been holding. */
+static int flush_out(zg_conn *c)
+{
+  size_t n = c->nout;
+  if (n == 0) return 1;
+  c->nout = 0;                    /* cleared first: a failed flush ends the
+                                   * connection, and these bytes must not be
+                                   * sent a second time by a later one */
+  return wr_now(c, c->out, n);
+}
+
+/* A REQUEST GOES OUT IN ONE PIECE, AND THAT IS NOT ABOUT SYSCALL COUNT. Written
+ * a field at a time -- a length byte, then the bytes, then the next type
+ * descriptor -- a request reaches the server as a dozen separate arrivals, and
+ * the server reads it through a std::streambuf whose underflow() flushes the
+ * replies IT has pending only when it is about to block on the socket. Feed it
+ * in dribs and it is never quite about to block: it comes back round its loop
+ * with the next fragment already sitting in its get area, so it does not
+ * flush, and the reply this end is waiting for stays in the server's put
+ * buffer. Both ends then wait for each other, for ever.
+ *
+ * Measured: a client that writes field by field wedges after somewhere between
+ * thirty and ninety calls on one connection, at no fixed point, and never once
+ * it is slowed down enough to lose the race -- which is why it looks like a
+ * different bug every time it is caught. Holding a request until it is
+ * complete and sending it in one piece puts the server back to one arrival per
+ * request, which is where it blocks, which is where it flushes.
+ *
+ * Anything longer than the buffer -- a Text carrying a chunk of a frozen
+ * machine -- pushes out what is waiting and then goes straight to the socket. */
+static int wr(zg_conn *c, const void *buf, size_t n)
+{
+  if (c->fd < 0) return say(c, "the connection is closed");
+  if (n >= sizeof c->out) {
+    if (!flush_out(c)) return 0;
+    return wr_now(c, buf, n);
+  }
+  if (c->nout + n > sizeof c->out)
+    if (!flush_out(c)) return 0;
+  memcpy(c->out + c->nout, buf, n);
+  c->nout += n;
   return 1;
 }
 
@@ -228,30 +360,29 @@ static int wr_std_text(zg_conn *c, const char *s)
 /* opening and closing                                                */
 /* ------------------------------------------------------------------ */
 
-zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
-                 char *err, size_t errcap)
+/* The dial itself, shared by zg_open and zg_reopen. On success C has a
+ * connected socket and the transaction id the server opened with; on failure C
+ * is left closed with the reason in c->err. */
+static int dial(zg_conn *c, const char *host, const char *service,
+                int timeout_seconds)
 {
   struct addrinfo hints, *list = NULL, *ai;
-  zg_conn *c;
   int rc;
 
-  c = (zg_conn *)calloc(1, sizeof *c);
-  if (!c) {
-    if (err) snprintf(err, errcap, "out of memory");
-    return NULL;
-  }
-  c->fd = -1;
+  if (c->fd >= 0) { close(c->fd); c->fd = -1; }
+  /* Whatever the old connection was in the middle of is over, turn included --
+   * and letting go here is what unwedges the worker whose lock wait timed out
+   * and sent us round to redial. */
+  give_turn(c);
+  c->nout = 0;              /* a fresh socket starts with an empty request */
+  c->transaction_id = 0;
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family   = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
   rc = getaddrinfo(host, service, &hints, &list);
-  if (rc != 0) {
-    if (err) snprintf(err, errcap, "cannot resolve %s:%s: %s", host, service, gai_strerror(rc));
-    free(c);
-    return NULL;
-  }
+  if (rc != 0) return say2(c, "cannot resolve the server", gai_strerror(rc));
 
   for (ai = list; ai != NULL; ai = ai->ai_next) {
     int fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
@@ -261,11 +392,7 @@ zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
   }
   freeaddrinfo(list);
 
-  if (c->fd < 0) {
-    if (err) snprintf(err, errcap, "cannot connect to %s:%s: %s", host, service, strerror(errno));
-    free(c);
-    return NULL;
-  }
+  if (c->fd < 0) return say2(c, "cannot connect", strerror(errno));
 
   if (timeout_seconds > 0) {
     struct timeval tv;
@@ -278,24 +405,49 @@ zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
   /* The server speaks first: the id of the transaction this connection is. */
   {
     size_t tid = 0;
-    if (!rd_sz(c, &tid)) {
-      if (err) snprintf(err, errcap, "%s", c->err);
-      close(c->fd);
-      free(c);
-      return NULL;
-    }
+    if (!rd_sz(c, &tid)) { close(c->fd); c->fd = -1; return 0; }
     c->transaction_id = (uint64_t)tid;
+  }
+
+  c->err[0] = '\0';
+  return 1;
+}
+
+zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
+                 char *err, size_t errcap)
+{
+  zg_conn *c = (zg_conn *)calloc(1, sizeof *c);
+  if (!c) {
+    if (err) snprintf(err, errcap, "out of memory");
+    return NULL;
+  }
+  c->fd     = -1;
+  c->lockfd = -1;              /* 0 from calloc would be standard input */
+
+  if (!dial(c, host, service, timeout_seconds)) {
+    if (err) snprintf(err, errcap, "%s", c->err);
+    free(c);
+    return NULL;
   }
 
   if (err && errcap) err[0] = '\0';
   return c;
 }
 
+int zg_reopen(zg_conn *c, const char *host, const char *service,
+              int timeout_seconds)
+{
+  if (!c) return 0;
+  return dial(c, host, service, timeout_seconds);
+}
+
 void zg_close(zg_conn *c)
 {
   if (!c) return;
+  give_turn(c);
+  if (c->lockfd >= 0) close(c->lockfd);
   if (c->fd >= 0) close(c->fd);
-  c->fd = -1;
+  c->fd = c->lockfd = -1;
   free(c);
 }
 
@@ -310,17 +462,30 @@ int zg_result(zg_conn *c, zg_result_t *out)
   if (!rd_u8(c, &r)) return 0;
   if (r == ZG_EXCEPTION_THROWN) {
     char msg[ZG_MAX_STRING + 1];
-    if (!rd_std_string(c, msg, sizeof msg)) return 0;
-    return say2(c, "the server refused it", msg);
+    int  got = rd_std_string(c, msg, sizeof msg);
+    /* AN EXCEPTION ENDS THE CONNECTION, NOT JUST THE CALL. Every catch in the
+     * server's request loop writes this byte and then breaks out of the loop,
+     * so the socket is already on its way down. Left open here, the next verb
+     * written down it comes back as `write failed: Broken pipe' several calls
+     * later and reads like a protocol bug rather than like the refusal that
+     * caused it. Closing now means the caller is told once, in the right
+     * words, and everything after it says `the connection is closed'.
+     * A caller that means to carry on calls zg_reopen. */
+    if (!got) return 0;
+    return lost(c, "the server refused it", msg);
   }
   if (out) *out = (zg_result_t)r;
   return 1;
 }
 
-/* Names a verb and checks the server took it. Every verb starts this way. */
+/* Names a verb and checks the server took it. Every verb starts this way, and
+ * every verb waits for its turn here -- taking it if this connection is not
+ * already in the middle of a transaction that holds it. */
 static int verb(zg_conn *c, const char *name)
 {
-  zg_result_t r;
+  zg_result_t r = ZG_SUCCESSFUL_DONE;
+  c->err[0] = '\0';           /* so that a later "was anything said?" is true */
+  if (!take_turn(c)) return 0;
   if (!wr_std_string(c, name)) return 0;
   if (!zg_result(c, &r)) return 0;
   if (r != ZG_SUCCESSFUL_DONE) return say2(c, "the server would not take the verb", name);
@@ -341,24 +506,23 @@ int zg_echo(zg_conn *c, const char *text, char *out, size_t outcap)
 {
   if (strlen(text) > ZG_MAX_STRING) return say(c, "a String is limited to 255 bytes");
   if (!verb(c, "echo")) return 0;
-  if (!wr_std_string(c, text)) return 0;
-  return rd_std_string(c, out, outcap);
+  return wr_std_string(c, text) && rd_std_string(c, out, outcap);
 }
 
 int zg_compile(zg_conn *c, const char *suite)
 {
-  zg_result_t r;
+  zg_result_t r = ZG_SUCCESSFUL_DONE;
+  int ok;
   if (strlen(suite) > ZG_MAX_TEXT) return say(c, "a Text is limited to 65535 bytes");
   if (!verb(c, "compile")) return 0;
-  if (!wr_std_text(c, suite)) return 0;
-  if (!zg_result(c, &r)) return 0;
-  if (r != ZG_SUCCESSFUL_DONE) return say(c, "the suite would not compile");
-  return 1;
+  ok = wr_std_text(c, suite) && zg_result(c, &r) && r == ZG_SUCCESSFUL_DONE;
+  if (!ok && c->err[0] == '\0') return say(c, "the suite would not compile");
+  return ok;
 }
 
 int zg_call(zg_conn *c, const char *procedure)
 {
-  zg_result_t r;
+  zg_result_t r = ZG_SUCCESSFUL_DONE;
   if (strlen(procedure) > ZG_MAX_STRING) return say(c, "a String is limited to 255 bytes");
   if (!verb(c, "call")) return 0;
   if (!wr_std_string(c, procedure)) return 0;
@@ -369,29 +533,47 @@ int zg_call(zg_conn *c, const char *procedure)
 
 int zg_auto_commit(zg_conn *c, int on)
 {
-  zg_result_t r;
+  zg_result_t r = ZG_SUCCESSFUL_DONE;
   uint8_t b = on ? 1 : 0;
+  int ok;
   if (!verb(c, "auto_commit")) return 0;
-  if (!wr(c, &b, 1)) return 0;
-  if (!zg_result(c, &r)) return 0;
-  return (r == ZG_SUCCESSFUL_DONE) ? 1 : say(c, "auto_commit was refused");
+  ok = wr(c, &b, 1) && zg_result(c, &r) && r == ZG_SUCCESSFUL_DONE;
+  if (!ok && c->err[0] == '\0') return say(c, "auto_commit was refused");
+  return ok;
 }
 
 int zg_isolate(zg_conn *c, zg_isolation_t level)
 {
-  zg_result_t r;
+  zg_result_t r = ZG_SUCCESSFUL_DONE;
+  int ok;
   if (!verb(c, "isolate")) return 0;
-  if (!wr_u8(c, (uint8_t)level)) return 0;
-  if (!zg_result(c, &r)) return 0;
-  return (r == ZG_SUCCESSFUL_DONE) ? 1 : say(c, "the isolation level was refused");
+  ok = wr_u8(c, (uint8_t)level) && zg_result(c, &r) && r == ZG_SUCCESSFUL_DONE;
+  if (!ok && c->err[0] == '\0') return say(c, "the isolation level was refused");
+  return ok;
 }
 
+/* commit and rollback, and so THE PLACE THE TURN GOES BACK.
+ *
+ * WHY THE TURN IS THE TRANSACTION AND NOT THE CALL. Releasing at the end of
+ * each call was tried first, and is not enough: the server is still finishing
+ * with the store after it has written the byte that ends a call -- committing
+ * under auto-commit, closing the procedure's library -- and a transaction left
+ * open goes on holding rows either way. Another process let in during that gap
+ * meets the same shared file streams and the same `hexmap ends inside the
+ * chunk'. Held across the transaction there is no gap: one process has one
+ * transaction open at a time, which is the only arrangement the engine is
+ * actually safe under. It costs nothing that matters, because a cocolog
+ * transaction is a handful of round trips and the proving between them is
+ * microseconds. */
 static int simple_verb(zg_conn *c, const char *name)
 {
-  zg_result_t r;
+  zg_result_t r = ZG_SUCCESSFUL_DONE;
+  int ok;
   if (!verb(c, name)) return 0;
-  if (!zg_result(c, &r)) return 0;
-  return (r == ZG_SUCCESSFUL_DONE) ? 1 : say2(c, "refused", name);
+  ok = zg_result(c, &r) && r == ZG_SUCCESSFUL_DONE;
+  give_turn(c);
+  if (!ok && c->err[0] == '\0') return say2(c, "refused", name);
+  return ok;
 }
 
 int zg_commit(zg_conn *c)   { return simple_verb(c, "commit"); }
@@ -568,7 +750,7 @@ int zg_skip_field(zg_conn *c)
 int zg_drain(zg_conn *c, unsigned row_fields)
 {
   for (;;) {
-    zg_result_t r;
+    zg_result_t r = ZG_SUCCESSFUL_DONE;
     if (!zg_result(c, &r)) return 0;
     if (r == ZG_SUCCESSFUL_DONE) return 1;
     if (r == ZG_CURSOR_OPEN) {

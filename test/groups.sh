@@ -27,6 +27,16 @@
 # the loser waits and takes the next turn. Without that the two would both load
 # the same state, both advance it and both save, and the second save would
 # silently throw the first one's work away.
+#
+# NOTHING HERE IS ALLOWED TO HANG. Every step has a timeout and the workers
+# have a wall clock, because the failure this test exists to catch is a worker
+# BLOCKING -- on a lock, on a server that has stopped answering -- and a test
+# whose failure mode is "wait forever" is useless for finding it. A run that
+# goes wrong should be over in seconds and say what it was waiting for.
+#
+#   SETUP_TIMEOUT  each consult/start/drop/list call
+#   WORKER_TIMEOUT the whole of one worker
+#   SOCKET_TIMEOUT what cocolog itself waits on one socket operation
 
 set -e
 
@@ -45,14 +55,27 @@ fi
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
 
-if ! "$COCOLOG" --kb "$KB" --host "$HOST" --port "$PORT" list >/dev/null 2>&1; then
+SETUP_TIMEOUT=${SETUP_TIMEOUT:-20}
+WORKER_TIMEOUT=${WORKER_TIMEOUT:-30}
+SOCKET_TIMEOUT=${SOCKET_TIMEOUT:-5}
+
+if ! timeout "$SETUP_TIMEOUT" "$COCOLOG" --kb "$KB" --host "$HOST" --port "$PORT" \
+       --timeout "$SOCKET_TIMEOUT" list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"
   exit 0
 fi
 
-CL="$COCOLOG --kb $KB --host $HOST --port $PORT"
+CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --host $HOST --port $PORT --timeout $SOCKET_TIMEOUT"
+WORK="timeout $WORKER_TIMEOUT $COCOLOG --kb $KB --host $HOST --port $PORT --timeout $SOCKET_TIMEOUT"
 
+# CONSULT ASSERTS, IT DOES NOT REPLACE, so a run that consulted into a
+# knowledge base a previous run had already filled would leave two copies of
+# every clause -- and then every proof answers everything twice and the
+# recursive one never terminates. The symptom reads exactly like a broken
+# interpreter, which is why this line is here and not left to whoever cleans up
+# after a failed run.
 echo "loading the program"
+$CL forget > "$OUT/forget.log"
 $CL consult "$ROOT/demo/family.pl" > "$OUT/consult.log"
 
 # Anything left over from a previous run would be claimed by these workers.
@@ -65,11 +88,25 @@ $CL start state-b "ancestor(X,zoe)"  > "$OUT/start-b.log"
 echo "four interpreters, two per machine"
 # --steps 8 is small on purpose: it forces each machine through several turns,
 # so the two workers of a group really do have to hand it over.
-$CL --steps 8 --answers 0 work a1 state-a > "$OUT/a1.log" 2>&1 &
-$CL --steps 8 --answers 0 work a2 state-a > "$OUT/a2.log" 2>&1 &
-$CL --steps 8 --answers 0 work b1 state-b > "$OUT/b1.log" 2>&1 &
-$CL --steps 8 --answers 0 work b2 state-b > "$OUT/b2.log" 2>&1 &
-wait
+#
+# `set -e' is off around the workers: one that times out exits non-zero, and
+# that is a result to report rather than a reason to abandon the run.
+set +e
+$WORK --steps 8 --answers 0 work a1 state-a > "$OUT/a1.log" 2>&1 & A1PID=$!
+$WORK --steps 8 --answers 0 work a2 state-a > "$OUT/a2.log" 2>&1 & A2PID=$!
+$WORK --steps 8 --answers 0 work b1 state-b > "$OUT/b1.log" 2>&1 & B1PID=$!
+$WORK --steps 8 --answers 0 work b2 state-b > "$OUT/b2.log" 2>&1 & B2PID=$!
+
+timed_out=""
+for pair in "a1 $A1PID" "a2 $A2PID" "b1 $B1PID" "b2 $B2PID"; do
+  set -- $pair
+  if ! wait "$2"; then
+    # 124 is what `timeout' exits with when it had to kill the command
+    [ $? -eq 124 ] && timed_out="$timed_out $1"
+  fi
+done
+[ -n "$timed_out" ] && echo "     TIMED OUT:$timed_out"
+set -e
 
 failures=0
 check() {

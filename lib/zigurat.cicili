@@ -80,6 +80,16 @@
                            (int timeout_seconds) (char * err) (size_t errcap))
                   (out zg_conn *))
      (decl) (func zg_close ((zg_conn * c)))
+     ;; Dials again down the same connection object, so everything holding the
+     ;; pointer -- a co_zg, above all -- stays valid across the recovery.
+     (decl) (func zg_reopen ((zg_conn * c) (const char * host)
+                             (const char * service) (int timeout_seconds))
+                  (out int))
+     ;; Makes this connection take turns with every other process using the
+     ;; same file, so that no two of them are inside ZiguratIP's storage engine
+     ;; at once. The reason it has to exist is in client/zigurat.h.
+     (decl) (func zg_serialise ((zg_conn * c) (const char * path)
+                                (int wait_seconds)) (out int))
      (decl) (func zg_is_open ((const zg_conn * c)) (out int))
      (decl) (func zg_error ((const zg_conn * c)) (out const char *))
      (decl) (func zg_transaction_id ((const zg_conn * c)) (out u64))
@@ -232,6 +242,16 @@
   `(zg_open ,host ,port ,timeout ,err ,errcap))
 
 (DEFMACRO close (db) `(zg_close ,db))
+
+;;; Recovers a connection the server ended, in place.
+(DEFMACRO reopen (db host port timeout) `(zg_reopen ,db ,host ,port ,timeout))
+
+;;; Whether there is still a socket under it. False after the server refused a
+;;; call, because a refusal ends the connection.
+(DEFMACRO is-open (db) `(zg_is_open ,db))
+
+;;; Makes this connection wait its turn against every other process on PATH.
+(DEFMACRO serialise (db path wait) `(zg_serialise ,db ,path ,wait))
 
 (DEFMACRO error (db) `(zg_error ,db))
 
