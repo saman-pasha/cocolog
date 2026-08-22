@@ -29,7 +29,9 @@
 ;;;   --local        no database at all: everything in memory
 ;;;   --steps N      inferences per `step'  (default 2000)
 ;;;   --timeout S    socket timeout, seconds (default 20)
-;;;   --lock PATH    where cocolog processes take turns; `none' for no lock
+;;;   --lock PATH    make cocolog processes take turns through PATH, for a
+;;;                  server whose storage engine is not concurrency safe;
+;;;                  `auto' names one per host and port. Off by default.
 ;;;   --answers N    stop after N solutions (default 10, 0 for all)
 ;;;
 ;;; WHY `step' PRINTS NOTHING MUCH. It is meant to be run by a script, over and
@@ -144,6 +146,40 @@
   (var const useconds_t CO_POLL_US  . 5000)
   (var const useconds_t CO_YIELD_US . 20000)
 
+  ;;; How many consecutive polls a worker will wait for a machine that exists
+  ;;; but is claimed by somebody else. At CO_POLL_US that is about a minute --
+  ;;; long enough that a busy partner is never mistaken for a dead one, short
+  ;;; enough that a machine stranded by a worker that was killed mid-turn does
+  ;;; not keep the rest waiting for ever.
+  (var const int CO_IDLE_LIMIT . 12000)
+
+  ;;; How many polls in a row a machine has to be out of sight before a worker
+  ;;; believes it has finished rather than being mid-save. At CO_POLL_US that is
+  ;;; a second and a half of continuous absence.
+  ;;;
+  ;;; WHY IT IS GENEROUS, AND WHY A HEURISTIC IS ALLOWED HERE AT ALL. Saving a
+  ;;; machine deletes its row and inserts a replacement, and the replacement can
+  ;;; land at an address the scan has already gone past -- so for the length of
+  ;;; that transaction a reader sees neither version. Under load those windows
+  ;;; run together and a fifth of a second of absence proves nothing.
+  ;;;
+  ;;; What this number decides is only WHEN A WORKER GOES HOME. It cannot make
+  ;;; two workers advance one machine, or lose a turn, or produce an answer
+  ;;; twice: the claim settles all of that exactly, inside one SERIALIZABLE
+  ;;; transaction. Guess low and a worker leaves early and its partners do its
+  ;;; share; guess high and it waits a second longer than it needed to. So it is
+  ;;; set high.
+  (var const int CO_GONE_CONFIRM . 300)
+
+  ;;; And how long a worker waits for a machine it has NEVER SEEN. Much longer,
+  ;;; because absence means something different before the first sighting: not
+  ;;; "it finished" but "it is not there yet". A worker started before the
+  ;;; machine it is meant to help with -- which is the sane way to start a pool,
+  ;;; and the only way to start twelve of them without the first few finishing
+  ;;; the work before the last are running -- would otherwise decide in a second
+  ;;; and a half that there was never anything to do.
+  (var const int CO_APPEAR_LIMIT . 4000)
+
   (func usage ()
         (fprintf stderr "cocolog -- a Prolog interpreter with its knowledge base in Zigurat\n\n")
         (fprintf stderr "  cocolog [options] consult FILE...\n")
@@ -163,8 +199,9 @@
         (fprintf stderr "  --steps N     inferences per step       (default 2000)\n")
         (fprintf stderr "  --timeout S   socket timeout in seconds  (default 20)\n")
         (fprintf stderr "  --answers N   stop after N solutions    (default 10, 0 for all)\n")
-        (fprintf stderr "  --lock PATH   where cocolog processes take turns\n")
-        (fprintf stderr "                (default one per host and port; `none' to disable)\n"))
+        (fprintf stderr "  --lock PATH   take turns through PATH, for a server that\n")
+        (fprintf stderr "                cannot take concurrent clients; `auto' names\n")
+        (fprintf stderr "                one per host and port. Off by default.\n"))
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
   (func slurp ((const char * path)) (out char *)
@@ -223,28 +260,39 @@
                               ($ opts host) ($ opts port) err)
                      (return 0)))
 
-          ;; TAKING TURNS IS ON BY DEFAULT, and that is a decision about
-          ;; ZiguratIP rather than about cocolog. Its storage engine serves
-          ;; every connection on its own thread through one shared pair of file
-          ;; streams, so two clients calling at the same moment read from each
-          ;; other's file position -- usually an exception, sometimes a dead
-          ;; server and a store that has to be thrown away. A program that only
-          ;; ever runs alone loses nothing by holding a lock nobody contends
-          ;; for, and one that does not knows nothing about the hazard until it
-          ;; loses a database to it. So: on unless asked otherwise.
+          ;; TAKING TURNS IS OFF BY DEFAULT, AND THAT IS THE WHOLE POINT OF THE
+          ;; PROJECT. Interpreters that queue behind one another are not
+          ;; concurrent interpreters; they are one interpreter with extra
+          ;; processes. So cocolog talks to the server the way any client
+          ;; should -- all at once -- and the server is expected to cope.
           ;;
-          ;; The path is per host and port, so that everything talking to one
-          ;; server takes turns with everything else talking to that server,
-          ;; and two servers on one machine do not queue behind each other.
+          ;; IT EXISTS AT ALL because for a while the server did not cope, and
+          ;; the reason is worth keeping to hand. ZiguratIP serves every
+          ;; connection on its own thread but through ONE shared pair of page
+          ;; streams, and an indexed WHERE walked its B-tree straight through
+          ;; them holding no lock at all: two clients at once read from each
+          ;; other's file position, which surfaced as `hexmap ends inside the
+          ;; chunk at NNNNN' and, often enough, as a dead server and a store
+          ;; that had to be thrown away. That is fixed in ZiguratIP itself now
+          ;; (MVCCS/memory.hpp, Memory::Streams) rather than worked around
+          ;; here.
+          ;;
+          ;;   --lock PATH   take turns through PATH, for a server that has not
+          ;;                 got the fix. One flock(2) per transaction: correct,
+          ;;                 and about as concurrent as a queue.
+          ;;   --lock auto   the same, through a file named for the host and
+          ;;                 port, so everything talking to one server queues
+          ;;                 together and two servers do not queue behind each
+          ;;                 other.
           (set path ($ opts lock))
-          (if (== path nil)
+          (if (and (!= path nil) (== 0 (strcmp path "auto")))
               (block
                (let ((const char * tmp . #'(getenv "TMPDIR")))
                  (if (or (== tmp nil) (== (nth 0 tmp) (cast char 0))) (set tmp "/tmp"))
                  (snprintf turnfile (sizeof turnfile) "%s/cocolog-%s-%s.turn"
                            tmp ($ opts host) ($ opts port))
                  (set path turnfile))))
-          (if (== 0 (strcmp path "none")) (set path nil))
+          (if (and (!= path nil) (== 0 (strcmp path "none"))) (set path nil))
           (if (not (zg_serialise db path ($ opts timeout)))
               (block (fprintf stderr "cocolog: %s\n" (zg_error db)) (return 0)))
           (return 1)))
@@ -489,6 +537,36 @@
               (#t (block))))
           (return (? (zg_commit db) 1 0))))
 
+  ;;; Whether a machine is still in the database at all: 1 yes, 0 gone,
+  ;;; -1 the call did not happen.
+  ;;;
+  ;;; This is what tells a worker whose claim came back empty whether to wait or
+  ;;; to stop. `cocolog::machine_claim_named' answers the same empty string for
+  ;;; "somebody else has it" and for "there is no such machine", and those are
+  ;;; opposite instructions.
+  (func exists ((const char * worker) (const char * name)) (out int)
+        (let ((zg_result_t r) (char cols [256]) (int rows . 0))
+          (if (not (zg_call db "cocolog::machine_find")) (return -1))
+          (if (not (zg_write_string db name)) (return -1))
+          (while 1
+            (if (not (zg_result db (aof r)))
+                (block (fprintf stderr "%s: machine_find: %s\n" worker (zg_error db))
+                       (return -1)))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((i64 id . 0) (char kb [128]) (char status [128]) (i32 chunks . 0))
+                 (if (not (zg_read_long db (aof id) nil)) (return -1))
+                 (if (not (zg_read_string db kb (sizeof kb) nil)) (return -1))
+                 (if (not (zg_read_string db status (sizeof status) nil)) (return -1))
+                 (if (not (zg_read_int db (aof chunks) nil)) (return -1))
+                 (set rows (+ rows 1))))
+              ((== r ZG_RETURN_VALUE) (zg_skip_field db))
+              (#t (block))))
+          (if (not (zg_commit db)) (return -1))
+          (return (? (> rows 0) 1 0))))
+
   ;;; Claims one suspended machine for this worker, atomically.
   ;;;
   ;;;   1  it is ours, and NAME says which
@@ -557,8 +635,8 @@
   ;;; partner may take that turn, which is the arrangement the whole thing is
   ;;; for and is why the group's answers still come out in order.
   (func cmd_work ((const char * worker) (const char * wanted)) (out int)
-        (let ((char name [256]) (int turns . 0) (int idle . 0)
-              (int hurt . 0) (int rc . 0) (int got . 0))
+        (let ((char name [256]) (int turns . 0) (int idle . 0) (int gone . 0)
+              (int hurt . 0) (int rc . 0) (int got . 0) (int seen . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: work needs a database\n") (return 1)))
           (while 1
@@ -578,17 +656,65 @@
 
             (if (== got 0)
                 (block
-                 ;; A named machine may be busy in another worker rather than
-                 ;; gone, so an empty claim is a reason to wait rather than to
-                 ;; stop -- but only for a while, or a worker whose partner
-                 ;; died would spin forever.
+                 ;; AN EMPTY CLAIM MEANS TWO DIFFERENT THINGS, and stopping on
+                 ;; the wrong one is what made every machine get finished by
+                 ;; whichever worker happened to reach it first. The machine is
+                 ;; either GONE -- proved out and dropped, so there is nothing
+                 ;; left to do -- or BUSY in a partner, which is the normal
+                 ;; state of affairs for most of a run and no reason at all to
+                 ;; stop. Counting empty claims and giving up after enough of
+                 ;; them treats the second as the first: a worker that started a
+                 ;; few hundred milliseconds late, or whose partners were mid
+                 ;; turn, quietly exited having done nothing, and the test that
+                 ;; asks whether every member of a group took a turn was right
+                 ;; to fail.
+                 ;;
+                 ;; So ask. `exists' is one call and it answers the question the
+                 ;; worker actually has.
+                 ;; AND ONE READING OF `GONE' IS NOT PROOF EITHER. Saving a
+                 ;; machine rewrites its row -- cocolog::machine_open deletes
+                 ;; the old one and inserts a replacement -- and for as long as
+                 ;; that transaction is open, a reader at READ COMMITTED sees
+                 ;; NEITHER version: the delete is not committed and the insert
+                 ;; is not either. The row is briefly nowhere, which is MVCC
+                 ;; being right rather than being broken, and a partner that
+                 ;; happened to look during that window concluded the machine
+                 ;; had finished and went home. It is why `exists' answers a
+                 ;; question that has to be asked more than once.
+                 ;;
+                 ;; A worker gives up only after the machine has been out of
+                 ;; sight CONTINUOUSLY for CO_GONE_CONFIRM polls. A partner
+                 ;; between turns has committed and is yielding, so the row is
+                 ;; plainly there for CO_YIELD_US at a time; a run of absences
+                 ;; that long means it really has been dropped.
                  (if (== wanted nil) break)
+                 (set got (exists worker wanted))
+                 (if (== got -1)
+                     (block (set hurt (+ hurt 1))
+                            (if (> hurt 40) break)
+                            (if (not (recover worker hurt)) break)
+                            continue))
+                 (if (== got 0)
+                     (block (set gone (+ gone 1))
+                            (if (> gone (? seen CO_GONE_CONFIRM CO_APPEAR_LIMIT)) break)
+                            (usleep CO_POLL_US)
+                            continue))
+                 (set gone 0)
+                 (set seen 1)
+                 ;; There, and somebody else has it. Wait, and keep a wall clock
+                 ;; on it so that a machine stranded by a worker that died does
+                 ;; not hold the rest here for ever.
                  (set idle (+ idle 1))
-                 (if (> idle 400) break)
+                 (if (> idle CO_IDLE_LIMIT)
+                     (block (fprintf stderr "%s: '%s' stayed claimed by somebody else\n"
+                                     worker wanted)
+                            break))
                  (usleep CO_POLL_US)
                  continue))
 
             (set idle 0)
+            (set gone 0)
+            (set seen 1)
             (printf "%s: took '%s'\n" worker name)
             (set rc (cmd_step name 0))
 
@@ -614,7 +740,14 @@
             (if (turn-is FAILED rc) break)
             ;; Stand back and let somebody else have the next one.
             (if (turn-is MORE rc) (usleep CO_YIELD_US)))
-          (printf "%s: nothing left to do after %d turn(s)\n" worker turns)
+          ;; WHAT IT DID AND WHY IT STOPPED, in one line. A worker that ends
+          ;; having taken no turns is either a scheduler working correctly --
+          ;; its partners got there first -- or a bug, and the two are
+          ;; indistinguishable from `nothing left to do'. The counts say which:
+          ;; a worker that never saw the machine at all made no claims worth
+          ;; speaking of, one that was always too late made hundreds.
+          (printf "%s: nothing left to do after %d turn(s) (%d claim attempt(s), %d absent, %d busy)\n"
+                  worker turns (+ (+ gone idle) turns) gone idle)
           (return 0)))
 
   (func cmd_list () (out int)

@@ -187,6 +187,25 @@ PROCEDURE cocolog::machine_claim(p_kb AS String, p_worker AS String)
 RETURNS String
 REQUIRES cocolog::machines
 BEGIN
+    -- SERIALIZABLE, AND THIS IS THE ONE PLACE IN COCOLOG THAT NEEDS IT.
+    -- Everything here is a read followed by a write of the row that was read:
+    -- find an idle machine, then mark it. Under READ COMMITTED -- which is what
+    -- every other procedure runs at, and rightly -- two workers arriving
+    -- together both SELECT the row while it still says `suspended' and both
+    -- UPDATE it, and both walk away believing they own it. They then advance
+    -- the same state from the same point and the answers come out twice. That
+    -- is not a hypothetical: it is what twelve workers did the first time they
+    -- ran without a lock around the whole transaction.
+    --
+    -- WHAT IT COSTS, EXACTLY. ZiguratIP's SERIALIZABLE is a semaphore of one,
+    -- and only against other SERIALIZABLE transactions -- a READ COMMITTED
+    -- transaction never waits for it. So the claims of twelve workers queue
+    -- behind each other for the few microseconds each takes, while the work
+    -- that matters -- loading a machine, proving, saving it -- goes on at READ
+    -- COMMITTED all at once. A short critical section at the strongest level,
+    -- and everything else at the weakest that is still correct.
+    TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
     DECLARE found AS String = '';
     DECLARE idle  AS String = 'suspended';
     DECLARE empty AS String = '';
@@ -223,6 +242,10 @@ PROCEDURE cocolog::machine_claim_named(p_name AS String, p_worker AS String)
 RETURNS String
 REQUIRES cocolog::machines
 BEGIN
+    -- Read then write of the same row, so it needs the same level and for the
+    -- same reason as cocolog::machine_claim above.
+    TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
     DECLARE found AS String = '';
     DECLARE idle  AS String = 'suspended';
     DECLARE empty AS String = '';

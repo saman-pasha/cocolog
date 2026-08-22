@@ -3,7 +3,8 @@
 #
 #   sh test/run.sh              everything
 #   sh test/run.sh solve        one file
-#   sh test/run.sh groups       just the four-interpreter one
+#   sh test/run.sh groups       just the twelve-interpreter one
+#   sh test/run.sh ruler        just the one-writer-many-readers one
 #
 # The database tests SKIP when there is no server, because "no server here" and
 # "the backend is wrong" are different findings. To run them, raise a ZiguratIP
@@ -50,25 +51,29 @@ for c in $CASES; do
   esac
 done
 
-# groups.sh is not a .cicili case: it is four cocolog PROCESSES against one
-# server, so it is a shell script and it needs the built program rather than a
-# test binary. It runs last because it is the slowest and because everything
-# above it has to be right for it to mean anything.
-if [ -z "$1" ] || [ "$1" = groups ]; then
-  printf '%-10s ' "groups"
+# These two are not .cicili cases: each is a crowd of cocolog PROCESSES against
+# one server, so they are shell scripts and they need the built program rather
+# than a test binary. They run last because they are the slowest and because
+# everything above them has to be right for them to mean anything.
+#
+#   groups  twelve interpreters sharing four machine STATES
+#   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
+for c in groups ruler; do
+  [ -n "$1" ] && [ "$1" != "$c" ] && continue
+  printf '%-10s ' "$c"
   if [ ! -x "$ROOT/cocolog" ]; then
     echo "SKIP (build cocolog first)"
-  else
-    out=$(sh "$HERE/groups.sh" 2>&1) || true
-    case $(echo "$out" | tail -1) in
-      GREEN*) echo "GREEN" ;;
-      SKIP*)  echo "SKIP" ;;
-      *)      echo "$out" | tail -1
-              echo "$out" | grep '^FAIL' | head -5
-              red=$((red + 1)) ;;
-    esac
+    continue
   fi
-fi
+  out=$(sh "$HERE/$c.sh" 2>&1) || true
+  case $(echo "$out" | tail -1) in
+    GREEN*) echo "GREEN" ;;
+    SKIP*)  echo "SKIP" ;;
+    *)      echo "$out" | tail -1
+            echo "$out" | grep '^FAIL' | head -5
+            red=$((red + 1)) ;;
+  esac
+done
 
 echo
 echo "red: $red"
