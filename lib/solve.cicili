@@ -1,0 +1,1074 @@
+;;;; cocolog -- the resolution engine
+;;;
+;;; NOTHING HERE RECURSES IN C, and that is the whole point of the file. A
+;;; Prolog interpreter is naturally written as a recursive solve() that calls
+;;; itself for each subgoal and uses the C stack as its continuation -- it is
+;;; half the length that way. But a machine whose continuation is the C stack
+;;; cannot be stopped and written to a database, because the C stack is not
+;;; data. cocolog exists to be suspended and resumed, so the continuation is a
+;;; term on the heap and the choice points are an array of integers, and the
+;;; engine is a loop over them.
+;;;
+;;; What that buys is in state.cicili: freezing a machine is writing out four
+;;; arrays, and thawing one is reading them back. There is no other way to get
+;;; that, and every other design decision here follows from it.
+;;;
+;;; THE CONTINUATION. `'$k'(Goal, Barrier, Rest)', with the atom `[]' at the
+;;; end. Barrier is the choice-stack height that a `!' in Goal cuts back to --
+;;; carried per goal rather than kept in a register, because a suspended
+;;; machine has to remember the barrier of every pending goal, not just the
+;;; current one.
+;;;
+;;; THE CHOICE POINT. Two kinds, and no more:
+;;;
+;;;   CLAUSE  more clauses of a predicate remain to be tried. Holds which
+;;;           predicate and which clause is next.
+;;;   GOAL    an alternative goal to run instead -- the right arm of `;', the
+;;;           `true' of a negation. Holds the goal.
+;;;
+;;; Both record the trail and heap heights at the moment they were made, and
+;;; backtracking winds both back. Truncating the heap is what reclaims the
+;;; terms a failed branch built; it is safe because everything the choice point
+;;; needs to resume -- its continuation, its goal -- was built BEFORE the mark.
+;;;
+;;; CUT IS TRUNCATION. `!' sets the choice stack's height back to the barrier
+;;; its goal was carried with. That is all a cut is here, and it is why the
+;;; barrier has to travel with the goal.
+;;;
+;;; THE LAST CLAUSE DROPS ITS CHOICE POINT. Without that a recursive predicate
+;;; leaves one behind per iteration and the choice stack grows with the
+;;; recursion even when nothing can backtrack into it. With it, a deterministic
+;;; recursion runs in constant choice-stack space.
+;;;
+;;; BUILTINS ARE A TABLE. *builtins* below is read by the macro layer to emit
+;;; the dispatcher -- grouped by arity, so a name is only compared against the
+;;; builtins that could match it. Adding one is a line in the table and a
+;;; function; the dispatcher cannot fall out of step with the table because it
+;;; is generated from it.
+;;;
+;;; A TARGET USING THIS FILE NEEDS <math.h> AND -lm. The arithmetic builtins
+;;; reach pow, sqrt, fabs and llround; lib/std/c declares them for inference
+;;; but the header still has to be included by the target that emits code.
+;;;
+;;; EVERY BUILTIN HERE IS DETERMINISTIC. A builtin that could leave a choice
+;;; point behind -- `between/3', `clause/2' -- would need the engine's choice
+;;; stack in its hands, and would then be the one piece of the system that
+;;; could not be written by anyone else. They belong in the Prolog-level
+;;; library instead, where they are three lines and cost nothing.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;;; ------------------------------------------------------------------
+;;;; The builtin table
+;;;; ------------------------------------------------------------------
+
+;;; name, arity, and the function that runs it. Each answers 1 for success and
+;;; 0 for failure; an error is reported by filling in the engine's `err' and
+;;; answering -1.
+(DEFPARAMETER *builtins*
+  '(("="            2 co_bi_unify)
+    ("\\="          2 co_bi_not_unify)
+    ("=="           2 co_bi_eq)
+    ("\\=="         2 co_bi_neq)
+    ("@<"           2 co_bi_lt)
+    ("@>"           2 co_bi_gt)
+    ("@=<"          2 co_bi_le)
+    ("@>="          2 co_bi_ge)
+    ("compare"      3 co_bi_compare)
+
+    ("var"          1 co_bi_var)
+    ("nonvar"       1 co_bi_nonvar)
+    ("atom"         1 co_bi_atom)
+    ("number"       1 co_bi_number)
+    ("integer"      1 co_bi_integer)
+    ("float"        1 co_bi_float)
+    ("atomic"       1 co_bi_atomic)
+    ("compound"     1 co_bi_compound)
+    ("callable"     1 co_bi_callable)
+    ("is_list"      1 co_bi_is_list)
+
+    ("is"           2 co_bi_is)
+    ("=:="          2 co_bi_num_eq)
+    ("=\\="         2 co_bi_num_neq)
+    ("<"            2 co_bi_num_lt)
+    (">"            2 co_bi_num_gt)
+    ("=<"           2 co_bi_num_le)
+    (">="           2 co_bi_num_ge)
+
+    ("functor"      3 co_bi_functor)
+    ("arg"          3 co_bi_arg)
+    ("=.."          2 co_bi_univ)
+    ("copy_term"    2 co_bi_copy_term)
+
+    ("atom_length"  2 co_bi_atom_length)
+    ("atom_codes"   2 co_bi_atom_codes)
+    ("atom_concat"  3 co_bi_atom_concat)
+    ("number_codes" 2 co_bi_number_codes)
+
+    ("write"        1 co_bi_write)
+    ("print"        1 co_bi_write)
+    ("writeln"      1 co_bi_writeln)
+    ("write_canonical" 1 co_bi_write_canonical)
+    ("nl"           0 co_bi_nl)
+
+    ("assert"       1 co_bi_assertz)
+    ("asserta"      1 co_bi_asserta)
+    ("assertz"      1 co_bi_assertz)
+    ("retract"      1 co_bi_retract)
+
+    ("halt"         0 co_bi_halt)))
+
+;;; Grouped by arity, so a goal of arity 3 never runs a strcmp against a
+;;; builtin of arity 1. FOUND says whether the name was a builtin at all --
+;;; which is what tells the engine to go looking in the knowledge base instead.
+(DEFMACRO co-emit-builtin-dispatch ()
+  (LET ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *builtins*)) #'<)))
+    `(func co_builtin ((co_engine * e) (const char * name) (u32 arity) (size_t g) (int * found))
+       (out int)
+       (set (cof found) 1)
+       (cond
+         ,@(MAPCAR
+            (LAMBDA (n)
+              `((== arity ,n)
+                (cond
+                  ,@(MAPCAR (LAMBDA (row) `((== 0 (strcmp name ,(FIRST row)))
+                                            (return (,(THIRD row) e g))))
+                            (REMOVE-IF-NOT (LAMBDA (r) (= (SECOND r) n)) *builtins*))
+                  (#t (set (cof found) 0) (return 0)))))
+            arities)
+         (#t (set (cof found) 0) (return 0))))))
+
+;;; The binary arithmetic operators, as (name int-op float-op). Both operands
+;;; are integers only if neither is a float, which is the rule `is/2' follows
+;;; throughout: integer arithmetic stays exact until a float enters it.
+(DEFPARAMETER *arith-binops*
+  '(("+" +) ("-" -) ("*" *)))
+
+;;; Expands inside `co_arith_binary' and nowhere else, and reads the names that
+;;; function has already bound: `ai'/`af' and `bi'/`bf' are the two operands as
+;;; integer and as float, `both_int' says which pair to use, and `iv'/`fv'/`isf'
+;;; are where the answer goes. Naming them here rather than passing eight forms
+;;; keeps the call site to one word -- the same arrangement lib/std uses for
+;;; the words its front-end macros recognise.
+(DEFMACRO co-emit-arith-binops ()
+  `(cond
+     ,@(MAPCAR (LAMBDA (row)
+                 `((== 0 (strcmp name ,(FIRST row)))
+                   (if both_int
+                       (block (set (cof iv) (,(SECOND row) ai bi))
+                              (set (cof isf) 0))
+                     (block (set (cof fv) (,(SECOND row) af bf))
+                            (set (cof isf) 1)))
+                   (return 1)))
+               *arith-binops*)
+     (#t (return 0))))
+
+
+;;;; ------------------------------------------------------------------
+;;;; Declarations
+;;;; ------------------------------------------------------------------
+
+(generic decl-solve
+  ()
+
+  (enum co_choice_kind (CO_CH_CLAUSE . 0) (CO_CH_GOAL . 1))
+
+  (struct co_choice
+    (member int      kind)
+    (member size_t   goals)        ; the continuation to put back
+    (member size_t   trail_mark)
+    (member size_t   heap_mark)
+    (member size_t   call)         ; the goal being solved, or the alternative
+    (member size_t   pred)
+    (member size_t   clause_ix)    ; the next clause to try
+    (member size_t   barrier))     ; the cut barrier the alternative runs under
+
+  (struct co_engine
+    (member co_machine * m)
+    (member co_store *   st)
+
+    (member size_t      goals)     ; the continuation: '$k'(G,B,Rest) or []
+    (member co_choice * choices)
+    (member size_t      nchoices)
+    (member size_t      choice_cap)
+
+    (member size_t      query)     ; the goal as asked, kept for reporting
+    (member u64         steps)
+    (member u64         max_steps) ; 0 is no limit
+    (member int         resume)    ; a solution has been reported; go back first
+    (member int         halted)
+    (member int         halt_code)
+    (member char        err [192]))
+
+  (decl) (func co_engine_init ((co_engine * e) (co_machine * m) (co_store * st)))
+  (decl) (func co_engine_free ((co_engine * e)))
+
+  ;;; Points the engine at a goal. Discards any state from a previous query.
+  (decl) (func co_engine_ask ((co_engine * e) (size_t goal)))
+
+  ;;; Runs to the next solution. 1 = one was found and the bindings stand,
+  ;;; 0 = there are no more, -1 = something went wrong and `e->err' says what.
+  (decl) (func co_engine_next ((co_engine * e)) (out int))
+
+  ;;; Reads GOAL as text and asks it. Answers 1, or 0 with `e->err' set.
+  (decl) (func co_engine_ask_text ((co_engine * e) (const char * text)) (out int))
+
+  (decl) (func co_builtin ((co_engine * e) (const char * name) (u32 arity)
+                           (size_t g) (int * found)) (out int))
+
+  ;;; Puts back one choice-point frame read out of a frozen machine. The
+  ;;; predicate arrives as a name and an arity rather than as an index -- see
+  ;;; state.cicili for why -- and is interned into whatever store this machine
+  ;;; is being resumed against.
+  (decl) (func co_choice_restore ((co_engine * e) (int kind) (size_t goals)
+                                  (size_t trail_mark) (size_t heap_mark) (size_t call)
+                                  (size_t clause_ix) (size_t barrier)
+                                  (const char * pred_name) (u32 pred_arity)) (out int))
+
+  ) ; decl-solve
+
+
+;;;; ------------------------------------------------------------------
+;;;; Implementation
+;;;; ------------------------------------------------------------------
+
+(generic impl-solve
+  ()
+
+  (static)
+  (func co_eng_grow ((co_engine * e) (size_t need)) (out int)
+        (if (<= need (-> e choice_cap)) (return 1))
+        (let ((size_t ncap . #'(? (== (-> e choice_cap) 0) 64 (-> e choice_cap)))
+              (co_choice * nb))
+          (while (< ncap need) (set ncap (* ncap 2)))
+          (set nb (cast (co_choice *) (realloc (-> e choices) (* ncap (sizeof co_choice)))))
+          (if (== nb nil) (return 0))
+          (set (-> e choices) nb)
+          (set (-> e choice_cap) ncap)
+          (return 1)))
+
+  (static)
+  (func co_fail_err ((co_engine * e) (const char * what)) (out int)
+        (snprintf (-> e err) 192 "%s" what)
+        (return -1))
+
+  ;;; ---- the continuation --------------------------------------------------
+
+  ;;; '$k'(Goal, Barrier, Rest). Built with co_make rather than the term DSL
+  ;;; because all three arguments are values the engine is holding, not a shape
+  ;;; known when this was written.
+  (static)
+  (func co_k_push ((co_engine * e) (size_t goal) (size_t barrier) (size_t rest)) (out size_t)
+        (let ((size_t args [3]))
+          (set (nth 0 args) goal)
+          (set (nth 1 args) (co_new_int (-> e m) (cast i64 barrier)))
+          (set (nth 2 args) rest)
+          (return (co_make (-> e m) "$k" 3 args))))
+
+  (static)
+  (func co_k_empty ((co_engine * e)) (out size_t)
+        (return (co_new_atom (-> e m) "[]")))
+
+  (static)
+  (func co_k_is_empty ((co_engine * e) (size_t k)) (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (set k (co_deref m k))
+          (return (? (co-tag-is ATOM (nth k (-> m heap))) 1 0))))
+
+  ;;; ---- choice points -----------------------------------------------------
+
+  ;;; Answers whether the frame was made, NOT where it went. The index is
+  ;;; `nchoices - 1' and the caller reads it there: an earlier version answered
+  ;;; with the index and the callers tested it against 0, which is the index of
+  ;;; the FIRST choice point -- so every disjunction and every negation
+  ;;; attempted with an empty choice stack silently did nothing at all.
+  (static)
+  (func co_push_choice ((co_engine * e) (int kind) (size_t call) (size_t goals) (size_t barrier))
+        (out int)
+        (if (not (co_eng_grow e (+ (-> e nchoices) 1))) (return 0))
+        (let ((co_choice * c . #'(aof (nth (-> e nchoices) (-> e choices)))))
+          (memset c 0 (sizeof co_choice))
+          (set (-> c kind) kind)
+          (set (-> c call) call)
+          (set (-> c goals) goals)
+          (set (-> c barrier) barrier)
+          (set (-> c trail_mark) ($ (cof (-> e m)) trail_len))
+          (set (-> c heap_mark) ($ (cof (-> e m)) heap_len))
+          (set (-> e nchoices) (+ (-> e nchoices) 1))
+          (return 1)))
+
+  ;;; ---- clause selection --------------------------------------------------
+
+  ;;; Tries the clauses of the choice point at CI, from `clause_ix' on. On a
+  ;;; head that unifies it sets the continuation and answers 1; when the
+  ;;; clauses run out it pops the choice point and answers 0.
+  ;;;
+  ;;; THE LAST MATCHING CLAUSE POPS ITS OWN CHOICE POINT. A predicate whose
+  ;;; final clause matched has nothing left to backtrack into, and leaving the
+  ;;; frame behind would make every recursive call cost one -- which is the
+  ;;; difference between a loop that runs in constant space and one that does
+  ;;; not.
+  (static)
+  (func co_select_clause ((co_engine * e) (size_t ci)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (co_store * st . #'(-> e st)))
+          (while 1
+            (let ((co_choice * c . #'(aof (nth ci (-> e choices))))
+                  (co_pred * p . #'(aof (nth (-> c pred) (-> st preds)))))
+              (if (>= (-> c clause_ix) (-> p nclauses))
+                  (block (set (-> e nchoices) ci) (return 0)))
+              (let ((size_t cl . #'(nth (-> c clause_ix) (-> p clauses)))
+                    (size_t call . #'(-> c call))
+                    (size_t goals . #'(-> c goals))
+                    (size_t hmark . #'(-> c heap_mark))
+                    (size_t tmark . #'(-> c trail_mark))
+                    (int last . 0))
+                (set (-> c clause_ix) (+ (-> c clause_ix) 1))
+                (set last (? (>= (-> c clause_ix) (-> p nclauses)) 1 0))
+                ;; the clause arrives as a fresh copy on the heap, so unifying
+                ;; against its head cannot bind anything in the store
+                (let ((size_t ct . #'(co_store_get m st cl))
+                      (size_t head) (size_t body))
+                  (co_clause_parts m ct (aof head) (aof body))
+                  (if (co_unify m call head)
+                      (block
+                       ;; a `!' in the body cuts back to before this call
+                       (if last (set (-> e nchoices) ci))
+                       (set (-> e goals)
+                            (? (== body 0) goals (co_k_push e body ci goals)))
+                       (return 1)))
+                  ;; that head did not match: put the machine back and try again
+                  (co_undo_to m tmark)
+                  (set ($ (cof m) heap_len) hmark)))))
+          (return 0)))
+
+  ;;; ---- backtracking ------------------------------------------------------
+
+  ;;; Winds the machine back to the newest choice point that still has
+  ;;; something to try, and puts the continuation back. Answers 0 when there is
+  ;;; nothing left anywhere, which is the query failing.
+  (static)
+  (func co_backtrack ((co_engine * e)) (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (while (> (-> e nchoices) 0)
+            (let ((size_t ci . #'(- (-> e nchoices) 1))
+                  (int kind) (size_t call) (size_t goals) (size_t barrier))
+              (let ((co_choice * c . #'(aof (nth ci (-> e choices)))))
+                (co_undo_to m (-> c trail_mark))
+                (set ($ (cof m) heap_len) (-> c heap_mark))
+                (set kind (-> c kind))
+                (set call (-> c call))
+                (set goals (-> c goals))
+                (set barrier (-> c barrier)))
+              (if (== kind CO_CH_GOAL)
+                  (block (set (-> e nchoices) ci)
+                         (set (-> e goals) (co_k_push e call barrier goals))
+                         (return 1)))
+              (if (co_select_clause e ci) (return 1))))
+          (return 0)))
+
+  ;;; ---- calling ------------------------------------------------------------
+
+  ;;; if-then-else, and the three things built out of it. Reads as:
+  ;;;
+  ;;;   push an alternative that runs ELSE
+  ;;;   run COND, then cut away that alternative, then run THEN
+  ;;;
+  ;;; The cut is a `'$cut'(H)' goal put between them, where H is the height the
+  ;;; stack had before the alternative was pushed. COND runs under a barrier of
+  ;;; its own, so a `!' inside a condition is local to it -- which is what the
+  ;;; standard says and what makes `( ! ; true )' behave.
+  (static)
+  (func co_ite ((co_engine * e) (size_t c) (size_t t) (size_t els) (size_t k) (size_t b))
+        (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t h0 . #'(-> e nchoices)))
+          (if (not (co_push_choice e CO_CH_GOAL els k b)) (return 0))
+          (let ((size_t k1 . #'(co_k_push e t b k))
+                (size_t cut . #'(co_make1 m "$cut" (co_new_int m (cast i64 h0)))))
+            (set (-> e goals) (co_k_push e c (-> e nchoices) (co_k_push e cut b k1))))
+          (return 1)))
+
+  ;;; ---- the loop -----------------------------------------------------------
+
+  (func co_engine_init ((co_engine * e) (co_machine * m) (co_store * st))
+        (memset e 0 (sizeof co_engine))
+        (set (-> e m) m)
+        (set (-> e st) st))
+
+  (func co_engine_free ((co_engine * e))
+        (free (-> e choices))
+        (memset e 0 (sizeof co_engine)))
+
+  (func co_engine_ask ((co_engine * e) (size_t goal))
+        (set (-> e nchoices) 0)
+        (set (-> e steps) 0)
+        (set (-> e resume) 0)
+        (set (-> e halted) 0)
+        (set (nth 0 (-> e err)) (cast char 0))
+        (set (-> e query) goal)
+        (set (-> e goals) (co_k_push e goal 0 (co_k_empty e))))
+
+  (func co_engine_ask_text ((co_engine * e) (const char * text)) (out int)
+        (let ((size_t g))
+          (if (not (co_read_term_from (-> e m) text (aof g)))
+              (block (snprintf (-> e err) 192 "could not read the goal") (return 0)))
+          (co_engine_ask e g)
+          (return 1)))
+
+  (func co_engine_next ((co_engine * e)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (co_store * st . #'(-> e st)))
+
+          ;; a solution was reported last time; the next one is behind a
+          ;; backtrack, not in front of the current continuation
+          (if (-> e resume)
+              (block (set (-> e resume) 0)
+                     (if (not (co_backtrack e)) (return 0))))
+
+          (while 1
+            (set (-> e steps) (+ (-> e steps) 1))
+            (if (and (!= (-> e max_steps) 0) (> (-> e steps) (-> e max_steps)))
+                (return (co_fail_err e "inference limit reached")))
+            (if (-> e halted) (return 0))
+
+            ;; nothing left to prove: that is a solution
+            (if (co_k_is_empty e (-> e goals))
+                (block (set (-> e resume) 1) (return 1)))
+
+            ;; take the first goal off the continuation
+            (let ((size_t kf . #'(co_deref m (-> e goals)))
+                  (size_t g) (size_t b) (size_t k) (int ok . 1))
+              (set g (co_deref m (co_arg m kf 0)))
+              (set b (cast size_t (co-signed-payload (nth (co_deref m (co_arg m kf 1)) (-> m heap)))))
+              (set k (co_arg m kf 2))
+
+              (let ((u64 gc . #'(nth g (-> m heap))))
+                (if (co-tag-is REF gc)
+                    (return (co_fail_err e "a goal is an unbound variable")))
+                (if (not (co_is_callable m g))
+                    (return (co_fail_err e "a goal is not callable"))))
+
+              (let ((const char * name . #'(co_atom_name m (co_name_of m g)))
+                    (u32 n . #'(co_arity m g)))
+                (cond
+
+                  ;; ---- control constructs ----
+                  ((and (== n 0) (== 0 (strcmp name "true")))
+                   (set (-> e goals) k))
+
+                  ((and (== n 0) (or (== 0 (strcmp name "fail")) (== 0 (strcmp name "false"))))
+                   (set ok 0))
+
+                  ((and (== n 2) (== 0 (strcmp name ",")))
+                   (set (-> e goals)
+                        (co_k_push e (co_arg m g 0) b (co_k_push e (co_arg m g 1) b k))))
+
+                  ((and (== n 0) (== 0 (strcmp name "!")))
+                   ;; cut: the stack goes back to the barrier this goal carried
+                   (if (< b (-> e nchoices)) (set (-> e nchoices) b))
+                   (set (-> e goals) k))
+
+                  ((and (== n 1) (== 0 (strcmp name "$cut")))
+                   (let ((size_t h . #'(cast size_t (co-signed-payload
+                                                     (nth (co_deref m (co_arg m g 0)) (-> m heap))))))
+                     (if (< h (-> e nchoices)) (set (-> e nchoices) h)))
+                   (set (-> e goals) k))
+
+                  ((and (== n 2) (== 0 (strcmp name ";")))
+                   (let ((size_t l . #'(co_deref m (co_arg m g 0))))
+                     ;; (C -> T ; E) is one construct, not a disjunction whose
+                     ;; left arm happens to be an implication
+                     (if (and (co_is_callable m l) (== (co_arity m l) 2))
+                         (if (== 0 (strcmp (co_atom_name m (co_name_of m l)) "->"))
+                             (block (co_ite e (co_arg m l 0) (co_arg m l 1) (co_arg m g 1) k b)
+                                    (continue))))
+                     (if (not (co_push_choice e CO_CH_GOAL (co_arg m g 1) k b))
+                         (return (co_fail_err e "out of memory")))
+                     (set (-> e goals) (co_k_push e (co_arg m g 0) b k))))
+
+                  ((and (== n 2) (== 0 (strcmp name "->")))
+                   ;; a bare if-then fails when the condition does
+                   (co_ite e (co_arg m g 0) (co_arg m g 1) (co_new_atom m "fail") k b))
+
+                  ((and (== n 1) (or (== 0 (strcmp name "\\+")) (== 0 (strcmp name "not"))))
+                   (co_ite e (co_arg m g 0) (co_new_atom m "fail") (co_new_atom m "true") k b))
+
+                  ((and (== n 1) (== 0 (strcmp name "call")))
+                   ;; call/1 is opaque to cut: the goal runs under a barrier of
+                   ;; its own, so a `!' inside it cannot cut the caller
+                   (set (-> e goals) (co_k_push e (co_arg m g 0) (-> e nchoices) k)))
+
+                  (#t
+                   ;; ---- a builtin, or a predicate ----
+                   (let ((int found . 0) (int rc . 0))
+                     (set rc (co_builtin e name n g (aof found)))
+                     (if found
+                         (block (if (== rc -1) (return -1))
+                                (if (== rc 1) (set (-> e goals) k) (set ok 0)))
+                       ;; not a builtin: the knowledge base decides
+                       (let ((size_t pi . #'(co_pred_of st m g)))
+                         (if (>= pi ($ (cof st) npreds))
+                             (return (co_fail_err e "goal is not callable")))
+                         (co_pred_ensure st pi)
+                         (if (== 0 ($ (nth pi ($ (cof st) preds)) nclauses))
+                             (set ok 0)
+                           (block
+                            (if (not (co_push_choice e CO_CH_CLAUSE g k b))
+                                (return (co_fail_err e "out of memory")))
+                            (let ((size_t ci . #'(- (-> e nchoices) 1)))
+                              (set ($ (nth ci (-> e choices)) pred) pi)
+                              (set ($ (nth ci (-> e choices)) clause_ix) 0)
+                              (if (not (co_select_clause e ci)) (set ok 0)))))))))))
+
+              (if (not ok)
+                  (if (not (co_backtrack e)) (return 0)))))
+          (return 0)))
+
+  ;;;; ----------------------------------------------------------------
+  ;;;; Builtins
+  ;;;; ----------------------------------------------------------------
+  ;;; Each takes the engine and the goal, and answers 1 for success, 0 for
+  ;;; failure, -1 for an error with `e->err' filled in. None of them makes a
+  ;;; choice point, so none of them can succeed twice -- see the head of this
+  ;;; file for why that is a rule and not an accident.
+
+  (static) (func co_a ((co_engine * e) (size_t g) (u32 i)) (out size_t)
+                 (return (co_deref (-> e m) (co_arg (-> e m) g i))))
+
+  ;;; ---- unification and comparison ----
+
+  (func co_bi_unify ((co_engine * e) (size_t g)) (out int)
+        (return (? (co_unify (-> e m) (co_arg (-> e m) g 0) (co_arg (-> e m) g 1)) 1 0)))
+
+  ;;; `\=' must leave nothing behind: it unifies to find out, then unbinds
+  ;;; whatever that did. The trail mark is the whole implementation.
+  (func co_bi_not_unify ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t tmark . #'($ (cof (-> e m)) trail_len))
+              (int r))
+          (set r (co_unify m (co_arg m g 0) (co_arg m g 1)))
+          (co_undo_to m tmark)
+          (return (? r 0 1))))
+
+  (func co_bi_eq  ((co_engine * e) (size_t g)) (out int)
+        (return (? (== 0 (co_compare (-> e m) (co_arg (-> e m) g 0) (co_arg (-> e m) g 1))) 1 0)))
+  (func co_bi_neq ((co_engine * e) (size_t g)) (out int)
+        (return (? (!= 0 (co_compare (-> e m) (co_arg (-> e m) g 0) (co_arg (-> e m) g 1))) 1 0)))
+  (func co_bi_lt  ((co_engine * e) (size_t g)) (out int)
+        (return (? (<  (co_compare (-> e m) (co_arg (-> e m) g 0) (co_arg (-> e m) g 1)) 0) 1 0)))
+  (func co_bi_gt  ((co_engine * e) (size_t g)) (out int)
+        (return (? (>  (co_compare (-> e m) (co_arg (-> e m) g 0) (co_arg (-> e m) g 1)) 0) 1 0)))
+  (func co_bi_le  ((co_engine * e) (size_t g)) (out int)
+        (return (? (<= (co_compare (-> e m) (co_arg (-> e m) g 0) (co_arg (-> e m) g 1)) 0) 1 0)))
+  (func co_bi_ge  ((co_engine * e) (size_t g)) (out int)
+        (return (? (>= (co_compare (-> e m) (co_arg (-> e m) g 0) (co_arg (-> e m) g 1)) 0) 1 0)))
+
+  (func co_bi_compare ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (int c . #'(co_compare (-> e m) (co_arg (-> e m) g 1) (co_arg (-> e m) g 2)))
+              (const char * s))
+          (set s (? (< c 0) "<" (? (> c 0) ">" "=")))
+          (return (? (co_unify m (co_arg m g 0) (co_new_atom m s)) 1 0))))
+
+  ;;; ---- type tests ----
+
+  (func co_bi_var ((co_engine * e) (size_t g)) (out int)
+        (return (? (co-tag-is REF (nth (co_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
+  (func co_bi_nonvar ((co_engine * e) (size_t g)) (out int)
+        (return (? (co-tag-is REF (nth (co_a e g 0) ($ (cof (-> e m)) heap))) 0 1)))
+  (func co_bi_atom ((co_engine * e) (size_t g)) (out int)
+        (return (? (co-tag-is ATOM (nth (co_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
+  (func co_bi_integer ((co_engine * e) (size_t g)) (out int)
+        (return (? (co-tag-is INT (nth (co_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
+  (func co_bi_float ((co_engine * e) (size_t g)) (out int)
+        (return (? (co-tag-is FLT (nth (co_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
+  (func co_bi_number ((co_engine * e) (size_t g)) (out int)
+        (let ((u64 c . #'(nth (co_a e g 0) ($ (cof (-> e m)) heap))))
+          (return (? (or (co-tag-is INT c) (co-tag-is FLT c)) 1 0))))
+  (func co_bi_compound ((co_engine * e) (size_t g)) (out int)
+        (return (? (co-tag-is FUN (nth (co_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
+  (func co_bi_atomic ((co_engine * e) (size_t g)) (out int)
+        (let ((u64 c . #'(nth (co_a e g 0) ($ (cof (-> e m)) heap))))
+          (return (? (or (co-tag-is REF c) (co-tag-is FUN c)) 0 1))))
+  (func co_bi_callable ((co_engine * e) (size_t g)) (out int)
+        (return (co_is_callable (-> e m) (co_a e g 0))))
+
+  ;;; A proper list and nothing else: a partial list `[a|X]' is not one, and
+  ;;; neither is a cyclic term -- which is what the step limit is for.
+  (func co_bi_is_list ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t t . #'(co_a e g 0))
+              (u64 guard . 0))
+          (while 1
+            (set t (co_deref m t))
+            (let ((u64 c . #'(nth t (-> m heap))))
+              (if (co-tag-is ATOM c)
+                  (return (? (== 0 (strcmp (co_atom_name m (co_name_of m t)) "[]")) 1 0)))
+              (if (not (co-tag-is FUN c)) (return 0))
+              (if (!= (co_arity m t) 2) (return 0))
+              (if (!= 0 (strcmp (co_atom_name m (co_name_of m t)) ".")) (return 0))
+              (set t (co_arg m t 1))
+              (set guard (+ guard 1))
+              (if (> guard 10000000) (return 0))))
+          (return 0)))
+
+  ;;; ---- arithmetic ----
+
+  ;;; The names this expands under are bound by the parameter list below: that
+  ;;; is the contract `co-emit-arith-binops' documents.
+  (static)
+  (func co_arith_simple ((const char * name) (int both_int)
+                         (i64 ai) (double af) (i64 bi) (double bf)
+                         (int * isf) (i64 * iv) (double * fv)) (out int)
+        (co-emit-arith-binops))
+
+  (static)
+  (func co_arith_binary ((co_engine * e) (const char * name) (int both_int)
+                         (i64 ai) (double af) (i64 bi) (double bf)
+                         (int * isf) (i64 * iv) (double * fv)) (out int)
+        (if (co_arith_simple name both_int ai af bi bf isf iv fv) (return 1))
+        (cond
+          ;; `/' answers an integer when it divides exactly and a float when it
+          ;; does not, which is what most Prologs do and what surprises fewest
+          ;; people; `//' is always integer division.
+          ((== 0 (strcmp name "/"))
+           (if both_int
+               (block (if (== bi 0) (return (co_fail_err e "division by zero")))
+                      (if (== 0 (% ai bi))
+                          (block (set (cof iv) (/ ai bi)) (set (cof isf) 0))
+                        (block (set (cof fv) (/ (cast double ai) (cast double bi)))
+                               (set (cof isf) 1))))
+             (block (set (cof fv) (/ af bf)) (set (cof isf) 1)))
+           (return 1))
+          ((== 0 (strcmp name "//"))
+           (if (not both_int) (return (co_fail_err e "// wants two integers")))
+           (if (== bi 0) (return (co_fail_err e "division by zero")))
+           (set (cof iv) (/ ai bi)) (set (cof isf) 0) (return 1))
+          ((== 0 (strcmp name "mod"))
+           (if (not both_int) (return (co_fail_err e "mod wants two integers")))
+           (if (== bi 0) (return (co_fail_err e "division by zero")))
+           ;; mod follows the sign of the divisor, rem follows the dividend
+           (set (cof iv) (- (% ai bi) (? (and (!= (% ai bi) 0)
+                                              (< (* (% ai bi) bi) 0)) (- 0 bi) 0)))
+           (set (cof isf) 0) (return 1))
+          ((== 0 (strcmp name "rem"))
+           (if (not both_int) (return (co_fail_err e "rem wants two integers")))
+           (if (== bi 0) (return (co_fail_err e "division by zero")))
+           (set (cof iv) (% ai bi)) (set (cof isf) 0) (return 1))
+          ((== 0 (strcmp name "min"))
+           (if both_int (block (set (cof iv) (? (< ai bi) ai bi)) (set (cof isf) 0))
+             (block (set (cof fv) (? (< af bf) af bf)) (set (cof isf) 1)))
+           (return 1))
+          ((== 0 (strcmp name "max"))
+           (if both_int (block (set (cof iv) (? (> ai bi) ai bi)) (set (cof isf) 0))
+             (block (set (cof fv) (? (> af bf) af bf)) (set (cof isf) 1)))
+           (return 1))
+          ((== 0 (strcmp name "**"))
+           (set (cof fv) (pow af bf)) (set (cof isf) 1) (return 1))
+          ((== 0 (strcmp name ">>"))
+           (if (not both_int) (return (co_fail_err e ">> wants two integers")))
+           (set (cof iv) (>> ai bi)) (set (cof isf) 0) (return 1))
+          ((== 0 (strcmp name "<<"))
+           (if (not both_int) (return (co_fail_err e "<< wants two integers")))
+           (set (cof iv) (<< ai bi)) (set (cof isf) 0) (return 1))
+          (#t (return (co_fail_err e "unknown arithmetic function")))))
+
+  ;;; Evaluates an arithmetic expression. Recursive over the DEPTH of the
+  ;;; expression, which is bounded by the text that was read -- unlike the
+  ;;; resolution loop, this cannot be suspended half way and does not need to
+  ;;; be.
+  (static) (decl) (func co_arith ((co_engine * e) (size_t t)
+                                  (int * isf) (i64 * iv) (double * fv)) (out int))
+
+  (func co_arith ((co_engine * e) (size_t t) (int * isf) (i64 * iv) (double * fv)) (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (set t (co_deref m t))
+          (let ((u64 c . #'(nth t (-> m heap))))
+            (cond
+              ((co-tag-is REF c) (return (co_fail_err e "arithmetic on an unbound variable")))
+              ((co-tag-is INT c) (set (cof iv) (co-signed-payload c)) (set (cof isf) 0) (return 1))
+              ((co-tag-is FLT c)
+               (set (cof fv) (nth (cast size_t (co-payload c)) (-> m floats)))
+               (set (cof isf) 1) (return 1))
+              ((co-tag-is ATOM c)
+               (let ((const char * nm . #'(co_atom_name m (co_name_of m t))))
+                 (if (== 0 (strcmp nm "pi"))
+                     (block (set (cof fv) 3.14159265358979323846) (set (cof isf) 1) (return 1)))
+                 (if (== 0 (strcmp nm "e"))
+                     (block (set (cof fv) 2.71828182845904523536) (set (cof isf) 1) (return 1)))
+                 (return (co_fail_err e "that atom is not an arithmetic constant"))))
+              (#t
+               (let ((const char * nm . #'(co_atom_name m (co_name_of m t)))
+                     (u32 n . #'(co_arity m t)))
+                 (if (== n 1)
+                     (let ((int s0) (i64 i0) (double f0) (int rc))
+                       (set rc (co_arith e (co_arg m t 0) (aof s0) (aof i0) (aof f0)))
+                       (if (!= rc 1) (return rc))
+                       (cond
+                         ((== 0 (strcmp nm "-"))
+                          (if s0 (block (set (cof fv) (- 0.0 f0)) (set (cof isf) 1))
+                            (block (set (cof iv) (- 0 i0)) (set (cof isf) 0)))
+                          (return 1))
+                         ((== 0 (strcmp nm "+"))
+                          (if s0 (block (set (cof fv) f0) (set (cof isf) 1))
+                            (block (set (cof iv) i0) (set (cof isf) 0)))
+                          (return 1))
+                         ((== 0 (strcmp nm "abs"))
+                          (if s0 (block (set (cof fv) (fabs f0)) (set (cof isf) 1))
+                            (block (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))
+                          (return 1))
+                         ((== 0 (strcmp nm "sign"))
+                          (if s0 (block (set (cof fv) (? (> f0 0.0) 1.0 (? (< f0 0.0) -1.0 0.0)))
+                                        (set (cof isf) 1))
+                            (block (set (cof iv) (? (> i0 0) 1 (? (< i0 0) -1 0))) (set (cof isf) 0)))
+                          (return 1))
+                         ((== 0 (strcmp nm "float"))
+                          (set (cof fv) (? s0 f0 (cast double i0))) (set (cof isf) 1) (return 1))
+                         ((== 0 (strcmp nm "integer"))
+                          (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
+                         ((== 0 (strcmp nm "truncate"))
+                          (set (cof iv) (? s0 (cast i64 f0) i0)) (set (cof isf) 0) (return 1))
+                         ((== 0 (strcmp nm "sqrt"))
+                          (set (cof fv) (sqrt (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
+                         (#t (return (co_fail_err e "unknown arithmetic function")))))
+                   (if (== n 2)
+                       (let ((int s0) (i64 i0) (double f0) (int s1) (i64 i1) (double f1)
+                             (int rc) (int both))
+                         (set rc (co_arith e (co_arg m t 0) (aof s0) (aof i0) (aof f0)))
+                         (if (!= rc 1) (return rc))
+                         (set rc (co_arith e (co_arg m t 1) (aof s1) (aof i1) (aof f1)))
+                         (if (!= rc 1) (return rc))
+                         (set both (? (and (== s0 0) (== s1 0)) 1 0))
+                         ;; each operand is offered as both, and `both' says
+                         ;; which pair the operator should read
+                         (return (co_arith_binary e nm both
+                                                  i0 (? s0 f0 (cast double i0))
+                                                  i1 (? s1 f1 (cast double i1))
+                                                  isf iv fv)))
+                     (return (co_fail_err e "unknown arithmetic function"))))))))
+          (return 0)))
+
+  (func co_bi_is ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (int isf) (i64 iv) (double fv) (int rc))
+          (set rc (co_arith e (co_arg m g 1) (aof isf) (aof iv) (aof fv)))
+          (if (!= rc 1) (return rc))
+          (let ((size_t r . #'(? isf (co_new_float m fv) (co_new_int m iv))))
+            (return (? (co_unify m (co_arg m g 0) r) 1 0)))))
+
+  ;;; The six numeric comparisons. Both sides are evaluated, then compared as
+  ;;; doubles unless both stayed integers -- so 1 =:= 1.0 is true, as it must
+  ;;; be, while 1 == 1.0 is false, as it also must be.
+  (static)
+  (func co_num_cmp ((co_engine * e) (size_t g) (int * out_c)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (int s0) (i64 i0) (double f0) (int s1) (i64 i1) (double f1) (int rc))
+          (set rc (co_arith e (co_arg m g 0) (aof s0) (aof i0) (aof f0)))
+          (if (!= rc 1) (return rc))
+          (set rc (co_arith e (co_arg m g 1) (aof s1) (aof i1) (aof f1)))
+          (if (!= rc 1) (return rc))
+          (if (and (== s0 0) (== s1 0))
+              (set (cof out_c) (? (< i0 i1) -1 (? (> i0 i1) 1 0)))
+            (let ((double a . #'(? s0 f0 (cast double i0)))
+                  (double b . #'(? s1 f1 (cast double i1))))
+              (set (cof out_c) (? (< a b) -1 (? (> a b) 1 0)))))
+          (return 1)))
+
+  (func co_bi_num_eq  ((co_engine * e) (size_t g)) (out int)
+        (let ((int c) (int rc . #'(co_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
+             (return (? (== c 0) 1 0))))
+  (func co_bi_num_neq ((co_engine * e) (size_t g)) (out int)
+        (let ((int c) (int rc . #'(co_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
+             (return (? (!= c 0) 1 0))))
+  (func co_bi_num_lt  ((co_engine * e) (size_t g)) (out int)
+        (let ((int c) (int rc . #'(co_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
+             (return (? (< c 0) 1 0))))
+  (func co_bi_num_gt  ((co_engine * e) (size_t g)) (out int)
+        (let ((int c) (int rc . #'(co_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
+             (return (? (> c 0) 1 0))))
+  (func co_bi_num_le  ((co_engine * e) (size_t g)) (out int)
+        (let ((int c) (int rc . #'(co_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
+             (return (? (<= c 0) 1 0))))
+  (func co_bi_num_ge  ((co_engine * e) (size_t g)) (out int)
+        (let ((int c) (int rc . #'(co_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
+             (return (? (>= c 0) 1 0))))
+
+  ;;; ---- term construction and inspection ----
+
+  (func co_bi_functor ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t t . #'(co_a e g 0)))
+          (let ((u64 c . #'(nth t (-> m heap))))
+            (if (not (co-tag-is REF c))
+                ;; taking a term apart
+                (let ((size_t nm) (size_t ar))
+                  (if (co-tag-is FUN c)
+                      (block (set nm (co_new_atom m (co_atom_name m (co_name_of m t))))
+                             (set ar (co_new_int m (cast i64 (co_arity m t)))))
+                    (block (set nm (co_push m c))
+                           (set ar (co_new_int m 0))))
+                  (if (not (co_unify m (co_arg m g 1) nm)) (return 0))
+                  (return (? (co_unify m (co_arg m g 2) ar) 1 0)))))
+          ;; building one: name and arity must both be given
+          (let ((size_t nt . #'(co_a e g 1))
+                (size_t at . #'(co_a e g 2)))
+            (if (not (co-tag-is INT (nth at (-> m heap))))
+                (return (co_fail_err e "functor/3 needs the arity")))
+            (let ((i64 n . #'(co-signed-payload (nth at (-> m heap)))))
+              (if (< n 0) (return (co_fail_err e "functor/3 wants an arity of 0 or more")))
+              (if (== n 0) (return (? (co_unify m (co_arg m g 0) nt) 1 0)))
+              (if (not (co-tag-is ATOM (nth nt (-> m heap))))
+                  (return (co_fail_err e "functor/3 needs an atom name")))
+              (let ((size_t h . #'(co_open_struct m (co_atom_name m (co_name_of m nt))
+                                                 (cast u32 n))))
+                (for ((i64 i . 0)) (< i n) ((++ i)) (co_new_var m))
+                (return (? (co_unify m (co_arg m g 0) h) 1 0)))))))
+
+  (func co_bi_arg ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t it . #'(co_a e g 0))
+              (size_t t . #'(co_a e g 1)))
+          (if (not (co-tag-is INT (nth it (-> m heap))))
+              (return (co_fail_err e "arg/3 needs the argument number")))
+          (if (not (co-tag-is FUN (nth t (-> m heap)))) (return 0))
+          (let ((i64 i . #'(co-signed-payload (nth it (-> m heap))))
+                (u32 n . #'(co_arity m t)))
+            (if (or (< i 1) (> i (cast i64 n))) (return 0))
+            (return (? (co_unify m (co_arg m g 2) (co_arg m t (cast u32 (- i 1)))) 1 0)))))
+
+  ;;; `=..' both ways. Taking apart is a walk; building needs the list to be
+  ;;; proper, which is checked as it is walked rather than beforehand.
+  (func co_bi_univ ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t t . #'(co_a e g 0)))
+          (let ((u64 c . #'(nth t (-> m heap))))
+            (if (not (co-tag-is REF c))
+                (let ((size_t lst . #'(co_new_atom m "[]")))
+                  (if (co-tag-is FUN c)
+                      (block (let ((u32 n . #'(co_arity m t)) (u32 i))
+                               (set i n)
+                               (while (> i 0)
+                                 (set i (- i 1))
+                                 (set lst (co_cons m (co_arg m t i) lst))))
+                             (set lst (co_cons m (co_new_atom m (co_atom_name m (co_name_of m t))) lst)))
+                    (set lst (co_cons m (co_push m c) lst)))
+                  (return (? (co_unify m (co_arg m g 1) lst) 1 0)))))
+          ;; building from a list
+          (let ((size_t lst . #'(co_a e g 1))
+                (size_t * items . nil) (size_t n . 0) (size_t cap . 0) (int ok . 1))
+            (while 1
+              (set lst (co_deref m lst))
+              (let ((u64 c . #'(nth lst (-> m heap))))
+                (if (co-tag-is ATOM c)
+                    (block (if (!= 0 (strcmp (co_atom_name m (co_name_of m lst)) "[]"))
+                               (set ok 0))
+                           break))
+                (if (not (co-tag-is FUN c)) (block (set ok 0) break))
+                (if (!= 0 (strcmp (co_atom_name m (co_name_of m lst)) ".")) (block (set ok 0) break))
+                (if (>= n cap)
+                    (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
+                      (set items (cast (size_t *) (realloc items (* ncap (sizeof size_t)))))
+                      (if (== items nil) (block (set ok 0) break))
+                      (set cap ncap)))
+                (set (nth n items) (co_arg m lst 0))
+                (set n (+ n 1))
+                (set lst (co_arg m lst 1))))
+            (if (or (not ok) (== n 0))
+                (block (free items) (return (co_fail_err e "=.. wants a proper non-empty list"))))
+            (let ((size_t hd . #'(co_deref m (nth 0 items))) (size_t built))
+              (if (== n 1)
+                  (set built (co_push m (nth hd (-> m heap))))
+                (block
+                 (if (not (co-tag-is ATOM (nth hd (-> m heap))))
+                     (block (free items) (return (co_fail_err e "=.. wants an atom at the head"))))
+                 (set built (co_make m (co_atom_name m (co_name_of m hd)) (cast u32 (- n 1))
+                                     (+ items 1)))))
+              (free items)
+              (return (? (co_unify m (co_arg m g 0) built) 1 0))))))
+
+  (func co_bi_copy_term ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t c . #'(co_copy (-> e m) (co_arg (-> e m) g 0))))
+          (return (? (co_unify m (co_arg m g 1) c) 1 0))))
+
+  ;;; ---- atoms and text ----
+
+  ;;; The printed form of a term, into B. Used by the atom builtins, which are
+  ;;; all "write it, then do something with the characters".
+  (static)
+  (func co_text_of ((co_engine * e) (size_t t) (co_strbuf * b)) (out int)
+        (co_sb_init b)
+        (return (co_write_term (-> e m) b t 0 0)))
+
+  (func co_bi_atom_length ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t t . #'(co_a e g 0))
+              (co_strbuf b) (int r))
+          (if (co-tag-is REF (nth t (-> m heap)))
+              (return (co_fail_err e "atom_length/2 needs its first argument")))
+          (co_text_of e t (aof b))
+          (set r (co_unify m (co_arg m g 1) (co_new_int m (cast i64 ($ b len)))))
+          (co_sb_free (aof b))
+          (return (? r 1 0))))
+
+  (static)
+  (func co_codes_of ((co_engine * e) (const char * s) (size_t n)) (out size_t)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t lst . #'(co_new_atom (-> e m) "[]")))
+          (while (> n 0)
+            (set n (- n 1))
+            (set lst (co_cons m (co_new_int m (cast i64 (cast uchar (nth n s)))) lst)))
+          (return lst)))
+
+  ;;; Collects a code list into B. Answers 0 if it is not a proper list of
+  ;;; character codes.
+  (static)
+  (func co_codes_to_text ((co_engine * e) (size_t lst) (co_strbuf * b)) (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (co_sb_init b)
+          (while 1
+            (set lst (co_deref m lst))
+            (let ((u64 c . #'(nth lst (-> m heap))))
+              (if (co-tag-is ATOM c)
+                  (return (? (== 0 (strcmp (co_atom_name m (co_name_of m lst)) "[]")) 1 0)))
+              (if (not (co-tag-is FUN c)) (return 0))
+              (if (!= (co_arity m lst) 2) (return 0))
+              (if (!= 0 (strcmp (co_atom_name m (co_name_of m lst)) ".")) (return 0))
+              (let ((size_t h . #'(co_deref m (co_arg m lst 0))))
+                (if (not (co-tag-is INT (nth h (-> m heap)))) (return 0))
+                (co_sb_putc b (cast char (co-signed-payload (nth h (-> m heap))))))
+              (set lst (co_arg m lst 1))))
+          (return 0)))
+
+  (func co_bi_atom_codes ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t t . #'(co_a e g 0)))
+          (if (not (co-tag-is REF (nth t (-> m heap))))
+              (let ((co_strbuf b) (int r))
+                (co_text_of e t (aof b))
+                (set r (co_unify m (co_arg m g 1) (co_codes_of e ($ b s) ($ b len))))
+                (co_sb_free (aof b))
+                (return (? r 1 0))))
+          (let ((co_strbuf b) (int r))
+            (if (not (co_codes_to_text e (co_arg m g 1) (aof b)))
+                (block (co_sb_free (aof b))
+                       (return (co_fail_err e "atom_codes/2 needs one side given"))))
+            (set r (co_unify m (co_arg m g 0)
+                             (co_new_atom m (? (== ($ b s) nil) "" ($ b s)))))
+            (co_sb_free (aof b))
+            (return (? r 1 0)))))
+
+  (func co_bi_number_codes ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t t . #'(co_a e g 0)))
+          (if (not (co-tag-is REF (nth t (-> m heap))))
+              (let ((co_strbuf b) (int r))
+                (co_text_of e t (aof b))
+                (set r (co_unify m (co_arg m g 1) (co_codes_of e ($ b s) ($ b len))))
+                (co_sb_free (aof b))
+                (return (? r 1 0))))
+          (let ((co_strbuf b) (size_t num) (int r))
+            (if (not (co_codes_to_text e (co_arg m g 1) (aof b)))
+                (block (co_sb_free (aof b))
+                       (return (co_fail_err e "number_codes/2 needs one side given"))))
+            ;; the reader is what decides what a number looks like, so it is
+            ;; the reader that reads it back -- there is no second parser here
+            (if (not (co_read_term_from m (? (== ($ b s) nil) "" ($ b s)) (aof num)))
+                (block (co_sb_free (aof b)) (return 0)))
+            (co_sb_free (aof b))
+            (let ((u64 c . #'(nth (co_deref m num) (-> m heap))))
+              (if (not (or (co-tag-is INT c) (co-tag-is FLT c))) (return 0)))
+            (set r (co_unify m (co_arg m g 0) num))
+            (return (? r 1 0)))))
+
+  (func co_bi_atom_concat ((co_engine * e) (size_t g)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (size_t a . #'(co_a e g 0))
+              (size_t b . #'(co_a e g 1)))
+          (if (or (co-tag-is REF (nth a (-> m heap))) (co-tag-is REF (nth b (-> m heap))))
+              (return (co_fail_err e "atom_concat/3 needs its first two arguments")))
+          (let ((co_strbuf ab) (co_strbuf bb) (int r))
+            (co_text_of e a (aof ab))
+            (co_text_of e b (aof bb))
+            (if (!= ($ bb s) nil) (co_sb_put (aof ab) ($ bb s)))
+            (set r (co_unify m (co_arg m g 2)
+                             (co_new_atom m (? (== ($ ab s) nil) "" ($ ab s)))))
+            (co_sb_free (aof ab))
+            (co_sb_free (aof bb))
+            (return (? r 1 0)))))
+
+  ;;; ---- output ----
+
+  (func co_bi_write ((co_engine * e) (size_t g)) (out int)
+        (co_print_term (-> e m) stdout (co_arg (-> e m) g 0))
+        (return 1))
+
+  (func co_bi_writeln ((co_engine * e) (size_t g)) (out int)
+        (co_print_term (-> e m) stdout (co_arg (-> e m) g 0))
+        (fputc 10 stdout)
+        (return 1))
+
+  (func co_bi_write_canonical ((co_engine * e) (size_t g)) (out int)
+        (let ((co_strbuf b))
+          (co_sb_init (aof b))
+          (co_write_canonical (-> e m) (aof b) (co_arg (-> e m) g 0))
+          (if (!= ($ b s) nil) (fputs ($ b s) stdout))
+          (co_sb_free (aof b))
+          (return 1)))
+
+  (func co_bi_nl ((co_engine * e) (size_t g)) (out int)
+        (fputc 10 stdout)
+        (return 1))
+
+  ;;; ---- the database ----
+
+  (func co_bi_asserta ((co_engine * e) (size_t g)) (out int)
+        (return (? (co_assert (-> e st) (-> e m) (co_arg (-> e m) g 0) 0) 1 0)))
+
+  (func co_bi_assertz ((co_engine * e) (size_t g)) (out int)
+        (return (? (co_assert (-> e st) (-> e m) (co_arg (-> e m) g 0) 1) 1 0)))
+
+  (func co_bi_retract ((co_engine * e) (size_t g)) (out int)
+        (return (? (co_retract (-> e st) (-> e m) (co_arg (-> e m) g 0)) 1 0)))
+
+  (func co_bi_halt ((co_engine * e) (size_t g)) (out int)
+        (set (-> e halted) 1)
+        (return 1))
+
+  (func co_choice_restore ((co_engine * e) (int kind) (size_t goals)
+                           (size_t trail_mark) (size_t heap_mark) (size_t call)
+                           (size_t clause_ix) (size_t barrier)
+                           (const char * pred_name) (u32 pred_arity)) (out int)
+        (if (not (co_eng_grow e (+ (-> e nchoices) 1))) (return 0))
+        (let ((co_choice * c . #'(aof (nth (-> e nchoices) (-> e choices)))))
+          (memset c 0 (sizeof co_choice))
+          (set (-> c kind) kind)
+          (set (-> c goals) goals)
+          (set (-> c trail_mark) trail_mark)
+          (set (-> c heap_mark) heap_mark)
+          (set (-> c call) call)
+          (set (-> c clause_ix) clause_ix)
+          (set (-> c barrier) barrier)
+          (if (== kind CO_CH_CLAUSE)
+              (let ((size_t pi . #'(co_pred_intern (-> e st)
+                                                   (co_intern (-> e m) pred_name)
+                                                   pred_arity)))
+                (if (>= pi ($ (cof (-> e st)) npreds)) (return 0))
+                ;; ask the backend for this predicate NOW rather than when the
+                ;; frame is next tried: `clause_ix' is a position in its clause
+                ;; list, and a list that has not been fetched yet is empty
+                (co_pred_ensure (-> e st) pi)
+                (set (-> c pred) pi)))
+          (set (-> e nchoices) (+ (-> e nchoices) 1))
+          (return 1)))
+
+  ;;; The dispatcher comes last because it names every builtin above it, and a
+  ;;; call needs the definition to have been seen.
+  (co-emit-builtin-dispatch)
+
+  ) ; impl-solve

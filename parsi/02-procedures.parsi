@@ -1,0 +1,241 @@
+-- ---------------------------------------------------------------------------
+-- cocolog, step 2: the procedures a client calls.
+--
+-- This is the whole interface between the interpreter and the database. The
+-- interpreter's knowledge-base backend calls these and nothing else, which is
+-- what lets the same interpreter run against a local store, against this over
+-- the binary protocol, or against the pages in step 3 over HTTP.
+--
+-- EVERY CURSOR CARRIES WHAT IT NEEDS TO BE ORDERED. A SELECT is a cursor and
+-- the rows arrive in whatever order the storage engine has them; clause order
+-- is part of the meaning of a Prolog program, so `ordinal' and `seq' are
+-- selected as columns and the client sorts on them. Doing it here would need
+-- an ORDER BY the language does not have, and sorting a handful of rows client
+-- side costs nothing.
+-- ---------------------------------------------------------------------------
+
+-- Adds one clause at the end of a predicate. The caller supplies the ordinal,
+-- because the caller is the one that knows whether this is an assertz at the
+-- end or an asserta at the front.
+PROCEDURE cocolog::assert_clause(p_kb AS String, p_name AS String, p_arity AS Int,
+                                 p_ordinal AS Long, p_body AS Text)
+RETURNS Long
+REQUIRES cocolog::clauses, cocolog::clauses_seq
+BEGIN
+    DECLARE id AS Long = cocolog::clauses_seq::NEXT();
+    INSERT INTO cocolog::clauses VALUES (id, p_kb, p_name, p_arity, p_ordinal, p_body);
+    RETURN id;
+END
+
+-- The clauses of one predicate, as a cursor of (ordinal, text). This is the
+-- call the interpreter's `fetch' hook makes the first time a predicate is
+-- reached: everything above it in the interpreter knows only that clauses
+-- arrived from somewhere.
+PROCEDURE cocolog::clauses_of(p_kb AS String, p_name AS String, p_arity AS Int)
+RETURNS Void
+REQUIRES cocolog::clauses
+BEGIN
+    SELECT ordinal, body
+    FROM cocolog::clauses
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+END
+
+-- How many clauses a predicate has, without moving any of them. Cheap enough
+-- to be worth having: a client deciding whether a predicate exists at all does
+-- not need the text.
+PROCEDURE cocolog::clause_count(p_kb AS String, p_name AS String, p_arity AS Int)
+RETURNS Long
+REQUIRES cocolog::clauses
+BEGIN
+    DECLARE total AS Long = 0;
+    SELECT total = total + 1
+    FROM cocolog::clauses
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+    RETURN total;
+END
+
+-- Every predicate in a knowledge base, as (name, arity, count). What a REPL
+-- lists, and what a machine about to resume uses to warm its store.
+PROCEDURE cocolog::predicates(p_kb AS String)
+RETURNS Void
+REQUIRES cocolog::clauses
+BEGIN
+    SELECT name, arity, ordinal
+    FROM cocolog::clauses
+    WHERE kb == p_kb;
+END
+
+-- Removes a predicate outright. Answers how many clauses went.
+PROCEDURE cocolog::forget(p_kb AS String, p_name AS String, p_arity AS Int)
+RETURNS Long
+REQUIRES cocolog::clauses
+BEGIN
+    DECLARE total AS Long = 0;
+    SELECT total = total + 1
+    FROM cocolog::clauses
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+
+    DELETE FROM cocolog::clauses
+    WHERE kb == p_kb AND name == p_name AND arity == p_arity;
+
+    RETURN total;
+END
+
+-- Empties a whole knowledge base. Used by the tests, which want a clean one.
+PROCEDURE cocolog::forget_all(p_kb AS String)
+RETURNS Long
+REQUIRES cocolog::clauses
+BEGIN
+    DECLARE total AS Long = 0;
+    SELECT total = total + 1 FROM cocolog::clauses WHERE kb == p_kb;
+    DELETE FROM cocolog::clauses WHERE kb == p_kb;
+    RETURN total;
+END
+
+-- ---------------------------------------------------------------------------
+-- Suspended machines
+-- ---------------------------------------------------------------------------
+
+-- Registers a machine and answers its id. The state chunks go in afterwards,
+-- against that id, which is why this is two calls and not one: the state does
+-- not fit in a single Text.
+PROCEDURE cocolog::machine_open(p_name AS String, p_kb AS String,
+                                p_status AS String, p_chunks AS Int, p_note AS String)
+RETURNS Long
+REQUIRES cocolog::machines, cocolog::machines_seq, cocolog::machine_state
+BEGIN
+    -- A machine name is unique, so saving over an existing one has to clear
+    -- what was there first -- otherwise the old chunks stay behind and a
+    -- loader reassembles a machine out of two different ones.
+    DECLARE old AS Long = 0;
+    SELECT old = id FROM cocolog::machines WHERE name == p_name;
+    IF old > 0 BEGIN
+        DELETE FROM cocolog::machine_state WHERE machine_id == old;
+        DELETE FROM cocolog::machines WHERE id == old;
+    END
+
+    DECLARE id AS Long = cocolog::machines_seq::NEXT();
+    INSERT INTO cocolog::machines VALUES (id, p_name, p_kb, p_status, p_chunks, p_note);
+    RETURN id;
+END
+
+PROCEDURE cocolog::machine_chunk(p_machine_id AS Long, p_seq AS Int, p_chunk AS Text)
+RETURNS Long
+REQUIRES cocolog::machine_state, cocolog::machine_state_seq
+BEGIN
+    DECLARE id AS Long = cocolog::machine_state_seq::NEXT();
+    INSERT INTO cocolog::machine_state VALUES (id, p_machine_id, p_seq, p_chunk);
+    RETURN id;
+END
+
+-- The header of one machine: id, kb, status, chunks. A loader reads this,
+-- then asks for the chunks.
+PROCEDURE cocolog::machine_find(p_name AS String)
+RETURNS Void
+REQUIRES cocolog::machines
+BEGIN
+    SELECT id, kb, status, chunks FROM cocolog::machines WHERE name == p_name;
+END
+
+-- The state of one machine, as (seq, chunk). Sorted by the client on `seq'.
+PROCEDURE cocolog::machine_load(p_machine_id AS Long)
+RETURNS Void
+REQUIRES cocolog::machine_state
+BEGIN
+    SELECT seq, chunk FROM cocolog::machine_state WHERE machine_id == p_machine_id;
+END
+
+PROCEDURE cocolog::machine_list(p_kb AS String)
+RETURNS Void
+REQUIRES cocolog::machines
+BEGIN
+    SELECT name, status, chunks FROM cocolog::machines WHERE kb == p_kb;
+END
+
+PROCEDURE cocolog::machine_drop(p_name AS String)
+RETURNS Long
+REQUIRES cocolog::machines, cocolog::machine_state
+BEGIN
+    -- `found' rather than `id', because `SELECT id = id' would be the column
+    -- assigned to itself and the variable would stay 0.
+    DECLARE found AS Long = 0;
+    SELECT found = id FROM cocolog::machines WHERE name == p_name;
+    IF found > 0 BEGIN
+        DELETE FROM cocolog::machine_state WHERE machine_id == found;
+        DELETE FROM cocolog::machines WHERE id == found;
+    END
+    RETURN found;
+END
+
+-- ---------------------------------------------------------------------------
+-- Claiming
+-- ---------------------------------------------------------------------------
+
+-- Takes one suspended machine and marks it as this worker's, atomically.
+--
+-- THIS IS WHAT MAKES SEVERAL INTERPRETERS A SCHEDULER RATHER THAN A RACE. Two
+-- workers that both load the same machine, both advance it and both save it
+-- produce one machine that has lost half its work, and nothing anywhere says
+-- so. The claim and the status change happen inside one transaction, so at
+-- most one worker leaves this procedure holding a given name.
+--
+-- A CLAIM IS NOT A LEASE. A worker that dies between claiming and saving
+-- leaves the machine marked as its own and nothing will pick it up again;
+-- `cocolog::machine_release' is how a supervisor puts one back. A lease with
+-- an expiry would be the real answer and would need a clock in the schema.
+PROCEDURE cocolog::machine_claim(p_kb AS String, p_worker AS String)
+RETURNS String
+REQUIRES cocolog::machines
+BEGIN
+    DECLARE found AS String = '';
+    DECLARE idle  AS String = 'suspended';
+    DECLARE empty AS String = '';
+
+    SELECT found = name
+    FROM cocolog::machines
+    WHERE kb == p_kb AND status == idle;
+
+    -- `<>' is Parsi's not-equal; `!=' is not an operator here.
+    IF found <> empty BEGIN
+        UPDATE cocolog::machines
+        SET status = p_worker
+        WHERE name == found;
+    END
+
+    RETURN found;
+END
+
+-- Puts a machine back in the queue, whatever claimed it.
+PROCEDURE cocolog::machine_release(p_name AS String)
+RETURNS Long
+REQUIRES cocolog::machines
+BEGIN
+    DECLARE idle AS String = 'suspended';
+    UPDATE cocolog::machines SET status = idle WHERE name == p_name;
+    RETURN 1;
+END
+
+-- Claims ONE NAMED machine, if it is idle. What the group test needs: two
+-- interpreters taking turns on the same machine, and two other interpreters
+-- doing the same on a different one, all four at once. Claiming by name rather
+-- than by whatever is free is what keeps a group on its own state.
+PROCEDURE cocolog::machine_claim_named(p_name AS String, p_worker AS String)
+RETURNS String
+REQUIRES cocolog::machines
+BEGIN
+    DECLARE found AS String = '';
+    DECLARE idle  AS String = 'suspended';
+    DECLARE empty AS String = '';
+
+    SELECT found = name
+    FROM cocolog::machines
+    WHERE name == p_name AND status == idle;
+
+    IF found <> empty BEGIN
+        UPDATE cocolog::machines
+        SET status = p_worker
+        WHERE name == found;
+    END
+
+    RETURN found;
+END

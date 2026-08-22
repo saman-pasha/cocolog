@@ -1,0 +1,344 @@
+;;;; cocolog against Zigurat -- a shared knowledge base, and a machine that
+;;;; moves between interpreters
+;;;
+;;; THIS IS THE CLAIM THE WHOLE PROJECT IS FOR, so it is worth saying exactly
+;;; what is being shown and what would be easy to fake.
+;;;
+;;;   A knowledge base is written by one interpreter and READ BY ANOTHER that
+;;;   was never told what is in it. The second machine is built from nothing,
+;;;   given only a connection and the name of the knowledge base, and asked a
+;;;   question; the clauses arrive because the store's fetch hook goes and gets
+;;;   them, one predicate at a time, as the proof reaches them.
+;;;
+;;;   A machine is suspended MID-PROOF into the database and finished by a
+;;;   different machine. The first one is freed -- not merely dropped, freed --
+;;;   before the second is built, so nothing can be shared by accident, and the
+;;;   second one's knowledge base is fetched from the database rather than
+;;;   consulted from text.
+;;;
+;;; It SKIPS when there is no server, because "no server here" and "the backend
+;;; is wrong" are different findings.
+;;;
+;;; What it needs:
+;;;   ZIGURATIP_HOME pointing at a built ZiguratIP home
+;;;   sh cocolog/build.sh    (the Parsi objects)
+;;;   a server on 2160
+
+(source "shared.c"
+  (make :std #t
+        :compile ("-I../client"
+                  "-c" "shared.c")
+        :link ("-lshared.o"
+               "-L../build"
+               "-lcocologc" "-lm" "-o" "cocolog_shared_test"))
+
+  (include <math.h>)
+  (include <zigurat.h>)
+  (include <zeytun.h>)
+
+  (import "../lib/zigurat.cicili" :zg)
+  (import "../lib/zeytun.cicili" :zt)
+  (import "../lib/term.cicili")
+  (import "../lib/syntax.cicili")
+  (import "../lib/kb.cicili")
+  (import "../lib/solve.cicili")
+  (import "../lib/state.cicili")
+  (import "../lib/zigurat-kb.cicili")
+  (import "../lib/zeytun-kb.cicili")
+
+  (decl-term)   (impl-term)
+  (decl-syntax) (impl-syntax)
+  (decl-kb)     (impl-kb)
+  (decl-solve)  (impl-solve)
+  (decl-state)  (impl-state)
+  (decl-zigurat-kb) (impl-zigurat-kb)
+  (decl-zeytun-kb)  (impl-zeytun-kb)
+
+  (var int failures . 0)
+  (var int checks . 0)
+
+  (func check ((const char * what) (llong got) (llong want))
+        (set checks (+ checks 1))
+        (if (== got want)
+            (printf "ok   %-48s %lld\n" what got)
+          (block (printf "FAIL %-48s got %lld want %lld\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  (func check_str ((const char * what) (const char * got) (const char * want))
+        (set checks (+ checks 1))
+        (if (== 0 (strcmp got want))
+            (printf "ok   %-48s %s\n" what got)
+          (block (printf "FAIL %-48s got [%s] want [%s]\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  ;; Counts the solutions of GOAL.
+  (func count ((co_engine * e) (const char * goal) (int limit)) (out int)
+        (let ((int n . 0) (int rc . 1))
+          (if (not (co_engine_ask_text e goal)) (return -1))
+          (while 1
+            (set rc (co_engine_next e))
+            (if (== rc -1) (return -1))
+            (if (== rc 0) break)
+            (set n (+ n 1))
+            (if (>= n limit) break))
+          (return n)))
+
+  (func main ()
+    (let ((char err [512])
+          (zg_conn * db . nil)
+          (const char * host . #'(? (== (getenv "ZIGURAT_HOST") nil)
+                                    "127.0.0.1" (getenv "ZIGURAT_HOST")))
+          (const char * port . #'(? (== (getenv "ZIGURAT_PORT") nil)
+                                    "2160" (getenv "ZIGURAT_PORT")))
+          (const char * KB . "shared_test"))
+      (set (nth 0 err) (cast char 0))
+      (set db (zg_open host port 20 err (sizeof err)))
+      (if (== db nil)
+          (block (printf "SKIP no Zigurat server at %s:%s (%s)\n" host port err)
+                 (return 0)))
+      (printf "connected to %s:%s, knowledge base '%s'\n\n" host port KB)
+
+      ;; =================================================================
+      ;; The first interpreter: it writes the knowledge base.
+      ;; =================================================================
+      (let ((co_machine m1) (co_store st1) (co_engine e1) (co_zg z1)
+            (char err2 [256]))
+        (co_machine_init (aof m1))
+        (co_store_init (aof st1))
+        (co_engine_init (aof e1) (aof m1) (aof st1))
+        (set ($ e1 max_steps) 5000000)
+        (co_zg_attach (aof z1) db (aof m1) (aof st1) KB)
+
+        ;; start from an empty knowledge base, so the run is repeatable
+        (let ((i64 gone . 0))
+          (if (zg_call db "cocolog::forget_all")
+              (block (zg_write_string db KB)
+                     (let ((zg_result_t r) (char cols [256]))
+                       (while 1
+                         (if (not (zg_result db (aof r))) break)
+                         (if (== r ZG_SUCCESSFUL_DONE) break)
+                         (if (== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
+                         (if (== r ZG_RETURN_VALUE) (zg_read_long db (aof gone) nil))))))
+          (printf "     cleared %lld clause(s) from a previous run\n" (cast llong gone)))
+
+        ;; Consulting fills the local store AND, because write-through is on,
+        ;; the database. Nothing in `co_consult' knows about the database: it
+        ;; asserts, and asserting calls the hook.
+        (check "the first interpreter consulted a program"
+               (cast llong (> (co_consult (aof st1) (aof m1)
+                 "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
+                 err2 (sizeof err2)) 0)) 1)
+        (check "and a second batch"
+               (cast llong (> (co_consult (aof st1) (aof m1)
+                 "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
+                 err2 (sizeof err2)) 0)) 1)
+
+        (check "it can prove things locally"
+               (cast llong (count (aof e1) "ancestor(tom,X)" 100)) 5)
+
+        (check "committed the knowledge base" (cast llong (zg_commit db)) 1)
+
+        (co_engine_free (aof e1))
+        (co_store_free (aof st1))
+        (co_machine_free (aof m1)))
+
+      ;; =================================================================
+      ;; A second interpreter, built from nothing, that was never told the
+      ;; program. Every clause it uses is fetched from the database as the
+      ;; proof reaches it.
+      ;; =================================================================
+      (let ((co_machine m2) (co_store st2) (co_engine e2) (co_zg z2))
+        (co_machine_init (aof m2))
+        (co_store_init (aof st2))
+        (co_engine_init (aof e2) (aof m2) (aof st2))
+        (set ($ e2 max_steps) 5000000)
+        (co_zg_attach (aof z2) db (aof m2) (aof st2) KB)
+
+        (check "a fresh interpreter starts with nothing"
+               (cast llong ($ st2 npreds)) 0)
+
+        (check "and answers from the shared knowledge base"
+               (cast llong (count (aof e2) "ancestor(tom,X)" 100)) 5)
+
+        (check "having fetched the predicates it needed"
+               (cast llong (> ($ st2 npreds) 0)) 1)
+
+        (check "a predicate that is not there just fails"
+               (cast llong (count (aof e2) "no_such_predicate(1)" 10)) 0)
+
+        (co_engine_free (aof e2))
+        (co_store_free (aof st2))
+        (co_machine_free (aof m2)))
+
+      ;; =================================================================
+      ;; A machine suspended mid-proof by one interpreter and finished by
+      ;; another.
+      ;; =================================================================
+      (let ((co_machine m3) (co_store st3) (co_engine e3) (co_zg z3)
+            (int rc . 0))
+        (co_machine_init (aof m3))
+        (co_store_init (aof st3))
+        (co_engine_init (aof e3) (aof m3) (aof st3))
+        (set ($ e3 max_steps) 5000000)
+        (co_zg_attach (aof z3) db (aof m3) (aof st3) KB)
+
+        (if (not (co_engine_ask_text (aof e3) "ancestor(tom,X)"))
+            (block (printf "FAIL could not ask\n") (set failures (+ failures 1))))
+        (set rc (co_engine_next (aof e3)))
+        (check "the third interpreter found one solution" (cast llong rc) 1)
+        (check "and is holding choice points" (cast llong (> ($ e3 nchoices) 0)) 1)
+
+        (check "suspended itself into the database"
+               (cast llong (co_zg_save (aof z3) (aof e3) "half-done"
+                                       "stopped after the first answer")) 1)
+        (check "and committed" (cast llong (zg_commit db)) 1)
+
+        ;; everything the third interpreter had is now gone
+        (co_engine_free (aof e3))
+        (co_store_free (aof st3))
+        (co_machine_free (aof m3)))
+
+      (let ((co_machine m4) (co_store st4) (co_engine e4) (co_zg z4)
+            (int n . 0) (int rc . 1))
+        (co_machine_init (aof m4))
+        (co_store_init (aof st4))
+        (co_engine_init (aof e4) (aof m4) (aof st4))
+        ;; only the connection and the name of the knowledge base
+        (co_zg_attach (aof z4) db (aof m4) (aof st4) KB)
+
+        (check "a fourth interpreter picked the machine up"
+               (cast llong (co_zg_load (aof z4) (aof e4) (aof m4) (aof st4) "half-done")) 1)
+        (if (== 0 (strlen ($ z4 err))) (block) (printf "     %s\n" ($ z4 err)))
+
+        (check "it came back holding the choice points"
+               (cast llong (> ($ e4 nchoices) 0)) 1)
+
+        ;; and now finish the proof the third interpreter started
+        (while 1
+          (set rc (co_engine_next (aof e4)))
+          (if (!= rc 1) break)
+          (set n (+ n 1))
+          (if (> n 20) break))
+        (check "and finished the proof the third one started" (cast llong n) 4)
+        (check "then ran out cleanly" (cast llong rc) 0)
+
+        (co_zg_drop (aof z4) "half-done")
+        (zg_commit db)
+        (co_engine_free (aof e4))
+        (co_store_free (aof st4))
+        (co_machine_free (aof m4)))
+
+      ;; =================================================================
+      ;; The same knowledge base, read over HTTP. This interpreter never
+      ;; opens a socket to 2160: it talks to Zeytun's pages on 2190, and the
+      ;; only thing that differs is which function the store's one hook
+      ;; points at.
+      ;; =================================================================
+      (let ((co_machine m7) (co_store st7) (co_engine e7) (co_zt z7)
+            (const char * hport . #'(? (== (getenv "ZEYTUN_PORT") nil)
+                                       "2190" (getenv "ZEYTUN_PORT"))))
+        (co_machine_init (aof m7))
+        (co_store_init (aof st7))
+        (co_engine_init (aof e7) (aof m7) (aof st7))
+        (set ($ e7 max_steps) 5000000)
+        (co_zt_attach (aof z7) host hport (aof m7) (aof st7) KB)
+
+        (check "an interpreter reading over HTTP starts with nothing"
+               (cast llong ($ st7 npreds)) 0)
+        (check "and answers from the same knowledge base"
+               (cast llong (count (aof e7) "ancestor(tom,X)" 100)) 5)
+        (if (> (strlen ($ z7 err)) 0) (printf "     %s\n" ($ z7 err)))
+
+        (co_engine_free (aof e7))
+        (co_store_free (aof st7))
+        (co_machine_free (aof m7)))
+
+      ;; =================================================================
+      ;; And a machine written over the binary protocol, picked up over HTTP.
+      ;; =================================================================
+      (let ((co_machine m8) (co_store st8) (co_engine e8) (co_zg z8) (int rc))
+        (co_machine_init (aof m8))
+        (co_store_init (aof st8))
+        (co_engine_init (aof e8) (aof m8) (aof st8))
+        (set ($ e8 max_steps) 5000000)
+        (co_zg_attach (aof z8) db (aof m8) (aof st8) KB)
+        (co_engine_ask_text (aof e8) "ancestor(tom,X)")
+        (set rc (co_engine_next (aof e8)))
+        (check "a machine stopped for the HTTP reader" (cast llong rc) 1)
+        (check "saved over the binary protocol"
+               (cast llong (co_zg_save (aof z8) (aof e8) "http-pickup"
+                                       "for the HTTP reader")) 1)
+        (zg_commit db)
+        (co_engine_free (aof e8))
+        (co_store_free (aof st8))
+        (co_machine_free (aof m8)))
+
+      (let ((co_machine m9) (co_store st9) (co_engine e9) (co_zt z9)
+            (int n . 0) (int rc . 1)
+            (const char * hport . #'(? (== (getenv "ZEYTUN_PORT") nil)
+                                       "2190" (getenv "ZEYTUN_PORT"))))
+        (co_machine_init (aof m9))
+        (co_store_init (aof st9))
+        (co_engine_init (aof e9) (aof m9) (aof st9))
+        (co_zt_attach (aof z9) host hport (aof m9) (aof st9) KB)
+
+        (check "picked it up over HTTP"
+               (cast llong (co_zt_load (aof z9) (aof e9) (aof m9) (aof st9) "http-pickup")) 1)
+        (if (> (strlen ($ z9 err)) 0) (printf "     %s\n" ($ z9 err)))
+        (while 1
+          (set rc (co_engine_next (aof e9)))
+          (if (!= rc 1) break)
+          (set n (+ n 1))
+          (if (> n 20) break))
+        (check "and finished the proof over HTTP" (cast llong n) 4)
+
+        (co_engine_free (aof e9))
+        (co_store_free (aof st9))
+        (co_machine_free (aof m9)))
+
+      ;; tidy up the machine the HTTP reader used
+      (let ((co_machine mz) (co_store stz) (co_zg zz))
+        (co_machine_init (aof mz)) (co_store_init (aof stz))
+        (co_zg_attach (aof zz) db (aof mz) (aof stz) KB)
+        (co_zg_drop (aof zz) "http-pickup")
+        (zg_commit db)
+        (co_store_free (aof stz)) (co_machine_free (aof mz)))
+
+      ;; =================================================================
+      ;; assert/1 at run time reaches the database too.
+      ;; =================================================================
+      (let ((co_machine m5) (co_store st5) (co_engine e5) (co_zg z5))
+        (co_machine_init (aof m5))
+        (co_store_init (aof st5))
+        (co_engine_init (aof e5) (aof m5) (aof st5))
+        (set ($ e5 max_steps) 5000000)
+        (co_zg_attach (aof z5) db (aof m5) (aof st5) KB)
+
+        (check "asserted a new fact at run time"
+               (cast llong (count (aof e5) "assertz(parent(jim,zed))" 10)) 1)
+        (check "committed" (cast llong (zg_commit db)) 1)
+
+        (co_engine_free (aof e5))
+        (co_store_free (aof st5))
+        (co_machine_free (aof m5)))
+
+      (let ((co_machine m6) (co_store st6) (co_engine e6) (co_zg z6))
+        (co_machine_init (aof m6))
+        (co_store_init (aof st6))
+        (co_engine_init (aof e6) (aof m6) (aof st6))
+        (set ($ e6 max_steps) 5000000)
+        (co_zg_attach (aof z6) db (aof m6) (aof st6) KB)
+
+        ;; six now, because a sixth interpreter sees the fact the fifth asserted
+        (check "a later interpreter sees it"
+               (cast llong (count (aof e6) "ancestor(tom,X)" 100)) 6)
+
+        (co_engine_free (aof e6))
+        (co_store_free (aof st6))
+        (co_machine_free (aof m6)))
+
+      (zg_commit db)
+      (zg_close db)
+      (printf "\n%s: %d failure(s) in %d checks\n"
+              (? (== failures 0) "GREEN" "RED") failures checks)
+      (return (? (== failures 0) 0 1)))))

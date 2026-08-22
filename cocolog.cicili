@@ -1,0 +1,455 @@
+;;;; cocolog -- the program
+;;;
+;;; A driver over the interpreter in lib/cocolog. What it is for, beyond being
+;;; a way to run a query, is the `step' command: run a machine for a fixed
+;;; number of inferences and then SUSPEND it back into the database. That turns
+;;; the database into a run queue and any number of processes into workers on
+;;; it -- which is the arrangement the whole design was for, and demo/turns.sh
+;;; is it running.
+;;;
+;;; Usage:
+;;;
+;;;   cocolog [options] consult FILE...     read programs into the knowledge base
+;;;   cocolog [options] query GOAL          prove it here and now
+;;;   cocolog [options] start NAME GOAL     begin a machine and suspend it
+;;;   cocolog [options] step NAME           run it a while and suspend it again
+;;;   cocolog [options] finish NAME         run it to the end
+;;;   cocolog [options] work WORKER [MACHINE]
+;;;                                          claim machines and advance them;
+;;;                                          with MACHINE, only that one
+;;;   cocolog [options] list                what machines are suspended
+;;;   cocolog [options] drop NAME           forget one
+;;;
+;;;   --kb NAME      which knowledge base   (default main)
+;;;   --host HOST    (default 127.0.0.1)
+;;;   --port PORT    the binary protocol    (default 2160)
+;;;   --http PORT    read over Zeytun instead of the binary protocol
+;;;   --local        no database at all: everything in memory
+;;;   --steps N      inferences per `step'  (default 2000)
+;;;   --answers N    stop after N solutions (default 10, 0 for all)
+;;;
+;;; WHY `step' PRINTS NOTHING MUCH. It is meant to be run by a script, over and
+;;; over, possibly by several processes at once. What it says is whether the
+;;; machine finished, and if so with what.
+
+(source "cocolog.c"
+  (make :std #t
+        :compile ("-Iclient"
+                  "-c" "cocolog.c")
+        :link ("-lcocolog.o"
+               "-Lbuild"
+               "-lcocologc" "-lm" "-o" "cocolog"))
+
+  (include <math.h>)
+  ;; usleep, for the worker that waits its turn on a machine another worker
+  ;; is holding. lib/std/c/posix declares it for inference; the header still
+  ;; has to be included by the target that emits code.
+  (include <unistd.h>)
+  (include <zigurat.h>)
+  (include <zeytun.h>)
+
+  (import "./lib/zigurat.cicili" :zg)
+  (import "./lib/zeytun.cicili" :zt)
+  (import "./lib/term.cicili")
+  (import "./lib/syntax.cicili")
+  (import "./lib/kb.cicili")
+  (import "./lib/solve.cicili")
+  (import "./lib/state.cicili")
+  (import "./lib/zigurat-kb.cicili")
+  (import "./lib/zeytun-kb.cicili")
+
+  (decl-term)   (impl-term)
+  (decl-syntax) (impl-syntax)
+  (decl-kb)     (impl-kb)
+  (decl-solve)  (impl-solve)
+  (decl-state)  (impl-state)
+  (decl-zigurat-kb) (impl-zigurat-kb)
+  (decl-zeytun-kb)  (impl-zeytun-kb)
+
+  ;;; Everything the command line said, in one place.
+  (struct co_opts
+    (member const char * kb)
+    (member const char * host)
+    (member const char * port)
+    (member const char * http)
+    (member int          local)
+    (member u64          steps)
+    (member int          answers))
+
+  (var co_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 10 })
+
+  ;;; The one connection, when there is one.
+  (var zg_conn * db . nil)
+
+  (func usage ()
+        (fprintf stderr "cocolog -- a Prolog interpreter with its knowledge base in Zigurat\n\n")
+        (fprintf stderr "  cocolog [options] consult FILE...\n")
+        (fprintf stderr "  cocolog [options] query GOAL\n")
+        (fprintf stderr "  cocolog [options] start NAME GOAL\n")
+        (fprintf stderr "  cocolog [options] step NAME\n")
+        (fprintf stderr "  cocolog [options] finish NAME\n")
+        (fprintf stderr "  cocolog [options] work WORKER [MACHINE]\n")
+        (fprintf stderr "  cocolog [options] list\n")
+        (fprintf stderr "  cocolog [options] drop NAME\n\n")
+        (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
+        (fprintf stderr "  --host HOST   (default 127.0.0.1)\n")
+        (fprintf stderr "  --port PORT   binary protocol           (default 2160)\n")
+        (fprintf stderr "  --http PORT   read over Zeytun instead\n")
+        (fprintf stderr "  --local       no database; all in memory\n")
+        (fprintf stderr "  --steps N     inferences per step       (default 2000)\n")
+        (fprintf stderr "  --answers N   stop after N solutions    (default 10, 0 for all)\n"))
+
+  ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
+  (func slurp ((const char * path)) (out char *)
+        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0))
+          (if (== f nil)
+              (block (fprintf stderr "cocolog: cannot read %s\n" path) (return nil)))
+          (fseek f 0 SEEK_END)
+          (set n (ftell f))
+          (fseek f 0 SEEK_SET)
+          (set buf (cast (char *) (malloc (cast size_t (+ n 1)))))
+          (if (== buf nil) (block (fclose f) (return nil)))
+          (fread buf 1 (cast size_t n) f)
+          (set (nth n buf) (cast char 0))
+          (fclose f)
+          (return buf)))
+
+  ;;; Prints the query as it now stands -- which is the answer. Printing the
+  ;;; query rather than a list of variable bindings is deliberate: a machine
+  ;;; that has been suspended and resumed no longer has the variable NAMES,
+  ;;; because those belong to the text that was read and not to the machine.
+  ;;; The instantiated goal says the same thing and survives the round trip.
+  (func show_answer ((co_engine * e) (int n))
+        (let ((co_strbuf b))
+          (co_sb_init (aof b))
+          (co_write_term ($ (cof e) m) (aof b) ($ (cof e) query) 0 0)
+          (printf "  %d. %s\n" n (? (== ($ b s) nil) "true" ($ b s)))
+          (co_sb_free (aof b))))
+
+  ;;; Opens the connection the options ask for, or leaves db null for --local.
+  ;;;
+  ;;; NOT CALLED `connect'. It was, and the program recursed until the stack
+  ;;; ran out: connect(2) is what the client calls to open its socket, and a
+  ;;; global function of that name in the program takes the link ahead of the
+  ;;; one in libc. Nothing warns -- it links, it runs, and it dies twenty
+  ;;; thousand frames later inside a function that never called itself.
+  (func open_connection () (out int)
+        (let ((char err [512]))
+          (if ($ opts local) (return 1))
+          (set db (zg_open ($ opts host) ($ opts port) 20 err (sizeof err)))
+          (if (== db nil)
+              (block (fprintf stderr "cocolog: no server at %s:%s -- %s\n"
+                              ($ opts host) ($ opts port) err)
+                     (return 0)))
+          (return 1)))
+
+  ;;; ---- the commands ------------------------------------------------------
+
+  (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
+        (let ((co_machine m) (co_store st) (co_zg z) (char err [256]) (int total . 0))
+          (co_machine_init (aof m))
+          (co_store_init (aof st))
+          (if (not ($ opts local)) (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
+          (for ((int i . from)) (< i argc) ((++ i))
+            (let ((char * text . #'(slurp (nth i argv))) (int n))
+              (if (== text nil) (block (co_store_free (aof st)) (co_machine_free (aof m))
+                                       (return 1)))
+              (set n (co_consult (aof st) (aof m) text err (sizeof err)))
+              (free text)
+              (if (< n 0)
+                  (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
+                         (co_store_free (aof st)) (co_machine_free (aof m))
+                         (return 1)))
+              (set total (+ total n))))
+          (if (!= db nil) (zg_commit db))
+          (printf "consulted %d clause(s) into '%s'\n" total ($ opts kb))
+          (co_store_free (aof st))
+          (co_machine_free (aof m))
+          (return 0)))
+
+  ;;; Attaches whichever backend the options asked for. Both fill in the same
+  ;;; hook; nothing below this line knows which.
+  (func attach ((co_zg * z) (co_zt * zt) (co_machine * m) (co_store * st))
+        (if ($ opts local) (return))
+        (if (!= ($ opts http) nil)
+            (co_zt_attach zt ($ opts host) ($ opts http) m st ($ opts kb))
+          (co_zg_attach z db m st ($ opts kb))))
+
+  (func cmd_query ((const char * goal)) (out int)
+        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z) (co_zt zt)
+              (int n . 0) (int rc . 1))
+          (co_machine_init (aof m))
+          (co_store_init (aof st))
+          (co_engine_init (aof e) (aof m) (aof st))
+          (set ($ e max_steps) 0)
+          (attach (aof z) (aof zt) (aof m) (aof st))
+
+          (if (not (co_engine_ask_text (aof e) goal))
+              (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
+          (while 1
+            (set rc (co_engine_next (aof e)))
+            (if (!= rc 1) break)
+            (set n (+ n 1))
+            (show_answer (aof e) n)
+            (if (and (!= ($ opts answers) 0) (>= n ($ opts answers))) break))
+          (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
+          (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n))
+          (co_engine_free (aof e))
+          (co_store_free (aof st))
+          (co_machine_free (aof m))
+          (return (? (== rc -1) 1 0))))
+
+  ;;; Begins a machine and suspends it before it has done anything. What that
+  ;;; is for: the machine exists in the database from this moment, so any
+  ;;; worker can pick it up.
+  (func cmd_start ((const char * name) (const char * goal)) (out int)
+        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: start needs a database\n") (return 1)))
+          (co_machine_init (aof m))
+          (co_store_init (aof st))
+          (co_engine_init (aof e) (aof m) (aof st))
+          (set ($ e max_steps) 0)
+          (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (if (not (co_engine_ask_text (aof e) goal))
+              (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
+          (if (not (co_zg_save (aof z) (aof e) name goal))
+              (block (fprintf stderr "cocolog: %s\n" ($ z err)) (return 1)))
+          (zg_commit db)
+          (printf "started '%s'\n" name)
+          (co_engine_free (aof e))
+          (co_store_free (aof st))
+          (co_machine_free (aof m))
+          (return 0)))
+
+  ;;; THE COMMAND THE DESIGN IS FOR. Pick a machine up, run it for a bounded
+  ;;; number of inferences, and put it back. A worker that does this in a loop
+  ;;; is a scheduler; several of them are a scheduler with several workers, and
+  ;;; the database is the run queue.
+  ;;;
+  ;;; BUDGET IS NOT AN ERROR. The engine answers -1 when the step limit is
+  ;;; reached, the same as for a real error -- so the two are told apart by
+  ;;; asking whether the machine ran out of budget rather than by the code.
+  (func cmd_step ((const char * name) (int to_the_end)) (out int)
+        (let ((co_machine m) (co_store st) (co_engine e) (co_zg z)
+              (int n . 0) (int rc . 1) (int done . 0))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: step needs a database\n") (return 1)))
+          (co_machine_init (aof m))
+          (co_store_init (aof st))
+          (co_engine_init (aof e) (aof m) (aof st))
+          (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+
+          (if (not (co_zg_load (aof z) (aof e) (aof m) (aof st) name))
+              (block (fprintf stderr "cocolog: %s\n" ($ z err)) (return 1)))
+
+          ;; The budget is counted from where this machine already was, so a
+          ;; machine resumed after a million inferences gets its own slice and
+          ;; not what is left of somebody else's.
+          (set ($ e max_steps) (? to_the_end 0 (+ ($ e steps) ($ opts steps))))
+
+          (while 1
+            (set rc (co_engine_next (aof e)))
+            (if (!= rc 1) break)
+            (set n (+ n 1))
+            (show_answer (aof e) n)
+            (if (and (!= ($ opts answers) 0) (>= n ($ opts answers)))
+                (block (set done 1) break)))
+
+          (if (== rc 0) (set done 1))
+          (if (and (== rc -1) (== 0 (strcmp ($ e err) "inference limit reached")))
+              (set done 0)
+            (if (== rc -1) (block (fprintf stderr "cocolog: %s\n" ($ e err)) (set done 1))))
+
+          (if done
+              (block (co_zg_drop (aof z) name)
+                     (printf "%s: finished after %llu inference(s), %d answer(s) this turn\n"
+                             name (cast ullong ($ e steps)) n))
+            (block (if (not (co_zg_save (aof z) (aof e) name "suspended by step"))
+                       (block (fprintf stderr "cocolog: %s\n" ($ z err)) (return 1)))
+                   (printf "%s: suspended at %llu inference(s), %d answer(s) this turn\n"
+                           name (cast ullong ($ e steps)) n)))
+          (zg_commit db)
+
+          (co_engine_free (aof e))
+          (co_store_free (aof st))
+          (co_machine_free (aof m))
+          (return (? done 0 2))))    ; 2 means "there is more to do"
+
+  ;;; Claims one suspended machine for this worker, atomically. Answers 1 and
+  ;;; fills NAME, or 0 when the queue is empty.
+  ;;;
+  ;;; THE CLAIM IS WHY SEVERAL WORKERS ARE A SCHEDULER AND NOT A RACE. Two that
+  ;;; loaded the same machine would both advance it and both save it, and the
+  ;;; second save would quietly throw the first one's work away. The procedure
+  ;;; does the find and the status change in one transaction, so exactly one
+  ;;; worker comes away with a given name.
+  ;;; WANTED names one machine, or is null for "whatever is free". Naming one
+  ;;; is what lets two workers share a single machine while two others share a
+  ;;; different one -- four interpreters, two states, and no group touching the
+  ;;; other's.
+  (func claim ((const char * worker) (const char * wanted)
+               (char * name) (size_t cap)) (out int)
+        (let ((zg_result_t r) (char cols [256]) (int got . 0))
+          (set (nth 0 name) (cast char 0))
+          ;; A CLAIM THAT FAILS SAYS WHY. It used to answer 0 for both "the
+          ;; queue is empty" and "the server refused it", and a worker that
+          ;; could not tell them apart reported "nothing left to do" when what
+          ;; had actually happened was a lock wait against another worker.
+          (if (== wanted nil)
+              (block (if (not (zg_call db "cocolog::machine_claim"))
+                         (block (fprintf stderr "%s: claim: %s\n" worker (zg_error db))
+                                (return 0)))
+                     (if (not (zg_write_string db ($ opts kb))) (return 0)))
+            (block (if (not (zg_call db "cocolog::machine_claim_named"))
+                       (block (fprintf stderr "%s: claim: %s\n" worker (zg_error db))
+                              (return 0)))
+                   (if (not (zg_write_string db wanted)) (return 0))))
+          (if (not (zg_write_string db worker)) (return 0))
+          (while 1
+            (if (not (zg_result db (aof r)))
+                (block (fprintf stderr "%s: claim: %s\n" worker (zg_error db)) break))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
+              ((== r ZG_RETURN_VALUE)
+               (if (zg_read_string db name cap nil) (set got 1)))
+              ((== r ZG_CURSOR_FETCH) break)
+              (#t (block))))
+          ;; The claim has to stand before the machine is touched, so it is
+          ;; committed here rather than left to the end of the turn.
+          (zg_commit db)
+          (return (? (and got (!= (nth 0 name) (cast char 0))) 1 0))))
+
+  ;;; Claim, advance, put back. A worker loop, and several of these against one
+  ;;; server is the whole point of the project: the database is the run queue
+  ;;; and a machine's state is the work item.
+  (func cmd_work ((const char * worker) (const char * wanted)) (out int)
+        (let ((char name [256]) (int turns . 0) (int idle . 0))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: work needs a database\n") (return 1)))
+          ;; A named machine may be busy in another worker rather than gone, so
+          ;; a failed claim is a reason to wait rather than to stop -- but only
+          ;; for a while, or a worker whose partner died would spin forever.
+          (while 1
+            (if (claim worker wanted name (sizeof name))
+                (block (printf "%s: took '%s'\n" worker name)
+                       (cmd_step name 0)
+                       (set turns (+ turns 1))
+                       (set idle 0))
+              (block
+               (if (== wanted nil) break)
+               (set idle (+ idle 1))
+               (if (> idle 200) break)
+               ;; 5ms, which is long enough not to hammer the server and short
+               ;; enough that the two workers of a group really do interleave
+               (usleep 5000))))
+          (printf "%s: nothing left to do after %d turn(s)\n" worker turns)
+          (return 0)))
+
+  (func cmd_list () (out int)
+        (let ((zg_result_t r) (char cols [256]) (int rows . 0))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: list needs a database\n") (return 1)))
+          (if (not (zg_call db "cocolog::machine_list")) (return 1))
+          (if (not (zg_write_string db ($ opts kb))) (return 1))
+          (while 1
+            (if (not (zg_result db (aof r))) break)
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((char nm [256]) (char status [64]) (i32 chunks . 0))
+                 (if (not (zg_read_string db nm (sizeof nm) nil)) break)
+                 (if (not (zg_read_string db status (sizeof status) nil)) break)
+                 (if (not (zg_read_int db (aof chunks) nil)) break)
+                 (printf "  %-28s %-12s %d chunk(s)\n" nm status chunks)
+                 (set rows (+ rows 1))))
+              ((== r ZG_RETURN_VALUE) (zg_skip_field db))
+              (#t (block))))
+          (if (== rows 0) (printf "  no suspended machines in '%s'\n" ($ opts kb)))
+          (return 0)))
+
+  (func cmd_drop ((const char * name)) (out int)
+        (let ((co_machine m) (co_store st) (co_zg z))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: drop needs a database\n") (return 1)))
+          (co_machine_init (aof m))
+          (co_store_init (aof st))
+          (co_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (co_zg_drop (aof z) name)
+          (zg_commit db)
+          (printf "dropped '%s'\n" name)
+          (co_store_free (aof st))
+          (co_machine_free (aof m))
+          (return 0)))
+
+  ;;; ---- the command line ---------------------------------------------------
+
+  (func main ((int argc) (char ** argv))
+        (out int)
+        (let ((int i . 1) (int rc . 0))
+          ;; options first, then the command
+          (while (< i argc)
+            (let ((const char * a . #'(nth i argv)))
+              (if (!= (nth 0 a) (cast char 45)) break)
+              (cond
+                ((== 0 (strcmp a "--local")) (set ($ opts local) 1) (set i (+ i 1)))
+                ((== 0 (strcmp a "--help")) (usage) (return 0))
+                (#t
+                 (if (>= (+ i 1) argc)
+                     (block (fprintf stderr "cocolog: %s needs a value\n" a) (return 1)))
+                 (let ((const char * v . #'(nth (+ i 1) argv)))
+                   (cond
+                     ((== 0 (strcmp a "--kb"))      (set ($ opts kb) v))
+                     ((== 0 (strcmp a "--host"))    (set ($ opts host) v))
+                     ((== 0 (strcmp a "--port"))    (set ($ opts port) v))
+                     ((== 0 (strcmp a "--http"))    (set ($ opts http) v))
+                     ((== 0 (strcmp a "--steps"))   (set ($ opts steps) (strtoull v nil 10)))
+                     ((== 0 (strcmp a "--answers")) (set ($ opts answers) (atoi v)))
+                     (#t (block (fprintf stderr "cocolog: unknown option %s\n" a)
+                                (return 1)))))
+                 (set i (+ i 2))))))
+
+          (if (>= i argc) (block (usage) (return 1)))
+
+          (if (not (open_connection)) (return 1))
+
+          (let ((const char * cmd . #'(nth i argv)))
+            (cond
+              ((== 0 (strcmp cmd "consult"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: consult needs a file\n") (set rc 1))
+                 (set rc (cmd_consult argc argv (+ i 1)))))
+              ((== 0 (strcmp cmd "query"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: query needs a goal\n") (set rc 1))
+                 (set rc (cmd_query (nth (+ i 1) argv)))))
+              ((== 0 (strcmp cmd "start"))
+               (if (>= (+ i 2) argc)
+                   (block (fprintf stderr "cocolog: start needs a name and a goal\n") (set rc 1))
+                 (set rc (cmd_start (nth (+ i 1) argv) (nth (+ i 2) argv)))))
+              ((== 0 (strcmp cmd "step"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: step needs a name\n") (set rc 1))
+                 (set rc (cmd_step (nth (+ i 1) argv) 0))))
+              ((== 0 (strcmp cmd "finish"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: finish needs a name\n") (set rc 1))
+                 (set rc (cmd_step (nth (+ i 1) argv) 1))))
+              ((== 0 (strcmp cmd "work"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: work needs a worker name\n") (set rc 1))
+                 (set rc (cmd_work (nth (+ i 1) argv)
+                                   (? (>= (+ i 2) argc) nil (nth (+ i 2) argv))))))
+              ((== 0 (strcmp cmd "list")) (set rc (cmd_list)))
+              ((== 0 (strcmp cmd "drop"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: drop needs a name\n") (set rc 1))
+                 (set rc (cmd_drop (nth (+ i 1) argv)))))
+              (#t (block (fprintf stderr "cocolog: unknown command %s\n" cmd)
+                         (usage) (set rc 1)))))
+
+          (if (!= db nil) (zg_close db))
+          (return rc)))
+  )

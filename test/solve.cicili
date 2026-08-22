@@ -1,0 +1,260 @@
+;;;; test cocolog resolution -- backtracking, cut, negation and the builtins
+;;;
+;;; The checks are mostly "how many solutions does this goal have", because
+;;; that one number catches nearly everything the engine can get wrong: a trail
+;;; that undoes too little gives too few, a choice point that is not popped
+;;; gives too many, and a cut that truncates to the wrong height gives either.
+;;;
+;;; Three of them are here for a specific failure rather than for coverage:
+;;;
+;;;   THE CHOICE STACK MUST NOT GROW WITH A DETERMINISTIC RECURSION. `count'
+;;;   below recurses 50000 deep with nothing to backtrack into. If the last
+;;;   matching clause does not drop its own choice point, this test does not
+;;;   fail -- it allocates 50000 frames and keeps them, which is the kind of
+;;;   thing that only shows up in production.
+;;;
+;;;   CUT MUST BE LOCAL TO ITS CLAUSE. `first/1' has a cut in the first of
+;;;   three clauses; a barrier taken from the wrong place either cuts nothing
+;;;   or cuts the caller's alternatives too.
+;;;
+;;;   THE HEAP MUST BE RECLAIMED ON BACKTRACKING. `heap after' compares the
+;;;   heap length before and after a goal that fails a great many times; if
+;;;   failed branches were not wound back, it would grow without bound.
+
+(source "solve.c"
+  (make :std #t :compile #t :link ("-lsolve.o" "-lm" "-o" "cocolog_solve_test"))
+
+  ;; the arithmetic builtins reach pow/sqrt/fabs, so a target that uses
+  ;; cocolog includes <math.h> and links -lm
+  (include <math.h>)
+
+  (import "../lib/term.cicili")
+  (import "../lib/syntax.cicili")
+  (import "../lib/kb.cicili")
+  (import "../lib/solve.cicili")
+
+  (decl-term)   (impl-term)
+  (decl-syntax) (impl-syntax)
+  (decl-kb)     (impl-kb)
+  (decl-solve)  (impl-solve)
+
+  (var int failures . 0)
+
+  (func check ((const char * what) (llong got) (llong want))
+        (if (== got want)
+            (printf "ok   %-46s %lld\n" what got)
+          (block (printf "FAIL %-46s got %lld want %lld\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  (func check_str ((const char * what) (const char * got) (const char * want))
+        (if (== 0 (strcmp got want))
+            (printf "ok   %-46s %s\n" what got)
+          (block (printf "FAIL %-46s got [%s] want [%s]\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  ;; Counts the solutions of GOAL, up to a limit so a runaway program fails the
+  ;; test instead of hanging it. -1 means the engine reported an error.
+  (func count ((co_engine * e) (const char * goal) (int limit)) (out int)
+        (let ((int n . 0) (int rc . 1))
+          (if (not (co_engine_ask_text e goal)) (return -1))
+          (while 1
+            (set rc (co_engine_next e))
+            (if (== rc -1) (return -1))
+            (if (== rc 0) break)
+            (set n (+ n 1))
+            (if (>= n limit) break))
+          (return n)))
+
+  ;; The first solution's binding for the first variable of GOAL, written out.
+  ;; The reader keeps the variable names of what it just read, which is the
+  ;; only reason this can say "X" rather than a cell number.
+  (func first_binding ((co_engine * e) (const char * goal) (char * out) (size_t cap))
+        (out int)
+        (let ((co_reader r) (size_t t) (int rc))
+          (set (nth 0 out) (cast char 0))
+          (co_reader_init (aof r) ($ (cof e) m) goal)
+          (if (not (co_read_goal (aof r) (aof t)))
+              (block (co_reader_free (aof r)) (return 0)))
+          (if (== ($ r nvars) 0) (block (co_reader_free (aof r)) (return 0)))
+          (co_engine_ask e t)
+          (set rc (co_engine_next e))
+          (if (== rc 1)
+              (let ((co_strbuf b))
+                (co_sb_init (aof b))
+                (co_write_term ($ (cof e) m) (aof b) (nth 0 ($ r var_cells)) 0 0)
+                (snprintf out cap "%s" (? (== ($ b s) nil) "" ($ b s)))
+                (co_sb_free (aof b))))
+          (co_reader_free (aof r))
+          (return (? (== rc 1) 1 0))))
+
+  (func main ()
+    (let ((co_machine m) (co_store st) (co_engine e) (char err [256]) (char buf [256])
+          (int clauses . 0))
+      (co_machine_init (aof m))
+      (co_store_init (aof st))
+      (co_engine_init (aof e) (aof m) (aof st))
+      ;; a runaway program stops rather than spinning; every goal below is far
+      ;; inside this
+      (set ($ e max_steps) 20000000)
+
+      ;; A Cicili string is raw -- a newline in one reaches C as a newline
+      ;; inside a literal, which C does not allow -- so the program is
+      ;; consulted a few clauses at a time rather than as one block of text.
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "p(1). p(2). p(3). q(X) :- p(X), X > 1. first(X) :- p(X), !."
+        err (sizeof err))))
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
+        err (sizeof err))))
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
+        err (sizeof err))))
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "append([],L,L). append([H|T],L,[H|R]) :- append(T,L,R)."
+        err (sizeof err))))
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "nrev([],[]). nrev([H|T],R) :- nrev(T,RT), append(RT,[H],R)."
+        err (sizeof err))))
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "len([],0). len([_|T],N) :- len(T,M), N is M + 1."
+        err (sizeof err))))
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "count(0) :- !. count(N) :- N > 0, M is N - 1, count(M)."
+        err (sizeof err))))
+      (set clauses (+ clauses (co_consult (aof st) (aof m)
+        "member(X,[X|_]). member(X,[_|T]) :- member(X,T)."
+        err (sizeof err))))
+      (check "consulted the program" (cast llong clauses) 22)
+
+      ;; ---- plain backtracking ------------------------------------------
+      (check "p(X) has three solutions"       (cast llong (count (aof e) "p(X)" 100)) 3)
+      (check "q(X) has two"                   (cast llong (count (aof e) "q(X)" 100)) 2)
+      (check "p(2) succeeds once"             (cast llong (count (aof e) "p(2)" 100)) 1)
+      (check "p(9) fails"                     (cast llong (count (aof e) "p(9)" 100)) 0)
+      (check "conjunction of two choices"     (cast llong (count (aof e) "p(X), p(Y)" 100)) 9)
+
+      ;; ---- recursion through the database -------------------------------
+      (check "ancestor(tom, X) has five"      (cast llong (count (aof e) "ancestor(tom,X)" 100)) 5)
+      (check "ancestor(X, jim) has three"     (cast llong (count (aof e) "ancestor(X,jim)" 100)) 3)
+
+      ;; ---- cut ----------------------------------------------------------
+      (check "first(X) is committed"          (cast llong (count (aof e) "first(X)" 100)) 1)
+      (first_binding (aof e) "first(X)" buf (sizeof buf))
+      (check_str "and it is the first clause" buf "1")
+      ;; a cut in the condition of an if-then-else is local to the condition
+      (check "( p(X), ! ; true ) has one"
+             (cast llong (count (aof e) "( p(X), ! ; true )" 100)) 1)
+      (check "call/1 is opaque to cut"
+             (cast llong (count (aof e) "p(X), call(!)" 100)) 3)
+
+      ;; ---- disjunction, negation, if-then-else ---------------------------
+      (check "disjunction adds"               (cast llong (count (aof e) "p(X) ; p(X)" 100)) 6)
+      (check "negation of a truth fails"      (cast llong (count (aof e) "\\+ p(1)" 10)) 0)
+      (check "negation of a falsehood holds"  (cast llong (count (aof e) "\\+ p(9)" 10)) 1)
+      (check "if-then-else takes one branch"
+             (cast llong (count (aof e) "( p(9) -> X = a ; X = b )" 100)) 1)
+      (first_binding (aof e) "( p(9) -> X = a ; X = b )" buf (sizeof buf))
+      (check_str "and it is the else"         buf "b")
+      (check "if-then commits the condition"
+             (cast llong (count (aof e) "( p(X) -> true ; true )" 100)) 1)
+
+      ;; ---- arithmetic ----------------------------------------------------
+      (first_binding (aof e) "X is 2 + 3 * 4" buf (sizeof buf))
+      (check_str "arithmetic respects precedence" buf "14")
+      (first_binding (aof e) "X is 7 // 2" buf (sizeof buf))
+      (check_str "integer division"           buf "3")
+      (first_binding (aof e) "X is 7 / 2" buf (sizeof buf))
+      (check_str "inexact division is a float" buf "3.5")
+      (first_binding (aof e) "X is 6 / 2" buf (sizeof buf))
+      (check_str "exact division stays integer" buf "3")
+      (first_binding (aof e) "X is -7 mod 3" buf (sizeof buf))
+      (check_str "mod follows the divisor"    buf "2")
+      (first_binding (aof e) "X is max(3, 4.5)" buf (sizeof buf))
+      (check_str "max across types"           buf "4.5")
+      (check "1 =:= 1.0"                      (cast llong (count (aof e) "1 =:= 1.0" 10)) 1)
+      (check "1 == 1.0 is false"              (cast llong (count (aof e) "1 == 1.0" 10)) 0)
+      (check "3 < 4"                          (cast llong (count (aof e) "3 < 4" 10)) 1)
+
+      ;; ---- lists ----------------------------------------------------------
+      (check "member/2 over three"            (cast llong (count (aof e) "member(X,[a,b,c])" 100)) 3)
+      (first_binding (aof e) "append([1,2],[3],X)" buf (sizeof buf))
+      (check_str "append/3 forwards"          buf "[1,2,3]")
+      (check "append/3 splits four ways"
+             (cast llong (count (aof e) "append(X,Y,[1,2,3])" 100)) 4)
+      (first_binding (aof e) "nrev([1,2,3,4],X)" buf (sizeof buf))
+      (check_str "naive reverse"              buf "[4,3,2,1]")
+      (first_binding (aof e) "len([a,b,c,d,e],N)" buf (sizeof buf))
+      (check_str "length by recursion"        buf "5")
+
+      ;; ---- term inspection --------------------------------------------------
+      (first_binding (aof e) "functor(foo(a,b), N, A)" buf (sizeof buf))
+      (check_str "functor/3 takes a name"     buf "foo")
+      (first_binding (aof e) "arg(2, foo(a,b), X)" buf (sizeof buf))
+      (check_str "arg/3"                      buf "b")
+      (first_binding (aof e) "X =.. [foo, 1, 2]" buf (sizeof buf))
+      (check_str "=.. builds"                 buf "foo(1,2)")
+      (first_binding (aof e) "foo(1,2) =.. X" buf (sizeof buf))
+      (check_str "=.. takes apart"            buf "[foo,1,2]")
+      (first_binding (aof e) "atom_length(hello, N)" buf (sizeof buf))
+      (check_str "atom_length/2"              buf "5")
+      (first_binding (aof e) "atom_concat(foo, bar, X)" buf (sizeof buf))
+      (check_str "atom_concat/3"              buf "foobar")
+      (first_binding (aof e) "atom_codes(ab, X)" buf (sizeof buf))
+      (check_str "atom_codes/2 forwards"      buf "[97,98]")
+      (first_binding (aof e) "atom_codes(X, [97,98])" buf (sizeof buf))
+      (check_str "atom_codes/2 backwards"     buf "ab")
+      (check "copy_term/2 makes it fresh"
+             (cast llong (count (aof e) "copy_term(f(X,X), f(a,b))" 10)) 0)
+      (check "copy_term/2 keeps the sharing"
+             (cast llong (count (aof e) "copy_term(f(X,X), f(a,a))" 10)) 1)
+
+      ;; ---- unification and comparison ------------------------------------
+      (check "\\= leaves nothing bound"
+             (cast llong (count (aof e) "X \\= 1, X = 2" 10)) 0)
+      (check "a @< b"                         (cast llong (count (aof e) "a @< b" 10)) 1)
+      (check "1 @< a"                         (cast llong (count (aof e) "1 @< a" 10)) 1)
+
+      ;; ---- the database at run time --------------------------------------
+      (check "assertz then query"
+             (cast llong (count (aof e) "assertz(r(1)), assertz(r(2)), r(X)" 100)) 2)
+      (check "retract removes one"
+             (cast llong (count (aof e) "retract(r(1)), r(X)" 100)) 1)
+      (check "asserta puts it first"
+             (cast llong (count (aof e) "asserta(r(0)), r(X)" 100)) 2)
+
+      ;; ---- the three that are here for a specific failure -----------------
+      (let ((size_t before . #'($ m heap_len)))
+        (check "a deterministic recursion 50000 deep"
+               (cast llong (count (aof e) "count(50000)" 10)) 1)
+        (check "and it left no choice points"  (cast llong ($ e nchoices)) 0))
+
+      ;; A goal with 27 failing branches must not cost 27 branches of heap.
+      ;; The comparison is between two identical runs rather than against a
+      ;; fixed number: every query parses its own goal on to the heap, so the
+      ;; SAME query run twice grows by that fixed cost and by nothing else --
+      ;; unless failed branches are being kept, in which case the second run
+      ;; grows by thousands of cells instead of tens.
+      (let ((size_t a1) (size_t a2) (size_t growth))
+        (count (aof e) "p(_), p(_), p(_), fail" 100)
+        (set a1 ($ m heap_len))
+        (check "a goal that fails everywhere"
+               (cast llong (count (aof e) "p(_), p(_), p(_), fail" 100)) 0)
+        (set a2 ($ m heap_len))
+        (set growth (- a2 a1))
+        (check "failed branches are reclaimed" (cast llong (< growth 200)) 1))
+
+      ;; ---- errors are reported, not guessed -------------------------------
+      (check "an unbound goal is an error"    (cast llong (count (aof e) "X" 10)) -1)
+      (check "arithmetic on a variable is an error"
+             (cast llong (count (aof e) "X is Y + 1" 10)) -1)
+      (check "an unknown predicate just fails"
+             (cast llong (count (aof e) "no_such_thing(1)" 10)) 0)
+
+      (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
+      (check "store never ran out of memory"   (cast llong ($ st oom)) 0)
+
+      (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
+      (co_engine_free (aof e))
+      (co_store_free (aof st))
+      (co_machine_free (aof m))
+      (return (? (== failures 0) 0 1)))))

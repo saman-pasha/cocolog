@@ -1,0 +1,457 @@
+;;;; cocolog -- the knowledge base, kept in Zigurat
+;;;
+;;; THIS IS THE HOOK kb.cicili LEFT. A store has a `fetch' function pointer
+;;; that is called at most once per predicate, and an `on_assert' that is
+;;; called when a clause is added. Fill those in and the interpreter is reading
+;;; a shared database instead of its own memory -- and nothing above this file
+;;; changes, or knows.
+;;;
+;;; WHAT THAT BUYS. Several interpreters against one server see one set of
+;;; clauses, and one of them can stop mid-proof, write itself into a table, and
+;;; be picked up by another. The engine was written for that (solve.cicili),
+;;; the serialisation exists for it (state.cicili), and this is the piece that
+;;; connects them to something outside the process.
+;;;
+;;; CLAUSES TRAVEL AS TEXT and are parsed on arrival. The writer and the reader
+;;; are tested against each other, so the round trip loses nothing; what it
+;;; buys is that the table is readable by a person, searchable by an ordinary
+;;; Parsi procedure, and not tied to the interpreter's cell layout.
+;;;
+;;; MACHINES TRAVEL AS CHUNKS OF 4000 BYTES. A Text is documented at 65535 and
+;;; the wire agrees, but a row has to fit in a page: with the default 8192-byte
+;;; page a Text of 8000 stores and one of 8192 is refused with "allocation
+;;; overflow". 4000 leaves room for the rest of the row under any page size
+;;; anyone is likely to configure.
+;;;
+;;; IT USES THE C ENTRY POINTS AND NOT THE FRONT-END MACROS. `zg.call' and its
+;;; friends are named by whatever prefix the IMPORTER chose, so a library
+;;; cannot use them -- it does not know what they will be called. The
+;;; declarations are global, so this file calls zg_call, zg_write_string and
+;;; the rest directly. That is the same front-end/back-end split lib/README.md
+;;; describes: the macros are for the program, the functions are for the
+;;; library.
+;;;
+;;; A target using this file needs, in this order:
+;;;
+;;;   (include <zigurat.h>)
+;;;   (import "lib/db/zigurat.cicili" :zg)     ; the declarations
+;;;   (import "lib/cocolog/zigurat-kb.cicili")
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;; How much of a frozen machine goes in one row. Named here rather than
+;;; written into the code, because it is a fact about the server's page size
+;;; and the one place to change it if that changes.
+(DEFPARAMETER *chunk-bytes* 4000)
+
+(DEFMACRO co-chunk-bytes () *chunk-bytes*)
+
+
+(generic decl-zigurat-kb
+  ()
+
+  ;;; What the hooks are given. It holds the connection, the name of the
+  ;;; knowledge base within it, and the machine whose atom table the store
+  ;;; shares -- the fetch hook has to parse clauses, and parsing needs a
+  ;;; machine to build them on.
+  (struct co_zg
+    (member zg_conn *    db)
+    (member co_machine * m)
+    (member co_store *   st)
+    (member char         kb [64])
+    ;; Off while the fetch hook is asserting what it just read, so that
+    ;; clauses coming OUT of the database are not written straight back in.
+    (member int          write_through)
+    (member char         err [256]))
+
+  ;;; Points a store at a knowledge base. The connection stays the caller's to
+  ;;; close; the store's hooks are set to this Z.
+  (decl) (func co_zg_attach ((co_zg * z) (zg_conn * db) (co_machine * m)
+                             (co_store * st) (const char * kb)))
+
+  ;;; Writes every clause of one predicate to the database, replacing whatever
+  ;;; was there. This is what `on_assert' does, and doing the whole predicate
+  ;;; rather than the one clause is what keeps `asserta' correct -- see the
+  ;;; implementation.
+  (decl) (func co_zg_sync_pred ((co_zg * z) (size_t pi)) (out int))
+
+  ;;; Sends a whole program to the database, clause by clause, as if consulted.
+  (decl) (func co_zg_consult ((co_zg * z) (const char * text)) (out int))
+
+  ;;; Suspends a machine into the database under NAME, in chunks.
+  (decl) (func co_zg_save ((co_zg * z) (co_engine * e)
+                           (const char * name) (const char * note)) (out int))
+
+  ;;; Brings one back. M, ST and E are reset and re-attached to Z; the
+  ;;; knowledge base is NOT loaded eagerly -- the fetch hook pulls each
+  ;;; predicate the resumed machine actually reaches.
+  (decl) (func co_zg_load ((co_zg * z) (co_engine * e) (co_machine * m)
+                           (co_store * st) (const char * name)) (out int))
+
+  ;;; Forgets a suspended machine.
+  (decl) (func co_zg_drop ((co_zg * z) (const char * name)) (out int))
+
+  ) ; decl-zigurat-kb
+
+
+(generic impl-zigurat-kb
+  ()
+
+  (static)
+  (func co_zg_fail ((co_zg * z) (const char * what)) (out int)
+        (snprintf (-> z err) 256 "%s: %s" what
+                  (? (== (-> z db) nil) "no connection" (zg_error (-> z db))))
+        (return 0))
+
+  ;;; Reads a call to its end, keeping nothing. Used after a call whose answer
+  ;;; does not matter but whose results still have to come off the wire.
+  (static)
+  (func co_zg_finish ((co_zg * z) (i64 * returned)) (out int)
+        (let ((zg_result_t r) (char cols [256]))
+          (while 1
+            (if (not (zg_result (-> z db) (aof r))) (return 0))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN)
+               (if (not (zg_columns (-> z db) cols 256)) (return 0)))
+              ((== r ZG_RETURN_VALUE)
+               (if (not (zg_read_long (-> z db) returned nil)) (return 0)))
+              ((== r ZG_CURSOR_FETCH)
+               ;; None of the procedures called with this one produce rows; if
+               ;; one ever does, stopping here is better than skipping a
+               ;; guessed number of fields and desynchronising the connection.
+               (return 0))
+              (#t (block))))
+          (return 1)))
+
+  ;;; The two hooks, declared before the function that installs them. Both are
+  ;;; static: nothing outside this file should be calling them, and the store
+  ;;; reaches them through the function pointers `co_zg_attach' sets.
+  (static) (decl) (func co_zg_fetch ((co_store * st) (void * ctx)
+                                     (u64 name) (u32 arity)) (out int))
+  (static) (decl) (func co_zg_on_assert ((co_store * st) (void * ctx)
+                                         (size_t clause)) (out int))
+
+  (func co_zg_attach ((co_zg * z) (zg_conn * db) (co_machine * m)
+                      (co_store * st) (const char * kb))
+        (memset z 0 (sizeof co_zg))
+        (set (-> z db) db)
+        (set (-> z m) m)
+        (set (-> z st) st)
+        (set (-> z write_through) 1)
+        (snprintf (-> z kb) 64 "%s" kb)
+        (set (-> st ctx) (cast (void *) z))
+        (set (-> st fetch) co_zg_fetch)
+        (set (-> st on_assert) co_zg_on_assert))
+
+  ;;; ---- reading a predicate out of the database -------------------------
+
+  ;;; One clause on its way in: its position in the predicate and its text.
+  ;;; They are collected and sorted before any of them is parsed, because a
+  ;;; cursor is not ordered and clause order is part of what a Prolog program
+  ;;; means.
+  (struct co_zg_row
+    (member i64    ordinal)
+    (member char * body))
+
+  (static)
+  (func co_zg_row_cmp ((const void * a) (const void * b)) (out int)
+        (let ((const co_zg_row * x . #'(cast (const co_zg_row *) a))
+              (const co_zg_row * y . #'(cast (const co_zg_row *) b)))
+          (return (? (< (-> x ordinal) (-> y ordinal)) -1
+                     (? (> (-> x ordinal) (-> y ordinal)) 1 0)))))
+
+  (func co_zg_fetch ((co_store * st) (void * ctx) (u64 name) (u32 arity)) (out int)
+        (let ((co_zg * z . #'(cast (co_zg *) ctx))
+              (co_machine * m)
+              (co_zg_row * rows . nil)
+              (size_t n . 0) (size_t cap . 0)
+              (int ok . 1)
+              (zg_result_t r)
+              (char cols [256]))
+          (set m (-> z m))
+
+          (if (not (zg_call (-> z db) "cocolog::clauses_of"))
+              (return (co_zg_fail z "clauses_of")))
+          (if (not (zg_write_string (-> z db) (-> z kb))) (return (co_zg_fail z "kb")))
+          (if (not (zg_write_string (-> z db) (co_atom_name m name)))
+              (return (co_zg_fail z "name")))
+          (if (not (zg_write_int (-> z db) (cast i32 arity)))
+              (return (co_zg_fail z "arity")))
+
+          (while ok
+            (if (not (zg_result (-> z db) (aof r))) (block (set ok 0) break))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN)
+               (if (not (zg_columns (-> z db) cols 256)) (set ok 0)))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((i64 ord . 0) (char * body . nil))
+                 (if (not (zg_read_long (-> z db) (aof ord) nil)) (block (set ok 0) break))
+                 (if (not (zg_read_text_alloc (-> z db) (aof body) nil nil))
+                     (block (set ok 0) break))
+                 (if (>= n cap)
+                     (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
+                       (set rows (cast (co_zg_row *)
+                                       (realloc rows (* ncap (sizeof co_zg_row)))))
+                       (if (== rows nil) (block (set ok 0) (free body) break))
+                       (set cap ncap)))
+                 (set ($ (nth n rows) ordinal) ord)
+                 (set ($ (nth n rows) body) body)
+                 (set n (+ n 1))))
+              ((== r ZG_RETURN_VALUE)
+               (if (not (zg_skip_field (-> z db))) (set ok 0)))
+              (#t (block))))
+
+          (if ok
+              (block
+               (qsort rows n (sizeof co_zg_row) co_zg_row_cmp)
+               ;; The clauses are going INTO the store, so write-through is off
+               ;; for the duration: otherwise every clause read out of the
+               ;; database would immediately be written back to it.
+               (let ((int was . #'(-> z write_through)))
+                 (set (-> z write_through) 0)
+                 (for ((size_t i . 0)) (< i n) ((++ i))
+                   (let ((size_t t) (size_t mark . #'(-> m heap_len)))
+                     (if (co_read_term_from m ($ (nth i rows) body) (aof t))
+                         (co_assert st m t 1)
+                       (set ok 0))
+                     ;; the clause now lives in the store, so the copy that was
+                     ;; parsed on to the heap is not needed
+                     (set (-> m heap_len) mark)))
+                 (set (-> z write_through) was))))
+
+          (for ((size_t i . 0)) (< i n) ((++ i)) (free ($ (nth i rows) body)))
+          (free rows)
+          (if (not ok) (return (co_zg_fail z "reading clauses")))
+          (return 1)))
+
+  ;;; ---- writing a predicate back ----------------------------------------
+
+  ;;; THE WHOLE PREDICATE, not the one clause that was added. `asserta' puts a
+  ;;; clause at the FRONT, which changes the ordinal of every clause after it;
+  ;;; writing only the new one would leave the database holding two clauses
+  ;;; that both claim to be first. Rewriting the predicate is O(n) per assert
+  ;;; and always right, and a predicate with enough clauses for that to hurt is
+  ;;; not one a program should be asserting into in a loop.
+  (func co_zg_sync_pred ((co_zg * z) (size_t pi)) (out int)
+        (let ((co_store * st . #'(-> z st))
+              (co_machine * m . #'(-> z m))
+              (i64 ignored . 0))
+          (if (>= pi ($ (cof (-> z st)) npreds)) (return 0))
+          (let ((co_pred * p . #'(aof (nth pi (-> st preds))))
+                (const char * nm . #'(co_atom_name m ($ (nth pi (-> st preds)) name)))
+                (u32 ar . #'($ (nth pi (-> st preds)) arity)))
+
+            (if (not (zg_call (-> z db) "cocolog::forget"))
+                (return (co_zg_fail z "forget")))
+            (if (not (zg_write_string (-> z db) (-> z kb))) (return 0))
+            (if (not (zg_write_string (-> z db) nm)) (return 0))
+            (if (not (zg_write_int (-> z db) (cast i32 ar))) (return 0))
+            (if (not (co_zg_finish z (aof ignored))) (return (co_zg_fail z "forget")))
+
+            (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+              (let ((size_t mark . #'(-> m heap_len))
+                    (size_t t . #'(co_store_get m st (nth i (-> p clauses))))
+                    (co_strbuf b))
+                (co_sb_init (aof b))
+                (co_write_canonical m (aof b) t)
+                (if (not (zg_call (-> z db) "cocolog::assert_clause"))
+                    (block (co_sb_free (aof b)) (set (-> m heap_len) mark)
+                           (return (co_zg_fail z "assert_clause"))))
+                (if (and (zg_write_string (-> z db) (-> z kb))
+                         (and (zg_write_string (-> z db) nm)
+                              (and (zg_write_int (-> z db) (cast i32 ar))
+                                   (and (zg_write_long (-> z db) (cast i64 i))
+                                        (zg_write_text (-> z db)
+                                                       (? (== ($ b s) nil) "" ($ b s)))))))
+                    (block)
+                  (block (co_sb_free (aof b)) (set (-> m heap_len) mark)
+                         (return (co_zg_fail z "writing a clause"))))
+                (co_sb_free (aof b))
+                (set (-> m heap_len) mark)
+                (if (not (co_zg_finish z (aof ignored)))
+                    (return (co_zg_fail z "assert_clause")))))
+            (return 1))))
+
+  (func co_zg_on_assert ((co_store * st) (void * ctx) (size_t clause)) (out int)
+        (let ((co_zg * z . #'(cast (co_zg *) ctx))
+              (co_machine * m))
+          (if (not (-> z write_through)) (return 1))
+          (set m (-> z m))
+          ;; which predicate this clause landed under: the head decides, and
+          ;; the head is behind ':-' if there is one
+          (let ((size_t mark . #'(-> m heap_len))
+                (size_t t . #'(co_store_get m (-> z st) clause))
+                (size_t head) (size_t body) (int rc . 1))
+            (co_clause_parts m t (aof head) (aof body))
+            (set head (co_deref m head))
+            (if (co_is_callable m head)
+                (let ((size_t pi . #'(co_pred_find (-> z st) (co_name_of m head)
+                                                   (co_arity m head))))
+                  (if (< pi ($ (cof (-> z st)) npreds))
+                      (set rc (co_zg_sync_pred z pi)))))
+            (set (-> m heap_len) mark)
+            (return rc))))
+
+  (func co_zg_consult ((co_zg * z) (const char * text)) (out int)
+        (let ((char err [256]) (int n))
+          (set n (co_consult (-> z st) (-> z m) text err (sizeof err)))
+          (if (< n 0) (block (snprintf (-> z err) 256 "%s" err) (return 0)))
+          (return 1)))
+
+  ;;; ---- suspending and resuming -----------------------------------------
+
+  (func co_zg_save ((co_zg * z) (co_engine * e) (const char * name) (const char * note))
+        (out int)
+        (let ((co_strbuf b) (i64 mid . 0) (size_t chunks . 0) (int ok . 1))
+          (co_sb_init (aof b))
+          (if (not (co_freeze e (aof b)))
+              (block (co_sb_free (aof b)) (return (co_zg_fail z "freezing"))))
+
+          (set chunks (/ (+ ($ b len) (- (co-chunk-bytes) 1)) (co-chunk-bytes)))
+          (if (== chunks 0) (set chunks 1))
+
+          (if (not (zg_call (-> z db) "cocolog::machine_open"))
+              (block (co_sb_free (aof b)) (return (co_zg_fail z "machine_open"))))
+          (set ok (and (zg_write_string (-> z db) name)
+                       (and (zg_write_string (-> z db) (-> z kb))
+                            (and (zg_write_string (-> z db) "suspended")
+                                 (and (zg_write_int (-> z db) (cast i32 chunks))
+                                      (zg_write_string (-> z db)
+                                                       (? (== note nil) "" note)))))))
+          (if (not ok) (block (co_sb_free (aof b)) (return (co_zg_fail z "machine_open"))))
+          (if (not (co_zg_finish z (aof mid)))
+              (block (co_sb_free (aof b)) (return (co_zg_fail z "machine_open"))))
+
+          ;; One row per chunk. The buffer is cut in place: a NUL is put at the
+          ;; end of each piece, the piece is sent, and the byte it displaced is
+          ;; put back -- so a machine of any size costs one extra byte of copy
+          ;; and not a second copy of itself.
+          (for ((size_t i . 0)) (< i chunks) ((++ i))
+            (let ((size_t from . #'(* i (co-chunk-bytes)))
+                  (size_t upto) (char saved) (i64 rid . 0))
+              (set upto (+ from (co-chunk-bytes)))
+              (if (> upto ($ b len)) (set upto ($ b len)))
+              (set saved (nth upto ($ b s)))
+              (set (nth upto ($ b s)) (cast char 0))
+              (if (not (zg_call (-> z db) "cocolog::machine_chunk"))
+                  (block (set (nth upto ($ b s)) saved) (co_sb_free (aof b))
+                         (return (co_zg_fail z "machine_chunk"))))
+              (set ok (and (zg_write_long (-> z db) mid)
+                           (and (zg_write_int (-> z db) (cast i32 i))
+                                (zg_write_text (-> z db) (+ ($ b s) from)))))
+              (set (nth upto ($ b s)) saved)
+              (if (not ok) (block (co_sb_free (aof b))
+                                  (return (co_zg_fail z "machine_chunk"))))
+              (if (not (co_zg_finish z (aof rid)))
+                  (block (co_sb_free (aof b)) (return (co_zg_fail z "machine_chunk"))))))
+
+          (co_sb_free (aof b))
+          (return 1)))
+
+  (func co_zg_load ((co_zg * z) (co_engine * e) (co_machine * m)
+                    (co_store * st) (const char * name)) (out int)
+        (let ((i64 mid . -1) (i32 chunks . 0)
+              (zg_result_t r) (char cols [256])
+              (int ok . 1) (int rows . 0))
+
+          ;; the header first: which machine, and how many pieces it is in
+          (if (not (zg_call (-> z db) "cocolog::machine_find"))
+              (return (co_zg_fail z "machine_find")))
+          (if (not (zg_write_string (-> z db) name)) (return (co_zg_fail z "name")))
+          (while ok
+            (if (not (zg_result (-> z db) (aof r))) (block (set ok 0) break))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN)
+               (if (not (zg_columns (-> z db) cols 256)) (set ok 0)))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((char kb [64]) (char status [64]))
+                 (if (not (zg_read_long (-> z db) (aof mid) nil)) (block (set ok 0) break))
+                 (if (not (zg_read_string (-> z db) kb (sizeof kb) nil)) (block (set ok 0) break))
+                 (if (not (zg_read_string (-> z db) status (sizeof status) nil))
+                     (block (set ok 0) break))
+                 (if (not (zg_read_int (-> z db) (aof chunks) nil)) (block (set ok 0) break))
+                 (set rows (+ rows 1))))
+              ((== r ZG_RETURN_VALUE) (if (not (zg_skip_field (-> z db))) (set ok 0)))
+              (#t (block))))
+          (if (not ok) (return (co_zg_fail z "machine_find")))
+          (if (== rows 0)
+              (block (snprintf (-> z err) 256 "no suspended machine called '%s'" name)
+                     (return 0)))
+
+          ;; then the state, put back in `seq' order -- the cursor is not
+          ;; ordered, which is what `seq' is a column for
+          (let ((char ** parts . nil) (size_t np . 0) (co_strbuf blob))
+            (set np (cast size_t (? (> chunks 0) chunks 1)))
+            (set parts (cast (char **) (calloc np (sizeof (char *)))))
+            (if (== parts nil) (return (co_zg_fail z "out of memory")))
+
+            (if (not (zg_call (-> z db) "cocolog::machine_load"))
+                (block (free parts) (return (co_zg_fail z "machine_load"))))
+            (if (not (zg_write_long (-> z db) mid))
+                (block (free parts) (return (co_zg_fail z "machine id"))))
+            (while ok
+              (if (not (zg_result (-> z db) (aof r))) (block (set ok 0) break))
+              (if (== r ZG_SUCCESSFUL_DONE) break)
+              (cond
+                ((== r ZG_CURSOR_OPEN)
+                 (if (not (zg_columns (-> z db) cols 256)) (set ok 0)))
+                ((== r ZG_CURSOR_FETCH)
+                 (let ((i32 seq . -1) (char * chunk . nil))
+                   (if (not (zg_read_int (-> z db) (aof seq) nil)) (block (set ok 0) break))
+                   (if (not (zg_read_text_alloc (-> z db) (aof chunk) nil nil))
+                       (block (set ok 0) break))
+                   (if (and (>= seq 0) (< (cast size_t seq) np))
+                       (set (nth (cast size_t seq) parts) chunk)
+                     (free chunk))))
+                ((== r ZG_RETURN_VALUE) (if (not (zg_skip_field (-> z db))) (set ok 0)))
+                (#t (block))))
+
+            (co_sb_init (aof blob))
+            (if ok
+                (for ((size_t i . 0)) (< i np) ((++ i))
+                  (if (== (nth i parts) nil)
+                      (block (snprintf (-> z err) 256
+                                       "the machine '%s' is missing chunk %lu of %lu"
+                                       name (cast ulong i) (cast ulong np))
+                             (set ok 0))
+                    (co_sb_put (aof blob) (nth i parts)))))
+
+            (for ((size_t i . 0)) (< i np) ((++ i)) (free (nth i parts)))
+            (free parts)
+
+            (if (not ok) (block (co_sb_free (aof blob)) (return 0)))
+
+            ;; Thawing empties the store but keeps its backend -- see
+            ;; co_store_reset -- so the choice points it restores can ask the
+            ;; database for their predicates as they come back.
+            (let ((int rc . #'(co_thaw e m st (? (== ($ blob s) nil) "" ($ blob s)))))
+              (co_sb_free (aof blob))
+              (if (not rc)
+                  (block (snprintf (-> z err) 256 "%s" ($ (cof e) err)) (return 0))))
+
+            ;; And re-attach, in case the caller handed in a machine and store
+            ;; this Z was not already pointing at. THE NAME IS COPIED FIRST:
+            ;; co_zg_attach clears Z before it reads its arguments, and passing
+            ;; it a pointer into Z meant it read back an empty knowledge-base
+            ;; name -- after which every fetch asked for the clauses of a
+            ;; knowledge base called "" and got none.
+            (let ((char kb_name [64]))
+              (snprintf kb_name (sizeof kb_name) "%s" (-> z kb))
+              (co_zg_attach z (-> z db) m st kb_name))
+            (return 1))))
+
+  (func co_zg_drop ((co_zg * z) (const char * name)) (out int)
+        (let ((i64 ignored . 0))
+          (if (not (zg_call (-> z db) "cocolog::machine_drop"))
+              (return (co_zg_fail z "machine_drop")))
+          (if (not (zg_write_string (-> z db) name)) (return 0))
+          (return (co_zg_finish z (aof ignored)))))
+
+  ) ; impl-zigurat-kb

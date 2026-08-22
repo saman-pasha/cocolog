@@ -1,0 +1,349 @@
+;;;; cocolog -- freezing a machine, and thawing it again
+;;;
+;;; THIS FILE IS SHORT BECAUSE OF DECISIONS MADE ELSEWHERE. A machine is a heap
+;;; of 64-bit cells, a trail of indices, an array of choice-point frames whose
+;;; every field is an integer, and three interning tables. There is no graph to
+;;; walk, no pointer to relocate and no C stack to reconstruct -- so freezing is
+;;; printing six arrays and thawing is reading them back. If terms were made of
+;;; malloc'd nodes and the engine recursed in C, this file could not exist at
+;;; all; that is what term.cicili and solve.cicili are paying for.
+;;;
+;;; THE FORMAT IS ASCII, and deliberately. It goes into a Text column, travels
+;;; through an HTTP page, and gets looked at by a person trying to work out why
+;;; a machine will not resume. Atom names are hex-encoded so that a name
+;;; holding a space, a newline or a NUL cannot break the framing; everything
+;;; else is already a number.
+;;;
+;;; WHAT IS *NOT* IN IT: the knowledge base. A frozen machine is a suspended
+;;; computation, not a copy of the database it was reading -- the database is
+;;; the shared thing, and shipping a copy of it inside every suspended machine
+;;; would defeat the point of sharing it. So thawing is two steps and the order
+;;; matters:
+;;;
+;;;   1. thaw the machine, which rebuilds the atom table exactly as it was
+;;;   2. load the knowledge base, whose clauses intern against that table
+;;;
+;;; Interning is by name, so a name the machine already has keeps the id it had
+;;; and a new one is appended. Do it the other way round and the store's cells
+;;; would refer to atom ids the thawed heap does not agree with.
+;;;
+;;; WHAT A RESUMED MACHINE ASSUMES ABOUT THE DATABASE. A choice point that was
+;;; part way through a predicate remembers the predicate by NAME and arity --
+;;; not by its index in the store, which depends on the order predicates were
+;;; first mentioned -- and the position of the next clause to try. So resuming
+;;; requires the predicate to still have its clauses in the order it had them.
+;;; Retracting a clause from underneath a suspended machine will make it resume
+;;; at the wrong one. That is the same hazard Prolog's `retract' has always had
+;;; against a running query, and it is the reason the clause tables are the
+;;; thing a transaction is held over.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+
+(generic decl-state
+  ()
+
+  ;;; A cursor over the frozen text. Everything is read through this, so a
+  ;;; truncated or corrupt blob fails in one place rather than in twenty.
+  (struct co_scan
+    (member const char * s)
+    (member size_t       pos)
+    (member size_t       len)
+    (member int          bad))
+
+  ;;; Writes the whole of E -- machine and engine -- into B.
+  (decl) (func co_freeze ((co_engine * e) (co_strbuf * b)) (out int))
+
+  ;;; Reads one back. M and ST are reset; E is pointed at them. Answers 1, or 0
+  ;;; with a message in E's `err'.
+  ;;;
+  ;;; The store is emptied but NOT filled: load the knowledge base after this,
+  ;;; in that order, for the reason given at the head of the file.
+  (decl) (func co_thaw ((co_engine * e) (co_machine * m) (co_store * st)
+                        (const char * text)) (out int))
+
+  ) ; decl-state
+
+
+(generic impl-state
+  ()
+
+  ;;; ---- writing -----------------------------------------------------------
+
+  (static)
+  (func co_sb_put_hex ((co_strbuf * b) (u64 v)) (out int)
+        (let ((char tmp [24]))
+          (snprintf tmp (sizeof tmp) "%llx" (cast ullong v))
+          (return (co_sb_put b tmp))))
+
+  (static)
+  (func co_sb_put_sz ((co_strbuf * b) (size_t v)) (out int)
+        (let ((char tmp [24]))
+          (snprintf tmp (sizeof tmp) "%llu" (cast ullong v))
+          (return (co_sb_put b tmp))))
+
+  ;;; A name as hex digits. Two per byte, no length prefix needed -- the token
+  ;;; ends at the next space, and an empty name is the empty token, which is
+  ;;; why the length is written beside it.
+  (static)
+  (func co_sb_put_name ((co_strbuf * b) (const char * s) (size_t n)) (out int)
+        (co_sb_put_sz b n)
+        (co_sb_putc b (cast char 32))
+        (for ((size_t i . 0)) (< i n) ((++ i))
+          (let ((char tmp [4]))
+            (snprintf tmp (sizeof tmp) "%02x" (cast uint (cast uchar (nth i s))))
+            (co_sb_put b tmp)))
+        (return 1))
+
+  (func co_freeze ((co_engine * e) (co_strbuf * b)) (out int)
+        (let ((co_machine * m . #'(-> e m)))
+          (co_sb_put b "cocolog 1\n")
+
+          (co_sb_put b "A ") (co_sb_put_sz b (-> m atoms_len)) (co_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> m atoms_len)) ((++ i))
+            (co_sb_put_name b ($ (nth i (-> m atoms)) name) ($ (nth i (-> m atoms)) len))
+            (co_sb_putc b (cast char 10)))
+
+          (co_sb_put b "F ") (co_sb_put_sz b (-> m functors_len)) (co_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> m functors_len)) ((++ i))
+            (co_sb_put_sz b (cast size_t ($ (nth i (-> m functors)) name)))
+            (co_sb_putc b (cast char 32))
+            (co_sb_put_sz b (cast size_t ($ (nth i (-> m functors)) arity)))
+            (co_sb_putc b (cast char 10)))
+
+          ;; %.17g is the shortest form that reads back bit for bit -- this is
+          ;; the one place the writer's %.15g would not do, because a machine
+          ;; that resumes has to hold the same double it held before
+          (co_sb_put b "D ") (co_sb_put_sz b (-> m floats_len)) (co_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> m floats_len)) ((++ i))
+            (let ((char tmp [40]))
+              (snprintf tmp (sizeof tmp) "%.17g" (nth i (-> m floats)))
+              (co_sb_put b tmp)
+              (co_sb_putc b (cast char 10))))
+
+          (co_sb_put b "H ") (co_sb_put_sz b (-> m heap_len)) (co_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> m heap_len)) ((++ i))
+            (co_sb_put_hex b (nth i (-> m heap)))
+            (co_sb_putc b (cast char (? (== 15 (% i 16)) 10 32))))
+          (co_sb_putc b (cast char 10))
+
+          (co_sb_put b "T ") (co_sb_put_sz b (-> m trail_len)) (co_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> m trail_len)) ((++ i))
+            (co_sb_put_sz b (nth i (-> m trail)))
+            (co_sb_putc b (cast char (? (== 15 (% i 16)) 10 32))))
+          (co_sb_putc b (cast char 10))
+
+          (co_sb_put b "E ")
+          (co_sb_put_sz b (-> e goals))    (co_sb_putc b (cast char 32))
+          (co_sb_put_sz b (-> e query))    (co_sb_putc b (cast char 32))
+          (co_sb_put_sz b (cast size_t (-> e steps)))     (co_sb_putc b (cast char 32))
+          (co_sb_put_sz b (cast size_t (-> e max_steps))) (co_sb_putc b (cast char 32))
+          (co_sb_put_sz b (cast size_t (-> e resume)))    (co_sb_putc b (cast char 32))
+          (co_sb_put_sz b (cast size_t (-> e halted)))    (co_sb_putc b (cast char 10))
+
+          ;; A choice point names its predicate rather than pointing at it: the
+          ;; index depends on the order predicates were first mentioned, which
+          ;; is not something a machine coming back somewhere else can rely on.
+          (co_sb_put b "C ") (co_sb_put_sz b (-> e nchoices)) (co_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> e nchoices)) ((++ i))
+            (let ((co_choice * c . #'(aof (nth i (-> e choices))))
+                  (u64 pname . 0) (u32 parity . 0))
+              (if (== (-> c kind) CO_CH_CLAUSE)
+                  (block (set pname ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) name))
+                         (set parity ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) arity))))
+              (co_sb_put_sz b (cast size_t (-> c kind)))       (co_sb_putc b (cast char 32))
+              (co_sb_put_sz b (-> c goals))                    (co_sb_putc b (cast char 32))
+              (co_sb_put_sz b (-> c trail_mark))               (co_sb_putc b (cast char 32))
+              (co_sb_put_sz b (-> c heap_mark))                (co_sb_putc b (cast char 32))
+              (co_sb_put_sz b (-> c call))                     (co_sb_putc b (cast char 32))
+              (co_sb_put_sz b (-> c clause_ix))                (co_sb_putc b (cast char 32))
+              (co_sb_put_sz b (-> c barrier))                  (co_sb_putc b (cast char 32))
+              (co_sb_put_sz b (cast size_t parity))            (co_sb_putc b (cast char 32))
+              (if (== (-> c kind) CO_CH_CLAUSE)
+                  (co_sb_put_name b (co_atom_name m pname)
+                                  (strlen (co_atom_name m pname)))
+                (co_sb_put b "0 "))
+              (co_sb_putc b (cast char 10))))
+
+          (return (? (== ($ (cof b) s) nil) 0 1))))
+
+  ;;; ---- reading ------------------------------------------------------------
+
+  ;;; The value of one hex digit, or -1. Answers int rather than a flag plus a
+  ;;; value because -1 is not a digit and cannot be mistaken for one.
+  (static)
+  (func co_hexval ((char ch)) (out int)
+        (let ((int c . #'(cast int (cast uchar ch))))
+          (if (and (>= c 48) (<= c 57)) (return (- c 48)))
+          (if (and (>= c 97) (<= c 102)) (return (+ 10 (- c 97))))
+          (if (and (>= c 65) (<= c 70)) (return (+ 10 (- c 65))))
+          (return -1)))
+
+  (static)
+  (func co_scan_space ((co_scan * z))
+        (while (and (< (-> z pos) (-> z len))
+                    (or (== (nth (-> z pos) (-> z s)) (cast char 32))
+                        (or (== (nth (-> z pos) (-> z s)) (cast char 10))
+                            (or (== (nth (-> z pos) (-> z s)) (cast char 13))
+                                (== (nth (-> z pos) (-> z s)) (cast char 9))))))
+          (set (-> z pos) (+ (-> z pos) 1))))
+
+  (static)
+  (func co_scan_u64 ((co_scan * z) (int base)) (out u64)
+        (co_scan_space z)
+        (let ((u64 v . 0) (int any . 0))
+          (while (< (-> z pos) (-> z len))
+            (let ((int ch . #'(cast int (cast uchar (nth (-> z pos) (-> z s)))))
+                  (int d . -1))
+              (cond ((and (>= ch 48) (<= ch 57)) (set d (- ch 48)))
+                    ((and (>= ch 97) (<= ch 102)) (set d (+ 10 (- ch 97))))
+                    ((and (>= ch 65) (<= ch 70)) (set d (+ 10 (- ch 65)))))
+              (if (or (== d -1) (>= d base)) break)
+              (set v (+ (* v (cast u64 base)) (cast u64 d)))
+              (set any 1)
+              (set (-> z pos) (+ (-> z pos) 1))))
+          (if (not any) (set (-> z bad) 1))
+          (return v)))
+
+  ;;; The next token must be exactly this word. Used for the section letters,
+  ;;; so a blob whose sections are out of order is rejected rather than read as
+  ;;; something else.
+  (static)
+  (func co_scan_word ((co_scan * z) (const char * w)) (out int)
+        (co_scan_space z)
+        (let ((size_t n . #'(strlen w)))
+          (if (> (+ (-> z pos) n) (-> z len)) (block (set (-> z bad) 1) (return 0)))
+          (if (!= 0 (strncmp (+ (-> z s) (-> z pos)) w n))
+              (block (set (-> z bad) 1) (return 0)))
+          (set (-> z pos) (+ (-> z pos) n))
+          (return 1)))
+
+  (static)
+  (func co_scan_double ((co_scan * z)) (out double)
+        (co_scan_space z)
+        (let ((char * end . nil)
+              (double v . #'(strtod (+ (-> z s) (-> z pos)) (aof end))))
+          (if (== end (+ (-> z s) (-> z pos))) (block (set (-> z bad) 1) (return 0.0)))
+          (set (-> z pos) (cast size_t (- end (-> z s))))
+          (return v)))
+
+  ;;; A hex-encoded name into B. The length comes first, so an empty name is
+  ;;; read as an empty name rather than as a missing token.
+  (static)
+  (func co_scan_name ((co_scan * z) (co_strbuf * b)) (out int)
+        (co_sb_reset b)
+        (let ((size_t n . #'(cast size_t (co_scan_u64 z 10))))
+          (if (-> z bad) (return 0))
+          (co_scan_space z)
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (if (> (+ (-> z pos) 2) (-> z len)) (block (set (-> z bad) 1) (return 0)))
+            (let ((int hi) (int lo))
+              (set hi (co_hexval (nth (-> z pos) (-> z s))))
+              (set lo (co_hexval (nth (+ (-> z pos) 1) (-> z s))))
+              (if (or (< hi 0) (< lo 0)) (block (set (-> z bad) 1) (return 0)))
+              (co_sb_putc b (cast char (+ (* hi 16) lo)))
+              (set (-> z pos) (+ (-> z pos) 2))))
+          (return 1)))
+
+  (func co_thaw ((co_engine * e) (co_machine * m) (co_store * st) (const char * text)) (out int)
+        (let ((co_scan z) (co_strbuf nm) (int ok . 1))
+          (memset (aof z) 0 (sizeof co_scan))
+          (set ($ z s) text)
+          (set ($ z len) (strlen text))
+          (co_sb_init (aof nm))
+
+          ;; the machine is rebuilt from nothing, so the atom ids in the frozen
+          ;; heap mean what they meant
+          (co_machine_free m)
+          (co_machine_init m)
+
+          ;; THE STORE'S BACKEND SURVIVES THE RESET. Emptying the store is the
+          ;; point -- the clauses are reloaded rather than carried in the blob
+          ;; -- but the hooks that say WHERE from are not part of its contents,
+          ;; and they have to be in place before the choice points are put back:
+          ;; restoring one asks the store for its predicate, and a predicate
+          ;; with no backend behind it stays empty. The machine came back
+          ;; holding its choice points and then proved nothing.
+          (co_store_reset st)
+
+          (co_engine_free e)
+          (co_engine_init e m st)
+
+          (if (not (co_scan_word (aof z) "cocolog")) (set ok 0))
+          (if (!= 1 (cast int (co_scan_u64 (aof z) 10))) (set ok 0))
+
+          ;; ---- atoms, in order, so ids are preserved ----
+          (if ok (co_scan_word (aof z) "A"))
+          (let ((size_t na . #'(cast size_t (co_scan_u64 (aof z) 10))))
+            (for ((size_t i . 0)) (and ok (< i na)) ((++ i))
+              (if (not (co_scan_name (aof z) (aof nm))) (block (set ok 0) break))
+              (co_intern_len m (? (== ($ nm s) nil) "" ($ nm s)) ($ nm len))))
+
+          ;; ---- functors ----
+          (if ok (co_scan_word (aof z) "F"))
+          (let ((size_t nf . #'(cast size_t (co_scan_u64 (aof z) 10))))
+            (for ((size_t i . 0)) (and ok (< i nf)) ((++ i))
+              (let ((u64 name . #'(co_scan_u64 (aof z) 10))
+                    (u64 ar . #'(co_scan_u64 (aof z) 10)))
+                (co_functor_id m name (cast u32 ar)))))
+
+          ;; ---- floats ----
+          (if ok (co_scan_word (aof z) "D"))
+          (let ((size_t nd . #'(cast size_t (co_scan_u64 (aof z) 10))))
+            (for ((size_t i . 0)) (and ok (< i nd)) ((++ i))
+              (co_new_float m (co_scan_double (aof z)))))
+          ;; co_new_float pushed a cell per float; the heap below replaces the
+          ;; whole array anyway, so those cells are about to be overwritten
+          (set (-> m heap_len) 0)
+
+          ;; ---- the heap ----
+          (if ok (co_scan_word (aof z) "H"))
+          (let ((size_t nh . #'(cast size_t (co_scan_u64 (aof z) 10))))
+            (for ((size_t i . 0)) (and ok (< i nh)) ((++ i))
+              (co_push m (co_scan_u64 (aof z) 16))))
+
+          ;; ---- the trail ----
+          (if ok (co_scan_word (aof z) "T"))
+          (let ((size_t nt . #'(cast size_t (co_scan_u64 (aof z) 10))))
+            (for ((size_t i . 0)) (and ok (< i nt)) ((++ i))
+              (co_trail_push m (cast size_t (co_scan_u64 (aof z) 10)))))
+
+          ;; ---- the engine ----
+          (if ok (co_scan_word (aof z) "E"))
+          (set (-> e goals)     (cast size_t (co_scan_u64 (aof z) 10)))
+          (set (-> e query)     (cast size_t (co_scan_u64 (aof z) 10)))
+          (set (-> e steps)     (co_scan_u64 (aof z) 10))
+          (set (-> e max_steps) (co_scan_u64 (aof z) 10))
+          (set (-> e resume)    (cast int (co_scan_u64 (aof z) 10)))
+          (set (-> e halted)    (cast int (co_scan_u64 (aof z) 10)))
+
+          ;; ---- the choice points ----
+          (if ok (co_scan_word (aof z) "C"))
+          (let ((size_t nc . #'(cast size_t (co_scan_u64 (aof z) 10))))
+            (for ((size_t i . 0)) (and ok (< i nc)) ((++ i))
+              (let ((int kind . #'(cast int (co_scan_u64 (aof z) 10)))
+                    (size_t goals . #'(cast size_t (co_scan_u64 (aof z) 10)))
+                    (size_t tmark . #'(cast size_t (co_scan_u64 (aof z) 10)))
+                    (size_t hmark . #'(cast size_t (co_scan_u64 (aof z) 10)))
+                    (size_t call . #'(cast size_t (co_scan_u64 (aof z) 10)))
+                    (size_t cix . #'(cast size_t (co_scan_u64 (aof z) 10)))
+                    (size_t barrier . #'(cast size_t (co_scan_u64 (aof z) 10)))
+                    (u32 parity . #'(cast u32 (co_scan_u64 (aof z) 10))))
+                (if (not (co_scan_name (aof z) (aof nm))) (block (set ok 0) break))
+                (if (not (co_choice_restore e kind goals tmark hmark call cix barrier
+                                            (? (== ($ nm s) nil) "" ($ nm s)) parity))
+                    (block (set ok 0) break)))))
+
+          (co_sb_free (aof nm))
+          (if (or (not ok) ($ z bad))
+              (block (snprintf (-> e err) 192
+                               "the frozen machine could not be read (at offset %llu)"
+                               (cast ullong ($ z pos)))
+                     (return 0)))
+          (return 1)))
+
+  ) ; impl-state

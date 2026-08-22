@@ -1,0 +1,103 @@
+-- ---------------------------------------------------------------------------
+-- cocolog, step 1: the schema.
+--
+-- cocolog is a Prolog interpreter (in the Cicili repository) that keeps its
+-- knowledge base here rather than in its own memory, so that several
+-- interpreters can share one set of clauses and can suspend themselves into
+-- the database and be resumed somewhere else.
+--
+-- TWO THINGS ARE STORED, and they are stored differently on purpose.
+--
+--   CLAUSES are text -- the canonical written form of the term, which the
+--   interpreter's own reader can read back. Text loses nothing that matters
+--   (the writer and reader are tested against each other), and it buys three
+--   things a binary encoding would not: a person can read the table, a Parsi
+--   procedure can search it with an ordinary comparison, and the schema is not
+--   tied to the interpreter's cell layout. Change a tag in the interpreter and
+--   every clause already in here still loads.
+--
+--   MACHINE STATE is an opaque blob. Nobody reads a suspended machine by hand,
+--   and what it has to do is come back exactly, so it is the interpreter's own
+--   serialisation and this schema does not look inside it.
+--
+-- WHY THE STATE IS IN CHUNKS, AND WHY THEY ARE SMALL. A Text is documented as
+-- holding 65,535 bytes, and the wire agrees: a value is written with a 16-bit
+-- length. THE STORE DOES NOT. A row has to fit inside a page, and MVCCS/PAGE_SIZE
+-- is 8192 by default, so a Text of 8192 comes back as `allocation overflow'
+-- while 8000 goes in. Measured, not guessed: 1000 through 8000 store, 8192 and
+-- above do not.
+--
+-- So cocolog splits a machine into chunks of 4000 bytes -- comfortably under
+-- the smallest page anyone is likely to configure, with room for the rest of
+-- the row -- and puts them back together in `seq' order. One row per machine
+-- would have worked until the first interesting program and then failed in a
+-- way that read like corruption rather than like a size limit.
+--
+-- WHY `kb' IS A COLUMN AND NOT A SCHEMA. Two unrelated programs sharing one
+-- server should not see each other's clauses, and making each one its own
+-- Parsi domain would mean compiling new objects to add a knowledge base.
+-- A column costs an index and lets a knowledge base be created by inserting
+-- into it.
+-- ---------------------------------------------------------------------------
+
+TABLE cocolog::clauses
+BEGIN
+    COLUMN id      AS Long   PRIMARY KEY;
+    -- which knowledge base this clause belongs to
+    COLUMN kb      AS String INDEX KEY NOT NULL;
+    -- the predicate: name and arity together are the identity
+    COLUMN name    AS String INDEX KEY NOT NULL;
+    COLUMN arity   AS Int    NOT NULL;
+    -- position within the predicate. Clause order is part of the meaning of a
+    -- Prolog program, and a cursor is not ordered, so it travels as data and
+    -- the client sorts on it.
+    COLUMN ordinal AS Long   NOT NULL;
+    -- the clause, written canonically: quoted, with operators kept.
+    -- Called `body' and not `text' because a column named `text' collides with
+    -- the Text type: Parsi folds names to upper case, and the compiler says
+    -- "declaration of TEXT changes meaning of TEXT".
+    COLUMN body    AS Text   NOT NULL;
+END
+
+SEQUENCE cocolog::clauses_seq
+BEGIN
+    FROM 1;
+    TO Long::MAX;
+    STEP 1;
+END
+
+-- One row per suspended machine. `chunks' is how many rows of state belong to
+-- it, so a loader knows whether it has them all before it tries to resume.
+TABLE cocolog::machines
+BEGIN
+    COLUMN id      AS Long   PRIMARY KEY;
+    COLUMN name    AS String UNIQUE KEY NOT NULL;
+    COLUMN kb      AS String INDEX KEY NOT NULL;
+    -- suspended | done | failed. A machine that is running is not in here at
+    -- all: it is in the memory of whichever interpreter is running it.
+    COLUMN status  AS String NOT NULL;
+    COLUMN chunks  AS Int    NOT NULL;
+    COLUMN note    AS String;
+END
+
+SEQUENCE cocolog::machines_seq
+BEGIN
+    FROM 1;
+    TO Long::MAX;
+    STEP 1;
+END
+
+TABLE cocolog::machine_state
+BEGIN
+    COLUMN id         AS Long PRIMARY KEY;
+    COLUMN machine_id AS Long INDEX KEY NOT NULL;
+    COLUMN seq        AS Int  NOT NULL;
+    COLUMN chunk      AS Text NOT NULL;
+END
+
+SEQUENCE cocolog::machine_state_seq
+BEGIN
+    FROM 1;
+    TO Long::MAX;
+    STEP 1;
+END

@@ -1,0 +1,141 @@
+;;;; test the Zigurat binding -- against a real server, or not at all
+;;;
+;;; IT SKIPS RATHER THAN FAILS when there is no server. "No server here" and
+;;; "the binding is wrong" are different findings, and a suite that cannot tell
+;;; them apart is one nobody trusts. This is the arrangement test/c/postgres
+;;; already has.
+;;;
+;;; What it needs, when it does run:
+;;;
+;;;   ZIGURATIP_HOME  pointing at a built ZiguratIP home directory
+;;;   the cocolog objects compiled there  (sh cocolog/build.sh)
+;;;   a server listening on 2160
+;;;
+;;; THE PATHS COME FROM THE ENVIRONMENT AT READ TIME. `#.' is the Lisp reader's
+;;; eval, and a .cicili file is read by the Lisp reader -- so the include and
+;;; link paths are computed while the file is being read, from the same
+;;; ZIGURATIP_HOME the server uses. Hard-coding them would make this file work
+;;; on exactly one machine.
+
+(source "zigurat.c"
+  (make :std #t
+        ;; A custom compile list replaces the default one, so it has to carry
+        ;; the -c and the file itself -- see the numpy example, which does the
+        ;; same for its own include path.
+        :compile ("-I../client"
+                  "-c" "zigurat.c")
+        :link ("-lzigurat.o"
+               "-L../build"
+               "-lcocologc" "-o" "cocolog_zg_test"))
+
+  (include <zigurat.h>)
+
+  (import "../lib/zigurat.cicili" :zg)
+
+  (var int failures . 0)
+  (var int checks . 0)
+
+  (func check ((const char * what) (llong got) (llong want))
+        (set checks (+ checks 1))
+        (if (== got want)
+            (printf "ok   %-46s %lld\n" what got)
+          (block (printf "FAIL %-46s got %lld want %lld\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  (func check_str ((const char * what) (const char * got) (const char * want))
+        (set checks (+ checks 1))
+        (if (== 0 (strcmp got want))
+            (printf "ok   %-46s %s\n" what got)
+          (block (printf "FAIL %-46s got [%s] want [%s]\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  (func main ()
+    (let ((char err [512])
+          (zg_conn * db . nil)
+          (const char * host . #'(? (== (getenv "ZIGURAT_HOST") nil)
+                                    "127.0.0.1" (getenv "ZIGURAT_HOST")))
+          (const char * port . #'(? (== (getenv "ZIGURAT_PORT") nil)
+                                    "2160" (getenv "ZIGURAT_PORT"))))
+      (set (nth 0 err) (cast char 0))
+      (set db (zg.open host port 10 err (sizeof err)))
+      (if (== db nil)
+          (block (printf "SKIP no Zigurat server at %s:%s (%s)\n" host port err)
+                 (return 0)))
+
+      (printf "connected to %s:%s\n" host port)
+
+      ;; ---- the framing --------------------------------------------------
+      (let ((char back [300]))
+        (check "echo round trips"
+               (cast llong (and (zg_echo db "cocolog" back (sizeof back))
+                                (== 0 (strcmp back "cocolog")))) 1))
+
+      (check "the connection carries a transaction"
+             (cast llong (!= (zg_transaction_id db) 0)) 1)
+
+      ;; ---- a call with a return value ------------------------------------
+      (let ((int ok))
+        (set ok (zg.call db "cocolog::forget_all" (string "citest")
+                  (returns gone (long))
+                  (printf "     cleared %lld clause(s)\n" (cast llong gone))))
+        (check "forget_all answered" (cast llong ok) 1))
+
+      ;; ---- calls with parameters of every width ---------------------------
+      (let ((int ok . 1))
+        (set ok (and ok (zg.call db "cocolog::assert_clause"
+                          (string "citest") (string "p") (int 1) (long 0)
+                          (text "p(1)")
+                          (returns id (long)))))
+        (set ok (and ok (zg.call db "cocolog::assert_clause"
+                          (string "citest") (string "p") (int 1) (long 1)
+                          (text "p(2)")
+                          (returns id (long)))))
+        (check "asserted two clauses" (cast llong ok) 1))
+
+      (let ((int ok))
+        (set ok (zg.call db "cocolog::clause_count"
+                  (string "citest") (string "p") (int 1)
+                  (returns n (long))
+                  (check "clause_count sees both" (cast llong n) 2)))
+        (check "clause_count answered" (cast llong ok) 1))
+
+      ;; ---- a cursor -------------------------------------------------------
+      ;; This is the shape the knowledge-base backend uses: a row body that
+      ;; runs once per clause with the fields already read.
+      (let ((int rows . 0) (char first [256]) (int ok))
+        (set (nth 0 first) (cast char 0))
+        (set ok (zg.call db "cocolog::clauses_of"
+                  (string "citest") (string "p") (int 1)
+                  (row (ord (long)) (body (text)))
+                  (set rows (+ rows 1))
+                  (if (== ord 0) (snprintf first (sizeof first) "%s" body))))
+        (check "the cursor gave two rows" (cast llong rows) 2)
+        (check "and the call completed"   (cast llong ok) 1)
+        (check_str "the clause text survived" first "p(1)"))
+
+      ;; ---- a Text long enough to matter ------------------------------------
+      ;; A frozen machine travels in Text fields, so a big one is worth proving
+      ;; rather than assuming. 6000 and not 40000: the wire would take 65535,
+      ;; but a row has to fit in a page and the default page is 8192, so a Text
+      ;; of 8192 comes back as `allocation overflow'. cocolog chunks at 4000
+      ;; for that reason and this is a size comfortably either side of it.
+      (let ((char * big . #'(cast (char *) (malloc 6001)))
+            (int ok . 0))
+        (memset big 122 6000)
+        (set (nth 6000 big) (cast char 0))
+        (set ok (zg.call db "cocolog::machine_open"
+                  (string "citest-machine") (string "citest") (string "suspended")
+                  (int 1) (string "from the cicili binding")
+                  (returns mid (long))
+                  (set ok (zg.call db "cocolog::machine_chunk"
+                            (long mid) (int 0) (text big)
+                            (returns rid (long))))))
+        (check "a 6000 byte Text went out and came back" (cast llong ok) 1)
+        (free big))
+
+      (check "committed" (cast llong (zg.commit db)) 1)
+
+      (zg.close db)
+      (printf "\n%s: %d failure(s) in %d checks\n"
+              (? (== failures 0) "GREEN" "RED") failures checks)
+      (return (? (== failures 0) 0 1)))))

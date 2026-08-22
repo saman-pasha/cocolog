@@ -1,0 +1,201 @@
+-- ---------------------------------------------------------------------------
+-- cocolog, step 3: the same knowledge base over HTTP.
+--
+-- WHY A SECOND TRANSPORT AT ALL. The binary protocol on 2160 is the better one
+-- -- it has real transactions, isolation levels and cursors -- and the
+-- interpreter's main backend uses it. This exists because the knowledge base
+-- is worth reaching from places that cannot open a socket to 2160: a browser,
+-- a script, something behind a proxy that only speaks HTTP. The interpreter's
+-- store has one hook, so a second backend is a second implementation of it and
+-- nothing above it changes.
+--
+-- THESE PAGES ONLY READ, and that is a decision rather than an omission. One
+-- HTTP request is one transaction. Reading is naturally one request: the
+-- clauses of a predicate are one query, and a suspended machine is emitted
+-- whole below. WRITING is not: a machine goes into the database as a header
+-- row and then a row per chunk, and over HTTP those would be separate
+-- transactions, so a machine could be left half written with nothing to roll
+-- back. Writes go over the binary protocol, where the connection IS the
+-- transaction. See ../CConnector and lib/cocolog/zigurat-kb.cicili on the
+-- Cicili side.
+--
+-- THE FORMAT IS LINES, NOT HTML. A client here is a program.
+--
+-- ECHO ESCAPES, AND THAT IS FINE. Everything a page emits that did not come
+-- from a literal is HTML-escaped, and the escaper (Core/utility.cpp) has
+-- exactly five rules: & < > " ' become &amp; &lt; &gt; &quot; &#39;. A clause
+-- can contain any of them, so the client undoes those five and gets the text
+-- back exactly -- the mapping is unambiguous because & is escaped too.
+--
+-- A FROZEN MACHINE NEEDS NO UNESCAPING AT ALL: its serialised form is hex
+-- digits, decimals, section letters and whitespace, and none of the five
+-- appears in it. It is emitted as it stands.
+--
+-- THE NEWLINE IS A DECLARED CONSTANT because Parsi's string literals do not
+-- process escapes: '\n' in a page comes out as a backslash and an n, which
+-- would be a fine record separator until the first clause containing a quoted
+-- newline -- the interpreter writes one as backslash-n too, and the two would
+-- be indistinguishable. A literal newline inside the quotes is a real newline,
+-- so each page declares one and uses it.
+-- ---------------------------------------------------------------------------
+
+INCLUDE '"httprequest.hpp"';
+INCLUDE '"httpresponse.hpp"';
+
+-- The clauses of one predicate NAME in one knowledge base KB.
+--
+--   GET /cocolog/kb.zt?kb=demo&name=ancestor
+--
+--   COCOLOG 1
+--   C <arity> <ordinal> <clause>
+--   ...
+--   END
+--
+-- EVERY ARITY OF THAT NAME COMES BACK and the client keeps the one it asked
+-- for. A query string is text, and Zigurat's Int has no constructor from a
+-- String, so an arity taken from the URL cannot be compared against the Int
+-- column -- it travels as a column instead and the filtering happens where
+-- there is a type system to do it.
+PAGE cocolog::kb
+REQUIRES cocolog::clauses
+BEGIN
+PUBLIC:
+    OVERRIDE FUNCTION PAGE_LOAD() RETURNS Void
+    BEGIN
+        CALL response.SET_HEADER('content-type', 'text/plain; charset=utf-8');
+        DECLARE nl AS String = '
+';
+        DECLARE p_kb   AS String = request.QUERY('kb');
+        DECLARE p_name AS String = request.QUERY('name');
+
+        ECHO 'COCOLOG 1', nl;
+        SELECT 'C ', arity, ' ', ordinal, ' ', body, nl
+        FROM cocolog::clauses
+        WHERE kb == p_kb AND name == p_name;
+        ECHO 'END', nl;
+    END
+END
+
+-- Every predicate in a knowledge base, as one line each.
+--
+--   GET /cocolog/predicates.zt?kb=demo
+--
+--   COCOLOG 1
+--   P <name> <arity>
+--   ...
+--   END
+--
+-- One line per CLAUSE, not per predicate -- the client folds them. Counting
+-- distinct pairs would need a GROUP BY the language does not have, and a
+-- client that is about to fetch the clauses anyway can fold a few hundred
+-- lines without noticing.
+PAGE cocolog::predicates
+REQUIRES cocolog::clauses
+BEGIN
+PUBLIC:
+    OVERRIDE FUNCTION PAGE_LOAD() RETURNS Void
+    BEGIN
+        CALL response.SET_HEADER('content-type', 'text/plain; charset=utf-8');
+        DECLARE nl AS String = '
+';
+        DECLARE p_kb AS String = request.QUERY('kb');
+
+        ECHO 'COCOLOG 1', nl;
+        SELECT 'P ', name, ' ', arity, nl
+        FROM cocolog::clauses
+        WHERE kb == p_kb;
+        ECHO 'END', nl;
+    END
+END
+
+-- One suspended machine, whole.
+--
+--   GET /cocolog/machine.zt?name=half-done
+--
+--   COCOLOG 1
+--   M <kb> <status> <chunks>
+--   <the serialised machine, chunks in order, exactly as stored>
+--   END
+--
+-- THE CHUNKS ARE EMITTED IN ORDER BY ASKING FOR THEM ONE AT A TIME. A SELECT
+-- is a cursor and a cursor is not ordered, so a single query would hand back
+-- the pieces of a machine in whatever order the storage engine had them --
+-- which reassembles into something that is not a machine. The loop over `seq'
+-- costs one query per chunk and is ordered by construction.
+PAGE cocolog::machine
+REQUIRES cocolog::machines, cocolog::machine_state
+BEGIN
+PUBLIC:
+    OVERRIDE FUNCTION PAGE_LOAD() RETURNS Void
+    BEGIN
+        CALL response.SET_HEADER('content-type', 'text/plain; charset=utf-8');
+        DECLARE nl AS String = '
+';
+        DECLARE p_name AS String = request.QUERY('name');
+
+        -- A literal 0 next to a Long is an ambiguous overload -- Zigurat's
+        -- types define == against several widths -- so the comparison value
+        -- gets a declaration of its own and the ambiguity never arises.
+        DECLARE none   AS Long   = 0;
+        DECLARE step   AS Int    = 1;
+        -- The locals are m_-prefixed because `chunks = chunks' would be the
+        -- column assigned from itself, or the variable from itself, and
+        -- neither is what was meant. The procedures have the same rule for
+        -- their parameters.
+        DECLARE mid      AS Long   = 0;
+        DECLARE m_chunks AS Int    = 0;
+        DECLARE m_kb     AS String = '';
+        DECLARE m_status AS String = '';
+
+        SELECT mid = id, m_chunks = chunks, m_kb = kb, m_status = status
+        FROM cocolog::machines
+        WHERE name == p_name;
+
+        ECHO 'COCOLOG 1', nl;
+        IF mid == none BEGIN
+            ECHO 'NONE', nl;
+            ECHO 'END', nl;
+        END ELSE BEGIN
+            ECHO 'M ', m_kb, ' ', m_status, ' ', m_chunks, nl;
+            DECLARE i AS Int = 0;
+            WHILE i < m_chunks BEGIN
+                SELECT chunk
+                FROM cocolog::machine_state
+                WHERE machine_id == mid AND seq == i;
+                SET i = i + step;
+            END
+            ECHO nl;
+            ECHO 'END', nl;
+        END
+    END
+END
+
+-- What machines are suspended in a knowledge base.
+--
+--   GET /cocolog/suspended.zt?kb=demo
+--
+--   COCOLOG 1
+--   S <name> <status> <chunks>
+--   ...
+--   END
+-- NOT called cocolog::machines: Zeytun maps the request path to an object
+-- name, so /cocolog/machines.zt would ask for COCOLOG::MACHINES, which is the
+-- TABLE. The server answers 500 rather than serving the page.
+PAGE cocolog::suspended
+REQUIRES cocolog::machines
+BEGIN
+PUBLIC:
+    OVERRIDE FUNCTION PAGE_LOAD() RETURNS Void
+    BEGIN
+        CALL response.SET_HEADER('content-type', 'text/plain; charset=utf-8');
+        DECLARE nl AS String = '
+';
+        DECLARE p_kb AS String = request.QUERY('kb');
+
+        ECHO 'COCOLOG 1', nl;
+        SELECT 'S ', name, ' ', status, ' ', chunks, nl
+        FROM cocolog::machines
+        WHERE kb == p_kb;
+        ECHO 'END', nl;
+    END
+END

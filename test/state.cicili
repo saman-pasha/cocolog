@@ -1,0 +1,172 @@
+;;;; test cocolog state -- a machine stopped mid-proof, and resumed elsewhere
+;;;
+;;; THE CHECK THAT MATTERS is the one in the middle: a query with several
+;;; solutions is run until it has produced one, frozen at that point, and the
+;;; frozen text is then thawed into a DIFFERENT machine and a DIFFERENT store
+;;; -- the originals are freed first, so nothing can be shared by accident --
+;;; and the remaining solutions are drawn from the new one. If any part of the
+;;; continuation, the trail or the choice stack failed to survive, the second
+;;; machine produces the wrong number of answers, or the wrong ones.
+;;;
+;;; The machine is deliberately frozen at a point where it is deep in a
+;;; recursive predicate with clauses still to try: `ancestor/2' over a family
+;;; tree leaves choice points at more than one depth, and each of them is a
+;;; predicate part way through its clause list.
+
+(source "state.c"
+  (make :std #t :compile #t :link ("-lstate.o" "-lm" "-o" "cocolog_state_test"))
+
+  (include <math.h>)
+
+  (import "../lib/term.cicili")
+  (import "../lib/syntax.cicili")
+  (import "../lib/kb.cicili")
+  (import "../lib/solve.cicili")
+  (import "../lib/state.cicili")
+
+  (decl-term)   (impl-term)
+  (decl-syntax) (impl-syntax)
+  (decl-kb)     (impl-kb)
+  (decl-solve)  (impl-solve)
+  (decl-state)  (impl-state)
+
+  (var int failures . 0)
+
+  (func check ((const char * what) (llong got) (llong want))
+        (if (== got want)
+            (printf "ok   %-46s %lld\n" what got)
+          (block (printf "FAIL %-46s got %lld want %lld\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  (func check_str ((const char * what) (const char * got) (const char * want))
+        (if (== 0 (strcmp got want))
+            (printf "ok   %-46s %s\n" what got)
+          (block (printf "FAIL %-46s got [%s] want [%s]\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  ;; The family tree both machines are given. Loaded into whichever store is
+  ;; passed, so the resumed machine reads the same knowledge base the frozen
+  ;; one was reading -- which is exactly what a shared database gives you.
+  (func load_kb ((co_store * st) (co_machine * m)) (out int)
+        (let ((char err [256]) (int n . 0))
+          (set n (+ n (co_consult st m
+            "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
+            err (sizeof err))))
+          (set n (+ n (co_consult st m
+            "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
+            err (sizeof err))))
+          (return n)))
+
+  ;; Writes the current binding of the query's first variable into OUT.
+  (func binding_of ((co_engine * e) (size_t cell) (char * out) (size_t cap))
+        (let ((co_strbuf b))
+          (co_sb_init (aof b))
+          (co_write_term ($ (cof e) m) (aof b) cell 0 0)
+          (snprintf out cap "%s" (? (== ($ b s) nil) "" ($ b s)))
+          (co_sb_free (aof b))))
+
+  (func main ()
+    (let ((co_machine m) (co_store st) (co_engine e)
+          (co_strbuf frozen) (char buf [256]) (char first [256])
+          (size_t xcell))
+      (co_machine_init (aof m))
+      (co_store_init (aof st))
+      (co_engine_init (aof e) (aof m) (aof st))
+      (set ($ e max_steps) 10000000)
+
+      (check "knowledge base loaded" (cast llong (load_kb (aof st) (aof m))) 7)
+
+      ;; ---- run until one solution, then stop --------------------------
+      (let ((co_reader r) (size_t g) (int rc))
+        (co_reader_init (aof r) (aof m) "ancestor(tom, X)")
+        (co_read_goal (aof r) (aof g))
+        (set xcell (nth 0 ($ r var_cells)))
+        (co_reader_free (aof r))
+        (co_engine_ask (aof e) g)
+        (set rc (co_engine_next (aof e)))
+        (check "the first solution came" (cast llong rc) 1)
+        (binding_of (aof e) xcell first (sizeof first))
+        (check_str "and it is the first child" first "bob"))
+
+      ;; a machine part way through has choice points, and they are what the
+      ;; freeze has to carry
+      (check "the machine has choice points to keep"
+             (cast llong (> ($ e nchoices) 0)) 1)
+
+      ;; ---- freeze ------------------------------------------------------
+      (co_sb_init (aof frozen))
+      (check "froze" (cast llong (co_freeze (aof e) (aof frozen))) 1)
+      (check "the frozen form is text" (cast llong (> ($ frozen len) 0)) 1)
+      (printf "     frozen machine is %lu bytes\n" (cast ulong ($ frozen len)))
+
+      ;; Keep a copy, then destroy everything the first machine had. Nothing
+      ;; below can accidentally read the original: it is freed.
+      (let ((char * blob . #'(strdup ($ frozen s))))
+        (co_sb_free (aof frozen))
+        (co_engine_free (aof e))
+        (co_store_free (aof st))
+        (co_machine_free (aof m))
+
+        ;; ---- thaw into a machine that never saw the query ---------------
+        (let ((co_machine m2) (co_store st2) (co_engine e2)
+              (int rc) (int n . 0))
+          (co_machine_init (aof m2))
+          (co_store_init (aof st2))
+          (co_engine_init (aof e2) (aof m2) (aof st2))
+
+          (check "thawed" (cast llong (co_thaw (aof e2) (aof m2) (aof st2) blob)) 1)
+
+          ;; the knowledge base is loaded AFTER thawing, so its atoms intern
+          ;; against the table the frozen heap refers to
+          (check "knowledge base reloaded" (cast llong (load_kb (aof st2) (aof m2))) 7)
+
+          (check "the choice points came back"
+                 (cast llong (> ($ e2 nchoices) 0)) 1)
+
+          ;; ---- and now finish the proof in the second machine -----------
+          (while 1
+            (set rc (co_engine_next (aof e2)))
+            (if (!= rc 1) break)
+            (set n (+ n 1))
+            (if (> n 20) break))
+          (check "the resumed machine found the rest" (cast llong n) 4)
+          (check "and then ran out cleanly" (cast llong rc) 0)
+
+          (co_engine_free (aof e2))
+          (co_store_free (aof st2))
+          (co_machine_free (aof m2)))
+
+        ;; ---- a second round trip, to show the format is stable ----------
+        (let ((co_machine m3) (co_store st3) (co_engine e3) (co_strbuf again))
+          (co_machine_init (aof m3))
+          (co_store_init (aof st3))
+          (co_engine_init (aof e3) (aof m3) (aof st3))
+          (co_thaw (aof e3) (aof m3) (aof st3) blob)
+          (load_kb (aof st3) (aof m3))
+          (co_sb_init (aof again))
+          (co_freeze (aof e3) (aof again))
+          ;; Freezing what was just thawed must give the same text back. This
+          ;; is what says the format loses nothing: any field that were not
+          ;; carried would come back as a zero and show up here.
+          (check_str "freeze(thaw(x)) == x" ($ again s) blob)
+          (co_sb_free (aof again))
+          (co_engine_free (aof e3))
+          (co_store_free (aof st3))
+          (co_machine_free (aof m3)))
+
+        ;; ---- a blob that is not one is refused, not guessed at ----------
+        (let ((co_machine m4) (co_store st4) (co_engine e4))
+          (co_machine_init (aof m4))
+          (co_store_init (aof st4))
+          (co_engine_init (aof e4) (aof m4) (aof st4))
+          (check "rubbish is refused"
+                 (cast llong (co_thaw (aof e4) (aof m4) (aof st4) "not a machine")) 0)
+          (check "and it says so" (cast llong (> (strlen ($ e4 err)) 0)) 1)
+          (co_engine_free (aof e4))
+          (co_store_free (aof st4))
+          (co_machine_free (aof m4)))
+
+        (free blob))
+
+      (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
+      (return (? (== failures 0) 0 1)))))

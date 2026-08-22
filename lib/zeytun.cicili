@@ -1,0 +1,43 @@
+;;;; Cicili declarations for the Zeytun page client
+;;;;
+;;;; The other half of ZiguratIP's C client. lib/db/zigurat.cicili declares the
+;;;; binary protocol on 2160; this declares the HTTP one on 2190, which is what
+;;;; gets through a proxy. Both ship in libCConnector.
+;;;;
+;;;; Requires in target: (include <zeytun.h>), -I$ZIGURATIP_HOME/include and
+;;;; -lCConnector on the link line.
+;;;;
+;;;; NOTHING HERE EMITS C. As with every binding under lib/, these exist so
+;;;; type inference knows what the entry points answer; the real declarations
+;;;; come from the real header.
+;;;;
+;;;; THERE IS NO FRONT END, and it would have nothing to do. The C API is three
+;;;; functions -- fetch a page, undo the five escapes, encode a query value --
+;;;; and none of them is a state machine or a conversation. A macro over them
+;;;; would be a rename.
+
+(DEFPACKAGE :zeytun
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :zeytun)
+
+
+(DEFMACRO init-macro ()
+  `($$$
+     ;; One GET. PATH is everything after the host, query string included and
+     ;; already encoded. BODY comes back malloc'd and NUL-terminated, and is
+     ;; the caller's to free.
+     (decl) (func zt_get ((const char * host) (const char * service)
+                          (const char * path) (int timeout_seconds)
+                          (char ** body) (size_t * len)
+                          (char * err) (size_t errcap))
+                  (out int))
+
+     ;; Undoes Zeytun's five escapes in place, and answers the new length.
+     (decl) (func zt_unescape ((char * s)) (out size_t))
+
+     ;; Percent-encodes a query value. Answers 0 if it does not fit.
+     (decl) (func zt_urlencode ((const char * in) (char * out) (size_t cap))
+                  (out int))
+     ))

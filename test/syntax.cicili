@@ -1,0 +1,184 @@
+;;;; test cocolog syntax -- the reader and the writer, against each other
+;;;
+;;; THE ROUND TRIP IS THE TEST. Reading `X is 1+2*3' and writing it back must
+;;; give text that reads to the same term, and the interesting failures are all
+;;; about spacing and brackets: `1- -2' written as `1--2' is a different term,
+;;; `-(1)' written as `-1' is an integer, and an operator standing as an
+;;; argument needs brackets it does not need at the top. Each of those is one
+;;; line below, and each of them was wrong at some point while this was written.
+
+(source "syntax.c"
+  (make :std #t :compile #t :link ("-lsyntax.o" "-o" "cocolog_syntax_test"))
+
+  (import "../lib/term.cicili")
+  (import "../lib/syntax.cicili")
+
+  (decl-term)   (impl-term)
+  (decl-syntax) (impl-syntax)
+
+  (var int failures . 0)
+
+  (func check_str ((const char * what) (const char * got) (const char * want))
+        (if (== 0 (strcmp got want))
+            (printf "ok   %-30s %s\n" what got)
+          (block (printf "FAIL %-30s got [%s] want [%s]\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  (func check ((const char * what) (llong got) (llong want))
+        (if (== got want)
+            (printf "ok   %-30s %lld\n" what got)
+          (block (printf "FAIL %-30s got %lld want %lld\n" what got want)
+                 (set failures (+ failures 1)))))
+
+  ;; A variable prints as _G<cell>, and the cell depends on everything the
+  ;; machine has built before it -- so a test that named one would have to be
+  ;; renumbered whenever a line above it changed. `norm' flattens every _G<n>
+  ;; to _V, which keeps the check on the SHAPE of the output where it belongs.
+  (func norm ((const char * in) (char * out) (size_t cap))
+        (let ((size_t o . 0) (size_t i . 0))
+          (while (and (!= (nth i in) (cast char 0)) (< o (- cap 3)))
+            (if (and (== (nth i in) (cast char 95))
+                     (== (nth (+ i 1) in) (cast char 71)))
+                (block (set (nth o out) (cast char 95))
+                       (set (nth (+ o 1) out) (cast char 86))
+                       (set o (+ o 2))
+                       (set i (+ i 2))
+                       (while (and (>= (nth i in) (cast char 48))
+                                   (<= (nth i in) (cast char 57)))
+                         (set i (+ i 1))))
+              (block (set (nth o out) (nth i in))
+                     (set o (+ o 1))
+                     (set i (+ i 1)))))
+          (set (nth o out) (cast char 0))))
+
+  ;; read TEXT, write it back, and compare with WANT
+  (func trip ((co_machine * m) (const char * text) (const char * want))
+        (let ((size_t t) (co_strbuf b))
+          (co_sb_init (aof b))
+          (if (not (co_read_term_from m text (aof t)))
+              (block (printf "FAIL %-30s did not read\n" text)
+                     (set failures (+ failures 1))
+                     (co_sb_free (aof b))
+                     (return)))
+          (co_write_canonical m (aof b) t)
+          (let ((char flat [512]))
+            (norm ($ b s) flat (sizeof flat))
+            (check_str text flat want))
+          (co_sb_free (aof b))))
+
+  ;; read TEXT, write it, read that, and check the two terms are identical
+  (func stable ((co_machine * m) (const char * text))
+        (let ((size_t t1) (size_t t2) (co_strbuf b))
+          (co_sb_init (aof b))
+          (if (not (co_read_term_from m text (aof t1)))
+              (block (printf "FAIL %-30s did not read\n" text)
+                     (set failures (+ failures 1)) (co_sb_free (aof b)) (return)))
+          (co_write_canonical m (aof b) t1)
+          (if (not (co_read_term_from m ($ b s) (aof t2)))
+              (block (printf "FAIL %-30s did not re-read [%s]\n" text ($ b s))
+                     (set failures (+ failures 1)) (co_sb_free (aof b)) (return)))
+          ;; The two terms are not `==': re-reading makes fresh variables, and
+          ;; the standard order tells variables apart by their cell. What must
+          ;; match is the TEXT, with the variable numbering flattened.
+          (let ((co_strbuf b2) (char f1 [512]) (char f2 [512]))
+            (co_sb_init (aof b2))
+            (co_write_canonical m (aof b2) t2)
+            (norm ($ b s) f1 (sizeof f1))
+            (norm ($ b2 s) f2 (sizeof f2))
+            (if (== 0 (strcmp f1 f2))
+                (printf "ok   re-read is stable: %s\n" f1)
+              (block (printf "FAIL re-read differs: %s -> %s\n" f1 f2)
+                     (set failures (+ failures 1))))
+            (co_sb_free (aof b2)))
+          (co_sb_free (aof b))))
+
+  (func main ()
+    (let ((co_machine m))
+      (co_machine_init (aof m))
+
+      ;; ---- the operator table, as the macro layer emitted it ------------
+      (let ((int p) (int ty))
+        (check "is/2 is 700 xfx"
+               (cast llong (and (co_op_infix "is" (aof p) (aof ty)) (== p 700))) 1)
+        (check "*/2 binds tighter than +/2"
+               (cast llong (and (co_op_infix "*" (aof p) (aof ty))
+                                (== p 400))) 1)
+        (check "\\+ is a prefix operator"
+               (cast llong (co_op_prefix "\\+" (aof p) (aof ty))) 1)
+        (check "foo is not an operator" (cast llong (co_op_is_any "foo")) 0))
+
+      ;; ---- precedence and associativity --------------------------------
+      (trip (aof m) "1+2*3"        "1 + 2 * 3")
+      (trip (aof m) "(1+2)*3"      "(1 + 2) * 3")
+      (trip (aof m) "1-2-3"        "1 - 2 - 3")
+      (trip (aof m) "1-(2-3)"      "1 - (2 - 3)")
+      (trip (aof m) "a:-b,c"       "a :- b,c")
+      (trip (aof m) "X is 1+2"     "_V is 1 + 2")
+
+      ;; ---- the two that spacing decides --------------------------------
+      ;; -(1) is a compound; -1 is an integer. Both must survive being written.
+      (trip (aof m) "- 1"          "- 1")
+      (trip (aof m) "-1"           "-1")
+      (trip (aof m) "1 - -2"       "1 - -2")
+
+      ;; ---- an operator as an ordinary argument -------------------------
+      (trip (aof m) "f(-)"         "f((-))")
+      (trip (aof m) "f(a,b)"       "f(a,b)")
+
+      ;; ---- lists -------------------------------------------------------
+      (trip (aof m) "[]"           "[]")
+      (trip (aof m) "[1,2,3]"      "[1,2,3]")
+      (trip (aof m) "[a|T]"        "[a|_V]")
+      (trip (aof m) "[[1],[2]]"    "[[1],[2]]")
+
+      ;; ---- curly terms and quoting -------------------------------------
+      (trip (aof m) "{a,b}"        "{a,b}")
+      (trip (aof m) "'hello world'" "'hello world'")
+      (trip (aof m) "'it''s'"      "'it''s'")
+      (trip (aof m) "[]"           "[]")
+
+      ;; ---- numbers ------------------------------------------------------
+      (trip (aof m) "0'a"          "97")
+      (trip (aof m) "0xff"         "255")
+      (trip (aof m) "3.5"          "3.5")
+      (trip (aof m) "2.0"          "2.0")
+      (trip (aof m) "1.0e3"        "1000.0")
+
+      ;; ---- strings are code lists ---------------------------------------
+      (trip (aof m) "\"ab\""       "[97,98]")
+
+      ;; ---- whatever it looks like, it must read back the same ----------
+      (stable (aof m) "foo(X, [1,2|Y], 'a b', -3, 1+2*3)")
+      (stable (aof m) "a:-b,c;d->e")
+      (stable (aof m) "\\+ x")
+      (stable (aof m) "- (1)")
+
+      ;; ---- clause-by-clause reading, and variable names ------------------
+      (let ((co_reader r) (size_t t) (int rc . 1) (int n . 0))
+        (co_reader_init (aof r) (aof m) "p(1). p(2). q(X) :- p(X).")
+        ;; `set' is a statement, so the read cannot sit in the loop test
+        (while (== rc 1)
+          (set rc (co_read_clause (aof r) (aof t)))
+          (if (== rc 1) (set n (+ n 1))))
+        (check "three clauses read" (cast llong n) 3)
+        (check "ended cleanly"      (cast llong rc) 0)
+        (co_reader_free (aof r)))
+
+      (let ((co_reader r) (size_t t))
+        (co_reader_init (aof r) (aof m) "q(X, Y, X).")
+        (co_read_clause (aof r) (aof t))
+        (check "two distinct variables named" (cast llong ($ r nvars)) 2)
+        (check "first is X" (cast llong (strcmp (nth 0 ($ r var_names)) "X")) 0)
+        (co_reader_free (aof r)))
+
+      ;; ---- a syntax error is reported, not ignored ----------------------
+      (let ((co_reader r) (size_t t))
+        (co_reader_init (aof r) (aof m) "foo(a,).")
+        (check "bad clause answers -1" (cast llong (co_read_clause (aof r) (aof t))) -1)
+        (check "and says so" (cast llong (> (strlen ($ r err)) 0)) 1)
+        (co_reader_free (aof r)))
+
+      (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
+      (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
+      (co_machine_free (aof m))
+      (return (? (== failures 0) 0 1)))))

@@ -1,0 +1,15 @@
+# build output
+build/
+cocolog
+*.o
+*.lo
+*.a
+.libs/
+
+# Cicili writes the generated C beside the target it came from
+cocolog.c
+test/*.c
+test/cocolog_*_test
+
+# parsi/build.sh scratch
+parsi/.build.log

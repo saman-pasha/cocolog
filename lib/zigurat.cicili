@@ -1,0 +1,240 @@
+;;;; Cicili declarations for the Zigurat C client, and a front end over them
+;;;;
+;;;; WHICH CLIENT THIS IS. ZiguratIP ships two. Connector/ is C++ -- std::string
+;;;; in the signatures, templates over its Type classes, exceptions for errors
+;;;; -- and a Cicili program, which compiles to C, cannot call it without
+;;;; linking the C++ runtime and wrapping every entry point. CConnector/ is the
+;;;; same binary protocol spoken straight from C, and this file declares that
+;;;; one.
+;;;;
+;;;; Requires in target: (include <zigurat.h>), -I$ZIGURATIP_HOME/include and
+;;;; -lCConnector on the link line.
+;;;;
+;;;; NOTHING IN THE DECLARATIONS EMITS C, as with every binding under lib/:
+;;;; they exist so type inference knows what a zg_conn is and what each entry
+;;;; point answers. The real declarations come from the real header.
+;;;;
+;;;; WHAT THE FRONT END IS FOR. A remote call is a conversation, and the shape
+;;;; of it is always the same: name the procedure, write the IN parameters, and
+;;;; then read results until SUCCESSFUL_DONE -- reading ALL of them, because
+;;;; what is left unread stays in the stream and the next call reads it instead
+;;;; of its own reply. Written out that is a dozen lines of loop and switch in
+;;;; which the interesting part is two of them:
+;;;;
+;;;;     (zg.call db "cocolog::clauses_of" (string kb) (string name) (int 2)
+;;;;       (row (ord (long)) (body (text)))
+;;;;       (printf "%lld %s\n" ord body))
+;;;;
+;;;;     (zg.call db "cocolog::clause_count" (string kb) (string name) (int 2)
+;;;;       (returns n (long))
+;;;;       (printf "%lld clauses\n" n))
+;;;;
+;;;; The loop, the CURSOR_OPEN that has to be answered with COLUMNS, and the
+;;;; drain to SUCCESSFUL_DONE are the macro's business. A `row' body runs once
+;;;; per fetched row with its fields already read into the names given; a
+;;;; `returns' body runs once, after the call, with the procedure's RETURNS
+;;;; value in the name given.
+;;;;
+;;;; ERRORS ARE NOT HIDDEN. Every entry point answers 1 or 0 exactly as the C
+;;;; client does, and `zg.call' answers 0 the moment anything in the
+;;;; conversation fails -- with the reason in (zg_error db).
+
+;;; A package of its own, so the helpers below are not added to CL-USER and an
+;;; unprefixed import has a namespace to enter. `call', `string', `int' and
+;;; `text' are words this file's macros recognise inside their own argument
+;;; lists rather than macros of their own, which would be global.
+(DEFPACKAGE :zigurat
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :zigurat)
+
+
+(DEFMACRO init-macro ()
+  `($$$
+     ;;; ---- the connection ----
+     (decl) (struct zg_conn)
+
+     ;;; ---- result and isolation codes ----
+     ;;; Declared as typedefs rather than as variables, which is how lib/std/c
+     ;;; declares an enum member or a #define: a name of that type which the
+     ;;; header provides.
+     (decl) (struct zg_result_t)
+     (decl) (struct zg_isolation_t)
+     (typedef zg_result_t ZG_SUCCESSFUL_DONE)
+     (typedef zg_result_t ZG_CURSOR_OPEN)
+     (typedef zg_result_t ZG_CURSOR_FETCH)
+     (typedef zg_result_t ZG_CURSOR_CLOSE)
+     (typedef zg_result_t ZG_RETURN_VALUE)
+     (typedef zg_result_t ZG_EXCEPTION_THROWN)
+     (typedef zg_isolation_t ZG_READ_UNCOMMITTED)
+     (typedef zg_isolation_t ZG_READ_COMMITTED)
+     (typedef zg_isolation_t ZG_REPEATABLE_READ)
+     (typedef zg_isolation_t ZG_SNAPSHOT)
+     (typedef zg_isolation_t ZG_SERIALIZABLE)
+     (typedef unsigned ZG_MAX_STRING)
+     (typedef unsigned ZG_MAX_TEXT)
+
+     ;;; ---- opening and closing ----
+     (decl) (func zg_open ((const char * host) (const char * service)
+                           (int timeout_seconds) (char * err) (size_t errcap))
+                  (out zg_conn *))
+     (decl) (func zg_close ((zg_conn * c)))
+     (decl) (func zg_is_open ((const zg_conn * c)) (out int))
+     (decl) (func zg_error ((const zg_conn * c)) (out const char *))
+     (decl) (func zg_transaction_id ((const zg_conn * c)) (out u64))
+
+     ;;; ---- verbs ----
+     (decl) (func zg_echo ((zg_conn * c) (const char * text)
+                           (char * out) (size_t outcap)) (out int))
+     (decl) (func zg_compile ((zg_conn * c) (const char * suite)) (out int))
+     (decl) (func zg_call ((zg_conn * c) (const char * procedure)) (out int))
+     (decl) (func zg_auto_commit ((zg_conn * c) (int on)) (out int))
+     (decl) (func zg_isolate ((zg_conn * c) (zg_isolation_t level)) (out int))
+     (decl) (func zg_commit ((zg_conn * c)) (out int))
+     (decl) (func zg_rollback ((zg_conn * c)) (out int))
+     (decl) (func zg_result ((zg_conn * c) (zg_result_t * out)) (out int))
+     (decl) (func zg_columns ((zg_conn * c) (char * out) (size_t outcap)) (out int))
+     (decl) (func zg_drain ((zg_conn * c) (unsigned row_fields)) (out int))
+
+     ;;; ---- writing parameters ----
+     (decl) (func zg_write_bool   ((zg_conn * c) (int v)) (out int))
+     (decl) (func zg_write_int    ((zg_conn * c) (i32 v)) (out int))
+     (decl) (func zg_write_long   ((zg_conn * c) (i64 v)) (out int))
+     (decl) (func zg_write_double ((zg_conn * c) (double v)) (out int))
+     (decl) (func zg_write_string ((zg_conn * c) (const char * s)) (out int))
+     (decl) (func zg_write_text   ((zg_conn * c) (const char * s)) (out int))
+
+     ;;; ---- reading fields ----
+     (decl) (func zg_read_bool   ((zg_conn * c) (int * v) (int * is_null)) (out int))
+     (decl) (func zg_read_int    ((zg_conn * c) (i32 * v) (int * is_null)) (out int))
+     (decl) (func zg_read_long   ((zg_conn * c) (i64 * v) (int * is_null)) (out int))
+     (decl) (func zg_read_double ((zg_conn * c) (double * v) (int * is_null)) (out int))
+     (decl) (func zg_read_string ((zg_conn * c) (char * buf) (size_t cap)
+                                  (int * is_null)) (out int))
+     (decl) (func zg_read_text   ((zg_conn * c) (char * buf) (size_t cap)
+                                  (int * is_null)) (out int))
+     (decl) (func zg_read_text_alloc ((zg_conn * c) (char ** out) (size_t * len)
+                                      (int * is_null)) (out int))
+     (decl) (func zg_skip_field  ((zg_conn * c)) (out int))
+     ))
+
+
+;;; ------------------------------------------------------------------
+;;; The front end
+;;; ------------------------------------------------------------------
+
+(DEFVAR *zg-serial* 0)
+
+(DEFUN zg-local (stem)
+  (INTERN (FORMAT NIL "__zg~A~A" stem (INCF *zg-serial*))))
+
+(DEFUN head-is (form name)
+  (AND (CONSP form) (SYMBOLP (CAR form)) (STRING= (SYMBOL-NAME (CAR form)) name)))
+
+;;; A parameter: (string EXPR), (text EXPR), (int EXPR), (long EXPR),
+;;; (double EXPR), (bool EXPR). Answers the form that writes it.
+(DEFUN zg-write-form (db p)
+  (LET ((kind (SYMBOL-NAME (CAR p)))
+        (v (SECOND p)))
+    (COND ((STRING= kind "string") `(zg_write_string ,db ,v))
+          ((STRING= kind "text")   `(zg_write_text ,db ,v))
+          ((STRING= kind "int")    `(zg_write_int ,db ,v))
+          ((STRING= kind "long")   `(zg_write_long ,db ,v))
+          ((STRING= kind "double") `(zg_write_double ,db ,v))
+          ((STRING= kind "bool")   `(zg_write_bool ,db ,v))
+          (T (ERROR "zigurat: ~S is not a parameter kind" (CAR p))))))
+
+;;; A field to read: (name (long)), (name (text)), (name (text N)) for a fixed
+;;; buffer. Answers three things: the declaration, the read, and the cleanup
+;;; for a field that allocated.
+(DEFUN zg-read-parts (db decl)
+  (LET* ((name (FIRST decl))
+         (spec (SECOND decl))
+         (kind (SYMBOL-NAME (CAR spec)))
+         (size (SECOND spec)))
+    (COND
+      ((STRING= kind "long")
+       (LIST `(i64 ,name . 0) `(zg_read_long ,db (aof ,name) nil) NIL))
+      ((STRING= kind "int")
+       (LIST `(i32 ,name . 0) `(zg_read_int ,db (aof ,name) nil) NIL))
+      ((STRING= kind "double")
+       (LIST `(double ,name . 0.0) `(zg_read_double ,db (aof ,name) nil) NIL))
+      ((STRING= kind "bool")
+       (LIST `(int ,name . 0) `(zg_read_bool ,db (aof ,name) nil) NIL))
+      ((STRING= kind "string")
+       (LIST `(char ,name [,(OR size 256)])
+             `(zg_read_string ,db ,name ,(OR size 256) nil) NIL))
+      ((AND (STRING= kind "text") size)
+       (LIST `(char ,name [,size]) `(zg_read_text ,db ,name ,size nil) NIL))
+      ;; A Text with no size is read into a buffer the client allocates, which
+      ;; is the only way to take one of any length -- and so the only shape
+      ;; that can carry a chunk of a frozen machine.
+      ((STRING= kind "text")
+       (LIST `(char * ,name . nil)
+             `(zg_read_text_alloc ,db (aof ,name) nil nil)
+             `(free ,name)))
+      (T (ERROR "zigurat: ~S is not a field kind" (CAR spec))))))
+
+;;; (zg.call DB "proc" (string a) (int b) [(row (n (long)) (t (text))) BODY…]
+;;;                                      [(returns v (long)) BODY…])
+;;;
+;;; Answers 1 when the whole conversation completed and 0 when anything in it
+;;; failed. The drain to SUCCESSFUL_DONE happens on every path that gets as far
+;;; as starting it, because a call left half read poisons the connection.
+(DEFMACRO call (db proc &REST rest)
+  (LET* ((params (LOOP FOR f IN rest WHILE (AND (CONSP f)
+                                                (NOT (head-is f "row"))
+                                                (NOT (head-is f "returns")))
+                       COLLECT f))
+         (tail (NTHCDR (LENGTH params) rest))
+         (row-form (FIND-IF (LAMBDA (f) (head-is f "row")) tail))
+         (ret-form (FIND-IF (LAMBDA (f) (head-is f "returns")) tail))
+         (body (REMOVE-IF (LAMBDA (f) (OR (head-is f "row") (head-is f "returns"))) tail))
+         (r (zg-local "r"))
+         (ok (zg-local "ok"))
+         (cols (zg-local "c"))
+         (row-decls (AND row-form (MAPCAR (LAMBDA (d) (zg-read-parts db d)) (CDR row-form))))
+         (ret-parts (AND ret-form (zg-read-parts db (LIST (SECOND ret-form) (THIRD ret-form))))))
+    `(letn ((int ,ok . 1)
+            (zg_result_t ,r)
+            (char ,cols [256])
+            ,@(WHEN ret-parts (LIST (FIRST ret-parts))))
+       (if (not (zg_call ,db ,proc)) (set ,ok 0))
+       ,@(MAPCAR (LAMBDA (p) `(if ,ok (if (not ,(zg-write-form db p)) (set ,ok 0)))) params)
+       (while ,ok
+         (if (not (zg_result ,db (aof ,r))) (block (set ,ok 0) break))
+         (if (== ,r ZG_SUCCESSFUL_DONE) break)
+         (cond
+           ((== ,r ZG_CURSOR_OPEN)
+            (if (not (zg_columns ,db ,cols 256)) (block (set ,ok 0) break)))
+           ((== ,r ZG_CURSOR_FETCH)
+            ,(IF row-form
+                 `(let (,@(MAPCAR #'FIRST row-decls))
+                    ,@(MAPCAR (LAMBDA (p) `(if (not ,(SECOND p)) (set ,ok 0))) row-decls)
+                    (if ,ok (block ,@body))
+                    ,@(REMOVE NIL (MAPCAR #'THIRD row-decls)))
+               ;; No `row' body: the caller does not want the rows, but they
+               ;; still have to come off the wire or the stream is left out of
+               ;; step. Nothing here knows how many fields a row has, so this
+               ;; is the one case a caller must give a `row' for.
+               `(block (set ,ok 0))))
+           ((== ,r ZG_RETURN_VALUE)
+            ,(IF ret-parts
+                 `(if (not ,(SECOND ret-parts)) (set ,ok 0))
+               `(if (not (zg_skip_field ,db)) (set ,ok 0))))
+           (#t (block))))
+       ,@(WHEN (AND ret-form body (NOT row-form)) `((if ,ok (block ,@body))))
+       ,ok)))
+
+;;; Opens a connection, or answers nil with the reason in ERR.
+(DEFMACRO open (host port timeout err errcap)
+  `(zg_open ,host ,port ,timeout ,err ,errcap))
+
+(DEFMACRO close (db) `(zg_close ,db))
+
+(DEFMACRO error (db) `(zg_error ,db))
+
+(DEFMACRO commit (db) `(zg_commit ,db))
+
+(DEFMACRO rollback (db) `(zg_rollback ,db))

@@ -1,0 +1,253 @@
+;;;; cocolog -- the same knowledge base, over HTTP
+;;;
+;;; THE SECOND IMPLEMENTATION OF ONE HOOK. lib/cocolog/zigurat-kb.cicili fills
+;;; in the store's `fetch' over the binary protocol; this one fills in the same
+;;; hook over Zeytun's pages. Everything above the store is identical and knows
+;;; about neither -- which is the thing worth proving, and what the store's one
+;;; function pointer was for.
+;;;
+;;; WHY YOU WOULD USE IT. The binary protocol is better in every way that
+;;; matters to a database -- transactions that span calls, isolation levels,
+;;; cursors -- and it is what an interpreter that WRITES should use. What HTTP
+;;; has is reach: a proxy, a browser, a network that allows 80 and nothing
+;;; else. An interpreter that only reads a shared knowledge base can live on
+;;; the far side of one.
+;;;
+;;; IT ONLY READS, and the reason is transactional rather than technical. One
+;;; HTTP request is one transaction. Reading is naturally one request -- a
+;;; predicate's clauses are one query, and a suspended machine is emitted whole
+;;; by its page. Writing is not: a machine is a header row and a row per chunk,
+;;; and over HTTP those would be separate transactions with no way to roll the
+;;; first back when the third failed. So this backend leaves `on_assert' null,
+;;; and a program that asserts through it changes its own store and not the
+;;; database. That is a real limitation and it is better stated than
+;;; discovered.
+;;;
+;;; UNESCAPING IS THE CLIENT'S JOB. A page escapes every value it emits, with
+;;; five rules and no others (& < > " ' -> &amp; &lt; &gt; &quot; &#39;), and
+;;; `zt_unescape' undoes exactly those. The mapping is reversible because & is
+;;; itself escaped, so an & in a page's output can only begin an entity.
+;;;
+;;; A target using this file needs:
+;;;
+;;;   (include <zeytun.h>)
+;;;   (import "lib/db/zeytun.cicili" :zt)
+;;;   (import "lib/cocolog/zeytun-kb.cicili")
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+
+(generic decl-zeytun-kb
+  ()
+
+  (struct co_zt
+    (member char         host [128])
+    (member char         port [16])
+    (member char         kb   [64])
+    (member int          timeout)
+    (member co_machine * m)
+    (member co_store *   st)
+    (member char         err [256]))
+
+  ;;; Points a store at a knowledge base reachable over HTTP.
+  (decl) (func co_zt_attach ((co_zt * z) (const char * host) (const char * port)
+                             (co_machine * m) (co_store * st) (const char * kb)))
+
+  ;;; Picks up a suspended machine by name. M, ST and E are reset and
+  ;;; re-attached; the knowledge base is fetched predicate by predicate as the
+  ;;; resumed proof reaches it, exactly as the binary backend does.
+  (decl) (func co_zt_load ((co_zt * z) (co_engine * e) (co_machine * m)
+                           (co_store * st) (const char * name)) (out int))
+
+  ) ; decl-zeytun-kb
+
+
+(generic impl-zeytun-kb
+  ()
+
+  (static)
+  (func co_zt_fail ((co_zt * z) (const char * what) (const char * detail)) (out int)
+        (snprintf (-> z err) 256 "%s: %s" what (? (== detail nil) "" detail))
+        (return 0))
+
+  ;;; Builds a path with one or two encoded query values. Answers 0 if the
+  ;;; result would not fit, rather than sending a truncated query -- a
+  ;;; half-encoded knowledge-base name would silently fetch the wrong thing.
+  (static)
+  (func co_zt_path ((char * out) (size_t cap) (const char * page)
+                    (const char * k1) (const char * v1)
+                    (const char * k2) (const char * v2)) (out int)
+        (let ((char e1 [256]) (char e2 [256]) (int n))
+          (if (not (zt_urlencode v1 e1 (sizeof e1))) (return 0))
+          (if (== k2 nil)
+              (set n (snprintf out cap "/cocolog/%s.zt?%s=%s" page k1 e1))
+            (block (if (not (zt_urlencode v2 e2 (sizeof e2))) (return 0))
+                   (set n (snprintf out cap "/cocolog/%s.zt?%s=%s&%s=%s"
+                                    page k1 e1 k2 e2))))
+          (return (? (or (< n 0) (>= (cast size_t n) cap)) 0 1))))
+
+  ;;; ---- reading a predicate over HTTP -------------------------------------
+
+  (struct co_zt_row
+    (member i64    ordinal)
+    (member char * body))
+
+  (static)
+  (func co_zt_row_cmp ((const void * a) (const void * b)) (out int)
+        (let ((const co_zt_row * x . #'(cast (const co_zt_row *) a))
+              (const co_zt_row * y . #'(cast (const co_zt_row *) b)))
+          (return (? (< (-> x ordinal) (-> y ordinal)) -1
+                     (? (> (-> x ordinal) (-> y ordinal)) 1 0)))))
+
+  (static) (decl) (func co_zt_fetch ((co_store * st) (void * ctx)
+                                     (u64 name) (u32 arity)) (out int))
+
+  (func co_zt_attach ((co_zt * z) (const char * host) (const char * port)
+                      (co_machine * m) (co_store * st) (const char * kb))
+        (memset z 0 (sizeof co_zt))
+        (snprintf (-> z host) 128 "%s" host)
+        (snprintf (-> z port) 16 "%s" port)
+        (snprintf (-> z kb) 64 "%s" kb)
+        (set (-> z timeout) 20)
+        (set (-> z m) m)
+        (set (-> z st) st)
+        (set (-> st ctx) (cast (void *) z))
+        (set (-> st fetch) co_zt_fetch)
+        ;; No write-through: see the head of this file. A store attached to
+        ;; this backend asserts locally and the database does not hear about it.
+        (set (-> st on_assert) nil))
+
+  ;;; The page answers
+  ;;;
+  ;;;   COCOLOG 1
+  ;;;   C <arity> <ordinal> <clause>
+  ;;;   END
+  ;;;
+  ;;; with every arity of the name, because a query string cannot be compared
+  ;;; against an Int column on the far side -- so the arity is filtered here,
+  ;;; where there is a type to filter it with.
+  (func co_zt_fetch ((co_store * st) (void * ctx) (u64 name) (u32 arity)) (out int)
+        (let ((co_zt * z . #'(cast (co_zt *) ctx))
+              (co_machine * m)
+              (char path [512]) (char err [256])
+              (char * body . nil)
+              (co_zt_row * rows . nil)
+              (size_t n . 0) (size_t cap . 0)
+              (int ok . 1))
+          (set m (-> z m))
+
+          (if (not (co_zt_path path (sizeof path) "kb" "kb" (-> z kb)
+                               "name" (co_atom_name m name)))
+              (return (co_zt_fail z "the request path is too long" (co_atom_name m name))))
+
+          (if (not (zt_get (-> z host) (-> z port) path (-> z timeout)
+                           (aof body) nil err (sizeof err)))
+              (return (co_zt_fail z "fetching clauses" err)))
+
+          ;; Walk the body a line at a time, in place: each line's terminator
+          ;; is replaced by a NUL and put back afterwards, so nothing is copied
+          ;; until a clause is actually wanted.
+          (let ((char * p . body))
+            (while (and ok (!= (cast char 0) (nth 0 p)))
+              (let ((char * eol . #'(strchr p 10)))
+                (if (!= eol nil) (set (nth 0 eol) (cast char 0)))
+                ;; a record is "C <arity> <ordinal> <text>"
+                (if (and (== (nth 0 p) (cast char 67)) (== (nth 1 p) (cast char 32)))
+                    (let ((char * cur . #'(+ p 2))
+                          (long ar) (long ord) (char * rest))
+                      (set ar (strtol cur (aof rest) 10))
+                      (set cur rest)
+                      (set ord (strtol cur (aof rest) 10))
+                      (set cur rest)
+                      (if (== (nth 0 cur) (cast char 32)) (set cur (+ cur 1)))
+                      (if (== ar (cast long arity))
+                          (block
+                           (zt_unescape cur)
+                           (if (>= n cap)
+                               (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
+                                 (set rows (cast (co_zt_row *)
+                                                 (realloc rows (* ncap (sizeof co_zt_row)))))
+                                 (if (== rows nil) (set ok 0))
+                                 (set cap ncap)))
+                           (if ok
+                               (block (set ($ (nth n rows) ordinal) (cast i64 ord))
+                                      (set ($ (nth n rows) body) (strdup cur))
+                                      (set n (+ n 1))))))))
+                (if (== eol nil) break)
+                (set (nth 0 eol) (cast char 10))
+                (set p (+ eol 1)))))
+
+          (free body)
+
+          (if ok
+              (block
+               (qsort rows n (sizeof co_zt_row) co_zt_row_cmp)
+               (for ((size_t i . 0)) (< i n) ((++ i))
+                 (let ((size_t t) (size_t mark . #'(-> m heap_len)))
+                   (if (co_read_term_from m ($ (nth i rows) body) (aof t))
+                       (co_assert st m t 1)
+                     (set ok 0))
+                   (set (-> m heap_len) mark)))))
+
+          (for ((size_t i . 0)) (< i n) ((++ i)) (free ($ (nth i rows) body)))
+          (free rows)
+          (if (not ok) (return (co_zt_fail z "reading clauses" "malformed answer")))
+          (return 1)))
+
+  ;;; ---- picking up a suspended machine -------------------------------------
+
+  ;;; The page answers
+  ;;;
+  ;;;   COCOLOG 1
+  ;;;   M <kb> <status> <chunks>
+  ;;;   <the machine, chunks already in order>
+  ;;;   END
+  ;;;
+  ;;; or NONE. The machine is everything between the M line and the last END,
+  ;;; taken verbatim: its serialised form is whitespace-separated tokens, so
+  ;;; the newlines the page puts between chunks are as good as the spaces that
+  ;;; were there before.
+  (func co_zt_load ((co_zt * z) (co_engine * e) (co_machine * m)
+                    (co_store * st) (const char * name)) (out int)
+        (let ((char path [512]) (char err [256]) (char * body . nil))
+          (if (not (co_zt_path path (sizeof path) "machine" "name" name nil nil))
+              (return (co_zt_fail z "the request path is too long" name)))
+          (if (not (zt_get (-> z host) (-> z port) path (-> z timeout)
+                           (aof body) nil err (sizeof err)))
+              (return (co_zt_fail z "fetching the machine" err)))
+
+          (let ((char * head . #'(strstr body "\nM ")))
+            (if (== head nil)
+                (block (free body)
+                       (snprintf (-> z err) 256 "no suspended machine called '%s'" name)
+                       (return 0)))
+            (let ((char * blob . #'(strchr (+ head 1) 10)))
+              (if (== blob nil)
+                  (block (free body) (return (co_zt_fail z "truncated answer" name))))
+              (set blob (+ blob 1))
+              ;; the LAST END, because nothing else in the format is a line
+              ;; reading exactly that and a machine could in principle be
+              ;; followed by one
+              (let ((char * tail . #'(strstr blob "\nEND")))
+                (if (!= tail nil) (set (nth 0 tail) (cast char 0))))
+
+              (let ((int rc . #'(co_thaw e m st blob)))
+                (free body)
+                (if (not rc)
+                    (block (snprintf (-> z err) 256 "%s" ($ (cof e) err)) (return 0))))))
+
+          ;; Re-attach through copies, because co_zt_attach clears Z before it
+          ;; reads its arguments -- handing it pointers into Z would give it an
+          ;; empty host and an empty knowledge-base name.
+          (let ((char h [128]) (char p [16]) (char k [64]))
+            (snprintf h (sizeof h) "%s" (-> z host))
+            (snprintf p (sizeof p) "%s" (-> z port))
+            (snprintf k (sizeof k) "%s" (-> z kb))
+            (co_zt_attach z h p m st k))
+          (return 1)))
+
+  ) ; impl-zeytun-kb
