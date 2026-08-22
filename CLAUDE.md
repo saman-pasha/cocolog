@@ -129,6 +129,8 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 | `lib/module.cicili` | the module seam and the API a module is written against |
 | `lib/files.cicili` | SWI's Files library, as a module — mostly C |
 | `lib/lists.cicili` | SWI's Lists library, as a module — mostly Prolog, because nondeterministic predicates cannot live in a C half |
+| `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
+| `lib/builtins.cicili` | the ISO core builtins cocolog was missing |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |

@@ -66,6 +66,8 @@ lib/solve.cicili       the engine: continuation, choice stack, cut, negation,
 lib/module.cicili      the module seam: a bridge between C and Coco
 lib/files.cicili       SWI's Files library, as a module
 lib/lists.cicili       SWI's Lists library, as a module
+lib/apply.cicili       SWI's Apply library -- clauses only, no C at all
+lib/builtins.cicili    the ISO core builtins cocolog was missing
 lib/state.cicili       freeze and thaw
 lib/zigurat-kb.cicili  the knowledge base over Zigurat's binary protocol
 lib/zeytun-kb.cicili   the same, over Zeytun's HTTP pages (read only)
@@ -151,14 +153,16 @@ predicate, then the knowledge base — so a module can add to the language but
 cannot redefine `is` underneath a program, and is not shadowed by a clause
 somebody asserted.
 
-Two libraries ship, and they are deliberately mirror images. **Files** is
-seventeen predicates in C and five in Prolog, because a file system is a
-syscall away. **Lists** is thirty-odd in Prolog and seven in C, because
-`member/2` and `select/3` and `permutation/2` must answer *many times* and a
-module's C half cannot — it has no access to the choice stack, so a
-nondeterministic predicate belongs in the Coco half where the engine provides
-the choice points and a frozen machine can be thawed elsewhere and go on
-backtracking through it.
+Four libraries ship, and they are deliberately spread across the range.
+**Files** is seventeen predicates in C and five in Prolog, because a file
+system is a syscall away. **Lists** is thirty-odd in Prolog and seven in C,
+because `member/2` and `permutation/2` must answer *many times* and a module's
+C half cannot — it has no access to the choice stack, so a nondeterministic
+predicate belongs in the Coco half where the engine provides the choice points
+and a frozen machine can be thawed elsewhere and go on backtracking through it.
+**Apply** has no C half at all. **Builtins** is the ISO core cocolog was
+missing — `findall/3` and its family, `between/3`, the atom and term
+predicates, `clause/2` and `current_predicate/1`.
 
 Both are checked by running the same Prolog program under `swipl` and under
 `cocolog` and comparing the output byte for byte — the only kind of

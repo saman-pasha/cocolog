@@ -359,17 +359,28 @@
   (func co_m_mark ((co_engine * e)) (out size_t) (return ($ (cof (-> e m)) trail_len)))
   (func co_m_undo ((co_engine * e) (size_t mark)) (co_undo_to (-> e m) mark))
 
+  ;;; ALL FOUR OF THESE DEREFERENCE FIRST, and it is not defensiveness. A term
+  ;;; index reaches a module from two places: `co_m_arg', which dereferences,
+  ;;; and the elements of a list from `co_m_list_array', which are argument
+  ;;; SLOTS and so are very often a REF pointing at the value. A module author
+  ;;; cannot be expected to know which of the two they are holding, and the one
+  ;;; that does not dereference reads a REF as "not a number" and sends the
+  ;;; caller down its type-error path for a perfectly good integer.
   (func co_m_is_var ((co_engine * e) (size_t t)) (out int)
+        (set t (co_deref (-> e m) t))
         (return (? (co-tag-is REF (nth t ($ (cof (-> e m)) heap))) 1 0)))
 
   (func co_m_is_atom ((co_engine * e) (size_t t)) (out int)
+        (set t (co_deref (-> e m) t))
         (return (? (co-tag-is ATOM (nth t ($ (cof (-> e m)) heap))) 1 0)))
 
   (func co_m_atom ((co_engine * e) (size_t t)) (out const char *)
+        (set t (co_deref (-> e m) t))
         (if (not (co_m_is_atom e t)) (return nil))
         (return (co_atom_name (-> e m) (co_name_of (-> e m) t))))
 
   (func co_m_int ((co_engine * e) (size_t t) (i64 * out)) (out int)
+        (set t (co_deref (-> e m) t))
         (if (not (co-tag-is INT (nth t ($ (cof (-> e m)) heap)))) (return 0))
         (set (cof out) (co-signed-payload (nth t ($ (cof (-> e m)) heap))))
         (return 1))
@@ -379,6 +390,7 @@
   ;;; zero whether the program wrote 0 or 0.0.
   (func co_m_float ((co_engine * e) (size_t t) (double * out)) (out int)
         (let ((co_machine * m . #'(-> e m)) (i64 iv . 0))
+          (set t (co_deref m t))
           (if (co_m_int e t (aof iv))
               (block (set (cof out) (cast double iv)) (return 1)))
           (let ((u64 c . #'(nth t ($ (cof m) heap))))
@@ -482,7 +494,9 @@
             (if (== v nil) (return 0))
             (for ((size_t i . 0)) (< i len) ((++ i))
               (set p (co_deref m p))
-              (set (nth i v) (co_arg m p 0))
+              ;; dereferenced, so what the caller gets is the VALUE and not the
+              ;; argument slot pointing at it
+              (set (nth i v) (co_deref m (co_arg m p 0)))
               (set p (co_arg m p 1)))
             (set (cof out) v)
             (set (cof n) len)

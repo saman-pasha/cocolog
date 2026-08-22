@@ -156,16 +156,19 @@ call to it; and a dotted initialiser (`(var size_t n . 0)`) cannot be written
 inside a generic in a package where `nil` is `cocolog::nil` — a static is zero
 anyway.
 
-## Two libraries, at opposite extremes
+## Four libraries, across the whole range
 
-The two modules that ship are deliberately mirror images, because between them
-they show what each half is for.
+The modules that ship are deliberately spread, because between them they show
+what each half is for.
 
-| | Files | Lists |
-|---|---|---|
-| C half | 17 predicates | 7 |
-| Coco half | 5 | 30-odd |
-| why | a file system is a syscall away | a list predicate is two clauses — **and most must be nondeterministic** |
+| | Files | Lists | Apply | Builtins |
+|---|---|---|---|---|
+| C half | 17 predicates | 7 | **none** | 31 |
+| Coco half | 5 | 30-odd | 17 | 12 |
+| why | a file system is a syscall away | a list predicate is two clauses — **and most must be nondeterministic** | a goal applied to a list is `call/N` and nothing else | the core the engine could not reach on its own |
+
+`apply` has **no C half at all** — `co-defmodule` takes `nil` for the
+dispatcher — and it works, which is the cleanest demonstration the seam gets.
 
 **That second reason is the important one.** `member/2`, `select/3`, `append/3`
 and `permutation/2` each answer many times, and a module's C half cannot: it
@@ -250,6 +253,79 @@ It does not any more: `lib/syntax.cicili` now puts a space exactly where the
 two tokens would otherwise lex as one, which is SWI's rule and the reader's own
 tokeniser read backwards. `test/syntax.cicili` pins it, and `clumped/2` is
 printed whole in `lists_shape.pl` rather than taken apart.
+
+## The Apply library
+
+`lib/apply.cicili`. All seventeen exports of SWI's `library(apply)`:
+`maplist/2..5`, `foldl/4..7`, `scanl/4..7`, `include/3`, `exclude/3`,
+`partition/4`, `partition/5`, `convlist/3`.
+
+Not one line of C. Every one of them is a goal applied to the elements of a
+list — `call(Goal, X)` — so every one is two or three clauses. **They are as
+nondeterministic as what they are given:** `maplist(member, Xs, Yss)`
+backtracks because `member/2` does, and that falls out of their being clauses
+rather than being arranged for.
+
+## The Builtins library
+
+`lib/builtins.cicili`. SWI has **655** built-in predicates. Most cannot exist
+here and it is worth saying which rather than leaving a reader to find out:
+everything stream-shaped (there is no `open/3`, so nothing to answer with),
+everything module-shaped, threads, tabling, the foreign interface, SWI's own
+`prolog_*` introspection, and the string family — cocolog reads `"abc"` as a
+code list, which is the ISO default, so `string_concat/3` has no type to work
+on.
+
+**What is left is the ISO core, and that is what this module is.** The set was
+computed rather than remembered: the ISO built-in predicates plus the SWI
+extras everyone treats as core, minus the forty-eight cocolog already had.
+Thirty-eight remained, and they are all here:
+
+`findall/3` `findall/4` `forall/2` `aggregate_all/3` · `between/3` `succ/2`
+`plus/3` · `ground/1` `term_variables/2` `unify_with_occurs_check/2` ·
+`atom_chars/2` `char_code/2` `number_chars/2` `atom_number/2` `upcase_atom/2`
+`downcase_atom/2` `term_to_atom/2` `sub_atom/5` `atomic_list_concat/2`
+`atomic_list_concat/3` · `writeq/1` `print/1` `write_term/2` `tab/1` ·
+`clause/2` `current_predicate/1` `retractall/1` `abolish/1` ·
+`nb_setval/2` `nb_getval/2` `b_setval/2` `b_getval/2` · `halt/1`.
+
+(`length/2`, `msort/2`, `sort/2` and `sort/4` are in the Lists module, which
+needed them first.)
+
+### findall had to be an engine service
+
+It runs a goal to exhaustion, and a module cannot see the engine. So
+`lib/solve.cicili` grew `co_engine_findall`, which starts a **nested engine**
+on the same machine and store, and the module calls it. `forall/2` and
+`aggregate_all/3` are built on the same service.
+
+**The solutions travel through the store, not the heap.** Backtracking
+truncates the heap to the choice point's mark, so a copy made on the heap
+during the search is gone by the time the search ends — the collection would
+come back empty, or pointing at cells that had been reused. The store never
+shrinks, which is the property `assert` already relies on.
+
+The inner search spends the outer one's remaining step budget, so a `cocolog
+step` with a limit cannot be overrun by a `findall` inside it.
+
+### What is still missing, and why
+
+Each for a reason rather than for want of time:
+
+* **`catch/3` and `throw/1`.** A catch is a new kind of choice-point frame, and
+  every kind of frame has to be written into a frozen machine and read back
+  (`lib/state.cicili`). It is the suspension format that makes this a change
+  rather than an addition. This is also the reason SWI throws where cocolog
+  fails, which is the one divergence the shared tests cannot cross.
+* **`bagof/3` and `setof/3`.** Not `findall` plus a sort. They **backtrack over
+  the bindings of the free variables** of the goal, answering one group per
+  witness, and that needs the engine to enumerate the groups. Shipping
+  findall-and-sort under those names would be a predicate that agrees with SWI
+  until the first free variable and then quietly does not.
+* **`op/3` and `current_op/3`.** The reader's operator table is emitted from
+  `*operators*` at build time, which is what keeps the reader and the writer
+  from disagreeing. A run-time table is a real change to `lib/syntax.cicili`
+  and to what a frozen machine has to carry.
 
 ## The Lists library
 

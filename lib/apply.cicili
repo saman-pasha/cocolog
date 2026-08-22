@@ -1,0 +1,116 @@
+;;;; cocolog -- the Apply library, as a module
+;;;
+;;; SWI-Prolog's library(apply): all seventeen exported predicates, read off a
+;;; running SWI rather than off a memory of one.
+;;;
+;;; IT HAS NO C HALF AT ALL, and that is the point of it. Every one of these is
+;;; a goal applied to the elements of a list -- `call(Goal, X)' and nothing
+;;; else -- so every one of them is two or three clauses and belongs in the
+;;; Coco half. A module that is only clauses is a module the seam already
+;;; supports: `co-defmodule' takes `nil' for the dispatcher.
+;;;
+;;; WHAT IT NEEDED FROM THE ENGINE WAS call/N, which the Lists library added
+;;; for `max_member/3'. Without it not one predicate here could be written.
+;;;
+;;; THEY ARE AS NONDETERMINISTIC AS WHAT THEY ARE GIVEN. `maplist(member, Xs,
+;;; Yss)' backtracks, because `member/2' does; `maplist(succ, [1,2], L)' does
+;;; not, because `succ/2' does not. That falls out of their being clauses and
+;;; could not have been had in C.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+(DEFPARAMETER *apply-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+
+           ;; ---- maplist/2..5 ---------------------------------------------
+           ;; Each arity is written out rather than built on a general one,
+           ;; which is what SWI does too: the lists have to be walked in step,
+           ;; and a version that took a list of lists would have to build a
+           ;; term per element to call with.
+           "maplist(_, [])."
+           "maplist(G, [X|Xs]) :- call(G, X), maplist(G, Xs)."
+           "maplist(_, [], [])."
+           "maplist(G, [X|Xs], [Y|Ys]) :- call(G, X, Y), maplist(G, Xs, Ys)."
+           "maplist(_, [], [], [])."
+           "maplist(G, [X|Xs], [Y|Ys], [Z|Zs]) :- call(G, X, Y, Z), maplist(G, Xs, Ys, Zs)."
+           "maplist(_, [], [], [], [])."
+           "maplist(G, [X|Xs], [Y|Ys], [Z|Zs], [W|Ws]) :- call(G, X, Y, Z, W), maplist(G, Xs, Ys, Zs, Ws)."
+
+           ;; ---- foldl/4..7 -----------------------------------------------
+           ;; The accumulator travels as the last two arguments, so the goal is
+           ;; called as call(G, Element, In, Out).
+           "foldl(G, L, A0, A) :- '$foldl'(L, G, A0, A)."
+           "'$foldl'([], _, A, A)."
+           "'$foldl'([X|Xs], G, A0, A) :- call(G, X, A0, A1), '$foldl'(Xs, G, A1, A)."
+           "foldl(G, L1, L2, A0, A) :- '$foldl2'(L1, L2, G, A0, A)."
+           "'$foldl2'([], [], _, A, A)."
+           "'$foldl2'([X|Xs], [Y|Ys], G, A0, A) :- call(G, X, Y, A0, A1), '$foldl2'(Xs, Ys, G, A1, A)."
+           "foldl(G, L1, L2, L3, A0, A) :- '$foldl3'(L1, L2, L3, G, A0, A)."
+           "'$foldl3'([], [], [], _, A, A)."
+           "'$foldl3'([X|Xs], [Y|Ys], [Z|Zs], G, A0, A) :- call(G, X, Y, Z, A0, A1), '$foldl3'(Xs, Ys, Zs, G, A1, A)."
+           "foldl(G, L1, L2, L3, L4, A0, A) :- '$foldl4'(L1, L2, L3, L4, G, A0, A)."
+           "'$foldl4'([], [], [], [], _, A, A)."
+           "'$foldl4'([X|Xs], [Y|Ys], [Z|Zs], [W|Ws], G, A0, A) :- call(G, X, Y, Z, W, A0, A1), '$foldl4'(Xs, Ys, Zs, Ws, G, A1, A)."
+
+           ;; ---- scanl/4..7 -----------------------------------------------
+           ;; Like foldl, but it answers every intermediate accumulator and not
+           ;; only the last -- so the result is ONE LONGER than the input, the
+           ;; first element being the initial value.
+           "scanl(G, L, A0, [A0|As]) :- '$scanl'(L, G, A0, As)."
+           "'$scanl'([], _, _, [])."
+           "'$scanl'([X|Xs], G, A0, [A1|As]) :- call(G, X, A0, A1), '$scanl'(Xs, G, A1, As)."
+           "scanl(G, L1, L2, A0, [A0|As]) :- '$scanl2'(L1, L2, G, A0, As)."
+           "'$scanl2'([], [], _, _, [])."
+           "'$scanl2'([X|Xs], [Y|Ys], G, A0, [A1|As]) :- call(G, X, Y, A0, A1), '$scanl2'(Xs, Ys, G, A1, As)."
+           "scanl(G, L1, L2, L3, A0, [A0|As]) :- '$scanl3'(L1, L2, L3, G, A0, As)."
+           "'$scanl3'([], [], [], _, _, [])."
+           "'$scanl3'([X|Xs], [Y|Ys], [Z|Zs], G, A0, [A1|As]) :- call(G, X, Y, Z, A0, A1), '$scanl3'(Xs, Ys, Zs, G, A1, As)."
+           "scanl(G, L1, L2, L3, L4, A0, [A0|As]) :- '$scanl4'(L1, L2, L3, L4, G, A0, As)."
+           "'$scanl4'([], [], [], [], _, _, [])."
+           "'$scanl4'([X|Xs], [Y|Ys], [Z|Zs], [W|Ws], G, A0, [A1|As]) :- call(G, X, Y, Z, W, A0, A1), '$scanl4'(Xs, Ys, Zs, Ws, G, A1, As)."
+
+           ;; ---- filtering ------------------------------------------------
+           ;; The cut in each clause is what makes these SEMIDET in the goal:
+           ;; `include' asks whether the goal succeeds, not how many ways.
+           "include(_, [], [])."
+           "include(G, [X|Xs], R) :- ( call(G, X) -> R = [X|R1] ; R = R1 ), include(G, Xs, R1)."
+           "exclude(_, [], [])."
+           "exclude(G, [X|Xs], R) :- ( call(G, X) -> R = R1 ; R = [X|R1] ), exclude(G, Xs, R1)."
+           "partition(_, [], [], [])."
+           "partition(G, [X|Xs], I, E) :- ( call(G, X) -> I = [X|I1], E = E1 ; I = I1, E = [X|E1] ), partition(G, Xs, I1, E1)."
+
+           ;; partition/5 sorts into three by a comparison, and the goal is
+           ;; called as call(G, X, Order) answering <, = or >.
+           "partition(_, [], [], [], [])."
+           "partition(G, [X|Xs], L, E, R) :- call(G, X, Order), '$partition5'(Order, X, L, E, R, L1, E1, R1), partition(G, Xs, L1, E1, R1)."
+           "'$partition5'(<, X, [X|L], E, R, L, E, R)."
+           "'$partition5'(=, X, L, [X|E], R, L, E, R)."
+           "'$partition5'(>, X, L, E, [X|R], L, E, R)."
+
+           ;; convlist/3 is maplist and include at once: the goal may fail, and
+           ;; an element it fails on is dropped rather than failing the whole.
+           "convlist(_, [], [])."
+           "convlist(G, [X|Xs], R) :- ( call(G, X, Y) -> R = [Y|R1] ; R = R1 ), convlist(G, Xs, R1).")))
+
+(generic decl-apply
+  ()
+
+  (decl) (func co_apply_module () (out int))
+
+  ) ; decl-apply
+
+
+(generic impl-apply
+  ()
+
+  ;;; No dispatcher: there is no C half. `co-defmodule' takes `nil' for it, and
+  ;;; the seam has carried a clauses-only module since test/module.cicili
+  ;;; proved it.
+  (co-defmodule co_apply_module "apply" nil *apply-prolog*)
+
+  ) ; impl-apply

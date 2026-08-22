@@ -243,6 +243,29 @@
   ;;; runs when a query is asked rather than when a store is made, because a
   ;;; store can be emptied under the engine -- thawing a machine does exactly
   ;;; that -- and the clauses have to come back.
+  ;;; ---- all the solutions of a goal --------------------------------------
+  ;;;
+  ;;; Runs GOAL to exhaustion on a NESTED ENGINE sharing this one's machine and
+  ;;; store, and answers a list of copies of TEMPLATE, one per solution. This
+  ;;; is what `findall/3' is, and `forall/2' and `aggregate_all/3' after it --
+  ;;; but it lives here rather than in a module because a module cannot see the
+  ;;; engine, and running a goal to exhaustion is exactly seeing the engine.
+  ;;;
+  ;;; THE SOLUTIONS GO THROUGH THE STORE AND NOT THE HEAP. Backtracking
+  ;;; truncates the heap to the choice point's mark, so a copy made on the heap
+  ;;; during the search is gone by the time the search ends -- the collection
+  ;;; would come back empty or, worse, pointing at cells that had been reused.
+  ;;; The store never shrinks, which is the property `assert' already relies on,
+  ;;; so each solution is put there and read back afterwards.
+  ;;;
+  ;;; IT IS DETERMINATE, and has to be: it makes no choice point of its own and
+  ;;; cannot be suspended half way, so a machine frozen during a `findall' is
+  ;;; frozen before it or after it and never inside it.
+  ;;;
+  ;;; Answers 1, or 0 with `e->err' carrying whatever went wrong inside.
+  (decl) (func co_engine_findall ((co_engine * e) (size_t template) (size_t goal)
+                                  (size_t * out)) (out int))
+
   (decl) (func co_extern_install
                ((func call ((co_engine * e) (const char * name) (u32 arity)
                             (size_t g) (int * found)) (out int))
@@ -460,6 +483,57 @@
         (set (nth 0 (-> e err)) (cast char 0))
         (set (-> e query) goal)
         (set (-> e goals) (co_k_push e goal 0 (co_k_empty e))))
+
+  (func co_engine_findall ((co_engine * e) (size_t template) (size_t goal)
+                          (size_t * out)) (out int)
+        (let ((co_machine * m . #'(-> e m))
+              (co_store * st . #'(-> e st))
+              (co_engine sub)
+              (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
+              (int ok . 1) (int rc . 0))
+
+          (co_engine_init (aof sub) m st)
+          ;; the inner search spends the outer one's remaining budget, so a
+          ;; `cocolog step' with a step limit cannot be overrun by a findall
+          (if (!= (-> e max_steps) 0)
+              (set ($ sub max_steps)
+                   (? (>= (-> e steps) (-> e max_steps)) 1
+                      (- (-> e max_steps) (-> e steps)))))
+          (co_engine_ask (aof sub) goal)
+
+          (while 1
+            (set rc (co_engine_next (aof sub)))
+            (if (== rc -1)
+                (block (snprintf (-> e err) 192 "%s" ($ sub err)) (set ok 0) break))
+            (if (== rc 0) break)
+            (if (>= n cap)
+                (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
+                      (size_t * nb))
+                  (set nb (cast (size_t *) (realloc kept (* ncap (sizeof size_t)))))
+                  (if (== nb nil)
+                      (block (co_fail_err e "out of memory in findall")
+                             (set ok 0) break))
+                  (set kept nb)
+                  (set cap ncap)))
+            ;; into the STORE, because the heap under us is about to be wound
+            ;; back past this point
+            (set (nth n kept) (co_store_put st m template))
+            (set n (+ n 1)))
+
+          ;; the outer engine's step count includes the inner search: a goal
+          ;; that costs a million inferences inside a findall costs them
+          (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (co_engine_free (aof sub))
+
+          (if (not ok) (block (free kept) (return 0)))
+
+          ;; back out of the store, in order, and on to the list
+          (let ((size_t lst . #'(co_new_atom m "[]")))
+            (for ((size_t i . n)) (> i 0) ((-- i))
+              (set lst (co_cons m (co_store_get m st (nth (- i 1) kept)) lst)))
+            (free kept)
+            (set (cof out) lst))
+          (return 1)))
 
   (func co_engine_ask_text ((co_engine * e) (const char * text)) (out int)
         (let ((size_t g))
