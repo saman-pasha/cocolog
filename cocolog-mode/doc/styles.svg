@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="604" height="123" viewBox="0 0 604 123" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13.5">
+<title>A rule as the mode shows it, and as it stands in the file</title>
+<rect x="0.5" y="0.5" width="603" height="122" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+<text x="14.0" y="28.1" fill="#24292f" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">%% </text>
+<text x="38.0" y="28.1" fill="#6e7781" textLength="544.0" lengthAdjust="spacing" xml:space="preserve">what you see: a name where there is one, a colour where there is not</text>
+<text x="14.0" y="47.1" fill="#8250df" textLength="56.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">sibling</text>
+<text x="70.0" y="47.1" fill="#24292f" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">(</text>
+<rect x="78.0" y="33.0" width="40.0" height="19.0" fill="#e6194b"/>
+<text x="78.0" y="47.1" fill="#ffffff" textLength="40.0" lengthAdjust="spacing" xml:space="preserve"> Kid </text>
+<text x="118.0" y="47.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="134.0" y="33.0" width="24.0" height="19.0" fill="#4363d8"/>
+<text x="158.0" y="47.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">) </text>
+<text x="174.0" y="47.1" fill="#cf222e" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">:-</text>
+<text x="190.0" y="47.1" fill="#24292f" textLength="64.0" lengthAdjust="spacing" xml:space="preserve"> parent(</text>
+<rect x="254.0" y="33.0" width="40.0" height="19.0" fill="#ffd700"/>
+<text x="254.0" y="47.1" fill="#000000" textLength="40.0" lengthAdjust="spacing" xml:space="preserve"> Mum </text>
+<text x="294.0" y="47.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="310.0" y="33.0" width="40.0" height="19.0" fill="#e6194b"/>
+<text x="310.0" y="47.1" fill="#ffffff" textLength="40.0" lengthAdjust="spacing" xml:space="preserve"> Kid </text>
+<text x="350.0" y="47.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">).</text>
+<text x="14.0" y="85.1" fill="#24292f" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">%% </text>
+<text x="38.0" y="85.1" fill="#6e7781" textLength="552.0" lengthAdjust="spacing" xml:space="preserve">C-c C-s: the text of the file, for reading it as another editor would</text>
+<text x="14.0" y="104.1" fill="#8250df" textLength="56.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">sibling</text>
+<text x="70.0" y="104.1" fill="#24292f" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">(</text>
+<rect x="78.0" y="90.0" width="88.0" height="19.0" fill="#e6194b"/>
+<text x="78.0" y="104.1" fill="#ffffff" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">Ce6194b_Kid</text>
+<text x="166.0" y="104.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="182.0" y="90.0" width="56.0" height="19.0" fill="#4363d8"/>
+<text x="182.0" y="104.1" fill="#ffffff" textLength="56.0" lengthAdjust="spacing" xml:space="preserve">C4363d8</text>
+<text x="238.0" y="104.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">) </text>
+<text x="254.0" y="104.1" fill="#cf222e" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">:-</text>
+<text x="270.0" y="104.1" fill="#24292f" textLength="64.0" lengthAdjust="spacing" xml:space="preserve"> parent(</text>
+<rect x="334.0" y="90.0" width="88.0" height="19.0" fill="#ffd700"/>
+<text x="334.0" y="104.1" fill="#000000" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">Cffd700_Mum</text>
+<text x="422.0" y="104.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="438.0" y="90.0" width="88.0" height="19.0" fill="#e6194b"/>
+<text x="438.0" y="104.1" fill="#ffffff" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">Ce6194b_Kid</text>
+<text x="526.0" y="104.1" fill="#24292f" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">).</text>
+</svg>

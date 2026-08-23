@@ -1,0 +1,156 @@
+%% -*- mode: cocolog -*-
+%%
+%% A cocolog file is ordinary Prolog.  Variables written Cxxxxxx are
+%% *colour variables*: cocolog-mode draws them as coloured swatches, and
+%% the same colour inside one clause is the same variable.
+%%
+%% A variable can be a colour and nothing else, and then that is all you
+%% see of it.  Give it a name of your own and the name is written after
+%% the colour -- Ce6194b_Grandad is the crimson variable called Grandad
+%% -- and the name is what you see, on a background of its colour.  The
+%% Cxxxxxx part is never shown: C-c C-n names a variable, C-c C-r
+%% recolours it, and C-c C-s shows the file as it stands.
+%%
+%%   C-c C-v   insert a colour variable (opens the palette; n names it)
+%%   C-c C-n   name the variable at point, colour and all
+%%   C-c C-r   recolour the variable at point, everywhere in its clause
+%%   C-c C-u   drop the colour, keep an ordinary variable
+%%   C-c C-p   show which colour is which in this clause
+%%   C-c C-s   swatch / name / raw text
+%%   C-c C-t   run the test case of the rule at point and draw its graph
+%%   C-c C-k   remove the graph again
+
+%% ---------------------------------------------------------------- facts
+
+parent(tom, bob).
+parent(tom, liz).
+parent(bob, ann).
+parent(bob, pat).
+parent(pat, jim).
+
+male(tom).
+male(bob).
+male(jim).
+female(liz).
+female(ann).
+female(pat).
+
+%% ---------------------------------------------------------------- rules
+
+%% ?- grandparent(tom, Who).
+grandparent(Ce6194b_Grandad, C4363d8_Kid) :-
+    parent(Ce6194b_Grandad, C3cb44b_Between),
+    parent(C3cb44b_Between, C4363d8_Kid).
+%% ╭── cocolog trace ── ?- grandparent(tom, Who).
+%% │ grandparent(tom, Who)                               ✔ ×2 grandparent(tom, ann) ; grandpare…
+%% │  ╰── ▸1 grandparent(Ce6194b_Grandad, C4363d8_Kid) :- … ✔
+%% │      ├── parent(tom, C3cb44b_Between)               ✔ ×2 parent(tom, bob) ; parent(tom, li…
+%% │      │   ├── ▸1 parent(tom, bob).                   ✔
+%% │      │   ├── ▸2 parent(tom, liz).                   ✔
+%% │      │   ╰── ▸3,4,5 no matching head                ✘
+%% │      ├── parent(bob, C4363d8_Kid)                   ✔ ×2 parent(bob, ann) ; parent(bob, pa…
+%% │      │   ├── ▸1,2 no matching head                  ✘
+%% │      │   ├── ▸3 parent(bob, ann).                   ✔
+%% │      │   ├── ▸4 parent(bob, pat).                   ✔
+%% │      │   ╰── ▸5 parent(pat, jim).                   ✘
+%% │      ╰── parent(liz, C4363d8_Kid)                   ✘
+%% │          ╰── ▸1,2,3,4,5 no matching head            ✘
+%% │
+%% │ ✔ solution 1:  Who = ann
+%% │ ✔ solution 2:  Who = pat
+%% ╰── cocolog: 2 solutions · 25 inferences
+
+%% ?- ancestor(bob, Who).
+ancestor(Ce6194b_Old, C4363d8_Young) :-
+    parent(Ce6194b_Old, C4363d8_Young).
+ancestor(Ce6194b_Old, C4363d8_Young) :-
+    parent(Ce6194b_Old, C3cb44b_Between),
+    ancestor(C3cb44b_Between, C4363d8_Young).
+%% ╭── cocolog trace ── ?- ancestor(bob, Who).
+%% │ ancestor(bob, Who)                                  ✔ ×3 ancestor(bob, ann) ; ancestor(bob…
+%% │  ├── ▸1 ancestor(Ce6194b_Old, C4363d8_Young) :- …   ✔
+%% │  │   ╰── parent(bob, C4363d8_Young)                 ✔ ×2 parent(bob, ann) ; parent(bob, pa…
+%% │  │       ├── ▸1,2 no matching head                  ✘
+%% │  │       ├── ▸3 parent(bob, ann).                   ✔
+%% │  │       ├── ▸4 parent(bob, pat).                   ✔
+%% │  │       ╰── ▸5 parent(pat, jim).                   ✘
+%% │  ╰── ▸2 ancestor(Ce6194b_Old, C4363d8_Young) :- …   ✔
+%% │      ├── parent(bob, C3cb44b_Between)               ✔ ×2 parent(bob, ann) ; parent(bob, pa…
+%% │      │   ├── ▸1,2 no matching head                  ✘
+%% │      │   ├── ▸3 parent(bob, ann).                   ✔
+%% │      │   ├── ▸4 parent(bob, pat).                   ✔
+%% │      │   ╰── ▸5 parent(pat, jim).                   ✘
+%% │      ├── ancestor(ann, C4363d8_Young)               ✘
+%% │      │   ├── ▸1 ancestor(Ce6194b_Old, C4363d8_Young) :- … ✘
+%% │      │   │   ╰── parent(ann, C4363d8_Young)         ✘
+%% │      │   │       ╰── ▸1,2,3,4,5 no matching head    ✘
+%% │      │   ╰── ▸2 ancestor(Ce6194b_Old, C4363d8_Young) :- … ✘
+%% │      │       ╰── parent(ann, C3cb44b_Between)       ✘
+%% │      │           ╰── ▸1,2,3,4,5 no matching head    ✘
+%% │      ╰── ancestor(pat, C4363d8_Young)               ✔ ancestor(pat, jim)
+%% │          ├── ▸1 ancestor(Ce6194b_Old, C4363d8_Young) :- … ✔
+%% │          │   ╰── parent(pat, C4363d8_Young)         ✔ parent(pat, jim)
+%% │          │       ├── ▸1,2,3,4 no matching head      ✘
+%% │          │       ╰── ▸5 parent(pat, jim).           ✔
+%% │          ╰── ▸2 ancestor(Ce6194b_Old, C4363d8_Young) :- … ✘
+%% │              ├── parent(pat, C3cb44b_Between)       ✔ parent(pat, jim)
+%% │              │   ├── ▸1,2,3,4 no matching head      ✘
+%% │              │   ╰── ▸5 parent(pat, jim).           ✔
+%% │              ╰── ancestor(jim, C4363d8_Young)       ✘
+%% │                  ├── ▸1 ancestor(Ce6194b_Old, C4363d8_Young) :- … ✘
+%% │                  │   ╰── parent(jim, C4363d8_Young) ✘
+%% │                  │       ╰── ▸1,2,3,4,5 no matching head ✘
+%% │                  ╰── ▸2 ancestor(Ce6194b_Old, C4363d8_Young) :- … ✘
+%% │                      ╰── parent(jim, C3cb44b_Between) ✘
+%% │                          ╰── ▸1,2,3,4,5 no matching head ✘
+%% │
+%% │ ✔ solution 1:  Who = ann
+%% │ ✔ solution 2:  Who = pat
+%% │ ✔ solution 3:  Who = jim
+%% ╰── cocolog: 3 solutions · 70 inferences
+
+%% Two test cases, two graphs.
+%% ?- childless(ann).
+%% ?- childless(tom).
+childless(Ce6194b) :-
+    \+ parent(Ce6194b, _).
+%% ╭── cocolog trace ── ?- childless(ann).
+%% │ childless(ann)                                      ✔
+%% │  ╰── ▸1 childless(Ce6194b) :- …                     ✔
+%% │      ╰── \+ parent(ann, _)                          ✔
+%% │          ╰── parent(ann, _)                         ✘
+%% │              ╰── ▸1,2,3,4,5 no matching head        ✘
+%% │
+%% │ ✔ solution 1:  true
+%% ╰── cocolog: 1 solution · 9 inferences
+%% ╭── cocolog trace ── ?- childless(tom).
+%% │ childless(tom)                                      ✘
+%% │  ╰── ▸1 childless(Ce6194b) :- …                     ✘
+%% │      ╰── \+ parent(tom, _)                          ✘
+%% │          ╰── parent(tom, _)                         ✔ parent(tom, bob)
+%% │              ╰── ▸1 parent(tom, bob).               ✔
+%% ╰── cocolog: no solutions · 6 inferences
+
+%% These three keep the names of their colours: crimson, blue, gold.
+%% ?- sibling(ann, Who).
+sibling(Ce6194b, C4363d8) :-
+    parent(Cffd700, Ce6194b),
+    parent(Cffd700, C4363d8),
+    Ce6194b \== C4363d8.
+%% ╭── cocolog trace ── ?- sibling(ann, Who).
+%% │ sibling(ann, Who)                                   ✔ sibling(ann, pat)
+%% │  ╰── ▸1 sibling(Ce6194b, C4363d8) :- …              ✔
+%% │      ├── parent(Cffd700, ann)                       ✔ parent(bob, ann)
+%% │      │   ├── ▸1,2 no matching head                  ✘
+%% │      │   ├── ▸3 parent(bob, ann).                   ✔
+%% │      │   ╰── ▸4,5 no matching head                  ✘
+%% │      ├── parent(bob, C4363d8)                       ✔ ×2 parent(bob, ann) ; parent(bob, pa…
+%% │      │   ├── ▸1,2 no matching head                  ✘
+%% │      │   ├── ▸3 parent(bob, ann).                   ✔
+%% │      │   ├── ▸4 parent(bob, pat).                   ✔
+%% │      │   ╰── ▸5 parent(pat, jim).                   ✘
+%% │      ├── ann \== ann                                ✘
+%% │      ╰── ann \== pat                                ✔
+%% │
+%% │ ✔ solution 1:  Who = pat
+%% ╰── cocolog: 1 solution · 21 inferences

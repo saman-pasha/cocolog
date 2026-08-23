@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="796" height="465" viewBox="0 0 796 465" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13.5">
+<title>A tokenizer, and the graph of the list it reads</title>
+<rect x="0.5" y="0.5" width="795" height="464" rx="6" fill="#0d1117" stroke="#30363d"/>
+<text x="14.0" y="28.1" fill="#e6edf3" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">%% </text>
+<text x="38.0" y="28.1" fill="#7ee787" textLength="136.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">?- phrase(tokens(</text>
+<rect x="174.0" y="14.0" width="32.0" height="19.0" fill="#e6194b"/>
+<text x="174.0" y="28.1" fill="#ffffff" textLength="32.0" lengthAdjust="spacing" xml:space="preserve"> Ts </text>
+<text x="206.0" y="28.1" fill="#7ee787" textLength="96.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">), "go on").</text>
+<text x="14.0" y="47.1" fill="#e6edf3" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">%% </text>
+<text x="38.0" y="47.1" fill="#7ee787" textLength="136.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">?- phrase(tokens(</text>
+<rect x="174.0" y="33.0" width="32.0" height="19.0" fill="#e6194b"/>
+<text x="174.0" y="47.1" fill="#ffffff" textLength="32.0" lengthAdjust="spacing" xml:space="preserve"> Ts </text>
+<text x="206.0" y="47.1" fill="#7ee787" textLength="120.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">), "%r\nfunc").</text>
+<text x="14.0" y="66.1" fill="#d2a8ff" textLength="48.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">tokens</text>
+<text x="62.0" y="66.1" fill="#e6edf3" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">(</text>
+<rect x="70.0" y="52.0" width="32.0" height="19.0" fill="#e6194b"/>
+<text x="70.0" y="66.1" fill="#ffffff" textLength="32.0" lengthAdjust="spacing" xml:space="preserve"> Ts </text>
+<text x="102.0" y="66.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">) </text>
+<text x="118.0" y="66.1" fill="#ff7b72" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">--&gt;</text>
+<text x="14.0" y="85.1" fill="#e6edf3" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">    blanks,</text>
+<text x="46.0" y="104.1" fill="#d2a8ff" textLength="88.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">more_tokens</text>
+<text x="134.0" y="104.1" fill="#e6edf3" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">(</text>
+<rect x="142.0" y="90.0" width="32.0" height="19.0" fill="#e6194b"/>
+<text x="142.0" y="104.1" fill="#ffffff" textLength="32.0" lengthAdjust="spacing" xml:space="preserve"> Ts </text>
+<text x="174.0" y="104.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">).</text>
+<text x="14.0" y="123.1" fill="#6e7681" textLength="328.0" lengthAdjust="spacing" xml:space="preserve">%% ╭── cocolog trace ── ?- phrase(tokens(</text>
+<rect x="342.0" y="109.0" width="80.0" height="19.0" fill="#e6194b"/>
+<text x="342.0" y="123.1" fill="#ffffff" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Ts       </text>
+<text x="422.0" y="123.1" fill="#6e7681" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">), "go on").</text>
+<text x="14.0" y="142.1" fill="#6e7681" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">%% │ tokens(</text>
+<rect x="110.0" y="128.0" width="80.0" height="19.0" fill="#e6194b"/>
+<text x="110.0" y="142.1" fill="#ffffff" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Ts       </text>
+<text x="190.0" y="142.1" fill="#6e7681" textLength="592.0" lengthAdjust="spacing" xml:space="preserve">, [103, 111, 32, 111, 110], [])    ✔ tokens([go, on], [103, 111, 32, 111,…</text>
+<text x="14.0" y="161.1" fill="#6e7681" textLength="160.0" lengthAdjust="spacing" xml:space="preserve">%% │  ╰── ▸1 tokens(</text>
+<rect x="174.0" y="147.0" width="80.0" height="19.0" fill="#e6194b"/>
+<text x="174.0" y="161.1" fill="#ffffff" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Ts       </text>
+<text x="254.0" y="161.1" fill="#6e7681" textLength="208.0" lengthAdjust="spacing" xml:space="preserve">) --&gt; blanks, more_tokens(</text>
+<rect x="462.0" y="147.0" width="80.0" height="19.0" fill="#e6194b"/>
+<text x="462.0" y="161.1" fill="#ffffff" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Ts       </text>
+<text x="542.0" y="161.1" fill="#6e7681" textLength="32.0" lengthAdjust="spacing" xml:space="preserve">). ✔</text>
+<text x="14.0" y="180.1" fill="#6e7681" textLength="768.0" lengthAdjust="spacing" xml:space="preserve">%% │      ├── blanks([103, 111, 32, 111, 110], _G502)    ✔ blanks([103, 111, 32, 111, 110], [10…</text>
+<text x="14.0" y="199.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ├── ▸1 blanks --&gt; blank, !, blanks.        ✘</text>
+<text x="14.0" y="218.1" fill="#6e7681" textLength="496.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   │   ╰── blank([103, 111, 32, 111, 110], _G505) ✘</text>
+<text x="14.0" y="237.1" fill="#6e7681" textLength="320.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   │       ╰── ▸1 blank --&gt; [</text>
+<rect x="334.0" y="223.0" width="8.0" height="19.0" fill="#c0c0c0"/>
+<text x="334.0" y="237.1" fill="#000000" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">C</text>
+<text x="342.0" y="237.1" fill="#6e7681" textLength="40.0" lengthAdjust="spacing" xml:space="preserve">], { </text>
+<rect x="382.0" y="223.0" width="8.0" height="19.0" fill="#c0c0c0"/>
+<text x="382.0" y="237.1" fill="#000000" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">C</text>
+<text x="390.0" y="237.1" fill="#6e7681" textLength="88.0" lengthAdjust="spacing" xml:space="preserve"> =&lt; 32 }. ✘</text>
+<text x="14.0" y="256.1" fill="#6e7681" textLength="664.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   │           ├── [103, 111, 32, 111, 110] = [103, 111, 32, 111, 110] ✔</text>
+<text x="14.0" y="275.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   │           ╰── 103 =&lt; 32                  ✘</text>
+<text x="14.0" y="294.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ╰── ▸2 blanks --&gt; [].                      ✔</text>
+<text x="14.0" y="313.1" fill="#6e7681" textLength="600.0" lengthAdjust="spacing" xml:space="preserve">%% │      │       ╰── [103, 111, 32, 111, 110] = [103, 111, 32, 111, 110] ✔</text>
+<text x="14.0" y="332.1" fill="#6e7681" textLength="208.0" lengthAdjust="spacing" xml:space="preserve">%% │      ╰── more_tokens(</text>
+<rect x="222.0" y="318.0" width="80.0" height="19.0" fill="#e6194b"/>
+<text x="222.0" y="332.1" fill="#ffffff" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Ts       </text>
+<text x="302.0" y="332.1" fill="#6e7681" textLength="480.0" lengthAdjust="spacing" xml:space="preserve">, [103, 111, 32, 111, 110], []) ✔ more_tokens([go, on], [10…</text>
+<text x="14.0" y="351.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │          ├── ▸1 more_tokens([]) --&gt; eos, !.         ✘</text>
+<text x="14.0" y="370.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │          │   ╰── eos([103, 111, 32, 111, 110], [])  ✘</text>
+<text x="14.0" y="389.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │          │       ╰── ▸1 eos([], []).                ✘</text>
+<text x="14.0" y="408.1" fill="#6e7681" textLength="264.0" lengthAdjust="spacing" xml:space="preserve">%% │          ├── ▸2 more_tokens(</text>
+<rect x="278.0" y="394.0" width="80.0" height="19.0" fill="#e6194b"/>
+<text x="278.0" y="408.1" fill="#ffffff" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Ts       </text>
+<text x="358.0" y="408.1" fill="#6e7681" textLength="392.0" lengthAdjust="spacing" xml:space="preserve">) --&gt; "%", string(_), ( eol ; eos ), !, blanks… ✘</text>
+<text x="14.0" y="427.1" fill="#6e7681" textLength="488.0" lengthAdjust="spacing" xml:space="preserve">%% │          │   ╰── [103, 111, 32, 111, 110] = [37|_G516] ✘</text>
+<text x="14.0" y="446.1" fill="#6e7681" textLength="272.0" lengthAdjust="spacing" xml:space="preserve">%% │          ╰── ▸3 more_tokens([</text>
+<rect x="286.0" y="432.0" width="104.0" height="19.0" fill="#4363d8"/>
+<text x="286.0" y="446.1" fill="#ffffff" textLength="104.0" lengthAdjust="spacing" xml:space="preserve"> Token       </text>
+<text x="390.0" y="446.1" fill="#6e7681" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">|</text>
+<rect x="398.0" y="432.0" width="80.0" height="19.0" fill="#e6194b"/>
+<text x="398.0" y="446.1" fill="#ffffff" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Ts       </text>
+<text x="478.0" y="446.1" fill="#6e7681" textLength="136.0" lengthAdjust="spacing" xml:space="preserve">]) --&gt; nonblanks(</text>
+<rect x="614.0" y="432.0" width="80.0" height="19.0" fill="#ffd700"/>
+<text x="614.0" y="446.1" fill="#000000" textLength="80.0" lengthAdjust="spacing" xml:space="preserve"> Cs       </text>
+<text x="694.0" y="446.1" fill="#6e7681" textLength="56.0" lengthAdjust="spacing" xml:space="preserve">), {… ✔</text>
+</svg>
