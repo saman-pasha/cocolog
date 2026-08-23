@@ -506,16 +506,24 @@ rollback the guard exists to forbid; with the accident gone, the sweep had
 to become deliberate.
 
 It is now lazy recovery, in both engines. A transaction id names one
-begin..commit-or-rollback span (the C++ engine's id was per-THREAD — every
-transaction a pooled connection ever ran shared it, so "is the owner still
-running" had no answer; the Cicili engine's was hashed from the thread and
-the wall second, so two begins in one second collided), and a process-wide
-registry holds the ids currently between begin and end — one slot per
-thread, taken at begin, released only after commit or rollback has cleared
-every lock, and REPLACED by the next begin, which is the moment an
-abandoned transaction's debris becomes breakable. When `check_lock` meets a
-lock whose owner is not in the registry, it no longer waits on the corpse:
-it rolls that one pointer back in place — the same foreign-id work startup
+transaction (the C++ engine's id was per-THREAD — every transaction a
+pooled connection ever ran shared it, so "is the owner still running" had
+no answer; the Cicili engine's was hashed from the thread and the wall
+second, so two begins in one second collided), and a process-wide registry
+holds the ids currently between begin and end — taken at a fresh begin,
+released only after commit or rollback has cleared every lock. A begin on
+a thread whose transaction is still open CONTINUES it, id and registration
+standing: the server begins once per request while a turn's transaction
+spans many, and the first cut of this work handed those nested begins
+fresh ids — orphaning every stage the turn had already made, which the
+commit's ownership guard then skipped, and a fresh store grew ghost
+machine rows and torn index chains within a handful of runs (387 unique-key
+refusals in one afternoon; 7 after the fix). What makes an id dead is
+death: commit and rollback retire it, a dying thread's destructor retires
+it after its best-effort rollback, and a crashed process's ids are simply
+unknown to the next process's registry. When `check_lock` meets a lock
+whose owner is not in the registry, it no longer waits on the corpse: it
+rolls that one pointer back in place — the same foreign-id work startup
 recovery does, done on contact — and looks at the row again. A live owner,
 however slow, is never touched: its id is in the registry until its locks
 are already gone.
@@ -540,6 +548,17 @@ exactly as `-1` does — nothing lies beyond a link that never landed — and
 the store that was refusing every vacuum healed in place, no restart, no
 new data directory. (The Cicili engine never had the debt: its truncate
 rebuilds each index wholesale instead of editing chains.)
+
+Measured on all of it together, the twelve-worker WIRE choreography on a
+fresh store: **6–8 seconds a run, twelve runs, dead flat** — run twelve as
+fast as run one, no 60-second timeouts, and a machine stranded by one run
+healed by the next run's setup instead of poisoning the store. Not yet
+wall-to-wall: about one run in three still loses one group's turns to an
+occasional `unique key 'IDX_COCOLOG_MACHINES_NAME'` refusal (seven in
+twelve heavy runs, down from three hundred and eighty-seven), the worker's
+connection drops, and that machine sits out the rest of the run. The trail
+points at the C++ index's in-place chain edits — the same fragility the
+NULL tear came from — and that hunt is filed, not finished.
 
 ### The test that blocked all of it is fixed
 
