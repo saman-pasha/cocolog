@@ -354,19 +354,34 @@ All three are fixed in ZiguratIP, in `MVCCS/memory.cpp` and
 
 The wire halved and went perfectly flat — the server had been fsyncing
 twice per client poll. The embedded fresh run dropped the same way. The
-last row is the honest open item: a persistent embedded store stays
-*bounded* now (~1.2MB, where it previously grew without limit and died by
-run 3), but each run still starts slower than the last, and the profile
-says why — not dead rows, not leaked space, not file size, but walk-length
-under the engine's one stream guard, the same single-lock ceiling
-STATUS.md's one-core section describes. Until that lifts, a long-lived
-embedded store doing machine choreography wants an occasional fresh
-directory the way the server wants its vacuum; a knowledge base of clauses
-and models, which is what `--store` is for, never churns hard enough to
-notice. One caveat more: a worker killed mid-write (the test's `timeout`
-does exactly this) can tear an embedded store — the recovery walk then
-refuses it with "hexmap ends inside the chunk" rather than guessing, and a
-torn store stays torn.
+last row was, for a while, the honest open item: a persistent embedded
+store stayed bounded but each run started slower than the last, walk-length
+under the engine's one stream guard growing with the store's history. That
+ager was then hunted through four more engine layers — the cursor read the
+hexmap a byte at a time through a stream whose buffer every seek discarded;
+`load_control` did nine reads where one block read serves; index storage
+was swept when it should be **rebuilt** at truncate (four indexes held 72
+of a vacuumed store's 168 pages, remembering every id they had ever seen);
+and truncate reclaimed only settled DELETEs, never the superseded versions
+an UPDATE leaves, so a machine claimed and released a thousand times left a
+thousand old versions no vacuum would touch. With all of it fixed (the
+ZiguratIP branch's "walk-length ager, solved" commit is the account):
+
+|                              | run 1 | run 3 | run 5 | run 8 | run 10 |
+|------------------------------|-------|-------|-------|-------|--------|
+| embedded, persistent + vacuum| 5.1s  | 4.5s  | 4.8s  | 4.6s  | 4.6s   |
+
+**Dead flat, and the store byte-identical at 912KB from run 1 to run 10.**
+The persistent embedded arrangement is now the fastest way to run the
+choreography — faster than the wire, faster than a fresh store every run —
+because the vacuum in its setup now actually returns the store to the same
+state every time. The one stream guard still serialises every reader
+(STATUS.md's one-core section), but nothing behind it accumulates any
+more: the guard protects work proportional to live data, not to history.
+And a worker killed mid-write no longer bricks the store: the recovery
+walk salvages a torn tail — what a kill catches in flight never reached
+its commit sync, so by shadow paging's own rule it never happened — keeps
+every parseable record, and refrees the rest.
 
 ## Prolog that trains
 
