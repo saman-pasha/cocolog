@@ -447,7 +447,7 @@ arrangements, and the concurrency suites run the verb in setup, which is why
 they no longer slow down run over run. The honest long-term fix is still a
 vacuum that does not cost point-in-time reads.
 
-### The one-core ceiling: the structure is lifted, the switch is opt-in
+### The one-core ceiling is lifted, and parallel reads are the default
 
 The ceiling was `Memory::Streams`: one global mutex pair over the two shared
 file streams, every read serialised against every other. The Cicili engine
@@ -486,10 +486,60 @@ rule). Traced by instrumenting every claim, save and drop with its thread
 and the row's control block, and replaying the ledger: one row deleted
 twice, then found pristine and alive. Measured after: **40 runs under the
 flag, zero stalls, exact answer sets every time**, and the C++ suite —
-whose commit and rollback walk through the same guard — stays green. The
-shared side remains behind `COCOLOG_PARALLEL_READS=1` so one env var
-separates the two guard modes in any future bisect; both are now believed
-sound. The C++ server keeps the exclusive design.
+whose commit and rollback walk through the same guard — stays green. With
+the stall dead and 55 post-fix runs green without one, **the shared side is
+now the default** for an embedded store; `COCOLOG_PARALLEL_READS=0` keeps
+the exclusive guard, so one env var still separates the two modes in any
+future bisect. The C++ server keeps the exclusive design.
+
+### A dead transaction's lock breaks on contact
+
+The ownership guard exposed a debt the engine had always carried: a
+transaction that dies without commit or rollback — a crashed client, a
+pooled connection abandoned mid-turn — leaves its staged row locks on disk,
+and nothing sweeps them until the next restart's recovery. Measured, in the
+server: one turn killed mid-save left `state-c` wedged behind a stale lock,
+`start` refused with `lock wait timeout`, and every following `groups` run
+failed the same way until the server was restarted. Before the guard that
+debris was sometimes scrubbed by accident, by exactly the promiscuous
+rollback the guard exists to forbid; with the accident gone, the sweep had
+to become deliberate.
+
+It is now lazy recovery, in both engines. A transaction id names one
+begin..commit-or-rollback span (the C++ engine's id was per-THREAD — every
+transaction a pooled connection ever ran shared it, so "is the owner still
+running" had no answer; the Cicili engine's was hashed from the thread and
+the wall second, so two begins in one second collided), and a process-wide
+registry holds the ids currently between begin and end — one slot per
+thread, taken at begin, released only after commit or rollback has cleared
+every lock, and REPLACED by the next begin, which is the moment an
+abandoned transaction's debris becomes breakable. When `check_lock` meets a
+lock whose owner is not in the registry, it no longer waits on the corpse:
+it rolls that one pointer back in place — the same foreign-id work startup
+recovery does, done on contact — and looks at the row again. A live owner,
+however slow, is never touched: its id is in the registry until its locks
+are already gone.
+
+Proven at the engine seam in both engines: the C++ suite gained
+`a_dead_transactions_lock_breaks_on_contact` (stage, abandon, second writer
+through in milliseconds instead of a ten-second refusal, committed data
+intact, the abandoned stage never landing) and the standalone Cicili
+harness the same case; 304 C++ cases and the full cocolog suite stay green.
+The stale expectation this flushed out of the standalone harness — a
+truncate count written before superseded UPDATED versions became
+reclaimable — was corrected to match the documented behaviour.
+
+Settling that debris surfaced one more engine debt. The C++ index's
+truncate walks every value chain to unlink the settled dead, and a link
+whose address never finished landing — a stage cut off mid-write, exactly
+the kind of record the breaker now settles — read back NULL and refused
+the WHOLE pass with `NULL value`: one torn link in a machine-state chain
+made every `cocolog vacuum` fail on that store forever, with a fresh data
+directory the only cure. A NULL address in a chain now ends the chain
+exactly as `-1` does — nothing lies beyond a link that never landed — and
+the store that was refusing every vacuum healed in place, no restart, no
+new data directory. (The Cicili engine never had the debt: its truncate
+rebuilds each index wholesale instead of editing chains.)
 
 ### The test that blocked all of it is fixed
 

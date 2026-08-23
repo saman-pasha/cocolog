@@ -852,17 +852,18 @@
               ;; handing the engine the two file paths is what turns the
               ;; shared read side on: read-only cursors then run
               ;; concurrently on per-thread streams instead of queueing on
-              ;; the one canonical pair. The twelve-worker choreography
-              ;; runs three times faster under it, and the stall that once
-              ;; hit one run in three was chased to the engine and killed
-              ;; there (a rollback restoring a row whose stage a writer had
+              ;; the one canonical pair. THE DEFAULT, since the stall that
+              ;; kept it opt-in was chased to the engine and killed there
+              ;; (a rollback restoring a row whose stage a writer had
               ;; taken over -- see rollback_pointer's ownership rule in
-              ;; MVCCS-cicili). Measured after: 40 runs, zero stalls. It
-              ;; stays a switch so one env var separates the two guard
-              ;; modes in any future bisect, not because either mode is
-              ;; suspect.
-              (if (!= (getenv "COCOLOG_PARALLEL_READS") nil)
-                  (memory_reader_paths (aof ce_mem) hexpath datapath))
+              ;; MVCCS-cicili): the twelve-worker choreography runs three
+              ;; times faster under it, and after the fix it went 55 runs
+              ;; green without a single stall.
+              ;; COCOLOG_PARALLEL_READS=0 keeps the exclusive guard, so
+              ;; one env var still separates the two modes in a bisect.
+              (let ((const char * par_reads . #'(getenv "COCOLOG_PARALLEL_READS")))
+                (if (or (== par_reads nil) (!= (strcmp par_reads "0") 0))
+                    (memory_reader_paths (aof ce_mem) hexpath datapath)))
               (IDX_COCOLOG_CLAUSES_ID_attach (aof ce_mem))
               (IDX_COCOLOG_PROPS_ID_attach (aof ce_mem))
               (IDX_COCOLOG_MACHINES_ID_attach (aof ce_mem))
