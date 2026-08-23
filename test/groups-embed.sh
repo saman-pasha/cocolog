@@ -29,7 +29,10 @@ ROOT=$(cd "$HERE/.." && pwd)
 COCOLOG="$ROOT/cocolog-embed"
 KB=groups_test
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-groups-embed-XXXXXX")
-STORE="$OUT/store"
+# A fresh store by default; GROUPS_EMBED_STORE names a persistent one, for
+# measuring what repeated runs do to a store that lives on -- it survives
+# the run, only the logs are cleaned up.
+STORE="${GROUPS_EMBED_STORE:-$OUT/store}"
 trap 'rm -rf "$OUT"' EXIT INT TERM
 
 if [ ! -x "$COCOLOG" ]; then
@@ -65,6 +68,12 @@ answers_wanted() {
 
 echo "loading the program"
 $CL forget > "$OUT/forget.log"
+# AND RECLAIM WHAT THE LAST RUN LEFT -- see the same line in test/groups.sh.
+# The embedded engine keeps deleted rows under MVCC exactly as the server
+# does, and a persistent store ages exactly as the server's did: measured
+# here, 25s, 50s, and then past the 60s WORKER_TIMEOUT by the third run.
+# On the default fresh store this is a no-op that costs nothing.
+$CL vacuum > "$OUT/vacuum.log"
 $CL consult "$ROOT/demo/family.pl" > "$OUT/consult.log"
 
 echo "starting four machines"

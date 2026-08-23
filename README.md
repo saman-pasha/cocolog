@@ -332,10 +332,41 @@ vacuum's hand: the embedded times were flat because the store was new each
 run, while the wire times grew because the server's store kept the dead rows
 of every earlier run. The third row is the same wire test after `cocolog
 vacuum` went into its setup — flat for as long as it is run, on the same
-worked store the first row was ageing. The wall clock in every row is mostly
-the choreography itself — polls and deliberate yields between turns — not
-the engine: the test exists to prove hand-off, and proving hand-off is
-waiting, either side of a socket or not.
+worked store the first row was ageing.
+
+Then the same benchmark was pointed at a PERSISTENT embedded store
+(`GROUPS_EMBED_STORE=DIR test/groups-embed.sh`), and what it found was not a
+number but three storage engine bugs, shared by the C++ engine and the
+Cicili port alike: a record sized at an exact chunk multiple measured one
+chunk short everywhere it was read back (so its frees leaked and its holes
+fit nothing), a fully-emptied page could never return to the allocator (the
+whole-page test counted chunks a page can never surrender), and every
+commit paid three syncs of two files even when it had written nothing —
+which, for a choreography whose workers poll, was most of the wall clock.
+All three are fixed in ZiguratIP, in `MVCCS/memory.cpp` and
+`MVCCS-cicili/mvccs-lib.cicili` both, and the table after the fixes reads:
+
+|                              | run 1 | run 2 | run 3 | run 4 | run 5 |
+|------------------------------|-------|-------|-------|-------|-------|
+| wire, vacuuming in setup     | 7.7s  | 7.9s  | 7.9s  | 7.9s  | 7.9s  |
+| embedded, fresh store        | 8.7s  | —     | —     | —     | —     |
+| embedded, persistent + vacuum| 9.7s  | 16.2s | 26.0s | 44.4s | 55.9s |
+
+The wire halved and went perfectly flat — the server had been fsyncing
+twice per client poll. The embedded fresh run dropped the same way. The
+last row is the honest open item: a persistent embedded store stays
+*bounded* now (~1.2MB, where it previously grew without limit and died by
+run 3), but each run still starts slower than the last, and the profile
+says why — not dead rows, not leaked space, not file size, but walk-length
+under the engine's one stream guard, the same single-lock ceiling
+STATUS.md's one-core section describes. Until that lifts, a long-lived
+embedded store doing machine choreography wants an occasional fresh
+directory the way the server wants its vacuum; a knowledge base of clauses
+and models, which is what `--store` is for, never churns hard enough to
+notice. One caveat more: a worker killed mid-write (the test's `timeout`
+does exactly this) can tear an embedded store — the recovery walk then
+refuses it with "hexmap ends inside the chunk" rather than guessing, and a
+torn store stays torn.
 
 ## Prolog that trains
 
