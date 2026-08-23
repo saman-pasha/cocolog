@@ -22,6 +22,8 @@
 ;;;                                          with MACHINE, only that one
 ;;;   cocolog [options] forget [NAME ARITY] empty the knowledge base, or one
 ;;;                                          predicate of it
+;;;   cocolog [options] vacuum              reclaim what deleted rows still
+;;;                                          hold -- spends point-in-time reads
 ;;;   cocolog [options] list                what machines are suspended
 ;;;   cocolog [options] drop NAME           forget one
 ;;;
@@ -36,6 +38,9 @@
 ;;;                  server whose storage engine is not concurrency safe;
 ;;;                  `auto' names one per host and port. Off by default.
 ;;;   --answers N    stop after N solutions (default 10, 0 for all)
+;;;   --vacuum       let programs call vacuum_kb/0,1; without it the builtin
+;;;                  raises permission_error, because the pass gives up the
+;;;                  store's point-in-time reads
 ;;;
 ;;; WHY `step' PRINTS NOTHING MUCH. It is meant to be run by a script, over and
 ;;; over, possibly by several processes at once. What it says is whether the
@@ -158,9 +163,14 @@
     (member const char * store)
     ;; Where each swarm worker writes what it did (DIR/WORKER.log); null
     ;; means everybody onto stdout together.
-    (member const char * outdir))
+    (member const char * outdir)
+    ;; Whether programs this process runs may call `vacuum_kb' -- reclaiming
+    ;; dead rows spends the store's point-in-time reads, so it is an opt-in
+    ;; (`--vacuum') and not a default. The `vacuum' COMMAND ignores this: the
+    ;; operator typing the verb is the opt-in.
+    (member int          vacuum))
 
-  (var coco_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil nil nil })
+  (var coco_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil nil nil 0 })
 
   ;;; The one connection, when there is one. THREAD-LOCAL, because the
   ;;; `swarm' command runs one worker per thread and each opens its own:
@@ -248,6 +258,7 @@
         (fprintf stderr "  cocolog [options] work WORKER [MACHINE]\n")
         (fprintf stderr "  cocolog [options] swarm WORKER MACHINE [WORKER MACHINE...]\n")
         (fprintf stderr "  cocolog [options] forget [NAME ARITY]\n")
+        (fprintf stderr "  cocolog [options] vacuum\n")
         (fprintf stderr "  cocolog [options] list\n")
         (fprintf stderr "  cocolog [options] drop NAME\n\n")
         (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
@@ -263,7 +274,9 @@
         (fprintf stderr "                one per host and port. Off by default.\n")
         (fprintf stderr "  --store DIR   the knowledge base EMBEDDED in this process,\n")
         (fprintf stderr "                no server (needs a `make embed' build)\n")
-        (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n"))
+        (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n")
+        (fprintf stderr "  --vacuum      let programs call vacuum_kb/0,1 -- reclaims dead\n")
+        (fprintf stderr "                rows at the cost of point-in-time reads\n"))
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
   (func slurp ((const char * path)) (out char *)
@@ -369,11 +382,21 @@
 
   ;;; ---- the commands ------------------------------------------------------
 
+  ;;; The vacuum gate, run after every attach: the backend installs the
+  ;;; `vacuum' hook because it CAN, and this clears it again unless the
+  ;;; operator said this run MAY (`--vacuum'). `vacuum_kb' finding the hook
+  ;;; null raises permission_error -- see kb.cicili. It is a gate at the
+  ;;; composition root rather than a flag the engine reads, so the engine
+  ;;; never has to know the option exists.
+  (func gate_vacuum ((coco_store * st))
+        (if (not ($ opts vacuum)) (set (-> st vacuum) nil)))
+
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [256]) (int total . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
+          (gate_vacuum (aof st))
           (for ((int i . from)) (< i argc) ((++ i))
             (let ((char * text . #'(slurp (nth i argv))) (int n))
               (if (== text nil) (block (coco_store_free (aof st)) (coco_machine_free (aof m))
@@ -397,7 +420,8 @@
         (if ($ opts local) (return))
         (if (!= ($ opts http) nil)
             (coco_zt_attach zt ($ opts host) ($ opts http) m st ($ opts kb))
-          (coco_zg_attach z db m st ($ opts kb))))
+          (coco_zg_attach z db m st ($ opts kb)))
+        (gate_vacuum st))
 
   (func cmd_query ((const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
@@ -445,6 +469,7 @@
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
           (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (gate_vacuum (aof st))
           (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
           (if (not (coco_zg_save (aof z) (aof e) name goal))
@@ -489,6 +514,7 @@
           (coco_engine_init (aof e) (aof m) (aof st))
           (coco_sb_init (aof out))
           (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (gate_vacuum (aof st))
           (set outcome (turn FAILED))
 
           ;; ONE WAY OUT. There are now six things that can go wrong here and
@@ -954,6 +980,38 @@
   ;;; behaviour for assertz and a trap for anything that loads a program more
   ;;; than once -- a test that runs repeatedly, most of all, where it looks
   ;;; like the interpreter has started producing duplicate answers.
+  ;;; The verb: reclaims what the store is still holding on to, without
+  ;;; `--vacuum' -- the operator typing it IS the opt-in. What it does and
+  ;;; what it spends is written at the procedure (parsi/02-procedures.parsi)
+  ;;; and in README's "A worked store slows down. Truncate it."; the short
+  ;;; form is that it frees only rows committed as deleted that no running
+  ;;; transaction can still be entitled to -- a vacuum, not an emptying,
+  ;;; safe against a knowledge base in use -- and that the price is the
+  ;;; store's point-in-time reads. It is store-wide and not per kb, because
+  ;;; a dead row has no kb to belong to any more.
+  (func cmd_vacuum () (out int)
+        (let ((zg_result_t r) (char cols [256]) (i64 live . 0))
+          (if ($ opts local)
+              (block (fprintf stderr "cocolog: vacuum needs a database\n") (return 1)))
+          (if (!= ($ opts http) nil)
+              (block (fprintf stderr "cocolog: vacuum cannot go over Zeytun; use the binary protocol or --store\n")
+                     (return 1)))
+          (if (not (zg_call db "cocolog::vacuum"))
+              (block (fprintf stderr "cocolog: vacuum: %s\n" (zg_error db)) (return 1)))
+          (while 1
+            (if (not (zg_result db (aof r)))
+                (block (fprintf stderr "cocolog: vacuum: %s\n" (zg_error db)) (return 1)))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
+              ((== r ZG_RETURN_VALUE) (zg_read_long db (aof live) nil))
+              ((== r ZG_CURSOR_FETCH) break)
+              (#t (block))))
+          (if (not (zg_commit db))
+              (block (fprintf stderr "cocolog: vacuum: %s\n" (zg_error db)) (return 1)))
+          (printf "vacuumed; %lld live row(s) remain\n" (cast llong live))
+          (return 0)))
+
   (func cmd_forget ((const char * name) (int arity)) (out int)
         (let ((zg_result_t r) (char cols [256]) (i64 gone . 0))
           (if ($ opts local)
@@ -988,6 +1046,7 @@
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
+          (gate_vacuum (aof st))
           (coco_zg_drop (aof z) name)
           (zg_commit db)
           (printf "dropped '%s'\n" name)
@@ -1081,6 +1140,7 @@
               (if (!= (nth 0 a) (cast char 45)) break)
               (cond
                 ((== 0 (strcmp a "--local")) (set ($ opts local) 1) (set i (+ i 1)))
+                ((== 0 (strcmp a "--vacuum")) (set ($ opts vacuum) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--help")) (usage) (return 0))
                 (#t
                  (if (>= (+ i 1) argc)
@@ -1147,6 +1207,7 @@
                (if (>= (+ i 2) argc)
                    (set rc (cmd_forget nil 0))
                  (set rc (cmd_forget (nth (+ i 1) argv) (atoi (nth (+ i 2) argv))))))
+              ((== 0 (strcmp cmd "vacuum")) (set rc (cmd_vacuum)))
               ((== 0 (strcmp cmd "list")) (set rc (cmd_list)))
               ((== 0 (strcmp cmd "drop"))
                (if (>= (+ i 1) argc)

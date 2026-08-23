@@ -105,6 +105,16 @@ answers_wanted() {
 # this line is here and not left to whoever cleans up after a failed run.
 echo "loading the program"
 $CL forget > "$OUT/forget.log"
+# AND RECLAIM WHAT THE LAST RUN LEFT. `forget' deletes rows; under MVCC a
+# deleted row is kept so that a transaction entitled to an earlier view can
+# still read it, and nothing takes it away afterwards. Saving a machine rewrites
+# its row, so one proof of thirty turns leaves twenty-nine dead ones -- and this
+# suite runs twelve of them. Without this line the store grows by every run that
+# has ever happened and every read walks past all of it: the same twelve
+# interpreters took 12 seconds against an empty store and 60 against one a few
+# hundred runs had been through, which is how this test came to fail on its
+# WORKER_TIMEOUT with nothing wrong anywhere.
+$CL vacuum > "$OUT/vacuum.log"
 $CL consult "$ROOT/demo/family.pl" > "$OUT/consult.log"
 
 # Anything left over from a previous run would be claimed by these workers.

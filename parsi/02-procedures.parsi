@@ -176,6 +176,51 @@ BEGIN
     RETURN total;
 END
 
+-- The vacuum: reclaims what the store is still holding on to. Under MVCC a
+-- deleted row is kept so a transaction entitled to an earlier view can still
+-- read it, and nothing takes it away afterwards -- while cocolog deletes
+-- constantly without anyone asking it to: saving a machine rewrites its row
+-- (machine_open deletes the old one and inserts a replacement, thirty times
+-- over a proof), and `forget' then `consult' leaves a dead copy of every
+-- clause. The store only ever grows, and every read walks what it grew past:
+-- README's "A worked store slows down. Truncate it." has the measured cost
+-- (12s empty, 60s aged, 16s after one pass here).
+--
+-- TRUNCATE frees only rows that are committed as deleted and that no running
+-- transaction can still be entitled to. Live rows are untouched, which is why
+-- this is safe to run against a knowledge base in use and is a vacuum rather
+-- than an emptying. It is NOT per knowledge base, and cannot be: a dead row
+-- has no kb to belong to any more. And it spends the store's point-in-time
+-- reads -- the reclaimed versions are what SNAPSHOT and
+-- rollback_transaction_to read from -- which is why reaching it from Prolog
+-- (`vacuum_kb/0') is gated behind the operator's `--vacuum'.
+--
+-- TRUNCATE IS A STATEMENT AND NOT AN EXPRESSION, so it cannot be added up: the
+-- engine knows how many rows it reclaimed and Parsi has no way to ask. The
+-- count returned here is therefore the number of LIVE rows left behind, which
+-- is the more useful number anyway -- run it twice and the second answer being
+-- the same is what says there was nothing left to reclaim.
+PROCEDURE cocolog::vacuum()
+RETURNS Long
+REQUIRES cocolog::clauses, cocolog::props, cocolog::machines, cocolog::machine_state
+BEGIN
+    DECLARE total AS Long = 0;
+
+    -- machine_state before machines only so that the bulkiest table goes
+    -- first; nothing here depends on the order.
+    TRUNCATE cocolog::machine_state;
+    TRUNCATE cocolog::machines;
+    TRUNCATE cocolog::clauses;
+    TRUNCATE cocolog::props;
+
+    SELECT total = total + 1 FROM cocolog::clauses;
+    SELECT total = total + 1 FROM cocolog::props;
+    SELECT total = total + 1 FROM cocolog::machines;
+    SELECT total = total + 1 FROM cocolog::machine_state;
+
+    RETURN total;
+END
+
 -- ---------------------------------------------------------------------------
 -- Suspended machines
 -- ---------------------------------------------------------------------------

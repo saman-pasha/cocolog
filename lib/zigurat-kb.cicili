@@ -140,6 +140,8 @@
   (static) (decl) (func coco_zg_warm ((coco_store * st) (void * ctx)) (out int))
   (static) (decl) (func coco_zg_on_dynamic ((coco_store * st) (void * ctx)
                                           (size_t pi)) (out int))
+  (static) (decl) (func coco_zg_vacuum ((coco_store * st) (void * ctx)
+                                      (i64 * live)) (out int))
 
   (func coco_zg_attach ((coco_zg * z) (zg_conn * db) (coco_machine * m)
                       (coco_store * st) (const char * kb))
@@ -154,7 +156,12 @@
         (set (-> st on_assert) coco_zg_on_assert)
         (set (-> st on_retract) coco_zg_on_retract)
         (set (-> st warm) coco_zg_warm)
-        (set (-> st on_dynamic) coco_zg_on_dynamic))
+        (set (-> st on_dynamic) coco_zg_on_dynamic)
+        ;; installed unconditionally because the backend CAN vacuum; whether
+        ;; this run MAY is the operator's call, so the composition root
+        ;; clears it again unless `--vacuum' was given -- see kb.cicili on
+        ;; what a null hook means to `vacuum_kb/0'.
+        (set (-> st vacuum) coco_zg_vacuum))
 
   ;;; ---- reading a predicate out of the database -------------------------
 
@@ -400,6 +407,40 @@
               (return (coco_zg_fail z "arity")))
           (if (not (coco_zg_finish z (aof wrote)))
               (return (coco_zg_fail z "declare_dynamic")))
+          (return 1)))
+
+  ;;; The reclaim pass, `cocolog::vacuum' on the other end: TRUNCATE over the
+  ;;; four tables, returning the count of live rows left behind. It reclaims
+  ;;; only rows committed as deleted that no running transaction can still be
+  ;;; entitled to, so it is safe against a knowledge base in use -- and it
+  ;;; joins the caller's transaction rather than committing one of its own,
+  ;;; exactly as every other hook here does: deletes made this turn are not
+  ;;; settled yet and are not its business.
+  ;;;
+  ;;; The procedure's aggregate SELECTs answer through RETURN_VALUE; the loop
+  ;;; below mirrors the other callers of row-less procedures, stopping at a
+  ;;; CURSOR_FETCH it has no shape for rather than desynchronising.
+  (func coco_zg_vacuum ((coco_store * st) (void * ctx) (i64 * live)) (out int)
+        (let ((coco_zg * z . #'(cast (coco_zg *) ctx))
+              (zg_result_t r) (char cols [256]) (i64 got . 0))
+          (cast void st)
+          (if (== (-> z db) nil) (return (coco_zg_fail z "vacuum")))
+          (if (not (zg_call (-> z db) "cocolog::vacuum"))
+              (return (coco_zg_fail z "vacuum")))
+          (while 1
+            (if (not (zg_result (-> z db) (aof r)))
+                (return (coco_zg_fail z "vacuum")))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN)
+               (if (not (zg_columns (-> z db) cols 256))
+                   (return (coco_zg_fail z "vacuum"))))
+              ((== r ZG_RETURN_VALUE)
+               (if (not (zg_read_long (-> z db) (aof got) nil))
+                   (return (coco_zg_fail z "vacuum"))))
+              ((== r ZG_CURSOR_FETCH) break)
+              (#t (block))))
+          (if (!= live nil) (set (cof live) got))
           (return 1)))
 
   ;;; A clause has just left a predicate. The whole predicate goes out again --

@@ -383,42 +383,51 @@ store last truncated" is "never", that is the cause** until proven otherwise.
 `TRUNCATE` is ZiguratIP's vacuum — per table, reclaiming only rows committed
 as deleted that no running transaction can still be entitled to, so it is
 safe against a knowledge base in use (`ZiguratIP/doc/truncate.md` is the full
-account). Restoring fresh-server performance is one pass over cocolog's four
-tables, compiled into the home as a maintenance procedure:
+account). cocolog carries the pass in three forms, one per kind of caller:
 
-```parsi
-PROCEDURE cocolog::vacuum()
-REQUIRES cocolog::clauses, cocolog::props, cocolog::machines, cocolog::machine_state
-BEGIN
-    TRUNCATE cocolog::machine_state;
-    TRUNCATE cocolog::machines;
-    TRUNCATE cocolog::clauses;
-    TRUNCATE cocolog::props;
-END
+```sh
+cocolog vacuum                       # against the server (make schema ships
+                                     # the cocolog::vacuum procedure it calls)
+cocolog --store DIR vacuum           # the same pass, embedded — the Cicili
+                                     # engine's own truncate over the same
+                                     # four tables
+cocolog --vacuum query "vacuum_kb"   # from inside a program; also
+                                     # vacuum_kb(Live) for the live count
 ```
+
+The verb prints — and `vacuum_kb(Live)` answers — the number of **live** rows
+left behind, which is the more useful number than the reclaimed count: run it
+twice, and the second answer being the same is what says there was nothing
+left to reclaim. It is store-wide, not per `--kb`, because a dead row no
+longer has a knowledge base to belong to.
 
 Run it the way any store with MVCC and no background vacuum wants its
 maintenance run: **on a schedule, whenever the store has been worked** —
 between benchmark runs always, between test-suite runs if the numbers are to
-mean anything, and periodically in any long-lived deployment. The first
-measured pass took a 35MB store down to its 263 live rows.
+mean anything (`test/groups.sh` and `test/ruler.sh` run it in setup, which is
+why they no longer slow down run over run), and periodically in any
+long-lived deployment. The first measured pass took a 35MB store down to its
+263 live rows.
 
 Three caveats, so the schedule is chosen with open eyes:
 
 * **It spends point-in-time reads.** The reclaimed versions are exactly what
   `SNAPSHOT` isolation and `rollback_transaction_to` read from, so after a
-  pass the store cannot be read at a moment before it ran. That trade is why
-  cocolog does not truncate for you behind a verb: giving up the knowledge
-  base's history is an operator's decision, made on a schedule the
-  application can afford — not a side effect of a command.
+  pass the store cannot be read at a moment before it ran. Giving that up is
+  an operator's decision, which is why `vacuum_kb` is **gated**: without
+  `--vacuum` on the command line it raises
+  `permission_error(vacuum, knowledge_base, _)` — a refusal, never a quiet
+  no-op — and a program never spends the store's history unless the operator
+  said this run may. The `vacuum` verb needs no flag; typing it is the
+  decision.
 * **A store written before the schema made every column `NOT NULL` can never
   be reclaimed** — `TRUNCATE` refuses rows carrying a NULL, and old stores
   have them (`machines.note`; STATUS.md has the story). For those the only
   cure is a fresh data directory.
-* **An embedded `--store` grows the same way** — same engine, same MVCC —
-  and the truncate pass is not wired into the embedded backend yet. Until it
-  is, a fresh store directory is the embedded arrangement's vacuum, which is
-  exactly what the flat embedded benchmark numbers above were measuring.
+* **A vacuumed store is fast, not small.** Reclaimed pages go back to the
+  allocator for any table to reuse; the files do not shrink. What recovers is
+  the number of dead versions every read walks past — which is the thing the
+  measurements above show was being paid for.
 
 cocolog is a client and modifies neither of the projects it uses — but running
 twelve of it at once turned up four faults in ZiguratIP, from unguarded B-tree

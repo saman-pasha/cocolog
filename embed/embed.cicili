@@ -689,6 +689,50 @@
     (emit_num s CE_TDB_LONG 1)
     (emit_result s CE_DONE))
 
+  ;; ---- the vacuum ----------------------------------------------------
+
+  ;; Four counting callbacks rather than one, because the cursor hands each
+  ;; table's own row type; a cursor under MVCC yields live rows only, which
+  ;; is exactly the count wanted.
+  (func vac_clauses_cb ((void * u) (COCOLOG_CLAUSES * r)) (out bool)
+    (cast void r)
+    (let ((int64_t * n . #'(cast (int64_t *) u)))
+      (set (cof n) (+ (cof n) 1)) (return #t)))
+  (func vac_props_cb ((void * u) (COCOLOG_PROPS * r)) (out bool)
+    (cast void r)
+    (let ((int64_t * n . #'(cast (int64_t *) u)))
+      (set (cof n) (+ (cof n) 1)) (return #t)))
+  (func vac_machines_cb ((void * u) (COCOLOG_MACHINES * r)) (out bool)
+    (cast void r)
+    (let ((int64_t * n . #'(cast (int64_t *) u)))
+      (set (cof n) (+ (cof n) 1)) (return #t)))
+  (func vac_state_cb ((void * u) (COCOLOG_MACHINE_STATE * r)) (out bool)
+    (cast void r)
+    (let ((int64_t * n . #'(cast (int64_t *) u)))
+      (set (cof n) (+ (cof n) 1)) (return #t)))
+
+  ;; The engine's truncate over the four tables, then a count of what is
+  ;; left alive -- the same answer `cocolog::vacuum' returns on the wire,
+  ;; for the same reason: run it twice and an unchanged answer says there
+  ;; was nothing left to reclaim. Truncate frees only rows whose delete is
+  ;; settled -- committed, unheld -- so a delete this session's open
+  ;; transaction has made is not its business, exactly as on the server.
+  (func run_vacuum ((CeSess * s)) (out void)
+    (let ((int64_t live . 0))
+      ;; machine_state before machines only so that the bulkiest table
+      ;; goes first; nothing here depends on the order.
+      (COCOLOG_MACHINE_STATE_truncate (aof ce_mem))
+      (COCOLOG_MACHINES_truncate (aof ce_mem))
+      (COCOLOG_CLAUSES_truncate (aof ce_mem))
+      (COCOLOG_PROPS_truncate (aof ce_mem))
+      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof live)) vac_clauses_cb)
+      (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof live)) vac_props_cb)
+      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof live)) vac_machines_cb)
+      (COCOLOG_MACHINE_STATE_cursor (aof ce_mem) (cast (void *) (aof live)) vac_state_cb)
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG live)
+      (emit_result s CE_DONE)))
+
   ;; ---- dispatch and the exception boundary ---------------------------
 
   (func ce_dispatch ((CeSess * s)) (out int)
@@ -712,6 +756,7 @@
         ((== 0 (strcmp p "cocolog::machine_claim"))      (run_machine_claim s 0))
         ((== 0 (strcmp p "cocolog::machine_claim_named")) (run_machine_claim s 1))
         ((== 0 (strcmp p "cocolog::machine_release"))    (run_machine_release s))
+        ((== 0 (strcmp p "cocolog::vacuum"))             (run_vacuum s))
         (#t (return (ce_fail s "no such procedure"))))
       (return 1)))
 

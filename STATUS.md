@@ -433,14 +433,19 @@ A `cocolog compact` command was built and then withdrawn, for two reasons:
 
 So on a store from before the schema fix the growth is unmitigated, and the
 only cure is a fresh data directory. On a store written since, the pass works —
-and running it is now documented as the one piece of operating knowledge
-cocolog demands: README's "A worked store slows down. Truncate it." carries
-the measured numbers (12s empty, 60s aged, 16s after one pass), the
-`cocolog::vacuum` maintenance procedure to compile into the home, and the
-schedule doctrine. What cocolog still deliberately does not have is a *verb*
-for it: spending the store's point-in-time reads is an operator's scheduled
-decision, not a side effect of a command — and the honest long-term fix is
-still a vacuum that does not cost them.
+and it came back, this time with the permission model the withdrawal was
+asking for. `cocolog vacuum` is the verb, on the wire (`cocolog::vacuum`,
+which `make schema` ships) and embedded (`--store`, the Cicili engine's own
+truncate) alike; `vacuum_kb/0,1` is the builtin, and it is **gated**: without
+`--vacuum` on the command line it raises
+`permission_error(vacuum, knowledge_base, _)`, because spending the store's
+point-in-time reads is the operator's scheduled decision and never a
+program's side effect. README's "A worked store slows down. Truncate it."
+carries the measured numbers (12s empty, 60s aged, 16s after one pass) and
+the schedule doctrine; `test/vacuum.sh` proves the pass and the gate in both
+arrangements, and the concurrency suites run the verb in setup, which is why
+they no longer slow down run over run. The honest long-term fix is still a
+vacuum that does not cost point-in-time reads.
 
 ### The server still uses only one core
 

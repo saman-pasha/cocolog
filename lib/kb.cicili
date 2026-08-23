@@ -121,6 +121,17 @@
     ;; interpreter opening the same kb tomorrow has to be told the same thing.
     (member func on_dynamic ((coco_store * st) (void * ctx) (size_t pi)) (out int))
 
+    ;; Asks the backend to reclaim what its deleted rows still hold -- the
+    ;; TRUNCATE pass README documents. Null means the arrangement cannot
+    ;; vacuum: a purely local store has nothing dead to reclaim, a read-only
+    ;; backend may not, and a backed store whose operator did not opt in
+    ;; (`--vacuum') keeps the hook cleared -- reclaiming spends the store's
+    ;; point-in-time reads, so `vacuum_kb/0' finding null raises
+    ;; permission_error rather than quietly doing it. LIVE, when the hook
+    ;; answers, is the count of live rows left behind: run it twice and the
+    ;; second answer being the same is what says there was nothing left.
+    (member func vacuum ((coco_store * st) (void * ctx) (i64 * live)) (out int))
+
     ;; How many MODULES have had their clauses consulted into this store. It
     ;; lives here rather than beside the registry because it is a fact about
     ;; this store and not about the build: `coco_store_reset' -- which is what

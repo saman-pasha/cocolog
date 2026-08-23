@@ -87,6 +87,10 @@ ancestor(tom,zoe)"
 
 echo "emptying the knowledge base"
 $CL forget > "$OUT/forget.log"
+# ...and reclaim what earlier runs left behind. See the same line in
+# test/groups.sh for why a store that is never vacuumed makes this suite slower
+# every time it is run.
+$CL vacuum > "$OUT/vacuum.log"
 
 echo "one ruler writing $CLAUSES clause(s), $QUERIERS queriers reading"
 set +e

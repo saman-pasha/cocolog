@@ -124,6 +124,9 @@
     ("listing"      0 coco_bi_listing_all)
     ("listing"      1 coco_bi_listing)
 
+    ("vacuum_kb"    0 coco_bi_vacuum_kb)
+    ("vacuum_kb"    1 coco_bi_vacuum_kb)
+
     ("halt"         0 coco_bi_halt)))
 
 ;;; Grouped by arity, so a goal of arity 3 never runs a strcmp against a
@@ -402,6 +405,20 @@
                                           (coco_new_int m (cast i64 arity)))))
           (return (coco_raise e (coco_make2 m "existence_error"
                                             (coco_new_atom m kind) ind)))))
+
+  ;;; `permission_error(Operation, Type, Culprit)', ISO's shape: the operation
+  ;;; was understood and is refused here. What raises it today is `vacuum_kb'
+  ;;; against a store whose arrangement cannot vacuum or whose operator did
+  ;;; not say `--vacuum'.
+  (static)
+  (func coco_permission_error ((coco_engine * e) (const char * op)
+                               (const char * type) (size_t culprit)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t args [3]))
+          (set (nth 0 args) (coco_new_atom m op))
+          (set (nth 1 args) (coco_new_atom m type))
+          (set (nth 2 args) culprit)
+          (return (coco_raise e (coco_make m "permission_error" 3 args)))))
 
   ;;; ---- the continuation --------------------------------------------------
 
@@ -1631,6 +1648,28 @@
   (func coco_bi_halt ((coco_engine * e) (size_t g)) (out int)
         (set (-> e halted) 1)
         (return 1))
+
+  ;;; `vacuum_kb' and `vacuum_kb(Live)': the reclaim pass, from inside a
+  ;;; program. The store's `vacuum' hook is the whole permission model -- a
+  ;;; backend that can vacuum installs it, and the composition root clears it
+  ;;; again unless the operator said `--vacuum' -- so a null hook here is a
+  ;;; refusal, not an absence: permission_error, with the goal itself as the
+  ;;; culprit. Deliberately NOT a quiet success on a local store, because a
+  ;;; program that believes it vacuumed and did not is the exact confusion
+  ;;; the loud cuda refusal exists to prevent one seam over.
+  ;;;
+  ;;; Live is the count of live rows left behind -- run it twice and the
+  ;;; second answer being the same is what says there was nothing left.
+  (func coco_bi_vacuum_kb ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_store * st . #'(-> e st))
+              (i64 live . 0))
+          (if (== (-> st vacuum) nil)
+              (return (coco_permission_error e "vacuum" "knowledge_base" g)))
+          (if (not ((-> st vacuum) st (-> st ctx) (aof live)))
+              (return (coco_fail_err e "vacuum_kb: the backend refused the pass")))
+          (if (== 0 (coco_arity (-> e m) g)) (return 1))
+          (return (? (coco_unify (-> e m) (coco_arg (-> e m) g 0)
+                                 (coco_new_int (-> e m) live)) 1 0))))
 
   (func coco_choice_restore ((coco_engine * e) (int kind) (size_t goals)
                            (size_t trail_mark) (size_t heap_mark) (size_t call)
