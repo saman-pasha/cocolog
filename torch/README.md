@@ -27,6 +27,28 @@ train :-
 ≈ 0.03 on its dataset), saves, and a **fresh process** reloads the
 model out of the store and reproduces the predictions.
 
+**The north-star sample** is [demo/northstar.pl](../demo/northstar.pl)
+over [demo/stars.csv](../demo/stars.csv) — 240 stars of a
+Hertzsprung–Russell diagram, four classes. `train` learns the diagram
+(held-out accuracy 1.00), asks what kind of star Polaris is, and saves
+the model in Zigurat; `polaris`, a fresh process holding nothing but
+the store, loads it back and answers again:
+
+```console
+$ ./cocolog-full --store /tmp/northstar run demo/northstar.pl train
+learned the diagram: train nll 0.0001, held-out accuracy 1.00
+the model says Polaris is a supergiant
+saved
+$ ./cocolog-full --store /tmp/northstar run demo/northstar.pl polaris
+out of the store, the model still says Polaris is a supergiant
+the_sky_agrees
+```
+
+The North Star is an F7 Ib yellow supergiant, and it sits in the faint,
+small corner of that class — the dataset samples every axis
+log-uniformly precisely so that corner is populated, and the demo's
+first drafts, where it was not, are a lesson the file's comments keep.
+
 ## Building
 
 ```sh

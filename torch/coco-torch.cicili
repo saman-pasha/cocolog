@@ -823,8 +823,14 @@
   ;; model_load/2 are the Zigurat bridge: a model as terms, asserted --
   ;; and an assert is what the knowledge base persists.
 
+  ;; A MODEL IS CHUNKED INTO THE STORE, and that is not a nicety: a
+  ;; row must fit a page (MVCCS PAGE_SIZE, 8192 by default), and a
+  ;; model's parameters as one clause blow straight past it -- the same
+  ;; page discipline that stores a suspended machine as 4000-byte
+  ;; chunks. torch_model/2 keeps the architecture; torch_params/3
+  ;; keeps the weights, 120 floats a clause, reassembled in Seq order.
   (var const char * torch_prolog .
-       ":- dynamic torch_model/3.\nmodel_save(Name, M) :- model_spec(M, Spec), model_params(M, Ps), ( retract(torch_model(Name, _, _)) -> true ; true ), assertz(torch_model(Name, Spec, Ps)).\nmodel_load(Name, M) :- torch_model(Name, Spec, Ps), model_new(Spec, M), model_set_params(M, Ps).\ntensor_train_test(T, NTrain, Train, Test) :- tensor_shape(T, [N|_]), tensor_rows(T, 0, NTrain, Train), tensor_rows(T, NTrain, N, Test).\n")
+       ":- dynamic torch_model/2.\n:- dynamic torch_params/3.\nmodel_save(Name, M) :- model_spec(M, Spec), model_params(M, Ps), ( retract(torch_model(Name, _)) -> true ; true ), '$torch_forget_params'(Name), assertz(torch_model(Name, Spec)), '$torch_save_chunks'(Ps, Name, 0).\n'$torch_forget_params'(Name) :- ( retract(torch_params(Name, _, _)) -> '$torch_forget_params'(Name) ; true ).\n'$torch_save_chunks'([], _, _) :- !.\n'$torch_save_chunks'(Ps, Name, Seq) :- '$torch_split'(Ps, 120, Chunk, Rest), assertz(torch_params(Name, Seq, Chunk)), Seq1 is Seq + 1, '$torch_save_chunks'(Rest, Name, Seq1).\n'$torch_split'(Xs, 0, [], Xs) :- !.\n'$torch_split'([], _, [], []) :- !.\n'$torch_split'([X|Xs], N, [X|Cs], Rest) :- N1 is N - 1, '$torch_split'(Xs, N1, Cs, Rest).\nmodel_load(Name, M) :- torch_model(Name, Spec), findall(Seq-Chunk, torch_params(Name, Seq, Chunk), Pairs), msort(Pairs, Sorted), '$torch_join_chunks'(Sorted, Ps), model_new(Spec, M), model_set_params(M, Ps).\n'$torch_join_chunks'([], []).\n'$torch_join_chunks'([_-C|T], Ps) :- '$torch_join_chunks'(T, Rest), append(C, Rest, Ps).\ntensor_train_test(T, NTrain, Train, Test) :- tensor_shape(T, [N|_]), tensor_rows(T, 0, NTrain, Train), tensor_rows(T, NTrain, N, Test).\n")
 
   ;; ---- dispatch and registration --------------------------------------
 
