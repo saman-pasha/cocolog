@@ -549,16 +549,23 @@ the store that was refusing every vacuum healed in place, no restart, no
 new data directory. (The Cicili engine never had the debt: its truncate
 rebuilds each index wholesale instead of editing chains.)
 
-Measured on all of it together, the twelve-worker WIRE choreography on a
-fresh store: **6–8 seconds a run, twelve runs, dead flat** — run twelve as
-fast as run one, no 60-second timeouts, and a machine stranded by one run
-healed by the next run's setup instead of poisoning the store. Not yet
-wall-to-wall: about one run in three still loses one group's turns to an
-occasional `unique key 'IDX_COCOLOG_MACHINES_NAME'` refusal (seven in
-twelve heavy runs, down from three hundred and eighty-seven), the worker's
-connection drops, and that machine sits out the rest of the run. The trail
-points at the C++ index's in-place chain edits — the same fragility the
-NULL tear came from — and that hunt is filed, not finished.
+The last residue — about one run in three losing a group to a
+`unique key 'IDX_COCOLOG_MACHINES_NAME'` refusal — was then hunted to
+ground with ledgers at three depths (ZiguratIP 1c2c86f). The refusals
+were CORRECT verdicts on a ghost: an alive committed index entry whose
+machines row was gone. The ghost was born when the breaker rolled back a
+LIVE transaction's staged index entry — and the registry was right too,
+because the stage had been made AFTER its transaction's commit: the
+server's layer commits between statements without always beginning before
+the next one, so the next statement's stages arrived under the retired id,
+alive by every intention and dead by the registry. The fix is the oldest
+idea in autocommit engines, applied at the engine's own seam: **a stage
+that arrives with no transaction open opens one** — the push, the three
+control writers and the SERIALIZABLE read stamp lazily begin, which the
+begin-continues rule makes idempotent. Measured after, twelve-worker wire
+choreography, fresh store: **15/15 runs green at 6–8 seconds flat, zero
+breaker fires, zero unique-key refusals, zero lost unmaps, and the full
+cocolog suite `red: 0`** — wall-to-wall at last.
 
 ### The test that blocked all of it is fixed
 
