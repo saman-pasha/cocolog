@@ -463,17 +463,33 @@ their buffers.
 
 Measured, the twelve-worker embedded choreography on a fresh store: 5.3s at
 ~119% CPU with the guard exclusive; **1.6s at ~150% CPU with the shared side
-on** — three times faster, on more than one core. But about one run in three
-under the flag still times out: some worker's turn errs, its machine is left
-claimed, and its partners politely wait forever. Two causes of that stall
-were found and killed — a cursor's page-list snapshot missing a page a
-writer committed into mid-walk (the walk now repeats until a pass adds no
-pages), and the find-then-write procedures acting on a lookup that could
-race a writer (they now hold one exclusive guard for their whole body). A
-third remains, so the shared side is **opt-in**:
-`COCOLOG_PARALLEL_READS=1` turns it on for an embedded store, and the
-default stays the exclusive guard, which the same choreography passes
-wall-to-wall (15/15 runs). The C++ server keeps the exclusive design.
+on** — three times faster, on more than one core. About one run in three
+under the flag once timed out, and all three causes of that stall are now
+found and killed. Two were in the walk: a cursor's page-list snapshot
+missing a page a writer committed into mid-walk (the walk now repeats until
+a pass adds no pages), and the find-then-write procedures acting on a
+lookup that could race a writer (they now hold one exclusive guard for
+their whole body). The third was the engine's, and it is the interesting
+one: **a stage does not always still belong to the transaction that comes
+back to flip it**. A SERIALIZABLE claim stamps SHARED row locks as it
+scans; a concurrent save's delete checks only for EXCLUSIVE conflicts, so
+it stages its delete over the claim's stamp; the claim then loses its
+serialization race, and its partial rollback "restored" the row — erasing
+the save's staged delete, so the save's commit found nothing of its own to
+flip and the row came back from the dead. Twelve workers then bounced their
+saves between a machine and its twin forever. The fix is an ownership rule
+in both engines' `commit_pointer` and `rollback_pointer`: a control block
+whose `transaction_id` is not the caller's is no longer the caller's
+business and is left exactly as found (startup recovery, whose job is
+precisely other transactions' recorded intentions, stands outside the
+rule). Traced by instrumenting every claim, save and drop with its thread
+and the row's control block, and replaying the ledger: one row deleted
+twice, then found pristine and alive. Measured after: **40 runs under the
+flag, zero stalls, exact answer sets every time**, and the C++ suite —
+whose commit and rollback walk through the same guard — stays green. The
+shared side remains behind `COCOLOG_PARALLEL_READS=1` so one env var
+separates the two guard modes in any future bisect; both are now believed
+sound. The C++ server keeps the exclusive design.
 
 ### The test that blocked all of it is fixed
 

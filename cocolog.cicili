@@ -917,7 +917,11 @@
                      (set (-> j rc) 1)
                      (return nil)))
           (if (!= (nth 0 (-> j logpath)) (cast char 0))
-              (set wlog (fopen (-> j logpath) "w")))
+              (block
+                (set wlog (fopen (-> j logpath) "w"))
+                ;; line buffered, so a frozen or killed swarm still shows in
+                ;; its logs how far every worker actually got
+                (if (!= wlog nil) (setvbuf wlog nil _IOLBF 0))))
           (set (-> j rc) (cmd_work (-> j worker) (-> j machine)))
           (if (!= wlog nil) (block (fclose wlog) (set wlog nil)))
           (zg_close db)

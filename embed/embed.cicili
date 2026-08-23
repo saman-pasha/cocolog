@@ -852,12 +852,15 @@
               ;; handing the engine the two file paths is what turns the
               ;; shared read side on: read-only cursors then run
               ;; concurrently on per-thread streams instead of queueing on
-              ;; the one canonical pair. OPT-IN while it earns its stripes:
-              ;; the twelve-worker choreography runs three times faster
-              ;; under it, but about one run in eight still times out on a
-              ;; stall that is not yet understood -- so the default stays
-              ;; the exclusive guard, which that same suite passes
-              ;; wall-to-wall.
+              ;; the one canonical pair. The twelve-worker choreography
+              ;; runs three times faster under it, and the stall that once
+              ;; hit one run in three was chased to the engine and killed
+              ;; there (a rollback restoring a row whose stage a writer had
+              ;; taken over -- see rollback_pointer's ownership rule in
+              ;; MVCCS-cicili). Measured after: 40 runs, zero stalls. It
+              ;; stays a switch so one env var separates the two guard
+              ;; modes in any future bisect, not because either mode is
+              ;; suspect.
               (if (!= (getenv "COCOLOG_PARALLEL_READS") nil)
                   (memory_reader_paths (aof ce_mem) hexpath datapath))
               (IDX_COCOLOG_CLAUSES_ID_attach (aof ce_mem))
