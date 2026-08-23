@@ -14,6 +14,7 @@ the notice, the conditions and the disclaimer travel with it.
 | `ordsets.pl` | `library/ordsets.pl` | BSD-2-Clause |
 | `yall.pl` | `library/yall.pl` | BSD-2-Clause |
 | `aggregate.pl` | `library/aggregate.pl` | BSD-2-Clause |
+| `ugraphs.pl` | `library/ugraphs.pl` | BSD-2-Clause |
 
 Copyright (c) Jan Wielemaker, University of Amsterdam, VU University Amsterdam,
 SWI-Prolog Solutions b.v. All rights reserved. cocolog is BSD-2-Clause too, so
@@ -33,6 +34,7 @@ there are no two licences to reconcile — see `../../LICENSE`.
 | `ordsets.pl` | md5 `e39b204972b0f467ccd4587dbe91e805`, 518 lines |
 | `yall.pl` | md5 `91983f247a4684d0dc849d4e8409e802`, 574 lines |
 | `aggregate.pl` | md5 `a4628e5414a10e58b32d365a9909fa49`, 721 lines |
+| `ugraphs.pl` | md5 `d98ed91adeaf7c3426ea4c5b949c8df7`, 627 lines |
 
 The checksums are here so a later reader can tell a clean copy from an edited
 one, and diff either against a newer upstream without first having to work out

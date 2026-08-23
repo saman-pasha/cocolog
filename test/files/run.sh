@@ -62,6 +62,7 @@ libs_for() {
     ordsets)        echo "$ROOT/lib/vendor/swipl/ordsets.pl" ;;
     yall)           echo "$ROOT/lib/vendor/swipl/yall.pl" ;;
     aggregate)      echo "$ROOT/lib/vendor/swipl/pairs.pl $ROOT/lib/vendor/swipl/aggregate.pl" ;;
+    ugraphs)        echo "$ROOT/lib/vendor/swipl/ordsets.pl $ROOT/lib/vendor/swipl/ugraphs.pl" ;;
   esac
 }
 
