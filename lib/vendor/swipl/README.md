@@ -12,6 +12,8 @@ the notice, the conditions and the disclaimer travel with it.
 | `pairs.pl` | `library/pairs.pl` | BSD-2-Clause |
 | `assoc.pl` | `library/assoc.pl` | BSD-2-Clause |
 | `ordsets.pl` | `library/ordsets.pl` | BSD-2-Clause |
+| `yall.pl` | `library/yall.pl` | BSD-2-Clause |
+| `aggregate.pl` | `library/aggregate.pl` | BSD-2-Clause |
 
 Copyright (c) Jan Wielemaker, University of Amsterdam, VU University Amsterdam,
 SWI-Prolog Solutions b.v. All rights reserved. cocolog is BSD-2-Clause too, so
@@ -29,6 +31,8 @@ there are no two licences to reconcile — see `../../LICENSE`.
 | `pairs.pl` | md5 `62586454a8f61ed0deea4677fcf23f2b`, 187 lines |
 | `assoc.pl` | md5 `e519afa46edc8d012064d87090fa7877`, 522 lines |
 | `ordsets.pl` | md5 `e39b204972b0f467ccd4587dbe91e805`, 518 lines |
+| `yall.pl` | md5 `91983f247a4684d0dc849d4e8409e802`, 574 lines |
+| `aggregate.pl` | md5 `a4628e5414a10e58b32d365a9909fa49`, 721 lines |
 
 The checksums are here so a later reader can tell a clean copy from an edited
 one, and diff either against a newer upstream without first having to work out
@@ -50,9 +54,23 @@ meaningful. Everything these files needed was built in cocolog instead:
 | `Head => Body` | translated on assert to `Head :- !, Body` by `coco_assert` in `lib/kb.cicili`; see the comment there for what that approximation does and does not keep |
 | `:- if` / `:- elif` / `:- else` / `:- endif` | conditional reading in `coco_consult`, with conditions decidable below the engine: `true`, `fail`, `\\+`, and `current_predicate(Name/Arity)` against the store -- which answers assoc.pl's probe for SWI's `$btree_find_node` VM intrinsic with the truthful no |
 | `div` | the operator in `lib/syntax.cicili`, floored division in `lib/solve.cicili` |
+| `copy_term_nat/2`, `instantiation_error/1`, `strip_module/3`, `compound_name_arguments/3`, `cyclic_term/1`, `acyclic_term/1` | `lib/builtins.cicili` -- yall.pl's runtime path. `copy_term_nat` IS `copy_term` here (no attributed variables), and `cyclic_term` answers no, consistently with an engine that assumes acyclic terms throughout |
+| `'>>'(?, 0)` after a prefix operator | the reader: a quoted name, or any name with `(` right against it, begins an operand -- `coco_starts_term` in `lib/syntax.cicili` said no to infix-only names and mis-read yall's `meta_predicate` block as `>>`/2 |
+| `:- dynamic system:goal_expansion/2` | the qualifier peels off in `coco_dynamic_spec`, the same rule a qualified clause head follows |
+| `max(Expr, Witness)`, `min(Expr, Witness)` | added to the NATIVE `aggregate_all/3` in `lib/builtins.cicili`, which shadows the vendored clauses (builtins dispatch ahead of the store) -- the incremental `nb_setarg' paths in aggregate.pl are therefore never reached, which is as well: cocolog has no non-backtrackable assignment |
 | `error:has_type(assoc, _)` (a module-qualified clause head) | the qualifier is stripped on assert -- one namespace |
 | `:- module`, `:- use_module`, `:- autoload`, `:- meta_predicate`, `:- multifile` | accepted and ignored by `coco_directive` in `lib/kb.cicili` |
 | `:- set_prolog_flag(generate_debug_info, false)` | accepted and ignored: cocolog never generates what it asks to switch off |
+
+**Known divergences, recorded rather than papered over.**
+`aggregate_all(count(Expr), Goal, R)`: SWI 9.0.4 reads the compound
+template through its nested-template rules and answers `count(0)`;
+cocolog's native builtin reads it as "count the solutions" -- which is
+what SWI's own documentation says -- and answers their number. And
+`foreach/2` (exported by aggregate.pl) reaches SWI's
+`'$unbind_template'` VM intrinsic, which does not exist here, so calling
+it raises existence_error. Nothing in cocolog or its tests uses either
+shape; test/files/aggregate.pl covers everything both systems agree on.
 
 **`:- module/2`'s export list is ignored**, because cocolog has one namespace.
 Every predicate in these files is callable, including the ones upstream keeps

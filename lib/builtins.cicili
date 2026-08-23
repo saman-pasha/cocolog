@@ -127,7 +127,24 @@
            ;; assoc.pl's error:has_type(assoc, _) extension leans on.
            "type_error(Type, V) :- throw(error(type_error(Type, V), _))."
            "domain_error(Domain, V) :- throw(error(domain_error(Domain, V), _))."
+           "instantiation_error(_) :- throw(error(instantiation_error, _))."
            "compound_name_arity(C, N, A) :- compound(C), functor(C, N, A)."
+           "compound_name_arguments(C, N, A) :- compound(C), !, C =.. [N|A]."
+           "compound_name_arguments(C, N, A) :- C =.. [N|A], compound(C)."
+
+           ;; what library(yall) reaches. Attributed variables do not exist
+           ;; here, so the attribute-blind copy IS the copy; and with one
+           ;; namespace, stripping a module qualifier is peeling `:'s.
+           "copy_term_nat(T, C) :- copy_term(T, C)."
+           ;; lambda_calls/3 asks this defensively before walking a term.
+           ;; cocolog's engine assumes acyclic terms everywhere -- writeq,
+           ;; copy_term and the store would loop on a cycle -- so the answer
+           ;; consistent with the rest of the system is `no'.
+           "cyclic_term(_) :- fail."
+           "acyclic_term(_)."
+           "strip_module(T, M, G) :- '$strip_module'(T, user, M, G)."
+           "'$strip_module'(T, _, M, G) :- nonvar(T), T = W:T1, !, '$strip_module'(T1, W, M, G)."
+           "'$strip_module'(G, W, W, G)."
            "'$must_be_failed'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
            "'$must_be_failed'(ground, _) :- !, throw(error(instantiation_error, _))."
            "'$must_be_failed'(_, X) :- var(X), !, throw(error(instantiation_error, _))."
@@ -365,10 +382,17 @@
             (block
              (if (not (coco_is_callable m spec))
                  (return (coco_m_domain_error e "aggregate_spec" spec)))
-             (if (!= (coco_arity m spec) 1)
-                 (return (coco_m_domain_error e "aggregate_spec" spec)))
              (set what (coco_atom_name m (coco_name_of m spec)))
-             (set tmpl (coco_arg m spec 0))))
+             ;; `max(Expr, Witness)' and `min(Expr, Witness)' collect the
+             ;; pair Expr-Witness; everything else is Spec(Template)
+             (cond
+               ((and (== (coco_arity m spec) 2)
+                     (or (== 0 (strcmp what "max")) (== 0 (strcmp what "min"))))
+                (set tmpl (coco_make2 m "-" (coco_arg m spec 0) (coco_arg m spec 1)))
+                (set what (? (== 0 (strcmp what "max")) "max2" "min2")))
+               ((== (coco_arity m spec) 1)
+                (set tmpl (coco_arg m spec 0)))
+               (#t (return (coco_m_domain_error e "aggregate_spec" spec))))))
 
           (if (not (coco_engine_findall e tmpl goal (aof lst))) (return -1))
           (if (not (coco_m_list_array e lst (aof v) (aof n))) (return 0))
@@ -424,6 +448,28 @@
                     (if (? want_max (> b a) (< b a)) (set best (nth i v)))))
                 (free v)
                 (return (coco_m_unify e (coco_m_arg e g 2) best))))
+
+          ;; the witness forms: numeric on the expression, the whole
+          ;; max(Expr, Witness) / min(Expr, Witness) term as the answer
+          (if (or (== 0 (strcmp what "max2")) (== 0 (strcmp what "min2")))
+              (let ((int want_max . #'(? (== 0 (strcmp what "max2")) 1 0))
+                    (size_t best . 0))
+                (if (== n 0) (block (free v) (return 0)))
+                (set best (nth 0 v))
+                (for ((size_t i . 1)) (< i n) ((++ i))
+                  (let ((double a . 0.0) (double b . 0.0))
+                    (if (or (not (coco_m_float e (coco_arg m (coco_deref m best) 0) (aof a)))
+                            (not (coco_m_float e (coco_arg m (coco_deref m (nth i v)) 0) (aof b))))
+                        (let ((size_t bad . #'(nth i v)))
+                          (free v)
+                          (return (coco_m_type_error e "number" bad))))
+                    (if (? want_max (> b a) (< b a)) (set best (nth i v)))))
+                (let ((size_t bp . #'(coco_deref m best))
+                      (size_t out . 0))
+                  (set out (coco_make2 m (? want_max "max" "min")
+                                       (coco_arg m bp 0) (coco_arg m bp 1)))
+                  (free v)
+                  (return (coco_m_unify e (coco_m_arg e g 2) out)))))
 
           (free v)
           (return (coco_m_domain_error e "aggregate_spec" (coco_m_arg e g 0))))) 

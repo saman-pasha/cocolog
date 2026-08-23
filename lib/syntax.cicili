@@ -818,6 +818,12 @@
               ;; them. Without this the reader took `-' as a prefix operator
               ;; applied to the atom `=' and stopped, leaving `a' unread.
               ((== (-> r tok) COCO_TK_NAME)
+               ;; ...unless it was QUOTED -- a quoted atom is not an operator,
+               ;; by the same rule that makes `'-' - a' infix -- or the `(' is
+               ;; right up against it, which makes it a functor whatever else
+               ;; it is: `meta_predicate '>>'(?, 0)' begins with an operand.
+               (if (-> r quoted) (return 1))
+               (if (== (coco_peek r) (coco-ch "(")) (return 1))
                (let ((int p . 0) (int t . 0))
                  (if (and (coco_op_infix ($ (-> r text) s) (aof p) (aof t))
                           (not (coco_op_prefix ($ (-> r text) s) (aof p) (aof t))))

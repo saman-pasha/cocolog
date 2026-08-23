@@ -488,6 +488,12 @@
              (if (not (coco_dynamic_spec st m (coco_arg m spec 0) err errlen)) (return 0))
              (return (coco_dynamic_spec st m (coco_arg m spec 1) err errlen))))
 
+        ;; `system:goal_expansion/2' -- a module-qualified spec, from a file
+        ;; written for a Prolog with modules. One namespace: the qualifier
+        ;; peels off, the same rule a qualified clause head follows.
+        (if (coco_is_compound2 m spec ":")
+            (return (coco_dynamic_spec st m (coco_arg m spec 1) err errlen)))
+
         ;; the end of a list is not a spec and not an error either
         (if (coco-tag-is ATOM (nth spec (-> m heap)))
             (if (== 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "[]")) (return 1)))
