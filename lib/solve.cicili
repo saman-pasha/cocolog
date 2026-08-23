@@ -1076,6 +1076,14 @@
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            (set (cof iv) (/ ai bi)) (set (cof isf) 0) (return 1))
+          ((== 0 (strcmp name "div"))
+           ;; floored division: the quotient mod pairs with, so
+           ;; A =:= (A div B) * B + A mod B holds for every sign
+           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
+           (set (cof iv) (- (/ ai bi) (? (and (!= (% ai bi) 0)
+                                              (< (* (% ai bi) bi) 0)) 1 0)))
+           (set (cof isf) 0) (return 1))
           ((== 0 (strcmp name "mod"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))

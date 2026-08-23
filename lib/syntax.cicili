@@ -68,7 +68,7 @@
 ;;; operators cocolog has no builtin for. `\\+' and friends are Lisp strings,
 ;;; so the backslash is doubled here and single in the language.
 (DEFPARAMETER *operators*
-  '((1200 xfx ":-" "-->")
+  '((1200 xfx ":-" "-->" "=>")
     (1200 fx  ":-" "?-")
     ;; The declaration prefixes. `:- dynamic counter/1.' is only a term at all
     ;; because `dynamic' is one of these -- without it the reader takes
@@ -90,7 +90,7 @@
     ;; cannot parse it cannot read the file.
     (600  xfy ":")
     (500  yfx "+" "-")
-    (400  yfx "*" "/" "//" "mod" "rem" "<<" ">>")
+    (400  yfx "*" "/" "//" "div" "mod" "rem" "<<" ">>")
     (200  xfx "**")
     (200  xfy "^")
     (200  fy  "-" "+")))

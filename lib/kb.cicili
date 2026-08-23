@@ -556,6 +556,8 @@
           ;; arguments to qualify, and with no modules there is nothing to say.
           (if (and (== n 2) (== 0 (strcmp name "module"))) (return 1))
           (if (and (<= n 2) (== 0 (strcmp name "use_module"))) (return 1))
+          ;; `autoload/1,2' is use_module that loads lazily; same answer here
+          (if (and (<= n 2) (== 0 (strcmp name "autoload"))) (return 1))
           (if (and (== n 1) (== 0 (strcmp name "ensure_loaded"))) (return 1))
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate"))) (return 1))
 
@@ -572,6 +574,10 @@
                 (if (or (not (coco_is_callable m f)) (!= (coco_arity m f) 0))
                     (block (snprintf err errlen "set_prolog_flag: the flag must be an atom")
                            (return 0)))
+                ;; `generate_debug_info' asks for debugging metadata cocolog
+                ;; never generates, so any value is already honoured
+                (if (== 0 (strcmp (coco_atom_name m (coco_name_of m f)) "generate_debug_info"))
+                    (return 1))
                 (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m f)) "double_quotes"))
                     (block (snprintf err errlen "set_prolog_flag: cocolog has no flag `%s'"
                                      (coco_atom_name m (coco_name_of m f)))
@@ -635,6 +641,37 @@
               (if (== rewritten 0) (return 0))
               (set clause rewritten)))
 
+        ;; A SINGLE-SIDED RULE IS TRANSLATED HERE, the way a grammar rule
+        ;; is: SWI >= 8.4 writes deterministic dispatch as `Head => Body',
+        ;; and its own libraries (assoc.pl, ordsets.pl) now use it, so a
+        ;; byte-identical vendor cannot be read without it. The translation
+        ;; is `Head :- !, Body' -- first head that unifies commits, which is
+        ;; what those libraries mean by it. It is an APPROXIMATION: real SSU
+        ;; refuses a head that would bind the CALLER's variables, so a call
+        ;; that under-instantiates the dispatch argument can bind it here
+        ;; where SWI would raise. Every legitimate call is identical.
+        (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2)
+                 (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) "=>")))
+            (set clause
+                 (coco_make2 m ":-" (coco_arg m clause 0)
+                             (coco_make2 m "," (coco_new_atom m "!")
+                                         (coco_arg m clause 1)))))
+
+        ;; A MODULE-QUALIFIED HEAD IS STRIPPED HERE. cocolog has one
+        ;; namespace, so `error:has_type(T, X) :- B' can only mean
+        ;; `has_type(T, X) :- B' -- and a vendored SWI file is entitled to the
+        ;; qualified spelling (assoc.pl extends error:has_type/2 that way).
+        ;; The clause TERM is rebuilt rather than just the predicate choice,
+        ;; because the stored head has to unify with unqualified calls.
+        (let ((size_t qh) (size_t qb))
+          (coco_clause_parts m clause (aof qh) (aof qb))
+          (set qh (coco_deref m qh))
+          (if (and (coco_is_callable m qh) (== (coco_arity m qh) 2)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m qh)) ":")))
+              (set clause (? (== qb 0)
+                             (coco_deref m (coco_arg m qh 1))
+                             (coco_make2 m ":-" (coco_arg m qh 1) qb)))))
+
         ;; the head decides which predicate this belongs to
         (let ((size_t head . clause))
           (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2))
@@ -664,9 +701,64 @@
                 ((-> st on_assert) st (-> st ctx) stored))
             (return 1))))
 
+  ;;; What a `:- if(G)' may ask, read below the engine. A directive takes
+  ;;; effect while the file is still being read, so the condition cannot be
+  ;;; run as a goal -- the same bind that makes `op/3' a special case. What
+  ;;; the vendored SWI libraries actually probe is whether some VM intrinsic
+  ;;; exists (`current_predicate(\'$btree_find_node\'/5)' in assoc.pl), and
+  ;;; THAT is answerable from the store: cocolog has no such predicate, by
+  ;;; construction. So: `true', `fail'/`false', `\+'/1, and
+  ;;; `current_predicate(Name/Arity)' against the store. Anything else is
+  ;;; refused by name rather than guessed at.
+  (static)
+  (func coco_cond_eval ((coco_store * st) (coco_machine * m) (size_t g)
+                        (int * truth) (char * err) (size_t errlen)) (out int)
+        (set g (coco_deref m g))
+        (if (not (coco_is_callable m g))
+            (block (snprintf err errlen "if: the condition must be callable") (return 0)))
+        (let ((const char * name . #'(coco_atom_name m (coco_name_of m g)))
+              (u32 n . #'(coco_arity m g)))
+          (if (and (== n 0) (== 0 (strcmp name "true")))
+              (block (set (cof truth) 1) (return 1)))
+          (if (and (== n 0) (or (== 0 (strcmp name "fail")) (== 0 (strcmp name "false"))))
+              (block (set (cof truth) 0) (return 1)))
+          (if (and (== n 1) (== 0 (strcmp name "\\+")))
+              (block (if (not (coco_cond_eval st m (coco_arg m g 0) truth err errlen))
+                         (return 0))
+                     (set (cof truth) (? (== (cof truth) 0) 1 0))
+                     (return 1)))
+          (if (and (== n 1) (== 0 (strcmp name "current_predicate")))
+              (let ((size_t spec . #'(coco_deref m (coco_arg m g 0))))
+                (if (or (not (coco_is_callable m spec)) (!= (coco_arity m spec) 2)
+                        (!= 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "/")))
+                    (block (snprintf err errlen "if: current_predicate wants Name/Arity")
+                           (return 0)))
+                (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
+                      (size_t ar . #'(coco_deref m (coco_arg m spec 1))))
+                  (if (or (not (coco_is_callable m nm)) (!= (coco_arity m nm) 0))
+                      (block (snprintf err errlen "if: current_predicate wants an atom name")
+                             (return 0)))
+                  (let ((u64 c . #'(nth ar (-> m heap))))
+                    (if (not (coco-tag-is INT c))
+                        (block (snprintf err errlen "if: current_predicate wants an integer arity")
+                               (return 0)))
+                    (let ((size_t pi . #'(coco_pred_find st (coco_name_of m nm)
+                                                        (cast u32 (cast i64 (>> (cast i64 c) 3))))))
+                      (set (cof truth) (? (< pi (-> st npreds)) 1 0))
+                      (return 1))))))
+          (snprintf err errlen "if: cannot decide `%s/%u' while reading" name n)
+          (return 0)))
+
   (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
                     (char * err) (size_t errlen)) (out int)
-        (let ((coco_reader r) (size_t t) (int rc . 1) (int n . 0) (size_t mark))
+        (let ((coco_reader r) (size_t t) (int rc . 1) (int n . 0) (size_t mark)
+              ;; `:- if/elif/else/endif' -- conditional reading, sixteen deep.
+              ;; A frame remembers whether its current branch is being TAKEN
+              ;; and whether any branch of the if has ALREADY run (so a later
+              ;; `elif'/`else' in the same if stays off). Everything read
+              ;; while any frame is not taking is dropped, directives too --
+              ;; except these four, which keep the nesting straight.
+              (int csp . 0) (int ctaking [16]) (int ctaken [16]) (int active . 1))
           (coco_reader_init (aof r) m text)
           (while (== rc 1)
             ;; each clause is read on to the heap, copied into the store, and
@@ -676,23 +768,90 @@
             (set rc (coco_read_clause (aof r) (aof t)))
             (if (== rc 1)
                 (block
+                 (set active 1)
+                 (let ((int ci . 0))
+                   (while (< ci csp)
+                     (if (== (nth ci ctaking) 0) (set active 0))
+                     (set ci (+ ci 1))))
                  ;; `:- G' IS A DIRECTIVE AND NOT A CLAUSE. It used to go
                  ;; straight into coco_assert, which took it for a clause whose
                  ;; head was `:-' of arity one and filed it under a predicate of
                  ;; that name -- so `:- dynamic counter/1.' quietly became a
                  ;; fact nothing would ever call, and the file looked consulted.
                  (if (coco_is_compound1 m t ":-")
-                     (block
-                      (if (not (coco_directive st m (coco_arg m t 0) err errlen))
-                          (block (coco_reader_free (aof r)) (return -1)))
+                     (let ((size_t d . #'(coco_deref m (coco_arg m t 0)))
+                           (const char * dn . "") (u32 da . 0) (int handled . 0))
+                       (if (coco_is_callable m d)
+                           (block (set dn (coco_atom_name m (coco_name_of m d)))
+                                  (set da (coco_arity m d))))
+                       (if (and (== da 1) (== 0 (strcmp dn "if")))
+                           (block
+                            (set handled 1)
+                            (if (>= csp 16)
+                                (block (snprintf err errlen "if: nested too deep")
+                                       (coco_reader_free (aof r)) (return -1)))
+                            (let ((int truth . 0))
+                              ;; inside a skipped region the condition is not
+                              ;; even evaluated -- the frame only keeps count
+                              (if active
+                                  (if (not (coco_cond_eval st m (coco_arg m d 0)
+                                                           (aof truth) err errlen))
+                                      (block (coco_reader_free (aof r)) (return -1))))
+                              (set (nth csp ctaking) (? (and active truth) 1 0))
+                              (set (nth csp ctaken) (? (and active truth) 1 0))
+                              (set csp (+ csp 1)))))
+                       (if (and (== da 1) (== 0 (strcmp dn "elif")))
+                           (block
+                            (set handled 1)
+                            (if (== csp 0)
+                                (block (snprintf err errlen "elif: no `:- if' is open")
+                                       (coco_reader_free (aof r)) (return -1)))
+                            (let ((int truth . 0) (int outer . 1) (int ci . 0))
+                              (while (< ci (- csp 1))
+                                (if (== (nth ci ctaking) 0) (set outer 0))
+                                (set ci (+ ci 1)))
+                              (if (and outer (== (nth (- csp 1) ctaken) 0))
+                                  (block
+                                   (if (not (coco_cond_eval st m (coco_arg m d 0)
+                                                            (aof truth) err errlen))
+                                       (block (coco_reader_free (aof r)) (return -1)))
+                                   (set (nth (- csp 1) ctaking) truth)
+                                   (if truth (set (nth (- csp 1) ctaken) 1)))
+                                (set (nth (- csp 1) ctaking) 0)))))
+                       (if (and (== da 0) (== 0 (strcmp dn "else")))
+                           (block
+                            (set handled 1)
+                            (if (== csp 0)
+                                (block (snprintf err errlen "else: no `:- if' is open")
+                                       (coco_reader_free (aof r)) (return -1)))
+                            (let ((int outer . 1) (int ci . 0))
+                              (while (< ci (- csp 1))
+                                (if (== (nth ci ctaking) 0) (set outer 0))
+                                (set ci (+ ci 1)))
+                              (if (and outer (== (nth (- csp 1) ctaken) 0))
+                                  (block (set (nth (- csp 1) ctaking) 1)
+                                         (set (nth (- csp 1) ctaken) 1))
+                                (set (nth (- csp 1) ctaking) 0)))))
+                       (if (and (== da 0) (== 0 (strcmp dn "endif")))
+                           (block
+                            (set handled 1)
+                            (if (== csp 0)
+                                (block (snprintf err errlen "endif: no `:- if' is open")
+                                       (coco_reader_free (aof r)) (return -1)))
+                            (set csp (- csp 1))))
+                       (if (and (== handled 0) active)
+                           (if (not (coco_directive st m (coco_arg m t 0) err errlen))
+                               (block (coco_reader_free (aof r)) (return -1))))
                       (set (-> m heap_len) mark))
                    (block
-                    (if (not (coco_assert st m t 1))
-                        (block (snprintf err errlen "not a clause")
-                               (coco_reader_free (aof r))
-                               (return -1)))
-                    (set (-> m heap_len) mark)
-                    (set n (+ n 1)))))))
+                    (if active
+                        (block
+                         (if (not (coco_assert st m t 1))
+                             (block (snprintf err errlen "not a clause")
+                                    (coco_reader_free (aof r))
+                                    (return -1)))
+                         (set n (+ n 1))))
+                    (set (-> m heap_len) mark))))))
           (if (== rc -1)
               (block (snprintf err errlen "%s" ($ r err))
                      (coco_reader_free (aof r))

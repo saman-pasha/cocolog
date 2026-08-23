@@ -57,6 +57,9 @@ libs_for() {
   case "$1" in
     dcg_basics)     echo "$ROOT/lib/vendor/swipl/dcg_basics.pl" ;;
     dcg_high_order) echo "$ROOT/lib/vendor/swipl/dcg_basics.pl $ROOT/lib/vendor/swipl/dcg_high_order.pl" ;;
+    pairs)          echo "$ROOT/lib/vendor/swipl/pairs.pl" ;;
+    assoc)          echo "$ROOT/lib/vendor/swipl/assoc.pl" ;;
+    ordsets)        echo "$ROOT/lib/vendor/swipl/ordsets.pl" ;;
   esac
 }
 

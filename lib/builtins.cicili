@@ -120,6 +120,14 @@
            ;; error. test/files/must_be.pl holds all three against SWI.
            "must_be(Type, X) :- is_of_type(Type, X), !."
            "must_be(Type, X) :- '$must_be_failed'(Type, X)."
+
+           ;; the two throwers library(error) exports that the vendored
+           ;; libraries call by name -- ordsets.pl reaches type_error/2 and
+           ;; assoc.pl domain_error/2 -- and compound_name_arity/3, which
+           ;; assoc.pl's error:has_type(assoc, _) extension leans on.
+           "type_error(Type, V) :- throw(error(type_error(Type, V), _))."
+           "domain_error(Domain, V) :- throw(error(domain_error(Domain, V), _))."
+           "compound_name_arity(C, N, A) :- compound(C), functor(C, N, A)."
            "'$must_be_failed'(var, X) :- !, throw(error(uninstantiation_error(X), _))."
            "'$must_be_failed'(ground, _) :- !, throw(error(instantiation_error, _))."
            "'$must_be_failed'(_, X) :- var(X), !, throw(error(instantiation_error, _))."
