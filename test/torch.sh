@@ -181,6 +181,45 @@ echo "$conv2_out" | sed 's/^/     /'
 check "and its buffers came back out of Zigurat" \
   "$(echo "$conv2_out" | grep -c '^conv_reloaded$')" "1"
 
+# ---- the device tier: whichever machine this is, the answers hold ---
+# On a CUDA box the model trains on the GPU; on a CPU-only box asking
+# for cuda is refused with a domain_error rather than silently falling
+# back. Either way training after torch_device(auto) must still learn.
+cat > "$OUT/device.pl" <<'PL'
+device_main :-
+    torch_cuda_available(Avail),
+    torch_cuda_count(Count),
+    write(cuda(Avail, Count)), nl,
+    torch_device(cpu), torch_current_device(cpu),
+    ( Avail == true ->
+        torch_device(cuda), torch_current_device(cuda(_)),
+        catch(torch_device(cuda(Count)),
+              error(domain_error(cuda_available, _), _), true)
+    ;   catch((torch_device(cuda), write(fell_back_silently), nl, halt(1)),
+              error(domain_error(cuda_available, _), _), true),
+        catch((torch_device(cuda(0)), write(fell_back_silently), nl, halt(1)),
+              error(domain_error(cuda_available, _), _), true)
+    ),
+    torch_device(auto), torch_current_device(D),
+    write(auto_is(D)), nl,
+    torch_seed(7),
+    model_new([input(2), dense(8, relu), dense(1)], M),
+    tensor_from_list([[0.0,0.0],[0.0,1.0],[1.0,0.0],[1.0,1.0]], X),
+    tensor_from_list([[0.0],[1.0],[1.0],[2.0]], Y),
+    model_train(M, X, Y, [epochs(400), lr(0.05), final_loss(L)]),
+    ( L < 0.05 -> write(device_trained) ; write(device_did_not_learn(L)) ), nl,
+    model_predict(M, X, P), tensor_shape(P, [4, 1]),
+    model_free(M).
+PL
+
+echo "the device tier"
+dev_out=$(timeout 120 "$COCOLOG" --local run "$OUT/device.pl" device_main 2>&1)
+echo "$dev_out" | sed 's/^/     /'
+check "cuda is used when present, refused when absent" \
+  "$(echo "$dev_out" | grep -c '^auto_is(')" "1"
+check "and training on the chosen device learned" \
+  "$(echo "$dev_out" | grep -c '^device_trained$')" "1"
+
 echo
 if [ "$failures" -eq 0 ]; then
   echo "GREEN: 0 failure(s)"

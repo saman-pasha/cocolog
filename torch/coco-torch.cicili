@@ -166,7 +166,32 @@
   (decl) (func ct_arange_raw ((llong n)) (out torch::Tensor *))
   (decl) (func ct_eye_raw ((llong n)) (out torch::Tensor *))
   (decl) (func ct_randperm_raw ((llong n)) (out torch::Tensor *))
+  (decl) (func ct_cuda_available () (out int))
+  (decl) (func ct_cuda_count () (out llong))
+  (decl) (func ct_current_device ((llong * index)) (out int))
+  (decl) (func ct_set_device ((int kind) (llong index)) (out int))
 
+
+  ;; THE DEVICE IS MODULE STATE, chosen once and honoured everywhere: a
+  ;; model is built on it, training and prediction move their batches to
+  ;; the MODEL's device, and every answer comes back to the CPU -- so
+  ;; the tensor handles Prolog holds are always CPU tensors and the term
+  ;; seam never knows which silicon did the work. model_params travels
+  ;; through the CPU too, which is what lets a model train on one
+  ;; device, save into Zigurat, and load onto another.
+  (code "static torch::Device ct_device(torch::kCPU);")
+  (code "int ct_cuda_available() { return torch::cuda::is_available() ? 1 : 0; }")
+  (code "long long ct_cuda_count() { return (long long)torch::cuda::device_count(); }")
+  (code "int ct_current_device(long long* index) {")
+  (code "  *index = ct_device.has_index() ? ct_device.index() : 0;")
+  (code "  return ct_device.is_cuda() ? 1 : 0; }")
+  (code "int ct_set_device(int kind, long long index) {")
+  (code "  if (kind == 0) { ct_device = torch::Device(torch::kCPU); return 1; }")
+  (code "  if (kind == 2) { ct_device = torch::cuda::is_available()")
+  (code "      ? torch::Device(torch::kCUDA) : torch::Device(torch::kCPU); return 1; }")
+  (code "  if (!torch::cuda::is_available()) return 0;")
+  (code "  if (index >= (long long)torch::cuda::device_count()) return 0;")
+  (code "  ct_device = torch::Device(torch::kCUDA, (int8_t)index); return 1; }")
 
   (code "struct CtLayer { int kind; int act; long long a, b, c, s, d; double f; };")
   (code "// kind: 0 input(N)  1 image(C,H,W)  2 dense(W,act)")
@@ -180,6 +205,7 @@
   (code "  std::vector<torch::nn::BatchNorm2d> bn;")
   (code "  long long in_c = 0, in_h = 0, in_w = 0;   // image input, or 0")
   (code "  long long in_n = 0;                       // flat input width")
+  (code "  torch::Device dev = torch::Device(torch::kCPU);")
   (code "  torch::Tensor shape_in(const torch::Tensor& x) {")
   (code "    if (in_c > 0) return x.view({-1, in_c, in_h, in_w});")
   (code "    return x;")
@@ -280,6 +306,8 @@
   (code "    net->spec.push_back(L);")
   (code "  }")
   (code "  if (image) { ctnet_fail(\"the network ends on an image; add (flatten) and a dense head\"); delete net; return nullptr; }")
+  (code "  net->dev = ct_device;")
+  (code "  net->to(ct_device);")
   (code "  return net;")
   (code "}")
   (code "torch::nn::Linear register_module_on(CtNet* net, const char* label, torch::nn::Linear m) {")
@@ -320,14 +348,14 @@
   (code "int ctnet_read_params(struct CtNet* net, double* out, long long cap) {")
   (code "  long long off = 0;")
   (code "  for (auto& p : net->parameters()) {")
-  (code "    torch::Tensor flat = p.detach().to(torch::kFloat64).contiguous().view({-1});")
+  (code "    torch::Tensor flat = p.detach().cpu().to(torch::kFloat64).contiguous().view({-1});")
   (code "    long long n = flat.numel();")
   (code "    if (off + n > cap) return 0;")
   (code "    torch::from_blob(out + off, {n}, torch::dtype(torch::kFloat64)).copy_(flat);")
   (code "    off += n;")
   (code "  }")
   (code "  for (auto& b : net->buffers()) {")
-  (code "    torch::Tensor flat = b.detach().to(torch::kFloat64).contiguous().view({-1});")
+  (code "    torch::Tensor flat = b.detach().cpu().to(torch::kFloat64).contiguous().view({-1});")
   (code "    long long n = flat.numel();")
   (code "    if (off + n > cap) return 0;")
   (code "    torch::from_blob(out + off, {n}, torch::dtype(torch::kFloat64)).copy_(flat);")
@@ -373,10 +401,10 @@
   (code "int ctnet_train_raw(struct CtNet* net, const torch::Tensor* xp, const torch::Tensor* yp,")
   (code "                           int epochs, int batch, int opt, double lr, int loss, int shuffle,")
   (code "                           long long sched_every, double sched_gamma, double* final_loss) {")
-  (code "  torch::Tensor x = net->shape_in(*xp).clone();")
+  (code "  torch::Tensor x = net->shape_in(*xp).clone().to(net->dev);")
   (code "  torch::Tensor y = (loss == 1 || loss == 2)")
-  (code "      ? yp->view({-1}).to(torch::kLong).clone()")
-  (code "      : yp->clone();")
+  (code "      ? yp->view({-1}).to(torch::kLong).clone().to(net->dev)")
+  (code "      : yp->clone().to(net->dev);")
   (code "  long long n = xp->size(0);")
   (code "  if (batch < 1) batch = 1;")
   (code "  std::unique_ptr<torch::optim::Optimizer> o;")
@@ -384,8 +412,8 @@
   (code "  else          o.reset(new torch::optim::Adam(net->parameters(), lr));")
   (code "  net->train(true);")
   (code "  for (int e = 0; e < epochs; e++) {")
-  (code "    torch::Tensor perm = shuffle ? torch::randperm(n)")
-  (code "                                 : torch::arange((double)n).to(torch::kLong);")
+  (code "    torch::Tensor perm = (shuffle ? torch::randperm(n)")
+  (code "                                  : torch::arange((double)n).to(torch::kLong)).to(net->dev);")
   (code "    for (long long b = 0; b < n; b += batch) {")
   (code "      long long take = (b + batch > n) ? (n - b) : batch;")
   (code "      torch::Tensor idx = perm.narrow(0, b, take);")
@@ -411,24 +439,24 @@
   (code "torch::Tensor* ctnet_predict_raw(struct CtNet* net, const torch::Tensor* xp) {")
   (code "  torch::NoGradGuard guard;")
   (code "  net->eval();")
-  (code "  return new torch::Tensor(net->forward(net->shape_in(*xp)).detach());")
+  (code "  return new torch::Tensor(net->forward(net->shape_in(*xp).to(net->dev)).detach().cpu());")
   (code "}")
 
   (code "int ctnet_eval_raw(struct CtNet* net, const torch::Tensor* xp, const torch::Tensor* yp,")
   (code "                          int metric, double* out_score) {")
   (code "  torch::NoGradGuard guard;")
   (code "  net->eval();")
-  (code "  torch::Tensor out = net->forward(net->shape_in(*xp));")
+  (code "  torch::Tensor out = net->forward(net->shape_in(*xp).to(net->dev));")
   (code "  switch (metric) {")
   (code "  case 1: {")
-  (code "    torch::Tensor labels = yp->view({-1}).to(torch::kLong);")
+  (code "    torch::Tensor labels = yp->view({-1}).to(torch::kLong).to(net->dev);")
   (code "    *out_score = out.argmax(1).eq(labels).to(torch::kFloat32).mean().item<float>();")
   (code "    break; }")
   (code "  case 2:")
-  (code "    *out_score = out.sub(*yp).abs().mean().item<float>();")
+  (code "    *out_score = out.sub(yp->to(net->dev)).abs().mean().item<float>();")
   (code "    break;")
   (code "  default:")
-  (code "    *out_score = torch::mse_loss(out, *yp).sqrt().item<float>();")
+  (code "    *out_score = torch::mse_loss(out, yp->to(net->dev)).sqrt().item<float>();")
   (code "  }")
   (code "  return 1;")
   (code "}")
@@ -1465,6 +1493,56 @@
       (set (nth h ct_models) nil)
       (return 1)))
 
+  ;; ---- devices ---------------------------------------------------------
+
+  ;; torch_device(+D): cpu | cuda | cuda(N) | auto. `auto' takes cuda when
+  ;; there is one and cpu otherwise, which is what a script that runs on
+  ;; both kinds of machine wants; naming cuda on a machine without one is
+  ;; a domain error, not a silent fallback. The choice governs where the
+  ;; NEXT model_new builds; models already built keep their device.
+  (func t_device ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e))
+          (size_t d . #'(coco_deref m (coco_m_arg e g 0))))
+      (if (coco_m_is_atom e d)
+          (let ((const char * nm . #'(coco_m_atom e d)))
+            (cond
+              ((== 0 (strcmp nm "cpu"))
+               (if (ct_set_device 0 0) (return 1) (return 0)))
+              ((== 0 (strcmp nm "auto"))
+               (if (ct_set_device 2 0) (return 1) (return 0)))
+              ((== 0 (strcmp nm "cuda"))
+               (if (ct_set_device 1 0) (return 1)
+                 (return (coco_m_domain_error e "cuda_available" d))))
+              (#t (return (coco_m_domain_error e "device" d))))))
+      (if (and (coco_is_callable m d)
+               (and (== (coco_arity m d) 1)
+                    (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "cuda"))))
+          (let ((int64_t ix . 0))
+            (if (not (coco_m_int e (coco_arg m d 0) (aof ix)))
+                (return (coco_m_type_error e "integer" (coco_arg m d 0))))
+            (if (ct_set_device 1 (cast llong ix)) (return 1)
+              (return (coco_m_domain_error e "cuda_available" d)))))
+      (return (coco_m_domain_error e "device" d))))
+
+  ;; torch_cuda_available(-B): true | false
+  (func t_cuda_available ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e)))
+      (return (coco_m_unify e (coco_m_arg e g 0)
+                (coco_new_atom m (? (ct_cuda_available) "true" "false"))))))
+
+  ;; torch_cuda_count(-N)
+  (func t_cuda_count ((coco_engine * e) (size_t g)) (out int)
+    (return (coco_m_unify_int e (coco_m_arg e g 0) (ct_cuda_count))))
+
+  ;; torch_current_device(-D): cpu or cuda(N)
+  (func t_current_device ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e))
+          (llong ix . 0))
+      (if (ct_current_device (aof ix))
+          (return (coco_m_unify e (coco_m_arg e g 0)
+                    (coco_make1 m "cuda" (coco_new_int m (cast int64_t ix)))))
+        (return (coco_m_unify e (coco_m_arg e g 0) (coco_new_atom m "cpu"))))))
+
   ;; ---- the Coco half --------------------------------------------------
   ;; model_save/2 and model_load/2 are the Zigurat bridge, CHUNKED to the
   ;; page discipline; below them, the friendly spellings of the generic
@@ -1484,6 +1562,10 @@
         ((== arity 1)
          (cond
            ((== 0 (strcmp name "torch_seed"))   (return (t_seed e g)))
+           ((== 0 (strcmp name "torch_device")) (return (t_device e g)))
+           ((== 0 (strcmp name "torch_cuda_available")) (return (t_cuda_available e g)))
+           ((== 0 (strcmp name "torch_cuda_count"))     (return (t_cuda_count e g)))
+           ((== 0 (strcmp name "torch_current_device")) (return (t_current_device e g)))
            ((== 0 (strcmp name "tensor_free"))  (return (t_free e g)))
            ((== 0 (strcmp name "model_free"))   (return (t_model_free e g)))
            (#t (set (cof found) 0) (return 0))))

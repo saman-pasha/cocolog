@@ -130,6 +130,28 @@ And the rest: `tensor_new(Shape, zeros\|ones\|randn\|rand, T)` (with
 `tensor_reshape(T, Shape, T2)`, `tensor_cat(TList, Dim, T2)`,
 `tensor_index_rows(T, IdxT, T2)`, `tensor_item(T, X)`.
 
+The device — one process-wide choice, made before `model_new`:
+
+| predicate | is |
+|---|---|
+| `torch_device(+D)` | `cpu`, `cuda`, `cuda(N)`, or `auto` (cuda if available, else cpu) |
+| `torch_cuda_available(-A)` | `true` or `false` |
+| `torch_cuda_count(-N)` | how many CUDA devices libtorch sees |
+| `torch_current_device(-D)` | `cpu` or `cuda(N)` |
+
+`torch_device(cpu)` and `torch_device(auto)` always succeed. Naming
+`cuda` (or an index) on a machine without it throws
+`domain_error(cuda_available, ...)` — a refusal, never a silent
+fallback, because "trained on the GPU" and "quietly trained on the CPU"
+are different results. A model is built on whatever the device was at
+its `model_new`, and its training batches follow it there.
+
+The device never leaks into the term seam: tensor handles stay
+CPU-side, `model_params` comes back through the CPU, and predictions
+land as CPU tensors — so a model saved on a GPU box reloads onto
+whatever device the next process chose, and `test/torch.sh`'s stored
+predictions agree across machines.
+
 ## Handles are not terms — and that is the design
 
 A tensor or model handle is an integer naming a process-local C++
