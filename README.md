@@ -321,14 +321,18 @@ with its own session (the engine keeps transactions thread-local, and the
 `test/groups-embed.sh` runs the identical twelve-worker choreography and
 checks. What the two arrangements measure, three runs each, same machine:
 
-|                       | run 1 | run 2 | run 3 |
-|-----------------------|-------|-------|-------|
-| wire, fresh server    | 11.5s | 19.0s | 24.8s |
-| embedded, fresh store | 14.7s | 14.5s | 14.5s |
+|                          | run 1 | run 2 | run 3 | run 4 | run 5 |
+|--------------------------|-------|-------|-------|-------|-------|
+| wire, fresh server       | 11.5s | 19.0s | 24.8s | —     | —     |
+| embedded, fresh store    | 14.7s | 14.5s | 14.5s | —     | —     |
+| wire, vacuuming in setup | 15.2s | 15.7s | 16.0s | 16.7s | 15.0s |
 
-Both are green throughout. The embedded times are flat because the store is
-new each run; the wire times grow because the server's store keeps the dead
-rows of every earlier run until a vacuum. The wall clock in both is mostly
+All green throughout. The first two rows are the measurement that forced the
+vacuum's hand: the embedded times were flat because the store was new each
+run, while the wire times grew because the server's store kept the dead rows
+of every earlier run. The third row is the same wire test after `cocolog
+vacuum` went into its setup — flat for as long as it is run, on the same
+worked store the first row was ageing. The wall clock in every row is mostly
 the choreography itself — polls and deliberate yields between turns — not
 the engine: the test exists to prove hand-off, and proving hand-off is
 waiting, either side of a socket or not.
