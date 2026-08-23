@@ -115,6 +115,72 @@ check "with its architecture intact" \
 check "and the stored weights predict identically" \
   "$(echo "$load_out" | grep -c '^predictions_agree$')" "1"
 
+# ---- the wider surface: tensor operations and the conv tier ---------
+cat > "$OUT/ops.pl" <<'PL'
+ops_main :-
+    tensor_from_list([[1.0,2.0],[3.0,4.0]], A),
+    tensor_from_list([[5.0,6.0],[7.0,8.0]], B),
+    tensor_matmul(A, B, M), tensor_to_list(M, [[19.0,22.0],[43.0,50.0]]),
+    tensor_scalar(pow, A, 2, Sq), tensor_sum(Sq, 30.0),
+    tensor_transpose(A, T), tensor_to_list(T, [[1.0,3.0],[2.0,4.0]]),
+    tensor_reshape(A, [4], R), tensor_shape(R, [4]),
+    tensor_eye(3, E), tensor_sum(E, 3.0),
+    tensor_cat([A, B], 1, C), tensor_shape(C, [2,4]),
+    tensor_argmax(A, 1, Am), tensor_to_list(Am, [1.0,1.0]),
+    write(ops_agree), nl.
+PL
+awk 'BEGIN { srand(9);
+  for (i = 0; i < 120; i++) {
+    cls = i % 2; pos = 1 + int(rand()*6);
+    for (r = 0; r < 8; r++) for (c = 0; c < 8; c++) {
+      v = 0; if (cls == 0 && r == pos) v = 1; if (cls == 1 && c == pos) v = 1;
+      printf "%.1f,", v; }
+    printf "%d\n", cls; } }' > "$OUT/bars.csv"
+cat > "$OUT/conv.pl" <<'PL'
+conv_main :-
+    tensor_load_csv('BARS', All),
+    tensor_shape(All, [N, 65]),
+    tensor_cols(All, 0, 64, X), tensor_cols(All, 64, 65, Y),
+    NTrain is (N * 4) // 5,
+    tensor_rows(X, 0, NTrain, XTr), tensor_rows(Y, 0, NTrain, YTr),
+    tensor_rows(X, NTrain, N, XTe), tensor_rows(Y, NTrain, N, YTe),
+    torch_seed(5),
+    model_new([image(1,8,8), conv(4,3,relu,pad(1)), norm, pool(2),
+               flatten, dropout(0.1), dense(16, relu),
+               dense(2, log_softmax)], M),
+    model_train(M, XTr, YTr, [epochs(25), batch(12), lr(0.005), loss(nll),
+                              shuffle(true), schedule(step, 10, 0.5)]),
+    model_evaluate(M, XTe, YTe, accuracy, A),
+    ( A >= 0.95 -> true ; write(conv_did_not_learn), nl, halt(1) ),
+    model_save(bars, M),
+    write(conv_saved), nl.
+conv_again :-
+    model_load(bars, M2),
+    tensor_load_csv('BARS', All),
+    tensor_shape(All, [N, 65]),
+    tensor_cols(All, 0, 64, X), tensor_cols(All, 64, 65, Y),
+    NTrain is (N * 4) // 5,
+    tensor_rows(X, NTrain, N, XTe), tensor_rows(Y, NTrain, N, YTe),
+    model_evaluate(M2, XTe, YTe, accuracy, A),
+    ( A >= 0.95 -> write(conv_reloaded) ; write(conv_buffers_lost) ), nl.
+PL
+sed -i "s|'BARS'|'$OUT/bars.csv'|g" "$OUT/conv.pl"
+
+echo "the tensor operations"
+ops_out=$(timeout 120 "$COCOLOG" --local run "$OUT/ops.pl" ops_main 2>&1)
+check "every operation family answers as libtorch does" \
+  "$(echo "$ops_out" | grep -c '^ops_agree$')" "1"
+
+echo "a conv net with batch norm, through the store"
+conv_out=$(timeout 300 "$COCOLOG" --kb torch_test --store "$STORE" run "$OUT/conv.pl" conv_main 2>&1)
+echo "$conv_out" | sed 's/^/     /'
+check "the conv net learned and saved" \
+  "$(echo "$conv_out" | grep -c '^conv_saved$')" "1"
+conv2_out=$(timeout 120 "$COCOLOG" --kb torch_test --store "$STORE" run "$OUT/conv.pl" conv_again 2>&1)
+echo "$conv2_out" | sed 's/^/     /'
+check "and its buffers came back out of Zigurat" \
+  "$(echo "$conv2_out" | grep -c '^conv_reloaded$')" "1"
+
 echo
 if [ "$failures" -eq 0 ]; then
   echo "GREEN: 0 failure(s)"

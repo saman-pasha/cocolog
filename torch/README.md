@@ -79,24 +79,56 @@ Tensors — handles to float32 tensors; numbers cross as Prolog floats:
 | `tensor_free(+T)` | lets the handle go |
 | `torch_seed(+N)` | libtorch's manual seed |
 
-Models — a dense network described as terms:
+Models — a network described as terms, the whole layer vocabulary of
+`lib/cpp/torch`'s DSL at run time. **The shape flows down the list**:
+each layer's input is the previous layer's output, worked out at
+`model_new`, so a mismatch is a refusal rather than a runtime surprise.
+
+| layer | is |
+|---|---|
+| `input(N)` | a flat input of width N |
+| `image(C,H,W)` | a picture input; `model_train`/`predict` reshape the flat rows themselves |
+| `dense(W[,Act])` | `Linear`; `Act` ∈ relu, tanh, sigmoid, log_softmax, none (default) |
+| `conv(F,K[,Act][,pad(P)][,stride(S)])` | `Conv2d`, pad 0 and stride 1 by default |
+| `pool(K[,pad(P)][,stride(S)])` | max-pool, stride defaults to the kernel |
+| `flatten` | picture → flat C·H·W |
+| `dropout(P)` | `Dropout`; off automatically at predict/evaluate time |
+| `norm` | `BatchNorm2d`; its running statistics are BUFFERS and travel with `model_params` |
 
 | predicate | is |
 |---|---|
-| `model_new(+Spec, -M)` | `Spec = [input(In), dense(W, Act)…]`; `Act` ∈ relu, tanh, sigmoid, log_softmax, none (default) |
-| `model_train(+M, +X, +Y, +Opts)` | `epochs(N)` `batch(N)` `lr(F)` `optimiser(adam\|sgd)` `loss(mse\|nll)` `shuffle(true\|false)` `final_loss(-L)` |
+| `model_new(+Spec, -M)` | the layer list above |
+| `model_train(+M, +X, +Y, +Opts)` | `epochs(N)` `batch(N)` `lr(F)` `optimiser(adam\|sgd)` `loss(mse\|nll\|cross_entropy\|bce)` `shuffle(true\|false)` `schedule(step, Every, Gamma)` `final_loss(-L)` |
 | `model_predict(+M, +X, -T)` | forward, gradients off |
 | `model_evaluate(+M, +X, +Y, +Metric, -S)` | `rmse`, `accuracy` (argmax vs labels), `mae` |
 | `model_spec(+M, -Spec)` | the architecture back as terms |
-| `model_params(+M, -L)` | every parameter, flattened, as one list of floats |
+| `model_params(+M, -L)` | every parameter AND buffer, flattened, as one list of floats |
 | `model_set_params(+M, +L)` | the inverse |
 | `model_save(+Name, +M)` | `model_spec` + `model_params`, asserted as `torch_model/3` |
 | `model_load(+Name, -M)` | `torch_model/3` → `model_new` + `model_set_params` |
 | `model_free(+M)` | lets the model go |
 
-`loss(nll)` expects the last layer `log_softmax` and integer class
-labels in `Y`; the module converts the labels itself, because a float
-target failing deep inside libtorch is the classic trap.
+`loss(nll)` expects the last layer `log_softmax`; `loss(cross_entropy)`
+takes raw logits. Both take integer class labels in `Y` and the module
+converts them itself, because a float target failing deep inside
+libtorch is the classic trap. `bce` is binary cross-entropy against
+probabilities — end the network `dense(1, sigmoid)`.
+
+Tensor operations — four generic predicates carry every family, and the
+Coco half spells the friendly names over them:
+
+| generic | ops | sugar |
+|---|---|---|
+| `tensor_unary(Op, A, C)` | neg abs exp log sqrt relu sigmoid tanh transpose | `tensor_neg/2` … `tensor_transpose/2` |
+| `tensor_binary(Op, A, B, C)` | add sub mul div matmul | `tensor_add/3` … `tensor_matmul/3` |
+| `tensor_scalar(Op, A, V, C)` | add sub mul div pow | — |
+| `tensor_reduce(Op, T, X)` | sum mean max min std → a number | `tensor_sum/2` … `tensor_std/2` |
+
+And the rest: `tensor_new(Shape, zeros\|ones\|randn\|rand, T)` (with
+`tensor_zeros/2`-style sugar), `tensor_full/3`, `tensor_arange/2`,
+`tensor_eye/2`, `tensor_randperm/2`, `tensor_argmax(T, Dim, T2)`,
+`tensor_reshape(T, Shape, T2)`, `tensor_cat(TList, Dim, T2)`,
+`tensor_index_rows(T, IdxT, T2)`, `tensor_item(T, X)`.
 
 ## Handles are not terms — and that is the design
 
