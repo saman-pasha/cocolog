@@ -104,6 +104,15 @@ typedef struct zg_conn zg_conn;
 zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
                  char *err, size_t errcap);
 
+/* Opens the knowledge base EMBEDDED: the same store, inside this process,
+ * no server and no socket. `dir' is a directory the engine keeps its two
+ * files in; it is created if missing. Everything else in this header then
+ * works unchanged on the handle. Only a build that linked the embedded
+ * engine (embed/embed.o, see embed/build.sh) can do this -- without it the
+ * call fails with a message saying so. An embedded handle belongs to the
+ * thread that opened it and may not be used from another. */
+zg_conn *zg_open_embed(const char *dir, char *err, size_t errcap);
+
 void zg_close(zg_conn *c);
 int  zg_is_open(const zg_conn *c);
 

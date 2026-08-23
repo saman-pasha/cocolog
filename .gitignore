@@ -15,3 +15,14 @@ test/.*.build
 
 # parsi/build.sh scratch
 parsi/.build.log
+
+# the embedded engine's build output and its symlinks into the two
+# checkouts (embed/build.sh makes them; only the sources are tracked)
+cocolog-embed
+embed/embed.cpp
+embed/ce_smoke
+embed/Core
+embed/StreamIO
+embed/mvccs-lib.cicili
+embed/generated
+embed/ziglib

@@ -80,9 +80,11 @@
                   "-c" "cocolog.c")
         :link ("-lcocolog.o"
                "-Lbuild"
-               "-lcocologc" "-lm" "-o" "cocolog"))
+               "-lcocologc" "-lm" "-lpthread" "-o" "cocolog"))
 
   (include <math.h>)
+  ;; the swarm command's worker threads
+  (include <pthread.h>)
   ;; usleep, for the worker that waits its turn on a machine another worker
   ;; is holding. lib/std/c/posix declares it for inference; the header still
   ;; has to be included by the target that emits code.
@@ -148,12 +150,29 @@
     ;; Where cocolog processes take turns, so that no two of them are inside
     ;; ZiguratIP's storage engine at once. Null means "work one out from the
     ;; host and port"; the string "none" means do not take turns at all.
-    (member const char * lock))
+    (member const char * lock)
+    ;; A directory for the EMBEDDED knowledge base: the store lives inside
+    ;; this process, no server and no socket. Needs a build that linked the
+    ;; embedded engine -- `make embed' -- and belongs to one process at a
+    ;; time: concurrency inside it is the `swarm' command's threads.
+    (member const char * store)
+    ;; Where each swarm worker writes what it did (DIR/WORKER.log); null
+    ;; means everybody onto stdout together.
+    (member const char * outdir))
 
-  (var coco_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil })
+  (var coco_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil nil nil })
 
-  ;;; The one connection, when there is one.
-  (var zg_conn * db . nil)
+  ;;; The one connection, when there is one. THREAD-LOCAL, because the
+  ;;; `swarm' command runs one worker per thread and each opens its own:
+  ;;; everything below reaches the connection of the thread it runs on,
+  ;;; and a single-threaded command sees exactly what it always did.
+  (thread-local) (var zg_conn * db . nil)
+
+  ;;; Where this thread's worker narrates -- answers, took/suspended lines,
+  ;;; the closing summary. stdout, until a swarm thread points it at the
+  ;;; worker's own log file so twelve narrations do not interleave.
+  (thread-local) (var FILE * wlog . nil)
+  (func wout () (out FILE *) (return (? (== wlog nil) stdout wlog)))
 
   ;;; HOW LONG A WORKER WAITS, and why there are two numbers rather than one.
   ;;;
@@ -227,6 +246,7 @@
         (fprintf stderr "  cocolog [options] step NAME\n")
         (fprintf stderr "  cocolog [options] finish NAME\n")
         (fprintf stderr "  cocolog [options] work WORKER [MACHINE]\n")
+        (fprintf stderr "  cocolog [options] swarm WORKER MACHINE [WORKER MACHINE...]\n")
         (fprintf stderr "  cocolog [options] forget [NAME ARITY]\n")
         (fprintf stderr "  cocolog [options] list\n")
         (fprintf stderr "  cocolog [options] drop NAME\n\n")
@@ -240,7 +260,10 @@
         (fprintf stderr "  --answers N   stop after N solutions    (default 10, 0 for all)\n")
         (fprintf stderr "  --lock PATH   take turns through PATH, for a server that\n")
         (fprintf stderr "                cannot take concurrent clients; `auto' names\n")
-        (fprintf stderr "                one per host and port. Off by default.\n"))
+        (fprintf stderr "                one per host and port. Off by default.\n")
+        (fprintf stderr "  --store DIR   the knowledge base EMBEDDED in this process,\n")
+        (fprintf stderr "                no server (needs a `make embed' build)\n")
+        (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n"))
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
   (func slurp ((const char * path)) (out char *)
@@ -293,6 +316,14 @@
   (func open_connection () (out int)
         (let ((char err [512]) (char turnfile [512]) (const char * path))
           (if ($ opts local) (return 1))
+          (if (!= ($ opts store) nil)
+              (block
+                (set db (zg_open_embed ($ opts store) err (sizeof err)))
+                (if (== db nil)
+                    (block (fprintf stderr "cocolog: no embedded store at %s -- %s\n"
+                                    ($ opts store) err)
+                           (return 0)))
+                (return 1)))
           (set db (zg_open ($ opts host) ($ opts port) ($ opts timeout) err (sizeof err)))
           (if (== db nil)
               (block (fprintf stderr "cocolog: no server at %s:%s -- %s\n"
@@ -516,11 +547,11 @@
                        break))
 
             ;; Committed. Only now is any of it true.
-            (if (!= ($ out s) nil) (fputs ($ out s) stdout))
+            (if (!= ($ out s) nil) (fputs ($ out s) (wout)))
             (if done
-                (printf "%s: finished after %llu inference(s), %d answer(s) this turn\n"
+                (fprintf (wout) "%s: finished after %llu inference(s), %d answer(s) this turn\n"
                         name (cast ullong ($ e steps)) n)
-              (printf "%s: suspended at %llu inference(s), %d answer(s) this turn\n"
+              (fprintf (wout) "%s: suspended at %llu inference(s), %d answer(s) this turn\n"
                       name (cast ullong ($ e steps)) n))
             (set outcome (? done (? broke (turn FAILED) (turn FINISHED)) (turn MORE)))
             break)
@@ -798,7 +829,7 @@
             (set idle 0)
             (set gone 0)
             (set seen 1)
-            (printf "%s: took '%s'\n" worker name)
+            (fprintf (wout) "%s: took '%s'\n" worker name)
             (set rc (cmd_step name 0))
 
             (if (turn-is LOST rc)
@@ -829,9 +860,67 @@
           ;; indistinguishable from `nothing left to do'. The counts say which:
           ;; a worker that never saw the machine at all made no claims worth
           ;; speaking of, one that was always too late made hundreds.
-          (printf "%s: nothing left to do after %d turn(s) (%d claim attempt(s), %d absent, %d busy)\n"
+          (fprintf (wout) "%s: nothing left to do after %d turn(s) (%d claim attempt(s), %d absent, %d busy)\n"
                   worker turns (+ (+ gone idle) turns) gone idle)
           (return 0)))
+
+  ;;; ---- the swarm: cmd_work, one worker per thread ------------------------
+  ;;;
+  ;;; Twelve processes taking turns through a server is one benchmark; the
+  ;;; same twelve workers as THREADS of one process is the embedded store's
+  ;;; natural shape, because an embedded engine belongs to a single process.
+  ;;; Each thread opens its own connection -- embedded when --store is given,
+  ;;; a socket of its own otherwise -- sets the thread-local `db', and runs
+  ;;; the very same cmd_work the processes run. Nothing in the work loop
+  ;;; knows which arrangement it is in.
+
+  (struct swarm_job
+    (member char worker [64])
+    (member char machine [128])
+    (member char logpath [512])
+    (member int rc))
+
+  (func swarm_thread ((void * arg)) (out void *)
+        (let ((swarm_job * j . #'(cast (swarm_job *) arg))
+              (char err [512]))
+          (if (!= ($ opts store) nil)
+              (set db (zg_open_embed ($ opts store) err (sizeof err)))
+            (set db (zg_open ($ opts host) ($ opts port) ($ opts timeout) err (sizeof err))))
+          (if (== db nil)
+              (block (fprintf stderr "%s: cannot open -- %s\n" (-> j worker) err)
+                     (set (-> j rc) 1)
+                     (return nil)))
+          (if (!= (nth 0 (-> j logpath)) (cast char 0))
+              (set wlog (fopen (-> j logpath) "w")))
+          (set (-> j rc) (cmd_work (-> j worker) (-> j machine)))
+          (if (!= wlog nil) (block (fclose wlog) (set wlog nil)))
+          (zg_close db)
+          (set db nil)
+          (return nil)))
+
+  (func cmd_swarm ((int argc) (char ** argv) (int from)) (out int)
+        (let ((int pairs . #'(/ (- argc from) 2)) (int bad . 0))
+          (if (<= pairs 0)
+              (block (fprintf stderr "cocolog: swarm needs WORKER MACHINE pairs\n")
+                     (return 1)))
+          (if (> pairs 32)
+              (block (fprintf stderr "cocolog: a swarm is at most 32 workers\n")
+                     (return 1)))
+          (let ((swarm_job jobs [32]) (pthread_t tids [32]))
+            (for ((int k . 0)) (< k pairs) ((++ k))
+              (snprintf ($ (nth k jobs) worker) 64 "%s" (nth (+ from (* k 2)) argv))
+              (snprintf ($ (nth k jobs) machine) 128 "%s" (nth (+ from (+ (* k 2) 1)) argv))
+              (if (!= ($ opts outdir) nil)
+                  (snprintf ($ (nth k jobs) logpath) 512 "%s/%s.log"
+                            ($ opts outdir) ($ (nth k jobs) worker))
+                (set (nth 0 ($ (nth k jobs) logpath)) (cast char 0)))
+              (set ($ (nth k jobs) rc) 0)
+              (pthread_create (aof (nth k tids)) nil swarm_thread
+                              (cast (void *) (aof (nth k jobs)))))
+            (for ((int k . 0)) (< k pairs) ((++ k))
+              (pthread_join (nth k tids) nil)
+              (if (!= ($ (nth k jobs) rc) 0) (set bad 1)))
+            (return bad))))
 
   (func cmd_list () (out int)
         (let ((zg_result_t r) (char cols [256]) (int rows . 0))
@@ -992,6 +1081,8 @@
                      ((== 0 (strcmp a "--steps"))   (set ($ opts steps) (strtoull v nil 10)))
                      ((== 0 (strcmp a "--timeout")) (set ($ opts timeout) (atoi v)))
                      ((== 0 (strcmp a "--lock"))    (set ($ opts lock) v))
+                     ((== 0 (strcmp a "--store"))   (set ($ opts store) v))
+                     ((== 0 (strcmp a "--out"))     (set ($ opts outdir) v))
                      ((== 0 (strcmp a "--answers")) (set ($ opts answers) (atoi v)))
                      (#t (block (fprintf stderr "cocolog: unknown option %s\n" a)
                                 (return 1)))))
@@ -1037,6 +1128,8 @@
                    (block (fprintf stderr "cocolog: work needs a worker name\n") (set rc 1))
                  (set rc (cmd_work (nth (+ i 1) argv)
                                    (? (>= (+ i 2) argc) nil (nth (+ i 2) argv))))))
+              ((== 0 (strcmp cmd "swarm"))
+               (set rc (cmd_swarm argc argv (+ i 1))))
               ((== 0 (strcmp cmd "forget"))
                (if (>= (+ i 2) argc)
                    (set rc (cmd_forget nil 0))

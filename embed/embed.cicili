@@ -1,0 +1,969 @@
+;;;; The embedded knowledge base: cocolog's Parsi schema running INSIDE
+;;;; the interpreter's process, on the Cicili MVCCS engine, with no
+;;;; server and no socket.
+;;;;
+;;;; WHAT THIS IS. The interpreter talks to its database through the C
+;;;; client in client/zigurat.c -- call a procedure, write parameters,
+;;;; read results. This file is the other end of that conversation done
+;;;; as a library: the same eighteen procedures 02-procedures.parsi
+;;;; defines, implemented over the SAME generated table definitions the
+;;;; Parsi compiler wrote (generated/*.cicili -- see embed/build.sh for
+;;;; how they and the engine get here), executed in-process. The client
+;;;; dispatches to `ce_*' below when a connection was opened with
+;;;; zg_open_embed; nothing above the client knows which end it got.
+;;;;
+;;;; SESSIONS ARE THREADS. The engine keeps its transaction thread-local
+;;;; (tl_txn), so one ce_session belongs to the thread that made it and
+;;;; may not cross to another. One process opens the store once
+;;;; (refcounted); every session shares the one Memory, exactly like the
+;;;; server's connection threads share one store.
+;;;;
+;;;; STRING COLUMNS HAVE NO INDEX HERE -- the Cicili B-tree keys int64,
+;;;; so the generated string-keyed defindex forms ship commented out and
+;;;; every by-name lookup below is a table scan. At cocolog's scale (a
+;;;; knowledge base of hundreds of clauses, a handful of machines) the
+;;;; scan is microseconds; the ID indexes do the row-precise work.
+
+(source "embed.cpp"
+  (make :cpp #t
+        :compile ("-c" "embed.cpp"))
+
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+  (include <pthread.h>)
+  (include <unistd.h>)
+  (include <time.h>)
+  (include <ctype.h>)
+  (include <sys/stat.h>)
+  (include <sys/types.h>)
+  (include "Core/zexception.hpp")
+  (include "Core/utility.hpp")
+  (include "StreamIO/binarystream.hpp")
+  (include "StreamIO/filestream.hpp")
+  (include "StreamIO/bufferstream.hpp")
+  (include "StreamIO/textstream.hpp")
+
+  (import "./mvccs-lib.cicili")
+  (mvccs-engine)
+
+  ;; byte for byte what the Parsi compiler wrote beside the C++ pair
+  (import "./generated/cocolog-clauses.cicili")
+  (import "./generated/cocolog-clauses-seq.cicili")
+  (import "./generated/cocolog-props.cicili")
+  (import "./generated/cocolog-props-seq.cicili")
+  (import "./generated/cocolog-machines.cicili")
+  (import "./generated/cocolog-machines-seq.cicili")
+  (import "./generated/cocolog-machine-state.cicili")
+  (import "./generated/cocolog-machine-state-seq.cicili")
+  (define-COCOLOG_CLAUSES)
+  (define-COCOLOG_CLAUSES_SEQ)
+  (define-COCOLOG_PROPS)
+  (define-COCOLOG_PROPS_SEQ)
+  (define-COCOLOG_MACHINES)
+  (define-COCOLOG_MACHINES_SEQ)
+  (define-COCOLOG_MACHINE_STATE)
+  (define-COCOLOG_MACHINE_STATE_SEQ)
+
+  ;; ---- the one store this process holds ----------------------------
+
+  (var pthread_mutex_t ce_open_access . PTHREAD_MUTEX_INITIALIZER)
+  (var int ce_open_count . 0)
+  (var Memory ce_mem)
+  (var Zigurat::filestream * ce_hexmap . nil)
+  (var Zigurat::filestream * ce_data . nil)
+
+  ;; ---- the result stream, as tokens --------------------------------
+  ;; The wire interleaves result bytes and typed fields in one stream;
+  ;; a session holds the same stream as an array of tokens, filled when
+  ;; the buffered call executes and consumed by the read calls.
+
+  (enum CeTag (CE_RESULT . 0) (CE_FIELD . 1))
+
+  (struct CeTok
+    (member uint8_t kind)              ;; CE_RESULT or CE_FIELD
+    (member uint8_t code)              ;; result byte when CE_RESULT
+    (member uint8_t tag)               ;; TDB byte when CE_FIELD
+    (member int64_t num)
+    (member char *  str))              ;; malloc'd; string/text payload
+
+  ;; the TDB type-descriptor bytes, as client/zigurat.c has them
+  (var const uint8_t CE_TDB_INT    . 0x0B)
+  (var const uint8_t CE_TDB_LONG   . 0x0C)
+  (var const uint8_t CE_TDB_STRING . 0x29)
+  (var const uint8_t CE_TDB_TEXT   . 0x49)
+
+  ;; the result bytes, as Connector/resulttype.hpp has them
+  (var const uint8_t CE_DONE   . 0)
+  (var const uint8_t CE_OPEN   . 1)
+  (var const uint8_t CE_FETCH  . 2)
+  (var const uint8_t CE_CLOSE  . 3)
+  (var const uint8_t CE_RETURN . 4)
+
+  (struct CeSess
+    (member char err [512])
+    (member char proc [160])
+    (member int argc)
+    (member uint8_t atag [8])
+    (member int64_t anum [8])
+    (member char * astr [8])           ;; malloc'd
+    (member CeTok * toks)
+    (member int ntoks)
+    (member int captoks)
+    (member int rtok)                  ;; read position
+    (member int executed))             ;; the buffered call has run
+
+  (func ce_fail ((CeSess * s) (const char * what)) (out int)
+    (snprintf (-> s err) 512 "%s" what)
+    (return 0))
+
+  (func ce_toks_clear ((CeSess * s)) (out void)
+    (let ((int i . 0))
+      (while (< i (-> s ntoks))
+        (if (!= ($ (nth i (-> s toks)) str) nil)
+            (free ($ (nth i (-> s toks)) str)))
+        (set i (+ i 1))))
+    (set (-> s ntoks) 0)
+    (set (-> s rtok) 0))
+
+  (func ce_args_clear ((CeSess * s)) (out void)
+    (let ((int i . 0))
+      (while (< i (-> s argc))
+        (if (!= (nth i (-> s astr)) nil)
+            (block (free (nth i (-> s astr)))
+                   (set (nth i (-> s astr)) nil)))
+        (set i (+ i 1))))
+    (set (-> s argc) 0))
+
+  (func ce_tok ((CeSess * s)) (out CeTok *)
+    (if (>= (-> s ntoks) (-> s captoks))
+        (block
+          (let ((int grown . #'(? (== (-> s captoks) 0) 64 (* (-> s captoks) 2))))
+            (set (-> s toks)
+                 (cast (CeTok *) (realloc (cast (void *) (-> s toks))
+                                          (* (cast size_t grown) (sizeof CeTok)))))
+            (set (-> s captoks) grown))))
+    (let ((CeTok * t . #'(aof (nth (-> s ntoks) (-> s toks)))))
+      (set (-> s ntoks) (+ (-> s ntoks) 1))
+      (set (-> t kind) CE_RESULT)
+      (set (-> t code) 0)
+      (set (-> t tag) 0)
+      (set (-> t num) 0)
+      (set (-> t str) nil)
+      (return t)))
+
+  (func emit_result ((CeSess * s) (uint8_t code)) (out void)
+    (let ((CeTok * t . #'(ce_tok s)))
+      (set (-> t kind) CE_RESULT)
+      (set (-> t code) code)))
+
+  (func emit_num ((CeSess * s) (uint8_t tag) (int64_t v)) (out void)
+    (let ((CeTok * t . #'(ce_tok s)))
+      (set (-> t kind) CE_FIELD)
+      (set (-> t tag) tag)
+      (set (-> t num) v)))
+
+  (func emit_str ((CeSess * s) (uint8_t tag) (const char * v)) (out void)
+    (let ((CeTok * t . #'(ce_tok s)))
+      (set (-> t kind) CE_FIELD)
+      (set (-> t tag) tag)
+      (set (-> t str) (strdup v))))
+
+  ;; a cursor's header: the OPEN byte and the column list its reader
+  ;; takes off the stream right after it
+  (func emit_open ((CeSess * s) (const char * columns)) (out void)
+    (emit_result s CE_OPEN)
+    (emit_str s CE_TDB_STRING columns))
+
+  ;; ---- argument access ----------------------------------------------
+
+  (func arg_num ((CeSess * s) (int i)) (out int64_t)
+    (if (>= i (-> s argc)) (return 0))
+    (return (nth i (-> s anum))))
+
+  (func arg_str ((CeSess * s) (int i)) (out const char *)
+    (if (>= i (-> s argc)) (return ""))
+    (if (== (nth i (-> s astr)) nil) (return ""))
+    (return (nth i (-> s astr))))
+
+  ;; ---- table scans ---------------------------------------------------
+  ;; Each context carries the session (to emit into), the filter, and --
+  ;; for the procedures that delete -- the ids of what matched, because a
+  ;; row is never deleted under the cursor that is handing it out: collect
+  ;; the ids, let the walk finish, then take each row through its ID index.
+
+  (struct CeIds
+    (member int64_t * v)
+    (member int n)
+    (member int cap))
+
+  (func ce_ids_push ((CeIds * ids) (int64_t id)) (out void)
+    (if (>= (-> ids n) (-> ids cap))
+        (block
+          (let ((int grown . #'(? (== (-> ids cap) 0) 32 (* (-> ids cap) 2))))
+            (set (-> ids v)
+                 (cast (int64_t *) (realloc (cast (void *) (-> ids v))
+                                            (* (cast size_t grown) (sizeof int64_t)))))
+            (set (-> ids cap) grown))))
+    (set (nth (-> ids n) (-> ids v)) id)
+    (set (-> ids n) (+ (-> ids n) 1)))
+
+  (func ce_ids_free ((CeIds * ids)) (out void)
+    (if (!= (-> ids v) nil) (free (cast (void *) (-> ids v))))
+    (set (-> ids v) nil)
+    (set (-> ids n) 0)
+    (set (-> ids cap) 0))
+
+  ;; ---- clauses -------------------------------------------------------
+
+  (struct ClausesCtx
+    (member CeSess * s)
+    (member const char * kb)
+    (member const char * name)         ;; nil matches every name
+    (member int64_t arity)             ;; matched only when name is set
+    (member int emit)                  ;; 0 count, 1 (ordinal, body), 2 (name, arity, ordinal)
+    (member int collect)
+    (member int64_t count)
+    (member CeIds ids))
+
+  (func clauses_cb ((void * u) (COCOLOG_CLAUSES * r)) (out bool)
+    (let ((ClausesCtx * c . #'(cast (ClausesCtx *) u)))
+      (if (!= 0 (strcmp (($ (-> r KB) c_str)) (-> c kb))) (return #t))
+      (if (!= (-> c name) nil)
+          (block
+            (if (!= 0 (strcmp (($ (-> r NAME) c_str)) (-> c name))) (return #t))
+            (if (!= (-> r ARITY) (-> c arity)) (return #t))))
+      (set (-> c count) (+ (-> c count) 1))
+      (if (== (-> c emit) 1)
+          (block
+            (emit_result (-> c s) CE_FETCH)
+            (emit_num (-> c s) CE_TDB_LONG (-> r ORDINAL))
+            (emit_str (-> c s) CE_TDB_TEXT (($ (-> r BODY) c_str)))))
+      (if (== (-> c emit) 2)
+          (block
+            (emit_result (-> c s) CE_FETCH)
+            (emit_str (-> c s) CE_TDB_STRING (($ (-> r NAME) c_str)))
+            (emit_num (-> c s) CE_TDB_INT (-> r ARITY))
+            (emit_num (-> c s) CE_TDB_LONG (-> r ORDINAL))))
+      (if (== (-> c collect) 1) (ce_ids_push (aof (-> c ids)) (-> r ID)))
+      (return #t)))
+
+  (struct ClauseRowCtx
+    (member COCOLOG_CLAUSES row)
+    (member int got))
+
+  (func clause_row_cb ((void * u) (COCOLOG_CLAUSES * r)) (out bool)
+    (let ((ClauseRowCtx * c . #'(cast (ClauseRowCtx *) u)))
+      (set (-> c row) (cof r))
+      (set (-> c got) 1)
+      (return #t)))
+
+  (func clauses_delete_ids ((CeIds * ids)) (out void)
+    (let ((int i . 0))
+      (while (< i (-> ids n))
+        (let ((ClauseRowCtx c))
+          (set ($ c got) 0)
+          (IDX_COCOLOG_CLAUSES_ID_equal (aof ce_mem) (nth i (-> ids v))
+                                        (cast (void *) (aof c)) clause_row_cb)
+          (if (== ($ c got) 1)
+              (COCOLOG_CLAUSES_delete (aof ce_mem) (aof ($ c row)))))
+        (set i (+ i 1)))))
+
+  ;; ---- props ---------------------------------------------------------
+
+  (struct PropsCtx
+    (member CeSess * s)
+    (member const char * kb)
+    (member const char * name)
+    (member int64_t arity)
+    (member int emit)                  ;; 1 (name, arity, dynamic)
+    (member int collect)
+    (member int64_t count)
+    (member CeIds ids))
+
+  (func props_cb ((void * u) (COCOLOG_PROPS * r)) (out bool)
+    (let ((PropsCtx * c . #'(cast (PropsCtx *) u)))
+      (if (!= 0 (strcmp (($ (-> r KB) c_str)) (-> c kb))) (return #t))
+      (if (!= (-> c name) nil)
+          (block
+            (if (!= 0 (strcmp (($ (-> r NAME) c_str)) (-> c name))) (return #t))
+            (if (!= (-> r ARITY) (-> c arity)) (return #t))))
+      (set (-> c count) (+ (-> c count) 1))
+      (if (== (-> c emit) 1)
+          (block
+            (emit_result (-> c s) CE_FETCH)
+            (emit_str (-> c s) CE_TDB_STRING (($ (-> r NAME) c_str)))
+            (emit_num (-> c s) CE_TDB_INT (-> r ARITY))
+            (emit_num (-> c s) CE_TDB_INT (-> r DYNAMIC))))
+      (if (== (-> c collect) 1) (ce_ids_push (aof (-> c ids)) (-> r ID)))
+      (return #t)))
+
+  (struct PropsRowCtx
+    (member COCOLOG_PROPS row)
+    (member int got))
+
+  (func props_row_cb ((void * u) (COCOLOG_PROPS * r)) (out bool)
+    (let ((PropsRowCtx * c . #'(cast (PropsRowCtx *) u)))
+      (set (-> c row) (cof r))
+      (set (-> c got) 1)
+      (return #t)))
+
+  (func props_delete_ids ((CeIds * ids)) (out void)
+    (let ((int i . 0))
+      (while (< i (-> ids n))
+        (let ((PropsRowCtx c))
+          (set ($ c got) 0)
+          (IDX_COCOLOG_PROPS_ID_equal (aof ce_mem) (nth i (-> ids v))
+                                      (cast (void *) (aof c)) props_row_cb)
+          (if (== ($ c got) 1)
+              (COCOLOG_PROPS_delete (aof ce_mem) (aof ($ c row)))))
+        (set i (+ i 1)))))
+
+  ;; ---- machines ------------------------------------------------------
+
+  (struct MachinesCtx
+    (member CeSess * s)
+    (member const char * kb)           ;; nil = any
+    (member const char * name)         ;; nil = any
+    (member const char * status)       ;; nil = any
+    (member int emit)                  ;; 1 machine_find, 2 machine_list
+    (member int first_only)
+    (member int got)
+    (member COCOLOG_MACHINES row))
+
+  (func machines_cb ((void * u) (COCOLOG_MACHINES * r)) (out bool)
+    (let ((MachinesCtx * c . #'(cast (MachinesCtx *) u)))
+      (if (and (== (-> c first_only) 1) (== (-> c got) 1)) (return #f))
+      (if (!= (-> c kb) nil)
+          (if (!= 0 (strcmp (($ (-> r KB) c_str)) (-> c kb))) (return #t)))
+      (if (!= (-> c name) nil)
+          (if (!= 0 (strcmp (($ (-> r NAME) c_str)) (-> c name))) (return #t)))
+      (if (!= (-> c status) nil)
+          (if (!= 0 (strcmp (($ (-> r STATUS) c_str)) (-> c status))) (return #t)))
+      (set (-> c row) (cof r))
+      (set (-> c got) (+ (-> c got) 1))
+      (if (== (-> c emit) 1)
+          (block
+            (emit_result (-> c s) CE_FETCH)
+            (emit_num (-> c s) CE_TDB_LONG (-> r ID))
+            (emit_str (-> c s) CE_TDB_STRING (($ (-> r KB) c_str)))
+            (emit_str (-> c s) CE_TDB_STRING (($ (-> r STATUS) c_str)))
+            (emit_num (-> c s) CE_TDB_INT (-> r CHUNKS))))
+      (if (== (-> c emit) 2)
+          (block
+            (emit_result (-> c s) CE_FETCH)
+            (emit_str (-> c s) CE_TDB_STRING (($ (-> r NAME) c_str)))
+            (emit_str (-> c s) CE_TDB_STRING (($ (-> r STATUS) c_str)))
+            (emit_num (-> c s) CE_TDB_INT (-> r CHUNKS))))
+      (return #t)))
+
+  ;; ---- machine state -------------------------------------------------
+
+  (struct StateCtx
+    (member CeSess * s)
+    (member int emit)                  ;; 1 (seq, chunk)
+    (member int collect)
+    (member CeIds ids))
+
+  (func state_cb ((void * u) (COCOLOG_MACHINE_STATE * r)) (out bool)
+    (let ((StateCtx * c . #'(cast (StateCtx *) u)))
+      (if (== (-> c emit) 1)
+          (block
+            (emit_result (-> c s) CE_FETCH)
+            (emit_num (-> c s) CE_TDB_INT (-> r SEQ))
+            (emit_str (-> c s) CE_TDB_TEXT (($ (-> r CHUNK) c_str)))))
+      (if (== (-> c collect) 1) (ce_ids_push (aof (-> c ids)) (-> r ID)))
+      (return #t)))
+
+  (struct StateRowCtx
+    (member COCOLOG_MACHINE_STATE row)
+    (member int got))
+
+  (func state_row_cb ((void * u) (COCOLOG_MACHINE_STATE * r)) (out bool)
+    (let ((StateRowCtx * c . #'(cast (StateRowCtx *) u)))
+      (set (-> c row) (cof r))
+      (set (-> c got) 1)
+      (return #t)))
+
+  (func state_delete_ids ((CeIds * ids)) (out void)
+    (let ((int i . 0))
+      (while (< i (-> ids n))
+        (let ((StateRowCtx c))
+          (set ($ c got) 0)
+          (IDX_COCOLOG_MACHINE_STATE_ID_equal (aof ce_mem) (nth i (-> ids v))
+                                              (cast (void *) (aof c)) state_row_cb)
+          (if (== ($ c got) 1)
+              (COCOLOG_MACHINE_STATE_delete (aof ce_mem) (aof ($ c row)))))
+        (set i (+ i 1)))))
+
+  ;; drops every state row of one machine: collect under the MACHINE_ID
+  ;; index, then delete through the ID index
+  (func state_drop_of ((int64_t machine_id)) (out void)
+    (let ((StateCtx c))
+      (set ($ c s) nil)
+      (set ($ c emit) 0)
+      (set ($ c collect) 1)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (IDX_COCOLOG_MACHINE_STATE_MACHINE_ID_equal (aof ce_mem) machine_id
+                                                  (cast (void *) (aof c)) state_cb)
+      (state_delete_ids (aof ($ c ids)))
+      (ce_ids_free (aof ($ c ids)))))
+
+  ;; finds one machine's row by name; answers whether it was there
+  (func machine_by_name ((const char * name) (COCOLOG_MACHINES * out_row)) (out int)
+    (let ((MachinesCtx c))
+      (set ($ c s) nil)
+      (set ($ c kb) nil)
+      (set ($ c name) name)
+      (set ($ c status) nil)
+      (set ($ c emit) 0)
+      (set ($ c first_only) 1)
+      (set ($ c got) 0)
+      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (if (== ($ c got) 0) (return 0))
+      (set (cof out_row) ($ c row))
+      (return 1)))
+
+  ;; ---- the procedures ------------------------------------------------
+  ;; Each is 02-procedures.parsi's body over the generated tables. The
+  ;; cursor procedures emit OPEN / FETCH... / CLOSE / DONE; the Long and
+  ;; String ones emit RETURN / value / DONE -- the exact shapes the wire
+  ;; client reads.
+
+  (func run_assert_clause ((CeSess * s)) (out void)
+    (let ((int64_t id . #'(COCOLOG_CLAUSES_SEQ_next)))
+      (let ((COCOLOG_CLAUSES row))
+        (set ($ row ID) id)
+        (set ($ row KB) (std::string (arg_str s 0)))
+        (set ($ row NAME) (std::string (arg_str s 1)))
+        (set ($ row ARITY) (arg_num s 2))
+        (set ($ row ORDINAL) (arg_num s 3))
+        (set ($ row BODY) (std::string (arg_str s 4)))
+        (COCOLOG_CLAUSES_insert (aof ce_mem) (aof row)))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG id)
+      (emit_result s CE_DONE)))
+
+  (func run_clauses_of ((CeSess * s)) (out void)
+    (let ((ClausesCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) (arg_str s 1))
+      (set ($ c arity) (arg_num s 2))
+      (set ($ c emit) 1)
+      (set ($ c collect) 0)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (emit_open s "ordinal, body")
+      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (emit_result s CE_CLOSE)
+      (emit_result s CE_DONE)))
+
+  (func run_clause_count ((CeSess * s)) (out void)
+    (let ((ClausesCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) (arg_str s 1))
+      (set ($ c arity) (arg_num s 2))
+      (set ($ c emit) 0)
+      (set ($ c collect) 0)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG ($ c count))
+      (emit_result s CE_DONE)))
+
+  (func run_predicates_of ((CeSess * s)) (out void)
+    (let ((ClausesCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) nil)
+      (set ($ c arity) 0)
+      (set ($ c emit) 2)
+      (set ($ c collect) 0)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (emit_open s "name, arity, ordinal")
+      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (emit_result s CE_CLOSE)
+      (emit_result s CE_DONE)))
+
+  (func run_declare_dynamic ((CeSess * s)) (out void)
+    (let ((PropsCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) (arg_str s 1))
+      (set ($ c arity) (arg_num s 2))
+      (set ($ c emit) 0)
+      (set ($ c collect) 0)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof c)) props_cb)
+      (if (> ($ c count) 0)
+          (block
+            (emit_result s CE_RETURN)
+            (emit_num s CE_TDB_LONG 0)
+            (emit_result s CE_DONE)
+            (return)))
+      (let ((int64_t id . #'(COCOLOG_PROPS_SEQ_next)))
+        (let ((COCOLOG_PROPS row))
+          (set ($ row ID) id)
+          (set ($ row KB) (std::string (arg_str s 0)))
+          (set ($ row NAME) (std::string (arg_str s 1)))
+          (set ($ row ARITY) (arg_num s 2))
+          (set ($ row DYNAMIC) 1)
+          (COCOLOG_PROPS_insert (aof ce_mem) (aof row))))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG 1)
+      (emit_result s CE_DONE)))
+
+  (func run_props_of ((CeSess * s)) (out void)
+    (let ((PropsCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) nil)
+      (set ($ c arity) 0)
+      (set ($ c emit) 1)
+      (set ($ c collect) 0)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (emit_open s "name, arity, dynamic")
+      (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof c)) props_cb)
+      (emit_result s CE_CLOSE)
+      (emit_result s CE_DONE)))
+
+  ;; forget_clauses / forget / forget_all share one shape: count and
+  ;; collect what matches, delete it, and for the two `forget's take the
+  ;; props rows with it
+  (func run_forget_kind ((CeSess * s) (int with_props) (int whole_kb)) (out void)
+    (let ((ClausesCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) (? (== whole_kb 1) nil (arg_str s 1)))
+      (set ($ c arity) (? (== whole_kb 1) 0 (arg_num s 2)))
+      (set ($ c emit) 0)
+      (set ($ c collect) 1)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (clauses_delete_ids (aof ($ c ids)))
+      (ce_ids_free (aof ($ c ids)))
+      (if (== with_props 1)
+          (let ((PropsCtx p))
+            (set ($ p s) s)
+            (set ($ p kb) (arg_str s 0))
+            (set ($ p name) (? (== whole_kb 1) nil (arg_str s 1)))
+            (set ($ p arity) (? (== whole_kb 1) 0 (arg_num s 2)))
+            (set ($ p emit) 0)
+            (set ($ p collect) 1)
+            (set ($ p count) 0)
+            (set ($ ($ p ids) v) nil) (set ($ ($ p ids) n) 0) (set ($ ($ p ids) cap) 0)
+            (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof p)) props_cb)
+            (props_delete_ids (aof ($ p ids)))
+            (ce_ids_free (aof ($ p ids)))))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG ($ c count))
+      (emit_result s CE_DONE)))
+
+  (func run_machine_open ((CeSess * s)) (out void)
+    ;; a machine name is unique: saving over one clears the old machine
+    ;; and its chunks first, exactly as the Parsi procedure does
+    (let ((COCOLOG_MACHINES old))
+      (if (== 1 (machine_by_name (arg_str s 0) (aof old)))
+          (block
+            (state_drop_of ($ old ID))
+            (COCOLOG_MACHINES_delete (aof ce_mem) (aof old)))))
+    (let ((int64_t id . #'(COCOLOG_MACHINES_SEQ_next)))
+      (let ((COCOLOG_MACHINES row))
+        (set ($ row ID) id)
+        (set ($ row NAME) (std::string (arg_str s 0)))
+        (set ($ row KB) (std::string (arg_str s 1)))
+        (set ($ row STATUS) (std::string (arg_str s 2)))
+        (set ($ row CHUNKS) (arg_num s 3))
+        (set ($ row NOTE) (std::string (arg_str s 4)))
+        (COCOLOG_MACHINES_insert (aof ce_mem) (aof row)))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG id)
+      (emit_result s CE_DONE)))
+
+  (func run_machine_chunk ((CeSess * s)) (out void)
+    (let ((int64_t id . #'(COCOLOG_MACHINE_STATE_SEQ_next)))
+      (let ((COCOLOG_MACHINE_STATE row))
+        (set ($ row ID) id)
+        (set ($ row MACHINE_ID) (arg_num s 0))
+        (set ($ row SEQ) (arg_num s 1))
+        (set ($ row CHUNK) (std::string (arg_str s 2)))
+        (COCOLOG_MACHINE_STATE_insert (aof ce_mem) (aof row)))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG id)
+      (emit_result s CE_DONE)))
+
+  (func run_machine_find ((CeSess * s)) (out void)
+    (let ((MachinesCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) nil)
+      (set ($ c name) (arg_str s 0))
+      (set ($ c status) nil)
+      (set ($ c emit) 1)
+      (set ($ c first_only) 0)
+      (set ($ c got) 0)
+      (emit_open s "id, kb, status, chunks")
+      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (emit_result s CE_CLOSE)
+      (emit_result s CE_DONE)))
+
+  (func run_machine_load ((CeSess * s)) (out void)
+    (let ((StateCtx c))
+      (set ($ c s) s)
+      (set ($ c emit) 1)
+      (set ($ c collect) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (emit_open s "seq, chunk")
+      (IDX_COCOLOG_MACHINE_STATE_MACHINE_ID_equal (aof ce_mem) (arg_num s 0)
+                                                  (cast (void *) (aof c)) state_cb)
+      (emit_result s CE_CLOSE)
+      (emit_result s CE_DONE)))
+
+  (func run_machine_list ((CeSess * s)) (out void)
+    (let ((MachinesCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) nil)
+      (set ($ c status) nil)
+      (set ($ c emit) 2)
+      (set ($ c first_only) 0)
+      (set ($ c got) 0)
+      (emit_open s "name, status, chunks")
+      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (emit_result s CE_CLOSE)
+      (emit_result s CE_DONE)))
+
+  (func run_machine_drop ((CeSess * s)) (out void)
+    (let ((COCOLOG_MACHINES old) (int64_t found . 0))
+      (if (== 1 (machine_by_name (arg_str s 0) (aof old)))
+          (block
+            (set found ($ old ID))
+            (state_drop_of ($ old ID))
+            (COCOLOG_MACHINES_delete (aof ce_mem) (aof old))))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG found)
+      (emit_result s CE_DONE)))
+
+  ;; the claims: a read of an idle machine and a write of the row that
+  ;; was read, inside a SERIALIZABLE transaction -- the engine's gate of
+  ;; one is what keeps two workers from both walking away owning it
+  (func run_machine_claim ((CeSess * s) (int named)) (out void)
+    (set_isolation_level (txn) SERIALIZABLE)
+    (let ((MachinesCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (? (== named 1) nil (arg_str s 0)))
+      (set ($ c name) (? (== named 1) (arg_str s 0) nil))
+      (set ($ c status) "suspended")
+      (set ($ c emit) 0)
+      (set ($ c first_only) 1)
+      (set ($ c got) 0)
+      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (if (== ($ c got) 0)
+          (block
+            (emit_result s CE_RETURN)
+            (emit_str s CE_TDB_STRING "")
+            (emit_result s CE_DONE)
+            (return)))
+      (let ((COCOLOG_MACHINES claimed . #'($ c row)))
+        (set ($ claimed STATUS) (std::string (arg_str s 1)))
+        (COCOLOG_MACHINES_update (aof ce_mem) (aof ($ c row)) (aof claimed))
+        (emit_result s CE_RETURN)
+        (emit_str s CE_TDB_STRING (($ ($ claimed NAME) c_str)))
+        (emit_result s CE_DONE))))
+
+  (func run_machine_release ((CeSess * s)) (out void)
+    (let ((COCOLOG_MACHINES old))
+      (if (== 1 (machine_by_name (arg_str s 0) (aof old)))
+          (let ((COCOLOG_MACHINES back . old))
+            (set ($ back STATUS) (std::string "suspended"))
+            (COCOLOG_MACHINES_update (aof ce_mem) (aof old) (aof back)))))
+    (emit_result s CE_RETURN)
+    (emit_num s CE_TDB_LONG 1)
+    (emit_result s CE_DONE))
+
+  ;; ---- dispatch and the exception boundary ---------------------------
+
+  (func ce_dispatch ((CeSess * s)) (out int)
+    (let ((const char * p . #'(-> s proc)))
+      (cond
+        ((== 0 (strcmp p "cocolog::assert_clause"))      (run_assert_clause s))
+        ((== 0 (strcmp p "cocolog::clauses_of"))         (run_clauses_of s))
+        ((== 0 (strcmp p "cocolog::clause_count"))       (run_clause_count s))
+        ((== 0 (strcmp p "cocolog::predicates_of"))      (run_predicates_of s))
+        ((== 0 (strcmp p "cocolog::declare_dynamic"))    (run_declare_dynamic s))
+        ((== 0 (strcmp p "cocolog::props_of"))           (run_props_of s))
+        ((== 0 (strcmp p "cocolog::forget_clauses"))     (run_forget_kind s 0 0))
+        ((== 0 (strcmp p "cocolog::forget"))             (run_forget_kind s 1 0))
+        ((== 0 (strcmp p "cocolog::forget_all"))         (run_forget_kind s 1 1))
+        ((== 0 (strcmp p "cocolog::machine_open"))       (run_machine_open s))
+        ((== 0 (strcmp p "cocolog::machine_chunk"))      (run_machine_chunk s))
+        ((== 0 (strcmp p "cocolog::machine_find"))       (run_machine_find s))
+        ((== 0 (strcmp p "cocolog::machine_load"))       (run_machine_load s))
+        ((== 0 (strcmp p "cocolog::machine_list"))       (run_machine_list s))
+        ((== 0 (strcmp p "cocolog::machine_drop"))       (run_machine_drop s))
+        ((== 0 (strcmp p "cocolog::machine_claim"))      (run_machine_claim s 0))
+        ((== 0 (strcmp p "cocolog::machine_claim_named")) (run_machine_claim s 1))
+        ((== 0 (strcmp p "cocolog::machine_release"))    (run_machine_release s))
+        (#t (return (ce_fail s "no such procedure"))))
+      (return 1)))
+
+  ;; runs the buffered call. An exception rolls the transaction back and
+  ;; fails the call, which is what the server's request loop does -- the
+  ;; client treats it as a lost connection and reopens, and reopening a
+  ;; session here is just a fresh transaction.
+  (func ce_exec ((CeSess * s)) (out int)
+    (set (-> s executed) 1)
+    (let ((int ok . 0))
+      (try
+        (block
+          (set ok (ce_dispatch s)))
+        (catch ((const ZiguratException & e))
+          (ce_toks_clear s)
+          (snprintf (-> s err) 512 "the store refused it: %s" (($ e what)))
+          (try (rollback_transaction (aof ce_mem))
+               (catch ((const ZiguratException & e2)) (cast void e2)))
+          (begin_transaction (aof ce_mem))
+          (set ok 0)))
+      (ce_args_clear s)
+      (return ok)))
+
+  ;; ---- the extern-C surface: what client/zigurat.c dispatches to -----
+
+  (extern-c
+
+    (func ce_engine_open ((const char * dir) (char * err) (size_t errcap)) (out int)
+      (pthread_mutex_lock (aof ce_open_access))
+      (if (> ce_open_count 0)
+          (block
+            (set ce_open_count (+ ce_open_count 1))
+            (pthread_mutex_unlock (aof ce_open_access))
+            (return 1)))
+      (let ((char hexpath [512]) (char datapath [512]) (int fresh . 0))
+        (mkdir dir 0755)
+        (snprintf hexpath 512 "%s/hexmap.bin" dir)
+        (snprintf datapath 512 "%s/data.bin" dir)
+        (if (!= 0 (access datapath F_OK)) (set fresh 1))
+        (let ((int ok . 1))
+          (try
+            (block
+              (if (== fresh 1)
+                  (block
+                    (set ce_hexmap (new* Zigurat::filestream (std::string hexpath)
+                                         (bitor std::ios::in (bitor std::ios::out std::ios::trunc))))
+                    (set ce_data (new* Zigurat::filestream (std::string datapath)
+                                       (bitor std::ios::in (bitor std::ios::out std::ios::trunc)))))
+                (block
+                  (set ce_hexmap (new* Zigurat::filestream (std::string hexpath)
+                                       (bitor std::ios::in std::ios::out)))
+                  (set ce_data (new* Zigurat::filestream (std::string datapath)
+                                     (bitor std::ios::in std::ios::out)))))
+              (memory_open (aof ce_mem) (cast (binarystream *) ce_hexmap)
+                           (cast (binarystream *) ce_data) 8192)
+              (IDX_COCOLOG_CLAUSES_ID_attach (aof ce_mem))
+              (IDX_COCOLOG_PROPS_ID_attach (aof ce_mem))
+              (IDX_COCOLOG_MACHINES_ID_attach (aof ce_mem))
+              (IDX_COCOLOG_MACHINE_STATE_ID_attach (aof ce_mem))
+              (IDX_COCOLOG_MACHINE_STATE_MACHINE_ID_attach (aof ce_mem))
+              (COCOLOG_CLAUSES_SEQ_attach (aof ce_mem))
+              (COCOLOG_PROPS_SEQ_attach (aof ce_mem))
+              (COCOLOG_MACHINES_SEQ_attach (aof ce_mem))
+              (COCOLOG_MACHINE_STATE_SEQ_attach (aof ce_mem))
+              ;; the open transaction the first session inherits is not
+              ;; wanted -- sessions begin their own
+              (commit_transaction (aof ce_mem)))
+            (catch ((const ZiguratException & e))
+              (if (and (!= err nil) (> errcap 0))
+                  (snprintf err errcap "cannot open the store in %s: %s" dir (($ e what))))
+              (set ok 0)))
+          (if (== ok 0) (block (pthread_mutex_unlock (aof ce_open_access)) (return 0))))
+        (set ce_open_count 1)
+        (pthread_mutex_unlock (aof ce_open_access))
+        (return 1)))
+
+    (func ce_engine_close () (out void)
+      (pthread_mutex_lock (aof ce_open_access))
+      (if (> ce_open_count 0) (set ce_open_count (- ce_open_count 1)))
+      (if (== ce_open_count 0)
+          (try (sync_disk (aof ce_mem))
+               (catch ((const ZiguratException & e)) (cast void e))))
+      (pthread_mutex_unlock (aof ce_open_access)))
+
+    (func ce_session_new () (out void *)
+      (let ((CeSess * s . #'(cast (CeSess *) (calloc 1 (sizeof CeSess)))))
+        (if (== s nil) (return nil))
+        (try
+          (begin_transaction (aof ce_mem))
+          (catch ((const ZiguratException & e))
+            (cast void e)
+            (free (cast (void *) s))
+            (return nil)))
+        (return (cast (void *) s))))
+
+    (func ce_session_free ((void * sp)) (out void)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (== s nil) (return))
+        (try (rollback_transaction (aof ce_mem))
+             (catch ((const ZiguratException & e)) (cast void e)))
+        (ce_toks_clear s)
+        (ce_args_clear s)
+        (if (!= (-> s toks) nil) (free (cast (void *) (-> s toks))))
+        (free (cast (void *) s))))
+
+    (func ce_error ((void * sp)) (out const char *)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (== s nil) (return "no session"))
+        (return (cast (const char *) (-> s err)))))
+
+    (func ce_call ((void * sp) (const char * proc)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (ce_toks_clear s)
+        (ce_args_clear s)
+        (set (nth 0 (-> s err)) 0)
+        (set (-> s executed) 0)
+        (snprintf (-> s proc) 160 "%s" proc)
+        (return 1)))
+
+    (func ce_write_num ((void * sp) (int tag) (llong v)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s argc) 8) (return (ce_fail s "too many parameters")))
+        (set (nth (-> s argc) (-> s atag)) (cast uint8_t tag))
+        (set (nth (-> s argc) (-> s anum)) (cast int64_t v))
+        (set (nth (-> s argc) (-> s astr)) nil)
+        (set (-> s argc) (+ (-> s argc) 1))
+        (return 1)))
+
+    (func ce_write_str ((void * sp) (int tag) (const char * v)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s argc) 8) (return (ce_fail s "too many parameters")))
+        (set (nth (-> s argc) (-> s atag)) (cast uint8_t tag))
+        (set (nth (-> s argc) (-> s anum)) 0)
+        (set (nth (-> s argc) (-> s astr)) (strdup v))
+        (set (-> s argc) (+ (-> s argc) 1))
+        (return 1)))
+
+    (func ce_result ((void * sp) (int * out)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (== (-> s executed) 0)
+            (if (== 0 (ce_exec s)) (return 0)))
+        (if (>= (-> s rtok) (-> s ntoks))
+            (return (ce_fail s "nothing left to read")))
+        (let ((CeTok * t . #'(aof (nth (-> s rtok) (-> s toks)))))
+          (if (!= (-> t kind) CE_RESULT)
+              (return (ce_fail s "a field is next, not a result")))
+          (set (-> s rtok) (+ (-> s rtok) 1))
+          (if (!= out nil) (set (cof out) (cast int (-> t code))))
+          (return 1))))
+
+    ;; the column list that follows a CURSOR_OPEN
+    (func ce_columns ((void * sp) (char * buf) (size_t cap)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s rtok) (-> s ntoks))
+            (return (ce_fail s "nothing left to read")))
+        (let ((CeTok * t . #'(aof (nth (-> s rtok) (-> s toks)))))
+          (if (or (!= (-> t kind) CE_FIELD) (== (-> t str) nil))
+              (return (ce_fail s "no column list here")))
+          (set (-> s rtok) (+ (-> s rtok) 1))
+          (if (> cap 0) (snprintf buf cap "%s" (-> t str)))
+          (return 1))))
+
+    (func ce_read_num ((void * sp) (llong * v)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s rtok) (-> s ntoks))
+            (return (ce_fail s "nothing left to read")))
+        (let ((CeTok * t . #'(aof (nth (-> s rtok) (-> s toks)))))
+          (if (!= (-> t kind) CE_FIELD)
+              (return (ce_fail s "a result is next, not a field")))
+          (set (-> s rtok) (+ (-> s rtok) 1))
+          (if (!= v nil) (set (cof v) (cast llong (-> t num))))
+          (return 1))))
+
+    (func ce_read_str ((void * sp) (char * buf) (size_t cap)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s rtok) (-> s ntoks))
+            (return (ce_fail s "nothing left to read")))
+        (let ((CeTok * t . #'(aof (nth (-> s rtok) (-> s toks)))))
+          (if (or (!= (-> t kind) CE_FIELD) (== (-> t str) nil))
+              (return (ce_fail s "no string field here")))
+          (set (-> s rtok) (+ (-> s rtok) 1))
+          (if (> cap 0) (snprintf buf cap "%s" (-> t str)))
+          (return 1))))
+
+    (func ce_read_str_alloc ((void * sp) (char ** out) (size_t * len)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s rtok) (-> s ntoks))
+            (return (ce_fail s "nothing left to read")))
+        (let ((CeTok * t . #'(aof (nth (-> s rtok) (-> s toks)))))
+          (if (or (!= (-> t kind) CE_FIELD) (== (-> t str) nil))
+              (return (ce_fail s "no text field here")))
+          (set (-> s rtok) (+ (-> s rtok) 1))
+          (if (!= out nil) (set (cof out) (strdup (-> t str))))
+          (if (!= len nil) (set (cof len) (strlen (-> t str))))
+          (return 1))))
+
+    (func ce_skip ((void * sp)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s rtok) (-> s ntoks))
+            (return (ce_fail s "nothing left to read")))
+        (let ((CeTok * t . #'(aof (nth (-> s rtok) (-> s toks)))))
+          (if (!= (-> t kind) CE_FIELD)
+              (return (ce_fail s "a result is next, not a field")))
+          (set (-> s rtok) (+ (-> s rtok) 1))
+          (return 1))))
+
+    (func ce_commit ((void * sp)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (try
+          (block
+            (commit_transaction (aof ce_mem))
+            (begin_transaction (aof ce_mem)))
+          (catch ((const ZiguratException & e))
+            (snprintf (-> s err) 512 "commit: %s" (($ e what)))
+            (return 0)))
+        (return 1)))
+
+    (func ce_rollback ((void * sp)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (try
+          (block
+            (rollback_transaction (aof ce_mem))
+            (begin_transaction (aof ce_mem)))
+          (catch ((const ZiguratException & e))
+            (snprintf (-> s err) 512 "rollback: %s" (($ e what)))
+            (return 0)))
+        (return 1)))
+
+    (func ce_isolate ((void * sp) (int level)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (try
+          (set_isolation_level (txn) (cast IsolationLevel level))
+          (catch ((const ZiguratException & e))
+            (snprintf (-> s err) 512 "isolate: %s" (($ e what)))
+            (return 0)))
+        (return 1)))
+
+    ;; the embedded `redial': whatever was in flight is abandoned and the
+    ;; session gets a fresh transaction, like a socket reopened
+    (func ce_reset ((void * sp)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (ce_toks_clear s)
+        (ce_args_clear s)
+        (set (nth 0 (-> s err)) 0)
+        (set (-> s executed) 0)
+        (try
+          (block
+            (rollback_transaction (aof ce_mem))
+            (begin_transaction (aof ce_mem)))
+          (catch ((const ZiguratException & e))
+            (snprintf (-> s err) 512 "reopen: %s" (($ e what)))
+            (return 0)))
+        (return 1))))
+
+  )

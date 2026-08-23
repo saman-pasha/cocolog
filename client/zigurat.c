@@ -57,8 +57,36 @@
  * case is one syscall per exchange rather than one per byte. */
 #define ZG_IN_SIZE  8192
 
+/* THE EMBEDDED ENGINE, WHEN A BUILD CARRIES ONE. embed/embed.o implements
+ * the same eighteen procedures the server does, in-process, and these are
+ * its entry points. They are declared WEAK: a build that did not link the
+ * engine leaves them null, zg_open_embed then refuses with a message, and
+ * nothing else in this file is any different -- which is what keeps the
+ * client buildable with nothing but libc, as its head promises. */
+extern int  ce_engine_open(const char *dir, char *err, size_t errcap) __attribute__((weak));
+extern void ce_engine_close(void) __attribute__((weak));
+extern void *ce_session_new(void) __attribute__((weak));
+extern void ce_session_free(void *s) __attribute__((weak));
+extern const char *ce_error(void *s) __attribute__((weak));
+extern int  ce_call(void *s, const char *proc) __attribute__((weak));
+extern int  ce_write_num(void *s, int tag, long long v) __attribute__((weak));
+extern int  ce_write_str(void *s, int tag, const char *v) __attribute__((weak));
+extern int  ce_result(void *s, int *out) __attribute__((weak));
+extern int  ce_columns(void *s, char *buf, size_t cap) __attribute__((weak));
+extern int  ce_read_num(void *s, long long *v) __attribute__((weak));
+extern int  ce_read_str(void *s, char *buf, size_t cap) __attribute__((weak));
+extern int  ce_read_str_alloc(void *s, char **out, size_t *len) __attribute__((weak));
+extern int  ce_skip(void *s) __attribute__((weak));
+extern int  ce_commit(void *s) __attribute__((weak));
+extern int  ce_rollback(void *s) __attribute__((weak));
+extern int  ce_isolate(void *s, int level) __attribute__((weak));
+extern int  ce_reset(void *s) __attribute__((weak));
+
 struct zg_conn {
   int  fd;
+  /* the embedded session, when zg_open_embed made this handle; null on a
+   * socket handle, and every verb below branches on it first */
+  void *ce;
   uint64_t transaction_id;
   char err[512];
   /* Taking turns: see zg_serialise. lockfd is -1 when nothing is serialised
@@ -97,7 +125,7 @@ static int say2(zg_conn *c, const char *what, const char *detail)
 
 const char *zg_error(const zg_conn *c) { return c ? c->err : "no connection"; }
 
-int zg_is_open(const zg_conn *c) { return (c && c->fd >= 0) ? 1 : 0; }
+int zg_is_open(const zg_conn *c) { return (c && (c->ce || c->fd >= 0)) ? 1 : 0; }
 
 uint64_t zg_transaction_id(const zg_conn *c) { return c ? c->transaction_id : 0; }
 
@@ -145,6 +173,8 @@ static void give_turn(zg_conn *c)
 
 int zg_serialise(zg_conn *c, const char *path, int wait_seconds)
 {
+  /* an embedded store has no second process to take turns with */
+  if (c && c->ce) return 1;
   int fd;
   if (!c) return 0;
   if (c->lockfd >= 0) { give_turn(c); close(c->lockfd); c->lockfd = -1; }
@@ -486,16 +516,62 @@ zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
   return c;
 }
 
+zg_conn *zg_open_embed(const char *dir, char *err, size_t errcap)
+{
+  zg_conn *c;
+  if (!ce_engine_open) {
+    if (err) snprintf(err, errcap,
+                      "this build carries no embedded engine (see embed/build.sh)");
+    return NULL;
+  }
+  c = (zg_conn *)calloc(1, sizeof *c);
+  if (!c) {
+    if (err) snprintf(err, errcap, "out of memory");
+    return NULL;
+  }
+  c->fd     = -1;
+  c->lockfd = -1;
+  if (!ce_engine_open(dir, c->err, sizeof c->err)) {
+    if (err) snprintf(err, errcap, "%s", c->err);
+    free(c);
+    return NULL;
+  }
+  c->ce = ce_session_new();
+  if (!c->ce) {
+    if (err) snprintf(err, errcap, "cannot begin an embedded session");
+    ce_engine_close();
+    free(c);
+    return NULL;
+  }
+  if (err && errcap) err[0] = '\0';
+  return c;
+}
+
+/* the embedded verbs fail with the engine's words in this handle's err,
+ * so zg_error answers the same way for both ends */
+static int emb(zg_conn *c, int ok)
+{
+  if (ok) return 1;
+  return say(c, ce_error(c->ce));
+}
+
 int zg_reopen(zg_conn *c, const char *host, const char *service,
               int timeout_seconds)
 {
   if (!c) return 0;
+  if (c->ce) return emb(c, ce_reset(c->ce));
   return dial(c, host, service, timeout_seconds);
 }
 
 void zg_close(zg_conn *c)
 {
   if (!c) return;
+  if (c->ce) {
+    ce_session_free(c->ce);
+    ce_engine_close();
+    free(c);
+    return;
+  }
   give_turn(c);
   if (c->lockfd >= 0) close(c->lockfd);
   if (c->fd >= 0) close(c->fd);
@@ -511,6 +587,12 @@ int zg_result(zg_conn *c, zg_result_t *out)
 {
   uint8_t r;
   if (!c) return 0;
+  if (c->ce) {
+    int er = 0;
+    if (!ce_result(c->ce, &er)) return say(c, ce_error(c->ce));
+    if (out) *out = (zg_result_t)er;
+    return 1;
+  }
   if (!rd_u8(c, &r)) return 0;
   if (r == ZG_EXCEPTION_THROWN) {
     char msg[ZG_MAX_STRING + 1];
@@ -576,6 +658,7 @@ int zg_call(zg_conn *c, const char *procedure)
 {
   zg_result_t r = ZG_SUCCESSFUL_DONE;
   if (strlen(procedure) > ZG_MAX_STRING) return say(c, "a String is limited to 255 bytes");
+  if (c->ce) return emb(c, ce_call(c->ce, procedure));
   if (!verb(c, "call")) return 0;
   if (!wr_std_string(c, procedure)) return 0;
   if (!zg_result(c, &r)) return 0;
@@ -588,6 +671,7 @@ int zg_auto_commit(zg_conn *c, int on)
   zg_result_t r = ZG_SUCCESSFUL_DONE;
   uint8_t b = on ? 1 : 0;
   int ok;
+  if (c->ce) return 1;
   if (!verb(c, "auto_commit")) return 0;
   ok = wr(c, &b, 1) && zg_result(c, &r) && r == ZG_SUCCESSFUL_DONE;
   if (!ok && c->err[0] == '\0') return say(c, "auto_commit was refused");
@@ -598,6 +682,7 @@ int zg_isolate(zg_conn *c, zg_isolation_t level)
 {
   zg_result_t r = ZG_SUCCESSFUL_DONE;
   int ok;
+  if (c->ce) return emb(c, ce_isolate(c->ce, (int)level));
   if (!verb(c, "isolate")) return 0;
   ok = wr_u8(c, (uint8_t)level) && zg_result(c, &r) && r == ZG_SUCCESSFUL_DONE;
   if (!ok && c->err[0] == '\0') return say(c, "the isolation level was refused");
@@ -628,11 +713,20 @@ static int simple_verb(zg_conn *c, const char *name)
   return ok;
 }
 
-int zg_commit(zg_conn *c)   { return simple_verb(c, "commit"); }
-int zg_rollback(zg_conn *c) { return simple_verb(c, "rollback"); }
+int zg_commit(zg_conn *c)
+{
+  if (c && c->ce) return emb(c, ce_commit(c->ce));
+  return simple_verb(c, "commit");
+}
+int zg_rollback(zg_conn *c)
+{
+  if (c && c->ce) return emb(c, ce_rollback(c->ce));
+  return simple_verb(c, "rollback");
+}
 
 int zg_columns(zg_conn *c, char *out, size_t outcap)
 {
+  if (c->ce) return emb(c, ce_columns(c->ce, out, outcap));
   return rd_std_string(c, out, outcap);
 }
 
@@ -656,18 +750,30 @@ int zg_write_bool(zg_conn *c, int v)
   return wr_field(c, TDB_BOOL, &b, 1);
 }
 
-int zg_write_int(zg_conn *c, int32_t v)   { return wr_field(c, TDB_INT, &v, 4); }
-int zg_write_long(zg_conn *c, int64_t v)  { return wr_field(c, TDB_LONG, &v, 8); }
+int zg_write_int(zg_conn *c, int32_t v)
+{
+  if (c->ce) return emb(c, ce_write_num(c->ce, TDB_INT, (long long)v));
+  return wr_field(c, TDB_INT, &v, 4);
+}
+int zg_write_long(zg_conn *c, int64_t v)
+{
+  if (c->ce) return emb(c, ce_write_num(c->ce, TDB_LONG, (long long)v));
+  return wr_field(c, TDB_LONG, &v, 8);
+}
 int zg_write_double(zg_conn *c, double v) { return wr_field(c, TDB_DOUBLE, &v, sizeof v); }
 
 int zg_write_string(zg_conn *c, const char *s)
 {
+  if (strlen(s) > ZG_MAX_STRING) return say(c, "a String is limited to 255 bytes");
+  if (c->ce) return emb(c, ce_write_str(c->ce, TDB_STRING, s));
   if (!wr_u8(c, TDB_STRING)) return 0;
   return wr_std_string(c, s);
 }
 
 int zg_write_text(zg_conn *c, const char *s)
 {
+  if (strlen(s) > ZG_MAX_TEXT) return say(c, "a Text is limited to 65535 bytes");
+  if (c->ce) return emb(c, ce_write_str(c->ce, TDB_TEXT, s));
   if (!wr_u8(c, TDB_TEXT)) return 0;
   return wr_std_text(c, s);
 }
@@ -702,14 +808,39 @@ int zg_read_bool(zg_conn *c, int *v, int *is_null)
   return 1;
 }
 
-int zg_read_int(zg_conn *c, int32_t *v, int *is_null)   { return rd_scalar(c, v, 4, is_null); }
-int zg_read_long(zg_conn *c, int64_t *v, int *is_null)  { return rd_scalar(c, v, 8, is_null); }
+int zg_read_int(zg_conn *c, int32_t *v, int *is_null)
+{
+  if (c->ce) {
+    long long n = 0;
+    if (!ce_read_num(c->ce, &n)) return say(c, ce_error(c->ce));
+    if (v) *v = (int32_t)n;
+    if (is_null) *is_null = 0;
+    return 1;
+  }
+  return rd_scalar(c, v, 4, is_null);
+}
+int zg_read_long(zg_conn *c, int64_t *v, int *is_null)
+{
+  if (c->ce) {
+    long long n = 0;
+    if (!ce_read_num(c->ce, &n)) return say(c, ce_error(c->ce));
+    if (v) *v = (int64_t)n;
+    if (is_null) *is_null = 0;
+    return 1;
+  }
+  return rd_scalar(c, v, 8, is_null);
+}
 int zg_read_double(zg_conn *c, double *v, int *is_null) { return rd_scalar(c, v, sizeof(double), is_null); }
 
 int zg_read_string(zg_conn *c, char *buf, size_t cap, int *is_null)
 {
   uint8_t tdb;
   int null = 0;
+  if (c->ce) {
+    if (!ce_read_str(c->ce, buf, cap)) return say(c, ce_error(c->ce));
+    if (is_null) *is_null = 0;
+    return 1;
+  }
   if (!field_head(c, &tdb, &null)) return 0;
   if (is_null) *is_null = null;
   if (null) { if (cap) buf[0] = '\0'; return 1; }
@@ -721,6 +852,11 @@ int zg_read_text(zg_conn *c, char *buf, size_t cap, int *is_null)
   uint8_t tdb;
   uint16_t n;
   int null = 0;
+  if (c->ce) {
+    if (!ce_read_str(c->ce, buf, cap)) return say(c, ce_error(c->ce));
+    if (is_null) *is_null = 0;
+    return 1;
+  }
   if (!field_head(c, &tdb, &null)) return 0;
   if (is_null) *is_null = null;
   if (null) { if (cap) buf[0] = '\0'; return 1; }
@@ -743,6 +879,11 @@ int zg_read_text_alloc(zg_conn *c, char **out, size_t *len, int *is_null)
 
   if (out) *out = NULL;
   if (len) *len = 0;
+  if (c->ce) {
+    if (!ce_read_str_alloc(c->ce, out, len)) return say(c, ce_error(c->ce));
+    if (is_null) *is_null = 0;
+    return 1;
+  }
   if (!field_head(c, &tdb, &null)) return 0;
   if (is_null) *is_null = null;
   if (null) return 1;
@@ -765,6 +906,7 @@ int zg_skip_field(zg_conn *c)
   uint8_t tdb;
   int null = 0;
   unsigned esize;
+  if (c->ce) return emb(c, ce_skip(c->ce));
 
   if (!field_head(c, &tdb, &null)) return 0;
   if (null) return 1;

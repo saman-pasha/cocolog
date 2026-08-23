@@ -79,6 +79,8 @@
      (decl) (func zg_open ((const char * host) (const char * service)
                            (int timeout_seconds) (char * err) (size_t errcap))
                   (out zg_conn *))
+     (decl) (func zg_open_embed ((const char * dir) (char * err) (size_t errcap))
+                  (out zg_conn *))
      (decl) (func zg_close ((zg_conn * c)))
      ;; Dials again down the same connection object, so everything holding the
      ;; pointer -- a coco_zg, above all -- stays valid across the recovery.

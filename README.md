@@ -302,6 +302,37 @@ The rest is in [STATUS.md](STATUS.md): why an empty claim means two different
 things, why "the machine is gone" is not proof the first time you see it, and
 what had to be fixed in ZiguratIP before any of this held.
 
+## The same twelve, embedded
+
+The knowledge base is a seam, and `embed/` is a third thing plugged into it:
+the same eighteen `cocolog::*` procedures the server offers, implemented
+in-process over the **Cicili MVCCS engine** (`ZiguratIP/MVCCS-cicili/`) and
+the very `.cicili` table definitions the Parsi compiler generated beside its
+C++ pair. `make embed` builds `cocolog-embed`; `--store DIR` then opens the
+store inside the process — no server, no socket — and every command works
+unchanged, because the C client dispatches each verb to the embedded engine
+behind the same `zg_conn` handle. The hooks are weak symbols, so the plain
+`cocolog` binary still builds with nothing but libc, as always.
+
+An embedded store belongs to one process, so the group test's concurrency
+moves inside it: `cocolog swarm A1 M1 A2 M2 ...` runs each worker as a thread
+with its own session (the engine keeps transactions thread-local, and the
+`SERIALIZABLE` claim is the same gate of one the server uses), and
+`test/groups-embed.sh` runs the identical twelve-worker choreography and
+checks. What the two arrangements measure, three runs each, same machine:
+
+|                       | run 1 | run 2 | run 3 |
+|-----------------------|-------|-------|-------|
+| wire, fresh server    | 11.5s | 19.0s | 24.8s |
+| embedded, fresh store | 14.7s | 14.5s | 14.5s |
+
+Both are green throughout. The embedded times are flat because the store is
+new each run; the wire times grow because the server's store keeps the dead
+rows of every earlier run until a vacuum. The wall clock in both is mostly
+the choreography itself — polls and deliberate yields between turns — not
+the engine: the test exists to prove hand-off, and proving hand-off is
+waiting, either side of a socket or not.
+
 ## Status
 
 The interpreter, the serialisation, both transports, the schema and the
