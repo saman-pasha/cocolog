@@ -53,8 +53,10 @@ under MVCC and nothing reclaims them, so every run leaves more behind and every
 later read walks past it. Twelve workers went from 14s to 32s over five identical
 runs. `test/groups.sh` allows 60s per worker, so a long-lived store will
 eventually push it over — and that reads as a hang. Restart from a fresh
-`$ZIGURATIP_HOME/data` if the numbers stop making sense. `TRUNCATE` would be the
-answer and currently cannot be used; STATUS.md says why.
+`$ZIGURATIP_HOME/data` if the numbers stop making sense. `TRUNCATE` is the
+answer on a store written since the schema went `NOT NULL` — README's "A worked
+store slows down. Truncate it." has the procedure and the numbers; a store from
+before that carries NULLs and can only be restarted (STATUS.md says why).
 
 Two things follow when a run does go wrong. A killed worker **strands its
 machine as claimed**, and `drop` does not clear a claimed one — so

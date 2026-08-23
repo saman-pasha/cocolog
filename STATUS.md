@@ -431,9 +431,16 @@ A `cocolog compact` command was built and then withdrawn, for two reasons:
    client writes `-`), but every row already written carries a NULL and cannot
    be reclaimed.
 
-So the growth is unmitigated. A store that has been worked hard for long enough
-will push `groups` past its 60s budget again, and the honest fix is a vacuum
-that does not cost point-in-time reads.
+So on a store from before the schema fix the growth is unmitigated, and the
+only cure is a fresh data directory. On a store written since, the pass works —
+and running it is now documented as the one piece of operating knowledge
+cocolog demands: README's "A worked store slows down. Truncate it." carries
+the measured numbers (12s empty, 60s aged, 16s after one pass), the
+`cocolog::vacuum` maintenance procedure to compile into the home, and the
+schedule doctrine. What cocolog still deliberately does not have is a *verb*
+for it: spending the store's point-in-time reads is an operator's scheduled
+decision, not a side effect of a command — and the honest long-term fix is
+still a vacuum that does not cost them.
 
 ### The server still uses only one core
 

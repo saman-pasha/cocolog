@@ -351,13 +351,74 @@ concurrent arrangements are done and tested; `make test` ends `red: 0`.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 
-**The store grows and nothing reclaims it.** A deleted row is kept under MVCC so
-that a transaction entitled to an earlier view can still read it, and there is no
-vacuum. Saving a machine rewrites its row, so a proof of thirty turns leaves
-twenty-nine dead ones. Nothing breaks; everything gets slower, because every read
-walks past all of it — twelve interpreters over four machines went from 14s to
-32s over five identical runs while the file grew 72KB. `TRUNCATE` is ZiguratIP's
-vacuum, but it cannot be used here: see STATUS.md.
+## A worked store slows down. Truncate it.
+
+This is the one piece of operating knowledge cocolog demands, and skipping it
+costs a factor of five.
+
+**The knowledge base grows with use, not with data.** A deleted row is kept
+under MVCC so that a transaction entitled to an earlier view can still read
+it, and nothing reclaims those versions on its own. The workload does not look
+like deleting, which is why this is easy to miss: saving a machine rewrites
+its row, so a proof of thirty turns leaves twenty-nine dead ones; `forget`
+then `consult` leaves a dead copy of every clause. The *live* contents stay
+the same size. What grows is the number of dead versions every read walks
+past — so nothing breaks, and everything gets slower.
+
+Measured, twelve interpreters over four machines, identical work every time:
+
+|  | wall clock |
+|---|---|
+| empty store | 12s |
+| the same store, five runs later | 32s |
+| a store a few hundred test runs old | 60s |
+| that store, after one `TRUNCATE` pass | 16s, stable thereafter |
+
+Five times the wall clock on identical work and identical live data. Every
+benchmark number in this README was taken against a fresh store, and a number
+taken against a worked one measures the store's history, not the change being
+tested. **If an unexplained slowdown appears and the answer to "when was this
+store last truncated" is "never", that is the cause** until proven otherwise.
+
+`TRUNCATE` is ZiguratIP's vacuum — per table, reclaiming only rows committed
+as deleted that no running transaction can still be entitled to, so it is
+safe against a knowledge base in use (`ZiguratIP/doc/truncate.md` is the full
+account). Restoring fresh-server performance is one pass over cocolog's four
+tables, compiled into the home as a maintenance procedure:
+
+```parsi
+PROCEDURE cocolog::vacuum()
+REQUIRES cocolog::clauses, cocolog::props, cocolog::machines, cocolog::machine_state
+BEGIN
+    TRUNCATE cocolog::machine_state;
+    TRUNCATE cocolog::machines;
+    TRUNCATE cocolog::clauses;
+    TRUNCATE cocolog::props;
+END
+```
+
+Run it the way any store with MVCC and no background vacuum wants its
+maintenance run: **on a schedule, whenever the store has been worked** —
+between benchmark runs always, between test-suite runs if the numbers are to
+mean anything, and periodically in any long-lived deployment. The first
+measured pass took a 35MB store down to its 263 live rows.
+
+Three caveats, so the schedule is chosen with open eyes:
+
+* **It spends point-in-time reads.** The reclaimed versions are exactly what
+  `SNAPSHOT` isolation and `rollback_transaction_to` read from, so after a
+  pass the store cannot be read at a moment before it ran. That trade is why
+  cocolog does not truncate for you behind a verb: giving up the knowledge
+  base's history is an operator's decision, made on a schedule the
+  application can afford — not a side effect of a command.
+* **A store written before the schema made every column `NOT NULL` can never
+  be reclaimed** — `TRUNCATE` refuses rows carrying a NULL, and old stores
+  have them (`machines.note`; STATUS.md has the story). For those the only
+  cure is a fresh data directory.
+* **An embedded `--store` grows the same way** — same engine, same MVCC —
+  and the truncate pass is not wired into the embedded backend yet. Until it
+  is, a fresh store directory is the embedded arrangement's vacuum, which is
+  exactly what the flat embedded benchmark numbers above were measuring.
 
 cocolog is a client and modifies neither of the projects it uses — but running
 twelve of it at once turned up four faults in ZiguratIP, from unguarded B-tree
