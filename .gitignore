@@ -26,3 +26,8 @@ embed/StreamIO
 embed/mvccs-lib.cicili
 embed/generated
 embed/ziglib
+
+# the torch module's build output
+cocolog-torch
+cocolog-full
+torch/coco-torch.cpp

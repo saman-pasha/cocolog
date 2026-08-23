@@ -333,6 +333,17 @@ the choreography itself — polls and deliberate yields between turns — not
 the engine: the test exists to prove hand-off, and proving hand-off is
 waiting, either side of a socket or not.
 
+## Prolog that trains
+
+The last seam to be filled: [torch/](torch/README.md) puts libtorch
+behind the module system, so a Prolog program can load a dataset the
+Files module vouched for, train a network on it, and `model_save` the
+result — an assert of the model *as terms*, which the knowledge base
+persists like any other fact. `make torch` builds it; `make full` pairs
+it with the embedded store, and `test/torch.sh` runs the whole story:
+train, store in Zigurat, reload in a fresh process, predict
+identically.
+
 ## Status
 
 The interpreter, the serialisation, both transports, the schema and the

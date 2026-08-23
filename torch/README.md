@@ -1,0 +1,99 @@
+# The Torch module — libtorch as cocolog predicates
+
+A Prolog program loads a dataset, trains a network on it, and asserts
+the trained model into Zigurat. One process, three modules doing what
+each is for: **Files** finds and vouches for the data, **Torch** owns
+the tensors and the training, and the **knowledge base** — wire or
+embedded — is where anything durable goes.
+
+```prolog
+train :-
+    exists_file('data.csv'),                       % Files
+    tensor_load_csv('data.csv', All),              % Torch: [N rows, 4 cols]
+    tensor_shape(All, [N, 4]),
+    tensor_cols(All, 0, 3, X0),  tensor_cols(All, 3, 4, Y),
+    NTrain is (N * 4) // 5,
+    tensor_standardise(X0, NTrain, X),
+    tensor_rows(X, 0, NTrain, XTr), tensor_rows(Y, 0, NTrain, YTr),
+    tensor_rows(X, NTrain, N, XTe), tensor_rows(Y, NTrain, N, YTe),
+    model_new([input(3), dense(24, relu), dense(1)], M),
+    model_train(M, XTr, YTr, [epochs(150), batch(24), lr(0.01),
+                              shuffle(true), final_loss(L)]),
+    model_evaluate(M, XTe, YTe, rmse, R),
+    model_save(net1, M).                           % into Zigurat, as terms
+```
+
+`test/torch.sh` is that program, end to end: it trains (test rmse
+≈ 0.03 on its dataset), saves, and a **fresh process** reloads the
+model out of the store and reproduces the predictions.
+
+## Building
+
+```sh
+make torch     # cocolog-torch: the torch module over the wire client
+make full      # cocolog-full:  torch AND the embedded knowledge base
+```
+
+Both need libtorch, resolved the way Cicili's `lib/cpp/torch` resolves
+it: `$LIBTORCH` pointing at a standalone distribution, or the pip
+`torch` package. The plain `make` build carries none of this — the
+module registers through a weak symbol, and in a build without it the
+torch predicates are unknown procedures, as they should be.
+
+## The predicates
+
+Tensors — handles to float32 tensors; numbers cross as Prolog floats:
+
+| predicate | is |
+|---|---|
+| `tensor_from_list(+L, -T)` | a list of numbers → `[N]`; a list of rows → `[R,C]` |
+| `tensor_to_list(+T, -L)` | the inverse, rows for a matrix |
+| `tensor_shape(+T, -Shape)` | the dimensions, as integers |
+| `tensor_load_csv(+Path, -T)` | a rectangle of comma/space numbers → `[R,C]` |
+| `tensor_rows(+T, +From, +To, -T2)` | rows `[From, To)`, a new tensor |
+| `tensor_cols(+T, +From, +To, -T2)` | columns `[From, To)` |
+| `tensor_standardise(+T, +NTrain, -T2)` | per column, statistics **from the first NTrain rows only** |
+| `tensor_train_test(+T, +NTrain, -Tr, -Te)` | both halves at once |
+| `tensor_free(+T)` | lets the handle go |
+| `torch_seed(+N)` | libtorch's manual seed |
+
+Models — a dense network described as terms:
+
+| predicate | is |
+|---|---|
+| `model_new(+Spec, -M)` | `Spec = [input(In), dense(W, Act)…]`; `Act` ∈ relu, tanh, sigmoid, log_softmax, none (default) |
+| `model_train(+M, +X, +Y, +Opts)` | `epochs(N)` `batch(N)` `lr(F)` `optimiser(adam\|sgd)` `loss(mse\|nll)` `shuffle(true\|false)` `final_loss(-L)` |
+| `model_predict(+M, +X, -T)` | forward, gradients off |
+| `model_evaluate(+M, +X, +Y, +Metric, -S)` | `rmse`, `accuracy` (argmax vs labels), `mae` |
+| `model_spec(+M, -Spec)` | the architecture back as terms |
+| `model_params(+M, -L)` | every parameter, flattened, as one list of floats |
+| `model_set_params(+M, +L)` | the inverse |
+| `model_save(+Name, +M)` | `model_spec` + `model_params`, asserted as `torch_model/3` |
+| `model_load(+Name, -M)` | `torch_model/3` → `model_new` + `model_set_params` |
+| `model_free(+M)` | lets the model go |
+
+`loss(nll)` expects the last layer `log_softmax` and integer class
+labels in `Y`; the module converts the labels itself, because a float
+target failing deep inside libtorch is the classic trap.
+
+## Handles are not terms — and that is the design
+
+A tensor or model handle is an integer naming a process-local C++
+object. It is deliberately **not** part of any machine's state: a
+suspended machine carrying one finds it meaningless where it thaws,
+exactly as it would a file descriptor. What suspends and what persists
+is the model **as terms** — `model_spec/2` and `model_params/2` — and
+`model_save/2` is nothing but those two and an assert. The knowledge
+base does the rest, which is why a model saved against `--store` (or a
+server) is simply *there* for the next process.
+
+## Where this sits
+
+The C half is one Cicili C++ target, `coco-torch.cicili`: cocolog's
+module API declared extern-C at its head, the predicates implemented
+over Cicili's `lib/cpp/torch` declarations, the dispatcher and the
+Coco half (`model_save`, `model_load`, `tensor_train_test`) at its
+foot. The dynamic network is what `lib/cpp/torch`'s DSL builds at
+expansion time, built at run time instead — same loop: per epoch one
+permutation, per batch one gather, `zero_grad / forward / loss /
+backward / step`.

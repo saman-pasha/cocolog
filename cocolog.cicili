@@ -997,6 +997,16 @@
 
   ;;; ---- the command line ---------------------------------------------------
 
+  ;; THE TORCH MODULE IS REACHED THROUGH A WEAK SYMBOL: `make torch'
+  ;; links torch/coco-torch.o and the registration runs; the plain build
+  ;; leaves the symbol null and the torch predicates are unknown
+  ;; procedures, which is the right answer for a build without torch.
+  ;; Raw C, because a null-checked call through a weak function is a C
+  ;; idiom Cicili has no clause for.
+  (code "extern int coco_torch_module(void) __attribute__((weak));")
+  (code "static int coco_torch_try(void) { return coco_torch_module ? coco_torch_module() : 1; }")
+  (decl) (func coco_torch_try () (out int))
+
   ;;; Every module this build carries. Registration is here and not inside the
   ;;; modules because a build decides what it contains -- a module cannot add
   ;;; itself, and the order is the order of precedence when two claim a name.
@@ -1016,6 +1026,9 @@
                    (return 0)))
         (if (not (coco_dcg_module))
             (block (fprintf stderr "cocolog: the dcg module would not register\n")
+                   (return 0)))
+        (if (not (coco_torch_try))
+            (block (fprintf stderr "cocolog: the torch module would not register\n")
                    (return 0)))
         (return 1))
 

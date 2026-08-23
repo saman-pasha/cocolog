@@ -36,7 +36,7 @@ CLIENT_LIB     := $(BUILD)/libcocologc.a
 CLIENT_OBJS    := $(BUILD)/zigurat.o $(BUILD)/zeytun.o
 LIB_SOURCES    := $(wildcard lib/*.cicili)
 
-.PHONY: all client schema embed test clean check-cicili
+.PHONY: all client schema embed torch full test clean check-cicili
 
 all: client cocolog
 
@@ -93,6 +93,41 @@ cocolog-embed: cocolog
 
 embed: cocolog-embed
 
+# ---- the torch module --------------------------------------------------------
+# libtorch as cocolog predicates (torch/coco-torch.cicili). The module
+# registers through a weak symbol, so only this binary carries it. Needs
+# libtorch -- $LIBTORCH, or the pip torch package, resolved by Cicili's
+# {$TORCH_*} tokens at build time; TORCH_LIB below must name the same lib
+# directory for the link (default: the pip package's).
+TORCH_LIB ?= $(shell python3 -c "import torch, os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))" 2>/dev/null)
+
+cocolog-torch: cocolog
+	CICILI="$(CICILI)" sh torch/build.sh
+	g++ -g -O0 .libs/cocolog.o torch/.libs/coco-torch.o -o cocolog-torch \
+	  -Lbuild -lcocologc -lm -lpthread \
+	  -L"$(TORCH_LIB)" -ltorch -ltorch_cpu -lc10 \
+	  -Wl,-rpath,"$(TORCH_LIB)"
+
+torch: cocolog-torch
+
+# ---- everything at once ------------------------------------------------------
+# The interpreter with BOTH engines embedded: the knowledge base on the
+# Cicili MVCCS engine (--store DIR) and libtorch behind the torch module.
+# A Prolog program can then load a dataset, train on it, and assert the
+# trained model into Zigurat, one process, no server.
+
+cocolog-full: cocolog
+	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
+	CICILI="$(CICILI)" sh torch/build.sh
+	g++ -g -O0 .libs/cocolog.o embed/.libs/embed.o torch/.libs/coco-torch.o \
+	  -o cocolog-full \
+	  -Lbuild -lcocologc -lm -lpthread \
+	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
+	  -L"$(TORCH_LIB)" -ltorch -ltorch_cpu -lc10 \
+	  -Wl,-rpath,"$(ZIGURATIP)/home/lib" -Wl,-rpath,"$(TORCH_LIB)"
+
+full: cocolog-full
+
 # ---- the schema -------------------------------------------------------------
 # Compiled by ZiguratIP's own parsi program into a ZiguratIP home. This is the
 # one step that needs a ZiguratIP checkout, and it writes only into that home's
@@ -107,7 +142,8 @@ test: all $(BUILD)/probe
 	sh test/run.sh
 
 clean:
-	rm -rf $(BUILD) cocolog cocolog-embed cocolog.c *.o *.lo .libs
+	rm -rf $(BUILD) cocolog cocolog-embed cocolog-torch cocolog-full cocolog.c *.o *.lo .libs
+	rm -rf torch/coco-torch.cpp torch/*.o torch/*.lo torch/.libs
 	rm -rf embed/embed.cpp embed/*.o embed/*.lo embed/.libs embed/ce_smoke embed/smoke.o
 	rm -f embed/Core embed/StreamIO embed/mvccs-lib.cicili embed/generated embed/ziglib
 	rm -f test/*.c test/*.o test/*.lo test/cocolog_*_test
