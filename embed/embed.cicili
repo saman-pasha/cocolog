@@ -735,8 +735,45 @@
 
   ;; ---- dispatch and the exception boundary ---------------------------
 
+  ;; FIND-THEN-WRITE MUST BE ATOMIC. Every procedure below that acts on
+  ;; what its own lookup answered -- delete what I found, insert because I
+  ;; found nothing, update the row I read -- runs under ONE exclusive
+  ;; streams guard for its whole body: the cursors and writes inside nest
+  ;; under it and the lookup serialises with the writers it is deciding
+  ;; about. Without this, a lookup running beside a writer could answer
+  ;; "no such row" about a row committed a moment before it finished --
+  ;; machine_open, told exactly that, inserted a TWIN of a live machine
+  ;; and the twelve workers bounced their saves and loads between the
+  ;; twins forever. The pure readers (find, load, list, clauses_of...)
+  ;; stay outside the guard, which is what the shared read side is for.
+  (func ce_write_intent ((const char * p)) (out int)
+    (if (== 0 (strcmp p "cocolog::assert_clause"))   (return 1))
+    (if (== 0 (strcmp p "cocolog::declare_dynamic")) (return 1))
+    (if (== 0 (strcmp p "cocolog::forget_clauses"))  (return 1))
+    (if (== 0 (strcmp p "cocolog::forget"))          (return 1))
+    (if (== 0 (strcmp p "cocolog::forget_all"))      (return 1))
+    (if (== 0 (strcmp p "cocolog::machine_open"))    (return 1))
+    (if (== 0 (strcmp p "cocolog::machine_release")) (return 1))
+    (if (== 0 (strcmp p "cocolog::machine_drop"))    (return 1))
+    ;; NOT the claims: a claim's check_lock WAITS for row locks and must
+    ;; release the streams while it does -- under this wrapper its nested
+    ;; guard cannot, and the row's holder needs the streams to commit:
+    ;; measured as a full-swarm deadlock. A claim missing a just-committed
+    ;; machine only polls again, and its own update is protected by the
+    ;; row locks its SERIALIZABLE cursor stamps.
+    (return 0))
+
+  (decl) (func ce_run ((const char * p) (CeSess * s)) (out int))
+
   (func ce_dispatch ((CeSess * s)) (out int)
     (let ((const char * p . #'(-> s proc)))
+      (if (== 1 (ce_write_intent p))
+          (letin* ((streams (Streams (aof ce_mem))))
+            (return (ce_run p s))))
+      (return (ce_run p s))))
+
+  (func ce_run ((const char * p) (CeSess * s)) (out int)
+    (block
       (cond
         ((== 0 (strcmp p "cocolog::assert_clause"))      (run_assert_clause s))
         ((== 0 (strcmp p "cocolog::clauses_of"))         (run_clauses_of s))
@@ -812,6 +849,17 @@
                                      (bitor std::ios::in std::ios::out)))))
               (memory_open (aof ce_mem) (cast (binarystream *) ce_hexmap)
                            (cast (binarystream *) ce_data) 8192)
+              ;; handing the engine the two file paths is what turns the
+              ;; shared read side on: read-only cursors then run
+              ;; concurrently on per-thread streams instead of queueing on
+              ;; the one canonical pair. OPT-IN while it earns its stripes:
+              ;; the twelve-worker choreography runs three times faster
+              ;; under it, but about one run in eight still times out on a
+              ;; stall that is not yet understood -- so the default stays
+              ;; the exclusive guard, which that same suite passes
+              ;; wall-to-wall.
+              (if (!= (getenv "COCOLOG_PARALLEL_READS") nil)
+                  (memory_reader_paths (aof ce_mem) hexpath datapath))
               (IDX_COCOLOG_CLAUSES_ID_attach (aof ce_mem))
               (IDX_COCOLOG_PROPS_ID_attach (aof ce_mem))
               (IDX_COCOLOG_MACHINES_ID_attach (aof ce_mem))

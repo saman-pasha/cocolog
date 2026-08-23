@@ -447,43 +447,50 @@ arrangements, and the concurrency suites run the verb in setup, which is why
 they no longer slow down run over run. The honest long-term fix is still a
 vacuum that does not cost point-in-time reads.
 
-### The server still uses only one core
+### The one-core ceiling: the structure is lifted, the switch is opt-in
 
-Four machines with one worker each burn 97% of a single core on a four-core box.
-`Memory::Streams` guards the two shared file streams with one global mutex pair,
-so every read in the engine serialises against every other. Under twelve workers
-16 of the sampled server stacks sat in `Memory::Streams::lock`.
+The ceiling was `Memory::Streams`: one global mutex pair over the two shared
+file streams, every read serialised against every other. The Cicili engine
+now has the design the first attempt was reaching for, with the lesson that
+attempt taught built in — **the lock mode follows the isolation level**. The
+guard is a read-write lock; a cursor whose isolation writes nothing
+(READ UNCOMMITTED, READ COMMITTED, SNAPSHOT) takes it shared and reads
+through the thread's own private streams; REPEATABLE READ and SERIALIZABLE
+cursors — which stamp shared row locks as they scan — and every writer take
+it exclusive, and an exclusive release flushes both canonical streams so a
+private reader taken the next instant cannot miss bytes still sitting in
+their buffers.
 
-**An attempt was made and reverted.** `filestream` already keeps an `O_RDONLY`
-descriptor for `fsync`, so reads can be positional (`pread`) and need no shared
-file position: `_visible` and the cursor's hexmap walk were converted, and the
-server did move past one core, to 114%. It was reverted because it could not be
-validated — see below — not because it was shown wrong. Two of the failures
-attributed to it turned out to be a stale `demo` object compiled against a
-changed vtable, and a flaky test.
+Measured, the twelve-worker embedded choreography on a fresh store: 5.3s at
+~119% CPU with the guard exclusive; **1.6s at ~150% CPU with the shared side
+on** — three times faster, on more than one core. But about one run in three
+under the flag still times out: some worker's turn errs, its machine is left
+claimed, and its partners politely wait forever. Two causes of that stall
+were found and killed — a cursor's page-list snapshot missing a page a
+writer committed into mid-walk (the walk now repeats until a pass adds no
+pages), and the find-then-write procedures acting on a lookup that could
+race a writer (they now hold one exclusive guard for their whole body). A
+third remains, so the shared side is **opt-in**:
+`COCOLOG_PARALLEL_READS=1` turns it on for an embedded store, and the
+default stays the exclusive guard, which the same choreography passes
+wall-to-wall (15/15 runs). The C++ server keeps the exclusive design.
 
-Lifting the ceiling properly needs more than positional reads. A read at
-`REPEATABLE READ` or `SERIALIZABLE` **writes**: `_visible` takes a shared row
-lock by calling `_dump_control`. So "readers take a shared lock" is wrong at two
-of the four isolation levels, and the lock mode has to follow the level.
+### The test that blocked all of it is fixed
 
-### And the test that should validate all of it is broken
-
-`readers_do_not_queue_behind_staged_writes`, in ZiguratIP's own suite, fails
-**about one run in three** — measured 8 in 24 at `416b86f`, which predates all of
-this work. A reader sees another session's staged row.
-
-That rate is why the ceiling work could not be landed: a genuine regression and
-the usual flake are indistinguishable. It misled this work twice, and both
-mis-attributions were corrected only by measuring properly rather than by
-reading a short clean streak as a baseline.
-
-What is established about it is recorded in ZiguratIP's `doc/concurrency.md`: it
-is not an id collision, not the page-list race that was found and fixed
-alongside it, and `_read_committed` approves the row legitimately — the control
-block of a merely-staged row reads `offline_state = INSERTED` with a
-`create_time` before the reader's snapshot. The fault is upstream of the
-visibility rules.
+`readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
+failure that made the first ceiling attempt unvalidatable — was a REAL
+dirty read, and it is fixed at its source. `_rollback_pointer` flags a
+never-committed row `DELETED` with `modify_time = now` but left
+`create_time = 0`, and `_alive_at` only rejects future births when
+`create_time` is set — so a reader whose statement began before a peer's
+ROLLBACK read "died after my snapshot" on a row that was never alive. The
+rollback now stamps the birth too (born and died at the same instant, so no
+snapshot anywhere can see it), `_alive_at` refuses the old unstamped shape,
+and the SNAPSHOT branches require a version to have been born by the
+snapshot before "deleted after it" can mean "visible to it". Measured: the
+suite failed 4 of 10 runs before the fix and 0 of 21 after, in both
+engines. (A different, much rarer Contention flake — one failure in ten
+runs, not reproduced in six retries — remains under watch.)
 
 ## Known limitations, by choice
 
