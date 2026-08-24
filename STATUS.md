@@ -656,6 +656,11 @@ So did the vacuum, in both arrangements against the parallel server: the
 verb reclaims, a second pass finds nothing more, the gate refuses without
 `--vacuum`, and live clauses survive — the reclaim machinery running under
 the new shared-read guard, with zero engine errors in the server log.
+And the cross-process case — one process writing through the wire, a
+second that consulted nothing reading it back, the claim the project
+exists to make — reconfirmed green against the same server instance,
+which by then had absorbed the twelve-worker benchmark, the vacuum and
+the full suite without one engine error.
 That closes the loop: one shared-read design, both engines, both
 arrangements, benchmarked green on aged stores at wire 5–6s and embedded
 2–3s, with the heaviest module the store carries confirmed on top.
