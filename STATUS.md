@@ -567,6 +567,21 @@ choreography, fresh store: **15/15 runs green at 6–8 seconds flat, zero
 breaker fires, zero unique-key refusals, zero lost unmaps, and the full
 cocolog suite `red: 0`** — wall-to-wall at last.
 
+The begin-continues rule then claimed one victim of its own: the EMBEDDED
+choreography went twelve reds in twelve runs while the wire ran green on
+the same engine. The embed-side ledgers named it (ZiguratIP 5af6c36): only
+the READ-ONLY commit path nulled the transaction record pointer, so after
+a writing commit the next begin CONTINUED a committed-out transaction —
+its stages carried the retired id and the breaker ate live machine saves.
+The wire never showed it because the request layer's rollback hygiene
+nulls the pointer between requests; the embedded arrangement speaks to the
+engine bare. A writing commit now spends its pointer exactly as the
+read-only path always has, and both arrangements are green on one engine:
+embedded 12/12 at 1–2 seconds (parallel default) and 4/4 at 5 seconds
+(exclusive), wire 6/6 at 6–8 seconds with zero engine errors, vacuum and
+torch green in both arrangements, the full suite `red: 0`, 304 C++ cases
+and the standalone Cicili harness green.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
