@@ -87,10 +87,13 @@
                   ;; and the unbraced else-if chain. gcc ignores unknown
                   ;; -Wno- options, so both flags travel to every platform
                   "-Wno-parentheses-equality" "-Wno-dangling-else"
-                  "-c" "cocolog.c")
-        :link ("-lcocolog.o"
-               "-Lbuild"
-               "-lcocologc" "-lm" "-lpthread" "-o" "cocolog"))
+                  "-c" "cocolog.c"))
+        ;; no :link -- the Makefile makes the ONE full link, with the
+        ;; embedded engine and the torch module beside this object. A
+        ;; partial link here leaves the ce_* hooks and coco_torch_module
+        ;; unresolved, which ELF treats as null weak references and
+        ;; macOS's ld64 refuses outright; since the one-binary change
+        ;; nothing ever ran the partial binary anyway.
 
   (include <math.h>)
   ;; the swarm command's worker threads
