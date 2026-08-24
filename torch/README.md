@@ -94,6 +94,9 @@ each layer's input is the previous layer's output, worked out at
 | `flatten` | picture → flat C·H·W |
 | `dropout(P)` | `Dropout`; off automatically at predict/evaluate time |
 | `norm` | `BatchNorm2d`; its running statistics are BUFFERS and travel with `model_params` |
+| `sequence(L)` | a row is L steps; plain numbers reach the lstm as `[N,L,1]`, token ids stay `[N,L]` for an embedding |
+| `embedding(V,D)` | `Embedding(V,D)`; directly after `sequence(L)`, the steps are integer token ids in `[0,V)` |
+| `lstm(H)` | `LSTM(batch_first)`; stacks read the full sequence, the dense head after the last lstm reads its LAST step |
 
 | predicate | is |
 |---|---|

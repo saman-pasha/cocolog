@@ -1,5 +1,5 @@
 #!/bin/sh
-# Twenty networks through the Torch module, each a small PyTorch-tutorial
+# Twenty-three networks through the Torch module, each a small PyTorch-tutorial
 # classic rewritten as a Prolog program: build the data, build the net, train,
 # test against a threshold. One process runs all twenty in sequence and the
 # knowledge base carries the save/load round trip at the end.
@@ -18,6 +18,9 @@
 #   autoencoders   14 autoencoder (8->3->8) 15 denoise (noisy in, clean out)
 #   persistence    20 roundtrip (model_save / model_load, identical params
 #                     and predictions)
+#   sequences      21 seq_sum (lstm over plain numbers) 22 seq_contains
+#                     (embedding + lstm memory task) 23 seq_roundtrip
+#                     (stacked lstm through the store, params identical)
 #
 # It SKIPs without a `make full' build, because "no libtorch here" and "the
 # module is wrong" are different findings. Data is generated, deterministic
@@ -416,6 +419,57 @@ net_roundtrip :-
     rows_close(R1, R2),
     ok(roundtrip, 1.0).
 
+% ---- 21: an lstm reads plain numbers and sums them --------------------------
+sq_row(I, Row, [Y]) :-
+    findall(V, (between(0, 7, J), noise(I * 8 + J + 60000, V)), Row),
+    sum_row(Row, S), Y is S / 4.
+sum_row([], 0).
+sum_row([V|Vs], S) :- sum_row(Vs, S0), S is S0 + V.
+net_seq_sum :-
+    torch_seed(21),
+    findall(R, (between(0, 127, I), sq_row(I, R, _)), XR),
+    findall(R, (between(0, 127, I), sq_row(I, _, R)), YR),
+    tensor_from_list(XR, X), tensor_from_list(YR, Y),
+    model_new([sequence(8), lstm(16), dense(1)], M),
+    model_train(M, X, Y, [epochs(400), batch(32), lr(0.02), optimiser(adam)]),
+    model_evaluate(M, X, Y, rmse, S),
+    ( S < 0.1 -> true ; format("      seq_sum rmse ~4f~n", [S]), fail ),
+    ok(seq_sum, S).
+
+% ---- 22: embedding + lstm remember whether token 3 ever appeared ------------
+tok_row(I, Row, L) :-
+    findall(T, (between(0, 5, J),
+                noise(I * 6 + J + 70000, F),
+                T is truncate(abs(F) * 7.99)), Row),
+    ( member(3, Row) -> L = 1 ; L = 0 ).
+net_seq_contains :-
+    torch_seed(22),
+    findall(R, (between(0, 95, I), tok_row(I, R, _)), XR),
+    findall(L, (between(0, 95, I), tok_row(I, _, L)), LR),
+    tensor_from_list(XR, X), tensor_from_list(LR, Y),
+    model_new([sequence(6), embedding(8, 4), lstm(16), dense(2, log_softmax)], M),
+    model_train(M, X, Y, [epochs(200), batch(16), lr(0.02), optimiser(adam), loss(nll)]),
+    acc_percent(M, X, Y, Pct),
+    Pct >= 95, S is Pct / 100, ok(seq_contains, S).
+
+% ---- 23: a stacked lstm through the store, weights and answers identical ----
+net_seq_roundtrip :-
+    torch_seed(23),
+    findall(R, (between(0, 95, I), tok_row(I, R, _)), XR),
+    findall(L, (between(0, 95, I), tok_row(I, _, L)), LR),
+    tensor_from_list(XR, X), tensor_from_list(LR, Y),
+    model_new([sequence(6), embedding(8, 4), lstm(12), lstm(12),
+               dense(2, log_softmax)], M),
+    model_train(M, X, Y, [epochs(200), batch(16), lr(0.02), optimiser(adam), loss(nll)]),
+    model_save(nets_seq_roundtrip, M),
+    model_load(nets_seq_roundtrip, M2),
+    model_params(M, P1), model_params(M2, P2),
+    row_close(P1, P2),
+    model_predict(M, X, T1), model_predict(M2, X, T2),
+    tensor_to_list(T1, R1), tensor_to_list(T2, R2),
+    rows_close(R1, R2),
+    ok(seq_roundtrip, 1.0).
+
 % ---- the driver -------------------------------------------------------------
 nets([net(linreg, net_linreg), net(multi_linreg, net_multi_linreg),
       net(polyreg, net_polyreg), net(sine, net_sine), net(bump, net_bump),
@@ -425,7 +479,9 @@ nets([net(linreg, net_linreg), net(multi_linreg, net_multi_linreg),
       net(mae_outliers, net_mae_outliers), net(autoencoder, net_autoencoder),
       net(denoise, net_denoise), net(multiout, net_multiout),
       net(cnn_bars, net_cnn_bars), net(lenet_mini, net_lenet_mini),
-      net(bn_cnn, net_bn_cnn), net(roundtrip, net_roundtrip)]).
+      net(bn_cnn, net_bn_cnn), net(roundtrip, net_roundtrip),
+      net(seq_sum, net_seq_sum), net(seq_contains, net_seq_contains),
+      net(seq_roundtrip, net_seq_roundtrip)]).
 
 run_nets([], F, F).
 run_nets([net(Name, G)|T], F0, F) :-
