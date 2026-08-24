@@ -813,6 +813,25 @@ wants encoder and decoder hidden layers around it, and sgd at 0.3 on a
 tanh net diverges to NaN where relu at 0.1 glides — both now written
 into the nets as they stand.
 
+### The Torch module learns sequences
+
+Three spec terms close the gap the twenty-net suite could not touch:
+`sequence(L)` as the input (a row is L steps — plain numbers reach the
+net as `[N,L,1]`, token ids stay `[N,L]` when an `embedding(V,D)`
+follows directly and widens each id to D learned dimensions), and
+`lstm(H)`, batch-first, where stacked lstms read the full sequence from
+each other and the dense head after the last one reads its final step —
+marked on the layer at `model_new`, so the shape still flows down the
+list and a mismatch is still a refusal: an lstm without a sequence, an
+embedding anywhere but right after it, a net ending inside a sequence.
+The parameter walk was already generic, so lstm weights and the
+embedding table travel through `model_params` and the store unchanged.
+The suite is twenty-three now: an lstm sums plain-number sequences at
+rmse 0.007, embedding-plus-lstm remembers whether a token ever appeared
+at accuracy 1.0, and a stacked lstm goes into the knowledge base and
+comes back with params and predictions identical — all green, about
+fourteen seconds on a CPU.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
