@@ -23,6 +23,13 @@ train :-
     model_save(net1, M).                           % into Zigurat, as terms
 ```
 
+**`tutorials/` holds twenty-three of these programs**, one file per
+network -- regression to stacked LSTMs -- each documented in place with
+`train`, `test` and `predict` goals meant to run as separate processes
+against a store; `test/tutorials.sh` runs them all, and
+`test/torch-nets.sh` is the same twenty-three as one fast in-process
+suite.
+
 `test/torch.sh` is that program, end to end: it trains (test rmse
 ≈ 0.03 on its dataset), saves, and a **fresh process** reloads the
 model out of the store and reproduces the predictions.
