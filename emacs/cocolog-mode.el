@@ -3326,6 +3326,17 @@ the buffer it is written in."
                              no-trace)
   (display-buffer "*coco trace*"))
 
+;;;###autoload
+(defun cocolog-coco-run (goal)
+  "Run GOAL over this buffer's file under the cocolog binary, no tracer.
+The same run \\[cocolog-coco-trace] makes with a prefix argument: the
+buffer shows what the goal prints and nothing else -- the way a torch
+tutorial's `train' runs from the buffer it is written in."
+  (interactive
+   (list (read-string "Goal: " (cocolog--coco-goal-at-point)
+                      'cocolog--coco-goal-history)))
+  (cocolog-coco-trace goal t))
+
 (defun cocolog--coco-trace-start (file goal arrangement &optional no-trace)
   "Refresh *coco trace* with GOAL's ports over FILE, under ARRANGEMENT.
 The plumbing of \\[cocolog-coco-trace], shared with the quiet refresh a
@@ -3621,8 +3632,22 @@ arrangement says, so a redraw can never write into a store."
     ("Under coco"
      ["Trace a goal (four ports)..." cocolog-coco-trace
       :help "Run a goal over this file under the cocolog binary with --trace"]
+     ["Run a goal, tracer off..." cocolog-coco-run
+      :help "The same run without --trace: only what the goal prints"]
      ["Pick the knowledge base arrangement..." cocolog-set-arrangement
-      :help "local, embed, server or http -- what a coco run opens"])
+      :help "local, embed, server or http -- what a coco run opens"]
+     "---"
+     ["Certify graphs against cocolog"
+      (progn (setq cocolog-coco-check (not cocolog-coco-check))
+             ;; the bar is drawn from a copy: a changed tick must ask
+             (force-mode-line-update t))
+      :style toggle :selected (and cocolog-coco-check t)
+      :help "Re-ask the binary every drawn graph's queries and compare"]
+     ["Refresh the live trace on test runs"
+      (progn (setq cocolog-coco-trace-on-test (not cocolog-coco-trace-on-test))
+             (force-mode-line-update t))
+      :style toggle :selected (and cocolog-coco-trace-on-test t)
+      :help "Keep *coco trace* holding the four ports of the graph on screen"])
 
     ("Test cases"
      ["Run the test case at point" cocolog-run-test-at-point

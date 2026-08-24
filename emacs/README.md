@@ -461,7 +461,9 @@ Which knowledge base the run opens is a setting, the binary's own four:
 `cocolog-coco-store`, `./KB`), `server` and `http`.
 `M-x cocolog-set-arrangement` switches it for the session, and the
 `cocolog-coco` customisation group holds the store directory, kb name,
-host and ports. With `C-u` the tracer stays off and the buffer shows
+host and ports. With `C-u` — or `M-x cocolog-coco-run`,
+also on the **Under coco** menu beside the toggles for certifying and
+the live trace — the tracer stays off and the buffer shows
 only what the goal prints — which is how a torch tutorial's `train`
 runs from the buffer it is written in: `embed` arrangement, goal
 `train`, and the model lands in the store for `test` and `predict` to
