@@ -743,9 +743,12 @@ takes. So are state and zigurat: state locally (freeze and thaw have no
 server in the loop), and zigurat against the fixed server — the case
 that matters here, because machine state travels in 4000-byte chunks
 that land as exactly the multi-value chains the torn link corrupted.
-With ruler green under eight concurrent readers as well, every case the
-store has now runs green on the guarded walks. The wedge-immunity came
-for free.
+With ruler green under eight concurrent readers as well, and the pure C
+client's probe green through all twenty checks — its reads riding the
+guarded SELECT walk, its machine-state chunks landing as the very chain
+shape that tore, the Zeytun page serving the same clauses over HTTP —
+every case the store has now runs green on the guarded walks. The
+wedge-immunity came for free.
 
 ### The test that blocked all of it is fixed
 
