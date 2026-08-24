@@ -970,7 +970,14 @@ answers, and the rule's four-port trace refreshes alongside. The
 elisp engine stays for what the binary cannot give — the clause-level
 graphs, the machine with nothing installed, the instant redraw — as a
 shadow held to cocolog twice over, offline by the 234 and live on
-every draw. The mode's suite: 160 tests, 0 unexpected.
+every draw. All of it sits on the Coco menu too, in an "Under coco"
+group: the trace (with C-c C-e shown beside it), the no-tracer run as
+a command of its own (`cocolog-coco-run`, what C-u C-c C-e does), the
+arrangement picker, and tick-box toggles for certifying and the live
+trace — each asking for the menu bar to be drawn again, which the
+mode's own toggle test demands because the bar is drawn from a copy
+and a flipped tick can otherwise show stale for a whole session. The
+mode's suite: 160 tests, 0 unexpected.
 
 ## Known limitations, by choice
 
