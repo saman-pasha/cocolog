@@ -839,14 +839,16 @@ programs (`tutorials/NN-name.pl`) — plus a twenty-fourth the suite does
 not have: reinforcement learning, as fitted Q-iteration on a gridworld,
 the DQN idea built from nothing but `model_predict` for the Bellman
 targets and `model_train` for the regression, whose greedy policy walks
-the optimal six moves around the pit. Each file is documented in place and each
-carrying three goals meant to be three PROCESSES against one store:
-`train` builds its data, fits, and `model_save`s; `test` `model_load`s
-in a fresh process and judges against a threshold; `predict` loads and
-answers for visible inputs beside the truth — `xor(0, 1) = 1
-(confidence 1.00)`, `[3,0,0,0,0,0] -> contains token 3`.
-`test/tutorials.sh` runs all sixty-nine processes green in about
-seventy-five seconds.
+the optimal six moves around the pit. Each file is documented in
+place and carries three goals meant to be three PROCESSES against one
+store: `train` builds its data, fits, and `model_save`s; `test`
+`model_load`s in a fresh process and judges against a threshold;
+`predict` loads and answers for visible inputs beside the truth —
+`xor(0, 1) = 1 (confidence 1.00)`, `[3,0,0,0,0,0] -> contains token 3`.
+`test/tutorials.sh` runs all seventy-two processes green in about
+seventy-seven seconds, and the main README features 22-embedding-lstm
+with its transcript — the token remembered across five steps, in a
+model trained by one process and answering in another.
 
 Writing them taught two properties of the platform the hard way, both
 now documented in `tutorials/README.md`. Consulted clauses live in the
