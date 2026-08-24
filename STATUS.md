@@ -652,6 +652,10 @@ parallel default and 4/4 at **2 seconds flat** exclusive — the converged
 numbers exactly, no drift. The torch suite ran green against the same
 engine state too — train, store, reload in a fresh process with identical
 predictions, the conv net's batch-norm buffers back out of Zigurat intact.
+So did the vacuum, in both arrangements against the parallel server: the
+verb reclaims, a second pass finds nothing more, the gate refuses without
+`--vacuum`, and live clauses survive — the reclaim machinery running under
+the new shared-read guard, with zero engine errors in the server log.
 That closes the loop: one shared-read design, both engines, both
 arrangements, benchmarked green on aged stores at wire 5–6s and embedded
 2–3s, with the heaviest module the store carries confirmed on top.
