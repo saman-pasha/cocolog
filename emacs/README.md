@@ -84,7 +84,10 @@ See [Colours without writing them down](#colours-without-writing-them-down)
 for what it does.
 
 No external Prolog is needed: the engine is written in Emacs Lisp and lives in
-`cocolog-engine.el`.
+`cocolog-engine.el`. It is a deliberate SHADOW of the real interpreter — when
+a built `cocolog` binary is around, every graph the mode draws is certified
+against it on the spot, and the live four-port trace refreshes beside it; see
+[Tracing under the real interpreter](#tracing-under-the-real-interpreter).
 
 Byte-compile it — `make compile` in the checkout, or `M-x byte-recompile-directory`.
 Colouring the variables of a clause is font lock's work and it runs on every
@@ -464,6 +467,20 @@ runs from the buffer it is written in: `embed` arrangement, goal
 `train`, and the model lands in the store for `test` and `predict` to
 load.
 
+And the tracer is not only behind `C-c C-e`: **the engine draws, coco
+certifies**. Whenever the binary is reachable, every `C-c C-t`,
+`C-c C-a` and `C-c C-q` re-asks the real interpreter the same queries —
+in memory, touching no store, whatever the chosen arrangement — and
+compares the answers: agreement is a word in the echo area (`· cocolog
+agrees`), disagreement a loud warning naming the query and both
+answers. The rule's first query is also traced under `--trace` on each
+run, so the `*coco trace*` buffer always holds the four ports of the
+graph you are looking at. Without a binary the graphs stand on the
+engine alone, as they always did — the engine is a shadow held to
+cocolog twice over: offline by `make coco`, and live on every draw.
+`cocolog-coco-check` and `cocolog-coco-trace-on-test` switch the two
+halves off.
+
 ## Grammar rules
 
 Rules written with `-->` work, and so does the graph:
@@ -584,6 +601,8 @@ turn it on from the **Coco** menu under "Test cases".
 | `cocolog-coco-store` | `./KB` | the store directory of the `embed` arrangement |
 | `cocolog-coco-kb` | `main` | the knowledge base name, where one is named |
 | `cocolog-coco-host`, `-port`, `-http-port` | the binary's | where the `server` and `http` arrangements connect |
+| `cocolog-coco-check` | `t` | certify every drawn graph against the binary, when one is reachable |
+| `cocolog-coco-trace-on-test` | `t` | refresh the `*coco trace*` ports on every test run |
 | `cocolog-color-plain-variables` | `nil` | colour ordinary variables on screen, writing nothing (`C-c C-c`) — off to begin with, since it is what font lock spends its time on in a very large file |
 | `cocolog-adopt-known-variables` | `t` | a name the clause already has becomes that variable |
 | `cocolog-auto-color` | `nil` | colour an ordinary variable as soon as you finish typing it |

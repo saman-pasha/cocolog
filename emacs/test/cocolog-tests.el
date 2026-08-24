@@ -2800,6 +2800,40 @@ suite's database cases do without a server."
               (let ((kill-buffer-query-functions nil))
                 (kill-buffer buffer)))))))))
 
+
+(ert-deftest cocolog-test-coco-norm-compares-what-is-said ()
+  "The comparator sees through naming and spacing, not through meaning."
+  (should (cocolog--coco-agree-p "X=X" "X=_G3"))
+  (should (cocolog--coco-agree-p "X=f(Y),L=[1, 2]" "X=f(_G9),L=[1,2]"))
+  (should (cocolog--coco-agree-p "O=(<)" "O=<"))
+  (should-not (cocolog--coco-agree-p "X=a" "X=b"))
+  (should-not (cocolog--coco-agree-p "no solutions" "true"))
+  (should (cocolog--coco-agree-p 'error 'error))
+  (should-not (cocolog--coco-agree-p "true" 'error)))
+
+(ert-deftest cocolog-test-coco-goal-variables-read-like-the-harness ()
+  (should (equal (cocolog--coco-goal-variables "anc(a, X), r(Y, X)")
+                 '("X" "Y")))
+  (should (equal (cocolog--coco-goal-variables
+                  "memb(X, \"ABC\"), atom('Q b'), p(_Hidden)")
+                 '("X"))))
+
+(ert-deftest cocolog-test-coco-certify-catches-a-drifted-program ()
+  "A graph drawn from one program, certified against another, is caught.
+SKIPs (passes vacuously) without a built cocolog."
+  (when (cocolog--coco-available-p)
+    (with-temp-buffer
+      (insert "parent(a, b).\n")
+      (cocolog-mode)
+      (let ((db (cocolog-buffer-db)))
+        ;; the engine answered over parent(a,b); the buffer now says c
+        (erase-buffer)
+        (insert "parent(a, c).\n")
+        (let ((bad (cocolog--coco-certify db (list "parent(a, X)"))))
+          (should (= (length bad) 1))
+          (should (equal (nth 1 (car bad)) "X=b"))
+          (should (equal (nth 2 (car bad)) "X=c")))))))
+
 (provide 'cocolog-tests)
 
 ;;; cocolog-tests.el ends here

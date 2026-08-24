@@ -2774,8 +2774,7 @@ With a prefix argument ALL, run every test case in the buffer."
            (concat (cocolog-term-to-string h) "."))))
       (cocolog--insert-graph (cocolog--graph-anchor db rec)
                              (cocolog--run-queries db queries) rec)
-      (message "%d test case%s run" (length queries)
-               (if (= (length queries) 1) "" "s")))))
+      (cocolog--coco-after-tests db queries))))
 
 ;;;###autoload
 (defun cocolog-run-all-tests ()
@@ -2785,14 +2784,16 @@ With a prefix argument ALL, run every test case in the buffer."
          (recs (reverse (cocolog-db-order db)))
          (n 0))
     (cocolog--report-db-errors db)
-    (dolist (rec recs)
-      (let ((queries (cocolog-clause-queries db rec)))
-        ;; only the clause the comment sits next to gets the graph
-        (when (and queries (cocolog--clause-own-queries rec))
-          (cocolog--insert-graph (cocolog--graph-anchor db rec)
-                                 (cocolog--run-queries db queries) rec)
-          (cl-incf n (length queries)))))
-    (message "%d test case%s run" n (if (= n 1) "" "s"))))
+    (let ((asked '()))
+      (dolist (rec recs)
+        (let ((queries (cocolog-clause-queries db rec)))
+          ;; only the clause the comment sits next to gets the graph
+          (when (and queries (cocolog--clause-own-queries rec))
+            (cocolog--insert-graph (cocolog--graph-anchor db rec)
+                                   (cocolog--run-queries db queries) rec)
+            (setq asked (append asked queries))
+            (cl-incf n (length queries)))))
+      (cocolog--coco-after-tests db asked))))
 
 ;;;###autoload
 (defun cocolog-clear-trace-at-point (&optional all)
@@ -2887,6 +2888,7 @@ and one without" name))
         (goto-char (point-min)))
       (cocolog-view-mode))
     (display-buffer buffer)
+    (cocolog--coco-after-tests db (list query))
     result))
 
 (defvar cocolog-view-mode-map
@@ -3320,13 +3322,27 @@ the buffer it is written in."
     (if (y-or-n-p "Save the buffer first? ")
         (save-buffer)
       (user-error "cocolog reads the file, and the file is behind")))
+  (cocolog--coco-trace-start buffer-file-name goal (cocolog-coco-arguments)
+                             no-trace)
+  (display-buffer "*coco trace*"))
+
+(defun cocolog--coco-trace-start (file goal arrangement &optional no-trace)
+  "Refresh *coco trace* with GOAL's ports over FILE, under ARRANGEMENT.
+The plumbing of \\[cocolog-coco-trace], shared with the quiet refresh a
+test run makes."
   (let* ((goal (string-remove-suffix "." (string-trim goal)))
-         (arrangement (cocolog-coco-arguments))
          (args (append arrangement
                        (and (not no-trace) (list "--trace"))
-                       (list "run" buffer-file-name goal)))
-         (default-directory (file-name-directory buffer-file-name))
+                       (list "run" file goal)))
+         (default-directory (file-name-directory file))
          (buffer (get-buffer-create "*coco trace*")))
+    ;; one trace at a time: a predecessor still running would write its
+    ;; tail -- or its sentinel's last word -- into the fresh trace
+    (let ((old (get-buffer-process buffer)))
+      (when old
+        (set-process-filter old #'ignore)
+        (set-process-sentinel old #'ignore)
+        (delete-process old)))
     (with-current-buffer buffer
       (let ((inhibit-read-only t)) (erase-buffer))
       (cocolog-trace-mode)
@@ -3339,8 +3355,178 @@ the buffer it is written in."
                   :buffer buffer
                   :command (cons cocolog-coco-program args)
                   :filter #'cocolog--coco-filter
-                  :sentinel #'cocolog--coco-sentinel)
-    (display-buffer buffer)))
+                  :sentinel #'cocolog--coco-sentinel)))
+
+;;;; The engine draws, coco certifies.  The engine in cocolog-engine.el
+;;;; is a SHADOW of the interpreter: held to it offline by `make coco',
+;;;; and -- from here -- checked against it live.  Every test run whose
+;;;; machine has a cocolog binary re-asks the real interpreter the same
+;;;; queries and refreshes the live port trace, so a graph the mode
+;;;; draws is never quietly wrong about what cocolog would say.
+
+(defcustom cocolog-coco-check t
+  "Certify every drawn graph against the cocolog binary.
+When the binary is reachable, each test run's queries are re-asked of
+the real interpreter -- in memory, touching no store -- and the answers
+compared; agreement is a word in the echo area, disagreement a loud
+warning.  Without a binary the graphs stand on the engine alone, as
+they always did."
+  :type 'boolean :group 'cocolog-coco)
+
+(defcustom cocolog-coco-trace-on-test t
+  "Refresh the *coco trace* buffer on every test run.
+The rule's first query is traced under the real interpreter -- always
+in memory, whatever `cocolog-coco-arrangement' says, so a redraw can
+never write into a store -- and the four ports wait in the buffer.
+Nothing pops up: the buffer refreshes where it is."
+  :type 'boolean :group 'cocolog-coco)
+
+(defun cocolog--coco-available-p ()
+  "Non-nil when the cocolog binary can actually be run."
+  (and cocolog-coco-program
+       (or (file-executable-p cocolog-coco-program)
+           (executable-find cocolog-coco-program))))
+
+(defvar cocolog--coco-buffer-copy nil
+  "One temporary file per session for consulting an unsaved buffer.
+Reused rather than made fresh, so the asynchronous trace never has its
+file deleted from underneath it.")
+
+(defun cocolog--coco-source-file ()
+  "The file coco should consult: the buffer's own when it is current,
+a temporary copy of the buffer's text otherwise."
+  (if (and buffer-file-name (not (buffer-modified-p)))
+      buffer-file-name
+    (unless cocolog--coco-buffer-copy
+      (setq cocolog--coco-buffer-copy (make-temp-file "coco-buffer" nil ".pl")))
+    (write-region (point-min) (point-max) cocolog--coco-buffer-copy nil 'silent)
+    cocolog--coco-buffer-copy))
+
+(defun cocolog--coco-goal-variables (goal)
+  "The variables written in GOAL, in order of first appearance.
+A name inside a quoted atom or a string is text, and an underscore
+name says nothing worth comparing -- the same reading `make coco'
+makes."
+  (let ((case-fold-search nil)
+        (bare (replace-regexp-in-string
+               "'\\(?:[^'\\\\]\\|\\\\.\\)*'" "''"
+               (replace-regexp-in-string
+                "\"\\(?:[^\"\\\\]\\|\\\\.\\)*\"" "\"\"" goal)))
+        (vars '()) (pos 0))
+    ;; maximal identifier runs, by hand: `\\_<' would read the current
+    ;; buffer's syntax table and `case-fold-search' starts out t, so
+    ;; neither says "a Prolog variable" reliably
+    (while (string-match "[A-Za-z0-9_]+" bare pos)
+      (let ((name (match-string 0 bare)))
+        (setq pos (match-end 0))
+        (when (and (string-match-p "\\`[A-Z]" name)
+                   (not (member name vars)))
+          (push name vars))))
+    (nreverse vars)))
+
+(defun cocolog--coco-plain-goal (query)
+  "QUERY as a goal: no leading ?-, no trailing period."
+  (let ((q (string-trim query)))
+    (when (string-prefix-p "?-" q) (setq q (string-trim (substring q 2))))
+    (string-remove-suffix "." q)))
+
+(defun cocolog--coco-answers (file query)
+  "What cocolog answers for QUERY over FILE, as one conformance line.
+One --local run: consult, prove a goal that prints each solution's
+bindings on a line of its own, join the first ten.  `error' when the
+run died -- an uncaught exception, usually."
+  (let* ((goal (cocolog--coco-plain-goal query))
+         (vars (cocolog--coco-goal-variables goal))
+         (wrapped (if vars
+                      (format "forall((%s), format(\"~n%s~n\", [%s]))"
+                              goal
+                              (mapconcat (lambda (v) (concat v "=~q")) vars ",")
+                              (mapconcat #'identity vars ", "))
+                    (format "( (%s) -> format(\"~ncoco_true~n\", []) ; true )"
+                            goal)))
+         (keep (if vars (concat "^" (regexp-quote (car vars)) "=")
+                 "^coco_true$")))
+    (with-temp-buffer
+      (let ((status (call-process cocolog-coco-program nil (list t nil) nil
+                                  "--local" "run" file wrapped)))
+        (if (not (eq status 0))
+            'error
+          (let ((lines '()))
+            (goto-char (point-min))
+            (while (not (eobp))
+              (let ((line (buffer-substring-no-properties
+                           (line-beginning-position) (line-end-position))))
+                (when (string-match-p keep line) (push line lines)))
+              (forward-line 1))
+            (setq lines (nreverse lines))
+            (cond ((null lines) "no solutions")
+                  ((null vars) "true")
+                  (t (mapconcat #'identity (seq-take lines 10) " ; ")))))))))
+
+(defun cocolog--engine-answer (result)
+  "The engine's RESULT as the same one-line answer, or `error'."
+  (let ((sols (cocolog-result-solutions result)))
+    (cond ((cocolog-result-message result) 'error)
+          ((null sols) "no solutions")
+          ((cl-every #'null sols) "true")
+          (t (mapconcat (lambda (s)
+                          (mapconcat (lambda (b) (format "%s=%s" (car b) (cdr b)))
+                                     s ","))
+                        (seq-take sols 10) " ; ")))))
+
+(defun cocolog--coco-norm (answer)
+  "ANSWER reduced to what it says: no spacing, no variable names.
+Every capital-initial word becomes `_' -- variables are the only words
+Prolog spells that way, and the two writers name theirs differently."
+  (if (not (stringp answer)) answer
+    (let ((case-fold-search nil)
+          (s (replace-regexp-in-string "[ \t]+" "" answer)))
+      (setq s (replace-regexp-in-string
+               "[A-Za-z0-9_]+"
+               (lambda (tok)
+                 (if (string-match-p "\\`[A-Z_]" tok) "_" tok))
+               s t t))
+      (replace-regexp-in-string "(\\([<>=]\\))" "\\1" s))))
+
+(defun cocolog--coco-agree-p (engine coco)
+  (cond ((eq engine 'error) (eq coco 'error))
+        ((eq coco 'error) nil)
+        (t (equal (cocolog--coco-norm engine) (cocolog--coco-norm coco)))))
+
+(defun cocolog--coco-certify (db queries)
+  "Ask the binary QUERIES and compare with the engine over DB.
+Returns the disagreements: a list of (QUERY ENGINE COCO)."
+  (let ((file (cocolog--coco-source-file))
+        (bad '()))
+    (dolist (q queries)
+      (let ((engine (cocolog--engine-answer (cocolog-run-query db q 10)))
+            (coco (cocolog--coco-answers file q)))
+        (unless (cocolog--coco-agree-p engine coco)
+          (push (list q engine coco) bad))))
+    (nreverse bad)))
+
+(defun cocolog--coco-after-tests (db queries)
+  "The word after a test run: certify against coco, refresh the trace.
+Certifying and the quiet trace both run in memory whatever the chosen
+arrangement says, so a redraw can never write into a store."
+  (let ((n (length queries)))
+    (if (not (and cocolog-coco-check (cocolog--coco-available-p)))
+        (message "%d test case%s run" n (if (= n 1) "" "s"))
+      (let ((bad (cocolog--coco-certify db queries)))
+        (when (and cocolog-coco-trace-on-test queries)
+          (cocolog--coco-trace-start (cocolog--coco-source-file)
+                                     (cocolog--coco-plain-goal (car queries))
+                                     (list "--local")))
+        (if (null bad)
+            (message "%d test case%s run · cocolog agrees"
+                     n (if (= n 1) "" "s"))
+          (dolist (d bad)
+            (display-warning
+             'cocolog
+             (format "the graph disagrees with cocolog\n  ?- %s.\n    engine : %s\n    cocolog: %s"
+                     (nth 0 d) (nth 1 d) (nth 2 d))))
+          (message "%d test case%s run · %d DISAGREE with cocolog -- see *Warnings*"
+                   n (if (= n 1) "" "s") (length bad)))))))
 
 (defvar cocolog-mode-map
   (let ((map (make-sparse-keymap)))
