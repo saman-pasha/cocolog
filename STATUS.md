@@ -1067,6 +1067,54 @@ of its own choice stack, and SWI's own machinery splits the same way
 for its own reasons. All thirteen GREEN against a live server,
 `red: 0`.
 
+### The toplevel gets a line editor, written rather than linked
+
+Task 61 could have been `-lreadline`, and deliberately is not: GNU
+readline's license is not this project's BSD-2, and vendoring linenoise
+would have made the editor the one piece of C in the tree somebody else
+wrote. A line editor is not much code, so cocolog's toplevel now has
+its own: the emacs keys (`C-a C-e C-b C-f C-k C-u C-w C-l`), the
+arrows, Home, End and Delete read by their escape sequences and
+normalised to their control twins so every key has exactly one arm in
+the dispatch, and a history walked with `C-p`/`C-n` or up/down that
+survives in `~/.cocolog_history` — capped at a thousand lines,
+consecutive duplicates collapsed, the file brought up to date after
+every goal so a session that dies keeps what was typed, and a
+multi-line goal flattened to one line, which is what a list of lines
+can hold. Byte-based and single-line by design: a multi-byte character
+arrives as its bytes and the arrows step through them, and a goal wider
+than the terminal wraps visually while the editing stays correct.
+
+The terminal goes raw through termios, reached entirely through
+cicili's `(code ...)` escapes so only C ever sees a `struct termios`,
+and is put back before every way out — with `TCSADRAIN`, never
+`TCSAFLUSH`, and that word is the story's one real finding. FLUSH
+discards pending input: at a terminal that eats a fast typist's
+type-ahead between goals, and under the pseudo-terminal tests it ate
+the entire piped script — the pty had the whole session queued before
+raw mode was entered, and FLUSH threw it away, which presented as an
+editor that printed one prompt and found end of input. DRAIN waits for
+output and keeps the queue.
+
+Only the toplevel at a terminal comes near any of this. Piped input
+takes the plain path it always took, byte for byte, and the piped half
+of `test/repl.sh` stands untouched to prove it. The tty half is new,
+through a pseudo-terminal from `script(1)`: the editing is proven by
+what the READER got — an answer can only say `X = 1.` if the
+backspaces really deleted — the arrows and `C-e` by an inserted digit
+landing where the cursor stood, the history file by its contents after
+a session, and the recall by a second session re-running the first
+one's goal off two `C-p`s. All thirteen suite cases GREEN against a
+live server, `red: 0`, and the emacs suite's 160 at 0 unexpected.
+
+Two build lessons paid for along the way, kept here so they are paid
+once: `make | head` kills a build by SIGPIPE when `head` exits, which
+leaves the freshly transpiled objects unlinked and a STALE binary
+passing for the new one — pipe a build into a file, never into `head`
+— and an edited `.el` under an old `.elc` reports the old behaviour,
+because Emacs loads the compiled file when one exists: recompile or
+delete the `.elc` before believing a test.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
