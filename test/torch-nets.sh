@@ -22,7 +22,17 @@
 # It SKIPs without a `make full' build, because "no libtorch here" and "the
 # module is wrong" are different findings. Data is generated, deterministic
 # (torch_seed plus a sin-hash noise), and small enough that the whole suite
-# is a couple of minutes on a CPU.
+# is seconds on a CPU.
+#
+# THE DEVICE IS A KNOB: COCO_TORCH_DEVICE=auto (the default), cpu, cuda, or
+# cuda(N) -- the same twenty nets run wherever the module's device tier
+# points, so on a CUDA box
+#
+#     COCO_TORCH_DEVICE=cuda sh test/torch-nets.sh
+#
+# is the GPU run. On a box without CUDA the suite also proves the refusal:
+# naming cuda must throw domain_error(cuda_available, ...) rather than
+# quietly training on the CPU, because those are different results.
 
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -36,6 +46,8 @@ if [ ! -x "$COCOLOG" ]; then
   echo "SKIP no cocolog-full built (make full needs libtorch and a ZiguratIP checkout)"
   exit 0
 fi
+
+DEVICE="${COCO_TORCH_DEVICE:-auto}"
 
 cat > "$OUT/nets.pl" <<'PL'
 % ---- shared helpers ---------------------------------------------------------
@@ -423,11 +435,25 @@ run_nets([net(Name, G)|T], F0, F) :-
     run_nets(T, F1, F).
 
 suite :-
+    suite_device(D),
+    torch_device(D),
+    torch_current_device(CD),
+    torch_cuda_available(A),
+    format("device ~w (asked ~w, cuda available ~w)~n", [CD, D, A]),
+    % on a box without CUDA, naming it must be a refusal, never a fallback
+    ( A == false
+    -> catch((torch_device(cuda), write('FAIL  cuda accepted without cuda'), nl, halt(1)),
+             error(domain_error(cuda_available, _), _),
+             (write('ok    cuda refused where absent'), nl)),
+       torch_device(D)
+    ; true ),
     nets(L),
     run_nets(L, 0, F),
     ( F =:= 0
     -> write('GREEN: 0 failure(s)'), nl
     ;  format("RED: ~w failure(s)~n", [F]), halt(1) ).
 PL
+
+echo "suite_device($DEVICE)." >> "$OUT/nets.pl"
 
 timeout 900 "$COCOLOG" --kb torch_nets --store "$STORE" run "$OUT/nets.pl" suite
