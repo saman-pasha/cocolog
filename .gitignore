@@ -32,3 +32,4 @@ cocolog-torch
 cocolog-full
 torch/coco-torch.cpp
 *.elc
+/KB/

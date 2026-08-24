@@ -251,6 +251,24 @@
   ;;; and a half that there was never anything to do.
   (var const int COCO_APPEAR_LIMIT . 4000)
 
+  ;;; Whether a word is one of the command verbs. `--embed' takes its
+  ;;; directory optionally, and this is how the parser tells a directory
+  ;;; from the command that follows a bare --embed.
+  (func is_verb ((const char * a)) (out int)
+        (if (== 0 (strcmp a "consult")) (return 1))
+        (if (== 0 (strcmp a "run"))     (return 1))
+        (if (== 0 (strcmp a "query"))   (return 1))
+        (if (== 0 (strcmp a "start"))   (return 1))
+        (if (== 0 (strcmp a "step"))    (return 1))
+        (if (== 0 (strcmp a "finish"))  (return 1))
+        (if (== 0 (strcmp a "work"))    (return 1))
+        (if (== 0 (strcmp a "swarm"))   (return 1))
+        (if (== 0 (strcmp a "forget"))  (return 1))
+        (if (== 0 (strcmp a "vacuum"))  (return 1))
+        (if (== 0 (strcmp a "list"))    (return 1))
+        (if (== 0 (strcmp a "drop"))    (return 1))
+        (return 0))
+
   (func usage ()
         (fprintf stderr "cocolog -- a Prolog interpreter with its knowledge base in Zigurat\n\n")
         (fprintf stderr "  cocolog [options] consult FILE...\n")
@@ -278,7 +296,8 @@
         (fprintf stderr "                cannot take concurrent clients; `auto' names\n")
         (fprintf stderr "                one per host and port. Off by default.\n")
         (fprintf stderr "  --store DIR   the knowledge base EMBEDDED in this process,\n")
-        (fprintf stderr "                no server; --embed DIR says the same thing.\n")
+        (fprintf stderr "                no server; --embed [DIR] says the same thing,\n")
+        (fprintf stderr "                and a bare --embed opens ./KB.\n")
         (fprintf stderr "                One binary, four arrangements: --local (the\n")
         (fprintf stderr "                default), the server, --http, --store\n")
         (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n")
@@ -1145,6 +1164,18 @@
               (if (!= (nth 0 a) (cast char 45)) break)
               (cond
                 ((== 0 (strcmp a "--local")) (set ($ opts local) 1) (set i (+ i 1)))
+                ;; the directory is OPTIONAL here: a bare --embed opens ./KB.
+                ;; The next word is taken as the directory unless it reads as
+                ;; an option or a command -- a store actually named `run'
+                ;; wants --store, whose value is never optional.
+                ((== 0 (strcmp a "--embed"))
+                 (if (and (< (+ i 1) argc)
+                          (!= (nth 0 (nth (+ i 1) argv)) (cast char 45))
+                          (not (is_verb (nth (+ i 1) argv))))
+                     (block (set ($ opts store) (nth (+ i 1) argv))
+                            (set i (+ i 2)))
+                   (block (set ($ opts store) "./KB")
+                          (set i (+ i 1)))))
                 ((== 0 (strcmp a "--vacuum")) (set ($ opts vacuum) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--help")) (usage) (return 0))
                 (#t
@@ -1159,10 +1190,7 @@
                      ((== 0 (strcmp a "--steps"))   (set ($ opts steps) (strtoull v nil 10)))
                      ((== 0 (strcmp a "--timeout")) (set ($ opts timeout) (atoi v)))
                      ((== 0 (strcmp a "--lock"))    (set ($ opts lock) v))
-                     ;; --embed says the same thing --store says: the mode is
-                     ;; named for the arrangement, the option for the directory
                      ((== 0 (strcmp a "--store"))   (set ($ opts store) v))
-                     ((== 0 (strcmp a "--embed"))   (set ($ opts store) v))
                      ((== 0 (strcmp a "--out"))     (set ($ opts outdir) v))
                      ((== 0 (strcmp a "--answers")) (set ($ opts answers) (atoi v)))
                      (#t (block (fprintf stderr "cocolog: unknown option %s\n" a)

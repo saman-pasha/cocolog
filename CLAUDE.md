@@ -41,7 +41,8 @@ sh test/run.sh solve      # one case
 There is one `cocolog` binary and it is full: the four knowledge-base
 arrangements — `--local`, the server, `--http`, `--store`/`--embed` — are
 runtime options, never builds. Local is the default; naming `--kb`, `--host`
-or `--port` chooses the server.
+or `--port` chooses the server, and a bare `--embed` opens the store at
+`./KB`.
 
 The server, which the database tests need:
 

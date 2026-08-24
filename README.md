@@ -91,15 +91,50 @@ test/files/            Prolog programs run by BOTH swipl and cocolog, with
 demo/family.pl         something to run it on
 ```
 
-## Building
+## Installing
+
+What the build needs on the machine:
+
+* **SBCL** — Cicili is Lisp that emits C, and `sbcl` runs it. Needed only to
+  build.
+* **A C and a C++ compiler and GNU make** — `gcc`/`g++` or equivalents. The
+  interpreter is C; the embedded engine and the torch module are C++.
+* **libtorch** — either `$LIBTORCH` pointing at a standalone distribution, or
+  the pip `torch` package (`pip install torch`), which is where the Makefile
+  looks by default.
+* **SWI-Prolog** — optional; only the `files` test case compares against it,
+  and it SKIPs when `swipl` is absent.
+
+Three checkouts, side by side:
 
 ```sh
+git clone https://github.com/saman-pasha/cicili
+git clone https://github.com/saman-pasha/ziguratip ZiguratIP
+git clone https://github.com/saman-pasha/cocolog
+```
+
+Build ZiguratIP first — plain `make` in its checkout; a C++11 compiler is all
+it asks — which fills `ZiguratIP/home` with its libraries, its `parsi`
+compiler and the server binary. Then:
+
+```sh
+cd cocolog
 export CICILI=/path/to/cicili                 # a Cicili checkout, for sbcl
-export ZIGURATIP=/path/to/ZiguratIP           # a BUILT ZiguratIP checkout
+export ZIGURATIP=/path/to/ZiguratIP           # the BUILT ZiguratIP checkout
 export ZIGURATIP_HOME=$ZIGURATIP/home         # and its home
 make            # the C client and the ONE cocolog binary
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make test       # the suite; the database tests skip without a server
+```
+
+And it runs — the first two need nothing else on the machine at all:
+
+```sh
+./cocolog query "X is 2 + 2"                  # local: memory, the default
+./cocolog --embed run tutorials/07-xor.pl train   # the store at ./KB
+cd $ZIGURATIP && ZIGURATIP_HOME=$PWD/home \
+  LD_LIBRARY_PATH=$PWD/home/lib ./home/bin/ziguratip &   # the server
+./cocolog --kb demo consult demo/family.pl    # naming a kb chooses it
 ```
 
 There is one `cocolog` binary and it is the full one: the interpreter, the
@@ -107,12 +142,12 @@ embedded MVCCS engine and the torch module, all in it. Which knowledge base a
 run uses is a runtime choice among four arrangements — `--local` (memory,
 the default when no other arrangement is named),
 the server (`--kb`/`--host`/`--port`), `--http` (Zeytun, read only), and
-`--store DIR` or `--embed DIR` (the store inside the process) — never a
-build. Cicili is needed only to build: `sbcl` runs `cicili.lisp` over the
-`.cicili` files and out comes C. The embedded engine links against the built
-ZiguratIP's `Core` and `StreamIO`, the torch module against libtorch
-(`$LIBTORCH` or the pip `torch` package), and a server is needed only when a
-run chooses the server arrangement.
+`--store DIR` or `--embed [DIR]` (the store inside the process; a bare
+`--embed` opens `./KB`) — never a build. Cicili is needed only to build:
+`sbcl` runs `cicili.lisp` over the `.cicili` files and out comes C. The
+embedded engine links against the built ZiguratIP's `Core` and `StreamIO`,
+the torch module against libtorch, and a server is needed only when a run
+chooses the server arrangement.
 
 ## The knowledge base is a seam, not a dependency
 
@@ -318,8 +353,9 @@ The knowledge base is a seam, and `embed/` is a third thing plugged into it:
 the same eighteen `cocolog::*` procedures the server offers, implemented
 in-process over the **Cicili MVCCS engine** (`ZiguratIP/MVCCS-cicili/`) and
 the very `.cicili` table definitions the Parsi compiler generated beside its
-C++ pair. It is in the one `cocolog` binary: `--store DIR` (or `--embed DIR`,
-which says the same thing) opens the store inside the process — no server, no
+C++ pair. It is in the one `cocolog` binary: `--store DIR` (or `--embed
+[DIR]`, which says the same thing and opens `./KB` when the directory is
+left off) opens the store inside the process — no server, no
 socket — and every command works unchanged, because the C client dispatches
 each verb to the embedded engine behind the same `zg_conn` handle. The hooks
 are weak symbols the interpreter carries either way; linking the engine in is
