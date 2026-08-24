@@ -727,8 +727,12 @@ band, unmoved. The embedded arrangement holds its band the same way:
 default and exclusive alike. The one red exited through a worker's
 normal "nothing left to do" line with healthy claim counts and did not
 recur in 23 straight runs after — the rare-flake territory the
-Contention watch already covers, not a property of the guards. The
-wedge-immunity came for free.
+Contention watch already covers, not a property of the guards. And the
+vacuum itself — the walk that wedged — is confirmed from both ends: the
+vacuum test green in both arrangements against the fixed parallel
+server, all ten checks, and the groups setup vacuum, the exact path
+that spun, green more than eighteen times over on the ageing store it
+originally died on. The wedge-immunity came for free.
 
 ### The test that blocked all of it is fixed
 
