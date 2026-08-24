@@ -490,7 +490,8 @@ whose commit and rollback walk through the same guard — stays green. With
 the stall dead and 55 post-fix runs green without one, **the shared side is
 now the default** for an embedded store; `COCOLOG_PARALLEL_READS=0` keeps
 the exclusive guard, so one env var still separates the two modes in any
-future bisect. The C++ server keeps the exclusive design.
+future bisect. The C++ server has since taken the same design — the story
+continues below, after the turn became one transaction.
 
 ### A dead transaction's lock breaks on contact
 
@@ -612,6 +613,37 @@ commit's three-syncs-of-two-files dance twice, once for the claim and once
 for the work, and in exclusive mode those serialised syncs were most of
 what a turn cost. The parallel default keeps its edge under heavier read
 mixes; the exclusive fallback is simply no longer a 2–3× penalty here.
+
+### The wire server runs parallel reads too
+
+The C++ engine now carries the same shared-read architecture the Cicili
+engine proved out, member for member: a writer-preferring read-write lock
+behind `Streams`, the lock mode following the isolation level, per-thread
+private read streams for eligible cursors, an exclusive release flushing
+both canonical streams, the fixed-point page-list re-walk, and index
+cursors staying exclusive — the same eligibility line the Cicili engine
+drew. The port surfaced one lesson of its own: a thread's private streams
+are opened against a store's files and can OUTLIVE that store — the test
+suite hops stores, and the first shared-mode run failed 73 cases reading
+the previous store's dead files through cached streams. A reader epoch
+fixes it: opening reader paths stamps the store from a global counter, and
+a thread whose streams predate the stamp reopens them before reading.
+
+The server turns it on by default; `ZIGURATIP_PARALLEL_READS=0` keeps the
+exclusive guard, mirroring the embedded flag. The C++ test fixture opens
+reader paths too, so all 304 cases run against the shared shape — green,
+five runs in a row. On the wire, twelve workers: 12/12 green at **5–6
+seconds flat**, zero engine errors, the full cocolog suite `red: 0` with
+every server case really running. The twelve-worker number matches the
+exclusive server's — that choreography is commit-bound, not read-bound, so
+the win here is queueing behaviour (readers no longer serialise behind one
+stream pair) and one engine design in both languages, not a headline
+seconds cut. One bring-up hazard worth recording: the first parallel
+server heap-smashed at startup (`malloc(): invalid next size`) because the
+binary had been built minutes BEFORE the header gained the reader-epoch
+members while the library was built after — `Memory` allocated at the old
+size, constructed at the new one. After ANY engine header change, rebuild
+the library, the server binary, and the schema objects together.
 
 ### The test that blocked all of it is fixed
 
