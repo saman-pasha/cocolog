@@ -61,9 +61,14 @@ grandparent(Ce6194b_Grandad, C4363d8_Kid) :-
 ## Install
 
 ```elisp
-(add-to-list 'load-path "~/Projects/cocolog-mode")
+(add-to-list 'load-path "~/Projects/GitHub/cocolog/emacs")
 (require 'cocolog-mode)
 ```
+
+Loading from the checkout's `emacs/` directory is the way to do it: the mode
+then finds the `cocolog` binary two doors up by itself — no `PATH`, no
+environment variable, nothing to set. Loaded from anywhere else it falls back
+to `cocolog` on `PATH`, or to whatever `cocolog-coco-program` names.
 
 Files ending in `.colog` or `.cocolog` open in `cocolog-mode`. To use it for
 `.pl` files as well:
