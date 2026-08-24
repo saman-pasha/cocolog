@@ -116,6 +116,32 @@ true."
 printf 'halt.\n' | "$C" >/dev/null 2>&1
 check "halt. leaves with 0" "$?" "0"
 
+# ---- the terminal: the line editor and the history ------------------
+# Through a pseudo-terminal from script(1), so isatty is true and the
+# editor runs; the editing is proven by what the READER got -- an answer
+# can only say `X = 1.' if the backspaces really deleted -- and the
+# history by a second session recalling the first one's goal with C-p.
+
+if command -v script >/dev/null 2>&1 && \
+   script -qec true /dev/null >/dev/null 2>&1; then
+  H="$OUT/hist"; mkdir -p "$H"
+  got=$(printf 'X = abcX\b\b\b\b1.\nhalt.\n' | HOME="$H" script -qec "$C" /dev/null \
+        | tr -d '\r' | grep -c '^X = 1\.$')
+  check "tty: backspace edits the line the reader gets" "$got" "1"
+  got=$(printf 'X = 13\033[D2\005.\nhalt.\n' | HOME="$H" script -qec "$C" /dev/null \
+        | tr -d '\r' | grep -c '^X = 123\.$')
+  check "tty: left arrow inserts, C-e goes to the end" "$got" "1"
+  got=$(grep -c '^X = 1\.$' "$H/.cocolog_history" 2>/dev/null)
+  check "tty: the goal as edited lands in the history file" "$got" "1"
+  H2="$OUT/hist2"; mkdir -p "$H2"
+  printf 'X = recall_probe.\nhalt.\n' | HOME="$H2" script -qec "$C" /dev/null >/dev/null 2>&1
+  got=$(printf '\020\020\n' | HOME="$H2" script -qec "$C" /dev/null \
+        | tr -d '\r' | grep -c '^X = recall_probe\.$')
+  check "tty: C-p recalls a previous session's goal" "$got" "1"
+else
+  echo "tty: SKIP (no script(1) for a pseudo-terminal)"
+fi
+
 # ---- embed: a piped session writes, a second process reads ----------
 
 printf "assertz(kept(embed_round_trip)).\nhalt.\n" | \

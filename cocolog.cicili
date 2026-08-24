@@ -105,6 +105,9 @@
   ;; is holding. lib/std/c/posix declares it for inference; the header still
   ;; has to be included by the target that emits code.
   (include <unistd.h>)
+  ;; the toplevel's line editor puts the terminal in raw mode; everything
+  ;; termios is reached through `(code ...)' escapes, so only C sees it
+  (include <termios.h>)
   ;; the Files module reaches stat, opendir, glob and realpath
   (include <sys/stat.h>)
   (include <sys/types.h>)
@@ -500,6 +503,244 @@
           (coco_machine_free (aof m))
           (return (? (== rc -1) 1 0))))
 
+  ;;; ---- the line editor ----------------------------------------------------
+  ;;;
+  ;;; A small readline of cocolog's own, written rather than linked: GNU
+  ;;; readline's license is not this project's, and a line editor is not
+  ;;; much code. Emacs keys (C-a C-e C-b C-f C-k C-u C-w C-l), the arrows
+  ;;; and Home/End/Delete by their escape sequences, and a history walked
+  ;;; with C-p/C-n or up/down that survives in ~/.cocolog_history. It is
+  ;;; byte-based -- a multi-byte character arrives as its bytes and the
+  ;;; arrows step through them -- and single-line: a goal wider than the
+  ;;; terminal wraps visually while the editing stays correct. Only the
+  ;;; toplevel at a terminal comes near it; piped input never does.
+
+  (var char ** coco_ln_hist . nil)
+  (var int coco_ln_hist_len . 0)
+  (var const int COCO_LN_HIST_MAX . 1000)
+
+  (func coco_ln_hist_add ((const char * s))
+        (if (or (== s nil) (== (nth 0 s) (cast char 0))) (return))
+        ;; consecutive duplicates collapse, as readline collapses them
+        (if (and (> coco_ln_hist_len 0)
+                 (== 0 (strcmp (nth (- coco_ln_hist_len 1) coco_ln_hist) s)))
+            (return))
+        (if (== coco_ln_hist nil)
+            (set coco_ln_hist
+                 (cast (char **) (malloc (* (cast size_t COCO_LN_HIST_MAX)
+                                            (sizeof (char *)))))))
+        (if (== coco_ln_hist nil) (return))
+        (if (>= coco_ln_hist_len COCO_LN_HIST_MAX)
+            (block (free (nth 0 coco_ln_hist))
+                   (for ((int k . 1)) (< k COCO_LN_HIST_MAX) ((++ k))
+                     (set (nth (- k 1) coco_ln_hist) (nth k coco_ln_hist)))
+                   (set coco_ln_hist_len (- coco_ln_hist_len 1))))
+        (set (nth coco_ln_hist_len coco_ln_hist) (strdup s))
+        (set coco_ln_hist_len (+ coco_ln_hist_len 1)))
+
+  (func coco_ln_hist_load ((const char * path))
+        (let ((FILE * f . #'(fopen path "r")) (char buf [4096]))
+          (if (== f nil) (return))
+          (while (!= (fgets buf (sizeof buf) f) nil)
+            (let ((size_t n . #'(strlen buf)))
+              (while (and (> n 0) (or (== (nth (- n 1) buf) (cast char 10))
+                                      (== (nth (- n 1) buf) (cast char 13))))
+                (set n (- n 1))
+                (set (nth n buf) (cast char 0)))
+              (coco_ln_hist_add buf)))
+          (fclose f)))
+
+  (func coco_ln_hist_save ((const char * path))
+        (let ((FILE * f . #'(fopen path "w")))
+          (if (== f nil) (return))
+          (for ((int k . 0)) (< k coco_ln_hist_len) ((++ k))
+            (fprintf f "%s\n" (nth k coco_ln_hist)))
+          (fclose f)))
+
+  ;;; Repaints the line: prompt, buffer, erase rightward, cursor placed.
+  (func coco_ln_refresh ((const char * prompt) (const char * buf) (int cur))
+        (printf "\r%s%s\x1b[0K" prompt buf)
+        (let ((int col . #'(+ (cast int (strlen prompt)) cur)))
+          (if (> col 0) (printf "\r\x1b[%dC" col) (printf "\r")))
+        (fflush stdout))
+
+  ;;; Reads one line with editing, the terminal put in raw mode for the
+  ;;; duration and put back before every way out. Answers a malloc'd line,
+  ;;; or nil at end of input (C-d on an empty line, or the terminal gone).
+  ;;; C-c drops the line and answers empty, which the toplevel reads as
+  ;;; "fresh prompt".
+  (func coco_ln_edit ((const char * prompt)) (out char *)
+        (let ((char buf [4096]) (char saved [4096]) (char c . 0)
+              (int len . 0) (int cur . 0) (int nr . 0)
+              (int browse . #'coco_ln_hist_len))
+          (code "struct termios ln_orig, ln_raw;")
+          (if (!= 0 (cast int (code "tcgetattr(0, &ln_orig)"))) (return nil))
+          (code "ln_raw = ln_orig;")
+          (code "ln_raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);")
+          (code "ln_raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);")
+          (code "ln_raw.c_cflag |= CS8;")
+          (code "ln_raw.c_cc[VMIN] = 1; ln_raw.c_cc[VTIME] = 0;")
+          (code "tcsetattr(0, TCSADRAIN, &ln_raw);")
+          (set (nth 0 buf) (cast char 0))
+          (set (nth 0 saved) (cast char 0))
+          (coco_ln_refresh prompt buf 0)
+          (while 1
+            (set nr (cast int (code "read(0, &c, 1)")))
+            (if (<= nr 0)
+                (block (code "tcsetattr(0, TCSADRAIN, &ln_orig);")
+                       (printf "\r\n") (fflush stdout)
+                       (return nil)))
+
+            ;; the escape sequences become their control twins, so every
+            ;; key has one arm below: arrows to C-p/C-n/C-f/C-b, Home and
+            ;; End to C-a/C-e, Delete to its own 18
+            (if (== c (cast char 27))                    ; ESC
+                (let ((char s0 . 0) (char s1 . 0) (char s2 . 0))
+                  (if (<= (cast int (code "read(0, &s0, 1)")) 0) continue)
+                  (if (== s0 (cast char 91))             ; [
+                      (block
+                       (if (<= (cast int (code "read(0, &s1, 1)")) 0) continue)
+                       (cond
+                         ((== s1 (cast char 65)) (set c (cast char 16)))  ; A up
+                         ((== s1 (cast char 66)) (set c (cast char 14)))  ; B down
+                         ((== s1 (cast char 67)) (set c (cast char 6)))   ; C right
+                         ((== s1 (cast char 68)) (set c (cast char 2)))   ; D left
+                         ((== s1 (cast char 72)) (set c (cast char 1)))   ; H home
+                         ((== s1 (cast char 70)) (set c (cast char 5)))   ; F end
+                         ((and (>= s1 (cast char 48)) (<= s1 (cast char 57)))
+                          (if (<= (cast int (code "read(0, &s2, 1)")) 0) continue)
+                          (if (== s1 (cast char 51))     ; 3~ delete
+                              (set c (cast char 18))
+                            continue))
+                         (#t continue)))
+                    (if (== s0 (cast char 79))           ; O
+                        (block
+                         (if (<= (cast int (code "read(0, &s1, 1)")) 0) continue)
+                         (cond
+                           ((== s1 (cast char 72)) (set c (cast char 1)))
+                           ((== s1 (cast char 70)) (set c (cast char 5)))
+                           (#t continue)))
+                      continue))))
+
+            (cond
+              ;; Enter, either ending
+              ((or (== c (cast char 13)) (== c (cast char 10)))
+               (code "tcsetattr(0, TCSADRAIN, &ln_orig);")
+               (printf "\r\n") (fflush stdout)
+               (return (strdup buf)))
+
+              ;; C-c: the line is dropped, the prompt is fresh
+              ((== c (cast char 3))
+               (code "tcsetattr(0, TCSADRAIN, &ln_orig);")
+               (printf "^C\r\n") (fflush stdout)
+               (return (strdup "")))
+
+              ;; C-d: the end on an empty line, a delete otherwise
+              ((== c (cast char 4))
+               (if (== len 0)
+                   (block (code "tcsetattr(0, TCSADRAIN, &ln_orig);")
+                          (printf "\r\n") (fflush stdout)
+                          (return nil))
+                 (block
+                  (if (< cur len)
+                      (block (for ((int k . cur)) (< k (- len 1)) ((++ k))
+                               (set (nth k buf) (nth (+ k 1) buf)))
+                             (set len (- len 1))
+                             (set (nth len buf) (cast char 0))
+                             (coco_ln_refresh prompt buf cur))))))
+
+              ;; Delete at the cursor
+              ((== c (cast char 18))
+               (if (< cur len)
+                   (block (for ((int k . cur)) (< k (- len 1)) ((++ k))
+                            (set (nth k buf) (nth (+ k 1) buf)))
+                          (set len (- len 1))
+                          (set (nth len buf) (cast char 0))
+                          (coco_ln_refresh prompt buf cur))))
+
+              ;; Backspace
+              ((or (== c (cast char 127)) (== c (cast char 8)))
+               (if (> cur 0)
+                   (block (for ((int k . #'(- cur 1))) (< k (- len 1)) ((++ k))
+                            (set (nth k buf) (nth (+ k 1) buf)))
+                          (set cur (- cur 1))
+                          (set len (- len 1))
+                          (set (nth len buf) (cast char 0))
+                          (coco_ln_refresh prompt buf cur))))
+
+              ((== c (cast char 1))                      ; C-a
+               (set cur 0) (coco_ln_refresh prompt buf cur))
+              ((== c (cast char 5))                      ; C-e
+               (set cur len) (coco_ln_refresh prompt buf cur))
+              ((== c (cast char 2))                      ; C-b
+               (if (> cur 0) (block (set cur (- cur 1))
+                                    (coco_ln_refresh prompt buf cur))))
+              ((== c (cast char 6))                      ; C-f
+               (if (< cur len) (block (set cur (+ cur 1))
+                                      (coco_ln_refresh prompt buf cur))))
+
+              ((== c (cast char 11))                     ; C-k: kill rightward
+               (set len cur)
+               (set (nth len buf) (cast char 0))
+               (coco_ln_refresh prompt buf cur))
+              ((== c (cast char 21))                     ; C-u: kill the line
+               (set len 0) (set cur 0)
+               (set (nth 0 buf) (cast char 0))
+               (coco_ln_refresh prompt buf cur))
+              ((== c (cast char 23))                     ; C-w: kill a word back
+               (let ((int e . cur))
+                 (while (and (> cur 0) (== (nth (- cur 1) buf) (cast char 32)))
+                   (set cur (- cur 1)))
+                 (while (and (> cur 0) (!= (nth (- cur 1) buf) (cast char 32)))
+                   (set cur (- cur 1)))
+                 (let ((int d . #'(- e cur)))
+                   (if (> d 0)
+                       (block (for ((int k . cur)) (<= k (- len d)) ((++ k))
+                                (set (nth k buf) (nth (+ k d) buf)))
+                              (set len (- len d))
+                              (coco_ln_refresh prompt buf cur))))))
+
+              ((== c (cast char 12))                     ; C-l: clear screen
+               (printf "\x1b[H\x1b[2J")
+               (coco_ln_refresh prompt buf cur))
+
+              ((== c (cast char 16))                     ; C-p / up: older
+               (if (> coco_ln_hist_len 0)
+                   (block
+                    (if (== browse coco_ln_hist_len)
+                        (memcpy saved buf (cast size_t (+ len 1))))
+                    (if (> browse 0)
+                        (block (set browse (- browse 1))
+                               (snprintf buf (sizeof buf) "%s"
+                                         (nth browse coco_ln_hist))
+                               (set len (cast int (strlen buf)))
+                               (set cur len)
+                               (coco_ln_refresh prompt buf cur))))))
+              ((== c (cast char 14))                     ; C-n / down: newer
+               (if (< browse coco_ln_hist_len)
+                   (block
+                    (set browse (+ browse 1))
+                    (if (== browse coco_ln_hist_len)
+                        (snprintf buf (sizeof buf) "%s" saved)
+                      (snprintf buf (sizeof buf) "%s" (nth browse coco_ln_hist)))
+                    (set len (cast int (strlen buf)))
+                    (set cur len)
+                    (coco_ln_refresh prompt buf cur))))
+
+              ;; anything printable -- the high half of UTF-8 included,
+              ;; whose bytes are negative in a signed char -- is inserted
+              (#t
+               (if (and (or (< (cast int c) 0) (>= (cast int c) 32))
+                        (!= (cast int c) 127)
+                        (< len 4094))
+                   (block (for ((int k . len)) (> k cur) ((-- k))
+                            (set (nth k buf) (nth (- k 1) buf)))
+                          (set (nth cur buf) c)
+                          (set cur (+ cur 1))
+                          (set len (+ len 1))
+                          (set (nth len buf) (cast char 0))
+                          (coco_ln_refresh prompt buf cur))))))))
+
   ;;; ---- the toplevel -------------------------------------------------------
 
   ;;; Appends one physical line of stdin to INTO, without its newline.
@@ -600,6 +841,22 @@
               (set p (coco_deref m (coco_arg m p 1)))))
           (return 1)))
 
+  ;;; One completed goal into the history, its newlines flattened to spaces
+  ;;; -- the history is a list of lines -- and the file brought up to date
+  ;;; at once, so a session that dies keeps what was typed.
+  (func repl_history_add ((coco_strbuf * b) (const char * path))
+        (let ((const char * s . #'(-> b s)) (char * flat . nil) (size_t n . 0))
+          (if (== s nil) (return))
+          (set n (strlen s))
+          (set flat (cast (char *) (malloc (+ n 1))))
+          (if (== flat nil) (return))
+          (for ((size_t i . 0)) (<= i n) ((++ i))
+            (set (nth i flat) (? (== (nth i s) (cast char 10)) (cast char 32)
+                                 (nth i s))))
+          (coco_ln_hist_add flat)
+          (free flat)
+          (if (!= path nil) (coco_ln_hist_save path))))
+
   ;;; The display name of a still-unbound cell: the LAST of the query's
   ;;; variables standing on it, which is SWI's choice -- `X = Y, f(A,B) =
   ;;; f(B,A)' answers `X = Y' and `A = B'. A `_'-named variable can name a
@@ -684,7 +941,8 @@
   ;;; the way out, so a transcript reads as a terminal session does.
   (func cmd_repl () (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (int tty . #'(isatty 0)) (int quit . 0) (int session_rc . 0))
+              (int tty . #'(isatty 0)) (int quit . 0) (int session_rc . 0)
+              (char histpath [512]) (const char * hf . nil))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
@@ -706,13 +964,29 @@
                            ($ opts kb) ($ opts host) ($ opts port))))
                (fprintf stderr "A goal ends with `.' -- halt. leaves.\n")))
 
+          ;; the history, at a terminal: what earlier sessions typed is a
+          ;; C-p away, and what this one types joins the file as it goes
+          (if tty
+              (let ((const char * home . #'(getenv "HOME")))
+                (if (and (!= home nil) (!= (nth 0 home) (cast char 0)))
+                    (block (snprintf histpath (sizeof histpath)
+                                     "%s/.cocolog_history" home)
+                           (set hf histpath)
+                           (coco_ln_hist_load hf)))))
+
           (while (not quit)
             (let ((coco_strbuf line) (int got . 0) (int first . 1))
               (coco_sb_init (aof line))
               (while 1
-                (if tty (block (fprintf stderr "%s" (? first "?- " "|    "))
-                               (fflush stderr)))
-                (set got (repl_gets (aof line)))
+                (if tty
+                    ;; the line editor draws its own prompt
+                    (let ((char * ln . #'(coco_ln_edit (? first "?- " "|    "))))
+                      (if (== ln nil)
+                          (set got 0)
+                        (block (set got 1)
+                               (coco_sb_put (aof line) ln)
+                               (free ln))))
+                  (set got (repl_gets (aof line))))
                 (if (== got 0) break)
                 (if (repl_complete (aof line)) break)
                 (if (repl_blank (aof line))
@@ -723,10 +997,11 @@
                          (set first 0))))
 
               (if (and (== got 0) (not (repl_complete (aof line))))
-                  ;; end of input: the session is over
-                  (block (set quit 1)
-                         (if tty (fprintf stderr "\n")))
+                  ;; end of input: the session is over -- the editor has
+                  ;; already said its farewell newline
+                  (set quit 1)
                 (let ((coco_reader r) (size_t g . 0) (int prc . 0) (int grc . 0))
+                  (if tty (repl_history_add (aof line) hf))
                   (coco_reader_init (aof r) (aof m) (? (== ($ line s) nil) "" ($ line s)))
                   (set prc (coco_read_clause (aof r) (aof g)))
                   (cond

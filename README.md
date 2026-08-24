@@ -162,7 +162,10 @@ cd $ZIGURATIP && ZIGURATIP_HOME=$PWD/home \
 ./cocolog --kb demo consult demo/family.pl    # naming a kb chooses it
 ```
 
-Bare `cocolog` is what bare `swipl` is — a toplevel. `?- ` reads a goal to
+Bare `cocolog` is what bare `swipl` is — a toplevel. Line editing is built
+in — the emacs keys, the arrows, and a history walked with `C-p` that
+survives in `~/.cocolog_history` — written into the binary rather than
+linked, GNU readline's license not being this project's. `?- ` reads a goal to
 its full stop, over as many lines as it takes; answers come back under the
 query's own variable names, in SWI's shapes down to the aliases (`X = f(Z),
 Y = Z.` answers `X = f(Y), Z = Y.`, held to a live SWI); `;` asks for
