@@ -92,6 +92,8 @@ demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
                        variables and execution graphs drawn under the rules,
                        its engine held to this interpreter
+colab/                 train on a Colab GPU, query from anywhere: the
+                       notebook, and COLAB.md for the arrangement it runs
 ```
 
 ## Installing
@@ -531,6 +533,17 @@ learned knowledge survives the process the same way asserted knowledge
 does. Where a neural net stops — explaining, constraining, chaining
 conclusions — the Prolog engine picks up, because they were never in
 different systems to begin with.
+
+And because a trained model is clauses, it travels the way clauses do.
+[colab/COLAB.md](colab/COLAB.md) is that claim on free hardware: one
+Colab session trains on its GPU into a knowledge base that Google Drive
+keeps between sessions, a Cloudflare tunnel publishes Zeytun's
+read-only view of it, and every other cocolog — another Colab, a
+laptop's `?- ` prompt — does `model_load(xor, M), model_predict(M, ...)`
+over `--http`, the weights arriving as terms and the prediction running
+wherever the querier is. One writer, many readers, enforced by which
+port is public; `test/tunnel.sh` rehearses the edge locally, port for
+port and Host for Host.
 
 ## The tracer speaks SWI
 

@@ -142,11 +142,24 @@ int zt_get(const char *host, const char *service, const char *path,
   if (len) *len = 0;
   if (err && errcap) err[0] = '\0';
 
-  n = snprintf(request, sizeof request,
-               "GET %s HTTP/1.1\r\nHost: %s:%s\r\n"
-               "User-Agent: cocolog/1\r\nAccept: text/plain\r\n"
-               "Connection: close\r\n\r\n",
-               path, host, service);
+  /* The default port stays out of the Host header. Direct to Zeytun the
+     port-qualified form is fine, but through a proxy that routes by
+     hostname -- a Cloudflare tunnel in front of a Colab VM is the worked
+     case -- "Host: name:80" is not the registered "Host: name", and the
+     edge answers for nobody. */
+  if (strcmp(service, "80") == 0 || strcmp(service, "443") == 0 ||
+      strcmp(service, "http") == 0 || strcmp(service, "https") == 0)
+    n = snprintf(request, sizeof request,
+                 "GET %s HTTP/1.1\r\nHost: %s\r\n"
+                 "User-Agent: cocolog/1\r\nAccept: text/plain\r\n"
+                 "Connection: close\r\n\r\n",
+                 path, host);
+  else
+    n = snprintf(request, sizeof request,
+                 "GET %s HTTP/1.1\r\nHost: %s:%s\r\n"
+                 "User-Agent: cocolog/1\r\nAccept: text/plain\r\n"
+                 "Connection: close\r\n\r\n",
+                 path, host, service);
   if (n < 0 || (size_t)n >= sizeof request)
     return fail(err, errcap, "the request line is too long", path);
 

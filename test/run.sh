@@ -63,9 +63,11 @@ done
 #           on the vacuum_kb builtin
 #   repl    the toplevel, piped: SWI's answer shapes, one session one
 #           world, and a session's writes read by a second process
+#   tunnel  the Zeytun reader behind a hostname-routing edge -- the local
+#           rehearsal of the Cloudflare tunnel in colab/COLAB.md
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl groups ruler; do
+for c in files trace vacuum repl tunnel groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   if [ ! -x "$ROOT/cocolog" ]; then
