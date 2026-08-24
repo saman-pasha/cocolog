@@ -2,7 +2,7 @@ EMACS ?= emacs
 EL    := cocolog-engine.el cocolog-graph.el cocolog-color.el cocolog-mode.el \
          cocolog-markdown.el
 
-.PHONY: all test compile clean examples doc swipl
+.PHONY: all test compile clean examples doc coco
 
 all: compile test
 
@@ -21,9 +21,9 @@ examples:
 	            (with-current-buffer (find-file-noselect f) \
 	              (cocolog-run-all-tests) (save-buffer)))'
 
-# ask SWI-Prolog the same questions and compare the answers
-swipl:
-	tools/swipl-diff.sh
+# ask cocolog the same questions and compare the answers
+coco:
+	tools/coco-diff.sh
 
 # regenerate the SVG pictures used by README.md
 doc:

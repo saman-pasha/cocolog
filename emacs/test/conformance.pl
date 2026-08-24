@@ -1,7 +1,7 @@
 :- use_module(library(dcg/basics)).
 
-%% conformance.pl -- a small program the engine and SWI-Prolog are both
-%% asked about, so that `make swipl' can compare their answers.
+%% conformance.pl -- a small program the engine and cocolog are both
+%% asked about, so that `make coco' can compare their answers.
 %% Plain Prolog on purpose: no colours, nothing of the mode in it.
 
 parent(tom, bob).   parent(tom, liz).
@@ -29,12 +29,16 @@ ab --> [a], ab, [b].
 
 swap(A, B), [B], [A] --> [A], [B].
 
-digit(D) --> [C], { C >= 0'0, C =< 0'9, D is C - 0'0 }.
-digits([D|T]) --> digit(D), digits(T).
-digits([D]) --> digit(D).
+%% The value-flavoured digit rules of examples/grammar.colog, under the
+%% names that flavour carries there: digits//1 itself is the library's,
+%% and a flat-namespace Prolog -- cocolog consults, it does not import --
+%% cannot give one name both readings in one program.
+digit_value(D) --> [C], { C >= 0'0, C =< 0'9, D is C - 0'0 }.
+digits_value([D|T]) --> digit_value(D), digits_value(T).
+digits_value([D]) --> digit_value(D).
 
 %% The tokenizer of examples/grammar.colog, so that the answers the
-%% example shows are held to SWI's own dcg/basics rather than to ours.
+%% example shows are held to the real dcg/basics rather than to ours.
 tokens(Ts) -->
     blanks,
     more_tokens(Ts).

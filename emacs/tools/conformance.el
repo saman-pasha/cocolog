@@ -1,4 +1,4 @@
-;;; conformance.el --- Answer the queries `make swipl' compares -*- lexical-binding: t; -*-
+;;; conformance.el --- Answer the queries `make coco' compares -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -8,7 +8,7 @@
 ;;
 ;;     FILE <TAB> QUERY <TAB> SOLUTIONS
 ;;
-;; tools/swipl-diff.sh asks SWI-Prolog the same questions and compares.
+;; tools/coco-diff.sh asks cocolog the same questions and compares.
 
 ;;; Code:
 
@@ -62,5 +62,27 @@
     (dolist (query (split-string (buffer-string) "\n" t))
       (unless (string-prefix-p "#" query)
         (conformance--report program query)))))
+
+;; and every example the snippet pickers show.  What the picker offers is
+;; a promise that the piece runs, and the piece must run under cocolog,
+;; not only under the engine -- so each example travels with the program
+;; its piece brings along (itself, when it is a whole rule), in a fourth
+;; column with its newlines written as \n.
+(defun conformance--escape (text)
+  (replace-regexp-in-string
+   "\n" "\\\\n" (replace-regexp-in-string "\\\\" "\\\\\\\\" text)))
+
+(dolist (table (list cocolog-builtin-snippets cocolog-dcg-snippets))
+  (dolist (row (cocolog--pick-rows table))
+    (let* ((query (nth 3 row))
+           (program (let ((plain (replace-regexp-in-string
+                                  cocolog--placeholder-regexp "\\1" (nth 0 row))))
+                      (if (string-match-p "-->\\|:-" plain) plain "")))
+           (db (cocolog-consult-string program)))
+      (princ (format "%s\t%s\t%s\t%s\n"
+                     (format "snippet: %s" (cocolog--pick-oneline (nth 0 row)))
+                     (string-trim query)
+                     (conformance--answer db query)
+                     (conformance--escape program))))))
 
 ;;; conformance.el ends here

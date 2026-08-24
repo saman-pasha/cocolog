@@ -1953,6 +1953,48 @@ offers looks like a promise that the piece will run."
                 (should (string-search (concat marker " [Item]") text))))))
       (kill-buffer buffer))))
 
+(ert-deftest cocolog-test-torch-snippets-are-well-formed ()
+  "Every torch piece carries its four strings and reads as Prolog.
+The examples are tutorial lines proven by cocolog-full's own suite, not
+run by the engine -- it traces no tensors -- so what is held here is
+the shape: the piece must consult, under a head when it is not a rule
+of its own, and its placeholders must be placeholders."
+  (dolist (row (cocolog--pick-rows cocolog-torch-snippets))
+    (should (= 5 (length row)))
+    (dolist (s row)
+      (should (stringp s))
+      (should-not (string-empty-p s)))
+    (let ((plain (cocolog--pick-plain (nth 0 row))))
+      (should (cocolog-consult-string
+               (if (string-match-p "-->\\|:-" plain)
+                   plain
+                 (concat "torch_piece :- " plain ".")))))))
+
+(ert-deftest cocolog-test-the-two-pickers-are-on-their-keys ()
+  "C-c C-i opens the goal picker and C-c C-g the torch rules."
+  (should (eq (lookup-key cocolog-mode-map (kbd "C-c C-i"))
+              #'cocolog-insert-goal))
+  (should (eq (lookup-key cocolog-mode-map (kbd "C-c C-g"))
+              #'cocolog-insert-torch-rule)))
+
+(ert-deftest cocolog-test-torch-picker-shows-its-three-columns ()
+  "The torch picker draws its three groups, every piece under its own."
+  (let* ((rows (cocolog--pick-rows cocolog-torch-snippets))
+         (cocolog--pick-index 0)
+         (buffer (get-buffer-create " *cocolog torch test*")))
+    (unwind-protect
+        (progn
+          (cocolog--pick-render buffer rows "Insert a torch rule"
+                                cocolog-torch-pick-columns)
+          (with-current-buffer buffer
+            (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+              (dolist (group cocolog-torch-snippets)
+                (should (string-search (car group) text)))
+              (dolist (row rows)
+                (should (string-search (cocolog--pick-oneline (nth 0 row))
+                                       text))))))
+      (kill-buffer buffer))))
+
 (ert-deftest cocolog-test-dcg-picker-tab-moves-between-groups ()
   (let* ((rows (cocolog--pick-rows cocolog-dcg-snippets))
          (groups (delete-dups (mapcar (lambda (r) (nth 2 r)) rows))))

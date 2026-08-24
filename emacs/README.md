@@ -243,8 +243,8 @@ turns the whole thing off:
 | `C-c C-n` | `cocolog-name-variable-at-point` | give the variable at point a name of its own, colour and all; an empty name gives its colour name back |
 | `C-c C-r` | `cocolog-recolor-variable-at-point` | give the variable at point another colour, keeping its name, in every place it occurs in its clause; the graph below is run again |
 | `C-c C-u` | `cocolog-uncolor-variable-at-point` | drop the colour and leave an ordinary variable |
-| `C-c C-i` | `cocolog-insert-goal` | insert a goal, picked from one list of everything, grouped and in columns (`C-u` for the other half) |
-| `C-c C-g` | `cocolog-insert-dcg-item` | the same list, opened on the pieces of a grammar rule |
+| `C-c C-i` | `cocolog-insert-goal` | insert a goal, picked from one list of everything, grouped and in columns — the goals and the pieces of a grammar rule alike (`C-u` for the other half) |
+| `C-c C-g` | `cocolog-insert-torch-rule` | insert a torch rule: building a net, training, a trained model — three groups, one column each |
 | `C-c C-c` | `cocolog-toggle-plain-colors` | colour the ordinary variables on screen, or leave them plain |
 | `C-c C-b` | `cocolog-colorize-clause` | give every variable of the clause its own colour, keeping the names they have (for code you pasted) |
 | `C-c C-w` | `cocolog-shuffle-colors` | deal the ordinary variables another set of colours |
@@ -356,9 +356,16 @@ and `S-TAB` jump group to group, `mouse-1` picks, `/` types a name instead,
 
 Which end it opens on depends on where you are: inside a rule written with
 `-->` it opens on the grammar, anywhere else on the goals, and `C-u C-c C-i`
-opens on the other one. `C-c C-g` always opens on the grammar. Both halves
-are always there, one `TAB` away -- a grammar rule is full of ordinary goals
-in `{...}`, and that is the reason the two lists are one.
+opens on the other one. Both halves are always there, one `TAB` away -- a
+grammar rule is full of ordinary goals in `{...}`, and that is the reason
+the two lists are one.
+
+`C-c C-g` is a picker of its own: the torch rules a training program is
+written out of, in three columns -- building a net, training, a trained
+model -- ending on a whole tutorial's `train`, `test` and `predict` as one
+piece. The pieces are the shapes of `tutorials/` in the cocolog repository
+and run under `cocolog-full`, which carries the torch module; the engine of
+this mode traces no tensors.
 
 The grammar groups keep a heading of their own -- `grammar: numbers`,
 `grammar: text` -- because `atom(A)` in a rule writes a name out where
@@ -468,10 +475,11 @@ That one is the tokenizer of section 4 of
 to skip and `more_tokens` trying its three clauses in turn. The whole rule is
 in the picker as well, under `grammar: a whole rule`.
 
-`C-c C-g` writes the pieces for you: it opens the picker on the grammar half,
-where the terminals, the white space, the numbers and the names are, each
-with a line about what it does. The goals are in the same list, a `TAB` away,
-which is what a `{...}` needs. See [Writing the goals](#writing-the-goals).
+`C-c C-i` writes the pieces for you: inside a rule written with `-->` it
+opens the picker on the grammar half, where the terminals, the white space,
+the numbers and the names are, each with a line about what it does. The
+goals are in the same list, a `TAB` away, which is what a `{...}` needs.
+See [Writing the goals](#writing-the-goals).
 
 `phrase(Rule, List)` proves that `Rule` describes the whole of `List`, and
 `phrase(Rule, List, Rest)` leaves `Rest` over — which is what a pushback rule
@@ -512,8 +520,8 @@ From `library(dcg/basics)`: `eos//0` `remainder//1` `digit//1` `digits//1`
 `alpha_to_lower//1` `atom//1`.
 
 Deliberately absent: assert/retract, modules, exception *catching*, I/O to
-real streams, constraints.  What is there is checked against SWI-Prolog by
-`make swipl`. Directives (`:- ...`) are read
+real streams, constraints.  What is there is checked against cocolog by
+`make coco`. Directives (`:- ...`) are read
 and ignored. Calling an undefined predicate is an error, as with
 `unknown = error`.
 
@@ -547,6 +555,8 @@ turn it on from the **Coco** menu under "Test cases".
 |----------|---------|---------|
 | `cocolog-color-min-distance` | `250` | how far apart the colours of one clause must look |
 | `cocolog-pick-columns` | `2` | how many columns `C-c C-i` lays its groups out in |
+| `cocolog-torch-pick-columns` | `3` | how many columns `C-c C-g` lays the torch groups out in — one each |
+| `cocolog-torch-snippets` | 3 groups | the torch rules `C-c C-g` offers, shaped like the other two tables |
 | `cocolog-color-plain-variables` | `nil` | colour ordinary variables on screen, writing nothing (`C-c C-c`) — off to begin with, since it is what font lock spends its time on in a very large file |
 | `cocolog-adopt-known-variables` | `t` | a name the clause already has becomes that variable |
 | `cocolog-auto-color` | `nil` | colour an ordinary variable as soon as you finish typing it |
@@ -578,7 +588,7 @@ turn it on from the **Coco** menu under "Test cases".
 | `cocolog-markdown.el` | optional: read this README in Emacs the way a browser shows it |
 | `test/cocolog-tests.el` | 46 ERT tests |
 | `examples/` | `family.colog`, `lists.colog` and `grammar.colog`, graphs included |
-| `tools/` | `cocolog-svg.el`, which renders a fontified buffer to SVG for the pictures above, and `swipl-diff.sh`, which checks the engine against SWI-Prolog |
+| `tools/` | `cocolog-svg.el`, which renders a fontified buffer to SVG for the pictures above, and `coco-diff.sh`, which checks the engine against cocolog |
 | `doc/` | those pictures, regenerated with `make doc` |
 
 ## Reading this README inside Emacs
@@ -621,42 +631,61 @@ The `markdown-code-lang-modes` entry is what colours the variables inside a
 itself. `C-c C-x C-p` toggles the pictures, and a Markdown buffer gets a small **Coco**
 menu of its own for them.
 
-## Checking the engine against SWI-Prolog
+## Checking the engine against cocolog
 
 The engine is written in Emacs Lisp and is nobody's idea of a Prolog system.
-A graph that says a query succeeds where a real Prolog says it fails would be
-worse than no graph, so the answers are compared with SWI-Prolog's:
+A graph that says a query succeeds where the real Prolog says it fails would
+be worse than no graph -- and the real Prolog this mode is written for is
+**cocolog**, the interpreter at the root of this repository. The rule the
+check holds is a contract with two directions: every fact and rule a user
+writes must trace in this mode the way cocolog proves it, and everything the
+mode itself offers -- its pickers' pieces, their examples -- must consult and
+run under the `cocolog` binary:
 
 ```bash
-make swipl
+make coco
 ```
 
-It asks both engines every test case in `examples/`, and every query in
+It asks both every test case in `examples/`, every query in
 [test/conformance-queries.txt](test/conformance-queries.txt) against
 [test/conformance.pl](test/conformance.pl) — integer division and `mod` on
 negative numbers, the standard order of terms, `findall`, `copy_term`, cut,
 `forall`, `aggregate_all`, grammar rules with pushback and `{}`, the
-`library(dcg/basics)` grammar pieces against SWI's own, the tokenizer of
+`library(dcg/basics)` grammar pieces, the tokenizer of
 [examples/grammar.colog](examples/grammar.colog) over eight inputs — remarks,
-empty input, tabs and newlines — and an unknown predicate. Answers are compared after normalising the two writers'
-spacing and their different names for unbound variables:
+empty input, tabs and newlines — and an unknown predicate — and then every
+example the snippet pickers show, each consulted with the rule it brings
+along. Answers are compared after normalising the two writers' spacing and
+their different names for unbound variables:
 
 ```
-115 queries, 115 agree, 0 differ
+234 queries, 234 agree, 0 differ
 ```
 
-It needs `swipl` on `PATH` (`SWIPL=/path/to/swipl make swipl` otherwise) and
-says so rather than passing quietly when it is missing.
+It needs the `cocolog` binary from the repository root (`make` up there
+builds it; `COCOLOG=/path/to/cocolog` points elsewhere) and says so rather
+than passing quietly when it is missing.
 
-### Which SWI, and which libraries
+Two seams needed bridging, and the bridge is in
+[tools/coco-diff.sh](tools/coco-diff.sh) rather than in either system. The
+engine resolves a program's own rules before its library's, the way a
+module's definition shadows an import; cocolog consults into one namespace.
+So every question is asked with cocolog's own vendored `dcg/basics` and
+`yall` consulted first -- minus, to a fixpoint, every library clause for a
+predicate the program defines itself. And the engine's library carries a few
+rules SWI's `dcg/basics` lacks -- the `csym//1` family --
+which travel in [tools/coco-prelude.pl](tools/coco-prelude.pl), copied
+verbatim from `cocolog-library-source`, so cocolog is asked the same rules
+the engine runs.
 
-The answers above were compared against **SWI-Prolog 10.0.2**. Nothing in the
-mode depends on that exact version -- there is no `swipl` process anywhere in
-it -- but that is the Prolog whose behaviour the engine is held to, and the
-number to quote when an answer here and an answer there disagree.
+### Which libraries
 
-Two of SWI's libraries are autoloaded there and so need no `use_module`, and
-cocolog has them too, written in Prolog inside
+The engine was first held to SWI-Prolog 10.0.2, and cocolog's own suite
+holds cocolog to SWI in turn -- so the three agree by construction, and
+`make coco` is what checks the two ends of this repository against each
+other directly.
+
+Two of those libraries need no `use_module` here, written in Prolog inside
 [cocolog-engine.el](cocolog-engine.el) so that they appear in graphs like any
 other rule:
 
@@ -675,7 +704,7 @@ runs the stack out; and `append/2` with an unbound first argument enumerates
 here, where SWI raises an instantiation error, since there is no `must_be/2`. Everything else is a bug, and
 [test/conformance-queries.txt](test/conformance-queries.txt) is where it gets
 caught -- `csym//1` used to read a single character here, which is what
-`csyms//1` does, and it was `make swipl` that said so.
+`csyms//1` does, and it was the conformance run that said so.
 
 ### Why not use the real libraries?
 
@@ -683,18 +712,18 @@ Because there is nothing to use them *from*. The engine is Emacs Lisp: it
 loads a `.colog` buffer, resolves it, and draws the graph, all inside Emacs and
 all without a Prolog installed. `use_module(library(dcg/basics))` needs a
 Prolog system to load it into; there isn't one. Reading a test case has to work
-on a laptop with no `swipl` on it, the way font lock does.
+on a laptop with nothing else on it, the way font lock does.
 
-The honest alternative would be to *read SWI's own* `basics.pl` when swipl is
-installed, and consult it into the engine. That was tried in the head and not
+The honest alternative would be to *read the vendored* `basics.pl` and
+consult it into the engine. That was tried in the head and not
 on disk: it needs `code_type/2`, `number_codes/2`, `must_be/2`,
 `format(codes(H,T), ...)`, `succ_or_zero`-style internals and the module
 system, so a handful of grammar rules would have dragged in most of a Prolog
-system; the behaviour of the mode would change when the user upgraded SWI; and
+system; and
 the rules would arrive as a file the graph cannot show as you wrote it.
 
 So they are re-implemented -- about sixty lines of Prolog -- and then the
-copies are held to the originals: `make swipl` asks both engines the same
+copies are held to the originals: `make coco` asks both the same
 questions and refuses to pass when the answers differ. A re-implementation
 that nobody checks is a guess, and this one is checked on every run.
 

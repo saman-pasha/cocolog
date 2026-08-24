@@ -1690,6 +1690,88 @@ long list; side by side, most of it is on the screen at once.  Set this
 to 1 for one group under another, in a narrow window."
   :type 'integer :group 'cocolog)
 
+(defcustom cocolog-torch-pick-columns 3
+  "How many columns \\[cocolog-insert-torch-rule] lays its groups out in.
+The torch list has three groups -- building a net, training, a trained
+model -- and three columns put one group in each, so the whole surface
+is one glance.  Set this to 1 in a narrow window."
+  :type 'integer :group 'cocolog)
+
+(defcustom cocolog-torch-snippets
+  '(
+    ("building a net"
+     ("torch_seed(<N>)"
+      "seed before building: the same numbers every run"
+      "torch_seed(7)"  "yes -- and the whole run repeats exactly")
+     ("model_new([input(<In>), dense(<H>, relu), dense(<Out>)], <M>)"
+      "a fresh network from its layer list, handle out"
+      "model_new([input(16), dense(32, relu), dense(4)], M)"
+      "M = a handle -- 24-q-learning's net")
+     ("model_new([image(<C>, <H>, <W>), conv(<F>, <K>, relu), pool(2), flatten, dense(<Out>, log_softmax)], <M>)"
+      "a small CNN: channels through convolution to a class head"
+      "model_new([image(1, 8, 8), conv(4, 3, relu), pool(2), flatten, dense(2, log_softmax)], M)"
+      "M = a handle -- 17-cnn-bars's net")
+     ("model_new([sequence(<L>), embedding(<V>, <D>), lstm(<H>), dense(<Out>, log_softmax)], <M>)"
+      "token ids through a learned embedding into an lstm"
+      "model_new([sequence(6), embedding(8, 4), lstm(16), dense(2, log_softmax)], M)"
+      "M = a handle -- 22-embedding-lstm's net")
+     ("tensor_from_list(<Rows>, <T>)"
+      "a tensor from nested lists, one row per example"
+      "tensor_from_list([[0.0, 0.0], [0.0, 1.0]], X)"
+      "X = a tensor handle")
+     ("tensor_to_list(<T>, <Rows>)"
+      "and back to lists, for reading answers with forall"
+      "model_predict(M, X, P), tensor_to_list(P, Out)"
+      "Out = a row of outputs per row of X")
+     ("torch_device(<D>)"
+      "cpu, cuda or cuda(N); absent hardware refuses, never falls back"
+      "torch_device(cuda)"
+      "throws domain_error(cuda_available, ...) without a GPU"))
+    ("training"
+     ("model_train(<M>, <X>, <Y>, [epochs(<E>), batch(<B>), lr(<R>), optimiser(adam)])"
+      "fit the model to X -> Y; the loss is mse unless told otherwise"
+      "model_train(M, X, Y, [epochs(40), batch(14), lr(0.01), optimiser(adam)])"
+      "yes -- 24-q-learning's Bellman regression")
+     ("model_train(<M>, <X>, <Y>, [epochs(<E>), batch(<B>), lr(<R>), optimiser(adam), loss(nll), final_loss(<L>)])"
+      "the classification pairing: integer labels against log_softmax, last loss out"
+      "model_train(M, X, Y, [epochs(200), batch(16), lr(0.02), optimiser(adam), loss(nll), final_loss(L)])"
+      "L = 0.0117 -- 22-embedding-lstm's run")
+     ("schedule(step, <Every>, <Gamma>)"
+      "inside the options: scale the learning rate by Gamma every Every epochs"
+      "model_train(M, X, Y, [epochs(1500), batch(32), lr(0.1), optimiser(sgd), schedule(step, 400, 0.5), final_loss(L)])"
+      "L = the last mse under the decayed rate -- 12-lr-schedule")
+     ("model_evaluate(<M>, <X>, <Y>, <Metric>, <Score>)"
+      "score a model: rmse, accuracy or mae"
+      "model_evaluate(M, X, Y, accuracy, A)"
+      "A = 1.0 -- 07-xor's four clean corners"))
+    ("a trained model"
+     ("model_predict(<M>, <X>, <P>)"
+      "run the net forward: a row of outputs per row of X"
+      "model_predict(M, X, P)"
+      "P = a tensor -- 22's predict reads [3,0,0,0,0,0] -> contains token 3")
+     ("model_save(<Name>, <M>)"
+      "assert the model as terms; the knowledge base keeps it like any fact"
+      "model_save(t07_xor, M)"
+      "yes -- and any process can load it")
+     ("model_load(<Name>, <M>)"
+      "a model back from the store, in a process that trained nothing"
+      "model_load(t07_xor, M)"
+      "M = a fresh handle over the stored params")
+     ("train :-\n    torch_seed(<N>),\n    tensor_from_list(<Rows>, X), tensor_from_list(<Labels>, Y),\n    model_new([input(<In>), dense(<H>, relu), dense(<Out>, log_softmax)], M),\n    model_train(M, X, Y, [epochs(<E>), batch(<B>), lr(<R>), optimiser(adam),\n                          loss(nll), final_loss(L)]),\n    format(\"trained: final nll ~4f~n\", [L]),\n    model_save(<Name>, M),\n    write(saved), nl.\n\ntest :-\n    model_load(<Name>, M),\n    tensor_from_list(<Rows>, X), tensor_from_list(<Labels>, Y),\n    model_evaluate(M, X, Y, accuracy, A),\n    ( A >= 0.95 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).\n\npredict :-\n    model_load(<Name>, M),\n    tensor_from_list(<Rows>, X),\n    model_predict(M, X, P),\n    tensor_to_list(P, Out),\n    forall(nth0(I, Out, Row), format(\"~w -> ~w~n\", [I, Row])).\n"
+      "a whole tutorial: train, test and predict, three goals for three processes"
+      "train"
+      "trained: final nll 0.0000 then saved -- 07-xor's own shape")))
+  "The torch rules \\[cocolog-insert-torch-rule] offers, by group.
+Shaped like `cocolog-builtin-snippets\\=': the text to insert, a line
+about it, and an example with what it says.  The examples are lines of
+tutorials/ in the cocolog repository, proven by its tutorials suite
+under cocolog-full -- the engine of this mode traces no tensors, so
+unlike the other two tables these examples are not run by the engine's
+own tests.  Consulting and proving them is the cocolog binary's job,
+which `make coco\\=' holds it to for everything the engine can answer."
+  :type '(repeat (cons string (repeat (list string string string string))))
+  :group 'cocolog)
+
 (defun cocolog-goal-snippets ()
   "The two lists as one: what a goal is written out of, then a grammar rule.
 The grammar groups keep a heading of their own, since `atom(A)\=' in a
@@ -1762,6 +1844,26 @@ name you want can simply be typed."
   "Open the picker on the pieces of a grammar rule: see \\[cocolog-insert-goal]."
   (interactive)
   (cocolog-insert-goal 'grammar))
+
+;;;###autoload
+(defun cocolog-insert-torch-rule ()
+  "Insert one of the torch rules a training program is written out of.
+The three groups -- building a net, training, a trained model -- sit
+side by side, one column each (`cocolog-torch-pick-columns\\='), so the
+whole surface is one glance.  The pieces and their examples are the
+shapes of tutorials/ in the cocolog repository; they run under
+cocolog-full, which carries the torch module -- the engine of this mode
+traces no tensors.
+
+Where the piece has a placeholder, the region is left over it, so the
+name you want can simply be typed."
+  (interactive)
+  (let* ((cocolog-pick-columns cocolog-torch-pick-columns)
+         (pick (cocolog-read-snippet cocolog-torch-snippets
+                                     "Insert a torch rule" "Torch rule"
+                                     "*cocolog torch*")))
+    (when (and pick (not (string-empty-p pick)))
+      (cocolog--insert-snippet pick))))
 
 (defun cocolog--pick-rows (groups)
   "Return GROUPS -- a table shaped like `cocolog-dcg-snippets\=' -- flattened
@@ -3066,7 +3168,7 @@ swatch, a colour name or the coloured name itself is shown."
     (define-key map (kbd "C-c C-n") #'cocolog-name-variable-at-point)
     (define-key map (kbd "C-c C-u") #'cocolog-uncolor-variable-at-point)
     (define-key map (kbd "C-c C-y") #'cocolog-insert-clause-variable)
-    (define-key map (kbd "C-c C-g") #'cocolog-insert-dcg-item)
+    (define-key map (kbd "C-c C-g") #'cocolog-insert-torch-rule)
     (define-key map (kbd "C-c C-i") #'cocolog-insert-goal)
     (define-key map (kbd "C-c C-w") #'cocolog-shuffle-colors)
     (define-key map (kbd "C-c C-d") #'cocolog-drop-stored-colors)
@@ -3145,6 +3247,8 @@ swatch, a colour name or the coloured name itself is shown."
      :help "The same list, opened on unifying, arithmetic, the tests, the lists"]
     ["Insert a goal: a piece of a grammar rule..." cocolog-insert-dcg-item
      :help "The same list, opened on white space, a number, the rest of the line"]
+    ["Insert a torch rule..." cocolog-insert-torch-rule
+     :help "Building a net, training, a trained model -- one column each"]
 
     ("Test cases"
      ["Run the test case at point" cocolog-run-test-at-point
