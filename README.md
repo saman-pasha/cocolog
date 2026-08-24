@@ -488,6 +488,25 @@ does. Where a neural net stops — explaining, constraining, chaining
 conclusions — the Prolog engine picks up, because they were never in
 different systems to begin with.
 
+## The tracer speaks SWI
+
+`--trace` turns on a four-port tracer: `Call`, `Exit`, `Redo` and `Fail`
+lines in SWI-Prolog's own format, on stderr, for every goal the engine
+proves — and `trace/0` / `notrace/0` switch it from inside a program, as
+they do there. It is held to SWI the way everything here is held to
+something: `test/trace.sh` asks both tracers the same queries over the
+same program and compares the port lines one for one, down to the
+subtleties — a `Redo` re-entering a clause shows the call with its
+bindings undone, taking the other arm of a `;` (or the else of an
+`->`, or failing out of a `\+`) is a `Redo` of the call it sits in,
+a deeper `Redo` reopens the calls it is nested in so their `Fail`
+prints when the failure finally crosses them, and a call whose
+remaining clause heads can never match is discarded in silence, which
+is the quiet SWI's clause indexing buys. The engine's design pays for
+itself here: the continuation is a term, so the `Exit` port is just a
+marker the body proves its way through, and a frozen machine carries
+its pending exits with it.
+
 ## Status
 
 The interpreter, the serialisation, both transports, the schema and the

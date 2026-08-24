@@ -70,7 +70,9 @@
 ;;; 0 for failure; an error is reported by filling in the engine's `err' and
 ;;; answering -1.
 (DEFPARAMETER *builtins*
-  '(("="            2 coco_bi_unify)
+  '(("trace"        0 coco_bi_trace)
+    ("notrace"      0 coco_bi_notrace)
+    ("="            2 coco_bi_unify)
     ("\\="          2 coco_bi_not_unify)
     ("=="           2 coco_bi_eq)
     ("\\=="         2 coco_bi_neq)
@@ -215,6 +217,27 @@
     (member size_t   clause_ix)    ; the next clause to try
     (member size_t   barrier))     ; the cut barrier the alternative runs under
 
+  ;;; THE TRACER'S SHADOW of a choice frame. One per frame, index-aligned,
+  ;;; and DELIBERATELY NOT part of the frozen state: the frames travel in a
+  ;;; frozen machine as a fixed row of numbers and this changes that row for
+  ;;; nobody. A thawed machine resumed under --trace starts with these
+  ;;; zeroed, which reads as "print no Redo and no Fail for what happened
+  ;;; before the thaw" -- the right answer.
+  ;;;
+  ;;; GOAL is the traced call the frame belongs to -- the call itself for a
+  ;;; CLAUSE frame, the enclosing call for a disjunction's frame -- and
+  ;;; DEPTH its port depth. PRINTR says whether resuming this frame is a
+  ;;; Redo worth a line: a `;' the program wrote is, the frame `->' pushes
+  ;;; for its else branch is not, because entering an else is not a redo.
+  ;;; EXITED remembers that the call has passed its Exit port, so a resumed
+  ;;; frame whose remaining heads all fail is discarded in silence -- which
+  ;;; is what SWI's clause indexing does by never keeping the frame at all.
+  (struct coco_tchoice
+    (member size_t   goal)
+    (member int      depth)
+    (member int      printr)
+    (member int      exited))
+
   (struct coco_engine
     (member coco_machine * m)
     (member coco_store *   st)
@@ -230,7 +253,22 @@
     (member int         resume)    ; a solution has been reported; go back first
     (member int         halted)
     (member int         halt_code)
+
+    ;; the four-port tracer: on or off, the shadow frames, and the current
+    ;; call context -- the innermost traced call whose body is running, so
+    ;; a new Call knows its depth and a disjunction's frame knows whose
+    ;; Redo it would be
+    (member int         trace)
+    (member coco_tchoice * tchoices)
+    (member int         trace_depth)
+    (member size_t      trace_goal)
+
     (member char        err [192]))
+
+  ;;; What `--trace' asks for: engines made after this is set trace from
+  ;;; their first goal. A per-engine affair after that -- `trace/0' and
+  ;;; `notrace/0' flip the engine, not this.
+  (var int coco_trace_default . 0)
 
   (decl) (func coco_engine_init ((coco_engine * e) (coco_machine * m) (coco_store * st)))
   (decl) (func coco_engine_free ((coco_engine * e)))
@@ -329,13 +367,49 @@
   (func coco_eng_grow ((coco_engine * e) (size_t need)) (out int)
         (if (<= need (-> e choice_cap)) (return 1))
         (let ((size_t ncap . #'(? (== (-> e choice_cap) 0) 64 (-> e choice_cap)))
-              (coco_choice * nb))
+              (coco_choice * nb)
+              (coco_tchoice * tb))
           (while (< ncap need) (set ncap (* ncap 2)))
           (set nb (cast (coco_choice *) (realloc (-> e choices) (* ncap (sizeof coco_choice)))))
           (if (== nb nil) (return 0))
           (set (-> e choices) nb)
+          ;; the shadow frames grow in step, so an index into one is an
+          ;; index into the other
+          (set tb (cast (coco_tchoice *) (realloc (-> e tchoices) (* ncap (sizeof coco_tchoice)))))
+          (if (== tb nil) (return 0))
+          (set (-> e tchoices) tb)
           (set (-> e choice_cap) ncap)
           (return 1)))
+
+  ;;; A Redo re-enters not only its own frame but, implicitly, every call
+  ;;; it is nested in: their environments are live again, and SWI prints
+  ;;; their Fail when the failure finally crosses them. An ancestor is an
+  ;;; older frame at a strictly shallower depth.
+  (static)
+  (func coco_trace_reopen ((coco_engine * e) (size_t below) (int depth))
+        (let ((i64 fi . #'(- (cast i64 below) 1)))
+          (while (>= fi 0)
+            (if (and (== ($ (nth (cast size_t fi) (-> e choices)) kind) COCO_CH_CLAUSE)
+                     (< ($ (nth (cast size_t fi) (-> e tchoices)) depth) depth))
+                (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 0))
+            (set fi (- fi 1)))))
+
+  ;;; ---- the four ports ----------------------------------------------------
+  ;;; SWI's line, byte for byte: three spaces, the port, the depth in round
+  ;;; brackets, the goal as the writer prints it. On stderr, where SWI puts
+  ;;; it, so a traced program's own output stays clean on stdout.
+
+  (static)
+  (func coco_trace_line ((const char * port) (int depth) (const char * text))
+        (fprintf stderr "   %s: (%d) %s\n" port depth (? (== text nil) "?" text)))
+
+  (static)
+  (func coco_trace_port ((coco_engine * e) (const char * port) (int depth) (size_t g))
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_write_term (-> e m) (aof b) g 1 0)
+          (coco_trace_line port depth ($ b s))
+          (coco_sb_free (aof b))))
 
   ;;; ---- the module seam -------------------------------------------------
 
@@ -462,6 +536,17 @@
           (set (-> c barrier) barrier)
           (set (-> c trail_mark) ($ (cof (-> e m)) trail_len))
           (set (-> c heap_mark) ($ (cof (-> e m)) heap_len))
+          ;; the shadow frame: the current call context, and silent -- the
+          ;; two places a resume IS a Redo (a clause frame, a written `;')
+          ;; say so themselves after pushing
+          (let ((coco_tchoice * tc . #'(aof (nth (-> e nchoices) (-> e tchoices)))))
+            (set (-> tc goal) (-> e trace_goal))
+            (set (-> tc depth) (-> e trace_depth))
+            ;; resuming any in-body alternative -- a `;', an `->' else, a
+            ;; `\+' else -- is a Redo of the call it sits in, SWI says so;
+            ;; at the toplevel the context goal is 0 and nothing prints
+            (set (-> tc printr) (? (== kind COCO_CH_GOAL) 1 0))
+            (set (-> tc exited) 0))
           (set (-> e nchoices) (+ (-> e nchoices) 1))
           (return 1)))
 
@@ -500,8 +585,11 @@
                   (coco_clause_parts m ct (aof head) (aof body))
                   (if (coco_unify m call head)
                       (block
-                       ;; a `!' in the body cuts back to before this call
-                       (if last (set (-> e nchoices) ci))
+                       ;; a `!' in the body cuts back to before this call.
+                       ;; Under trace the frame STAYS even on the last clause:
+                       ;; failing back past it is what prints the Fail port,
+                       ;; and a popped frame fails in silence
+                       (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
                        (set (-> e goals)
                             (? (== body 0) goals (coco_k_push e body ci goals)))
                        (return 1)))
@@ -529,14 +617,68 @@
                 (set goals (-> c goals))
                 (set barrier (-> c barrier)))
               (if (== kind COCO_CH_GOAL)
-                  (block (set (-> e nchoices) ci)
-                         (set (-> e goals) (coco_k_push e call barrier goals))
-                         (return 1)))
+                  (block
+                   ;; a `;' the program wrote: taking its other arm is a Redo
+                   ;; of the call it sits in, printed with the bindings just
+                   ;; undone. The else-frames of `->' pass in silence, and
+                   ;; either way the call context is the one the frame was
+                   ;; made under.
+                   (if (-> e trace)
+                       (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+                         (if (and (!= (-> tc printr) 0) (!= (-> tc goal) 0))
+                             (block
+                              (coco_trace_port e "Redo" (-> tc depth) (-> tc goal))
+                              ;; the redone call's own frame, and every call
+                              ;; it is nested in, are open episodes again
+                              (let ((i64 fi . #'(- (cast i64 ci) 1)))
+                                (while (>= fi 0)
+                                  (if (and (== ($ (nth (cast size_t fi) (-> e choices)) kind) COCO_CH_CLAUSE)
+                                           (== ($ (nth (cast size_t fi) (-> e choices)) call) (-> tc goal))
+                                           (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) (-> tc depth)))
+                                      (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 0)
+                                             break))
+                                  (set fi (- fi 1))))
+                              (coco_trace_reopen e ci (-> tc depth))))
+                         (set (-> e trace_goal) (-> tc goal))
+                         (set (-> e trace_depth) (-> tc depth))))
+                   (set (-> e nchoices) ci)
+                   (set (-> e goals) (coco_k_push e call barrier goals))
+                   (return 1)))
               ;; a catch offers no alternative, and neither does a frame the
               ;; soft cut killed: drop it and keep going down
               (if (or (== kind COCO_CH_CATCH) (== kind COCO_CH_DEAD))
                   (block (set (-> e nchoices) ci) continue))
-              (if (coco_select_clause e ci) (return 1))))
+              ;; a clause frame. The goal is painted BEFORE selection, which
+              ;; binds it to whichever head matches -- SWI's Redo shows the
+              ;; call as it stood, not the head it is about to try.
+              (let ((char * rtext . nil) (int rD . 0) (size_t rg . 0)
+                    (int rexited . 0) (int traced . 0))
+                (if (-> e trace)
+                    (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+                      (if (and (!= (-> tc printr) 0) (!= (-> tc goal) 0))
+                          (block (set traced 1)
+                                 (set rD (-> tc depth))
+                                 (set rg (-> tc goal))
+                                 (set rexited (-> tc exited))
+                                 (let ((coco_strbuf tb))
+                                   (coco_sb_init (aof tb))
+                                   (coco_write_term m (aof tb) rg 1 0)
+                                   (set rtext ($ tb s)))))))
+                (if (coco_select_clause e ci)
+                    (block
+                     (if traced
+                         (block (coco_trace_line "Redo" rD rtext)
+                                (set ($ (nth ci (-> e tchoices)) exited) 0)
+                                (coco_trace_reopen e ci rD)
+                                (set (-> e trace_goal) rg)
+                                (set (-> e trace_depth) rD)))
+                     (if (!= rtext nil) (free rtext))
+                     (return 1)))
+                ;; out of heads. A call that had exited goes quietly -- the
+                ;; silence SWI's clause indexing buys by never keeping the
+                ;; frame -- and one that had not fails here, out loud.
+                (if (and traced (== rexited 0)) (coco_trace_line "Fail" rD rtext))
+                (if (!= rtext nil) (free rtext)))))
           (return 0)))
 
   ;;; ---- throwing ----------------------------------------------------------
@@ -583,9 +725,13 @@
                     (size_t catcher . #'(coco_arg m call 0))
                     (size_t recovery . #'(coco_arg m call 1)))
                 (if (coco_unify m catcher fresh)
-                    (block (set (-> e nchoices) ci)
-                           (set (-> e goals) (coco_k_push e recovery barrier goals))
-                           (return 1)))
+                    (block
+                     (if (-> e trace)
+                         (block (set (-> e trace_goal) ($ (nth ci (-> e tchoices)) goal))
+                                (set (-> e trace_depth) ($ (nth ci (-> e tchoices)) depth))))
+                     (set (-> e nchoices) ci)
+                     (set (-> e goals) (coco_k_push e recovery barrier goals))
+                     (return 1)))
                 (coco_undo_to m mark))
               (set (-> e nchoices) ci)))
 
@@ -650,10 +796,12 @@
   (func coco_engine_init ((coco_engine * e) (coco_machine * m) (coco_store * st))
         (memset e 0 (sizeof coco_engine))
         (set (-> e m) m)
-        (set (-> e st) st))
+        (set (-> e st) st)
+        (set (-> e trace) coco_trace_default))
 
   (func coco_engine_free ((coco_engine * e))
         (free (-> e choices))
+        (free (-> e tchoices))
         (memset e 0 (sizeof coco_engine)))
 
   (func coco_engine_ask ((coco_engine * e) (size_t goal))
@@ -663,6 +811,8 @@
         (set (-> e halted) 0)
         (set (nth 0 (-> e err)) (cast char 0))
         (set (-> e query) goal)
+        (set (-> e trace_depth) 0)
+        (set (-> e trace_goal) 0)
         (set (-> e goals) (coco_k_push e goal 0 (coco_k_empty e))))
 
   (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
@@ -691,6 +841,11 @@
                    (? (>= (-> e steps) (-> e max_steps)) 1
                       (- (-> e max_steps) (-> e steps)))))
           (coco_engine_ask (aof sub) goal)
+          ;; the trace follows the proof into the inner engine, depth and
+          ;; all -- set after the ask, which resets a fresh engine's context
+          (set ($ sub trace) (-> e trace))
+          (set ($ sub trace_depth) (-> e trace_depth))
+          (set ($ sub trace_goal) (-> e trace_goal))
 
           (while 1
             (set rc (coco_engine_next (aof sub)))
@@ -790,10 +945,51 @@
 
                   ;; ---- control constructs ----
                   ((and (== n 0) (== 0 (strcmp name "true")))
+                   (if (-> e trace)
+                       (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
+                              (coco_trace_port e "Exit" (+ (-> e trace_depth) 1) g)))
                    (set (-> e goals) k))
 
                   ((and (== n 0) (or (== 0 (strcmp name "fail")) (== 0 (strcmp name "false"))))
+                   (if (-> e trace)
+                       (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
+                              (coco_trace_port e "Fail" (+ (-> e trace_depth) 1) g)))
                    (set ok 0))
+
+                  ;; the same two as the constructs above manufacture them:
+                  ;; silent, because the program never wrote these
+                  ((and (== n 0) (== 0 (strcmp name "$true")))
+                   (set (-> e goals) k))
+                  ((and (== n 0) (== 0 (strcmp name "$fail")))
+                   (set ok 0))
+
+                  ;; the tracer's own marker: the call it names has proven, so
+                  ;; this is its Exit port. Transparent when tracing is off --
+                  ;; a machine frozen mid-trace thaws and runs anywhere.
+                  ((and (== n 3) (== 0 (strcmp name "$trace_exit")))
+                   (if (-> e trace)
+                       (let ((size_t xg . #'(cast size_t (coco-signed-payload
+                                                          (nth (coco_deref m (coco_arg m g 0)) (-> m heap)))))
+                             (int xd . #'(cast int (coco-signed-payload
+                                                    (nth (coco_deref m (coco_arg m g 1)) (-> m heap)))))
+                             (size_t pg . #'(cast size_t (coco-signed-payload
+                                                          (nth (coco_deref m (coco_arg m g 2)) (-> m heap))))))
+                         (coco_trace_port e "Exit" xd xg)
+                         ;; the newest live frame of this call remembers the
+                         ;; exit, so failing back past untried heads that
+                         ;; cannot match stays silent -- the quiet SWI's
+                         ;; clause indexing buys by never keeping the frame
+                         (let ((i64 fi . #'(- (cast i64 (-> e nchoices)) 1)))
+                           (while (>= fi 0)
+                             (if (and (== ($ (nth (cast size_t fi) (-> e choices)) kind) COCO_CH_CLAUSE)
+                                      (== ($ (nth (cast size_t fi) (-> e choices)) call) xg)
+                                      (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) xd))
+                                 (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 1)
+                                        break))
+                             (set fi (- fi 1))))
+                         (set (-> e trace_depth) (- xd 1))
+                         (set (-> e trace_goal) pg)))
+                   (set (-> e goals) k))
 
                   ((and (== n 2) (== 0 (strcmp name ",")))
                    (set (-> e goals)
@@ -842,8 +1038,10 @@
                      (set (-> e goals) (coco_k_push e (coco_arg m g 0) b k))))
 
                   ((and (== n 2) (== 0 (strcmp name "->")))
-                   ;; a bare if-then fails when the condition does
-                   (coco_ite e (coco_arg m g 0) (coco_arg m g 1) (coco_new_atom m "fail") k b))
+                   ;; a bare if-then fails when the condition does. `$fail'
+                   ;; rather than `fail': the arm is the construct's own
+                   ;; plumbing, and SWI's tracer never shows it
+                   (coco_ite e (coco_arg m g 0) (coco_arg m g 1) (coco_new_atom m "$fail") k b))
 
                   ((and (== n 2) (== 0 (strcmp name "*->")))
                    ;; a bare soft cut has no else to take away, so it is just
@@ -851,10 +1049,10 @@
                    ;; the cut barrier C runs under is the one it would have had
                    ;; with an else branch present.
                    (coco_soft_ite e (coco_arg m g 0) (coco_arg m g 1)
-                                  (coco_new_atom m "fail") k b))
+                                  (coco_new_atom m "$fail") k b))
 
                   ((and (== n 1) (or (== 0 (strcmp name "\\+")) (== 0 (strcmp name "not"))))
-                   (coco_ite e (coco_arg m g 0) (coco_new_atom m "fail") (coco_new_atom m "true") k b))
+                   (coco_ite e (coco_arg m g 0) (coco_new_atom m "$fail") (coco_new_atom m "$true") k b))
 
                   ((and (== n 1) (== 0 (strcmp name "call")))
                    ;; call/1 is opaque to cut: the goal runs under a barrier of
@@ -918,7 +1116,16 @@
 
                   (#t
                    ;; ---- a builtin, or a predicate ----
-                   (let ((int found . 0) (int rc . 0))
+                   (let ((int found . 0) (int rc . 0) (int tport . 0) (int tD . 0))
+                     ;; the Call port, before anything runs -- SWI prints it
+                     ;; before so much as a head is looked at. trace/0 and
+                     ;; notrace/0 stay out of their own trace.
+                     (if (and (-> e trace)
+                              (not (and (== n 0) (or (== 0 (strcmp name "trace"))
+                                                     (== 0 (strcmp name "notrace"))))))
+                         (block (set tport 1)
+                                (set tD (+ (-> e trace_depth) 1))
+                                (coco_trace_port e "Call" tD g)))
                      (set rc (coco_builtin e name n g (aof found)))
                      ;; not a core builtin: a module may still own it
                      (if (and (not found) (!= coco_extern_call nil))
@@ -933,8 +1140,12 @@
                           ;; here would throw that away and carry on as if
                           ;; nothing had been raised.
                           (cond ((== rc 2) (block))
-                                ((== rc 1) (set (-> e goals) k))
-                                (#t (set ok 0))))
+                                ((== rc 1)
+                                 (if tport (coco_trace_port e "Exit" tD g))
+                                 (set (-> e goals) k))
+                                (#t
+                                 (if tport (coco_trace_port e "Fail" tD g))
+                                 (set ok 0))))
                        ;; nobody's builtin: the knowledge base decides
                        (let ((size_t pi . #'(coco_pred_of st m g)))
                          (cond
@@ -951,12 +1162,37 @@
                            (cond
                             ((> ($ (nth pi ($ (cof st) preds)) nclauses) 0)
                              (block
-                              (if (not (coco_push_choice e COCO_CH_CLAUSE g k b))
-                                  (return (coco_fail_err e "out of memory")))
-                              (let ((size_t ci . #'(- (-> e nchoices) 1)))
-                                (set ($ (nth ci (-> e choices)) pred) pi)
-                                (set ($ (nth ci (-> e choices)) clause_ix) 0)
-                                (if (not (coco_select_clause e ci)) (set ok 0)))))
+                              ;; under trace the body exits through a marker,
+                              ;; pushed BEFORE the frame so its cells sit
+                              ;; below the frame's heap mark and survive
+                              ;; every backtrack into it -- the trick the
+                              ;; catch frame's `$catch' term already plays
+                              (let ((size_t k2 . k))
+                                (if tport
+                                    (let ((size_t margs [3]))
+                                      (set (nth 0 margs) (coco_new_int m (cast i64 g)))
+                                      (set (nth 1 margs) (coco_new_int m (cast i64 tD)))
+                                      (set (nth 2 margs) (coco_new_int m (cast i64 (-> e trace_goal))))
+                                      (set k2 (coco_k_push e (coco_make m "$trace_exit" 3 margs) b k))))
+                                (if (not (coco_push_choice e COCO_CH_CLAUSE g k2 b))
+                                    (return (coco_fail_err e "out of memory")))
+                                (let ((size_t ci . #'(- (-> e nchoices) 1)))
+                                  (set ($ (nth ci (-> e choices)) pred) pi)
+                                  (set ($ (nth ci (-> e choices)) clause_ix) 0)
+                                  ;; this frame IS the traced call
+                                  (if tport
+                                      (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+                                        (set (-> tc goal) g)
+                                        (set (-> tc depth) tD)
+                                        (set (-> tc printr) 1)
+                                        (set (-> tc exited) 0)))
+                                  (if (not (coco_select_clause e ci))
+                                      (block (if tport (coco_trace_port e "Fail" tD g))
+                                             (set ok 0))
+                                    ;; the body runs inside this call now
+                                    (if tport
+                                        (block (set (-> e trace_goal) g)
+                                               (set (-> e trace_depth) tD))))))))
                             ;; NO CLAUSES IS NOT THE SAME AS UNDEFINED. A
                             ;; predicate the program declared dynamic -- or that
                             ;; an `assert' brought into being and a `retract'
@@ -964,7 +1200,9 @@
                             ;; prove, so it fails. One nobody ever defined is a
                             ;; different thing, and the libraries these clauses
                             ;; came from are written expecting it to raise.
-                            (($ (nth pi ($ (cof st) preds)) dynamic) (set ok 0))
+                            (($ (nth pi ($ (cof st) preds)) dynamic)
+                             (if tport (coco_trace_port e "Fail" tD g))
+                             (set ok 0))
                             (#t
                              (if (!= 2 (coco_existence_error e "procedure" name n))
                                  (return -1))))))))))))
@@ -983,6 +1221,18 @@
 
   (static) (func coco_a ((coco_engine * e) (size_t g) (u32 i)) (out size_t)
                  (return (coco_deref (-> e m) (coco_arg (-> e m) g i))))
+
+  ;;; ---- the tracer's switch ----
+  ;;; SWI's trace/0 and notrace/0: on from the NEXT goal, off at once.
+  ;;; Neither appears in its own trace -- the dispatch keeps them out.
+
+  (func coco_bi_trace ((coco_engine * e) (size_t g)) (out int)
+        (set (-> e trace) 1)
+        (return 1))
+
+  (func coco_bi_notrace ((coco_engine * e) (size_t g)) (out int)
+        (set (-> e trace) 0)
+        (return 1))
 
   ;;; ---- unification and comparison ----
 

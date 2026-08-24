@@ -57,11 +57,13 @@ done
 # and because everything above them has to be right for them to mean anything.
 #
 #   files   the Files module, run against SWI-Prolog and compared line for line
+#   trace   the four-port tracer, run against SWI-Prolog's and compared
+#           port for port
 #   vacuum  the reclaim pass: the verb in both arrangements, and the gate
 #           on the vacuum_kb builtin
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files vacuum groups ruler; do
+for c in files trace vacuum groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   if [ ! -x "$ROOT/cocolog" ]; then

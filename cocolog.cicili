@@ -302,7 +302,10 @@
         (fprintf stderr "                default), the server, --http, --store\n")
         (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n")
         (fprintf stderr "  --vacuum      let programs call vacuum_kb/0,1 -- reclaims dead\n")
-        (fprintf stderr "                rows at the cost of point-in-time reads\n"))
+        (fprintf stderr "                rows at the cost of point-in-time reads\n")
+        (fprintf stderr "  --trace       the four-port tracer, SWI's format, on stderr:\n")
+        (fprintf stderr "                Call, Exit, Redo and Fail for every goal proved.\n")
+        (fprintf stderr "                trace/0 and notrace/0 switch it from inside\n"))
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
   (func slurp ((const char * path)) (out char *)
@@ -1177,6 +1180,7 @@
                    (block (set ($ opts store) "./KB")
                           (set i (+ i 1)))))
                 ((== 0 (strcmp a "--vacuum")) (set ($ opts vacuum) 1) (set i (+ i 1)))
+                ((== 0 (strcmp a "--trace")) (set coco_trace_default 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--help")) (usage) (return 0))
                 (#t
                  (if (>= (+ i 1) argc)
