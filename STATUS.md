@@ -735,8 +735,11 @@ that spun, green more than eighteen times over on the ageing store it
 originally died on. Torch ran green on the guarded walks too — its model
 chunks travel exactly the multi-value chains the walks now guard, and
 train, store, fresh-process reload with identical predictions, and the
-conv net's buffers all came back intact in 3 seconds. The wedge-immunity
-came for free.
+conv net's buffers all came back intact in 3 seconds. And the
+cross-process case — one process writing through the wire, a second that
+consulted nothing reading it back — is green on the guarded SELECT walk
+too, which is the read path every one of that second process's queries
+takes. The wedge-immunity came for free.
 
 ### The test that blocked all of it is fixed
 
