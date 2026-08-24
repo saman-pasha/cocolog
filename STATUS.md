@@ -852,8 +852,11 @@ model trained by one process and answering in another. And with all of
 it in the tree, the full `make test` was run once more against a fresh
 parallel server: every one of the eleven cases GREEN — the four
 server-dependent ones genuinely running, nothing skipped — `red: 0`,
-zero engine errors. The whole stack, engine to tutorials, green at
-once.
+zero engine errors. The tutorials suite then ran once more on top —
+all twenty-four files, seventy-two processes, green in seventy-four
+seconds, its third consecutive full-green run at essentially the same
+clock, which is the determinism doing its job. The whole stack, engine
+to tutorials, green at once.
 
 Writing them taught two properties of the platform the hard way, both
 now documented in `tutorials/README.md`. Consulted clauses live in the
