@@ -151,15 +151,27 @@ make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make test       # the suite; the database tests skip without a server
 ```
 
-And it runs — the first two need nothing else on the machine at all:
+And it runs — the first three need nothing else on the machine at all:
 
 ```sh
+./cocolog                                     # the toplevel: ?- awaits
 ./cocolog query "X is 2 + 2"                  # local: memory, the default
 ./cocolog --embed run tutorials/07-xor.pl train   # the store at ./KB
 cd $ZIGURATIP && ZIGURATIP_HOME=$PWD/home \
   LD_LIBRARY_PATH=$PWD/home/lib ./home/bin/ziguratip &   # the server
 ./cocolog --kb demo consult demo/family.pl    # naming a kb chooses it
 ```
+
+Bare `cocolog` is what bare `swipl` is — a toplevel. `?- ` reads a goal to
+its full stop, over as many lines as it takes; answers come back under the
+query's own variable names, in SWI's shapes down to the aliases (`X = f(Z),
+Y = Z.` answers `X = f(Y), Z = Y.`, held to a live SWI); `;` asks for
+another solution, and the punctuation is honest — an answer that left no
+choice point ends `.` with nobody asked. `[family].` consults `family.pl`,
+what one goal asserts the next goal sees, `halt.` leaves. It runs in any of
+the four arrangements: against a store or the server, every finished goal is
+one committed transaction, so a toplevel session is also the quickest way to
+poke at a knowledge base other processes are working.
 
 There is one `cocolog` binary and it is the full one: the interpreter, the
 embedded MVCCS engine and the torch module, all in it. Which knowledge base a

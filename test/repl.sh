@@ -1,0 +1,150 @@
+#!/bin/sh
+# The toplevel, piped: bare `cocolog` with goals on stdin.
+#
+# WHAT IT IS CHECKING, and why each part is there:
+#
+#   ANSWERS WEAR THE QUERY'S OWN NAMES. `X = 41 + 1, Y is X.` answers
+#   `X = 41+1, Y = 42.` -- the reader's variable-name table survives into
+#   the printing, which is the one thing `query` (whose machine may have
+#   been thawed from a store that never had the names) cannot promise.
+#
+#   THE ALIAS RULES ARE SWI'S, taken from a live SWI toplevel and held to:
+#   a still-unbound shared cell is named for the LAST variable standing on
+#   it (`X = Y.` answers `X = Y.`; `f(A,B) = f(B,A).` answers `A = B.`),
+#   a value shows the name and not the writer's `_G` cell (`X = f(Z), Y =
+#   Z.` answers `X = f(Y), Z = Y.`), and a `_'-named variable names cells
+#   without ever getting a line (`X = f(_Q).` answers `X = f(_Q).`).
+#
+#   THE PUNCTUATION IS HONEST. A determinate answer ends `.` with nobody
+#   asked; one that left a choice point waits for `;`, and the `;` a
+#   terminal would have echoed is restored to piped output, so `member`
+#   reads `X = a ;` `X = b ;` `false.`
+#
+#   ONE SESSION IS ONE WORLD. What a goal asserts or consults, the next
+#   goal sees; a syntax error costs the goal and not the session; `halt.`
+#   leaves with 0.
+#
+#   THE STORE ARRANGEMENTS ARE THE SAME TOPLEVEL. Against the embedded
+#   store and the server, a piped session's writes must be read by a
+#   SECOND process that consulted nothing -- the claim the project exists
+#   to make. The wire half SKIPs without a server.
+
+HERE=$(cd "$(dirname "$0")" && pwd)
+ROOT=$(cd "$HERE/.." && pwd)
+OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-repl-XXXXXX")
+trap 'rm -rf "$OUT"' EXIT INT TERM
+
+failures=0
+check() {
+  if [ "$2" = "$3" ]; then
+    printf 'ok   %-52s\n' "$1"
+  else
+    printf 'FAIL %-52s got [%s] want [%s]\n' "$1" "$2" "$3"
+    failures=$((failures + 1))
+  fi
+}
+
+if [ ! -x "$ROOT/cocolog" ]; then
+  echo "SKIP (no cocolog; make)"
+  exit 0
+fi
+C="$ROOT/cocolog"
+
+# ---- local: names, aliases, punctuation, the session ----------------
+
+got=$(printf 'X = 41 + 1, Y is X.\n' | "$C" 2>/dev/null)
+check "names survive into the answer" "$got" "X = 41+1,
+Y = 42."
+
+got=$(printf 'member(X, [a,b]).\n;\n;\n' | "$C" 2>/dev/null)
+check "; asks again, the echo restored, false closes" "$got" "X = a ;
+X = b ;
+false."
+
+got=$(printf 'true.\n' | "$C" 2>/dev/null)
+check "no variables says true" "$got" "true."
+
+got=$(printf 'fail.\n' | "$C" 2>/dev/null)
+check "no solutions says false" "$got" "false."
+
+got=$(printf 'X = Y.\n' | "$C" 2>/dev/null)
+check "a shared cell is named for its last variable" "$got" "X = Y."
+
+got=$(printf 'X = f(Z), Y = Z.\n' | "$C" 2>/dev/null)
+check "a value shows the name, not the _G cell" "$got" "X = f(Y),
+Z = Y."
+
+got=$(printf 'f(A,B) = f(B,A).\n' | "$C" 2>/dev/null)
+check "swapped pairs collapse as SWI collapses them" "$got" "A = B."
+
+got=$(printf 'X = f(_Q).\n' | "$C" 2>/dev/null)
+check "_named variables name cells but get no line" "$got" "X = f(_Q)."
+
+got=$(printf '_ = 1.\n' | "$C" 2>/dev/null)
+check "a binding all underscores is just true" "$got" "true."
+
+got=$(printf 'X =\n[a,\nb].\n' | "$C" 2>/dev/null)
+check "a goal is read to its full stop, lines apart" "$got" "X = [a,b]."
+
+got=$(printf 'foo(.\nX = ok.\n' | "$C" 2>/dev/null)
+check "a syntax error costs the goal, not the session" "$got" "X = ok."
+
+got=$(printf 'mystery(9).\nX = still_here.\n' | "$C" 2>/dev/null)
+check "an unknown procedure costs the goal, not the session" "$got" "X = still_here."
+
+got=$(printf 'mystery(9).\n' | "$C" 2>&1 >/dev/null)
+case "$got" in
+  *existence_error*) check "and says existence_error on stderr" yes yes ;;
+  *) check "and says existence_error on stderr" "$got" "existence_error" ;;
+esac
+
+# fact/1's second answer is determinate -- the store knows its last clause
+# -- so it closes with `.' where member/2, whose alternatives live in a
+# recursive clause body, waits a third time and closes with false
+got=$(printf 'assertz(fact(one)).\nassertz(fact(two)).\nfact(X).\n;\n' | "$C" 2>/dev/null)
+check "what one goal asserts the next goal sees" "$got" "true.
+true.
+X = one ;
+X = two."
+
+printf 'p(1).\np(2).\nq(X) :- p(X), X > 1.\n' > "$OUT/fam.pl"
+got=$(printf "['%s/fam'].\nq(X).\nconsult('%s/fam.pl').\n" "$OUT" "$OUT" | "$C" 2>/dev/null)
+check "[file] and consult(file), .pl found for itself" "$got" "true.
+X = 2.
+true."
+
+printf 'halt.\n' | "$C" >/dev/null 2>&1
+check "halt. leaves with 0" "$?" "0"
+
+# ---- embed: a piped session writes, a second process reads ----------
+
+printf "assertz(kept(embed_round_trip)).\nhalt.\n" | \
+  "$C" --store "$OUT/KB" --kb repl_test >/dev/null 2>&1
+got=$("$C" --store "$OUT/KB" --kb repl_test query 'kept(X)' 2>/dev/null | head -1)
+check "embed: the session's assert reaches a second process" "$got" "  1. kept(embed_round_trip)"
+
+# ---- wire: the same, through a server -------------------------------
+
+HOST=${ZIGURAT_HOST:-127.0.0.1}
+PORT=${ZIGURAT_PORT:-2160}
+if timeout 20 "$C" --kb repl_test --host "$HOST" --port "$PORT" \
+     --timeout 10 list >/dev/null 2>&1; then
+  printf "assertz(kept(wire_round_trip)).\nhalt.\n" | \
+    timeout 60 "$C" --kb repl_test --host "$HOST" --port "$PORT" --timeout 10 >/dev/null 2>&1
+  got=$(timeout 60 "$C" --kb repl_test --host "$HOST" --port "$PORT" --timeout 10 \
+          query 'kept(X)' 2>/dev/null | head -1)
+  check "wire: the session's assert reaches a second process" "$got" "  1. kept(wire_round_trip)"
+  timeout 60 "$C" --kb repl_test --host "$HOST" --port "$PORT" --timeout 10 \
+    forget >/dev/null 2>&1
+else
+  echo "wire: SKIP no Zigurat server at $HOST:$PORT"
+fi
+
+echo
+if [ "$failures" -eq 0 ]; then
+  echo "GREEN: 0 failure(s)"
+  exit 0
+else
+  echo "RED: $failures failure(s)"
+  exit 1
+fi

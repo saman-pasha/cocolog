@@ -61,9 +61,11 @@ done
 #           port for port
 #   vacuum  the reclaim pass: the verb in both arrangements, and the gate
 #           on the vacuum_kb builtin
+#   repl    the toplevel, piped: SWI's answer shapes, one session one
+#           world, and a session's writes read by a second process
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum groups ruler; do
+for c in files trace vacuum repl groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   if [ ! -x "$ROOT/cocolog" ]; then

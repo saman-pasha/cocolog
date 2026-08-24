@@ -9,6 +9,9 @@
 ;;;
 ;;; Usage:
 ;;;
+;;;   cocolog [options]                     no command at all: the toplevel.
+;;;                                          `?- ', the query's own variable
+;;;                                          names, `;' for more, halt. leaves
 ;;;   cocolog [options] consult FILE...     read programs into the knowledge base
 ;;;   cocolog [options] query GOAL          prove it here and now
 ;;;   cocolog [options] run FILE... [GOAL]  consult and prove, in one process;
@@ -279,6 +282,9 @@
 
   (func usage ()
         (fprintf stderr "cocolog -- a Prolog interpreter with its knowledge base in Zigurat\n\n")
+        (fprintf stderr "  cocolog [options]             the toplevel: a `?- ' prompt, answers\n")
+        (fprintf stderr "                                under the query's own variable names,\n")
+        (fprintf stderr "                                `;' for another solution, halt. leaves\n")
         (fprintf stderr "  cocolog [options] consult FILE...\n")
         (fprintf stderr "  cocolog [options] query GOAL\n")
         (fprintf stderr "  cocolog [options] start NAME GOAL\n")
@@ -493,6 +499,288 @@
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
           (return (? (== rc -1) 1 0))))
+
+  ;;; ---- the toplevel -------------------------------------------------------
+
+  ;;; Appends one physical line of stdin to INTO, without its newline.
+  ;;; Answers 1, or 0 at end of input with nothing read.
+  (func repl_gets ((coco_strbuf * into)) (out int)
+        (let ((int c . 0) (int got . 0))
+          (while 1
+            (set c (fgetc stdin))
+            (if (== c -1) break)
+            (set got 1)
+            (if (== c 10) break)              ; newline
+            (coco_sb_putc into (cast char c)))
+          (return got)))
+
+  (func repl_blank ((coco_strbuf * b)) (out int)
+        (let ((const char * s . #'(-> b s)))
+          (if (== s nil) (return 1))
+          (for ((size_t i . 0)) (!= (nth i s) (cast char 0)) ((++ i))
+            (if (and (!= (nth i s) (cast char 32))  ; space
+                     (!= (nth i s) (cast char 9))   ; tab
+                     (!= (nth i s) (cast char 13))) ; CR
+                (return 0)))
+          (return 1)))
+
+  ;;; Whether the goal gathered so far has reached its full stop -- the last
+  ;;; dark character is `.'. The reader has the final say on what the text
+  ;;; means; this only decides when to stop asking for more lines.
+  (func repl_complete ((coco_strbuf * b)) (out int)
+        (let ((const char * s . #'(-> b s)) (size_t n . 0))
+          (if (== s nil) (return 0))
+          (set n (strlen s))
+          (while (and (> n 0)
+                      (or (== (nth (- n 1) s) (cast char 32))
+                          (== (nth (- n 1) s) (cast char 9))
+                          (== (nth (- n 1) s) (cast char 13))
+                          (== (nth (- n 1) s) (cast char 10))))
+            (set n (- n 1)))
+          (return (? (and (> n 0) (== (nth (- n 1) s) (cast char 46))) 1 0)))) ; `.'
+
+  ;;; Consults one file into the session's store, trying `NAME.pl' when NAME
+  ;;; itself is not on disk -- `[family].' reads family.pl, as SWI has it.
+  (func repl_consult_one ((coco_store * st) (coco_machine * m) (const char * name)) (out int)
+        (let ((char withpl [512]) (const char * path . name) (FILE * probe . nil)
+              (char err [256]) (char * text . nil) (int n . 0))
+          (set probe (fopen name "rb"))
+          (if (!= probe nil)
+              (fclose probe)
+            (block (snprintf withpl (sizeof withpl) "%s.pl" name)
+                   (set path withpl)))
+          (set text (slurp path))
+          (if (== text nil) (return 0))
+          (set n (coco_consult st m text err (sizeof err)))
+          (free text)
+          (if (< n 0)
+              (block (fprintf stderr "cocolog: %s: %s\n" path err)
+                     (return 0)))
+          (return 1)))
+
+  ;;; `[family, jobs].' and `consult(family).' at the toplevel, SWI's reading:
+  ;;; a list of atoms consults files. Answers 1 consulted, 0 tried and failed,
+  ;;; -1 not a consult at all -- a bare atom is a goal, so only the two
+  ;;; wrapped forms reach the disk.
+  (func repl_consult_goal ((coco_store * st) (coco_machine * m) (size_t goal)) (out int)
+        (let ((size_t t . #'(coco_deref m goal)) (int wrapped . 0))
+          (if (and (coco-tag-is FUN (nth t (-> m heap)))
+                   (== (coco_arity m t) 1)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "consult")))
+              (block (set wrapped 1)
+                     (set t (coco_deref m (coco_arg m t 0)))))
+          (if (and wrapped (coco-tag-is ATOM (nth t (-> m heap)))
+                   (!= 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
+              (return (? (repl_consult_one st m (coco_atom_name m (coco_name_of m t))) 1 0)))
+          ;; from here T means something only as a proper list of atoms --
+          ;; checked WHOLE before any file is opened, so `[good, 3]' does not
+          ;; consult half of itself and then turn out not to be a consult
+          (let ((size_t p . t) (int shape . 1))
+            (while 1
+              (if (coco-tag-is ATOM (nth p (-> m heap)))
+                  (block (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]"))
+                             (set shape 0))
+                         break))
+              (if (not (and (coco-tag-is FUN (nth p (-> m heap)))
+                            (== (coco_arity m p) 2)
+                            (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "."))))
+                  (block (set shape 0) break))
+              (if (not (coco-tag-is ATOM (nth (coco_deref m (coco_arg m p 0)) (-> m heap))))
+                  (block (set shape 0) break))
+              (set p (coco_deref m (coco_arg m p 1))))
+            (if (not shape)
+                (block (if (not wrapped) (return -1))
+                       (fprintf stderr "cocolog: consult wants a file name or a list of them\n")
+                       (return 0))))
+          (let ((size_t p . t))
+            (while (not (coco-tag-is ATOM (nth p (-> m heap))))
+              (if (not (repl_consult_one st m
+                         (coco_atom_name m (coco_name_of m (coco_deref m (coco_arg m p 0))))))
+                  (return 0))
+              (set p (coco_deref m (coco_arg m p 1)))))
+          (return 1)))
+
+  ;;; The display name of a still-unbound cell: the LAST of the query's
+  ;;; variables standing on it, which is SWI's choice -- `X = Y, f(A,B) =
+  ;;; f(B,A)' answers `X = Y' and `A = B'. A `_'-named variable can name a
+  ;;; cell too (`X = f(_Q)' shows f(_Q), as SWI shows it), but only when no
+  ;;; plainly named one stands there. Answers nil for a cell no query
+  ;;; variable stands on.
+  (func repl_cell_name ((coco_reader * r) (coco_machine * m) (size_t cell))
+        (out const char *)
+        (let ((const char * plain . nil) (const char * any . nil))
+          (for ((size_t k . 0)) (< k (-> r nvars)) ((++ k))
+            (let ((size_t tk . #'(coco_deref m (nth k (-> r var_cells)))))
+              (if (and (== tk cell) (coco-tag-is REF (nth tk (-> m heap))))
+                  (block (set any (nth k (-> r var_names)))
+                         (if (!= (nth 0 (nth k (-> r var_names))) (cast char 95))
+                             (set plain (nth k (-> r var_names))))))))
+          (return (? (!= plain nil) plain any))))
+
+  ;;; Prints S, giving each still-unbound query variable its own name: the
+  ;;; writer says `_G<cell>' and the cell may be one the query has a name
+  ;;; for. The token is matched whole -- `_G19' is not the front of `_G195'.
+  (func repl_print_value ((coco_reader * r) (coco_machine * m) (const char * s))
+        (let ((size_t i . 0) (size_t n . #'(strlen s)))
+          (while (< i n)
+            (if (and (== (nth i s) (cast char 95))        ; `_'
+                     (< (+ i 1) n)
+                     (== (nth (+ i 1) s) (cast char 71))) ; `G'
+                (block
+                 (let ((size_t j . #'(+ i 2)) (size_t cell . 0) (int nd . 0)
+                       (const char * name . nil))
+                   (while (and (< j n)
+                               (>= (nth j s) (cast char 48))
+                               (<= (nth j s) (cast char 57)))
+                     (set cell (+ (* cell 10) (cast size_t (- (nth j s) (cast char 48)))))
+                     (set nd 1)
+                     (set j (+ j 1)))
+                   (if nd (set name (repl_cell_name r m cell)))
+                   (if (!= name nil)
+                       (block (printf "%s" name) (set i j))
+                     (block (putchar (cast int (nth i s))) (set i (+ i 1))))))
+              (block (putchar (cast int (nth i s))) (set i (+ i 1)))))))
+
+  ;;; Prints one solution's bindings the way SWI's toplevel does: `X = 1,' a
+  ;;; line each for the query's own named variables, values quoted so they
+  ;;; read back. A variable still unbound prints only when it shares its cell
+  ;;; with the variable the cell is named for -- `X = Y' -- and the named one
+  ;;; itself stays silent, which is why `true' exists: the caller says it
+  ;;; when nothing printed. Answers how many bindings it printed.
+  (func repl_bindings ((coco_engine * e) (coco_reader * r)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int printed . 0))
+          (for ((size_t i . 0)) (< i (-> r nvars)) ((++ i))
+            (let ((const char * name . #'(nth i (-> r var_names)))
+                  (size_t t . #'(coco_deref m (nth i (-> r var_cells)))))
+              (if (== (nth 0 name) (cast char 95)) continue) ; `_' stays quiet
+              (if (coco-tag-is REF (nth t (-> m heap)))
+                  (block
+                   (let ((const char * chosen . #'(repl_cell_name r m t)))
+                     (if (or (== chosen nil) (== 0 (strcmp chosen name))) continue)
+                     (if (> printed 0) (printf ",\n"))
+                     (printf "%s = %s" name chosen)
+                     (set printed (+ printed 1))))
+                (block
+                 (let ((coco_strbuf vb))
+                   (coco_sb_init (aof vb))
+                   (coco_write_term m (aof vb) t 1 0)
+                   (if (> printed 0) (printf ",\n"))
+                   (printf "%s = " name)
+                   (if (!= ($ vb s) nil) (repl_print_value r m ($ vb s)))
+                   (coco_sb_free (aof vb)))
+                 (set printed (+ printed 1))))))
+          (return printed)))
+
+  ;;; The toplevel. Bare `cocolog' is what bare `swipl' is: a `?- ' prompt,
+  ;;; goals read to their full stop over as many lines as they take, answers
+  ;;; under the query's own variable names, `;' for another solution. The
+  ;;; punctuation is honest because the engine's choice stack is: a solution
+  ;;; that left no choice point ends `.' with nobody asked, one that did ends
+  ;;; ` ' and waits. One machine, one store and one engine live for the whole
+  ;;; session, so what a goal asserts or consults the next goal sees -- in
+  ;;; --local no less than against a database, where each finished goal is
+  ;;; one committed transaction, exactly as `query' has it. Prompts appear
+  ;;; only at a terminal, and piped input has its unechoed `;' restored on
+  ;;; the way out, so a transcript reads as a terminal session does.
+  (func cmd_repl () (out int)
+        (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
+              (int tty . #'(isatty 0)) (int quit . 0) (int session_rc . 0))
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_engine_init (aof e) (aof m) (aof st))
+          (set ($ e max_steps) 0)
+          (attach (aof z) (aof zt) (aof m) (aof st))
+
+          (if tty
+              (block
+               (cond
+                 (($ opts local)
+                  (fprintf stderr "cocolog toplevel, --local: this session only.\n"))
+                 ((!= ($ opts store) nil)
+                  (fprintf stderr "cocolog toplevel, the store at %s.\n" ($ opts store)))
+                 ((!= ($ opts http) nil)
+                  (fprintf stderr "cocolog toplevel over Zeytun, kb '%s' at %s:%s.\n"
+                           ($ opts kb) ($ opts host) ($ opts http)))
+                 (#t
+                  (fprintf stderr "cocolog toplevel, kb '%s' at %s:%s.\n"
+                           ($ opts kb) ($ opts host) ($ opts port))))
+               (fprintf stderr "A goal ends with `.' -- halt. leaves.\n")))
+
+          (while (not quit)
+            (let ((coco_strbuf line) (int got . 0) (int first . 1))
+              (coco_sb_init (aof line))
+              (while 1
+                (if tty (block (fprintf stderr "%s" (? first "?- " "|    "))
+                               (fflush stderr)))
+                (set got (repl_gets (aof line)))
+                (if (== got 0) break)
+                (if (repl_complete (aof line)) break)
+                (if (repl_blank (aof line))
+                    (block (coco_sb_free (aof line))
+                           (coco_sb_init (aof line))
+                           (set first 1))
+                  (block (coco_sb_putc (aof line) (cast char 10))
+                         (set first 0))))
+
+              (if (and (== got 0) (not (repl_complete (aof line))))
+                  ;; end of input: the session is over
+                  (block (set quit 1)
+                         (if tty (fprintf stderr "\n")))
+                (let ((coco_reader r) (size_t g . 0) (int prc . 0) (int grc . 0))
+                  (coco_reader_init (aof r) (aof m) (? (== ($ line s) nil) "" ($ line s)))
+                  (set prc (coco_read_clause (aof r) (aof g)))
+                  (cond
+                    ((== prc -1) (fprintf stderr "cocolog: %s\n" ($ r err)))
+                    ((== prc 1)
+                     (let ((int consulted . #'(repl_consult_goal (aof st) (aof m) g)))
+                       (cond
+                         ((== consulted 1) (printf "true.\n"))
+                         ((== consulted 0) (set grc -1))
+                         (#t
+                          (coco_engine_ask (aof e) g)
+                          (let ((int stop . 0))
+                            (while (not stop)
+                              (set grc (coco_engine_next (aof e)))
+                              (cond
+                                ((== grc -1)
+                                 (fprintf stderr "cocolog: %s\n" ($ e err))
+                                 (set stop 1))
+                                ((== grc 0)
+                                 (if ($ e halted)
+                                     (block (set quit 1)
+                                            (set session_rc ($ e halt_code)))
+                                   (printf "false.\n"))
+                                 (set stop 1))
+                                (#t
+                                 (if (== (repl_bindings (aof e) (aof r)) 0)
+                                     (printf "true"))
+                                 (if (== ($ e nchoices) 0)
+                                     ;; determinate: nothing to go back to
+                                     (block (printf ".\n") (set stop 1))
+                                   (block
+                                    (printf " ")
+                                    (fflush stdout)
+                                    (let ((char ans [64]) (int more . 0))
+                                      (if (!= (fgets ans (sizeof ans) stdin) nil)
+                                          (let ((size_t k . 0))
+                                            (while (or (== (nth k ans) (cast char 32))
+                                                       (== (nth k ans) (cast char 9)))
+                                              (set k (+ k 1)))
+                                            (if (== (nth k ans) (cast char 59)) ; `;'
+                                                (set more 1))))
+                                      (if more
+                                          (block (if (not tty) (printf ";\n")))
+                                        (block (printf ".\n") (set stop 1))))))))))))
+                       ;; one goal, one transaction -- as `query' has it
+                       (if (!= db nil)
+                           (if (== grc -1) (zg_rollback db) (zg_commit db))))))
+                  (coco_reader_free (aof r))))
+              (coco_sb_free (aof line))))
+
+          (coco_engine_free (aof e))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
+          (return session_rc)))
 
   ;;; Begins a machine and suspends it before it has done anything. What that
   ;;; is for: the machine exists in the database from this moment, so any
@@ -1209,8 +1497,6 @@
                                 (return 1)))))
                  (set i (+ i 2))))))
 
-          (if (>= i argc) (block (usage) (return 1)))
-
           ;; THE DEFAULT ARRANGEMENT IS LOCAL. Naming any part of another one
           ;; chooses it: --store/--embed the embedded store, --http Zeytun,
           ;; and --kb, --host or --port the server -- local keeps no named
@@ -1227,6 +1513,9 @@
           (if (not (install_modules)) (return 1))
           (if (not (open_connection)) (return 1))
 
+          ;; no command at all is the toplevel, as bare `swipl' is
+          (if (>= i argc)
+              (set rc (cmd_repl))
           (let ((const char * cmd . #'(nth i argv)))
             (cond
               ((== 0 (strcmp cmd "consult"))
@@ -1275,7 +1564,7 @@
                    (block (fprintf stderr "cocolog: drop needs a name\n") (set rc 1))
                  (set rc (cmd_drop (nth (+ i 1) argv)))))
               (#t (block (fprintf stderr "cocolog: unknown command %s\n" cmd)
-                         (usage) (set rc 1)))))
+                         (usage) (set rc 1))))))
 
           (if (!= db nil) (zg_close db))
           (return rc)))
