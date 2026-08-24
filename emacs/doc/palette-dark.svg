@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="218" viewBox="0 0 980 218" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13.5">
+<title>The palette opened by C-c C-v</title>
+<rect x="0.5" y="0.5" width="979" height="217" rx="6" fill="#0d1117" stroke="#30363d"/>
+<text x="14.0" y="28.1" fill="#e6edf3" textLength="224.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600"> Colour for this variable:  </text>
+<rect x="238.0" y="14.0" width="64.0" height="19.0" fill="#9370db"/>
+<text x="238.0" y="28.1" fill="#ffffff" textLength="64.0" lengthAdjust="spacing" xml:space="preserve"> purple </text>
+<text x="302.0" y="28.1" fill="#6e7681" textLength="72.0" lengthAdjust="spacing" xml:space="preserve">  #9370db</text>
+<rect x="30.0" y="52.0" width="24.0" height="19.0" fill="#e6194b"/>
+<text x="30.0" y="66.1" fill="#ffffff" textLength="24.0" lengthAdjust="spacing" xml:space="preserve"> • </text>
+<rect x="54.0" y="52.0" width="8.0" height="19.0" fill="#e6194b"/>
+<rect x="70.0" y="52.0" width="24.0" height="19.0" fill="#d62728"/>
+<rect x="94.0" y="52.0" width="8.0" height="19.0" fill="#d62728"/>
+<rect x="110.0" y="52.0" width="24.0" height="19.0" fill="#ff6347"/>
+<rect x="134.0" y="52.0" width="8.0" height="19.0" fill="#ff6347"/>
+<rect x="150.0" y="52.0" width="24.0" height="19.0" fill="#ff7f50"/>
+<rect x="174.0" y="52.0" width="8.0" height="19.0" fill="#ff7f50"/>
+<rect x="190.0" y="52.0" width="24.0" height="19.0" fill="#f58231"/>
+<rect x="214.0" y="52.0" width="8.0" height="19.0" fill="#f58231"/>
+<rect x="230.0" y="52.0" width="24.0" height="19.0" fill="#ffa500"/>
+<rect x="254.0" y="52.0" width="8.0" height="19.0" fill="#ffa500"/>
+<rect x="270.0" y="52.0" width="24.0" height="19.0" fill="#ffd700"/>
+<rect x="294.0" y="52.0" width="8.0" height="19.0" fill="#ffd700"/>
+<rect x="310.0" y="52.0" width="24.0" height="19.0" fill="#ffe119"/>
+<rect x="334.0" y="52.0" width="8.0" height="19.0" fill="#ffe119"/>
+<rect x="30.0" y="71.0" width="24.0" height="19.0" fill="#808000"/>
+<rect x="54.0" y="71.0" width="8.0" height="19.0" fill="#808000"/>
+<rect x="70.0" y="71.0" width="24.0" height="19.0" fill="#bfef45"/>
+<rect x="94.0" y="71.0" width="8.0" height="19.0" fill="#bfef45"/>
+<rect x="110.0" y="71.0" width="24.0" height="19.0" fill="#3cb44b"/>
+<text x="110.0" y="85.1" fill="#000000" textLength="24.0" lengthAdjust="spacing" xml:space="preserve"> • </text>
+<rect x="134.0" y="71.0" width="8.0" height="19.0" fill="#3cb44b"/>
+<rect x="150.0" y="71.0" width="24.0" height="19.0" fill="#228b22"/>
+<rect x="174.0" y="71.0" width="8.0" height="19.0" fill="#228b22"/>
+<rect x="190.0" y="71.0" width="24.0" height="19.0" fill="#aaffc3"/>
+<rect x="214.0" y="71.0" width="8.0" height="19.0" fill="#aaffc3"/>
+<rect x="230.0" y="71.0" width="24.0" height="19.0" fill="#469990"/>
+<rect x="254.0" y="71.0" width="8.0" height="19.0" fill="#469990"/>
+<rect x="270.0" y="71.0" width="24.0" height="19.0" fill="#42d4f4"/>
+<rect x="294.0" y="71.0" width="8.0" height="19.0" fill="#42d4f4"/>
+<rect x="310.0" y="71.0" width="24.0" height="19.0" fill="#87ceeb"/>
+<rect x="334.0" y="71.0" width="8.0" height="19.0" fill="#87ceeb"/>
+<rect x="30.0" y="90.0" width="24.0" height="19.0" fill="#4363d8"/>
+<text x="30.0" y="104.1" fill="#ffffff" textLength="24.0" lengthAdjust="spacing" xml:space="preserve"> • </text>
+<rect x="54.0" y="90.0" width="8.0" height="19.0" fill="#4363d8"/>
+<rect x="70.0" y="90.0" width="24.0" height="19.0" fill="#00308f"/>
+<rect x="94.0" y="90.0" width="8.0" height="19.0" fill="#00308f"/>
+<rect x="110.0" y="90.0" width="24.0" height="19.0" fill="#4b0082"/>
+<rect x="134.0" y="90.0" width="8.0" height="19.0" fill="#4b0082"/>
+<rect x="150.0" y="90.0" width="24.0" height="19.0" fill="#911eb4"/>
+<rect x="174.0" y="90.0" width="8.0" height="19.0" fill="#911eb4"/>
+<rect x="190.0" y="90.0" width="24.0" height="19.0" fill="#9370db"/>
+<text x="190.0" y="104.1" fill="#ffffff" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">[ ]</text>
+<rect x="214.0" y="90.0" width="8.0" height="19.0" fill="#9370db"/>
+<rect x="230.0" y="90.0" width="24.0" height="19.0" fill="#dda0dd"/>
+<rect x="254.0" y="90.0" width="8.0" height="19.0" fill="#dda0dd"/>
+<rect x="270.0" y="90.0" width="24.0" height="19.0" fill="#f032e6"/>
+<rect x="294.0" y="90.0" width="8.0" height="19.0" fill="#f032e6"/>
+<rect x="310.0" y="90.0" width="24.0" height="19.0" fill="#fabed4"/>
+<rect x="334.0" y="90.0" width="8.0" height="19.0" fill="#fabed4"/>
+<rect x="30.0" y="109.0" width="24.0" height="19.0" fill="#ff69b4"/>
+<rect x="54.0" y="109.0" width="8.0" height="19.0" fill="#ff69b4"/>
+<rect x="70.0" y="109.0" width="24.0" height="19.0" fill="#800000"/>
+<rect x="94.0" y="109.0" width="8.0" height="19.0" fill="#800000"/>
+<rect x="110.0" y="109.0" width="24.0" height="19.0" fill="#9a6324"/>
+<rect x="134.0" y="109.0" width="8.0" height="19.0" fill="#9a6324"/>
+<rect x="150.0" y="109.0" width="24.0" height="19.0" fill="#a0522d"/>
+<rect x="174.0" y="109.0" width="8.0" height="19.0" fill="#a0522d"/>
+<rect x="190.0" y="109.0" width="24.0" height="19.0" fill="#d2b48c"/>
+<rect x="214.0" y="109.0" width="8.0" height="19.0" fill="#d2b48c"/>
+<rect x="230.0" y="109.0" width="24.0" height="19.0" fill="#fffac8"/>
+<rect x="254.0" y="109.0" width="8.0" height="19.0" fill="#fffac8"/>
+<rect x="270.0" y="109.0" width="24.0" height="19.0" fill="#f0e68c"/>
+<rect x="294.0" y="109.0" width="8.0" height="19.0" fill="#f0e68c"/>
+<rect x="310.0" y="109.0" width="24.0" height="19.0" fill="#ffd8b1"/>
+<rect x="334.0" y="109.0" width="8.0" height="19.0" fill="#ffd8b1"/>
+<rect x="30.0" y="128.0" width="24.0" height="19.0" fill="#fa8072"/>
+<rect x="54.0" y="128.0" width="8.0" height="19.0" fill="#fa8072"/>
+<rect x="70.0" y="128.0" width="24.0" height="19.0" fill="#dcbeff"/>
+<rect x="94.0" y="128.0" width="8.0" height="19.0" fill="#dcbeff"/>
+<rect x="110.0" y="128.0" width="24.0" height="19.0" fill="#8e4585"/>
+<rect x="134.0" y="128.0" width="8.0" height="19.0" fill="#8e4585"/>
+<rect x="150.0" y="128.0" width="24.0" height="19.0" fill="#708090"/>
+<rect x="174.0" y="128.0" width="8.0" height="19.0" fill="#708090"/>
+<rect x="190.0" y="128.0" width="24.0" height="19.0" fill="#4682b4"/>
+<rect x="214.0" y="128.0" width="8.0" height="19.0" fill="#4682b4"/>
+<rect x="230.0" y="128.0" width="24.0" height="19.0" fill="#1560bd"/>
+<rect x="254.0" y="128.0" width="8.0" height="19.0" fill="#1560bd"/>
+<rect x="270.0" y="128.0" width="24.0" height="19.0" fill="#00ced1"/>
+<rect x="294.0" y="128.0" width="8.0" height="19.0" fill="#00ced1"/>
+<rect x="310.0" y="128.0" width="24.0" height="19.0" fill="#66cdaa"/>
+<rect x="334.0" y="128.0" width="8.0" height="19.0" fill="#66cdaa"/>
+<rect x="30.0" y="147.0" width="24.0" height="19.0" fill="#6b8e23"/>
+<rect x="54.0" y="147.0" width="8.0" height="19.0" fill="#6b8e23"/>
+<rect x="70.0" y="147.0" width="24.0" height="19.0" fill="#b2ac88"/>
+<rect x="94.0" y="147.0" width="8.0" height="19.0" fill="#b2ac88"/>
+<rect x="110.0" y="147.0" width="24.0" height="19.0" fill="#b7410e"/>
+<rect x="134.0" y="147.0" width="8.0" height="19.0" fill="#b7410e"/>
+<rect x="150.0" y="147.0" width="24.0" height="19.0" fill="#b87333"/>
+<rect x="174.0" y="147.0" width="8.0" height="19.0" fill="#b87333"/>
+<rect x="190.0" y="147.0" width="24.0" height="19.0" fill="#36454f"/>
+<rect x="214.0" y="147.0" width="8.0" height="19.0" fill="#36454f"/>
+<rect x="230.0" y="147.0" width="24.0" height="19.0" fill="#a9a9a9"/>
+<rect x="254.0" y="147.0" width="8.0" height="19.0" fill="#a9a9a9"/>
+<rect x="270.0" y="147.0" width="24.0" height="19.0" fill="#c0c0c0"/>
+<rect x="294.0" y="147.0" width="8.0" height="19.0" fill="#c0c0c0"/>
+<rect x="310.0" y="147.0" width="24.0" height="19.0" fill="#f0f0f0"/>
+<rect x="334.0" y="147.0" width="8.0" height="19.0" fill="#f0f0f0"/>
+<text x="14.0" y="199.1" fill="#6e7681" textLength="952.0" lengthAdjust="spacing" xml:space="preserve">  arrows/hjkl move   RET pick   n pick and name it   # type a hex colour   r random unused   TAB next unused   q cancel</text>
+</svg>

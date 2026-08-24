@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="796" height="446" viewBox="0 0 796 446" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13.5">
+<title>A test case in a comment and the execution graph below the rule</title>
+<rect x="0.5" y="0.5" width="795" height="445" rx="6" fill="#0d1117" stroke="#30363d"/>
+<text x="14.0" y="28.1" fill="#e6edf3" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">%% </text>
+<text x="38.0" y="28.1" fill="#7ee787" textLength="160.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">?- grandparent(tom, </text>
+<rect x="198.0" y="14.0" width="24.0" height="19.0" fill="#c0c0c0"/>
+<text x="198.0" y="28.1" fill="#000000" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">Who</text>
+<text x="222.0" y="28.1" fill="#7ee787" textLength="16.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">).</text>
+<text x="14.0" y="47.1" fill="#d2a8ff" textLength="88.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">grandparent</text>
+<text x="102.0" y="47.1" fill="#e6edf3" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">(</text>
+<rect x="110.0" y="33.0" width="72.0" height="19.0" fill="#e6194b"/>
+<text x="110.0" y="47.1" fill="#ffffff" textLength="72.0" lengthAdjust="spacing" xml:space="preserve"> Grandad </text>
+<text x="182.0" y="47.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="198.0" y="33.0" width="40.0" height="19.0" fill="#4363d8"/>
+<text x="198.0" y="47.1" fill="#ffffff" textLength="40.0" lengthAdjust="spacing" xml:space="preserve"> Kid </text>
+<text x="238.0" y="47.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">) </text>
+<text x="254.0" y="47.1" fill="#ff7b72" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">:-</text>
+<text x="46.0" y="66.1" fill="#d2a8ff" textLength="48.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">parent</text>
+<text x="94.0" y="66.1" fill="#e6edf3" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">(</text>
+<rect x="102.0" y="52.0" width="72.0" height="19.0" fill="#e6194b"/>
+<text x="102.0" y="66.1" fill="#ffffff" textLength="72.0" lengthAdjust="spacing" xml:space="preserve"> Grandad </text>
+<text x="174.0" y="66.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="190.0" y="52.0" width="72.0" height="19.0" fill="#3cb44b"/>
+<text x="190.0" y="66.1" fill="#000000" textLength="72.0" lengthAdjust="spacing" xml:space="preserve"> Between </text>
+<text x="262.0" y="66.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">),</text>
+<text x="46.0" y="85.1" fill="#d2a8ff" textLength="48.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">parent</text>
+<text x="94.0" y="85.1" fill="#e6edf3" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">(</text>
+<rect x="102.0" y="71.0" width="72.0" height="19.0" fill="#3cb44b"/>
+<text x="102.0" y="85.1" fill="#000000" textLength="72.0" lengthAdjust="spacing" xml:space="preserve"> Between </text>
+<text x="174.0" y="85.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="190.0" y="71.0" width="40.0" height="19.0" fill="#4363d8"/>
+<text x="190.0" y="85.1" fill="#ffffff" textLength="40.0" lengthAdjust="spacing" xml:space="preserve"> Kid </text>
+<text x="230.0" y="85.1" fill="#e6edf3" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">).</text>
+<text x="14.0" y="104.1" fill="#6e7681" textLength="352.0" lengthAdjust="spacing" xml:space="preserve">%% ╭── cocolog trace ── ?- grandparent(tom, </text>
+<rect x="366.0" y="90.0" width="24.0" height="19.0" fill="#c0c0c0"/>
+<text x="366.0" y="104.1" fill="#000000" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">Who</text>
+<text x="390.0" y="104.1" fill="#6e7681" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">).</text>
+<text x="14.0" y="123.1" fill="#6e7681" textLength="176.0" lengthAdjust="spacing" xml:space="preserve">%% │ grandparent(tom, </text>
+<rect x="190.0" y="109.0" width="24.0" height="19.0" fill="#c0c0c0"/>
+<text x="190.0" y="123.1" fill="#000000" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">Who</text>
+<text x="214.0" y="123.1" fill="#6e7681" textLength="568.0" lengthAdjust="spacing" xml:space="preserve">)                               ✔ ×2 grandparent(tom, ann) ; grandpare…</text>
+<text x="14.0" y="142.1" fill="#6e7681" textLength="200.0" lengthAdjust="spacing" xml:space="preserve">%% │  ╰── ▸1 grandparent(</text>
+<rect x="214.0" y="128.0" width="120.0" height="19.0" fill="#e6194b"/>
+<text x="214.0" y="142.1" fill="#ffffff" textLength="120.0" lengthAdjust="spacing" xml:space="preserve"> Grandad       </text>
+<text x="334.0" y="142.1" fill="#6e7681" textLength="16.0" lengthAdjust="spacing" xml:space="preserve">, </text>
+<rect x="350.0" y="128.0" width="88.0" height="19.0" fill="#4363d8"/>
+<text x="350.0" y="142.1" fill="#ffffff" textLength="88.0" lengthAdjust="spacing" xml:space="preserve"> Kid       </text>
+<text x="438.0" y="142.1" fill="#6e7681" textLength="64.0" lengthAdjust="spacing" xml:space="preserve">) :- … ✔</text>
+<text x="14.0" y="161.1" fill="#6e7681" textLength="208.0" lengthAdjust="spacing" xml:space="preserve">%% │      ├── parent(tom, </text>
+<rect x="222.0" y="147.0" width="120.0" height="19.0" fill="#3cb44b"/>
+<text x="222.0" y="161.1" fill="#000000" textLength="120.0" lengthAdjust="spacing" xml:space="preserve"> Between       </text>
+<text x="342.0" y="161.1" fill="#6e7681" textLength="440.0" lengthAdjust="spacing" xml:space="preserve">)               ✔ ×2 parent(tom, bob) ; parent(tom, li…</text>
+<text x="14.0" y="180.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ├── ▸1 parent(tom, bob).                   ✔</text>
+<text x="14.0" y="199.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ├── ▸2 parent(tom, liz).                   ✔</text>
+<text x="14.0" y="218.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ╰── ▸3,4,5 no matching head                ✘</text>
+<text x="14.0" y="237.1" fill="#6e7681" textLength="208.0" lengthAdjust="spacing" xml:space="preserve">%% │      ├── parent(bob, </text>
+<rect x="222.0" y="223.0" width="88.0" height="19.0" fill="#4363d8"/>
+<text x="222.0" y="237.1" fill="#ffffff" textLength="88.0" lengthAdjust="spacing" xml:space="preserve"> Kid       </text>
+<text x="310.0" y="237.1" fill="#6e7681" textLength="472.0" lengthAdjust="spacing" xml:space="preserve">)                   ✔ ×2 parent(bob, ann) ; parent(bob, pa…</text>
+<text x="14.0" y="256.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ├── ▸1,2 no matching head                  ✘</text>
+<text x="14.0" y="275.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ├── ▸3 parent(bob, ann).                   ✔</text>
+<text x="14.0" y="294.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ├── ▸4 parent(bob, pat).                   ✔</text>
+<text x="14.0" y="313.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │      │   ╰── ▸5 parent(pat, jim).                   ✘</text>
+<text x="14.0" y="332.1" fill="#6e7681" textLength="208.0" lengthAdjust="spacing" xml:space="preserve">%% │      ╰── parent(liz, </text>
+<rect x="222.0" y="318.0" width="88.0" height="19.0" fill="#4363d8"/>
+<text x="222.0" y="332.1" fill="#ffffff" textLength="88.0" lengthAdjust="spacing" xml:space="preserve"> Kid       </text>
+<text x="310.0" y="332.1" fill="#6e7681" textLength="168.0" lengthAdjust="spacing" xml:space="preserve">)                   ✘</text>
+<text x="14.0" y="351.1" fill="#6e7681" textLength="464.0" lengthAdjust="spacing" xml:space="preserve">%% │          ╰── ▸1,2,3,4,5 no matching head            ✘</text>
+<text x="14.0" y="370.1" fill="#e6edf3" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">%% </text>
+<text x="38.0" y="370.1" fill="#8b949e" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">│</text>
+<text x="14.0" y="389.1" fill="#6e7681" textLength="160.0" lengthAdjust="spacing" xml:space="preserve">%% │ ✔ solution 1:  </text>
+<rect x="174.0" y="375.0" width="24.0" height="19.0" fill="#c0c0c0"/>
+<text x="174.0" y="389.1" fill="#000000" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">Who</text>
+<text x="198.0" y="389.1" fill="#6e7681" textLength="48.0" lengthAdjust="spacing" xml:space="preserve"> = ann</text>
+<text x="14.0" y="408.1" fill="#6e7681" textLength="160.0" lengthAdjust="spacing" xml:space="preserve">%% │ ✔ solution 2:  </text>
+<rect x="174.0" y="394.0" width="24.0" height="19.0" fill="#c0c0c0"/>
+<text x="174.0" y="408.1" fill="#000000" textLength="24.0" lengthAdjust="spacing" xml:space="preserve">Who</text>
+<text x="198.0" y="408.1" fill="#6e7681" textLength="48.0" lengthAdjust="spacing" xml:space="preserve"> = pat</text>
+<text x="14.0" y="427.1" fill="#6e7681" textLength="344.0" lengthAdjust="spacing" xml:space="preserve">%% ╰── cocolog: 2 solutions · 25 inferences</text>
+</svg>

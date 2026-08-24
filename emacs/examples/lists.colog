@@ -1,0 +1,86 @@
+%% -*- mode: cocolog -*-
+%%
+%% Recursion, the cut, and a query that fails: the graph shows every
+%% clause that was tried, not only the one that worked.
+%%
+%% This file writes no colours at all -- the variables have ordinary
+%% names, and cocolog-mode deals each one a colour when the file is
+%% opened.  C-c C-s cycles the colours away again, and the file stays
+%% plain Prolog for anything that is not Emacs.
+
+%% ?- last_element([1,2,3], X).
+last_element([Item], Item) :-
+    !.
+last_element([_|Rest], Item) :-
+    last_element(Rest, Item).
+%% ╭── cocolog trace ── ?- last_element([1,2,3], X).
+%% │ last_element([1, 2, 3], X)                          ✔ last_element([1, 2, 3], 3)
+%% │  ├── ▸1 last_element([Item], Item) :- …             ✘
+%% │  ╰── ▸2 last_element([_|Rest], Item) :- …           ✔
+%% │      ╰── last_element([2, 3], Item)                 ✔ last_element([2, 3], 3)
+%% │          ├── ▸1 last_element([Item], Item) :- …     ✘
+%% │          ╰── ▸2 last_element([_|Rest], Item) :- …   ✔
+%% │              ╰── last_element([3], Item)            ✔ last_element([3], 3)
+%% │                  ╰── ▸1 last_element([Item], Item) :- … ✔
+%% │                      ╰── !                          ·
+%% │
+%% │ ✔ solution 1:  X = 3
+%% ╰── cocolog: 1 solution · 9 inferences
+
+%% ?- split([1,2,3,4], Odd, Even).
+split([], [], []).
+split([Ce6194b|C3cb44b], [Ce6194b|C4363d8], Cffd700) :-
+    Ce6194b mod 2 =:= 1,
+    split(C3cb44b, C4363d8, Cffd700).
+split([Ce6194b|C3cb44b], C4363d8, [Ce6194b|Cffd700]) :-
+    Ce6194b mod 2 =:= 0,
+    split(C3cb44b, C4363d8, Cffd700).
+%% ╭── cocolog trace ── ?- split([1,2,3,4], Odd, Even).
+%% │ split([1, 2, 3, 4], Odd, Even)                      ✔ split([1, 2, 3, 4], [1, 3], [2, 4])
+%% │  ├── ▸1 split([], [], []).                          ✘
+%% │  ├── ▸2 split([Ce6194b|C3cb44b], [Ce6194b|C4363d8], Cffd700) :- … ✔
+%% │  │   ├── 1 mod 2 =:= 1                              ✔
+%% │  │   ╰── split([2, 3, 4], C4363d8, Cffd700)         ✔ split([2, 3, 4], [3], [2, 4])
+%% │  │       ├── ▸1 split([], [], []).                  ✘
+%% │  │       ├── ▸2 split([Ce6194b|C3cb44b], [Ce6194b|C4363d8], Cffd700) :- … ✘
+%% │  │       │   ╰── 2 mod 2 =:= 1                      ✘
+%% │  │       ╰── ▸3 split([Ce6194b|C3cb44b], C4363d8, [Ce6194b|Cffd700]) :- … ✔
+%% │  │           ├── 2 mod 2 =:= 0                      ✔
+%% │  │           ╰── split([3, 4], C4363d8, Cffd700)    ✔ split([3, 4], [3], [4])
+%% │  │               ├── ▸1 split([], [], []).          ✘
+%% │  │               ├── ▸2 split([Ce6194b|C3cb44b], [Ce6194b|C4363d8], Cffd700) :- … ✔
+%% │  │               │   ├── 3 mod 2 =:= 1              ✔
+%% │  │               │   ╰── split([4], C4363d8, Cffd700) ✔ split([4], [], [4])
+%% │  │               │       ├── ▸1 split([], [], []).  ✘
+%% │  │               │       ├── ▸2 split([Ce6194b|C3cb44b], [Ce6194b|C4363d8], Cffd700)… ✘
+%% │  │               │       │   ╰── 4 mod 2 =:= 1      ✘
+%% │  │               │       ╰── ▸3 split([Ce6194b|C3cb44b], C4363d8, [Ce6194b|Cffd700])… ✔
+%% │  │               │           ├── 4 mod 2 =:= 0      ✔
+%% │  │               │           ╰── split([], C4363d8, Cffd700) ✔ split([], [], [])
+%% │  │               │               ├── ▸1 split([], [], []). ✔
+%% │  │               │               ╰── ▸2,3 no matching head ✘
+%% │  │               ╰── ▸3 split([Ce6194b|C3cb44b], C4363d8, [Ce6194b|Cffd700]) :- … ✘
+%% │  │                   ╰── 3 mod 2 =:= 0              ✘
+%% │  ╰── ▸3 split([Ce6194b|C3cb44b], C4363d8, [Ce6194b|Cffd700]) :- … ✘
+%% │      ╰── 1 mod 2 =:= 0                              ✘
+%% │
+%% │ ✔ solution 1:  Odd = [1, 3],  Even = [2, 4]
+%% ╰── cocolog: 1 solution · 37 inferences
+
+%% This one has no solution -- read the graph to see why.
+%% ?- member(9, [1,2,3]).
+nine_is_there :-
+    member(9, [1,2,3]).
+%% ╭── cocolog trace ── ?- member(9, [1,2,3]).
+%% │ member(9, [1, 2, 3])                                ✘
+%% │  ├── ▸1 member(X, [X|_]).                           ✘
+%% │  ╰── ▸2 member(X, [_|T]) :- …                       ✘
+%% │      ╰── member(9, [2, 3])                          ✘
+%% │          ├── ▸1 member(X, [X|_]).                   ✘
+%% │          ╰── ▸2 member(X, [_|T]) :- …               ✘
+%% │              ╰── member(9, [3])                     ✘
+%% │                  ├── ▸1 member(X, [X|_]).           ✘
+%% │                  ╰── ▸2 member(X, [_|T]) :- …       ✘
+%% │                      ╰── member(9, [])              ✘
+%% │                          ╰── ▸1,2 no matching head  ✘
+%% ╰── cocolog: no solutions · 12 inferences

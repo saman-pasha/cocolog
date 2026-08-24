@@ -1,0 +1,622 @@
+%% grammar.colog -- grammar rules (DCG) in cocolog-mode
+%%
+%% A rule written with --> describes a list instead of a relation:
+%%
+%%     greeting --> [hello], name.
+%%
+%% Prolog reads that as an ordinary clause with two extra arguments, the
+%% list before the rule has read anything and the list left over
+%% afterwards.  What the rule matches is the difference between the two:
+%%
+%%     greeting(S0, S) :- S0 = [hello|S1], name(S1, S).
+%%
+%% cocolog-mode runs the translated clause, so the graphs below show the
+%% S0 and S that thread through the rules -- watch a list get shorter as
+%% the parse goes on.  phrase(Rule, List) proves that Rule describes the
+%% whole of List; phrase(Rule, List, Rest) leaves Rest over.
+%%
+%% Colour variables work here as they do anywhere else: pick a colour
+%% with C-c C-v, name it with C-c C-n, run the test case with C-c C-t.
+
+%% ---------------------------------------------------------------- 1 --
+%% A sentence grammar that builds a parse tree while it reads.
+
+%% ?- phrase(sentence(Ce6194b_Tree), [the, cat, sleeps]).
+%% ?- phrase(sentence(_), [the, cat, sees | Ce6194b_Rest]).
+sentence(s(Ce6194b_Noun, C4363d8_Verb)) -->
+    noun_phrase(Ce6194b_Noun),
+    verb_phrase(C4363d8_Verb).
+%% ╭── cocolog trace ── ?- phrase(sentence(Ce6194b_Tree), [the, cat, sleeps]).
+%% │ sentence(Ce6194b_Tree, [the, cat, sleeps], [])      ✔ sentence(s(np(the, cat), vp(sleeps))…
+%% │  ╰── ▸1 sentence(s(Ce6194b_Noun, C4363d8_Verb)) --> noun_phrase(Ce6194b_Noun), verb_… ✔
+%% │      ├── noun_phrase(Ce6194b_Noun, [the, cat, sleeps], _G919) ✔ noun_phrase(np(the, cat), …
+%% │      │   ╰── ▸1 noun_phrase(np(Ce6194b_Det, C4363d8_Noun)) --> det(Ce6194b_Det), nou… ✔
+%% │      │       ├── det(Ce6194b_Det, [the, cat, sleeps], _G924) ✔ det(the, [the, cat, sleeps]…
+%% │      │       │   ├── ▸1 det(the) --> [the].         ✔
+%% │      │       │   │   ╰── [the, cat, sleeps] = [the, cat, sleeps] ✔
+%% │      │       │   ╰── ▸2 det(a) --> [a].             ✘
+%% │      │       │       ╰── [the, cat, sleeps] = [a|S] ✘
+%% │      │       ╰── noun(C4363d8_Noun, [cat, sleeps], S) ✔ noun(cat, [cat, sleeps], [sleeps])
+%% │      │           ├── ▸1 noun(cat) --> [cat].        ✔
+%% │      │           │   ╰── [cat, sleeps] = [cat, sleeps] ✔
+%% │      │           ╰── ▸2 noun(mouse) --> [mouse].    ✘
+%% │      │               ╰── [cat, sleeps] = [mouse|S]  ✘
+%% │      ╰── verb_phrase(C4363d8_Verb, [sleeps], [])    ✔ verb_phrase(vp(sleeps), [sleeps], [])
+%% │          ├── ▸1 verb_phrase(vp(Ce6194b_Verb)) --> verb(Ce6194b_Verb). ✔
+%% │          │   ╰── verb(Ce6194b_Verb, [sleeps], [])   ✔ verb(sleeps, [sleeps], [])
+%% │          │       ├── ▸1 verb(sleeps) --> [sleeps].  ✔
+%% │          │       │   ╰── [sleeps] = [sleeps]        ✔
+%% │          │       ╰── ▸2 verb(sees) --> [sees].      ✘
+%% │          │           ╰── [sleeps] = [sees]          ✘
+%% │          ╰── ▸2 verb_phrase(vp(Ce6194b_Verb, C4363d8_Object)) --> verb(Ce6194b_Verb)… ✘
+%% │              ├── verb(Ce6194b_Verb, [sleeps], _G940) ✔ verb(sleeps, [sleeps], [])
+%% │              │   ├── ▸1 verb(sleeps) --> [sleeps].  ✔
+%% │              │   │   ╰── [sleeps] = [sleeps]        ✔
+%% │              │   ╰── ▸2 verb(sees) --> [sees].      ✘
+%% │              │       ╰── [sleeps] = [sees|S]        ✘
+%% │              ╰── noun_phrase(C4363d8_Object, [], []) ✘
+%% │                  ╰── ▸1 noun_phrase(np(Ce6194b_Det, C4363d8_Noun)) --> det(Ce6194b_D… ✘
+%% │                      ╰── det(Ce6194b_Det, [], _G947) ✘
+%% │                          ├── ▸1 det(the) --> [the]. ✘
+%% │                          │   ╰── [] = [the|S]       ✘
+%% │                          ╰── ▸2 det(a) --> [a].     ✘
+%% │                              ╰── [] = [a|S]         ✘
+%% │
+%% │ ✔ solution 1:  Ce6194b_Tree = s(np(the, cat), vp(sleeps))
+%% ╰── cocolog: 1 solution · 39 inferences
+%% ╭── cocolog trace ── ?- phrase(sentence(_), [the, cat, sees | Ce6194b_Rest]).
+%% │ sentence(_, [the, cat, sees|Ce6194b_Rest], [])      ✔ ×5 sentence(s(np(the, cat), vp(sees)…
+%% │  ╰── ▸1 sentence(s(Ce6194b_Noun, C4363d8_Verb)) --> noun_phrase(Ce6194b_Noun), verb_… ✔
+%% │      ├── noun_phrase(Ce6194b_Noun, [the, cat, sees|Ce6194b_Rest], _G964) ✔ noun_phrase(np(…
+%% │      │   ╰── ▸1 noun_phrase(np(Ce6194b_Det, C4363d8_Noun)) --> det(Ce6194b_Det), nou… ✔
+%% │      │       ├── det(Ce6194b_Det, [the, cat, sees|Ce6194b_Rest], _G969) ✔ det(the, [the, c…
+%% │      │       │   ├── ▸1 det(the) --> [the].         ✔
+%% │      │       │   │   ╰── [the, cat, sees|Ce6194b_Rest] = [the, cat, sees|Ce6194b_Res… ✔
+%% │      │       │   ╰── ▸2 det(a) --> [a].             ✘
+%% │      │       │       ╰── [the, cat, sees|Ce6194b_Rest] = [a|S] ✘
+%% │      │       ╰── noun(C4363d8_Noun, [cat, sees|Ce6194b_Rest], S) ✔ noun(cat, [cat, sees|Ce…
+%% │      │           ├── ▸1 noun(cat) --> [cat].        ✔
+%% │      │           │   ╰── [cat, sees|Ce6194b_Rest] = [cat, sees|Ce6194b_Rest] ✔
+%% │      │           ╰── ▸2 noun(mouse) --> [mouse].    ✘
+%% │      │               ╰── [cat, sees|Ce6194b_Rest] = [mouse|S] ✘
+%% │      ╰── verb_phrase(C4363d8_Verb, [sees|Ce6194b_Rest], []) ✔ ×5 verb_phrase(vp(sees), [se…
+%% │          ├── ▸1 verb_phrase(vp(Ce6194b_Verb)) --> verb(Ce6194b_Verb). ✔
+%% │          │   ╰── verb(Ce6194b_Verb, [sees|Ce6194b_Rest], []) ✔ verb(sees, [sees], [])
+%% │          │       ├── ▸1 verb(sleeps) --> [sleeps].  ✘
+%% │          │       │   ╰── [sees|Ce6194b_Rest] = [sleeps] ✘
+%% │          │       ╰── ▸2 verb(sees) --> [sees].      ✔
+%% │          │           ╰── [sees] = [sees]            ✔
+%% │          ╰── ▸2 verb_phrase(vp(Ce6194b_Verb, C4363d8_Object)) --> verb(Ce6194b_Verb)… ✔
+%% │              ├── verb(Ce6194b_Verb, [sees|Ce6194b_Rest], _G985) ✔ verb(sees, [sees|S], S)
+%% │              │   ├── ▸1 verb(sleeps) --> [sleeps].  ✘
+%% │              │   │   ╰── [sees|Ce6194b_Rest] = [sleeps|S] ✘
+%% │              │   ╰── ▸2 verb(sees) --> [sees].      ✔
+%% │              │       ╰── [sees|S] = [sees|S]        ✔
+%% │              ╰── noun_phrase(C4363d8_Object, S, []) ✔ ×4 noun_phrase(np(the, cat), [the, c…
+%% │                  ╰── ▸1 noun_phrase(np(Ce6194b_Det, C4363d8_Noun)) --> det(Ce6194b_D… ✔
+%% │                      ├── det(Ce6194b_Det, S0, _G994) ✔ ×2 det(the, [the|S], S) ; det(a, [a…
+%% │                      │   ├── ▸1 det(the) --> [the]. ✔
+%% │                      │   │   ╰── [the|S] = [the|S]  ✔
+%% │                      │   ╰── ▸2 det(a) --> [a].     ✔
+%% │                      │       ╰── [a|S] = [a|S]      ✔
+%% │                      ├── noun(C4363d8_Noun, S, [])  ✔ ×2 noun(cat, [cat], []) ; noun(mouse…
+%% │                      │   ├── ▸1 noun(cat) --> [cat]. ✔
+%% │                      │   │   ╰── [cat] = [cat]      ✔
+%% │                      │   ╰── ▸2 noun(mouse) --> [mouse]. ✔
+%% │                      │       ╰── [mouse] = [mouse]  ✔
+%% │                      ╰── noun(C4363d8_Noun, S, [])  ✔ ×2 noun(cat, [cat], []) ; noun(mouse…
+%% │                          ├── ▸1 noun(cat) --> [cat]. ✔
+%% │                          │   ╰── [cat] = [cat]      ✔
+%% │                          ╰── ▸2 noun(mouse) --> [mouse]. ✔
+%% │                              ╰── [mouse] = [mouse]  ✔
+%% │
+%% │ ✔ solution 1:  Ce6194b_Rest = []
+%% │ ✔ solution 2:  Ce6194b_Rest = [the, cat]
+%% │ ✔ solution 3:  Ce6194b_Rest = [the, mouse]
+%% │ ✔ solution 4:  Ce6194b_Rest = [a, cat]
+%% │ ✔ solution 5:  Ce6194b_Rest = [a, mouse]
+%% ╰── cocolog: 5 solutions · 49 inferences
+
+noun_phrase(np(Ce6194b_Det, C4363d8_Noun)) -->
+    det(Ce6194b_Det),
+    noun(C4363d8_Noun).
+
+verb_phrase(vp(Ce6194b_Verb)) -->
+    verb(Ce6194b_Verb).
+verb_phrase(vp(Ce6194b_Verb, C4363d8_Object)) -->
+    verb(Ce6194b_Verb),
+    noun_phrase(C4363d8_Object).
+
+det(the) --> [the].
+det(a) --> [a].
+noun(cat) --> [cat].
+noun(mouse) --> [mouse].
+verb(sleeps) --> [sleeps].
+verb(sees) --> [sees].
+
+%% The second test case above shows the same grammar generating rather
+%% than parsing: the list is only half given, and the rules fill in the
+%% rest.
+
+%% ---------------------------------------------------------------- 2 --
+%% a^n b^n: the grammar every parser generator is jealous of.
+
+%% ?- phrase(ab, [a, a, b, b]).
+%% ?- length(Ce6194b_L, 4), phrase(ab, Ce6194b_L).
+ab --> [].
+ab --> [a], ab, [b].
+%% ╭── cocolog trace ── ?- phrase(ab, [a, a, b, b]).
+%% │ ab([a, a, b, b], [])                                ✔
+%% │  ├── ▸1 ab --> [].                                  ✘
+%% │  │   ╰── [a, a, b, b] = []                          ✘
+%% │  ╰── ▸2 ab --> [a], ab, [b].                        ✔
+%% │      ├── [a, a, b, b] = [a, a, b, b]                ✔
+%% │      ├── ab([a, b, b], _G860)                       ✔ ×2 ab([a, b, b], [a, b, b]) ; ab([a,…
+%% │      │   ├── ▸1 ab --> [].                          ✔
+%% │      │   │   ╰── [a, b, b] = [a, b, b]              ✔
+%% │      │   ╰── ▸2 ab --> [a], ab, [b].                ✔
+%% │      │       ├── [a, b, b] = [a, b, b]              ✔
+%% │      │       ├── ab([b, b], _G866)                  ✔ ab([b, b], [b, b])
+%% │      │       │   ├── ▸1 ab --> [].                  ✔
+%% │      │       │   │   ╰── [b, b] = [b, b]            ✔
+%% │      │       │   ╰── ▸2 ab --> [a], ab, [b].        ✘
+%% │      │       │       ╰── [b, b] = [a|_G871]         ✘
+%% │      │       ╰── [b, b] = [b, b]                    ✔
+%% │      ├── [a, b, b] = [b]                            ✘
+%% │      ╰── [b] = [b]                                  ✔
+%% │
+%% │ ✔ solution 1:  true
+%% ╰── cocolog: 1 solution · 24 inferences
+%% ╭── cocolog trace ── ?- length(Ce6194b_L, 4), phrase(ab, Ce6194b_L).
+%% │ length([_G874, _G875, _G876, _G877], 4)             ✔
+%% │ ab([_G874, _G875, _G876, _G877], [])                ✔ ab([a, a, b, b], [])
+%% │  ├── ▸1 ab --> [].                                  ✘
+%% │  │   ╰── [_G874, _G875, _G876, _G877] = []          ✘
+%% │  ╰── ▸2 ab --> [a], ab, [b].                        ✔
+%% │      ├── [a, _G875, _G876, _G877] = [a, _G875, _G876, _G877] ✔
+%% │      ├── ab([_G875, _G876, _G877], _G883)           ✔ ×2 ab([_G875, _G876, _G877], [_G875,…
+%% │      │   ├── ▸1 ab --> [].                          ✔
+%% │      │   │   ╰── [_G875, _G876, _G877] = [_G875, _G876, _G877] ✔
+%% │      │   ╰── ▸2 ab --> [a], ab, [b].                ✔
+%% │      │       ├── [a, _G876, _G877] = [a, _G876, _G877] ✔
+%% │      │       ├── ab([_G876, _G877], _G889)          ✔ ×2 ab([_G876, _G877], [_G876, _G877]…
+%% │      │       │   ├── ▸1 ab --> [].                  ✔
+%% │      │       │   │   ╰── [_G876, _G877] = [_G876, _G877] ✔
+%% │      │       │   ╰── ▸2 ab --> [a], ab, [b].        ✔
+%% │      │       │       ├── [a, _G877] = [a, _G877]    ✔
+%% │      │       │       ├── ab([_G877], _G895)         ✔ ab([_G877], [_G877])
+%% │      │       │       │   ├── ▸1 ab --> [].          ✔
+%% │      │       │       │   │   ╰── [_G877] = [_G877]  ✔
+%% │      │       │       │   ╰── ▸2 ab --> [a], ab, [b]. ✘
+%% │      │       │       │       ├── [a] = [a]          ✔
+%% │      │       │       │       ├── ab([], _G901)      ✔ ab([], [])
+%% │      │       │       │       │   ├── ▸1 ab --> [].  ✔
+%% │      │       │       │       │   │   ╰── [] = []    ✔
+%% │      │       │       │       │   ╰── ▸2 ab --> [a], ab, [b]. ✘
+%% │      │       │       │       │       ╰── [] = [a|_G906] ✘
+%% │      │       │       │       ╰── [] = [b|S]         ✘
+%% │      │       │       ╰── [b] = [b]                  ✔
+%% │      │       ├── [b, _G877] = [b, _G877]            ✔
+%% │      │       ╰── [] = [b|S]                         ✘
+%% │      ├── [b, _G876, _G877] = [b]                    ✘
+%% │      ╰── [b] = [b]                                  ✔
+%% │
+%% │ ✔ solution 1:  Ce6194b_L = [a, a, b, b]
+%% ╰── cocolog: 1 solution · 43 inferences
+
+%% ---------------------------------------------------------------- 3 --
+%% Reading a number out of a string of character codes.  A goal in
+%% braces is plain Prolog: it reads nothing off the list, it just has to
+%% hold.
+
+%% ?- phrase(number(Ce6194b_N), "407").
+number(Ce6194b_N) -->
+    digits(C4363d8_Ds),
+    { digits_value(C4363d8_Ds, 0, Ce6194b_N) }.
+%% ╭── cocolog trace ── ?- phrase(number(Ce6194b_N), "407").
+%% │ number(Ce6194b_N, [52, 48, 55], [])                 ✔ number(407, [52, 48, 55], [])
+%% │  ╰── ▸1 number(Ce6194b_N) --> digits(C4363d8_Ds), { digits_value(C4363d8_Ds, 0, Ce61… ✔
+%% │      ├── digits(C4363d8_Ds, [52, 48, 55], [])       ✔ digits([4, 0, 7], [52, 48, 55], [])
+%% │      │   ├── ▸1 digits([Ce6194b_D|C4363d8_Rest]) --> digit(Ce6194b_D), digits(C4363d… ✔
+%% │      │   │   ├── digit(Ce6194b_D, [52, 48, 55], _G768) ✔ digit(4, [52, 48, 55], [48, 55])
+%% │      │   │   │   ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code >= 0'0, … ✔
+%% │      │   │   │       ├── [52, 48, 55] = [52, 48, 55] ✔
+%% │      │   │   │       ├── 52 >= 48                   ✔
+%% │      │   │   │       ├── 52 =< 57                   ✔
+%% │      │   │   │       ╰── 4 is 52 - 48               ✔
+%% │      │   │   ╰── digits(C4363d8_Rest, [48, 55], []) ✔ digits([0, 7], [48, 55], [])
+%% │      │   │       ├── ▸1 digits([Ce6194b_D|C4363d8_Rest]) --> digit(Ce6194b_D), digit… ✔
+%% │      │   │       │   ├── digit(Ce6194b_D, [48, 55], _G777) ✔ digit(0, [48, 55], [55])
+%% │      │   │       │   │   ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code … ✔
+%% │      │   │       │   │       ├── [48, 55] = [48, 55] ✔
+%% │      │   │       │   │       ├── 48 >= 48           ✔
+%% │      │   │       │   │       ├── 48 =< 57           ✔
+%% │      │   │       │   │       ╰── 0 is 48 - 48       ✔
+%% │      │   │       │   ╰── digits(C4363d8_Rest, [55], []) ✔ digits([7], [55], [])
+%% │      │   │       │       ├── ▸1 digits([Ce6194b_D|C4363d8_Rest]) --> digit(Ce6194b_D… ✘
+%% │      │   │       │       │   ├── digit(Ce6194b_D, [55], _G786) ✔ digit(7, [55], [])
+%% │      │   │       │       │   │   ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd7… ✔
+%% │      │   │       │       │   │       ├── [55] = [55] ✔
+%% │      │   │       │       │   │       ├── 55 >= 48   ✔
+%% │      │   │       │       │   │       ├── 55 =< 57   ✔
+%% │      │   │       │       │   │       ╰── 7 is 55 - 48 ✔
+%% │      │   │       │       │   ╰── digits(C4363d8_Rest, [], []) ✘
+%% │      │   │       │       │       ├── ▸1 digits([Ce6194b_D|C4363d8_Rest]) --> digit(C… ✘
+%% │      │   │       │       │       │   ╰── digit(Ce6194b_D, [], _G795) ✘
+%% │      │   │       │       │       │       ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code],… ✘
+%% │      │   │       │       │       │           ╰── [] = [Cffd700_Code|S] ✘
+%% │      │   │       │       │       ╰── ▸2 digits([Ce6194b_D]) --> digit(Ce6194b_D). ✘
+%% │      │   │       │       │           ╰── digit(Ce6194b_D, [], []) ✘
+%% │      │   │       │       │               ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code],… ✘
+%% │      │   │       │       │                   ╰── [] = [Cffd700_Code] ✘
+%% │      │   │       │       ╰── ▸2 digits([Ce6194b_D]) --> digit(Ce6194b_D). ✔
+%% │      │   │       │           ╰── digit(Ce6194b_D, [55], []) ✔ digit(7, [55], [])
+%% │      │   │       │               ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd7… ✔
+%% │      │   │       │                   ├── [55] = [55] ✔
+%% │      │   │       │                   ├── 55 >= 48   ✔
+%% │      │   │       │                   ├── 55 =< 57   ✔
+%% │      │   │       │                   ╰── 7 is 55 - 48 ✔
+%% │      │   │       ╰── ▸2 digits([Ce6194b_D]) --> digit(Ce6194b_D). ✘
+%% │      │   │           ╰── digit(Ce6194b_D, [48, 55], []) ✘
+%% │      │   │               ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code … ✘
+%% │      │   │                   ╰── [48, 55] = [48]    ✘
+%% │      │   ╰── ▸2 digits([Ce6194b_D]) --> digit(Ce6194b_D). ✘
+%% │      │       ╰── digit(Ce6194b_D, [52, 48, 55], []) ✘
+%% │      │           ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code >= 0'0, … ✘
+%% │      │               ╰── [52, 48, 55] = [52]        ✘
+%% │      ╰── digits_value([4, 0, 7], 0, Ce6194b_N)      ✔ digits_value([4, 0, 7], 0, 407)
+%% │          ├── ▸1 digits_value([], Ce6194b_N, Ce6194b_N). ✘
+%% │          ╰── ▸2 digits_value([Cffd700_D|C4363d8_Ds], Ce6194b_Acc, Ce6194b_N) :- … ✔
+%% │              ├── 4 is 0 * 10 + 4                    ✔
+%% │              ╰── digits_value([0, 7], 4, Ce6194b_N) ✔ digits_value([0, 7], 4, 407)
+%% │                  ├── ▸1 digits_value([], Ce6194b_N, Ce6194b_N). ✘
+%% │                  ╰── ▸2 digits_value([Cffd700_D|C4363d8_Ds], Ce6194b_Acc, Ce6194b_N)… ✔
+%% │                      ├── 40 is 4 * 10 + 0           ✔
+%% │                      ╰── digits_value([7], 40, Ce6194b_N) ✔ digits_value([7], 40, 407)
+%% │                          ├── ▸1 digits_value([], Ce6194b_N, Ce6194b_N). ✘
+%% │                          ╰── ▸2 digits_value([Cffd700_D|C4363d8_Ds], Ce6194b_Acc, Ce… ✔
+%% │                              ├── 407 is 40 * 10 + 7 ✔
+%% │                              ╰── digits_value([], 407, Ce6194b_N) ✔ digits_value([], 407, …
+%% │                                  ├── ▸1 digits_value([], Ce6194b_N, Ce6194b_N). ✔
+%% │                                  ╰── ▸2 digits_value([Cffd700_D|C4363d8_Ds], Ce6194b… ✘
+%% │
+%% │ ✔ solution 1:  Ce6194b_N = 407
+%% ╰── cocolog: 1 solution · 91 inferences
+
+digits([Ce6194b_D|C4363d8_Rest]) -->
+    digit(Ce6194b_D),
+    digits(C4363d8_Rest).
+digits([Ce6194b_D]) -->
+    digit(Ce6194b_D).
+
+%% phrase/3 hands back what the rule did not read.
+%% ?- phrase(digits(Ce6194b_Ds), "12ab", C4363d8_Rest).
+digit(Ce6194b_D) -->
+    [Cffd700_Code],
+    { Cffd700_Code >= 0'0,
+      Cffd700_Code =< 0'9,
+      Ce6194b_D is Cffd700_Code - 0'0 }.
+%% ╭── cocolog trace ── ?- phrase(digits(Ce6194b_Ds), "12ab", C4363d8_Rest).
+%% │ digits(Ce6194b_Ds, [49, 50, 97, 98], C4363d8_Rest)  ✔ ×2 digits([1, 2], [49, 50, 97, 98], …
+%% │  ├── ▸1 digits([Ce6194b_D|C4363d8_Rest]) --> digit(Ce6194b_D), digits(C4363d8_Rest). ✔
+%% │  │   ├── digit(Ce6194b_D, [49, 50, 97, 98], _G713)  ✔ digit(1, [49, 50, 97, 98], [50, 97, …
+%% │  │   │   ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code >= 0'0, Cffd700_… ✔
+%% │  │   │       ├── [49, 50, 97, 98] = [49, 50, 97, 98] ✔
+%% │  │   │       ├── 49 >= 48                           ✔
+%% │  │   │       ├── 49 =< 57                           ✔
+%% │  │   │       ╰── 1 is 49 - 48                       ✔
+%% │  │   ╰── digits(C4363d8_Rest, [50, 97, 98], S)      ✔ digits([2], [50, 97, 98], [97, 98])
+%% │  │       ├── ▸1 digits([Ce6194b_D|C4363d8_Rest]) --> digit(Ce6194b_D), digits(C4363d… ✘
+%% │  │       │   ├── digit(Ce6194b_D, [50, 97, 98], _G722) ✔ digit(2, [50, 97, 98], [97, 98])
+%% │  │       │   │   ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code >= 0'0, … ✔
+%% │  │       │   │       ├── [50, 97, 98] = [50, 97, 98] ✔
+%% │  │       │   │       ├── 50 >= 48                   ✔
+%% │  │       │   │       ├── 50 =< 57                   ✔
+%% │  │       │   │       ╰── 2 is 50 - 48               ✔
+%% │  │       │   ╰── digits(C4363d8_Rest, [97, 98], S)  ✘
+%% │  │       │       ├── ▸1 digits([Ce6194b_D|C4363d8_Rest]) --> digit(Ce6194b_D), digit… ✘
+%% │  │       │       │   ╰── digit(Ce6194b_D, [97, 98], _G731) ✘
+%% │  │       │       │       ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code … ✘
+%% │  │       │       │           ├── [97, 98] = [97, 98] ✔
+%% │  │       │       │           ├── 97 >= 48           ✔
+%% │  │       │       │           ╰── 97 =< 57           ✘
+%% │  │       │       ╰── ▸2 digits([Ce6194b_D]) --> digit(Ce6194b_D). ✘
+%% │  │       │           ╰── digit(Ce6194b_D, [97, 98], S) ✘
+%% │  │       │               ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code … ✘
+%% │  │       │                   ├── [97, 98] = [97, 98] ✔
+%% │  │       │                   ├── 97 >= 48           ✔
+%% │  │       │                   ╰── 97 =< 57           ✘
+%% │  │       ╰── ▸2 digits([Ce6194b_D]) --> digit(Ce6194b_D). ✔
+%% │  │           ╰── digit(Ce6194b_D, [50, 97, 98], S)  ✔ digit(2, [50, 97, 98], [97, 98])
+%% │  │               ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code >= 0'0, … ✔
+%% │  │                   ├── [50, 97, 98] = [50, 97, 98] ✔
+%% │  │                   ├── 50 >= 48                   ✔
+%% │  │                   ├── 50 =< 57                   ✔
+%% │  │                   ╰── 2 is 50 - 48               ✔
+%% │  ╰── ▸2 digits([Ce6194b_D]) --> digit(Ce6194b_D).   ✔
+%% │      ╰── digit(Ce6194b_D, [49, 50, 97, 98], S)      ✔ digit(1, [49, 50, 97, 98], [50, 97, …
+%% │          ╰── ▸1 digit(Ce6194b_D) --> [Cffd700_Code], { Cffd700_Code >= 0'0, Cffd700_… ✔
+%% │              ├── [49, 50, 97, 98] = [49, 50, 97, 98] ✔
+%% │              ├── 49 >= 48                           ✔
+%% │              ├── 49 =< 57                           ✔
+%% │              ╰── 1 is 49 - 48                       ✔
+%% │
+%% │ ✔ solution 1:  Ce6194b_Ds = [1, 2],  C4363d8_Rest = [97, 98]
+%% │ ✔ solution 2:  Ce6194b_Ds = [1],  C4363d8_Rest = [50, 97, 98]
+%% ╰── cocolog: 2 solutions · 65 inferences
+
+digits_value([], Ce6194b_N, Ce6194b_N).
+digits_value([Cffd700_D|C4363d8_Ds], Ce6194b_Acc, Ce6194b_N) :-
+    C3cb44b_Next is Ce6194b_Acc * 10 + Cffd700_D,
+    digits_value(C4363d8_Ds, C3cb44b_Next, Ce6194b_N).
+
+%% ---------------------------------------------------------------- 4 --
+%% Reading a line of text into tokens, out of the pieces C-c C-i offers
+%% from library(dcg/basics): blanks, nonblanks//1, string//1, eol, eos.
+%%
+%% Two things trip people up here, and both look like they ought to work:
+%%
+%%   *  `|' is not "or" in a grammar body.  It is the bar of a list, and
+%%      a rule written with it does not parse.  Disjunction is `;', the
+%%      same as in an ordinary clause: ( this ; that ).
+%%
+%%   *  There is no `...'.  "anything up to what comes next" is
+%%      string(_) -- it matches as little as it can and gives more back
+%%      on backtracking, so string(_), eol reads to the end of the line.
+%%
+%% The other trap is not the notation: it is writing a rule with no way
+%% of stopping.  Each clause below either reads at least one character
+%% or ends the list, which is what makes the whole thing terminate.
+
+:- use_module(library(dcg/basics)).
+
+%% ?- phrase(tokens(Ce6194b_Ts), "go on").
+%% ?- phrase(tokens(Ce6194b_Ts), "%r\nfunc").
+tokens(Ce6194b_Ts) -->
+    blanks,
+    more_tokens(Ce6194b_Ts).
+%% ╭── cocolog trace ── ?- phrase(tokens(Ce6194b_Ts), "go on").
+%% │ tokens(Ce6194b_Ts, [103, 111, 32, 111, 110], [])    ✔ tokens([go, on], [103, 111, 32, 111,…
+%% │  ╰── ▸1 tokens(Ce6194b_Ts) --> blanks, more_tokens(Ce6194b_Ts). ✔
+%% │      ├── blanks([103, 111, 32, 111, 110], _G502)    ✔ blanks([103, 111, 32, 111, 110], [10…
+%% │      │   ├── ▸1 blanks --> blank, !, blanks.        ✘
+%% │      │   │   ╰── blank([103, 111, 32, 111, 110], _G505) ✘
+%% │      │   │       ╰── ▸1 blank --> [C], { C =< 32 }. ✘
+%% │      │   │           ├── [103, 111, 32, 111, 110] = [103, 111, 32, 111, 110] ✔
+%% │      │   │           ╰── 103 =< 32                  ✘
+%% │      │   ╰── ▸2 blanks --> [].                      ✔
+%% │      │       ╰── [103, 111, 32, 111, 110] = [103, 111, 32, 111, 110] ✔
+%% │      ╰── more_tokens(Ce6194b_Ts, [103, 111, 32, 111, 110], []) ✔ more_tokens([go, on], [10…
+%% │          ├── ▸1 more_tokens([]) --> eos, !.         ✘
+%% │          │   ╰── eos([103, 111, 32, 111, 110], [])  ✘
+%% │          │       ╰── ▸1 eos([], []).                ✘
+%% │          ├── ▸2 more_tokens(Ce6194b_Ts) --> "%", string(_), ( eol ; eos ), !, blanks… ✘
+%% │          │   ╰── [103, 111, 32, 111, 110] = [37|_G516] ✘
+%% │          ╰── ▸3 more_tokens([C4363d8_Token|Ce6194b_Ts]) --> nonblanks(Cffd700_Cs), {… ✔
+%% │              ├── nonblanks(Cffd700_Cs, [103, 111, 32, 111, 110], _G526) ✔ nonblanks([103, …
+%% │              │   ╰── ▸1 nonblanks([C|T]) --> [C], { C > 32 }, !, nonblanks(T). ✔
+%% │              │       ├── [103, 111, 32, 111, 110] = [103, 111, 32, 111, 110] ✔
+%% │              │       ├── 103 > 32                   ✔
+%% │              │       ├── !                          ·
+%% │              │       ╰── nonblanks(T, [111, 32, 111, 110], S) ✔ nonblanks([111], [111, 32,…
+%% │              │           ╰── ▸1 nonblanks([C|T]) --> [C], { C > 32 }, !, nonblanks(T… ✔
+%% │              │               ├── [111, 32, 111, 110] = [111, 32, 111, 110] ✔
+%% │              │               ├── 111 > 32           ✔
+%% │              │               ├── !                  ·
+%% │              │               ╰── nonblanks(T, [32, 111, 110], S) ✔ nonblanks([], [32, 111,…
+%% │              │                   ├── ▸1 nonblanks([C|T]) --> [C], { C > 32 }, !, non… ✘
+%% │              │                   │   ├── [32, 111, 110] = [32, 111, 110] ✔
+%% │              │                   │   ╰── 32 > 32    ✘
+%% │              │                   ╰── ▸2 nonblanks([]) --> []. ✔
+%% │              │                       ╰── [32, 111, 110] = [32, 111, 110] ✔
+%% │              ├── [103, 111] \= []                   ✔
+%% │              ├── atom_codes(go, [103, 111])         ✔
+%% │              ├── blanks([32, 111, 110], _G527)      ✔ blanks([32, 111, 110], [111, 110])
+%% │              │   ╰── ▸1 blanks --> blank, !, blanks. ✔
+%% │              │       ├── blank([32, 111, 110], _G547) ✔ blank([32, 111, 110], [111, 110])
+%% │              │       │   ╰── ▸1 blank --> [C], { C =< 32 }. ✔
+%% │              │       │       ├── [32, 111, 110] = [32, 111, 110] ✔
+%% │              │       │       ╰── 32 =< 32           ✔
+%% │              │       ├── !                          ·
+%% │              │       ╰── blanks([111, 110], S)      ✔ blanks([111, 110], [111, 110])
+%% │              │           ├── ▸1 blanks --> blank, !, blanks. ✘
+%% │              │           │   ╰── blank([111, 110], _G553) ✘
+%% │              │           │       ╰── ▸1 blank --> [C], { C =< 32 }. ✘
+%% │              │           │           ├── [111, 110] = [111, 110] ✔
+%% │              │           │           ╰── 111 =< 32  ✘
+%% │              │           ╰── ▸2 blanks --> [].      ✔
+%% │              │               ╰── [111, 110] = [111, 110] ✔
+%% │              ╰── more_tokens(Ce6194b_Ts, [111, 110], []) ✔ more_tokens([on], [111, 110], […
+%% │                  ├── ▸1 more_tokens([]) --> eos, !. ✘
+%% │                  │   ╰── eos([111, 110], [])        ✘
+%% │                  │       ╰── ▸1 eos([], []).        ✘
+%% │                  ├── ▸2 more_tokens(Ce6194b_Ts) --> "%", string(_), ( eol ; eos ), !… ✘
+%% │                  │   ╰── [111, 110] = [37|_G564]    ✘
+%% │                  ╰── ▸3 more_tokens([C4363d8_Token|Ce6194b_Ts]) --> nonblanks(Cffd70… ✔
+%% │                      ├── nonblanks(Cffd700_Cs, [111, 110], _G574) ✔ nonblanks([111, 110], …
+%% │                      │   ╰── ▸1 nonblanks([C|T]) --> [C], { C > 32 }, !, nonblanks(T… ✔
+%% │                      │       ├── [111, 110] = [111, 110] ✔
+%% │                      │       ├── 111 > 32           ✔
+%% │                      │       ├── !                  ·
+%% │                      │       ╰── nonblanks(T, [110], S) ✔ nonblanks([110], [110], [])
+%% │                      │           ╰── ▸1 nonblanks([C|T]) --> [C], { C > 32 }, !, non… ✔
+%% │                      │               ├── [110] = [110] ✔
+%% │                      │               ├── 110 > 32   ✔
+%% │                      │               ├── !          ·
+%% │                      │               ╰── nonblanks(T, [], S) ✔ nonblanks([], [], [])
+%% │                      │                   ├── ▸1 nonblanks([C|T]) --> [C], { C > 32 }… ✘
+%% │                      │                   │   ╰── [] = [C|_G590] ✘
+%% │                      │                   ╰── ▸2 nonblanks([]) --> []. ✔
+%% │                      │                       ╰── [] = [] ✔
+%% │                      ├── [111, 110] \= []           ✔
+%% │                      ├── atom_codes(on, [111, 110]) ✔
+%% │                      ├── blanks([], _G575)          ✔ blanks([], [])
+%% │                      │   ├── ▸1 blanks --> blank, !, blanks. ✘
+%% │                      │   │   ╰── blank([], _G595)   ✘
+%% │                      │   │       ╰── ▸1 blank --> [C], { C =< 32 }. ✘
+%% │                      │   │           ╰── [] = [C|S] ✘
+%% │                      │   ╰── ▸2 blanks --> [].      ✔
+%% │                      │       ╰── [] = []            ✔
+%% │                      ╰── more_tokens(Ce6194b_Ts, [], []) ✔ more_tokens([], [], [])
+%% │                          ╰── ▸1 more_tokens([]) --> eos, !. ✔
+%% │                              ├── eos([], [])        ✔
+%% │                              │   ╰── ▸1 eos([], []). ✔
+%% │                              ╰── !                  ·
+%% │
+%% │ ✔ solution 1:  Ce6194b_Ts = [go, on]
+%% ╰── cocolog: 1 solution · 126 inferences
+%% ╭── cocolog trace ── ?- phrase(tokens(Ce6194b_Ts), "%r\nfunc").
+%% │ tokens(Ce6194b_Ts, [37, 114, 10, 102, 117, 110, 99], []) ✔ tokens([func], [37, 114, 10, 10…
+%% │  ╰── ▸1 tokens(Ce6194b_Ts) --> blanks, more_tokens(Ce6194b_Ts). ✔
+%% │      ├── blanks([37, 114, 10, 102, 117, 110, 99], _G607) ✔ blanks([37, 114, 10, 102, 117, …
+%% │      │   ├── ▸1 blanks --> blank, !, blanks.        ✘
+%% │      │   │   ╰── blank([37, 114, 10, 102, 117, 110, 99], _G610) ✘
+%% │      │   │       ╰── ▸1 blank --> [C], { C =< 32 }. ✘
+%% │      │   │           ├── [37, 114, 10, 102, 117, 110, 99] = [37, 114, 10, 102, 117, … ✔
+%% │      │   │           ╰── 37 =< 32                   ✘
+%% │      │   ╰── ▸2 blanks --> [].                      ✔
+%% │      │       ╰── [37, 114, 10, 102, 117, 110, 99] = [37, 114, 10, 102, 117, 110, 99] ✔
+%% │      ╰── more_tokens(Ce6194b_Ts, [37, 114, 10, 102, 117, 110, 99], []) ✔ more_tokens([func…
+%% │          ├── ▸1 more_tokens([]) --> eos, !.         ✘
+%% │          │   ╰── eos([37, 114, 10, 102, 117, 110, 99], []) ✘
+%% │          │       ╰── ▸1 eos([], []).                ✘
+%% │          ╰── ▸2 more_tokens(Ce6194b_Ts) --> "%", string(_), ( eol ; eos ), !, blanks… ✔
+%% │              ├── [37, 114, 10, 102, 117, 110, 99] = [37, 114, 10, 102, 117, 110, 99] ✔
+%% │              ├── string(_, [114, 10, 102, 117, 110, 99], _G623) ✔ ×2 string([], [114, 10, …
+%% │              │   ├── ▸1 string([]) --> [].          ✔
+%% │              │   │   ╰── [114, 10, 102, 117, 110, 99] = [114, 10, 102, 117, 110, 99] ✔
+%% │              │   ╰── ▸2 string([C|T]) --> [C], string(T). ✔
+%% │              │       ├── [114, 10, 102, 117, 110, 99] = [114, 10, 102, 117, 110, 99] ✔
+%% │              │       ╰── string(T, [10, 102, 117, 110, 99], S) ✔ string([], [10, 102, 117,…
+%% │              │           ╰── ▸1 string([]) --> [].  ✔
+%% │              │               ╰── [10, 102, 117, 110, 99] = [10, 102, 117, 110, 99] ✔
+%% │              ├── eol([114, 10, 102, 117, 110, 99], _G624) ✘
+%% │              │   ├── ▸1 eol --> [10].               ✘
+%% │              │   │   ╰── [114, 10, 102, 117, 110, 99] = [10|S] ✘
+%% │              │   ╰── ▸2 eol --> [13, 10].           ✘
+%% │              │       ╰── [114, 10, 102, 117, 110, 99] = [13, 10|S] ✘
+%% │              ├── eos([114, 10, 102, 117, 110, 99], _G624) ✘
+%% │              │   ╰── ▸1 eos([], []).                ✘
+%% │              ├── eol([10, 102, 117, 110, 99], _G624) ✔ eol([10, 102, 117, 110, 99], [102, …
+%% │              │   ╰── ▸1 eol --> [10].               ✔
+%% │              │       ╰── [10, 102, 117, 110, 99] = [10, 102, 117, 110, 99] ✔
+%% │              ├── !                                  ·
+%% │              ├── blanks([102, 117, 110, 99], _G625) ✔ blanks([102, 117, 110, 99], [102, 11…
+%% │              │   ├── ▸1 blanks --> blank, !, blanks. ✘
+%% │              │   │   ╰── blank([102, 117, 110, 99], _G643) ✘
+%% │              │   │       ╰── ▸1 blank --> [C], { C =< 32 }. ✘
+%% │              │   │           ├── [102, 117, 110, 99] = [102, 117, 110, 99] ✔
+%% │              │   │           ╰── 102 =< 32          ✘
+%% │              │   ╰── ▸2 blanks --> [].              ✔
+%% │              │       ╰── [102, 117, 110, 99] = [102, 117, 110, 99] ✔
+%% │              ╰── more_tokens(Ce6194b_Ts, [102, 117, 110, 99], []) ✔ more_tokens([func], [1…
+%% │                  ├── ▸1 more_tokens([]) --> eos, !. ✘
+%% │                  │   ╰── eos([102, 117, 110, 99], []) ✘
+%% │                  │       ╰── ▸1 eos([], []).        ✘
+%% │                  ├── ▸2 more_tokens(Ce6194b_Ts) --> "%", string(_), ( eol ; eos ), !… ✘
+%% │                  │   ╰── [102, 117, 110, 99] = [37|_G654] ✘
+%% │                  ╰── ▸3 more_tokens([C4363d8_Token|Ce6194b_Ts]) --> nonblanks(Cffd70… ✔
+%% │                      ├── nonblanks(Cffd700_Cs, [102, 117, 110, 99], _G664) ✔ nonblanks([10…
+%% │                      │   ╰── ▸1 nonblanks([C|T]) --> [C], { C > 32 }, !, nonblanks(T… ✔
+%% │                      │       ├── [102, 117, 110, 99] = [102, 117, 110, 99] ✔
+%% │                      │       ├── 102 > 32           ✔
+%% │                      │       ├── !                  ·
+%% │                      │       ╰── nonblanks(T, [117, 110, 99], S) ✔ nonblanks([117, 110, 99…
+%% │                      │           ╰── ▸1 nonblanks([C|T]) --> [C], { C > 32 }, !, non… ✔
+%% │                      │               ├── [117, 110, 99] = [117, 110, 99] ✔
+%% │                      │               ├── 117 > 32   ✔
+%% │                      │               ├── !          ·
+%% │                      │               ╰── nonblanks(T, [110, 99], S) ✔ nonblanks([110, 99],…
+%% │                      │                   ╰── ▸1 nonblanks([C|T]) --> [C], { C > 32 }… ✔
+%% │                      │                       ├── [110, 99] = [110, 99] ✔
+%% │                      │                       ├── 110 > 32 ✔
+%% │                      │                       ├── !  ·
+%% │                      │                       ╰── nonblanks(T, [99], S) ✔ nonblanks([99], […
+%% │                      │                           ╰── ▸1 nonblanks([C|T]) --> [C], { … ✔
+%% │                      │                               ├── [99] = [99] ✔
+%% │                      │                               ├── 99 > 32 ✔
+%% │                      │                               ├── ! ·
+%% │                      │                               ╰── nonblanks(T, [], S) ✔ nonblanks([…
+%% │                      │                                   ├── ▸1 nonblanks([C|T]) -->… ✘
+%% │                      │                                   │   ╰── [] = [C|_G690] ✘
+%% │                      │                                   ╰── ▸2 nonblanks([]) --> []. ✔
+%% │                      │                                       ╰── [] = [] ✔
+%% │                      ├── [102, 117, 110, 99] \= []  ✔
+%% │                      ├── atom_codes(func, [102, 117, 110, 99]) ✔
+%% │                      ├── blanks([], _G665)          ✔ blanks([], [])
+%% │                      │   ├── ▸1 blanks --> blank, !, blanks. ✘
+%% │                      │   │   ╰── blank([], _G695)   ✘
+%% │                      │   │       ╰── ▸1 blank --> [C], { C =< 32 }. ✘
+%% │                      │   │           ╰── [] = [C|S] ✘
+%% │                      │   ╰── ▸2 blanks --> [].      ✔
+%% │                      │       ╰── [] = []            ✔
+%% │                      ╰── more_tokens(Ce6194b_Ts, [], []) ✔ more_tokens([], [], [])
+%% │                          ╰── ▸1 more_tokens([]) --> eos, !. ✔
+%% │                              ├── eos([], [])        ✔
+%% │                              │   ╰── ▸1 eos([], []). ✔
+%% │                              ╰── !                  ·
+%% │
+%% │ ✔ solution 1:  Ce6194b_Ts = [func]
+%% ╰── cocolog: 1 solution · 128 inferences
+
+%% nothing left: the list of tokens ends here
+more_tokens([]) --> eos, !.
+%% a remark runs to the end of its line, and is not a token
+more_tokens(Ce6194b_Ts) -->
+    "%", string(_), ( eol ; eos ), !,
+    blanks,
+    more_tokens(Ce6194b_Ts).
+%% anything else up to the next space is one token
+more_tokens([C4363d8_Token|Ce6194b_Ts]) -->
+    nonblanks(Cffd700_Cs),
+    { Cffd700_Cs \= [], atom_codes(C4363d8_Token, Cffd700_Cs) },
+    blanks,
+    more_tokens(Ce6194b_Ts).
+
+%% ---------------------------------------------------------------- 5 --
+%% A rule can put something back on the list.  Whatever is written
+%% after the head, before the arrow, is pushed back once the body has
+%% read its part, so this one reads two items and leaves them swapped
+%% for whoever reads next.
+%%
+%% Because it always leaves something behind, phrase/2 cannot succeed
+%% with it: phrase(Rule, List) is phrase(Rule, List, []), and it asks
+%% for the whole list to be used up.  Ask for the rest with phrase/3,
+%% or let a later rule read what was put back -- which is what a
+%% pushback is for.
+
+%% ?- phrase(swap(Ce6194b_First, C4363d8_Second), [12, 15], C3cb44b_Rest).
+%% ?- phrase((swap(_, _), [Ce6194b_First], [C4363d8_Second]), [12, 15]).
+%% ?- phrase(swap(_, _), [12, 15]).
+swap(Ce6194b_First, C4363d8_Second), [C4363d8_Second], [Ce6194b_First] -->
+    [Ce6194b_First],
+    [C4363d8_Second].
+%% ╭── cocolog trace ── ?- phrase(swap(Ce6194b_First, C4363d8_Second), [12, 15], C3cb44b_Rest).
+%% │ swap(Ce6194b_First, C4363d8_Second, [12, 15], C3cb44b_Rest) ✔ swap(12, 15, [12, 15], [15, …
+%% │  ╰── ▸1 swap(Ce6194b_First, C4363d8_Second), [C4363d8_Second], [Ce6194b_First] --> [… ✔
+%% │      ├── [12, 15] = [12, 15]                        ✔
+%% │      ├── [15] = [15]                                ✔
+%% │      ├── [15|_G471] = [15|_G471]                    ✔
+%% │      ╰── [12] = [12]                                ✔
+%% │
+%% │ ✔ solution 1:  Ce6194b_First = 12,  C4363d8_Second = 15,  C3cb44b_Rest = [15, 12]
+%% ╰── cocolog: 1 solution · 10 inferences
+%% ╭── cocolog trace ── ?- phrase((swap(_, _), [Ce6194b_First], [C4363d8_Second]), [12, 15]).
+%% │ swap(_, _, [12, 15], _G476)                         ✔ swap(12, 15, [12, 15], [15, 12])
+%% │  ╰── ▸1 swap(Ce6194b_First, C4363d8_Second), [C4363d8_Second], [Ce6194b_First] --> [… ✔
+%% │      ├── [12, 15] = [12, 15]                        ✔
+%% │      ├── [15] = [15]                                ✔
+%% │      ├── [15|_G484] = [15|_G484]                    ✔
+%% │      ╰── [12] = [12]                                ✔
+%% │ [15, 12] = [15, 12]                                 ✔
+%% │ [12] = [12]                                         ✔
+%% │
+%% │ ✔ solution 1:  Ce6194b_First = 15,  C4363d8_Second = 12
+%% ╰── cocolog: 1 solution · 14 inferences
+%% ╭── cocolog trace ── ?- phrase(swap(_, _), [12, 15]).
+%% │ swap(_, _, [12, 15], [])                            ✘
+%% │  ╰── ▸1 swap(Ce6194b_First, C4363d8_Second), [C4363d8_Second], [Ce6194b_First] --> [… ✘
+%% │      ├── [12, 15] = [12, 15]                        ✔
+%% │      ├── [15] = [15]                                ✔
+%% │      ╰── [] = [15|_G493]                            ✘
+%% ╰── cocolog: no solutions · 9 inferences
