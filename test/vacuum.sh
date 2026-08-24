@@ -16,7 +16,7 @@
 #   that is the operator's decision, not the program's. With `--vacuum' it
 #   must succeed and answer the live count.
 #
-# The embedded half always runs when `make embed' has been done; the wire
+# The embedded half always runs, the store being in the one binary; the wire
 # half SKIPs without a server, because "no server here" and "the vacuum is
 # wrong" are different findings.
 
@@ -68,11 +68,11 @@ exercise() {
 }
 
 # ---- embedded: the store inside the process -------------------------
-if [ -x "$ROOT/cocolog-embed" ]; then
+if [ -x "$ROOT/cocolog" ]; then
   echo "the embedded arrangement"
-  exercise embed "$ROOT/cocolog-embed" --kb vacuum_test --store "$OUT/store"
+  exercise embed "$ROOT/cocolog" --kb vacuum_test --store "$OUT/store"
 else
-  echo "embed: SKIP (no cocolog-embed; make embed)"
+  echo "embed: SKIP (no cocolog; make)"
 fi
 
 # ---- wire: the store behind a server --------------------------------

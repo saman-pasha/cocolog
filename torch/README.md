@@ -42,11 +42,11 @@ the model in Zigurat; `polaris`, a fresh process holding nothing but
 the store, loads it back and answers again:
 
 ```console
-$ ./cocolog-full --store /tmp/northstar run demo/northstar.pl train
+$ ./cocolog --store /tmp/northstar run demo/northstar.pl train
 learned the diagram: train nll 0.0001, held-out accuracy 1.00
 the model says Polaris is a supergiant
 saved
-$ ./cocolog-full --store /tmp/northstar run demo/northstar.pl polaris
+$ ./cocolog --store /tmp/northstar run demo/northstar.pl polaris
 out of the store, the model still says Polaris is a supergiant
 the_sky_agrees
 ```
@@ -59,15 +59,15 @@ first drafts, where it was not, are a lesson the file's comments keep.
 ## Building
 
 ```sh
-make torch     # cocolog-torch: the torch module over the wire client
-make full      # cocolog-full:  torch AND the embedded knowledge base
+make           # the ONE cocolog binary carries the torch module
 ```
 
-Both need libtorch, resolved the way Cicili's `lib/cpp/torch` resolves
+It needs libtorch, resolved the way Cicili's `lib/cpp/torch` resolves
 it: `$LIBTORCH` pointing at a standalone distribution, or the pip
-`torch` package. The plain `make` build carries none of this — the
-module registers through a weak symbol, and in a build without it the
-torch predicates are unknown procedures, as they should be.
+`torch` package. The module registers through a weak symbol the
+interpreter carries either way, so linking it in is all that plugs it
+in — and in a binary linked without it the torch predicates would be
+unknown procedures, as they should be.
 
 ## The predicates
 

@@ -364,7 +364,7 @@ the two lists are one.
 written out of, in three columns -- building a net, training, a trained
 model -- ending on a whole tutorial's `train`, `test` and `predict` as one
 piece. The pieces are the shapes of `tutorials/` in the cocolog repository
-and run under `cocolog-full`, which carries the torch module; the engine of
+and run under the `cocolog` binary, which carries the torch module; the engine of
 this mode traces no tensors.
 
 The grammar groups keep a heading of their own -- `grammar: numbers`,

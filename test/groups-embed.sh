@@ -26,7 +26,7 @@ set -e
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
-COCOLOG="$ROOT/cocolog-embed"
+COCOLOG="$ROOT/cocolog"
 KB=groups_test
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-groups-embed-XXXXXX")
 # A fresh store by default; GROUPS_EMBED_STORE names a persistent one, for

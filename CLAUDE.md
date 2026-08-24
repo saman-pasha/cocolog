@@ -29,12 +29,18 @@ has no tracked files — so `git status` in it stays empty. Verify that it does.
 
 ```sh
 export CICILI=/home/user/cicili                  # a Cicili checkout, for sbcl
-export ZIGURATIP_HOME=/home/user/ZiguratIP/home  # a built ZiguratIP home
-make            # the C client and the cocolog program
+export ZIGURATIP=/home/user/ZiguratIP            # a BUILT ZiguratIP checkout
+export ZIGURATIP_HOME=/home/user/ZiguratIP/home  # and its home
+make            # the C client and the ONE cocolog binary (embedded store
+                # and torch module linked in; needs libtorch too)
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make test       # the suite
 sh test/run.sh solve      # one case
 ```
+
+There is one `cocolog` binary and it is full: the four knowledge-base
+arrangements — `--local`, the server, `--http`, `--store`/`--embed` — are
+runtime options, never builds.
 
 The server, which the database tests need:
 

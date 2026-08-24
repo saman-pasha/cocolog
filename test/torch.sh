@@ -5,19 +5,19 @@
 # SECOND process loads the model back out of the store and reproduces
 # the first one's predictions exactly.
 #
-# It SKIPS without a `make full' build, because "no libtorch here" and
+# It SKIPS when the binary lacks the torch module, because "no libtorch here" and
 # "the module is wrong" are different findings.
 
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
-COCOLOG="$ROOT/cocolog-full"
+COCOLOG="$ROOT/cocolog"
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-torch-XXXXXX")
 STORE="$OUT/store"
 trap 'rm -rf "$OUT"' EXIT INT TERM
 
 if [ ! -x "$COCOLOG" ]; then
-  echo "SKIP no cocolog-full built (make full needs libtorch and a ZiguratIP checkout)"
+  echo "SKIP no cocolog built (make needs libtorch and a built ZiguratIP checkout)"
   exit 0
 fi
 

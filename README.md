@@ -95,15 +95,23 @@ demo/family.pl         something to run it on
 
 ```sh
 export CICILI=/path/to/cicili                 # a Cicili checkout, for sbcl
-export ZIGURATIP_HOME=/path/to/ZiguratIP/home # a built ZiguratIP home
-make            # the C client and the cocolog program
+export ZIGURATIP=/path/to/ZiguratIP           # a BUILT ZiguratIP checkout
+export ZIGURATIP_HOME=$ZIGURATIP/home         # and its home
+make            # the C client and the ONE cocolog binary
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make test       # the suite; the database tests skip without a server
 ```
 
-Cicili is needed only to build: `sbcl` runs `cicili.lisp` over the `.cicili`
-files and out comes C. ZiguratIP is needed to run — a server to talk to — and
-once, at setup, for its `parsi` compiler.
+There is one `cocolog` binary and it is the full one: the interpreter, the
+embedded MVCCS engine and the torch module, all in it. Which knowledge base a
+run uses is a runtime choice among four arrangements — `--local` (memory),
+the server (`--kb`/`--host`/`--port`), `--http` (Zeytun, read only), and
+`--store DIR` or `--embed DIR` (the store inside the process) — never a
+build. Cicili is needed only to build: `sbcl` runs `cicili.lisp` over the
+`.cicili` files and out comes C. The embedded engine links against the built
+ZiguratIP's `Core` and `StreamIO`, the torch module against libtorch
+(`$LIBTORCH` or the pip `torch` package), and a server is needed only when a
+run chooses the server arrangement.
 
 ## The knowledge base is a seam, not a dependency
 
@@ -308,11 +316,12 @@ The knowledge base is a seam, and `embed/` is a third thing plugged into it:
 the same eighteen `cocolog::*` procedures the server offers, implemented
 in-process over the **Cicili MVCCS engine** (`ZiguratIP/MVCCS-cicili/`) and
 the very `.cicili` table definitions the Parsi compiler generated beside its
-C++ pair. `make embed` builds `cocolog-embed`; `--store DIR` then opens the
-store inside the process — no server, no socket — and every command works
-unchanged, because the C client dispatches each verb to the embedded engine
-behind the same `zg_conn` handle. The hooks are weak symbols, so the plain
-`cocolog` binary still builds with nothing but libc, as always.
+C++ pair. It is in the one `cocolog` binary: `--store DIR` (or `--embed DIR`,
+which says the same thing) opens the store inside the process — no server, no
+socket — and every command works unchanged, because the C client dispatches
+each verb to the embedded engine behind the same `zg_conn` handle. The hooks
+are weak symbols the interpreter carries either way; linking the engine in is
+all that plugs it in.
 
 An embedded store belongs to one process, so the group test's concurrency
 moves inside it: `cocolog swarm A1 M1 A2 M2 ...` runs each worker as a thread
@@ -394,7 +403,7 @@ same knowledge base that holds your rules. The last seam to be filled:
 Prolog program can load a dataset the Files module vouched for, train a
 network on it, and `model_save` the result — an assert of the model *as
 terms*, which the knowledge base persists like any other fact.
-`make torch` builds it; `make full` pairs it with the embedded store,
+It is in the one `cocolog` binary, paired with the embedded store,
 and `test/torch.sh` runs the whole story: train, store in Zigurat,
 reload in a fresh process, predict identically.
 
@@ -413,10 +422,10 @@ text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:
 
 ```console
-$ ./cocolog-full --store /tmp/tut run tutorials/22-embedding-lstm.pl train
+$ ./cocolog --store /tmp/tut run tutorials/22-embedding-lstm.pl train
 trained: final nll 0.0117
 saved
-$ ./cocolog-full --store /tmp/tut run tutorials/22-embedding-lstm.pl predict
+$ ./cocolog --store /tmp/tut run tutorials/22-embedding-lstm.pl predict
 [0,1,2,3,4,5]  ->  contains token 3
 [0,1,2,4,5,6]  ->  no token 3
 [3,0,0,0,0,0]  ->  contains token 3

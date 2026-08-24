@@ -157,8 +157,8 @@
     ;; host and port"; the string "none" means do not take turns at all.
     (member const char * lock)
     ;; A directory for the EMBEDDED knowledge base: the store lives inside
-    ;; this process, no server and no socket. Needs a build that linked the
-    ;; embedded engine -- `make embed' -- and belongs to one process at a
+    ;; this process, no server and no socket. The one binary links the
+    ;; embedded engine in, and a store belongs to one process at a
     ;; time: concurrency inside it is the `swarm' command's threads.
     (member const char * store)
     ;; Where each swarm worker writes what it did (DIR/WORKER.log); null
@@ -273,7 +273,9 @@
         (fprintf stderr "                cannot take concurrent clients; `auto' names\n")
         (fprintf stderr "                one per host and port. Off by default.\n")
         (fprintf stderr "  --store DIR   the knowledge base EMBEDDED in this process,\n")
-        (fprintf stderr "                no server (needs a `make embed' build)\n")
+        (fprintf stderr "                no server; --embed DIR says the same thing.\n")
+        (fprintf stderr "                One binary, four arrangements: --local, the\n")
+        (fprintf stderr "                server (--kb/--host/--port), --http, --store\n")
         (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n")
         (fprintf stderr "  --vacuum      let programs call vacuum_kb/0,1 -- reclaims dead\n")
         (fprintf stderr "                rows at the cost of point-in-time reads\n"))
@@ -1054,10 +1056,10 @@
 
   ;;; ---- the command line ---------------------------------------------------
 
-  ;; THE TORCH MODULE IS REACHED THROUGH A WEAK SYMBOL: `make torch'
-  ;; links torch/coco-torch.o and the registration runs; the plain build
-  ;; leaves the symbol null and the torch predicates are unknown
-  ;; procedures, which is the right answer for a build without torch.
+  ;; THE TORCH MODULE IS REACHED THROUGH A WEAK SYMBOL: the one binary
+  ;; links torch/coco-torch.o and the registration runs; a build that
+  ;; left it out would leave the symbol null and the torch predicates
+  ;; unknown procedures, which is the right answer for such a build.
   ;; Raw C, because a null-checked call through a weak function is a C
   ;; idiom Cicili has no clause for.
   (code "extern int coco_torch_module(void) __attribute__((weak));")
@@ -1152,7 +1154,10 @@
                      ((== 0 (strcmp a "--steps"))   (set ($ opts steps) (strtoull v nil 10)))
                      ((== 0 (strcmp a "--timeout")) (set ($ opts timeout) (atoi v)))
                      ((== 0 (strcmp a "--lock"))    (set ($ opts lock) v))
+                     ;; --embed says the same thing --store says: the mode is
+                     ;; named for the arrangement, the option for the directory
                      ((== 0 (strcmp a "--store"))   (set ($ opts store) v))
+                     ((== 0 (strcmp a "--embed"))   (set ($ opts store) v))
                      ((== 0 (strcmp a "--out"))     (set ($ opts outdir) v))
                      ((== 0 (strcmp a "--answers")) (set ($ opts answers) (atoi v)))
                      (#t (block (fprintf stderr "cocolog: unknown option %s\n" a)

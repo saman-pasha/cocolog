@@ -12,15 +12,18 @@
 #              objects inside a ZiguratIP home. Point ZIGURATIP_HOME at one.
 #
 # Neither is patched, forked or vendored. The client under client/ speaks
-# Zigurat's protocol from C and includes nothing of ZiguratIP's -- libc and the
-# sockets API and nothing else -- so cocolog builds without a ZiguratIP
-# checkout at all. It only needs a running server to talk to.
+# Zigurat's protocol from C and includes nothing of ZiguratIP's -- libc and
+# the sockets API and nothing else. The embedded knowledge base links against
+# a BUILT ZiguratIP's Core and StreamIO (point ZIGURATIP at the checkout),
+# and the torch module against libtorch, because the one binary carries both.
 #
-#   make            the C client and the cocolog program
+#   make            the C client and the ONE cocolog binary: the interpreter
+#                   with the embedded MVCCS engine and the torch module both
+#                   linked in, so the four knowledge-base arrangements --
+#                   --local, the server, --http, --store/--embed -- are a
+#                   runtime choice, never a build
 #   make client     just the client
 #   make schema     compile the Parsi objects into $(ZIGURATIP_HOME)
-#   make embed      cocolog-embed: the knowledge base INSIDE the process,
-#                   on the Cicili MVCCS engine (needs CICILI and ZIGURATIP)
 #   make test       run the suite (the database tests skip without a server)
 #   make clean
 
@@ -36,7 +39,7 @@ CLIENT_LIB     := $(BUILD)/libcocologc.a
 CLIENT_OBJS    := $(BUILD)/zigurat.o $(BUILD)/zeytun.o
 LIB_SOURCES    := $(wildcard lib/*.cicili)
 
-.PHONY: all client schema embed torch full test clean check-cicili
+.PHONY: all client schema test clean check-cicili
 
 all: client cocolog
 
@@ -72,61 +75,31 @@ check-cicili:
 # compiling, so a relative -I or -L in a target is relative to that file.
 CICILI_RUN = cd "$(CICILI)" && $(SBCL) --script cicili.lisp
 
-cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
-	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
-
-# ---- the embedded knowledge base --------------------------------------------
-# The same eighteen procedures the server offers, implemented in-process over
-# the Cicili MVCCS engine and the very .cicili table definitions the Parsi
-# compiler generated (embed/embed.cicili). The client's ce_* hooks are weak
-# symbols, so the plain `cocolog' binary neither carries nor needs any of
-# this; `cocolog-embed' is the same cocolog.o with the engine linked in --
-# --store DIR then opens the store embedded, and `swarm' runs its workers as
-# threads of the one process the store belongs to.
-
-cocolog-embed: cocolog
-	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
-	g++ -g -O0 .libs/cocolog.o embed/.libs/embed.o -o cocolog-embed \
-	  -Lbuild -lcocologc -lm -lpthread \
-	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
-	  -Wl,-rpath,"$(ZIGURATIP)/home/lib"
-
-embed: cocolog-embed
-
-# ---- the torch module --------------------------------------------------------
-# libtorch as cocolog predicates (torch/coco-torch.cicili). The module
-# registers through a weak symbol, so only this binary carries it. Needs
-# libtorch -- $LIBTORCH, or the pip torch package, resolved by Cicili's
-# {$TORCH_*} tokens at build time; TORCH_LIB below must name the same lib
-# directory for the link (default: the pip package's).
+# ONE BINARY. The Cicili run compiles the interpreter and links a plain
+# executable; the link below replaces it with the full one -- the embedded
+# knowledge base (embed/embed.cicili: the same eighteen procedures the
+# server offers, in-process over the Cicili MVCCS engine, so --store DIR
+# opens the store embedded and `swarm' runs its workers as threads of the
+# one process the store belongs to) and the torch module
+# (torch/coco-torch.cicili: libtorch as cocolog predicates). Both register
+# through weak symbols the interpreter already carries, so linking them in
+# is all it takes. Which knowledge base a run uses -- --local, the server,
+# --http, or --store/--embed -- is then an option, never a build.
+#
+# TORCH_LIB must name the lib directory Cicili's {$TORCH_*} tokens resolved
+# at compile time (default: the pip torch package's).
 TORCH_LIB ?= $(shell python3 -c "import torch, os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))" 2>/dev/null)
 
-cocolog-torch: cocolog
-	CICILI="$(CICILI)" sh torch/build.sh
-	g++ -g -O0 .libs/cocolog.o torch/.libs/coco-torch.o -o cocolog-torch \
-	  -Lbuild -lcocologc -lm -lpthread \
-	  -L"$(TORCH_LIB)" -ltorch -ltorch_cpu -lc10 \
-	  -Wl,-rpath,"$(TORCH_LIB)"
-
-torch: cocolog-torch
-
-# ---- everything at once ------------------------------------------------------
-# The interpreter with BOTH engines embedded: the knowledge base on the
-# Cicili MVCCS engine (--store DIR) and libtorch behind the torch module.
-# A Prolog program can then load a dataset, train on it, and assert the
-# trained model into Zigurat, one process, no server.
-
-cocolog-full: cocolog
+cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
+	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
 	CICILI="$(CICILI)" sh torch/build.sh
 	g++ -g -O0 .libs/cocolog.o embed/.libs/embed.o torch/.libs/coco-torch.o \
-	  -o cocolog-full \
+	  -o cocolog \
 	  -Lbuild -lcocologc -lm -lpthread \
 	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
 	  -L"$(TORCH_LIB)" -ltorch -ltorch_cpu -lc10 \
 	  -Wl,-rpath,"$(ZIGURATIP)/home/lib" -Wl,-rpath,"$(TORCH_LIB)"
-
-full: cocolog-full
 
 # ---- the schema -------------------------------------------------------------
 # Compiled by ZiguratIP's own parsi program into a ZiguratIP home. This is the
@@ -142,7 +115,7 @@ test: all $(BUILD)/probe
 	sh test/run.sh
 
 clean:
-	rm -rf $(BUILD) cocolog cocolog-embed cocolog-torch cocolog-full cocolog.c *.o *.lo .libs
+	rm -rf $(BUILD) cocolog cocolog.c *.o *.lo .libs
 	rm -rf torch/coco-torch.cpp torch/*.o torch/*.lo torch/.libs
 	rm -rf embed/embed.cpp embed/*.o embed/*.lo embed/.libs embed/ce_smoke embed/smoke.o
 	rm -f embed/Core embed/StreamIO embed/mvccs-lib.cicili embed/generated embed/ziglib

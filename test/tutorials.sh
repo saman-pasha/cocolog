@@ -7,17 +7,17 @@
 # would answer for all of them. One store per tutorial is the honest
 # arrangement, and it is what the headers document.
 #
-# SKIPs without a `make full' build, because "no libtorch here" and "the
+# SKIPs when the binary lacks the torch module, because "no libtorch here" and "the
 # tutorials are wrong" are different findings.
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
-COCOLOG="$ROOT/cocolog-full"
+COCOLOG="$ROOT/cocolog"
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-tutorials-XXXXXX")
 trap 'rm -rf "$OUT"' EXIT INT TERM
 
 if [ ! -x "$COCOLOG" ]; then
-  echo "SKIP no cocolog-full built (make full needs libtorch and a ZiguratIP checkout)"
+  echo "SKIP no cocolog built (make needs libtorch and a built ZiguratIP checkout)"
   exit 0
 fi
 

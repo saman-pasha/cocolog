@@ -6,9 +6,9 @@ its own documentation and three goals, each meant to run as its OWN
 process against the same store, because the trained model lives in the
 knowledge base as terms, not in memory:
 
-    ./cocolog-full --store /tmp/tutorials run tutorials/01-linear-regression.pl train
-    ./cocolog-full --store /tmp/tutorials run tutorials/01-linear-regression.pl test
-    ./cocolog-full --store /tmp/tutorials run tutorials/01-linear-regression.pl predict
+    ./cocolog --store /tmp/tutorials run tutorials/01-linear-regression.pl train
+    ./cocolog --store /tmp/tutorials run tutorials/01-linear-regression.pl test
+    ./cocolog --store /tmp/tutorials run tutorials/01-linear-regression.pl predict
 
 `train` builds the data, fits the network, and `model_save`s it;
 `test` `model_load`s it back and judges it against a threshold, exiting
