@@ -732,7 +732,11 @@ vacuum itself — the walk that wedged — is confirmed from both ends: the
 vacuum test green in both arrangements against the fixed parallel
 server, all ten checks, and the groups setup vacuum, the exact path
 that spun, green more than eighteen times over on the ageing store it
-originally died on. The wedge-immunity came for free.
+originally died on. Torch ran green on the guarded walks too — its model
+chunks travel exactly the multi-value chains the walks now guard, and
+train, store, fresh-process reload with identical predictions, and the
+conv net's buffers all came back intact in 3 seconds. The wedge-immunity
+came for free.
 
 ### The test that blocked all of it is fixed
 
