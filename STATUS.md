@@ -684,6 +684,41 @@ That closes the loop: one shared-read design, both engines, both
 arrangements, benchmarked green on aged stores at wire 5–6s and embedded
 2–3s, with the heaviest module the store carries confirmed on top.
 
+### A torn chain link ends the walk instead of wedging the server
+
+Found by a routine groups run after the AI e2e test: the setup vacuum
+froze the whole parallel server — 80% CPU, log stopped at
+`cocolog::vacuum`, every new connection refused. GDB showed the vacuum
+thread spinning in the machines-id index's dead-value walk with
+`address = 0` on every sample, and the preserved store told the rest:
+a value's `next_address` was ZERO, address 0's data was all zeros, and
+address 0's hexmap chunk was FREE — never allocated. The walks had
+learned (STATUS above) that NULL and -1 end a chain, but 0 is a "valid"
+address, so the walk chased it into free space, where `_pointer` scanned
+the whole hexmap per call, forever — and because the vacuum holds the
+streams guard exclusive, every other thread queued behind the spin. A
+torn in-place chain edit is how such a link lands, the same family as
+the NULL link before it, and a torn link can equally point BACK into its
+own chain, which no free-space check can see.
+
+The rules now, in both engines: `_pointer` refuses a chunk without the
+DATA bit instead of walking free space; every chain walk asks whether a
+link resolves to an allocated record before following it, and an
+unresolvable or REVISITED address ends the chain exactly as NULL and -1
+do (a visited set in C++, Brent's cycle check in Cicili; the free walk
+is additionally self-limiting, because freeing marks chunks free and a
+link that comes around again stops resolving before it can double-free).
+The SELECT-path walk — every index read, not just the vacuum — got the
+same guards and the NULL normalization it had never had. Proven by a
+C++ case that forges both shapes into a real chain through the store's
+own stream: a self-loop answers one row and ends, an unresolvable link
+answers the rows before it and ends, reclaim over the torn chain
+completes — and against the unfixed engine the same case hangs forever,
+the wedge reproduced in miniature. Validated after: C++ suite 305/305 in
+shared mode, Cicili harness green, embedded groups 2s on the aged store,
+wire groups 6/6 at 5–6s on a parallel server, suite `red: 0`, zero
+engine errors.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
