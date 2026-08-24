@@ -979,6 +979,46 @@ mode's own toggle test demands because the bar is drawn from a copy
 and a flipped tick can otherwise show stale for a whole session. The
 mode's suite: 160 tests, 0 unexpected.
 
+### The Mac taught the Type layer about integers
+
+The first macOS build of ZiguratIP died where the parsi compiler
+JIT-compiles the generated C++ of `serializer.parsi`: `conversion from
+'unsigned long' to 'ULONG' is ambiguous`. The cause is a platform
+split hiding inside the fixed-width names: on LP64 Linux `uint64_t`
+IS `unsigned long`, so a `0ul` literal, a `size_t` or a `strlen()`
+matches `ULong`'s `uint64_t` constructor exactly — while on Apple's
+LP64 `uint64_t` is spelled `unsigned long long`, so the same value
+matches no fixed-type overload and drowns among equal-rank
+conversions to `uint64_t`, `int` and `unsigned int`. `int64_t` splits
+the same way, so `Long` carried the identical trap for `0l`. Linux
+could never see any of it, which is why every sandbox build was
+clean.
+
+The fix took two rounds, and the second was earned honestly: a
+constrained template constructor (an exact match for any plain
+integral, losing to the non-template constructors everywhere they
+already applied) moved the error exactly one step — `SET i = 0ul;`
+then died on ASSIGNMENT, the same value converting equally well to
+the wide type's rvalue and lvalue `operator=` and resolving to
+neither. That round was reproduced on Linux before it was fixed: the
+mirror spelling (`0ull`, the type that is not `uint64_t` here) makes
+gcc say exactly what clang said. `==` and `!=` carry the same
+four-candidate pattern, with real literals waiting in the System
+pages the Mac build never reached (`a_time == 0l`, `type.size() ==
+2ul`), so `ULong` and `Long` each gained the same integral template
+on three surfaces — constructor, assignment, the two comparisons —
+each delegating through a named const lvalue so the forwarded call
+picks the `const&` overload with no second overload decision. The
+relationals take only the class type and were never ambiguous.
+Header-only and additive both rounds: no members, no virtuals, the
+ABI stands, and everything that compiled before means what it meant.
+
+Proven on Linux before pushing, both rounds: the mirror repro
+ambiguous without the templates and clean with them, the full
+ZiguratIP build with every System page (serializer and mem among
+them), then cocolog's schema against the rebuilt home and the whole
+suite — twelve cases GREEN against a live server, `red: 0`.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
