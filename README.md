@@ -126,10 +126,19 @@ shell without them fails with `set CICILI to a Cicili checkout` or, worse,
 builds against the wrong tree:
 
 ```sh
+# Coco requisites
 export CICILI="$HOME/Projects/GitHub/cicili"        # the Cicili checkout, for sbcl
 export ZIGURATIP="$HOME/Projects/GitHub/ZiguratIP"  # the BUILT ZiguratIP checkout
 export ZIGURATIP_HOME="$ZIGURATIP/home"             # and its home
+
+# macOS, libtorch via Homebrew: headers land in /usr/local/include and
+# dylibs in /usr/local/lib, so the root that holds both is /usr/local
+export LIBTORCH="/usr/local"
+export TORCH_LIB="/usr/local/lib"                   # the Makefile's link line
 ```
+
+(On Linux with the pip `torch` package, the last two are not needed —
+everything asks Python where the package lives.)
 
 Build ZiguratIP first — plain `make` in its checkout; a C++11 compiler is all
 it asks — which fills `ZiguratIP/home` with its libraries, its `parsi`
