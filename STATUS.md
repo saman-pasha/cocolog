@@ -717,7 +717,12 @@ completes — and against the unfixed engine the same case hangs forever,
 the wedge reproduced in miniature. Validated after: C++ suite 305/305 in
 shared mode, Cicili harness green, embedded groups 2s on the aged store,
 wire groups 6/6 at 5–6s on a parallel server, suite `red: 0`, zero
-engine errors.
+engine errors. And benchmarked, because the guards sit on the hottest
+read path in the engine — every index SELECT's value walk now asks
+whether each link resolves and remembers where it has been: the
+twelve-worker wire choreography ran 12/12 green at **5–7 seconds,
+effectively 6s flat**, on a store eighteen runs deep — the established
+band, unmoved. The wedge-immunity came for free.
 
 ### The test that blocked all of it is fixed
 
