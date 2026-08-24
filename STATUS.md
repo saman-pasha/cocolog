@@ -645,6 +645,14 @@ members while the library was built after — `Memory` allocated at the old
 size, constructed at the new one. After ANY engine header change, rebuild
 the library, the server binary, and the schema objects together.
 
+The embedded side was re-benchmarked against the same engine state to
+prove the port moved nothing it should not have: on the aged persistent
+store, now thirty-plus runs deep, 12/12 green at **2–3 seconds** with the
+parallel default and 4/4 at **2 seconds flat** exclusive — the converged
+numbers exactly, no drift. That closes the loop: one shared-read design,
+both engines, both arrangements, benchmarked green on aged stores at
+wire 5–6s and embedded 2–3s.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
