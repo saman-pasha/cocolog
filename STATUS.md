@@ -660,7 +660,14 @@ And the cross-process case — one process writing through the wire, a
 second that consulted nothing reading it back, the claim the project
 exists to make — reconfirmed green against the same server instance,
 which by then had absorbed the twelve-worker benchmark, the vacuum and
-the full suite without one engine error.
+the full suite without one engine error. The ruler — one writer growing
+the program clause by clause under eight concurrent queriers, the very
+mix the shared guard exists for — ran green on it too: readers
+demonstrably read WHILE the writer wrote (a querier's answer count grew
+from 0 to 37 across its own run), nobody answered outside the program,
+and the finished program proved the full closure. Every server-dependent
+case has now run standalone against the parallel server: groups, vacuum,
+shared, ruler — all green, one server instance, zero engine errors.
 That closes the loop: one shared-read design, both engines, both
 arrangements, benchmarked green on aged stores at wire 5–6s and embedded
 2–3s, with the heaviest module the store carries confirmed on top.
