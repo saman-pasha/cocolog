@@ -832,6 +832,32 @@ at accuracy 1.0, and a stacked lstm goes into the knowledge base and
 comes back with params and predictions identical — all green, about
 fourteen seconds on a CPU.
 
+### The tutorials, one file each
+
+The suite's twenty-three networks rewritten as standalone tutorial
+programs (`tutorials/NN-name.pl`), each documented in place and each
+carrying three goals meant to be three PROCESSES against one store:
+`train` builds its data, fits, and `model_save`s; `test` `model_load`s
+in a fresh process and judges against a threshold; `predict` loads and
+answers for visible inputs beside the truth — `xor(0, 1) = 1
+(confidence 1.00)`, `[3,0,0,0,0,0] -> contains token 3`.
+`test/tutorials.sh` runs all sixty-nine processes green in about
+seventy-five seconds.
+
+Writing them taught two properties of the platform the hard way, both
+now documented in `tutorials/README.md`. Consulted clauses live in the
+knowledge base like everything else, so twenty-three tutorials sharing
+one store shadowed each other's `train` — the first tutorial consulted
+answered for all of them, and the first "all green" run had mostly
+proven tutorial one twenty-three times (the runner now gives each
+tutorial its own store). And a second consult of the same file APPENDS
+duplicate clauses: a nondeterministic helper inside an inner findall
+then widens data rows, which surfaced as `model_evaluate` refusing
+exactly the wide tutorials — images, autoencoders, sequences. Every
+single-clause data helper now ends in a cut, and the full run dropping
+from 372 to 76 seconds is that diagnosis confirmed from the other
+side: the duplicates had been silently doubling everybody's data.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
