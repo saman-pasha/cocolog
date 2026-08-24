@@ -601,10 +601,17 @@ What made this affordable is the isolation hand-back: the claim procedures
 their update, inside the still-open transaction — the stamps stay staged
 until the turn commits, but the slot-of-one goes to the next claimant
 after the claim's few statements instead of being held for a whole turn.
-Measured with the turn as one transaction, fresh stores: embedded 12/12
-green at 2–3 seconds, wire 6/6 green at 5–6 seconds — a second FASTER
-than the two-transaction turn — with zero engine errors, and vacuum and
-torch green in both arrangements.
+Measured with the turn as one transaction, and then benchmarked again on
+AGED stores to prove the numbers hold: embedded 12/12 green at **2–3
+seconds flat** on a store thirty-plus runs deep, wire 12/12 green at **5–6
+seconds flat** on a store eighteen runs deep, zero engine errors across all
+of it, vacuum and torch green in both arrangements. And the halved commit
+count collapsed the guard-mode gap: **exclusive mode now runs the same
+choreography at ~2 seconds too**, down from 4–5 — the old turn paid the
+commit's three-syncs-of-two-files dance twice, once for the claim and once
+for the work, and in exclusive mode those serialised syncs were most of
+what a turn cost. The parallel default keeps its edge under heavier read
+mixes; the exclusive fallback is simply no longer a 2–3× penalty here.
 
 ### The test that blocked all of it is fixed
 
