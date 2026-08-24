@@ -750,6 +750,45 @@ shape that tore, the Zeytun page serving the same clauses over HTTP —
 every case the store has now runs green on the guarded walks. The
 wedge-immunity came for free.
 
+### The torn-link producer, hunted to one byte
+
+The zero links had a maker, and it took eight instrumented reproduction
+rounds to corner it: not a torn write, not a kill catching a flush, not
+a poisoned stream — every one of those was hypothesized, instrumented,
+and ruled out by a run that refused to show it. What the ledger finally
+proved, with a preserved store and a byte-watcher bracketing every step,
+was this: the corruption appeared at STARTUP, deterministically at the
+eleventh run's restart, and the startup page walk was the producer. That
+walk asked `_pointer` whether each address held a record, and `_pointer`
+seeks past the control chunks before measuring — right for a record, and
+a read STRAIGHT THROUGH a short free run into the record behind it. A
+one-chunk free run parsed as a 64-byte "record", the walk went one phase
+out of step, read data codes as control bytes, mistook a live index
+node's standalone code for an online lock, and rolled back live rows as
+uncommitted debris. The next restart read the scribbled region as
+reclaimable, the page went back to the allocator, and the recycle
+zero-filled a node the tree still linked — the zero link of both
+preserved specimens, born whenever the store's churn laid down a short
+free run in the walk's path. The engine's own comment KNEW free runs
+read through — the free branch measured them from the hexmap for exactly
+that reason — but the record-or-free decision gating the two branches
+came out of the same misparsing call. The fix is one byte read first: a
+record's first chunk is a control chunk and always carries the high bit,
+a free chunk never does.
+
+The hunt hardened everything it touched on the way through, in both
+engines: offline inserts now land data and control under one flush
+BEFORE the hexmap marking goes durable, so a death mid-insert leaves
+unmarked bytes instead of an allocated record of zeros; every canonical
+write clears a poisoned stream first, as the read accessors already did;
+and a node reading degree 0 with a keys head of 0 — the torn shape no
+real node writes — walks as empty. Proven end to end: startup on the
+preserved store that lost its node at every eleventh-run restart now
+keeps it byte for byte; fifteen kill-and-restart pressure cycles ran
+30/30 groups runs green where cycle six used to fail every time; the
+C++ suite 305/305, the Cicili harness green, the full suite `red: 0`
+with zero engine errors, and groups-embed green on the aged store.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
