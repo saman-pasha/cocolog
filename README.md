@@ -102,9 +102,13 @@ What the build needs on the machine:
   build.
 * **A C and a C++ compiler and GNU make** — `gcc`/`g++` or equivalents. The
   interpreter is C; the embedded engine and the torch module are C++.
-* **libtorch** — either `$LIBTORCH` pointing at a standalone distribution, or
-  the pip `torch` package (`pip install torch`), which is where the Makefile
-  looks by default.
+* **libtorch** — either `$LIBTORCH` pointing at the directory that HOLDS
+  `include/` and `lib/` (for headers under `/usr/local/include/torch/...`
+  and dylibs under `/usr/local/lib`, that is `LIBTORCH=/usr/local` — not
+  `/usr/local/lib`), or the pip `torch` package (`pip install torch`),
+  which is where everything looks by default. A standalone or installed
+  libtorch also wants `TORCH_LIB=$LIBTORCH/lib` exported for the
+  Makefile's link line.
 * **SWI-Prolog** — optional; only the `files` test case compares against it,
   and it SKIPs when `swipl` is absent.
 
