@@ -27,7 +27,7 @@ for pl in "$ROOT"/tutorials/[0-9]*.pl; do
   STORE="$OUT/store-$name"
   bad=0
   for goal in train test predict; do
-    if out=$(timeout 300 "$COCOLOG" --kb tutorials --store "$STORE" run "$pl" "$goal" 2>&1); then
+    if out=$(timeout 300 "$COCOLOG" --kb tutorials --embed "$STORE" run "$pl" "$goal" 2>&1); then
       :
     else
       failures=$((failures + 1))

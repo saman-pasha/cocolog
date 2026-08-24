@@ -42,11 +42,11 @@ the model in Zigurat; `polaris`, a fresh process holding nothing but
 the store, loads it back and answers again:
 
 ```console
-$ ./cocolog --store /tmp/northstar run demo/northstar.pl train
+$ ./cocolog --embed /tmp/northstar run demo/northstar.pl train
 learned the diagram: train nll 0.0001, held-out accuracy 1.00
 the model says Polaris is a supergiant
 saved
-$ ./cocolog --store /tmp/northstar run demo/northstar.pl polaris
+$ ./cocolog --embed /tmp/northstar run demo/northstar.pl polaris
 out of the store, the model still says Polaris is a supergiant
 the_sky_agrees
 ```
@@ -170,7 +170,7 @@ suspended machine carrying one finds it meaningless where it thaws,
 exactly as it would a file descriptor. What suspends and what persists
 is the model **as terms** — `model_spec/2` and `model_params/2` — and
 `model_save/2` is nothing but those two and an assert. The knowledge
-base does the rest, which is why a model saved against `--store` (or a
+base does the rest, which is why a model saved against `--embed` (or a
 server) is simply *there* for the next process.
 
 ## Where this sits

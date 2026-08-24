@@ -2743,7 +2743,7 @@ took, every line with a variable in it would pull its result left."
       (should (equal (cocolog-coco-arguments) '("--local"))))
     (let ((cocolog-coco-arrangement 'embed))
       (should (equal (cocolog-coco-arguments)
-                     '("--store" "./KB" "--kb" "main"))))
+                     '("--embed" "./KB" "--kb" "main"))))
     (let ((cocolog-coco-arrangement 'server))
       (should (equal (cocolog-coco-arguments)
                      '("--kb" "main" "--host" "127.0.0.1" "--port" "2160"))))

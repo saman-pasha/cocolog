@@ -20,7 +20,7 @@
 #   make            the C client and the ONE cocolog binary: the interpreter
 #                   with the embedded MVCCS engine and the torch module both
 #                   linked in, so the four knowledge-base arrangements --
-#                   --local, the server, --http, --store/--embed -- are a
+#                   --local, the server, --http, --embed -- are a
 #                   runtime choice, never a build
 #   make client     just the client
 #   make schema     compile the Parsi objects into $(ZIGURATIP_HOME)
@@ -78,13 +78,13 @@ CICILI_RUN = cd "$(CICILI)" && $(SBCL) --script cicili.lisp
 # ONE BINARY. The Cicili run compiles the interpreter and links a plain
 # executable; the link below replaces it with the full one -- the embedded
 # knowledge base (embed/embed.cicili: the same eighteen procedures the
-# server offers, in-process over the Cicili MVCCS engine, so --store DIR
+# server offers, in-process over the Cicili MVCCS engine, so --embed DIR
 # opens the store embedded and `swarm' runs its workers as threads of the
 # one process the store belongs to) and the torch module
 # (torch/coco-torch.cicili: libtorch as cocolog predicates). Both register
 # through weak symbols the interpreter already carries, so linking them in
 # is all it takes. Which knowledge base a run uses -- --local, the server,
-# --http, or --store/--embed -- is then an option, never a build.
+# --http, or --embed -- is then an option, never a build.
 #
 # TORCH_LIB must name the lib directory Cicili's {$TORCH_*} tokens resolved
 # at compile time (default: the pip torch package's).

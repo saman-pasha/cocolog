@@ -305,18 +305,18 @@
         (fprintf stderr "  --http PORT   read over Zeytun instead\n")
         (fprintf stderr "  --local       no database; all in memory. THE DEFAULT:\n")
         (fprintf stderr "                naming --kb, --host or --port chooses the\n")
-        (fprintf stderr "                server, --http Zeytun, --store the embedded\n")
+        (fprintf stderr "                server, --http Zeytun, --embed the embedded\n")
         (fprintf stderr "  --steps N     inferences per step       (default 2000)\n")
         (fprintf stderr "  --timeout S   socket timeout in seconds  (default 20)\n")
         (fprintf stderr "  --answers N   stop after N solutions    (default 10, 0 for all)\n")
         (fprintf stderr "  --lock PATH   take turns through PATH, for a server that\n")
         (fprintf stderr "                cannot take concurrent clients; `auto' names\n")
         (fprintf stderr "                one per host and port. Off by default.\n")
-        (fprintf stderr "  --store DIR   the knowledge base EMBEDDED in this process,\n")
-        (fprintf stderr "                no server; --embed [DIR] says the same thing,\n")
-        (fprintf stderr "                and a bare --embed opens ./KB.\n")
+        (fprintf stderr "  --embed [DIR] the knowledge base EMBEDDED in this process,\n")
+        (fprintf stderr "                no server; a bare --embed opens ./KB. A store\n")
+        (fprintf stderr "                named like a command is written ./run.\n")
         (fprintf stderr "                One binary, four arrangements: --local (the\n")
-        (fprintf stderr "                default), the server, --http, --store\n")
+        (fprintf stderr "                default), the server, --http, --embed\n")
         (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n")
         (fprintf stderr "  --vacuum      let programs call vacuum_kb/0,1 -- reclaims dead\n")
         (fprintf stderr "                rows at the cost of point-in-time reads\n")
@@ -1489,7 +1489,7 @@
   ;;; Twelve processes taking turns through a server is one benchmark; the
   ;;; same twelve workers as THREADS of one process is the embedded store's
   ;;; natural shape, because an embedded engine belongs to a single process.
-  ;;; Each thread opens its own connection -- embedded when --store is given,
+  ;;; Each thread opens its own connection -- embedded when --embed is given,
   ;;; a socket of its own otherwise -- sets the thread-local `db', and runs
   ;;; the very same cmd_work the processes run. Nothing in the work loop
   ;;; knows which arrangement it is in.
@@ -1592,7 +1592,7 @@
           (if ($ opts local)
               (block (fprintf stderr "cocolog: vacuum needs a database\n") (return 1)))
           (if (!= ($ opts http) nil)
-              (block (fprintf stderr "cocolog: vacuum cannot go over Zeytun; use the binary protocol or --store\n")
+              (block (fprintf stderr "cocolog: vacuum cannot go over Zeytun; use the binary protocol or --embed\n")
                      (return 1)))
           (if (not (zg_call db "cocolog::vacuum"))
               (block (fprintf stderr "cocolog: vacuum: %s\n" (zg_error db)) (return 1)))
@@ -1740,8 +1740,8 @@
                 ((== 0 (strcmp a "--local")) (set ($ opts local) 1) (set i (+ i 1)))
                 ;; the directory is OPTIONAL here: a bare --embed opens ./KB.
                 ;; The next word is taken as the directory unless it reads as
-                ;; an option or a command -- a store actually named `run'
-                ;; wants --store, whose value is never optional.
+                ;; an option or a command -- a store actually named `run' is
+                ;; written ./run, which reads as neither.
                 ((== 0 (strcmp a "--embed"))
                  (if (and (< (+ i 1) argc)
                           (!= (nth 0 (nth (+ i 1) argv)) (cast char 45))
@@ -1765,7 +1765,6 @@
                      ((== 0 (strcmp a "--steps"))   (set ($ opts steps) (strtoull v nil 10)))
                      ((== 0 (strcmp a "--timeout")) (set ($ opts timeout) (atoi v)))
                      ((== 0 (strcmp a "--lock"))    (set ($ opts lock) v))
-                     ((== 0 (strcmp a "--store"))   (set ($ opts store) v))
                      ((== 0 (strcmp a "--out"))     (set ($ opts outdir) v))
                      ((== 0 (strcmp a "--answers")) (set ($ opts answers) (atoi v)))
                      (#t (block (fprintf stderr "cocolog: unknown option %s\n" a)
@@ -1773,7 +1772,7 @@
                  (set i (+ i 2))))))
 
           ;; THE DEFAULT ARRANGEMENT IS LOCAL. Naming any part of another one
-          ;; chooses it: --store/--embed the embedded store, --http Zeytun,
+          ;; chooses it: --embed the embedded store, --http Zeytun,
           ;; and --kb, --host or --port the server -- local keeps no named
           ;; knowledge bases, so asking for one is asking for the database.
           ;; The names then take their old defaults whichever way it went.

@@ -145,8 +145,8 @@ fi
 # ---- embed: a piped session writes, a second process reads ----------
 
 printf "assertz(kept(embed_round_trip)).\nhalt.\n" | \
-  "$C" --store "$OUT/KB" --kb repl_test >/dev/null 2>&1
-got=$("$C" --store "$OUT/KB" --kb repl_test query 'kept(X)' 2>/dev/null | head -1)
+  "$C" --embed "$OUT/KB" --kb repl_test >/dev/null 2>&1
+got=$("$C" --embed "$OUT/KB" --kb repl_test query 'kept(X)' 2>/dev/null | head -1)
 check "embed: the session's assert reaches a second process" "$got" "  1. kept(embed_round_trip)"
 
 # ---- wire: the same, through a server -------------------------------

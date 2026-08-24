@@ -12,9 +12,9 @@
 %%   test     reload the model, measure rmse on fresh points, pass under 0.15
 %%   predict  reload the model, answer for a few x values beside the truth
 %%
-%%   ./cocolog --store /tmp/tutorials run tutorials/01-linear-regression.pl train
-%%   ./cocolog --store /tmp/tutorials run tutorials/01-linear-regression.pl test
-%%   ./cocolog --store /tmp/tutorials run tutorials/01-linear-regression.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/01-linear-regression.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/01-linear-regression.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/01-linear-regression.pl predict
 
 % Deterministic noise in (-1, 1): the classic sin-hash. Every run sees the
 % same "random" data, so train and test agree across processes with no files.

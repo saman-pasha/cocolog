@@ -12,8 +12,8 @@
 %  (T ~ 6015 K, L ~ 1260 Lsun, R ~ 37.5 Rsun), and a model that learned
 %  the diagram should say so.
 %
-%    ./cocolog-full --store /tmp/northstar run demo/northstar.pl train
-%    ./cocolog-full --store /tmp/northstar run demo/northstar.pl polaris
+%    ./cocolog --embed /tmp/northstar run demo/northstar.pl train
+%    ./cocolog --embed /tmp/northstar run demo/northstar.pl polaris
 %
 %  `train' learns the sky and saves the model; `polaris' -- in a fresh
 %  process, with nothing but the store -- loads it back and answers.

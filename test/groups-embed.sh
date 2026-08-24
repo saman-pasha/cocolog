@@ -43,7 +43,7 @@ fi
 SETUP_TIMEOUT=${SETUP_TIMEOUT:-20}
 WORKER_TIMEOUT=${WORKER_TIMEOUT:-60}
 
-CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --store $STORE"
+CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --embed $STORE"
 
 GROUPS="a b c d"
 MEMBERS="1 2 3"
@@ -87,7 +87,7 @@ for g in $GROUPS; do
   for m in $MEMBERS; do PAIRS="$PAIRS $g$m state-$g"; done
 done
 set +e
-timeout "$WORKER_TIMEOUT" $COCOLOG --kb $KB --store "$STORE" \
+timeout "$WORKER_TIMEOUT" $COCOLOG --kb $KB --embed "$STORE" \
   --steps 2 --answers 0 --out "$OUT" swarm $PAIRS
 swarm_rc=$?
 [ "$swarm_rc" -eq 124 ] && echo "     TIMED OUT: the swarm"

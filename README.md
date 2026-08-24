@@ -181,7 +181,7 @@ embedded MVCCS engine and the torch module, all in it. Which knowledge base a
 run uses is a runtime choice among four arrangements — `--local` (memory,
 the default when no other arrangement is named),
 the server (`--kb`/`--host`/`--port`), `--http` (Zeytun, read only), and
-`--store DIR` or `--embed [DIR]` (the store inside the process; a bare
+`--embed [DIR]` (the store inside the process; a bare
 `--embed` opens `./KB`) — never a build. Cicili is needed only to build:
 `sbcl` runs `cicili.lisp` over the `.cicili` files and out comes C. The
 embedded engine links against the built ZiguratIP's `Core` and `StreamIO`,
@@ -214,12 +214,17 @@ is true of the store and false of the knowledge base. It interns names and
 declarations only — what the clauses ARE is still nobody's business until
 somebody calls one.
 
-That is three arrangements from one interpreter:
+That is four arrangements from one interpreter:
 
 * **local** — no hooks. Everything in memory. The default: naming `--kb`,
   `--host` or `--port` chooses the server instead.
-* **Zigurat** — `lib/zigurat-kb.cicili`. All five. Machines suspend and resume
-  here.
+* **Zigurat** — `lib/zigurat-kb.cicili`. All five, over the wire. Machines
+  suspend and resume here.
+* **embedded** — `--embed [DIR]` (a bare `--embed` opens `./KB`). The same
+  five hooks — `lib/zigurat-kb.cicili` again, its wire swapped for
+  `embed/embed.cicili`: the same eighteen procedures the server offers,
+  in-process over the Cicili MVCCS engine. No server, no socket, and
+  machines suspend and resume here exactly as they do over the wire.
 * **Zeytun** — `lib/zeytun-kb.cicili`. `fetch` and `warm`, over HTTP, for an
   interpreter that cannot open a socket to the binary port.
 
@@ -392,8 +397,8 @@ The knowledge base is a seam, and `embed/` is a third thing plugged into it:
 the same eighteen `cocolog::*` procedures the server offers, implemented
 in-process over the **Cicili MVCCS engine** (`ZiguratIP/MVCCS-cicili/`) and
 the very `.cicili` table definitions the Parsi compiler generated beside its
-C++ pair. It is in the one `cocolog` binary: `--store DIR` (or `--embed
-[DIR]`, which says the same thing and opens `./KB` when the directory is
+C++ pair. It is in the one `cocolog` binary: `--embed [DIR]` (which
+opens `./KB` when the directory is
 left off) opens the store inside the process — no server, no
 socket — and every command works unchanged, because the C client dispatches
 each verb to the embedded engine behind the same `zg_conn` handle. The hooks
@@ -499,10 +504,10 @@ text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:
 
 ```console
-$ ./cocolog --store /tmp/tut run tutorials/22-embedding-lstm.pl train
+$ ./cocolog --embed /tmp/tut run tutorials/22-embedding-lstm.pl train
 trained: final nll 0.0117
 saved
-$ ./cocolog --store /tmp/tut run tutorials/22-embedding-lstm.pl predict
+$ ./cocolog --embed /tmp/tut run tutorials/22-embedding-lstm.pl predict
 [0,1,2,3,4,5]  ->  contains token 3
 [0,1,2,4,5,6]  ->  no token 3
 [3,0,0,0,0,0]  ->  contains token 3
@@ -610,7 +615,7 @@ account). cocolog carries the pass in three forms, one per kind of caller:
 ```sh
 cocolog vacuum                       # against the server (make schema ships
                                      # the cocolog::vacuum procedure it calls)
-cocolog --store DIR vacuum           # the same pass, embedded — the Cicili
+cocolog --embed DIR vacuum           # the same pass, embedded — the Cicili
                                      # engine's own truncate over the same
                                      # four tables
 cocolog --vacuum query "vacuum_kb"   # from inside a program; also

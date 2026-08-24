@@ -70,7 +70,7 @@ exercise() {
 # ---- embedded: the store inside the process -------------------------
 if [ -x "$ROOT/cocolog" ]; then
   echo "the embedded arrangement"
-  exercise embed "$ROOT/cocolog" --kb vacuum_test --store "$OUT/store"
+  exercise embed "$ROOT/cocolog" --kb vacuum_test --embed "$OUT/store"
 else
   echo "embed: SKIP (no cocolog; make)"
 fi

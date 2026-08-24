@@ -100,13 +100,13 @@ check() {
 }
 
 echo "training, and storing the model in Zigurat"
-train_out=$(timeout 300 "$COCOLOG" --kb torch_test --store "$STORE" run "$OUT/train.pl" train_main 2>&1)
+train_out=$(timeout 300 "$COCOLOG" --kb torch_test --embed "$STORE" run "$OUT/train.pl" train_main 2>&1)
 echo "$train_out" | sed 's/^/     /'
 check "the program trained and saved" \
   "$(echo "$train_out" | grep -c '^saved$')" "1"
 
 echo "a fresh process loads it back"
-load_out=$(timeout 120 "$COCOLOG" --kb torch_test --store "$STORE" run "$OUT/load.pl" load_main 2>&1)
+load_out=$(timeout 120 "$COCOLOG" --kb torch_test --embed "$STORE" run "$OUT/load.pl" load_main 2>&1)
 echo "$load_out" | sed 's/^/     /'
 check "the model came back out of the store" \
   "$(echo "$load_out" | grep -c '^reloaded$')" "1"
@@ -172,11 +172,11 @@ check "every operation family answers as libtorch does" \
   "$(echo "$ops_out" | grep -c '^ops_agree$')" "1"
 
 echo "a conv net with batch norm, through the store"
-conv_out=$(timeout 300 "$COCOLOG" --kb torch_test --store "$STORE" run "$OUT/conv.pl" conv_main 2>&1)
+conv_out=$(timeout 300 "$COCOLOG" --kb torch_test --embed "$STORE" run "$OUT/conv.pl" conv_main 2>&1)
 echo "$conv_out" | sed 's/^/     /'
 check "the conv net learned and saved" \
   "$(echo "$conv_out" | grep -c '^conv_saved$')" "1"
-conv2_out=$(timeout 120 "$COCOLOG" --kb torch_test --store "$STORE" run "$OUT/conv.pl" conv_again 2>&1)
+conv2_out=$(timeout 120 "$COCOLOG" --kb torch_test --embed "$STORE" run "$OUT/conv.pl" conv_again 2>&1)
 echo "$conv2_out" | sed 's/^/     /'
 check "and its buffers came back out of Zigurat" \
   "$(echo "$conv2_out" | grep -c '^conv_reloaded$')" "1"

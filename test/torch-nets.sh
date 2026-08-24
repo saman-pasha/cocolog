@@ -512,4 +512,4 @@ PL
 
 echo "suite_device($DEVICE)." >> "$OUT/nets.pl"
 
-timeout 900 "$COCOLOG" --kb torch_nets --store "$STORE" run "$OUT/nets.pl" suite
+timeout 900 "$COCOLOG" --kb torch_nets --embed "$STORE" run "$OUT/nets.pl" suite

@@ -3226,7 +3226,7 @@ where the binary runs."
   "The arrangement half of a cocolog command line, from the settings."
   (pcase cocolog-coco-arrangement
     ('local  (list "--local"))
-    ('embed  (list "--store" cocolog-coco-store "--kb" cocolog-coco-kb))
+    ('embed  (list "--embed" cocolog-coco-store "--kb" cocolog-coco-kb))
     ('server (list "--kb" cocolog-coco-kb
                    "--host" cocolog-coco-host "--port" cocolog-coco-port))
     ('http
