@@ -385,19 +385,29 @@ every parseable record, and refrees the rest.
 
 ## Prolog that trains
 
-The last seam to be filled: [torch/](torch/README.md) puts libtorch
-behind the module system, so a Prolog program can load a dataset the
-Files module vouched for, train a network on it, and `model_save` the
-result — an assert of the model *as terms*, which the knowledge base
-persists like any other fact. `make torch` builds it; `make full` pairs
-it with the embedded store, and `test/torch.sh` runs the whole story:
-train, store in Zigurat, reload in a fresh process, predict
-identically.
+**Coco is a Prolog that trains.** Most languages bolt machine learning
+on through a foreign library; Coco makes it part of the logic. A
+network is a term you assert, training is a goal you call, and the
+learned weights are facts — saved, queried, and reloaded through the
+same knowledge base that holds your rules. The last seam to be filled:
+[torch/](torch/README.md) puts libtorch behind the module system, so a
+Prolog program can load a dataset the Files module vouched for, train a
+network on it, and `model_save` the result — an assert of the model *as
+terms*, which the knowledge base persists like any other fact.
+`make torch` builds it; `make full` pairs it with the embedded store,
+and `test/torch.sh` runs the whole story: train, store in Zigurat,
+reload in a fresh process, predict identically.
 
+The classic AI/ML challenges pass, one `.pl` file at a time.
 **[tutorials/](tutorials/README.md) holds twenty-four such programs**,
-regression to reinforcement learning, each a documented file with
-`train`, `test` and `predict` goals meant to run as separate processes
-— the store carries the model between them. The one to read first is
+each a documented file carrying `train`, `test` and `predict` as
+separate goals in separate processes — the store carries the model
+between them: regression and classification, two-moons and spirals,
+autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
+dropout, learning-rate schedules, LSTM sequence models with embeddings,
+and fitted Q-iteration reinforcement learning. The whole suite runs
+green, deterministically, in about seventy-five seconds. The one to
+read first is
 [22-embedding-lstm](tutorials/22-embedding-lstm.pl), the shape of every
 text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:
@@ -421,6 +431,15 @@ with reinforcement learning — fitted Q-iteration on a gridworld, the
 DQN idea built from nothing but `model_predict` for the Bellman targets
 and `model_train` for the regression, whose greedy policy walks the
 optimal six moves around the pit.
+
+Underneath: a full torch surface — layers, losses, optimisers, metrics,
+and device selection with honest CUDA refusal rather than silent
+fallback — models persisted as Prolog terms via
+`model_save`/`model_load`, and an MVCC storage engine (ZiguratIP) so
+learned knowledge survives the process the same way asserted knowledge
+does. Where a neural net stops — explaining, constraining, chaining
+conclusions — the Prolog engine picks up, because they were never in
+different systems to begin with.
 
 ## Status
 
