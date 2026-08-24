@@ -739,7 +739,13 @@ conv net's buffers all came back intact in 3 seconds. And the
 cross-process case — one process writing through the wire, a second that
 consulted nothing reading it back — is green on the guarded SELECT walk
 too, which is the read path every one of that second process's queries
-takes. The wedge-immunity came for free.
+takes. So are state and zigurat: state locally (freeze and thaw have no
+server in the loop), and zigurat against the fixed server — the case
+that matters here, because machine state travels in 4000-byte chunks
+that land as exactly the multi-value chains the torn link corrupted.
+With ruler green under eight concurrent readers as well, every case the
+store has now runs green on the guarded walks. The wedge-immunity came
+for free.
 
 ### The test that blocked all of it is fixed
 
