@@ -26,7 +26,8 @@
 
 (source "embed.cpp"
   (make :cpp #t
-        :compile ("-c" "embed.cpp"))
+        :compile ("-Wno-parentheses-equality" "-Wno-dangling-else"
+                  "-c" "embed.cpp"))
 
   (include <cstdio>)
   (include <cstdint>)

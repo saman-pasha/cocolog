@@ -82,6 +82,11 @@
 (source "cocolog.c"
   (make :std #t
         :compile ("-Iclient"
+                  ;; two clang-only complaints about the transpiler's
+                  ;; correct emission: the paren-wrapped while condition
+                  ;; and the unbraced else-if chain. gcc ignores unknown
+                  ;; -Wno- options, so both flags travel to every platform
+                  "-Wno-parentheses-equality" "-Wno-dangling-else"
                   "-c" "cocolog.c")
         :link ("-lcocolog.o"
                "-Lbuild"

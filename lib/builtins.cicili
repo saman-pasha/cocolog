@@ -971,8 +971,7 @@
   (static)
   (func coco_fmt_do ((coco_engine * e) (size_t sink) (size_t fmt) (size_t argt))
         (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (char f [8192]) (char err [192])
+        (let ((char f [8192]) (char err [192])
               (coco_strbuf b) (size_t * items . nil) (size_t n . 0)
               (size_t one [1]) (int owned . 0) (int ok . 0))
 
@@ -1196,8 +1195,7 @@
   ;;; atom rather than a number -- the only difference between the two.
   (static)
   (func coco_b_ctype ((coco_engine * e) (size_t g) (int as_char)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t ct . #'(coco_m_arg e g 0))
+        (let ((size_t ct . #'(coco_m_arg e g 0))
               (size_t ty . #'(coco_m_arg e g 1))
               (int c . 0))
 
@@ -1583,8 +1581,7 @@
   ;;; `op(+Priority, +Type, +Name)'. Name may be a list of names, which is what
   ;;; every real operator declaration uses. Priority 0 takes the operator away.
   (func coco_b_op ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (i64 prec . 0) (int type . 0) (int kind . 0)
+        (let ((i64 prec . 0) (int type . 0) (int kind . 0)
               (const char * ts)
               (size_t * names . nil) (size_t n . 0))
 
@@ -1629,8 +1626,7 @@
   ;;; declaration of the same name and kind has hidden it -- so what comes back
   ;;; is what the reader would actually do, not two tables stuck together.
   (func coco_b_ops ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
+        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
 
           (coco_b_ops_push e (aof v) (aof n) (aof cap) 1)
           (coco_b_ops_push e (aof v) (aof n) (aof cap) 0)

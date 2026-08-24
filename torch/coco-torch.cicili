@@ -41,6 +41,7 @@
 (source "coco-torch.cpp"
   (make :cpp #t
         :compile ("-std=c++17" "-O2" "-Wno-c++20-extensions"
+                  "-Wno-parentheses-equality" "-Wno-dangling-else"
                   "-I{$TORCH_INCLUDE}"
                   "-I{$TORCH_API_INCLUDE}"
                   "-c" "coco-torch.cpp"))
