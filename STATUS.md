@@ -669,9 +669,12 @@ and the finished program proved the full closure. Every server-dependent
 case has now run standalone against the parallel server: groups, vacuum,
 shared, ruler, and zigurat — the backend case that pushes frozen machine
 state through the wire in its 4000-byte chunks — all green, one server
-instance, zero engine errors. (The state case is green too, but it is a
-local one: freeze and thaw in-process, no server in the loop — which is
-exactly why it reads GREEN, not SKIP, on a serverless run.)
+instance, zero engine errors. (The state and files cases are green too,
+but they are local ones — state freezes and thaws in-process, files runs
+cocolog and SWI side by side and diffs their answers line for line, and
+neither has a server in the loop; that is exactly why state reads GREEN,
+not SKIP, on a serverless run, and why files' SKIP condition is "no
+swipl", not "no server".)
 That closes the loop: one shared-read design, both engines, both
 arrangements, benchmarked green on aged stores at wire 5–6s and embedded
 2–3s, with the heaviest module the store carries confirmed on top.
