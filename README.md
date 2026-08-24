@@ -89,6 +89,9 @@ test/                  the suite; groups.sh and ruler.sh are the concurrent
 test/files/            Prolog programs run by BOTH swipl and cocolog, with
                        their output compared line for line
 demo/family.pl         something to run it on
+emacs/                 cocolog-mode: a Prolog major mode with colours for
+                       variables and execution graphs drawn under the rules,
+                       its engine held to this interpreter
 ```
 
 ## Installing
@@ -505,7 +508,27 @@ remaining clause heads can never match is discarded in silence, which
 is the quiet SWI's clause indexing buys. The engine's design pays for
 itself here: the continuation is a term, so the `Exit` port is just a
 marker the body proves its way through, and a frozen machine carries
-its pending exits with it.
+its pending exits with it. **[TRACING.md](TRACING.md)** is the whole
+story: turning it on, reading the ports, the subtleties, and how the
+conformance is kept.
+
+## The Emacs mode
+
+[emacs/](emacs/README.md) holds **cocolog-mode**, a Prolog major mode
+with two ideas of its own: a variable can be a *colour* instead of a
+name — same colour, same variable, which is how Prolog scopes them
+anyway — and a test case lives in a comment beside its rule, where
+`C-c C-t` runs it and draws the whole execution graph underneath, every
+clause tried, as comments that survive git and any other editor. The
+mode carries its own Prolog engine in Emacs Lisp so all of that works
+with nothing installed — and that engine is a deliberate shadow of this
+interpreter, held to it twice over: offline, `make coco` in `emacs/`
+asks both the same 234 queries and compares; live, every graph drawn on
+a machine with a cocolog binary is certified against it on the spot,
+with the four-port trace of the rule refreshing alongside. Pickers
+insert the goals, the grammar pieces and the torch rules (`C-c C-i`,
+`C-c C-g`), and `C-c C-e` [traces a goal](TRACING.md) under the real
+interpreter in any of the four knowledge-base arrangements.
 
 ## Status
 
