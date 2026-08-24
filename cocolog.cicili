@@ -170,7 +170,10 @@
     ;; operator typing the verb is the opt-in.
     (member int          vacuum))
 
-  (var coco_opts opts . '{ "main" "127.0.0.1" "2160" nil 0 2000 20 10 nil nil nil 0 })
+  ;; kb, host and port start EMPTY rather than at their defaults, because
+  ;; whether any of them was written is what picks the arrangement: see the
+  ;; decision after the option loop. They take their old defaults there.
+  (var coco_opts opts . '{ nil nil nil nil 0 2000 20 10 nil nil nil 0 })
 
   ;;; The one connection, when there is one. THREAD-LOCAL, because the
   ;;; `swarm' command runs one worker per thread and each opens its own:
@@ -265,7 +268,9 @@
         (fprintf stderr "  --host HOST   (default 127.0.0.1)\n")
         (fprintf stderr "  --port PORT   binary protocol           (default 2160)\n")
         (fprintf stderr "  --http PORT   read over Zeytun instead\n")
-        (fprintf stderr "  --local       no database; all in memory\n")
+        (fprintf stderr "  --local       no database; all in memory. THE DEFAULT:\n")
+        (fprintf stderr "                naming --kb, --host or --port chooses the\n")
+        (fprintf stderr "                server, --http Zeytun, --store the embedded\n")
         (fprintf stderr "  --steps N     inferences per step       (default 2000)\n")
         (fprintf stderr "  --timeout S   socket timeout in seconds  (default 20)\n")
         (fprintf stderr "  --answers N   stop after N solutions    (default 10, 0 for all)\n")
@@ -274,8 +279,8 @@
         (fprintf stderr "                one per host and port. Off by default.\n")
         (fprintf stderr "  --store DIR   the knowledge base EMBEDDED in this process,\n")
         (fprintf stderr "                no server; --embed DIR says the same thing.\n")
-        (fprintf stderr "                One binary, four arrangements: --local, the\n")
-        (fprintf stderr "                server (--kb/--host/--port), --http, --store\n")
+        (fprintf stderr "                One binary, four arrangements: --local (the\n")
+        (fprintf stderr "                default), the server, --http, --store\n")
         (fprintf stderr "  --out DIR     swarm only: each worker logs to DIR/WORKER.log\n")
         (fprintf stderr "  --vacuum      let programs call vacuum_kb/0,1 -- reclaims dead\n")
         (fprintf stderr "                rows at the cost of point-in-time reads\n"))
@@ -1165,6 +1170,19 @@
                  (set i (+ i 2))))))
 
           (if (>= i argc) (block (usage) (return 1)))
+
+          ;; THE DEFAULT ARRANGEMENT IS LOCAL. Naming any part of another one
+          ;; chooses it: --store/--embed the embedded store, --http Zeytun,
+          ;; and --kb, --host or --port the server -- local keeps no named
+          ;; knowledge bases, so asking for one is asking for the database.
+          ;; The names then take their old defaults whichever way it went.
+          (if (and (== ($ opts local) 0) (== ($ opts store) nil)
+                   (== ($ opts http) nil) (== ($ opts kb) nil)
+                   (== ($ opts host) nil) (== ($ opts port) nil))
+              (set ($ opts local) 1))
+          (if (== ($ opts kb) nil)   (set ($ opts kb) "main"))
+          (if (== ($ opts host) nil) (set ($ opts host) "127.0.0.1"))
+          (if (== ($ opts port) nil) (set ($ opts port) "2160"))
 
           (if (not (install_modules)) (return 1))
           (if (not (open_connection)) (return 1))

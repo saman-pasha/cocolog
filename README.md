@@ -104,7 +104,8 @@ make test       # the suite; the database tests skip without a server
 
 There is one `cocolog` binary and it is the full one: the interpreter, the
 embedded MVCCS engine and the torch module, all in it. Which knowledge base a
-run uses is a runtime choice among four arrangements — `--local` (memory),
+run uses is a runtime choice among four arrangements — `--local` (memory,
+the default when no other arrangement is named),
 the server (`--kb`/`--host`/`--port`), `--http` (Zeytun, read only), and
 `--store DIR` or `--embed DIR` (the store inside the process) — never a
 build. Cicili is needed only to build: `sbcl` runs `cicili.lisp` over the
@@ -141,7 +142,8 @@ somebody calls one.
 
 That is three arrangements from one interpreter:
 
-* **local** — no hooks. Everything in memory.
+* **local** — no hooks. Everything in memory. The default: naming `--kb`,
+  `--host` or `--port` chooses the server instead.
 * **Zigurat** — `lib/zigurat-kb.cicili`. All five. Machines suspend and resume
   here.
 * **Zeytun** — `lib/zeytun-kb.cicili`. `fetch` and `warm`, over HTTP, for an
