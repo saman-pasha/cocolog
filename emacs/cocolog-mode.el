@@ -3161,6 +3161,187 @@ swatch, a colour name or the coloured name itself is shown."
 ;;;; Mode
 ;;;; ------------------------------------------------------------------
 
+
+;;;; ------------------------------------------------------------------
+;;;; Running under coco: the real interpreter, and its four-port tracer
+;;;; ------------------------------------------------------------------
+;; The engine in cocolog-engine.el answers what cocolog answers -- `make
+;; coco' holds it there -- but it is a shadow all the same: no store, no
+;; torch, no other processes.  \\[cocolog-coco-trace] runs a goal over
+;; this buffer's FILE under the real cocolog binary with `--trace' on,
+;; and the Call/Exit/Redo/Fail ports -- SWI's format, held to SWI by
+;; cocolog's own suite -- land in a buffer of their own.  Which
+;; knowledge base the run uses is a setting, the same four arrangements
+;; the binary has.
+
+(defgroup cocolog-coco nil
+  "Running a buffer under the cocolog binary, tracer and all."
+  :group 'cocolog)
+
+(defcustom cocolog-coco-program
+  (let ((here (and load-file-name (file-name-directory load-file-name))))
+    (or (and here
+             (let ((guess (expand-file-name "../cocolog" here)))
+               (and (file-executable-p guess) guess)))
+        "cocolog"))
+  "The cocolog binary.
+When this file loads from a cocolog checkout the binary two doors up is
+found by itself; anywhere else, name one here or have `cocolog' on PATH."
+  :type 'string :group 'cocolog-coco)
+
+(defcustom cocolog-coco-arrangement 'local
+  "Which knowledge base a coco run uses -- the binary's four, as symbols.
+`local' is memory and needs nothing; `embed' opens the store directory
+`cocolog-coco-store' inside the process; `server' talks to a ZiguratIP
+server; `http' reads over Zeytun.  \\[cocolog-set-arrangement] switches
+it for the session."
+  :type '(choice (const local) (const embed) (const server) (const http))
+  :group 'cocolog-coco)
+
+(defcustom cocolog-coco-store "./KB"
+  "The store directory of the `embed' arrangement.
+Relative names are relative to the traced file's directory, which is
+where the binary runs."
+  :type 'string :group 'cocolog-coco)
+
+(defcustom cocolog-coco-kb "main"
+  "The knowledge base name, for the arrangements that name one."
+  :type 'string :group 'cocolog-coco)
+
+(defcustom cocolog-coco-host "127.0.0.1"
+  "The server host of the `server' and `http' arrangements."
+  :type 'string :group 'cocolog-coco)
+
+(defcustom cocolog-coco-port "2160"
+  "The binary-protocol port of the `server' arrangement."
+  :type 'string :group 'cocolog-coco)
+
+(defcustom cocolog-coco-http-port ""
+  "The Zeytun page port of the `http' arrangement.  Empty means unset."
+  :type 'string :group 'cocolog-coco)
+
+(defun cocolog-coco-arguments ()
+  "The arrangement half of a cocolog command line, from the settings."
+  (pcase cocolog-coco-arrangement
+    ('local  (list "--local"))
+    ('embed  (list "--store" cocolog-coco-store "--kb" cocolog-coco-kb))
+    ('server (list "--kb" cocolog-coco-kb
+                   "--host" cocolog-coco-host "--port" cocolog-coco-port))
+    ('http
+     (when (string-empty-p cocolog-coco-http-port)
+       (user-error "Set `cocolog-coco-http-port' before reading over Zeytun"))
+     (list "--kb" cocolog-coco-kb
+           "--host" cocolog-coco-host "--http" cocolog-coco-http-port))))
+
+;;;###autoload
+(defun cocolog-set-arrangement (arrangement)
+  "Pick which knowledge base coco runs use, for this session.
+ARRANGEMENT is one of the binary's four; the customisable options of the
+`cocolog-coco' group carry the store directory, kb name, host and ports."
+  (interactive
+   (list (intern (completing-read "Arrangement: "
+                                  '("local" "embed" "server" "http")
+                                  nil t nil nil
+                                  (symbol-name cocolog-coco-arrangement)))))
+  (setq cocolog-coco-arrangement arrangement)
+  (message "coco runs: cocolog %s"
+           (mapconcat #'identity (cocolog-coco-arguments) " ")))
+
+(defface cocolog-trace-call-face '((t :inherit font-lock-function-name-face))
+  "The Call port." :group 'cocolog-coco)
+(defface cocolog-trace-exit-face '((t :inherit success))
+  "The Exit port." :group 'cocolog-coco)
+(defface cocolog-trace-redo-face '((t :inherit warning))
+  "The Redo port." :group 'cocolog-coco)
+(defface cocolog-trace-fail-face '((t :inherit error))
+  "The Fail port." :group 'cocolog-coco)
+
+(defconst cocolog-trace-font-lock
+  '(("^\\s-*\\(Call\\):" 1 'cocolog-trace-call-face)
+    ("^\\s-*\\(Exit\\):" 1 'cocolog-trace-exit-face)
+    ("^\\s-*\\(Redo\\):" 1 'cocolog-trace-redo-face)
+    ("^\\s-*\\(Fail\\):" 1 'cocolog-trace-fail-face)
+    ("^\\s-*\\(?:Call\\|Exit\\|Redo\\|Fail\\): \\((\\([0-9]+\\))\\)"
+     1 'font-lock-comment-face))
+  "Font lock for the four ports.")
+
+(define-derived-mode cocolog-trace-mode special-mode "coco-trace"
+  "The buffer \\[cocolog-coco-trace] writes the ports into.
+`q' buries it; the process, if still running, dies with the buffer."
+  (setq-local font-lock-defaults '(cocolog-trace-font-lock))
+  (setq-local truncate-lines t))
+
+(defun cocolog--coco-goal-at-point ()
+  "The test query of the rule at point, as a goal, or nil.
+The same comment \\[cocolog-run-test-at-point] runs -- so the goal a
+rule is normally proven by is the goal offered for tracing it."
+  (let* ((db (ignore-errors (cocolog-buffer-db)))
+         (rec (and db (ignore-errors (cocolog-clause-at-point db))))
+         (queries (and rec (ignore-errors (cocolog-clause-queries db rec)))))
+    (and queries (string-trim (car queries)))))
+
+(defvar cocolog--coco-goal-history nil)
+
+(defun cocolog--coco-filter (proc text)
+  "Append TEXT to PROC's buffer, read-only or not."
+  (when (buffer-live-p (process-buffer proc))
+    (with-current-buffer (process-buffer proc)
+      (let ((inhibit-read-only t)
+            (at-end (= (point) (point-max))))
+        (save-excursion (goto-char (point-max)) (insert text))
+        (when at-end (goto-char (point-max)))))))
+
+(defun cocolog--coco-sentinel (proc event)
+  (when (buffer-live-p (process-buffer proc))
+    (with-current-buffer (process-buffer proc)
+      (let ((inhibit-read-only t))
+        (save-excursion
+          (goto-char (point-max))
+          (insert (propertize (format "-- %s" event)
+                              'face 'font-lock-comment-face)))))))
+
+;;;###autoload
+(defun cocolog-coco-trace (goal &optional no-trace)
+  "Run GOAL over this buffer's file under the cocolog binary, traced.
+The four ports -- Call, Exit, Redo, Fail, in SWI's format -- land in
+the *coco trace* buffer as the proof runs, under whichever knowledge
+base `cocolog-coco-arrangement' names (\\[cocolog-set-arrangement]
+switches it).  The goal offered is the rule at point's own test query.
+With a prefix argument NO-TRACE, run without the tracer and show only
+what the goal prints -- the way to run a torch tutorial's `train' from
+the buffer it is written in."
+  (interactive
+   (list (read-string "Goal: " (cocolog--coco-goal-at-point)
+                      'cocolog--coco-goal-history)
+         current-prefix-arg))
+  (unless buffer-file-name
+    (user-error "This buffer has no file for cocolog to consult"))
+  (when (buffer-modified-p)
+    (if (y-or-n-p "Save the buffer first? ")
+        (save-buffer)
+      (user-error "cocolog reads the file, and the file is behind")))
+  (let* ((goal (string-remove-suffix "." (string-trim goal)))
+         (arrangement (cocolog-coco-arguments))
+         (args (append arrangement
+                       (and (not no-trace) (list "--trace"))
+                       (list "run" buffer-file-name goal)))
+         (default-directory (file-name-directory buffer-file-name))
+         (buffer (get-buffer-create "*coco trace*")))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t)) (erase-buffer))
+      (cocolog-trace-mode)
+      (let ((inhibit-read-only t))
+        (insert (propertize
+                 (format "?- %s.    [cocolog %s]\n" goal
+                         (mapconcat #'identity arrangement " "))
+                 'face 'font-lock-comment-face))))
+    (make-process :name "coco-trace"
+                  :buffer buffer
+                  :command (cons cocolog-coco-program args)
+                  :filter #'cocolog--coco-filter
+                  :sentinel #'cocolog--coco-sentinel)
+    (display-buffer buffer)))
+
 (defvar cocolog-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-v") #'cocolog-insert-color-variable)
@@ -3169,6 +3350,7 @@ swatch, a colour name or the coloured name itself is shown."
     (define-key map (kbd "C-c C-u") #'cocolog-uncolor-variable-at-point)
     (define-key map (kbd "C-c C-y") #'cocolog-insert-clause-variable)
     (define-key map (kbd "C-c C-g") #'cocolog-insert-torch-rule)
+    (define-key map (kbd "C-c C-e") #'cocolog-coco-trace)
     (define-key map (kbd "C-c C-i") #'cocolog-insert-goal)
     (define-key map (kbd "C-c C-w") #'cocolog-shuffle-colors)
     (define-key map (kbd "C-c C-d") #'cocolog-drop-stored-colors)
@@ -3249,6 +3431,12 @@ swatch, a colour name or the coloured name itself is shown."
      :help "The same list, opened on white space, a number, the rest of the line"]
     ["Insert a torch rule..." cocolog-insert-torch-rule
      :help "Building a net, training, a trained model -- one column each"]
+
+    ("Under coco"
+     ["Trace a goal (four ports)..." cocolog-coco-trace
+      :help "Run a goal over this file under the cocolog binary with --trace"]
+     ["Pick the knowledge base arrangement..." cocolog-set-arrangement
+      :help "local, embed, server or http -- what a coco run opens"])
 
     ("Test cases"
      ["Run the test case at point" cocolog-run-test-at-point

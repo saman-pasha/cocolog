@@ -405,6 +405,7 @@ ancestor(X, Z) :- parent(X, Y), ancestor(Y, Z).
 | `C-u C-c C-t`, `C-c C-a` | `cocolog-run-all-tests` | do that for the whole buffer |
 | `C-c C-k` | `cocolog-clear-trace-at-point` | remove the graph again (`C-u` for all of them) |
 | `C-c C-q` | `cocolog-query` | ask a one-off query, result in a side window |
+| `C-c C-e` | `cocolog-coco-trace` | run a goal over this file under the real `cocolog` binary with the four-port tracer on (`C-u` for no tracer, just the goal's output) |
 | `C-c C-l` | `cocolog-check-buffer` | list syntax errors |
 
 Details:
@@ -441,6 +442,27 @@ Details:
 * `▸N` is the Nth clause of the predicate, in source order.
 * The solutions of the query and a summary line (solution count, inference
   count) close the block.
+
+## Tracing under the real interpreter
+
+The graphs above run on the mode's own engine. `C-c C-e`
+(`cocolog-coco-trace`) runs a goal over the buffer's FILE under the real
+`cocolog` binary with `--trace` on, and streams the four ports — `Call`,
+`Exit`, `Redo`, `Fail`, in SWI-Prolog's format, which cocolog's own
+suite holds it to port for port — into a `*coco trace*` buffer, each
+port in its own colour. The goal offered is the rule at point's own
+`?-` test comment, so tracing a rule is `C-c C-e RET`.
+
+Which knowledge base the run opens is a setting, the binary's own four:
+`local` (memory, the default), `embed` (the store at
+`cocolog-coco-store`, `./KB`), `server` and `http`.
+`M-x cocolog-set-arrangement` switches it for the session, and the
+`cocolog-coco` customisation group holds the store directory, kb name,
+host and ports. With `C-u` the tracer stays off and the buffer shows
+only what the goal prints — which is how a torch tutorial's `train`
+runs from the buffer it is written in: `embed` arrangement, goal
+`train`, and the model lands in the store for `test` and `predict` to
+load.
 
 ## Grammar rules
 
@@ -557,6 +579,11 @@ turn it on from the **Coco** menu under "Test cases".
 | `cocolog-pick-columns` | `2` | how many columns `C-c C-i` lays its groups out in |
 | `cocolog-torch-pick-columns` | `3` | how many columns `C-c C-g` lays the torch groups out in — one each |
 | `cocolog-torch-snippets` | 3 groups | the torch rules `C-c C-g` offers, shaped like the other two tables |
+| `cocolog-coco-program` | the checkout's | the `cocolog` binary `C-c C-e` runs — found beside the mode in a cocolog checkout, `cocolog` on PATH otherwise |
+| `cocolog-coco-arrangement` | `local` | which knowledge base a coco run opens: `local`, `embed`, `server` or `http` — `M-x cocolog-set-arrangement` switches it |
+| `cocolog-coco-store` | `./KB` | the store directory of the `embed` arrangement |
+| `cocolog-coco-kb` | `main` | the knowledge base name, where one is named |
+| `cocolog-coco-host`, `-port`, `-http-port` | the binary's | where the `server` and `http` arrangements connect |
 | `cocolog-color-plain-variables` | `nil` | colour ordinary variables on screen, writing nothing (`C-c C-c`) — off to begin with, since it is what font lock spends its time on in a very large file |
 | `cocolog-adopt-known-variables` | `t` | a name the clause already has becomes that variable |
 | `cocolog-auto-color` | `nil` | colour an ordinary variable as soon as you finish typing it |

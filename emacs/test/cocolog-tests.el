@@ -1535,13 +1535,13 @@ mode chooses itself should simply be visible."
    (t nil)))
 
 (defconst cocolog-test-menu-exempt
-  '(cocolog-mode cocolog-view-mode cocolog-indent-line
+  '(cocolog-mode cocolog-view-mode cocolog-trace-mode cocolog-indent-line
     cocolog-delete-variable-backward-untabify
     cocolog-markdown-setup cocolog-markdown-display-images
     cocolog-markdown-remove-images cocolog-markdown-images-mode)
   "Commands that belong in no Coco menu, or in the Markdown one.
-`cocolog-mode' and `cocolog-view-mode' are the modes themselves and
-`cocolog-indent-line' is what TAB runs.
+`cocolog-mode', `cocolog-view-mode' and `cocolog-trace-mode' are the
+modes themselves and `cocolog-indent-line' is what TAB runs.
 `cocolog-delete-variable-backward-untabify' stands in for a key only
 some people bind, and the menu already offers the plain one; the rest live in the Markdown
 menu, which `cocolog-test-markdown-menu-is-complete\=' checks.")
@@ -2730,6 +2730,75 @@ took, every line with a variable in it would pull its result left."
     (font-lock-ensure)
     (should (equal (cocolog-test--shown-text (point-min) (1- (point-max)))
                    "p( Kid ) :- q( Kid )."))))
+
+
+;;;; running under coco
+
+(ert-deftest cocolog-test-coco-arguments-name-each-arrangement ()
+  "The settings become the binary's own options, one arrangement each."
+  (let ((cocolog-coco-store "./KB") (cocolog-coco-kb "main")
+        (cocolog-coco-host "127.0.0.1") (cocolog-coco-port "2160")
+        (cocolog-coco-http-port "8008"))
+    (let ((cocolog-coco-arrangement 'local))
+      (should (equal (cocolog-coco-arguments) '("--local"))))
+    (let ((cocolog-coco-arrangement 'embed))
+      (should (equal (cocolog-coco-arguments)
+                     '("--store" "./KB" "--kb" "main"))))
+    (let ((cocolog-coco-arrangement 'server))
+      (should (equal (cocolog-coco-arguments)
+                     '("--kb" "main" "--host" "127.0.0.1" "--port" "2160"))))
+    (let ((cocolog-coco-arrangement 'http))
+      (should (equal (cocolog-coco-arguments)
+                     '("--kb" "main" "--host" "127.0.0.1" "--http" "8008"))))))
+
+(ert-deftest cocolog-test-coco-http-without-a-port-refuses ()
+  (let ((cocolog-coco-arrangement 'http) (cocolog-coco-http-port ""))
+    (should-error (cocolog-coco-arguments) :type 'user-error)))
+
+(ert-deftest cocolog-test-coco-trace-is-on-its-key ()
+  (should (eq (lookup-key cocolog-mode-map (kbd "C-c C-e")) #'cocolog-coco-trace)))
+
+(ert-deftest cocolog-test-coco-trace-runs-the-real-binary ()
+  "End to end when the binary is beside the checkout: the ports arrive.
+SKIPs (passes vacuously) without a built cocolog, the way the shell
+suite's database cases do without a server."
+  (let ((program cocolog-coco-program))
+    (when (and program (file-executable-p program))
+      (let ((pl (make-temp-file "coco-trace" nil ".pl"
+                                "anc(X, Y) :- parent(X, Y).\nparent(a, b).\n")))
+        (unwind-protect
+            (with-temp-buffer
+              (insert-file-contents pl)
+              (setq buffer-file-name pl)
+              ;; the file IS the buffer here; a modified flag would make
+              ;; the command ask about saving, and batch has nobody to ask
+              (set-buffer-modified-p nil)
+              (let ((cocolog-coco-arrangement 'local))
+                (cocolog-coco-trace "anc(a, X)"))
+              (let ((buffer (get-buffer "*coco trace*"))
+                    (deadline (+ (float-time) 20)))
+                (should buffer)
+                (with-current-buffer buffer
+                  ;; wait for the SENTINEL, not the ports: the process is
+                  ;; then dead and the cleanup below kills nothing live
+                  (while (and (< (float-time) deadline)
+                              (not (save-excursion
+                                     (goto-char (point-min))
+                                     (search-forward "-- finished" nil t))))
+                    (accept-process-output nil 0.1))
+                  (should (save-excursion
+                            (goto-char (point-min))
+                            (search-forward "Call: (1) anc(a," nil t)))
+                  (should (save-excursion
+                            (goto-char (point-min))
+                            (search-forward "Exit: (1) anc(a,b)" nil t))))))
+          (ignore-errors (delete-file pl))
+          (let ((buffer (get-buffer "*coco trace*")))
+            (when buffer
+              (let ((proc (get-buffer-process buffer)))
+                (when proc (delete-process proc)))
+              (let ((kill-buffer-query-functions nil))
+                (kill-buffer buffer)))))))))
 
 (provide 'cocolog-tests)
 
