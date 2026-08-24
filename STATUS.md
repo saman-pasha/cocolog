@@ -872,6 +872,18 @@ single-clause data helper now ends in a cut, and the full run dropping
 from 372 to 76 seconds is that diagnosis confirmed from the other
 side: the duplicates had been silently doubling everybody's data.
 
+The main README now makes the case in full. Its "Prolog that trains"
+section opens with the thesis — a network is a term you assert,
+training is a goal you call, and the learned weights are facts, saved
+and reloaded through the same knowledge base that holds the rules —
+then names the challenges the tutorial suite passes, regression to
+fitted Q-iteration, green deterministically in about seventy-five
+seconds, and closes on what sits underneath: the full torch surface
+with honest CUDA refusal, models persisted as terms, the MVCC store —
+and the point of the whole arrangement, that where a neural net stops
+(explaining, constraining, chaining conclusions) the Prolog engine
+picks up, because they were never in different systems to begin with.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
