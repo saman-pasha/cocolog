@@ -116,15 +116,23 @@ git clone https://github.com/saman-pasha/ziguratip ZiguratIP
 git clone https://github.com/saman-pasha/cocolog
 ```
 
+**Set these three, and put them in your shell profile** (`~/.zshrc` or
+`~/.bashrc`) — every build and every test shell needs all of them, and a
+shell without them fails with `set CICILI to a Cicili checkout` or, worse,
+builds against the wrong tree:
+
+```sh
+export CICILI="$HOME/Projects/GitHub/cicili"        # the Cicili checkout, for sbcl
+export ZIGURATIP="$HOME/Projects/GitHub/ZiguratIP"  # the BUILT ZiguratIP checkout
+export ZIGURATIP_HOME="$ZIGURATIP/home"             # and its home
+```
+
 Build ZiguratIP first — plain `make` in its checkout; a C++11 compiler is all
 it asks — which fills `ZiguratIP/home` with its libraries, its `parsi`
 compiler and the server binary. Then:
 
 ```sh
 cd cocolog
-export CICILI=/path/to/cicili                 # a Cicili checkout, for sbcl
-export ZIGURATIP=/path/to/ZiguratIP           # the BUILT ZiguratIP checkout
-export ZIGURATIP_HOME=$ZIGURATIP/home         # and its home
 make            # the C client and the ONE cocolog binary
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make test       # the suite; the database tests skip without a server
