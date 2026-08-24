@@ -835,7 +835,11 @@ fourteen seconds on a CPU.
 ### The tutorials, one file each
 
 The suite's twenty-three networks rewritten as standalone tutorial
-programs (`tutorials/NN-name.pl`), each documented in place and each
+programs (`tutorials/NN-name.pl`) — plus a twenty-fourth the suite does
+not have: reinforcement learning, as fitted Q-iteration on a gridworld,
+the DQN idea built from nothing but `model_predict` for the Bellman
+targets and `model_train` for the regression, whose greedy policy walks
+the optimal six moves around the pit. Each file is documented in place and each
 carrying three goals meant to be three PROCESSES against one store:
 `train` builds its data, fits, and `model_save`s; `test` `model_load`s
 in a fresh process and judges against a threshold; `predict` loads and

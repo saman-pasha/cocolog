@@ -1,6 +1,6 @@
 # Torch tutorials, one file each
 
-Twenty-three networks, each a PyTorch-tutorial classic rewritten as a
+Twenty-four networks, each a PyTorch-tutorial classic rewritten as a
 standalone Prolog program against the Torch module. Every file carries
 its own documentation and three goals, each meant to run as its OWN
 process against the same store, because the trained model lives in the
@@ -42,6 +42,7 @@ and every run agrees with the last.
 | 21-lstm-sum | sequence input, recurrent accumulation |
 | 22-embedding-lstm | token ids, embeddings, memory |
 | 23-stacked-lstm | recurrent depth, weights through the store |
+| 24-q-learning | reinforcement learning: fitted Q-iteration on a gridworld |
 
 One cocolog property every file here respects: `run` CONSULTS the file
 into the knowledge base, and the knowledge base is the store -- so the

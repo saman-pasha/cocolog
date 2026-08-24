@@ -394,6 +394,34 @@ it with the embedded store, and `test/torch.sh` runs the whole story:
 train, store in Zigurat, reload in a fresh process, predict
 identically.
 
+**[tutorials/](tutorials/README.md) holds twenty-four such programs**,
+regression to reinforcement learning, each a documented file with
+`train`, `test` and `predict` goals meant to run as separate processes
+— the store carries the model between them. The one to read first is
+[22-embedding-lstm](tutorials/22-embedding-lstm.pl), the shape of every
+text classifier at toy scale — token ids through a learned embedding
+into an LSTM, trained to remember whether token 3 ever appeared:
+
+```console
+$ ./cocolog-full --store /tmp/tut run tutorials/22-embedding-lstm.pl train
+trained: final nll 0.0117
+saved
+$ ./cocolog-full --store /tmp/tut run tutorials/22-embedding-lstm.pl predict
+[0,1,2,3,4,5]  ->  contains token 3
+[0,1,2,4,5,6]  ->  no token 3
+[3,0,0,0,0,0]  ->  contains token 3
+[7,7,7,7,7,7]  ->  no token 3
+```
+
+That third line is the point: the token sat at the very start and the
+LSTM carried the fact across five further steps, in a model that was
+trained by one process, stored as terms, and is answering in another.
+And [24-q-learning](tutorials/24-q-learning.pl) closes the collection
+with reinforcement learning — fitted Q-iteration on a gridworld, the
+DQN idea built from nothing but `model_predict` for the Bellman targets
+and `model_train` for the regression, whose greedy policy walks the
+optimal six moves around the pit.
+
 ## Status
 
 The interpreter, the serialisation, both transports, the schema and the
