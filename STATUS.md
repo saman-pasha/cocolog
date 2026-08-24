@@ -1019,6 +1019,54 @@ ZiguratIP build with every System page (serializer and mem among
 them), then cocolog's schema against the rebuilt home and the whole
 suite — twelve cases GREEN against a live server, `red: 0`.
 
+### The toplevel: bare cocolog is what bare swipl is
+
+No command at all now enters a REPL, in whichever of the four
+arrangements the options name — `cocolog` is a `?- ` in memory,
+`cocolog --kb demo` is a `?- ` on the server's `demo`. The pieces were
+waiting. The reader keeps a variable-name table per clause whose own
+comment says what it is for — "`X = 1` rather than `_G17 = 1` — which
+is what a REPL and the tests need" — so answers wear the query's own
+names, the one thing `query` cannot promise, its machine possibly
+thawed from a store the names never reached. The engine re-asks on
+`coco_engine_ask`, so one machine, one store and one engine live for
+the whole session: what a goal asserts or consults the next goal sees,
+and against a database every finished goal is one committed
+transaction, exactly as `query` has it. `halt/0` was already an
+engine affair (`halted`, `halt_code`), so `halt.` is not even a
+special case — the loop notices and leaves.
+
+The answer shapes are held to a live SWI, not to memory of one. The
+ambiguous cases — which variable does a still-unbound shared cell get
+named for? — were put to `swipl` on this machine and the answers
+copied: the cell is named for the LAST variable standing on it
+(`X = Y.` answers `X = Y.`; `f(A,B) = f(B,A).` answers `A = B.`), a
+bound value shows that name where the writer said `_G<cell>`
+(`X = f(Z), Y = Z.` answers `X = f(Y), Z = Y.` — an exact
+substitution, the writer's `_G` number being the cell index), and a
+`_`-named variable names cells without ever getting a line of its own
+(`X = f(_Q).` answers itself). The punctuation is honest because the
+engine's choice stack is: a solution that left no choice point ends
+`.` with nobody asked, one that did prints a space and waits for `;`.
+Prompts and the banner go to stderr and only at a terminal; piped
+input has the `;` a terminal would have echoed restored on the way
+out, so a piped transcript reads as a terminal session and stdout is
+the answers alone.
+
+`test/repl.sh` — the suite's thirteenth case — holds sixteen local
+cases (the SWI alias trio verbatim from the live run) and the
+cross-process claim in both store arrangements: a piped session
+asserts and `halt.`s, and a second process that consulted nothing
+reads the fact back — embedded always, wire SKIPping without a
+server. One expectation failed the right way while writing it: a
+dynamic predicate's last clause answers determinately (`fact(X).`
+closes `X = two.` unprompted, the store knowing its clause count)
+where `member/2`, whose alternatives live in a recursive clause body,
+waits a third `;` and closes with `false.` — each the honest reading
+of its own choice stack, and SWI's own machinery splits the same way
+for its own reasons. All thirteen GREEN against a live server,
+`red: 0`.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
