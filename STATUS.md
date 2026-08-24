@@ -669,7 +669,12 @@ and the finished program proved the full closure. Every server-dependent
 case has now run standalone against the parallel server: groups, vacuum,
 shared, ruler, and zigurat — the backend case that pushes frozen machine
 state through the wire in its 4000-byte chunks — all green, one server
-instance, zero engine errors. (The state and files cases are green too,
+instance, zero engine errors. The pure C client's probe ran against the
+same instance too, 20 checks green: protocol framing and its refusals
+(the String and Text limits refused cleanly, connection still in step),
+the transaction lifecycle, ordered clause reads, machine state in chunks
+and back in seq order, the Zeytun page serving the same clauses over
+HTTP, and escapable characters surviving the full round trip. (The state and files cases are green too,
 but they are local ones — state freezes and thaws in-process, files runs
 cocolog and SWI side by side and diffs their answers line for line, and
 neither has a server in the loop; that is exactly why state reads GREEN,
