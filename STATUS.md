@@ -789,6 +789,30 @@ keeps it byte for byte; fifteen kill-and-restart pressure cycles ran
 C++ suite 305/305, the Cicili harness green, the full suite `red: 0`
 with zero engine errors, and groups-embed green on the aged store.
 
+### Twenty networks through the Torch module
+
+The PyTorch tutorial classics, each rewritten as a Prolog program
+against the module's own surface and run as one suite
+(`test/torch-nets.sh`): linear regression under sgd and adam,
+polynomial features, sine through tanh and a gaussian bump through
+relu, step-scheduled sgd, mae over deliberate outliers, two regression
+targets at once; logistic regression on a bce sigmoid head, xor, two
+moons, four blobs under nll, a three-arm spiral on raw
+cross-entropy logits, and dropout proven inert at predict time (two
+forwards, one answer); conv/pool bars on an 8×8 canvas, a two-stage
+mini LeNet over three shapes, and batch-norm whose running buffers
+serve at eval; an 8→3→8 autoencoder and a denoiser; and the save/load
+round trip through the knowledge base, params and predictions
+identical. Every net builds its own data — deterministic by
+`torch_seed` and a sin-hash noise, no files, no downloads — trains,
+and tests against a threshold. **All twenty run green in about ten
+seconds on a CPU**, and the suite SKIPs without a `make full` build
+because "no libtorch here" and "the module is wrong" are different
+findings. The tuning lessons the suite keeps: the 8-3-8 bottleneck
+wants encoder and decoder hidden layers around it, and sgd at 0.3 on a
+tanh net diverges to NaN where relu at 0.1 glides — both now written
+into the nets as they stand.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three
