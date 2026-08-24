@@ -722,7 +722,13 @@ read path in the engine — every index SELECT's value walk now asks
 whether each link resolves and remembers where it has been: the
 twelve-worker wire choreography ran 12/12 green at **5–7 seconds,
 effectively 6s flat**, on a store eighteen runs deep — the established
-band, unmoved. The wedge-immunity came for free.
+band, unmoved. The embedded arrangement holds its band the same way:
+27 of 28 runs green at **2–3 seconds flat** on the aged store, parallel
+default and exclusive alike. The one red exited through a worker's
+normal "nothing left to do" line with healthy claim counts and did not
+recur in 23 straight runs after — the rare-flake territory the
+Contention watch already covers, not a property of the guards. The
+wedge-immunity came for free.
 
 ### The test that blocked all of it is fixed
 
