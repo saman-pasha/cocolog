@@ -505,7 +505,7 @@
   (func cmd_step ((const char * name) (int to_the_end)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_strbuf out)
               (int n . 0) (int rc . 1) (int done . 0)
-              (int outcome . 0) (int broke . 0))
+              (int outcome . 0) (int broke . 0) (int committed . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: step needs a database\n")
                      (return (turn FAILED))))
@@ -573,6 +573,7 @@
                        break))
 
             ;; Committed. Only now is any of it true.
+            (set committed 1)
             (if (!= ($ out s) nil) (fputs ($ out s) (wout)))
             (if done
                 (fprintf (wout) "%s: finished after %llu inference(s), %d answer(s) this turn\n"
@@ -581,6 +582,15 @@
                       name (cast ullong ($ e steps)) n))
             (set outcome (? done (? broke (turn FAILED) (turn FINISHED)) (turn MORE)))
             break)
+
+          ;; A turn that did not commit is ROLLED BACK, not abandoned: the
+          ;; turn is ONE transaction now, claim included, so the rollback is
+          ;; what hands the machine straight back to the pool. A lost
+          ;; connection needs nothing -- the server rolls back on the broken
+          ;; socket -- and a lost connection is the one case zg_is_open
+          ;; excludes.
+          (if (and (== committed 0) (zg_is_open db))
+              (zg_rollback db))
 
           (coco_sb_free (aof out))
           (coco_engine_free (aof e))
@@ -618,30 +628,6 @@
                               worker ($ opts host) ($ opts port) (zg_error db))
                      (return 0)))
           (return 1)))
-
-  ;;; Puts a machine back in the pool. Best effort by nature: it is called
-  ;;; where a turn has already gone wrong.
-  ;;;
-  ;;; WHY IT IS NEEDED. The claim is committed before the machine is touched,
-  ;;; so a worker whose connection dies during the turn leaves the machine
-  ;;; marked as its own with none of the work done -- claimed by a worker that
-  ;;; is no longer doing anything about it. Nothing else would ever pick it up:
-  ;;; a claim looks only for `suspended'. So the worker that broke puts it
-  ;;; back itself, on its new connection.
-  (func release ((const char * worker) (const char * name)) (out int)
-        (let ((zg_result_t r))
-          (if (not (zg_call db "cocolog::machine_release"))
-              (block (fprintf stderr "%s: release '%s': %s\n" worker name (zg_error db))
-                     (return 0)))
-          (if (not (zg_write_string db name)) (return 0))
-          (while 1
-            (if (not (zg_result db (aof r))) (return 0))
-            (if (== r ZG_SUCCESSFUL_DONE) break)
-            (cond
-              ((== r ZG_RETURN_VALUE) (zg_skip_field db))
-              ((== r ZG_CURSOR_FETCH) break)
-              (#t (block))))
-          (return (? (zg_commit db) 1 0))))
 
   ;;; Whether a machine is still in the database at all: 1 yes, 0 gone,
   ;;; -1 the call did not happen.
@@ -732,9 +718,14 @@
                (if (zg_read_string db name cap nil) (set got 1)))
               ((== r ZG_CURSOR_FETCH) break)
               (#t (block))))
-          ;; The claim has to stand before the machine is touched, so it is
-          ;; committed here rather than left to the end of the turn.
-          (if (not (zg_commit db)) (return -1))
+          ;; NOT COMMITTED: the claim rides the turn's one transaction. The
+          ;; turn-final commit in cmd_step is what makes it stand, and a
+          ;; worker that dies or fails mid-turn takes its claim down with the
+          ;; rollback -- the machine goes straight back to the pool instead
+          ;; of sitting stranded as that worker's own. The claim procedure
+          ;; hands SERIALIZABLE back to READ COMMITTED before returning, so
+          ;; the slot of one is held for the claim's few statements, not the
+          ;; whole turn.
           (return (? (and got (!= (nth 0 name) (cast char 0))) 1 0))))
 
   ;;; Claim, advance, put back. A worker loop, and several of these against one
@@ -868,9 +859,12 @@
                                      worker hurt)
                             break))
                  (if (not (recover worker hurt)) break)
-                 ;; The claim was committed, so the machine is still marked as
-                 ;; ours even though the turn is not. Put it back.
-                 (release worker name)
+                 ;; Nothing to put back: the claim rode the turn's one
+                 ;; transaction, and the server rolled the whole thing --
+                 ;; claim included -- back when the connection went. The
+                 ;; machine is already in the pool for whoever gets there
+                 ;; first, which may well be this worker on its new
+                 ;; connection.
                  continue))
 
             ;; A turn that happened. FAILED means the program is wrong, and it

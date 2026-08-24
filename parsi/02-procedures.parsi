@@ -350,6 +350,14 @@ BEGIN
         WHERE name == found;
     END
 
+    -- The claim now RIDES THE TURN'S ONE TRANSACTION instead of committing
+    -- ahead of it, so the strong level must be handed back here: the stamps
+    -- the claim took stay staged until the turn commits, but the statements
+    -- after this -- loading, proving, saving -- run at READ COMMITTED, and
+    -- the SERIALIZABLE slot of one goes back to the next claimant instead of
+    -- being held for a whole turn.
+    TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
     RETURN found;
 END
 
@@ -388,6 +396,9 @@ BEGIN
         SET status = p_worker
         WHERE name == found;
     END
+
+    -- Handed back for the same reason as cocolog::machine_claim above.
+    TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
     RETURN found;
 END

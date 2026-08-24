@@ -59,11 +59,13 @@ the answer on a store written since the schema went `NOT NULL` — `groups` and
 has the numbers; a store from before that carries NULLs and can only be
 restarted (STATUS.md says why).
 
-Two things follow when a run does go wrong. A killed worker **strands its
-machine as claimed**, and `drop` does not clear a claimed one — so
-`cocolog --kb groups_test list` and drop what is there before believing a later
-result. And a wedged server answers NOBODY on any knowledge base, so restart it
-before blaming whatever you were working on.
+Two things follow when a run does go wrong. A killed worker used to **strand
+its machine as claimed**; since the turn became ONE transaction (claim
+included), a dead or failed worker's claim rolls back with its turn and the
+machine goes straight back to the pool — but a `list` after a bad run is
+still worth a look, because a machine claimed by a *live* wedged worker
+looks the same as it always did. And a wedged server answers NOBODY on any
+knowledge base, so restart it before blaming whatever you were working on.
 
 **`red: 0` does not mean the suite passed.** `zigurat`, `shared`, `groups` and
 `ruler` SKIP rather than fail when there is no server, because "no server here"

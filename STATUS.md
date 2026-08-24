@@ -582,6 +582,30 @@ embedded 12/12 at 1–2 seconds (parallel default) and 4/4 at 5 seconds
 torch green in both arrangements, the full suite `red: 0`, 304 C++ cases
 and the standalone Cicili harness green.
 
+### A turn is one transaction, in both arrangements
+
+The turn used to be two: the claim committed ahead of the work "so it would
+stand before the machine was touched", and that standing claim was the
+stranded-machine hazard in person — a worker killed mid-turn left the
+machine marked as its own forever, `drop` would not clear it, and CLAUDE.md
+taught the manual recovery. The claim now RIDES the turn's single
+transaction: the turn-final commit is what makes it stand, a turn that
+fails in-band is rolled back explicitly, and a worker that dies takes its
+claim down with the server's rollback of the broken connection — the
+machine goes straight back to the pool. Proven directly: a worker
+SIGKILLed mid-run leaves its machine `suspended`, not stranded. The
+`release` hand-back function is gone with the hazard it existed for.
+
+What made this affordable is the isolation hand-back: the claim procedures
+(and the embedded claim) drop from SERIALIZABLE to READ COMMITTED after
+their update, inside the still-open transaction — the stamps stay staged
+until the turn commits, but the slot-of-one goes to the next claimant
+after the claim's few statements instead of being held for a whole turn.
+Measured with the turn as one transaction, fresh stores: embedded 12/12
+green at 2–3 seconds, wire 6/6 green at 5–6 seconds — a second FASTER
+than the two-transaction turn — with zero engine errors, and vacuum and
+torch green in both arrangements.
+
 ### The test that blocked all of it is fixed
 
 `readers_do_not_queue_behind_staged_writes` — the suite's ~one-in-three

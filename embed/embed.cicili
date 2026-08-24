@@ -668,6 +668,7 @@
       (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
       (if (== ($ c got) 0)
           (block
+            (set_isolation_level (txn) READ_COMMITTED)
             (emit_result s CE_RETURN)
             (emit_str s CE_TDB_STRING "")
             (emit_result s CE_DONE)
@@ -675,6 +676,11 @@
       (let ((COCOLOG_MACHINES claimed . #'($ c row)))
         (set ($ claimed STATUS) (std::string (arg_str s 1)))
         (COCOLOG_MACHINES_update (aof ce_mem) (aof ($ c row)) (aof claimed))
+        ;; the claim now RIDES THE TURN'S ONE TRANSACTION: the stamps stay
+        ;; staged until the turn commits, but the statements after this run
+        ;; at READ COMMITTED, and the SERIALIZABLE slot of one goes back to
+        ;; the next claimant instead of being held for a whole turn
+        (set_isolation_level (txn) READ_COMMITTED)
         (emit_result s CE_RETURN)
         (emit_str s CE_TDB_STRING (($ ($ claimed NAME) c_str)))
         (emit_result s CE_DONE))))
