@@ -667,7 +667,11 @@ demonstrably read WHILE the writer wrote (a querier's answer count grew
 from 0 to 37 across its own run), nobody answered outside the program,
 and the finished program proved the full closure. Every server-dependent
 case has now run standalone against the parallel server: groups, vacuum,
-shared, ruler — all green, one server instance, zero engine errors.
+shared, ruler, and zigurat — the backend case that pushes frozen machine
+state through the wire in its 4000-byte chunks — all green, one server
+instance, zero engine errors. (The state case is green too, but it is a
+local one: freeze and thaw in-process, no server in the loop — which is
+exactly why it reads GREEN, not SKIP, on a serverless run.)
 That closes the loop: one shared-read design, both engines, both
 arrangements, benchmarked green on aged stores at wire 5–6s and embedded
 2–3s, with the heaviest module the store carries confirmed on top.
