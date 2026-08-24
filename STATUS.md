@@ -901,6 +901,77 @@ suite failed 4 of 10 runs before the fix and 0 of 21 after, in both
 engines. (A different, much rarer Contention flake — one failure in ten
 runs, not reproduced in six retries — remains under watch.)
 
+### One binary, four arrangements, and the emacs mode held to it
+
+The build variants collapsed: `cocolog`, `cocolog-embed`,
+`cocolog-torch` and `cocolog-full` are ONE binary now, the full one —
+interpreter, embedded MVCCS engine and torch module linked together,
+the engines still registering through the weak symbols the interpreter
+always carried. Which knowledge base a run uses became a runtime
+choice, never a build: `--local` (memory, now the DEFAULT — naming
+`--kb`, `--host` or `--port` chooses the server, since local keeps no
+named knowledge bases), the server, `--http`, and `--store DIR` — with
+`--embed [DIR]` as its synonym, a bare `--embed` opening `./KB`. The
+README grew an Installing section to match: prerequisites, the three
+checkouts side by side, ZiguratIP built first, and four first runs,
+one per arrangement. Proven at each step on the one binary: the whole
+suite GREEN against a live server, the tutorials, vacuum's both
+halves, groups-embed.
+
+Alongside it, the emacs mode was pointed at coco instead of SWI: its
+conformance harness (`make coco` in `emacs/`) asks the engine of the
+mode and the cocolog binary the same questions — every example-file
+query, every conformance query, and every example the snippet pickers
+show — 234 queries, 0 differ. Getting there fixed real gaps in
+cocolog's own arithmetic (`round`, `gcd`, `^`, integer `**`,
+`number_codes` accepting a written `+`), taught the harness SWI's
+shadowing rule for a flat-namespace Prolog, and gave `C-c C-g` the
+three-column torch rule picker beside `C-c C-i`'s goals.
+
+### The four-port tracer, held to SWI port for port
+
+cocolog has a tracer now: `--trace` prints `Call`, `Exit`, `Redo` and
+`Fail` in SWI-Prolog's own format on stderr for every goal proved, and
+`trace/0`/`notrace/0` switch it from inside a program. The engine's
+design paid for itself — the `Exit` port is a `'$trace_exit'` marker
+the body proves its way through, pushed below the frame's heap mark
+the way `catch/3` protects its `'$catch'` term, and `Redo`/`Fail`
+live on a tracer shadow of the choice stack, index-aligned and
+deliberately outside the frozen format, so a machine frozen mid-trace
+thaws anywhere and carries its pending exits with it (they are heap
+terms). Under trace the last matching clause keeps its frame, because
+failing back past it is what prints the `Fail` port.
+
+The subtleties were learned from SWI empirically and reproduced one by
+one: a `Redo` shows the call with its bindings just undone, so the
+goal is painted before head selection binds it; taking the other arm
+of a `;`, the else of an `->` or the way out of a `\+` is a `Redo` of
+the call it sits in, and silent at the toplevel; a deeper `Redo`
+reopens every call it is nested in, so their `Fail` fires when the
+failure finally crosses them; a call whose remaining heads cannot
+match is discarded in silence — the quiet SWI's clause indexing buys
+by never keeping the frame, bought here without indexing by
+remembering the exit; and the desugared arms of `->` and `\+` travel
+as `$true`/`$fail`, which the program never wrote and the trace never
+shows. `test/trace.sh` holds all of it: twenty-one queries over one
+program, both tracers, port lines compared one for one after
+normalising the depth base, variable names and spacing — the `trace`
+case of the suite, SKIPping without swipl. TRACING.md is the
+document, linked from the README beside the mode's own introduction.
+
+And the mode uses it everywhere: `C-c C-e` traces a goal over the
+buffer's file into a colour-coded `*coco trace*` buffer under any of
+the four arrangements (the `cocolog-coco` settings group), and — the
+engine draws, coco certifies — every graph `C-c C-t`, `C-c C-a` or
+`C-c C-q` draws on a machine with a binary is re-asked of the real
+interpreter on the spot, in memory, touching no store: agreement is a
+word in the echo area, disagreement a loud warning naming both
+answers, and the rule's four-port trace refreshes alongside. The
+elisp engine stays for what the binary cannot give — the clause-level
+graphs, the machine with nothing installed, the instant redraw — as a
+shadow held to cocolog twice over, offline by the 234 and live on
+every draw. The mode's suite: 160 tests, 0 unexpected.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
