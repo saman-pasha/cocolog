@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="764" height="1605" viewBox="0 0 764 1605" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13.5">
+<title>The list offered by C-c C-i: goals and grammar, by group</title>
+<rect x="0.5" y="0.5" width="763" height="1604" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+<text x="22.0" y="28.1" fill="#8250df" textLength="80.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">succ(X, Y)</text>
+<text x="126.0" y="28.1" fill="#24292f" textLength="304.0" lengthAdjust="spacing" xml:space="preserve">Y is one more than X, either way round</text>
+<text x="22.0" y="47.1" fill="#0a3069" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">?- succ(X, 4).</text>
+<text x="158.0" y="47.1" fill="#8c959f" textLength="8.0" lengthAdjust="spacing" xml:space="preserve">⇒</text>
+<text x="174.0" y="47.1" fill="#0550ae" textLength="40.0" lengthAdjust="spacing" xml:space="preserve">X = 3</text>
+<text x="14.0" y="85.1" fill="#cf222e" textLength="64.0" lengthAdjust="spacing" xml:space="preserve"> control</text>
+<text x="86.0" y="85.1" fill="#cf222e" textLength="120.0" lengthAdjust="spacing" xml:space="preserve"> names and text</text>
+<text x="14.0" y="104.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    ( A ; B )</text>
+<text x="126.0" y="104.1" fill="#24292f" textLength="192.0" lengthAdjust="spacing" xml:space="preserve">    atom_codes(A, Codes)</text>
+<text x="14.0" y="123.1" fill="#24292f" textLength="216.0" lengthAdjust="spacing" xml:space="preserve">    ( Cond -&gt; Then ; Else )</text>
+<text x="238.0" y="123.1" fill="#24292f" textLength="168.0" lengthAdjust="spacing" xml:space="preserve">    atom_length(A, N)</text>
+<text x="14.0" y="142.1" fill="#24292f" textLength="224.0" lengthAdjust="spacing" xml:space="preserve">    ( Cond *-&gt; Then ; Else )</text>
+<text x="246.0" y="142.1" fill="#24292f" textLength="168.0" lengthAdjust="spacing" xml:space="preserve">    atom_number(A, N)</text>
+<text x="14.0" y="161.1" fill="#24292f" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">    \+ Goal</text>
+<text x="110.0" y="161.1" fill="#24292f" textLength="200.0" lengthAdjust="spacing" xml:space="preserve">    atom_concat(A, B, AB)</text>
+<text x="14.0" y="180.1" fill="#24292f" textLength="40.0" lengthAdjust="spacing" xml:space="preserve">    !</text>
+<text x="14.0" y="199.1" fill="#24292f" textLength="64.0" lengthAdjust="spacing" xml:space="preserve">    true</text>
+<text x="86.0" y="199.1" fill="#cf222e" textLength="136.0" lengthAdjust="spacing" xml:space="preserve"> saying something</text>
+<text x="14.0" y="218.1" fill="#24292f" textLength="64.0" lengthAdjust="spacing" xml:space="preserve">    fail</text>
+<text x="86.0" y="218.1" fill="#24292f" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">    write(X)</text>
+<text x="14.0" y="237.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    call(Goal)</text>
+<text x="134.0" y="237.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    writeln(X)</text>
+<text x="14.0" y="256.1" fill="#24292f" textLength="152.0" lengthAdjust="spacing" xml:space="preserve">    call(Goal, Arg)</text>
+<text x="174.0" y="256.1" fill="#24292f" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">    print(X)</text>
+<text x="14.0" y="275.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    [X]&gt;&gt;Goal</text>
+<text x="126.0" y="275.1" fill="#24292f" textLength="48.0" lengthAdjust="spacing" xml:space="preserve">    nl</text>
+<text x="14.0" y="294.1" fill="#24292f" textLength="192.0" lengthAdjust="spacing" xml:space="preserve">    forall(Cond, Action)</text>
+<text x="214.0" y="294.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    tab(N)</text>
+<text x="14.0" y="313.1" fill="#24292f" textLength="192.0" lengthAdjust="spacing" xml:space="preserve">    findall(X, Goal, Xs)</text>
+<text x="14.0" y="332.1" fill="#24292f" textLength="264.0" lengthAdjust="spacing" xml:space="preserve">    aggregate_all(count, Goal, N)</text>
+<text x="286.0" y="332.1" fill="#cf222e" textLength="112.0" lengthAdjust="spacing" xml:space="preserve"> grammar rules</text>
+<text x="14.0" y="351.1" fill="#24292f" textLength="288.0" lengthAdjust="spacing" xml:space="preserve">    aggregate_all(sum(X), Goal, Sum)</text>
+<text x="310.0" y="351.1" fill="#24292f" textLength="176.0" lengthAdjust="spacing" xml:space="preserve">    phrase(Rule, List)</text>
+<text x="14.0" y="370.1" fill="#24292f" textLength="120.0" lengthAdjust="spacing" xml:space="preserve">    throw(Ball)</text>
+<text x="142.0" y="370.1" fill="#24292f" textLength="224.0" lengthAdjust="spacing" xml:space="preserve">    phrase(Rule, List, Rest)</text>
+<text x="14.0" y="408.1" fill="#cf222e" textLength="176.0" lengthAdjust="spacing" xml:space="preserve"> the same, or in order</text>
+<text x="198.0" y="408.1" fill="#cf222e" textLength="152.0" lengthAdjust="spacing" xml:space="preserve"> grammar: terminals</text>
+<text x="14.0" y="427.1" fill="#24292f" textLength="72.0" lengthAdjust="spacing" xml:space="preserve">    X = Y</text>
+<text x="94.0" y="427.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    [Item]</text>
+<text x="14.0" y="446.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    X \= Y</text>
+<text x="102.0" y="446.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    "text"</text>
+<text x="14.0" y="465.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    X == Y</text>
+<text x="102.0" y="465.1" fill="#24292f" textLength="48.0" lengthAdjust="spacing" xml:space="preserve">    []</text>
+<text x="14.0" y="484.1" fill="#24292f" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">    X \== Y</text>
+<text x="14.0" y="503.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    X @&lt; Y</text>
+<text x="102.0" y="503.1" fill="#cf222e" textLength="136.0" lengthAdjust="spacing" xml:space="preserve"> grammar: control</text>
+<text x="14.0" y="522.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    X @&gt; Y</text>
+<text x="102.0" y="522.1" fill="#24292f" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">    { Goal }</text>
+<text x="14.0" y="541.1" fill="#24292f" textLength="192.0" lengthAdjust="spacing" xml:space="preserve">    compare(Order, X, Y)</text>
+<text x="22.0" y="560.1" fill="#cf222e" textLength="112.0" lengthAdjust="spacing" xml:space="preserve"> grammar: text</text>
+<text x="14.0" y="579.1" fill="#cf222e" textLength="64.0" lengthAdjust="spacing" xml:space="preserve"> numbers</text>
+<text x="86.0" y="579.1" fill="#24292f" textLength="72.0" lengthAdjust="spacing" xml:space="preserve">    blank</text>
+<text x="14.0" y="598.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    X is Expr</text>
+<text x="126.0" y="598.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    blanks</text>
+<text x="14.0" y="617.1" fill="#24292f" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">    X =:= Y</text>
+<text x="110.0" y="617.1" fill="#24292f" textLength="72.0" lengthAdjust="spacing" xml:space="preserve">    white</text>
+<text x="14.0" y="636.1" fill="#24292f" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">    X =\= Y</text>
+<text x="110.0" y="636.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    whites</text>
+<text x="14.0" y="655.1" fill="#24292f" textLength="72.0" lengthAdjust="spacing" xml:space="preserve">    X &lt; Y</text>
+<text x="94.0" y="655.1" fill="#24292f" textLength="120.0" lengthAdjust="spacing" xml:space="preserve">    nonblank(C)</text>
+<text x="14.0" y="674.1" fill="#24292f" textLength="72.0" lengthAdjust="spacing" xml:space="preserve">    X &gt; Y</text>
+<text x="94.0" y="674.1" fill="#24292f" textLength="136.0" lengthAdjust="spacing" xml:space="preserve">    nonblanks(Cs)</text>
+<text x="14.0" y="693.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    X =&lt; Y</text>
+<text x="102.0" y="693.1" fill="#24292f" textLength="56.0" lengthAdjust="spacing" xml:space="preserve">    eol</text>
+<text x="14.0" y="712.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    X &gt;= Y</text>
+<text x="102.0" y="712.1" fill="#24292f" textLength="128.0" lengthAdjust="spacing" xml:space="preserve">    blanks_to_nl</text>
+<text x="14.0" y="731.1" fill="#24292f" textLength="200.0" lengthAdjust="spacing" xml:space="preserve">    between(Low, High, X)</text>
+<text x="222.0" y="731.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    string(Cs)</text>
+<text x="14.0" y="750.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">  ▸ succ(X, Y)</text>
+<text x="134.0" y="750.1" fill="#24292f" textLength="240.0" lengthAdjust="spacing" xml:space="preserve">    string_without("Stop", Cs)</text>
+<text x="14.0" y="788.1" fill="#cf222e" textLength="200.0" lengthAdjust="spacing" xml:space="preserve"> what kind of thing is it</text>
+<text x="222.0" y="788.1" fill="#cf222e" textLength="136.0" lengthAdjust="spacing" xml:space="preserve"> grammar: numbers</text>
+<text x="14.0" y="807.1" fill="#24292f" textLength="80.0" lengthAdjust="spacing" xml:space="preserve">    var(X)</text>
+<text x="102.0" y="807.1" fill="#24292f" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">    digit(C)</text>
+<text x="14.0" y="826.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    nonvar(X)</text>
+<text x="126.0" y="826.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    digits(Cs)</text>
+<text x="14.0" y="845.1" fill="#24292f" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">    atom(X)</text>
+<text x="110.0" y="845.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    integer(N)</text>
+<text x="14.0" y="864.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    number(X)</text>
+<text x="126.0" y="864.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    number(N)</text>
+<text x="14.0" y="883.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    integer(X)</text>
+<text x="134.0" y="883.1" fill="#24292f" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">    float(F)</text>
+<text x="14.0" y="902.1" fill="#24292f" textLength="96.0" lengthAdjust="spacing" xml:space="preserve">    float(X)</text>
+<text x="118.0" y="902.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    xdigit(D)</text>
+<text x="14.0" y="921.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    atomic(X)</text>
+<text x="126.0" y="921.1" fill="#24292f" textLength="120.0" lengthAdjust="spacing" xml:space="preserve">    xdigits(Ds)</text>
+<text x="14.0" y="940.1" fill="#24292f" textLength="120.0" lengthAdjust="spacing" xml:space="preserve">    compound(X)</text>
+<text x="142.0" y="940.1" fill="#24292f" textLength="120.0" lengthAdjust="spacing" xml:space="preserve">    xinteger(N)</text>
+<text x="14.0" y="959.1" fill="#24292f" textLength="120.0" lengthAdjust="spacing" xml:space="preserve">    callable(X)</text>
+<text x="14.0" y="978.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    is_list(X)</text>
+<text x="134.0" y="978.1" fill="#cf222e" textLength="200.0" lengthAdjust="spacing" xml:space="preserve"> grammar: reading a token</text>
+<text x="14.0" y="997.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    ground(X)</text>
+<text x="126.0" y="997.1" fill="#24292f" textLength="352.0" lengthAdjust="spacing" xml:space="preserve">    nonblanks(Cs), { atom_codes(Token, Cs) }</text>
+<text x="22.0" y="1016.1" fill="#24292f" textLength="264.0" lengthAdjust="spacing" xml:space="preserve">    "%", string(_), ( eol ; eos )</text>
+<text x="14.0" y="1035.1" fill="#cf222e" textLength="152.0" lengthAdjust="spacing" xml:space="preserve"> taking terms apart</text>
+<text x="174.0" y="1035.1" fill="#24292f" textLength="128.0" lengthAdjust="spacing" xml:space="preserve">    blanks, Rule</text>
+<text x="14.0" y="1054.1" fill="#24292f" textLength="240.0" lengthAdjust="spacing" xml:space="preserve">    functor(Term, Name, Arity)</text>
+<text x="14.0" y="1073.1" fill="#24292f" textLength="168.0" lengthAdjust="spacing" xml:space="preserve">    arg(N, Term, Arg)</text>
+<text x="190.0" y="1073.1" fill="#cf222e" textLength="120.0" lengthAdjust="spacing" xml:space="preserve"> grammar: names</text>
+<text x="14.0" y="1092.1" fill="#24292f" textLength="136.0" lengthAdjust="spacing" xml:space="preserve">    Term =.. List</text>
+<text x="158.0" y="1092.1" fill="#24292f" textLength="112.0" lengthAdjust="spacing" xml:space="preserve">    csym(Name)</text>
+<text x="14.0" y="1111.1" fill="#24292f" textLength="200.0" lengthAdjust="spacing" xml:space="preserve">    copy_term(Term, Copy)</text>
+<text x="222.0" y="1111.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve">    csyms(Cs)</text>
+<text x="22.0" y="1130.1" fill="#24292f" textLength="168.0" lengthAdjust="spacing" xml:space="preserve">    alpha_to_lower(L)</text>
+<text x="14.0" y="1149.1" fill="#cf222e" textLength="48.0" lengthAdjust="spacing" xml:space="preserve"> lists</text>
+<text x="70.0" y="1149.1" fill="#24292f" textLength="88.0" lengthAdjust="spacing" xml:space="preserve">    atom(A)</text>
+<text x="14.0" y="1168.1" fill="#24292f" textLength="160.0" lengthAdjust="spacing" xml:space="preserve">    append(A, B, AB)</text>
+<text x="14.0" y="1187.1" fill="#24292f" textLength="176.0" lengthAdjust="spacing" xml:space="preserve">    append(Lists, All)</text>
+<text x="198.0" y="1187.1" fill="#cf222e" textLength="176.0" lengthAdjust="spacing" xml:space="preserve"> grammar: what is left</text>
+<text x="14.0" y="1206.1" fill="#24292f" textLength="152.0" lengthAdjust="spacing" xml:space="preserve">    member(X, List)</text>
+<text x="174.0" y="1206.1" fill="#24292f" textLength="56.0" lengthAdjust="spacing" xml:space="preserve">    eos</text>
+<text x="14.0" y="1225.1" fill="#24292f" textLength="176.0" lengthAdjust="spacing" xml:space="preserve">    memberchk(X, List)</text>
+<text x="198.0" y="1225.1" fill="#24292f" textLength="152.0" lengthAdjust="spacing" xml:space="preserve">    remainder(Rest)</text>
+<text x="14.0" y="1244.1" fill="#24292f" textLength="152.0" lengthAdjust="spacing" xml:space="preserve">    length(List, N)</text>
+<text x="14.0" y="1263.1" fill="#24292f" textLength="160.0" lengthAdjust="spacing" xml:space="preserve">    nth0(I, List, X)</text>
+<text x="182.0" y="1263.1" fill="#cf222e" textLength="176.0" lengthAdjust="spacing" xml:space="preserve"> grammar: a whole rule</text>
+<text x="14.0" y="1282.1" fill="#24292f" textLength="160.0" lengthAdjust="spacing" xml:space="preserve">    nth1(I, List, X)</text>
+<text x="182.0" y="1282.1" fill="#24292f" textLength="160.0" lengthAdjust="spacing" xml:space="preserve">    tokens(Ts) --&gt; …</text>
+<text x="14.0" y="1301.1" fill="#24292f" textLength="136.0" lengthAdjust="spacing" xml:space="preserve">    last(List, X)</text>
+<text x="14.0" y="1320.1" fill="#24292f" textLength="184.0" lengthAdjust="spacing" xml:space="preserve">    reverse(List, Back)</text>
+<text x="14.0" y="1339.1" fill="#24292f" textLength="200.0" lengthAdjust="spacing" xml:space="preserve">    select(X, List, Rest)</text>
+<text x="14.0" y="1358.1" fill="#24292f" textLength="192.0" lengthAdjust="spacing" xml:space="preserve">    permutation(List, P)</text>
+<text x="14.0" y="1377.1" fill="#24292f" textLength="184.0" lengthAdjust="spacing" xml:space="preserve">    msort(List, Sorted)</text>
+<text x="14.0" y="1396.1" fill="#24292f" textLength="176.0" lengthAdjust="spacing" xml:space="preserve">    sort(List, Sorted)</text>
+<text x="14.0" y="1415.1" fill="#24292f" textLength="224.0" lengthAdjust="spacing" xml:space="preserve">    numlist(Low, High, List)</text>
+<text x="14.0" y="1434.1" fill="#24292f" textLength="184.0" lengthAdjust="spacing" xml:space="preserve">    sum_list(List, Sum)</text>
+<text x="14.0" y="1453.1" fill="#24292f" textLength="184.0" lengthAdjust="spacing" xml:space="preserve">    max_list(List, Max)</text>
+<text x="14.0" y="1472.1" fill="#24292f" textLength="184.0" lengthAdjust="spacing" xml:space="preserve">    min_list(List, Min)</text>
+<text x="14.0" y="1491.1" fill="#24292f" textLength="184.0" lengthAdjust="spacing" xml:space="preserve">    maplist(Goal, List)</text>
+<text x="14.0" y="1510.1" fill="#24292f" textLength="200.0" lengthAdjust="spacing" xml:space="preserve">    maplist(Goal, Xs, Ys)</text>
+<text x="14.0" y="1529.1" fill="#24292f" textLength="232.0" lengthAdjust="spacing" xml:space="preserve">    include(Goal, List, Kept)</text>
+<text x="14.0" y="1548.1" fill="#24292f" textLength="232.0" lengthAdjust="spacing" xml:space="preserve">    exclude(Goal, List, Left)</text>
+<text x="22.0" y="1586.1" fill="#24292f" textLength="104.0" lengthAdjust="spacing" xml:space="preserve" font-weight="600">Insert a goal</text>
+<text x="158.0" y="1586.1" fill="#8c959f" textLength="592.0" lengthAdjust="spacing" xml:space="preserve">↑/↓ move   ←/→ column   TAB next group   / by name   RET insert   q cancel</text>
+</svg>
