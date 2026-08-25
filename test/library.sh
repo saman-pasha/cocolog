@@ -96,6 +96,23 @@ if timeout 20 "$C" $W list >/dev/null 2>&1; then
   check "wire: the loading process sees the library" "$got" "1"
   got=$(timeout 60 "$C" $W query "catch(greeting(_), error(existence_error(procedure, _), _), (write(clean), nl))" 2>/dev/null | grep -c '^clean$')
   check "wire: a second process does not -- nothing leaked" "$got" "1"
+
+  # THE OTHER SIDE OF THE SAME COIN. A library is process-local and must
+  # not leak, which is what the two checks above prove. A `:- dynamic'
+  # DECLARATION is the opposite: README says a declaration is about the
+  # knowledge base, so it has to outlive the process -- and it did not.
+  # The row was written and read back, but ordinary resolution loads a
+  # predicate lazily, one at a time, and that path learns clauses and not
+  # declarations. A predicate declared in one process and never written
+  # to had no clauses to fetch, so the next process raised
+  # existence_error where SWI simply fails.
+  timeout 60 "$C" $W forget >/dev/null 2>&1
+  printf ':- dynamic ledger_mark/2.\n' > "$OUT/dyn.pl"
+  timeout 60 "$C" $W consult "$OUT/dyn.pl" >/dev/null 2>&1
+  got=$(timeout 60 "$C" $W query "catch((ledger_mark(_,_) -> write(unexpected) ; write(fails_cleanly)), error(existence_error(_,_),_), write(raised)), nl" 2>/dev/null | grep -acE '^fails_cleanly$')
+  check "wire: a dynamic declaration DOES outlive the process" "$got" "1"
+  got=$(timeout 60 "$C" $W query "catch(never_declared_at_all(_), error(existence_error(procedure,_),_), (write(raised), nl))" 2>/dev/null | grep -c '^raised$')
+  check "wire: and an undeclared predicate still raises" "$got" "1"
   timeout 60 "$C" $W forget >/dev/null 2>&1
 else
   echo "wire: SKIP no Zigurat server at $HOST:$PORT"

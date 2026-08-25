@@ -78,6 +78,10 @@
 
     ("with_output_to"          2 coco_b_with_output_to)
 
+    ("getenv"                  2 coco_b_getenv)
+    ("setenv"                  2 coco_b_setenv)
+    ("unsetenv"                1 coco_b_unsetenv)
+
     ("format"                  1 coco_b_format1)
     ("format"                  2 coco_b_format2)
     ("format"                  3 coco_b_format3)
@@ -1402,6 +1406,41 @@
           (coco_write_term m (aof b) (coco_m_arg e g 0) quoted ignore_ops)
           (if (!= ($ b s) nil) (fputs ($ b s) stdout))
           (coco_sb_free (aof b))
+          (return 1)))
+
+  ;;; ---- the environment --------------------------------------------------
+  ;;;
+  ;;; SWI's `getenv/2', `setenv/2' and `unsetenv/1'. getenv FAILS for a
+  ;;; name that is not set rather than throwing -- "is this set" is an
+  ;;; ordinary question with an ordinary no, and a program that wants an
+  ;;; error can write `( getenv(X, V) -> true ; throw(...) )'.
+  ;;;
+  ;;; This is the one channel by which a value reaches a program WITHOUT
+  ;;; passing through the knowledge base, which is why it is worth having
+  ;;; and not only convenience: a consulted file becomes clauses, and
+  ;;; clauses become rows. A secret that must not become a row -- a
+  ;;; node's signing key, a token -- has nowhere else to arrive from.
+  (func coco_b_getenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (let ((const char * v . #'(getenv name)))
+            (if (== v nil) (return 0))
+            (return (coco_m_unify_atom e (coco_m_arg e g 1) v)))))
+
+  (func coco_b_setenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]) (char val [4096]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (if (not (coco_m_text e (coco_m_arg e g 1) val (sizeof val)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
+          (return (? (== 0 (setenv name val 1)) 1 0))))
+
+  (func coco_b_unsetenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (unsetenv name)
           (return 1)))
 
   (func coco_b_tab ((coco_engine * e) (size_t g)) (out int)

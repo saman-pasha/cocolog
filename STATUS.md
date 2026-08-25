@@ -1369,6 +1369,44 @@ working operator's spelling to fix a missing one is exactly the trade
 that goes wrong silently. Sixteen cases GREEN against a live server,
 `red: 0`.
 
+### A dynamic declaration outlives the process, as README always said
+
+README's table of store hooks says of `on_dynamic`: *a declaration is
+about the knowledge base, so it has to outlive the process.* It did not.
+
+The row was written and the row was read back — none of that was broken.
+The gap was between them. Ordinary resolution loads a predicate LAZILY,
+one at a time, through the `fetch` hook, and that path learns a
+predicate's CLAUSES. `warm` is what learns the DECLARATIONS, and warm ran
+only for `listing` and `$predicates`. So a predicate another process had
+declared dynamic and never written to had no clauses to fetch, this
+process had never heard of it, and the call raised `existence_error`
+where SWI simply fails.
+
+The engine already knew the distinction — "NO CLAUSES IS NOT THE SAME AS
+UNDEFINED" is a comment above the branch that was being skipped. The fix
+is to warm on the path that was about to throw, and re-check: a round
+trip on an error path, which is not a path anything runs in a loop, and
+no cost at all on any other. A genuinely undefined predicate raises
+exactly as before, and `test/library.sh` checks both — the same case that
+proves a library does NOT outlive the process now proves a declaration
+does, which are the two halves of one question.
+
+Found from The Coco, where a ledger node's `head_mark/2` was declared in
+the file every node consults and was unknown to every node that ran.
+
+### getenv/2, setenv/2, unsetenv/1
+
+SWI's, and `getenv/2` fails rather than throws for a name that is not set
+— "is this set" is an ordinary question with an ordinary no.
+
+Worth having for a reason beyond convenience: this is the one channel by
+which a value reaches a program WITHOUT passing through the knowledge
+base. A consulted file becomes clauses and clauses become rows, so a
+secret that must not become a row — a ledger node's signing key, a token
+— had nowhere else to arrive from. The Coco's ledger nodes take their
+private keys this way and no key appears in any file.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes

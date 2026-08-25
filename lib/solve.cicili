@@ -1203,9 +1203,31 @@
                             (($ (nth pi ($ (cof st) preds)) dynamic)
                              (if tport (coco_trace_port e "Fail" tD g))
                              (set ok 0))
+                            ;; ABOUT TO THROW -- SO ASK THE BACKEND FIRST.
+                            ;; Resolution loads a predicate's clauses lazily,
+                            ;; one predicate at a time, and that path learns
+                            ;; the clauses and not the DECLARATIONS: a
+                            ;; predicate another process declared dynamic and
+                            ;; never wrote to has no clauses to fetch, so this
+                            ;; process had never heard of it and raised. But
+                            ;; README says a declaration is about the knowledge
+                            ;; base and has to outlive the process, and it
+                            ;; does -- the row was there, unread.
+                            ;;
+                            ;; Warming here rather than before every call
+                            ;; costs a round trip only on the path that was
+                            ;; going to throw, which is not a path anything
+                            ;; runs in a loop. If the declaration turns up, the
+                            ;; call fails the way an empty dynamic predicate
+                            ;; should; if it does not, the error is the same
+                            ;; error as before.
                             (#t
-                             (if (!= 2 (coco_existence_error e "procedure" name n))
-                                 (return -1))))))))))))
+                             (coco_store_warm st)
+                             (if ($ (nth pi ($ (cof st) preds)) dynamic)
+                                 (block (if tport (coco_trace_port e "Fail" tD g))
+                                        (set ok 0))
+                               (if (!= 2 (coco_existence_error e "procedure" name n))
+                                   (return -1)))))))))))))
 
               (if (not ok)
                   (if (not (coco_backtrack e)) (return 0)))))
