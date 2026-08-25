@@ -1313,6 +1313,17 @@
 
   ;;; ---- arithmetic ----
 
+  ;;; THE THREE OPERATOR NAMES THAT CANNOT BE WRITTEN. A Cicili string
+  ;;; literal reaches C raw and may not end in a backslash, so `/\' has no
+  ;;; spelling as a literal here at all; `\/' and `\' do, but are built the
+  ;;; same way so that the four bitwise cases below read alike and nobody has
+  ;;; to remember which one is the exception. 47 is `/', 92 is `\'.
+  ;;; lib/syntax.cicili builds the same three names for the operator table,
+  ;;; from the same codes, for the same reason.
+  (static) (var char COCO_OP_AND [] . '{ 47 92 0 })
+  (static) (var char COCO_OP_OR  [] . '{ 92 47 0 })
+  (static) (var char COCO_OP_NOT [] . '{ 92 0 })
+
   ;;; The names this expands under are bound by the parameter list below: that
   ;;; is the contract `coco-emit-arith-binops' documents.
   (static)
@@ -1399,6 +1410,24 @@
           ((== 0 (strcmp name "<<"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (set (cof iv) (<< ai bi)) (set (cof isf) 0) (return 1))
+          ;; The bitwise three. Integers only -- ISO says type_error(integer)
+          ;; for a float here, and a silent truncation would be worse than an
+          ;; error, because the answer would look like an answer.
+          ;;
+          ;; The names come from COCO_OP_* rather than from literals, for the
+          ;; reason lib/syntax.cicili gives at the operator table: a Cicili
+          ;; string may not end in a backslash, and `/\' does. `\/' and `\'
+          ;; could be written, and are spelled the same way so the four read
+          ;; alike and nobody has to remember which one is the exception.
+          ((== 0 (strcmp name COCO_OP_AND))
+           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (set (cof iv) (bitand ai bi)) (set (cof isf) 0) (return 1))
+          ((== 0 (strcmp name COCO_OP_OR))
+           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (set (cof iv) (bitor ai bi)) (set (cof isf) 0) (return 1))
+          ((== 0 (strcmp name "xor"))
+           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (set (cof iv) (xor ai bi)) (set (cof isf) 0) (return 1))
           (#t (return (coco_fail_err e "unknown arithmetic function")))))
 
   ;;; Evaluates an arithmetic expression. Recursive over the DEPTH of the
@@ -1441,6 +1470,19 @@
                           (if s0 (block (set (cof fv) f0) (set (cof isf) 1))
                             (block (set (cof iv) i0) (set (cof isf) 0)))
                           (return 1))
+                         ;; bitwise complement, on the two's complement the
+                         ;; whole engine already uses: \ 0 is -1
+                         ((== 0 (strcmp nm COCO_OP_NOT))
+                          (if s0 (return (coco_type_error e "integer" 0)))
+                          (set (cof iv) (- (- 0 i0) 1)) (set (cof isf) 0)
+                          (return 1))
+                         ((== 0 (strcmp nm "msb"))
+                          (if s0 (return (coco_type_error e "integer" 0)))
+                          (if (<= i0 0) (return (coco_type_error e "integer" 0)))
+                          (let ((i64 b . #'-1) (i64 v . #'i0))
+                            (while (> v 0) (set b (+ b 1)) (set v (>> v 1)))
+                            (set (cof iv) b))
+                          (set (cof isf) 0) (return 1))
                          ((== 0 (strcmp nm "abs"))
                           (if s0 (block (set (cof fv) (fabs f0)) (set (cof isf) 1))
                             (block (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))

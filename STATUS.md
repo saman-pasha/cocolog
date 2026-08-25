@@ -1334,6 +1334,41 @@ the paragraph it got: it never crashed, never warned, and never returned
 an error of its own. It returned a confident answer about data that was
 no longer the data it was given.
 
+### The ISO bitwise functors, and a table that holds names as themselves
+
+`/\`, `\/`, `xor`, `\` and `msb` were missing — from the operator table
+and from the evaluator both. The way they were missing is the point.
+
+`/\` is a symbolic token whether or not it is an operator, so the reader
+did not refuse `X is 12 /\ 10`. It read `X is 12`, met an operator it did
+not know, stopped, and left the rest of the term unread. **The goal
+succeeded and bound X to 12** — a missing feature that answers is worse
+than one that fails, which is why each of the new checks in
+`test/solve.cicili` checks a value rather than that the goal ran.
+
+They sit where ISO puts them: the three infix at 500 yfx alongside `+`
+and `-`, so `A /\ B =:= C` needs no brackets; `\` at 200 fy beside unary
+minus, and not to be confused with `\+` at 900. `msb` came along because
+it is the one place an integer's bit width is asked for directly.
+
+Getting `/\` into the table needed one change underneath. **A Cicili
+string literal reaches C raw and may not end in a backslash** — `\"`
+still escapes the closing quote — so `/\` has no spelling as a literal at
+all, and the failure is not a nice one: the source is slurped and
+re-read, the quote is swallowed, and the reader desynchronises and
+reports something baffling from forty lines further down. The table
+therefore now holds each name as **the text the reader will actually
+see**, and `c-escape` puts back the escaping C needs on the way out. The
+four names that were written pre-escaped — `\+`, `\=`, `\==`, `=\=` — are
+written plainly now, and the two with no spelling at all are built from
+their character codes. `lib/solve.cicili` matches them against
+`COCO_OP_AND`/`COCO_OP_OR`/`COCO_OP_NOT` for the same reason.
+
+The four rewritten names are checked explicitly, because rewriting a
+working operator's spelling to fix a missing one is exactly the trade
+that goes wrong silently. Sixteen cases GREEN against a live server,
+`red: 0`.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes

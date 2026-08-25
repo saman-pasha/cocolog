@@ -173,6 +173,36 @@
       (check_str "mod follows the divisor"    buf "2")
       (first_binding (aof e) "X is max(3, 4.5)" buf (sizeof buf))
       (check_str "max across types"           buf "4.5")
+
+      ;; ---- the ISO bitwise functors --------------------------------------
+      ;;
+      ;; These were missing from BOTH the operator table and the evaluator,
+      ;; and the way they were missing is the point. `/\' is a symbolic token
+      ;; whether or not it is an operator, so the reader did not refuse
+      ;; `X is 12 /\ 10' -- it read `X is 12', met an operator it did not
+      ;; know, and stopped with the rest of the term unread. The goal SUCCEEDED
+      ;; and bound X to 12. A missing feature that answers is worse than one
+      ;; that fails, so each of these checks a VALUE.
+      (first_binding (aof e) "X is 12 /\\ 10" buf (sizeof buf))
+      (check_str "conjunction"                buf "8")
+      (first_binding (aof e) "X is 12 \\/ 3" buf (sizeof buf))
+      (check_str "disjunction"                buf "15")
+      (first_binding (aof e) "X is 5 xor 3" buf (sizeof buf))
+      (check_str "exclusive or"               buf "6")
+      (first_binding (aof e) "X is \\ 5" buf (sizeof buf))
+      (check_str "complement is two's complement" buf "-6")
+      (first_binding (aof e) "X is msb(1024)" buf (sizeof buf))
+      (check_str "the most significant bit"   buf "10")
+      ;; 500 yfx, so this is (12 /\ 10) + 1 and not 12 /\ (10 + 1) -- the
+      ;; priority is what makes `A /\ B =:= C' need no brackets
+      (first_binding (aof e) "X is 12 /\\ 10 + 1" buf (sizeof buf))
+      (check_str "and it binds like + does"   buf "9")
+      ;; the four names that were written pre-escaped in the operator table
+      ;; before the table began holding each name as the text the reader sees
+      (check "\\+ still negates"              (cast llong (count (aof e) "\\+ fail" 10)) 1)
+      (check "\\= still refuses to unify"     (cast llong (count (aof e) "a \\= b" 10)) 1)
+      (check "\\== still compares"            (cast llong (count (aof e) "a \\== b" 10)) 1)
+      (check "=\\= still compares numbers"    (cast llong (count (aof e) "1 =\\= 2" 10)) 1)
       (check "1 =:= 1.0"                      (cast llong (count (aof e) "1 =:= 1.0" 10)) 1)
       (check "1 == 1.0 is false"              (cast llong (count (aof e) "1 == 1.0" 10)) 0)
       (check "3 < 4"                          (cast llong (count (aof e) "3 < 4" 10)) 1)

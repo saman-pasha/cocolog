@@ -67,8 +67,28 @@
 ;;; priority, type, then the names. This is standard Prolog's table, less the
 ;;; operators cocolog has no builtin for. `\\+' and friends are Lisp strings,
 ;;; so the backslash is doubled here and single in the language.
+;;; THE TABLE HOLDS THE TEXT THE READER WILL SEE, and this puts back the
+;;; escaping C needs on the way out. Cicili emits a string literal RAW, so
+;;; until now each name here was written pre-escaped for C -- `"\\+"' in the
+;;; source to mean the two characters `\+'. That works for every name that can
+;;; be written at all, and `/\' cannot: a Cicili string may not end in a
+;;; backslash, because `\"' still escapes the closing quote. Escaping HERE
+;;; instead lets a name be spelled as itself, and lets the two that have no
+;;; spelling be built from their character codes below. Only the backslash
+;;; needs escaping -- no operator has a quote in it.
+(DEFUN c-escape (s)
+  (WITH-OUTPUT-TO-STRING (o)
+    (LOOP FOR ch ACROSS s DO
+      (WHEN (CHAR= ch (CODE-CHAR 92)) (WRITE-CHAR (CODE-CHAR 92) o))
+      (WRITE-CHAR ch o))))
+
+;;; 47 is `/', 92 is `\'. These two have no writable spelling; `\/' and the
+;;; rest do, and are written.
+(DEFPARAMETER *op-and* (COERCE (LIST (CODE-CHAR 47) (CODE-CHAR 92)) 'STRING))
+(DEFPARAMETER *op-not* (COERCE (LIST (CODE-CHAR 92)) 'STRING))
+
 (DEFPARAMETER *operators*
-  '((1200 xfx ":-" "-->" "=>")
+  `((1200 xfx ":-" "-->" "=>")
     (1200 fx  ":-" "?-")
     ;; The declaration prefixes. `:- dynamic counter/1.' is only a term at all
     ;; because `dynamic' is one of these -- without it the reader takes
@@ -82,18 +102,26 @@
     (1100 xfy ";")
     (1050 xfy "->" "*->")
     (1000 xfy ",")
-    (900  fy  "\\+")
-    (700  xfx "=" "\\=" "==" "\\==" "@<" "@>" "@=<" "@>=" "=.." "is"
-              "=:=" "=\\=" "<" ">" "=<" ">=")
+    (900  fy  "\+")
+    (700  xfx "=" "\=" "==" "\==" "@<" "@>" "@=<" "@>=" "=.." "is"
+              "=:=" "=\=" "<" ">" "=<" ">=")
     ;; module qualification. cocolog has one namespace, so `m:g' is only
     ;; ever a term here -- but a borrowed file writes it, and a reader that
     ;; cannot parse it cannot read the file.
     (600  xfy ":")
-    (500  yfx "+" "-")
+    ;; The bitwise three sit at 500 with `+' and `-' because ISO puts them
+    ;; there, so `A /\ B =:= C' needs no brackets. Without them in this table
+    ;; the reader does not merely refuse `12 /\ 10': `/\' is a symbolic token
+    ;; either way, so it reads `12', meets an operator it does not know, and
+    ;; stops with the rest of the term unread -- `X is 12 /\ 10' quietly
+    ;; became `X is 12'.
+    (500  yfx "+" "-" ,*op-and* "\/" "xor")
     (400  yfx "*" "/" "//" "div" "mod" "rem" "<<" ">>")
     (200  xfx "**")
     (200  xfy "^")
-    (200  fy  "-" "+")))
+    ;; `\' is the bitwise complement, prefix, sharing 200 fy with unary
+    ;; minus. It is not `\+', which is 900 fy and a different token.
+    (200  fy  "-" "+" ,*op-not*)))
 
 ;;; The five types, as the numbers the C side uses. `coco_op_type' in the emitted
 ;;; code is one of these; the parser turns it into the two argument priorities.
@@ -112,7 +140,7 @@
         (WHEN (OR (AND (EQ class :infix) infixp)
                   (AND (EQ class :prefix) (NOT infixp)))
           (DOLIST (name (CDDR row))
-            (PUSH (LIST name prec code) out)))))))
+            (PUSH (LIST (c-escape name) prec code) out)))))))
 
 ;;; One lookup function per class. Each answers 1 and fills in the priority and
 ;;; the type, or answers 0. Written as a cond over strcmp: the names are known
