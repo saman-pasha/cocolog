@@ -204,6 +204,21 @@
   ;;; Answers 0 if T is none of those or does not fit in CAP.
   (decl) (func coco_m_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap)) (out int))
 
+  ;;; ---- tensors: the store's vector rows, for the torch module ----
+  ;;;
+  ;;; Thin passes over the store's tensor hooks (kb.cicili): put one piece,
+  ;;; read one piece back, forget a name. Each answers 0 when the
+  ;;; arrangement has no tensor storage -- the hook is null -- and the
+  ;;; caller falls back to clause chunks, which is the whole contract.
+
+  (decl) (func coco_m_tensor_put ((coco_engine * e) (const char * name)
+                                  (i64 seq) (const double * v) (u32 n)) (out int))
+  (decl) (func coco_m_tensor_row ((coco_engine * e) (const char * name)
+                                  (i64 seq) (double * out) (u32 cap)
+                                  (u32 * n)) (out int))
+  (decl) (func coco_m_tensor_forget ((coco_engine * e)
+                                     (const char * name)) (out int))
+
   ;;; ---- writing answers ----
 
   (decl) (func coco_m_unify ((coco_engine * e) (size_t t) (size_t u)) (out int))
@@ -382,6 +397,23 @@
         (return (coco_deref (-> e m) (coco_arg (-> e m) g i))))
 
   (func coco_m_machine ((coco_engine * e)) (out coco_machine *) (return (-> e m)))
+
+  (func coco_m_tensor_put ((coco_engine * e) (const char * name) (i64 seq)
+                         (const double * v) (u32 n)) (out int)
+        (let ((coco_store * st . #'(-> e st)))
+          (if (== (-> st tensor_put) nil) (return 0))
+          (return ((-> st tensor_put) st (-> st ctx) name seq v n))))
+
+  (func coco_m_tensor_row ((coco_engine * e) (const char * name) (i64 seq)
+                         (double * out) (u32 cap) (u32 * n)) (out int)
+        (let ((coco_store * st . #'(-> e st)))
+          (if (== (-> st tensor_row) nil) (return 0))
+          (return ((-> st tensor_row) st (-> st ctx) name seq out cap n))))
+
+  (func coco_m_tensor_forget ((coco_engine * e) (const char * name)) (out int)
+        (let ((coco_store * st . #'(-> e st)))
+          (if (== (-> st tensor_forget) nil) (return 0))
+          (return ((-> st tensor_forget) st (-> st ctx) name))))
 
   (func coco_m_mark ((coco_engine * e)) (out size_t) (return ($ (cof (-> e m)) trail_len)))
   (func coco_m_undo ((coco_engine * e) (size_t mark)) (coco_undo_to (-> e m) mark))

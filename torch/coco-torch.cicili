@@ -82,6 +82,9 @@
   (code "int coco_m_list_array(struct coco_engine*, size_t, size_t**, size_t*);")
   (code "int coco_m_type_error(struct coco_engine*, const char*, size_t); int coco_m_domain_error(struct coco_engine*, const char*, size_t);")
   (code "size_t coco_deref(struct coco_machine*, size_t); int coco_is_callable(struct coco_machine*, size_t);")
+  (code "int coco_m_tensor_put(struct coco_engine*, const char*, int64_t, const double*, uint32_t);")
+  (code "int coco_m_tensor_row(struct coco_engine*, const char*, int64_t, double*, uint32_t, uint32_t*);")
+  (code "int coco_m_tensor_forget(struct coco_engine*, const char*);")
   (code "uint32_t coco_arity(struct coco_machine*, size_t); uint64_t coco_name_of(struct coco_machine*, size_t);")
   (code "const char* coco_atom_name(struct coco_machine*, uint64_t); size_t coco_arg(struct coco_machine*, size_t, uint32_t);")
   (code "size_t coco_new_float(struct coco_machine*, double); size_t coco_new_int(struct coco_machine*, int64_t);")
@@ -102,6 +105,11 @@
   (decl) (func coco_m_atom ((coco_engine * e) (size_t t)) (out const char *))
   (decl) (func coco_m_int ((coco_engine * e) (size_t t) (int64_t * out)) (out int))
   (decl) (func coco_m_float ((coco_engine * e) (size_t t) (double * out)) (out int))
+  (decl) (func coco_m_tensor_put ((coco_engine * e) (const char * name) (int64_t seq)
+                                  (const double * v) (uint32_t n)) (out int))
+  (decl) (func coco_m_tensor_row ((coco_engine * e) (const char * name) (int64_t seq)
+                                  (double * out) (uint32_t cap) (uint32_t * n)) (out int))
+  (decl) (func coco_m_tensor_forget ((coco_engine * e) (const char * name)) (out int))
   (decl) (func coco_m_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap)) (out int))
   (decl) (func coco_m_unify ((coco_engine * e) (size_t t) (size_t u)) (out int))
   (decl) (func coco_m_unify_int ((coco_engine * e) (size_t t) (int64_t v)) (out int))
@@ -1557,6 +1565,93 @@
             (free (cast (void *) buf))
             (return 0))))))
 
+  ;; '$tensor_save'(+Name, +Params): the parameters into the store's tensors
+  ;; table -- rows of one vector field, 512 doubles to a piece, the name and
+  ;; the seq saying which tensor and which piece. Fails cleanly when the
+  ;; arrangement has no tensor storage (the hooks are null), which is what
+  ;; sends model_save into the clause-chunk fallback; a wire failure
+  ;; mid-save also fails, and the turn's transaction takes the partial rows
+  ;; back with it.
+  (func t_tensor_save ((coco_engine * e) (size_t g)) (out int)
+    (let ((size_t nt . #'(coco_m_arg e g 0))
+          (size_t * cells . nil) (size_t n . 0))
+      (if (not (coco_m_is_atom e nt)) (return 0))
+      (let ((const char * name . #'(coco_m_atom e nt)))
+        ;; the probe doubles as the clear: no tensor storage answers 0 here,
+        ;; BEFORE anything is written
+        (if (not (coco_m_tensor_forget e name)) (return 0))
+        (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof cells) (aof n)))
+            (return 0))
+        (let ((double * buf . #'(cast (double *) (malloc (* (? (== n 0) 1 n) (sizeof double)))))
+              (int ok . 1))
+          (if (== buf nil)
+              (block (free (cast (void *) cells)) (return 0)))
+          (let ((size_t i . 0))
+            (while (< i n)
+              (let ((double v . 0.0) (int64_t iv . 0))
+                (cond
+                  ((coco_m_float e (nth i cells) (aof v)) (set (nth i buf) v))
+                  ((coco_m_int e (nth i cells) (aof iv)) (set (nth i buf) (cast double iv)))
+                  (#t (set ok 0))))
+              (set i (+ i 1))))
+          (free (cast (void *) cells))
+          (if (not ok)
+              (block (free (cast (void *) buf)) (return 0)))
+          (let ((size_t off . 0) (int64_t seq . 0))
+            (while (and ok (< off n))
+              (let ((size_t take . #'(? (> (- n off) 512) 512 (- n off))))
+                (if (not (coco_m_tensor_put e name seq (aof (nth off buf))
+                                            (cast uint32_t take)))
+                    (set ok 0))
+                (set off (+ off take))
+                (set seq (+ seq 1))))
+            ;; an empty parameter list still records one empty piece, so a
+            ;; loader can tell "saved empty" from "not there at all"
+            (if (and ok (== n 0))
+                (if (not (coco_m_tensor_put e name 0 buf 0)) (set ok 0))))
+          (free (cast (void *) buf))
+          (return ok)))))
+
+  ;; '$tensor_load'(+Name, -Params): the inverse -- the pieces back in seq
+  ;; order until one is not there, joined flat, as a list of floats. Fails
+  ;; when the arrangement has no tensor storage or the name has no rows,
+  ;; which is what sends model_load into the clause-chunk fallback.
+  (func t_tensor_load ((coco_engine * e) (size_t g)) (out int)
+    (let ((size_t nt . #'(coco_m_arg e g 0)))
+      (if (not (coco_m_is_atom e nt)) (return 0))
+      (let ((const char * name . #'(coco_m_atom e nt))
+            (double * buf . nil) (size_t n . 0) (size_t cap . 0)
+            (double piece [512]) (uint32_t pn . 0) (int64_t seq . 0)
+            (int any . 0) (int ok . 1))
+        (while (and ok (coco_m_tensor_row e name seq piece 512 (aof pn)))
+          (set any 1)
+          (if (> (+ n (cast size_t pn)) cap)
+              (let ((size_t ncap . #'(? (== cap 0) 1024 (* cap 2))))
+                (while (> (+ n (cast size_t pn)) ncap) (set ncap (* ncap 2)))
+                (let ((double * nb . #'(cast (double *) (realloc (cast (void *) buf)
+                                                                 (* ncap (sizeof double))))))
+                  (if (== nb nil) (set ok 0) (block (set buf nb) (set cap ncap))))))
+          (if ok
+              (block
+               (memcpy (aof (nth n buf)) piece (* (cast size_t pn) (sizeof double)))
+               (set n (+ n (cast size_t pn)))))
+          (set seq (+ seq 1))
+          (if (== pn 0) break))
+        (if (or (not ok) (not any))
+            (block (free (cast (void *) buf)) (return 0)))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t * cells . #'(cast (size_t *) (malloc (* (? (== n 0) 1 n) (sizeof size_t))))))
+          (if (== cells nil)
+              (block (free (cast (void *) buf)) (return 0)))
+          (let ((size_t k . 0))
+            (while (< k n)
+              (set (nth k cells) (coco_new_float m (nth k buf)))
+              (set k (+ k 1))))
+          (let ((size_t lst . #'(coco_m_list e cells n)))
+            (free (cast (void *) cells))
+            (free (cast (void *) buf))
+            (return (coco_m_unify e (coco_m_arg e g 1) lst)))))))
+
   ;; model_free(+M)
   (func t_model_free ((coco_engine * e) (size_t g)) (out int)
     (let ((llong h . #'(arg_handle e (coco_m_arg e g 0)))
@@ -1622,7 +1717,7 @@
   ;; tensor operations.
 
   (var const char * torch_prolog .
-       ":- dynamic torch_model/2.\n:- dynamic torch_params/3.\nmodel_save(Name, M) :- model_spec(M, Spec), model_params(M, Ps), ( retract(torch_model(Name, _)) -> true ; true ), '$torch_forget_params'(Name), assertz(torch_model(Name, Spec)), '$torch_save_chunks'(Ps, Name, 0).\n'$torch_forget_params'(Name) :- ( retract(torch_params(Name, _, _)) -> '$torch_forget_params'(Name) ; true ).\n'$torch_save_chunks'([], _, _) :- !.\n'$torch_save_chunks'(Ps, Name, Seq) :- '$torch_split'(Ps, 120, Chunk, Rest), assertz(torch_params(Name, Seq, Chunk)), Seq1 is Seq + 1, '$torch_save_chunks'(Rest, Name, Seq1).\n'$torch_split'(Xs, 0, [], Xs) :- !.\n'$torch_split'([], _, [], []) :- !.\n'$torch_split'([X|Xs], N, [X|Cs], Rest) :- N1 is N - 1, '$torch_split'(Xs, N1, Cs, Rest).\nmodel_load(Name, M) :- torch_model(Name, Spec), findall(Seq-Chunk, torch_params(Name, Seq, Chunk), Pairs), msort(Pairs, Sorted), '$torch_join_chunks'(Sorted, Ps), model_new(Spec, M), model_set_params(M, Ps).\n'$torch_join_chunks'([], []).\n'$torch_join_chunks'([_-C|T], Ps) :- '$torch_join_chunks'(T, Rest), append(C, Rest, Ps).\ntensor_train_test(T, NTrain, Train, Test) :- tensor_shape(T, [N|_]), tensor_rows(T, 0, NTrain, Train), tensor_rows(T, NTrain, N, Test).\ntensor_add(A, B, C) :- tensor_binary(add, A, B, C).\ntensor_sub(A, B, C) :- tensor_binary(sub, A, B, C).\ntensor_mul(A, B, C) :- tensor_binary(mul, A, B, C).\ntensor_div(A, B, C) :- tensor_binary(div, A, B, C).\ntensor_matmul(A, B, C) :- tensor_binary(matmul, A, B, C).\ntensor_neg(A, C) :- tensor_unary(neg, A, C).\ntensor_abs(A, C) :- tensor_unary(abs, A, C).\ntensor_exp(A, C) :- tensor_unary(exp, A, C).\ntensor_log(A, C) :- tensor_unary(log, A, C).\ntensor_sqrt(A, C) :- tensor_unary(sqrt, A, C).\ntensor_relu(A, C) :- tensor_unary(relu, A, C).\ntensor_sigmoid(A, C) :- tensor_unary(sigmoid, A, C).\ntensor_tanh(A, C) :- tensor_unary(tanh, A, C).\ntensor_transpose(A, C) :- tensor_unary(transpose, A, C).\ntensor_zeros(Shape, T) :- tensor_new(Shape, zeros, T).\ntensor_ones(Shape, T) :- tensor_new(Shape, ones, T).\ntensor_randn(Shape, T) :- tensor_new(Shape, randn, T).\ntensor_rand(Shape, T) :- tensor_new(Shape, rand, T).\ntensor_sum(T, X) :- tensor_reduce(sum, T, X).\ntensor_mean(T, X) :- tensor_reduce(mean, T, X).\ntensor_max(T, X) :- tensor_reduce(max, T, X).\ntensor_min(T, X) :- tensor_reduce(min, T, X).\ntensor_std(T, X) :- tensor_reduce(std, T, X).\n")
+       ":- dynamic torch_model/2.\n:- dynamic torch_params/3.\nmodel_save(Name, M) :- model_spec(M, Spec), model_params(M, Ps), ( retract(torch_model(Name, _)) -> true ; true ), '$torch_forget_params'(Name), assertz(torch_model(Name, Spec)), ( '$tensor_save'(Name, Ps) -> true ; '$torch_save_chunks'(Ps, Name, 0) ).\n'$torch_forget_params'(Name) :- ( retract(torch_params(Name, _, _)) -> '$torch_forget_params'(Name) ; true ).\n'$torch_save_chunks'([], _, _) :- !.\n'$torch_save_chunks'(Ps, Name, Seq) :- '$torch_split'(Ps, 120, Chunk, Rest), assertz(torch_params(Name, Seq, Chunk)), Seq1 is Seq + 1, '$torch_save_chunks'(Rest, Name, Seq1).\n'$torch_split'(Xs, 0, [], Xs) :- !.\n'$torch_split'([], _, [], []) :- !.\n'$torch_split'([X|Xs], N, [X|Cs], Rest) :- N1 is N - 1, '$torch_split'(Xs, N1, Cs, Rest).\nmodel_load(Name, M) :- torch_model(Name, Spec), ( '$tensor_load'(Name, Ps) -> true ; ( findall(Seq-Chunk, torch_params(Name, Seq, Chunk), Pairs), msort(Pairs, Sorted), '$torch_join_chunks'(Sorted, Ps) ) ), model_new(Spec, M), model_set_params(M, Ps).\n'$torch_join_chunks'([], []).\n'$torch_join_chunks'([_-C|T], Ps) :- '$torch_join_chunks'(T, Rest), append(C, Rest, Ps).\ntensor_train_test(T, NTrain, Train, Test) :- tensor_shape(T, [N|_]), tensor_rows(T, 0, NTrain, Train), tensor_rows(T, NTrain, N, Test).\ntensor_add(A, B, C) :- tensor_binary(add, A, B, C).\ntensor_sub(A, B, C) :- tensor_binary(sub, A, B, C).\ntensor_mul(A, B, C) :- tensor_binary(mul, A, B, C).\ntensor_div(A, B, C) :- tensor_binary(div, A, B, C).\ntensor_matmul(A, B, C) :- tensor_binary(matmul, A, B, C).\ntensor_neg(A, C) :- tensor_unary(neg, A, C).\ntensor_abs(A, C) :- tensor_unary(abs, A, C).\ntensor_exp(A, C) :- tensor_unary(exp, A, C).\ntensor_log(A, C) :- tensor_unary(log, A, C).\ntensor_sqrt(A, C) :- tensor_unary(sqrt, A, C).\ntensor_relu(A, C) :- tensor_unary(relu, A, C).\ntensor_sigmoid(A, C) :- tensor_unary(sigmoid, A, C).\ntensor_tanh(A, C) :- tensor_unary(tanh, A, C).\ntensor_transpose(A, C) :- tensor_unary(transpose, A, C).\ntensor_zeros(Shape, T) :- tensor_new(Shape, zeros, T).\ntensor_ones(Shape, T) :- tensor_new(Shape, ones, T).\ntensor_randn(Shape, T) :- tensor_new(Shape, randn, T).\ntensor_rand(Shape, T) :- tensor_new(Shape, rand, T).\ntensor_sum(T, X) :- tensor_reduce(sum, T, X).\ntensor_mean(T, X) :- tensor_reduce(mean, T, X).\ntensor_max(T, X) :- tensor_reduce(max, T, X).\ntensor_min(T, X) :- tensor_reduce(min, T, X).\ntensor_std(T, X) :- tensor_reduce(std, T, X).\n")
 
   ;; ---- dispatch and registration --------------------------------------
 
@@ -1656,6 +1751,8 @@
            ((== 0 (strcmp name "model_spec"))       (return (t_model_spec e g)))
            ((== 0 (strcmp name "model_params"))     (return (t_model_params e g)))
            ((== 0 (strcmp name "model_set_params")) (return (t_model_set_params e g)))
+           ((== 0 (strcmp name "$tensor_save"))     (return (t_tensor_save e g)))
+           ((== 0 (strcmp name "$tensor_load"))     (return (t_tensor_load e g)))
            (#t (set (cof found) 0) (return 0))))
         ((== arity 3)
          (cond

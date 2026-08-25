@@ -142,6 +142,15 @@
                                           (size_t pi)) (out int))
   (static) (decl) (func coco_zg_vacuum ((coco_store * st) (void * ctx)
                                       (i64 * live)) (out int))
+  (static) (decl) (func coco_zg_tensor_put ((coco_store * st) (void * ctx)
+                                          (const char * name) (i64 seq)
+                                          (const double * v) (u32 n)) (out int))
+  (static) (decl) (func coco_zg_tensor_row ((coco_store * st) (void * ctx)
+                                          (const char * name) (i64 seq)
+                                          (double * out) (u32 cap)
+                                          (u32 * n)) (out int))
+  (static) (decl) (func coco_zg_tensor_forget ((coco_store * st) (void * ctx)
+                                             (const char * name)) (out int))
 
   (func coco_zg_attach ((coco_zg * z) (zg_conn * db) (coco_machine * m)
                       (coco_store * st) (const char * kb))
@@ -161,7 +170,16 @@
         ;; this run MAY is the operator's call, so the composition root
         ;; clears it again unless `--vacuum' was given -- see kb.cicili on
         ;; what a null hook means to `vacuum_kb/0'.
-        (set (-> st vacuum) coco_zg_vacuum))
+        (set (-> st vacuum) coco_zg_vacuum)
+        ;; the tensor hooks are wire-only: the embedded engine's columns are
+        ;; int64 and text, so an embedded store keeps model parameters in
+        ;; clause chunks and the hooks stay null -- which is exactly what the
+        ;; torch module's fallback reads
+        (if (not (zg_embedded db))
+            (block
+             (set (-> st tensor_put) coco_zg_tensor_put)
+             (set (-> st tensor_row) coco_zg_tensor_row)
+             (set (-> st tensor_forget) coco_zg_tensor_forget))))
 
   ;;; ---- reading a predicate out of the database -------------------------
 
@@ -441,6 +459,68 @@
               ((== r ZG_CURSOR_FETCH) break)
               (#t (block))))
           (if (!= live nil) (set (cof live) got))
+          (return 1)))
+
+  ;;; ---- tensors: model parameters as rows of one vector field -----------
+  ;;;
+  ;;; The pieces go over the wire as Vector<Double> fields -- doubles, never
+  ;;; text -- into cocolog::tensors, keyed by this connection's kb and the
+  ;;; tensor's name, ordered by seq. The torch module reaches these through
+  ;;; the store hooks; see kb.cicili for the contract.
+
+  (func coco_zg_tensor_put ((coco_store * st) (void * ctx) (const char * name)
+                          (i64 seq) (const double * v) (u32 n)) (out int)
+        (let ((coco_zg * z . #'(cast (coco_zg *) ctx)) (i64 ignored . 0))
+          (cast void st)
+          (if (== (-> z db) nil) (return 0))
+          (if (not (zg_call (-> z db) "cocolog::tensor_put"))
+              (return (coco_zg_fail z "tensor_put")))
+          (if (not (zg_write_string (-> z db) (-> z kb))) (return 0))
+          (if (not (zg_write_string (-> z db) name)) (return 0))
+          (if (not (zg_write_long (-> z db) seq)) (return 0))
+          (if (not (zg_write_dvector (-> z db) v n)) (return 0))
+          (if (not (coco_zg_finish z (aof ignored)))
+              (return (coco_zg_fail z "tensor_put")))
+          (return 1)))
+
+  (func coco_zg_tensor_row ((coco_store * st) (void * ctx) (const char * name)
+                          (i64 seq) (double * out) (u32 cap) (u32 * n)) (out int)
+        (let ((coco_zg * z . #'(cast (coco_zg *) ctx))
+              (zg_result_t r) (char cols [256]) (int got . 0))
+          (cast void st)
+          (set (cof n) 0)
+          (if (== (-> z db) nil) (return 0))
+          (if (not (zg_call (-> z db) "cocolog::tensor_piece"))
+              (return (coco_zg_fail z "tensor_piece")))
+          (if (not (zg_write_string (-> z db) (-> z kb))) (return 0))
+          (if (not (zg_write_string (-> z db) name)) (return 0))
+          (if (not (zg_write_long (-> z db) seq)) (return 0))
+          (while 1
+            (if (not (zg_result (-> z db) (aof r)))
+                (return (coco_zg_fail z "tensor_piece")))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN)
+               (if (not (zg_columns (-> z db) cols 256))
+                   (return (coco_zg_fail z "tensor_piece"))))
+              ((== r ZG_CURSOR_FETCH)
+               (if (not (zg_read_dvector (-> z db) out cap n nil))
+                   (return (coco_zg_fail z "reading a tensor piece")))
+               (set got 1))
+              (#t (block))))
+          (return got)))
+
+  (func coco_zg_tensor_forget ((coco_store * st) (void * ctx)
+                             (const char * name)) (out int)
+        (let ((coco_zg * z . #'(cast (coco_zg *) ctx)) (i64 ignored . 0))
+          (cast void st)
+          (if (== (-> z db) nil) (return 0))
+          (if (not (zg_call (-> z db) "cocolog::tensors_forget"))
+              (return (coco_zg_fail z "tensors_forget")))
+          (if (not (zg_write_string (-> z db) (-> z kb))) (return 0))
+          (if (not (zg_write_string (-> z db) name)) (return 0))
+          (if (not (coco_zg_finish z (aof ignored)))
+              (return (coco_zg_fail z "tensors_forget")))
           (return 1)))
 
   ;;; A clause has just left a predicate. The whole predicate goes out again --

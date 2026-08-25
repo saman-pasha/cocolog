@@ -134,3 +134,25 @@ BEGIN
     TO Long::MAX;
     STEP 1;
 END
+
+-- One tensor as rows: the id columns say WHICH tensor a row belongs to
+-- (the knowledge base and the model's name), `seq' orders its pieces,
+-- and `vec' is the one vector field -- the parameters themselves, as
+-- doubles, not as text. A tensor wider than a page's worth of doubles
+-- spans rows by `seq', the way a machine spans machine_state chunks;
+-- the torch module splits at 512, well under the 8192-byte page.
+TABLE cocolog::tensors
+BEGIN
+    COLUMN id   AS Long   PRIMARY KEY;
+    COLUMN kb   AS String INDEX KEY NOT NULL;
+    COLUMN name AS String INDEX KEY NOT NULL;
+    COLUMN seq  AS Long   NOT NULL;
+    COLUMN vec  AS Vector<Double> NOT NULL;
+END
+
+SEQUENCE cocolog::tensors_seq
+BEGIN
+    FROM 1;
+    TO Long::MAX;
+    STEP 1;
+END

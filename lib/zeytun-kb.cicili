@@ -106,6 +106,10 @@
   (static) (decl) (func coco_zt_fetch ((coco_store * st) (void * ctx)
                                      (u64 name) (u32 arity)) (out int))
   (static) (decl) (func coco_zt_warm ((coco_store * st) (void * ctx)) (out int))
+  (static) (decl) (func coco_zt_tensor_row ((coco_store * st) (void * ctx)
+                                          (const char * name) (i64 seq)
+                                          (double * out) (u32 cap)
+                                          (u32 * n)) (out int))
 
   (func coco_zt_attach ((coco_zt * z) (const char * host) (const char * port)
                       (coco_machine * m) (coco_store * st) (const char * kb))
@@ -125,7 +129,11 @@
         ;; this backend asserts locally and the database does not hear about it.
         (set (-> st on_assert) nil)
         (set (-> st on_retract) nil)
-        (set (-> st on_dynamic) nil))
+        (set (-> st on_dynamic) nil)
+        ;; Reading a tensor is a READ too, off the tensor page, so model_load
+        ;; works over HTTP -- weights and all. Writing one is not, so the put
+        ;; and forget hooks stay null with the other writers.
+        (set (-> st tensor_row) coco_zt_tensor_row))
 
   ;;; Every predicate the knowledge base holds, interned so that `listing' knows
   ;;; they are there. The same page `coco_zt_fetch' does not use: it answers
@@ -259,6 +267,83 @@
           (free rows)
           (if (not ok) (return (coco_zt_fail z "reading clauses" "malformed answer")))
           (return 1)))
+
+  ;;; One piece of one tensor, off the tensor page -- and only one: the page
+  ;;; takes `from' and `limit', so a tensor of any number of rows streams a
+  ;;; piece per request and one response never has to carry it whole, which
+  ;;; is how anything over HTTP should face a table that can hold a huge
+  ;;; number of rows. The elements travel as the IEEE bits of the double
+  ;;; printed as a signed 64-bit integer -- Utility::double_bits on the way
+  ;;; out, one memcpy here on the way back in -- because the default decimal
+  ;;; rendering keeps six digits and a model weight does not survive that.
+  ;;;
+  ;;;   COCOLOG 1
+  ;;;   T <total>
+  ;;;   V <seq> <count>
+  ;;;   <count lines, one integer each>
+  ;;;   END
+  (func coco_zt_tensor_row ((coco_store * st) (void * ctx) (const char * name)
+                          (i64 seq) (double * out) (u32 cap) (u32 * n)) (out int)
+        (let ((coco_zt * z . #'(cast (coco_zt *) ctx))
+              (char path [640]) (char err [256]) (char ekb [256]) (char enm [256])
+              (char * body . nil)
+              (int got . 0) (int ok . 1))
+          (cast void st)
+          (set (cof n) 0)
+          (if (not (zt_urlencode (-> z kb) ekb (sizeof ekb)))
+              (return (coco_zt_fail z "the request path is too long" name)))
+          (if (not (zt_urlencode name enm (sizeof enm)))
+              (return (coco_zt_fail z "the request path is too long" name)))
+          (let ((int pn . #'(snprintf path (sizeof path)
+                                      "/cocolog/tensor.zt?kb=%s&name=%s&from=%lld&limit=1"
+                                      ekb enm (cast llong seq))))
+            (if (or (< pn 0) (>= (cast size_t pn) (sizeof path)))
+                (return (coco_zt_fail z "the request path is too long" name))))
+          (if (not (zt_get (-> z host) (-> z port) path (-> z timeout)
+                           (aof body) nil err (sizeof err)))
+              (return (coco_zt_fail z "fetching a tensor" err)))
+
+          (let ((char * p . body) (u32 want . 0) (u32 have . 0) (int in_v . 0))
+            (while (and ok (!= (cast char 0) (nth 0 p)))
+              (let ((char * eol . #'(strchr p 10)))
+                (if (!= eol nil) (set (nth 0 eol) (cast char 0)))
+                (cond
+                  ;; "V <seq> <count>" opens a piece; the one asked for is
+                  ;; collected, any other is walked past
+                  ((and (== (nth 0 p) (cast char 86)) (== (nth 1 p) (cast char 32)))
+                   (let ((char * cur . #'(+ p 2)) (char * rest)
+                         (llong s) (llong c))
+                     (set s (strtoll cur (aof rest) 10))
+                     (set cur rest)
+                     (set c (strtoll cur (aof rest) 10))
+                     (if (== s (cast llong seq))
+                         (block
+                          (if (> (cast u32 c) cap)
+                              (block (set ok 0))
+                            (block (set in_v 1)
+                                   (set want (cast u32 c))
+                                   (set have 0)))))))
+                  ((and in_v (< have want))
+                   (let ((char * rest)
+                         (llong bits . #'(strtoll p (aof rest) 10))
+                         (double d))
+                     (cast void rest)
+                     (memcpy (aof d) (aof bits) 8)
+                     (set (nth have out) d)
+                     (set have (+ have 1))
+                     (if (== have want)
+                         (block (set (cof n) want)
+                                (set got 1)
+                                (set in_v 0)))))
+                  (#t (block)))
+                (if (== eol nil) break)
+                (set (nth 0 eol) (cast char 10))
+                (set p (+ eol 1)))))
+
+          (free body)
+          (if (not ok)
+              (return (coco_zt_fail z "reading a tensor" "wider than the buffer")))
+          (return got)))
 
   ;;; ---- picking up a suspended machine -------------------------------------
 

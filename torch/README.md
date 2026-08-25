@@ -169,9 +169,14 @@ object. It is deliberately **not** part of any machine's state: a
 suspended machine carrying one finds it meaningless where it thaws,
 exactly as it would a file descriptor. What suspends and what persists
 is the model **as terms** — `model_spec/2` and `model_params/2` — and
-`model_save/2` is nothing but those two and an assert. The knowledge
-base does the rest, which is why a model saved against `--embed` (or a
-server) is simply *there* for the next process.
+`model_save/2` is the spec as a clause plus the parameters into
+`cocolog::tensors`, a table of one `Vector<Double>` field whose rows
+say which tensor and which piece they are — doubles, not text —
+falling back to clause chunks where the arrangement has no tensor
+storage (`--local`, the embedded store). The knowledge base does the
+rest, which is why a model saved against `--embed` (or a server) is
+simply *there* for the next process, and why loading one over `--http`
+streams its pieces off a paged tensor page, exact to the bit.
 
 ## Where this sits
 

@@ -164,6 +164,11 @@ int zg_reopen(zg_conn *c, const char *host, const char *service,
  * file and this does nothing for them; see STATUS.md. */
 int zg_serialise(zg_conn *c, const char *path, int wait_seconds);
 
+/* Whether this connection is the embedded engine rather than a socket.
+ * The vector calls below are wire-only, and the caller that installs the
+ * tensor hooks needs to know not to on an embedded store. */
+int zg_embedded(zg_conn *c);
+
 /* The last failure on this connection, or "" if there has not been one. */
 const char *zg_error(const zg_conn *c);
 
@@ -217,6 +222,14 @@ int zg_write_double(zg_conn *c, double v);
 int zg_write_string(zg_conn *c, const char *s);   /* up to ZG_MAX_STRING */
 int zg_write_text(zg_conn *c, const char *s);     /* up to ZG_MAX_TEXT   */
 
+/* A Vector<Double> parameter: N doubles as one field. The wire form is the
+ * type layer's own -- the vector TDB, a u32 count, then each element as
+ * zg_write_double sends it, tag and all, because binarystream serialises
+ * elements through their own operators. Not offered on an embedded
+ * connection: the Cicili MVCCS engine's columns are int64 and text, so the
+ * embedded arrangement keeps model parameters in clause chunks instead. */
+int zg_write_dvector(zg_conn *c, const double *v, uint32_t n);
+
 /* ---- reading fields ---- */
 /* IS_NULL may be NULL if the caller does not care; a null field leaves the
  * value untouched. A string or text that does not fit is an error rather than
@@ -232,6 +245,12 @@ int zg_read_text(zg_conn *c, char *buf, size_t cap, int *is_null);
 /* Reads a Text field into a buffer this call allocates. The caller frees it.
  * Text is the only field big enough to be worth not putting on the stack. */
 int zg_read_text_alloc(zg_conn *c, char **out, size_t *len, int *is_null);
+
+/* Reads a Vector<Double> field into OUT, up to CAP elements; *N says how
+ * many arrived. A vector wider than CAP is an error rather than a
+ * truncation, like the strings. Not offered on an embedded connection. */
+int zg_read_dvector(zg_conn *c, double *out, uint32_t cap, uint32_t *n,
+                    int *is_null);
 
 /* Skips one field of any type, reading exactly as many bytes as its
  * type-descriptor byte says it has. This is what makes zg_drain able to walk

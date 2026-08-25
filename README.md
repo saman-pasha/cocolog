@@ -313,6 +313,17 @@ documented at 65535 and the wire agrees, but a row has to fit in a page: with
 the default 8192-byte page a `Text` of 8000 stores and one of 8192 comes back
 `allocation overflow`. Measured, not guessed.
 
+**Model parameters are doubles**, in `cocolog::tensors` — a table of one
+`Vector<Double>` field, each row's id columns saying which tensor it belongs
+to and `seq` which piece, 512 doubles to a piece for the same
+row-fits-in-a-page reason. `model_save`/`model_load` use it wherever the
+arrangement can (the server; over HTTP the tensor page serves it back
+**paged**, `from` and `limit`, the elements travelling as the IEEE bits of
+the double so nothing rounds) and fall back to the older clause chunks
+where it cannot — `--local` by nature, the embedded store until the Cicili
+engine grows a vector column. The spec stays a clause either way, so
+`torch_model(Name, _)` is still the question a poller asks.
+
 **Thawing is two steps, in order**: thaw the machine, which rebuilds the atom
 table exactly as it was, *then* load the knowledge base, whose clauses intern
 against that table. The other order leaves the store's cells referring to atom

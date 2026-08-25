@@ -171,6 +171,11 @@ static void give_turn(zg_conn *c)
   }
 }
 
+int zg_embedded(zg_conn *c)
+{
+  return c && c->ce ? 1 : 0;
+}
+
 int zg_serialise(zg_conn *c, const char *path, int wait_seconds)
 {
   /* an embedded store has no second process to take turns with */
@@ -778,6 +783,24 @@ int zg_write_text(zg_conn *c, const char *s)
   return wr_std_text(c, s);
 }
 
+/* The type layer's Vector<T> serialises as its own descriptor byte -- the
+ * DWORD scale bit over the element's -- then a u32 count, then each element
+ * through the element type's own operator, tag and all. This mirrors that
+ * for Vector<Double>, the one vector the tensors table wants. */
+int zg_write_dvector(zg_conn *c, const double *v, uint32_t n)
+{
+  uint32_t i;
+  if (c->ce)
+    return say(c, "the embedded engine keeps parameters in clause chunks");
+  if (!wr_u8(c, TDB_SCALE_DWRD | TDB_DOUBLE)) return 0;
+  if (!wr_be(c, &n, 4)) return 0;
+  for (i = 0; i < n; i++) {
+    if (!wr_u8(c, TDB_DOUBLE)) return 0;
+    if (!wr_be(c, &v[i], 8)) return 0;
+  }
+  return 1;
+}
+
 /* ------------------------------------------------------------------ */
 /* reading fields                                                     */
 /* ------------------------------------------------------------------ */
@@ -895,6 +918,31 @@ int zg_read_text_alloc(zg_conn *c, char **out, size_t *len, int *is_null)
   buf[n] = '\0';
   if (out) *out = buf; else free(buf);
   if (len) *len = n;
+  return 1;
+}
+
+int zg_read_dvector(zg_conn *c, double *out, uint32_t cap, uint32_t *n,
+                    int *is_null)
+{
+  uint8_t tdb, etdb;
+  uint32_t count, i;
+  int null = 0;
+
+  if (n) *n = 0;
+  if (c->ce)
+    return say(c, "the embedded engine keeps parameters in clause chunks");
+  if (!field_head(c, &tdb, &null)) return 0;
+  if (is_null) *is_null = null;
+  if (null) return 1;
+  if ((tdb & TDB_SCALE_MASK) != TDB_SCALE_DWRD)
+    return say(c, "the field is not a vector");
+  if (!rd_u32(c, &count)) return 0;
+  if (count > cap) return say(c, "a vector wider than the caller's buffer");
+  for (i = 0; i < count; i++) {
+    if (!rd_u8(c, &etdb)) return 0;
+    if (!rd_be(c, &out[i], 8)) return 0;
+  }
+  if (n) *n = count;
   return 1;
 }
 

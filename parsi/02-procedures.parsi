@@ -167,12 +167,13 @@ END
 -- Empties a whole knowledge base. Used by the tests, which want a clean one.
 PROCEDURE cocolog::forget_all(p_kb AS String)
 RETURNS Long
-REQUIRES cocolog::clauses, cocolog::props
+REQUIRES cocolog::clauses, cocolog::props, cocolog::tensors
 BEGIN
     DECLARE total AS Long = 0;
     SELECT total = total + 1 FROM cocolog::clauses WHERE kb == p_kb;
     DELETE FROM cocolog::clauses WHERE kb == p_kb;
     DELETE FROM cocolog::props WHERE kb == p_kb;
+    DELETE FROM cocolog::tensors WHERE kb == p_kb;
     RETURN total;
 END
 
@@ -202,7 +203,7 @@ END
 -- the same is what says there was nothing left to reclaim.
 PROCEDURE cocolog::vacuum()
 RETURNS Long
-REQUIRES cocolog::clauses, cocolog::props, cocolog::machines, cocolog::machine_state
+REQUIRES cocolog::clauses, cocolog::props, cocolog::machines, cocolog::machine_state, cocolog::tensors
 BEGIN
     DECLARE total AS Long = 0;
 
@@ -212,11 +213,13 @@ BEGIN
     TRUNCATE cocolog::machines;
     TRUNCATE cocolog::clauses;
     TRUNCATE cocolog::props;
+    TRUNCATE cocolog::tensors;
 
     SELECT total = total + 1 FROM cocolog::clauses;
     SELECT total = total + 1 FROM cocolog::props;
     SELECT total = total + 1 FROM cocolog::machines;
     SELECT total = total + 1 FROM cocolog::machine_state;
+    SELECT total = total + 1 FROM cocolog::tensors;
 
     RETURN total;
 END
@@ -401,4 +404,42 @@ BEGIN
     TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
     RETURN found;
+END
+
+-- ---------------------------------------------------------------------------
+-- Tensors: model parameters as rows of one vector field
+-- ---------------------------------------------------------------------------
+
+-- One piece of one tensor. The caller clears the name first (tensors_forget)
+-- when it is SAVING over -- put itself only appends, so the pieces of one
+-- save arrive without a window where old and new rows mix.
+PROCEDURE cocolog::tensor_put(p_kb AS String, p_name AS String,
+                              p_seq AS Long, p_vec AS Vector<Double>)
+RETURNS Long
+REQUIRES cocolog::tensors, cocolog::tensors_seq
+BEGIN
+    DECLARE id AS Long = cocolog::tensors_seq::NEXT();
+    INSERT INTO cocolog::tensors VALUES (id, p_kb, p_name, p_seq, p_vec);
+    RETURN id;
+END
+
+-- One piece of one tensor, by its seq. The reader walks seq upward until a
+-- piece is not there, so the pieces come back in order without the cursor
+-- ever being asked to promise one -- the machine loader's contract.
+PROCEDURE cocolog::tensor_piece(p_kb AS String, p_name AS String, p_seq AS Long)
+RETURNS Void
+REQUIRES cocolog::tensors
+BEGIN
+    SELECT vec FROM cocolog::tensors
+    WHERE kb == p_kb AND name == p_name AND seq == p_seq;
+END
+
+PROCEDURE cocolog::tensors_forget(p_kb AS String, p_name AS String)
+RETURNS Long
+REQUIRES cocolog::tensors
+BEGIN
+    DECLARE total AS Long = 0;
+    SELECT total = total + 1 FROM cocolog::tensors WHERE kb == p_kb AND name == p_name;
+    DELETE FROM cocolog::tensors WHERE kb == p_kb AND name == p_name;
+    RETURN total;
 END

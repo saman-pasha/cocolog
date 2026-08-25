@@ -215,3 +215,73 @@ PUBLIC:
         ECHO 'END', nl;
     END
 END
+
+-- One tensor for the HTTP arrangement -- so model_load works over Zeytun
+-- too, weights and all -- PAGED, the way anything over HTTP should face a
+-- table that can hold a huge number of rows: `from' and `limit' bound how
+-- many pieces one response carries, and the client walks.
+--
+--   GET /cocolog/tensor.zt?kb=brain&name=rings&from=0&limit=1
+--
+--   COCOLOG 1
+--   T <total pieces>
+--   V <seq> <count>
+--   <count lines, one element each, as the IEEE bits of the double>
+--   ...up to `limit' pieces...
+--   END
+--
+-- THE ELEMENTS TRAVEL AS THEIR BITS. The default decimal rendering keeps six
+-- digits and a model weight does not survive that; the bit pattern printed as
+-- a signed 64-bit integer loses nothing and reads back with one memcpy
+-- (Utility::double_bits, and the client's mirror). The pieces are emitted in
+-- `seq' order by asking for them one at a time, the machine page's trick: a
+-- SELECT is a cursor and a cursor is not ordered. `from' and `limit' arrive
+-- as text and become numbers through atoll, because Zigurat's numeric types
+-- have no constructor from a String; absent or zero limit means one piece.
+PAGE cocolog::tensor
+REQUIRES cocolog::tensors
+BEGIN
+PUBLIC:
+    OVERRIDE FUNCTION PAGE_LOAD() RETURNS Void
+    BEGIN
+        CALL response.SET_HEADER('content-type', 'text/plain; charset=utf-8');
+        DECLARE nl AS String = '
+';
+        DECLARE p_kb   AS String = request.QUERY('kb');
+        DECLARE p_name AS String = request.QUERY('name');
+        DECLARE p_from AS Long = `atoll(request.QUERY('from').`value().`c_str());
+        DECLARE p_limit AS Long = `atoll(request.QUERY('limit').`value().`c_str());
+        DECLARE one AS Long = 1;
+        DECLARE zero AS Long = 0;
+        IF p_limit <= zero BEGIN
+            SET p_limit = one;
+        END
+
+        DECLARE total AS Long = 0;
+        SELECT total = total + 1 FROM cocolog::tensors
+        WHERE kb == p_kb AND name == p_name;
+
+        DECLARE stop AS Long = p_from + p_limit;
+        IF total < stop BEGIN
+            SET stop = total;
+        END
+
+        ECHO 'COCOLOG 1', nl;
+        ECHO 'T ', total, nl;
+        DECLARE s AS Long = p_from;
+        WHILE s < stop BEGIN
+            DECLARE v AS Vector<Double>;
+            SELECT v = vec FROM cocolog::tensors
+            WHERE kb == p_kb AND name == p_name AND seq == s;
+            DECLARE n AS ULong = v.size();
+            DECLARE i AS ULong = 0ul;
+            ECHO 'V ', s, ' ', n, nl;
+            WHILE i < n BEGIN
+                ECHO `Zigurat::`Utility::`double_bits(v.get(i).`value()), nl;
+                SET i = i + 1ul;
+            END
+            SET s = s + one;
+        END
+        ECHO 'END', nl;
+    END
+END

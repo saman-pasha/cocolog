@@ -116,6 +116,10 @@
      (decl) (func zg_write_double ((zg_conn * c) (double v)) (out int))
      (decl) (func zg_write_string ((zg_conn * c) (const char * s)) (out int))
      (decl) (func zg_write_text   ((zg_conn * c) (const char * s)) (out int))
+     (decl) (func zg_write_dvector ((zg_conn * c) (const double * v) (u32 n)) (out int))
+     (decl) (func zg_read_dvector ((zg_conn * c) (double * out) (u32 cap)
+                                   (u32 * n) (int * is_null)) (out int))
+     (decl) (func zg_embedded ((zg_conn * c)) (out int))
 
      ;;; ---- reading fields ----
      (decl) (func zg_read_bool   ((zg_conn * c) (int * v) (int * is_null)) (out int))

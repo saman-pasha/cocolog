@@ -132,6 +132,23 @@
     ;; second answer being the same is what says there was nothing left.
     (member func vacuum ((coco_store * st) (void * ctx) (i64 * live)) (out int))
 
+    ;; Tensors: model parameters as rows of one vector field, in the
+    ;; cocolog::tensors table -- doubles, not text. Three optional hooks the
+    ;; torch module consults through the module API; all three null means
+    ;; the arrangement keeps parameters in clause chunks instead, which is
+    ;; what --local does by nature and the embedded store does until the
+    ;; Cicili MVCCS engine grows a vector column.
+    ;;   put:    one piece of the tensor NAME, seq-th of its pieces
+    ;;   row:    the seq-th piece back, up to CAP doubles, *N says how many;
+    ;;           answers 0 at the first seq that is not there
+    ;;   forget: every piece of NAME, before a save writes new ones
+    (member func tensor_put ((coco_store * st) (void * ctx) (const char * name)
+                             (i64 seq) (const double * v) (u32 n)) (out int))
+    (member func tensor_row ((coco_store * st) (void * ctx) (const char * name)
+                             (i64 seq) (double * out) (u32 cap) (u32 * n)) (out int))
+    (member func tensor_forget ((coco_store * st) (void * ctx)
+                                (const char * name)) (out int))
+
     ;; How many MODULES have had their clauses consulted into this store. It
     ;; lives here rather than beside the registry because it is a fact about
     ;; this store and not about the build: `coco_store_reset' -- which is what
@@ -307,7 +324,15 @@
                 (func keep_warm ((coco_store * s) (void * c)) (out int)
                       . #'(-> st warm))
                 (func keep_dynamic ((coco_store * s) (void * c) (size_t pi)) (out int)
-                      . #'(-> st on_dynamic)))
+                      . #'(-> st on_dynamic))
+                (func keep_tput ((coco_store * s) (void * c) (const char * nm)
+                                 (i64 sq) (const double * v) (u32 n)) (out int)
+                      . #'(-> st tensor_put))
+                (func keep_trow ((coco_store * s) (void * c) (const char * nm)
+                                 (i64 sq) (double * o) (u32 cap) (u32 * n)) (out int)
+                      . #'(-> st tensor_row))
+                (func keep_tforget ((coco_store * s) (void * c) (const char * nm)) (out int)
+                      . #'(-> st tensor_forget)))
             (coco_store_free st)
             (coco_store_init st)
             (set (-> st ctx) ctx)
@@ -315,7 +340,10 @@
             (set (-> st on_assert) keep_assert)
             (set (-> st on_retract) keep_retract)
             (set (-> st warm) keep_warm)
-            (set (-> st on_dynamic) keep_dynamic))))
+            (set (-> st on_dynamic) keep_dynamic)
+            (set (-> st tensor_put) keep_tput)
+            (set (-> st tensor_row) keep_trow)
+            (set (-> st tensor_forget) keep_tforget))))
 
   (static)
   (func coco_store_push ((coco_store * st) (u64 c)) (out size_t)
