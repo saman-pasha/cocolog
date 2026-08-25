@@ -1115,6 +1115,77 @@ passing for the new one — pipe a build into a file, never into `head`
 because Emacs loads the compiled file when one exists: recompile or
 delete the `.elc` before believing a test.
 
+### Tensors: a table of one vector field
+
+Model parameters used to be text twice over — floats printed into
+120-float chunk clauses, stored in the clauses table like any other
+Prolog. Now they are what they are: doubles, in `cocolog::tensors`, a
+table of one `Vector<Double>` column whose id columns (`kb`, `name`)
+say WHICH tensor a row belongs to and whose `seq` says which piece,
+512 doubles to a piece because a row has to fit in a page. The spec
+stays a clause, so `torch_model(Name, _)` is still the question the
+coworker pollers ask; what moved is only the weight of the thing.
+
+The build ran outside-in, each layer proven before the next was
+written. A sandboxed ZiguratIP home showed the Parsi compiler takes a
+`Vector<Double>` column and emits a loadable table; the C client then
+learned the type layer's own wire form for the vector — the descriptor
+byte, a u32 count, each element tagged as the Double writer sends it
+(`zg_write_dvector`/`zg_read_dvector`) — and a 600-double field went
+into a real table row and came back **bit-exact** before a line of
+engine code existed. The seam is three optional store hooks
+(`tensor_put`, `tensor_row`, `tensor_forget` in kb.cicili), reached by
+the torch module through the module API, filled per arrangement, and
+null where the arrangement has no tensor storage — in which case
+`model_save`/`model_load` fall back to the old clause chunks. That is
+`--local` by nature and the embedded store by fact: the Parsi
+compiler's generated Cicili twin degrades a `Vector<Double>` column to
+an int64, so the vector column for the Cicili MVCCS engine is on the
+list below. `forget_all` and the vacuum clear and reclaim the new
+table with the rest.
+
+Zeytun reads it **paged**, the way anything over HTTP should face a
+table that can hold a huge number of rows: the tensor page takes
+`from` and `limit`, each response carries only the pieces asked for,
+and the loader walks a piece per request — a tensor of any width
+streams and never travels whole. The elements cross as the IEEE bits
+of the double printed as a signed 64-bit integer, because the first
+draft of the page printed `99.833417` where the row held
+99.8334166468… — the default decimal rendering keeps six digits and a
+model weight does not survive it. `Utility::double_bits` (new in
+ZiguratIP's Core) is the exact-bits primitive; the reader is one
+memcpy. Getting the page to compile offline at all fixed a ZiguratIP
+compiler bug on the way: a generated PAGE header only forward-declared
+the request and the response, the server's request-time compile got
+the real headers by include-order accident, and somewhere a generated
+header had been hand-patched above its own include guard to paper over
+it — the compiler now emits the includes itself.
+
+`test/tensors.sh`, the suite's fifteenth case, holds the whole story:
+the wire arrangement trains and saves and `torch_params/3` answers
+**false** — the parameters are rows, not clauses — while a second
+process loads the model back at 100%; a 1994-parameter model makes
+four pieces (`T 4`, `V 0 512` straight off the page) and loads over
+`--http` exact; the embedded store keeps its chunks and works. All
+fifteen GREEN against a live server, `red: 0`.
+
+### Found and not yet hunted: overlapping writers
+
+Building the coworker tasks surfaced a server bug that has its own
+place on the hunt list, because coworker/README.md points here. On a
+fresh store: three clause-write transactions that overlap in time —
+one row each is enough, given seconds of compute between BEGIN and
+COMMIT — either wedge the server or complete, report success to every
+client, and persist nothing; and with no concurrency at all, a single
+transaction of ~150 small clause rows hangs where 100 passes, which
+smells like a page or index-node boundary. `--lock auto` did not
+protect the overlapping case, which is itself a finding. One writer
+with parallel readers is proven (ruler), twelve machine-state writers
+are proven (groups) — the clause-write path under overlap is the gap.
+Until the hunt, the coworker scripts obey the discipline their README
+names: long compute never inside a transaction, write turns small and
+chunked, one write turn at a time.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
@@ -1181,6 +1252,9 @@ delete the `.elc` before believing a test.
 
 ## Not started
 
-* A REPL. `cocolog query` runs one goal and exits.
 * Strings as a type; `"abc"` reads as a code list, which is the ISO default.
 * Any indexing on the first argument. A predicate's clauses are tried in order.
+* The overlapping-writers hunt above.
+* A `Vector` column kind for the Cicili MVCCS engine, so the embedded
+  store can hold the tensors table instead of falling back to clause
+  chunks.
