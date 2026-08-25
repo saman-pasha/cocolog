@@ -1,5 +1,7 @@
 # cocolog
 
+![Zigurat the warrior, Coco the engineer, Cicili the philosopher](art/banner.svg)
+
 **A Prolog interpreter whose running state is data, so it can be suspended into
 a database and finished by a different process.**
 
@@ -97,6 +99,8 @@ colab/                 train on a Colab GPU, query from anywhere: the
 coworker/              coworking: cocolog instances working one problem
                        together through knowledge bases -- the accumulator
                        (fan-in) and the balancer (all-gather)
+art/                   the banner: hand-drawn SVG (and its PNG render) --
+                       the warrior, the engineer, the philosopher
 ```
 
 ## Installing
