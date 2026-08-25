@@ -1326,3 +1326,121 @@ fifteen GREEN against a live server, `red: 0`.
 
 * Strings as a type; `"abc"` reads as a code list, which is the ISO default.
 * Any indexing on the first argument. A predicate's clauses are tried in order.
+* Everything in the section below, which is where this project is aimed.
+
+## The Coco: the intelligent aggregator hub
+
+Nothing in this section is started. It is written down because the
+pieces it stands on ARE done and tested — the stories above prove every
+one of them — and because seeing the targets against the foundations is
+what makes each of them look the size it actually is: an arrangement
+and a `run.sh`, not a platform.
+
+The thesis, in one paragraph. Every blockchain is structurally
+forbidden from learning: its contract VM must be deterministic
+arithmetic, so intelligence lives off-chain behind oracles and the
+chain only ever sees the oracle's word. Coco dissolves the wall,
+because here the contract language, the consensus rules, the ledger
+entries and the trained models are all the same substance — clauses
+and rows in a transactional store — executed by an engine that is
+already deterministic and already metered. One binary that is the
+engine, the store, the crypto, the trainer and the consensus: **a
+ledger that learns**, and above the single ledger, a host to many —
+chains as knowledge bases, each carrying its own consensus as data —
+**an aggregator hub with a mind**.
+
+What already stands under it, story by story:
+
+* An append-only entry is a clause; `assertz` appends and nothing
+  deletes, which also sidesteps the MVCC-ageing hazard entirely.
+* A turn is one transaction — a block and its head mark commit
+  together, the exact property `part_ready/1` proves in the balancer.
+* The balancer IS gossip (seed own work, then poll peers, fetch,
+  verify, adopt); the accumulator IS fan-in settlement — and its
+  held-out acceptance test (`accuracy >= 90%`) is a settlement rule.
+* The machines table's SERIALIZABLE claim-of-one is leader election,
+  proven under twelve concurrent workers; freeze/thaw is a suspended
+  contract — an escrow that waits as rows and resumes on any node.
+* Model parameters are ledger-ready TODAY: rows in
+  `cocolog::tensors`, in every arrangement including the embedded one.
+  A row is hashable; a hashable row chains.
+* ZiguratIP carries a full in-house crypto stack (`Cryptography/`):
+  SHA-1..512 with HMAC, RSA with OAEP and both signature schemes
+  (RSASSA-PSS, PKCS#1 v1.5), AES, X509 with the `ca` tool — and a
+  certificate-borne permission system (`PERMISSIONS_MODE`): grants
+  over a schema or one object are written INTO the certificate by the
+  issuer, membership is a file per subject, refusal happens at the
+  TLS handshake. Who may append is the server's decision, not a rule's.
+* The engine's builtins are deterministic by design and `max_steps`
+  is a gas meter already in the struct; the store's isolation ladder
+  runs READ_UNCOMMITTED to SERIALIZABLE, per turn, through
+  `zg_isolate`; the shared read side is parallel and proven; Zeytun is
+  a read-only public audit plane by construction.
+
+The targets, as a ladder — each rung a working arrangement that ends
+in a GREEN line:
+
+1. **The crypto module.** `lib/crypto.cicili` in the torch module's
+   mold: `sha256_hex/2`, HMAC, RSASSA-PSS sign and verify — a thin
+   binding over `libCryptography.so`, no new cryptography written.
+2. **TLS in the C client**, over Zigurat's own TLS/X509, so a cocolog
+   node presents its certificate and the permission gate covers
+   node-to-node links. A ledger node never listens in the clear — the
+   gate only judges what a TLS port presents.
+3. **The PoA federation ledger** (`coworker/ledger/`): a federation CA
+   issues per-node certificates with append grants
+   (`--permission=LEDGER::ENTRIES`); signed, sha256-chained entries;
+   blocks committed with their head mark in one turn; balancer-style
+   gossip; validity and fork choice as Prolog rules; a Zeytun page so
+   anyone can audit the chain without a write path existing.
+4. **Contracts.** A contract is a predicate; deployment is a signed
+   entry whose payload is clauses. Contract goals run against a
+   whitelisted builtin table (no clock, no files, no torch) under
+   `max_steps` — gas — and a failed or over-budget call rolls back
+   with its turn. Long-lived contracts suspend as machines and thaw
+   when their condition arrives.
+5. **Training as settlement — proof of useful work.** A contract term
+   names data, architecture and seed; workers train in `--local` and
+   publish signed, hash-chained parameter rows; settlement is the
+   acceptance predicate over held-out data. The discipline in one
+   sentence: train freely, verify deterministically, commit rows.
+   Federated learning gains an audit trail — "where did this model
+   come from" becomes a query.
+6. **A PoH spine.** An iterated sha256 chain as a clock nobody can
+   backdate — produced sequentially, verified in parallel by splitting
+   the range balancer-style across coworkers.
+7. **PoS and BFT votes, where the trust model wants them.** Stake is a
+   query over the ledger's own entries; the leader draw is a
+   deterministic function of chain state (hash-seeded — grindable, an
+   accepted trade inside a certificate-gated federation, not outside
+   it); a quorum certificate is a counting rule over verified
+   signatures, and a turn makes vote-and-lock atomic.
+8. **The aggregator.** A chain is a kb, so one node hosts many chains
+   under different consensus regimes — and each chain publishes its
+   own validity and fork-choice rules as entries on itself, so a
+   foreign chain is verified by consulting its rules under the same
+   fence contracts run under: **the chain carries its own light
+   client**. Bridges are suspended-machine escrows that thaw on a
+   rule-verified finality proof; an anchor chain checkpoints member
+   heads accumulator-style; unification is the translation layer, so
+   cross-chain provenance is a join. (Aggregating foreign ecosystems —
+   Bitcoin, Ethereum — would need secp256k1 and keccak, which
+   `Cryptography/` does not carry; new primitives, not new
+   architecture.)
+9. **The TPS harness, from day one.** Two lanes on one engine:
+   a speculative lane at READ_UNCOMMITTED — peers read a block while
+   its turn is still open, pipelining verification ahead of finality,
+   dirty state a hint and never a settlement — and a settlement lane
+   at commit isolation, with the contended few paying SERIALIZABLE
+   through the claim-of-one while single-appender kbs stream
+   uncoordinated, Sui's owned-object fast path as an isolation
+   parameter. The harness prints transactions per second the way the
+   hunt printed 944ms, and no sentence anywhere says "competes with"
+   until that number is on this page.
+
+The disciplines that hold across every rung, all already paid for in
+the stories above: long compute never inside a turn; anything big
+travels chunked because a row fits in a page; permission gates the
+door and the signature rides in the row; dirty reads accelerate and
+never finalize; and a claim is only made after `make test` — with the
+server up — ends `red: 0`.
