@@ -5,7 +5,7 @@
 ;;;; WHAT THIS IS. The interpreter talks to its database through the C
 ;;;; client in client/zigurat.c -- call a procedure, write parameters,
 ;;;; read results. This file is the other end of that conversation done
-;;;; as a library: the same eighteen procedures 02-procedures.parsi
+;;;; as a library: the same procedures 02-procedures.parsi
 ;;;; defines, implemented over the SAME generated table definitions the
 ;;;; Parsi compiler wrote (generated/*.cicili -- see embed/build.sh for
 ;;;; how they and the engine get here), executed in-process. The client
@@ -34,6 +34,7 @@
   (include <cstring>)
   (include <cstdlib>)
   (include <string>)
+  (include <vector>)
   (include <pthread.h>)
   (include <unistd.h>)
   (include <time.h>)
@@ -59,6 +60,8 @@
   (import "./generated/cocolog-machines-seq.cicili")
   (import "./generated/cocolog-machine-state.cicili")
   (import "./generated/cocolog-machine-state-seq.cicili")
+  (import "./generated/cocolog-tensors.cicili")
+  (import "./generated/cocolog-tensors-seq.cicili")
   (define-COCOLOG_CLAUSES)
   (define-COCOLOG_CLAUSES_SEQ)
   (define-COCOLOG_PROPS)
@@ -67,6 +70,8 @@
   (define-COCOLOG_MACHINES_SEQ)
   (define-COCOLOG_MACHINE_STATE)
   (define-COCOLOG_MACHINE_STATE_SEQ)
+  (define-COCOLOG_TENSORS)
+  (define-COCOLOG_TENSORS_SEQ)
 
   ;; ---- the one store this process holds ----------------------------
 
@@ -88,13 +93,16 @@
     (member uint8_t code)              ;; result byte when CE_RESULT
     (member uint8_t tag)               ;; TDB byte when CE_FIELD
     (member int64_t num)
-    (member char *  str))              ;; malloc'd; string/text payload
+    (member char *  str)               ;; malloc'd; string/text payload
+    (member double * vec)              ;; malloc'd; Vector<Double> payload
+    (member uint32_t nvec))
 
   ;; the TDB type-descriptor bytes, as client/zigurat.c has them
   (var const uint8_t CE_TDB_INT    . 0x0B)
   (var const uint8_t CE_TDB_LONG   . 0x0C)
   (var const uint8_t CE_TDB_STRING . 0x29)
   (var const uint8_t CE_TDB_TEXT   . 0x49)
+  (var const uint8_t CE_TDB_DVEC   . 0x7C)  ;; TDB_SCALE_DWRD | TDB_DOUBLE
 
   ;; the result bytes, as Connector/resulttype.hpp has them
   (var const uint8_t CE_DONE   . 0)
@@ -110,6 +118,8 @@
     (member uint8_t atag [8])
     (member int64_t anum [8])
     (member char * astr [8])           ;; malloc'd
+    (member double * avec [8])         ;; malloc'd; Vector<Double> arguments
+    (member uint32_t avecn [8])
     (member CeTok * toks)
     (member int ntoks)
     (member int captoks)
@@ -125,6 +135,8 @@
       (while (< i (-> s ntoks))
         (if (!= ($ (nth i (-> s toks)) str) nil)
             (free ($ (nth i (-> s toks)) str)))
+        (if (!= ($ (nth i (-> s toks)) vec) nil)
+            (free (cast (void *) ($ (nth i (-> s toks)) vec))))
         (set i (+ i 1))))
     (set (-> s ntoks) 0)
     (set (-> s rtok) 0))
@@ -135,6 +147,10 @@
         (if (!= (nth i (-> s astr)) nil)
             (block (free (nth i (-> s astr)))
                    (set (nth i (-> s astr)) nil)))
+        (if (!= (nth i (-> s avec)) nil)
+            (block (free (cast (void *) (nth i (-> s avec))))
+                   (set (nth i (-> s avec)) nil)))
+        (set (nth i (-> s avecn)) 0)
         (set i (+ i 1))))
     (set (-> s argc) 0))
 
@@ -153,6 +169,8 @@
       (set (-> t tag) 0)
       (set (-> t num) 0)
       (set (-> t str) nil)
+      (set (-> t vec) nil)
+      (set (-> t nvec) 0)
       (return t)))
 
   (func emit_result ((CeSess * s) (uint8_t code)) (out void)
@@ -172,6 +190,20 @@
       (set (-> t tag) tag)
       (set (-> t str) (strdup v))))
 
+  ;; a Vector<Double> field: the doubles copied whole into the token, so
+  ;; the row under the cursor may go out of scope before the read
+  (func emit_vec ((CeSess * s) (const double * v) (uint32_t n)) (out void)
+    (let ((CeTok * t . #'(ce_tok s)))
+      (set (-> t kind) CE_FIELD)
+      (set (-> t tag) CE_TDB_DVEC)
+      (set (-> t nvec) n)
+      (if (> n 0)
+          (block
+            (set (-> t vec) (cast (double *) (malloc (* (cast size_t n) (sizeof double)))))
+            (if (!= (-> t vec) nil)
+                (memcpy (cast (void *) (-> t vec)) (cast (const void *) v)
+                        (* (cast size_t n) (sizeof double))))))))
+
   ;; a cursor's header: the OPEN byte and the column list its reader
   ;; takes off the stream right after it
   (func emit_open ((CeSess * s) (const char * columns)) (out void)
@@ -188,6 +220,14 @@
     (if (>= i (-> s argc)) (return ""))
     (if (== (nth i (-> s astr)) nil) (return ""))
     (return (nth i (-> s astr))))
+
+  (func arg_vec ((CeSess * s) (int i)) (out const double *)
+    (if (>= i (-> s argc)) (return nil))
+    (return (nth i (-> s avec))))
+
+  (func arg_vecn ((CeSess * s) (int i)) (out uint32_t)
+    (if (>= i (-> s argc)) (return 0))
+    (return (nth i (-> s avecn))))
 
   ;; ---- table scans ---------------------------------------------------
   ;; Each context carries the session (to emit into), the filter, and --
@@ -320,6 +360,58 @@
                                       (cast (void *) (aof c)) props_row_cb)
           (if (== ($ c got) 1)
               (COCOLOG_PROPS_delete (aof ce_mem) (aof ($ c row)))))
+        (set i (+ i 1)))))
+
+  ;; ---- tensors -------------------------------------------------------
+  ;; The one-vector-field table, over the generated VECTOR column: model
+  ;; parameters as rows of doubles, exactly as the server keeps them.
+
+  (struct TensorsCtx
+    (member CeSess * s)
+    (member const char * kb)
+    (member const char * name)         ;; nil matches every name
+    (member int64_t seq)               ;; matched only when want_seq
+    (member int want_seq)
+    (member int emit)                  ;; 1 (vec)
+    (member int collect)
+    (member int64_t count)
+    (member CeIds ids))
+
+  (func tensors_cb ((void * u) (COCOLOG_TENSORS * r)) (out bool)
+    (let ((TensorsCtx * c . #'(cast (TensorsCtx *) u)))
+      (if (!= 0 (strcmp (($ (-> r KB) c_str)) (-> c kb))) (return #t))
+      (if (!= (-> c name) nil)
+          (if (!= 0 (strcmp (($ (-> r NAME) c_str)) (-> c name))) (return #t)))
+      (if (== (-> c want_seq) 1)
+          (if (!= (-> r SEQ) (-> c seq)) (return #t)))
+      (set (-> c count) (+ (-> c count) 1))
+      (if (== (-> c emit) 1)
+          (block
+            (emit_result (-> c s) CE_FETCH)
+            (emit_vec (-> c s) (($ (-> r VEC) data))
+                      (cast uint32_t (($ (-> r VEC) size))))))
+      (if (== (-> c collect) 1) (ce_ids_push (aof (-> c ids)) (-> r ID)))
+      (return #t)))
+
+  (struct TensorRowCtx
+    (member COCOLOG_TENSORS row)
+    (member int got))
+
+  (func tensor_row_cb ((void * u) (COCOLOG_TENSORS * r)) (out bool)
+    (let ((TensorRowCtx * c . #'(cast (TensorRowCtx *) u)))
+      (set (-> c row) (cof r))
+      (set (-> c got) 1)
+      (return #t)))
+
+  (func tensors_delete_ids ((CeIds * ids)) (out void)
+    (let ((int i . 0))
+      (while (< i (-> ids n))
+        (let ((TensorRowCtx c))
+          (set ($ c got) 0)
+          (IDX_COCOLOG_TENSORS_ID_equal (aof ce_mem) (nth i (-> ids v))
+                                        (cast (void *) (aof c)) tensor_row_cb)
+          (if (== ($ c got) 1)
+              (COCOLOG_TENSORS_delete (aof ce_mem) (aof ($ c row)))))
         (set i (+ i 1)))))
 
   ;; ---- machines ------------------------------------------------------
@@ -565,6 +657,21 @@
             (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof p)) props_cb)
             (props_delete_ids (aof ($ p ids)))
             (ce_ids_free (aof ($ p ids)))))
+      ;; forget_all also empties the kb's tensors, as the Parsi body does
+      (if (== whole_kb 1)
+          (let ((TensorsCtx t))
+            (set ($ t s) s)
+            (set ($ t kb) (arg_str s 0))
+            (set ($ t name) nil)
+            (set ($ t seq) 0)
+            (set ($ t want_seq) 0)
+            (set ($ t emit) 0)
+            (set ($ t collect) 1)
+            (set ($ t count) 0)
+            (set ($ ($ t ids) v) nil) (set ($ ($ t ids) n) 0) (set ($ ($ t ids) cap) 0)
+            (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) (aof t)) tensors_cb)
+            (tensors_delete_ids (aof ($ t ids)))
+            (ce_ids_free (aof ($ t ids)))))
       (emit_result s CE_RETURN)
       (emit_num s CE_TDB_LONG ($ c count))
       (emit_result s CE_DONE)))
@@ -696,9 +803,64 @@
     (emit_num s CE_TDB_LONG 1)
     (emit_result s CE_DONE))
 
+  ;; ---- the tensor procedures -----------------------------------------
+  ;; 02-procedures.parsi's tensor bodies over the generated VECTOR
+  ;; column. Put only appends -- the caller clears the name first
+  ;; (tensors_forget) when it is saving over, exactly as on the wire.
+
+  (func run_tensor_put ((CeSess * s)) (out void)
+    (let ((int64_t id . #'(COCOLOG_TENSORS_SEQ_next)))
+      (let ((COCOLOG_TENSORS row))
+        (set ($ row ID) id)
+        (set ($ row KB) (std::string (arg_str s 0)))
+        (set ($ row NAME) (std::string (arg_str s 1)))
+        (set ($ row SEQ) (arg_num s 2))
+        (let ((const double * v . #'(arg_vec s 3))
+              (uint32_t vn . #'(arg_vecn s 3)))
+          (if (and (!= v nil) (> vn 0))
+              (($ ($ row VEC) assign) v (+ v vn))))
+        (COCOLOG_TENSORS_insert (aof ce_mem) (aof row)))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG id)
+      (emit_result s CE_DONE)))
+
+  (func run_tensor_piece ((CeSess * s)) (out void)
+    (let ((TensorsCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) (arg_str s 1))
+      (set ($ c seq) (arg_num s 2))
+      (set ($ c want_seq) 1)
+      (set ($ c emit) 1)
+      (set ($ c collect) 0)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (emit_open s "vec")
+      (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) (aof c)) tensors_cb)
+      (emit_result s CE_CLOSE)
+      (emit_result s CE_DONE)))
+
+  (func run_tensors_forget ((CeSess * s)) (out void)
+    (let ((TensorsCtx c))
+      (set ($ c s) s)
+      (set ($ c kb) (arg_str s 0))
+      (set ($ c name) (arg_str s 1))
+      (set ($ c seq) 0)
+      (set ($ c want_seq) 0)
+      (set ($ c emit) 0)
+      (set ($ c collect) 1)
+      (set ($ c count) 0)
+      (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
+      (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) (aof c)) tensors_cb)
+      (tensors_delete_ids (aof ($ c ids)))
+      (ce_ids_free (aof ($ c ids)))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG ($ c count))
+      (emit_result s CE_DONE)))
+
   ;; ---- the vacuum ----------------------------------------------------
 
-  ;; Four counting callbacks rather than one, because the cursor hands each
+  ;; Five counting callbacks rather than one, because the cursor hands each
   ;; table's own row type; a cursor under MVCC yields live rows only, which
   ;; is exactly the count wanted.
   (func vac_clauses_cb ((void * u) (COCOLOG_CLAUSES * r)) (out bool)
@@ -717,8 +879,12 @@
     (cast void r)
     (let ((int64_t * n . #'(cast (int64_t *) u)))
       (set (cof n) (+ (cof n) 1)) (return #t)))
+  (func vac_tensors_cb ((void * u) (COCOLOG_TENSORS * r)) (out bool)
+    (cast void r)
+    (let ((int64_t * n . #'(cast (int64_t *) u)))
+      (set (cof n) (+ (cof n) 1)) (return #t)))
 
-  ;; The engine's truncate over the four tables, then a count of what is
+  ;; The engine's truncate over the five tables, then a count of what is
   ;; left alive -- the same answer `cocolog::vacuum' returns on the wire,
   ;; for the same reason: run it twice and an unchanged answer says there
   ;; was nothing left to reclaim. Truncate frees only rows whose delete is
@@ -732,10 +898,12 @@
       (COCOLOG_MACHINES_truncate (aof ce_mem))
       (COCOLOG_CLAUSES_truncate (aof ce_mem))
       (COCOLOG_PROPS_truncate (aof ce_mem))
+      (COCOLOG_TENSORS_truncate (aof ce_mem))
       (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof live)) vac_clauses_cb)
       (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof live)) vac_props_cb)
       (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof live)) vac_machines_cb)
       (COCOLOG_MACHINE_STATE_cursor (aof ce_mem) (cast (void *) (aof live)) vac_state_cb)
+      (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) (aof live)) vac_tensors_cb)
       (emit_result s CE_RETURN)
       (emit_num s CE_TDB_LONG live)
       (emit_result s CE_DONE)))
@@ -759,6 +927,7 @@
     (if (== 0 (strcmp p "cocolog::forget_clauses"))  (return 1))
     (if (== 0 (strcmp p "cocolog::forget"))          (return 1))
     (if (== 0 (strcmp p "cocolog::forget_all"))      (return 1))
+    (if (== 0 (strcmp p "cocolog::tensors_forget"))  (return 1))
     (if (== 0 (strcmp p "cocolog::machine_open"))    (return 1))
     (if (== 0 (strcmp p "cocolog::machine_release")) (return 1))
     (if (== 0 (strcmp p "cocolog::machine_drop"))    (return 1))
@@ -800,6 +969,9 @@
         ((== 0 (strcmp p "cocolog::machine_claim"))      (run_machine_claim s 0))
         ((== 0 (strcmp p "cocolog::machine_claim_named")) (run_machine_claim s 1))
         ((== 0 (strcmp p "cocolog::machine_release"))    (run_machine_release s))
+        ((== 0 (strcmp p "cocolog::tensor_put"))         (run_tensor_put s))
+        ((== 0 (strcmp p "cocolog::tensor_piece"))       (run_tensor_piece s))
+        ((== 0 (strcmp p "cocolog::tensors_forget"))     (run_tensors_forget s))
         ((== 0 (strcmp p "cocolog::vacuum"))             (run_vacuum s))
         (#t (return (ce_fail s "no such procedure"))))
       (return 1)))
@@ -876,10 +1048,12 @@
               (IDX_COCOLOG_MACHINES_ID_attach (aof ce_mem))
               (IDX_COCOLOG_MACHINE_STATE_ID_attach (aof ce_mem))
               (IDX_COCOLOG_MACHINE_STATE_MACHINE_ID_attach (aof ce_mem))
+              (IDX_COCOLOG_TENSORS_ID_attach (aof ce_mem))
               (COCOLOG_CLAUSES_SEQ_attach (aof ce_mem))
               (COCOLOG_PROPS_SEQ_attach (aof ce_mem))
               (COCOLOG_MACHINES_SEQ_attach (aof ce_mem))
               (COCOLOG_MACHINE_STATE_SEQ_attach (aof ce_mem))
+              (COCOLOG_TENSORS_SEQ_attach (aof ce_mem))
               ;; the open transaction the first session inherits is not
               ;; wanted -- sessions begin their own
               (commit_transaction (aof ce_mem)))
@@ -941,6 +1115,8 @@
         (set (nth (-> s argc) (-> s atag)) (cast uint8_t tag))
         (set (nth (-> s argc) (-> s anum)) (cast int64_t v))
         (set (nth (-> s argc) (-> s astr)) nil)
+        (set (nth (-> s argc) (-> s avec)) nil)
+        (set (nth (-> s argc) (-> s avecn)) 0)
         (set (-> s argc) (+ (-> s argc) 1))
         (return 1)))
 
@@ -950,6 +1126,30 @@
         (set (nth (-> s argc) (-> s atag)) (cast uint8_t tag))
         (set (nth (-> s argc) (-> s anum)) 0)
         (set (nth (-> s argc) (-> s astr)) (strdup v))
+        (set (nth (-> s argc) (-> s avec)) nil)
+        (set (nth (-> s argc) (-> s avecn)) 0)
+        (set (-> s argc) (+ (-> s argc) 1))
+        (return 1)))
+
+    ;; a Vector<Double> parameter -- the doubles copied whole, so the
+    ;; caller's buffer is free the moment this returns
+    (func ce_write_dvector ((void * sp) (const double * v) (uint32_t n)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (>= (-> s argc) 8) (return (ce_fail s "too many parameters")))
+        (set (nth (-> s argc) (-> s atag)) CE_TDB_DVEC)
+        (set (nth (-> s argc) (-> s anum)) 0)
+        (set (nth (-> s argc) (-> s astr)) nil)
+        (set (nth (-> s argc) (-> s avec)) nil)
+        (set (nth (-> s argc) (-> s avecn)) n)
+        (if (> n 0)
+            (block
+              (set (nth (-> s argc) (-> s avec))
+                   (cast (double *) (malloc (* (cast size_t n) (sizeof double)))))
+              (if (== (nth (-> s argc) (-> s avec)) nil)
+                  (return (ce_fail s "out of memory taking a vector parameter")))
+              (memcpy (cast (void *) (nth (-> s argc) (-> s avec)))
+                      (cast (const void *) v)
+                      (* (cast size_t n) (sizeof double)))))
         (set (-> s argc) (+ (-> s argc) 1))
         (return 1)))
 
@@ -1010,6 +1210,23 @@
           (set (-> s rtok) (+ (-> s rtok) 1))
           (if (!= out nil) (set (cof out) (strdup (-> t str))))
           (if (!= len nil) (set (cof len) (strlen (-> t str))))
+          (return 1))))
+
+    (func ce_read_dvector ((void * sp) (double * out) (uint32_t cap) (uint32_t * n)) (out int)
+      (let ((CeSess * s . #'(cast (CeSess *) sp)))
+        (if (!= n nil) (set (cof n) 0))
+        (if (>= (-> s rtok) (-> s ntoks))
+            (return (ce_fail s "nothing left to read")))
+        (let ((CeTok * t . #'(aof (nth (-> s rtok) (-> s toks)))))
+          (if (or (!= (-> t kind) CE_FIELD) (!= (-> t tag) CE_TDB_DVEC))
+              (return (ce_fail s "no vector field here")))
+          (if (> (-> t nvec) cap)
+              (return (ce_fail s "a vector wider than the caller's buffer")))
+          (set (-> s rtok) (+ (-> s rtok) 1))
+          (if (and (> (-> t nvec) 0) (!= (-> t vec) nil))
+              (memcpy (cast (void *) out) (cast (const void *) (-> t vec))
+                      (* (cast size_t (-> t nvec)) (sizeof double))))
+          (if (!= n nil) (set (cof n) (-> t nvec)))
           (return 1))))
 
     (func ce_skip ((void * sp)) (out int)

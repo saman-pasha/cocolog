@@ -71,6 +71,8 @@ extern const char *ce_error(void *s) __attribute__((weak));
 extern int  ce_call(void *s, const char *proc) __attribute__((weak));
 extern int  ce_write_num(void *s, int tag, long long v) __attribute__((weak));
 extern int  ce_write_str(void *s, int tag, const char *v) __attribute__((weak));
+extern int  ce_write_dvector(void *s, const double *v, uint32_t n) __attribute__((weak));
+extern int  ce_read_dvector(void *s, double *out, uint32_t cap, uint32_t *n) __attribute__((weak));
 extern int  ce_result(void *s, int *out) __attribute__((weak));
 extern int  ce_columns(void *s, char *buf, size_t cap) __attribute__((weak));
 extern int  ce_read_num(void *s, long long *v) __attribute__((weak));
@@ -790,8 +792,7 @@ int zg_write_text(zg_conn *c, const char *s)
 int zg_write_dvector(zg_conn *c, const double *v, uint32_t n)
 {
   uint32_t i;
-  if (c->ce)
-    return say(c, "the embedded engine keeps parameters in clause chunks");
+  if (c->ce) return emb(c, ce_write_dvector(c->ce, v, n));
   if (!wr_u8(c, TDB_SCALE_DWRD | TDB_DOUBLE)) return 0;
   if (!wr_be(c, &n, 4)) return 0;
   for (i = 0; i < n; i++) {
@@ -929,8 +930,11 @@ int zg_read_dvector(zg_conn *c, double *out, uint32_t cap, uint32_t *n,
   int null = 0;
 
   if (n) *n = 0;
-  if (c->ce)
-    return say(c, "the embedded engine keeps parameters in clause chunks");
+  if (c->ce) {
+    if (!ce_read_dvector(c->ce, out, cap, n)) return say(c, ce_error(c->ce));
+    if (is_null) *is_null = 0;
+    return 1;
+  }
   if (!field_head(c, &tdb, &null)) return 0;
   if (is_null) *is_null = null;
   if (null) return 1;

@@ -1138,11 +1138,10 @@ engine code existed. The seam is three optional store hooks
 the torch module through the module API, filled per arrangement, and
 null where the arrangement has no tensor storage — in which case
 `model_save`/`model_load` fall back to the old clause chunks. That is
-`--local` by nature and the embedded store by fact: the Parsi
-compiler's generated Cicili twin degrades a `Vector<Double>` column to
-an int64, so the vector column for the Cicili MVCCS engine is on the
-list below. `forget_all` and the vacuum clear and reclaim the new
-table with the rest.
+`--local` by nature — and was the embedded store by fact, until the
+Cicili engine grew its VECTOR column kind (the story below).
+`forget_all` and the vacuum clear and reclaim the new table with the
+rest.
 
 Zeytun reads it **paged**, the way anything over HTTP should face a
 table that can hold a huge number of rows: the tensor page takes
@@ -1166,7 +1165,8 @@ the wire arrangement trains and saves and `torch_params/3` answers
 **false** — the parameters are rows, not clauses — while a second
 process loads the model back at 100%; a 1994-parameter model makes
 four pieces (`T 4`, `V 0 512` straight off the page) and loads over
-`--http` exact; the embedded store keeps its chunks and works. All
+`--http` exact; the embedded store holds the same rows through the
+engine's VECTOR column (below — it kept clause chunks until then). All
 fifteen GREEN against a live server, `red: 0`.
 
 ### The overlapping-writers hunt: the server walks free
@@ -1220,6 +1220,43 @@ already proven (ruler), twelve machine-state writers were proven
 the balancer got its ordering rule stated while the mutex came out: a
 worker seeds its own third first and only then polls its peers, so
 nobody waits on a worker that is itself still waiting.
+
+### A VECTOR column kind for the Cicili MVCCS engine
+
+The one gap the tensors table left: the embedded arrangement kept
+model parameters in clause chunks, because the Parsi compiler's
+generated Cicili twin degraded a `Vector<Double>` column to an int64.
+Closed from the bottom up:
+
+* **The engine.** `deftable` grew a third column kind beside int64 and
+  `(TEXT c)`: `(VECTOR c)`, a `std::vector<double>` member (`dvec_t`,
+  one `@define`) packed as an int64 count and the doubles, eight bytes
+  each, exactly as they are — so what round-trips is the bits, the
+  same claim the wire form and the Zeytun page already made.
+  `schema_test` proves it at the engine level: a vector row goes in,
+  comes back equal, and survives a restart.
+* **The compiler.** The Parsi compiler's `.cicili` twin emitter now
+  writes `(VECTOR col)` for a `Vector` column instead of degrading it,
+  so `make schema` emits a loadable tensors twin beside the C++ pair.
+* **The embedded backend.** embed.cicili imports the generated tensors
+  twins and implements the three tensor procedures over them —
+  `tensor_put`, `tensor_piece`, `tensors_forget`, the exact bodies
+  02-procedures.parsi runs on the server — with the vector crossing
+  the client seam through two new calls (`ce_write_dvector`,
+  `ce_read_dvector`) that the C client's `zg_write_dvector`/
+  `zg_read_dvector` dispatch to when the connection is embedded.
+  `forget_all` empties the kb's tensors and the vacuum truncates and
+  counts the fifth table, as on the server.
+* **The hooks.** zigurat-kb.cicili installs the tensor hooks
+  unconditionally now — the same client code serves both ends — so the
+  embedded store stores model parameters as rows and `torch_params/3`
+  answers **false** there too. The clause-chunk fallback remains for
+  what it was always for: `--local`, which has no store behind it.
+
+`test/tensors.sh`'s embed half flipped from "the parameters stay in
+chunk clauses" to "the parameters are rows, not clauses", and a second
+process loads the model back at 100% from the store files alone. All
+fifteen GREEN against a live server, `red: 0`.
 
 ## Known limitations, by choice
 
@@ -1289,6 +1326,3 @@ nobody waits on a worker that is itself still waiting.
 
 * Strings as a type; `"abc"` reads as a code list, which is the ISO default.
 * Any indexing on the first argument. A predicate's clauses are tried in order.
-* A `Vector` column kind for the Cicili MVCCS engine, so the embedded
-  store can hold the tensors table instead of falling back to clause
-  chunks.

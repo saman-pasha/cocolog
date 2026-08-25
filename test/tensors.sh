@@ -96,16 +96,19 @@ else
   echo "curl: SKIP (page shape unchecked)"
 fi
 
-# ---- embed: the clause-chunk fallback -------------------------------
+# ---- embed: the same rows, in-process -------------------------------
+# The engine's VECTOR column kind carries the tensors table inside the
+# one binary, so the embedded arrangement stores parameters exactly as
+# the server does: rows, not clause chunks.
 
 timeout 300 "$C" --embed "$OUT/store" --kb $KB run "$ROOT/tutorials/07-xor.pl" train \
   > "$OUT/etrain.log" 2>&1
-got=$(timeout 60 "$C" --embed "$OUT/store" --kb $KB --answers 1 \
-        query "torch_params(t07_xor, 0, _)" 2>/dev/null | grep -c '^  1\.')
-check "embedded: the parameters stay in chunk clauses" "$got" "1"
+got=$(timeout 60 "$C" --embed "$OUT/store" --kb $KB \
+        query "torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
+check "embedded: the parameters are rows, not clauses" "$got" "false."
 got=$(timeout 300 "$C" --embed "$OUT/store" --kb $KB \
         run "$ROOT/tutorials/07-xor.pl" test 2>/dev/null | tail -1)
-check "and load back whole there too" "$got" "ok"
+check "and a second process loads them back whole" "$got" "ok"
 
 timeout 60 "$C" $W forget >/dev/null 2>&1
 

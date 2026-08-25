@@ -190,15 +190,13 @@
         ;; clears it again unless `--vacuum' was given -- see kb.cicili on
         ;; what a null hook means to `vacuum_kb/0'.
         (set (-> st vacuum) coco_zg_vacuum)
-        ;; the tensor hooks are wire-only: the embedded engine's columns are
-        ;; int64 and text, so an embedded store keeps model parameters in
-        ;; clause chunks and the hooks stay null -- which is exactly what the
-        ;; torch module's fallback reads
-        (if (not (zg_embedded db))
-            (block
-             (set (-> st tensor_put) coco_zg_tensor_put)
-             (set (-> st tensor_row) coco_zg_tensor_row)
-             (set (-> st tensor_forget) coco_zg_tensor_forget))))
+        ;; the tensor hooks hold for BOTH ends of this client: the wire
+        ;; server's tensors table, and the embedded engine's -- whose
+        ;; VECTOR column kind carries the same rows in-process, so model
+        ;; parameters are rows wherever this backend is attached
+        (set (-> st tensor_put) coco_zg_tensor_put)
+        (set (-> st tensor_row) coco_zg_tensor_row)
+        (set (-> st tensor_forget) coco_zg_tensor_forget))
 
   ;;; ---- reading a predicate out of the database -------------------------
 
