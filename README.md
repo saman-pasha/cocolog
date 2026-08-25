@@ -94,6 +94,9 @@ emacs/                 cocolog-mode: a Prolog major mode with colours for
                        its engine held to this interpreter
 colab/                 train on a Colab GPU, query from anywhere: the
                        notebook, and COLAB.md for the arrangement it runs
+coworker/              coworking: cocolog instances working one problem
+                       together through knowledge bases -- the accumulator
+                       (fan-in) and the balancer (all-gather)
 ```
 
 ## Installing
@@ -555,6 +558,40 @@ over `--http`, the weights arriving as terms and the prediction running
 wherever the querier is. One writer, many readers, enforced by which
 port is public; `test/tunnel.sh` rehearses the edge locally, port for
 port and Host for Host.
+
+## Coworking: Cocos that work a problem together
+
+**Coco is built for coworking** — several cocolog instances sharing one
+job through knowledge bases, with no coordinator process, no message
+queue and no protocol invented for the occasion. Everything that moves
+between coworkers is clauses in a store: a worker announces itself by
+asserting, waits for a peer by *asking the peer's knowledge base*,
+fetches data by reading rows, and hands its result over by saving a
+model — because **a trained model is clauses**, a coworker's finished
+work is queryable the moment its turn commits, by anyone, with plain
+Prolog.
+
+[coworker/](coworker/) holds two worked arrangements over the same
+split dataset, each self-contained and runnable with one `sh run.sh`:
+
+* **[accumulator](coworker/accumulator/)** — fan-in. Three trainers in
+  parallel, each on its own third of the data into its own knowledge
+  base; a fourth instance polls each part for the model **by its
+  name** — `torch_model(rings, _)`, an answer that flips exactly when a
+  publish turn commits — then averages the three parameter sets
+  (one-shot federated averaging, in Prolog, over the flat float lists),
+  saves the accumulated model, tests it on held-out data and predicts.
+* **[balancer](coworker/balancer/)** — all-gather, no centre. Every
+  worker owns a third, waits for its peers, fetches the two thirds it
+  lacks out of their knowledge bases, trains the full model itself and
+  publishes it back — so **any of the three answers**, and queries go
+  to whichever node is up or nearest.
+
+Each part's connection is an environment variable, so the same scripts
+run against three separate servers on three machines. The suspended
+machines of the [twelve-interpreter demos](#twelve-interpreters-four-states)
+are the same idea one level deeper: there the coworkers share not just
+the knowledge but the *proof in progress*.
 
 ## The tracer speaks SWI
 
