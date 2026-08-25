@@ -1,6 +1,6 @@
 # cocolog
 
-![Zigurat the warrior, Coco the engineer, Cicili the philosopher](art/banner.svg)
+![cocolog, the bridge between the three](art/banner.svg)
 
 **A Prolog interpreter whose running state is data, so it can be suspended into
 a database and finished by a different process.**
