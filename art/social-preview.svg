@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <!-- The GitHub social preview: the banner's triptych with the name over it.
+       Hand-drawn SVG, no external assets; art/banner.svg is the README strip. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0e1a"/>
+      <stop offset="0.7" stop-color="#121831"/>
+      <stop offset="1" stop-color="#182040"/>
+    </linearGradient>
+    <radialGradient id="medal" cx="0.5" cy="0.42" r="0.75">
+      <stop offset="0" stop-color="#1d2647"/>
+      <stop offset="1" stop-color="#131a35"/>
+    </radialGradient>
+    <radialGradient id="shieldface" cx="0.5" cy="0.4" r="0.8">
+      <stop offset="0" stop-color="#b2452f"/>
+      <stop offset="1" stop-color="#7e2f22"/>
+    </radialGradient>
+    <linearGradient id="parch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#efe8d4"/>
+      <stop offset="1" stop-color="#d9cfb2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#sky)"/>
+
+  <!-- stars -->
+  <g fill="#cfd6ef">
+    <circle cx="70" cy="52" r="1.6" opacity="0.8"/><circle cx="150" cy="120" r="1.1" opacity="0.5"/>
+    <circle cx="215" cy="35" r="1.3" opacity="0.6"/><circle cx="330" cy="70" r="1.0" opacity="0.4"/>
+    <circle cx="415" cy="30" r="1.5" opacity="0.7"/><circle cx="470" cy="105" r="1.0" opacity="0.5"/>
+    <circle cx="540" cy="48" r="1.2" opacity="0.6"/><circle cx="843" cy="55" r="1.6" opacity="0.8"/>
+    <circle cx="705" cy="40" r="1.1" opacity="0.5"/><circle cx="760" cy="90" r="1.4" opacity="0.6"/>
+    <circle cx="905" cy="72" r="1.5" opacity="0.7"/><circle cx="975" cy="38" r="1.1" opacity="0.5"/>
+    <circle cx="1060" cy="60" r="1.4" opacity="0.7"/><circle cx="1130" cy="110" r="1.0" opacity="0.4"/>
+    <circle cx="1195" cy="42" r="1.6" opacity="0.8"/><circle cx="1245" cy="95" r="1.1" opacity="0.5"/>
+    <circle cx="35" cy="180" r="1.0" opacity="0.4"/><circle cx="120" cy="260" r="1.0" opacity="0.35"/>
+    <circle cx="480" cy="180" r="1.0" opacity="0.35"/><circle cx="805" cy="175" r="1.0" opacity="0.35"/>
+    <circle cx="1235" cy="220" r="1.0" opacity="0.35"/><circle cx="60" cy="380" r="1.0" opacity="0.3"/>
+    <circle cx="1225" cy="390" r="1.0" opacity="0.3"/><circle cx="640" cy="18" r="1.2" opacity="0.6"/>
+  </g>
+
+  <!-- ziggurat skyline -->
+  <g fill="#0e1327">
+    <path d="M0 640 L0 600 H70 V580 H130 V600 H200 V640 Z"/>
+    <path d="M170 640 V592 H240 V570 H290 V550 H350 V570 H400 V592 H470 V640 Z"/>
+    <path d="M430 640 V606 H500 V584 H560 V606 H630 V640 Z"/>
+    <path d="M560 640 V588 H630 V562 H680 V538 H740 V562 H790 V588 H860 V640 Z" fill="#101530"/>
+    <path d="M820 640 V602 H890 V578 H950 V602 H1020 V640 Z"/>
+    <path d="M990 640 V594 H1060 V570 H1110 V552 H1170 V570 H1220 V594 H1280 V640 Z"/>
+    <path d="M1200 640 V608 H1260 V590 H1280 V640 Z"/>
+  </g>
+  <rect y="638" width="1280" height="2" fill="#0d1122"/>
+
+  <!-- the name -->
+  <text x="640" y="96" font-family="Georgia, 'Times New Roman', serif" font-size="52"
+        font-weight="bold" fill="#e8e2d0" text-anchor="middle" letter-spacing="16">COCOLOG</text>
+  <text x="640" y="130" font-family="Georgia, 'Times New Roman', serif" font-size="17"
+        font-style="italic" fill="#8b93b8" text-anchor="middle" letter-spacing="2">a Prolog whose running state is data</text>
+
+  <!-- ================= ZIGURAT, the warrior ================= -->
+  <g transform="translate(0,172) translate(280,168) scale(1.12) translate(-280,-168)">
+    <circle cx="280" cy="168" r="104" fill="#c9873b" opacity="0.08"/>
+    <circle cx="280" cy="168" r="95" fill="url(#medal)" stroke="#c9873b" stroke-width="3"/>
+    <circle cx="280" cy="168" r="88" fill="none" stroke="#c9873b" stroke-width="1" opacity="0.35"/>
+    <g stroke="#9a6a2c" stroke-width="6" stroke-linecap="round">
+      <line x1="224" y1="120" x2="338" y2="222"/>
+      <line x1="336" y1="120" x2="222" y2="222"/>
+    </g>
+    <path d="M215 105 L237 113 L222 130 Z" fill="#d8a252"/>
+    <path d="M345 105 L323 113 L338 130 Z" fill="#d8a252"/>
+    <circle cx="280" cy="170" r="50" fill="url(#shieldface)" stroke="#d8a252" stroke-width="5"/>
+    <circle cx="280" cy="170" r="38" fill="none" stroke="#d8a252" stroke-width="1.5" opacity="0.6"/>
+    <g fill="#eec784">
+      <rect x="253" y="180" width="54" height="9" rx="1.5"/>
+      <rect x="264" y="168" width="32" height="9" rx="1.5"/>
+      <rect x="271" y="156" width="18" height="9" rx="1.5"/>
+      <rect x="277" y="147" width="6" height="6" rx="1"/>
+    </g>
+  </g>
+
+  <!-- ================= COCO, the engineer ================= -->
+  <g transform="translate(0,178) translate(640,162) scale(1.12) translate(-640,-162)">
+    <circle cx="640" cy="162" r="124" fill="#3aa89b" opacity="0.09"/>
+    <circle cx="640" cy="162" r="113" fill="url(#medal)" stroke="#3aa89b" stroke-width="3"/>
+    <circle cx="640" cy="162" r="105" fill="none" stroke="#3aa89b" stroke-width="1" opacity="0.35"/>
+    <g fill="#2f8d82">
+      <g transform="translate(640,162)">
+        <rect x="-10" y="-92" width="20" height="20" rx="4"/>
+        <rect x="-10" y="72" width="20" height="20" rx="4"/>
+        <rect x="-92" y="-10" width="20" height="20" rx="4"/>
+        <rect x="72" y="-10" width="20" height="20" rx="4"/>
+        <g transform="rotate(45)">
+          <rect x="-10" y="-92" width="20" height="20" rx="4"/>
+          <rect x="-10" y="72" width="20" height="20" rx="4"/>
+          <rect x="-92" y="-10" width="20" height="20" rx="4"/>
+          <rect x="72" y="-10" width="20" height="20" rx="4"/>
+        </g>
+      </g>
+    </g>
+    <circle cx="640" cy="162" r="74" fill="none" stroke="#3aa89b" stroke-width="14"/>
+    <circle cx="640" cy="162" r="60" fill="none" stroke="#2c7f75" stroke-width="2" opacity="0.6"/>
+    <g stroke="#67c9bc" stroke-width="2">
+      <line x1="640" y1="162" x2="640" y2="118"/>
+      <line x1="640" y1="162" x2="678" y2="140"/>
+      <line x1="640" y1="162" x2="678" y2="184"/>
+      <line x1="640" y1="162" x2="640" y2="206"/>
+      <line x1="640" y1="162" x2="602" y2="184"/>
+      <line x1="640" y1="162" x2="602" y2="140"/>
+    </g>
+    <g fill="#8fdcd1">
+      <circle cx="640" cy="118" r="7"/>
+      <circle cx="678" cy="140" r="7"/>
+      <circle cx="678" cy="184" r="7"/>
+      <circle cx="640" cy="206" r="7"/>
+      <circle cx="602" cy="184" r="7"/>
+      <circle cx="602" cy="140" r="7"/>
+    </g>
+    <circle cx="640" cy="162" r="12" fill="#e0a84a" stroke="#f3cf8d" stroke-width="2"/>
+  </g>
+
+  <!-- ================= CICILI, the philosopher ================= -->
+  <g transform="translate(0,172) translate(1000,168) scale(1.12) translate(-1000,-168)">
+    <circle cx="1000" cy="168" r="104" fill="#7d8fd4" opacity="0.08"/>
+    <circle cx="1000" cy="168" r="95" fill="url(#medal)" stroke="#7d8fd4" stroke-width="3"/>
+    <circle cx="1000" cy="168" r="88" fill="none" stroke="#7d8fd4" stroke-width="1" opacity="0.35"/>
+    <g>
+      <path d="M1070 118 C1086 140 1083 174 1057 196 C1048 174 1051 142 1070 118 Z" fill="#aab8ea"/>
+      <path d="M1070 118 C1062 142 1058 168 1057 196 L1053 192 C1055 164 1060 138 1070 118 Z" fill="#8fa0dd"/>
+      <line x1="1057" y1="196" x2="1042" y2="222" stroke="#aab8ea" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M1042 222 L1038 231 L1047 226 Z" fill="#dfe5f8"/>
+    </g>
+    <g transform="rotate(6 1000 172)">
+      <rect x="954" y="130" width="92" height="84" fill="url(#parch)" rx="3"/>
+      <rect x="948" y="122" width="104" height="14" rx="7" fill="#cfc3a0"/>
+      <rect x="948" y="208" width="104" height="14" rx="7" fill="#c7bb97"/>
+      <text x="1000" y="172" font-family="Georgia, 'Times New Roman', serif" font-size="30"
+            fill="#4a4059" text-anchor="middle" font-style="italic">(&#955;)</text>
+      <g stroke="#8d8168" stroke-width="3" stroke-linecap="round">
+        <line x1="968" y1="188" x2="1018" y2="188"/>
+        <line x1="968" y1="198" x2="1002" y2="198"/>
+        <line x1="968" y1="146" x2="1030" y2="146"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- names -->
+  <g font-family="Georgia, 'Times New Roman', serif" text-anchor="middle">
+    <text x="280" y="512" font-size="28" font-weight="bold" fill="#e8e2d0" letter-spacing="7">ZIGURAT</text>
+    <text x="280" y="535" font-size="16" font-style="italic" fill="#9aa2c4">the warrior</text>
+
+    <text x="640" y="522" font-size="33" font-weight="bold" fill="#e8e2d0" letter-spacing="9">COCO</text>
+    <text x="640" y="546" font-size="16" font-style="italic" fill="#9aa2c4">the engineer</text>
+
+    <text x="1000" y="512" font-size="28" font-weight="bold" fill="#e8e2d0" letter-spacing="7">CICILI</text>
+    <text x="1000" y="535" font-size="16" font-style="italic" fill="#9aa2c4">the philosopher</text>
+  </g>
+
+  <!-- the one line -->
+  <text x="640" y="592" font-family="Georgia, 'Times New Roman', serif" font-size="17"
+        font-style="italic" fill="#7d86ad" text-anchor="middle" letter-spacing="1">
+    the philosopher writes it &#183; the warrior keeps it &#183; the engineer makes it think
+  </text>
+</svg>

@@ -99,8 +99,8 @@ colab/                 train on a Colab GPU, query from anywhere: the
 coworker/              coworking: cocolog instances working one problem
                        together through knowledge bases -- the accumulator
                        (fan-in) and the balancer (all-gather)
-art/                   the banner: hand-drawn SVG (and its PNG render) --
-                       the warrior, the engineer, the philosopher
+art/                   the banners, hand-drawn SVG with PNG renders: the
+                       README strip and the 1280x640 social preview
 ```
 
 ## Installing
