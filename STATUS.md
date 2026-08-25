@@ -1330,7 +1330,15 @@ fifteen GREEN against a live server, `red: 0`.
 
 ## The Coco: the intelligent aggregator hub
 
-Nothing in this section is started. It is written down because the
+**The Coco now has its own repository** — the hub is built OF cocolog
+programs, not INTO cocolog: Prolog modules, its own Parsi objects, and
+choreography, using cicili, ZiguratIP and cocolog and modifying none of
+them, the way cocolog uses its own two pillars. The ladder below lives
+on there; this section stays as the record of where it was conceived
+and of the foundations THIS repository proves for it. cocolog itself
+remains what it is: a Prolog with advanced knowledge-base machinery.
+
+Nothing in this section is started here. It is written down because the
 pieces it stands on ARE done and tested — the stories above prove every
 one of them — and because seeing the targets against the foundations is
 what makes each of them look the size it actually is: an arrangement
