@@ -1258,6 +1258,41 @@ chunk clauses" to "the parameters are rows, not clauses", and a second
 process loads the model back at 100% from the store files alone. All
 fifteen GREEN against a live server, `red: 0`.
 
+### use_module: libraries load at run time
+
+cocolog loads libraries the way SWI does, and a module author has
+exactly two languages -- MODULES.md now says so as a guide rather than
+an implication. **Coco**: a clauses-only library is a `.pl` file on
+`$COCOLOG_LIBRARY`, no build, no registration. **Cicili against the
+module API**: the C half, always Cicili and never raw C, either linked
+into the build as the five shipped libraries are, or written against
+`lib/sdk.cicili` -- the same macros and API over opaque engine types --
+compiled with `gcc -shared -fPIC`, and dlopen'd at run time.
+
+`use_module(library(Name))`, as a goal and as a directive, resolves in
+order: a registered module by that name; `Name.so` on the path, whose
+`coco_library_entry` registers it exactly as a linked-in module
+registers (the binary is linked `-rdynamic` so the object resolves the
+module API from it; the entry answers the ABI version, and the loader
+refuses any but 1 by name); `Name.pl`, registered as a clauses-only
+module so reset-and-reload and never-twice come free. `library(Dir/Name)`
+reaches subdirectories, SWI's `library(dcg/basics)` spelling. The module
+loader itself went incremental on the way: a store now consults only the
+modules it has not seen, counted per store, because a module registering
+mid-session must not re-consult the ones before it.
+
+A library loads INTO THE PROCESS, exactly as in SWI: its clauses are
+muted, so a second process on the same knowledge base does not see them
+-- `test/library.sh`, the suite's sixteenth case, proves that across
+processes, along with both halves of a dlopen'd module answering
+(`test/hoot.cicili`, the twenty-line worked example), load-twice
+answering once, and the goal/directive split: a goal throws a catchable
+error where a directive passes a not-found library over in silence --
+borrowed files name libraries this build carries under other
+arrangements, and the files case (byte-for-byte against SWI) is what
+caught the first draft warning about them. All sixteen GREEN against a
+live server, `red: 0`.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes

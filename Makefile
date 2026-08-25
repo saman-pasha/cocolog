@@ -96,6 +96,7 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
 	CICILI="$(CICILI)" sh torch/build.sh
 	g++ -g -O0 .libs/cocolog.o embed/.libs/embed.o torch/.libs/coco-torch.o \
 	  -o cocolog \
+	  -rdynamic -ldl \
 	  -Lbuild -lcocologc -lm -lpthread \
 	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
 	  -L"$(TORCH_LIB)" -ltorch -ltorch_cpu -lc10 \

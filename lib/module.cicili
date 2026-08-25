@@ -171,6 +171,20 @@
   (decl) (func coco_module_count () (out size_t))
   (decl) (func coco_module_at ((size_t i)) (out const coco_module *))
 
+  ;;; A registered module by its name, or null. What `use_module' asks first:
+  ;;; a library that is already in the registry -- linked into the build or
+  ;;; loaded earlier -- needs no file found for it.
+  (decl) (func coco_module_find ((const char * name)) (out const coco_module *))
+
+  ;;; The Coco half of every module not yet in this store, consulted in --
+  ;;; public because `use_module' as a GOAL registers a module mid-query and
+  ;;; cannot wait for the next query's start to consult its clauses. E may be
+  ;;; null when no engine exists yet (a directive during a bare consult); a
+  ;;; module whose `init' needs the engine is then deferred to the ask-time
+  ;;; call, which runs this again.
+  (decl) (func coco_module_load ((coco_store * st) (coco_machine * m)
+                                 (coco_engine * e)) (out int))
+
   ;;; ---- the API a module's C half is written against ----------------------
 
   ;;; Argument I of the goal, dereferenced. Good for the length of this call.
@@ -321,32 +335,38 @@
                   (if mine (block (set (cof found) 1) (return rc)))))))
         (return 0))
 
-  ;;; The Coco half of every module, into this store. Called by the engine when
-  ;;; a query starts, and guarded by a count on the STORE rather than a flag
-  ;;; here: a store that has been reset -- which is what thawing a machine does
-  ;;; -- has lost the clauses and has to be given them again, and the count
-  ;;; going back to zero is exactly that fact.
+  ;;; The Coco half of every module NOT YET IN THIS STORE, consulted in.
+  ;;; Called by the engine when a query starts, and guarded by a count on the
+  ;;; STORE rather than a flag here: a store that has been reset -- which is
+  ;;; what thawing a machine does -- has lost the clauses and has to be given
+  ;;; them again, and the count going back to zero is exactly that fact. The
+  ;;; walk starts AT the store's count rather than at zero, because a module
+  ;;; can now register mid-session (`use_module') and the ones before it are
+  ;;; already consulted -- loading them again would double every answer.
   ;;;
   ;;; THE HOOKS ARE MUTED WHILE IT RUNS. A module's clauses belong to the
   ;;; build, not to the knowledge base: written through, they would be saved
   ;;; into the shared database, come back on every fetch, and be listed as the
   ;;; user's own -- and a second interpreter would then have two copies.
-  (static)
   (func coco_module_load ((coco_store * st) (coco_machine * m) (coco_engine * e)) (out int)
         (if (== coco_nmodules 0) (return 1))
         (if (>= (-> st libs) coco_nmodules) (return 1))
         (let ((char err [256]) (int ok . 1))
           (coco_store_mute st)
-          (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (for ((size_t i . #'(-> st libs))) (< i coco_nmodules) ((++ i))
             (let ((coco_module * mod . #'(aof (nth i coco_modules))))
               (if (and ok (!= (-> mod init) nil))
-                  (if (not ((-> mod init) e)) (set ok 0)))
-              (if (and ok (!= (-> mod prolog) nil))
+                  (block
+                   ;; an init that needs the engine waits for one: leave the
+                   ;; store's count where it is so the ask-time call retries
+                   (if (== e nil) (block (set ok 2) break))
+                   (if (not ((-> mod init) e)) (set ok 0))))
+              (if (and (== ok 1) (!= (-> mod prolog) nil))
                   (if (< (coco_consult st m (-> mod prolog) err (sizeof err)) 0)
-                      (set ok 0)))))
+                      (set ok 0)))
+              (if (== ok 1) (set (-> st libs) (+ i 1)))))
           (coco_store_unmute st)
-          (set (-> st libs) coco_nmodules)
-          (return ok)))
+          (return (? (== ok 0) 0 1))))
 
   ;;; ---- the registry ---------------------------------------------------
 
@@ -390,6 +410,13 @@
   (func coco_module_at ((size_t i)) (out const coco_module *)
         (if (>= i coco_nmodules) (return nil))
         (return (aof (nth i coco_modules))))
+
+  (func coco_module_find ((const char * name)) (out const coco_module *)
+        (if (== name nil) (return nil))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (return (aof (nth i coco_modules)))))
+        (return nil))
 
   ;;; ---- the author's API -----------------------------------------------
 

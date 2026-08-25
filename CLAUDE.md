@@ -167,6 +167,8 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 | `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2` |
 | `lib/dcg.cicili` | `-->` translation, `phrase/2,3`. Two generics: the translator sits BEFORE `kb` because `coco_assert` calls it, the module half after the engine |
 | `lib/vendor/swipl/` | SWI's `dcg/basics` and `dcg/high_order`, copied unmodified under their own BSD-2 headers. Do not edit them — see the README there |
+| `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
+| `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |

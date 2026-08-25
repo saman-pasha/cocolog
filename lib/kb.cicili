@@ -276,11 +276,31 @@
   (decl) (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
                              (char * err) (size_t errlen)) (out int))
 
+  ;;; The seam `:- use_module(...)' loads through. This file is compiled
+  ;;; below the module layer and cannot call it, so the library loader
+  ;;; installs itself here the way the module layer installs itself into
+  ;;; solve.cicili: one function pointer, null until somebody fills it in.
+  ;;; While it is null the directive stays what it always was -- accepted
+  ;;; and ignored, so a borrowed file still reads unedited.
+  (decl) (func coco_use_module_install
+               ((func h ((coco_store * st) (coco_machine * m) (size_t spec))
+                     (out int))))
+
   ) ; decl-kb
 
 
 (generic impl-kb
   ()
+
+  ;; the use_module seam: null until the library loader installs itself.
+  ;; No initialiser -- `. nil' cannot be written inside a generic in this
+  ;; package, and a static is null anyway.
+  (static) (var func coco_use_module_hook ((coco_store * st) (coco_machine * m)
+                                           (size_t spec)) (out int))
+
+  (func coco_use_module_install
+        ((func h ((coco_store * st) (coco_machine * m) (size_t spec)) (out int)))
+        (set coco_use_module_hook h))
 
   (static)
   (func coco_store_grow ((coco_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
@@ -594,16 +614,36 @@
           ;; would only mean editing every borrowed file, which buys nothing
           ;; and loses the ability to diff a copy against its upstream.
           ;;
-          ;; `use_module' and `ensure_loaded' name a file to load; cocolog is
-          ;; told what to consult on its command line instead, so a library
-          ;; that asks for another one is relying on the caller having listed
-          ;; both. `meta_predicate' exists to tell a module system which
+          ;; `use_module' and `ensure_loaded' name a library to load, and
+          ;; since the loader grew a run-time seam they TRY: the hook below
+          ;; resolves against the registered modules and the library path.
+          ;; A library that cannot be found is a WARNING and not a refusal,
+          ;; on purpose -- a file borrowed from SWI names libraries cocolog
+          ;; carries under other arrangements (or not at all), and refusing
+          ;; the directive would mean editing every borrowed file, which is
+          ;; the thing this block has always declined to require.
+          ;; `meta_predicate' exists to tell a module system which
           ;; arguments to qualify, and with no modules there is nothing to say.
           (if (and (== n 2) (== 0 (strcmp name "module"))) (return 1))
-          (if (and (<= n 2) (== 0 (strcmp name "use_module"))) (return 1))
+          (if (and (<= n 2) (>= n 1) (== 0 (strcmp name "use_module")))
+              (block
+               (if (and (!= coco_use_module_hook nil)
+                        (not (coco_use_module_hook st m (coco_arg m g 0))))
+                   (let ((coco_strbuf b))
+                     (coco_sb_init (aof b))
+                     (coco_write_term m (aof b) (coco_deref m (coco_arg m g 0)) 1 0)
+                     (fprintf stderr "cocolog: use_module: cannot load %s (continuing)\n"
+                              ($ b s))
+                     (coco_sb_free (aof b))))
+               (return 1)))
           ;; `autoload/1,2' is use_module that loads lazily; same answer here
           (if (and (<= n 2) (== 0 (strcmp name "autoload"))) (return 1))
-          (if (and (== n 1) (== 0 (strcmp name "ensure_loaded"))) (return 1))
+          (if (and (== n 1) (== 0 (strcmp name "ensure_loaded")))
+              (block
+               (if (and (!= coco_use_module_hook nil)
+                        (not (coco_use_module_hook st m (coco_arg m g 0))))
+                   (fprintf stderr "cocolog: ensure_loaded: cannot load the file (continuing)\n"))
+               (return 1)))
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate"))) (return 1))
 
           ;; `:- set_prolog_flag(double_quotes, codes)'. NOT accepted and

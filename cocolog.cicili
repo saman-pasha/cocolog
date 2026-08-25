@@ -114,6 +114,8 @@
   (include <dirent.h>)
   (include <glob.h>)
   (include <limits.h>)
+  ;; the library loader: use_module dlopen's a compiled module
+  (include <dlfcn.h>)
   (include <zigurat.h>)
   (include <zeytun.h>)
 
@@ -129,6 +131,7 @@
   (import "./lib/lists.cicili")
   (import "./lib/apply.cicili")
   (import "./lib/builtins.cicili")
+  (import "./lib/library.cicili")
   (import "./lib/state.cicili")
   (import "./lib/zigurat-kb.cicili")
   (import "./lib/zeytun-kb.cicili")
@@ -147,6 +150,8 @@
   (decl-lists)  (impl-lists)
   (decl-apply)  (impl-apply)
   (decl-builtins) (impl-builtins)
+  ;; the library loader sits above the module layer it registers into
+  (decl-library) (impl-library)
   ;; ...and the half that needs an engine comes after there is one
   (decl-dcg-module) (impl-dcg-module)
   (decl-state)  (impl-state)
@@ -1692,6 +1697,9 @@
   ;;; itself, and the order is the order of precedence when two claim a name.
   (func install_modules () (out int)
         (coco_module_init)
+        (if (not (coco_library_module))
+            (block (fprintf stderr "cocolog: the library module would not register\n")
+                   (return 0)))
         (if (not (coco_files_module))
             (block (fprintf stderr "cocolog: the files module would not register\n")
                    (return 0)))

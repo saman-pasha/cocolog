@@ -69,7 +69,7 @@ done
 #           wire, the paged tensor page over HTTP, the chunk fallback
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors groups ruler; do
+for c in files trace vacuum repl tunnel tensors library groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   if [ ! -x "$ROOT/cocolog" ]; then

@@ -75,6 +75,12 @@ lib/dcg.cicili         definite clause grammars: the --> translation, and
                        phrase/2,3
 lib/vendor/swipl/      SWI's dcg/basics and dcg/high_order, copied
                        unmodified under their own BSD-2 headers
+lib/library.cicili     use_module, like SWI's: libraries load at run time --
+                       registered modules, Name.so (dlopen'd Cicili modules)
+                       and Name.pl on $COCOLOG_LIBRARY
+lib/sdk.cicili         what a LOADABLE module is written against: the module
+                       API over opaque engine types, for Cicili modules
+                       compiled outside this build
 lib/state.cicili       freeze and thaw
 lib/zigurat-kb.cicili  the knowledge base over Zigurat's binary protocol
 lib/zeytun-kb.cicili   the same, over Zeytun's HTTP pages (read only)

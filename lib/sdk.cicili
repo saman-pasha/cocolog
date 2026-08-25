@@ -1,0 +1,156 @@
+;;;; cocolog -- the SDK a LOADABLE module is written against
+;;;
+;;; A module compiled OUTSIDE the cocolog build -- The Coco's crypto, a
+;;; user's own library -- imports THIS file and nothing else of cocolog.
+;;; It declares the module API as extern functions over opaque engine
+;;; types; the real definitions live in the cocolog binary, which is
+;;; linked -rdynamic exactly so that a dlopen'd module resolves them
+;;; from it. The macros here mirror lib/module.cicili's -- same names,
+;;; same expansion -- so a module written in-tree moves out (or back)
+;;; by changing one import. NEVER import both files into one target.
+;;;
+;;; The shape of a loadable module, whole:
+;;;
+;;;   (source "hoot.c"
+;;;     (make :std #t :compile #f)
+;;;     (import "path/to/cocolog/lib/sdk.cicili")
+;;;     ...predicates over the coco_m_* API...
+;;;     (static) (coco-emit-module-dispatch ht_dispatch *hoot-predicates*)
+;;;     (coco-deflibrary "hoot" ht_dispatch *hoot-prolog*))
+;;;
+;;;   gcc -shared -fPIC -o hoot.so hoot.c
+;;;
+;;; and `use_module(library(hoot))' finds hoot.so on $COCOLOG_LIBRARY.
+;;;
+;;; `coco-deflibrary' emits `coco_library_entry', the one symbol the
+;;; loader calls: it registers the module and answers the ABI version
+;;; it was built against. THIS FILE IS ABI VERSION 1. The rules of
+;;; MODULES.md bind a loadable module exactly as they bind a linked one:
+;;; deterministic, nothing behind on failure, no term index across a
+;;; call -- a loadable module is not a way around the seam, it is the
+;;; seam, reached later.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;; ------------------------------------------------------------------
+;;; The declarations, as ONE macro the module's source body calls --
+;;; `(coco-sdk)' right after the import -- because an imported file is
+;;; evaluated Lisp and Cicili forms only mean something inside a
+;;; target. Opaque types first: a loadable module holds pointers to
+;;; the engine's types and looks inside none.
+;;; ------------------------------------------------------------------
+
+(DEFMACRO coco-sdk ()
+  '($$$
+
+;; the opaque tags exist at file scope, so a parameter naming one is
+;; not a fresh per-prototype type (and gcc has no scope warning to make)
+(code "struct coco_engine_opaque; struct coco_machine_opaque;")
+(@define (code "coco_engine struct coco_engine_opaque"))
+(@define (code "coco_machine struct coco_machine_opaque"))
+(@define (code "u32 uint32_t"))
+(@define (code "i64 int64_t"))
+
+;;; ------------------------------------------------------------------
+;;; The API. One declaration per function of lib/module.cicili's
+;;; author API, minus what only makes sense in-tree.
+;;; ------------------------------------------------------------------
+
+(decl) (func coco_module_register ((const char * name)
+                                   (func dispatch ((coco_engine * e) (const char * nm)
+                                                   (u32 arity) (size_t g)
+                                                   (int * found)) (out int))
+                                   (const char * prolog)
+                                   (func init ((coco_engine * e)) (out int))) (out int))
+
+(decl) (func coco_m_arg ((coco_engine * e) (size_t g) (u32 i)) (out size_t))
+(decl) (func coco_m_machine ((coco_engine * e)) (out coco_machine *))
+(decl) (func coco_m_mark ((coco_engine * e)) (out size_t))
+(decl) (func coco_m_undo ((coco_engine * e) (size_t mark)))
+
+(decl) (func coco_m_is_var ((coco_engine * e) (size_t t)) (out int))
+(decl) (func coco_m_is_atom ((coco_engine * e) (size_t t)) (out int))
+(decl) (func coco_m_atom ((coco_engine * e) (size_t t)) (out const char *))
+(decl) (func coco_m_int ((coco_engine * e) (size_t t) (i64 * out)) (out int))
+(decl) (func coco_m_float ((coco_engine * e) (size_t t) (double * out)) (out int))
+(decl) (func coco_m_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap)) (out int))
+
+(decl) (func coco_m_unify ((coco_engine * e) (size_t t) (size_t u)) (out int))
+(decl) (func coco_m_unify_atom ((coco_engine * e) (size_t t) (const char * s)) (out int))
+(decl) (func coco_m_unify_int ((coco_engine * e) (size_t t) (i64 v)) (out int))
+(decl) (func coco_m_unify_float ((coco_engine * e) (size_t t) (double v)) (out int))
+
+(decl) (func coco_m_nil ((coco_engine * e)) (out size_t))
+(decl) (func coco_m_cons ((coco_engine * e) (size_t h) (size_t t)) (out size_t))
+(decl) (func coco_m_atom_list ((coco_engine * e) (char ** v) (size_t n)) (out size_t))
+(decl) (func coco_m_list ((coco_engine * e) (const size_t * items) (size_t n)) (out size_t))
+(decl) (func coco_m_list_length ((coco_engine * e) (size_t t) (size_t * out)) (out int))
+(decl) (func coco_m_list_array ((coco_engine * e) (size_t t) (size_t ** out)
+                                (size_t * n)) (out int))
+
+(decl) (func coco_m_tensor_put ((coco_engine * e) (const char * name)
+                                (i64 seq) (const double * v) (u32 n)) (out int))
+(decl) (func coco_m_tensor_row ((coco_engine * e) (const char * name)
+                                (i64 seq) (double * out) (u32 cap)
+                                (u32 * n)) (out int))
+(decl) (func coco_m_tensor_forget ((coco_engine * e) (const char * name)) (out int))
+
+(decl) (func coco_m_type_error ((coco_engine * e) (const char * type)
+                                (size_t culprit)) (out int))
+(decl) (func coco_m_instantiation_error ((coco_engine * e)) (out int))
+(decl) (func coco_m_domain_error ((coco_engine * e) (const char * domain)
+                                  (size_t culprit)) (out int))
+(decl) (func coco_m_existence_error ((coco_engine * e) (const char * kind)
+                                     (size_t what)) (out int))
+(decl) (func coco_m_error ((coco_engine * e) (const char * what)
+                           (const char * detail)) (out int))
+
+))
+
+;;; ------------------------------------------------------------------
+;;; The macros, mirroring lib/module.cicili byte for byte where they
+;;; overlap. See there for the commentary; it is not repeated here.
+;;; ------------------------------------------------------------------
+
+(DEFMACRO coco-emit-module-dispatch (fname table)
+  (LET* ((rows (SYMBOL-VALUE table))
+         (arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND rows)) #'<)))
+    `(func ,fname ((coco_engine * e) (const char * name) (u32 arity)
+                   (size_t g) (int * found)) (out int)
+       (set (cof found) 1)
+       (cond
+         ,@(MAPCAR
+            (LAMBDA (n)
+              `((== arity ,n)
+                (cond
+                  ,@(MAPCAR (LAMBDA (row) `((== 0 (strcmp name ,(FIRST row)))
+                                            (return (,(THIRD row) e g))))
+                            (REMOVE-IF-NOT (LAMBDA (r) (= (SECOND r) n)) rows))
+                  (#t (set (cof found) 0) (return 0)))))
+            arities)
+         (#t (set (cof found) 0) (return 0))))))
+
+(DEFMACRO coco-mod-args (e g bindings &REST body)
+  `(let ,(MAPCAR (LAMBDA (b) `(size_t ,(FIRST b) . #'(coco_m_arg ,e ,g ,(SECOND b))))
+                 bindings)
+     ,@body))
+
+;;; The whole of a loadable module's front door, from one form: the
+;;; entry the loader dlsym's. It registers the module and answers the
+;;; ABI version -- 0 when registration was refused, which the loader
+;;; reports by name.
+(DEFMACRO coco-deflibrary (name dispatch &OPTIONAL prolog init)
+  (FLET ((datum (x) (COND ((NULL x) 'nil)
+                          ((AND (SYMBOLP x) (BOUNDP x)) (SYMBOL-VALUE x))
+                          (T x))))
+    `(func coco_library_entry () (out int)
+       (if (not (coco_module_register ,name
+                                      ,(OR dispatch 'nil)
+                                      ,(datum prolog)
+                                      ,(OR init 'nil)))
+           (return 0))
+       (return 1))))

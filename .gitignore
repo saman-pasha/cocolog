@@ -33,3 +33,5 @@ cocolog-full
 torch/coco-torch.cpp
 *.elc
 /KB/
+test/hoot.c
+test/hoot.so

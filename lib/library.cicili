@@ -1,0 +1,291 @@
+;;;; cocolog -- the library loader: use_module, like SWI's
+;;;
+;;; `use_module(library(Name))' -- as a goal, and as a directive in a
+;;; consulted file -- resolves Name in this order:
+;;;
+;;;   1. A REGISTERED MODULE of that name. Linked into the build (files,
+;;;      lists, apply, builtins, dcg, torch) or loaded earlier in this
+;;;      process: nothing to find, the answer is yes.
+;;;   2. Name.so ON THE LIBRARY PATH: a module compiled from Cicili
+;;;      against lib/sdk.cicili, dlopen'd, its `coco_library_entry'
+;;;      called -- which registers it exactly as a linked-in module
+;;;      registers, C half and Coco half both.
+;;;   3. Name.pl ON THE LIBRARY PATH: ordinary clauses, registered as a
+;;;      clauses-only module -- so they reload after a store reset (a
+;;;      thaw), never write through to the knowledge base, and never
+;;;      load twice, all for the same reasons a module's Coco half has
+;;;      those properties.
+;;;
+;;; The library path is $COCOLOG_LIBRARY (colon-separated), then
+;;; `./library'. A plain atom instead of `library(Name)' is a file path,
+;;; tried as written and then with `.pl'.
+;;;
+;;; WHAT LOADING MEANS, honestly: a library loads INTO THIS PROCESS,
+;;; exactly as in SWI. Its clauses are muted -- they belong to the
+;;; library, not to the knowledge base -- so another process talking to
+;;; the same database does not see them unless it, too, says use_module.
+;;; A program that wants clauses shared across processes consults them
+;;; into the knowledge base; the two are different acts and stay so.
+;;;
+;;; The `.so' contract (see lib/sdk.cicili, which a module author
+;;; imports): the object exports `int coco_library_entry(void)', which
+;;; registers the module through `coco_module_register' -- resolved from
+;;; the cocolog binary itself, which is why the binary is linked with
+;;; -rdynamic -- and returns the ABI version it was built against.
+;;; This loader accepts version 1 and refuses anything else by name.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+(DEFPARAMETER *library-predicates*
+  '(("use_module"    1 lb_use_module1)
+    ("use_module"    2 lb_use_module2)
+    ("ensure_loaded" 1 lb_use_module1)))
+
+(generic decl-library
+  ()
+
+  ;;; Resolves and loads SPEC (a term in M: `library(Name)',
+  ;;; `library(Dir/Name)' or a path atom) into ST. E may be null -- the
+  ;;; directive path during a bare consult -- in which case a freshly
+  ;;; registered module's clauses wait for the ask-time load. Answers 1
+  ;;; loaded, -1 NOT FOUND, or 0 for a library that was found and would
+  ;;; not load -- ERR filled in for both of the last two. The split
+  ;;; matters to the directive: not-found stays silent there, because a
+  ;;; borrowed file names libraries this build carries under other
+  ;;; arrangements, and that has never been worth a sound.
+  (decl) (func coco_library_load ((coco_store * st) (coco_machine * m)
+                                  (coco_engine * e) (size_t spec)
+                                  (char * err) (size_t errlen)) (out int))
+
+  ;;; Registers the `library' module (use_module/1,2, ensure_loaded/1)
+  ;;; and installs the directive hook in kb.cicili. The composition root
+  ;;; calls it once, with the other registrations.
+  (decl) (func coco_library_module () (out int))
+
+  ) ; decl-library
+
+
+(generic impl-library
+  ()
+
+  ;;; ---- finding the file ----------------------------------------------
+
+  ;;; DIR/NAME.EXT exists and is readable. Answers into BUF.
+  (static)
+  (func lb_probe ((const char * dir) (const char * name) (const char * ext)
+                  (char * buf) (size_t cap)) (out int)
+        (snprintf buf cap "%s/%s%s" dir name ext)
+        (let ((FILE * f . #'(fopen buf "rb")))
+          (if (== f nil) (return 0))
+          (fclose f)
+          (return 1)))
+
+  ;;; NAME.so or NAME.pl on the library path: $COCOLOG_LIBRARY, split on
+  ;;; colons, then `./library'. KIND answers 1 for a .so and 2 for a .pl.
+  (static)
+  (func lb_find ((const char * name) (char * buf) (size_t cap) (int * kind)) (out int)
+        (let ((const char * env . #'(getenv "COCOLOG_LIBRARY"))
+              (char dir [512]))
+          (if (!= env nil)
+              (let ((size_t i . 0) (size_t d . 0))
+                (while 1
+                  (let ((char c . #'(nth i env)))
+                    (if (or (== c (cast char 0)) (== c (cast char 58))) ;; ':'
+                        (block
+                         (set (nth d dir) (cast char 0))
+                         (if (> d 0)
+                             (block
+                              (if (lb_probe dir name ".so" buf cap)
+                                  (block (set (cof kind) 1) (return 1)))
+                              (if (lb_probe dir name ".pl" buf cap)
+                                  (block (set (cof kind) 2) (return 1)))))
+                         (set d 0)
+                         (if (== c (cast char 0)) break))
+                      (if (< d 511)
+                          (block (set (nth d dir) c) (set d (+ d 1)))))
+                    (set i (+ i 1))))))
+          (if (lb_probe "library" name ".so" buf cap)
+              (block (set (cof kind) 1) (return 1)))
+          (if (lb_probe "library" name ".pl" buf cap)
+              (block (set (cof kind) 2) (return 1)))
+          (return 0)))
+
+  ;;; ---- the two loaders -------------------------------------------------
+
+  ;;; A whole file as malloc'd text, or null.
+  (static)
+  (func lb_slurp ((const char * path)) (out char *)
+        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0))
+          (if (== f nil) (return nil))
+          (fseek f 0 SEEK_END)
+          (set n (ftell f))
+          (fseek f 0 SEEK_SET)
+          (if (< n 0) (block (fclose f) (return nil)))
+          (set buf (cast (char *) (malloc (+ (cast size_t n) 1))))
+          (if (== buf nil) (block (fclose f) (return nil)))
+          (if (and (> n 0) (!= (cast size_t n) (fread buf 1 (cast size_t n) f)))
+              (block (free buf) (fclose f) (return nil)))
+          (set (nth (cast size_t n) buf) (cast char 0))
+          (fclose f)
+          (return buf)))
+
+  ;;; A compiled module: dlopen, check the ABI, let it register itself.
+  ;;; The handle is deliberately never closed -- the registry holds
+  ;;; pointers into the object for the life of the process.
+  (static)
+  (func lb_load_so ((const char * path) (char * err) (size_t errlen)) (out int)
+        (let ((void * h . #'(dlopen path (bitor RTLD_NOW RTLD_LOCAL))))
+          (if (== h nil)
+              (block (snprintf err errlen "%s" (dlerror)) (return 0)))
+          (let ((void * entry . #'(dlsym h "coco_library_entry")))
+            (if (== entry nil)
+                (block
+                 (snprintf err errlen "%s exports no coco_library_entry" path)
+                 (dlclose h)
+                 (return 0)))
+            (let ((int abi . 0))
+              (set abi (code "((int (*)(void)) entry)()"))
+              (if (== abi 0)
+                  (block
+                   (snprintf err errlen "%s would not register" path)
+                   (return 0)))
+              (if (!= abi 1)
+                  (block
+                   (snprintf err errlen "%s speaks library ABI %d and this cocolog speaks 1"
+                             path abi)
+                   (return 0)))))
+          (return 1)))
+
+  ;;; A Prolog library: the file's text registered as a clauses-only
+  ;;; module under NAME, so reset-and-reload and never-twice come free.
+  (static)
+  (func lb_load_pl ((const char * path) (const char * name)
+                    (char * err) (size_t errlen)) (out int)
+        (let ((char * text . #'(lb_slurp path)))
+          (if (== text nil)
+              (block (snprintf err errlen "cannot read %s" path) (return 0)))
+          (let ((char * nm . #'(strdup name)))
+            (if (or (== nm nil)
+                    (not (coco_module_register nm nil text nil)))
+                (block (free text)
+                       (snprintf err errlen "cannot register %s" path)
+                       (return 0))))
+          (return 1)))
+
+  ;;; ---- resolution ------------------------------------------------------
+
+  (func coco_library_load ((coco_store * st) (coco_machine * m)
+                           (coco_engine * e) (size_t spec)
+                           (char * err) (size_t errlen)) (out int)
+        (set spec (coco_deref m spec))
+        (let ((char name [256]) (char path [1024]) (int kind . 0) (int is_lib . 0))
+          (set (nth 0 name) (cast char 0))
+
+          ;; library(Name), library(Dir/Name), or a plain path atom
+          (if (and (coco_is_callable m spec)
+                   (== (coco_arity m spec) 1)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "library")))
+              (let ((size_t inner . #'(coco_deref m (coco_arg m spec 0))))
+                (set is_lib 1)
+                (if (coco-tag-is ATOM (nth inner (-> m heap)))
+                    (snprintf name 256 "%s" (coco_atom_name m (coco_name_of m inner)))
+                  (if (and (coco_is_callable m inner)
+                           (== (coco_arity m inner) 2)
+                           (== 0 (strcmp (coco_atom_name m (coco_name_of m inner)) "/")))
+                      (let ((size_t d . #'(coco_deref m (coco_arg m inner 0)))
+                            (size_t f . #'(coco_deref m (coco_arg m inner 1))))
+                        (if (not (and (coco-tag-is ATOM (nth d (-> m heap)))
+                                      (coco-tag-is ATOM (nth f (-> m heap)))))
+                            (block (snprintf err errlen "library/1 wants an atom or Dir/Name")
+                                   (return 0)))
+                        (snprintf name 256 "%s/%s"
+                                  (coco_atom_name m (coco_name_of m d))
+                                  (coco_atom_name m (coco_name_of m f))))
+                    (block (snprintf err errlen "library/1 wants an atom or Dir/Name")
+                           (return 0)))))
+            (if (coco-tag-is ATOM (nth spec (-> m heap)))
+                (snprintf name 256 "%s" (coco_atom_name m (coco_name_of m spec)))
+              (block (snprintf err errlen "use_module wants library(Name) or a file atom")
+                     (return 0))))
+
+          ;; 1. already registered, by name
+          (if (!= (coco_module_find name) nil)
+              (block
+               (if (!= e nil) (coco_module_load st m e))
+               (return 1)))
+
+          ;; 2/3. the library path, .so before .pl
+          (if is_lib
+              (block
+               (if (not (lb_find name path 1024 (aof kind)))
+                   (block (snprintf err errlen "library(%s): not found on the library path"
+                                    name)
+                          (return -1))))
+            ;; a plain path: as written, then with .pl; a .so is named outright
+            (block
+             (set kind 2)
+             (let ((size_t len . #'(strlen name)))
+               (if (and (> len 3) (== 0 (strcmp (aof (nth (- len 3) name)) ".so")))
+                   (set kind 1)))
+             (snprintf path 1024 "%s" name)
+             (let ((FILE * f . #'(fopen path "rb")))
+               (if (!= f nil) (fclose f)
+                 (block
+                  (snprintf path 1024 "%s.pl" name)
+                  (let ((FILE * g . #'(fopen path "rb")))
+                    (if (== g nil)
+                        (block (snprintf err errlen "%s: no such file" name) (return -1)))
+                    (fclose g)))))))
+
+          (if (== kind 1)
+              (block (if (not (lb_load_so path err errlen)) (return 0)))
+            (block (if (not (lb_load_pl path name err errlen)) (return 0))))
+
+          ;; the freshly registered clauses, into THIS store now when an
+          ;; engine is running the goal; a directive leaves them for the
+          ;; ask-time load
+          (if (!= e nil)
+              (if (not (coco_module_load st m e))
+                  (block (snprintf err errlen "%s: its clauses would not consult" path)
+                         (return 0))))
+          (return 1)))
+
+  ;;; ---- the module and the directive hook -------------------------------
+
+  (static)
+  (func lb_use ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((spec 0))
+          (let ((char err [512]))
+            (if (== 1 (coco_library_load (-> e st) (-> e m) e spec err 512))
+                (return 1))
+            (return (coco_m_error e "use_module" err)))))
+
+  (func lb_use_module1 ((coco_engine * e) (size_t g)) (out int)
+        (return (lb_use e g)))
+
+  ;;; the import list is accepted and ignored: cocolog has one namespace,
+  ;;; so everything a library defines is visible -- MODULES.md records the
+  ;;; difference rather than pretending it away
+  (func lb_use_module2 ((coco_engine * e) (size_t g)) (out int)
+        (return (lb_use e g)))
+
+  ;;; A directive stays QUIET about a library it cannot find -- the old
+  ;;; tolerance, kept: borrowed files name libraries this build carries
+  ;;; inside other modules. A library that was FOUND and would not load
+  ;;; is another matter, and kb.cicili says so on stderr.
+  (static)
+  (func lb_directive_hook ((coco_store * st) (coco_machine * m) (size_t spec)) (out int)
+        (let ((char err [512]))
+          (return (? (== 0 (coco_library_load st m nil spec err 512)) 0 1))))
+
+  (static) (coco-emit-module-dispatch lb_dispatch *library-predicates*)
+
+  (func coco_library_module () (out int)
+        (coco_use_module_install lb_directive_hook)
+        (return (coco_module_register "library" lb_dispatch nil nil)))
+
+  ) ; impl-library

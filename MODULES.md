@@ -14,6 +14,84 @@ A program cannot tell which half a predicate came from, and that is the point.
 `lib/files.cicili` is the worked example: SWI-Prolog's file-system predicates,
 seventeen in C and seven in Prolog on top of them.
 
+## Two ways to write one
+
+A module author has exactly two languages, and the choice is per-half,
+not per-module:
+
+**Coco** — ordinary Prolog. A library that is only clauses is a `.pl`
+file, full stop: no build, no registration code, nothing to compile.
+Put it on the library path and `use_module(library(Name))` loads it;
+`lib/apply.cicili` is the linked-in proof that a clauses-only module is
+a complete module.
+
+**Cicili, against the module API** — for the C half: the predicates
+Prolog cannot reach on its own. It is written in Cicili, always — the
+macro layer is where the module machinery lives (`coco-defmodule`,
+`coco-emit-module-dispatch`, `coco-mod-args` each generate what must
+not drift apart), and a module written in raw C would be outside every
+one of those guarantees. Raw C has no place in a module; `(code ...)`
+escapes exist for the corner libc Cicili does not declare, and that is
+their whole license.
+
+And a Cicili module lives in one of two places:
+
+* **linked into the build** — imported by `cocolog.cicili`, registered
+  in `install_modules`. The five shipped libraries and torch live here.
+* **compiled to a shared object** — written against `lib/sdk.cicili`
+  instead of `lib/module.cicili` (same macros, same API, opaque engine
+  types), emitted to C by Cicili, built with `gcc -shared -fPIC`, and
+  loaded at run time by `use_module(library(Name))`. `test/hoot.cicili`
+  is the complete worked example, twenty lines. This is how a project
+  that USES cocolog — The Coco — ships its own C-half predicates
+  without cocolog carrying them.
+
+Both places obey every rule below; a loadable module is not a way
+around the seam, it is the seam, reached later.
+
+## Loading at run time: use_module, like SWI's
+
+`use_module(library(Name))` — as a goal, and as a `:- use_module(...)`
+directive in a consulted file — resolves Name in order:
+
+1. **a registered module** of that name: linked into the build, or
+   loaded earlier in this process — nothing to find, the answer is yes;
+2. **`Name.so` on the library path** — dlopen'd, its
+   `coco_library_entry` called, which registers it exactly as a
+   linked-in module registers;
+3. **`Name.pl` on the library path** — registered as a clauses-only
+   module, so it reloads after a store reset (a thaw), never writes
+   through to the knowledge base, and never loads twice.
+
+The library path is `$COCOLOG_LIBRARY` (colon-separated directories),
+then `./library`. `library(Dir/Name)` names a subdirectory, as in SWI's
+`library(dcg/basics)`. A plain atom instead of `library(...)` is a file
+path, tried as written and then with `.pl`. `use_module/2` accepts and
+ignores the import list — cocolog has one namespace, as recorded below —
+and `ensure_loaded/1` is the same act.
+
+What loading means, honestly: a library loads **into this process**,
+exactly as in SWI. Its clauses are muted — they belong to the library,
+not to the knowledge base — so a second process on the same database
+does not see them unless it, too, says use_module. A program that wants
+clauses shared across processes consults them into the knowledge base;
+the two are different acts and stay so, and `test/library.sh` proves
+the difference across processes.
+
+The two spellings differ in one place: as a **goal**, a library that
+cannot be found or loaded throws a catchable error; as a **directive**,
+a library that is not found is passed over in silence — a file borrowed
+from SWI names libraries this build carries under other arrangements —
+while one that was found and would not load says so on stderr and lets
+the file go on reading.
+
+The `.so` contract, whole: export `int coco_library_entry(void)` (the
+`coco-deflibrary` macro writes it), register through
+`coco_module_register` — resolved from the cocolog binary itself, which
+is linked `-rdynamic` exactly for this — and return the ABI version
+built against. **This is ABI version 1**; the loader refuses any other
+by name.
+
 ## Errors are thrown, and they are SWI's
 
 A module predicate that cannot do what it was asked raises the term SWI raises:
@@ -148,7 +226,9 @@ type error.
   real gap: a module whose predicates want infix syntax cannot have it.
 * **Leave a choice point**, or see the choice stack. The price of being
   suspendable.
-* **Register another module.** A build decides what it contains.
+* **Register another module from its predicates.** A build decides what it
+  links and `use_module` decides what joins at run time -- but a predicate
+  mid-call cannot swell the registry underneath the engine.
 
 ## Three things about Cicili that this hit
 
