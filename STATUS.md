@@ -1293,6 +1293,47 @@ arrangements, and the files case (byte-for-byte against SWI) is what
 caught the first draft warning about them. All sixteen GREEN against a
 live server, `red: 0`.
 
+### An atom is as long as it is written
+
+The parser truncated every name past 255 characters, silently, for the
+whole life of the project. `'aaa…'` with a thousand `a`s in it read back
+as 255 of them; `atom_length/2` agreed, because by then there was nothing
+left to disagree with.
+
+Neither side of the copy had that limit. The reader's token buffer is a
+`coco_strbuf` and grows; the atom table stores names by length and holds
+any of them. The 256 bytes were in `lib/syntax.cicili` between the two:
+`coco_parse_primary` copied the NAME token into a `char [256]` with
+`snprintf` — it has to copy, because `r->text` is one buffer that the
+lookahead overwrites — and `coco_parse_term` did the same for an infix
+operator. `snprintf` truncates and says nothing. So did we.
+
+It surfaced three layers away and looking like someone else's fault. The
+Coco fed a Bitcoin transaction — 408 hex digits, an ordinary thing to
+hand a program — to a hash module, and got `domain_error(hexadecimal, …)`
+back. The module was right: it had been given 255 digits, an odd count,
+which is not hexadecimal. A second, independently written decoder in
+another module failed identically on the same atom, and two unrelated
+decoders agreeing is what said the fault was upstream of both. A length
+sweep put it between 100 bytes and 200; `atom_length/2` on a 408-digit
+atom answering 255 put it exactly.
+
+Both sites now use `coco_tok_name`: a `char [256]` for the common case,
+with no allocation at all, and a heap buffer that grows for anything
+longer. The NAME case of `coco_parse_primary` became `coco_parse_named`
+so the buffer is freed at one place rather than at each of the seven ways
+that case can end; `coco_parse_term` keeps its buffer across the loop and
+outside the recursion, since each nesting level parses its own operator.
+`test/syntax.cicili` holds it at three lengths in the three places the
+copy happened — a 1000-character atom, a 700-character functor, and a
+400-character operand of an infix operator, that last one because the
+operator path is a separate copy that a test of atoms alone would miss.
+
+All sixteen cases GREEN against a live server, `red: 0`. The bug is worth
+the paragraph it got: it never crashed, never warned, and never returned
+an error of its own. It returned a confident answer about data that was
+no longer the data it was given.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes

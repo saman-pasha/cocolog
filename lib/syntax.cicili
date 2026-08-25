@@ -775,6 +775,40 @@
                                        (size_t * out) (int * outprec)) (out int))
   (static) (decl) (func coco_parse_primary ((coco_reader * r) (int maxprec)
                                           (size_t * out) (int * outprec)) (out int))
+  (static) (decl) (func coco_parse_named ((coco_reader * r) (int maxprec)
+                                        (const char * name) (int was_quoted)
+                                        (size_t * out) (int * outprec)) (out int))
+
+  ;;; THE TOKEN IN HAND, COPIED, AT WHATEVER LENGTH IT IS.
+  ;;;
+  ;;; The parser cannot read a name straight out of `r->text': that buffer is
+  ;;; reused by every token, and the name is still needed after the lookahead
+  ;;; that decides what the token means. So it is copied -- and it used to be
+  ;;; copied into a `char [256]' with `snprintf', which SILENTLY TRUNCATED
+  ;;; every atom past 255 characters. Nothing complained: the atom table stores
+  ;;; names by length and holds any of them, the reader's own buffer grows, and
+  ;;; the cut happened between the two. A 408-character hex atom -- a Bitcoin
+  ;;; transaction, which is a perfectly ordinary thing to hand a program --
+  ;;; came back 255 characters long, and the only symptom was that a hex
+  ;;; decoder downstream saw an odd number of digits and refused it.
+  ;;;
+  ;;; So: SMALL, of CAP bytes, takes the common case with no allocation at all,
+  ;;; and anything longer goes to *HEAP, which grows to fit and which the caller
+  ;;; frees ONCE at the end. Answers the pointer to use, or nil if the
+  ;;; allocation failed.
+  (static)
+  (func coco_tok_name ((coco_reader * r) (char * small) (size_t cap)
+                       (char ** heap) (size_t * hcap)) (out char *)
+        (let ((size_t n . #'($ (-> r text) len)))
+          (if (< n cap)
+              (block (memcpy small ($ (-> r text) s) (+ n 1)) (return small)))
+          (if (<= (cof hcap) n)
+              (let ((char * ns . #'(cast (char *) (realloc (cof heap) (+ n 1)))))
+                (if (== ns nil) (return nil))
+                (set (cof heap) ns)
+                (set (cof hcap) (+ n 1))))
+          (memcpy (cof heap) ($ (-> r text) s) (+ n 1))
+          (return (cof heap))))
 
   ;;; A variable by name, within the clause being read. `_' is anonymous: every
   ;;; occurrence is a different variable and none of them is recorded, which is
@@ -963,14 +997,29 @@
              (return 1)))
 
           ((== (-> r tok) COCO_TK_NAME)
-           ;; THE NAME HAS TO BE COPIED. `r->text' is one buffer reused by every
-           ;; token, so the moment the next token is read the name is gone --
-           ;; and the name is needed after the lookahead that decides what this
-           ;; token is.
-           ;; and so does WHETHER IT WAS QUOTED, for the same reason: the flag
-           ;; belongs to the token in hand and the lookahead replaces it.
-           (let ((char name [256]) (int was_quoted . #'(-> r quoted)))
-             (snprintf name (sizeof name) "%s" ($ (-> r text) s))
+           ;; THE NAME HAS TO BE COPIED, and so does WHETHER IT WAS QUOTED:
+           ;; both belong to the token in hand and the lookahead below replaces
+           ;; them. `coco_tok_name' does the copying at any length; the rest of
+           ;; the case is `coco_parse_named' so that the buffer it may have
+           ;; allocated is freed at ONE place rather than at each of the seven
+           ;; ways that case can end.
+           (let ((char small [256]) (char * heap . nil) (size_t hcap . 0)
+                 (char * name . #'(coco_tok_name r small (sizeof small)
+                                                 (aof heap) (aof hcap)))
+                 (int was_quoted . #'(-> r quoted)) (int ok . 0))
+             (if (== name nil) (return (coco_fail r "out of memory")))
+             (set ok (coco_parse_named r maxprec name was_quoted out outprec))
+             (free heap)
+             (return ok)))
+
+          (#t (return (coco_fail r "expected a term")))))
+
+  ;;; A NAME token that has already been copied out: an atom, a compound, a
+  ;;; prefix operator applied to what follows, or the negative-number spelling.
+  (static)
+  (func coco_parse_named ((coco_reader * r) (int maxprec) (const char * name)
+                          (int was_quoted) (size_t * out) (int * outprec)) (out int)
+        (block
              (if (not (coco_next_token r)) (return 0))
 
              ;; f( with no space between is an application; `f (' is not
@@ -1017,33 +1066,44 @@
              (set (cof outprec) 0)
              (return 1)))
 
-          (#t (return (coco_fail r "expected a term")))))
-
   (func coco_parse_term ((coco_reader * r) (int maxprec) (size_t * out) (int * outprec)) (out int)
-        (let ((size_t left) (int leftprec))
-          (if (not (coco_parse_primary r maxprec (aof left) (aof leftprec))) (return 0))
+        ;; SMALL/HEAP live across the loop, not inside it, so that the one
+        ;; `free' at the end covers every iteration -- and outside the
+        ;; RECURSION too, because each nesting level parses its own operator
+        ;; and a buffer shared with the frame below would be overwritten under
+        ;; it. An operator longer than 255 characters is absurd but is read
+        ;; correctly anyway, for the same reason a long atom now is: the reader
+        ;; should not be where a name quietly changes.
+        (let ((size_t left) (int leftprec)
+              (char small [256]) (char * heap . nil) (size_t hcap . 0))
+          (if (not (coco_parse_primary r maxprec (aof left) (aof leftprec)))
+              (block (free heap) (return 0)))
           (while 1
-            (let ((char name [256]) (int prec) (int type) (int have . 0))
+            (let ((char * name . #'small) (int prec) (int type) (int have . 0))
               ;; `,' and `|' arrive as punctuation but are operators: the comma
               ;; is ','/2 and the bar is a 1100 disjunction outside a list.
               (cond
                 ((== (-> r tok) COCO_TK_NAME)
-                 (snprintf name (sizeof name) "%s" ($ (-> r text) s)) (set have 1))
+                 (set name (coco_tok_name r small (sizeof small) (aof heap) (aof hcap)))
+                 (if (== name nil) (block (free heap) (return (coco_fail r "out of memory"))))
+                 (set have 1))
                 ((coco_is_punct r (coco-ch ","))
-                 (snprintf name (sizeof name) ",") (set have 1))
+                 (snprintf small (sizeof small) ",") (set have 1))
                 ((coco_is_punct r (coco-ch "|"))
-                 (snprintf name (sizeof name) ";") (set have 1)))
+                 (snprintf small (sizeof small) ";") (set have 1)))
               (if (not have) break)
               (if (not (coco_op_infix name (aof prec) (aof type))) break)
               (if (> prec maxprec) break)
               (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
                     (int rmax . #'(? (== type COCO_XFY) prec (- prec 1))))
                 (if (> leftprec lmax) break)
-                (if (not (coco_next_token r)) (return 0))
+                (if (not (coco_next_token r)) (block (free heap) (return 0)))
                 (let ((size_t right) (int rightprec))
-                  (if (not (coco_parse_term r rmax (aof right) (aof rightprec))) (return 0))
+                  (if (not (coco_parse_term r rmax (aof right) (aof rightprec)))
+                      (block (free heap) (return 0)))
                   (set left (coco_make2 (-> r m) name left right))
                   (set leftprec prec)))))
+          (free heap)
           (set (cof out) left)
           (set (cof outprec) leftprec)
           (return 1)))

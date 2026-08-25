@@ -253,6 +253,79 @@
         (check "first is X" (cast llong (strcmp (nth 0 ($ r var_names)) "X")) 0)
         (coco_reader_free (aof r)))
 
+      ;; ---- A NAME IS NOT TRUNCATED, AT ANY LENGTH -----------------------
+      ;;
+      ;; The parser used to copy every NAME token into a `char [256]' with
+      ;; snprintf, so an atom past 255 characters came back SILENTLY
+      ;; shortened. Nothing on either side of the copy had that limit -- the
+      ;; reader's own buffer grows and the atom table stores names by length
+      ;; -- so nothing complained; the cut happened in between.
+      ;;
+      ;; It was found from a long way downstream. A Bitcoin transaction
+      ;; written as 408 hex digits reached a hex decoder as 255 of them, an
+      ;; odd count, and was refused as not hexadecimal -- a domain error
+      ;; about the input, three layers below the reader that damaged it.
+      ;; That is the shape of the bug this guards: not a crash, an answer
+      ;; about the wrong data.
+      ;;
+      ;; A thousand characters, checked THREE ways, because the copy happened
+      ;; in three places: a bare atom, a functor name, and an operand of an
+      ;; infix operator (which `coco_parse_term' copies separately).
+      (let ((coco_reader r) (size_t t) (char src [2200]) (size_t at . 0))
+        (set (nth at src) (cast char 39)) (set at (+ at 1))   ; '
+        (for ((size_t j . 0)) (< j 1000) ((++ j))
+          (set (nth at src) (cast char 97)) (set at (+ at 1))) ; a
+        (set (nth at src) (cast char 39)) (set at (+ at 1))
+        (set (nth at src) (cast char 46)) (set at (+ at 1))    ; .
+        (set (nth at src) (cast char 0))
+        (coco_reader_init (aof r) (aof m) src)
+        (check "a 1000-character atom reads"
+               (cast llong (coco_read_clause (aof r) (aof t))) 1)
+        (check "and keeps every character"
+               (cast llong (strlen (coco_atom_name (aof m) (coco_name_of (aof m) t))))
+               1000)
+        (coco_reader_free (aof r)))
+
+      (let ((coco_reader r) (size_t t) (char src [2200]) (size_t at . 0))
+        (set (nth at src) (cast char 39)) (set at (+ at 1))
+        (for ((size_t j . 0)) (< j 700) ((++ j))
+          (set (nth at src) (cast char 98)) (set at (+ at 1))) ; b
+        (set (nth at src) (cast char 39)) (set at (+ at 1))
+        (set (nth at src) (cast char 40)) (set at (+ at 1))    ; (
+        (set (nth at src) (cast char 49)) (set at (+ at 1))    ; 1
+        (set (nth at src) (cast char 41)) (set at (+ at 1))    ; )
+        (set (nth at src) (cast char 46)) (set at (+ at 1))
+        (set (nth at src) (cast char 0))
+        (coco_reader_init (aof r) (aof m) src)
+        (check "a 700-character functor reads"
+               (cast llong (coco_read_clause (aof r) (aof t))) 1)
+        (check "the compound keeps its name"
+               (cast llong (strlen (coco_atom_name (aof m) (coco_name_of (aof m) t))))
+               700)
+        (check "and its one argument" (cast llong (coco_arity (aof m) t)) 1)
+        (coco_reader_free (aof r)))
+
+      (let ((coco_reader r) (size_t t) (char src [2200]) (size_t at . 0))
+        (set (nth at src) (cast char 39)) (set at (+ at 1))
+        (for ((size_t j . 0)) (< j 400) ((++ j))
+          (set (nth at src) (cast char 99)) (set at (+ at 1))) ; c
+        (set (nth at src) (cast char 39)) (set at (+ at 1))
+        (set (nth at src) (cast char 61)) (set at (+ at 1))    ; =
+        (set (nth at src) (cast char 49)) (set at (+ at 1))    ; 1
+        (set (nth at src) (cast char 46)) (set at (+ at 1))
+        (set (nth at src) (cast char 0))
+        (coco_reader_init (aof r) (aof m) src)
+        (check "a 400-character operand reads"
+               (cast llong (coco_read_clause (aof r) (aof t))) 1)
+        (check "the operator kept its left side"
+               (cast llong (strlen (coco_atom_name
+                                    (aof m)
+                                    (coco_name_of
+                                     (aof m)
+                                     (coco_deref (aof m) (coco_arg (aof m) t 0))))))
+               400)
+        (coco_reader_free (aof r)))
+
       ;; ---- a syntax error is reported, not ignored ----------------------
       (let ((coco_reader r) (size_t t))
         (coco_reader_init (aof r) (aof m) "foo(a,).")
