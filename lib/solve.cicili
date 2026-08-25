@@ -1817,21 +1817,90 @@
             (set r (coco_unify m (coco_arg m g 0) num))
             (return (? r 1 0)))))
 
+  ;;; Does S begin with the PN characters of P? An explicit loop rather
+  ;;; than strncmp, which this file does not otherwise declare.
+  (static)
+  (func coco_starts_with ((const char * s) (const char * p) (size_t pn)) (out int)
+        (for ((size_t i . 0)) (< i pn) ((++ i))
+          (if (!= (nth i s) (nth i p)) (return 0)))
+        (return 1))
+
+  ;;; ATOM_CONCAT HAS FOUR MODES AND THIS ENGINE CAN SERVE THREE.
+  ;;;
+  ;;; (+,+,?) concatenates, which is all it did before. The two modes
+  ;;; where the THIRD argument is bound and exactly one of the first two
+  ;;; is not are DECIDED rather than searched -- one is a prefix test and
+  ;;; the other a suffix test -- and ISO 8.16.6 requires both. Refusing
+  ;;; them made `atom_concat(Prefix, _, Name)' throw where every other
+  ;;; Prolog answers, which is how this was found: a namespace check in a
+  ;;; caller, written the obvious way, raised instead of failing.
+  ;;;
+  ;;; (-,-,+) is the mode that ENUMERATES every split, and it stays an
+  ;;; instantiation_error here on purpose. It needs a choice point, and
+  ;;; the note at the top of this file is the reason: a builtin holding
+  ;;; the choice stack would be the one piece of this system nobody else
+  ;;; could have written. That mode belongs in the Prolog library beside
+  ;;; `between/3', where it is a few lines over `sub_atom/5'.
   (func coco_bi_atom_concat ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t a . #'(coco_a e g 0))
-              (size_t b . #'(coco_a e g 1)))
-          (if (or (coco-tag-is REF (nth a (-> m heap))) (coco-tag-is REF (nth b (-> m heap))))
-              (return (coco_instantiation_error e)))
-          (let ((coco_strbuf ab) (coco_strbuf bb) (int r))
-            (coco_text_of e a (aof ab))
-            (coco_text_of e b (aof bb))
-            (if (!= ($ bb s) nil) (coco_sb_put (aof ab) ($ bb s)))
-            (set r (coco_unify m (coco_arg m g 2)
-                             (coco_new_atom m (? (== ($ ab s) nil) "" ($ ab s)))))
-            (coco_sb_free (aof ab))
-            (coco_sb_free (aof bb))
-            (return (? r 1 0)))))
+              (size_t b . #'(coco_a e g 1))
+              (size_t c . #'(coco_a e g 2)))
+          (let ((int aref . #'(? (coco-tag-is REF (nth a (-> m heap))) 1 0))
+                (int bref . #'(? (coco-tag-is REF (nth b (-> m heap))) 1 0))
+                (int cref . #'(? (coco-tag-is REF (nth c (-> m heap))) 1 0)))
+
+            ;; (+,+,?) -- concatenate and unify.
+            (if (and (== aref 0) (== bref 0))
+                (let ((coco_strbuf ab) (coco_strbuf bb) (int r))
+                  (coco_text_of e a (aof ab))
+                  (coco_text_of e b (aof bb))
+                  (if (!= ($ bb s) nil) (coco_sb_put (aof ab) ($ bb s)))
+                  (set r (coco_unify m (coco_arg m g 2)
+                                   (coco_new_atom m (? (== ($ ab s) nil) "" ($ ab s)))))
+                  (coco_sb_free (aof ab))
+                  (coco_sb_free (aof bb))
+                  (return (? r 1 0))))
+
+            ;; Nothing is determined without the whole.
+            (if (== cref 1) (return (coco_instantiation_error e)))
+            (if (and (== aref 1) (== bref 1)) (return (coco_instantiation_error e)))
+
+            ;; The third is bound and exactly one of the first two is.
+            (let ((coco_strbuf cb) (coco_strbuf xb) (int r . 0)
+                  (const char * cs) (const char * xs)
+                  (size_t clen . 0) (size_t xlen . 0))
+              (coco_text_of e c (aof cb))
+              (coco_text_of e (? (== aref 1) b a) (aof xb))
+              (set cs (? (== ($ cb s) nil) "" ($ cb s)))
+              (set xs (? (== ($ xb s) nil) "" ($ xb s)))
+              (set clen ($ cb len))
+              (set xlen ($ xb len))
+              (if (> xlen clen)
+                  (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+              (if (== bref 1)
+                  ;; (+,-,+): A must be a prefix of C, and B is the rest.
+                  (block
+                    (if (== 0 (coco_starts_with cs xs xlen))
+                        (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+                    (set r (coco_unify m (coco_arg m g 1)
+                                     (coco_new_atom m (+ cs xlen)))))
+                  ;; (-,+,+): B must be a suffix of C, and A is the rest.
+                  (block
+                    (if (== 0 (coco_starts_with (+ cs (- clen xlen)) xs xlen))
+                        (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+                    (if (== clen xlen)
+                        (set r (coco_unify m (coco_arg m g 0) (coco_new_atom m "")))
+                        ;; clen > xlen here, so the buffer is a real one and
+                        ;; cutting it short for one call is safe.
+                        (let ((char * cut . #'(cast (char *) cs)) (char keep . 0))
+                          (set keep (nth (- clen xlen) cut))
+                          (set (nth (- clen xlen) cut) 0)
+                          (set r (coco_unify m (coco_arg m g 0) (coco_new_atom m cs)))
+                          (set (nth (- clen xlen) cut) keep)))))
+              (coco_sb_free (aof cb))
+              (coco_sb_free (aof xb))
+              (return (? r 1 0))))))
 
   ;;; ---- output ----
 

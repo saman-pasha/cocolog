@@ -23,6 +23,51 @@ different findings.
 | `test/ruler.sh` | **one interpreter writing the knowledge base while eight read it** — below |
 | `client/probe.c` | the C client against a real server, including a clause made of nothing but the five HTML-escapable characters, asserted over the binary protocol and read back through a page unchanged |
 
+## atom_concat/3 could only go one way
+
+`atom_concat(Prefix, Rest, Whole)` with `Whole` bound and `Rest` unbound
+raised `instantiation_error`. So did the mirror image. Only the
+concatenating mode worked, and the two SPLITTING modes -- which ISO
+8.16.6 requires and every other Prolog answers -- were unreachable.
+
+**It was found from a caller, not from reading the code.** A namespace
+check, written the obvious way:
+
+```prolog
+scoped(Chain, Head) :-
+    functor(Head, Name, _),
+    atom_concat(Chain, '_', Prefix),
+    atom_concat(Prefix, _, Name).      % is Name in Chain's namespace?
+```
+
+That is how anyone writes "does this atom start with that one", and here
+it threw rather than answering. A guard that raises instead of failing is
+worse than one that is missing, because the caller's error handling is
+now doing the guard's job by accident.
+
+**Three of the four modes are now served, and the fourth is refused on
+purpose.**
+
+| mode | what it does |
+|---|---|
+| `(+,+,?)` | concatenate — what it always did |
+| `(+,-,+)` | is A a prefix of C, and what is left |
+| `(-,+,+)` | is B a suffix of C, and what is left |
+| `(-,-,+)` | **still `instantiation_error`** |
+
+The last one is the mode that ENUMERATES every split of an atom, and it
+stays out for the reason written at the top of `lib/solve.cicili`: it
+needs a choice point, and a builtin holding the choice stack in its hands
+would be the one piece of this system nobody else could have written.
+That mode belongs in the Prolog library beside `between/3`, over
+`sub_atom/5`, and it is a few lines there.
+
+**A wrong prefix FAILS rather than raising**, which is the other half of
+the fix and the half that matters to a caller: guessing wrong about an
+atom's shape is an ordinary answer, not an error. Seven checks in
+`test/solve.cicili` cover the splits, the empty cases at both ends, and
+the three ways to be wrong.
+
 ## Twelve interpreters, four states
 
 `test/groups.sh`. Four groups of three: twelve `cocolog work` processes at once,

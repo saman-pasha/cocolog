@@ -231,6 +231,26 @@
       (check_str "atom_length/2"              buf "5")
       (first_binding (aof e) "atom_concat(foo, bar, X)" buf (sizeof buf))
       (check_str "atom_concat/3"              buf "foobar")
+      ;; The two modes where the WHOLE is known and one part is not.
+      ;; ISO 8.16.6 requires both; refusing them made a prefix test throw
+      ;; where every other Prolog answers, and a namespace check written
+      ;; the obvious way is exactly that test.
+      (first_binding (aof e) "atom_concat(psi_, X, psi_valid)" buf (sizeof buf))
+      (check_str "atom_concat/3 splits off a prefix"  buf "valid")
+      (first_binding (aof e) "atom_concat(X, valid, psi_valid)" buf (sizeof buf))
+      (check_str "atom_concat/3 splits off a suffix"  buf "psi_")
+      (first_binding (aof e) "atom_concat(abc, X, abc)" buf (sizeof buf))
+      (check_str "atom_concat/3 leaves nothing over"  buf "")
+      (first_binding (aof e) "atom_concat('', X, abc)" buf (sizeof buf))
+      (check_str "atom_concat/3 takes nothing off"    buf "abc")
+      ;; A prefix that is not one FAILS, and does not raise: a wrong
+      ;; guess about an atom's shape is an ordinary answer.
+      (check "atom_concat/3 refuses a wrong prefix"
+             (cast llong (count (aof e) "atom_concat(psi_, _, zeta_valid)" 10)) 0)
+      (check "atom_concat/3 refuses a wrong suffix"
+             (cast llong (count (aof e) "atom_concat(_, xyz, psi_valid)" 10)) 0)
+      (check "atom_concat/3 refuses a prefix longer than the whole"
+             (cast llong (count (aof e) "atom_concat(abcd, _, abc)" 10)) 0)
       (first_binding (aof e) "atom_codes(ab, X)" buf (sizeof buf))
       (check_str "atom_codes/2 forwards"      buf "[97,98]")
       (first_binding (aof e) "atom_codes(X, [97,98])" buf (sizeof buf))
