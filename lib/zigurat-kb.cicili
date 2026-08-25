@@ -66,6 +66,19 @@
     ;; Off while the fetch hook is asserting what it just read, so that
     ;; clauses coming OUT of the database are not written straight back in.
     (member int          write_through)
+    ;; Batching, for a consult: an assert normally re-syncs its WHOLE
+    ;; predicate -- forget the clauses, send them all again -- which is
+    ;; right for one assert and quadratic for a file of them: consulting N
+    ;; clauses of one predicate costs N syncs of up to N clauses, and every
+    ;; sync's forget walks the dead row versions the previous ones left.
+    ;; Measured: 150 clauses took 61 seconds. Under `batch', the write
+    ;; hooks only note WHICH predicates changed; `coco_zg_batch' off syncs
+    ;; each noted predicate once. Module clauses never reach the hooks
+    ;; (the store is muted while they load), so they are never noted.
+    (member int          batch)
+    (member size_t *     dirty)
+    (member size_t       ndirty)
+    (member size_t       dirty_cap)
     (member char         err [256]))
 
   ;;; Points a store at a knowledge base. The connection stays the caller's to
@@ -81,6 +94,11 @@
 
   ;;; Sends a whole program to the database, clause by clause, as if consulted.
   (decl) (func coco_zg_consult ((coco_zg * z) (const char * text)) (out int))
+
+  ;;; Batching, for a consult: ON, the write hooks note which predicates
+  ;;; changed instead of syncing per assert; OFF syncs each noted predicate
+  ;;; once and answers whether every sync went through. See the struct.
+  (decl) (func coco_zg_batch ((coco_zg * z) (int on)) (out int))
 
   ;;; Suspends a machine into the database under NAME, in chunks.
   (decl) (func coco_zg_save ((coco_zg * z) (coco_engine * e)
@@ -151,6 +169,7 @@
                                           (u32 * n)) (out int))
   (static) (decl) (func coco_zg_tensor_forget ((coco_store * st) (void * ctx)
                                              (const char * name)) (out int))
+  (static) (decl) (func coco_zg_mark_dirty ((coco_zg * z) (size_t pi)) (out int))
 
   (func coco_zg_attach ((coco_zg * z) (zg_conn * db) (coco_machine * m)
                       (coco_store * st) (const char * kb))
@@ -331,9 +350,43 @@
                 (let ((size_t pi . #'(coco_pred_find (-> z st) (coco_name_of m head)
                                                    (coco_arity m head))))
                   (if (< pi ($ (cof (-> z st)) npreds))
-                      (set rc (coco_zg_sync_pred z pi)))))
+                      (if (-> z batch)
+                          (set rc (coco_zg_mark_dirty z pi))
+                        (set rc (coco_zg_sync_pred z pi))))))
             (set (-> m heap_len) mark)
             (return rc))))
+
+  ;;; Notes a predicate as changed while a batch is open. Deduplicated, so
+  ;;; a hundred asserts into one predicate are one entry and one sync.
+  (func coco_zg_mark_dirty ((coco_zg * z) (size_t pi)) (out int)
+        (for ((size_t i . 0)) (< i (-> z ndirty)) ((++ i))
+          (if (== (nth i (-> z dirty)) pi) (return 1)))
+        (if (>= (-> z ndirty) (-> z dirty_cap))
+            (let ((size_t ncap . #'(? (== (-> z dirty_cap) 0) 16 (* (-> z dirty_cap) 2)))
+                  (size_t * nd . #'(cast (size_t *) (realloc (cast (void *) (-> z dirty))
+                                                             (* ncap (sizeof size_t))))))
+              (if (== nd nil) (return 0))
+              (set (-> z dirty) nd)
+              (set (-> z dirty_cap) ncap)))
+        (set (nth (-> z ndirty) (-> z dirty)) pi)
+        (set (-> z ndirty) (+ (-> z ndirty) 1))
+        (return 1))
+
+  (func coco_zg_batch ((coco_zg * z) (int on)) (out int)
+        (if on
+            (block (set (-> z batch) 1)
+                   (set (-> z ndirty) 0)
+                   (return 1)))
+        (set (-> z batch) 0)
+        (let ((int ok . 1))
+          (for ((size_t i . 0)) (< i (-> z ndirty)) ((++ i))
+            (if (not (coco_zg_sync_pred z (nth i (-> z dirty))))
+                (set ok 0)))
+          (set (-> z ndirty) 0)
+          (free (cast (void *) (-> z dirty)))
+          (set (-> z dirty) nil)
+          (set (-> z dirty_cap) 0)
+          (return ok)))
 
   ;;; Every predicate in the knowledge base, by name and arity, interned into
   ;;; the store so that `listing' knows they are there.
@@ -530,6 +583,7 @@
   (func coco_zg_on_retract ((coco_store * st) (void * ctx) (size_t pi)) (out int)
         (let ((coco_zg * z . #'(cast (coco_zg *) ctx)))
           (if (not (-> z write_through)) (return 1))
+          (if (-> z batch) (return (coco_zg_mark_dirty z pi)))
           (return (coco_zg_sync_pred z pi))))
 
   (func coco_zg_consult ((coco_zg * z) (const char * text)) (out int)

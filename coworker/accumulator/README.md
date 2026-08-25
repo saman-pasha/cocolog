@@ -15,12 +15,13 @@ part — and the answer flips exactly when a part's publish turn
 commits, a turn being one transaction: there is no window where the
 spec is visible and the parameter chunks are not.
 
-One write turn at a time, cluster-wide: the publishes take a mutex in
-`run.sh`, because the server does not survive overlapping clause-write
-transactions yet (the hunt is on STATUS.md's list), and every write
-turn is kept small for the same reason. The reads — the polling, the
-read-back of the parts — run in parallel throughout; that half is
-proven ground.
+The publishes are short concurrent consults, and they simply run: this
+file once serialised every write through a mutex, until the hunt that
+the apparent wedges provoked ended with the server exonerated
+(STATUS.md tells it). What stands is the discipline that survives the
+verdict — long compute in `--local`, never inside a database turn,
+because a turn that dawdles past the server's idle timeout loses its
+connection, and cocolog now says so loudly instead of losing the data.
 
 When all three answer, each part's model is exported as clauses —
 `part_spec/2` and `part_chunk/3`, the parameters travelling in the same

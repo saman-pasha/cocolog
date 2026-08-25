@@ -1,25 +1,29 @@
 #!/bin/sh
 # The balancer arrangement: three workers, no centre. See README.md.
 #
-#   1. each worker SEEDS its own third of the training data into its
-#      own knowledge base -- its part, its responsibility -- with
-#      part_ready/1 committed last;
-#   2. each worker WAITS for its peers by asking their knowledge bases
-#      for part_ready/1, then FETCHES their thirds as train_sample/3
-#      clauses -- reads, running freely in parallel;
-#   3. each worker trains a FULL model in --local on its own third plus
-#      the two fetched ones, and publishes it into its own knowledge
-#      base -- so all three end holding the same knowledge learned the
-#      same way;
-#   4. verification asks EVERY worker to test, and sends the predict
-#      probes round-robin across the three -- the balancer: any node
-#      answers, so queries can go to whichever is up or nearest.
+# Each worker is one pipeline, and the order inside it is the point:
 #
-# ONE WRITE TURN AT A TIME, cluster-wide, taken through a mkdir mutex:
-# the server does not survive overlapping clause-write transactions yet
-# (the hunt in STATUS.md), and a write turn stays small for the same
-# reason. Reads -- the ready-polling, the fetches, the tests -- run in
-# parallel throughout; that half is proven ground.
+#   1. SEED its own third first -- its part, its responsibility -- into
+#      its own knowledge base, part_ready/1 committed in the same turn;
+#   2. only THEN poll its peers: a worker starts asking for others'
+#      parts after its own work is done, never before, so nobody waits
+#      on a worker that is itself still waiting;
+#   3. FETCH the two thirds it lacks by reading the peers' chunk rows;
+#   4. TRAIN the full model in --local -- long compute never sits
+#      inside a database turn, where the server's idle timeout would
+#      take the connection out from under it;
+#   5. PUBLISH the finished model into its own knowledge base as one
+#      short consult.
+#
+# Verification asks EVERY worker to test, and sends the predict probes
+# round-robin across the three -- the balancer: any node answers, so
+# queries go to whichever is up or nearest.
+#
+# The seeds travel as a handful of chunk rows (sixty samples each) and
+# the writes are short turns, because a clause row has to fit in a page
+# and a turn should not dawdle -- but the turns run CONCURRENTLY, as
+# turns may: the hunt that once had this file serialising every write
+# ended with the server exonerated (STATUS.md tells it).
 #
 # Each worker's connection is overridable, so the three can sit on
 # three different servers:  PART1_OPTS="--host h1 --kb bal_part1" etc.
@@ -44,47 +48,31 @@ if ! timeout 20 "$C" $PART1 list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"; exit 0
 fi
 
-# one write turn at a time -- see the header
-write_turn() {
-  until mkdir "$OUT/one-writer" 2>/dev/null; do sleep 1; done
-  timeout 120 "$@"
-  rc=$?
-  rmdir "$OUT/one-writer"
-  return $rc
-}
-
 for opts in "$PART1" "$PART2" "$PART3"; do
   timeout 60 "$C" $opts forget >/dev/null 2>&1
 done
 
-echo "== each worker seeds its own third, in parallel"
+echo "== three workers: seed own third, then poll peers, fetch, train, publish"
 for n in 1 2 3; do
   eval "opts=\$PART$n"
   (
-    # the program once, then one small turn: a few chunk rows and the
-    # ready mark, committed together
-    write_turn "$C" $opts consult "$HERE/worker.pl" > "$OUT/seed_$n.log" 2>&1
-    write_turn "$C" $opts query "seed_part($n)" >> "$OUT/seed_$n.log" 2>&1
-  ) &
-done
+    # own work first: the program, then one small turn of chunk rows
+    # with the ready mark committed alongside them
+    timeout 120 "$C" $opts consult "$HERE/worker.pl" > "$OUT/seed_$n.log" 2>&1
+    timeout 120 "$C" $opts query "seed_part($n)" >> "$OUT/seed_$n.log" 2>&1
 
-echo "== each worker waits for its peers, fetches their parts, trains, publishes"
-for n in 1 2 3; do
-  eval "opts=\$PART$n"
-  (
-    # its own part_ready included: a worker's own seeding is a peer too,
-    # as far as ordering goes
+    # only now the peers: this worker's own part is already committed
     for m in 1 2 3; do
+      [ "$m" = "$n" ] && continue
       eval "peer=\$PART$m"
       deadline=$(( $(date +%s) + 300 ))
       until timeout 30 "$C" $peer --answers 1 query "part_ready($m)" 2>/dev/null \
             | grep -q '^  1\.'; do
         if [ "$(date +%s)" -gt "$deadline" ]; then
-          echo "worker $n: part $m never became ready" >> "$OUT/work_$n.log"; exit 1
+          echo "worker $n: peer $m never became ready" >> "$OUT/work_$n.log"; exit 1
         fi
         sleep 2
       done
-      [ "$m" = "$n" ] && continue
       timeout 60 "$C" $peer query "forall(samples_chunk(P, Q, Ch), format(\"samples_chunk(~w, ~w, ~q).~n\", [P, Q, Ch]))" \
         2>/dev/null | grep -a '^samples_chunk' > "$OUT/fetch_${n}_$m.pl"
     done
@@ -92,12 +80,13 @@ for n in 1 2 3; do
     # knowledge base is the source of truth, not the generator
     timeout 60 "$C" $opts query "forall(samples_chunk(P, Q, Ch), format(\"samples_chunk(~w, ~w, ~q).~n\", [P, Q, Ch]))" \
       2>/dev/null | grep -a '^samples_chunk' > "$OUT/own_$n.pl"
+
     FETCHED=$(ls "$OUT"/fetch_${n}_*.pl)
     "$C" run "$OUT/own_$n.pl" $FETCHED "$HERE/worker.pl" train_full \
       > "$OUT/raw_$n" 2>&1
     grep -a '^torch_' "$OUT/raw_$n" > "$OUT/model_$n.pl"
     [ -s "$OUT/model_$n.pl" ] || { echo "worker $n trained nothing" >> "$OUT/work_$n.log"; exit 1; }
-    write_turn "$C" $opts consult "$OUT/model_$n.pl" > "$OUT/pub_$n.log" 2>&1
+    timeout 120 "$C" $opts consult "$OUT/model_$n.pl" > "$OUT/pub_$n.log" 2>&1
   ) &
 done
 wait

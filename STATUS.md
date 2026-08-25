@@ -1169,22 +1169,57 @@ four pieces (`T 4`, `V 0 512` straight off the page) and loads over
 `--http` exact; the embedded store keeps its chunks and works. All
 fifteen GREEN against a live server, `red: 0`.
 
-### Found and not yet hunted: overlapping writers
+### The overlapping-writers hunt: the server walks free
 
-Building the coworker tasks surfaced a server bug that has its own
-place on the hunt list, because coworker/README.md points here. On a
-fresh store: three clause-write transactions that overlap in time —
-one row each is enough, given seconds of compute between BEGIN and
-COMMIT — either wedge the server or complete, report success to every
-client, and persist nothing; and with no concurrency at all, a single
-transaction of ~150 small clause rows hangs where 100 passes, which
-smells like a page or index-node boundary. `--lock auto` did not
-protect the overlapping case, which is itself a finding. One writer
-with parallel readers is proven (ruler), twelve machine-state writers
-are proven (groups) — the clause-write path under overlap is the gap.
-Until the hunt, the coworker scripts obey the discipline their README
-names: long compute never inside a transaction, write turns small and
-chunked, one write turn at a time.
+Building the coworker tasks surfaced what looked like a server bug
+with three faces — overlapping clause-write transactions that wedge;
+overlapping writes that report success to every client and persist
+nothing; a single 150-row consult that hangs where 100 passes — and
+the hunt took each face apart and found **cocolog holding the knife
+every time**. The server was reproduced doing exactly what it is
+configured to do, and not once doing anything else: gdb on a "wedged"
+server showed `FORGET_CLAUSES` actively walking cursors, its log
+showed zero errors and idle client threads, and every missing row
+traced to a client-side cause.
+
+The three faces, unmasked:
+
+* **The 150-row "hang" was O(N²), and it finished.** cocolog's
+  `on_assert` hook re-synced the WHOLE predicate on every assert —
+  forget every stored clause, re-assert all N — so consulting N rows
+  cost N²/2 round-trips, each pass walking the MVCC dead versions the
+  previous passes left. 40 rows took 3.7s, 120 took 35.4s, 150 took
+  61s — past every timeout that had pronounced it hung. The fix is a
+  batch mode on the Zigurat store (`coco_zg_batch`): `consult` and
+  `run` mark predicates dirty as clauses arrive and sync each one
+  once, at commit. The 61-second consult now takes **944ms**.
+* **The "wedge" was the hunter's own timeout.** The stress goals spun
+  `between/3` over millions of elements — more than ten minutes of
+  engine time — and the harness killed the clients mid-transaction at
+  60s. A killed client's open transaction rolls back; the next
+  observer read an empty store and called it wedged.
+* **The lost commits were real, and cocolog was losing them.** Three
+  concurrent trainings oversubscribed the four cores, a training turn
+  stretched to 122s of in-turn silence, and the server closed the
+  idle connection at its configured `TIMEOUT: 60` — correctly. The
+  commit then failed with "the connection is closed", and cocolog
+  **ignored `zg_commit`'s return value** in all four places it
+  commits (`run`, `query`, `consult`, the REPL): success reported,
+  nothing persisted, nobody told. All four sites now fail loudly —
+  `cocolog: commit failed: ...` and a non-zero exit — and the
+  discipline the coworker READMEs name (long compute in `--local`,
+  never inside a turn) keeps turns clear of the idle timeout in the
+  first place.
+
+The coworker scripts dropped their write mutex on the verdict: the
+accumulator's three publishes and the balancer's three seed turns now
+run concurrently, and both arrangements go GREEN that way, repeatedly,
+on a fresh store and an aged one. One writer with parallel readers was
+already proven (ruler), twelve machine-state writers were proven
+(groups) — overlapping clause writers are now proven with them, and
+the balancer got its ordering rule stated while the mutex came out: a
+worker seeds its own third first and only then polls its peers, so
+nobody waits on a worker that is itself still waiting.
 
 ## Known limitations, by choice
 
@@ -1254,7 +1289,6 @@ chunked, one write turn at a time.
 
 * Strings as a type; `"abc"` reads as a code list, which is the ISO default.
 * Any indexing on the first argument. A predicate's clauses are tried in order.
-* The overlapping-writers hunt above.
 * A `Vector` column kind for the Cicili MVCCS engine, so the embedded
   store can hold the tensors table instead of falling back to clause
   chunks.

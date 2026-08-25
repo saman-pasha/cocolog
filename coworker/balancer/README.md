@@ -22,10 +22,13 @@ rows back out. Training runs in `--local` (long compute belongs
 outside any transaction) over the worker's own rows plus the two
 fetched parts, and the finished model publishes as one short consult.
 
-One write turn at a time, cluster-wide, through a mutex in `run.sh`:
-the server does not survive overlapping clause-write transactions yet
-(the hunt is on STATUS.md's list). The reads — ready-polling, fetches,
-tests, predictions — run in parallel throughout.
+The order inside each worker is the point: a worker seeds **its own
+third first** and only then starts polling its peers — own work done
+before asking after anyone else's, so nobody waits on a worker that is
+itself still waiting. The turns run **concurrently**, as turns may:
+this file once serialised every write through a mutex, until the hunt
+that the apparent wedges provoked ended with the server exonerated
+(STATUS.md tells it).
 
 ```sh
 sh run.sh          # needs a built cocolog and a running server

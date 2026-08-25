@@ -443,6 +443,10 @@
           (coco_store_init (aof st))
           (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
           (gate_vacuum (aof st))
+          ;; batched: each consulted predicate is written ONCE, at the end,
+          ;; instead of being re-synced whole on every clause -- which was
+          ;; quadratic, and 61 measured seconds for one 150-clause file
+          (if (!= db nil) (coco_zg_batch (aof z) 1))
           (for ((int i . from)) (< i argc) ((++ i))
             (let ((char * text . #'(slurp (nth i argv))) (int n))
               (if (== text nil) (block (coco_store_free (aof st)) (coco_machine_free (aof m))
@@ -454,7 +458,18 @@
                          (coco_store_free (aof st)) (coco_machine_free (aof m))
                          (return 1)))
               (set total (+ total n))))
-          (if (!= db nil) (zg_commit db))
+          (if (!= db nil)
+              (if (not (coco_zg_batch (aof z) 0))
+                  (block (fprintf stderr "cocolog: writing the consulted clauses: %s\n"
+                                  (zg_error db))
+                         (zg_rollback db)
+                         (coco_store_free (aof st)) (coco_machine_free (aof m))
+                         (return 1))))
+          (if (!= db nil)
+              (if (not (zg_commit db))
+                  (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
+                         (coco_store_free (aof st)) (coco_machine_free (aof m))
+                         (return 1))))
           (printf "consulted %d clause(s) into '%s'\n" total ($ opts kb))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
@@ -495,7 +510,11 @@
           ;; an error is rolled back instead, whole -- half of a failed goal's
           ;; assertions is not a state any program asked for.
           (if (!= db nil)
-              (if (== rc -1) (zg_rollback db) (zg_commit db)))
+              (if (== rc -1)
+                  (zg_rollback db)
+                (if (not (zg_commit db))
+                    (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
+                           (set rc -1)))))
 
           (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n))
           (coco_engine_free (aof e))
@@ -1048,7 +1067,11 @@
                                         (block (printf ".\n") (set stop 1))))))))))))
                        ;; one goal, one transaction -- as `query' has it
                        (if (!= db nil)
-                           (if (== grc -1) (zg_rollback db) (zg_commit db))))))
+                           (if (== grc -1)
+                               (zg_rollback db)
+                             (if (not (zg_commit db))
+                                 (fprintf stderr "cocolog: commit failed: %s\n"
+                                          (zg_error db))))))))
                   (coco_reader_free (aof r))))
               (coco_sb_free (aof line))))
 
@@ -1706,6 +1729,8 @@
           (set ($ e max_steps) 0)
           (attach (aof z) (aof zt) (aof m) (aof st))
 
+          ;; batched, as `consult' is: one sync per consulted predicate
+          (if (and (!= db nil) (== ($ opts http) nil)) (coco_zg_batch (aof z) 1))
           (for ((int i . from)) (< i argc) ((++ i))
             (let ((char * text . #'(slurp (nth i argv))))
               (if (== text nil)
@@ -1716,6 +1741,13 @@
                          (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
               (free text)))
+          (if (and (!= db nil) (== ($ opts http) nil))
+              (if (not (coco_zg_batch (aof z) 0))
+                  (block (fprintf stderr "cocolog: writing the consulted clauses: %s\n"
+                                  (zg_error db))
+                         (zg_rollback db)
+                         (coco_engine_free (aof e)) (coco_store_free (aof st))
+                         (coco_machine_free (aof m)) (return 1))))
 
           (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err))
@@ -1723,7 +1755,12 @@
                      (coco_machine_free (aof m)) (return 1)))
           (set rc (coco_engine_next (aof e)))
           (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
-          (if (!= db nil) (if (== rc 1) (zg_commit db) (zg_rollback db)))
+          (if (!= db nil)
+              (if (== rc 1)
+                  (if (not (zg_commit db))
+                      (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
+                             (set rc -1)))
+                (zg_rollback db)))
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))

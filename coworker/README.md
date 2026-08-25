@@ -26,14 +26,16 @@ Prolog knows the difference.
 
 Both tasks obey one discipline that is worth naming, because building
 them is what surfaced the reason for it: **long compute never sits
-inside a transaction, write turns stay small, and only one write turn
-runs at a time** — training happens in `--local` between short
-serialized publishes, and anything big travels as a handful of chunked
-rows rather than one row per datum. The last rule is temporary: the
-server currently wedges or loses commits under overlapping clause-write
-transactions, and hangs a single bulk one past roughly a page's worth
-of rows — that hunt is on STATUS.md's list. The first two rules are
-simply how a fleet should behave, and will outlive the fix.
+inside a transaction, and anything big travels as a handful of chunked
+rows** rather than one row per datum — training happens in `--local`
+and only the short publish turns touch the server. The write turns run
+**concurrently**, as turns may: building these tasks first made the
+server look like it wedged and lost commits under overlapping writers,
+and the hunt that followed (STATUS.md tells it) exonerated the server
+on every count — what it found was cocolog quietly discarding a failed
+commit, an O(N²) consult sync, and turns dawdling past the server's
+idle timeout. All three are fixed; the discipline is what remains,
+because it is simply how a fleet should behave.
 
 Both need a built `cocolog` and a running server:
 

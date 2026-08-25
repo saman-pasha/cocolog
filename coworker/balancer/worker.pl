@@ -25,9 +25,9 @@ ring_point(I, [X, Y], L) :-
 %% Seeding: this worker's own third, into its own knowledge base -- as
 %% a handful of CHUNK rows, sixty samples to a row, the way machine
 %% state travels in 4000-byte chunks and model parameters in 120-float
-%% ones: a clause row has to fit in a page, and a write turn has to
-%% stay small while the server does not take big or overlapping write
-%% transactions (the hunt in STATUS.md). One turn seeds everything;
+%% ones: a clause row has to fit in a page, wherever the store keeps
+%% it (the hunt in STATUS.md exonerated the server of everything
+%% else). One turn seeds everything;
 %% part_ready/1 is asserted last in it, and a turn being one
 %% transaction, a peer that sees the mark sees every chunk with it.
 chunked([], _, []) :- !.

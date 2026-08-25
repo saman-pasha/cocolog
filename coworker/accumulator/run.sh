@@ -14,11 +14,12 @@
 #      saves the accumulated model into its own knowledge base, tests
 #      it on held-out data, and predicts.
 #
-# ONE WRITE TURN AT A TIME, cluster-wide: the publishes take a mutex
-# (a mkdir) because the server does not survive overlapping clause-write
-# transactions yet -- overlapping writers wedge it or lose their
-# commits, see the hunt in STATUS.md. Reads run in parallel throughout;
-# that half is proven ground.
+# The publishes are short concurrent consults, and they simply run: the
+# hunt that once had this file serialising every write ended with the
+# server exonerated (STATUS.md tells it). What stands is the discipline
+# that survives the verdict: long compute in --local, never inside a
+# database turn -- a turn that dawdles past the server's idle TIMEOUT
+# loses its connection, and now says so loudly instead of losing data.
 #
 # Each part's connection is overridable, so the three parts can sit on
 # three different servers:  PART1_OPTS="--host h1 --kb acc_part1" etc.
@@ -44,15 +45,6 @@ if ! timeout 20 "$C" $PART1 list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"; exit 0
 fi
 
-# one write turn at a time -- see the header
-publish() {
-  until mkdir "$OUT/one-writer" 2>/dev/null; do sleep 1; done
-  timeout 120 "$C" $1 consult "$2" > "$3" 2>&1
-  rc=$?
-  rmdir "$OUT/one-writer"
-  return $rc
-}
-
 # a clean slate, so a re-run proves training and not leftovers
 for opts in "$PART1" "$PART2" "$PART3" "$MAIN"; do
   timeout 60 "$C" $opts forget >/dev/null 2>&1
@@ -64,7 +56,7 @@ for n in 1 2 3; do
   (
     "$C" run "$HERE/trainer.pl" "train_part($n)" > "$OUT/raw_$n" 2>&1
     grep -a '^torch_' "$OUT/raw_$n" > "$OUT/model_$n.pl"
-    [ -s "$OUT/model_$n.pl" ] && publish "$opts" "$OUT/model_$n.pl" "$OUT/pub_$n.log"
+    [ -s "$OUT/model_$n.pl" ] && timeout 120 "$C" $opts consult "$OUT/model_$n.pl" > "$OUT/pub_$n.log" 2>&1
   ) &
 done
 
