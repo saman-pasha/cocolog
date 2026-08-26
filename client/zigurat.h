@@ -257,6 +257,28 @@ int zg_read_dvector(zg_conn *c, double *out, uint32_t cap, uint32_t *n,
  * past a row it does not want without knowing the column types. */
 int zg_skip_field(zg_conn *c);
 
+/* Reads one field of ANY type, dispatching on its type-descriptor byte the
+ * way zg_skip_field does -- this is what lets a caller take a cursor's rows
+ * without knowing the column types in advance. *KIND answers what arrived:
+ *
+ *   ZG_F_NULL    nothing (the null bit was set); no output is touched
+ *   ZG_F_LONG    a Bool, Int or Long -- in *I
+ *   ZG_F_DOUBLE  a Double            -- in *D
+ *   ZG_F_TEXT    a String or Text    -- in TEXT (cap CAP), NUL-terminated
+ *   ZG_F_VECTOR  a Vector: *VECLEN elements FOLLOW, each a whole field of
+ *                its own; read each with another zg_read_field
+ *
+ * Text wider than CAP is an error, like the typed reads. Wire only: an
+ * embedded connection's fields do not carry descriptors this side can see,
+ * so there it answers 0 with the error saying so. */
+#define ZG_F_NULL   0
+#define ZG_F_LONG   1
+#define ZG_F_DOUBLE 2
+#define ZG_F_TEXT   3
+#define ZG_F_VECTOR 4
+int zg_read_field(zg_conn *c, int *kind, int64_t *i, double *d,
+                  char *text, size_t cap, uint32_t *veclen);
+
 #ifdef __cplusplus
 }
 #endif

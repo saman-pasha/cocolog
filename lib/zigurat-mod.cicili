@@ -1,0 +1,367 @@
+;;;; cocolog -- library(zigurat): the connection under the knowledge base,
+;;;; steered from Prolog
+;;;
+;;; When cocolog is on a server (`--kb', `--host', `--port') or on an
+;;; embedded store (`--embed'), the knowledge base rides a zg_conn -- the
+;;; same connection the store's own hooks write through. This module hands
+;;; that connection to the program: the transaction is the program's to
+;;; shape, not only the turn's.
+;;;
+;;;   zigurat_begin           the server opens a transaction with the
+;;;                           connection and, after every commit or
+;;;                           rollback, at the next statement -- there is
+;;;                           no begin on the wire to send. This proves
+;;;                           the connection is alive with a round-trip,
+;;;                           so `begin, work, commit' reads as written.
+;;;   zigurat_commit          commit the connection's transaction NOW --
+;;;                           the turn's own commit at the end of the
+;;;                           query still happens and is then a no-op
+;;;   zigurat_rollback        roll it back NOW
+;;;   zigurat_isolation(L)    read_uncommitted | read_committed |
+;;;                           repeatable_read | snapshot | serializable
+;;;   zigurat_auto_commit(B)  true | false: commit after every procedure
+;;;                           call, server-side
+;;;   zigurat_transaction_id(T)  the id the server answered at connect
+;;;
+;;; DDL AND DML travel the same two roads they travel for every other
+;;; client of the server, and both are here:
+;;;
+;;;   zigurat_compile(Text)   Parsi source -- CREATE TABLE, SEQUENCE,
+;;;                           PROCEDURE bodies full of SELECT and UPDATE
+;;;                           -- shipped to the server's own compiler.
+;;;                           The server refuses this unless its operator
+;;;                           set COMPILER/REMOTE_MODE TRUE, and the
+;;;                           refusal arrives as the error it is: the
+;;;                           gate is the server's, not this module's.
+;;;   zigurat_call(P, Args)   call the compiled procedure P; results are
+;;;                           drained and dropped
+;;;   zigurat_call(P, Args, Reply)  the same call, Reply unified with a
+;;;                           list of what came back IN ARRIVAL ORDER: a
+;;;                           RETURNS value as itself, each cursor row as
+;;;                           a list of its fields. Nulls arrive as the
+;;;                           atom `null', Strings and Texts as atoms,
+;;;                           vectors as lists of numbers.
+;;;
+;;; ARGUMENTS ARE TYPED BY THEIR SHAPE, because the wire is typed and the
+;;; procedure's parameter order is a contract: a bare integer travels as a
+;;; Long, a float as a Double, an atom (or code list) as a String, and the
+;;; wrappers `int(N)', `bool(B)' and `text(A)' pick the narrower types a
+;;; parameter may demand. A mismatch is refused by the server, never
+;;; guessed past.
+;;;
+;;; UNDER --local THERE IS NO CONNECTION, and every predicate here throws
+;;; `error(cocolog_error(zigurat), _)' saying so rather than pretending a
+;;; local store has a transaction to steer. The Zeytun reader (`--http')
+;;; has no connection either -- one HTTP request is one transaction.
+;;; An EMBEDDED store answers the transaction verbs; reading a Reply is
+;;; the wire's alone, because only the wire's fields carry the type
+;;; descriptors a generic reader needs.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+(DEFPARAMETER *zigurat-predicates*
+  '(("zigurat_begin"          0 zm_begin)
+    ("zigurat_commit"         0 zm_commit)
+    ("zigurat_rollback"       0 zm_rollback)
+    ("zigurat_isolation"      1 zm_isolation)
+    ("zigurat_auto_commit"    1 zm_auto_commit)
+    ("zigurat_transaction_id" 1 zm_transaction_id)
+    ("zigurat_compile"        1 zm_compile)
+    ("zigurat_call"           2 zm_call2)
+    ("zigurat_call"           3 zm_call3)))
+
+(generic decl-zigurat-mod
+  ()
+
+  ;;; Registers the module. A target calls this after `coco_module_init'.
+  (decl) (func coco_zigurat_module () (out int))
+
+  ) ; decl-zigurat-mod
+
+
+(generic impl-zigurat-mod
+  ()
+
+  ;;; ---- reaching the connection -----------------------------------------
+
+  ;;; The store's `conn' hook (kb.cicili), installed by the zigurat backend
+  ;;; and nobody else. Null is an arrangement with nothing to steer.
+  (static)
+  (func zm_conn ((coco_engine * e)) (out zg_conn *)
+        (let ((coco_store * st . #'(-> e st)))
+          (if (== (-> st conn) nil) (return nil))
+          (return (cast (zg_conn *) ((-> st conn) st (-> st ctx))))))
+
+  (static)
+  (func zm_refuse ((coco_engine * e)) (out int)
+        (return (coco_m_error e "zigurat"
+                              "the knowledge base is not on a zigurat connection: --local has none and --http cannot be steered")))
+
+  ;;; the connection said no; its reason becomes the thrown error's detail
+  (static)
+  (func zm_wire ((coco_engine * e) (zg_conn * db)) (out int)
+        (return (coco_m_error e "zigurat" (zg_error db))))
+
+  ;;; ---- the transaction verbs -------------------------------------------
+
+  (func zm_begin ((coco_engine * e) (size_t g)) (out int)
+        (cast void g)
+        (let ((zg_conn * db . #'(zm_conn e))
+              (char back [32]))
+          (if (== db nil) (return (zm_refuse e)))
+          ;; embedded: the engine is in this process and stages a
+          ;; transaction at the first touch; there is no liveness to prove
+          (if (zg_embedded db) (return 1))
+          (if (not (zg_echo db "begin" back 32)) (return (zm_wire e db)))
+          (return 1)))
+
+  (func zm_commit ((coco_engine * e) (size_t g)) (out int)
+        (cast void g)
+        (let ((zg_conn * db . #'(zm_conn e)))
+          (if (== db nil) (return (zm_refuse e)))
+          (if (not (zg_commit db)) (return (zm_wire e db)))
+          (return 1)))
+
+  (func zm_rollback ((coco_engine * e) (size_t g)) (out int)
+        (cast void g)
+        (let ((zg_conn * db . #'(zm_conn e)))
+          (if (== db nil) (return (zm_refuse e)))
+          (if (not (zg_rollback db)) (return (zm_wire e db)))
+          (return 1)))
+
+  (func zm_isolation ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((lvl 0))
+          (let ((const char * name . #'(coco_m_atom e lvl)))
+            (if (== name nil) (return (coco_m_type_error e "atom" lvl)))
+            (let ((int code . -1))
+              (if (== 0 (strcmp name "read_uncommitted")) (set code 0))
+              (if (== 0 (strcmp name "read_committed"))   (set code 1))
+              (if (== 0 (strcmp name "repeatable_read"))  (set code 2))
+              (if (== 0 (strcmp name "snapshot"))         (set code 3))
+              (if (== 0 (strcmp name "serializable"))     (set code 4))
+              (if (< code 0) (return (coco_m_domain_error e "isolation_level" lvl)))
+              (let ((zg_conn * db . #'(zm_conn e)))
+                (if (== db nil) (return (zm_refuse e)))
+                (if (not (zg_isolate db (cast zg_isolation_t code)))
+                    (return (zm_wire e db)))
+                (return 1))))))
+
+  (func zm_auto_commit ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((flag 0))
+          (let ((const char * name . #'(coco_m_atom e flag)))
+            (if (== name nil) (return (coco_m_type_error e "atom" flag)))
+            (let ((int on . -1))
+              (if (== 0 (strcmp name "true"))  (set on 1))
+              (if (== 0 (strcmp name "false")) (set on 0))
+              (if (< on 0) (return (coco_m_domain_error e "boolean" flag)))
+              (let ((zg_conn * db . #'(zm_conn e)))
+                (if (== db nil) (return (zm_refuse e)))
+                (if (not (zg_auto_commit db on)) (return (zm_wire e db)))
+                (return 1))))))
+
+  (func zm_transaction_id ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((t0 0))
+          (let ((zg_conn * db . #'(zm_conn e)))
+            (if (== db nil) (return (zm_refuse e)))
+            (return (? (coco_m_unify_int e t0 (cast i64 (zg_transaction_id db))) 1 0)))))
+
+  ;;; ---- DDL: the server's compiler --------------------------------------
+
+  (func zm_compile ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((src 0))
+          (let ((zg_conn * db . #'(zm_conn e)))
+            (if (== db nil) (return (zm_refuse e)))
+            (let ((char * buf . #'(cast (char *) (malloc 65536))))
+              (if (== buf nil) (return (coco_m_error e "zigurat" "out of memory")))
+              (if (not (coco_m_text e src buf 65536))
+                  (block (free buf) (return (coco_m_type_error e "text" src))))
+              (if (not (zg_compile db buf))
+                  (block (free buf) (return (zm_wire e db))))
+              (free buf)
+              (return 1)))))
+
+  ;;; ---- DML: calling a compiled procedure -------------------------------
+
+  ;;; One parameter onto the wire, by the term's shape. TBUF is the shared
+  ;;; text scratch (65536).
+  (static)
+  (func zm_write_arg ((coco_engine * e) (zg_conn * db) (size_t a)
+                      (char * tbuf) (int * type_ok)) (out int)
+        (set (cof type_ok) 1)
+        (let ((coco_machine * mm . #'(-> e m))
+              (i64 iv . 0)
+              (double dv . 0.0))
+          (set a (coco_deref mm a))
+          ;; the wrappers first: int(N), bool(B), text(A)
+          (if (and (coco_is_callable mm a) (== 1 (coco_arity mm a)))
+              (let ((const char * f . #'(coco_atom_name mm (coco_name_of mm a)))
+                    (size_t inner . #'(coco_deref mm (coco_arg mm a 0))))
+                (if (== 0 (strcmp f "int"))
+                    (block
+                     (if (not (coco_m_int e inner (aof iv)))
+                         (block (set (cof type_ok) 0) (return 0)))
+                     (return (zg_write_int db (cast i32 iv)))))
+                (if (== 0 (strcmp f "bool"))
+                    (let ((const char * b . #'(coco_m_atom e inner)))
+                      (if (== b nil) (block (set (cof type_ok) 0) (return 0)))
+                      (return (zg_write_bool db (? (== 0 (strcmp b "true")) 1 0)))))
+                (if (== 0 (strcmp f "text"))
+                    (block
+                     (if (not (coco_m_text e inner tbuf 65536))
+                         (block (set (cof type_ok) 0) (return 0)))
+                     (return (zg_write_text db tbuf))))))
+          (if (coco_m_int e a (aof iv)) (return (zg_write_long db iv)))
+          (if (coco_m_float e a (aof dv)) (return (zg_write_double db dv)))
+          (if (coco_m_text e a tbuf 256) (return (zg_write_string db tbuf)))
+          (set (cof type_ok) 0)
+          (return 0)))
+
+  ;;; One field off the wire, as a term. A vector's elements follow it,
+  ;;; each a whole field, so the vector case recurses.
+  (static)
+  (func zm_field_term ((coco_engine * e) (zg_conn * db)
+                       (char * tbuf) (size_t * out)) (out int)
+        (let ((int kind . 0) (i64 iv . 0) (double dv . 0.0) (u32 vn . 0))
+          (if (not (zg_read_field db (aof kind) (aof iv) (aof dv) tbuf 65536 (aof vn)))
+              (return 0))
+          (cond
+            ((== kind ZG_F_NULL)   (set (cof out) (coco_new_atom (-> e m) "null")))
+            ((== kind ZG_F_LONG)   (set (cof out) (coco_new_int (-> e m) iv)))
+            ((== kind ZG_F_DOUBLE) (set (cof out) (coco_new_float (-> e m) dv)))
+            ((== kind ZG_F_TEXT)   (set (cof out) (coco_new_atom (-> e m) tbuf)))
+            (#t
+             (let ((size_t * elems . #'(cast (size_t *)
+                                             (malloc (* (? (== vn 0) 1 (cast size_t vn))
+                                                        (sizeof size_t))))))
+               (if (== elems nil) (return 0))
+               (for ((u32 k . 0)) (< k vn) ((++ k))
+                 (if (not (zm_field_term e db tbuf (aof (nth k elems))))
+                     (block (free elems) (return 0))))
+               (set (cof out) (coco_m_list e elems (cast size_t vn)))
+               (free elems))))
+          (return 1)))
+
+  ;;; grows the reply as terms arrive
+  (static)
+  (func zm_reply_push ((size_t ** v) (size_t * n) (size_t * cap) (size_t t0)) (out int)
+        (if (== (cof n) (cof cap))
+            (let ((size_t nc . #'(? (== (cof cap) 0) 16 (* (cof cap) 2)))
+                  (size_t * nv . #'(cast (size_t *)
+                                         (realloc (cast (void *) (cof v))
+                                                  (* nc (sizeof size_t))))))
+              (if (== nv nil) (return 0))
+              (set (cof v) nv)
+              (set (cof cap) nc)))
+        (set (nth (cof n) (cof v)) t0)
+        (set (cof n) (+ (cof n) 1))
+        (return 1))
+
+  ;;; the call itself: name, args, then the result stream to its end.
+  ;;; WANT 0 drains and drops; WANT 1 collects the reply list into *REPLY.
+  (static)
+  (func zm_call_work ((coco_engine * e) (size_t g) (int want) (size_t * reply)) (out int)
+        (coco-mod-args e g ((nameterm 0) (argsterm 1))
+          (let ((zg_conn * db . #'(zm_conn e)))
+            (if (== db nil) (return (zm_refuse e)))
+            (let ((char pname [256]))
+              (if (not (coco_m_text e nameterm pname 256))
+                  (return (coco_m_type_error e "atom" nameterm)))
+              (let ((size_t * items . nil) (size_t nargs . 0))
+                (if (not (coco_m_list_array e argsterm (aof items) (aof nargs)))
+                    (return (coco_m_type_error e "list" argsterm)))
+                (let ((char * tbuf . #'(cast (char *) (malloc 65536))))
+                  (if (== tbuf nil)
+                      (block (free items)
+                             (return (coco_m_error e "zigurat" "out of memory"))))
+                  (if (not (zg_call db pname))
+                      (block (free items) (free tbuf) (return (zm_wire e db))))
+                  (for ((size_t i . 0)) (< i nargs) ((++ i))
+                    (let ((int type_ok . 1))
+                      (if (not (zm_write_arg e db (nth i items) tbuf (aof type_ok)))
+                          (block
+                           (free tbuf)
+                           (if (not type_ok)
+                               (let ((size_t culprit . #'(nth i items)))
+                                 (free items)
+                                 (return (coco_m_type_error e "zigurat_argument" culprit))))
+                           (free items)
+                           (return (zm_wire e db))))))
+                  (free items)
+                  ;; the results, to SUCCESSFUL_DONE
+                  (let ((zg_result_t r)
+                        (char cols [512])
+                        (unsigned nfields . 0)
+                        (size_t * acc . nil) (size_t nacc . 0) (size_t cacc . 0)
+                        (int failed . 0))
+                    (while 1
+                      (if (not (zg_result db (aof r))) (block (set failed 1) break))
+                      (if (== r ZG_SUCCESSFUL_DONE) break)
+                      (cond
+                        ((== r ZG_CURSOR_OPEN)
+                         (block
+                          (if (not (zg_columns db cols 512)) (block (set failed 1) break))
+                          (set nfields 0)
+                          (if (!= (nth 0 cols) (cast char 0))
+                              (let ((size_t ci . 0))
+                                (set nfields 1)
+                                (while (!= (nth ci cols) (cast char 0))
+                                  (if (== (nth ci cols) (cast char 44)) ;; ','
+                                      (set nfields (+ nfields 1)))
+                                  (set ci (+ ci 1)))))))
+                        ((== r ZG_CURSOR_CLOSE) (block))
+                        ((== r ZG_RETURN_VALUE)
+                         (if want
+                             (let ((size_t t0 . 0))
+                               (if (not (zm_field_term e db tbuf (aof t0)))
+                                   (block (set failed 1) break))
+                               (if (not (zm_reply_push (aof acc) (aof nacc) (aof cacc) t0))
+                                   (block (set failed 1) break)))
+                           (if (not (zg_skip_field db)) (block (set failed 1) break))))
+                        ((== r ZG_CURSOR_FETCH)
+                         (if want
+                             (let ((size_t row [64]) (int rowbad . 0))
+                               (if (> nfields (cast unsigned 64))
+                                   (block (set failed 1) break))
+                               (for ((unsigned k . 0)) (< k nfields) ((++ k))
+                                 (if (not (zm_field_term e db tbuf (aof (nth k row))))
+                                     (block (set rowbad 1) break)))
+                               (if rowbad (block (set failed 1) break))
+                               (if (not (zm_reply_push (aof acc) (aof nacc) (aof cacc)
+                                                       (coco_m_list e row (cast size_t nfields))))
+                                   (block (set failed 1) break)))
+                           (let ((int skipbad . 0))
+                             (for ((unsigned k . 0)) (< k nfields) ((++ k))
+                               (if (not (zg_skip_field db)) (block (set skipbad 1) break)))
+                             (if skipbad (block (set failed 1) break)))))
+                        (#t (block))))
+                    (free tbuf)
+                    (if failed
+                        (block (free acc) (return (zm_wire e db))))
+                    (if want (set (cof reply) (coco_m_list e acc nacc)))
+                    (free acc)
+                    (return 1))))))))
+
+  (func zm_call2 ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t unused . 0))
+          (return (zm_call_work e g 0 (aof unused)))))
+
+  (func zm_call3 ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t reply . 0)
+              (int rc . 0))
+          (set rc (zm_call_work e g 1 (aof reply)))
+          (if (!= rc 1) (return rc))
+          (coco-mod-args e g ((r 2))
+            (return (? (coco_m_unify e r reply) 1 0)))))
+
+  ;;; ---- registration ------------------------------------------------------
+
+  (static) (coco-emit-module-dispatch zm_dispatch *zigurat-predicates*)
+
+  (func coco_zigurat_module () (out int)
+        (return (coco_module_register "zigurat" zm_dispatch nil nil)))
+
+  ) ; impl-zigurat-mod

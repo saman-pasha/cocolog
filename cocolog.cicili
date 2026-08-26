@@ -134,6 +134,7 @@
   (import "./lib/library.cicili")
   (import "./lib/state.cicili")
   (import "./lib/zigurat-kb.cicili")
+  (import "./lib/zigurat-mod.cicili")
   (import "./lib/zeytun-kb.cicili")
 
   (decl-term)   (impl-term)
@@ -156,6 +157,7 @@
   (decl-dcg-module) (impl-dcg-module)
   (decl-state)  (impl-state)
   (decl-zigurat-kb) (impl-zigurat-kb)
+  (decl-zigurat-mod) (impl-zigurat-mod)
   (decl-zeytun-kb)  (impl-zeytun-kb)
 
   ;;; Everything the command line said, in one place.
@@ -1717,6 +1719,9 @@
                    (return 0)))
         (if (not (coco_torch_try))
             (block (fprintf stderr "cocolog: the torch module would not register\n")
+                   (return 0)))
+        (if (not (coco_zigurat_module))
+            (block (fprintf stderr "cocolog: the zigurat module would not register\n")
                    (return 0)))
         (return 1))
 

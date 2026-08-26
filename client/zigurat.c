@@ -993,6 +993,71 @@ int zg_skip_field(zg_conn *c)
   }
 }
 
+int zg_read_field(zg_conn *c, int *kind, int64_t *i, double *d,
+                  char *text, size_t cap, uint32_t *veclen)
+{
+  uint8_t tdb;
+  int null = 0;
+
+  if (c->ce)
+    return say(c, "reading a field without naming its type needs the wire's"
+               " descriptors; an embedded connection has none to offer");
+
+  if (!field_head(c, &tdb, &null)) return 0;
+  if (null) { *kind = ZG_F_NULL; return 1; }
+
+  switch (tdb) {
+  case TDB_BOOL: {
+    uint8_t b = 0;
+    if (!rd_be(c, &b, 1)) return 0;
+    *kind = ZG_F_LONG; if (i) *i = b ? 1 : 0;
+    return 1;
+  }
+  case TDB_INT: {
+    int32_t v = 0;
+    if (!rd_be(c, &v, 4)) return 0;
+    *kind = ZG_F_LONG; if (i) *i = (int64_t)v;
+    return 1;
+  }
+  case TDB_LONG: {
+    int64_t v = 0;
+    if (!rd_be(c, &v, 8)) return 0;
+    *kind = ZG_F_LONG; if (i) *i = v;
+    return 1;
+  }
+  case TDB_DOUBLE: {
+    double v = 0;
+    if (!rd_be(c, &v, 8)) return 0;
+    *kind = ZG_F_DOUBLE; if (d) *d = v;
+    return 1;
+  }
+  case TDB_STRING:
+    *kind = ZG_F_TEXT;
+    return rd_std_string(c, text, cap);
+  case TDB_TEXT: {
+    uint16_t n;
+    if (!rd_u16(c, &n)) return 0;
+    if ((size_t)n + 1 > cap) {
+      if (!skip(c, n)) return 0;
+      return say(c, "the Text does not fit in the buffer given");
+    }
+    if (n && !rd(c, text, n)) return 0;
+    text[n] = '\0';
+    *kind = ZG_F_TEXT;
+    return 1;
+  }
+  default:
+    /* a Vector of anything: a u32 count, then that many whole fields */
+    if ((tdb & TDB_SCALE_MASK) == TDB_SCALE_DWRD) {
+      uint32_t n;
+      if (!rd_u32(c, &n)) return 0;
+      *kind = ZG_F_VECTOR; if (veclen) *veclen = n;
+      return 1;
+    }
+    return say(c, "a field arrived with a type this client does not know");
+  }
+}
+
 int zg_drain(zg_conn *c, unsigned row_fields)
 {
   for (;;) {

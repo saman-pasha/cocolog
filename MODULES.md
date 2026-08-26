@@ -175,6 +175,33 @@ not shadowed by a clause somebody asserted. When two modules claim one name,
 the first registered wins — which makes the order in the target the order of
 precedence.
 
+## library(zigurat): the connection, steered from Prolog
+
+When the knowledge base rides a Zigurat connection (`--kb`/`--host`/
+`--port`, or `--embed`), `use_module(library(zigurat))` hands the program
+the connection the store's own hooks already write through — the same RPC
+surface ZiguratIP's Connector offers its C++ clients (`call`, `compile`,
+`isolate`, `auto_commit`, `commit`, `rollback`), reached through the
+store's `conn` hook rather than a second socket:
+
+| predicate | wire verb | what it does |
+|---|---|---|
+| `zigurat_begin/0` | — (an `echo` round-trip) | the server opens a transaction with the connection and after every commit/rollback at the next statement; this proves the connection lives so `begin, work, commit` reads as written |
+| `zigurat_commit/0` | `commit` | commit NOW, before the turn's own commit |
+| `zigurat_rollback/0` | `rollback` | take the uncommitted work back NOW |
+| `zigurat_isolation/1` | `isolate` | `read_uncommitted`, `read_committed`, `repeatable_read`, `snapshot`, `serializable` |
+| `zigurat_auto_commit/1` | `auto_commit` | `true`/`false`: commit after every procedure call, server-side |
+| `zigurat_transaction_id/1` | — | the id the server answered at connect |
+| `zigurat_compile/1` | `compile` | Parsi source — DDL and procedures — to the server's own compiler; refused (catchably) unless the operator set `COMPILER/REMOTE_MODE TRUE` |
+| `zigurat_call/2,3` | `call` | a compiled procedure, arguments typed by shape: a bare integer travels as Long, a float as Double, an atom as String, and `int(N)`, `bool(B)`, `text(A)` pick the narrower types; `/3` unifies its Reply with a list — a RETURNS value as itself, each cursor row as a list of its fields (nulls as `null`, strings as atoms, vectors as lists) |
+
+Under `--local` every one of them throws `error(cocolog_error(...), _)` —
+a local store has no connection to steer. `--http` likewise. An embedded
+store answers the transaction verbs; a `/3` Reply is the wire's alone,
+because only the wire's fields carry the type descriptors a generic
+reader needs. `test/zigurat-lib.sh` is the proof, commit and rollback
+across processes included.
+
 ## The rules a module predicate must obey
 
 These are not style.

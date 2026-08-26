@@ -149,6 +149,16 @@
     (member func tensor_forget ((coco_store * st) (void * ctx)
                                 (const char * name)) (out int))
 
+    ;; The connection under the backend, when the backend IS a connection:
+    ;; the zigurat client installs this and answers its zg_conn*, so
+    ;; library(zigurat) can drive the wire the store already rides --
+    ;; commit, rollback, isolation, a procedure call -- without a hook per
+    ;; verb. Null under --local (there is no connection) and under the
+    ;; Zeytun reader (one HTTP request is one transaction; nothing to
+    ;; steer). Opaque here on purpose: the store knows nothing of what a
+    ;; zg_conn is, exactly as ctx is opaque.
+    (member func conn ((coco_store * st) (void * ctx)) (out void *))
+
     ;; How many MODULES have had their clauses consulted into this store. It
     ;; lives here rather than beside the registry because it is a fact about
     ;; this store and not about the build: `coco_store_reset' -- which is what

@@ -170,6 +170,7 @@
   (static) (decl) (func coco_zg_tensor_forget ((coco_store * st) (void * ctx)
                                              (const char * name)) (out int))
   (static) (decl) (func coco_zg_mark_dirty ((coco_zg * z) (size_t pi)) (out int))
+  (static) (decl) (func coco_zg_conn ((coco_store * st) (void * ctx)) (out void *))
 
   (func coco_zg_attach ((coco_zg * z) (zg_conn * db) (coco_machine * m)
                       (coco_store * st) (const char * kb))
@@ -196,7 +197,14 @@
         ;; parameters are rows wherever this backend is attached
         (set (-> st tensor_put) coco_zg_tensor_put)
         (set (-> st tensor_row) coco_zg_tensor_row)
-        (set (-> st tensor_forget) coco_zg_tensor_forget))
+        (set (-> st tensor_forget) coco_zg_tensor_forget)
+        ;; the connection itself, for library(zigurat) -- see kb.cicili
+        (set (-> st conn) coco_zg_conn))
+
+  (func coco_zg_conn ((coco_store * st) (void * ctx)) (out void *)
+        (cast void st)
+        (let ((coco_zg * z . #'(cast (coco_zg *) ctx)))
+          (return (cast (void *) (-> z db)))))
 
   ;;; ---- reading a predicate out of the database -------------------------
 

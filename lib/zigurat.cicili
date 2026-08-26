@@ -133,6 +133,16 @@
      (decl) (func zg_read_text_alloc ((zg_conn * c) (char ** out) (size_t * len)
                                       (int * is_null)) (out int))
      (decl) (func zg_skip_field  ((zg_conn * c)) (out int))
+
+     ;;; the generic read, for a caller that does not know the column types
+     ;;; -- library(zigurat)'s rows. Kinds as zigurat.h defines them.
+     (typedef int ZG_F_NULL)
+     (typedef int ZG_F_LONG)
+     (typedef int ZG_F_DOUBLE)
+     (typedef int ZG_F_TEXT)
+     (typedef int ZG_F_VECTOR)
+     (decl) (func zg_read_field ((zg_conn * c) (int * kind) (i64 * i) (double * d)
+                                 (char * text) (size_t cap) (u32 * veclen)) (out int))
      ))
 
 
