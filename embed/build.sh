@@ -17,4 +17,4 @@ ln -sfn "$ZIGURATIP/MVCCS-cicili/mvccs-lib.cicili" "$HERE/mvccs-lib.cicili"
 ln -sfn "$ZIGURATIP/MVCCS-cicili/generated"        "$HERE/generated"
 ln -sfn "$ZIGURATIP/home/lib"                      "$HERE/ziglib"
 
-cd "$CICILI" && sbcl --script cicili.lisp "$HERE/embed.cicili"
+cd "$CICILI" && sbcl --script cicili.lisp --release "$HERE/embed.cicili"

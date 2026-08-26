@@ -31,7 +31,7 @@ CICILI         ?= $(HOME)/cicili
 ZIGURATIP      ?= $(HOME)/ZiguratIP
 SBCL           ?= sbcl
 CC             ?= cc
-CFLAGS         ?= -Wall -Wextra -std=c99 -g -O2 -D_DEFAULT_SOURCE
+CFLAGS         ?= -Wall -Wextra -std=c99 -O3 -D_DEFAULT_SOURCE
 AR             ?= ar
 
 BUILD          := build
@@ -73,7 +73,9 @@ check-cicili:
 # getcwd), so running it from anywhere else makes it fail to find
 # builtins.cicili. It changes into the target's directory itself before
 # compiling, so a relative -I or -L in a target is relative to that file.
-CICILI_RUN = cd "$(CICILI)" && $(SBCL) --script cicili.lisp
+# --release is Cicili's own release set (-O3; -falign-loops=32 for C):
+# the interpreter ships optimised, matching the engine and the server.
+CICILI_RUN = cd "$(CICILI)" && $(SBCL) --script cicili.lisp --release
 
 # ONE BINARY. The Cicili run compiles the interpreter and links a plain
 # executable; the link below replaces it with the full one -- the embedded
@@ -94,7 +96,7 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
 	CICILI="$(CICILI)" sh torch/build.sh
-	g++ -g -O0 .libs/cocolog.o embed/.libs/embed.o torch/.libs/coco-torch.o \
+	g++ -O3 .libs/cocolog.o embed/.libs/embed.o torch/.libs/coco-torch.o \
 	  -o cocolog \
 	  -rdynamic -ldl \
 	  -Lbuild -lcocologc -lm -lpthread \

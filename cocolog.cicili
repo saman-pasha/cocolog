@@ -90,6 +90,12 @@
                   ;; and the unbraced else-if chain. gcc ignores unknown
                   ;; -Wno- options, so both flags travel to every platform
                   "-Wno-parentheses-equality" "-Wno-dangling-else"
+                  ;; -O3's fortify pass flags snprintf into the fixed
+                  ;; 256-byte error buffers as possible truncation; the
+                  ;; truncation is the design (an error message is capped,
+                  ;; never grown), and Cicili treats any unrecognised
+                  ;; compiler chatter as fatal, so the class is silenced
+                  "-Wno-format-truncation"
                   "-c" "cocolog.c"))
         ;; no :link -- the Makefile makes the ONE full link, with the
         ;; embedded engine and the torch module beside this object. A
@@ -333,7 +339,8 @@
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
   (func slurp ((const char * path)) (out char *)
-        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0))
+        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0)
+              (size_t got . 0))
           (if (== f nil)
               (block (fprintf stderr "cocolog: cannot read %s\n" path) (return nil)))
           (fseek f 0 SEEK_END)
@@ -341,8 +348,9 @@
           (fseek f 0 SEEK_SET)
           (set buf (cast (char *) (malloc (cast size_t (+ n 1)))))
           (if (== buf nil) (block (fclose f) (return nil)))
-          (fread buf 1 (cast size_t n) f)
-          (set (nth n buf) (cast char 0))
+          ;; a short read terminates at what actually arrived
+          (set got (fread buf 1 (cast size_t n) f))
+          (set (nth got buf) (cast char 0))
           (fclose f)
           (return buf)))
 

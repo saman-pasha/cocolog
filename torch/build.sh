@@ -7,4 +7,4 @@
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 CICILI=${CICILI:-$HOME/cicili}
-cd "$CICILI" && sbcl --script cicili.lisp "$HERE/coco-torch.cicili"
+cd "$CICILI" && sbcl --script cicili.lisp --release "$HERE/coco-torch.cicili"
