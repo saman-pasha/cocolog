@@ -72,9 +72,15 @@ if python3 -c "import torch" >/dev/null 2>&1; then
   if [ "$abi" = "True" ]; then
     say "torch C++11 ABI" "True -- matches g++'s default"
   elif [ "$abi" = "False" ]; then
-    printf '  %-22s %s\n' "torch C++11 ABI" "FALSE -- see the note in this script; the"
-    printf '  %-22s %s\n' "" "final link will fail on c10:: symbols"
-    fail=1
+    # LOUD, BUT NOT FATAL. This was fatal at first, and that was wrong:
+    # it stopped the whole build -- ZiguratIP, the client, the
+    # interpreter, all of which are indifferent to it -- over something
+    # that can only break the FINAL link, and only the part of it that
+    # touches libtorch. A warning that lets the build run and then fails
+    # with a named cause is worth more than a refusal that guesses.
+    printf '  %-22s %s\n' "torch C++11 ABI" "FALSE -- g++ defaults to the new spelling,"
+    printf '  %-22s %s\n' "" "so the final link may fail on c10:: symbols"
+    printf '  %-22s %s\n' "" "full of __cxx11. Not stopping: see COLAB.md."
   else
     say "torch C++11 ABI" "unknown (torch too old to say)"
   fi
