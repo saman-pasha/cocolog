@@ -1,4 +1,4 @@
-4
+5
 # colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
 #
 # The first line is the version. Everything below is a log.
@@ -19,6 +19,10 @@
 # preflight.sh or build.sh does not need a bump -- those come from the
 # repository already, which is the point of their being scripts.
 #
+# 5  2026-08-26  section 4b compiles ZiguratIP's demo pages, so Zeytun's
+#                "Load demo" link works. Off by default, and it warns
+#                that setup.zt INSERTs on a GET -- a Parsi page is not
+#                the read-only knowledge-base path.
 # 4  2026-08-26  every cell names the cocolog binary by its FULL path.
 #                A cell inherits the last cell's working directory, and
 #                section 4 used to %cd into ZiguratIP and back -- so
