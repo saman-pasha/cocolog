@@ -1,0 +1,25 @@
+1
+# colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
+#
+# The first line is the version. Everything below is a log.
+#
+# WHY A FILE AND NOT JUST A NUMBER IN THE NOTEBOOK. The notebook you are
+# running lives in your BROWSER, and the repository is what `git reset
+# --hard' updates. Those two are different copies and they have already
+# disagreed: the package list was corrected upstream, the cell in the
+# browser stayed as it was, and the same run failed twice for the same
+# reason with a corrected fix sitting on disk the whole time.
+#
+# So the number is declared HERE, the notebook carries the number it was
+# published at, and section 1 compares them and says so. A version you
+# can read is worth something; a version that CHECKS ITSELF against the
+# repository is worth the thing that actually went wrong.
+#
+# Bump this whenever a notebook CELL changes. A change to prereqs.sh,
+# preflight.sh or build.sh does not need a bump -- those come from the
+# repository already, which is the point of their being scripts.
+#
+# 1  2026-08-26  the first version that carries a version. The package
+#                list moved into colab/prereqs.sh (libtool-bin, NOT
+#                libtool), the cell clones before installing, and the
+#                preflight report travels with its refusal.

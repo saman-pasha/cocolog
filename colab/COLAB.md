@@ -10,6 +10,38 @@ than only run it.
 
 ---
 
+## Which version am I running?
+
+Two answers, and the whole reason this section exists is that they can
+differ:
+
+* **the repository** — `colab/VERSION`, first line, and the three
+  commits the build was made from;
+* **the notebook in your browser** — `NOTEBOOK_VERSION` in section 1's
+  cell, which is whatever Colab last loaded.
+
+Section 1 prints both before it installs anything, and shouts when they
+disagree. That is deliberate: `git reset --hard` updates the files on
+disk and **cannot touch the cells already loaded in your browser**, so a
+corrected fix can sit on disk while the same run fails for the same
+reason twice. It has happened here, and the second time cost a round
+trip to work out why.
+
+The mismatch is a **warning, not a refusal**. Everything the build
+actually does lives in `prereqs.sh`, `preflight.sh` and `build.sh`, which
+arrive with the clone — that is the point of their being scripts — so an
+older notebook usually still builds. Stopping a working build over a
+number would be the worse mistake, the same judgement the preflight
+makes about the torch ABI.
+
+**Paste that header with any bug report.** Three commits and a version
+turn "the build failed" into a question somebody can answer.
+
+To pick up new cells: *File → Revert to saved*, then re-run section 1.
+
+`colab/VERSION` is bumped when a notebook **cell** changes. A change to
+one of the scripts does not need one.
+
 ## When the build fails
 
 Section 1 checks the VM before it builds and checks the build by its
@@ -43,7 +75,7 @@ The ones that have actually bitten:
 | what you see | what it is | the fix |
 |---|---|---|
 | `sbcl: not found` inside a sub-make | the image's package lists were stale, so the install failed — silently, in the old cell | `apt-get update` first; the cell does it now, and preflight refuses to continue without `sbcl` |
-| preflight refuses for a reason you already fixed | your BROWSER still holds the old notebook: `git reset --hard` updates the files on disk, not the cell you are running | the package list lives in `colab/prereqs.sh` now, so a stale notebook still installs the right things — but reload the notebook (*File → Revert to saved*) to pick up cell changes |
+| preflight refuses for a reason you already fixed | your BROWSER still holds the old notebook: `git reset --hard` updates the files on disk, not the cell you are running | section 1 now prints both versions and shouts when they differ — *File → Revert to saved*, then re-run. The package list lives in `colab/prereqs.sh`, so a stale notebook still installs the right things |
 | `libtool MISSING` although `apt-get install libtool` just succeeded | Debian and Ubuntu **split the package**: `libtool` ships `libtoolize` and the m4 macros, and the `/usr/bin/libtool` script Cicili invokes is in **`libtool-bin`** | `apt-get install -y libtool-bin`; the notebook installs that one now |
 | thirteen libraries, or a server that dies on its first insert | one project failed and the workspace carried on | `colab/build.sh` names it; read its log under `/tmp/coco-build-logs/` |
 | undefined `c10::` symbols, full of `__cxx11`, at the **final** link | the `torch` wheel was built with `_GLIBCXX_USE_CXX11_ABI=0` and `g++` spells `std::string` the other way | preflight prints the wheel's ABI and **warns without stopping** — everything except the torch link is indifferent to it. The flag would have to reach every C++ unit that touches libtorch, and Cicili's `{$…}` tokens have no ABI among them, so the fix is a matching wheel (`pip install` a torch built ABI=1) rather than a flag at the end |

@@ -26,7 +26,15 @@ if [ ! -f "$CICILI/cicili.lisp" ]; then
 fi
 
 CASES="term syntax solve module state zigurat shared"
-[ -n "$1" ] && CASES="$1"
+# NAMING ONE CASE used to set CASES unconditionally, so `run.sh groups'
+# -- an invocation this file's own header offers -- went looking for
+# test/groups.cicili, failed to build it, and reported BUILD FAILED
+# beside the GREEN of the case that then ran anyway. The cases below are
+# the .cicili ones; a name that is not one of them belongs to the shell
+# loop further down, and this loop should run nothing at all.
+if [ -n "$1" ]; then
+  if [ -f "$HERE/$1.cicili" ]; then CASES="$1"; else CASES=""; fi
+fi
 
 red=0
 for c in $CASES; do
@@ -67,12 +75,18 @@ done
 #           rehearsal of the Cloudflare tunnel in colab/COLAB.md
 #   tensors model parameters as Vector<Double> rows: the table on the
 #           wire, the paged tensor page over HTTP, the chunk fallback
+#   colab   the notebook and the scripts beside it, without a VM: the
+#           two version declarations that live in THIS repository
+#           agreeing, so that the only copy free to drift is the one
+#           in somebody's browser -- which is what section 1 checks
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
-  if [ ! -x "$ROOT/cocolog" ]; then
+  # `colab' reads the notebook and the scripts beside it; it needs no
+  # binary, so it must not be skipped for want of one.
+  if [ ! -x "$ROOT/cocolog" ] && [ "$c" != colab ]; then
     echo "SKIP (build cocolog first)"
     continue
   fi
