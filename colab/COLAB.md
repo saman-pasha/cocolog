@@ -10,6 +10,48 @@ than only run it.
 
 ---
 
+## When the build fails
+
+Section 1 checks the VM before it builds and checks the build by its
+artifacts afterwards, because the two things that used to hide a failure
+here are both in the build itself:
+
+* **`ZiguratIP`'s top-level `make` steps over a project that fails.** It
+  loops with `@- $(MAKE) -C …`, and the leading dash says carry on — so
+  the workspace prints *all done* and exits 0 having skipped a library
+  that would not compile. `colab/build.sh` checks all fourteen libraries
+  and three executables **by name**, and names the project a missing one
+  belongs to.
+* **`| tail -n 3` shows the wrong three lines.** A compiler reports the
+  error first and the summary last, so the tail of a broken build is the
+  linker's parting words about a file it never got. Whole logs are kept
+  under `/tmp/coco-build-logs/`, and a failure prints the lines that say
+  why.
+
+Run them by hand, in that order, when a cell has gone wrong:
+
+```sh
+cd /content/cocolog
+sh colab/preflight.sh     # what this VM has, and what it lacks
+sh colab/build.sh         # both builds, checked by artifact
+CLEAN=1 sh colab/build.sh # after a failure left a tree worth distrusting
+```
+
+The ones that have actually bitten:
+
+| what you see | what it is | the fix |
+|---|---|---|
+| `sbcl: not found` inside a sub-make | the image's package lists were stale, so the install failed — silently, in the old cell | `apt-get update` first; the cell does it now, and preflight refuses to continue without `sbcl` |
+| thirteen libraries, or a server that dies on its first insert | one project failed and the workspace carried on | `colab/build.sh` names it; read its log under `/tmp/coco-build-logs/` |
+| undefined `c10::` symbols, full of `__cxx11`, at the **final** link | the `torch` wheel was built with `_GLIBCXX_USE_CXX11_ABI=0` and `g++` spells `std::string` the other way | preflight prints the wheel's ABI; an ABI=0 wheel needs that flag on every C++ unit that touches torch, which is a build change rather than a flag at the end |
+| a Lisp backtrace ending the cocolog build | Cicili treats any unrecognised compiler chatter as fatal, and the **line under** its `Unhandled …` banner names the cause | `colab/build.sh` prints that line; a new compiler warning class usually wants silencing in the target's own `:compile` list |
+| the build looks fine but re-running says green instantly | a stale artifact from the previous run | `CLEAN=1 sh colab/build.sh` |
+
+A binary that exists is not a binary that works — the one link pulls in
+the embedded engine and libtorch, and an ABI mismatch surfaces on the
+first run rather than at the link — so the last thing `build.sh` does is
+ask cocolog for `6*7` and want `42` back.
+
 ## What you end up with
 
 One Colab VM training on its GPU, and the trained knowledge readable by
