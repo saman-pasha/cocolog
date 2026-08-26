@@ -1,4 +1,4 @@
-3
+4
 # colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
 #
 # The first line is the version. Everything below is a log.
@@ -19,6 +19,11 @@
 # preflight.sh or build.sh does not need a bump -- those come from the
 # repository already, which is the point of their being scripts.
 #
+# 4  2026-08-26  every cell names the cocolog binary by its FULL path.
+#                A cell inherits the last cell's working directory, and
+#                section 4 used to %cd into ZiguratIP and back -- so
+#                section 2, which runs first, hit `./cocolog: Is a
+#                directory'. No cell depends on execution order now.
 # 3  2026-08-26  the environment is set BEFORE prereqs.sh runs, because
 #                prereqs.sh reads CICILI to tell ASDF where the Cicili
 #                checkout is. It used to fall back to its own default,

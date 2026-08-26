@@ -120,6 +120,30 @@ for s in prereqs.sh preflight.sh build.sh; do
     "$([ -f "$COLAB/$s" ] && grep -q "$s" "$NB" && echo present || echo missing)" "present"
 done
 
+# NO CELL MAY DEPEND ON WHERE A PREVIOUS CELL LEFT THE PROCESS. A
+# notebook cell inherits the last cell's working directory, so `./cocolog'
+# is a bet on execution order -- and section 2 lost it the first time
+# anyone ran the notebook without running section 4 first: the server
+# cell used to %cd into ZiguratIP and %cd back, and section 2 runs
+# before it. `./cocolog: Is a directory', because /content/cocolog is
+# the checkout and the binary is inside it. Absolute paths everywhere,
+# checked here so the next cell added does not reintroduce it.
+check "no cell runs cocolog by a relative path" \
+  "$(python3 - "$NB" <<'PYEOF'
+import json, sys
+nb = json.load(open(sys.argv[1]))
+bad = []
+for i, c in enumerate(nb['cells']):
+    if c['cell_type'] != 'code':
+        continue
+    for line in ''.join(c['source']).split('\n'):
+        code = line.split('#', 1)[0]          # a comment may DISCUSS it
+        if './cocolog' in code or code.strip().startswith('%cd '):
+            bad.append('cell %d: %s' % (i, line.strip()[:40]))
+print('; '.join(bad) if bad else 'none')
+PYEOF
+)" "none"
+
 # THE RENAME HAS TO REACH THE DOCUMENTATION TOO. COLAB.md carries the
 # link people actually click -- the raw colab.research.google.com URL --
 # and a notebook renamed without it is a 404 for everyone but the person
