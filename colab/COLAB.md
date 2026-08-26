@@ -16,6 +16,43 @@ this repository at all.
 
 ---
 
+## How long it takes
+
+**About twelve minutes on a Colab VM**, measured on a 2-core / 12.7 GB
+Ubuntu 22.04 runtime — the standard shape Colab hands out, GPU or not.
+That is a fresh build of all three: ZiguratIP's fourteen libraries and
+five executables, the transpile of cocolog through Cicili and its one
+link against libtorch, and the Parsi objects compiled into the home.
+
+The build **times itself** and prints each stage, so the number above is
+a data point rather than the authority:
+
+```
+   ZiguratIP: 14 libraries, 5 executables
+   [ZiguratIP: 3m 38s]
+   cocolog built: 906K
+   [cocolog: 2m 49s]
+   37 cocolog objects in the home
+   [schema: 30s]
+   cocolog answers: 42
+
+build GREEN in 6m 58s
+```
+
+Those are from a **4-core** machine, and Colab's two cores roughly
+double the total — which is about the ratio you would expect, because
+ZiguratIP is the part that scales: fourteen ordinary C++ projects, built
+in sequence but each parallel inside. The cocolog stage is dominated by
+a single-threaded transpile and one link and barely moves with cores,
+which is why it is the larger share of the twelve minutes on Colab and
+the smaller share here.
+
+A re-run is much shorter: only `CLEAN=1` discards ZiguratIP, and without
+it `make` rebuilds just what changed. The cocolog binary is deleted
+before its stage every time on purpose, so its existence afterwards is
+evidence about *this* run rather than the last one — that costs the
+cocolog stage in full and is worth it.
+
 ## Which version am I running?
 
 Two answers, and the whole reason this section exists is that they can

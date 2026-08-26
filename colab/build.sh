@@ -35,6 +35,19 @@ export LD_LIBRARY_PATH="$ZIGURATIP_HOME/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 LOGS=${LOGS:-/tmp/coco-build-logs}
 mkdir -p "$LOGS"
 
+# HOW LONG IT TOOK, MEASURED RATHER THAN CLAIMED. "The build takes a few
+# minutes" is the kind of sentence that is written once and then quietly
+# stops being true, and on a Colab VM it is the number a reader most
+# wants before they walk away from the tab. So each stage times itself
+# and the run prints its own total. A doc that says twelve minutes is a
+# fact in a second place; this is the first place.
+T0=$(date +%s)
+stage_start() { STAGE_T=$(date +%s); }
+stage_done()  { echo "   [$1: $(fmt_secs $(( $(date +%s) - STAGE_T )))]"; }
+fmt_secs() {
+  if [ "$1" -ge 60 ]; then echo "$(( $1 / 60 ))m $(( $1 % 60 ))s"; else echo "$1s"; fi
+}
+
 # A STALE ARTIFACT IS A LIE THIS SCRIPT WOULD OTHERWISE TELL. Checking
 # that a file exists proves the LAST build made it, not this one -- so a
 # re-run after a failure can find yesterday's binary and call the build
@@ -70,6 +83,17 @@ explain() {   # logfile label
 }
 
 # ---- ZiguratIP ---------------------------------------------------------
+# THE RUNTIME DIRECTORIES THE SERVER WRITES INTO. home/data is where the
+# page store lives, and a ZiguratIP clone did not carry it -- every other
+# runtime directory has a .gitkeep and that one did not, so a fresh VM
+# started the server once and got "cannot create the store file
+# .../home/data/hexmap". Fixed at the root in ZiguratIP; kept here as
+# well because this script also runs against checkouts older than that
+# fix, and a mkdir -p costs nothing to be sure of.
+mkdir -p "$ZIGURATIP_HOME/data" "$ZIGURATIP_HOME/ld" "$ZIGURATIP_HOME/catalog" \
+         "$ZIGURATIP_HOME/log" "$ZIGURATIP_HOME/tmp"
+
+stage_start
 echo "== building ZiguratIP (Release)"
 ( cd "$ZIGURATIP" && make MODE=Release ) > "$LOGS/ziguratip.log" 2>&1
 echo "   make exited $? -- which proves nothing here; checking artifacts"
@@ -95,8 +119,10 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 echo "   ZiguratIP: $(ls "$ZIGURATIP_HOME"/lib/*.so | wc -l) libraries, $(ls "$ZIGURATIP_HOME"/bin | wc -l) executables"
+stage_done ZiguratIP
 
 # ---- cocolog -----------------------------------------------------------
+stage_start
 echo "== building cocolog"
 rm -f "$COCOLOG/cocolog"           # so what stands afterwards is THIS build's
 ( cd "$COCOLOG" && make ) > "$LOGS/cocolog.log" 2>&1
@@ -107,12 +133,14 @@ if [ ! -x "$COCOLOG/cocolog" ]; then
   exit 1
 fi
 echo "   cocolog built: $(ls -lh "$COCOLOG/cocolog" | awk '{print $5}')"
+stage_done cocolog
 
 # ---- the schema --------------------------------------------------------
 # The Parsi objects: compiled INTO the ZiguratIP home, and the one step
 # that must be redone after any engine change -- an object compiled
 # against older engine headers does not fail politely, it takes the
 # server down with a symbol lookup error on first use.
+stage_start
 echo "== compiling the Parsi objects into the home"
 ( cd "$COCOLOG" && make schema ) > "$LOGS/schema.log" 2>&1
 n=$(ls "$ZIGURATIP_HOME"/ld/lib_COCOLOG* 2>/dev/null | wc -l)
@@ -122,6 +150,7 @@ if [ "$n" -lt 1 ]; then
   exit 1
 fi
 echo "   $n cocolog objects in the home"
+stage_done schema
 
 # ---- the proof it runs -------------------------------------------------
 # A binary that exists is not a binary that works: the one link pulls in
@@ -135,4 +164,6 @@ case "$ans" in
 esac
 
 echo
-echo "build GREEN -- ZiguratIP, cocolog, the schema, and a binary that answers"
+echo "build GREEN in $(fmt_secs $(( $(date +%s) - T0 ))) -- ZiguratIP, cocolog, the schema, and a binary that answers"
+echo "   (measured on THIS VM. Colab gives 2 cores; a machine with more"
+echo "    cores finishes the ZiguratIP stage considerably sooner.)"
