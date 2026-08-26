@@ -1,0 +1,316 @@
+;;;; cocolog -- library(curl): an HTTP CLIENT, over cicili's libcurl binding
+;;;;
+;;;; THE OTHER DIRECTION FROM library(http). That one is a grammar for
+;;;; requests arriving; this is how an instance goes and fetches. Between
+;;;; them a cocolog in --embed mode can be both ends of a conversation --
+;;;; serve its own pages and reach somebody else's -- which is the whole
+;;;; point of the exercise.
+;;;;
+;;;; IT IS LOADABLE, NOT LINKED IN, and that is deliberate. bigint and
+;;;; torch are compiled into the one binary because the binary is useless
+;;;; without a store and this project's ML story is torch; libcurl is
+;;;; neither. Making it a `.so' that `use_module(library(curl))' loads
+;;;; keeps libcurl OUT of the core build -- a Colab VM, a container, or
+;;;; anyone who does not want an HTTP client still builds cocolog with
+;;;; nothing extra installed, and the suite SKIPs rather than fails where
+;;;; the library is absent.
+;;;;
+;;;; ALMOST NONE OF THIS IS NEW CODE. ../cicili/lib/net/curl.cicili is
+;;;; the binding and the front end: every option is a word that knows its
+;;;; own type -- `(timeout 10)' emits `((long)10)' where a hand-written
+;;;; curl_easy_setopt passes an int into a long and is undefined -- and
+;;;; `(cu.impl-buffer)' emits the growable response buffer and its write
+;;;; callback, which is the twenty lines every libcurl program writes
+;;;; before the interesting one. What is here is the seam to cocolog's
+;;;; terms and nothing else.
+;;;;
+;;;; ---- the shape of the seam -------------------------------------------
+;;;;
+;;;; THE OPTIONS ARE MACROS, so they cannot be chosen at run time. `cu.set'
+;;;; expands each word to a `curl_easy_setopt' with the right cast, at
+;;;; TRANSPILE time -- which is exactly why a misspelled option is a build
+;;;; error naming the words that exist rather than CURLE_UNKNOWN_OPTION.
+;;;; So the C half cannot take an option LIST: it takes one flat argument
+;;;; per option it supports, and the Coco half walks a Prolog list to fill
+;;;; them in. That is the same division files.cicili draws -- the syscall
+;;;; in C, the thing that reads better as clauses in clauses -- and here
+;;;; the compile-time option table forces it rather than merely favouring
+;;;; it.
+;;;;
+;;;; THE RESPONSE IS CODES, for the third time in this repository and the
+;;;; same reason: an atom is a C string and stops at the first NUL, so an
+;;;; atom-shaped answer silently truncates anything that is not text, and
+;;;; a client that cannot fetch a PNG is not a client. The REQUEST body is
+;;;; codes too, sent with `post-size' so a NUL in it survives the trip.
+;;;;
+;;;; WHAT IS NOT HERE: the multi interface (a poll loop, a different
+;;;; shape, and cicili's binding does not cover it either), cookies as
+;;;; anything but a file, and streaming. A response arrives whole or not
+;;;; at all, which is honest for a first version and wrong for a large
+;;;; download -- `max-size' is there so that stays a refusal rather than
+;;;; a surprise.
+
+(DEFPARAMETER *curl-predicates*
+  '(("$curl_do"    11 cl_p_do)
+    ("curl_ssl"     1 cl_p_ssl)
+    ("curl_version" 1 cl_p_version)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half: the front end
+;;;; ------------------------------------------------------------------
+;;; A CICILI STRING LITERAL CANNOT CARRY A NEWLINE, so the clauses are
+;;; joined with spaces -- a clause ends at its `.', not at a line ending --
+;;; and the commentary lives out here where it cannot swallow the program.
+;;;
+;;; This half exists because the C half's arguments are FIXED by the
+;;; option macros, and nobody should have to write ten of them. Walking an
+;;; option list with defaults is four lines of Prolog and would be forty
+;;; of C.
+(DEFPARAMETER *curl-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; The three shapes anybody actually calls.
+           "curl_get(Url, Status, Body) :- curl_request(get, Url, [], Status, Body)."
+           "curl_get(Url, Opts, Status, Body) :- curl_request(get, Url, Opts, Status, Body)."
+           "curl_post(Url, Type, Data, Status, Body) :- curl_post(Url, Type, Data, [], Status, Body)."
+           "curl_post(Url, Type, Data, Opts, Status, Body) :- atom_concat('Content-Type: ', Type, H), curl_request(post, Url, [body(Data), header(H)|Opts], Status, Body)."
+
+           ;; The one that does the work. Every option has a default, and
+           ;; the defaults are the safe ones: verification ON, redirects
+           ;; NOT followed (a client that follows by default can be walked
+           ;; somewhere it did not ask to go), and a timeout that exists.
+           "curl_request(Method, Url, Opts, Status, Body) :- curl_opt(Opts, timeout, 30, T), curl_opt(Opts, follow, 0, F), curl_opt(Opts, verify_peer, 1, V), curl_opt(Opts, ca_info, '', CA), curl_opt(Opts, max_size, 16777216, MX), curl_body(Opts, Data), curl_headers(Opts, HL), '$curl_do'(Method, Url, HL, Data, T, F, V, CA, MX, Status, Body)."
+
+           ;; A named option, or a default. `curl_opt' rather than a
+           ;; general lookup because the option's NAME is its functor and
+           ;; memberchk on a partial term is the whole implementation.
+           "curl_opt(Opts, Name, _, V) :- Term =.. [Name, V0], memberchk(Term, Opts), !, curl_bool(V0, V)."
+           "curl_opt(_, _, Default, Default)."
+
+           ;; true/false as well as 1/0, because a Prolog caller will write
+           ;; one and a C caller the other.
+           "curl_bool(true, 1) :- !."
+           "curl_bool(false, 0) :- !."
+           "curl_bool(V, V)."
+
+           ;; The body may be codes or an atom; codes reach the wire
+           ;; unchanged, which is the point of taking them.
+           "curl_body(Opts, Data) :- ( memberchk(body(D), Opts) -> curl_codes(D, Data) ; Data = [] )."
+           "curl_codes(D, D) :- is_list(D), !."
+           "curl_codes(D, Cs) :- atom_codes(D, Cs)."
+
+           ;; Every header(...) in the option list, joined with a newline
+           ;; for the C half to split. One atom rather than a list because
+           ;; a list of atoms across the seam is a term walk in C, and this
+           ;; is a join in Prolog.
+           "curl_headers(Opts, Joined) :- findall(H, member(header(H), Opts), Hs), curl_join(Hs, Joined)."
+           "curl_join([], '')."
+           "curl_join([H], H) :- !."
+           "curl_join([H|T], Out) :- curl_join(T, Rest), atom_concat(H, '\\n', H1), atom_concat(H1, Rest, Out)."
+
+           ;; Reading one header out of a reply is the other half of the
+           ;; job and belongs beside library(http), so it is spelled the
+           ;; same way there.
+           "curl_get_json(Url, Status, Body) :- curl_get(Url, [header('Accept: application/json')], Status, Body).")))
+
+(source "curl.c"
+  (make :std #t :compile #f)
+
+  (include <curl/curl.h>)
+
+  ;;; A cast takes ONE type token, so `unsigned char *' cannot be written.
+  ;;; Declared here rather than borrowed from lib/tcp.cicili, because this
+  ;;; is a separate translation unit and a typedef does not travel.
+  (@define (code "ubyte_t unsigned char"))
+
+  ;;; THE PREFIX IS OURS TO CHOOSE, and the binding says so at length: the
+  ;;; macros are named `get', `set', `with', `post' -- and `set' is a Cicili
+  ;;; CLAUSE. Importing with no prefix would register those names for every
+  ;;; Cicili file in the process. `:cu' is what its own examples use.
+  (import "lib/net/curl.cicili" :cu)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;;; The growable response buffer and libcurl's write callback, emitted
+  ;;; once. This is the one part of the binding that is code rather than a
+  ;;; description of somebody else's, and it says so in its own name.
+  (cu.impl-buffer)
+
+  ;;; curl_global_init is not thread-safe and must run once before any
+  ;;; handle exists. A module is loaded once, but `use_module' may be
+  ;;; called again, so the flag is here rather than in a loader.
+  (static) (var int cl_ready . 0)
+
+  (static)
+  (func cl_start () (out void)
+        (if cl_ready (return))
+        (curl_global_init CURL_GLOBAL_DEFAULT)
+        (set cl_ready 1))
+
+  ;;; Splits the joined header atom on newlines into libcurl's slist. The
+  ;;; Coco half joined them; this is the other end of that seam, and the
+  ;;; two are four lines each because the alternative was walking a Prolog
+  ;;; list from C.
+  (static)
+  (func cl_headers ((char * text)) (out (struct curl_slist) *)
+        (let (((struct curl_slist) * hs . nil) (char * p . text) (char * q))
+          (if (or (== text nil) (== (nth 0 text) (cast char 0))) (return nil))
+          (while (!= p nil)
+            (set q (strchr p 10))
+            (if (!= q nil) (set (cof q) (cast char 0)))
+            (if (!= (nth 0 p) (cast char 0))
+                (let (((struct curl_slist) * next . #'(curl_slist_append hs p)))
+                  (if (!= next nil) (set hs next))))
+            (set p (? (== q nil) nil (+ q 1))))
+          (return hs)))
+
+  ;;; '$curl_do'(+Method, +Url, +HeaderLines, +BodyCodes, +Timeout,
+  ;;;            +Follow, +VerifyPeer, +CaInfo, +MaxSize, -reply(Status, Codes))
+  ;;;
+  ;;; TEN ARGUMENTS, and every one of them is here because the option
+  ;;; words are macros: `cu.set' decides at TRANSPILE time which
+  ;;; curl_easy_setopt to emit and with which cast, so there is no runtime
+  ;;; option list to pass. The Coco half is what makes that bearable.
+  ;;;
+  ;;; A FAILED TRANSFER BINDS NOTHING, which matters because a status of 0
+  ;;; beside an empty body reads like a request that happened and returned
+  ;;; nothing. Both arguments are unified only after `curl_easy_perform'
+  ;;; answered CURLE_OK, and a goal that fails has its bindings undone by
+  ;;; the trail -- so there is no half-answered state for a caller to read.
+  ;;; (Two arguments rather than one `reply(S, B)' term because the module
+  ;;; SDK has no compound-term builder: coco_m_cons and coco_m_nil make
+  ;;; lists, and everything else is unified into an argument.)
+  (func cl_p_do ((coco_engine * e) (size_t g)) (out int)
+        (let ((char method [16]) (char url [4096]) (char hdrs [8192])
+              (char ca [4096])
+              (i64 timeout . 30) (i64 follow . 0) (i64 verify . 1)
+              (i64 maxsize . 16777216) (i64 httpcode . 0)
+              (ubyte_t * data . nil) (size_t dlen . 0)
+              (int rc . 0) (int ok . 0))
+
+          ;; ---- the arguments -------------------------------------------
+          (if (not (coco_m_text e (coco_m_arg e g 0) method (sizeof method)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (if (not (coco_m_text e (coco_m_arg e g 1) url (sizeof url)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
+          (if (not (coco_m_text e (coco_m_arg e g 2) hdrs (sizeof hdrs)))
+              (set (nth 0 hdrs) (cast char 0)))
+          (if (not (coco_m_text e (coco_m_arg e g 7) ca (sizeof ca)))
+              (set (nth 0 ca) (cast char 0)))
+          (if (not (coco_m_int e (coco_m_arg e g 4) (aof timeout))) (set timeout 30))
+          (if (not (coco_m_int e (coco_m_arg e g 5) (aof follow)))  (set follow 0))
+          (if (not (coco_m_int e (coco_m_arg e g 6) (aof verify)))  (set verify 1))
+          (if (not (coco_m_int e (coco_m_arg e g 8) (aof maxsize))) (set maxsize 16777216))
+
+          ;; The request body, as bytes. Read into a buffer this function
+          ;; owns, because CURLOPT_POSTFIELDS is NOT COPIED by libcurl --
+          ;; the bytes are read when the transfer runs, so they have to
+          ;; outlive the setopt and not merely the call to it.
+          (let ((size_t n . 0) (size_t * items . nil))
+            (if (coco_m_list_length e (coco_m_arg e g 3) (aof n))
+                (if (> n 0)
+                    (block
+                     (set data (cast (ubyte_t *) (malloc (+ n 1))))
+                     (if (== data nil) (return 0))
+                     (if (not (coco_m_list_array e (coco_m_arg e g 3) (aof items) (aof n)))
+                         (block (free data) (return 0)))
+                     (for ((size_t i . 0)) (< i n) ((++ i))
+                          (let ((i64 v . 0))
+                            (coco_m_int e (nth i items) (aof v))
+                            (set (nth i data) (cast ubyte_t (bitand v 255)))))
+                     (free items)
+                     (set (nth n data) (cast ubyte_t 0))
+                     (set dlen n)))))
+
+          (cl_start)
+
+          ;; ---- the transfer --------------------------------------------
+          (cu.with h
+            (let ((cu_buf body . '{ nil 0 })
+                  ((struct curl_slist) * hs . #'(cl_headers hdrs)))
+              (set rc (cu.set h (url url)
+                                (body body)      ; the word takes its own address
+                                (timeout timeout)
+                                (follow follow)
+                                (verify-peer verify)
+                                (verify-host (? verify 2 0))
+                                (agent "cocolog/library(curl)")))
+              (if (and (== rc CURLE_OK) (!= hs nil))
+                  (set rc (cu.set h (headers hs))))
+              ;; A ca-info of '' means "the system roots", which is
+              ;; libcurl's default and the right one -- naming an empty
+              ;; path would turn verification off by accident.
+              (if (and (== rc CURLE_OK) (!= (nth 0 ca) (cast char 0)))
+                  (set rc (cu.set h (ca-info ca))))
+              (if (and (== rc CURLE_OK) (== 0 (strcmp method "post")))
+                  (set rc (cu.set h (post-fields (cast (const char *) data))
+                                    (post-size (cast i64 dlen)))))
+              (if (and (== rc CURLE_OK) (== 0 (strcmp method "head")))
+                  (set rc (cu.set h (head 1))))
+              (if (and (== rc CURLE_OK)
+                       (and (!= 0 (strcmp method "get"))
+                            (and (!= 0 (strcmp method "post"))
+                                 (!= 0 (strcmp method "head")))))
+                  (let ((char up [16]))
+                    (snprintf up (sizeof up) "%s" method)
+                    (for ((size_t i . 0)) (< i (strlen up)) ((++ i))
+                         (set (nth i up) (cast char (toupper (nth i up)))))
+                    (set rc (cu.set h (method up)))))
+
+              (if (== rc CURLE_OK) (set rc (curl_easy_perform h)))
+              ;; THE STATUS IS READ INSIDE THE `info' BODY, and that is not
+              ;; a style choice. `cu.info' DECLARES the variable itself --
+              ;; that is the whole point of the word, so the type appears
+              ;; once, in the binding, rather than at every call site where
+              ;; getting it wrong corrupts the stack. So an outer variable
+              ;; of the same name is SHADOWED, and reading it after the
+              ;; body has closed reads the outer one, untouched. It read 0
+              ;; for every request until a test asked a real HTTP server
+              ;; for a real status -- a file:// URL answers 0 legitimately,
+              ;; so nothing before that could tell the difference.
+              (if (== rc CURLE_OK)
+                  (cu.info h (status code)
+                    (set httpcode (cast i64 code))
+                    (set ok 1)))
+
+              ;; The answer, built while the buffer is still alive.
+              ;; The ceiling, enforced here because the front end has no
+              ;; `max-size' word and reaching around it with a bare setopt
+              ;; would give up the typed-option check that is the reason
+              ;; for using the front end at all. A response over the limit
+              ;; is a REFUSAL rather than a truncation: half a document is
+              ;; worse than none, because only one of the two is obvious.
+              (if (and ok (> (cast i64 ($ body len)) maxsize)) (set ok 0))
+
+              (if ok
+                  (let ((size_t lst . #'(coco_m_nil e)))
+                    (for ((size_t i . #'($ body len))) (> i 0) ((-- i))
+                         (set lst (coco_m_cons e
+                                               (coco_m_new_int e (cast i64 (nth (- i 1) ($ body data))))
+                                               lst)))
+                    (if (coco_m_unify_int e (coco_m_arg e g 9) httpcode)
+                        (set ok (coco_m_unify e (coco_m_arg e g 10) lst))
+                      (set ok 0))))
+
+              (cu.free-headers hs)
+              (cu.free-buffer body)))
+
+          (if (!= data nil) (free data))
+          (return ok)))
+
+  ;;; Can this libcurl do https at all? A libcurl built without TLS links
+  ;;; perfectly and answers CURLE_UNSUPPORTED_PROTOCOL to every https URL,
+  ;;; so asking first is the difference between a clear answer and a
+  ;;; puzzling one.
+  (func cl_p_ssl ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_atom e (coco_m_arg e g 0)
+                                   (? (cu.has-ssl) (cu.ssl-version) "none"))))
+
+  (func cl_p_version ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_atom e (coco_m_arg e g 0) (curl_version))))
+
+  (static) (coco-emit-module-dispatch cl_dispatch *curl-predicates*)
+  (coco-deflibrary "curl" cl_dispatch *curl-prolog*)
+
+  ) ; source

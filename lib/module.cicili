@@ -240,6 +240,17 @@
   (decl) (func coco_m_unify_int ((coco_engine * e) (size_t t) (i64 v)) (out int))
   (decl) (func coco_m_unify_float ((coco_engine * e) (size_t t) (double v)) (out int))
 
+  ;;; MAKING a term, as against reading or unifying one. The family had
+  ;;; `coco_m_nil' and `coco_m_cons' to build a list with and NOTHING to
+  ;;; put in it: `coco_m_int' READS an integer out of a term, and
+  ;;; `coco_m_unify_int' binds one into a term that already exists. An
+  ;;; in-tree module reached past the seam for `coco_new_int'; an
+  ;;; out-of-tree one cannot, so library(curl) could not answer a list of
+  ;;; BYTES at all -- which is every response body that is not text.
+  (decl) (func coco_m_new_int ((coco_engine * e) (i64 v)) (out size_t))
+  (decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
+  (decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
+
   (decl) (func coco_m_nil ((coco_engine * e)) (out size_t))
   (decl) (func coco_m_cons ((coco_engine * e) (size_t h) (size_t t)) (out size_t))
 
@@ -541,6 +552,13 @@
 
   (func coco_m_unify_float ((coco_engine * e) (size_t t) (double v)) (out int)
         (return (coco_m_unify e t (coco_new_float (-> e m) v))))
+
+  (func coco_m_new_int ((coco_engine * e) (i64 v)) (out size_t)
+        (return (coco_new_int (-> e m) v)))
+  (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t)
+        (return (coco_new_float (-> e m) v)))
+  (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t)
+        (return (coco_new_atom (-> e m) s)))
 
   (func coco_m_nil ((coco_engine * e)) (out size_t) (return (coco_new_atom (-> e m) "[]")))
 

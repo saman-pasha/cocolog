@@ -112,6 +112,16 @@
               (block (set (cof kind) 1) (return 1)))
           (if (lb_probe "library" name ".pl" buf cap)
               (block (set (cof kind) 2) (return 1)))
+          ;; AND THE VENDORED SWI LIBRARIES, which were shipped and
+          ;; unreachable. lib/vendor/swipl holds assoc, pairs, ordsets,
+          ;; yall, aggregate, ugraphs and the two dcg files -- vendored,
+          ;; documented, listed in CLAUDE.md, and on no default path at
+          ;; all, so `use_module(library(assoc))' answered "not found on
+          ;; the library path" on a plain checkout. Nothing told a caller
+          ;; to set COCOLOG_LIBRARY, and no test did either, because every
+          ;; test that used them set it for its own reasons.
+          (if (lb_probe "lib/vendor/swipl" name ".pl" buf cap)
+              (block (set (cof kind) 2) (return 1)))
           (return 0)))
 
   ;;; ---- the two loaders -------------------------------------------------

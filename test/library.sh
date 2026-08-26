@@ -118,6 +118,22 @@ else
   echo "wire: SKIP no Zigurat server at $HOST:$PORT"
 fi
 
+# THE VENDORED SWI LIBRARIES ARE ON THE DEFAULT PATH, which they were not.
+# lib/vendor/swipl was shipped, documented and listed in CLAUDE.md, and on
+# no search path at all -- `use_module(library(assoc))' on a plain checkout
+# answered "not found on the library path". It went unnoticed because every
+# test that used one set COCOLOG_LIBRARY for its own reasons, so nothing
+# ever asked the question a new user asks first.
+#
+# COCOLOG_LIBRARY IS UNSET HERE ON PURPOSE. Checking this with it set would
+# check nothing at all.
+echo "-- what a plain checkout can reach, with COCOLOG_LIBRARY unset"
+for L in assoc pairs ordsets yall aggregate ugraphs dcg_basics dcg_high_order; do
+  got=$(env -u COCOLOG_LIBRARY timeout 60 "$C" query "use_module(library($L)), write(ok), nl" \
+        2>/dev/null | grep -ac '^ok$')
+  check "library($L) is found without being told where" "$got" "1"
+done
+
 echo
 if [ "$failures" -eq 0 ]; then
   echo "GREEN: 0 failure(s)"; exit 0

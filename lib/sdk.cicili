@@ -84,6 +84,10 @@
 (decl) (func coco_m_unify_int ((coco_engine * e) (size_t t) (i64 v)) (out int))
 (decl) (func coco_m_unify_float ((coco_engine * e) (size_t t) (double v)) (out int))
 
+(decl) (func coco_m_new_int ((coco_engine * e) (i64 v)) (out size_t))
+(decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
+(decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
+
 (decl) (func coco_m_nil ((coco_engine * e)) (out size_t))
 (decl) (func coco_m_cons ((coco_engine * e) (size_t h) (size_t t)) (out size_t))
 (decl) (func coco_m_atom_list ((coco_engine * e) (char ** v) (size_t n)) (out size_t))

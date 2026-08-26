@@ -176,6 +176,53 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
   stores and one of 8192 comes back `allocation overflow`, which is why machine
   state travels in 4000-byte chunks.
 
+## Three tiers of library, and which one a thing belongs in
+
+Reviewed because it had never been written down and the answer was not
+what the directory layout suggests.
+
+**TIER 1 — registered at start-up. Always there, `use_module` optional.**
+`install_modules' in `cocolog.cicili' calls each one's registration:
+
+    apply  bigint  builtins  dcg  files  library  lists  tcp  torch  zigurat
+
+`use_module(library(lists))' succeeds instantly for these — the module is
+already registered, so the call is a no-op that costs nothing. They are in
+the binary because the binary would be crippled without them.
+
+**TIER 2 — on the library path, loaded at run time.** `$COCOLOG_LIBRARY'
+(colon-separated), then `./library'. Two kinds live here and
+`use_module(library(Name))' finds either:
+
+| | |
+|---|---|
+| `library/*.pl` | clauses only. `http.pl` — HTTP/1.1 as a grammar |
+| `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd. `curl.so` |
+
+**A THING BELONGS IN TIER 2 WHEN ITS DEPENDENCY SHOULD NOT BE
+EVERYBODY'S.** That is the whole rule. libcurl is a fine library and a
+poor thing to require of someone who wants an interpreter and no network,
+so `library(curl)` is a `.so` built by `sh lib/curl/build.sh` and is not
+part of `make`. torch and bigint went the other way because the binary's
+own story needs them.
+
+**TIER 3 — shipped and NOT REACHABLE, which is a bug.**
+`lib/vendor/swipl/` holds SWI's `assoc`, `pairs`, `ordsets`, `yall`,
+`aggregate`, `ugraphs`, `dcg_basics` and `dcg_high_order`, vendored under
+their own BSD-2 headers — and nothing puts that directory on the library
+path. On a plain checkout:
+
+    ?- use_module(library(assoc)).
+    use_module: library(assoc): not found on the library path
+
+They work only for a caller who sets `COCOLOG_LIBRARY` by hand, which no
+test and no document tells them to do. Fixed by adding the directory to
+the default path in `lib/library.cicili`.
+
+The default path is relative to the WORKING DIRECTORY (`./library`), so a
+cocolog run from elsewhere finds neither tier 2 nor the vendored set.
+That is pre-existing and is the next thing to fix here.
+
 ## Where things are
 
 | path | what |
