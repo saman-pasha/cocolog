@@ -135,18 +135,25 @@ that read like C and are not:
   `(for ((set i 0) (< i n) (++ i)) BODY)` fails with `The value 0 is not of type
   SEQUENCE`, which is a message about Lisp and says nothing about the loop.
 * **Indexing is `(nth INDEX ARRAY)`** — index first — and there is no `aref`.
-* **There are no two-dimensional arrays.** `[256][64]` gets the same
-  `not of type SEQUENCE`. Use one dimension and write the stride at each use.
+* **Arrays may have two dimensions** — `[]`, `[N]`, `[N][M]`, and no more. (This
+  file briefly said the opposite: a `for`-loop error was blamed on the array
+  beside it. `doc/DOC-C.md` says two, and two work.)
 * **A `#define` is invisible to Cicili**: it is raw C, so a constant named in one
   is an `unknown symbol` when a Cicili form uses it. Write the number out, the
   way `files.cicili` writes 4096 rather than PATH_MAX.
-* **Naming an external struct is not enough to reach its FIELDS.**
-  `(@define (code "pollfd_t struct pollfd"))` lets you declare one; `($ p fd)`
-  then answers `unknown struct type`. Either declare every member to Cicili — a
-  second copy of the system header, free to go stale — or keep the struct inside
-  a `(code "...")` escape and let only ints cross into Cicili. `lib/tcp.cicili`
-  takes the second road for every socket struct, as `files.cicili` does for
-  `glob_t`.
+* **`../cicili/lib/std/c/posix/` ALREADY DECLARES the POSIX structs**, members
+  and all — `sockaddr_in`, `pollfd`, `addrinfo`, `stat_t` — and the prelude loads
+  them before your file. Do not describe a system header again. What is missing
+  is only the C typedef, because a Cicili type is one token and `struct pollfd`
+  is two: `(@define (code "pollfd struct pollfd"))`, and **the name must match
+  the one std declares the members under**. `pollfd_t` is a different name with
+  no members, and `($ p fd)` then says `unknown struct type` — which is how
+  `lib/tcp.cicili` ended up written in raw C escapes for a day.
+* **`(code "...")` is the fire escape, not the door.** It is C that Cicili cannot
+  see or type-check, and no front end can help it. Reach for a Cicili clause
+  first, every time.
+* **`$` chains**: `($ a b c)` is `a.b.c`. `(-> p m)` is `p->m`. `(=> o m args)`
+  calls a function stored in a member, one level only.
 * **An external `struct` needs a name**: `(@define (code "stat_t struct stat"))`,
   per `../cicili/doc/lib-std-c.md`. `(code "...")` is the raw-C escape for what
   `lib/std/c` does not declare — `glob` and `realpath`, in `lib/files.cicili`.

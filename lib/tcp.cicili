@@ -111,25 +111,47 @@
 (generic decl-tcp
   ()
 
-  ;;; NO SOCKET STRUCT IS A CICILI TYPE HERE, and that is the second
-  ;;; attempt. `(@define (code "pollfd_t struct pollfd"))' gives the type a
-  ;;; NAME, which is enough to declare a variable and not enough to reach a
-  ;;; field: `($ p fd)' answers `unknown struct type: pollfd_t', because
-  ;;; Cicili knows nothing of the members. Naming every member of every
-  ;;; POSIX socket struct to Cicili would be a second copy of <netinet/in.h>
-  ;;; that could go stale against the real one.
+  ;;; CICILI ALREADY KNOWS EVERY ONE OF THESE STRUCTS, members and all:
+  ;;; ../cicili/lib/std/c/posix/{socket,poll,netdb}.cicili declare
+  ;;; `sockaddr_in', `pollfd', `addrinfo' and the functions over them, and
+  ;;; the std prelude loads all of it before this file is read. Nothing here
+  ;;; needs to describe a POSIX header a second time.
   ;;;
-  ;;; So every struct lives inside a `(code "...")' escape and never crosses
-  ;;; into Cicili. That is exactly what files.cicili does with glob_t --
-  ;;; `(code "glob_t gl; memset(&gl, 0, sizeof gl);")' -- and it is the
-  ;;; documented use of the escape: raw C for what lib/std/c does not
-  ;;; declare. What crosses the seam is int, and Cicili has ints.
+  ;;; The first version of this file did not know that and pushed every
+  ;;; struct through `(code "...")' escapes -- getaddrinfo's whole walk was
+  ;;; one GNU statement expression. That works and it is the wrong road: an
+  ;;; escape is C that Cicili cannot see, so it cannot type-check it, and a
+  ;;; back end made of pasted C is a back end the front end cannot help.
+  ;;;
+  ;;; WHAT IS ACTUALLY MISSING IS ONE TYPEDEF PER STRUCT, and only on the C
+  ;;; side. `struct pollfd' has no typedef in the real header, and a Cicili
+  ;;; type is ONE token, so the emitted `pollfd p;' will not compile. The
+  ;;; typedef's name MUST MATCH the name std declares the members under --
+  ;;; `pollfd_t' is a name Cicili has no members for, which is exactly how
+  ;;; the first attempt went wrong. lib/files.cicili does the same for
+  ;;; `stat_t'.
 
   ;;; A cast takes ONE type token, so `unsigned char *' cannot be written --
   ;;; the same rule that makes `(cast unsigned char x)' illegal elsewhere in
   ;;; this repository. One typedef and the byte buffers below can say what
   ;;; they are.
   (@define (code "ubyte_t unsigned char"))
+
+  ;;; AND THE SOCKET STRUCTS ARE ALREADY DECLARED TO CICILI, members and
+  ;;; all, in ../cicili/lib/std/c/posix/{socket,poll,netdb}.cicili -- which
+  ;;; the std prelude loads before it reads this file. What is missing is
+  ;;; only the C side: `struct pollfd' has no typedef in the real header,
+  ;;; and a Cicili type is ONE token, so the emitted `pollfd p;' does not
+  ;;; compile. One typedef per struct fixes it, and THE NAME MUST MATCH THE
+  ;;; DECLARED ONE -- `pollfd_t' would be a name Cicili has no members for,
+  ;;; which is the shape of the first attempt here and the reason it went
+  ;;; through raw C escapes instead. lib/files.cicili does the same for
+  ;;; `stat_t', whose members std declares under exactly that name.
+  ;;; One per struct this file names, each spelled as std declares it.
+  (@define (code "pollfd struct pollfd"))
+  (@define (code "sockaddr struct sockaddr"))
+  (@define (code "sockaddr_in struct sockaddr_in"))
+  (@define (code "addrinfo struct addrinfo"))
 
   ;;; THE HEADERS ARE THE TARGET'S, not this file's. A lib/*.cicili module
   ;;; is compiled into the one cocolog.c, so its includes live in
@@ -167,12 +189,12 @@
     ;;; INDEXED WITH `nth', which takes the index FIRST -- `(nth i arr)', not
   ;;; `arr[i]' and not `aref'. lib/kb.cicili is the worked example.
   ;;;
-  ;;; ONE DIMENSION, because Cicili has no two. `[256][64]' is read by the
-  ;;; macro layer as something whose length it then takes, and the transpile
-  ;;; dies with `The value 0 is not of type SEQUENCE' -- a message about
-  ;;; Lisp, fifty lines from anything to do with sockets. Flat, 64 bytes to
-  ;;; the slot, and the stride is written at every use.
-  (static) (var char coco_t_peer_s [16384])
+  ;;; TWO DIMENSIONS, which Cicili does have -- `[N][M]', and no more than
+  ;;; two. This was flat for a while on a wrong diagnosis: the transpile was
+  ;;; dying with `The value 0 is not of type SEQUENCE' and the array was the
+  ;;; suspect, when the real cause was a `for' written C-style. The array
+  ;;; was innocent, and a peer address is a row rather than an offset.
+  (static) (var char coco_t_peer_s [256][64])
   (static) (var int coco_t_ready . 0)
 
   ;;; -1 means "free". Zero would be a legal descriptor, and a table that
@@ -183,7 +205,7 @@
           (if coco_t_ready (return))
           (for ((int i . 0)) (< i 256) ((++ i))
                (set (nth i coco_t_fd) -1)
-               (set (nth (* i 64) coco_t_peer_s) 0))
+               (set (nth 0 (nth i coco_t_peer_s)) 0))
           (set coco_t_ready 1)))
 
   (static)
@@ -240,10 +262,12 @@
   ;;; answer to "did anybody connect".
   (static)
   (func coco_t_wait ((int fd) (int writing) (int ms)) (out int)
-        (let ((int n . 0))
-          (code "struct pollfd _p; _p.fd = fd; _p.events = writing ? POLLOUT : POLLIN; _p.revents = 0;")
+        (let ((int n . 0) (pollfd p))
+          (set ($ p fd) fd)
+          (set ($ p events) (? writing POLLOUT POLLIN))
+          (set ($ p revents) 0)
           (while 1
-            (set n (code "poll(&_p, 1, ms)"))
+            (set n (poll (aof p) 1 ms))
             (if (and (< n 0) (== errno EINTR)) continue)
             break)
           (if (< n 0) (return -1))
@@ -256,17 +280,21 @@
   ;;; that starts and stops a server repeatedly is not an edge case, it is
   ;;; every run after the first.
   (func coco_t_listen ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (i64 port . 0) (int fd . -1) (int slot . -1))
+        (let ((int rc . 0) (i64 port . 0) (int fd . -1) (int slot . -1)
+              (int on . 1) (sockaddr_in a))
           (if (not (coco_t_int e g 0 (aof port) (aof rc))) (return rc))
           (if (or (< port 0) (> port 65535))
               (return (coco_m_domain_error e "port" (coco_m_arg e g 0))))
-          (set fd (code "socket(AF_INET, SOCK_STREAM, 0)"))
+          (set fd (socket AF_INET SOCK_STREAM 0))
           (if (< fd 0) (return 0))
-          (code "{ int _on = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &_on, sizeof _on); }")
-          (code "struct sockaddr_in _a; memset(&_a, 0, sizeof _a); _a.sin_family = AF_INET; _a.sin_addr.s_addr = htonl(INADDR_ANY); _a.sin_port = htons((unsigned short)port);")
-          (if (== 0 (code "(bind(fd, (struct sockaddr *)&_a, sizeof _a) == 0)"))
+          (setsockopt fd SOL_SOCKET SO_REUSEADDR (cast (void *) (aof on)) (sizeof on))
+          (memset (aof a) 0 (sizeof a))
+          (set ($ a sin_family) AF_INET)
+          (set ($ a sin_addr s_addr) (htonl INADDR_ANY))
+          (set ($ a sin_port) (htons (cast uint16_t port)))
+          (if (< (bind fd (cast (sockaddr *) (aof a)) (sizeof a)) 0)
               (block (close fd) (return 0)))
-          (if (== 0 (code "(listen(fd, 64) == 0)")) (block (close fd) (return 0)))
+          (if (< (listen fd 64) 0) (block (close fd) (return 0)))
           (set slot (coco_t_slot_new fd))
           (if (< slot 0) (block (close fd) (return 0)))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 slot)))))
@@ -278,7 +306,8 @@
   ;;; needs, and what a tunnel hands you.
   (func coco_t_connect ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (i64 port . 0) (int fd . -1) (int slot . -1)
-              (char host [256]) (char svc [16]))
+              (char host [256]) (char svc [16])
+              (addrinfo hints) (addrinfo * res . nil))
           (let ((size_t t . #'(coco_m_arg e g 0)))
             (if (coco_m_is_var e t)
                 (return (coco_m_instantiation_error e)))
@@ -288,9 +317,18 @@
           (snprintf svc (sizeof svc) "%d" (cast int port))
           ;; getaddrinfo rather than inet_addr, so a peer can be NAMED --
           ;; which is what a tunnel hands you and what one instance calling
-          ;; another by hostname needs. The whole walk is one escape,
-          ;; because every value in it is a struct field.
-          (set fd (code "({ struct addrinfo _h, *_r = NULL, *_i; int _fd = -1; memset(&_h, 0, sizeof _h); _h.ai_family = AF_INET; _h.ai_socktype = SOCK_STREAM; if (getaddrinfo(host, svc, &_h, &_r) == 0) { for (_i = _r; _i; _i = _i->ai_next) { _fd = socket(_i->ai_family, _i->ai_socktype, _i->ai_protocol); if (_fd < 0) continue; if (connect(_fd, _i->ai_addr, _i->ai_addrlen) == 0) break; close(_fd); _fd = -1; } freeaddrinfo(_r); } _fd; })"))
+          ;; another by hostname needs.
+          (memset (aof hints) 0 (sizeof hints))
+          (set ($ hints ai_family) AF_INET)
+          (set ($ hints ai_socktype) SOCK_STREAM)
+          (if (!= 0 (getaddrinfo host svc (aof hints) (aof res))) (return 0))
+          (for ((addrinfo * it . res)) (!= it nil) ((set it (-> it ai_next)))
+               (set fd (socket (-> it ai_family) (-> it ai_socktype) (-> it ai_protocol)))
+               (if (< fd 0) continue)
+               (if (== 0 (connect fd (-> it ai_addr) (-> it ai_addrlen))) break)
+               (close fd)
+               (set fd -1))
+          (freeaddrinfo res)
           (if (< fd 0) (return 0))
           (set slot (coco_t_slot_new fd))
           (if (< slot 0) (block (close fd) (return 0)))
@@ -303,21 +341,24 @@
   ;;; is the ordinary answer.
   (func coco_t_accept ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (int fd . -1) (i64 ms . 0) (int c . -1) (int slot . -1)
-              (int w . 0) (char peer [64]))
+              (int w . 0) (char peer [64]) (int on . 1)
+              (sockaddr_in a) (socklen_t alen . 0))
           (if (not (coco_t_sock e g 0 (aof fd) (aof rc))) (return rc))
           (if (not (coco_t_int e g 1 (aof ms) (aof rc))) (return rc))
           (set w (coco_t_wait fd 0 (cast int ms)))
           (if (<= w 0) (return 0))
-          (code "struct sockaddr_in _a; socklen_t _alen = sizeof _a; memset(&_a, 0, sizeof _a);")
-          (set c (code "accept(fd, (struct sockaddr *)&_a, &_alen)"))
+          (set alen (sizeof a))
+          (memset (aof a) 0 (sizeof a))
+          (set c (accept fd (cast (sockaddr *) (aof a)) (aof alen)))
           (if (< c 0) (return 0))
           ;; Nagle off: a reply is one small write, and waiting 40ms to see
           ;; whether another follows is exactly wrong for request/response.
-          (code "{ int _on = 1; setsockopt(c, IPPROTO_TCP, TCP_NODELAY, &_on, sizeof _on); }")
+          (setsockopt c IPPROTO_TCP TCP_NODELAY (cast (void *) (aof on)) (sizeof on))
           (set slot (coco_t_slot_new c))
           (if (< slot 0) (block (close c) (return 0)))
-          (code "snprintf(peer, sizeof peer, \"%s:%d\", inet_ntoa(_a.sin_addr), (int)ntohs(_a.sin_port));")
-          (snprintf (+ coco_t_peer_s (* slot 64)) 64 "%s" peer)
+          (snprintf peer (sizeof peer) "%s:%d"
+                    (inet_ntoa ($ a sin_addr)) (cast int (ntohs ($ a sin_port))))
+          (snprintf (nth slot coco_t_peer_s) 64 "%s" peer)
           (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 slot))) (return 0))
           (return (coco_m_unify_atom e (coco_m_arg e g 3) peer))))
 
@@ -328,7 +369,7 @@
           (if (not (coco_t_int e g 0 (aof v) (aof rc))) (return rc))
           (if (< (coco_t_slot_fd (cast int v)) 0) (return 0))
           (return (coco_m_unify_atom e (coco_m_arg e g 1)
-                                     (+ coco_t_peer_s (* (cast int v) 64))))))
+                                     (nth (cast int v) coco_t_peer_s)))))
 
   ;;; ---- read ------------------------------------------------------------
 
@@ -351,7 +392,7 @@
           (set buf (cast (ubyte_t *) (malloc (cast size_t maxb))))
           (if (== buf nil) (return 0))
           (while 1
-            (set n (code "recv(fd, buf, (size_t)maxb, 0)"))
+            (set n (recv fd buf (cast size_t maxb) 0))
             (if (and (< n 0) (== errno EINTR)) continue)
             break)
           (if (<= n 0) (block (free buf) (return 0)))
@@ -403,7 +444,7 @@
                        (set (nth i buf) (cast ubyte_t (bitand v 255)))))
                 (free items)))
           (while (< off n)
-            (set w (code "send(fd, buf + off, n - off, MSG_NOSIGNAL)"))
+            (set w (send fd (+ buf off) (- n off) MSG_NOSIGNAL))
             (if (and (< w 0) (== errno EINTR)) continue)
             (if (< w 0) (block (free buf) (return 0)))
             (set off (+ off (cast size_t w))))
@@ -422,7 +463,7 @@
           (if (< fd 0) (return 0))
           (close fd)
           (set (nth (cast int v) coco_t_fd) -1)
-          (set (nth (* (cast int v) 64) coco_t_peer_s) 0)
+          (set (nth 0 (nth (cast int v) coco_t_peer_s)) 0)
           (return 1)))
 
   ;;; What is open, so a test can prove there is no leak. A library that
