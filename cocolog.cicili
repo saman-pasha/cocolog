@@ -1702,6 +1702,14 @@
   (code "static int coco_torch_try(void) { return coco_torch_module ? coco_torch_module() : 1; }")
   (decl) (func coco_torch_try () (out int))
 
+  ;; AND SO IS BIGINT, for the same reason and by the same rule: the one
+  ;; binary links bigint/coco-bigint.o and library(bigint) answers; a
+  ;; build without it leaves the symbol null and those predicates are
+  ;; unknown procedures, which is what they should be in such a build.
+  (code "extern int coco_bigint_module(void) __attribute__((weak));")
+  (code "static int coco_bigint_try(void) { return coco_bigint_module ? coco_bigint_module() : 1; }")
+  (decl) (func coco_bigint_try () (out int))
+
   ;;; Every module this build carries. Registration is here and not inside the
   ;;; modules because a build decides what it contains -- a module cannot add
   ;;; itself, and the order is the order of precedence when two claim a name.
@@ -1727,6 +1735,9 @@
                    (return 0)))
         (if (not (coco_torch_try))
             (block (fprintf stderr "cocolog: the torch module would not register\n")
+                   (return 0)))
+        (if (not (coco_bigint_try))
+            (block (fprintf stderr "cocolog: the bigint module would not register\n")
                    (return 0)))
         (if (not (coco_zigurat_module))
             (block (fprintf stderr "cocolog: the zigurat module would not register\n")

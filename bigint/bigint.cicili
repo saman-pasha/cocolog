@@ -1,0 +1,440 @@
+;;;; library(bigint) -- Zigurat's arbitrary-precision integers, as
+;;;; cocolog predicates.
+;;;;
+;;;; WHAT THIS IS, AND WHY IT IS NOT NEW ARITHMETIC. ZiguratIP's Core
+;;;; already carries a full signed bignum -- Zigurat::BigInt, the one its
+;;;; RSA stands on: add, subtract, multiply, divide, modulus, powers,
+;;;; modular exponentiation, gcd, lcm, extended Euclid and modular
+;;;; inverse. cocolog ALREADY LINKS libCore, for the embedded engine. So
+;;;; the arithmetic is in the process before this file exists; what was
+;;;; missing was a way to say it in Prolog. This is that, and nothing
+;;;; more -- no new limb code, no second implementation to disagree with
+;;;; the first.
+;;;;
+;;;; WHY IT IS NEEDED AT ALL, measured rather than assumed: cocolog's own
+;;;; integers are 64 bits and they WRAP IN SILENCE.
+;;;;
+;;;;   ?- X is 1000000000000000000 * 997.
+;;;;   X = 875820019684212736.
+;;;;
+;;;; That is a wrong answer, returned confidently, to the first product a
+;;;; decentralised exchange computes at the scale tokens actually use.
+;;;; Every predicate here is a way of not doing that.
+;;;;
+;;;;   bigint_add(+A, +B, -Sum)        bigint_sub(+A, +B, -Difference)
+;;;;   bigint_mul(+A, +B, -Product)    bigint_div(+A, +B, -Quotient)
+;;;;   bigint_mod(+A, +B, -Remainder)  bigint_pow(+Base, +Exp, -Power)
+;;;;   bigint_mod_pow(+B, +E, +M, -R)  bigint_gcd(+A, +B, -G)
+;;;;   bigint_lcm(+A, +B, -L)          bigint_inverse(+A, +N, -T)
+;;;;   bigint_cmp(+A, +B, -Order)      bigint_sqrt(+A, -Root)
+;;;;   bigint_dec(+A, -Decimal)        bigint_hex(+A, -Hex)
+;;;;   bigint_int(+A, -Integer)        bigint_abs(+A, -Magnitude)
+;;;;   bigint_neg(+A, -Negated)
+;;;;
+;;;; A NUMBER IS AN ATOM OF DIGITS. In: a cocolog integer, or an atom --
+;;;; decimal, `0x' and hex, either with a leading `-'. Out: decimal
+;;;; digits, canonical, negative ones with a `-'. `bigint_hex/2' is there
+;;;; for the places a chain speaks hex, and the two round-trip.
+;;;;
+;;;; ARBITRARY PRECISION IS ARBITRARY COST, and that is the one thing a
+;;;; predicate like this must not be quiet about. `bigint_pow(2, 10000000)'
+;;;; names a number of three million digits, and a chain that evaluates
+;;;; it has stopped answering anybody. So results are capped -- 4096
+;;;; decimal digits, comfortably past any balance, supply or price -- and
+;;;; an operation whose answer would not fit RAISES rather than spending
+;;;; the memory. `bigint_pow' checks before it multiplies, because the
+;;;; refusal has to come before the cost, not after it.
+;;;;
+;;;; TWO LANGUAGES, ONE TARGET -- the shape torch/coco-torch.cicili uses
+;;;; and for the same reason. The arithmetic is RAW C++ inside (code ...)
+;;;; blocks, because Zigurat::BigInt is a C++ class with C++ operators
+;;;; and that is where it is at home. Everything facing the engine --
+;;;; argument marshalling, errors, the dispatcher -- is Cicili. The seam
+;;;; between them is deliberately one function wide: text in, text out,
+;;;; an integer saying what went wrong.
+
+(source "coco-bigint.cpp"
+  (make :cpp #t
+        :compile ("-std=c++17"
+                  "-Wno-parentheses-equality" "-Wno-dangling-else"
+                  ;; build.sh symlinks the BUILT ZiguratIP's published
+                  ;; headers in beside this file, so the include path is
+                  ;; relative and this file carries no absolute path.
+                  "-Izigheaders"
+                  "-c" "coco-bigint.cpp"))
+
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+  (include <vector>)
+
+  ;; ---- the slice of cocolog this module is written against ------------
+  ;;
+  ;; THE LINKAGE, FIRST AND RAW. These are C names; this block is their
+  ;; real declaration for the C++ compiler, and C++ gives a
+  ;; redeclaration the linkage of the first one it saw.
+  (decl) (struct coco_engine)
+
+  (code "extern \"C\" {")
+  (code "int coco_module_register(const char*, int (*)(struct coco_engine*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine*));")
+  (code "size_t coco_m_arg(struct coco_engine*, size_t, uint32_t);")
+  (code "int coco_m_int(struct coco_engine*, size_t, int64_t*);")
+  (code "int coco_m_text(struct coco_engine*, size_t, char*, size_t);")
+  (code "int coco_m_unify_atom(struct coco_engine*, size_t, const char*);")
+  (code "int coco_m_unify_int(struct coco_engine*, size_t, int64_t);")
+  (code "int coco_m_type_error(struct coco_engine*, const char*, size_t);")
+  (code "int coco_m_domain_error(struct coco_engine*, const char*, size_t);")
+  (code "int coco_m_error(struct coco_engine*, const char*, const char*);")
+  (code "}")
+
+  (decl) (func coco_module_register ((const char * name)
+                                     (func dispatch ((coco_engine * e) (const char * nm)
+                                                     (uint32_t arity) (size_t g)
+                                                     (int * found)) (out int))
+                                     (const char * prolog)
+                                     (func init ((coco_engine * e)) (out int))) (out int))
+  (decl) (func coco_m_arg ((coco_engine * e) (size_t g) (uint32_t i)) (out size_t))
+  (decl) (func coco_m_int ((coco_engine * e) (size_t t) (int64_t * out)) (out int))
+  (decl) (func coco_m_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap)) (out int))
+  (decl) (func coco_m_unify_atom ((coco_engine * e) (size_t t) (const char * s)) (out int))
+  (decl) (func coco_m_unify_int ((coco_engine * e) (size_t t) (int64_t v)) (out int))
+  (decl) (func coco_m_type_error ((coco_engine * e) (const char * type)
+                                  (size_t culprit)) (out int))
+  (decl) (func coco_m_domain_error ((coco_engine * e) (const char * domain)
+                                    (size_t culprit)) (out int))
+  (decl) (func coco_m_error ((coco_engine * e) (const char * what)
+                             (const char * detail)) (out int))
+
+  ;; ---- the arithmetic, in the language it is written in ---------------
+  ;;
+  ;; Everything below is Zigurat's own BigInt. The only code here that is
+  ;; not a call into it is the TEXT conversion, and that is done on plain
+  ;; byte arrays rather than through BigInt: to_string() answers a
+  ;; colon-separated hex octet dump ("01:A3:FF"), which is a debug
+  ;; format and not a number anybody typed. Magnitude bytes are the one
+  ;; representation both sides agree on -- BigInt constructs from them
+  ;; and writes back to them -- so decimal is converted against those.
+
+  (code "#include <bigint.hpp>")
+  (code "#include <bufferstream.hpp>")
+  (code "using Zigurat::BigInt;")
+
+  (code "#define BI_MAX_DIGITS 4096")
+
+  ;; A magnitude as big-endian bytes, multiplied by ten and added to.
+  (code "static void mag_mul10_add(std::vector<uint8_t>& m, int d) {")
+  (code "  int carry = d;")
+  (code "  for (size_t i = m.size(); i > 0; i--) {")
+  (code "    int v = (int)m[i-1] * 10 + carry; m[i-1] = (uint8_t)(v & 0xff); carry = v >> 8; }")
+  (code "  while (carry) { m.insert(m.begin(), (uint8_t)(carry & 0xff)); carry >>= 8; } }")
+
+  ;; And divided by ten, answering the digit that fell out.
+  (code "static int mag_divmod10(std::vector<uint8_t>& m) {")
+  (code "  int rem = 0;")
+  (code "  for (size_t i = 0; i < m.size(); i++) {")
+  (code "    int cur = (rem << 8) | m[i]; m[i] = (uint8_t)(cur / 10); rem = cur % 10; }")
+  (code "  while (m.size() > 1 && m[0] == 0) m.erase(m.begin());")
+  (code "  return rem; }")
+
+  (code "static bool mag_zero(const std::vector<uint8_t>& m) {")
+  (code "  for (size_t i = 0; i < m.size(); i++) if (m[i]) return false; return true; }")
+
+  ;; Text in. Decimal, or 0x hex, either with a leading minus. Answers
+  ;; false on anything else -- an empty atom and a stray letter included.
+  (code "static bool bi_parse(const char* s, BigInt& out) {")
+  (code "  if (!s) return false;")
+  (code "  bool neg = false; if (*s == '-') { neg = true; s++; } else if (*s == '+') s++;")
+  (code "  if (!*s) return false;")
+  (code "  std::vector<uint8_t> mag; mag.push_back(0);")
+  (code "  if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {")
+  (code "    const char* h = s + 2; if (!*h) return false;")
+  (code "    size_t n = strlen(h); if (n > BI_MAX_DIGITS) return false;")
+  (code "    std::vector<uint8_t> b; std::vector<int> d;")
+  (code "    for (size_t i = 0; i < n; i++) {")
+  (code "      int c = h[i], v;")
+  (code "      if (c >= '0' && c <= '9') v = c - '0';")
+  (code "      else if (c >= 'a' && c <= 'f') v = 10 + c - 'a';")
+  (code "      else if (c >= 'A' && c <= 'F') v = 10 + c - 'A';")
+  (code "      else return false;")
+  (code "      d.push_back(v); }")
+  ;; Digits pair from the RIGHT, so an odd count leaves the FIRST one
+  ;; alone as a high nibble. Pairing from the left instead read "ff" as
+  ;; two separate nibbles and answered 3855 where 255 was meant.
+  (code "    size_t start = 0;")
+  (code "    if (d.size() % 2 == 1) { b.push_back((uint8_t)d[0]); start = 1; }")
+  (code "    for (size_t i = start; i + 1 < d.size(); i += 2)")
+  (code "      b.push_back((uint8_t)(d[i] * 16 + d[i+1]));")
+  (code "    if (b.empty()) b.push_back(0);")
+  (code "    mag = b; }")
+  (code "  else {")
+  (code "    size_t n = strlen(s); if (n > BI_MAX_DIGITS) return false;")
+  (code "    for (size_t i = 0; i < n; i++) {")
+  (code "      if (s[i] < '0' || s[i] > '9') return false;")
+  (code "      mag_mul10_add(mag, s[i] - '0'); } }")
+  (code "  out = BigInt(mag.data(), mag.size(), false);")
+  (code "  if (neg && !out.is_zero()) out.sign(true);")
+  (code "  return true; }")
+
+  ;; The magnitude of a BigInt as bytes -- through the same bufferstream
+  ;; its own print() uses, because the length is not otherwise askable.
+  (code "static void bi_mag(const BigInt& v, std::vector<uint8_t>& out) {")
+  (code "  out.clear();")
+  (code "  Zigurat::bufferstream buf;")
+  (code "  v.to_octet_string(buf, false);")
+  (code "  size_t n = buf.length();")
+  (code "  for (size_t i = 0; i < n; i++) out.push_back((uint8_t)buf.get());")
+  (code "  while (out.size() > 1 && out[0] == 0) out.erase(out.begin());")
+  (code "  if (out.empty()) out.push_back(0); }")
+
+  ;; Text out, decimal, canonical: no leading zero, a minus only when
+  ;; the value is actually below zero (never on a negative zero).
+  (code "static bool bi_dec(const BigInt& v, std::string& out) {")
+  (code "  std::vector<uint8_t> m; bi_mag(v, m);")
+  (code "  std::string d;")
+  (code "  if (mag_zero(m)) { out = \"0\"; return true; }")
+  (code "  while (!mag_zero(m)) { int r = mag_divmod10(m); d.push_back((char)('0' + r));")
+  (code "    if (d.size() > BI_MAX_DIGITS) return false; }")
+  (code "  out.clear(); if (v.sign()) out.push_back('-');")
+  (code "  for (size_t i = d.size(); i > 0; i--) out.push_back(d[i-1]);")
+  (code "  return true; }")
+
+  (code "static bool bi_hexs(const BigInt& v, std::string& out) {")
+  (code "  std::vector<uint8_t> m; bi_mag(v, m);")
+  (code "  const char* hx = \"0123456789abcdef\";")
+  (code "  std::string h;")
+  (code "  for (size_t i = 0; i < m.size(); i++) { h.push_back(hx[m[i] >> 4]); h.push_back(hx[m[i] & 15]); }")
+  (code "  size_t z = 0; while (z + 1 < h.size() && h[z] == '0') z++;")
+  (code "  out.clear(); if (v.sign() && !mag_zero(m)) out.push_back('-');")
+  (code "  out += h.substr(z);")
+  (code "  return true; }")
+
+  ;; The number of decimal digits, without building them -- what
+  ;; `bigint_pow' asks before it agrees to multiply anything.
+  (code "#include <cmath>")
+  (code "static double bi_log2(const BigInt& v) {")
+  (code "  std::vector<uint8_t> m; bi_mag(v, m);")
+  (code "  if (mag_zero(m)) return 0.0;")
+  (code "  size_t n = m.size(), take = n < 8 ? n : 8; double top = 0.0;")
+  (code "  for (size_t i = 0; i < take; i++) top = top * 256.0 + (double)m[i];")
+  (code "  return std::log2(top) + 8.0 * (double)(n - take); }")
+
+  ;; Newton's, on integers: the floor of the square root. BigInt has no
+  ;; sqrt of its own, and this is the one piece of arithmetic here that
+  ;; is not simply a call into it. Starting from a halving of the
+  ;; digit count rather than from N keeps it to a handful of divides.
+  (code "static bool bi_sqrt(const BigInt& n, BigInt& out) {")
+  (code "  if (n.sign()) return false;")
+  (code "  if (n.is_zero()) { out = BigInt((int32_t)0); return true; }")
+  (code "  BigInt one((int32_t)1), two((int32_t)2);")
+  (code "  if (BigInt::cmp(n, one) <= 0) { out = one; return true; }")
+  (code "  BigInt x = n, y = (n / two) + one;")
+  (code "  while (BigInt::cmp(y, x) < 0) { x = y; y = (x + (n / x)) / two; }")
+  (code "  out = x; return true; }")
+
+  ;; THE SEAM, one function wide. Text in, text out, and a code saying
+  ;; what went wrong -- so the Cicili side below never holds a BigInt and
+  ;; the C++ side never holds an engine.
+  ;;
+  ;;   0 ok   1 bad A   2 bad B   3 bad C   4 divide by zero
+  ;;   5 the answer is too big to be written   6 no modular inverse
+  ;;   7 no such operation   8 the argument is out of the domain
+  (code "extern \"C\" int coco_bi_eval(const char* op, const char* a, const char* b,")
+  (code "                             const char* c, char* out, size_t cap) {")
+  (code "  BigInt A, B, C;")
+  (code "  if (a && !bi_parse(a, A)) return 1;")
+  (code "  if (b && !bi_parse(b, B)) return 2;")
+  (code "  if (c && !bi_parse(c, C)) return 3;")
+  (code "  BigInt R; std::string s;")
+  (code "  if (!strcmp(op, \"add\")) R = A + B;")
+  (code "  else if (!strcmp(op, \"sub\")) R = A - B;")
+  (code "  else if (!strcmp(op, \"mul\")) R = A * B;")
+  (code "  else if (!strcmp(op, \"div\")) { if (B.is_zero()) return 4; R = A / B; }")
+  (code "  else if (!strcmp(op, \"mod\")) { if (B.is_zero()) return 4; R = A % B; }")
+  (code "  else if (!strcmp(op, \"gcd\")) R = BigInt::gcd(A, B);")
+  (code "  else if (!strcmp(op, \"lcm\")) { if (A.is_zero() || B.is_zero()) return 4; R = BigInt::lcm(A, B); }")
+  ;; COPRIMALITY IS ASKED FIRST, because BigInt::inverse does not return
+  ;; when there is no inverse -- it ABORTS THE PROCESS. Checking the
+  ;; answer afterwards, which is what this did at first, never runs.
+  (code "  else if (!strcmp(op, \"inverse\")) { if (B.is_zero()) return 4;")
+  (code "    BigInt g = BigInt::gcd(A, B); BigInt one((int32_t)1);")
+  (code "    if (BigInt::cmp(g, one) != 0) return 6;")
+  (code "    R = BigInt::inverse(A, B); }")
+  (code "  else if (!strcmp(op, \"mod_pow\")) { if (C.is_zero()) return 4;")
+  (code "    if (B.sign()) return 8; R = BigInt::mod_pow(A, B, C); }")
+  (code "  else if (!strcmp(op, \"pow\")) {")
+  (code "    if (B.sign()) return 8;")
+  (code "    std::string es; if (!bi_dec(B, es)) return 5;")
+  (code "    if (es.size() > 7) return 5;")
+  (code "    long ex = atol(es.c_str());")
+  (code "    if (bi_log2(A) * 0.30103 * (double)ex + 1.0 > (double)BI_MAX_DIGITS) return 5;")
+  (code "    R = BigInt::pow(A, B); }")
+  (code "  else if (!strcmp(op, \"sqrt\")) { if (!bi_sqrt(A, R)) return 8; }")
+  (code "  else if (!strcmp(op, \"abs\")) { R = A; R.sign(false); }")
+  (code "  else if (!strcmp(op, \"neg\")) { R = A; if (!R.is_zero()) R.sign(!A.sign()); }")
+  (code "  else if (!strcmp(op, \"dec\")) R = A;")
+  (code "  else if (!strcmp(op, \"cmp\")) {")
+  (code "    int r = BigInt::cmp(A, B);")
+  (code "    const char* t = (r < 0) ? \"<\" : (r > 0 ? \">\" : \"=\");")
+  (code "    if (strlen(t) + 1 > cap) return 5; strcpy(out, t); return 0; }")
+  (code "  else if (!strcmp(op, \"hex\")) { if (!bi_hexs(A, s)) return 5;")
+  (code "    if (s.size() + 1 > cap) return 5; strcpy(out, s.c_str()); return 0; }")
+  (code "  else return 7;")
+  (code "  if (!bi_dec(R, s)) return 5;")
+  (code "  if (s.size() + 1 > cap) return 5;")
+  (code "  strcpy(out, s.c_str()); return 0; }")
+
+  (decl) (func coco_bi_eval ((const char * op) (const char * a) (const char * b)
+                             (const char * c) (char * out) (size_t cap)) (out int))
+
+  ;; ---- facing the engine ----------------------------------------------
+
+  ;;; A 64-bit integer as its own digits. In C++ because `long long' is
+  ;;; TWO type tokens and a Cicili cast takes one -- the printf length
+  ;;; modifier has to meet the type somewhere, and here is the place.
+  (code "#include <cerrno>")
+  (code "static void bi_i64_text(int64_t v, char* buf, size_t cap) {")
+  (code "  snprintf(buf, cap, \"%lld\", (long long)v); }")
+  (decl) (func bi_i64_text ((int64_t v) (char * buf) (size_t cap)) (out void))
+
+  ;;; And the way back, refusing rather than truncating: strtoll's own
+  ;;; range check, which is the only one that knows what the platform's
+  ;;; 64 bits actually hold.
+  (code "static int bi_fits_i64(const char* dec, int64_t* out) {")
+  (code "  char* end = 0; errno = 0;")
+  (code "  long long v = strtoll(dec, &end, 10);")
+  (code "  if (errno != 0 || end == dec || *end != '\\0') return 0;")
+  (code "  *out = (int64_t)v; return 1; }")
+  (decl) (func bi_fits_i64 ((const char * dec) (int64_t * out)) (out int))
+
+  ;;; An argument as text, whatever it was spelled as: a cocolog integer
+  ;;; becomes its own digits, an atom is taken as it stands.
+  (static) (func bi_text ((coco_engine * e) (size_t slot) (char * buf) (size_t cap))
+        (out int)
+        (let ((int64_t iv . 0))
+          (if (coco_m_int e slot (aof iv))
+              (block (bi_i64_text iv buf cap) (return 1)))
+          (return (coco_m_text e slot buf cap))))
+
+  ;;; One place turns a code into an error, so every predicate refuses
+  ;;; the same way and a new operation cannot invent a new vocabulary.
+  (static) (func bi_fail ((coco_engine * e) (int code) (size_t sa) (size_t sb) (size_t sc))
+        (out int)
+        (cond
+          ((== code 1) (return (coco_m_domain_error e "an integer in digits" sa)))
+          ((== code 2) (return (coco_m_domain_error e "an integer in digits" sb)))
+          ((== code 3) (return (coco_m_domain_error e "an integer in digits" sc)))
+          ((== code 4) (return (coco_m_error e "bigint division by zero"
+                                             "the divisor is zero")))
+          ((== code 5) (return (coco_m_error e "bigint result too large"
+                                             "above 4096 decimal digits")))
+          ((== code 6) (return (coco_m_error e "bigint has no inverse"
+                                             "the arguments are not coprime")))
+          ((== code 8) (return (coco_m_error e "bigint domain"
+                                             "a negative exponent or root")))
+          (#t (return (coco_m_error e "bigint" "the operation is not one of these")))))
+
+  ;;; Every two-argument operation, and every one-argument one with B
+  ;;; simply absent -- the shapes differ only in how many slots are read.
+  (static) (func bi_do2 ((coco_engine * e) (size_t g) (const char * op)) (out int)
+        (let ((size_t sa . #'(coco_m_arg e g 0)) (size_t sb . #'(coco_m_arg e g 1))
+              (size_t sr . #'(coco_m_arg e g 2))
+              (char ab [4200]) (char bb [4200]) (char rb [4200]))
+          (if (not (bi_text e sa ab 4200))
+              (return (coco_m_type_error e "an integer or a numeric atom" sa)))
+          (if (not (bi_text e sb bb 4200))
+              (return (coco_m_type_error e "an integer or a numeric atom" sb)))
+          (let ((int rc . #'(coco_bi_eval op ab bb nil rb 4200)))
+            (if (!= rc 0) (return (bi_fail e rc sa sb sb)))
+            (return (coco_m_unify_atom e sr rb)))))
+
+  (static) (func bi_do1 ((coco_engine * e) (size_t g) (const char * op)) (out int)
+        (let ((size_t sa . #'(coco_m_arg e g 0)) (size_t sr . #'(coco_m_arg e g 1))
+              (char ab [4200]) (char rb [4200]))
+          (if (not (bi_text e sa ab 4200))
+              (return (coco_m_type_error e "an integer or a numeric atom" sa)))
+          (let ((int rc . #'(coco_bi_eval op ab nil nil rb 4200)))
+            (if (!= rc 0) (return (bi_fail e rc sa sa sa)))
+            (return (coco_m_unify_atom e sr rb)))))
+
+  (static) (func bi_do3 ((coco_engine * e) (size_t g) (const char * op)) (out int)
+        (let ((size_t sa . #'(coco_m_arg e g 0)) (size_t sb . #'(coco_m_arg e g 1))
+              (size_t sc . #'(coco_m_arg e g 2)) (size_t sr . #'(coco_m_arg e g 3))
+              (char ab [4200]) (char bb [4200]) (char cb [4200]) (char rb [4200]))
+          (if (not (bi_text e sa ab 4200))
+              (return (coco_m_type_error e "an integer or a numeric atom" sa)))
+          (if (not (bi_text e sb bb 4200))
+              (return (coco_m_type_error e "an integer or a numeric atom" sb)))
+          (if (not (bi_text e sc cb 4200))
+              (return (coco_m_type_error e "an integer or a numeric atom" sc)))
+          (let ((int rc . #'(coco_bi_eval op ab bb cb rb 4200)))
+            (if (!= rc 0) (return (bi_fail e rc sa sb sc)))
+            (return (coco_m_unify_atom e sr rb)))))
+
+  ;;; Back to a cocolog integer, WHICH IS 64 BITS -- so this refuses
+  ;;; rather than truncates. The refusal is the whole point of the
+  ;;; library: the silent version of this conversion is what cocolog's
+  ;;; own arithmetic does, and it is why any of this exists.
+  (static) (func bi_to_int ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t sa . #'(coco_m_arg e g 0)) (size_t sr . #'(coco_m_arg e g 1))
+              (char ab [4200]) (char rb [4200]))
+          (if (not (bi_text e sa ab 4200))
+              (return (coco_m_type_error e "an integer or a numeric atom" sa)))
+          (let ((int rc . #'(coco_bi_eval "dec" ab nil nil rb 4200)))
+            (if (!= rc 0) (return (bi_fail e rc sa sa sa))))
+          (let ((int64_t v . 0))
+            (if (not (bi_fits_i64 rb (aof v)))
+                (return (coco_m_error e "bigint does not fit an integer"
+                                      "outside 64 bits, so it would wrap")))
+            (return (coco_m_unify_int e sr v)))))
+
+  ;;; ---- the dispatcher --------------------------------------------------
+
+  ;; C LINKAGE, OR THE REGISTRATION NEVER HAPPENS. Both of these are
+  ;; reached as C symbols -- the dispatcher as a function pointer handed
+  ;; to coco_module_register, the entry point through the weak symbol
+  ;; cocolog.cicili declares -- and a C++ translation unit mangles a
+  ;; bare definition of either. The first build of this file did exactly
+  ;; that: it linked without complaint (a null weak symbol is legal) and
+  ;; library(bigint) was simply not there.
+  (extern-c
+
+  (func coco_bigint_dispatch ((coco_engine * e) (const char * name) (uint32_t arity)
+                              (size_t g) (int * found)) (out int)
+        (set (cof found) 1)
+        (cond
+          ((== arity 2)
+           (cond
+             ((== 0 (strcmp name "bigint_sqrt")) (return (bi_do1 e g "sqrt")))
+             ((== 0 (strcmp name "bigint_dec"))  (return (bi_do1 e g "dec")))
+             ((== 0 (strcmp name "bigint_hex"))  (return (bi_do1 e g "hex")))
+             ((== 0 (strcmp name "bigint_abs"))  (return (bi_do1 e g "abs")))
+             ((== 0 (strcmp name "bigint_neg"))  (return (bi_do1 e g "neg")))
+             ((== 0 (strcmp name "bigint_int"))  (return (bi_to_int e g)))
+             (#t (set (cof found) 0) (return 0))))
+          ((== arity 3)
+           (cond
+             ((== 0 (strcmp name "bigint_add")) (return (bi_do2 e g "add")))
+             ((== 0 (strcmp name "bigint_sub")) (return (bi_do2 e g "sub")))
+             ((== 0 (strcmp name "bigint_mul")) (return (bi_do2 e g "mul")))
+             ((== 0 (strcmp name "bigint_div")) (return (bi_do2 e g "div")))
+             ((== 0 (strcmp name "bigint_mod")) (return (bi_do2 e g "mod")))
+             ((== 0 (strcmp name "bigint_pow")) (return (bi_do2 e g "pow")))
+             ((== 0 (strcmp name "bigint_gcd")) (return (bi_do2 e g "gcd")))
+             ((== 0 (strcmp name "bigint_lcm")) (return (bi_do2 e g "lcm")))
+             ((== 0 (strcmp name "bigint_cmp")) (return (bi_do2 e g "cmp")))
+             ((== 0 (strcmp name "bigint_inverse")) (return (bi_do2 e g "inverse")))
+             (#t (set (cof found) 0) (return 0))))
+          ((== arity 4)
+           (cond
+             ((== 0 (strcmp name "bigint_mod_pow")) (return (bi_do3 e g "mod_pow")))
+             (#t (set (cof found) 0) (return 0))))
+          (#t (set (cof found) 0) (return 0))))
+
+  (func coco_bigint_module () (out int)
+        (return (coco_module_register "bigint" coco_bigint_dispatch nil nil)))
+
+  ) ; extern-c
+
+  ) ; source

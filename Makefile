@@ -96,7 +96,9 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
 	CICILI="$(CICILI)" sh torch/build.sh
+	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh bigint/build.sh
 	g++ -O3 .libs/cocolog.o embed/.libs/embed.o torch/.libs/coco-torch.o \
+	  bigint/.libs/coco-bigint.o \
 	  -o cocolog \
 	  -rdynamic -ldl \
 	  -Lbuild -lcocologc -lm -lpthread \
@@ -121,6 +123,7 @@ clean:
 	rm -rf $(BUILD) cocolog cocolog.c *.o *.lo .libs
 	rm -rf torch/coco-torch.cpp torch/*.o torch/*.lo torch/.libs
 	rm -rf embed/embed.cpp embed/*.o embed/*.lo embed/.libs embed/ce_smoke embed/smoke.o
+	rm -rf bigint/coco-bigint.cpp bigint/*.o bigint/*.lo bigint/.libs bigint/zigheaders
 	rm -f embed/Core embed/StreamIO embed/mvccs-lib.cicili embed/generated embed/ziglib
 	rm -f test/*.c test/*.o test/*.lo test/cocolog_*_test
 	rm -rf test/.libs
