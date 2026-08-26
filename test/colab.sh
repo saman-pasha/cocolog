@@ -144,6 +144,40 @@ print('; '.join(bad) if bad else 'none')
 PYEOF
 )" "none"
 
+# THE COMPILER PAGES MUST NOT SURVIVE THE BUILD. System/compiler.parsi
+# is a web page whose POST handler compiles what you send it, and the
+# ordinary ZiguratIP `make' produces it every time -- so a build meant
+# to be tunnelled has to move it out of home/ld. Checked by RUNNING that
+# part of build.sh against a fixture, because grepping for the code
+# would pass on code that does not work.
+FIX=$(mktemp -d)
+mkdir -p "$FIX/home/ld" "$FIX/home/catalog"
+touch "$FIX/home/ld/lib_COMPILER_.so" "$FIX/home/ld/lib_COMPILERDRAWER_.so" \
+      "$FIX/home/ld/lib_CONNECTOR_.so" \
+      "$FIX/home/catalog/_COMPILER_.conf" "$FIX/home/catalog/_CONNECTOR_.conf"
+sed -n '/---- the compiler pages, moved out of reach/,/^fi$/p' "$COLAB/build.sh" > "$FIX/quar.sh"
+sed -i "1i set -u\nZIGURATIP_HOME=$FIX/home" "$FIX/quar.sh"
+sh "$FIX/quar.sh" >/dev/null 2>&1
+
+check "the build moves the compiler page out of home/ld" \
+  "$(ls "$FIX/home/ld" | grep -c COMPILER || true)" "0"
+check "and the drawer that renders it" \
+  "$([ -f "$FIX/home/ld-disabled/lib_COMPILERDRAWER_.so" ] && echo quarantined || echo lost)" \
+  "quarantined"
+check "each object travels with its catalogue entry" \
+  "$([ -f "$FIX/home/ld-disabled/_COMPILER_.conf" ] && echo together || echo split)" "together"
+check "it is MOVED, not deleted" \
+  "$([ -f "$FIX/home/ld-disabled/lib_COMPILER_.so" ] && echo recoverable || echo gone)" \
+  "recoverable"
+check "and every other page is left alone" \
+  "$([ -f "$FIX/home/ld/lib_CONNECTOR_.so" ] && echo untouched || echo TAKEN)" "untouched"
+check "a second build is a silent no-op" \
+  "$(sh "$FIX/quar.sh" 2>&1 | wc -l | tr -d ' ')" "0"
+check "KEEP_COMPILER_PAGES=1 leaves them and says so" \
+  "$(touch "$FIX/home/ld/lib_COMPILER_.so"; \
+     KEEP_COMPILER_PAGES=1 sh "$FIX/quar.sh" 2>&1 | grep -c 'DO NOT open a tunnel')" "1"
+rm -rf "$FIX"
+
 # THE RENAME HAS TO REACH THE DOCUMENTATION TOO. COLAB.md carries the
 # link people actually click -- the raw colab.research.google.com URL --
 # and a notebook renamed without it is a 404 for everyone but the person

@@ -125,6 +125,7 @@ The ones that have actually bitten:
 | thirteen libraries, or a server that dies on its first insert | one project failed and the workspace carried on | `colab/build.sh` names it; read its log under `/tmp/coco-build-logs/` |
 | undefined `c10::` symbols, full of `__cxx11`, at the **final** link | the `torch` wheel was built with `_GLIBCXX_USE_CXX11_ABI=0` and `g++` spells `std::string` the other way | preflight prints the wheel's ABI and **warns without stopping** — everything except the torch link is indifferent to it. The flag would have to reach every C++ unit that touches libtorch, and Cicili's `{$…}` tokens have no ABI among them, so the fix is a matching wheel (`pip install` a torch built ABI=1) rather than a flag at the end |
 | a Lisp backtrace ending the cocolog build | Cicili treats any unrecognised compiler chatter as fatal, and the **line under** its `Unhandled …` banner names the cause | `colab/build.sh` prints that line; a new compiler warning class usually wants silencing in the target's own `:compile` list |
+| `Zeytun: no page 'SETUP'` / 404 from the *Load demo* link on Zeytun's index page | that link is **ZiguratIP's demo**, compiled by its `demo/build.sh` from `demo/03-pages.parsi`. This notebook does not build the demo — it builds cocolog's own Parsi objects and nothing else — so the page genuinely is not there | nothing to fix: the 404 is correct. The knowledge base is reached through `--http`, not through that page. Build ZiguratIP's demo separately if you want it |
 | the build looks fine but re-running says green instantly | a stale artifact from the previous run | `CLEAN=1 sh colab/build.sh` |
 | `preflight RED` with nothing else to go on | the notebook used to discard the report | fixed: the refusal now carries the `MISSING` lines with it. If you still see a bare RED, run `sh colab/preflight.sh` by hand — the report is the answer |
 | `build RED -- the report above names the cause`, and no report above it | same flaw, one cell down: the build's output was streamed and never captured, so a long build scrolled its cause away and a pasted tail carried only the exception | fixed in v2: the build is streamed **and** captured, and the refusal carries the lines that named the failure. Whole logs stay under `/tmp/coco-build-logs/` — `!cat /tmp/coco-build-logs/*.log` |
@@ -187,11 +188,33 @@ configuration. So the tunnel publishes a read-only view: an
 writer is the trainer on the VM's loopback, where the binary port stays.
 One writer, many readers, enforced by which port is public.
 
-What must stay unpublished is what ZiguratIP's own Colab tutorial
-already guards: the Parsi **compiler pages**. The tunnel cell refuses to
-open when one is loadable — read [the warning in ZiguratIP's
-tutorial](https://github.com/saman-pasha/ZiguratIP/blob/master/colab/TUTORIAL.md)
-before overriding it. And
+What must stay unpublished is the Parsi **compiler pages**.
+`System/compiler.parsi` is a web page whose POST handler is
+`CALL con.compile(request.post('code'))` — a compiler behind an HTTP
+form — and `compilerdrawer.parsi` renders it.
+
+**They are not leftovers; `make` builds them.** `System` is in
+ZiguratIP's top-level `PROJECTS` list, so an ordinary
+`make MODE=Release` compiles both into `home/ld` on any machine. A fresh
+Colab VM that had run nothing else hit the tunnel cell's refusal with
+exactly those two objects; ZiguratIP's tutorial said a fresh clone had
+none, and has been corrected.
+
+So `colab/build.sh` **moves them out of `home/ld` after the build**, into
+`$ZIGURATIP_HOME/ld-disabled`, each object beside its catalogue entry,
+and says so. Moved rather than deleted: `mv` restores them. Nothing here
+needs them — Parsi objects are compiled offline by `parsi`, which is the
+supported route and the reason the network compiler stays off.
+`KEEP_COMPILER_PAGES=1` skips it, for ZiguratIP's own compiler tutorial,
+which is the one workflow that wants the page and does not want a
+tunnel.
+
+The tunnel cell still refuses if it finds one loadable — the build
+moving them is convenience, the refusal is the guarantee, and the two
+are deliberately not the same mechanism. If you ever see that refusal,
+the answer is to move the page, not to set `I_UNDERSTAND`: a refusal
+whose only way forward is the override teaches people to use the
+override. And
 a quick tunnel has **no authentication**: anyone with the URL reads
 every knowledge base the server holds. Keep it short-lived, and do not
 point one at data you care about.

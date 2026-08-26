@@ -121,6 +121,56 @@ fi
 echo "   ZiguratIP: $(ls "$ZIGURATIP_HOME"/lib/*.so | wc -l) libraries, $(ls "$ZIGURATIP_HOME"/bin | wc -l) executables"
 stage_done ZiguratIP
 
+# ---- the compiler pages, moved out of reach --------------------------
+# System/compiler.parsi is a WEB PAGE whose POST handler is
+#
+#     CALL con.compile(request.post('code'))
+#
+# -- a compiler behind an HTTP form. This notebook exists to publish a
+# READ-ONLY view of a knowledge base through a tunnel with no
+# authentication on it, and those two things must never be true of the
+# same server.
+#
+# AND IT IS NOT DEBRIS. `System' is in ZiguratIP's top-level PROJECTS
+# list, so the ordinary `make MODE=Release' above compiles both pages
+# into home/ld every single time. ZiguratIP's own tutorial said a fresh
+# clone had none of them; a fresh Colab VM that had run nothing else
+# proved otherwise, and the tunnel cell refused -- correctly, and with
+# nowhere to go but the override. A refusal whose only way forward is
+# `I_UNDERSTAND = True' teaches people to set I_UNDERSTAND.
+#
+# So they are MOVED, never deleted, with each object beside its
+# catalogue entry so the pair cannot disagree, and it is said out loud.
+# Nothing here needs them: Parsi objects are compiled offline by
+# `parsi', which is the supported way and the reason the network
+# compiler stays off. KEEP_COMPILER_PAGES=1 leaves them where they are
+# -- for ZiguratIP's own compiler tutorial, which is the one workflow
+# that wants the page and does not want a tunnel.
+QUAR="$ZIGURATIP_HOME/ld-disabled"
+if [ "${KEEP_COMPILER_PAGES:-0}" = 1 ]; then
+  echo "== KEEP_COMPILER_PAGES=1: leaving the compiler pages loadable"
+  echo "   DO NOT open a tunnel in front of this server."
+else
+  moved=""
+  mkdir -p "$QUAR"
+  for obj in COMPILER COMPILERDRAWER; do
+    if [ -f "$ZIGURATIP_HOME/ld/lib_${obj}_.so" ]; then
+      mv "$ZIGURATIP_HOME/ld/lib_${obj}_.so" "$QUAR/"
+      moved="$moved lib_${obj}_.so"
+    fi
+    if [ -f "$ZIGURATIP_HOME/catalog/_${obj}_.conf" ]; then
+      mv "$ZIGURATIP_HOME/catalog/_${obj}_.conf" "$QUAR/"
+    fi
+  done
+  if [ -n "$moved" ]; then
+    echo "== moved the compiler pages out of home/ld:$moved"
+    echo "   They are a compiler behind an HTTP form and this build is"
+    echo "   meant to be tunnelled. Moved, not deleted -- they are in"
+    echo "   $QUAR"
+    echo "   and mv restores them. KEEP_COMPILER_PAGES=1 skips this."
+  fi
+fi
+
 # ---- cocolog -----------------------------------------------------------
 stage_start
 echo "== building cocolog"
