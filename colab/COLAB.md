@@ -82,11 +82,35 @@ The ones that have actually bitten:
 | a Lisp backtrace ending the cocolog build | Cicili treats any unrecognised compiler chatter as fatal, and the **line under** its `Unhandled …` banner names the cause | `colab/build.sh` prints that line; a new compiler warning class usually wants silencing in the target's own `:compile` list |
 | the build looks fine but re-running says green instantly | a stale artifact from the previous run | `CLEAN=1 sh colab/build.sh` |
 | `preflight RED` with nothing else to go on | the notebook used to discard the report | fixed: the refusal now carries the `MISSING` lines with it. If you still see a bare RED, run `sh colab/preflight.sh` by hand — the report is the answer |
+| `build RED -- the report above names the cause`, and no report above it | same flaw, one cell down: the build's output was streamed and never captured, so a long build scrolled its cause away and a pasted tail carried only the exception | fixed in v2: the build is streamed **and** captured, and the refusal carries the lines that named the failure. Whole logs stay under `/tmp/coco-build-logs/` — `!cat /tmp/coco-build-logs/*.log` |
+| `no GPU visible` on a runtime that IS set to GPU | the check asked only torch, with `2>&1` over the answer, so the reason was discarded and the report blamed a menu you had already used | fixed in v2: `nvidia-smi` is asked **first**. A driver that sees a GPU while torch will not use it is a torch/CUDA problem and prints both sides; no driver at all is a VM with no GPU attached — see below |
 
 A binary that exists is not a binary that works — the one link pulls in
 the embedded engine and libtorch, and an ABI mismatch surfaces on the
 first run rather than at the link — so the last thing `build.sh` does is
 ask cocolog for `6*7` and want `42` back.
+
+## When the runtime says GPU and the VM has none
+
+Preflight asks the **driver** before it asks torch, because the two
+answers can differ and they have different cures:
+
+* **`nvidia-smi` sees a GPU, torch will not use it.** Nothing in the
+  Runtime menu helps. The report prints the card, torch's version and
+  the CUDA it was built for, torch's own device count, the driver
+  version, and whatever torch said on stderr. That mismatch is the
+  finding.
+* **`nvidia-smi` finds no device.** The VM genuinely has no GPU, and if
+  the dropdown already reads GPU then **the dropdown is not the
+  answer**. Check *Runtime → View resources* for a GPU line; then
+  *Runtime → Disconnect and delete runtime* and reconnect. Colab hands
+  back a CPU VM when the GPU quota is spent **and leaves the runtime
+  type reading GPU**, which looks identical from inside the VM to a
+  runtime type changed without reconnecting.
+
+Neither stops the build. Everything except the speed of training is
+indifferent to it, and `torch_device(auto)` takes `cpu` without
+complaint — so a CPU session still builds, still serves, still answers.
 
 ## What you end up with
 

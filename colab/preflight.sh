@@ -94,10 +94,56 @@ if python3 -c "import torch" >/dev/null 2>&1; then
   else
     say "torch C++11 ABI" "unknown (torch too old to say)"
   fi
-  if python3 -c "import torch;raise SystemExit(0 if torch.cuda.is_available() else 1)" >/dev/null 2>&1; then
+  # THE GPU, ASKED TWICE, BECAUSE THE TWO ANSWERS CAN DIFFER -- and this
+  # check used to throw the difference away. It was
+  #
+  #     if python3 -c "...torch.cuda.is_available()..." >/dev/null 2>&1
+  #
+  # which is the same "three ways of not knowing" this file was written
+  # to stamp out, applied to the one question a GPU runtime exists to
+  # answer: the redirect discarded the REASON torch said no, and the
+  # report then blamed the runtime type -- advice already followed by
+  # anyone reading it, on a machine sitting in GPU mode.
+  #
+  # So the DRIVER is asked first, by nvidia-smi, which knows nothing
+  # about torch. A driver with no torch behind it and no driver at all
+  # are different findings with different cures, and the cure for the
+  # second one is not in the Runtime menu as often as it looks.
+  gpus=$(nvidia-smi -L 2>&1)
+  case "$gpus" in
+    GPU\ *) driver_gpu=$(echo "$gpus" | head -1 | cut -c1-58) ;;
+    *)      driver_gpu="" ;;
+  esac
+
+  cuda_err=$(python3 -c "import torch; torch.cuda.is_available()" 2>&1 >/dev/null \
+             | grep -v '^ *$' | head -2)
+  if python3 -c "import torch;raise SystemExit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
     say "cuda" "$(python3 -c 'import torch;print(torch.cuda.get_device_name(0))' 2>/dev/null)"
+  elif [ -n "$driver_gpu" ]; then
+    # THE HARD CASE. The machine HAS a GPU and torch will not use it, so
+    # nothing in the Runtime menu is the answer. Print what each side
+    # believes and let the mismatch name itself.
+    printf '  %-22s %s\n' "cuda" "the DRIVER sees a GPU and TORCH will not use it:"
+    printf '  %-22s %s\n' "" "  $driver_gpu"
+    printf '  %-22s %s\n' "" "  torch $(python3 -c 'import torch;print(torch.__version__)' 2>/dev/null), built for CUDA $(python3 -c 'import torch;print(torch.version.cuda)' 2>/dev/null), sees $(python3 -c 'import torch;print(torch.cuda.device_count())' 2>/dev/null) device(s)"
+    printf '  %-22s %s\n' "" "  driver $(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)"
+    [ -n "$cuda_err" ] && echo "$cuda_err" | while read -r l; do
+      printf '  %-22s %s\n' "" "  $l"
+    done
+    printf '  %-22s %s\n' "" "Not stopping: training falls back to the CPU."
   else
-    say "cuda" "no GPU visible -- training runs on the CPU (Runtime -> Change runtime type)"
+    # NO DRIVER AT ALL. Worth being precise about, because the obvious
+    # cure is often already done: Colab hands back a CPU runtime when the
+    # GPU quota is spent AND LEAVES THE DROPDOWN READING GPU, and a
+    # runtime type changed without the session reconnecting looks the
+    # same from in here.
+    printf '  %-22s %s\n' "cuda" "no GPU on this VM -- nvidia-smi finds no device."
+    printf '  %-22s %s\n' "" "  If the Runtime menu already says GPU, the menu is not"
+    printf '  %-22s %s\n' "" "  the answer: check Runtime -> View resources for a GPU"
+    printf '  %-22s %s\n' "" "  line, and Runtime -> Disconnect and delete runtime, then"
+    printf '  %-22s %s\n' "" "  reconnect. Colab gives back a CPU VM when the GPU quota"
+    printf '  %-22s %s\n' "" "  is spent and leaves the dropdown reading GPU."
+    printf '  %-22s %s\n' "" "Not stopping: training runs on the CPU, slower."
   fi
 else
   bad "torch" "it ships with Colab; off Colab: pip install torch"

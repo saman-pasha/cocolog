@@ -1,4 +1,4 @@
-1
+2
 # colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
 #
 # The first line is the version. Everything below is a log.
@@ -19,7 +19,10 @@
 # preflight.sh or build.sh does not need a bump -- those come from the
 # repository already, which is the point of their being scripts.
 #
-# 1  2026-08-26  the first version that carries a version. The package
-#                list moved into colab/prereqs.sh (libtool-bin, NOT
-#                libtool), the cell clones before installing, and the
-#                preflight report travels with its refusal.
+# 2  2026-08-26  the build refusal carries its cause, the way the
+#                preflight refusal already did -- streamed AND captured,
+#                so a long build is watchable and a pasted tail still
+#                names what failed. preflight asks the DRIVER before it
+#                asks torch, so "no GPU" stops blaming the Runtime menu
+#                on a machine already in GPU mode.
+# 1  2026-08-26  the first version that carries a version.
