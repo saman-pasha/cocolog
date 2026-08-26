@@ -23,7 +23,7 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 COLAB="$ROOT/colab"
-NB="$COLAB/Coco_Colab.ipynb"
+NB="$COLAB/cocolog_colab.ipynb"
 
 failures=0
 check() {
@@ -35,7 +35,18 @@ check() {
   fi
 }
 
-if [ ! -f "$NB" ]; then echo "SKIP (no colab/ in this checkout)"; exit 0; fi
+# A MISSING NOTEBOOK IS A FAILURE, NOT A SKIP -- once colab/ is here.
+# `SKIP' means "this checkout has no colab/ to check"; it must not also
+# mean "the notebook is not where everything says it is", which is
+# exactly the state a half-finished rename leaves behind. red: 0 does
+# not mean the suite passed, and a case that skips its own subject is
+# how that happens.
+if [ ! -d "$COLAB" ]; then echo "SKIP (no colab/ in this checkout)"; exit 0; fi
+if [ ! -f "$NB" ]; then
+  echo "FAIL the notebook is not at colab/$(basename "$NB")"
+  echo "     colab/ holds: $(ls "$COLAB" | tr '\n' ' ')"
+  echo "RED: 1 failure(s)"; exit 1
+fi
 if ! command -v python3 >/dev/null 2>&1; then echo "SKIP (no python3 to read the notebook)"; exit 0; fi
 
 check "colab/VERSION declares a version" \
@@ -108,6 +119,21 @@ for s in prereqs.sh preflight.sh build.sh; do
   check "the notebook's $s is there to be called" \
     "$([ -f "$COLAB/$s" ] && grep -q "$s" "$NB" && echo present || echo missing)" "present"
 done
+
+# THE RENAME HAS TO REACH THE DOCUMENTATION TOO. COLAB.md carries the
+# link people actually click -- the raw colab.research.google.com URL --
+# and a notebook renamed without it is a 404 for everyone but the person
+# who did the renaming.
+NBNAME=$(basename "$NB")
+check "COLAB.md names the notebook that exists" \
+  "$(grep -c "$NBNAME" "$COLAB/COLAB.md" 2>/dev/null | head -1)" "2"
+# Only LINKS are policed, not prose: COLAB.md says what the notebook
+# used to be called, on purpose, so that a stale bookmark's 404 has an
+# explanation. A link target ends in `)' or `>'; a name being discussed
+# ends in a backtick. That distinction is the whole check.
+check "and every .ipynb LINK points at it" \
+  "$(grep -ohE '[A-Za-z0-9_/.-]+\.ipynb[)>]' "$COLAB/COLAB.md" 2>/dev/null \
+     | sed 's/.*\///; s/[)>]$//' | sort -u | grep -vc "^$NBNAME$")" "0"
 
 echo
 if [ "$failures" -eq 0 ]; then

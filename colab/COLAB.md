@@ -1,12 +1,18 @@
 # Train on a Colab GPU, query from anywhere
 
-Everything here is in [`Coco_Colab.ipynb`](Coco_Colab.ipynb) beside this file.
+Everything here is in [`cocolog_colab.ipynb`](cocolog_colab.ipynb) beside this file.
 This explains the arrangement and why it holds, so you can change it rather
 than only run it.
 
 **Open it in Colab:**
 
-<https://colab.research.google.com/github/saman-pasha/cocolog/blob/master/colab/Coco_Colab.ipynb>
+<https://colab.research.google.com/github/saman-pasha/cocolog/blob/master/colab/cocolog_colab.ipynb>
+
+That link is the notebook itself, loaded from this repository — not a
+copy. It was `Coco_Colab.ipynb` until it was renamed, so a bookmark from
+before that will 404; there is nothing to migrate, just open the URL
+above. A copy you saved to your own Drive is a copy and will not follow
+this repository at all.
 
 ---
 
@@ -75,6 +81,8 @@ The ones that have actually bitten:
 | what you see | what it is | the fix |
 |---|---|---|
 | `sbcl: not found` inside a sub-make | the image's package lists were stale, so the install failed — silently, in the old cell | `apt-get update` first; the cell does it now, and preflight refuses to continue without `sbcl` |
+| `Component "cicili" not found`, then `cannot find -lMVCCS`, then no `parsi`, no `ziguratip` | **one** cause with thirteen symptoms: ASDF could not load Cicili. `cicili.asd` depends on `sha1`, `base64`, `str` and `cl-ppcre`, and the first two are published under those names nowhere — they were simply present in `~/common-lisp` on the development machine. ASDF also finds a checkout by its source registry, never by the directory it is run from | `colab/prereqs.sh` installs Quicklisp for `str` and `cl-ppcre`, copies the two shims out of `colab/lisp/`, and symlinks the Cicili checkout into `~/common-lisp`. Preflight now *loads the system* rather than looking for a file — see `colab/lisp/README.md` |
+| `fatal error: /home/user/ZiguratIP/StreamIO/binarystream.hpp: No such file` | ZiguratIP spelled one developer's home into `.cicili` includes, link flags and test sources **51 times**, so the workspace built on exactly one machine | fixed in ZiguratIP: the engine includes the published headers the way every other project does. Proved by building a clone at a different path from clean |
 | preflight refuses for a reason you already fixed | your BROWSER still holds the old notebook: `git reset --hard` updates the files on disk, not the cell you are running | section 1 now prints both versions and shouts when they differ — *File → Revert to saved*, then re-run. The package list lives in `colab/prereqs.sh`, so a stale notebook still installs the right things |
 | `libtool MISSING` although `apt-get install libtool` just succeeded | Debian and Ubuntu **split the package**: `libtool` ships `libtoolize` and the m4 macros, and the `/usr/bin/libtool` script Cicili invokes is in **`libtool-bin`** | `apt-get install -y libtool-bin`; the notebook installs that one now |
 | thirteen libraries, or a server that dies on its first insert | one project failed and the workspace carried on | `colab/build.sh` names it; read its log under `/tmp/coco-build-logs/` |

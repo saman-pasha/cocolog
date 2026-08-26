@@ -1,4 +1,4 @@
-2
+3
 # colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
 #
 # The first line is the version. Everything below is a log.
@@ -19,6 +19,13 @@
 # preflight.sh or build.sh does not need a bump -- those come from the
 # repository already, which is the point of their being scripts.
 #
+# 3  2026-08-26  the environment is set BEFORE prereqs.sh runs, because
+#                prereqs.sh reads CICILI to tell ASDF where the Cicili
+#                checkout is. It used to fall back to its own default,
+#                which was right by luck. And prereqs.sh provisions the
+#                LISP side at all: Quicklisp for str and cl-ppcre, the
+#                two shims Quicklisp does not have, and the symlink that
+#                lets ASDF find the Cicili checkout.
 # 2  2026-08-26  the build refusal carries its cause, the way the
 #                preflight refusal already did -- streamed AND captured,
 #                so a long build is watchable and a pasted tail still

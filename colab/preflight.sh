@@ -66,6 +66,45 @@ if command -v libtool >/dev/null 2>&1; then say "libtool" "$(libtool --version |
 else bad "libtool" "apt-get install -y libtool-bin  (NOT libtool -- see the note here)"; fi
 
 echo
+echo "== the Lisp systems Cicili is built from"
+# THE CHECK THAT WAS NOT HERE, and its absence cost a whole Colab build.
+# Everything above asks whether a TOOL exists. Nothing asked the only
+# question that decides whether Cicili can run at all: can ASDF load the
+# system? cicili.asd depends on four systems, two of which -- `sha1' and
+# `base64' -- are published under those names nowhere, and ASDF finds a
+# checkout by its source registry rather than by the directory it is
+# started in. On the development machine ~/common-lisp held all of it
+# and nobody had to know.
+#
+# On a fresh VM it is ONE error, `Component "cicili" not found', and
+# thirteen downstream failures: no libMVCCS.so, so no parsi, so no
+# ziguratip, so no schema. THE COST OF A HIDDEN ERROR IS THE TIME TO THE
+# NEXT ONE, and this one bought twelve wrong ones.
+#
+# So the real precondition is asked directly, by loading it.
+if command -v sbcl >/dev/null 2>&1; then
+  asdf_out=$(sbcl --non-interactive --disable-debugger \
+      --eval '(require "asdf")' \
+      --eval '(let ((q (merge-pathnames "quicklisp/setup.lisp" (user-homedir-pathname)))) (when (probe-file q) (load q)))' \
+      --eval '(handler-case (progn (asdf:load-system "cicili") (format t "~&CICILI-LOADS~%"))
+                 (error (e) (format t "~&CICILI-FAILS ~a~%" e)))' 2>&1)
+  case "$asdf_out" in
+    *CICILI-LOADS*)
+      say "asdf: cicili" "loads -- with sha1, base64, str, cl-ppcre" ;;
+    *)
+      why=$(echo "$asdf_out" | grep -a "CICILI-FAILS" | head -1 | cut -c14-96)
+      [ -z "$why" ] && why=$(echo "$asdf_out" | grep -aiE "component .* not found|not found" | head -1 | cut -c1-72)
+      bad "asdf: cicili" "${why:-will not load}"
+      printf '  %-22s %s\n' "" "  sh colab/prereqs.sh installs all four and symlinks the"
+      printf '  %-22s %s\n' "" "  checkout into ~/common-lisp, which is where ASDF looks."
+      printf '  %-22s %s\n' "" "  See colab/lisp/README.md: two of the four are published"
+      printf '  %-22s %s\n' "" "  under those names nowhere, and are carried in this repo." ;;
+  esac
+else
+  bad "asdf: cicili" "no sbcl to ask with"
+fi
+
+echo
 echo "== libtorch, which the one cocolog binary links"
 if python3 -c "import torch" >/dev/null 2>&1; then
   say "torch" "$(python3 -c 'import torch;print(torch.__version__)' 2>/dev/null)"
