@@ -51,9 +51,19 @@ else
   bad "sbcl" "apt-get update && apt-get install -y sbcl"
 fi
 
-# libtool: Cicili compiles and links through it.
+# libtool: Cicili compiles and links through it -- config.lisp's compiler
+# is literally ("libtool" "--tag=CC" "--mode=compile" "gcc" ...), so the
+# SCRIPT at /usr/bin/libtool has to exist.
+#
+# AND THE PACKAGE THAT CARRIES IT IS `libtool-bin', NOT `libtool'.
+# Debian and Ubuntu split them: `libtool' is architecture-independent and
+# ships libtoolize, the m4 macros and the manuals; the script itself is
+# in libtool-bin. Installing `libtool' therefore succeeds, prints
+# nothing alarming, and leaves the build with no libtool -- which is
+# precisely the shape of failure this file exists to name, and it named
+# the wrong cure until a Colab run proved it.
 if command -v libtool >/dev/null 2>&1; then say "libtool" "$(libtool --version | head -1)"
-else bad "libtool" "apt-get install -y libtool"; fi
+else bad "libtool" "apt-get install -y libtool-bin  (NOT libtool -- see the note here)"; fi
 
 echo
 echo "== libtorch, which the one cocolog binary links"
