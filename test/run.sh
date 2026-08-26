@@ -75,13 +75,16 @@ done
 #           rehearsal of the Cloudflare tunnel in colab/COLAB.md
 #   tensors model parameters as Vector<Double> rows: the table on the
 #           wire, the paged tensor page over HTTP, the chunk fallback
+#   tcp     the socket seam: a handle that is NOT a file descriptor, a
+#           timeout that fails rather than hanging, every byte surviving
+#           a read, and one process reaching another
 #   colab   the notebook and the scripts beside it, without a VM: the
 #           two version declarations that live in THIS repository
 #           agreeing, so that the only copy free to drift is the one
 #           in somebody's browser -- which is what section 1 checks
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib colab groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

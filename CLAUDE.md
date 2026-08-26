@@ -130,6 +130,23 @@ that read like C and are not:
   two-word C type cannot be written. Mask instead: `(bitand (cast int c) 255)`.
 * **A `let` declares locals; `block` does not.** `(block (char err [256]) ...)`
   fails with `unknown symbol: [`.
+* **`for` takes a BINDING LIST, not a C-style init**: `(for ((size_t i . 0)) (< i n)
+  ((++ i)) BODY)` — four parts, and the step is parenthesised. Writing
+  `(for ((set i 0) (< i n) (++ i)) BODY)` fails with `The value 0 is not of type
+  SEQUENCE`, which is a message about Lisp and says nothing about the loop.
+* **Indexing is `(nth INDEX ARRAY)`** — index first — and there is no `aref`.
+* **There are no two-dimensional arrays.** `[256][64]` gets the same
+  `not of type SEQUENCE`. Use one dimension and write the stride at each use.
+* **A `#define` is invisible to Cicili**: it is raw C, so a constant named in one
+  is an `unknown symbol` when a Cicili form uses it. Write the number out, the
+  way `files.cicili` writes 4096 rather than PATH_MAX.
+* **Naming an external struct is not enough to reach its FIELDS.**
+  `(@define (code "pollfd_t struct pollfd"))` lets you declare one; `($ p fd)`
+  then answers `unknown struct type`. Either declare every member to Cicili — a
+  second copy of the system header, free to go stale — or keep the struct inside
+  a `(code "...")` escape and let only ints cross into Cicili. `lib/tcp.cicili`
+  takes the second road for every socket struct, as `files.cicili` does for
+  `glob_t`.
 * **An external `struct` needs a name**: `(@define (code "stat_t struct stat"))`,
   per `../cicili/doc/lib-std-c.md`. `(code "...")` is the raw-C escape for what
   `lib/std/c` does not declare — `glob` and `realpath`, in `lib/files.cicili`.
@@ -162,6 +179,7 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 | `lib/solve.cicili` | the engine and the builtin table |
 | `lib/module.cicili` | the module seam and the API a module is written against |
 | `lib/files.cicili` | SWI's Files library, as a module — mostly C |
+| `lib/tcp.cicili` | the socket seam: listen, connect, accept, read, write, close. A handle is an index into this module's own table, never a file descriptor |
 | `lib/lists.cicili` | SWI's Lists library, as a module — mostly Prolog, because nondeterministic predicates cannot live in a C half |
 | `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
 | `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2` |

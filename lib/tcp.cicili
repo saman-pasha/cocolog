@@ -1,0 +1,450 @@
+;;;; cocolog -- TCP sockets, as a module
+;;;
+;;; THE SEAM, AND NOTHING ABOVE IT. A socket is the one thing a clause
+;;; cannot reach, so it is here in C, and everything that can be a clause --
+;;; HTTP, routing, pages -- is a clause somewhere else. This file listens,
+;;; accepts, connects, reads, writes and closes. It does not know what HTTP
+;;; is and must not learn.
+;;;
+;;; WHY cocolog NEEDS ITS OWN SOCKETS AT ALL, when Zeytun already serves
+;;; HTTP: Zeytun's knowledge-base backend (lib/zeytun-kb.cicili) fills only
+;;; `fetch' and `warm', so it CANNOT WRITE, by construction rather than by
+;;; configuration -- exactly right for publishing a knowledge base and a
+;;; ceiling for anything else. And a Zeytun page is a Parsi object compiled
+;;; to a .so against Zigurat's types, so the page language is C++ with a
+;;; schema. What this opens is the other thing: cocolog instances, each in
+;;; --embed mode owning its own store, talking to each other with .pl files
+;;; as the pages. The two live side by side; neither replaces the other.
+;;;
+;;; ---- three decisions, each of which could have gone the other way -----
+;;;
+;;; A HANDLE IS AN INDEX, NOT A FILE DESCRIPTOR. `tcp_close(1)' must not
+;;; close stdout, and `tcp_write(2, ...)' must not scribble on stderr --
+;;; but a bare fd handed to Prolog is an integer like any other, and
+;;; arithmetic produces integers all day. So this module keeps its own
+;;; table of what it opened and hands out a slot index; every call looks
+;;; the slot up and refuses anything it did not open itself. The table is
+;;; also what makes `tcp_sockets/1' possible, and a test that can list the
+;;; open sockets is a test that can prove there is no leak.
+;;;
+;;; EVERY BLOCKING CALL TAKES A TIMEOUT, and it is not politeness. An
+;;; `accept' with no timeout is a suite that hangs rather than fails, and a
+;;; hang is the one test outcome that tells you nothing. `poll' first, then
+;;; the syscall; the timeout expiring is a plain FAILURE, because "nobody
+;;; connected in half a second" is an ordinary answer to an ordinary
+;;; question and not an error.
+;;;
+;;; READS ANSWER CODES, NOT AN ATOM. An atom in cocolog is a C string and
+;;; stops at the first NUL, which is fine for a header and wrong for a body
+;;; -- and a truncating read is the kind of bug that only shows up against
+;;; real traffic. A list of integers carries every byte, and it is what the
+;;; DCG layer above wants anyway: `phrase(request(R), Codes)'. `tcp_write/2'
+;;; accepts either, because writing a literal string is what every caller
+;;; does first.
+;;;
+;;; NOT HERE, DELIBERATELY: TLS (the tunnel and any real deployment
+;;; terminate it in front), UDP, and non-blocking connect. Each is a
+;;; separate decision and none of them is needed to serve a page.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+;;; Read by `coco-emit-module-dispatch' to build the dispatcher, the same way
+;;; *builtins* is read in solve.cicili and *files-predicates* in files.cicili.
+;;; Adding a predicate is a line here and a function below, and the two
+;;; cannot drift apart.
+(DEFPARAMETER *tcp-predicates*
+  '(("tcp_listen"   2 coco_t_listen)
+    ("tcp_connect"  3 coco_t_connect)
+    ("tcp_accept"   4 coco_t_accept)
+    ("tcp_read"     4 coco_t_read)
+    ("tcp_write"    2 coco_t_write)
+    ("tcp_close"    1 coco_t_close)
+    ("tcp_sockets"  1 coco_t_sockets)
+    ("tcp_peer"     2 coco_t_peer)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half
+;;;; ------------------------------------------------------------------
+;;; A CICILI STRING LITERAL CANNOT CARRY A NEWLINE -- as a real newline it
+;;; lands unescaped inside a C string literal and does not compile, and as
+;;; `\n' it is emitted as an escaped backslash and reaches the reader as two
+;;; characters. So the clauses are joined with a SPACE, which Prolog does not
+;;; mind (a clause ends at its `.'), and what would have been `%' commentary
+;;; lives out here where it cannot swallow the rest of the program.
+(DEFPARAMETER *tcp-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; The defaults everybody wants. A server accepting with no
+           ;; timeout at all is the one shape this module refuses to offer,
+           ;; so the "blocking" spelling is an hour rather than forever --
+           ;; long enough to be a server, short enough that a wedged test
+           ;; ends.
+           "tcp_accept(S, C) :- tcp_accept(S, 3600000, C, _)."
+           "tcp_accept(S, C, Peer) :- tcp_accept(S, 3600000, C, Peer)."
+           "tcp_read(C, Codes) :- tcp_read(C, 65536, 30000, Codes)."
+
+           ;; Read until the peer closes. The recursion is here rather than
+           ;; in C because it is a recursion, and because a caller that wants
+           ;; one chunk should not pay for a loop it did not ask for.
+           "tcp_read_all(C, Codes) :- tcp_read_all_(C, [], Rev), reverse(Rev, Parts), append(Parts, Codes)."
+           "tcp_read_all_(C, Acc, Out) :- tcp_read(C, 65536, 30000, Chunk), !, tcp_read_all_(C, [Chunk|Acc], Out)."
+           "tcp_read_all_(_, Acc, Acc)."
+
+           ;; The shape every use of this module has: open it, use it, close
+           ;; it whatever happened. Without this the first failing handler
+           ;; leaks a descriptor and the leak is invisible until the table
+           ;; is full.
+           "tcp_with(S, Goal) :- ( call(Goal) -> tcp_close(S) ; tcp_close(S), fail )."
+
+           ;; Answering a request needs the bytes out and the socket shut,
+           ;; in that order, and it is worth one predicate because getting
+           ;; the order wrong sends nothing at all.
+           "tcp_reply(C, Bytes) :- tcp_write(C, Bytes), tcp_close(C).")))
+
+(generic decl-tcp
+  ()
+
+  ;;; NO SOCKET STRUCT IS A CICILI TYPE HERE, and that is the second
+  ;;; attempt. `(@define (code "pollfd_t struct pollfd"))' gives the type a
+  ;;; NAME, which is enough to declare a variable and not enough to reach a
+  ;;; field: `($ p fd)' answers `unknown struct type: pollfd_t', because
+  ;;; Cicili knows nothing of the members. Naming every member of every
+  ;;; POSIX socket struct to Cicili would be a second copy of <netinet/in.h>
+  ;;; that could go stale against the real one.
+  ;;;
+  ;;; So every struct lives inside a `(code "...")' escape and never crosses
+  ;;; into Cicili. That is exactly what files.cicili does with glob_t --
+  ;;; `(code "glob_t gl; memset(&gl, 0, sizeof gl);")' -- and it is the
+  ;;; documented use of the escape: raw C for what lib/std/c does not
+  ;;; declare. What crosses the seam is int, and Cicili has ints.
+
+  ;;; A cast takes ONE type token, so `unsigned char *' cannot be written --
+  ;;; the same rule that makes `(cast unsigned char x)' illegal elsewhere in
+  ;;; this repository. One typedef and the byte buffers below can say what
+  ;;; they are.
+  (@define (code "ubyte_t unsigned char"))
+
+  ;;; THE HEADERS ARE THE TARGET'S, not this file's. A lib/*.cicili module
+  ;;; is compiled into the one cocolog.c, so its includes live in
+  ;;; cocolog.cicili's `(source ...)' form beside <sys/stat.h> and
+  ;;; <dirent.h>, which is where files.cicili's came from too.
+
+  ;;; Registers the module. A target calls this after `coco_module_init'.
+  (decl) (func coco_tcp_module () (out int))
+
+  ) ; decl-tcp
+
+
+(generic impl-tcp
+  ()
+
+  ;;; ---- the table of what this module opened ---------------------------
+  ;;;
+  ;;; THE WHOLE POINT: a handle handed to Prolog is a slot in here, never a
+  ;;; file descriptor. Prolog does arithmetic, so any integer can arrive at
+  ;;; any of these predicates; a slot that this module did not fill is not a
+  ;;; socket, and saying so is the difference between a failed call and a
+  ;;; closed stdout.
+  ;;;
+  ;;; A fixed array rather than a growing one, because the number is a
+  ;;; capacity decision that should be visible: 256 sockets is a great many
+  ;;; for one interpreter and running out says so rather than growing until
+  ;;; the machine complains.
+  ;;;
+  ;;; WRITTEN OUT AS 256 EVERYWHERE, and not as a #define, because a
+  ;;; `#define' is raw C that Cicili never sees -- the symbol is unknown to
+  ;;; it and the transpile stops. files.cicili says the same of PATH_MAX and
+  ;;; writes its 4096 out. Every loop below is bounded by the same literal.
+
+  (static) (var int coco_t_fd [256])
+    ;;; INDEXED WITH `nth', which takes the index FIRST -- `(nth i arr)', not
+  ;;; `arr[i]' and not `aref'. lib/kb.cicili is the worked example.
+  ;;;
+  ;;; ONE DIMENSION, because Cicili has no two. `[256][64]' is read by the
+  ;;; macro layer as something whose length it then takes, and the transpile
+  ;;; dies with `The value 0 is not of type SEQUENCE' -- a message about
+  ;;; Lisp, fifty lines from anything to do with sockets. Flat, 64 bytes to
+  ;;; the slot, and the stride is written at every use.
+  (static) (var char coco_t_peer_s [16384])
+  (static) (var int coco_t_ready . 0)
+
+  ;;; -1 means "free". Zero would be a legal descriptor, and a table that
+  ;;; starts full of legal descriptors is a table that closes stdin.
+  (static)
+  (func coco_t_init_table () (out void)
+        (block
+          (if coco_t_ready (return))
+          (for ((int i . 0)) (< i 256) ((++ i))
+               (set (nth i coco_t_fd) -1)
+               (set (nth (* i 64) coco_t_peer_s) 0))
+          (set coco_t_ready 1)))
+
+  (static)
+  (func coco_t_slot_new ((int fd)) (out int)
+        (block
+          (coco_t_init_table)
+          (for ((int i . 0)) (< i 256) ((++ i))
+               (if (== (nth i coco_t_fd) -1)
+                   (block (set (nth i coco_t_fd) fd) (return i))))
+          (return -1)))
+
+  ;;; The lookup every predicate goes through. An out-of-range index, a
+  ;;; negative one, or a free slot all answer -1, and the caller fails.
+  (static)
+  (func coco_t_slot_fd ((int slot)) (out int)
+        (coco_t_init_table)
+        (if (or (< slot 0) (>= slot 256)) (return -1))
+        (return (nth slot coco_t_fd)))
+
+  ;;; ---- reading arguments ----------------------------------------------
+
+  ;;; Argument I as an integer. Answers 1, or 0 having filled in `rc' with
+  ;;; what the caller should return -- the same shape files.cicili uses,
+  ;;; because an instantiation error is a THROW and a builtin that met one
+  ;;; must answer 1 if some catch/3 took it and -1 if none did. A plain 0
+  ;;; would be a silent failure in the first case.
+  (static)
+  (func coco_t_int ((coco_engine * e) (size_t g) (u32 i) (i64 * out) (int * rc))
+        (out int)
+        (let ((size_t t . #'(coco_m_arg e g i)))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (not (coco_m_int e t out))
+              (block (set (cof rc) (coco_m_type_error e "integer" t)) (return 0)))
+          (return 1)))
+
+  ;;; Argument I as a socket this module opened. Everything else is a
+  ;;; failure rather than an error: asking about a socket that is not open
+  ;;; is a question with a false answer, not a broken program.
+  (static)
+  (func coco_t_sock ((coco_engine * e) (size_t g) (u32 i) (int * fd) (int * rc))
+        (out int)
+        (let ((i64 v . 0) (int f))
+          (if (not (coco_t_int e g i (aof v) rc)) (return 0))
+          (set f (coco_t_slot_fd (cast int v)))
+          (if (< f 0) (block (set (cof rc) 0) (return 0)))
+          (set (cof fd) f)
+          (return 1)))
+
+  ;;; ---- waiting ---------------------------------------------------------
+
+  ;;; poll() on one descriptor. 1 ready, 0 timed out, -1 broken. EINTR is
+  ;;; retried rather than reported, because a signal arriving is not an
+  ;;; answer to "did anybody connect".
+  (static)
+  (func coco_t_wait ((int fd) (int writing) (int ms)) (out int)
+        (let ((int n . 0))
+          (code "struct pollfd _p; _p.fd = fd; _p.events = writing ? POLLOUT : POLLIN; _p.revents = 0;")
+          (while 1
+            (set n (code "poll(&_p, 1, ms)"))
+            (if (and (< n 0) (== errno EINTR)) continue)
+            break)
+          (if (< n 0) (return -1))
+          (return (? (> n 0) 1 0))))
+
+  ;;; ---- listen ----------------------------------------------------------
+
+  ;;; SO_REUSEADDR, because without it a server restarted inside the
+  ;;; TIME_WAIT window cannot bind its own port -- which on a test suite
+  ;;; that starts and stops a server repeatedly is not an edge case, it is
+  ;;; every run after the first.
+  (func coco_t_listen ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 port . 0) (int fd . -1) (int slot . -1))
+          (if (not (coco_t_int e g 0 (aof port) (aof rc))) (return rc))
+          (if (or (< port 0) (> port 65535))
+              (return (coco_m_domain_error e "port" (coco_m_arg e g 0))))
+          (set fd (code "socket(AF_INET, SOCK_STREAM, 0)"))
+          (if (< fd 0) (return 0))
+          (code "{ int _on = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &_on, sizeof _on); }")
+          (code "struct sockaddr_in _a; memset(&_a, 0, sizeof _a); _a.sin_family = AF_INET; _a.sin_addr.s_addr = htonl(INADDR_ANY); _a.sin_port = htons((unsigned short)port);")
+          (if (== 0 (code "(bind(fd, (struct sockaddr *)&_a, sizeof _a) == 0)"))
+              (block (close fd) (return 0)))
+          (if (== 0 (code "(listen(fd, 64) == 0)")) (block (close fd) (return 0)))
+          (set slot (coco_t_slot_new fd))
+          (if (< slot 0) (block (close fd) (return 0)))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 slot)))))
+
+  ;;; ---- connect ---------------------------------------------------------
+
+  ;;; getaddrinfo rather than inet_addr, so a peer can be named rather than
+  ;;; numbered -- which is what talking to another instance by hostname
+  ;;; needs, and what a tunnel hands you.
+  (func coco_t_connect ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 port . 0) (int fd . -1) (int slot . -1)
+              (char host [256]) (char svc [16]))
+          (let ((size_t t . #'(coco_m_arg e g 0)))
+            (if (coco_m_is_var e t)
+                (return (coco_m_instantiation_error e)))
+            (if (not (coco_m_text e t host (sizeof host)))
+                (return (coco_m_type_error e "atom" t))))
+          (if (not (coco_t_int e g 1 (aof port) (aof rc))) (return rc))
+          (snprintf svc (sizeof svc) "%d" (cast int port))
+          ;; getaddrinfo rather than inet_addr, so a peer can be NAMED --
+          ;; which is what a tunnel hands you and what one instance calling
+          ;; another by hostname needs. The whole walk is one escape,
+          ;; because every value in it is a struct field.
+          (set fd (code "({ struct addrinfo _h, *_r = NULL, *_i; int _fd = -1; memset(&_h, 0, sizeof _h); _h.ai_family = AF_INET; _h.ai_socktype = SOCK_STREAM; if (getaddrinfo(host, svc, &_h, &_r) == 0) { for (_i = _r; _i; _i = _i->ai_next) { _fd = socket(_i->ai_family, _i->ai_socktype, _i->ai_protocol); if (_fd < 0) continue; if (connect(_fd, _i->ai_addr, _i->ai_addrlen) == 0) break; close(_fd); _fd = -1; } freeaddrinfo(_r); } _fd; })"))
+          (if (< fd 0) (return 0))
+          (set slot (coco_t_slot_new fd))
+          (if (< slot 0) (block (close fd) (return 0)))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 slot)))))
+
+  ;;; ---- accept ----------------------------------------------------------
+
+  ;;; tcp_accept(+Sock, +TimeoutMs, -Conn, -Peer). Timing out is a failure,
+  ;;; not an error: a server loop asks this over and over and "nobody yet"
+  ;;; is the ordinary answer.
+  (func coco_t_accept ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int fd . -1) (i64 ms . 0) (int c . -1) (int slot . -1)
+              (int w . 0) (char peer [64]))
+          (if (not (coco_t_sock e g 0 (aof fd) (aof rc))) (return rc))
+          (if (not (coco_t_int e g 1 (aof ms) (aof rc))) (return rc))
+          (set w (coco_t_wait fd 0 (cast int ms)))
+          (if (<= w 0) (return 0))
+          (code "struct sockaddr_in _a; socklen_t _alen = sizeof _a; memset(&_a, 0, sizeof _a);")
+          (set c (code "accept(fd, (struct sockaddr *)&_a, &_alen)"))
+          (if (< c 0) (return 0))
+          ;; Nagle off: a reply is one small write, and waiting 40ms to see
+          ;; whether another follows is exactly wrong for request/response.
+          (code "{ int _on = 1; setsockopt(c, IPPROTO_TCP, TCP_NODELAY, &_on, sizeof _on); }")
+          (set slot (coco_t_slot_new c))
+          (if (< slot 0) (block (close c) (return 0)))
+          (code "snprintf(peer, sizeof peer, \"%s:%d\", inet_ntoa(_a.sin_addr), (int)ntohs(_a.sin_port));")
+          (snprintf (+ coco_t_peer_s (* slot 64)) 64 "%s" peer)
+          (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 slot))) (return 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 3) peer))))
+
+  ;;; Who is at the other end of a socket this module accepted. Empty for
+  ;;; one it opened itself, which is the honest answer rather than a guess.
+  (func coco_t_peer ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 v . 0))
+          (if (not (coco_t_int e g 0 (aof v) (aof rc))) (return rc))
+          (if (< (coco_t_slot_fd (cast int v)) 0) (return 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 1)
+                                     (+ coco_t_peer_s (* (cast int v) 64))))))
+
+  ;;; ---- read ------------------------------------------------------------
+
+  ;;; tcp_read(+Conn, +MaxBytes, +TimeoutMs, -Codes). Answers a list of byte
+  ;;; values, so every byte survives -- an atom would stop at the first NUL,
+  ;;; and a body is not text. End of stream and a timeout are both plain
+  ;;; failures, and `tcp_read_all/2' in the Coco half is what turns the
+  ;;; first of those into a stopping condition.
+  (func coco_t_read ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int fd) (i64 maxb . 0) (i64 ms . 0) (int w)
+              (ssize_t n . 0) (size_t lst)
+              (ubyte_t * buf . nil))
+          (if (not (coco_t_sock e g 0 (aof fd) (aof rc))) (return rc))
+          (if (not (coco_t_int e g 1 (aof maxb) (aof rc))) (return rc))
+          (if (not (coco_t_int e g 2 (aof ms) (aof rc))) (return rc))
+          (if (or (<= maxb 0) (> maxb 16777216))
+              (return (coco_m_domain_error e "byte_count" (coco_m_arg e g 1))))
+          (set w (coco_t_wait fd 0 (cast int ms)))
+          (if (<= w 0) (return 0))
+          (set buf (cast (ubyte_t *) (malloc (cast size_t maxb))))
+          (if (== buf nil) (return 0))
+          (while 1
+            (set n (code "recv(fd, buf, (size_t)maxb, 0)"))
+            (if (and (< n 0) (== errno EINTR)) continue)
+            break)
+          (if (<= n 0) (block (free buf) (return 0)))
+          ;; Built back to front, because consing onto a list is what a list
+          ;; is: the last byte read is the first cell made.
+          (set lst (coco_m_nil e))
+          (for ((size_t i . #'(cast size_t n))) (> i 0) ((-- i))
+               (set lst (coco_m_cons e
+                                     (coco_new_int (-> e m)
+                                                   (cast i64 (nth (- i 1) buf)))
+                                     lst)))
+          (free buf)
+          (return (coco_m_unify e (coco_m_arg e g 3) lst))))
+
+  ;;; ---- write -----------------------------------------------------------
+
+  ;;; Writes an ATOM or a list of codes, because a caller writing a literal
+  ;;; response should not have to convert it first and a caller with bytes
+  ;;; should not have to lose them. A partial write is looped rather than
+  ;;; reported: `send' returning less than it was given is normal on a
+  ;;; socket and a library that passed that on to Prolog would have every
+  ;;; caller write the same loop.
+  (func coco_t_write ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int fd) (size_t t) (size_t n . 0)
+              (ubyte_t * buf . nil) (size_t off . 0) (ssize_t w . 0)
+              (size_t * items . nil))
+          (if (not (coco_t_sock e g 0 (aof fd) (aof rc))) (return rc))
+          (set t (coco_m_arg e g 1))
+          (if (coco_m_is_var e t) (return (coco_m_instantiation_error e)))
+          (if (coco_m_is_atom e t)
+              (block
+                (let ((char txt [65536]))
+                  (if (not (coco_m_text e t txt (sizeof txt))) (return 0))
+                  (set n (strlen txt))
+                  (set buf (cast (ubyte_t *) (malloc (+ n 1))))
+                  (if (== buf nil) (return 0))
+                  (memcpy buf txt n)))
+              (block
+                (if (not (coco_m_list_length e t (aof n))) (return 0))
+                (set buf (cast (ubyte_t *) (malloc (+ n 1))))
+                (if (== buf nil) (return 0))
+                (if (not (coco_m_list_array e t (aof items) (aof n)))
+                    (block (free buf) (return 0)))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                     (let ((i64 v . 0))
+                       (if (not (coco_m_int e (nth i items) (aof v)))
+                           (block (free buf) (free items)
+                                  (return (coco_m_type_error e "integer" (nth i items)))))
+                       (set (nth i buf) (cast ubyte_t (bitand v 255)))))
+                (free items)))
+          (while (< off n)
+            (set w (code "send(fd, buf + off, n - off, MSG_NOSIGNAL)"))
+            (if (and (< w 0) (== errno EINTR)) continue)
+            (if (< w 0) (block (free buf) (return 0)))
+            (set off (+ off (cast size_t w))))
+          (free buf)
+          (return 1)))
+
+  ;;; ---- close -----------------------------------------------------------
+
+  ;;; Closing frees the slot as well as the descriptor, and closing
+  ;;; something this module did not open is a failure rather than a close.
+  ;;; That is the whole reason the table exists.
+  (func coco_t_close ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 v . 0) (int fd))
+          (if (not (coco_t_int e g 0 (aof v) (aof rc))) (return rc))
+          (set fd (coco_t_slot_fd (cast int v)))
+          (if (< fd 0) (return 0))
+          (close fd)
+          (set (nth (cast int v) coco_t_fd) -1)
+          (set (nth (* (cast int v) 64) coco_t_peer_s) 0)
+          (return 1)))
+
+  ;;; What is open, so a test can prove there is no leak. A library that
+  ;;; cannot be asked what it is holding is a library whose leaks are found
+  ;;; in production.
+  (func coco_t_sockets ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t lst))
+          (coco_t_init_table)
+          (set lst (coco_m_nil e))
+          (for ((int i . 255)) (>= i 0) ((-- i))
+               (if (!= (nth i coco_t_fd) -1)
+                   (set lst (coco_m_cons e (coco_new_int (-> e m) (cast i64 i)) lst))))
+          (return (coco_m_unify e (coco_m_arg e g 0) lst))))
+
+  ;;; ---- the module -----------------------------------------------------
+
+  ;;; The dispatcher, from the table at the top of this file, and the
+  ;;; registration function a target calls. Two macro calls and no
+  ;;; hand-written glue: everything that could fall out of step with the
+  ;;; table is generated from it.
+  (static) (coco-emit-module-dispatch coco_t_dispatch *tcp-predicates*)
+
+  (coco-defmodule coco_tcp_module "tcp" coco_t_dispatch *tcp-prolog*)
+
+  ) ; impl-tcp
