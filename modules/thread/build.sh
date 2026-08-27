@@ -11,6 +11,7 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 CICILI=${CICILI:-$HOME/cicili}
+. "$ROOT/tools/cc/env.sh"
 OUT=${OUT:-$ROOT/library}
 
 ln -sfn "$ROOT/lib/sdk.cicili" "$HERE/sdk.cicili"
@@ -18,5 +19,5 @@ ln -sfn "$ROOT/lib/sdk.cicili" "$HERE/sdk.cicili"
 mkdir -p "$OUT"
 ( cd "$CICILI" && sbcl --script cicili.lisp --release "$HERE/thread.cicili" )
 
-gcc -shared -fPIC -O3 -o "$OUT/thread.so" "$HERE/thread.c" -lpthread
+"$CC" -shared -fPIC -O3 -o "$OUT/thread.so" "$HERE/thread.c" -lpthread
 echo "built $OUT/thread.so"

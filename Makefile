@@ -30,7 +30,44 @@
 CICILI         ?= $(HOME)/cicili
 ZIGURATIP      ?= $(HOME)/ZiguratIP
 SBCL           ?= sbcl
-CC             ?= cc
+
+# ---- which compiler ---------------------------------------------------------
+# CLANG, EVERYWHERE, and the same one for every layer. The interpreter, the
+# client, the embedded store and the loadable modules used to be built by
+# whatever each step happened to name -- `cc' here, `gcc' in a build.sh,
+# `g++' on the link line -- which is three toolchains in one binary and a
+# benchmark that cannot say what it measured. CC and CXX are now the single
+# answer, exported so every build.sh under modules/ and embed/ inherits it.
+#
+# `make CICILI_CC=gcc CICILI_CXX=g++' still builds with gcc; nothing here is
+# load-bearing on clang. What IS load-bearing is that all of it agrees.
+#
+# CC and CXX name the two WRAPPERS in tools/cc rather than the compilers
+# outright, because tools/cc/cxx carries the --gcc-install-dir that Ubuntu
+# makes necessary -- clang borrows libstdc++ from the newest gcc it can
+# find, and gcc-14's runtime directory ships no C++ headers, so a bare
+# clang++ dies on `#include <string>'. tools/cc/README has the detail.
+#
+# CICILI NAMES ITS COMPILER OUTRIGHT and takes no override, so the one step
+# this file does not run itself is reached through tools/cc -- `gcc' and
+# `g++' there are two more shims onto the same wrappers, on PATH for that
+# step alone. tools/cc/README also has the three-line Cicili patch that
+# would retire them.
+# `?=' WOULD NOT HAVE WORKED, and did not: make gives CC and CXX built-in
+# values of `cc' and `g++', whose origin is `default' rather than
+# `undefined', so `CXX ?= ...' leaves g++ in place and the final link went
+# on being a gcc link while every other line said clang. Testing the
+# origin is what actually means "unless the caller said otherwise".
+CICILI_CC      ?= clang
+CICILI_CXX     ?= clang++
+ifeq ($(origin CC),default)
+CC             := $(CURDIR)/tools/cc/cc
+endif
+ifeq ($(origin CXX),default)
+CXX            := $(CURDIR)/tools/cc/cxx
+endif
+export CICILI_CC
+export CICILI_CXX
 CFLAGS         ?= -Wall -Wextra -std=c99 -O3 -D_DEFAULT_SOURCE
 AR             ?= ar
 
@@ -75,7 +112,8 @@ check-cicili:
 # compiling, so a relative -I or -L in a target is relative to that file.
 # --release is Cicili's own release set (-O3; -falign-loops=32 for C):
 # the interpreter ships optimised, matching the engine and the server.
-CICILI_RUN = cd "$(CICILI)" && $(SBCL) --script cicili.lisp --release
+CICILI_RUN = PATH="$(CURDIR)/tools/cc:$$PATH" \
+	     sh -c 'cd "$(CICILI)" && $(SBCL) --script cicili.lisp --release "$$1"' cicili
 
 # ONE BINARY. The Cicili run compiles the interpreter and links a plain
 # executable; the link below replaces it with the full one -- the embedded
@@ -100,7 +138,7 @@ TORCH_LIB ?= $(shell python3 -c "import torch, os; print(os.path.join(os.path.di
 cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
-	g++ -O3 .libs/cocolog.o embed/.libs/embed.o \
+	$(CXX) -O3 .libs/cocolog.o embed/.libs/embed.o \
 	  -o cocolog \
 	  -rdynamic -ldl \
 	  -Lbuild -lcocologc -lm -lpthread \

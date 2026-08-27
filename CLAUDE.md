@@ -55,6 +55,57 @@ cd /home/user/ZiguratIP && ZIGURATIP_HOME=$PWD/home \
 Start it detached. A plain `nohup … &` from a tool call does not survive the
 turn, and what you get then is the next hazard.
 
+### One compiler, and where it is written down
+
+Everything here is built by **clang**: the client, the interpreter, the
+embedded store, every `.so` under `library/`, and — over in ZiguratIP —
+libCore and the server the tests talk to. That is not a preference, it is
+a requirement of the arrangement: cocolog links ZiguratIP's C++ libraries
+into its own binary and `dlopen`s modules into its own process, so a
+mixed toolchain is one address space with two ABIs in it.
+
+`tools/cc/` is the whole answer, in four small files, and `tools/cc/README`
+is the long version. Two things in it are worth knowing before a build
+surprises you:
+
+* **Cicili names `gcc` outright** in `config.lisp` and takes no override.
+  It is frozen, so the build puts `tools/cc` on `PATH` for that one step
+  and keeps a `gcc`/`g++` pair there that exec the real compilers. The
+  three-line Cicili patch that would retire them is in the README, offered
+  and not applied.
+* **`clang++` alone does not compile C++ on this box.** It borrows
+  libstdc++ from the newest gcc it can find, which is gcc-14's runtime
+  directory — crtbegin.o, libgcc_s.so, and not one header, because g++ is
+  13.3. Every C++ file then dies at `fatal error: 'string' file not found`
+  naming a header that is plainly installed. `tools/cc/cxx` works out
+  which gcc install dir actually has a header set and passes
+  `--gcc-install-dir`.
+
+`make CICILI_CC=gcc CICILI_CXX=g++` builds with gcc, and ZiguratIP's
+`make COMPILER=g++` does the same there. Nothing is load-bearing on clang;
+what is load-bearing is that all of it agrees.
+
+**`?=` DOES NOT DO WHAT YOU WANT FOR `CC` AND `CXX`.** make gives them
+built-in values (`cc`, `g++`) whose origin is `default`, not `undefined`,
+so `CXX ?= …` leaves `g++` in place. The final link went on being a gcc
+link while every other line of the build said clang, and the only way to
+see it was `readelf -p .comment`. Test the origin instead:
+
+```make
+ifeq ($(origin CXX),default)
+CXX := $(CURDIR)/tools/cc/cxx
+endif
+```
+
+**Clang is stricter, and Cicili treats compiler chatter as FATAL.** A
+target compiled as C++ needs `-Wno-parentheses-equality` and
+`-Wno-dangling-else` in its own `:compile` list, because the transpiler
+emits `while ((x == 0))` and unbraced else-if chains and clang complains
+about both. Without them the build stops with an `Unhandled SIMPLE-ERROR`
+whose text is a warning. gcc ignores unknown `-Wno-` options, so the flags
+travel to every platform. `cocolog.cicili`, `embed/embed.cicili` and all
+three MVCCS-cicili targets carry them.
+
 ## Three hazards, each of which has already cost a day
 
 **A slow suite is the store ageing, not your change.** Deleted rows are kept

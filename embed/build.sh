@@ -8,7 +8,9 @@
 #   ZIGURATIP  a ZiguratIP checkout    (default $HOME/ZiguratIP)
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
+ROOT=$(cd "$HERE/.." && pwd)
 CICILI=${CICILI:-$HOME/cicili}
+. "$ROOT/tools/cc/env.sh"
 ZIGURATIP=${ZIGURATIP:-$HOME/ZiguratIP}
 
 ln -sfn "$ZIGURATIP/Core"                          "$HERE/Core"

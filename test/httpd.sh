@@ -590,6 +590,83 @@ wait 2>/dev/null
 # died in between, and would be testing the rename.
 fi
 
+echo "-- pages that reach the knowledge base, from a worker thread"
+HOST=${ZIGURAT_HOST:-127.0.0.1}
+PORT=${ZIGURAT_PORT:-2160}
+KB="--kb httpd_kb_case --host $HOST --port $PORT --timeout 30"
+if [ ! -f "$ROOT/library/thread.so" ]; then
+  echo "   (SKIPPED -- no library/thread.so)"
+elif ! command -v curl >/dev/null 2>&1; then
+  echo "   (SKIPPED -- no curl)"
+elif ! timeout 20 "$C" $KB list >/dev/null 2>&1; then
+  echo "   (SKIPPED -- no Zigurat server at $HOST:$PORT)"
+else
+timeout 60 "$C" $KB forget >/dev/null 2>&1
+timeout 60 "$C" $KB query "assertz(stock(widget, 7))" >/dev/null 2>&1
+
+cat > "$D/kbpages.pl" <<'PL'
+%% READS the knowledge base -- a clause a DIFFERENT PROCESS wrote, which
+%% is the whole claim: a worker's store is its own, so this can only work
+%% through a connection of the thread's own.
+httpd_page('/stock', _, reply(200, [], Body)) :-
+    stock(widget, N),
+    atomic_list_concat(['widget ', N], Body).
+
+%% ...and WRITES it. Every hit adds a row, so counting them afterwards
+%% from another process counts requests that really settled.
+httpd_page('/visit', _, reply(200, [], counted)) :- assertz(visit(now)).
+PL
+cat > "$D/kbsrv.pl" <<PL
+:- use_module(library(httpd)).
+:- use_module('$D/kbpages.pl').
+pooled(P, W, A) :- httpd_serve(P, [root('$D/root'), workers(W)], A).
+alone(P, A)     :- httpd_serve(P, [root('$D/root')], A).
+PL
+kb_count() { timeout 60 "$C" $KB query \
+  "findall(x, visit(_), L), length(L, N), write(answer(N)), nl" 2>/dev/null \
+  | grep -a '^answer(' | head -1 | sed 's/^answer(//; s/)$//'; }
+
+# A WORKER READS. Before the kb hook a thread was a --local proof whatever
+# the parent was, and this page answered 404 because stock/2 was not there.
+setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18930, 3, 1)" >/dev/null 2>&1 &
+sleep 3
+check "a page in a worker reads what another process wrote" \
+  "$(timeout 30 curl -s http://127.0.0.1:18930/stock)" "widget 7"
+wait 2>/dev/null
+
+# THREE WORKERS WRITE, and the count is taken by a SEPARATE PROCESS --
+# which is the only way to prove the transaction settled rather than
+# merely happening inside the server's own head.
+setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18931, 3, 3)" >/dev/null 2>&1 &
+sleep 3
+for i in 1 2 3; do timeout 30 curl -s -o /dev/null http://127.0.0.1:18931/visit; done
+wait 2>/dev/null
+check "three pooled writes are all visible to another process" "$(kb_count)" "3"
+
+# ONE TRANSACTION PER REQUEST, not per worker. A worker's goal is the
+# whole loop, so a per-worker commit would leave these invisible until the
+# server stopped -- and the server is still running when this is counted.
+timeout 60 "$C" $KB forget >/dev/null 2>&1
+timeout 60 "$C" $KB query "assertz(stock(widget, 7))" >/dev/null 2>&1
+setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18932, 2, 4)" >/dev/null 2>&1 &
+sleep 3
+timeout 30 curl -s -o /dev/null http://127.0.0.1:18932/visit
+mid=$(kb_count)
+timeout 30 curl -s -o /dev/null http://127.0.0.1:18932/visit
+check "the first write settles while the server is still running" "$mid" "1"
+wait 2>/dev/null
+
+# AND THE SINGLE-THREADED PATH TOO, which had the same bug and no pool to
+# blame it on: httpd_loop is one goal as well.
+timeout 60 "$C" $KB forget >/dev/null 2>&1
+setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "alone(18933, 2)" >/dev/null 2>&1 &
+sleep 3
+timeout 30 curl -s -o /dev/null http://127.0.0.1:18933/visit
+check "workers(0) settles per request as well" "$(kb_count)" "1"
+wait 2>/dev/null
+timeout 60 "$C" $KB forget >/dev/null 2>&1
+fi
+
 rm -rf "$D"
 echo
 if [ "$failures" -eq 0 ]; then

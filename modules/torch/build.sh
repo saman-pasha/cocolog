@@ -16,6 +16,7 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 CICILI=${CICILI:-$HOME/cicili}
+. "$ROOT/tools/cc/env.sh"
 OUT=${OUT:-$ROOT/library}
 
 TORCH_LIB=${LIBTORCH:-$(python3 -c "import torch, os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))" 2>/dev/null)}
@@ -31,7 +32,7 @@ mkdir -p "$OUT"
 
 # The -rpath is the module's now, not the binary's, which is the point of
 # the move: a cocolog with no torch.so beside it needs nothing from here.
-g++ -shared -fPIC -O3 -std=c++17 \
+"$CXX" -shared -fPIC -O3 -std=c++17 \
     -Wno-c++20-extensions -Wno-parentheses-equality -Wno-dangling-else \
     -I"$TORCH_INC" -I"$TORCH_INC/torch/csrc/api/include" \
     -o "$OUT/torch.so" "$HERE/coco-torch.cpp" \

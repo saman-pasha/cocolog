@@ -20,6 +20,7 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 CICILI=${CICILI:-$HOME/cicili}
+. "$ROOT/tools/cc/env.sh"
 OUT=${OUT:-$ROOT/library}
 
 if [ ! -f /usr/include/curl/curl.h ] && [ ! -f /usr/include/x86_64-linux-gnu/curl/curl.h ] \
@@ -38,6 +39,6 @@ mkdir -p "$OUT"
 
 # -O3 is what actually optimises the .so: Cicili's --release governs how
 # CICILI compiles, and this script compiles the emitted .c itself.
-gcc -shared -fPIC -O3 -o "$OUT/curl.so" "$HERE/curl.c" \
+"$CC" -shared -fPIC -O3 -o "$OUT/curl.so" "$HERE/curl.c" \
     $(curl-config --cflags 2>/dev/null) $(curl-config --libs 2>/dev/null || echo -lcurl)
 echo "built $OUT/curl.so"

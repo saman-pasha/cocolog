@@ -21,6 +21,7 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 CICILI=${CICILI:-$HOME/cicili}
+. "$ROOT/tools/cc/env.sh"
 ZIGURATIP=${ZIGURATIP:-$HOME/ZiguratIP}
 
 if [ ! -f "$ZIGURATIP/home/include/bigint.hpp" ]; then
@@ -37,7 +38,7 @@ mkdir -p "$OUT"
 # -fPIC and -shared are the difference between the old .o and this .so; the
 # rest is what the Makefile used to pass at link time, moved here where the
 # module that needs it lives.
-g++ -shared -fPIC -O3 -std=c++17 \
+"$CXX" -shared -fPIC -O3 -std=c++17 \
     -Wno-parentheses-equality -Wno-dangling-else \
     -I"$HERE/zigheaders" \
     -o "$OUT/bigint.so" "$HERE/coco-bigint.cpp" \

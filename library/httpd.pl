@@ -188,12 +188,17 @@ httpd_alone(Port, Options, Count) :-
 %% write a connection the accepting thread opened. Only the accepting
 %% thread ever allocates a slot; a worker only uses one and closes it.
 %%
-%% WHAT A WORKER CANNOT DO, and it is the same limit library(thread)
-%% states: its store is its own and it has NO database connection, so a
-%% page that reads the knowledge base sees nothing there. Static files and
-%% pages that compute are what a pool serves today. `workers(0)' -- the
-%% default -- is the arrangement where a page has the store, and it is
-%% still the right one for a server whose pages are about the database.
+%% A WORKER HAS THE KNOWLEDGE BASE, and getting there is what
+%% `coco_m_kb_install' in lib/module.cicili exists for. A thread used to
+%% be a `--local' proof whatever the parent was, because `db' is
+%% thread-local and null on a new one; now the composition root hands each
+%% thread A CONNECTION OF ITS OWN, in whatever arrangement the process was
+%% started with -- which is the `swarm' command's rule, and the only one
+%% that works, because two threads through one Zigurat connection is a
+%% wedge this project has already spent a day on.
+%%
+%% ONE TRANSACTION PER REQUEST, see httpd_settle below. It has to be per
+%% request and not per worker: a worker's goal is the whole loop.
 %%
 %% THE POOL IS NOT FASTER AT ONE CONNECTION AT A TIME. It is what stops
 %% one slow request holding every other client, which is what the
@@ -235,16 +240,69 @@ httpd_accept_loop(_, _, _, _).
 %% it, take another. RECURSION rather than a failure-driven loop, for the
 %% reason library(thread)'s own channel_forall carries in its comment --
 %% recv is semidet, so `..., fail' would do exactly one round.
+%%
+%% EACH CONNECTION IS ITS OWN TURN, and that is not a refinement -- it is
+%% what makes a pooled server correct at all. A worker's goal runs for the
+%% life of the server, and a store CACHES: the first time a proof asks for
+%% `visit/1' the store fetches its clauses, marks the predicate loaded and
+%% never asks again. Two workers each answering a write then hold two
+%% divergent pictures of the same predicate, and the Zigurat backend
+%% flushes a dirty predicate WHOLESALE -- so the second worker's commit
+%% writes its own stale copy over the first's row. MEASURED, before this:
+%% three sequential POSTs through a pool of three left TWO facts in the
+%% database, reproducibly, with no concurrency involved at all.
+%%
+%% `run_isolated/2' is library(thread)'s name for what a thread already
+%% does -- a fresh machine, a fresh store, a fresh connection through
+%% `coco_m_kb_install' -- so a request begins with no cache and ends with
+%% its own commit. Nesting is safe: the composition root saves and
+%% restores the thread's previous connection round the inner one.
+%%
+%% THE SOCKET IS CLOSED INSIDE the isolated proof, because the handle is a
+%% process-wide table index and the inner machine can use it exactly as
+%% the outer one could. Closing it out here as well would close a slot
+%% another worker had since been given.
 httpd_worker(Ch, Options) :-
     channel_recv(Ch, conn(C)),
     !,
-    (   catch(httpd_transact(C, Options), _, true)
-    ->  true
-    ;   true
-    ),
-    tcp_close(C),
+    catch(run_isolated(httpd_one(C, Options), _), _, true),
     httpd_worker(Ch, Options).
 httpd_worker(_, _).
+
+%% One connection, from inside its own turn. FAILING IS HOW THE ROLLBACK
+%% IS ASKED FOR: run_isolated tells the connection whether the goal proved,
+%% and a request that broke must not leave half its writes behind. The
+%% socket closes on both paths, before the outcome is decided.
+httpd_one(C, Options) :-
+    (   catch(httpd_transact(C, Options), _, fail)
+    ->  catch(tcp_close(C), _, true)
+    ;   catch(tcp_close(C), _, true),
+        fail
+    ).
+
+%% ---- one transaction per request --------------------------------------
+
+%% THE PROJECT'S OWN RULE FOR A TURN, applied to a request. A worker's
+%% goal is the WHOLE loop -- it runs until the channel closes -- so
+%% without this its connection would commit once, at shutdown: a page's
+%% write would be invisible to every other process until the server
+%% stopped, and its reads would be a snapshot taken when the thread
+%% started. Neither is a server.
+%%
+%% A REQUEST THAT BROKE ROLLS BACK, and "broke" means an error escaped
+%% httpd_transact -- not that a page threw. A page that throws is answered
+%% 500 and that 500 was served successfully, so it commits: the reply is
+%% the outcome, and a page which wrote before raising chose to.
+%%
+%% SILENT WITHOUT A DATABASE. `zigurat_commit' raises in --local, where
+%% there is no connection to settle and nothing to say about it.
+%%
+%% THE POOLED PATH DOES NOT COME HERE. A worker's request is an isolated
+%% proof and its connection is settled by whoever opened it -- see
+%% httpd_worker. This is the single-threaded loop's own settlement, where
+%% the process's one connection is the only one there is.
+httpd_settle(ok)    :- catch(zigurat_commit,   _, true).
+httpd_settle(broke) :- catch(zigurat_rollback, _, true).
 
 httpd_loop(_, _, 0) :- !.
 httpd_loop(S, Options, N) :-
@@ -257,11 +315,15 @@ httpd_loop(S, Options, N) :-
     %% ONE CONNECTION MUST NOT TAKE THE SERVER WITH IT. A malformed request,
     %% a client that vanished, a page that threw -- each ends this
     %% conversation and nothing more, and the socket closes either way.
-    (   catch(httpd_transact(C, Options), _, true)
-    ->  true
-    ;   true
+    (   catch(httpd_transact(C, Options), _, fail)
+    ->  Out = ok
+    ;   Out = broke
     ),
     tcp_close(C),
+    %% THE SAME RULE ON THE SINGLE-THREADED PATH, and it was missing here
+    %% too: this loop is one goal as well, so a page's write waited for
+    %% the whole server to stop.
+    httpd_settle(Out),
     (   N < 0
     ->  N1 = N
     ;   N1 is N - 1

@@ -304,6 +304,37 @@
   ;;; because loading libraries at start-up is what every program does.
   (decl) (func coco_m_run_isolated ((const char * src) (char * err)
                                   (size_t errlen)) (out int))
+
+  ;;; ---- and the knowledge base it runs against -------------------------
+  ;;;
+  ;;; THE HOOK THAT GIVES A THREAD A DATABASE. `coco_m_run_isolated' makes
+  ;;; a machine, a store and an engine, and until this pair existed the
+  ;;; store had no hooks: a thread was a `--local' proof whatever the
+  ;;; parent was, so a page served from a worker could not read a clause
+  ;;; anybody else had written.
+  ;;;
+  ;;; IT IS A HOOK BECAUSE THE ANSWER LIVES UPSTAIRS. Which arrangement
+  ;;; this process is in -- local, a socket, Zeytun, an embedded store --
+  ;;; is `opts' in the composition root, and so is the code that opens a
+  ;;; connection and attaches the store's five hooks to it. This layer
+  ;;; cannot know any of that and should not; it can call back into
+  ;;; whoever does, which is exactly what `coco_extern_install' already
+  ;;; does for a module's clauses.
+  ;;;
+  ;;; ONE CONNECTION PER THREAD, which is the `swarm' command's rule and
+  ;;; the only one that works: `db' is thread-local, a Zigurat connection
+  ;;; is not shareable, and two threads through one socket is the wedge
+  ;;; STATUS.md spent a day on. OPEN answers 0 to mean "no database in
+  ;;; this arrangement", which is not a failure -- `--local' says it every
+  ;;; time -- and fills CTX with whatever CLOSE will need.
+  ;;;
+  ;;; CLOSE IS TOLD WHETHER THE PROOF WORKED, because a connection that
+  ;;; wrote and then failed must roll back rather than commit: half of a
+  ;;; failed goal's assertions is not a state anybody asked for.
+  (decl) (func coco_m_kb_install
+               ((func open ((coco_machine * m) (coco_store * st)
+                            (void ** ctx)) (out int))
+                (func close ((void * ctx) (int ok)))))
   (decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
   (decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
 
@@ -617,14 +648,32 @@
           (if (not (coco_read_term_from (-> e m) src (aof t))) (return 0))
           (return t)))
 
+  ;;; Filled in by the composition root; null until it is, which is what
+  ;;; every out-of-tree embedder and every test binary leaves them.
+  (static) (var func coco_m_kb_open ((coco_machine * m) (coco_store * st)
+                                     (void ** ctx)) (out int) . nil)
+  (static) (var func coco_m_kb_close ((void * ctx) (int ok)) . nil)
+
+  (func coco_m_kb_install
+        ((func open ((coco_machine * m) (coco_store * st) (void ** ctx)) (out int))
+         (func close ((void * ctx) (int ok))))
+        (set coco_m_kb_open open)
+        (set coco_m_kb_close close))
+
   (func coco_m_run_isolated ((const char * src) (char * err) (size_t errlen)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e)
-              (size_t g . 0) (int rc . 0) (int out . 0))
+              (size_t g . 0) (int rc . 0) (int out . 0) (void * kb . nil))
           (if (!= err nil) (set (nth 0 err) (cast char 0)))
           (if (== src nil) (return -1))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
+          ;; THE CONNECTION BEFORE THE GOAL, so the store's hooks are in
+          ;; place before the first clause is looked for -- a fetch that
+          ;; happened before the attach would cache "no such predicate"
+          ;; and the attach would come too late to matter.
+          (if (!= coco_m_kb_open nil)
+              (coco_m_kb_open (aof m) (aof st) (aof kb)))
           (if (not (coco_read_term_from (aof m) src (aof g)))
               (block
                (if (!= err nil) (snprintf err errlen "the goal would not read"))
@@ -640,6 +689,10 @@
              (if (== rc -1)
                  (block (if (!= err nil) (snprintf err errlen "%s" ($ e err)))
                         (set out -1)))))
+          ;; COMMIT OR ROLL BACK BEFORE THE STORE GOES, and tell it which:
+          ;; `out' is 1 only when the goal actually proved.
+          (if (!= coco_m_kb_close nil)
+              (coco_m_kb_close kb (? (== out 1) 1 0)))
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))

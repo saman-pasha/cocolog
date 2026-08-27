@@ -509,6 +509,70 @@
           (coco_zg_attach z db m st ($ opts kb)))
         (gate_vacuum st))
 
+  ;;; ---- a thread's own knowledge base ----------------------------------
+  ;;;
+  ;;; What `coco_m_kb_install' asks for, and the reason library(httpd)'s
+  ;;; worker pool can serve a page that reads the database at all. Before
+  ;;; this a thread was a `--local' proof whatever the parent was, because
+  ;;; `db' is thread-local and null on a new thread.
+  ;;;
+  ;;; IT IS THE SWARM COMMAND'S SHAPE, and deliberately: one connection
+  ;;; per thread, opened by the thread, attached to the thread's own
+  ;;; store. Two threads through one Zigurat connection is the wedge
+  ;;; STATUS.md spent a day on.
+  ;;;
+  ;;; THE ATTACHMENT STRUCTS OUTLIVE THE CALL, which is why there is a
+  ;;; holder at all: `attach' points the store's five hooks INTO `z' and
+  ;;; `zt', and cmd_query can keep those on its stack because its proof
+  ;;; ends before its frame does. A thread's proof outlives this function
+  ;;; by the whole life of the thread, so they go on the heap.
+  ;;; THE PREVIOUS CONNECTION IS SAVED, because these NEST. A worker
+  ;;; thread's own proof has one, and every request it serves runs as an
+  ;;; isolated proof of its own with another -- `db' is one thread-local
+  ;;; slot, so without saving it the inner open would overwrite the outer
+  ;;; one and the inner close would shut a connection its owner still
+  ;;; thought it had.
+  (struct thread_kb
+    (member coco_zg z)
+    (member coco_zt zt)
+    (member zg_conn * prev))
+
+  (func thread_kb_open ((coco_machine * m) (coco_store * st) (void ** ctx)) (out int)
+        (let ((thread_kb * k . nil) (zg_conn * saved . nil))
+          (set (cof ctx) nil)
+          ;; NO DATABASE IN THIS ARRANGEMENT IS NOT A FAILURE. `--local'
+          ;; says it every time and a thread there is exactly what it was.
+          (if ($ opts local) (return 0))
+          (set saved db)
+          (set db nil)
+          (if (not (open_connection))
+              (block (set db saved) (return 0)))
+          (set k (cast (thread_kb *) (malloc (sizeof thread_kb))))
+          (if (== k nil)
+              (block (if (!= db nil) (zg_close db)) (set db saved) (return 0)))
+          (memset k 0 (sizeof thread_kb))
+          (set (-> k prev) saved)
+          (attach (aof (-> k z)) (aof (-> k zt)) m st)
+          (set (cof ctx) (cast (void *) k))
+          (return 1)))
+
+  ;;; A CONNECTION THAT WROTE AND THEN FAILED ROLLS BACK. The same rule
+  ;;; cmd_query has, for the same reason: half of a failed goal's
+  ;;; assertions is not a state anybody asked for. Zeytun reads only, so
+  ;;; there is nothing to commit there and `db' is null.
+  (func thread_kb_close ((void * ctx) (int ok))
+        (let ((thread_kb * k . #'(cast (thread_kb *) ctx)))
+          (if (!= db nil)
+              (if ok
+                  (if (not (zg_commit db))
+                      (fprintf stderr "cocolog: a thread's commit failed: %s\n"
+                               (zg_error db)))
+                (zg_rollback db)))
+          (if (!= db nil) (zg_close db))
+          ;; back to whoever had it, which is null unless this was nested
+          (set db (? (== k nil) nil (-> k prev)))
+          (if (!= k nil) (free (cast (void *) k)))))
+
   (func cmd_query ((const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (int n . 0) (int rc . 1))
@@ -1850,6 +1914,10 @@
           (if (== ($ opts port) nil) (set ($ opts port) "2160"))
 
           (if (not (install_modules)) (return 1))
+          ;; A THREAD GETS THE ARRANGEMENT THIS PROCESS WAS STARTED WITH.
+          ;; Installed after the options are settled and before anything
+          ;; can spawn, which is the only window where both are true.
+          (coco_m_kb_install thread_kb_open thread_kb_close)
           (if (not (open_connection)) (return 1))
 
           ;; no command at all is the toplevel, as bare `swipl' is
