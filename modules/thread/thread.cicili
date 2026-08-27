@@ -1,0 +1,504 @@
+;;;; library(thread) -- threads that share nothing, and channels that copy.
+;;;;
+;;;; TWO PIECES, AND THEY ARE INDEPENDENT. A thread is a goal proved on a
+;;;; machine of its own; a channel is a queue of terms with a lock and two
+;;;; condition variables. Neither needs the other -- channels between the
+;;;; main thread and one worker are useful, and a thread that only writes a
+;;;; file needs no channel -- but together they are the whole of CSP, which
+;;;; is the only concurrency model that survives contact with an
+;;;; interpreter whose heap is not thread-safe.
+;;;;
+;;;; SHARE NOTHING. A cocolog machine is a heap of cells, a trail and an
+;;;; atom table, and none of it is guarded. Two threads proving goals on ONE
+;;;; machine would corrupt it within a millisecond, and no amount of locking
+;;;; at this level would be either correct or fast. So a thread gets its own
+;;;; machine, its own store and its own engine -- which is exactly what the
+;;;; `swarm' command has always done with its workers, and this is that
+;;;; shape made available to a program.
+;;;;
+;;;; A CHANNEL THEREFORE COPIES, and that is not a cost to apologise for.
+;;;; Two machines cannot share a heap cell; a term crossing between them is
+;;;; copied whatever the mechanism, and the copy this interpreter already
+;;;; trusts is its canonical text -- the same form the database stores
+;;;; clauses in, quoted and with operators ignored, so it reads back on a
+;;;; machine that never ran the same `op/3'.
+;;;;
+;;;;
+;;;; WHAT A THREAD CAN SEE, said plainly because it is the first surprise:
+;;;;
+;;;;   EVERY REGISTERED MODULE -- the linked-in ones and anything
+;;;;   `use_module' loaded BEFORE the thread started. The module registry is
+;;;;   process-wide and a fresh store consults all of it on its first goal,
+;;;;   so library(lists), library(http) and any page you loaded are there.
+;;;;
+;;;;   NOTHING THE PARENT ASSERTED. A thread's store starts empty. Clauses
+;;;;   are shared through the database in this project, not through memory,
+;;;;   and a thread has no connection: `db' is thread-local and null on a
+;;;;   new one, so a thread is a `--local' proof whatever the parent was.
+;;;;
+;;;; REGISTER YOUR MODULES BEFORE YOU SPAWN. `use_module' writes the
+;;;; process-wide registry, and a thread reading it while another writes is
+;;;; the one unguarded thing in here. It is unguarded because loading
+;;;; libraries at start-up is what every program does, and guarding it would
+;;;; put a lock on the first goal of every proof in the process.
+;;;;
+;;;;
+;;;; THE SURFACE
+;;;;
+;;;;   thread_create(Goal, Id)       prove Goal on a thread of its own
+;;;;   thread_join(Id, Status)       wait for it; true, false or error(E)
+;;;;   thread_detach(Id)             never joined, cleaned up on its own
+;;;;   thread_count(N)               how many are running
+;;;;
+;;;;   channel_new(Ch)               unbounded
+;;;;   channel_new(Capacity, Ch)     bounded -- send BLOCKS when it is full
+;;;;   channel_send(Ch, Term)        copies Term in
+;;;;   channel_recv(Ch, Term)        blocks until there is one
+;;;;   channel_recv(Ch, Timeout, Term)   milliseconds; FAILS on timeout
+;;;;   channel_close(Ch)             wakes everybody waiting
+;;;;   channel_size(Ch, N)           how many are queued
+;;;;
+;;;; A BOUNDED CHANNEL IS BACKPRESSURE, which is the reason to want one. An
+;;;; unbounded queue between a fast producer and a slow consumer is not a
+;;;; queue, it is a memory leak with a scheduler attached.
+;;;;
+;;;; RECEIVING FROM A CLOSED, EMPTY CHANNEL FAILS. It does not block and it
+;;;; does not raise: "there will be no more" is an ordinary answer, and it
+;;;; is what lets a consumer be written as a failure-driven loop rather than
+;;;; around a sentinel value the producer has to remember to send.
+
+;;; NO `DEFPACKAGE' HERE. A file compiled on its own is the whole
+;;; compilation unit, and a DEFPACKAGE at its top expands to an EVAL-WHEN
+;;; that Cicili reads as a Cicili form -- `unknown symbol: EVAL-WHEN', which
+;;; names the expansion and not the cause.
+
+(DEFPARAMETER *thread-predicates*
+  '(("thread_create"  2 th_create)
+    ("$thread_join"   2 th_join)
+    ("thread_detach"  1 th_detach)
+    ("thread_count"   1 th_count)
+
+    ("channel_new"    1 th_chan_new1)
+    ("channel_new"    2 th_chan_new2)
+    ("channel_send"   2 th_chan_send)
+    ("channel_recv"   2 th_chan_recv2)
+    ("channel_recv"   3 th_chan_recv3)
+    ("channel_close"  1 th_chan_close)
+    ("channel_size"   2 th_chan_size)))
+
+;;; The Coco half. Joined with SPACES because a Cicili string literal
+;;; cannot carry a newline, and a clause ends at its `.' anyway.
+(DEFPARAMETER *thread-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; `true', `false', or `error(Message)' -- see th_join, which
+           ;; answers the message as a bare atom because the SDK builds no
+           ;; compounds and this costs one clause.
+           "thread_join(Id, S) :- '$thread_join'(Id, R), ( R == true -> S = true ; R == false -> S = false ; S = error(R) )."
+
+           ;; The consumer, and what `recv fails when closed and empty' is
+           ;; FOR: it reads until the channel is done and needs no sentinel.
+           ;;
+           ;; RECURSION AND NOT A FAILURE-DRIVEN LOOP, which is what this
+           ;; was first and why it processed exactly ONE item. `recv' is
+           ;; semidet: `..., call(Goal,T), fail' backtracks into a recv that
+           ;; has no second solution, so the clause fails, the catch-all
+           ;; second clause succeeds, and the loop that looked like every
+           ;; other failure-driven loop in Prolog quietly did one round. The
+           ;; cut commits to the item just received so the recursion cannot
+           ;; backtrack into the channel either.
+           "channel_forall(Ch, Goal) :- channel_recv(Ch, T), !, call(Goal, T), channel_forall(Ch, Goal)."
+           "channel_forall(_, _)."
+
+           ;; Everything still queued, as a list, without blocking for more.
+           "channel_drain(Ch, Ts) :- channel_size(Ch, N), th_take(Ch, N, Ts)."
+           "th_take(_, 0, []) :- !."
+           "th_take(Ch, N, [T|Ts]) :- channel_recv(Ch, 0, T), !, M is N - 1, th_take(Ch, M, Ts)."
+           "th_take(_, _, [])."
+
+           ;; Start N threads all proving the same goal, and join them all.
+           ;; The common shape, and the one people get wrong by forgetting
+           ;; the join -- a detached pool whose parent exits takes the
+           ;; workers with it.
+           "thread_pool(0, _, []) :- !."
+           "thread_pool(N, Goal, [Id|Ids]) :- N > 0, thread_create(Goal, Id), M is N - 1, thread_pool(M, Goal, Ids)."
+           "thread_join_all([])."
+           "thread_join_all([Id|Ids]) :- thread_join(Id, _), thread_join_all(Ids)."
+           )))
+
+
+(source "thread.c"
+  (make :std #t :compile #f)
+
+  (include <pthread.h>)
+  (include <unistd.h>)
+  (include <errno.h>)
+  (include <time.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;;; A Cicili type is ONE token, and `struct timespec' is two.
+  (@define (code "timespec struct timespec"))
+
+  ;;; ---- channels ---------------------------------------------------------
+  ;;;
+  ;;; A RING OF STRINGS. Each slot is a malloc'd canonical term, owned by the
+  ;;; channel from the moment `send' hands it over until `recv' hands it on.
+  ;;; The ring rather than a linked list because the capacity is the point:
+  ;;; a bounded channel with a fixed ring cannot leak, and an unbounded one
+  ;;; grows the ring instead of growing a list node at a time.
+  (struct th_chan
+    (member char **         slot)
+    (member size_t          cap)      ; slots allocated
+    (member size_t          limit)    ; 0 is unbounded
+    (member size_t          head)
+    (member size_t          n)
+    (member int             closed)
+    (member int             live)
+    (member pthread_mutex_t lock)
+    ;; TWO CONDITION VARIABLES, not one. With a single condvar a `send'
+    ;; waiting for room and a `recv' waiting for an item are woken by each
+    ;; other's signal, and a broadcast to fix that wakes every waiter on
+    ;; every operation. Two means each signal reaches somebody who can use it.
+    (member pthread_cond_t  not_empty)
+    (member pthread_cond_t  not_full))
+
+  ;;; ---- threads ----------------------------------------------------------
+  ;;;
+  ;;; The goal travels as TEXT and is freed by the thread that ran it. The
+  ;;; status is what `thread_join' answers: 1 succeeded, 0 failed, -1 raised.
+  (struct th_job
+    (member pthread_t   tid)
+    (member char *      goal)
+    (member char        err [256])
+    (member int         status)
+    (member int         live)      ; a slot in use
+    (member int         done)      ; the thread has finished
+    (member int         joined)
+    (member int         detached))
+
+  ;;; ONE TABLE EACH, FIXED, AND A LOCK OVER BOTH. Fixed because a table
+  ;;; that reallocs under a running thread is a pointer that moves while
+  ;;; somebody holds it -- the ids handed to Prolog are INDICES, and an index
+  ;;; into a table that never moves is a handle that stays valid. 256 threads
+  ;;; and 256 channels is more than a program with one interpreter per thread
+  ;;; can usefully want.
+  (static) (var th_chan th_chans [256])
+  (static) (var th_job  th_jobs  [256])
+  ;;; STATICALLY INITIALISED, which is the one lock that has to be: it
+  ;;; guards the tables that hand out channel and thread slots, so there is
+  ;;; no earlier moment at which to `pthread_mutex_init' it. std declares
+  ;;; PTHREAD_MUTEX_INITIALIZER as a name of the type, which is what a
+  ;;; `#define' is to Cicili, so it can be named here.
+  (static) (var pthread_mutex_t th_table_lock . PTHREAD_MUTEX_INITIALIZER)
+
+  ;;; ---- the channel, in C ------------------------------------------------
+
+  (static)
+  (func th_chan_at ((coco_engine * e) (size_t t) (int * rc)) (out th_chan *)
+        (let ((i64 id . 0))
+          (set (cof rc) 0)
+          (if (not (coco_m_int e t (aof id)))
+              (block (set (cof rc) (coco_m_type_error e "integer" t)) (return nil)))
+          (if (or (< id 0) (>= id 256)) (return nil))
+          (if (not ($ (nth (cast size_t id) th_chans) live)) (return nil))
+          (return (aof (nth (cast size_t id) th_chans)))))
+
+  ;;; Grows the ring. Only ever called with the channel's lock held, and only
+  ;;; for an UNBOUNDED channel -- a bounded one blocks instead, which is the
+  ;;; whole difference between them.
+  (static)
+  (func th_chan_grow ((th_chan * c)) (out int)
+        (let ((size_t ncap . #'(? (== (-> c cap) 0) 8 (* (-> c cap) 2)))
+              (char ** nb . nil))
+          (set nb (cast (char **) (malloc (* ncap (sizeof (char *))))))
+          (if (== nb nil) (return 0))
+          ;; UNROLLED INTO THE NEW RING IN ORDER, because head is not 0 after
+          ;; the first wrap and a memcpy would reorder the queue.
+          (for ((size_t i . 0)) (< i (-> c n)) ((++ i))
+               (set (nth i nb) (nth (% (+ (-> c head) i) (-> c cap)) (-> c slot))))
+          (if (!= (-> c slot) nil) (free (-> c slot)))
+          (set (-> c slot) nb)
+          (set (-> c cap) ncap)
+          (set (-> c head) 0)
+          (return 1)))
+
+  (static)
+  (func th_chan_open ((size_t limit)) (out i64)
+        (let ((i64 id . -1))
+          (pthread_mutex_lock (aof th_table_lock))
+          (for ((size_t i . 0)) (< i 256) ((++ i))
+               (if (not ($ (nth i th_chans) live))
+                   (block (set id (cast i64 i)) break)))
+          (if (>= id 0)
+              (let ((th_chan * c . #'(aof (nth (cast size_t id) th_chans))))
+                (set (-> c slot) nil)
+                (set (-> c cap) 0)
+                (set (-> c limit) limit)
+                (set (-> c head) 0)
+                (set (-> c n) 0)
+                (set (-> c closed) 0)
+                (set (-> c live) 1)
+                (pthread_mutex_init (aof (-> c lock)) nil)
+                (pthread_cond_init (aof (-> c not_empty)) nil)
+                (pthread_cond_init (aof (-> c not_full)) nil)))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (return id)))
+
+  ;;; MILLISECONDS FROM NOW, as the absolute time pthread_cond_timedwait
+  ;;; wants. CLOCK_REALTIME because that is the clock a default condattr
+  ;;; uses; asking for MONOTONIC would mean setting the attribute too, and
+  ;;; a timeout that is a millisecond out when somebody sets the clock is
+  ;;; not the failure mode worth the extra call.
+  (static)
+  (func th_deadline ((timespec * ts) (i64 ms))
+        (code "clock_gettime(CLOCK_REALTIME, ts);")
+        (set ($ (cof ts) tv_sec) (+ ($ (cof ts) tv_sec) (/ ms 1000)))
+        (set ($ (cof ts) tv_nsec) (+ ($ (cof ts) tv_nsec) (* (% ms 1000) 1000000)))
+        (if (>= ($ (cof ts) tv_nsec) 1000000000)
+            (block (set ($ (cof ts) tv_sec) (+ ($ (cof ts) tv_sec) 1))
+                   (set ($ (cof ts) tv_nsec) (- ($ (cof ts) tv_nsec) 1000000000)))))
+
+  ;;; ---- the predicates ---------------------------------------------------
+
+  (static)
+  (func th_new ((coco_engine * e) (size_t g) (size_t limit) (uint32_t out)) (out int)
+        (let ((i64 id . #'(th_chan_open limit)))
+          (if (< id 0)
+              (return (coco_m_error e "channel_new" "no channel slots left")))
+          (return (coco_m_unify_int e (coco_m_arg e g out) id))))
+
+  (func th_chan_new1 ((coco_engine * e) (size_t g)) (out int)
+        (return (th_new e g 0 0)))
+
+  (func th_chan_new2 ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 cap . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof cap)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (if (< cap 0)
+              (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 0))))
+          (return (th_new e g (cast size_t cap) 1))))
+
+  ;;; SEND COPIES, and the copy is made BEFORE the lock is taken: writing a
+  ;;; term walks the sender's heap, which is the sender's business and no
+  ;;; reason to hold up a queue.
+  (func th_chan_send ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (th_chan * c . #'(th_chan_at e (coco_m_arg e g 0) (aof rc)))
+              (char * text . nil))
+          (if (== c nil) (return rc))
+          (set text (coco_m_term_text e (coco_m_arg e g 1)))
+          (if (== text nil)
+              (return (coco_m_error e "channel_send" "the term would not write")))
+          (pthread_mutex_lock (aof (-> c lock)))
+          ;; A CLOSED CHANNEL TAKES NOTHING MORE. Failing rather than raising:
+          ;; a producer racing a consumer's close is ordinary, and the
+          ;; producer's own loop is where that is handled.
+          (if (-> c closed)
+              (block (pthread_mutex_unlock (aof (-> c lock))) (free text) (return 0)))
+          ;; bounded and full: WAIT. This is the backpressure.
+          (while (and (!= (-> c limit) 0) (>= (-> c n) (-> c limit)) (not (-> c closed)))
+            (pthread_cond_wait (aof (-> c not_full)) (aof (-> c lock))))
+          (if (-> c closed)
+              (block (pthread_mutex_unlock (aof (-> c lock))) (free text) (return 0)))
+          (if (>= (-> c n) (-> c cap))
+              (if (not (th_chan_grow c))
+                  (block (pthread_mutex_unlock (aof (-> c lock))) (free text)
+                         (return (coco_m_error e "channel_send" "out of memory")))))
+          (set (nth (% (+ (-> c head) (-> c n)) (-> c cap)) (-> c slot)) text)
+          (set (-> c n) (+ (-> c n) 1))
+          (pthread_cond_signal (aof (-> c not_empty)))
+          (pthread_mutex_unlock (aof (-> c lock)))
+          (return 1)))
+
+  ;;; WAIT is milliseconds, or -1 to block for ever, or 0 to take only what
+  ;;; is already there. Answers the malloc'd text, which the caller frees,
+  ;;; or null for "nothing, and there will not be".
+  (static)
+  (func th_take_one ((th_chan * c) (i64 wait)) (out char *)
+        (let ((char * text . nil) (int timed_out . 0))
+          (pthread_mutex_lock (aof (-> c lock)))
+          (while (and (== (-> c n) 0) (not (-> c closed)) (not timed_out))
+            (if (== wait 0) break)
+            (if (< wait 0)
+                (pthread_cond_wait (aof (-> c not_empty)) (aof (-> c lock)))
+              (let ((timespec ts))
+                (th_deadline (aof ts) wait)
+                (if (!= 0 (pthread_cond_timedwait (aof (-> c not_empty))
+                                                  (aof (-> c lock)) (aof ts)))
+                    (set timed_out 1)))))
+          ;; ITEMS BEFORE CLOSEDNESS. A channel closed with things still in it
+          ;; hands them all out first, and only then starts saying no --
+          ;; otherwise closing would silently discard whatever was in flight.
+          (if (> (-> c n) 0)
+              (block
+               (set text (nth (-> c head) (-> c slot)))
+               (set (-> c head) (% (+ (-> c head) 1) (-> c cap)))
+               (set (-> c n) (- (-> c n) 1))
+               (pthread_cond_signal (aof (-> c not_full)))))
+          (pthread_mutex_unlock (aof (-> c lock)))
+          (return text)))
+
+  (static)
+  (func th_recv ((coco_engine * e) (size_t g) (i64 wait) (uint32_t out)) (out int)
+        (let ((int rc . 0) (th_chan * c . #'(th_chan_at e (coco_m_arg e g 0) (aof rc)))
+              (char * text . nil) (size_t t . 0))
+          (if (== c nil) (return rc))
+          (set text (th_take_one c wait))
+          (if (== text nil) (return 0))
+          (set t (coco_m_read_term e text))
+          (free text)
+          (if (== t 0)
+              (return (coco_m_error e "channel_recv" "what came back would not read")))
+          (return (coco_m_unify e (coco_m_arg e g out) t))))
+
+  (func th_chan_recv2 ((coco_engine * e) (size_t g)) (out int)
+        (return (th_recv e g -1 1)))
+
+  (func th_chan_recv3 ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 ms . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof ms)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
+          (return (th_recv e g ms 2))))
+
+  ;;; CLOSE WAKES EVERYBODY, on both condition variables: a receiver waiting
+  ;;; for an item that will never come, and a sender waiting for room in a
+  ;;; channel nobody will drain. Neither should be left blocked, and neither
+  ;;; can tell it should stop without being woken to look.
+  (func th_chan_close ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (th_chan * c . #'(th_chan_at e (coco_m_arg e g 0) (aof rc))))
+          (if (== c nil) (return rc))
+          (pthread_mutex_lock (aof (-> c lock)))
+          (set (-> c closed) 1)
+          (pthread_cond_broadcast (aof (-> c not_empty)))
+          (pthread_cond_broadcast (aof (-> c not_full)))
+          (pthread_mutex_unlock (aof (-> c lock)))
+          (return 1)))
+
+  (func th_chan_size ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (th_chan * c . #'(th_chan_at e (coco_m_arg e g 0) (aof rc)))
+              (i64 n . 0))
+          (if (== c nil) (return rc))
+          (pthread_mutex_lock (aof (-> c lock)))
+          (set n (cast i64 (-> c n)))
+          (pthread_mutex_unlock (aof (-> c lock)))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) n))))
+
+  ;;; ---- threads ----------------------------------------------------------
+
+  (static)
+  (func th_body ((void * arg)) (out void *)
+        (let ((th_job * j . #'(cast (th_job *) arg)))
+          ;; THE WHOLE PROOF IS ONE CALL, and the engine it runs on belongs
+          ;; to the interpreter rather than to this module -- see
+          ;; coco_m_run_isolated in lib/module.cicili for why.
+          (set (-> j status) (coco_m_run_isolated (-> j goal) (-> j err) 256))
+          (free (-> j goal))
+          (set (-> j goal) nil)
+          (pthread_mutex_lock (aof th_table_lock))
+          (set (-> j done) 1)
+          ;; A DETACHED THREAD FREES ITS OWN SLOT, because nobody is coming
+          ;; to join it. A joinable one leaves the slot for thread_join.
+          (if (-> j detached) (set (-> j live) 0))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (return nil)))
+
+  (func th_create ((coco_engine * e) (size_t g)) (out int)
+        (let ((char * text . #'(coco_m_term_text e (coco_m_arg e g 0)))
+              (i64 id . -1))
+          (if (== text nil)
+              (return (coco_m_error e "thread_create" "the goal would not write")))
+          (pthread_mutex_lock (aof th_table_lock))
+          (for ((size_t i . 0)) (< i 256) ((++ i))
+               (if (not ($ (nth i th_jobs) live))
+                   (block (set id (cast i64 i)) break)))
+          (if (>= id 0)
+              (let ((th_job * j . #'(aof (nth (cast size_t id) th_jobs))))
+                (set (-> j goal) text)
+                (set (nth 0 (-> j err)) (cast char 0))
+                (set (-> j status) 0)
+                (set (-> j live) 1)
+                (set (-> j done) 0)
+                (set (-> j joined) 0)
+                (set (-> j detached) 0)))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (if (< id 0)
+              (block (free text)
+                     (return (coco_m_error e "thread_create" "no thread slots left"))))
+          ;; STARTED LAST, after the slot is filled in: the thread reads its
+          ;; own job the moment it runs, and a half-written one is a race
+          ;; that would show up once in a thousand runs and never in a test.
+          (if (!= 0 (pthread_create (aof ($ (nth (cast size_t id) th_jobs) tid)) nil
+                                    th_body
+                                    (cast (void *) (aof (nth (cast size_t id) th_jobs)))))
+              (block
+               (pthread_mutex_lock (aof th_table_lock))
+               (set ($ (nth (cast size_t id) th_jobs) live) 0)
+               (pthread_mutex_unlock (aof th_table_lock))
+               (free text)
+               (return (coco_m_error e "thread_create" "the thread would not start"))))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) id))))
+
+  (static)
+  (func th_job_at ((coco_engine * e) (size_t t) (int * rc)) (out th_job *)
+        (let ((i64 id . 0))
+          (set (cof rc) 0)
+          (if (not (coco_m_int e t (aof id)))
+              (block (set (cof rc) (coco_m_type_error e "integer" t)) (return nil)))
+          (if (or (< id 0) (>= id 256)) (return nil))
+          (if (not ($ (nth (cast size_t id) th_jobs) live)) (return nil))
+          (return (aof (nth (cast size_t id) th_jobs)))))
+
+  (func th_join ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (th_job * j . #'(th_job_at e (coco_m_arg e g 0) (aof rc)))
+              (int status . 0) (char msg [256]))
+          (if (== j nil) (return rc))
+          (if (-> j detached)
+              (return (coco_m_error e "thread_join" "that thread was detached")))
+          (if (-> j joined)
+              (return (coco_m_error e "thread_join" "that thread was joined already")))
+          (pthread_join (-> j tid) nil)
+          (set status (-> j status))
+          (snprintf msg 256 "%s" (-> j err))
+          (pthread_mutex_lock (aof th_table_lock))
+          (set (-> j joined) 1)
+          (set (-> j live) 0)
+          (pthread_mutex_unlock (aof th_table_lock))
+          ;; THE GOAL'S OUTCOME, AS A TERM, and not as this predicate's own
+          ;; success: a thread whose goal FAILED is a thread that ran, and
+          ;; failing the join would make "it did not prove it" and "it never
+          ;; started" the same answer.
+          ;;
+          ;; THREE BARE ATOMS, and the Coco half turns the third into
+          ;; `error(Message)'. The SDK has no compound constructor -- by
+          ;; design, since a module that needs one usually wants a list and
+          ;; has coco_m_list -- and building a one-argument term by writing
+          ;; text and reading it back would mean quoting a message that came
+          ;; from an error, which is the wrong place to be careful. One
+          ;; clause upstairs does it for nothing.
+          (if (== status 1) (return (coco_m_unify_atom e (coco_m_arg e g 1) "true")))
+          (if (== status 0) (return (coco_m_unify_atom e (coco_m_arg e g 1) "false")))
+          (return (coco_m_unify_atom e (coco_m_arg e g 1) msg))))
+
+  (func th_detach ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (th_job * j . #'(th_job_at e (coco_m_arg e g 0) (aof rc))))
+          (if (== j nil) (return rc))
+          (pthread_mutex_lock (aof th_table_lock))
+          (set (-> j detached) 1)
+          (if (-> j done) (set (-> j live) 0))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (pthread_detach (-> j tid))
+          (return 1)))
+
+  (func th_count ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (pthread_mutex_lock (aof th_table_lock))
+          (for ((size_t i . 0)) (< i 256) ((++ i))
+               (if (and ($ (nth i th_jobs) live) (not ($ (nth i th_jobs) done)))
+                   (set n (+ n 1))))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (return (coco_m_unify_int e (coco_m_arg e g 0) n))))
+
+  (static) (coco-emit-module-dispatch th_dispatch *thread-predicates*)
+
+  (coco-deflibrary "thread" th_dispatch *thread-prolog*))

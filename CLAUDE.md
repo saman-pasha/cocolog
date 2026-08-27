@@ -225,6 +225,7 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | | needs | build |
 |---|---|---|
 | `modules/tcp` | nothing | `sh modules/tcp/build.sh` |
+| `modules/thread` | nothing | `sh modules/thread/build.sh` |
 | `modules/curl` | libcurl | `sh modules/curl/build.sh` |
 | `modules/bigint` | a **built** ZiguratIP | `sh modules/bigint/build.sh` |
 | `modules/torch` | libtorch | `sh modules/torch/build.sh` |
@@ -290,6 +291,45 @@ answer to "which file am I" — no argv[0] guessing, correct through
 symlinks. The caller's `$COCOLOG_LIBRARY` still comes first, because an
 override that cannot override is not one.
 
+## Concurrency: share nothing, copy the term
+
+`library(thread)` is threads and channels, and the shape is the one the
+`swarm` command already had: **a thread gets its own machine, store and
+engine.** A cocolog machine is an unguarded heap, a trail and an atom
+table; two threads proving goals on one would corrupt it in a millisecond,
+and locking at that level would be neither correct nor fast.
+
+**So a channel copies**, in canonical text — the same form the database
+stores clauses in, quoted and with operators ignored, so a term reads back
+on a machine that never ran the same `op/3`. Two machines cannot share a
+heap cell, so a term crossing between them is copied whatever the
+mechanism; text is the copy this interpreter already trusts.
+
+**What a thread can see, in one line each:**
+
+- **every registered module** — linked-in ones, and anything `use_module`
+  loaded *before* it started. The registry is process-wide and a fresh
+  store consults all of it on the first goal.
+- **nothing the parent asserted.** A thread's store starts empty, and it
+  has no database connection — `db` is thread-local and null on a new
+  thread, so a thread is a `--local` proof whatever the parent was.
+
+**Register your modules before you spawn.** `use_module` writes the
+process-wide registry, and a thread reading it while another writes is the
+one unguarded thing there — unguarded because loading libraries at start-up
+is what every program does, and a lock would sit on the first goal of every
+proof in the process.
+
+`coco_m_run_isolated` in `lib/module.cicili` is the seam: the engine's
+lifetime belongs to the interpreter, pthreads and queues belong to the
+module. A module *cannot* write it — `coco_engine` is opaque to anything
+built against `lib/sdk.cicili`, so a module cannot declare one, let alone
+stack-allocate the three a proof needs.
+
+**Measured**: four threads doing four times the work of one took 1.7× the
+time on four cores. Eight senders put 800 terms through one channel and all
+800 arrived.
+
 ## Where things are
 
 | path | what |
@@ -324,7 +364,7 @@ transaction and a machine is many rows).
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **23** case lines. A change to
+Run `make test` with a server up, and read all **24** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

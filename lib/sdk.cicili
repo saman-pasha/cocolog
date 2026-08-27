@@ -85,6 +85,22 @@
 (decl) (func coco_m_unify_float ((coco_engine * e) (size_t t) (double v)) (out int))
 
 (decl) (func coco_m_new_int ((coco_engine * e) (i64 v)) (out size_t))
+
+;;; A TERM THAT HAS TO LEAVE THIS MACHINE, and its way back. Everything
+;;; else here hands a module an index into ONE machine's heap; these two
+;;; are for a module moving a term somewhere that index means nothing --
+;;; another thread, a socket, a file. Canonical form, which is what the
+;;; database stores and therefore what already round-trips. The caller
+;;; frees what `coco_m_term_text' answers.
+(decl) (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *))
+(decl) (func coco_m_read_term ((coco_engine * e) (const char * src)) (out size_t))
+
+;;; A GOAL ON A MACHINE OF ITS OWN -- what library(thread) runs on a new
+;;; thread. Here rather than in a module because `coco_engine' is opaque to
+;;; one: a module cannot declare an engine, let alone make three. The
+;;; engine's lifetime is the interpreter's; pthreads and queues are the
+;;; module's. Answers 1 succeeded, 0 failed, -1 raised with ERR filled in.
+(decl) (func coco_m_run_isolated ((const char * src) (char * err) (size_t errlen)) (out int))
 (decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
 (decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
 

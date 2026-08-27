@@ -248,6 +248,62 @@
   ;;; out-of-tree one cannot, so library(curl) could not answer a list of
   ;;; BYTES at all -- which is every response body that is not text.
   (decl) (func coco_m_new_int ((coco_engine * e) (i64 v)) (out size_t))
+
+  ;;; ---- a term that has to leave this machine ---------------------------
+  ;;;
+  ;;; T AS TEXT, ON THE HEAP, and its inverse. Everything else in this API
+  ;;; hands a module an index into ONE machine's heap; these two are for a
+  ;;; module that has to move a term somewhere that index means nothing --
+  ;;; another THREAD, a socket, a file, a queue.
+  ;;;
+  ;;; THE FORM IS THE CANONICAL ONE, which is the same form the database
+  ;;; stores clauses in: quoted, so an atom that needs quotes reads back,
+  ;;; and operators IGNORED, so `rule(a ===> b)' writes as
+  ;;; `rule(===>(a,b))' and does not depend on the reader having the same
+  ;;; operator table. That last part is the whole reason this is not just
+  ;;; `coco_write_term': a thread that had not run the same `op/3'
+  ;;; directives would otherwise read a different term than was sent.
+  ;;;
+  ;;; A COPY IS THE POINT, not a cost to apologise for. Two machines cannot
+  ;;; share a heap cell, so a term crossing between them is copied whatever
+  ;;; the mechanism; text is the copy this interpreter already trusts,
+  ;;; because it is what freeze/thaw and every backend already use.
+  ;;;
+  ;;; The caller FREES what `coco_m_term_text' answers. Null when the term
+  ;;; will not write; 0 from `coco_m_read_term' when the text will not read.
+  (decl) (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *))
+  (decl) (func coco_m_read_term ((coco_engine * e) (const char * src)) (out size_t))
+
+  ;;; ---- a goal on a machine of its own ---------------------------------
+  ;;;
+  ;;; SRC -- a goal in canonical text -- proved on a FRESH machine, store
+  ;;; and engine, and then all three thrown away. Answers 1 (succeeded), 0
+  ;;; (failed) or -1 (raised, with ERR filled in).
+  ;;;
+  ;;; IT IS HERE BECAUSE A MODULE CANNOT WRITE IT. `coco_engine' is an
+  ;;; opaque struct to anything built against lib/sdk.cicili -- deliberately
+  ;;; -- so a module cannot declare one, let alone stack-allocate the three
+  ;;; a proof needs. The engine's lifetime belongs to the interpreter; what
+  ;;; belongs to library(thread) is pthreads and queues, and this is the
+  ;;; line between them.
+  ;;;
+  ;;; SHARE-NOTHING, WHICH IS THE `swarm' COMMAND'S SHAPE ALREADY. Every
+  ;;; swarm worker gets its own machine and its own connection and they
+  ;;; meet only in the database; a thread started here gets the first half
+  ;;; of that. It sees every REGISTERED module -- the linked-in ones and
+  ;;; anything `use_module' loaded before it started -- because the module
+  ;;; registry is process-wide and a fresh store consults all of it on the
+  ;;; first goal. It does NOT see the parent's asserted clauses, and it has
+  ;;; NO database connection: `db' is thread-local and null on a new
+  ;;; thread, so the store's hooks are unset and this is a `--local' proof
+  ;;; whatever the parent was.
+  ;;;
+  ;;; SO REGISTER YOUR MODULES BEFORE YOU SPAWN. `coco_module_register'
+  ;;; writes the process-wide registry; a `use_module' racing a thread that
+  ;;; is reading it is the one unguarded thing here, and it is unguarded
+  ;;; because loading libraries at start-up is what every program does.
+  (decl) (func coco_m_run_isolated ((const char * src) (char * err)
+                                  (size_t errlen)) (out int))
   (decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
   (decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
 
@@ -540,6 +596,54 @@
             ;; an empty list is the empty string, not a failure: `atom_codes(X, [])'
             (set (nth n buf) (cast char 0))
             (return 1))))
+
+  (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *)
+        (let ((coco_strbuf b) (char * out . nil))
+          (coco_sb_init (aof b))
+          (if (not (coco_write_canonical (-> e m) (aof b) t))
+              (block (coco_sb_free (aof b)) (return nil)))
+          (if (!= ($ b s) nil)
+              (block
+               (set out (cast (char *) (malloc (+ ($ b len) 1))))
+               (if (!= out nil)
+                   (block (memcpy out ($ b s) ($ b len))
+                          (set (nth ($ b len) out) (cast char 0))))))
+          (coco_sb_free (aof b))
+          (return out)))
+
+  (func coco_m_read_term ((coco_engine * e) (const char * src)) (out size_t)
+        (let ((size_t t . 0))
+          (if (== src nil) (return 0))
+          (if (not (coco_read_term_from (-> e m) src (aof t))) (return 0))
+          (return t)))
+
+  (func coco_m_run_isolated ((const char * src) (char * err) (size_t errlen)) (out int)
+        (let ((coco_machine m) (coco_store st) (coco_engine e)
+              (size_t g . 0) (int rc . 0) (int out . 0))
+          (if (!= err nil) (set (nth 0 err) (cast char 0)))
+          (if (== src nil) (return -1))
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_engine_init (aof e) (aof m) (aof st))
+          (if (not (coco_read_term_from (aof m) src (aof g)))
+              (block
+               (if (!= err nil) (snprintf err errlen "the goal would not read"))
+               (set out -1))
+            (block
+             (coco_engine_ask (aof e) g)
+             ;; THE FIRST SOLUTION AND NO MORE. A thread is not a query: it
+             ;; runs a goal for its effect, and backtracking into it after it
+             ;; has succeeded is not a thing anyone can ask for from outside.
+             (set rc (coco_engine_next (aof e)))
+             (if (== rc 1) (set out 1))
+             (if (== rc 0) (set out 0))
+             (if (== rc -1)
+                 (block (if (!= err nil) (snprintf err errlen "%s" ($ e err)))
+                        (set out -1)))))
+          (coco_engine_free (aof e))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
+          (return out)))
 
   (func coco_m_unify ((coco_engine * e) (size_t t) (size_t u)) (out int)
         (return (? (coco_unify (-> e m) t u) 1 0)))

@@ -43,6 +43,8 @@ test/hoot.so
 library/*.so
 modules/tcp/tcp.c
 modules/tcp/sdk.cicili
+modules/thread/thread.c
+modules/thread/sdk.cicili
 modules/curl/curl.c
 modules/curl/sdk.cicili
 modules/bigint/coco-bigint.cpp
