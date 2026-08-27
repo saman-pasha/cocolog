@@ -220,8 +220,8 @@ There is one `cocolog` binary and it is the full one: the interpreter, the
 embedded MVCCS engine and the torch module, all in it. Which knowledge base a
 run uses is a runtime choice among four arrangements — `--local` (memory,
 the default when no other arrangement is named),
-the server (`--kb`/`--host`/`--port`), `--http`/`--https` (Zeytun, read
-only), and
+the server (`--tcp`/`--tls`, or `--kb`/`--host`/`--port`),
+`--http`/`--https` (Zeytun, read only), and
 `--embed [DIR]` (the store inside the process; a bare
 `--embed` opens `./KB`) — never a build. Cicili is needed only to build:
 `sbcl` runs `cicili.lisp` over the `.cicili` files and out comes C. The
@@ -610,6 +610,25 @@ every copy a channel made of the term holding it, and in the knowledge
 base the moment anything asserted it. This project's whole claim is that
 a clause is a row somebody else can read; a signing key is the one thing
 that must never become one.
+
+### Four transports, named
+
+```sh
+cocolog --tcp   --kb main            # the binary protocol, in the clear (2160)
+cocolog --tls   --kb main --cacert ca.crt --cert me.crt --key me.key
+cocolog --http  --host NAME          # Zeytun, plain HTTP (80)
+cocolog --https --host NAME          # Zeytun over TLS (443)
+```
+
+**`--tls` keeps the port and `--https` changes it**, and that asymmetry
+is ZiguratIP's: `SERVER/TLS_MODE: TRUE` changes *what is on* 2160, while
+80 and 443 are two ports. On the binary port `TLS_CLIENT_AUTH` defaults
+to REQUIRED — it has no anonymous use — so `--tls` usually wants a
+certificate of your own; and with `SECURITY/PERMISSIONS_MODE: TRUE` that
+certificate decides which tables and procedures the connection reaches.
+
+The hostname is checked, not just the chain, on both. `--insecure` turns
+that off and says so on stderr every time.
 
 ### And the connection itself: `library(tls)`
 

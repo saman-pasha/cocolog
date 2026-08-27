@@ -1,17 +1,24 @@
-/* zeytun-tls.c -- TLS for the Zeytun client, and nothing else.
+/* tls.c -- TLS for BOTH C clients, and nothing else.
  *
- * WHY IT IS A SEPARATE FILE. zeytun.c's header says it is libc and the
- * sockets API and nothing else, and that stays true: this is the only
- * translation unit in client/ that knows OpenSSL exists, and zeytun.c
- * reaches it through four functions that hand back an opaque pointer.
- * A build without OpenSSL compiles the stub half below and `--https'
- * then says so by name rather than failing to link.
+ * WHY IT IS A SEPARATE FILE. zigurat.c and zeytun.c both say they are
+ * libc and the sockets API and nothing else, and that stays true: this is
+ * the only translation unit in client/ that knows OpenSSL exists, and
+ * both reach it through five functions that hand back an opaque pointer.
+ * A build without OpenSSL compiles the stub half below and `--tls' and
+ * `--https' then say so by name rather than failing to link.
  *
- * IT IS A CLIENT ONLY. There is no accept here and no server context:
- * library(tls) is the module for a cocolog that listens, and this is the
- * one that reaches a Zeytun behind an edge. The two share nothing on
- * purpose -- a client that could also serve is a client with a private
- * key it did not need.
+ * ONE FILE FOR TWO PROTOCOLS, because a handshake is a handshake. The
+ * binary protocol on 2160 and Zeytun's HTTP on 2190 differ in what they
+ * send afterwards and in nothing before it -- ZiguratIP's own
+ * `SERVER/TLS_MODE' and `HTTP/TLS_MODE' are the same switch on two
+ * ports. A second copy here would be a second place to forget the
+ * hostname check.
+ *
+ * IT IS A CLIENT ONLY. There is no accept and no server context:
+ * library(tls) is the module for a cocolog that LISTENS, and its names
+ * are `coco_tls_*' -- which is why these are `coco_client_tls_*'. Both
+ * live in one process when a cocolog serves and queries at once, and two
+ * `coco_tls_close' would be one symbol.
  *
  * WHAT IT VERIFIES, BY DEFAULT AND WITHOUT ASKING: the chain, against
  * the system store or a named CA, AND THE HOSTNAME. The second is the
@@ -55,9 +62,9 @@ static void ssl_why(char *err, size_t cap, const char *what)
   }
 }
 
-int zt_tls_available(void) { return 1; }
+int coco_client_tls_available(void) { return 1; }
 
-void *zt_tls_open(int fd, const char *host, const zt_tls_options *o,
+void *coco_client_tls_open(int fd, const char *host, const coco_tls_options *o,
                   char *err, size_t errcap)
 {
   struct zt_tls *t = NULL;
@@ -149,14 +156,14 @@ bad:
   return NULL;
 }
 
-long zt_tls_send(void *handle, const void *buf, size_t n)
+long coco_client_tls_send(void *handle, const void *buf, size_t n)
 {
   struct zt_tls *t = (struct zt_tls *) handle;
   int k = SSL_write(t->ssl, buf, (int) n);
   return (k > 0) ? (long) k : -1;
 }
 
-long zt_tls_recv(void *handle, void *buf, size_t n)
+long coco_client_tls_recv(void *handle, void *buf, size_t n)
 {
   struct zt_tls *t = (struct zt_tls *) handle;
   int k = SSL_read(t->ssl, buf, (int) n);
@@ -167,7 +174,7 @@ long zt_tls_recv(void *handle, void *buf, size_t n)
   return 0;
 }
 
-void zt_tls_close(void *handle)
+void coco_client_tls_close(void *handle)
 {
   struct zt_tls *t = (struct zt_tls *) handle;
   if (t == NULL) return;
@@ -182,9 +189,9 @@ void zt_tls_close(void *handle)
  * had no OpenSSL. `--https' reports it by name; everything else in the
  * client is unaffected, and zeytun.c still knows nothing about TLS. */
 
-int zt_tls_available(void) { return 0; }
+int coco_client_tls_available(void) { return 0; }
 
-void *zt_tls_open(int fd, const char *host, const zt_tls_options *o,
+void *coco_client_tls_open(int fd, const char *host, const coco_tls_options *o,
                   char *err, size_t errcap)
 {
   (void) fd; (void) host; (void) o;
@@ -193,8 +200,8 @@ void *zt_tls_open(int fd, const char *host, const zt_tls_options *o,
   return NULL;
 }
 
-long zt_tls_send(void *h, const void *b, size_t n) { (void)h; (void)b; (void)n; return -1; }
-long zt_tls_recv(void *h, void *b, size_t n)       { (void)h; (void)b; (void)n; return 0; }
-void zt_tls_close(void *h)                          { (void)h; }
+long coco_client_tls_send(void *h, const void *b, size_t n) { (void)h; (void)b; (void)n; return -1; }
+long coco_client_tls_recv(void *h, void *b, size_t n)       { (void)h; (void)b; (void)n; return 0; }
+void coco_client_tls_close(void *h)                          { (void)h; }
 
 #endif

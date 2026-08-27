@@ -542,6 +542,38 @@ phrase arrives, for the same reason.
   routine. `ca/main_ca.cpp` documents `--issuer` as "issuer name
   configuration file".
 
+### Four transports, spelled out
+
+The arrangement a run uses is now named rather than inferred:
+
+| | is | default port |
+|---|---|---|
+| `--tcp [PORT]` | the binary protocol, in the clear | 2160 |
+| `--tls [PORT]` | the binary protocol over TLS | **2160** |
+| `--http [PORT]` | Zeytun, plain HTTP | 80 |
+| `--https [PORT]` | Zeytun over TLS | 443 |
+
+**`--tls` KEEPS THE PORT AND `--https` CHANGES IT**, and the asymmetry is
+ZiguratIP's rather than ours: `SERVER/TLS_MODE: TRUE` changes *what is
+on* 2160, while 80 and 443 are two different ports. Read
+`home/etc/ziguratip.conf` before assuming either.
+
+`TLS_CLIENT_AUTH` on the binary port defaults to **REQUIRED** — the
+config says the binary protocol has no anonymous use — so `--tls`
+usually wants `--cert` and `--key` as well as `--cacert`. And with
+`SECURITY/PERMISSIONS_MODE: TRUE`, the certificate that opened the
+connection decides which tables and procedures it reaches; that is the
+same permission list `library(ca)` reads out of a certificate, on the
+other side of the same seam.
+
+**`--tls` and `--https` together are refused**: one names a Zigurat and
+the other a Zeytun, and a run reaches one knowledge base.
+
+**One TLS unit, `client/tls.c`, for both clients**, because a handshake
+is a handshake — and its functions are `coco_client_tls_*` rather than
+`coco_tls_*` because `library(tls)`'s module already owns the latter and
+both live in one process when a cocolog serves and queries at once.
+
 ### `--https`, and two bugs it uncovered in the arrangement it joined
 
 The Zeytun client speaks TLS: `--https [PORT]` (443 by default) beside

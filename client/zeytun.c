@@ -72,7 +72,7 @@ static int dial(const char *host, const char *service, int timeout_seconds,
  * thing left to do with one; no cocolog page produces such a response. */
 /* THE TLS HALF IS REACHED WEAKLY, and that is what keeps libcocologc what
  * it says it is. The archive holds this file and zigurat.c and nothing
- * else; client/zeytun-tls.o is linked into the cocolog BINARY, beside
+ * else; client/tls.o is linked into the cocolog BINARY, beside
  * -lssl -lcrypto. A program that links only the archive -- every
  * test/*.cicili target does -- gets NULL here, and plaintext is
  * unaffected.
@@ -82,12 +82,6 @@ static int dial(const char *host, const char *service, int timeout_seconds,
  * `undefined reference to SSL_free', from a test that has never opened a
  * socket to anything but the binary protocol. The archive is a
  * dependency of things that want no TLS, and it should stay one. */
-extern void *zt_tls_open(int fd, const char *host, const zt_tls_options *o,
-                         char *err, size_t errcap) __attribute__((weak));
-extern long  zt_tls_send(void *handle, const void *buf, size_t n) __attribute__((weak));
-extern long  zt_tls_recv(void *handle, void *buf, size_t n) __attribute__((weak));
-extern void  zt_tls_close(void *handle) __attribute__((weak));
-extern int   zt_tls_available(void) __attribute__((weak));
 
 /* THE TRANSPORT, IN ONE STRUCT AND THREE FUNCTIONS. `tls' is NULL for a
  * plain connection, and every read and write below goes through these --
@@ -96,19 +90,19 @@ typedef struct { int fd; void *tls; } zt_conn;
 
 static long zt_write(zt_conn *c, const void *buf, size_t n)
 {
-  if (c->tls) return zt_tls_send(c->tls, buf, n);
+  if (c->tls) return coco_client_tls_send(c->tls, buf, n);
   return (long) send(c->fd, buf, n, MSG_NOSIGNAL);
 }
 
 static long zt_read(zt_conn *c, void *buf, size_t n)
 {
-  if (c->tls) return zt_tls_recv(c->tls, buf, n);
+  if (c->tls) return coco_client_tls_recv(c->tls, buf, n);
   return (long) recv(c->fd, buf, n, 0);
 }
 
 static void zt_hangup(zt_conn *c)
 {
-  if (c->tls) zt_tls_close(c->tls);
+  if (c->tls) coco_client_tls_close(c->tls);
   if (c->fd >= 0) close(c->fd);
   c->tls = NULL;
   c->fd = -1;
@@ -174,21 +168,21 @@ static char *slurp(zt_conn *c, size_t *out_len, char *err, size_t errcap)
 
 /* See zeytun.h: the transport is a property of the process, because a
  * cocolog reaches one Zeytun in an arrangement chosen once from argv. */
-static zt_tls_options g_tls;
+static coco_tls_options g_tls;
 static int            g_tls_on = 0;
 
-void zt_tls_configure(const zt_tls_options *o)
+void coco_client_tls_configure(const coco_tls_options *o)
 {
   if (o == NULL) { g_tls_on = 0; return; }
   g_tls = *o;
   g_tls_on = 1;
 }
 
-void zt_tls_configure_flat(const char *cacert, const char *capath,
+void coco_client_tls_configure_flat(const char *cacert, const char *capath,
                            const char *cert, const char *key,
                            const char *key_pass, int insecure)
 {
-  zt_tls_options o;
+  coco_tls_options o;
   memset(&o, 0, sizeof o);
   o.cacert = cacert;
   o.capath = capath;
@@ -196,7 +190,7 @@ void zt_tls_configure_flat(const char *cacert, const char *capath,
   o.key = key;
   o.key_pass = key_pass;
   o.insecure = insecure;
-  zt_tls_configure(&o);
+  coco_client_tls_configure(&o);
 }
 
 int zt_get(const char *host, const char *service, const char *path,
@@ -208,7 +202,7 @@ int zt_get(const char *host, const char *service, const char *path,
 }
 
 int zt_get2(const char *host, const char *service, const char *path,
-            int timeout_seconds, const zt_tls_options *tls,
+            int timeout_seconds, const coco_tls_options *tls,
             char **body, size_t *len, char *err, size_t errcap)
 {
   zt_conn c = { -1, NULL };
@@ -250,11 +244,11 @@ int zt_get2(const char *host, const char *service, const char *path,
    * dialling, the timeout and the address family are settled here, once,
    * for both transports. */
   if (tls != NULL) {
-    if (zt_tls_open == NULL) {
+    if (coco_client_tls_open == NULL) {
       close(c.fd);
       return fail(err, errcap, "this build has no TLS", NULL);
     }
-    c.tls = zt_tls_open(c.fd, host, tls, err, errcap);
+    c.tls = coco_client_tls_open(c.fd, host, tls, err, errcap);
     if (c.tls == NULL) { close(c.fd); return 0; }
   }
 

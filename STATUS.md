@@ -256,6 +256,39 @@ certificate is not examined until after it has sent its Finished, so a
 stranger gets success out of connect and hears the refusal afterwards.
 The property to check is that a refused peer gets no answer.
 
+### Four transports, named -- `--tcp`, `--tls`, `--http`, `--https`
+
+The arrangement is spelled rather than inferred. `--tcp' is what naming
+`--kb', `--host' or `--port' already chose; `--tls' is the same port with
+ZiguratIP's `SERVER/TLS_MODE: TRUE' on the other end; `--http' and
+`--https' are Zeytun. Every port is optional -- 2160, 2160, 80, 443.
+
+**`--tls` KEEPS THE PORT AND `--https` CHANGES IT**, and the asymmetry is
+ZiguratIP's rather than an inconsistency here: TLS_MODE changes what is
+ON 2160, while 80 and 443 are two different ports. `TLS_CLIENT_AUTH' on
+the binary port defaults to REQUIRED -- the configuration says in as many
+words that the binary protocol has no anonymous use -- so `--tls' usually
+wants `--cert' and `--key' beside `--cacert'. And with
+`SECURITY/PERMISSIONS_MODE: TRUE' the certificate that opened the
+connection decides which tables and procedures it reaches: the same
+permission list `library(ca)' reads, on the other side of the same seam.
+
+**Both clients share one TLS unit**, `client/tls.c`, because a handshake
+is a handshake -- and its functions are `coco_client_tls_*` rather than
+`coco_tls_*` because `library(tls)`'s module already owns the latter and
+both live in one process when a cocolog serves and queries at once.
+`zigurat.c` and `zeytun.c` stay libc and the sockets API; each reaches it
+weakly, and neither the archive nor a test target carries OpenSSL.
+
+`test/zigurat-tls.sh` is the rehearsal, and says what it is: a TLS
+terminator in front of the suite's own server, the same shape `tunnel`
+uses for the Cloudflare edge. What it proves is the CLIENT half -- the
+handshake happening before the server's greeting, the framing surviving,
+a clause written and read back by TWO PROCESSES over an encrypted
+connection, the hostname checked, and plaintext against a TLS port not
+going through. What it does not prove is ZiguratIP's server side, which
+is ZiguratIP's suite's business.
+
 ### `--https`, and two older bugs it uncovered
 
 The Zeytun client speaks TLS. `--https [PORT]` sits beside `--http

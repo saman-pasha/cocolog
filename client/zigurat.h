@@ -59,6 +59,9 @@
 #define ZIGURAT_C_H
 
 #include <stddef.h>
+
+/* coco_tls_options, shared by both clients -- see client/tls.c. */
+#include "zeytun.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -101,6 +104,24 @@ typedef struct zg_conn zg_conn;
 /* Connects and reads the transaction id the server opens with. Answers NULL on
  * failure; ERR, if given, is filled with the reason. TIMEOUT_SECONDS of 0
  * means no timeout. */
+/* TLS FOR THE BINARY PROTOCOL, set once before `zg_open'. ZiguratIP's
+ * `SERVER/TLS_MODE: TRUE' turns 2160 into a mutually authenticated port --
+ * the same port, a different thing on it -- with `TLS_CLIENT_AUTH'
+ * defaulting to REQUIRED, because the binary protocol has no anonymous
+ * use. With `SECURITY/PERMISSIONS_MODE' on, the certificate that opened
+ * the connection also decides which tables and procedures it reaches.
+ *
+ * PROCESS-WIDE, like the Zeytun client's: a cocolog reaches one server in
+ * an arrangement chosen from argv before the first goal runs, and
+ * `zg_reopen' needs it too -- a connection that was secure must come back
+ * secure and has nowhere else to learn that. See client/zeytun.h for the
+ * options themselves; they are the same struct.
+ *
+ * Not called at all means plaintext, which is what it was. */
+void zg_tls_configure_flat(const char *cacert, const char *capath,
+                           const char *cert, const char *key,
+                           const char *key_pass, int insecure);
+
 zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
                  char *err, size_t errcap);
 

@@ -33,6 +33,9 @@
 ;;;   --kb NAME      which knowledge base   (default main)
 ;;;   --host HOST    (default 127.0.0.1)
 ;;;   --port PORT    the binary protocol    (default 2160)
+;;;   --tcp [PORT]   the binary protocol, in the clear (2160)
+;;;   --tls [PORT]   the binary protocol over TLS, same port -- what
+;;;                  ZiguratIP's SERVER/TLS_MODE: TRUE puts on it
 ;;;   --http [PORT]  read over Zeytun instead of the binary protocol (80)
 ;;;   --https [PORT] the same, over TLS (443) -- what an edge speaks
 ;;;   --local        no database at all: everything in memory
@@ -145,10 +148,18 @@
   ;;; `($ t cacert)' on a type it only knows the name of stops the
   ;;; transpile with `unknown struct type: zt_tls_options'. Six arguments
   ;;; say the same thing with nothing to declare.
-  (decl) (func zt_tls_configure_flat ((const char * cacert) (const char * capath)
+  (decl) (func coco_client_tls_configure_flat ((const char * cacert) (const char * capath)
                                       (const char * cert) (const char * key)
                                       (const char * key_pass) (int insecure)))
-  (decl) (func zt_tls_available () (out int))
+  ;;; THE SAME SIX, FOR THE BINARY PROTOCOL. Two setters rather than one
+  ;;; shared global, because the two clients are two translation units and
+  ;;; a cocolog reaches one server through ONE of them -- a single global
+  ;;; would work today and be a trap the first time something wanted a
+  ;;; Zeytun and a Zigurat at once.
+  (decl) (func zg_tls_configure_flat ((const char * cacert) (const char * capath)
+                                      (const char * cert) (const char * key)
+                                      (const char * key_pass) (int insecure)))
+  (decl) (func coco_client_tls_available () (out int))
 
   (import "./lib/zigurat.cicili" :zg)
   (import "./lib/zeytun.cicili" :zt)
@@ -202,7 +213,11 @@
     ;; flag: every `(!= ($ opts http) nil)' below -- the arrangement
     ;; test, in five places -- is unchanged, and there is no second
     ;; backend to keep in step.
+    ;; WHICH TRANSPORT, for whichever arrangement was chosen. `secure' is
+    ;; Zeytun's and `bsecure' the binary protocol's, and they cannot both
+    ;; be on: `--https' and `--tls' name different servers.
     (member int secure)
+    (member int bsecure)
     (member const char * cacert)
     (member const char * capath)
     (member const char * cert)
@@ -241,10 +256,10 @@
   ;; adding one in the middle means adding one here. Getting it wrong is a
   ;; wall of `incompatible integer to pointer conversion' naming this line
   ;; and not the member that moved.
-  ;;   kb host port http | secure cacert capath cert key keypass insecure
+  ;;   kb host port http | secure bsecure cacert capath cert key keypass insecure
   ;;   | local steps timeout answers lock store outdir vacuum
   (var coco_opts opts . '{ nil nil nil nil
-                           0 nil nil nil nil nil 0
+                           0 0 nil nil nil nil nil 0
                            0 2000 20 10 nil nil nil 0 })
 
   ;;; The one connection, when there is one. THREAD-LOCAL, because the
@@ -360,6 +375,9 @@
         (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
         (fprintf stderr "  --host HOST   (default 127.0.0.1)\n")
         (fprintf stderr "  --port PORT   binary protocol           (default 2160)\n")
+        (fprintf stderr "  --tcp [PORT]  the binary protocol, in the clear (default 2160)\n")
+        (fprintf stderr "  --tls [PORT]  the binary protocol over TLS -- ZiguratIP's\n")
+        (fprintf stderr "                SERVER/TLS_MODE: TRUE, same port (default 2160)\n")
         (fprintf stderr "  --http [PORT] read over Zeytun, plain HTTP (default port 80)\n")
         (fprintf stderr "  --https [PORT] the same over TLS (default port 443)\n")
         (fprintf stderr "  --cacert F    the authority to check the server against\n")
@@ -1950,6 +1968,23 @@
                             (set i (+ i 2)))
                    (block (set ($ opts http) (? ($ opts secure) "443" "80"))
                           (set i (+ i 1)))))
+                ;; THE BINARY PROTOCOL, SPELLED OUT. `--tcp' is what
+                ;; naming `--kb', `--host' or `--port' already chose, said
+                ;; explicitly; `--tls' is the same port with ZiguratIP's
+                ;; `SERVER/TLS_MODE: TRUE' on the other end. The port is
+                ;; 2160 for both, because TLS_MODE changes WHAT IS ON the
+                ;; port and not where it is -- which is the opposite of
+                ;; --http and --https, where 80 and 443 are two ports, and
+                ;; the difference is worth knowing.
+                ((or (== 0 (strcmp a "--tcp")) (== 0 (strcmp a "--tls")))
+                 (if (== 0 (strcmp a "--tls")) (set ($ opts bsecure) 1))
+                 (if (and (< (+ i 1) argc)
+                          (!= (nth 0 (nth (+ i 1) argv)) (cast char 45))
+                          (not (is_verb (nth (+ i 1) argv))))
+                     (block (set ($ opts port) (nth (+ i 1) argv))
+                            (set i (+ i 2)))
+                   (block (if (== ($ opts port) nil) (set ($ opts port) "2160"))
+                          (set i (+ i 1)))))
                 ((== 0 (strcmp a "--insecure")) (set ($ opts insecure) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--vacuum")) (set ($ opts vacuum) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--trace")) (set coco_trace_default 1) (set i (+ i 1)))
@@ -1983,7 +2018,8 @@
           ;; The names then take their old defaults whichever way it went.
           (if (and (== ($ opts local) 0) (== ($ opts store) nil)
                    (== ($ opts http) nil) (== ($ opts kb) nil)
-                   (== ($ opts host) nil) (== ($ opts port) nil))
+                   (== ($ opts host) nil) (== ($ opts port) nil)
+                   (== ($ opts bsecure) 0))
               (set ($ opts local) 1))
           (if (== ($ opts kb) nil)   (set ($ opts kb) "main"))
           (if (== ($ opts host) nil) (set ($ opts host) "127.0.0.1"))
@@ -1999,9 +2035,16 @@
           ;;
           ;; THE STRINGS ARE argv, which outlives everything -- the client
           ;; copies the struct and not what it points at, and says so.
-          (if ($ opts secure)
+          ;; BOTH AT ONCE IS A MISTAKE, not a preference: `--https' names a
+          ;; Zeytun and `--tls' a Zigurat, and a run reaches one knowledge
+          ;; base through one of them.
+          (if (and (!= ($ opts http) nil) ($ opts bsecure))
               (block
-                (if (not (zt_tls_available))
+                (fprintf stderr "cocolog: --tls names the binary protocol and --http/--https names Zeytun; choose one\n")
+                (return 1)))
+          (if (or ($ opts secure) ($ opts bsecure))
+              (block
+                (if (not (coco_client_tls_available))
                     (block
                       (fprintf stderr "cocolog: --https needs a build with OpenSSL; this one has none\n")
                       (return 1)))
@@ -2020,9 +2063,15 @@
                 ;; that goes quiet is a flag somebody leaves in a script.
                 (if ($ opts insecure)
                     (fprintf stderr "cocolog: --insecure: the server is NOT being verified\n"))
-                (zt_tls_configure_flat ($ opts cacert) ($ opts capath)
-                                       ($ opts cert) ($ opts key)
-                                       ($ opts keypass) ($ opts insecure))))
+                ;; ONE OR THE OTHER, and the check above has already made
+                ;; sure it is not both.
+                (if ($ opts secure)
+                    (coco_client_tls_configure_flat ($ opts cacert) ($ opts capath)
+                                                    ($ opts cert) ($ opts key)
+                                                    ($ opts keypass) ($ opts insecure))
+                  (zg_tls_configure_flat ($ opts cacert) ($ opts capath)
+                                         ($ opts cert) ($ opts key)
+                                         ($ opts keypass) ($ opts insecure)))))
 
           (if (not (install_modules)) (return 1))
           ;; A THREAD GETS THE ARRANGEMENT THIS PROCESS WAS STARTED WITH.

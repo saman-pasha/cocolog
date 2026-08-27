@@ -15,7 +15,7 @@
  * -- Cloudflare in front of a Colab VM is the worked case -- speaks TLS and
  * nothing else, and a client that could only speak plaintext had to be given
  * port 80 and hope the edge did not redirect. `zt_get2' takes a
- * `zt_tls_options *' and NULL means plaintext, so the old path is byte for
+ * `coco_tls_options *' and NULL means plaintext, so the old path is byte for
  * byte what it was.
  *
  * THE TLS IS IN client/zeytun-tls.c, ON PURPOSE. This file is still libc and
@@ -88,7 +88,7 @@ typedef struct {
   const char *key;
   const char *key_pass;
   int         insecure;
-} zt_tls_options;
+} coco_tls_options;
 
 /* THE PROCESS-WIDE SETTING, and why there is one. A cocolog reaches exactly
  * one Zeytun, in an arrangement chosen once from argv before the first goal
@@ -101,31 +101,41 @@ typedef struct {
  * HTTP. The struct is COPIED but its strings are not -- they are argv, which
  * outlives everything. A caller that wants neither the global nor the copy
  * uses `zt_get2' and says what it means at the call. */
-void zt_tls_configure(const zt_tls_options *o);
+void coco_client_tls_configure(const coco_tls_options *o);
 
 /* THE SAME THING, FLAT, and it exists for Cicili. A Cicili form reaching
  * into a C struct needs that struct's MEMBERS declared to it, not merely
  * its name -- `($ t cacert)' on a type it only knows the name of is
  * `unknown struct type'. Six arguments say the same thing with nothing to
  * declare, which is the seam-one-function-wide shape the modules use. */
-void zt_tls_configure_flat(const char *cacert, const char *capath,
+void coco_client_tls_configure_flat(const char *cacert, const char *capath,
                            const char *cert, const char *key,
                            const char *key_pass, int insecure);
 
 /* One GET, over TLS when TLS is not NULL and over plain HTTP when it is.
- * `zt_get' is this with whatever `zt_tls_configure' was given. */
+ * `zt_get' is this with whatever `coco_client_tls_configure' was given. */
 int zt_get2(const char *host, const char *service, const char *path,
-            int timeout_seconds, const zt_tls_options *tls,
+            int timeout_seconds, const coco_tls_options *tls,
             char **body, size_t *len, char *err, size_t errcap);
 
-/* client/zeytun-tls.c. Answers 0 from a build that had no OpenSSL, in which
- * case `zt_tls_open' fills ERR with a sentence saying so. */
-int   zt_tls_available(void);
-void *zt_tls_open(int fd, const char *host, const zt_tls_options *o,
-                  char *err, size_t errcap);
-long  zt_tls_send(void *handle, const void *buf, size_t n);
-long  zt_tls_recv(void *handle, void *buf, size_t n);
-void  zt_tls_close(void *handle);
+/* client/tls.c, shared with zigurat.c. Answers 0 from a build with no OpenSSL, in which
+ * case `coco_client_tls_open' fills ERR with a sentence saying so. */
+/* DECLARED WEAK, AND HERE RATHER THAN IN EACH .c. client/tls.o is linked
+ * into the cocolog BINARY and not into libcocologc.a, so a program that
+ * links only the archive -- every test/*.cicili target does -- must get
+ * null for these and speak plaintext. A weak attribute has to be on the
+ * FIRST declaration the compiler sees: putting it only in the .c files,
+ * after this header had already declared them strongly, left
+ * `undefined reference to coco_client_tls_recv' at every such link. */
+#define COCO_WEAK __attribute__((weak))
+
+COCO_WEAK int   coco_client_tls_available(void);
+COCO_WEAK void *coco_client_tls_open(int fd, const char *host,
+                                     const coco_tls_options *o,
+                                     char *err, size_t errcap);
+COCO_WEAK long  coco_client_tls_send(void *handle, const void *buf, size_t n);
+COCO_WEAK long  coco_client_tls_recv(void *handle, void *buf, size_t n);
+COCO_WEAK void  coco_client_tls_close(void *handle);
 
 /* Undoes Zeytun's five escapes, in place. Answers the resulting length; the
  * result is always shorter or the same, so nothing is reallocated. */

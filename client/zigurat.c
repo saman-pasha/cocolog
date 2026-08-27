@@ -86,6 +86,18 @@ extern int  ce_reset(void *s) __attribute__((weak));
 
 struct zg_conn {
   int  fd;
+  /* THE TLS HANDLE, or null on a plain connection. ZiguratIP's
+   * `SERVER/TLS_MODE: TRUE' turns 2160 into a mutually authenticated port
+   * -- the same port, a different thing on it -- and `TLS_CLIENT_AUTH'
+   * defaults to REQUIRED there, because the binary protocol has no
+   * anonymous use. With `SECURITY/PERMISSIONS_MODE' on, the certificate
+   * that opened the connection also decides which tables and procedures
+   * it reaches.
+   *
+   * REACHED WEAKLY, like zeytun.c's: client/tls.o is linked into the
+   * cocolog binary and NOT into libcocologc.a, so a program that links
+   * only the archive gets null here and plaintext is unaffected. */
+  void *tls;
   /* the embedded session, when zg_open_embed made this handle; null on a
    * socket handle, and every verb below branches on it first */
   void *ce;
@@ -249,7 +261,8 @@ static int rd(zg_conn *c, void *buf, size_t n)
     if (!flush_out(c)) return 0;
     c->nin = c->pin = 0;
     {
-      ssize_t k = recv(c->fd, c->in, sizeof c->in, 0);
+      ssize_t k = c->tls ? (ssize_t) coco_client_tls_recv(c->tls, c->in, sizeof c->in)
+                         : recv(c->fd, c->in, sizeof c->in, 0);
       if (k == 0) return lost(c, "the server closed the connection", NULL);
       if (k < 0) {
         if (errno == EINTR) continue;
@@ -261,6 +274,30 @@ static int rd(zg_conn *c, void *buf, size_t n)
   return 1;
 }
 
+/* client/tls.c, weakly -- see the note by `tls' in struct zg_conn. */
+
+/* THE PROCESS-WIDE SETTING, for the same reason zeytun.c has one: a
+ * cocolog reaches one server, in an arrangement chosen once from argv
+ * before the first goal runs. `zg_reopen' needs it too -- a connection
+ * that was secure must come back secure, and it has nowhere else to
+ * learn that from. */
+static coco_tls_options g_tls;
+static int              g_tls_on = 0;
+
+void zg_tls_configure_flat(const char *cacert, const char *capath,
+                           const char *cert, const char *key,
+                           const char *key_pass, int insecure)
+{
+  memset(&g_tls, 0, sizeof g_tls);
+  g_tls.cacert = cacert;
+  g_tls.capath = capath;
+  g_tls.cert = cert;
+  g_tls.key = key;
+  g_tls.key_pass = key_pass;
+  g_tls.insecure = insecure;
+  g_tls_on = 1;
+}
+
 /* Puts N bytes on the wire, now. */
 static int wr_now(zg_conn *c, const void *buf, size_t n)
 {
@@ -268,7 +305,8 @@ static int wr_now(zg_conn *c, const void *buf, size_t n)
   size_t sent = 0;
   if (c->fd < 0) return say(c, "the connection is closed");
   while (sent < n) {
-    ssize_t k = send(c->fd, p + sent, n - sent, MSG_NOSIGNAL);
+    ssize_t k = c->tls ? (ssize_t) coco_client_tls_send(c->tls, p + sent, n - sent)
+                       : send(c->fd, p + sent, n - sent, MSG_NOSIGNAL);
     if (k <= 0) {
       if (k < 0 && errno == EINTR) continue;
       return lost(c, "write failed", strerror(errno));
@@ -442,6 +480,7 @@ static int dial(zg_conn *c, const char *host, const char *service,
   struct addrinfo hints, *list = NULL, *ai;
   int rc;
 
+  if (c->tls) { if (coco_client_tls_close) coco_client_tls_close(c->tls); c->tls = NULL; }
   if (c->fd >= 0) { close(c->fd); c->fd = -1; }
   /* Whatever the old connection was in the middle of is over, turn included --
    * and letting go here is what unwedges the worker whose lock wait timed out
@@ -491,6 +530,19 @@ static int dial(zg_conn *c, const char *host, const char *service,
     setsockopt(c->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
   }
 
+  /* THE HANDSHAKE BEFORE THE GREETING, and that ordering is the whole of
+   * what `--tls' changes here: the server speaks first, so if TLS is on
+   * there has to be a TLS session before there is anything to read. The
+   * dial, Nagle and the timeouts are settled above for both. */
+  if (g_tls_on) {
+    if (coco_client_tls_open == NULL) {
+      close(c->fd); c->fd = -1;
+      return say(c, "this build has no TLS");
+    }
+    c->tls = coco_client_tls_open(c->fd, host, &g_tls, c->err, sizeof c->err);
+    if (c->tls == NULL) { close(c->fd); c->fd = -1; return 0; }
+  }
+
   /* The server speaks first: the id of the transaction this connection is. */
   {
     size_t tid = 0;
@@ -511,6 +563,7 @@ zg_conn *zg_open(const char *host, const char *service, int timeout_seconds,
     return NULL;
   }
   c->fd     = -1;
+  c->tls    = NULL;
   c->lockfd = -1;              /* 0 from calloc would be standard input */
 
   if (!dial(c, host, service, timeout_seconds)) {
@@ -537,6 +590,7 @@ zg_conn *zg_open_embed(const char *dir, char *err, size_t errcap)
     return NULL;
   }
   c->fd     = -1;
+  c->tls    = NULL;
   c->lockfd = -1;
   if (!ce_engine_open(dir, c->err, sizeof c->err)) {
     if (err) snprintf(err, errcap, "%s", c->err);
@@ -581,6 +635,7 @@ void zg_close(zg_conn *c)
   }
   give_turn(c);
   if (c->lockfd >= 0) close(c->lockfd);
+  if (c->tls) { if (coco_client_tls_close) coco_client_tls_close(c->tls); c->tls = NULL; }
   if (c->fd >= 0) close(c->fd);
   c->fd = c->lockfd = -1;
   free(c);

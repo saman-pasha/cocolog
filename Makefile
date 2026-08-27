@@ -73,7 +73,7 @@ AR             ?= ar
 
 BUILD          := build
 CLIENT_LIB     := $(BUILD)/libcocologc.a
-# THE ARCHIVE IS libc AND SOCKETS, and stays that way: zeytun-tls.o is NOT
+# THE ARCHIVE IS libc AND SOCKETS, and stays that way: tls.o is NOT
 # in it. It goes into the cocolog binary instead, beside -lssl -lcrypto,
 # and zeytun.c reaches it through WEAK symbols -- so every test/*.cicili
 # target, which links only this archive, gets plaintext and needs no
@@ -84,7 +84,7 @@ CLIENT_OBJS    := $(BUILD)/zigurat.o $(BUILD)/zeytun.o
 
 # ---- TLS for the client, when there is any ----------------------------------
 # DETECTED RATHER THAN ASSUMED, and the failure is a sentence rather than a
-# missing symbol: client/zeytun-tls.c compiles a stub half without
+# missing symbol: client/tls.c compiles a stub half without
 # COCO_ZT_TLS, so `--https' reports "built without TLS" by name and every
 # other thing in the client is unaffected.
 #
@@ -159,13 +159,13 @@ TORCH_LIB ?= $(shell python3 -c "import torch, os; print(os.path.join(os.path.di
 # modules/ now, so the binary needs neither libtorch nor its -rpath. What
 # is left of the C++ dependency is the EMBEDDED STORE, which genuinely is
 # part of the binary and genuinely needs libCore.
-cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/zeytun-tls.o
+cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
 	$(CXX) -O3 .libs/cocolog.o embed/.libs/embed.o \
 	  -o cocolog \
 	  -rdynamic -ldl \
-	  $(BUILD)/zeytun-tls.o -Lbuild -lcocologc $(ZT_TLS_LIBS) -lm -lpthread \
+	  $(BUILD)/tls.o -Lbuild -lcocologc $(ZT_TLS_LIBS) -lm -lpthread \
 	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
 	  -Wl,-rpath,"$(ZIGURATIP)/home/lib"
 
