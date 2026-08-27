@@ -2010,6 +2010,33 @@ a trusted one.** If anything in this repository ever tempts a caller to
 skip verification because a connection was authenticated, that is the
 bug, and this is the sentence it violated.
 
+### Where cocolog stands among languages, written down once
+
+The comparison a reader of this file eventually wants -- cocolog against
+Python and against SWI-Prolog, across the language aspects, the backend
+work, and the four separate senses of "AI-friendly" -- exists, and it is
+deliberately NOT here. It is The Coco's `bench/languages.md`, in a
+bench/ directory because a comparison is a benchmark of a different
+kind, under the same rule as the harness beside it: no sentence claims a
+number that has not been printed. The figures it does claim are this
+family's own, arrangement beside each -- several of them this
+repository's, from the tables above.
+
+What it says about cocolog is what this file already says, gathered:
+where it loses (strings are codes, no GC inside a solution, no clause
+indexing, no tabling or constraints, no debugger GUI or profiler or
+package manager, an ecosystem of one family) and where it differs in
+POSITION rather than language -- a clause is a row other processes read,
+a turn is a transaction, a suspended proof is data any process can
+finish, determinism and metering are the engine's guarantee. Every one
+of those sentences has its proving story somewhere in this file; the
+comparison is the view of them from outside.
+
+ONE copy, pointed at from here, from this repository's README, and from
+The Coco's thesis -- because a comparison kept in two files disagrees
+with itself eventually, and the losing rows are exactly the ones a
+second copy would soften first.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes
