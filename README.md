@@ -1223,6 +1223,18 @@ the concurrent arrangements are done and tested; `make test` ends
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 
+**How cocolog compares to Python and to SWI-Prolog** — across the
+language aspects, the backend work, and the four separate senses of
+"AI-friendly" — is written down once, honestly, in The Coco's
+[bench/languages.md](https://github.com/saman-pasha/coco/blob/master/bench/languages.md).
+It lives in a `bench/` directory because a comparison is a benchmark of
+a different kind and obeys the same rule: no sentence claims a number
+that has not been printed. It is honest in both directions, which means
+cocolog loses often — strings, GC, clause indexing, tabling, tooling,
+ecosystem — and the rows where it genuinely differs compare positions
+rather than languages: a clause is a row other processes read, a turn is
+a transaction, and a suspended proof is data any process can finish.
+
 ## A worked store slows down. Truncate it.
 
 This is the one piece of operating knowledge cocolog demands, and skipping it
