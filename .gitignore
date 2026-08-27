@@ -43,3 +43,10 @@ test/hoot.so
 library/*.so
 lib/curl/curl.c
 lib/curl/sdk.cicili
+
+# library(bigint)'s build output and its symlink into the ZiguratIP
+# checkout (lib/bigint/build.sh makes both, and `make' runs it). The same
+# shape as torch/coco-torch.cpp above -- and `make clean' already deleted
+# these two, so tracking them meant a clean left the tree dirty.
+lib/bigint/coco-bigint.cpp
+lib/bigint/zigheaders

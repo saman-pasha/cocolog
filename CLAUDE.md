@@ -225,15 +225,24 @@ someone who wants an interpreter and no network, so `library(curl)` is a
 `.so` built by `sh lib/curl/build.sh` and is not part of `make`. torch
 and bigint went the other way because the binary's own story needs them.
 
-**A `.so` is BUILD OUTPUT and is never committed** — nor is the C Cicili
-generates beside it, nor `lib/curl/sdk.cicili`, which is a symlink into
-this checkout and dangles in anyone else's. All three were, once, and the
-mistake is easy to make because they sit beside sources: `library/` holds
-`http.pl`, which *is* source. A compiled object is linked against one
-machine's libcurl and OpenSSL; it belongs in a release, not in a source
-tree. `.gitignore` now says so; `sh lib/curl/build.sh` remakes all three
-from `build.sh` and `curl.cicili` alone, which is the test of whether
-anything else in that directory needed keeping.
+**WHAT A `build.sh` MAKES IS NEVER COMMITTED**, and every module
+directory here is the same shape: a `.cicili`, a `build.sh`, and output.
+Output is the `.o`, the `.so`, the C or C++ Cicili generates, *and the
+symlinks* — `lib/curl/sdk.cicili` points inside this checkout,
+`lib/bigint/zigheaders` inside ZiguratIP's, and both dangle in anyone
+else's clone. Five such files were tracked and are not now.
+
+The mistake is easy because the output sits beside the sources —
+`library/` holds `http.pl`, which *is* source — and because a transpile
+is deterministic, so a stale artifact never looks stale. `make clean`
+had been deleting two of these tracked files for a while, which means a
+clean clone could dirty its own tree by cleaning.
+
+**The test is to delete everything a `build.sh` makes and run it.** What
+comes back was output; what does not was source. Both times it was worth
+doing: `lib/curl/` came back with an implicitly declared `toupper`,
+because nothing had ever compiled that file without a stale `curl.c`
+beside it, and `lib/bigint/` came back byte for byte.
 
 **THE PATH IS ANCHORED TO THE BINARY, not to the working directory**, and
 that was a bug worth naming. `./library` finds what shipped only when
