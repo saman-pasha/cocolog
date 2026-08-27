@@ -8,6 +8,11 @@
 %%   test     reload, accuracy over the two arcs, pass at 90%
 %%   predict  reload, classify a point deep inside each moon
 
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
+
 noise(I, R) :-
     S is sin(I * 12.9898) * 43758.5453,
     R is S - truncate(S), !.

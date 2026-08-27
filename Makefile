@@ -39,7 +39,7 @@ CLIENT_LIB     := $(BUILD)/libcocologc.a
 CLIENT_OBJS    := $(BUILD)/zigurat.o $(BUILD)/zeytun.o
 LIB_SOURCES    := $(wildcard lib/*.cicili)
 
-.PHONY: all client schema test clean check-cicili
+.PHONY: all client schema test clean check-cicili modules
 
 all: client cocolog
 
@@ -83,7 +83,7 @@ CICILI_RUN = cd "$(CICILI)" && $(SBCL) --script cicili.lisp --release
 # server offers, in-process over the Cicili MVCCS engine, so --embed DIR
 # opens the store embedded and `swarm' runs its workers as threads of the
 # one process the store belongs to) and the torch module
-# (torch/coco-torch.cicili: libtorch as cocolog predicates). Both register
+# (modules/torch/coco-torch.cicili: libtorch as cocolog predicates). Both register
 # through weak symbols the interpreter already carries, so linking them in
 # is all it takes. Which knowledge base a run uses -- --local, the server,
 # --http, or --embed -- is then an option, never a build.
@@ -92,19 +92,42 @@ CICILI_RUN = cd "$(CICILI)" && $(SBCL) --script cicili.lisp --release
 # at compile time (default: the pip torch package's).
 TORCH_LIB ?= $(shell python3 -c "import torch, os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))" 2>/dev/null)
 
+# THE LINK NO LONGER MENTIONS LIBTORCH. torch and bigint were objects in
+# this line, reached through weak symbols; they are loadable modules under
+# modules/ now, so the binary needs neither libtorch nor its -rpath. What
+# is left of the C++ dependency is the EMBEDDED STORE, which genuinely is
+# part of the binary and genuinely needs libCore.
 cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
-	CICILI="$(CICILI)" sh torch/build.sh
-	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh lib/bigint/build.sh
-	g++ -O3 .libs/cocolog.o embed/.libs/embed.o torch/.libs/coco-torch.o \
-	  lib/bigint/.libs/coco-bigint.o \
+	g++ -O3 .libs/cocolog.o embed/.libs/embed.o \
 	  -o cocolog \
 	  -rdynamic -ldl \
 	  -Lbuild -lcocologc -lm -lpthread \
 	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
-	  -L"$(TORCH_LIB)" -ltorch -ltorch_cpu -lc10 \
-	  -Wl,-rpath,"$(ZIGURATIP)/home/lib" -Wl,-rpath,"$(TORCH_LIB)"
+	  -Wl,-rpath,"$(ZIGURATIP)/home/lib"
+
+# ---- the loadable modules ---------------------------------------------------
+# EVERY ONE OF THESE USED TO BE IN THE BINARY, or on its critical path.
+# tcp was swept into cocolog.c by the wildcard; torch and bigint were objects
+# in the link, reached through weak symbols; curl was already loadable and is
+# what the other three were measured against. They are all modules/ now, and
+# `make' builds none of them -- which is the point: a cocolog with no libtorch,
+# no ZiguratIP headers and no libcurl still builds and still runs.
+#
+#   make modules        build every one that CAN be built here
+#   sh modules/tcp/build.sh   just that one
+#
+# Each is skipped, loudly, when what it needs is absent.
+modules:
+	@for m in tcp curl bigint torch; do \
+	  printf '%-8s ' "$$m"; \
+	  if CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh modules/$$m/build.sh >/dev/null 2>&1; then \
+	    echo "built"; \
+	  else \
+	    echo "SKIPPED (see: sh modules/$$m/build.sh)"; \
+	  fi; \
+	done
 
 # ---- the schema -------------------------------------------------------------
 # Compiled by ZiguratIP's own parsi program into a ZiguratIP home. This is the
@@ -121,9 +144,11 @@ test: all $(BUILD)/probe
 
 clean:
 	rm -rf $(BUILD) cocolog cocolog.c *.o *.lo .libs
-	rm -rf torch/coco-torch.cpp torch/*.o torch/*.lo torch/.libs
+	rm -rf modules/torch/coco-torch.cpp modules/torch/*.o modules/torch/*.lo modules/torch/.libs \
+	  modules/tcp/tcp.c modules/tcp/sdk.cicili modules/curl/curl.c modules/curl/sdk.cicili \
+	  library/*.so
 	rm -rf embed/embed.cpp embed/*.o embed/*.lo embed/.libs embed/ce_smoke embed/smoke.o
-	rm -rf lib/bigint/coco-bigint.cpp lib/bigint/*.o lib/bigint/*.lo lib/bigint/.libs lib/bigint/zigheaders
+	rm -rf modules/bigint/coco-bigint.cpp modules/bigint/*.o modules/bigint/*.lo modules/bigint/.libs modules/bigint/zigheaders
 	rm -f embed/Core embed/StreamIO embed/mvccs-lib.cicili embed/generated embed/ziglib
 	rm -f test/*.c test/*.o test/*.lo test/cocolog_*_test
 	rm -rf test/.libs

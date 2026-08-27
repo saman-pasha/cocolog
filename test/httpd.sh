@@ -307,7 +307,7 @@ check "with pages off, the same request is static again" \
 
 echo "-- and now over a real socket, one cocolog to another"
 if [ ! -f "$ROOT/library/curl.so" ]; then
-  echo "   (client half SKIPPED -- no library/curl.so; sh lib/curl/build.sh)"
+  echo "   (client half SKIPPED -- no library/curl.so; sh modules/curl/build.sh)"
 else
 cat > "$D/server.pl" <<PL
 :- use_module(library(httpd)).
@@ -347,7 +347,7 @@ check "and a page computed by clauses" \
 # SERVER what it does, the bytes have to be written by hand -- which is
 # library(tcp), and keeps the whole test inside this repository.
 check "raw traversal bytes, straight down a socket, are refused" \
-  "$(timeout 60 "$C" query "tcp_connect('127.0.0.1', 18860, S),
+  "$(timeout 60 "$C" query "use_module(library(tcp)), tcp_connect('127.0.0.1', 18860, S),
         atom_codes(Q, \"GET /../outside.txt HTTP/1.1\\r\\nHost: x\\r\\n\\r\\n\"),
         atom_codes(Q, QC), tcp_write(S, QC), tcp_read(S, 4096, 5000, R),
         tcp_close(S), atom_codes(A, R), sub_atom(A, 9, 3, _, St),
@@ -363,6 +363,7 @@ if [ ! -x "$C" ]; then :; else
 # with library(tcp), in this repository, one connection and several
 # write/read turns on it.
 cat > "$D/client.pl" <<'PL'
+:- use_module(library(tcp)).
 %% Sends each request in Reqs down ONE connection and collects what came
 %% back. Status only, plus whether the response said keep-alive or close --
 %% between them that is the entire contract.

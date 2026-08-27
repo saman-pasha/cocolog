@@ -18,6 +18,11 @@
 %  `train' learns the sky and saves the model; `polaris' -- in a fresh
 %  process, with nothing but the store -- loads it back and answers.
 
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
+
 star_class(0, dwarf).
 star_class(1, main_sequence).
 star_class(2, giant).

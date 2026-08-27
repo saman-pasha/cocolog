@@ -54,14 +54,13 @@
 ;;;; an integer saying what went wrong.
 
 (source "coco-bigint.cpp"
-  (make :cpp #t
-        :compile ("-std=c++17"
-                  "-Wno-parentheses-equality" "-Wno-dangling-else"
-                  ;; build.sh symlinks the BUILT ZiguratIP's published
-                  ;; headers in beside this file, so the include path is
-                  ;; relative and this file carries no absolute path.
-                  "-Izigheaders"
-                  "-c" "coco-bigint.cpp"))
+  ;; COMPILED BY build.sh, NOT BY CICILI. `:compile #f' stops Cicili
+  ;; emitting a compile command of its own: this is a LOADABLE module now,
+  ;; so what has to come out is a shared object, and the flags for one
+  ;; (-shared -fPIC, the ZiguratIP headers, libCore) belong in the script
+  ;; that knows where ZiguratIP is. It is what modules/curl and
+  ;; modules/tcp already do.
+  (make :cpp #t :compile #f)
 
   (include <cstdio>)
   (include <cstdint>)
@@ -432,8 +431,23 @@
              (#t (set (cof found) 0) (return 0))))
           (#t (set (cof found) 0) (return 0))))
 
-  (func coco_bigint_module () (out int)
-        (return (coco_module_register "bigint" coco_bigint_dispatch nil nil)))
+  ;;; THE ONE SYMBOL THE LOADER CALLS, and it must have C linkage -- which
+  ;;; is why it sits inside the `extern "C"' block with everything else
+  ;;; here. A C++ module whose entry point kept C++ linkage would compile,
+  ;;; link, and then not be found by dlsym under the name the loader looks
+  ;;; for, because the mangled name is not `coco_library_entry'.
+  ;;;
+  ;;; It replaces `coco_bigint_module', which the composition root used to
+  ;;; call by name after linking this object into the binary. Nothing else
+  ;;; in this file changed: the dispatcher, the arithmetic and the whole
+  ;;; BigInt surface are what they were.
+  ;;;
+  ;;; The 1 is the ABI version, not a success flag -- lib/sdk.cicili is
+  ;;; version 1 and the loader refuses anything else by name.
+  (func coco_library_entry () (out int)
+        (if (not (coco_module_register "bigint" coco_bigint_dispatch nil nil))
+            (return 0))
+        (return 1))
 
   ) ; extern-c
 

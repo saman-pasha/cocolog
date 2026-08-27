@@ -38,6 +38,9 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
+# library(bigint) IS A LOADABLE MODULE NOW, under modules/bigint, so this
+# needs bigint.so on the library path rather than an object in the binary.
+export COCOLOG_LIBRARY="$ROOT/library"
 
 failures=0
 check() {
@@ -53,11 +56,11 @@ if [ ! -x "$C" ]; then echo "no cocolog binary at $C"; exit 1; fi
 
 B="use_module(library(bigint))"
 if ! "$C" query "$B, write(ok), nl" 2>/dev/null | grep -aq ok; then
-  echo "SKIP (this build carries no bigint module)"
+  echo "SKIP (no library/bigint.so -- sh modules/bigint/build.sh)"
   exit 0
 fi
 
-q()   { timeout 120 "$C" query "$1" 2>/dev/null | grep -aoE "$2" | head -1; }
+q()   { timeout 120 "$C" query "$B, $1" 2>/dev/null | grep -aoE "$2" | head -1; }
 err() { timeout 120 "$C" query "$B, $1" 2>&1 \
         | grep -aoE 'bigint [a-z ]+|bigint does not fit an integer' | head -1; }
 

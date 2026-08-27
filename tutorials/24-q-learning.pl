@@ -32,6 +32,11 @@
 
 % ---- the world --------------------------------------------------------------
 
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
+
 goal(15) :- !.
 pit(5) :- !.
 terminal(S) :- ( goal(S) ; pit(S) ), !.

@@ -46,11 +46,13 @@
 ;;; terminate it in front), UDP, and non-blocking connect. Each is a
 ;;; separate decision and none of them is needed to serve a page.
 
-(DEFPACKAGE :cocolog
-  (:USE :COMMON-LISP)
-  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
-
-(IN-PACKAGE :cocolog)
+;;; NO `DEFPACKAGE' HERE, and that is not an omission. A file compiled as
+;;; PART of cocolog.cicili is read inside the :cocolog package that file
+;;; declares; a file compiled ON ITS OWN is the whole compilation unit, and
+;;; a DEFPACKAGE at its top expands to an EVAL-WHEN that Cicili then tries
+;;; to read as a Cicili form -- `unknown symbol: EVAL-WHEN', which names
+;;; the expansion and not the cause. modules/curl/curl.cicili has never had
+;;; one either.
 
 ;;;; ------------------------------------------------------------------
 ;;;; The C half, as a table
@@ -158,8 +160,10 @@
   ;;; cocolog.cicili's `(source ...)' form beside <sys/stat.h> and
   ;;; <dirent.h>, which is where files.cicili's came from too.
 
-  ;;; Registers the module. A target calls this after `coco_module_init'.
-  (decl) (func coco_tcp_module () (out int))
+  ;;; NO `coco_tcp_module' ANY MORE. A linked-in module exports a
+  ;;; registration function the composition root calls by name; a LOADABLE
+  ;;; one exports `coco_library_entry', which the loader calls having found
+  ;;; the file. The target at the bottom of this file emits it.
 
   ) ; decl-tcp
 
@@ -401,7 +405,7 @@
           (set lst (coco_m_nil e))
           (for ((size_t i . #'(cast size_t n))) (> i 0) ((-- i))
                (set lst (coco_m_cons e
-                                     (coco_new_int (-> e m)
+                                     (coco_m_new_int e
                                                    (cast i64 (nth (- i 1) buf)))
                                      lst)))
           (free buf)
@@ -475,7 +479,7 @@
           (set lst (coco_m_nil e))
           (for ((int i . 255)) (>= i 0) ((-- i))
                (if (!= (nth i coco_t_fd) -1)
-                   (set lst (coco_m_cons e (coco_new_int (-> e m) (cast i64 i)) lst))))
+                   (set lst (coco_m_cons e (coco_m_new_int e (cast i64 i)) lst))))
           (return (coco_m_unify e (coco_m_arg e g 0) lst))))
 
   ;;; ---- the module -----------------------------------------------------
@@ -486,6 +490,37 @@
   ;;; table is generated from it.
   (static) (coco-emit-module-dispatch coco_t_dispatch *tcp-predicates*)
 
-  (coco-defmodule coco_tcp_module "tcp" coco_t_dispatch *tcp-prolog*)
-
   ) ; impl-tcp
+
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+;;; WHAT THIS REPLACED. tcp.cicili used to be swept into cocolog.c by
+;;; `$(wildcard lib/*.cicili)' and registered by name from
+;;; `install_modules'; the headers below came from cocolog.cicili's own
+;;; `(source ...)' form, several files away from the code that needed
+;;; them. A loadable module names its own, which is the whole reason a
+;;; module directory is a better place for one than the interpreter's.
+(source "tcp.c"
+  (make :std #t :compile #f)
+
+  (include <sys/socket.h>)
+  (include <netinet/in.h>)
+  (include <netinet/tcp.h>)
+  (include <arpa/inet.h>)
+  (include <netdb.h>)
+  (include <poll.h>)
+  (include <unistd.h>)
+  (include <errno.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (decl-tcp)
+  (impl-tcp)
+
+  ;;; The one symbol the loader calls. `use_module(library(tcp))' finds
+  ;;; tcp.so on the library path, dlopens it, and this registers the C half
+  ;;; and the Coco half exactly as the linked-in registration did.
+  (coco-deflibrary "tcp" coco_t_dispatch *tcp-prolog*))

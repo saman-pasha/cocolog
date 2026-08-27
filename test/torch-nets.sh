@@ -41,6 +41,9 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 COCOLOG="$ROOT/cocolog"
+# library(torch) IS A LOADABLE MODULE NOW, under modules/torch, so this
+# needs torch.so on the library path rather than an object in the binary.
+export COCOLOG_LIBRARY="$ROOT/library"
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-torch-nets-XXXXXX")
 STORE="$OUT/store"
 trap 'rm -rf "$OUT"' EXIT INT TERM
@@ -53,6 +56,7 @@ fi
 DEVICE="${COCO_TORCH_DEVICE:-auto}"
 
 cat > "$OUT/nets.pl" <<'PL'
+:- use_module(library(torch)).
 % ---- shared helpers ---------------------------------------------------------
 
 % Deterministic noise in (-1, 1): the classic sin-hash, so every run of the

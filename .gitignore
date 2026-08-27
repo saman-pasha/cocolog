@@ -30,23 +30,21 @@ embed/ziglib
 # the torch module's build output
 cocolog-torch
 cocolog-full
-torch/coco-torch.cpp
 *.elc
 /KB/
 test/hoot.c
 test/hoot.so
 
-# library(curl)'s build output and its symlink into this checkout
-# (lib/curl/build.sh makes all three; only build.sh and curl.cicili are
-# tracked). A .so is a compiled x86-64 object linked against ONE machine's
-# libcurl and OpenSSL -- it belongs in a release, never in the source.
+# EVERY LOADABLE MODULE'S OUTPUT. modules/ holds four of them and they all
+# have the same shape: a .cicili, a build.sh, and output -- the .so, the C
+# or C++ Cicili generates, and the symlinks each build.sh makes into this
+# checkout or into ZiguratIP's. A .so is a compiled x86-64 object linked
+# against ONE machine's libraries; it belongs in a release, never here.
 library/*.so
-lib/curl/curl.c
-lib/curl/sdk.cicili
-
-# library(bigint)'s build output and its symlink into the ZiguratIP
-# checkout (lib/bigint/build.sh makes both, and `make' runs it). The same
-# shape as torch/coco-torch.cpp above -- and `make clean' already deleted
-# these two, so tracking them meant a clean left the tree dirty.
-lib/bigint/coco-bigint.cpp
-lib/bigint/zigheaders
+modules/tcp/tcp.c
+modules/tcp/sdk.cicili
+modules/curl/curl.c
+modules/curl/sdk.cicili
+modules/bigint/coco-bigint.cpp
+modules/bigint/zigheaders
+modules/torch/coco-torch.cpp

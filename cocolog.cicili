@@ -98,11 +98,11 @@
                   "-Wno-format-truncation"
                   "-c" "cocolog.c"))
         ;; no :link -- the Makefile makes the ONE full link, with the
-        ;; embedded engine and the torch module beside this object. A
-        ;; partial link here leaves the ce_* hooks and coco_torch_module
-        ;; unresolved, which ELF treats as null weak references and
-        ;; macOS's ld64 refuses outright; since the one-binary change
-        ;; nothing ever ran the partial binary anyway.
+        ;; embedded engine beside this object. A partial link here leaves
+        ;; the ce_* hooks unresolved, which ELF treats as null weak
+        ;; references and macOS's ld64 refuses outright; nothing has ever
+        ;; run the partial binary. torch and bigint used to be named here
+        ;; too and are loadable modules now.
 
   (include <math.h>)
   ;; the swarm command's worker threads
@@ -123,14 +123,10 @@
   ;; Cicili can infer through them, and the target still has to name the
   ;; header so the emitted C has them too
   (include <fcntl.h>)
-  ;; sockets, for lib/tcp.cicili -- a module's includes are the target's,
-  ;; the way <sys/stat.h> and <dirent.h> above are the files module's
-  (include <sys/socket.h>)
-  (include <netinet/in.h>)
-  (include <netinet/tcp.h>)
-  (include <arpa/inet.h>)
-  (include <netdb.h>)
-  (include <poll.h>)
+  ;; SOCKETS ARE NOT HERE ANY MORE. They went with library(tcp) into
+  ;; modules/tcp, which names its own headers -- and this is the visible
+  ;; half of why a module belongs in a module directory: the includes now
+  ;; sit beside the code that needs them instead of in the interpreter.
   (include <errno.h>)
   (include <glob.h>)
   (include <limits.h>)
@@ -148,7 +144,6 @@
   (import "./lib/solve.cicili")
   (import "./lib/module.cicili")
   (import "./lib/files.cicili")
-  (import "./lib/tcp.cicili")
   (import "./lib/lists.cicili")
   (import "./lib/apply.cicili")
   (import "./lib/builtins.cicili")
@@ -169,7 +164,6 @@
   (decl-solve)  (impl-solve)
   (decl-module) (impl-module)
   (decl-files)  (impl-files)
-  (decl-tcp)    (impl-tcp)
   (decl-lists)  (impl-lists)
   (decl-apply)  (impl-apply)
   (decl-builtins) (impl-builtins)
@@ -1708,23 +1702,12 @@
 
   ;;; ---- the command line ---------------------------------------------------
 
-  ;; THE TORCH MODULE IS REACHED THROUGH A WEAK SYMBOL: the one binary
-  ;; links torch/coco-torch.o and the registration runs; a build that
-  ;; left it out would leave the symbol null and the torch predicates
-  ;; unknown procedures, which is the right answer for such a build.
-  ;; Raw C, because a null-checked call through a weak function is a C
-  ;; idiom Cicili has no clause for.
-  (code "extern int coco_torch_module(void) __attribute__((weak));")
-  (code "static int coco_torch_try(void) { return coco_torch_module ? coco_torch_module() : 1; }")
-  (decl) (func coco_torch_try () (out int))
-
-  ;; AND SO IS BIGINT, for the same reason and by the same rule: the one
-  ;; binary links bigint/coco-bigint.o and library(bigint) answers; a
-  ;; build without it leaves the symbol null and those predicates are
-  ;; unknown procedures, which is what they should be in such a build.
-  (code "extern int coco_bigint_module(void) __attribute__((weak));")
-  (code "static int coco_bigint_try(void) { return coco_bigint_module ? coco_bigint_module() : 1; }")
-  (decl) (func coco_bigint_try () (out int))
+  ;; NO WEAK SYMBOLS ANY MORE. torch and bigint used to be linked into this
+  ;; binary and reached through `__attribute__((weak))', so a build without
+  ;; them left the symbol null and their predicates undefined. That worked,
+  ;; and it meant every link needed libtorch and libCore for two modules
+  ;; most programs never call. They are loadable modules now --
+  ;; modules/torch and modules/bigint -- and `use_module' finds them.
 
   ;;; Every module this build carries. Registration is here and not inside the
   ;;; modules because a build decides what it contains -- a module cannot add
@@ -1736,9 +1719,6 @@
                    (return 0)))
         (if (not (coco_files_module))
             (block (fprintf stderr "cocolog: the files module would not register\n")
-                   (return 0)))
-        (if (not (coco_tcp_module))
-            (block (fprintf stderr "cocolog: the tcp module would not register\n")
                    (return 0)))
         ;; The vendored SWI libraries, from lib/swipl beside the binary.
         ;; Their absence is not an error -- see coco_library_preload.
@@ -1754,12 +1734,6 @@
                    (return 0)))
         (if (not (coco_dcg_module))
             (block (fprintf stderr "cocolog: the dcg module would not register\n")
-                   (return 0)))
-        (if (not (coco_torch_try))
-            (block (fprintf stderr "cocolog: the torch module would not register\n")
-                   (return 0)))
-        (if (not (coco_bigint_try))
-            (block (fprintf stderr "cocolog: the bigint module would not register\n")
                    (return 0)))
         (if (not (coco_zigurat_module))
             (block (fprintf stderr "cocolog: the zigurat module would not register\n")

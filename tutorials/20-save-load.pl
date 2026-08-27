@@ -14,6 +14,11 @@
 %%   test     reload TWICE, params and predictions must agree exactly
 %%   predict  reload, answer -- indistinguishable from the trainer's answers
 
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
+
 sine_row(I, [X], [Y]) :- X is -1 + 2 * I / 63, Y is sin(2 * pi * X), !.
 
 rows_close([], []).

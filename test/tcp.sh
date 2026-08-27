@@ -1,5 +1,5 @@
 #!/bin/sh
-# lib/tcp.cicili -- the socket seam, and the three claims its header makes.
+# modules/tcp/tcp.cicili -- the socket seam, and the three claims its header makes.
 #
 # WHAT IS BEING PINNED, and why each one is here rather than assumed:
 #
@@ -40,15 +40,24 @@ check() {
   fi
 }
 
+U="use_module(library(tcp))"
+
 if [ ! -x "$C" ]; then echo "SKIP (build cocolog first)"; exit 0; fi
-if ! timeout 20 "$C" query "tcp_sockets(_), write(ok), nl" 2>/dev/null | grep -aq '\bok\b'; then
-  echo "SKIP (no tcp module in this binary)"
+# library(tcp) IS A LOADABLE MODULE NOW, under modules/tcp, so this needs
+# tcp.so on the library path rather than a socket layer in the binary.
+export COCOLOG_LIBRARY="$ROOT/library"
+if [ ! -f "$ROOT/library/tcp.so" ]; then
+  echo "SKIP (no library/tcp.so -- sh modules/tcp/build.sh)"
+  exit 0
+fi
+if ! timeout 20 "$C" query "$U, tcp_sockets(_), write(ok), nl" 2>/dev/null | grep -aq '\bok\b'; then
+  echo "SKIP (library(tcp) will not load)"
   exit 0
 fi
 
 # Every answer is written inside `answer(...)' so the extraction cannot pick
 # up a stray digit from the echoed goal or from "1 answer(s)".
-q() { timeout 60 "$C" query "$1" 2>/dev/null \
+q() { timeout 60 "$C" query "$U, $1" 2>/dev/null \
       | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
 
 # Ports chosen high and fixed rather than random: a fixed port that is busy
@@ -138,6 +147,8 @@ echo "-- and it crosses PROCESSES, which is the only claim worth making"
 # to it. Started detached, because a plain `&' from a tool call does not
 # survive the turn -- the same hazard the server has in CLAUDE.md.
 cat > /tmp/coco-tcp-listener.pl <<'PL'
+:- use_module(library(tcp)).
+
 serve :-
     tcp_listen(18820, S),
     tcp_accept(S, 10000, C, _),

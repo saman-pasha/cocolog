@@ -12,6 +12,11 @@
 %% Two concentric rings, deterministic in I: class 0 at radius ~0.5,
 %% class 1 at radius ~1.0, both jittered. Indices 0..899 are training
 %% data (shard by I mod 3), 900..1049 the accumulator's held-out test.
+
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
 noise(I, R) :-
     S is sin(I * 12.9898) * 43758.5453,
     R is S - truncate(S), !.

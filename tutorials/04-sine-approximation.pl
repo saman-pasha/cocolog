@@ -9,6 +9,11 @@
 %%   test     reload, rmse over the period, pass under 0.1
 %%   predict  reload, sample the learned wave beside sin itself
 
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
+
 sine_row(I, [X], [Y]) :- X is -1 + 2 * I / 159, Y is sin(2 * pi * X), !.
 
 train :-

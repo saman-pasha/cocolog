@@ -14,6 +14,11 @@
 
 %% the same deterministic data the trainers used -- indices 900..1049
 %% are the held-out test set no shard contains
+
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
 noise(I, R) :-
     S is sin(I * 12.9898) * 43758.5453,
     R is S - truncate(S), !.

@@ -12,6 +12,9 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 COCOLOG="$ROOT/cocolog"
+# library(torch) IS A LOADABLE MODULE NOW, under modules/torch, so this
+# needs torch.so on the library path rather than an object in the binary.
+export COCOLOG_LIBRARY="$ROOT/library"
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-torch-XXXXXX")
 STORE="$OUT/store"
 trap 'rm -rf "$OUT"' EXIT INT TERM
@@ -32,6 +35,7 @@ awk 'BEGIN {
 }' > "$OUT/data.csv"
 
 cat > "$OUT/train.pl" <<'PL'
+:- use_module(library(torch)).
 train_main :-
     % the Files module finds and vouches for the dataset
     getenv_path(CSV),
@@ -69,6 +73,7 @@ PL
 sed -i "s|'CSVFILE'|'$OUT/data.csv'|" "$OUT/train.pl"
 
 cat > "$OUT/load.pl" <<'PL'
+:- use_module(library(torch)).
 close_enough([], []).
 close_enough([[A]|As], [[B]|Bs]) :-
     D is abs(A - B), D < 1.0e-4,
@@ -117,6 +122,7 @@ check "and the stored weights predict identically" \
 
 # ---- the wider surface: tensor operations and the conv tier ---------
 cat > "$OUT/ops.pl" <<'PL'
+:- use_module(library(torch)).
 ops_main :-
     tensor_from_list([[1.0,2.0],[3.0,4.0]], A),
     tensor_from_list([[5.0,6.0],[7.0,8.0]], B),
@@ -137,6 +143,7 @@ awk 'BEGIN { srand(9);
       printf "%.1f,", v; }
     printf "%d\n", cls; } }' > "$OUT/bars.csv"
 cat > "$OUT/conv.pl" <<'PL'
+:- use_module(library(torch)).
 conv_main :-
     tensor_load_csv('BARS', All),
     tensor_shape(All, [N, 65]),
@@ -186,6 +193,7 @@ check "and its buffers came back out of Zigurat" \
 # for cuda is refused with a domain_error rather than silently falling
 # back. Either way training after torch_device(auto) must still learn.
 cat > "$OUT/device.pl" <<'PL'
+:- use_module(library(torch)).
 device_main :-
     torch_cuda_available(Avail),
     torch_cuda_count(Count),

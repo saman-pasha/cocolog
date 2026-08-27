@@ -39,12 +39,12 @@
 ;;;; not element by element.
 
 (source "coco-torch.cpp"
-  (make :cpp #t
-        :compile ("-std=c++17" "-O2" "-Wno-c++20-extensions"
-                  "-Wno-parentheses-equality" "-Wno-dangling-else"
-                  "-I{$TORCH_INCLUDE}"
-                  "-I{$TORCH_API_INCLUDE}"
-                  "-c" "coco-torch.cpp"))
+  ;; COMPILED BY build.sh, NOT BY CICILI, now that this is a LOADABLE
+  ;; module: what has to come out is a shared object linked against
+  ;; libtorch, and the flags for that belong beside the module. Cicili's
+  ;; {$TORCH_*} tokens still resolve the include paths for the transpile;
+  ;; the script asks python for the same directory when it links.
+  (make :cpp #t :compile #f)
 
   (include <torch/torch.h>)
   (include <cstdio>)
@@ -1781,5 +1781,15 @@
            (#t (set (cof found) 0) (return 0))))
         (#t (set (cof found) 0) (return 0))))
 
-    (func coco_torch_module () (out int)
-      (return (coco_module_register "torch" coco_torch_dispatch torch_prolog nil)))))
+    ;;; THE ONE SYMBOL THE LOADER CALLS, inside the `extern "C"' block with
+    ;;; everything else here -- a C++ entry point that kept C++ linkage
+    ;;; would compile and link and then not be found, because the mangled
+    ;;; name is not `coco_library_entry'.
+    ;;;
+    ;;; It replaces `coco_torch_module', which the composition root called
+    ;;; by name through a weak symbol. Nothing else in this file changed.
+    ;;; The 1 is the ABI version lib/sdk.cicili defines, not a success flag.
+    (func coco_library_entry () (out int)
+      (if (not (coco_module_register "torch" coco_torch_dispatch torch_prolog nil))
+          (return 0))
+      (return 1))))

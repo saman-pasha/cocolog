@@ -10,6 +10,11 @@
 %%   test     reload, mae against the CLEAN line, pass under 0.6
 %%   predict  reload, compare a few answers with the clean law
 
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
+
 noise(I, R) :-
     S is sin(I * 12.9898) * 43758.5453,
     R is S - truncate(S), !.

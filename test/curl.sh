@@ -38,7 +38,7 @@ check() {
 
 if [ ! -x "$C" ]; then echo "SKIP (build cocolog first)"; exit 0; fi
 if [ ! -f "$ROOT/library/curl.so" ]; then
-  echo "SKIP (no library/curl.so -- sh lib/curl/build.sh, and it needs libcurl's headers)"
+  echo "SKIP (no library/curl.so -- sh modules/curl/build.sh, and it needs libcurl's headers)"
   exit 0
 fi
 if ! timeout 20 "$C" query "use_module(library(curl)), write(ok), nl" 2>/dev/null | grep -aq '\bok\b'; then
@@ -99,6 +99,7 @@ check "and a failed transfer leaves Status unbound" \
 
 echo "-- and the two halves of this repository, talking to each other"
 cat > /tmp/coco-curl-server.pl <<'PL'
+:- use_module(library(tcp)).
 :- use_module(library(http)).
 
 serve(Port) :-

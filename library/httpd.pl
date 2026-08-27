@@ -136,6 +136,13 @@
 %% base: two requests mutating the same store concurrently is a question
 %% this file does not get to answer on its own.
 
+%% BOTH HALVES ARE LOADABLE MODULES NOW. library(tcp) used to be compiled
+%% into the binary and always present; it lives in modules/tcp and is asked
+%% for like anything else. A directive that names a library this build does
+%% not carry stays quiet -- see lib/library.cicili -- so a cocolog without
+%% tcp.so beside it fails at the first tcp_listen and not at load, which is
+%% the same shape library(curl) has always had.
+:- use_module(library(tcp)).
 :- use_module(library(http)).
 
 %% ---- the loop ---------------------------------------------------------

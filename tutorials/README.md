@@ -59,4 +59,4 @@ the runner gives each tutorial a store of its own.
 `test/tutorials.sh` runs all three goals of every file against a
 throwaway store per tutorial; `test/torch-nets.sh` is the same twenty-three networks
 as one fast in-process suite. The module itself is documented in
-`torch/README.md`.
+`modules/torch/README.md`.

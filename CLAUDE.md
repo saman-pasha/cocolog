@@ -148,7 +148,7 @@ that read like C and are not:
   is two: `(@define (code "pollfd struct pollfd"))`, and **the name must match
   the one std declares the members under**. `pollfd_t` is a different name with
   no members, and `($ p fd)` then says `unknown struct type` — which is how
-  `lib/tcp.cicili` ended up written in raw C escapes for a day.
+  `modules/tcp/tcp.cicili` ended up written in raw C escapes for a day.
 * **`(code "...")` is the fire escape, not the door.** It is C that Cicili cannot
   see or type-check, and no front end can help it. Reach for a Cicili clause
   first, every time.
@@ -181,7 +181,7 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
 **TIER 1 — always present. No `use_module` needed, and none of it is
 optional.** Registered before the first goal runs:
 
-    apply  builtins  dcg  files  library  lists  tcp  torch  bigint  zigurat
+    apply  builtins  dcg  files  library  lists  zigurat
     assoc  pairs  ordsets  yall  aggregate  ugraphs  dcg_basics  dcg_high_order
 
 The first row is Cicili modules compiled into the binary; the second is
@@ -217,19 +217,54 @@ have measured it in the arrangement where a predicate is a page.**
 | | |
 |---|---|
 | `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses |
-| `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — `curl.so` |
+| `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
+
+**`modules/` IS WHERE A LOADABLE MODULE LIVES**, one directory each, all
+the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
+
+| | needs | build |
+|---|---|---|
+| `modules/tcp` | nothing | `sh modules/tcp/build.sh` |
+| `modules/curl` | libcurl | `sh modules/curl/build.sh` |
+| `modules/bigint` | a **built** ZiguratIP | `sh modules/bigint/build.sh` |
+| `modules/torch` | libtorch | `sh modules/torch/build.sh` |
+
+`make modules` builds every one that can be built here and says SKIPPED,
+by name, for the rest. **None of them is part of `make`** — which is the
+point: a cocolog with no libtorch, no ZiguratIP headers and no libcurl
+still builds and still runs.
 
 **A thing belongs in tier 2 when its dependency should not be
-everybody's.** libcurl is a fine library and a poor thing to require of
-someone who wants an interpreter and no network, so `library(curl)` is a
-`.so` built by `sh lib/curl/build.sh` and is not part of `make`. torch
-and bigint went the other way because the binary's own story needs them.
+everybody's**, and that argument ate three modules that used to be tier 1.
+tcp was swept into `cocolog.c` by the Makefile's wildcard; torch and
+bigint were objects in the link reached through weak symbols, so **every
+link needed libtorch and libCore** for two modules most programs never
+call. The binary went from 936 KB to **585 KB** and `ldd` now shows no
+torch at all. What is left of its C++ dependency is the embedded store,
+which genuinely is part of the binary.
+
+**The conversion is small and the same every time.** `coco-defmodule` —
+which names an entry point the composition root calls — becomes
+`coco-deflibrary`, or for the two C++ ones a hand-written
+`coco_library_entry` **inside their `extern "C"` block**, because a
+mangled entry point is one `dlsym` will not find. A loadable module holds
+the engine as an OPAQUE pointer, so `(coco_new_int (-> e m) V)` — reaching
+through the engine for its machine — becomes `(coco_m_new_int e V)`. And
+the target names its own headers, instead of borrowing `cocolog.cicili`'s.
+
+**Two things bite.** A file compiled ON ITS OWN must have no `DEFPACKAGE`:
+it expands to an `EVAL-WHEN` that Cicili then reads as a Cicili form, and
+the error is `unknown symbol: EVAL-WHEN`, which names the expansion and
+not the cause. And **every `.pl` that calls a moved predicate now needs
+the directive** — 27 tutorials, the coworkers, and the heredocs inside the
+tests. `tensor_*` belongs to torch as much as `torch_*` does, which a
+sweep looking only for the latter will miss.
 
 **WHAT A `build.sh` MAKES IS NEVER COMMITTED**, and every module
 directory here is the same shape: a `.cicili`, a `build.sh`, and output.
 Output is the `.o`, the `.so`, the C or C++ Cicili generates, *and the
-symlinks* — `lib/curl/sdk.cicili` points inside this checkout,
-`lib/bigint/zigheaders` inside ZiguratIP's, and both dangle in anyone
+symlinks* — `modules/curl/sdk.cicili` points inside this checkout,
+`modules/bigint/zigheaders` inside ZiguratIP's, and both dangle in anyone
 else's clone. Five such files were tracked and are not now.
 
 The mistake is easy because the output sits beside the sources —
@@ -240,9 +275,9 @@ clean clone could dirty its own tree by cleaning.
 
 **The test is to delete everything a `build.sh` makes and run it.** What
 comes back was output; what does not was source. Both times it was worth
-doing: `lib/curl/` came back with an implicitly declared `toupper`,
+doing: `modules/curl/` came back with an implicitly declared `toupper`,
 because nothing had ever compiled that file without a stale `curl.c`
-beside it, and `lib/bigint/` came back byte for byte.
+beside it, and `modules/bigint/` came back byte for byte.
 
 **THE PATH IS ANCHORED TO THE BINARY, not to the working directory**, and
 that was a bug worth naming. `./library` finds what shipped only when
@@ -265,7 +300,7 @@ override that cannot override is not one.
 | `lib/solve.cicili` | the engine and the builtin table |
 | `lib/module.cicili` | the module seam and the API a module is written against |
 | `lib/files.cicili` | SWI's Files library, as a module — mostly C |
-| `lib/tcp.cicili` | the socket seam: listen, connect, accept, read, write, close. A handle is an index into this module's own table, never a file descriptor |
+| `modules/tcp/tcp.cicili` | the socket seam: listen, connect, accept, read, write, close. A handle is an index into this module's own table, never a file descriptor |
 | `lib/lists.cicili` | SWI's Lists library, as a module — mostly Prolog, because nondeterministic predicates cannot live in a C half |
 | `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
 | `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2` |
@@ -273,7 +308,7 @@ override that cannot override is not one.
 | `lib/swipl/` | SWI's `dcg/basics` and `dcg/high_order`, copied unmodified under their own BSD-2 headers. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
-| `lib/bigint/` | Zigurat's BigInt as predicates. A SUBDIRECTORY, so `$(wildcard lib/*.cicili)` does not sweep it into cocolog.c — it is its own translation unit, built by its own `build.sh` and linked at the end, because it is C++ and needs libCore. `torch/` and `embed/` are the same shape and still live at the top level |
+| `modules/` | the loadable modules: `tcp`, `curl`, `bigint`, `torch`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |

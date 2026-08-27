@@ -47,6 +47,10 @@ if [ ! -x "$ROOT/cocolog" ]; then
   exit 0
 fi
 C="$ROOT/cocolog"
+# library(torch) IS A LOADABLE MODULE NOW, under modules/torch. The tutorial
+# this drives carries its own directive; the bare queries below need one too.
+export COCOLOG_LIBRARY="$ROOT/library"
+T="use_module(library(torch))"
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
 ZEYTUN=${ZEYTUN_PORT:-2190}
@@ -65,10 +69,10 @@ timeout 300 "$C" $W run "$ROOT/tutorials/07-xor.pl" train > "$OUT/train.log" 2>&
 got=$(grep -c '^saved$' "$OUT/train.log")
 check "a model trains and saves over the wire" "$got" "1"
 
-got=$(timeout 60 "$C" $W query "torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
+got=$(timeout 60 "$C" $W query "$T, torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
 check "the parameters are rows, not chunk clauses" "$got" "false."
 
-got=$(timeout 60 "$C" $W --answers 1 query "torch_model(t07_xor, _)" 2>/dev/null | grep -c '^  1\.')
+got=$(timeout 60 "$C" $W --answers 1 query "$T, torch_model(t07_xor, _)" 2>/dev/null | grep -c '^  1\.')
 check "the spec is still the clause pollers ask for" "$got" "1"
 
 got=$(timeout 300 "$C" $W run "$ROOT/tutorials/07-xor.pl" test 2>/dev/null | tail -1)
@@ -80,9 +84,9 @@ got=$(timeout 300 "$C" --kb $KB --host "$HOST" --http "$ZEYTUN" \
         run "$ROOT/tutorials/07-xor.pl" test 2>/dev/null | tail -1)
 check "model_load works over --http" "$got" "ok"
 
-timeout 120 "$C" $W query "torch_seed(1), model_new([input(20), dense(64, relu), dense(10, log_softmax)], M), model_save(big, M)" >/dev/null 2>&1
+timeout 120 "$C" $W query "$T, torch_seed(1), model_new([input(20), dense(64, relu), dense(10, log_softmax)], M), model_save(big, M)" >/dev/null 2>&1
 got=$(timeout 30 "$C" --kb $KB --host "$HOST" --http "$ZEYTUN" \
-        query "model_load(big, M), model_params(M, P), length(P, N), N == 1994" 2>/dev/null | grep -c '^  1\.')
+        query "$T, model_load(big, M), model_params(M, P), length(P, N), N == 1994" 2>/dev/null | grep -c '^  1\.')
 check "a four-piece tensor loads over --http, all 1994" "$got" "1"
 
 if command -v curl >/dev/null 2>&1; then
@@ -104,7 +108,7 @@ fi
 timeout 300 "$C" --embed "$OUT/store" --kb $KB run "$ROOT/tutorials/07-xor.pl" train \
   > "$OUT/etrain.log" 2>&1
 got=$(timeout 60 "$C" --embed "$OUT/store" --kb $KB \
-        query "torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
+        query "$T, torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
 check "embedded: the parameters are rows, not clauses" "$got" "false."
 got=$(timeout 300 "$C" --embed "$OUT/store" --kb $KB \
         run "$ROOT/tutorials/07-xor.pl" test 2>/dev/null | tail -1)

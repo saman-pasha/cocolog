@@ -178,6 +178,7 @@ if ! command -v curl >/dev/null 2>&1; then
   echo "     SKIP (no curl to drive it with)"
 else
 cat > /tmp/coco-http-server.pl <<'PL'
+:- use_module(library(tcp)).
 :- use_module(library(http)).
 
 serve(Port) :-

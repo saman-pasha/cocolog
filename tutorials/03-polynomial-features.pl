@@ -10,6 +10,11 @@
 %%   test     reload, rmse over the curve, pass under 0.05
 %%   predict  reload, evaluate a few x beside the true cubic
 
+%% libtorch is a LOADABLE module now, under modules/torch, so it is
+%% asked for like any other library. It used to be compiled into the
+%% binary and always present.
+:- use_module(library(torch)).
+
 poly_row(I, [X, X2, X3], [Y]) :-
     X is -1 + 2 * I / 99,
     X2 is X * X, X3 is X2 * X,
