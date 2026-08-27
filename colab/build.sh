@@ -213,7 +213,33 @@ case "$ans" in
   *)    echo "   COCOLOG DOES NOT RUN -- it said: $ans"; exit 1 ;;
 esac
 
+# ---- the loadable modules this notebook uses ---------------------------
+# `make' deliberately builds NONE of them -- a cocolog on a machine with
+# no libtorch still builds, which is the whole point of the move to
+# modules/ -- but THIS arrangement uses two: library(torch) is why the
+# GPU is here at all, and library(curl) is the program-side reader of the
+# tunnel (an https URL is the only kind a quick tunnel has). Checked by
+# artifact like everything else; the exit code of a build.sh proves less
+# than the .so it was supposed to leave behind.
+stage_start
+echo "== building the loadable modules this notebook uses"
+( cd "$COCOLOG" && sh modules/torch/build.sh ) > "$LOGS/mod-torch.log" 2>&1
+if [ ! -f "$COCOLOG/library/torch.so" ]; then
+  echo "   NO library/torch.so -- sections 2 and 5 (the GPU, the training) need it"
+  explain "$LOGS/mod-torch.log" "the torch module"
+  exit 1
+fi
+echo "   torch.so against torch $(python3 -c 'import torch;print(torch.__version__)' 2>/dev/null)"
+( cd "$COCOLOG" && sh modules/curl/build.sh ) > "$LOGS/mod-curl.log" 2>&1
+if [ ! -f "$COCOLOG/library/curl.so" ]; then
+  echo "   NO library/curl.so -- section 7b (the in-program reader) needs it"
+  explain "$LOGS/mod-curl.log" "the curl module"
+  exit 1
+fi
+echo "   curl.so, TLS backend: $("$COCOLOG/cocolog" query 'use_module(library(curl)), curl_ssl(S), write(S), nl' 2>/dev/null | head -1 | sed 's/^ *//')"
+stage_done modules
+
 echo
-echo "build GREEN in $(fmt_secs $(( $(date +%s) - T0 ))) -- ZiguratIP, cocolog, the schema, and a binary that answers"
+echo "build GREEN in $(fmt_secs $(( $(date +%s) - T0 ))) -- ZiguratIP, cocolog, the schema, the torch and curl modules, and a binary that answers"
 echo "   (measured on THIS VM. Colab gives 2 cores; a machine with more"
 echo "    cores finishes the ZiguratIP stage considerably sooner.)"

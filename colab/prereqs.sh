@@ -42,7 +42,7 @@ apt-get -qq update
 #                  libtoolize and the m4 macros while the script Cicili
 #                  invokes is in libtool-bin. Installing the wrong one
 #                  succeeds and leaves the build with no libtool.
-apt-get -qq install -y build-essential sbcl libtool-bin curl
+apt-get -qq install -y build-essential sbcl libtool-bin curl libcurl4-openssl-dev
 
 # ---- and then the LISP side, which nothing checked until Colab -------
 #
