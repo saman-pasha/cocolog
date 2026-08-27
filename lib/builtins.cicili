@@ -86,6 +86,7 @@
     ("format"                  1 coco_b_format1)
     ("format"                  2 coco_b_format2)
     ("format"                  3 coco_b_format3)
+    ("flush_output"            0 coco_b_flush)
 
     ("code_type"               2 coco_b_code_type)
     ("char_type"               2 coco_b_char_type)
@@ -1201,6 +1202,25 @@
           (let ((int out . #'(coco_sink_deliver e sink text)))
             (free text)
             (return out))))
+
+  ;;; `flush_output/0' -- SWI'S, AND IT WAS MISSING. cocolog writes to the
+  ;;; literal stdout, which the C library buffers by LINE at a terminal and
+  ;;; by BLOCK everywhere else. So a program that prints a marker and then
+  ;;; blocks -- a server saying it is listening, a long job saying where it
+  ;;; has got to -- prints nothing at all when its output is a pipe or a
+  ;;; file, and everything at once when it finally exits.
+  ;;;
+  ;;; FOUND BY WRITING test/tls.sh. The server printed READY, the harness
+  ;;; waited for READY to appear in the log, and the log stayed empty until
+  ;;; the server gave up and exited -- at which point the whole transcript
+  ;;; arrived, correct and far too late. Interactively it had always
+  ;;; worked, because a terminal is line buffered.
+  ;;;
+  ;;; No argument, because there is one output. When cocolog grows a stream
+  ;;; layer this becomes `flush_output/1' with this as its default.
+  (func coco_b_flush ((coco_engine * e) (size_t g)) (out int)
+        (fflush stdout)
+        (return 1))
 
   (func coco_b_format1 ((coco_engine * e) (size_t g)) (out int)
         (return (coco_fmt_do e 0 (coco_m_arg e g 0) (coco_m_nil e))))

@@ -20,16 +20,22 @@ still builds and still runs.
 | `aes` | AES-128/192/256, CBC and ECB | a built ZiguratIP |
 | `der` | Distinguished Encoding Rules, both directions | a built ZiguratIP |
 | `x509` | certificates, and the CA that issues them | a built ZiguratIP |
+| `tls` | a secure connection: `library(tcp)` with a handshake | a built ZiguratIP |
 
 `MODULES.md` at the root is the mechanism; this is the inventory.
 
-## What the four ZiguratIP crypto modules share
+## What the five ZiguratIP crypto modules share
 
-They bind `Zigurat::SHA`, `Zigurat::AES`, `Zigurat::DER` and
-`Zigurat::X509` — the same code ZiguratIP's own `ca` tool and TLS stack
-use. **There is no hash, cipher or ASN.1 implementation in any of
+They bind `Zigurat::SHA`, `Zigurat::AES`, `Zigurat::DER`,
+`Zigurat::X509` and `Zigurat::tlsstream` — the same code ZiguratIP's own
+`ca` tool and secure server use. **There is no hash, cipher or ASN.1 implementation in any of
 them**: a second implementation would be a second thing to disagree with
 the first.
+
+`tls` is the one that keeps a C++ object alive across calls, and it is
+the pattern to copy for anything else that has to: the `tlsstream` never
+leaves the module, and Prolog is handed an index into a 256-slot table
+— `modules/tcp`'s rule, applied to something that is not a descriptor.
 
 `der` is the odd one and deliberately so: it links **libEncoding, Core
 and StreamIO and nothing else** — no libCryptography, no OpenSSL —

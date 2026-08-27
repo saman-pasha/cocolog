@@ -1,0 +1,650 @@
+;;;; library(tls) -- a secure connection, over ZiguratIP's TLS.
+;;;;
+;;;; A LOADABLE Cicili module against lib/sdk.cicili, over
+;;;; `Zigurat::tlsstream' from SocketIO. It is `library(tcp)' with a
+;;;; handshake in front of it, and the same shape throughout.
+;;;;
+;;;;   tls_listen(+Port, -Server)
+;;;;   tls_accept(+Server, +TimeoutMs, +Creds, -Conn, -Peer)
+;;;;   tls_connect(+Host, +Service, +Creds, -Conn)
+;;;;   tls_read(+Conn, +MaxBytes, +TimeoutMs, -Codes)
+;;;;   tls_write(+Conn, +Codes)
+;;;;   tls_close(+Conn)
+;;;;   tls_peer_subject(+Conn, -Subject)
+;;;;   tls_peer_permissions(+Conn, -Permissions)
+;;;;   tls_peer(+Conn, -Address)
+;;;;   tls_connections(-N)      tls_why(-Reason)
+;;;;
+;;;; "cocolog HAS NO STREAM LAYER" WAS THE WRONG OBJECTION, and this file
+;;;; is the correction. `Zigurat::tlsstream' is a C++ iostream and there
+;;;; is indeed nothing in cocolog to hand one to -- but nothing has to
+;;;; be. The stream stays in this module for its whole life and what
+;;;; crosses into Prolog is an INDEX INTO A TABLE, exactly as
+;;;; `library(tcp)' does with a descriptor. A TLS connection is no more a
+;;;; term than a socket is.
+;;;;
+;;;; So a handle is a slot, never a pointer and never a descriptor.
+;;;; Prolog does arithmetic, so any integer can arrive at any of these
+;;;; predicates; a slot this module did not fill is not a connection.
+;;;;
+;;;; CREDENTIALS ARE AN OPTION LIST, and every one of the paths is a
+;;;; PATH:
+;;;;
+;;;;   certificate(P)   this end's own certificate, DER or PEM
+;;;;   key(P)           and the key it belongs to
+;;;;   key_cipher(A)    its pass phrase, '' if there is none
+;;;;   authority(P)     the certificate that must have signed the peer's
+;;;;   client_auth(A)   required (default), optional, none
+;;;;   ciphers(A)       OpenSSL's grammar; '' is the forward-secrecy set
+;;;;
+;;;; That they are paths is not this module's choice -- OpenSSL's
+;;;; `SSL_CTX_use_certificate_file' takes a file name -- but it is the
+;;;; rule `library(x509)' already follows and for the same reason: a
+;;;; private key that became a cocolog term would be on the heap, in the
+;;;; trail, in every copy a channel made of the term holding it, and in
+;;;; the knowledge base the moment anything asserted it.
+;;;;
+;;;; MUTUAL AUTHENTICATION IS THE DEFAULT, and it is the point. With
+;;;; `client_auth(required)' -- which is what you get by saying nothing --
+;;;; a peer is who the authority says it is or it does not get in. A
+;;;; browser has no such certificate and never will, so a port meant to
+;;;; be reached by one has to be told `client_auth(none)'. `optional' is
+;;;; not "trust anything": a certificate that IS offered is still checked
+;;;; and a bad one still fails, so nobody gets in as a stranger by
+;;;; sending something broken.
+;;;;
+;;;; FORWARD SECRECY OR NOTHING. The default cipher list is ECDHE key
+;;;; agreement and AEAD ciphers with `!kRSA' -- static RSA key transport
+;;;; cannot be negotiated at all -- TLS 1.2 at the lowest, and no record
+;;;; compression. None of that is decided here; it is
+;;;; `SocketIO/tlsbuf.cpp' and this module does not offer a way to
+;;;; weaken it beyond passing your own `ciphers(...)'.
+;;;;
+;;;; WHAT THE HANDSHAKE ANSWERS, and why it is the interesting part:
+;;;; `tls_peer_subject/2' and `tls_peer_permissions/2' are settled DURING
+;;;; the handshake, against the authority, before a byte moves. So a
+;;;; server does not authenticate its peer -- it has already been done --
+;;;; and what is left is authorisation, which is a rule:
+;;;;
+;;;;     serve(Conn) :-
+;;;;         tls_peer_subject(Conn, Who),
+;;;;         tls_peer_permissions(Conn, Granted),
+;;;;         ( member(G, Granted), ca_covers(G, 'ledger.write')
+;;;;         -> do_the_thing(Conn)
+;;;;         ;  refuse(Conn, Who) ).
+;;;;
+;;;; `library(ca)' is the other half of that, and 28 is its lesson.
+;;;;
+;;;; A REFUSED HANDSHAKE IS NOT AN ERROR. `tls_accept/5' FAILS for a
+;;;; stranger, for a certificate this authority did not sign, and for a
+;;;; timeout alike -- and `tls_why/1' says which. That is what mutual TLS
+;;;; is for, and a server that raised would stop serving everybody else
+;;;; because one impostor knocked.
+;;;;
+;;;; LOOPBACK ONLY, for now. `tls_listen/2' binds 127.0.0.1 and nothing
+;;;; else, which is `library(tcp)'s rule and the same argument: a
+;;;; predicate that opens a port to the world should have to say so.
+
+(DEFPARAMETER *tls-predicates*
+  '(("$tls_listen"      3 tl_p_listen)
+    ("$tls_accept"      5 tl_p_accept)
+    ("$tls_connect"     5 tl_p_connect)
+    ("tls_read"         4 tl_p_read)
+    ("tls_write"        2 tl_p_write)
+    ("tls_close"        1 tl_p_close)
+    ("$tls_ask"         3 tl_p_ask)
+    ("tls_peer"         2 tl_p_peer)
+    ("tls_connections"  1 tl_p_count)
+    ("tls_why"          1 tl_p_why)))
+
+;;; ---- the Coco half: options and their defaults -----------------------
+;;;
+;;; THE `$'-NAMES ARE QUOTED, and they have to be: `$' is a symbol
+;;; character and `t' is alphanumeric, so `$tls_accept' is two tokens to
+;;; the reader and the clause will not read -- surfacing as `use_module:
+;;; its clauses would not consult', which names the module and not the
+;;; line. `lib/builtins.cicili' writes `'$cp_member'' for the same reason.
+(DEFPARAMETER *tls-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           "tls_opt(Name, Opts, _, V) :- O =.. [Name, V], memberchk(O, Opts), !."
+           "tls_opt(_, _, D, D)."
+
+           ;; SIX FIELDS, IN ORDER, joined with newlines for the crossing.
+           ;; `client_auth(required)' is the default because mutual is the
+           ;; point; a port a browser must reach says `client_auth(none)'.
+           "tls_creds(Opts, Joined) :- tls_opt(certificate, Opts, '', C), tls_opt(key, Opts, '', K), tls_opt(key_cipher, Opts, '', P), tls_opt(authority, Opts, '', A), tls_opt(client_auth, Opts, required, U), tls_opt(ciphers, Opts, '', X), atomic_list_concat([C, K, P, A, U, X], '\\n', Joined)."
+
+           "tls_listen(Port, Server) :- tls_listen(Port, [], Server)."
+           "tls_listen(Port, Opts, Server) :- tls_opt(backlog, Opts, 16, B), '$tls_listen'(Port, B, Server)."
+
+           "tls_accept(Server, Ms, Opts, Conn, Peer) :- tls_creds(Opts, C), '$tls_accept'(Server, Ms, C, Conn, Peer)."
+           "tls_connect(Host, Service, Opts, Conn) :- tls_opt(timeout, Opts, 30000, Ms), tls_creds(Opts, C), '$tls_connect'(Host, Service, C, Ms, Conn)."
+
+           "tls_peer_subject(Conn, S) :- '$tls_ask'(0, Conn, S)."
+
+           ;; A LIST, not the newline-joined atom the seam hands back --
+           ;; because a permission is a thing a rule matches on, and a rule
+           ;; matches on a list member. Empty is [] and not [''].
+           "tls_peer_permissions(Conn, L) :- '$tls_ask'(1, Conn, A), ( A == '' -> L = [] ; atomic_list_concat(L, '\\n', A) ).")))
+
+(source "coco-tls.cpp"
+  (make :cpp #t :compile #f)
+
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstddef>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+  (include <vector>)
+
+  (@define (code "ubyte_t unsigned char"))
+
+  ;;; THE LINKAGE, FIRST AND RAW. In a `:cpp #t' target C++ gives the
+  ;;; SDK's prototypes C++ LINKAGE and `use_module' then fails with a
+  ;;; mangled `undefined symbol' for a function the interpreter exports
+  ;;; unmangled. Wrapping `(coco-sdk)' in `(extern-c ...)' is not the fix:
+  ;;; a Cicili macro must emit ONE form, and several leaves every symbol
+  ;;; unregistered.
+  (code "extern \"C\" {")
+  (code "int coco_module_register(const char*, int (*)(struct coco_engine_opaque*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine_opaque*));")
+  (code "size_t coco_m_arg(struct coco_engine_opaque*, size_t, uint32_t);")
+  (code "int coco_m_int(struct coco_engine_opaque*, size_t, int64_t*);")
+  (code "int coco_m_text(struct coco_engine_opaque*, size_t, char*, size_t);")
+  (code "int coco_m_unify(struct coco_engine_opaque*, size_t, size_t);")
+  (code "int coco_m_unify_atom(struct coco_engine_opaque*, size_t, const char*);")
+  (code "int coco_m_unify_int(struct coco_engine_opaque*, size_t, int64_t);")
+  (code "size_t coco_m_new_int(struct coco_engine_opaque*, int64_t);")
+  (code "size_t coco_m_nil(struct coco_engine_opaque*);")
+  (code "size_t coco_m_cons(struct coco_engine_opaque*, size_t, size_t);")
+  (code "int coco_m_list_length(struct coco_engine_opaque*, size_t, size_t*);")
+  (code "int coco_m_list_array(struct coco_engine_opaque*, size_t, size_t**, size_t*);")
+  (code "int coco_m_type_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_domain_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_error(struct coco_engine_opaque*, const char*, const char*);")
+  (code "}")
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (code "#include <tlsstream.hpp>")
+  (code "#include <tls.hpp>")
+  (code "#include <sys/socket.h>")
+  (code "#include <netinet/in.h>")
+  (code "#include <arpa/inet.h>")
+  (code "#include <netdb.h>")
+  (code "#include <poll.h>")
+  (code "#include <unistd.h>")
+  (code "#include <cerrno>")
+
+  ;;; ---- the seam --------------------------------------------------------
+  (code "namespace {")
+  (code "")
+  (code "// ---- the handle table -------------------------------------------------")
+  (code "//")
+  (code "// THE WHOLE POINT, and it is modules/tcp's: a handle handed to Prolog is a")
+  (code "// SLOT IN HERE, never a file descriptor and never a pointer. Prolog does")
+  (code "// arithmetic, so any integer can arrive at any of these predicates; a slot")
+  (code "// this module did not fill is not a connection, and saying so is the")
+  (code "// difference between a failed call and a closed stdout.")
+  (code "//")
+  (code "// A fixed 256 rather than a growing table, because the number is a")
+  (code "// capacity decision that should be visible.")
+  (code "//")
+  (code "// AND IT IS WHY \"cocolog HAS NO STREAM LAYER\" WAS THE WRONG OBJECTION.")
+  (code "// `Zigurat::tlsstream' is a C++ iostream and there is nothing in cocolog")
+  (code "// to hand one to -- but nothing has to be. The stream stays HERE, for its")
+  (code "// whole life, and what crosses into Prolog is an index. That is exactly")
+  (code "// what library(tcp) does with a descriptor, and a TLS connection is no")
+  (code "// more a term than a socket is.")
+  (code "")
+  (code "struct Entry {")
+  (code "  int fd;                    // -1 when the slot is free")
+  (code "  bool listening;            // a listener has no stream")
+  (code "  Zigurat::tlsstream* stream;")
+  (code "  std::string subject;")
+  (code "  std::string permissions;   // newline joined")
+  (code "  char peer[64];")
+  (code "};")
+  (code "")
+  (code "Entry g_slots[256];")
+  (code "bool  g_ready = false;")
+  (code "thread_local std::string g_why;")
+  (code "")
+  (code "void init_table() {")
+  (code "  if (g_ready) return;")
+  (code "  for (int i = 0; i < 256; i++) {")
+  (code "    g_slots[i].fd = -1;")
+  (code "    g_slots[i].listening = false;")
+  (code "    g_slots[i].stream = nullptr;")
+  (code "    g_slots[i].peer[0] = 0;")
+  (code "  }")
+  (code "  g_ready = true;")
+  (code "}")
+  (code "")
+  (code "int slot_new() {")
+  (code "  init_table();")
+  (code "  for (int i = 0; i < 256; i++) if (g_slots[i].fd == -1) return i;")
+  (code "  return -1;")
+  (code "}")
+  (code "")
+  (code "Entry* slot_at(int s, bool want_listener) {")
+  (code "  init_table();")
+  (code "  if (s < 0 || s >= 256) return nullptr;")
+  (code "  if (g_slots[s].fd == -1) return nullptr;")
+  (code "  if (g_slots[s].listening != want_listener) return nullptr;")
+  (code "  return &g_slots[s];")
+  (code "}")
+  (code "")
+  (code "void slot_free(int s) {")
+  (code "  if (s < 0 || s >= 256) return;")
+  (code "  if (g_slots[s].stream) {")
+  (code "    try { g_slots[s].stream->close(); } catch (...) { }")
+  (code "    delete g_slots[s].stream;")
+  (code "    g_slots[s].stream = nullptr;")
+  (code "  }")
+  (code "  if (g_slots[s].fd >= 0) ::close(g_slots[s].fd);")
+  (code "  g_slots[s].fd = -1;")
+  (code "  g_slots[s].listening = false;")
+  (code "  g_slots[s].subject.clear();")
+  (code "  g_slots[s].permissions.clear();")
+  (code "  g_slots[s].peer[0] = 0;")
+  (code "}")
+  (code "")
+  (code "// ---- credentials, from one newline-separated string -------------------")
+  (code "//")
+  (code "// SIX FIELDS, IN ORDER: certificate, key, key cipher, authority,")
+  (code "// client_auth, ciphers. The Prolog half resolves an option list into this")
+  (code "// and fills in the defaults, because pulling a term out of a list is four")
+  (code "// lines there and would be forty here.")
+  (code "//")
+  (code "// EVERY ONE OF THE FIRST FOUR IS A PATH, not bytes -- which is")
+  (code "// `SSL_CTX_use_certificate_file' talking, and it is the same rule")
+  (code "// library(x509) already follows for the same reason: a private key that")
+  (code "// became a cocolog term would be on the heap, in the trail, and in the")
+  (code "// knowledge base the moment anything asserted it.")
+  (code "bool split6(const char* s, std::string* out) {")
+  (code "  int n = 0;")
+  (code "  const char* p = s;")
+  (code "  while (n < 6) {")
+  (code "    const char* q = std::strchr(p, '\\n');")
+  (code "    if (!q) { out[n++] = std::string(p); break; }")
+  (code "    out[n++] = std::string(p, (size_t)(q - p));")
+  (code "    p = q + 1;")
+  (code "  }")
+  (code "  return n == 6;")
+  (code "}")
+  (code "")
+  (code "bool credentials_of(const char* text, Zigurat::TLS::HandshakeParameters& p) {")
+  (code "  std::string f[6];")
+  (code "  if (!split6(text, f)) return false;")
+  (code "  p.credentials.certificate = f[0];")
+  (code "  p.credentials.private_key = f[1];")
+  (code "  p.credentials.private_key_cipher = f[2];")
+  (code "  p.credentials.authority = f[3];")
+  (code "  if      (f[4] == \"required\") p.client_auth = Zigurat::TLS::ClientAuth::REQUIRED;")
+  (code "  else if (f[4] == \"optional\") p.client_auth = Zigurat::TLS::ClientAuth::OPTIONAL;")
+  (code "  else if (f[4] == \"none\")     p.client_auth = Zigurat::TLS::ClientAuth::NONE;")
+  (code "  else return false;")
+  (code "  p.cipher_list = f[5];")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "void record(Entry* e, Zigurat::tlsstream* s) {")
+  (code "  e->subject = s->peer_subject();")
+  (code "  const std::vector<std::string>& perms = s->peer_permissions();")
+  (code "  e->permissions.clear();")
+  (code "  for (size_t i = 0; i < perms.size(); i++) {")
+  (code "    if (i) e->permissions.push_back('\\n');")
+  (code "    e->permissions += perms[i];")
+  (code "  }")
+  (code "}")
+  (code "")
+  (code "// A read deadline on the socket itself. The handshake has its own timeout")
+  (code "// and this is for everything after it: without one a peer that connects")
+  (code "// and says nothing holds a worker for ever.")
+  (code "void deadline(int fd, int ms) {")
+  (code "  struct timeval tv;")
+  (code "  tv.tv_sec = ms / 1000;")
+  (code "  tv.tv_usec = (ms % 1000) * 1000;")
+  (code "  ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);")
+  (code "}")
+  (code "")
+  (code "} // namespace")
+  (code "")
+  (code "extern \"C\" const char* coco_tls_why(void) { return g_why.empty() ? \"\" : g_why.c_str(); }")
+  (code "")
+  (code "extern \"C\" int coco_tls_listen(int port, int backlog) {")
+  (code "  g_why.clear();")
+  (code "  int s = slot_new();")
+  (code "  if (s < 0) { g_why = \"no free slot\"; return -1; }")
+  (code "  int fd = ::socket(AF_INET, SOCK_STREAM, 0);")
+  (code "  if (fd < 0) { g_why = std::strerror(errno); return -1; }")
+  (code "  int one = 1;")
+  (code "  ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);")
+  (code "  struct sockaddr_in a;")
+  (code "  std::memset(&a, 0, sizeof a);")
+  (code "  a.sin_family = AF_INET;")
+  (code "  a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);")
+  (code "  a.sin_port = htons((unsigned short) port);")
+  (code "  if (::bind(fd, (struct sockaddr*) &a, sizeof a) < 0) {")
+  (code "    g_why = std::strerror(errno); ::close(fd); return -1;")
+  (code "  }")
+  (code "  if (::listen(fd, backlog) < 0) {")
+  (code "    g_why = std::strerror(errno); ::close(fd); return -1;")
+  (code "  }")
+  (code "  g_slots[s].fd = fd;")
+  (code "  g_slots[s].listening = true;")
+  (code "  return s;")
+  (code "}")
+  (code "")
+  (code "// -1 an error (why says what), -2 nobody arrived inside the timeout, -3 a")
+  (code "// peer arrived and the handshake refused it. THE THIRD IS NOT AN ERROR AND")
+  (code "// NOT A TIMEOUT: a stranger, or a certificate this authority did not sign,")
+  (code "// is exactly what mutual TLS is for, and the server carries on serving")
+  (code "// everybody else.")
+  (code "extern \"C\" int coco_tls_accept(int server, int ms, const char* creds,")
+  (code "                               char* peer, size_t pcap) {")
+  (code "  g_why.clear();")
+  (code "  Entry* srv = slot_at(server, true);")
+  (code "  if (!srv) { g_why = \"not a listening socket\"; return -1; }")
+  (code "  struct pollfd pfd;")
+  (code "  pfd.fd = srv->fd;")
+  (code "  pfd.events = POLLIN;")
+  (code "  pfd.revents = 0;")
+  (code "  int w = ::poll(&pfd, 1, ms);")
+  (code "  if (w == 0) return -2;")
+  (code "  if (w < 0) { g_why = std::strerror(errno); return -1; }")
+  (code "  struct sockaddr_in a;")
+  (code "  socklen_t alen = sizeof a;")
+  (code "  int fd = ::accept(srv->fd, (struct sockaddr*) &a, &alen);")
+  (code "  if (fd < 0) { g_why = std::strerror(errno); return -1; }")
+  (code "  int s = slot_new();")
+  (code "  if (s < 0) { g_why = \"no free slot\"; ::close(fd); return -1; }")
+  (code "  char addr[INET_ADDRSTRLEN];")
+  (code "  if (!::inet_ntop(AF_INET, &a.sin_addr, addr, sizeof addr)) addr[0] = 0;")
+  (code "  std::snprintf(peer, pcap, \"%s:%d\", addr, (int) ntohs(a.sin_port));")
+  (code "  Zigurat::TLS::HandshakeParameters p;")
+  (code "  if (!credentials_of(creds, p)) { g_why = \"bad credentials\"; ::close(fd); return -1; }")
+  (code "  Zigurat::tlsstream* stream = nullptr;")
+  (code "  try {")
+  (code "    deadline(fd, ms > 0 ? ms : 30000);")
+  (code "    stream = new Zigurat::tlsstream(Zigurat::TLS::ConnectionEnd::SERVER, p, fd, true, ms);")
+  (code "  } catch (const std::exception& x) {")
+  (code "    g_why = x.what();")
+  (code "    delete stream;")
+  (code "    ::close(fd);")
+  (code "    return -3;")
+  (code "  } catch (...) { g_why = \"the handshake failed\"; ::close(fd); return -3; }")
+  (code "  g_slots[s].fd = fd;")
+  (code "  g_slots[s].listening = false;")
+  (code "  g_slots[s].stream = stream;")
+  (code "  std::snprintf(g_slots[s].peer, sizeof g_slots[s].peer, \"%s\", peer);")
+  (code "  record(&g_slots[s], stream);")
+  (code "  return s;")
+  (code "}")
+  (code "")
+  (code "// THE SOCKET IS OURS IN BOTH DIRECTIONS, which is why this connects by")
+  (code "// hand rather than using tlsstream's host/service constructor: owning the")
+  (code "// descriptor is what lets `tls_read/4' put a deadline on it. A connection")
+  (code "// whose fd lives inside somebody else's stream can be waited on for ever.")
+  (code "extern \"C\" int coco_tls_connect(const char* host, const char* service,")
+  (code "                                const char* creds, int ms) {")
+  (code "  g_why.clear();")
+  (code "  struct addrinfo hints, *res = nullptr;")
+  (code "  std::memset(&hints, 0, sizeof hints);")
+  (code "  hints.ai_family = AF_INET;")
+  (code "  hints.ai_socktype = SOCK_STREAM;")
+  (code "  int rc = ::getaddrinfo(host, service, &hints, &res);")
+  (code "  if (rc != 0 || !res) { g_why = ::gai_strerror(rc); return -1; }")
+  (code "  int fd = ::socket(res->ai_family, res->ai_socktype, res->ai_protocol);")
+  (code "  if (fd < 0) { g_why = std::strerror(errno); ::freeaddrinfo(res); return -1; }")
+  (code "  if (::connect(fd, res->ai_addr, res->ai_addrlen) < 0) {")
+  (code "    g_why = std::strerror(errno); ::close(fd); ::freeaddrinfo(res); return -1;")
+  (code "  }")
+  (code "  ::freeaddrinfo(res);")
+  (code "  int s = slot_new();")
+  (code "  if (s < 0) { g_why = \"no free slot\"; ::close(fd); return -1; }")
+  (code "  Zigurat::TLS::HandshakeParameters p;")
+  (code "  if (!credentials_of(creds, p)) { g_why = \"bad credentials\"; ::close(fd); return -1; }")
+  (code "  Zigurat::tlsstream* stream = nullptr;")
+  (code "  try {")
+  (code "    deadline(fd, ms > 0 ? ms : 30000);")
+  (code "    stream = new Zigurat::tlsstream(Zigurat::TLS::ConnectionEnd::CLIENT, p, fd, true, ms);")
+  (code "  } catch (const std::exception& x) {")
+  (code "    g_why = x.what(); delete stream; ::close(fd); return -3;")
+  (code "  } catch (...) { g_why = \"the handshake failed\"; ::close(fd); return -3; }")
+  (code "  g_slots[s].fd = fd;")
+  (code "  g_slots[s].listening = false;")
+  (code "  g_slots[s].stream = stream;")
+  (code "  std::snprintf(g_slots[s].peer, sizeof g_slots[s].peer, \"%s\", host);")
+  (code "  record(&g_slots[s], stream);")
+  (code "  return s;")
+  (code "}")
+  (code "")
+  (code "// AT LEAST ONE BYTE, AND AT MOST `max'. `peek' blocks until something")
+  (code "// arrives or the stream ends, and `in_avail' then says how much came with")
+  (code "// it -- which is the semantics a protocol reader wants, and not what a")
+  (code "// blocking `read(buf, max)' gives: that one waits for ALL of max, so a")
+  (code "// reader asking for 4096 bytes of a 20-byte request never returns.")
+  (code "extern \"C\" long coco_tls_read(int slot, unsigned char* buf, long max, int ms) {")
+  (code "  g_why.clear();")
+  (code "  Entry* e = slot_at(slot, false);")
+  (code "  if (!e || !e->stream) { g_why = \"not a connection\"; return -1; }")
+  (code "  if (max <= 0) return -1;")
+  (code "  deadline(e->fd, ms);")
+  (code "  try {")
+  (code "    int c = e->stream->peek();")
+  (code "    if (c == std::char_traits<char>::eof()) return 0;")
+  (code "    std::streamsize avail = e->stream->rdbuf()->in_avail();")
+  (code "    if (avail <= 0) avail = 1;")
+  (code "    if (avail > max) avail = max;")
+  (code "    e->stream->read((char*) buf, avail);")
+  (code "    std::streamsize got = e->stream->gcount();")
+  (code "    if (got <= 0) return 0;")
+  (code "    return (long) got;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -1; }")
+  (code "    catch (...) { g_why = \"the read failed\"; return -1; }")
+  (code "}")
+  (code "")
+  (code "extern \"C\" long coco_tls_write(int slot, const unsigned char* buf, long n) {")
+  (code "  g_why.clear();")
+  (code "  Entry* e = slot_at(slot, false);")
+  (code "  if (!e || !e->stream) { g_why = \"not a connection\"; return -1; }")
+  (code "  try {")
+  (code "    e->stream->write((const char*) buf, (std::streamsize) n);")
+  (code "    e->stream->flush();")
+  (code "    if (!e->stream->good()) { g_why = \"the connection is not writable\"; return -1; }")
+  (code "    return n;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -1; }")
+  (code "    catch (...) { g_why = \"the write failed\"; return -1; }")
+  (code "}")
+  (code "")
+  (code "extern \"C\" int coco_tls_close(int slot) {")
+  (code "  g_why.clear();")
+  (code "  init_table();")
+  (code "  if (slot < 0 || slot >= 256 || g_slots[slot].fd == -1) return 0;")
+  (code "  slot_free(slot);")
+  (code "  return 1;")
+  (code "}")
+  (code "")
+  (code "// WHO THE OTHER END PROVED ITSELF TO BE, and what its certificate says it")
+  (code "// may do. Both were settled during the handshake -- checked against the")
+  (code "// authority before a byte moved -- so both are ready before anything is")
+  (code "// read or written. This is the seam library(ca) plugs into: the subject is")
+  (code "// a fact and the permissions are facts, and `ca_may/2' is the rule.")
+  (code "extern \"C\" const char* coco_tls_ask(int slot, int what) {")
+  (code "  init_table();")
+  (code "  Entry* e = slot_at(slot, false);")
+  (code "  if (!e) return nullptr;")
+  (code "  return what ? e->permissions.c_str() : e->subject.c_str();")
+  (code "}")
+  (code "")
+  (code "extern \"C\" const char* coco_tls_peer(int slot) {")
+  (code "  init_table();")
+  (code "  Entry* e = slot_at(slot, false);")
+  (code "  return e ? e->peer : nullptr;")
+  (code "}")
+  (code "")
+  (code "extern \"C\" int coco_tls_count(void) {")
+  (code "  init_table();")
+  (code "  int n = 0;")
+  (code "  for (int i = 0; i < 256; i++) if (g_slots[i].fd != -1) n++;")
+  (code "  return n;")
+  (code "}")
+  (code "")
+  (decl) (func coco_tls_why () (out const char *))
+  (decl) (func coco_tls_listen ((int port) (int backlog)) (out int))
+  (decl) (func coco_tls_accept ((int server) (int ms) (const char * creds)
+                                (char * peer) (size_t pcap)) (out int))
+  (decl) (func coco_tls_connect ((const char * host) (const char * service)
+                                 (const char * creds) (int ms)) (out int))
+  (decl) (func coco_tls_read ((int slot) (ubyte_t * buf) (long max) (int ms)) (out long))
+  (decl) (func coco_tls_write ((int slot) (const ubyte_t * buf) (long n)) (out long))
+  (decl) (func coco_tls_close ((int slot)) (out int))
+  (decl) (func coco_tls_ask ((int slot) (int what)) (out const char *))
+  (decl) (func coco_tls_peer ((int slot)) (out const char *))
+  (decl) (func coco_tls_count () (out int))
+
+  ;;; ---- the Cicili side: arguments, errors, dispatch ------------------
+  ;;;
+  ;;; EVERY REFUSAL IS A FAILURE, not an exception, and that is the design
+  ;;; rather than laziness. A stranger knocking, a certificate this
+  ;;; authority did not sign, and nobody arriving inside the timeout are
+  ;;; all ordinary answers to `did somebody connect' -- and a server that
+  ;;; raised on any of them would stop serving everybody else because one
+  ;;; impostor tried. `tls_why/1' is how you tell them apart.
+
+  (static) (func tl_int ((coco_engine * e) (size_t g) (u32 i) (i64 * out)) (out int)
+    (return (coco_m_int e (coco_m_arg e g i) out)))
+
+  (static) (func tl_p_why ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sr 0))
+      (return (coco_m_unify_atom e sr (coco_tls_why)))))
+
+  (static) (func tl_p_count ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sr 0))
+      (return (coco_m_unify_int e sr (cast i64 (coco_tls_count))))))
+
+  (static) (func tl_p_listen ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sp 0) (sb 1) (sr 2))
+      (let ((i64 port . 0) (i64 back . 16))
+        (if (not (coco_m_int e sp (aof port)))
+            (return (coco_m_type_error e "a port number" sp)))
+        (if (or (< port 1) (> port 65535))
+            (return (coco_m_domain_error e "port_number" sp)))
+        (if (not (coco_m_int e sb (aof back))) (set back 16))
+        (let ((int s . #'(coco_tls_listen (cast int port) (cast int back))))
+          (if (< s 0) (return 0))
+          (return (coco_m_unify_int e sr (cast i64 s)))))))
+
+  (static) (func tl_p_accept ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((ss 0) (sm 1) (sc 2) (sr 3) (sp 4))
+      (let ((i64 srv . 0) (i64 ms . 0) (char creds [8192]) (char peer [64]))
+        (if (not (coco_m_int e ss (aof srv)))
+            (return (coco_m_type_error e "a listening socket" ss)))
+        (if (not (coco_m_int e sm (aof ms)))
+            (return (coco_m_type_error e "a timeout in milliseconds" sm)))
+        (if (not (coco_m_text e sc creds 8192))
+            (return (coco_m_type_error e "credentials" sc)))
+        (set (nth 0 peer) 0)
+        (let ((int s . #'(coco_tls_accept (cast int srv) (cast int ms) creds peer 64)))
+          ;; -2 nobody came, -3 the handshake refused a peer, -1 an error.
+          ;; All three FAIL; `tls_why/1' distinguishes them.
+          (if (< s 0) (return 0))
+          (if (not (coco_m_unify_int e sr (cast i64 s))) (return 0))
+          (return (coco_m_unify_atom e sp peer))))))
+
+  (static) (func tl_p_connect ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sh 0) (sv 1) (sc 2) (sm 3) (sr 4))
+      (let ((char host [256]) (char service [64]) (char creds [8192]) (i64 ms . 30000))
+        (if (not (coco_m_text e sh host 256))
+            (return (coco_m_type_error e "a host name" sh)))
+        (if (not (coco_m_text e sv service 64))
+            (return (coco_m_type_error e "a service or port" sv)))
+        (if (not (coco_m_text e sc creds 8192))
+            (return (coco_m_type_error e "credentials" sc)))
+        (if (not (coco_m_int e sm (aof ms))) (set ms 30000))
+        (let ((int s . #'(coco_tls_connect host service creds (cast int ms))))
+          (if (< s 0) (return 0))
+          (return (coco_m_unify_int e sr (cast i64 s)))))))
+
+  ;;; CODES, NOT AN ATOM, for the reason library(tcp) answers codes: an
+  ;;; atom in cocolog is a C string and stops at the first NUL, so an
+  ;;; atom-shaped read would truncate every binary body at its first zero.
+  (static) (func tl_p_read ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((ss 0) (sn 1) (sm 2) (sr 3))
+      (let ((i64 slot . 0) (i64 maxb . 0) (i64 ms . 0) (long n . 0)
+            (size_t lst) (ubyte_t * buf . nil))
+        (if (not (coco_m_int e ss (aof slot)))
+            (return (coco_m_type_error e "a connection" ss)))
+        (if (not (coco_m_int e sn (aof maxb)))
+            (return (coco_m_type_error e "a byte count" sn)))
+        (if (not (coco_m_int e sm (aof ms)))
+            (return (coco_m_type_error e "a timeout in milliseconds" sm)))
+        (if (or (<= maxb 0) (> maxb 16777216))
+            (return (coco_m_domain_error e "byte_count" sn)))
+        (set buf (cast (ubyte_t *) (malloc (cast size_t maxb))))
+        (if (== buf nil) (return 0))
+        (set n (coco_tls_read (cast int slot) buf (cast long maxb) (cast int ms)))
+        (if (<= n 0) (block (free buf) (return 0)))
+        ;; Built back to front, because consing onto a list is what a list
+        ;; is: the last byte read is the first cell made.
+        (set lst (coco_m_nil e))
+        (for ((size_t i . #'(cast size_t n))) (> i 0) ((-- i))
+             (set lst (coco_m_cons e (coco_m_new_int e (cast i64 (nth (- i 1) buf))) lst)))
+        (free buf)
+        (return (coco_m_unify e sr lst)))))
+
+  (static) (func tl_p_write ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((ss 0) (sl 1))
+      (let ((i64 slot . 0) (size_t len . 0) (size_t * items . nil)
+            (ubyte_t * buf . nil) (long wrote . 0))
+        (if (not (coco_m_int e ss (aof slot)))
+            (return (coco_m_type_error e "a connection" ss)))
+        (if (not (coco_m_list_array e sl (aof items) (aof len)))
+            (return (coco_m_type_error e "a list of codes" sl)))
+        (if (== len 0) (return 1))
+        (set buf (cast (ubyte_t *) (malloc len)))
+        (if (== buf nil) (return 0))
+        (for ((size_t i . 0)) (< i len) ((++ i))
+             (let ((i64 v . 0))
+               (if (not (coco_m_int e (nth i items) (aof v)))
+                   (block (free buf) (return (coco_m_type_error e "a code" sl))))
+               (set (nth i buf) (cast ubyte_t (bitand v 255)))))
+        (set wrote (coco_tls_write (cast int slot) buf (cast long len)))
+        (free buf)
+        (if (< wrote 0) (return 0))
+        (return 1))))
+
+  (static) (func tl_p_close ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((ss 0))
+      (let ((i64 slot . 0))
+        (if (not (coco_m_int e ss (aof slot)))
+            (return (coco_m_type_error e "a connection" ss)))
+        (coco_tls_close (cast int slot))
+        (return 1))))
+
+  (static) (func tl_p_ask ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sw 0) (ss 1) (sr 2))
+      (let ((i64 what . 0) (i64 slot . 0) (const char * a . nil))
+        (if (not (coco_m_int e sw (aof what))) (return 0))
+        (if (not (coco_m_int e ss (aof slot)))
+            (return (coco_m_type_error e "a connection" ss)))
+        (set a (coco_tls_ask (cast int slot) (cast int what)))
+        (if (== a nil) (return 0))
+        (return (coco_m_unify_atom e sr a)))))
+
+  (static) (func tl_p_peer ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((ss 0) (sr 1))
+      (let ((i64 slot . 0) (const char * a . nil))
+        (if (not (coco_m_int e ss (aof slot)))
+            (return (coco_m_type_error e "a connection" ss)))
+        (set a (coco_tls_peer (cast int slot)))
+        (if (== a nil) (return 0))
+        (return (coco_m_unify_atom e sr a)))))
+
+  (extern-c
+    (coco-emit-module-dispatch coco_tls_dispatch *tls-predicates*)
+    (coco-deflibrary "tls" coco_tls_dispatch *tls-prolog*)))

@@ -98,7 +98,7 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        `make modules' builds
 modules/               the LOADABLE modules, one directory each -- tcp,
                        thread, curl, bigint, torch, and ZiguratIP's
-                       cryptography: sha, aes, der, x509. None is part of
+                       cryptography: sha, aes, der, x509, tls. None is part of
                        `make': a cocolog with no libtorch, no ZiguratIP
                        headers and no libcurl still builds and still runs
 tools/cc/              the toolchain, in four small files: clang, plus the
@@ -118,7 +118,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        every claim in the first two is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (twenty-eight, ONE PER LIBRARY that
+                       library/ (twenty-nine, ONE PER LIBRARY that
                        ships), torch/ (twenty-four networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
@@ -267,7 +267,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — twenty-eight lessons, one per library that ships
+### `library/` — twenty-nine lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.
@@ -577,6 +577,7 @@ The certificate came out of C++ and the modulus was read in Prolog.
 | `library(der)` | DER as terms, both directions | **no cipher at all** |
 | `library(x509)` | the whole `ca` tool, plus sign/verify/encrypt/decrypt | a built ZiguratIP |
 | `library(ca)` | clauses only: roots, enrolment, and authorisation | — |
+| `library(tls)` | a secure connection, mutually authenticated | a built ZiguratIP |
 
 **THE SPLIT IS ARITHMETIC, GRAMMAR, POLICY.** Arithmetic is bound and
 never rewritten — a Prolog RSA is not merely slow, it cannot be made
@@ -609,11 +610,58 @@ base the moment anything asserted it. This project's whole claim is that
 a clause is a row somebody else can read; a signing key is the one thing
 that must never become one.
 
-**What is NOT bound: the TLS handshake.** ZiguratIP has one, as a C++
-iostream over a socket, and cocolog has no stream layer to hang it on —
-`library(tcp)` hands out handles into a table, not descriptors. The
-certificates these modules make are the same ones that server reads,
-which is the part that had to be true.
+### And the connection itself: `library(tls)`
+
+The certificates are for something. `library(tls)` is `library(tcp)` with
+a handshake in front of it — real OpenSSL underneath, TLS 1.2 at the
+lowest, ECDHE and AEAD and `!kRSA` so static key transport cannot be
+negotiated at all:
+
+```prolog
+?- Creds = [ certificate('node.crt'), key('node.key'),
+             authority('ca.crt') ],          % client_auth(required) by default
+   tls_listen(9443, S),
+   tls_accept(S, 15000, Creds, Conn, Peer),
+   tls_peer_subject(Conn, Who),
+   tls_peer_permissions(Conn, Granted).
+Peer    = '127.0.0.1:34844',
+Who     = 'C=IR, O=Coco, CN=alice, emailAddress=alice@example.org',
+Granted = [read, 'ledger.write'].
+```
+
+**THE PERMISSIONS ARRIVE WITH THE HANDSHAKE.** They were written into
+alice's certificate by an issuer, checked against the authority before a
+byte moved, and handed over as a list. So a server does not authenticate
+its peer — that already happened — and what is left is authorisation,
+which is a rule:
+
+```prolog
+serve(Conn) :-
+    tls_peer_permissions(Conn, Granted),
+    (   member(G, Granted), ca_covers(G, 'ledger.write')
+    ->  apply_the_write(Conn)
+    ;   refuse(Conn) ).
+```
+
+**"cocolog has no stream layer" was the wrong objection**, and this is
+the correction. `Zigurat::tlsstream` is a C++ iostream and there is
+nothing here to hand one to — but nothing has to be. The stream stays
+inside the module and what crosses into Prolog is an index into a table,
+exactly as `library(tcp)` does with a descriptor.
+
+**A refused handshake FAILS rather than raising.** A stranger, a
+certificate this authority did not sign, and nobody arriving inside the
+timeout are all ordinary answers; `tls_why/1` says which. A server that
+raised would stop serving everybody else because one impostor knocked.
+
+`test/tls.sh` raises a server and runs three clients at it as separate
+processes — enrolled, impostor, browser — because a handshake is between
+two ends that do not share memory.
+
+**What is still plaintext: `library(httpd)`.** It speaks
+`tcp_accept/read/write/close`, and swapping those four for the `tls_`
+ones is what an HTTPS server whose pages are clauses would take — a
+transport indirection through fourteen call sites, not a new mechanism.
 
 `test/crypto.sh` holds them to FIPS 180, RFC 4231, NIST SP 800-38A and
 DER's own worked examples, then issues a certificate for real — key,
@@ -940,7 +988,7 @@ between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
 and fitted Q-iteration reinforcement learning. They are the third
-tutorial category — `sh test/tutorials.sh` runs all sixty-three files,
+tutorial category — `sh test/tutorials.sh` runs all sixty-four files,
 the seventy-two torch processes included, green and deterministically
 in about forty-five seconds. The one to read first is
 [22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every

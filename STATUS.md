@@ -26,7 +26,7 @@ different findings.
 | `test/thread.sh` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
 | `test/httpd.sh` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
 | `test/crypto.sh` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
-| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-three tutorial files in three categories — eleven `basics/` and twenty-eight `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-four tutorial files in three categories — eleven `basics/` and twenty-eight `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
 | `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 
 ## The three document libraries, and the round trip that checks them
@@ -154,12 +154,70 @@ that must never become one. `getenv/2` is how a pass phrase arrives, for
 the same reason -- the one channel into a program that does not pass
 through the store.
 
-**WHAT IS NOT BOUND: the TLS handshake.** ZiguratIP has one, as a C++
-iostream over a socket, and cocolog has no stream layer to hang it on --
-`library(tcp)` hands out handles into a table, not descriptors. Binding
-it would mean inventing a stream abstraction for one caller. The
-certificates these modules make are the same ones that server reads,
-which is the part that had to be true.
+### `library(tls)`: the connection the certificates were for
+
+**"cocolog has no stream layer" WAS THE WRONG OBJECTION**, and this
+section replaces the one that said so. `Zigurat::tlsstream` is a C++
+iostream and there is genuinely nothing in cocolog to hand one to -- but
+nothing has to be. **The stream stays inside the module for its whole
+life and what crosses into Prolog is an INDEX INTO A TABLE**, which is
+exactly what `library(tcp)` does with a descriptor. A TLS connection is
+no more a term than a socket is.
+
+So `modules/tls` is `modules/tcp`'s shape with a handshake in front of
+it: 256 slots, each a listener or a connection, and a handle that is a
+slot rather than a pointer. Underneath it is real OpenSSL -- TLS 1.2 at
+the lowest, ECDHE and AEAD, `!kRSA` so static key transport cannot be
+negotiated at all, no record compression. None of that is decided here;
+it is `SocketIO/tlsbuf.cpp`, and this module offers no way to weaken it.
+
+**THE PERMISSIONS ARRIVE WITH THE HANDSHAKE**, which is the part that
+makes this more than a socket:
+
+    Peer    = '127.0.0.1:34844',
+    Who     = 'C=IR, O=Coco, CN=alice, emailAddress=alice@example.org',
+    Granted = [read, 'ledger.write'].
+
+They were written into alice's certificate by an issuer and checked
+against the authority before a byte moved. So a server does not
+authenticate its peer -- that already happened -- and what is left is
+AUTHORISATION, which is a `library(ca)` rule over facts. The three
+libraries close on each other: x509 issued it, tls carried it, ca
+decides what it means.
+
+**A REFUSED HANDSHAKE FAILS RATHER THAN RAISING.** A stranger, a
+certificate this authority did not sign, and nobody arriving inside the
+timeout are all ordinary answers to "did somebody connect", and
+`tls_why/1` says which -- `tlsv1 alert unknown ca` from the server,
+`certificate verify failed` from the other end. A server that raised
+would stop serving everybody else because one impostor knocked.
+
+Two smaller decisions worth keeping: **the socket is ours in both
+directions**, because owning the descriptor is what lets `tls_read/4`
+put a deadline on it -- a connection whose fd lives inside somebody
+else's stream can be waited on for ever; and **`tls_read/4` is
+at-least-one-byte**, via `peek()` then `in_avail()`, because a blocking
+`read(buf, max)` waits for ALL of max and a reader asking for 4096 bytes
+of a 20-byte request never returns.
+
+`test/tls.sh` raises a server and runs three clients at it AS SEPARATE
+PROCESSES -- enrolled, impostor, browser -- because a handshake is
+between two ends that do not share memory, and a test proving one
+process can talk to itself would have proved the least interesting half.
+
+**STILL PLAINTEXT: `library(httpd)`.** It speaks
+`tcp_accept/read/write/close` at fourteen call sites, and HTTPS is a
+transport indirection through those rather than a new mechanism.
+
+### `flush_output/0`, which was also not there
+
+cocolog writes to the literal stdout, which the C library buffers by
+LINE at a terminal and by BLOCK everywhere else. So a program that
+printed a marker and then blocked -- a server saying it is listening --
+printed nothing into a pipe or a file and everything at once when it
+finally exited. Found by writing `test/tls.sh`, whose harness waited for
+a READY that was sitting in a buffer. Interactively it had always
+worked, which is why nothing had noticed.
 
 ### Five things that cost time, and one finding not applied
 
@@ -214,7 +272,7 @@ in the suite rather than a script beside it:
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons: facts and rules, unification, lists, arithmetic, cut, `findall`, assert and retract, atoms and codes, exceptions, grammars, and the knowledge base | nothing at all |
-| `tutorials/library/` | twenty-eight lessons, **one per library that ships** — twelve tier 1, eleven tier 2 | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | twenty-nine lessons, **one per library that ships** — twelve tier 1, eleven tier 2 | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
 
 **Every claim in the first two is a `must/3`**, which is what makes them

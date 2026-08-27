@@ -53,7 +53,7 @@ written anywhere in this repository.
 **A new library gets a file here in the same commit.** The numbering is
 one per library and a gap is visible, which is the point: a library with
 no tutorial is a library nobody has demonstrated end to end. Each of the
-twenty-eight above found something while it was being written — a
+twenty-nine above found something while it was being written — a
 predicate that did not exist, an arity that was wrong, a return value
 documented as `-1/0/1` and actually `<`/`=`/`>`.
 

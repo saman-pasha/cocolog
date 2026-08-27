@@ -3,7 +3,7 @@
 #
 #   basics/   eleven files, one process each, goal `main'. No library, no
 #             database, no build flag.
-#   library/  twenty-eight files, one process each, goal `main'. Tier 2
+#   library/  twenty-nine files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
 #   torch/    twenty-four networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
@@ -21,7 +21,7 @@
 #
 # THREE KINDS OF SKIP, all because "not built here" and "wrong" are
 # different findings: the torch category needs the torch module,
-# `library/22-torch.pl' needs it too, and 23 to 27 need ZiguratIP's
+# `library/22-torch.pl' needs it too, and 23 to 28 need ZiguratIP's
 # cryptography and its sample certificate directory.
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -50,7 +50,7 @@ fi
 # BUILT ZiguratIP, and a sample authority to read. 26 and 27 also want the
 # certificate directory, which only exists in a built home.
 CERT="${ZIGURATIP:-$HOME/ZiguratIP}/home/etc/cert"
-if "$COCOLOG" query "use_module(library(x509)), use_module(library(der))" \
+if "$COCOLOG" query "use_module(library(x509)), use_module(library(der)), use_module(library(tls))" \
      >/dev/null 2>&1 && [ -f "$CERT/dont-use-certificate.crt" ]; then
   HAVE_CRYPTO=yes
 else
@@ -68,7 +68,7 @@ for pl in "$ROOT"/tutorials/basics/[0-9]*.pl "$ROOT"/tutorials/library/[0-9]*.pl
       skipped=$((skipped + 1)); echo "SKIP  $name (no torch module)"; continue ;;
   esac
   case "$name:$HAVE_CRYPTO" in
-    library/23-sha:no|library/24-aes:no|library/25-der:no|library/26-x509:no|library/27-ca:no)
+    library/23-sha:no|library/24-aes:no|library/25-der:no|library/26-x509:no|library/27-ca:no|library/28-tls:no)
       skipped=$((skipped + 1))
       echo "SKIP  $name (no ZiguratIP cryptography built)"; continue ;;
   esac

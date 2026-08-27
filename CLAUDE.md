@@ -318,6 +318,7 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/aes` | a **built** ZiguratIP | `sh modules/aes/build.sh` |
 | `modules/der` | a **built** ZiguratIP | `sh modules/der/build.sh` |
 | `modules/x509` | a **built** ZiguratIP | `sh modules/x509/build.sh` |
+| `modules/tls` | a **built** ZiguratIP | `sh modules/tls/build.sh` |
 
 `make modules` builds every one that can be built here and says SKIPPED,
 by name, for the rest. **None of them is part of `make`** — which is the
@@ -482,6 +483,7 @@ their own — nothing is called `zigurat_anything`:
 | `library(der)` | `der_encode/2`, `der_decode/2` — DER as terms, both ways | **libEncoding only** |
 | `library(x509)` | the whole `ca` tool: keygen, csr, issue, validate, sign, verify, encrypt, decrypt | libCryptography |
 | `library(ca)` | clauses only: trusted roots, enrolment, and authorisation as a RULE | — |
+| `library(tls)` | `library(tcp)` with a handshake in front of it | libSocketIO |
 
 **THE SPLIT IS ARITHMETIC / GRAMMAR / POLICY**, and it is the answer to
 "import it or write it in DCG":
@@ -539,6 +541,48 @@ phrase arrives, for the same reason.
   message about a config file, naming DER bytes, from a certificate
   routine. `ca/main_ca.cpp` documents `--issuer` as "issuer name
   configuration file".
+
+### `library(tls)`, and the objection that was wrong
+
+**"cocolog has no stream layer" was the wrong reason not to bind TLS**,
+and it is worth recording because it was written down here as settled.
+`Zigurat::tlsstream` is a C++ iostream and there is genuinely nothing in
+cocolog to hand one to — but nothing has to be. **The stream stays in
+the module for its whole life and what crosses into Prolog is an INDEX
+into a table**, which is exactly what `library(tcp)` does with a
+descriptor. A TLS connection is no more a term than a socket is.
+
+So `modules/tls` is `modules/tcp`'s shape: `Entry g_slots[256]`, each
+either a listener or a connection, and a handle is a slot. An integer
+this module did not hand out is not a connection — which is the
+difference between a failed call and a closed stdout.
+
+**The socket is ours in both directions**, and that is deliberate:
+`coco_tls_connect` does `getaddrinfo`/`socket`/`connect` by hand rather
+than using `tlsstream`'s host/service constructor, because owning the
+descriptor is what lets `tls_read/4` put `SO_RCVTIMEO` on it. A
+connection whose fd lives inside somebody else's stream can be waited on
+for ever.
+
+**`tls_read/4` is at-least-one-byte, at-most-max.** `peek()` blocks
+until something arrives, `in_avail()` then says how much came with it.
+A blocking `read(buf, max)` waits for ALL of max, so a reader asking for
+4096 bytes of a 20-byte request never returns.
+
+**Every refusal FAILS rather than raising** — a stranger, a certificate
+this authority did not sign, and nobody arriving inside the timeout
+alike, with `tls_why/1` to tell them apart. A server that raised would
+stop serving everybody else because one impostor knocked.
+
+**What the handshake answers is the interesting part.**
+`tls_peer_subject/2` and `tls_peer_permissions/2` are settled during the
+handshake, against the authority, before a byte moves — so a server does
+not authenticate its peer and what is left is authorisation, which is a
+`library(ca)` rule.
+
+**`library(httpd)` is still plaintext.** It speaks
+`tcp_accept/read/write/close` at fourteen call sites; HTTPS is a
+transport indirection through those, not a new mechanism.
 
 ### And one finding about ZiguratIP, not applied
 
@@ -704,12 +748,12 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has three categories and `test/tutorials.sh` runs all
-sixty-three files as one suite case:
+sixty-four files as one suite case:
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | twenty-eight lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | twenty-nine lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | twenty-four networks, three processes each | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
@@ -725,7 +769,7 @@ must(Label, Got, Want) :-
 
 So a lesson that stops being true FAILS, naming both answers, and a
 tutorial cannot quietly document a language that has moved on. It is
-repeated at the bottom of all thirty-nine files rather than shared,
+repeated at the bottom of all forty files rather than shared,
 deliberately: a tutorial you can copy anywhere and run is worth six
 duplicated lines, and one that needs a support file beside it stops
 working the moment it moves.
@@ -743,6 +787,13 @@ argument for the shape:
   FROM THE CONSTRUCT, which is what makes `once/1` opaque to cut the way
   ISO 8.15.2 requires — `once((X > 1, !))` inside a `member/2` leaves
   the outer choice point alone, and there is nothing left to get wrong.
+* **`flush_output/0` did not exist.** cocolog writes to the literal
+  stdout, which the C library buffers by LINE at a terminal and by BLOCK
+  everywhere else — so a program that prints a marker and then blocks
+  prints nothing at all into a pipe or a file, and everything at once
+  when it exits. Found by `test/tls.sh`: the server printed READY, the
+  harness waited for it, and it arrived after the server gave up.
+  Interactively it had always worked.
 * **`retractall/1` was one clause short of correct.** It was written
   `retractall(H) :- retract(H), fail.` / `retractall(_).` — the classic
   failure-driven loop, and it retracts exactly ONE clause here, because
@@ -758,7 +809,7 @@ slow here, it is wrong, and it is wrong quietly.
 **A NEW LIBRARY GETS A TUTORIAL IN THE SAME COMMIT.** `tutorials/library/`
 is numbered one per library, so a gap is visible — and a library with no
 `NN-name.pl` beside it is one nobody has demonstrated end to end. Each of
-the twenty-eight found something while being written: a predicate that
+the twenty-nine found something while being written: a predicate that
 did not exist, an arity that was wrong, `bigint_cmp/3` documented as
 `-1/0/1` and actually answering `<`/`=`/`>`, `httpd_content_type/2` keyed
 on the bare extension where `httpd_type/2` is the one that takes a file
@@ -766,7 +817,7 @@ name.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **28** case lines. A change to
+Run `make test` with a server up, and read all **29** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

@@ -114,7 +114,7 @@ done
 #           certificate issued against ZiguratIP's sample authority,
 #           validated, signed with and checked -- 74 checks
 #   tutorials  all sixty-four tutorial files, as tests: eleven in
-#           `basics/' and twenty-eight in `library/' run their `main'
+#           `basics/' and twenty-nine in `library/' run their `main'
 #           and must print `done', and twenty-four in `torch/' run
 #           train, test and predict as three processes against a store
 #           of their own. EVERY CLAIM IN basics/ AND library/ IS A
@@ -124,7 +124,7 @@ done
 #           The torch category SKIPs inside the case without libtorch
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl serialize httpd crypto tutorials colab groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl serialize httpd crypto tls tutorials colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

@@ -158,7 +158,7 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
 #
 # Each is skipped, loudly, when what it needs is absent.
 modules:
-	@for m in tcp thread curl bigint torch sha aes der x509; do \
+	@for m in tcp thread curl bigint torch sha aes der x509 tls; do \
 	  printf '%-8s ' "$$m"; \
 	  if CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh modules/$$m/build.sh >/dev/null 2>&1; then \
 	    echo "built"; \
