@@ -342,15 +342,35 @@ answer to "which file am I" — no argv[0] guessing, correct through
 symlinks. The caller's `$COCOLOG_LIBRARY` still comes first, because an
 override that cannot override is not one.
 
-## The three serialisers, and the two rules they share
+## The three document libraries, and the rules they share
 
-`library(json)`, `library(xml)` and `library(html)` write a term out as a
-document. All three are DCGs, all three answer **codes** (an atom is a C
-string and stops at the first NUL; codes are what `tcp_write/2` wants),
-and `html.pl` stands on `xml.pl` by NAME — `xml_escaped//1`,
+`library(json)`, `library(xml)` and `library(html)` go both ways: a term
+out as a document, a document back in as a term. All six halves are DCGs,
+all three answer **codes** when writing (an atom is a C string and stops
+at the first NUL; codes are what `tcp_write/2` wants), and all three take
+**codes or an atom** when reading.
+
+| | write | read |
+|---|---|---|
+| the whole thing | `json_codes/2,3` `xml_codes/2,3` `html_codes/2,3` | `json_parse/2,3` `xml_parse/2,3` `html_parse/2,3` |
+| as an atom | `json_atom/2,3` `xml_atom/2,3` `html_atom/2,3` | — the readers take an atom |
+| to the output | `json_write/1,2` `xml_write/1,2` `html_write/1,2` | — |
+| in your own grammar | `json_value//1` `xml_content//1` `html_content//1` | `json_input//1` `xml_input//1` `html_input//1` |
+
+**THE ROUND TRIP IS THE REAL TEST.** Write a document, read it, write it
+again, compare the two texts — a reader and a writer that disagree about
+the same bytes are worse than either alone, and no amount of hand-written
+expectations on each half finds a disagreement between them. Six cases in
+`test/serialize.sh` do exactly that.
+
+`html.pl` stands on `xml.pl` by NAME — `xml_escaped//1`,
 `xml_text_codes/2`, `xml_no_nul/2` — rather than by copy. One namespace is
 the reason that works, and a private copy of an escaper is how two
-escapers end up disagreeing about the apostrophe.
+escapers end up disagreeing about the apostrophe. **The UTF-8 encoder IS
+copied**, three times, and the distinction is the point: an escaper
+encodes a POLICY, which drifts; RFC 3629 is a fixed transform, which
+cannot, and copying it is what lets `json.pl` stand alone rather than
+importing a markup library to read a `\uXXXX`.
 
 **A CODE LIST IS A LIST, IN ALL THREE, and `str/1` is the way out.**
 cocolog has no string type — `double_quotes` is `codes`, so `"hello"` IS
@@ -366,7 +386,7 @@ you meant text.
 is not markup. Every refusal names the term, because the alternative is a
 document that parses into something else three days later.
 
-Three places where they deliberately differ from each other, each because
+Five places where they deliberately differ from each other, each because
 the LANGUAGES differ:
 
 * **`<br/>` vs `<br>`.** XML self-closes an empty element; HTML's void
@@ -379,12 +399,38 @@ the LANGUAGES differ:
   ignores and a text child makes the content *mixed*. `html.pl` has NO
   indent option: whitespace between two inline elements is a rendered
   space, so an indenter there would be a renderer that quietly edits.
+* **An unknown entity.** `xml.pl` refuses it — XML declares entities in a
+  DTD and an undeclared one is an error the spec names. `html.pl` leaves
+  it as text, because HTML's table has two thousand names and a browser
+  leaves anything not in it alone. That is what makes `AT&T` render as
+  `AT&T`.
+* **The shape that comes back.** `xml_parse/2` answers ONE element
+  because XML requires exactly one root; `html_parse/2` answers a LIST
+  because HTML does not — and a list is what `html_codes/2` takes at the
+  top, so the two compose with no wrapper.
 
 **The one security-shaped check in the three is `</script`**, in any case,
 inside a `script` or `style` element — where escaping is not the answer,
 because `a < b` must reach the JavaScript parser as `a < b`. That is also
 why `json.pl` does not escape the solidus: the hazard lives at the
-embedding, and it is caught there, by name.
+embedding, and it is caught there, by name. The parser is the other half
+of the same rule: it reads a script verbatim to the matching end tag, so
+what the writer refused to emit is exactly what would have broken the read.
+
+**THERE IS NO DTD, AND THAT IS THE XXE ANSWER.** `xml.pl` skips the
+DOCTYPE — internal subset and all — and has no code that could open a
+file or a socket, so the whole external-entity family is structurally
+impossible rather than defended against. An entity a DOCTYPE declared is
+therefore never defined and `&whatever;` is an error naming it, which is
+the honest answer: the parser cannot know what it expands to.
+
+**`html.pl` IS NOT AN HTML5 TREE BUILDER**, and its header says so at
+length. It handles void elements, raw text, optional end tags,
+case-insensitive names, unquoted and bare attributes, a `<` that begins
+no tag, and misnested end tags. It does NOT do implied
+`<html>`/`<head>`/`<body>`, foster parenting, or the adoption agency. A
+half tree builder is worse than none, because it produces a tree that
+looks right and quietly is not the one a browser built.
 
 ## The engine was quadratic, and the fix is one call
 

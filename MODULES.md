@@ -554,15 +554,31 @@ field would change that format for every blob ever written, while a new kind is
 a value no old blob contains. It cannot simply be popped: every barrier, every
 `$cut` height and every restored `nchoices` is an index into that array.
 
-## The three serialisers: a term as a document
+## The three document libraries: a term as a document, and back
 
-`library(json)`, `library(xml)` and `library(html)` are the other direction
-from `library(http)` — grammars that EMIT. They are tier 2, pure clauses, and
-they need no `.so`:
+`library(json)`, `library(xml)` and `library(html)` go both ways. They are
+tier 2, pure clauses, and they need no `.so`:
 
-    use_module(library(json)).       json_codes/2,3   json_atom/2,3   json_write/1,2   json_value//1
-    use_module(library(xml)).        xml_codes/2,3    xml_atom/2,3    xml_write/1,2    xml_content//1
-    use_module(library(html)).       html_codes/2,3   html_atom/2,3   html_write/1,2   html_content//1
+    use_module(library(json)).
+    use_module(library(xml)).
+    use_module(library(html)).
+
+| | writing | reading |
+|---|---|---|
+| codes | `json_codes/2,3` `xml_codes/2,3` `html_codes/2,3` | `json_parse/2,3` `xml_parse/2,3` `html_parse/2,3` |
+| an atom | `json_atom/2,3` `xml_atom/2,3` `html_atom/2,3` | the readers take codes **or** an atom |
+| the output | `json_write/1,2` `xml_write/1,2` `html_write/1,2` | |
+| a grammar | `json_value//1` `xml_content//1` `html_content//1` | `json_input//1` `xml_input//1` `html_input//1` |
+
+`json_parse/3` is the STREAMING one — `json_parse(+Codes, -Term, -Rest)`,
+where `Rest` is what was not this value. It is `http_request/3`'s rule applied
+here: a socket hands you what arrived, which may be one value and the start
+of the next. The other two take options in the third argument instead.
+
+**The shapes differ, and the languages are why.** `xml_parse/2` answers ONE
+element, because XML requires exactly one root; `html_parse/2` answers a
+LIST, because HTML does not — and a list is what `html_codes/2` takes at the
+top, so the two compose with no wrapper.
 
 **`_codes` IS THE PRIMITIVE and the other three stand on it.** An atom in
 cocolog is a C string and stops at the first NUL; codes carry every byte, are
@@ -668,6 +684,123 @@ name rather than by a habit three layers away.
 `xml_text_codes/2`, `xml_no_nul/2` — rather than copying them. One namespace
 is what makes that work, and a private copy of an escaper is how two escapers
 end up disagreeing about the apostrophe.
+
+**And the UTF-8 encoder IS copied, three times**, which is the same argument
+read the other way. An escaper encodes a POLICY — which characters this
+project decided to escape — and two copies of a policy drift. RFC 3629 is a
+FIXED TRANSFORM that cannot, and copying it is what lets `library(json)` stand
+alone rather than importing a markup library in order to read a `\uXXXX`.
+
+### Reading
+
+    json_parse('{"a":[1,true]}', T).     T = json([a-[1, @(true)]])
+    xml_parse('<p>a &lt; b</p>', T).     T = element(p, [], ['a < b'])
+    html_parse('<ul><li>x<li>y</ul>', T).
+        T = [element(ul, [], [element(li,[],[x]), element(li,[],[y])])]
+
+**A JSON string comes back as an ATOM**, which is the inverse of the writer's
+rule and what makes the round trip close. It also means the empty string is
+`''` and not `[]`, which is the distinction the writer needs to tell a string
+from an array.
+
+**XML text comes back as one node per RUN.** A stretch of characters, an
+entity reference and a CDATA section next to each other are one atom, because
+they are one text node to XML. CDATA comes back as TEXT rather than as
+`cdata/1`: the section is a SPELLING of character data, not a kind of node,
+and `<p><![CDATA[a<b]]></p>` and `<p>a&lt;b</p>` are the same document. The
+writer still has `cdata/1` for when you want that spelling going out.
+
+`space(remove)` drops text nodes that are ENTIRELY whitespace, which is what
+turns an indented document back into the tree somebody meant. It never TRIMS
+a node that has other characters in it — that would be editing content, which
+is the line the writer draws when it refuses to indent mixed content.
+
+### THE ROUND TRIP IS THE REAL TEST
+
+    json_atom(T, A1), json_parse(A1, T2), json_atom(T2, A2).    % A1 == A2
+
+A reader and a writer that disagree about the same bytes are worse than
+either one alone, and no amount of hand-written expectations on each half
+finds a disagreement between them. Six cases in `test/serialize.sh` write,
+read and write again, for all three libraries, and compare the texts.
+
+### There is no DTD, and that is the XXE answer
+
+`library(xml)` SKIPS the DOCTYPE declaration — internal subset and all — and
+has no code that could open a file or a socket. There is no fetching in the
+library at all, so the whole external-entity family is structurally
+impossible rather than defended against.
+
+An entity a DOCTYPE declared is therefore never defined, so `&whatever;` in
+the content is an error naming the entity — the parser cannot know what it
+expands to and will not guess. The five predefined entities and numeric
+character references are all that exist.
+
+**`library(html)` does the opposite with an unknown entity and leaves it as
+TEXT**, which is the languages differing again rather than laxity: HTML has a
+fixed table of some two thousand names and a browser leaves anything not in
+it as literal characters. It is what makes `AT&T` render as `AT&T` on every
+page that ever wrote it that way.
+
+### `library(html)` is not an HTML5 tree builder
+
+Said plainly because the difference matters. The standard's algorithm is a
+tokenizer, an insertion-mode state machine, the adoption agency for misnested
+formatting, foster parenting for content stranded in a table, and implied
+`<html>`, `<head>` and `<body>` around everything — thousands of lines and a
+conformance suite. A HALF one is worse than none: it produces a tree that
+looks right and quietly is not the one a browser built.
+
+What it DOES handle is the part that actually differs from XML in documents
+people write:
+
+| | |
+|---|---|
+| void elements | no children, no end tag; `<br>` and `<br/>` are the same |
+| `script`, `style` | raw text, read verbatim to the matching end tag, case-insensitively |
+| `textarea`, `title` | escapable raw text: no nesting, but entities resolve |
+| optional end tags | `html_closes/2` — `<li>` closes `<li>`, `<tr>` closes `<td>`, a block element closes `<p>` |
+| misnested end tags | `</div>` with a `<span>` still open closes both, as a browser does |
+| names | downcased, because HTML's are case-insensitive |
+| attributes | double-quoted, single-quoted, unquoted, or bare |
+| a stray `<` | text, not a broken tag — `a < b` in a paragraph is three characters |
+| a stray end tag | discarded where it surfaces |
+
+What it does NOT do: implied `html`/`head`/`body`, foster parenting, the
+adoption agency. Feed it a document written by a person or by `html_codes/2`
+and you get that document's tree; feed it something a browser has to repair
+and you get the tree as written, not the tree as rendered.
+
+### When a document will not parse
+
+All three THROW, and the ball carries where:
+
+    error(syntax_error(What), json_at(Snippet))
+    error(syntax_error(What), xml_at(Snippet))
+    error(syntax_error(What), html_at(Snippet))
+
+`What` is what was expected — sometimes a compound, like
+`mismatched_end_tag(a, b)` or `unclosed_element(a)` — and `Snippet` is the
+first forty bytes that were there instead, as an atom. **A snippet rather than
+an offset**, because an offset is only useful with the document beside it and
+forty bytes of what was actually there is readable in a log by somebody who
+has not got the file.
+
+`library(json)` is RFC 8259 including the parts people leave out, and each of
+these is a place where two implementations disagree about the same bytes:
+
+| | |
+|---|---|
+| `01` | a leading zero is not a number |
+| `+1`, `.5`, `5.` | none of them is in the grammar |
+| `[1,]` | after a comma the grammar requires another value |
+| a raw control byte in a string | must be escaped |
+| `12345678901234567890` | past 64 bits — `number_codes/2` answers -1 for it without complaining, so the digits are written back and compared |
+| a lone surrogate | there is no UTF-8 for half a character |
+| `\u0000` | an atom stops there, so the parser would answer a shorter string than the document held |
+
+That last one is the only place the round trip is not total, and it is
+one-directional: the writer can still emit a NUL that arrived some other way.
 
 ## The Builtins library
 

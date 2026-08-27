@@ -317,3 +317,384 @@ xml_has_double_dash([_|Cs]) :- xml_has_double_dash(Cs).
 %% predicate named after the first element. This walks it instead.
 xml_raw([]) --> [].
 xml_raw([C|Cs]) --> [C], xml_raw(Cs).
+
+%% ======================================================================
+%% ---- READING: XML text as an element tree ----------------------------
+%% ======================================================================
+%%
+%% THE INVERSE OF EVERYTHING ABOVE, and deliberately the same tree. What
+%% `xml_codes/2' writes, `xml_parse/2' reads back, and `test/serialize.sh'
+%% checks the round trip in both directions -- a reader and a writer that
+%% disagree about the same document are worse than either one alone.
+%%
+%%     xml_parse(+Text, -Element)           Text is codes OR an atom
+%%     xml_parse(+Text, -Element, +Options)
+%%     xml_input(-Element)//                the nonterminal, for a grammar
+%%                                          with XML inside it
+%%
+%% IT ANSWERS THE ROOT ELEMENT, one element and not a list, because XML
+%% requires exactly one. The declaration, the DOCTYPE and any comment or
+%% processing instruction OUTSIDE the root are skipped: none of them is a
+%% node in this tree, and there is nowhere honest to put them. Comments
+%% and PIs INSIDE the root are kept, as `comment/1' and `pi/1'.
+%%
+%% ---- THERE IS NO DTD, AND THAT IS THE SECURITY DECISION ---------------
+%%
+%% This parser SKIPS the DOCTYPE declaration -- internal subset and all --
+%% and never opens a file or a socket for anything. It has no code that
+%% could: there is no fetching in this library at all.
+%%
+%% That makes the whole XXE family structurally impossible rather than
+%% defended against. An entity a DOCTYPE declared is therefore never
+%% defined, so `&whatever;' in the content is an ERROR naming the entity,
+%% which is the honest answer: the parser cannot know what it expands to
+%% and will not guess. The five predefined entities and numeric character
+%% references are all that exist here.
+%%
+%% ---- WHAT COMES BACK -------------------------------------------------
+%%
+%%     an element     element(Name, [Name=Value, ...], Children)
+%%     text           an ATOM, entities resolved, runs merged
+%%     a comment      comment(Text)
+%%     a PI           pi(Text)
+%%
+%% CDATA COMES BACK AS TEXT, not as `cdata/1', because to XML that is what
+%% it IS: the section is a SPELLING of character data, not a kind of node,
+%% and `<p><![CDATA[a<b]]></p>' and `<p>a&lt;b</p>' are the same document.
+%% A consumer that had to handle both spellings for the same content would
+%% be doing the parser's job. The writer still has `cdata/1' for when you
+%% want that spelling on the way out.
+%%
+%% ADJACENT TEXT IS ONE NODE. A run of characters, an entity reference and
+%% a CDATA section next to each other are one atom, because they are one
+%% text node to XML -- and a consumer matching `element(p, [], [Text])'
+%% should not have to care how the author spelled it.
+%%
+%% ---- OPTIONS ---------------------------------------------------------
+%%
+%%     space(preserve)   every text node is kept -- the default
+%%     space(remove)     text nodes that are ENTIRELY whitespace are
+%%                       dropped, which is what turns an indented document
+%%                       back into the tree somebody meant
+%%
+%% `space(remove)' DROPS ONLY ALL-WHITESPACE NODES, never the whitespace
+%% inside a node that has other characters in it. Trimming `  hello  ' to
+%% `hello' would be editing content, and this library's writer already
+%% refuses to indent mixed content for the same reason.
+%%
+%% ---- NAMES ARE NOT VALIDATED, which matches the writer ----------------
+%%
+%% A name is read as the run of bytes up to a delimiter. Checking it
+%% against XML's NameStartChar production needs a UTF-8 decoder this file
+%% does not have, and half-checking -- ASCII letters only -- would refuse
+%% every document not written in English. Namespace prefixes therefore
+%% come back attached: `svg:rect' is the atom `svg:rect', not a resolved
+%% namespace, which is also what the writer takes.
+
+%% ---- the entry points ------------------------------------------------
+
+%% xml_parse(+Text, -Element) is det.
+xml_parse(Text, Element) :- xml_parse(Text, Element, []).
+
+%% xml_parse(+Text, -Element, +Options) is det.
+xml_parse(Text, Element, Options) :-
+    xml_in_codes(Text, Cs),
+    phrase(xml_only(Element, Options), Cs).
+
+%% xml_input(-Element)// is det.
+%% One element, for a caller whose grammar has XML inside it.
+xml_input(Element) --> xml_element_in(Element, []).
+
+xml_in_codes(Text, Cs) :- is_list(Text), !, Cs = Text.
+xml_in_codes(Text, Cs) :- atom(Text), !, atom_codes(Text, Cs).
+xml_in_codes(Text, _) :- throw(error(type_error(xml_text, Text), xml_parse/2)).
+
+xml_only(Element, Options) -->
+    xml_prologue,
+    xml_element_in(Element, Options),
+    xml_prologue,
+    xml_at_eof.
+
+xml_at_eof([], []) :- !.
+xml_at_eof(Rest, _) :- xml_oops('the end of the document after the root element', Rest).
+
+%% THE ERROR CARRIES A SNIPPET, for the reason library(json)'s does: an
+%% offset is only useful with the document beside it, and forty bytes of
+%% what was actually there is readable in a log by somebody who has not
+%% got the file.
+xml_oops(What, Rest) :-
+    xml_snippet(Rest, 40, Cs),
+    atom_codes(Where, Cs),
+    throw(error(syntax_error(What), xml_at(Where))).
+
+xml_snippet(_, 0, []) :- !.
+xml_snippet([], _, []) :- !.
+xml_snippet([C|Cs], N, Out) :-
+    (   C =:= 0
+    ->  Out = []
+    ;   Out = [C|Rest], M is N - 1, xml_snippet(Cs, M, Rest)
+    ).
+
+%% ---- the prologue, and everything in it that is skipped --------------
+
+xml_prologue --> xml_ws_in, xml_prologue_item, !, xml_prologue.
+xml_prologue --> xml_ws_in.
+
+xml_prologue_item --> "<?", !, xml_pi_body(_).
+xml_prologue_item --> "<!--", !, xml_comment_body(_).
+xml_prologue_item --> "<!DOCTYPE", !, xml_doctype_skip(0).
+
+%% THE INTERNAL SUBSET IS COUNTED, not searched for a `>'. A DOCTYPE may
+%% carry declarations in brackets and those contain `>' freely, so a skip
+%% that stopped at the first one would leave the parser inside the subset
+%% reading entity declarations as markup.
+xml_doctype_skip(0) --> [0'>], !.
+xml_doctype_skip(N) --> [0'[], !, { M is N + 1 }, xml_doctype_skip(M).
+xml_doctype_skip(N) --> [0']], !, { M is N - 1 }, xml_doctype_skip(M).
+xml_doctype_skip(N) --> [_], !, xml_doctype_skip(N).
+xml_doctype_skip(_, Rest, _) :- xml_oops('the end of the DOCTYPE declaration', Rest).
+
+xml_ws_in --> [C], { xml_ws_code(C) }, !, xml_ws_in.
+xml_ws_in --> [].
+
+xml_ws_code(0' ).
+xml_ws_code(0'\t).
+xml_ws_code(0'\n).
+xml_ws_code(0'\r).
+
+%% ---- an element ------------------------------------------------------
+
+xml_element_in(element(Name, Attrs, Kids), Options) -->
+    [0'<], !,
+    xml_name_in(NameCs), { atom_codes(Name, NameCs) },
+    xml_attrs_in(Attrs),
+    xml_tag_close(Shape),
+    xml_element_body(Shape, Name, Kids, Options).
+xml_element_in(_, _, Rest, _) :- xml_oops('an element', Rest).
+
+xml_element_body(empty, _, [], _) --> [].
+xml_element_body(open, Name, Kids, Options) --> xml_kids_in(Name, Kids, Options).
+
+xml_tag_close(empty) --> "/>", !.
+xml_tag_close(open) --> [0'>], !.
+xml_tag_close(_, Rest, _) :- xml_oops('the end of the start tag', Rest).
+
+%% ---- names -----------------------------------------------------------
+
+xml_name_in([C|Cs]) --> [C], { xml_name_code(C) }, !, xml_name_rest(Cs).
+xml_name_in(_, Rest, _) :- xml_oops('an element or attribute name', Rest).
+
+xml_name_rest([C|Cs]) --> [C], { xml_name_code(C) }, !, xml_name_rest(Cs).
+xml_name_rest([]) --> [].
+
+xml_name_code(C) :- C > 0x20, \+ xml_name_stop(C).
+
+xml_name_stop(0'<).
+xml_name_stop(0'>).
+xml_name_stop(0'/).
+xml_name_stop(0'=).
+xml_name_stop(0'").
+xml_name_stop(0'').
+xml_name_stop(0'?).
+xml_name_stop(0'&).
+
+%% ---- attributes ------------------------------------------------------
+
+xml_attrs_in(Attrs) --> xml_ws_in, xml_attrs_more(Attrs).
+
+xml_attrs_more([]) --> xml_peek_tag_close, !.
+xml_attrs_more([A|As]) --> xml_attr_in(A), xml_ws_in, xml_attrs_more(As).
+
+xml_peek_tag_close([0'>|S], [0'>|S]).
+xml_peek_tag_close([0'/, 0'>|S], [0'/, 0'>|S]).
+
+xml_attr_in(Name=Value) -->
+    xml_name_in(NameCs), { atom_codes(Name, NameCs) },
+    xml_ws_in, xml_eq, xml_ws_in,
+    xml_attvalue_in(ValueCs), { xml_atom_of(ValueCs, Value) }.
+
+xml_eq --> [0'=], !.
+xml_eq(Rest, _) :- xml_oops('an equals sign after the attribute name', Rest).
+
+%% BOTH QUOTES ARE LEGAL and the closing one must match the opening one,
+%% which is why the quote is threaded through rather than matched by a
+%% second literal.
+xml_attvalue_in(Cs) --> [Q], { Q == 0'" ; Q == 0'' }, !, xml_attvalue_rest(Q, Cs).
+xml_attvalue_in(_, Rest, _) :- xml_oops('a quoted attribute value', Rest).
+
+xml_attvalue_rest(Q, []) --> [Q], !.
+xml_attvalue_rest(Q, Out) --> [0'&], !, xml_entity_in(A), xml_attvalue_rest(Q, B),
+    { append(A, B, Out) }.
+%% A RAW `<' IN AN ATTRIBUTE VALUE IS NOT WELL-FORMED, and this is the one
+%% well-formedness rule worth enforcing by hand: it is the difference
+%% between a document and a document with an unclosed tag in it, and every
+%% other parser will reject what this one would have accepted.
+xml_attvalue_rest(_, _, [0'<|_], _) :- !,
+    xml_oops('an escaped &lt; -- a raw < is not legal in an attribute value',
+             [0'<]).
+xml_attvalue_rest(Q, [C|Cs]) --> [C], !, xml_attvalue_rest(Q, Cs).
+xml_attvalue_rest(_, _, Rest, _) :- xml_oops('the closing quote of the attribute value', Rest).
+
+%% ---- children --------------------------------------------------------
+%%
+%% THE SHAPE IS: eat character data, then look at what stopped it. Because
+%% CDATA is character data, `xml_chars_in' swallows a whole section and
+%% goes on, which is what makes adjacent runs come back as ONE text node
+%% with no joining pass afterwards.
+
+xml_kids_in(Name, Kids, Options) -->
+    xml_chars_in(Cs),
+    xml_peek_what(What),
+    xml_kids_step(What, Name, Cs, Kids, Options).
+
+xml_kids_step(end, Name, Cs, Kids, Options) --> !,
+    xml_end_tag_in(Name),
+    { xml_text_node(Cs, Options, Kids, []) }.
+xml_kids_step(comment, Name, Cs, Kids, Options) --> !,
+    "<!--", xml_comment_body(T),
+    xml_kids_in(Name, Rest, Options),
+    { xml_text_node(Cs, Options, Kids, [comment(T)|Rest]) }.
+xml_kids_step(pi, Name, Cs, Kids, Options) --> !,
+    "<?", xml_pi_body(T),
+    xml_kids_in(Name, Rest, Options),
+    { xml_text_node(Cs, Options, Kids, [pi(T)|Rest]) }.
+xml_kids_step(element, Name, Cs, Kids, Options) --> !,
+    xml_element_in(E, Options),
+    xml_kids_in(Name, Rest, Options),
+    { xml_text_node(Cs, Options, Kids, [E|Rest]) }.
+xml_kids_step(eof, Name, _, _, _, _, _) :-
+    throw(error(syntax_error(unclosed_element(Name)), xml_at(end_of_input))).
+
+xml_peek_what(W, S, S) :- xml_what(S, W).
+
+xml_what([], eof) :- !.
+xml_what([0'<, 0'/|_], end) :- !.
+xml_what([0'<, 0'!, 0'-, 0'-|_], comment) :- !.
+xml_what([0'<, 0'?|_], pi) :- !.
+xml_what([0'<|_], element) :- !.
+xml_what(Rest, _) :- xml_oops('markup or the end of the element', Rest).
+
+xml_end_tag_in(Name) -->
+    "</", xml_name_in(EndCs), xml_ws_in, xml_gt,
+    { atom_codes(End, EndCs),
+      (   End == Name
+      ->  true
+      ;   throw(error(syntax_error(mismatched_end_tag(Name, End)), xml_at(End)))
+      ) }.
+
+xml_gt --> [0'>], !.
+xml_gt(Rest, _) :- xml_oops('the closing > of an end tag', Rest).
+
+%% A TEXT NODE IS ONLY A NODE IF THERE IS TEXT. An empty run happens on
+%% every boundary between two elements, and emitting `''' for each would
+%% double the length of every tree.
+xml_text_node([], _, Kids, Kids) :- !.
+xml_text_node(Cs, Options, Kids, Tail) :-
+    (   memberchk(space(remove), Options),
+        xml_all_space(Cs)
+    ->  Kids = Tail
+    ;   xml_atom_of(Cs, A),
+        Kids = [A|Tail]
+    ).
+
+xml_all_space([]).
+xml_all_space([C|Cs]) :- xml_ws_code(C), xml_all_space(Cs).
+
+%% ---- character data, entities, CDATA ---------------------------------
+
+xml_chars_in(Out) --> "<![CDATA[", !, xml_cdata_in(A), xml_chars_in(B),
+    { append(A, B, Out) }.
+xml_chars_in([]) --> xml_peek_lt, !.
+xml_chars_in([]) --> xml_peek_eof, !.
+xml_chars_in(Out) --> [0'&], !, xml_entity_in(A), xml_chars_in(B),
+    { append(A, B, Out) }.
+xml_chars_in([C|Cs]) --> [C], !, xml_chars_in(Cs).
+
+xml_peek_lt([0'<|S], [0'<|S]).
+xml_peek_eof([], []).
+
+xml_cdata_in([]) --> "]]>", !.
+xml_cdata_in([C|Cs]) --> [C], !, xml_cdata_in(Cs).
+xml_cdata_in(_, Rest, _) :- xml_oops('the end of the CDATA section', Rest).
+
+%% FIVE ENTITIES AND THE NUMERIC REFERENCES, and nothing else can exist:
+%% every other entity is declared in a DTD, and this parser reads none.
+%% Saying so by name beats passing `&nbsp;' through as text, which is what
+%% turns one missing declaration into a document that looks fine until
+%% somebody validates it.
+xml_entity_in([0'&]) --> "amp;", !.
+xml_entity_in([0'<]) --> "lt;", !.
+xml_entity_in([0'>]) --> "gt;", !.
+xml_entity_in([0'"]) --> "quot;", !.
+xml_entity_in([0'']) --> "apos;", !.
+xml_entity_in(Cs) --> [0'#], !, xml_charref_in(Cs).
+xml_entity_in(_, Rest, _) :-
+    xml_oops('one of the five predefined entities, or a numeric reference -- this parser reads no DTD, so no others are defined', Rest).
+
+xml_charref_in(Cs) --> [0'x], !, xml_hex_digits(0, N), xml_semi, { xml_utf8(N, Cs) }.
+xml_charref_in(Cs) --> xml_dec_digits(0, 0, N), xml_semi, { xml_utf8(N, Cs) }.
+
+xml_hex_digits(Acc, N) --> [C], { xml_hex(C, D) }, !,
+    { A is Acc * 16 + D }, xml_hex_more(A, N).
+xml_hex_digits(_, _, Rest, _) :- xml_oops('a hex digit in the character reference', Rest).
+
+xml_hex_more(Acc, N) --> [C], { xml_hex(C, D) }, !,
+    { A is Acc * 16 + D }, xml_hex_more(A, N).
+xml_hex_more(N, N) --> [].
+
+xml_dec_digits(Acc, _, N) --> [C], { code_type(C, digit) }, !,
+    { A is Acc * 10 + (C - 0'0) }, xml_dec_digits(A, 1, N).
+xml_dec_digits(N, 1, N) --> [].
+xml_dec_digits(_, 0, _, Rest, _) :- xml_oops('a digit in the character reference', Rest).
+
+xml_semi --> [0';], !.
+xml_semi(Rest, _) :- xml_oops('the semicolon ending the reference', Rest).
+
+xml_hex(C, N) :- C >= 0'0, C =< 0'9, !, N is C - 0'0.
+xml_hex(C, N) :- C >= 0'a, C =< 0'f, !, N is C - 0'a + 10.
+xml_hex(C, N) :- C >= 0'A, C =< 0'F, !, N is C - 0'A + 10.
+
+%% ---- comments and processing instructions ----------------------------
+%%
+%% THE OPENING IS ALREADY EATEN in both, for the reason library(json)'s
+%% string reader gives: the dispatch had to look at those bytes to know
+%% which of the four things this was.
+
+xml_comment_body(Text) --> xml_comment_codes(Cs), { xml_atom_of(Cs, Text) }.
+
+xml_comment_codes([]) --> "-->", !.
+xml_comment_codes([C|Cs]) --> [C], !, xml_comment_codes(Cs).
+xml_comment_codes(_, Rest, _) :- xml_oops('the end of the comment', Rest).
+
+xml_pi_body(Text) --> xml_pi_codes(Cs), { xml_atom_of(Cs, Text) }.
+
+xml_pi_codes([]) --> "?>", !.
+xml_pi_codes([C|Cs]) --> [C], !, xml_pi_codes(Cs).
+xml_pi_codes(_, Rest, _) :- xml_oops('the end of the processing instruction', Rest).
+
+%% ---- UTF-8, and why there are two copies of it -----------------------
+%%
+%% A NUMERIC CHARACTER REFERENCE NAMES A CODE POINT and this library deals
+%% in bytes, so something has to encode it. library(json) has the same
+%% eight lines for the same reason.
+%%
+%% THAT IS DUPLICATION ON PURPOSE, and the distinction is worth stating
+%% because library(html) does the opposite -- it calls this file's
+%% escapers by name rather than copying them. An ESCAPER encodes a POLICY:
+%% which characters this project decided to escape, and two copies of a
+%% policy drift. RFC 3629 is a FIXED TRANSFORM that cannot drift, and
+%% copying it is what lets library(json) stand alone rather than importing
+%% a markup library to read a JSON string.
+xml_utf8(0, _) :-
+    throw(error(syntax_error('any character but a NUL -- an atom stops there'),
+                xml_at(zero))).
+xml_utf8(C, [C]) :- C < 0x80, !.
+xml_utf8(C, [A, B]) :- C < 0x800, !,
+    A is 0xC0 \/ (C >> 6), B is 0x80 \/ (C /\ 0x3F).
+xml_utf8(C, [A, B, D]) :- C < 0x10000, !,
+    A is 0xE0 \/ (C >> 12), B is 0x80 \/ ((C >> 6) /\ 0x3F), D is 0x80 \/ (C /\ 0x3F).
+xml_utf8(C, [A, B, D, E]) :-
+    A is 0xF0 \/ (C >> 18), B is 0x80 \/ ((C >> 12) /\ 0x3F),
+    D is 0x80 \/ ((C >> 6) /\ 0x3F), E is 0x80 \/ (C /\ 0x3F).
+
+xml_atom_of(Cs, Atom) :- xml_no_nul(Cs, Cs), atom_codes(Atom, Cs).
