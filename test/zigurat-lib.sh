@@ -26,6 +26,14 @@
 #   --local HAS NO CONNECTION, and every predicate says so as a catchable
 #   error instead of pretending a local store has a transaction to steer.
 #
+# THERE IS NO `use_module(library(zigurat))' IN ANY CASE HERE, and that is
+# the point rather than an omission: zigurat is TIER 1 -- compiled in and
+# registered before the first goal, like lists, apply, dcg, files and
+# builtins -- so asking for it is a directive that does nothing. These
+# cases used to open with one, which made every query read as though the
+# import were doing some work. `test/library.sh' is where the fact that
+# `use_module' on a registered module succeeds at once is checked.
+#
 # SKIPs without a server, because "no server here" and "the module is
 # wrong" are different findings.
 
@@ -46,7 +54,7 @@ check() {
 if [ ! -x "$C" ]; then echo "no cocolog binary -- make first"; exit 1; fi
 
 # ---- --local refuses, catchably, with no server needed ----------------
-got=$(timeout 60 "$C" query "use_module(library(zigurat)), catch(zigurat_commit, error(cocolog_error(_), _), (write(refused), nl))" 2>/dev/null | grep -c '^refused$')
+got=$(timeout 60 "$C" query "catch(zigurat_commit, error(cocolog_error(_), _), (write(refused), nl))" 2>/dev/null | grep -c '^refused$')
 check "--local refuses the connection verbs" "$got" "1"
 
 HOST=${ZIGURAT_HOST:-127.0.0.1}
@@ -63,16 +71,16 @@ W="$C --kb ziglib_test --host $HOST --port $PORT --timeout 10"
 timeout 60 $W forget >/dev/null 2>&1
 
 # ---- the verbs answer -------------------------------------------------
-got=$(timeout 60 $W query "use_module(library(zigurat)), zigurat_begin, zigurat_isolation(serializable), zigurat_isolation(read_committed), zigurat_auto_commit(false), zigurat_transaction_id(T), integer(T), write(ok), nl" 2>/dev/null | grep -c '^ok$')
+got=$(timeout 60 $W query "zigurat_begin, zigurat_isolation(serializable), zigurat_isolation(read_committed), zigurat_auto_commit(false), zigurat_transaction_id(T), integer(T), write(ok), nl" 2>/dev/null | grep -c '^ok$')
 check "begin, isolation, auto_commit, transaction_id" "$got" "1"
 
 # ---- an explicit commit is durable across processes -------------------
-timeout 60 $W query "use_module(library(zigurat)), assert(zlib_c(1)), zigurat_commit, write(done), nl" >/dev/null 2>&1
+timeout 60 $W query "assert(zlib_c(1)), zigurat_commit, write(done), nl" >/dev/null 2>&1
 got=$(timeout 60 $W query "zlib_c(X), write(X), nl" 2>/dev/null | grep -c '^1$')
 check "an explicit commit is seen by a second process" "$got" "1"
 
 # ---- an explicit rollback takes an uncommitted write back -------------
-timeout 60 $W query "use_module(library(zigurat)), assert(zlib_r(1)), zigurat_rollback, write(done), nl" >/dev/null 2>&1
+timeout 60 $W query "assert(zlib_r(1)), zigurat_rollback, write(done), nl" >/dev/null 2>&1
 # an unknown procedure THROWS here (as in SWI) -- a rolled-back predicate
 # is not merely false, it is not there at all
 got=$(timeout 60 $W query "catch(( zlib_r(_) -> write(seen) ; write(clean) ), error(existence_error(_, _), _), write(clean)), nl" 2>/dev/null | grep -c '^clean$')
@@ -80,13 +88,13 @@ check "an explicit rollback is invisible to a second process" "$got" "1"
 
 # ---- DML: a compiled procedure, called with typed arguments -----------
 timeout 60 $W query "assert(zlib_q(41)), assert(zlib_q(42))" >/dev/null 2>&1
-got=$(timeout 60 $W query "use_module(library(zigurat)), zigurat_call('cocolog::clause_count', [ziglib_test, zlib_q, int(1)], [N]), write(N), nl" 2>/dev/null | grep -c '^2$')
+got=$(timeout 60 $W query "zigurat_call('cocolog::clause_count', [ziglib_test, zlib_q, int(1)], [N]), write(N), nl" 2>/dev/null | grep -c '^2$')
 check "zigurat_call answers a RETURNS value" "$got" "1"
 
-got=$(timeout 60 $W query "use_module(library(zigurat)), zigurat_call('cocolog::clauses_of', [ziglib_test, zlib_q, int(1)], Rows), length(Rows, N), write(N), nl" 2>/dev/null | grep -c '^2$')
+got=$(timeout 60 $W query "zigurat_call('cocolog::clauses_of', [ziglib_test, zlib_q, int(1)], Rows), length(Rows, N), write(N), nl" 2>/dev/null | grep -c '^2$')
 check "and hands a cursor's rows back as lists" "$got" "1"
 
-got=$(timeout 60 $W query "use_module(library(zigurat)), zigurat_call('cocolog::clauses_of', [ziglib_test, zlib_q, int(1)], [[_, B] | _]), write(B), nl" 2>/dev/null | grep -c 'zlib_q(41)')
+got=$(timeout 60 $W query "zigurat_call('cocolog::clauses_of', [ziglib_test, zlib_q, int(1)], [[_, B] | _]), write(B), nl" 2>/dev/null | grep -c 'zlib_q(41)')
 check "with the fields readable in place" "$got" "1"
 
 # ---- DDL: the compiler's gate answers as an error ---------------------
@@ -95,7 +103,7 @@ check "with the fields readable in place" "$got" "1"
 # not as a success. An operator who turned the gate on gets the compile
 # instead, and then the catch simply never fires; either way the goal
 # proves, which is what makes this checkable against any server.
-got=$(timeout 60 $W query "use_module(library(zigurat)), catch((zigurat_compile('SUITE zlib_ddl; CREATE TABLE cocolog::zlib_ddl (id Long NOT NULL); END SUITE;'), write(compiled)), error(cocolog_error(_), _), write(refused)), nl" 2>/dev/null | grep -c '^\(refused\|compiled\)$')
+got=$(timeout 60 $W query "catch((zigurat_compile('SUITE zlib_ddl; CREATE TABLE cocolog::zlib_ddl (id Long NOT NULL); END SUITE;'), write(compiled)), error(cocolog_error(_), _), write(refused)), nl" 2>/dev/null | grep -c '^\(refused\|compiled\)$')
 check "zigurat_compile answers, gate or compile" "$got" "1"
 
 # ---- leave nothing behind ---------------------------------------------

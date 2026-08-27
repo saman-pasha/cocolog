@@ -249,6 +249,27 @@ against 459ms with all eight, then 441/446, then 458/443 — inside the
 noise of a start-up dominated by the embedded store and libtorch. A
 missing `lib/swipl` is not an error; the binary still boots.
 
+**SO A `use_module` FOR ANY OF THEM IS A DIRECTIVE THAT DOES NOTHING**,
+and none is written anywhere in this repository or in The Coco. It reads
+like a dependency and is not one; the first two libraries here already
+knew it (neither `http.pl` nor `httpd.pl` imports `lists`) and 26 lines
+written out of habit for another Prolog have been removed — three in
+`library/json.pl`, `xml.pl` and `html.pl`, eight in
+`test/zigurat-lib.sh`, and 23 across The Coco. The list to check against
+is the two rows above, and it can be checked rather than remembered:
+
+```sh
+D=$(mktemp -d); cp cocolog "$D/"          # a binary with no library/ beside it
+COCOLOG_LIBRARY="$D/none" "$D/cocolog" query "use_module(library(lists)), write(yes), nl"
+```
+
+Answering `yes` from a directory with no library path at all is what
+compiled-in means. Three places legitimately keep such a directive and
+each says why in the file: `test/files/*.pl` and
+`emacs/test/conformance.pl` are run by **swipl as well**, where the
+import is required; and `test/library.sh` is the case that checks
+`use_module` on a registered module succeeds at once.
+
 **It measured free LOCALLY and cost 272 HTTP round trips over Zeytun**,
 and finding out why paid for itself. `coco_assert` fetched the shared
 predicate before adding each clause — *muted clauses included*. A module's
