@@ -1,4 +1,4 @@
-5
+6
 # colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
 #
 # The first line is the version. Everything below is a log.
@@ -19,6 +19,14 @@
 # preflight.sh or build.sh does not need a bump -- those come from the
 # repository already, which is the point of their being scripts.
 #
+# 6  2026-08-27  section 7b: the curl reader -- library(curl) fetches
+#                the predicates page from inside a query, through the
+#                real tunnel when section 6 opened one and over
+#                loopback otherwise. Section 8 lists a PROGRAM as the
+#                fourth querier, and section 1's text now says the
+#                build compiles the two loadable modules the notebook
+#                uses (torch, curl) -- which colab/build.sh had
+#                stopped doing when torch left the binary.
 # 5  2026-08-26  section 4b compiles ZiguratIP's demo pages, so Zeytun's
 #                "Load demo" link works. Off by default, and it warns
 #                that setup.zt INSERTs on a GET -- a Parsi page is not
