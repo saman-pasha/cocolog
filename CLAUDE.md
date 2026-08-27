@@ -39,8 +39,8 @@ sh test/run.sh solve      # one case
 ```
 
 There is one `cocolog` binary and it is full: the four knowledge-base
-arrangements — `--local`, the server, `--http`, `--embed [DIR]` — are
-runtime options, never builds. Local is the default; naming `--kb`, `--host`
+arrangements — `--local`, the server, `--http`/`--https`, `--embed [DIR]`
+— are runtime options, never builds. Local is the default; naming `--kb`, `--host`
 or `--port` chooses the server, and a bare `--embed` opens the store at
 `./KB`. There is no `--store`: `--embed` with its optional directory is
 the one spelling, and a store named like a command verb is written `./run`.
@@ -541,6 +541,52 @@ phrase arrives, for the same reason.
   message about a config file, naming DER bytes, from a certificate
   routine. `ca/main_ca.cpp` documents `--issuer` as "issuer name
   configuration file".
+
+### `--https`, and two bugs it uncovered in the arrangement it joined
+
+The Zeytun client speaks TLS: `--https [PORT]` (443 by default) beside
+`--http [PORT]` (80), with `--cacert`, `--capath`, `--cert`, `--key`,
+`--key-pass` and `--insecure`. Both ports are now OPTIONAL, the way
+`--embed`'s directory is — a querier behind Cloudflare should not have to
+know what port an edge listens on.
+
+**The TLS is in `client/zeytun-tls.c` and nowhere else.** `zeytun.c` is
+still libc and the sockets API: it reaches OpenSSL through four functions
+behind an opaque pointer, and a build without OpenSSL compiles that
+file's stub half so `--https` reports the missing feature by name rather
+than failing to link. The Makefile probes for `<openssl/ssl.h>` and
+defines `COCO_ZT_TLS` when it is there.
+
+**The hostname is checked, not just the chain**, and that is the check a
+hand-rolled client forgets: a certificate valid for somebody else is
+exactly what a man in the middle presents.
+`X509_VERIFY_PARAM_set1_host` is the instruction, and SNI takes the same
+name — one decision rather than two.
+
+**TWO REAL BUGS FELL OUT, both older than this change:**
+
+* **`--http` dialled the binary server as well.** `open_connection` had
+  no Zeytun branch, so a Zeytun run opened a connection on 2160 that it
+  never used — and a querier that could only reach the HTTP edge got
+  `no server at NAME:2160`. Which defeats the entire point of the
+  tunnel. **It went unnoticed because the suite always has a server**:
+  `test/tunnel.sh` raises its edge stand-in on localhost, where 2160 is
+  answering too, so the extra connection succeeded and paid for nothing.
+* **A failed Zeytun fetch was SILENT.** `coco_zt_fail` put the reason in
+  `z->err` and answered 0, which the engine reads as "this predicate has
+  no clauses" — so an unreachable edge, a refused certificate and an
+  empty knowledge base were all `existence_error(procedure, p/1)`. That
+  is unacceptable for a verification failure in particular: the whole
+  purpose of checking a server's name is to REFUSE, and a refusal a
+  reader cannot tell from an empty database is not one. It now prints
+  `cocolog: Zeytun at HOST:PORT -- ...` on stderr. Only transport and
+  HTTP errors reach it; a predicate with no clauses is a 200 with an
+  empty body.
+
+`test/tunnel.sh` gains a TLS-terminating edge stand-in — the arrangement
+Cloudflare actually is — and checks a query through it, `--insecure`
+going through loudly, and a **second** edge presenting a certificate for
+a name nobody asked for, refused with `hostname mismatch`.
 
 ### `library(tls)`, and the objection that was wrong
 

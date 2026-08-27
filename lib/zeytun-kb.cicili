@@ -70,8 +70,24 @@
   ()
 
   (static)
+  ;;; A FAILED FETCH IS SAID OUT LOUD, and until now it was not. The error
+  ;;; went into `z->err' and the hook answered 0, which the engine reads as
+  ;;; "this predicate has no clauses" -- so an unreachable edge, a refused
+  ;;; certificate and an empty knowledge base all looked identical:
+  ;;; `existence_error(procedure, p/1)'.
+  ;;;
+  ;;; THAT IS UNACCEPTABLE FOR A VERIFICATION FAILURE in particular. The
+  ;;; whole purpose of checking a server's name is to REFUSE, and a refusal
+  ;;; a reader cannot tell from an empty database is not one. `--https'
+  ;;; is what made it worth fixing; it was always wrong.
+  ;;;
+  ;;; ONLY TRANSPORT AND HTTP ERRORS COME HERE. A predicate with no clauses
+  ;;; is a 200 with an empty body and never reaches this, so stderr does not
+  ;;; fill up with the ordinary case.
   (func coco_zt_fail ((coco_zt * z) (const char * what) (const char * detail)) (out int)
         (snprintf (-> z err) 256 "%s: %s" what (? (== detail nil) "" detail))
+        (fprintf stderr "cocolog: Zeytun at %s:%s -- %s\n"
+                 (-> z host) (-> z port) (-> z err))
         (return 0))
 
   ;;; Builds a path with one or two encoded query values. Answers 0 if the

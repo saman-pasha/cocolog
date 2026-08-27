@@ -11,8 +11,21 @@
  * half a machine behind on a failure. Writes belong on the binary protocol,
  * where the connection is the transaction. See cocolog/03-pages.parsi.
  *
+ * HTTPS IS HERE NOW, and it is the one thing this file did not have. An edge
+ * -- Cloudflare in front of a Colab VM is the worked case -- speaks TLS and
+ * nothing else, and a client that could only speak plaintext had to be given
+ * port 80 and hope the edge did not redirect. `zt_get2' takes a
+ * `zt_tls_options *' and NULL means plaintext, so the old path is byte for
+ * byte what it was.
+ *
+ * THE TLS IS IN client/zeytun-tls.c, ON PURPOSE. This file is still libc and
+ * the sockets API and nothing else: it reaches OpenSSL through four functions
+ * behind an opaque pointer, and a build without OpenSSL compiles that file's
+ * stub half -- so `--https' reports the missing feature by name rather than
+ * failing to link.
+ *
  * IT IS A MINIMAL CLIENT AND SAYS SO. One request per call, no keep-alive, no
- * chunked transfer encoding, no redirects, no TLS. Zeytun answers a GET with
+ * chunked transfer encoding, no redirects. Zeytun answers a GET with
  * Content-Length and closes when asked to, which is all of the protocol this
  * needs; anything more belongs to a real HTTP library, and a program that
  * wants one should use it instead.
@@ -50,6 +63,69 @@ extern "C" {
 int zt_get(const char *host, const char *service, const char *path,
            int timeout_seconds, char **body, size_t *len,
            char *err, size_t errcap);
+
+/* WHAT A SECURE FETCH NEEDS TOLD. Everything is optional and NULL means the
+ * sensible thing:
+ *
+ *   cacert/capath  the authority to check the server against. Neither given
+ *                  means the SYSTEM store, which is what an edge with a
+ *                  public certificate wants.
+ *   cert/key       this end's own certificate, for a Zeytun that demands one.
+ *                  BOTH or NEITHER; one alone is a configuration mistake and
+ *                  is reported rather than half-applied.
+ *   key_pass       its pass phrase, if it has one.
+ *   insecure       do not verify at all. It exists because a self-signed
+ *                  rehearsal is a real thing to want, and it is spelled out
+ *                  at every layer so nobody reaches it by accident.
+ *
+ * THE HOSTNAME IS ALWAYS CHECKED unless `insecure' is set, and that is the
+ * check a hand-rolled client forgets: a certificate that is valid for
+ * somebody else is exactly what a man in the middle presents. */
+typedef struct {
+  const char *cacert;
+  const char *capath;
+  const char *cert;
+  const char *key;
+  const char *key_pass;
+  int         insecure;
+} zt_tls_options;
+
+/* THE PROCESS-WIDE SETTING, and why there is one. A cocolog reaches exactly
+ * one Zeytun, in an arrangement chosen once from argv before the first goal
+ * runs -- so the transport is a property of the process rather than of a
+ * call, and threading it through `coco_zt' and four call sites in
+ * lib/zeytun-kb.cicili would be four chances for one of them to stay
+ * plaintext.
+ *
+ * `zt_get' uses whatever this was last given; NULL puts it back to plain
+ * HTTP. The struct is COPIED but its strings are not -- they are argv, which
+ * outlives everything. A caller that wants neither the global nor the copy
+ * uses `zt_get2' and says what it means at the call. */
+void zt_tls_configure(const zt_tls_options *o);
+
+/* THE SAME THING, FLAT, and it exists for Cicili. A Cicili form reaching
+ * into a C struct needs that struct's MEMBERS declared to it, not merely
+ * its name -- `($ t cacert)' on a type it only knows the name of is
+ * `unknown struct type'. Six arguments say the same thing with nothing to
+ * declare, which is the seam-one-function-wide shape the modules use. */
+void zt_tls_configure_flat(const char *cacert, const char *capath,
+                           const char *cert, const char *key,
+                           const char *key_pass, int insecure);
+
+/* One GET, over TLS when TLS is not NULL and over plain HTTP when it is.
+ * `zt_get' is this with whatever `zt_tls_configure' was given. */
+int zt_get2(const char *host, const char *service, const char *path,
+            int timeout_seconds, const zt_tls_options *tls,
+            char **body, size_t *len, char *err, size_t errcap);
+
+/* client/zeytun-tls.c. Answers 0 from a build that had no OpenSSL, in which
+ * case `zt_tls_open' fills ERR with a sentence saying so. */
+int   zt_tls_available(void);
+void *zt_tls_open(int fd, const char *host, const zt_tls_options *o,
+                  char *err, size_t errcap);
+long  zt_tls_send(void *handle, const void *buf, size_t n);
+long  zt_tls_recv(void *handle, void *buf, size_t n);
+void  zt_tls_close(void *handle);
 
 /* Undoes Zeytun's five escapes, in place. Answers the resulting length; the
  * result is always shorter or the same, so nothing is reallocated. */

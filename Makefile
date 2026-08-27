@@ -73,7 +73,31 @@ AR             ?= ar
 
 BUILD          := build
 CLIENT_LIB     := $(BUILD)/libcocologc.a
+# THE ARCHIVE IS libc AND SOCKETS, and stays that way: zeytun-tls.o is NOT
+# in it. It goes into the cocolog binary instead, beside -lssl -lcrypto,
+# and zeytun.c reaches it through WEAK symbols -- so every test/*.cicili
+# target, which links only this archive, gets plaintext and needs no
+# OpenSSL. Putting it in here made test/shared.cicili fail to link with
+# `undefined reference to SSL_free' from a test that speaks only the
+# binary protocol.
 CLIENT_OBJS    := $(BUILD)/zigurat.o $(BUILD)/zeytun.o
+
+# ---- TLS for the client, when there is any ----------------------------------
+# DETECTED RATHER THAN ASSUMED, and the failure is a sentence rather than a
+# missing symbol: client/zeytun-tls.c compiles a stub half without
+# COCO_ZT_TLS, so `--https' reports "built without TLS" by name and every
+# other thing in the client is unaffected.
+#
+# Wherever cocolog builds against a ZiguratIP, OpenSSL is already there --
+# libCryptography links -lcrypto. This is for the case where it is not.
+ZT_TLS_PROBE   := $(shell printf '\043include <openssl/ssl.h>\nint main(void){return 0;}\n' > /tmp/.coco-ssl-probe.c 2>/dev/null && $(CC) /tmp/.coco-ssl-probe.c -o /dev/null -lssl -lcrypto >/dev/null 2>&1 && echo yes || echo no)
+ifeq ($(ZT_TLS_PROBE),yes)
+ZT_TLS_CFLAGS  := -DCOCO_ZT_TLS
+ZT_TLS_LIBS    := -lssl -lcrypto
+else
+ZT_TLS_CFLAGS  :=
+ZT_TLS_LIBS    :=
+endif
 LIB_SOURCES    := $(wildcard lib/*.cicili)
 
 .PHONY: all client schema test clean check-cicili modules
@@ -88,14 +112,14 @@ client: $(CLIENT_LIB)
 
 $(BUILD)/%.o: client/%.c client/zigurat.h client/zeytun.h
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -Iclient -c $< -o $@
+	$(CC) $(CFLAGS) $(ZT_TLS_CFLAGS) -Iclient -c $< -o $@
 
 $(CLIENT_LIB): $(CLIENT_OBJS)
 	$(AR) rcs $@ $(CLIENT_OBJS)
 
 $(BUILD)/probe: client/probe.c $(CLIENT_LIB)
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -Iclient client/probe.c -o $@ -L$(BUILD) -lcocologc
+	$(CC) $(CFLAGS) -Iclient client/probe.c -o $@ -L$(BUILD) -lcocologc $(ZT_TLS_LIBS)
 
 # ---- the interpreter --------------------------------------------------------
 
@@ -135,13 +159,13 @@ TORCH_LIB ?= $(shell python3 -c "import torch, os; print(os.path.join(os.path.di
 # modules/ now, so the binary needs neither libtorch nor its -rpath. What
 # is left of the C++ dependency is the EMBEDDED STORE, which genuinely is
 # part of the binary and genuinely needs libCore.
-cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB)
+cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/zeytun-tls.o
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
 	$(CXX) -O3 .libs/cocolog.o embed/.libs/embed.o \
 	  -o cocolog \
 	  -rdynamic -ldl \
-	  -Lbuild -lcocologc -lm -lpthread \
+	  $(BUILD)/zeytun-tls.o -Lbuild -lcocologc $(ZT_TLS_LIBS) -lm -lpthread \
 	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
 	  -Wl,-rpath,"$(ZIGURATIP)/home/lib"
 

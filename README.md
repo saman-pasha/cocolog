@@ -220,7 +220,8 @@ There is one `cocolog` binary and it is the full one: the interpreter, the
 embedded MVCCS engine and the torch module, all in it. Which knowledge base a
 run uses is a runtime choice among four arrangements — `--local` (memory,
 the default when no other arrangement is named),
-the server (`--kb`/`--host`/`--port`), `--http` (Zeytun, read only), and
+the server (`--kb`/`--host`/`--port`), `--http`/`--https` (Zeytun, read
+only), and
 `--embed [DIR]` (the store inside the process; a bare
 `--embed` opens `./KB`) — never a build. Cicili is needed only to build:
 `sbcl` runs `cicili.lisp` over the `.cicili` files and out comes C. The

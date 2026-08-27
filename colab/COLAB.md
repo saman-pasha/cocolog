@@ -125,7 +125,7 @@ The ones that have actually bitten:
 | thirteen libraries, or a server that dies on its first insert | one project failed and the workspace carried on | `colab/build.sh` names it; read its log under `/tmp/coco-build-logs/` |
 | undefined `c10::` symbols, full of `__cxx11`, at the **final** link | the `torch` wheel was built with `_GLIBCXX_USE_CXX11_ABI=0` and `g++` spells `std::string` the other way | preflight prints the wheel's ABI and **warns without stopping** — everything except the torch link is indifferent to it. The flag would have to reach every C++ unit that touches libtorch, and Cicili's `{$…}` tokens have no ABI among them, so the fix is a matching wheel (`pip install` a torch built ABI=1) rather than a flag at the end |
 | a Lisp backtrace ending the cocolog build | Cicili treats any unrecognised compiler chatter as fatal, and the **line under** its `Unhandled …` banner names the cause | `colab/build.sh` prints that line; a new compiler warning class usually wants silencing in the target's own `:compile` list |
-| `Zeytun: no page 'SETUP'` / 404 from the *Load demo* link on Zeytun's index page | that link is **ZiguratIP's demo**, compiled by its `demo/build.sh` from `demo/03-pages.parsi`. This notebook does not build the demo — it builds cocolog's own Parsi objects and nothing else — so the page genuinely is not there | nothing to fix: the 404 is correct, and the knowledge base is reached through `--http` rather than that page. **Section 4b compiles the demo** if you want the link to work — note it needs a ZiguratIP carrying the `engine_key64(const char*)` overload, because before that the demo would not compile at all |
+| `Zeytun: no page 'SETUP'` / 404 from the *Load demo* link on Zeytun's index page | that link is **ZiguratIP's demo**, compiled by its `demo/build.sh` from `demo/03-pages.parsi`. This notebook does not build the demo — it builds cocolog's own Parsi objects and nothing else — so the page genuinely is not there | nothing to fix: the 404 is correct, and the knowledge base is reached through `--https` rather than that page. **Section 4b compiles the demo** if you want the link to work — note it needs a ZiguratIP carrying the `engine_key64(const char*)` overload, because before that the demo would not compile at all |
 | the build looks fine but re-running says green instantly | a stale artifact from the previous run | `CLEAN=1 sh colab/build.sh` |
 | `preflight RED` with nothing else to go on | the notebook used to discard the report | fixed: the refusal now carries the `MISSING` lines with it. If you still see a bare RED, run `sh colab/preflight.sh` by hand — the report is the answer |
 | `build RED -- the report above names the cause`, and no report above it | same flaw, one cell down: the build's output was streamed and never captured, so a long build scrolled its cause away and a pasted tail carried only the exception | fixed in v2: the build is streamed **and** captured, and the refusal carries the lines that named the failure. Whole logs stay under `/tmp/coco-build-logs/` — `!cat /tmp/coco-build-logs/*.log` |
@@ -169,7 +169,7 @@ with nothing but a URL:
 | the Colab VM | ZiguratIP server + the training cocolog | binary protocol, loopback (`--kb brain`) |
 | Google Drive | the knowledge base between sessions | snapshot in before the server starts, out after it stops |
 | Cloudflare | a quick tunnel in front of Zeytun (port 2190) | `cloudflared` dials **out**; the URL forwards down it |
-| everywhere else | querying cocologs, browsers | `--http 80 --host NAME.trycloudflare.com`, read only |
+| everywhere else | querying cocologs, browsers | `--https --host NAME.trycloudflare.com`, read only |
 
 The reason this composes at all is the project's one claim: **a trained
 model is clauses.** `model_save/2` is `model_spec/2` and `model_params/2`
@@ -244,12 +244,27 @@ http://localhost:2190` prints a `https://NAME.trycloudflare.com` URL and
 forwards it down an **outbound** connection — nothing has to reach into
 the VM, which also routes around Colab's own port proxy (measured broken;
 ZiguratIP's tutorial has the story). Browsers use the `https://` URL.
-cocolog's client speaks plain HTTP, so a querier uses port 80 of the
-same hostname:
+
+**AND SO DOES cocolog NOW.** The client speaks TLS, so a querier uses the
+URL Cloudflare actually printed:
 
 ```sh
-cocolog --host NAME.trycloudflare.com --http 80 --kb brain
+cocolog --host NAME.trycloudflare.com --https --kb brain
 ```
+
+`--https` defaults to port 443 and `--http` to 80, so neither has to be
+written out. The server's certificate is checked against the **system**
+authorities — Cloudflare's is public — and **so is the hostname**, which
+is the check that makes the tunnel worth anything: a certificate valid
+for somebody else is exactly what a man in the middle presents.
+
+The plaintext spelling still works and is still port 80:
+
+```sh
+cocolog --host NAME.trycloudflare.com --http --kb brain
+```
+
+but there is no longer a reason to prefer it.
 
 The edge routes by the `Host` header, and the hostname is registered
 **bare** — so on the default ports the client now sends `Host: name`
@@ -267,10 +282,11 @@ Two honest limits:
   predicates makes many round trips through the tunnel. Fine for
   queries and demos; not a benchmark. (`--timeout` may want raising on
   a slow link.)
-* **Should Cloudflare ever force the HTTP→HTTPS redirect** on quick
-  tunnels, the client would report `the server answered: HTTP/1.1 301
-  Moved Permanently` — the fix then is a TLS shim in front of the
-  client, not anything on the VM.
+* **The HTTP→HTTPS redirect is no longer a hazard.** It used to be: the
+  client spoke plaintext only, and a tunnel that started redirecting
+  would have answered `the server answered: HTTP/1.1 301 Moved
+  Permanently` with a TLS shim as the only fix. `--https` is that fix,
+  in the client.
 
 ## The GPU
 
@@ -292,7 +308,7 @@ exactly why a model trained on Colab's GPU predicts on a laptop's CPU.
 server, no tunnel), then
 
 ```sh
-./cocolog --host NAME.trycloudflare.com --http 80 --kb brain \
+./cocolog --host NAME.trycloudflare.com --https --kb brain \
   query "model_load(xor, M), model_predict(M, [[0.0,1.0]], P)"
 ```
 
@@ -300,7 +316,7 @@ server, no tunnel), then
 toplevel runs in the `--http` arrangement like any other:
 
 ```console
-$ cocolog --host NAME.trycloudflare.com --http 80 --kb brain
+$ cocolog --host NAME.trycloudflare.com --https --kb brain
 ?- model_load(xor, M), model_predict(M, [[0.0,1.0]], P).
 ```
 

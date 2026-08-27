@@ -256,6 +256,44 @@ certificate is not examined until after it has sent its Finished, so a
 stranger gets success out of connect and hears the refusal afterwards.
 The property to check is that a refused peer gets no answer.
 
+### `--https`, and two older bugs it uncovered
+
+The Zeytun client speaks TLS. `--https [PORT]` sits beside `--http
+[PORT]` and both ports are OPTIONAL now -- 443 and 80 -- because a
+querier behind Cloudflare should not have to know what port an edge
+listens on. `--cacert`, `--capath`, `--cert`, `--key`, `--key-pass` and
+`--insecure` are the rest of it.
+
+**THE TLS IS IN `client/zeytun-tls.c` AND NOWHERE ELSE**, so
+`client/zeytun.c` is still libc and the sockets API and nothing else: it
+reaches OpenSSL through four functions behind an opaque pointer, and a
+build without OpenSSL compiles that file's stub half -- `--https` then
+reports the missing feature by name rather than failing to link.
+
+**The hostname is checked, not merely the chain.** That is the check a
+hand-rolled client forgets, and a certificate valid for somebody else is
+exactly what a man in the middle presents. SNI takes the same name, which
+makes them one decision rather than two.
+
+**TWO REAL BUGS FELL OUT, both older than this change.** `--http'
+dialled the BINARY SERVER as well -- `open_connection' had no Zeytun
+branch -- so a querier that could only reach the HTTP edge got `no server
+at NAME:2160' from an arrangement that was never going to use it, which
+defeats the whole point of the tunnel. It went unnoticed because the
+suite always has a server: the `tunnel' case raises its edge stand-in on
+localhost, where 2160 is answering too. And **a failed Zeytun fetch was
+SILENT**: the reason went into the store and the hook answered 0, which
+the engine reads as "no clauses" -- so an unreachable edge, a refused
+certificate and an empty knowledge base were all
+`existence_error(procedure, p/1)'. For a verification failure that is
+unacceptable: the purpose of checking a server's name is to REFUSE, and a
+refusal nobody can tell from an empty database is not one.
+
+`test/tunnel.sh` gains a TLS-terminating edge stand-in -- which is what
+Cloudflare is -- and checks a query through it, `--insecure` going
+through loudly, and a second edge presenting a certificate for a name
+nobody asked for, refused by name with `hostname mismatch`.
+
 ### `flush_output/0`, which was also not there
 
 cocolog writes to the literal stdout, which the C library buffers by

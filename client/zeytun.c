@@ -70,7 +70,51 @@ static int dial(const char *host, const char *service, int timeout_seconds,
  *
  * A response with no Content-Length is read to end-of-file, which is the only
  * thing left to do with one; no cocolog page produces such a response. */
-static char *slurp(int fd, size_t *out_len, char *err, size_t errcap)
+/* THE TLS HALF IS REACHED WEAKLY, and that is what keeps libcocologc what
+ * it says it is. The archive holds this file and zigurat.c and nothing
+ * else; client/zeytun-tls.o is linked into the cocolog BINARY, beside
+ * -lssl -lcrypto. A program that links only the archive -- every
+ * test/*.cicili target does -- gets NULL here, and plaintext is
+ * unaffected.
+ *
+ * FOUND BY THE SUITE, which is the argument for having it: putting
+ * zeytun-tls.o in the archive made `test/shared.cicili' fail to link with
+ * `undefined reference to SSL_free', from a test that has never opened a
+ * socket to anything but the binary protocol. The archive is a
+ * dependency of things that want no TLS, and it should stay one. */
+extern void *zt_tls_open(int fd, const char *host, const zt_tls_options *o,
+                         char *err, size_t errcap) __attribute__((weak));
+extern long  zt_tls_send(void *handle, const void *buf, size_t n) __attribute__((weak));
+extern long  zt_tls_recv(void *handle, void *buf, size_t n) __attribute__((weak));
+extern void  zt_tls_close(void *handle) __attribute__((weak));
+extern int   zt_tls_available(void) __attribute__((weak));
+
+/* THE TRANSPORT, IN ONE STRUCT AND THREE FUNCTIONS. `tls' is NULL for a
+ * plain connection, and every read and write below goes through these --
+ * which is what keeps the HTTP in this file identical on both. */
+typedef struct { int fd; void *tls; } zt_conn;
+
+static long zt_write(zt_conn *c, const void *buf, size_t n)
+{
+  if (c->tls) return zt_tls_send(c->tls, buf, n);
+  return (long) send(c->fd, buf, n, MSG_NOSIGNAL);
+}
+
+static long zt_read(zt_conn *c, void *buf, size_t n)
+{
+  if (c->tls) return zt_tls_recv(c->tls, buf, n);
+  return (long) recv(c->fd, buf, n, 0);
+}
+
+static void zt_hangup(zt_conn *c)
+{
+  if (c->tls) zt_tls_close(c->tls);
+  if (c->fd >= 0) close(c->fd);
+  c->tls = NULL;
+  c->fd = -1;
+}
+
+static char *slurp(zt_conn *c, size_t *out_len, char *err, size_t errcap)
 {
   size_t cap = 8192, len = 0;
   size_t header_len = 0;         /* bytes up to and including the blank line */
@@ -96,7 +140,7 @@ static char *slurp(int fd, size_t *out_len, char *err, size_t errcap)
       cap = ncap;
     }
 
-    k = recv(fd, buf + len, cap - len - 1, 0);
+    k = (ssize_t) zt_read(c, buf + len, cap - len - 1);
     if (k == 0) break;                       /* the server did close after all */
     if (k < 0) {
       if (errno == EINTR) continue;
@@ -128,11 +172,46 @@ static char *slurp(int fd, size_t *out_len, char *err, size_t errcap)
   return buf;
 }
 
+/* See zeytun.h: the transport is a property of the process, because a
+ * cocolog reaches one Zeytun in an arrangement chosen once from argv. */
+static zt_tls_options g_tls;
+static int            g_tls_on = 0;
+
+void zt_tls_configure(const zt_tls_options *o)
+{
+  if (o == NULL) { g_tls_on = 0; return; }
+  g_tls = *o;
+  g_tls_on = 1;
+}
+
+void zt_tls_configure_flat(const char *cacert, const char *capath,
+                           const char *cert, const char *key,
+                           const char *key_pass, int insecure)
+{
+  zt_tls_options o;
+  memset(&o, 0, sizeof o);
+  o.cacert = cacert;
+  o.capath = capath;
+  o.cert = cert;
+  o.key = key;
+  o.key_pass = key_pass;
+  o.insecure = insecure;
+  zt_tls_configure(&o);
+}
+
 int zt_get(const char *host, const char *service, const char *path,
            int timeout_seconds, char **body, size_t *len,
            char *err, size_t errcap)
 {
-  int fd;
+  return zt_get2(host, service, path, timeout_seconds,
+                 g_tls_on ? &g_tls : NULL, body, len, err, errcap);
+}
+
+int zt_get2(const char *host, const char *service, const char *path,
+            int timeout_seconds, const zt_tls_options *tls,
+            char **body, size_t *len, char *err, size_t errcap)
+{
+  zt_conn c = { -1, NULL };
   char request[2048];
   char *raw = NULL, *head_end, *status_end;
   size_t raw_len = 0, body_len;
@@ -163,24 +242,37 @@ int zt_get(const char *host, const char *service, const char *path,
   if (n < 0 || (size_t)n >= sizeof request)
     return fail(err, errcap, "the request line is too long", path);
 
-  fd = dial(host, service, timeout_seconds, err, errcap);
-  if (fd < 0) return 0;
+  c.fd = dial(host, service, timeout_seconds, err, errcap);
+  if (c.fd < 0) return 0;
+
+  /* THE HANDSHAKE BEFORE THE REQUEST, and the socket is already open --
+   * which is why the TLS half takes a descriptor rather than a host: the
+   * dialling, the timeout and the address family are settled here, once,
+   * for both transports. */
+  if (tls != NULL) {
+    if (zt_tls_open == NULL) {
+      close(c.fd);
+      return fail(err, errcap, "this build has no TLS", NULL);
+    }
+    c.tls = zt_tls_open(c.fd, host, tls, err, errcap);
+    if (c.tls == NULL) { close(c.fd); return 0; }
+  }
 
   {
     size_t sent = 0, total = (size_t)n;
     while (sent < total) {
-      ssize_t k = send(fd, request + sent, total - sent, MSG_NOSIGNAL);
+      long k = zt_write(&c, request + sent, total - sent);
       if (k <= 0) {
         if (k < 0 && errno == EINTR) continue;
-        close(fd);
+        zt_hangup(&c);
         return fail(err, errcap, "write failed", strerror(errno));
       }
       sent += (size_t)k;
     }
   }
 
-  raw = slurp(fd, &raw_len, err, errcap);
-  close(fd);
+  raw = slurp(&c, &raw_len, err, errcap);
+  zt_hangup(&c);
   if (!raw) return 0;
 
   /* "HTTP/1.1 200 OK" -- anything else is reported rather than parsed. */

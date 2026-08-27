@@ -61,6 +61,15 @@ timeout 60 "$C" --kb tunnel_test --host "$HOST" --port "$PORT" --timeout 10 \
 cat > "$OUT/edge.py" <<'PYEOF'
 import socket, sys, threading
 PORT, PUBLIC, ORIGIN, LOG = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), sys.argv[4]
+# TLS, WHEN A CERTIFICATE IS NAMED. The real edge terminates TLS and speaks
+# plaintext to cloudflared, which is exactly this: wrap the accepted socket
+# and forward the decrypted bytes to Zeytun unchanged.
+CERT = sys.argv[5] if len(sys.argv) > 5 else None
+CTX = None
+if CERT:
+    import ssl
+    CTX = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    CTX.load_cert_chain(CERT, CERT)
 def handle(c):
     try:
         head = b""
@@ -95,6 +104,11 @@ s.listen(16)
 print("edge up", flush=True)
 while True:
     c, _ = s.accept()
+    if CTX is not None:
+        try:
+            c = CTX.wrap_socket(c, server_side=True)
+        except Exception:
+            c.close(); continue
     threading.Thread(target=handle, args=(c,), daemon=True).start()
 PYEOF
 
@@ -110,6 +124,85 @@ check "a query answers through the Host-routing edge" "$got" "  1. edge_fact(rou
 got=$(sort -u "$OUT/hosts-high.log" 2>/dev/null | tr '\n' ' ')
 check "off the default port, Host names the port" "$got" "localhost:18080 "
 kill "$EDGE_PID" 2>/dev/null; wait "$EDGE_PID" 2>/dev/null; EDGE_PID=
+
+# ---- HTTPS: the same edge, terminating TLS -------------------------------
+#
+# WHAT CLOUDFLARE ACTUALLY IS. A quick tunnel is reached over TLS and
+# nothing else -- the `https://NAME.trycloudflare.com' URL is the only one
+# -- so a client that could only speak plaintext had to be given port 80 and
+# hope the edge did not redirect. This is that arrangement, locally: a
+# TLS-terminating edge that routes by Host and forwards decrypted bytes to
+# Zeytun, and a cocolog reaching it with `--https'.
+#
+# THE CERTIFICATE IS MADE HERE AND TRUSTED BY NAME. `--cacert' points at the
+# same self-signed certificate the edge presents, and `localhost' is its
+# subject -- so the HOSTNAME check that `--https' does without being asked
+# has something true to check. A test that reached for `--insecure' would
+# have proved the bytes moved and nothing about the verification.
+
+if openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/edge.pem" \
+     -out "$OUT/edge.crt" -days 2 -subj '/CN=localhost' \
+     -addext 'subjectAltName=DNS:localhost' >/dev/null 2>&1; then
+  cat "$OUT/edge.pem" "$OUT/edge.crt" > "$OUT/edge-full.pem"
+
+  python3 "$OUT/edge.py" 18443 "localhost:18443" "$ZEYTUN" "$OUT/hosts-tls.log" \
+    "$OUT/edge-full.pem" > "$OUT/edge-tls.out" 2>&1 &
+  EDGE_PID=$!
+  sleep 1
+
+  got=$(timeout 60 "$C" --host localhost --https 18443 --cacert "$OUT/edge.crt" \
+          --kb tunnel_test query 'edge_fact(X)' 2>/dev/null | head -1)
+  check "a query answers through a TLS edge" "$got" "  1. edge_fact(routed)"
+
+  # AND --insecure GOES THROUGH, loudly. It exists because a self-signed
+  # rehearsal is a real thing to want; what it must not be is quiet.
+  got=$(timeout 60 "$C" --host localhost --https 18443 --insecure \
+          --kb tunnel_test query 'edge_fact(X)' 2>/dev/null | head -1)
+  check "--insecure reaches it anyway" "$got" "  1. edge_fact(routed)"
+  got=$(timeout 60 "$C" --host localhost --https 18443 --insecure \
+          --kb tunnel_test query 'edge_fact(X)' 2>&1 >/dev/null | head -1)
+  check "and says so on stderr" "$got" "cocolog: --insecure: the server is NOT being verified"
+
+  kill "$EDGE_PID" 2>/dev/null; wait "$EDGE_PID" 2>/dev/null; EDGE_PID=
+
+  # THE HOSTNAME IS CHECKED, and this is how we know: a SECOND edge, on the
+  # same loopback and routing the same Host, presenting a certificate for a
+  # name nobody asked for. The chain still verifies -- it is its own
+  # authority and --cacert names it -- and the NAME does not, which is
+  # precisely the man-in-the-middle case a client that skipped this check
+  # would have missed.
+  #
+  # A SEPARATE EDGE rather than reaching the first one by address, because
+  # the Host header would then be 127.0.0.1:PORT and the edge would answer
+  # 404 before TLS was ever the reason.
+  openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/other.pem" \
+    -out "$OUT/other.crt" -days 2 -subj '/CN=other.invalid' \
+    -addext 'subjectAltName=DNS:other.invalid' >/dev/null 2>&1
+  cat "$OUT/other.pem" "$OUT/other.crt" > "$OUT/other-full.pem"
+
+  python3 "$OUT/edge.py" 18444 "localhost:18444" "$ZEYTUN" "$OUT/hosts-bad.log" \
+    "$OUT/other-full.pem" > "$OUT/edge-bad.out" 2>&1 &
+  EDGE_PID=$!
+  sleep 1
+
+  got=$(timeout 60 "$C" --host localhost --https 18444 --cacert "$OUT/other.crt" \
+          --kb tunnel_test query 'edge_fact(X)' 2>&1 >/dev/null \
+        | grep -c 'hostname mismatch')
+  check "a name the certificate does not carry is refused" "$got" "2"
+
+  # AND THE REFUSAL IS VISIBLE, which is the half that was missing. A failed
+  # fetch used to go into the store and answer 0, which the engine reads as
+  # "no clauses" -- so an unreachable edge, a refused certificate and an
+  # empty knowledge base were all `existence_error(procedure, ...)'.
+  got=$(timeout 60 "$C" --host localhost --https 18444 --cacert "$OUT/other.crt" \
+          --kb tunnel_test query 'edge_fact(X)' 2>&1 >/dev/null | head -1)
+  check "and names the server it was refused by" "$got" \
+    "cocolog: Zeytun at localhost:18444 -- fetching clauses: the server's certificate was refused: hostname mismatch"
+
+  kill "$EDGE_PID" 2>/dev/null; wait "$EDGE_PID" 2>/dev/null; EDGE_PID=
+else
+  echo "https: SKIP (no openssl to make a certificate with)"
+fi
 
 # ---- port 80: the Host is the bare hostname, as an edge registers it
 

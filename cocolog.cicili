@@ -33,7 +33,8 @@
 ;;;   --kb NAME      which knowledge base   (default main)
 ;;;   --host HOST    (default 127.0.0.1)
 ;;;   --port PORT    the binary protocol    (default 2160)
-;;;   --http PORT    read over Zeytun instead of the binary protocol
+;;;   --http [PORT]  read over Zeytun instead of the binary protocol (80)
+;;;   --https [PORT] the same, over TLS (443) -- what an edge speaks
 ;;;   --local        no database at all: everything in memory
 ;;;   --steps N      inferences per `step'  (default 2000)
 ;;;   --timeout S    socket timeout, seconds (default 20)
@@ -135,6 +136,20 @@
   (include <zigurat.h>)
   (include <zeytun.h>)
 
+  ;;; What the client is told about TLS, once, before the first fetch.
+  ;;; `zt_tls_options' is a C struct in `client/zeytun.h' and Cicili needs
+  ;;; the name to declare a local of it -- a type is ONE token, and this
+  ;;; one already is.
+  ;;; FLAT, not the struct form. A Cicili form reaching into a C struct
+  ;;; needs that struct's MEMBERS declared to it and not merely its name --
+  ;;; `($ t cacert)' on a type it only knows the name of stops the
+  ;;; transpile with `unknown struct type: zt_tls_options'. Six arguments
+  ;;; say the same thing with nothing to declare.
+  (decl) (func zt_tls_configure_flat ((const char * cacert) (const char * capath)
+                                      (const char * cert) (const char * key)
+                                      (const char * key_pass) (int insecure)))
+  (decl) (func zt_tls_available () (out int))
+
   (import "./lib/zigurat.cicili" :zg)
   (import "./lib/zeytun.cicili" :zt)
   (import "./lib/term.cicili")
@@ -182,6 +197,18 @@
     (member const char * host)
     (member const char * port)
     (member const char * http)
+    ;; HTTPS IS THE SAME ARRANGEMENT WITH A DIFFERENT TRANSPORT, which is
+    ;; why `http' still holds the SERVICE for both and this is only a
+    ;; flag: every `(!= ($ opts http) nil)' below -- the arrangement
+    ;; test, in five places -- is unchanged, and there is no second
+    ;; backend to keep in step.
+    (member int secure)
+    (member const char * cacert)
+    (member const char * capath)
+    (member const char * cert)
+    (member const char * key)
+    (member const char * keypass)
+    (member int insecure)
     (member int          local)
     (member u64          steps)
     ;; Seconds a socket operation may block. Short in a test, because a worker
@@ -210,7 +237,15 @@
   ;; kb, host and port start EMPTY rather than at their defaults, because
   ;; whether any of them was written is what picks the arrangement: see the
   ;; decision after the option loop. They take their old defaults there.
-  (var coco_opts opts . '{ nil nil nil nil 0 2000 20 10 nil nil nil 0 })
+  ;; POSITIONAL, so the order here is the order of the members above and
+  ;; adding one in the middle means adding one here. Getting it wrong is a
+  ;; wall of `incompatible integer to pointer conversion' naming this line
+  ;; and not the member that moved.
+  ;;   kb host port http | secure cacert capath cert key keypass insecure
+  ;;   | local steps timeout answers lock store outdir vacuum
+  (var coco_opts opts . '{ nil nil nil nil
+                           0 nil nil nil nil nil 0
+                           0 2000 20 10 nil nil nil 0 })
 
   ;;; The one connection, when there is one. THREAD-LOCAL, because the
   ;;; `swarm' command runs one worker per thread and each opens its own:
@@ -325,7 +360,13 @@
         (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
         (fprintf stderr "  --host HOST   (default 127.0.0.1)\n")
         (fprintf stderr "  --port PORT   binary protocol           (default 2160)\n")
-        (fprintf stderr "  --http PORT   read over Zeytun instead\n")
+        (fprintf stderr "  --http [PORT] read over Zeytun, plain HTTP (default port 80)\n")
+        (fprintf stderr "  --https [PORT] the same over TLS (default port 443)\n")
+        (fprintf stderr "  --cacert F    the authority to check the server against\n")
+        (fprintf stderr "  --capath D    a directory of them; neither means the system store\n")
+        (fprintf stderr "  --cert F --key F   this end's certificate, for a Zeytun that asks\n")
+        (fprintf stderr "  --key-pass P  its pass phrase\n")
+        (fprintf stderr "  --insecure    do not verify the server AT ALL\n")
         (fprintf stderr "  --local       no database; all in memory. THE DEFAULT:\n")
         (fprintf stderr "                naming --kb, --host or --port chooses the\n")
         (fprintf stderr "                server, --http Zeytun, --embed the embedded\n")
@@ -400,6 +441,21 @@
   (func open_connection () (out int)
         (let ((char err [512]) (char turnfile [512]) (const char * path))
           (if ($ opts local) (return 1))
+          ;; ZEYTUN NEEDS NO BINARY CONNECTION, and until now it opened one
+          ;; anyway -- so `--http' dialled the server on 2160 as well, and a
+          ;; querier that could only reach the HTTP edge got
+          ;; `no server at NAME:2160' from an arrangement that was never
+          ;; going to use it. That is the whole point of the tunnel: the
+          ;; VM is reachable at one port and nothing else.
+          ;;
+          ;; IT WENT UNNOTICED BECAUSE THE SUITE ALWAYS HAS A SERVER. The
+          ;; `tunnel' case raises an edge stand-in on localhost, where 2160
+          ;; is answering too, so the extra connection succeeded and paid
+          ;; for nothing. Every read in this arrangement goes through
+          ;; `zt_get'; `db' staying null is what the five
+          ;; `(and (!= db nil) (== ($ opts http) nil))' guards below already
+          ;; expect.
+          (if (!= ($ opts http) nil) (return 1))
           (if (!= ($ opts store) nil)
               (block
                 (set db (zg_open_embed ($ opts store) err (sizeof err)))
@@ -1879,6 +1935,22 @@
                             (set i (+ i 2)))
                    (block (set ($ opts store) "./KB")
                           (set i (+ i 1)))))
+                ;; THE PORT IS OPTIONAL ON BOTH, the way `--embed's
+                ;; directory is: the next word is taken as the service
+                ;; unless it reads as an option or a command. 80 and 443
+                ;; are the defaults because they are what an edge listens
+                ;; on, and a querier behind Cloudflare should not have to
+                ;; know that.
+                ((or (== 0 (strcmp a "--http")) (== 0 (strcmp a "--https")))
+                 (if (== 0 (strcmp a "--https")) (set ($ opts secure) 1))
+                 (if (and (< (+ i 1) argc)
+                          (!= (nth 0 (nth (+ i 1) argv)) (cast char 45))
+                          (not (is_verb (nth (+ i 1) argv))))
+                     (block (set ($ opts http) (nth (+ i 1) argv))
+                            (set i (+ i 2)))
+                   (block (set ($ opts http) (? ($ opts secure) "443" "80"))
+                          (set i (+ i 1)))))
+                ((== 0 (strcmp a "--insecure")) (set ($ opts insecure) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--vacuum")) (set ($ opts vacuum) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--trace")) (set coco_trace_default 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--help")) (usage) (return 0))
@@ -1890,7 +1962,11 @@
                      ((== 0 (strcmp a "--kb"))      (set ($ opts kb) v))
                      ((== 0 (strcmp a "--host"))    (set ($ opts host) v))
                      ((== 0 (strcmp a "--port"))    (set ($ opts port) v))
-                     ((== 0 (strcmp a "--http"))    (set ($ opts http) v))
+                     ((== 0 (strcmp a "--cacert"))   (set ($ opts cacert) v))
+                     ((== 0 (strcmp a "--capath"))   (set ($ opts capath) v))
+                     ((== 0 (strcmp a "--cert"))     (set ($ opts cert) v))
+                     ((== 0 (strcmp a "--key"))      (set ($ opts key) v))
+                     ((== 0 (strcmp a "--key-pass")) (set ($ opts keypass) v))
                      ((== 0 (strcmp a "--steps"))   (set ($ opts steps) (strtoull v nil 10)))
                      ((== 0 (strcmp a "--timeout")) (set ($ opts timeout) (atoi v)))
                      ((== 0 (strcmp a "--lock"))    (set ($ opts lock) v))
@@ -1912,6 +1988,41 @@
           (if (== ($ opts kb) nil)   (set ($ opts kb) "main"))
           (if (== ($ opts host) nil) (set ($ opts host) "127.0.0.1"))
           (if (== ($ opts port) nil) (set ($ opts port) "2160"))
+
+          ;; ---- the client's transport, settled ONCE ------------------------
+          ;;
+          ;; HERE AND NOT AT THE FETCH, because a cocolog reaches one Zeytun
+          ;; in an arrangement chosen from argv before the first goal runs.
+          ;; Threading it through `coco_zt' and the four `zt_get' call sites
+          ;; in lib/zeytun-kb.cicili would be four chances for one of them to
+          ;; stay plaintext; see the note in client/zeytun.h.
+          ;;
+          ;; THE STRINGS ARE argv, which outlives everything -- the client
+          ;; copies the struct and not what it points at, and says so.
+          (if ($ opts secure)
+              (block
+                (if (not (zt_tls_available))
+                    (block
+                      (fprintf stderr "cocolog: --https needs a build with OpenSSL; this one has none\n")
+                      (return 1)))
+                ;; A CERTIFICATE NEEDS BOTH HALVES, and one alone is a
+                ;; configuration mistake rather than something to half-apply.
+                ;; Refused here as well as in the client, because here the
+                ;; message can name the flags.
+                (if (or (and (!= ($ opts cert) nil) (== ($ opts key) nil))
+                        (and (== ($ opts cert) nil) (!= ($ opts key) nil)))
+                    (block
+                      (fprintf stderr "cocolog: --cert and --key go together\n")
+                      (return 1)))
+                ;; SAID OUT LOUD, every time. `--insecure' turns off the
+                ;; hostname check and the chain check both, which is the
+                ;; whole of what TLS was doing for a reader -- and a flag
+                ;; that goes quiet is a flag somebody leaves in a script.
+                (if ($ opts insecure)
+                    (fprintf stderr "cocolog: --insecure: the server is NOT being verified\n"))
+                (zt_tls_configure_flat ($ opts cacert) ($ opts capath)
+                                       ($ opts cert) ($ opts key)
+                                       ($ opts keypass) ($ opts insecure))))
 
           (if (not (install_modules)) (return 1))
           ;; A THREAD GETS THE ARRANGEMENT THIS PROCESS WAS STARTED WITH.
