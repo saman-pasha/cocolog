@@ -106,12 +106,18 @@ tools/cc/              the toolchain, in four small files: clang, plus the
                        the one build step that names gcc outright
 
 client/                the two protocols, in C. No C++, no ZiguratIP headers:
-                       libc and the sockets API and nothing else
+                       libc and the sockets API and nothing else -- except
+                       tls.c, the ONE unit that knows OpenSSL exists, which
+                       both reach through six functions behind an opaque
+                       pointer, weakly, so a build without OpenSSL still
+                       links and says so by name
 parsi/                 the schema and the pages, compiled into a ZiguratIP
                        home by ZiguratIP's own parsi compiler
 cocolog.cicili         the program
 test/                  the suite; groups.sh and ruler.sh are the concurrent
-                       ones, and are crowds of processes rather than .cicili
+                       ones, and are crowds of processes rather than .cicili;
+                       tls.sh, httpd-tls.sh and zigurat-tls.sh are the three
+                       that raise real handshakes between real processes
 test/files/            Prolog programs run by BOTH swipl and cocolog, with
                        their output compared line for line
 tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
@@ -658,6 +664,31 @@ required -- this server wants a client certificate: --cert and --key
 The hostname is checked, not just the chain, on both. `--insecure` turns
 that off and says so on stderr every time.
 
+**`--port PORT` is deprecated**, and still works: it is exactly `--tcp
+PORT`. It named a number back when there was one transport; there are
+four now and each says *which* as well as *where*. Nothing warns — the
+flag is a spelling, not a mistake, and a line on stderr every run would
+land in the output of every script that pipes cocolog.
+
+#### It changes the link, and nothing above it
+
+The strongest thing this client can say was measured somewhere else. **The
+Coco** — which is written in cocolog and treats it as frozen — runs its
+three consensus rungs over `--tls`: proof of authority, proof of history,
+proof of stake, three federated nodes sealing and gossiping and
+re-verifying, a fork opened and closed by rule, a spine verified in
+parallel segments, a stake-weighted vote to finality. All seventy-eight
+of its verdicts come back **byte for byte identical** to the plaintext
+run, including the three attacks that are supposed to succeed.
+
+That is the point rather than a footnote. Every law those rungs enforce
+is about *content* — a hash recomputed, a signature checked against a
+published key, a tick count re-run, a quorum weighed against rows — so
+none of them can be improved by encrypting the link, and none should be.
+Their suite makes an attacker arrive over a **verified** TLS connection
+to the same store the honest nodes use, and checks she is refused exactly
+as before: **an authenticated peer is not a trusted one.**
+
 ### And the connection itself: `library(tls)`
 
 The certificates are for something. `library(tls)` is `library(tcp)` with
@@ -1186,8 +1217,9 @@ interpreter in any of the four knowledge-base arrangements.
 
 ## Status
 
-The interpreter, the serialisation, both transports, the schema and the
-concurrent arrangements are done and tested; `make test` ends `red: 0`.
+The interpreter, the serialisation, all four transports, the schema and
+the concurrent arrangements are done and tested; `make test` ends
+`red: 0` over 31 cases, three of them TLS.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 

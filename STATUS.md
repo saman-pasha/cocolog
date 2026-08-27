@@ -27,6 +27,9 @@ different findings.
 | `test/httpd.sh` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
 | `test/crypto.sh` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
 | `test/tutorials.sh` | **the documentation, run as a suite**: sixty-four tutorial files in three categories — eleven `basics/` and twenty-eight `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/tls.sh` | `library(tls)`: a server and three clients AS SEPARATE PROCESSES -- enrolled, impostor, browser -- because a handshake is between two ends that do not share memory. The permissions that rode in with alice's certificate, the impostor refused and told why, the server carrying on serving afterwards, a certificate-less client admitted and granted nothing, four bogus handles refusing rather than crashing, and an accept that times out and frees its slot -- 19 checks |
+| `test/httpd-tls.sh` | the same server over TLS, and the seam that keeps them one server: routing, keep-alive, the path rules and `httpd_answer/3` are the SAME code on both, and a page reads the peer's subject and permissions as two synthetic headers. Weighted on the reverse-proxy hole -- a client sending `Tls-Peer-Subject: CN=root` must not be believed, and on a plain connection those headers are stripped and not replaced -- 9 checks |
+| `test/zigurat-tls.sh` | `--tls`, the binary protocol over TLS, against TWO terminators -- one per `SERVER/TLS_CLIENT_AUTH` setting. The handshake before the greeting, a clause written and read back by two processes over an encrypted connection, the hostname checked and not just the chain, plaintext against a TLS port refused, and all four certificate combinations including the one that must be legible: no certificate where one is required -- 11 checks |
 | `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 
 ## The three document libraries, and the round trip that checks them
@@ -281,7 +284,9 @@ handshake happening before the server's greeting, the framing surviving,
 a clause written and read back by TWO PROCESSES over an encrypted
 connection, the hostname checked, and plaintext against a TLS port not
 going through. What it does not prove is ZiguratIP's server side, which
-is ZiguratIP's suite's business.
+is ZiguratIP's suite's business. (It runs TWO terminators now, one per
+client-auth setting, and holds all four certificate combinations -- see
+"TLS with and without a certificate" below.)
 
 ### `--https`, and two older bugs it uncovered
 
@@ -1971,6 +1976,39 @@ documentation, the repository's own thirty-odd uses moved to `--tcp`
 (tests, the two coworkers, the tutorials, the emacs mode and its test),
 and `test/zigurat-lib.sh` holds it to both halves: that it still reaches
 the server, and that it prints nothing while doing so.
+
+### What the client is worth, measured somewhere else
+
+A transport is only as good as what somebody builds on it, and the
+strongest thing this one can say was not said here. **The Coco ran its
+three consensus rungs over `--tls`** -- proof of authority, proof of
+history, proof of stake -- and required every verdict to come back
+unchanged: 25, 16 and 37 of them, seventy-eight in all, byte for byte
+identical to the plaintext run, including the three attacks that are
+supposed to succeed.
+
+Worth recording here for two reasons.
+
+**It is a real exercise of this client**, by a repository that treats
+cocolog as frozen and did not touch a line of it. Three federated nodes
+sealing, gossiping and re-verifying; a fork opened and closed by rule; a
+chain audited by a process that consulted nothing; a PoH spine verified
+in parallel segments; a stake-weighted BFT vote to finality -- all of it
+through `zg_conn`'s TLS path, with the handshake before the greeting and
+the framing surviving every one of them. `test/zigurat-tls.sh` proves the
+transport in the small. That proved it under load, in an arrangement
+nobody wrote to test a socket.
+
+**And it is the honest bound on what TLS buys.** Every law those rungs
+enforce is about CONTENT -- a hash recomputed, a signature checked
+against a published key, a tick count re-run, a quorum weighed against
+rows -- so none of them can be improved by encrypting the link, and none
+should be. The Coco's case makes the point by putting an attacker on a
+VERIFIED TLS connection to the same store the honest nodes use and
+checking she is refused exactly as before: **an authenticated peer is not
+a trusted one.** If anything in this repository ever tempts a caller to
+skip verification because a connection was authenticated, that is the
+bug, and this is the sentence it violated.
 
 ## Known limitations, by choice
 
