@@ -111,6 +111,30 @@
            ;; never happens.
            "string(_) :- fail."
 
+           ;; ---- once/1 and ignore/1 --------------------------------------
+           ;;
+           ;; TWO CLAUSES THAT WERE SIMPLY MISSING, and both are ISO -- 8.15.2
+           ;; and, for `ignore/1', SWI's spelling of the same idea. They are
+           ;; here in the Coco half rather than in C because a cut is exactly
+           ;; what they are: `once/1' is `call/1' with the choice points
+           ;; dropped, and a C half has no access to the choice stack, on
+           ;; purpose. Writing them as clauses puts the cut where the engine
+           ;; can see it.
+           ;;
+           ;; FOUND BY WRITING A TUTORIAL. `tutorials/basics/05' wanted to say
+           ;; "once/1 is a cut with a name, and reads better", ran, and got
+           ;; `existence_error(procedure, once/1)'. Every Prolog has had these
+           ;; for forty years; nothing in this interpreter had needed them,
+           ;; which is exactly the kind of hole a suite of its own tests
+           ;; cannot find.
+           ;;
+           ;; `ignore/1' SUCCEEDS EITHER WAY and leaves no bindings from a
+           ;; failed goal -- the failure undoes them before the second clause
+           ;; is reached, which is the engine doing the work rather than us.
+           "once(G) :- call(G), !."
+           "ignore(G) :- call(G), !."
+           "ignore(_)."
+
            ;; ---- library(error): must_be/2 and is_of_type/2 ---------------
            ;;
            ;; NOT ITS OWN MODULE, and that is a judgement rather than an
@@ -217,9 +241,33 @@
            "'$cp_member'(X, [_|T]) :- '$cp_member'(X, T)."
 
            ;; ---- retractall/1 ----------------------------------------------
-           ;; Retracting inside a failure-driven loop, which is the only way to
-           ;; do it with a deterministic `retract'.
-           "retractall(H) :- retract(H), fail."
+           ;;
+           ;; RECURSION, NOT A FAILURE-DRIVEN LOOP, and the difference is a bug
+           ;; this predicate carried in silence. It used to be
+           ;;
+           ;;     retractall(H) :- retract(H), fail.
+           ;;     retractall(_).
+           ;;
+           ;; with a comment saying that was "the only way to do it with a
+           ;; deterministic retract" -- which has it exactly backwards. A
+           ;; failure-driven loop iterates by BACKTRACKING INTO its goal, so it
+           ;; needs a retract that answers many times. Ours answers once, like
+           ;; every builtin here, so `fail' had nothing to go back into: the
+           ;; first clause removed ONE clause and gave up, the second clause
+           ;; succeeded, and `retractall(p(_))' left every p but the first
+           ;; where it was, answering `true' about it.
+           ;;
+           ;; FOUND BY WRITING A TUTORIAL -- `tutorials/basics/07', which
+           ;; retracts three facts and counts what is left. Nothing in the
+           ;; suite had ever called `retractall/1' on a predicate with more
+           ;; than one clause and then LOOKED.
+           ;;
+           ;; `copy_term' IS WHAT MAKES THE RECURSION WORK. A successful
+           ;; retract binds the variables in its argument -- `retractall(p(_))'
+           ;; would come back with the `_' bound to the first clause's value --
+           ;; so recursing on that term would then match only clauses like the
+           ;; one already gone. The copy is retracted; the original stays open.
+           "retractall(H) :- copy_term(H, C), retract(C), !, retractall(H)."
            "retractall(_)."
 
            ;; ---- sub_atom/5, which enumerates every substring ---------------

@@ -105,9 +105,18 @@ done
 #           two version declarations that live in THIS repository
 #           agreeing, so that the only copy free to drift is the one
 #           in somebody's browser -- which is what section 1 checks
+#   tutorials  all fifty-nine tutorial files, as tests: eleven in
+#           `basics/' and twenty-three in `library/' run their `main'
+#           and must print `done', and twenty-four in `torch/' run
+#           train, test and predict as three processes against a store
+#           of their own. EVERY CLAIM IN basics/ AND library/ IS A
+#           `must/3', so a lesson that stops being true fails and names
+#           both answers -- which is how `once/1' and `ignore/1' were
+#           found missing and `retractall/1' found a clause short.
+#           The torch category SKIPs inside the case without libtorch
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl serialize httpd colab groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl serialize httpd tutorials colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

@@ -112,6 +112,13 @@ test/                  the suite; groups.sh and ruler.sh are the concurrent
                        ones, and are crowds of processes rather than .cicili
 test/files/            Prolog programs run by BOTH swipl and cocolog, with
                        their output compared line for line
+tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
+                       every claim in the first two is a `must/3' that
+                       fails the file when it stops being true:
+                       basics/ (eleven lessons, the language itself),
+                       library/ (twenty-three, ONE PER LIBRARY that
+                       ships), torch/ (twenty-four networks, three
+                       processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
                        variables and execution graphs drawn under the rules,
@@ -187,7 +194,7 @@ And it runs — the first three need nothing else on the machine at all:
 ```sh
 ./cocolog                                     # the toplevel: ?- awaits
 ./cocolog query "X is 2 + 2"                  # local: memory, the default
-./cocolog --embed run tutorials/07-xor.pl train   # the store at ./KB
+./cocolog --embed run tutorials/torch/07-xor.pl train   # the store at ./KB
 cd $ZIGURATIP && ZIGURATIP_HOME=$PWD/home \
   LD_LIBRARY_PATH=$PWD/home/lib ./home/bin/ziguratip &   # the server
 ./cocolog --kb demo consult demo/family.pl    # naming a kb chooses it
@@ -218,6 +225,45 @@ the server (`--kb`/`--host`/`--port`), `--http` (Zeytun, read only), and
 embedded engine links against the built ZiguratIP's `Core` and `StreamIO`,
 the torch module against libtorch, and a server is needed only when a run
 chooses the server arrangement.
+
+## Learning it
+
+`tutorials/` is documentation that runs, in three categories:
+
+```sh
+./cocolog run tutorials/basics/01-facts-and-rules.pl main
+COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/12-json.pl main
+./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train
+```
+
+**`basics/`** is eleven lessons on the language, needing nothing but the
+binary: facts and rules, unification, lists, arithmetic, the cut,
+`findall` and its friends, assert and retract, atoms and codes,
+exceptions, grammars, and — the one that is not in any other Prolog
+book — the knowledge base that outlives the process.
+
+**`library/`** is twenty-three, **one per library that ships**, tier 1
+and tier 2 alike. The numbering is deliberate: a gap is a library
+nobody has demonstrated end to end, so a new library gets a tutorial in
+the same commit.
+
+**`torch/`** is the deep end — twenty-four networks, below.
+
+**EVERY CLAIM IN THE FIRST TWO IS A TEST.** A lesson does not print what
+it computed; it asserts what the answer must be, and fails loudly naming
+both if it is not:
+
+```prolog
+   `2 ** 10' is an INTEGER here = 1024
+   retractall/1 on a partly-bound head = 3  BUT THIS LESSON SAYS 0
+```
+
+That second line is not hypothetical. Writing these found that `once/1`
+and `ignore/1` did not exist and that `retractall/1` was written as a
+failure-driven loop — which retracts exactly one clause in an
+interpreter where every builtin is deterministic. Documentation that
+runs is documentation that cannot drift, and `sh test/tutorials.sh`
+runs all fifty-nine files as one case of the suite.
 
 ## The knowledge base is a seam, not a dependency
 
@@ -748,7 +794,7 @@ and `test/torch.sh` runs the whole story: train, store in Zigurat,
 reload in a fresh process, predict identically.
 
 The classic AI/ML challenges pass, one `.pl` file at a time.
-**[tutorials/](tutorials/README.md) holds twenty-four such programs**,
+**[tutorials/torch/](tutorials/torch/README.md) holds twenty-four such programs**,
 each a documented file carrying `train`, `test` and `predict` as
 separate goals in separate processes — the store carries the model
 between them: regression and classification, two-moons and spirals,
@@ -757,15 +803,15 @@ dropout, learning-rate schedules, LSTM sequence models with embeddings,
 and fitted Q-iteration reinforcement learning. The whole suite runs
 green, deterministically, in about seventy-five seconds. The one to
 read first is
-[22-embedding-lstm](tutorials/22-embedding-lstm.pl), the shape of every
+[22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every
 text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:
 
 ```console
-$ ./cocolog --embed /tmp/tut run tutorials/22-embedding-lstm.pl train
+$ ./cocolog --embed /tmp/tut run tutorials/torch/22-embedding-lstm.pl train
 trained: final nll 0.0117
 saved
-$ ./cocolog --embed /tmp/tut run tutorials/22-embedding-lstm.pl predict
+$ ./cocolog --embed /tmp/tut run tutorials/torch/22-embedding-lstm.pl predict
 [0,1,2,3,4,5]  ->  contains token 3
 [0,1,2,4,5,6]  ->  no token 3
 [3,0,0,0,0,0]  ->  contains token 3
@@ -775,7 +821,7 @@ $ ./cocolog --embed /tmp/tut run tutorials/22-embedding-lstm.pl predict
 That third line is the point: the token sat at the very start and the
 LSTM carried the fact across five further steps, in a model that was
 trained by one process, stored as terms, and is answering in another.
-And [24-q-learning](tutorials/24-q-learning.pl) closes the collection
+And [24-q-learning](tutorials/torch/24-q-learning.pl) closes the collection
 with reinforcement learning — fitted Q-iteration on a gridworld, the
 DQN idea built from nothing but `model_predict` for the Bellman targets
 and `model_train` for the regression, whose greedy policy walks the

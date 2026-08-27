@@ -599,7 +599,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `modules/tcp/tcp.cicili` | the socket seam: listen, connect, accept, read, write, close. A handle is an index into this module's own table, never a file descriptor |
 | `lib/lists.cicili` | SWI's Lists library, as a module — mostly Prolog, because nondeterministic predicates cannot live in a C half |
 | `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
-| `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2` |
+| `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2`. **No failure-driven loops in here** — every builtin is deterministic, so `G, fail` runs the body once and then stops |
 | `lib/dcg.cicili` | `-->` translation, `phrase/2,3`. Two generics: the translator sits BEFORE `kb` because `coco_assert` calls it, the module half after the engine |
 | `lib/swipl/` | EIGHT of SWI's libraries — `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg/basics`, `dcg/high_order` — copied unmodified under their own BSD-2 headers and read at start-up. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
@@ -618,9 +618,64 @@ base needs all three arrangements considered**: local (no hooks), Zigurat (all
 five), Zeytun (`fetch` and `warm` only, because one HTTP request is one
 transaction and a machine is many rows).
 
+## The tutorials are documentation that RUNS
+
+`tutorials/` has three categories and `test/tutorials.sh` runs all
+fifty-nine files as one suite case:
+
+| | | needs |
+|---|---|---|
+| `tutorials/basics/` | eleven lessons, the language itself | nothing |
+| `tutorials/library/` | twenty-three lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/torch/` | twenty-four networks, three processes each | libtorch |
+
+**EVERY CLAIM IS A `must/3`**, in every basics and library file:
+
+```prolog
+must(Label, Got, Want) :-
+    (   Got == Want
+    ->  format("   ~w = ~q~n", [Label, Got])
+    ;   format("   ~w = ~q  BUT THIS LESSON SAYS ~q~n", [Label, Got, Want]),
+        fail
+    ).
+```
+
+So a lesson that stops being true FAILS, naming both answers, and a
+tutorial cannot quietly document a language that has moved on. It is
+repeated at the bottom of all thirty-four files rather than shared,
+deliberately: a tutorial you can copy anywhere and run is worth six
+duplicated lines, and one that needs a support file beside it stops
+working the moment it moves.
+
+**Writing them found three real interpreter bugs**, which is the whole
+argument for the shape:
+
+* **`once/1` and `ignore/1` did not exist.** Two clauses each, now in
+  `lib/builtins.cicili`.
+* **`retractall/1` was one clause short of correct.** It was written
+  `retractall(H) :- retract(H), fail.` / `retractall(_).` — the classic
+  failure-driven loop, and it retracts exactly ONE clause here, because
+  **every builtin in cocolog is deterministic** and `retract/1` leaves
+  no choice point to fail back into. It is now recursive over
+  `copy_term/2`, which is also what keeps a partially-bound head from
+  being narrowed by the first match.
+
+That last one is the pattern to watch for anywhere in `lib/`: a
+failure-driven loop written from habit against another Prolog is not
+slow here, it is wrong, and it is wrong quietly.
+
+**A NEW LIBRARY GETS A TUTORIAL IN THE SAME COMMIT.** `tutorials/library/`
+is numbered one per library, so a gap is visible — and a library with no
+`NN-name.pl` beside it is one nobody has demonstrated end to end. Each of
+the twenty-three found something while being written: a predicate that
+did not exist, an arity that was wrong, `bigint_cmp/3` documented as
+`-1/0/1` and actually answering `<`/`=`/`>`, `httpd_content_type/2` keyed
+on the bare extension where `httpd_type/2` is the one that takes a file
+name.
+
 ## Before saying something works
 
-Run `make test` with a server up, and read all **26** case lines. A change to
+Run `make test` with a server up, and read all **27** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

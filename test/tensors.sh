@@ -65,7 +65,7 @@ timeout 60 "$C" $W forget >/dev/null 2>&1
 
 # ---- wire: the table, not the chunks --------------------------------
 
-timeout 300 "$C" $W run "$ROOT/tutorials/07-xor.pl" train > "$OUT/train.log" 2>&1
+timeout 300 "$C" $W run "$ROOT/tutorials/torch/07-xor.pl" train > "$OUT/train.log" 2>&1
 got=$(grep -c '^saved$' "$OUT/train.log")
 check "a model trains and saves over the wire" "$got" "1"
 
@@ -75,13 +75,13 @@ check "the parameters are rows, not chunk clauses" "$got" "false."
 got=$(timeout 60 "$C" $W --answers 1 query "$T, torch_model(t07_xor, _)" 2>/dev/null | grep -c '^  1\.')
 check "the spec is still the clause pollers ask for" "$got" "1"
 
-got=$(timeout 300 "$C" $W run "$ROOT/tutorials/07-xor.pl" test 2>/dev/null | tail -1)
+got=$(timeout 300 "$C" $W run "$ROOT/tutorials/torch/07-xor.pl" test 2>/dev/null | tail -1)
 check "a second process loads it back whole" "$got" "ok"
 
 # ---- http: paged, and exact -----------------------------------------
 
 got=$(timeout 300 "$C" --kb $KB --host "$HOST" --http "$ZEYTUN" \
-        run "$ROOT/tutorials/07-xor.pl" test 2>/dev/null | tail -1)
+        run "$ROOT/tutorials/torch/07-xor.pl" test 2>/dev/null | tail -1)
 check "model_load works over --http" "$got" "ok"
 
 timeout 120 "$C" $W query "$T, torch_seed(1), model_new([input(20), dense(64, relu), dense(10, log_softmax)], M), model_save(big, M)" >/dev/null 2>&1
@@ -105,13 +105,13 @@ fi
 # one binary, so the embedded arrangement stores parameters exactly as
 # the server does: rows, not clause chunks.
 
-timeout 300 "$C" --embed "$OUT/store" --kb $KB run "$ROOT/tutorials/07-xor.pl" train \
+timeout 300 "$C" --embed "$OUT/store" --kb $KB run "$ROOT/tutorials/torch/07-xor.pl" train \
   > "$OUT/etrain.log" 2>&1
 got=$(timeout 60 "$C" --embed "$OUT/store" --kb $KB \
         query "$T, torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
 check "embedded: the parameters are rows, not clauses" "$got" "false."
 got=$(timeout 300 "$C" --embed "$OUT/store" --kb $KB \
-        run "$ROOT/tutorials/07-xor.pl" test 2>/dev/null | tail -1)
+        run "$ROOT/tutorials/torch/07-xor.pl" test 2>/dev/null | tail -1)
 check "and a second process loads them back whole" "$got" "ok"
 
 timeout 60 "$C" $W forget >/dev/null 2>&1

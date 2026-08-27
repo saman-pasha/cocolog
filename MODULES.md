@@ -160,6 +160,31 @@ It is `*builtins*` in `lib/solve.cicili` one module along: add a line to the
 table and write the function, and the dispatcher cannot fall out of step with
 it because it is generated from it.
 
+## AND IT GETS A TUTORIAL, in the same commit
+
+`tutorials/library/` is numbered **one file per library**, tier 1 and
+tier 2 alike, so a gap in the numbering is a library nobody has
+demonstrated end to end. A new module or a new `library/*.pl` is not
+finished until there is a `tutorials/library/NN-name.pl` beside it and
+`sh test/tutorials.sh` is green.
+
+It is not ceremony. Every claim in such a file is a `must/3` — `Got ==
+Want`, or the file fails naming both answers — so the tutorial is a
+test of the surface as documented, and writing the twenty-three that
+exist found something every time: `bigint_cmp/3` answering `<`, `=`,
+`>` where the README said `-1/0/1`; `curl_get/2` never having been the
+API; `httpd_content_type/2` keyed on the bare extension where
+`httpd_type/2` is the one that takes a file name; `tensor_new/3` taking
+a KIND (`zeros`, `randn`) and `tensor_from_list/2` being the one that
+takes data. A surface nobody has walked end to end has drifted from its
+documentation, always.
+
+Copy any file in `tutorials/library/` for the shape: a header block
+saying which tier, what to import and what the surface is; a `main`
+that walks that surface with `must/3`; and `show/2` and `must/3`
+repeated at the bottom. Repeated, not shared — a tutorial that needs a
+support file beside it stops working the moment it is moved.
+
 ## Where a module's predicates sit
 
 A goal is tried as

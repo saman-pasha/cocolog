@@ -1,62 +1,54 @@
-# Torch tutorials, one file each
+# The tutorials
 
-Twenty-four networks, each a PyTorch-tutorial classic rewritten as a
-standalone Prolog program against the Torch module. Every file carries
-its own documentation and three goals, each meant to run as its OWN
-process against the same store, because the trained model lives in the
-knowledge base as terms, not in memory:
+Three categories, in the order you would read them.
 
-    ./cocolog --embed /tmp/tutorials run tutorials/01-linear-regression.pl train
-    ./cocolog --embed /tmp/tutorials run tutorials/01-linear-regression.pl test
-    ./cocolog --embed /tmp/tutorials run tutorials/01-linear-regression.pl predict
+| | | run one |
+|---|---|---|
+| [`basics/`](basics/) | the language: eleven lessons, no library needed | `./cocolog run tutorials/basics/01-facts-and-rules.pl main` |
+| [`library/`](library/) | twenty-three lessons, one per library that ships | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/01-lists.pl main` |
+| [`torch/`](torch/) | twenty-four neural networks, three processes each | `./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train` |
 
-`train` builds the data, fits the network, and `model_save`s it;
-`test` `model_load`s it back and judges it against a threshold, exiting
-nonzero on failure; `predict` loads it and answers for a few visible
-inputs beside the truth. Data is generated in-file and deterministic
-(a fixed `torch_seed` and a sin-hash noise), so nothing is downloaded
-and every run agrees with the last.
+## EVERY TUTORIAL IS A TEST, and that is the design
 
-| file | teaches |
-|---|---|
-| 01-linear-regression | one dense unit, mse, sgd |
-| 02-multi-feature-regression | held-out testing, adam |
-| 03-polynomial-features | feature engineering vs capacity |
-| 04-sine-approximation | tanh hidden layer, universal approximation |
-| 05-relu-approximation | relu hinges, depth |
-| 06-logistic-regression | sigmoid head, bce, hand-counted accuracy |
-| 07-xor | why the hidden layer exists |
-| 08-two-moons | curved boundaries |
-| 09-four-blobs | multiclass, nll, argmax accuracy |
-| 10-spiral | depth, raw logits under cross_entropy |
-| 11-dropout | regularisation, and OFF at predict time |
-| 12-lr-schedule | step decay over plain sgd |
-| 13-robust-mae | outliers, and judging by mae |
-| 14-autoencoder | the 8-3-8 bottleneck |
-| 15-denoising | noisy in, clean out |
-| 16-multi-output | two targets in one head |
-| 17-cnn-bars | conv, pool, flatten |
-| 18-mini-lenet | two conv stages, shape flow |
-| 19-batch-norm | buffers vs parameters |
-| 20-save-load | what a model IS in the store |
-| 21-lstm-sum | sequence input, recurrent accumulation |
-| 22-embedding-lstm | token ids, embeddings, memory |
-| 23-stacked-lstm | recurrent depth, weights through the store |
-| 24-q-learning | reinforcement learning: fitted Q-iteration on a gridworld |
+A file that prints whatever it computed is a file that goes quietly
+wrong the day the language changes underneath it. So `basics/` and
+`library/` make their claims through one helper:
 
-One cocolog property every file here respects: `run` CONSULTS the file
-into the knowledge base, and the knowledge base is the store -- so the
-second goal's process consults the same clauses AGAIN, and consulting
-appends. A predicate defined once in the file exists twice in the second
-process. For the goals that only matters as a duplicate solution nobody
-asks for; for a data generator inside a findall it would double the rows
--- or, with a nondeterministic helper inside an inner findall, WIDEN
-them. Every single-clause data helper here therefore ends in a cut,
-which makes the first (and every) copy deterministic. Two tutorials
-sharing a store would still shadow each other's train/test/predict, so
-the runner gives each tutorial a store of its own.
+```prolog
+must(Label, Got, Want) :-
+    (   Got == Want
+    ->  format("   ~w = ~q~n", [Label, Got])
+    ;   format("   ~w = ~q  BUT THIS LESSON SAYS ~q~n", [Label, Got, Want]),
+        fail
+    ).
+```
 
-`test/tutorials.sh` runs all three goals of every file against a
-throwaway store per tutorial; `test/torch-nets.sh` is the same twenty-three networks
-as one fast in-process suite. The module itself is documented in
-`modules/torch/README.md`.
+Every sentence a lesson asserts about cocolog is a goal that has to
+hold. Get one wrong and `main` FAILS, naming both answers. `torch/`
+does the same thing one level up: `test` exits nonzero when the network
+it loaded misses its threshold.
+
+**It has already paid.** Writing `basics/` found that `once/1` and
+`ignore/1` did not exist, and that `retractall/1` was one clause short
+of correct — a failure-driven loop that cannot work here, because every
+builtin in cocolog is deterministic. Writing `library/` found that
+`httpd_content_type/2` is keyed on the bare extension and `httpd_type/2`
+is the one that takes a file name, and that `curl_get/2` was never the
+API. Three fixes and a dozen corrections, from documentation that runs.
+
+`sh test/tutorials.sh` runs all of it.
+
+## THE CONVENTION, for whatever is added next
+
+**A new library gets a tutorial in the same commit.** Not afterwards:
+`library/` is numbered one per library and the gap is visible, which is
+the point. A library with no `library/NN-name.pl` beside it is a library
+nobody has demonstrated end to end, and the twenty-three that are there
+each found something while being written.
+
+The shape to copy is any file in `library/`: a header block saying what
+tier it is in, what to import and what the surface looks like; a `main`
+that walks the surface with `must/3`; and the two helpers repeated at
+the bottom. **Repeated on purpose** — a tutorial you can copy anywhere
+and run is worth six duplicated lines, and one that needs a support file
+beside it stops working the moment it is moved.

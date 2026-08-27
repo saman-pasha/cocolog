@@ -22,6 +22,176 @@ different findings.
 | `test/groups.sh` | **twelve interpreters at once over four machine states** — below |
 | `test/ruler.sh` | **one interpreter writing the knowledge base while eight read it** — below |
 | `client/probe.c` | the C client against a real server, including a clause made of nothing but the five HTML-escapable characters, asserted over the binary protocol and read back through a page unchanged |
+| `test/engine.sh` | the engine's COMPLEXITY, which nothing else here checks: 100 000 solutions from `between/3`, a `findall` over the same range, ten times the work in far less than a hundred times the time, and a 500 000-deep deterministic recursion — with the answers still right, because a representation change that made everything fast and one thing wrong would pass every timing check |
+| `test/thread.sh` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
+| `test/httpd.sh` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
+| `test/tutorials.sh` | **the documentation, run as a suite**: fifty-nine tutorial files in three categories — eleven `basics/` and twenty-three `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
+
+## The three document libraries, and the round trip that checks them
+
+`library(json)`, `library(xml)` and `library(html)` write a term out as a
+document and read one back in. All six halves are DCGs; there is no C in any
+of them.
+
+**The round trip is what makes the pair honest.** Hand-written expectations
+on a writer and hand-written expectations on a reader can both be satisfied
+by two implementations that disagree with each other. Writing a document,
+reading it and writing it again cannot.
+
+Two decisions are worth recording because both were paid for:
+
+**A CODE LIST IS A LIST, AND `str/1` IS THE WAY OUT.** cocolog has no string
+type — `double_quotes` is `codes` — so `"hello"` *is* `[104,101,…]` and
+nothing in the term says which you meant. The first draft of `xml.pl`
+guessed the friendly way and `element(p,[],["hello"])` came out as
+`<p>104101108108111</p>`. A bare list is now an array in JSON and an error
+in XML and HTML.
+
+**AN INTEGER PAST 64 BITS IS REFUSED, NOT WRAPPED.** `number_codes/2`
+answers `-1` for a twenty-digit literal and complains about nothing, so the
+parser writes the digits back and compares. A silently wrong balance is the
+worst thing a JSON parser can do.
+
+`library(xml)` skips the DOCTYPE — internal subset and all — and has no code
+that could open a file or a socket, so the XXE family is structurally
+impossible rather than defended against. `library(html)` is deliberately
+**not** an HTML5 tree builder, and its header says so: a half one produces a
+tree that looks right and quietly is not the one a browser built.
+
+## A page reaches the knowledge base, and a request is a turn
+
+The open end this file used to name — *"a worker still has no database"* —
+is closed. `coco_m_kb_install` in `lib/module.cicili` is the seam:
+`lib/module.cicili` can make a machine and a store but cannot know whether
+this process is `--local`, a socket, Zeytun or embedded; the composition
+root can, so it installs a pair of hooks and every isolated proof opens a
+connection of its own.
+
+**It was not enough to give a worker a connection.** Three sequential POSTs
+through a pool of three left **two** facts in the database, reproducibly,
+with no concurrency involved at all. A store CACHES — the first proof to ask
+for `visit/1` marks the predicate loaded and never asks again — and the
+Zigurat backend flushes a dirty predicate WHOLESALE, so the second worker
+committed its own stale copy over the first's row.
+
+So a request is a TURN, which is this project's own rule everywhere else:
+`run_isolated/2` gives it a fresh machine, a fresh store and a fresh
+connection, one commit at the end and a rollback when the goal did not
+prove. Connections NEST — the previous one is saved and restored — which is
+what lets a worker hold one while each request opens another.
+
+**The cost is one rule, and the failure is silent**: a worker's store is
+filled from the process-wide MODULE REGISTRY, so pages must be loaded with
+`use_module` rather than consulted, asserted, or written into the file
+handed to `cocolog run`. `workers(0)` serves those perfectly well, which is
+exactly how it is easy to meet in a demo and lose the moment a pool is
+added. Four cases hold both halves.
+
+## Documentation that runs, and the three bugs it found
+
+`tutorials/` is three categories now, and `test/tutorials.sh` is a case
+in the suite rather than a script beside it:
+
+| | | needs |
+|---|---|---|
+| `tutorials/basics/` | eleven lessons: facts and rules, unification, lists, arithmetic, cut, `findall`, assert and retract, atoms and codes, exceptions, grammars, and the knowledge base | nothing at all |
+| `tutorials/library/` | twenty-three lessons, **one per library that ships** — twelve tier 1, eleven tier 2 | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/torch/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
+
+**Every claim in the first two is a `must/3`**, which is what makes them
+tests: `Got == Want` or the lesson fails, printing both. Fifty-nine
+files, fifty-nine green, in forty-five seconds.
+
+That was not a formality. Writing them found three real bugs in the
+interpreter, all in `lib/builtins.cicili`, and all the same shape —
+Prolog written from habit against a Prolog whose builtins backtrack:
+
+* **`once/1` and `ignore/1` did not exist.** Nothing in the suite had
+  ever called them, because everything in the suite was written by
+  somebody who knew they were missing.
+* **`retractall/1` retracted exactly one clause.** It was the classic
+  failure-driven loop:
+
+      retractall(H) :- retract(H), fail.
+      retractall(_).
+
+  which works in a Prolog where `retract/1` leaves a choice point and
+  can be driven to the next clause by `fail`. **Every builtin in
+  cocolog is deterministic**, so `fail` had nothing to back into: the
+  first clause ran once, retracted one clause, failed, and the second
+  clause said yes. A predicate that reported success having done a
+  third of its job. It is now recursive, over `copy_term/2` so that a
+  partially-bound head is not narrowed by whatever the first match
+  bound it to.
+
+The general lesson is worth keeping: **a failure-driven loop is not
+merely slow here, it is wrong, and it is wrong quietly.** Anywhere in
+`lib/` that a `G, fail` appears, it runs the body once.
+
+The corrections the library lessons forced are the other half of the
+value, and there were a dozen: `bigint_cmp/3` answers `<`, `=` and `>`
+rather than `-1/0/1`; `curl_get/2` was never the API — the status is in
+every arity, deliberately, because a client that hands you the body of a
+500 turns an outage into corrupt data; `httpd_content_type/2` is keyed
+on the bare extension and `httpd_type/2` is the one that takes a file
+name; `tcp_accept/4`'s peer is `address:port`; `model_spec/2` answers a
+NORMALISED spec, `dense(1)` coming back `dense(1,none)`, which is what
+makes it safe to save. Each was documentation that had drifted from a
+surface nobody had walked end to end.
+
+**So the convention is now written down**: a new library gets a
+`tutorials/library/NN-name.pl` in the same commit. The numbering is one
+per library and a gap is visible, which is the point.
+
+## The engine was quadratic
+
+`coco_make` now dereferences every argument as it stores it. An argument was
+kept as a REF cell pointing at whatever index it was handed, and `coco_arg`
+hands back a REF — so every structure built on a previous one added a link,
+and the continuation `$k(Goal, Barrier, Rest)` is exactly that. A recursion
+3 000 deep left a chain **8 999 links long** and `coco_deref` walked it on
+every engine step.
+
+`callgrind` put **85% of all instructions in `coco_deref`**. With the deref
+the longest chain is **2**.
+
+| | before | after |
+|---|---|---|
+| `between(1,20000,_), fail` | 15 529 ms | **51 ms** |
+| `findall` over 20 000 | 9 167 ms | **53 ms** |
+| `between(1,100000,_), fail` | never finished | **226 ms** |
+| naive reverse of 700 | 178 ms | 182 ms (noise) |
+
+Enormous for deep recursion that backtracks, free everywhere else. It is
+safe for the reason the WAM dereferences into a structure too: a cell built
+after a binding lives above that choice point's `heap_mark`, and
+backtracking truncates the heap to the mark, so anything that could see a
+stale value has already been dropped.
+
+## Built by clang, all of it
+
+The interpreter, the client, the embedded store, every `.so` under
+`library/`, and — in ZiguratIP — libCore and the server the tests talk to.
+Not a preference: cocolog links ZiguratIP's C++ libraries into its own
+binary and `dlopen`s modules into its own process, so a mixed toolchain is
+one address space with two ABIs in it.
+
+Four things had to be found first, and each is in `tools/cc/README`:
+
+* **Cicili names `gcc` outright** and takes no override, so the build puts
+  two shims on `PATH` for the one step it compiles. The three-line Cicili
+  patch that would retire them is written down, offered, not applied.
+* **`clang++` alone does not compile C++ on Ubuntu 24.04.** It borrows
+  libstdc++ from the newest gcc it finds — gcc-14's *runtime* directory,
+  which ships no headers — so every file dies at `'string' file not found`
+  naming a header that is plainly installed.
+* **`libCryptography.so` was under-linked**, and had been for years: it
+  calls `Zigurat::Configuration` and named no `-lConfiguration`. g++ let
+  every consumer through; clang reported it.
+* **`CC ?=` and `CXX ?=` do nothing** — make's built-ins have origin
+  `default`, not `undefined` — so the final link went on being a gcc link
+  while every other line said clang. Only `readelf -p .comment` showed it.
 
 ## atom_concat/3 could only go one way
 
@@ -880,7 +1050,7 @@ fourteen seconds on a CPU.
 ### The tutorials, one file each
 
 The suite's twenty-three networks rewritten as standalone tutorial
-programs (`tutorials/NN-name.pl`) — plus a twenty-fourth the suite does
+programs (`tutorials/torch/NN-name.pl`) — plus a twenty-fourth the suite does
 not have: reinforcement learning, as fitted Q-iteration on a gridworld,
 the DQN idea built from nothing but `model_predict` for the Bellman
 targets and `model_train` for the regression, whose greedy policy walks
@@ -904,7 +1074,7 @@ clock, which is the determinism doing its job. The whole stack, engine
 to tutorials, green at once.
 
 Writing them taught two properties of the platform the hard way, both
-now documented in `tutorials/README.md`. Consulted clauses live in the
+now documented in `tutorials/torch/README.md`. Consulted clauses live in the
 knowledge base like everything else, so twenty-three tutorials sharing
 one store shadowed each other's `train` — the first tutorial consulted
 answered for all of them, and the first "all green" run had mostly
