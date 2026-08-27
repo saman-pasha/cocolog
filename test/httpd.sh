@@ -498,6 +498,98 @@ check "keep_alive(false) closes after one, as it always did" \
 wait 2>/dev/null
 fi
 
+echo "-- the worker pool: a slow request no longer holds everybody"
+if [ ! -f "$ROOT/library/thread.so" ]; then
+  echo "   (pool SKIPPED -- no library/thread.so; sh modules/thread/build.sh)"
+elif ! command -v curl >/dev/null 2>&1; then
+  echo "   (pool SKIPPED -- no curl to make concurrent requests with)"
+else
+cat > "$D/pages2.pl" <<'PL'
+%% A page that takes a WHILE, and one that does not. Under one connection
+%% at a time the slow one blocks every other client; that is the whole
+%% claim the pool makes, and it cannot be checked without a slow page.
+httpd_page('/slow', _, reply(200, [], done)) :- pool_spin(4000000).
+httpd_page('/fast', _, reply(200, [], quick)).
+%% A page that BREAKS, to check one bad request does not take a worker
+%% with it -- a pool that dies a thread at a time is worse than no pool.
+httpd_page('/boom2', _, _) :- X is 1/0, write(X).
+pool_spin(0) :- !.
+pool_spin(N) :- M is N - 1, pool_spin(M).
+PL
+cat > "$D/pool.pl" <<PL
+:- use_module(library(httpd)).
+:- use_module('$D/pages2.pl').
+
+pool(Port, N, Accepts) :- httpd_serve(Port, [root('$D/root'), workers(N)], Accepts).
+alone(Port, Accepts)   :- httpd_serve(Port, [root('$D/root')], Accepts).
+PL
+
+hit() { timeout 90 curl -s -o /dev/null -w '%{http_code}' "$1"; }
+
+# It serves at all, through a worker rather than the accepting thread.
+setsid timeout 60 "$C" run "$D/pool.pl" "pool(18910, 4, 2)" >/dev/null 2>&1 &
+sleep 3
+check "a static file comes back through the pool" "$(hit http://127.0.0.1:18910/a.txt)" "200"
+check "and so does a page" "$(hit http://127.0.0.1:18910/fast)" "200"
+wait 2>/dev/null
+
+# ONE SLOW REQUEST, for the ratio below to mean anything.
+setsid timeout 90 "$C" run "$D/pool.pl" "alone(18911, 1)" >/dev/null 2>&1 &
+sleep 3
+t0=$(date +%s%3N); hit http://127.0.0.1:18911/slow >/dev/null; t1=$(date +%s%3N)
+one=$((t1-t0)); wait 2>/dev/null
+
+# FOUR AT ONCE, one connection at a time: they queue, and the wall clock
+# is four of them end to end. This is the arrangement the pool replaces.
+setsid timeout 120 "$C" run "$D/pool.pl" "alone(18912, 4)" >/dev/null 2>&1 &
+sleep 3
+t0=$(date +%s%3N)
+for i in 1 2 3 4; do hit http://127.0.0.1:18912/slow >/dev/null & done; wait
+t1=$(date +%s%3N); serial=$((t1-t0))
+
+# FOUR AT ONCE THROUGH FOUR WORKERS: they overlap.
+setsid timeout 120 "$C" run "$D/pool.pl" "pool(18913, 4, 4)" >/dev/null 2>&1 &
+sleep 3
+t0=$(date +%s%3N)
+for i in 1 2 3 4; do hit http://127.0.0.1:18913/slow >/dev/null & done; wait
+t1=$(date +%s%3N); pooled=$((t1-t0))
+
+printf '     one %sms; four serially %sms; four pooled %sms\n' "$one" "$serial" "$pooled"
+# THE THRESHOLD IS LOOSE ON PURPOSE. Four requests overlapping cannot take
+# three times one of them; four queued cannot take less than two. How much
+# more or less depends on the machine, and this is not a benchmark.
+check "queued, four slow requests take about four times one" \
+  "$(awk -v o="$one" -v s="$serial" 'BEGIN { print (o > 0 && s > o * 2) ? "queued" : "overlapped" }')" \
+  "queued"
+check "pooled, the same four take about one" \
+  "$(awk -v o="$one" -v p="$pooled" 'BEGIN { print (o > 0 && p < o * 3) ? "overlapped" : "queued" }')" \
+  "overlapped"
+
+# A PAGE THAT THROWS MUST NOT TAKE ITS WORKER WITH IT. The pool answers
+# 500 and the same worker takes the next connection.
+setsid timeout 60 "$C" run "$D/pool.pl" "pool(18914, 2, 2)" >/dev/null 2>&1 &
+sleep 3
+check "a page that throws is 500, from a worker" "$(hit http://127.0.0.1:18914/boom2)" "500"
+check "and the pool serves the next request anyway" "$(hit http://127.0.0.1:18914/fast)" "200"
+wait 2>/dev/null
+
+# ASKING FOR WORKERS WITHOUT library(thread) SAYS SO, and there is no
+# case for it here because it CANNOT BE PRODUCED without moving a build
+# artifact out of the way mid-run. Pointing COCOLOG_LIBRARY at a
+# directory with no thread.so does not do it: the loader also searches
+# `<exedir>/library', which is where thread.so lives, and that fallback
+# is deliberate -- it is what lets an installed cocolog find its own
+# libraries. Verified by hand with the file genuinely moved aside:
+#
+#   cocolog: uncaught exception:
+#     error(existence_error(procedure,channel_new/2),
+#           'httpd: workers(N) needs library(thread) --
+#            sh modules/thread/build.sh')
+#
+# A case that renamed a .so and put it back would fail dirty if the run
+# died in between, and would be testing the rename.
+fi
+
 rm -rf "$D"
 echo
 if [ "$failures" -eq 0 ]; then

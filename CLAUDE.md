@@ -363,6 +363,31 @@ module. A module *cannot* write it — `coco_engine` is opaque to anything
 built against `lib/sdk.cicili`, so a module cannot declare one, let alone
 stack-allocate the three a proof needs.
 
+**`library(httpd)`'s `workers(N)` is what it is for.** One thread accepts
+and posts connections down a channel; N workers each take one and hold it
+for the whole conversation, keep-alive included. That split is the design:
+accepting is the one thing that *must* be serialised — `library(tcp)`
+hands out handle-table slots and nothing guards the allocation — and it is
+also the one thing that costs nothing.
+
+**A handle crosses threads because it is not a descriptor.** `coco_t_fd[256]`
+is file-scope in tcp's `.so`, so a handle is an index into a table the whole
+*process* shares. Only the accepting thread allocates; a worker uses one and
+closes it.
+
+**Measured**: one slow page 372 ms; four of them at once, one connection at
+a time, **1 365 ms**; the same four through four workers, **419 ms**. The
+pool is not faster at one request — it is what stops one slow request
+holding every other client, which is what the keep-alive note called the
+real exposure.
+
+**And a worker still has no database.** Its store is its own, so a page that
+reads the knowledge base sees nothing there. Static files and pages that
+compute are what a pool serves today; `workers(0)` — the default — is the
+arrangement where a page has the store, and it is still the right one for a
+server whose pages are about the database. **That is the open end of the
+HTTP server, and it is a design question, not plumbing.**
+
 **Measured**: four threads doing four times the work of one took 1.7× the
 time on four cores. Eight senders put 800 terms through one channel and all
 800 arrived.

@@ -35,6 +35,8 @@
 %%                        should not have a document root by accident
 %%     index(Name)        what a directory answers with  (default index.html)
 %%     pages(Bool)        consult httpd_page/3 first     (default true)
+%%     workers(N)         hand each connection to one of N threads
+%%                        (default 0 -- accept and answer on this one)
 %%     keep_alive(Bool)   persistent connections           (default true)
 %%     max_keep_alive(N)  requests one connection may make (default 100)
 %%     keep_alive_timeout(Ms)  idle wait for the next request  (default 2000)
@@ -144,6 +146,11 @@
 %% the same shape library(curl) has always had.
 :- use_module(library(tcp)).
 :- use_module(library(http)).
+%% Only `workers(N)' needs it, and a directive naming a library this build
+%% does not carry stays quiet -- see lib/library.cicili -- so a cocolog
+%% with no thread.so still loads this and still serves, single-threaded.
+%% Asking for workers without it throws, by name, rather than failing.
+:- use_module(library(thread)).
 
 %% ---- the loop ---------------------------------------------------------
 
@@ -153,11 +160,91 @@
 httpd_serve(Port, Options) :- httpd_serve(Port, Options, -1).
 
 httpd_serve(Port, Options, Count) :-
+    httpd_option(workers(W), Options, 0),
+    (   W > 0
+    ->  httpd_pool(Port, Options, Count, W)
+    ;   httpd_alone(Port, Options, Count)
+    ).
+
+httpd_alone(Port, Options, Count) :-
     tcp_listen(Port, S),
     (   httpd_loop(S, Options, Count)
     ->  tcp_close(S)
     ;   tcp_close(S), fail
     ).
+
+%% ---- the worker pool --------------------------------------------------
+
+%% ONE THREAD ACCEPTS, N ANSWER. The accepting thread does nothing but
+%% take connections and post them; each worker takes one and holds it for
+%% the whole conversation, keep-alive included. That split is the point:
+%% accepting is the one thing that MUST be serialised -- library(tcp)'s
+%% handle table hands out slots and nothing guards the allocation -- and
+%% it is also the one thing that costs nothing.
+%%
+%% A HANDLE CROSSES THREADS BECAUSE IT IS NOT A DESCRIPTOR. library(tcp)
+%% keeps `coco_t_fd[256]' at file scope in its .so, so a handle is an
+%% index into a table the whole PROCESS shares, and a worker can read and
+%% write a connection the accepting thread opened. Only the accepting
+%% thread ever allocates a slot; a worker only uses one and closes it.
+%%
+%% WHAT A WORKER CANNOT DO, and it is the same limit library(thread)
+%% states: its store is its own and it has NO database connection, so a
+%% page that reads the knowledge base sees nothing there. Static files and
+%% pages that compute are what a pool serves today. `workers(0)' -- the
+%% default -- is the arrangement where a page has the store, and it is
+%% still the right one for a server whose pages are about the database.
+%%
+%% THE POOL IS NOT FASTER AT ONE CONNECTION AT A TIME. It is what stops
+%% one slow request holding every other client, which is what the
+%% single-connection loop could not do and what the keep-alive note in
+%% this header called the real exposure.
+httpd_pool(Port, Options, Count, W) :-
+    tcp_listen(Port, S),
+    (   catch(channel_new(W, Ch), _, fail)
+    ->  true
+    ;   tcp_close(S),
+        throw(error(existence_error(procedure, channel_new/2),
+                    'httpd: workers(N) needs library(thread) -- sh modules/thread/build.sh'))
+    ),
+    thread_pool(W, httpd_worker(Ch, Options), Ids),
+    (   httpd_accept_loop(S, Ch, Options, Count) -> true ; true ),
+    %% CLOSING THE CHANNEL IS HOW A WORKER IS TOLD TO STOP. recv on a
+    %% closed empty channel fails, the worker's loop ends, and the join
+    %% returns -- no sentinel value, no flag anybody has to remember.
+    channel_close(Ch),
+    thread_join_all(Ids),
+    tcp_close(S).
+
+%% The accepting thread. It never reads a socket and never answers one:
+%% everything it does is bounded, so a slow client cannot hold the accept.
+httpd_accept_loop(_, _, _, 0) :- !.
+httpd_accept_loop(S, Ch, Options, N) :-
+    httpd_option(accept_timeout(AT), Options, 3600000),
+    tcp_accept(S, AT, C, _Peer),
+    !,
+    channel_send(Ch, conn(C)),
+    (   N < 0
+    ->  N1 = N
+    ;   N1 is N - 1
+    ),
+    httpd_accept_loop(S, Ch, Options, N1).
+httpd_accept_loop(_, _, _, _).
+
+%% A worker: take a connection, hold it for the whole conversation, close
+%% it, take another. RECURSION rather than a failure-driven loop, for the
+%% reason library(thread)'s own channel_forall carries in its comment --
+%% recv is semidet, so `..., fail' would do exactly one round.
+httpd_worker(Ch, Options) :-
+    channel_recv(Ch, conn(C)),
+    !,
+    (   catch(httpd_transact(C, Options), _, true)
+    ->  true
+    ;   true
+    ),
+    tcp_close(C),
+    httpd_worker(Ch, Options).
+httpd_worker(_, _).
 
 httpd_loop(_, _, 0) :- !.
 httpd_loop(S, Options, N) :-
