@@ -658,10 +658,38 @@ raised would stop serving everybody else because one impostor knocked.
 processes — enrolled, impostor, browser — because a handshake is between
 two ends that do not share memory.
 
-**What is still plaintext: `library(httpd)`.** It speaks
-`tcp_accept/read/write/close`, and swapping those four for the `tls_`
-ones is what an HTTPS server whose pages are clauses would take — a
-transport indirection through fourteen call sites, not a new mechanism.
+### HTTPS: a server whose pages are clauses, over TLS
+
+One option, and only the transport changes:
+
+```prolog
+httpd_serve(9443, [ tls([ certificate('node.crt'),
+                          key('node.key'),
+                          authority('ca.crt') ]),
+                    workers(4) ]).
+```
+
+A connection became a tagged term — `plain(S)` or `secure(S)` — and five
+predicates dispatch on it. Routing, keep-alive, the path rules and
+`httpd_answer/3` are the same code on both, so HTTPS cannot drift away
+from HTTP by being maintained separately.
+
+**And a page knows who is on the connection.** The handshake settled it
+against the authority before a byte moved, and it arrives as two
+synthetic headers a page reads like any other:
+
+```prolog
+httpd_page('/ledger', Request, reply(200, [], 'write applied')) :-
+    http_header(Request, 'Tls-Peer-Permissions', Granted),
+    atomic_list_concat(Gs, ',', Granted),
+    member(G, Gs), ca_covers(G, 'ledger.write').
+```
+
+**The client's own `Tls-Peer-*` headers are stripped first, on both
+transports.** A server that merely added its own would leave two, with
+the client's first — the standard reverse-proxy hole. On a plain
+connection they are stripped and not replaced, so a page that trusts
+them is closed to port 80 by construction.
 
 `test/crypto.sh` holds them to FIPS 180, RFC 4231, NIST SP 800-38A and
 DER's own worked examples, then issues a certificate for real — key,

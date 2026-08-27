@@ -148,8 +148,41 @@
 %% constant small in the meantime, and `keep_alive(false)' turns the whole
 %% thing off for anyone who would rather pay the handshakes.
 %%
+%% HTTPS IS ONE OPTION, AND ONLY THE TRANSPORT CHANGES:
+%%
+%%     httpd_serve(9443, [ tls([ certificate('node.crt'),
+%%                               key('node.key'),
+%%                               authority('ca.crt'),
+%%                               client_auth(none) ]),
+%%                         workers(4) ]).
+%%
+%% Everything above the socket is untouched -- routing, keep-alive, the
+%% path rules, `httpd_answer/3' -- because a connection became a TAGGED
+%% TERM, `plain(S)' or `secure(S)', and five predicates dispatch on the
+%% tag. That is the whole of it: there is no second loop and no second
+%% server.
+%%
+%% AND A SECURE CONNECTION KNOWS WHO IS ON IT. With `client_auth(required)'
+%% -- library(tls)'s default -- the peer's certificate is checked against
+%% the authority before a byte moves, and what it says arrives as two
+%% SYNTHETIC HEADERS a page reads like any other:
+%%
+%%     httpd_page('/ledger', Request, reply(200, [], done)) :-
+%%         http_header(Request, 'Tls-Peer-Permissions', Granted),
+%%         atomic_list_concat(Gs, ',', Granted),
+%%         member(G, Gs), ca_covers(G, 'ledger.write').
+%%
+%% THEY ARE STRIPPED FROM WHAT THE CLIENT SENT, first, every time. A
+%% client may send any header it likes, `Tls-Peer-Subject' included, and a
+%% server that merely added its own would leave two -- with the client's
+%% first, which is the one `http_header/3' finds. That is the standard
+%% reverse-proxy hole and it is closed here by removing them before the
+%% real ones go on. On a PLAIN connection they are stripped and not
+%% replaced, so a page that trusts them cannot be fooled by moving it to
+%% port 80.
+%%
 %% WHAT IT IS NOT: there is no chunked encoding (library(http) refuses it
-%% on the way in too) and no TLS. And it is still one connection at a time,
+%% on the way in too). And it is still one connection at a time,
 %% which is the honest shape for a server whose pages share one knowledge
 %% base: two requests mutating the same store concurrently is a question
 %% this file does not get to answer on its own.
@@ -162,11 +195,122 @@
 %% the same shape library(curl) has always had.
 :- use_module(library(tcp)).
 :- use_module(library(http)).
+%% HTTPS: the same directive discipline. `library(tls)' is a loadable
+%% module against a BUILT ZiguratIP, and a directive naming a library this
+%% build does not carry stays quiet -- so a cocolog with no tls.so still
+%% loads this file and still serves plaintext. Asking for `tls(...)'
+%% without it throws, by name, at the first listen.
+:- use_module(library(tls)).
 %% Only `workers(N)' needs it, and a directive naming a library this build
 %% does not carry stays quiet -- see lib/library.cicili -- so a cocolog
 %% with no thread.so still loads this and still serves, single-threaded.
 %% Asking for workers without it throws, by name, rather than failing.
 :- use_module(library(thread)).
+
+%% ---- the transport ----------------------------------------------------
+%%
+%% FIVE PREDICATES, AND A CONNECTION IS A TAGGED TERM. `plain(S)' is a
+%% library(tcp) handle and `secure(S)' a library(tls) one; a LISTENER
+%% carries its credentials too, because accept is where they are needed
+%% and threading them through four call sites separately is how one of
+%% them ends up plaintext.
+%%
+%% THE TAG SURVIVES A CHANNEL, which is what makes the worker pool work
+%% unchanged: a channel copies in canonical text, and `secure(7)' reads
+%% back on another machine exactly as `7' did.
+%%
+%% NOTHING ABOVE THIS BLOCK KNOWS WHICH IT HAS. That is the point of
+%% doing it as a term rather than a flag: the conversation loop, the
+%% keep-alive rule and the router are the same code on both, so HTTPS
+%% cannot drift away from HTTP by being maintained separately.
+
+httpd_transport(Options, Transport) :-
+    (   memberchk(tls(Creds), Options)
+    ->  Transport = secure(Creds)
+    ;   Transport = plain
+    ).
+
+httpd_sock_listen(plain, Port, plain(S)) :-
+    tcp_listen(Port, S).
+httpd_sock_listen(secure(Creds), Port, secure(S, Creds)) :-
+    %% A CLEARER FAILURE THAN `unknown procedure'. Without tls.so the
+    %% directive above stayed quiet, so the first sign would be
+    %% `tls_listen/2' not existing -- which names a predicate and not the
+    %% missing build step. Caught around the REAL call rather than a probe:
+    %% `current_predicate/1' answers about the knowledge base and a
+    %% module's predicates are not clauses in it, so it says no for a
+    %% library that is loaded and working -- and a probe call with a
+    %% throwaway port raises `domain_error(port_number, 0)' from the
+    %% library that IS there, which is worse than the error it was
+    %% guarding against.
+    catch(tls_listen(Port, S),
+          error(existence_error(procedure, _), _),
+          throw(error(existence_error(procedure, tls_listen/2),
+                      'httpd: tls(...) needs library(tls) -- sh modules/tls/build.sh'))).
+
+httpd_sock_accept(plain(S), Timeout, plain(C), Peer) :-
+    tcp_accept(S, Timeout, C, Peer).
+httpd_sock_accept(secure(S, Creds), Timeout, secure(C), Peer) :-
+    %% A REFUSED HANDSHAKE FAILS, exactly as a timeout does, and the
+    %% accept loop treats them alike -- which is right: neither is this
+    %% server's business, and a stranger knocking must not end the
+    %% service for everybody else. `tls_why/1' has the reason for a
+    %% caller that wants to log it.
+    tls_accept(S, Timeout, Creds, C, Peer).
+
+httpd_sock_read(plain(C), Max, Timeout, Codes) :-
+    tcp_read(C, Max, Timeout, Codes).
+httpd_sock_read(secure(C), Max, Timeout, Codes) :-
+    tls_read(C, Max, Timeout, Codes).
+
+httpd_sock_write(plain(C), Codes) :- tcp_write(C, Codes).
+httpd_sock_write(secure(C), Codes) :- tls_write(C, Codes).
+
+httpd_sock_close(plain(C)) :- tcp_close(C).
+httpd_sock_close(secure(C)) :- tls_close(C).
+
+%% ---- who is on the connection -----------------------------------------
+%%
+%% THE HANDSHAKE ALREADY ANSWERED THIS. A peer's certificate was checked
+%% against the authority before a byte moved, so this is not an extra
+%% round trip and not a lookup -- it is reading back what TLS settled.
+%%
+%% ON A PLAIN CONNECTION THERE IS NOBODY, and that is stated rather than
+%% left implicit: `httpd_peer/3' fails, the two headers are stripped and
+%% not replaced, and a page that requires them is closed to port 80 by
+%% construction.
+httpd_peer(secure(C), Subject, Permissions) :-
+    tls_peer_subject(C, Subject),
+    tls_peer_permissions(C, Ps),
+    (   Ps == []
+    ->  Permissions = ''
+    ;   atomic_list_concat(Ps, ',', Permissions)
+    ).
+
+%% RESERVED, AND STRIPPED FIRST. `library(http)' downcases every header
+%% name it reads, so a client's `Tls-Peer-Subject' arrives as
+%% `tls-peer-subject' and these two clauses find it wherever it came from.
+httpd_reserved_header('tls-peer-subject').
+httpd_reserved_header('tls-peer-permissions').
+
+httpd_strip_reserved([], []).
+httpd_strip_reserved([N-V|Hs], Out) :-
+    (   httpd_reserved_header(N)
+    ->  Out = Rest
+    ;   Out = [N-V|Rest]
+    ),
+    httpd_strip_reserved(Hs, Rest).
+
+%% The request a page actually sees. The client's own attempt at these
+%% names is removed on BOTH transports; the real ones are added only on a
+%% secure connection that has a peer.
+httpd_identify(C, request(M, P, Q, V, Hs, B), request(M, P, Q, V, Out, B)) :-
+    httpd_strip_reserved(Hs, Clean),
+    (   httpd_peer(C, Subject, Permissions)
+    ->  Out = ['tls-peer-subject'-Subject,
+               'tls-peer-permissions'-Permissions | Clean]
+    ;   Out = Clean
+    ).
 
 %% ---- the loop ---------------------------------------------------------
 
@@ -183,11 +327,17 @@ httpd_serve(Port, Options, Count) :-
     ).
 
 httpd_alone(Port, Options, Count) :-
-    tcp_listen(Port, S),
+    httpd_transport(Options, T),
+    httpd_sock_listen(T, Port, S),
     (   httpd_loop(S, Options, Count)
-    ->  tcp_close(S)
-    ;   tcp_close(S), fail
+    ->  httpd_sock_close(S)
+    ;   httpd_sock_close(S), fail
     ).
+
+%% A LISTENER IS CLOSED LIKE A CONNECTION, and can be: `plain(S)' and
+%% `secure(S, Creds)' both reduce to a slot, and the credentials on the
+%% secure one are ignored by the close.
+httpd_sock_close(secure(S, _)) :- tls_close(S).
 
 %% ---- the worker pool --------------------------------------------------
 
@@ -226,10 +376,11 @@ httpd_alone(Port, Options, Count) :-
 %% worker's store is filled from the module registry, so a page that was
 %% consulted rather than loaded is a 404 with nothing in the log.
 httpd_pool(Port, Options, Count, W) :-
-    tcp_listen(Port, S),
+    httpd_transport(Options, T),
+    httpd_sock_listen(T, Port, S),
     (   catch(channel_new(W, Ch), _, fail)
     ->  true
-    ;   tcp_close(S),
+    ;   httpd_sock_close(S),
         throw(error(existence_error(procedure, channel_new/2),
                     'httpd: workers(N) needs library(thread) -- sh modules/thread/build.sh'))
     ),
@@ -240,15 +391,19 @@ httpd_pool(Port, Options, Count, W) :-
     %% returns -- no sentinel value, no flag anybody has to remember.
     channel_close(Ch),
     thread_join_all(Ids),
-    tcp_close(S).
+    httpd_sock_close(S).
 
 %% The accepting thread. It never reads a socket and never answers one:
 %% everything it does is bounded, so a slow client cannot hold the accept.
 httpd_accept_loop(_, _, _, 0) :- !.
 httpd_accept_loop(S, Ch, Options, N) :-
     httpd_option(accept_timeout(AT), Options, 3600000),
-    tcp_accept(S, AT, C, _Peer),
+    httpd_sock_accept(S, AT, C, _Peer),
     !,
+    %% THE TAG CROSSES THE CHANNEL. A channel copies in canonical text, so
+    %% `conn(secure(7))' reads back on the worker's machine exactly as
+    %% `conn(7)' did -- and the worker calls the same five predicates
+    %% without knowing which transport it was handed.
     channel_send(Ch, conn(C)),
     (   N < 0
     ->  N1 = N
@@ -296,8 +451,8 @@ httpd_worker(_, _).
 %% socket closes on both paths, before the outcome is decided.
 httpd_one(C, Options) :-
     (   catch(httpd_transact(C, Options), _, fail)
-    ->  catch(tcp_close(C), _, true)
-    ;   catch(tcp_close(C), _, true),
+    ->  catch(httpd_sock_close(C), _, true)
+    ;   catch(httpd_sock_close(C), _, true),
         fail
     ).
 
@@ -331,7 +486,7 @@ httpd_loop(S, Options, N) :-
     %% ACCEPT FAILING ENDS THE LOOP rather than spinning on it. A timeout
     %% and a closed listener look the same here, and retrying either one in
     %% a tight loop is how a server burns a core saying nothing.
-    tcp_accept(S, AT, C, _Peer),
+    httpd_sock_accept(S, AT, C, _Peer),
     !,
     %% ONE CONNECTION MUST NOT TAKE THE SERVER WITH IT. A malformed request,
     %% a client that vanished, a page that threw -- each ends this
@@ -340,7 +495,7 @@ httpd_loop(S, Options, N) :-
     ->  Out = ok
     ;   Out = broke
     ),
-    tcp_close(C),
+    httpd_sock_close(C),
     %% THE SAME RULE ON THE SINGLE-THREADED PATH, and it was missing here
     %% too: this loop is one goal as well, so a page's write waited for
     %% the whole server to stop.
@@ -367,8 +522,14 @@ httpd_conversation(C, Options, MR, RT, Buffered, N) :-
     (   httpd_read_request(C, MR, RT, Buffered, Request, Rest)
     ->  httpd_keep(Options, Request, N, Keep),
         httpd_connection_header(Keep, Extra),
-        httpd_answer(Options, Request, Extra, Out),
-        tcp_write(C, Out),
+        %% WHO IS ON THE CONNECTION, ADDED HERE and nowhere else. The
+        %% client's own `Tls-Peer-*' headers are stripped on BOTH
+        %% transports and the real ones put on only when a handshake
+        %% settled them -- so `httpd_answer/3' is still a request in and
+        %% bytes out, and every routing rule below it is unchanged.
+        httpd_identify(C, Request, Identified),
+        httpd_answer(Options, Identified, Extra, Out),
+        httpd_sock_write(C, Out),
         (   Keep == keep
         ->  httpd_option(keep_alive_timeout(KT), Options, 2000),
             N1 is N + 1,
@@ -383,7 +544,7 @@ httpd_conversation(C, Options, MR, RT, Buffered, N) :-
         %% noise in the log at both ends.
         (   N =:= 1
         ->  http_response(400, ['Connection'-close], 'bad request', Out),
-            tcp_write(C, Out)
+            httpd_sock_write(C, Out)
         ;   true
         )
     ).
@@ -404,7 +565,7 @@ httpd_conversation(C, Options, MR, RT, Buffered, N) :-
 httpd_read_request(C, MR, RT, Acc, Request, Rest) :-
     (   http_request(Acc, Request, Rest)
     ->  true
-    ;   tcp_read(C, MR, RT, Chunk),
+    ;   httpd_sock_read(C, MR, RT, Chunk),
         append(Acc, Chunk, All),
         length(All, N),
         N =< MR,

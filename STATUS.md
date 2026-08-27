@@ -205,9 +205,56 @@ PROCESSES -- enrolled, impostor, browser -- because a handshake is
 between two ends that do not share memory, and a test proving one
 process can talk to itself would have proved the least interesting half.
 
-**STILL PLAINTEXT: `library(httpd)`.** It speaks
-`tcp_accept/read/write/close` at fourteen call sites, and HTTPS is a
-transport indirection through those rather than a new mechanism.
+### HTTPS, and the transport that became a term
+
+`library(httpd)` serves over TLS, and ONLY THE TRANSPORT CHANGED. A
+connection became a TAGGED TERM -- `plain(S)` or `secure(S)`, a listener
+carrying its credentials as `secure(S, Creds)` -- and five predicates
+dispatch on the tag. Routing, keep-alive, the path rules and
+`httpd_answer/3' are the same code on both, which is the point of doing
+it as a term rather than a flag: HTTPS cannot drift away from HTTP by
+being maintained separately, and `test/httpd.sh' still passes unchanged.
+
+    httpd_serve(9443, [ tls([ certificate('node.crt'),
+                              key('node.key'),
+                              authority('ca.crt') ]),
+                        workers(4) ]).
+
+**The tag survives a channel**, so the worker pool needed nothing: a
+channel copies in canonical text and `conn(secure(7))' reads back on
+another machine exactly as `conn(7)' did.
+
+**THE PEER'S IDENTITY REACHES A PAGE AS TWO SYNTHETIC HEADERS**, which
+is the part that makes this more than encryption:
+
+    httpd_page('/ledger', Request, reply(200, [], 'write applied')) :-
+        http_header(Request, 'Tls-Peer-Permissions', Granted),
+        atomic_list_concat(Gs, ',', Granted),
+        member(G, Gs), ca_covers(G, 'ledger.write').
+
+A page needs no new predicate and no access to the socket, and
+`httpd_answer/3' stays a request in and bytes out -- which is what lets
+`test/httpd.sh' check every routing rule with no port open.
+
+**THEY ARE STRIPPED FROM THE CLIENT'S REQUEST FIRST, on both
+transports.** A client may send any header it likes; a server that merely
+ADDED its own would leave two, with the client's first, which is the one
+`http_header/3' finds. That is the standard reverse-proxy hole. On a
+plain connection they are stripped and NOT replaced, so a page that
+trusts them is closed to port 80 by construction. `test/httpd-tls.sh'
+sends `Tls-Peer-Subject: CN=root' and `Tls-Peer-Permissions:
+ledger.write,admin' and checks the page still sees alice.
+
+Two things learned on the way. **`current_predicate/1' is not an
+availability probe**: it answers about the knowledge base, and a module's
+predicates are not clauses in it, so it says no for a library that is
+loaded and working -- and the probe call that replaced it raised
+`domain_error(port_number, 0)' from the library that WAS there. Catch
+`existence_error' around the real call instead. And **`tls_connect/4'
+succeeding does not mean you were accepted**: under TLS 1.3 a client's
+certificate is not examined until after it has sent its Finished, so a
+stranger gets success out of connect and hears the refusal afterwards.
+The property to check is that a refused peer gets no answer.
 
 ### `flush_output/0`, which was also not there
 

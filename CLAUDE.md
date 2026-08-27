@@ -580,9 +580,45 @@ handshake, against the authority, before a byte moves — so a server does
 not authenticate its peer and what is left is authorisation, which is a
 `library(ca)` rule.
 
-**`library(httpd)` is still plaintext.** It speaks
-`tcp_accept/read/write/close` at fourteen call sites; HTTPS is a
-transport indirection through those, not a new mechanism.
+**`library(httpd)` DOES HTTPS NOW**, and only the transport changed. A
+connection became a TAGGED TERM — `plain(S)` or `secure(S)`, a listener
+carrying its credentials as `secure(S, Creds)` — and five predicates
+dispatch on the tag: `httpd_sock_listen/3`, `_accept/4`, `_read/4`,
+`_write/2`, `_close/1`. Routing, keep-alive, the path rules and
+`httpd_answer/3` are the same code on both, which is the point of doing
+it as a term rather than a flag: HTTPS cannot drift away from HTTP by
+being maintained separately.
+
+    httpd_serve(9443, [ tls([ certificate('node.crt'),
+                              key('node.key'),
+                              authority('ca.crt') ]),
+                        workers(4) ]).
+
+**The tag survives a channel**, so the worker pool is unchanged: a
+channel copies in canonical text and `conn(secure(7))` reads back on
+another machine exactly as `conn(7)` did.
+
+**THE PEER'S IDENTITY REACHES A PAGE AS TWO SYNTHETIC HEADERS** —
+`Tls-Peer-Subject` and `Tls-Peer-Permissions` — so a page reads them with
+`http_header/3` like any other and needs no new predicate and no access
+to the socket. `httpd_answer/3` stays a request in and bytes out, which
+is what lets `test/httpd.sh` check every routing rule with no port open.
+
+**THEY ARE STRIPPED FROM THE CLIENT'S REQUEST FIRST, on both
+transports.** A client may send any header it likes; a server that merely
+ADDED its own would leave two, with the client's first — which is the one
+`http_header/3` finds. That is the standard reverse-proxy hole. On a
+plain connection they are stripped and NOT replaced, so a page that
+trusts them is closed to port 80 by construction. Both halves are in
+`test/httpd-tls.sh`.
+
+**`current_predicate/1` IS NOT AN AVAILABILITY PROBE**, and it cost a
+debugging round here: it answers about the KNOWLEDGE BASE, and a
+module's predicates are not clauses in it — so it says no for a library
+that is loaded and working. The probe that replaced it, a call with a
+throwaway port, raised `domain_error(port_number, 0)` from the library
+that WAS there. The answer is to catch `existence_error` around the real
+call and rethrow it with the build hint.
 
 ### And one finding about ZiguratIP, not applied
 

@@ -81,6 +81,22 @@
 ;;;; is for, and a server that raised would stop serving everybody else
 ;;;; because one impostor knocked.
 ;;;;
+;;;; BUT `tls_connect/4' SUCCEEDING DOES NOT MEAN YOU WERE ACCEPTED, and
+;;;; that is a TLS 1.3 fact rather than anything this module does. Under
+;;;; 1.3 the server does not examine a client's certificate until after
+;;;; the client has sent its Finished and considers the handshake done --
+;;;; so a stranger gets success out of `tls_connect/4' and hears the
+;;;; refusal AFTERWARDS, as an alert on a connection it believes it
+;;;; already has. The first read is where it finds out.
+;;;;
+;;;; So a CLIENT must not treat a connection as proof of admission: what
+;;;; is true either way is that a refused peer gets no answer, and that
+;;;; is the property to check. The server side is unaffected --
+;;;; `tls_accept/5' fails, because the server is the end that decided.
+;;;; (ZiguratIP's tlsbuf pins a context to 1.2 when it refuses peers by
+;;;; SUBJECT through an authorize hook, for exactly this reason; this
+;;;; module installs no such hook, so 1.3 stays available.)
+;;;;
 ;;;; LOOPBACK ONLY, for now. `tls_listen/2' binds 127.0.0.1 and nothing
 ;;;; else, which is `library(tcp)'s rule and the same argument: a
 ;;;; predicate that opens a port to the world should have to say so.
