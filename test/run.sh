@@ -107,7 +107,7 @@ done
 #           in somebody's browser -- which is what section 1 checks
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl httpd colab groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl serialize httpd colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

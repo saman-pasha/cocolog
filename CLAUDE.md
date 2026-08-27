@@ -267,7 +267,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **`modules/` IS WHERE A LOADABLE MODULE LIVES**, one directory each, all
@@ -341,6 +341,50 @@ control, so a cocolog run inside an untrusted tree would prefer THEIR
 answer to "which file am I" — no argv[0] guessing, correct through
 symlinks. The caller's `$COCOLOG_LIBRARY` still comes first, because an
 override that cannot override is not one.
+
+## The three serialisers, and the two rules they share
+
+`library(json)`, `library(xml)` and `library(html)` write a term out as a
+document. All three are DCGs, all three answer **codes** (an atom is a C
+string and stops at the first NUL; codes are what `tcp_write/2` wants),
+and `html.pl` stands on `xml.pl` by NAME — `xml_escaped//1`,
+`xml_text_codes/2`, `xml_no_nul/2` — rather than by copy. One namespace is
+the reason that works, and a private copy of an escaper is how two
+escapers end up disagreeing about the apostrophe.
+
+**A CODE LIST IS A LIST, IN ALL THREE, and `str/1` is the way out.**
+cocolog has no string type — `double_quotes` is `codes`, so `"hello"` IS
+`[104,101,…]` — and a serialiser that guessed would turn a JSON array of
+byte values into a word, or `element(p,[],["hello"])` into
+`<p>104101108108111</p>`. That second one is not hypothetical: it is what
+`xml.pl` did before the rule, and the case is in the suite. So a bare list
+is an array (JSON) or an error (XML, HTML), and `str(X)` is how you say
+you meant text.
+
+**THEY THROW RATHER THAN GUESS.** An unbound variable is not `null`;
+`foo(1)` is not `"foo(1)"`; `@(maybe)` is not a literal; `<br>text</br>`
+is not markup. Every refusal names the term, because the alternative is a
+document that parses into something else three days later.
+
+Three places where they deliberately differ from each other, each because
+the LANGUAGES differ:
+
+* **`<br/>` vs `<br>`.** XML self-closes an empty element; HTML's void
+  elements close by being themselves, and giving one children is an error.
+* **`--` in a comment.** XML 1.0 forbids it outright with no escape, so
+  `xml.pl` refuses; HTML5's tokenizer ends on `-->` and nothing else, so
+  `html.pl` allows `--` and refuses `-->`.
+* **`indent(N)`.** `xml.pl` has it and indents only element-only content,
+  because a whitespace node between elements is what a schema-aware reader
+  ignores and a text child makes the content *mixed*. `html.pl` has NO
+  indent option: whitespace between two inline elements is a rendered
+  space, so an indenter there would be a renderer that quietly edits.
+
+**The one security-shaped check in the three is `</script`**, in any case,
+inside a `script` or `style` element — where escaping is not the answer,
+because `a < b` must reach the JavaScript parser as `a < b`. That is also
+why `json.pl` does not escape the solidus: the hazard lives at the
+embedding, and it is caught there, by name.
 
 ## The engine was quadratic, and the fix is one call
 
@@ -477,7 +521,7 @@ transaction and a machine is many rows).
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **25** case lines. A change to
+Run `make test` with a server up, and read all **26** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

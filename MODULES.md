@@ -554,6 +554,121 @@ field would change that format for every blob ever written, while a new kind is
 a value no old blob contains. It cannot simply be popped: every barrier, every
 `$cut` height and every restored `nchoices` is an index into that array.
 
+## The three serialisers: a term as a document
+
+`library(json)`, `library(xml)` and `library(html)` are the other direction
+from `library(http)` — grammars that EMIT. They are tier 2, pure clauses, and
+they need no `.so`:
+
+    use_module(library(json)).       json_codes/2,3   json_atom/2,3   json_write/1,2   json_value//1
+    use_module(library(xml)).        xml_codes/2,3    xml_atom/2,3    xml_write/1,2    xml_content//1
+    use_module(library(html)).       html_codes/2,3   html_atom/2,3   html_write/1,2   html_content//1
+
+**`_codes` IS THE PRIMITIVE and the other three stand on it.** An atom in
+cocolog is a C string and stops at the first NUL; codes carry every byte, are
+what `tcp_write/2` takes, and concatenate without a round trip. `_atom` is
+there for when an atom is genuinely what you have to produce, and `_write`
+goes to the current output through `~s` rather than through an atom.
+
+**The `//1` nonterminal is for a caller already building codes**, which is
+what a page assembling its own body is. It emits compactly, because a
+fragment being assembled has no level to indent to.
+
+### The terms
+
+| | JSON | XML / HTML |
+|---|---|---|
+| an object / an element | `json([K-V, …])`, also `K=V` and `K:V` | `element(Name, Attrs, Kids)` |
+| a sequence | a list | the `Kids` list |
+| text | an atom, or `str(X)` | an atom or number, or `str(X)` |
+| a number | a number | text |
+| the literals | `@(true)`, `@(false)`, `@(null)` | — |
+| verbatim | — | `raw(Text)` |
+| the rest | — | `comment/1`, `cdata/1` (XML), `pi/1` (XML) |
+
+Attributes are `Name=Value` or `Name-Value`; HTML also takes a bare `Name`,
+which is the minimised form, and XML refuses one because XML has none.
+
+### `str/1`, and why it is not optional
+
+cocolog has no string type. `double_quotes` is `codes`, so `"hello"` IS
+`[104, 101, 108, 108, 111]` and nothing in the term says which you meant.
+
+    json_atom("hi", A).                     A = '[104,105]'      an array
+    json_atom(str("hi"), A).                A = '"hi"'           a string
+    xml_atom(element(p,[],["hi"]), A).      type_error(xml_node, [104,105])
+    xml_atom(element(p,[],[str("hi")]), A). A = '<p>hi</p>'
+
+**The XML error is there because the alternative was measured**: before the
+rule, that call answered `<p>104105</p>`. A serialiser that guesses is one
+that is silently wrong, and silently wrong markup is found by whoever reads
+the page, days later.
+
+### The options
+
+    indent(N)        JSON and XML. Absent or 0 is compact.
+    header(true)     XML: <?xml version="1.0" encoding="UTF-8"?>
+    header(Enc)      XML: the same, with Enc as the encoding
+    doctype(Text)    XML: <!DOCTYPE Text>
+    doctype(true)    HTML: <!DOCTYPE html>
+    doctype(Text)    HTML: <!DOCTYPE Text>, for a legacy one
+
+**`library(html)` has no `indent`, on purpose.** `library(xml)` indents an
+element whose children are ALL elements and leaves mixed content on one line,
+because a whitespace node between elements is what a schema-aware reader
+already ignores. HTML has no such rule: whitespace between two inline
+elements is a rendered space, so `<span>a</span><span>b</span>` and the same
+across two lines are different pages. An indenter there would be a renderer
+that quietly edits.
+
+### Serving one from a page
+
+`httpd_page/3`'s reply takes an atom body, so a page that answers JSON is one
+line longer than a page that answers text:
+
+    httpd_page('/api/stock', _, reply(200, ['Content-Type'-'application/json'], Body)) :-
+        findall(json([item-I, n-N]), stock(I, N), Rows),
+        json_atom(json([stock-Rows]), Body).
+
+    httpd_page('/', _, reply(200, [], Body)) :-
+        html_atom(element(html, [], [element(body, [], [element(p, [], ['hello'])])]),
+                  Body, [doctype(true)]).
+
+### What they refuse
+
+Every one of these throws, naming the term, rather than emitting something
+plausible:
+
+| | |
+|---|---|
+| an unbound variable | `instantiation_error` — a hole is not `null` |
+| `foo(1)` as JSON | `type_error(json_term, foo(1))` |
+| `@(maybe)` | `type_error(json_term, @(maybe))` — there are three literals |
+| an infinite or NaN float | `type_error(json_number, …)` — JSON has no spelling for either |
+| a list among the children | `type_error(xml_node, …)` / `html_node` — see `str/1` above |
+| a bare attribute in XML | `type_error(xml_attribute, …)` |
+| `<br>` with children | `domain_error(html_empty_content, …)` |
+| `--` in an XML comment | `domain_error(xml_comment, …)` — XML 1.0 has no escape for it |
+| `-->` in an HTML comment | `domain_error(html_comment, …)` |
+| `cdata/1` in HTML | `type_error(html_node, …)` — HTML5 has no CDATA sections |
+| a NUL byte in XML text | `domain_error(xml_text, …)` — unwritable, and it would truncate the atom |
+| `</script` inside a `script` | `domain_error(html_raw_text, script)` |
+
+**That last one is the only security-shaped check in the three**, and it is
+there because escaping is NOT the answer inside a `script`: `a < b` must
+reach the JavaScript parser as `a < b`, so the content goes out untouched and
+the end tag is the whole risk. The check is case-insensitive because the HTML
+tokenizer is — `</ScRiPt` closes the element just as well.
+
+It is also why `library(json)` does not escape the solidus. `\/` is legal JSON
+and pointless; the hazard lives at the EMBEDDING, and there it is caught by
+name rather than by a habit three layers away.
+
+**`library(html)` calls `library(xml)`'s escapers by name** — `xml_escaped//1`,
+`xml_text_codes/2`, `xml_no_nul/2` — rather than copying them. One namespace
+is what makes that work, and a private copy of an escaper is how two escapers
+end up disagreeing about the apostrophe.
+
 ## The Builtins library
 
 `lib/builtins.cicili`. SWI has **655** built-in predicates. Most cannot exist
