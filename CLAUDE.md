@@ -962,6 +962,14 @@ did not exist, an arity that was wrong, `bigint_cmp/3` documented as
 on the bare extension where `httpd_type/2` is the one that takes a file
 name.
 
+## modules/ray changes are validated downstream
+
+The owner's rule: a change to modules/ray does NOT require the full
+suite here -- run `sh test/ray.sh` (and the tutorial if the surface
+changed) and let CivV's own suite exercise it fully, which it does
+against real worlds. The full-suite discipline stands for everything
+else.
+
 ## Before saying something works
 
 Run `make test` with a server up, and read all **29** case lines. A change to
