@@ -55,7 +55,7 @@ HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
 ZEYTUN=${ZEYTUN_PORT:-2190}
 KB=tensors_test
-W="--kb $KB --host $HOST --port $PORT --timeout 30"
+W="--kb $KB --host $HOST --tcp $PORT --timeout 30"
 
 if ! timeout 20 "$C" $W list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"

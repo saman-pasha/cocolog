@@ -59,13 +59,26 @@ check "--local refuses the connection verbs" "$got" "1"
 
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
-if ! timeout 20 "$C" --kb ziglib_test --host "$HOST" --port "$PORT" \
+if ! timeout 20 "$C" --kb ziglib_test --host "$HOST" --tcp "$PORT" \
      query "true" >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"
   exit 0
 fi
 
-W="$C --kb ziglib_test --host $HOST --port $PORT --timeout 10"
+W="$C --kb ziglib_test --host $HOST --tcp $PORT --timeout 10"
+
+# ---- `--port' IS DEPRECATED AND STILL EXACTLY `--tcp' ------------------
+# It named a number when there was one transport; there are four now, and
+# --tcp/--tls/--http/--https say WHICH as well as where. Nothing in this
+# tree spells it any more -- but a script somewhere does, so it keeps
+# working, and SILENTLY: a deprecation notice on stderr every run would
+# land in the output of every pipeline that has one.
+got=$(timeout 20 "$C" --kb ziglib_test --host "$HOST" --port "$PORT" --timeout 10 \
+        query "true" 2>/dev/null | grep -c '^  1. true$')
+check "--port still reaches the server" "$got" "1"
+got=$(timeout 20 "$C" --kb ziglib_test --host "$HOST" --port "$PORT" --timeout 10 \
+        query "true" 2>&1 >/dev/null | wc -c | tr -d ' ')
+check "--port says nothing on stderr" "$got" "0"
 
 # a clean slate for the counts below
 timeout 60 $W forget >/dev/null 2>&1

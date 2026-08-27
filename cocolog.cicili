@@ -32,12 +32,18 @@
 ;;;
 ;;;   --kb NAME      which knowledge base   (default main)
 ;;;   --host HOST    (default 127.0.0.1)
-;;;   --port PORT    the binary protocol    (default 2160)
 ;;;   --tcp [PORT]   the binary protocol, in the clear (2160)
 ;;;   --tls [PORT]   the binary protocol over TLS, same port -- what
-;;;                  ZiguratIP's SERVER/TLS_MODE: TRUE puts on it
+;;;                  ZiguratIP's SERVER/TLS_MODE: TRUE puts on it. A client
+;;;                  certificate is optional (SERVER/TLS_CLIENT_AUTH says),
+;;;                  and mandatory under SECURITY/PERMISSIONS_MODE
 ;;;   --http [PORT]  read over Zeytun instead of the binary protocol (80)
 ;;;   --https [PORT] the same, over TLS (443) -- what an edge speaks
+;;;   --port PORT    DEPRECATED, and still accepted: exactly `--tcp PORT'.
+;;;                  It named a number when there was one transport; there
+;;;                  are four now, and --tcp/--tls/--http/--https say which
+;;;                  as well as where. Nothing warns -- it is a spelling,
+;;;                  not a mistake -- and nothing in this tree uses it.
 ;;;   --local        no database at all: everything in memory
 ;;;   --steps N      inferences per `step'  (default 2000)
 ;;;   --timeout S    socket timeout, seconds (default 20)
@@ -374,19 +380,24 @@
         (fprintf stderr "  cocolog [options] drop NAME\n\n")
         (fprintf stderr "  --kb NAME     knowledge base            (default main)\n")
         (fprintf stderr "  --host HOST   (default 127.0.0.1)\n")
-        (fprintf stderr "  --port PORT   binary protocol           (default 2160)\n")
         (fprintf stderr "  --tcp [PORT]  the binary protocol, in the clear (default 2160)\n")
         (fprintf stderr "  --tls [PORT]  the binary protocol over TLS -- ZiguratIP's\n")
         (fprintf stderr "                SERVER/TLS_MODE: TRUE, same port (default 2160)\n")
+        (fprintf stderr "                A client certificate is OPTIONAL -- the server\n")
+        (fprintf stderr "                decides, with TLS_CLIENT_AUTH -- and MANDATORY\n")
+        (fprintf stderr "                under SECURITY/PERMISSIONS_MODE, where a TLS peer\n")
+        (fprintf stderr "                without one reaches nothing\n")
         (fprintf stderr "  --http [PORT] read over Zeytun, plain HTTP (default port 80)\n")
         (fprintf stderr "  --https [PORT] the same over TLS (default port 443)\n")
+        (fprintf stderr "  --port PORT   DEPRECATED: --tcp PORT says the same and\n")
+        (fprintf stderr "                names the transport. Still accepted, silently\n")
         (fprintf stderr "  --cacert F    the authority to check the server against\n")
         (fprintf stderr "  --capath D    a directory of them; neither means the system store\n")
         (fprintf stderr "  --cert F --key F   this end's certificate, for a Zeytun that asks\n")
         (fprintf stderr "  --key-pass P  its pass phrase\n")
         (fprintf stderr "  --insecure    do not verify the server AT ALL\n")
         (fprintf stderr "  --local       no database; all in memory. THE DEFAULT:\n")
-        (fprintf stderr "                naming --kb, --host or --port chooses the\n")
+        (fprintf stderr "                naming --kb, --host or --tcp chooses the\n")
         (fprintf stderr "                server, --http Zeytun, --embed the embedded\n")
         (fprintf stderr "  --steps N     inferences per step       (default 2000)\n")
         (fprintf stderr "  --timeout S   socket timeout in seconds  (default 20)\n")
@@ -1969,7 +1980,7 @@
                    (block (set ($ opts http) (? ($ opts secure) "443" "80"))
                           (set i (+ i 1)))))
                 ;; THE BINARY PROTOCOL, SPELLED OUT. `--tcp' is what
-                ;; naming `--kb', `--host' or `--port' already chose, said
+                ;; naming `--kb' or `--host' already chose, said
                 ;; explicitly; `--tls' is the same port with ZiguratIP's
                 ;; `SERVER/TLS_MODE: TRUE' on the other end. The port is
                 ;; 2160 for both, because TLS_MODE changes WHAT IS ON the
@@ -1996,6 +2007,14 @@
                    (cond
                      ((== 0 (strcmp a "--kb"))      (set ($ opts kb) v))
                      ((== 0 (strcmp a "--host"))    (set ($ opts host) v))
+                     ;; DEPRECATED, and deliberately silent. It is exactly
+                     ;; `--tcp PORT' -- the same field, the same default, the
+                     ;; same choice of arrangement -- so a script that has it
+                     ;; keeps working and reads no differently to the parser.
+                     ;; NO WARNING, because there is nothing here to fix: the
+                     ;; flag is not wrong, only older than the three that
+                     ;; joined it, and a line on stderr every run would land
+                     ;; in the output of every script that ever piped us.
                      ((== 0 (strcmp a "--port"))    (set ($ opts port) v))
                      ((== 0 (strcmp a "--cacert"))   (set ($ opts cacert) v))
                      ((== 0 (strcmp a "--capath"))   (set ($ opts capath) v))
@@ -2013,7 +2032,7 @@
 
           ;; THE DEFAULT ARRANGEMENT IS LOCAL. Naming any part of another one
           ;; chooses it: --embed the embedded store, --http Zeytun,
-          ;; and --kb, --host or --port the server -- local keeps no named
+          ;; and --kb, --host or --tcp the server -- local keeps no named
           ;; knowledge bases, so asking for one is asking for the database.
           ;; The names then take their old defaults whichever way it went.
           (if (and (== ($ opts local) 0) (== ($ opts store) nil)

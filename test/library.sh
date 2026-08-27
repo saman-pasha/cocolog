@@ -89,7 +89,7 @@ fi
 # ---- process-local, proven across processes --------------------------
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
-W="--kb library_test --host $HOST --port $PORT --timeout 15"
+W="--kb library_test --host $HOST --tcp $PORT --timeout 15"
 if timeout 20 "$C" $W list >/dev/null 2>&1; then
   timeout 60 "$C" $W forget >/dev/null 2>&1
   got=$(timeout 60 "$C" $W query "use_module(library(greet)), greeting(G), write(G), nl" 2>/dev/null | grep -c '^hello_from_pl$')

@@ -206,8 +206,8 @@ precedence.
 
 ## library(zigurat): the connection, steered from Prolog
 
-When the knowledge base rides a Zigurat connection (`--kb`/`--host`/
-`--port`, or `--embed`), `use_module(library(zigurat))` hands the program
+When the knowledge base rides a Zigurat connection (`--tcp`/`--tls`, or
+`--kb`/`--host`, or `--embed`), `use_module(library(zigurat))` hands the program
 the connection the store's own hooks already write through — the same RPC
 surface ZiguratIP's Connector offers its C++ clients (`call`, `compile`,
 `isolate`, `auto_commit`, `commit`, `rollback`), reached through the

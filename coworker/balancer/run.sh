@@ -36,7 +36,7 @@ trap 'rm -rf "$OUT"' EXIT INT TERM
 
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
-BASE="--host $HOST --port $PORT --timeout 30"
+BASE="--host $HOST --tcp $PORT --timeout 30"
 PART1=${PART1_OPTS:-"$BASE --kb bal_part1"}
 PART2=${PART2_OPTS:-"$BASE --kb bal_part2"}
 PART3=${PART3_OPTS:-"$BASE --kb bal_part3"}

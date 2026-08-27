@@ -153,14 +153,14 @@ check "embed: the session's assert reaches a second process" "$got" "  1. kept(e
 
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
-if timeout 20 "$C" --kb repl_test --host "$HOST" --port "$PORT" \
+if timeout 20 "$C" --kb repl_test --host "$HOST" --tcp "$PORT" \
      --timeout 10 list >/dev/null 2>&1; then
   printf "assertz(kept(wire_round_trip)).\nhalt.\n" | \
-    timeout 60 "$C" --kb repl_test --host "$HOST" --port "$PORT" --timeout 10 >/dev/null 2>&1
-  got=$(timeout 60 "$C" --kb repl_test --host "$HOST" --port "$PORT" --timeout 10 \
+    timeout 60 "$C" --kb repl_test --host "$HOST" --tcp "$PORT" --timeout 10 >/dev/null 2>&1
+  got=$(timeout 60 "$C" --kb repl_test --host "$HOST" --tcp "$PORT" --timeout 10 \
           query 'kept(X)' 2>/dev/null | head -1)
   check "wire: the session's assert reaches a second process" "$got" "  1. kept(wire_round_trip)"
-  timeout 60 "$C" --kb repl_test --host "$HOST" --port "$PORT" --timeout 10 \
+  timeout 60 "$C" --kb repl_test --host "$HOST" --tcp "$PORT" --timeout 10 \
     forget >/dev/null 2>&1
 else
   echo "wire: SKIP no Zigurat server at $HOST:$PORT"

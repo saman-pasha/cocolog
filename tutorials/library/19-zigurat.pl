@@ -4,7 +4,7 @@
 %%
 %%     ...and to see the half that needs a server:
 %%
-%%     ./cocolog --kb demo --host 127.0.0.1 --port 2160 \
+%%     ./cocolog --kb demo --host 127.0.0.1 --tcp 2160 \
 %%               run tutorials/library/19-zigurat.pl main
 %%
 %% TIER 1: compiled in, no import. Which surprises people -- it looks like
@@ -75,7 +75,7 @@ local :-
     format("   can ASK, with a catch, instead of being told.~n"),
     format("~n-- run this file against a server to see the other half:~n"),
     format("~n"),
-    format("     cocolog --kb demo --host 127.0.0.1 --port 2160 \\~n"),
+    format("     cocolog --kb demo --host 127.0.0.1 --tcp 2160 \\~n"),
     format("             run tutorials/library/19-zigurat.pl main~n"),
     finish.
 

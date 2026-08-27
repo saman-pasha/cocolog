@@ -41,7 +41,7 @@ sh test/run.sh solve      # one case
 There is one `cocolog` binary and it is full: the four knowledge-base
 arrangements — `--local`, the server, `--http`/`--https`, `--embed [DIR]`
 — are runtime options, never builds. Local is the default; naming `--kb`, `--host`
-or `--port` chooses the server, and a bare `--embed` opens the store at
+or `--tcp` chooses the server, and a bare `--embed` opens the store at
 `./KB`. There is no `--store`: `--embed` with its optional directory is
 the one spelling, and a store named like a command verb is written `./run`.
 
@@ -558,13 +558,46 @@ ZiguratIP's rather than ours: `SERVER/TLS_MODE: TRUE` changes *what is
 on* 2160, while 80 and 443 are two different ports. Read
 `home/etc/ziguratip.conf` before assuming either.
 
-`TLS_CLIENT_AUTH` on the binary port defaults to **REQUIRED** — the
-config says the binary protocol has no anonymous use — so `--tls`
-usually wants `--cert` and `--key` as well as `--cacert`. And with
-`SECURITY/PERMISSIONS_MODE: TRUE`, the certificate that opened the
-connection decides which tables and procedures it reaches; that is the
-same permission list `library(ca)` reads out of a certificate, on the
-other side of the same seam.
+**A CLIENT CERTIFICATE IS OPTIONAL, AND MANDATORY FOR PERMISSIONS.** Both,
+and they are not in tension. `loadzigurat.cpp` accepts REQUIRED (the
+default), OPTIONAL and NONE for `SERVER/TLS_CLIENT_AUTH`, and
+`require_security()` demands only the SERVER's own certificate, key and
+authority — so `--tls` with nothing but `--cacert` is a real arrangement.
+
+What a certificate is *required* for is `SECURITY/PERMISSIONS_MODE`.
+`zigurat_tls_handler` calls `Globals::set_peer(...)` for **every** TLS
+peer, certificate or not, and `Globals::permits` opens with
+`if (!_identified) return true;` — the header says it outright:
+"Unidentified means a plain connection, where there is no peer to ask
+about and everything is allowed — turning TLS on is what turns access
+control on."
+
+| connection | `PERMISSIONS_MODE: TRUE` reaches |
+|---|---|
+| plain | everything — unidentified |
+| TLS, no client certificate | **nothing** — identified, empty subject, empty permissions |
+| TLS with one | what the certificate grants |
+
+That is the same permission list `library(ca)` reads out of a
+certificate, on the other side of the same seam.
+
+**A MISSING CLIENT CERTIFICATE IS NOT A FAILED HANDSHAKE.** Under TLS 1.3
+the server does not examine what the client sent until the client has
+finished talking, so `SSL_connect` SUCCEEDS and the refusal arrives as an
+alert on the first read. `client/tls.c` keeps the reason in the handle
+and `coco_client_tls_why` hands it back, so the client says
+`read failed: tlsv13 alert certificate required -- this server wants a
+client certificate: --cert and --key` rather than `read failed: Success`.
+Every test that asserts a TLS-1.3 refusal must check what the peer
+*reaches*, never whether the connect returned.
+
+**`--port` IS DEPRECATED**, and still accepted: it is exactly `--tcp
+PORT`. It named a number when there was one transport. Nothing warns —
+the flag is a spelling, not a mistake, and a line on stderr every run
+would land in the output of every script that pipes cocolog — and
+nothing in this tree spells it any more. `test/zigurat-lib.sh` holds it
+to both halves: that it still reaches the server, and that it says
+nothing on stderr.
 
 **`--tls` and `--https` together are refused**: one names a Zigurat and
 the other a Zeytun, and a run reaches one knowledge base.
@@ -582,8 +615,8 @@ The Zeytun client speaks TLS: `--https [PORT]` (443 by default) beside
 `--embed`'s directory is — a querier behind Cloudflare should not have to
 know what port an edge listens on.
 
-**The TLS is in `client/zeytun-tls.c` and nowhere else.** `zeytun.c` is
-still libc and the sockets API: it reaches OpenSSL through four functions
+**The TLS is in `client/tls.c` and nowhere else.** `zeytun.c` is
+still libc and the sockets API: it reaches OpenSSL through six functions
 behind an opaque pointer, and a build without OpenSSL compiles that
 file's stub half so `--https` reports the missing feature by name rather
 than failing to link. The Makefile probes for `<openssl/ssl.h>` and
@@ -975,4 +1008,4 @@ Both cost a session time, and neither announces itself:
   Then CHECK it before trusting a green line — the answer should be a
   sentence, not a refusal:
 
-      ./cocolog --kb main --host 127.0.0.1 --port 2160 --timeout 10 list
+      ./cocolog --kb main --host 127.0.0.1 --tcp 2160 --timeout 10 list

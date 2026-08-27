@@ -44,14 +44,14 @@ HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
 ZEYTUN=${ZEYTUN_PORT:-2190}
 
-if ! timeout 20 "$C" --kb tunnel_test --host "$HOST" --port "$PORT" \
+if ! timeout 20 "$C" --kb tunnel_test --host "$HOST" --tcp "$PORT" \
        --timeout 10 list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"
   exit 0
 fi
 
 # the fact the reader will be asked for, in over the wire
-timeout 60 "$C" --kb tunnel_test --host "$HOST" --port "$PORT" --timeout 10 \
+timeout 60 "$C" --kb tunnel_test --host "$HOST" --tcp "$PORT" --timeout 10 \
   query 'assertz(edge_fact(routed))' >/dev/null 2>&1
 
 # The edge stand-in: admits only requests whose Host header is exactly
@@ -222,7 +222,7 @@ else
   kill "$EDGE_PID" 2>/dev/null; wait "$EDGE_PID" 2>/dev/null; EDGE_PID=
 fi
 
-timeout 60 "$C" --kb tunnel_test --host "$HOST" --port "$PORT" --timeout 10 \
+timeout 60 "$C" --kb tunnel_test --host "$HOST" --tcp "$PORT" --timeout 10 \
   forget >/dev/null 2>&1
 
 echo

@@ -3,7 +3,7 @@
  * WHY IT IS A SEPARATE FILE. zigurat.c and zeytun.c both say they are
  * libc and the sockets API and nothing else, and that stays true: this is
  * the only translation unit in client/ that knows OpenSSL exists, and
- * both reach it through five functions that hand back an opaque pointer.
+ * both reach it through six functions that hand back an opaque pointer.
  * A build without OpenSSL compiles the stub half below and `--tls' and
  * `--https' then say so by name rather than failing to link.
  *
@@ -38,6 +38,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #ifdef COCO_ZT_TLS
 
@@ -48,6 +49,14 @@
 struct zt_tls {
   SSL_CTX *ctx;
   SSL     *ssl;
+  /* WHY THE LAST READ OR WRITE STOPPED, when TLS knows and the socket
+   * does not. This is the field that makes a refused CLIENT certificate
+   * legible: under TLS 1.3 the server does not look at what the client
+   * sent -- or did not send -- until after the client is finished
+   * talking, so `SSL_connect' SUCCEEDS and the refusal arrives as an
+   * alert on the next read. Without this the caller has `read failed'
+   * and an errno; with it, "tlsv13 alert certificate required". */
+  char     why[256];
 };
 
 static void ssl_why(char *err, size_t cap, const char *what)
@@ -156,11 +165,48 @@ bad:
   return NULL;
 }
 
+/* Records why an SSL call stopped, in the handle, for the caller to ask
+ * about afterwards. A clean shutdown leaves the field EMPTY: there is
+ * nothing wrong with the far end having finished. */
+static void tls_note(struct zt_tls *t, int k)
+{
+  int e = SSL_get_error(t->ssl, k);
+  t->why[0] = '\0';
+  if (e == SSL_ERROR_ZERO_RETURN) return;
+  if (e == SSL_ERROR_SSL) {
+    unsigned long q = ERR_get_error();
+    if (q) {
+      const char *r = ERR_reason_error_string(q);
+      if (r == NULL) r = "the TLS session failed";
+      /* THE ONE ALERT WORTH A SENTENCE OF ITS OWN. A server whose
+       * `TLS_CLIENT_AUTH' is REQUIRED and a client with no certificate
+       * is a configuration mismatch with an exact remedy, and the bare
+       * alert names the problem without naming the two flags that fix
+       * it. Every other alert is left in OpenSSL's words. */
+      if (strstr(r, "certificate required") != NULL)
+        snprintf(t->why, sizeof t->why,
+                 "%s -- this server wants a client certificate: --cert and --key", r);
+      else
+        snprintf(t->why, sizeof t->why, "%s", r);
+      return;
+    }
+  }
+  if (e == SSL_ERROR_SYSCALL && errno != 0) {
+    snprintf(t->why, sizeof t->why, "%s", strerror(errno));
+    return;
+  }
+  if (e != SSL_ERROR_NONE) {
+    snprintf(t->why, sizeof t->why, "the TLS session ended unexpectedly");
+  }
+}
+
 long coco_client_tls_send(void *handle, const void *buf, size_t n)
 {
   struct zt_tls *t = (struct zt_tls *) handle;
   int k = SSL_write(t->ssl, buf, (int) n);
-  return (k > 0) ? (long) k : -1;
+  if (k > 0) return (long) k;
+  tls_note(t, k);
+  return -1;
 }
 
 long coco_client_tls_recv(void *handle, void *buf, size_t n)
@@ -168,10 +214,20 @@ long coco_client_tls_recv(void *handle, void *buf, size_t n)
   struct zt_tls *t = (struct zt_tls *) handle;
   int k = SSL_read(t->ssl, buf, (int) n);
   if (k > 0) return (long) k;
+  tls_note(t, k);
   /* A clean close and a broken one both end the read. The caller has
    * Content-Length and does not need to tell them apart; what it must
-   * not do is treat either as more bytes. */
+   * not do is treat either as more bytes. `coco_client_tls_why' is where
+   * a caller that DOES care goes to ask. */
   return 0;
+}
+
+int coco_client_tls_why(void *handle, char *buf, size_t cap)
+{
+  struct zt_tls *t = (struct zt_tls *) handle;
+  if (t == NULL || t->why[0] == '\0' || cap == 0) return 0;
+  snprintf(buf, cap, "%s", t->why);
+  return 1;
 }
 
 void coco_client_tls_close(void *handle)
@@ -203,5 +259,6 @@ void *coco_client_tls_open(int fd, const char *host, const coco_tls_options *o,
 long coco_client_tls_send(void *h, const void *b, size_t n) { (void)h; (void)b; (void)n; return -1; }
 long coco_client_tls_recv(void *h, void *b, size_t n)       { (void)h; (void)b; (void)n; return 0; }
 void coco_client_tls_close(void *h)                          { (void)h; }
+int  coco_client_tls_why(void *h, char *b, size_t c)         { (void)h; (void)b; (void)c; return 0; }
 
 #endif

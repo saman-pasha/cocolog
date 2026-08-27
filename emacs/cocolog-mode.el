@@ -3228,7 +3228,7 @@ where the binary runs."
     ('local  (list "--local"))
     ('embed  (list "--embed" cocolog-coco-store "--kb" cocolog-coco-kb))
     ('server (list "--kb" cocolog-coco-kb
-                   "--host" cocolog-coco-host "--port" cocolog-coco-port))
+                   "--host" cocolog-coco-host "--tcp" cocolog-coco-port))
     ('http
      (when (string-empty-p cocolog-coco-http-port)
        (user-error "Set `cocolog-coco-http-port' before reading over Zeytun"))

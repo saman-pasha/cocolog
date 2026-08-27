@@ -87,12 +87,22 @@ extern int  ce_reset(void *s) __attribute__((weak));
 struct zg_conn {
   int  fd;
   /* THE TLS HANDLE, or null on a plain connection. ZiguratIP's
-   * `SERVER/TLS_MODE: TRUE' turns 2160 into a mutually authenticated port
-   * -- the same port, a different thing on it -- and `TLS_CLIENT_AUTH'
-   * defaults to REQUIRED there, because the binary protocol has no
-   * anonymous use. With `SECURITY/PERMISSIONS_MODE' on, the certificate
-   * that opened the connection also decides which tables and procedures
-   * it reaches.
+   * `SERVER/TLS_MODE: TRUE' turns 2160 into an encrypted port -- the same
+   * port, a different thing on it.
+   *
+   * A CLIENT CERTIFICATE IS OPTIONAL HERE, and the server says which:
+   * `SERVER/TLS_CLIENT_AUTH' takes REQUIRED (the default), OPTIONAL or
+   * NONE, so `--tls' with no `--cert' is a real arrangement and not a
+   * half-configured one.
+   *
+   * WHAT A CERTIFICATE IS MANDATORY FOR is PERMISSIONS. ZiguratIP's TLS
+   * handler identifies every TLS peer, certificate or not -- a peer with
+   * none is identified with an empty subject and an empty permission set
+   * -- and `Globals::permits' allows everything only to a peer that is
+   * NOT identified, which is to say a plain connection. So with
+   * `SECURITY/PERMISSIONS_MODE' on: plain reaches everything, TLS with a
+   * certificate reaches what the certificate grants, and TLS WITHOUT one
+   * reaches nothing. Turning TLS on is what turns access control on.
    *
    * REACHED WEAKLY, like zeytun.c's: client/tls.o is linked into the
    * cocolog binary and NOT into libcocologc.a, so a program that links
@@ -226,6 +236,22 @@ static int lost(zg_conn *c, const char *what, const char *detail)
 
 static int flush_out(zg_conn *c);
 
+/* WHY A READ OR WRITE STOPPED, in the words of whichever layer knows.
+ * On a plain socket that is errno and nothing else. On a TLS one errno
+ * is usually 0 or misleading -- the failure happened inside the session
+ * -- and client/tls.c has the alert. THE CASE THIS IS FOR: a ZiguratIP
+ * with `SERVER/TLS_CLIENT_AUTH: REQUIRED' and a cocolog with no
+ * `--cert'. Under TLS 1.3 the client finishes talking before the server
+ * examines what it sent, so the handshake succeeds and the refusal comes
+ * back as an alert on the first read -- which without this reads as
+ * `read failed: Success' and sends the reader to the wrong end. */
+static const char *why(zg_conn *c, char *buf, size_t cap)
+{
+  if (c->tls && coco_client_tls_why && coco_client_tls_why(c->tls, buf, cap))
+    return buf;
+  return strerror(errno);
+}
+
 /* Reads exactly N bytes or fails. A short read is not an error condition the
  * protocol can recover from -- every value has a known length -- so it is
  * always looped.
@@ -263,10 +289,15 @@ static int rd(zg_conn *c, void *buf, size_t n)
     {
       ssize_t k = c->tls ? (ssize_t) coco_client_tls_recv(c->tls, c->in, sizeof c->in)
                          : recv(c->fd, c->in, sizeof c->in, 0);
-      if (k == 0) return lost(c, "the server closed the connection", NULL);
-      if (k < 0) {
-        if (errno == EINTR) continue;
-        return lost(c, "read failed", strerror(errno));
+      if (k <= 0) {
+        char w[256];
+        if (k < 0 && errno == EINTR) continue;
+        /* A TLS read answers 0 for both a clean close and a broken one,
+         * and the reason is what tells them apart. */
+        if (k == 0 && !(c->tls && coco_client_tls_why &&
+                        coco_client_tls_why(c->tls, w, sizeof w)))
+          return lost(c, "the server closed the connection", NULL);
+        return lost(c, "read failed", why(c, w, sizeof w));
       }
       c->nin = (size_t)k;
     }
@@ -308,8 +339,9 @@ static int wr_now(zg_conn *c, const void *buf, size_t n)
     ssize_t k = c->tls ? (ssize_t) coco_client_tls_send(c->tls, p + sent, n - sent)
                        : send(c->fd, p + sent, n - sent, MSG_NOSIGNAL);
     if (k <= 0) {
+      char w[256];
       if (k < 0 && errno == EINTR) continue;
-      return lost(c, "write failed", strerror(errno));
+      return lost(c, "write failed", why(c, w, sizeof w));
     }
     sent += (size_t)k;
   }

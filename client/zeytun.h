@@ -18,7 +18,7 @@
  * `coco_tls_options *' and NULL means plaintext, so the old path is byte for
  * byte what it was.
  *
- * THE TLS IS IN client/zeytun-tls.c, ON PURPOSE. This file is still libc and
+ * THE TLS IS IN client/tls.c, ON PURPOSE. This file is still libc and
  * the sockets API and nothing else: it reaches OpenSSL through four functions
  * behind an opaque pointer, and a build without OpenSSL compiles that file's
  * stub half -- so `--https' reports the missing feature by name rather than
@@ -122,7 +122,7 @@ int zt_get2(const char *host, const char *service, const char *path,
  * case `coco_client_tls_open' fills ERR with a sentence saying so. */
 /* DECLARED WEAK, AND HERE RATHER THAN IN EACH .c. client/tls.o is linked
  * into the cocolog BINARY and not into libcocologc.a, so a program that
- * links only the archive -- every test/*.cicili target does -- must get
+ * links only the archive -- every test .cicili target does -- must get
  * null for these and speak plaintext. A weak attribute has to be on the
  * FIRST declaration the compiler sees: putting it only in the .c files,
  * after this header had already declared them strongly, left
@@ -136,6 +136,14 @@ COCO_WEAK void *coco_client_tls_open(int fd, const char *host,
 COCO_WEAK long  coco_client_tls_send(void *handle, const void *buf, size_t n);
 COCO_WEAK long  coco_client_tls_recv(void *handle, void *buf, size_t n);
 COCO_WEAK void  coco_client_tls_close(void *handle);
+/* WHY THE LAST SEND OR RECV STOPPED, when TLS knows and the socket does
+ * not: fills BUF and answers 1, or answers 0 when there is nothing to
+ * add. THE CASE IT EXISTS FOR is a server whose `TLS_CLIENT_AUTH' is
+ * REQUIRED and a client with no `--cert': under TLS 1.3 the client is
+ * finished talking before the server looks, so the handshake SUCCEEDS
+ * and the refusal arrives as an alert on the first read. Without this
+ * the client reports `read failed'; with it, the alert. */
+COCO_WEAK int   coco_client_tls_why(void *handle, char *buf, size_t cap);
 
 /* Undoes Zeytun's five escapes, in place. Answers the resulting length; the
  * result is always shorter or the same, so nothing is reallocated. */

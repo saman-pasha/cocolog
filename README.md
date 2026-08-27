@@ -220,7 +220,7 @@ There is one `cocolog` binary and it is the full one: the interpreter, the
 embedded MVCCS engine and the torch module, all in it. Which knowledge base a
 run uses is a runtime choice among four arrangements — `--local` (memory,
 the default when no other arrangement is named),
-the server (`--tcp`/`--tls`, or `--kb`/`--host`/`--port`),
+the server (`--tcp`/`--tls`, or `--kb`/`--host`),
 `--http`/`--https` (Zeytun, read only), and
 `--embed [DIR]` (the store inside the process; a bare
 `--embed` opens `./KB`) — never a build. Cicili is needed only to build:
@@ -357,7 +357,7 @@ somebody calls one.
 That is four arrangements from one interpreter:
 
 * **local** — no hooks. Everything in memory. The default: naming `--kb`,
-  `--host` or `--port` chooses the server instead.
+  `--host` or `--tcp` chooses the server instead.
 * **Zigurat** — `lib/zigurat-kb.cicili`. All five, over the wire. Machines
   suspend and resume here.
 * **embedded** — `--embed [DIR]` (a bare `--embed` opens `./KB`). The same
@@ -615,6 +615,7 @@ that must never become one.
 
 ```sh
 cocolog --tcp   --kb main            # the binary protocol, in the clear (2160)
+cocolog --tls   --kb main --cacert ca.crt                     # encrypted
 cocolog --tls   --kb main --cacert ca.crt --cert me.crt --key me.key
 cocolog --http  --host NAME          # Zeytun, plain HTTP (80)
 cocolog --https --host NAME          # Zeytun over TLS (443)
@@ -622,10 +623,37 @@ cocolog --https --host NAME          # Zeytun over TLS (443)
 
 **`--tls` keeps the port and `--https` changes it**, and that asymmetry
 is ZiguratIP's: `SERVER/TLS_MODE: TRUE` changes *what is on* 2160, while
-80 and 443 are two ports. On the binary port `TLS_CLIENT_AUTH` defaults
-to REQUIRED — it has no anonymous use — so `--tls` usually wants a
-certificate of your own; and with `SECURITY/PERMISSIONS_MODE: TRUE` that
-certificate decides which tables and procedures the connection reaches.
+80 and 443 are two ports.
+
+**A client certificate is optional, and mandatory for permissions** —
+which sounds contradictory and is not. `SERVER/TLS_CLIENT_AUTH` takes
+REQUIRED (the default), OPTIONAL or NONE, so the two `--tls` lines above
+are both real arrangements; the server decides which one it will accept.
+What a certificate is *required* for is `SECURITY/PERMISSIONS_MODE`.
+ZiguratIP identifies every TLS peer, certificate or not — one without a
+certificate is identified with an empty subject and an empty permission
+set — and `Globals::permits` allows everything only to a peer that is
+**not** identified, which is to say a plain connection. So:
+
+| connection | `PERMISSIONS_MODE: TRUE` reaches |
+|---|---|
+| plain (`--tcp`) | everything — unidentified |
+| `--tls`, no `--cert` | **nothing** — identified, no permissions |
+| `--tls --cert --key` | what the certificate grants |
+
+Turning TLS on is what turns access control on. The permission list is
+the one `library(ca)` reads out of a certificate, on the other side of
+the same seam.
+
+When the server wants a certificate and the run has none, the refusal
+arrives as an alert on the first read rather than as a failed handshake —
+TLS 1.3 does not look at the client until the client has finished
+talking — and cocolog reports it in those words:
+
+```
+cocolog: no server at HOST:2160 -- read failed: tlsv13 alert certificate
+required -- this server wants a client certificate: --cert and --key
+```
 
 The hostname is checked, not just the chain, on both. `--insecure` turns
 that off and says so on stderr every time.

@@ -30,12 +30,12 @@
 %%
 %% RUN THIS FILE AGAINST A SERVER TO SEE THE OTHER HALF:
 %%
-%%     ./cocolog --kb demo --host 127.0.0.1 --port 2160 \
+%%     ./cocolog --kb demo --host 127.0.0.1 --tcp 2160 \
 %%               run tutorials/basics/11-the-knowledge-base.pl main
 %%
 %% then ask a SECOND process, which consulted nothing:
 %%
-%%     ./cocolog --kb demo --host 127.0.0.1 --port 2160 \
+%%     ./cocolog --kb demo --host 127.0.0.1 --tcp 2160 \
 %%               query "policy(gold, D), write(D), nl"
 %%
 %% Under --local the second command answers nothing, because the first

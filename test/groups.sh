@@ -65,14 +65,14 @@ SETUP_TIMEOUT=${SETUP_TIMEOUT:-20}
 WORKER_TIMEOUT=${WORKER_TIMEOUT:-60}
 SOCKET_TIMEOUT=${SOCKET_TIMEOUT:-10}
 
-if ! timeout "$SETUP_TIMEOUT" "$COCOLOG" --kb "$KB" --host "$HOST" --port "$PORT" \
+if ! timeout "$SETUP_TIMEOUT" "$COCOLOG" --kb "$KB" --host "$HOST" --tcp "$PORT" \
        --timeout "$SOCKET_TIMEOUT" list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"
   exit 0
 fi
 
-CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --host $HOST --port $PORT --timeout $SOCKET_TIMEOUT"
-WORK="timeout $WORKER_TIMEOUT $COCOLOG --kb $KB --host $HOST --port $PORT --timeout $SOCKET_TIMEOUT"
+CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --host $HOST --tcp $PORT --timeout $SOCKET_TIMEOUT"
+WORK="timeout $WORKER_TIMEOUT $COCOLOG --kb $KB --host $HOST --tcp $PORT --timeout $SOCKET_TIMEOUT"
 
 # The four groups, each with its goal and the answer set that goal must produce.
 # Kept here rather than spread through the file, so that adding a fifth group is

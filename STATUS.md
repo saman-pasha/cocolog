@@ -259,19 +259,13 @@ The property to check is that a refused peer gets no answer.
 ### Four transports, named -- `--tcp`, `--tls`, `--http`, `--https`
 
 The arrangement is spelled rather than inferred. `--tcp' is what naming
-`--kb', `--host' or `--port' already chose; `--tls' is the same port with
+`--kb' or `--host' already chose; `--tls' is the same port with
 ZiguratIP's `SERVER/TLS_MODE: TRUE' on the other end; `--http' and
 `--https' are Zeytun. Every port is optional -- 2160, 2160, 80, 443.
 
 **`--tls` KEEPS THE PORT AND `--https` CHANGES IT**, and the asymmetry is
 ZiguratIP's rather than an inconsistency here: TLS_MODE changes what is
-ON 2160, while 80 and 443 are two different ports. `TLS_CLIENT_AUTH' on
-the binary port defaults to REQUIRED -- the configuration says in as many
-words that the binary protocol has no anonymous use -- so `--tls' usually
-wants `--cert' and `--key' beside `--cacert'. And with
-`SECURITY/PERMISSIONS_MODE: TRUE' the certificate that opened the
-connection decides which tables and procedures it reaches: the same
-permission list `library(ca)' reads, on the other side of the same seam.
+ON 2160, while 80 and 443 are two different ports.
 
 **Both clients share one TLS unit**, `client/tls.c`, because a handshake
 is a handshake -- and its functions are `coco_client_tls_*` rather than
@@ -297,9 +291,9 @@ querier behind Cloudflare should not have to know what port an edge
 listens on. `--cacert`, `--capath`, `--cert`, `--key`, `--key-pass` and
 `--insecure` are the rest of it.
 
-**THE TLS IS IN `client/zeytun-tls.c` AND NOWHERE ELSE**, so
+**THE TLS IS IN `client/tls.c` AND NOWHERE ELSE**, so
 `client/zeytun.c` is still libc and the sockets API and nothing else: it
-reaches OpenSSL through four functions behind an opaque pointer, and a
+reaches OpenSSL through six functions behind an opaque pointer, and a
 build without OpenSSL compiles that file's stub half -- `--https` then
 reports the missing feature by name rather than failing to link.
 
@@ -1915,6 +1909,68 @@ base. A consulted file becomes clauses and clauses become rows, so a
 secret that must not become a row — a ledger node's signing key, a token
 — had nowhere else to arrive from. The Coco's ledger nodes take their
 private keys this way and no key appears in any file.
+
+### TLS with and without a certificate, and `--port` retired
+
+Two questions the four-transport work left open, settled by reading
+ZiguratIP rather than by assuming.
+
+**CAN ZIGURAT DO TLS WITHOUT A CLIENT CERTIFICATE? Yes.**
+`loadzigurat.cpp` accepts REQUIRED (the default), OPTIONAL and NONE for
+`SERVER/TLS_CLIENT_AUTH`, and `loadsecurity.cpp`'s `require_security()`
+demands only the SERVER's own certificate, key and authority. The earlier
+note here — that the binary protocol "has no anonymous use" — read a
+default as a requirement, and is corrected above.
+
+**WHAT A CERTIFICATE IS MANDATORY FOR IS PERMISSIONS**, and the mechanism
+is worth writing down because it is the reverse of the obvious guess.
+`zigurat_tls_handler` calls `Globals::set_peer(...)` for **every** TLS
+peer, certificate or not; `Globals::permits` opens with
+`if (!_identified) return true;`, and `globals.hpp` says why:
+"Unidentified means a plain connection, where there is no peer to ask
+about and everything is allowed -- turning TLS on is what turns access
+control on." So with `SECURITY/PERMISSIONS_MODE: TRUE`, a **plain**
+connection reaches everything, a TLS connection with a certificate
+reaches what the certificate grants, and a TLS connection **without** one
+is identified with an empty subject and an empty permission set and
+reaches nothing. Encryption without a certificate is a real arrangement;
+it is simply not an authorised one.
+
+The client already did both -- `--cert`/`--key` were optional and only
+their pairing was checked -- so what this turn added is the half that was
+missing: **the refusal is legible**. Under TLS 1.3 a missing client
+certificate is NOT a failed handshake: the server does not examine what
+the client sent until the client has finished talking, so `SSL_connect`
+succeeds and the alert arrives on the first read. That read used to
+report `read failed: Success`, which sends the reader to the wrong end
+entirely. `client/tls.c` now keeps the reason in the handle and hands it
+back through `coco_client_tls_why`, and `client/zigurat.c` prefers it to
+errno on a TLS connection:
+
+    cocolog: no server at HOST:2160 -- read failed: tlsv13 alert
+    certificate required -- this server wants a client certificate:
+    --cert and --key
+
+`test/zigurat-tls.sh` runs TWO terminators now, one per client-auth
+setting, and holds all four combinations: a certificate offered where
+none is wanted, a certificate where one is required, none where none is
+required (which every other check in the case already was), and none
+where one is required -- that last asserting the sentence above, word for
+word. Eleven checks.
+
+**`--port` IS DEPRECATED, AND STILL WORKS.** It is exactly `--tcp PORT`:
+the same field, the same default, the same choice of arrangement. It
+named a number back when there was one transport; there are four now and
+each says WHICH as well as where.
+
+**Nothing warns.** A deprecation notice on stderr every run would land in
+the output of every script that pipes cocolog -- including several in
+this suite that compare stderr exactly -- and the flag is a spelling
+rather than a mistake. It is marked deprecated in `--help` and in the
+documentation, the repository's own thirty-odd uses moved to `--tcp`
+(tests, the two coworkers, the tutorials, the emacs mode and its test),
+and `test/zigurat-lib.sh` holds it to both halves: that it still reaches
+the server, and that it prints nothing while doing so.
 
 ## Known limitations, by choice
 

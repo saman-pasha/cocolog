@@ -79,10 +79,10 @@ fi
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
 if [ -x "$ROOT/cocolog" ] && \
-   timeout 20 "$ROOT/cocolog" --kb vacuum_test --host "$HOST" --port "$PORT" \
+   timeout 20 "$ROOT/cocolog" --kb vacuum_test --host "$HOST" --tcp "$PORT" \
      --timeout 10 list >/dev/null 2>&1; then
   echo "the wire arrangement"
-  exercise wire timeout 60 "$ROOT/cocolog" --kb vacuum_test --host "$HOST" --port "$PORT" --timeout 10
+  exercise wire timeout 60 "$ROOT/cocolog" --kb vacuum_test --host "$HOST" --tcp "$PORT" --timeout 10
 else
   echo "wire: SKIP no Zigurat server at $HOST:$PORT"
 fi

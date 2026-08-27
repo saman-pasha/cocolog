@@ -74,11 +74,11 @@ static int dial(const char *host, const char *service, int timeout_seconds,
  * it says it is. The archive holds this file and zigurat.c and nothing
  * else; client/tls.o is linked into the cocolog BINARY, beside
  * -lssl -lcrypto. A program that links only the archive -- every
- * test/*.cicili target does -- gets NULL here, and plaintext is
+ * test .cicili target does -- gets NULL here, and plaintext is
  * unaffected.
  *
  * FOUND BY THE SUITE, which is the argument for having it: putting
- * zeytun-tls.o in the archive made `test/shared.cicili' fail to link with
+ * tls.o in the archive made `test/shared.cicili' fail to link with
  * `undefined reference to SSL_free', from a test that has never opened a
  * socket to anything but the binary protocol. The archive is a
  * dependency of things that want no TLS, and it should stay one. */

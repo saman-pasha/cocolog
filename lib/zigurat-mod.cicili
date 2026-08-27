@@ -1,7 +1,7 @@
 ;;;; cocolog -- library(zigurat): the connection under the knowledge base,
 ;;;; steered from Prolog
 ;;;
-;;; When cocolog is on a server (`--kb', `--host', `--port') or on an
+;;; When cocolog is on a server (`--tcp', `--tls', `--kb', `--host') or on an
 ;;; embedded store (`--embed'), the knowledge base rides a zg_conn -- the
 ;;; same connection the store's own hooks write through. This module hands
 ;;; that connection to the program: the transaction is the program's to

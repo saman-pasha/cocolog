@@ -640,7 +640,7 @@ fi
 echo "-- pages that reach the knowledge base, from a worker thread"
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
-KB="--kb httpd_kb_case --host $HOST --port $PORT --timeout 30"
+KB="--kb httpd_kb_case --host $HOST --tcp $PORT --timeout 30"
 if [ ! -f "$ROOT/library/thread.so" ]; then
   echo "   (SKIPPED -- no library/thread.so)"
 elif ! command -v curl >/dev/null 2>&1; then

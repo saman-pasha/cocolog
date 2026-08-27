@@ -52,14 +52,14 @@ QUERIER_TIMEOUT=${QUERIER_TIMEOUT:-60}
 SOCKET_TIMEOUT=${SOCKET_TIMEOUT:-10}
 QUERIERS=${QUERIERS:-8}
 
-if ! timeout "$SETUP_TIMEOUT" "$COCOLOG" --kb "$KB" --host "$HOST" --port "$PORT" \
+if ! timeout "$SETUP_TIMEOUT" "$COCOLOG" --kb "$KB" --host "$HOST" --tcp "$PORT" \
        --timeout "$SOCKET_TIMEOUT" list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"
   exit 0
 fi
 
-CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --host $HOST --port $PORT --timeout $SOCKET_TIMEOUT"
-QY="timeout $QUERIER_TIMEOUT $COCOLOG --kb $KB --host $HOST --port $PORT --timeout $SOCKET_TIMEOUT"
+CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --host $HOST --tcp $PORT --timeout $SOCKET_TIMEOUT"
+QY="timeout $QUERIER_TIMEOUT $COCOLOG --kb $KB --host $HOST --tcp $PORT --timeout $SOCKET_TIMEOUT"
 
 # The program, one clause per line, in the order the ruler asserts it. The rules
 # come FIRST and the facts after, so that for most of the run there are rules
