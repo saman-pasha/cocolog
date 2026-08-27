@@ -152,6 +152,72 @@ check "and a real non-atom still gets the real error" \
         ( E = type_error(atom, _) -> write(answer(type_error)) ; write(answer(other)) )), nl" \
      2>/dev/null | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//')" "type_error"
 
+echo "-- the fence itself, which is why a page cannot end the server"
+b() { timeout 90 "$C" query "$1" 2>/dev/null \
+      | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
+check "a runaway is stopped and says so" \
+  "$(b "call_limited((between(1,100000000,_), fail), 5000, R), write(answer(R)), nl")" \
+  "inference_limit_exceeded"
+# A FENCE THAT LOST THE ANSWER would be useless: the page's reply comes back
+# as bindings, so they have to survive a success.
+check "a success keeps its bindings" \
+  "$(b "call_limited(append(X, [c], [a,b,c]), 10000, _), write(answer(X)), nl")" "[a,b]"
+# ...and must NOT survive the ceiling, or a half-run page would answer with
+# half a term.
+check "and the ceiling leaves none behind" \
+  "$(b "call_limited((X = bound, between(1,100000000,_), fail), 5000, _),
+        ( var(X) -> W = unbound ; W = X ), write(answer(W)), nl")" "unbound"
+check "a goal that merely fails, fails" \
+  "$(b "( call_limited(fail, 1000, _) -> W = succeeded ; W = failed ),
+        write(answer(W)), nl")" "failed"
+# ZERO WOULD MEAN `NO LIMIT' one layer down, where 0 is how max_steps spells
+# unbounded -- so asking for nothing would silently get everything.
+check "a ceiling of zero is refused, not read as unlimited" \
+  "$(b "catch(call_limited(true, 0, _), error(E, _),
+        ( E = domain_error(positive_integer, _) -> write(answer(refused))
+        ; write(answer(other)) )), nl")" "refused"
+
+# THE ONE THAT COST A FIELD ON THE ENGINE. A nested engine unwinds its own
+# stack, so the ball's term is gone by the time control is back -- and the
+# first version of this builtin let an exception out as a message only,
+# which turned every page error into a dead request handler. The ball is now
+# kept in the store and thrown again outside.
+check "an exception inside is catchable outside" \
+  "$(b "catch(call_limited((X is 1/0, write(X)), 10000, _), error(E, _),
+        ( E = evaluation_error(zero_divisor) -> write(answer(reraised))
+        ; write(answer(other)) )), nl")" "reraised"
+check "and the recovery goal really runs" \
+  "$(b "catch(call_limited(atom_length(1,_,_), 10000, _), _,
+        (Y = recovered, write(answer(Y)))), nl")" "recovered"
+# A catch INSIDE the fence is inside the nested engine with the throw, so it
+# never needed any of that machinery -- checked so the two paths stay apart.
+check "a catch within the goal still works normally" \
+  "$(b "call_limited(catch(atom_length(1,_,_), _, true), 10000, R),
+        write(answer(R)), nl")" "true"
+
+# THE CEILING NARROWS, NEVER WIDENS. An inner limit of 100 million inside an
+# outer budget of 3000 gets the 3000 -- otherwise a fenced goal would be a
+# way AROUND the outer budget rather than a limit under it. Needs a
+# database, because `step' is the only thing that sets an outer budget, and
+# --embed is one without a server.
+KB="$D/fencekb"
+mkdir -p "$KB"
+if timeout 60 "$C" --embed "$KB" start fencer \
+     "call_limited((between(1,100000000,_), fail), 100000000, R), write(r(R)), nl" \
+     >/dev/null 2>&1; then
+  got=$(timeout 120 "$C" --embed "$KB" --steps 3000 step fencer 2>&1 \
+        | grep -oE 'suspended at [0-9]+' | head -1)
+  # 3002 rather than 100000000: without the narrowing this runs for minutes
+  check "an outer budget narrows an inner ceiling" \
+    "$(echo "$got" | grep -qE 'suspended at 3[0-9]{3}$' && echo narrowed || echo "$got")" \
+    "narrowed"
+  got=$(timeout 120 "$C" --embed "$KB" --steps 5000 finish fencer 2>&1 \
+        | grep -oE 'r\(inference_limit_exceeded\)' | head -1)
+  check "and the program carries on past the fence" "$got" "r(inference_limit_exceeded)"
+else
+  echo "   (outer-budget case SKIPPED -- no embedded store here)"
+fi
+
 echo "-- HEAD says what GET would, without the body"
 check "HEAD is 200" "$(st head /a.txt)" "200"
 # THE WHOLE POINT: the length is the FILE's, not zero. A server that
@@ -181,6 +247,11 @@ httpd_page('/who', request(_,_,Query,_,_,_), reply(200, [], Answer)) :-
 
 httpd_page('/boom', _, _) :- X is 1/0, write(X).
 
+%% The one that would take the server with it. Not an infinite loop written
+%% as one -- between/3 to a hundred million is finite and would simply take
+%% minutes, which is the same thing to anybody waiting on the socket.
+httpd_page('/loop', _, _) :- between(1, 100000000, _), fail.
+
 %% Claims a .pl path, to prove a page may be REACHED at one even though a
 %% .pl file is never SERVED at one.
 httpd_page('/app.pl', _, reply(200, [], 'a page, not a file')).
@@ -209,6 +280,27 @@ check "a page may claim a .pl path the file rule refuses" \
 check "a page shadows a file of the same path" \
   "$(pq "httpd_answer($R, $(req get /hello), Cs), atom_codes(A, Cs),
          sub_atom(A, 9, 3, _, S), write(answer(S)), nl")" "200"
+# THE CEILING, and the case the whole fence exists for. Without it this
+# request never comes back and neither does the server.
+check "a page that loops is stopped, and answers 500" \
+  "$(pq "httpd_answer([root('$D/root'), page_limit(20000)], $(req get /loop), Cs),
+         atom_codes(A, Cs), sub_atom(A, 9, 3, _, S), write(answer(S)), nl")" "500"
+check "and says what happened, not just that something did" \
+  "$(pq "httpd_answer([root('$D/root'), page_limit(20000)], $(req get /loop), Cs),
+         atom_codes(A, Cs),
+         ( sub_atom(A, _, _, _, 'inference limit') -> X = named ; X = vague ),
+         write(answer(X)), nl")" "named"
+# AND THE SERVER IS STILL THERE afterwards, which is the actual claim. A
+# fence that stopped the page by stopping the process would pass the two
+# cases above and be worthless.
+check "the next request after a stopped page is answered normally" \
+  "$(pq "httpd_answer([root('$D/root'), page_limit(20000)], $(req get /loop), _),
+         httpd_answer($R, $(req get /a.txt), Cs), atom_codes(A, Cs),
+         sub_atom(A, 9, 3, _, S), write(answer(S)), nl")" "200"
+check "a page well under the ceiling is untouched by it" \
+  "$(pq "httpd_answer([root('$D/root'), page_limit(20000)], $(req get /hello), Cs),
+         atom_codes(A, Cs), sub_atom(A, 9, 3, _, S), write(answer(S)), nl")" "200"
+
 check "with pages off, the same request is static again" \
   "$(pq "httpd_answer([root('$D/root'), pages(false)], $(req get /hello), Cs),
          atom_codes(A, Cs), sub_atom(A, 9, 3, _, S), write(answer(S)), nl")" "404"

@@ -35,6 +35,7 @@
 %%                        should not have a document root by accident
 %%     index(Name)        what a directory answers with  (default index.html)
 %%     pages(Bool)        consult httpd_page/3 first     (default true)
+%%     page_limit(N)      inferences ONE page may spend    (default 1000000)
 %%     max_file(Bytes)    larger is 413, not a slow 200  (default 1 MiB)
 %%     max_request(Bytes) larger is refused              (default 64 KiB)
 %%     read_timeout(Ms)   per read while a request arrives    (default 5000)
@@ -67,6 +68,8 @@
 %% A page that FAILS is a 404 -- it did not claim the path, so the static
 %% half gets its turn. A page that THROWS is a 500 and does not fall
 %% through, because an error is a page saying "this is mine and it broke".
+%% A page that LOOPS is a 500 as well, after page_limit inferences: see the
+%% ceiling below, which is what keeps one bad page from ending the server.
 %%
 %%
 %% WHERE IT IS STRICT, and every one of these is a decision:
@@ -96,6 +99,13 @@
 %%   body. Answering HEAD with a zero Content-Length -- the easy way to
 %%   write it -- lies to every client that asks how big a file is.
 %%
+%%
+%% THE CEILING IS WHY THIS IS SAFE TO POINT AT A NETWORK AT ALL. Everything
+%% else here is about not handing out files; the ceiling is about still
+%% being running afterwards. `call_limited/3' is cocolog's own -- NOT SWI's
+%% `call_with_inference_limit/3', which keeps the goal's choice points and
+%% this does not, and lib/builtins.cicili says at length why it did not
+%% borrow the name.
 %%
 %% WHAT IT IS NOT: there is no chunked encoding (library(http) refuses it
 %% on the way in too), no keep-alive -- one request per connection, and the
@@ -205,13 +215,29 @@ httpd_answer(Options, Request, Codes) :-
 %% that fails leaves Reply unbound and this clause fails, so the static
 %% clause runs; a page that throws is answered 500 here and the static
 %% clause never sees it.
+%% AND IT RUNS UNDER A CEILING. A page is a program somebody wrote, and one
+%% that loops would otherwise take the whole server with it -- this listens
+%% on one connection at a time, so a wedged page is not a slow request, it
+%% is the end of the service. call_limited/3 spends at most page_limit
+%% inferences and then stops, and the request that did it gets the 500.
+%%
+%% WHAT THE CEILING DOES NOT UNDO: a page that ASSERTED before it looped has
+%% asserted. Bindings are on the trail and come back; the store does not
+%% shrink, which is the property `assert' itself relies on. A page that
+%% writes should do it last, or not care.
 httpd_route(Options, Request, Reply) :-
     httpd_option(pages(Pages), Options, true),
     Pages == true,
+    httpd_option(page_limit(Limit), Options, 1000000),
     Request = request(_, Path, _, _, _, _),
-    catch(httpd_page(Path, Request, R), _, R = reply(500, [], 'page raised')),
+    catch(call_limited(httpd_page(Path, Request, R), Limit, Spent),
+          _,
+          ( R = reply(500, [], 'page raised'), Spent = true )),
     !,
-    Reply = R.
+    (   Spent == inference_limit_exceeded
+    ->  Reply = reply(500, [], 'page exceeded its inference limit')
+    ;   Reply = R
+    ).
 httpd_route(Options, Request, Reply) :-
     httpd_static(Options, Request, Reply).
 

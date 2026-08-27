@@ -474,6 +474,56 @@ predicate in a vendored file is callable, including the ones upstream keeps
 private. That is a real difference in behaviour and is recorded rather than
 papered over.
 
+### A goal under a ceiling: `call_limited/3`
+
+    call_limited(Goal, Limit, Result)
+
+Runs `Goal` spending at most `Limit` inferences. `Result` is `true` if it
+succeeded or `inference_limit_exceeded` if the ceiling stopped it; the whole
+call **fails** if `Goal` failed, so it drops in where `once/1` was. A `Limit`
+below 1 is a `domain_error(positive_integer, _)` and **not** "no limit" —
+zero is how `max_steps` spells unbounded one layer down, so a caller asking
+for nothing would otherwise have got everything.
+
+**It is not named `call_with_inference_limit/3`, on purpose.** SWI's keeps the
+goal's choice points alive; this commits to the first solution, because the
+nested engine that carries the ceiling dies with its own choice stack. The
+rule is the one `lib/builtins.cicili` already states about `bagof` and
+`setof`: *a predicate that agrees with SWI until it does not is worse than one
+that never claimed to.* Somebody porting code gets an existence error and
+reads this, rather than a program that works until a page backtracks.
+
+**Why it exists at all.** `max_steps` belonged to the composition root —
+`cocolog step` was the only thing that ever set it — so nothing a *program*
+ran could be bounded from inside a program. `library(httpd)` cannot live with
+that: it serves one connection at a time, so a page that loops is not a slow
+request, it is the end of the service.
+
+**The ceiling narrows, never widens.** A goal asking for a million inferences
+inside a `cocolog step` with a thousand left gets the thousand. `findall/3`
+already narrows this way, and a fence that could *raise* a budget would be a
+way around the outer one rather than a limit under it.
+
+**What survives and what does not.** Bindings survive a success and are undone
+by the ceiling — a half-run goal must not answer with half a term. What the
+ceiling does *not* undo is anything the goal **asserted**: the trail comes
+back, the store does not shrink. That is the property `assert` itself relies
+on, and a page that writes should do it last.
+
+**An exception inside is an exception outside**, and that took a field on the
+engine. The nested engine unwinds its own stack, so the ball's term is gone by
+the time control is back — except that `coco_throw` puts every ball in the
+*store* before it unwinds, and `coco_engine` now records which cell. It is read
+back and thrown again in the outer engine, where an enclosing `catch/3` matches
+it exactly as it would have without the fence.
+
+That is not a nicety. The first version of the builtin let an exception out as
+a message only, and wrapping a page in it turned every page error into a dead
+request handler; the suite caught it in one run. **`findall/3` still has the
+older behaviour** — an uncaught throw inside it ends the query with a message
+no `catch/3` sees. The machinery to fix it is now in place; changing a core
+predicate wants its own case, so it was not done in passing.
+
 ### The soft cut
 
 `(C *-> T ; E)` runs `T` for **every** solution of `C`, not just the first — so

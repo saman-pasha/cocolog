@@ -263,6 +263,16 @@
     (member int         trace_depth)
     (member size_t      trace_goal)
 
+    ;; AN UNCAUGHT BALL, for whoever is running this engine from outside.
+    ;; `coco_throw' already puts every ball in the store -- it has to, because
+    ;; unwinding truncates the heap out from under it -- and until now the
+    ;; cell index died with the call, so a NESTED engine's exception reached
+    ;; its caller as a message and nothing else. A caller that wants to
+    ;; re-raise it in its own engine needs the term, and this is where the
+    ;; term is. Zero when nothing was thrown; `coco_engine_init' memsets.
+    (member int         has_ball)
+    (member size_t      ball_cell)
+
     (member char        err [192]))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
@@ -327,6 +337,47 @@
   ;;; Answers 1, or 0 with `e->err' carrying whatever went wrong inside.
   (decl) (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
                                   (size_t * out)) (out int))
+
+  ;;; ---- a goal under a ceiling -------------------------------------------
+  ;;;
+  ;;; Runs GOAL on a nested engine, exactly as findall does, but bounded to
+  ;;; LIMIT inferences and stopping at the FIRST solution. Here for findall's
+  ;;; reason: a step ceiling is a property of an engine, and a module cannot
+  ;;; see one.
+  ;;;
+  ;;; WHY IT IS NEEDED AT ALL. `max_steps' was set only by the composition
+  ;;; root -- `cocolog step' -- so nothing a PROGRAM ran could be bounded from
+  ;;; inside a program. A server whose pages are clauses cannot live with
+  ;;; that: one page that loops takes the whole process with it, and no amount
+  ;;; of care in the other pages helps.
+  ;;;
+  ;;; IT COMMITS TO THE FIRST SOLUTION and says so rather than borrowing SWI's
+  ;;; name for something subtly different -- which is the rule this file
+  ;;; already states about bagof/setof, that a predicate agreeing until it
+  ;;; does not is worse than one that never claimed to. The sub-engine's
+  ;;; choice points die with it, so there is nothing to backtrack into.
+  ;;;
+  ;;; THE CEILING IS THE LOWER OF TWO. A goal asking for a million inferences
+  ;;; inside a `cocolog step' that has a thousand left gets the thousand:
+  ;;; findall already narrows this way, and a fence that could RAISE a budget
+  ;;; would be a way around the outer one rather than a limit.
+  ;;;
+  ;;; AN EXCEPTION COMES OUT AS AN EXCEPTION, which findall's version of this
+  ;;; does not manage -- there, an uncaught throw inside ends the query with
+  ;;; its message and no `catch/3' outside ever sees it. It matters more here:
+  ;;; library(httpd) answers 500 for a page that throws, and it can only do
+  ;;; that if it can catch one. The ball survives because `coco_throw' puts
+  ;;; every ball in the store before unwinding, and the nested engine now says
+  ;;; which cell; it is read back on to the heap and thrown again in the outer
+  ;;; engine, where an enclosing catch can match it.
+  ;;;
+  ;;; Answers 1 (succeeded, and its BINDINGS ARE KEPT), 0 (failed), 2 (the
+  ;;; ceiling was reached), 3 (it threw and an outer `catch/3' took it, so the
+  ;;; caller must answer 2 -- "the continuation is already set"), or -1 (it
+  ;;; threw and nothing caught it, `e->err' set). Everything but 1 puts the
+  ;;; machine back exactly as it was.
+  (decl) (func coco_engine_call_limited ((coco_engine * e) (size_t goal)
+                                       (u64 limit) (u64 * used)) (out int))
 
   ;;; Throws BALL, exactly as `throw/1' does. A module's C half uses this to
   ;;; raise an error a program can catch, rather than filling in `err' and
@@ -735,9 +786,13 @@
                 (coco_undo_to m mark))
               (set (-> e nchoices) ci)))
 
-          ;; nothing caught it. The ball is read back one last time so that the
-          ;; message can name it, which is the difference between a report a
-          ;; person can act on and `an error occurred'.
+          ;; nothing caught it. The cell is kept so an OUTER engine can throw
+          ;; this same ball again -- see `coco_engine_call_limited' -- and the
+          ;; ball is read back one last time so that the message can name it,
+          ;; which is the difference between a report a person can act on and
+          ;; `an error occurred'.
+          (set (-> e has_ball) 1)
+          (set (-> e ball_cell) cell)
           (let ((coco_strbuf b))
             (coco_sb_init (aof b))
             (coco_write_term m (aof b) (coco_store_get m st cell) 1 0)
@@ -889,6 +944,59 @@
             (free kept)
             (set (cof out) lst))
           (return 1))))
+
+  (func coco_engine_call_limited ((coco_engine * e) (size_t goal)
+                                (u64 limit) (u64 * used)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (coco_engine sub)
+              (size_t tmark . #'($ (cof m) trail_len))
+              (size_t hmark . #'($ (cof m) heap_len))
+              (int rc . 0) (int out . 0))
+          (coco_engine_init (aof sub) m st)
+          (set ($ sub max_steps) limit)
+          ;; narrowed to what the OUTER engine has left, never widened
+          (if (!= (-> e max_steps) 0)
+              (let ((u64 left . #'(? (>= (-> e steps) (-> e max_steps)) 1
+                                     (- (-> e max_steps) (-> e steps)))))
+                (if (< left limit) (set ($ sub max_steps) left))))
+          (coco_engine_ask (aof sub) goal)
+          (set ($ sub trace) (-> e trace))
+          (set ($ sub trace_depth) (-> e trace_depth))
+          (set ($ sub trace_goal) (-> e trace_goal))
+          (set rc (coco_engine_next (aof sub)))
+          (set (cof used) ($ sub steps))
+          ;; SPENT IS SPENT, whichever way it went: an outer budget that did
+          ;; not count a fenced goal's inferences would be a hole big enough
+          ;; to drive the whole loop through.
+          (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (let ((int threw . 0) (size_t cell . 0))
+            (if (== rc 1) (set out 1))
+            (if (== rc 0) (set out 0))
+            (if (== rc -1)
+                (if (== 0 (strcmp ($ sub err) "inference limit reached"))
+                    (set out 2)
+                  (block
+                   ;; read the ball's cell BEFORE the free, which memsets it
+                   (if ($ sub has_ball)
+                       (block (set threw 1) (set cell ($ sub ball_cell))))
+                   (snprintf (-> e err) 192 "%s" ($ sub err))
+                   (set out -1))))
+            (coco_engine_free (aof sub))
+            ;; BINDINGS SURVIVE ONLY A SUCCESS, and on success the heap is NOT
+            ;; truncated -- findall can truncate because it copied every
+            ;; solution into the store, and this one's answer is the bindings
+            ;; themselves, which point at cells the search built.
+            (if (!= out 1)
+                (block (coco_undo_to m tmark)
+                       (set ($ (cof m) heap_len) hmark)))
+            ;; and NOW throw it again, in the outer engine, after the machine
+            ;; is back where it was -- `coco_throw' unwinds from here to
+            ;; whatever catch frame matches, which is at or below this mark
+            (if threw
+                (set out (? (== 1 (coco_throw e (coco_store_get m st cell)))
+                            3 -1))))
+          (return out)))
 
   (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int)
         (let ((size_t g))
