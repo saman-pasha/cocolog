@@ -41,8 +41,8 @@ ROOT = os.path.dirname(os.path.abspath(COCOLOG))
 # yall as cocolog vendors them, then the few rules the engine's library
 # has that the vendored files do not.
 LIBRARY = [p for p in
-           [os.path.join(ROOT, 'lib', 'vendor', 'swipl', 'dcg_basics.pl'),
-            os.path.join(ROOT, 'lib', 'vendor', 'swipl', 'yall.pl'),
+           [os.path.join(ROOT, 'lib', 'swipl', 'dcg_basics.pl'),
+            os.path.join(ROOT, 'lib', 'swipl', 'yall.pl'),
             'tools/coco-prelude.pl']
            if os.path.exists(p)]
 

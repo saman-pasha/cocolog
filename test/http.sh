@@ -135,7 +135,7 @@ check "a bare LF is ACCEPTED, by the spec"  \
 echo "-- the decoding, checked against Python rather than against itself"
 # urllib.parse is an implementation nobody here wrote. Agreeing with it is
 # evidence; agreeing with this file's author is not.
-dec() { timeout 60 "$C" query "$U, atom_codes('$1', Cs), percent_decode(Cs, D),
+dec() { timeout 60 "$C" query "$U, atom_codes('$1', Cs), http_percent_decode(Cs, D),
           atom_codes(X, D), write(answer(X)), nl" 2>/dev/null \
         | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
 for raw in 'a%20b' '%2Fslash' 'plus+kept' '%41%42%43' 'caf%C3%A9' '100%25' 'a%2Bb'; do

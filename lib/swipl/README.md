@@ -91,7 +91,7 @@ They are ordinary Prolog files, not modules in cocolog's sense — nothing
 registers them and no C is attached:
 
 ```sh
-cocolog --local run lib/vendor/swipl/dcg_basics.pl my_program.pl main
+cocolog --local run lib/swipl/dcg_basics.pl my_program.pl main
 ```
 
 With more than one argument `run` takes the LAST as the goal, so `main` has to

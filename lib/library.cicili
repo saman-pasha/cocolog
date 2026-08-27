@@ -57,6 +57,10 @@
   ;;; matters to the directive: not-found stays silent there, because a
   ;;; borrowed file names libraries this build carries under other
   ;;; arrangements, and that has never been worth a sound.
+  ;;; The vendored SWI libraries, registered at start-up so a program can
+  ;;; just USE them. See the note beside the list below.
+  (decl) (func coco_library_preload () (out int))
+
   (decl) (func coco_library_load ((coco_store * st) (coco_machine * m)
                                   (coco_engine * e) (size_t spec)
                                   (char * err) (size_t errlen)) (out int))
@@ -84,8 +88,61 @@
           (fclose f)
           (return 1)))
 
-  ;;; NAME.so or NAME.pl on the library path: $COCOLOG_LIBRARY, split on
-  ;;; colons, then `./library'. KIND answers 1 for a .so and 2 for a .pl.
+  ;;; ---- where the binary itself lives -----------------------------------
+  ;;;
+  ;;; THE DEFAULT PATH USED TO BE RELATIVE TO THE WORKING DIRECTORY, and
+  ;;; that is only ever right by accident. `./library' finds the shipped
+  ;;; libraries when cocolog is run from its own checkout and finds
+  ;;; nothing at all from anywhere else -- so an installed cocolog, or one
+  ;;; invoked from a project directory, could not load its OWN vendored
+  ;;; libraries. Worse, it is not merely unhelpful: `./library' means a
+  ;;; directory somebody else may control, so a cocolog run inside an
+  ;;; untrusted tree would prefer THEIR library(lists) to its own.
+  ;;;
+  ;;; /proc/self/exe is the kernel's answer to "which file am I", and it
+  ;;; is exact -- no argv[0] guessing, no PATH search, correct under a
+  ;;; symlink because readlink resolves the whole chain. Linux-only, which
+  ;;; this already is: the embedded store, the epoll-free poll loop and
+  ;;; the rest of it have never pretended otherwise. Where it is not
+  ;;; there, the answer is the empty string and the search simply skips
+  ;;; those two entries.
+  (static) (var char lb_exe_dir [1024])
+  (static) (var int lb_exe_done . 0)
+
+  (static)
+  (func lb_exedir () (out const char *)
+        (let ((ssize_t n . 0) (size_t i . 0) (size_t cut . 0))
+          (if lb_exe_done (return lb_exe_dir))
+          (set lb_exe_done 1)
+          (set (nth 0 lb_exe_dir) (cast char 0))
+          (set n (readlink "/proc/self/exe" lb_exe_dir 1023))
+          (if (<= n 0) (return lb_exe_dir))
+          (set (nth (cast size_t n) lb_exe_dir) (cast char 0))
+          ;; back to the last `/', which is where the directory ends
+          (for ((size_t j . 0)) (< j (cast size_t n)) ((++ j))
+               (if (== (nth j lb_exe_dir) (cast char 47)) (set cut j)))
+          (set (nth cut lb_exe_dir) (cast char 0))
+          (return lb_exe_dir)))
+
+  ;;; A directory under the binary's own: <exedir>/SUB.
+  (static)
+  (func lb_probe_exe ((const char * sub) (const char * name) (const char * ext)
+                      (char * buf) (size_t cap))
+        (out int)
+        (let ((const char * base . #'(lb_exedir)) (char dir [1024]))
+          (if (== (nth 0 base) (cast char 0)) (return 0))
+          (snprintf dir (sizeof dir) "%s/%s" base sub)
+          (return (lb_probe dir name ext buf cap))))
+
+  ;;; NAME.so or NAME.pl on the library path, in this order:
+  ;;;   $COCOLOG_LIBRARY, split on colons   -- what the caller asked for
+  ;;;   ./library                           -- a project's own, if any
+  ;;;   <exedir>/library                    -- what SHIPPED with this binary
+  ;;;   <exedir>/lib/swipl           -- and the vendored SWI set
+  ;;; KIND answers 1 for a .so and 2 for a .pl.
+  ;;;
+  ;;; The caller's path first and the binary's last, because an override
+  ;;; that cannot override is not one.
   (static)
   (func lb_find ((const char * name) (char * buf) (size_t cap) (int * kind)) (out int)
         (let ((const char * env . #'(getenv "COCOLOG_LIBRARY"))
@@ -112,15 +169,24 @@
               (block (set (cof kind) 1) (return 1)))
           (if (lb_probe "library" name ".pl" buf cap)
               (block (set (cof kind) 2) (return 1)))
+          ;; Beside the BINARY, which is where an installed cocolog keeps
+          ;; what shipped with it and where a cocolog run from anywhere at
+          ;; all can still find its own libraries.
+          (if (lb_probe_exe "library" name ".so" buf cap)
+              (block (set (cof kind) 1) (return 1)))
+          (if (lb_probe_exe "library" name ".pl" buf cap)
+              (block (set (cof kind) 2) (return 1)))
+          (if (lb_probe_exe "lib/swipl" name ".pl" buf cap)
+              (block (set (cof kind) 2) (return 1)))
           ;; AND THE VENDORED SWI LIBRARIES, which were shipped and
-          ;; unreachable. lib/vendor/swipl holds assoc, pairs, ordsets,
+          ;; unreachable. lib/swipl holds assoc, pairs, ordsets,
           ;; yall, aggregate, ugraphs and the two dcg files -- vendored,
           ;; documented, listed in CLAUDE.md, and on no default path at
           ;; all, so `use_module(library(assoc))' answered "not found on
           ;; the library path" on a plain checkout. Nothing told a caller
           ;; to set COCOLOG_LIBRARY, and no test did either, because every
           ;; test that used them set it for its own reasons.
-          (if (lb_probe "lib/vendor/swipl" name ".pl" buf cap)
+          (if (lb_probe "lib/swipl" name ".pl" buf cap)
               (block (set (cof kind) 2) (return 1)))
           (return 0)))
 
@@ -263,6 +329,53 @@
                   (block (snprintf err errlen "%s: its clauses would not consult" path)
                          (return 0))))
           (return 1)))
+
+  ;;; ---- always present --------------------------------------------------
+  ;;;
+  ;;; SWI'S OWN LIBRARIES ARE PART OF PROLOG, not an optional extra, and
+  ;;; a program that has to say `use_module(library(assoc))' before it can
+  ;;; use an association list is a program doing the interpreter's
+  ;;; bookkeeping. These eight are vendored in lib/swipl under their own
+  ;;; BSD-2 headers and are now registered at start-up like `files' and
+  ;;; `lists' -- the difference being that those are Cicili modules
+  ;;; compiled in and these are read from disk beside the binary.
+  ;;;
+  ;;; AND IT COSTS NOTHING, which is why this is a load rather than an
+  ;;; autoload. Measured across three runs: 469ms bare against 459ms with
+  ;;; all eight, then 441 against 446, then 458 against 443 -- the
+  ;;; difference is inside the noise of a start-up dominated by the
+  ;;; embedded store and libtorch. An autoload hook on the unknown-
+  ;;; predicate path would have been more machinery for a cost that is not
+  ;;; there.
+  ;;;
+  ;;; THAT WAS ONLY TRUE LOCALLY UNTIL IT WAS TRUE EVERYWHERE. In the
+  ;;; Zeytun arrangement a predicate is a page over the network, and this
+  ;;; load first cost 272 extra HTTP round trips -- because `assertz' was
+  ;;; fetching the shared predicate before adding each clause, MUTED
+  ;;; clauses included. A module's clause never writes through, so it had
+  ;;; nothing to be appended to and nothing to read first; kb.cicili now
+  ;;; says so, and the whole start-up is one request instead of 440. The
+  ;;; measurement is written out there, beside the line it belongs to.
+  ;;;
+  ;;; A MISSING FILE IS NOT AN ERROR. A cocolog whose lib/swipl did not
+  ;;; travel with it still starts, and `use_module(library(assoc))' then
+  ;;; fails the way it always did with a message naming the path. Refusing
+  ;;; to boot over a library nobody has asked for yet would be the wrong
+  ;;; trade.
+  (static) (var const char * lb_always []
+                . '{"assoc" "pairs" "ordsets" "yall"
+                    "aggregate" "ugraphs" "dcg_basics" "dcg_high_order"})
+
+  (func coco_library_preload () (out int)
+        (let ((char path [1024]) (char err [512]) (int kind . 0) (int n . 0))
+          (for ((size_t i . 0)) (< i 8) ((++ i))
+               (let ((const char * name . #'(nth i lb_always)))
+                 (if (== (coco_module_find name) nil)
+                     (if (lb_find name path 1024 (aof kind))
+                         (if (== kind 2)
+                             (if (lb_load_pl path name err 512)
+                                 (set n (+ n 1))))))))
+          (return n)))
 
   ;;; ---- the module and the directive hook -------------------------------
 

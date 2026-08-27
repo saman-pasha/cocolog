@@ -1,7 +1,7 @@
 %  SWI's library(dcg/basics), run UNMODIFIED under both systems.
 %
 %  Under SWI the library is loaded from its own installation; under cocolog the
-%  copy in lib/vendor/swipl/ is consulted first (see test/files/run.sh). If the
+%  copy in lib/swipl/ is consulted first (see test/files/run.sh). If the
 %  two ever disagree, either the copy has drifted from upstream or cocolog is
 %  not running it faithfully -- and this file is the only thing that would say
 %  so.

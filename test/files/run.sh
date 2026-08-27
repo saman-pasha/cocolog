@@ -49,20 +49,20 @@ fixtures() {
 # its own library path from the `:- use_module' line in the case; cocolog has no
 # library path, so they are named here and consulted ahead of the case file.
 #
-# THE FILES ARE SWI'S, UNMODIFIED -- see lib/vendor/swipl/README.md. Running the
+# THE FILES ARE SWI'S, UNMODIFIED -- see lib/swipl/README.md. Running the
 # very same bytes under both systems is the whole point: if this passes, the
 # copy is faithful AND cocolog runs it faithfully, and if it fails only one of
 # those two can be at fault.
 libs_for() {
   case "$1" in
-    dcg_basics)     echo "$ROOT/lib/vendor/swipl/dcg_basics.pl" ;;
-    dcg_high_order) echo "$ROOT/lib/vendor/swipl/dcg_basics.pl $ROOT/lib/vendor/swipl/dcg_high_order.pl" ;;
-    pairs)          echo "$ROOT/lib/vendor/swipl/pairs.pl" ;;
-    assoc)          echo "$ROOT/lib/vendor/swipl/assoc.pl" ;;
-    ordsets)        echo "$ROOT/lib/vendor/swipl/ordsets.pl" ;;
-    yall)           echo "$ROOT/lib/vendor/swipl/yall.pl" ;;
-    aggregate)      echo "$ROOT/lib/vendor/swipl/pairs.pl $ROOT/lib/vendor/swipl/aggregate.pl" ;;
-    ugraphs)        echo "$ROOT/lib/vendor/swipl/ordsets.pl $ROOT/lib/vendor/swipl/ugraphs.pl" ;;
+    dcg_basics)     echo "$ROOT/lib/swipl/dcg_basics.pl" ;;
+    dcg_high_order) echo "$ROOT/lib/swipl/dcg_basics.pl $ROOT/lib/swipl/dcg_high_order.pl" ;;
+    pairs)          echo "$ROOT/lib/swipl/pairs.pl" ;;
+    assoc)          echo "$ROOT/lib/swipl/assoc.pl" ;;
+    ordsets)        echo "$ROOT/lib/swipl/ordsets.pl" ;;
+    yall)           echo "$ROOT/lib/swipl/yall.pl" ;;
+    aggregate)      echo "$ROOT/lib/swipl/pairs.pl $ROOT/lib/swipl/aggregate.pl" ;;
+    ugraphs)        echo "$ROOT/lib/swipl/ordsets.pl $ROOT/lib/swipl/ugraphs.pl" ;;
   esac
 }
 

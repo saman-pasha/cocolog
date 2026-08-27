@@ -787,7 +787,23 @@
             ;; It cannot recurse: coco_pred_ensure marks the predicate loaded
             ;; before it calls the hook, so the asserts the hook itself makes
             ;; find it already loaded.
-            (coco_pred_ensure st pi)
+            ;;
+            ;; A MUTED ASSERT DOES NOT FETCH, and that is the same rule read
+            ;; the other way: a module's clause never writes through, so there
+            ;; is no shared predicate for it to be appended to, and nothing to
+            ;; read first. Leaving `loaded' at zero also leaves the predicate
+            ;; honest -- the first REAL call still fetches, exactly once, as it
+            ;; would have without the module.
+            ;;
+            ;; MEASURED, on one `edge_fact(X)' through a Zeytun edge, because
+            ;; the number is the whole argument. Before this guard: 440 HTTP
+            ;; requests and 91.4 SECONDS -- and 168 of those requests were
+            ;; there before the vendored libraries were, from the Coco halves
+            ;; of the modules compiled in. After: ONE request, 447ms. The line
+            ;; was asking the database about a predicate per library clause,
+            ;; every start-up, in an arrangement where a predicate is a page
+            ;; over the network.
+            (if (not (coco_store_is_muted st)) (coco_pred_ensure st pi))
             (set stored (coco_store_put st m clause))
             (if (not (coco_pred_add_clause st pi stored at_end)) (return 0))
             ;; muted means this is a module's clause, not the program's

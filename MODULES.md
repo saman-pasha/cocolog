@@ -398,7 +398,7 @@ rather than being arranged for.
 
 ## Grammars, and a library that is borrowed rather than written
 
-`lib/dcg.cicili`, and `lib/vendor/swipl/`.
+`lib/dcg.cicili`, and `lib/swipl/`.
 
 ### The translator is C, and lives below the engine
 
@@ -452,10 +452,10 @@ is checked in `test/solve.cicili`.
 ### Two libraries ARE copied
 
 `library(dcg/basics)` and `library(dcg/high_order)`, byte for byte, into
-`lib/vendor/swipl/`. They are BSD-2-Clause; so is cocolog, so there are no two
+`lib/swipl/`. They are BSD-2-Clause; so is cocolog, so there are no two
 licences to reconcile. **Nothing in them is edited** — the point of an
 unmodified copy is that `diff` against a newer upstream is meaningful, and
-`lib/vendor/swipl/README.md` carries the version, date and checksums that make
+`lib/swipl/README.md` carries the version, date and checksums that make
 that possible.
 
 Everything they needed was built here instead:

@@ -176,52 +176,65 @@ and `*turn-outcomes*` each emit several things that must not drift apart —
   stores and one of 8192 comes back `allocation overflow`, which is why machine
   state travels in 4000-byte chunks.
 
-## Three tiers of library, and which one a thing belongs in
+## Two tiers of library, and which one a thing belongs in
 
-Reviewed because it had never been written down and the answer was not
-what the directory layout suggests.
+**TIER 1 — always present. No `use_module` needed, and none of it is
+optional.** Registered before the first goal runs:
 
-**TIER 1 — registered at start-up. Always there, `use_module` optional.**
-`install_modules' in `cocolog.cicili' calls each one's registration:
+    apply  builtins  dcg  files  library  lists  tcp  torch  bigint  zigurat
+    assoc  pairs  ordsets  yall  aggregate  ugraphs  dcg_basics  dcg_high_order
 
-    apply  bigint  builtins  dcg  files  library  lists  tcp  torch  zigurat
+The first row is Cicili modules compiled into the binary; the second is
+SWI's own libraries, vendored in `lib/swipl` under their own BSD-2
+headers and read from disk beside the binary at start-up by
+`coco_library_preload`. **They are part of Prolog, not an optional
+extra** — a program that must say `use_module(library(assoc))` before it
+can use an association list is doing the interpreter's bookkeeping.
+`use_module` on any of them still succeeds, at once, because a registered
+module answers the call for nothing.
 
-`use_module(library(lists))' succeeds instantly for these — the module is
-already registered, so the call is a no-op that costs nothing. They are in
-the binary because the binary would be crippled without them.
+It is a load rather than an autoload because it MEASURED free: 469ms bare
+against 459ms with all eight, then 441/446, then 458/443 — inside the
+noise of a start-up dominated by the embedded store and libtorch. A
+missing `lib/swipl` is not an error; the binary still boots.
 
-**TIER 2 — on the library path, loaded at run time.** `$COCOLOG_LIBRARY'
-(colon-separated), then `./library'. Two kinds live here and
-`use_module(library(Name))' finds either:
+**It measured free LOCALLY and cost 272 HTTP round trips over Zeytun**,
+and finding out why paid for itself. `coco_assert` fetched the shared
+predicate before adding each clause — *muted clauses included*. A module's
+clause never writes through, so it has nothing to be appended to and
+nothing to read first; `kb.cicili` now skips the fetch while the store is
+muted. One `edge_fact(X)` through a Zeytun edge went from **440 requests
+and 91.4 seconds to one request and 447ms** — and 168 of those requests
+predated the vendored libraries entirely, from the Coco halves of the
+modules compiled in. The lesson is the one in "Where things are" below,
+arrived at the expensive way: **a start-up cost is not a cost until you
+have measured it in the arrangement where a predicate is a page.**
+
+**TIER 2 — on the library path, loaded when asked.**
+`$COCOLOG_LIBRARY` (colon-separated), then `./library`, then
+`<exedir>/library`, then `<exedir>/lib/swipl`:
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only. `http.pl` — HTTP/1.1 as a grammar |
-| `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd. `curl.so` |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar |
+| `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — `curl.so` |
 
-**A THING BELONGS IN TIER 2 WHEN ITS DEPENDENCY SHOULD NOT BE
-EVERYBODY'S.** That is the whole rule. libcurl is a fine library and a
-poor thing to require of someone who wants an interpreter and no network,
-so `library(curl)` is a `.so` built by `sh lib/curl/build.sh` and is not
-part of `make`. torch and bigint went the other way because the binary's
-own story needs them.
+**A thing belongs in tier 2 when its dependency should not be
+everybody's.** libcurl is a fine library and a poor thing to require of
+someone who wants an interpreter and no network, so `library(curl)` is a
+`.so` built by `sh lib/curl/build.sh` and is not part of `make`. torch
+and bigint went the other way because the binary's own story needs them.
 
-**TIER 3 — shipped and NOT REACHABLE, which is a bug.**
-`lib/vendor/swipl/` holds SWI's `assoc`, `pairs`, `ordsets`, `yall`,
-`aggregate`, `ugraphs`, `dcg_basics` and `dcg_high_order`, vendored under
-their own BSD-2 headers — and nothing puts that directory on the library
-path. On a plain checkout:
-
-    ?- use_module(library(assoc)).
-    use_module: library(assoc): not found on the library path
-
-They work only for a caller who sets `COCOLOG_LIBRARY` by hand, which no
-test and no document tells them to do. Fixed by adding the directory to
-the default path in `lib/library.cicili`.
-
-The default path is relative to the WORKING DIRECTORY (`./library`), so a
-cocolog run from elsewhere finds neither tier 2 nor the vendored set.
-That is pre-existing and is the next thing to fix here.
+**THE PATH IS ANCHORED TO THE BINARY, not to the working directory**, and
+that was a bug worth naming. `./library` finds what shipped only when
+cocolog is run from its own checkout — an installed one, or one invoked
+from a project directory, could not load its own libraries. And it was
+not merely unhelpful: `./library` is a directory somebody else may
+control, so a cocolog run inside an untrusted tree would prefer THEIR
+`library(lists)` to its own. `/proc/self/exe` is the kernel's exact
+answer to "which file am I" — no argv[0] guessing, correct through
+symlinks. The caller's `$COCOLOG_LIBRARY` still comes first, because an
+override that cannot override is not one.
 
 ## Where things are
 
@@ -238,7 +251,7 @@ That is pre-existing and is the next thing to fix here.
 | `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
 | `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2` |
 | `lib/dcg.cicili` | `-->` translation, `phrase/2,3`. Two generics: the translator sits BEFORE `kb` because `coco_assert` calls it, the module half after the engine |
-| `lib/vendor/swipl/` | SWI's `dcg/basics` and `dcg/high_order`, copied unmodified under their own BSD-2 headers. Do not edit them — see the README there |
+| `lib/swipl/` | SWI's `dcg/basics` and `dcg/high_order`, copied unmodified under their own BSD-2 headers. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
 | `lib/bigint/` | Zigurat's BigInt as predicates. A SUBDIRECTORY, so `$(wildcard lib/*.cicili)` does not sweep it into cocolog.c — it is its own translation unit, built by its own `build.sh` and linked at the end, because it is C++ and needs libCore. `torch/` and `embed/` are the same shape and still live at the top level |

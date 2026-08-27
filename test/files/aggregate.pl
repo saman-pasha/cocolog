@@ -10,7 +10,7 @@
 %  compound template through its nested-template rules and answers
 %  count(0); cocolog's native builtin reads it as "count the solutions"
 %  and answers their number, which is what SWI's own documentation says.
-%  See lib/vendor/swipl/README.md.
+%  See lib/swipl/README.md.
 
 :- use_module(library(aggregate)).
 

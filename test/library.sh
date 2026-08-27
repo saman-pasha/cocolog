@@ -118,20 +118,36 @@ else
   echo "wire: SKIP no Zigurat server at $HOST:$PORT"
 fi
 
-# THE VENDORED SWI LIBRARIES ARE ON THE DEFAULT PATH, which they were not.
-# lib/vendor/swipl was shipped, documented and listed in CLAUDE.md, and on
-# no search path at all -- `use_module(library(assoc))' on a plain checkout
-# answered "not found on the library path". It went unnoticed because every
+# THE VENDORED SWI LIBRARIES ARE ALWAYS PRESENT, and reachable from
+# anywhere. Two separate claims, and both were false a commit ago.
+#
+# They were shipped, documented and listed in CLAUDE.md while sitting on
+# NO default path: `use_module(library(assoc))' on a plain checkout
+# answered "not found on the library path". It survived because every
 # test that used one set COCOLOG_LIBRARY for its own reasons, so nothing
 # ever asked the question a new user asks first.
 #
-# COCOLOG_LIBRARY IS UNSET HERE ON PURPOSE. Checking this with it set would
-# check nothing at all.
-echo "-- what a plain checkout can reach, with COCOLOG_LIBRARY unset"
+# COCOLOG_LIBRARY IS UNSET AND THE DIRECTORY IS ELSEWHERE, on purpose.
+# Running this from the checkout with the variable set would check
+# nothing at all: `./library' would find them by accident.
+echo "-- always present: no use_module, no COCOLOG_LIBRARY, and not even here"
+plain() { ( cd /tmp && env -u COCOLOG_LIBRARY timeout 60 "$C" query "$1" 2>/dev/null ) \
+          | grep -ac "^ok$"; }
+
+check "assoc, without being asked for"      "$(plain "empty_assoc(A), put_assoc(k,A,v,B), get_assoc(k,B,v), write(ok), nl")" "1"
+check "pairs, without being asked for"      "$(plain "pairs_keys_values(P,[a],[1]), P == [a-1], write(ok), nl")" "1"
+check "ordsets, without being asked for"    "$(plain "ord_union([a,c],[b],[a,b,c]), write(ok), nl")" "1"
+check "yall, without being asked for"       "$(plain "maplist([X,Y]>>(Y is X*2), [1,2], [2,4]), write(ok), nl")" "1"
+check "aggregate, without being asked for"  "$(plain "aggregate_all(count, member(_,[a,b]), 2), write(ok), nl")" "1"
+check "ugraphs, without being asked for"    "$(plain "vertices_edges_to_ugraph([a,b],[a-b],G), G \\== [], write(ok), nl")" "1"
+check "dcg_basics, without being asked for" "$(plain "phrase(integer(42), \"42\"), write(ok), nl")" "1"
+
+# use_module STILL WORKS, because a program that says so is not wrong --
+# a registered module answers the call at once and costs nothing.
+echo "-- and use_module(library(X)) still answers, at once"
 for L in assoc pairs ordsets yall aggregate ugraphs dcg_basics dcg_high_order; do
-  got=$(env -u COCOLOG_LIBRARY timeout 60 "$C" query "use_module(library($L)), write(ok), nl" \
-        2>/dev/null | grep -ac '^ok$')
-  check "library($L) is found without being told where" "$got" "1"
+  check "use_module(library($L)) is a no-op that succeeds" \
+    "$(plain "use_module(library($L)), write(ok), nl")" "1"
 done
 
 echo

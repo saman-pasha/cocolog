@@ -1735,6 +1735,9 @@
         (if (not (coco_tcp_module))
             (block (fprintf stderr "cocolog: the tcp module would not register\n")
                    (return 0)))
+        ;; The vendored SWI libraries, from lib/swipl beside the binary.
+        ;; Their absence is not an error -- see coco_library_preload.
+        (coco_library_preload)
         (if (not (coco_lists_module))
             (block (fprintf stderr "cocolog: the lists module would not register\n")
                    (return 0)))

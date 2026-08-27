@@ -73,7 +73,7 @@ lib/builtins.cicili    the ISO core builtins cocolog was missing, plus
                        format/1,2,3, code_type/2 and must_be/2
 lib/dcg.cicili         definite clause grammars: the --> translation, and
                        phrase/2,3
-lib/vendor/swipl/      SWI's dcg/basics and dcg/high_order, copied
+lib/swipl/      SWI's dcg/basics and dcg/high_order, copied
                        unmodified under their own BSD-2 headers
 lib/library.cicili     use_module, like SWI's: libraries load at run time --
                        registered modules, Name.so (dlopen'd Cicili modules)
@@ -295,7 +295,7 @@ it keeps third-party code out of the core.
 
 Two of SWI's libraries **are** copied, byte for byte, under their own BSD-2
 headers: `library(dcg/basics)` and `library(dcg/high_order)`, in
-`lib/vendor/swipl/`. Nothing in them is edited. Instead the things they needed
+`lib/swipl/`. Nothing in them is edited. Instead the things they needed
 were built here — the soft cut `*->`, `code_type/2`, `must_be/2`,
 `format/1,2,3` with its `codes(H,T)` sink, `with_output_to/2`,
 `ord_intersection/3` and `ord_subtract/3`, and acceptance of the `:- module`
@@ -304,12 +304,12 @@ consults those very bytes into cocolog and runs the same test file under SWI,
 and the two agree exactly.
 
 ```sh
-cocolog --local run lib/vendor/swipl/dcg_basics.pl my_grammar.pl main
+cocolog --local run lib/swipl/dcg_basics.pl my_grammar.pl main
 ```
 
 cocolog has one namespace, so `:- module/2`'s export list is ignored and a
 vendored file's private predicates are callable. That is a real difference, not
-a shim; `lib/vendor/swipl/README.md` records it along with the provenance and
+a shim; `lib/swipl/README.md` records it along with the provenance and
 checksums of both copies.
 
 ## What is stored, and how
