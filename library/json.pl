@@ -81,8 +81,6 @@
 %%                 0 means COMPACT -- no space anywhere -- which is the
 %%                 default because the common caller is a wire.
 
-:- use_module(library(lists)).
-
 %% ---- the entry points ------------------------------------------------
 
 %% json_codes(+Term, -Codes) is det.

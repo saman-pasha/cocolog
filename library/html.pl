@@ -77,7 +77,11 @@
 %%     doctype(true)    <!DOCTYPE html> in front
 %%     doctype(Text)    <!DOCTYPE Text>, for a legacy one
 
-:- use_module(library(lists)).
+%% THE ONLY IMPORT, because library(xml) is the only thing here that has to
+%% be loaded. `lists' is TIER 1 -- registered before the first goal runs --
+%% so `append/3' and `memberchk/2' are already there, and asking for them
+%% is a directive that does nothing. library(json) and library(xml) import
+%% nothing at all for the same reason.
 :- use_module(library(xml)).
 
 %% ---- the entry points ------------------------------------------------

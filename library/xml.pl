@@ -89,8 +89,6 @@
 %% library(html) has no indent option at all -- HTML's inline elements
 %% make even element-only content whitespace-sensitive.
 
-:- use_module(library(lists)).
-
 %% ---- the entry points ------------------------------------------------
 
 %% xml_codes(+Tree, -Codes) is det.
