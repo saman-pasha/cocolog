@@ -1,0 +1,448 @@
+;;;; cocolog -- library(ray): raylib as cocolog predicates. 2D, 3D, input.
+;;;;
+;;;; THE GAME LOOP IS A PROLOG PREDICATE. raylib was chosen over every
+;;;; other engine for one property the module seam cannot fake: the
+;;;; CALLER owns the loop. Input is POLLED (`IsKeyDown'), a frame is
+;;;; whatever happens between BeginDrawing and EndDrawing, and nothing in
+;;;; the library ever calls back -- so a game here is
+;;;;
+;;;;   loop :- ray_begin, ray_clear(raywhite), draw, ray_end,
+;;;;           ( ray_closing -> true ; loop ).
+;;;;
+;;;; with `draw' made of clauses, which is the point: the WORLD is the
+;;;; knowledge base. Entities are facts, rules decide what is drawn, and
+;;;; everything this family already proves about clauses -- freeze/thaw,
+;;;; a shared store, deterministic replay -- applies to a game state for
+;;;; free. The C tick stays in C where it belongs; what the game IS lives
+;;;; in Prolog.
+;;;;
+;;;; THE DIVISION IS curl.cicili's, exactly. The C half is FLAT -- one
+;;;; scalar per argument, `$ray_rect'(X,Y,W,H,R,G,B,A) -- because that is
+;;;; what the seam passes well. The Coco half is the friendly surface:
+;;;; colors are NAMES (`ray_rect(10,10,64,64, maroon)') or `rgb(R,G,B)'
+;;;; or `rgba(R,G,B,A)' terms, keys are names (`ray_key_down(space)'),
+;;;; and the resolvers are clauses where they read better as clauses.
+;;;;
+;;;; WHY THE SHIMS EXIST -- the one raw-C block below. raylib passes
+;;;; small structs BY VALUE: every draw call takes a `Color', the 3D
+;;;; block takes a `Camera3D'. Cicili can declare a foreign function
+;;;; (`(decl) (func ...)') but describing those structs to it would EMIT
+;;;; a second definition beside raylib.h's, which does not compile. So
+;;;; each by-value call gets a one-line C wrapper that takes scalars and
+;;;; builds the struct at the call site -- the fire escape used for what
+;;;; it is for: a thing lib/std/c genuinely does not declare, one line
+;;;; each, no logic in it. Everything raylib offers over plain scalars is
+;;;; declared to Cicili directly and called from Cicili.
+;;;;
+;;;; HEADLESS IS A FIRST-CLASS ARRANGEMENT, because the suite runs where
+;;;; there is no screen: `ray_screenshot/1' writes the framebuffer to a
+;;;; PNG, so under Xvfb a test can draw a frame and then LOOK AT IT --
+;;;; test/ray.sh checks pixels, not exit codes.
+;;;;
+;;;; WHAT IS NOT HERE YET, honestly: textures and models from files,
+;;;; sound, gamepads, shaders, text measuring. The surface below is the
+;;;; loop, 2D shapes and text, a 3D camera with primitives, keyboard and
+;;;; mouse -- enough to write a real game as clauses, and each absence is
+;;;; a predicate away rather than a redesign.
+
+(DEFPARAMETER *ray-predicates*
+  '(("ray_open"        3 ray_p_open)
+    ("ray_close"       0 ray_p_close)
+    ("ray_closing"     0 ray_p_closing)
+    ("ray_ready"       0 ray_p_ready)
+    ("ray_fps"         1 ray_p_fps)
+    ("ray_begin"       0 ray_p_begin)
+    ("ray_end"         0 ray_p_end)
+    ("$ray_clear"      4 ray_p_clear)
+    ("$ray_rect"       8 ray_p_rect)
+    ("$ray_circle"     7 ray_p_circle)
+    ("$ray_line"       8 ray_p_line)
+    ("$ray_pixel"      6 ray_p_pixel)
+    ("$ray_text"       8 ray_p_text)
+    ("ray_draw_fps"    2 ray_p_draw_fps)
+    ("ray_begin3d"     7 ray_p_begin3d)
+    ("ray_end3d"       0 ray_p_end3d)
+    ("$ray_cube"      10 ray_p_cube)
+    ("$ray_cube_wires" 10 ray_p_cube_wires)
+    ("$ray_sphere"     8 ray_p_sphere)
+    ("ray_grid"        2 ray_p_grid)
+    ("$ray_key_down"    1 ray_p_key_down)
+    ("$ray_key_pressed" 1 ray_p_key_pressed)
+    ("ray_mouse"       2 ray_p_mouse)
+    ("$ray_mouse_down" 1 ray_p_mouse_down)
+    ("ray_frame_time"  1 ray_p_frame_time)
+    ("ray_time"        1 ray_p_time)
+    ("ray_screenshot"  1 ray_p_screenshot)
+    ("$ray_log_level"  1 ray_p_log_level)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half: names for what C wants as numbers
+;;;; ------------------------------------------------------------------
+;;; A Cicili string literal cannot carry a newline, so clauses are joined
+;;; with spaces; commentary lives out here.
+;;;
+;;; THE COLOR TABLE IS raylib's OWN PALETTE, name for name and byte for
+;;; byte -- raylib.h's LIGHTGRAY..RAYWHITE defines, which a `#define' is
+;;; invisible to Cicili and would be invisible to Prolog too. Written
+;;; once, here, as facts a program can also QUERY -- `ray_color(N,R,G,B)'
+;;; enumerates the palette, which no #define can.
+(DEFPARAMETER *ray-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; ---- the palette, raylib.h byte for byte ----
+           "ray_color(lightgray, 200, 200, 200)."
+           "ray_color(gray, 130, 130, 130)."
+           "ray_color(darkgray, 80, 80, 80)."
+           "ray_color(yellow, 253, 249, 0)."
+           "ray_color(gold, 255, 203, 0)."
+           "ray_color(orange, 255, 161, 0)."
+           "ray_color(pink, 255, 109, 194)."
+           "ray_color(red, 230, 41, 55)."
+           "ray_color(maroon, 190, 33, 55)."
+           "ray_color(green, 0, 228, 48)."
+           "ray_color(lime, 0, 158, 47)."
+           "ray_color(darkgreen, 0, 117, 44)."
+           "ray_color(skyblue, 102, 191, 255)."
+           "ray_color(blue, 0, 121, 241)."
+           "ray_color(darkblue, 0, 82, 172)."
+           "ray_color(purple, 200, 122, 255)."
+           "ray_color(violet, 135, 60, 190)."
+           "ray_color(darkpurple, 112, 31, 126)."
+           "ray_color(beige, 211, 176, 131)."
+           "ray_color(brown, 127, 106, 79)."
+           "ray_color(darkbrown, 76, 63, 47)."
+           "ray_color(white, 255, 255, 255)."
+           "ray_color(black, 0, 0, 0)."
+           "ray_color(magenta, 255, 0, 255)."
+           "ray_color(raywhite, 245, 245, 245)."
+
+           ;; ---- a color SPEC is a name, rgb/3 or rgba/4 ----
+           "ray_rgba(rgba(R, G, B, A), R, G, B, A) :- !."
+           "ray_rgba(rgb(R, G, B), R, G, B, 255) :- !."
+           "ray_rgba(Name, R, G, B, 255) :- ray_color(Name, R, G, B), !."
+
+           ;; ---- the friendly drawing surface over the flat C half ----
+           "ray_clear(C) :- ray_rgba(C, R, G, B, A), '$ray_clear'(R, G, B, A)."
+           "ray_rect(X, Y, W, H, C) :- ray_rgba(C, R, G, B, A), '$ray_rect'(X, Y, W, H, R, G, B, A)."
+           "ray_circle(X, Y, Rad, C) :- ray_rgba(C, R, G, B, A), '$ray_circle'(X, Y, Rad, R, G, B, A)."
+           "ray_line(X1, Y1, X2, Y2, C) :- ray_rgba(C, R, G, B, A), '$ray_line'(X1, Y1, X2, Y2, R, G, B, A)."
+           "ray_pixel(X, Y, C) :- ray_rgba(C, R, G, B, A), '$ray_pixel'(X, Y, R, G, B, A)."
+           "ray_text(T, X, Y, Size, C) :- ray_rgba(C, R, G, B, A), '$ray_text'(T, X, Y, Size, R, G, B, A)."
+           "ray_cube(X, Y, Z, W, H, L, C) :- ray_rgba(C, R, G, B, A), '$ray_cube'(X, Y, Z, W, H, L, R, G, B, A)."
+           "ray_cube_wires(X, Y, Z, W, H, L, C) :- ray_rgba(C, R, G, B, A), '$ray_cube_wires'(X, Y, Z, W, H, L, R, G, B, A)."
+           "ray_sphere(X, Y, Z, Rad, C) :- ray_rgba(C, R, G, B, A), '$ray_sphere'(X, Y, Z, Rad, R, G, B, A)."
+
+           ;; ---- keys are names; raylib's codes stay in one table ----
+           "ray_key(space, 32).  ray_key(apostrophe, 39). ray_key(comma, 44)."
+           "ray_key(minus, 45).  ray_key(period, 46).     ray_key(slash, 47)."
+           "ray_key(semicolon, 59). ray_key(equal, 61)."
+           "ray_key(escape, 256). ray_key(enter, 257). ray_key(tab, 258)."
+           "ray_key(backspace, 259). ray_key(insert, 260). ray_key(delete, 261)."
+           "ray_key(right, 262). ray_key(left, 263). ray_key(down, 264). ray_key(up, 265)."
+           "ray_key(page_up, 266). ray_key(page_down, 267). ray_key(home, 268). ray_key(end, 269)."
+           "ray_key(left_shift, 340). ray_key(left_control, 341). ray_key(left_alt, 342)."
+           "ray_key(right_shift, 344). ray_key(right_control, 345). ray_key(right_alt, 346)."
+           ;; a single letter or digit is its own name: `a' is KEY_A.
+           "ray_keycode(K, K) :- integer(K), !."
+           "ray_keycode(K, C) :- ray_key(K, C), !."
+           "ray_keycode(K, C) :- atom_codes(K, [X]), ( X >= 0'a, X =< 0'z -> C is X - 32 ; C = X )."
+           "ray_key_down(K) :- ray_keycode(K, C), '$ray_key_down'(C)."
+           "ray_key_pressed(K) :- ray_keycode(K, C), '$ray_key_pressed'(C)."
+
+           ;; ---- mouse buttons and log levels, same shape ----
+           "ray_button(left, 0). ray_button(right, 1). ray_button(middle, 2)."
+           "ray_mouse_down(B) :- ray_button(B, C), '$ray_mouse_down'(C)."
+           "ray_level(all, 0). ray_level(trace, 1). ray_level(debug, 2). ray_level(info, 3)."
+           "ray_level(warning, 4). ray_level(error, 5). ray_level(fatal, 6). ray_level(none, 7)."
+           "ray_log_level(L) :- ray_level(L, N), '$ray_log_level'(N).")))
+
+;;;; ------------------------------------------------------------------
+;;;; The C half
+;;;; ------------------------------------------------------------------
+(source "ray.c"
+  (make :std #t :compile #f)
+
+  (include <raylib.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;;; THE FIRE ESCAPE, used for what it is for. raylib passes Color and
+  ;;; Camera3D BY VALUE; describing them to Cicili would emit a second
+  ;;; struct definition beside raylib.h's. One wrapper per by-value call,
+  ;;; one line each, scalars in, no logic -- and the bool-returning
+  ;;; queries beside them, because C's _Bool in a prototype is a type
+  ;;; Cicili does not spell. Everything else is declared to Cicili below
+  ;;; and called from Cicili.
+  (code "static inline Color rw_c(long r, long g, long b, long a) { Color c = { (unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a }; return c; }")
+  (code "void rw_clear(long r, long g, long b, long a) { ClearBackground(rw_c(r,g,b,a)); }")
+  (code "void rw_rect(long x, long y, long w, long h, long r, long g, long b, long a) { DrawRectangle((int)x,(int)y,(int)w,(int)h, rw_c(r,g,b,a)); }")
+  (code "void rw_circle(long x, long y, double rad, long r, long g, long b, long a) { DrawCircle((int)x,(int)y,(float)rad, rw_c(r,g,b,a)); }")
+  (code "void rw_line(long x1, long y1, long x2, long y2, long r, long g, long b, long a) { DrawLine((int)x1,(int)y1,(int)x2,(int)y2, rw_c(r,g,b,a)); }")
+  (code "void rw_pixel(long x, long y, long r, long g, long b, long a) { DrawPixel((int)x,(int)y, rw_c(r,g,b,a)); }")
+  (code "void rw_text(const char * t, long x, long y, long size, long r, long g, long b, long a) { DrawText(t,(int)x,(int)y,(int)size, rw_c(r,g,b,a)); }")
+  (code "void rw_begin3d(double px, double py, double pz, double tx, double ty, double tz, double fov) { Camera3D cam = { { (float)px,(float)py,(float)pz }, { (float)tx,(float)ty,(float)tz }, { 0.0f, 1.0f, 0.0f }, (float)fov, CAMERA_PERSPECTIVE }; BeginMode3D(cam); }")
+  (code "void rw_cube(double x, double y, double z, double w, double h, double l, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawCube(p,(float)w,(float)h,(float)l, rw_c(r,g,b,a)); }")
+  (code "void rw_cube_wires(double x, double y, double z, double w, double h, double l, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawCubeWires(p,(float)w,(float)h,(float)l, rw_c(r,g,b,a)); }")
+  (code "void rw_sphere(double x, double y, double z, double rad, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawSphere(p,(float)rad, rw_c(r,g,b,a)); }")
+  (code "int rw_should_close(void) { return WindowShouldClose(); }")
+  (code "int rw_ready(void) { return IsWindowReady(); }")
+  (code "int rw_key_down(long k) { return IsKeyDown((int)k); }")
+  (code "int rw_key_pressed(long k) { return IsKeyPressed((int)k); }")
+  (code "int rw_mouse_down(long b) { return IsMouseButtonDown((int)b); }")
+  (code "int rw_screenshot(const char * path) { Image img = LoadImageFromScreen(); int ok = ExportImage(img, path); UnloadImage(img); return ok; }")
+
+  ;;; The shims, declared to Cicili so it can emit calls to them.
+  (decl) (func rw_clear ((long r) (long g) (long b) (long a)))
+  (decl) (func rw_rect ((long x) (long y) (long w) (long h) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_circle ((long x) (long y) (double rad) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_line ((long x1) (long y1) (long x2) (long y2) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_pixel ((long x) (long y) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_text ((const char * t) (long x) (long y) (long size) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_begin3d ((double px) (double py) (double pz) (double tx) (double ty) (double tz) (double fov)))
+  (decl) (func rw_cube ((double x) (double y) (double z) (double w) (double h) (double l) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_cube_wires ((double x) (double y) (double z) (double w) (double h) (double l) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_sphere ((double x) (double y) (double z) (double rad) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_should_close () (out int))
+  (decl) (func rw_ready () (out int))
+  (decl) (func rw_key_down ((long k)) (out int))
+  (decl) (func rw_key_pressed ((long k)) (out int))
+  (decl) (func rw_mouse_down ((long b)) (out int))
+  (decl) (func rw_screenshot ((const char * path)) (out int))
+
+  ;;; raylib's scalar surface, declared to Cicili and called directly --
+  ;;; the prototypes match raylib.h exactly, which the compiler checks.
+  (decl) (func InitWindow ((int width) (int height) (const char * title)))
+  (decl) (func CloseWindow ())
+  (decl) (func BeginDrawing ())
+  (decl) (func EndDrawing ())
+  (decl) (func EndMode3D ())
+  (decl) (func SetTargetFPS ((int fps)))
+  (decl) (func SetTraceLogLevel ((int level)))
+  (decl) (func DrawFPS ((int x) (int y)))
+  (decl) (func DrawGrid ((int slices) (float spacing)))
+  (decl) (func GetMouseX () (out int))
+  (decl) (func GetMouseY () (out int))
+  (decl) (func GetFrameTime () (out float))
+  (decl) (func GetTime () (out double))
+
+  ;;; ---- argument helpers, so 28 predicates stay one line per arg ----
+  ;;; An integer argument, or a type error that names the culprit.
+  (static)
+  (func ray_iarg ((coco_engine * e) (size_t g) (int i) (i64 * v)) (out int)
+        (if (coco_m_int e (coco_m_arg e g (cast size_t i)) v) (return 1))
+        (return (coco_m_type_error e "integer" (coco_m_arg e g (cast size_t i)))))
+
+  ;;; A number: an integer is welcome where a coordinate is a float.
+  (static)
+  (func ray_farg ((coco_engine * e) (size_t g) (int i) (double * v)) (out int)
+        (let ((i64 n . 0))
+          (if (coco_m_int e (coco_m_arg e g (cast size_t i)) (aof n))
+              (block (set (cof v) (cast double n)) (return 1)))
+          (if (coco_m_float e (coco_m_arg e g (cast size_t i)) v) (return 1))
+          (return (coco_m_type_error e "number" (coco_m_arg e g (cast size_t i))))))
+
+  ;;; ---- the window and the frame ----
+  (func ray_p_open ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 w . 0) (i64 h . 0) (char title [512]))
+          (if (not (ray_iarg e g 0 (aof w))) (return 0))
+          (if (not (ray_iarg e g 1 (aof h))) (return 0))
+          (if (not (coco_m_text e (coco_m_arg e g 2) title (sizeof title)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 2))))
+          (InitWindow (cast int w) (cast int h) title)
+          (return (rw_ready))))
+
+  (func ray_p_close ((coco_engine * e) (size_t g)) (out int)
+        (CloseWindow) (return 1))
+
+  (func ray_p_closing ((coco_engine * e) (size_t g)) (out int)
+        (return (rw_should_close)))
+
+  (func ray_p_ready ((coco_engine * e) (size_t g)) (out int)
+        (return (rw_ready)))
+
+  (func ray_p_fps ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (if (not (ray_iarg e g 0 (aof n))) (return 0))
+          (SetTargetFPS (cast int n))
+          (return 1)))
+
+  (func ray_p_begin ((coco_engine * e) (size_t g)) (out int)
+        (BeginDrawing) (return 1))
+
+  (func ray_p_end ((coco_engine * e) (size_t g)) (out int)
+        (EndDrawing) (return 1))
+
+  (func ray_p_clear ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 r . 0) (i64 gg . 0) (i64 b . 0) (i64 a . 0))
+          (if (not (ray_iarg e g 0 (aof r)))  (return 0))
+          (if (not (ray_iarg e g 1 (aof gg))) (return 0))
+          (if (not (ray_iarg e g 2 (aof b)))  (return 0))
+          (if (not (ray_iarg e g 3 (aof a)))  (return 0))
+          (rw_clear (cast long r) (cast long gg) (cast long b) (cast long a))
+          (return 1)))
+
+  ;;; ---- 2D ----
+  (func ray_p_rect ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 v [8]) (int i . 0))
+          (for ((int j . 0)) (< j 8) ((++ j))
+               (if (not (ray_iarg e g j (+ v j))) (return 0)))
+          (rw_rect (cast long (nth 0 v)) (cast long (nth 1 v))
+                   (cast long (nth 2 v)) (cast long (nth 3 v))
+                   (cast long (nth 4 v)) (cast long (nth 5 v))
+                   (cast long (nth 6 v)) (cast long (nth 7 v)))
+          (return 1)))
+
+  (func ray_p_circle ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 x . 0) (i64 y . 0) (double rad . 0.0) (i64 c [4]))
+          (if (not (ray_iarg e g 0 (aof x))) (return 0))
+          (if (not (ray_iarg e g 1 (aof y))) (return 0))
+          (if (not (ray_farg e g 2 (aof rad))) (return 0))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 3) (+ c j))) (return 0)))
+          (rw_circle (cast long x) (cast long y) rad
+                     (cast long (nth 0 c)) (cast long (nth 1 c))
+                     (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  (func ray_p_line ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 v [8]))
+          (for ((int j . 0)) (< j 8) ((++ j))
+               (if (not (ray_iarg e g j (+ v j))) (return 0)))
+          (rw_line (cast long (nth 0 v)) (cast long (nth 1 v))
+                   (cast long (nth 2 v)) (cast long (nth 3 v))
+                   (cast long (nth 4 v)) (cast long (nth 5 v))
+                   (cast long (nth 6 v)) (cast long (nth 7 v)))
+          (return 1)))
+
+  (func ray_p_pixel ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 v [6]))
+          (for ((int j . 0)) (< j 6) ((++ j))
+               (if (not (ray_iarg e g j (+ v j))) (return 0)))
+          (rw_pixel (cast long (nth 0 v)) (cast long (nth 1 v))
+                    (cast long (nth 2 v)) (cast long (nth 3 v))
+                    (cast long (nth 4 v)) (cast long (nth 5 v)))
+          (return 1)))
+
+  (func ray_p_text ((coco_engine * e) (size_t g)) (out int)
+        (let ((char text [2048]) (i64 v [7]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) text (sizeof text)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (for ((int j . 0)) (< j 7) ((++ j))
+               (if (not (ray_iarg e g (+ j 1) (+ v j))) (return 0)))
+          (rw_text text (cast long (nth 0 v)) (cast long (nth 1 v))
+                   (cast long (nth 2 v)) (cast long (nth 3 v))
+                   (cast long (nth 4 v)) (cast long (nth 5 v))
+                   (cast long (nth 6 v)))
+          (return 1)))
+
+  (func ray_p_draw_fps ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 x . 0) (i64 y . 0))
+          (if (not (ray_iarg e g 0 (aof x))) (return 0))
+          (if (not (ray_iarg e g 1 (aof y))) (return 0))
+          (DrawFPS (cast int x) (cast int y))
+          (return 1)))
+
+  ;;; ---- 3D ----
+  (func ray_p_begin3d ((coco_engine * e) (size_t g)) (out int)
+        (let ((double v [7]))
+          (for ((int j . 0)) (< j 7) ((++ j))
+               (if (not (ray_farg e g j (+ v j))) (return 0)))
+          (rw_begin3d (nth 0 v) (nth 1 v) (nth 2 v)
+                      (nth 3 v) (nth 4 v) (nth 5 v) (nth 6 v))
+          (return 1)))
+
+  (func ray_p_end3d ((coco_engine * e) (size_t g)) (out int)
+        (EndMode3D) (return 1))
+
+  (func ray_p_cube ((coco_engine * e) (size_t g)) (out int)
+        (let ((double p [6]) (i64 c [4]))
+          (for ((int j . 0)) (< j 6) ((++ j))
+               (if (not (ray_farg e g j (+ p j))) (return 0)))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 6) (+ c j))) (return 0)))
+          (rw_cube (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p) (nth 4 p) (nth 5 p)
+                   (cast long (nth 0 c)) (cast long (nth 1 c))
+                   (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  (func ray_p_cube_wires ((coco_engine * e) (size_t g)) (out int)
+        (let ((double p [6]) (i64 c [4]))
+          (for ((int j . 0)) (< j 6) ((++ j))
+               (if (not (ray_farg e g j (+ p j))) (return 0)))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 6) (+ c j))) (return 0)))
+          (rw_cube_wires (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p) (nth 4 p) (nth 5 p)
+                         (cast long (nth 0 c)) (cast long (nth 1 c))
+                         (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  (func ray_p_sphere ((coco_engine * e) (size_t g)) (out int)
+        (let ((double p [4]) (i64 c [4]))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_farg e g j (+ p j))) (return 0)))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 4) (+ c j))) (return 0)))
+          (rw_sphere (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p)
+                     (cast long (nth 0 c)) (cast long (nth 1 c))
+                     (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  (func ray_p_grid ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 slices . 0) (double spacing . 0.0))
+          (if (not (ray_iarg e g 0 (aof slices))) (return 0))
+          (if (not (ray_farg e g 1 (aof spacing))) (return 0))
+          (DrawGrid (cast int slices) (cast float spacing))
+          (return 1)))
+
+  ;;; ---- input, polled ----
+  (func ray_p_key_down ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 k . 0))
+          (if (not (ray_iarg e g 0 (aof k))) (return 0))
+          (return (rw_key_down (cast long k)))))
+
+  (func ray_p_key_pressed ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 k . 0))
+          (if (not (ray_iarg e g 0 (aof k))) (return 0))
+          (return (rw_key_pressed (cast long k)))))
+
+  (func ray_p_mouse ((coco_engine * e) (size_t g)) (out int)
+        (if (not (coco_m_unify_int e (coco_m_arg e g 0) (cast i64 (GetMouseX))))
+            (return 0))
+        (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (GetMouseY)))))
+
+  (func ray_p_mouse_down ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 b . 0))
+          (if (not (ray_iarg e g 0 (aof b))) (return 0))
+          (return (rw_mouse_down (cast long b)))))
+
+  ;;; ---- time ----
+  (func ray_p_frame_time ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_float e (coco_m_arg e g 0) (cast double (GetFrameTime)))))
+
+  (func ray_p_time ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_float e (coco_m_arg e g 0) (GetTime))))
+
+  ;;; ---- the headless witness ----
+  ;;; NOT raylib's TakeScreenshot, which strips the directory off the
+  ;;; path and writes the basename into its own storage dir -- a test
+  ;;; that names /tmp/frame.png should get /tmp/frame.png. The shim goes
+  ;;; through LoadImageFromScreen + ExportImage, which honours the path
+  ;;; AND says whether it worked, so a full disk is a goal that FAILS
+  ;;; rather than a warning on a log level the caller turned off.
+  (func ray_p_screenshot ((coco_engine * e) (size_t g)) (out int)
+        (let ((char path [4096]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) path (sizeof path)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (return (rw_screenshot path))))
+
+  (func ray_p_log_level ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (if (not (ray_iarg e g 0 (aof n))) (return 0))
+          (SetTraceLogLevel (cast int n))
+          (return 1)))
+
+  (static) (coco-emit-module-dispatch ray_dispatch *ray-predicates*)
+  (coco-deflibrary "ray" ray_dispatch *ray-prolog*)
+
+  ) ; source

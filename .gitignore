@@ -47,6 +47,8 @@ modules/thread/thread.c
 modules/thread/sdk.cicili
 modules/curl/curl.c
 modules/curl/sdk.cicili
+modules/ray/ray.c
+modules/ray/sdk.cicili
 modules/bigint/coco-bigint.cpp
 modules/bigint/zigheaders
 modules/torch/coco-torch.cpp

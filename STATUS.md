@@ -26,7 +26,7 @@ different findings.
 | `test/thread.sh` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
 | `test/httpd.sh` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
 | `test/crypto.sh` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
-| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-four tutorial files in three categories — eleven `basics/` and twenty-eight `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-five tutorial files in three categories — eleven `basics/` and thirty `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
 | `test/tls.sh` | `library(tls)`: a server and three clients AS SEPARATE PROCESSES -- enrolled, impostor, browser -- because a handshake is between two ends that do not share memory. The permissions that rode in with alice's certificate, the impostor refused and told why, the server carrying on serving afterwards, a certificate-less client admitted and granted nothing, four bogus handles refusing rather than crashing, and an accept that times out and frees its slot -- 19 checks |
 | `test/httpd-tls.sh` | the same server over TLS, and the seam that keeps them one server: routing, keep-alive, the path rules and `httpd_answer/3` are the SAME code on both, and a page reads the peer's subject and permissions as two synthetic headers. Weighted on the reverse-proxy hole -- a client sending `Tls-Peer-Subject: CN=root` must not be believed, and on a plain connection those headers are stripped and not replaced -- 9 checks |
 | `test/zigurat-tls.sh` | `--tls`, the binary protocol over TLS, against TWO terminators -- one per `SERVER/TLS_CLIENT_AUTH` setting. The handshake before the greeting, a clause written and read back by two processes over an encrypted connection, the hostname checked and not just the chain, plaintext against a TLS port refused, and all four certificate combinations including the one that must be legible: no certificate where one is required -- 11 checks |
@@ -389,7 +389,7 @@ in the suite rather than a script beside it:
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons: facts and rules, unification, lists, arithmetic, cut, `findall`, assert and retract, atoms and codes, exceptions, grammars, and the knowledge base | nothing at all |
-| `tutorials/library/` | twenty-nine lessons, **one per library that ships** — twelve tier 1, eleven tier 2 | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | thirty lessons, **one per library that ships** — tier 1 and tier 2 alike | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
 
 **Every claim in the first two is a `must/3`**, which is what makes them
@@ -2047,6 +2047,57 @@ ONE copy, pointed at from here, from this repository's README, and from
 The Coco's thesis -- because a comparison kept in two files disagrees
 with itself eventually, and the losing rows are exactly the ones a
 second copy would soften first.
+
+### library(ray): a game window from clauses, held to pixels
+
+raylib as a loadable module -- `modules/ray`, twenty-eight predicates
+of window, 2D, 3D camera and primitives, polled keyboard and mouse,
+frame time and a screenshot. raylib over every other engine for the one
+property the module seam cannot fake: **the caller owns the loop.**
+Input is polled, a frame is whatever happens between `ray_begin` and
+`ray_end`, and nothing ever calls back -- so a game is a Prolog
+predicate, and THE WORLD IS THE KNOWLEDGE BASE: entities are facts, the
+draw is a `forall` over them, and everything this repository proves
+about clauses -- freeze/thaw, a shared store, deterministic replay --
+now applies to a game state.
+
+The division is curl's, exactly. The C half is FLAT --
+`'$ray_rect'(X,Y,W,H,R,G,B,A)` -- and the Coco half is the surface:
+colors are NAMES from raylib's own palette carried as FACTS
+(`ray_color/4` enumerates what raylib ships as #defines, which no
+#define can), or `rgb/3`, or `rgba/4`; keys are names or letters or raw
+codes, resolved by clauses. The by-value structs raylib passes
+everywhere (`Color`, `Camera3D`, `Vector3`) are the one place the
+`(code ...)` fire escape is used, for what it is for: describing them
+to Cicili would emit a second definition beside raylib.h's, so each
+such call gets a one-line scalar wrapper with no logic in it, and
+everything scalar is declared to Cicili with `(decl)` and called from
+Cicili.
+
+**THE TEST IS HELD TO PIXELS, HEADLESS.** A graphics test that checks
+exit codes has proved a linker worked. `test/ray.sh` runs the windowed
+half under Xvfb -- a real X server, Mesa's software GL, only the glass
+missing -- and its assertions are about FILES: the screenshot is a real
+PNG by its magic bytes, and two frames the clauses drew differently are
+different files byte for byte, which is what catches a context that
+silently rendered nothing. A 2D frame drawn by a `forall` over asserted
+facts, a 3D scene over a camera, and the loop's questions (closing,
+frame time, mouse, an unpressed key) -- 17 checks.
+
+One raylib behaviour was worth routing around: `TakeScreenshot` strips
+the directory off the path it is given and writes the basename into its
+own storage dir, so `ray_screenshot/1` goes through `LoadImageFromScreen`
++ `ExportImage` instead -- the path is honoured and a failed write is a
+goal that FAILS rather than a warning on a log level the caller turned
+off.
+
+`tutorials/library/29-ray.pl` is the lesson, in the same commit as the
+rule demands; like the curl lesson it assumes no display, holds the
+clauses-only half to `must/3` and shows the loop. What is NOT there
+yet, honestly: textures and models from files, sound, gamepads,
+shaders, text measuring -- each a predicate away rather than a
+redesign. `modules/ray/build.sh` says where a raylib comes from and why
+the archive must be PIC.
 
 ## Known limitations, by choice
 

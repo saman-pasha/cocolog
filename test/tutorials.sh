@@ -3,7 +3,7 @@
 #
 #   basics/   eleven files, one process each, goal `main'. No library, no
 #             database, no build flag.
-#   library/  twenty-nine files, one process each, goal `main'. Tier 2
+#   library/  thirty files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
 #   torch/    twenty-four networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
@@ -57,6 +57,14 @@ else
   HAVE_CRYPTO=no
 fi
 
+# And for the window: the lesson opens none (it cannot assume a display,
+# as the curl lesson cannot assume a network), so loadable is enough.
+if "$COCOLOG" query "use_module(library(ray))" >/dev/null 2>&1; then
+  HAVE_RAY=yes
+else
+  HAVE_RAY=no
+fi
+
 failures=0
 skipped=0
 
@@ -71,6 +79,10 @@ for pl in "$ROOT"/tutorials/basics/[0-9]*.pl "$ROOT"/tutorials/library/[0-9]*.pl
     library/23-sha:no|library/24-aes:no|library/25-der:no|library/26-x509:no|library/27-ca:no|library/28-tls:no)
       skipped=$((skipped + 1))
       echo "SKIP  $name (no ZiguratIP cryptography built)"; continue ;;
+  esac
+  case "$name:$HAVE_RAY" in
+    library/29-ray:no)
+      skipped=$((skipped + 1)); echo "SKIP  $name (no ray module)"; continue ;;
   esac
   # FROM THE REPO ROOT, which `library/03-files.pl' depends on: it reads
   # its own source through the relative path the header tells you to use.

@@ -182,7 +182,7 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 #
 # Each is skipped, loudly, when what it needs is absent.
 modules:
-	@for m in tcp thread curl bigint torch sha aes der x509 tls; do \
+	@for m in tcp thread curl bigint torch sha aes der x509 tls ray; do \
 	  printf '%-8s ' "$$m"; \
 	  if CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh modules/$$m/build.sh >/dev/null 2>&1; then \
 	    echo "built"; \
@@ -208,6 +208,7 @@ clean:
 	rm -rf $(BUILD) cocolog cocolog.c *.o *.lo .libs
 	rm -rf modules/torch/coco-torch.cpp modules/torch/*.o modules/torch/*.lo modules/torch/.libs \
 	  modules/tcp/tcp.c modules/tcp/sdk.cicili modules/curl/curl.c modules/curl/sdk.cicili \
+  modules/ray/ray.c modules/ray/sdk.cicili \
 	  library/*.so
 	rm -rf embed/embed.cpp embed/*.o embed/*.lo embed/.libs embed/ce_smoke embed/smoke.o
 	rm -rf modules/bigint/coco-bigint.cpp modules/bigint/*.o modules/bigint/*.lo modules/bigint/.libs modules/bigint/zigheaders
