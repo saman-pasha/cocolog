@@ -124,7 +124,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        every claim in the first two is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (thirty, ONE PER LIBRARY that
+                       library/ (thirty-one, ONE PER LIBRARY that
                        ships), torch/ (twenty-four networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
@@ -274,7 +274,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — thirty lessons, one per library that ships
+### `library/` — thirty-one lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.
@@ -1095,7 +1095,7 @@ between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
 and fitted Q-iteration reinforcement learning. They are the third
-tutorial category — `sh test/tutorials.sh` runs all sixty-five files,
+tutorial category — `sh test/tutorials.sh` runs all sixty-six files,
 the seventy-two torch processes included, green and deterministically
 in about forty-five seconds. The one to read first is
 [22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every
@@ -1219,7 +1219,7 @@ interpreter in any of the four knowledge-base arrangements.
 
 The interpreter, the serialisation, all four transports, the schema and
 the concurrent arrangements are done and tested; `make test` ends
-`red: 0` over 32 cases, three of them TLS and one of them a window under Xvfb.
+`red: 0` over 33 cases, three of them TLS and one of them a window under Xvfb.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 
