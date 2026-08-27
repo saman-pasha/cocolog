@@ -226,9 +226,10 @@ embedded engine links against the built ZiguratIP's `Core` and `StreamIO`,
 the torch module against libtorch, and a server is needed only when a run
 chooses the server arrangement.
 
-## Learning it
+## Learning it: `tutorials/`, in three categories
 
-`tutorials/` is documentation that runs, in three categories:
+Documentation that RUNS. Fifty-nine files, and `sh test/tutorials.sh`
+runs every one of them as a case of the suite.
 
 ```sh
 ./cocolog run tutorials/basics/01-facts-and-rules.pl main
@@ -236,34 +237,93 @@ COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/12-json.pl main
 ./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train
 ```
 
-**`basics/`** is eleven lessons on the language, needing nothing but the
-binary: facts and rules, unification, lists, arithmetic, the cut,
-`findall` and its friends, assert and retract, atoms and codes,
-exceptions, grammars, and — the one that is not in any other Prolog
-book — the knowledge base that outlives the process.
+### `basics/` — eleven lessons, the language itself
 
-**`library/`** is twenty-three, **one per library that ships**, tier 1
-and tier 2 alike. The numbering is deliberate: a gap is a library
-nobody has demonstrated end to end, so a new library gets a tutorial in
-the same commit.
+Nothing but the binary: no library path, no database, no build flag.
+Read them in order — each leans on the one before.
 
-**`torch/`** is the deep end — twenty-four networks, below.
+| | teaches |
+|---|---|
+| [01-facts-and-rules](tutorials/basics/01-facts-and-rules.pl) | a fact, a rule, a query, and what a variable is |
+| [02-unification](tutorials/basics/02-unification.pl) | the one operation underneath everything; `=`, `\=`, `==`, the occurs check |
+| [03-lists](tutorials/basics/03-lists.pl) | `[H\|T]`, and why `append/3` runs backwards |
+| [04-arithmetic](tutorials/basics/04-arithmetic.pl) | `is` vs `=`, and the evaluable functors |
+| [05-backtracking-and-cut](tutorials/basics/05-backtracking-and-cut.pl) | choice points, `!`, and the four shapes it appears in |
+| [06-findall-and-friends](tutorials/basics/06-findall-and-friends.pl) | `findall`, `bagof`, `setof`, `aggregate_all`, and the free-variable rule |
+| [07-assert-and-retract](tutorials/basics/07-assert-and-retract.pl) | a program that edits itself, and `retract/1`'s determinism |
+| [08-atoms-text-and-codes](tutorials/basics/08-atoms-text-and-codes.pl) | atoms, codes, and the string type this Prolog does not have |
+| [09-exceptions](tutorials/basics/09-exceptions.pl) | failure is not an error; `catch/3`, `throw/1`, ISO error terms |
+| [10-grammars](tutorials/basics/10-grammars.pl) | `-->`, `phrase/2,3`, and a parser that also generates |
+| [11-the-knowledge-base](tutorials/basics/11-the-knowledge-base.pl) | **the one that is not in any other Prolog book**: the store outlives the process |
 
-**EVERY CLAIM IN THE FIRST TWO IS A TEST.** A lesson does not print what
-it computed; it asserts what the answer must be, and fails loudly naming
-both if it is not:
+Four of them exist because cocolog differs, and each difference is
+checked by a `must/3` in the file that teaches it: `double_quotes` is
+`codes`, so `"hi"` IS `[104,105]` (08); **every builtin is
+deterministic**, which retires the `retract(X), fail` loop (07) and makes
+`atom_concat(A, B, abc)` with both unbound an `instantiation_error`
+rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
+and 11 is the claim the whole project exists to make, in four lines of
+Prolog.
+
+### `library/` — twenty-three lessons, one per library that ships
+
+Tier 1 first — the twelve that answer with no import at all — then the
+eleven on the library path.
+
+| | | |
+|---|---|---|
+| [00-the-library-path](tutorials/library/00-the-library-path.pl) | — | the two tiers, the four search directories, and how to check which tier something is in |
+| [01-lists](tutorials/library/01-lists.pl) … [11-ugraphs](tutorials/library/11-ugraphs.pl) | tier 1 | `lists`, `apply`, `files`, `builtins`, `dcg`, `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs` |
+| [12-json](tutorials/library/12-json.pl) [13-xml](tutorials/library/13-xml.pl) [14-html](tutorials/library/14-html.pl) | tier 2 | a term as a document, and back |
+| [15-http](tutorials/library/15-http.pl) [16-httpd](tutorials/library/16-httpd.pl) [17-tcp](tutorials/library/17-tcp.pl) [18-thread](tutorials/library/18-thread.pl) | tier 2 | the grammar, the server, the socket seam, the threads |
+| [19-zigurat](tutorials/library/19-zigurat.pl) [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | the connection, an HTTP client, integers that do not wrap, and Prolog that trains |
+
+**The numbering is one per library, so a gap is visible** — a library
+with no `NN-name.pl` beside it is one nobody has demonstrated end to
+end. A new library therefore gets a tutorial in the same commit.
+
+### `torch/` — twenty-four networks, three processes each
+
+The deep end, and its own [README](tutorials/torch/README.md) — described
+under *Prolog that trains* below.
+
+### EVERY CLAIM IN THE FIRST TWO IS A TEST
+
+A lesson does not print what it computed. It asserts what the answer
+must be, through one helper repeated at the bottom of all thirty-four
+files:
 
 ```prolog
-   `2 ** 10' is an INTEGER here = 1024
-   retractall/1 on a partly-bound head = 3  BUT THIS LESSON SAYS 0
+must(Label, Got, Want) :-
+    (   Got == Want
+    ->  format("   ~w = ~q~n", [Label, Got])
+    ;   format("   ~w = ~q  BUT THIS LESSON SAYS ~q~n", [Label, Got, Want]),
+        fail
+    ).
 ```
 
-That second line is not hypothetical. Writing these found that `once/1`
-and `ignore/1` did not exist and that `retractall/1` was written as a
-failure-driven loop — which retracts exactly one clause in an
-interpreter where every builtin is deterministic. Documentation that
-runs is documentation that cannot drift, and `sh test/tutorials.sh`
-runs all fifty-nine files as one case of the suite.
+So a run reads as a transcript and fails as a test:
+
+```
+$ ./cocolog run tutorials/basics/05-backtracking-and-cut.pl main
+
+-- backtracking makes combinations out of nothing
+   every colour with every size = [red-small,red-large,green-small,green-large,blue-small,blue-large]
+
+-- a cut keeps only the first answer
+   without a cut = [red,green,blue]
+   with one = [red]
+
+-- once/1 is a cut with a name, and reads better
+   once(colour(C)) = [red]
+```
+
+**That last line did not work when it was written.** `once/1` and
+`ignore/1` did not exist, and `retractall/1` was written as a
+failure-driven loop — `retract(H), fail` — which retracts exactly ONE
+clause in an interpreter where every builtin is deterministic, and then
+reports success. Three bugs, found by documentation that runs, in a
+language whose own suite had never needed those predicates.
 
 ## The knowledge base is a seam, not a dependency
 
@@ -785,13 +845,17 @@ on through a foreign library; Coco makes it part of the logic. A
 network is a term you assert, training is a goal you call, and the
 learned weights are facts — saved, queried, and reloaded through the
 same knowledge base that holds your rules. The last seam to be filled:
-[torch/](torch/README.md) puts libtorch behind the module system, so a
+[modules/torch/](modules/torch/README.md) puts libtorch behind the module system, so a
 Prolog program can load a dataset the Files module vouched for, train a
 network on it, and `model_save` the result — an assert of the model *as
 terms*, which the knowledge base persists like any other fact.
-It is in the one `cocolog` binary, paired with the embedded store,
-and `test/torch.sh` runs the whole story: train, store in Zigurat,
-reload in a fresh process, predict identically.
+It is a LOADABLE module — `library/torch.so`, built by
+`sh modules/torch/build.sh` and reached with
+`use_module(library(torch))` — because a dependency this large should
+not be everybody's: a cocolog with no libtorch still builds and still
+runs, and `ldd` on the binary shows no torch at all. `test/torch.sh`
+runs the whole story: train, store in Zigurat, reload in a fresh
+process, predict identically.
 
 The classic AI/ML challenges pass, one `.pl` file at a time.
 **[tutorials/torch/](tutorials/torch/README.md) holds twenty-four such programs**,
@@ -800,9 +864,10 @@ separate goals in separate processes — the store carries the model
 between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
-and fitted Q-iteration reinforcement learning. The whole suite runs
-green, deterministically, in about seventy-five seconds. The one to
-read first is
+and fitted Q-iteration reinforcement learning. They are the third
+tutorial category — `sh test/tutorials.sh` runs all fifty-nine files,
+the seventy-two torch processes included, green and deterministically
+in about forty-five seconds. The one to read first is
 [22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every
 text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:

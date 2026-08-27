@@ -371,9 +371,10 @@ the two lists are one.
 `C-c C-g` is a picker of its own: the torch rules a training program is
 written out of, in three columns -- building a net, training, a trained
 model -- ending on a whole tutorial's `train`, `test` and `predict` as one
-piece. The pieces are the shapes of `tutorials/` in the cocolog repository
-and run under the `cocolog` binary, which carries the torch module; the engine of
-this mode traces no tensors.
+piece. The pieces are the shapes of `tutorials/torch/` in the cocolog
+repository and run under the `cocolog` binary with the torch module
+loaded (`use_module(library(torch))`); the engine of this mode traces no
+tensors.
 
 The grammar groups keep a heading of their own -- `grammar: numbers`,
 `grammar: text` -- because `atom(A)` in a rule writes a name out where
