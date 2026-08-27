@@ -289,10 +289,48 @@ transaction and a machine is many rows).
 
 ## Before saying something works
 
-Run `make test` with a server up, and check the ten case lines. `files` also
-SKIPs without `swipl` (`apt-get install swi-prolog-nox`) — another green line
-that means nothing was run. A change to
+Run `make test` with a server up, and read all **22** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make
 it.
+
+**COUNT THE SKIPs.** `red: 0` is printed over a run where nothing happened
+just as happily as over a real one, and the suite is deliberately built that
+way: "no server here" and "the backend is wrong" are different findings, so
+the first is never dressed up as the second. Seven cases — `zigurat`,
+`shared`, `tunnel`, `tensors`, `zigurat-lib`, `groups`, `ruler` — SKIP
+without a server, and `files` SKIPs without `swipl`
+(`apt-get install swi-prolog-nox`). **A run that says `red: 0` with eight
+SKIPs has not tested the database at all.**
+
+### The two things a container gets wrong
+
+Both cost a session time, and neither announces itself:
+
+* **`$HOME` is not where the checkouts are.** Every `build.sh` defaults to
+  `${CICILI:-$HOME/cicili}` and `${ZIGURATIP:-$HOME/ZiguratIP}`, which is
+  right on a workstation and wrong wherever `$HOME` is `/root` and the
+  repositories are somewhere else. Set both explicitly:
+
+      export CICILI=/path/to/cicili ZIGURATIP=/path/to/ZiguratIP
+
+  Getting it wrong fails LOUDLY but far from the cause — a Lisp backtrace
+  about `embed/mvccs-lib.cicili` not existing, which is a SYMLINK
+  `embed/build.sh` made, pointing wherever `$HOME` was the last time it ran.
+  A stale symlink is not repaired by `make`; re-run the script, or delete it.
+
+* **The server needs its own libraries on the path.** Started plainly,
+  `ziguratip` dies at once with `libStreamIO.so: cannot open shared object
+  file` — and then every database case SKIPs, so the suite still says
+  `red: 0`. Raise it as:
+
+      export ZIGURATIP_HOME=/path/to/ZiguratIP/home
+      setsid env LD_LIBRARY_PATH="$ZIGURATIP_HOME/lib" \
+        "$ZIGURATIP_HOME/bin/ziguratip" > /tmp/zig.log 2>&1 &
+
+  `setsid` because a plain `&` from a tool call does not outlive the turn.
+  Then CHECK it before trusting a green line — the answer should be a
+  sentence, not a refusal:
+
+      ./cocolog --kb main --host 127.0.0.1 --port 2160 --timeout 10 list
