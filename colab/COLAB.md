@@ -175,7 +175,10 @@ A PROGRAM behind the tunnel reads the same pages the same way:
 `library(curl)` speaks https natively, so
 `curl_get('https://NAME.trycloudflare.com/cocolog/predicates.zt?kb=brain', S, B)`
 fetches a Zeytun page from inside a query, verified against the system
-roots -- which is all a trycloudflare certificate needs. `test/tunnel.sh`
+roots -- which is all a trycloudflare certificate needs. **The notebook's
+section 7b runs exactly this**, against the real tunnel when section 6
+opened one and over loopback otherwise, and answers
+`200-page_lists_the_model` once section 5 has trained. `test/tunnel.sh`
 holds both readers against a local TLS edge: the `--https` arrangement,
 and a `curl_get` with an https URL -- including that a certificate the
 caller did not vouch for is refused, because verification defaulting to
@@ -331,6 +334,15 @@ $ cocolog --host NAME.trycloudflare.com --https --kb brain
 ```
 
 **A browser**: the `https://` URL serves Zeytun's pages directly.
+
+**A program**: `library(curl)` fetches the same pages from inside a
+query, https and verified against the system roots, no flags required
+-- notebook section 7b is the runnable version:
+
+```prolog
+?- use_module(library(curl)),
+   curl_get('https://NAME.trycloudflare.com/cocolog/predicates.zt?kb=brain', S, B).
+```
 
 What a querier cannot do is write or claim machines — `assertz` needs
 the store's write hook and `work` needs the binary port, and neither
