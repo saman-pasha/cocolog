@@ -73,8 +73,11 @@ lib/builtins.cicili    the ISO core builtins cocolog was missing, plus
                        format/1,2,3, code_type/2 and must_be/2
 lib/dcg.cicili         definite clause grammars: the --> translation, and
                        phrase/2,3
-lib/swipl/      SWI's dcg/basics and dcg/high_order, copied
-                       unmodified under their own BSD-2 headers
+lib/swipl/             EIGHT of SWI's own libraries -- assoc, pairs,
+                       ordsets, yall, aggregate, ugraphs, dcg/basics and
+                       dcg/high_order -- copied unmodified under their own
+                       BSD-2 headers and read at start-up, so they are
+                       there with no import
 lib/library.cicili     use_module, like SWI's: libraries load at run time --
                        registered modules, Name.so (dlopen'd Cicili modules)
                        and Name.pl on $COCOLOG_LIBRARY
@@ -86,6 +89,19 @@ lib/zigurat-kb.cicili  the knowledge base over Zigurat's binary protocol
 lib/zeytun-kb.cicili   the same, over Zeytun's HTTP pages (read only)
 lib/zigurat.cicili     Cicili declarations for the C client, and a front end
 lib/zeytun.cicili      the same for the page client
+
+library/               THE LIBRARY PATH, and what ships on it: http.pl
+                       (HTTP/1.1 as a grammar), httpd.pl (a server whose
+                       pages are clauses), json.pl, xml.pl and html.pl (a
+                       term as a document, and back), and the .so's that
+                       `make modules' builds
+modules/               the LOADABLE modules, one directory each -- tcp,
+                       thread, curl, bigint, torch. None is part of `make':
+                       a cocolog with no libtorch, no ZiguratIP headers and
+                       no libcurl still builds and still runs
+tools/cc/              the toolchain, in four small files: clang, plus the
+                       one flag Ubuntu makes necessary and two shims for
+                       the one build step that names gcc outright
 
 client/                the two protocols, in C. No C++, no ZiguratIP headers:
                        libc and the sockets API and nothing else
@@ -262,7 +278,7 @@ predicate, then the knowledge base — so a module can add to the language but
 cannot redefine `is` underneath a program, and is not shadowed by a clause
 somebody asserted.
 
-Five libraries ship, and they are deliberately spread across the range.
+Five ship compiled in, and they are deliberately spread across the range.
 **Files** is seventeen predicates in C and five in Prolog, because a file
 system is a syscall away. **Lists** is thirty-odd in Prolog and seven in C,
 because `member/2` and `permutation/2` must answer *many times* and a module's
@@ -281,6 +297,56 @@ things that would otherwise have shipped looking right.
 
 **MODULES.md** is how to write one.
 
+### Two tiers, and which one a thing belongs in
+
+**TIER 1 — always present, and no `use_module` needed.** Registered before
+the first goal runs: the five above plus `library` and `zigurat`, and the
+eight of SWI's own that are vendored in `lib/swipl` and read from disk at
+start-up. They are part of Prolog here, not an optional extra — a program
+that must say `use_module(library(assoc))` before it can use an association
+list is doing the interpreter's bookkeeping. **So an import for any of the
+sixteen is a line that does nothing**, and none is written anywhere in this
+repository.
+
+**TIER 2 — on the library path, loaded when asked.** `$COCOLOG_LIBRARY`
+first, then `./library`, then `library/` and `lib/swipl/` beside the
+BINARY — found through `/proc/self/exe`, so an installed cocolog finds its
+own libraries and a cocolog run inside somebody else's tree does not prefer
+theirs.
+
+**`$COCOLOG_LIBRARY` IS A LIST**, colon-separated like `PATH`, so your own
+modules go beside the shipped ones rather than instead of them:
+
+```sh
+export COCOLOG_LIBRARY=/opt/my/modules:/opt/vendor/prolog
+```
+
+The suite appends to it rather than replacing it, and The Coco's
+`test/config.sh` does the same, so `COCOLOG_LIBRARY=/opt/my/modules sh
+test/run.sh` works in both. What ships always comes first: a suite that let
+somebody else's `library(httpd)` win would be green about somebody else's
+code.
+
+| | | |
+|---|---|---|
+| `library(tcp)` | `.so` | sockets: listen, connect, accept, read, write |
+| `library(thread)` | `.so` | threads that share nothing, channels that copy |
+| `library(curl)` | `.so` | an HTTP client, over libcurl |
+| `library(bigint)` | `.so` | arbitrary-precision integers |
+| `library(torch)` | `.so` | libtorch: tensors, nets, training, GPU |
+| `library(http)` | `.pl` | HTTP/1.1 as a DCG over the bytes tcp gives back |
+| `library(httpd)` | `.pl` | a server whose pages are clauses, with a worker pool |
+| `library(json)` | `.pl` | a term as JSON, and JSON as a term |
+| `library(xml)` | `.pl` | the same for XML |
+| `library(html)` | `.pl` | the same for HTML |
+
+**A thing belongs in tier 2 when its dependency should not be everybody's**,
+and that argument moved three modules out of the binary. `tcp` was swept
+into `cocolog.c` by the Makefile's wildcard; `torch` and `bigint` were
+objects in the link reached through weak symbols, so **every link needed
+libtorch and libCore** for two modules most programs never call. The binary
+went from 936 KB to **585 KB** and `ldd` shows no torch at all.
+
 ## Grammars, and code borrowed rather than written
 
 `-->` works, and so does everything built on it. The translation lives in
@@ -293,9 +359,12 @@ terms and module qualification, machinery for a module system cocolog does not
 have; what is left once both are removed is short enough to write, and writing
 it keeps third-party code out of the core.
 
-Two of SWI's libraries **are** copied, byte for byte, under their own BSD-2
-headers: `library(dcg/basics)` and `library(dcg/high_order)`, in
-`lib/swipl/`. Nothing in them is edited. Instead the things they needed
+Eight of SWI's libraries **are** copied, byte for byte, under their own
+BSD-2 headers, in `lib/swipl/`: `assoc`, `pairs`, `ordsets`, `yall`,
+`aggregate`, `ugraphs`, `dcg/basics` and `dcg/high_order`. Nothing in them
+is edited, and all eight are read at start-up rather than on demand —
+measured free, 469ms bare against 459ms with all of them, inside the noise
+of a start-up dominated by the embedded store. Instead the things they needed
 were built here — the soft cut `*->`, `code_type/2`, `must_be/2`,
 `format/1,2,3` with its `codes(H,T)` sink, `with_output_to/2`,
 `ord_intersection/3` and `ord_subtract/3`, and acceptance of the `:- module`
@@ -311,6 +380,168 @@ cocolog has one namespace, so `:- module/2`'s export list is ignored and a
 vendored file's private predicates are callable. That is a real difference, not
 a shim; `lib/swipl/README.md` records it along with the provenance and
 checksums of both copies.
+
+## A server whose pages are clauses
+
+Zeytun serves a knowledge base over HTTP and is C++; it answers with rows.
+`library(httpd)` answers with whatever a clause can compute, **in the same
+process that holds the store** — so a page sees the knowledge base directly,
+with no protocol in between, and two cocolog instances can talk to each other
+in Prolog rather than in JSON about Prolog.
+
+```prolog
+%% pages.pl -- the pages, as clauses
+httpd_page('/hello', _, reply(200, [], 'hello, world')).
+
+httpd_page('/stock', _, reply(200, [], Body)) :-
+    stock(widget, N),                       % a clause ANOTHER PROCESS wrote
+    atomic_list_concat(['widget ', N], Body).
+```
+
+```prolog
+%% server.pl
+:- use_module(library(httpd)).
+:- use_module('pages.pl').                  % as a MODULE, not a consult
+
+main :- httpd_serve(8080, [root('./public'), workers(4)]).
+```
+
+**The pages are a MODULE and that is not style**, it is the one thing a
+worker pool asks of the program above it. A worker answers each request as
+an isolated proof with a fresh store, and a fresh store is filled from the
+process-wide module registry that `use_module` writes — so a page consulted,
+asserted, or written straight into the file you hand to `cocolog run` lives
+in the parent's store and no worker ever finds it. The failure is a plain
+404. `workers(0)`, the default, serves such a page perfectly well, which is
+exactly how this is easy to meet in a demo and lose the moment a pool is
+added.
+
+The sockets are `library(tcp)`'s C, the parse is `library(http)`'s grammar,
+and everything between them — routing, path safety, content types, keep-alive,
+the loop — is Prolog, where it can be read and tested a predicate at a time.
+
+**`workers(N)` is a pool over `library(thread)`.** One thread accepts and
+posts connections down a channel; N workers each take one and hold it for the
+whole conversation. That split is the design: accepting is the one thing that
+*must* be serialised, and it is also the one thing that costs nothing.
+Measured — one slow page 372 ms; four at once, one connection at a time,
+**1 365 ms**; the same four through four workers, **419 ms**. The pool is not
+faster at one request; it is what stops one slow request holding every other
+client.
+
+**Each request is its own turn**, which is what makes a pooled server correct
+rather than merely parallel. A worker's goal runs for the life of the server
+and a store *caches*, so two workers answering writes would hold two divergent
+pictures of the same predicate and the second commit would overwrite the
+first. Measured, before the fix: three sequential POSTs through a pool of
+three left **two** facts in the database. So a request runs as an isolated
+proof — fresh machine, fresh store, fresh database connection, one commit at
+the end, a rollback if it broke.
+
+## Concurrency: share nothing, copy the term
+
+`library(thread)` is threads and channels, and the shape is the one the
+`swarm` command already had: **a thread gets its own machine, store and
+engine.** A cocolog machine is an unguarded heap, a trail and an atom table;
+two threads proving goals on one would corrupt it in a millisecond, and
+locking at that level would be neither correct nor fast.
+
+```prolog
+?- channel_new(Ch),
+   thread_pool(4, worker(Ch), Ids),
+   channel_forall(Ch, [T]>>handle(T)),
+   thread_join_all(Ids).
+```
+
+**So a channel copies**, in canonical text — the same form the database
+already stores clauses in, quoted and with operators ignored, so a term reads
+back on a machine that never ran the same `op/3`. Two machines cannot share a
+heap cell, so a term crossing between them is copied whatever the mechanism;
+text is the copy this interpreter already trusts.
+
+Measured: four threads doing four times the work of one took **1.7×** the time
+on four cores, and eight senders put 800 terms through one channel with all
+800 arriving.
+
+## Documents: a term as JSON, XML or HTML, and back
+
+`library(json)`, `library(xml)` and `library(html)` go both ways, and all six
+halves are DCGs — a grammar that emits is the format written down, readable a
+clause at a time. There is no C in any of them.
+
+```prolog
+:- use_module(library(json)).
+:- use_module(library(html)).
+
+?- json_atom(json([name-'Ada', ok- @(true), xs-[1,2]]), A).
+A = '{"name":"Ada","ok":true,"xs":[1,2]}'
+
+?- json_parse('{"a":[1,true]}', T).
+T = json([a-[1, @(true)]])
+
+?- html_atom(element(p, [class=note], ['a < b']), A).
+A = '<p class="note">a &lt; b</p>'
+
+?- html_parse('<ul><li>one<li>two</ul>', T).
+T = [element(ul, [], [element(li,[],[one]), element(li,[],[two])])]
+```
+
+Which makes a page that answers JSON one line longer than a page that answers
+text — in the pages module, beside the others:
+
+```prolog
+:- use_module(library(json)).
+
+httpd_page('/api/stock', _, reply(200, ['Content-Type'-'application/json'], Body)) :-
+    findall(json([item-I, n-N]), stock(I, N), Rows),
+    json_atom(json([stock-Rows]), Body).
+```
+
+    $ curl localhost:8080/api/stock
+    {"stock":[{"item":"widget","n":7}]}
+
+**They throw rather than guess.** An unbound variable is not `null`; `foo(1)`
+is not `"foo(1)"`; `@(maybe)` is not a literal; `<br>text</br>` is not markup;
+an integer past 64 bits is refused rather than wrapped, because
+`number_codes/2` answers -1 for a twenty-digit literal without complaining and
+a silently wrong balance is the worst thing a JSON parser can do. Every
+refusal names the term.
+
+**A code list is a list, and `str/1` is the way out.** cocolog has no string
+type — `double_quotes` is `codes`, so `"hello"` *is* `[104,101,…]` and nothing
+in the term says which you meant. Guessing is how a JSON array of byte values
+silently becomes a word, and how `element(p,[],["hello"])` becomes
+`<p>104101108108111</p>` — which is what an earlier draft of `xml.pl` did,
+and why there is a case for it.
+
+**The round trip is the real test.** Write a document, read it, write it
+again, compare the two texts: a reader and a writer that disagree about the
+same bytes are worse than either alone, and no amount of hand-written
+expectations on each half finds a disagreement between them.
+
+Where the three differ from each other, the *languages* differ. XML
+self-closes an empty element and HTML's void elements close by being
+themselves. XML 1.0 forbids `--` in a comment outright, HTML5 ends on `-->`.
+`xml.pl` indents element-only content and `html.pl` has no indent option at
+all, because whitespace between two inline elements is a rendered space.
+An unknown entity is an error in XML and text in HTML — which is what makes
+`AT&T` render as `AT&T`.
+
+**There is no DTD, and that is the XXE answer.** `xml.pl` skips the DOCTYPE,
+internal subset and all, and has no code that could open a file or a socket:
+the whole external-entity family is structurally impossible rather than
+defended against.
+
+**`html.pl` is not an HTML5 tree builder**, and says so. It handles void
+elements, `script`/`style` as raw text, optional end tags, misnested end tags,
+case-insensitive names, unquoted and bare attributes, and a `<` that begins no
+tag. It does not do implied `<html>`/`<head>`/`<body>`, foster parenting or the
+adoption agency — a half tree builder is worse than none, because it produces a
+tree that looks right and quietly is not the one a browser built.
+
+The one security-shaped check in the three is `</script`, in any case, inside a
+`script` element — the only place where escaping is *not* the answer, because
+`a < b` must reach the JavaScript parser as `a < b`.
 
 ## What is stored, and how
 

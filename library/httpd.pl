@@ -63,6 +63,22 @@
 %% would be saved into the database, come back on every fetch, and be
 %% listed as somebody's own program.
 %%
+%% WITH `workers(N)' IT IS NOT ADVICE, IT IS THE ONLY WAY THAT WORKS, and
+%% the failure is silent: a plain 404. A worker answers each request as an
+%% ISOLATED PROOF -- fresh machine, fresh store -- and a fresh store is
+%% filled from the process-wide MODULE REGISTRY, which `use_module' writes
+%% and a consult does not. So a page that was consulted, or asserted, or
+%% written in the file handed to `cocolog run' lives in the parent's store
+%% only, and a worker looking for `httpd_page/3' finds nothing there.
+%% `workers(0)' -- the default -- serves it perfectly well, which is what
+%% makes this easy to meet in a demo and lose the moment a pool is added.
+%%
+%% REGISTER THE PAGES BEFORE THE POOL STARTS, for the reason
+%% library(thread) gives: `use_module' writes that registry, and a thread
+%% reading it while another writes is the one unguarded thing there. A
+%% directive at the top of the file that calls `httpd_serve/2' is exactly
+%% the right place.
+%%
 %% ONE NAMESPACE IS THE DISPATCH MECHANISM, not a problem to work around.
 %% Every page adds clauses to the same `httpd_page/3', each guarded by its
 %% own path, and the server simply calls it. Loading two pages merges their
@@ -204,6 +220,11 @@ httpd_alone(Port, Options, Count) :-
 %% one slow request holding every other client, which is what the
 %% single-connection loop could not do and what the keep-alive note in
 %% this header called the real exposure.
+%%
+%% AND THE PAGES MUST BE A MODULE, which is the one thing a pool asks of
+%% the program above it. See the note by `httpd_page/3' at the top: a
+%% worker's store is filled from the module registry, so a page that was
+%% consulted rather than loaded is a 404 with nothing in the log.
 httpd_pool(Port, Options, Count, W) :-
     tcp_listen(Port, S),
     (   catch(channel_new(W, Ch), _, fail)

@@ -45,7 +45,7 @@ U="use_module(library(tcp))"
 if [ ! -x "$C" ]; then echo "SKIP (build cocolog first)"; exit 0; fi
 # library(tcp) IS A LOADABLE MODULE NOW, under modules/tcp, so this needs
 # tcp.so on the library path rather than a socket layer in the binary.
-export COCOLOG_LIBRARY="$ROOT/library"
+. "$HERE/library-path.sh"
 if [ ! -f "$ROOT/library/tcp.so" ]; then
   echo "SKIP (no library/tcp.so -- sh modules/tcp/build.sh)"
   exit 0

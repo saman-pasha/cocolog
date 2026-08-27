@@ -14,7 +14,7 @@ ROOT=$(cd "$HERE/.." && pwd)
 COCOLOG="$ROOT/cocolog"
 # library(torch) IS A LOADABLE MODULE NOW, under modules/torch, so this
 # needs torch.so on the library path rather than an object in the binary.
-export COCOLOG_LIBRARY="$ROOT/library"
+. "$HERE/library-path.sh"
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-torch-XXXXXX")
 STORE="$OUT/store"
 trap 'rm -rf "$OUT"' EXIT INT TERM

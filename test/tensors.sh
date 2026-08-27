@@ -49,7 +49,7 @@ fi
 C="$ROOT/cocolog"
 # library(torch) IS A LOADABLE MODULE NOW, under modules/torch. The tutorial
 # this drives carries its own directive; the bare queries below need one too.
-export COCOLOG_LIBRARY="$ROOT/library"
+. "$HERE/library-path.sh"
 T="use_module(library(torch))"
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}

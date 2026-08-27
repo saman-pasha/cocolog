@@ -291,6 +291,19 @@ have measured it in the arrangement where a predicate is a page.**
 | `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
+**`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
+REPLACING IT.** `test/library-path.sh` is the one place that sets it —
+sourced by the ten cases that need a tier-2 library — and it puts this
+checkout's `library/` at the FRONT and keeps whatever the caller had behind
+it. Ours first so a suite cannot go green about somebody else's `httpd.pl`;
+theirs kept because ten cases used to write `export
+COCOLOG_LIBRARY="$ROOT/library"` and every one of them threw away a path
+somebody had exported on purpose. So `COCOLOG_LIBRARY=/opt/my/modules sh
+test/run.sh` now works. The Coco's `test/config.sh` does the same, and is
+the one variable in that file which appends instead of deferring to the
+environment — the two directories it names are not a default anybody could
+have meant to replace.
+
 **`modules/` IS WHERE A LOADABLE MODULE LIVES**, one directory each, all
 the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 
@@ -543,12 +556,31 @@ pool is not faster at one request — it is what stops one slow request
 holding every other client, which is what the keep-alive note called the
 real exposure.
 
-**And a worker still has no database.** Its store is its own, so a page that
-reads the knowledge base sees nothing there. Static files and pages that
-compute are what a pool serves today; `workers(0)` — the default — is the
-arrangement where a page has the store, and it is still the right one for a
-server whose pages are about the database. **That is the open end of the
-HTTP server, and it is a design question, not plumbing.**
+**A WORKER HAS THE DATABASE NOW**, and `coco_m_kb_install` in
+`lib/module.cicili` is the seam that gave it one. `lib/module.cicili` can
+make a machine and a store but cannot know whether this process is
+`--local`, a socket, Zeytun or embedded — the composition root can, so it
+installs a pair of hooks and every isolated proof opens a connection of its
+own. One per thread, which is the `swarm` command's rule and the only one
+that works. Connections NEST: the previous one is saved and restored, which
+is what lets a worker hold one while each request opens another.
+
+**EACH REQUEST IS ITS OWN TURN, and that is not a refinement.** A store
+CACHES — the first proof to ask for `visit/1` marks the predicate loaded and
+never asks again — and the Zigurat backend flushes a dirty predicate
+WHOLESALE, so two workers each answering a write hold divergent pictures and
+the second commit writes its stale copy over the first. Measured: three
+sequential POSTs through a pool of three left **two** facts in the database,
+with no concurrency involved at all. So a request runs through
+`run_isolated/2`: fresh machine, fresh store, fresh connection, one commit
+at the end, a rollback when the goal did not prove.
+
+**WHICH ASKS ONE THING OF THE PROGRAM ABOVE IT, and the failure is a silent
+404**: a worker's store is filled from the process-wide MODULE REGISTRY, so
+pages must be loaded with `use_module` and not consulted, asserted, or
+written into the file handed to `cocolog run`. `workers(0)` serves those
+perfectly well, which is exactly how this is easy to meet in a demo and lose
+the moment a pool is added. Four cases in `test/httpd.sh` hold both halves.
 
 **Measured**: four threads doing four times the work of one took 1.7× the
 time on four cores. Eight senders put 800 terms through one channel and all
@@ -569,10 +601,10 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
 | `lib/builtins.cicili` | the ISO core builtins cocolog was missing, plus `format/1,2,3`, `code_type/2` and `must_be/2` |
 | `lib/dcg.cicili` | `-->` translation, `phrase/2,3`. Two generics: the translator sits BEFORE `kb` because `coco_assert` calls it, the module half after the engine |
-| `lib/swipl/` | SWI's `dcg/basics` and `dcg/high_order`, copied unmodified under their own BSD-2 headers. Do not edit them — see the README there |
+| `lib/swipl/` | EIGHT of SWI's libraries — `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg/basics`, `dcg/high_order` — copied unmodified under their own BSD-2 headers and read at start-up. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
-| `modules/` | the loadable modules: `tcp`, `curl`, `bigint`, `torch`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
+| `modules/` | the loadable modules: `tcp`, `thread`, `curl`, `bigint`, `torch`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |

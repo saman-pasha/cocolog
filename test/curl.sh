@@ -24,7 +24,7 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
-export COCOLOG_LIBRARY="$ROOT/library"
+. "$HERE/library-path.sh"
 
 failures=0
 check() {

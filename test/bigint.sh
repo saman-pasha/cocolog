@@ -40,7 +40,7 @@ ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
 # library(bigint) IS A LOADABLE MODULE NOW, under modules/bigint, so this
 # needs bigint.so on the library path rather than an object in the binary.
-export COCOLOG_LIBRARY="$ROOT/library"
+. "$HERE/library-path.sh"
 
 failures=0
 check() {

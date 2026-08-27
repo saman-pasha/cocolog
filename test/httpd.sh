@@ -21,7 +21,7 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
-export COCOLOG_LIBRARY="$ROOT/library"
+. "$HERE/library-path.sh"
 
 failures=0
 check() {
@@ -588,6 +588,53 @@ wait 2>/dev/null
 #
 # A case that renamed a .so and put it back would fail dirty if the run
 # died in between, and would be testing the rename.
+fi
+
+echo "-- a pooled worker serves pages from the MODULE REGISTRY, and only those"
+# THE ONE THING A POOL ASKS OF THE PROGRAM ABOVE IT, and the failure is a
+# silent 404 rather than an error -- which is why it is a case and not
+# just a paragraph. A worker answers each request as an isolated proof,
+# and a fresh store is filled from the process-wide module registry that
+# `use_module' writes. A page CONSULTED, or written straight into the file
+# handed to `cocolog run', lives in the parent's store and no worker ever
+# sees it. `workers(0)' serves it perfectly well, which is exactly how
+# this is easy to meet in a demo and lose the moment a pool is added.
+if [ ! -f "$ROOT/library/thread.so" ]; then
+  echo "   (SKIPPED -- no library/thread.so)"
+elif ! command -v curl >/dev/null 2>&1; then
+  echo "   (SKIPPED -- no curl)"
+else
+cat > "$D/modpage.pl" <<'PL'
+httpd_page('/from_module', _, reply(200, [], from_module)).
+PL
+# BOTH PAGES IN ONE SERVER, so the run cannot pass by failing to start:
+# one arrives through use_module, the other is written here, in the file
+# `run' is given -- which puts it in the store and nowhere else.
+cat > "$D/twoways.pl" <<PL
+:- use_module(library(httpd)).
+:- use_module('$D/modpage.pl').
+httpd_page('/from_store', _, reply(200, [], from_store)).
+pooled(P) :- httpd_serve(P, [workers(2)], 2).
+alone(P)  :- httpd_serve(P, [], 2).
+PL
+
+setsid timeout 60 "$C" run "$D/twoways.pl" "pooled(18940)" >/dev/null 2>&1 &
+sleep 3
+check "a pooled worker serves a page loaded as a module" \
+  "$(timeout 30 curl -s http://127.0.0.1:18940/from_module)" "from_module"
+check "and NOT one that only reached the parent's store" \
+  "$(timeout 30 curl -s http://127.0.0.1:18940/from_store)" "not found"
+wait 2>/dev/null
+
+# ...AND WITHOUT A POOL BOTH WORK, which is what makes the rule a
+# property of the pool rather than of `httpd_page/3'.
+setsid timeout 60 "$C" run "$D/twoways.pl" "alone(18941)" >/dev/null 2>&1 &
+sleep 3
+check "workers(0) serves the store page too" \
+  "$(timeout 30 curl -s http://127.0.0.1:18941/from_store)" "from_store"
+check "and the module page as well" \
+  "$(timeout 30 curl -s http://127.0.0.1:18941/from_module)" "from_module"
+wait 2>/dev/null
 fi
 
 echo "-- pages that reach the knowledge base, from a worker thread"
