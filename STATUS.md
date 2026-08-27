@@ -25,7 +25,8 @@ different findings.
 | `test/engine.sh` | the engine's COMPLEXITY, which nothing else here checks: 100 000 solutions from `between/3`, a `findall` over the same range, ten times the work in far less than a hundred times the time, and a 500 000-deep deterministic recursion — with the answers still right, because a representation change that made everything fast and one thing wrong would pass every timing check |
 | `test/thread.sh` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
 | `test/httpd.sh` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
-| `test/tutorials.sh` | **the documentation, run as a suite**: fifty-nine tutorial files in three categories — eleven `basics/` and twenty-three `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/crypto.sh` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
+| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-three tutorial files in three categories — eleven `basics/` and twenty-eight `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
 | `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 
 ## The three document libraries, and the round trip that checks them
@@ -88,6 +89,123 @@ handed to `cocolog run`. `workers(0)` serves those perfectly well, which is
 exactly how it is easy to meet in a demo and lose the moment a pool is
 added. Four cases hold both halves.
 
+## ZiguratIP's cryptography, imported rather than rewritten
+
+The question was whether to bind ZiguratIP's crypto and CA or write
+them in cocolog as DCGs. **The answer is neither wholesale, and the
+line is not "crypto vs CA" -- it is arithmetic, grammar, policy.**
+
+* **ARITHMETIC IS BOUND, NEVER REWRITTEN.** RSA modexp, the AES rounds,
+  the SHA compression function. A Prolog implementation is not merely
+  slow: it cannot be made constant-time, so a private-key operation
+  would leak by timing. There is no hash and no cipher code in any of
+  these files -- `Zigurat::SHA` is the one RSA signs with and `Zigurat::AES`
+  the one X.509 encrypts key files with, and a second implementation
+  would be a second thing to disagree with the first.
+* **GRAMMAR IS PROLOG.** `library(der)`'s C++ half knows exactly one
+  tag-length-value: read a tag and a length, hand back the content and
+  the rest. Walking a sequence of them is a two-clause recursion, and it
+  is written as one. Note where the C++ itself gave up: `x509.cpp`
+  reaches for OpenSSL's ASN.1 rather than hand-rolling DER.
+* **POLICY IS CLAUSES**, and this is the part that is better here than
+  in any C++ stack. `ca_may/2` and `ca_covers/2` are four lines you can
+  read, `listing/1`, and argue with. A permission system nobody can read
+  is a permission system nobody can audit.
+
+Five libraries, all tier 2, none of them prefixed `zigurat_`:
+
+| | is | links |
+|---|---|---|
+| `library(sha)` | SHA-1/224/256/384/512, HMAC, and a file hashed without being read in | libCryptography |
+| `library(aes)` | AES-128/192/256, CBC and ECB, PKCS #7 both ways | libCryptography |
+| `library(der)` | DER as terms, both directions | **libEncoding only** |
+| `library(x509)` | the whole `ca` tool, plus sign/verify/encrypt/decrypt | libCryptography |
+| `library(ca)` | clauses only: roots, enrolment, authorisation | -- |
+
+**`library(der)` LINKS NO CIPHER.** `Zigurat::DER` lives in libEncoding
+beside base16/32/64, because it is an encoding and not a secret -- so
+everything a certificate is made of can be taken apart with no OpenSSL
+in the process at all.
+
+**THE TWO HALVES MEET, and that is the demonstration.** A public key
+that came out of C++, read in Prolog:
+
+    ?- x509_public_key('ca.crt', K), der_wrap(48, K, Spki),
+       der_decode(Spki, sequence([Alg, bit_string(Bits)])),
+       der_decode(Bits, sequence([integer(N), integer(E)])).
+    Alg = sequence([oid('1.2.840.113549.1.1.1'), null]),
+    N = '13455941168279...'  (617 digits),  E = '65537'.
+
+**A CERTIFICATE BECOMES CLAUSES**, which is the thesis applied to PKI.
+An issuer may write permissions into a certificate under ZiguratIP's own
+OID arc, and they mean nothing to the certificate: they are matched by
+whoever cares. `ca_load/1` turns a signed document into `ca_holder/2`
+and `ca_grants/2` facts -- which are ROWS, so another process can ask. A
+gateway loads what it trusts at start-up and every later authorisation
+is a query against the store rather than a signature check against a
+file.
+
+**KEYS ARE FILES, NOT TERMS**, and that is the one decision to preserve.
+A private key read into an atom would be on the heap, in the trail, in
+every copy a channel made of the term holding it, and in the knowledge
+base the moment anything asserted it. This project's whole claim is that
+a clause is a row somebody else can read; a signing key is the one thing
+that must never become one. `getenv/2` is how a pass phrase arrives, for
+the same reason -- the one channel into a program that does not pass
+through the store.
+
+**WHAT IS NOT BOUND: the TLS handshake.** ZiguratIP has one, as a C++
+iostream over a socket, and cocolog has no stream layer to hang it on --
+`library(tcp)` hands out handles into a table, not descriptors. Binding
+it would mean inventing a stream abstraction for one caller. The
+certificates these modules make are the same ones that server reads,
+which is the part that had to be true.
+
+### Five things that cost time, and one finding not applied
+
+A `:cpp #t` target must declare the SDK's prototypes RAW inside
+`extern "C"` **before** `(coco-sdk)`, or C++ gives them C++ linkage and
+`use_module` fails with a mangled `undefined symbol` for a function the
+interpreter exports unmangled -- and wrapping `(coco-sdk)` in
+`(extern-c ...)` is not the fix, because a Cicili macro must emit one
+form. `$`-prefixed predicate names must be QUOTED in a module's Prolog
+half, or the clause is two tokens and will not read. Which library a
+symbol lives in is not guessable and a miss LINKS FINE -- `DER::encode_oid`
+is in libEncoding, not Core. Every transitive dependency must be named,
+because `-rpath` applies only to what this link records. And
+`X509::issue`'s issuer argument is a NAME CONFIGURATION, not a
+certificate: handing it the issuer's `.crt` fails inside a configuration
+parser with `key error at line 1` and some DER bytes.
+
+**Reported, not patched**: `x509.hpp` says `certificate_public_key`
+yields "the same shape the .pub files hold". It yields the SPKI's
+CONTENTS -- 289 bytes against `dont-use-public.key`'s 293, exactly a
+four-byte `30 82 01 21` header short. `der_wrap(48, K, S)` puts it back.
+
+### `once/1` and `ignore/1` are control constructs now
+
+They were Prolog clauses in `lib/builtins.cicili` for a day -- the way
+every textbook writes them, and the wrong shape here. Both are
+`(G -> true ; X)` with a different X, and the engine has an if-then-else
+construct already, so they are two lines in `lib/solve.cicili` beside
+`\+`, calling the same `coco_ite`.
+
+What that buys beyond a frame and a `call` per invocation: the goal gets
+its cut barrier FROM THE CONSTRUCT rather than from a hand-written `!`,
+which is what makes `once/1` opaque to cut the way ISO 8.15.2 requires.
+`findall(X, (member(X,[1,2,3]), once((X > 1, !))), L)` answers `[2,3]` --
+the inner cut confined to the inner goal -- and there is nothing left to
+get wrong.
+
+### `get_time/1`, which was simply not there
+
+Nothing in cocolog could ask what time it is. `time_file/2` answered
+when a file was last written and that was the whole of it, so a program
+that wanted to stamp a row, expire a session or set a certificate's
+validity window had nowhere to get the number from. It is in
+`lib/files.cicili` beside `time_file/2` -- same type, same units, and
+`<time.h>` already included for the neighbour.
+
 ## Documentation that runs, and the three bugs it found
 
 `tutorials/` is three categories now, and `test/tutorials.sh` is a case
@@ -96,7 +214,7 @@ in the suite rather than a script beside it:
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons: facts and rules, unification, lists, arithmetic, cut, `findall`, assert and retract, atoms and codes, exceptions, grammars, and the knowledge base | nothing at all |
-| `tutorials/library/` | twenty-three lessons, **one per library that ships** — twelve tier 1, eleven tier 2 | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | twenty-eight lessons, **one per library that ships** — twelve tier 1, eleven tier 2 | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
 
 **Every claim in the first two is a `must/3`**, which is what makes them

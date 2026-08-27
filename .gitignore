@@ -35,7 +35,7 @@ cocolog-full
 test/hoot.c
 test/hoot.so
 
-# EVERY LOADABLE MODULE'S OUTPUT. modules/ holds four of them and they all
+# EVERY LOADABLE MODULE'S OUTPUT. modules/ holds nine of them and they all
 # have the same shape: a .cicili, a build.sh, and output -- the .so, the C
 # or C++ Cicili generates, and the symlinks each build.sh makes into this
 # checkout or into ZiguratIP's. A .so is a compiled x86-64 object linked
@@ -50,3 +50,19 @@ modules/curl/sdk.cicili
 modules/bigint/coco-bigint.cpp
 modules/bigint/zigheaders
 modules/torch/coco-torch.cpp
+
+# ZiguratIP's cryptography: four more of the same shape. Each carries a
+# sdk.cicili symlink into lib/ and a zigheaders symlink into a BUILT
+# ZiguratIP's include -- both of which dangle in anyone else's clone.
+modules/sha/coco-sha.cpp
+modules/sha/sdk.cicili
+modules/sha/zigheaders
+modules/aes/coco-aes.cpp
+modules/aes/sdk.cicili
+modules/aes/zigheaders
+modules/der/coco-der.cpp
+modules/der/sdk.cicili
+modules/der/zigheaders
+modules/x509/coco-x509.cpp
+modules/x509/sdk.cicili
+modules/x509/zigheaders

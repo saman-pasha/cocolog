@@ -1,0 +1,671 @@
+;;;; library(der) -- Distinguished Encoding Rules, as cocolog predicates.
+;;;;
+;;;; A LOADABLE Cicili module against lib/sdk.cicili, over `Zigurat::DER'
+;;;; from ZiguratIP's Core. It is the layer everything X.509 stands on: a
+;;;; certificate, a key, a signing request and a signature algorithm are
+;;;; all DER, and a program that can take one apart can reason about all
+;;;; of them.
+;;;;
+;;;;   der_encode(+Term, -Hex)          a term as DER
+;;;;   der_decode(+Hex, -Term)          DER as a term
+;;;;   der_tlv(+Hex, -Tag, -Value, -Rest)   ONE tag-length-value, raw
+;;;;   der_wrap(+Tag, +ContentHex, -Hex)    the inverse of der_tlv/4
+;;;;   der_prim(+Kind, +Value, -Hex)        one primitive, encoded
+;;;;   der_unprim(+Kind, +Hex, -Value)      one primitive, decoded
+;;;;   der_tag(?Kind, ?Tag)                 the table, both ways
+;;;;
+;;;; THE TERM VOCABULARY, which is the whole interface:
+;;;;
+;;;;   boolean(true) boolean(false)
+;;;;   integer(N)              a DECIMAL ATOM -- see below
+;;;;   bit_string(Hex)  octet_string(Hex)
+;;;;   null
+;;;;   oid('1.2.840.113549.1.1.1')
+;;;;   utf8(A)  printable(A)  ia5(A)
+;;;;   utc_time(Unix)  generalized_time(Unix)
+;;;;   sequence([T1, T2, ...])   set([T1, ...])
+;;;;   context(N, T)           [N] EXPLICIT, which X.509 v3 needs
+;;;;   unknown(Tag, Hex)       anything the table has no name for
+;;;;
+;;;; `unknown/2' IS NOT A FAILURE, and it matters that it is in the
+;;;; vocabulary: a parser that refused every tag it did not recognise
+;;;; could not read a certificate carrying an extension somebody else
+;;;; invented. It round-trips exactly, so a document read and written
+;;;; again is the same bytes whether or not this module understood it.
+;;;;
+;;;; `integer(N)' IS A DECIMAL ATOM, not a cocolog integer, and that is
+;;;; not fussiness: an RSA modulus is two thousand bits and cocolog's
+;;;; integers are sixty-four, so a modulus read into one would WRAP IN
+;;;; SILENCE. An atom of digits is what `library(bigint)' also speaks, so
+;;;; the two compose without a conversion nobody would remember to write.
+;;;;
+;;;; TWO'S COMPLEMENT, SHORTEST FORM, is what DER INTEGER actually is,
+;;;; and it is where a hand-rolled encoder goes wrong: 127 is `02 01 7F'
+;;;; and 128 is `02 02 00 80', because a leading zero has to be added
+;;;; when the top bit would otherwise read as a sign. Negative numbers
+;;;; are the complement plus one under the same rule. That is done here,
+;;;; by hand, because Zigurat's `encode_integer' overloads take a
+;;;; magnitude and a sign the caller does not get to state.
+;;;;
+;;;; THE STRUCTURE IS PROLOG AND THE BYTES ARE C++, which is the split
+;;;; this whole tree is built on. The C++ half knows one TLV: read a tag
+;;;; and a length, hand back the content and the rest. Walking a sequence
+;;;; of them is a two-clause recursion, and a two-clause recursion is
+;;;; better said in Prolog than as a loop with a cursor in it.
+;;;;
+;;;; THE ROUND TRIP IS THE REAL TEST, exactly as it is for `library(xml)'
+;;;; and the other two document libraries: write a term, read it, write
+;;;; it again, compare the BYTES. A reader and a writer that disagree
+;;;; about the same certificate are worse than either alone, and no
+;;;; amount of hand-written expectations on each half finds it.
+
+(DEFPARAMETER *der-predicates*
+  '(("der_prim"   3 dr_p_prim)
+    ("der_unprim" 3 dr_p_unprim)
+    ("der_tlv"    4 dr_p_tlv)
+    ("der_wrap"   3 dr_p_wrap)))
+
+;;; ---- the Coco half: the structure, and the vocabulary ----------------
+;;;
+;;; ONE CLAUSE PER LINE, which is why this is a list of strings rather
+;;; than one: a Cicili string literal may not contain a newline, so a
+;;; module's Prolog half is joined with spaces -- and a list keeps the
+;;; source readable a clause at a time.
+(DEFPARAMETER *der-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; The tag table, as clauses, so it runs both ways: der_tag(oid, T)
+           ;; asks and der_tag(K, 6) answers. The C++ half has the same table
+           ;; and they are checked against each other by the tutorial.
+           "der_tag(boolean, 1)."
+           "der_tag(integer, 2)."
+           "der_tag(bit_string, 3)."
+           "der_tag(octet_string, 4)."
+           "der_tag(null, 5)."
+           "der_tag(oid, 6)."
+           "der_tag(utf8, 12)."
+           "der_tag(printable, 19)."
+           "der_tag(ia5, 22)."
+           "der_tag(utc_time, 23)."
+           "der_tag(generalized_time, 24)."
+
+           ;; ENCODING. A constructed term encodes its children first and
+           ;; wraps the result; a primitive goes straight to the C++ half.
+           "der_encode(sequence(L), Hex) :- !, der_encode_list(L, C), der_wrap(48, C, Hex)."
+           "der_encode(set(L), Hex) :- !, der_encode_list(L, C), der_wrap(49, C, Hex)."
+           "der_encode(context(N, T), Hex) :- !, der_encode(T, C), Tag is 160 + N, der_wrap(Tag, C, Hex)."
+           "der_encode(unknown(Tag, Hex), Out) :- !, der_wrap(Tag, Hex, Out)."
+           "der_encode(null, Hex) :- !, der_prim(null, '', Hex)."
+           "der_encode(T, Hex) :- T =.. [Kind, V], der_tag(Kind, _), !, der_prim(Kind, V, Hex)."
+           "der_encode(T, _) :- throw(error(domain_error(der_term, T), der_encode/2))."
+
+           ;; BOTH BASE CASES END IN A CUT, and the second one has to. Ask
+           ;; for a further solution -- which `cocolog query' does, and so
+           ;; does any caller that backtracks -- and without it
+           ;; `der_decode_list' retries its second clause with an EMPTY
+           ;; string, `der_tlv' is handed no bytes at all, and a decode
+           ;; that had already succeeded raises `not well formed DER'.
+           ;; The error names the data and the data was fine.
+           "der_encode_list([], '') :- !."
+           "der_encode_list([T|Ts], Hex) :- der_encode(T, H), der_encode_list(Ts, R), atom_concat(H, R, Hex)."
+
+           ;; DECODING. One TLV off the front, then the tag decides.
+           "der_decode(Hex, Term) :- der_tlv(Hex, Tag, Value, Rest), ( Rest == '' -> true ; throw(error(domain_error(one_der_value, Rest), der_decode/2)) ), der_term(Tag, Value, Term)."
+
+           "der_term(48, V, sequence(L)) :- !, der_decode_list(V, L)."
+           "der_term(49, V, set(L)) :- !, der_decode_list(V, L)."
+           "der_term(Tag, V, context(N, T)) :- Tag >= 160, Tag =< 191, !, N is Tag - 160, der_decode(V, T)."
+           "der_term(5, _, null) :- !."
+           ;; A BIT STRING IS NOT QUITE A PRIMITIVE. Its content begins
+           ;; with a count of the bits at the end that are not part of
+           ;; the value, and for everything X.509 does with one -- a
+           ;; public key, a signature over a DER document -- that count
+           ;; is zero. `bit_string(H)' is that case, and a bit string
+           ;; that really does declare spare bits comes back as
+           ;; `unknown(3, Content)', which round-trips exactly rather
+           ;; than quietly losing them.
+           "der_term(3, V, T) :- !, ( sub_atom(V, 0, 2, _, '00') -> sub_atom(V, 2, _, 0, H), T = bit_string(H) ; T = unknown(3, V) )."
+           "der_term(Tag, V, Term) :- der_tag(Kind, Tag), !, der_wrap(Tag, V, Tlv), der_unprim(Kind, Tlv, Value), Term =.. [Kind, Value]."
+           "der_term(Tag, V, unknown(Tag, V))."
+
+           "der_decode_list('', []) :- !."
+           "der_decode_list(Hex, [T|Ts]) :- der_tlv(Hex, Tag, V, Rest), der_term(Tag, V, T), der_decode_list(Rest, Ts).")))
+
+(source "coco-der.cpp"
+  (make :cpp #t :compile #f)
+
+  ;;; The includes come BEFORE the SDK block: those prototypes name
+  ;;; `size_t' and `int64_t', and emitted above <cstdint> they are twenty
+  ;;; errors about unknown type names.
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstddef>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+  (include <vector>)
+
+  ;;; THE LINKAGE, FIRST AND RAW. In a `:cpp #t' target C++ gives the
+  ;;; SDK's prototypes C++ LINKAGE, and `use_module' then fails with a
+  ;;; mangled `undefined symbol' for a function the interpreter exports
+  ;;; unmangled. Wrapping `(coco-sdk)' in `(extern-c ...)' is not the
+  ;;; fix -- a Cicili macro must emit ONE form, and several leaves every
+  ;;; symbol unregistered. C++ gives a redeclaration the linkage of the
+  ;;; first one it saw, so these come first.
+  (code "extern \"C\" {")
+  (code "int coco_module_register(const char*, int (*)(struct coco_engine_opaque*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine_opaque*));")
+  (code "size_t coco_m_arg(struct coco_engine_opaque*, size_t, uint32_t);")
+  (code "int coco_m_int(struct coco_engine_opaque*, size_t, int64_t*);")
+  (code "int coco_m_text(struct coco_engine_opaque*, size_t, char*, size_t);")
+  (code "int coco_m_unify_atom(struct coco_engine_opaque*, size_t, const char*);")
+  (code "int coco_m_unify_int(struct coco_engine_opaque*, size_t, int64_t);")
+  (code "int coco_m_type_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_domain_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_error(struct coco_engine_opaque*, const char*, const char*);")
+  (code "}")
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (code "#include <der.hpp>")
+  (code "#include <bufferstream.hpp>")
+
+  ;;; ---- the seam --------------------------------------------------------
+  (code "namespace {")
+  (code "")
+  (code "int hexval(int c) {")
+  (code "  if (c >= '0' && c <= '9') return c - '0';")
+  (code "  if (c >= 'a' && c <= 'f') return c - 'a' + 10;")
+  (code "  if (c >= 'A' && c <= 'F') return c - 'A' + 10;")
+  (code "  return -1;")
+  (code "}")
+  (code "")
+  (code "// Hex in, bytes out, as a std::string because DER content is arbitrary")
+  (code "// bytes and a zero is an ordinary one. Answers false on anything that is")
+  (code "// not an even run of hex digits -- an odd length included, because half")
+  (code "// a byte is not a byte.")
+  (code "bool unhex(const char* s, std::string& out) {")
+  (code "  size_t n = std::strlen(s);")
+  (code "  if (n % 2) return false;")
+  (code "  out.clear();")
+  (code "  out.reserve(n / 2);")
+  (code "  for (size_t i = 0; i < n; i += 2) {")
+  (code "    int hi = hexval((unsigned char) s[i]), lo = hexval((unsigned char) s[i+1]);")
+  (code "    if (hi < 0 || lo < 0) return false;")
+  (code "    out.push_back((char)((hi << 4) | lo));")
+  (code "  }")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "bool tohex(const std::string& b, char* out, size_t cap) {")
+  (code "  static const char* D = \"0123456789abcdef\";")
+  (code "  if (2 * b.size() + 1 > cap) return false;")
+  (code "  for (size_t i = 0; i < b.size(); i++) {")
+  (code "    unsigned char c = (unsigned char) b[i];")
+  (code "    out[2*i] = D[c >> 4];")
+  (code "    out[2*i+1] = D[c & 15];")
+  (code "  }")
+  (code "  out[2 * b.size()] = 0;")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "// ---- decimal, for an INTEGER that does not fit in sixty-four bits ----")
+  (code "//")
+  (code "// An RSA modulus is two thousand bits, so `integer(N)' cannot be a")
+  (code "// cocolog integer and cannot be an int64_t either. It is a DECIMAL ATOM,")
+  (code "// and these three turn one into magnitude bytes and back. They are the")
+  (code "// same three modules/bigint uses, for the same reason and by the same")
+  (code "// argument: repeated multiply-by-ten and divide-by-ten over a byte")
+  (code "// vector is short, obviously correct, and needs no second bignum.")
+  (code "")
+  (code "void mag_mul10_add(std::vector<unsigned char>& m, int d) {")
+  (code "  int carry = d;")
+  (code "  for (size_t i = m.size(); i > 0; i--) {")
+  (code "    int v = (int) m[i-1] * 10 + carry;")
+  (code "    m[i-1] = (unsigned char)(v & 0xff);")
+  (code "    carry = v >> 8;")
+  (code "  }")
+  (code "  while (carry) { m.insert(m.begin(), (unsigned char)(carry & 0xff)); carry >>= 8; }")
+  (code "}")
+  (code "")
+  (code "int mag_divmod10(std::vector<unsigned char>& m) {")
+  (code "  int rem = 0;")
+  (code "  for (size_t i = 0; i < m.size(); i++) {")
+  (code "    int cur = (rem << 8) | m[i];")
+  (code "    m[i] = (unsigned char)(cur / 10);")
+  (code "    rem = cur % 10;")
+  (code "  }")
+  (code "  while (m.size() > 1 && m[0] == 0) m.erase(m.begin());")
+  (code "  return rem;")
+  (code "}")
+  (code "")
+  (code "bool mag_zero(const std::vector<unsigned char>& m) {")
+  (code "  for (size_t i = 0; i < m.size(); i++) if (m[i]) return false;")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "bool dec_to_mag(const char* s, std::vector<unsigned char>& mag, bool& neg) {")
+  (code "  neg = false;")
+  (code "  if (*s == '-') { neg = true; s++; }")
+  (code "  if (!*s) return false;")
+  (code "  mag.assign(1, 0);")
+  (code "  for (const char* p = s; *p; p++) {")
+  (code "    if (*p < '0' || *p > '9') return false;")
+  (code "    if (mag.size() > 1024) return false;")
+  (code "    mag_mul10_add(mag, *p - '0');")
+  (code "  }")
+  (code "  while (mag.size() > 1 && mag[0] == 0) mag.erase(mag.begin());")
+  (code "  if (mag_zero(mag)) neg = false;")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "void mag_to_dec(std::vector<unsigned char> mag, bool neg, std::string& out) {")
+  (code "  std::string d;")
+  (code "  if (mag_zero(mag)) { out = \"0\"; return; }")
+  (code "  while (!mag_zero(mag)) d.push_back((char)('0' + mag_divmod10(mag)));")
+  (code "  out.clear();")
+  (code "  if (neg) out.push_back('-');")
+  (code "  for (size_t i = d.size(); i > 0; i--) out.push_back(d[i-1]);")
+  (code "}")
+  (code "")
+  (code "// TWO'S COMPLEMENT, WHICH IS WHAT DER INTEGER ACTUALLY IS, and the place")
+  (code "// a hand-rolled encoder gets it wrong. The content is signed big-endian")
+  (code "// with the SHORTEST representation: a leading 0x00 is added when the top")
+  (code "// bit of the magnitude is set (else a positive number reads as negative),")
+  (code "// and a negative number is the complement plus one with a leading 0xFF")
+  (code "// added on the same rule. 127 is `02 01 7F' and 128 is `02 02 00 80'.")
+  (code "void mag_to_twos(const std::vector<unsigned char>& mag, bool neg, std::string& out) {")
+  (code "  std::vector<unsigned char> v = mag;")
+  (code "  while (v.size() > 1 && v[0] == 0) v.erase(v.begin());")
+  (code "  if (!neg) {")
+  (code "    if (v[0] & 0x80) v.insert(v.begin(), 0);")
+  (code "  } else {")
+  (code "    for (size_t i = 0; i < v.size(); i++) v[i] = (unsigned char) ~v[i];")
+  (code "    int carry = 1;")
+  (code "    for (size_t i = v.size(); i > 0 && carry; i--) {")
+  (code "      int t = v[i-1] + carry;")
+  (code "      v[i-1] = (unsigned char)(t & 0xff);")
+  (code "      carry = t >> 8;")
+  (code "    }")
+  (code "    if (carry) v.insert(v.begin(), 1);")
+  (code "    if (!(v[0] & 0x80)) v.insert(v.begin(), 0xFF);")
+  (code "    while (v.size() > 1 && v[0] == 0xFF && (v[1] & 0x80)) v.erase(v.begin());")
+  (code "  }")
+  (code "  out.assign((const char*) v.data(), v.size());")
+  (code "}")
+  (code "")
+  (code "void twos_to_mag(const std::string& b, std::vector<unsigned char>& mag, bool& neg) {")
+  (code "  std::vector<unsigned char> v((const unsigned char*) b.data(),")
+  (code "                               (const unsigned char*) b.data() + b.size());")
+  (code "  if (v.empty()) { mag.assign(1, 0); neg = false; return; }")
+  (code "  neg = (v[0] & 0x80) != 0;")
+  (code "  if (neg) {")
+  (code "    int carry = 1;")
+  (code "    for (size_t i = v.size(); i > 0; i--) {")
+  (code "      int t = (unsigned char) ~v[i-1] + carry;")
+  (code "      v[i-1] = (unsigned char)(t & 0xff);")
+  (code "      carry = t >> 8;")
+  (code "    }")
+  (code "  }")
+  (code "  while (v.size() > 1 && v[0] == 0) v.erase(v.begin());")
+  (code "  mag = v;")
+  (code "  if (mag_zero(mag)) neg = false;")
+  (code "}")
+  (code "")
+  (code "// ---- the kinds, as one table -----------------------------------------")
+  (code "//")
+  (code "// The tag a kind carries, so the Prolog half never spells 0x13 and the")
+  (code "// two sides cannot drift. -1 means the name is not one of ours.")
+  (code "int tag_of(const char* kind) {")
+  (code "  if (!std::strcmp(kind, \"boolean\"))          return 0x01;")
+  (code "  if (!std::strcmp(kind, \"integer\"))          return 0x02;")
+  (code "  if (!std::strcmp(kind, \"bit_string\"))       return 0x03;")
+  (code "  if (!std::strcmp(kind, \"octet_string\"))     return 0x04;")
+  (code "  if (!std::strcmp(kind, \"null\"))             return 0x05;")
+  (code "  if (!std::strcmp(kind, \"oid\"))              return 0x06;")
+  (code "  if (!std::strcmp(kind, \"utf8\"))             return 0x0C;")
+  (code "  if (!std::strcmp(kind, \"printable\"))        return 0x13;")
+  (code "  if (!std::strcmp(kind, \"ia5\"))              return 0x16;")
+  (code "  if (!std::strcmp(kind, \"utc_time\"))         return 0x17;")
+  (code "  if (!std::strcmp(kind, \"generalized_time\")) return 0x18;")
+  (code "  if (!std::strcmp(kind, \"bmp\"))              return 0x1E;")
+  (code "  return -1;")
+  (code "}")
+  (code "")
+  (code "bool parse_oid(const char* s, Zigurat::DER::oid_t& out) {")
+  (code "  out.clear();")
+  (code "  unsigned long long node = 0;")
+  (code "  bool any = false;")
+  (code "  for (const char* p = s;; p++) {")
+  (code "    if (*p >= '0' && *p <= '9') {")
+  (code "      node = node * 10 + (unsigned)(*p - '0');")
+  (code "      if (node > 0xFFFFFFFFull) return false;")
+  (code "      any = true;")
+  (code "    } else if (*p == '.' || *p == 0) {")
+  (code "      if (!any) return false;")
+  (code "      out.push_back((uint32_t) node);")
+  (code "      node = 0;")
+  (code "      any = false;")
+  (code "      if (*p == 0) break;")
+  (code "    } else {")
+  (code "      return false;")
+  (code "    }")
+  (code "  }")
+  (code "  return out.size() >= 2;")
+  (code "}")
+  (code "")
+  (code "} // namespace")
+  (code "")
+  (code "// 0 ok. -1 unknown kind, -2 not hex or not the value the kind wants,")
+  (code "// -3 malformed DER, -4 the answer does not fit, -5 the library threw.")
+  (code "extern \"C\" int coco_der_prim(const char* kind, const char* value,")
+  (code "                             char* out, size_t cap) {")
+  (code "  int tag = tag_of(kind);")
+  (code "  if (tag < 0) return -1;")
+  (code "  try {")
+  (code "    Zigurat::bufferstream b;")
+  (code "    if (tag == 0x01) {")
+  (code "      if (std::strcmp(value, \"true\") && std::strcmp(value, \"false\")) return -2;")
+  (code "      Zigurat::DER::encode_boolean(b, !std::strcmp(value, \"true\"));")
+  (code "    } else if (tag == 0x02) {")
+  (code "      std::vector<unsigned char> mag;")
+  (code "      bool neg = false;")
+  (code "      if (!dec_to_mag(value, mag, neg)) return -2;")
+  (code "      std::string content;")
+  (code "      mag_to_twos(mag, neg, content);")
+  (code "      // THE CONTENT IS WRITTEN AS A TLV BY HAND, and deliberately: the")
+  (code "      // encode_integer overloads take a MAGNITUDE and a sign the caller")
+  (code "      // does not get to state, so a negative number could not be said.")
+  (code "      // The length header is still Zigurat's.")
+  (code "      Zigurat::bufferstream len;")
+  (code "      Zigurat::DER::encode_length(len, content.size());")
+  (code "      std::string s;")
+  (code "      s.push_back((char) 0x02);")
+  (code "      s += len.string();")
+  (code "      s += content;")
+  (code "      return tohex(s, out, cap) ? 0 : -4;")
+  (code "    } else if (tag == 0x03) {")
+  (code "      // BY HAND, because `encode_bit_string' reads its array as a")
+  (code "      // big-endian NUMBER and works out how many bits at the end are")
+  (code "      // unused -- which is right for an RSA signature and wrong for")
+  (code "      // everything X.509 does with a BIT STRING, where the content is a")
+  (code "      // DER document and the unused-bit count is zero. Given 0a0b it")
+  (code "      // answered `03 02 02 0a': a byte dropped and two bits declared")
+  (code "      // spare. Here the octet is 0x00 and the bytes are verbatim.")
+  (code "      std::string bytes;")
+  (code "      if (!unhex(value, bytes)) return -2;")
+  (code "      std::string content;")
+  (code "      content.push_back((char) 0x00);")
+  (code "      content += bytes;")
+  (code "      Zigurat::bufferstream len;")
+  (code "      Zigurat::DER::encode_length(len, content.size());")
+  (code "      std::string s;")
+  (code "      s.push_back((char) 0x03);")
+  (code "      s += len.string();")
+  (code "      s += content;")
+  (code "      return tohex(s, out, cap) ? 0 : -4;")
+  (code "    } else if (tag == 0x04) {")
+  (code "      std::string bytes;")
+  (code "      if (!unhex(value, bytes)) return -2;")
+  (code "      Zigurat::DER::encode_octet_string(b, (const uint8_t*) bytes.data(), bytes.size());")
+  (code "    } else if (tag == 0x05) {")
+  (code "      Zigurat::DER::encode_null(b);")
+  (code "    } else if (tag == 0x06) {")
+  (code "      Zigurat::DER::oid_t o;")
+  (code "      if (!parse_oid(value, o)) return -2;")
+  (code "      Zigurat::DER::encode_oid(b, o);")
+  (code "    } else if (tag == 0x0C) {")
+  (code "      Zigurat::DER::encode_utf8_string(b, std::string(value));")
+  (code "    } else if (tag == 0x13) {")
+  (code "      Zigurat::DER::encode_printable_string(b, std::string(value));")
+  (code "    } else if (tag == 0x16) {")
+  (code "      Zigurat::DER::encode_ia5_string(b, std::string(value));")
+  (code "    } else if (tag == 0x17) {")
+  (code "      Zigurat::DER::encode_utc_time(b, (time_t) std::strtoll(value, nullptr, 10), false);")
+  (code "    } else if (tag == 0x18) {")
+  (code "      Zigurat::DER::encode_generalized_time(b, (time_t) std::strtoll(value, nullptr, 10), false);")
+  (code "    } else {")
+  (code "      return -1;")
+  (code "    }")
+  (code "    return tohex(b.string(), out, cap) ? 0 : -4;")
+  (code "  } catch (...) { return -5; }")
+  (code "}")
+  (code "")
+  (code "extern \"C\" int coco_der_unprim(const char* kind, const char* tlv_hex,")
+  (code "                               char* out, size_t cap) {")
+  (code "  int tag = tag_of(kind);")
+  (code "  if (tag < 0) return -1;")
+  (code "  std::string bytes;")
+  (code "  if (!unhex(tlv_hex, bytes)) return -2;")
+  (code "  try {")
+  (code "    Zigurat::bufferstream b;")
+  (code "    b.string(bytes);")
+  (code "    if (tag == 0x01) {")
+  (code "      bool v = Zigurat::DER::decode_boolean(b);")
+  (code "      std::string s = v ? \"true\" : \"false\";")
+  (code "      if (s.size() + 1 > cap) return -4;")
+  (code "      std::strcpy(out, s.c_str());")
+  (code "      return 0;")
+  (code "    }")
+  (code "    if (tag == 0x02) {")
+  (code "      // THE CONTENT IS READ BY HAND for the same reason it is written by")
+  (code "      // hand: DER::Integer answers a fixed-width C++ integer or a BigInt,")
+  (code "      // and neither carries a two thousand bit modulus back out as text.")
+  (code "      uint8_t t = Zigurat::DER::decode_tag(b);")
+  (code "      if (t != 0x02) return -3;")
+  (code "      uint64_t n = Zigurat::DER::decode_length(b);")
+  (code "      if (n == 0 || n > bytes.size()) return -3;")
+  (code "      std::string content;")
+  (code "      for (uint64_t i = 0; i < n; i++) content.push_back((char) b.get());")
+  (code "      std::vector<unsigned char> mag;")
+  (code "      bool neg = false;")
+  (code "      twos_to_mag(content, mag, neg);")
+  (code "      std::string dec;")
+  (code "      mag_to_dec(mag, neg, dec);")
+  (code "      if (dec.size() + 1 > cap) return -4;")
+  (code "      std::strcpy(out, dec.c_str());")
+  (code "      return 0;")
+  (code "    }")
+  (code "    if (tag == 0x03) {")
+  (code "      // The inverse of the encoder above: strip the unused-bit octet and")
+  (code "      // hand back the rest. -7 for a bit string that really does declare")
+  (code "      // spare bits -- the Prolog half turns that into `unknown(3, ...)',")
+  (code "      // which round-trips exactly rather than losing them.")
+  (code "      if (bytes.size() < 3) return -3;")
+  (code "      size_t p = 1;")
+  (code "      unsigned char l0 = (unsigned char) bytes[p++];")
+  (code "      size_t n;")
+  (code "      if (l0 < 0x80) { n = l0; }")
+  (code "      else {")
+  (code "        size_t k = l0 & 0x7F;")
+  (code "        if (k == 0 || k > 8) return -3;")
+  (code "        n = 0;")
+  (code "        for (size_t i = 0; i < k; i++) n = (n << 8) | (unsigned char) bytes[p++];")
+  (code "      }")
+  (code "      if (n == 0 || n > bytes.size() - p) return -3;")
+  (code "      if ((unsigned char) bytes[p] != 0) return -7;")
+  (code "      return tohex(bytes.substr(p + 1, n - 1), out, cap) ? 0 : -4;")
+  (code "    }")
+  (code "    if (tag == 0x04) {")
+  (code "      Zigurat::bufferstream v;")
+  (code "      Zigurat::DER::decode_octet_string(b, v);")
+  (code "      return tohex(v.string(), out, cap) ? 0 : -4;")
+  (code "    }")
+  (code "    if (tag == 0x05) {")
+  (code "      Zigurat::DER::decode_null(b);")
+  (code "      if (cap < 1) return -4;")
+  (code "      out[0] = 0;")
+  (code "      return 0;")
+  (code "    }")
+  (code "    if (tag == 0x06) {")
+  (code "      Zigurat::DER::oid_t o = Zigurat::DER::decode_oid(b);")
+  (code "      // DOTTED, not `oid_to_string''s `{ 1 2 840 }' -- that is a debug")
+  (code "      // shape, and what everything outside this process writes an OID as")
+  (code "      // is 1.2.840.113549.1.1.1.")
+  (code "      std::string s;")
+  (code "      for (size_t i = 0; i < o.size(); i++) {")
+  (code "        if (i) s.push_back('.');")
+  (code "        char tmp[16];")
+  (code "        std::snprintf(tmp, sizeof(tmp), \"%u\", (unsigned) o[i]);")
+  (code "        s += tmp;")
+  (code "      }")
+  (code "      if (s.size() + 1 > cap) return -4;")
+  (code "      std::strcpy(out, s.c_str());")
+  (code "      return 0;")
+  (code "    }")
+  (code "    if (tag == 0x0C || tag == 0x13 || tag == 0x16) {")
+  (code "      uint8_t t = Zigurat::DER::decode_tag(b);")
+  (code "      if (t != (uint8_t) tag) return -3;")
+  (code "      uint64_t n = Zigurat::DER::decode_length(b);")
+  (code "      if (n + 1 > cap) return -4;")
+  (code "      for (uint64_t i = 0; i < n; i++) out[i] = (char) b.get();")
+  (code "      out[n] = 0;")
+  (code "      return 0;")
+  (code "    }")
+  (code "    if (tag == 0x17 || tag == 0x18) {")
+  (code "      time_t v = (tag == 0x17) ? Zigurat::DER::decode_utc_time(b)")
+  (code "                               : Zigurat::DER::decode_generalized_time(b);")
+  (code "      char tmp[32];")
+  (code "      std::snprintf(tmp, sizeof(tmp), \"%lld\", (long long) v);")
+  (code "      if (std::strlen(tmp) + 1 > cap) return -4;")
+  (code "      std::strcpy(out, tmp);")
+  (code "      return 0;")
+  (code "    }")
+  (code "    return -1;")
+  (code "  } catch (...) { return -3; }")
+  (code "}")
+  (code "")
+  (code "// ONE TLV OFF THE FRONT: the tag, the content, and everything after it.")
+  (code "// This is the whole of what the C++ side owes the Prolog side about")
+  (code "// STRUCTURE -- a sequence is a tag whose content is more TLVs, and")
+  (code "// walking that is a two-clause recursion better written in Prolog than")
+  (code "// in a loop here.")
+  (code "//")
+  (code "// THE HEADER IS PARSED BY HAND, and it was worth the fifteen lines.")
+  (code "// Reading it with decode_tag/decode_length off a bufferstream means")
+  (code "// asking the stream how far it has got, and `length()' answers the")
+  (code "// stream's SIZE rather than its position -- so the header width came")
+  (code "// out zero and every value was the first bytes of its own envelope.")
+  (code "// The rule itself is small: a length below 0x80 is that length, and")
+  (code "// 0x80|k means the next k bytes are the length, big-endian.")
+  (code "extern \"C\" int coco_der_tlv(const char* hex, long* tag,")
+  (code "                            char* value, size_t vcap,")
+  (code "                            char* rest, size_t rcap) {")
+  (code "  std::string b;")
+  (code "  if (!unhex(hex, b)) return -2;")
+  (code "  if (b.size() < 2) return -3;")
+  (code "  size_t p = 0;")
+  (code "  unsigned char t = (unsigned char) b[p++];")
+  (code "  unsigned char l0 = (unsigned char) b[p++];")
+  (code "  unsigned long long n = 0;")
+  (code "  if (l0 < 0x80) {")
+  (code "    n = l0;")
+  (code "  } else {")
+  (code "    size_t k = l0 & 0x7F;")
+  (code "    // 0x80 on its own is INDEFINITE LENGTH, which BER allows and DER")
+  (code "    // forbids outright -- and accepting it is how a parser ends up")
+  (code "    // agreeing with a document that a stricter one rejects.")
+  (code "    if (k == 0 || k > 8) return -3;")
+  (code "    if (p + k > b.size()) return -3;")
+  (code "    for (size_t i = 0; i < k; i++) n = (n << 8) | (unsigned char) b[p++];")
+  (code "  }")
+  (code "  if (n > b.size() - p) return -3;")
+  (code "  *tag = (long) t;")
+  (code "  if (!tohex(b.substr(p, (size_t) n), value, vcap)) return -4;")
+  (code "  if (!tohex(b.substr(p + (size_t) n), rest, rcap)) return -4;")
+  (code "  return 0;")
+  (code "}")
+  (code "// A tag and its content, wrapped: what makes a sequence, a set or a")
+  (code "// context tag out of the bytes the Prolog side already built.")
+  (code "extern \"C\" int coco_der_wrap(long tag, const char* content_hex,")
+  (code "                             char* out, size_t cap) {")
+  (code "  std::string bytes;")
+  (code "  if (!unhex(content_hex, bytes)) return -2;")
+  (code "  if (tag < 0 || tag > 255) return -2;")
+  (code "  try {")
+  (code "    Zigurat::bufferstream len;")
+  (code "    Zigurat::DER::encode_length(len, bytes.size());")
+  (code "    std::string s;")
+  (code "    s.push_back((char)(unsigned char) tag);")
+  (code "    s += len.string();")
+  (code "    s += bytes;")
+  (code "    return tohex(s, out, cap) ? 0 : -4;")
+  (code "  } catch (...) { return -5; }")
+  (code "}")
+  (code "")
+  (decl) (func coco_der_prim ((const char * kind) (const char * value)
+                              (char * out) (size_t cap)) (out int))
+  (decl) (func coco_der_unprim ((const char * kind) (const char * tlv_hex)
+                                (char * out) (size_t cap)) (out int))
+  (decl) (func coco_der_tlv ((const char * hex) (long * tag)
+                             (char * value) (size_t vcap)
+                             (char * rest) (size_t rcap)) (out int))
+  (decl) (func coco_der_wrap ((long tag) (const char * content_hex)
+                              (char * out) (size_t cap)) (out int))
+
+  ;;; ---- the Cicili side: arguments, errors, dispatch ------------------
+  ;;;
+  ;;; The buffers are 262144 hex characters -- 128 KiB of DER, which is a
+  ;;; long certificate chain and then some. Written out as numbers rather
+  ;;; than as a `#define': a `#define' is raw C, so Cicili cannot see it
+  ;;; and a form naming one fails with `unknown symbol'.
+
+  (static) (func dr_fail ((coco_engine * e) (int rc) (size_t kind) (size_t data))
+                 (out int)
+    (cond
+      ((== rc -1) (return (coco_m_domain_error e "der_kind" kind)))
+      ((== rc -2) (return (coco_m_type_error e "a value of that DER kind" data)))
+      ((== rc -3) (return (coco_m_error e "der_error" "the bytes are not well formed DER")))
+      ((== rc -4) (return (coco_m_error e "representation_error" "der buffer")))
+      ((== rc -7) (return (coco_m_error e "der_error" "a bit string with unused bits is not bit_string/1")))
+      (#t (return (coco_m_error e "der_error" "the encoder refused")))))
+
+  (static) (func dr_p_prim ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sk 0) (sv 1) (sr 2))
+      (let ((char kind [64]) (char val [262144]) (char out [262144]))
+        (if (not (coco_m_text e sk kind 64))
+            (return (coco_m_type_error e "an atom naming a DER kind" sk)))
+        ;; AN EMPTY VALUE IS LEGITIMATE -- `null' has none, and an empty
+        ;; octet string is a thing a certificate really carries -- so a
+        ;; failed read is only an error when the term is not text at all.
+        (if (not (coco_m_text e sv val 262144)) (set (nth 0 val) 0))
+        (let ((int rc . #'(coco_der_prim kind val out 262144)))
+          (if (!= rc 0) (return (dr_fail e rc sk sv)))
+          (return (coco_m_unify_atom e sr out))))))
+
+  (static) (func dr_p_unprim ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sk 0) (sh 1) (sr 2))
+      (let ((char kind [64]) (char hex [262144]) (char out [262144]))
+        (if (not (coco_m_text e sk kind 64))
+            (return (coco_m_type_error e "an atom naming a DER kind" sk)))
+        (if (not (coco_m_text e sh hex 262144))
+            (return (coco_m_type_error e "a hexadecimal atom" sh)))
+        (let ((int rc . #'(coco_der_unprim kind hex out 262144)))
+          (if (!= rc 0) (return (dr_fail e rc sk sh)))
+          (return (coco_m_unify_atom e sr out))))))
+
+  (static) (func dr_p_tlv ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sh 0) (st 1) (sv 2) (sr 3))
+      (let ((char hex [262144]) (char val [262144]) (char rest [262144])
+            (long tag . 0))
+        (if (not (coco_m_text e sh hex 262144))
+            (return (coco_m_type_error e "a hexadecimal atom" sh)))
+        (let ((int rc . #'(coco_der_tlv hex (aof tag) val 262144 rest 262144)))
+          (if (!= rc 0) (return (dr_fail e rc sh sh)))
+          (if (not (coco_m_unify_int e st (cast i64 tag))) (return 0))
+          (if (not (coco_m_unify_atom e sv val)) (return 0))
+          (return (coco_m_unify_atom e sr rest))))))
+
+  (static) (func dr_p_wrap ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((st 0) (sc 1) (sr 2))
+      (let ((char hex [262144]) (char out [262144]) (i64 tag . 0))
+        (if (not (coco_m_int e st (aof tag)))
+            (return (coco_m_type_error e "an integer tag" st)))
+        (if (not (coco_m_text e sc hex 262144)) (set (nth 0 hex) 0))
+        (let ((int rc . #'(coco_der_wrap (cast long tag) hex out 262144)))
+          (if (!= rc 0) (return (dr_fail e rc st sc)))
+          (return (coco_m_unify_atom e sr out))))))
+
+  (extern-c
+    (coco-emit-module-dispatch coco_der_dispatch *der-predicates*)
+    (coco-deflibrary "der" coco_der_dispatch *der-prolog*)))

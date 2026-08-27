@@ -93,12 +93,14 @@ lib/zeytun.cicili      the same for the page client
 library/               THE LIBRARY PATH, and what ships on it: http.pl
                        (HTTP/1.1 as a grammar), httpd.pl (a server whose
                        pages are clauses), json.pl, xml.pl and html.pl (a
-                       term as a document, and back), and the .so's that
+                       term as a document, and back), ca.pl (a certificate
+                       authority as rules), and the .so's that
                        `make modules' builds
 modules/               the LOADABLE modules, one directory each -- tcp,
-                       thread, curl, bigint, torch. None is part of `make':
-                       a cocolog with no libtorch, no ZiguratIP headers and
-                       no libcurl still builds and still runs
+                       thread, curl, bigint, torch, and ZiguratIP's
+                       cryptography: sha, aes, der, x509. None is part of
+                       `make': a cocolog with no libtorch, no ZiguratIP
+                       headers and no libcurl still builds and still runs
 tools/cc/              the toolchain, in four small files: clang, plus the
                        one flag Ubuntu makes necessary and two shims for
                        the one build step that names gcc outright
@@ -116,7 +118,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        every claim in the first two is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (twenty-three, ONE PER LIBRARY that
+                       library/ (twenty-eight, ONE PER LIBRARY that
                        ships), torch/ (twenty-four networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
@@ -265,7 +267,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — twenty-three lessons, one per library that ships
+### `library/` — twenty-eight lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.
@@ -543,6 +545,79 @@ first. Measured, before the fix: three sequential POSTs through a pool of
 three left **two** facts in the database. So a request runs as an isolated
 proof — fresh machine, fresh store, fresh database connection, one commit at
 the end, a rollback if it broke.
+
+## Cryptography and a CA, imported rather than rewritten
+
+ZiguratIP already carries a hand-written RSA, AES, the SHA family, a DER
+encoder and an X.509 implementation with a `ca` tool over it. cocolog
+now speaks all of it, as five tier-2 libraries with prefixes of their
+own:
+
+```prolog
+?- use_module(library(sha)),
+   sha_hash(sha256, abc, H).
+H = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad.
+
+?- use_module(library(x509)), use_module(library(der)),
+   x509_public_key('ca.crt', K),
+   der_wrap(48, K, Spki),
+   der_decode(Spki, sequence([Alg, bit_string(Bits)])),
+   der_decode(Bits, sequence([integer(Modulus), integer(Exponent)])).
+Alg      = sequence([oid('1.2.840.113549.1.1.1'), null]),
+Modulus  = '13455941168279...'   % 617 decimal digits
+Exponent = '65537'.
+```
+
+The certificate came out of C++ and the modulus was read in Prolog.
+
+| | is | needs |
+|---|---|---|
+| `library(sha)` | SHA-1/224/256/384/512 and HMAC | a built ZiguratIP |
+| `library(aes)` | AES-128/192/256, CBC and ECB, PKCS #7 | a built ZiguratIP |
+| `library(der)` | DER as terms, both directions | **no cipher at all** |
+| `library(x509)` | the whole `ca` tool, plus sign/verify/encrypt/decrypt | a built ZiguratIP |
+| `library(ca)` | clauses only: roots, enrolment, and authorisation | — |
+
+**THE SPLIT IS ARITHMETIC, GRAMMAR, POLICY.** Arithmetic is bound and
+never rewritten — a Prolog RSA is not merely slow, it cannot be made
+constant-time, so a private-key operation would leak by timing. Grammar
+is Prolog: `library(der)`'s C++ half knows one tag-length-value, and
+walking a sequence of them is a two-clause recursion. Policy is clauses,
+which is the part that is better here than in any C++ stack:
+
+```prolog
+ca_may(Subject, Action) :-
+    ca_grants(Subject, Grant),
+    ca_covers(Grant, Action), !.
+
+ca_covers(G, A) :- G == A, !.
+ca_covers(G, A) :- atom_concat(G, '.', P), atom_concat(P, _, A).
+```
+
+**A CERTIFICATE BECOMES CLAUSES.** An issuer may write a list of
+permissions into a certificate — ZiguratIP's own OID arc — and they mean
+nothing to the certificate: they are matched by whoever cares. So
+`ca_load/1` turns a signed document into `ca_holder/2` and `ca_grants/2`
+facts, which are ROWS, which means another process can ask. A gateway
+loads what it trusts at start-up and every later authorisation is a
+query against the store rather than a signature check against a file.
+
+**KEYS ARE FILES, NOT TERMS**, and that is the one decision to preserve.
+A private key read into an atom would be on the heap, in the trail, in
+every copy a channel made of the term holding it, and in the knowledge
+base the moment anything asserted it. This project's whole claim is that
+a clause is a row somebody else can read; a signing key is the one thing
+that must never become one.
+
+**What is NOT bound: the TLS handshake.** ZiguratIP has one, as a C++
+iostream over a socket, and cocolog has no stream layer to hang it on —
+`library(tcp)` hands out handles into a table, not descriptors. The
+certificates these modules make are the same ones that server reads,
+which is the part that had to be true.
+
+`test/crypto.sh` holds them to FIPS 180, RFC 4231, NIST SP 800-38A and
+DER's own worked examples, then issues a certificate for real — key,
+request, issuance, validation, signature, verification: 74 checks.
 
 ## Concurrency: share nothing, copy the term
 
@@ -865,7 +940,7 @@ between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
 and fitted Q-iteration reinforcement learning. They are the third
-tutorial category — `sh test/tutorials.sh` runs all fifty-nine files,
+tutorial category — `sh test/tutorials.sh` runs all sixty-three files,
 the seventy-two torch processes included, green and deterministically
 in about forty-five seconds. The one to read first is
 [22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every

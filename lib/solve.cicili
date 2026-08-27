@@ -1162,6 +1162,37 @@
                   ((and (== n 1) (or (== 0 (strcmp name "\\+")) (== 0 (strcmp name "not"))))
                    (coco_ite e (coco_arg m g 0) (coco_new_atom m "$fail") (coco_new_atom m "$true") k b))
 
+                  ;; `once(G)' IS `(G -> true ; fail)' AND NOTHING ELSE, which
+                  ;; is why it belongs here rather than in a library. Written
+                  ;; as a clause -- `once(G) :- call(G), !.' -- it costs a
+                  ;; frame, a `call' and a cut to say what the engine already
+                  ;; has a construct for; and the cut then has to be the one
+                  ;; that truncates to the clause's own barrier, which is the
+                  ;; part a reader has to check. As an if-then-else it is one
+                  ;; call into `coco_ite', the same one `\+' is.
+                  ;;
+                  ;; IT IS ALSO WHERE `once/1' BECOMES OPAQUE TO CUT, as ISO
+                  ;; requires: `coco_ite' runs the condition under a barrier of
+                  ;; its own -- `(-> e nchoices)' at the moment of the call --
+                  ;; so a `!' inside G cuts G and stops there. That is the same
+                  ;; rule `call/1' and `catch/3' follow, and getting it from
+                  ;; the construct rather than from a hand-written cut is why
+                  ;; there is nothing to get wrong.
+                  ((and (== n 1) (== 0 (strcmp name "once")))
+                   (coco_ite e (coco_arg m g 0) (coco_new_atom m "$true")
+                             (coco_new_atom m "$fail") k b))
+
+                  ;; `ignore(G)' is the same construct with the failure arm
+                  ;; saying yes: run G, keep the first solution's bindings if
+                  ;; there was one, succeed either way. The bindings of a
+                  ;; FAILED goal are gone before the else arm is reached --
+                  ;; the alternative restores the trail to the mark it was
+                  ;; pushed with -- so `ignore/1' cannot leak a half-made
+                  ;; binding, and that is the engine doing it rather than us.
+                  ((and (== n 1) (== 0 (strcmp name "ignore")))
+                   (coco_ite e (coco_arg m g 0) (coco_new_atom m "$true")
+                             (coco_new_atom m "$true") k b))
+
                   ((and (== n 1) (== 0 (strcmp name "call")))
                    ;; call/1 is opaque to cut: the goal runs under a barrier of
                    ;; its own, so a `!' inside it cannot cut the caller

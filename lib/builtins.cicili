@@ -111,29 +111,27 @@
            ;; never happens.
            "string(_) :- fail."
 
-           ;; ---- once/1 and ignore/1 --------------------------------------
+           ;; ---- once/1 and ignore/1 ARE NOT HERE -------------------------
            ;;
-           ;; TWO CLAUSES THAT WERE SIMPLY MISSING, and both are ISO -- 8.15.2
-           ;; and, for `ignore/1', SWI's spelling of the same idea. They are
-           ;; here in the Coco half rather than in C because a cut is exactly
-           ;; what they are: `once/1' is `call/1' with the choice points
-           ;; dropped, and a C half has no access to the choice stack, on
-           ;; purpose. Writing them as clauses puts the cut where the engine
-           ;; can see it.
+           ;; They were, for a day, as `once(G) :- call(G), !.' and two
+           ;; clauses for `ignore/1' -- which is how every Prolog textbook
+           ;; writes them and is not where they belong in THIS interpreter.
+           ;; Both are `(G -> true ; X)' with a different X, and cocolog has
+           ;; an if-then-else construct in the engine already: they are two
+           ;; lines in `lib/solve.cicili', beside `\\+', calling the same
+           ;; `coco_ite'.
            ;;
-           ;; FOUND BY WRITING A TUTORIAL. `tutorials/basics/05' wanted to say
-           ;; "once/1 is a cut with a name, and reads better", ran, and got
-           ;; `existence_error(procedure, once/1)'. Every Prolog has had these
-           ;; for forty years; nothing in this interpreter had needed them,
-           ;; which is exactly the kind of hole a suite of its own tests
-           ;; cannot find.
+           ;; WHAT THAT BUYS, beyond a frame and a `call' per invocation: the
+           ;; goal gets its cut barrier FROM THE CONSTRUCT rather than from a
+           ;; hand-written `!', which is what makes `once/1' opaque to cut the
+           ;; way ISO 8.15.2 says -- and there is nothing left to get wrong.
            ;;
-           ;; `ignore/1' SUCCEEDS EITHER WAY and leaves no bindings from a
-           ;; failed goal -- the failure undoes them before the second clause
-           ;; is reached, which is the engine doing the work rather than us.
-           "once(G) :- call(G), !."
-           "ignore(G) :- call(G), !."
-           "ignore(_)."
+           ;; FOUND BY WRITING A TUTORIAL, either way. `tutorials/basics/05'
+           ;; wanted to say "once/1 is a cut with a name, and reads better",
+           ;; ran, and got `existence_error(procedure, once/1)'. Every Prolog
+           ;; has had these for forty years; nothing in this interpreter had
+           ;; needed them, which is exactly the kind of hole a suite of its
+           ;; own tests cannot find.
 
            ;; ---- library(error): must_be/2 and is_of_type/2 ---------------
            ;;

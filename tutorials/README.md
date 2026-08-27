@@ -5,7 +5,7 @@ Three categories, in the order you would read them.
 | | | run one |
 |---|---|---|
 | [`basics/`](basics/) | the language: eleven lessons, no library needed | `./cocolog run tutorials/basics/01-facts-and-rules.pl main` |
-| [`library/`](library/) | twenty-three lessons, one per library that ships | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/01-lists.pl main` |
+| [`library/`](library/) | twenty-eight lessons, one per library that ships | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/01-lists.pl main` |
 | [`torch/`](torch/) | twenty-four neural networks, three processes each | `./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train` |
 
 ## EVERY TUTORIAL IS A TEST, and that is the design
@@ -43,7 +43,7 @@ API. Three fixes and a dozen corrections, from documentation that runs.
 **A new library gets a tutorial in the same commit.** Not afterwards:
 `library/` is numbered one per library and the gap is visible, which is
 the point. A library with no `library/NN-name.pl` beside it is a library
-nobody has demonstrated end to end, and the twenty-three that are there
+nobody has demonstrated end to end, and the twenty-eight that are there
 each found something while being written.
 
 The shape to copy is any file in `library/`: a header block saying what

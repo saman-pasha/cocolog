@@ -288,7 +288,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
@@ -314,6 +314,10 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/curl` | libcurl | `sh modules/curl/build.sh` |
 | `modules/bigint` | a **built** ZiguratIP | `sh modules/bigint/build.sh` |
 | `modules/torch` | libtorch | `sh modules/torch/build.sh` |
+| `modules/sha` | a **built** ZiguratIP | `sh modules/sha/build.sh` |
+| `modules/aes` | a **built** ZiguratIP | `sh modules/aes/build.sh` |
+| `modules/der` | a **built** ZiguratIP | `sh modules/der/build.sh` |
+| `modules/x509` | a **built** ZiguratIP | `sh modules/x509/build.sh` |
 
 `make modules` builds every one that can be built here and says SKIPPED,
 by name, for the rest. **None of them is part of `make`** — which is the
@@ -466,6 +470,85 @@ no tag, and misnested end tags. It does NOT do implied
 half tree builder is worse than none, because it produces a tree that
 looks right and quietly is not the one a browser built.
 
+## ZiguratIP's cryptography, imported rather than rewritten
+
+Four modules and one Prolog library, all tier 2, all with prefixes of
+their own — nothing is called `zigurat_anything`:
+
+| | is | links |
+|---|---|---|
+| `library(sha)` | `sha_hash/3`, `sha_hmac/4`, `sha_file/3` — SHA-1/224/256/384/512 | libCryptography |
+| `library(aes)` | `aes_encrypt/4` (CBC), `aes_pad/2`, PKCS #7 | libCryptography |
+| `library(der)` | `der_encode/2`, `der_decode/2` — DER as terms, both ways | **libEncoding only** |
+| `library(x509)` | the whole `ca` tool: keygen, csr, issue, validate, sign, verify, encrypt, decrypt | libCryptography |
+| `library(ca)` | clauses only: trusted roots, enrolment, and authorisation as a RULE | — |
+
+**THE SPLIT IS ARITHMETIC / GRAMMAR / POLICY**, and it is the answer to
+"import it or write it in DCG":
+
+* **Arithmetic is bound, never rewritten.** RSA modexp, AES rounds, the
+  SHA compression function. A Prolog implementation is not merely slow,
+  it cannot be made constant-time, so a private-key operation would leak
+  by timing. There is no hash or cipher code in any of these files.
+* **Grammar is Prolog.** `library(der)`'s C++ half knows ONE tag-length-value;
+  walking a sequence of them is a two-clause recursion, and it is written
+  as one. Note where the C++ gave up: `x509.cpp` reaches for OpenSSL's
+  ASN.1 rather than hand-rolling DER.
+* **Policy is clauses.** `ca_may/2` and `ca_covers/2` are four lines you
+  can read, `listing/1` and argue with. That is the part that is better
+  here than in any C++ stack.
+
+**`library(der)` LINKS NO CIPHER**, which is worth stating: `Zigurat::DER`
+lives in libEncoding beside base16/32/64, so everything a certificate is
+made of can be taken apart with no OpenSSL in the process.
+
+**KEYS ARE FILES, NOT TERMS**, and that is the one design decision to
+preserve. A private key read into an atom would be on the heap, in the
+trail, in every copy a channel made of the term holding it, and in the
+knowledge base the moment anything asserted it. This project's whole
+claim is that a clause is a row somebody else can read; a signing key is
+the one thing that must never become one. `getenv/2` is how a pass
+phrase arrives, for the same reason.
+
+### Five things that cost time here, all recorded
+
+* **A `:cpp #t` target must declare the SDK's prototypes RAW, inside
+  `extern "C"`, before `(coco-sdk)`.** Otherwise C++ gives them C++
+  linkage, the `.so` links cleanly, and `use_module` fails with
+  `undefined symbol: _Z11coco_m_textP18coco_engine_opaquemPcm` — a
+  mangled name for a function the interpreter exports unmangled.
+  **Wrapping `(coco-sdk)` in `(extern-c ...)` is NOT the fix**: a macro
+  must emit ONE form, and several leaves every symbol unregistered, so
+  the next reference is `unknown symbol: coco_m_domain_error`.
+* **`$`-prefixed predicate names must be QUOTED in a module's Prolog
+  half.** `$` is a symbol character and `x` is alphanumeric, so
+  `$x509_issue` is two tokens and the clause will not read — surfacing
+  as `use_module: its clauses would not consult`, which names the module
+  and not the line. `lib/builtins.cicili` writes `'$cp_member'`.
+* **Which library a symbol is in is not guessable, and a miss LINKS
+  FINE.** `DER::encode_oid` is in libEncoding, not libCore; a shared
+  object may leave a symbol undefined, so it surfaced at `use_module`.
+  `nm -D --defined-only` over `home/lib` settles it.
+* **Name every transitive dependency.** `-rpath` applies to what THIS
+  link records as needed; libCryptography's own libConfiguration is
+  looked for on the system path. `libConfiguration.so: cannot open
+  shared object file`, at `use_module`, from a link that succeeded.
+* **`X509::issue`'s issuer argument is a NAME CONFIGURATION, not a
+  certificate.** Handing it the issuer's `.crt` fails deep inside the
+  configuration parser with `key error at line 1, '0\x82\x03...'` — a
+  message about a config file, naming DER bytes, from a certificate
+  routine. `ca/main_ca.cpp` documents `--issuer` as "issuer name
+  configuration file".
+
+### And one finding about ZiguratIP, not applied
+
+`x509.hpp` says `certificate_public_key` "yields a DER
+SubjectPublicKeyInfo, the same shape the .pub files hold". It yields the
+SPKI's **contents**: 289 bytes against `dont-use-public.key`'s 293,
+which is exactly a four-byte `30 82 01 21` header. `der_wrap(48, K, S)`
+puts it back. Documented in `modules/x509/x509.cicili` and in
+`tutorials/library/26-x509.pl`; ZiguratIP is not patched for it.
+
 ## The engine was quadratic, and the fix is one call
 
 **`coco_make` now dereferences every argument as it stores it**, in
@@ -595,7 +678,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/kb.cicili` | the clause store and its five backend hooks |
 | `lib/solve.cicili` | the engine and the builtin table |
 | `lib/module.cicili` | the module seam and the API a module is written against |
-| `lib/files.cicili` | SWI's Files library, as a module — mostly C |
+| `lib/files.cicili` | SWI's Files library, as a module — mostly C. Also `get_time/1`, the wall clock, which was simply not there: nothing in cocolog could ask what time it is, so a certificate's validity window had nowhere to come from |
 | `modules/tcp/tcp.cicili` | the socket seam: listen, connect, accept, read, write, close. A handle is an index into this module's own table, never a file descriptor |
 | `lib/lists.cicili` | SWI's Lists library, as a module — mostly Prolog, because nondeterministic predicates cannot live in a C half |
 | `lib/apply.cicili` | SWI's Apply library — clauses only, no C half |
@@ -604,7 +687,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/swipl/` | EIGHT of SWI's libraries — `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg/basics`, `dcg/high_order` — copied unmodified under their own BSD-2 headers and read at start-up. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
-| `modules/` | the loadable modules: `tcp`, `thread`, `curl`, `bigint`, `torch`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
+| `modules/` | the loadable modules: `tcp`, `thread`, `curl`, `bigint`, `torch`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |
@@ -621,12 +704,12 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has three categories and `test/tutorials.sh` runs all
-fifty-nine files as one suite case:
+sixty-three files as one suite case:
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | twenty-three lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | twenty-eight lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | twenty-four networks, three processes each | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
@@ -642,7 +725,7 @@ must(Label, Got, Want) :-
 
 So a lesson that stops being true FAILS, naming both answers, and a
 tutorial cannot quietly document a language that has moved on. It is
-repeated at the bottom of all thirty-four files rather than shared,
+repeated at the bottom of all thirty-nine files rather than shared,
 deliberately: a tutorial you can copy anywhere and run is worth six
 duplicated lines, and one that needs a support file beside it stops
 working the moment it moves.
@@ -650,8 +733,16 @@ working the moment it moves.
 **Writing them found three real interpreter bugs**, which is the whole
 argument for the shape:
 
-* **`once/1` and `ignore/1` did not exist.** Two clauses each, now in
-  `lib/builtins.cicili`.
+* **`once/1` and `ignore/1` did not exist.** They are now CONTROL
+  CONSTRUCTS in `lib/solve.cicili`, beside `\+` — `once(G)` is
+  `coco_ite(G, $true, $fail)` and `ignore(G)` is `coco_ite(G, $true,
+  $true)`. They were Prolog clauses for a day, which is how every
+  textbook writes them and is the wrong shape here: a clause costs a
+  frame, a `call` and a hand-written cut to say what the engine already
+  has a construct for. As if-then-else the goal gets its cut barrier
+  FROM THE CONSTRUCT, which is what makes `once/1` opaque to cut the way
+  ISO 8.15.2 requires — `once((X > 1, !))` inside a `member/2` leaves
+  the outer choice point alone, and there is nothing left to get wrong.
 * **`retractall/1` was one clause short of correct.** It was written
   `retractall(H) :- retract(H), fail.` / `retractall(_).` — the classic
   failure-driven loop, and it retracts exactly ONE clause here, because
@@ -667,7 +758,7 @@ slow here, it is wrong, and it is wrong quietly.
 **A NEW LIBRARY GETS A TUTORIAL IN THE SAME COMMIT.** `tutorials/library/`
 is numbered one per library, so a gap is visible — and a library with no
 `NN-name.pl` beside it is one nobody has demonstrated end to end. Each of
-the twenty-three found something while being written: a predicate that
+the twenty-eight found something while being written: a predicate that
 did not exist, an arity that was wrong, `bigint_cmp/3` documented as
 `-1/0/1` and actually answering `<`/`=`/`>`, `httpd_content_type/2` keyed
 on the bare extension where `httpd_type/2` is the one that takes a file
@@ -675,7 +766,7 @@ name.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **27** case lines. A change to
+Run `make test` with a server up, and read all **28** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

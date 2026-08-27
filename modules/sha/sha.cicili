@@ -1,0 +1,367 @@
+;;;; library(sha) -- Zigurat's SHA family and HMAC, as cocolog predicates.
+;;;;
+;;;; A LOADABLE Cicili module against lib/sdk.cicili, linking ZiguratIP's
+;;;; libCryptography. There is no hash code in this file: `Zigurat::SHA'
+;;;; is the one RSA signs with and X.509 fingerprints with, so a second
+;;;; implementation here would be a second thing to disagree with the
+;;;; first. This is a way of SAYING it in Prolog, and nothing more.
+;;;;
+;;;;   sha_hash(+Alg, +Text, -Hex)          the bytes of Text
+;;;;   sha_hash_hex(+Alg, +HexIn, -Hex)     HexIn decoded from hex FIRST
+;;;;   sha_file(+Alg, +Path, -Hex)          a file, without reading it in
+;;;;   sha_hmac(+Alg, +Key, +Text, -Hex)    RFC 2104, key FIRST
+;;;;   sha_hmac_hex(+Alg, +KeyHex, +TextHex, -Hex)
+;;;;   sha_size(+Alg, -Bytes)               32 for sha256, and so on
+;;;;   sha_algorithm(?Alg)                  the five, on backtracking
+;;;;
+;;;; ALG IS ONE OF `sha1 sha224 sha256 sha384 sha512'. Naming anything
+;;;; else is a `domain_error(sha_algorithm, X)' rather than a default,
+;;;; because a program that meant SHA-512 and silently got SHA-1 has a
+;;;; security property it does not have.
+;;;;
+;;;; WHY EVERYTHING IS HEX AND NOTHING IS A CODE LIST. cocolog has no
+;;;; string type, so `"abc"' IS `[97,98,99]' -- and a digest is arbitrary
+;;;; bytes, zero bytes included, which a code list cannot carry here
+;;;; (code 0 is refused). Hex is the one representation that survives
+;;;; both directions, and `sha_hash_hex/3' is the entry point for data
+;;;; that is bytes rather than text.
+;;;;
+;;;; THE KEY COMES FIRST IN `sha_hmac', which is not a detail. HMAC(k, m)
+;;;; is not HMAC(m, k), and ZiguratIP's own header records that its C
+;;;; interface once took them the other way round and callers reading
+;;;; `hmac(SHA256, secret, ...)' naturally computed something else.
+;;;;
+;;;; NO BARE `sha256/2' HERE, deliberately. cocolog has ONE namespace and
+;;;; The Coco already ships a `sha256/2' of its own from
+;;;; `modules/crypto/sha256.cicili'; two modules registering that name
+;;;; would be resolved by load order, which is not a way to choose a hash
+;;;; function. Everything in this module is `sha_'-prefixed and the
+;;;; algorithm is an argument.
+
+(DEFPARAMETER *sha-predicates*
+  '(("sha_hash"      3 sh_p_hash)
+    ("sha_hash_hex"  3 sh_p_hash_hex)
+    ("sha_file"      3 sh_p_file)
+    ("sha_hmac"      4 sh_p_hmac)
+    ("sha_hmac_hex"  4 sh_p_hmac_hex)
+    ("sha_size"      2 sh_p_size)))
+
+;;; The Coco half: what is better said in Prolog than in C++. One clause
+;;; per algorithm, so `sha_algorithm(A)' enumerates on backtracking and
+;;; `sha_algorithm(sha384)' is a check -- a table, rather than a C
+;;; function that answers a list.
+(DEFPARAMETER *sha-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST "sha_algorithm(sha1)."
+                "sha_algorithm(sha224)."
+                "sha_algorithm(sha256)."
+                "sha_algorithm(sha384)."
+                "sha_algorithm(sha512).")))
+
+(source "coco-sha.cpp"
+  ;; COMPILED BY build.sh. `:compile #f' stops Cicili emitting a compile
+  ;; command of its own -- what has to come out is a shared object, and
+  ;; the flags for one belong in the script that knows where ZiguratIP is.
+  (make :cpp #t :compile #f)
+
+  ;;; THE INCLUDES COME BEFORE `coco-sdk', and the order is load bearing.
+  ;;; The SDK block is a run of raw prototypes naming `size_t' and
+  ;;; `int64_t'; emitted above <cstdint> and <cstddef> they are twenty
+  ;;; errors about unknown type names, all of them pointing at cocolog's
+  ;;; own header rather than at the ordering. A `:cpp #t' target has no
+  ;;; std prelude to have pulled them in already.
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstddef>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+
+  ;;; THE LINKAGE, FIRST AND RAW -- and this block is why the module
+  ;;; loads at all. `lib/sdk.cicili' declares the module API as ordinary
+  ;;; prototypes, which is right for a C target; in a `:cpp #t' one C++
+  ;;; gives them C++ LINKAGE, the .so links cleanly, and `use_module'
+  ;;; then fails with
+  ;;;
+  ;;;   undefined symbol: _Z11coco_m_textP18coco_engine_opaquemPcm
+  ;;;
+  ;;; -- a mangled name for a function the interpreter exports unmangled.
+  ;;;
+  ;;; WRAPPING `(coco-sdk)' IN `(extern-c ...)' IS NOT THE FIX, though it
+  ;;; is the obvious one: a Cicili macro must emit ONE form, and several
+  ;;; from one leaves the symbols unregistered -- the next reference is
+  ;;; `unknown symbol: coco_m_domain_error', which names the use and not
+  ;;; the cause.
+  ;;;
+  ;;; So the real declarations go here, raw, and `(coco-sdk)' follows for
+  ;;; Cicili's symbol table. C++ gives a redeclaration the linkage of the
+  ;;; first one it saw, so the second block changes nothing. It is what
+  ;;; modules/bigint does, minus the hand-kept copy: the list below is
+  ;;; only what this module calls.
+  (code "extern \"C\" {")
+  (code "int coco_module_register(const char*, int (*)(struct coco_engine_opaque*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine_opaque*));")
+  (code "size_t coco_m_arg(struct coco_engine_opaque*, size_t, uint32_t);")
+  (code "int coco_m_text(struct coco_engine_opaque*, size_t, char*, size_t);")
+  (code "int coco_m_unify_atom(struct coco_engine_opaque*, size_t, const char*);")
+  (code "int coco_m_unify_int(struct coco_engine_opaque*, size_t, int64_t);")
+  (code "int coco_m_type_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_domain_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_existence_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_error(struct coco_engine_opaque*, const char*, const char*);")
+  (code "}")
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;;; A cast takes ONE type token, so `unsigned char *' cannot be
+  ;;; written. Declared here rather than borrowed from another module,
+  ;;; because this is a separate translation unit and a typedef does not
+  ;;; travel -- and here rather than lower down, because the `(decl)'s at
+  ;;; the end of the C++ block already name it.
+  (@define (code "ubyte_t unsigned char"))
+
+  (code "#include <shahelper.hpp>")
+  (code "#include <bufferstream.hpp>")
+  (code "#include <fstream>")
+
+  ;;; ---- the seam, ONE FUNCTION WIDE ----------------------------------
+  ;;;
+  ;;; TWO LANGUAGES, ONE TARGET -- the shape modules/bigint/bigint.cicili
+  ;;; uses, and for the same reason. The hashing is raw C++ because
+  ;;; `Zigurat::SHA' is a C++ class with C++ streams; everything facing
+  ;;; the engine -- arguments, errors, the dispatcher -- is Cicili. The
+  ;;; boundary between them is one function: an operation name, up to two
+  ;;; inputs, a buffer for the answer, and an integer saying what went
+  ;;; wrong.
+  ;;;
+  ;;; NARROW ON PURPOSE. Every C++ type, every exception and every stream
+  ;;; stops at that line, so the Cicili side has no `try', no destructor
+  ;;; and nothing to leak. It also means the C++ can be read as C++
+  ;;; rather than as Lisp pretending.
+
+  (code "namespace {")
+  (code "")
+  (code "int hexval(int c) {")
+  (code "  if (c >= '0' && c <= '9') return c - '0';")
+  (code "  if (c >= 'a' && c <= 'f') return c - 'a' + 10;")
+  (code "  if (c >= 'A' && c <= 'F') return c - 'A' + 10;")
+  (code "  return -1;")
+  (code "}")
+  (code "")
+  (code "// Hex in, bytes out. Answers the byte count, or -1 for anything that")
+  (code "// is not an even run of hex digits -- an odd length included, because")
+  (code "// half a byte is not a byte and guessing which half is padding is how")
+  (code "// two programs come to disagree about the same key.")
+  (code "long unhex(const char* s, unsigned char* out, size_t cap) {")
+  (code "  size_t n = std::strlen(s);")
+  (code "  if (n % 2) return -1;")
+  (code "  if (n / 2 > cap) return -1;")
+  (code "  for (size_t i = 0; i < n; i += 2) {")
+  (code "    int hi = hexval((unsigned char) s[i]), lo = hexval((unsigned char) s[i+1]);")
+  (code "    if (hi < 0 || lo < 0) return -1;")
+  (code "    out[i/2] = (unsigned char)((hi << 4) | lo);")
+  (code "  }")
+  (code "  return (long)(n / 2);")
+  (code "}")
+  (code "")
+  (code "void tohex(const unsigned char* b, size_t n, char* out) {")
+  (code "  static const char* D = \"0123456789abcdef\";")
+  (code "  for (size_t i = 0; i < n; i++) {")
+  (code "    out[2*i]   = D[b[i] >> 4];")
+  (code "    out[2*i+1] = D[b[i] & 15];")
+  (code "  }")
+  (code "  out[2*n] = 0;")
+  (code "}")
+  (code "")
+  (code "int version_of(const char* alg) {")
+  (code "  if (!std::strcmp(alg, \"sha1\"))   return 1;")
+  (code "  if (!std::strcmp(alg, \"sha224\")) return 224;")
+  (code "  if (!std::strcmp(alg, \"sha256\")) return 256;")
+  (code "  if (!std::strcmp(alg, \"sha384\")) return 384;")
+  (code "  if (!std::strcmp(alg, \"sha512\")) return 512;")
+  (code "  return 0;")
+  (code "}")
+  (code "")
+  (code "} // namespace")
+  (code "")
+  (code "// 0 ok. -1 unknown algorithm, -2 not hex, -3 no such file, -4 too")
+  (code "// long for the buffer. The caller turns each into the error term")
+  (code "// that names the right argument.")
+  (code "extern \"C\" int coco_sha_eval(const char* op, const char* alg,")
+  (code "                              const unsigned char* a, size_t an,")
+  (code "                              const unsigned char* b, size_t bn,")
+  (code "                              char* out, size_t cap, long* num) {")
+  (code "  int v = version_of(alg);")
+  (code "  if (!v) return -1;")
+  (code "  Zigurat::SHA::Version ver = (Zigurat::SHA::Version) v;")
+  (code "  size_t sz = Zigurat::SHA::size(ver);")
+  (code "  if (!std::strcmp(op, \"size\")) { *num = (long) sz; return 0; }")
+  (code "  if (2 * sz + 1 > cap) return -4;")
+  (code "  unsigned char digest[64];")
+  (code "  try {")
+  (code "    if (!std::strcmp(op, \"hash\")) {")
+  (code "      Zigurat::SHA::checksum(ver, a, an, digest);")
+  (code "    } else if (!std::strcmp(op, \"hmac\")) {")
+  (code "      // KEY FIRST -- a is the key, b is the message. HMAC(k,m) is not")
+  (code "      // HMAC(m,k), and ZiguratIP's own header records callers getting")
+  (code "      // exactly this backwards against an older interface.")
+  (code "      Zigurat::SHA::hmac(ver, a, an, b, bn, digest);")
+  (code "    } else if (!std::strcmp(op, \"file\")) {")
+  (code "      std::ifstream in((const char*) a, std::ios::binary);")
+  (code "      if (!in.good()) return -3;")
+  (code "      in.seekg(0, std::ios::end);")
+  (code "      std::streamoff len = in.tellg();")
+  (code "      in.seekg(0, std::ios::beg);")
+  (code "      if (len < 0) return -3;")
+  (code "      // binarystream is ABSTRACT: it declares write_std_* pure, so a")
+  (code "      // concrete one is what the streaming overload wants, and")
+  (code "      // bufferstream is the one that holds bytes in memory.")
+  (code "      Zigurat::bufferstream out_stream;")
+  (code "      Zigurat::SHA::checksum(ver, in, (size_t) len, out_stream);")
+  (code "      for (size_t i = 0; i < sz; i++) digest[i] = (unsigned char) out_stream.get();")
+  (code "    } else {")
+  (code "      return -1;")
+  (code "    }")
+  (code "  } catch (...) { return -5; }")
+  (code "  tohex(digest, sz, out);")
+  (code "  return 0;")
+  (code "}")
+  (code "")
+  (code "// Hex to bytes across the seam, so the Cicili side never spells a")
+  (code "// nibble. Answers the byte count or -1.")
+  (code "extern \"C\" long coco_sha_unhex(const char* s, unsigned char* out, size_t cap) {")
+  (code "  return unhex(s, out, cap);")
+  (code "}")
+
+  (decl) (func coco_sha_eval ((const char * op) (const char * alg)
+                              (const ubyte_t * a) (size_t an)
+                              (const ubyte_t * b) (size_t bn)
+                              (char * out) (size_t cap) (long * num)) (out int))
+  (decl) (func coco_sha_unhex ((const char * s) (ubyte_t * out) (size_t cap)) (out long))
+
+  ;;; ---- the Cicili side: arguments, errors, dispatch ------------------
+  ;;;
+  ;;; THE BUFFERS ARE FIXED AND SAY SO: 65536 bytes of input, 160 for a
+  ;;; digest in hex. 64 KiB is generous for a term that came off a heap,
+  ;;; and a SHA-512 digest is 128 hex characters. What will not fit is
+  ;;; refused by name rather than truncated -- a hash of the first 65 536
+  ;;; bytes of something longer is a wrong answer that looks exactly like
+  ;;; a right one.
+  ;;;
+  ;;; WRITTEN OUT AS NUMBERS, not as a `#define': a `#define' is raw C,
+  ;;; so Cicili cannot see it and a form naming one fails with `unknown
+  ;;; symbol'. `lib/files.cicili' writes 4096 rather than PATH_MAX for
+  ;;; the same reason.
+
+  ;;; One place that turns an integer into the error that names the right
+  ;;; argument, because the alternative is five copies drifting apart.
+  (static) (func sh_fail ((coco_engine * e) (int rc) (size_t alg) (size_t culprit))
+                 (out int)
+    (cond
+      ((== rc -1) (return (coco_m_domain_error e "sha_algorithm" alg)))
+      ((== rc -2) (return (coco_m_type_error e "a hexadecimal atom" culprit)))
+      ((== rc -3) (return (coco_m_existence_error e "source_sink" culprit)))
+      ((== rc -4) (return (coco_m_error e "representation_error" "digest buffer")))
+      (#t (return (coco_m_error e "sha_error" "the hash could not be computed")))))
+
+  ;;; Read one argument as TEXT. Answers 0 when it is not text at all --
+  ;;; an unbound variable included, which is the common case and wants
+  ;;; the instantiation error rather than a type error.
+  (static) (func sh_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap)
+                          (size_t * len)) (out int)
+    (if (not (coco_m_text e t buf cap)) (return 0))
+    (set (cof len) (strlen buf))
+    (return 1))
+
+  ;;; sha_hash/3 and sha_hash_hex/3 differ only in whether the data
+  ;;; argument is decoded from hex first, which is one flag.
+  (static) (func sh_digest ((coco_engine * e) (size_t g) (int from_hex)) (out int)
+    (coco-mod-args e g ((sa 0) (sd 1) (sr 2))
+      (let ((char alg [64]) (char txt [65536]) (ubyte_t raw [65536])
+            (char hex [160]) (size_t alen . 0) (size_t dlen . 0) (long num . 0))
+        (if (not (coco_m_text e sa alg 64))
+            (return (coco_m_type_error e "an atom naming a hash algorithm" sa)))
+        (if (not (sh_text e sd txt 65536 (aof dlen)))
+            (return (coco_m_type_error e "text" sd)))
+        (set alen (strlen alg))
+        (if from_hex
+            (block
+              (let ((long n . #'(coco_sha_unhex txt raw 65536)))
+                (if (< n 0) (return (coco_m_type_error e "a hexadecimal atom" sd)))
+                (set dlen (cast size_t n))))
+            (memcpy raw txt dlen))
+        (let ((int rc . #'(coco_sha_eval "hash" alg raw dlen nil 0 hex 160 (aof num))))
+          (if (!= rc 0) (return (sh_fail e rc sa sd)))
+          (return (coco_m_unify_atom e sr hex))))))
+
+  (static) (func sh_p_hash ((coco_engine * e) (size_t g)) (out int)
+    (return (sh_digest e g 0)))
+
+  (static) (func sh_p_hash_hex ((coco_engine * e) (size_t g)) (out int)
+    (return (sh_digest e g 1)))
+
+  (static) (func sh_p_file ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sa 0) (sp 1) (sr 2))
+      (let ((char alg [64]) (char path [4096]) (char hex [160]) (long num . 0))
+        (if (not (coco_m_text e sa alg 64))
+            (return (coco_m_type_error e "an atom naming a hash algorithm" sa)))
+        (if (not (coco_m_text e sp path 4096))
+            (return (coco_m_type_error e "a file name" sp)))
+        (let ((int rc . #'(coco_sha_eval "file" alg (cast (ubyte_t *) path)
+                                         (strlen path) nil 0 hex 160 (aof num))))
+          (if (!= rc 0) (return (sh_fail e rc sa sp)))
+          (return (coco_m_unify_atom e sr hex))))))
+
+  ;;; THE KEY IS THE FIRST DATA ARGUMENT, in both of these. See the
+  ;;; header: the order is RFC 2104's, and getting it round the other way
+  ;;; computes something that is not wrong-looking.
+  (static) (func sh_hmac ((coco_engine * e) (size_t g) (int from_hex)) (out int)
+    (coco-mod-args e g ((sa 0) (sk 1) (sd 2) (sr 3))
+      (let ((char alg [64]) (char kt [65536]) (char dt [65536])
+            (ubyte_t key [65536]) (ubyte_t msg [65536])
+            (char hex [160]) (size_t kn . 0) (size_t dn . 0) (long num . 0))
+        (if (not (coco_m_text e sa alg 64))
+            (return (coco_m_type_error e "an atom naming a hash algorithm" sa)))
+        (if (not (sh_text e sk kt 65536 (aof kn)))
+            (return (coco_m_type_error e "text" sk)))
+        (if (not (sh_text e sd dt 65536 (aof dn)))
+            (return (coco_m_type_error e "text" sd)))
+        (if from_hex
+            (block
+              (let ((long a . #'(coco_sha_unhex kt key 65536))
+                    (long b . #'(coco_sha_unhex dt msg 65536)))
+                (if (< a 0) (return (coco_m_type_error e "a hexadecimal atom" sk)))
+                (if (< b 0) (return (coco_m_type_error e "a hexadecimal atom" sd)))
+                (set kn (cast size_t a))
+                (set dn (cast size_t b))))
+            (block
+              (memcpy key kt kn)
+              (memcpy msg dt dn)))
+        (let ((int rc . #'(coco_sha_eval "hmac" alg key kn msg dn hex 160 (aof num))))
+          (if (!= rc 0) (return (sh_fail e rc sa sk)))
+          (return (coco_m_unify_atom e sr hex))))))
+
+  (static) (func sh_p_hmac ((coco_engine * e) (size_t g)) (out int)
+    (return (sh_hmac e g 0)))
+
+  (static) (func sh_p_hmac_hex ((coco_engine * e) (size_t g)) (out int)
+    (return (sh_hmac e g 1)))
+
+  (static) (func sh_p_size ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sa 0) (sr 1))
+      (let ((char alg [64]) (char hex [160]) (long num . 0))
+        (if (not (coco_m_text e sa alg 64))
+            (return (coco_m_type_error e "an atom naming a hash algorithm" sa)))
+        (let ((int rc . #'(coco_sha_eval "size" alg nil 0 nil 0 hex 160 (aof num))))
+          (if (!= rc 0) (return (sh_fail e rc sa sa)))
+          (return (coco_m_unify_int e sr (cast i64 num)))))))
+
+  (extern-c
+    (coco-emit-module-dispatch coco_sha_dispatch *sha-predicates*)
+
+    ;;; THE ONE SYMBOL THE LOADER CALLS, and it must have C linkage --
+    ;;; which is why it sits inside the `extern "C"' block. A C++ module
+    ;;; whose entry point kept C++ linkage would compile, link, and then
+    ;;; not be found by dlsym, because the mangled name is not
+    ;;; `coco_library_entry'.
+    (coco-deflibrary "sha" coco_sha_dispatch *sha-prolog*)))

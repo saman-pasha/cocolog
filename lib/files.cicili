@@ -67,6 +67,7 @@
     ("access_file"           2 coco_f_access_file)
     ("size_file"             2 coco_f_size_file)
     ("time_file"             2 coco_f_time_file)
+    ("get_time"              1 coco_f_get_time)
     ("read_file_to_codes"    2 coco_f_read_file_to_codes)
 
     ("delete_file"           1 coco_f_delete_file)
@@ -229,6 +230,26 @@
           (if (!= 0 (stat p (aof sb))) (return 0))
           (return (coco_m_unify_float e (coco_m_arg e g 1)
                                     (cast double ($ sb st_mtime))))))
+
+  ;;; `get_time/1' -- THE WALL CLOCK, WHICH WAS SIMPLY NOT THERE. Nothing
+  ;;; in cocolog could ask what time it is: `time_file/2' answered when a
+  ;;; file was last written and that was the whole of it, so a program that
+  ;;; wanted to stamp a row, expire a session or set a certificate's
+  ;;; validity window had nowhere to get the number from.
+  ;;;
+  ;;; A FLOAT OF SECONDS SINCE THE EPOCH, which is SWI's shape and the one
+  ;;; `time_file/2' already answers in -- so the two compare without a
+  ;;; conversion, and `X is Now - Modified' is a number of seconds.
+  ;;;
+  ;;; IT IS IN library(files) RATHER THAN library(builtins), which is a
+  ;;; judgement and not an obvious one. The argument: `<time.h>' is already
+  ;;; included here for `time_file/2', the answer has the same type and the
+  ;;; same units, and a reader looking for "how do I get a timestamp" looks
+  ;;; where timestamps already are. Both are tier 1, so nothing about the
+  ;;; choice reaches a caller.
+  (func coco_f_get_time ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_float e (coco_m_arg e g 0)
+                                    (cast double (time nil)))))
 
   ;;; THE ONLY WAY TO READ A FILE'S BYTES, and until this existed there was
   ;;; none: `consult' reads Prolog source in C and hands a program nothing,

@@ -168,9 +168,13 @@ demonstrated end to end. A new module or a new `library/*.pl` is not
 finished until there is a `tutorials/library/NN-name.pl` beside it and
 `sh test/tutorials.sh` is green.
 
-It is not ceremony. Every claim in such a file is a `must/3` — `Got ==
+It is not ceremony, and the crypto modules are the latest evidence:
+writing `tutorials/library/26-x509.pl` is what established that
+`x509_public_key/2` answers the CONTENTS of a SubjectPublicKeyInfo and
+not the whole structure, four bytes short of what its own header
+promises. Every claim in such a file is a `must/3` — `Got ==
 Want`, or the file fails naming both answers — so the tutorial is a
-test of the surface as documented, and writing the twenty-three that
+test of the surface as documented, and writing the twenty-eight that
 exist found something every time: `bigint_cmp/3` answering `<`, `=`,
 `>` where the README said `-1/0/1`; `curl_get/2` never having been the
 API; `httpd_content_type/2` keyed on the bare extension where

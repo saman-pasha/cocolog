@@ -1,0 +1,669 @@
+;;;; library(x509) -- certificates, and the CA that issues them.
+;;;;
+;;;; A LOADABLE Cicili module against lib/sdk.cicili, over `Zigurat::X509'
+;;;; from ZiguratIP's Cryptography. It is the whole of the `ca' tool's
+;;;; surface -- key generation, signing requests, issuance, validation --
+;;;; plus the RSA operations a certificate makes possible, said in Prolog.
+;;;;
+;;;;   x509_keygen(+Opts, +PrivPath, +PubPath, -Tries)
+;;;;   x509_csr(+SubjectPath, +PrivPath, +Opts, +CsrPath)
+;;;;   x509_issue(+Opts, +IssuerConfPath, +IssuerKeyPath, +CsrPath, +CertPath)
+;;;;   x509_validate_by_key(+PrivPath, +Cipher, +CertPath)
+;;;;   x509_validate(+PubPath, +CertPath)
+;;;;
+;;;;   x509_subject(+CertPath, -Subject)
+;;;;   x509_public_key(+CertPath, -DerHex)   -- the SPKI CONTENTS
+;;;;   x509_permissions(+CertPath, -Permissions)
+;;;;   x509_why(-Reason)                    why the last one said no
+;;;;
+;;;;   x509_sign(+PrivPath, +Cipher, +Hash, +DataHex, -SigHex)
+;;;;   x509_verify(+CertPath, +Hash, +DataHex, +SigHex)
+;;;;   x509_encrypt(+CertPath, +PlainHex, -CipherHex)
+;;;;   x509_decrypt(+PrivPath, +Cipher, +CipherHex, -PlainHex)
+;;;;
+;;;;   x509_subject_file_name(+Subject, -Name)
+;;;;   x509_file_name_subject(+Name, -Subject)
+;;;;
+;;;; `x509_public_key/2' ANSWERS THE CONTENTS OF A SubjectPublicKeyInfo,
+;;;; not the whole structure -- the AlgorithmIdentifier and the BIT STRING
+;;;; with no SEQUENCE around them. The header in `x509.hpp' says it is
+;;;; "the same shape the .pub files hold" and it measurably is not: 289
+;;;; bytes here against the 293 of `dont-use-public.key', which is exactly
+;;;; a four-byte `30 82 01 21' header. `der_wrap(48, K, Spki)' puts it
+;;;; back, and then `library(der)' takes the whole thing apart:
+;;;;
+;;;;   ?- x509_public_key('a.crt', K), der_wrap(48, K, S),
+;;;;      der_decode(S, sequence([Alg, bit_string(B)])),
+;;;;      der_decode(B, sequence([integer(N), integer(E)])).
+;;;;   Alg = sequence([oid('1.2.840.113549.1.1.1'), null]),
+;;;;   N = '2469...' (617 digits), E = '65537'.
+;;;;
+;;;; That is the argument for having both libraries at once, made
+;;;; concrete: the certificate came out of C++ and the modulus was read
+;;;; in Prolog.
+;;;;
+;;;; KEYS ARE FILES, NOT TERMS, and that is the important decision here.
+;;;; A private key could have been read into an atom and passed around --
+;;;; and then it would be on the heap, in the trail, in every copy a
+;;;; channel made of the term holding it, and in the knowledge base the
+;;;; moment anything asserted it. cocolog's whole claim is that a clause
+;;;; is a row somebody else can read; a signing key is the one thing that
+;;;; must never become one. So a key is named by a PATH, the bytes stay in
+;;;; the C++ side for the length of one call, and nothing about them is
+;;;; ever a cocolog term. `getenv/2' is how the pass phrase arrives, for
+;;;; the same reason -- it is the one channel into a program that does not
+;;;; pass through the store.
+;;;;
+;;;; VALIDATION ANSWERS false, NOT AN EXCEPTION. `X509::validate_by_puk'
+;;;; throws when a certificate does not check out; "this certificate was
+;;;; not signed by you" is an ordinary answer to an ordinary question, and
+;;;; a caller wants something to branch on. So does `x509_verify/4'. The
+;;;; sentence the C++ threw is kept, and `x509_why/1' hands it back -- a
+;;;; wrong key and a corrupt file are different findings and a bare
+;;;; `false' cannot tell them apart.
+;;;;
+;;;; OPTIONS ARE A LIST OF TERMS, in the shape `library(httpd)' uses:
+;;;;
+;;;;   x509_keygen  signature(A) encryption(A) cipher(A) encoding(A)
+;;;;   x509_csr     cipher(A) hash(A) encoding(A)
+;;;;   x509_issue   serial(N) cipher(A) from(Unix) to(Unix) hash(A)
+;;;;                encoding(A) permission(A) -- MORE THAN ONCE
+;;;;
+;;;; and every one has the default the `ca' tool has: `RSA-2048', `DER',
+;;;; `SHA-256', a serial of 1, and validity from now to a year from now.
+;;;;
+;;;; PERMISSIONS ARE WHAT MAKES THIS MORE THAN A KEY STORE. An issuer may
+;;;; write a list of strings into a certificate -- ZiguratIP's own OID arc,
+;;;; 1.3.6.1.4.1.55447.1.1 -- and they mean nothing to the certificate:
+;;;; they are matched by whoever cares. Which is exactly the shape a
+;;;; Prolog program wants, because "may this holder do that" is then a
+;;;; RULE over facts read out of a signed document, and rules are what
+;;;; this interpreter is for. `library(ca)' is that half.
+;;;;
+;;;; IT IS RSA, and the `ca' tool says so: `rsaEncryption' is the only
+;;;; algorithm OID `x509.cpp' will issue or read. secp256k1 and Ed25519
+;;;; live in The Coco as modules of their own and are not this.
+;;;;
+;;;; WHAT IS NOT HERE: the TLS handshake. `SocketIO/tlsstream' is a C++
+;;;; iostream over a socket, and cocolog has no stream layer to hang one
+;;;; on -- `library(tcp)' hands out handles into a table, not descriptors.
+;;;; Binding it would mean inventing a stream abstraction for one caller.
+;;;; The certificates this module makes are the same certificates that
+;;;; server reads, which is the part that had to be true.
+
+(DEFPARAMETER *x509-predicates*
+  ;; THE `$'-PREFIXED ONES ARE NOT THE INTERFACE. Each takes its options
+  ;; already resolved and flattened -- `Sig\nEnc\nCipher\nEncoding' --
+  ;; because pulling a term out of a list is four lines of Prolog and
+  ;; would be forty of C. The names a program writes are the wrappers in
+  ;; the Coco half below.
+  '(("$x509_keygen"           4 x5_p_keygen)
+    ("$x509_csr"              4 x5_p_csr)
+    ("$x509_issue"           11 x5_p_issue)
+    ("$x509_validate"         4 x5_p_validate)
+    ("$x509_ask"              3 x5_p_ask)
+    ("$x509_op"               7 x5_p_op)
+    ("$x509_name"             3 x5_p_name)
+    ("x509_why"               1 x5_p_why)))
+
+;;; ---- the Coco half: options, defaults, and the friendly names --------
+;;;
+;;; THE FRONT END IS HERE AND THE BYTES ARE IN C++, which is the shape
+;;; every library in this tree has. A C function with eleven arguments is
+;;; what `X509::issue' really is; a caller should write
+;;; `x509_issue([serial(7), permission(read)], ...)' and have the defaults
+;;; filled in. Pulling an option out of a list is four lines of Prolog and
+;;; would be forty of C.
+(DEFPARAMETER *x509-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; THE `$'-NAMES ARE QUOTED, and they have to be. `$' is a
+           ;; SYMBOL character and `x' is alphanumeric, so `$x509_issue'
+           ;; is two tokens to the reader and the clause will not read --
+           ;; which surfaces as `use_module: its clauses would not
+           ;; consult', naming the module and not the line.
+           ;; `lib/builtins.cicili' writes `'$cp_member'' for the same
+           ;; reason.
+           ;;
+           ;; `x509_opt(Name, Opts, Default, Value)' -- the one helper the
+           ;; rest is written in. `memberchk/2' rather than `member/2' so a
+           ;; list naming an option twice takes the first and leaves no
+           ;; choice point behind for a later failure to back into.
+           "x509_opt(Name, Opts, _, V) :- O =.. [Name, V], memberchk(O, Opts), !."
+           "x509_opt(_, _, D, D)."
+
+           "x509_keygen(Opts, Priv, Pub, Tries) :- x509_opt(signature, Opts, 'RSA-2048', S), x509_opt(encryption, Opts, '', E), x509_opt(cipher, Opts, '', C), x509_opt(encoding, Opts, 'DER', N), atomic_list_concat([S, E, C, N], '\n', A), '$x509_keygen'(A, Priv, Pub, Tries)."
+           "x509_csr(Subject, Priv, Opts, Csr) :- x509_opt(cipher, Opts, '', C), x509_opt(hash, Opts, 'SHA-256', H), x509_opt(encoding, Opts, 'DER', N), atomic_list_concat([C, H, N], '\n', A), '$x509_csr'(Subject, Priv, A, Csr)."
+
+           "x509_issue(Opts, IssuerConf, Key, Csr, Out) :- x509_opt(serial, Opts, 1, S), x509_opt(cipher, Opts, '', C), x509_opt(hash, Opts, 'SHA-256', H), x509_opt(encoding, Opts, 'DER', E), x509_now_year(From, To0), x509_opt(from, Opts, From, F), x509_opt(to, Opts, To0, T), x509_perms(Opts, P), '$x509_issue'(S, IssuerConf, Key, C, F, T, Csr, H, E, P, Out)."
+
+           ;; A YEAR, from now, because a certificate with no validity
+           ;; window is not a certificate -- and because the alternative is
+           ;; making every caller compute two timestamps to say `the usual'.
+           "x509_now_year(From, To) :- get_time(From), To is From + 31536000."
+
+           ;; PERMISSIONS ARE JOINED WITH NEWLINES for the crossing, because
+           ;; a list of strings does not cross a C seam without an
+           ;; allocation on each side. `permission(X)' may appear as often
+           ;; as the issuer likes; none at all is the v1 certificate.
+           "x509_perms(Opts, Joined) :- findall(P, member(permission(P), Opts), Ps), x509_join(Ps, Joined)."
+           "x509_join([], '') :- !."
+           "x509_join([P], P) :- !."
+           "x509_join([P|Ps], J) :- x509_join(Ps, R), atom_concat(P, '\\n', H), atom_concat(H, R, J)."
+
+           "x509_validate_by_key(Key, Cipher, Cert) :- '$x509_validate'(1, Key, Cipher, Cert)."
+           "x509_validate(Pub, Cert) :- '$x509_validate'(0, Pub, '', Cert)."
+
+           "x509_subject(Cert, S) :- '$x509_ask'(subject, Cert, S)."
+           "x509_public_key(Cert, K) :- '$x509_ask'(public_key, Cert, K)."
+
+           ;; A LIST, not the newline-joined atom the seam hands back --
+           ;; because a permission is a thing a rule matches on, and a rule
+           ;; matches on a list member.
+           "x509_permissions(Cert, L) :- '$x509_ask'(permissions, Cert, A), ( A == '' -> L = [] ; atomic_list_concat(L, '\\n', A) )."
+
+           "x509_sign(Key, Cipher, Hash, Data, Sig) :- '$x509_op'(sign, Key, Cipher, Hash, Data, '', Sig)."
+           "x509_verify(Cert, Hash, Data, Sig) :- '$x509_op'(verify, Cert, '', Hash, Data, Sig, _)."
+           "x509_encrypt(Cert, Plain, Cipher) :- '$x509_op'(encrypt, Cert, '', '', Plain, '', Cipher)."
+           "x509_decrypt(Key, Pass, Cipher, Plain) :- '$x509_op'(decrypt, Key, Pass, '', Cipher, '', Plain)."
+
+           "x509_subject_file_name(S, N) :- '$x509_name'(1, S, N)."
+           "x509_file_name_subject(N, S) :- '$x509_name'(0, N, S).")))
+
+(source "coco-x509.cpp"
+  (make :cpp #t :compile #f)
+
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstddef>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+  (include <vector>)
+
+  ;;; THE LINKAGE, FIRST AND RAW. In a `:cpp #t' target C++ gives the SDK's
+  ;;; prototypes C++ LINKAGE, and `use_module' then fails with a mangled
+  ;;; `undefined symbol' for a function the interpreter exports unmangled.
+  ;;; Wrapping `(coco-sdk)' in `(extern-c ...)' is not the fix -- a Cicili
+  ;;; macro must emit ONE form, and several leaves every symbol
+  ;;; unregistered. C++ gives a redeclaration the linkage of the first one
+  ;;; it saw, so these come first.
+  (code "extern \"C\" {")
+  (code "int coco_module_register(const char*, int (*)(struct coco_engine_opaque*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine_opaque*));")
+  (code "size_t coco_m_arg(struct coco_engine_opaque*, size_t, uint32_t);")
+  (code "int coco_m_int(struct coco_engine_opaque*, size_t, int64_t*);")
+  (code "int coco_m_float(struct coco_engine_opaque*, size_t, double*);")
+  (code "int coco_m_text(struct coco_engine_opaque*, size_t, char*, size_t);")
+  (code "int coco_m_unify_atom(struct coco_engine_opaque*, size_t, const char*);")
+  (code "int coco_m_unify_int(struct coco_engine_opaque*, size_t, int64_t);")
+  (code "int coco_m_type_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_domain_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_existence_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_error(struct coco_engine_opaque*, const char*, const char*);")
+  (code "}")
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (code "#include <x509.hpp>")
+  (code "#include <bigint.hpp>")
+  (code "#include <bufferstream.hpp>")
+  (code "#include <fstream>")
+  (code "#include <iterator>")
+  (code "#include <exception>")
+
+  ;;; ---- the seam --------------------------------------------------------
+  (code "namespace {")
+  (code "")
+  (code "int hexval(int c) {")
+  (code "  if (c >= '0' && c <= '9') return c - '0';")
+  (code "  if (c >= 'a' && c <= 'f') return c - 'a' + 10;")
+  (code "  if (c >= 'A' && c <= 'F') return c - 'A' + 10;")
+  (code "  return -1;")
+  (code "}")
+  (code "")
+  (code "bool unhex(const char* s, std::string& out) {")
+  (code "  size_t n = std::strlen(s);")
+  (code "  if (n % 2) return false;")
+  (code "  out.clear();")
+  (code "  for (size_t i = 0; i < n; i += 2) {")
+  (code "    int hi = hexval((unsigned char) s[i]), lo = hexval((unsigned char) s[i+1]);")
+  (code "    if (hi < 0 || lo < 0) return false;")
+  (code "    out.push_back((char)((hi << 4) | lo));")
+  (code "  }")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "bool tohex(const std::string& b, char* out, size_t cap) {")
+  (code "  static const char* D = \"0123456789abcdef\";")
+  (code "  if (2 * b.size() + 1 > cap) return false;")
+  (code "  for (size_t i = 0; i < b.size(); i++) {")
+  (code "    unsigned char c = (unsigned char) b[i];")
+  (code "    out[2*i] = D[c >> 4];")
+  (code "    out[2*i+1] = D[c & 15];")
+  (code "  }")
+  (code "  out[2 * b.size()] = 0;")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "// A FILE IS A bufferstream, and back. Every X509 entry point takes and")
+  (code "// answers Zigurat streams, and the CA tool fills them from std::ifstream")
+  (code "// -- so these two are exactly what `ca/main_ca.cpp' calls load_stream and")
+  (code "// dump_stream, kept here rather than reached for.")
+  (code "bool slurp(const char* path, Zigurat::bufferstream& out) {")
+  (code "  std::ifstream in(path, std::ios::binary);")
+  (code "  if (!in.good()) return false;")
+  (code "  std::string all((std::istreambuf_iterator<char>(in)),")
+  (code "                  std::istreambuf_iterator<char>());")
+  (code "  out.string(all);")
+  (code "  return true;")
+  (code "}")
+  (code "")
+  (code "bool spill(Zigurat::bufferstream& s, const char* path) {")
+  (code "  std::ofstream out(path, std::ios::binary | std::ios::trunc);")
+  (code "  if (!out.good()) return false;")
+  (code "  std::string all = s.string();")
+  (code "  out.write(all.data(), (std::streamsize) all.size());")
+  (code "  return out.good();")
+  (code "}")
+  (code "")
+  (code "// The last thing thrown, so a refusal can say WHY. X509 throws")
+  (code "// CertificateException with a sentence in it -- \"invalid signature\",")
+  (code "// \"invalid cipher key\" -- and dropping that on the floor would turn every")
+  (code "// distinct failure into one `false'.")
+  (code "thread_local std::string g_why;")
+  (code "")
+  (code "void note(const char* fallback) {")
+  (code "  if (g_why.empty()) g_why = fallback;")
+  (code "}")
+  (code "")
+  (code "} // namespace")
+  (code "")
+  (code "extern \"C\" const char* coco_x509_why(void) {")
+  (code "  return g_why.empty() ? \"\" : g_why.c_str();")
+  (code "}")
+  (code "")
+  (code "// 0 ok, 1 answered false (a verification that did not verify). Negative is")
+  (code "// an error: -2 bad hex, -3 a file that would not open, -5 the library threw")
+  (code "// and coco_x509_why() says what it said.")
+  (code "extern \"C\" int coco_x509_keygen(const char* signature, const char* encryption,")
+  (code "                                const char* cipher, const char* encoding,")
+  (code "                                const char* priv_path, const char* pub_path,")
+  (code "                                long* tries) {")
+  (code "  g_why.clear();")
+  (code "  try {")
+  (code "    Zigurat::bufferstream pik, puk;")
+  (code "    *tries = (long) Zigurat::X509::keygen(signature, encryption, cipher, encoding, pik, puk);")
+  (code "    if (!spill(pik, priv_path)) return -3;")
+  (code "    if (!spill(puk, pub_path)) return -3;")
+  (code "    return 0;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -5; }")
+  (code "    catch (...) { note(\"key generation failed\"); return -5; }")
+  (code "}")
+  (code "")
+  (code "extern \"C\" int coco_x509_csr(const char* subject_path, const char* priv_path,")
+  (code "                             const char* cipher, const char* hash,")
+  (code "                             const char* encoding, const char* csr_path) {")
+  (code "  g_why.clear();")
+  (code "  try {")
+  (code "    Zigurat::bufferstream subject, pik, csr;")
+  (code "    if (!slurp(subject_path, subject)) return -3;")
+  (code "    if (!slurp(priv_path, pik)) return -3;")
+  (code "    Zigurat::X509::csr(subject, pik, cipher, hash, encoding, csr);")
+  (code "    return spill(csr, csr_path) ? 0 : -3;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -5; }")
+  (code "    catch (...) { note(\"the signing request was refused\"); return -5; }")
+  (code "}")
+  (code "")
+  (code "// THE ISSUER ARGUMENT IS A NAME CONFIGURATION, NOT A CERTIFICATE,")
+  (code "// and it cost an afternoon. `X509::issue' wants the issuer's")
+  (code "// DISTINGUISHED NAME -- the `issuer.conf' the ca tool defaults to,")
+  (code "// the same `KEY: value' shape a subject configuration has -- because")
+  (code "// what it writes into the certificate is a name, and the key beside")
+  (code "// it does the signing. Handing it the issuer's .crt instead fails")
+  (code "// deep inside the configuration parser with")
+  (code "//")
+  (code "//   key error at line 1, '0\\x82\\x03...'")
+  (code "//")
+  (code "// -- a message about a config file, naming DER bytes, from a")
+  (code "// certificate routine. `ca/main_ca.cpp' settles it: --issuer is")
+  (code "// documented there as \"issuer name configuration file\".")
+  (code "//")
+  (code "// PERMISSIONS ARRIVE AS ONE NEWLINE-SEPARATED STRING, because a")
+  (code "// std::vector<std::string> is not a thing that crosses a C seam without a")
+  (code "// second allocation on each side. An empty string is no permissions at")
+  (code "// all, which is the v1 certificate the issuer used to make.")
+  (code "extern \"C\" int coco_x509_issue(const char* serial, const char* issuer_conf_path,")
+  (code "                               const char* key_path, const char* cipher,")
+  (code "                               int64_t from, int64_t to,")
+  (code "                               const char* csr_path, const char* hash,")
+  (code "                               const char* encoding, const char* permissions,")
+  (code "                               const char* out_path) {")
+  (code "  g_why.clear();")
+  (code "  try {")
+  (code "    Zigurat::bufferstream issuer, pik, csr, crt, serial_stream;")
+  (code "    if (!slurp(issuer_conf_path, issuer)) return -3;")
+  (code "    if (!slurp(key_path, pik)) return -3;")
+  (code "    if (!slurp(csr_path, csr)) return -3;")
+  (code "    Zigurat::BigInt number = (uint64_t) std::strtoull(serial, nullptr, 10);")
+  (code "    number.to_octet_string(serial_stream, true);")
+  (code "    std::vector<std::string> perms;")
+  (code "    for (const char* p = permissions; *p;) {")
+  (code "      const char* q = std::strchr(p, '\\n');")
+  (code "      if (!q) { perms.push_back(std::string(p)); break; }")
+  (code "      if (q > p) perms.push_back(std::string(p, (size_t)(q - p)));")
+  (code "      p = q + 1;")
+  (code "    }")
+  (code "    Zigurat::X509::issue(serial_stream, issuer, pik, cipher, (time_t) from, (time_t) to,")
+  (code "                         csr, hash, encoding, perms, crt);")
+  (code "    return spill(crt, out_path) ? 0 : -3;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -5; }")
+  (code "    catch (...) { note(\"the certificate was not issued\"); return -5; }")
+  (code "}")
+  (code "")
+  (code "// VALIDATION ANSWERS false RATHER THAN RAISING, which is the one place")
+  (code "// this binding does not mirror the C++. X509::validate_* throws when a")
+  (code "// certificate does not check out -- and \"this certificate is not yours\"")
+  (code "// is an ordinary answer to an ordinary question, the same shape")
+  (code "// `exists_file/1' has. The reason is still there in coco_x509_why(), so")
+  (code "// a caller that wants it can ask.")
+  (code "extern \"C\" int coco_x509_validate(int by_key, const char* key_path,")
+  (code "                                  const char* cipher, const char* cert_path) {")
+  (code "  g_why.clear();")
+  (code "  try {")
+  (code "    Zigurat::bufferstream key, crt;")
+  (code "    if (!slurp(key_path, key)) return -3;")
+  (code "    if (!slurp(cert_path, crt)) return -3;")
+  (code "    if (by_key) Zigurat::X509::validate_by_pik(key, cipher, crt);")
+  (code "    else        Zigurat::X509::validate_by_puk(key, crt);")
+  (code "    return 0;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return 1; }")
+  (code "    catch (...) { note(\"the certificate did not validate\"); return 1; }")
+  (code "}")
+  (code "")
+  (code "// The three questions a certificate answers about itself: who it names,")
+  (code "// what key it carries, and what its issuer said the holder may do.")
+  (code "extern \"C\" int coco_x509_ask(const char* what, const char* cert_path,")
+  (code "                             char* out, size_t cap) {")
+  (code "  g_why.clear();")
+  (code "  try {")
+  (code "    Zigurat::bufferstream crt;")
+  (code "    if (!slurp(cert_path, crt)) return -3;")
+  (code "    if (!std::strcmp(what, \"subject\")) {")
+  (code "      std::string s = Zigurat::X509::certificate_subject(crt);")
+  (code "      if (s.size() + 1 > cap) return -4;")
+  (code "      std::strcpy(out, s.c_str());")
+  (code "      return 0;")
+  (code "    }")
+  (code "    if (!std::strcmp(what, \"public_key\")) {")
+  (code "      Zigurat::bufferstream puk;")
+  (code "      Zigurat::X509::certificate_public_key(crt, puk);")
+  (code "      return tohex(puk.string(), out, cap) ? 0 : -4;")
+  (code "    }")
+  (code "    if (!std::strcmp(what, \"permissions\")) {")
+  (code "      std::vector<std::string> perms = Zigurat::X509::certificate_permissions(crt);")
+  (code "      std::string all;")
+  (code "      for (size_t i = 0; i < perms.size(); i++) {")
+  (code "        if (i) all.push_back('\\n');")
+  (code "        all += perms[i];")
+  (code "      }")
+  (code "      if (all.size() + 1 > cap) return -4;")
+  (code "      std::strcpy(out, all.c_str());")
+  (code "      return 0;")
+  (code "    }")
+  (code "    return -1;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -5; }")
+  (code "    catch (...) { note(\"the certificate could not be read\"); return -5; }")
+  (code "}")
+  (code "")
+  (code "// Sign and check an arbitrary message; encrypt to a certificate's key and")
+  (code "// decrypt with the private half. This is the RSA surface, reached the way")
+  (code "// it is meant to be reached -- through a key file and a certificate,")
+  (code "// never through a raw modulus.")
+  (code "extern \"C\" int coco_x509_op(const char* op, const char* path,")
+  (code "                            const char* cipher, const char* hash,")
+  (code "                            const char* a_hex, const char* b_hex,")
+  (code "                            char* out, size_t cap) {")
+  (code "  g_why.clear();")
+  (code "  std::string a, b;")
+  (code "  if (!unhex(a_hex, a)) return -2;")
+  (code "  if (b_hex && !unhex(b_hex, b)) return -2;")
+  (code "  try {")
+  (code "    Zigurat::bufferstream file, in, aux, res;")
+  (code "    if (!slurp(path, file)) return -3;")
+  (code "    in.string(a);")
+  (code "    if (!std::strcmp(op, \"sign\")) {")
+  (code "      Zigurat::X509::sign(file, cipher, hash, in, res);")
+  (code "    } else if (!std::strcmp(op, \"verify\")) {")
+  (code "      aux.string(b);")
+  (code "      return Zigurat::X509::verify(file, hash, in, aux) ? 0 : 1;")
+  (code "    } else if (!std::strcmp(op, \"encrypt\")) {")
+  (code "      Zigurat::X509::encrypt(file, in, res);")
+  (code "    } else if (!std::strcmp(op, \"decrypt\")) {")
+  (code "      Zigurat::X509::decrypt(file, cipher, in, res);")
+  (code "    } else {")
+  (code "      return -1;")
+  (code "    }")
+  (code "    return tohex(res.string(), out, cap) ? 0 : -4;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -5; }")
+  (code "    catch (...) { note(\"the operation was refused\"); return -5; }")
+  (code "}")
+  (code "")
+  (code "// A DISTINGUISHED NAME AS ONE FILE NAME, and back. A DN carries commas,")
+  (code "// spaces and equals signs and nothing stops it carrying a slash or a dot,")
+  (code "// so everything outside a plain set is percent encoded -- which is what")
+  (code "// makes the result unable to name anything outside its own directory.")
+  (code "extern \"C\" int coco_x509_name(int to_file, const char* s, char* out, size_t cap) {")
+  (code "  g_why.clear();")
+  (code "  try {")
+  (code "    std::string r = to_file ? Zigurat::X509::subject_file_name(s)")
+  (code "                            : Zigurat::X509::file_name_subject(s);")
+  (code "    if (r.size() + 1 > cap) return -4;")
+  (code "    std::strcpy(out, r.c_str());")
+  (code "    return 0;")
+  (code "  } catch (const std::exception& x) { g_why = x.what(); return -5; }")
+  (code "    catch (...) { note(\"the name could not be converted\"); return -5; }")
+  (code "}")
+  (code "")
+  (decl) (func coco_x509_why () (out const char *))
+  (decl) (func coco_x509_keygen ((const char * signature) (const char * encryption)
+                                 (const char * cipher) (const char * encoding)
+                                 (const char * priv_path) (const char * pub_path)
+                                 (long * tries)) (out int))
+  (decl) (func coco_x509_csr ((const char * subject_path) (const char * priv_path)
+                              (const char * cipher) (const char * hash)
+                              (const char * encoding) (const char * csr_path)) (out int))
+  (decl) (func coco_x509_issue ((const char * serial) (const char * issuer_conf_path)
+                                (const char * key_path) (const char * cipher)
+                                (i64 from) (i64 to)
+                                (const char * csr_path) (const char * hash)
+                                (const char * encoding) (const char * permissions)
+                                (const char * out_path)) (out int))
+  (decl) (func coco_x509_validate ((int by_key) (const char * key_path)
+                                   (const char * cipher) (const char * cert_path)) (out int))
+  (decl) (func coco_x509_ask ((const char * what) (const char * cert_path)
+                              (char * out) (size_t cap)) (out int))
+  (decl) (func coco_x509_op ((const char * op) (const char * path)
+                             (const char * cipher) (const char * hash)
+                             (const char * a_hex) (const char * b_hex)
+                             (char * out) (size_t cap)) (out int))
+  (decl) (func coco_x509_name ((int to_file) (const char * s)
+                               (char * out) (size_t cap)) (out int))
+
+  ;;; ---- the Cicili side: arguments, errors, dispatch ------------------
+  ;;;
+  ;;; Buffers are 65536 for hex and 4096 for a path -- what
+  ;;; `lib/files.cicili' uses, and for the same reason it gives: PATH_MAX
+  ;;; is a `#define', which is raw C that Cicili cannot see, so the number
+  ;;; is written out.
+
+  (static) (func x5_fail ((coco_engine * e) (int rc) (size_t culprit)) (out int)
+    (cond
+      ((== rc -1) (return (coco_m_domain_error e "x509_operation" culprit)))
+      ((== rc -2) (return (coco_m_type_error e "a hexadecimal atom" culprit)))
+      ((== rc -3) (return (coco_m_existence_error e "source_sink" culprit)))
+      ((== rc -4) (return (coco_m_error e "representation_error" "x509 buffer")))
+      ;; THE SENTENCE THE C++ THREW, not a shrug. "invalid cipher key" and
+      ;; "invalid signature" are different findings and a caller has to be
+      ;; able to tell them apart.
+      (#t (return (coco_m_error e "x509_error" (coco_x509_why))))))
+
+  ;;; Read an argument as text into a buffer, treating a term that is not
+  ;;; text as the empty string -- which is what an unbound or empty option
+  ;;; means everywhere here: no pass phrase, no permissions, no aux data.
+  (static) (func x5_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap))
+    (if (not (coco_m_text e t buf cap)) (set (nth 0 buf) 0)))
+
+  (static) (func x5_p_why ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sr 0))
+      (return (coco_m_unify_atom e sr (coco_x509_why)))))
+
+  ;;; x509_keygen(+Opts, +PrivPath, +PubPath, -Tries) -- the options are
+  ;;; pulled apart HERE rather than in Prolog, because keygen is the one
+  ;;; entry point whose four settings are all plain atoms with defaults and
+  ;;; no list to build.
+  (static) (func x5_p_keygen ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((so 0) (sp 1) (sq 2) (sr 3))
+      (let ((char priv [4096]) (char pub [4096]) (long tries . 0))
+        (if (not (coco_m_text e sp priv 4096))
+            (return (coco_m_type_error e "a file name" sp)))
+        (if (not (coco_m_text e sq pub 4096))
+            (return (coco_m_type_error e "a file name" sq)))
+        ;; The option list reaches C++ as four atoms the Prolog half has
+        ;; already resolved -- see `x509_keygen/4' below, which is where
+        ;; the defaults live.
+        (let ((char opts [1024]))
+          (x5_text e so opts 1024)
+          ;; `Sig\nEnc\nCipher\nEncoding', in that order, because four
+          ;; separate arguments would be four more `coco_m_arg' calls for
+          ;; a predicate whose arity is already fixed at four.
+          (let ((char * enc . nil) (char * cip . nil) (char * eco . nil)
+                (char * p . opts))
+            (set enc (strchr p (cast int 10)))
+            (if (!= enc nil) (block (set (cof enc) 0) (++ enc)) (set enc (+ p (strlen p))))
+            (set cip (strchr enc (cast int 10)))
+            (if (!= cip nil) (block (set (cof cip) 0) (++ cip)) (set cip (+ enc (strlen enc))))
+            (set eco (strchr cip (cast int 10)))
+            (if (!= eco nil) (block (set (cof eco) 0) (++ eco)) (set eco (+ cip (strlen cip))))
+            (let ((int rc . #'(coco_x509_keygen p enc cip eco priv pub (aof tries))))
+              (if (!= rc 0) (return (x5_fail e rc sp)))
+              (return (coco_m_unify_int e sr (cast i64 tries)))))))))
+
+  (static) (func x5_p_csr ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((ss 0) (sk 1) (so 2) (sc 3))
+      (let ((char subj [4096]) (char key [4096]) (char out [4096]) (char opts [1024]))
+        (if (not (coco_m_text e ss subj 4096))
+            (return (coco_m_type_error e "a file name" ss)))
+        (if (not (coco_m_text e sk key 4096))
+            (return (coco_m_type_error e "a file name" sk)))
+        (if (not (coco_m_text e sc out 4096))
+            (return (coco_m_type_error e "a file name" sc)))
+        (x5_text e so opts 1024)
+        (let ((char * hash . nil) (char * eco . nil) (char * p . opts))
+          (set hash (strchr p (cast int 10)))
+          (if (!= hash nil) (block (set (cof hash) 0) (++ hash)) (set hash (+ p (strlen p))))
+          (set eco (strchr hash (cast int 10)))
+          (if (!= eco nil) (block (set (cof eco) 0) (++ eco)) (set eco (+ hash (strlen hash))))
+          (let ((int rc . #'(coco_x509_csr subj key p hash eco out)))
+            (if (!= rc 0) (return (x5_fail e rc ss)))
+            (return 1))))))
+
+  (static) (func x5_p_issue ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((s0 0) (s1 1) (s2 2) (s3 3) (s4 4) (s5 5)
+                        (s6 6) (s7 7) (s8 8) (s9 9) (s10 10))
+      (let ((char serial [64]) (char issuer [4096]) (char key [4096])
+            (char cipher [256]) (char csr [4096]) (char hash [64])
+            (char eco [64]) (char perms [8192]) (char out [4096])
+            (i64 from . 0) (i64 to . 0) (double df . 0.0) (double dt . 0.0))
+        (if (not (coco_m_text e s0 serial 64))
+            (return (coco_m_type_error e "a serial number" s0)))
+        (if (not (coco_m_text e s1 issuer 4096))
+            (return (coco_m_type_error e "a file name" s1)))
+        (if (not (coco_m_text e s2 key 4096))
+            (return (coco_m_type_error e "a file name" s2)))
+        (x5_text e s3 cipher 256)
+        ;; `get_time/1' answers a FLOAT, so both shapes are accepted and a
+        ;; caller may write either. A certificate's validity is to the
+        ;; second and the fraction is dropped, which is what DER's UTCTime
+        ;; carries anyway.
+        (if (coco_m_int e s4 (aof from)) (block)
+            (if (coco_m_float e s4 (aof df)) (set from (cast i64 df))
+                (return (coco_m_type_error e "a time" s4))))
+        (if (coco_m_int e s5 (aof to)) (block)
+            (if (coco_m_float e s5 (aof dt)) (set to (cast i64 dt))
+                (return (coco_m_type_error e "a time" s5))))
+        (if (not (coco_m_text e s6 csr 4096))
+            (return (coco_m_type_error e "a file name" s6)))
+        (x5_text e s7 hash 64)
+        (x5_text e s8 eco 64)
+        (x5_text e s9 perms 8192)
+        (if (not (coco_m_text e s10 out 4096))
+            (return (coco_m_type_error e "a file name" s10)))
+        (let ((int rc . #'(coco_x509_issue serial issuer key cipher
+                                           from to
+                                           csr hash eco perms out)))
+          (if (!= rc 0) (return (x5_fail e rc s1)))
+          (return 1)))))
+
+  ;;; A CERTIFICATE THAT DOES NOT CHECK OUT MAKES THIS FAIL, and the
+  ;;; reason is in `x509_why/1'. See the header: it is an ordinary answer.
+  (static) (func x5_p_validate ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((s0 0) (s1 1) (s2 2) (s3 3))
+      (let ((char key [4096]) (char cipher [256]) (char cert [4096]) (i64 by . 0))
+        (if (not (coco_m_int e s0 (aof by)))
+            (return (coco_m_type_error e "an integer" s0)))
+        (if (not (coco_m_text e s1 key 4096))
+            (return (coco_m_type_error e "a file name" s1)))
+        (x5_text e s2 cipher 256)
+        (if (not (coco_m_text e s3 cert 4096))
+            (return (coco_m_type_error e "a file name" s3)))
+        (let ((int rc . #'(coco_x509_validate (cast int by) key cipher cert)))
+          (if (== rc 1) (return 0))
+          (if (!= rc 0) (return (x5_fail e rc s3)))
+          (return 1)))))
+
+  (static) (func x5_p_ask ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((s0 0) (s1 1) (s2 2))
+      (let ((char what [32]) (char cert [4096]) (char out [65536]))
+        (if (not (coco_m_text e s0 what 32))
+            (return (coco_m_type_error e "an atom" s0)))
+        (if (not (coco_m_text e s1 cert 4096))
+            (return (coco_m_type_error e "a file name" s1)))
+        (let ((int rc . #'(coco_x509_ask what cert out 65536)))
+          (if (!= rc 0) (return (x5_fail e rc s1)))
+          (return (coco_m_unify_atom e s2 out))))))
+
+  (static) (func x5_p_op ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((s0 0) (s1 1) (s2 2) (s3 3) (s4 4) (s5 5) (s6 6))
+      (let ((char op [16]) (char path [4096]) (char cipher [256]) (char hash [64])
+            (char a [65536]) (char b [65536]) (char out [65536]))
+        (if (not (coco_m_text e s0 op 16))
+            (return (coco_m_type_error e "an atom" s0)))
+        (if (not (coco_m_text e s1 path 4096))
+            (return (coco_m_type_error e "a file name" s1)))
+        (x5_text e s2 cipher 256)
+        (x5_text e s3 hash 64)
+        (if (not (coco_m_text e s4 a 65536))
+            (return (coco_m_type_error e "a hexadecimal atom" s4)))
+        (x5_text e s5 b 65536)
+        (let ((int rc . #'(coco_x509_op op path cipher hash a b out 65536)))
+          ;; 1 is `verify' answering no -- a signature that did not check.
+          ;; Fail, do not raise: that is the question being asked.
+          (if (== rc 1) (return 0))
+          (if (!= rc 0) (return (x5_fail e rc s1)))
+          (return (coco_m_unify_atom e s6 out))))))
+
+  (static) (func x5_p_name ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((s0 0) (s1 1) (s2 2))
+      (let ((char in [4096]) (char out [8192]) (i64 dir . 0))
+        (if (not (coco_m_int e s0 (aof dir)))
+            (return (coco_m_type_error e "an integer" s0)))
+        (if (not (coco_m_text e s1 in 4096))
+            (return (coco_m_type_error e "an atom" s1)))
+        (let ((int rc . #'(coco_x509_name (cast int dir) in out 8192)))
+          (if (!= rc 0) (return (x5_fail e rc s1)))
+          (return (coco_m_unify_atom e s2 out))))))
+
+  (extern-c
+    (coco-emit-module-dispatch coco_x509_dispatch *x509-predicates*)
+    (coco-deflibrary "x509" coco_x509_dispatch *x509-prolog*)))

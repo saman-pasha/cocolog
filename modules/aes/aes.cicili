@@ -1,0 +1,317 @@
+;;;; library(aes) -- Zigurat's AES, as cocolog predicates.
+;;;;
+;;;; A LOADABLE Cicili module against lib/sdk.cicili, linking ZiguratIP's
+;;;; libCryptography. There is no cipher code in this file: `Zigurat::AES'
+;;;; is the one X.509 encrypts private key files with, and a second
+;;;; implementation here would be a second thing to disagree with the
+;;;; first.
+;;;;
+;;;;   aes_encrypt(+KeyHex, +IvHex, +PlainHex, -CipherHex)   CBC
+;;;;   aes_decrypt(+KeyHex, +IvHex, +CipherHex, -PlainHex)   CBC
+;;;;   aes_encrypt_ecb(+KeyHex, +PlainHex, -CipherHex)
+;;;;   aes_decrypt_ecb(+KeyHex, +CipherHex, -PlainHex)
+;;;;   aes_pad(+Hex, -PaddedHex)        PKCS #7 to the block boundary
+;;;;   aes_unpad(+PaddedHex, -Hex)      and back, checking the padding
+;;;;   aes_key_bits(+KeyHex, -Bits)     128, 192 or 256, from its length
+;;;;   aes_block_size(-Bytes)           16, and it is not going to change
+;;;;
+;;;; EVERYTHING IS HEX, in and out. A key, an IV and a block of cipher
+;;;; text are arbitrary bytes -- zero bytes included -- and cocolog has
+;;;; no string type: `"abc"' IS `[97,98,99]', and a code list cannot
+;;;; carry a zero. Hex is the one representation that survives both
+;;;; directions.
+;;;;
+;;;; THE KEY LENGTH CHOOSES THE CIPHER, because it is the only thing that
+;;;; can: 16 bytes is AES-128, 24 is AES-192, 32 is AES-256, and anything
+;;;; else is a `domain_error(aes_key, ...)'. There is no `strength'
+;;;; argument to get out of step with the key you passed.
+;;;;
+;;;; CBC IS THE DOOR AND ECB IS THE FIRE ESCAPE. Under ECB each block is
+;;;; enciphered on its own, so equal plain text blocks give equal cipher
+;;;; text blocks and the SHAPE of the data shows through -- the famous
+;;;; picture of a penguin that is still a penguin after encryption.
+;;;; `aes_encrypt_ecb/3' is here because X.509 private key files were
+;;;; written that way and have to keep opening; anything new should
+;;;; chain. Zigurat's own header says exactly this, and this module does
+;;;; not soften it.
+;;;;
+;;;; THE IV IS NOT A SECRET AND NOT OPTIONAL. It is 16 bytes, it must be
+;;;; unpredictable per message, and it is not carried in the cipher text
+;;;; -- send it alongside. Reusing one under the same key is what leaks
+;;;; the first block of every message that shares a prefix.
+;;;;
+;;;; PADDING IS SEPARATE, on purpose. The cipher wants a whole number of
+;;;; blocks and only the caller knows what its format expects, so
+;;;; `aes_pad/2' is PKCS #7 offered rather than imposed. `aes_unpad/2'
+;;;; FAILS on padding that is not well formed rather than trimming
+;;;; whatever it found -- a decryption with the wrong key produces bytes
+;;;; that look exactly like data until something checks them.
+;;;;
+;;;; WHAT THIS IS NOT: authenticated encryption. AES-CBC hides content
+;;;; and does not detect tampering; a cipher text edited in flight
+;;;; decrypts to something, quietly. Cover it with `sha_hmac/4' over the
+;;;; IV and the cipher text, and check that BEFORE decrypting.
+
+(DEFPARAMETER *aes-predicates*
+  '(("aes_encrypt"     4 ae_p_enc_cbc)
+    ("aes_decrypt"     4 ae_p_dec_cbc)
+    ("aes_encrypt_ecb" 3 ae_p_enc_ecb)
+    ("aes_decrypt_ecb" 3 ae_p_dec_ecb)
+    ("aes_pad"         2 ae_p_pad)
+    ("aes_unpad"       2 ae_p_unpad)
+    ("aes_key_bits"    2 ae_p_key_bits)))
+
+;;; The Coco half: the one constant, as a clause. A block is 16 bytes in
+;;; every AES there is or will be -- Rijndael's other block sizes did not
+;;; become the standard -- so this is a fact, not a computation.
+(DEFPARAMETER *aes-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST "aes_block_size(16).")))
+
+(source "coco-aes.cpp"
+  (make :cpp #t :compile #f)
+
+  ;;; The includes come BEFORE the SDK block: those prototypes name
+  ;;; `size_t' and `int64_t', and emitted above <cstdint> they are twenty
+  ;;; errors about unknown type names. A `:cpp #t' target has no std
+  ;;; prelude to have pulled them in already.
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstddef>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+
+  (@define (code "ubyte_t unsigned char"))
+
+  ;;; THE LINKAGE, FIRST AND RAW. `lib/sdk.cicili' declares the module
+  ;;; API as ordinary prototypes, which is right for a C target; in a
+  ;;; `:cpp #t' one C++ gives them C++ LINKAGE and `use_module' then
+  ;;; fails with `undefined symbol: _Z11coco_m_text...' -- a mangled name
+  ;;; for a function the interpreter exports unmangled. Wrapping
+  ;;; `(coco-sdk)' in `(extern-c ...)' is NOT the fix: a Cicili macro
+  ;;; must emit one form, and several leaves every symbol unregistered.
+  ;;; C++ gives a redeclaration the linkage of the first one it saw, so
+  ;;; these come first and `(coco-sdk)' follows for Cicili's benefit.
+  (code "extern \"C\" {")
+  (code "int coco_module_register(const char*, int (*)(struct coco_engine_opaque*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine_opaque*));")
+  (code "size_t coco_m_arg(struct coco_engine_opaque*, size_t, uint32_t);")
+  (code "int coco_m_text(struct coco_engine_opaque*, size_t, char*, size_t);")
+  (code "int coco_m_unify_atom(struct coco_engine_opaque*, size_t, const char*);")
+  (code "int coco_m_unify_int(struct coco_engine_opaque*, size_t, int64_t);")
+  (code "int coco_m_type_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_domain_error(struct coco_engine_opaque*, const char*, size_t);")
+  (code "int coco_m_error(struct coco_engine_opaque*, const char*, const char*);")
+  (code "}")
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (code "#include <aes.hpp>")
+  (code "#include <sstream>")
+
+  ;;; ---- the seam, ONE FUNCTION WIDE ----------------------------------
+
+  (code "namespace {")
+  (code "")
+  (code "int hexval(int c) {")
+  (code "  if (c >= '0' && c <= '9') return c - '0';")
+  (code "  if (c >= 'a' && c <= 'f') return c - 'a' + 10;")
+  (code "  if (c >= 'A' && c <= 'F') return c - 'A' + 10;")
+  (code "  return -1;")
+  (code "}")
+  (code "")
+  (code "long unhex(const char* s, unsigned char* out, size_t cap) {")
+  (code "  size_t n = std::strlen(s);")
+  (code "  if (n % 2) return -1;")
+  (code "  if (n / 2 > cap) return -1;")
+  (code "  for (size_t i = 0; i < n; i += 2) {")
+  (code "    int hi = hexval((unsigned char) s[i]), lo = hexval((unsigned char) s[i+1]);")
+  (code "    if (hi < 0 || lo < 0) return -1;")
+  (code "    out[i/2] = (unsigned char)((hi << 4) | lo);")
+  (code "  }")
+  (code "  return (long)(n / 2);")
+  (code "}")
+  (code "")
+  (code "void tohex(const unsigned char* b, size_t n, char* out) {")
+  (code "  static const char* D = \"0123456789abcdef\";")
+  (code "  for (size_t i = 0; i < n; i++) { out[2*i] = D[b[i] >> 4]; out[2*i+1] = D[b[i] & 15]; }")
+  (code "  out[2*n] = 0;")
+  (code "}")
+  (code "")
+  (code "// ONE TEMPLATE FOR THE THREE KEY SIZES. AES<Nk,Nb,Nr> differs only")
+  (code "// in the width of its key and schedule, so the body is identical and")
+  (code "// the compiler writes the three copies. A switch on the key length")
+  (code "// picks one -- which is why there is no `strength' argument to get")
+  (code "// out of step with the key that was actually passed.")
+  (code "template <class A>")
+  (code "void run(bool enc, bool cbc, const unsigned char* key,")
+  (code "         const unsigned char* iv, std::istream& in, std::ostream& out) {")
+  (code "  typename A::key_t k; std::memcpy(k, key, sizeof(k));")
+  (code "  typename A::schedule_t sch;")
+  (code "  A::KeyExpansion(k, sch);")
+  (code "  if (cbc) { if (enc) A::CipherCBC(in, sch, iv, out);")
+  (code "             else     A::InverseCipherCBC(in, sch, iv, out); }")
+  (code "  else     { if (enc) A::Cipher(in, sch, out);")
+  (code "             else     A::InverseCipher(in, sch, out); }")
+  (code "}")
+  (code "")
+  (code "} // namespace")
+  (code "")
+  (code "// 0 ok. -1 key length, -2 not hex, -3 data not a whole number of")
+  (code "// blocks, -4 too long for the buffer, -5 the cipher threw.")
+  (code "extern \"C\" int coco_aes_eval(const char* op, const char* key_hex,")
+  (code "                              const char* iv_hex, const char* data_hex,")
+  (code "                              char* out, size_t cap, long* num) {")
+  (code "  unsigned char key[32], iv[16];")
+  (code "  long kn = unhex(key_hex, key, sizeof(key));")
+  (code "  if (kn < 0) return -2;")
+  (code "  if (kn != 16 && kn != 24 && kn != 32) return -1;")
+  (code "  if (!std::strcmp(op, \"bits\")) { *num = kn * 8; return 0; }")
+  (code "  bool cbc = (op[0] == 'c');")
+  (code "  bool enc = (op[1] == 'e');")
+  (code "  if (cbc) {")
+  (code "    long n = unhex(iv_hex, iv, sizeof(iv));")
+  (code "    if (n < 0) return -2;")
+  (code "    if (n != 16) return -1;")
+  (code "  }")
+  (code "  size_t hexlen = std::strlen(data_hex);")
+  (code "  if (hexlen % 2) return -2;")
+  (code "  size_t bytes = hexlen / 2;")
+  (code "  if (bytes % 16) return -3;")
+  (code "  if (2 * bytes + 1 > cap) return -4;")
+  (code "  std::string plain(bytes, '\\0');")
+  (code "  if (unhex(data_hex, (unsigned char*) &plain[0], bytes) < 0) return -2;")
+  (code "  std::istringstream in(plain);")
+  (code "  std::ostringstream os;")
+  (code "  try {")
+  (code "    if      (kn == 16) run<Zigurat::AES128>(enc, cbc, key, iv, in, os);")
+  (code "    else if (kn == 24) run<Zigurat::AES192>(enc, cbc, key, iv, in, os);")
+  (code "    else               run<Zigurat::AES256>(enc, cbc, key, iv, in, os);")
+  (code "  } catch (...) { return -5; }")
+  (code "  std::string got = os.str();")
+  (code "  if (2 * got.size() + 1 > cap) return -4;")
+  (code "  tohex((const unsigned char*) got.data(), got.size(), out);")
+  (code "  return 0;")
+  (code "}")
+  (code "")
+  (code "// PKCS #7, both ways. Always adds a whole block when the input is")
+  (code "// already aligned, which is the point of the scheme: the last byte")
+  (code "// always says how much to remove, so there is no case where a data")
+  (code "// byte could be read as a length.")
+  (code "extern \"C\" int coco_aes_pad(int add, const char* data_hex, char* out, size_t cap) {")
+  (code "  size_t hexlen = std::strlen(data_hex);")
+  (code "  if (hexlen % 2) return -2;")
+  (code "  size_t n = hexlen / 2;")
+  (code "  std::string b(n, '\\0');")
+  (code "  if (n && unhex(data_hex, (unsigned char*) &b[0], n) < 0) return -2;")
+  (code "  if (add) {")
+  (code "    unsigned char pad = (unsigned char)(16 - (n % 16));")
+  (code "    for (int i = 0; i < pad; i++) b.push_back((char) pad);")
+  (code "  } else {")
+  (code "    if (n == 0 || n % 16) return -3;")
+  (code "    unsigned char pad = (unsigned char) b[n-1];")
+  (code "    if (pad == 0 || pad > 16 || pad > n) return -6;")
+  (code "    // EVERY padding byte is checked, not just the last. Trusting the")
+  (code "    // last one turns a decryption with the wrong key into a plausible")
+  (code "    // shorter message rather than an error.")
+  (code "    for (size_t i = n - pad; i < n; i++)")
+  (code "      if ((unsigned char) b[i] != pad) return -6;")
+  (code "    b.resize(n - pad);")
+  (code "  }")
+  (code "  if (2 * b.size() + 1 > cap) return -4;")
+  (code "  tohex((const unsigned char*) b.data(), b.size(), out);")
+  (code "  return 0;")
+  (code "}")
+
+  (decl) (func coco_aes_eval ((const char * op) (const char * key_hex)
+                              (const char * iv_hex) (const char * data_hex)
+                              (char * out) (size_t cap) (long * num)) (out int))
+  (decl) (func coco_aes_pad ((int add) (const char * data_hex)
+                             (char * out) (size_t cap)) (out int))
+
+  ;;; ---- the Cicili side: arguments, errors, dispatch ------------------
+  ;;;
+  ;;; The buffers are 131072 for hex in and out -- 64 KiB of plain text,
+  ;;; which is generous for a term that came off a heap. Written out as
+  ;;; numbers rather than as a `#define': a `#define' is raw C, so Cicili
+  ;;; cannot see it and a form naming one fails with `unknown symbol'.
+
+  (static) (func ae_fail ((coco_engine * e) (int rc) (size_t key) (size_t data))
+                 (out int)
+    (cond
+      ((== rc -1) (return (coco_m_domain_error e "aes_key_or_iv_length" key)))
+      ((== rc -2) (return (coco_m_type_error e "a hexadecimal atom" data)))
+      ((== rc -3) (return (coco_m_domain_error e "aes_block_multiple" data)))
+      ((== rc -4) (return (coco_m_error e "representation_error" "aes buffer")))
+      ((== rc -6) (return (coco_m_error e "aes_error" "the padding is not well formed")))
+      (#t (return (coco_m_error e "aes_error" "the cipher refused")))))
+
+  ;;; CBC: key, iv, data, answer. `op' is "ce"/"cd"; the C++ reads the
+  ;;; first character for the mode and the second for the direction.
+  (static) (func ae_cbc ((coco_engine * e) (size_t g) (const char * op)) (out int)
+    (coco-mod-args e g ((sk 0) (si 1) (sd 2) (sr 3))
+      (let ((char kh [80]) (char ih [80]) (char dh [131072]) (char out [131072])
+            (long num . 0))
+        (if (not (coco_m_text e sk kh 80))
+            (return (coco_m_type_error e "a hexadecimal key" sk)))
+        (if (not (coco_m_text e si ih 80))
+            (return (coco_m_type_error e "a hexadecimal iv" si)))
+        (if (not (coco_m_text e sd dh 131072))
+            (return (coco_m_type_error e "a hexadecimal atom" sd)))
+        (let ((int rc . #'(coco_aes_eval op kh ih dh out 131072 (aof num))))
+          (if (!= rc 0) (return (ae_fail e rc sk sd)))
+          (return (coco_m_unify_atom e sr out))))))
+
+  (static) (func ae_ecb ((coco_engine * e) (size_t g) (const char * op)) (out int)
+    (coco-mod-args e g ((sk 0) (sd 1) (sr 2))
+      (let ((char kh [80]) (char dh [131072]) (char out [131072]) (long num . 0))
+        (if (not (coco_m_text e sk kh 80))
+            (return (coco_m_type_error e "a hexadecimal key" sk)))
+        (if (not (coco_m_text e sd dh 131072))
+            (return (coco_m_type_error e "a hexadecimal atom" sd)))
+        (let ((int rc . #'(coco_aes_eval op kh "" dh out 131072 (aof num))))
+          (if (!= rc 0) (return (ae_fail e rc sk sd)))
+          (return (coco_m_unify_atom e sr out))))))
+
+  (static) (func ae_p_enc_cbc ((coco_engine * e) (size_t g)) (out int)
+    (return (ae_cbc e g "ce")))
+  (static) (func ae_p_dec_cbc ((coco_engine * e) (size_t g)) (out int)
+    (return (ae_cbc e g "cd")))
+  (static) (func ae_p_enc_ecb ((coco_engine * e) (size_t g)) (out int)
+    (return (ae_ecb e g "ee")))
+  (static) (func ae_p_dec_ecb ((coco_engine * e) (size_t g)) (out int)
+    (return (ae_ecb e g "ed")))
+
+  ;;; `aes_unpad/2' FAILS on padding that is not well formed rather than
+  ;;; raising, because "this is not padded" is an ordinary answer to an
+  ;;; ordinary question -- and a caller that decrypted with the wrong key
+  ;;; wants a `false' it can branch on, not an exception to catch.
+  (static) (func ae_pad ((coco_engine * e) (size_t g) (int add)) (out int)
+    (coco-mod-args e g ((sd 0) (sr 1))
+      (let ((char dh [131072]) (char out [131072]))
+        (if (not (coco_m_text e sd dh 131072))
+            (return (coco_m_type_error e "a hexadecimal atom" sd)))
+        (let ((int rc . #'(coco_aes_pad add dh out 131072)))
+          (if (== rc -6) (return 0))
+          (if (== rc -3) (return 0))
+          (if (!= rc 0) (return (ae_fail e rc sd sd)))
+          (return (coco_m_unify_atom e sr out))))))
+
+  (static) (func ae_p_pad ((coco_engine * e) (size_t g)) (out int)
+    (return (ae_pad e g 1)))
+  (static) (func ae_p_unpad ((coco_engine * e) (size_t g)) (out int)
+    (return (ae_pad e g 0)))
+
+  (static) (func ae_p_key_bits ((coco_engine * e) (size_t g)) (out int)
+    (coco-mod-args e g ((sk 0) (sr 1))
+      (let ((char kh [80]) (char out [80]) (long num . 0))
+        (if (not (coco_m_text e sk kh 80))
+            (return (coco_m_type_error e "a hexadecimal key" sk)))
+        (let ((int rc . #'(coco_aes_eval "bits" kh "" "" out 80 (aof num))))
+          (if (!= rc 0) (return (ae_fail e rc sk sk)))
+          (return (coco_m_unify_int e sr (cast i64 num)))))))
+
+  (extern-c
+    (coco-emit-module-dispatch coco_aes_dispatch *aes-predicates*)
+    (coco-deflibrary "aes" coco_aes_dispatch *aes-prolog*)))
