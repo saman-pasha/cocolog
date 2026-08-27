@@ -81,6 +81,10 @@ done
 #   curl    the client half, over cicili's libcurl binding. SKIPs where
 #           library/curl.so was never built, because libcurl is
 #           deliberately NOT a dependency of the core binary
+#   engine  the engine's COMPLEXITY, which nothing else here checks: a
+#           term representation can be perfectly correct and quadratic,
+#           and this one was. A timeout with a hundred-fold margin rather
+#           than a stopwatch with a threshold
 #   thread  threads that share nothing and channels that copy. Two of its
 #           claims cannot be read off the code: that eight senders lose
 #           nothing into one channel (counted, not timed) and that four
@@ -103,7 +107,7 @@ done
 #           in somebody's browser -- which is what section 1 checks
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp thread http curl httpd colab groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl httpd colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

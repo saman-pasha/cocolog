@@ -291,6 +291,43 @@ answer to "which file am I" — no argv[0] guessing, correct through
 symlinks. The caller's `$COCOLOG_LIBRARY` still comes first, because an
 override that cannot override is not one.
 
+## The engine was quadratic, and the fix is one call
+
+**`coco_make` now dereferences every argument as it stores it**, in
+`lib/term.cicili`. That one call is the difference between a linear
+interpreter and a quadratic one, and it is worth knowing why.
+
+An argument is kept as a REF cell pointing at the index it was given —
+and `coco_arg` hands back a REF. So every structure built on a previous
+one added a link, and **the continuation is exactly that**:
+`$k(Goal, Barrier, Rest)` built on the `Rest` taken out of the last one.
+A recursion 3 000 deep left a REF chain **8 999 links long**, and
+`coco_deref` walked it on every engine step.
+
+It was invisible until counted. `callgrind` put **85% of all instructions
+in `coco_deref`**; an instrumented build showed 27 million hops with a
+longest chain of 8 999. With the deref the longest is **2**.
+
+| | before | after |
+|---|---|---|
+| `between(1,20000,_), fail` | 15 529 ms | **51 ms** |
+| `findall` over 20 000 | 9 167 ms | **53 ms** |
+| `between(1,100000,_), fail` | never finished | **226 ms** |
+| naive reverse of 700 | 178 ms | 182 ms (noise) |
+
+So it is enormous for deep recursion that backtracks, and free everywhere
+else. `test/engine.sh` guards it with a **timeout at a hundred-fold
+margin**, not a stopwatch with a threshold — the latter fails on a loaded
+machine, and this property is coarse enough not to need the precision.
+
+**Why deref-at-build is safe**, since it is the obvious worry: an argument
+that is a bound variable gets stored as what it is bound *to*, and an undo
+would put the variable back while the cell still pointed at the value. But
+a cell built after a binding lives above that choice point's `heap_mark`,
+and `coco_backtrack` sets `heap_len` back to the mark — so anything that
+could see the stale value has already been dropped. It is the invariant the
+WAM builds on, and the reason it dereferences into a structure too.
+
 ## Concurrency: share nothing, copy the term
 
 `library(thread)` is threads and channels, and the shape is the one the
@@ -364,7 +401,7 @@ transaction and a machine is many rows).
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **24** case lines. A change to
+Run `make test` with a server up, and read all **25** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

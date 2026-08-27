@@ -638,21 +638,48 @@
   (func coco_set_arg ((coco_machine * m) (size_t slot) (size_t val))
         (set (nth slot (-> m heap)) (coco-cell REF val)))
 
+  ;;; EVERY ARGUMENT IS DEREFERENCED AS IT IS STORED, and that one call is
+  ;;; the difference between a linear interpreter and a quadratic one.
+  ;;;
+  ;;; An argument is kept as a REF cell pointing at the index it was given.
+  ;;; Given an index that is ITSELF a REF -- which is what `coco_arg' hands
+  ;;; back, every time -- the new cell points at a pointer, and the chain
+  ;;; grows by one link for every structure built on the last one. The
+  ;;; continuation is exactly that: `$k(Goal, Barrier, Rest)' built on the
+  ;;; Rest taken out of the previous one, so a recursion 3000 deep left a
+  ;;; REF chain 9000 long and `coco_deref' walked it on EVERY step.
+  ;;;
+  ;;; MEASURED, because it was invisible until counted: `between(1,3000,_),
+  ;;; fail' spent 85% of its instructions in coco_deref, walking a chain
+  ;;; whose longest was 8999 links, for 27 MILLION hops. With the deref
+  ;;; here the longest is 1.
+  ;;;
+  ;;; IT IS SAFE BECAUSE BACKTRACKING TRUNCATES THE HEAP. The worry is a
+  ;;; bound variable: deref stores what it is bound TO, and an undo would
+  ;;; put the variable back while this cell still pointed at the value. But
+  ;;; a cell built after a binding lives above the choice point's
+  ;;; `heap_mark', and `coco_backtrack' sets `heap_len' back to that mark --
+  ;;; so anything that could see the stale value has already been dropped.
+  ;;; That is the same invariant the WAM builds on, and the reason it
+  ;;; dereferences on the way into a structure too.
+  ;;;
+  ;;; An UNBOUND variable derefs to itself, so sharing is untouched: two
+  ;;; arguments that were the same variable still are.
   (func coco_make ((coco_machine * m) (const char * name) (u32 n) (const size_t * args)) (out size_t)
         (let ((size_t h . #'(coco_open_struct m name n)))
           (for ((u32 i . 0)) (< i n) ((++ i))
-            (coco_push m (coco-cell REF (nth (cast size_t i) args))))
+            (coco_push m (coco-cell REF (coco_deref m (nth (cast size_t i) args)))))
           (return h)))
 
   (func coco_make1 ((coco_machine * m) (const char * name) (size_t a)) (out size_t)
         (let ((size_t h . #'(coco_open_struct m name 1)))
-          (coco_push m (coco-cell REF a))
+          (coco_push m (coco-cell REF (coco_deref m a)))
           (return h)))
 
   (func coco_make2 ((coco_machine * m) (const char * name) (size_t a) (size_t b)) (out size_t)
         (let ((size_t h . #'(coco_open_struct m name 2)))
-          (coco_push m (coco-cell REF a))
-          (coco_push m (coco-cell REF b))
+          (coco_push m (coco-cell REF (coco_deref m a)))
+          (coco_push m (coco-cell REF (coco_deref m b)))
           (return h)))
 
   (func coco_cons ((coco_machine * m) (size_t h) (size_t t)) (out size_t)
