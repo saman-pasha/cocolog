@@ -2022,6 +2022,17 @@ number that has not been printed. The figures it does claim are this
 family's own, arrangement beside each -- several of them this
 repository's, from the tables above.
 
+It OPENS with the everyday row, because that is where most language
+choices are actually made -- ease of entry, syntax weight, how a page
+reads, how much code a thought costs -- and there the "less code" claim
+is a measurement rather than an adjective: The Coco's whole
+proof-of-authority consensus is 39 non-comment lines, outnumbered by its
+own explanatory prose nearly three to one. The concessions travel with
+the number -- Python wins ease of entry outright, Prolog's steepness
+lives in semantics rather than syntax (a better language to read RULES
+in, a worse one to read EXECUTION in), and misapplied Prolog is MORE
+code than Python, not less.
+
 What it says about cocolog is what this file already says, gathered:
 where it loses (strings are codes, no GC inside a solution, no clause
 indexing, no tabling or constraints, no debugger GUI or profiler or
