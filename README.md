@@ -1229,11 +1229,24 @@ language aspects, the backend work, and the four separate senses of
 [bench/languages.md](https://github.com/saman-pasha/coco/blob/master/bench/languages.md).
 It lives in a `bench/` directory because a comparison is a benchmark of
 a different kind and obeys the same rule: no sentence claims a number
-that has not been printed. It is honest in both directions, which means
-cocolog loses often — strings, GC, clause indexing, tabling, tooling,
-ecosystem — and the rows where it genuinely differs compare positions
-rather than languages: a clause is a row other processes read, a turn is
-a transaction, and a suspended proof is data any process can finish.
+that has not been printed.
+
+**It opens with the everyday row**, because that is where most language
+choices are actually made: ease of entry, syntax weight, how a page
+reads, how much code a thought costs. There the "less code" claim is a
+measurement rather than an adjective — an entire proof-of-authority
+consensus in **39** non-comment lines, outnumbered by its own
+explanatory prose nearly three to one — and it is granted honestly that
+Python wins ease of entry outright, that Prolog's steepness lives in
+semantics rather than syntax (a better language to read RULES in, a
+worse one to read EXECUTION in), and that misapplied Prolog is MORE
+code than Python, not less.
+
+It is honest in both directions throughout, which means cocolog loses
+often — strings, GC, clause indexing, tabling, tooling, ecosystem — and
+the rows where it genuinely differs compare positions rather than
+languages: a clause is a row other processes read, a turn is a
+transaction, and a suspended proof is data any process can finish.
 
 ## A worked store slows down. Truncate it.
 
