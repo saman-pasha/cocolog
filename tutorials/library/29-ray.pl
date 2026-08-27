@@ -30,6 +30,9 @@
 %%     ray_clear(+Color)
 %%     ray_rect(+X, +Y, +W, +H, +Color)      ray_circle(+X, +Y, +Rad, +Color)
 %%     ray_line(+X1, +Y1, +X2, +Y2, +Color)  ray_pixel(+X, +Y, +Color)
+%%     ray_poly(+X, +Y, +Sides, +Radius, +Rot, +Color)   filled regular
+%%     ray_poly_lines(...same...)             polygon -- six sides and
+%%                                            rotation 30 is a pointy hex
 %%     ray_text(+Text, +X, +Y, +Size, +Color)  ray_draw_fps(+X, +Y)
 %%     ray_begin3d(+PX, +PY, +PZ, +TX, +TY, +TZ, +Fov)  ray_end3d
 %%     ray_cube(+X, +Y, +Z, +W, +H, +L, +Color)  ray_cube_wires(...same...)

@@ -58,6 +58,8 @@
     ("$ray_circle"     7 ray_p_circle)
     ("$ray_line"       8 ray_p_line)
     ("$ray_pixel"      6 ray_p_pixel)
+    ("$ray_poly"       9 ray_p_poly)
+    ("$ray_poly_lines" 9 ray_p_poly_lines)
     ("$ray_text"       8 ray_p_text)
     ("ray_draw_fps"    2 ray_p_draw_fps)
     ("ray_begin3d"     7 ray_p_begin3d)
@@ -127,6 +129,10 @@
            "ray_circle(X, Y, Rad, C) :- ray_rgba(C, R, G, B, A), '$ray_circle'(X, Y, Rad, R, G, B, A)."
            "ray_line(X1, Y1, X2, Y2, C) :- ray_rgba(C, R, G, B, A), '$ray_line'(X1, Y1, X2, Y2, R, G, B, A)."
            "ray_pixel(X, Y, C) :- ray_rgba(C, R, G, B, A), '$ray_pixel'(X, Y, R, G, B, A)."
+           ;; A regular polygon at a center: six sides and rotation 30 is
+           ;; a pointy-top hex on library(hex)'s pixel centers.
+           "ray_poly(X, Y, Sides, Radius, Rot, C) :- ray_rgba(C, R, G, B, A), '$ray_poly'(X, Y, Sides, Radius, Rot, R, G, B, A)."
+           "ray_poly_lines(X, Y, Sides, Radius, Rot, C) :- ray_rgba(C, R, G, B, A), '$ray_poly_lines'(X, Y, Sides, Radius, Rot, R, G, B, A)."
            "ray_text(T, X, Y, Size, C) :- ray_rgba(C, R, G, B, A), '$ray_text'(T, X, Y, Size, R, G, B, A)."
            "ray_cube(X, Y, Z, W, H, L, C) :- ray_rgba(C, R, G, B, A), '$ray_cube'(X, Y, Z, W, H, L, R, G, B, A)."
            "ray_cube_wires(X, Y, Z, W, H, L, C) :- ray_rgba(C, R, G, B, A), '$ray_cube_wires'(X, Y, Z, W, H, L, R, G, B, A)."
@@ -185,6 +191,8 @@
   (code "void rw_cube(double x, double y, double z, double w, double h, double l, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawCube(p,(float)w,(float)h,(float)l, rw_c(r,g,b,a)); }")
   (code "void rw_cube_wires(double x, double y, double z, double w, double h, double l, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawCubeWires(p,(float)w,(float)h,(float)l, rw_c(r,g,b,a)); }")
   (code "void rw_sphere(double x, double y, double z, double rad, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawSphere(p,(float)rad, rw_c(r,g,b,a)); }")
+  (code "void rw_poly(double x, double y, long sides, double radius, double rot, long r, long g, long b, long a) { Vector2 c = { (float)x, (float)y }; DrawPoly(c, (int)sides, (float)radius, (float)rot, rw_c(r,g,b,a)); }")
+  (code "void rw_poly_lines(double x, double y, long sides, double radius, double rot, long r, long g, long b, long a) { Vector2 c = { (float)x, (float)y }; DrawPolyLines(c, (int)sides, (float)radius, (float)rot, rw_c(r,g,b,a)); }")
   (code "int rw_should_close(void) { return WindowShouldClose(); }")
   (code "int rw_ready(void) { return IsWindowReady(); }")
   (code "int rw_key_down(long k) { return IsKeyDown((int)k); }")
@@ -203,6 +211,8 @@
   (decl) (func rw_cube ((double x) (double y) (double z) (double w) (double h) (double l) (long r) (long g) (long b) (long a)))
   (decl) (func rw_cube_wires ((double x) (double y) (double z) (double w) (double h) (double l) (long r) (long g) (long b) (long a)))
   (decl) (func rw_sphere ((double x) (double y) (double z) (double rad) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_poly ((double x) (double y) (long sides) (double radius) (double rot) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_poly_lines ((double x) (double y) (long sides) (double radius) (double rot) (long r) (long g) (long b) (long a)))
   (decl) (func rw_should_close () (out int))
   (decl) (func rw_ready () (out int))
   (decl) (func rw_key_down ((long k)) (out int))
@@ -341,6 +351,36 @@
           (if (not (ray_iarg e g 0 (aof x))) (return 0))
           (if (not (ray_iarg e g 1 (aof y))) (return 0))
           (DrawFPS (cast int x) (cast int y))
+          (return 1)))
+
+  (func ray_p_poly ((coco_engine * e) (size_t g)) (out int)
+        (let ((double x . 0.0) (double y . 0.0) (i64 sides . 0)
+              (double rad . 0.0) (double rot . 0.0) (i64 c [4]))
+          (if (not (ray_farg e g 0 (aof x))) (return 0))
+          (if (not (ray_farg e g 1 (aof y))) (return 0))
+          (if (not (ray_iarg e g 2 (aof sides))) (return 0))
+          (if (not (ray_farg e g 3 (aof rad))) (return 0))
+          (if (not (ray_farg e g 4 (aof rot))) (return 0))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 5) (+ c j))) (return 0)))
+          (rw_poly x y (cast long sides) rad rot
+                   (cast long (nth 0 c)) (cast long (nth 1 c))
+                   (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  (func ray_p_poly_lines ((coco_engine * e) (size_t g)) (out int)
+        (let ((double x . 0.0) (double y . 0.0) (i64 sides . 0)
+              (double rad . 0.0) (double rot . 0.0) (i64 c [4]))
+          (if (not (ray_farg e g 0 (aof x))) (return 0))
+          (if (not (ray_farg e g 1 (aof y))) (return 0))
+          (if (not (ray_iarg e g 2 (aof sides))) (return 0))
+          (if (not (ray_farg e g 3 (aof rad))) (return 0))
+          (if (not (ray_farg e g 4 (aof rot))) (return 0))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 5) (+ c j))) (return 0)))
+          (rw_poly_lines x y (cast long sides) rad rot
+                         (cast long (nth 0 c)) (cast long (nth 1 c))
+                         (cast long (nth 2 c)) (cast long (nth 3 c)))
           (return 1)))
 
   ;;; ---- 3D ----
