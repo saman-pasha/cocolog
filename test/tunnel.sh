@@ -163,6 +163,45 @@ if openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/edge.pem" \
           --kb tunnel_test query 'edge_fact(X)' 2>&1 >/dev/null | head -1)
   check "and says so on stderr" "$got" "cocolog: --insecure: the server is NOT being verified"
 
+  # ---- AND FROM INSIDE A PROGRAM: library(curl) reaches Zeytun over https.
+  #
+  # The `--https' checks above are the ARRANGEMENT reading its knowledge
+  # base through the edge. This is the other reader a Colab tunnel has: a
+  # cocolog PROGRAM, using library(curl), fetching a Zeytun page with an
+  # https:// URL -- which is the only kind of URL a quick tunnel has. The
+  # page is a real one (`/cocolog/predicates.zt', the same page `--http'
+  # warms from), the certificate is verified with `ca_info(...)' against
+  # the very cert the edge presents, and the hostname check has something
+  # true to check because the URL says `localhost' and so does the subject.
+  #
+  # THE DEFAULT IS ALSO HELD: without ca_info, the self-signed edge must be
+  # REFUSED, because verification defaulting to on is the client's security
+  # posture (test/curl.sh pins it for file URLs; this pins it against a
+  # live TLS listener). A curl_get that quietly trusted a self-signed edge
+  # would pass every other line in this file and be wrong.
+  if [ -f "$ROOT/library/curl.so" ] && \
+     timeout 20 "$C" query "use_module(library(curl)), write(ok), nl" 2>/dev/null \
+       | grep -aq '\bok\b'; then
+    got=$(timeout 60 "$C" query "use_module(library(curl)), \
+            curl_get('https://localhost:18443/cocolog/predicates.zt?kb=tunnel_test', \
+                     [ca_info('$OUT/edge.crt')], S, B), \
+            atom_codes(A, B), \
+            ( S == 200, sub_atom(A, _, _, _, edge_fact) -> write(answer(page_read)) \
+            ; write(answer(wrong(S))) ), nl" 2>/dev/null \
+          | grep -aoE 'answer\([^)]*\)' | head -1)
+    check "curl_get reads a Zeytun page through the TLS edge" \
+      "$got" "answer(page_read)"
+
+    got=$(timeout 60 "$C" query "use_module(library(curl)), \
+            ( curl_get('https://localhost:18443/cocolog/predicates.zt?kb=tunnel_test', S, _) \
+            -> write(answer(fetched(S))) ; write(answer(refused)) ), nl" 2>/dev/null \
+          | grep -aoE 'answer\([^)]*\)' | head -1)
+    check "and without ca_info the self-signed edge is refused" \
+      "$got" "answer(refused)"
+  else
+    echo "curl: SKIP (no library/curl.so -- sh modules/curl/build.sh)"
+  fi
+
   kill "$EDGE_PID" 2>/dev/null; wait "$EDGE_PID" 2>/dev/null; EDGE_PID=
 
   # THE HOSTNAME IS CHECKED, and this is how we know: a SECOND edge, on the

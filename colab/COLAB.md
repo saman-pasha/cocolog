@@ -171,6 +171,16 @@ with nothing but a URL:
 | Cloudflare | a quick tunnel in front of Zeytun (port 2190) | `cloudflared` dials **out**; the URL forwards down it |
 | everywhere else | querying cocologs, browsers | `--https --host NAME.trycloudflare.com`, read only |
 
+A PROGRAM behind the tunnel reads the same pages the same way:
+`library(curl)` speaks https natively, so
+`curl_get('https://NAME.trycloudflare.com/cocolog/predicates.zt?kb=brain', S, B)`
+fetches a Zeytun page from inside a query, verified against the system
+roots -- which is all a trycloudflare certificate needs. `test/tunnel.sh`
+holds both readers against a local TLS edge: the `--https` arrangement,
+and a `curl_get` with an https URL -- including that a certificate the
+caller did not vouch for is refused, because verification defaulting to
+ON is the client's security posture.
+
 The reason this composes at all is the project's one claim: **a trained
 model is clauses.** `model_save/2` is `model_spec/2` and `model_params/2`
 and an assert, so what training produces is rows — and rows travel over
