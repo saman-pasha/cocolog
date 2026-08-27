@@ -174,7 +174,7 @@ writing `tutorials/library/26-x509.pl` is what established that
 not the whole structure, four bytes short of what its own header
 promises. Every claim in such a file is a `must/3` — `Got ==
 Want`, or the file fails naming both answers — so the tutorial is a
-test of the surface as documented, and writing the thirty that
+test of the surface as documented, and writing the thirty-one that
 exist found something every time: `bigint_cmp/3` answering `<`, `=`,
 `>` where the README said `-1/0/1`; `curl_get/2` never having been the
 API; `httpd_content_type/2` keyed on the bare extension where

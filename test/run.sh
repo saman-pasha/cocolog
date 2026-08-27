@@ -124,7 +124,7 @@ done
 #           The torch category SKIPs inside the case without libtorch
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl ray hex serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp engine thread http curl ray hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

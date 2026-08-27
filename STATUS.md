@@ -26,11 +26,12 @@ different findings.
 | `test/thread.sh` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
 | `test/httpd.sh` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
 | `test/crypto.sh` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
-| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-six tutorial files in three categories — eleven `basics/` and thirty-one `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-seven tutorial files in three categories — eleven `basics/` and thirty-two `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
 | `test/tls.sh` | `library(tls)`: a server and three clients AS SEPARATE PROCESSES -- enrolled, impostor, browser -- because a handshake is between two ends that do not share memory. The permissions that rode in with alice's certificate, the impostor refused and told why, the server carrying on serving afterwards, a certificate-less client admitted and granted nothing, four bogus handles refusing rather than crashing, and an accept that times out and frees its slot -- 19 checks |
 | `test/httpd-tls.sh` | the same server over TLS, and the seam that keeps them one server: routing, keep-alive, the path rules and `httpd_answer/3` are the SAME code on both, and a page reads the peer's subject and permissions as two synthetic headers. Weighted on the reverse-proxy hole -- a client sending `Tls-Peer-Subject: CN=root` must not be believed, and on a plain connection those headers are stripped and not replaced -- 9 checks |
 | `test/zigurat-tls.sh` | `--tls`, the binary protocol over TLS, against TWO terminators -- one per `SERVER/TLS_CLIENT_AUTH` setting. The handshake before the greeting, a clause written and read back by two processes over an encrypted connection, the hostname checked and not just the chain, plaintext against a TLS port refused, and all four certificate combinations including the one that must be legible: no certificate where one is required -- 11 checks |
 | `test/hex.sh` | `library(hex)`: hexagonal-grid arithmetic held to its IDENTITIES rather than spot values -- ring sizes 6R, disk sizes 1+3R(R+1), lines distance+1 with every step distance one, six left-rotations the identity, and offset (all four layouts, negatives included) and pixel (both orientations) conversions round-tripping over whole 7x7 windows -- 19 checks |
+| `test/astar.sh` | `library(astar)`: A* whose graph is two caller goals, held to an ORACLE -- on a costed hex grid, the heuristic search must answer the exact cost the exported Dijkstra answers across twelve varied pairs -- plus the laws: paths connect through the caller's own neighbor goal, costs sum, walls detour, unreachable fails, and the same question twice is the same path (the pinned tiebreak, observed) -- 7 checks |
 | `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 
 ## The three document libraries, and the round trip that checks them
@@ -390,7 +391,7 @@ in the suite rather than a script beside it:
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons: facts and rules, unification, lists, arithmetic, cut, `findall`, assert and retract, atoms and codes, exceptions, grammars, and the knowledge base | nothing at all |
-| `tutorials/library/` | thirty-one lessons, **one per library that ships** — tier 1 and tier 2 alike | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | thirty-two lessons, **one per library that ships** — tier 1 and tier 2 alike | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
 
 **Every claim in the first two is a `must/3`**, which is what makes them
@@ -2076,6 +2077,26 @@ optional in this family.
 spot values -- a spot value can be right by accident; a 7x7 round-trip
 window cannot. 19 checks. `tutorials/library/30-hex.pl` in the same
 commit, as the rule demands.
+
+### library(astar): shortest paths over a graph of goals
+
+Textbook A* as clauses -- `library/astar.pl`, no build step -- whose
+graph is TWO GOALS THE CALLER SUPPLIES: `call(Neighbor, Node, Next,
+StepCost)` enumerates edges, `call(Heuristic, Node, H)` estimates. The
+search never sees a map, which is the point: for a game the neighbor
+goal IS the game's movement rule -- a hex neighbor that is on the map,
+not a wall, at the terrain's cost -- nondeterministic clauses a C half
+could not call back into. `shortest_path/5` is the zero heuristic
+(Dijkstra), exported both as the API's simple face and as the ORACLE:
+test/astar.sh holds astar's costs to Dijkstra's across twelve varied
+pairs on a costed hex grid, because a pathfinder's classic failure is
+being almost right. Ties break by the standard order of terms, so the
+same question is always the same path. Honest limits in the header:
+linear open-list insertion (fine for thousands of nodes, not millions
+-- a heap is the day-two change), ground nodes, non-negative costs.
+It exists because CivV's movement rung asked; it answers for every
+game with a map. 7 checks; `tutorials/library/31-astar.pl` in the same
+commit.
 
 ### library(ray): a game window from clauses, held to pixels
 
