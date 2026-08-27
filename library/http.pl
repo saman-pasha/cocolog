@@ -66,11 +66,25 @@
 %% ---- the entry point -------------------------------------------------
 
 %% http_request(+Codes, -Request) is semidet.
-http_request(Codes, request(Method, Path, Query, Version, Headers, Body)) :-
-    phrase(http_request_head(Method, Target, Version, Headers), Codes, Rest),
+http_request(Codes, Request) :- http_request(Codes, Request, _).
+
+%% http_request(+Codes, -Request, -Rest) is semidet.
+%% Rest is WHAT WAS NOT THIS REQUEST -- the bytes after the body
+%% Content-Length accounted for. On a connection that carries one request
+%% those are none; on a persistent one they are the beginning of the next,
+%% arrived in the same read, and library(httpd) parses them without going
+%% back to the socket.
+%%
+%% THIS IS THE SAME RULE AS ABOVE READ FORWARDS. Believing Content-Length
+%% exactly is what stops two requests being read as one; handing back what
+%% is left over is what lets the second one be read as ITSELF. A server
+%% without this either loses the pipelined request or, if it reads past the
+%% length instead, is the smuggling bug the header warns about.
+http_request(Codes, request(Method, Path, Query, Version, Headers, Body), Rest) :-
+    phrase(http_request_head(Method, Target, Version, Headers), Codes, After),
     !,
     \+ member('transfer-encoding'-_, Headers),
-    http_body(Headers, Rest, Body),
+    http_body(Headers, After, Body, Rest),
     http_target(Target, Path, Query).
 
 %% http_header(+Request, +Name, -Value) is semidet.
@@ -81,13 +95,20 @@ http_header(request(_,_,_,_,Headers,_), Name, Value) :-
 
 %% The body of a request that carries one. Absent Content-Length means no
 %% body at all: a length nobody stated is zero, never "whatever arrived".
-http_body(Headers, Rest, Body) :-
+http_body(Headers, After, Body) :- http_body(Headers, After, Body, _).
+
+%% Rest is what followed the body. `append(Body, Rest, After)' with Body's
+%% length already fixed is the same test the discarding version made -- it
+%% fails when fewer than N bytes arrived -- and keeps the remainder instead
+%% of dropping it.
+http_body(Headers, After, Body, Rest) :-
     (   memberchk('content-length'-L, Headers)
     ->  atom_number(L, N),
         N >= 0,
         length(Body, N),
-        append(Body, _, Rest)     % fails when fewer than N bytes arrived
-    ;   Body = []
+        append(Body, Rest, After)   % fails when fewer than N bytes arrived
+    ;   Body = [],
+        Rest = After
     ).
 
 %% ---- the request line and headers ------------------------------------

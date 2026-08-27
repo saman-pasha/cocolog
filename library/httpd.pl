@@ -35,6 +35,9 @@
 %%                        should not have a document root by accident
 %%     index(Name)        what a directory answers with  (default index.html)
 %%     pages(Bool)        consult httpd_page/3 first     (default true)
+%%     keep_alive(Bool)   persistent connections           (default true)
+%%     max_keep_alive(N)  requests one connection may make (default 100)
+%%     keep_alive_timeout(Ms)  idle wait for the next request  (default 2000)
 %%     page_limit(N)      inferences ONE page may spend    (default 1000000)
 %%     max_file(Bytes)    larger is 413, not a slow 200  (default 1 MiB)
 %%     max_request(Bytes) larger is refused              (default 64 KiB)
@@ -107,12 +110,31 @@
 %% this does not, and lib/builtins.cicili says at length why it did not
 %% borrow the name.
 %%
+%% KEEP-ALIVE, AND WHAT IT COSTS HERE. Connections persist by default,
+%% RFC 7230 section 6.3 in both directions: HTTP/1.1 unless the client says
+%% `Connection: close', HTTP/1.0 only if it asks. Pipelined requests work,
+%% because library(http)'s http_request/3 hands back what was not this
+%% request and the loop parses that before touching the socket again.
+%%
+%% BUT THIS SERVER TAKES ONE CONNECTION AT A TIME, so a persistent
+%% connection is a connection nobody else can have. That is worth stating
+%% plainly rather than burying: with the defaults a single client can hold
+%% the server for max_keep_alive x keep_alive_timeout -- 100 x 2s -- doing
+%% nothing at all.
+%%
+%% It is not, however, a new exposure. Without keep-alive the same client
+%% opens a connection, says nothing, and holds it for read_timeout; then
+%% does it again. Keep-alive changes the constant, not the shape. THE
+%% EXPOSURE IS THE SINGLE CONNECTION, and the fix for it is concurrency,
+%% which this file does not have. The short idle timeout is what keeps the
+%% constant small in the meantime, and `keep_alive(false)' turns the whole
+%% thing off for anyone who would rather pay the handshakes.
+%%
 %% WHAT IT IS NOT: there is no chunked encoding (library(http) refuses it
-%% on the way in too), no keep-alive -- one request per connection, and the
-%% close is the end of the body -- and no TLS. It is one connection at a
-%% time, which is the honest shape for a server whose pages share one
-%% knowledge base: two requests mutating the same store concurrently is a
-%% question this file does not get to answer on its own.
+%% on the way in too) and no TLS. And it is still one connection at a time,
+%% which is the honest shape for a server whose pages share one knowledge
+%% base: two requests mutating the same store concurrently is a question
+%% this file does not get to answer on its own.
 
 :- use_module(library(http)).
 
@@ -156,11 +178,38 @@ httpd_loop(_, _, _).
 httpd_transact(C, Options) :-
     httpd_option(max_request(MR), Options, 65536),
     httpd_option(read_timeout(RT), Options, 5000),
-    (   httpd_read_request(C, MR, RT, [], Request)
-    ->  httpd_answer(Options, Request, Out)
-    ;   http_response(400, [], 'bad request', Out)
-    ),
-    tcp_write(C, Out).
+    httpd_conversation(C, Options, MR, RT, [], 1).
+
+%% ---- one connection, one or more requests -----------------------------
+
+%% A PERSISTENT CONNECTION IS A LOOP, not a special case bolted on. The
+%% state carried round is the bytes that arrived and were NOT this request
+%% -- the beginning of the next one, if the client pipelined -- and the
+%% count, which is what max_keep_alive bounds.
+httpd_conversation(C, Options, MR, RT, Buffered, N) :-
+    (   httpd_read_request(C, MR, RT, Buffered, Request, Rest)
+    ->  httpd_keep(Options, Request, N, Keep),
+        httpd_connection_header(Keep, Extra),
+        httpd_answer(Options, Request, Extra, Out),
+        tcp_write(C, Out),
+        (   Keep == keep
+        ->  httpd_option(keep_alive_timeout(KT), Options, 2000),
+            N1 is N + 1,
+            httpd_conversation(C, Options, MR, KT, Rest, N1)
+        ;   true
+        )
+    ;   %% NOTHING PARSEABLE, and what that means depends on where we are.
+        %% On the FIRST request the client sent rubbish, or nothing, and 400
+        %% is the answer. On a LATER one it simply went away -- an idle
+        %% keep-alive connection ending is the normal end of a conversation,
+        %% not an error, and writing 400 into a socket nobody is reading is
+        %% noise in the log at both ends.
+        (   N =:= 1
+        ->  http_response(400, ['Connection'-close], 'bad request', Out),
+            tcp_write(C, Out)
+        ;   true
+        )
+    ).
 
 %% READ UNTIL IT PARSES, because one tcp_read is not a request. A POST
 %% larger than a segment arrives in pieces, and library(http) fails on a
@@ -169,15 +218,54 @@ httpd_transact(C, Options) :-
 %% input and on timeout, and because the accumulated length is checked
 %% against the ceiling every round: a client that sends for ever is cut off
 %% by max_request rather than believed.
-httpd_read_request(C, MR, RT, Acc, Request) :-
-    tcp_read(C, MR, RT, Chunk),
-    append(Acc, Chunk, All),
-    length(All, N),
-    N =< MR,
-    (   http_request(All, Request)
+%%
+%% THE BUFFER IS TRIED BEFORE THE SOCKET, which is what makes pipelining
+%% work and is not merely an optimisation: a second request that arrived in
+%% the same segment as the first is already in hand, and going back to
+%% tcp_read for it would block until the idle timeout and then answer a
+%% request the client sent long ago.
+httpd_read_request(C, MR, RT, Acc, Request, Rest) :-
+    (   http_request(Acc, Request, Rest)
     ->  true
-    ;   httpd_read_request(C, MR, RT, All, Request)
+    ;   tcp_read(C, MR, RT, Chunk),
+        append(Acc, Chunk, All),
+        length(All, N),
+        N =< MR,
+        httpd_read_request(C, MR, RT, All, Request, Rest)
     ).
+
+%% RFC 7230 section 6.3, both halves of it: HTTP/1.1 persists unless the
+%% client says `Connection: close', and HTTP/1.0 closes unless it says
+%% `Connection: keep-alive'. Getting the 1.0 half wrong is the version that
+%% hangs an old client, which waits for an end-of-body that never comes
+%% because the server is waiting for a request it will never send.
+httpd_keep(Options, Request, N, Keep) :-
+    httpd_option(keep_alive(KA), Options, true),
+    httpd_option(max_keep_alive(Max), Options, 100),
+    Request = request(_, _, _, Version, _, _),
+    (   KA \== true                     -> Keep = close
+    ;   N >= Max                        -> Keep = close
+    ;   httpd_connection_is(Request, close) -> Keep = close
+    ;   Version = http(1, 1)            -> Keep = keep
+    ;   httpd_connection_is(Request, 'keep-alive') -> Keep = keep
+    ;   Keep = close
+    ).
+
+%% The header is a COMMA-SEPARATED LIST of tokens -- `keep-alive, Upgrade'
+%% is ordinary -- so this looks for the token inside the value rather than
+%% testing the whole of it. `close' is not a substring of `keep-alive', and
+%% a value naming both means close, which the caller's order gives it.
+httpd_connection_is(Request, Token) :-
+    http_header(Request, 'Connection', V),
+    downcase_atom(V, D),
+    sub_atom(D, _, _, _, Token).
+
+%% SAID EXPLICITLY IN BOTH DIRECTIONS. `Connection: close' is the only
+%% warning a client gets that this is the last response on the socket, and
+%% while `keep-alive' is the HTTP/1.1 default and needs no announcing, an
+%% HTTP/1.0 client will not persist without hearing it.
+httpd_connection_header(close, ['Connection'-close]).
+httpd_connection_header(keep,  ['Connection'-'keep-alive']).
 
 %% ---- a request in, bytes out ------------------------------------------
 
@@ -192,19 +280,28 @@ httpd_read_request(C, MR, RT, Acc, Request) :-
 %% rather than a search for the blank line: http_response/4 appends the
 %% body last, so the head is everything but the final |Body| codes, and a
 %% body that happens to contain CRLFCRLF cannot confuse it.
-httpd_answer(Options, request(head, P, Q, V, H, B), Codes) :-
+httpd_answer(Options, Request, Codes) :-
+    httpd_answer(Options, Request, [], Codes).
+
+%% httpd_answer(+Options, +Request, +Extra, -Codes) is semidet.
+%% Extra rides in FRONT of whatever the route decided, so the connection
+%% loop can say `Connection: close' without the router knowing a connection
+%% exists. Everything above this line is still a request in and bytes out.
+httpd_answer(Options, request(head, P, Q, V, H, B), Extra, Codes) :-
     !,
     httpd_route(Options, request(get, P, Q, V, H, B), reply(S, Hs, Body)),
-    http_response(S, Hs, Body, Full),
+    append(Extra, Hs, All),
+    http_response(S, All, Body, Full),
     http_body_codes(Body, BC),
     length(BC, BL),
     length(Full, T),
     HL is T - BL,
     length(Codes, HL),
     append(Codes, _, Full).
-httpd_answer(Options, Request, Codes) :-
+httpd_answer(Options, Request, Extra, Codes) :-
     httpd_route(Options, Request, reply(S, Hs, Body)),
-    http_response(S, Hs, Body, Codes).
+    append(Extra, Hs, All),
+    http_response(S, All, Body, Codes).
 
 %% ---- routing ----------------------------------------------------------
 

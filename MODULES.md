@@ -474,6 +474,22 @@ predicate in a vendored file is callable, including the ones upstream keeps
 private. That is a real difference in behaviour and is recorded rather than
 papered over.
 
+### `http_request/3`: what was not this request
+
+    http_request(Codes, Request, Rest)
+
+`Rest` is the bytes after the body `Content-Length` accounted for — none on a
+connection carrying one request, and the beginning of the *next* one on a
+persistent connection where both arrived in the same read.
+
+**It is the same rule as `http_request/2`'s, read forwards.** Believing
+`Content-Length` exactly is what stops two requests being read as one;
+handing back what is left over is what lets the second be read as *itself*.
+`http_request/2` discarded it, which is safe but loses a pipelined request —
+and a server that instead read past the length would be the smuggling bug
+`library(http)`'s own header warns about. `library(httpd)` parses `Rest`
+before going back to the socket, so a pipelined pair costs one read.
+
 ### A goal under a ceiling: `call_limited/3`
 
     call_limited(Goal, Limit, Result)

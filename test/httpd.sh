@@ -314,6 +314,15 @@ cat > "$D/server.pl" <<PL
 :- use_module('$D/pages/hello.pl').
 
 serve(Port) :- httpd_serve(Port, [root('$D/root')], 4).
+
+%% ONE ACCEPT. Everything the keep-alive cases do happens on the single
+%% connection that accept returns, which is what makes "one accept, three
+%% answers" a proof rather than a coincidence.
+serve_ka(Port) :- httpd_serve(Port, [root('$D/root')], 1).
+serve_capped(Port) :-
+    httpd_serve(Port, [root('$D/root'), max_keep_alive(2)], 1).
+serve_noka(Port) :-
+    httpd_serve(Port, [root('$D/root'), keep_alive(false)], 1).
 PL
 
 # Detached: a plain \`&' from a tool call does not survive the turn, the
@@ -344,6 +353,147 @@ check "raw traversal bytes, straight down a socket, are refused" \
         tcp_close(S), atom_codes(A, R), sub_atom(A, 9, 3, _, St),
         write(answer(St)), nl" 2>/dev/null \
      | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//')" "400"
+wait 2>/dev/null
+fi
+
+echo "-- keep-alive: more than one request down one socket"
+if [ ! -x "$C" ]; then :; else
+# THE CLIENT HAS TO HOLD THE SOCKET, which curl will not be told to do
+# per-request and which is the whole thing under test -- so it is written
+# with library(tcp), in this repository, one connection and several
+# write/read turns on it.
+cat > "$D/client.pl" <<'PL'
+%% Sends each request in Reqs down ONE connection and collects what came
+%% back. Status only, plus whether the response said keep-alive or close --
+%% between them that is the entire contract.
+talk(Port, Reqs, Out) :-
+    tcp_connect('127.0.0.1', Port, S),
+    turns(S, Reqs, Parts),
+    tcp_close(S),
+    atomic_list_concat(Parts, ' ', Out).
+
+turns(_, [], []).
+turns(S, [R|Rs], [P|Ps]) :-
+    atom_codes(R, C), tcp_write(S, C),
+    (   tcp_read(S, 65536, 3000, Bytes)
+    ->  atom_codes(A, Bytes), verdict(A, P)
+    ;   P = 'no-answer'
+    ),
+    turns(S, Rs, Ps).
+
+%% BOTH HALVES MATTER: a server can answer correctly and still have closed,
+%% and the next turn would then read nothing at all.
+verdict(A, P) :-
+    sub_atom(A, 9, 3, _, St),
+    (   sub_atom(A, _, _, _, 'Connection: keep-alive') -> K = keep
+    ;   sub_atom(A, _, _, _, 'Connection: close')      -> K = close
+    ;   K = silent
+    ),
+    atomic_list_concat([St, '/', K], P).
+
+%% Everything in one write, which is what pipelining is.
+pipeline(Port, Text, Out) :-
+    tcp_connect('127.0.0.1', Port, S),
+    atom_codes(Text, C), tcp_write(S, C),
+    drain(S, [], Bytes),
+    tcp_close(S),
+    atom_codes(A, Bytes),
+    findall(x, sub_atom(A, _, _, _, 'HTTP/1.1 200'), Xs),
+    length(Xs, N),
+    atomic_list_concat([n, N], Out).
+
+%% READ UNTIL NOTHING MORE COMES. The server answers a pipelined pair with
+%% TWO writes, so they need not arrive in one segment -- and reading once
+%% and counting is how this case first claimed the server had answered ONE
+%% request when a socket-level check showed it had answered both. The
+%% timeout ends the drain: after the last response the server is waiting
+%% for another request, so nothing further arrives.
+drain(S, Acc, Out) :-
+    (   tcp_read(S, 65536, 2000, B)
+    ->  append(Acc, B, More),
+        drain(S, More, Out)
+    ;   Out = Acc
+    ).
+PL
+
+G="use_module('$D/client.pl')"
+kq() { timeout 60 "$C" query "$G, $1" 2>/dev/null \
+       | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
+
+# ONE ACCEPT, several requests. httpd_serve/3 counts ACCEPTS, so a server
+# told to accept once that answers three requests has kept the connection
+# alive -- there was no second connection for them to arrive on.
+setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18861)" >/dev/null 2>&1 &
+sleep 3
+check "three requests, one connection, one accept" \
+  "$(kq "talk(18861, ['GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n',
+                      'GET /hello HTTP/1.1\r\nHost: x\r\n\r\n',
+                      'GET /nope HTTP/1.1\r\nHost: x\r\n\r\n'], O),
+         write(answer(O)), nl")" \
+  "200/keep 200/keep 404/keep"
+wait 2>/dev/null
+
+# `Connection: close' ENDS IT, and the response says so before it does.
+setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18862)" >/dev/null 2>&1 &
+sleep 3
+check "a client asking to close is told close, and then is" \
+  "$(kq "talk(18862, ['GET /a.txt HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n',
+                      'GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n'], O),
+         write(answer(O)), nl")" \
+  "200/close no-answer"
+wait 2>/dev/null
+
+# HTTP/1.0 IS THE OTHER HALF OF RFC 7230 6.3, and the half that is easy to
+# get wrong: it must NOT persist unless it asked to. A 1.0 client left
+# hanging waits for an end-of-body that never comes.
+setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18863)" >/dev/null 2>&1 &
+sleep 3
+check "HTTP/1.0 closes unless it asks to persist" \
+  "$(kq "talk(18863, ['GET /a.txt HTTP/1.0\r\nHost: x\r\n\r\n',
+                      'GET /a.txt HTTP/1.0\r\nHost: x\r\n\r\n'], O),
+         write(answer(O)), nl")" \
+  "200/close no-answer"
+wait 2>/dev/null
+
+setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18864)" >/dev/null 2>&1 &
+sleep 3
+check "and persists when it does ask" \
+  "$(kq "talk(18864, ['GET /a.txt HTTP/1.0\r\nHost: x\r\nConnection: keep-alive\r\n\r\n',
+                      'GET /a.txt HTTP/1.0\r\nHost: x\r\nConnection: keep-alive\r\n\r\n'], O),
+         write(answer(O)), nl")" \
+  "200/keep 200/keep"
+wait 2>/dev/null
+
+# PIPELINING: both requests in ONE write. This is what http_request/3's
+# remainder buys -- without it the second request's bytes are read as part
+# of the first and silently dropped.
+setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18865)" >/dev/null 2>&1 &
+sleep 3
+check "two requests in one write get two answers" \
+  "$(kq "pipeline(18865, 'GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\nGET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n', O),
+         write(answer(O)), nl")" "n2"
+wait 2>/dev/null
+
+# THE CEILING ON A CONNECTION. max_keep_alive(2) means the SECOND response
+# is the last, and says close rather than simply going quiet.
+setsid timeout 40 "$C" run "$D/server.pl" "serve_capped(18866)" >/dev/null 2>&1 &
+sleep 3
+check "max_keep_alive closes the connection, and announces it" \
+  "$(kq "talk(18866, ['GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n',
+                      'GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n',
+                      'GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n'], O),
+         write(answer(O)), nl")" \
+  "200/keep 200/close no-answer"
+wait 2>/dev/null
+
+# AND OFF IS OFF, for anyone who would rather pay the handshakes.
+setsid timeout 40 "$C" run "$D/server.pl" "serve_noka(18867)" >/dev/null 2>&1 &
+sleep 3
+check "keep_alive(false) closes after one, as it always did" \
+  "$(kq "talk(18867, ['GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n',
+                      'GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n'], O),
+         write(answer(O)), nl")" \
+  "200/close no-answer"
 wait 2>/dev/null
 fi
 

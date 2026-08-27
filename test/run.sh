@@ -86,7 +86,9 @@ done
 #           encoded traversal, NUL truncation and source disclosure --
 #           each checked with the file it would have leaked really on
 #           disk. Most of it opens no port, because httpd_answer/3 is
-#           the whole server minus the accept loop
+#           the whole server minus the accept loop; the keep-alive cases
+#           do, because holding ONE socket across several requests is the
+#           thing under test and no client library can be asked to prove it
 #   tcp     the socket seam: a handle that is NOT a file descriptor, a
 #           timeout that fails rather than hanging, every byte surviving
 #           a read, and one process reaching another
