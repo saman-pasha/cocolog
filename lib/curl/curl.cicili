@@ -118,6 +118,12 @@
 
   (include <curl/curl.h>)
 
+  ;;; `toupper' -- for the method name, below. NAMED EXPLICITLY because the
+  ;;; std prelude's headers do not travel into a separate translation unit,
+  ;;; and an implicitly declared `toupper' is undefined behaviour that gcc 14
+  ;;; and C23 make a hard error rather than the warning it used to be.
+  (include <ctype.h>)
+
   ;;; A cast takes ONE type token, so `unsigned char *' cannot be written.
   ;;; Declared here rather than borrowed from lib/tcp.cicili, because this
   ;;; is a separate translation unit and a typedef does not travel.

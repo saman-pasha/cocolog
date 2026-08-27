@@ -225,6 +225,16 @@ someone who wants an interpreter and no network, so `library(curl)` is a
 `.so` built by `sh lib/curl/build.sh` and is not part of `make`. torch
 and bigint went the other way because the binary's own story needs them.
 
+**A `.so` is BUILD OUTPUT and is never committed** — nor is the C Cicili
+generates beside it, nor `lib/curl/sdk.cicili`, which is a symlink into
+this checkout and dangles in anyone else's. All three were, once, and the
+mistake is easy to make because they sit beside sources: `library/` holds
+`http.pl`, which *is* source. A compiled object is linked against one
+machine's libcurl and OpenSSL; it belongs in a release, not in a source
+tree. `.gitignore` now says so; `sh lib/curl/build.sh` remakes all three
+from `build.sh` and `curl.cicili` alone, which is the test of whether
+anything else in that directory needed keeping.
+
 **THE PATH IS ANCHORED TO THE BINARY, not to the working directory**, and
 that was a bug worth naming. `./library` finds what shipped only when
 cocolog is run from its own checkout — an installed one, or one invoked

@@ -35,3 +35,11 @@ torch/coco-torch.cpp
 /KB/
 test/hoot.c
 test/hoot.so
+
+# library(curl)'s build output and its symlink into this checkout
+# (lib/curl/build.sh makes all three; only build.sh and curl.cicili are
+# tracked). A .so is a compiled x86-64 object linked against ONE machine's
+# libcurl and OpenSSL -- it belongs in a release, never in the source.
+library/*.so
+lib/curl/curl.c
+lib/curl/sdk.cicili
