@@ -118,6 +118,11 @@
   (include <sys/stat.h>)
   (include <sys/types.h>)
   (include <dirent.h>)
+  ;; and open(2), for read_file_to_codes/2 -- the same rule as <unistd.h>
+  ;; above: lib/std/c/posix/fcntl.cicili declares `open' and O_RDONLY so
+  ;; Cicili can infer through them, and the target still has to name the
+  ;; header so the emitted C has them too
+  (include <fcntl.h>)
   ;; sockets, for lib/tcp.cicili -- a module's includes are the target's,
   ;; the way <sys/stat.h> and <dirent.h> above are the files module's
   (include <sys/socket.h>)

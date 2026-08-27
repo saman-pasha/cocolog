@@ -216,7 +216,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — `curl.so` |
 
 **A thing belongs in tier 2 when its dependency should not be
@@ -289,7 +289,7 @@ transaction and a machine is many rows).
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **22** case lines. A change to
+Run `make test` with a server up, and read all **23** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

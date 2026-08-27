@@ -67,6 +67,7 @@
     ("access_file"           2 coco_f_access_file)
     ("size_file"             2 coco_f_size_file)
     ("time_file"             2 coco_f_time_file)
+    ("read_file_to_codes"    2 coco_f_read_file_to_codes)
 
     ("delete_file"           1 coco_f_delete_file)
     ("rename_file"           2 coco_f_rename_file)
@@ -228,6 +229,77 @@
           (if (!= 0 (stat p (aof sb))) (return 0))
           (return (coco_m_unify_float e (coco_m_arg e g 1)
                                     (cast double ($ sb st_mtime))))))
+
+  ;;; THE ONLY WAY TO READ A FILE'S BYTES, and until this existed there was
+  ;;; none: `consult' reads Prolog source in C and hands a program nothing,
+  ;;; so a static file could not be served by clauses at all.
+  ;;;
+  ;;; CODES, NOT AN ATOM, for the reason library(http) parses codes: an atom
+  ;;; in cocolog is a C string and stops at the first NUL, so an atom-shaped
+  ;;; read would truncate every PNG at its header. A file is bytes.
+  ;;;
+  ;;; THE CEILING IS REAL AND IT FAILS RATHER THAN TRUNCATING. 16 MiB, the
+  ;;; same as tcp_read's, because the two are read by the same kind of
+  ;;; program for the same kind of reason. A quiet truncation would be a
+  ;;; corrupted download that looks like a successful one; failing says the
+  ;;; file is too big to serve this way, which is true. A caller that wants
+  ;;; to know BEFORE reading has size_file/2, and library(httpd) uses it.
+  ;;;
+  ;;; A DIRECTORY IS NOT A FILE. Opening one succeeds on Linux and read(2)
+  ;;; then answers EISDIR, so the stat is not belt-and-braces: without it
+  ;;; `read_file_to_codes('/tmp', X)' would fail with errno set and look
+  ;;; like a missing file.
+  (func coco_f_read_file_to_codes ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (char p [4096]) (stat_t sb) (int fd)
+              (size_t want . 0) (size_t got . 0) (ssize_t n . 0)
+              (size_t lst) (char * buf . nil))
+          (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
+          (if (!= 0 (stat p (aof sb))) (return 0))
+          (if (not (S_ISREG ($ sb st_mode))) (return 0))
+          (if (> ($ sb st_size) 16777216) (return 0))
+          (set want (cast size_t ($ sb st_size)))
+          (set fd (open p O_RDONLY))
+          (if (< fd 0) (return 0))
+          ;; An EMPTY file is the empty list and not a failure -- a zero-byte
+          ;; page is a page, and malloc(0) may answer null, which the check
+          ;; below would read as being out of memory.
+          (if (== want 0)
+              (block (close fd)
+                     (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_nil e)))))
+          (set buf (cast (char *) (malloc want)))
+          (if (== buf nil) (block (close fd) (return 0)))
+          ;; READ IN A LOOP, because one read(2) is not obliged to answer with
+          ;; everything even from a regular file -- a signal is enough to cut
+          ;; it short, and a short read here would be a truncated file served
+          ;; with a confident 200.
+          (while (< got want)
+            (set n (read fd (+ buf got) (- want got)))
+            (if (and (< n 0) (== errno EINTR)) continue)
+            (if (<= n 0) break)
+            (set got (+ got (cast size_t n))))
+          (close fd)
+          ;; SHORT IS A FAILURE, not a shorter answer. The file changed under
+          ;; us, or the read broke; either way what is in the buffer is not
+          ;; the file the stat described.
+          (if (< got want) (block (free buf) (return 0)))
+          ;; built back to front, as tcp_read builds its own
+          ;; MASKED TO 0..255, and that is not decoration. `char' is SIGNED
+          ;; on x86-64, so byte 0xFF read straight out of the buffer is -1,
+          ;; and a PNG would come back as a list with negative codes in it --
+          ;; which atom_codes would then refuse and length/2 would not. The
+          ;; mask is also why this needs no `ubyte_t': a type is one token in
+          ;; Cicili, files.cicili is imported BEFORE tcp.cicili, and one
+          ;; `bitand' is cheaper than a second typedef of the same name.
+          (set lst (coco_m_nil e))
+          (for ((size_t i . got)) (> i 0) ((-- i))
+               (set lst (coco_m_cons e
+                                     (coco_new_int (-> e m)
+                                                   (cast i64 (bitand
+                                                     (cast int (nth (- i 1) buf))
+                                                     255)))
+                                     lst)))
+          (free buf)
+          (return (coco_m_unify e (coco_m_arg e g 1) lst))))
 
   ;;; ---- changing things ------------------------------------------------
 

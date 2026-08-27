@@ -81,6 +81,12 @@ done
 #   curl    the client half, over cicili's libcurl binding. SKIPs where
 #           library/curl.so was never built, because libcurl is
 #           deliberately NOT a dependency of the core binary
+#   httpd   the server half: routing, and the four ways a static file
+#           server hands out what it was not asked for -- traversal,
+#           encoded traversal, NUL truncation and source disclosure --
+#           each checked with the file it would have leaked really on
+#           disk. Most of it opens no port, because httpd_answer/3 is
+#           the whole server minus the accept loop
 #   tcp     the socket seam: a handle that is NOT a file descriptor, a
 #           timeout that fails rather than hanging, every byte surviving
 #           a read, and one process reaching another
@@ -90,7 +96,7 @@ done
 #           in somebody's browser -- which is what section 1 checks
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp http curl colab groups ruler; do
+for c in files trace vacuum repl tunnel tensors library bigint zigurat-lib tcp http curl httpd colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

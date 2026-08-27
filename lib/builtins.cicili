@@ -1294,25 +1294,53 @@
 
   ;;; One substring, at a known place and length. The enumeration is in the
   ;;; Coco half, where the engine can make the choice points.
+  ;;; THIS HAD A 4096-BYTE CLIFF and reported it as the wrong error entirely.
+  ;;; Two fixed buffers and a `coco_m_text' that answers 0 for "does not fit"
+  ;;; exactly as it does for "not text at all" -- so `sub_atom' on an atom of
+  ;;; 4096 characters raised `type_error(atom, <the atom>)', which is a
+  ;;; diagnosis pointing at the one thing that was not wrong. 4095 worked.
+  ;;;
+  ;;; Found by library(httpd) reading a 5000-byte response back, which is the
+  ;;; ordinary size of a web page and not an exotic input at all.
+  ;;;
+  ;;; THE ATOM IS NOW READ WHERE IT LIVES. `coco_m_atom' hands back the
+  ;;; pointer into the atom table, so the common case copies NOTHING before
+  ;;; the substring itself -- which is both the fix and faster than what it
+  ;;; replaces. Only the substring is allocated, and only for as long as it
+  ;;; takes to intern it.
+  ;;;
+  ;;; ORDER MATTERS ON THE NEXT FOUR LINES: the integers are read BEFORE the
+  ;;; pointer is taken, because anything that allocates can move the atom
+  ;;; table under it. Nothing between `coco_m_atom' and the `memcpy' does.
   (func coco_b_sub_atom_at ((coco_engine * e) (size_t g)) (out int)
-        (let ((char a [4096]) (char out [4096])
-              (i64 before . 0) (i64 len . 0) (size_t n))
-          (if (not (coco_m_text e (coco_m_arg e g 0) a (sizeof a)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+        (let ((const char * s . nil) (char num [64]) (char * out . nil)
+              (i64 before . 0) (i64 len . 0) (size_t n . 0) (int rc . 1))
           (if (not (coco_m_int e (coco_m_arg e g 1) (aof before))) (return 0))
           (if (not (coco_m_int e (coco_m_arg e g 2) (aof len))) (return 0))
-          (set n (strlen a))
           (if (or (< before 0) (< len 0)) (return 0))
+          (set s (coco_m_atom e (coco_m_arg e g 0)))
+          ;; Not an atom: an integer, which is the only other thing the Coco
+          ;; half's `atom_length' lets through, and 64 bytes is more than any
+          ;; of them needs.
+          (if (== s nil)
+              (block
+               (if (not (coco_m_text e (coco_m_arg e g 0) num (sizeof num)))
+                   (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+               (set s num)))
+          (set n (strlen s))
           (if (> (cast size_t (+ before len)) n) (return 0))
-          (memcpy out (+ a before) (cast size_t len))
+          (set out (cast (char *) (malloc (+ (cast size_t len) 1))))
+          (if (== out nil) (return 0))
+          (memcpy out (+ s before) (cast size_t len))
           (set (nth len out) (cast char 0))
           (let ((size_t mark . #'(coco_m_mark e)))
             (if (not (coco_m_unify_int e (coco_m_arg e g 3)
                                      (cast i64 (- n (cast size_t (+ before len))))))
-                (block (coco_m_undo e mark) (return 0)))
-            (if (not (coco_m_unify_atom e (coco_m_arg e g 4) out))
-                (block (coco_m_undo e mark) (return 0))))
-          (return 1)))
+                (block (coco_m_undo e mark) (set rc 0)))
+            (if (and rc (not (coco_m_unify_atom e (coco_m_arg e g 4) out)))
+                (block (coco_m_undo e mark) (set rc 0))))
+          (free out)
+          (return rc)))
 
   ;;; `$atom_split(Atom, Sep, Parts)'. An empty separator would split into
   ;;; nothing sensible, so it is refused here and the caller's clause never
