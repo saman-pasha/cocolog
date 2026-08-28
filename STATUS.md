@@ -464,39 +464,48 @@ after a binding lives above that choice point's `heap_mark`, and
 backtracking truncates the heap to the mark, so anything that could see a
 stale value has already been dropped.
 
-## The whole-base forget is chunked, and what forced it
+## The forget wedge: diagnosed from cocolog, fixed in ZiguratIP
 
 CivV's rung-6 match — ~3 200 clauses in one knowledge base — measured the
 one-DELETE `forget_all` at **~10ms a row on a FRESH store**: 960 rows in
-5.5s, 2 230 in 25s, 3 227 in 31s, and worse aged. The cost is the engine's:
-`bt_unmap` finds each deleted row's index entry by walking the key's value
-chain from the head, so one statement's deletes are quadratic in the chain,
-at two indexes per clause row and six stream flushes each.
+5.5s, 2 230 in 25s, 3 227 in 31s, and worse aged. The cost was the
+engine's: `bt_unmap` found each deleted row's index entry by walking the
+key's value chain from the head, so one statement's deletes were quadratic
+in the chain, at two indexes per clause row.
 
-Past every client timeout in the house — and a client that gives up
-mid-call is how a base WEDGES: the server never rolls back a disconnected
-connection's transaction, the pooled thread keeps its id registered as
-live, and the stale-lock breaker rightly refuses debris that the registry
-calls alive. Every later touch of those rows then burns its whole
-`lock wait timeout`. Verified by experiment: the wedge holds across
-vacuums, and a server RESTART clears it — startup recovery rolls the
-staged work back. What a session had recorded as "survives restart" was
-its own diagnostics: each probing forget timed out mid-grind and re-wedged
-the base it was probing.
+Past every client timeout in the house — and a client that gave up
+mid-call is how a base WEDGED: the server never rolled back a disconnected
+connection's transaction, the pooled thread kept its id registered as
+live, and the stale-lock breaker rightly refused debris the registry
+called alive. Every later touch of those rows then burned its whole
+`lock wait timeout`. Verified by experiment: the wedge held across
+vacuums, and a server RESTART cleared it — startup recovery rolls staged
+work back. What a session had recorded as "survives restart" was its own
+diagnostics: each probing forget timed out mid-grind and re-wedged the
+base it was probing. `cmd_forget` was briefly chunked predicate-at-a-time
+to live with all this from the client side.
 
-So `cmd_forget` with no name now goes **predicate at a time**: the distinct
-predicates collected from the clause rows and the declarations, one
-transaction each — bounded by the largest predicate, never the base — and
-the old `forget_all` kept as the final sweep for tensors and latecomers.
-The same 3 227-clause base forgets in 35.8s total with **no transaction
-over ~6s**, under a 30s client timeout that killed the old shape; a
-37-clause base costs 61ms and an empty one 9ms. The price is named where
-it is paid: a whole-base forget is no longer atomic, and a reader
-mid-forget can see a base with some predicates gone. `test/vacuum.sh` pins
-what survives the chunking — the count, emptiness with declarations gone,
-idempotence — in both arrangements; CLAUDE.md carries the two ZiguratIP
-findings, diagnosed and not applied: the one-line rollback `handle_client`
-is missing, and the cursor-carried unmap that would make the DELETE linear.
+Then ZiguratIP was unfrozen and both causes died at the source, so the
+chunking is retired and the whole-base forget is ONE atomic call again:
+
+* **The unmap resume mark** (MVCCS-cicili/mvccs-lib.cicili). Entries join
+  an index value chain at its head, so a scan's deletes hit every chain in
+  insertion order — each unmap now remembers where it ended, per
+  (transaction, index, key), and the next starts there: one walk per chain
+  per statement. A miss falls back to the head (the mark is a hint, never
+  an answer), and the mark is transaction-stamped so only an address this
+  transaction itself staged dead — pinned against TRUNCATE — is followed.
+* **Rollback on disconnect** (ziguratip/loadzigurat.cpp). The connection
+  scope's destructor rolls back whatever the conversation left staged, on
+  every way out — the error reply throwing into a dead stream included.
+
+Measured on the same base and store arrangement: the 3 227-clause
+whole-base forget went **31s → 1.59s**; a 20 000-clause consult killed
+mid-write leaves a CLEAN base and the very next forget runs in 43ms where
+it used to wait its whole lock timeout and fail. The engine's own gauntlet
+— consumer, contention, carryover, ageing — stays green, `test/vacuum.sh`
+pins forget's contract (count, emptiness with declarations, idempotence)
+in both arrangements, and both full suites are green on the patched stack.
 
 ## Built by clang, all of it
 

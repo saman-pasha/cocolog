@@ -1807,80 +1807,32 @@
           (printf "vacuumed; %lld live row(s) remain\n" (cast llong live))
           (return 0)))
 
-  ;;; ---- forget, without the one giant DELETE ---------------------------
+  ;;; ---- forget -----------------------------------------------------------
   ;;;
-  ;;; `forget' with no name used to be a single forget_all: one transaction
-  ;;; deleting every row of the base. CivV's rung-6 test measured that
-  ;;; DELETE at ~10ms a row -- ~30s for a 3200-clause base on a FRESH
-  ;;; store, longer on an aged one (the engine re-walks the index value
-  ;;; chain from the head for every row it unlinks, so one statement's
-  ;;; deletes are quadratic in the chain) -- which put it past every client
-  ;;; timeout in the house. And a client that gives up mid-call is how a
-  ;;; base WEDGES: the server never rolls back a disconnected connection's
-  ;;; transaction (handle_client in ZiguratIP's loadzigurat.cpp leaves its
-  ;;; loop with no rollback on every error path), the pooled thread keeps
-  ;;; the id registered as live, so the stale-lock breaker rightly refuses
-  ;;; to break it and every later touch of those rows burns its whole
-  ;;; `lock wait timeout' on a transaction nothing will finish -- until
-  ;;; that thread happens to serve another connection, or the server
-  ;;; restarts and startup recovery rolls the debris back (measured: a
-  ;;; restart DOES clear it; what looked like surviving one was every
-  ;;; diagnostic forget re-abandoning and re-wedging the base).
-  ;;;
-  ;;; So the whole-base forget is now PREDICATE AT A TIME: collect the
-  ;;; distinct predicates from the clause rows and from the declarations
-  ;;; (a predicate can be in either without the other), forget each in a
-  ;;; transaction of its own -- bounded by the largest predicate, never
-  ;;; the base -- and finish with the old forget_all as a sweep for the
-  ;;; tensors and anything that arrived since the collection. The price,
-  ;;; named honestly: a whole-base forget is no longer atomic, and a
-  ;;; reader mid-forget can see a base with some predicates gone. A base
-  ;;; being emptied was never a base to read.
+  ;;; ONE CALL AGAIN, and the history is worth one paragraph because this
+  ;;; verb went round a full circle. CivV's rung-6 test measured the
+  ;;; one-DELETE forget_all at ~10ms a row (~30s for a 3200-clause base on
+  ;;; a FRESH store): the engine re-walked the index value chain from the
+  ;;; head for every row one statement deleted, so a mass delete was
+  ;;; quadratic in the chain -- and a client that timed out mid-call left
+  ;;; the server's never-rolled-back transaction holding every row lock,
+  ;;; the wedge CLAUDE.md's fourth hazard describes. This command was
+  ;;; briefly chunked predicate-at-a-time to live with that from the
+  ;;; client side; then ZiguratIP was unfrozen and both causes were fixed
+  ;;; at the source -- the unmap resume mark makes the DELETE one walk per
+  ;;; chain, and a vanished connection's transaction now rolls back with
+  ;;; the connection -- so the whole-base forget is one forget_all call,
+  ;;; ATOMIC again, and fast (measured in STATUS.md). test/vacuum.sh pins
+  ;;; the contract either shape must keep.
 
-  (var const int COCO_FORGET_CAP    . 2048)   ;; distinct predicates collected
-  (var const int COCO_FORGET_STRIDE . 128)    ;; bytes per name, flat storage
-  (var char forget_names [262144])            ;; CAP rows of STRIDE bytes
-  (var int  forget_arities [2048])
-
-  ;;; Prints the failure, and when the server named a lock wait, the
-  ;;; finding above in one line -- the reader at the terminal is mid-wedge.
+  ;;; Prints the failure, and when the server named a lock wait, what a
+  ;;; lock wait now means in one line -- since abandoned transactions roll
+  ;;; back, a standing lock is a LIVE writer, or a server old enough to
+  ;;; predate the rollback.
   (func forget_report ((const char * what)) (out void)
         (fprintf stderr "cocolog: forget: %s\n" what)
         (if (!= (strstr what "lock wait timeout") nil)
-            (fprintf stderr "cocolog: a writer -- possibly a disconnected one -- still holds row locks; a server restart sweeps them\n")))
-
-  ;;; One procedure's rows into the flat name/arity tables, deduplicated;
-  ;;; answers the new count, -1 on a wire error. Rows past CAP are left to
-  ;;; the final sweep. Both procedures answer (name, arity, one-more) --
-  ;;; ordinal for predicates_of, dynamic for props_of -- and the third is
-  ;;; skipped without knowing which.
-  (func forget_collect ((const char * proc) (int count)) (out int)
-        (let ((zg_result_t r) (char cols [256]))
-          (if (not (zg_call db proc)) (return -1))
-          (if (not (zg_write_string db ($ opts kb))) (return -1))
-          (while 1
-            (if (not (zg_result db (aof r))) (return -1))
-            (if (== r ZG_SUCCESSFUL_DONE) break)
-            (cond
-              ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
-              ((== r ZG_CURSOR_FETCH)
-               (let ((char nm [128]) (i32 ar . 0) (int seen . 0))
-                 (if (not (zg_read_string db nm (sizeof nm) nil)) (return -1))
-                 (if (not (zg_read_int db (aof ar) nil)) (return -1))
-                 (zg_skip_field db)
-                 (for ((int i . 0)) (< i count) ((++ i))
-                      (if (and (== (nth i forget_arities) (cast int ar))
-                               (== 0 (strcmp (+ forget_names (* i COCO_FORGET_STRIDE)) nm)))
-                          (set seen 1)))
-                 (if (and (== seen 0) (< count COCO_FORGET_CAP))
-                     (block
-                       (strcpy (+ forget_names (* count COCO_FORGET_STRIDE)) nm)
-                       (set (nth count forget_arities) (cast int ar))
-                       (set count (+ count 1))))))
-              ((== r ZG_RETURN_VALUE) (zg_skip_field db))
-              (#t (block))))
-          (if (not (zg_commit db)) (return -1))
-          (return count)))
+            (fprintf stderr "cocolog: another writer holds these rows; if none is live, the server predates the disconnect rollback -- restarting it sweeps the locks\n")))
 
   ;;; One call to a forget procedure, one transaction; PNAME nil is the
   ;;; whole-base sweep. Adds how many clauses went to *GONE.
@@ -1906,29 +1858,14 @@
           (return 1)))
 
   (func cmd_forget ((const char * name) (int arity)) (out int)
-        (let ((i64 gone . 0) (int count . 0))
+        (let ((i64 gone . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: forget needs a database\n") (return 1)))
-          (if (!= name nil)
-              (block
-                (if (not (forget_call name arity (aof gone)))
-                    (block (forget_report (zg_error db)) (return 1)))
-                (printf "forgot %lld clause(s) of %s/%d\n" (cast llong gone) name arity)
-                (return 0)))
-          (set count (forget_collect "cocolog::predicates_of" 0))
-          (if (< count 0) (block (forget_report (zg_error db)) (return 1)))
-          (set count (forget_collect "cocolog::props_of" count))
-          (if (< count 0) (block (forget_report (zg_error db)) (return 1)))
-          (for ((int i . 0)) (< i count) ((++ i))
-               (if (not (forget_call (+ forget_names (* i COCO_FORGET_STRIDE))
-                                     (nth i forget_arities) (aof gone)))
-                   (block
-                     (forget_report (zg_error db))
-                     (fprintf stderr "cocolog: %d of %d predicates forgotten; the base is part-forgotten -- run forget again\n" i count)
-                     (return 1))))
-          (if (not (forget_call nil 0 (aof gone)))
+          (if (not (forget_call name arity (aof gone)))
               (block (forget_report (zg_error db)) (return 1)))
-          (printf "forgot %lld clause(s) in '%s'\n" (cast llong gone) ($ opts kb))
+          (if (== name nil)
+              (printf "forgot %lld clause(s) in '%s'\n" (cast llong gone) ($ opts kb))
+            (printf "forgot %lld clause(s) of %s/%d\n" (cast llong gone) name arity))
           (return 0)))
 
   (func cmd_drop ((const char * name)) (out int)

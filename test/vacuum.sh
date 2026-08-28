@@ -4,10 +4,12 @@
 #
 # WHAT IT IS CHECKING, and why each part is there:
 #
-#   FORGET KEEPS ITS CONTRACT CHUNKED. A whole-base forget runs predicate
-#   at a time (see cmd_forget in cocolog.cicili for the measured why); the
-#   count, the emptiness -- declarations included -- and idempotence must
-#   not depend on how the deleting is carved.
+#   FORGET KEEPS ITS CONTRACT WHATEVER ITS SHAPE. The whole-base forget
+#   has been one DELETE, then predicate-at-a-time chunks, then one DELETE
+#   again (cmd_forget in cocolog.cicili tells that story); the count, the
+#   emptiness -- declarations included -- and idempotence must never
+#   depend on how the deleting is carved, and these checks are what held
+#   through both changes of shape.
 #
 #   THE VERB RECLAIMS AND ONLY RECLAIMS. `forget' deletes every clause; the
 #   vacuum after it must answer the same live count twice -- an unchanged

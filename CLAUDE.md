@@ -17,8 +17,13 @@ in it. A cocolog problem that traces to the transpiler gets a diagnosis and a
 proposed patch, not an applied one.
 
 **ZiguratIP was unfrozen** to fix the twelve-worker slowdown, and carries the
-`TCP_NODELAY` change described in STATUS.md. Rebuild it and then `make schema`
-after touching it — see the hazard below.
+`TCP_NODELAY` change described in STATUS.md — and, since the forget wedge,
+two more: the unmap resume mark in the MVCCS engine and the
+rollback-on-disconnect in the server's connection scope (the "APPLIED"
+section below). Rebuild it and then `make schema` after touching it — see
+the hazard below; a change to `MVCCS-cicili/mvccs-lib.cicili` also rebuilds
+cocolog's EMBEDDED engine, which is transpiled from the same file through
+the `embed/mvccs-lib.cicili` symlink.
 
 What the freeze still allows: `make schema` compiles cocolog's OWN Parsi objects
 into `$ZIGURATIP_HOME/ld`, and the server writes to `$ZIGURATIP_HOME/data`.
@@ -144,50 +149,58 @@ silently replaced and every call to it died with `undefined symbol: call`. That
 is why the procedures are `predicates_of` and `props_of`. Check
 `parsi/03-pages.parsi` before naming anything in `parsi/02-procedures.parsi`.
 
-**A refused forget is a disconnected writer's debris, not your bug.** `lock
-wait timeout` on every touch of ONE knowledge base — while every other base
-answers — means a transaction nobody will finish still holds its row locks:
-the server never rolls back a disconnected connection's transaction
-(`handle_client` in ZiguratIP's `loadzigurat.cpp` leaves its loop with no
-rollback on any error path, and even logs "Transaction Closed" on the way
-out), and the pooled thread keeps the id registered as live, so the lazy
-stale-lock breaker RIGHTLY refuses to break it. A server restart always
-clears it — startup recovery rolls the debris back. Measured, at the end of
-a session spent believing the wedge survived restarts and vacuums: it does
-not; every diagnostic forget was itself timing out mid-grind and re-wedging
-the base it was diagnosing. What makes the debris is a client giving up
-mid-write, and the one-DELETE `forget_all` invited exactly that: ~10ms a
-row, ~30s for a 3 200-clause base on a FRESH store (CivV's rung-6 match),
-longer aged — past every client timeout in the house. `cmd_forget` therefore
-goes PREDICATE AT A TIME now: distinct predicates collected from the clause
-rows and the declarations, one transaction each — bounded by the largest
-predicate, never the base — and the old `forget_all` kept as a final sweep.
-The price, named: a whole-base forget is no longer atomic, and a reader
-mid-forget can see a base with some predicates gone. `test/vacuum.sh` pins
-the contract that survives the chunking: count, emptiness with declarations,
-idempotence.
+**A refused forget WAS a disconnected writer's debris — both causes are
+fixed in ZiguratIP now, and the story stays here because the diagnosis cost
+two sessions.** `lock wait timeout` on every touch of ONE knowledge base —
+while every other base answered — meant a transaction nobody would finish
+still held its row locks: the server never rolled back a disconnected
+connection's transaction (`handle_client` in ZiguratIP's `loadzigurat.cpp`
+left its loop with no rollback on any error path, and logged "Transaction
+Closed" on the way out regardless), and the pooled thread kept the id
+registered as live, so the lazy stale-lock breaker RIGHTLY refused to break
+it. A server restart always cleared it — startup recovery rolls staged work
+back; a session spent believing the wedge survived restarts and vacuums,
+because every diagnostic forget was itself timing out mid-grind and
+re-wedging the base it was diagnosing. What made the debris was a client
+giving up mid-write, and the one-DELETE `forget_all` invited exactly that:
+~10ms a row, ~30s for a 3 200-clause base on a FRESH store (CivV's rung-6
+match). Both halves are now fixed at the source — see the section below —
+so against a patched server a vanished client's transaction dies with its
+connection, the whole-base forget is ONE atomic call again (a brief
+predicate-at-a-time chunking of `cmd_forget` lived between diagnosis and
+fix, and is retired), and a `lock wait timeout` today means a LIVE
+contending writer, or a server old enough to predate the patch.
+`test/vacuum.sh` pins forget's contract: count, emptiness with
+declarations, idempotence.
 
-### Two findings about ZiguratIP, diagnosed and not applied
+### Two findings about ZiguratIP, diagnosed and then APPLIED
 
-* **The server should roll back what a vanished client leaves.**
-  `handle_client` needs a `rollback_transaction(globals_memory())` on its
-  way out — one line before the final flush — so a disconnected
-  connection's staged work dies with the connection instead of holding its
-  locks until that pool thread happens to serve someone else. Until it is
-  applied, the client-side rule is the one above: never leave a call whose
-  transaction you started, which is what the chunked forget arranges.
-* **One DELETE's unlinks are quadratic in the index value chain.**
-  `bt_unmap` (MVCCS-cicili/mvccs-lib.cicili) finds the row's index entry by
-  walking the key's value chain FROM THE HEAD — and a mass DELETE's i-th
-  row walks past the i−1 entries the same statement already staged dead, at
-  two indexes per clause row, plus six stream flushes a row
-  (`online_delete` two, `bt_delete_value` two per index). The scan that
-  yields each row is ALREADY STANDING on its chain entry; carrying that
-  entry's address into the delete instead of re-walking would make the
-  statement linear, and batching the flushes to one per statement would
-  take the constant down with it. Measured at ~10ms a row on a fresh store;
-  the chunked forget above bounds the damage but the walk itself is the
-  engine's to fix.
+Both were first recorded here as proposals while ZiguratIP was frozen; the
+owner unfroze it and both landed (MVCCS-cicili/mvccs-lib.cicili and
+ziguratip/loadzigurat.cpp):
+
+* **A vanished client's transaction rolls back with its connection.**
+  `ConnectionScope`'s destructor — the one place stack unwinding guarantees
+  on every way out of a handler, an error reply throwing into a dead stream
+  included — now calls `rollback_transaction`. A transaction the client
+  committed has nothing staged, so the clean path is a no-op. Verified: a
+  20 000-clause consult killed mid-write leaves a clean base and the very
+  next forget runs in 43ms where it used to wait its whole lock timeout.
+* **One DELETE's unlinks were quadratic in the index value chain, and the
+  UNMAP RESUME MARK made them one walk per chain.** `bt_unmap` finds a
+  row's index entry by walking the key's value chain from the head — and a
+  mass DELETE's i-th row walked past the i−1 entries the same statement had
+  already staged dead, at two indexes per clause row. Entries join a chain
+  at its HEAD, so any two rows sit in every index's chain in the same
+  relative order they were inserted, and a scan deletes in chain order
+  whichever index it rides — so each unmap now remembers where it ended,
+  per (transaction, index, key), and the next one on that key starts there.
+  The mark is a HINT and never an answer: a miss falls back to the head, so
+  it can only save work, never lose an entry; and it is transaction-stamped
+  because only an address this transaction itself staged dead is pinned
+  against TRUNCATE. Measured: the same 3 227-clause whole-base forget went
+  from 31s to **1.59s**. The engine's own gauntlet (consumer, contention,
+  carryover, ageing) stays green.
 
 ## Cicili, as it is actually written
 
