@@ -106,7 +106,7 @@ whose text is a warning. gcc ignores unknown `-Wno-` options, so the flags
 travel to every platform. `cocolog.cicili`, `embed/embed.cicili` and all
 three MVCCS-cicili targets carry them.
 
-## Three hazards, each of which has already cost a day
+## Four hazards, each of which has already cost a day
 
 **A slow suite is the store ageing, not your change.** Deleted rows are kept
 under MVCC and nothing reclaims them, so every run leaves more behind and every
@@ -143,6 +143,51 @@ compile last. `cocolog::predicates` was both, so the procedure's `.so` was
 silently replaced and every call to it died with `undefined symbol: call`. That
 is why the procedures are `predicates_of` and `props_of`. Check
 `parsi/03-pages.parsi` before naming anything in `parsi/02-procedures.parsi`.
+
+**A refused forget is a disconnected writer's debris, not your bug.** `lock
+wait timeout` on every touch of ONE knowledge base — while every other base
+answers — means a transaction nobody will finish still holds its row locks:
+the server never rolls back a disconnected connection's transaction
+(`handle_client` in ZiguratIP's `loadzigurat.cpp` leaves its loop with no
+rollback on any error path, and even logs "Transaction Closed" on the way
+out), and the pooled thread keeps the id registered as live, so the lazy
+stale-lock breaker RIGHTLY refuses to break it. A server restart always
+clears it — startup recovery rolls the debris back. Measured, at the end of
+a session spent believing the wedge survived restarts and vacuums: it does
+not; every diagnostic forget was itself timing out mid-grind and re-wedging
+the base it was diagnosing. What makes the debris is a client giving up
+mid-write, and the one-DELETE `forget_all` invited exactly that: ~10ms a
+row, ~30s for a 3 200-clause base on a FRESH store (CivV's rung-6 match),
+longer aged — past every client timeout in the house. `cmd_forget` therefore
+goes PREDICATE AT A TIME now: distinct predicates collected from the clause
+rows and the declarations, one transaction each — bounded by the largest
+predicate, never the base — and the old `forget_all` kept as a final sweep.
+The price, named: a whole-base forget is no longer atomic, and a reader
+mid-forget can see a base with some predicates gone. `test/vacuum.sh` pins
+the contract that survives the chunking: count, emptiness with declarations,
+idempotence.
+
+### Two findings about ZiguratIP, diagnosed and not applied
+
+* **The server should roll back what a vanished client leaves.**
+  `handle_client` needs a `rollback_transaction(globals_memory())` on its
+  way out — one line before the final flush — so a disconnected
+  connection's staged work dies with the connection instead of holding its
+  locks until that pool thread happens to serve someone else. Until it is
+  applied, the client-side rule is the one above: never leave a call whose
+  transaction you started, which is what the chunked forget arranges.
+* **One DELETE's unlinks are quadratic in the index value chain.**
+  `bt_unmap` (MVCCS-cicili/mvccs-lib.cicili) finds the row's index entry by
+  walking the key's value chain FROM THE HEAD — and a mass DELETE's i-th
+  row walks past the i−1 entries the same statement already staged dead, at
+  two indexes per clause row, plus six stream flushes a row
+  (`online_delete` two, `bt_delete_value` two per index). The scan that
+  yields each row is ALREADY STANDING on its chain entry; carrying that
+  entry's address into the delete instead of re-walking would make the
+  statement linear, and batching the flushes to one per statement would
+  take the constant down with it. Measured at ~10ms a row on a fresh store;
+  the chunked forget above bounds the damage but the walk itself is the
+  engine's to fix.
 
 ## Cicili, as it is actually written
 

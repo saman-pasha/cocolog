@@ -464,6 +464,40 @@ after a binding lives above that choice point's `heap_mark`, and
 backtracking truncates the heap to the mark, so anything that could see a
 stale value has already been dropped.
 
+## The whole-base forget is chunked, and what forced it
+
+CivV's rung-6 match — ~3 200 clauses in one knowledge base — measured the
+one-DELETE `forget_all` at **~10ms a row on a FRESH store**: 960 rows in
+5.5s, 2 230 in 25s, 3 227 in 31s, and worse aged. The cost is the engine's:
+`bt_unmap` finds each deleted row's index entry by walking the key's value
+chain from the head, so one statement's deletes are quadratic in the chain,
+at two indexes per clause row and six stream flushes each.
+
+Past every client timeout in the house — and a client that gives up
+mid-call is how a base WEDGES: the server never rolls back a disconnected
+connection's transaction, the pooled thread keeps its id registered as
+live, and the stale-lock breaker rightly refuses debris that the registry
+calls alive. Every later touch of those rows then burns its whole
+`lock wait timeout`. Verified by experiment: the wedge holds across
+vacuums, and a server RESTART clears it — startup recovery rolls the
+staged work back. What a session had recorded as "survives restart" was
+its own diagnostics: each probing forget timed out mid-grind and re-wedged
+the base it was probing.
+
+So `cmd_forget` with no name now goes **predicate at a time**: the distinct
+predicates collected from the clause rows and the declarations, one
+transaction each — bounded by the largest predicate, never the base — and
+the old `forget_all` kept as the final sweep for tensors and latecomers.
+The same 3 227-clause base forgets in 35.8s total with **no transaction
+over ~6s**, under a 30s client timeout that killed the old shape; a
+37-clause base costs 61ms and an empty one 9ms. The price is named where
+it is paid: a whole-base forget is no longer atomic, and a reader
+mid-forget can see a base with some predicates gone. `test/vacuum.sh` pins
+what survives the chunking — the count, emptiness with declarations gone,
+idempotence — in both arrangements; CLAUDE.md carries the two ZiguratIP
+findings, diagnosed and not applied: the one-line rollback `handle_client`
+is missing, and the cursor-carried unmap that would make the DELETE linear.
+
 ## Built by clang, all of it
 
 The interpreter, the client, the embedded store, every `.so` under

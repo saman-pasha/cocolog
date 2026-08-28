@@ -1,7 +1,13 @@
 #!/bin/sh
-# The vacuum, in both arrangements and with its gate.
+# The store's two hygiene verbs -- forget and the vacuum -- in both
+# arrangements, with the vacuum's gate.
 #
 # WHAT IT IS CHECKING, and why each part is there:
+#
+#   FORGET KEEPS ITS CONTRACT CHUNKED. A whole-base forget runs predicate
+#   at a time (see cmd_forget in cocolog.cicili for the measured why); the
+#   count, the emptiness -- declarations included -- and idempotence must
+#   not depend on how the deleting is carved.
 #
 #   THE VERB RECLAIMS AND ONLY RECLAIMS. `forget' deletes every clause; the
 #   vacuum after it must answer the same live count twice -- an unchanged
@@ -35,12 +41,35 @@ check() {
   fi
 }
 
-printf 'p(1).\np(2).\np(3).\n' > "$OUT/facts.pl"
+printf 'p(1).\np(2).\np(3).\nq(a).\nq(b).\n:- dynamic d/1.\n' > "$OUT/facts.pl"
 
 # One arrangement's whole story, parameterised on how to reach the store.
 # $1 is a label, the rest is the cocolog command up to but excluding the verb.
 exercise() {
   label=$1; shift
+
+  # FORGET'S CONTRACT FIRST, because a whole-base forget is no longer one
+  # DELETE: it goes predicate at a time -- collected from the clause rows
+  # and the declarations, each in a transaction of its own, a final sweep
+  # for the rest -- so no single transaction outruns a client's timeout
+  # (the one-DELETE forget measured ~10ms a row and a client that gave up
+  # mid-call left the base wedged behind the abandoned locks). The
+  # contract that must survive the chunking: the count is the clause
+  # count, everything goes -- a declared-but-empty dynamic included, the
+  # half only the declarations know -- and a second forget finds nothing.
+  "$@" consult "$OUT/facts.pl" >/dev/null 2>&1
+  forgot=$("$@" forget 2>&1)
+  check "$label: forget answers the clause count" \
+    "$(echo "$forgot" | grep -c '^forgot 5 clause')" "1"
+  gone=$("$@" query "catch(p(_), error(existence_error(procedure, _), _), (write(gone), nl))" 2>&1)
+  check "$label: a forgotten predicate is gone, not empty" \
+    "$(echo "$gone" | grep -c '^gone$')" "1"
+  dgone=$("$@" query "catch(d(_), error(existence_error(procedure, _), _), (write(gone), nl))" 2>&1)
+  check "$label: the declared-but-empty dynamic went too" \
+    "$(echo "$dgone" | grep -c '^gone$')" "1"
+  again=$("$@" forget 2>&1)
+  check "$label: and a second forget finds nothing" \
+    "$(echo "$again" | grep -c '^forgot 0 clause')" "1"
 
   "$@" consult "$OUT/facts.pl" >/dev/null 2>&1
   "$@" forget >/dev/null 2>&1
