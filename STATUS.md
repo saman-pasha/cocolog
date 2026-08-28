@@ -2192,6 +2192,40 @@ shaders, text measuring -- each a predicate away rather than a
 redesign. `modules/ray/build.sh` says where a raylib comes from and why
 the archive must be PIC.
 
+### retract/1 minds the body now, which a rule standing over facts paid for
+
+Found by a consumer: CivV's rung-22 capture retracts a bare
+`hostile(Id)` fact from a predicate that ALSO carries a derived rule
+(`hostile(Id) :- playing(P), unit_owner(Id, O), O \== P` -- the whole
+point of its versus arrangement). cocolog's `retract/1` removed THE
+RULE and left the fact: it unified heads only, taking the first
+head-matching clause whatever its body. The explicit form was broken
+the other way around -- `retract((f(x) :- true))` scanned every
+clause but refused stored facts, because a fact's missing body read
+as a mismatch instead of as `true`.
+
+The fix is one rule in `kb.cicili`'s `coco_retract`, SWI's own: **the
+shorthand IS `retract((H :- true))`, and a stored fact's body IS the
+atom `true`** -- the asked body always unifies against the
+candidate's, a missing side standing in as a `true` atom made on the
+heap (the same trick `clause/2` always used, which is why clause/2
+conformed all along). Two consequences, both pinned:
+
+* `test/solve.cicili`: a fact's retract leaves a same-headed rule
+  standing; the explicit true-body form reaches a stored fact; a rule
+  retracts by its own shape, binding the body.
+* **`retractall/1` had been leaning on the bug.** It rides retract,
+  and under the narrowed shorthand it would have quietly stopped
+  removing rules -- while SWI's retractall removes EVERY clause whose
+  head unifies, rules included. `builtins.cicili` now asks
+  `retract((C :- _))`, the wide contract spelled out, and
+  `test/repl.sh` holds the whole story to a live SWI transcript:
+  retract minds the body, retractall takes the rules too.
+
+`retract/1` still answers once (deterministic, like every builtin
+here -- the recorded divergence stands); what changed is WHICH clause
+the one answer takes out.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes

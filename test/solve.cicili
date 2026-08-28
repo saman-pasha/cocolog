@@ -274,6 +274,27 @@
       (check "asserta puts it first"
              (cast llong (count (aof e) "asserta(r(0)), r(X)" 100)) 2)
 
+      ;; ---- retract respects the body -- a CivV capture's finding ----------
+      ;; A fact IS `(F :- true)'. The shorthand must not pull a
+      ;; same-headed RULE out from over the facts (it did: the body was
+      ;; never asked), and the explicit (H :- true) form must reach a
+      ;; stored fact (it could not: a fact's missing body read as a
+      ;; mismatch). SWI answers all four the way these pin.
+      (check "retract of a fact leaves a same-headed rule standing"
+             (cast llong (count (aof e)
+                    "assertz((mix(N) :- number(N))), assertz(mix(a)), retract(mix(a)), mix(7)" 10)) 1)
+      (check "and the fact is the one that went"
+             (cast llong (count (aof e) "mix(a)" 10)) 0)
+      (check "the explicit true body reaches a stored fact"
+             (cast llong (count (aof e) "assertz(fx(1)), retract((fx(1) :- true)), fx(_)" 10)) 0)
+      (check "a rule retracts by its own shape, binding the body"
+             (cast llong (count (aof e) "retract((mix(X) :- B)), B == number(X)" 10)) 1)
+      ;; retractall kept SWI's WIDER contract when retract narrowed
+      ;; (every head-match goes, rules included; builtins.cicili asks
+      ;; `(C :- _)' for exactly this reason) -- but retractall is
+      ;; Prolog from the builtins MODULE, which this bare engine never
+      ;; loads, so that pin lives in test/repl.sh against the binary.
+
       ;; ---- the three that are here for a specific failure -----------------
       (let ((size_t before . #'($ m heap_len)))
         (check "a deterministic recursion 50000 deep"

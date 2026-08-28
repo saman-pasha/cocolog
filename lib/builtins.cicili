@@ -266,7 +266,15 @@
            ;; would come back with the `_' bound to the first clause's value --
            ;; so recursing on that term would then match only clauses like the
            ;; one already gone. The copy is retracted; the original stays open.
-           "retractall(H) :- copy_term(H, C), retract(C), !, retractall(H)."
+           ;;
+           ;; AND THE BODY IS ASKED FOR OPEN, deliberately. When `retract/1'
+           ;; learned to respect the body (kb.cicili: the shorthand is
+           ;; `(H :- true)', a CivV capture's finding), riding the shorthand
+           ;; here would have quietly narrowed retractall to true-bodied
+           ;; clauses -- while SWI's retractall removes EVERY clause whose
+           ;; head unifies, rules included. `(C :- _)' is that contract,
+           ;; spelled out.
+           "retractall(H) :- copy_term(H, C), retract((C :- _)), !, retractall(H)."
            "retractall(_)."
 
            ;; ---- sub_atom/5, which enumerates every substring ---------------

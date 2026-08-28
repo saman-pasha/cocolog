@@ -107,6 +107,18 @@ true.
 X = one ;
 X = two."
 
+# retract respects the body (the shorthand IS (H :- true), so a
+# same-headed rule survives a fact's retract -- kb.cicili, a CivV
+# capture's finding) while retractall keeps SWI's wider head-only
+# contract and takes the rule too. The transcript is a live SWI's.
+got=$(printf 'assertz(f(a)), assertz((f(X) :- X == b)), assertz(f(c)).\nretract(f(a)).\nf(b), !.\nf(a).\nretractall(f(_)).\nf(b).\n' | "$C" 2>/dev/null)
+check "retract minds the body; retractall removes rules too" "$got" "true.
+true.
+true.
+false.
+true.
+false."
+
 printf 'p(1).\np(2).\nq(X) :- p(X), X > 1.\n' > "$OUT/fam.pl"
 got=$(printf "['%s/fam'].\nq(X).\nconsult('%s/fam.pl').\n" "$OUT" "$OUT" | "$C" 2>/dev/null)
 check "[file] and consult(file), .pl found for itself" "$got" "true.

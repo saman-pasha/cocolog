@@ -1002,10 +1002,24 @@
                           (block (set chead (coco_arg m cand 0))
                                  (set cbody (coco_arg m cand 1)))))
                   (set ok (coco_unify m head chead))
-                  (if (and ok has_body)
-                      (if (== cbody 0)
-                          (set ok 0)
-                        (set ok (coco_unify m body cbody))))
+                  ;; THE BODY ALWAYS CONSTRAINS -- SWI's rule, and the bug a
+                  ;; CivV capture paid to find: the shorthand `retract(F)' IS
+                  ;; `retract((F :- true))', and a stored FACT's body IS the
+                  ;; atom `true'. The old code skipped the body check entirely
+                  ;; for the shorthand -- so it pulled a same-headed RULE out
+                  ;; from over the facts -- and refused every fact in the
+                  ;; explicit form, so `retract((f(x) :- true))' failed
+                  ;; against a base that plainly held f(x). One `true' atom on
+                  ;; the heap (clause/2's own trick, builtins.cicili) makes
+                  ;; the two forms one rule: the asked body unifies against
+                  ;; the candidate's, a missing side standing in as `true'.
+                  ;; The atoms are re-made each round because a mismatch winds
+                  ;; the heap back to the mark below.
+                  (if ok
+                      (block
+                       (if (== cbody 0) (set cbody (coco_new_atom m "true")))
+                       (if (== has_body 0) (set body (coco_new_atom m "true")))
+                       (set ok (coco_unify m body cbody))))
                   (if ok
                       (block
                        ;; drop it from the predicate; the cells stay in the
