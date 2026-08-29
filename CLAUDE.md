@@ -60,6 +60,12 @@ cd /home/user/ZiguratIP && ZIGURATIP_HOME=$PWD/home \
 Start it detached. A plain `nohup … &` from a tool call does not survive the
 turn, and what you get then is the next hazard.
 
+**`ziguratip --config=<file>` runs a CUSTOM-CONFIGURED server without
+touching `home/etc/ziguratip.conf`** — the owner's own pointer. A test
+that needs different settings (TLS_MODE, ports, permissions) copies the
+conf, edits the copy, and raises a second server on it; the home config
+stays what it was. Without `--config` the usual lookup order applies.
+
 ### One compiler, and where it is written down
 
 Everything here is built by **clang**: the client, the interpreter, the
