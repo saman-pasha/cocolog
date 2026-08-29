@@ -351,6 +351,7 @@
         (if (== 0 (strcmp a "consult")) (return 1))
         (if (== 0 (strcmp a "run"))     (return 1))
         (if (== 0 (strcmp a "query"))   (return 1))
+        (if (== 0 (strcmp a "-s"))      (return 1))
         (if (== 0 (strcmp a "start"))   (return 1))
         (if (== 0 (strcmp a "step"))    (return 1))
         (if (== 0 (strcmp a "finish"))  (return 1))
@@ -368,6 +369,8 @@
         (fprintf stderr "                                under the query's own variable names,\n")
         (fprintf stderr "                                `;' for another solution, halt. leaves\n")
         (fprintf stderr "  cocolog [options] consult FILE...\n")
+        (fprintf stderr "  cocolog [options] -s SCRIPT   load SCRIPT as a module, prove main;\n")
+        (fprintf stderr "                                exit 0 only when main proved\n")
         (fprintf stderr "  cocolog [options] query GOAL\n")
         (fprintf stderr "  cocolog [options] start NAME GOAL\n")
         (fprintf stderr "  cocolog [options] step NAME\n")
@@ -657,6 +660,43 @@
           ;; back to whoever had it, which is null unless this was nested
           (set db (? (== k nil) nil (-> k prev)))
           (if (!= k nil) (free (cast (void *) k)))))
+
+  ;;; -s FILE -- the SCRIPT runner: load FILE as a module (so its
+  ;;; clauses reach the registry and run_isolated proofs see them),
+  ;;; prove `main', and let the exit status carry the verdict -- 0
+  ;;; only when main PROVED. `query' deliberately exits 0 on a goal
+  ;;; that merely failed (false. is an answer, not an error), which
+  ;;; is right for a query and wrong for a suite: a test script's
+  ;;; caller wants the verdict where the shell looks for it. Nothing
+  ;;; is printed by the runner itself -- the script's own output IS
+  ;;; the report -- except the engine's error, on stderr, where an
+  ;;; error always goes.
+  (func cmd_script ((const char * file)) (out int)
+        (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
+              (char goal [4200]) (int n . 0) (int rc . 1))
+          (if (> (strlen file) 4096)
+              (block (fprintf stderr "cocolog: -s: the path is too long\n") (return 1)))
+          (snprintf goal (sizeof goal) "use_module('%s'), main" file)
+          (coco_machine_init (aof m))
+          (coco_store_init (aof st))
+          (coco_engine_init (aof e) (aof m) (aof st))
+          (set ($ e max_steps) 0)
+          (attach (aof z) (aof zt) (aof m) (aof st))
+          (if (not (coco_engine_ask_text (aof e) goal))
+              (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
+          (set rc (coco_engine_next (aof e)))
+          (if (== rc 1) (set n 1))
+          (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
+          (if (!= db nil)
+              (if (== rc -1)
+                  (zg_rollback db)
+                (if (not (zg_commit db))
+                    (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
+                           (set rc -1)))))
+          (coco_engine_free (aof e))
+          (coco_store_free (aof st))
+          (coco_machine_free (aof m))
+          (return (? (and (== n 1) (!= rc -1)) 0 1))))
 
   (func cmd_query ((const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
@@ -1984,6 +2024,11 @@
           (while (< i argc)
             (let ((const char * a . #'(nth i argv)))
               (if (!= (nth 0 a) (cast char 45)) break)
+              ;; `-s' begins with a dash and is a COMMAND -- the one verb
+              ;; that does, chosen to read as every other interpreter's
+              ;; script flag. The option loop must hand it to the dispatch,
+              ;; not die on it as an unknown option.
+              (if (== 0 (strcmp a "-s")) break)
               (cond
                 ((== 0 (strcmp a "--local")) (set ($ opts local) 1) (set i (+ i 1)))
                 ;; the directory is OPTIONAL here: a bare --embed opens ./KB.
@@ -2154,6 +2199,10 @@
                (if (>= (+ i 1) argc)
                    (block (fprintf stderr "cocolog: query needs a goal\n") (set rc 1))
                  (set rc (cmd_query (nth (+ i 1) argv)))))
+              ((== 0 (strcmp cmd "-s"))
+               (if (>= (+ i 1) argc)
+                   (block (fprintf stderr "cocolog: -s needs a script file\n") (set rc 1))
+                 (set rc (cmd_script (nth (+ i 1) argv)))))
               ((== 0 (strcmp cmd "start"))
                (if (>= (+ i 2) argc)
                    (block (fprintf stderr "cocolog: start needs a name and a goal\n") (set rc 1))

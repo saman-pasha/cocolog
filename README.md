@@ -202,6 +202,9 @@ And it runs — the first three need nothing else on the machine at all:
 ```sh
 ./cocolog                                     # the toplevel: ?- awaits
 ./cocolog query "X is 2 + 2"                  # local: memory, the default
+./cocolog -s myscript.pl                      # load it, prove main; the
+                                              # EXIT CODE says whether it
+                                              # proved -- a script's verdict
 ./cocolog --embed run tutorials/torch/07-xor.pl train   # the store at ./KB
 cd $ZIGURATIP && ZIGURATIP_HOME=$PWD/home \
   LD_LIBRARY_PATH=$PWD/home/lib ./home/bin/ziguratip &   # the server

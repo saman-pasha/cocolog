@@ -47,6 +47,10 @@ modules/thread/thread.c
 modules/thread/sdk.cicili
 modules/curl/curl.c
 modules/curl/sdk.cicili
+modules/process/process.c
+modules/process/sdk.cicili
+modules/text/text.c
+modules/text/sdk.cicili
 modules/ray/ray.c
 modules/ray/sdk.cicili
 modules/bigint/coco-bigint.cpp
