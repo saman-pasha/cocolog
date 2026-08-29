@@ -1,3 +1,20 @@
 #!/bin/sh
 # The C compiler this repository builds with. See ./README.
-exec "${CICILI_CC:-clang}" "$@"
+#
+# ONE FLAG FOR DARWIN, and only when linking a shared object. A loadable
+# module leaves the interpreter's symbols -- coco_module_register and the
+# rest of the SDK -- UNDEFINED, to be found in the cocolog binary that
+# dlopen's it. Linux's linker allows that by default; macOS's refuses:
+#
+#     ld: symbol(s) not found for architecture x86_64
+#
+# naming a symbol that exists in the program the module is for.
+# `-undefined dynamic_lookup' is the flag that says "defer to load time",
+# which is what every module here means. Here rather than in thirteen
+# build.sh files, because a flag that appears in thirteen places will be
+# missing from the fourteenth.
+extra=
+case "$(uname -s)" in
+  Darwin) for a in "$@"; do [ "$a" = -shared ] && extra="-undefined dynamic_lookup"; done ;;
+esac
+exec "${CICILI_CC:-clang}" $extra "$@"

@@ -1067,6 +1067,39 @@ without a server, and `files` SKIPs without `swipl`
 (`apt-get install swi-prolog-nox`). **A run that says `red: 0` with eight
 SKIPs has not tested the database at all.**
 
+### The three things macOS gets wrong
+
+A Mac builds the whole family -- clang is native, and every layer came up
+clean -- but three things differ from Linux, and each one fails naming
+something other than its cause:
+
+* **A shared object may not leave the interpreter's symbols undefined.**
+  Every loadable module refers to `coco_module_register` and the rest of
+  the SDK, to be found in the cocolog that `dlopen`s it. Linux's linker
+  allows that by default; Apple's says `ld: symbol(s) not found for
+  architecture x86_64`, naming a symbol that plainly exists in the
+  program the module is for. `tools/cc/cc` and `cxx` add
+  `-undefined dynamic_lookup` when they see `-shared` on Darwin -- once,
+  in the wrappers, rather than in thirteen `build.sh` files.
+* **`make schema` dies inside libc++.** ZiguratIP's `memory.hpp` derives
+  from `std::binary_function`, which C++17 removed and Apple's libc++
+  actually deletes; the error is `no template named 'binary_function'`
+  from the middle of `01-schema.parsi`. ZiguratIP is frozen, so the fix
+  is the owner's own `--config` road: copy `home/etc/ziguratip.conf`
+  somewhere, append `-D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION` to
+  its `CPP_FLAGS`, and `ZIGURATIP_CONF=that-file make schema` --
+  `parsi/build.sh` passes it through. The tracked configuration is
+  untouched.
+* **The X11 that `xdotool` needs is XQuartz's**, and it ships with the
+  XTEST extension off. `brew install xdotool` says so on the way in:
+  `defaults write org.x.X11 enable_test_extensions -boolean true`, then
+  restart X11. Without it every injected click in CivV's window cases is
+  silently ignored, and `raylib` for `modules/ray` is `brew install
+  raylib` (the build finds it through pkg-config).
+
+Library paths are `DYLD_LIBRARY_PATH`, not `LD_LIBRARY_PATH`, everywhere
+the server or `parsi` is raised by hand; the scripts here export both.
+
 ### The two things a container gets wrong
 
 Both cost a session time, and neither announces itself:

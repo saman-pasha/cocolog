@@ -24,9 +24,16 @@ fi
 export DYLD_LIBRARY_PATH="$ZIGURATIP_HOME/lib:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH="$ZIGURATIP_HOME/lib:$LD_LIBRARY_PATH"
 
+# A CUSTOM CONFIGURATION, when the home's will not do. `parsi
+# --config=<file>' compiles against a configuration other than
+# $ZIGURATIP_HOME/etc/ziguratip.conf -- the owner's own pointer, and the
+# way to change CPP_FLAGS without editing a file the pillar tracks. Set
+# ZIGURATIP_CONF to use one; CLAUDE.md's macOS note says when.
+conf=
+[ -n "$ZIGURATIP_CONF" ] && conf="--config=$ZIGURATIP_CONF"
 for step in "$HERE"/0*.parsi; do
   echo "==> $(basename "$step")"
-  if ! "$ZIGURATIP_HOME/bin/parsi" "$step" > "$HERE/.build.log" 2>&1; then
+  if ! "$ZIGURATIP_HOME/bin/parsi" "$step" $conf > "$HERE/.build.log" 2>&1; then
     echo "failed:" >&2
     tail -5 "$HERE/.build.log" >&2
     rm -f "$HERE/.build.log"
