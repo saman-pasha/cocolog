@@ -25,6 +25,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
 . "$HERE/library-path.sh"
+. "$HERE/portable.sh"
 
 failures=0
 check() {
@@ -120,7 +121,7 @@ PL
 
 # Started detached: a plain `&' from a tool call does not survive the
 # turn, which is the same hazard the ZiguratIP server has in CLAUDE.md.
-setsid timeout 25 "$C" run /tmp/coco-curl-server.pl "serve(18840)" >/dev/null 2>&1 &
+detach timeout 25 "$C" run /tmp/coco-curl-server.pl "serve(18840)" >/dev/null 2>&1 &
 sleep 3
 check "one cocolog fetches another's page" \
   "$(q "curl_get('http://127.0.0.1:18840/hello', St, B), atom_codes(A, B),
@@ -128,7 +129,7 @@ check "one cocolog fetches another's page" \
   "200 served get /hello 0"
 wait 2>/dev/null
 
-setsid timeout 25 "$C" run /tmp/coco-curl-server.pl "serve(18841)" >/dev/null 2>&1 &
+detach timeout 25 "$C" run /tmp/coco-curl-server.pl "serve(18841)" >/dev/null 2>&1 &
 sleep 3
 check "and POSTs a body it reads back by length" \
   "$(q "curl_post('http://127.0.0.1:18841/p', 'text/plain', 'twelve bytes', St, B),

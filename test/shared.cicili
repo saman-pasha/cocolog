@@ -26,7 +26,7 @@
 
 (source "shared.c"
   (make :std #t
-        :compile ("-I../client"
+        :compile ("-I../client" "-Wno-parentheses-equality" "-Wno-dangling-else"
                   "-c" "shared.c")
         :link ("-lshared.o"
                "-L../build"

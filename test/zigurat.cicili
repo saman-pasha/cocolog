@@ -22,7 +22,7 @@
         ;; A custom compile list replaces the default one, so it has to carry
         ;; the -c and the file itself -- see the numpy example, which does the
         ;; same for its own include path.
-        :compile ("-I../client"
+        :compile ("-I../client" "-Wno-parentheses-equality" "-Wno-dangling-else"
                   "-c" "zigurat.c")
         :link ("-lzigurat.o"
                "-L../build"

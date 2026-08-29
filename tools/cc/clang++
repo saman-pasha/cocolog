@@ -1,0 +1,10 @@
+#!/bin/sh
+# On Darwin, Cicili names `clang++' outright (config.lisp: "clang by name
+# rather than gcc"), the way it names `gcc' elsewhere -- so this is the
+# same shim as ./gcc, for that platform. IT TAKES ITSELF OFF PATH FIRST:
+# the wrapper it hands over to execs the real `clang++' by name, and with
+# this directory still in front that would be this file again, forever.
+here=$(cd "$(dirname "$0")" && pwd)
+PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx "$here" | paste -sd: -)
+export PATH
+exec "$here/cxx" "$@"

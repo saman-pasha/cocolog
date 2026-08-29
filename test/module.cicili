@@ -24,7 +24,7 @@
 
 (source "module.c"
   (make :std #t
-        :compile ("-I../client" "-c" "module.c")
+        :compile ("-I../client" "-Wno-parentheses-equality" "-Wno-dangling-else" "-c" "module.c")
         :link ("-lmodule.o" "-L../build" "-lcocologc" "-lm"
                "-o" "cocolog_module_test"))
 

@@ -62,27 +62,33 @@
  * its entry points. They are declared WEAK: a build that did not link the
  * engine leaves them null, zg_open_embed then refuses with a message, and
  * nothing else in this file is any different -- which is what keeps the
- * client buildable with nothing but libc, as its head promises. */
-extern int  ce_engine_open(const char *dir, char *err, size_t errcap) __attribute__((weak));
-extern void ce_engine_close(void) __attribute__((weak));
-extern void *ce_session_new(void) __attribute__((weak));
-extern void ce_session_free(void *s) __attribute__((weak));
-extern const char *ce_error(void *s) __attribute__((weak));
-extern int  ce_call(void *s, const char *proc) __attribute__((weak));
-extern int  ce_write_num(void *s, int tag, long long v) __attribute__((weak));
-extern int  ce_write_str(void *s, int tag, const char *v) __attribute__((weak));
-extern int  ce_write_dvector(void *s, const double *v, uint32_t n) __attribute__((weak));
-extern int  ce_read_dvector(void *s, double *out, uint32_t cap, uint32_t *n) __attribute__((weak));
-extern int  ce_result(void *s, int *out) __attribute__((weak));
-extern int  ce_columns(void *s, char *buf, size_t cap) __attribute__((weak));
-extern int  ce_read_num(void *s, long long *v) __attribute__((weak));
-extern int  ce_read_str(void *s, char *buf, size_t cap) __attribute__((weak));
-extern int  ce_read_str_alloc(void *s, char **out, size_t *len) __attribute__((weak));
-extern int  ce_skip(void *s) __attribute__((weak));
-extern int  ce_commit(void *s) __attribute__((weak));
-extern int  ce_rollback(void *s) __attribute__((weak));
-extern int  ce_isolate(void *s, int level) __attribute__((weak));
-extern int  ce_reset(void *s) __attribute__((weak));
+ * client buildable with nothing but libc, as its head promises.
+ * `weak_import' on Darwin, for the reason zeytun.h's COCO_WEAK gives. */
+#ifdef __APPLE__
+#define CE_WEAK __attribute__((weak_import))
+#else
+#define CE_WEAK __attribute__((weak))
+#endif
+extern int  ce_engine_open(const char *dir, char *err, size_t errcap) CE_WEAK;
+extern void ce_engine_close(void) CE_WEAK;
+extern void *ce_session_new(void) CE_WEAK;
+extern void ce_session_free(void *s) CE_WEAK;
+extern const char *ce_error(void *s) CE_WEAK;
+extern int  ce_call(void *s, const char *proc) CE_WEAK;
+extern int  ce_write_num(void *s, int tag, long long v) CE_WEAK;
+extern int  ce_write_str(void *s, int tag, const char *v) CE_WEAK;
+extern int  ce_write_dvector(void *s, const double *v, uint32_t n) CE_WEAK;
+extern int  ce_read_dvector(void *s, double *out, uint32_t cap, uint32_t *n) CE_WEAK;
+extern int  ce_result(void *s, int *out) CE_WEAK;
+extern int  ce_columns(void *s, char *buf, size_t cap) CE_WEAK;
+extern int  ce_read_num(void *s, long long *v) CE_WEAK;
+extern int  ce_read_str(void *s, char *buf, size_t cap) CE_WEAK;
+extern int  ce_read_str_alloc(void *s, char **out, size_t *len) CE_WEAK;
+extern int  ce_skip(void *s) CE_WEAK;
+extern int  ce_commit(void *s) CE_WEAK;
+extern int  ce_rollback(void *s) CE_WEAK;
+extern int  ce_isolate(void *s, int level) CE_WEAK;
+extern int  ce_reset(void *s) CE_WEAK;
 
 struct zg_conn {
   int  fd;

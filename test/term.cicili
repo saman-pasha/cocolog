@@ -18,7 +18,12 @@
 ;;;   several reallocs so that a cached pointer would not survive this file.
 
 (source "term.c"
-  (make :std #t :compile #t :link ("-lterm.o" "-o" "cocolog_term_test"))
+  (make :std #t
+        ;; Apple's clang 21 fires -Wparentheses-equality on the transpiler's
+        ;; `while ((x == 0))' where older clangs stayed quiet, and Cicili
+        ;; treats chatter as fatal -- the same pair every other target carries
+        :compile ("-Wno-parentheses-equality" "-Wno-dangling-else" "-c" "term.c")
+        :link ("-lterm.o" "-o" "cocolog_term_test"))
 
   (import "../lib/term.cicili")
 

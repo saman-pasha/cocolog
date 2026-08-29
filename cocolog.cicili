@@ -142,6 +142,10 @@
   (include <limits.h>)
   ;; the library loader: use_module dlopen's a compiled module
   (include <dlfcn.h>)
+  ;; "which file am I" on Darwin -- see lb_exedir in lib/library.cicili
+  (@ifdef (code "__APPLE__"))
+  (include <mach-o/dyld.h>)
+  (@endif)
   (include <zigurat.h>)
   (include <zeytun.h>)
 

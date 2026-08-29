@@ -19,6 +19,13 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 CICILI=${CICILI:-$HOME/cicili}
 SBCL=${SBCL:-sbcl}
+# THE ONE COMPILER, for the test binaries too. Cicili names `gcc' (or, on
+# Darwin, `clang') outright, and the shims in tools/cc are how that name
+# reaches the wrappers -- which carry the flags a platform needs, and
+# which the main build already goes through. The test targets used to be
+# built with whatever the bare name resolved to, which is how they came
+# to fail on a Mac while `make' succeeded beside them.
+. "$ROOT/tools/cc/env.sh"
 
 if [ ! -f "$CICILI/cicili.lisp" ]; then
   echo "cocolog: set CICILI to a Cicili checkout (looked in $CICILI)" >&2

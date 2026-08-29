@@ -22,7 +22,12 @@
 ;;;   failed branches were not wound back, it would grow without bound.
 
 (source "solve.c"
-  (make :std #t :compile #t :link ("-lsolve.o" "-lm" "-o" "cocolog_solve_test"))
+  (make :std #t
+        ;; Apple's clang 21 fires -Wparentheses-equality on the transpiler's
+        ;; `while ((x == 0))' where older clangs stayed quiet, and Cicili
+        ;; treats chatter as fatal -- the same pair every other target carries
+        :compile ("-Wno-parentheses-equality" "-Wno-dangling-else" "-c" "solve.c")
+        :link ("-lsolve.o" "-lm" "-o" "cocolog_solve_test"))
 
   ;; the arithmetic builtins reach pow/sqrt/fabs, so a target that uses
   ;; cocolog includes <math.h> and links -lm

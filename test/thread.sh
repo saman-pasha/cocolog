@@ -21,6 +21,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
 . "$HERE/library-path.sh"
+. "$HERE/portable.sh"
 
 failures=0
 check() {
@@ -187,14 +188,14 @@ check "eight senders, 800 terms, all 800 arrive" \
         write(answer(N)), nl")" "800"
 
 echo "-- and it is really parallel, not taking turns"
-one=$( { S=$(date +%s%3N)
+one=$( { S=$(now_ms)
          timeout 200 "$C" query "$W, thread_create(spin(3000000), I), thread_join(I,_)" \
            >/dev/null 2>&1
-         E=$(date +%s%3N); echo $((E-S)); } )
-four=$( { S=$(date +%s%3N)
+         E=$(now_ms); echo $((E-S)); } )
+four=$( { S=$(now_ms)
           timeout 200 "$C" query "$W, thread_pool(4, spin(3000000), Ids), thread_join_all(Ids)" \
             >/dev/null 2>&1
-          E=$(date +%s%3N); echo $((E-S)); } )
+          E=$(now_ms); echo $((E-S)); } )
 printf '     one thread %sms, four threads %sms\n' "$one" "$four"
 # THE THRESHOLD IS LOOSE ON PURPOSE. Four times the work in under three
 # times the time cannot happen if the threads are serialised; how much under

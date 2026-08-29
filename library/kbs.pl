@@ -23,7 +23,7 @@
 %% base when asserted; otherwise $ZIGURAT_HOST/$ZIGURAT_PORT,
 %% otherwise 127.0.0.1:2160 -- the family's defaults. WHICH COCOLOG
 %% RUNS THE PROOF: $COCOLOG's checkout if set, otherwise THIS very
-%% binary (/proc/self/exe, the kernel's own answer), so a script
+%% binary (the executable flag, the engine's own answer), so a script
 %% needs no configuration to spawn what it already is.
 %%
 %% NOT HERE: an in-process multi-connection engine (that is a seam
@@ -39,10 +39,16 @@
 
 %% ---- where, and with what ---------------------------------------------
 
+%% THE BINARY IS THE ONE RUNNING, asked of the engine rather than of
+%% /proc: `current_prolog_flag(executable, P)' is resolved by cocolog
+%% itself (readlink on Linux, _NSGetExecutablePath on Darwin), where a
+%% `read_link('/proc/self/exe', ...)' silently failed on every machine
+%% without a /proc -- and a kb_binary that fails makes every kb_* goal
+%% fail with nothing printed, which cost a session on a Mac.
 kb_binary(Bin) :-
     (   getenv('COCOLOG', D)
     ->  atom_concat(D, '/cocolog', Bin)
-    ;   read_link('/proc/self/exe', _, Bin)
+    ;   current_prolog_flag(executable, Bin)
     ).
 
 kb_at(KB, Host, Port) :-

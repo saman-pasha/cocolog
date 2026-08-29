@@ -15,6 +15,15 @@
 # missing from the fourteenth.
 extra=
 case "$(uname -s)" in
-  Darwin) for a in "$@"; do [ "$a" = -shared ] && extra="-undefined dynamic_lookup"; done ;;
+  Darwin)
+    # ...and not only for a shared object. A program that links only the
+    # client archive leaves the TLS entry points and the embedded engine's
+    # UNDEFINED on purpose -- `weak' on Linux, `weak_import' here -- and
+    # Mach-O's weak_import still wants a definition at LINK time; only
+    # dynamic lookup lets the reference stay open and bind to null at load,
+    # which is the Linux behaviour every caller of those symbols checks for.
+    # So every link step on Darwin (anything not a `-c' compile) gets it.
+    link=1; for a in "$@"; do [ "$a" = -c ] && link=0; done
+    [ $link = 1 ] && extra="-Wl,-undefined,dynamic_lookup" ;;
 esac
 exec "${CICILI_CC:-clang}" $extra "$@"

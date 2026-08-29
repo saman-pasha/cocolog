@@ -41,9 +41,10 @@
 (IN-PACKAGE :cocolog)
 
 (DEFPARAMETER *library-predicates*
-  '(("use_module"    1 lb_use_module1)
-    ("use_module"    2 lb_use_module2)
-    ("ensure_loaded" 1 lb_use_module1)))
+  '(("use_module"         1 lb_use_module1)
+    ("use_module"         2 lb_use_module2)
+    ("ensure_loaded"      1 lb_use_module1)
+    ("current_prolog_flag" 2 lb_current_flag)))
 
 (generic decl-library
   ()
@@ -101,28 +102,73 @@
   ;;;
   ;;; /proc/self/exe is the kernel's answer to "which file am I", and it
   ;;; is exact -- no argv[0] guessing, no PATH search, correct under a
-  ;;; symlink because readlink resolves the whole chain. Linux-only, which
-  ;;; this already is: the embedded store, the epoll-free poll loop and
-  ;;; the rest of it have never pretended otherwise. Where it is not
-  ;;; there, the answer is the empty string and the search simply skips
-  ;;; those two entries.
+  ;;; symlink because readlink resolves the whole chain. DARWIN HAS NO
+  ;;; /proc, and its answer is `_NSGetExecutablePath' -- which hands back
+  ;;; whatever path the binary was invoked by, so `realpath' resolves it
+  ;;; the way readlink did. Both roads end in the same buffer; where
+  ;;; neither is there, the answer is the empty string and the search
+  ;;; simply skips those two entries.
+  ;;;
+  ;;; THE WHOLE PATH IS KEPT, not only its directory, because two things
+  ;;; outside this file need it: library(kbs) spawns cocolog processes
+  ;;; and CivV's suite drives them, and both used to read /proc/self/exe
+  ;;; themselves -- silently failing on every machine without one.
+  ;;; `current_prolog_flag(executable, P)' below is the one answer they
+  ;;; now share.
+  (static) (var char lb_exe_path [1024])
   (static) (var char lb_exe_dir [1024])
   (static) (var int lb_exe_done . 0)
 
   (static)
-  (func lb_exedir () (out const char *)
-        (let ((ssize_t n . 0) (size_t i . 0) (size_t cut . 0))
-          (if lb_exe_done (return lb_exe_dir))
+  (func lb_exe_resolve ()
+        (let ((ssize_t n . 0) (size_t cut . 0))
+          (if lb_exe_done (return))
           (set lb_exe_done 1)
+          (set (nth 0 lb_exe_path) (cast char 0))
           (set (nth 0 lb_exe_dir) (cast char 0))
-          (set n (readlink "/proc/self/exe" lb_exe_dir 1023))
-          (if (<= n 0) (return lb_exe_dir))
-          (set (nth (cast size_t n) lb_exe_dir) (cast char 0))
+          (@ifdef (code "__APPLE__"))
+          ;; neither `_NSGetExecutablePath' nor `realpath' is in the std
+          ;; POSIX declarations, so both go through the raw-C escape, as
+          ;; files.cicili's realpath does -- the fire escape, used for
+          ;; exactly what lib/std/c does not declare
+          (code "{ char raw[1024]; uint32_t cap = 1024;
+                   if (_NSGetExecutablePath(raw, &cap) == 0 && realpath(raw, lb_exe_path) != NULL)
+                     n = (ssize_t) strlen(lb_exe_path); }")
+          (@else)
+          (set n (readlink "/proc/self/exe" lb_exe_path 1023))
+          (if (> n 0) (set (nth (cast size_t n) lb_exe_path) (cast char 0)))
+          (@endif)
+          (if (<= n 0) (block (set (nth 0 lb_exe_path) (cast char 0)) (return)))
+          (strcpy lb_exe_dir lb_exe_path)
           ;; back to the last `/', which is where the directory ends
           (for ((size_t j . 0)) (< j (cast size_t n)) ((++ j))
                (if (== (nth j lb_exe_dir) (cast char 47)) (set cut j)))
-          (set (nth cut lb_exe_dir) (cast char 0))
-          (return lb_exe_dir)))
+          (set (nth cut lb_exe_dir) (cast char 0))))
+
+  (static)
+  (func lb_exedir () (out const char *)
+        (lb_exe_resolve)
+        (return lb_exe_dir))
+
+  ;;; `current_prolog_flag(executable, Path)' -- SWI's flag, and ONLY that
+  ;;; flag. cocolog has no flag table (`set_prolog_flag' in kb.cicili knows
+  ;;; `double_quotes' and refuses the rest), and a `current_prolog_flag'
+  ;;; that enumerated a dozen invented flags would be the predicate this
+  ;;; repository's rule warns about: one that agrees with SWI until it does
+  ;;; not. So: the executable's resolved path for `executable', and plain
+  ;;; failure for anything else -- which is what SWI answers for a flag
+  ;;; that does not exist. It FAILS rather than answering '' where the
+  ;;; path could not be found, because a program about to spawn that path
+  ;;; had better know.
+  (static)
+  (func lb_current_flag ((coco_engine * e) (size_t g)) (out int)
+        (let ((char flag [64]))
+          (if (not (coco_m_is_atom e (coco_m_arg e g 0))) (return 0))
+          (if (not (coco_m_text e (coco_m_arg e g 0) flag 64)) (return 0))
+          (if (!= 0 (strcmp flag "executable")) (return 0))
+          (lb_exe_resolve)
+          (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 1) lb_exe_path))))
 
   ;;; A directory under the binary's own: <exedir>/SUB.
   (static)

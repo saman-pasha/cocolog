@@ -8,7 +8,12 @@
 ;;; line below, and each of them was wrong at some point while this was written.
 
 (source "syntax.c"
-  (make :std #t :compile #t :link ("-lsyntax.o" "-o" "cocolog_syntax_test"))
+  (make :std #t
+        ;; Apple's clang 21 fires -Wparentheses-equality on the transpiler's
+        ;; `while ((x == 0))' where older clangs stayed quiet, and Cicili
+        ;; treats chatter as fatal -- the same pair every other target carries
+        :compile ("-Wno-parentheses-equality" "-Wno-dangling-else" "-c" "syntax.c")
+        :link ("-lsyntax.o" "-o" "cocolog_syntax_test"))
 
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")

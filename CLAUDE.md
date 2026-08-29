@@ -1067,20 +1067,56 @@ without a server, and `files` SKIPs without `swipl`
 (`apt-get install swi-prolog-nox`). **A run that says `red: 0` with eight
 SKIPs has not tested the database at all.**
 
-### The three things macOS gets wrong
+### What macOS gets wrong, and the recipe
 
 A Mac builds the whole family -- clang is native, and every layer came up
-clean -- but three things differ from Linux, and each one fails naming
-something other than its cause:
+clean -- but each of these fails naming something other than its cause,
+and every one has cost a session at least an hour:
 
-* **A shared object may not leave the interpreter's symbols undefined.**
-  Every loadable module refers to `coco_module_register` and the rest of
-  the SDK, to be found in the cocolog that `dlopen`s it. Linux's linker
-  allows that by default; Apple's says `ld: symbol(s) not found for
-  architecture x86_64`, naming a symbol that plainly exists in the
-  program the module is for. `tools/cc/cc` and `cxx` add
-  `-undefined dynamic_lookup` when they see `-shared` on Darwin -- once,
-  in the wrappers, rather than in thirteen `build.sh` files.
+* **A shared object may not leave the interpreter's symbols undefined,
+  and neither may a program that links only the client archive.** Every
+  loadable module refers to `coco_module_register` and the rest of the
+  SDK, to be found in the cocolog that `dlopen`s it; every test binary
+  refers to the TLS entry points and the embedded engine's, declared
+  `weak` on Linux so a build without them links and leaves them null.
+  Apple's linker says `ld: symbol(s) not found for architecture x86_64`
+  to both, naming symbols that plainly exist. Two halves fix it:
+  `client/zeytun.h`'s `COCO_WEAK` (and `zigurat.c`'s `CE_WEAK`) are
+  `weak_import` on Darwin, and `tools/cc/cc` and `cxx` add
+  `-Wl,-undefined,dynamic_lookup` to EVERY link step there -- Mach-O's
+  `weak_import` still wants a definition at link time, and only dynamic
+  lookup lets the reference stay open and bind to null at load, which is
+  the behaviour every caller of those symbols checks for. Once, in the
+  wrappers, rather than in every `build.sh` and `:link` list. **And the
+  wrappers must be REACHED**: on Darwin Cicili names `clang` outright
+  (its config.lisp says so), so `tools/cc` carries `clang` and `clang++`
+  shims beside `gcc` and `g++` -- each takes itself off PATH before
+  handing over, or the wrapper's `exec clang` would be the shim again --
+  and `test/run.sh` sources `tools/cc/env.sh`, which it never had: the
+  seven test binaries were built with whatever the bare name resolved
+  to, and failed on a Mac beside a `make` that succeeded.
+* **Apple's clang 21 defaults to C++14** (`__cplusplus 201402L`) where
+  Ubuntu's defaults to gnu++17, and fires `-Wparentheses-equality` on
+  the transpiler's `while ((x == 0))` in more places. Under C++14 there
+  is no guaranteed copy elision, so ZiguratIP's engine died at `call to
+  implicitly-deleted copy constructor of 'Zigurat::filestream'` on a
+  line that is correct C++17. Every Cicili target that compiles C++ now
+  says `-std=gnu++17` (gnu, for the statement expressions the transpiler
+  emits), and every target here carries the `-Wno-` pair -- including
+  the seven `test/*.cicili`, which used to inherit whatever the compiler
+  felt like. Apple's SDK also marks `sprintf` deprecated, which is a
+  warning, which Cicili treats as fatal: `-Wno-deprecated-declarations`
+  rides beside it in the C++ targets.
+* **There is no `/proc/self/exe`.** `lb_exedir` in `lib/library.cicili`
+  asks `_NSGetExecutablePath` + `realpath` under `(@ifdef (code
+  "__APPLE__"))` -- note the `code` payload: a bare symbol in an `@ifdef`
+  is `unknown symbol: __APPLE__`, and a libc function `lib/std/c` does
+  not declare (`_NSGetExecutablePath`, `realpath`) goes through the raw-C
+  escape exactly as `files.cicili` reaches `realpath`. The engine now
+  answers `current_prolog_flag(executable, P)` -- SWI's flag, and ONLY
+  that flag -- and `library(kbs)` and CivV's suite read it instead of
+  `/proc/self/exe`, which had failed silently and made every `kb_*` goal
+  fail with nothing printed.
 * **`make schema` dies inside libc++.** ZiguratIP's `memory.hpp` derives
   from `std::binary_function`, which C++17 removed and Apple's libc++
   actually deletes; the error is `no template named 'binary_function'`
@@ -1089,16 +1125,46 @@ something other than its cause:
   somewhere, append `-D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION` to
   its `CPP_FLAGS`, and `ZIGURATIP_CONF=that-file make schema` --
   `parsi/build.sh` passes it through. The tracked configuration is
-  untouched.
+  untouched. ZiguratIP's own `System/` objects and `demo/` compile with
+  the home configuration as they are.
+* **After ANY engine rebuild, EVERY object in `home/ld` is stale**, and
+  the server or `parsi` dies at `dlopen(...): Symbol not found:
+  __ZN7Globals11echo_streamEv` -- a symbol the old engine had and the
+  new one renamed. `make -C System clean && make -C System`, then each
+  `demo/0*.parsi` through `parsi`, then `make schema` here. `nm -u
+  home/ld/*.so | grep echo_stream` lists whoever is still behind.
 * **The X11 that `xdotool` needs is XQuartz's**, and it ships with the
   XTEST extension off. `brew install xdotool` says so on the way in:
   `defaults write org.x.X11 enable_test_extensions -boolean true`, then
-  restart X11. Without it every injected click in CivV's window cases is
-  silently ignored, and `raylib` for `modules/ray` is `brew install
-  raylib` (the build finds it through pkg-config).
+  restart X11. `raylib` for `modules/ray` is `brew install raylib`.
+* **A raylib photograph is ONE FRAME BEHIND on macOS**, measured: a red
+  frame, then a blue one, photographed, comes back red. After a single
+  frame it is black. A program that screenshots draws the same frame
+  twice first -- CivV's two renderers do -- and an overlay drawn twice
+  had better be idempotent.
+* **No `setsid`, no `LD_LIBRARY_PATH`, no `date +%N`, and `wc` pads.**
+  Raise the server with `nohup` in a subshell and `DYLD_LIBRARY_PATH`;
+  `timeout` is coreutils' (brew). `test/portable.sh` carries `now_ms`
+  (perl's Time::HiRes -- BSD date prints a literal `3N`, and the
+  arithmetic after it died with `value too great for base`, which is how
+  a timing check came to call parallel threads "serial") and `detach`
+  (setsid where it exists, plain elsewhere); `httpd.sh`, `curl.sh` and
+  `thread.sh` source it. BSD `wc -c` left-pads its count: `tr -d " "`.
+  `library(process)`'s `proc_spawn` calls the syscall and is unaffected.
+* **A page that warms a store takes ~4x longer here** -- CivV's `/view`
+  measured 12-13s against ~3s on the Linux box -- so a client's first
+  read must wait for that, and a server's READY line is printed ~1.4s
+  BEFORE its port opens. Wait for the port with `lsof -iTCP:PORT
+  -sTCP:LISTEN`, never with a probe connection: `httpd`'s accept loop
+  ENDS on a failed accept, and a bare TCP connect to a TLS listener is
+  exactly that.
 
-Library paths are `DYLD_LIBRARY_PATH`, not `LD_LIBRARY_PATH`, everywhere
-the server or `parsi` is raised by hand; the scripts here export both.
+One engine self-test fails on this Mac and passes on Linux --
+`contention_test`'s "rewrite vs index" (a writer rewriting one row under
+a unique index while readers look it up: `[writer: unique key]` and the
+row missing 4 times) -- and the gauntlet aborts the ZiguratIP `make`
+after the artefacts are already built. It is a real finding about the
+engine on Darwin and it is NOT fixed here; it is recorded for the owner.
 
 ### The two things a container gets wrong
 

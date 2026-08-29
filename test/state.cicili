@@ -14,7 +14,12 @@
 ;;; predicate part way through its clause list.
 
 (source "state.c"
-  (make :std #t :compile #t :link ("-lstate.o" "-lm" "-o" "cocolog_state_test"))
+  (make :std #t
+        ;; Apple's clang 21 fires -Wparentheses-equality on the transpiler's
+        ;; `while ((x == 0))' where older clangs stayed quiet, and Cicili
+        ;; treats chatter as fatal -- the same pair every other target carries
+        :compile ("-Wno-parentheses-equality" "-Wno-dangling-else" "-c" "state.c")
+        :link ("-lstate.o" "-lm" "-o" "cocolog_state_test"))
 
   (include <math.h>)
 

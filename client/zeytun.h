@@ -127,7 +127,18 @@ int zt_get2(const char *host, const char *service, const char *path,
  * FIRST declaration the compiler sees: putting it only in the .c files,
  * after this header had already declared them strongly, left
  * `undefined reference to coco_client_tls_recv' at every such link. */
+/* AND ON DARWIN IT IS `weak_import'. Apple's linker treats a plain weak
+ * DECLARATION as a strong reference -- a program that links only the
+ * archive dies at `symbol(s) not found for architecture x86_64', naming
+ * the very functions this comment says it may leave null -- and the
+ * attribute that means "may be absent at link time" is spelled
+ * differently there. Both spellings leave the symbol null when nothing
+ * provides it, which is the contract every caller of these checks. */
+#ifdef __APPLE__
+#define COCO_WEAK __attribute__((weak_import))
+#else
 #define COCO_WEAK __attribute__((weak))
+#endif
 
 COCO_WEAK int   coco_client_tls_available(void);
 COCO_WEAK void *coco_client_tls_open(int fd, const char *host,

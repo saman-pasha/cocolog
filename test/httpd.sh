@@ -22,6 +22,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
 . "$HERE/library-path.sh"
+. "$HERE/portable.sh"
 
 failures=0
 check() {
@@ -83,7 +84,7 @@ echo "-- every byte of a binary file survives the round trip"
 check "the body length is the file's byte count" \
   "$(q "httpd_answer($R, $(req get /i.png), Cs), length(Cs, T),
         size_file('$D/root/i.png', F), H is T - F, write(answer(H)), nl")" \
-  "$(printf 'HTTP/1.1 200 OK\r\nContent-Length: 8\r\nContent-Type: image/png\r\n\r\n' | wc -c)"
+  "$(printf 'HTTP/1.1 200 OK\r\nContent-Length: 8\r\nContent-Type: image/png\r\n\r\n' | wc -c | tr -d " ")"
 
 echo "-- the path rules, with a real file waiting on the other side"
 check "plain traversal is refused" "$(st get /../outside.txt)" "400"
@@ -327,7 +328,7 @@ PL
 
 # Detached: a plain \`&' from a tool call does not survive the turn, the
 # same hazard test/curl.sh names.
-setsid timeout 40 "$C" run "$D/server.pl" "serve(18860)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve(18860)" >/dev/null 2>&1 &
 sleep 3
 cq() { timeout 60 "$C" query "use_module(library(curl)), $1" 2>/dev/null \
        | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
@@ -424,7 +425,7 @@ kq() { timeout 60 "$C" query "$G, $1" 2>/dev/null \
 # ONE ACCEPT, several requests. httpd_serve/3 counts ACCEPTS, so a server
 # told to accept once that answers three requests has kept the connection
 # alive -- there was no second connection for them to arrive on.
-setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18861)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve_ka(18861)" >/dev/null 2>&1 &
 sleep 3
 check "three requests, one connection, one accept" \
   "$(kq "talk(18861, ['GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n',
@@ -435,7 +436,7 @@ check "three requests, one connection, one accept" \
 wait 2>/dev/null
 
 # `Connection: close' ENDS IT, and the response says so before it does.
-setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18862)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve_ka(18862)" >/dev/null 2>&1 &
 sleep 3
 check "a client asking to close is told close, and then is" \
   "$(kq "talk(18862, ['GET /a.txt HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n',
@@ -447,7 +448,7 @@ wait 2>/dev/null
 # HTTP/1.0 IS THE OTHER HALF OF RFC 7230 6.3, and the half that is easy to
 # get wrong: it must NOT persist unless it asked to. A 1.0 client left
 # hanging waits for an end-of-body that never comes.
-setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18863)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve_ka(18863)" >/dev/null 2>&1 &
 sleep 3
 check "HTTP/1.0 closes unless it asks to persist" \
   "$(kq "talk(18863, ['GET /a.txt HTTP/1.0\r\nHost: x\r\n\r\n',
@@ -456,7 +457,7 @@ check "HTTP/1.0 closes unless it asks to persist" \
   "200/close no-answer"
 wait 2>/dev/null
 
-setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18864)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve_ka(18864)" >/dev/null 2>&1 &
 sleep 3
 check "and persists when it does ask" \
   "$(kq "talk(18864, ['GET /a.txt HTTP/1.0\r\nHost: x\r\nConnection: keep-alive\r\n\r\n',
@@ -468,7 +469,7 @@ wait 2>/dev/null
 # PIPELINING: both requests in ONE write. This is what http_request/3's
 # remainder buys -- without it the second request's bytes are read as part
 # of the first and silently dropped.
-setsid timeout 40 "$C" run "$D/server.pl" "serve_ka(18865)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve_ka(18865)" >/dev/null 2>&1 &
 sleep 3
 check "two requests in one write get two answers" \
   "$(kq "pipeline(18865, 'GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\nGET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n', O),
@@ -477,7 +478,7 @@ wait 2>/dev/null
 
 # THE CEILING ON A CONNECTION. max_keep_alive(2) means the SECOND response
 # is the last, and says close rather than simply going quiet.
-setsid timeout 40 "$C" run "$D/server.pl" "serve_capped(18866)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve_capped(18866)" >/dev/null 2>&1 &
 sleep 3
 check "max_keep_alive closes the connection, and announces it" \
   "$(kq "talk(18866, ['GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n',
@@ -488,7 +489,7 @@ check "max_keep_alive closes the connection, and announces it" \
 wait 2>/dev/null
 
 # AND OFF IS OFF, for anyone who would rather pay the handshakes.
-setsid timeout 40 "$C" run "$D/server.pl" "serve_noka(18867)" >/dev/null 2>&1 &
+detach timeout 40 "$C" run "$D/server.pl" "serve_noka(18867)" >/dev/null 2>&1 &
 sleep 3
 check "keep_alive(false) closes after one, as it always did" \
   "$(kq "talk(18867, ['GET /a.txt HTTP/1.1\r\nHost: x\r\n\r\n',
@@ -527,32 +528,32 @@ PL
 hit() { timeout 90 curl -s -o /dev/null -w '%{http_code}' "$1"; }
 
 # It serves at all, through a worker rather than the accepting thread.
-setsid timeout 60 "$C" run "$D/pool.pl" "pool(18910, 4, 2)" >/dev/null 2>&1 &
+detach timeout 60 "$C" run "$D/pool.pl" "pool(18910, 4, 2)" >/dev/null 2>&1 &
 sleep 3
 check "a static file comes back through the pool" "$(hit http://127.0.0.1:18910/a.txt)" "200"
 check "and so does a page" "$(hit http://127.0.0.1:18910/fast)" "200"
 wait 2>/dev/null
 
 # ONE SLOW REQUEST, for the ratio below to mean anything.
-setsid timeout 90 "$C" run "$D/pool.pl" "alone(18911, 1)" >/dev/null 2>&1 &
+detach timeout 90 "$C" run "$D/pool.pl" "alone(18911, 1)" >/dev/null 2>&1 &
 sleep 3
-t0=$(date +%s%3N); hit http://127.0.0.1:18911/slow >/dev/null; t1=$(date +%s%3N)
+t0=$(now_ms); hit http://127.0.0.1:18911/slow >/dev/null; t1=$(now_ms)
 one=$((t1-t0)); wait 2>/dev/null
 
 # FOUR AT ONCE, one connection at a time: they queue, and the wall clock
 # is four of them end to end. This is the arrangement the pool replaces.
-setsid timeout 120 "$C" run "$D/pool.pl" "alone(18912, 4)" >/dev/null 2>&1 &
+detach timeout 120 "$C" run "$D/pool.pl" "alone(18912, 4)" >/dev/null 2>&1 &
 sleep 3
-t0=$(date +%s%3N)
+t0=$(now_ms)
 for i in 1 2 3 4; do hit http://127.0.0.1:18912/slow >/dev/null & done; wait
-t1=$(date +%s%3N); serial=$((t1-t0))
+t1=$(now_ms); serial=$((t1-t0))
 
 # FOUR AT ONCE THROUGH FOUR WORKERS: they overlap.
-setsid timeout 120 "$C" run "$D/pool.pl" "pool(18913, 4, 4)" >/dev/null 2>&1 &
+detach timeout 120 "$C" run "$D/pool.pl" "pool(18913, 4, 4)" >/dev/null 2>&1 &
 sleep 3
-t0=$(date +%s%3N)
+t0=$(now_ms)
 for i in 1 2 3 4; do hit http://127.0.0.1:18913/slow >/dev/null & done; wait
-t1=$(date +%s%3N); pooled=$((t1-t0))
+t1=$(now_ms); pooled=$((t1-t0))
 
 printf '     one %sms; four serially %sms; four pooled %sms\n' "$one" "$serial" "$pooled"
 # THE THRESHOLD IS LOOSE ON PURPOSE. Four requests overlapping cannot take
@@ -567,7 +568,7 @@ check "pooled, the same four take about one" \
 
 # A PAGE THAT THROWS MUST NOT TAKE ITS WORKER WITH IT. The pool answers
 # 500 and the same worker takes the next connection.
-setsid timeout 60 "$C" run "$D/pool.pl" "pool(18914, 2, 2)" >/dev/null 2>&1 &
+detach timeout 60 "$C" run "$D/pool.pl" "pool(18914, 2, 2)" >/dev/null 2>&1 &
 sleep 3
 check "a page that throws is 500, from a worker" "$(hit http://127.0.0.1:18914/boom2)" "500"
 check "and the pool serves the next request anyway" "$(hit http://127.0.0.1:18914/fast)" "200"
@@ -618,7 +619,7 @@ pooled(P) :- httpd_serve(P, [workers(2)], 2).
 alone(P)  :- httpd_serve(P, [], 2).
 PL
 
-setsid timeout 60 "$C" run "$D/twoways.pl" "pooled(18940)" >/dev/null 2>&1 &
+detach timeout 60 "$C" run "$D/twoways.pl" "pooled(18940)" >/dev/null 2>&1 &
 sleep 3
 check "a pooled worker serves a page loaded as a module" \
   "$(timeout 30 curl -s http://127.0.0.1:18940/from_module)" "from_module"
@@ -628,7 +629,7 @@ wait 2>/dev/null
 
 # ...AND WITHOUT A POOL BOTH WORK, which is what makes the rule a
 # property of the pool rather than of `httpd_page/3'.
-setsid timeout 60 "$C" run "$D/twoways.pl" "alone(18941)" >/dev/null 2>&1 &
+detach timeout 60 "$C" run "$D/twoways.pl" "alone(18941)" >/dev/null 2>&1 &
 sleep 3
 check "workers(0) serves the store page too" \
   "$(timeout 30 curl -s http://127.0.0.1:18941/from_store)" "from_store"
@@ -675,7 +676,7 @@ kb_count() { timeout 60 "$C" $KB query \
 
 # A WORKER READS. Before the kb hook a thread was a --local proof whatever
 # the parent was, and this page answered 404 because stock/2 was not there.
-setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18930, 3, 1)" >/dev/null 2>&1 &
+detach timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18930, 3, 1)" >/dev/null 2>&1 &
 sleep 3
 check "a page in a worker reads what another process wrote" \
   "$(timeout 30 curl -s http://127.0.0.1:18930/stock)" "widget 7"
@@ -684,7 +685,7 @@ wait 2>/dev/null
 # THREE WORKERS WRITE, and the count is taken by a SEPARATE PROCESS --
 # which is the only way to prove the transaction settled rather than
 # merely happening inside the server's own head.
-setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18931, 3, 3)" >/dev/null 2>&1 &
+detach timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18931, 3, 3)" >/dev/null 2>&1 &
 sleep 3
 for i in 1 2 3; do timeout 30 curl -s -o /dev/null http://127.0.0.1:18931/visit; done
 wait 2>/dev/null
@@ -695,7 +696,7 @@ check "three pooled writes are all visible to another process" "$(kb_count)" "3"
 # server stopped -- and the server is still running when this is counted.
 timeout 60 "$C" $KB forget >/dev/null 2>&1
 timeout 60 "$C" $KB query "assertz(stock(widget, 7))" >/dev/null 2>&1
-setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18932, 2, 4)" >/dev/null 2>&1 &
+detach timeout 60 "$C" $KB run "$D/kbsrv.pl" "pooled(18932, 2, 4)" >/dev/null 2>&1 &
 sleep 3
 timeout 30 curl -s -o /dev/null http://127.0.0.1:18932/visit
 mid=$(kb_count)
@@ -706,7 +707,7 @@ wait 2>/dev/null
 # AND THE SINGLE-THREADED PATH TOO, which had the same bug and no pool to
 # blame it on: httpd_loop is one goal as well.
 timeout 60 "$C" $KB forget >/dev/null 2>&1
-setsid timeout 60 "$C" $KB run "$D/kbsrv.pl" "alone(18933, 2)" >/dev/null 2>&1 &
+detach timeout 60 "$C" $KB run "$D/kbsrv.pl" "alone(18933, 2)" >/dev/null 2>&1 &
 sleep 3
 timeout 30 curl -s -o /dev/null http://127.0.0.1:18933/visit
 check "workers(0) settles per request as well" "$(kb_count)" "1"

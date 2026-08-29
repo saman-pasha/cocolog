@@ -26,7 +26,20 @@
 
 (source "embed.cpp"
   (make :cpp #t
-        :compile ("-Wno-parentheses-equality" "-Wno-dangling-else"
+        ;; THE STANDARD, SAID OUT LOUD. The rest of the binary is C and
+        ;; this one target is C++; it inherited whatever the compiler
+        ;; defaulted to, which is gnu++17 on Ubuntu's clang and C++14 on
+        ;; Apple's -- and ZiguratIP's engine died under C++14 at a
+        ;; `filestream f = filestream(...)' that needs guaranteed copy
+        ;; elision. The same engine is transpiled here through the
+        ;; mvccs-lib.cicili symlink, so the same flag, for the same
+        ;; reason, before it bites.
+        ;; A THIRD, FROM APPLE'S SDK: `sprintf' is marked deprecated
+        ;; there, and a deprecation is a warning -- which Cicili treats
+        ;; as fatal, so the build stopped naming a function that works.
+        ;; Silenced in the target's own list, as the other two are.
+        :compile ("-std=gnu++17" "-Wno-deprecated-declarations"
+                  "-Wno-parentheses-equality" "-Wno-dangling-else"
                   "-c" "embed.cpp"))
 
   (include <cstdio>)
