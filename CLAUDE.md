@@ -377,6 +377,7 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/thread` | nothing | `sh modules/thread/build.sh` |
 | `modules/process` | nothing | `sh modules/process/build.sh` |
 | `modules/text` | nothing | `sh modules/text/build.sh` |
+| `modules/os` | nothing | `sh modules/os/build.sh` |
 | `modules/curl` | libcurl | `sh modules/curl/build.sh` |
 | `modules/bigint` | a **built** ZiguratIP | `sh modules/bigint/build.sh` |
 | `modules/torch` | libtorch | `sh modules/torch/build.sh` |
@@ -980,7 +981,7 @@ sixty-four files as one suite case:
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | twenty-nine lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | thirty lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | twenty-four networks, three processes each | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
@@ -1142,6 +1143,11 @@ and every one has cost a session at least an hour:
   frame it is black. A program that screenshots draws the same frame
   twice first -- CivV's two renderers do -- and an overlay drawn twice
   had better be idempotent.
+* **Ask `library(os)`, not a shell.** `os_is(darwin)`, `os_has(Tool)`,
+  `os_lib_path_var(V)`, `os_tmp(T)`, `os_cpus(N)` are the questions the
+  suites used to put to `uname`, `command -v`, `$TMPDIR` and `nproc` --
+  answered by libc, the same clause on both systems. `modules/os`,
+  tutorial 35, `test/os.sh`.
 * **No `setsid`, no `LD_LIBRARY_PATH`, no `date +%N`, and `wc` pads.**
   Raise the server with `nohup` in a subshell and `DYLD_LIBRARY_PATH`;
   `timeout` is coreutils' (brew). `test/portable.sh` carries `now_ms`

@@ -1,0 +1,233 @@
+;;;; cocolog -- the operating system, as a module: which one, who am I,
+;;;; how many cores, what is in the environment, where is a tool.
+;;;
+;;; WHY THIS EXISTS. The day the family's suites first ran on a Mac,
+;;; every script that needed to know where it was shelled out for the
+;;; answer -- `uname -s', `command -v Xvfb', `nproc', `$TMPDIR' with a
+;;; trailing slash -- and every one of those is a fact the process
+;;; already holds, or one libc call away. A test that asks the OS a
+;;; question by starting a shell is a test whose answer depends on the
+;;; shell; this module answers the same questions as clauses, and the
+;;; same clauses on both systems. `os_is(darwin)' is the whole of a
+;;; platform branch.
+;;;
+;;; THE SPLIT IS THE USUAL ONE: the C half is the handful of calls
+;;; Prolog cannot make -- uname, getpid, sysconf, environ, access over
+;;; PATH, setenv -- each answering one plain value; the Prolog half is
+;;; every convenience over them, in clauses a reader can query.
+;;;
+;;; WHAT IS NOT HERE, deliberately: running anything (library(process)),
+;;; files (lib/files.cicili, always present), memory and load figures
+;;; (each system spells them differently and nothing here needs them
+;;; yet), and users beyond uid (the passwd file is a policy question).
+;;;
+;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit;
+;;; modules/tcp/tcp.cicili says why at its top.
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *os-predicates*
+  '(("$os_uname"    5 coco_os_uname)
+    ("os_pid"       1 coco_os_pid)
+    ("os_ppid"      1 coco_os_ppid)
+    ("os_uid"       1 coco_os_uid)
+    ("os_gid"       1 coco_os_gid)
+    ("os_cpus"      1 coco_os_cpus)
+    ("os_hostname"  1 coco_os_hostname)
+    ("$os_environ"  1 coco_os_environ)
+    ("os_setenv"    2 coco_os_setenv)
+    ("os_unsetenv"  1 coco_os_unsetenv)
+    ("$os_which"    3 coco_os_which)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half
+;;;; ------------------------------------------------------------------
+;;; Joined with spaces -- a Cicili string literal cannot carry a newline.
+(DEFPARAMETER *os-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; Which system, as one lower-case atom: darwin, linux, freebsd,
+           ;; ... -- uname's sysname, folded, so `os_is(darwin)' reads as
+           ;; the branch it is. The five-field uname is there for the rest.
+           "os_uname(S, N, R, V, M) :- '$os_uname'(S, N, R, V, M)."
+           "os_name(Name) :- '$os_uname'(S, _, _, _, _), downcase_atom(S, Name)."
+           "os_is(Name) :- os_name(Name)."
+           "os_arch(M) :- '$os_uname'(_, _, _, _, M)."
+
+           ;; The environment, as Name-Value pairs. The C half hands over
+           ;; the raw NAME=VALUE lines because it cannot build a pair; the
+           ;; split on the FIRST `=' is the rule, since a value may carry
+           ;; more of them.
+           "os_environ(Pairs) :- '$os_environ'(Lines), os_env_pairs(Lines, Pairs)."
+           "os_env_pairs([], [])."
+           "os_env_pairs([L|Ls], [N-V|Ps]) :- ( sub_atom(L, B, 1, _, '='), sub_atom(L, 0, B, _, N), B1 is B + 1, sub_atom(L, B1, _, 0, V) -> true ; N = L, V = '' ), !, os_env_pairs(Ls, Ps)."
+
+           ;; getenv/2 that says what it means: os_env/2 fails when the
+           ;; name is unset, os_env/3 answers a default instead.
+           "os_env(Name, Value) :- getenv(Name, Value)."
+           "os_env(Name, Value, Default) :- ( getenv(Name, V) -> Value = V ; Value = Default )."
+
+           ;; The four everyday answers, with their fallbacks spelled out.
+           ;; os_tmp strips a trailing slash: macOS's TMPDIR ends in one,
+           ;; and a path joined onto it would carry `//'.
+           "os_home(H) :- os_env('HOME', H)."
+           "os_user(U) :- ( os_env('USER', U) -> true ; os_env('LOGNAME', U) )."
+           "os_shell(S) :- os_env('SHELL', S, '/bin/sh')."
+           "os_tmp(T) :- os_env('TMPDIR', T0, '/tmp'), ( atom_concat(T1, '/', T0), T1 \\== '' -> T = T1 ; T = T0 )."
+
+           ;; PATH as a list, and a tool looked for along it -- access(2)
+           ;; for X_OK on each entry, no shell, no `command -v'. A name with
+           ;; a slash in it is taken as a path and asked about directly.
+           "os_path(Dirs) :- os_env('PATH', P, ''), atomic_list_concat(Dirs, ':', P)."
+           "os_which(Tool, Path) :- ( sub_atom(Tool, _, 1, _, '/') -> '$os_which'(Tool, '', Path) ; os_path(Dirs), member(D, Dirs), D \\== '', '$os_which'(Tool, D, Path) ), !."
+           "os_has(Tool) :- os_which(Tool, _)."
+
+           ;; The two names that differ between the systems this family
+           ;; runs on, so a script says `os_lib_path_var(V)' and never
+           ;; spells either. The dynamic linker's search variable is the
+           ;; one every server-raising script needs; the shell that puts a
+           ;; child in its own session exists on Linux and not on macOS,
+           ;; where library(process)'s proc_spawn already does the same
+           ;; through the syscall and a command needs no prefix at all.
+           "os_lib_path_var(V) :- ( os_is(darwin) -> V = 'DYLD_LIBRARY_PATH' ; V = 'LD_LIBRARY_PATH' )."
+           "os_setsid_prefix(P) :- ( os_has(setsid) -> P = 'setsid ' ; P = '' )."
+
+           ;; One line, for a log or a header: `darwin x86_64 16 cpus'.
+           "os_describe(A) :- os_name(N), os_arch(M), os_cpus(C), atomic_list_concat([N, ' ', M, ' ', C, ' cpus'], A).")))
+
+(generic decl-os
+  ()
+
+  ;; utsname is not among the std POSIX declarations, and a Cicili
+  ;; struct needs a name it can see -- so uname goes through the raw-C
+  ;; escape below, as files.cicili reaches realpath.
+  (decl) (func getppid () (out pid_t))
+  ;; `environ' is `char **', two tokens, which a Cicili declaration
+  ;; cannot say -- the walk over it is in the escape too.
+
+  ) ; decl-os
+
+
+(generic impl-os
+  ()
+
+  ;;; One answer, unified with the single argument -- every predicate
+  ;;; here is `(-X)', so the shape repeats.
+  (static)
+  (func coco_os_int1 ((coco_engine * e) (size_t g) (i64 v)) (out int)
+        (return (coco_m_unify_int e (coco_m_arg e g 0) v)))
+
+  ;;; ---- $os_uname(-Sys, -Node, -Release, -Version, -Machine) ----------
+  (func coco_os_uname ((coco_engine * e) (size_t g)) (out int)
+        (let ((char sys [256]) (char node [256]) (char rel [256])
+              (char ver [512]) (char mach [256]) (int ok . 0))
+          (code "{ struct utsname u; if (uname(&u) == 0) { ok = 1;
+                   snprintf(sys, sizeof sys, \"%s\", u.sysname);
+                   snprintf(node, sizeof node, \"%s\", u.nodename);
+                   snprintf(rel, sizeof rel, \"%s\", u.release);
+                   snprintf(ver, sizeof ver, \"%s\", u.version);
+                   snprintf(mach, sizeof mach, \"%s\", u.machine); } }")
+          (if (not ok) (return 0))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 0) sys)) (return 0))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 1) node)) (return 0))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 2) rel)) (return 0))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 3) ver)) (return 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 4) mach))))
+
+  ;;; ---- the plain numbers -----------------------------------------------
+  (func coco_os_pid ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_os_int1 e g (cast i64 (getpid)))))
+  (func coco_os_ppid ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_os_int1 e g (cast i64 (getppid)))))
+  (func coco_os_uid ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_os_int1 e g (cast i64 (getuid)))))
+  (func coco_os_gid ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_os_int1 e g (cast i64 (getgid)))))
+
+  ;;; ---- os_cpus(-N): the cores ONLINE, which is what a pool sizes to --
+  ;;; `_SC_NPROCESSORS_ONLN' is a #define, invisible to Cicili, so it is
+  ;;; spelled in the escape.
+  (func coco_os_cpus ((coco_engine * e) (size_t g)) (out int)
+        (let ((long n . 0))
+          (set n (code "sysconf(_SC_NPROCESSORS_ONLN)"))
+          (if (< n 1) (set n 1))
+          (return (coco_os_int1 e g (cast i64 n)))))
+
+  ;;; ---- os_hostname(-H) -------------------------------------------------
+  (func coco_os_hostname ((coco_engine * e) (size_t g)) (out int)
+        (let ((char h [256]))
+          (if (!= 0 (gethostname h 255)) (return 0))
+          (set (nth 255 h) (cast char 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 0) h))))
+
+  ;;; ---- $os_environ(-Lines): every NAME=VALUE, as atoms, in order ------
+  ;;; Built back to front so the list comes out in environ's order.
+  (func coco_os_environ ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t lst . 0))
+          (code "{ extern char **environ; size_t n = 0;
+                   while (environ[n] != NULL) n++;
+                   lst = coco_m_nil(e);
+                   while (n > 0) { n--; lst = coco_m_cons(e, coco_m_new_atom(e, environ[n]), lst); } }")
+          (return (coco_m_unify e (coco_m_arg e g 0) lst))))
+
+  ;;; ---- os_setenv(+Name, +Value) / os_unsetenv(+Name) ------------------
+  ;;; This process's own environment, which its children inherit. Both
+  ;;; refuse a non-atom loudly rather than setting the text of a term.
+  (static)
+  (func coco_os_text ((coco_engine * e) (size_t g) (u32 i) (char * buf) (size_t cap) (int * rc))
+        (out int)
+        (let ((size_t t . #'(coco_m_arg e g i)))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (not (coco_m_text e t buf cap))
+              (block (set (cof rc) (coco_m_type_error e "atom" t)) (return 0)))
+          (return 1)))
+
+  (func coco_os_setenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [256]) (char value [4096]) (int rc . 0))
+          (if (not (coco_os_text e g 0 name 256 (aof rc))) (return rc))
+          (if (not (coco_os_text e g 1 value 4096 (aof rc))) (return rc))
+          (return (? (== 0 (setenv name value 1)) 1 0))))
+
+  (func coco_os_unsetenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [256]) (int rc . 0))
+          (if (not (coco_os_text e g 0 name 256 (aof rc))) (return rc))
+          (return (? (== 0 (unsetenv name)) 1 0))))
+
+  ;;; ---- $os_which(+Tool, +Dir, -Path): is Dir/Tool executable? ---------
+  ;;; An empty Dir asks about Tool as a path of its own. access(2) with
+  ;;; X_OK is the same question `command -v' answers, without a shell.
+  (func coco_os_which ((coco_engine * e) (size_t g)) (out int)
+        (let ((char tool [1024]) (char dir [1024]) (char path [2200]) (int rc . 0))
+          (if (not (coco_os_text e g 0 tool 1024 (aof rc))) (return rc))
+          (if (not (coco_os_text e g 1 dir 1024 (aof rc))) (return rc))
+          (if (== (nth 0 dir) (cast char 0))
+              (snprintf path 2200 "%s" tool)
+            (snprintf path 2200 "%s/%s" dir tool))
+          (if (!= 0 (access path 1)) (return 0))   ; 1 is X_OK
+          (return (coco_m_unify_atom e (coco_m_arg e g 2) path))))
+
+  (static) (coco-emit-module-dispatch coco_os_dispatch *os-predicates*)
+
+  ) ; impl-os
+
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+(source "os.c"
+  (make :std #t :compile #f)
+
+  (include <unistd.h>)
+  (include <stdlib.h>)
+  (include <stdio.h>)
+  (include <sys/utsname.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (decl-os)
+  (impl-os)
+
+  (coco-deflibrary "os" coco_os_dispatch *os-prolog*))
