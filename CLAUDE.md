@@ -1159,6 +1159,23 @@ and every one has cost a session at least an hour:
   ENDS on a failed accept, and a bare TCP connect to a TLS listener is
   exactly that.
 
+**The suite is 27 of 39 GREEN on a Mac, and the twelve are the tests'
+own portability, not the interpreter's.** Every case a downstream
+repository stands on is green there -- term syntax solve module state
+zigurat shared script library bigint zigurat-lib meter thread process
+text kbs curl ray hex astar serialize httpd httpd-tls crypto tls
+zigurat-tls tutorials. The twelve that are not, and what each smells of:
+`files` and `trace` (a byte-for-byte comparison against this machine's
+swipl, which is a different release); `vacuum`, `repl`, `tensors`
+(`rm` of a `$TMPDIR` scratch dir that is not empty -- BSD rm); `tunnel`
+and `colab` (the Zeytun edge on privileged ports, and GNU tools);
+`http` and `tcp` (a second process reaching a first -- `detach` and
+timing); `engine` (a timing ratio); `groups` and `ruler` (`vacuum:
+read failed: Resource temporarily unavailable` -- a socket read timing
+out under a slow vacuum, worth a look of its own). None of them is a
+CivV or Coco dependency, and none has been dressed up: read the
+per-case lines, as always.
+
 One engine self-test fails on this Mac and passes on Linux --
 `contention_test`'s "rewrite vs index" (a writer rewriting one row under
 a unique index while readers look it up: `[writer: unique key]` and the
