@@ -44,6 +44,7 @@
     ("forall"                  2 coco_b_forall)
     ("aggregate_all"           3 coco_b_aggregate_all)
     ("call_limited"            3 coco_b_call_limited)
+    ("call_metered"            4 coco_b_call_metered)
 
     ("succ"                    2 coco_b_succ)
     ("plus"                    3 coco_b_plus)
@@ -469,6 +470,71 @@
               (return (coco_m_unify_atom e (coco_m_arg e g 2)
                                          "inference_limit_exceeded")))
           (return (coco_m_unify_atom e (coco_m_arg e g 2) "true"))))
+
+  ;;; ---- and what the goal COST -----------------------------------------
+  ;;;
+  ;;; `call_metered(Goal, Limit, Used, Result)' -- the same ceiling, plus the
+  ;;; number of inferences the goal actually SPENT.
+  ;;;
+  ;;; THE ENGINE HAS ALWAYS COUNTED THEM and never told a program.
+  ;;; `coco_engine_call_limited' fills in `used' for its own accounting -- an
+  ;;; outer budget that did not charge for a fenced goal would be a hole in
+  ;;; the fence -- and the machine runner prints the same number as
+  ;;; "finished after N inference(s)". Both are OUTSIDE the proof: one is C,
+  ;;; the other is a line on a terminal. So anything written in Prolog that
+  ;;; wanted to charge for work had to guess at the work, which is the one
+  ;;; thing a meter must not do.
+  ;;;
+  ;;; IT SUCCEEDS WHERE `call_limited/3' FAILS, and that is the difference
+  ;;; worth the separate name. A meter that says nothing about a goal that
+  ;;; failed cannot bill one, and a failed goal has spent real inferences --
+  ;;; searching for a proof that was not there is exactly the work an
+  ;;; attacker would like to be free. So this one always succeeds (unless
+  ;;; Goal throws), Result is `true', `failed' or
+  ;;; `inference_limit_exceeded', and Used is filled in for all three.
+  ;;;
+  ;;; Everything else is `call_limited/3's, deliberately and by sharing its
+  ;;; implementation: the ceiling narrows to what an outer budget has left
+  ;;; and never widens, a limit below 1 is a domain error rather than
+  ;;; "unlimited", and bindings survive only a success.
+  ;;;
+  ;;; AN EXCEPTION INSIDE IS STILL AN EXCEPTION OUTSIDE -- re-thrown here as
+  ;;; it is there -- and the count is lost with the frame that carried it. A
+  ;;; caller that must charge for a goal that throws puts its own `catch/3'
+  ;;; INSIDE the meter, where the throw is an outcome instead of an escape.
+  ;;; That is not a workaround: which exceptions are failures is the
+  ;;; caller's policy, and a meter that decided it would be deciding for
+  ;;; everybody.
+  ;;;
+  ;;; THE COUNT IS DETERMINISTIC, which is what makes it usable as a price:
+  ;;; the same goal against the same clauses spends the same inferences in
+  ;;; every process, so two parties that never met can compute the same fee
+  ;;; and check each other's. `test/meter.sh' pins that as its own check.
+  (func coco_b_call_metered ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 lim . 0) (u64 used . 0) (int rc . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof lim)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
+          (if (< lim 1)
+              (return (coco_m_domain_error e "positive_integer" (coco_m_arg e g 1))))
+          (set rc (coco_engine_call_limited e (coco_m_arg e g 0)
+                                            (cast u64 lim) (aof used)))
+          (if (== rc -1) (return -1))
+          ;; 3 is "it threw and an outer catch took it": the continuation is
+          ;; already set, and there is nothing here left to report to
+          (if (== rc 3) (return 2))
+          ;; The count FIRST, and on every outcome -- a caller that reads it
+          ;; only when the goal succeeded is back to guessing at the
+          ;; expensive half. Unifying after the ceiling is safe: the undo
+          ;; that dropped the goal's bindings is already done, and this cell
+          ;; is built above the mark it came back to.
+          (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 used)))
+              (return 0))
+          (if (== rc 0)
+              (return (coco_m_unify_atom e (coco_m_arg e g 3) "failed")))
+          (if (== rc 2)
+              (return (coco_m_unify_atom e (coco_m_arg e g 3)
+                                         "inference_limit_exceeded")))
+          (return (coco_m_unify_atom e (coco_m_arg e g 3) "true"))))
 
   ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by
   ;;; collecting: it stops at the first counterexample and builds no list.

@@ -88,6 +88,12 @@ done
 #           term representation can be perfectly correct and quadratic,
 #           and this one was. A timeout with a hundred-fold margin rather
 #           than a stopwatch with a threshold
+#   meter   `call_metered/4': a goal under a ceiling, and WHAT IT COST.
+#           The count is the engine's own and was never readable from
+#           Prolog before -- so the checks are the ones a PRICE needs: it
+#           measures rather than echoing the ceiling, it answers for a
+#           goal that failed (a search is work), and two processes that
+#           share nothing but the goal report the same number
 #   thread  threads that share nothing and channels that copy. Two of its
 #           claims cannot be read off the code: that eight senders lose
 #           nothing into one channel (counted, not timed) and that four
@@ -127,7 +133,7 @@ done
 #           The torch category SKIPs inside the case without libtorch
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl script tunnel tensors library bigint zigurat-lib tcp engine thread process text kbs http curl ray hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab groups ruler; do
+for c in files trace vacuum repl script tunnel tensors library bigint zigurat-lib tcp engine meter thread process text kbs http curl ray hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it; it needs no

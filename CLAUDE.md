@@ -1052,7 +1052,7 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **29** case lines. A change to
+Run `make test` with a server up, and read all **39** case lines. A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

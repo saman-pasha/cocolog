@@ -569,6 +569,48 @@ older behaviour** — an uncaught throw inside it ends the query with a message
 no `catch/3` sees. The machinery to fix it is now in place; changing a core
 predicate wants its own case, so it was not done in passing.
 
+### And what the goal cost: `call_metered/4`
+
+    call_metered(Goal, Limit, Used, Result)
+
+The same ceiling, plus the number of inferences the goal actually **spent**.
+`Result` is `true`, `failed` or `inference_limit_exceeded`, and `Used` is
+filled in for all three.
+
+**The engine has always counted and never told a program.** The machine
+runner prints `finished after N inference(s)`, and `coco_engine_call_limited`
+fills in a `used` it keeps for its own accounting — an outer budget that did
+not charge for a fenced goal would be a hole in the fence. Both of those are
+*outside* the proof: one is C, the other a line on a terminal. So anything
+written in Prolog that wanted to charge for work had to guess at the work,
+which is the one thing a meter must not do.
+
+**It succeeds where `call_limited/3` fails**, and that is why it is a second
+predicate rather than an argument on the first. `/3` fails when the goal
+fails, which is the right shape for something that drops in where `once/1`
+was and the wrong shape for a meter: searching for a proof that is not there
+is real work — precisely the work an attacker would like to be free — and a
+meter that goes silent on failure cannot bill it.
+
+Everything else is `call_limited/3`'s, by sharing its implementation: the
+ceiling narrows to what an outer budget has left and never widens, a `Limit`
+below 1 is a `domain_error(positive_integer, _)` rather than "unlimited",
+and bindings survive only a success.
+
+**An exception inside is still an exception outside**, re-thrown here as it
+is there, and the count is lost with the frame that carried it. A caller that
+must charge for a goal that throws puts its own `catch/3` **inside** the
+meter, where the throw becomes an outcome and is counted like any other. That
+is not a workaround: which exceptions are failures is the caller's policy,
+and a meter that decided would be deciding for everybody.
+
+**The count is deterministic**, which is what makes it usable as a *price*:
+the same goal against the same clauses spends the same inferences in every
+process, so two parties who never met can compute the same fee and check each
+other's arithmetic. `test/meter.sh` pins that across two invocations, along
+with the two checks that keep the number honest — a tiny goal under a huge
+ceiling costs a tiny number, and ten times the work costs strictly more.
+
 ### The soft cut
 
 `(C *-> T ; E)` runs `T` for **every** solution of `C`, not just the first — so
