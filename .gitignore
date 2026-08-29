@@ -53,6 +53,8 @@ modules/text/text.c
 modules/text/sdk.cicili
 modules/ray/ray.c
 modules/ray/sdk.cicili
+modules/os/os.c
+modules/os/sdk.cicili
 modules/bigint/coco-bigint.cpp
 modules/bigint/zigheaders
 modules/torch/coco-torch.cpp
