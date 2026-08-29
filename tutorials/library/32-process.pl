@@ -59,7 +59,8 @@ main :-
     check('six sevens', 42, 42),
     checks_done,
 
-    format("~nlesson 32: every claim held~n", []).
+    format("~nlesson 32: every claim held~n", []),
+    write(done), nl.
 
 must(Label, Got, Want) :-
     (   Got == Want
