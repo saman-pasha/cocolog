@@ -537,6 +537,20 @@ no tag, and misnested end tags. It does NOT do implied
 half tree builder is worse than none, because it produces a tree that
 looks right and quietly is not the one a browser built.
 
+**CSS PARSES IN `html.pl` TOO — `css_parse/2`, `css_declarations/2`,
+and the writers `css_codes/atom/write` — because CSS lives inside HTML
+twice**: a `<style>` element's raw text and a `style="..."` attribute,
+both exactly what `html_parse/2` just handed you. A stylesheet is a
+list of `rule(Selectors, Decls)` and `at/2,3` terms; `!important`
+surfaces as `important(Value)`; properties fold to lower case except
+case-sensitive `--custom` ones; and the scanner respects strings,
+parens and brackets, so a `;` inside `url(...)` is content. It is NOT
+a value parser or a selector-tree builder (a value and a selector come
+back as the atoms they were written as, stated in the header), and it
+throws rather than guesses in both directions — the writer checks with
+the reader's own scanner, so nothing it emits reparses as a different
+stylesheet. Round trips in `test/serialize.sh`, lesson in tutorial 14.
+
 ## ZiguratIP's cryptography, imported rather than rewritten
 
 Four modules and one Prolog library, all tier 2, all with prefixes of

@@ -514,6 +514,66 @@ check "a JSON body written into a page reads back as itself" \
         ( Back == Data -> R = round_trip ; R = Back ), write(answer(R)), nl")" \
   "round_trip"
 
+echo "-- CSS: the style half of the same documents"
+# THE ROUND TRIP IS THE REAL TEST, the same rule the three serialisers
+# live by: parse, write, parse again, and the two terms must be equal.
+check "a stylesheet round-trips through its terms" \
+  "$(q "$H, css_parse('a, .nav > li { color: red; margin: 0 } @media screen { p { font: bold 12px/1.4 serif !important } }', S1),
+        css_atom(S1, T), css_parse(T, S2),
+        ( S1 == S2 -> R = round_trip ; R = S1/S2 ), write(answer(R)), nl")" \
+  "round_trip"
+check "selectors split on the comma, whitespace collapsed" \
+  "$(q "$H, css_parse('a  >  b , .c { }', [rule(Sels, [])]),
+        write(answer(Sels)), nl")" "[a > b,.c]"
+check "!important is surfaced, never left in the value" \
+  "$(q "$H, css_parse('a { color: red  !IMPORTANT }', [rule(_, [D])]),
+        write(answer(D)), nl")" "color-important(red)"
+check "properties fold to lower case; custom properties do not" \
+  "$(q "$H, css_declarations('COLOR: x; --My-Var: y', Ds),
+        write(answer(Ds)), nl")" "[color-x,--My-Var-y]"
+# THE SCANNER RESPECTS STRINGS AND PARENS: a ; inside url(...) or a
+# quoted string is content, not structure -- losing that is how
+# url(data:;base64,...) loses its tail.
+check "a ; inside url() and a , inside :is() are content" \
+  "$(q "$H, css_parse('a:is(b, c) { background: url(\"a;b.png\") }',
+                      [rule([Sel], [_-V])]),
+        write(answer(Sel/V)), nl")" 'a:is(b, c)/url("a;b.png")'
+check "comments vanish everywhere but inside a string" \
+  "$(q "$H, css_parse('a/**/b { content: \"/*kept*/\" }', [rule([Sel], [_-V])]),
+        write(answer(Sel/V)), nl")" 'a b/"/*kept*/"'
+check "@font-face reads declarations, @media reads rules, by name" \
+  "$(q "$H, css_parse('@font-face { src: url(f.woff2) } @media print { a { } }', S),
+        write(answer(S)), nl")" \
+  "[at(font-face,,decls([src-url(f.woff2)])),at(media,print,[rule([a],[])])]"
+check "the style attribute half parses and writes back" \
+  "$(q "$H, css_declarations('color: blue; margin: 0', Ds),
+        css_declarations_atom(Ds, A), write(answer(A)), nl")" \
+  "color: blue; margin: 0"
+echo "-- CSS: they throw rather than guess, both directions"
+check "a declaration with no colon is refused, naming its text" \
+  "$(q "$H, catch(css_parse('a { color red }', _), error(E, _), true),
+        write(answer(E)), nl")" "domain_error(css_declaration,color red)"
+check "an unclosed string says string, an unclosed block says block" \
+  "$(q "$H, catch(css_parse('a { content: \"x }', _), error(E1, _), true),
+        catch(css_parse('a { color: red', _), error(E2, _), true),
+        write(answer(E1/E2)), nl")" \
+  "domain_error(css_unclosed,string)/domain_error(css_unclosed,block)"
+check "the writer refuses a selector that would reparse as two" \
+  "$(q "$H, catch(css_atom([rule(['a,b'], [])], _), error(E, _), true),
+        ( E = domain_error(css_selector, _) -> R = refused ; R = E ),
+        write(answer(R)), nl")" "refused"
+check "and a value that would smuggle a second declaration" \
+  "$(q "$H, catch(css_atom([rule([a], [c-'red; x: y'])], _), error(E, _), true),
+        ( E = domain_error(css_value, _) -> R = refused ; R = E ),
+        write(answer(R)), nl")" "refused"
+# THE HTML SEAM, which is why this lives in library(html): a <style>
+# element's raw text parses straight out of html_parse's tree.
+check "a <style> element's text parses straight out of the tree" \
+  "$(q "$H, html_parse('<style>a { color: red }</style>',
+                       [element(style, _, [Text])]),
+        css_parse(Text, [rule([a], [D])]), write(answer(D)), nl")" \
+  "color-red"
+
 echo
 if [ "$failures" -eq 0 ]; then
   echo "GREEN: 0 failure(s)"; exit 0

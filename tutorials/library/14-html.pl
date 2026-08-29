@@ -124,7 +124,38 @@ main :-
     format("~n-- and JSON inside a page, which is where the two meet~n"),
     format("   See tutorials/library/12-json: the writer refuses a body~n"),
     format("   that could close the script, so anything that got written~n"),
-    format("   can be read back.~n~n"),
+    format("   can be read back.~n"),
+
+    format("~n-- CSS: the style half of the same documents~n"),
+    %% CSS lives inside HTML twice -- a <style> element's raw text and a
+    %% style="..." attribute -- which is why css_parse/2 lives HERE. A
+    %% stylesheet is a list: rule(Selectors, Decls), at(Name, Prelude)
+    %% for @import-shaped rules, at(Name, Prelude, Items) for @media's
+    %% nested block, at(Name, Prelude, decls(Ds)) for @font-face, whose
+    %% body is declarations and not rules. A declaration is Prop-Value,
+    %% and `!important' surfaces as Prop-important(Value).
+    css_parse('a, b { color: red } @media print { a { margin: 0 !important } }',
+              Sheet),
+    must('a stylesheet is a list of rule and at terms', Sheet,
+         [rule([a, b], [color-red]),
+          at(media, print, [rule([a], [margin-important('0')])])]),
+    %% the scanner respects strings and parens: a ; inside url() is
+    %% content, not a declaration boundary
+    %% (CV, not V: main's earlier void-element claim already bound V --
+    %% one clause is one scope, the family's own aliasing lesson)
+    css_parse('a { background: url("x;y.png") }', [rule(_, [_-CV])]),
+    must('a ; inside url() is content', CV, 'url("x;y.png")'),
+    %% the round trip is the real test, the family's own rule
+    css_atom(Sheet, Text),
+    css_parse(Text, Sheet2),
+    must('write it, read it, the same stylesheet', Sheet2, Sheet),
+    %% the style attribute is the other half, and it composes with the
+    %% tree html_parse/2 answers
+    html_parse('<p style="color: blue">x</p>', [element(p, [style=S], _)]),
+    css_declarations(S, Ds),
+    must('a style attribute parses from the parsed tree', Ds,
+         [color-blue]),
+    format("~n"),
     format("done~n").
 
 %% ---- the two helpers every lesson here carries ------------------------
