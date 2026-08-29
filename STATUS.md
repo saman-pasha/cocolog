@@ -551,6 +551,30 @@ candidate leaves no choice point behind at all -- so an indexed lookup is
 deterministic where the walk used to keep a frame alive to the end of the
 table.
 
+### How the two were gated, and one thing to admit
+
+**39 of 39 GREEN, `red: 0`, and NO SKIPs** -- the server was up throughout,
+so the eight database cases genuinely ran rather than passing by absence.
+That run is the gate for both changes.
+
+**It was committed BEFORE that line, and it should not have been.** The
+discipline in this repository is that nothing is checked in before its GREEN
+line; an automated hook forced the commit while the suite was still on its
+last third. The work turned out sound and the gate is above, but the order
+was wrong and the record says so rather than reading as though it were not.
+
+**And the run before it had a RED that was NOT the change**, which is worth
+keeping because it is the second time this exact trap has been walked into.
+`test/zigurat.cicili` -- the raw C-binding case, which never touches the
+clause store -- failed two of eleven checks: a 6000-byte Text round trip and
+a commit. The store was 76 MB after two full suites without a restart. On a
+FRESH `$ZIGURATIP_HOME/data` with the schema recompiled, the same case is
+GREEN and the whole suite is. So: a case that fails on something it has
+passed a hundred times, in a file your change has no path into, is the store
+ageing until a fresh store says otherwise -- and saying otherwise takes two
+minutes, which is cheaper than an hour of reading a diff that is not the
+cause.
+
 ## The forget wedge: diagnosed from cocolog, fixed in ZiguratIP
 
 CivV's rung-6 match — ~3 200 clauses in one knowledge base — measured the
