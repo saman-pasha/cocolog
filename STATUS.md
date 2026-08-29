@@ -465,6 +465,92 @@ after a binding lives above that choice point's `heap_mark`, and
 backtracking truncates the heap to the mark, so anything that could see a
 stale value has already been dropped.
 
+## Two more places the engine was quadratic
+
+Both were found by BENCHMARKING AGAINST CPYTHON rather than by reading, and
+both are the same shape as the deref above: an interpreter doing O(n) work
+per step where it could do O(1), invisible until something counted it. The
+benchmark that found them is The Coco's `bench/langs.sh` -- five small
+programs run in every arrangement, with every lane's answer checked against
+every other's.
+
+### A goal's writes were synced one predicate at a time, per clause
+
+Writing a clause through to the database re-sends the WHOLE predicate --
+forget its clauses, send them all again -- which is right for one assert and
+quadratic for a run of them. `coco_zg_batch` had existed since the consult
+was measured at 61 seconds for 150 clauses, and it was turned ON for the
+consult and OFF BEFORE THE GOAL RAN. So a file of clauses was cheap and the
+same clauses asserted BY THE GOAL were not.
+
+The batch now spans the whole turn, and the turn was already ONE
+transaction, so nothing outside the process could observe the intermediate
+states it was paying for. That THIS process cannot either is the invariant:
+`fetch`, `warm` and `vacuum` -- the three hooks that read the database back
+-- flush first, and so do `zigurat_commit` and `zigurat_rollback`, which are
+transaction boundaries a GOAL can draw.
+
+`assertz` into one predicate, `--embed`, wall clock:
+
+| clauses | before | after |
+|---|---|---|
+| 50 | 0.59 s | **0.024 s** |
+| 100 | 2.98 s | **0.031 s** |
+| 200 | 16.88 s | **0.050 s** |
+| 400 | 85.38 s | **0.088 s** |
+
+5.2x per doubling before -- roughly N^2.4 -- against about 1.8x after. The
+explicit-boundary half of it is not a nicety and the suite proved it: with
+the batch spanning the turn and nothing else, `test/zigurat-lib.sh` went RED
+on "an explicit rollback is invisible to a second process", because a goal
+that asserted and then rolled ITSELF back had its assertion written
+afterwards by the turn's own close.
+
+### A call walked the predicate, copying every clause
+
+Selecting a clause tried them in order, and trying one means COPYING it onto
+the heap with fresh variables and unifying its head -- both thrown away when
+the head did not match. For a table of facts that is the whole cost, and it
+grows with the table.
+
+`coco_pred` now carries a first-argument index: a KEY per clause, which is
+the first argument's CELL (an interned atom id, an integer's value, an
+interned functor -- every term that can be discriminated on already has a
+canonical machine word), threaded into per-key chains through an
+open-addressed table. Zero is the key that matches anything, and three
+things take it: an unbound argument, a float, and a predicate of arity zero.
+
+Two properties made it fit rather than fight the engine:
+
+* **`clause_ix` STAYS AN ORDINAL.** A frozen machine's choice frames carry
+  it (`lib/state.cicili`) and a machine thawed by another process must
+  resume where it stopped, so the index answers "the first clause at or
+  after N that could match" rather than becoming a position of its own.
+* **`assertz` KEEPS THE INDEX FOR NOTHING.** The new clause is the highest
+  position there is, so it links onto the tail of its chain and every chain
+  stays ascending -- which is what stops a loop of asserts being quadratic
+  again, the very thing the change above exists to remove. `asserta` and
+  `retract` renumber everything after them and drop the index instead; the
+  next call that wants it rebuilds it in one pass.
+
+A thousand key lookups over N facts, `--local`, wall clock:
+
+| facts | before | after |
+|---|---|---|
+| 200 | 0.13 s | **0.014 s** |
+| 2 000 | 0.82 s | **0.016 s** |
+| 20 000 | 7.95 s | **0.046 s** |
+
+The ratio against a Python dict was 7x, 49x and 411x at those three sizes --
+a ratio that GREW, which is the signature of a linear scan rather than of a
+slow interpreter. It is flat now.
+
+**And the determinism is worth as much as the speed.** The engine asks the
+index a second time, from the next position, and a predicate with no further
+candidate leaves no choice point behind at all -- so an indexed lookup is
+deterministic where the walk used to keep a frame alive to the end of the
+table.
+
 ## The forget wedge: diagnosed from cocolog, fixed in ZiguratIP
 
 CivV's rung-6 match — ~3 200 clauses in one knowledge base — measured the

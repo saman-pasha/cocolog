@@ -119,17 +119,32 @@
           (if (not (zg_echo db "begin" back 32)) (return (zm_wire e db)))
           (return 1)))
 
+  ;;; A GOAL DRAWING ITS OWN TRANSACTION BOUNDARY IS A FLUSH POINT. The turn's
+  ;;; writes are batched -- one sync per predicate, at the end -- and these two
+  ;;; verbs move the end. So a commit here writes what has been asserted SO FAR
+  ;;; and then commits it, and a rollback throws it away instead. Without that
+  ;;; the batch would cross the boundary and be committed on the wrong side of
+  ;;; it: `test/zigurat-lib.sh' has a goal that asserts and rolls itself back,
+  ;;; and a second process could see the assertion.
   (func zm_commit ((coco_engine * e) (size_t g)) (out int)
         (cast void g)
-        (let ((zg_conn * db . #'(zm_conn e)))
+        (let ((zg_conn * db . #'(zm_conn e))
+              (coco_zg * z . #'(coco_zg_of (-> e st))))
           (if (== db nil) (return (zm_refuse e)))
+          (if (!= z nil)
+              (if (not (coco_zg_flush z))
+                  (return (coco_m_error e "zigurat"
+                                        "writing the goal's clauses before the commit"))))
           (if (not (zg_commit db)) (return (zm_wire e db)))
           (return 1)))
 
   (func zm_rollback ((coco_engine * e) (size_t g)) (out int)
         (cast void g)
-        (let ((zg_conn * db . #'(zm_conn e)))
+        (let ((zg_conn * db . #'(zm_conn e))
+              (coco_zg * z . #'(coco_zg_of (-> e st))))
           (if (== db nil) (return (zm_refuse e)))
+          ;; what the goal asserted goes with the transaction it asserted in
+          (if (!= z nil) (coco_zg_forget_dirty z))
           (if (not (zg_rollback db)) (return (zm_wire e db)))
           (return 1)))
 

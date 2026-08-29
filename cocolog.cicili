@@ -601,6 +601,47 @@
           (coco_zg_attach z db m st ($ opts kb)))
         (gate_vacuum st))
 
+  ;;; ---- the turn's writes, batched ---------------------------------------
+  ;;;
+  ;;; ONE SYNC PER PREDICATE PER TURN, INSTEAD OF ONE PER CLAUSE. Writing a
+  ;;; clause through re-sends the WHOLE predicate -- forget the clauses, send
+  ;;; them all again -- which is right for one assert and quadratic for a run
+  ;;; of them. Batching was already open for a consult and closed before the
+  ;;; goal ran, so a file of clauses was cheap and the same clauses asserted
+  ;;; BY THE GOAL were not: 200 `assertz' measured 16.9 seconds and 400
+  ;;; measured 85.4, roughly N^2.4, on the arrangement a ledger uses.
+  ;;;
+  ;;; A TURN IS ALREADY ONE TRANSACTION, which is what makes holding the
+  ;;; writes back safe rather than merely faster: no other process could
+  ;;; observe the intermediate states being paid for. That this process
+  ;;; cannot either is the invariant the three read-back hooks keep --
+  ;;; `fetch', `warm' and `vacuum' each flush before they ask the database
+  ;;; anything (lib/zigurat-kb.cicili).
+  ;;;
+  ;;; The three are a pair of brackets and an escape: OPEN answers whether
+  ;;; there is a batch at all, so every caller carries one flag and the
+  ;;; zeytun arrangement -- which has no `z' -- carries a zero.
+  (func batch_open ((coco_zg * z)) (out int)
+        (if (or (== db nil) (!= ($ opts http) nil)) (return 0))
+        (coco_zg_batch z 1)
+        (return 1))
+
+  ;;; Writes the turn's predicates out. Answers whether every sync went
+  ;;; through, so a caller can refuse to commit over a failed one.
+  (func batch_close ((coco_zg * z) (int on)) (out int)
+        (if (not on) (return 1))
+        (return (coco_zg_batch z 0)))
+
+  ;;; For a rollback: the transaction is going away, so the noted predicates
+  ;;; are dropped rather than written for the server to throw out. The batch
+  ;;; is then CLOSED over an empty list, which writes nothing and frees the
+  ;;; list -- `step' runs one of these per turn in a worker's loop, and a
+  ;;; forget that only zeroed the count would leak the array every time.
+  (func batch_drop ((coco_zg * z) (int on))
+        (if on
+            (block (coco_zg_forget_dirty z)
+                   (coco_zg_batch z 0))))
+
   ;;; ---- a thread's own knowledge base ----------------------------------
   ;;;
   ;;; What `coco_m_kb_install' asks for, and the reason library(httpd)'s
@@ -677,7 +718,7 @@
   ;;; error always goes.
   (func cmd_script ((const char * file)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char goal [4200]) (int n . 0) (int rc . 1))
+              (char goal [4200]) (int n . 0) (int rc . 1) (int batched . 0))
           (if (> (strlen file) 4096)
               (block (fprintf stderr "cocolog: -s: the path is too long\n") (return 1)))
           (snprintf goal (sizeof goal) "use_module('%s'), main" file)
@@ -686,6 +727,7 @@
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
           (attach (aof z) (aof zt) (aof m) (aof st))
+          (set batched (batch_open (aof z)))
           (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
           (set rc (coco_engine_next (aof e)))
@@ -693,8 +735,8 @@
           (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
           (if (!= db nil)
               (if (== rc -1)
-                  (zg_rollback db)
-                (if (not (zg_commit db))
+                  (block (batch_drop (aof z) batched) (zg_rollback db))
+                (if (not (and (batch_close (aof z) batched) (zg_commit db)))
                     (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
                            (set rc -1)))))
           (coco_engine_free (aof e))
@@ -704,12 +746,13 @@
 
   (func cmd_query ((const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (int n . 0) (int rc . 1))
+              (int n . 0) (int rc . 1) (int batched . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
           (attach (aof z) (aof zt) (aof m) (aof st))
+          (set batched (batch_open (aof z)))
 
           (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
@@ -729,8 +772,8 @@
           ;; assertions is not a state any program asked for.
           (if (!= db nil)
               (if (== rc -1)
-                  (zg_rollback db)
-                (if (not (zg_commit db))
+                  (block (batch_drop (aof z) batched) (zg_rollback db))
+                (if (not (and (batch_close (aof z) batched) (zg_commit db)))
                     (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
                            (set rc -1)))))
 
@@ -1179,12 +1222,18 @@
   (func cmd_repl () (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (int tty . #'(isatty 0)) (int quit . 0) (int session_rc . 0)
+              (int batched . 0)
               (char histpath [512]) (const char * hf . nil))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
           (attach (aof z) (aof zt) (aof m) (aof st))
+          ;; ONE GOAL IS ONE TRANSACTION HERE, so the batch is opened and
+          ;; closed per goal rather than once for the session: what a goal
+          ;; asserted has to be in the database by the time its own commit
+          ;; runs, and the next goal starts a fresh one.
+          (set batched (batch_open (aof z)))
 
           (if tty
               (block
@@ -1285,11 +1334,14 @@
                                         (block (printf ".\n") (set stop 1))))))))))))
                        ;; one goal, one transaction -- as `query' has it
                        (if (!= db nil)
-                           (if (== grc -1)
-                               (zg_rollback db)
-                             (if (not (zg_commit db))
-                                 (fprintf stderr "cocolog: commit failed: %s\n"
-                                          (zg_error db))))))))
+                           (block
+                            (if (== grc -1)
+                                (block (batch_drop (aof z) batched) (zg_rollback db))
+                              (if (not (and (batch_close (aof z) batched) (zg_commit db)))
+                                  (fprintf stderr "cocolog: commit failed: %s\n"
+                                           (zg_error db))))
+                            ;; and the next goal gets a batch of its own
+                            (set batched (batch_open (aof z))))))))
                   (coco_reader_free (aof r))))
               (coco_sb_free (aof line))))
 
@@ -1346,7 +1398,7 @@
   (func cmd_step ((const char * name) (int to_the_end)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_strbuf out)
               (int n . 0) (int rc . 1) (int done . 0)
-              (int outcome . 0) (int broke . 0) (int committed . 0))
+              (int outcome . 0) (int broke . 0) (int committed . 0) (int batched . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: step needs a database\n")
                      (return (turn FAILED))))
@@ -1356,6 +1408,10 @@
           (coco_sb_init (aof out))
           (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
           (gate_vacuum (aof st))
+          ;; A TURN IS WHERE THE ASSERTING HAPPENS, so this is the path the
+          ;; batch matters most on: a machine that accumulates clauses used
+          ;; to pay a whole-predicate rewrite per clause, every turn.
+          (set batched (batch_open (aof z)))
           (set outcome (turn FAILED))
 
           ;; ONE WAY OUT. There are now six things that can go wrong here and
@@ -1394,6 +1450,15 @@
 
             ;; The database half. Anything that fails in here takes the turn
             ;; with it, and the answer buffer goes unprinted along with it.
+            ;;
+            ;; THE TURN'S CLAUSES GO FIRST, before the machine state that may
+            ;; refer to them: a suspended machine names its predicates and
+            ;; expects the clauses to be in the order it left them.
+            (if (not (batch_close (aof z) batched))
+                (block (fprintf stderr "cocolog: %s: writing the turn's clauses: %s\n"
+                                name (zg_error db))
+                       (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
+                       break))
             (if done
                 (if (not (coco_zg_drop (aof z) name))
                     (block (fprintf stderr "cocolog: %s\n" ($ z err))
@@ -1430,8 +1495,12 @@
           ;; connection needs nothing -- the server rolls back on the broken
           ;; socket -- and a lost connection is the one case zg_is_open
           ;; excludes.
-          (if (and (== committed 0) (zg_is_open db))
-              (zg_rollback db))
+          (if (== committed 0)
+              (block
+               ;; whatever the turn noted goes with it, and the list itself is
+               ;; freed -- a worker runs one of these per turn
+               (batch_drop (aof z) batched)
+               (if (zg_is_open db) (zg_rollback db))))
 
           (coco_sb_free (aof out))
           (coco_engine_free (aof e))
@@ -1977,15 +2046,21 @@
   ;;; the program itself writes, success is 0 and failure is 1.
   (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char err [256]) (int rc . 0))
+              (char err [256]) (int rc . 0) (int batched . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
           (attach (aof z) (aof zt) (aof m) (aof st))
 
-          ;; batched, as `consult' is: one sync per consulted predicate
-          (if (and (!= db nil) (== ($ opts http) nil)) (coco_zg_batch (aof z) 1))
+          ;; BATCHED FOR THE WHOLE TURN -- the consult AND the goal. One sync
+          ;; per predicate the turn touched, at the end, instead of a whole
+          ;; predicate rewritten on every clause. The goal's half of that is
+          ;; the half that was missing: `assertz' in a loop paid a
+          ;; forget-and-resend per clause, which measured 16.9s for 200 and
+          ;; 85.4s for 400. Reading the database back during the turn flushes
+          ;; first (zigurat-kb.cicili), so nothing in here can see a stale row.
+          (set batched (batch_open (aof z)))
           (for ((int i . from)) (< i argc) ((++ i))
             (let ((char * text . #'(slurp (nth i argv))))
               (if (== text nil)
@@ -1996,13 +2071,10 @@
                          (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
               (free text)))
-          (if (and (!= db nil) (== ($ opts http) nil))
-              (if (not (coco_zg_batch (aof z) 0))
-                  (block (fprintf stderr "cocolog: writing the consulted clauses: %s\n"
-                                  (zg_error db))
-                         (zg_rollback db)
-                         (coco_engine_free (aof e)) (coco_store_free (aof st))
-                         (coco_machine_free (aof m)) (return 1))))
+          ;; NOTHING IS WRITTEN OUT HERE ANY MORE. The batch opened above
+          ;; stays open across the goal and is closed once, below, next to
+          ;; the commit -- so a program that consults a file and then asserts
+          ;; into the same predicate syncs it once rather than twice.
 
           (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err))
@@ -2012,10 +2084,18 @@
           (if (== rc -1) (fprintf stderr "cocolog: %s\n" ($ e err)))
           (if (!= db nil)
               (if (== rc 1)
-                  (if (not (zg_commit db))
+                  ;; the turn's writes go out FIRST and the commit only if
+                  ;; they did: a commit over a failed sync would report
+                  ;; success for a knowledge base missing clauses the goal
+                  ;; believed it had written
+                  (if (not (and (batch_close (aof z) batched) (zg_commit db)))
                       (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
                              (set rc -1)))
-                (zg_rollback db)))
+                ;; a failed or erroring goal is rolled back whole, so the
+                ;; noted predicates are dropped rather than written for the
+                ;; server to throw away
+                (block (batch_drop (aof z) batched)
+                       (zg_rollback db))))
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))

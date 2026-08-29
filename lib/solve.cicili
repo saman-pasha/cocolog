@@ -612,6 +612,18 @@
   ;;; frame behind would make every recursive call cost one -- which is the
   ;;; difference between a loop that runs in constant space and one that does
   ;;; not.
+  ;;; FIRST-ARGUMENT INDEXING ENTERS HERE, and it is two calls. The key is
+  ;;; the call's own first argument (`coco_arg_key'), and `coco_pred_next_clause'
+  ;;; answers which clause to try -- skipping, without copying or unifying
+  ;;; them, every clause whose head cannot match. What that removes is the
+  ;;; expensive half of a failed attempt: a clause arrives as a FRESH COPY on
+  ;;; the heap and is thrown away again when the head does not unify, so a
+  ;;; probe into a table of facts used to copy the whole table.
+  ;;;
+  ;;; `clause_ix' GOES ON MEANING WHAT IT MEANT -- the next ORDINAL to try,
+  ;;; not a position in an index -- because a frozen machine's choice frames
+  ;;; carry it (lib/state.cicili) and a machine thawed by another process
+  ;;; must resume where it stopped.
   (static)
   (func coco_select_clause ((coco_engine * e) (size_t ci)) (out int)
         (let ((coco_machine * m . #'(-> e m))
@@ -619,16 +631,26 @@
           (while 1
             (let ((coco_choice * c . #'(aof (nth ci (-> e choices))))
                   (coco_pred * p . #'(aof (nth (-> c pred) (-> st preds)))))
-              (if (>= (-> c clause_ix) (-> p nclauses))
-                  (block (set (-> e nchoices) ci) (return 0)))
-              (let ((size_t cl . #'(nth (-> c clause_ix) (-> p clauses)))
+              (let ((u64 key . #'(coco_arg_key m (-> c call)))
+                    (size_t ix . 0))
+                (set ix (coco_pred_next_clause st p key (-> c clause_ix)))
+                (if (== ix (coco_no_clause))
+                    (block (set (-> e nchoices) ci) (return 0)))
+              (let ((size_t cl . #'(nth ix (-> p clauses)))
                     (size_t call . #'(-> c call))
                     (size_t goals . #'(-> c goals))
                     (size_t hmark . #'(-> c heap_mark))
                     (size_t tmark . #'(-> c trail_mark))
                     (int last . 0))
-                (set (-> c clause_ix) (+ (-> c clause_ix) 1))
-                (set last (? (>= (-> c clause_ix) (-> p nclauses)) 1 0))
+                (set (-> c clause_ix) (+ ix 1))
+                ;; AND THE DETERMINISM COMES FROM THE SECOND ASK. A predicate
+                ;; with no further candidate leaves no choice point behind --
+                ;; which is what makes an indexed lookup deterministic where
+                ;; the walk used to keep a frame alive to the end of the
+                ;; table.
+                (set last (? (== (coco_pred_next_clause st p key (-> c clause_ix))
+                                 (coco_no_clause))
+                             1 0))
                 ;; the clause arrives as a fresh copy on the heap, so unifying
                 ;; against its head cannot bind anything in the store
                 (let ((size_t ct . #'(coco_store_get m st cl))
@@ -646,7 +668,7 @@
                        (return 1)))
                   ;; that head did not match: put the machine back and try again
                   (coco_undo_to m tmark)
-                  (set ($ (cof m) heap_len) hmark)))))
+                  (set ($ (cof m) heap_len) hmark))))))
           (return 0)))
 
   ;;; ---- backtracking ------------------------------------------------------

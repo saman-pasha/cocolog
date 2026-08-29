@@ -66,15 +66,26 @@
     ;; Off while the fetch hook is asserting what it just read, so that
     ;; clauses coming OUT of the database are not written straight back in.
     (member int          write_through)
-    ;; Batching, for a consult: an assert normally re-syncs its WHOLE
+    ;; Batching, for a WHOLE TURN: an assert normally re-syncs its WHOLE
     ;; predicate -- forget the clauses, send them all again -- which is
-    ;; right for one assert and quadratic for a file of them: consulting N
-    ;; clauses of one predicate costs N syncs of up to N clauses, and every
-    ;; sync's forget walks the dead row versions the previous ones left.
-    ;; Measured: 150 clauses took 61 seconds. Under `batch', the write
-    ;; hooks only note WHICH predicates changed; `coco_zg_batch' off syncs
-    ;; each noted predicate once. Module clauses never reach the hooks
-    ;; (the store is muted while they load), so they are never noted.
+    ;; right for one assert and quadratic for a run of them: N clauses of
+    ;; one predicate cost N syncs of up to N clauses, and every sync's
+    ;; forget walks the dead row versions the previous ones left. Measured:
+    ;; 150 clauses took 61 seconds. Under `batch', the write hooks only
+    ;; note WHICH predicates changed; `coco_zg_flush' syncs each noted
+    ;; predicate once. Module clauses never reach the hooks (the store is
+    ;; muted while they load), so they are never noted.
+    ;;
+    ;; IT WAS OPEN FOR THE CONSULT ONLY, AND THAT WAS HALF THE FIX. A file
+    ;; of clauses was cheap and the same clauses asserted BY THE GOAL were
+    ;; not, because the batch was closed before the goal ran: 200 `assertz'
+    ;; into one predicate cost 16.9 seconds and 400 cost 85.4, which is
+    ;; roughly N^2.4 -- and asserting in a loop is what a ledger, an index
+    ;; and every accumulating program do. The batch now spans the turn, and
+    ;; the turn is already ONE transaction, so nothing outside this process
+    ;; could observe the intermediate states it was paying for. What has to
+    ;; hold is that THIS process cannot either: every path that reads the
+    ;; database back flushes first, which is the three hooks below.
     (member int          batch)
     (member size_t *     dirty)
     (member size_t       ndirty)
@@ -99,6 +110,31 @@
   ;;; changed instead of syncing per assert; OFF syncs each noted predicate
   ;;; once and answers whether every sync went through. See the struct.
   (decl) (func coco_zg_batch ((coco_zg * z) (int on)) (out int))
+
+  ;;; Syncs every noted predicate NOW and leaves the batch open. What
+  ;;; `coco_zg_batch' off does, minus the off -- so a turn that batches from
+  ;;; end to end can still be brought level with the database at the moments
+  ;;; that need it: before a commit, and before anything READS the database
+  ;;; back. The three read-back hooks below call it themselves.
+  (decl) (func coco_zg_flush ((coco_zg * z)) (out int))
+
+  ;;; Drops the noted predicates WITHOUT writing them. For a rollback, where
+  ;;; the transaction is going away and writing first would only make rows
+  ;;; for the server to throw out.
+  (decl) (func coco_zg_forget_dirty ((coco_zg * z)))
+
+  ;;; The `z' a store is riding, or null for an arrangement that is not on
+  ;;; one. What it is FOR is `library(zigurat)': `zigurat_commit' and
+  ;;; `zigurat_rollback' are transaction boundaries a GOAL can draw, in the
+  ;;; middle of a turn whose batch is still open, and a batch that crossed
+  ;;; one would be written on the wrong side of it. `test/zigurat-lib.sh'
+  ;;; caught exactly that: an assert rolled back by the goal itself was
+  ;;; flushed afterwards by the turn's own close, and a second process could
+  ;;; see what had been rolled back.
+  ;;;
+  ;;; The store's `conn' hook is installed by this backend and by nothing
+  ;;; else, so a non-null one is what says `ctx' is a `coco_zg'.
+  (decl) (func coco_zg_of ((coco_store * st)) (out coco_zg *))
 
   ;;; Suspends a machine into the database under NAME, in chunks.
   (decl) (func coco_zg_save ((coco_zg * z) (coco_engine * e)
@@ -232,6 +268,14 @@
               (zg_result_t r)
               (char cols [256]))
           (set m (-> z m))
+
+          ;; LEVEL WITH THE DATABASE BEFORE READING IT. Under a batch open
+          ;; across a whole turn the store holds writes the database has not
+          ;; seen, and a read that ignored them would answer with rows this
+          ;; process already knows are stale. A fetch is once per predicate,
+          ;; so this costs at most one flush per predicate and never sits in
+          ;; a loop.
+          (coco_zg_flush z)
 
           (if (not (zg_call (-> z db) "cocolog::clauses_of"))
               (return (coco_zg_fail z "clauses_of")))
@@ -378,17 +422,35 @@
         (set (-> z ndirty) (+ (-> z ndirty) 1))
         (return 1))
 
+  (func coco_zg_flush ((coco_zg * z)) (out int)
+        (let ((int ok . 1))
+          ;; the count is cleared FIRST, and that is not tidiness: a sync
+          ;; writes clauses through `zg_call', and anything the write path
+          ;; notices would otherwise be appended to the list this loop is
+          ;; walking. An empty list at the top means a re-entrant note lands
+          ;; in a fresh one and is flushed by whoever comes next.
+          (let ((size_t n . #'(-> z ndirty)))
+            (set (-> z ndirty) 0)
+            (for ((size_t i . 0)) (< i n) ((++ i))
+              (if (not (coco_zg_sync_pred z (nth i (-> z dirty))))
+                  (set ok 0))))
+          (return ok)))
+
+  (func coco_zg_forget_dirty ((coco_zg * z))
+        (set (-> z ndirty) 0))
+
+  (func coco_zg_of ((coco_store * st)) (out coco_zg *)
+        (if (== st nil) (return nil))
+        (if (== (-> st conn) nil) (return nil))
+        (return (cast (coco_zg *) (-> st ctx))))
+
   (func coco_zg_batch ((coco_zg * z) (int on)) (out int)
         (if on
             (block (set (-> z batch) 1)
                    (set (-> z ndirty) 0)
                    (return 1)))
         (set (-> z batch) 0)
-        (let ((int ok . 1))
-          (for ((size_t i . 0)) (< i (-> z ndirty)) ((++ i))
-            (if (not (coco_zg_sync_pred z (nth i (-> z dirty))))
-                (set ok 0)))
-          (set (-> z ndirty) 0)
+        (let ((int ok . #'(coco_zg_flush z)))
           (free (cast (void *) (-> z dirty)))
           (set (-> z dirty) nil)
           (set (-> z dirty_cap) 0)
@@ -408,6 +470,12 @@
               (zg_result_t r)
               (char cols [256]))
           (set m (-> z m))
+
+          ;; and the same before this one: a predicate first asserted into
+          ;; during this turn exists only in the store until it is flushed,
+          ;; and `listing' asking the database what there is would not be
+          ;; told about it.
+          (coco_zg_flush z)
 
           (if (not (zg_call (-> z db) "cocolog::predicates_of"))
               (return (coco_zg_fail z "predicates")))
@@ -502,6 +570,11 @@
               (zg_result_t r) (char cols [256]) (i64 got . 0))
           (cast void st)
           (if (== (-> z db) nil) (return (coco_zg_fail z "vacuum")))
+          ;; and before the reclaim pass, so that a predicate written during
+          ;; this turn has left its dead rows behind for the pass to find --
+          ;; flushing after it would put fresh garbage into a store that had
+          ;; just been told it was clean.
+          (coco_zg_flush z)
           (if (not (zg_call (-> z db) "cocolog::vacuum"))
               (return (coco_zg_fail z "vacuum")))
           (while 1

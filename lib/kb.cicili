@@ -38,6 +38,16 @@
 (generic decl-kb
   ()
 
+  ;;; One key's clauses: where its chain starts and where it ends, so an
+  ;;; `assertz' can be linked on in constant time. The table these live in is
+  ;;; open-addressed and a slot with KEY 0 is an empty one -- which is why the
+  ;;; clauses that match ANY key (0 is that key) are not kept in it but in the
+  ;;; predicate's own `varhead'/`vartail' pair.
+  (struct coco_kslot
+    (member u64      key)
+    (member size_t   head)
+    (member size_t   tail))
+
   ;;; One predicate: a name, an arity, and the clauses under it in the order
   ;;; they were asserted. `loaded' says the fetch hook has already been asked
   ;;; about this predicate, so a predicate that genuinely has no clauses is not
@@ -54,7 +64,53 @@
     ;; with no argument skips these -- a person listing what they wrote does
     ;; not want the library back -- while `listing(Name)' still shows them,
     ;; because asking for one by name is asking about it specifically.
-    (member int      library))
+    (member int      library)
+
+    ;; ---- first-argument indexing ------------------------------------
+    ;;
+    ;; WITHOUT IT A CALL WALKS THE PREDICATE, and the walk is not a cheap
+    ;; one: each clause is COPIED onto the heap with fresh variables and
+    ;; unified against the goal, and both are thrown away when the head did
+    ;; not match. For a table of facts that is the entire cost -- a thousand
+    ;; probes over 200 facts spent them on 199 copies apiece -- and it grows
+    ;; with the table: measured against a hash at three sizes, 7x at 200
+    ;; facts, 49x at 2000, 411x at 20000. A ratio that grows is the
+    ;; signature of a linear scan rather than of a slow interpreter.
+    ;;
+    ;; KEYS is parallel to CLAUSES and holds each clause head's first
+    ;; argument AS A CELL. The cell rather than a hash of it, because every
+    ;; term that can be discriminated on already has a canonical machine
+    ;; word: an ATOM cell is its interned id, an INT cell is its value, a
+    ;; FUN cell is its interned functor. Two heads with the same cell have
+    ;; the same principal functor, which is the only question an index of
+    ;; this kind answers -- and two with different non-zero cells CANNOT
+    ;; unify, which is what makes skipping them sound.
+    ;;
+    ;; ZERO IS "MATCHES ANYTHING", and three things take it: an unbound
+    ;; first argument, a FLOAT (two equal floats may sit at two indices of
+    ;; the float table, so a cell comparison would answer no to 1.0 against
+    ;; 1.0), and a predicate of arity zero. No real cell is zero: every tag
+    ;; but REF is non-zero in the low bits and a REF is never stored here.
+    ;;
+    ;; CHAIN is parallel too and threads the clauses of one key together in
+    ;; ascending position, so selection walks only the candidates and
+    ;; `clause_ix' STAYS AN ORDINAL -- which is what a frozen machine's
+    ;; choice frame holds (lib/state.cicili), and it must go on meaning what
+    ;; it meant.
+    ;;
+    ;; INDEXED says the table agrees with the clause list. `assertz' keeps
+    ;; it agreeing for nothing; `asserta' and `retract' renumber every
+    ;; clause after them, so they clear it and the next call that wants the
+    ;; index rebuilds it.
+    (member u64 *    keys)
+    (member size_t   key_cap)
+    (member size_t * chain)
+    (member size_t   chain_cap)
+    (member coco_kslot * slots)
+    (member size_t   nslots)           ; a power of two; 0 = no table yet
+    (member size_t   varhead)          ; the key-0 clauses, tried whatever
+    (member size_t   vartail)          ;   the call's own key is
+    (member int      indexed))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -214,6 +270,31 @@
   ;;; clause.
   (decl) (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int))
 
+  ;;; ---- first-argument indexing, the two the engine calls -----------------
+
+  ;;; The index key of a callable term: its first argument's cell, or 0 for
+  ;;; anything that cannot be discriminated on -- an unbound argument, a
+  ;;; float, or no argument at all. See `coco_pred' for why the cell IS the
+  ;;; key. The term is dereferenced here, so a caller may hand over a goal
+  ;;; straight out of a choice frame.
+  (decl) (func coco_arg_key ((coco_machine * m) (size_t t)) (out u64))
+
+  ;;; The first clause at or after FROM whose head can match a goal of KEY,
+  ;;; or `coco_no_clause' when there is none. A KEY of 0 constrains nothing
+  ;;; and answers FROM.
+  ;;;
+  ;;; THIS IS WHERE THE DETERMINISM COMES FROM, as much as the speed: asking
+  ;;; it a second time from the next position is how the engine learns that
+  ;;; the clause it just took was the last candidate, and a predicate with no
+  ;;; second candidate leaves no choice point behind at all.
+  (decl) (func coco_pred_next_clause ((coco_store * st) (coco_pred * p)
+                                    (u64 key) (size_t from)) (out size_t))
+
+  ;;; What `coco_pred_next_clause' answers when the clauses have run out. Not
+  ;;; a position anything can hold, because the clause array would have to
+  ;;; fill memory to reach it.
+  (decl) (func coco_no_clause () (out size_t))
+
   ;;; Reads a whole program text and asserts every clause in it. Answers the
   ;;; number asserted, or -1 on a syntax error, leaving the message in ERR.
   (decl) (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
@@ -330,7 +411,11 @@
 
   (func coco_store_free ((coco_store * st))
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
-          (free ($ (nth i (-> st preds)) clauses)))
+          (free ($ (nth i (-> st preds)) clauses))
+          ;; the index's three arrays go with the clause list they describe
+          (free ($ (nth i (-> st preds)) keys))
+          (free ($ (nth i (-> st preds)) chain))
+          (free (cast (void *) ($ (nth i (-> st preds)) slots))))
         (free (-> st preds))
         (free (-> st cells))
         (memset st 0 (sizeof coco_store)))
@@ -699,22 +784,172 @@
         (set (cof head) (coco_arg m clause 0))
         (set (cof body) (coco_arg m clause 1)))
 
+  ;;; ---- first-argument indexing ------------------------------------------
+
+  (func coco_no_clause () (out size_t) (return (cast size_t -1)))
+
+  (func coco_arg_key ((coco_machine * m) (size_t t)) (out u64)
+        (set t (coco_deref m t))
+        (if (not (coco_is_callable m t)) (return 0))
+        (if (== (coco_arity m t) 0) (return 0))
+        (let ((u64 c . #'(nth (coco_deref m (coco_arg m t 0)) (-> m heap))))
+          ;; an unbound argument constrains nothing, and a float cannot be
+          ;; compared as a cell -- see the struct
+          (if (coco-tag-is REF c) (return 0))
+          (if (coco-tag-is FLT c) (return 0))
+          (return c)))
+
+  ;;; A PREDICATE SMALLER THAN THIS IS NOT WORTH A TABLE. Below it the scan
+  ;;; over `keys' is a handful of contiguous machine words and beats a hash
+  ;;; lookup outright; above it the table is what stops the walk growing with
+  ;;; the predicate. Almost every rule ever written is under it and pays
+  ;;; nothing at all.
+  (static) (func coco_index_floor () (out size_t) (return 8))
+
+  ;;; The slot KEY lives in, probing linearly from its hash. Answers the slot
+  ;;; whether or not it is occupied, so a caller that means to insert may
+  ;;; write it -- and never fails, because the table is kept below half full.
   (static)
-  (func coco_pred_add_clause ((coco_store * st) (size_t pi) (size_t clause) (int at_end)) (out int)
+  (func coco_kslot_of ((coco_pred * p) (u64 key)) (out coco_kslot *)
+        ;; the cell's low three bits are a tag and its payload is an index, so
+        ;; the interesting bits are the high ones: a multiply spreads them
+        ;; down before the mask takes the bottom of the word. The table is
+        ;; kept below half full, so the probe always finds a slot.
+        (let ((u64 h . #'(* key 1099511628211))
+              (size_t i . 0) (size_t mask . #'(- (-> p nslots) 1)))
+          (set i (cast size_t (bitand (>> h 7) (cast u64 mask))))
+          (while 1
+            (let ((coco_kslot * sl . #'(aof (nth i (-> p slots)))))
+              (if (== (-> sl key) 0) (return sl))
+              (if (== (-> sl key) key) (return sl)))
+            (set i (bitand (+ i 1) mask)))
+          (return nil)))
+
+  (static)
+  (func coco_chain_add ((coco_pred * p) (u64 key) (size_t at))
+        (set (nth at (-> p chain)) (coco_no_clause))
+        (if (== key 0)
+            (block
+             (if (== (-> p varhead) (coco_no_clause))
+                 (set (-> p varhead) at)
+               (set (nth (-> p vartail) (-> p chain)) at))
+             (set (-> p vartail) at)
+             (return)))
+        (let ((coco_kslot * sl . #'(coco_kslot_of p key)))
+          (if (== (-> sl key) 0)
+              (block (set (-> sl key) key)
+                     (set (-> sl head) at)
+                     (set (-> sl tail) at)
+                     (return)))
+          (set (nth (-> sl tail) (-> p chain)) at)
+          (set (-> sl tail) at)))
+
+  ;;; Builds the table from the keys, in clause order, so every chain comes
+  ;;; out ascending. O(n) and paid once per invalidation.
+  (static)
+  (func coco_pred_reindex ((coco_store * st) (coco_pred * p)) (out int)
+        (let ((size_t want . 16))
+          (while (< want (* (-> p nclauses) 2)) (set want (* want 2)))
+          (if (!= (-> p nslots) want)
+              (let ((void * ns . #'(realloc (cast (void *) (-> p slots))
+                                            (* want (sizeof coco_kslot)))))
+                (if (== ns nil) (block (set (-> st oom) 1) (return 0)))
+                (set (-> p slots) (cast (coco_kslot *) ns))
+                (set (-> p nslots) want)))
+          (memset (cast (void *) (-> p slots)) 0 (* (-> p nslots) (sizeof coco_kslot))))
+        (set (-> p varhead) (coco_no_clause))
+        (set (-> p vartail) (coco_no_clause))
+        (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+          (coco_chain_add p (nth i (-> p keys)) i))
+        (set (-> p indexed) 1)
+        (return 1))
+
+  ;;; Walks one chain to its first entry at or after FROM. The chains are in
+  ;;; ascending order, so this stops at the first candidate rather than
+  ;;; scanning the whole of one.
+  (static)
+  (func coco_chain_from ((coco_pred * p) (size_t h) (size_t from)) (out size_t)
+        (while (and (!= h (coco_no_clause)) (< h from))
+          (set h (nth h (-> p chain))))
+        (return h))
+
+  (func coco_pred_next_clause ((coco_store * st) (coco_pred * p)
+                             (u64 key) (size_t from)) (out size_t)
+        (if (>= from (-> p nclauses)) (return (coco_no_clause)))
+        ;; a call whose first argument is unbound (or a float, or absent) has
+        ;; nothing to discriminate on, and every clause is a candidate
+        (if (== key 0) (return from))
+
+        ;; small, or waiting to be rebuilt and not worth rebuilding: the scan
+        ;; over `keys' still skips the copy and the unification, which is the
+        ;; part that costs
+        (if (or (< (-> p nclauses) (coco_index_floor))
+                (and (== (-> p indexed) 0) (not (coco_pred_reindex st p))))
+            (block
+             (for ((size_t i . from)) (< i (-> p nclauses)) ((++ i))
+               (let ((u64 k . #'(nth i (-> p keys))))
+                 (if (or (== k 0) (== k key)) (return i))))
+             (return (coco_no_clause))))
+
+        ;; two candidates: the first clause of this key at or after FROM, and
+        ;; the first key-0 clause there -- whichever comes first is the one
+        ;; the program would have reached by walking
+        (let ((coco_kslot * sl . #'(coco_kslot_of p key))
+              (size_t a . #'(coco_no_clause))
+              (size_t b . #'(coco_chain_from p (-> p varhead) from)))
+          ;; an UNOCCUPIED slot is where this key WOULD go, and its zeroed
+          ;; head is a real position -- so nothing of this key exists
+          (if (!= (-> sl key) 0)
+              (set a (coco_chain_from p (-> sl head) from)))
+          (if (== a (coco_no_clause)) (return b))
+          (if (== b (coco_no_clause)) (return a))
+          (return (? (< a b) a b))))
+
+  (static)
+  (func coco_pred_add_clause ((coco_store * st) (size_t pi) (size_t clause)
+                            (int at_end) (u64 key)) (out int)
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p clauses)))
                                   (aof (-> p clause_cap)) (+ (-> p nclauses) 1)
                                   (sizeof size_t)))
               (return 0))
+          ;; the two parallel arrays grow with it, each with a cap of its own
+          ;; -- three caps that always agree, rather than one the grower would
+          ;; have to be taught to share
+          (if (not (coco_store_grow st (cast (void **) (aof (-> p keys)))
+                                  (aof (-> p key_cap)) (+ (-> p nclauses) 1)
+                                  (sizeof u64)))
+              (return 0))
+          (if (not (coco_store_grow st (cast (void **) (aof (-> p chain)))
+                                  (aof (-> p chain_cap)) (+ (-> p nclauses) 1)
+                                  (sizeof size_t)))
+              (return 0))
           (if at_end
-              (set (nth (-> p nclauses) (-> p clauses)) clause)
-            ;; asserta: shift the rest up by one and put this first
+              (block (set (nth (-> p nclauses) (-> p clauses)) clause)
+                     (set (nth (-> p nclauses) (-> p keys)) key))
+            ;; asserta: shift the rest up by one and put this first. Every
+            ;; clause after it is renumbered, and the chains hold POSITIONS,
+            ;; so the index is dropped rather than patched.
             (block (let ((size_t i . #'(-> p nclauses)))
                      (while (> i 0)
                        (set (nth i (-> p clauses)) (nth (- i 1) (-> p clauses)))
+                       (set (nth i (-> p keys)) (nth (- i 1) (-> p keys)))
                        (set i (- i 1))))
-                   (set (nth 0 (-> p clauses)) clause)))
+                   (set (nth 0 (-> p clauses)) clause)
+                   (set (nth 0 (-> p keys)) key)
+                   (set (-> p indexed) 0)))
           (set (-> p nclauses) (+ (-> p nclauses) 1))
+          ;; ASSERTZ KEEPS THE INDEX, and that is the case worth keeping: the
+          ;; new clause is the highest position there is, so linking it onto
+          ;; the tail of its chain leaves every chain ascending. Rebuilding
+          ;; here instead would make a loop of asserts quadratic again, which
+          ;; is the shape this whole change exists to remove.
+          (if (and at_end (-> p indexed))
+              (if (< (* (-> p nclauses) 2) (-> p nslots))
+                  (coco_chain_add p key (- (-> p nclauses) 1))
+                ;; the table would be over half full: let it be rebuilt, at a
+                ;; bigger size, by whoever next wants it
+                (set (-> p indexed) 0)))
           (return 1)))
 
   (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int)
@@ -805,7 +1040,14 @@
             ;; over the network.
             (if (not (coco_store_is_muted st)) (coco_pred_ensure st pi))
             (set stored (coco_store_put st m clause))
-            (if (not (coco_pred_add_clause st pi stored at_end)) (return 0))
+            ;; THE KEY IS TAKEN FROM THE HEAP HEAD, before the clause is a
+            ;; store term: the accessors here read the machine's heap, the
+            ;; head has just been dereferenced, and what goes into the store
+            ;; is a copy of exactly this term. Doing it on the way in is what
+            ;; keeps the index free -- nothing ever walks the clauses to
+            ;; work out what they are keyed on.
+            (if (not (coco_pred_add_clause st pi stored at_end (coco_arg_key m head)))
+                (return 0))
             ;; muted means this is a module's clause, not the program's
             (if (coco_store_is_muted st) (set ($ (nth pi (-> st preds)) library) 1))
             (if (and (not (coco_store_is_muted st)) (!= (-> st on_assert) nil))
@@ -1023,10 +1265,15 @@
                   (if ok
                       (block
                        ;; drop it from the predicate; the cells stay in the
-                       ;; store, which never shrinks, and are simply orphaned
+                       ;; store, which never shrinks, and are simply orphaned.
+                       ;; The index keys shift with them, and the chains --
+                       ;; which hold POSITIONS -- are dropped: everything
+                       ;; after this clause has just been renumbered.
                        (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
-                         (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses))))
+                         (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
+                         (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys))))
                        (set (-> p nclauses) (- (-> p nclauses) 1))
+                       (set (-> p indexed) 0)
                        ;; anything retractable is dynamic by definition, whether
                        ;; or not anybody said so
                        (set (-> p dynamic) 1)
