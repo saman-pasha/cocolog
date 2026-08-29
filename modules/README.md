@@ -14,6 +14,7 @@ still builds and still runs.
 | `tcp` | the socket seam: a handle is an index into this module's own table, never a descriptor | nothing |
 | `thread` | threads and channels, sharing nothing | nothing |
 | `process` | run, capture, spawn, wait, kill -- the test-suite vocabulary (`timeout ... \| grep`, check/3, the sleep-poll loop) as predicates, so a suite can be a .pl file | nothing |
+| `text` | grep, sed and the line tools as clauses over libc's own POSIX regex (`re_match`, `re_first`, `re_replace` with & and \1..\9; lines, head, tail, chomp in the Prolog half) | nothing |
 | `curl` | an HTTP client | libcurl |
 | `bigint` | `Zigurat::BigInt` — integers that do not wrap | a built ZiguratIP |
 | `torch` | Prolog that trains | libtorch |

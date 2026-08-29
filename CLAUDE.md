@@ -346,7 +346,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
@@ -370,6 +370,7 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/tcp` | nothing | `sh modules/tcp/build.sh` |
 | `modules/thread` | nothing | `sh modules/thread/build.sh` |
 | `modules/process` | nothing | `sh modules/process/build.sh` |
+| `modules/text` | nothing | `sh modules/text/build.sh` |
 | `modules/curl` | libcurl | `sh modules/curl/build.sh` |
 | `modules/bigint` | a **built** ZiguratIP | `sh modules/bigint/build.sh` |
 | `modules/torch` | libtorch | `sh modules/torch/build.sh` |

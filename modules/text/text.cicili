@@ -1,0 +1,302 @@
+;;;; cocolog -- library(text): the shell's text tools, as clauses over
+;;;; libc's own regex
+;;;
+;;; WHY. The .sh test suites of this family spend their pipes on grep
+;;; (73 uses across CivV's cases), sed (59), head (65 -- 49 of them
+;;; `head -1'), cut, tr, sort, uniq, wc. None of those is a library a
+;;; C program links: they are APPS over two abilities libc already
+;;; exports -- POSIX regex (regcomp/regexec, <regex.h>) and reading
+;;; lines. So the C half here binds exactly the regex, and everything
+;;; that is a LIST OPERATION -- head, tail, filtering, splitting into
+;;; lines -- is the Prolog half, in clauses, where list operations
+;;; belong. files.cicili already owns the files (read_file_to_codes,
+;;; same_file, make_directory); lists.cicili owns sort and length;
+;;; this module owns the match.
+;;;
+;;; THE REGEX IS POSIX EXTENDED (REG_EXTENDED), the grep -E the suites
+;;; already write, so a pattern moves from a .sh to a .pl unchanged.
+;;; A pattern is COMPILED PER CALL and freed before the answer -- no
+;;; handle table, because a test's pattern count is small and a leak-
+;;; proof stateless call beats a cache nobody measured the need for.
+;;;
+;;; TEXT IN IS AN ATOM OR CODES, TEXT OUT IS CODES -- the document
+;;; libraries' own rule (an atom stops at the first NUL), with _atom
+;;; spellings in the Prolog half for the common short answer.
+;;;
+;;; NOT HERE: backreference REPLACEMENT beyond \\0..\\9 and & (sed's
+;;; full command language is an app, not an ability), lazy quantifiers
+;;; and lookaround (POSIX has none -- a suite needing PCRE has found a
+;;; test worth simplifying), and file reading (files.cicili's).
+
+;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit.
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *text-predicates*
+  '(("re_match"   2 coco_x_match)     ; re_match(+Pat, +Text)
+    ("re_first"   3 coco_x_first)     ; re_first(+Pat, +Text, -MatchCodes)
+    ("re_replace" 4 coco_x_replace))) ; re_replace(+Pat, +With, +Text, -Codes)
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half -- the list tools, as the clauses they are
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *text-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; codes <-> lines, both directions from one relation's two
+           ;; modes spelled apart (append/3 is bidirectional but the
+           ;; split must not leave choice points behind in a test)
+           "codes_lines(Cs, Ls) :- var(Cs), !, lines_codes_(Ls, Cs)."
+           "codes_lines(Cs, Ls) :- split_nl_(Cs, Ls)."
+           "split_nl_([], [[]])."
+           "split_nl_([10|Cs], [[]|Ls]) :- !, split_nl_(Cs, Ls)."
+           "split_nl_([C|Cs], [[C|L]|Ls]) :- split_nl_(Cs, [L|Ls])."
+           "lines_codes_([], [])."
+           "lines_codes_([L], L) :- !."
+           "lines_codes_([L|Ls], Cs) :- lines_codes_(Ls, R), append(L, [10|R], Cs)."
+
+           ;; the pipeline vocabulary: grep as a filter over lines,
+           ;; head -1 as one word, head/tail -N as two
+           "re_lines(Pat, Cs, Ls) :- codes_lines(Cs, Ls0), findall(L, ( member(L, Ls0), re_match(Pat, L) ), Ls)."
+           "first_line(Cs, L) :- codes_lines(Cs, [L0|_]), L = L0."
+           "head_lines(N, Ls, Hs) :- length(Hs, N), append(Hs, _, Ls), !."
+           "head_lines(_, Ls, Ls)."
+           "tail_lines(N, Ls, Ts) :- length(Ts, N), append(_, Ts, Ls), !."
+           "tail_lines(_, Ls, Ls)."
+
+           ;; sed s///g and grep -o, for atoms, because a pin is
+           ;; usually one short answer
+           "re_first_atom(Pat, Text, A) :- re_first(Pat, Text, Cs), atom_codes(A, Cs)."
+           "re_replace_atom(Pat, With, Text, A) :- re_replace(Pat, With, Text, Cs), atom_codes(A, Cs)."
+
+           ;; tr -d and the trailing-newline chomp every capture wants
+           "delete_code(Cs, C, Out) :- findall(X, ( member(X, Cs), X \\== C ), Out)."
+           "chomp(Cs, Out) :- ( append(Out, [10], Cs) -> true ; Out = Cs ).")))
+
+(generic decl-text
+  ()
+  (@define (code "ubyte_t unsigned char"))
+  ;; <regex.h>'s regex_t and regmatch_t are ANONYMOUS-STRUCT typedefs
+  ;; libc owns -- there is no `struct regex_t' to declare the std way,
+  ;; and a Cicili (typedef ...) outside an init-macro would EMIT one.
+  ;; So the two calls that must touch those types live in a raw-C
+  ;; escape below -- the files.cicili precedent (glob, realpath): the
+  ;; fire escape, for what lib/std/c genuinely does not declare -- and
+  ;; everything else in this file is Cicili over plain offsets.
+  ;;   cx_match: compile REG_EXTENDED, exec, free -- grep -qE.
+  ;;   cx_exec:  one match at s+0, NOTBOL when asked, ten (so, eo)
+  ;;             pairs into offs -- the engine the walk below rides.
+  (code "static int cx_match(const char* p, const char* s) { regex_t r; regmatch_t mm; int m; if (regcomp(&r, p, REG_EXTENDED)) return -1; m = regexec(&r, s, 1, &mm, 0); regfree(&r); return m == 0 ? 1 : 0; }")
+  (code "static int cx_exec(const char* p, const char* s, int notbol, long* offs) { regex_t r; regmatch_t mm[10]; int m, i; if (regcomp(&r, p, REG_EXTENDED)) return -1; m = regexec(&r, s, 10, mm, notbol ? REG_NOTBOL : 0); regfree(&r); if (m != 0) return 1; for (i = 0; i < 10; i++) { offs[i * 2] = (long) mm[i].rm_so; offs[i * 2 + 1] = (long) mm[i].rm_eo; } return 0; }")
+  (decl) (func cx_match ((const char * p) (const char * s)) (out int))
+  (decl) (func cx_exec ((const char * p) (const char * s) (int notbol)
+                        (long * offs)) (out int))
+  ) ; decl-text
+
+(generic impl-text
+  ()
+
+  ;;; text argument -> a malloc'd NUL-terminated C string, because
+  ;;; POSIX regexec walks a C string (its one honest limitation here:
+  ;;; a NUL inside the text ends the match's world -- stated). Accepts
+  ;;; an atom or a code list.
+  (static)
+  (func coco_x_text ((coco_engine * e) (size_t g) (u32 i) (char ** out)
+                     (int * rc))
+        (out int)
+        (let ((size_t t . #'(coco_m_arg e g i)))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (coco_m_is_atom e t)
+              (block
+                (let ((char * buf . #'(cast (char *) (malloc 65536))))
+                  (if (not buf) (block (set (cof rc) 0) (return 0)))
+                  (if (not (coco_m_text e t buf 65536))
+                      (block (free (cast (void *) buf)) (set (cof rc) 0) (return 0)))
+                  (set (cof out) buf)
+                  (return 1))))
+          ;; a code list, walked into bytes
+          (let ((size_t n . 0) (size_t * items . nil) (char * buf . nil))
+            (if (not (coco_m_list_array e t (aof items) (aof n)))
+                (block (set (cof rc) (coco_m_type_error e "text" t)) (return 0)))
+            (set buf (cast (char *) (malloc (+ n 1))))
+            (if (not buf) (block (free items) (set (cof rc) 0) (return 0)))
+            (for ((size_t i2 . 0)) (< i2 n) ((++ i2))
+                 (let ((i64 v . 0))
+                   (if (not (coco_m_int e (nth i2 items) (aof v)))
+                       (block (free items) (free (cast (void *) buf))
+                              (set (cof rc) (coco_m_type_error e "integer" (nth i2 items)))
+                              (return 0)))
+                   (set (nth i2 buf) (cast char (bitand v 255)))))
+            (set (nth n buf) (cast char 0))
+            (free items)
+            (set (cof out) buf)
+            (return 1))))
+
+  (static)
+  (func coco_x_codes ((coco_engine * e) (const char * s) (size_t from)
+                      (size_t to)) (out size_t)
+        (let ((size_t lst . #'(coco_m_nil e)))
+          (for ((size_t i . to)) (> i from) ((-- i))
+               (set lst (coco_m_cons e
+                          (coco_m_new_int e (cast i64 (bitand (cast int (nth (- i 1) s)) 255)))
+                          lst)))
+          (return lst)))
+
+  ;;; re_match(+Pat, +Text) -- grep -qE
+  (func coco_x_match ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (char * pat . nil) (char * txt . nil) (int m . 0))
+          (if (not (coco_x_text e g 0 (aof pat) (aof rc))) (return rc))
+          (if (not (coco_x_text e g 1 (aof txt) (aof rc)))
+              (block (free (cast (void *) pat)) (return rc)))
+          (set m (cx_match pat txt))
+          (free (cast (void *) pat))
+          (free (cast (void *) txt))
+          (return (? (== m 1) 1 0))))
+
+  ;;; re_first(+Pat, +Text, -Match) -- grep -oE | head -1
+  (func coco_x_first ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (char * pat . nil) (char * txt . nil)
+              (long offs [20]) (int m . 0))
+          (if (not (coco_x_text e g 0 (aof pat) (aof rc))) (return rc))
+          (if (not (coco_x_text e g 1 (aof txt) (aof rc)))
+              (block (free (cast (void *) pat)) (return rc)))
+          (set m (cx_exec pat txt 0 offs))
+          (free (cast (void *) pat))
+          (if (!= m 0) (block (free (cast (void *) txt)) (return 0)))
+          (let ((size_t lst . #'(coco_x_codes e txt (cast size_t (nth 0 offs))
+                                             (cast size_t (nth 1 offs)))))
+            (free (cast (void *) txt))
+            (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
+
+  ;;; re_replace(+Pat, +With, +Text, -Out) -- sed -E s///g. The
+  ;;; replacement understands & and \\0..\\9; a literal & or backslash
+  ;;; is sed's own \\& and \\\\. Empty matches advance by one, the way
+  ;;; sed does, so s/x*/-/g terminates.
+  (func coco_x_replace ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (char * pat . nil) (char * rep . nil) (char * txt . nil)
+              (char * out . nil) (size_t cap . 4096) (size_t n . 0)
+              (size_t pos . 0) (size_t tlen . 0) (size_t rlen . 0)
+              (size_t prev_me . 0) (int had . 0)
+              (long offs [20]))
+          (if (not (coco_x_text e g 0 (aof pat) (aof rc))) (return rc))
+          (if (not (coco_x_text e g 1 (aof rep) (aof rc)))
+              (block (free (cast (void *) pat)) (return rc)))
+          (if (not (coco_x_text e g 2 (aof txt) (aof rc)))
+              (block (free (cast (void *) pat)) (free (cast (void *) rep)) (return rc)))
+          (set tlen (strlen txt))
+          (set rlen (strlen rep))
+          (set out (cast (char *) (malloc cap)))
+          (if (not out)
+              (block (free (cast (void *) pat)) (free (cast (void *) rep))
+                     (free (cast (void *) txt)) (return 0)))
+          (while (<= pos tlen)
+            (let ((int m . #'(cx_exec pat (+ txt pos) (? (> pos 0) 1 0) offs)))
+              (if (!= m 0) break)
+              (let ((size_t ms . #'(+ pos (cast size_t (nth 0 offs))))
+                    (size_t me . #'(+ pos (cast size_t (nth 1 offs)))))
+                ;; sed's own rule: an EMPTY match touching the previous
+                ;; match's end is not a match -- without this, s/x*/-/g
+                ;; on axa answers -a--a- instead of -a-a-
+                (if (and (== ms me) had (== ms prev_me))
+                    (block
+                      (if (< pos tlen)
+                          (block
+                            (if (>= (+ n 2) cap)
+                                (block (set cap (* cap 2))
+                                       (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                            (set (nth n out) (nth pos txt))
+                            (set n (+ n 1))))
+                      (set pos (+ pos 1))
+                      continue))
+                ;; the stretch before the match, verbatim
+                (for ((size_t i . pos)) (< i ms) ((++ i))
+                     (if (>= (+ n 2) cap)
+                         (block (set cap (* cap 2))
+                                (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                     (set (nth n out) (nth i txt))
+                     (set n (+ n 1)))
+                ;; the replacement, & and \\N expanded against offs
+                (let ((size_t ri . 0))
+                  (while (< ri rlen)
+                    (if (>= (+ n tlen 2) cap)
+                        (block (set cap (* (+ cap tlen) 2))
+                               (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                    (let ((char c . #'(nth ri rep)))
+                      (if (== (cast int c) 38)               ; the ampersand
+                          (block
+                            (for ((size_t i . ms)) (< i me) ((++ i))
+                                 (set (nth n out) (nth i txt)) (set n (+ n 1)))
+                            (set ri (+ ri 1))
+                            continue))
+                      (if (and (== (cast int c) 92) (< (+ ri 1) rlen))  ; backslash
+                          (let ((char d . #'(nth (+ ri 1) rep)))
+                            (if (and (>= (cast int d) 48) (<= (cast int d) 57))
+                                (let ((int gi . #'(- (cast int d) 48)))
+                                  (if (>= (nth (* gi 2) offs) 0)
+                                      (let ((size_t gs . #'(+ pos (cast size_t (nth (* gi 2) offs))))
+                                            (size_t ge . #'(+ pos (cast size_t (nth (+ (* gi 2) 1) offs)))))
+                                        (for ((size_t i . gs)) (< i ge) ((++ i))
+                                             (set (nth n out) (nth i txt)) (set n (+ n 1)))))
+                                  (set ri (+ ri 2))
+                                  continue))
+                            ;; backslash-x for any other x: x itself
+                            (set (nth n out) d)
+                            (set n (+ n 1))
+                            (set ri (+ ri 2))
+                            continue))
+                      (set (nth n out) c)
+                      (set n (+ n 1))
+                      (set ri (+ ri 1)))))
+                ;; advance -- past the match, or by one on an empty one
+                (set prev_me me)
+                (set had 1)
+                (if (== me pos)
+                    (block
+                      (if (< pos tlen)
+                          (block
+                            (if (>= (+ n 2) cap)
+                                (block (set cap (* cap 2))
+                                       (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                            (set (nth n out) (nth pos txt))
+                            (set n (+ n 1))))
+                      (set pos (+ pos 1)))
+                    (set pos me)))))
+          ;; the tail after the last match
+          (while (< pos tlen)
+            (if (>= (+ n 2) cap)
+                (block (set cap (* cap 2))
+                       (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+            (set (nth n out) (nth pos txt))
+            (set n (+ n 1))
+            (set pos (+ pos 1)))
+          (free (cast (void *) pat))
+          (free (cast (void *) rep))
+          (free (cast (void *) txt))
+          (let ((size_t lst . #'(coco_x_codes e out 0 n)))
+            (free (cast (void *) out))
+            (return (coco_m_unify e (coco_m_arg e g 3) lst)))))
+
+  (static) (coco-emit-module-dispatch coco_x_dispatch *text-predicates*)
+
+  ) ; impl-text
+
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+(source "text.c"
+  (make :std #t :compile #f)
+
+  (include <regex.h>)
+  (include <string.h>)
+  (include <stdlib.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (decl-text)
+  (impl-text)
+
+  (coco-deflibrary "text" coco_x_dispatch *text-prolog*))
