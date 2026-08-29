@@ -138,6 +138,15 @@ still worth a look, because a machine claimed by a *live* wedged worker
 looks the same as it always did. And a wedged server answers NOBODY on any
 knowledge base, so restart it before blaming whatever you were working on.
 
+**A store wiped under a server that is still dying answers writes and
+keeps NONE.** `pkill`, then `rm -rf home/data/*` a breath later, then a
+new server: every `query` says `1 answer(s)`, a second process reads
+nothing back, and `:- dynamic` answers `dynamic: out of memory` -- from
+the OLD binary as much as the new one, which is how an hour went to
+suspecting an engine commit that was innocent. `pgrep ziguratip` must
+print nothing before the `rm`; a clean restart afterwards is the whole
+cure.
+
 **`red: 0` does not mean the suite passed.** `zigurat`, `shared`, `groups` and
 `ruler` SKIP rather than fail when there is no server, because "no server here"
 and "the backend is wrong" are different findings — and the runner prints
