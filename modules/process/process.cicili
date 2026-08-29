@@ -1,0 +1,347 @@
+;;;; cocolog -- processes, as a module: run, capture, spawn, wait, kill
+;;;
+;;; WHY THIS EXISTS. Every test suite in this family is a .sh file whose
+;;; whole vocabulary is four tools: `timeout N cocolog ... | grep -aE
+;;; '^answer' | sed ...`, a `check` function comparing a captured line
+;;; with a pin, a background server raised and killed, and a sleep-poll
+;;; loop. CivV's 28 cases use `timeout` 322 times and `grep` 73 times --
+;;; counted, not guessed. All of that is PROCESS choreography, and a
+;;; choreography is exactly what this project writes as clauses
+;;; everywhere else. This module is the seam that lets a test be a .pl
+;;; file: the C below runs one child and answers its output and exit
+;;; status; everything above it -- the check harness, the pins, the
+;;; polling -- is the Prolog half, in clauses a reader can query.
+;;;
+;;; THE SHAPE IS modules/tcp's, decision for decision:
+;;;
+;;;   EVERY BLOCKING CALL TAKES A TIMEOUT. `proc_run/4' polls the
+;;;   child's pipe against a deadline and a child that outlives it is
+;;;   KILLED -- whole process group, 9 -- and answers exit 124, the
+;;;   same number coreutils' `timeout' chose, so a pin written against
+;;;   the shell reads unchanged here. A test that can hang is a test
+;;;   that tells you nothing.
+;;;
+;;;   OUTPUT ANSWERS CODES, NOT AN ATOM. An atom is a C string and
+;;;   stops at the first NUL; a captured build log is exactly the kind
+;;;   of text that carries one. `sh_atom/2' in the Prolog half is the
+;;;   convenience for the common case.
+;;;
+;;;   A SPAWNED CHILD GETS ITS OWN SESSION. `proc_spawn/2' is for the
+;;;   server a suite raises and kills at the end; `setsid()' is what
+;;;   lets it outlive the turn that started it -- the lesson this
+;;;   repository's own CLAUDE.md records about `nohup &'. The pid
+;;;   crosses into Prolog as a plain integer because a pid IS an
+;;;   integer everywhere -- `proc_kill/2' refuses nothing on its
+;;;   behalf; unlike a file descriptor, killing a wrong pid is a
+;;;   permission question the kernel already answers.
+;;;
+;;; WHAT IS NOT HERE, deliberately: stdin to the child (a test that
+;;; feeds a toplevel writes a file and runs `sh -c "... < file"'; the
+;;; shell is the quoting expert and this module does not compete),
+;;; stderr capture separate from stdout (append 2>&1 or 2>/dev/null in
+;;; the command -- same reason), and environment editing (getenv/2 is
+;;; lib/files.cicili's; a child edits its own env in its command).
+;;;
+;;; THE CHILD RUNS THROUGH /bin/sh -c, and that is a feature: the
+;;; commands a test writes carry pipes, redirections and quoting, and
+;;; sh is the one tool whose parsing of them is the contract everybody
+;;; already writes against.
+
+;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit, and a
+;;; DEFPACKAGE here expands to an EVAL-WHEN Cicili cannot read.
+;;; modules/tcp/tcp.cicili says the same at its top.
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *process-predicates*
+  '(("proc_run"     4 coco_p_run)
+    ("proc_spawn"   2 coco_p_spawn)
+    ("proc_wait"    3 coco_p_wait)
+    ("proc_kill"    2 coco_p_kill)
+    ("proc_running" 1 coco_p_running)
+    ("proc_sleep"   1 coco_p_sleep)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half
+;;;; ------------------------------------------------------------------
+;;; Joined with spaces -- a Cicili string literal cannot carry a newline.
+(DEFPARAMETER *process-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; The counter the check harness writes; declared before any
+           ;; check runs so a clean run's `\\+' finds a predicate rather
+           ;; than an existence_error. Quoted, because $x is two tokens.
+           ":- dynamic('$check_failed'/1)."
+
+           ;; The four spellings of "run it". sh/1 demands success the
+           ;; way `set -e' does; sh/2 captures; sh_exit/2 asks the code
+           ;; and never fails on it; sh_atom/2 is sh/2 for the common
+           ;; case of one short answer. Ten minutes is the shell
+           ;; suites' own ceiling (timeout 600), spelled once here.
+           "sh(Cmd) :- proc_run(Cmd, 600000, _, 0)."
+           "sh(Cmd, Out) :- proc_run(Cmd, 600000, Out, 0)."
+           "sh_exit(Cmd, E) :- proc_run(Cmd, 600000, _, E)."
+           "sh_atom(Cmd, A) :- sh(Cmd, Cs), atom_codes(A, Cs)."
+
+           ;; A command is usually a sentence with values in it, and
+           ;; cocolog has no string interpolation -- so the list IS the
+           ;; interpolation: shl(['kill -9 ', Pid]) joins its parts
+           ;; (atoms and numbers alike) and runs the sentence. Measured
+           ;; reason to exist: the first .pl suite ported to this
+           ;; module spent a third of its store half on atom_concat
+           ;; chains saying exactly this.
+           "sh_join([], '')."
+           "sh_join([P|Ps], A) :- sh_join(Ps, R), ( atom(P) -> PA = P ; term_to_atom(P, PA) ), atom_concat(PA, R, A)."
+           "shl(Parts) :- sh_join(Parts, C), sh(C)."
+           "shl(Parts, Out) :- sh_join(Parts, C), sh(C, Out)."
+           "shl_atom(Parts, A) :- shl(Parts, Cs), ( append(D, [10], Cs) -> true ; D = Cs ), atom_codes(A, D)."
+
+           ;; The check harness every suite re-implements in sh: compare,
+           ;; say ok or FAIL with both values, remember the failure, and
+           ;; let the run continue -- a suite that stops at its first
+           ;; failure hides the second. checks_done says GREEN or RED
+           ;; and FAILS on red, so a script's exit status carries the
+           ;; verdict to whatever runs it.
+           "check(L, G, W) :- ( G == W -> format(\"ok   ~w~n\", [L]) ; format(\"FAIL ~w~n     got  ~q~n     want ~q~n\", [L, G, W]), assertz('$check_failed'(L)) )."
+           "checks_done :- ( '$check_failed'(_) -> format(\"RED~n\", []), fail ; format(\"GREEN: 0 failure(s)~n\", []) )."
+
+           ;; Wait for a condition, the until-loop of every server
+           ;; start: try the goal every StepMs until it proves or the
+           ;; budget runs out. The goal is retried, not the world --
+           ;; polling is the caller's stated intent here.
+           "proc_until(Goal, BudgetMs, StepMs) :- ( BudgetMs =< 0 -> fail ; call(Goal) -> true ; proc_sleep(StepMs), B1 is BudgetMs - StepMs, proc_until(Goal, B1, StepMs) )."
+
+           ;; Kill and reap, the suite-teardown pair: 15 first, a
+           ;; moment to die well, then 9 -- and always the wait, so a
+           ;; test leaves no zombie for the next one to inherit.
+           "proc_stop(Pid) :- ( proc_kill(Pid, 15) -> true ; true ), ( proc_wait(Pid, 2000, _) -> true ; ( proc_kill(Pid, 9) -> true ; true ), ( proc_wait(Pid, 2000, _) -> true ; true ) ).")))
+
+(generic decl-process
+  ()
+
+  ;;; A cast takes ONE type token; the byte buffer needs a name.
+  (@define (code "ubyte_t unsigned char"))
+
+  ;;; std/c/posix declares fork, execl, pipe, dup2, read, close, usleep,
+  ;;; waitpid, WNOHANG, WIFEXITED, WEXITSTATUS, and poll's struct --
+  ;;; members and all. What it does NOT declare is the signal family and
+  ;;; the session call; declared here the way sys-wait.cicili declares
+  ;;; its macros: a prototype, no body, the real one in <signal.h> and
+  ;;; <unistd.h> at compile time.
+  (@define (code "pollfd struct pollfd"))
+  (decl) (func kill ((pid_t pid) (int sig)) (out int))
+  (decl) (func setsid () (out pid_t))
+  (decl) (func setpgid ((pid_t pid) (pid_t pgid)) (out int))
+
+  ) ; decl-process
+
+
+(generic impl-process
+  ()
+
+  ;;; ---- reading arguments (the tcp shapes, unchanged) ------------------
+
+  (static)
+  (func coco_p_int ((coco_engine * e) (size_t g) (u32 i) (i64 * out) (int * rc))
+        (out int)
+        (let ((size_t t . #'(coco_m_arg e g i)))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (not (coco_m_int e t out))
+              (block (set (cof rc) (coco_m_type_error e "integer" t)) (return 0)))
+          (return 1)))
+
+  ;;; The command, as text. 16384 because the family's own test
+  ;;; commands are LOADV lines seven hundred characters long with a
+  ;;; goal behind them; written out, not #define'd.
+  (static)
+  (func coco_p_cmd ((coco_engine * e) (size_t g) (u32 i) (char * buf) (size_t cap)
+                    (int * rc))
+        (out int)
+        (let ((size_t t . #'(coco_m_arg e g i)))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (not (coco_m_text e t buf cap))
+              (block (set (cof rc) (coco_m_type_error e "atom" t)) (return 0)))
+          (return 1)))
+
+  ;;; ---- the fork, shared by run and spawn -------------------------------
+  ;;;
+  ;;; The child: its own process group (run) or session (spawn), stdout
+  ;;; onto the pipe when one is given, then /bin/sh -c CMD. _exit(127)
+  ;;; on a failed exec, sh's own number for "no such command".
+  (static)
+  (func coco_p_fork ((char * cmd) (int * outfd) (int session)) (out pid_t)
+        (let ((int fds [2]) (pid_t pid . 0))
+          (if outfd
+              (if (< (pipe fds) 0) (return -1)))
+          (set pid (fork))
+          (if (< pid 0)
+              (block
+                (if outfd (block (close (nth 0 fds)) (close (nth 1 fds))))
+                (return -1)))
+          (if (== pid 0)
+              (block
+                ;; the group is what lets a timeout kill a pipeline
+                ;; whole; the session is what lets a server outlive us
+                (if session (setsid) (setpgid 0 0))
+                (if outfd
+                    (block
+                      (close (nth 0 fds))
+                      (dup2 (nth 1 fds) 1)
+                      (close (nth 1 fds))))
+                (execl "/bin/sh" "sh" "-c" cmd (cast (char *) nil))
+                (_exit 127)))
+          (if outfd
+              (block
+                (close (nth 1 fds))
+                (set (cof outfd) (nth 0 fds))))
+          (return pid)))
+
+  ;;; ---- proc_run(+Cmd, +TimeoutMs, -Out, -Exit) -------------------------
+  ;;;
+  ;;; Read the pipe against the deadline, then reap. EOF first, wait
+  ;;; second: a child that closed stdout has said everything, and
+  ;;; waitpid after EOF cannot block for long. The deadline expiring
+  ;;; kills the GROUP with 9 and answers 124 -- coreutils' number --
+  ;;; with whatever output had arrived, because a timed-out test's
+  ;;; partial log is the diagnosis.
+  (func coco_p_run ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 tmo . 0) (char cmd [16384])
+              (int fd . -1) (pid_t pid . 0)
+              (ubyte_t * buf . nil) (size_t cap . 4096) (size_t n . 0)
+              (int status . 0) (i64 ex . 0) (i64 spent . 0)
+              (int timed_out . 0))
+          (if (not (coco_p_cmd e g 0 cmd (sizeof cmd) (aof rc))) (return rc))
+          (if (not (coco_p_int e g 1 (aof tmo) (aof rc))) (return rc))
+          (set pid (coco_p_fork cmd (aof fd) 0))
+          (if (< pid 0) (return 0))
+          (set buf (cast (ubyte_t *) (malloc cap)))
+          (if (not buf) (block (close fd) (return 0)))
+          (while 1
+            (let ((pollfd p) (int pr . 0) (ssize_t r . 0) (i64 step . 200))
+              (if (> (+ spent step) tmo) (set step (- tmo spent)))
+              (if (<= step 0)
+                  (block (set timed_out 1) break))
+              (set ($ p fd) fd)
+              (set ($ p events) POLLIN)
+              (set ($ p revents) 0)
+              (set pr (poll (aof p) 1 (cast int step)))
+              (set spent (+ spent step))
+              (if (< pr 0)
+                  (block
+                    (if (== errno EINTR) continue)
+                    break))
+              (if (== pr 0) continue)
+              (if (>= (+ n 4096) cap)
+                  (block
+                    (set cap (* cap 2))
+                    (set buf (cast (ubyte_t *) (realloc (cast (void *) buf) cap)))
+                    (if (not buf) (block (close fd) (return 0)))))
+              (set r (read fd (+ buf n) 4096))
+              (if (< r 0)
+                  (block
+                    (if (== errno EINTR) continue)
+                    break))
+              (if (== r 0) break)
+              (set n (+ n (cast size_t r)))))
+          (close fd)
+          (if timed_out
+              (block
+                (kill (- 0 pid) 9)          ; 9 = SIGKILL, the whole group
+                (waitpid pid (aof status) 0)
+                (set ex 124))
+              (block
+                (waitpid pid (aof status) 0)
+                (if (WIFEXITED status)
+                    (set ex (cast i64 (WEXITSTATUS status)))
+                    (set ex 128))))         ; died to a signal: past 127,
+                                            ; the shell's own convention
+          ;; the output, consed from the tail so it reads forward
+          (let ((size_t lst . #'(coco_m_nil e)))
+            (for ((size_t i . n)) (> i 0) ((-- i))
+                 (set lst (coco_m_cons e
+                            (coco_m_new_int e (cast i64 (nth (- i 1) buf)))
+                            lst)))
+            (free (cast (void *) buf))
+            (if (not (coco_m_unify e (coco_m_arg e g 2) lst)) (return 0))
+            (return (coco_m_unify_int e (coco_m_arg e g 3) ex)))))
+
+  ;;; ---- proc_spawn(+Cmd, -Pid) ------------------------------------------
+  (func coco_p_spawn ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (char cmd [16384]) (pid_t pid . 0))
+          (if (not (coco_p_cmd e g 0 cmd (sizeof cmd) (aof rc))) (return rc))
+          (set pid (coco_p_fork cmd (cast (int *) nil) 1))
+          (if (< pid 0) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 pid)))))
+
+  ;;; ---- proc_wait(+Pid, +TimeoutMs, -Exit) ------------------------------
+  ;;;
+  ;;; WNOHANG against a deadline; nobody exiting in time is a plain
+  ;;; failure, the tcp accept rule. A child that died to a signal
+  ;;; answers past 127, as above.
+  (func coco_p_wait ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 pid . 0) (i64 tmo . 0)
+              (int status . 0) (i64 spent . 0))
+          (if (not (coco_p_int e g 0 (aof pid) (aof rc))) (return rc))
+          (if (not (coco_p_int e g 1 (aof tmo) (aof rc))) (return rc))
+          (while 1
+            (let ((pid_t r . #'(waitpid (cast pid_t pid) (aof status) WNOHANG)))
+              (if (== r (cast pid_t pid))
+                  (let ((i64 ex . 128))
+                    (if (WIFEXITED status)
+                        (set ex (cast i64 (WEXITSTATUS status))))
+                    (return (coco_m_unify_int e (coco_m_arg e g 2) ex))))
+              (if (< r 0) (return 0))       ; not ours to wait for
+              (if (>= spent tmo) (return 0))
+              (usleep 50000)                ; 50ms, the poll grain
+              (set spent (+ spent 50))))))
+
+  ;;; ---- proc_kill(+Pid, +Sig) -------------------------------------------
+  (func coco_p_kill ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 pid . 0) (i64 sig . 0))
+          (if (not (coco_p_int e g 0 (aof pid) (aof rc))) (return rc))
+          (if (not (coco_p_int e g 1 (aof sig) (aof rc))) (return rc))
+          (return (? (== (kill (cast pid_t pid) (cast int sig)) 0) 1 0))))
+
+  ;;; ---- proc_running(+Pid) ----------------------------------------------
+  ;;; Signal 0: the kernel's own "does it exist and may I ask".
+  (func coco_p_running ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 pid . 0))
+          (if (not (coco_p_int e g 0 (aof pid) (aof rc))) (return rc))
+          (return (? (== (kill (cast pid_t pid) 0) 0) 1 0))))
+
+  ;;; ---- proc_sleep(+Ms) -------------------------------------------------
+  (func coco_p_sleep ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 ms . 0))
+          (if (not (coco_p_int e g 0 (aof ms) (aof rc))) (return rc))
+          (if (< ms 0) (return 0))
+          (usleep (cast useconds_t (* ms 1000)))
+          (return 1)))
+
+  (static) (coco-emit-module-dispatch coco_p_dispatch *process-predicates*)
+
+  ) ; impl-process
+
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+(source "process.c"
+  (make :std #t :compile #f)
+
+  (include <unistd.h>)
+  (include <signal.h>)
+  (include <sys/wait.h>)
+  (include <poll.h>)
+  (include <errno.h>)
+  (include <stdlib.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  (decl-process)
+  (impl-process)
+
+  (coco-deflibrary "process" coco_p_dispatch *process-prolog*))

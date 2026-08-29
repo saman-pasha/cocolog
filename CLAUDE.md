@@ -369,6 +369,7 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 |---|---|---|
 | `modules/tcp` | nothing | `sh modules/tcp/build.sh` |
 | `modules/thread` | nothing | `sh modules/thread/build.sh` |
+| `modules/process` | nothing | `sh modules/process/build.sh` |
 | `modules/curl` | libcurl | `sh modules/curl/build.sh` |
 | `modules/bigint` | a **built** ZiguratIP | `sh modules/bigint/build.sh` |
 | `modules/torch` | libtorch | `sh modules/torch/build.sh` |
