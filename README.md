@@ -1222,7 +1222,7 @@ interpreter in any of the four knowledge-base arrangements.
 
 The interpreter, the serialisation, all four transports, the schema and
 the concurrent arrangements are done and tested; `make test` ends
-`red: 0` over 34 cases, three of them TLS and one of them a window under Xvfb.
+`red: 0` over 39 cases, three of them TLS and one of them a window under Xvfb.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 
@@ -1246,10 +1246,75 @@ worse one to read EXECUTION in), and that misapplied Prolog is MORE
 code than Python, not less.
 
 It is honest in both directions throughout, which means cocolog loses
-often — strings, GC, clause indexing, tabling, tooling, ecosystem — and
-the rows where it genuinely differs compare positions rather than
-languages: a clause is a row other processes read, a turn is a
-transaction, and a suspended proof is data any process can finish.
+often — strings, GC, tabling, tooling, ecosystem — and the rows where it
+genuinely differs compare positions rather than languages: a clause is a
+row other processes read, a turn is a transaction, and a suspended proof
+is data any process can finish.
+
+**`clause indexing` used to be on that list of losses and is not any
+more**, which is the benchmark's one unambiguous success: it named the
+gap, the gap was closed, and the same script re-measured it.
+
+### How fast it is, measured rather than asserted
+
+Five small programs, the same task in each language, every lane's answer
+checked against every other's before a number may print. `--local` is the
+in-memory arrangement, `--embed` the MVCCS engine linked into the process,
+and `cpython + sqlite3` is there because a dict is not a database and
+timing one against a store measures the guarantees rather than the engine:
+
+| task (one rep) | cocolog --local | cpython | cocolog --embed | cpython + sqlite3 |
+|---|---|---|---|---|
+| naive reverse, 400 elements | ~0.0387 s (5.9x) | 0.006611 s | 0.035925 s (5.4x) | — |
+| 8-queens, all 92 solutions | 0.025366 s (14.3x) | 0.001772 s | 0.024442 s (13.8x) | — |
+| 100 000 additions, one at a time | 0.106376 s (33.9x) | 0.003141 s | 0.124958 s (39.8x) | — |
+| 1000 keyed lookups over 200 facts | 0.003614 s (47.6x) | 0.000076 s | 0.002291 s (30.1x) | 0.004432 s (58.3x) |
+| generate-and-sort 5000 integers | 0.012735 s (9.1x) | 0.001392 s | 0.012850 s (9.2x) | — |
+
+**So cocolog is 6–34x CPython as a language**, and the spread is the
+interesting part: backtracking search is its best showing, which is the
+thing a Prolog engine is for, and a tight counting loop its worst, which
+is the per-inference cost of a continuation-passing interpreter with no
+compilation step. Start-up is not the reason and the guess that it was is
+dead — every arrangement boots in 0.01 s, the same as Python.
+
+**Two of those readings used to be defects rather than a design, and the
+benchmark is what found them.**
+
+*The keyed lookup was a SLOPE, not a factor.* A call walked the predicate,
+copying each clause onto the heap and unifying its head, so a probe into a
+table of facts copied the table — 7x slower than a Python dict at 200
+facts, 49x at 2 000, **411x at 20 000**. A ratio that grows with N is a
+linear scan's signature. `coco_pred` now carries a first-argument index:
+
+| facts | before | after |
+|---|---:|---:|
+| 200 | 7x | **3x** |
+| 2 000 | 49x | **3x** |
+| 20 000 | 411x | **4x** |
+
+*Writing was quadratic in the clauses already there.* A clause written
+through to the database re-sent its WHOLE predicate, and the batching that
+made a `consult` cheap was switched off before the goal ran — so a file of
+clauses was cheap and the same clauses asserted BY THE GOAL were not. The
+batch spans the turn now, and the turn was already one transaction:
+
+| `assertz` into one predicate, `--embed` | before | after |
+|---|---:|---:|
+| 50 clauses | 0.59 s | **0.024 s** |
+| 100 | 2.98 s | **0.031 s** |
+| 200 | 16.88 s | **0.050 s** |
+| 400 | 85.38 s | **0.088 s** |
+
+Roughly N^2.4 became roughly linear. Downstream, The Coco's settlement
+lane — blocks sealed onto a chain through the store — went from 18.38 to
+**194.84 blocks/s at an identical arrangement**, and three of its lanes
+had to have their counts raised because they finished in under a second
+and the harness refused to print a rate for them.
+
+**Neither fix touched the per-inference cost**, and the table above is
+unchanged by them on the four compute tasks. Two defects moved; a design
+did not.
 
 ## A worked store slows down. Truncate it.
 
