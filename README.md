@@ -337,6 +337,75 @@ clause in an interpreter where every builtin is deterministic, and then
 reports success. Three bugs, found by documentation that runs, in a
 language whose own suite had never needed those predicates.
 
+## A whole test suite is a cocolog script
+
+The tutorials are tests because a lesson that prints its answer proves
+nothing. The same idea, one size up: **a whole suite is cocolog too**,
+and both repositories downstream of this one now write theirs that way
+-- CivV's 29 cases and The Coco's 19, the latter 551 checks in all.
+Both were shell suites first, and both were converted case by case.
+
+A case is `main/0` and **the exit code is the verdict**. `iso/2`,
+`want/2` and `refuses/1` below are the suite's own prelude, three
+clauses over what this repository ships:
+
+```prolog
+:- use_module('test/prelude.pl').
+
+main :-
+    iso('a transfer moves exactly what it says, both sides',
+        ( world(A, B), transfer(A, B, 500),
+          balance(A, X), balance(B, Y), want(X-Y, 500-500) )),
+    iso('more than you have is refused',
+        ( world(A, B), refuses(transfer(A, B, 2000)) )),
+    checks_done.
+```
+
+```sh
+./cocolog -s test/money.pl      # 0 exactly when main proved
+```
+
+`checks_done` is the reason that exit code means something: it prints
+GREEN or RED and **fails on red**, so the verdict reaches whatever ran
+the script without anybody parsing the output. And the check itself does
+not stop the run -- a suite that halts at its first failure hides the
+second.
+
+**What the suite libraries are for.** None of them was written for this;
+each was written because a suite needed it and a shell was doing it
+worse.
+
+| | |
+|---|---|
+| `library(process)` | `check/3` and `checks_done` -- the harness every shell suite re-implements, once. `sh/1,2`, `sh_exit/2`, `sh_atom/2`, and `shl/1,2` for a command built out of values, because cocolog has no string interpolation and the LIST is the interpolation. `proc_spawn/2`, `proc_wait/3`, `proc_stop/1` (15, a moment, then 9, and always the wait, so a case leaves no zombie for the next one), `proc_until/3` for the wait-for-the-server loop. |
+| `library(thread)` | `run_isolated/2`: a proof on a **fresh machine with a fresh store**, in this process. It is what most spawning in a shell suite was actually buying -- isolation -- at none of the price. |
+| `library(text)` | `re_match/2`, `re_first/3`, `re_replace/4`, `re_lines/3` -- grep and sed as clauses, over libc's own regex. |
+| `library(os)` | `os_is/1`, `os_has/1`, `os_which/2`, `os_lib_path_var/1`. One answer on Linux and macOS, where `uname -s` and `command -v` gave two. |
+| `library(kbs)` | many knowledge bases from one SCRIPT -- seed one, grind another, read both back. Every `kb_*` goal is one process-proof over the wire, deliberately: a store half exists to show a SECOND process sees the rows, and a library that proved it in-process would quietly stop making that claim. |
+
+**What that buys, concretely.** A comparison is `Got == Want` on TERMS
+rather than a string match on a process's output, and the value is the
+goal's own binding, so nothing is grepped and nothing is parsed. The
+label is a label rather than a `printf` format. And a case that wants
+a clean slate asks for one: `run_isolated/2` per check, instead of a
+whole interpreter started per check to get a store nobody had written
+to yet.
+
+**And what it does not replace.** A claim about two PROCESSES sharing a
+knowledge base -- one writes, a second that consulted nothing reads it
+back -- is exactly what `run_isolated/2` cannot make, because a fresh
+machine in this process is still this process and this process's
+connection. Those checks start a real `cocolog` and always should;
+converting them would keep a suite green and delete its proof.
+
+**cocolog's own 39 cases are still shell, and that is not an oversight.**
+They test this binary from the outside -- including the arrangements
+where the point is that the binary is wrong -- and a case written in the
+language under test cannot report on an interpreter too broken to read
+it. A suite for something ELSE, written in cocolog, is a different
+proposition entirely: there the interpreter is the tool and not the
+subject.
+
 ## The knowledge base is a seam, not a dependency
 
 `lib/kb.cicili` gives the clause store five function pointers. Everything above
