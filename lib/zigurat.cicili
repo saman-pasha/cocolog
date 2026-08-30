@@ -101,6 +101,8 @@
                            (char * out) (size_t outcap)) (out int))
      (decl) (func zg_compile ((zg_conn * c) (const char * suite)) (out int))
      (decl) (func zg_call ((zg_conn * c) (const char * procedure)) (out int))
+     (decl) (func zg_call_send ((zg_conn * c) (const char * procedure)) (out int))
+     (decl) (func zg_call_wait ((zg_conn * c) (const char * procedure)) (out int))
      (decl) (func zg_auto_commit ((zg_conn * c) (int on)) (out int))
      (decl) (func zg_isolate ((zg_conn * c) (zg_isolation_t level)) (out int))
      (decl) (func zg_commit ((zg_conn * c)) (out int))

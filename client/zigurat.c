@@ -766,6 +766,42 @@ int zg_call(zg_conn *c, const char *procedure)
   return 1;
 }
 
+/* THE PIPELINED CALL. zg_call is three round trips before the procedure
+ * has done anything -- the server acknowledges the verb, then the name,
+ * then the procedure answers -- and a knowledge base loads one clause per
+ * call, so a 7000-clause consult was 7000 x 3 waits on a wire whose work
+ * was a quarter of the time (measured: both ends in recv most of the
+ * time). zg_call_send writes the verb and the name and READS NOTHING; the
+ * caller writes the arguments behind it and sends the next; zg_call_wait
+ * then takes the two acknowledgements in order, and the caller reads the
+ * procedure's own answer as it always did. Everything the caller sends
+ * sits in the out buffer or the socket until the first read, so N calls
+ * go down in one burst and N answers come back in one. The caller keeps
+ * N small enough that the answers to N calls fit a socket buffer -- a few
+ * dozen bytes each -- or the two ends fill each other's buffers and wait
+ * forever. A refused call is fatal to the connection exactly as before:
+ * the arguments already sent behind it would be read as the next verb. */
+int zg_call_send(zg_conn *c, const char *procedure)
+{
+  if (c->ce) return zg_call(c, procedure);
+  if (strlen(procedure) > ZG_MAX_STRING) return say(c, "a String is limited to 255 bytes");
+  c->err[0] = '\0';
+  if (!take_turn(c)) return 0;
+  if (!wr_std_string(c, "call")) return 0;
+  return wr_std_string(c, procedure);
+}
+
+int zg_call_wait(zg_conn *c, const char *procedure)
+{
+  zg_result_t r = ZG_SUCCESSFUL_DONE;
+  if (c->ce) return 1;
+  if (!zg_result(c, &r)) return 0;
+  if (r != ZG_SUCCESSFUL_DONE) return say2(c, "the server would not take the verb", "call");
+  if (!zg_result(c, &r)) return 0;
+  if (r != ZG_SUCCESSFUL_DONE) return say2(c, "the server would not call", procedure);
+  return 1;
+}
+
 int zg_auto_commit(zg_conn *c, int on)
 {
   zg_result_t r = ZG_SUCCESSFUL_DONE;

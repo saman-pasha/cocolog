@@ -212,6 +212,10 @@ int zg_compile(zg_conn *c, const char *suite);
 /* Names the procedure to run. The IN parameters go out after this, as fields,
  * and then the results are read. */
 int zg_call(zg_conn *c, const char *procedure);
+/* the pipelined pair: send N calls (each followed by its arguments), then
+ * wait for each in order and read its answer -- see zigurat.c */
+int zg_call_send(zg_conn *c, const char *procedure);
+int zg_call_wait(zg_conn *c, const char *procedure);
 
 int zg_auto_commit(zg_conn *c, int on);
 int zg_isolate(zg_conn *c, zg_isolation_t level);

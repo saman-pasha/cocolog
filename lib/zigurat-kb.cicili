@@ -360,28 +360,53 @@
             (if (not (coco_zg_finish z (aof ignored)))
                 (return (coco_zg_fail z "forget_clauses")))
 
-            (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
-              (let ((size_t mark . #'(-> m heap_len))
-                    (size_t t . #'(coco_store_get m st (nth i (-> p clauses))))
-                    (coco_strbuf b))
-                (coco_sb_init (aof b))
-                (coco_write_storable m (aof b) t)
-                (if (not (zg_call (-> z db) "cocolog::assert_clause"))
-                    (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
-                           (return (coco_zg_fail z "assert_clause"))))
-                (if (and (zg_write_string (-> z db) (-> z kb))
-                         (and (zg_write_string (-> z db) nm)
-                              (and (zg_write_int (-> z db) (cast i32 ar))
-                                   (and (zg_write_long (-> z db) (cast i64 i))
-                                        (zg_write_text (-> z db)
-                                                       (? (== ($ b s) nil) "" ($ b s)))))))
-                    (block)
-                  (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
-                         (return (coco_zg_fail z "writing a clause"))))
-                (coco_sb_free (aof b))
-                (set (-> m heap_len) mark)
-                (if (not (coco_zg_finish z (aof ignored)))
-                    (return (coco_zg_fail z "assert_clause")))))
+            ;; THE CLAUSES GO DOWN IN A WINDOW, NOT ONE ROUND TRIP EACH. A
+            ;; call is three waits on the wire before the procedure has done
+            ;; anything (see zg_call_send in client/zigurat.c), and a base
+            ;; loads one clause per call, so 7000 clauses were 21000 waits
+            ;; around a quarter as much work. Up to 128 calls stand sent and
+            ;; unanswered; past that, one is answered for every one sent, so
+            ;; the server is never idle while the client writes nor the
+            ;; client while the server works (a burst of 64 sent and then
+            ;; waited for measured as ping-pong at burst size). The answers
+            ;; are a few dozen bytes each, so 128 of them sit inside a
+            ;; socket buffer and neither end can fill the other's. The
+            ;; embedded arrangement holds ONE call at a time -- ce_call
+            ;; runs the procedure against the arguments as they stand, so a
+            ;; second call sent before the first is answered lost its answer
+            ;; ("writing the consulted clauses: nothing left to read") --
+            ;; and there is no wire to pipeline anyway: its window is one.
+            (let ((size_t head . 0)
+                  (size_t tail . 0)
+                  (size_t window . #'(? (zg_embedded (-> z db)) 1 128)))
+              (while (< tail (-> p nclauses))
+                (if (and (< head (-> p nclauses)) (< (- head tail) window))
+                    (let ((size_t mark . #'(-> m heap_len))
+                          (size_t t . #'(coco_store_get m st (nth head (-> p clauses))))
+                          (coco_strbuf b))
+                      (coco_sb_init (aof b))
+                      (coco_write_storable m (aof b) t)
+                      (if (not (zg_call_send (-> z db) "cocolog::assert_clause"))
+                          (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
+                                 (return (coco_zg_fail z "assert_clause"))))
+                      (if (and (zg_write_string (-> z db) (-> z kb))
+                               (and (zg_write_string (-> z db) nm)
+                                    (and (zg_write_int (-> z db) (cast i32 ar))
+                                         (and (zg_write_long (-> z db) (cast i64 head))
+                                              (zg_write_text (-> z db)
+                                                             (? (== ($ b s) nil) "" ($ b s)))))))
+                          (block)
+                        (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
+                               (return (coco_zg_fail z "writing a clause"))))
+                      (coco_sb_free (aof b))
+                      (set (-> m heap_len) mark)
+                      (set head (+ head 1)))
+                  (block
+                    (if (not (zg_call_wait (-> z db) "cocolog::assert_clause"))
+                        (return (coco_zg_fail z "assert_clause")))
+                    (if (not (coco_zg_finish z (aof ignored)))
+                        (return (coco_zg_fail z "assert_clause")))
+                    (set tail (+ tail 1))))))
             (return 1))))
 
   (func coco_zg_on_assert ((coco_store * st) (void * ctx) (size_t clause)) (out int)
