@@ -281,6 +281,25 @@
     (member size_t     floats_len)
     (member size_t     floats_cap)
 
+    ;; THE ENGINE'S OWN VOCABULARY, INTERNED ONCE. Filled by `coco_ids_fill'
+    ;; in solve.cicili the first time a query runs on this machine, and read
+    ;; by the dispatcher instead of comparing a goal's name as a STRING --
+    ;; which was 22.7 strcmps per inference and a quarter of the
+    ;; interpreter's instructions on a tight recursion.
+    ;;
+    ;; ON THE MACHINE AND NOT THE ENGINE, because an atom id belongs to the
+    ;; atom table: every engine over one machine shares it, a findall's
+    ;; sub-engine included, and `coco_machine_init' memsets `ids_ready' back
+    ;; to zero -- which is what makes a THAWED machine refill rather than
+    ;; trust ids from an atom table that is no longer there.
+    ;;
+    ;; 192 is written out because a Cicili array size is one token and a
+    ;; `#define' of your own is invisible to the language. The macro that
+    ;; fills it checks the count at EXPANSION time, so a name added past the
+    ;; end is a build error rather than a stray write.
+    (member u64        ids [192])
+    (member int        ids_ready)
+
     ;; set when the machine runs out of memory, so callers may check once at
     ;; the end rather than after every push
     (member int        oom))

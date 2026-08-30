@@ -2337,6 +2337,94 @@ conformed all along). Two consequences, both pinned:
 here -- the recorded divergence stands); what changed is WHICH clause
 the one answer takes out.
 
+### A goal's name is an integer, and the dispatcher stopped spelling it
+
+The engine identified everything by STRING, once per inference. A goal
+arrived, `coco_name_of` gave its interned atom id, and the dispatcher
+turned that back into a `char *` to compare it: against fifteen control
+constructs in `coco_engine_next`'s `cond`, then against every core
+builtin of that arity in the generated table, then against every loaded
+module's own table.
+
+**Measured before the change**, on a tail-recursive loop of 600 003
+inferences and on 8-queens:
+
+| | loop | queens |
+|---|---:|---:|
+| `__strcmp_avx2` | 25.09% | 14.57% |
+| `coco_store_get_rec` | 15.22% | 23.57% |
+| `coco_engine_next` | 9.01% | 6.86% |
+
+1 360 103 strcmp calls for 60 003 inferences -- **22.7 string
+comparisons per inference**, and the largest single cost in the
+interpreter on the first workload.
+
+**The fix is that the id was there all along.** Every name the
+dispatcher tests -- the constructs and every builtin -- is interned once
+per machine into `m->ids` (`term.cicili`), filled by `coco_ids_fill` at
+the top of `coco_engine_next` under an `ids_ready` flag, and every test
+is now an integer comparison. The index of each name is settled at macro
+expansion time, so `(coco-id m "once")` is `m->ids[15]` with no lookup;
+the same macro checks the count against the array's 192 slots, which
+turns one builtin too many into a build error rather than a write past
+the end of a struct. `coco_builtin` takes the id instead of the name;
+`coco_atom_name` is still reached on the two paths that need the text --
+a module's dispatcher, whose interface takes a `char *`, and an
+existence error, which prints one.
+
+**Measured after**, same two workloads, same machine, both binaries
+built and timed back to back:
+
+| | loop | queens |
+|---|---:|---:|
+| instructions | 1 152 583 661 -> 914 683 687 (**-20.6%**) | 898 959 138 -> 739 236 321 (**-17.8%**) |
+| `__strcmp_avx2` | 25.09% -> 13.14% | 14.57% -> under 8% |
+
+and in wall clock, best of five, the five language-comparison tasks
+`bench/langs` runs against CPython:
+
+| task | before | after | |
+|---|---:|---:|---:|
+| nrev | 0.295 s | 0.271 s | 1.09x |
+| queens | 0.096 s | 0.080 s | 1.20x |
+| loop | 0.716 s | 0.632 s | 1.13x |
+| lookup | 0.128 s | 0.115 s | 1.12x |
+| sortnums | 0.266 s | 0.229 s | 1.16x |
+
+**WHAT IS LEFT IS THE MODULE CHAIN, and it is 11.5% of the loop.** A
+goal that is not a core builtin is offered to every loaded module in
+turn, and each one strcmps it against its own table -- `coco_b_dispatch`
+5.86%, `coco_f_dispatch` 3.06%, `zm_dispatch` 1.75%, `lb_dispatch`
+0.87%. Four extra modules loaded cost a measured 13% on a loop that
+calls none of them. Closing that means changing the module SDK's
+`dispatch` signature to carry the id, which every module in this
+repository and in the two downstream of it would have to be rebuilt
+against -- a bigger blast radius than this change, and its own piece of
+work. `coco_arith_binary` (0.87%) still spells its operator names too.
+
+**Gated**: `make test` here, 39 cases, `red: 0`; The Coco's suite, 19
+cases, 551 checks, `red: 0`.
+
+**Two honesty notes, because neither run was clean the first time.**
+`vacuum` came up RED once here, on the check that a second reclaiming
+pass finds nothing more -- and was GREEN on its own and GREEN on the
+next full run. That is the shared store under the whole family, which
+this repository's own hazards list names; the change touches no store
+path at all.
+
+**And CivV's suite is NOT a gate in this container**, which is worth
+saying rather than leaving as a green-looking silence: it ends `red: 8`,
+and it ends `red: 8` with the OLD binary too. Five of the eight
+(`map`, `units`, `fogrender`, `watch`, `order`) die on
+`type_error(atom, xvfb-run)` -- CivV's `have_tool(xvfb-run)` hands
+`os_has/1` a COMPOUND, `-(xvfb, run)`, and that branch is only reached
+where there is no DISPLAY, which is this container and not a
+developer's machine. `war` and `sitting` are its documented
+injected-click flake, and need the window that cannot come up here.
+`waves` fails the same single check, with the same numbers, on both
+binaries -- run side by side to be sure. So: environment and a latent
+CivV bug, not this change, and the CivV fix belongs in CivV.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes

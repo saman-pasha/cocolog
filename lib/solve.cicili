@@ -131,25 +131,82 @@
 
     ("halt"         0 coco_bi_halt)))
 
-;;; Grouped by arity, so a goal of arity 3 never runs a strcmp against a
-;;; builtin of arity 1. FOUND says whether the name was a builtin at all --
-;;; which is what tells the engine to go looking in the knowledge base instead.
+;;;; ------------------------------------------------------------------
+;;;; The engine's vocabulary, as interned ids
+;;;; ------------------------------------------------------------------
+;;;
+;;; A GOAL'S NAME IS ALREADY AN INTEGER. `coco_name_of' answers the
+;;; interned atom id; the dispatcher used to turn it back into a `char *'
+;;; and compare it with `strcmp' -- against fifteen control constructs,
+;;; then against every core builtin of that arity, then against every
+;;; loaded module's own table. MEASURED, on a tail-recursive loop of
+;;; 600 003 inferences: 1 360 103 strcmp calls, 22.7 per inference, and
+;;; __strcmp_avx2 at 25.09% of all instructions -- the largest single cost
+;;; in the interpreter. On 8-queens it was 14.57%.
+;;;
+;;; So every name the dispatcher tests is interned ONCE per machine into
+;;; `m->ids', and the tests are integer comparisons. The list below is the
+;;; constructs; the builtins add themselves, so a builtin gains an id by
+;;; being in the table above and nowhere else.
+(DEFPARAMETER *construct-names*
+  '("true" "fail" "false" "$true" "$fail" "$trace_exit" "," "!" "$cut"
+    "$softcut" ";" "->" "*->" "\\+" "not" "once" "ignore" "call" "catch"
+    "throw" "trace" "notrace"))
+
+;;; Constructs first, then every builtin name once. The ORDER is what fixes
+;;; the indices, so it is computed here and nowhere else.
+(DEFPARAMETER *dispatch-names*
+  (LET ((names (COPY-LIST *construct-names*)))
+    (DOLIST (row *builtins*)
+      (UNLESS (MEMBER (FIRST row) names :TEST #'STRING=)
+        (SETF names (APPEND names (LIST (FIRST row))))))
+    names))
+
+;;; 192 is the array in `coco_machine'. A Cicili array size is one token, so
+;;; the bound cannot be computed there -- it is checked HERE instead, at
+;;; expansion time, which turns "one builtin too many" into a build error
+;;; with a name on it rather than a write past the end of a struct.
+(DEFUN coco-check-ids ()
+  (WHEN (> (LENGTH *dispatch-names*) 192)
+    (ERROR "coco: ~D dispatch names, and coco_machine.ids holds 192"
+           (LENGTH *dispatch-names*))))
+
+(DEFUN coco-id-index (name)
+  (OR (POSITION name *dispatch-names* :TEST #'STRING=)
+      (ERROR "coco: no dispatch id for ~S -- add it to *construct-names*" name)))
+
+;;; `(coco-id m "once")' is `m->ids[K]', with K settled at expansion time.
+(DEFMACRO coco-id (m name) `(nth ,(coco-id-index name) (-> ,m ids)))
+
+;;; Interning them all costs one hash apiece, once per machine, and buys
+;;; every inference after it.
+(DEFMACRO coco-emit-id-fill ()
+  (coco-check-ids)
+  `(func coco_ids_fill ((coco_machine * m))
+     ,@(LOOP FOR name IN *dispatch-names* FOR i FROM 0
+             COLLECT `(set (nth ,i (-> m ids)) (coco_intern m ,name)))
+     (set (-> m ids_ready) 1)))
+
+;;; Grouped by arity, so a goal of arity 3 never tests a builtin of arity 1.
+;;; FOUND says whether the name was a builtin at all -- which is what tells
+;;; the engine to go looking in the knowledge base instead.
 (DEFMACRO coco-emit-builtin-dispatch ()
   (LET ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *builtins*)) #'<)))
-    `(func coco_builtin ((coco_engine * e) (const char * name) (u32 arity) (size_t g) (int * found))
+    `(func coco_builtin ((coco_engine * e) (u64 nid) (u32 arity) (size_t g) (int * found))
        (out int)
-       (set (cof found) 1)
-       (cond
-         ,@(MAPCAR
-            (LAMBDA (n)
-              `((== arity ,n)
-                (cond
-                  ,@(MAPCAR (LAMBDA (row) `((== 0 (strcmp name ,(FIRST row)))
-                                            (return (,(THIRD row) e g))))
-                            (REMOVE-IF-NOT (LAMBDA (r) (= (SECOND r) n)) *builtins*))
-                  (#t (set (cof found) 0) (return 0)))))
-            arities)
-         (#t (set (cof found) 0) (return 0))))))
+       (let ((coco_machine * m . #'(-> e m)))
+         (set (cof found) 1)
+         (cond
+           ,@(MAPCAR
+              (LAMBDA (n)
+                `((== arity ,n)
+                  (cond
+                    ,@(MAPCAR (LAMBDA (row) `((== nid (coco-id m ,(FIRST row)))
+                                              (return (,(THIRD row) e g))))
+                              (REMOVE-IF-NOT (LAMBDA (r) (= (SECOND r) n)) *builtins*))
+                    (#t (set (cof found) 0) (return 0)))))
+              arities)
+           (#t (set (cof found) 0) (return 0)))))))
 
 ;;; The binary arithmetic operators, as (name int-op float-op). Both operands
 ;;; are integers only if neither is a float, which is the rule `is/2' follows
@@ -293,8 +350,12 @@
   ;;; Reads GOAL as text and asks it. Answers 1, or 0 with `e->err' set.
   (decl) (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int))
 
-  (decl) (func coco_builtin ((coco_engine * e) (const char * name) (u32 arity)
+  (decl) (func coco_builtin ((coco_engine * e) (u64 nid) (u32 arity)
                            (size_t g) (int * found)) (out int))
+
+  ;;; Interns the dispatcher's whole vocabulary into `m->ids'. Called once
+  ;;; per machine, from the top of `coco_engine_next'.
+  (decl) (func coco_ids_fill ((coco_machine * m)))
 
   ;;; ---- the module seam ---------------------------------------------------
   ;;;
@@ -1040,6 +1101,13 @@
               (if (not (coco_extern_load st m e))
                   (return (coco_fail_err e "a module's clauses would not load"))))
 
+          ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
+          ;; `coco_engine_ask' for the same reason the hook above is: a
+          ;; machine can arrive THAWED, with its atom table rebuilt and never
+          ;; an ask in sight, and this is the one function every path goes
+          ;; through. Two loads and a branch in the usual case.
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+
           ;; a solution was reported last time; the next one is behind a
           ;; backtrack, not in front of the current continuation
           (if (-> e resume)
@@ -1069,18 +1137,23 @@
                 (if (not (coco_is_callable m g))
                     (return (coco_type_error e "callable" g))))
 
-              (let ((const char * name . #'(coco_atom_name m (coco_name_of m g)))
+              ;; THE NAME AS AN ID, not as a string: every test below is an
+              ;; integer comparison now. `coco_atom_name' is still reached on
+              ;; the two paths that need the text -- a module's dispatcher,
+              ;; whose interface takes a `char *', and an existence error,
+              ;; which prints one.
+              (let ((u64 nid . #'(coco_name_of m g))
                     (u32 n . #'(coco_arity m g)))
                 (cond
 
                   ;; ---- control constructs ----
-                  ((and (== n 0) (== 0 (strcmp name "true")))
+                  ((and (== n 0) (== nid (coco-id m "true")))
                    (if (-> e trace)
                        (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
                               (coco_trace_port e "Exit" (+ (-> e trace_depth) 1) g)))
                    (set (-> e goals) k))
 
-                  ((and (== n 0) (or (== 0 (strcmp name "fail")) (== 0 (strcmp name "false"))))
+                  ((and (== n 0) (or (== nid (coco-id m "fail")) (== nid (coco-id m "false"))))
                    (if (-> e trace)
                        (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
                               (coco_trace_port e "Fail" (+ (-> e trace_depth) 1) g)))
@@ -1088,15 +1161,15 @@
 
                   ;; the same two as the constructs above manufacture them:
                   ;; silent, because the program never wrote these
-                  ((and (== n 0) (== 0 (strcmp name "$true")))
+                  ((and (== n 0) (== nid (coco-id m "$true")))
                    (set (-> e goals) k))
-                  ((and (== n 0) (== 0 (strcmp name "$fail")))
+                  ((and (== n 0) (== nid (coco-id m "$fail")))
                    (set ok 0))
 
                   ;; the tracer's own marker: the call it names has proven, so
                   ;; this is its Exit port. Transparent when tracing is off --
                   ;; a machine frozen mid-trace thaws and runs anywhere.
-                  ((and (== n 3) (== 0 (strcmp name "$trace_exit")))
+                  ((and (== n 3) (== nid (coco-id m "$trace_exit")))
                    (if (-> e trace)
                        (let ((size_t xg . #'(cast size_t (coco-signed-payload
                                                           (nth (coco_deref m (coco_arg m g 0)) (-> m heap)))))
@@ -1121,22 +1194,22 @@
                          (set (-> e trace_goal) pg)))
                    (set (-> e goals) k))
 
-                  ((and (== n 2) (== 0 (strcmp name ",")))
+                  ((and (== n 2) (== nid (coco-id m ",")))
                    (set (-> e goals)
                         (coco_k_push e (coco_arg m g 0) b (coco_k_push e (coco_arg m g 1) b k))))
 
-                  ((and (== n 0) (== 0 (strcmp name "!")))
+                  ((and (== n 0) (== nid (coco-id m "!")))
                    ;; cut: the stack goes back to the barrier this goal carried
                    (if (< b (-> e nchoices)) (set (-> e nchoices) b))
                    (set (-> e goals) k))
 
-                  ((and (== n 1) (== 0 (strcmp name "$cut")))
+                  ((and (== n 1) (== nid (coco-id m "$cut")))
                    (let ((size_t h . #'(cast size_t (coco-signed-payload
                                                      (nth (coco_deref m (coco_arg m g 0)) (-> m heap))))))
                      (if (< h (-> e nchoices)) (set (-> e nchoices) h)))
                    (set (-> e goals) k))
 
-                  ((and (== n 1) (== 0 (strcmp name "$softcut")))
+                  ((and (== n 1) (== nid (coco-id m "$softcut")))
                    ;; kill the one frame holding the else-branch, and nothing
                    ;; else. Guarded on the kind as well as the height: if the
                    ;; frame at H is no longer the one this soft cut pushed --
@@ -1149,7 +1222,7 @@
                              (set ($ (nth h (-> e choices)) kind) COCO_CH_DEAD))))
                    (set (-> e goals) k))
 
-                  ((and (== n 2) (== 0 (strcmp name ";")))
+                  ((and (== n 2) (== nid (coco-id m ";")))
                    (let ((size_t l . #'(coco_deref m (coco_arg m g 0))))
                      ;; (C -> T ; E) is one construct, not a disjunction whose
                      ;; left arm happens to be an implication
@@ -1167,13 +1240,13 @@
                          (return (coco_fail_err e "out of memory")))
                      (set (-> e goals) (coco_k_push e (coco_arg m g 0) b k))))
 
-                  ((and (== n 2) (== 0 (strcmp name "->")))
+                  ((and (== n 2) (== nid (coco-id m "->")))
                    ;; a bare if-then fails when the condition does. `$fail'
                    ;; rather than `fail': the arm is the construct's own
                    ;; plumbing, and SWI's tracer never shows it
                    (coco_ite e (coco_arg m g 0) (coco_arg m g 1) (coco_new_atom m "$fail") k b))
 
-                  ((and (== n 2) (== 0 (strcmp name "*->")))
+                  ((and (== n 2) (== nid (coco-id m "*->")))
                    ;; a bare soft cut has no else to take away, so it is just
                    ;; `(C, T)' -- but routed through the same construct, so that
                    ;; the cut barrier C runs under is the one it would have had
@@ -1181,7 +1254,7 @@
                    (coco_soft_ite e (coco_arg m g 0) (coco_arg m g 1)
                                   (coco_new_atom m "$fail") k b))
 
-                  ((and (== n 1) (or (== 0 (strcmp name "\\+")) (== 0 (strcmp name "not"))))
+                  ((and (== n 1) (or (== nid (coco-id m "\\+")) (== nid (coco-id m "not"))))
                    (coco_ite e (coco_arg m g 0) (coco_new_atom m "$fail") (coco_new_atom m "$true") k b))
 
                   ;; `once(G)' IS `(G -> true ; fail)' AND NOTHING ELSE, which
@@ -1200,7 +1273,7 @@
                   ;; rule `call/1' and `catch/3' follow, and getting it from
                   ;; the construct rather than from a hand-written cut is why
                   ;; there is nothing to get wrong.
-                  ((and (== n 1) (== 0 (strcmp name "once")))
+                  ((and (== n 1) (== nid (coco-id m "once")))
                    (coco_ite e (coco_arg m g 0) (coco_new_atom m "$true")
                              (coco_new_atom m "$fail") k b))
 
@@ -1211,16 +1284,16 @@
                   ;; the alternative restores the trail to the mark it was
                   ;; pushed with -- so `ignore/1' cannot leak a half-made
                   ;; binding, and that is the engine doing it rather than us.
-                  ((and (== n 1) (== 0 (strcmp name "ignore")))
+                  ((and (== n 1) (== nid (coco-id m "ignore")))
                    (coco_ite e (coco_arg m g 0) (coco_new_atom m "$true")
                              (coco_new_atom m "$true") k b))
 
-                  ((and (== n 1) (== 0 (strcmp name "call")))
+                  ((and (== n 1) (== nid (coco-id m "call")))
                    ;; call/1 is opaque to cut: the goal runs under a barrier of
                    ;; its own, so a `!' inside it cannot cut the caller
                    (set (-> e goals) (coco_k_push e (coco_arg m g 0) (-> e nchoices) k)))
 
-                  ((and (== n 3) (== 0 (strcmp name "catch")))
+                  ((and (== n 3) (== nid (coco-id m "catch")))
                    ;; The catcher and the recovery goal are put on the heap as
                    ;; one term BEFORE the frame is pushed, so that the frame's
                    ;; heap mark is above them and unwinding cannot take them.
@@ -1236,12 +1309,12 @@
                      (set (-> e goals)
                           (coco_k_push e (coco_arg m g 0) (-> e nchoices) k))))
 
-                  ((and (== n 1) (== 0 (strcmp name "throw")))
+                  ((and (== n 1) (== nid (coco-id m "throw")))
                    ;; never fails and never simply succeeds: it either transfers
                    ;; control to a recovery goal or ends the query
                    (if (coco_m_thrown e (coco_arg m g 0)) (block) (return -1)))
 
-                  ((and (> n 1) (== 0 (strcmp name "call")))
+                  ((and (> n 1) (== nid (coco-id m "call")))
                    ;; `call(G, A, B, ...)' -- G with the extra arguments added
                    ;; to the end of it. This is what makes a predicate that
                    ;; takes another predicate possible at all: `max_member/3'
@@ -1282,15 +1355,18 @@
                      ;; before so much as a head is looked at. trace/0 and
                      ;; notrace/0 stay out of their own trace.
                      (if (and (-> e trace)
-                              (not (and (== n 0) (or (== 0 (strcmp name "trace"))
-                                                     (== 0 (strcmp name "notrace"))))))
+                              (not (and (== n 0) (or (== nid (coco-id m "trace"))
+                                                     (== nid (coco-id m "notrace"))))))
                          (block (set tport 1)
                                 (set tD (+ (-> e trace_depth) 1))
                                 (coco_trace_port e "Call" tD g)))
-                     (set rc (coco_builtin e name n g (aof found)))
-                     ;; not a core builtin: a module may still own it
+                     (set rc (coco_builtin e nid n g (aof found)))
+                     ;; not a core builtin: a module may still own it, and
+                     ;; the module interface speaks names -- so the text is
+                     ;; fetched HERE, on the path that needs it, rather than
+                     ;; for every goal
                      (if (and (not found) (!= coco_extern_call nil))
-                         (set rc (coco_extern_call e name n g (aof found))))
+                         (set rc (coco_extern_call e (coco_atom_name m nid) n g (aof found))))
                      (if found
                          (block
                           (if (== rc -1) (return -1))
@@ -1387,7 +1463,8 @@
                              (if ($ (nth pi ($ (cof st) preds)) dynamic)
                                  (block (if tport (coco_trace_port e "Fail" tD g))
                                         (set ok 0))
-                               (if (!= 2 (coco_existence_error e "procedure" name n))
+                               (if (!= 2 (coco_existence_error e "procedure"
+                                                                (coco_atom_name m nid) n))
                                    (return -1)))))))))))))
 
               (if (not ok)
@@ -2290,6 +2367,8 @@
 
   ;;; The dispatcher comes last because it names every builtin above it, and a
   ;;; call needs the definition to have been seen.
+  (coco-emit-id-fill)
+
   (coco-emit-builtin-dispatch)
 
   ) ; impl-solve
