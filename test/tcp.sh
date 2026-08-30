@@ -29,6 +29,7 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
+. "$HERE/portable.sh"   # detach(): setsid where it exists, bare where it does not (macOS)
 
 failures=0
 check() {
@@ -158,7 +159,7 @@ serve :-
     tcp_close(C),
     tcp_close(S).
 PL
-setsid timeout 25 "$C" run /tmp/coco-tcp-listener.pl serve >/dev/null 2>&1 &
+detach timeout 25 "$C" run /tmp/coco-tcp-listener.pl serve >/dev/null 2>&1 &
 # Give the listener time to bind. Polling for the port would be better than
 # sleeping, but there is nothing here to poll it with that is not the thing
 # under test.

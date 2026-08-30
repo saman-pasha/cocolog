@@ -10,7 +10,7 @@ and spacing inside terms. Exits 0 when the traces say the same thing,
 import re
 import sys
 
-PORT = re.compile(r'^\s*\^?\s*(Call|Exit|Redo|Fail):\s*\((\d+)\)\s*(.*?)\s*$')
+PORT = re.compile(r'^\s*[?^]?\s*(Call|Exit|Redo|Fail):\s*\((\d+)\)\s*(.*?)\s*$')
 
 
 def ports(text):

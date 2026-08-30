@@ -45,7 +45,8 @@ WORKER_TIMEOUT=${WORKER_TIMEOUT:-60}
 
 CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --embed $STORE"
 
-GROUPS="a b c d"
+# NOT `GROUPS' -- readonly in bash-as-sh; see groups.sh.
+GROUPSET="a b c d"
 MEMBERS="1 2 3"
 
 goal_of() {
@@ -77,13 +78,13 @@ $CL vacuum > "$OUT/vacuum.log"
 $CL consult "$ROOT/demo/family.pl" > "$OUT/consult.log"
 
 echo "starting four machines"
-for g in $GROUPS; do
+for g in $GROUPSET; do
   $CL start "state-$g" "$(goal_of $g)" > "$OUT/start-$g.log"
 done
 
 echo "twelve interpreters, three per machine, as threads of one process"
 PAIRS=""
-for g in $GROUPS; do
+for g in $GROUPSET; do
   for m in $MEMBERS; do PAIRS="$PAIRS $g$m state-$g"; done
 done
 set +e
@@ -111,14 +112,14 @@ answers_of() {
 
 turns_of() { grep -c ': took ' "$OUT/$1.log" 2>/dev/null | head -1; }
 
-for g in $GROUPS; do
+for g in $GROUPSET; do
   got=$(answers_of "$g" | sort | tr '\n' ' ' | sed 's/ *$//')
   check "state-$g produced its full answer set" "$got" "$(answers_wanted $g)"
   check "state-$g answered nothing twice" \
     "$(answers_of "$g" | sort | uniq -d | wc -l | tr -d ' ')" "0"
 done
 
-for g in $GROUPS; do
+for g in $GROUPSET; do
   line=""
   shared=yes
   for m in $MEMBERS; do
@@ -139,7 +140,7 @@ if [ "$failures" -eq 0 ]; then
   exit 0
 else
   echo "RED: $failures failure(s)"
-  for g in $GROUPS; do
+  for g in $GROUPSET; do
     for m in $MEMBERS; do echo "--- $g$m ---"; cat "$OUT/$g$m.log"; done
   done
   exit 1

@@ -1026,7 +1026,9 @@
             (pthread_mutex_unlock (aof ce_open_access))
             (return 1)))
       (let ((char hexpath [512]) (char datapath [512]) (int fresh . 0))
-        (mkdir dir 0755)
+        (mkdir dir 493) ;; 493 IS OCTAL 0755 -- the Lisp reader takes `0755' as DECIMAL,
+        ;; which is octal 1363: a store directory its own owner could not
+        ;; list, so every case's cleanup trap printed `Permission denied'
         (snprintf hexpath 512 "%s/hexmap.bin" dir)
         (snprintf datapath 512 "%s/data.bin" dir)
         (if (!= 0 (access datapath F_OK)) (set fresh 1))

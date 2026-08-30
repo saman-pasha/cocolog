@@ -338,7 +338,11 @@
   (func coco_f_make_directory ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
-          (return (? (== 0 (mkdir p 0777)) 1 0))))
+          ;; 511 IS OCTAL 0777. The Lisp reader takes `0777' as DECIMAL 777,
+          ;; which is octal 1411 -- a directory nobody could write into or
+          ;; search -- found when make_directory('sub/deep') failed on macOS
+          ;; and took the fs conformance case and the tensors store with it.
+          (return (? (== 0 (mkdir p 511)) 1 0))))
 
   (func coco_f_delete_directory ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]))

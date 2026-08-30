@@ -31,6 +31,7 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
+. "$HERE/portable.sh"   # detach(): setsid where it exists, bare where it does not (macOS)
 . "$HERE/library-path.sh"
 
 failures=0
@@ -201,19 +202,19 @@ refuse(C) :-
     tcp_write(C, Out),
     tcp_close(C).
 PL
-  setsid timeout 25 "$C" run /tmp/coco-http-server.pl "serve(18830)" >/dev/null 2>&1 &
+  detach timeout 25 "$C" run /tmp/coco-http-server.pl "serve(18830)" >/dev/null 2>&1 &
   sleep 3
   got=$(curl -s --max-time 8 'http://127.0.0.1:18830/hello%20world?name=ada' 2>/dev/null)
   check "curl gets what the grammar parsed" "$got" "get /hello world ada 0"
   wait 2>/dev/null
 
-  setsid timeout 25 "$C" run /tmp/coco-http-server.pl "serve(18831)" >/dev/null 2>&1 &
+  detach timeout 25 "$C" run /tmp/coco-http-server.pl "serve(18831)" >/dev/null 2>&1 &
   sleep 3
   got=$(curl -s --max-time 8 -X POST --data-binary 'twelve bytes' 'http://127.0.0.1:18831/p' 2>/dev/null)
   check "a POST body arrives with its length" "$got" "post /p nobody 12"
   wait 2>/dev/null
 
-  setsid timeout 25 "$C" run /tmp/coco-http-server.pl "serve(18832)" >/dev/null 2>&1 &
+  detach timeout 25 "$C" run /tmp/coco-http-server.pl "serve(18832)" >/dev/null 2>&1 &
   sleep 3
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 'http://127.0.0.1:18832/' 2>/dev/null)
   check "and curl reads the status line" "$code" "200"

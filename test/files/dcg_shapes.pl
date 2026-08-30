@@ -12,7 +12,11 @@ a1 --> [].
 a2 --> {true}.
 a3 --> {}.
 a4 --> !.
-a5 --> [a|T], {T = []}.
+%  a5 was `[a|T], {T = []}' -- a terminal with an open tail. SWI 10
+%  refuses that at translation time (type_error(list, partial_list)), so
+%  the shape is no longer SWI's to conform to; the smallest legal
+%  neighbour keeps the slot and the table's expectations unchanged.
+a5 --> [a], {[a] = [_|T], T == []}.
 
 %  a disjunction does not thread: both branches run from the same input to the
 %  same output, so a branch that consumes nothing must still bind the output

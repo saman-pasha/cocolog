@@ -156,7 +156,7 @@ touch "$FIX/home/ld/lib_COMPILER_.so" "$FIX/home/ld/lib_COMPILERDRAWER_.so" \
       "$FIX/home/ld/lib_CONNECTOR_.so" \
       "$FIX/home/catalog/_COMPILER_.conf" "$FIX/home/catalog/_CONNECTOR_.conf"
 sed -n '/---- the compiler pages, moved out of reach/,/^fi$/p' "$COLAB/build.sh" > "$FIX/quar.sh"
-sed -i "1i set -u\nZIGURATIP_HOME=$FIX/home" "$FIX/quar.sh"
+{ printf 'set -u\nZIGURATIP_HOME=%s\n' "$FIX/home"; cat "$FIX/quar.sh"; } > "$FIX/quar2.sh" && mv "$FIX/quar2.sh" "$FIX/quar.sh"   # BSD sed has no GNU -i'1i'; prepend by hand
 sh "$FIX/quar.sh" >/dev/null 2>&1
 
 check "the build moves the compiler page out of home/ld" \

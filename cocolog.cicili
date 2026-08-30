@@ -79,7 +79,10 @@
     (FAILED   1 "the program is wrong -- running it again goes wrong again")
     (MORE     2 "suspended with work left, and committed")
     (LOST     3 "the connection ended mid-turn. NOTHING was committed, so the
-                 turn did not happen and may simply be done again")))
+                 turn did not happen and may simply be done again")
+    (MISSED   4 "claimed, then the load said `no suspended machine' -- the
+                 MVCC nowhere-window a mid-save partner leaves; nothing was
+                 committed, so look again rather than give up")))
 
 (DEFUN turn-value (name)
   (LET ((row (ASSOC name *turn-outcomes* :TEST #'STRING=)))
@@ -1420,9 +1423,24 @@
           ;; shape returned from the middle and leaked the machine each time.
           (while 1
             (if (not (coco_zg_load (aof z) (aof e) (aof m) (aof st) name))
-                (block (fprintf stderr "cocolog: %s\n" ($ z err))
-                       (set outcome (? (zg_is_open db) (turn FAILED) (turn LOST)))
-                       break))
+                (block
+                 ;; A LOAD THAT MISSES THE MACHINE THE CLAIM JUST TOOK is the
+                 ;; nowhere-window `exists' documents, read from the other
+                 ;; side: a partner's save deletes the row and inserts its
+                 ;; replacement, and until that commits a reader sees NEITHER.
+                 ;; This answered `no suspended machine' as if it were a fact,
+                 ;; FAILED told the worker the PROGRAM was wrong, and all
+                 ;; three interpreters of a group walked away from a live
+                 ;; machine, one turn apart -- the groups case, red one run in
+                 ;; three on a 16-thread Mac and never once on the quiet CI
+                 ;; box. MISSED hands it back to the loop's ask-again
+                 ;; discipline instead.
+                 (fprintf stderr "cocolog: %s\n" ($ z err))
+                 (set outcome (? (zg_is_open db)
+                                 (? (!= (strstr ($ z err) "no suspended machine") nil)
+                                    (turn MISSED) (turn FAILED))
+                                 (turn LOST)))
+                 break))
 
             ;; The budget is counted from where this machine already was, so a
             ;; machine resumed after a million inferences gets its own slice
@@ -1775,6 +1793,16 @@
                  ;; machine is already in the pool for whoever gets there
                  ;; first, which may well be this worker on its new
                  ;; connection.
+                 continue))
+
+            (if (turn-is MISSED rc)
+                (block
+                 ;; Nothing was committed -- cmd_step rolled the turn back and
+                 ;; the machine is in the pool. The loop's own `exists' asks
+                 ;; again with its confirmation discipline, so a machine that
+                 ;; is REALLY gone still ends this worker, and one that was
+                 ;; merely mid-save in a partner is simply taken again.
+                 (usleep COCO_POLL_US)
                  continue))
 
             ;; A turn that happened. FAILED means the program is wrong, and it

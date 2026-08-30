@@ -77,7 +77,10 @@ WORK="timeout $WORKER_TIMEOUT $COCOLOG --kb $KB --host $HOST --tcp $PORT --timeo
 # The four groups, each with its goal and the answer set that goal must produce.
 # Kept here rather than spread through the file, so that adding a fifth group is
 # two lines.
-GROUPS="a b c d"
+# NOT `GROUPS': bash -- which is what macOS runs as /bin/sh -- makes
+# GROUPS a readonly special array, the assignment dies, and under set -e
+# the case exits before its first echo, printing NOTHING at all.
+GROUPSET="a b c d"
 MEMBERS="1 2 3"
 
 goal_of() {
@@ -118,7 +121,7 @@ $CL vacuum > "$OUT/vacuum.log"
 $CL consult "$ROOT/demo/family.pl" > "$OUT/consult.log"
 
 # Anything left over from a previous run would be claimed by these workers.
-for g in $GROUPS; do $CL drop "state-$g" >/dev/null 2>&1 || true; done
+for g in $GROUPSET; do $CL drop "state-$g" >/dev/null 2>&1 || true; done
 
 echo "twelve interpreters, three per machine"
 # THE WORKERS GO UP BEFORE THE WORK DOES, and that is not a nicety. Starting
@@ -137,7 +140,7 @@ echo "twelve interpreters, three per machine"
 # that is a result to report rather than a reason to abandon the run.
 set +e
 pids=""
-for g in $GROUPS; do
+for g in $GROUPSET; do
   for m in $MEMBERS; do
     $WORK --steps 2 --answers 0 work "$g$m" "state-$g" > "$OUT/$g$m.log" 2>&1 &
     pids="$pids $g$m:$!"
@@ -145,7 +148,7 @@ for g in $GROUPS; do
 done
 
 echo "starting four machines"
-for g in $GROUPS; do
+for g in $GROUPSET; do
   $CL start "state-$g" "$(goal_of $g)" > "$OUT/start-$g.log"
 done
 
@@ -182,7 +185,7 @@ answers_of() {
 # `|| echo 0' appends a second line rather than supplying a default.
 turns_of() { grep -c ': took ' "$OUT/$1.log" 2>/dev/null | head -1; }
 
-for g in $GROUPS; do
+for g in $GROUPSET; do
   got=$(answers_of "$g" | sort | tr '\n' ' ' | sed 's/ *$//')
   check "state-$g produced its full answer set" "$got" "$(answers_wanted $g)"
   check "state-$g answered nothing twice" \
@@ -191,7 +194,7 @@ done
 
 # Every member of every group has to have done some of it, or the hand-off was
 # never exercised and the run proves only that one worker can finish a machine.
-for g in $GROUPS; do
+for g in $GROUPSET; do
   line=""
   shared=yes
   for m in $MEMBERS; do
@@ -213,7 +216,7 @@ if [ "$failures" -eq 0 ]; then
   exit 0
 else
   echo "RED: $failures failure(s)"
-  for g in $GROUPS; do
+  for g in $GROUPSET; do
     for m in $MEMBERS; do echo "--- $g$m ---"; cat "$OUT/$g$m.log"; done
   done
   exit 1

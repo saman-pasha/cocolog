@@ -51,6 +51,14 @@ C="$ROOT/cocolog"
 # this drives carries its own directive; the bare queries below need one too.
 . "$HERE/library-path.sh"
 T="use_module(library(torch))"
+# "no torch here" and "the backend is wrong" are different findings -- the
+# same rule the database suites follow. Every check below drives the
+# xor tutorial through library(torch), so without the module the case
+# has no subject.
+if [ ! -f "$ROOT/library/torch.so" ]; then
+  echo "SKIP (no library/torch.so -- sh modules/torch/build.sh against libtorch)"
+  exit 0
+fi
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
 ZEYTUN=${ZEYTUN_PORT:-2190}

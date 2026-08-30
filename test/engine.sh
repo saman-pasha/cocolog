@@ -26,6 +26,13 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 C="$ROOT/cocolog"
 
+# MILLISECONDS, PORTABLY. `date +%s%3N` is GNU; BSD date prints the
+# `3N` as literal text, the shell arithmetic on it collapses, and the
+# shape check below then compared garbage with garbage -- which read as
+# quadratic and made this case RED on every Mac while the engine was
+# fine. perl ships on both.
+ms() { perl -MTime::HiRes=time -e 'printf "%d\n", time()*1000'; }
+
 failures=0
 check() {
   if [ "$2" = "$3" ]; then
@@ -63,13 +70,13 @@ check "and findall over 100000 collects them" "$got" "done"
 small=$( { cat > "$D/s.pl" <<'PL'
 main :- ( between(1, 10000, _), fail ; true ).
 PL
-  S=$(date +%s%3N); timeout 60 "$C" run "$D/s.pl" main >/dev/null 2>&1
-  E=$(date +%s%3N); echo $((E-S)); } )
+  S=$(ms); timeout 60 "$C" run "$D/s.pl" main >/dev/null 2>&1
+  E=$(ms); echo $((E-S)); } )
 big=$( { cat > "$D/b.pl" <<'PL'
 main :- ( between(1, 100000, _), fail ; true ).
 PL
-  S=$(date +%s%3N); timeout 120 "$C" run "$D/b.pl" main >/dev/null 2>&1
-  E=$(date +%s%3N); echo $((E-S)); } )
+  S=$(ms); timeout 120 "$C" run "$D/b.pl" main >/dev/null 2>&1
+  E=$(ms); echo $((E-S)); } )
 printf '     10000 in %sms, 100000 in %sms\n' "$small" "$big"
 check "ten times the range costs well under ten times squared" \
   "$(awk -v a="$small" -v b="$big" 'BEGIN { print (a > 0 && b < a * 25) ? "linear-ish" : "quadratic" }')" \
