@@ -69,6 +69,8 @@
     ("time_file"             2 coco_f_time_file)
     ("get_time"              1 coco_f_get_time)
     ("read_file_to_codes"    2 coco_f_read_file_to_codes)
+    ("write_file_from_codes" 2 coco_f_write_file_from_codes)
+    ("append_file_from_codes" 2 coco_f_append_file_from_codes)
 
     ("delete_file"           1 coco_f_delete_file)
     ("rename_file"           2 coco_f_rename_file)
@@ -321,6 +323,112 @@
                                      lst)))
           (free buf)
           (return (coco_m_unify e (coco_m_arg e g 1) lst))))
+
+  ;;; ---- writing --------------------------------------------------------
+  ;;;
+  ;;; THE COUNTERPART TO read_file_to_codes/2, and the reason it exists: a
+  ;;; cocolog script had NO WAY TO WRITE A FILE. There is no open/3 and no
+  ;;; tell/1, so every caller that wanted one reached for a shell -- `echo
+  ;;; >', `printf >', `: >', `cp' -- which is a process, a quoting problem
+  ;;; and a lost error for what is one write(2). CivV's suite alone carried
+  ;;; nine such escapes.
+  ;;;
+  ;;; Takes an ATOM or a list of codes, the same pair tcp_write/2 takes and
+  ;;; for the same reason: a caller with a literal should not have to convert
+  ;;; it, and a caller holding bytes should not have to lose them. Bytes are
+  ;;; masked to 0..255 so a code list that came back from
+  ;;; read_file_to_codes/2 round-trips -- copying a PNG is
+  ;;; read_file_to_codes/2 then this, and nothing in between.
+  (static)
+  (func coco_f_write_bytes ((coco_engine * e) (size_t g) (int flags)) (out int)
+        (let ((int rc . 0) (char p [4096]) (int fd) (size_t t) (size_t n . 0)
+              (char * buf . nil) (size_t off . 0) (ssize_t w . 0)
+              (size_t * items . nil) (int as_list . 0))
+          (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
+          (set t (coco_m_arg e g 1))
+          (if (coco_m_is_var e t) (return (coco_m_instantiation_error e)))
+          ;; THE LIST IS ASKED ABOUT FIRST, and that order is a bug this
+          ;; nearly shipped. `[]' IS AN ATOM here as well as a list -- atom([])
+          ;; and is_list([]) are both true -- so an atom-first branch asked
+          ;; coco_m_text for its name and wrote the two characters `[' and `]'
+          ;; into the file. A caller asking for the `: > f' of the shell got a
+          ;; two-byte file, and nothing downstream could tell: "[]" reads back
+          ;; as a perfectly good list of two codes.
+          ;;
+          ;; Asking coco_m_list_length/3 first settles it without needing to
+          ;; know how nil is represented: a list answers its length (0 for the
+          ;; empty one), and an atom is not a list, so `hello' falls through to
+          ;; the branch that writes its name.
+          (if (coco_m_list_length e t (aof n))
+              (block
+                (set as_list 1)
+                (if (> n 0)
+                    (block
+                      (set buf (cast (char *) (malloc (+ n 1))))
+                      (if (== buf nil) (return 0))
+                      (if (not (coco_m_list_array e t (aof items) (aof n)))
+                          (block (free buf) (return 0)))
+                      (for ((size_t i . 0)) (< i n) ((++ i))
+                           (let ((i64 v . 0))
+                             (if (not (coco_m_int e (nth i items) (aof v)))
+                                 ;; THE OFFENDING TERM IS TAKEN BEFORE THE FREE.
+                                 ;; Written the other way round -- free items,
+                                 ;; then read (nth i items) to name it in the
+                                 ;; error -- this is a use-after-free, and it
+                                 ;; SEGFAULTS rather than raising:
+                                 ;; `write_file_from_codes(F, [foo])' killed the
+                                 ;; process. tcp_write/2 in modules/tcp still
+                                 ;; has that shape and wants the same fix.
+                                 ;;
+                                 ;; `. #'(nth i items)' AND NOT `. (nth i items)':
+                                 ;; a dotted pair whose cdr is a list IS that
+                                 ;; list -- `(a . (b c))' reads as `(a b c)' --
+                                 ;; so the plain form loses the dot and Cicili
+                                 ;; answers "is not of type SEQUENCE" with no
+                                 ;; file and no line.
+                                 (block (let ((size_t bad . #'(nth i items)))
+                                          (free buf) (free items)
+                                          (return (coco_m_type_error e "integer" bad)))))
+                             (set (nth i buf) (cast char (bitand v 255)))))
+                      (free items)))))
+          ;; NOT `(> n 0)': a list_length that FAILED leaves n at 0, so a
+          ;; length test here would skip the atom branch for every atom.
+          (if (not as_list)
+              (block
+                (let ((char txt [65536]))
+                  (if (not (coco_m_text e t txt (sizeof txt)))
+                      (return (coco_m_type_error e "atom" t)))
+                  (set n (strlen txt))
+                  (set buf (cast (char *) (malloc (+ n 1))))
+                  (if (== buf nil) (return 0))
+                  (memcpy buf txt n))))
+          ;; 420 IS OCTAL 0644. The Lisp reader takes `0644' as DECIMAL 644,
+          ;; which is octal 1204 -- a file its owner could not read back --
+          ;; the same trap make_directory/1 fell into above, written out
+          ;; here so the next author does not have to rediscover it.
+          (set fd (open p flags 420))
+          (if (< fd 0) (block (free buf) (return 0)))
+          ;; WRITE IN A LOOP: write(2) is not obliged to take everything, and
+          ;; a short write reported as success is a truncated file that looks
+          ;; like a good one.
+          (while (< off n)
+            (set w (write fd (+ buf off) (- n off)))
+            (if (and (< w 0) (== errno EINTR)) continue)
+            (if (< w 0) (block (close fd) (free buf) (return 0)))
+            (set off (+ off (cast size_t w))))
+          (close fd)
+          (free buf)
+          (return 1)))
+
+  ;;; The file is the codes, whatever it held before. An empty list TRUNCATES
+  ;;; rather than failing -- `: > f' has a caller, and a zero-byte file is a
+  ;;; file.
+  (func coco_f_write_file_from_codes ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_f_write_bytes e g (bitor O_WRONLY (bitor O_CREAT O_TRUNC)))))
+
+  ;;; ...and the `>>' of the pair.
+  (func coco_f_append_file_from_codes ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_f_write_bytes e g (bitor O_WRONLY (bitor O_CREAT O_APPEND)))))
 
   ;;; ---- changing things ------------------------------------------------
 
