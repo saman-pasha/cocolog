@@ -38,16 +38,29 @@
 -- Parsi domain would mean compiling new objects to add a knowledge base.
 -- A column costs an index and lets a knowledge base be created by inserting
 -- into it.
+--
+-- WHY THE INDEX IS (kb, name) AND NOT kb AND name. Every read of a predicate
+-- -- clauses_of, forget_clauses, the page -- asks `kb == K AND name == N', and
+-- the compiler drives an index from its leading column only: over a single
+-- `kb' index that was a walk of the WHOLE knowledge base filtered by name,
+-- so loading a program of 377 predicates walked its 6 778 clauses 377 times
+-- (23.8 s over a mapped store; 72 s before it), and a `name' index beside it
+-- served nothing but the cost of a map per row. A composite index answers
+-- the pair in one descent and `kb == K' alone through its outer level.
+-- CHANGING AN INDEX ON A LIVE STORE: the new tree comes up empty and the old
+-- ones stay as orphan pages, so `cocolog vacuum' must run before anything
+-- else -- its TRUNCATE rebuilds every index from the live rows.
 -- ---------------------------------------------------------------------------
 
 TABLE cocolog::clauses
 BEGIN
     COLUMN id      AS Long   PRIMARY KEY;
     -- which knowledge base this clause belongs to
-    COLUMN kb      AS String INDEX KEY NOT NULL;
+    COLUMN kb      AS String NOT NULL;
     -- the predicate: name and arity together are the identity
-    COLUMN name    AS String INDEX KEY NOT NULL;
+    COLUMN name    AS String NOT NULL;
     COLUMN arity   AS Int    NOT NULL;
+    INDEX KEY (kb, name);
     -- position within the predicate. Clause order is part of the meaning of a
     -- Prolog program, and a cursor is not ordered, so it travels as data and
     -- the client sorts on it.
@@ -78,9 +91,10 @@ END
 TABLE cocolog::props
 BEGIN
     COLUMN id      AS Long   PRIMARY KEY;
-    COLUMN kb      AS String INDEX KEY NOT NULL;
-    COLUMN name    AS String INDEX KEY NOT NULL;
+    COLUMN kb      AS String NOT NULL;
+    COLUMN name    AS String NOT NULL;
     COLUMN arity   AS Int    NOT NULL;
+    INDEX KEY (kb, name);
     -- 1 if the predicate was declared dynamic. A column rather than the mere
     -- existence of the row, because the next property to be stored -- and
     -- `discontiguous' is already parsed and ignored -- belongs beside it.
@@ -144,8 +158,9 @@ END
 TABLE cocolog::tensors
 BEGIN
     COLUMN id   AS Long   PRIMARY KEY;
-    COLUMN kb   AS String INDEX KEY NOT NULL;
-    COLUMN name AS String INDEX KEY NOT NULL;
+    COLUMN kb   AS String NOT NULL;
+    COLUMN name AS String NOT NULL;
+    INDEX KEY (kb, name);
     COLUMN seq  AS Long   NOT NULL;
     COLUMN vec  AS Vector<Double> NOT NULL;
 END

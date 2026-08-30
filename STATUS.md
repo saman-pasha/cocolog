@@ -2425,6 +2425,96 @@ injected-click flake, and need the window that cannot come up here.
 binaries -- run side by side to be sure. So: environment and a latent
 CivV bug, not this change, and the CivV fix belongs in CivV.
 
+## The store write path, measured from three heights -- and made a hundred times faster
+
+CivV's STATUS ("Why the suite takes an hour") measured what a case pays
+before its first check: `kb_consult` of the 21 program files -- 6 778
+clauses, 377 predicates -- 72 s, `kb_vacuum` 15 s on an empty base,
+`kb_forget` 3 s, and reading the program back to describe it 450 s; 10.6
+ms a clause over the wire, and the store's per-predicate access
+"expensive in BOTH directions". The question that opened the hunt was
+narrower -- 7000 inserts in ~70 s, asked of ZiguratIP's MVCCS -- and the
+answer was measured from the engine alone (a benchmark against
+`libMVCCS.so`), the server over the wire (this client's `consult`), and
+a `sample` of the live server mid-statement. Five things, three of them
+in ZiguratIP (its branch `claude/cocolog-prolog-cicili-x737qd`, for the
+owner's PR) and two here:
+
+1. **The unmap resume mark was filed by `key & 63`**, and a sequence's
+   keys sweep all 64 slots, so the primary key's unmap evicted the chain
+   indexes' marks every ~64 rows and the next unmap walked the chain from
+   the head -- past every newer row and every dead link. 82% of a
+   `forget_clauses` sat in that walk. The slot is the index's now.
+2. **A B-tree node's keys are one record each**, so a descent at
+   branching 65 read ~200 records through a filebuf that drops its
+   buffer at every seek. A record cache in front of the tree.
+3. **Every seek was a syscall**: the store streams were `std::filebuf`s.
+   `StreamIO/mapstream` maps the files (`MEMORY/STORE_IO: MAP`), the
+   engine untouched.
+4. **Here: one clause was three round trips** -- the verb's
+   acknowledgement, the name's, the answer -- and both ends sat in
+   `recv` most of the time. `zg_call_send` / `zg_call_wait` in
+   `client/zigurat.c`, and `coco_zg_sync_pred` keeps 128 calls in flight
+   (one, embedded: `ce_call` holds one call at a time, `test/vacuum.sh`
+   found it).
+5. **Here: every read of a predicate walked the whole knowledge base.**
+   `clauses_of`, `forget_clauses`, `predicates_of` and `forget_all` all
+   asked `kb == K AND name == N`, and the compiler drives an index from
+   its leading column only, so over a single `kb` index that was the
+   base's chain filtered by name -- a program of 377 predicates walked
+   its 6 778 clauses 377 times to load, and again to be read. The index
+   on `clauses`, `props` and `tensors` is the composite `(kb, name)` now;
+   the `name` index served nothing but a map per row and is gone. An
+   index changed on a live store comes up empty and `vacuum` must run
+   first (CLAUDE.md has the rule).
+
+The owner's table, re-measured on the same Mac by the shell's clock,
+the server on the branch engine, mapped, and this client:
+
+| | CivV's STATUS | now |
+|---|---:|---:|
+| `kb_consult`, the 21 program files, 6 778 clauses | 72 s | **0.9 s** |
+| the same program consulted again (a rewrite of all 377 predicates) | -- | 3.0 s |
+| reading the program back (`listing`, a cold fetch of every predicate) | 450 s | **0.2 s** |
+| `kb_vacuum` | 15-17 s | 0.9-1.6 s |
+| `kb_forget` | 3 s | 0.2-0.3 s |
+| 7000 clauses of one predicate, fresh | 12.7 s | 0.6 s |
+| the same 7000 rewritten over 21000 dead links | 51.6-94.3 s | 1.2-1.9 s |
+| `retractall` of 21000 clauses over 21000 dead links | 116.6 s | 0.7 s |
+
+So the ~90 s a store case paid before its first check is under two
+seconds, and 10.6 ms a clause is 0.13. The composite index also found a
+fault older than any of this, fixed in ZiguratIP on the same branch:
+the page-scan cursor snapshotted its pages into fixed arrays and
+stopped at 1024 of them, so every full scan of a table past 8 MB --
+and the index REBUILD at vacuum, which walks the table that way --
+answered a prefix; a vacuum on a grown store then dropped rows from
+every index it rebuilt, and `dead_pointers' had the same cap, so the
+dead rows past it were never reclaimed either.
+
+**And the TLS terminator is cocolog's own.** CivV's far-player case
+raised a python3 TLS terminator in front of the store (a heredoc once,
+then `test/tls-term.py`); it is `test/tls-term.pl` now -- library(tls)
+listening and accepting, library(tcp) dialling the origin, the bytes
+pumped between the two as the byte lists both hand out, in one thread
+that offers each side a short read in turn (one side speaks at a time
+in this protocol, and OpenSSL allows no two threads on one stream).
+What the pump needed from the libraries: tls_read/4 and tcp_read/4
+failed alike at a timeout and at the end of the stream, so a pump could
+not tell an idle connection from a dead one -- `tls_why/1' answers
+`timeout' or `end of stream' now and `tcp_why/1' is new with the same
+words -- and a TLS read that timed out left its iostream failed, so the
+next read on that connection failed at once: tls_read clears the stream
+first. The python3 dependency is gone from the family's suites; openssl
+still makes the certificate. One measurement had to be
+retracted on the way: a timing helper that called `python3` through a
+pyenv shim cost 1.8-3.7 s a call and inflated a whole table before it
+was caught; every number above is the shell's. What remains: the
+embedded store still opens filestreams (`embed/embed.cicili`), to map
+once the branch is on cocolog's ZiguratIP; and `consult` of a file into
+a base that already holds the predicate APPENDS its clauses (7000 twice
+is 14000), which is how it has always read and is worth a look.
+
 ## Known limitations, by choice
 
 * **`--lock` is off by default and should stay off.** It makes cocolog processes

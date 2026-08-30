@@ -158,6 +158,15 @@ in `$ZIGURATIP_HOME/ld` compiled against old engine headers does not fail to
 load politely; it takes the server down with `symbol lookup error`. `make schema`
 after every engine build, always.
 
+**An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live store,
+and the old trees stay as orphan pages.** The engine attaches an index it has
+no catalogue record for with an empty root and maps nothing that was already
+there, so every read through it answers nothing -- and a `forget` through it
+deletes nothing, leaving the rows live and invisible. `cocolog vacuum` right
+after the restart, before any base is touched: its TRUNCATE rebuilds every
+index from the live rows. (Learned changing `cocolog::clauses` from two
+single-column indexes to the composite `(kb, name)`.)
+
 **A PAGE and a PROCEDURE of the same name are ONE compiled object**, and pages
 compile last. `cocolog::predicates` was both, so the procedure's `.so` was
 silently replaced and every call to it died with `undefined symbol: call`. That

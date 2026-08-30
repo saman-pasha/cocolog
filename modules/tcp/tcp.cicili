@@ -69,7 +69,8 @@
     ("tcp_write"    2 coco_t_write)
     ("tcp_close"    1 coco_t_close)
     ("tcp_sockets"  1 coco_t_sockets)
-    ("tcp_peer"     2 coco_t_peer)))
+    ("tcp_peer"     2 coco_t_peer)
+    ("tcp_why"      1 coco_t_why)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The Coco half
@@ -368,6 +369,17 @@
 
   ;;; Who is at the other end of a socket this module accepted. Empty for
   ;;; one it opened itself, which is the honest answer rather than a guess.
+  ;;; ---- why ------------------------------------------------------------
+  ;;; tcp_why(-Reason): why the last tcp_read failed -- `timeout', `end of
+  ;;; stream', or the errno text. A read that fails is a plain failure, as
+  ;;; it always was; a caller pumping bytes between two sockets (a TLS
+  ;;; terminator, CivV's test/tls-term.pl) has to know which of the two it
+  ;;; got, and library(tls)'s tls_why/1 answers the same words.
+  (var const char * coco_t_why_s . "")
+
+  (func coco_t_why ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify_atom e (coco_m_arg e g 0) coco_t_why_s)))
+
   (func coco_t_peer ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (i64 v . 0))
           (if (not (coco_t_int e g 0 (aof v) (aof rc))) (return rc))
@@ -391,15 +403,18 @@
           (if (not (coco_t_int e g 2 (aof ms) (aof rc))) (return rc))
           (if (or (<= maxb 0) (> maxb 16777216))
               (return (coco_m_domain_error e "byte_count" (coco_m_arg e g 1))))
+          (set coco_t_why_s "")
           (set w (coco_t_wait fd 0 (cast int ms)))
-          (if (<= w 0) (return 0))
+          (if (< w 0) (block (set coco_t_why_s (strerror errno)) (return 0)))
+          (if (== w 0) (block (set coco_t_why_s "timeout") (return 0)))
           (set buf (cast (ubyte_t *) (malloc (cast size_t maxb))))
           (if (== buf nil) (return 0))
           (while 1
             (set n (recv fd buf (cast size_t maxb) 0))
             (if (and (< n 0) (== errno EINTR)) continue)
             break)
-          (if (<= n 0) (block (free buf) (return 0)))
+          (if (== n 0) (block (set coco_t_why_s "end of stream") (free buf) (return 0)))
+          (if (< n 0) (block (set coco_t_why_s (strerror errno)) (free buf) (return 0)))
           ;; Built back to front, because consing onto a list is what a list
           ;; is: the last byte read is the first cell made.
           (set lst (coco_m_nil e))
