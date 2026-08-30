@@ -840,8 +840,11 @@ predicates written in Cicili and clauses written in Prolog, and a program cannot
 tell which half answered it. MODULES.md is how to write one.
 
 Two ship, and they are mirror images of each other. `lib/files.cicili` is
-SWI's file-system predicates: seventeen in C, five in Prolog on three private
-primitives. `lib/lists.cicili` is all thirty-six of `library(lists)` the other
+SWI's file-system predicates: twenty in C, five in Prolog on three
+private primitives. (Twenty is the registration table's own count, taken
+from it rather than remembered; the figure here read `seventeen' before
+the two write predicates below, so it was already one adrift of the
+table and is now counted rather than incremented.) `lib/lists.cicili` is all thirty-six of `library(lists)` the other
 way round — thirty-odd in Prolog, seven in C.
 
 **That shape is forced, not chosen.** `member/2`, `select/3`, `append/3` and
@@ -854,6 +857,56 @@ goes on. Written in C they would work until the first `cocolog step`.
 Lists also needed `call/N` in the engine — `max_member/3` takes a comparison
 predicate and is `call(Pred, A, B)` and nothing else — and four SWI builtins
 cocolog lacked: `length/2`, `msort/2`, `sort/2` and `sort/4`.
+
+### A file could be read and not written, and that is now fixed
+
+`read_file_to_codes/2` shipped without a counterpart, and the consequence
+was not a missing convenience: **A COCOLOG SCRIPT COULD NOT WRITE A FILE.**
+There is no `open/3` and no `tell/1` — measured, both answer
+`existence_error` — so every caller that needed one reached for a shell:
+`echo >`, `printf >`, `: >`, `cp`. A process, a quoting problem and a lost
+`errno` for what is one `write(2)`. CivV's suite carried nine such escapes
+and could not retire them; that is what asked for these.
+
+`write_file_from_codes/2` and `append_file_from_codes/2` take an ATOM or a
+list of codes — the pair `tcp_write/2` takes, for the same reason: a caller
+with a literal should not have to convert it, a caller holding bytes should
+not have to lose them. Bytes are masked to 0..255, so what
+`read_file_to_codes/2` hands back round-trips: **copying a PNG is those two
+predicates and nothing between them.** Proven on the 665 984-byte cocolog
+binary — read, written, `cmp`-identical.
+
+**THREE BUGS THE TESTS FOUND, all in the first draft:**
+
+* a **use-after-free** — `items` freed, then read again to name the
+  offending term in the type error. `write_file_from_codes(F, [foo])`
+  SEGFAULTED. Copied from `tcp_write/2`, **which still has that shape and
+  wants the same fix**;
+* **`[]` is an atom here as well as a list**, so an atom-first branch asked
+  `coco_m_text` for its name and wrote the two characters `[` and `]` into
+  the file. The `: > f` caller got a two-byte file and NOTHING DOWNSTREAM
+  COULD TELL, because `"[]"` reads back as a perfectly good list of two
+  codes. Asking `coco_m_list_length/3` FIRST settles it without needing to
+  know how nil is represented;
+* and the flag after it: a `list_length` that FAILED leaves `n` at 0, so a
+  length test would have skipped the atom branch for every atom.
+
+Two Cicili traps are written beside the code that fell into them. An
+expression initialiser is `` . #'(expr) `` and never `. (expr)`, because a
+dotted pair whose cdr is a list IS that list — `(a . (b c))` reads as
+`(a b c)` — and the reader then answers `is not of type SEQUENCE` with no
+file and no line. And 420 is octal 0644, the same decimal-octal trap
+`make_directory/1` already carries at 511.
+
+**What it bought, downstream and gated:** CivV 99 shell calls -> 58
+(`red: 0`, 32 cases), The Coco 18 -> 16 (`red: 0`, 19 cases). `make test`
+here: `red: 0`.
+
+**A separate finding, not fixed here and not this library's:** `==/2`
+SEGFAULTS on two lists of 665 984 elements. Isolated with no write
+predicate in the goal at all — read the same file twice, compare, crash —
+so it predates this work and has the shape of a recursive comparison
+exhausting the C stack.
 
 `lib/apply.cicili` is all seventeen of `library(apply)` with **no C half at
 all**, and `lib/builtins.cicili` is the thirty-eight ISO-core builtins cocolog
