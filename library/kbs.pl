@@ -80,13 +80,47 @@ kb_up(KB) :-
 %% changes nothing the store commits (asserts commit on failure too,
 %% the family's recorded rule; errors still roll back and print no
 %% verdict at all, so they fail here like the refusals they are).
+%% A REFUSAL NAMES ITSELF. A goal that is not proved used to fail this
+%% predicate in silence -- the transcript thrown away, stderr to
+%% /dev/null -- and a case then died at its section header having
+%% printed nothing, which is the shape a whole suite's reds took for a
+%% day (CivV, `match' and `ai' silent at their first store call). Now
+%% the child's stderr rides with its stdout, and a miss prints the
+%% transcript's tail under a `kb_run refused' line, so the case's own
+%% output says whether the goal failed, threw, timed out or found no
+%% server. The verdict is still the line, never a substring.
 kb_run(KB, Goal) :-
     kb_cli(KB, Cli),
     term_to_atom(( Goal -> write(kbs_proved), nl ; write(kbs_refused), nl ), GA),
-    shl([Cli, 'query "', GA, '" 2>/dev/null'], Out),
-    %% the toplevel ECHOES the goal, verdict atoms included, so the
-    %% verdict is matched as ITS OWN LINE, never as a substring
-    re_lines('^kbs_proved$', Out, [_|_]).
+    %% `|| true': a child that THREW exits non-zero, and shl/2 fails on
+    %% a non-zero exit -- which was the silent case, the transcript never
+    %% read. Kept exiting 0, the transcript is what the report shows.
+    shl([Cli, 'query "', GA, '" 2>&1 || true'], Out),
+    (   re_lines('^kbs_proved$', Out, [_|_])
+    ->  true
+    ;   catch(kb_report_refusal(KB, Goal, Out), _, true),
+        fail
+    ).
+
+kb_report_refusal(KB, Goal, Out) :-
+    term_to_atom(Goal, GoalA),
+    atom_length(GoalA, GL), Take is min(GL, 120),
+    sub_atom(GoalA, 0, Take, _, Head),
+    format("kb_run refused on ~w: ~w~n", [KB, Head]),
+    kb_tail(Out, 6, Tail),
+    forall(member(L, Tail), ( atom_codes(LA, L), format("     ~w~n", [LA]) )).
+
+%% the last N lines of a transcript, as code lists
+kb_tail(Out, N, Tail) :-
+    kb_split_lines(Out, Ls0),
+    findall(L, ( member(L, Ls0), L \== [] ), Ls),
+    length(Ls, Len),
+    Drop is max(0, Len - N),
+    length(Pre, Drop), append(Pre, Tail, Ls).
+
+kb_split_lines([], [[]]).
+kb_split_lines([10|Cs], [[]|Ls]) :- !, kb_split_lines(Cs, Ls).
+kb_split_lines([C|Cs], [[C|L]|Ls]) :- kb_split_lines(Cs, [L|Ls]).
 
 %% the same proof, keeping the transcript's answer(...) line -- the
 %% goal is expected to write(answer(...)), nl, the family's idiom
