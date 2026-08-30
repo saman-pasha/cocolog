@@ -58,6 +58,11 @@
   (include "Core/utility.hpp")
   (include "StreamIO/binarystream.hpp")
   (include "StreamIO/filestream.hpp")
+  ;; the embedded store is MAPPED, as the server's is: mapstream is
+  ;; filestream's shape over mmap -- a seek an integer, a read a memcpy --
+  ;; and the engine holds a binarystream* either way (ZiguratIP,
+  ;; StreamIO/mapbuf.hpp has the rules the buffer keeps for the engine)
+  (include "StreamIO/mapstream.hpp")
   (include "StreamIO/bufferstream.hpp")
   (include "StreamIO/textstream.hpp")
 
@@ -91,8 +96,8 @@
   (var pthread_mutex_t ce_open_access . PTHREAD_MUTEX_INITIALIZER)
   (var int ce_open_count . 0)
   (var Memory ce_mem)
-  (var Zigurat::filestream * ce_hexmap . nil)
-  (var Zigurat::filestream * ce_data . nil)
+  (var Zigurat::mapstream * ce_hexmap . nil)
+  (var Zigurat::mapstream * ce_data . nil)
 
   ;; ---- the result stream, as tokens --------------------------------
   ;; The wire interleaves result bytes and typed fields in one stream;
@@ -1030,14 +1035,14 @@
             (block
               (if (== fresh 1)
                   (block
-                    (set ce_hexmap (new* Zigurat::filestream (std::string hexpath)
+                    (set ce_hexmap (new* Zigurat::mapstream (std::string hexpath)
                                          (bitor std::ios::in (bitor std::ios::out std::ios::trunc))))
-                    (set ce_data (new* Zigurat::filestream (std::string datapath)
+                    (set ce_data (new* Zigurat::mapstream (std::string datapath)
                                        (bitor std::ios::in (bitor std::ios::out std::ios::trunc)))))
                 (block
-                  (set ce_hexmap (new* Zigurat::filestream (std::string hexpath)
+                  (set ce_hexmap (new* Zigurat::mapstream (std::string hexpath)
                                        (bitor std::ios::in std::ios::out)))
-                  (set ce_data (new* Zigurat::filestream (std::string datapath)
+                  (set ce_data (new* Zigurat::mapstream (std::string datapath)
                                      (bitor std::ios::in std::ios::out)))))
               (memory_open (aof ce_mem) (cast (binarystream *) ce_hexmap)
                            (cast (binarystream *) ce_data) 8192)
