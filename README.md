@@ -1332,20 +1332,34 @@ in-memory arrangement, `--embed` the MVCCS engine linked into the process,
 and `cpython + sqlite3` is there because a dict is not a database and
 timing one against a store measures the guarantees rather than the engine:
 
-| task (one rep) | cocolog --local | cpython | cocolog --embed | cpython + sqlite3 |
-|---|---|---|---|---|
-| naive reverse, 400 elements | ~0.0387 s (5.9x) | 0.006611 s | 0.035925 s (5.4x) | — |
-| 8-queens, all 92 solutions | 0.025366 s (14.3x) | 0.001772 s | 0.024442 s (13.8x) | — |
-| 100 000 additions, one at a time | 0.106376 s (33.9x) | 0.003141 s | 0.124958 s (39.8x) | — |
-| 1000 keyed lookups over 200 facts | 0.003614 s (47.6x) | 0.000076 s | 0.002291 s (30.1x) | 0.004432 s (58.3x) |
-| generate-and-sort 5000 integers | 0.012735 s (9.1x) | 0.001392 s | 0.012850 s (9.2x) | — |
+| task (one rep) | cocolog --local | cpython | cocolog --embed | cocolog server | cpython + sqlite3 |
+|---|---|---|---|---|---|
+| naive reverse, 400 elements | 0.030445 s (6.4x) | 0.004751 s | 0.034478 s (7.3x) | 0.035045 s (7.4x) | -- |
+| 8-queens, all 92 solutions | 0.021928 s (11.0x) | 0.001989 s | 0.021807 s (11.0x) | 0.022148 s (11.1x) | -- |
+| 100 000 additions, one at a time | 0.078728 s (18.7x) | 0.004218 s | 0.079328 s (18.8x) | 0.078531 s (18.6x) | -- |
+| 1000 keyed lookups over 200 facts | 0.001815 s (18.7x) | 0.000097 s | 0.001850 s (19.1x) | 0.001896 s (19.5x) | 0.012222 s (126.0x) |
+| generate-and-sort 5000 integers | 0.010233 s (6.0x) | 0.001700 s | 0.010259 s (6.0x) | 0.010241 s (6.0x) | -- |
 
-**So cocolog is 6–34x CPython as a language**, and the spread is the
+(macOS, i9-9880H, Python 3.11.13, two agreeing runs of three medians
+each; the earlier Linux box read 6-34x with the same shape -- search
+best, the tight loop worst -- and the two boxes do not compare across
+without naming both.)
+
+**So cocolog is 6-19x CPython as a language**, and the spread is the
 interesting part: backtracking search is its best showing, which is the
 thing a Prolog engine is for, and a tight counting loop its worst, which
 is the per-inference cost of a continuation-passing interpreter with no
 compilation step. Start-up is not the reason and the guess that it was is
-dead — every arrangement boots in 0.01 s, the same as Python.
+dead — every arrangement boots in about a tenth of a second here, the same as Python.
+
+**And the server column is new.** Over a socket, with a turn committed
+against a store the harness empties per run, every task sits within a
+few percent of the in-memory lane: the pipelined client, the turn-wide
+write batch and the mapped store left the wire's per-rep cost too small
+for the two-point method to see. And on the one task with a durable
+Python counterpart, the same thousand probes cost python + sqlite3 6.6x
+what they cost `--embed` -- durability is not free in Python either,
+and here it is dearer.
 
 **Two of those readings used to be defects rather than a design, and the
 benchmark is what found them.**
@@ -1361,6 +1375,9 @@ linear scan's signature. `coco_pred` now carries a first-argument index:
 | 200 | 7x | **3x** |
 | 2 000 | 49x | **3x** |
 | 20 000 | 411x | **4x** |
+
+(On the second box, a Mac, it is still flat: 0.20 s at 200 facts,
+0.22 s at 20 000.)
 
 *Writing was quadratic in the clauses already there.* A clause written
 through to the database re-sent its WHOLE predicate, and the batching that
