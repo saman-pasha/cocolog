@@ -71,23 +71,67 @@ def shape1_c_tables(files):
     return out
 
 
+PROLOG_TABLE = re.compile(r"\(DEFPARAMETER\s+\*[a-z0-9-]+-prolog\*", re.I)
+
+
+def _sexp_end(src, i):
+    """The offset just past the s-expression opening at I, quotes respected."""
+    depth, n, inq = 0, len(src), False
+    while i < n:
+        c = src[i]
+        if inq:
+            if c == "\\":
+                i += 2
+                continue
+            if c == '"':
+                inq = False
+        elif c == '"':
+            inq = True
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return n
+
+
 def shape2_prolog_halves(files):
-    """Shape 2: clauses living inside Cicili string literals. They are read
-    with the SAME clause reader as a .pl file, after unescaping, so a DCG in
-    a module's Coco half is recorded at arity+2 like any other."""
+    """Shape 2: clauses living inside a `*X-prolog*' DEFPARAMETER. They are
+    read with the SAME clause reader as a .pl file, after unescaping, so a DCG
+    in a module's Coco half is recorded at arity+2 like any other.
+
+    SCOPED TO THE TABLE, NOT TO EVERY STRING IN THE FILE, and the difference
+    was 354 names. Scanning every literal turned "abs" out of the arithmetic
+    strcmp chain into a clause `abs.' and recorded abs/0; the same went for
+    "abc" out of a test, "access_mode" out of a mode check, and 351 others.
+    Every one of them would have made the linter reject a program for defining
+    a name nothing in cocolog defines -- the worst kind of false positive,
+    because the message is confident and cites a file.
+
+    The second guard is structural and cheap: a Prolog clause has a `('
+    somewhere, or is a `:-' or a `-->'. A bare identifier is an atom, and an
+    atom in a C string is not a program."""
     out = {}
     for f in files:
         src = open(f, encoding="utf-8", errors="replace").read()
-        for m in CICILI_STR.finditer(src):
-            text = _unescape(m.group(1)).strip()
-            if not text or not re.match(r"^'?[$a-z]", text):
-                continue
-            if not text.endswith("."):
-                text += "."
-            for c in R.split_clauses(text):
-                R.read_head(c)
-                if c.key() and not c.is_directive:
-                    out.setdefault(c.key(), set()).add(f)
+        for t in PROLOG_TABLE.finditer(src):
+            start = src.rfind("(", 0, t.end())
+            start = t.start()
+            region = src[start:_sexp_end(src, start)]
+            for m in CICILI_STR.finditer(region):
+                text = _unescape(m.group(1)).strip()
+                if not text or not re.match(r"^'?[$a-z]", text):
+                    continue
+                if "(" not in text and ":-" not in text and "-->" not in text:
+                    continue
+                if not text.endswith("."):
+                    text += "."
+                for c in R.split_clauses(text):
+                    R.read_head(c)
+                    if c.key() and not c.is_directive:
+                        out.setdefault(c.key(), set()).add(f)
     return out
 
 
@@ -192,8 +236,15 @@ def build():
             hooks.setdefault(k, set()).update(v)
 
     # A name registered in C is dispatched before the store, so the C set wins.
+    # AND A CONSTRUCT NAME WINS AT EVERY ARITY, which is a separate line
+    # because a construct is recorded with NO arity (`throw/*'): matching only
+    # on the exact key left throw/1 in the clause set, where the prompt's
+    # symbol block would have called it nondet. Asked directly, the store says
+    # throw/1 is visible -- the oracle's documented blind spot -- so rule N3,
+    # which matches on the name alone, is the only thing that catches it.
+    names_c = {k[:-2] for k in t1_c if k.endswith("/*")}
     for k in list(t1_p):
-        if k in t1_c:
+        if k in t1_c or k.rsplit("/", 1)[0] in names_c:
             del t1_p[k]
 
     rel = lambda s: sorted(os.path.relpath(x, ROOT) for x in s)

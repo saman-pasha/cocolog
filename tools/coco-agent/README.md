@@ -26,6 +26,9 @@ sh test/lint.sh                              # the suite case
 | `lint.py` | the rules |
 | `lint.sh` | the human wrapper; rebuilds the blocklist first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
+| `assemble.py` | the prompt, block by block, with the budget ladder |
+| `agent.sh` | the driver: route, assemble, generate, verify |
+| `generate.pl` | the model call, through `library(llm)` — the one unexercised line |
 | `verify.sh` | G0–G5 in order, each with the reason it exists |
 | `index.py` | `surface.jsonl`, `exemplars.jsonl`, `capabilities.json` |
 | `pre-commit` | an opt-in git hook: the card, plus cocolint over staged `.pl` |
@@ -72,7 +75,45 @@ and precisely the ones a generated program redefines by accident.
 **No total is an acceptance test.** Two independent extractions this session got
 464 and ~533 for tier 1, differing on `$`-prefixed internals, DCG arity and
 comment stripping. What is pinned instead is behaviour: `digit/3` present and
-`digit/1` absent, `call/1` absent, `=/2` present.
+`digit/1` absent, `call/1` absent, `=/2` present — and, once there was a binary,
+the probe below.
+
+## The blocklist, asked of the running store
+
+The strongest check here, and it costs two processes. One file defines **every**
+clause-defined tier-1 name at its recorded arity and puts it to the oracle:
+
+```
+probe: 342 of 342 clause-defined names confirmed taken by the store;
+       110 C-dispatched names come back visible, which is the blind spot N2 covers
+```
+
+The second half is the point as much as the first. A C-dispatched name's record
+has `library = 0`, so the oracle calls it **own** while the clauses are dead —
+the design said "neither mechanism is sound alone" and this is that claim
+measured: the oracle misses 110 of 112 probeable C names, and rule N2 is the
+only thing that sees them.
+
+**It found three defects in the extractor, and each was silent.**
+
+* **Shape 2 was scanning every string literal in a `.cicili` file, not the
+  `*X-prolog*` table.** `"abs"` out of the arithmetic `strcmp` chain became the
+  clause `abs.` and was recorded as `abs/0`; so did `"abc"` from a test and
+  `"access_mode"` from a mode check — **352 names in all**, every one of which
+  would have made the linter reject a program for defining a name nothing in
+  cocolog defines. That is the worst kind of false positive, because the
+  message is confident and cites a file. The blocklist went 752 → 400.
+* **A `Module:Head` clause was read under the qualifier.** `aggregate.pl` writes
+  `sandbox:safe_meta_predicate(...)`, and cocolog — having no module system —
+  stores that under the **head**. Asked directly: a file defining
+  `safe_meta_predicate/1` comes back COLLIDED, one defining `sandbox/1` comes
+  back own. Reading the qualifier as the name was wrong in both directions at
+  once, blocking a free name and missing a taken one.
+* **`throw/1` sat in the clause set.** A control construct is recorded with no
+  arity (`throw/*`), so the rule that removes C-registered names from the clause
+  set — an exact key match — left the arity-1 entry behind, where the prompt's
+  symbol block would have called it `nondet`. It is a construct: rule N3, which
+  matches on the name alone, is the only thing that catches it.
 
 ## Two axes, because the halves fail differently
 
@@ -250,11 +291,67 @@ checks every library and every exemplar tag they name — which is §9.2's whole
 argument against embeddings, that this is an exact-match problem over a few
 dozen documents with one hand-labelled topic each.
 
+## The prompt, and a correction to the drop order
+
+`assemble.py` builds the system prompt and the user turn from the index and
+nothing else, so the budget ladder can be checked without spending a token.
+
+```
+system  : ~3644 tokens
+  A. the request                           ~   15
+  B. router verdict                        ~   79
+  C. surface library(json)                 ~ 1184
+  D. symbols: C table and imports          ~ 2303
+  D2. symbols: tier-1 library predicates   ~  349
+  E. reserved short names                  ~  397
+  F. exemplar parser: dispatch             ~ 1470
+  F. exemplar self-checking program        ~ 1221
+user    : ~7144 tokens of a 24000 cap
+```
+
+**The design's drop order is corrected here, and the correction is measured.**
+It read: third exemplar → second exemplar → largest header → symbol scope. That
+was written expecting block D at 0.8–2k tokens. Counted, the C table plus the
+everyday tier-1 predicates is 2.7k, and on a request importing eleven libraries
+the symbol block reaches **13k** — following the stated order there leaves the
+model *one* exemplar and a 13k name dump. The wrong half kept: the exemplars are
+the only grounding signal in the turn, and the symbol list is exactly what the
+gates check perfectly. So D2 goes **first**. Block E and the router verdict are
+still never dropped, because E is the one place the model needs a *blocklist*
+rather than a vocabulary.
+
+When every rung is spent and the turn is still over, it **says so** rather than
+going over in silence: the tier-2 symbol rows dominate, and dropping those while
+keeping the imports would hand the model a library it may use and no names for
+it. Narrowing the request is §11's business, not the assembler's.
+
+**The full reserved table is deliberately not in the prompt** — the design says
+so, and the reason is the split above: a generator needs a vocabulary, and the
+blocklist half of the job belongs to block E and to G1.
+
+## What is not exercised, exactly
+
+One line: the model call in `generate.pl`. Everything around it is arranged so
+that everything else is — `agent.sh --dry` prints exactly what would be sent,
+and `agent.sh --from FILE.pl` runs the whole verification half against a
+candidate that already exists, which is what the repair loop does on every
+iteration. Without a key, `agent.sh` says which key is missing and exits 3
+rather than sending an unauthenticated request and reporting a 401 three layers
+down.
+
+`generate.pl` passes its own gates, and G1 caught its first bug: it called
+`write_file/2`, which does not exist. The predicate is `write_file_from_codes/2`
+— there is no stream layer here, so `library(files)` names the one predicate
+that writes a whole file. The smallest possible demonstration that the tool
+works.
+
 ## Not built yet
 
-Increment 7 is the bootstrap and is done — cicili, sbcl, a built ZiguratIP,
-`make`. What is left all needs a model: the router (10), the generator and
-assembler (9), the repair loop and presenter (11), G6's swipl differential and
-G7's cross-process gate (13, which also want a `swipl` and a server this
-container has neither of), and the eval set (14) that produces every number the
-design's "add it when" thresholds refer to.
+Increment 7, the bootstrap, is done. Increment 9's assembler is done and its
+generator is written; **increment 10's router is a keyword stub** and says so on
+every line it prints — `capabilities.json` is the exact-match table either way,
+but a feasibility verdict, a refusal and `request_divergences` are a model's job.
+What is left: the repair loop and the presenter (11), the last lint rules (12),
+G6's swipl differential and G7's cross-process gate (13 — which want a `swipl`
+and a server this container has neither of), and the eval set (14) that produces
+every number the design's "add it when" thresholds refer to.

@@ -140,6 +140,57 @@ MISSING=$(printf '%s\n' "$WANT" | sort -u | while read -r r; do
             [ -n "$r" ] || continue
             printf '%s\n' "$FIRED" | grep -qxF "$r" || echo "$r"
           done)
+# ---- the blocklist, probed against the running store ---------------------
+#
+# THE STRONGEST CHECK IN THIS FILE, and it costs two processes. One file
+# defines EVERY clause-defined tier-1 name at its recorded arity and asks the
+# oracle: each must come back COLLIDED, which is the store itself confirming
+# that the static extraction got the name and the arity right. A second file
+# does the same for the C-dispatched names and expects the opposite -- they
+# come back `own', because a C name's record has library = 0 -- which is the
+# oracle's documented blind spot, measured rather than asserted.
+#
+# It has already paid for itself twice. It is how `sandbox/0' was found to be
+# a name nothing defines (aggregate.pl writes `sandbox:safe_meta_predicate',
+# and cocolog stores that under the HEAD, so the qualifier was being read as
+# the name -- wrong in both directions at once), and how `throw/1' was found
+# sitting in the clause set where the prompt would have called it nondet.
+PROBE="skipped (no binary)"
+if [ -x "$ROOT/cocolog" ]; then
+  PD=$(mktemp -d)
+  python3 - "$AGENT/blocklist.json" "$PD" <<'PY'
+import json, sys
+b = json.load(open(sys.argv[1])); d = sys.argv[2]
+def emit(keys, path):
+    with open(d + "/" + path, "w") as f:
+        f.write("myprog_marker(1).\n")
+        n = 0
+        for k in sorted(keys):
+            nm, ar = k.rsplit("/", 1)
+            if ar == "*" or not nm.replace("_", "").isalnum() or not nm[:1].islower():
+                continue
+            ar = int(ar)
+            f.write("%s%s.\n" % (nm, "(%s)" % ",".join("_" * ar) if ar else ""))
+            n += 1
+    print(n)
+print(emit(b["tier1"]["clauses"], "clauses.pl"), emit(b["tier1"]["c"], "ctable.pl"))
+PY
+  CL=$(sh "$AGENT/oracle.sh" "$PD/clauses.pl" 2>/dev/null)
+  CT=$(sh "$AGENT/oracle.sh" "$PD/ctable.pl" 2>/dev/null)
+  rm -rf "$PD"
+  # every clause-defined name must be taken; myprog_marker/1 is the control
+  LEAK=$(printf '%s\n' "$CL" | grep '^own' | grep -vc myprog_marker)
+  NC=$(printf '%s\n' "$CL" | grep -c '^COLLIDED')
+  NB=$(printf '%s\n' "$CT" | grep '^own' | grep -vc myprog_marker)
+  if [ "$LEAK" -eq 0 ]; then
+    PROBE="$NC of $NC clause-defined names confirmed taken by the store; \
+$NB C-dispatched names come back visible, which is the blind spot N2 covers"
+  else
+    PROBE="BAD: $LEAK clause-defined name(s) the blocklist blocks are free in the store"
+    printf '%s\n' "$CL" | grep '^own' | grep -v myprog_marker | sed 's/^/  /'
+  fi
+fi
+
 # ---- the oracle and rule N1 must agree, when there is a binary to ask ----
 #
 # TWO MECHANISMS FOR ONE QUESTION, and neither is sound alone. N1 reads a
@@ -229,6 +280,8 @@ elif [ -n "$MISSING" ]; then
   echo "these rules did not fire on selftest/traps.pl:"
   printf '%s\n' "$MISSING" | sed 's/^/  /'
   echo "RED: a rule has stopped matching, and the corpus above cannot see that"
+elif [ "${PROBE#BAD}" != "$PROBE" ]; then
+  echo "RED: the blocklist and the running store disagree about a reserved name"
 elif [ "${ORACLE#DISAGREES}" != "$ORACLE" ]; then
   echo "RED: the collision oracle and rule N1 do not agree"
 elif [ -z "$DIFF" ]; then
@@ -236,6 +289,7 @@ elif [ -z "$DIFF" ]; then
   WARN=$(printf '%s\n' "$GOT" | grep -c WARN)
   RULES=$(printf '%s\n' "$WANT" | sort -u | grep -c .)
   echo "all $RULES rules fired on selftest/traps.pl; oracle $ORACLE"
+  echo "probe: $PROBE"
   # GREEN LAST, ALWAYS. test/run.sh discards each case's exit status and reads
   # the LAST LINE only -- a summary line printed after it makes the whole case
   # read as red, which is how this one first did.

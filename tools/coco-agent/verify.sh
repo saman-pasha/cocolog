@@ -31,9 +31,18 @@ BIN="${COCOLOG_BIN:-$ROOT/cocolog}"
 TIMEOUT="${COCO_VERIFY_TIMEOUT:-60}"
 
 GATES=G0,G1,G2,G3,G4,G5
-case "$1" in
-  --gates) GATES="$2"; shift 2 ;;
-esac
+# THE GOAL IS NAMED, ALWAYS -- card row M1: with more than one argument after
+# `run', the LAST is the goal, and a caller who leaves it out has the second
+# file read as a term to prove. `main' is the default because that is what the
+# entry-point contract asks a generated program for; a tool file names its own.
+GOAL=main
+while :; do
+  case "$1" in
+    --gates) GATES="$2"; shift 2 ;;
+    --goal)  GOAL="$2";  shift 2 ;;
+    *) break ;;
+  esac
+done
 want() { case ",$GATES," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 
 [ -n "$1" ] || { echo "usage: verify.sh [--gates LIST] FILE.pl ..." >&2; exit 2; }
@@ -62,18 +71,18 @@ if want G0; then
     [ -f "$f" ] || fail G0 "$f does not exist"
   done
   if command -v python3 >/dev/null 2>&1; then
-    HAS=$(python3 -c '
+    HAS=$(GOAL="$GOAL" python3 -c '
 import sys, os
 sys.path.insert(0, os.environ["AGENT"])
 import clauses as R
 ks = set()
 for p in sys.argv[1:]:
     ks |= set(R.heads(p))
-print("yes" if "main/0" in ks else "no")
+print("yes" if os.environ["GOAL"] + "/0" in ks else "no")
 ' $FILES 2>/dev/null)
-    [ "$HAS" = yes ] || fail G0 "no main/0 -- the CLI names the goal and there is none"
+    [ "$HAS" = yes ] || fail G0 "no $GOAL/0 -- the CLI names the goal and there is none"
   fi
-  pass G0 "$NAME reads, and defines main/0"
+  pass G0 "$NAME reads, and defines $GOAL/0"
 fi
 
 # ---- G1: cocolint --------------------------------------------------------
@@ -152,7 +161,7 @@ if want G4; then
     skip G4 "no binary at $BIN"
   else
     SCRATCH=$(mktemp -d) || exit 2
-    ( cd "$SCRATCH" && timeout "$TIMEOUT" "$BIN" --local run $FILES main \
+    ( cd "$SCRATCH" && timeout "$TIMEOUT" "$BIN" --local run $FILES "$GOAL" \
         >"$SCRATCH/run.out" 2>"$SCRATCH/run.err" )
     rc=$?
     LAST=$(tail -1 "$SCRATCH/run.out" 2>/dev/null)
@@ -204,7 +213,7 @@ for m, e in sorted(b["tier2"].items()):
       # nothing the two values do not already say.
       if want G5 && [ -z "$MUST" ]; then
         ( cd "$SCRATCH" && timeout "$TIMEOUT" "$BIN" --local --trace run $FILES \
-            "( main -> true ; true )" 2>"$SCRATCH/trace.err" >/dev/null )
+            "( $GOAL -> true ; true )" 2>"$SCRATCH/trace.err" >/dev/null )
         echo "    G5 -- the trace tail. What it localises is the innermost"
         echo "    sub-goal that ran out of ways, WITH ITS ARGUMENTS AS THEY"
         echo "    STOOD, at a call depth. Not a clause, a file or a line."

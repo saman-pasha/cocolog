@@ -200,6 +200,16 @@ def read_head(cl):
                 cl.directive = (nm.strip("'"), 1 if tail.strip() else 0)
         return cl
 
+    # A `Module:Head' CLAUSE IS STORED UNDER HEAD, and that is not a guess:
+    # asked directly, a file defining safe_meta_predicate/1 comes back
+    # COLLIDED (aggregate.pl writes `sandbox:safe_meta_predicate(...)') while
+    # one defining sandbox/1 comes back own. cocolog has no module system, so
+    # the qualifier is dropped rather than meaning anything -- and reading the
+    # qualifier as the name was wrong in both directions at once: it blocked
+    # `sandbox', which is free, and missed `safe_meta_predicate', which is
+    # taken. Five names in lib/swipl were wrong this way.
+    text = _strip_qualifier(text)
+
     m = _NAME.match(text)
     if not m:
         return cl
@@ -225,6 +235,22 @@ def read_head(cl):
 
     cl.name, cl.arity = name, arity
     return cl
+
+
+def _strip_qualifier(text):
+    """`sandbox:safe_meta_predicate(X) :- ...' -> `safe_meta_predicate(X) :- ...'.
+
+    Only when the `:' directly follows a plain name and is not `:-'. A term
+    like `a:b:c' loses one qualifier per call and that is deliberate: the
+    store keeps the innermost head, so the loop below runs to a fixed point."""
+    while True:
+        m = _NAME.match(text)
+        if not m:
+            return text
+        rest = text[m.end():]
+        if not rest.startswith(":") or rest.startswith(":-"):
+            return text
+        text = rest[1:].lstrip()
 
 
 def _balanced(s):
