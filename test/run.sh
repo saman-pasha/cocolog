@@ -145,12 +145,13 @@ done
 #           The torch category SKIPs inside the case without libtorch
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl script tunnel tensors library bigint zigurat-lib tcp engine meter thread process text os kbs http curl ray hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab groups ruler; do
+for c in files trace vacuum repl script tunnel tensors library bigint zigurat-lib tcp engine meter thread process text os kbs http curl ray hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab lint groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
-  # `colab' reads the notebook and the scripts beside it; it needs no
-  # binary, so it must not be skipped for want of one.
-  if [ ! -x "$ROOT/cocolog" ] && [ "$c" != colab ]; then
+  # `colab' reads the notebook and the scripts beside it, and `lint' reads
+  # Prolog source with a Python clause reader -- neither needs a binary, so
+  # neither may be skipped for want of one.
+  if [ ! -x "$ROOT/cocolog" ] && [ "$c" != colab ] && [ "$c" != lint ]; then
     echo "SKIP (build cocolog first)"
     continue
   fi
