@@ -408,6 +408,8 @@ demand -- so what is checked is that the discriminator works, and the
 eighth failure appends `-- eight independent draws, every one` so that a
 generator which is genuinely broken is not read as bad luck.
 
+Gated: `make test` `red: 0` over all 40 case lines, no SKIP, server up.
+
 ### Five things that cost time, and one finding not applied
 
 A `:cpp #t` target must declare the SDK's prototypes RAW inside
