@@ -269,3 +269,81 @@ def heads(path):
     """The set of name/arity this file DEFINES (directives excluded)."""
     _, cls = read_file(path)
     return {c.key() for c in cls if c.key() and not c.is_directive}
+
+
+def lexical_regions(src):
+    """Byte ranges of SRC that are not plain code, as a sorted list of
+    (start, end, kind) triples with kind "quote" or "comment".
+
+    S1 IS A TEXTUAL RULE AND MOST OF ITS PATTERNS MEAN CODE, so it needs to know
+    what is not code. Without this, `format("the classic `retract(X), fail'
+    loop...")' -- a tutorial explaining the trap -- is reported as the trap, and
+    a corpus of documentation lights up with findings about its own prose.
+
+    THE KIND MATTERS, which is why they are not one list. Two rules -- F1's
+    format column directives and E1's escapes -- live INSIDE a quote by
+    construction, so they are marked `scan: text' and read quotes as code. But
+    nothing is ever a finding inside a COMMENT: a comment naming `~t' is
+    documentation of the rule, not a violation of it, and both of this repo's
+    own files that name these forms name them in `%%' headers.
+
+    Same lexical rules as split_clauses -- the doubled quote, the 0'c literal,
+    `%' to end of line, /* */ -- because two scanners that disagree about where
+    a string ends is exactly the bug this is meant to prevent.
+    """
+    out = []
+    i, n = 0, len(src)
+    while i < n:
+        c = src[i]
+        if c == "0" and i + 1 < n and src[i + 1] == "'":
+            if i + 2 < n and src[i + 2] == "'":
+                j = i + (4 if (i + 3 < n and src[i + 3] == "'") else 3)
+            elif i + 2 < n and src[i + 2] == "\\":
+                j = i + 4
+            else:
+                j = i + 3
+            out.append((i, min(j, n), "quote"))
+            i = j
+            continue
+        if c == "%":
+            j = src.find("\n", i)
+            j = n if j < 0 else j
+            out.append((i, j, "comment"))
+            i = j
+            continue
+        if c == "/" and i + 1 < n and src[i + 1] == "*":
+            j = src.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append((i, j, "comment"))
+            i = j
+            continue
+        if c in "'\"`":
+            j = i + 1
+            while j < n:
+                if src[j] == "\\" and j + 1 < n:
+                    j += 2
+                    continue
+                if src[j] == c:
+                    if j + 1 < n and src[j + 1] == c:
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                j += 1
+            out.append((i, min(j, n), "quote"))
+            i = j
+            continue
+        i += 1
+    return out
+
+
+def in_region(regions, pos, kinds=("quote", "comment")):
+    """Is byte POS inside a region of one of KINDS? Linear, because a .pl file
+    is small and a bisect here would be the kind of cleverness that hides an
+    off-by-one."""
+    for a, b, kind in regions:
+        if a <= pos < b:
+            return kind in kinds
+        if a > pos:
+            return False
+    return False

@@ -1148,7 +1148,7 @@ it trusts its own triggers.
 
 ---
 
-## 16. Provenance: nothing here was executed
+## 16. Provenance: nothing here was executed *(see §16.1 — it has been now)*
 
 There is no `./cocolog`, no `../cicili`, no `../ZiguratIP` in this container. Every behavioural
 claim in this document is read from `.cicili`, `.pl`, `.parsi`, `Makefile` and `test/*.sh` source,
@@ -1182,3 +1182,49 @@ class, less exactly and with a table to maintain. If check 3 or check 4 fails, a
 linter rule are wrong and must be rewritten before anything is generated against them. That is the
 worst case the sequencing is built to survive: **the parts most likely to be wrong are the parts
 scheduled to be tested first.**
+### 16.1 What the binary answered — the seven checks, run
+
+§16 was written in a container with no `./cocolog`, no `../cicili` and no `../ZiguratIP`. All
+three were built afterwards, and **all seven checks above have now been run**. The commands and
+outputs are reproducible from a built tree; each is one line.
+
+| # | check | answer |
+|---|---|---|
+| 1 | `step/4` **absent**, `myprog_ok/1` present, through `oracle.pl` | **CONFIRMED.** The single largest unobserved mechanism works exactly as read. |
+| 2 | `:- dynamic myprog_seen/1.` present; `goal_expansion(a,b).` present | **HALF, and the design gets simpler.** `myprog_seen/1` is present. `goal_expansion/2` is **absent** — so, in the design's own words, "the baseline run can be dropped entirely". |
+| 3 | `main :- write(x), nl, halt.` exits **1** with nothing on stderr | **CONFIRMED**, byte for byte: `rc=1`, `x` on stdout, stderr empty. Without the `halt`, `rc=0`. |
+| 4 | the ordering finding (§6.3) | **CONFIRMED, and it is arrangement-dependent as claimed.** One program: `run` answers `order([mine,[]])`, `-s` answers `order([[],mine])`. |
+| 5 | `catch(findall(…), E, true)` ends the query; `1<<60` is negative | **CONFIRMED, both.** The throw escapes as `cocolog: uncaught exception: oops`; `1<<60` is `-1152921504606846976` and `1<<59` is correct, so 2^59 is the right place to warn. |
+| 6 | `run FILE true` consults and proves; what the `Fail` port prints | **CONFIRMED, and the silent half resolved.** `Fail: (2) myprog_q(1)` — **bindings in place**, which is what makes G5's "with its arguments as they stood" correct. `Redo` prints the goal *un*bound; `main` itself gets no `Fail` port under the if-then-else wrapper. |
+| 7 | first-argument indexing leaves no choice point | **CONFIRMED.** `myprog_p(a,X)` against `p(a,1). p(b,2).` shows `Exit` with no later `Redo`; unbound, `findall` still gets both. Row I1 stands and `STATUS.md:2760` is stale. |
+
+**Check 2 is the one that changes the design.** The tier-1 oracle baseline is **empty** — an
+otherwise-bare candidate yields exactly its own predicates plus `coco_oracle/0` — so the
+"cached per sorted import set, invalidated on the binary's mtime+size" machinery in §6.1 is
+not needed for a tier-1-only program, which is most of them. The hole it existed to paper over
+does not open: `goal_expansion/2` is invisible because `yall.pl` gives it a *clause* (its
+`system:` qualifier is stripped, there being no module system), and a clause asserted while
+muted sets the flag. A muted library that declares `:- dynamic` and never gives a clause would
+still produce a false `UNDECLARED`; there is no such name in tier 1.
+
+**Two corrections to Card §B**, both from running rather than reading:
+
+* **C2 was backwards for builtins.** A builtin leaves `error/2`'s second argument **unbound**,
+  and an unbound argument unifies with `context(_,_)` — so SWI's pattern catches builtin errors
+  perfectly well here. What it does not catch is the house style §C itself prescribes,
+  `throw(error(type_error(a,b), my_codes/2))`, whose context is a bare `Name/Arity`. The row is
+  split: **C2** keeps the `cocolog_error/1` half, **C3** carries the correction.
+* **Z1 is worse than documented.** §4 says a too-big row is refused at the turn's flush.
+  Measured under `--embed`: a clause of 8000 bytes reads back from a second process and one of
+  8020 does not, and the writing process reports **exit 0, empty stderr and `done` on stdout**
+  either way. Nothing anywhere says the clause was lost, which makes the lint rule the only
+  warning there is.
+
+**One refinement to §6.3's parenthetical.** A collided predicate is hidden from `listing/0` —
+confirmed, only the fresh `myprog_own/1` prints — but `listing(Name/Arity)` shows **both** sets
+of clauses, in the order the arrangement will try them. That makes it the one in-language
+diagnostic for a collision, and worth naming in the N1 message.
+
+These answers live in `tools/coco-agent/traps.jsonl` as `empirical` fields on the rows they
+correct, so the linter's messages carry them and `traps.py --check` keeps every citation
+pointing at the code it claims.

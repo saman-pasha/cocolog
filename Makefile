@@ -100,7 +100,7 @@ ZT_TLS_LIBS    :=
 endif
 LIB_SOURCES    := $(wildcard lib/*.cicili)
 
-.PHONY: all client schema test clean check-cicili modules
+.PHONY: all client schema test clean check-cicili modules index dialect-check lint
 
 all: client cocolog
 
@@ -198,6 +198,29 @@ modules:
 
 schema:
 	sh parsi/build.sh
+
+# ---- the agent's index -------------------------------------------------------
+# tools/coco-agent reads this repository rather than being told about it: the
+# reserved-name blocklist is EXTRACTED from lib/, modules/ and library/, and
+# the dialect card's citations are CHECKED against the lines they name. Both
+# need python3 and nothing else -- no binary, no server, no network -- which
+# is why they are separate targets rather than part of `all'.
+#
+# `index' regenerates blocklist.json (gitignored: build.py remakes it in under
+# a second). `dialect-check' proves every citation in traps.jsonl still points
+# at the code it claims, which is the thing that rots. `lint' runs the linter
+# over files you name:
+#
+#     make lint FILES="myprogram.pl"
+
+index:
+	python3 tools/coco-agent/build.py
+
+dialect-check:
+	python3 tools/coco-agent/traps.py --check
+
+lint: index
+	@python3 tools/coco-agent/lint.py $(FILES)
 
 # ---- tests -------------------------------------------------------------------
 

@@ -19,6 +19,8 @@ so. A loud failure needs no linter -- the interpreter already names it.
   N3  a head whose NAME is a control construct: no arity escapes it
   S1  a form this dialect refuses or silently reads differently
   T1  a call into a tier-2 library with no use_module, and the inverse
+  A1  an integer literal above the cell's silent-wrap point
+  Z1  a clause too big for a database page, or a term too big for the wire
   C2  one name defined in two files of the same run
 """
 
@@ -30,6 +32,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import clauses as R
+import traps as T
 
 ROOT = os.path.abspath(os.environ.get("COCOLOG_ROOT", os.path.join(HERE, "..", "..")))
 
@@ -48,42 +51,59 @@ TIER1_ALWAYS = {"apply", "builtins", "dcg", "files", "library", "lists", "zigura
                 "assoc", "pairs", "ordsets", "yall", "aggregate", "ugraphs",
                 "dcg_basics", "dcg_high_order"}
 
-# S1: forms that compile and are wrong, each with the reason and a citation.
-BANNED = [
-    (r"format\s*\(\s*string\s*\(", "format/3 has no string(S) sink; there is no string type. "
-     "The sinks are user_output user_error atom/1 chars/1,2 codes/1,2.",
-     "lib/builtins.cicili:1120-1152", "use format(atom(A), ...)"),
-    (r"~[t|+]", "format/2 has no column directives; ~t ~| and ~+ are refused BY NAME.",
-     "lib/builtins.cicili:1015-1018", "pad by hand"),
-    (r"\bwrite_canonical\s*\(", "write_canonical/1 KEEPS operators here -- it is identical to "
-     "writeq/1, unlike ISO and SWI.", "lib/syntax.cicili:1414-1415",
-     "write_term(T,[quoted(true),ignore_ops(true)])"),
-    (r"\bb_setval\s*\(", "b_setval IS nb_setval -- the same C function. Nothing is "
-     "backtrackable.", "lib/builtins.cicili:76-79", "thread an accumulator argument"),
-    (r":-\s*initialization\s*\(", "initialization/1 is not a directive here and ABORTS THE "
-     "WHOLE CONSULT.", "lib/kb.cicili:772", "name the goal on the CLI: cocolog run f.pl main"),
-    (r":-\s*table\s*", "table/1 is not a prefix operator here, so the file does not even parse.",
-     "lib/syntax.cicili:97-100", "remove it"),
-    (r"\bstring_concat\s*\(|\bsplit_string\s*\(|\bsub_string\s*\(|\batom_string\s*\(",
-     "no string type and none of these exist.", "card row X1",
-     "atom_concat/3, sub_atom/5, atom_codes/2"),
-    (r"'\[\|\]'", "a list cell is '.'/2 here, not SWI 7's '[|]'/2.",
-     "lib/syntax.cicili:1305", "use '.'/2 or [_|_]"),
-    (r"\bcall_with_inference_limit\s*\(", "spelled call_limited/3 here, deliberately, and it "
-     "commits to the first solution where SWI's does not.", "lib/builtins.cicili:420-428",
-     "call_limited/3"),
-    (r"\bsetup_call_cleanup\s*\(|\bnb_current\s*\(|\bpredsort\s*\(|\bfreeze\s*\(|\bdif\s*\(",
-     "absent from this dialect.", "card row X3", "write it out"),
-    (r"\batan\s*\(\s*[^,()]+\s*,|\blog\s*\(\s*[^,()]+\s*,",
-     "a two-argument arithmetic functor that does not exist. An unknown functor is "
-     "UNCATCHABLY fatal -- coco_fail_err, no ball.", "lib/solve.cicili:1691",
-     "atan(Y/X) plus a quadrant fix; log(N)/log(B)"),
-    (r"\brandom\s*\(", "there is no random/1.", "card row A1",
-     "a sin-based hash, as tutorials/torch/22 does"),
-]
+# S1 IS GENERATED, NOT WRITTEN HERE. Every pattern comes from a traps.jsonl
+# row that also carries the source citation the message quotes, so a rule and
+# the evidence for it cannot drift apart -- and traps.py --check proves the
+# citation still points at the code it claims. Adding a divergence means adding
+# a row, never editing this file.
+BANNED = [(tid, re.compile(pat), why, cite, fix, scan)
+          for tid, pat, why, cite, fix, scan in T.patterns(T.load())]
 
 SEV = {"P1": "HARD", "D1": "HARD", "N1": "HARD", "N2": "HARD", "N3": "HARD",
-       "S1": "HARD", "T1": "WARN", "C2": "HARD"}
+       "S1": "HARD", "T1": "WARN", "A1": "WARN", "Z1": "WARN", "C2": "HARD"}
+
+# A cell is a u64 with 3 tag bits and an INT is v<<3|2 with no range check, so
+# 2^60 is where a positive integer starts wrapping SILENTLY. The warning is at
+# 2^59 rather than at the cliff: a program near the edge is one multiplication
+# from being over it, and the wrap prints a plausible number.
+WRAP = 1 << 59
+
+# A row must fit inside a database page. 8000 stores and 8192 comes back
+# `allocation overflow' (parsi/01-schema.parsi), and the refusal arrives at the
+# TURN'S FLUSH -- long after the assert that caused it, with nothing in process
+# having checked. 7900 leaves room for the rest of the row.
+PAGE_BYTES = 7900
+
+# The client refuses earlier and differently: a Text is a 16-bit length on the
+# wire (client/zigurat.c).
+WIRE_BYTES = 65535
+
+
+def stored_size(text):
+    """About how many bytes this clause occupies as a row: comments removed,
+    whitespace outside quotes collapsed. See the Z1 block for why raw source
+    is not the measure."""
+    keep = []
+    i = 0
+    for a, b, kind in R.lexical_regions(text):
+        if kind != "comment":
+            continue
+        keep.append(text[i:a])
+        i = b
+    keep.append(text[i:])
+    out = "".join(keep)
+    # collapse whitespace, but not inside a quote
+    regions = R.lexical_regions(out)
+    res, run = [], False
+    for j, ch in enumerate(out):
+        if ch.isspace() and not R.in_region(regions, j, ("quote",)):
+            if not run:
+                res.append(" ")
+                run = True
+            continue
+        run = False
+        res.append(ch)
+    return len(("".join(res)).strip())
 
 
 def load_blocklist():
@@ -182,19 +202,87 @@ def lint_file(path, bl, imports_extra=()):
             out.append(Finding(path, c.line, c.col, "N1",
                 "`%s' is already defined by %s%s. Consult APPENDS, so the two sets of "
                 "clauses merge and which is tried first depends on how the file is run "
-                "(`run' puts yours first, `-s' puts the library's)." % (
+                "(measured: `run' puts yours first, `-s' puts the library's)." % (
                     k, ", ".join(active_p[k]), dcg),
-                "prefix it", "library/llm/DESIGN.md section 6.3"))
+                "prefix it -- and `listing(%s)' shows both sets of clauses in the "
+                "order they will be tried, which is the one in-language diagnostic "
+                "for this (listing/0 hides the predicate entirely)" % k,
+                "library/llm/DESIGN.md sections 6.3 and 16.1"))
 
     # ---- S1: banned forms -------------------------------------------------
-    for pat, msg, cite, fix in BANNED:
-        for m in re.finditer(pat, src):
-            # skip comment lines
-            ls = src.rfind("\n", 0, m.start()) + 1
-            if src[ls:m.start()].lstrip().startswith("%"):
+    #
+    # OVER THE RAW TEXT, WITH COMMENT LINES SKIPPED, and that is a deliberate
+    # limit rather than an oversight: `retract(X), fail' is a TERM shape and a
+    # regex can only approximate it. A textual S1 is worth having anyway
+    # because the forms it catches -- format(string(S)), ~t, halt, \xHH\ --
+    # are lexical, and because a file that does not READ at all still gets
+    # linted, which is exactly when the advice is most wanted.
+    regions = R.lexical_regions(src)
+    for tid, pat, why, cite, fix, scan in BANNED:
+        for m in pat.finditer(src):
+            skip = ("quote", "comment") if scan == "code" else ("comment",)
+            if R.in_region(regions, m.start(), skip):
                 continue
             line, col = R._line_col(src, m.start())
-            out.append(Finding(path, line, col, "S1", msg, fix, cite))
+            out.append(Finding(path, line, col, "S1", "[%s] %s" % (tid, why), fix, cite))
+
+    # ---- A1: an integer literal above the silent-wrap point ---------------
+    #
+    # THE POINT IS THAT NOTHING ELSE CHECKS. There is no range check on the
+    # cell, so an id or a hash seed written as a 64-bit constant becomes a
+    # different number with no error anywhere -- which is why this is a lint
+    # rule and not a runtime one.
+    for m in re.finditer(r"(?<![\w.'\"])(\d{18,})(?![\w.])", src):
+        if R.in_region(regions, m.start()):
+            continue
+        if int(m.group(1)) < WRAP:
+            continue
+        line, col = R._line_col(src, m.start())
+        out.append(Finding(path, line, col, "A1",
+            "[A2] %s is at or above 2^59. A cell is a u64 with 3 tag bits and an "
+            "INT is v<<3|2 with NO range check, so arithmetic here wraps SILENTLY "
+            "at 2^60." % m.group(1),
+            "keep integers under 2^59, or use library(bigint)",
+            "lib/term.cicili:105-113"))
+
+    # ---- Z1: a clause too big for a page, a term too big for the wire -----
+    #
+    # MEASURED WITH THE COMMENTS TAKEN OUT, because raw source is not the
+    # proxy it looks like. A clause is stored as canonical TEXT, and a comment
+    # is not part of the term at all -- so tutorials/library/36-llm.pl's main/0
+    # is 26762 bytes of file and a fraction of that as a row. Runs of
+    # whitespace outside quotes collapse for the same reason. What is left
+    # still is not the canonical form (quoting can lengthen an atom, operators
+    # are rewritten) but it is within a few per cent of it, which is what a
+    # budget check needs.
+    #
+    # AND IT ONLY MATTERS WHEN THE CLAUSES REACH A STORE: a --local run holds
+    # them in the heap and never asks a page to fit one. The message says so,
+    # because a warning a reader cannot act on is one they learn to skip.
+    #
+    # WHERE IT DOES MATTER, THIS IS THE ONLY WARNING THERE IS. Measured under
+    # --embed: a clause of 8000 bytes reads back from a second process and one
+    # of 8020 does not, and the writing process reports exit 0, empty stderr
+    # and `done' on stdout either way. The clause is gone and nothing said so.
+    for c in cls:
+        n = stored_size(c.text)
+        if n > WIRE_BYTES:
+            out.append(Finding(path, c.line, c.col, "Z1",
+                "[Z1] this clause is ~%d bytes stored. A Text is limited to 65535 "
+                "bytes on the wire and the CLIENT refuses it -- earlier and "
+                "differently from the page limit. (Only under --kb or --embed; "
+                "a --local run stores nothing.)" % n,
+                "split it", "client/zigurat.c:905-915"))
+        elif n > PAGE_BYTES:
+            out.append(Finding(path, c.line, c.col, "Z1",
+                "[Z1] this clause is ~%d bytes stored, over the %d-byte page budget. "
+                "A row must fit in a page and the refusal arrives at the TURN'S "
+                "FLUSH -- and under --embed not even then: measured, the writing "
+                "process exits 0 with empty stderr and the clause is simply "
+                "absent for the next reader. (Only under --kb or --embed; a "
+                "--local run stores nothing.)" % (n, PAGE_BYTES),
+                "chunk it, and assert the completion mark in the same turn",
+                "parsi/01-schema.parsi:20-35"))
 
     out.sort(key=lambda f: (f.line, f.col))
     return out
