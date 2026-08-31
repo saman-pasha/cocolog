@@ -377,8 +377,10 @@
                                  ;; error -- this is a use-after-free, and it
                                  ;; SEGFAULTS rather than raising:
                                  ;; `write_file_from_codes(F, [foo])' killed the
-                                 ;; process. tcp_write/2 in modules/tcp still
-                                 ;; has that shape and wants the same fix.
+                                 ;; process. tcp_write/2 in modules/tcp was
+                                 ;; written that way round -- this function was
+                                 ;; copied from it -- and has since been fixed
+                                 ;; the same way.
                                  ;;
                                  ;; `. #'(nth i items)' AND NOT `. (nth i items)':
                                  ;; a dotted pair whose cdr is a list IS that

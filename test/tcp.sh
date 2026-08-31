@@ -66,6 +66,7 @@ q() { timeout 60 "$C" query "$U, $1" 2>/dev/null \
 P1=18810
 P2=18811
 P3=18812
+P4=18813
 
 echo "-- the round trip"
 check "listen, connect, accept, write, read" \
@@ -108,6 +109,19 @@ check "reading a closed socket is refused, not a crash" \
   "$(q "tcp_listen($P1,S), tcp_close(S),
         ( tcp_read(S,10,100,_) -> write(answer(read)) ; write(answer(refused)) ), nl")" \
   "refused"
+
+# A NON-INTEGER IN THE BYTE LIST NAMES ITSELF, and this case is here because
+# the path that names it was a use-after-free: the error term was read out of
+# the array AFTER the array had been freed. It answered correctly anyway --
+# free'd memory usually still holds what it held -- so nothing but valgrind
+# could see it, which is exactly why it needs a case rather than a memory. The
+# same shape was copied into lib/files.cicili's write_file_from_codes/2 and
+# SEGFAULTED there.
+check "a non-integer in the byte list is named, not walked after free" \
+  "$(q "tcp_listen($P4,S), tcp_connect('127.0.0.1',$P4,C), tcp_accept(S,2000,A,_),
+        catch(tcp_write(C,[foo]), error(type_error(Want,Got),_), true),
+        tcp_close(C), tcp_close(A), tcp_close(S), write(answer(Want-Got)), nl")" \
+  "integer-foo"
 
 echo "-- a timeout is a failure, not a hang"
 check "accept with nobody there fails" \

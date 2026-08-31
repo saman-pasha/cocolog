@@ -458,8 +458,23 @@
                 (for ((size_t i . 0)) (< i n) ((++ i))
                      (let ((i64 v . 0))
                        (if (not (coco_m_int e (nth i items) (aof v)))
-                           (block (free buf) (free items)
-                                  (return (coco_m_type_error e "integer" (nth i items)))))
+                           ;; THE OFFENDING TERM IS TAKEN BEFORE THE FREE. This
+                           ;; read `(coco_m_type_error e "integer" (nth i items))'
+                           ;; AFTER `(free items)', which is a use-after-free on
+                           ;; the path that exists only to report a bad element:
+                           ;; `tcp_write(C, [foo])' walked freed memory to name
+                           ;; the offender. lib/files.cicili copied this shape
+                           ;; and it SEGFAULTED there rather than raising, which
+                           ;; is how it was found.
+                           ;;
+                           ;; `. #'(nth i items)' AND NOT `. (nth i items)': a
+                           ;; dotted pair whose cdr is a list IS that list --
+                           ;; `(a . (b c))' reads as `(a b c)' -- so the plain
+                           ;; form loses the dot and Cicili answers "is not of
+                           ;; type SEQUENCE" with no file and no line.
+                           (block (let ((size_t bad . #'(nth i items)))
+                                    (free buf) (free items)
+                                    (return (coco_m_type_error e "integer" bad)))))
                        (set (nth i buf) (cast ubyte_t (bitand v 255)))))
                 (free items)))
           (while (< off n)

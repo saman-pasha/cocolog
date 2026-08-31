@@ -880,8 +880,8 @@ binary — read, written, `cmp`-identical.
 
 * a **use-after-free** — `items` freed, then read again to name the
   offending term in the type error. `write_file_from_codes(F, [foo])`
-  SEGFAULTED. Copied from `tcp_write/2`, **which still has that shape and
-  wants the same fix**;
+  SEGFAULTED. Copied from `tcp_write/2`, **which had the same bug and has
+  now been fixed the same way** — see below;
 * **`[]` is an atom here as well as a list**, so an atom-first branch asked
   `coco_m_text` for its name and wrote the two characters `[` and `]` into
   the file. The `: > f` caller got a two-byte file and NOTHING DOWNSTREAM
@@ -897,6 +897,19 @@ dotted pair whose cdr is a list IS that list — `(a . (b c))` reads as
 `(a b c)` — and the reader then answers `is not of type SEQUENCE` with no
 file and no line. And 420 is octal 0644, the same decimal-octal trap
 `make_directory/1` already carries at 511.
+
+**AND THE ORIGINAL HAS BEEN FIXED TOO.** `tcp_write/2` is where the
+use-after-free was copied FROM, and it had it for as long as the module has
+existed. It never crashed: `free`'d memory usually still holds what it held,
+so the type error came back correct — `tcp_write(C, [foo])` answered
+`type_error(integer, foo)` and always had. **valgrind is what could see it**,
+and says so exactly: `Invalid read of size 8 ... 0 bytes inside a block of
+size 8 free'd`. The same probe against the fixed module is silent. So the
+fix is the same three lines — take the offending term before the free — and
+the case that pins it is new, in `test/tcp.sh`, because a bug that answers
+correctly is a bug nothing but a memory checker or a later allocator will
+ever report. Suite here after it: `red: 0` over all **40** case lines, no SKIP
+among them, server up.
 
 **What it bought, downstream and gated:** CivV 99 shell calls -> 58
 (`red: 0`, 32 cases), The Coco 18 -> 16 (`red: 0`, 19 cases). `make test`
