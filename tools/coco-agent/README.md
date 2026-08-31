@@ -102,8 +102,9 @@ Nothing carries a second one.
 
 ## S1 is terms, not regexes
 
-The seventeen banned forms live in `traps.jsonl` twice: as a Python regex and
-as a **term**, and `traps.py --check` requires a row to have both or neither.
+The seventeen banned forms live in `traps.jsonl` as **terms**, and nothing
+else — they carried a Python regex too while a Python linter matched them, and
+that half is gone with it.
 
 ```prolog
 cl_trap('P1', hard, code,
@@ -122,6 +123,13 @@ nothing in that binding answers *where* a match was, and every finding is a
 Nine constructors cover all seventeen — `seq alt lit ws oneof noneof someof
 exactly bstart bend notword bol` — and a tenth would mean a rule wants a real
 parser and should be a rule of its own.
+
+**`traps.py --check` validates the terms**, and it checks more than the
+`re.compile` it replaced could: a regex that compiled might still be a rule
+nobody had written a matcher for, whereas an unknown constructor here is a
+rule that loads fine and **silently never fires**. It knows which arguments
+are patterns and which are data — `lit(format)` names a word, it does not call
+a constructor — and it catches `lit(foo`, `oneuf(bar)` and a bare `bstrt`.
 
 ## Making it fast enough to be a suite case
 

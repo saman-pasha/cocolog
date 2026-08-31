@@ -20,12 +20,11 @@ clauses in a *X-prolog* string table.  Both are quoted exactly.
 
     python3 traps.py --check          every cite resolves, every anchor is there
     python3 traps.py --card           the card, regenerated from the rows
-    python3 traps.py --patterns       the S1 pattern ids, one per line
+    python3 traps.py --patterns       the S1 pattern terms, one per line
 """
 
 import json
 import os
-import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -49,6 +48,90 @@ def load(path=TRAPS):
                 sys.stderr.write("traps.jsonl:%d not JSON: %s\n" % (n, e))
                 sys.exit(2)
     return rows
+
+
+# The vocabulary lint.pl's cl_at/4 implements, split by what its arguments
+# are. Inside the DATA ones the argument is literal text or a character set --
+# `lit(format)' names the word format, it does not call a constructor -- and
+# validating there reported every literal in the table as an unknown functor.
+CONSTRUCTORS_PATTERN = {"seq", "alt"}
+CONSTRUCTORS_DATA = {"lit", "notword", "oneof", "noneof", "someof", "exactly"}
+CONSTRUCTORS_NULLARY = {"ws", "bstart", "bend", "bol"}
+CONSTRUCTORS = CONSTRUCTORS_PATTERN | CONSTRUCTORS_DATA | CONSTRUCTORS_NULLARY
+
+
+def _bad_term(term):
+    """Complaints about a pattern term: unbalanced, or an unknown constructor.
+
+    NOT A PARSER, and it does not need to be -- cocolog reads the term for real
+    when it consults traps.pl, and a malformed one fails loudly there. What
+    this catches is the case that does NOT fail loudly: a well-formed term
+    whose functor no clause of cl_at/4 matches, which loads fine and quietly
+    never fires. `lit(foo' and `oneuf(bar)' are both caught, and so is a bare
+    `bstrt' where `bstart' was meant.
+
+    It is a stronger check than the re.compile it replaced, which could only
+    say that a regex was a regex -- never that it was a rule anything
+    implemented."""
+    out = []
+    stack = []          # enclosing functors, innermost last
+    inq = False
+    word = ""
+    depth = 0
+    i = 0
+
+    def in_data():
+        return any(f in CONSTRUCTORS_DATA for f in stack)
+
+    while i < len(term):
+        c = term[i]
+        if inq:
+            if c == "\\":
+                i += 2
+                continue
+            if c == "'":
+                inq = False
+            i += 1
+            continue
+        if c == "'":
+            inq = True
+            word = ""
+            i += 1
+            continue
+        if c == "(":
+            depth += 1
+            if not in_data() and word and word not in CONSTRUCTORS:
+                out.append("unknown constructor %r -- lint.pl's cl_at/4 has no "
+                           "clause for it, so the rule would never fire" % word)
+            stack.append(word)
+            word = ""
+        elif c == ")":
+            depth -= 1
+            if depth < 0:
+                out.append("unbalanced: a `)' with no `('")
+                return out
+            if not in_data() and word and word not in CONSTRUCTORS \
+                    and not word.isdigit():
+                out.append("unknown constructor %r" % word)
+            word = ""
+            if stack:
+                stack.pop()
+        elif c in ",[]":
+            if not in_data() and word and word not in CONSTRUCTORS \
+                    and not word.isdigit():
+                out.append("unknown constructor %r" % word)
+            word = ""
+        elif c.isspace():
+            word = ""
+        else:
+            word += c
+        i += 1
+
+    if depth != 0:
+        out.append("unbalanced: %d unclosed `('" % depth)
+    if inq:
+        out.append("unbalanced: an unclosed quote")
+    return out
 
 
 def parse_cite(at):
@@ -78,28 +161,18 @@ def check(rows):
         if rid in seen:
             bad.append("%s: duplicate id" % rid)
         seen.add(rid)
-        # TWO RENDERINGS OF ONE RULE MUST STAY PAIRED. A row that grew a
-        # regex without a term would silently stop being enforced by lint.pl,
-        # and one that grew a term without a regex would stop being enforced
-        # in the card -- in both directions a rule goes quiet rather than
-        # loud, which is the failure mode this file exists to prevent.
-        if bool(r.get("pattern")) != bool(r.get("cocopattern")):
-            bad.append("%s: has %s but not %s -- the two renderings of a rule "
-                       "must be added and removed together"
-                       % (rid, "pattern" if r.get("pattern") else "cocopattern",
-                          "cocopattern" if r.get("pattern") else "pattern"))
         if r.get("scan", "code") not in ("code", "text"):
             bad.append("%s: scan %r is not code or text" % (rid, r.get("scan")))
         if r.get("severity") not in SEVERITIES:
             bad.append("%s: severity %r is not one of %s"
                        % (rid, r.get("severity"), "/".join(SEVERITIES)))
-        # A row that names a linter rule and carries a pattern must have a
-        # pattern that compiles; the card documents it verbatim.
+        # A PATTERN MUST BE A TERM lint.pl's matcher can read, and this checks
+        # more than the regex compile it replaced: a regex that compiled could
+        # still be a rule nobody had written a matcher for, whereas an unknown
+        # constructor here is a rule that loads fine and silently never fires.
         if r.get("pattern"):
-            try:
-                re.compile(r["pattern"])
-            except re.error as e:
-                bad.append("%s: pattern does not compile: %s" % (rid, e))
+            for complaint in _bad_term(r["pattern"]):
+                bad.append("%s: %s" % (rid, complaint))
         for c in r.get("cite", []):
             at, anchor = c.get("at"), c.get("anchor")
             if not at or anchor is None:
@@ -135,12 +208,13 @@ def check(rows):
 
 
 def patterns(rows):
-    """The S1 table: (id, regex, why, cite, fix, scan).
+    """The S1 table: (id, term, why, cite, fix, scan).
 
-    THE REGEX IS DOCUMENTATION NOW, not the matcher. lint.pl matches the
-    `cocopattern' term beside it; this half stays because it is how the
-    divergence is written in every Prolog a reader already knows, and
-    --check holds the two to being added and removed together.
+    ONE RENDERING. These rows carried a Python regex too, back when a Python
+    linter matched them; the terms are the rule now and the regexes are gone.
+    A term says the same thing without the six silent divergences a POSIX
+    engine brings to it -- and, unlike a regex, it says WHERE it matched,
+    which is what a file:line:col finding needs.
 
     `scan' is "code" (the default: a match inside a quote or a comment is not
     a finding) or "text" (a quote counts as code; a comment still does not).
@@ -168,8 +242,8 @@ def facts(rows):
 
     cl_trap(Id, Severity, Scan, Pattern, Why, Fix, Cite)
 
-    PATTERN IS EMITTED AS A TERM, not as an atom: it is the `cocopattern' field
-    and it is cocolog source. Everything else is an atom, quoted by doubling.
+    PATTERN IS EMITTED AS A TERM, not as an atom: it is cocolog source.
+    Everything else is an atom, quoted by doubling.
 
     THE MESSAGES ARE NOT COPIED INTO lint.pl. A rule and the evidence for it
     drifting apart is the failure this whole file was built to prevent, so
@@ -190,14 +264,14 @@ def facts(rows):
            "%%   vocabulary and for why it is not a regex.",
            ""]
     for r in rows:
-        if not r.get("cocopattern"):
+        if not r.get("pattern"):
             continue
         cite = r["cite"][0]["at"] if r.get("cite") else "-"
         out.append("cl_trap(%s, %s, %s, %s, %s, %s, %s)." % (
             _q(r["id"]),
             _q(r["severity"].lower()),
             _q(r.get("scan", "code")),
-            r["cocopattern"],
+            r["pattern"],
             _q(" ".join(r["why"].split())),
             _q(" ".join((r.get("fix") or "-").split())),
             _q(cite)))
@@ -256,9 +330,8 @@ def main(argv):
         return 1
     cites = sum(len(r.get("cite", [])) for r in rows)
     pats = len(patterns(rows))
-    terms = sum(1 for r in rows if r.get("cocopattern"))
-    print("traps: %d rows, %d cites all anchored, %d S1 patterns, %d paired terms"
-          % (n, cites, pats, terms))
+    print("traps: %d rows, %d cites all anchored, %d S1 pattern terms"
+          % (n, cites, pats))
     return 0
 
 
