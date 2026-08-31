@@ -98,26 +98,25 @@ set +e
 # are enough turns to split. This case is not in the suite's list, so it was
 # never seen to flake, and more turns can only help it.
 #
-# BUT THE ARITHMETIC OVER THERE DOES NOT APPLY HERE, and saying so is the
-# point of this note. groups.sh's twelve PROCESSES split their machine's
-# turns fairly -- measured over sixteen runs, the smallest share sat at or
-# above what a fair three-way split predicts -- so more turns is a real fix
-# there. THE SWARM'S TWELVE THREADS DO NOT. Five runs of this case, at the
-# --steps 1 below:
+# AND THE UNEVEN SPLIT THIS FILE USED TO BLAME ON THE SWARM'S HAND-OFF IS
+# NOT THE HAND-OFF. That was written here on the numbers alone -- one thread
+# of three taking 59 turns of 62 while a partner took 1 -- and the numbers
+# were right and the reading was wrong. Traced: THE PARTNER DIES. A load that
+# meets a machine mid-save fails with `missing chunk 3 of 4', cmd_step calls
+# that FAILED because its test for the mid-save window matches one message
+# and not this one, and a FAILED turn ends the worker for good. About two
+# workers per machine per run go that way.
 #
-#   c1=6  c2=5  c3=51        d1=6  d2=17 d3=38
-#   c1=3  c2=24 c3=35        d1=12 d2=35 d3=14
-#   c1=2  c2=59 c3=1         d1=4  d2=51 d3=6
-#   c1=1  c2=6  c3=55        d1=53 d2=1  d3=7
-#   c1=3  c2=1  c3=58        d1=52 d2=3  d3=6
+# The yield itself measures fine. Three threads on one machine, in the runs
+# where nobody dies, split 11/12/11 and 12/11/11 -- and where one dies, 17,
+# 17 and 1. The 1 is a worker that took a turn and was killed by it, not one
+# that lost every race.
 #
-# One thread of three taking 59 turns of 62 is not a fair split by any
-# reading, and a minimum of 1 recurs. So the share check here is still
-# fragile -- a run that lands on 0 is possible in a way it is not in
-# groups.sh -- and the cause is the swarm's own hand-off, not the number of
-# turns. THAT IS A FINDING RECORDED HERE AND NOT FIXED: it wants the yield
-# between threads looked at, and it is a different piece of work from the
-# flake in groups.sh that this change was made for.
+# So the numbers here are a symptom of a bug in cocolog.cicili and of a
+# duplication under it in the store, both written up in STATUS.md and neither
+# fixed. What this file does is print the STOPPED line when it happens, so
+# the next reader gets the diagnosis instead of the trace.
+#
 timeout "$WORKER_TIMEOUT" $COCOLOG --kb $KB --embed "$STORE" \
   --steps 1 --answers 0 --out "$OUT" swarm $PAIRS
 swarm_rc=$?
@@ -160,6 +159,13 @@ for g in $GROUPSET; do
     [ "$n" -gt 0 ] || shared=no
   done
   echo "     turns:$line  (total $total)"
+  # A WORKER THAT WAS KILLED BY ITS TURN SAYS SO, and this is where it gets
+  # read. Without it a 1 in the line above is indistinguishable from a worker
+  # whose partners simply beat it to every claim -- which is exactly how the
+  # uneven split here was misread once already.
+  for m in $MEMBERS; do
+    grep -ah 'STOPPED after' "$OUT/$g$m.log" 2>/dev/null | sed 's/^/     /'
+  done
   check "group $g did enough turns to be worth splitting" \
     "$([ "$total" -ge "$TURNS_FLOOR" ] && echo yes || echo "no: $total < $TURNS_FLOOR")" \
     "yes"

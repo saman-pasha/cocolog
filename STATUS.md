@@ -744,8 +744,74 @@ the same four groups as twelve THREADS of one `swarm` process, and its split is
 measurably unfair: five runs gave one thread 51, 59, 55, 58 and 35 of a group's
 ~62 turns while a partner took 1. More turns cannot rescue a check whose
 premise is a fair split, so that case keeps the improvement and carries the
-numbers in its own header as a finding. The swarm's yield between threads wants
-looking at, and it is separate work.
+numbers in its own header. **The cause is the section below, and it is not the
+yield** — that was this section's first guess and it was wrong.
+
+### The swarm's yield is fine. Its workers are being killed.
+
+The uneven split above looked like a scheduler that would not hand over, so
+the yield was rewritten: the worker that just took a turn stands out of the
+race and polls instead of sleeping, and the poll is jittered so two waiters
+cannot hold a fixed phase. **Both were then thrown away, because the numbers
+said the yield was never the problem.** Master, three threads on one machine,
+eight runs:
+
+```
+a1=1  a2=17 a3=17      a1=17 a2=17 a3=1
+a1=16 a2=19 a3=1       a1=12 a2=11 a3=11
+a1=1  a2=17 a3=17      a1=17 a2=17 a3=1
+a1=11 a2=12 a3=11      a1=17 a2=17 a3=1
+```
+
+Two of the eight split evenly with no change to the yield at all. The other
+six all have a worker on exactly **1**, and a trace of every poll and every
+turn says what that 1 is: the worker took one turn, the turn came back
+**FAILED**, and the loop ends on FAILED. It is not losing races. **It is
+dead.**
+
+**What kills it.** Loading a machine is TWO statements — `machine_find` says
+how many chunks there are, `machine_load` fetches them — and at READ COMMITTED
+each is consistent with itself while the pair need not be. A partner's save
+committing between them leaves a count from after meeting rows from before:
+`the machine 'state-a' is missing chunk 3 of 4`. `cmd_step` already knows
+about this window and treats it as MISSED — look again — but it recognises it
+by matching the TEXT of one message, `no suspended machine`, and this is the
+other one. So it is FAILED, which means "the program is wrong and will be
+wrong again", and the worker goes home. Measured across four machines and
+twelve threads: **about two workers per machine per run**, every run.
+
+**And fixing that alone is worse, which is why it is not fixed.** Retrying
+instead of exiting keeps all three workers in the race, and that uncovers what
+was under it: `cocolog::machine_open` looks its predecessor up by name and
+deletes it by the id it found, so a lookup that misses inserts a SECOND row of
+that name instead of replacing the first — after which two workers can each
+claim a copy and each save adds another. Measured, about one run in three: one
+machine reached **91 rows** of one name, its group ran **3400 turns** for a
+proof that needs 60, and `ancestor(pat,zoe)` was lost. Deleting the header by
+NAME rather than by the looked-up id was written, compiled through `make
+schema` and measured: **it did not help** — 87 rows on the fifth run — so the
+miss is under Parsi, not in the procedure. A worker that quietly goes home is
+the safer of the two until that row holds.
+
+**What did ship is the line it prints on the way out.** `nothing left to do
+after 1 turn(s)` is what a worker printed whether its partners beat it to
+every claim or its own turn broke, and reading that one sentence two ways is
+what hid this for as long as anybody looked at it. A worker killed by its turn
+now says `STOPPED after 1 turn(s): a turn failed`, and both group cases print
+it beside the counts:
+
+```
+     turns: c1=10 c2=1 c3=51  (total 62)
+     c1: STOPPED after 10 turn(s): a turn failed -- see stderr
+     c2: STOPPED after 1 turn(s): a turn failed -- see stderr
+```
+
+**The two group cases fail for different reasons, and the distinction is the
+point.** `groups.sh`'s twelve processes showed NO deaths over five runs — a
+turn over a socket is slow enough that the mid-save window is a much smaller
+fraction of it — so its flake really was the statistics of splitting twelve
+turns three ways, and `--steps 1` really is its fix. `groups-embed.sh`'s
+twelve threads die two per machine per run, and no amount of turns fixes that.
 
 Three things had to be right, and each was wrong first.
 

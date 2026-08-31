@@ -237,6 +237,13 @@ for g in $GROUPSET; do
     [ "$n" -gt 0 ] || shared=no
   done
   echo "     turns:$line  (total $total)"
+  # A WORKER THAT WAS KILLED BY ITS TURN SAYS SO, and this is where it gets
+  # read. Without it a 1 in the line above is indistinguishable from a worker
+  # whose partners simply beat it to every claim -- which is exactly how the
+  # uneven split here was misread once already.
+  for m in $MEMBERS; do
+    grep -ah 'STOPPED after' "$OUT/$g$m.log" 2>/dev/null | sed 's/^/     /'
+  done
   check "group $g did enough turns to be worth splitting" \
     "$([ "$total" -ge "$TURNS_FLOOR" ] && echo yes || echo "no: $total < $TURNS_FLOOR")" \
     "yes"

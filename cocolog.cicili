@@ -1435,6 +1435,33 @@
                  ;; three on a 16-thread Mac and never once on the quiet CI
                  ;; box. MISSED hands it back to the loop's ask-again
                  ;; discipline instead.
+                 ;;
+                 ;; AND THE `strstr' COVERS ONLY HALF OF THAT WINDOW, which is
+                 ;; a finding of its own and is NOT fixed here. The header and
+                 ;; the chunks are two statements -- `machine_find' says how
+                 ;; many pieces there are, `machine_load' fetches them -- and a
+                 ;; partner's save can commit between them, so a count from
+                 ;; after the save meets chunk rows from before it and the load
+                 ;; says `missing chunk 3 of 4'. That string does not match
+                 ;; this one, so it is FAILED and the worker goes home for
+                 ;; good. Measured with `swarm', three threads per machine:
+                 ;; about two workers per machine per run die this way, and it
+                 ;; is most of why a swarm's turns come out so unevenly.
+                 ;;
+                 ;; IT IS LEFT ALONE BECAUSE FIXING IT ALONE IS WORSE. Retry
+                 ;; instead of exit, and all three workers stay in the race --
+                 ;; which uncovers a duplication in the row underneath: one
+                 ;; machine reached 91 rows of one name, its group ran 3400
+                 ;; turns for a proof that needs 60, and an answer was lost,
+                 ;; about one run in three. `cocolog::machine_open' looks its
+                 ;; predecessor up by name and deletes it by the id it found,
+                 ;; and a lookup that misses inserts a second row instead of
+                 ;; replacing the first; deleting by NAME instead was measured
+                 ;; and did NOT help, so the miss is under Parsi rather than in
+                 ;; the procedure. STATUS.md carries the reproduction. Until
+                 ;; that holds, a worker that quietly goes home is the safer of
+                 ;; the two -- and the line it prints on the way out now says
+                 ;; so out loud.
                  (fprintf stderr "cocolog: %s\n" ($ z err))
                  (set outcome (? (zg_is_open db)
                                  (? (!= (strstr ($ z err) "no suspended machine") nil)
@@ -1681,7 +1708,10 @@
   (func cmd_work ((const char * worker) (const char * wanted)) (out int)
         (let ((char name [256]) (int turns . 0) (int idle . 0) (int gone . 0)
               (int hurt . 0) (int rc . 0) (int got . 0) (int seen . 0)
-              (int look . 0))
+              (int look . 0)
+              ;; whether the loop ended because a TURN FAILED rather than
+              ;; because there was nothing left to do -- see the final line
+              (int quit . 0))
           (if ($ opts local)
               (block (fprintf stderr "cocolog: work needs a database\n") (return 1)))
           (while 1
@@ -1809,7 +1839,7 @@
             ;; will be wrong again, so the machine is left where cmd_step left
             ;; it and this worker stops.
             (set turns (+ turns 1))
-            (if (turn-is FAILED rc) break)
+            (if (turn-is FAILED rc) (block (set quit 1) break))
             ;; Stand back and let somebody else have the next one.
             (if (turn-is MORE rc) (usleep COCO_YIELD_US)))
           ;; WHAT IT DID AND WHY IT STOPPED, in one line. A worker that ends
@@ -1818,8 +1848,21 @@
           ;; indistinguishable from `nothing left to do'. The counts say which:
           ;; a worker that never saw the machine at all made no claims worth
           ;; speaking of, one that was always too late made hundreds.
-          (fprintf (wout) "%s: nothing left to do after %d turn(s) (%d claim attempt(s), %d absent, %d busy)\n"
-                  worker turns (+ (+ gone idle) turns) gone idle)
+          ;;
+          ;; AND A WORKER THAT STOPPED BECAUSE A TURN FAILED SAYS THAT INSTEAD,
+          ;; which cost a session to find out the hard way. `nothing left to
+          ;; do after 1 turn(s)' is what a worker prints whether its partners
+          ;; beat it to every claim or its own turn broke and it gave up --
+          ;; two completely different things wearing the same sentence. The
+          ;; reason a swarm's turns came out 17, 17 and 1 was the second, and
+          ;; it read as the first for as long as anybody looked at this line.
+          ;; The load's own message went to stderr, which a caller collecting
+          ;; per-worker logs does not read.
+          (if quit
+              (fprintf (wout) "%s: STOPPED after %d turn(s): a turn failed -- see stderr\n"
+                      worker turns)
+            (fprintf (wout) "%s: nothing left to do after %d turn(s) (%d claim attempt(s), %d absent, %d busy)\n"
+                    worker turns (+ (+ gone idle) turns) gone idle))
           (return 0)))
 
   ;;; ---- the swarm: cmd_work, one worker per thread ------------------------
