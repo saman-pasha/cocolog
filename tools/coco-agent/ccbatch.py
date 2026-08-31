@@ -1,17 +1,11 @@
 """The clause reader, backed by clauses.pl instead of by Python.
 
-WHY THIS EXISTS. tools/coco-agent had two clause readers: clauses.pl, a
-grammar, and clauses.py, 375 lines of hand-rolled scanning. They are proven
-equivalent by equiv.sh -- but a proof that two implementations agree is a
-weaker thing than having one, and the reason the Python one was still being
-USED by build.py and index.py was cost: a subprocess per call is 6ms, they
-make 615 calls, and that measured 3.7 seconds against 0.19.
-
-So this batches. Every document the tools want read is handed to ONE cocolog
-process through a length-prefixed file, and the answers come back in one go.
-clauses.py stays in the tree, but only as the differential oracle equiv.sh and
-lint.py hold clauses.pl to -- which is the role test/trace-diff.py already has
-here.
+WHY THIS EXISTS. clauses.pl is the only clause reader now, and it is a cocolog
+process -- so the Python tools that still need one (build.py and index.py) have
+to talk to it. A subprocess per call is 6ms and they make 615 calls, which
+measured 3.7 seconds against the 0.19 the old in-process reader took. So this
+batches: every document is handed over in ONE length-prefixed file and the
+answers come back in one go.
 
     import ccbatch as R
     R.prime([...])          optional: one process for a known workload
@@ -20,11 +14,6 @@ here.
     R.split_clauses(src)    -> [Clause]
     R.read_head(clause)     -> clause, already read
     R._arity(argtext)       -> int
-
-WHO DOES NOT USE THIS, AND WHY. lint.py and equiv.sh keep importing clauses.py
-directly, on purpose: they are the differential oracles clauses.pl is HELD TO,
-and an oracle that asked the thing it is checking would prove nothing. The
-separation is the whole value of keeping two implementations.
 
 PRIMING IS AN OPTIMISATION AND NOTHING ELSE. Every entry point works without
 it, falling back to a batch of one, so a caller that forgets to prime is slow
@@ -35,9 +24,8 @@ call site.
 BYTES, NOT CHARACTERS. cocolog reads bytes and reports byte offsets, because
 that is what the interpreter's own `syntax error at offset %lu' counts. This
 decodes latin-1 so one byte is one character and a Python slice at a cocolog
-offset lands where cocolog said. clauses.py opens files as UTF-8, so the two
-would differ on a file with non-ASCII in it; equiv.sh compares them over every
-.pl in the tree and none has any today.
+offset lands where cocolog said. A file with non-ASCII in it would therefore
+get byte columns, which is exactly what cocolog's own error messages give.
 """
 
 import os
@@ -54,8 +42,8 @@ STATS = {"documents": 0, "processes": 0, "cached": 0}
 
 
 class Clause:
-    """The same shape clauses.py answers, so a call site does not care which
-    reader it got. `text' is a slice of the document it came from."""
+    """A clause, as build.py and index.py expect one. `text' is a slice of the
+    document it came from."""
 
     __slots__ = ("text", "offset", "line", "col", "name", "arity", "is_dcg",
                  "is_directive", "directive")
@@ -142,11 +130,10 @@ def _parse(out, texts):
             c.is_dcg = (kind == "dcg")
             c.name = name
             c.arity = int(arity)
-        # `-' AND -1 ARE THE WIRE'S SPELLING OF nohead, which cc_dump uses so
-        # its rows line up with clauses.py's own rendering for equiv.sh. Read
-        # back as a name they would make key() answer `-/-1' and put two
-        # phantom entries in the blocklist -- aggregate.pl and yall.pl each
-        # have one clause whose head this reader declines to read.
+        # `-' AND -1 ARE THE WIRE'S SPELLING OF nohead. Read back as a name
+        # they would make key() answer `-/-1' and put two phantom entries in
+        # the blocklist -- aggregate.pl and yall.pl each have one clause whose
+        # head this reader declines to read.
         per[cur].append(c)
     # A DOCUMENT THAT PRODUCED NO MARKER IS A PROTOCOL FAILURE, not an empty
     # file: cc_batch emits `=<i>' for every document including an empty one, so
@@ -206,7 +193,7 @@ def _arity(argtext):
 
     ROUTED THROUGH THE SAME GRAMMAR rather than reimplemented, because a second
     comma counter that disagrees about a 0'c literal or a quoted atom is
-    exactly the bug this whole rewrite removed. index.py calls it about ninety
+    exactly the bug this whole rewrite removed -- and that one really happened. index.py calls it about ninety
     times per run and every one is a cache hit after priming."""
     if not argtext.strip():
         return 0

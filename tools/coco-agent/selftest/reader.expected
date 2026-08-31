@@ -1,0 +1,32 @@
+# reader.expected -- what clauses.pl must make of selftest/reader.pl.
+#
+# offset  line  col  len  name  arity  kind
+#
+# Regenerate deliberately, never casually:
+#   printf '%s\\n' "$PWD/tools/coco-agent/selftest/reader.pl" > /tmp/f
+#   COCO_CC_FILES=/tmp/f ./cocolog --local run tools/coco-agent/clauses.pl cc_dump
+#
+# A change here is a change in what a clause IS, and every row was
+# hand-checked when it was written. `rd_it''s' keeps its doubled quote:
+# the reader records the name as written, which is what the blocklist is
+# keyed on, and is a known limit rather than an accident.
+reader.pl	751	14	1	20	rd_digit	3	dcg
+reader.pl	772	15	1	47	rd_digits	3	dcg
+reader.pl	820	16	1	15	rd_none	2	dcg
+reader.pl	882	19	1	25	rd_push	2	dcg
+reader.pl	1264	26	1	50	rd_esc	3	dcg
+reader.pl	1315	27	1	22	rd_quote	3	dcg
+reader.pl	1338	28	1	19	rd_nl	3	dcg
+reader.pl	1358	29	1	26	rd_plain	4	dcg
+reader.pl	1579	34	1	21	-	-1	directive(dynamic,1)
+reader.pl	1601	35	1	29	-	-1	directive(discontiguous,1)
+reader.pl	1763	39	1	24	-	-1	directive(multifile,1)
+reader.pl	1788	40	1	22	rd_after_directive	1	plain
+reader.pl	1811	41	1	12	rd_pi	1	plain
+reader.pl	2087	47	1	37	rd_qualified	1	plain
+reader.pl	2199	50	1	32	rd_$internal	1	plain
+reader.pl	2232	51	1	14	rd_it''s	1	plain
+reader.pl	2306	54	1	24	rd_dotted	2	plain
+reader.pl	2409	57	1	44	rd_nested	3	plain
+reader.pl	2559	62	1	11	rd_real	1	plain
+reader.pl	2667	65	1	12	rd_last	1	plain

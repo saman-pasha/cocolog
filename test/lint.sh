@@ -1,20 +1,24 @@
 #!/bin/sh
 # cocolint over the calibration corpus, and the two rewrites it stands on.
 #
-# THE LINTER IS COCOLOG NOW. tools/coco-agent/lint.pl and clauses.pl replaced
-# lint.py and clauses.py, which stay in the tree as DIFFERENTIAL ORACLES -- a
-# second, independent implementation of the same rules, which is worth more
-# than either alone. That is the role test/trace-diff.py already holds here:
-# cocolog's own suite checks its four-port trace byte-for-byte against swipl's.
+# THE LINTER IS COCOLOG. tools/coco-agent/clauses.pl and lint.pl are the whole
+# of it; the Python they replaced is gone, and with it the differential check
+# that proved the rewrite faithful. WHAT REPLACED THAT CHECK IS TWO FIXTURES
+# AND A PROBE, and the trade is worth naming: a second implementation catches
+# a regression by disagreeing, which is powerful and goes stale the moment
+# nobody maintains it; a fixture catches one by being SPECIFIC about cases
+# that actually broke something, and the store probe checks against the
+# interpreter itself, which is better ground truth than any second reader.
 #
 # Five things are checked, in cost order:
 #
 #   1. the dialect card's 43 citations still point at the code they claim
 #   2. the retrieval index's paths and anchors resolve
-#   3. clauses.pl reads every .pl in this tree exactly as clauses.py does
-#   4. lint.pl reports exactly what lint.py reports, byte for byte
-#   5. the findings over the corpus are still the pinned set, every rule still
-#      fires on selftest/traps.pl, and the blocklist still matches the store
+#   3. clauses.pl reads selftest/reader.pl into exactly reader.expected --
+#      every shape that has ever fooled a clause reader here
+#   4. every rule still fires on selftest/traps.pl
+#   5. the findings over the corpus are still the pinned set, and the
+#      blocklist still matches what the running store says
 #
 # A FINDING IN 5 IS A LINTER BUG UNTIL SHOWN OTHERWISE, which is the point of
 # calibrating against code known to work. The seventeen that survived are
@@ -52,18 +56,34 @@ echo
 python3 "$AGENT/build.py" >/dev/null 2>&1 || { echo "SKIP blocklist would not build"; exit 0; }
 python3 "$AGENT/traps.py" --facts >/dev/null 2>&1 || { echo "SKIP traps.pl would not build"; exit 0; }
 
-# ---- 3. clauses.pl == clauses.py -----------------------------------------
-EQ=$(sh "$AGENT/equiv.sh" 2>&1)
-printf '%s\n' "$EQ" | sed 's/^/  /'
-# GREEN OR SKIP ANYWHERE, not on the last line: both harnesses print a
-# two-line GREEN, and reading tail -1 made this case report a disagreement
-# that did not exist.
-EQ_OK=$(printf '%s\n' "$EQ" | grep -c '^\(GREEN\|SKIP\)')
-
-# ---- 4. lint.pl == lint.py -----------------------------------------------
-EQL=$(sh "$AGENT/equiv-lint.sh" 2>&1)
-printf '%s\n' "$EQL" | sed 's/^/  /'
-EQL_OK=$(printf '%s\n' "$EQL" | grep -c '^\(GREEN\|SKIP\)')
+# ---- 3. the reader reads its fixture exactly ------------------------------
+#
+# EVERY SHAPE THAT HAS EVER FOOLED A CLAUSE READER HERE, with the answer
+# checked in: DCG heads at arity+2, a pushback head, the 0'c literal that is
+# four characters and not three, a prefix directive taking its argument
+# without parentheses, a `.' after a digit, a Module:Head clause, a quoted
+# head with a doubled quote, a `.' inside a quoted atom, commas inside
+# nesting, a /* */ spanning clauses, and a final clause with no `.' at all.
+RF="$AGENT/selftest/reader.pl"
+RT=$(mktemp)
+printf '%s\n' "$RF" > "$RT"
+GOTR=$(COCO_CC_BATCH= COCO_CC_FILES="$RT" \
+       COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
+       "$ROOT/cocolog" --local run "$AGENT/clauses.pl" cc_dump 2>&1 \
+       | sed "s|^$AGENT/selftest/||")
+rm -f "$RT"
+WANTR=$(grep -v '^#' "$AGENT/selftest/reader.expected" | grep -v '^$')
+RA=$(mktemp) ; RB=$(mktemp)
+printf '%s\n' "$WANTR" > "$RA"
+printf '%s\n' "$GOTR"  > "$RB"
+RDIFF=$(diff "$RA" "$RB" 2>/dev/null)
+rm -f "$RA" "$RB"
+if [ -z "$RDIFF" ]; then
+  echo "  reader: $(printf '%s\n' "$GOTR" | grep -c .) clauses of selftest/reader.pl, exactly as pinned"
+else
+  echo "  reader: DIFFERS from selftest/reader.expected (expected < , got > ):"
+  printf '%s\n' "$RDIFF" | sed 's/^/    /'
+fi
 echo
 
 # ---- 5. the findings themselves ------------------------------------------
@@ -221,10 +241,8 @@ if [ $CARD_RC -ne 0 ]; then
   echo "RED: the dialect card has a citation that no longer resolves"
 elif [ $IDX_RC -ne 0 ]; then
   echo "RED: the retrieval index names a path or an anchor that does not resolve"
-elif [ "$EQ_OK" -eq 0 ]; then
-  echo "RED: clauses.pl and clauses.py disagree about what a clause is"
-elif [ "$EQL_OK" -eq 0 ]; then
-  echo "RED: lint.pl and lint.py disagree about what a finding is"
+elif [ -n "$RDIFF" ]; then
+  echo "RED: clauses.pl no longer reads its own fixture the way it is pinned"
 elif [ "${PROBE#BAD}" != "$PROBE" ]; then
   echo "RED: the blocklist and the running store disagree about a reserved name"
 elif [ -n "$MISSING" ]; then

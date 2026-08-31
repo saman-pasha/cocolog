@@ -286,6 +286,30 @@ def build():
     }
 
 
+def _write_atomic(path, text):
+    """Write via a temporary file and rename.
+
+    A GENERATED FILE IS READ WHILE IT IS BEING WRITTEN. test/lint.sh invokes
+    lint.sh several times and each one may rebuild the index, so a reader can
+    open blocklist.pl exactly as a writer is truncating it -- and what comes
+    back is a partial file that either fails to parse or, worse, parses into a
+    short blocklist and reports fewer collisions. rename(2) is atomic within a
+    directory, so a reader sees the old file or the new one and never half of
+    either. Not a hypothesis about a failure that was observed; a hazard that
+    was found while looking for one, and closed because it is two lines."""
+    import tempfile
+    d = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
 def _q(a):
     """An atom, quoted for cocolog's reader. Doubling is how a quote escapes."""
     return "'" + a.replace("'", "''") + "'"
@@ -384,8 +408,7 @@ if __name__ == "__main__":
         sys.exit(0)
     b = build()
     out = _p("tools", "coco-agent", "blocklist.json")
-    with open(out, "w") as fh:
-        json.dump(b, fh, indent=1, sort_keys=True)
+    _write_atomic(out, json.dumps(b, indent=1, sort_keys=True))
     t1c, t1p = len(b["tier1"]["c"]), len(b["tier1"]["clauses"])
     print("tier 1: %d C-dispatched (redefinition is dead code)" % t1c)
     print("        %d clause-defined (redefinition appends)" % t1p)
@@ -397,6 +420,5 @@ if __name__ == "__main__":
     print("reader: %d documents through clauses.pl in %d process(es), %d cache hits"
           % (R.STATS["documents"], R.STATS["processes"], R.STATS["cached"]))
     fp = _p("tools", "coco-agent", "blocklist.pl")
-    with open(fp, "w") as fh:
-        fh.write(facts(b))
+    _write_atomic(fp, facts(b))
     print("wrote %s and %s" % (os.path.relpath(out, ROOT), os.path.relpath(fp, ROOT)))

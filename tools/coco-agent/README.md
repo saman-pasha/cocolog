@@ -21,11 +21,11 @@ sh test/lint.sh                              # the suite case
 |---|---|
 | `clauses.pl` | **the clause reader**, as one grammar |
 | `lint.pl` | **the rules**, as clauses |
-| `clauses.py` / `lint.py` | the differential oracles the two are checked against |
-| `equiv.sh` / `equiv-lint.sh` | the checks that prove them equivalent |
+| `ccbatch.py` | the adapter the Python tools read clauses through |
+| `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.py` | the reserved-name blocklist, from five registration shapes |
 | `traps.jsonl` | the dialect card as data: 36 rows, 43 checked citations |
-| `traps.py` | the anchor checker, and the S1 pattern table lint.py loads |
+| `traps.py` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
 | `assemble.py` | the prompt, block by block, with the budget ladder |
@@ -42,8 +42,8 @@ sh test/lint.sh                              # the suite case
 
 `clauses.py` (375 lines of hand-rolled scanning) and `lint.py` (332 lines of
 compiled regexes) were the tool disagreeing with the repository it lints. They
-are now `clauses.pl` and `lint.pl`, and both are proven equivalent to what they
-replaced rather than asserted to be:
+are `clauses.pl` and `lint.pl` now, and the Python is **gone** — the rewrite
+was held to it byte for byte first:
 
 ```
 GREEN: 3974 clauses over 99 files, identical to clauses.py in offset,
@@ -52,7 +52,22 @@ GREEN: lint.pl and lint.py agree byte for byte -- 7 HARD, 10 WARN over 58
        file(s), and 24 HARD, 4 WARN on selftest/traps.pl
 ```
 
-**Two scanners became one grammar.** `clauses.py` needs a clause splitter *and*
+**What replaced that check is two fixtures and a probe**, and the trade is
+worth naming rather than glossing. A second implementation catches a
+regression by *disagreeing* — powerful, and it rots the moment nobody
+maintains it. A fixture catches one by being **specific** about cases that
+actually broke something, and does not go stale when an unrelated tutorial is
+edited. `selftest/reader.pl` is twenty clauses covering every shape that has
+ever fooled a clause reader here; `selftest/traps.pl` walks into all 24 lint
+rules; and the store probe checks the blocklist against the **interpreter**,
+which was always better ground truth than a second reader.
+
+Verified by breaking it: delete `cc_charskip`'s four-character doubled-quote
+clause and `rd_quote(0''')` reads as `rd_quote/1 plain` where the fixture pins
+`rd_quote/3 dcg`, and the case reports
+`RED: clauses.pl no longer reads its own fixture the way it is pinned`.
+
+**Two scanners became one grammar.** `clauses.py` needed a clause splitter *and*
 a lexical-region scanner, and its own docstring names the hazard: "two scanners
 that disagree about where a string ends is exactly the bug this is meant to
 prevent." In the DCG they are the same non-terminals, so the disagreement is
@@ -81,9 +96,9 @@ against a stale blocklist: a missing or out-of-date output is rebuilt) and
 drops the waste. Cold 4.8 s, **warm 0.25 s**, and touching `lib/lists.cicili`
 correctly makes it cold again.
 
-**Two files deliberately do not use it.** `lint.py` and `equiv.sh` still import
-`clauses.py`, because they are the oracles `clauses.pl` is held to and an
-oracle that asked the thing it is checking would prove nothing.
+**There is one clause reader.** `build.py` and `index.py` reach it through
+`ccbatch.py`; `oracle.sh` and `verify.sh` do too; `lint.pl` calls it directly.
+Nothing carries a second one.
 
 ## S1 is terms, not regexes
 
@@ -257,7 +272,7 @@ code beside it, and `R2`'s evidence *is* the Prolog text inside a `*X-prolog*`
 string table.
 
 **S1 is generated from it**, so a rule and the evidence for it cannot drift
-apart. Adding a divergence means adding a row, never editing `lint.py`.
+apart. Adding a divergence means adding a row, never editing `lint.pl`.
 
 ## Three things the binary corrected, once there was one to ask
 

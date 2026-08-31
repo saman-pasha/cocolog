@@ -20,7 +20,7 @@ clauses in a *X-prolog* string table.  Both are quoted exactly.
 
     python3 traps.py --check          every cite resolves, every anchor is there
     python3 traps.py --card           the card, regenerated from the rows
-    python3 traps.py --patterns       the S1 regexes, for lint.py
+    python3 traps.py --patterns       the S1 pattern ids, one per line
 """
 
 import json
@@ -81,7 +81,7 @@ def check(rows):
         # TWO RENDERINGS OF ONE RULE MUST STAY PAIRED. A row that grew a
         # regex without a term would silently stop being enforced by lint.pl,
         # and one that grew a term without a regex would stop being enforced
-        # by lint.py -- in both directions the linter goes quiet rather than
+        # in the card -- in both directions a rule goes quiet rather than
         # loud, which is the failure mode this file exists to prevent.
         if bool(r.get("pattern")) != bool(r.get("cocopattern")):
             bad.append("%s: has %s but not %s -- the two renderings of a rule "
@@ -94,7 +94,7 @@ def check(rows):
             bad.append("%s: severity %r is not one of %s"
                        % (rid, r.get("severity"), "/".join(SEVERITIES)))
         # A row that names a linter rule and carries a pattern must have a
-        # pattern that compiles -- lint.py loads these verbatim.
+        # pattern that compiles; the card documents it verbatim.
         if r.get("pattern"):
             try:
                 re.compile(r["pattern"])
@@ -135,7 +135,12 @@ def check(rows):
 
 
 def patterns(rows):
-    """The S1 table, for lint.py: (id, regex, why, cite, fix, scan).
+    """The S1 table: (id, regex, why, cite, fix, scan).
+
+    THE REGEX IS DOCUMENTATION NOW, not the matcher. lint.pl matches the
+    `cocopattern' term beside it; this half stays because it is how the
+    divergence is written in every Prolog a reader already knows, and
+    --check holds the two to being added and removed together.
 
     `scan' is "code" (the default: a match inside a quote or a comment is not
     a finding) or "text" (a quote counts as code; a comment still does not).
@@ -228,8 +233,14 @@ def main(argv):
             src = max(_os.path.getmtime(TRAPS), _os.path.getmtime(__file__))
             if _os.path.getmtime(fp) >= src:
                 return 0
-        with open(fp, "w", encoding="utf-8") as fh:
+        # ATOMIC, for the reason build.py's _write_atomic spells out: this
+        # file is read by a cocolog process that another lint.sh may have
+        # started while this one is writing.
+        import tempfile as _tf
+        _fd, _tmp = _tf.mkstemp(dir=HERE, prefix=".tmp-")
+        with _os.fdopen(_fd, "w", encoding="utf-8") as fh:
             fh.write(facts(rows))
+        _os.replace(_tmp, fp)
         print("traps: wrote %s (%d patterns)"
               % (_os.path.relpath(fp, ROOT), len(patterns(rows))))
         return 0

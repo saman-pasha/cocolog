@@ -221,7 +221,7 @@ dialect-check:
 	python3 tools/coco-agent/traps.py --check
 
 lint: index
-	@python3 tools/coco-agent/lint.py $(FILES)
+	@sh tools/coco-agent/lint.sh $(FILES)
 
 # ---- tests -------------------------------------------------------------------
 
