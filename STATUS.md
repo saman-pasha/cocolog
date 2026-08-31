@@ -695,12 +695,57 @@ database. Every machine produces its full answer set with **no answer twice**,
 every member of every group takes turns, and nothing is left suspended.
 
 ```
-     turns: a1=6 a2=4 a3=7
-     turns: b1=4 b2=4 b3=4
-     turns: c1=10 c2=10 c3=10
-     turns: d1=11 d2=7 d3=12
+     turns: a1=14 a2=12 a3=8  (total 34)
+     turns: b1=11 b2=6 b3=7  (total 24)
+     turns: c1=20 c2=22 c3=18  (total 60)
+     turns: d1=19 d2=28 d3=12  (total 59)
 GREEN: 0 failure(s)
 ```
+
+### The one flake it had was the CHECK, not the scheduler
+
+`all three interpreters of group a took turns` went red once in a suite run and
+was green standalone, which is the shape of a race — so the scheduler was the
+suspect. **It was not.** Sixteen runs, per-worker turn counts recorded:
+
+| group | turns to split | smallest share, observed | what a FAIR three-way split predicts |
+|---|---|---|---|
+| a | 17 | min 3, avg 4.1 | 3.70 |
+| b | **12** | **min 1**, avg 2.4 | 2.36 |
+| c | 30 | min 7, avg 8.5 | 7.38 |
+| d | 30 | min 6, avg 8.1 | 7.38 |
+
+The observed split is at or slightly *above* fair in every group. The hand-off
+works; there is nothing to fix in `cmd_work`.
+
+**The defect was in what the case asserted.** A fair split of N turns among
+three workers leaves one of them with none about `3*(2/3)^N` of the time —
+2.3% at group b's twelve turns, which is one run in forty, and that is exactly
+the rate it was flaking at. "All three took turns" is not a property a correct
+fair scheduler guarantees over twelve turns; it is a coin toss with a long
+edge.
+
+So the fix is to make the premise true rather than to weaken the claim:
+`--steps 1` — the smallest turn there is — doubles every group's turn count,
+for **0.9s** of wall clock (6.1s to 7.0s per run, three runs each). Sixteen
+runs after: **a 34 turns min 6, b 24 min 3, c 60 min 14, d 59 min 13**, no run
+red. Group b's residual is `3*(2/3)^24` ≈ **0.02%**, about one run in five
+thousand rather than one in forty. **It is smaller, not gone**, and the file
+says so.
+
+And the premise is now CHECKED. `TURNS_FLOOR` (20, worth 0.09% per group) is a
+case of its own beside the share check, so a future change that shrinks the
+work — a faster proof, a bigger `--steps`, a smaller program — fails naming
+the number instead of turning back into an occasional red nobody can
+reproduce.
+
+**`test/groups-embed.sh` is the same check and is NOT fixed by this.** It runs
+the same four groups as twelve THREADS of one `swarm` process, and its split is
+measurably unfair: five runs gave one thread 51, 59, 55, 58 and 35 of a group's
+~62 turns while a partner took 1. More turns cannot rescue a check whose
+premise is a fair split, so that case keeps the improvement and carries the
+numbers in its own header as a finding. The swarm's yield between threads wants
+looking at, and it is separate work.
 
 Three things had to be right, and each was wrong first.
 

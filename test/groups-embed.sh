@@ -43,6 +43,11 @@ fi
 SETUP_TIMEOUT=${SETUP_TIMEOUT:-20}
 WORKER_TIMEOUT=${WORKER_TIMEOUT:-60}
 
+# How many turns a group must take before "all three took turns" is a claim
+# about the scheduler rather than a coin toss -- test/groups.sh carries the
+# arithmetic. 20 is 0.09% per group; the four groups measure well above it.
+TURNS_FLOOR=${TURNS_FLOOR:-20}
+
 CL="timeout $SETUP_TIMEOUT $COCOLOG --kb $KB --embed $STORE"
 
 # NOT `GROUPS' -- readonly in bash-as-sh; see groups.sh.
@@ -88,8 +93,33 @@ for g in $GROUPSET; do
   for m in $MEMBERS; do PAIRS="$PAIRS $g$m state-$g"; done
 done
 set +e
+# --steps 1, and TURNS_FLOOR below, for the reason test/groups.sh writes out
+# at length: the share check is a claim about the scheduler only when there
+# are enough turns to split. This case is not in the suite's list, so it was
+# never seen to flake, and more turns can only help it.
+#
+# BUT THE ARITHMETIC OVER THERE DOES NOT APPLY HERE, and saying so is the
+# point of this note. groups.sh's twelve PROCESSES split their machine's
+# turns fairly -- measured over sixteen runs, the smallest share sat at or
+# above what a fair three-way split predicts -- so more turns is a real fix
+# there. THE SWARM'S TWELVE THREADS DO NOT. Five runs of this case, at the
+# --steps 1 below:
+#
+#   c1=6  c2=5  c3=51        d1=6  d2=17 d3=38
+#   c1=3  c2=24 c3=35        d1=12 d2=35 d3=14
+#   c1=2  c2=59 c3=1         d1=4  d2=51 d3=6
+#   c1=1  c2=6  c3=55        d1=53 d2=1  d3=7
+#   c1=3  c2=1  c3=58        d1=52 d2=3  d3=6
+#
+# One thread of three taking 59 turns of 62 is not a fair split by any
+# reading, and a minimum of 1 recurs. So the share check here is still
+# fragile -- a run that lands on 0 is possible in a way it is not in
+# groups.sh -- and the cause is the swarm's own hand-off, not the number of
+# turns. THAT IS A FINDING RECORDED HERE AND NOT FIXED: it wants the yield
+# between threads looked at, and it is a different piece of work from the
+# flake in groups.sh that this change was made for.
 timeout "$WORKER_TIMEOUT" $COCOLOG --kb $KB --embed "$STORE" \
-  --steps 2 --answers 0 --out "$OUT" swarm $PAIRS
+  --steps 1 --answers 0 --out "$OUT" swarm $PAIRS
 swarm_rc=$?
 [ "$swarm_rc" -eq 124 ] && echo "     TIMED OUT: the swarm"
 set -e
@@ -122,12 +152,17 @@ done
 for g in $GROUPSET; do
   line=""
   shared=yes
+  total=0
   for m in $MEMBERS; do
     n=$(turns_of "$g$m")
     line="$line $g$m=$n"
+    total=$((total + n))
     [ "$n" -gt 0 ] || shared=no
   done
-  echo "     turns:$line"
+  echo "     turns:$line  (total $total)"
+  check "group $g did enough turns to be worth splitting" \
+    "$([ "$total" -ge "$TURNS_FLOOR" ] && echo yes || echo "no: $total < $TURNS_FLOOR")" \
+    "yes"
   check "all three interpreters of group $g took turns" "$shared" "yes"
 done
 

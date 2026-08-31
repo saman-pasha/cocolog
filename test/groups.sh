@@ -65,6 +65,12 @@ SETUP_TIMEOUT=${SETUP_TIMEOUT:-20}
 WORKER_TIMEOUT=${WORKER_TIMEOUT:-60}
 SOCKET_TIMEOUT=${SOCKET_TIMEOUT:-10}
 
+# How many turns a group must take before "all three took turns" is a claim
+# about the scheduler rather than a coin toss. See the --steps note below: a
+# fair split of N turns three ways starves somebody about 3*(2/3)^N of the
+# time, so 20 is 0.09% per group and the four groups measure 34, 24, 60 and 60.
+TURNS_FLOOR=${TURNS_FLOOR:-20}
+
 if ! timeout "$SETUP_TIMEOUT" "$COCOLOG" --kb "$KB" --host "$HOST" --tcp "$PORT" \
        --timeout "$SOCKET_TIMEOUT" list >/dev/null 2>&1; then
   echo "SKIP no Zigurat server at $HOST:$PORT"
@@ -133,8 +139,25 @@ echo "twelve interpreters, three per machine"
 # arrangement exists for. `cocolog work' waits for a machine it has never seen,
 # so the honest order is: everybody up, then the work.
 #
-# --steps 2 is small on purpose: it forces each machine through many turns, so
-# the three workers of a group really do have to hand it over.
+# --steps 1 is the smallest turn there is, and the size of the turn is what
+# decides whether "all three took turns" is a claim about the scheduler or a
+# coin toss. THAT DISTINCTION COST THIS CASE ITS ONLY FLAKE, so the arithmetic
+# is written out rather than left as a feeling.
+#
+# The scheduler hands a released machine to whichever partner polls first,
+# which over a whole run is a FAIR RANDOM SPLIT -- and it measured fair:
+# sixteen runs put the smallest share of each group at or slightly above what
+# a fair three-way split of the same number of turns predicts. A fair split of
+# N turns among three workers leaves one of them with NONE about 3*(2/3)^N of
+# the time, and that is not a bug to fix in the interpreter; it is a property
+# of splitting a small number of turns three ways.
+#
+# At --steps 2 the four groups took 17, 12, 30 and 30 turns -- and 3*(2/3)^12
+# is 2.3%, so group b alone failed about one run in forty. That is exactly the
+# rate this case was flaking at. --steps 1 doubles every group's turn count for
+# about 0.9s of wall clock, and TURNS_FLOOR below turns the premise into a
+# checked precondition instead of an assumption, so a future change that makes
+# the work smaller fails saying so rather than flaking a fortnight later.
 #
 # `set -e' is off around the workers: one that times out exits non-zero, and
 # that is a result to report rather than a reason to abandon the run.
@@ -142,7 +165,7 @@ set +e
 pids=""
 for g in $GROUPSET; do
   for m in $MEMBERS; do
-    $WORK --steps 2 --answers 0 work "$g$m" "state-$g" > "$OUT/$g$m.log" 2>&1 &
+    $WORK --steps 1 --answers 0 work "$g$m" "state-$g" > "$OUT/$g$m.log" 2>&1 &
     pids="$pids $g$m:$!"
   done
 done
@@ -194,15 +217,29 @@ done
 
 # Every member of every group has to have done some of it, or the hand-off was
 # never exercised and the run proves only that one worker can finish a machine.
+#
+# AND THE PREMISE IS CHECKED FIRST, because it is the premise that broke. The
+# share check is only meaningful over enough turns: a fair three-way split of N
+# leaves somebody with none about 3*(2/3)^N of the time, which at TURNS_FLOOR
+# is under a tenth of a percent per group and at the twelve turns this case
+# used to give group b was one run in forty. So the total is checked as well as
+# the split, and a change that shrinks the work -- a smaller program, a bigger
+# --steps, a faster proof -- fails HERE, naming the number, instead of turning
+# back into an occasional red nobody can reproduce.
 for g in $GROUPSET; do
   line=""
   shared=yes
+  total=0
   for m in $MEMBERS; do
     n=$(turns_of "$g$m")
     line="$line $g$m=$n"
+    total=$((total + n))
     [ "$n" -gt 0 ] || shared=no
   done
-  echo "     turns:$line"
+  echo "     turns:$line  (total $total)"
+  check "group $g did enough turns to be worth splitting" \
+    "$([ "$total" -ge "$TURNS_FLOOR" ] && echo yes || echo "no: $total < $TURNS_FLOOR")" \
+    "yes"
   check "all three interpreters of group $g took turns" "$shared" "yes"
 done
 
