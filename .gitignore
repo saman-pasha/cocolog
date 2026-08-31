@@ -83,6 +83,7 @@ modules/tls/zigheaders
 # HAND-WRITTEN, in index.py, and the file is a dump of them -- so it is
 # generated too, and index.py is the source.
 tools/coco-agent/blocklist.json
+tools/coco-agent/blocklist.pl
 tools/coco-agent/surface.jsonl
 tools/coco-agent/exemplars.jsonl
 tools/coco-agent/capabilities.json
