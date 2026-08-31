@@ -400,6 +400,23 @@
   (decl) (func coco_varmap_put ((coco_varmap * vm) (size_t from) (size_t to)) (out int))
   (decl) (func coco_varmap_free ((coco_varmap * vm)))
 
+  ;;; One pending compound of a copy in flight: the source term, the first
+  ;;; reserved destination slot, the arity, and how many arguments are done.
+  ;;; Out here for the clause store's reason above: all three walks -- heap
+  ;;; to heap, heap to store, store to heap -- carry their pending work in
+  ;;; an array of these rather than in C stack frames, because a frame per
+  ;;; argument is a frame per cons cell, and a list past ~50k elements
+  ;;; overflowed the C stack and killed the process (measured: rc=139 on
+  ;;; `assert' and `findall' of a 100000-element list).
+  (struct coco_copyframe
+    (member size_t src)
+    (member size_t dst)
+    (member u32    n)
+    (member u32    i))
+
+  (decl) (func coco_frames_push ((coco_copyframe ** fs) (size_t * len) (size_t * cap)
+                                 (size_t src) (size_t dst) (u32 n)) (out int))
+
   ;; a fresh copy of T with fresh variables, pushed on the heap
   (decl) (func coco_copy ((coco_machine * m) (size_t t)) (out size_t))
   ;; structural comparison: <0, 0, >0 in the standard order of terms
@@ -765,42 +782,75 @@
           (let ((size_t v . #'(nth (-> m trail_len) (-> m trail))))
             (set (nth v (-> m heap)) (coco-cell REF v)))))
 
-  ;;; Recursive, and that is safe: this recurses over the DEPTH of a term and
-  ;;; runs to completion inside one resolution step. The resolution loop itself
-  ;;; is iterative -- see solve.cicili -- because that is the one that has to
-  ;;; be suspendable.
+  ;;; The pending pairs of an iterative unify or compare: one flat array,
+  ;;; a and b side by side, popped two at a time.
+  (static)
+  (func coco_pairs_push ((coco_machine * m) (size_t ** wl) (size_t * wlen) (size_t * wcap)
+                         (size_t a) (size_t b)) (out int)
+        (if (< (cof wcap) (+ (cof wlen) 2))
+            (let ((size_t ncap . #'(? (== (cof wcap) 0) 64 (* (cof wcap) 2)))
+                  (void * nb))
+              (set nb (realloc (cast (void *) (cof wl)) (* ncap (sizeof size_t))))
+              (if (== nb nil) (block (set (-> m oom) 1) (return 0)))
+              (set (cof wl) (cast (size_t *) nb))
+              (set (cof wcap) ncap)))
+        (set (nth (cof wlen) (cof wl)) a)
+        (set (nth (+ (cof wlen) 1) (cof wl)) b)
+        (set (cof wlen) (+ (cof wlen) 2))
+        (return 1))
+
+  ;;; ITERATIVE, like the copy walks. This was a recursion "over the DEPTH of
+  ;;; a term", and that was the trap: a LIST's depth is its length, and
+  ;;; unifying two 200000-element lists overflowed the C stack (rc=139).
+  ;;; Argument pairs wait in a malloc'd worklist instead, pushed right to
+  ;;; left so the walk stays left to right -- and a list's tail pair lands
+  ;;; where its parent's just popped from, so the worklist stays a handful
+  ;;; deep however long the list. On failure the bindings already made are
+  ;;; left for the CALLER's trail mark to undo, exactly as before.
   (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int)
-        (set a (coco_deref m a))
-        (set b (coco_deref m b))
-        (if (== a b) (return 1))
-        (let ((u64 ca . #'(nth a (-> m heap)))
-              (u64 cb . #'(nth b (-> m heap))))
-          ;; an unbound variable on either side: bind the younger to the older,
-          ;; so a binding never points forward into heap that a later undo may
-          ;; drop
-          (if (coco-tag-is REF ca)
-              (block (if (coco-tag-is REF cb)
-                         (block (if (> a b) (coco_bind m a b) (coco_bind m b a))
-                                (return 1)))
-                     (coco_bind m a b)
-                     (return 1)))
-          (if (coco-tag-is REF cb) (block (coco_bind m b a) (return 1)))
-          ;; two non-variables: same shape, or no
-          (if (!= (coco-tag ca) (coco-tag cb)) (return 0))
-          (cond ((coco-tag-is ATOM ca) (return (? (== ca cb) 1 0)))
-                ((coco-tag-is INT ca)  (return (? (== ca cb) 1 0)))
-                ((coco-tag-is FLT ca)
-                 (return (? (== (nth (cast size_t (coco-payload ca)) (-> m floats))
-                                (nth (cast size_t (coco-payload cb)) (-> m floats)))
-                            1 0)))
-                ((coco-tag-is FUN ca)
-                 (if (!= (coco-payload ca) (coco-payload cb)) (return 0))
-                 (let ((u32 n . #'(coco_arity m a)))
-                   (for ((u32 i . 0)) (< i n) ((++ i))
-                     (if (not (coco_unify m (coco_arg m a i) (coco_arg m b i)))
-                         (return 0)))
-                   (return 1)))
-                (#t (return 0)))))
+        (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (int ok . 1) (int running . 1))
+          (while (== running 1)
+            (set a (coco_deref m a))
+            (set b (coco_deref m b))
+            (if (!= a b)
+                (let ((u64 ca . #'(nth a (-> m heap)))
+                      (u64 cb . #'(nth b (-> m heap))))
+                  (cond
+                    ;; an unbound variable on either side: bind the younger to
+                    ;; the older, so a binding never points forward into heap
+                    ;; that a later undo may drop
+                    ((coco-tag-is REF ca)
+                     (if (coco-tag-is REF cb)
+                         (if (> a b) (coco_bind m a b) (coco_bind m b a))
+                         (coco_bind m a b)))
+                    ((coco-tag-is REF cb) (coco_bind m b a))
+                    ;; two non-variables: same shape, or no
+                    ((!= (coco-tag ca) (coco-tag cb)) (set ok 0))
+                    ((coco-tag-is ATOM ca) (if (!= ca cb) (set ok 0)))
+                    ((coco-tag-is INT ca)  (if (!= ca cb) (set ok 0)))
+                    ((coco-tag-is FLT ca)
+                     (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
+                             (nth (cast size_t (coco-payload cb)) (-> m floats)))
+                         (set ok 0)))
+                    ((coco-tag-is FUN ca)
+                     (if (!= (coco-payload ca) (coco-payload cb))
+                         (set ok 0)
+                         (let ((u32 n . #'(coco_arity m a)))
+                           (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
+                                (let ((u32 j . #'(- i 1)))
+                                  (if (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
+                                                            (coco_arg m a j) (coco_arg m b j)))
+                                      (set ok 0)))))))
+                    (#t (set ok 0)))))
+            (if (or (== ok 0) (== wlen 0))
+                (set running 0)
+                (block
+                  (set b (nth (- wlen 1) wl))
+                  (set a (nth (- wlen 2) wl))
+                  (set wlen (- wlen 2)))))
+          (free wl)
+          (return ok)))
 
   ;;; ---- copying -------------------------------------------------------
 
@@ -837,8 +887,31 @@
   ;;; NOTHING CACHES `m->heap'. Every push may realloc it, so every access goes
   ;;; through the machine. A local copy of that pointer is a use-after-free
   ;;; waiting for the heap to double.
+  (func coco_frames_push ((coco_copyframe ** fs) (size_t * len) (size_t * cap)
+                          (size_t src) (size_t dst) (u32 n)) (out int)
+        (if (>= (cof len) (cof cap))
+            (let ((size_t ncap . #'(? (== (cof cap) 0) 32 (* (cof cap) 2)))
+                  (void * nb))
+              (set nb (realloc (cast (void *) (cof fs)) (* ncap (sizeof coco_copyframe))))
+              (if (== nb nil) (return 0))
+              (set (cof fs) (cast (coco_copyframe *) nb))
+              (set (cof cap) ncap)))
+        (set ($ (nth (cof len) (cof fs)) src) src)
+        (set ($ (nth (cof len) (cof fs)) dst) dst)
+        (set ($ (nth (cof len) (cof fs)) n) n)
+        (set ($ (nth (cof len) (cof fs)) i) 0)
+        (set (cof len) (+ (cof len) 1))
+        (return 1))
+
+  ;;; One node of the copy: a variable is mapped, a scalar is pushed, and a
+  ;;; compound has its header pushed and its argument slots reserved, the
+  ;;; arguments themselves left as a frame for the driver below. The walk was
+  ;;; a recursion here once -- one C frame per argument, so one per cons cell
+  ;;; -- and a list past ~50k elements took the process down with it.
   (static)
-  (func coco_copy_rec ((coco_machine * m) (size_t t) (coco_varmap * vm)) (out size_t)
+  (func coco_copy_node ((coco_machine * m) (size_t t) (coco_varmap * vm)
+                        (coco_copyframe ** fs) (size_t * flen) (size_t * fcap))
+        (out size_t)
         (set t (coco_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
@@ -851,18 +924,41 @@
                (return to)))
             ((coco-tag-is FUN c)
              (let ((u32 n . #'(coco_arity m t))
-                   (size_t h . #'(coco_push m c))
-                   (size_t base))
-               (set base (+ h 1))
+                   (size_t h . #'(coco_push m c)))
                (for ((u32 i . 0)) (< i n) ((++ i)) (coco_new_var m))
-               (for ((u32 i . 0)) (< i n) ((++ i))
-                 (let ((size_t a . #'(coco_copy_rec m (+ t (+ (cast size_t i) 1)) vm)))
-                   (set (nth (+ base (cast size_t i)) (-> m heap)) (coco-cell REF a))))
+               (if (> n 0)
+                   (if (not (coco_frames_push fs flen fcap t (+ h 1) n))
+                       (set (-> m oom) 1)))
                (return h)))
             (#t
              ;; atoms, integers and floats are their own copy -- a FLT payload
              ;; indexes a table that copying does not disturb
              (return (coco_push m c))))))
+
+  ;;; The driver. A frame whose LAST argument is being issued is dropped
+  ;;; BEFORE that argument is walked, so a right-recursive term -- which is
+  ;;; what a list is -- runs in a handful of frames however long it grows.
+  ;;; The frame array is re-read through its index every round because a
+  ;;; node can push frames, and pushing reallocs.
+  (static)
+  (func coco_copy_walk ((coco_machine * m) (size_t t) (coco_varmap * vm)) (out size_t)
+        (let ((coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
+              (size_t r . 0))
+          (set r (coco_copy_node m t vm (aof fs) (aof flen) (aof fcap)))
+          (while (> flen 0)
+            (let ((size_t fi . #'(- flen 1)))
+              (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n))
+                  (block (set flen fi) continue))
+              (let ((size_t src . #'(+ ($ (nth fi fs) src)
+                                       (+ (cast size_t ($ (nth fi fs) i)) 1)))
+                    (size_t slot . #'(+ ($ (nth fi fs) dst)
+                                        (cast size_t ($ (nth fi fs) i)))))
+                (set ($ (nth fi fs) i) (+ ($ (nth fi fs) i) 1))
+                (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))
+                (let ((size_t a . #'(coco_copy_node m src vm (aof fs) (aof flen) (aof fcap))))
+                  (set (nth slot (-> m heap)) (coco-cell REF a))))))
+          (free fs)
+          (return r)))
 
   (func coco_varmap_free ((coco_varmap * vm))
         (free (-> vm from)) (free (-> vm to))
@@ -872,7 +968,7 @@
   (func coco_copy ((coco_machine * m) (size_t t)) (out size_t)
         (let ((coco_varmap vm . '{ nil nil 0 0 })
               (size_t r))
-          (set r (coco_copy_rec m t (aof vm)))
+          (set r (coco_copy_walk m t (aof vm)))
           (coco_varmap_free (aof vm))
           (return r)))
 
@@ -896,40 +992,58 @@
           (if (coco-tag-is FLT c) (return (nth (cast size_t (coco-payload c)) (-> m floats))))
           (return (cast double (coco-signed-payload c)))))
 
+  ;;; ITERATIVE for coco_unify's reason -- `A == B' and `sort' walk the same
+  ;;; spines unify does, and two long lists compared recursively took the C
+  ;;; stack down. The first pair that orders decides; equal pairs keep going.
   (func coco_compare ((coco_machine * m) (size_t a) (size_t b)) (out int)
-        (set a (coco_deref m a))
-        (set b (coco_deref m b))
-        (if (== a b) (return 0))
-        (let ((int ka . #'(coco_order_class m a))
-              (int kb . #'(coco_order_class m b)))
-          (if (!= ka kb) (return (? (< ka kb) -1 1)))
-          (cond
-            ((== ka 0) (return (? (< a b) -1 (? (> a b) 1 0))))
-            ((== ka 1)
-             (let ((double x . #'(coco_num_value m a))
-                   (double y . #'(coco_num_value m b)))
-               (if (< x y) (return -1))
-               (if (> x y) (return 1))
-               ;; equal as numbers, and that is not the end of it: 1 and 1.0
-               ;; are different TERMS, so `1 == 1.0' must be false even though
-               ;; `1 =:= 1.0' is true. The standard order puts the float first.
-               (let ((int fa . #'(? (coco-tag-is FLT (nth a (-> m heap))) 1 0))
-                     (int fb . #'(? (coco-tag-is FLT (nth b (-> m heap))) 1 0)))
-                 (if (== fa fb) (return 0))
-                 (return (? fa -1 1)))))
-            ((== ka 2)
-             (return (strcmp (coco_atom_name m (coco_name_of m a))
-                             (coco_atom_name m (coco_name_of m b)))))
-            (#t
-             (let ((u32 na . #'(coco_arity m a))
-                   (u32 nb . #'(coco_arity m b)))
-               (if (!= na nb) (return (? (< na nb) -1 1)))
-               (let ((int c . #'(strcmp (coco_atom_name m (coco_name_of m a))
-                                        (coco_atom_name m (coco_name_of m b)))))
-                 (if (!= c 0) (return c)))
-               (for ((u32 i . 0)) (< i na) ((++ i))
-                 (let ((int c . #'(coco_compare m (coco_arg m a i) (coco_arg m b i))))
-                   (if (!= c 0) (return c))))
-               (return 0))))))
+        (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (int r . 0) (int running . 1))
+          (while (== running 1)
+            (set a (coco_deref m a))
+            (set b (coco_deref m b))
+            (if (!= a b)
+                (let ((int ka . #'(coco_order_class m a))
+                      (int kb . #'(coco_order_class m b)))
+                  (cond
+                    ((!= ka kb) (set r (? (< ka kb) -1 1)))
+                    ((== ka 0) (set r (? (< a b) -1 (? (> a b) 1 0))))
+                    ((== ka 1)
+                     (let ((double x . #'(coco_num_value m a))
+                           (double y . #'(coco_num_value m b)))
+                       (cond
+                         ((< x y) (set r -1))
+                         ((> x y) (set r 1))
+                         ;; equal as numbers, and that is not the end of it: 1
+                         ;; and 1.0 are different TERMS, so `1 == 1.0' must be
+                         ;; false even though `1 =:= 1.0' is true. The standard
+                         ;; order puts the float first.
+                         (#t (let ((int fa . #'(? (coco-tag-is FLT (nth a (-> m heap))) 1 0))
+                                   (int fb . #'(? (coco-tag-is FLT (nth b (-> m heap))) 1 0)))
+                               (if (!= fa fb) (set r (? fa -1 1))))))))
+                    ((== ka 2)
+                     (set r (strcmp (coco_atom_name m (coco_name_of m a))
+                                    (coco_atom_name m (coco_name_of m b)))))
+                    (#t
+                     (let ((u32 na . #'(coco_arity m a))
+                           (u32 nb . #'(coco_arity m b)))
+                       (if (!= na nb)
+                           (set r (? (< na nb) -1 1))
+                           (block
+                             (set r (strcmp (coco_atom_name m (coco_name_of m a))
+                                            (coco_atom_name m (coco_name_of m b))))
+                             (if (== r 0)
+                                 (for ((u32 i . na)) (> i 0) ((set i (- i 1)))
+                                      (let ((u32 j . #'(- i 1)))
+                                        (if (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
+                                                                  (coco_arg m a j) (coco_arg m b j)))
+                                            (set r 2))))))))))))
+            (if (or (!= r 0) (== wlen 0))
+                (set running 0)
+                (block
+                  (set b (nth (- wlen 1) wl))
+                  (set a (nth (- wlen 2) wl))
+                  (set wlen (- wlen 2)))))
+          (free wl)
+          (return r)))
 
   ) ; impl-term

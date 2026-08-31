@@ -3012,7 +3012,9 @@ is 14000), which is how it has always read and is worth a look.
   price of being suspendable and are not going to change.
 * **No garbage collection.** The heap only grows within a solution; it is
   reclaimed on backtracking and on a new query. A long deterministic run that
-  builds structure will grow until it ends.
+  builds structure will grow until it ends. `free_list/2` in `library(lists)`
+  is the idiom for working inside that rule — a scope failed out of, below —
+  not an exception to it.
 
 ### Two reds from one morning's pull, on the Mac
 
@@ -3039,6 +3041,72 @@ machine work above.
   (or `CANNOT BIND`, on port 80 without privilege, so that SKIP is decided on
   what the edge said rather than on what it had not said yet), fifteen
   seconds at most and well under one in practice. GREEN, port 80 SKIP.
+
+## A list's depth is its length: five term walks off the C stack
+
+`assert` or `findall` of a 100 000-element list was not a leak and not slow
+— it was **rc=139**, a segfault, found while demonstrating heap reclamation
+with a list that size. `findall(L, numlist(1, N, L), [_])` was fine at
+N=50000 and dead at N=100000; `assert(heavy(L))` at 200 000 the same.
+
+**The wrong comfort was written right above the code.** `coco_unify` carried
+a comment saying recursion here is safe because it "recurses over the DEPTH
+of a term" — and a list's depth IS its length: `'.'(1, '.'(2, ...))`, one
+recursion level per cons cell, at whatever a C frame costs until the stack
+runs out. Five walks shared the shape: `coco_copy` (term.cicili),
+`coco_store_put` and `coco_store_get` (kb.cicili — so assert, findall's
+solutions, a thrown ball, and every clause fetched to run), and
+`coco_unify` and `coco_compare` (term.cicili — so `=`, `==`, `compare/3`,
+`msort` and the clause store's candidate matching).
+
+All five now carry their pending work in a malloc'd worklist instead of C
+frames — the copies as `{src, dst, arity, done}` frames (`coco_copyframe`,
+shared by all three copy directions for the reason `coco_varmap` already
+is), unify and compare as a flat array of pending pairs. Two details carry
+the weight:
+
+* **a frame is dropped as its LAST argument is issued**, and argument pairs
+  are pushed right-to-left, so a right-recursive term — which is what a
+  list is — replaces its parent instead of stacking on it, and the worklist
+  stays a handful deep however long the list;
+* **nothing caches a cells pointer across a push**, same rule the old walk
+  stated: every patch goes back through the machine or store, because a
+  push may have realloc'd the array under it.
+
+Proven: `findall` at ONE MILLION elements, unify and `==` of two
+500 000-element lists, `compare/3` and `msort` at 200 000 — every one
+rc=139 before, rc=0 after — plus a twelve-case battery for what iteration
+must not change: binding, refusal, structure, the standard order with its
+1-before-1.0 and arity-before-name rules, findall's solution order, retract
+matching a deep clause, and a 100 000-element assert/fetch round-trip
+answering `==` to what went in. The full suite behind it: 39 GREEN,
+`red: 0`, tensors SKIP (no torch.so on this box).
+
+### free_list/2, and what "free" can honestly mean here
+
+The hunt began as a question — can a heavy list be freed by `retract`? — and
+the honest answer is NO three times over: retract orphans the clause's
+store cells (the store never shrinks), KEEPS its heap copy (`retract(p(X))`
+exists to leave X bound into it), and reclaims nothing. The heap is
+truncated by backtracking and by nothing else; a term below the current
+choice point cannot be freed at all.
+
+So `library(lists)` now says that in code: **`free_list(Build, Use)`** runs
+`call(Build, L)`, then `call(Use, L)`, inside `\+ \+` — the backtrack out
+IS the deallocation. Measured on this Mac: thirty rounds of a
+200 000-element list peak at 91 MB, one list's worth; the same thirty held
+in an accumulator peak at 2.28 GB. The price is the point and is stated at
+the definition: no binding survives the scope, so a result leaves by
+side channel — asserted small, written, or filed with
+`write_file_from_codes/2` — and a result that must come back as a binding
+does not belong in a freed scope.
+
+`tutorials/library/01-lists.pl` teaches it under a MEMORY MANAGEMENT
+banner with the engine's one-sentence model — success frees nothing, cut
+and `->` free nothing, only failure frees — and two `must/3` claims: the
+asserted result escapes the scope, the smuggled binding does not (checked
+through plain helper predicates, because yall's `>>` copies its goal and
+the copy would hide what the check is about).
 
 ## Not started
 

@@ -218,7 +218,29 @@
            "    '$ord_sub'(O, A, As, B, Bs, R)."
            "'$ord_sub'(=, _, As, _, Bs, R) :- ord_subtract(As, Bs, R)."
            "'$ord_sub'(<, A, As, B, Bs, [A|R]) :- ord_subtract(As, [B|Bs], R)."
-           "'$ord_sub'(>, A, As, _, Bs, R) :- ord_subtract([A|As], Bs, R).")))
+           "'$ord_sub'(>, A, As, _, Bs, R) :- ord_subtract([A|As], Bs, R)."
+
+           ;; ---- memory management ---------------------------------------
+           ;;
+           ;; NOT SWI'S LISTS LIBRARY EITHER, and could not be: it exists
+           ;; because of how THIS engine reclaims. The heap is truncated only
+           ;; by backtracking -- success frees nothing, and a term below the
+           ;; current choice point cannot be freed at all, so a predicate
+           ;; that "frees a list you hand it" is unimplementable and this one
+           ;; does not pretend to be it. `free_list(Build, Use)' runs
+           ;; `call(Build, L)' to make the list and `call(Use, L)' to consume
+           ;; it INSIDE a double negation: on the way out both negations
+           ;; backtrack, and the heap comes back to where it stood -- the
+           ;; list, and everything else built inside, is reclaimed. Measured:
+           ;; thirty rounds of a 200000-element list peak at ONE list's
+           ;; memory; the same rounds bound in an accumulator peak at thirty.
+           ;;
+           ;; THE PRICE IS THE POINT: no binding survives. What Use learns
+           ;; must leave through a side channel that survives backtracking --
+           ;; write it, file it (write_file_from_codes/2), assert it small.
+           ;; A result that must come back as a BINDING does not belong in a
+           ;; freed scope.
+           "free_list(Build, Use) :- \\+ \\+ ( call(Build, L), call(Use, L) ).")))
 
 (generic decl-lists
   ()
