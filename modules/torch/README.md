@@ -56,6 +56,31 @@ small corner of that class — the dataset samples every axis
 log-uniformly precisely so that corner is populated, and the demo's
 first drafts, where it was not, are a lesson the file's comments keep.
 
+## The transformer layers are UNCOMPILED
+
+`attention/1`, `ffn/1` and `positional/0,1` were added without a build. There is no
+libtorch in the tree they were written in, so every C++ line in them is read rather
+than compiled, and the constructs below are the ones to check first if the module
+does not build:
+
+| construct | doubt |
+|---|---|
+| `std::sqrt` | needs `<cmath>`; almost certainly reached through `torch/torch.h`, not verified |
+| `.triu(1)` on a `kBool` tensor | supported in current PyTorch, not checked against the pinned version |
+| `torch::ones({T, T}, ...)` with `long long` | relies on `long long` == `int64_t` for the `IntArrayRef` deduction, true on Linux |
+| `torch::nn::LayerNormOptions(std::vector<int64_t>{D})` | the options form is from memory |
+| `torch::gelu` | the free function; `torch::nn::functional::gelu` is the other spelling |
+
+**Why the residual lives inside the layer.** `CtNet::forward` is a linear chain with
+a switch and no branching — there is nowhere to hold `x` while a side path computes
+`f(x)`. So a block is one layer kind and does `x = x + f(LN(x))` internally, rather
+than attention and residual being separate composable pieces.
+
+**Why not `torch::nn::MultiheadAttention`.** Its C++ frontend signature is
+version-sensitive — tuple return, and `batch_first` semantics that moved — and none
+of that can be checked here. `Linear` + `matmul` + `softmax` + `masked_fill` are
+stable ATen and the file already registers `Linear`.
+
 ## Building
 
 ```sh
@@ -104,6 +129,9 @@ each layer's input is the previous layer's output, worked out at
 | `sequence(L)` | a row is L steps; plain numbers reach the lstm as `[N,L,1]`, token ids stay `[N,L]` for an embedding |
 | `embedding(V,D)` | `Embedding(V,D)`; directly after `sequence(L)`, the steps are integer token ids in `[0,V)` |
 | `lstm(H)` | `LSTM(batch_first)`; stacks read the full sequence, the dense head after the last lstm reads its LAST step |
+| `attention(H)` | ONE pre-norm causal self-attention block, `H` heads, **residual included**. Built from `Linear` + `matmul` + `softmax` + `masked_fill`, not from `torch::nn::MultiheadAttention`. The width reaching it must divide by `H` |
+| `ffn(W)` | the other half of a transformer block: pre-norm `Linear(D,W)` → GELU → `Linear(W,D)`, **residual included** |
+| `positional` / `positional(L)` | a LEARNED position embedding added to every row; bare, it spans the declared sequence |
 
 | predicate | is |
 |---|---|
