@@ -1,6 +1,6 @@
 %% cocolog -- library(llm): a language model as a GOAL.
 %%
-%%     :- use_module(library(llm/llm)).
+%%     :- use_module(library(llm)).
 %%
 %% TIER 2, and clauses only -- there is no C half and no `.so' to build.
 %% Everything it needs already exists one layer down:
@@ -15,12 +15,13 @@
 %% That is the whole argument for it being clauses: a module here would be
 %% a second binding to a socket, and there is one already.
 %%
-%% WHERE IT LIVES. `library(llm/llm)' is `library/llm/llm.pl' --
-%% `coco_library_load' joins a `Dir/Name' spec with a slash and probes the
-%% library path for it (lib/library.cicili:326-328, lb_probe at :84-90).
-%% Two other spellings work and neither is better: put `library/llm' on
-%% $COCOLOG_LIBRARY and `library(llm)' finds this file; or move it to
-%% `library/llm.pl' and `library(llm)' finds it with no path set at all.
+%% WHERE IT LIVES. `library/llm.pl', beside the other nine, so
+%% `library(llm)' finds it with no path set at all: `lb_find' probes each
+%% $COCOLOG_LIBRARY entry, then `library', then <exedir>/library, for
+%% NAME.so before NAME.pl (lib/library.cicili:193-237, lb_probe at :84-90).
+%% The design notes live in `library/llm/' -- a directory, not a library:
+%% nothing probes it, and a `.pl' put there would need the `library(Dir/Name)'
+%% spelling instead (:326-328).
 %%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
