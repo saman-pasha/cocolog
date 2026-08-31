@@ -36,6 +36,42 @@
 %% and it is worth saying because the temptation is real: every number
 %% above was easy to leave out.
 %%
+%% ---- AND IT DOES NOT WIN ON MORE DATA EITHER -----------------------------
+%%
+%% The obvious objection to all of the above is that four thousand
+%% characters is absurd and attention needs data. So it was given data:
+%% 612,058 characters of real cocolog (every .pl in tutorials/, library/,
+%% demo/, coworker/ and test/), a fixed 96-character vocabulary, the same
+%% 90/10 split, matched epochs and learning rate, three seeds each.
+%%
+%%   corpus     lstm             transformer      epochs
+%%     4,200    39.9%            44.6%            45
+%%    16,000    44.0%            45.2%            14
+%%    64,000    57.2%            59.0%             4
+%%   128,000    57.6%            58.5%             8
+%%   200,000    60.6 61.1 60.2   60.7 60.8 60.4    8
+%%
+%% At 200,000 characters -- forty-eight times this lesson's corpus -- the
+%% two means are 60.63% and 60.63%. The same, again, and this time the
+%% three seeds show why the smaller differences above should not be read
+%% as results: the seed spread is about half a point either way, which is
+%% wider than any gap between the architectures.
+%%
+%% The transformer does fit the TRAINING data better at every size (nll
+%% 1.135-1.148 against 1.170-1.191 at 200k). It converts none of that into
+%% held-out accuracy. It also costs 74% more parameters and runs out of
+%% memory at 300,000 characters where the lstm is still going -- attention
+%% keeps a [batch, heads, T, T] score matrix and its backward graph, and
+%% this binding rebuilds the causal mask on every forward rather than
+%% caching it.
+%%
+%% SO THE HONEST ANSWER TO "does the transformer win with more data" IS NO,
+%% not at any size this machine can reach. What the crossover would take is
+%% not a bigger corpus of the same kind -- it is longer context, where
+%% attention's ability to look anywhere starts to matter and a recurrent
+%% state starts to forget. This model has a sixteen-character window. Both
+%% architectures can hold sixteen characters.
+%%
 %% WHAT ATTENTION ACTUALLY IS, in this spec:
 %%
 %%   positional     a learned vector per position, added to the input --
