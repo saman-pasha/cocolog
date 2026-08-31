@@ -465,6 +465,7 @@
       (if (== (-> c emit) 2)
           (block
             (emit_result (-> c s) CE_FETCH)
+            (emit_num (-> c s) CE_TDB_LONG (-> r ID))
             (emit_str (-> c s) CE_TDB_STRING (($ (-> r NAME) c_str)))
             (emit_str (-> c s) CE_TDB_STRING (($ (-> r STATUS) c_str)))
             (emit_num (-> c s) CE_TDB_INT (-> r CHUNKS))))
@@ -715,6 +716,36 @@
       (emit_num s CE_TDB_LONG id)
       (emit_result s CE_DONE)))
 
+  ;; saves OVER a machine the caller already holds the id of: the chunks
+  ;; are replaced and the header is UPDATED in place -- no delete, no
+  ;; insert, no lookup by name that could miss and leave a twin behind.
+  ;; Answers the id when it found it and 0 when it did not (a stale id,
+  ;; from a machine dropped and started again), exactly as the Parsi
+  ;; cocolog::machine_save does; the client falls back to machine_open on 0.
+  (func run_machine_save ((CeSess * s)) (out void)
+    (let ((MachinesCtx c) (int64_t found . 0))
+      (set ($ c s) nil)
+      (set ($ c kb) nil)
+      (set ($ c name) nil)
+      (set ($ c status) nil)
+      (set ($ c emit) 0)
+      (set ($ c first_only) 1)
+      (set ($ c got) 0)
+      (IDX_COCOLOG_MACHINES_ID_equal (aof ce_mem) (arg_num s 0)
+                                     (cast (void *) (aof c)) machines_cb)
+      (if (== ($ c got) 1)
+          (block
+            (set found ($ ($ c row) ID))
+            (state_drop_of found)
+            (let ((COCOLOG_MACHINES saved . #'($ c row)))
+              (set ($ saved STATUS) (std::string (arg_str s 1)))
+              (set ($ saved CHUNKS) (arg_num s 2))
+              (set ($ saved NOTE) (std::string (arg_str s 3)))
+              (COCOLOG_MACHINES_update (aof ce_mem) (aof ($ c row)) (aof saved)))))
+      (emit_result s CE_RETURN)
+      (emit_num s CE_TDB_LONG found)
+      (emit_result s CE_DONE)))
+
   (func run_machine_chunk ((CeSess * s)) (out void)
     (let ((int64_t id . #'(COCOLOG_MACHINE_STATE_SEQ_next)))
       (let ((COCOLOG_MACHINE_STATE row))
@@ -762,7 +793,7 @@
       (set ($ c emit) 2)
       (set ($ c first_only) 0)
       (set ($ c got) 0)
-      (emit_open s "name, status, chunks")
+      (emit_open s "id, name, status, chunks")
       (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
       (emit_result s CE_CLOSE)
       (emit_result s CE_DONE)))
@@ -947,6 +978,7 @@
     (if (== 0 (strcmp p "cocolog::forget_all"))      (return 1))
     (if (== 0 (strcmp p "cocolog::tensors_forget"))  (return 1))
     (if (== 0 (strcmp p "cocolog::machine_open"))    (return 1))
+    (if (== 0 (strcmp p "cocolog::machine_save"))    (return 1))
     (if (== 0 (strcmp p "cocolog::machine_release")) (return 1))
     (if (== 0 (strcmp p "cocolog::machine_drop"))    (return 1))
     ;; NOT the claims: a claim's check_lock WAITS for row locks and must
@@ -979,6 +1011,7 @@
         ((== 0 (strcmp p "cocolog::forget"))             (run_forget_kind s 1 0))
         ((== 0 (strcmp p "cocolog::forget_all"))         (run_forget_kind s 1 1))
         ((== 0 (strcmp p "cocolog::machine_open"))       (run_machine_open s))
+        ((== 0 (strcmp p "cocolog::machine_save"))       (run_machine_save s))
         ((== 0 (strcmp p "cocolog::machine_chunk"))      (run_machine_chunk s))
         ((== 0 (strcmp p "cocolog::machine_find"))       (run_machine_find s))
         ((== 0 (strcmp p "cocolog::machine_load"))       (run_machine_load s))

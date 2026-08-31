@@ -101,11 +101,13 @@
     ;; replacing the first. Holding the id turns a save into an UPDATE by
     ;; primary key instead, so that cannot happen.
     ;;
-    ;; IT IS NOT WHY THE MACHINE THAT REACHED 91 ROWS DID SO, and the comment
-    ;; said it was until the measurement said otherwise: with this in place a
-    ;; counter on the machine_open path prints four times a run, once per
-    ;; `start', and the duplication happens anyway. See STATUS.md -- what is
-    ;; closed here is a way for it to happen, not the one that was happening.
+    ;; AND IT WAS WHY THE MACHINE THAT REACHED 91 ROWS DID SO -- by never
+    ;; running. coco_zg_load set this member and then re-attached, and
+    ;; coco_zg_attach memsets Z, so the id was 0 at every save, machine_save
+    ;; was never called, and the "measurement" that said the change did not
+    ;; help had measured the old path. The id survives the re-attach now;
+    ;; five embedded runs of twelve workers since: no twin, no lost answer.
+    ;; STATUS.md carries both readings and the numbers.
     (member i64          mid))
 
   ;;; Points a store at a knowledge base. The connection stays the caller's to
@@ -829,6 +831,17 @@
           (if (== rows 0)
               (block (snprintf (-> z err) 256 "no suspended machine called '%s'" name)
                      (return 0)))
+          ;; MORE THAN ONE ROW OF A NAME IS A CORRUPTION, NOT A CHOICE. The
+          ;; loop above kept the LAST one's id, silently, for as long as a
+          ;; twin could exist -- so a load assembled from one twin's chunks
+          ;; was saved over the other twin's header, and the two drifted
+          ;; apart until a proof lost an answer. A name is UNIQUE; two rows
+          ;; of it is a fact worth stopping on and saying out loud.
+          (if (> rows 1)
+              (block (snprintf (-> z err) 256
+                               "the machine '%s' has %d header rows; a name has one"
+                               name rows)
+                     (return 0)))
           ;; THE ID THE SAVE WILL WRITE BACK THROUGH. Read here rather than
           ;; looked up again at save time, which is the whole point -- see the
           ;; `mid' member.
@@ -894,6 +907,12 @@
             (let ((char kb_name [64]))
               (snprintf kb_name (sizeof kb_name) "%s" (-> z kb))
               (coco_zg_attach z (-> z db) m st kb_name))
+            ;; AND THE ID IS PUT BACK. coco_zg_attach memsets Z, and it runs
+            ;; AFTER the header was read -- which is how `mid' was 0 at every
+            ;; save from the day it was added: machine_save was never called,
+            ;; every save still went through machine_open, and a change
+            ;; measured as "not helping" had never run at all.
+            (set (-> z mid) mid)
             (return 1))))
 
   (func coco_zg_drop ((coco_zg * z) (const char * name)) (out int)

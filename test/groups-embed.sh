@@ -112,10 +112,16 @@ set +e
 # 17 and 1. The 1 is a worker that took a turn and was killed by it, not one
 # that lost every race.
 #
-# So the numbers here are a symptom of a bug in cocolog.cicili and of a
-# duplication under it in the store, both written up in STATUS.md and neither
-# fixed. What this file does is print the STOPPED line when it happens, so
-# the next reader gets the diagnosis instead of the trace.
+# BOTH ARE FIXED NOW, and the split is what it should be. `missing chunk'
+# is MISSED and retried like the other half of its window, and the
+# duplication that retrying used to uncover -- one machine reaching ninety
+# rows of its name -- was cocolog's own: the save meant to UPDATE the header
+# by id never ran (its id was wiped by a re-attach before the save could
+# read it), so every save was still a delete and an insert with a lookup
+# between. With the id kept, five runs in a row: no worker stopped, every
+# group's total exactly the proof's length (34, 24, 60, 59), the window hit
+# in four runs of five and simply taken again. STATUS.md has the numbers.
+# The STOPPED line stays, because a worker killed by its turn should say so.
 #
 timeout "$WORKER_TIMEOUT" $COCOLOG --kb $KB --embed "$STORE" \
   --steps 1 --answers 0 --out "$OUT" swarm $PAIRS

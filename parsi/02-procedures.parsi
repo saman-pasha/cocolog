@@ -272,15 +272,11 @@ END
 -- machine_open rather than writing into nothing. That check is by primary
 -- key, which is the index this table does not churn.
 --
--- AND IT DOES NOT FIX THE DUPLICATION IT WAS WRITTEN FOR, which is the part
--- worth reading. Three threads per machine still produce a machine with
--- eighty-odd rows of one name, about two runs in six -- and with this in
--- place a counter on the machine_open path prints FOUR TIMES A RUN, once per
--- `start'. Nothing inserts those rows. They are versions of one row that the
--- store shows as live, which is below Parsi and not something a procedure can
--- reach. Deleting by NAME rather than by the looked-up id was tried first and
--- did not help either -- 87 rows on the fifth run. STATUS.md has the whole
--- measurement.
+-- AND FOR A DAY IT WAS MEASURED AS NOT FIXING THE DUPLICATION IT WAS
+-- WRITTEN FOR, because it was never called: the client wiped the id it
+-- had just read (a memset in coco_zg_attach, run after the header was
+-- read) and fell through to machine_open on every save. With the id kept,
+-- the ninety rows do not happen -- lib/zigurat-kb.cicili and STATUS.md.
 PROCEDURE cocolog::machine_save(p_id AS Long, p_status AS String,
                                 p_chunks AS Int, p_note AS String)
 RETURNS Long
@@ -291,10 +287,18 @@ BEGIN
     IF found > 0 BEGIN
         -- The chunks are replaced wholesale; the header's `chunks' column is
         -- updated in the same transaction, so the two agree at every commit.
+        --
+        -- ONE UPDATE, NOT THREE. Every UPDATE is a new version of the row,
+        -- and on the server a new version is a new entry in every index the
+        -- table has -- `name' and `kb' included, whose chains are edited in
+        -- place. Three statements churned those chains three times a save,
+        -- and a partner's machine_find walking one mid-edit answered `no
+        -- suspended machine' sixteen times a run, with three `NULL value'
+        -- refusals beside them. One statement is one version.
         DELETE FROM cocolog::machine_state WHERE machine_id == p_id;
-        UPDATE cocolog::machines SET status = p_status WHERE id == p_id;
-        UPDATE cocolog::machines SET chunks = p_chunks WHERE id == p_id;
-        UPDATE cocolog::machines SET note = p_note WHERE id == p_id;
+        UPDATE cocolog::machines
+        SET status = p_status, chunks = p_chunks, note = p_note
+        WHERE id == p_id;
     END
     RETURN found;
 END
@@ -329,7 +333,9 @@ PROCEDURE cocolog::machine_list(p_kb AS String)
 RETURNS Void
 REQUIRES cocolog::machines
 BEGIN
-    SELECT name, status, chunks FROM cocolog::machines WHERE kb == p_kb;
+    -- The id rides along: it is the column that tells twins of a name
+    -- (different ids) from versions of one row (the same id).
+    SELECT id, name, status, chunks FROM cocolog::machines WHERE kb == p_kb;
 END
 
 PROCEDURE cocolog::machine_drop(p_name AS String)

@@ -80,9 +80,9 @@
     (MORE     2 "suspended with work left, and committed")
     (LOST     3 "the connection ended mid-turn. NOTHING was committed, so the
                  turn did not happen and may simply be done again")
-    (MISSED   4 "claimed, then the load said `no suspended machine' -- the
-                 MVCC nowhere-window a mid-save partner leaves; nothing was
-                 committed, so look again rather than give up")))
+    (MISSED   4 "claimed, then the load said `no suspended machine' or
+                 `missing chunk' -- the window a mid-save partner leaves;
+                 nothing was committed, so look again rather than give up")))
 
 (DEFUN turn-value (name)
   (LET ((row (ASSOC name *turn-outcomes* :TEST #'STRING=)))
@@ -1398,6 +1398,51 @@
   ;;; Every call is checked for the same reason. An unchecked commit was the
   ;;; original sin here: it made a turn that had actually been rolled back look
   ;;; exactly like a turn that had been saved.
+  ;;; TEMPORARY MISS PROBE (COCO_MISS_PROBE=1): when a load answers `no
+  ;;; suspended machine', ask the same connection again -- a fresh statement
+  ;;; in the same transaction -- and ask the OTHER index (machine_list walks
+  ;;; kb where machine_find walks name). The three answers tell a statement
+  ;;; window, a transaction-level hide and a one-index loss apart.
+  (func probe_find ((zg_conn * dbc) (const char * pname)) (out int)
+        (let ((zg_result_t r) (char cols [256]) (int rows . 0))
+          (if (not (zg_call dbc "cocolog::machine_find")) (return -1))
+          (if (not (zg_write_string dbc pname)) (return -1))
+          (while 1
+            (if (not (zg_result dbc (aof r))) (return -1))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns dbc cols 256))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((i64 id . 0) (char kb [64]) (char status [64]) (i32 chunks . 0))
+                 (if (not (zg_read_long dbc (aof id) nil)) (return -1))
+                 (if (not (zg_read_string dbc kb (sizeof kb) nil)) (return -1))
+                 (if (not (zg_read_string dbc status (sizeof status) nil)) (return -1))
+                 (if (not (zg_read_int dbc (aof chunks) nil)) (return -1))
+                 (set rows (+ rows 1))))
+              ((== r ZG_RETURN_VALUE) (zg_skip_field dbc))
+              (#t (block))))
+          (return rows)))
+
+  (func probe_list ((zg_conn * dbc) (const char * pname)) (out int)
+        (let ((zg_result_t r) (char cols [256]) (int rows . 0))
+          (if (not (zg_call dbc "cocolog::machine_list")) (return -1))
+          (if (not (zg_write_string dbc ($ opts kb))) (return -1))
+          (while 1
+            (if (not (zg_result dbc (aof r))) (return -1))
+            (if (== r ZG_SUCCESSFUL_DONE) break)
+            (cond
+              ((== r ZG_CURSOR_OPEN) (zg_columns dbc cols 256))
+              ((== r ZG_CURSOR_FETCH)
+               (let ((i64 id . 0) (char nm [256]) (char status [64]) (i32 chunks . 0))
+                 (if (not (zg_read_long dbc (aof id) nil)) (return -1))
+                 (if (not (zg_read_string dbc nm (sizeof nm) nil)) (return -1))
+                 (if (not (zg_read_string dbc status (sizeof status) nil)) (return -1))
+                 (if (not (zg_read_int dbc (aof chunks) nil)) (return -1))
+                 (if (== 0 (strcmp nm pname)) (set rows (+ rows 1)))))
+              ((== r ZG_RETURN_VALUE) (zg_skip_field dbc))
+              (#t (block))))
+          (return rows)))
+
   (func cmd_step ((const char * name) (int to_the_end)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_strbuf out)
               (int n . 0) (int rc . 1) (int done . 0)
@@ -1436,35 +1481,40 @@
                  ;; box. MISSED hands it back to the loop's ask-again
                  ;; discipline instead.
                  ;;
-                 ;; AND THE `strstr' COVERS ONLY HALF OF THAT WINDOW, which is
-                 ;; a finding of its own and is NOT fixed here. The header and
-                 ;; the chunks are two statements -- `machine_find' says how
-                 ;; many pieces there are, `machine_load' fetches them -- and a
-                 ;; partner's save can commit between them, so a count from
-                 ;; after the save meets chunk rows from before it and the load
-                 ;; says `missing chunk 3 of 4'. That string does not match
-                 ;; this one, so it is FAILED and the worker goes home for
-                 ;; good. Measured with `swarm', three threads per machine:
-                 ;; about two workers per machine per run die this way, and it
-                 ;; is most of why a swarm's turns come out so unevenly.
+                 ;; AND THE OTHER HALF OF THAT WINDOW IS THE CHUNKS. The
+                 ;; header and the chunks are two statements -- `machine_find'
+                 ;; says how many pieces there are, `machine_load' fetches
+                 ;; them -- and a partner's save can commit between them, so
+                 ;; a count from after the save meets chunk rows from before
+                 ;; it: `missing chunk 3 of 4'. That is the same window read
+                 ;; one statement later, and it is MISSED for the same reason.
+                 ;; Measured with `swarm', three threads per machine, it
+                 ;; killed about two workers per machine per run while it was
+                 ;; FAILED, which was most of why a swarm's turns came out so
+                 ;; unevenly.
                  ;;
-                 ;; IT IS LEFT ALONE BECAUSE FIXING IT ALONE IS WORSE. Retry
-                 ;; instead of exit, and all three workers stay in the race --
-                 ;; which uncovers a duplication in the row underneath: one
-                 ;; machine reached 91 rows of one name, its group ran 3400
-                 ;; turns for a proof that needs 60, and an answer was lost,
-                 ;; about one run in three. `cocolog::machine_open' looks its
-                 ;; predecessor up by name and deletes it by the id it found,
-                 ;; and a lookup that misses inserts a second row instead of
-                 ;; replacing the first; deleting by NAME instead was measured
-                 ;; and did NOT help, so the miss is under Parsi rather than in
-                 ;; the procedure. STATUS.md carries the reproduction. Until
-                 ;; that holds, a worker that quietly goes home is the safer of
-                 ;; the two -- and the line it prints on the way out now says
-                 ;; so out loud.
+                 ;; It was left FAILED for a while on purpose: retrying kept
+                 ;; all three workers in the race, and a machine then grew
+                 ;; ninety rows of one name. That growth was cocolog's own.
+                 ;; The save that was meant to UPDATE by id never ran, because
+                 ;; the id was wiped by a re-attach before the save could read
+                 ;; it (lib/zigurat-kb.cicili, coco_zg_load), so every save
+                 ;; was still a delete and an insert with a lookup between.
+                 ;; With the id kept, a save cannot make a second row.
+                 ;; STATUS.md carries the measurement on both sides of that.
                  (fprintf stderr "cocolog: %s\n" ($ z err))
+                 (if (and (!= (getenv "COCO_MISS_PROBE") nil)
+                          (!= (strstr ($ z err) "no suspended machine") nil))
+                     (let ((int f1 . #'(probe_find db name))
+                           (int l1 . #'(probe_list db name))
+                           (int f2 . 0))
+                       (usleep 2000)
+                       (set f2 (probe_find db name))
+                       (fprintf stderr "PROBE '%s': refind=%d list=%d refind2=%d\n"
+                                name f1 l1 f2)))
                  (set outcome (? (zg_is_open db)
-                                 (? (!= (strstr ($ z err) "no suspended machine") nil)
+                                 (? (or (!= (strstr ($ z err) "no suspended machine") nil)
+                                        (!= (strstr ($ z err) "is missing chunk") nil))
                                     (turn MISSED) (turn FAILED))
                                  (turn LOST)))
                  break))
@@ -1939,11 +1989,16 @@
             (cond
               ((== r ZG_CURSOR_OPEN) (zg_columns db cols 256))
               ((== r ZG_CURSOR_FETCH)
-               (let ((char nm [256]) (char status [64]) (i32 chunks . 0))
+               (let ((i64 id . 0) (char nm [256]) (char status [64]) (i32 chunks . 0))
+                 (if (not (zg_read_long db (aof id) nil)) break)
                  (if (not (zg_read_string db nm (sizeof nm) nil)) break)
                  (if (not (zg_read_string db status (sizeof status) nil)) break)
                  (if (not (zg_read_int db (aof chunks) nil)) break)
-                 (printf "  %-28s %-12s %d chunk(s)\n" nm status chunks)
+                 ;; THE ID IS PRINTED, because it is the one column that tells
+                 ;; two rows of a name apart: twins carry different ids, and
+                 ;; versions of one row carry the same one. Ninety rows of a
+                 ;; name were argued over for a day without anyone seeing it.
+                 (printf "  %-28s %-12s %d chunk(s)  #%lld\n" nm status chunks (cast llong id))
                  (set rows (+ rows 1))))
               ((== r ZG_RETURN_VALUE) (zg_skip_field db))
               (#t (block))))
