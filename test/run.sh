@@ -148,10 +148,11 @@ done
 for c in files trace vacuum repl script tunnel tensors library bigint zigurat-lib tcp engine meter thread process text os kbs http curl ray hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab lint groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
-  # `colab' reads the notebook and the scripts beside it, and `lint' reads
-  # Prolog source with a Python clause reader -- neither needs a binary, so
-  # neither may be skipped for want of one.
-  if [ ! -x "$ROOT/cocolog" ] && [ "$c" != colab ] && [ "$c" != lint ]; then
+  # `colab' reads the notebook and the scripts beside it and needs no binary,
+  # so it must not be skipped for want of one. `lint' used to be exempt too,
+  # when the linter was Python; it is cocolog now and skips honestly inside
+  # the case.
+  if [ ! -x "$ROOT/cocolog" ] && [ "$c" != colab ]; then
     echo "SKIP (build cocolog first)"
     continue
   fi

@@ -90,8 +90,7 @@ if want G1; then
   if ! command -v python3 >/dev/null 2>&1; then
     skip G1 "no python3"
   else
-    [ -f "$HERE/blocklist.json" ] || python3 "$HERE/build.py" >/dev/null 2>&1
-    if OUT=$(python3 "$HERE/lint.py" $FILES 2>&1); then
+    if OUT=$(sh "$HERE/lint.sh" $FILES 2>&1); then
       pass G1 "$(printf '%s' "$OUT" | tail -1)"
     else
       printf '%s\n' "$OUT" | sed 's/^/    /'

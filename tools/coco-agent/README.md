@@ -1,4 +1,4 @@
-# coco-agent — the deterministic half, built
+# coco-agent — the deterministic half, in cocolog
 
 The deterministic half of the NL-to-cocolog agent designed in
 [`library/llm/DESIGN.md`](../../library/llm/DESIGN.md). These are increments **1–6 and 8** of
@@ -19,12 +19,14 @@ sh test/lint.sh                              # the suite case
 
 | file | is |
 |---|---|
-| `clauses.py` | the clause reader everything stands on |
+| `clauses.pl` | **the clause reader**, as one grammar |
+| `lint.pl` | **the rules**, as clauses |
+| `clauses.py` / `lint.py` | the differential oracles the two are checked against |
+| `equiv.sh` / `equiv-lint.sh` | the checks that prove them equivalent |
 | `build.py` | the reserved-name blocklist, from five registration shapes |
 | `traps.jsonl` | the dialect card as data: 36 rows, 43 checked citations |
 | `traps.py` | the anchor checker, and the S1 pattern table lint.py loads |
-| `lint.py` | the rules |
-| `lint.sh` | the human wrapper; rebuilds the blocklist first, always |
+| `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
 | `assemble.py` | the prompt, block by block, with the budget ladder |
 | `agent.sh` | the driver: route, assemble, generate, verify |
@@ -33,7 +35,79 @@ sh test/lint.sh                              # the suite case
 | `index.py` | `surface.jsonl`, `exemplars.jsonl`, `capabilities.json` |
 | `pre-commit` | an opt-in git hook: the card, plus cocolint over staged `.pl` |
 | `selftest/traps.pl` | a file that walks into every divergence, on purpose |
+| `blocklist.pl` `traps.pl` | the blocklist and the card as CLAUSES, generated |
 | `blocklist.json` and the three index files | generated, not committed — remade in seconds |
+
+## The linter is cocolog
+
+`clauses.py` (375 lines of hand-rolled scanning) and `lint.py` (332 lines of
+compiled regexes) were the tool disagreeing with the repository it lints. They
+are now `clauses.pl` and `lint.pl`, and both are proven equivalent to what they
+replaced rather than asserted to be:
+
+```
+GREEN: 3974 clauses over 99 files, identical to clauses.py in offset,
+       line, column, length, name, arity and kind
+GREEN: lint.pl and lint.py agree byte for byte -- 7 HARD, 10 WARN over 58
+       file(s), and 24 HARD, 4 WARN on selftest/traps.pl
+```
+
+**Two scanners became one grammar.** `clauses.py` needs a clause splitter *and*
+a lexical-region scanner, and its own docstring names the hazard: "two scanners
+that disagree about where a string ends is exactly the bug this is meant to
+prevent." In the DCG they are the same non-terminals, so the disagreement is
+not guarded against — it cannot be written down.
+
+**Each rule became a clause.** `cl_collision/8` is three clauses in dispatch
+order, which is the order the interpreter itself uses: construct, then C table,
+then store. First-argument indexing does what a `dict` lookup did.
+
+**The Python stays as a differential oracle**, which is the role
+`test/trace-diff.py` already holds here — cocolog's suite checks its four-port
+trace byte-for-byte against swipl's. `build.py`, `index.py`, `traps.py` and
+`assemble.py` still use `clauses.py`, and a per-call adapter to `clauses.pl`
+measured **3.7 s against 0.19 s** (525 `split_clauses` calls, mostly small
+Cicili string fragments), so that is a follow-up and not a purity fix.
+
+## S1 is terms, not regexes
+
+The seventeen banned forms live in `traps.jsonl` twice: as a Python regex and
+as a **term**, and `traps.py --check` requires a row to have both or neither.
+
+```prolog
+cl_trap('P1', hard, code,
+        seq([lit(current_prolog_flag), ws, lit('('), ws,
+             notword(executable), oneof('abcdefghijklmnopqrstuvwxyz_')]), ...)
+```
+
+Porting them to `library(text)`'s POSIX binding instead would have lost six
+things, **three of them silently**: `\d` becomes a literal `d`; lazy `.*?`
+compiles and is greedy; lookaround and `(?:...)` fail with no error; `[^\n]`
+reads as "not backslash, not n"; a pattern `regcomp` rejects is
+indistinguishable from one that missed; and there are no flags. Worst of all,
+nothing in that binding answers *where* a match was, and every finding is a
+`file:line:col`.
+
+Nine constructors cover all seventeen — `seq alt lit ws oneof noneof someof
+exactly bstart bend notword bol` — and a tenth would mean a rule wants a real
+parser and should be a rule of its own.
+
+## Making it fast enough to be a suite case
+
+The first working version took **2 minutes 11 seconds** over the 58 files
+against Python's 0.4 s. It is **23 s** now, and every step was measured rather
+than guessed:
+
+| | | |
+|---|---|---|
+| the blocklist as clauses, not JSON | 275 ms → 7 ms | and first-arg indexing on every lookup after |
+| `Z1` reusing the file's regions | 43,000 ms → 0 ms | on one file: `cc_in_region` per byte is 16M comparisons; the walk is ordered, so consume the regions in lockstep |
+| every clause's text in one walk | 14.7 s → 5.7 s | `cc_drop` from the start per clause is quadratic — 396 clauses × 24 KB |
+| `S1` indexed by first code | 41 s → 23 s | seventeen patterns tried at every byte becomes one lookup |
+
+The remaining 23 s is DCG walking, roughly linear. It is ~58× slower than
+Python and fast enough for a suite case that also proves two rewrites
+equivalent.
 
 ## Why a clause reader and not a regex
 

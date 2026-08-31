@@ -1,12 +1,24 @@
 #!/bin/sh
-# cocolint over the calibration corpus: the 47 basics+library tutorials and
-# the 10 library/*.pl, plus traps.py --check over the dialect card's citations.
+# cocolint over the calibration corpus, and the two rewrites it stands on.
 #
-# A FINDING HERE IS A LINTER BUG UNTIL SHOWN OTHERWISE, which is the whole
-# point of calibrating against code known to work. The ten that survived are
-# listed below with the argument for each, and the case pins the exact SET
-# rather than a count: a new finding and a moved one both show up, where two
-# findings that cancel out in a total would not.
+# THE LINTER IS COCOLOG NOW. tools/coco-agent/lint.pl and clauses.pl replaced
+# lint.py and clauses.py, which stay in the tree as DIFFERENTIAL ORACLES -- a
+# second, independent implementation of the same rules, which is worth more
+# than either alone. That is the role test/trace-diff.py already holds here:
+# cocolog's own suite checks its four-port trace byte-for-byte against swipl's.
+#
+# Five things are checked, in cost order:
+#
+#   1. the dialect card's 43 citations still point at the code they claim
+#   2. the retrieval index's paths and anchors resolve
+#   3. clauses.pl reads every .pl in this tree exactly as clauses.py does
+#   4. lint.pl reports exactly what lint.py reports, byte for byte
+#   5. the findings over the corpus are still the pinned set, every rule still
+#      fires on selftest/traps.pl, and the blocklist still matches the store
+#
+# A FINDING IN 5 IS A LINTER BUG UNTIL SHOWN OTHERWISE, which is the point of
+# calibrating against code known to work. The seventeen that survived are
+# listed below with the argument for each.
 #
 #   sh test/lint.sh
 #
@@ -23,23 +35,46 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 AGENT="$ROOT/tools/coco-agent"
-[ -f "$AGENT/lint.py" ] || { echo "SKIP no tools/coco-agent"; exit 0; }
+[ -f "$AGENT/lint.pl" ] || { echo "SKIP no tools/coco-agent"; exit 0; }
+[ -x "$ROOT/cocolog" ] || { echo "SKIP no binary -- the linter is cocolog now"; exit 0; }
 
-# ---- the dialect card's citations still point at the code they claim ------
+# ---- 1. the dialect card's citations -------------------------------------
 CARD=$(python3 "$AGENT/traps.py" --check 2>&1)
 CARD_RC=$?
 echo "$CARD" | sed 's/^/  /'
+
+# ---- 2. the retrieval index ----------------------------------------------
+IDX=$(python3 "$AGENT/index.py" --check --no-run 2>&1)
+IDX_RC=$?
+printf '%s\n' "$IDX" | sed 's/^/  /'
 echo
 
 python3 "$AGENT/build.py" >/dev/null 2>&1 || { echo "SKIP blocklist would not build"; exit 0; }
+python3 "$AGENT/traps.py" --facts >/dev/null 2>&1 || { echo "SKIP traps.pl would not build"; exit 0; }
 
+# ---- 3. clauses.pl == clauses.py -----------------------------------------
+EQ=$(sh "$AGENT/equiv.sh" 2>&1)
+printf '%s\n' "$EQ" | sed 's/^/  /'
+# GREEN OR SKIP ANYWHERE, not on the last line: both harnesses print a
+# two-line GREEN, and reading tail -1 made this case report a disagreement
+# that did not exist.
+EQ_OK=$(printf '%s\n' "$EQ" | grep -c '^\(GREEN\|SKIP\)')
+
+# ---- 4. lint.pl == lint.py -----------------------------------------------
+EQL=$(sh "$AGENT/equiv-lint.sh" 2>&1)
+printf '%s\n' "$EQL" | sed 's/^/  /'
+EQL_OK=$(printf '%s\n' "$EQL" | grep -c '^\(GREEN\|SKIP\)')
+echo
+
+# ---- 5. the findings themselves ------------------------------------------
 CORPUS=$(ls "$ROOT"/tutorials/basics/[0-9]*.pl "$ROOT"/tutorials/library/[0-9]*.pl "$ROOT"/library/*.pl 2>/dev/null)
 FILES=$(echo "$CORPUS" | wc -l | tr -d ' ')
-OUT=$(python3 "$AGENT/lint.py" $CORPUS 2>&1)
+OUT=$(sh "$AGENT/lint.sh" $CORPUS 2>&1)
+SELF=$(sh "$AGENT/lint.sh" "$AGENT/selftest/traps.pl" 2>&1)
 
 # Every finding as `file rule [trap]', with the line number dropped: a line
 # that moves because somebody added a comment is not a change in what the
-# linter found, and pinning it would make this case fail for the wrong reason.
+# linter found, and pinning it would fail this case for the wrong reason.
 GOT=$(echo "$OUT" | sed -n 's/^\([^ :]*\):[0-9]*:[0-9]* \(HARD\|WARN\) \([A-Z0-9]*\) \(\[[A-Z0-9]*\] \)\?.*/\1 \2 \3 \4/p' \
       | sed 's/ *$//' | sort)
 
@@ -47,8 +82,8 @@ GOT=$(echo "$OUT" | sed -n 's/^\([^ :]*\):[0-9]*:[0-9]* \(HARD\|WARN\) \([A-Z0-9
 #
 # TEN OF THE SEVENTEEN ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
 # ENFORCES, which is the most satisfying kind of true positive there is --
-# and a standing argument that the rules are pointed at real divergences,
-# because somebody thought each one worth a lesson:
+# and a standing argument that the rules point at real divergences, because
+# somebody thought each one worth a lesson:
 #
 #   basics/07  S1 [R1]  `( retract(seen(_)), fail ; true )', written to show
 #                       that the failure-driven loop removes exactly ONE
@@ -105,26 +140,13 @@ EOF
 echo "$OUT" | grep -E 'HARD|WARN' | grep -v '^ ' | sed 's/^/  /'
 echo
 
-# Two temporary files rather than a process substitution: test/run.sh runs
-# each case with `sh', which on Debian is dash, and dash has no <( ).
-TA=$(mktemp) ; TB=$(mktemp)
-printf '%s\n' "$EXPECT" > "$TA"
-printf '%s\n' "$GOT"    > "$TB"
-DIFF=$(diff "$TA" "$TB" 2>/dev/null)
-rm -f "$TA" "$TB"
-
-# ---- and every rule still FIRES ------------------------------------------
+# ---- every rule still FIRES ----------------------------------------------
 #
 # A CORPUS OF CORRECT CODE CANNOT SHOW THAT A RULE WORKS, only that it does
 # not misfire -- so a rule whose pattern has quietly stopped matching is
 # invisible above. selftest/traps.pl walks into every divergence on purpose,
-# and this asserts that each one is still caught. It found two of its own:
-# `\x41\' ends a string with a backslash, which cocolog forbids, so the
-# literal ran to end of file and every later rule saw its match inside a
-# quote; and L1's `'[|]'' is a quoted atom by construction, so it needed the
-# same `scan: text' that F1 and E1 have.
-SELF="$AGENT/selftest/traps.pl"
-FIRED=$(python3 "$AGENT/lint.py" "$SELF" 2>&1 \
+# and this asserts each one is still caught.
+FIRED=$(printf '%s\n' "$SELF" \
         | sed -n 's/^[^ ]* \(HARD\|WARN\) \([A-Z0-9]*\) \(\[[A-Z0-9]*\]\)\?.*/\2 \3/p' \
         | sed 's/ *$//' | sort -u)
 WANT=$(python3 "$AGENT/traps.py" --patterns | awk '{print "S1 [" $1 "]"}' | sort -u)
@@ -140,25 +162,24 @@ MISSING=$(printf '%s\n' "$WANT" | sort -u | while read -r r; do
             [ -n "$r" ] || continue
             printf '%s\n' "$FIRED" | grep -qxF "$r" || echo "$r"
           done)
+
 # ---- the blocklist, probed against the running store ---------------------
 #
-# THE STRONGEST CHECK IN THIS FILE, and it costs two processes. One file
-# defines EVERY clause-defined tier-1 name at its recorded arity and asks the
-# oracle: each must come back COLLIDED, which is the store itself confirming
-# that the static extraction got the name and the arity right. A second file
-# does the same for the C-dispatched names and expects the opposite -- they
-# come back `own', because a C name's record has library = 0 -- which is the
-# oracle's documented blind spot, measured rather than asserted.
+# THE STRONGEST CHECK HERE, and it costs two processes. One file defines EVERY
+# clause-defined tier-1 name at its recorded arity and asks the oracle: each
+# must come back COLLIDED, the store itself confirming the extraction got the
+# name and the arity right. A second does the same for the C-dispatched names
+# and expects the opposite -- they come back `own', because a C name's record
+# has library = 0 -- which is the oracle's blind spot, measured not asserted.
 #
-# It has already paid for itself twice. It is how `sandbox/0' was found to be
-# a name nothing defines (aggregate.pl writes `sandbox:safe_meta_predicate',
-# and cocolog stores that under the HEAD, so the qualifier was being read as
-# the name -- wrong in both directions at once), and how `throw/1' was found
-# sitting in the clause set where the prompt would have called it nondet.
-PROBE="skipped (no binary)"
-if [ -x "$ROOT/cocolog" ]; then
-  PD=$(mktemp -d)
-  python3 - "$AGENT/blocklist.json" "$PD" <<'PY'
+# It has paid for itself three times: `sandbox/0' was a name nothing defines
+# (aggregate.pl writes `sandbox:safe_meta_predicate' and cocolog stores that
+# under the HEAD); `throw/1' sat in the clause set where the prompt would have
+# called it nondet; and gating clauses.pl itself found a 0'c literal misread
+# by BOTH clause readers at once.
+PROBE="skipped"
+PD=$(mktemp -d)
+python3 - "$AGENT/blocklist.json" "$PD" <<'PY'
 import json, sys
 b = json.load(open(sys.argv[1])); d = sys.argv[2]
 def emit(keys, path):
@@ -172,127 +193,52 @@ def emit(keys, path):
             ar = int(ar)
             f.write("%s%s.\n" % (nm, "(%s)" % ",".join("_" * ar) if ar else ""))
             n += 1
-    print(n)
-print(emit(b["tier1"]["clauses"], "clauses.pl"), emit(b["tier1"]["c"], "ctable.pl"))
+    return n
+emit(b["tier1"]["clauses"], "clauses.pl")
+emit(b["tier1"]["c"], "ctable.pl")
 PY
-  CL=$(sh "$AGENT/oracle.sh" "$PD/clauses.pl" 2>/dev/null)
-  CT=$(sh "$AGENT/oracle.sh" "$PD/ctable.pl" 2>/dev/null)
-  rm -rf "$PD"
-  # every clause-defined name must be taken; myprog_marker/1 is the control
-  LEAK=$(printf '%s\n' "$CL" | grep '^own' | grep -vc myprog_marker)
-  NC=$(printf '%s\n' "$CL" | grep -c '^COLLIDED')
-  NB=$(printf '%s\n' "$CT" | grep '^own' | grep -vc myprog_marker)
-  if [ "$LEAK" -eq 0 ]; then
-    PROBE="$NC of $NC clause-defined names confirmed taken by the store; \
-$NB C-dispatched names come back visible, which is the blind spot N2 covers"
-  else
-    PROBE="BAD: $LEAK clause-defined name(s) the blocklist blocks are free in the store"
-    printf '%s\n' "$CL" | grep '^own' | grep -v myprog_marker | sed 's/^/  /'
-  fi
-fi
-
-# ---- the oracle and rule N1 must agree, when there is a binary to ask ----
-#
-# TWO MECHANISMS FOR ONE QUESTION, and neither is sound alone. N1 reads a
-# static blocklist extracted from source; the oracle asks the running binary
-# which predicates the store calls the program's own, which is a different
-# thing entirely (lib/builtins.cicili:1731-1753). They agree on all 58 files,
-# and the one place they used to differ is the reason blocklist.json now
-# records the hooks: 16-httpd.pl's httpd_page/3 is a collision that is MEANT.
-#
-# SKIPPED WITHOUT A BINARY rather than passed. The rest of this case needs
-# none, which is why it runs in a tree that has never been built.
-ORACLE="not run (no binary)"
-if [ -x "$ROOT/cocolog" ]; then
-  DIS=0
-  for f in $CORPUS; do
-    O=$(sh "$AGENT/oracle.sh" "$f" 2>/dev/null | sed -n 's/^COLLIDED  \([^ ]*\) .*/\1/p' | sort -u)
-    L=$(python3 "$AGENT/lint.py" "$f" 2>/dev/null | sed -n "s/^.*HARD N1 \`\([^']*\)'.*/\1/p" | sort -u)
-    if [ "$O" != "$L" ]; then
-      DIS=$((DIS+1))
-      echo "  oracle/N1 disagree on $f: oracle=[$(echo $O)] N1=[$(echo $L)]"
-    fi
-  done
-  if [ "$DIS" -eq 0 ]; then
-    ORACLE="agrees with N1 on all $FILES"
-  else
-    ORACLE="DISAGREES with N1 on $DIS file(s)"
-  fi
-fi
-
-# ---- the index builds, and every path and anchor in it resolves ----------
-IDX=$(python3 "$AGENT/index.py" --check --no-run 2>&1)
-IDX_RC=$?
-printf '%s\n' "$IDX" | sed 's/^/  /'
-echo
-
-# ---- verify.sh's gates give the verdicts they are supposed to ------------
-#
-# FOUR FILES WITH FOUR KNOWN ANSWERS, not a sweep of the tutorials -- the
-# suite already runs those, and running them twice would buy a slower case
-# rather than a stronger one. What is pinned here is the GATES: that a good
-# file passes all of them, that a collision is caught by G3 and not only by
-# the linter, that a program which proves nothing fails G4 even though it
-# exits 0, and that a file needing an unbuilt library SKIPS rather than fails.
-VERDICTS=""
-if [ -x "$ROOT/cocolog" ]; then
-  SCR=$(mktemp -d)
-  printf 'myprog_a(1).\nmain :- myprog_a(_), write(done), nl.\n' > "$SCR/good.pl"
-  printf 'step(_,_,_,_).\nmain :- write(done), nl.\n'            > "$SCR/collide.pl"
-  printf 'main :- true.\n'                                        > "$SCR/silent.pl"
-
-  G=$(sh "$AGENT/verify.sh" "$SCR/good.pl" 2>&1);    grc=$?
-  # G1 SHORT-CIRCUITS, and that is the design: the free gate runs first and a
-  # HARD finding blocks before any process starts. So step/4 is put to the
-  # linter and to the oracle SEPARATELY -- both must catch it, because neither
-  # mechanism is sound alone (the oracle misses a C-dispatched name, the
-  # linter needs a blocklist somebody maintains).
-  C1=$(sh "$AGENT/verify.sh" --gates G1 "$SCR/collide.pl" 2>&1)
-  C3=$(sh "$AGENT/verify.sh" --gates G2,G3 "$SCR/collide.pl" 2>&1)
-  S=$(sh "$AGENT/verify.sh" "$SCR/silent.pl" 2>&1)
-  rm -rf "$SCR"
-
-  [ $grc -eq 0 ] || VERDICTS="$VERDICTS good.pl-should-pass"
-  case "$C1" in *"G1 FAIL"*) ;; *) VERDICTS="$VERDICTS collide.pl-should-fail-G1" ;; esac
-  case "$C3" in *"G3 FAIL"*) ;; *) VERDICTS="$VERDICTS collide.pl-should-fail-G3" ;; esac
-  case "$S"  in *"G4 FAIL"*) ;; *) VERDICTS="$VERDICTS silent.pl-should-fail-G4" ;; esac
-
-  if [ -z "$VERDICTS" ]; then
-    VERDICTS="ok"
-    echo "  verify.sh: a good file passes every gate; step/4 is caught by BOTH the"
-    echo "             linter (G1) and the oracle (G3), separately; and \`main :- true.'"
-    echo "             fails G4 despite exiting 0 -- which is why G4 checks both the"
-    echo "             exit code AND that the last line of stdout is \`done'."
-    echo
-  fi
+CL=$(sh "$AGENT/oracle.sh" "$PD/clauses.pl" 2>/dev/null)
+CT=$(sh "$AGENT/oracle.sh" "$PD/ctable.pl" 2>/dev/null)
+rm -rf "$PD"
+LEAK=$(printf '%s\n' "$CL" | grep '^own' | grep -vc myprog_marker)
+NC=$(printf '%s\n' "$CL" | grep -c '^COLLIDED')
+NB=$(printf '%s\n' "$CT" | grep '^own' | grep -vc myprog_marker)
+if [ "$LEAK" -eq 0 ]; then
+  PROBE="$NC of $NC clause-defined names confirmed taken by the store; $NB C-dispatched names come back visible, which is the blind spot N2 covers"
 else
-  VERDICTS="ok"
+  PROBE="BAD: $LEAK clause-defined name(s) the blocklist blocks are free in the store"
+  printf '%s\n' "$CL" | grep '^own' | grep -v myprog_marker | sed 's/^/  /'
 fi
+
+# ---- the verdict ---------------------------------------------------------
+TA=$(mktemp) ; TB=$(mktemp)
+printf '%s\n' "$EXPECT" > "$TA"
+printf '%s\n' "$GOT"    > "$TB"
+DIFF=$(diff "$TA" "$TB" 2>/dev/null)
+rm -f "$TA" "$TB"
 
 if [ $CARD_RC -ne 0 ]; then
   echo "RED: the dialect card has a citation that no longer resolves"
 elif [ $IDX_RC -ne 0 ]; then
   echo "RED: the retrieval index names a path or an anchor that does not resolve"
-elif [ "$VERDICTS" != ok ]; then
-  echo "verify.sh gave the wrong verdict for:$VERDICTS"
-  echo "RED: a gate is not doing what it is for"
+elif [ "$EQ_OK" -eq 0 ]; then
+  echo "RED: clauses.pl and clauses.py disagree about what a clause is"
+elif [ "$EQL_OK" -eq 0 ]; then
+  echo "RED: lint.pl and lint.py disagree about what a finding is"
+elif [ "${PROBE#BAD}" != "$PROBE" ]; then
+  echo "RED: the blocklist and the running store disagree about a reserved name"
 elif [ -n "$MISSING" ]; then
   echo "these rules did not fire on selftest/traps.pl:"
   printf '%s\n' "$MISSING" | sed 's/^/  /'
   echo "RED: a rule has stopped matching, and the corpus above cannot see that"
-elif [ "${PROBE#BAD}" != "$PROBE" ]; then
-  echo "RED: the blocklist and the running store disagree about a reserved name"
-elif [ "${ORACLE#DISAGREES}" != "$ORACLE" ]; then
-  echo "RED: the collision oracle and rule N1 do not agree"
 elif [ -z "$DIFF" ]; then
   HARD=$(printf '%s\n' "$GOT" | grep -c HARD)
   WARN=$(printf '%s\n' "$GOT" | grep -c WARN)
   RULES=$(printf '%s\n' "$WANT" | sort -u | grep -c .)
-  echo "all $RULES rules fired on selftest/traps.pl; oracle $ORACLE"
+  echo "all $RULES rules fired on selftest/traps.pl"
   echo "probe: $PROBE"
   # GREEN LAST, ALWAYS. test/run.sh discards each case's exit status and reads
-  # the LAST LINE only -- a summary line printed after it makes the whole case
-  # read as red, which is how this one first did.
+  # the LAST LINE only -- a summary printed after it makes the case read red.
   echo "GREEN: $HARD HARD, $WARN WARN over $FILES files -- the expected set exactly"
 else
   echo "the set changed (expected < , got > ):"

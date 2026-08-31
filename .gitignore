@@ -84,6 +84,7 @@ modules/tls/zigheaders
 # generated too, and index.py is the source.
 tools/coco-agent/blocklist.json
 tools/coco-agent/blocklist.pl
+tools/coco-agent/traps.pl
 tools/coco-agent/surface.jsonl
 tools/coco-agent/exemplars.jsonl
 tools/coco-agent/capabilities.json
