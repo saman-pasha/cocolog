@@ -169,8 +169,62 @@ if [ -x "$ROOT/cocolog" ]; then
   fi
 fi
 
+# ---- the index builds, and every path and anchor in it resolves ----------
+IDX=$(python3 "$AGENT/index.py" --check --no-run 2>&1)
+IDX_RC=$?
+printf '%s\n' "$IDX" | sed 's/^/  /'
+echo
+
+# ---- verify.sh's gates give the verdicts they are supposed to ------------
+#
+# FOUR FILES WITH FOUR KNOWN ANSWERS, not a sweep of the tutorials -- the
+# suite already runs those, and running them twice would buy a slower case
+# rather than a stronger one. What is pinned here is the GATES: that a good
+# file passes all of them, that a collision is caught by G3 and not only by
+# the linter, that a program which proves nothing fails G4 even though it
+# exits 0, and that a file needing an unbuilt library SKIPS rather than fails.
+VERDICTS=""
+if [ -x "$ROOT/cocolog" ]; then
+  SCR=$(mktemp -d)
+  printf 'myprog_a(1).\nmain :- myprog_a(_), write(done), nl.\n' > "$SCR/good.pl"
+  printf 'step(_,_,_,_).\nmain :- write(done), nl.\n'            > "$SCR/collide.pl"
+  printf 'main :- true.\n'                                        > "$SCR/silent.pl"
+
+  G=$(sh "$AGENT/verify.sh" "$SCR/good.pl" 2>&1);    grc=$?
+  # G1 SHORT-CIRCUITS, and that is the design: the free gate runs first and a
+  # HARD finding blocks before any process starts. So step/4 is put to the
+  # linter and to the oracle SEPARATELY -- both must catch it, because neither
+  # mechanism is sound alone (the oracle misses a C-dispatched name, the
+  # linter needs a blocklist somebody maintains).
+  C1=$(sh "$AGENT/verify.sh" --gates G1 "$SCR/collide.pl" 2>&1)
+  C3=$(sh "$AGENT/verify.sh" --gates G2,G3 "$SCR/collide.pl" 2>&1)
+  S=$(sh "$AGENT/verify.sh" "$SCR/silent.pl" 2>&1)
+  rm -rf "$SCR"
+
+  [ $grc -eq 0 ] || VERDICTS="$VERDICTS good.pl-should-pass"
+  case "$C1" in *"G1 FAIL"*) ;; *) VERDICTS="$VERDICTS collide.pl-should-fail-G1" ;; esac
+  case "$C3" in *"G3 FAIL"*) ;; *) VERDICTS="$VERDICTS collide.pl-should-fail-G3" ;; esac
+  case "$S"  in *"G4 FAIL"*) ;; *) VERDICTS="$VERDICTS silent.pl-should-fail-G4" ;; esac
+
+  if [ -z "$VERDICTS" ]; then
+    VERDICTS="ok"
+    echo "  verify.sh: a good file passes every gate; step/4 is caught by BOTH the"
+    echo "             linter (G1) and the oracle (G3), separately; and \`main :- true.'"
+    echo "             fails G4 despite exiting 0 -- which is why G4 checks both the"
+    echo "             exit code AND that the last line of stdout is \`done'."
+    echo
+  fi
+else
+  VERDICTS="ok"
+fi
+
 if [ $CARD_RC -ne 0 ]; then
   echo "RED: the dialect card has a citation that no longer resolves"
+elif [ $IDX_RC -ne 0 ]; then
+  echo "RED: the retrieval index names a path or an anchor that does not resolve"
+elif [ "$VERDICTS" != ok ]; then
+  echo "verify.sh gave the wrong verdict for:$VERDICTS"
+  echo "RED: a gate is not doing what it is for"
 elif [ -n "$MISSING" ]; then
   echo "these rules did not fire on selftest/traps.pl:"
   printf '%s\n' "$MISSING" | sed 's/^/  /'

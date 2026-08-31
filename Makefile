@@ -206,15 +206,16 @@ schema:
 # need python3 and nothing else -- no binary, no server, no network -- which
 # is why they are separate targets rather than part of `all'.
 #
-# `index' regenerates blocklist.json (gitignored: build.py remakes it in under
-# a second). `dialect-check' proves every citation in traps.jsonl still points
-# at the code it claims, which is the thing that rots. `lint' runs the linter
-# over files you name:
+# `index' regenerates blocklist.json, surface.jsonl, exemplars.jsonl and
+# capabilities.json -- all gitignored, all remade in seconds. `dialect-check'
+# proves every citation in traps.jsonl still points at the code it claims,
+# which is the thing that rots. `lint' runs the linter over files you name:
 #
 #     make lint FILES="myprogram.pl"
 
 index:
 	python3 tools/coco-agent/build.py
+	python3 tools/coco-agent/index.py
 
 dialect-check:
 	python3 tools/coco-agent/traps.py --check

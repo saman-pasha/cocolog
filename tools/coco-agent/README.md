@@ -1,18 +1,20 @@
-# coco-agent — increments one through four
+# coco-agent — the deterministic half, built
 
 The deterministic half of the NL-to-cocolog agent designed in
-[`library/llm/DESIGN.md`](../../library/llm/DESIGN.md). These are increments
-one through four of that document's build order, which are exactly the ones
-that need **no model, no API key and no network** — and, but for the empirical
-notes in `traps.jsonl`, no built binary either. All of it is useful on its own:
-a cocolog dialect linter a human runs by hand, and a dialect card whose
-citations are checked rather than trusted.
+[`library/llm/DESIGN.md`](../../library/llm/DESIGN.md). These are increments **1–6 and 8** of
+that document's build order: every part that needs **no model, no API key and
+no network**. All of it is useful on its own — a cocolog dialect linter a human
+runs by hand, a dialect card whose citations are checked rather than trusted,
+and a gate script that says why a program did not prove.
 
 ```sh
-sh tools/coco-agent/lint.sh myprogram.pl
-make lint FILES=myprogram.pl        # the same thing, through make
-make dialect-check                  # every citation still points at its code
-sh test/lint.sh                     # the suite case, over the 58-file corpus
+sh tools/coco-agent/verify.sh myprogram.pl   # every gate, in order
+sh tools/coco-agent/lint.sh    myprogram.pl  # G1 alone
+sh tools/coco-agent/oracle.sh  myprogram.pl  # G2+G3 alone
+make lint FILES=myprogram.pl                 # G1, through make
+make index                                   # rebuild the blocklist and index
+make dialect-check                           # every citation still resolves
+sh test/lint.sh                              # the suite case
 ```
 
 | file | is |
@@ -23,9 +25,12 @@ sh test/lint.sh                     # the suite case, over the 58-file corpus
 | `traps.py` | the anchor checker, and the S1 pattern table lint.py loads |
 | `lint.py` | the rules |
 | `lint.sh` | the human wrapper; rebuilds the blocklist first, always |
+| `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
+| `verify.sh` | G0–G5 in order, each with the reason it exists |
+| `index.py` | `surface.jsonl`, `exemplars.jsonl`, `capabilities.json` |
 | `pre-commit` | an opt-in git hook: the card, plus cocolint over staged `.pl` |
 | `selftest/traps.pl` | a file that walks into every divergence, on purpose |
-| `blocklist.json` | generated, not committed — `build.py` remakes it in under a second |
+| `blocklist.json` and the three index files | generated, not committed — remade in seconds |
 
 ## Why a clause reader and not a regex
 
@@ -87,6 +92,15 @@ extension point**, which exists so a program can add its own pages. That is the
 whole design of that library. A clause of the form `H :- fail.` in a library is
 excluded from the blocklist; blocking it would tell every httpd user to rename
 the one predicate they are supposed to write.
+
+**The oracle and rule N1 agree on all 58 files**, and the one place they used
+to differ is why `blocklist.json` now records the hooks rather than discarding
+them. `16-httpd.pl` defines `httpd_page/3`: the oracle called it **COLLIDED**,
+correctly — the clauses really do merge into that record and
+`current_predicate/1` really does say no — and N1 stayed quiet, also correctly,
+because it is the extension point the library exists to offer. Both are right
+about the mechanism and only one is right about the intent, so both now read
+the same list.
 
 ## The dialect card is data, and its citations are checked
 
@@ -172,8 +186,75 @@ tutorials whose `must/3` calls `halt(1)` where the other 44 fail, and one whose
 tutorial runs `--local`. The last three are no-op tier-1 imports already named
 in `CLAUDE.md`.
 
+## The gates, and what each is for
+
+`verify.sh` runs them in cost order, and the cheapest one blocks first — G1
+finds a collision before any process starts.
+
+| | is | and the reason it is not the obvious thing |
+|---|---|---|
+| G0 | the file reads and defines `main/0` | there is no entry directive; the CLI names the goal |
+| G1 | cocolint | free, exact, and mechanical to repair |
+| G2 | it consults under `--local` | a byte offset is the highest-value repair signal there is, and `-s` throws it away |
+| G3 | the collision oracle | asks the running binary, where G1 asks a table somebody maintains |
+| G4 | exit 0 **and** the last line of stdout is `done` | exit 0 alone is satisfied by `main :- true.` |
+| G5 | a `--trace` tail, **only** when G4 failed with no `must/3` line | with a `must/3` line the two values already say more than a trace would |
+
+**Two things it does that a hand-rolled runner would not.** It runs in a
+scratch directory with **no `library/` in it**, because the library path probes
+`./library` relative to the working directory first — so a candidate's own
+directory could otherwise shadow the real one. And it **never merges the
+streams**: stdout is block-buffered into a file, stderr's buffering is a
+platform default, so a merged capture's ordering is meaningless.
+
+**It probes a tier-2 library as a goal, never as a directive**, because the
+directive succeeds in total silence when the library is missing. And when a
+run dies with `existence_error(procedure, x509_validate/2)` it looks the name
+up in the blocklist and answers `library(x509)`, `sh modules/x509/build.sh` —
+catching the case the preflight cannot, a file that *calls* a library it never
+declared. `tutorials/library/27-ca.pl` is exactly that file.
+
+Over the 48 basics+library tutorials, in a scratch directory: **40 pass, 7 skip
+for a library this checkout has not built, 1 fails** — and the one failure is
+`03-files.pl`, whose own `must/3` says `run_me_from_the_repo_root`. A correct
+verdict, not a gate bug.
+
+## The index: what a library says about itself
+
+`index.py` builds three files, and validates everything it names.
+
+**A header block is the only authority on what a library offers.**
+`library/json.pl` has **70 clause heads and documents 6**; a clause-head
+listing would offer `json_hex4/3` as API, and a model handed that will call it.
+So `surface.jsonl` carries the leading `%%` block verbatim plus every
+`%% name(...)` doc line whose name the file *actually defines* — that last
+condition matters, or prose naming `split_string/4` as something cocolog does
+**not** have would enter the index as something it does. Across the ten tier-2
+libraries: 43 KB of header, **86 documented names of 450 heads**.
+
+Where a header has no signature list the index says so rather than
+under-serving quietly: `library(kbs)` documents 1 of 14, because its header
+explains the design at length and names its predicates only inside running
+prose.
+
+**Exemplars are anchored by substring and they are RUN.** A line-range citation
+rots faster than a file citation, and silently — the span still resolves, it
+just teaches half a predicate. Every anchor must match **exactly once** or the
+build fails. And each runnable exemplar carries the stdout
+`cocolog --local run FILE main` actually produced: the only grounding signal in
+the repository that a stale comment cannot corrupt, because the model sees
+behaviour rather than appearance.
+
+**`capabilities.json` is twenty-one hand-written topic rows** and the builder
+checks every library and every exemplar tag they name — which is §9.2's whole
+argument against embeddings, that this is an exact-match problem over a few
+dozen documents with one hand-labelled topic each.
+
 ## Not built yet
 
-`DESIGN.md` §13's increments 5, 6 and 8 — the surface index, `verify.sh`'s
-gates, and the collision oracle — are next and still need no model. Everything
-from 9 on does: the router, the generator, the repair loop, the eval set.
+Increment 7 is the bootstrap and is done — cicili, sbcl, a built ZiguratIP,
+`make`. What is left all needs a model: the router (10), the generator and
+assembler (9), the repair loop and presenter (11), G6's swipl differential and
+G7's cross-process gate (13, which also want a `swipl` and a server this
+container has neither of), and the eval set (14) that produces every number the
+design's "add it when" thresholds refer to.
