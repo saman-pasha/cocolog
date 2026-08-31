@@ -56,30 +56,43 @@ small corner of that class — the dataset samples every axis
 log-uniformly precisely so that corner is populated, and the demo's
 first drafts, where it was not, are a lesson the file's comments keep.
 
-## The transformer layers are UNCOMPILED
+## The transformer layers, and how they were checked
 
-`attention/1`, `ffn/1` and `positional/0,1` were added without a build. There is no
-libtorch in the tree they were written in, so every C++ line in them is read rather
-than compiled, and the constructs below are the ones to check first if the module
-does not build:
+`attention/1`, `ffn/1` and `positional/0,1` were written without a build and then
+built. Every construct that had been flagged as unverifiable compiled clean --
+`std::sqrt`, `.triu(1)` on a `kBool` tensor, `torch::ones` with `long long` deducing
+to `IntArrayRef`, `torch::nn::LayerNormOptions(std::vector<int64_t>{D})` and
+`torch::gelu`. Cicili treats compiler chatter as fatal, so a clean build is also a
+warning-free one.
 
-| construct | doubt |
+What was checked, against libtorch 2.13.0 on CPU:
+
+| | |
 |---|---|
-| `std::sqrt` | needs `<cmath>`; almost certainly reached through `torch/torch.h`, not verified |
-| `.triu(1)` on a `kBool` tensor | supported in current PyTorch, not checked against the pinned version |
-| `torch::ones({T, T}, ...)` with `long long` | relies on `long long` == `int64_t` for the `IntArrayRef` deduction, true on Linux |
-| `torch::nn::LayerNormOptions(std::vector<int64_t>{D})` | the options form is from memory |
-| `torch::gelu` | the free function; `torch::nn::functional::gelu` is the other spelling |
+| it compiles | `sh modules/torch/build.sh` → `library/torch.so` |
+| a transformer builds | `model_new([sequence(8), embedding(20,16), positional, attention(4), ffn(32), dense(20, log_softmax)], M)` |
+| the spec round-trips | comes back as `positional(8)` -- the length filled in, which is what `model_load` needs |
+| it trains | a learnable 400-row task reaches nll 0.0000, accuracy 1.0000, so gradients reach the attention weights, the layernorms, the position embedding and through both residuals |
+| the mask is causal | `torch.ones(T,T,bool).triu(1)` masks strictly `j > i`; after the softmax, row *i* puts zero weight on every key above *i* and its weights sum to 1 |
+| nothing regressed | `test/torch.sh` and `test/torch-nets.sh` -- 23 networks -- stay green |
+
+**One honest nuance about the mask.** In this arrangement the dense head reads the
+LAST position, which legitimately sees the whole window, and the label is not in the
+window at all -- so a broken mask could not leak the answer here the way it would in
+a model trained on every position at once. The mask still shapes every intermediate
+representation, and it is right; but this particular head could not have caught it
+being wrong, which is why it was checked directly rather than inferred from a score.
 
 **Why the residual lives inside the layer.** `CtNet::forward` is a linear chain with
-a switch and no branching — there is nowhere to hold `x` while a side path computes
-`f(x)`. So a block is one layer kind and does `x = x + f(LN(x))` internally, rather
-than attention and residual being separate composable pieces.
+a switch and no branching -- there is nowhere to hold `x` while a side path computes
+`f(x)`. So a block is one layer kind doing `x = x + f(LN(x))` internally, rather than
+attention and residual being separate composable pieces.
 
 **Why not `torch::nn::MultiheadAttention`.** Its C++ frontend signature is
-version-sensitive — tuple return, and `batch_first` semantics that moved — and none
-of that can be checked here. `Linear` + `matmul` + `softmax` + `masked_fill` are
-stable ATen and the file already registers `Linear`.
+version-sensitive -- tuple return, and `batch_first` semantics that moved. `Linear` +
+`matmul` + `softmax` + `masked_fill` are stable ATen and the file already registers
+`Linear`. That choice was made to shrink the unverifiable surface and is kept now
+that there is a build, because the reason it was right has not changed.
 
 ## Building
 

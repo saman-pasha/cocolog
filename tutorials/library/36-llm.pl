@@ -169,10 +169,10 @@ main :-
     %% a model with no system prompt and nothing to say why. Writing a
     %% tutorial is what found it, which is the whole argument for the
     %% convention that a library gets one in the same commit.
-    llm_opt([], system, S0),
-    must('no system prompt unless you ask', S0, ''),
-    llm_opt([system('Be terse.')], system, S1),
-    must('and it is read now', S1, 'Be terse.'),
+    llm_opt([], system, SysNone),
+    must('no system prompt unless you ask', SysNone, ''),
+    llm_opt([system('Be terse.')], system, SysSet),
+    must('and it is read now', SysSet, 'Be terse.'),
     %% What it does is prepend a message, so it is exactly the shorthand
     %% it claimed to be -- checked here through the body builder, because
     %% that is where the difference shows.
