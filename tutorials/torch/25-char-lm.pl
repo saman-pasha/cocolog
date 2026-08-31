@@ -45,8 +45,12 @@
 %%
 %% SIZED FOR THE SUITE'S BUDGET. test/tutorials.sh allows `timeout 300'
 %% per goal, so the model is small on purpose: about four thousand
-%% training windows, ninety-six hidden units, forty epochs. On a CPU that
-%% is tens of seconds, not minutes.
+%% training windows, ninety-six hidden units, thirty epochs. That is about
+%% 471 GFLOP -- tens of seconds where libtorch is getting good throughput
+%% out of matrices this small, and comfortably inside the budget even on
+%% one slow core. The arithmetic is beside `clm_epochs/1' so the next
+%% person to change the corpus or the width can redo it rather than
+%% guess.
 %%
 %% NOT RUN. Like library(llm) and its tutorial, this was written in a
 %% tree with no built cocolog and no libtorch, so nothing here has been
@@ -73,7 +77,22 @@ clm_chunk(9, ' B = answered ; B = failed ),\n    must(\'').
 clm_context(16).
 clm_embed(16).
 clm_hidden(96).
-clm_epochs(40).
+%% THIRTY EPOCHS, AND THE NUMBER IS A BUDGET RATHER THAN A TASTE.
+%% test/tutorials.sh gives each goal `timeout 300', and a training run
+%% that overruns it FAILS in a way indistinguishable from a bug -- so the
+%% arithmetic is written down here rather than left for someone to redo:
+%%
+%%   4 gates * 96 hidden * (16 embed + 96 hidden)  =  43,008 MAC/timestep
+%%   * 16 timesteps + 96*77 dense                  = 695,520 MAC/sample
+%%   * 3765 samples * 3 (forward + backward) * 2   =  15.7 GFLOP/epoch
+%%
+%% At thirty epochs that is ~471 GFLOP: about 30 seconds where libtorch
+%% gets 15 GFLOP/s out of these small matrices, and about 95 on one slow
+%% core. Three times the budget in the bad case. Forty epochs measured
+%% only 2.4x and that is not enough margin for a number nobody watches.
+%% Raise it if you make the corpus bigger; recompute if you make the
+%% model wider.
+clm_epochs(30).
 clm_batch(64).
 clm_lr(0.006).
 %% The floor the `test' goal gates on. Uniform guessing over a vocabulary
