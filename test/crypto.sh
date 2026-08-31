@@ -267,6 +267,25 @@ certificates :-
     atom_concat(W, '/alice.crt', Crt),
     x509_keygen([], Key, Pub, Tries),
     yes('key generation reports its tries', integer(Tries)),
+    %% THE RETRY DISCRIMINATES, and this is the half of it that can be
+    %% checked deterministically. coco_x509_keygen draws again -- up to
+    %% eight times -- when RSAKG's qInv does not invert, because every
+    %% input to that draw is fresh and the answer to one bad draw is
+    %% another. It must NOT retry anything else: an unsupported
+    %% signature fails the same way every time, and eight goes at it
+    %% would spend eight prime searches (five seconds each, measured) to
+    %% arrive at the same error forty seconds later. So the error comes
+    %% back whole, and it comes back AT ONCE.
+    %% ITS OWN PATHS, because a refused draw must not be given the chance
+    %% to truncate the key every check below this one signs with.
+    atom_concat(W, '/bad.key', BadKey), atom_concat(W, '/bad.pub', BadPub),
+    (   catch(x509_keygen([signature('RSA-999')], BadKey, BadPub, _), BadE, true)
+    ->  true
+    ;   BadE = it_failed_instead_of_raising
+    ),
+    (   BadE = error(cocolog_error(BadMsg), _) -> true ; BadMsg = BadE ),
+    ok('a bad option comes back whole, and at once', BadMsg,
+       'x509_error: invalid signature algorithm RSA-999'),
     x509_csr(Subject, Key, [], Csr),
     yes('the request exists', exists_file(Csr)),
     x509_issue([serial(7), permission(read), permission('ledger.write')],

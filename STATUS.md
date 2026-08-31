@@ -376,6 +376,38 @@ finally exited. Found by writing `test/tls.sh`, whose harness waited for
 a READY that was sitting in a buffer. Interactively it had always
 worked, which is why nothing had noticed.
 
+### A key that does not divide is drawn again
+
+`x509_keygen/4` could throw `x509_error: coefficient is not invertible`
+and hand the caller a certificate error for something that has nothing to
+do with certificates. **Found downstream**: CivV's `fog` case issues two
+client certificates a run, and one draw in a batch of four failed that
+way -- one in twenty-six across everything measured here, which is rare
+enough to survive a suite and often enough to be somebody's red.
+
+**Where it comes from.** `RSA::RSAKG` ends with `qInv = inverse(q, p)`,
+and `BigInt::inverse` throws when its extended Euclid does not reach 1.
+Every input to that draw is fresh: `PG` picks p and q at random and
+proves them prime over 64 Miller-Rabin rounds. So the answer to a draw
+that does not divide is **another draw**, and `coco_x509_keygen` now
+takes up to eight of them.
+
+**IT RETRIES THAT AND NOTHING ELSE, on the message.** An unsupported
+signature, a path that will not open, a cipher the library does not have
+-- those fail the same way every time, and eight goes at one would spend
+eight prime searches to arrive at the same error forty seconds later. A
+key generation costs **2.6 to 7.8 seconds** on this box (twenty draws,
+median 5.3, mean 5.0), which is what makes the distinction worth making
+rather than retrying everything and hoping.
+
+`test/crypto.sh` pins the half that can be checked deterministically: a
+bad option comes back **whole and at once**, with the library's own
+message, rather than after eight draws. The retry itself cannot be
+forced from outside -- there is no way to make a random draw fail on
+demand -- so what is checked is that the discriminator works, and the
+eighth failure appends `-- eight independent draws, every one` so that a
+generator which is genuinely broken is not read as bad luck.
+
 ### Five things that cost time, and one finding not applied
 
 A `:cpp #t` target must declare the SDK's prototypes RAW inside
