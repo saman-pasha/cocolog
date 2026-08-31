@@ -14,6 +14,19 @@
 %% exits, and `generate' answers not_found. Every torch lesson here is run
 %% with --embed for exactly this reason.
 %%
+%% AND A STORE ACCUMULATES THE PROGRAM, NOT JUST THE WEIGHTS. `run FILE goal'
+%% CONSULTS the file, and under --embed every clause it reads is written
+%% through into the knowledge base -- so a second run against the same store
+%% appends a second copy of the whole tutorial, a third a third. That is
+%% merely slow while the file is unchanged. Edit the file between runs and it
+%% is a bug that looks like a model failure: consult appends, so the OLDEST
+%% definition is the one that matches, and the fix you just made is never
+%% reached. This file's sampler had a corrected cs_noise/2 sitting behind four
+%% stale copies of the broken one for an afternoon, and the samples went on
+%% being whitespace with the right code in the file. `listing(cs_noise/2)'
+%% against the store says so in one line. Run against a FRESH directory after
+%% an edit -- or run `main', which does everything in one process.
+%%
 %% THE QUESTION. Lessons 25 and 26 trained on English and tied at 51.1%. This
 %% asks a different one: train the same transformer on the .pl files in this
 %% repository -- the tutorials and the libraries, cocolog's own source -- and
@@ -242,9 +255,15 @@ cs_sum([W|Ws], S) :- cs_sum(Ws, S0), S is S0 + W.
 %% uncatchably fatal, not an error you can catch. This is the same sin-based
 %% hash lesson 22 uses: deterministic, so a run repeats, and uncorrelated
 %% enough across steps to sample with.
+%% THE abs/1 IS NOT DECORATION. truncate/1 rounds TOWARD ZERO, so for a
+%% negative S the fraction S - truncate(S) is NEGATIVE -- and a negative
+%% target makes cs_pick/4 match its first clause immediately, returning id 0
+%% every time. Id 0 is the lowest character code in the vocabulary, which here
+%% is a newline: the model was fine and the sampler emitted whitespace for
+%% half of all steps. Lesson 25 has the abs and this did not.
 cs_noise(Step, R) :-
     S is sin(Step * 12.9898 + 78.233) * 43758.5453,
-    R is S - truncate(S).
+    R is abs(S - truncate(S)).
 
 cs_pick([W|_], Target, Acc, 0) :- Acc + W >= Target, !.
 cs_pick([W|Ws], Target, Acc, Id) :-
