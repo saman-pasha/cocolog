@@ -222,6 +222,12 @@ def main(argv):
     if "--facts" in argv:
         import os as _os
         fp = _os.path.join(HERE, "traps.pl")
+        # Same staleness rule as build.py: traps.pl is generated from
+        # traps.jsonl and from this file, and nothing else can change it.
+        if "--if-stale" in argv and _os.path.exists(fp):
+            src = max(_os.path.getmtime(TRAPS), _os.path.getmtime(__file__))
+            if _os.path.getmtime(fp) >= src:
+                return 0
         with open(fp, "w", encoding="utf-8") as fh:
             fh.write(facts(rows))
         print("traps: wrote %s (%d patterns)"

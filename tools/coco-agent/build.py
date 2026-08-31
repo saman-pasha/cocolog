@@ -29,7 +29,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import clauses as R
+import ccbatch as R          # the clause reader, backed by clauses.pl
 
 ROOT = os.environ.get("COCOLOG_ROOT", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -113,11 +113,29 @@ def shape2_prolog_halves(files):
     The second guard is structural and cheap: a Prolog clause has a `('
     somewhere, or is a `:-' or a `-->'. A bare identifier is an atom, and an
     atom in a C string is not a program."""
+    # TWO PASSES, AND THE FIRST ONE IS THE WHOLE POINT. The reader is a cocolog
+    # process now, so asking it 525 times -- once per string literal in a
+    # *X-prolog* table -- would be 525 start-ups. Collect every fragment first,
+    # hand them over in ONE batch, then read the answers out of the cache.
+    pairs = _fragments(files)
+    R.prime([t for _, t in pairs])
     out = {}
+    for f, text in pairs:
+        for c in R.split_clauses(text):
+            if c.key() and not c.is_directive:
+                out.setdefault(c.key(), set()).add(f)
+    return out
+
+
+def _fragments(files):
+    """Every Prolog clause text inside a *X-prolog* DEFPARAMETER, with the file
+    it came from. Split out so build() can prime the WHOLE workload once:
+    shape2_prolog_halves is called for tier 1 and then once per module, and
+    each priming only its own fragments was fourteen cocolog start-ups."""
+    pairs = []
     for f in files:
-        src = open(f, encoding="utf-8", errors="replace").read()
+        src = R.read_source(f)
         for t in PROLOG_TABLE.finditer(src):
-            start = src.rfind("(", 0, t.end())
             start = t.start()
             region = src[start:_sexp_end(src, start)]
             for m in CICILI_STR.finditer(region):
@@ -128,11 +146,8 @@ def shape2_prolog_halves(files):
                     continue
                 if not text.endswith("."):
                     text += "."
-                for c in R.split_clauses(text):
-                    R.read_head(c)
-                    if c.key() and not c.is_directive:
-                        out.setdefault(c.key(), set()).add(f)
-    return out
+                pairs.append((f, text))
+    return pairs
 
 
 def shape3_strcmp(files):
@@ -168,6 +183,7 @@ def shape4_pl(files):
     are right about the mechanism and only one is right about the intent, so
     both must read the same list or they will drift apart."""
     out, hooks_out = {}, {}
+    R.prime([R.read_source(f) for f in files if os.path.exists(f)])
     for f in files:
         try:
             src, cls = R.read_file(f)
@@ -202,6 +218,14 @@ def build():
     mod_cicili = sorted(glob.glob(_p("modules", "*", "*.cicili")))
     swipl_pl = sorted(glob.glob(_p("lib", "swipl", "*.pl")))
     lib_pl = sorted(glob.glob(_p("library", "*.pl")))
+
+    # PRIME EVERY FILE ONCE, HERE. shape4_pl is called per library file so its
+    # answers can be keyed by module, and each call priming only its own file
+    # meant twenty-four cocolog start-ups for twenty-four small files. The
+    # cache is keyed by content, so one batch up front serves them all and the
+    # per-call prime below becomes a no-op.
+    R.prime([R.read_source(f) for f in swipl_pl + lib_pl if os.path.exists(f)]
+            + [t for _, t in _fragments(lib_cicili + mod_cicili)])
 
     t1_c = {}
     for d in (shape1_c_tables(lib_cicili), shape5_constructs()):
@@ -323,7 +347,41 @@ def facts(b):
     return "\n".join(out) + "\n"
 
 
+def inputs():
+    """Every file the blocklist is extracted from. If none is newer than the
+    blocklist, the blocklist is current."""
+    return (sorted(glob.glob(_p("lib", "*.cicili")))
+            + sorted(glob.glob(_p("modules", "*", "*.cicili")))
+            + sorted(glob.glob(_p("lib", "swipl", "*.pl")))
+            + sorted(glob.glob(_p("library", "*.pl")))
+            + [_p("tools", "coco-agent", "build.py"),
+               _p("tools", "coco-agent", "clauses.pl")])
+
+
+def is_stale():
+    """REBUILD ONLY WHEN SOMETHING CHANGED, and be honest about what `changed'
+    means: the sources the five shapes read, plus this file and clauses.pl,
+    because a change to either alters the answer without touching an input.
+
+    lint.sh rebuilt unconditionally, which cost nothing while the reader was
+    Python and costs four and a half seconds now that it is a cocolog process.
+    The guarantee it was buying -- never lint against a stale blocklist -- is
+    kept exactly: a missing output is stale, and so is one older than any
+    input. What is dropped is only the rebuilding when nothing moved."""
+    outs = [_p("tools", "coco-agent", "blocklist.json"),
+            _p("tools", "coco-agent", "blocklist.pl")]
+    if not all(os.path.exists(o) for o in outs):
+        return True
+    newest_out = min(os.path.getmtime(o) for o in outs)
+    for f in inputs():
+        if os.path.exists(f) and os.path.getmtime(f) > newest_out:
+            return True
+    return False
+
+
 if __name__ == "__main__":
+    if "--if-stale" in sys.argv and not is_stale():
+        sys.exit(0)
     b = build()
     out = _p("tools", "coco-agent", "blocklist.json")
     with open(out, "w") as fh:
@@ -333,6 +391,11 @@ if __name__ == "__main__":
     print("        %d clause-defined (redefinition appends)" % t1p)
     print("tier 2: %d libraries/modules, blocked only when imported" % len(b["tier2"]))
     print("hooks : %d declared extension points, excused in both halves" % len(b["hooks"]))
+    # THE PROCESS COUNT IS PRINTED so a regression in batching is visible
+    # rather than merely slow: the reader is a cocolog process, and the whole
+    # design is that there are two or three of them, not six hundred.
+    print("reader: %d documents through clauses.pl in %d process(es), %d cache hits"
+          % (R.STATS["documents"], R.STATS["processes"], R.STATS["cached"]))
     fp = _p("tools", "coco-agent", "blocklist.pl")
     with open(fp, "w") as fh:
         fh.write(facts(b))

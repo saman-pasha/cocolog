@@ -42,7 +42,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import clauses as R
+import ccbatch as R          # the clause reader, backed by clauses.pl
 
 ROOT = os.path.abspath(os.environ.get("COCOLOG_ROOT", os.path.join(HERE, "..", "..")))
 BIN = os.environ.get("COCOLOG_BIN", os.path.join(ROOT, "cocolog"))
@@ -74,6 +74,26 @@ def header_block(src):
     return "\n".join(out)
 
 
+def _prime_surface():
+    docs, srcs = [], []
+    for d in (TIER2_PL, TIER1_PL):
+        full = os.path.join(ROOT, d)
+        if not os.path.isdir(full):
+            continue
+        for name in sorted(os.listdir(full)):
+            if not name.endswith(".pl"):
+                continue
+            src = R.read_source(os.path.join(ROOT, d, name))
+            srcs.append(src)
+            for line in src.split("\n"):
+                m = DOC.match(line.rstrip())
+                if m and m.group(4) is not None:
+                    doc = R.arity_doc(m.group(4))
+                    if doc:
+                        docs.append(doc)
+    R.prime(srcs + docs)
+
+
 def documented(path, src):
     """name/arity this file documents, cross-checked against what it defines."""
     heads = set(R.heads(path))
@@ -97,6 +117,12 @@ def documented(path, src):
 
 
 def surface():
+    # PRIME BOTH TIERS AND EVERY DOC LINE IN ONE BATCH. documented() calls
+    # heads() per file and _arity() per doc comment -- about ninety of the
+    # latter -- and the reader is a cocolog process now, so each one on its own
+    # would be a start-up. The `p(...)' documents _arity sends are primed here
+    # too, which is what arity_doc/1 exists for.
+    _prime_surface()
     rows = []
     for tier, d in ((2, TIER2_PL), (1, TIER1_PL)):
         full = os.path.join(ROOT, d)
@@ -107,7 +133,7 @@ def surface():
                 continue
             rel = os.path.join(d, name)
             p = os.path.join(ROOT, rel)
-            src = open(p, encoding="utf-8", errors="replace").read()
+            src = R.read_source(p)
             h = header_block(src)
             rows.append({
                 "path": rel,
@@ -209,7 +235,7 @@ def exemplars(run=True):
         if not os.path.exists(p):
             bad.append("%s: does not exist" % row["path"])
             continue
-        src = open(p, encoding="utf-8", errors="replace").read()
+        src = R.read_source(p)
         i, j, b = resolve(row, src, row["path"])
         bad += b
         if i is None:

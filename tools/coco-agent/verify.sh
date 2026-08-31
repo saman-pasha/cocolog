@@ -74,7 +74,7 @@ if want G0; then
     HAS=$(GOAL="$GOAL" python3 -c '
 import sys, os
 sys.path.insert(0, os.environ["AGENT"])
-import clauses as R
+import ccbatch as R
 ks = set()
 for p in sys.argv[1:]:
     ks |= set(R.heads(p))

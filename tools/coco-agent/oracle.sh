@@ -51,7 +51,7 @@ VISIBLE=$(printf '%s\n' "$OUT" | sed -n 's/^coco_oracle_name \(.*\) \([0-9][0-9]
 DECLARED=$(python3 -c '
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath("'"$HERE"'/x")))
-import clauses as R
+import ccbatch as R
 ks = set()
 for p in sys.argv[1:]:
     ks |= set(R.heads(p))

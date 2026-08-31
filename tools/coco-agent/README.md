@@ -62,12 +62,28 @@ not guarded against — it cannot be written down.
 order, which is the order the interpreter itself uses: construct, then C table,
 then store. First-argument indexing does what a `dict` lookup did.
 
-**The Python stays as a differential oracle**, which is the role
-`test/trace-diff.py` already holds here — cocolog's suite checks its four-port
-trace byte-for-byte against swipl's. `build.py`, `index.py`, `traps.py` and
-`assemble.py` still use `clauses.py`, and a per-call adapter to `clauses.pl`
-measured **3.7 s against 0.19 s** (525 `split_clauses` calls, mostly small
-Cicili string fragments), so that is a follow-up and not a purity fix.
+**`build.py` and `index.py` read through `clauses.pl` too**, via `ccbatch.py`
+— an adapter that hands the whole workload to **one** cocolog process through
+a length-prefixed document stream. A per-call adapter would have been 615
+start-ups and measured 3.7 s against 0.19 s; batched it is 489 documents in
+**one** process. The blocklist and the surface index come out byte-identical.
+
+Getting to one process took two rounds of hoisting, both visible in the
+`reader:` line `build.py` now prints so a regression in batching is loud
+rather than merely slow: 24 processes because `shape4_pl` is called per
+library file, then 14 because `shape2_prolog_halves` is called per module, and
+one once both collections are hoisted into `build()`.
+
+**The cost is real and is paid once.** `build.py` went 0.19 s → 4.4 s, so
+`lint.sh` — which rebuilt the index unconditionally — went 0.25 s → 4.5 s for
+a single file. `--if-stale` keeps the guarantee that mattered (never lint
+against a stale blocklist: a missing or out-of-date output is rebuilt) and
+drops the waste. Cold 4.8 s, **warm 0.25 s**, and touching `lib/lists.cicili`
+correctly makes it cold again.
+
+**Two files deliberately do not use it.** `lint.py` and `equiv.sh` still import
+`clauses.py`, because they are the oracles `clauses.pl` is held to and an
+oracle that asked the thing it is checking would prove nothing.
 
 ## S1 is terms, not regexes
 
