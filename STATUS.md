@@ -35,6 +35,43 @@ different findings.
 | `test/astar.sh` | `library(astar)`: A* whose graph is two caller goals, held to an ORACLE -- on a costed hex grid, the heuristic search must answer the exact cost the exported Dijkstra answers across twelve varied pairs -- plus the laws: paths connect through the caller's own neighbor goal, costs sum, walls detour, unreachable fails, and the same question twice is the same path (the pinned tiebreak, observed) -- 7 checks |
 | `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 
+### One stack, three suites, one server
+
+The whole family, gated together on the day's pull rather than each on its
+own: **cicili `d9a08bf`, ZiguratIP `29a06fb`, cocolog `99268ef`**, built in
+that order — ZiguratIP `make MODE=Release`, then here `make`, `make schema`,
+`make modules` — and one server under all three runs.
+
+| | cases | |
+|---|---|---|
+| cocolog `make test` | **40**, no SKIP | `red: 0` |
+| The Coco `test/run.sh` | **19**, no SKIP | `red: 0` |
+| CivV `test/run.sh` | **32**, no SKIP | `red: 0` |
+
+`make modules` is a step of its own and was run as one: `make` does not
+rebuild the loadable modules, and a stale `library/tcp.so` is exactly what
+turned up as a red in the run before this one. The Coco's nine Cicili modules
+(`u256 keccak secp256k1 sha512 ed25519 sha256 ripemd160 blake2b spine`) were
+rebuilt against this SDK; CivV has nothing to compile, its `rules/gen/` being
+emitted by `rules/import.pl` on every run.
+
+**The first pass was `red: 1`, and it was debris rather than a regression** —
+worth recording because of how it was found. `zigurat` failed its 6000-byte
+Text round trip and the commit after it, and `list` said why in one line:
+
+```
+  citest-machine  suspended  1 chunk(s)  #8174
+  citest-machine  suspended  1 chunk(s)  #8171
+```
+
+Two rows of one name with DIFFERENT IDS — twins, not versions — left in the
+server store by runs made before the duplication above was fixed, and
+`machine_open` cannot replace a name that has two rows. Dropping them made
+the case green on its own and the suite green on the re-run, with no code
+touched. **The id in that line is why this took two minutes instead of a
+session**: it is new, added for exactly this, and without it the two lines
+would have been identical again.
+
 ## The three document libraries, and the round trip that checks them
 
 `library(json)`, `library(xml)` and `library(html)` write a term out as a
