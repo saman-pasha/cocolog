@@ -133,11 +133,14 @@
 :- use_module(library(curl)).
 :- use_module(library(json)).
 
-%% library(process) is wanted ONLY for retries(N) with N > 0. A missing
-%% tier-2 library is a WARNING and not a failure -- lib/kb.cicili:730
-%% prints "cocolog: use_module: cannot load %s (continuing)" -- so this
-%% directive degrades to an existence_error at the one call that needs
-%% it, and every other path in this file still works.
+%% library(process) is wanted ONLY for retries(N) with N > 0, and a
+%% missing one costs this file nothing: a library that is NOT FOUND is
+%% SILENT. coco_library_load answers -1 for it (lib/library.cicili:344-347)
+%% and lb_directive_hook maps anything but 0 to success (:450-452), so
+%% nothing is printed and the consult carries on. The warning at
+%% lib/kb.cicili:730 is for the OTHER case -- found, and would not load.
+%% Either way the absence surfaces at llm_sleep/1 as an existence_error
+%% naming proc_sleep/1, and every other path here still works.
 :- use_module(library(process)).
 
 :- dynamic llm_provider/3.
@@ -426,9 +429,12 @@ llm_opt(Options, retries, V) :-
 
 %% llm_store_chunked(+KB, +Key, +Text)
 %% A reply longer than a page, into the knowledge base as chunks -- the
-%% way lib/state.cicili splits a machine at 4000 bytes, and for the same
-%% reason: parsi/01-schema.parsi:23-30 says 8000 stores and 8192 is
-%% `allocation overflow'.
+%% way a machine travels, and for the same reason: parsi/01-schema.parsi:23-30
+%% says 8000 stores and 8192 is `allocation overflow'. The split is
+%% `*chunk-bytes* 4000' at lib/zigurat-kb.cicili:49, applied in coco_zg_save
+%% (:708, :736-738) -- NOT in lib/state.cicili, which produces one unbounded
+%% buffer and knows nothing about rows. The chunking belongs to the BACKEND,
+%% which is why --local has none of it.
 llm_store_chunked(_, _, _) :-
     throw(error(llm_error(not_implemented, llm_store_chunked/3), llm_store_chunked/3)).
 
