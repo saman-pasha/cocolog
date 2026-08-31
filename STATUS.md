@@ -808,6 +808,12 @@ it beside the counts:
 
 ### The duplication is not in the procedure, and here is the proof
 
+**Read "CLOSED: the ninety rows were cocolog's" under *What had to be fixed
+in ZiguratIP* before this section: the save-by-id change it measures never
+ran, so the measurement below is of the old path, and the conclusion drawn
+from it is wrong.** The section is kept as written, because the reasoning is
+worth having with its flaw visible.
+
 The obvious reading of 91 rows of one name was that `cocolog::machine_open`
 inserted them: it looks its predecessor up by name and deletes it by the id it
 found, so a lookup that misses inserts a second row instead of replacing the
@@ -997,7 +1003,87 @@ rather than worked around here. See its `doc/concurrency.md`.
   connected at once. The twelve did not get an error; they got silence until
   their own sockets timed out.
 
-### STILL OPEN: one machine's row comes back ninety times
+### CLOSED: the ninety rows were cocolog's -- the save that never ran
+
+The entry below this one filed the duplication as a ZiguratIP issue on the
+strength of one measurement: that with `machine_save` in place, a counter on
+the `machine_open` path printed four times a run and the rows appeared anyway.
+That measurement could not have measured what it says, and a review found
+why. `coco_zg_load` stores the header's id in `z->mid` and then re-attaches,
+and `coco_zg_attach` begins with `memset z 0` — so the id was 0 at every
+save, the `machine_save` branch was never entered, and every save was still a
+delete and an insert with a name lookup between, on both surfaces.
+
+Two facts that should have stopped the earlier reading: the embedded backend
+(`embed/embed.cicili`) had **no `machine_save` at all** — 2119129 touched
+`parsi/` and `zigurat-kb` only, and the dispatcher answers an unknown
+procedure with `no such procedure`, which the worker would have printed and
+died on — and yet embedded turns ran without one; and the embedded engine
+**has no B-tree on String columns** (the Parsi compiler ships the `name` and
+`kb` indexes commented out in `MVCCS-cicili/generated/cocolog-machines.cicili`),
+so in `--embed` the `UNIQUE KEY` on `name` was never enforced and every lookup
+by name is a table scan. "The store took the duplicates anyway" is that, and
+nothing deeper. Nor does `machine_list` print the id — the one column that
+tells twins (different ids) from versions (the same id) — so nobody looked.
+
+**What changed.** The id survives the re-attach; `machine_find` refuses more
+than one row of a name instead of silently keeping the last; the embedded
+backend has `run_machine_save`; `list` prints the id; `missing chunk` is
+MISSED and retried like the other half of its window; and the server's save
+is **one** UPDATE (`SET status, chunks, note`) rather than three, for the
+reason measured below.
+
+**Measured, embedded — `test/groups-embed.sh`, five runs in a row:** GREEN
+five times, no worker stopped, no machine left, and every group's total
+exactly its proof's length — a 34 ×5, b 24/24/24/24/25, c 61/60/60/60/60,
+d 59/60/59/60/59. The `missing chunk` window was hit in four runs of five,
+once each, and taken again. Six to seven seconds a run, where the run that
+grew ninety rows took ninety seconds.
+
+**Measured, over the server — `test/groups.sh`.** With the save as three
+UPDATEs: GREEN, but a kept-logs run showed **16 `no suspended machine`
+retries, 3 `machine_find: the server refused it: NULL value` refusals** (each
+a LOST turn and a reopen) and group totals of 82/99 and 71/62 against proofs
+of 60 and 59. With one UPDATE: three runs GREEN, the `NULL value` refusals
+**gone**, and the retries **69, 7 and 32** — still there, and still nowhere
+in this file's own earlier server runs, whose totals were exactly 60 and 59.
+A retry is a MISSED turn: nothing committed, the machine taken again, the
+answers still exactly once. But it is a claim wasted, and it appeared when a
+save became an UPDATE, which on the server is a new version and therefore a
+new entry in the hashed `name` and `kb` chains, edited in place. The embedded
+store, with no such chains, shows none of it. The visibility rules were read
+(`visible` → `read_committed` → `alive_at`) and are not where it was. The
+index-chain theory this paragraph first named was wrong too, and the hunt
+that settled it is written up in ZiguratIP's `doc/concurrency.md`: the
+engine's own `contention_test` (`rewrite vs index`) reproduced the family
+standalone — a row vanishing from an index it was never absent from, and a
+writer refused by its own unique key after reading a zeroed copy of a row
+it had itself just committed — and a probe inside `read_row` caught the
+cause in the act. **A private reader stream served a stale buffer**: a
+`std::filebuf` does not reload its cached get area on a seek inside it, so
+a reader whose block was cached while a fresh page held only its zero-fill
+kept answering zeros for a row committed and fsynced underneath it — once,
+healing on the next reload — and every symptom above is that one read,
+seen from different sides. Fixed in the engine: private readers are
+read-only MAPSTREAMS now (coherent by MAP_SHARED, length refreshed by
+fstat), the cursor's unlocked callback window routes its reads to the
+private reader instead of the canonical stream whose positions belong to
+whoever holds the lock, and `visible`, the value-chain walk and the
+node/key reads go through the `hex_in`/`data_in` accessors rather than
+seeking the canonical streams directly.
+
+**Measured after the fix.** The engine's build gate whole-green (unit,
+consumer, contention, ageing; carry-over SKIPs without its golden pair),
+and `contention_test` at zero failures over twenty rc-checked runs, both
+store kinds. Over the server, `test/groups.sh` three times: totals exactly
+34/24/60/59 — the proofs' own lengths — **zero** `no suspended machine`,
+**zero** `missing chunk`, **zero** lost connections, where the day began
+at 7–69 retries a run. Embedded, `test/groups-embed.sh` three times: the
+same exact totals and **zero** `missing chunk` — the residual window this
+file's MISSED retry was built for no longer occurs in the arrangement that
+measured it.
+
+### The earlier entry, as filed: one machine's row comes back ninety times
 
 **The one thing in this file that is reproduced, narrowed, and NOT FIXED.** It
 belongs in ZiguratIP; cocolog has been ruled out by measurement rather than by
@@ -2856,6 +2942,32 @@ is 14000), which is how it has always read and is worth a look.
 * **No garbage collection.** The heap only grows within a solution; it is
   reclaimed on backtracking and on a new query. A long deterministic run that
   builds structure will grow until it ends.
+
+### Two reds from one morning's pull, on the Mac
+
+Both arrived with the day's commits and both were red on the pre-change tree
+as well as the changed one, which is how they were told apart from the
+machine work above.
+
+* **`tcp`: `a non-integer in the byte list is named, not walked after free`
+  answered nothing at all.** Not a wrong answer — an absent one. The check
+  pins a use-after-free that "answered correctly anyway" on Linux, and on this
+  Mac the freed read ended the query instead. But the module under test was
+  `library/tcp.so` of the evening *before* the fix: `make` builds the client
+  and `cocolog`, and **`make modules` is a separate step** the pull does not
+  imply. Rebuilt, the case is GREEN with no change to anything. Worth
+  knowing before the next hunt: a red in a `library/*.so` case after a pull
+  is a stale module until proven otherwise.
+* **`tunnel`: nine reds, every one the same second.** The edge stand-in is a
+  `python3` process given a fixed `sleep 1` before the query, and this Mac's
+  `python3` is a pyenv shim that takes two to four seconds to start. The
+  query met nothing on the port, `Connection refused` read as a routing
+  failure, and the kill at the end of the check reached the edge before it
+  had printed a line — which is why the edge's own output file was empty
+  rather than wrong. `test/tunnel.sh` now waits for the edge to say `edge up`
+  (or `CANNOT BIND`, on port 80 without privilege, so that SKIP is decided on
+  what the edge said rather than on what it had not said yet), fifteen
+  seconds at most and well under one in practice. GREEN, port 80 SKIP.
 
 ## Not started
 
