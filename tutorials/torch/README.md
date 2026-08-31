@@ -1,4 +1,4 @@
-# Torch: twenty-six networks, one file each
+# Torch: twenty-seven networks, one file each
 
 *One of three tutorial categories — `../basics/` is the language,
 `../library/` is what ships, and this is the deep end.*
@@ -48,6 +48,7 @@ and every run agrees with the last.
 | 24-q-learning | reinforcement learning: fitted Q-iteration on a gridworld |
 | 25-char-lm | a character-level language model, trained on cocolog itself |
 | 26-char-transformer | the same model as a transformer, and what that does and does not buy |
+| 27-induction | where attention actually wins, and the two-layer circuit it needs |
 
 One cocolog property every file here respects: `run` CONSULTS the file
 into the knowledge base, and the knowledge base is the store -- so the

@@ -5,7 +5,7 @@
 #             database, no build flag.
 #   library/  thirty-three files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
-#   torch/    twenty-six networks, THREE processes each and a store per
+#   torch/    twenty-seven networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
 #             and judges it, predict reloads and answers.
 #
@@ -99,7 +99,7 @@ done
 # ---- torch: three processes and a store each --------------------------
 if [ "$HAVE_TORCH" = no ]; then
   skipped=$((skipped + 1))
-  echo "SKIP  torch/ (26 tutorials, no torch module)"
+  echo "SKIP  torch/ (27 tutorials, no torch module)"
 else
   for pl in "$ROOT"/tutorials/torch/[0-9]*.pl; do
     name=torch/$(basename "$pl" .pl)
