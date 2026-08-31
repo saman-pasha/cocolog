@@ -183,7 +183,8 @@ llm_chat(Messages, Options, Reply) :-
 
 %% llm_chat_full(+Messages, +Options, -Status, -Json) is det.
 %% The status is answered, never checked, and never hidden.
-llm_chat_full(Messages, Options, Status, Json) :-
+llm_chat_full(Messages0, Options, Status, Json) :-
+    llm_with_system(Options, Messages0, Messages),
     llm_check_messages(Messages),
     llm_opt(Options, provider, Provider),
     (   llm_provider(Provider, Endpoint, KeyVar)
@@ -276,16 +277,34 @@ llm_first_text([json(Block)|Rest], Reply) :-
 %% Several header(H) options are collected by curl_headers/2 with a
 %% findall (modules/curl/curl.cicili:106), so one option per header is
 %% the right shape and the joining is not ours to do.
+%% NO Content-Type HERE. `curl_post/6' builds one from its Type argument
+%% and puts it at the FRONT of the option list --
+%% `atom_concat('Content-Type: ', Type, H), curl_request(post, Url,
+%% [body(Data), header(H)|Opts], ...)' (modules/curl/curl.cicili:76) -- so a
+%% content-type added here was a SECOND one on every request. Which header a
+%% given server honours when it receives two is not something to find out in
+%% production.
 llm_headers(anthropic, Key, [header(KeyHeader),
-                             header('anthropic-version: 2023-06-01'),
-                             header('content-type: application/json')]) :-
+                             header('anthropic-version: 2023-06-01')]) :-
     atom_concat('x-api-key: ', Key, KeyHeader).
 
-llm_headers(openai, Key, [header(KeyHeader),
-                          header('content-type: application/json')]) :-
+llm_headers(openai, Key, [header(KeyHeader)]) :-
     atom_concat('Authorization: Bearer ', Key, KeyHeader).
 
 %% ---- the plumbing ------------------------------------------------------
+
+%% llm_with_system(+Options, +Messages, -Messages1)
+%% `system(Text)' was documented in the header block from the first commit
+%% and implemented NOWHERE -- no llm_opt/3 clause, no reader, no effect. It
+%% was silently ignored, which is the worst of the three possible
+%% behaviours: a caller who set it got a model with no system prompt and
+%% nothing to say why. Found by writing tutorials/library/36-llm.pl, which
+%% is what the tutorials are for.
+llm_with_system(Options, Ms, Ms1) :-
+    (   memberchk(system(Text), Options)
+    ->  Ms1 = [msg(system, Text)|Ms]
+    ;   Ms1 = Ms
+    ).
 
 %% llm_key(+KeyVar, -Key)
 %% Read at the call. Never asserted, never answered to a caller.
@@ -420,6 +439,8 @@ llm_opt(Options, max_size, V) :-
     ( memberchk(max_size(V0), Options) -> V = V0 ; V = 16777216 ).
 llm_opt(Options, retries, V) :-
     ( memberchk(retries(V0), Options) -> V = V0 ; V = 0 ).
+llm_opt(Options, system, V) :-
+    ( memberchk(system(V0), Options) -> V = V0 ; V = '' ).
 
 %% ---- NOT IMPLEMENTED ---------------------------------------------------
 %%
