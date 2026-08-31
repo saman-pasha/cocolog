@@ -45,6 +45,44 @@ class Clause:
         return "Clause(%s at %d:%d)" % (self.key(), self.line, self.col)
 
 
+def _charlit(s, i):
+    """A 0'c character literal starts at I: answer the offset just past it, or
+    None if one does not start there.
+
+    THE LENGTH IS NOT ALWAYS THREE, and assuming it was cost a wrong arity on
+    every clause with an escaped quote in its arguments. Four cases, two of
+    them four characters long: 0'a and 0'' are three; 0''' (a doubled quote)
+    and 0'\\n (a backslash escape) are four.
+
+    split_clauses had this right. _balanced, _arity and lexical_regions each
+    carried their own copy that always skipped three, so
+
+        p([0'\\',0'\\'|T]) --> q.
+
+    read as p/1 PLAIN where the store holds p/3 DCG: the escaped quote opened
+    a quote that swallowed the rest of the argument list, _balanced never
+    found the closing paren, and the --> was never seen. A wrong arity is the
+    one error this reader exists to prevent, because it is what turns a real
+    collision into a miss.
+
+    Found by the collision oracle disagreeing with BOTH scanners at once,
+    which is the only thing that could have found it: the equivalence check
+    against the cocolog rewrite stayed green throughout, because the rewrite
+    reproduced the bug faithfully.
+
+    One helper, four call sites. A file with four scanners in it is a file
+    where three of them are wrong.
+    """
+    n = len(s)
+    if not (i + 1 < n and s[i] == "0" and s[i + 1] == "'"):
+        return None
+    if i + 2 < n and s[i + 2] == "'":
+        return i + 4 if (i + 3 < n and s[i + 3] == "'") else i + 3
+    if i + 2 < n and s[i + 2] == "\\":
+        return i + 4
+    return i + 3
+
+
 def _line_col(src, offset):
     """The interpreter only ever reports a BYTE OFFSET -- `syntax error at
     offset %lu' (lib/syntax.cicili:589) -- and there are no line numbers
@@ -82,13 +120,9 @@ def split_clauses(src):
 
         # 0'c is a character literal: the quote is not a quote. 0'' and 0'\n
         # are the two that catch people (emacs/cocolog-mode.el says so too).
-        if c == "0" and i + 1 < n and src[i + 1] == "'":
-            if i + 2 < n and src[i + 2] == "'":
-                i += 4 if (i + 3 < n and src[i + 3] == "'") else 3
-            elif i + 2 < n and src[i + 2] == "\\":
-                i += 4
-            else:
-                i += 3
+        j = _charlit(src, i)
+        if j is not None:
+            i = j
             continue
 
         if c == "%":
@@ -156,8 +190,9 @@ def _arity(argtext):
                 inq = None
             i += 1
             continue
-        if c == "0" and i + 1 < len(argtext) and argtext[i + 1] == "'":
-            i += 3
+        j = _charlit(argtext, i)
+        if j is not None:
+            i = j
             continue
         if c in "'\"`":
             inq = c
@@ -271,8 +306,9 @@ def _balanced(s):
                 inq = None
             i += 1
             continue
-        if c == "0" and i + 1 < len(s) and s[i + 1] == "'":
-            i += 3
+        j = _charlit(s, i)
+        if j is not None:
+            i = j
             continue
         if c in "'\"`":
             inq = c
@@ -321,13 +357,8 @@ def lexical_regions(src):
     i, n = 0, len(src)
     while i < n:
         c = src[i]
-        if c == "0" and i + 1 < n and src[i + 1] == "'":
-            if i + 2 < n and src[i + 2] == "'":
-                j = i + (4 if (i + 3 < n and src[i + 3] == "'") else 3)
-            elif i + 2 < n and src[i + 2] == "\\":
-                j = i + 4
-            else:
-                j = i + 3
+        j = _charlit(src, i)
+        if j is not None:
             out.append((i, min(j, n), "quote"))
             i = j
             continue
