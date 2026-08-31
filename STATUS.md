@@ -806,6 +806,52 @@ it beside the counts:
      c2: STOPPED after 1 turn(s): a turn failed -- see stderr
 ```
 
+### The duplication is not in the procedure, and here is the proof
+
+The obvious reading of 91 rows of one name was that `cocolog::machine_open`
+inserted them: it looks its predecessor up by name and deletes it by the id it
+found, so a lookup that misses inserts a second row instead of replacing the
+first. `name` is a `UNIQUE KEY` and the store took the duplicates anyway, which
+should have been the first clue.
+
+**Two fixes were written for that reading. Neither worked, and the second one
+is what settled the question.**
+
+* **Delete the header by NAME rather than by the looked-up id.** Written,
+  compiled through `make schema`, measured: **87 rows on the fifth run**. Of
+  course — it is the same lookup.
+* **Do not look it up at all.** A worker already holds the id: it read it out
+  of `machine_find` when it loaded the machine, and it is the id the claim
+  marked. `cocolog::machine_save` takes that id and UPDATEs by PRIMARY KEY —
+  no delete, no insert, no second row possible — and `coco_zg` carries the id
+  on the attachment (`mid`), set by the load and cleared by a drop. A machine's
+  id is now stable for its whole life instead of changing every turn.
+
+  **And the duplication still happened**: two runs of six in one batch and
+  four of four in the next, at 88, 89, 90, 92 and 95 rows.
+
+So a counter was put on the fall-through to `machine_open`. It prints **exactly
+four times a run** — once per machine, from `cocolog start`. **After those four
+there is no INSERT into `cocolog::machines` at all**, and the table still comes
+back with ninety rows of one name.
+
+**Rows nothing inserted are not rows cocolog put there**, and that is as far as
+the measurement goes — but it is far enough to move the search. Whatever those
+ninety are, they come out of the store's own row versioning: an UPDATE stages a
+new version, and a reader that walks dead versions as live would answer exactly
+this. The exact mechanism inside MVCCS is NOT pinned here and should not be
+quoted as though it were; what is pinned is that no procedure in `parsi/` can
+be the cause, because none of them runs. It smells like the two ZiguratIP
+findings this file already carries — the snapshotted page walk and the tearable
+index chain edits — and it is **not fixed**.
+
+**What the save-by-id change is worth, stated honestly.** It removes a real way
+for a second row to be created, it stops the `name` UNIQUE index being deleted
+and re-inserted on every single turn, and it gives a machine a stable id. It
+does **not** fix the duplication above, and it does **not** reduce the
+transient-read rate: `missing chunk 3 of 4` still arrives about twice per
+machine per run, measured before and after. Both of those are the store's.
+
 **The two group cases fail for different reasons, and the distinction is the
 point.** `groups.sh`'s twelve processes showed NO deaths over five runs — a
 turn over a socket is slow enough that the mid-save window is a much smaller
