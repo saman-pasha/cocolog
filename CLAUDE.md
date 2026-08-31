@@ -994,12 +994,12 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has three categories and `test/tutorials.sh` runs all
-seventy-five files as one suite case:
+seventy-six files as one suite case:
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | thirty-seven lessons, one per library that ships | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | thirty-eight lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | twenty-seven networks, three processes each | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:

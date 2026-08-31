@@ -98,9 +98,9 @@ SELF=$(sh "$AGENT/lint.sh" "$AGENT/selftest/traps.pl" 2>&1)
 GOT=$(echo "$OUT" | sed -n 's/^\([^ :]*\):[0-9]*:[0-9]* \(HARD\|WARN\) \([A-Z0-9]*\) \(\[[A-Z0-9]*\] \)\?.*/\1 \2 \3 \4/p' \
       | sed 's/ *$//' | sort)
 
-# ---- the seventeen, and why each is kept rather than silenced ------------
+# ---- the nineteen, and why each is kept rather than silenced -------------
 #
-# TEN OF THE SEVENTEEN ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
+# TWELVE OF THE NINETEEN ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
 # ENFORCES, which is the most satisfying kind of true positive there is --
 # and a standing argument that the rules point at real divergences, because
 # somebody thought each one worth a lesson:
@@ -109,6 +109,13 @@ GOT=$(echo "$OUT" | sed -n 's/^\([^ :]*\):[0-9]*:[0-9]* \(HARD\|WARN\) \([A-Z0-9
 #                       that the failure-driven loop removes exactly ONE
 #                       clause. The lesson IS the finding.
 #   library/04 S1 [F1]  `~t~20|' inside a catch/3 demonstrating the refusal.
+#   37-lint    S1 [H1] x2  the tutorial FOR the linter, writing `lit(halt)'
+#                       as a pattern term. H1 looks for halt after one of
+#                       ` \t\n,(;>' and a `(' is one of those, so naming the
+#                       trap in the notation that catches it trips it. The
+#                       alternative is to obscure the pattern the lesson
+#                       exists to show, which is a worse trade than one line
+#                       in this list.
 #   basics/04, 21-bigint, 25-der  A1 x6  `1000000000000000000 * 997' and the
 #                       wrapped answer, which 25-der calls "a wrong answer
 #                       returned confidently".
@@ -154,6 +161,8 @@ tutorials/library/29-ray.pl HARD S1 [H1]
 tutorials/library/30-hex.pl HARD S1 [H1]
 tutorials/library/31-astar.pl HARD S1 [H1]
 tutorials/library/36-llm.pl WARN Z1 [Z1]
+tutorials/library/37-lint.pl HARD S1 [H1]
+tutorials/library/37-lint.pl HARD S1 [H1]
 EOF
 )
 
