@@ -1,7 +1,7 @@
 %% 25. A character-level language model, trained on cocolog itself
 %%
 %%   train    read the corpus, learn next-character prediction, save as t25_charlm
-%%   test     reload, next-character accuracy on HELD-OUT text, floor 20%
+%%   test     reload, next-character accuracy on HELD-OUT text, floor 40%
 %%   predict  reload, generate cocolog one character at a time
 %%
 %% WHAT THIS IS. A language model in the strict sense and the smallest
@@ -21,9 +21,11 @@
 %%
 %% WHAT IT IS NOT. It is not a transformer: `model_spec' has no attention
 %% and no layer normalisation (modules/torch/README.md lists the layer
-%% vocabulary, and neither is in it). It has no tokeniser -- there is not
-%% one anywhere in this tree -- which is exactly why the tokens here are
-%% characters. And at four thousand characters of training text it will
+%% vocabulary, and neither is in it). It has no SUBWORD tokeniser --
+%% there is not one anywhere in this tree -- which is exactly why the
+%% tokens here are characters. (Lexical tokenizers there are: cocolog's
+%% own reader, library(html)'s. Neither is the kind a language model
+%% means by the word.) And at four thousand characters of training text it will
 %% learn the TEXTURE of cocolog, not its grammar: balanced-ish
 %% parentheses, `:-' after a head, lowercase runs, a full stop before a
 %% newline. Expect something that looks like Prolog from across the room
@@ -45,7 +47,11 @@
 %% 06-findall-and-friends.pl -- three files, not the four an earlier
 %% draft of this line claimed. library/astar.pl was on the list and fell
 %% off the end of the 4200-character cut, which is exactly the kind of
-%% thing a header claims and nobody checks.
+%% thing a header claims and nobody checks. The text is also cut at the
+%% 520-character chunk boundaries rather than at clause boundaries, so
+%% the `must/3' inside it lost the line its else-branch needed and is not
+%% readable Prolog. Harmless to a character model, which is learning
+%% shapes; worth saying because "IS cocolog" invites you to check.
 %%
 %% SIZED FOR THE SUITE'S BUDGET. test/tutorials.sh allows `timeout 300'
 %% per goal, so the model is small on purpose: about four thousand
@@ -92,29 +98,47 @@ clm_hidden(96).
 %%
 %% At thirty epochs that is ~471 GFLOP: about 30 seconds where libtorch
 %% gets 15 GFLOP/s out of these small matrices, and about 95 on one slow
-%% core. Three times the budget in the bad case. Forty epochs measured
-%% only 2.4x and that is not enough margin for a number nobody watches.
+%% core. That is a threefold MARGIN in the bad case -- 95s against 300s,
+%% not three times over it. Forty epochs works out to only 2.4x, which is
+%% not enough for a number nobody watches. Neither figure was measured:
+%% nothing in this file has been run.
 %% Raise it if you make the corpus bigger; recompute if you make the
 %% model wider.
 clm_epochs(30).
 clm_batch(64).
 clm_lr(0.006).
-%% The floor the `test' goal gates on. Uniform guessing over a vocabulary
-%% of 77 is 1.3%, so 20% is about fifteen times chance and cannot be
-%% reached without having learned something about cocolog.
+%% THE BASELINES, AND WHY UNIFORM IS THE WRONG ONE.
 %%
-%% IT IS DELIBERATELY BELOW WHAT THE MODEL SHOULD SCORE. The corpus is
-%% three files concatenated in order, so the last 419 windows are the end
-%% of the findall lesson and were never trained on. That is a real
-%% holdout -- text the model has not seen -- but it is a MILD shift and
-%% not the hard one an earlier draft of this comment claimed: all three
-%% files are basics tutorials in the same register, with the same must/3
-%% and format/2 furniture throughout. So 20% is a conservative floor for
-%% a fair-ish holdout rather than a generous one for a hard holdout.
-%% What is deliberately NOT done is shuffling the windows before the
-%% split, because a holdout that is a shuffled copy of the training set
-%% is how a model gets credit for memorising.
-clm_floor(0.20).
+%% An earlier version of this file gated on 20% and argued it was "about
+%% fifteen times chance" because uniform over 77 characters is 1.3%. That
+%% argument is worthless and the number was very nearly a disaster:
+%% ALWAYS PREDICTING A SPACE scores 20.05% on this held-out set. The gate
+%% would have been passed, in full green, by a model that had learned
+%% nothing whatsoever about cocolog.
+%%
+%% Uniform is the baseline for a model that has not seen the DATA. The
+%% baselines that matter are the ones a trivial model reaches after
+%% seeing it, and for character prediction over source code they are much
+%% higher than instinct suggests. All three below were computed over this
+%% exact embedded corpus, from the same 3765/419 split the code makes:
+%%
+%%   uniform over 77 characters                     1.30%
+%%   always predict the training majority (a space) 20.05%
+%%   bigram argmax (previous character only)        32.94%
+%%
+%% So the floor is 40%: above the bigram model by seven points, which is
+%% the first number that cannot be reached without using CONTEXT. Sixteen
+%% characters of it, which is what the lstm is for.
+%%
+%% These are constants because the corpus is embedded and fixed. Change
+%% the corpus and they are wrong -- recompute them, do not scale them.
+%% Read inside forall/2, whose inner negation commits to the first
+%% solution -- which is what keeps these printing once each after a
+%% re-consult has left three copies of every fact in the store.
+clm_baseline(uniform,      0.0130).
+clm_baseline(always_space, 0.2005).
+clm_baseline(bigram,       0.3294).
+clm_floor(0.40).
 
 %% ---- corpus, vocabulary, ids ---------------------------------------------
 
@@ -204,11 +228,16 @@ train :-
     model_train(M, XTr, YTr,
                 [epochs(E), batch(B), lr(LR), optimiser(adam),
                  loss(nll), shuffle(true), final_loss(L)]),
-    %% NLL IS IN NATS, so it is directly comparable with the log of the
-    %% vocabulary size -- which is what a model that had learned nothing
-    %% would score. Printing both is the cheapest honest summary there is.
+    %% NLL IS IN NATS, and it wants TWO comparators, because only the
+    %% second is about language. log(77) = 4.3438 is what an UNTRAINED
+    %% model scores. The entropy of this corpus's character frequencies is
+    %% 3.4288, which is what a model that learned only which characters
+    %% are common would score -- no sequence structure at all. Beating the
+    %% first proves the optimiser ran; only beating the second proves
+    %% something was learned about cocolog.
     Uniform is log(V),
-    format("final nll ~4f   (uniform would be ~4f)~n", [L, Uniform]),
+    format("final nll ~4f~n", [L]),
+    format("   untrained ~4f;  character frequencies alone 3.4288~n", [Uniform]),
     model_save(t25_charlm, M),
     write(saved), nl.
 
@@ -216,21 +245,35 @@ train :-
 
 test :-
     model_load(t25_charlm, M),
-    clm_data(_, V, X, Y, N),
+    %% V is not wanted here any more: the baselines are constants beside
+    %% clm_floor/1 rather than 1/V computed on the spot, which is the
+    %% whole of what that CRITICAL finding was about.
+    clm_data(_, _, X, Y, N),
     clm_split(N, NTrain),
     tensor_rows(X, NTrain, N, XTe),
     tensor_rows(Y, NTrain, N, YTe),
     model_evaluate(M, XTe, YTe, accuracy, A),
-    Chance is 1.0 / V,
-    Pct is truncate(A * 100 + 0.5),
-    ChancePct is truncate(Chance * 1000 + 0.5) / 10.0,
-    format("held-out next-character accuracy ~w%  (chance ~w%)~n",
-           [Pct, ChancePct]),
+    Pct is truncate(A * 1000 + 0.5) / 10.0,
+    format("held-out next-character accuracy ~w%~n", [Pct]),
+    %% PRINTED BESIDE THE BASELINES, ALWAYS. A score with no comparator is
+    %% a decoration, and the comparator that matters is not chance -- it
+    %% is what a trivial model reaches after seeing the same data.
+    forall(member(Name-Label,
+                  [uniform-'uniform over the vocabulary',
+                   always_space-'always predict a space',
+                   bigram-'bigram argmax (no context)']),
+           ( clm_baseline(Name, BV),
+             BPct is truncate(BV * 1000 + 0.5) / 10.0,
+             format("   vs ~w: ~w%~n", [Label, BPct]) )),
     clm_floor(Floor),
     FloorPct is truncate(Floor * 100 + 0.5),
     (   A >= Floor
-    ->  write(ok), nl
-    ;   format("BELOW THE FLOOR of ~w%~n", [FloorPct]), write('FAIL'), nl, halt(1)
+    ->  format("above the ~w% floor, and so above the bigram model~n", [FloorPct]),
+        write(ok), nl
+    ;   format("BELOW THE FLOOR of ~w%~n", [FloorPct]),
+        format("A score at or under the bigram baseline means the context~n"),
+        format("is not being used, which is the whole of what this is.~n"),
+        write('FAIL'), nl, halt(1)
     ).
 
 %% ---- generation ----------------------------------------------------------
