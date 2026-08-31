@@ -6,7 +6,7 @@ Three categories, in the order you would read them.
 |---|---|---|
 | [`basics/`](basics/) | the language: eleven lessons, no library needed | `./cocolog run tutorials/basics/01-facts-and-rules.pl main` |
 | [`library/`](library/) | thirty-two lessons, one per library that ships | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/01-lists.pl main` |
-| [`torch/`](torch/) | twenty-four neural networks, three processes each | `./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train` |
+| [`torch/`](torch/) | twenty-five neural networks, three processes each | `./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train` |
 
 ## EVERY TUTORIAL IS A TEST, and that is the design
 
