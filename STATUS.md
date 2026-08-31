@@ -852,6 +852,14 @@ does **not** fix the duplication above, and it does **not** reduce the
 transient-read rate: `missing chunk 3 of 4` still arrives about twice per
 machine per run, measured before and after. Both of those are the store's.
 
+Gated at `red: 0` over all 40 case lines with no SKIP and the server up —
+`state`, `zigurat`, `shared`, `tunnel`, `tensors`, `zigurat-lib`,
+`zigurat-tls`, `groups` and `ruler` among them, which are the cases that
+travel this path. The commit that carried the change was pushed before that
+run finished and said so; this is the run landing. The open issue itself is
+filed under **What had to be fixed in ZiguratIP** below, where the next
+session will look for it.
+
 **The two group cases fail for different reasons, and the distinction is the
 point.** `groups.sh`'s twelve processes showed NO deaths over five runs — a
 turn over a socket is slow enough that the mid-save window is a much smaller
@@ -988,6 +996,53 @@ rather than worked around here. See its `doc/concurrency.md`.
 * **`SERVER/POOL_SIZE` shipped as 5**, which is the most clients that can be
   connected at once. The twelve did not get an error; they got silence until
   their own sockets timed out.
+
+### STILL OPEN: one machine's row comes back ninety times
+
+**The one thing in this file that is reproduced, narrowed, and NOT FIXED.** It
+belongs in ZiguratIP; cocolog has been ruled out by measurement rather than by
+argument, and this entry is here so the next session starts where this one
+stopped instead of re-deriving it.
+
+**The symptom.** Twelve `cocolog swarm` threads, three per machine, over an
+embedded store: one machine's name comes back from
+`SELECT name, status, chunks FROM cocolog::machines WHERE kb == ...` **eighty to
+ninety-five times**. Each copy is claimable, so its three workers keep finding
+work — **3400 turns for a proof that needs sixty** — and one of the group's
+answers (`ancestor(pat,zoe)`) went missing. `name` is declared `UNIQUE KEY`.
+
+**How to reproduce**, in about ninety seconds a run: four machines started in a
+fresh `--embed` store, twelve `swarm` workers at `--steps 1`, then
+`cocolog list | grep '^  state-' | sort | uniq -c`. It needs the worker to
+RETRY a transient load rather than exit — see "The swarm's yield is fine"
+above — because on master the worker dies first and the concurrency never gets
+high enough. Two runs in six with the retry, four in four in a second batch.
+
+**What has been ruled out.**
+
+* Not `machine_open` inserting a duplicate after a missed lookup. That was the
+  first theory, and the counter that settled it prints **four times a run** —
+  once per machine, from `cocolog start`. Once a machine exists, cocolog
+  performs **no INSERT into `cocolog::machines` at all**; every save is now an
+  UPDATE by primary key.
+* Not the delete-by-id in the old procedure: deleting by NAME instead was
+  written, compiled through `make schema`, and measured at **87 rows on the
+  fifth run**.
+* Not two workers both claiming and both saving through `machine_open` — same
+  counter, same four calls.
+
+**What is left**, and it is stated as the direction rather than the finding:
+the rows come out of the store's own versioning of one row. An UPDATE stages a
+new version, and a reader that walked dead versions as live would answer
+exactly this. **The mechanism inside MVCCS is not pinned** and must not be
+quoted as though it were. The two neighbours to read first are the ones this
+file already carries: the scan with no fixed view, and the index chain edited
+in place.
+
+**What it blocks.** The worker that dies on a transient load
+(`missing chunk 3 of 4`) cannot be made to retry until this holds — retrying is
+correct and it is what turns this from rare into common. So the death stays,
+and with it the uneven turn counts of `test/groups-embed.sh`.
 
 ## Modules, and the Files library
 
