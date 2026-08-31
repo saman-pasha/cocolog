@@ -1,7 +1,7 @@
 %% 25. A character-level language model, trained on cocolog itself
 %%
 %%   train    read the corpus, learn next-character prediction, save as t25_charlm
-%%   test     reload, next-character accuracy on HELD-OUT text, floor 25%
+%%   test     reload, next-character accuracy on HELD-OUT text, floor 20%
 %%   predict  reload, generate cocolog one character at a time
 %%
 %% WHAT THIS IS. A language model in the strict sense and the smallest
@@ -41,7 +41,11 @@
 %% test/tutorials.sh does not `cd' to the repository root the way the
 %% basics loop does -- so a relative path here would work from one
 %% directory and fail from every other. The text below IS cocolog: it is
-%% drawn from tutorials/basics/01, 03, 06 and library/astar.pl.
+%% drawn from tutorials/basics/01-facts-and-rules.pl, 03-lists.pl and
+%% 06-findall-and-friends.pl -- three files, not the four an earlier
+%% draft of this line claimed. library/astar.pl was on the list and fell
+%% off the end of the 4200-character cut, which is exactly the kind of
+%% thing a header claims and nobody checks.
 %%
 %% SIZED FOR THE SUITE'S BUDGET. test/tutorials.sh allows `timeout 300'
 %% per goal, so the model is small on purpose: about four thousand
@@ -99,42 +103,55 @@ clm_lr(0.006).
 %% of 77 is 1.3%, so 20% is about fifteen times chance and cannot be
 %% reached without having learned something about cocolog.
 %%
-%% IT IS DELIBERATELY BELOW WHAT THE MODEL SHOULD SCORE, because the
-%% held-out tenth is a HARD tenth and not a fair sample: the corpus is
-%% four files concatenated in order, so the last 419 windows are the end
-%% of library/astar.pl while most of the training text is family facts
-%% and list lessons. That is a distribution shift, it makes the reported
-%% number an UNDERSTATEMENT of in-distribution accuracy, and it is left
-%% in on purpose -- a held-out set that is merely a shuffled copy of the
-%% training set is how a model gets credit for memorising. The honest
-%% cost is that the floor has to be set for the harder task.
+%% IT IS DELIBERATELY BELOW WHAT THE MODEL SHOULD SCORE. The corpus is
+%% three files concatenated in order, so the last 419 windows are the end
+%% of the findall lesson and were never trained on. That is a real
+%% holdout -- text the model has not seen -- but it is a MILD shift and
+%% not the hard one an earlier draft of this comment claimed: all three
+%% files are basics tutorials in the same register, with the same must/3
+%% and format/2 furniture throughout. So 20% is a conservative floor for
+%% a fair-ish holdout rather than a generous one for a hard holdout.
+%% What is deliberately NOT done is shuffling the windows before the
+%% split, because a holdout that is a shuffled copy of the training set
+%% is how a model gets credit for memorising.
 clm_floor(0.20).
 
 %% ---- corpus, vocabulary, ids ---------------------------------------------
 
-%% The chunks are joined in order. `findall/3' over an integer key rather
-%% than over the fact order, because clause order is not something a
-%% program should lean on when it can say what it means.
+%% `sort/2' AND NOT `keysort/2', and the difference is the whole corpus.
+%% `run' consults this file into the store, the store is the SAME store
+%% for all three goals (test/tutorials.sh:107-112), and CONSULT APPENDS --
+%% so by the `test' process every clm_chunk/2 fact exists twice and by
+%% `predict' three times. A `findall/3' over them is the case
+%% tutorials/torch/README.md:55-57 names outright: "for a data generator
+%% inside a findall it would double the rows". With keysort/2, which keeps
+%% duplicates, `test' would have measured a model against a corpus twice
+%% the size of the one it was trained on and reported the number without
+%% a murmur.
+%%
+%% `sort/2' orders AND deduplicates on the whole term, so identical N-C
+%% pairs collapse to one and the integer key still decides the order.
+%% Three consults give the same 4200 characters as one.
 clm_corpus(Codes) :-
     findall(N-C, clm_chunk(N, C), Pairs0),
-    keysort(Pairs0, Pairs),
+    sort(Pairs0, Pairs),
     findall(C, member(_-C, Pairs), Chunks),
     clm_join(Chunks, Atom),
-    atom_codes(Atom, Codes).
+    atom_codes(Atom, Codes), !.
 
-clm_join([], '').
+clm_join([], '') :- !.
 clm_join([A|As], Out) :- clm_join(As, Rest), atom_concat(A, Rest, Out).
 
 %% THE VOCABULARY IS `sort/2' AND NOTHING ELSE. `sort/2' orders and
 %% removes duplicates, so the distinct characters come out sorted -- which
 %% makes the id of a character its position, stable across runs, with no
 %% table to build and nothing to save alongside the weights.
-clm_vocab(Codes, Vocab) :- sort(Codes, Vocab).
+clm_vocab(Codes, Vocab) :- sort(Codes, Vocab), !.
 
 clm_id(Vocab, Code, Id) :- nth0(Id, Vocab, Code), !.
 clm_code(Vocab, Id, Code) :- nth0(Id, Vocab, Code), !.
 
-clm_ids(_, [], []).
+clm_ids(_, [], []) :- !.
 clm_ids(Vocab, [C|Cs], [I|Is]) :- clm_id(Vocab, C, I), clm_ids(Vocab, Cs, Is).
 
 %% ---- windows -------------------------------------------------------------
@@ -146,9 +163,9 @@ clm_ids(Vocab, [C|Cs], [I|Is]) :- clm_id(Vocab, C, I), clm_ids(Vocab, Cs, Is).
 clm_windows(Ids, K, Xs, Ys) :-
     length(Ctx, K),
     append(Ctx, Rest, Ids),
-    clm_slide(Ctx, Rest, Xs, Ys).
+    clm_slide(Ctx, Rest, Xs, Ys), !.
 
-clm_slide(_, [], [], []).
+clm_slide(_, [], [], []) :- !.
 clm_slide(Ctx, [Next|Rest], [Ctx|Xs], [Next|Ys]) :-
     Ctx = [_|Tail],
     append(Tail, [Next], Ctx2),
@@ -164,11 +181,11 @@ clm_data(Vocab, V, X, Y, N) :-
     clm_windows(Ids, K, Xs, Ys),
     length(Xs, N),
     tensor_from_list(Xs, X),
-    tensor_from_list(Ys, Y).
+    tensor_from_list(Ys, Y), !.
 
 %% The last tenth is never trained on. `test' is the only goal that looks
 %% at it, which is what makes its number worth printing.
-clm_split(N, NTrain) :- NTrain is truncate(N * 0.9).
+clm_split(N, NTrain) :- NTrain is truncate(N * 0.9), !.
 
 %% ---- train ---------------------------------------------------------------
 
@@ -237,12 +254,12 @@ clm_noise(I, R) :-
 %% Log-probabilities to weights at a temperature. T below 1 sharpens
 %% toward the argmax, T above 1 flattens toward uniform. The exponential
 %% is taken AFTER the division, which is the whole of what temperature is.
-clm_weights([], _, []).
+clm_weights([], _, []) :- !.
 clm_weights([LP|LPs], T, [W|Ws]) :-
     W is exp(LP / T),
     clm_weights(LPs, T, Ws).
 
-clm_sum([], 0.0).
+clm_sum([], 0.0) :- !.
 clm_sum([W|Ws], S) :- clm_sum(Ws, S0), S is S0 + W.
 
 %% Walk the weights until the running total passes the target. The last
@@ -264,7 +281,7 @@ clm_sample(LogProbs, T, Step, Id) :-
     clm_sum(Ws, Sum),
     clm_noise(Step, R),
     Target is R * Sum,
-    clm_pick(Ws, Target, 0.0, Id).
+    clm_pick(Ws, Target, 0.0, Id), !.
 
 %% One step: the context in, log-probabilities out, one character chosen.
 clm_step(M, Ctx, T, Step, Id) :-
@@ -273,7 +290,7 @@ clm_step(M, Ctx, T, Step, Id) :-
     tensor_to_list(P, [LogProbs]),
     clm_sample(LogProbs, T, Step, Id),
     tensor_free(X),
-    tensor_free(P).
+    tensor_free(P), !.
 
 clm_generate(_, _, _, _, 0, []) :- !.
 clm_generate(M, Vocab, Ctx, T, N, [Code|Rest]) :-
@@ -300,9 +317,9 @@ clm_seed(Vocab, Text, Ctx) :-
         clm_id(Vocab, 32, SpaceId),
         length(Padding, Pad), clm_fill(Padding, SpaceId),
         append(Padding, Ids0, Ctx)
-    ).
+    ), !.
 
-clm_fill([], _).
+clm_fill([], _) :- !.
 clm_fill([V|Vs], V) :- clm_fill(Vs, V).
 
 predict :-
