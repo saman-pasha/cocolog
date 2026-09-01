@@ -233,9 +233,22 @@ t37_card :-
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
     must('every id distinct', NIds, 36),
+    %% SIXTEEN OF THE THIRTY-SIX CARRY A PATTERN, and the gap is the point
+    %% of the card: a row documents a divergence, and only some divergences
+    %% are things a linter can SEE in a source file. `A1' can be matched --
+    %% a big integer literal is right there in the text -- and `I1', which is
+    %% about a cut you should not add, cannot be.
+    %%
+    %% IT WAS SEVENTEEN UNTIL THE STRING TYPE LANDED. Row X1 said the string
+    %% predicates did not exist and flagged every call to one; they all exist
+    %% now, so flagging them became a false positive and the pattern was
+    %% removed. The ROW stayed, because what it documents is still true --
+    %% `"abc"' is a code list, so `string("abc")' is false where SWI says
+    %% true. A rule retiring because the thing it caught stopped being wrong
+    %% is the healthiest way for a linter to shrink.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 17),
+    must('rows carrying an S1 pattern term', NPats, 16),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 
