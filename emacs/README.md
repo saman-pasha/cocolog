@@ -489,6 +489,89 @@ cocolog twice over: offline by `make coco`, and live on every draw.
 `cocolog-coco-check` and `cocolog-coco-trace-on-test` switch the two
 halves off.
 
+## cocolint, and the reader underneath it
+
+A cocolog checkout carries two programs that read cocolog programs, and
+both of them *are* cocolog — there is no Python left in
+`tools/coco-agent`. `C-c C-f` (`cocolog-lint-buffer`) runs the first of
+them, **cocolint**, over the buffer's file.
+
+What it knows is this dialect, and each finding carries the fix and the
+line of the engine that makes it true:
+
+```
+myprogram.pl:1:1 HARD D1 `initialization/1' is not a directive here. An
+    unsupported directive ABORTS THE WHOLE CONSULT -- the file loads
+    nothing and cocolog exits 1.
+    fix: the accepted set is: autoload, discontiguous, dynamic, ...
+    see: lib/kb.cicili:772, consult returns -1 at :1196-1197
+myprogram.pl:2:1 HARD N2 `memberchk/2' is dispatched BEFORE the knowledge
+    base. Your clauses are dead code -- they load, listing/1 shows them,
+    and nothing calls them.
+```
+
+They land in a `*cocolint*` buffer **as compiler errors**: `C-x \``
+and `M-g n` walk them from the file being linted, `RET` on one goes to
+the column it names, and a `HARD` finding is an error while a `WARN` is
+a warning, so the two read apart at a glance. The run ends `exited
+abnormally with code 1` whenever there is a HARD finding — that is the
+linter's answer and not a failure to run it. One file takes about a
+second; the first lint after a change to the engine also rebuilds the
+linter's index, which takes a few more.
+
+`cocolog-lint-on-save` runs it again on every save — off to begin with,
+because a lint is a second process and a window, and both belong to a
+moment you choose. The **Coco** menu has it under *cocolint and the
+reader*, with the two commands below.
+
+### What the reader is for
+
+The other program is `tools/coco-agent/clauses.pl`, the **clause
+reader** the linter and the name blocklist stand on. `C-c C-j`
+(`cocolog-clauses-list`) shows what it makes of the file:
+
+```
+traps-demo.pl -- 4 clauses, read by clauses.pl
+
+     1  directive(initialization,1)
+     2  memberchk/2
+     3  digits/3  dcg
+     4  main/0
+```
+
+`RET` on a row goes to that clause. A grammar rule is listed at
+**arity+2** because that is the predicate it defines — `digits//1` is
+`digits/3`, and the reason `digits/3` collides with `dcg_basics` is
+exactly that. A directive is a row with no name at all: `:- dynamic
+p/1.` defines nothing, and a reader that counted it as a definition
+would blocklist every name any file ever declared.
+
+And then the point of having it here at all: **the mode has a reader of
+its own**, in Elisp, and it is a shadow in the same way the engine is.
+`M-x cocolog-clauses-check` holds one to the other — both answer a list
+of definitions in source order, and the command compares them clause by
+clause. Agreement is a word in the echo area, disagreement a warning
+naming the line and both answers. The places two Prolog readers can
+part company are known and small, and this file has all of them:
+
+```prolog
+:- dynamic seen/1.                          % defines nothing
+p(0'c).                                     % four characters, not three
+digits([D|T]) --> digit(D), digits(T).      % a head at arity+2
+'it''s'(X) :- p(X).                         % a doubled quote in a head
+```
+
+The two agree over every line of it. (`clauses.pl` records a name *as
+written*, so the last one is `it''s` on its side and `it's` on the
+mode's; the comparison halves the quote, because they are the same
+predicate and a check that cried wolf on every quoted atom would be
+worth nothing.)
+
+Both commands read the **file**, not the buffer, so both offer to save
+it first — as `C-c C-e` does. Both need a checkout: the mode finds
+`tools/coco-agent` beside itself when it is loaded from one, and says
+so plainly when there is nothing to find.
+
 ## Grammar rules
 
 Rules written with `-->` work, and so does the graph:
@@ -611,6 +694,9 @@ turn it on from the **Coco** menu under "Test cases".
 | `cocolog-coco-host`, `-port`, `-http-port` | the binary's | where the `server` and `http` arrangements connect |
 | `cocolog-coco-check` | `t` | certify every drawn graph against the binary, when one is reachable |
 | `cocolog-coco-trace-on-test` | `t` | refresh the `*coco trace*` ports on every test run |
+| `cocolog-lint-program` | the checkout's | `tools/coco-agent/lint.sh`, the linter `C-c C-f` runs — found beside the mode in a checkout, nil anywhere else |
+| `cocolog-clauses-program` | the checkout's | `tools/coco-agent/clauses.pl`, the clause reader `C-c C-j` and `cocolog-clauses-check` run |
+| `cocolog-lint-on-save` | `nil` | run cocolint again on every save of the file |
 | `cocolog-color-plain-variables` | `nil` | colour ordinary variables on screen, writing nothing (`C-c C-c`) — off to begin with, since it is what font lock spends its time on in a very large file |
 | `cocolog-adopt-known-variables` | `t` | a name the clause already has becomes that variable |
 | `cocolog-auto-color` | `nil` | colour an ordinary variable as soon as you finish typing it |
@@ -640,7 +726,7 @@ turn it on from the **Coco** menu under "Test cases".
 | `cocolog-color.el` | colour arithmetic, colour variables, the palette picker |
 | `cocolog-mode.el` | the major mode: font lock, indentation, commands |
 | `cocolog-markdown.el` | optional: read this README in Emacs the way a browser shows it |
-| `test/cocolog-tests.el` | 46 ERT tests |
+| `test/cocolog-tests.el` | 163 ERT tests |
 | `examples/` | `family.colog`, `lists.colog` and `grammar.colog`, graphs included |
 | `tools/` | `cocolog-svg.el`, which renders a fontified buffer to SVG for the pictures above, and `coco-diff.sh`, which checks the engine against cocolog |
 | `doc/` | those pictures, regenerated with `make doc` |

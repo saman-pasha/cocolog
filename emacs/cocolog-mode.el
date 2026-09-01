@@ -40,6 +40,7 @@
 
 (require 'cl-lib)
 (require 'subr-x)
+(require 'compile)
 (require 'cocolog-engine)
 (require 'cocolog-graph)
 (require 'cocolog-color)
@@ -3539,6 +3540,304 @@ arrangement says, so a redraw can never write into a store."
           (message "%d test case%s run · %d DISAGREE with cocolog -- see *Warnings*"
                    n (if (= n 1) "" "s") (length bad)))))))
 
+;;;; ------------------------------------------------------------------
+;;;; cocolint, and the reader it stands on
+;;;; ------------------------------------------------------------------
+;; The checkout carries two programs that read cocolog programs, and
+;; both of them ARE cocolog: `tools/coco-agent/lint.sh' names every
+;; place a file diverges from this dialect -- a directive the consulter
+;; refuses, a name the engine dispatches before it ever reaches the
+;; knowledge base, `~t~|' in a format string -- and
+;; `tools/coco-agent/clauses.pl' is the CLAUSE READER underneath it, the
+;; one the blocklist is extracted with and the linter's lines come from.
+;;
+;; THE MODE HAS A READER OF ITS OWN, in Elisp, and the same rule applies
+;; to it as to the engine: it is a shadow.  The engine is held to the
+;; binary by every graph it draws; the reader is held to clauses.pl by
+;; \\[cocolog-clauses-check], and the places the two can disagree are
+;; the ones that have fooled every Prolog reader ever written -- a DCG
+;; head at arity+2, a quoted head with a doubled quote, a `.' inside an
+;; atom, a 0'c literal that is four characters and not three.
+;;
+;; Both tools read the FILE and not the buffer, so both save it first.
+
+(defgroup cocolog-lint nil
+  "cocolint and the clause reader: the checkout's own two tools."
+  :group 'cocolog)
+
+(defun cocolog--agent-program (name)
+  "NAME under `tools/coco-agent\=' of the checkout this file loads from.
+Nil anywhere else: the mode installed on its own has no checkout to
+read, and the commands that want one say so rather than guess."
+  (let* ((here (and load-file-name (file-name-directory load-file-name)))
+         (guess (and here (expand-file-name
+                           (concat "../tools/coco-agent/" name) here))))
+    (and guess (file-readable-p guess) guess)))
+
+(defcustom cocolog-lint-program (cocolog--agent-program "lint.sh")
+  "The cocolint driver: `tools/coco-agent/lint.sh\=' of a cocolog checkout.
+Found by itself when this file loads from one; name it here otherwise."
+  :type '(choice (const :tag "None found" nil) file)
+  :group 'cocolog-lint)
+
+(defcustom cocolog-clauses-program (cocolog--agent-program "clauses.pl")
+  "The clause reader: `tools/coco-agent/clauses.pl\=' of a cocolog checkout.
+It is a cocolog program, run under `cocolog-coco-program\='."
+  :type '(choice (const :tag "None found" nil) file)
+  :group 'cocolog-lint)
+
+(defcustom cocolog-lint-on-save nil
+  "Run cocolint again on every save of the file.
+Off to begin with: a lint is a second process and a window, and both
+belong to a moment you choose.  \\[cocolog-toggle-lint-on-save] switches
+it, and the findings land where \\[cocolog-lint-buffer] puts them."
+  :type 'boolean :group 'cocolog-lint)
+
+(defun cocolog--agent-root (program)
+  "The checkout PROGRAM belongs to: two doors up from `tools/coco-agent\='."
+  (file-name-as-directory
+   (expand-file-name "../.." (file-name-directory program))))
+
+(defun cocolog--tool-file ()
+  "This buffer's file, saved, for a tool that reads files and not buffers.
+cocolint and the clause reader both open the FILE, so a buffer with
+unsaved changes is offered to be saved rather than read as it was."
+  (unless buffer-file-name
+    (user-error "This buffer has no file for the checkout's tools to read"))
+  (when (buffer-modified-p)
+    (if (y-or-n-p "Save the buffer first? ")
+        (save-buffer)
+      (user-error "The tools read the file, and the file is behind")))
+  buffer-file-name)
+
+(defconst cocolog--lint-finding-regexp "^\\(.+?\\):\\([0-9]+\\):\\([0-9]+\\) "
+  "The head of a cocolint finding: file, line, column.
+The path is matched lazily rather than as a run of non-blanks, because
+a directory with a space in its name is a directory, not a mistake.")
+
+(define-derived-mode cocolog-lint-mode compilation-mode "cocolint"
+  "The findings of cocolint, as errors to walk.
+\\<compilation-mode-map>\\[compile-goto-error] on a finding goes to the
+line it names and \\[next-error] walks them from the buffer being
+linted.  A HARD finding is an error and a WARN one a warning -- which is
+also why a run with a HARD finding ends `exited abnormally with code
+1\=': that is the linter's answer, not a failure to run it."
+  (setq-local compilation-error-regexp-alist-alist
+              (list (list 'cocolint-hard
+                          (concat cocolog--lint-finding-regexp "HARD ") 1 2 3 2)
+                    (list 'cocolint-warn
+                          (concat cocolog--lint-finding-regexp "WARN ") 1 2 3 1)))
+  (setq-local compilation-error-regexp-alist '(cocolint-hard cocolint-warn)))
+
+;;;###autoload
+(defun cocolog-lint-buffer ()
+  "Run cocolint over this buffer's file and list what it finds.
+The linter is the checkout's own, and what it knows is this dialect:
+the directives consult refuses, the names the engine dispatches before
+the knowledge base ever sees them, the format directives that are not
+there, a clause too big for a page of the store.  Every finding carries
+the fix and the line of the engine that makes it true.
+
+They land in a `*cocolint*\=' buffer as compiler errors, so
+\\[next-error] walks them and RET goes to one."
+  (interactive)
+  (let ((file (cocolog--tool-file)))
+    (unless cocolog-lint-program
+      (user-error
+       "Set `cocolog-lint-program' to tools/coco-agent/lint.sh of a checkout"))
+    (let ((default-directory (cocolog--agent-root cocolog-lint-program)))
+      (compilation-start
+       (mapconcat #'shell-quote-argument
+                  (list "sh" cocolog-lint-program file) " ")
+       #'cocolog-lint-mode
+       (lambda (_mode) "*cocolint*")))))
+
+;;;###autoload
+(defun cocolog-toggle-lint-on-save ()
+  "Turn linting the file on every save on or off.
+See `cocolog-lint-on-save\='."
+  (interactive)
+  (setq cocolog-lint-on-save (not cocolog-lint-on-save))
+  (cocolog--menu-changed)
+  (message (if cocolog-lint-on-save
+               "cocolint runs when the file is saved"
+             "Saving the file does not lint it")))
+
+(defun cocolog--maybe-lint-on-save ()
+  (when (and cocolog-lint-on-save cocolog-lint-program buffer-file-name)
+    (ignore-errors (cocolog-lint-buffer))))
+
+(defun cocolog--clauses-parse (text)
+  "The rows of a `cc_dump\=' answer TEXT, as (LINE COLUMN NAME ARITY KIND).
+One row per clause, in the order the file writes them.  A directive is
+a row too, with no name and arity -1: it defines nothing, and saying so
+is the reader's job rather than its caller's."
+  (let ((rows '()))
+    (dolist (line (split-string text "\n" t))
+      (let ((cols (split-string line "\t")))
+        (when (= (length cols) 8)
+          (push (list (string-to-number (nth 2 cols))
+                      (string-to-number (nth 3 cols))
+                      (nth 5 cols)
+                      (string-to-number (nth 6 cols))
+                      (nth 7 cols))
+                rows))))
+    (nreverse rows)))
+
+(defun cocolog--clauses-dump (file)
+  "What `clauses.pl\=' makes of FILE, as `cocolog--clauses-parse\=' rows.
+The file list reaches the reader through the environment, the way
+`lint.sh\=' passes it: one path to a line, so a path with a space in it
+survives."
+  (unless cocolog-clauses-program
+    (user-error
+     "Set `cocolog-clauses-program' to tools/coco-agent/clauses.pl"))
+  (unless (cocolog--coco-available-p)
+    (user-error "No cocolog binary: the clause reader is cocolog itself"))
+  (let* ((root (cocolog--agent-root cocolog-clauses-program))
+         (library (expand-file-name "library" root))
+         (before (getenv "COCOLOG_LIBRARY"))
+         (list-file (make-temp-file "cocolog-clauses")))
+    (unwind-protect
+        (with-temp-buffer
+          (let ((coding-system-for-write 'utf-8))
+            (write-region (concat file "\n") nil list-file nil 'quiet))
+          (let* ((process-environment
+                  (append (list (concat "COCO_CC_FILES=" list-file)
+                                (concat "COCOLOG_LIBRARY=" library
+                                        (if (and before
+                                                 (not (string-empty-p before)))
+                                            (concat ":" before)
+                                          "")))
+                          process-environment))
+                 (status (call-process cocolog-coco-program nil t nil
+                                       "--local" "run"
+                                       cocolog-clauses-program "cc_dump")))
+            (unless (equal status 0)
+              (user-error "The clause reader answered %s: %s" status
+                          (string-trim (buffer-string))))
+            (cocolog--clauses-parse (buffer-string))))
+      (delete-file list-file))))
+
+(defun cocolog--clauses-definitions (rows)
+  "Those of ROWS that define something: a directive defines nothing."
+  (cl-remove-if (lambda (row) (string-prefix-p "directive(" (nth 4 row))) rows))
+
+(defun cocolog--clauses-of-buffer ()
+  "What the mode's own reader makes of this buffer: (LINE . INDICATOR).
+Directives are dropped, as they are on the other side: the Elisp reader
+records `:- dynamic p/1.\=' as a clause of `:-/1\=', which is a fact
+about how it keeps a directive and not a definition of anything."
+  (let ((db (cocolog-buffer-db))
+        (out '()))
+    (dolist (rec (cocolog-db-order db) (nreverse out))
+      (let ((key (cocolog--indicator (cocolog-clause-head rec))))
+        (unless (member key '(":-/1" "?-/1"))
+          (push (cons (line-number-at-pos (cocolog-clause-start rec)) key)
+                out))))))
+
+(defun cocolog--clauses-indicator (row)
+  "The predicate indicator of clause ROW, as the mode would write it.
+A doubled quote is halved first: `clauses.pl\=' records a name AS
+WRITTEN -- `\\='it\\='\\='s\\='\\=' keeps both quotes, because the
+blocklist is keyed on what a file says -- while the mode's reader
+records the name it read.  The two mean the same predicate, and a
+comparison that called them different would cry wolf on every quoted
+atom."
+  (format "%s/%d"
+          (replace-regexp-in-string "''" "'" (nth 2 row))
+          (nth 3 row)))
+
+(define-derived-mode cocolog-clauses-mode special-mode "Coco clauses"
+  "The clauses `clauses.pl\=' makes of a file, one to a line."
+  (setq-local truncate-lines t))
+
+(defun cocolog--clauses-visit (buffer line column)
+  "Show BUFFER at LINE and COLUMN, both counted the way the reader counts."
+  (if (not (buffer-live-p buffer))
+      (message "That buffer is gone")
+    (let ((window (display-buffer buffer)))
+      (with-selected-window window
+        (goto-char (point-min))
+        (forward-line (1- line))
+        (move-to-column (max 0 (1- column)))))))
+
+;;;###autoload
+(defun cocolog-clauses-list ()
+  "List the clauses cocolog's own reader finds in this buffer's file.
+`tools/coco-agent/clauses.pl\=' is the reader the linter and the
+blocklist stand on, and this is its answer: every clause with the line
+it starts on, what it defines, and whether it is a plain clause, a
+grammar rule -- which occupies arity+2, and is why the arity here can
+surprise -- or a directive, which defines nothing.  RET on a row goes
+to the clause."
+  (interactive)
+  (let* ((file (cocolog--tool-file))
+         (rows (cocolog--clauses-dump file))
+         (src (current-buffer))
+         (buffer (get-buffer-create "*cocolog clauses*")))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (propertize
+                 (format "%s -- %d clause%s, read by clauses.pl\n\n"
+                         (file-name-nondirectory file) (length rows)
+                         (if (= 1 (length rows)) "" "s"))
+                 'face 'font-lock-comment-face))
+        (dolist (row rows)
+          (let ((line (nth 0 row)) (column (nth 1 row))
+                (name (nth 2 row)) (arity (nth 3 row)) (kind (nth 4 row)))
+            (insert (format "%6d  " line))
+            (insert-text-button
+             (if (< arity 0) kind (format "%s/%d" name arity))
+             'action (lambda (_button) (cocolog--clauses-visit src line column))
+             'follow-link t
+             'help-echo "Go to this clause")
+            (unless (or (< arity 0) (equal kind "plain"))
+              (insert (format "  %s" kind)))
+            (insert "\n"))))
+      (goto-char (point-min))
+      (cocolog-clauses-mode))
+    (display-buffer buffer)
+    (message "%d clause%s, as cocolog reads them" (length rows)
+             (if (= 1 (length rows)) "" "s"))))
+
+;;;###autoload
+(defun cocolog-clauses-check ()
+  "Hold the mode's own reader to the one cocolog's tools use.
+The mode reads clauses in Elisp and `tools/coco-agent/clauses.pl\=' reads
+them in cocolog; both answer a list of definitions in source order, and
+this compares the two.  Agreement is a word in the echo area,
+disagreement a warning naming the line and both answers -- the bargain
+the engine already keeps with the binary, kept by the reader too."
+  (interactive)
+  (let* ((file (cocolog--tool-file))
+         (theirs (mapcar (lambda (row)
+                           (cons (nth 0 row) (cocolog--clauses-indicator row)))
+                         (cocolog--clauses-definitions
+                          (cocolog--clauses-dump file))))
+         (ours (cocolog--clauses-of-buffer))
+         (bad '()))
+    (dotimes (i (max (length ours) (length theirs)))
+      (let ((a (nth i ours)) (b (nth i theirs)))
+        (unless (equal a b)
+          (push (format "  the mode : %s\n  cocolog  : %s"
+                        (if a (format "%s at line %d" (cdr a) (car a)) "nothing")
+                        (if b (format "%s at line %d" (cdr b) (car b)) "nothing"))
+                bad))))
+    (setq bad (nreverse bad))
+    (if (null bad)
+        (message "%d clause%s · the mode reads this file as cocolog does"
+                 (length theirs) (if (= 1 (length theirs)) "" "s"))
+      (display-warning
+       'cocolog
+       (format "the mode's reader disagrees with clauses.pl over %s\n%s"
+               (file-name-nondirectory file)
+               (mapconcat #'identity bad "\n")))
+      (message "%d clause%s · %d DISAGREE with cocolog -- see *Warnings*"
+               (length theirs) (if (= 1 (length theirs)) "" "s")
+               (length bad)))))
+
 (defvar cocolog-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-v") #'cocolog-insert-color-variable)
@@ -3565,6 +3864,10 @@ arrangement says, so a redraw can never write into a store."
     (define-key map (kbd "C-c C-k") #'cocolog-clear-trace-at-point)
     (define-key map (kbd "C-c C-q") #'cocolog-query)
     (define-key map (kbd "C-c C-l") #'cocolog-check-buffer)
+    ;; the checkout's two tools: `f' for the faults cocolint finds, `j'
+    ;; for the clause list, which is a table you jump from
+    (define-key map (kbd "C-c C-f") #'cocolog-lint-buffer)
+    (define-key map (kbd "C-c C-j") #'cocolog-clauses-list)
     map)
   "Keymap for `cocolog-mode'.")
 
@@ -3696,6 +3999,18 @@ arrangement says, so a redraw can never write into a store."
      ["End of this clause" cocolog-end-of-clause
       :help "Go past the period that ends the clause point is in"])
 
+    ("cocolint and the reader"
+     ["Lint this file" cocolog-lint-buffer
+      :help "Run the checkout's own linter over the file and list the findings"]
+     ["Lint it on every save" cocolog-toggle-lint-on-save
+      :style toggle :selected cocolog-lint-on-save
+      :help "Run cocolint again each time the file is saved"]
+     "---"
+     ["List the clauses cocolog reads here" cocolog-clauses-list
+      :help "What tools/coco-agent/clauses.pl makes of this file, clause by clause"]
+     ["Hold the mode's reading to cocolog's" cocolog-clauses-check
+      :help "Compare the mode's own reader with the one the linter stands on"])
+
     "---"
     ["Check the syntax of the buffer" cocolog-check-buffer
      :help "List the clauses that do not parse"]
@@ -3756,6 +4071,14 @@ below the rule as comments; \\[cocolog-run-all-tests] does the whole
 buffer and \\[cocolog-clear-trace-at-point] removes a graph again.
 \\[cocolog-query] asks a one-off query instead.
 
+The checkout's own tools
+------------------------
+\\[cocolog-lint-buffer] runs cocolint -- `tools/coco-agent/lint.sh\=',
+cocolog itself -- over the file and lists what it finds as errors to
+walk with \\[next-error].  \\[cocolog-clauses-list] shows the clauses
+cocolog's own reader makes of the file, and
+\\[cocolog-clauses-check] holds the mode's Elisp reader to that one.
+
 \\{cocolog-mode-map}"
   :syntax-table cocolog-mode-syntax-table
   (setq-local case-fold-search nil)
@@ -3790,7 +4113,10 @@ buffer and \\[cocolog-clear-trace-at-point] removes a graph again.
   (setq cocolog--color-seed (if buffer-file-name (random 100000) 0))
   (add-hook 'after-change-functions #'cocolog--forget-plain-colors nil t)
   (add-hook 'after-change-functions #'cocolog--schedule-graph-refresh nil t)
-  (add-hook 'before-save-hook #'cocolog--maybe-run-tests-on-save nil t))
+  (add-hook 'before-save-hook #'cocolog--maybe-run-tests-on-save nil t)
+  ;; and cocolint AFTER the save, not before it: the linter reads the
+  ;; file, so it must run over the one the save has just written
+  (add-hook 'after-save-hook #'cocolog--maybe-lint-on-save nil t))
 
 (defun cocolog-beginning-of-clause (&optional _arg)
   "Move to the beginning of the current clause."

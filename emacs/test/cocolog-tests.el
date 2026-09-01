@@ -1536,12 +1536,15 @@ mode chooses itself should simply be visible."
 
 (defconst cocolog-test-menu-exempt
   '(cocolog-mode cocolog-view-mode cocolog-trace-mode cocolog-indent-line
+    cocolog-lint-mode cocolog-clauses-mode
     cocolog-delete-variable-backward-untabify
     cocolog-markdown-setup cocolog-markdown-display-images
     cocolog-markdown-remove-images cocolog-markdown-images-mode)
   "Commands that belong in no Coco menu, or in the Markdown one.
-`cocolog-mode', `cocolog-view-mode' and `cocolog-trace-mode' are the
-modes themselves and `cocolog-indent-line' is what TAB runs.
+`cocolog-mode', `cocolog-view-mode', `cocolog-trace-mode',
+`cocolog-lint-mode' and `cocolog-clauses-mode' are the modes
+themselves -- the last two are what the findings of cocolint and the
+clause list are shown in -- and `cocolog-indent-line' is what TAB runs.
 `cocolog-delete-variable-backward-untabify' stands in for a key only
 some people bind, and the menu already offers the plain one; the rest live in the Markdown
 menu, which `cocolog-test-markdown-menu-is-complete\=' checks.")
@@ -2280,7 +2283,8 @@ writes for you is one that works."
 
 (defconst cocolog-test--menu-variables
   '(cocolog-color-plain-variables cocolog-auto-color cocolog-swatch-style
-    cocolog-refresh-idle cocolog-run-tests-on-save cocolog-graph-unicode
+    cocolog-refresh-idle cocolog-run-tests-on-save cocolog-lint-on-save
+    cocolog-graph-unicode
     cocolog-graph-show-clauses cocolog-graph-collapse-failures
     cocolog-graph-clause-detail)
   "What the menu's toggles and radios change, so a test can put them back.")
@@ -2833,6 +2837,75 @@ SKIPs (passes vacuously) without a built cocolog."
           (should (= (length bad) 1))
           (should (equal (nth 1 (car bad)) "X=b"))
           (should (equal (nth 2 (car bad)) "X=c")))))))
+
+;;;; ------------------------------------------------------------------
+;;;; cocolint, and the reader it stands on
+;;;; ------------------------------------------------------------------
+
+(ert-deftest cocolog-test-lint-findings-are-errors-to-walk ()
+  "A cocolint finding is read as file, line and column -- HARD louder.
+The severity is the whole point of two rules rather than one: a HARD
+finding is a compilation error and a WARN one a warning, so
+`next-error\=' walks them in the order Emacs walks any others."
+  (with-temp-buffer
+    (cocolog-lint-mode)
+    (let ((hard (assq 'cocolint-hard compilation-error-regexp-alist-alist))
+          (warn (assq 'cocolint-warn compilation-error-regexp-alist-alist))
+          (finding "tutorials/library/29-ray.pl:111:8 HARD S1 [H1] halt/0 sets")
+          (spaced "/a directory/p.pl:1:1 WARN T1 `library(files)' is TIER 1"))
+      (should (equal (nth 5 hard) 2))
+      (should (equal (nth 5 warn) 1))
+      (should (equal (list (nth 2 hard) (nth 3 hard) (nth 4 hard)) '(1 2 3)))
+      (should (string-match (nth 1 hard) finding))
+      (should (equal (match-string 1 finding) "tutorials/library/29-ray.pl"))
+      (should (equal (match-string 2 finding) "111"))
+      (should (equal (match-string 3 finding) "8"))
+      (should-not (string-match (nth 1 warn) finding))
+      ;; a directory with a space in its name is a directory
+      (should (string-match (nth 1 warn) spaced))
+      (should (equal (match-string 1 spaced) "/a directory/p.pl")))))
+
+(ert-deftest cocolog-test-clause-dump-rows-are-read ()
+  "The reader's answer is read row by row, and a directive defines nothing."
+  (let* ((text (concat "/tmp/p.pl\t0\t1\t1\t12\tp\t1\tplain\n"
+                       "/tmp/p.pl\t20\t3\t1\t18\tdigits\t3\tdcg\n"
+                       "/tmp/p.pl\t60\t7\t1\t21\t-\t-1\tdirective(dynamic,1)\n"))
+         (rows (cocolog--clauses-parse text)))
+    (should (equal rows '((1 1 "p" 1 "plain")
+                          (3 1 "digits" 3 "dcg")
+                          (7 1 "-" -1 "directive(dynamic,1)"))))
+    (should (equal (cocolog--clauses-definitions rows)
+                   '((1 1 "p" 1 "plain") (3 1 "digits" 3 "dcg"))))
+    ;; and a name written with a doubled quote is one quote to the mode
+    (should (equal (cocolog--clauses-indicator '(4 1 "it''s" 1 "plain"))
+                   "it's/1"))))
+
+(ert-deftest cocolog-test-the-mode-reads-a-file-as-cocolog-does ()
+  "The Elisp reader and clauses.pl agree over the shapes that fool readers.
+A 0'c literal that is four characters and not three, a grammar head at
+arity+2, a quoted head with a doubled quote, and a directive that
+defines nothing.  SKIPs (passes vacuously) without a built cocolog or a
+checkout to find the reader in."
+  (when (and (cocolog--coco-available-p) cocolog-clauses-program)
+    (let ((file (make-temp-file "cocolog-clauses" nil ".pl")))
+      (unwind-protect
+          (let (theirs)
+            (with-temp-file file
+              (insert ":- dynamic seen/1.\n"
+                      "p(0'c).\n"
+                      "digits([D|T]) --> digit(D), digits(T).\n"
+                      "'it''s'(X) :- p(X).\n"))
+            (setq theirs
+                  (mapcar (lambda (row)
+                            (cons (nth 0 row) (cocolog--clauses-indicator row)))
+                          (cocolog--clauses-definitions
+                           (cocolog--clauses-dump file))))
+            (should (equal theirs '((2 . "p/1") (3 . "digits/3") (4 . "it's/1"))))
+            (with-temp-buffer
+              (insert-file-contents file)
+              (cocolog-mode)
+              (should (equal (cocolog--clauses-of-buffer) theirs))))
+        (delete-file file)))))
 
 (provide 'cocolog-tests)
 
