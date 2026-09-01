@@ -47,7 +47,14 @@ if [ ! -f "$NB" ]; then
   echo "     colab/ holds: $(ls "$COLAB" | tr '\n' ' ')"
   echo "RED: 1 failure(s)"; exit 1
 fi
-if ! command -v python3 >/dev/null 2>&1; then echo "SKIP (no python3 to read the notebook)"; exit 0; fi
+# THE NOTEBOOK IS READ BY COCOLOG. test/colab-check.pl answers the five
+# questions five python3 blocks used to, printing the same one word each so
+# the checks below are unchanged. One clause did not survive the move and
+# that file says which: the old shape check also ran ast.parse over every
+# code cell, and cocolog has no Python parser.
+[ -x "$ROOT/cocolog" ] || { echo "SKIP (no binary to read the notebook)"; exit 0; }
+CB() { COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
+       "$ROOT/cocolog" --local run "$HERE/colab-check.pl" cb_main -- "$@" 2>&1; }
 
 check "colab/VERSION declares a version" \
   "$(head -1 "$COLAB/VERSION" 2>/dev/null | grep -cE '^[0-9]+$')" "1"
@@ -55,63 +62,16 @@ check "colab/VERSION declares a version" \
 # The two declarations, compared. The notebook's is a Python assignment
 # in the cell; the repository's is the first line of the file.
 check "and the notebook carries the same one" \
-  "$(python3 - "$NB" "$COLAB/VERSION" <<'PY'
-import json, re, sys
-nb = json.load(open(sys.argv[1]))
-src = '\n'.join(''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code')
-m = re.search(r'^NOTEBOOK_VERSION\s*=\s*(\d+)\s*$', src, re.M)
-want = open(sys.argv[2]).readline().strip()
-print('agree' if m and m.group(1) == want else
-      'notebook %s, VERSION %s' % (m.group(1) if m else 'undeclared', want))
-PY
-)" "agree"
+  "$(CB version "$NB" "$COLAB/VERSION")" "agree"
 
 check "the version is printed before anything is installed" \
-  "$(python3 - "$NB" <<'PY'
-import json, sys
-nb = json.load(open(sys.argv[1]))
-src = '\n'.join(''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code')
-print('first' if 'notebook v{NOTEBOOK_VERSION}' in src
-      and src.index('NOTEBOOK_VERSION') < src.index('prereqs.sh') else 'buried')
-PY
-)" "first"
+  "$(CB first "$NB")" "first"
 
 check "and a stale notebook is named rather than guessed at" \
-  "$(python3 - "$NB" <<'PY'
-import json, sys
-nb = json.load(open(sys.argv[1]))
-src = '\n'.join(''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code')
-print('named' if "colab/VERSION" in src and "Revert to saved" in src else 'silent')
-PY
-)" "named"
+  "$(CB named "$NB")" "named"
 
 check "the notebook is valid JSON, nbformat 4, cells well-formed" \
-  "$(python3 - "$NB" <<'PY'
-import ast, json, sys
-try:
-    nb = json.load(open(sys.argv[1]))
-except Exception as e:
-    print('unreadable: %s' % e); raise SystemExit
-if nb.get('nbformat') != 4:
-    print('nbformat %s' % nb.get('nbformat')); raise SystemExit
-for i, c in enumerate(nb['cells']):
-    if c['cell_type'] not in ('code', 'markdown') \
-       or not isinstance(c.get('source'), list) \
-       or not all(isinstance(l, str) for l in c['source']):
-        print('cell %d malformed' % i); raise SystemExit
-    if c['cell_type'] == 'code' and ('outputs' not in c or 'execution_count' not in c):
-        print('cell %d is code without outputs' % i); raise SystemExit
-    if c['cell_type'] == 'code':
-        s = ''.join(c['source'])
-        if s.lstrip().startswith('!') or '\n!' in s:
-            continue              # a Colab shell magic is not Python
-        try:
-            ast.parse(s)
-        except SyntaxError as e:
-            print('cell %d: %s' % (i, e)); raise SystemExit
-print('ok')
-PY
-)" "ok"
+  "$(CB shape "$NB")" "ok"
 
 # The cell calls these by name from the clone; a rename is a failure that
 # can only happen on the VM.
@@ -129,20 +89,7 @@ done
 # the checkout and the binary is inside it. Absolute paths everywhere,
 # checked here so the next cell added does not reintroduce it.
 check "no cell runs cocolog by a relative path" \
-  "$(python3 - "$NB" <<'PYEOF'
-import json, sys
-nb = json.load(open(sys.argv[1]))
-bad = []
-for i, c in enumerate(nb['cells']):
-    if c['cell_type'] != 'code':
-        continue
-    for line in ''.join(c['source']).split('\n'):
-        code = line.split('#', 1)[0]          # a comment may DISCUSS it
-        if './cocolog' in code or code.strip().startswith('%cd '):
-            bad.append('cell %d: %s' % (i, line.strip()[:40]))
-print('; '.join(bad) if bad else 'none')
-PYEOF
-)" "none"
+  "$(CB relpath "$NB")" "none"
 
 # THE COMPILER PAGES MUST NOT SURVIVE THE BUILD. System/compiler.parsi
 # is a web page whose POST handler compiles what you send it, and the
