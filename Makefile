@@ -203,8 +203,9 @@ schema:
 # tools/coco-agent reads this repository rather than being told about it: the
 # reserved-name blocklist is EXTRACTED from lib/, modules/ and library/, and
 # the dialect card's citations are CHECKED against the lines they name. Both
-# need python3 and nothing else -- no binary, no server, no network -- which
-# is why they are separate targets rather than part of `all'.
+# are cocolog now -- there is no Python left in tools/coco-agent -- so both
+# need a built binary, which is why they are separate targets rather than
+# part of `all'.
 #
 # `index' regenerates blocklist.json, surface.jsonl, exemplars.jsonl and
 # capabilities.json -- all gitignored, all remade in seconds. `dialect-check'
@@ -214,11 +215,11 @@ schema:
 #     make lint FILES="myprogram.pl"
 
 index:
-	python3 tools/coco-agent/build.py
-	python3 tools/coco-agent/index.py
+	sh tools/coco-agent/tool.sh build
+	sh tools/coco-agent/tool.sh index
 
 dialect-check:
-	python3 tools/coco-agent/traps.py --check
+	sh tools/coco-agent/tool.sh card --check
 
 lint: index
 	@sh tools/coco-agent/lint.sh $(FILES)

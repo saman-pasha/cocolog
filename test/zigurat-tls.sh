@@ -63,53 +63,16 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/c.key" -out "$OUT/c.crt"
   -days 2 -subj '/CN=cocolog-client' >/dev/null 2>&1 \
   || { echo "SKIP openssl would not make a client certificate"; exit 0; }
 
-cat > "$OUT/term.py" <<'PYEOF'
-# ONE TERMINATOR, TWO CLIENT-AUTH SETTINGS, which is the whole point of
-# the MODE argument: `none' stands in for TLS_CLIENT_AUTH: NONE and
-# `required' for the default REQUIRED, and the two ports below are the
-# two arrangements a cocolog has to be able to speak.
-import sys, socket, ssl, threading
-FULL, PORT, ORIGIN, MODE = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
-ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ctx.load_cert_chain(FULL, FULL)
-if MODE == "required":
-    ctx.verify_mode = ssl.CERT_REQUIRED
-    ctx.load_verify_locations(sys.argv[5])
-def pump(a, b):
-    try:
-        while True:
-            d = a.recv(65536)
-            if not d: break
-            b.sendall(d)
-    except Exception:
-        pass
-    finally:
-        for s in (a, b):
-            try: s.close()
-            except Exception: pass
-s = socket.socket()
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-try:
-    s.bind(("127.0.0.1", PORT))
-except OSError:
-    print("CANNOT BIND", flush=True); sys.exit(3)
-s.listen(16)
-print("up", flush=True)
-while True:
-    c, _ = s.accept()
-    try:
-        c = ctx.wrap_socket(c, server_side=True)
-        o = socket.create_connection(("127.0.0.1", ORIGIN), timeout=30)
-        threading.Thread(target=pump, args=(c, o), daemon=True).start()
-        threading.Thread(target=pump, args=(o, c), daemon=True).start()
-    except Exception:
-        try: c.close()
-        except Exception: pass
-PYEOF
+# THE TERMINATOR IS test/term.pl, in cocolog: library(tls) in front,
+# library(tcp) behind, and MODE choosing whether the authority is named --
+# `none' stands in for TLS_CLIENT_AUTH: NONE and `required' for the default
+# REQUIRED, which are the two arrangements a cocolog has to speak.
+TERM="$HERE/term.pl"
 
-python3 "$OUT/term.py" "$OUT/full.pem" "$PORT" 2160 none > "$OUT/term.out" 2>&1 &
+
+"$ROOT/cocolog" -s "$TERM" -- "$OUT/full.pem" "$PORT" 2160 none > "$OUT/term.out" 2>&1 &
 TERM_PID=$!
-python3 "$OUT/term.py" "$OUT/full.pem" "$CPORT" 2160 required "$OUT/c.crt" \
+"$ROOT/cocolog" -s "$TERM" -- "$OUT/full.pem" "$CPORT" 2160 required "$OUT/c.crt" \
   > "$OUT/cterm.out" 2>&1 &
 CTERM_PID=$!
 for f in "$OUT/term.out" "$OUT/cterm.out"; do
