@@ -39,6 +39,21 @@ if command -v gcc >/dev/null 2>&1; then say "gcc" "$(gcc -dumpversion)"
 else bad "gcc" "apt-get install -y build-essential"; fi
 if command -v g++ >/dev/null 2>&1; then say "g++" "$(g++ -dumpversion)"
 else bad "g++" "apt-get install -y build-essential"; fi
+# clang++ 16+, because tools/cc/cxx passes --gcc-install-dir and every
+# older clang rejects it as `unsupported option'. The first Colab session
+# that hit this had passed preflight: the image has no clang, nothing
+# here asked, and the build died on its first file. CICILI_CXX names
+# another compiler and is honoured -- g++ needs no clang at all.
+cxx=${CICILI_CXX:-clang++}
+case "$cxx" in
+  *clang*)
+    if command -v "$cxx" >/dev/null 2>&1; then
+      cv=$("$cxx" --version | grep -oE 'version [0-9]+' | grep -oE '[0-9]+' | head -1)
+      if [ "${cv:-0}" -ge 16 ] 2>/dev/null; then say "clang++" "$("$cxx" --version | head -1)"
+      else bad "clang++" "clang ${cv:-?} rejects --gcc-install-dir; sh colab/prereqs.sh installs 18 from apt.llvm.org"; fi
+    else bad "clang++" "sh colab/prereqs.sh installs clang 18 from apt.llvm.org  (or CICILI_CXX=g++)"; fi ;;
+  *) say "clang++" "not needed: CICILI_CXX=$cxx" ;;
+esac
 if command -v make >/dev/null 2>&1; then say "make" "$(make --version | head -1)"
 else bad "make" "apt-get install -y build-essential"; fi
 

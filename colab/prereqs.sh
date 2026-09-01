@@ -44,6 +44,38 @@ apt-get -qq update
 #                  succeeds and leaves the build with no libtool.
 apt-get -qq install -y build-essential sbcl libtool-bin curl libcurl4-openssl-dev
 
+# clang++ 16 OR NEWER. ZiguratIP and cocolog compile through
+# tools/cc/cxx, which passes --gcc-install-dir so clang borrows a
+# libstdc++ that has headers; the flag exists from clang 16. Colab's
+# Ubuntu 22.04 image ships NO clang at all, and its apt has clang 14,
+# which rejects the flag with `unsupported option' -- so this comes from
+# apt.llvm.org. (CICILI_CC=gcc CICILI_CXX=g++ is the documented way to
+# build without clang; nothing here forbids it.)
+#
+# AND THE ORDER MATTERS: the compiler must exist BEFORE the first `make'.
+# Each ZiguratIP project writes a <Project>-Linux-cxx.depend by running
+# `cxx -MM' under `@-', so with no clang++ the file is written WITHOUT
+# its object rules, is newer than every source, and every later build
+# says `No rule to make target home/obj/x.o' until it is deleted. That
+# cost three builds on the first Colab session that met it; CLEAN=1 is
+# the cure after the fact.
+clang_major() { "$1" --version 2>/dev/null | grep -oE 'version [0-9]+' | grep -oE '[0-9]+' | head -1; }
+if [ "$(clang_major clang++)" -ge 16 ] 2>/dev/null; then
+  echo "   clang++ $(clang_major clang++) already present"
+else
+  echo "   clang++ 16+ not present -- installing clang 18 from apt.llvm.org"
+  if ! curl -fsSL -o /tmp/llvm.sh https://apt.llvm.org/llvm.sh; then
+    echo "   CANNOT REACH apt.llvm.org; install clang 16+ by hand, or build with CICILI_CC=gcc CICILI_CXX=g++" >&2
+    exit 1
+  fi
+  bash /tmp/llvm.sh 18 >/dev/null
+  update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
+  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
+  update-alternatives --set clang++ /usr/bin/clang++-18
+  update-alternatives --set clang /usr/bin/clang-18
+  echo "   clang++ -> $(clang++ --version | head -1)"
+fi
+
 # ---- and then the LISP side, which nothing checked until Colab -------
 #
 # THE FAILURE THIS EXISTS FOR. cicili.asd depends on four systems, and

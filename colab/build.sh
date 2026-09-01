@@ -95,23 +95,54 @@ mkdir -p "$ZIGURATIP_HOME/data" "$ZIGURATIP_HOME/ld" "$ZIGURATIP_HOME/catalog" \
 
 stage_start
 echo "== building ZiguratIP (Release)"
+# A DEPENDENCY FILE WRITTEN BY A BUILD THAT HAD NO COMPILER IS POISON.
+# Each project generates <Project>-<OS>-<CXX>.depend by running the
+# compiler with -MM under `@-', so when clang++ is missing the file is
+# still written -- with the echo'd compile lines and NONE of the object
+# rules -- and, being newer than every source, is never regenerated.
+# Every later make then fails with `No rule to make target
+# home/obj/x.o' in all fourteen projects. The first Colab session that
+# met it paid three builds before the cause was read. A depend file with
+# no rule in it is not a dependency file; drop it and let make remake it.
+for d in "$ZIGURATIP"/*/*.depend; do
+  if [ -f "$d" ] && ! grep -q '\.o:' "$d"; then
+    rm -f "$d"; echo "   dropped a rule-less $(basename "$d")"
+  fi
+done
 ( cd "$ZIGURATIP" && make MODE=Release ) > "$LOGS/ziguratip.log" 2>&1
 echo "   make exited $? -- which proves nothing here; checking artifacts"
 
 # Every library the stack loads, by name. A missing one names its project,
 # because "13 libraries instead of 14" is a fact nobody can act on.
-missing=""
-for pair in Core:Core StreamIO:StreamIO Type:Type Library:Library \
-            Encoding:Encoding Compression:Compression \
-            Cryptography:Cryptography Configuration:Configuration \
-            Threading:Threading SocketIO:SocketIO Connector:Connector \
-            HTTP:HTTP MVCCS:MVCCS-cicili Compiler:Compiler; do
-  lib=${pair%%:*}; proj=${pair##*:}
-  [ -f "$ZIGURATIP_HOME/lib/lib$lib.so" ] || missing="$missing lib$lib.so($proj)"
-done
-for b in parsi parsic ziguratip; do
-  [ -x "$ZIGURATIP_HOME/bin/$b" ] || missing="$missing bin/$b"
-done
+zig_missing() {
+  missing=""
+  for pair in Core:Core StreamIO:StreamIO Type:Type Library:Library \
+              Encoding:Encoding Compression:Compression \
+              Cryptography:Cryptography Configuration:Configuration \
+              Threading:Threading SocketIO:SocketIO Connector:Connector \
+              HTTP:HTTP MVCCS:MVCCS-cicili Compiler:Compiler; do
+    lib=${pair%%:*}; proj=${pair##*:}
+    [ -f "$ZIGURATIP_HOME/lib/lib$lib.so" ] || missing="$missing lib$lib.so($proj)"
+  done
+  for b in parsi parsic ziguratip; do
+    [ -x "$ZIGURATIP_HOME/bin/$b" ] || missing="$missing bin/$b"
+  done
+}
+zig_missing
+if [ -n "$missing" ]; then
+  # A FRESH TREE LINKS Cryptography BEFORE Configuration EXISTS. The
+  # top-level PROJECTS list built Cryptography seventh and Configuration
+  # eighth while Cryptography links -lConfiguration, so on a tree with no
+  # home/lib yet that link fails and SocketIO, Connector, HTTP and
+  # Compiler fall with it -- five of fourteen, all for one file that is
+  # built a moment later. An incremental tree never shows it, which is
+  # how it went unnoticed. Fixed at the root in ZiguratIP's PROJECTS
+  # order; this second pass covers any checkout older than that fix, and
+  # on a tree that is already complete it costs seconds.
+  echo "   incomplete after one pass (missing:$missing) -- running make once more"
+  ( cd "$ZIGURATIP" && make MODE=Release ) >> "$LOGS/ziguratip.log" 2>&1
+  zig_missing
+fi
 
 if [ -n "$missing" ]; then
   echo "   ZIGURATIP BUILD INCOMPLETE, missing:$missing"
