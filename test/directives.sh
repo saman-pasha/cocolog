@@ -147,9 +147,14 @@ has "...and the next one still runs" "still ran"                  "$out"
 # program does with a real failure: `typedef' throwing a term of its own
 # from inside `:- initialization(...)'. The ball is not an error/2, so
 # the message is SWI's `Unknown message:' -- word for word, measured.
+# THE BALL'S TEXT IS A QUOTED ATOM, deliberately: cocolog's
+# `double_quotes' default is ISO's `codes' and SWI's is `string', so a
+# "..." here would make this check about the flag rather than about the
+# message. `:- set_prolog_flag(double_quotes, string).' is how a file
+# that wants SWI's reading asks for it -- test/string.sh covers that.
 cat > "$TMP/ithrow.pl" <<'PL'
 :- initialization(build).
-build :- throw(my_error("not a type", nosuch_t)).
+build :- throw(my_error('not a type', nosuch_t)).
 PL
 out=$(./cocolog --local run "$TMP/ithrow.pl" "true" 2>&1)
 has "one that throws is an ERROR"  "Initialization goal raised exception:" "$out"
@@ -237,49 +242,87 @@ is "op/3 still takes effect for the rest of the file" "a===>b" \
 is "dynamic/1 still declares" "0" \
    "$(./cocolog --local run "$TMP/rd.pl" "(counter(N), write(N))" 2>&1)"
 
-# ---- 8. a computed argument list, which is what asked for all this ------
+# ---- 8. THE PROGRAM THIS CASE WAS WRITTEN FOR ---------------------------
 #
-# THE PROGRAM THIS CASE WAS WRITTEN FOR: a type table whose entries are
-# built by a directive at the end of the file, over predicates defined
-# above it, through `apply/2' because the arity is only known at run time.
-# Every part of that was impossible before: the directive was refused, and
-# `apply/2' was not there.
+# A Cicili TYPE DESCRIPTOR table, trimmed from the real one but not
+# simplified: `nil' as a value with `null/1' to test for it, a `type/N'
+# family whose arities overlap, `describe/7' choosing among them, a
+# `typedef/1' that dispatches through `apply/2' BECAUSE THE ARITY IS ONLY
+# KNOWN AT RUN TIME, and a ball of its own when the answer is no.
+#
+# Every part of it was impossible here a day ago: the directive at the
+# foot of the file was REFUSED and took the whole consult with it, and
+# `apply/2' did not exist. Both halves of the failure path are checked
+# too, because a table that only ever succeeds proves nothing about the
+# reporting.
 
-cat > "$TMP/types.pl" <<'PL'
+cat > "$TMP/typedef.pl" <<'PL'
+nil.                                   % Cicili's NIL, as a value
+null(A) :- A == nil.
+
 :- dynamic type/1.
-type(int).
+type(void).
 type(char).
+type(int).
+type('unsigned int').
+type('FILE').
 
-describe(T, M, V, [T, M, V]) :- type(T), atom(V).
+multi_pointer(M) :-
+    atom(M), atom_chars(M, Ps), length(Ps, L), L =< 3,
+    forall(member(P, Ps), P == *).
+
+describe(C, T, M, P, V, DESC) :-
+    ( null(C) ; C == const ),
+    atom(T), type(T),
+    ( ( null(M), null(P) ) ; ( multi_pointer(M), ( null(P) ; P == const ) ) ),
+    atom(V),
+    DESC = [C, T, M, P, V], !.
+
+type(T, V, DESC)            :- describe(nil, T, nil, nil, V, DESC).
+type(T, M, V, DESC)         :- describe(nil, T, M, nil, V, DESC).
+type(const, T, M, V, DESC)  :- describe(const, T, M, nil, V, DESC).
 
 typedef(Es) :-
-    reverse(Es, Rs), reverse([D|Rs], Full),
-    apply(describe, Full),
-    nth0(2, D, V),
-    ( type(V) -> throw(error(permission_error(modify, type, V), _)) ; assert(type(V)) ).
+    reverse(Es, Rs),
+    reverse([DESC | Rs], FEs),
+    (   apply(type, FEs), !
+    ;   throw(ccl_type_error('type does not exist', typedef(Es)))   ),
+    nth0(4, DESC, V),
+    (   type(V), !, throw(ccl_type_error('name exists', typedef(Es)))
+    ;   assert(type(V)), !   ).
 
 names(Ns) :- findall(T, type(T), Ns).
 PL
-cat >> "$TMP/types.pl" <<'PL'
-:- initialization(( typedef([int, *, intptr_t]), typedef([char, *, cstr_t]) )).
+cat >> "$TMP/typedef.pl" <<'PL'
+:- initialization(( typedef([const, char, *, cstr_t]),
+                    typedef([int, *, intptr_t]),
+                    typedef([int, size_t]) )).
 PL
 
-is "apply/2 calls a goal whose arity was computed" "[int,char,intptr_t,cstr_t]" \
-   "$(./cocolog --local run "$TMP/types.pl" "(names(Ns), write(Ns))" 2>&1)"
+is "apply/2 dispatches on an arity known at run time" \
+   "[void,char,int,unsigned int,FILE,cstr_t,intptr_t,size_t]" \
+   "$(./cocolog --local run "$TMP/typedef.pl" "(names(Ns), write(Ns))" 2>&1)"
 
-cat > "$TMP/twice.pl" <<'PL'
-:- dynamic type/1.
-type(int).
-describe(T, M, V, [T, M, V]) :- type(T), atom(V).
-typedef(Es) :-
-    reverse(Es, Rs), reverse([D|Rs], Full),
-    apply(describe, Full),
-    nth0(2, D, V),
-    ( type(V) -> throw(error(permission_error(modify, type, V), _)) ; assert(type(V)) ).
-:- initialization(( typedef([int, *, p_t]), typedef([int, *, p_t]) )).
-PL
-out=$(./cocolog --local run "$TMP/twice.pl" "true" 2>&1)
-has "and a typedef of a name already taken throws" "No permission to modify type" "$out"
+# A NAME ALREADY TAKEN, and a type that was never there: the two ways the
+# table says no, both of them a ball of the program's own shape reported
+# at the line the directive was written on.
+sed 's|typedef(\[int, size_t\])|typedef([int, *, cstr_t])|' "$TMP/typedef.pl" > "$TMP/taken.pl"
+out=$(./cocolog --local run "$TMP/taken.pl" "true" 2>&1)
+has "a typedef of a name already taken throws" \
+    "Unknown message: ccl_type_error('name exists'" "$out"
+has "...reported at the directive's line" "typedef.pl" "$(printf '%s' "$out" | sed 's|taken|typedef|')"
+
+sed 's|typedef(\[int, size_t\])|typedef([nosuch_t, x_t])|' "$TMP/typedef.pl" > "$TMP/unknown.pl"
+out=$(./cocolog --local run "$TMP/unknown.pl" "true" 2>&1)
+has "and a typedef of a type that is not there throws" \
+    "Unknown message: ccl_type_error('type does not exist'" "$out"
+
+# THE TEXT IS A QUOTED ATOM AND NOT A "STRING", which is the thing to
+# copy out of this fixture: `double_quotes' is ISO's `codes' here and
+# SWI's is `string', so a ball carrying "text" reports as a list of
+# numbers under cocolog and reads back as text under swipl. The same
+# throw with an atom in it reads the same under both -- which is what
+# the diff below is able to check.
 
 # ---- 9. the same files under swipl --------------------------------------
 #
@@ -290,16 +333,38 @@ has "and a typedef of a name already taken throws" "No permission to modify type
 # PROGRAM printed and the exit status -- which is what a caller depends on.
 
 if command -v swipl >/dev/null 2>&1; then
-  for f in run init order m0 types; do
+  for f in run init order m0 typedef; do
     case "$f" in
       run)   goal="(answer(A), write(A))" ;;
-      types) goal="(names(Ns), write(Ns))" ;;
+      typedef) goal="(names(Ns), write(Ns))" ;;
       *)     goal="true" ;;
     esac
     a=$(./cocolog --local run "$TMP/$f.pl" "$goal" 2>/dev/null; printf 'rc=%s' $?)
     b=$(swipl -q -g "$goal" -t halt "$TMP/$f.pl" 2>/dev/null; printf 'rc=%s' $?)
     is "swipl agrees over $f.pl" "$b" "$a"
   done
+
+  # AND THE MESSAGE ITSELF, for the one case where both systems have
+  # something to say. Two SWI-isms are normalised away and nothing else
+  # is: `[Thread main]' names the thread that raised it, which the
+  # cocolog CLI has no equivalent for, and swipl prints the path
+  # absolute where cocolog prints it as the caller wrote it. What is
+  # left is compared line for line -- including the four-space indent
+  # on a directive's second line, which cocolog copies, and its ABSENCE
+  # on an initialization's, where swipl's slot holds the thread tag.
+  norm() { sed "s|$TMP/||; s|\[Thread main\] ||" ; }
+  a=$(./cocolog --local run "$TMP/ithrow.pl" true 2>&1 >/dev/null | norm)
+  b=$(swipl -q -g true -t halt "$TMP/ithrow.pl" 2>&1 >/dev/null | norm)
+  is "swipl says the same words about a thrown init goal" "$b" "$a"
+  # ONLY THE LOCATION LINE FOR A DIRECTIVE, and the reason is worth
+  # writing down rather than normalising away: swipl prefixes the message
+  # with the CONTEXT of the throw -- `catch/3: Unknown procedure: …' --
+  # and cocolog has nothing to put there, because a builtin leaves
+  # error/2's second argument unbound (card row C3). The line that says
+  # WHERE is identical, and that is the half a reader navigates by.
+  a=$(./cocolog --local run "$TMP/bad.pl" true 2>&1 >/dev/null | norm | head -1)
+  b=$(swipl -q -g true -t halt "$TMP/bad.pl" 2>&1 >/dev/null | norm | head -1)
+  is "...and locates a directive that threw the same way" "$b" "$a"
 else
   say "swipl is not here, so the diff did not run" "SKIP"
 fi

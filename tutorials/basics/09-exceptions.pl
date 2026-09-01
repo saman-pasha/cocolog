@@ -28,7 +28,7 @@
 %% `catch/3' AND `throw/1' unwind to the nearest matching catcher and
 %% undo every binding made in between.
 %%
-%% AND THREE THINGS THAT ARE COCOLOG'S, not ISO's, which the second half
+%% AND FOUR THINGS THAT ARE COCOLOG'S, not ISO's, which the second half
 %% of this lesson is about:
 %%
 %%   * a LIBRARY OR LOADER failure is `error(cocolog_error(Text), _)' --
@@ -39,6 +39,9 @@
 %%     BINDING, and everything the handler reads out of it is invented.
 %%   * there is no `setup_call_cleanup/3'. Cleanup is
 %%     `catch(G, B, (Cleanup, throw(B)))', by hand.
+%%   * a ball carrying `"text"' reports as a LIST OF CODES, because
+%%     `double_quotes' is ISO's `codes' here and SWI's is `string'.
+%%     Quote the text as an atom, or set the flag for the file.
 %%
 %% An UNCAUGHT ball reaches the toplevel, prints in SWI's words, and the
 %% process exits 2 -- where a goal that merely failed exits 1, silently.
@@ -157,6 +160,26 @@ main :-
     must('and the cleanup ran on the way', Cl, ran),
     retract(touched(cleaned)),
 
+    format("~n-- A BALL THAT CARRIES TEXT, and what the message shows~n"),
+    %% THE COMMONEST SURPRISE IN A MESSAGE, and it is the reader's doing
+    %% rather than the thrower's: `double_quotes' is `codes' here, ISO's
+    %% default, where SWI's is `string'. So the same `throw' writes a list
+    %% of numbers under cocolog and a quoted string under SWI, and the
+    %% message is unreadable in exactly the case you most want to read it.
+    E5 = my_error("not a type", nosuch_t),
+    arg(1, E5, Arg5),
+    ( is_list(Arg5) -> K5 = a_code_list ; K5 = Arg5 ),
+    must('"..." inside a ball is a CODE LIST by default', K5, a_code_list),
+    E6 = my_error('not a type', nosuch_t),
+    arg(1, E6, Arg6),
+    ( atom(Arg6) -> K6 = an_atom ; K6 = Arg6 ),
+    must('...so quote the text as an ATOM', K6, an_atom),
+    format("   `throw(my_error(\"no such type\", T))' reports as~n"),
+    format("   my_error([110,111,...],T) -- true to the flag and no use to~n"),
+    format("   anybody. Quote it, or put~n"),
+    format("   `:- set_prolog_flag(double_quotes, string).' at the top of~n"),
+    format("   the file and get SWI's reading for the whole of it.~n"),
+
     format("~n-- and what an UNCAUGHT ball costs~n"),
     format("   It reaches the toplevel, which prints it in SWI's words and~n"),
     format("   exits 2 -- not 1, which is what a goal that merely FAILED~n"),
@@ -165,6 +188,21 @@ main :-
     format("     ERROR: -g main: Unknown procedure: nosuch/0~n~n"),
     format("   0 proved, 1 failed, 2 threw. A script that reads exit codes~n"),
     format("   can tell the goal that said no from the goal that broke.~n"),
+    %% AND ONE THING THE MESSAGE DOES NOT SAY. Thrown at LOAD time -- out
+    %% of a directive or an `initialization' goal -- the report is SWI's,
+    %% line for line, and test/directives.sh diffs the two to keep it so:
+    %%
+    %%     ERROR: p.pl:76: Initialization goal raised exception:
+    %%     ERROR: Unknown message: my_error(...)
+    %%
+    %% What swipl has there and cocolog does not is a CONTEXT before the
+    %% message -- `catch/3: Unknown procedure: p/0' -- because its
+    %% builtins fill error/2's second argument in and cocolog leaves it
+    %% unbound. Which is the same fact as the section above, seen from
+    %% the other side: nothing is in the context, so nothing is printed
+    %% from it.
+    format("   Thrown at LOAD time the report names the file and the line,~n"),
+    format("   and the load carries on -- see tutorials/basics/11.~n"),
 
     format("~n-- and the shape a library should throw~n"),
     format("   error(type_error(Type, Culprit), Context) -- so a caller can~n"),

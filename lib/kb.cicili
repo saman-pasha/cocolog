@@ -1519,10 +1519,19 @@
                                               (? main "main: false"
                                                  "Initialization goal failed"))
                               (set code 1)))
+                      ;; FLUSH, NOT INDENTED, on the second line. SWI's
+                      ;; four-space indent belongs to the DIRECTIVE message
+                      ;; -- `coco_load_message' keeps it because that is
+                      ;; where swipl writes it -- but the slot after
+                      ;; `ERROR:' in an initialization report is the one
+                      ;; swipl fills with its thread tag and the context of
+                      ;; the throw, and cocolog has neither. Indenting into
+                      ;; an empty slot was the last thing between the two
+                      ;; messages: they are word for word now.
                       (#t (block (coco_load_note "ERROR" origin (nth i ($ inits lines))
                                                  (? main "main: raised exception:"
                                                     "Initialization goal raised exception:"))
-                                 (fprintf stderr "ERROR:    %s\n" err)
+                                 (fprintf stderr "ERROR: %s\n" err)
                                  (set code 2))))))
                 (if (== (nth i ($ inits modes)) 1)
                     (block (set halt_after 1) (set halt_code code)))
