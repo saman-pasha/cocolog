@@ -105,13 +105,26 @@ else
     name=torch/$(basename "$pl" .pl)
     STORE="$OUT/store-$(basename "$pl" .pl)"
     bad=0
+    # TWENTY MINUTES, AND 27-induction IS WHY. Its `train' fits four
+    # models at 60 epochs each -- MEASURED at 8m10s wall, 3723s of CPU
+    # at 791%, on an i9-9880H running libtorch on the CPU. The 300s that
+    # every other goal here finishes inside killed it at rc=124, and a
+    # kill takes the output with it: the case printed `FAIL
+    # torch/27-induction train' over three blank lines, with no way to
+    # tell a slow model from a broken one. A budget must be bigger than
+    # the thing it is measuring, and a timeout should say it is one.
     for goal in train test predict; do
-      if out=$(timeout 300 "$COCOLOG" --kb tutorials --embed "$STORE" run "$pl" "$goal" 2>&1); then
+      if out=$(timeout 1200 "$COCOLOG" --kb tutorials --embed "$STORE" run "$pl" "$goal" 2>&1); then
         :
       else
+        rc=$?
         failures=$((failures + 1))
         bad=1
-        echo "FAIL  $name $goal"
+        if [ "$rc" = 124 ]; then
+          echo "FAIL  $name $goal (TIMEOUT at 1200s -- no output survives a kill)"
+        else
+          echo "FAIL  $name $goal"
+        fi
         printf '%s\n' "$out" | tail -3 | sed 's/^/      /'
         break
       fi
