@@ -162,7 +162,7 @@
       ;; engine learned to tell undefined from empty
       (check "a module predicate is simply unknown"
              (cast llong (count (aof e) "twice(2, X)" 10)) -1)
-      (coco_consult (aof st) (aof m) "twice(a, b)." err (sizeof err))
+      (coco_consult (aof st) (aof m) "twice(a, b)." nil err (sizeof err))
       (check "and the knowledge base still answers"
              (cast llong (count (aof e) "twice(a, X)" 10)) 1)
 
@@ -203,7 +203,7 @@
              (cast llong (count (aof e) "twice(5, 10)" 10)) 1)
 
       ;; a module predicate is reached BEFORE the knowledge base
-      (coco_consult (aof st) (aof m) "twice(1, 999)." err (sizeof err))
+      (coco_consult (aof st) (aof m) "twice(1, 999)." nil err (sizeof err))
       (check "a clause cannot shadow a module predicate"
              (cast llong (count (aof e) "twice(1, 999)" 10)) 0)
       (check "the module answers instead"

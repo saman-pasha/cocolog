@@ -129,11 +129,11 @@
         (check "the first interpreter consulted a program"
                (cast llong (> (coco_consult (aof st1) (aof m1)
                  "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
-                 err2 (sizeof err2)) 0)) 1)
+                 nil err2 (sizeof err2)) 0)) 1)
         (check "and a second batch"
                (cast llong (> (coco_consult (aof st1) (aof m1)
                  "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
-                 err2 (sizeof err2)) 0)) 1)
+                 nil err2 (sizeof err2)) 0)) 1)
 
         (check "it can prove things locally"
                (cast llong (count (aof e1) "ancestor(tom,X)" 100)) 5)
@@ -478,7 +478,7 @@
         (check "declared an operator and consulted clauses that use it"
                (cast llong (coco_consult (aof sto) (aof mo)
                  ":- op(700, xfx, ===>). rule(a ===> b). rule(b ===> c)."
-                 erro (sizeof erro))) 2)
+                 nil erro (sizeof erro))) 2)
         (check "committed" (cast llong (zg_commit db)) 1)
 
         (coco_engine_free (aof eo))

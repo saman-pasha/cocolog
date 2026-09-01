@@ -710,7 +710,7 @@
 
   (func coco_zg_consult ((coco_zg * z) (const char * text)) (out int)
         (let ((char err [256]) (int n))
-          (set n (coco_consult (-> z st) (-> z m) text err (sizeof err)))
+          (set n (coco_consult (-> z st) (-> z m) text nil err (sizeof err)))
           (if (< n 0) (block (snprintf (-> z err) 256 "%s" err) (return 0)))
           (return 1)))
 

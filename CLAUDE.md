@@ -491,6 +491,56 @@ answer to "which file am I" — no argv[0] guessing, correct through
 symlinks. The caller's `$COCOLOG_LIBRARY` still comes first, because an
 override that cannot override is not one.
 
+## A directive is a GOAL, and `initialization` puts one off
+
+**`:- G.` RUNS G.** Not a whitelist any more: `coco_directive` answers the
+handful that must act on the READER while the file is still being read —
+`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`, `multifile/1`,
+`module/2`, `use_module/1,2`, `autoload/1,2`, `ensure_loaded/1`,
+`meta_predicate/1`, and `if/elif/else/endif` — and **everything else is
+called**, in file order, so `:- assert(config(fast)).` sees the clauses
+above it and the directive after it sees what it asserted.
+
+**The store is still compiled below the engine.** What made this possible
+is a second hook beside the `use_module` one: `coco_goal_install`
+(`lib/kb.cicili`), filled in by `lib/library.cicili` with a function that
+opens an engine over the same machine and store. A store with no engine
+over it — the schema compiler — still refuses a directive by name rather
+than crashing, and says so.
+
+**`:- initialization(G).` runs G when the FILE has been read**, which is
+the point of it: a goal at the top may call a predicate defined at the
+bottom. `initialization(G, now)` runs it where it stands.
+`initialization(G, main)` runs it after the load and then **halts** — 0
+proved, 1 failed, 2 threw — so the CLI's own goal never runs, exactly as
+`swipl script.pl` behaves. Any other `when` names a saved state and is
+refused by name.
+
+**A DIRECTIVE THAT FAILS OR THROWS NO LONGER ENDS THE LOAD.** It is
+reported in SWI's shapes, which were measured against `swipl` and not
+remembered:
+
+```
+ERROR: p.pl:4:
+ERROR:    Unknown procedure: nosuch_goal/0
+Warning: p.pl:5:
+Warning:    Goal (directive) failed: fail
+Warning: p.pl:1: Initialization goal failed
+```
+
+**A syntax error is now the ONLY thing that ends a consult**, and it has
+to be: after one the reader does not know where the next clause begins.
+
+**An uncaught exception reads as a sentence.** `coco_error_text`
+(`lib/solve.cicili`) turns a ball into SWI's words — `Unknown procedure:
+main/0`, ``Arithmetic: `foo/0' is not a function``, `Unknown message:
+my_ball` for a ball that is not an `error/2` — and the CLI prints `ERROR:
+-g main: …`. **The exit status is SWI's: 0 proved, 1 failed silently, 2
+threw.** A test that expected 1 for a thrown ball wants 2 now.
+
+`test/directives.sh` is the case, and its last section runs the same files
+under `swipl` and diffs what the programs printed.
+
 ## The string type, and the flag that decides what `"..."` is
 
 **There IS a string type** — SWI's, as a sixth cell tag (`STR 5` in
@@ -521,10 +571,11 @@ at the head of a file makes every `"..."` in it a string.
   sets the flag gets what it asked for, and the goal that loaded it does
   not. Without that guard a file with no string in it failed to load at
   all, which is how the guard was found.
-* **A fifth value is refused by name**, and the refusal aborts the
-  consult. A flag accepted and not honoured makes every `"..."` in the
-  file mean something other than it says — which was the argument for
-  refusing `string` back when there was nothing to build.
+* **A fifth value is refused by name**, and the refusal is now REPORTED
+  rather than fatal — `ERROR: p.pl:1:` and the reason, then the load goes
+  on with the flag unchanged. A flag accepted and not honoured makes every
+  `"..."` in the file mean something other than it says, which was the
+  argument for refusing `string` back when there was nothing to build.
 
 **TWO TEXT SEAMS TAKE A CHAR LIST, and both had to be taught to.**
 `coco_m_text` in `lib/module.cicili` (format, and every module asking for

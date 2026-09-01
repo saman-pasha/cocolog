@@ -2969,17 +2969,41 @@ is 14000), which is how it has always read and is worth a look.
 * **`consult` asserts, it does not replace.** Consult the same file twice and
   every proof answers everything twice; `cocolog forget` is how a knowledge base
   is emptied.
-* **A directive is not run as a goal.** `coco_directive` handles `dynamic/1` and
-  `op/3`, ignores `discontiguous/1`, `multifile/1`, `module/2`, `use_module/1,2`
-  and `meta_predicate/1`, and honours `set_prolog_flag(double_quotes, V)` for
-  all four of SWI's values — `codes`, `chars`, `atom`, `string` — changing what
-  the reader builds for the rest of the file. A fifth value is refused by name
-  rather than nodded at, because a flag accepted and not honoured makes every
-  `"…"` in the file mean something other than it says. Anything else in a consulted file is an
-  error naming what it was. `:- initialization(main).` and
-  `:- ( catch(...) -> ... ; ... ).` would want an engine, and the store is a
-  layer below the engine — the file that would have to call into solve.cicili is
-  compiled before it.
+* **A directive IS run as a goal**, since the seam below. `coco_directive` still
+  answers the ones that have to act on the READER while the file is being read —
+  `op/3` (the clauses after it parse with it in force), `dynamic/1`,
+  `discontiguous/1`, `multifile/1`, `module/2`, `use_module/1,2`,
+  `meta_predicate/1`, and `set_prolog_flag(double_quotes, V)` for all four of
+  SWI's values, `codes`, `chars`, `atom`, `string`, changing what the reader
+  builds for the rest of the file. A fifth value is refused by name rather than
+  nodded at, because a flag accepted and not honoured makes every `"…"` in the
+  file mean something other than it says. **Everything else is called**, in file
+  order, so `:- assert(config(fast)).` and `:- ( ok -> true ; report ).` do what
+  they say. The store is still a layer below the engine and this file is still
+  compiled first; what changed is that it now has a hook the library layer fills
+  in with one — `coco_goal_install`, beside the `use_module` seam that was
+  already there for the same reason.
+* **`:- initialization(G)` puts a goal off until the file is read**, which is
+  what the directive is for: a goal at the top may call a predicate defined at
+  the bottom. `initialization(G, now)` runs it where it stands and
+  `initialization(G, main)` runs it after the load and then HALTS — 0 proved, 1
+  failed, 2 threw, the three statuses `swipl -g` ends with. Any other `when`
+  belongs to saved states, which cocolog does not have, and is refused by name.
+* **A directive that fails or throws is reported, and the load carries on.**
+  SWI's two shapes, measured against `swipl` rather than remembered: an
+  exception is `ERROR: p.pl:4:` and the ball on the line under it, a failure is
+  `Warning: p.pl:5:` naming the goal, and an initialization goal's is the
+  one-line form. The whole consult used to end on the first of these and return
+  −1, so a file whose first line was `:- initialization(main).` loaded nothing
+  at all. **A syntax error is now the only thing that ends a consult**, and it
+  has to be: after one the reader does not know where the next clause begins.
+* **An uncaught exception reads as a sentence and exits 2.** `coco_error_text`
+  turns a ball into SWI's words — `Unknown procedure: main/0`, ``Type error:
+  `integer' expected, found `foo'``, ``Arithmetic: `foo/0' is not a function``,
+  `Unknown message: my_ball` for a ball that is not an `error/2` at all — and
+  the CLI prints `ERROR: -g main: …`. The exit status is SWI's too: 0 proved, 1
+  failed **silently**, 2 threw. `test/directives.sh` runs the same files under
+  both and diffs what the programs printed.
 * **`format/2` has no column directives.** `~t`, `~|` and `~+` measure what has
   been written since the last column stop, which is a second pass over the
   buffer this does not make. They raise an error naming themselves rather than

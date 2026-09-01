@@ -8,9 +8,6 @@
 %% One trap per section, named by the traps.jsonl row it comes from. Adding a
 %% row to traps.jsonl with a `pattern' means adding a line here.
 
-%% ---- D1: a directive outside the accepted fourteen --------------------
-:- initialization(main).
-
 %% ---- D2: not a prefix operator, so the file does not even parse -------
 :- table selftest_memo/2.
 

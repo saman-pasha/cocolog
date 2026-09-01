@@ -536,10 +536,47 @@
         (let ((char err [512]))
           (return (? (== 0 (coco_library_load st m nil spec err 512)) 0 1))))
 
+  ;;; ---- and the seam a DIRECTIVE runs through ---------------------------
+  ;;;
+  ;;; THE ENGINE IS HERE AND THE STORE IS NOT, which is the whole reason for
+  ;;; a hook: `:- G' has to run G, kb.cicili is compiled before solve.cicili,
+  ;;; and this file is compiled after both. One engine per directive, over
+  ;;; the machine and store the load is already using -- so a directive that
+  ;;; asserts is asserting into the file's own knowledge base, and a
+  ;;; directive that reads sees the clauses above it.
+  ;;;
+  ;;; ITS ANSWER IS THE THREE-WAY ONE the caller needs: 1 proved, 0 failed,
+  ;;; -1 threw with the ball already turned into SWI's words -- the engine's
+  ;;; own `err' is the fallback for the errors that are not balls at all.
+  ;;;
+  ;;; `:- halt.' HALTS, here as in SWI. The flag belongs to the engine that
+  ;;; ran the goal and would die with it, so it is read before that engine
+  ;;; is freed and acted on at once: a program that says halt in a directive
+  ;;; means the process, not this goal.
+  (static)
+  (func lb_goal_hook ((coco_store * st) (coco_machine * m) (size_t goal)
+                      (char * err) (size_t errlen)) (out int)
+        (let ((coco_engine e) (int rc . 0) (int halted . 0) (int code . 0))
+          (coco_engine_init (aof e) m st)
+          (set ($ e max_steps) 0)
+          (coco_engine_ask (aof e) goal)
+          (set rc (coco_engine_next (aof e)))
+          (set halted ($ e halted))
+          (set code ($ e halt_code))
+          (if (== rc -1)
+              (if (not (coco_engine_error_text (aof e) err errlen))
+                  (snprintf err errlen "%s" ($ e err))))
+          (coco_engine_free (aof e))
+          (if halted (block (fflush nil) (exit code)))
+          (if (== rc 1) (return 1))
+          (if (== rc 0) (return 0))
+          (return -1)))
+
   (static) (coco-emit-module-dispatch lb_dispatch *library-predicates*)
 
   (func coco_library_module () (out int)
         (coco_use_module_install lb_directive_hook)
+        (coco_goal_install lb_goal_hook)
         (return (coco_module_register "library" lb_dispatch nil nil)))
 
   ) ; impl-library

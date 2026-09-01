@@ -144,19 +144,30 @@ t37_rules :-
     format("   all: a rule IS a clause -- a head that names it and a body~n"),
     format("   that says when it fires -- and the tables it reads are facts~n"),
     format("   somebody can list and argue with.~n"),
-    findall(D, cl_directive(D, _), Ds0),
-    sort(Ds0, Ds),
-    length(Ds, NDirectives),
-    must('the accepted directive names', NDirectives, 14),
-    ( cl_directive(dynamic, 1) -> Dyn = accepted ; Dyn = refused ),
-    must('dynamic/1 is a directive', Dyn, accepted),
-    ( cl_directive(initialization, 1) -> Init = accepted ; Init = refused ),
-    must('initialization/1 is not', Init, refused),
-    format("   ...and THAT is rule D1, which is HARD because an unsupported~n"),
-    format("   directive does not get ignored: it ABORTS THE WHOLE CONSULT.~n"),
-    format("   The file loads nothing and cocolog exits 1.~n"),
-    cl_severity(d1, SevD1),
-    must('D1 is hard', SevD1, hard),
+    findall(R-S, cl_severity(R, S), Sevs),
+    length(Sevs, NRules),
+    must('every rule, with the severity of each', NRules, 9),
+    ( memberchk(n2-hard, Sevs) -> N2 = hard ; N2 = other ),
+    must('N2 -- dead clauses under a C name -- is HARD', N2, hard),
+    ( memberchk(t1-warn, Sevs) -> T1 = warn ; T1 = other ),
+    must('T1 -- an import that does nothing -- is a WARN', T1, warn),
+
+    %% ---- AND A RULE CAN RETIRE, which is the other half of the argument.
+    %%
+    %% There used to be a rule D1 here, and this lesson used to check it: a
+    %% directive outside an accepted fourteen ABORTED THE WHOLE CONSULT, so
+    %% `:- initialization(main).' meant a file that loaded nothing at all.
+    %% The engine changed -- a directive is a GOAL now, run where it stands,
+    %% and one that fails or throws is reported while the load carries on --
+    %% and the rule went with it: row, pattern, clauses and this check.
+    ( catch(cl_severity(d1, _), error(existence_error(_, _), _), fail)
+    -> D1 = still_here
+    ;  D1 = retired ),
+    must('D1 retired with the divergence it named', D1, retired),
+    format("   A rule is a clause, so retiring one is DELETING a clause --~n"),
+    format("   and a lesson that still asked about it would fail until~n"),
+    format("   somebody said what changed. Which is the argument for~n"),
+    format("   writing the checks as goals rather than as prose.~n"),
 
     true.
 
@@ -228,11 +239,11 @@ t37_card :-
     read_file_to_codes('tools/coco-agent/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 35),
+    must('rows in the card', NRows, 34),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 35),
+    must('every id distinct', NIds, 34),
     %% FIFTEEN OF THE THIRTY-FIVE CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `A1' can be matched --
@@ -252,7 +263,7 @@ t37_card :-
     %% being a divergence.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 15),
+    must('rows carrying an S1 pattern term', NPats, 14),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 

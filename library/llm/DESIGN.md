@@ -35,8 +35,7 @@ both the card and half the linter are generated.
 The hard problem is not generation. A competent model writes correct Prolog first try.
 The problem is that its Prolog is SWI's, and cocolog diverges from SWI at roughly forty
 points where the divergent form **is syntactically valid, compiles, runs, and is wrong**.
-`format(string(S), ...)`. `retract(X), fail`. `:- initialization(main).`
-`main :- ..., halt.` A helper called `step/4`. The model cannot tell which of its habits
+`format(string(S), ...)`. `retract(X), fail`. `main :- ..., halt.` A helper called `step/4`. The model cannot tell which of its habits
 are habits: it has read thousands of SWI programs and zero cocolog programs, so every SWI
 reflex arrives at maximum confidence with no marker on it.
 
@@ -177,7 +176,7 @@ a gate for free.
 | **R2** | *(the inverse)* "avoid failure-driven loops" | `between/3`, `member/2`, `select/3`, `sub_atom/5`, `clause/2`, `current_predicate/1`, `nth0/3` **do** backtrack | They are Prolog clauses (`lib/builtins.cicili:227-229, :236, :287-288`; `lib/lists.cicili`). The rule is structural: **C table ⇒ once; clauses ⇒ backtracks.** |
 | **I1** | a defensive `!` on every clause to force determinism | omit it where the first arguments are distinct; keep it where the caller may leave arg 1 unbound | **First-argument indexing is live**, and it is a semantics fact here, not a speed one. `coco_arg_key` keys on the goal's first argument (`lib/kb.cicili:791-800`; an unbound or float arg keys 0 and constrains nothing) and `coco_pred_next_clause` selects on it, both from the engine's own clause loop (`lib/solve.cicili:695-712`). The declaration says it outright: *"THIS IS WHERE THE DETERMINISM COMES FROM, as much as the speed"* (`lib/kb.cicili:286-289`) — a predicate whose first arguments are distinct leaves **no choice point**. A cut added to force determinism the engine already gives you is not merely noise: on the calls where arg 1 *is* unbound it prunes solutions the program needed. `STATUS.md:2760` lists this under "Not started" and says clauses are tried in order; it is stale on both halves. |
 | **H1** | `main :- …, halt.` | omit `halt` entirely | `halt/0` sets `halted`, and the engine tests `halted` **before** the empty-continuation test (`lib/solve.cicili:1121` vs `:1123`), so the goal reports no solution and `run`/`-s` exit **1 with nothing on stderr** — indistinguishable from failure. |
-| **D1** | `:- initialization(main).` | nothing; the CLI names the goal | A directive outside the whitelist **aborts the whole consult** — `unsupported directive: initialization/1` (`lib/kb.cicili:772`, consult returns −1 at `:1196-1198`, `cmd_run` exits 1 at `cocolog.cicili:2140-2143`). |
+| ~~**D1**~~ | ~~`:- initialization(main).`~~ | **retired** | A directive is a GOAL now, run in file order through the seam `coco_goal_install` fills in, and `initialization/1,2` puts one off until the file is read. A directive that fails or throws is reported in SWI's shape and the load CARRIES ON. The row, its S1 pattern and the linter rule all went when the divergence did; `test/directives.sh` is what holds the new behaviour. |
 | **D2** | `:- table p/2.` `:- thread_local p/1.` | nothing | Those names are not prefix operators, so the file does not even **parse** (`lib/syntax.cicili:97-100`: only `dynamic discontiguous meta_predicate multifile` at 1150 fx). |
 | **D3** | `:- use_module(library(lists)).` | write nothing | Tier 1 is compiled in / preloaded: `apply builtins dcg files library lists zigurat` + `assoc pairs ordsets yall aggregate ugraphs dcg_basics dcg_high_order`. 26 such lines were deliberately removed from this tree. Harmless, but off-idiom. |
 | **D4** | `:- use_module(library(dcg/basics)).` | nothing (it is tier 1 as `dcg_basics`) | `library(Dir/Name)` becomes the path `"Dir/Name"`, and the vendored file is `lib/swipl/dcg_basics.pl`. As a directive: silently ignored. As a **goal**: raises. |
@@ -296,14 +295,13 @@ contributes `smallest_country/2`.
 | id | severity | checks | message shape |
 |---|---|---|---|
 | **P1** parse | HARD | Reads every clause. Converts the reader's **byte offset** to `line:col` — the interpreter only ever says `syntax error at offset %lu: %s` (`lib/syntax.cicili:589`) and there are no line numbers anywhere in the pipeline. | `gen/solver.pl:14:23 expected . ending a clause` |
-| **D1** directive | HARD | Every `:- D.` against the enumerated fourteen. | *"`initialization/1` is not a directive here; it aborts the whole consult (`lib/kb.cicili:772`). The CLI names the goal: `cocolog --local run gen/solver.pl main`."* |
 | **N1** collision-append | HARD | Defined heads ∩ clause-defined reserved set. | *"`step/4` is `lib/swipl/aggregate.pl`'s and `lib/swipl/ugraphs.pl`'s. Consult appends — see §6 for which set of clauses is tried first, and note that it depends on how the file is run. Rename to `solver_step/4`."* |
 | **N2** collision-dead | HARD | Defined heads ∩ C-table set (141 + imported modules' 109 + torch/bigint's 54). | *"`memberchk/2` is dispatched before the knowledge base (`lib/solve.cicili:1352-1386`). Your clauses will never run."* |
 | **N3** collision-construct | HARD | Defined head names ∩ the 22 construct names, **any arity**. | *"`once` is a control construct matched by interned id (`lib/solve.cicili:151-154`) before the builtin table and before the store. Your clauses are unreachable and no runtime check can see them."* |
 | **N4** dcg-arity | HARD | Every `-->` head recorded at arity+2 before N1–N3 run. | folded into the N-messages |
 | **E1** existence | WARN | Called goals ∉ (defined ∪ constructs ∪ retrieved symbol scope). | *"`portray_clause/2` does not exist; `existence_error(procedure, portray_clause/2)` at run time — see card row X2 for what the stream family is missing."* |
 | **T1** tier-import | HARD-WARN | A call into a tier-2 library with no `:- use_module`, **and** the inverse: a `use_module` for a tier-1 library (advisory only). | names the exact `sh modules/X/build.sh` |
-| **S1** banned-forms | HARD | ~24 regex/term patterns generated from `traps.jsonl` rows whose `rule` field is set: `format(string(`, `~t`/`~|`/`~+`, `write_canonical(`, `b_setval(`, `retract(…), fail` (term-level, not textual), `halt` on a success path, `atan(_,_)`, `log(_,_)`, `random`, `'[|]'`, `:- table`, `:- initialization`, `catch(findall(`, `\xHH\`, `1_000`, backquotes, `16'FF`, `call_with_inference_limit`, `setup_call_cleanup`, `nb_current`, `current_prolog_flag` with any flag but `executable`. | each message is the card row, verbatim, with its `cite` |
+| **S1** banned-forms | HARD | ~24 regex/term patterns generated from `traps.jsonl` rows whose `rule` field is set: `format(string(`, `~t`/`~|`/`~+`, `write_canonical(`, `b_setval(`, `retract(…), fail` (term-level, not textual), `halt` on a success path, `atan(_,_)`, `log(_,_)`, `random`, `'[|]'`, `:- table`, `catch(findall(`, `\xHH\`, `1_000`, backquotes, `16'FF`, `call_with_inference_limit`, `setup_call_cleanup`, `nb_current`, `current_prolog_flag` with any flag but `executable`. | each message is the card row, verbatim, with its `cite` |
 | **S2** divergence-report | HARD | For each `divergences_applied[].swi` the model claimed to suppress, grep the emitted file for that form. Present ⇒ fail. | *"You reported suppressing `format(string(S), …)` but line 31 still contains it."* |
 | **A1** arithmetic-range | WARN | Integer literals or literal products ≥ 2^59. | card row A2 |
 | **Z1** size | WARN | (a) a clause whose canonical text exceeds the configured page budget (default 7900, `--page-bytes`); (b) any single term exceeding 65535 bytes. Two distinct messages. | *(a)* refused by the server at the turn's flush, after the assert that caused it; *(b)* refused by the client with `a Text is limited to 65535 bytes` |
@@ -467,7 +465,7 @@ Signals:
 |---|---|
 | exit 0 and a `coco_oracle_end` line | consulted cleanly; oracle output is complete |
 | `cocolog: FILE: syntax error at offset N: <one of twelve reasons>` | **G1 escape** — log it as a linter bug, convert N to line:col, repair |
-| `cocolog: FILE: unsupported directive: N/A` | **G1 escape**; the whole consult aborted |
+| `ERROR: FILE:N:` then `ERROR:    Unknown procedure: N/A` | a directive that threw; the load CARRIED ON, so this is advice and not a stop |
 | `cocolog: FILE: not a clause` | a term the asserter refused |
 
 Then, free:
@@ -745,7 +743,7 @@ evidence is about behaviour and the file is the subject.
 | class | fingerprint | response |
 |---|---|---|
 | **A** syntax | `syntax error at offset N: <one of twelve reasons>` | **regenerate** with the reason; a G1 escape is logged as a linter bug |
-| **B** refused directive | `unsupported directive: N/A` | G1 escape by construction — log, then repair with the whitelist quoted |
+| **B** directive that threw | `ERROR: FILE:N:` + the ball | not a stop: the file loaded. Repair the goal the directive names, or move it into `:- initialization(…)` if it calls something defined lower down |
 | **C** existence_error | exact predicate named | **first decide whether the environment is wrong.** If the name matches a tier-2 library's documented surface and its `.so` is absent, this is an environment failure: report `sh modules/X/build.sh` and **stop**. Repairing here is the worst outcome — the model removes the correct call. Otherwise repair as a typo |
 | **D** failed check | `Label = Got  BUT THIS LESSON SAYS Want` | cheapest and most common; needs no trace |
 | **E** `main` failed, no check line | G4 exit 1, empty stderr | fire G5, hand back the deepest `Fail` with no later `Exit` at that depth |

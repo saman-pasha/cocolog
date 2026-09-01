@@ -92,10 +92,15 @@ check "a syntax error costs the goal, not the session" "$got" "X = ok."
 got=$(printf 'mystery(9).\nX = still_here.\n' | "$C" 2>/dev/null)
 check "an unknown procedure costs the goal, not the session" "$got" "X = still_here."
 
+# THE BALL AS A SENTENCE, not as a term. The toplevel used to print
+# `uncaught exception: error(existence_error(procedure, mystery/1), _G12)'
+# and now prints what SWI prints -- `Unknown procedure: mystery/1' -- so
+# what is checked here is the name and arity, which is the part a person
+# reads either way.
 got=$(printf 'mystery(9).\n' | "$C" 2>&1 >/dev/null)
 case "$got" in
-  *existence_error*) check "and says existence_error on stderr" yes yes ;;
-  *) check "and says existence_error on stderr" "$got" "existence_error" ;;
+  *"Unknown procedure: mystery/1"*) check "and names the unknown procedure on stderr" yes yes ;;
+  *) check "and names the unknown procedure on stderr" "$got" "Unknown procedure: mystery/1" ;;
 esac
 
 # fact/1's second answer is determinate -- the store knows its last clause

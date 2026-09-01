@@ -297,7 +297,18 @@
 
   ;;; Reads a whole program text and asserts every clause in it. Answers the
   ;;; number asserted, or -1 on a syntax error, leaving the message in ERR.
+  ;;;
+  ;;; ORIGIN NAMES THE FILE, for the messages a directive can now produce --
+  ;;; `file.pl:12:' the way SWI writes it. Text with no file behind it passes
+  ;;; nil, and the message says only what went wrong.
+  ;;;
+  ;;; A DIRECTIVE THAT FAILS OR THROWS NO LONGER STOPS THE LOAD. It is
+  ;;; reported, in SWI's two-line shape, and the next clause is read -- which
+  ;;; is what every other Prolog does, and what makes a file with one bad
+  ;;; directive in it still a file you can work on. Only a SYNTAX error ends
+  ;;; the consult, because after one the reader does not know where it is.
   (decl) (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
+                           (const char * origin)
                            (char * err) (size_t errlen)) (out int))
 
   ;;; Splits a clause ON THE HEAP into head and body. A fact has no body and
@@ -355,16 +366,40 @@
   (decl) (func coco_is_compound2 ((coco_machine * m) (size_t t) (const char * name))
                (out int))
 
+  ;;; The goals a file's `:- initialization(G)' directives put off until the
+  ;;; whole file is read, in the order the file writes them. Cells, not heap
+  ;;; terms: the heap is wound back after every clause, and a goal recorded
+  ;;; on it would be pointing at reused ground by the time the file ended.
+  ;;;
+  ;;; MODE is `when' from SWI's `initialization/2': 0 after_load, 1 main.
+  ;;; (`now' is not here, having already run.) LINE is where the directive
+  ;;; was written, so the message a failing one produces can say.
+  (struct coco_initgoals
+    (member size_t * cells)
+    (member int    * modes)
+    (member int    * lines)
+    (member size_t   len)
+    (member size_t   cap))
+
   ;;; Applies one directive -- the G of a `:- G' read by `coco_consult'.
   ;;;
-  ;;; WHAT IT DOES NOT DO IS RUN G. A directive that is a goal wants an engine,
-  ;;; and the store is a layer below the engine: this file is compiled before
-  ;;; solve.cicili and cannot call into it. What it handles is the directives
-  ;;; that are declarations about the store itself and need nothing else --
-  ;;; which is what a consulted file almost always carries. Anything else is
-  ;;; refused by name rather than silently asserted as a clause whose head is
-  ;;; `:-', which is what used to happen to every directive ever written.
+  ;;; IT RUNS G, through the seam below, when G is not one of the handful
+  ;;; this file answers itself. Those it answers are the ones that are about
+  ;;; the READER or the STORE and must take effect while the file is still
+  ;;; being read -- `op/3' changes how the rest of the file parses,
+  ;;; `set_prolog_flag(double_quotes, V)' changes what a "..." in it builds,
+  ;;; `dynamic/1' makes a predicate exist before its first clause does.
+  ;;; Everything else is a goal, as it is in SWI, and goes to the engine
+  ;;; through `coco_goal_install' -- in file order, where a directive that
+  ;;; asserts what the next one reads still works.
+  ;;;
+  ;;; INITS COLLECTS `initialization(G)'. Answers 1 (done), 2 (the goal
+  ;;; FAILED -- a Warning, in SWI's reckoning, and ERR says which goal) or 0
+  ;;; (an error, ERR carrying it in SWI's words). The caller REPORTS the last
+  ;;; two and carries on, because a bad directive is one bad line and not a
+  ;;; bad file.
   (decl) (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
+                             (coco_initgoals * inits) (int line)
                              (char * err) (size_t errlen)) (out int))
 
   ;;; The seam `:- use_module(...)' loads through. This file is compiled
@@ -375,6 +410,21 @@
   ;;; and ignored, so a borrowed file still reads unedited.
   (decl) (func coco_use_module_install
                ((func h ((coco_store * st) (coco_machine * m) (size_t spec))
+                     (out int))))
+
+  ;;; The seam a DIRECTIVE runs through, installed by the same layer and for
+  ;;; the same reason: an engine lives above this file, and a goal needs one.
+  ;;; The hook answers 1 (proved), 0 (failed) or -1 (threw, with the message
+  ;;; already in SWI's words in ERR) -- the three outcomes a load-time
+  ;;; message has to tell apart.
+  ;;;
+  ;;; WHILE IT IS NULL a directive that is a goal is what it was before there
+  ;;; was a seam: refused by name. That is not a fallback anybody should
+  ;;; meet, but a store opened without an engine over it -- the schema
+  ;;; compiler does exactly that -- must not crash on a file that has one.
+  (decl) (func coco_goal_install
+               ((func h ((coco_store * st) (coco_machine * m) (size_t goal)
+                         (char * err) (size_t errlen))
                      (out int))))
 
   ) ; decl-kb
@@ -392,6 +442,79 @@
   (func coco_use_module_install
         ((func h ((coco_store * st) (coco_machine * m) (size_t spec)) (out int)))
         (set coco_use_module_hook h))
+
+  ;; and the seam a directive runs through, filled in by the same layer
+  (static) (var func coco_goal_hook ((coco_store * st) (coco_machine * m)
+                                     (size_t goal) (char * err) (size_t errlen))
+                 (out int))
+
+  (func coco_goal_install
+        ((func h ((coco_store * st) (coco_machine * m) (size_t goal)
+                  (char * err) (size_t errlen)) (out int)))
+        (set coco_goal_hook h))
+
+  ;;; ---- the messages a load can produce ----------------------------------
+  ;;;
+  ;;; SWI'S TWO-LINE SHAPE, kept because a person who has seen one of these
+  ;;; before should not have to learn a second dialect of it:
+  ;;;
+  ;;;     ERROR: /path/p.pl:12:
+  ;;;     ERROR:    Unknown procedure: table/1
+  ;;;
+  ;;; The first line locates it and the second says what it was, indented
+  ;;; under its own tag so a grep for `ERROR:' finds both halves. WHERE is
+  ;;; nil for text with no file behind it -- a clause out of the database,
+  ;;; the REPL -- and then the location line is left out rather than made up.
+  (static)
+  (func coco_load_message ((const char * tag) (const char * origin) (int line)
+                           (const char * what))
+        (fflush nil)
+        (if (!= origin nil)
+            (fprintf stderr "%s: %s:%d:\n" tag origin line))
+        (fprintf stderr "%s:    %s\n" tag what))
+
+  ;;; The one-line form, which is the one SWI uses for an initialization goal
+  ;;; -- `Warning: p.pl:1: Initialization goal failed'. Measured against
+  ;;; swipl rather than remembered: the two shapes are not interchangeable
+  ;;; there and a reader who greps for one should find it.
+  (static)
+  (func coco_load_note ((const char * tag) (const char * origin) (int line)
+                        (const char * what))
+        (fflush nil)
+        (if (!= origin nil)
+            (fprintf stderr "%s: %s:%d: %s\n" tag origin line what)
+          (fprintf stderr "%s: %s\n" tag what)))
+
+  ;;; ---- the goals a file puts off ----------------------------------------
+
+  (static)
+  (func coco_inits_add ((coco_initgoals * gs) (size_t cell) (int mode) (int line))
+        (out int)
+        (if (>= (-> gs len) (-> gs cap))
+            (let ((size_t ncap . #'(? (== (-> gs cap) 0) 8 (* (-> gs cap) 2)))
+                  (void * nc) (void * nm) (void * nl))
+              (set nc (realloc (cast (void *) (-> gs cells)) (* ncap (sizeof size_t))))
+              (if (== nc nil) (return 0))
+              (set (-> gs cells) (cast (size_t *) nc))
+              (set nm (realloc (cast (void *) (-> gs modes)) (* ncap (sizeof int))))
+              (if (== nm nil) (return 0))
+              (set (-> gs modes) (cast (int *) nm))
+              (set nl (realloc (cast (void *) (-> gs lines)) (* ncap (sizeof int))))
+              (if (== nl nil) (return 0))
+              (set (-> gs lines) (cast (int *) nl))
+              (set (-> gs cap) ncap)))
+        (set (nth (-> gs len) (-> gs cells)) cell)
+        (set (nth (-> gs len) (-> gs modes)) mode)
+        (set (nth (-> gs len) (-> gs lines)) line)
+        (set (-> gs len) (+ (-> gs len) 1))
+        (return 1))
+
+  (static)
+  (func coco_inits_free ((coco_initgoals * gs))
+        (if (!= (-> gs cells) nil) (free (cast (void *) (-> gs cells))))
+        (if (!= (-> gs modes) nil) (free (cast (void *) (-> gs modes))))
+        (if (!= (-> gs lines) nil) (free (cast (void *) (-> gs lines))))
+        (memset gs 0 (sizeof coco_initgoals)))
 
   (static)
   (func coco_store_grow ((coco_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
@@ -707,6 +830,7 @@
             (return 1))))
 
   (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
+                      (coco_initgoals * inits) (int line)
                       (char * err) (size_t errlen)) (out int)
         (set g (coco_deref m g))
         (if (not (coco_is_callable m g))
@@ -815,8 +939,94 @@
                           "set_prolog_flag: double_quotes takes codes, chars, atom or string")
                 (return 0)))
 
-          (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))
-          (return 0)))
+          ;; ---- `:- initialization(G)', and `initialization(G, When)' ----
+          ;;
+          ;; PUT OFF UNTIL THE FILE IS READ, which is the whole point of the
+          ;; directive: a goal written at the top of a file may call
+          ;; predicates written at the bottom of it, and a directive that ran
+          ;; where it stands could not. The goal goes into the STORE and its
+          ;; cell into INITS, because the heap this term is on is wound back
+          ;; as soon as the clause is done with.
+          ;;
+          ;; SWI'S FOUR WHENS, three of which mean something here. `now' runs
+          ;; it where it stands -- the one case that is just a goal with a
+          ;; longer name. `after_load' is the default and what `/1' means.
+          ;; `main' is after_load and then HALT: SWI makes the goal the
+          ;; program, and a program that has finished is a process that has
+          ;; finished. `restore_state' and the rest belong to saved states,
+          ;; which cocolog does not have, and are refused by name rather than
+          ;; nodded at -- the same rule `set_prolog_flag' follows above.
+          (if (and (>= n 1) (<= n 2) (== 0 (strcmp name "initialization")))
+              (let ((int mode . 0))
+                (if (== n 2)
+                    (let ((size_t w . #'(coco_deref m (coco_arg m g 1))))
+                      (if (or (not (coco_is_callable m w)) (!= (coco_arity m w) 0))
+                          (block (snprintf err errlen
+                                           "initialization: the second argument names when")
+                                 (return 0)))
+                      (let ((const char * wn . #'(coco_atom_name m (coco_name_of m w))))
+                        (cond
+                          ((== 0 (strcmp wn "after_load")) (set mode 0))
+                          ((== 0 (strcmp wn "main"))       (set mode 1))
+                          ((== 0 (strcmp wn "now"))        (set mode 2))
+                          (#t (block (snprintf err errlen
+                                        "initialization: `%s' is not a when cocolog has -- after_load, main or now"
+                                        wn)
+                                     (return 0)))))))
+                (if (== mode 2)
+                    (block
+                     (if (== coco_goal_hook nil)
+                         (block (snprintf err errlen
+                                          "initialization(G, now): there is no engine over this store")
+                                (return 0)))
+                     (let ((int r . #'(coco_goal_hook st m (coco_arg m g 0) err errlen)))
+                       (if (== r 1) (return 1))
+                       (if (== r 0)
+                           (block (snprintf err errlen "Goal (initialization) failed")
+                                  (return 2)))
+                       (return 0))))
+                (if (== inits nil)
+                    (block (snprintf err errlen
+                                     "initialization: nothing here can put a goal off")
+                           (return 0)))
+                ;; NO ZERO CHECK ON THE CELL: zero is the first cell of an
+                ;; empty store and a perfectly good answer -- reading it as
+                ;; failure reported an out of memory that had not happened for
+                ;; every `initialization' in the first file of a session.
+                (let ((size_t cell . #'(coco_store_put st m (coco_arg m g 0))))
+                  (if (not (coco_inits_add inits cell mode line))
+                      (block (snprintf err errlen "initialization: out of memory") (return 0)))
+                  (return 1))))
+
+          ;; ---- AND EVERYTHING ELSE IS A GOAL ----------------------------
+          ;;
+          ;; Which is what a directive IS in every other Prolog, and what
+          ;; this file could not do for as long as it had no way to reach an
+          ;; engine. `:- assert(seen(0)).', `:- ( ok -> true ; report ).',
+          ;; `:- main.' all run, here, in the order the file writes them.
+          ;;
+          ;; A GOAL THAT FAILS IS NOT AN ERROR IN THE FILE, and the message
+          ;; says so in SWI's words: a failure is a Warning naming the
+          ;; directive, an exception is an ERROR naming the ball. Both leave
+          ;; the load running.
+          (if (== coco_goal_hook nil)
+              (block (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))
+                     (return 0)))
+          (let ((int r . #'(coco_goal_hook st m g err errlen)))
+            (if (== r 1) (return 1))
+            (if (== r 0)
+                (let ((coco_strbuf b))
+                  ;; NAMING THE GOAL, as SWI does -- `Goal (directive)
+                  ;; failed: seen(0)'. A file with three directives in it and
+                  ;; a message that named none of them would send the reader
+                  ;; to count lines.
+                  (coco_sb_init (aof b))
+                  (coco_write_term m (aof b) g 1 0)
+                  (snprintf err errlen "Goal (directive) failed: %s"
+                            (? (== ($ b s) nil) "?" ($ b s)))
+                  (coco_sb_free (aof b))
+                  (return 2)))
+            (return 0))))
 
   ;;; ---- asserting --------------------------------------------------------
 
@@ -1149,6 +1359,7 @@
           (return 0)))
 
   (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
+                    (const char * origin)
                     (char * err) (size_t errlen)) (out int)
         (let ((coco_reader r) (size_t t) (int rc . 1) (int n . 0) (size_t mark)
               ;; `:- if/elif/else/endif' -- conditional reading, sixteen deep.
@@ -1157,13 +1368,26 @@
               ;; `elif'/`else' in the same if stays off). Everything read
               ;; while any frame is not taking is dropped, directives too --
               ;; except these four, which keep the nesting straight.
-              (int csp . 0) (int ctaking [16]) (int ctaken [16]) (int active . 1))
+              (int csp . 0) (int ctaking [16]) (int ctaken [16]) (int active . 1)
+              ;; WHERE THE CLAUSE IN HAND BEGINS, counted forward and never
+              ;; back: `scanned' is how far the newline count has read and
+              ;; `line' the answer at that point, so the whole file is walked
+              ;; once however many clauses it holds. The reader keeps one
+              ;; token in hand, so this is the line the clause STARTS on --
+              ;; which is the line SWI names too.
+              (size_t scanned . 0) (int line . 1) (int at . 1)
+              (coco_initgoals inits))
+          (memset (aof inits) 0 (sizeof coco_initgoals))
           (coco_reader_init (aof r) m text)
           (while (== rc 1)
             ;; each clause is read on to the heap, copied into the store, and
             ;; the heap wound back -- so consulting a large file does not leave
             ;; a copy of it in the machine as well as in the store
             (set mark (-> m heap_len))
+            (while (< scanned ($ r pos))
+              (if (== (nth scanned text) (cast char 10)) (set line (+ line 1)))
+              (set scanned (+ scanned 1)))
+            (set at line)
             (set rc (coco_read_clause (aof r) (aof t)))
             (if (== rc 1)
                 (block
@@ -1238,9 +1462,17 @@
                                 (block (snprintf err errlen "endif: no `:- if' is open")
                                        (coco_reader_free (aof r)) (return -1)))
                             (set csp (- csp 1))))
+                       ;; REPORTED, AND THE LOAD GOES ON. A directive is a
+                       ;; goal now, and a goal that fails or throws is news
+                       ;; about that goal -- not a reason to throw away the
+                       ;; clauses under it, which is what returning -1 here
+                       ;; used to do: one `:- initialization(main).' at the
+                       ;; top of a file and NOTHING in it was loaded.
                        (if (and (== handled 0) active)
-                           (if (not (coco_directive st m (coco_arg m t 0) err errlen))
-                               (block (coco_reader_free (aof r)) (return -1))))
+                           (let ((int dr . #'(coco_directive st m (coco_arg m t 0)
+                                                             (aof inits) at err errlen)))
+                             (if (== dr 2) (coco_load_message "Warning" origin at err))
+                             (if (== dr 0) (coco_load_message "ERROR" origin at err))))
                       (set (-> m heap_len) mark))
                    (block
                     (if active
@@ -1253,9 +1485,56 @@
                     (set (-> m heap_len) mark))))))
           (if (== rc -1)
               (block (snprintf err errlen "%s" ($ r err))
+                     (coco_inits_free (aof inits))
                      (coco_reader_free (aof r))
                      (return -1)))
           (coco_reader_free (aof r))
+
+          ;; ---- and now the goals the file put off ------------------------
+          ;;
+          ;; IN THE ORDER THEY WERE WRITTEN, each one read back out of the
+          ;; store on to a heap that is wound again after it: an
+          ;; initialization goal is a goal, not a clause, and nothing it
+          ;; leaves on the heap is wanted once it has answered.
+          (let ((int halt_after . 0) (int halt_code . 0))
+            (for ((size_t i . 0)) (< i ($ inits len)) ((++ i))
+              (let ((size_t back . #'(-> m heap_len))
+                    (int code . 0))
+                (if (== coco_goal_hook nil)
+                    (block (coco_load_note "ERROR" origin (nth i ($ inits lines))
+                                           "initialization: there is no engine over this store")
+                           (set code 2))
+                  (let ((size_t goal . #'(coco_store_get m st (nth i ($ inits cells))))
+                        (int gr . 0) (int main . #'(? (== (nth i ($ inits modes)) 1) 1 0)))
+                    (set gr (coco_goal_hook st m goal err errlen))
+                    ;; SWI'S TWO VOICES, measured: an `after_load' goal that
+                    ;; fails is a Warning and the program carries on, while a
+                    ;; `main' one that fails is an ERROR and the exit status
+                    ;; -- because there it IS the program.
+                    (cond
+                      ((== gr 1) (set code 0))
+                      ((== gr 0)
+                       (block (coco_load_note (? main "ERROR" "Warning")
+                                              origin (nth i ($ inits lines))
+                                              (? main "main: false"
+                                                 "Initialization goal failed"))
+                              (set code 1)))
+                      (#t (block (coco_load_note "ERROR" origin (nth i ($ inits lines))
+                                                 (? main "main: raised exception:"
+                                                    "Initialization goal raised exception:"))
+                                 (fprintf stderr "ERROR:    %s\n" err)
+                                 (set code 2))))))
+                (if (== (nth i ($ inits modes)) 1)
+                    (block (set halt_after 1) (set halt_code code)))
+                (set (-> m heap_len) back)))
+            (coco_inits_free (aof inits))
+            ;; `initialization(G, main)' MAKES G THE PROGRAM, and SWI halts
+            ;; when it is done -- 0 proved, 1 failed, 2 threw, which are the
+            ;; three answers `swipl -g' ends with as well. Anything the
+            ;; process was going to do next, including the goal the CLI was
+            ;; given, is not done: that is the point of the word `main'.
+            (if halt_after
+                (block (fflush nil) (exit halt_code))))
           (return n)))
 
   (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)

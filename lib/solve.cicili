@@ -467,6 +467,32 @@
   ;;; caught it, in which case `err' says so and the caller returns -1.
   (decl) (func coco_m_thrown ((coco_engine * e) (size_t ball)) (out int))
 
+  ;;; ---- what an exception READS like --------------------------------------
+  ;;;
+  ;;; SWI'S WORDS for a ball, so that a person who has read one of these
+  ;;; before does not have to read this one twice. `error(existence_error(
+  ;;; procedure, main/0), _)' is `Unknown procedure: main/0' and not a term
+  ;;; with a variable in it, which is what a reader had to decode before.
+  ;;;
+  ;;; MEASURED AGAINST swipl, not remembered: `X is foo+1' says "Arithmetic:
+  ;;; `foo/0' is not a function", a ball that is not an `error/2' at all says
+  ;;; "Unknown message: my_ball", and an error term with no message of its
+  ;;; own says "Unknown error term:". Those three are exactly the cases a
+  ;;; guess gets wrong.
+  ;;;
+  ;;; THE TERM IS STILL THERE for anything that wants it -- this is a way to
+  ;;; SAY a ball, not a replacement for having one.
+  (decl) (func coco_error_text ((coco_machine * m) (size_t ball)
+                              (char * out) (size_t len)))
+
+  ;;; The same for the exception an engine ended on, which is the shape every
+  ;;; caller of `coco_engine_next' actually has: 1 and OUT filled when the
+  ;;; engine stopped on a ball, 0 when whatever went wrong was not one (a
+  ;;; syntax error in the query, a goal that is not callable) and `e->err' is
+  ;;; the only thing to say.
+  (decl) (func coco_engine_error_text ((coco_engine * e) (char * out) (size_t len))
+               (out int))
+
   (decl) (func coco_extern_install
                ((func call ((coco_engine * e) (const char * name) (u32 arity)
                             (size_t g) (int * found)) (out int))
@@ -904,6 +930,115 @@
   (func coco_m_thrown ((coco_engine * e) (size_t ball)) (out int)
         (return (? (== 1 (coco_throw e ball)) 1 0)))
 
+  ;;; ---- what an exception reads like ---------------------------------------
+
+  ;; One argument of an error term, written the way a message would show it.
+  (static)
+  (func coco_err_say ((coco_machine * m) (size_t t) (char * out) (size_t len))
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) t 1 0)
+          (snprintf out len "%s" (? (== ($ b s) nil) "?" ($ b s)))
+          (coco_sb_free (aof b))))
+
+  (func coco_error_text ((coco_machine * m) (size_t ball) (char * out) (size_t len))
+        (let ((size_t b . #'(coco_deref m ball))
+              (char a1 [256]) (char a2 [256]) (char a3 [256]))
+          ;; A ball that is not `error(Formal, Context)' is not an error term
+          ;; at all -- `throw(my_ball)' is a perfectly good throw -- and SWI
+          ;; says so in those words rather than pretending to explain it.
+          (if (not (and (coco_is_callable m b) (== (coco_arity m b) 2)
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m b)) "error"))))
+              (block (coco_err_say m b a1 (sizeof a1))
+                     (snprintf out len "Unknown message: %s" a1)
+                     (return)))
+          (let ((size_t f . #'(coco_deref m (coco_arg m b 0)))
+                (const char * fn . "") (u32 fa . 0))
+            (if (coco_is_callable m f)
+                (block (set fn (coco_atom_name m (coco_name_of m f)))
+                       (set fa (coco_arity m f))))
+
+            (if (and (== fa 0) (== 0 (strcmp fn "instantiation_error")))
+                (block (snprintf out len "Arguments are not sufficiently instantiated")
+                       (return)))
+
+            (if (and (== fa 2) (== 0 (strcmp fn "existence_error")))
+                (let ((size_t k . #'(coco_deref m (coco_arg m f 0))))
+                  (coco_err_say m k a1 (sizeof a1))
+                  (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                  (if (== 0 (strcmp a1 "procedure"))
+                      (block (snprintf out len "Unknown procedure: %s" a2) (return)))
+                  (snprintf out len "%s `%s' does not exist" a1 a2)
+                  (return)))
+
+            (if (and (== fa 2) (== 0 (strcmp fn "type_error")))
+                (block
+                 (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                 (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                 ;; `X is foo+1' is a type_error(evaluable, foo/0) and SWI
+                 ;; does NOT say "type error" for it -- measured
+                 (if (== 0 (strcmp a1 "evaluable"))
+                     (block (snprintf out len "Arithmetic: `%s' is not a function" a2)
+                            (return)))
+                 (snprintf out len "Type error: `%s' expected, found `%s'" a1 a2)
+                 (return)))
+
+            (if (and (== fa 2) (== 0 (strcmp fn "domain_error")))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                       (snprintf out len "Domain error: `%s' expected, found `%s'" a1 a2)
+                       (return)))
+
+            (if (and (== fa 3) (== 0 (strcmp fn "permission_error")))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                       (coco_err_say m (coco_arg m f 2) a3 (sizeof a3))
+                       (snprintf out len "No permission to %s %s `%s'" a1 a2 a3)
+                       (return)))
+
+            (if (and (== fa 1) (== 0 (strcmp fn "evaluation_error")))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (snprintf out len "Arithmetic: evaluation error: `%s'" a1)
+                       (return)))
+
+            (if (and (== fa 1) (== 0 (strcmp fn "representation_error")))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (snprintf out len "Cannot represent due to `%s'" a1)
+                       (return)))
+
+            (if (and (== fa 1) (== 0 (strcmp fn "resource_error")))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (snprintf out len "Not enough resources: `%s'" a1)
+                       (return)))
+
+            (if (and (== fa 1) (== 0 (strcmp fn "syntax_error")))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (snprintf out len "Syntax error: %s" a1)
+                       (return)))
+
+            ;; cocolog's own ball, which carries a sentence and not a term:
+            ;; `cocolog_error('use_module: p.pl: no such file')' is already
+            ;; the message, and wrapping it in "Unknown error term" would
+            ;; hide the one useful thing in it.
+            (if (and (== fa 1) (== 0 (strcmp fn "cocolog_error")))
+                (let ((size_t w . #'(coco_deref m (coco_arg m f 0))))
+                  (if (and (coco_is_callable m w) (== (coco_arity m w) 0))
+                      (block (snprintf out len "%s" (coco_atom_name m (coco_name_of m w)))
+                             (return)))
+                  (coco_err_say m w a1 (sizeof a1))
+                  (snprintf out len "%s" a1)
+                  (return)))
+
+            (coco_err_say m f a1 (sizeof a1))
+            (snprintf out len "Unknown error term: %s" a1))))
+
+  (func coco_engine_error_text ((coco_engine * e) (char * out) (size_t len)) (out int)
+        (if (not (-> e has_ball)) (return 0))
+        (coco_error_text (-> e m)
+                         (coco_store_get (-> e m) (-> e st) (-> e ball_cell))
+                         out len)
+        (return 1))
+
   ;;; ---- calling ------------------------------------------------------------
 
   ;;; if-then-else, and the three things built out of it. Reads as:
@@ -964,6 +1099,11 @@
         (set (-> e steps) 0)
         (set (-> e resume) 0)
         (set (-> e halted) 0)
+        ;; and no ball in hand: `has_ball' outlives the query that set it
+        ;; otherwise, and the next error that is NOT a ball -- an inference
+        ;; limit, a goal that is not callable -- would be reported with the
+        ;; last one's term
+        (set (-> e has_ball) 0)
         (set (nth 0 (-> e err)) (cast char 0))
         (set (-> e query) goal)
         (set (-> e trace_depth) 0)
@@ -1005,7 +1145,16 @@
           (while 1
             (set rc (coco_engine_next (aof sub)))
             (if (== rc -1)
-                (block (snprintf (-> e err) 192 "%s" ($ sub err)) (set ok 0) break))
+                (block (snprintf (-> e err) 192 "%s" ($ sub err))
+                       ;; AND THE BALL WITH IT. The sub-engine's cell is in
+                       ;; the store, which both engines share, so the outer
+                       ;; one can name what was thrown -- without this a
+                       ;; findall whose goal threw reported the raw term
+                       ;; where every other error reads as a sentence.
+                       (if ($ sub has_ball)
+                           (block (set (-> e has_ball) 1)
+                                  (set (-> e ball_cell) ($ sub ball_cell))))
+                       (set ok 0) break))
             (if (== rc 0) break)
             (if (>= n cap)
                 (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))

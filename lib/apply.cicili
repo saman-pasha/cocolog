@@ -95,7 +95,16 @@
            ;; convlist/3 is maplist and include at once: the goal may fail, and
            ;; an element it fails on is dropped rather than failing the whole.
            "convlist(_, [], [])."
-           "convlist(G, [X|Xs], R) :- ( call(G, X, Y) -> R = [Y|R1] ; R = R1 ), convlist(G, Xs, R1).")))
+           "convlist(G, [X|Xs], R) :- ( call(G, X, Y) -> R = [Y|R1] ; R = R1 ), convlist(G, Xs, R1)."
+
+           ;; ---- apply/2, the old spelling of call/N -----------------------
+           ;; DEPRECATED IN SWI AND PRESENT THERE, which is the whole reason
+           ;; it is here: a program that COMPUTES its argument list cannot
+           ;; write `call(G, A, B)' -- it does not know how many there are --
+           ;; and `apply' is the name every Prolog book gives to that. Univ,
+           ;; append, univ, call: the deprecation is about style, not about
+           ;; the thing not working.
+           "apply(G, Extra) :- G =.. L0, append(L0, Extra, L), G2 =.. L, call(G2).")))
 
 (generic decl-apply
   ()

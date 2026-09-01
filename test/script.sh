@@ -60,8 +60,11 @@ check "a failed main exits 1 -- where query says 0" "$rc" "1"
 cat > "$OUT/throw.pl" <<'EOF'
 main :- throw(sorrow).
 EOF
+# TWO, NOT ONE, and it is SWI's two: `swipl -q -g main -t halt' answers 0
+# proved, 1 failed and 2 threw, so a caller can tell the goal that said no
+# from the goal that broke. This used to be 1 either way.
 err=$("$C" -s "$OUT/throw.pl" 2>&1 >/dev/null); rc=$?
-check "an uncaught exception exits 1" "$rc" "1"
+check "an uncaught exception exits 2, as swipl does" "$rc" "2"
 case "$err" in
   *sorrow*) check "and names the ball on stderr" yes yes ;;
   *)        check "and names the ball on stderr" "$err" "*sorrow*" ;;

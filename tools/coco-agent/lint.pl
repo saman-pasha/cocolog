@@ -16,8 +16,6 @@
 %% no linter, because the interpreter already names it.
 %%
 %%     P1  the file does not read at all
-%%     D1  a directive outside the accepted fourteen, which ABORTS THE WHOLE
-%%         CONSULT rather than being ignored
 %%     N1  a head that collides with a clause-defined tier-1 name: the two sets
 %%         of clauses MERGE, and which is tried first depends on how the file
 %%         is run
@@ -59,29 +57,21 @@
 %%     clauses.pl     cc_clauses_of/2 cc_regions/2 cc_in_region/3 cc_line_walk/6
 %%
 %% ======================================================================
-%% ---- the accepted directives -----------------------------------------
+%% ---- what used to be here: the accepted directives -------------------
 %% ======================================================================
 
-%% THE FOURTEEN. Ten in coco_directive (lib/kb.cicili:671-773) and four handled
-%% earlier by the reader's conditional compilation (:1140-1188). Anything else
-%% is `unsupported directive: NAME/ARITY' and coco_consult returns -1 FOR THE
-%% WHOLE FILE, which is why D1 is hard: the file loads nothing at all.
-cl_directive(dynamic, 1).
-cl_directive(discontiguous, 1).
-cl_directive(multifile, 1).
-cl_directive(module, 2).
-cl_directive(meta_predicate, 1).
-cl_directive(op, 3).
-cl_directive(use_module, 1).
-cl_directive(use_module, 2).
-cl_directive(autoload, 1).
-cl_directive(autoload, 2).
-cl_directive(ensure_loaded, 1).
-cl_directive(set_prolog_flag, 2).
-cl_directive(if, 1).
-cl_directive(elif, 1).
-cl_directive(else, 0).
-cl_directive(endif, 0).
+%% THE FOURTEEN ARE GONE, and so is rule D1 with them. A directive is a
+%% GOAL now (lib/kb.cicili: coco_directive falls through to the seam
+%% coco_goal_install fills in), run in file order, and one that fails or
+%% throws is reported and the load CARRIES ON. There is nothing silent left
+%% for a rule to catch: an unknown directive says so on stderr at load time,
+%% which is exactly the loud failure this linter exists not to duplicate.
+%%
+%% WHAT SURVIVED IS D2, and it survived because it is not about directives
+%% at all: `:- table p/1.' and `:- thread_local p/1.' name predicates that
+%% are not prefix OPERATORS, so the file does not parse -- and a syntax
+%% error is now the one thing that still ends a consult. It is an S1
+%% pattern row in traps.jsonl and needs no code here.
 
 %% TIER 1 IS ALWAYS PRESENT. The first row is compiled in, the second is read
 %% from lib/swipl at start-up. A use_module for any of them is a directive
@@ -98,7 +88,7 @@ cl_tier1(dcg_basics). cl_tier1(dcg_high_order).
 %% HARD MEANS IT FAILS SILENTLY, which is the only test applied. A finding
 %% that the interpreter would itself have shouted about does not need to stop
 %% a build.
-cl_severity(p1, hard).  cl_severity(d1, hard).  cl_severity(n1, hard).
+cl_severity(p1, hard).  cl_severity(n1, hard).
 cl_severity(n2, hard).  cl_severity(n3, hard).  cl_severity(s1, hard).
 cl_severity(c2, hard).
 cl_severity(t1, warn).  cl_severity(a1, warn).  cl_severity(z1, warn).
@@ -134,39 +124,13 @@ cl_file(File, Imports0, Findings) :-
     cl_zip(Clauses, Texts, Pairs),
     cl_imports(Pairs, Imports1),
     append(Imports0, Imports1, Imports),
-    cl_rule_d1(File, Clauses, Codes, F1),
     cl_rule_t1(File, Pairs, F2),
     cl_rule_n(File, Clauses, Imports, F3),
     cl_rule_s1(File, Codes, Regions, F4),
     cl_rule_a1(File, Codes, Regions, F5),
     cl_rule_z1(File, Regions, Pairs, F6),
-    append([F1, F2, F3, F4, F5, F6], All),
+    append([F2, F3, F4, F5, F6], All),
     cl_sort_findings(All, Findings).
-
-%% ---- D1: the directives ----------------------------------------------
-
-cl_rule_d1(File, Clauses, Codes, Findings) :-
-    findall(F,
-            ( member(cc_clause(Span, _, directive(N, A)), Clauses),
-              cl_d1_bad(N, A, Msg, Fix, Cite),
-              cl_finding_at(File, Codes, Span, d1, none, Msg, Fix, Cite, F) ),
-            Findings).
-
-cl_d1_bad(N, A, Msg, Fix, 'lib/kb.cicili:772, consult returns -1 at :1196-1197') :-
-    \+ cl_directive(N, _),
-    !,
-    format(atom(Msg),
-           "`~w/~w' is not a directive here. An unsupported directive ABORTS THE WHOLE CONSULT -- the file loads nothing and cocolog exits 1.",
-           [N, A]),
-    findall(D, cl_directive(D, _), Ds0),
-    sort(Ds0, Ds),
-    cl_join(Ds, ', ', Joined),
-    atom_concat('the accepted set is: ', Joined, Fix).
-cl_d1_bad(N, A, Msg, none, 'lib/kb.cicili:671-773') :-
-    \+ cl_directive(N, A),
-    findall(X, cl_directive(N, X), As),
-    cl_join(As, ' or ', Joined),
-    format(atom(Msg), "`~w/~w' -- ~w takes arity ~w here.", [N, A, N, Joined]).
 
 %% ---- T1: a use_module for a tier-1 library ---------------------------
 

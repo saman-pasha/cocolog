@@ -58,10 +58,10 @@
         (let ((char err [256]) (int n . 0))
           (set n (+ n (coco_consult st m
             "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
-            err (sizeof err))))
+            nil err (sizeof err))))
           (set n (+ n (coco_consult st m
             "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
-            err (sizeof err))))
+            nil err (sizeof err))))
           (return n)))
 
   ;; Writes the current binding of the query's first variable into OUT.
@@ -190,7 +190,7 @@
         (coco_engine_init (aof e5) (aof m5) (aof st5))
         (coco_consult (aof st5) (aof m5)
                     "p(1). p(2). p(3). g(R) :- catch((p(X), X > 2, throw(got(X))), got(Y), R = caught(Y))."
-                    err5 (sizeof err5))
+                    nil err5 (sizeof err5))
         ;; a budget small enough to stop it part way through the catch
         (set ($ e5 max_steps) 6)
         (coco_engine_ask_text (aof e5) "g(R)")
@@ -212,7 +212,7 @@
           (check "thawed it" (cast llong (coco_thaw (aof e6) (aof m6) (aof st6) blob5)) 1)
           (coco_consult (aof st6) (aof m6)
                       "p(1). p(2). p(3). g(R) :- catch((p(X), X > 2, throw(got(X))), got(Y), R = caught(Y))."
-                      err6 (sizeof err6))
+                      nil err6 (sizeof err6))
           (set ($ e6 max_steps) 1000)
           (check "and the throw was still caught by the frame that came back"
                  (cast llong (coco_engine_next (aof e6))) 1)

@@ -500,14 +500,17 @@ What it knows is this dialect, and each finding carries the fix and the
 line of the engine that makes it true:
 
 ```
-myprogram.pl:1:1 HARD D1 `initialization/1' is not a directive here. An
-    unsupported directive ABORTS THE WHOLE CONSULT -- the file loads
-    nothing and cocolog exits 1.
-    fix: the accepted set is: autoload, discontiguous, dynamic, ...
-    see: lib/kb.cicili:772, consult returns -1 at :1196-1197
 myprogram.pl:2:1 HARD N2 `memberchk/2' is dispatched BEFORE the knowledge
     base. Your clauses are dead code -- they load, listing/1 shows them,
     and nothing calls them.
+    fix: rename it
+    see: lib/solve.cicili:1352-1386; defined in lib/lists.cicili
+myprogram.pl:9:8 HARD S1 [H1] halt/0 sets `halted', and the engine tests
+    halted BEFORE the empty-continuation test -- so the goal reports no
+    solution and run/-s exit 1 with nothing on stderr, indistinguishable
+    from failure.
+    fix: let main succeed; the CLI's exit code is the verdict
+    see: lib/solve.cicili:1155-1155
 ```
 
 They land in a `*cocolint*` buffer **as compiler errors**: `C-x \``

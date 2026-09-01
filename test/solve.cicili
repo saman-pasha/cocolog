@@ -109,28 +109,28 @@
       ;; consulted a few clauses at a time rather than as one block of text.
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "p(1). p(2). p(3). q(X) :- p(X), X > 1. first(X) :- p(X), !."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "parent(tom,bob). parent(tom,liz). parent(bob,ann). parent(bob,pat). parent(pat,jim)."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "ancestor(X,Y) :- parent(X,Y). ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y)."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "append([],L,L). append([H|T],L,[H|R]) :- append(T,L,R)."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "nrev([],[]). nrev([H|T],R) :- nrev(T,RT), append(RT,[H],R)."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "len([],0). len([_|T],N) :- len(T,M), N is M + 1."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "count(0) :- !. count(N) :- N > 0, M is N - 1, count(M)."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (set clauses (+ clauses (coco_consult (aof st) (aof m)
         "member(X,[X|_]). member(X,[_|T]) :- member(X,T)."
-        err (sizeof err))))
+        nil err (sizeof err))))
       (check "consulted the program" (cast llong clauses) 22)
 
       ;; ---- plain backtracking ------------------------------------------
@@ -330,7 +330,7 @@
         (check "a directive is applied and is not a clause"
                (cast llong (coco_consult (aof st) (aof m)
                                        ":- dynamic d1/1. d1(x). d1(y)."
-                                       derr (sizeof derr))) 2)
+                                       nil derr (sizeof derr))) 2)
         (let ((size_t pi . #'(coco_pred_find (aof st) (coco_intern (aof m) "d1") 1)))
           (check "and the predicate is marked dynamic"
                  (cast llong (? (< pi ($ st npreds))
@@ -339,7 +339,7 @@
         (check "a conjunction of indicators declares both"
                (cast llong (coco_consult (aof st) (aof m)
                                        ":- dynamic d2/0, d3/2."
-                                       derr (sizeof derr))) 0)
+                                       nil derr (sizeof derr))) 0)
         (check "the first of them"
                (cast llong (< (coco_pred_find (aof st) (coco_intern (aof m) "d2") 0)
                               ($ st npreds))) 1)
@@ -350,7 +350,7 @@
         (check "a list of indicators does too"
                (cast llong (coco_consult (aof st) (aof m)
                                        ":- dynamic [d4/1, d5/3]."
-                                       derr (sizeof derr))) 0)
+                                       nil derr (sizeof derr))) 0)
         (check "and declares what is in the list"
                (cast llong (< (coco_pred_find (aof st) (coco_intern (aof m) "d5") 3)
                               ($ st npreds))) 1)
@@ -364,13 +364,17 @@
         ;; keeps a predicate's clauses in one list wherever they were written
         (check "discontiguous is accepted and ignored"
                (cast llong (coco_consult (aof st) (aof m) ":- discontiguous d6/1."
-                                       derr (sizeof derr))) 0)
+                                       nil derr (sizeof derr))) 0)
 
-        ;; and a directive nobody implements is REFUSED rather than quietly
-        ;; asserted as a clause whose head is `:-', which is what used to happen
-        (check "an unknown directive is an error"
+        ;; A DIRECTIVE NOBODY IMPLEMENTS IS A GOAL NOW, and a goal that is
+        ;; not defined is an error REPORTED on stderr rather than a refusal
+        ;; that ends the consult: this answers 0 -- no clauses in the text --
+        ;; and not -1. The load carrying on is the point, and test/directives.sh
+        ;; is where the message and the clauses after it are checked; what is
+        ;; checked here is that the store layer no longer says `no'.
+        (check "an unknown directive no longer ends the consult"
                (cast llong (coco_consult (aof st) (aof m) ":- module(nonesuch)."
-                                       derr (sizeof derr))) -1)
+                                       nil derr (sizeof derr))) 0)
 
         (check "dynamic/1 works as a goal too"
                (cast llong (count (aof e) "dynamic(d7/2)" 10)) 1)
@@ -409,7 +413,7 @@
       (let ((char err [256]))
        (coco_consult (aof st) (aof m)
                      "g1 --> [a], g2. g2 --> [b]. g3 --> []. g4 --> [x], !. g5, [p] --> [q]."
-                     err (sizeof err))
+                     nil err (sizeof err))
 
        ;; the rule is stored under the non-terminal's name with TWO more
        ;; arguments, so it is callable directly and `-->'/2 is not a predicate

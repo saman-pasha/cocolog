@@ -12,7 +12,7 @@
 #
 # Five things are checked, in cost order:
 #
-#   1. the dialect card's 43 citations still point at the code they claim
+#   1. the dialect card's 42 citations still point at the code they claim
 #   2. the retrieval index's paths and anchors resolve
 #   3. clauses.pl reads selftest/reader.pl into exactly reader.expected --
 #      every shape that has ever fooled a clause reader here
@@ -76,7 +76,10 @@ vcase() {                       # vcase NAME SED WANT-RC WANT-TEXT
 # for a drift detector must not itself drift.
 vcase drift     '/"id": "N1"/ s|"lib/kb.cicili:[0-9-]*"|"lib/kb.cicili:1-5"|'       0 "unique anchor, accepted"
 vcase ambiguous '/"id": "A2"/ s|"lib/term.cicili:[0-9-]*"|"lib/term.cicili:1-5"|'   1 "the range is what picks the site"
-vcase gone      's|unsupported directive: %s/%u|NO SUCH ANCHOR HERE|'               1 "is GONE from"
+# The anchor this one breaks used to be `unsupported directive: %s/%u',
+# which is not in the engine any more -- a directive is a goal now. Any
+# anchor that really exists does the job; this is S2's.
+vcase gone      's|set_prolog_flag: double_quotes takes|NO SUCH ANCHOR HERE|'       1 "is GONE from"
 rm -rf "$VTMP"
 if [ "$VERDICTS" = ok ]; then
   echo "  cites  : a moved anchor is accepted, an ambiguous or missing one is not"
@@ -232,8 +235,12 @@ FIRED=$(printf '%s\n' "$SELF" \
         | sed -nE 's/^[^ ]+ (HARD|WARN) ([A-Z0-9]+) (\[[A-Z0-9]+\])?.*/\2 \3/p' \
         | sed 's/ *$//' | sort -u)
 WANT=$(sh "$AGENT/tool.sh" card --patterns | awk '{print "S1 [" $1 "]"}' | sort -u)
-WANT="D1
-N1
+# D1 IS NOT IN THIS LIST ANY MORE. The rule retired with the divergence it
+# named: a directive is a goal now, and an unsupported one is reported at
+# load time rather than aborting the consult. What is left of that row is
+# D2 -- `:- table p/1.' does not PARSE -- which is an S1 pattern and comes
+# in through `card --patterns' above.
+WANT="N1
 N2
 N3
 T1
