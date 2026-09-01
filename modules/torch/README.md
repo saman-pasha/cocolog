@@ -97,15 +97,36 @@ that there is a build, because the reason it was right has not changed.
 ## Building
 
 ```sh
-make           # the ONE cocolog binary carries the torch module
+make modules                # every module that can be built here
+sh modules/torch/build.sh   # just this one, and it says why when it cannot
 ```
 
-It needs libtorch, resolved the way Cicili's `lib/cpp/torch` resolves
-it: `$LIBTORCH` pointing at a standalone distribution, or the pip
-`torch` package. The module registers through a weak symbol the
-interpreter carries either way, so linking it in is all that plugs it
-in — and in a binary linked without it the torch predicates would be
-unknown procedures, as they should be.
+It is a LOADABLE module now — `library/torch.so`, found by
+`use_module(library(torch))` — so a cocolog built where libtorch is absent
+is a cocolog that builds, and the torch predicates are unknown procedures
+there, as they should be.
+
+**Where libtorch is comes from three variables, and all three are read:**
+
+| variable | is |
+|---|---|
+| `LIBTORCH` | the ROOT that holds `include/` and `lib/` — the standalone download, or an install that kept them together: with Homebrew or a `make install` on macOS, `LIBTORCH=/usr/local` |
+| `TORCH_INCLUDE` | the include directory, when it is not `$LIBTORCH/include` |
+| `TORCH_LIB` | the lib directory, when it is not `$LIBTORCH/lib` |
+
+**The two specific ones win over the root**, and they exist because an
+installed libtorch is not always a root: a Debian `libtorch-dev` puts the
+headers under `/usr/include` and the shared objects under
+`/usr/lib/<triple>`, and no single directory holds both. `$TORCH_ROOT` is
+read as well, being Cicili's second spelling of `$LIBTORCH`. With none of
+them set the pip `torch` package is asked, whose directory IS a root.
+
+The check is for FILES, not directories — `torch/csrc/api/include/torch/torch.h`
+and a `libtorch` with whatever suffix the platform uses (`.dylib`, `.so`,
+`.a`) — and the message names the half that is missing, which is one line
+here instead of a page of C++ diagnostics. A root worked out from the two
+halves is exported to Cicili as `$LIBTORCH` before the transpile, so the
+headers the `.cpp` is written against are the ones it is compiled against.
 
 ## The predicates
 

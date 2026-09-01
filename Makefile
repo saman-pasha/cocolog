@@ -149,16 +149,15 @@ CICILI_RUN = PATH="$(CURDIR)/tools/cc:$$PATH" \
 # through weak symbols the interpreter already carries, so linking them in
 # is all it takes. Which knowledge base a run uses -- --local, the server,
 # --http, or --embed -- is then an option, never a build.
-#
-# TORCH_LIB must name the lib directory Cicili's {$TORCH_*} tokens resolved
-# at compile time (default: the pip torch package's).
-TORCH_LIB ?= $(shell python3 -c "import torch, os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))" 2>/dev/null)
 
 # THE LINK NO LONGER MENTIONS LIBTORCH. torch and bigint were objects in
 # this line, reached through weak symbols; they are loadable modules under
-# modules/ now, so the binary needs neither libtorch nor its -rpath. What
-# is left of the C++ dependency is the EMBEDDED STORE, which genuinely is
-# part of the binary and genuinely needs libCore.
+# modules/ now, so the binary needs neither libtorch nor its -rpath -- and
+# a TORCH_LIB default lived here for the link line long after the link
+# line stopped reading it. Where libtorch is is modules/torch/build.sh's
+# business now, and $LIBTORCH, $TORCH_INCLUDE and $TORCH_LIB are all read
+# there. What is left of the C++ dependency is the EMBEDDED STORE, which
+# genuinely is part of the binary and genuinely needs libCore.
 cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh

@@ -148,13 +148,17 @@ What the build needs on the machine:
   build.
 * **A C and a C++ compiler and GNU make** — `gcc`/`g++` or equivalents. The
   interpreter is C; the embedded engine and the torch module are C++.
-* **libtorch** — either `$LIBTORCH` pointing at the directory that HOLDS
-  `include/` and `lib/` (for headers under `/usr/local/include/torch/...`
-  and dylibs under `/usr/local/lib`, that is `LIBTORCH=/usr/local` — not
-  `/usr/local/lib`), or the pip `torch` package (`pip install torch`),
-  which is where everything looks by default. A standalone or installed
-  libtorch also wants `TORCH_LIB=$LIBTORCH/lib` exported for the
-  Makefile's link line.
+* **libtorch** — optional, and only `make modules` wants it: it builds
+  `library/torch.so`, and the cocolog binary links no libtorch at all.
+  `$LIBTORCH` names the directory that HOLDS `include/` and `lib/` (for
+  headers under `/usr/local/include/torch/...` and dylibs under
+  `/usr/local/lib`, that is `LIBTORCH=/usr/local` — not `/usr/local/lib`);
+  `$TORCH_INCLUDE` and `$TORCH_LIB` name the two halves outright and win
+  over it, which is what a machine that splits them needs (a Debian
+  `libtorch-dev`: headers in `/usr/include`, objects in
+  `/usr/lib/<triple>`). With none of the three set the pip `torch` package
+  (`pip install torch`) is asked. `sh modules/torch/build.sh` names the
+  half it could not find.
 * **SWI-Prolog** — optional; only the `files` test case compares against it,
   and it SKIPs when `swipl` is absent.
 
@@ -178,12 +182,15 @@ export ZIGURATIP="$HOME/Projects/GitHub/ZiguratIP"  # the BUILT ZiguratIP checko
 export ZIGURATIP_HOME="$ZIGURATIP/home"             # and its home
 
 # macOS, libtorch via Homebrew: headers land in /usr/local/include and
-# dylibs in /usr/local/lib, so the root that holds both is /usr/local
+# dylibs in /usr/local/lib, so the root that holds both is /usr/local.
+# Naming the two halves as well is never wrong, and is the only way to
+# say it on a machine that keeps them apart.
 export LIBTORCH="/usr/local"
-export TORCH_LIB="/usr/local/lib"                   # the Makefile's link line
+export TORCH_INCLUDE="/usr/local/include"
+export TORCH_LIB="/usr/local/lib"
 ```
 
-(On Linux with the pip `torch` package, the last two are not needed —
+(On Linux with the pip `torch` package, the last three are not needed —
 everything asks Python where the package lives.)
 
 Build ZiguratIP first — plain `make` in its checkout; a C++11 compiler is all
