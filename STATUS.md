@@ -35,6 +35,43 @@ different findings.
 | `test/astar.sh` | `library(astar)`: A* whose graph is two caller goals, held to an ORACLE -- on a costed hex grid, the heuristic search must answer the exact cost the exported Dijkstra answers across twelve varied pairs -- plus the laws: paths connect through the caller's own neighbor goal, costs sum, walls detour, unreachable fails, and the same question twice is the same path (the pinned tiebreak, observed) -- 7 checks |
 | `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 
+### One stack, three suites, one server
+
+The whole family, gated together on the day's pull rather than each on its
+own: **cicili `d9a08bf`, ZiguratIP `29a06fb`, cocolog `99268ef`**, built in
+that order — ZiguratIP `make MODE=Release`, then here `make`, `make schema`,
+`make modules` — and one server under all three runs.
+
+| | cases | |
+|---|---|---|
+| cocolog `make test` | **40**, no SKIP | `red: 0` |
+| The Coco `test/run.sh` | **19**, no SKIP | `red: 0` |
+| CivV `test/run.sh` | **32**, no SKIP | `red: 0` |
+
+`make modules` is a step of its own and was run as one: `make` does not
+rebuild the loadable modules, and a stale `library/tcp.so` is exactly what
+turned up as a red in the run before this one. The Coco's nine Cicili modules
+(`u256 keccak secp256k1 sha512 ed25519 sha256 ripemd160 blake2b spine`) were
+rebuilt against this SDK; CivV has nothing to compile, its `rules/gen/` being
+emitted by `rules/import.pl` on every run.
+
+**The first pass was `red: 1`, and it was debris rather than a regression** —
+worth recording because of how it was found. `zigurat` failed its 6000-byte
+Text round trip and the commit after it, and `list` said why in one line:
+
+```
+  citest-machine  suspended  1 chunk(s)  #8174
+  citest-machine  suspended  1 chunk(s)  #8171
+```
+
+Two rows of one name with DIFFERENT IDS — twins, not versions — left in the
+server store by runs made before the duplication above was fixed, and
+`machine_open` cannot replace a name that has two rows. Dropping them made
+the case green on its own and the suite green on the re-run, with no code
+touched. **The id in that line is why this took two minutes instead of a
+session**: it is new, added for exactly this, and without it the two lines
+would have been identical again.
+
 ## The three document libraries, and the round trip that checks them
 
 `library(json)`, `library(xml)` and `library(html)` write a term out as a
@@ -338,6 +375,40 @@ printed nothing into a pipe or a file and everything at once when it
 finally exited. Found by writing `test/tls.sh`, whose harness waited for
 a READY that was sitting in a buffer. Interactively it had always
 worked, which is why nothing had noticed.
+
+### A key that does not divide is drawn again
+
+`x509_keygen/4` could throw `x509_error: coefficient is not invertible`
+and hand the caller a certificate error for something that has nothing to
+do with certificates. **Found downstream**: CivV's `fog` case issues two
+client certificates a run, and one draw in a batch of four failed that
+way -- one in twenty-six across everything measured here, which is rare
+enough to survive a suite and often enough to be somebody's red.
+
+**Where it comes from.** `RSA::RSAKG` ends with `qInv = inverse(q, p)`,
+and `BigInt::inverse` throws when its extended Euclid does not reach 1.
+Every input to that draw is fresh: `PG` picks p and q at random and
+proves them prime over 64 Miller-Rabin rounds. So the answer to a draw
+that does not divide is **another draw**, and `coco_x509_keygen` now
+takes up to eight of them.
+
+**IT RETRIES THAT AND NOTHING ELSE, on the message.** An unsupported
+signature, a path that will not open, a cipher the library does not have
+-- those fail the same way every time, and eight goes at one would spend
+eight prime searches to arrive at the same error forty seconds later. A
+key generation costs **2.6 to 7.8 seconds** on this box (twenty draws,
+median 5.3, mean 5.0), which is what makes the distinction worth making
+rather than retrying everything and hoping.
+
+`test/crypto.sh` pins the half that can be checked deterministically: a
+bad option comes back **whole and at once**, with the library's own
+message, rather than after eight draws. The retry itself cannot be
+forced from outside -- there is no way to make a random draw fail on
+demand -- so what is checked is that the discriminator works, and the
+eighth failure appends `-- eight independent draws, every one` so that a
+generator which is genuinely broken is not read as bad luck.
+
+Gated: `make test` `red: 0` over all 40 case lines, no SKIP, server up.
 
 ### Five things that cost time, and one finding not applied
 
@@ -806,6 +877,66 @@ it beside the counts:
      c2: STOPPED after 1 turn(s): a turn failed -- see stderr
 ```
 
+### The duplication is not in the procedure, and here is the proof
+
+**Read "CLOSED: the ninety rows were cocolog's" under *What had to be fixed
+in ZiguratIP* before this section: the save-by-id change it measures never
+ran, so the measurement below is of the old path, and the conclusion drawn
+from it is wrong.** The section is kept as written, because the reasoning is
+worth having with its flaw visible.
+
+The obvious reading of 91 rows of one name was that `cocolog::machine_open`
+inserted them: it looks its predecessor up by name and deletes it by the id it
+found, so a lookup that misses inserts a second row instead of replacing the
+first. `name` is a `UNIQUE KEY` and the store took the duplicates anyway, which
+should have been the first clue.
+
+**Two fixes were written for that reading. Neither worked, and the second one
+is what settled the question.**
+
+* **Delete the header by NAME rather than by the looked-up id.** Written,
+  compiled through `make schema`, measured: **87 rows on the fifth run**. Of
+  course — it is the same lookup.
+* **Do not look it up at all.** A worker already holds the id: it read it out
+  of `machine_find` when it loaded the machine, and it is the id the claim
+  marked. `cocolog::machine_save` takes that id and UPDATEs by PRIMARY KEY —
+  no delete, no insert, no second row possible — and `coco_zg` carries the id
+  on the attachment (`mid`), set by the load and cleared by a drop. A machine's
+  id is now stable for its whole life instead of changing every turn.
+
+  **And the duplication still happened**: two runs of six in one batch and
+  four of four in the next, at 88, 89, 90, 92 and 95 rows.
+
+So a counter was put on the fall-through to `machine_open`. It prints **exactly
+four times a run** — once per machine, from `cocolog start`. **After those four
+there is no INSERT into `cocolog::machines` at all**, and the table still comes
+back with ninety rows of one name.
+
+**Rows nothing inserted are not rows cocolog put there**, and that is as far as
+the measurement goes — but it is far enough to move the search. Whatever those
+ninety are, they come out of the store's own row versioning: an UPDATE stages a
+new version, and a reader that walks dead versions as live would answer exactly
+this. The exact mechanism inside MVCCS is NOT pinned here and should not be
+quoted as though it were; what is pinned is that no procedure in `parsi/` can
+be the cause, because none of them runs. It smells like the two ZiguratIP
+findings this file already carries — the snapshotted page walk and the tearable
+index chain edits — and it is **not fixed**.
+
+**What the save-by-id change is worth, stated honestly.** It removes a real way
+for a second row to be created, it stops the `name` UNIQUE index being deleted
+and re-inserted on every single turn, and it gives a machine a stable id. It
+does **not** fix the duplication above, and it does **not** reduce the
+transient-read rate: `missing chunk 3 of 4` still arrives about twice per
+machine per run, measured before and after. Both of those are the store's.
+
+Gated at `red: 0` over all 40 case lines with no SKIP and the server up —
+`state`, `zigurat`, `shared`, `tunnel`, `tensors`, `zigurat-lib`,
+`zigurat-tls`, `groups` and `ruler` among them, which are the cases that
+travel this path. The commit that carried the change was pushed before that
+run finished and said so; this is the run landing. The open issue itself is
+filed under **What had to be fixed in ZiguratIP** below, where the next
+session will look for it.
+
 **The two group cases fail for different reasons, and the distinction is the
 point.** `groups.sh`'s twelve processes showed NO deaths over five runs — a
 turn over a socket is slow enough that the mid-save window is a much smaller
@@ -942,6 +1073,133 @@ rather than worked around here. See its `doc/concurrency.md`.
 * **`SERVER/POOL_SIZE` shipped as 5**, which is the most clients that can be
   connected at once. The twelve did not get an error; they got silence until
   their own sockets timed out.
+
+### CLOSED: the ninety rows were cocolog's -- the save that never ran
+
+The entry below this one filed the duplication as a ZiguratIP issue on the
+strength of one measurement: that with `machine_save` in place, a counter on
+the `machine_open` path printed four times a run and the rows appeared anyway.
+That measurement could not have measured what it says, and a review found
+why. `coco_zg_load` stores the header's id in `z->mid` and then re-attaches,
+and `coco_zg_attach` begins with `memset z 0` — so the id was 0 at every
+save, the `machine_save` branch was never entered, and every save was still a
+delete and an insert with a name lookup between, on both surfaces.
+
+Two facts that should have stopped the earlier reading: the embedded backend
+(`embed/embed.cicili`) had **no `machine_save` at all** — 2119129 touched
+`parsi/` and `zigurat-kb` only, and the dispatcher answers an unknown
+procedure with `no such procedure`, which the worker would have printed and
+died on — and yet embedded turns ran without one; and the embedded engine
+**has no B-tree on String columns** (the Parsi compiler ships the `name` and
+`kb` indexes commented out in `MVCCS-cicili/generated/cocolog-machines.cicili`),
+so in `--embed` the `UNIQUE KEY` on `name` was never enforced and every lookup
+by name is a table scan. "The store took the duplicates anyway" is that, and
+nothing deeper. Nor does `machine_list` print the id — the one column that
+tells twins (different ids) from versions (the same id) — so nobody looked.
+
+**What changed.** The id survives the re-attach; `machine_find` refuses more
+than one row of a name instead of silently keeping the last; the embedded
+backend has `run_machine_save`; `list` prints the id; `missing chunk` is
+MISSED and retried like the other half of its window; and the server's save
+is **one** UPDATE (`SET status, chunks, note`) rather than three, for the
+reason measured below.
+
+**Measured, embedded — `test/groups-embed.sh`, five runs in a row:** GREEN
+five times, no worker stopped, no machine left, and every group's total
+exactly its proof's length — a 34 ×5, b 24/24/24/24/25, c 61/60/60/60/60,
+d 59/60/59/60/59. The `missing chunk` window was hit in four runs of five,
+once each, and taken again. Six to seven seconds a run, where the run that
+grew ninety rows took ninety seconds.
+
+**Measured, over the server — `test/groups.sh`.** With the save as three
+UPDATEs: GREEN, but a kept-logs run showed **16 `no suspended machine`
+retries, 3 `machine_find: the server refused it: NULL value` refusals** (each
+a LOST turn and a reopen) and group totals of 82/99 and 71/62 against proofs
+of 60 and 59. With one UPDATE: three runs GREEN, the `NULL value` refusals
+**gone**, and the retries **69, 7 and 32** — still there, and still nowhere
+in this file's own earlier server runs, whose totals were exactly 60 and 59.
+A retry is a MISSED turn: nothing committed, the machine taken again, the
+answers still exactly once. But it is a claim wasted, and it appeared when a
+save became an UPDATE, which on the server is a new version and therefore a
+new entry in the hashed `name` and `kb` chains, edited in place. The embedded
+store, with no such chains, shows none of it. The visibility rules were read
+(`visible` → `read_committed` → `alive_at`) and are not where it was. The
+index-chain theory this paragraph first named was wrong too, and the hunt
+that settled it is written up in ZiguratIP's `doc/concurrency.md`: the
+engine's own `contention_test` (`rewrite vs index`) reproduced the family
+standalone — a row vanishing from an index it was never absent from, and a
+writer refused by its own unique key after reading a zeroed copy of a row
+it had itself just committed — and a probe inside `read_row` caught the
+cause in the act. **A private reader stream served a stale buffer**: a
+`std::filebuf` does not reload its cached get area on a seek inside it, so
+a reader whose block was cached while a fresh page held only its zero-fill
+kept answering zeros for a row committed and fsynced underneath it — once,
+healing on the next reload — and every symptom above is that one read,
+seen from different sides. Fixed in the engine: private readers are
+read-only MAPSTREAMS now (coherent by MAP_SHARED, length refreshed by
+fstat), the cursor's unlocked callback window routes its reads to the
+private reader instead of the canonical stream whose positions belong to
+whoever holds the lock, and `visible`, the value-chain walk and the
+node/key reads go through the `hex_in`/`data_in` accessors rather than
+seeking the canonical streams directly.
+
+**Measured after the fix.** The engine's build gate whole-green (unit,
+consumer, contention, ageing; carry-over SKIPs without its golden pair),
+and `contention_test` at zero failures over twenty rc-checked runs, both
+store kinds. Over the server, `test/groups.sh` three times: totals exactly
+34/24/60/59 — the proofs' own lengths — **zero** `no suspended machine`,
+**zero** `missing chunk`, **zero** lost connections, where the day began
+at 7–69 retries a run. Embedded, `test/groups-embed.sh` three times: the
+same exact totals and **zero** `missing chunk` — the residual window this
+file's MISSED retry was built for no longer occurs in the arrangement that
+measured it.
+
+### The earlier entry, as filed: one machine's row comes back ninety times
+
+**The one thing in this file that is reproduced, narrowed, and NOT FIXED.** It
+belongs in ZiguratIP; cocolog has been ruled out by measurement rather than by
+argument, and this entry is here so the next session starts where this one
+stopped instead of re-deriving it.
+
+**The symptom.** Twelve `cocolog swarm` threads, three per machine, over an
+embedded store: one machine's name comes back from
+`SELECT name, status, chunks FROM cocolog::machines WHERE kb == ...` **eighty to
+ninety-five times**. Each copy is claimable, so its three workers keep finding
+work — **3400 turns for a proof that needs sixty** — and one of the group's
+answers (`ancestor(pat,zoe)`) went missing. `name` is declared `UNIQUE KEY`.
+
+**How to reproduce**, in about ninety seconds a run: four machines started in a
+fresh `--embed` store, twelve `swarm` workers at `--steps 1`, then
+`cocolog list | grep '^  state-' | sort | uniq -c`. It needs the worker to
+RETRY a transient load rather than exit — see "The swarm's yield is fine"
+above — because on master the worker dies first and the concurrency never gets
+high enough. Two runs in six with the retry, four in four in a second batch.
+
+**What has been ruled out.**
+
+* Not `machine_open` inserting a duplicate after a missed lookup. That was the
+  first theory, and the counter that settled it prints **four times a run** —
+  once per machine, from `cocolog start`. Once a machine exists, cocolog
+  performs **no INSERT into `cocolog::machines` at all**; every save is now an
+  UPDATE by primary key.
+* Not the delete-by-id in the old procedure: deleting by NAME instead was
+  written, compiled through `make schema`, and measured at **87 rows on the
+  fifth run**.
+* Not two workers both claiming and both saving through `machine_open` — same
+  counter, same four calls.
+
+**What is left**, and it is stated as the direction rather than the finding:
+the rows come out of the store's own versioning of one row. An UPDATE stages a
+new version, and a reader that walked dead versions as live would answer
+exactly this. **The mechanism inside MVCCS is not pinned** and must not be
+quoted as though it were. The two neighbours to read first are the ones this
+file already carries: the scan with no fixed view, and the index chain edited
+in place.
+
+**What it blocks.** The worker that dies on a transient load
+(`missing chunk 3 of 4`) cannot be made to retry until this holds — retrying is
+correct and it is what turns this from rare into common. So the death stays,
+and with it the uneven turn counts of `test/groups-embed.sh`.
 
 ## Modules, and the Files library
 
@@ -2754,7 +3012,101 @@ is 14000), which is how it has always read and is worth a look.
   price of being suspendable and are not going to change.
 * **No garbage collection.** The heap only grows within a solution; it is
   reclaimed on backtracking and on a new query. A long deterministic run that
-  builds structure will grow until it ends.
+  builds structure will grow until it ends. `free_list/2` in `library(lists)`
+  is the idiom for working inside that rule — a scope failed out of, below —
+  not an exception to it.
+
+### Two reds from one morning's pull, on the Mac
+
+Both arrived with the day's commits and both were red on the pre-change tree
+as well as the changed one, which is how they were told apart from the
+machine work above.
+
+* **`tcp`: `a non-integer in the byte list is named, not walked after free`
+  answered nothing at all.** Not a wrong answer — an absent one. The check
+  pins a use-after-free that "answered correctly anyway" on Linux, and on this
+  Mac the freed read ended the query instead. But the module under test was
+  `library/tcp.so` of the evening *before* the fix: `make` builds the client
+  and `cocolog`, and **`make modules` is a separate step** the pull does not
+  imply. Rebuilt, the case is GREEN with no change to anything. Worth
+  knowing before the next hunt: a red in a `library/*.so` case after a pull
+  is a stale module until proven otherwise.
+* **`tunnel`: nine reds, every one the same second.** The edge stand-in is a
+  `python3` process given a fixed `sleep 1` before the query, and this Mac's
+  `python3` is a pyenv shim that takes two to four seconds to start. The
+  query met nothing on the port, `Connection refused` read as a routing
+  failure, and the kill at the end of the check reached the edge before it
+  had printed a line — which is why the edge's own output file was empty
+  rather than wrong. `test/tunnel.sh` now waits for the edge to say `edge up`
+  (or `CANNOT BIND`, on port 80 without privilege, so that SKIP is decided on
+  what the edge said rather than on what it had not said yet), fifteen
+  seconds at most and well under one in practice. GREEN, port 80 SKIP.
+
+## A list's depth is its length: five term walks off the C stack
+
+`assert` or `findall` of a 100 000-element list was not a leak and not slow
+— it was **rc=139**, a segfault, found while demonstrating heap reclamation
+with a list that size. `findall(L, numlist(1, N, L), [_])` was fine at
+N=50000 and dead at N=100000; `assert(heavy(L))` at 200 000 the same.
+
+**The wrong comfort was written right above the code.** `coco_unify` carried
+a comment saying recursion here is safe because it "recurses over the DEPTH
+of a term" — and a list's depth IS its length: `'.'(1, '.'(2, ...))`, one
+recursion level per cons cell, at whatever a C frame costs until the stack
+runs out. Five walks shared the shape: `coco_copy` (term.cicili),
+`coco_store_put` and `coco_store_get` (kb.cicili — so assert, findall's
+solutions, a thrown ball, and every clause fetched to run), and
+`coco_unify` and `coco_compare` (term.cicili — so `=`, `==`, `compare/3`,
+`msort` and the clause store's candidate matching).
+
+All five now carry their pending work in a malloc'd worklist instead of C
+frames — the copies as `{src, dst, arity, done}` frames (`coco_copyframe`,
+shared by all three copy directions for the reason `coco_varmap` already
+is), unify and compare as a flat array of pending pairs. Two details carry
+the weight:
+
+* **a frame is dropped as its LAST argument is issued**, and argument pairs
+  are pushed right-to-left, so a right-recursive term — which is what a
+  list is — replaces its parent instead of stacking on it, and the worklist
+  stays a handful deep however long the list;
+* **nothing caches a cells pointer across a push**, same rule the old walk
+  stated: every patch goes back through the machine or store, because a
+  push may have realloc'd the array under it.
+
+Proven: `findall` at ONE MILLION elements, unify and `==` of two
+500 000-element lists, `compare/3` and `msort` at 200 000 — every one
+rc=139 before, rc=0 after — plus a twelve-case battery for what iteration
+must not change: binding, refusal, structure, the standard order with its
+1-before-1.0 and arity-before-name rules, findall's solution order, retract
+matching a deep clause, and a 100 000-element assert/fetch round-trip
+answering `==` to what went in. The full suite behind it: 39 GREEN,
+`red: 0`, tensors SKIP (no torch.so on this box).
+
+### free_list/2, and what "free" can honestly mean here
+
+The hunt began as a question — can a heavy list be freed by `retract`? — and
+the honest answer is NO three times over: retract orphans the clause's
+store cells (the store never shrinks), KEEPS its heap copy (`retract(p(X))`
+exists to leave X bound into it), and reclaims nothing. The heap is
+truncated by backtracking and by nothing else; a term below the current
+choice point cannot be freed at all.
+
+So `library(lists)` now says that in code: **`free_list(Build, Use)`** runs
+`call(Build, L)`, then `call(Use, L)`, inside `\+ \+` — the backtrack out
+IS the deallocation. Measured on this Mac: thirty rounds of a
+200 000-element list peak at 91 MB, one list's worth; the same thirty held
+in an accumulator peak at 2.28 GB. The price is the point and is stated at
+the definition: no binding survives the scope, so a result leaves by
+side channel — asserted small, written, or filed with
+`write_file_from_codes/2` — and a result that must come back as a binding
+does not belong in a freed scope.
+
+`tutorials/library/01-lists.pl` teaches it under a MEMORY MANAGEMENT
+banner with the engine's one-sentence model — success frees nothing, cut
+and `->` free nothing, only failure frees — and two `must/3` claims: the
+asserted result escapes the scope, the smuggled binding does not (checked
+through plain helper predicates, because yall's `>>` copies its goal and
+the copy would hide what the check is about).
 
 ## Not started
 

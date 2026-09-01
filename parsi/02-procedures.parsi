@@ -251,6 +251,58 @@ BEGIN
     RETURN id;
 END
 
+-- Saves OVER a machine that is already there, IN PLACE, and this is the one
+-- that stops a name from having two rows.
+--
+-- WHY IT IS NOT machine_open. That procedure looks the predecessor up by name
+-- and deletes it by the id it found, so a lookup that MISSES a row that is
+-- there inserts a second row of the same name instead of replacing the first
+-- -- and a lookup CAN miss, because a partner mid-save is briefly invisible.
+-- `name' is a UNIQUE KEY and the store takes the duplicate anyway.
+--
+-- SO THE ANSWER IS NOT TO LOOK THE ROW UP AT ALL. A worker already holds the
+-- id: it read it out of machine_find when it loaded the machine, and it is
+-- the id the claim marked. Handing it back turns a save into an UPDATE by
+-- PRIMARY KEY -- no delete, no insert, no second row possible, and no window
+-- where the header is briefly nowhere for a partner to read. A machine's id
+-- is now stable for its whole life instead of changing every turn.
+--
+-- The id is still checked before the update, so a caller holding a stale one
+-- -- a machine dropped and started again -- gets 0 and falls back to
+-- machine_open rather than writing into nothing. That check is by primary
+-- key, which is the index this table does not churn.
+--
+-- AND FOR A DAY IT WAS MEASURED AS NOT FIXING THE DUPLICATION IT WAS
+-- WRITTEN FOR, because it was never called: the client wiped the id it
+-- had just read (a memset in coco_zg_attach, run after the header was
+-- read) and fell through to machine_open on every save. With the id kept,
+-- the ninety rows do not happen -- lib/zigurat-kb.cicili and STATUS.md.
+PROCEDURE cocolog::machine_save(p_id AS Long, p_status AS String,
+                                p_chunks AS Int, p_note AS String)
+RETURNS Long
+REQUIRES cocolog::machines, cocolog::machine_state
+BEGIN
+    DECLARE found AS Long = 0;
+    SELECT found = id FROM cocolog::machines WHERE id == p_id;
+    IF found > 0 BEGIN
+        -- The chunks are replaced wholesale; the header's `chunks' column is
+        -- updated in the same transaction, so the two agree at every commit.
+        --
+        -- ONE UPDATE, NOT THREE. Every UPDATE is a new version of the row,
+        -- and on the server a new version is a new entry in every index the
+        -- table has -- `name' and `kb' included, whose chains are edited in
+        -- place. Three statements churned those chains three times a save,
+        -- and a partner's machine_find walking one mid-edit answered `no
+        -- suspended machine' sixteen times a run, with three `NULL value'
+        -- refusals beside them. One statement is one version.
+        DELETE FROM cocolog::machine_state WHERE machine_id == p_id;
+        UPDATE cocolog::machines
+        SET status = p_status, chunks = p_chunks, note = p_note
+        WHERE id == p_id;
+    END
+    RETURN found;
+END
+
 PROCEDURE cocolog::machine_chunk(p_machine_id AS Long, p_seq AS Int, p_chunk AS Text)
 RETURNS Long
 REQUIRES cocolog::machine_state, cocolog::machine_state_seq
@@ -281,7 +333,9 @@ PROCEDURE cocolog::machine_list(p_kb AS String)
 RETURNS Void
 REQUIRES cocolog::machines
 BEGIN
-    SELECT name, status, chunks FROM cocolog::machines WHERE kb == p_kb;
+    -- The id rides along: it is the column that tells twins of a name
+    -- (different ids) from versions of one row (the same id).
+    SELECT id, name, status, chunks FROM cocolog::machines WHERE kb == p_kb;
 END
 
 PROCEDURE cocolog::machine_drop(p_name AS String)

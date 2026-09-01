@@ -7,7 +7,7 @@
 %%
 %% TIER 1: no import.
 %%
-%% SWI'S FILES LIBRARY, AND MOSTLY C -- seventeen predicates in the C half
+%% SWI'S FILES LIBRARY, AND MOSTLY C -- twenty-one predicates in the C half
 %% and five in Prolog, because a file system is a syscall away and there
 %% is nothing a clause can do about that. It is the opposite balance from
 %% `library(lists)', and the two together are why the module seam exists.
@@ -25,23 +25,31 @@
 %% rather than to a stream it passes around, so a stream API would be a
 %% facade over one destination.
 %%
-%% SO WHAT DOES A PROGRAM DO INSTEAD?
+%% WHAT A PROGRAM DOES INSTEAD IS ONE CALL PER FILE:
 %%
-%%     TO READ a file      `read_file_to_codes/2', in one call
-%%     TO CAPTURE output   `with_output_to(atom(A), Goal)' or `codes(C)'
-%%     TO WRITE something  put it in the KNOWLEDGE BASE, which is the
-%%                         durable store this interpreter actually has --
-%%                         see tutorials/basics/11 -- or shell out, or
-%%                         write a module for it
+%%     TO READ a file      `read_file_to_codes/2'
+%%     TO WRITE one        `write_file_from_codes/2' -- the whole content,
+%%                         whatever the file held before
+%%     TO ADD to one       `append_file_from_codes/2'
+%%     TO CAPTURE output   `with_output_to(atom(A), Goal)' or `codes(C)' --
+%%                         which is also how the text for a write is built,
+%%                         since there is no `format/2' onto a file
 %%
-%% That is a real limitation and it is deliberate rather than unfinished.
-%% cocolog's answer to "where does state live" is a database, not a file,
-%% and half a stream layer would blur the one decision the whole design
-%% follows from.
+%% A file is read whole and written whole, and that is deliberate rather
+%% than unfinished. cocolog's answer to "where does state live" is a
+%% database, not a file it holds open -- see tutorials/basics/11 -- and
+%% half a stream layer would blur the one decision the whole design
+%% follows from. What the one-call shape gives up is exactly holding a
+%% file open and interleaving with it.
 %%
-%% WHAT IS HERE IS EVERYTHING ELSE: existence, size, times, permissions,
-%% listing a directory, making and removing them, renaming, globbing,
-%% absolute names, temporary names, and taking a PATH apart.
+%% PORTING NOTE: SWI spells writing `open/3' + `format/2' + `close/1' and
+%% has no `write_file_from_codes'. File I/O rewrites at the edges when
+%% code moves either way -- and only at the edges.
+%%
+%% WHAT IS HERE BESIDES is everything about the file as an object:
+%% existence, size, times, permissions, listing a directory, making and
+%% removing them, renaming, globbing, absolute names, temporary names, and
+%% taking a PATH apart.
 
 main :-
     format("~n-- names are taken apart and put together, not spliced~n"),
@@ -67,6 +75,61 @@ main :-
     atom_codes(Text, Codes),
     ( sub_atom(Text, 0, 12, _, '%% LIBRARY 0') -> Top = right_file ; Top = Text ),
     must('and it is this file', Top, right_file),
+
+    format("~n-- writing a file: the whole content, one call~n"),
+    tmp_file(lesson, T0),
+    atom_concat(T0, '-w', F),
+    write_file_from_codes(F, 'hello, file\n'),
+    read_file_to_codes(F, W1),
+    atom_codes(Wrote, W1),
+    must('write_file_from_codes/2 takes an atom', Wrote, 'hello, file\n'),
+    write_file_from_codes(F, [104, 105, 10]),
+    read_file_to_codes(F, W2),
+    must('...or a list of codes', W2, [104, 105, 10]),
+    format("   The pair `tcp_write/2' takes, for the same reason: a caller~n"),
+    format("   with a literal should not have to convert it, and a caller~n"),
+    format("   holding bytes should not have to lose them.~n"),
+    with_output_to(atom(Line), format("~w+~w=~w~n", [2, 2, 4])),
+    write_file_from_codes(F, Line),
+    read_file_to_codes(F, W3),
+    atom_codes(Formatted, W3),
+    must('formatted text is BUILT first, then written', Formatted, '2+2=4\n'),
+
+    format("~n-- and it ROUND-TRIPS: bytes out are bytes back~n"),
+    write_file_from_codes(F, Codes),
+    read_file_to_codes(F, Copied),
+    ( Copied == Codes -> RT = identical ; RT = different ),
+    must('a copy of this lesson is byte-for-byte this lesson', RT, identical),
+    format("   Codes are masked to 0..255 on the way out, so whatever~n"),
+    format("   `read_file_to_codes/2' hands back writes back exactly:~n"),
+    format("   copying a binary is these two predicates and nothing between~n"),
+    format("   them. Proven once on the cocolog binary itself, cmp-identical.~n"),
+
+    format("~n-- appending~n"),
+    write_file_from_codes(F, first),
+    append_file_from_codes(F, '-second'),
+    read_file_to_codes(F, A1),
+    atom_codes(Appended, A1),
+    must('append_file_from_codes/2 adds to the end', Appended, 'first-second'),
+
+    format("~n-- the empty list TRUNCATES, and [] is the case to know~n"),
+    write_file_from_codes(F, []),
+    size_file(F, Z),
+    must('write_file_from_codes(F, []) leaves zero bytes', Z, 0),
+    format("   `[]' is an ATOM here as well as a list -- atom([]) and~n"),
+    format("   is_list([]) are both true -- and a draft that asked atom~n"),
+    format("   FIRST wrote the two characters `[' `]' into the file, which~n"),
+    format("   read back as a perfectly good list of two codes. The list~n"),
+    format("   branch is asked first, so the shell's `: > f' means here~n"),
+    format("   what it means there: a zero-byte file is a file.~n"),
+
+    format("~n-- a bad code raises, NAMING the term~n"),
+    catch( write_file_from_codes(F, [foo]),
+           error(type_error(Kind, Culprit), _),
+           true ),
+    must('the error carries the type it wanted', Kind, integer),
+    must('...and the term that was not one', Culprit, foo),
+    delete_file(F),
 
     format("~n-- metadata~n"),
     ( exists_file(Self) -> E = yes ; E = no ),
@@ -129,7 +192,7 @@ main :-
     ( exists_directory(ScratchDir) -> Gone = still_there ; Gone = removed ),
     must('delete_directory/1', Gone, removed),
 
-    format("~n-- and capturing output, which is what replaces a write stream~n"),
+    format("~n-- and capturing output, which is where a write's text comes from~n"),
     with_output_to(atom(Captured), (write(hello), write(' '), write(world))),
     must('with_output_to(atom(A), Goal)', Captured, 'hello world'),
     with_output_to(codes(Cs), write(hi)),

@@ -40,6 +40,26 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 0
 fi
 C="$ROOT/cocolog"
+
+# THE EDGE IS WAITED FOR, NOT SLEPT AT. It prints `edge up' once it is
+# listening, and a fixed second was not enough on a Mac whose python3 is a
+# pyenv shim that takes two to four seconds to start: the query then met
+# nothing on the port, `Connection refused' read as a routing failure, and
+# the kill at the end of the check reached the edge before it had printed a
+# line -- nine reds, every one of them the same second. Fifteen seconds is
+# the ceiling; the usual wait is well under one. `CANNOT BIND' is the other
+# thing an edge says, on a privileged port it may not have -- waited for
+# too, so the SKIP below it is decided on what the edge said and not on
+# what it had not yet said.
+wait_edge() {
+  i=0
+  while [ $i -lt 150 ]; do
+    grep -qE 'edge up|CANNOT BIND' "$1" 2>/dev/null && return 0
+    sleep 0.1
+    i=$((i + 1))
+  done
+  return 1
+}
 HOST=${ZIGURAT_HOST:-127.0.0.1}
 PORT=${ZIGURAT_PORT:-2160}
 ZEYTUN=${ZEYTUN_PORT:-2190}
@@ -117,7 +137,7 @@ PYEOF
 python3 "$OUT/edge.py" 18080 "localhost:18080" "$ZEYTUN" "$OUT/hosts-high.log" \
   > "$OUT/edge-high.out" 2>&1 &
 EDGE_PID=$!
-sleep 1
+wait_edge "$OUT/edge-high.out"
 got=$(timeout 60 "$C" --host localhost --http 18080 --kb tunnel_test \
         query 'edge_fact(X)' 2>/dev/null | head -1)
 check "a query answers through the Host-routing edge" "$got" "  1. edge_fact(routed)"
@@ -148,7 +168,7 @@ if openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/edge.pem" \
   python3 "$OUT/edge.py" 18443 "localhost:18443" "$ZEYTUN" "$OUT/hosts-tls.log" \
     "$OUT/edge-full.pem" > "$OUT/edge-tls.out" 2>&1 &
   EDGE_PID=$!
-  sleep 1
+  wait_edge "$OUT/edge-tls.out"
 
   got=$(timeout 60 "$C" --host localhost --https 18443 --cacert "$OUT/edge.crt" \
           --kb tunnel_test query 'edge_fact(X)' 2>/dev/null | head -1)
@@ -222,7 +242,7 @@ if openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/edge.pem" \
   python3 "$OUT/edge.py" 18444 "localhost:18444" "$ZEYTUN" "$OUT/hosts-bad.log" \
     "$OUT/other-full.pem" > "$OUT/edge-bad.out" 2>&1 &
   EDGE_PID=$!
-  sleep 1
+  wait_edge "$OUT/edge-bad.out"
 
   got=$(timeout 60 "$C" --host localhost --https 18444 --cacert "$OUT/other.crt" \
           --kb tunnel_test query 'edge_fact(X)' 2>&1 >/dev/null \
@@ -248,7 +268,7 @@ fi
 python3 "$OUT/edge.py" 80 "localhost" "$ZEYTUN" "$OUT/hosts-80.log" \
   > "$OUT/edge-80.out" 2>&1 &
 EDGE_PID=$!
-sleep 1
+wait_edge "$OUT/edge-80.out"
 if grep -q "CANNOT BIND" "$OUT/edge-80.out" 2>/dev/null; then
   echo "port 80: SKIP (cannot bind without privilege)"
   EDGE_PID=

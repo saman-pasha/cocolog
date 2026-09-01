@@ -90,7 +90,25 @@
     (member size_t *     dirty)
     (member size_t       ndirty)
     (member size_t       dirty_cap)
-    (member char         err [256]))
+    (member char         err [256])
+    ;; THE ID OF THE MACHINE THIS ATTACHMENT IS WORKING ON, 0 for none.
+    ;; Set by `coco_zg_load' out of the header it just read and by
+    ;; `coco_zg_save' when it creates one; cleared by `coco_zg_drop'.
+    ;;
+    ;; It exists so that saving over a machine does not have to LOOK IT UP BY
+    ;; NAME. That lookup can miss a row that is there -- a partner mid-save --
+    ;; and machine_open then INSERTS a second row of the same name rather than
+    ;; replacing the first. Holding the id turns a save into an UPDATE by
+    ;; primary key instead, so that cannot happen.
+    ;;
+    ;; AND IT WAS WHY THE MACHINE THAT REACHED 91 ROWS DID SO -- by never
+    ;; running. coco_zg_load set this member and then re-attached, and
+    ;; coco_zg_attach memsets Z, so the id was 0 at every save, machine_save
+    ;; was never called, and the "measurement" that said the change did not
+    ;; help had measured the old path. The id survives the re-attach now;
+    ;; five embedded runs of twelve workers since: no twin, no lost answer.
+    ;; STATUS.md carries both readings and the numbers.
+    (member i64          mid))
 
   ;;; Points a store at a knowledge base. The connection stays the caller's to
   ;;; close; the store's hooks are set to this Z.
@@ -708,25 +726,54 @@
           (set chunks (/ (+ ($ b len) (- (coco-chunk-bytes) 1)) (coco-chunk-bytes)))
           (if (== chunks 0) (set chunks 1))
 
-          (if (not (zg_call (-> z db) "cocolog::machine_open"))
-              (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))
-          (set ok (and (zg_write_string (-> z db) name)
-                       (and (zg_write_string (-> z db) (-> z kb))
-                            (and (zg_write_string (-> z db) "suspended")
-                                 (and (zg_write_int (-> z db) (cast i32 chunks))
-                                      ;; `-' AND NOT THE EMPTY STRING. An empty
-                                      ;; String lands in the store as NULL, and
-                                      ;; a NULL column cannot be read back --
-                                      ;; the engine refuses the whole row. The
-                                      ;; column is NOT NULL now, and this is
-                                      ;; what keeps it that way.
-                                      (zg_write_string (-> z db)
-                                                       (? (or (== note nil)
-                                                              (== 0 (strlen note)))
-                                                          "-" note)))))))
-          (if (not ok) (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))
-          (if (not (coco_zg_finish z (aof mid)))
-              (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))
+          ;; SAVING OVER A MACHINE WE ALREADY HOLD IS AN UPDATE, not a delete
+          ;; and an insert. `machine_save' answers the id back when it found
+          ;; it and 0 when it did not -- a stale id, from a machine dropped
+          ;; and started again -- and 0 falls through to machine_open below,
+          ;; which is also the path `start' takes for a machine that does not
+          ;; exist yet.
+          (if (> (-> z mid) 0)
+              (block
+                (if (not (zg_call (-> z db) "cocolog::machine_save"))
+                    (block (coco_sb_free (aof b))
+                           (return (coco_zg_fail z "machine_save"))))
+                (set ok (and (zg_write_long (-> z db) (-> z mid))
+                             (and (zg_write_string (-> z db) "suspended")
+                                  (and (zg_write_int (-> z db) (cast i32 chunks))
+                                       (zg_write_string (-> z db)
+                                                        (? (or (== note nil)
+                                                               (== 0 (strlen note)))
+                                                           "-" note))))))
+                (if (not ok) (block (coco_sb_free (aof b))
+                                    (return (coco_zg_fail z "machine_save"))))
+                (if (not (coco_zg_finish z (aof mid)))
+                    (block (coco_sb_free (aof b))
+                           (return (coco_zg_fail z "machine_save"))))))
+
+          (if (<= mid 0)
+              (block
+              (if (not (zg_call (-> z db) "cocolog::machine_open"))
+                  (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))
+              (set ok (and (zg_write_string (-> z db) name)
+                           (and (zg_write_string (-> z db) (-> z kb))
+                                (and (zg_write_string (-> z db) "suspended")
+                                     (and (zg_write_int (-> z db) (cast i32 chunks))
+                                          ;; `-' AND NOT THE EMPTY STRING. An empty
+                                          ;; String lands in the store as NULL, and
+                                          ;; a NULL column cannot be read back --
+                                          ;; the engine refuses the whole row. The
+                                          ;; column is NOT NULL now, and this is
+                                          ;; what keeps it that way.
+                                          (zg_write_string (-> z db)
+                                                           (? (or (== note nil)
+                                                                  (== 0 (strlen note)))
+                                                              "-" note)))))))
+              (if (not ok) (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))
+              (if (not (coco_zg_finish z (aof mid)))
+                  (block (coco_sb_free (aof b)) (return (coco_zg_fail z "machine_open"))))))
+
+          ;; Whichever way it went, this is the machine from now on.
+          (set (-> z mid) mid)
 
           ;; One row per chunk. The buffer is cut in place: a NUL is put at the
           ;; end of each piece, the piece is sent, and the byte it displaced is
@@ -784,6 +831,21 @@
           (if (== rows 0)
               (block (snprintf (-> z err) 256 "no suspended machine called '%s'" name)
                      (return 0)))
+          ;; MORE THAN ONE ROW OF A NAME IS A CORRUPTION, NOT A CHOICE. The
+          ;; loop above kept the LAST one's id, silently, for as long as a
+          ;; twin could exist -- so a load assembled from one twin's chunks
+          ;; was saved over the other twin's header, and the two drifted
+          ;; apart until a proof lost an answer. A name is UNIQUE; two rows
+          ;; of it is a fact worth stopping on and saying out loud.
+          (if (> rows 1)
+              (block (snprintf (-> z err) 256
+                               "the machine '%s' has %d header rows; a name has one"
+                               name rows)
+                     (return 0)))
+          ;; THE ID THE SAVE WILL WRITE BACK THROUGH. Read here rather than
+          ;; looked up again at save time, which is the whole point -- see the
+          ;; `mid' member.
+          (set (-> z mid) mid)
 
           ;; then the state, put back in `seq' order -- the cursor is not
           ;; ordered, which is what `seq' is a column for
@@ -845,10 +907,20 @@
             (let ((char kb_name [64]))
               (snprintf kb_name (sizeof kb_name) "%s" (-> z kb))
               (coco_zg_attach z (-> z db) m st kb_name))
+            ;; AND THE ID IS PUT BACK. coco_zg_attach memsets Z, and it runs
+            ;; AFTER the header was read -- which is how `mid' was 0 at every
+            ;; save from the day it was added: machine_save was never called,
+            ;; every save still went through machine_open, and a change
+            ;; measured as "not helping" had never run at all.
+            (set (-> z mid) mid)
             (return 1))))
 
   (func coco_zg_drop ((coco_zg * z) (const char * name)) (out int)
         (let ((i64 ignored . 0))
+          ;; The machine is going, so the id this attachment was saving
+          ;; through goes with it -- anything after this creates rather than
+          ;; updates.
+          (set (-> z mid) 0)
           (if (not (zg_call (-> z db) "cocolog::machine_drop"))
               (return (coco_zg_fail z "machine_drop")))
           (if (not (zg_write_string (-> z db) name)) (return 0))
