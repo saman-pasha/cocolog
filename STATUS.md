@@ -34,6 +34,7 @@ different findings.
 | `test/hex.sh` | `library(hex)`: hexagonal-grid arithmetic held to its IDENTITIES rather than spot values -- ring sizes 6R, disk sizes 1+3R(R+1), lines distance+1 with every step distance one, six left-rotations the identity, and offset (all four layouts, negatives included) and pixel (both orientations) conversions round-tripping over whole 7x7 windows -- 19 checks |
 | `test/astar.sh` | `library(astar)`: A* whose graph is two caller goals, held to an ORACLE -- on a costed hex grid, the heuristic search must answer the exact cost the exported Dijkstra answers across twelve varied pairs -- plus the laws: paths connect through the caller's own neighbor goal, costs sum, walls detour, unreachable fails, and the same question twice is the same path (the pinned tiebreak, observed) -- 7 checks |
 | `test/serialize.sh` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
+| `test/string.sh` | the string type, checked as a TYPE rather than as a set of predicates that answer: it must not BE an atom, it must carry a NUL where an atom of the same bytes stops at one, and it must sit between atom and compound in the standard order. Plus `double_quotes` in all four of SWI's values, each through a FILE because a one-goal query cannot see its own flag change, and the guard that keeps a module's choice from reaching the vendored SWI libraries -- 36 checks |
 
 ### One stack, three suites, one server
 
@@ -85,9 +86,9 @@ reading it and writing it again cannot.
 
 Two decisions are worth recording because both were paid for:
 
-**A CODE LIST IS A LIST, AND `str/1` IS THE WAY OUT.** cocolog has no string
-type — `double_quotes` is `codes` — so `"hello"` *is* `[104,101,…]` and
-nothing in the term says which you meant. The first draft of `xml.pl`
+**A CODE LIST IS A LIST, AND `str/1` IS THE WAY OUT.** `double_quotes`
+defaults to `codes` — so `"hello"` *is* `[104,101,…]` in a file that did not
+set the flag, and nothing in the term says which you meant. The first draft of `xml.pl`
 guessed the friendly way and `element(p,[],["hello"])` came out as
 `<p>104101108108111</p>`. A bare list is now an array in JSON and an error
 in XML and HTML.
@@ -1294,8 +1295,10 @@ exhausting the C stack.
 all**, and `lib/builtins.cicili` is the thirty-eight ISO-core builtins cocolog
 was missing, computed against SWI's list rather than remembered. SWI has 655
 builtins; the ones that cannot exist here are the stream, module, thread,
-tabling, foreign-interface and string families, and that is stated in
-MODULES.md rather than left to be discovered.
+tabling and foreign-interface families, and that is stated in MODULES.md
+rather than left to be discovered. The STRING family was on that list and
+came off it: the type is real now, and only the reader's default still
+differs.
 
 `findall/3` had to be an ENGINE service — it runs a goal to exhaustion and a
 module cannot see the engine — so `coco_engine_findall` starts a nested engine on
@@ -2625,7 +2628,7 @@ in, a worse one to read EXECUTION in), and misapplied Prolog is MORE
 code than Python, not less.
 
 What it says about cocolog is what this file already says, gathered:
-where it loses (strings are codes, no GC inside a solution, no clause
+where it loses (strings are codes by default, no GC inside a solution, no clause
 indexing, no tabling or constraints, no debugger GUI or profiler or
 package manager, an ecosystem of one family) and where it differs in
 POSITION rather than language -- a clause is a row other processes read,
@@ -2968,9 +2971,11 @@ is 14000), which is how it has always read and is worth a look.
   is emptied.
 * **A directive is not run as a goal.** `coco_directive` handles `dynamic/1` and
   `op/3`, ignores `discontiguous/1`, `multifile/1`, `module/2`, `use_module/1,2`
-  and `meta_predicate/1`, and accepts `set_prolog_flag(double_quotes, codes)`
-  because that is what the reader actually does — any other value of that flag
-  is refused rather than nodded at. Anything else in a consulted file is an
+  and `meta_predicate/1`, and honours `set_prolog_flag(double_quotes, V)` for
+  all four of SWI's values — `codes`, `chars`, `atom`, `string` — changing what
+  the reader builds for the rest of the file. A fifth value is refused by name
+  rather than nodded at, because a flag accepted and not honoured makes every
+  `"…"` in the file mean something other than it says. Anything else in a consulted file is an
   error naming what it was. `:- initialization(main).` and
   `:- ( catch(...) -> ... ; ... ).` would want an engine, and the store is a
   layer below the engine — the file that would have to call into solve.cicili is

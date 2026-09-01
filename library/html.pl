@@ -60,8 +60,9 @@
 %%                 raw(Text)          verbatim, NOT escaped: the fire escape
 %%
 %% A CHILD IS NEVER A LIST, for the reason library(xml) gives at length:
-%% cocolog has no string type, `"hello"' IS a list of codes, and guessing
-%% is how `element(p, [], ["hello"])' silently becomes a row of numbers.
+%% `double_quotes' defaults to codes, so `"hello"' IS a list of codes in
+%% a file that did not set the flag, and guessing is how
+%% `element(p, [], ["hello"])' silently becomes a row of numbers.
 %% `str/1' is how you write text you are holding as codes. A list at the
 %% TOP is a fragment, because a document has no text at its outermost
 %% level and there the reading is unambiguous.

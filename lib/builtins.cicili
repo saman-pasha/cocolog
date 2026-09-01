@@ -287,6 +287,34 @@
            "sub_atom(A, B, L, Aft, Sub) :- atom(Sub), !, atom_length(A, N), atom_length(Sub, L), Max is N - L, between(0, Max, B), '$sub_atom'(A, B, L, Aft, Sub)."
            "sub_atom(A, B, L, Aft, Sub) :- atom_length(A, N), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub)."
 
+           ;; ---- sub_string/5 ------------------------------------------------
+           ;; THE SAME ENUMERATION AS sub_atom/5, ANSWERING A STRING. It is
+           ;; here and not in C for the reason string_concat/3's comment
+           ;; gives: SWI backtracks over every way of cutting a string, and a
+           ;; C builtin in this engine answers once. The engine makes the
+           ;; choice points, so the enumeration lives where the engine is.
+           ;;
+           ;; Sub is matched as TEXT, so a string, an atom or a number all
+           ;; work in that position -- which is SWI's rule for every text
+           ;; argument.
+           ;;
+           ;; NO BACKSLASH-QUOTE IN THIS COMMENT, and that is not a style
+           ;; note. The blocklist's shape-2 scanner reads every string literal
+           ;; inside a *X-prolog* DEFPARAMETER and does NOT skip line
+           ;; comments, so an escaped quote written here starts a string it
+           ;; never meant to and every literal after it is read at the wrong
+           ;; boundary. It invented three tier-1 names -- sink/0, spec/0,
+           ;; ty/0 -- and lost sub_string/5, which the store probe caught
+           ;; because the store had never heard of the three. Written once
+           ;; with the escape IN the warning, which cost a second round.
+           "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, string_length(S, N), string_length(Sub, L), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
+           "sub_string(S, B, L, Aft, Sub) :- string_length(S, N), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
+           "'$sub_string'(S, B, L, Aft, Sub) :- string_codes(S, Cs), length(Pre, B), append(Pre, Mid, Cs), length(Mid, ML), MidL is ML, length(SubCs, L), append(SubCs, Post, Mid), length(Post, Aft), string_codes(Sub0, SubCs), sub_string_same(Sub, Sub0), MidL >= L."
+           ;; Sub may arrive as a string, an atom or a number; compare the text.
+           "sub_string_same(Sub, Sub0) :- var(Sub), !, Sub = Sub0."
+           "sub_string_same(Sub, Sub0) :- string(Sub), !, Sub == Sub0."
+           "sub_string_same(Sub, Sub0) :- atom_string(Sub, S1), S1 == Sub0."
+
            ;; ---- atomic_list_concat/2,3 -------------------------------------
            ;; With a separator and an unbound list it SPLITS, which is the mode
            ;; everybody actually uses it in.
@@ -1126,19 +1154,30 @@
 
             (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d)))
                   (u32 ar . #'(coco_arity m d))
-                  (int as_chars . 0) (int as_atom . 0))
+                  (int as_chars . 0) (int as_atom . 0) (int as_string . 0))
               (if (== 0 (strcmp nm "atom")) (set as_atom 1))
               (if (== 0 (strcmp nm "chars")) (set as_chars 1))
-              (if (and (and (not as_atom) (not as_chars)) (!= 0 (strcmp nm "codes")))
+              ;; `string(S)' IS A SINK NOW, and it was a domain_error for as
+              ;; long as there was no string type to put anything in. SWI's
+              ;; `format(string(S), ...)' is the ordinary way to build one, so
+              ;; leaving it refused would have meant a type you can make with
+              ;; twelve predicates and cannot format into.
+              (if (== 0 (strcmp nm "string")) (set as_string 1))
+              (if (and (and (not as_atom) (not as_chars))
+                       (and (not as_string) (!= 0 (strcmp nm "codes"))))
                   (return (coco_m_domain_error e "output_sink" sink)))
               (if (or (< ar 1) (> ar 2))
                   (return (coco_m_domain_error e "output_sink" sink)))
-              ;; `atom(A, B)' is not a thing -- only the list sinks take a tail
-              (if (and as_atom (== ar 2))
+              ;; `atom(A, B)' is not a thing -- only the LIST sinks take a
+              ;; tail, because a difference list is the only one of the four
+              ;; that has anywhere to put it.
+              (if (and (or as_atom as_string) (== ar 2))
                   (return (coco_m_domain_error e "output_sink" sink)))
 
               (if as_atom
                   (return (? (coco_m_unify_atom e (coco_arg m d 0) out) 1 0)))
+              (if as_string
+                  (return (? (coco_m_unify_string e (coco_arg m d 0) out (strlen out)) 1 0)))
 
               (let ((size_t tail . #'(? (== ar 2) (coco_arg m d 1) (coco_m_nil e)))
                     (size_t acc) (size_t len . #'(strlen out)))

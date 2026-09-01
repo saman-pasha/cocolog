@@ -2230,6 +2230,25 @@
   (func main ((int argc) (char ** argv))
         (out int)
         (let ((int i . 1) (int rc . 0))
+          ;; `--' ENDS COCOLOG'S ARGUMENTS. Everything after it belongs to
+          ;; the program and reaches it as `current_prolog_flag(argv, V)';
+          ;; everything before is this binary's, exactly as it was.
+          ;;
+          ;; SHORTENING argc IS THE WHOLE IMPLEMENTATION, and it is done
+          ;; here rather than in each command because `run FILE GOAL' reads
+          ;; the LAST argument as the goal: a separator the dispatch could
+          ;; still see would make `run p.pl main -- --check' prove
+          ;; `--check'. Truncated first, every existing rule about argv
+          ;; keeps holding and none of them had to learn a new word.
+          (let ((int cut . 0))
+            (for ((int k . 1)) (< k argc) ((++ k))
+                 (if (== 0 (strcmp (nth k argv) "--"))
+                     (block (set cut k) break)))
+            (if (> cut 0)
+                (block (lb_set_argv (- argc (+ cut 1)) (aof (nth (+ cut 1) argv))
+                                    argc argv)
+                       (set argc cut))
+              (lb_set_argv 0 nil argc argv)))
           ;; options first, then the command
           (while (< i argc)
             (let ((const char * a . #'(nth i argv)))

@@ -237,6 +237,8 @@
 
   (decl) (func coco_m_unify ((coco_engine * e) (size_t t) (size_t u)) (out int))
   (decl) (func coco_m_unify_atom ((coco_engine * e) (size_t t) (const char * s)) (out int))
+  (decl) (func coco_m_unify_string ((coco_engine * e) (size_t t) (const char * s)
+                                    (size_t n)) (out int))
   (decl) (func coco_m_unify_int ((coco_engine * e) (size_t t) (i64 v)) (out int))
   (decl) (func coco_m_unify_float ((coco_engine * e) (size_t t) (double v)) (out int))
 
@@ -589,6 +591,29 @@
           (if (== cap 0) (return 0))
           (set t (coco_deref m t))
 
+          ;; A STRING IS TEXT, and putting it HERE rather than in format/2 is
+          ;; the whole point: coco_m_text/4 is the module API's "the text of
+          ;; this term", so every caller -- format/1,2,3, atom_length/2,
+          ;; atom_number/2, every module that asks for a name -- takes a
+          ;; string the moment this does. Under `double_quotes = string' the
+          ;; format string of every format/2 in a file IS a string, so a flag
+          ;; that could be set and then made format unusable would not be a
+          ;; feature.
+          ;;
+          ;; A STRING WITH A NUL IN IT IS REFUSED HERE, not truncated: this
+          ;; hands back a C string and the buffer cannot carry one. That is
+          ;; the honest edge of the seam -- string_codes/2 is the way to read
+          ;; such a string, and it does not go through here.
+          (let ((const char * sp . nil) (size_t sn . 0))
+            (if (coco_string_text m t (aof sp) (aof sn))
+                (block
+                 (if (>= sn cap) (return 0))
+                 (for ((size_t i . 0)) (< i sn) ((++ i))
+                      (if (== (nth i sp) (cast char 0)) (return 0)))
+                 (memcpy buf sp sn)
+                 (set (nth sn buf) (cast char 0))
+                 (return 1))))
+
           (if (coco_m_is_atom e t)
               (let ((const char * s . #'(coco_atom_name m (coco_name_of m t))))
                 (if (>= (strlen s) cap) (return 0))
@@ -617,8 +642,20 @@
               (if (not (coco_is_callable m p)) (return 0))
               (if (!= (coco_arity m p) 2) (return 0))
               (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))
+              ;; A CODE OR A ONE-CHARACTER ATOM, because `double_quotes' has
+              ;; four values and TWO of them make a list. Under `chars' the
+              ;; format string of every format/2 in the file is [f,o,o] and
+              ;; refusing it here would make the flag unusable -- which is
+              ;; how this was found: `set_prolog_flag(double_quotes, chars)'
+              ;; then `format("answer(~w)~n", [X])' raised type_error(text)
+              ;; naming a list whose elements are plainly characters.
               (let ((size_t h . #'(coco_deref m (coco_arg m p 0))) (i64 c . 0))
-                (if (not (coco_m_int e h (aof c))) (return 0))
+                (if (not (coco_m_int e h (aof c)))
+                    (block
+                     (if (not (coco_m_is_atom e h)) (return 0))
+                     (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
+                       (if (!= (strlen cs) 1) (return 0))
+                       (set c (cast i64 (bitand (cast int (nth 0 cs)) 255))))))
                 (if (or (< c 1) (> c 255)) (return 0))
                 (if (>= (+ n 1) cap) (return 0))
                 (set (nth n buf) (cast char c))
@@ -703,6 +740,13 @@
 
   (func coco_m_unify_atom ((coco_engine * e) (size_t t) (const char * s)) (out int)
         (return (coco_m_unify e t (coco_new_atom (-> e m) s))))
+
+  ;;; TAKES A LENGTH, where the atom one does not, and that is the whole
+  ;;; difference between the two types: an atom is a NUL-terminated name and
+  ;;; a string is N bytes, zeros included.
+  (func coco_m_unify_string ((coco_engine * e) (size_t t) (const char * s)
+                             (size_t n)) (out int)
+        (return (coco_m_unify e t (coco_new_string (-> e m) s n))))
 
   (func coco_m_unify_int ((coco_engine * e) (size_t t) (i64 v)) (out int)
         (return (coco_m_unify e t (coco_new_int (-> e m) v))))

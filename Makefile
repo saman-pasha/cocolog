@@ -100,7 +100,7 @@ ZT_TLS_LIBS    :=
 endif
 LIB_SOURCES    := $(wildcard lib/*.cicili)
 
-.PHONY: all client schema test clean check-cicili modules
+.PHONY: all client schema test clean check-cicili modules index dialect-check lint
 
 all: client cocolog
 
@@ -198,6 +198,31 @@ modules:
 
 schema:
 	sh parsi/build.sh
+
+# ---- the agent's index -------------------------------------------------------
+# tools/coco-agent reads this repository rather than being told about it: the
+# reserved-name blocklist is EXTRACTED from lib/, modules/ and library/, and
+# the dialect card's citations are CHECKED against the lines they name. Both
+# are cocolog now -- there is no Python left in tools/coco-agent -- so both
+# need a built binary, which is why they are separate targets rather than
+# part of `all'.
+#
+# `index' regenerates blocklist.json, surface.jsonl, exemplars.jsonl and
+# capabilities.json -- all gitignored, all remade in seconds. `dialect-check'
+# proves every citation in traps.jsonl still points at the code it claims,
+# which is the thing that rots. `lint' runs the linter over files you name:
+#
+#     make lint FILES="myprogram.pl"
+
+index:
+	sh tools/coco-agent/tool.sh build
+	sh tools/coco-agent/tool.sh index
+
+dialect-check:
+	sh tools/coco-agent/tool.sh card --check
+
+lint: index
+	@sh tools/coco-agent/lint.sh $(FILES)
 
 # ---- tests -------------------------------------------------------------------
 

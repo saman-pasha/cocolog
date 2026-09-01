@@ -26,8 +26,8 @@
 %%         raw(Text)              verbatim, NOT escaped -- the fire escape
 %%
 %% A CHILD IS NEVER A LIST, and that is the same decision library(json)
-%% makes for the same reason. cocolog has no string type -- `double_quotes'
-%% is `codes', so `"hello"' IS `[104,101,...]' -- and a list sitting in the
+%% makes for the same reason. `double_quotes' defaults to `codes', so in a
+%% file that did not set it `"hello"' IS `[104,101,...]' -- and a list in the
 %% children position could honestly be either five text nodes or one word.
 %% Guessing is how `element(p, [], ["hello"])' silently becomes
 %% `<p>104101108108111</p>', which is exactly what it did here before this

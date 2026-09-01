@@ -1,0 +1,86 @@
+#!/bin/sh
+# A pre-commit hook: cocolint over the .pl files this commit touches, and the
+# dialect card's citations.
+#
+# NOT INSTALLED BY ANYTHING. .git/hooks is not tracked and a repository that
+# installs its own hooks behind your back is a repository nobody trusts, so
+# this is a file you copy on purpose:
+#
+#     ln -s ../../tools/coco-agent/pre-commit .git/hooks/pre-commit
+#
+# A symlink rather than a copy so it follows the branch you are on. To skip it
+# once: git commit --no-verify.
+#
+# OFFLINE by construction -- this repository's own source and nothing else.
+# No server, no model, no network, ever.
+#
+# THE TWO HALVES HAVE DIFFERENT NEEDS AND THE HOOK DOES NOT PRETEND OTHERWISE.
+# Both are cocolog now -- there is no Python left in this directory -- so both
+# want a built binary. The linter is cocolog now -- it was Python once, and this hook went
+# on testing for `lint.py' for as long as it took somebody to notice that the
+# test had been failing, silently, on every commit since the rewrite -- so its
+# half runs when there is a built binary and is SKIPPED, out loud, when there
+# is not. A guard that exits 0 for a missing file is indistinguishable from a
+# hook that passed.
+
+ROOT=$(git rev-parse --show-toplevel) || exit 0
+AGENT="$ROOT/tools/coco-agent"
+
+[ -f "$AGENT/card.pl" ] || exit 0
+
+rc=0
+
+# ---- the dialect card, whenever anything it cites has moved --------------
+#
+# CHECKED ON EVERY COMMIT, not only when traps.jsonl changes: the citations
+# point AT lib/, modules/ and library/, so it is a commit to those that breaks
+# them, and that commit is exactly the one whose author can still fix it in
+# one number.
+# A CITE THAT MERELY MOVED IS NOT A FAILURE any more -- card.pl accepts a
+# unique anchor wherever it now sits, and `--check --fix' renumbers it. What
+# reaches here is the two it cannot decide: an anchor that is GONE, where the
+# evidence for the claim was deleted and the row needs rereading; and an
+# ambiguous one, where the anchor occurs several times and the range was the
+# only thing saying which. Neither is a one-number fix, so this no longer
+# offers one.
+if ! OUT=$(sh "$AGENT/tool.sh" card --check 2>&1); then
+  echo "$OUT"
+  echo
+  echo "The dialect card cites code that is gone, or that it can no longer tell"
+  echo "apart from its namesakes. Read the row against the source and fix"
+  echo "tools/coco-agent/traps.jsonl by hand -- --fix deliberately will not"
+  echo "guess at either of these."
+  rc=1
+fi
+
+# ---- cocolint over the staged .pl files ----------------------------------
+#
+# STAGED CONTENT, not the working tree: what is being committed is what the
+# index holds, and linting the file on disk would pass a commit whose staged
+# half is broken. Each is checked out to a temporary file with its own name
+# kept, because the linter's C2 rule and its messages read the path.
+FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.pl' | grep -v '^lib/swipl/')
+if [ -n "$FILES" ]; then
+  TMP=$(mktemp -d) || exit 0
+  LIST=""
+  for f in $FILES; do
+    mkdir -p "$TMP/$(dirname "$f")"
+    git show ":$f" > "$TMP/$f" 2>/dev/null || continue
+    LIST="$LIST $TMP/$f"
+  done
+  if [ -n "$LIST" ]; then
+    if [ ! -x "${COCOLOG_BIN:-$ROOT/cocolog}" ]; then
+      echo "cocolint: SKIPPED, no built cocolog -- the linter is cocolog now."
+      echo "          The dialect card was still checked. Run make to get both."
+    elif ! sh "$AGENT/lint.sh" $LIST; then
+      echo
+      echo "cocolint found a HARD divergence in a staged .pl file. Every one of"
+      echo "these fails SILENTLY or nearly so at run time -- that is the rule for"
+      echo "being a HARD finding. git commit --no-verify to override."
+      rc=1
+    fi
+  fi
+  rm -rf "$TMP"
+fi
+
+exit $rc

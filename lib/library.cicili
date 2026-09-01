@@ -150,21 +150,106 @@
         (lb_exe_resolve)
         (return lb_exe_dir))
 
-  ;;; `current_prolog_flag(executable, Path)' -- SWI's flag, and ONLY that
-  ;;; flag. cocolog has no flag table (`set_prolog_flag' in kb.cicili knows
-  ;;; `double_quotes' and refuses the rest), and a `current_prolog_flag'
-  ;;; that enumerated a dozen invented flags would be the predicate this
-  ;;; repository's rule warns about: one that agrees with SWI until it does
-  ;;; not. So: the executable's resolved path for `executable', and plain
-  ;;; failure for anything else -- which is what SWI answers for a flag
-  ;;; that does not exist. It FAILS rather than answering '' where the
-  ;;; path could not be found, because a program about to spawn that path
-  ;;; had better know.
+  ;;; ---- argv ------------------------------------------------------------
+  ;;;
+  ;;; `--' ENDS COCOLOG'S ARGUMENTS AND EVERYTHING AFTER IT IS THE
+  ;;; PROGRAM'S. That is SWI's own separator and it is not decoration here:
+  ;;; `run FILE GOAL' takes the LAST argument as the goal, so without a
+  ;;; separator `cocolog run p.pl main --check' would try to prove
+  ;;; `--check'. With one, the option loop and the command dispatch never
+  ;;; see past it -- main() simply shortens argc -- and the tail arrives
+  ;;; here instead.
+  ;;;
+  ;;; SET BY THE COMPOSITION ROOT, because it is the only thing that has
+  ;;; them: main()'s argv is on ITS stack and nothing else in the binary
+  ;;; can reach it. The pointers are into that argv, which lives as long as
+  ;;; the process, so nothing is copied and nothing is freed.
+  (static) (var int lb_prog_argc)
+  (static) (var char ** lb_prog_argv)
+  (static) (var int lb_os_argc)
+  (static) (var char ** lb_os_argv)
+
+  (func lb_set_argv ((int pargc) (char ** pargv) (int oargc) (char ** oargv))
+        (set lb_prog_argc pargc)
+        (set lb_prog_argv pargv)
+        (set lb_os_argc oargc)
+        (set lb_os_argv oargv))
+
+  ;;; [Executable | what followed `--'], which is the shape SWI answers.
+  ;;; The head is the RESOLVED path -- the same answer
+  ;;; `current_prolog_flag(executable, P)' gives, so a program that
+  ;;; re-spawns itself out of argv[0] gets a path that works from any
+  ;;; working directory -- and falls back to argv[0] as given where
+  ;;; /proc and _NSGetExecutablePath both came up empty.
+  (static)
+  (func lb_argv_list ((coco_engine * e)) (out size_t)
+        (let ((char ** v) (size_t n . 0) (size_t out . 0))
+          (lb_exe_resolve)
+          (set v (cast (char **) (malloc (* (sizeof (char *))
+                                            (cast size_t (+ lb_prog_argc 1))))))
+          (if (== v nil) (return 0))
+          (set (nth 0 v) (? (!= (nth 0 lb_exe_path) (cast char 0))
+                            lb_exe_path
+                            (? (> lb_os_argc 0) (nth 0 lb_os_argv) "cocolog")))
+          (set n 1)
+          (for ((int i . 0)) (< i lb_prog_argc) ((++ i))
+               (set (nth n v) (nth i lb_prog_argv))
+               (set n (+ n 1)))
+          (set out (coco_m_atom_list e v n))
+          (free v)
+          (return out)))
+
+  ;;; THREE OF SWI'S FLAGS, AND ONLY THREE: `executable', `argv' and
+  ;;; `os_argv'. cocolog has no flag table (`set_prolog_flag' in kb.cicili
+  ;;; knows `double_quotes' and refuses the rest), and a
+  ;;; `current_prolog_flag' that enumerated a dozen invented flags would be
+  ;;; the predicate this repository's rule warns about: one that agrees
+  ;;; with SWI until it does not. So these three answer and every other
+  ;;; flag FAILS -- which is what SWI answers for a flag that does not
+  ;;; exist.
+  ;;;
+  ;;; THE THREE ARE NOT ARBITRARY: each is a question about the PROCESS
+  ;;; that nothing else in the language can answer. Where am I
+  ;;; (`executable', which library(kbs) and CivV's suite spawn out of),
+  ;;; what was I given (`argv'), and what was the whole command line
+  ;;; (`os_argv'). A flag like `bounded' or `double_quotes' is a question
+  ;;; about the LANGUAGE, and the honest answer to those is the one this
+  ;;; file has always given: nothing.
+  ;;;
+  ;;; `executable' FAILS rather than answering '' where the path could not
+  ;;; be found, because a program about to spawn that path had better know.
+  ;;; `argv' never fails: see lb_argv_list above.
   (static)
   (func lb_current_flag ((coco_engine * e) (size_t g)) (out int)
         (let ((char flag [64]))
           (if (not (coco_m_is_atom e (coco_m_arg e g 0))) (return 0))
           (if (not (coco_m_text e (coco_m_arg e g 0) flag 64)) (return 0))
+          ;; ARGV IS ALWAYS AN ANSWER, and the empty tail is the empty
+          ;; tail: a program run with no `--' gets [Executable], never a
+          ;; failure. `current_prolog_flag(argv, V)' failing would read as
+          ;; "this Prolog has no argv" to every caller that tests it, which
+          ;; is the thing this change exists to stop being true.
+          (if (== 0 (strcmp flag "argv"))
+              (return (coco_m_unify e (coco_m_arg e g 1) (lb_argv_list e))))
+          ;; os_argv IS THE LITERAL COMMAND LINE, `--' and cocolog's own
+          ;; options included -- SWI's distinction, kept because the two
+          ;; questions are different: argv asks what the PROGRAM was given,
+          ;; os_argv what the PROCESS was.
+          (if (== 0 (strcmp flag "os_argv"))
+              (return (coco_m_unify e (coco_m_arg e g 1)
+                                    (coco_m_atom_list e lb_os_argv
+                                                      (cast size_t lb_os_argc)))))
+          ;; `double_quotes' READS BACK what set_prolog_flag/2 put there, so a
+          ;; program can ask what a "..." in it will become. FOUR flags answer
+          ;; now; the other three are questions about the PROCESS and this one
+          ;; is about the READER, which is the first flag here that a program
+          ;; can also SET.
+          (if (== 0 (strcmp flag "double_quotes"))
+              (let ((coco_machine * mm . #'(coco_m_machine e)) (const char * v . "codes"))
+                (if (== (-> mm double_quotes) 1) (set v "chars"))
+                (if (== (-> mm double_quotes) 2) (set v "atom"))
+                (if (== (-> mm double_quotes) 3) (set v "string"))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) v))))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))

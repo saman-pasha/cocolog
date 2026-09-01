@@ -81,13 +81,19 @@ READY=0
 i=0
 while [ $i -lt 200 ]; do
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then break; fi
-  if python3 - <<'LISTENING' 2>/dev/null
-import socket, sys
-try:
-    socket.create_connection(("127.0.0.1", 2160), timeout=1).close()
-except OSError:
-    sys.exit(1)
-LISTENING
+  # IS THE PORT ANSWERING? library(tcp) is the question cocolog already has:
+  # tcp_connect/3 FAILS rather than raising when nothing is listening.
+  #
+  # THE MARKER IS NOT DECORATION. `cocolog query GOAL' exits 0 whether the
+  # goal proved or not -- it prints `false.' and returns 0 -- so a shell that
+  # reads its exit status is testing nothing. Only `run FILE GOAL' ties the
+  # two together. Measured both ways before this was written: query fail is
+  # rc=0, run a failing main is rc=1. So the goal writes a word and grep is
+  # the verdict.
+  if COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
+     "$ROOT/cocolog" --local query "use_module(library(tcp)),
+        tcp_connect('127.0.0.1', 2160, S), tcp_close(S), write(listening), nl" \
+     2>/dev/null | grep -q '^listening'
   then
     READY=1
     break

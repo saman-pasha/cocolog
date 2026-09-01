@@ -139,8 +139,18 @@ echo "-- the decoding, checked against Python rather than against itself"
 dec() { timeout 60 "$C" query "$U, atom_codes('$1', Cs), http_percent_decode(Cs, D),
           atom_codes(X, D), write(answer(X)), nl" 2>/dev/null \
         | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
-for raw in 'a%20b' '%2Fslash' 'plus+kept' '%41%42%43' 'caf%C3%A9' '100%25' 'a%2Bb'; do
-  want=$(python3 -c "import urllib.parse,sys; print(urllib.parse.unquote('$raw'))")
+# THE EXPECTED VALUES ARE WRITTEN OUT, not computed by a second decoder, and
+# that is a deliberate change rather than a translation. They used to come
+# from Python's urllib.parse.unquote, which made this a differential test --
+# strong while it lasted, and impossible to keep once the Python went. What
+# replaces it is not a cocolog decoder (that would compare cocolog against
+# itself and pass for any pair of consistent bugs) but the ANSWERS, which are
+# facts about RFC 3986 and not about any implementation. `+' stays a plus in
+# a path and becomes a space in a query, which is the one asymmetry worth
+# pinning and the reason both loops are here.
+for pair in 'a%20b:a b' '%2Fslash:/slash' 'plus+kept:plus+kept' '%41%42%43:ABC' \
+            'caf%C3%A9:café' '100%25:100%' 'a%2Bb:a+b'; do
+  raw=${pair%%:*}; want=${pair#*:}
   check "percent-decode $raw" "$(dec "$raw")" "$want"
 done
 # ONE KEY AT A TIME, because comparing the printed list compares cocolog's
@@ -150,11 +160,9 @@ done
 fval() { timeout 60 "$C" query "$U, http_query(\"$1\", Q), memberchk($2-X, Q),
            write(answer(X)), nl" 2>/dev/null \
          | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
-for pair in 'a=1&b=2:b' 'x=hi+there:x' 'e=%40home:e' 'k=a%26b:k' 'u=caf%C3%A9:u'; do
-  qs=${pair%:*}; key=${pair##*:}
-  want=$(python3 -c "
-import urllib.parse
-print(dict(urllib.parse.parse_qsl('$qs', keep_blank_values=True))['$key'])")
+for row in 'a=1&b=2:b:2' 'x=hi+there:x:hi there' 'e=%40home:e:@home' \
+           'k=a%26b:k:a&b' 'u=caf%C3%A9:u:café'; do
+  qs=${row%%:*}; rest=${row#*:}; key=${rest%%:*}; want=${rest#*:}
   check "query $qs -> $key" "$(fval "$qs" "$key")" "$want"
 done
 

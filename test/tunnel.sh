@@ -35,10 +35,6 @@ if [ ! -x "$ROOT/cocolog" ]; then
   echo "SKIP (no cocolog; make)"
   exit 0
 fi
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "SKIP (no python3 for the edge stand-in)"
-  exit 0
-fi
 C="$ROOT/cocolog"
 
 # THE EDGE IS WAITED FOR, NOT SLEPT AT. It prints `edge up' once it is
@@ -74,67 +70,18 @@ fi
 timeout 60 "$C" --kb tunnel_test --host "$HOST" --tcp "$PORT" --timeout 10 \
   query 'assertz(edge_fact(routed))' >/dev/null 2>&1
 
-# The edge stand-in: admits only requests whose Host header is exactly
-# PUBLIC -- the way the Cloudflare edge routes a quick tunnel by its
-# registered hostname -- and forwards verbatim to Zeytun, which is what
-# cloudflared does at the far end. Every Host seen is logged.
-cat > "$OUT/edge.py" <<'PYEOF'
-import socket, sys, threading
-PORT, PUBLIC, ORIGIN, LOG = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), sys.argv[4]
-# TLS, WHEN A CERTIFICATE IS NAMED. The real edge terminates TLS and speaks
-# plaintext to cloudflared, which is exactly this: wrap the accepted socket
-# and forward the decrypted bytes to Zeytun unchanged.
-CERT = sys.argv[5] if len(sys.argv) > 5 else None
-CTX = None
-if CERT:
-    import ssl
-    CTX = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    CTX.load_cert_chain(CERT, CERT)
-def handle(c):
-    try:
-        head = b""
-        while b"\r\n\r\n" not in head:
-            b = c.recv(4096)
-            if not b: return
-            head += b
-        host = ""
-        for line in head.split(b"\r\n"):
-            if line.lower().startswith(b"host:"):
-                host = line.split(b":", 1)[1].strip().decode()
-        with open(LOG, "a") as f: f.write(host + "\n")
-        if host != PUBLIC:
-            c.sendall(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
-            return
-        o = socket.create_connection(("127.0.0.1", ORIGIN), timeout=20)
-        o.sendall(head)
-        while True:
-            b = o.recv(65536)
-            if not b: break
-            c.sendall(b)
-        o.close()
-    finally:
-        c.close()
-s = socket.socket()
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-try:
-    s.bind(("127.0.0.1", PORT))
-except OSError:
-    print("CANNOT BIND", flush=True); sys.exit(3)
-s.listen(16)
-print("edge up", flush=True)
-while True:
-    c, _ = s.accept()
-    if CTX is not None:
-        try:
-            c = CTX.wrap_socket(c, server_side=True)
-        except Exception:
-            c.close(); continue
-    threading.Thread(target=handle, args=(c,), daemon=True).start()
-PYEOF
+# The edge stand-in is test/edge.pl, in cocolog: it admits only requests
+# whose Host header is exactly PUBLIC -- the way the Cloudflare edge routes
+# a quick tunnel by its registered hostname -- and forwards verbatim to
+# Zeytun, which is what cloudflared does at the far end. Every Host seen is
+# logged. Naming a .pem turns it into a TLS terminator, which is what the
+# real edge is.
+EDGE="$HERE/edge.pl"
+
 
 # ---- a high port: the Host carries the port ------------------------
 
-python3 "$OUT/edge.py" 18080 "localhost:18080" "$ZEYTUN" "$OUT/hosts-high.log" \
+"$C" -s "$EDGE" -- 18080 "localhost:18080" "$ZEYTUN" "$OUT/hosts-high.log" \
   > "$OUT/edge-high.out" 2>&1 &
 EDGE_PID=$!
 wait_edge "$OUT/edge-high.out"
@@ -165,7 +112,7 @@ if openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/edge.pem" \
      -addext 'subjectAltName=DNS:localhost' >/dev/null 2>&1; then
   cat "$OUT/edge.pem" "$OUT/edge.crt" > "$OUT/edge-full.pem"
 
-  python3 "$OUT/edge.py" 18443 "localhost:18443" "$ZEYTUN" "$OUT/hosts-tls.log" \
+  "$C" -s "$EDGE" -- 18443 "localhost:18443" "$ZEYTUN" "$OUT/hosts-tls.log" \
     "$OUT/edge-full.pem" > "$OUT/edge-tls.out" 2>&1 &
   EDGE_PID=$!
   wait_edge "$OUT/edge-tls.out"
@@ -239,7 +186,7 @@ if openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/edge.pem" \
     -addext 'subjectAltName=DNS:other.invalid' >/dev/null 2>&1
   cat "$OUT/other.pem" "$OUT/other.crt" > "$OUT/other-full.pem"
 
-  python3 "$OUT/edge.py" 18444 "localhost:18444" "$ZEYTUN" "$OUT/hosts-bad.log" \
+  "$C" -s "$EDGE" -- 18444 "localhost:18444" "$ZEYTUN" "$OUT/hosts-bad.log" \
     "$OUT/other-full.pem" > "$OUT/edge-bad.out" 2>&1 &
   EDGE_PID=$!
   wait_edge "$OUT/edge-bad.out"
@@ -265,7 +212,7 @@ fi
 
 # ---- port 80: the Host is the bare hostname, as an edge registers it
 
-python3 "$OUT/edge.py" 80 "localhost" "$ZEYTUN" "$OUT/hosts-80.log" \
+"$C" -s "$EDGE" -- 80 "localhost" "$ZEYTUN" "$OUT/hosts-80.log" \
   > "$OUT/edge-80.out" 2>&1 &
 EDGE_PID=$!
 wait_edge "$OUT/edge-80.out"

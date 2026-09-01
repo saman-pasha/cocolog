@@ -45,17 +45,38 @@ written anywhere in this repository.
 | 20-curl | `library/curl.so` | an HTTP client | libcurl |
 | 21-bigint | `library/bigint.so` | integers that do not wrap | a built ZiguratIP |
 | 22-torch | `library/torch.so` | Prolog that trains | libtorch |
+| 23-sha | `library/sha.so` | digests and HMAC | a built ZiguratIP |
+| 24-aes | `library/aes.so` | a block cipher, and what it does not do | a built ZiguratIP |
+| 25-der | `library/der.so` | the encoding everything X.509 is made of | a built ZiguratIP |
+| 26-x509 | `library/x509.so` | certificates, and the CA that issues them | a built ZiguratIP |
+| 27-ca | `library/ca.pl` | a certificate authority, as rules | `x509` |
+| 28-tls | `library/tls.so` | a connection that knows who is on it | a built ZiguratIP |
+| 29-ray | `library/ray.so` | a game window, 2D and 3D, from clauses | raylib |
+| 30-hex | `library/hex.pl` | hexagonal-grid arithmetic | nothing |
+| 31-astar | `library/astar.pl` | shortest paths over a graph of goals | nothing |
+| 32-process | `library/process.so` | run, capture, spawn, wait, kill | `sh modules/process/build.sh` |
+| 33-text | `library/text.so` | grep, sed and the line tools, as clauses | `sh modules/text/build.sh` |
+| 34-kbs | `library/kbs.pl` | many knowledge bases from one script | a running server |
+| 35-os | `library/os.so` | which system, who am I, cores, environment | `sh modules/os/build.sh` |
+| 36-llm | `library/llm.pl` | a language model as a GOAL | `curl`, an API key |
+| 37-lint | *(a tool, not a library)* | cocolint: the dialect linter, and why it is clauses | nothing |
 
-22 is the introduction; `../torch/` is the collection.
+22 is the introduction to torch; `../torch/` is the collection. 37 is the
+odd one out and says so in its header: cocolint is a TOOL under
+`tools/coco-agent`, not a library on the path, so there is no
+`use_module(library(lint))' and the lesson loads its two halves by plain
+path instead.
 
 ## THE CONVENTION
 
 **A new library gets a file here in the same commit.** The numbering is
 one per library and a gap is visible, which is the point: a library with
 no tutorial is a library nobody has demonstrated end to end. Each of the
-thirty-two above found something while being written — a
-predicate that did not exist, an arity that was wrong, a return value
-documented as `-1/0/1` and actually `<`/`=`/`>`.
+thirty-nine above found something while being written — a predicate that
+did not exist, an arity that was wrong, a return value documented as
+`-1/0/1` and actually `<`/`=`/`>`. 37 found an arithmetic slip in its own
+claim: it asserted that `halt' begins at offset 3 of `"x halt y"' and the
+must/3 answered 2.
 
 Copy any file in here for the shape: a header saying the tier, the
 import and the surface; a `main` that walks that surface with `must/3`;
