@@ -157,6 +157,13 @@ GOT=$(echo "$OUT" | sed -n 's/^\([^ :]*\):[0-9]*:[0-9]* \(HARD\|WARN\) \([A-Z0-9
 #   basics/04, 21-bigint, 25-der  A1 x6  `1000000000000000000 * 997' and the
 #                       wrapped answer, which 25-der calls "a wrong answer
 #                       returned confidently".
+#   38-main    S1 [P1]  the tutorial FOR argv, demonstrating that a flag
+#                       cocolog does not have FAILS -- which it does by
+#                       asking for one, `current_prolog_flag(bounded, _)'.
+#                       P1 is right that this is a flag with no answer; the
+#                       lesson's whole claim is that it has none. Naming the
+#                       trap in the notation that catches it, exactly as
+#                       37-lint does above.
 #   basics/10  N1 x2    defines digits//1 and digit//1, which are also
 #                       dcg_basics' at arity 3. A real collision, and the two
 #                       definitions DIFFER -- the tutorial's wants at least
@@ -201,6 +208,7 @@ tutorials/library/31-astar.pl HARD S1 [H1]
 tutorials/library/36-llm.pl WARN Z1 [Z1]
 tutorials/library/37-lint.pl HARD S1 [H1]
 tutorials/library/37-lint.pl HARD S1 [H1]
+tutorials/library/38-main.pl HARD S1 [P1]
 EOF
 )
 

@@ -2,7 +2,19 @@
 %%
 %% TIER 2: `use_module(library(main))', from library/main.pl. Clauses only.
 %%
-%%     cocolog --local run tutorials/library/38-main.pl main -- -v --count=3
+%%     cocolog -s tutorials/library/38-main.pl -- -v --count=3
+%%
+%% `-s' RATHER THAN `run ... main', and the difference is not brevity. `-s'
+%% is `use_module(FILE), main': the program's clauses are muted like any
+%% module's, and `main' is named for you. `run' CONSULTS, and consulting
+%% writes through -- so a tool run that way against a real knowledge base
+%% leaves its own source in the database. Measured:
+%%
+%%     cocolog --embed KB -s  tool.pl      -> tool_private_fact/1 absent
+%%     cocolog --embed KB run tool.pl main -> tool_private_fact(1) stored
+%%
+%% (This lesson still runs under either, and test/tutorials.sh uses `run'
+%% for all seventy-seven files. A lesson has nothing private to leak.)
 %%
 %% `--' IS THE WHOLE ARRANGEMENT AND IT IS NOT OPTIONAL. Everything before it
 %% belongs to cocolog; everything after belongs to your program and arrives as

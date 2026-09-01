@@ -11,7 +11,24 @@
 %%         argv_options(Argv, Positional, Options),
 %%         ...
 %%
-%%     $ cocolog --local run prog.pl main -- -v --count=3 file.pl
+%%     $ cocolog -s prog.pl -- -v --count=3 file.pl
+%%
+%% `-s' IS THE FORM TO USE, AND NOT ONLY BECAUSE IT IS SHORTER. It is
+%% `use_module('prog.pl'), main' -- so the program's clauses are MUTED, the
+%% way any module's are, and `main' is named for you. `run prog.pl main'
+%% CONSULTS instead, and consulting writes through: run a tool that way
+%% against a real knowledge base and its own source lands in the database.
+%% Measured, with a store either side of it:
+%%
+%%     $ cocolog --embed KB -s  tool.pl        -> tool_private_fact/1 absent
+%%     $ cocolog --embed KB run tool.pl main   -> tool_private_fact(1) stored
+%%
+%% There is a second reason, and it is this library exactly. `-s' loads the
+%% file as a module, so the LIBRARY's main/0 is tried before the file's own
+%% clauses -- which is what you want here, because library(main)'s main/0 is
+%% the thing that strips the executable and calls your main/1. Under `run'
+%% the file's clauses come first, so a program that defined main/0 as well
+%% would shadow it. `-s' makes the collision in the next paragraph harmless.
 %%
 %% THIS IS NOT SWI'S library(main), AND SAYING SO IS THE POINT. It is the
 %% same INTERFACE -- main/0, argv_options/3,4, argv_usage/1, and the
@@ -48,12 +65,15 @@
 %% the same list here.
 %%
 %% AND main/0 IS A NAME YOUR PROGRAM PROBABLY ALSO USES. cocolog has one
-%% namespace, `main' is the goal `run' proves by default, and consult
-%% APPENDS -- so a file that defines its own main/0 shadows this one rather
-%% than merging usefully with it, which is the N1 trap in the dialect card.
-%% That is the safe way round and it is still worth knowing: define main/1
-%% and let this provide main/0, or define main/0 and never load this for
-%% its entry point. `listing(main/0)' shows which clauses are there.
+%% namespace and consult APPENDS, so a file that also defines main/0 ends up
+%% with two, and which is tried first depends on HOW IT WAS RUN: `run' puts
+%% the file's clauses first, `-s' puts the library's. That is the N1 trap in
+%% the dialect card, seen from the inside.
+%%
+%% THE ANSWER IS TO DEFINE main/1 AND NOT main/0, which is what SWI asks of
+%% you anyway. Then there is only ever one main/0 -- this one -- and both
+%% spellings do the same thing. `listing(main/0)' shows what is there when
+%% you want to check.
 main :-
     current_prolog_flag(argv, Argv),
     main_arguments(Argv, Args),

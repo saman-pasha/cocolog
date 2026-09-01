@@ -126,6 +126,38 @@ is "and its defaults are the program's, not invented" \
    "0 files, n=1, quiet" \
    "$(./cocolog --local run "$TMP/tool.pl" main -- 2>&1)"
 
+# ---- 5. `-s' is the form to use, and here is why -------------------------
+#
+# `-s FILE' IS `use_module(FILE), main' AND `run FILE main' IS A CONSULT,
+# and the difference is not brevity: consulting WRITES THROUGH. A tool run
+# with `run' against a real knowledge base leaves its own source in the
+# database. This is the case that says so, and it needs a store to say it --
+# --embed, so no server is required.
+#
+# It is also why `-s' is the right form for library(main) in particular:
+# loading the file as a module puts the LIBRARY's main/0 ahead of the file's
+# own clauses, which is the one that strips the executable and calls main/1.
+
+is "-s runs a program and gives it argv" \
+   "3 files, n=5, loud" \
+   "$(./cocolog -s "$TMP/tool.pl" -- -v -n 5 a.pl b.pl c.pl 2>&1)"
+
+KB="$TMP/kb"
+cat > "$TMP/priv.pl" <<'PL'
+tool_private_fact(1).
+main :- write(ran), nl.
+PL
+
+./cocolog --embed "$KB" -s "$TMP/priv.pl" >/dev/null 2>&1
+is "-s leaves the program's clauses OUT of the store" \
+   "absent" \
+   "$(./cocolog --embed "$KB" query "tool_private_fact(_)" >/dev/null 2>&1 && echo stored || echo absent)"
+
+./cocolog --embed "$KB" run "$TMP/priv.pl" main >/dev/null 2>&1
+is "and run CONSULTS, so the same clauses land in it" \
+   "stored" \
+   "$(./cocolog --embed "$KB" query "tool_private_fact(_)" >/dev/null 2>&1 && echo stored || echo absent)"
+
 if [ $red -eq 0 ]; then
   echo "GREEN: argv reaches the program, and library(main) parses it"
 else

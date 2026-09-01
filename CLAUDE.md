@@ -50,6 +50,31 @@ or `--tcp` chooses the server, and a bare `--embed` opens the store at
 `./KB`. There is no `--store`: `--embed` with its optional directory is
 the one spelling, and a store named like a command verb is written `./run`.
 
+**`-s FILE` IS THE FORM FOR A PROGRAM, AND `run FILE main` WRITES ITS
+SOURCE INTO THE DATABASE.** `-s` is `use_module(FILE), main`, so the
+program's clauses are muted the way any module's are; `run` CONSULTS, and
+consulting writes through. Measured with a store either side:
+
+```sh
+cocolog --embed KB -s  tool.pl        # tool_private_fact/1 absent after
+cocolog --embed KB run tool.pl main   # tool_private_fact(1) is IN the store
+```
+
+Under `--local` there is nothing behind the clauses and the two look
+identical, which is how the difference stays invisible until a tool is
+pointed at a real knowledge base. The suite still runs the tutorials with
+`run` on purpose — a lesson has nothing private to leak — and
+`test/argv.sh` pins both halves. It also decides which `main/0` wins when a
+file defines one beside `library(main)`'s: `run` puts the file's clauses
+first, `-s` puts the library's, which is the N1 trap seen from the inside.
+
+**A PROGRAM'S OWN ARGUMENTS COME AFTER `--`.** Everything before it is
+cocolog's, everything after reaches the program as
+`current_prolog_flag(argv, V)` — `[Executable|Tail]`, with `os_argv` for
+the literal command line. There has to be a separator because `run FILE
+GOAL` reads the LAST argument as the goal. `library(main)` parses the tail
+into option terms; `tutorials/library/38-main.pl` is the lesson.
+
 The server, which the database tests need:
 
 ```sh
