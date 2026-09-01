@@ -301,6 +301,49 @@ Two honest limits:
   Permanently` with a TLS shim as the only fix. `--https` is that fix,
   in the client.
 
+## SSH into the VM, when a machine of yours should drive it
+
+Section 1b is the one cell that is not for the notebook's own use: it lets
+some machine of yours — a Claude Code session on a laptop was the first —
+build, train and measure over an SSH tunnel instead of through cells.
+
+**What it does.** Installs `openssh-server`, allows root login by **public
+key only** with passwords off, and runs `cloudflared tunnel --url
+ssh://127.0.0.1:22`: the VM dials *out*, nothing listens on the internet,
+and only a holder of an authorised private key gets in. The `sshd` runs
+on a config of its own, `/content/sshd_config`, because Colab's
+`/etc/ssh/sshd_config` says `Port 2222` on loopback and that port is
+Colab's already — with the stock config `sshd` binds nothing, exits, and
+the tunnel answers `502 Bad gateway` to every client. The first session
+found that the hard way. The client side is
+one line, with `cloudflared` installed (`brew install cloudflared` on a
+Mac), and the cell prints it with the host filled in:
+
+    ssh -o ProxyCommand="cloudflared access ssh --hostname %h" root@<host>.trycloudflare.com
+
+**Where the key comes from, and where it does not.** No key is stored in
+the notebook — the repository is public, and a key in it would be a key in
+everybody's copy. The cell reads the Colab secret `SSH_PUBKEY` (the key
+icon in Colab's left bar: paste a public key, allow the notebook access,
+and it is there for every session under that Google account) or, failing
+that, the public keys `GITHUB_USER` publishes at `github.com/<user>.keys`.
+Set `GITHUB_USER = ''` to insist on the secret; with neither, the cell
+stops before it installs anything.
+
+**The session has the build's environment.** `/root/.ssh/environment`
+carries `CICILI`, `ZIGURATIP`, `ZIGURATIP_HOME`, `COCOLOG` and
+`LD_LIBRARY_PATH` exactly as section 1 sets them, so `sh colab/prereqs.sh`,
+`preflight.sh` and `build.sh` run over the tunnel as they do in the cell,
+and so does `nvidia-smi`.
+
+**The rules.** Colab's usage restrictions list "using a remote desktop or
+SSH" among the things disallowed on its runtimes, beside mining and
+proxies. In practice the cost is a killed runtime, and repeat offences can
+cost Colab access on the account. The cell does nothing until it is run —
+though *Runtime → Run all* does run it, so skip it or leave it keyless if
+that matters — and it is your account: the decision is yours, made once
+per session, never as a side effect of the build.
+
 ## The GPU
 
 Give the notebook a GPU runtime (*Runtime → Change runtime type → GPU*).

@@ -1,4 +1,4 @@
-6
+7
 # colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
 #
 # The first line is the version. Everything below is a log.
@@ -19,6 +19,12 @@
 # preflight.sh or build.sh does not need a bump -- those come from the
 # repository already, which is the point of their being scripts.
 #
+# 7  2026-09-02  section 1b: SSH into the VM through a Cloudflare quick
+#                tunnel, public keys only, passwords off. No key in the
+#                notebook: the Colab secret SSH_PUBKEY, else the keys
+#                GITHUB_USER publishes on GitHub. Written so a Claude
+#                Code session on a laptop could build and train over the
+#                tunnel; the cell says what Colab's rules say about it.
 # 6  2026-08-27  section 7b: the curl reader -- library(curl) fetches
 #                the predicates page from inside a query, through the
 #                real tunnel when section 6 opened one and over
