@@ -132,7 +132,13 @@ SELF=$(sh "$AGENT/lint.sh" "$AGENT/selftest/traps.pl" 2>&1)
 # Every finding as `file rule [trap]', with the line number dropped: a line
 # that moves because somebody added a comment is not a change in what the
 # linter found, and pinning it would fail this case for the wrong reason.
-GOT=$(echo "$OUT" | sed -n 's/^\([^ :]*\):[0-9]*:[0-9]* \(HARD\|WARN\) \([A-Z0-9]*\) \(\[[A-Z0-9]*\] \)\?.*/\1 \2 \3 \4/p' \
+#
+# `sed -E' AND NOT A BASIC EXPRESSION: `\|' and `\?' are GNU extensions to
+# BRE, and BSD sed -- every macOS -- matches neither. It does not fail
+# loudly either; the whole extraction comes back EMPTY, which reads as
+# "every rule stopped firing" three sections down. ERE is the one dialect
+# both seds agree on.
+GOT=$(echo "$OUT" | sed -nE 's/^([^ :]+):[0-9]+:[0-9]+ (HARD|WARN) ([A-Z0-9]+) (\[[A-Z0-9]+\] )?.*/\1 \2 \3 \4/p' \
       | sed 's/ *$//' | sort)
 
 # ---- the nineteen, and why each is kept rather than silenced -------------
@@ -219,9 +225,11 @@ echo
 # A CORPUS OF CORRECT CODE CANNOT SHOW THAT A RULE WORKS, only that it does
 # not misfire -- so a rule whose pattern has quietly stopped matching is
 # invisible above. selftest/traps.pl walks into every divergence on purpose,
-# and this asserts each one is still caught.
+# and this asserts each one is still caught. ERE here for the same reason
+# as the extraction above: on BSD sed the BRE spelling matches nothing and
+# reports every rule as dead.
 FIRED=$(printf '%s\n' "$SELF" \
-        | sed -n 's/^[^ ]* \(HARD\|WARN\) \([A-Z0-9]*\) \(\[[A-Z0-9]*\]\)\?.*/\2 \3/p' \
+        | sed -nE 's/^[^ ]+ (HARD|WARN) ([A-Z0-9]+) (\[[A-Z0-9]+\])?.*/\2 \3/p' \
         | sed 's/ *$//' | sort -u)
 WANT=$(sh "$AGENT/tool.sh" card --patterns | awk '{print "S1 [" $1 "]"}' | sort -u)
 WANT="D1
