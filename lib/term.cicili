@@ -61,7 +61,8 @@
     (ATOM 1 "an atom id -- an index into the name table")
     (INT  2 "the value itself, shifted left by 3")
     (FUN  3 "a functor id -- an index into the functor table")
-    (FLT  4 "an index into the float table")))
+    (FLT  4 "an index into the float table")
+    (STR  5 "an index into the string table -- SWI's string type")))
 
 (DEFUN tag-value (name)
   "The numeric tag NAME stands for, at macro-expansion time."
@@ -245,6 +246,26 @@
     (member size_t   len)
     (member u64      hash))
 
+  ;;; A STRING IS BYTES AND A LENGTH, NOT A C STRING, and that is the whole
+  ;;; reason it is a type rather than an atom. An atom here is a NUL-terminated
+  ;;; name in the atom table, so an atom carrying a NUL stops at it; a string
+  ;;; carries its own length and a NUL is a byte like any other. That is also
+  ;;; SWI's distinction, arrived at from the same place.
+  ;;;
+  ;;; NOT INTERNED, unlike an atom. Two equal strings are two entries, which is
+  ;;; SWI's behaviour (a string is not a name) and is also what makes the table
+  ;;; an append-only array with no hash. `==' and unification compare the
+  ;;; BYTES, so nothing observable depends on the sharing.
+  ;;;
+  ;;; THE TABLE IS NEVER RECLAIMED, exactly as the float table is not:
+  ;;; coco_backtrack winds `heap_len' back and leaves both alone. A program
+  ;;; that builds strings in a failure-driven loop grows this table until the
+  ;;; machine is freed. That is a real limit and it is the float table's limit,
+  ;;; not a new one.
+  (struct coco_str
+    (member char *   p)
+    (member size_t   n))
+
   ;;; {name, arity}. Interned, so two compounds with the same functor share an
   ;;; id and comparing functors is comparing integers.
   (struct coco_functor
@@ -280,6 +301,11 @@
     (member double *   floats)
     (member size_t     floats_len)
     (member size_t     floats_cap)
+
+    ;; the string table -- see coco_str above
+    (member coco_str * strings)
+    (member size_t     strings_len)
+    (member size_t     strings_cap)
 
     ;; THE ENGINE'S OWN VOCABULARY, INTERNED ONCE. Filled by `coco_ids_fill'
     ;; in solve.cicili the first time a query runs on this machine, and read
@@ -421,6 +447,8 @@
   (decl) (func coco_copy ((coco_machine * m) (size_t t)) (out size_t))
   ;; structural comparison: <0, 0, >0 in the standard order of terms
   (decl) (func coco_compare ((coco_machine * m) (size_t a) (size_t b)) (out int))
+  (decl) (func coco_str_eq ((coco_machine * m) (u64 ca) (u64 cb)) (out int))
+  (decl) (func coco_str_cmp ((coco_machine * m) (size_t a) (size_t b)) (out int))
 
   ) ; decl-term
 
@@ -484,6 +512,9 @@
         (free (-> m atom_buckets))
         (free (-> m functors))
         (free (-> m floats))
+        (for ((size_t i . 0)) (< i (-> m strings_len)) ((++ i))
+          (free ($ (nth i (-> m strings)) p)))
+        (free (-> m strings))
         (free (-> m trail))
         (free (-> m heap))
         (memset m 0 (sizeof coco_machine)))
@@ -657,6 +688,43 @@
 
   (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t)
         (return (coco_push m (coco-int-cell v))))
+
+  ;;; A STRING CELL FROM BYTES. The bytes are COPIED: the caller's buffer is
+  ;;; usually a scratch array on a C stack frame that is about to go, and a
+  ;;; term that outlived its text would be the worst kind of bug to find.
+  (func coco_new_string ((coco_machine * m) (const char * p) (size_t n)) (out size_t)
+        (let ((char * copy))
+          (if (not (coco_grow m (cast (void **) (aof (-> m strings)))
+                            (aof (-> m strings_cap)) (+ (-> m strings_len) 1)
+                            (sizeof coco_str)))
+              (return 0))
+          ;; ONE BYTE MORE THAN THE LENGTH, and it is not the length that uses
+          ;; it: the extra NUL lets coco_string_text hand the bytes to C code
+          ;; that wants a C string, for the strings that do not contain one.
+          (set copy (cast (char *) (malloc (+ n 1))))
+          (if (== copy nil) (block (set (-> m oom) 1) (return 0)))
+          (if (> n 0) (memcpy copy p n))
+          (set (nth n copy) (cast char 0))
+          (set ($ (nth (-> m strings_len) (-> m strings)) p) copy)
+          (set ($ (nth (-> m strings_len) (-> m strings)) n) n)
+          (set (-> m strings_len) (+ (-> m strings_len) 1))
+          (return (coco_push m (coco-cell STR (- (-> m strings_len) 1))))))
+
+  (func coco_is_string ((coco_machine * m) (size_t t)) (out int)
+        (return (? (coco-tag-is STR (nth (coco_deref m t) (-> m heap))) 1 0)))
+
+  ;;; The bytes and the length of a STRING cell. Fails (answers 0) for
+  ;;; anything else, so a caller cannot read a float's payload as a pointer.
+  (func coco_string_text ((coco_machine * m) (size_t t)
+                          (const char ** p) (size_t * n))
+        (out int)
+        (let ((size_t d . #'(coco_deref m t)) (u64 c))
+          (set c (nth d (-> m heap)))
+          (if (not (coco-tag-is STR c)) (return 0))
+          (let ((size_t i . #'(cast size_t (coco-payload c))))
+            (set (cof p) ($ (nth i (-> m strings)) p))
+            (set (cof n) ($ (nth i (-> m strings)) n))
+            (return 1))))
 
   (func coco_new_float ((coco_machine * m) (double v)) (out size_t)
         (if (not (coco_grow m (cast (void **) (aof (-> m floats)))
@@ -833,6 +901,11 @@
                      (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
                              (nth (cast size_t (coco-payload cb)) (-> m floats)))
                          (set ok 0)))
+                    ;; TWO STRINGS UNIFY WHEN THEIR BYTES DO, not when their
+                    ;; table indexes do: the table is not interned, so equal
+                    ;; strings are ordinarily two entries.
+                    ((coco-tag-is STR ca)
+                     (if (not (coco_str_eq m ca cb)) (set ok 0)))
                     ((coco-tag-is FUN ca)
                      (if (!= (coco-payload ca) (coco-payload cb))
                          (set ok 0)
@@ -972,11 +1045,44 @@
           (coco_varmap_free (aof vm))
           (return r)))
 
+  ;;; Two STRING cells, by bytes. Length first, because it decides most
+  ;;; comparisons without touching the text.
+  (func coco_str_eq ((coco_machine * m) (u64 ca) (u64 cb)) (out int)
+        (let ((size_t ia . #'(cast size_t (coco-payload ca)))
+              (size_t ib . #'(cast size_t (coco-payload cb))))
+          (if (!= ($ (nth ia (-> m strings)) n) ($ (nth ib (-> m strings)) n))
+              (return 0))
+          (return (? (== 0 (memcmp ($ (nth ia (-> m strings)) p)
+                                   ($ (nth ib (-> m strings)) p)
+                                   ($ (nth ia (-> m strings)) n)))
+                     1 0))))
+
+  ;;; Two STRING cells in the standard order. memcmp over the shorter
+  ;;; length, then the shorter string first -- which is what strcmp would do
+  ;;; for text without a NUL in it, and what it cannot do for text with one.
+  (func coco_str_cmp ((coco_machine * m) (size_t a) (size_t b)) (out int)
+        (let ((size_t ia . #'(cast size_t (coco-payload (nth a (-> m heap)))))
+              (size_t ib . #'(cast size_t (coco-payload (nth b (-> m heap)))))
+              (size_t na . 0) (size_t nb . 0) (size_t k . 0) (int r . 0))
+          (set na ($ (nth ia (-> m strings)) n))
+          (set nb ($ (nth ib (-> m strings)) n))
+          (set k (? (< na nb) na nb))
+          (if (> k 0)
+              (set r (memcmp ($ (nth ia (-> m strings)) p)
+                             ($ (nth ib (-> m strings)) p) k)))
+          (if (!= r 0) (return (? (< r 0) -1 1)))
+          (if (< na nb) (return -1))
+          (if (> na nb) (return 1))
+          (return 0)))
+
   ;;; ---- ordering -------------------------------------------------------
 
-  ;;; The standard order of terms: Var < Number < Atom < Compound, compounds by
-  ;;; arity then name then arguments left to right. `coco_compare' is what
-  ;;; `@<', `==' and `sort' are built on.
+  ;;; The standard order of terms: Var < Number < Atom < String < Compound,
+  ;;; compounds by arity then name then arguments left to right. That is SWI's
+  ;;; order and the string sits where SWI puts it -- after every atom and
+  ;;; before every compound -- so a sorted list of mixed terms comes out the
+  ;;; same in both systems. `coco_compare' is what `@<', `==' and `sort' are
+  ;;; built on.
   (static)
   (func coco_order_class ((coco_machine * m) (size_t t)) (out int)
         (let ((u64 c . #'(nth t (-> m heap))))
@@ -984,7 +1090,8 @@
                 ((coco-tag-is FLT c)  (return 1))
                 ((coco-tag-is INT c)  (return 1))
                 ((coco-tag-is ATOM c) (return 2))
-                (#t              (return 3)))))
+                ((coco-tag-is STR c)  (return 3))
+                (#t              (return 4)))))
 
   (static)
   (func coco_num_value ((coco_machine * m) (size_t t)) (out double)
@@ -1023,6 +1130,11 @@
                     ((== ka 2)
                      (set r (strcmp (coco_atom_name m (coco_name_of m a))
                                     (coco_atom_name m (coco_name_of m b)))))
+                    ;; STRINGS ORDER BY BYTES, and memcmp is the comparison
+                    ;; because a string may CONTAIN a NUL -- which is the
+                    ;; whole reason it is not an atom. strcmp would stop
+                    ;; there and call two different strings equal.
+                    ((== ka 3) (set r (coco_str_cmp m a b)))
                     (#t
                      (let ((u32 na . #'(coco_arity m a))
                            (u32 nb . #'(coco_arity m b)))

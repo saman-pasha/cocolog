@@ -287,6 +287,34 @@
            "sub_atom(A, B, L, Aft, Sub) :- atom(Sub), !, atom_length(A, N), atom_length(Sub, L), Max is N - L, between(0, Max, B), '$sub_atom'(A, B, L, Aft, Sub)."
            "sub_atom(A, B, L, Aft, Sub) :- atom_length(A, N), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub)."
 
+           ;; ---- sub_string/5 ------------------------------------------------
+           ;; THE SAME ENUMERATION AS sub_atom/5, ANSWERING A STRING. It is
+           ;; here and not in C for the reason string_concat/3's comment
+           ;; gives: SWI backtracks over every way of cutting a string, and a
+           ;; C builtin in this engine answers once. The engine makes the
+           ;; choice points, so the enumeration lives where the engine is.
+           ;;
+           ;; Sub is matched as TEXT, so a string, an atom or a number all
+           ;; work in that position -- which is SWI's rule for every text
+           ;; argument.
+           ;;
+           ;; NO BACKSLASH-QUOTE IN THIS COMMENT, and that is not a style
+           ;; note. The blocklist's shape-2 scanner reads every string literal
+           ;; inside a *X-prolog* DEFPARAMETER and does NOT skip line
+           ;; comments, so an escaped quote written here starts a string it
+           ;; never meant to and every literal after it is read at the wrong
+           ;; boundary. It invented three tier-1 names -- sink/0, spec/0,
+           ;; ty/0 -- and lost sub_string/5, which the store probe caught
+           ;; because the store had never heard of the three. Written once
+           ;; with the escape IN the warning, which cost a second round.
+           "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, string_length(S, N), string_length(Sub, L), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
+           "sub_string(S, B, L, Aft, Sub) :- string_length(S, N), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
+           "'$sub_string'(S, B, L, Aft, Sub) :- string_codes(S, Cs), length(Pre, B), append(Pre, Mid, Cs), length(Mid, ML), MidL is ML, length(SubCs, L), append(SubCs, Post, Mid), length(Post, Aft), string_codes(Sub0, SubCs), sub_string_same(Sub, Sub0), MidL >= L."
+           ;; Sub may arrive as a string, an atom or a number; compare the text.
+           "sub_string_same(Sub, Sub0) :- var(Sub), !, Sub = Sub0."
+           "sub_string_same(Sub, Sub0) :- string(Sub), !, Sub == Sub0."
+           "sub_string_same(Sub, Sub0) :- atom_string(Sub, S1), S1 == Sub0."
+
            ;; ---- atomic_list_concat/2,3 -------------------------------------
            ;; With a separator and an unbound list it SPLITS, which is the mode
            ;; everybody actually uses it in.

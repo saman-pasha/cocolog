@@ -1278,6 +1278,48 @@
             ((coco-tag-is FLT c)
              (return (coco_sb_put_double b (nth (cast size_t (coco-payload c)) (-> m floats)))))
 
+            ;; A STRING WRITES AS ITS TEXT, and quoted it writes in DOUBLE
+            ;; quotes -- which is the one place cocolog emits a `"' meaning
+            ;; anything but a code list. Reading it back needs
+            ;; `double_quotes' to be `string', which is exactly the flag that
+            ;; made it in the first place, so a term written under that flag
+            ;; reads under it.
+            ;;
+            ;; THE BYTES GO OUT ONE AT A TIME because a string may contain a
+            ;; NUL and coco_sb_put takes a C string. That is the difference
+            ;; between this and the atom case below it, and it is the whole
+            ;; reason the type exists.
+            ((coco-tag-is STR c)
+             ;; 34 is `"', 92 is `\', 110 is `n', 116 is `t'. Written as
+             ;; codes for the reason the lexer above already gives: a Cicili
+             ;; string literal is RAW, so `"\""' holds a backslash AND a
+             ;; quote, and `coco-ch' of it answers with the backslash. Getting
+             ;; that wrong wrote every string delimited by backslashes.
+             (let ((const char * sp . nil) (size_t sn . 0))
+               (if (not (coco_string_text m t (aof sp) (aof sn))) (return 0))
+               (if (not quoted)
+                   (block (for ((size_t i . 0)) (< i sn) ((++ i))
+                                (coco_sb_putc b (nth i sp)))
+                          (return 1)))
+               (coco_sb_putc b (cast char 34))
+               (for ((size_t i . 0)) (< i sn) ((++ i))
+                    (let ((char ch . #'(nth i sp)))
+                      (cond ((== ch (cast char 34))
+                             (coco_sb_putc b (cast char 92))
+                             (coco_sb_putc b (cast char 34)))
+                            ((== ch (cast char 92))
+                             (coco_sb_putc b (cast char 92))
+                             (coco_sb_putc b (cast char 92)))
+                            ((== ch (cast char 10))
+                             (coco_sb_putc b (cast char 92))
+                             (coco_sb_putc b (cast char 110)))
+                            ((== ch (cast char 9))
+                             (coco_sb_putc b (cast char 92))
+                             (coco_sb_putc b (cast char 116)))
+                            (#t (coco_sb_putc b ch)))))
+               (coco_sb_putc b (cast char 34))
+               (return 1)))
+
             ((coco-tag-is ATOM c)
              (let ((const char * name . #'(coco_atom_name m (coco_name_of m t))))
                ;; AN OPERATOR ATOM IS BRACKETED AS AN OPERAND AND NOWHERE

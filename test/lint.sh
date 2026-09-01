@@ -70,9 +70,13 @@ vcase() {                       # vcase NAME SED WANT-RC WANT-TEXT
     VERDICTS="BAD $1: no \"$4\" in the output"
   fi
 }
-vcase drift     's|"lib/kb.cicili:756-762"|"lib/kb.cicili:1-5"|'      0 "moved to lib/kb.cicili:760"
-vcase ambiguous 's|"lib/term.cicili:655-660"|"lib/term.cicili:1-5"|'  1 "appears 3 times"
-vcase gone      's|unsupported directive: %s/%u|NO SUCH ANCHOR HERE|' 1 "is GONE from"
+# THE SEDS NAME A ROW AND A FILE, NOT A LINE RANGE, and that is not tidiness:
+# written with the ranges in them they broke the first time the engine moved,
+# which is the exact failure the checker under test exists to absorb. A test
+# for a drift detector must not itself drift.
+vcase drift     '/"id": "N1"/ s|"lib/kb.cicili:[0-9-]*"|"lib/kb.cicili:1-5"|'       0 "unique anchor, accepted"
+vcase ambiguous '/"id": "A2"/ s|"lib/term.cicili:[0-9-]*"|"lib/term.cicili:1-5"|'   1 "the range is what picks the site"
+vcase gone      's|unsupported directive: %s/%u|NO SUCH ANCHOR HERE|'               1 "is GONE from"
 rm -rf "$VTMP"
 if [ "$VERDICTS" = ok ]; then
   echo "  cites  : a moved anchor is accepted, an ambiguous or missing one is not"
