@@ -27,6 +27,21 @@
 %%
 %% `catch/3' AND `throw/1' unwind to the nearest matching catcher and
 %% undo every binding made in between.
+%%
+%% AND THREE THINGS THAT ARE COCOLOG'S, not ISO's, which the second half
+%% of this lesson is about:
+%%
+%%   * a LIBRARY OR LOADER failure is `error(cocolog_error(Text), _)' --
+%%     a sentence where ISO puts a formal -- so a handler that names a
+%%     formal walks straight past it. Card row C2; cocolint has a rule.
+%%   * the CONTEXT slot is left an unbound variable, so writing
+%%     `error(T, context(_,_))' does not fail to match: it matches by
+%%     BINDING, and everything the handler reads out of it is invented.
+%%   * there is no `setup_call_cleanup/3'. Cleanup is
+%%     `catch(G, B, (Cleanup, throw(B)))', by hand.
+%%
+%% An UNCAUGHT ball reaches the toplevel, prints in SWI's words, and the
+%% process exits 2 -- where a goal that merely failed exits 1, silently.
 
 :- dynamic touched/1.
 
@@ -91,11 +106,77 @@ main :-
     must('a predicate that does not exist', E3,
          existence_error(procedure, no_such_predicate_here/0)),
 
+    format("~n-- THE LOADER'S BALL IS NOT ISO, and a handler can miss it~n"),
+    %% A library or a loader failure is `error(cocolog_error(Text), _)':
+    %% the first argument is a SENTENCE and not one of ISO's formals. It
+    %% is row C2 of the dialect card, and cocolint has a rule for it,
+    %% because a handler written for SWI names a formal and walks past.
+    catch(use_module('/no/such/library.pl'), error(E4, _), true),
+    ( E4 = cocolog_error(_) -> Shape = cocolog_error ; Shape = E4 ),
+    must('a loader failure is cocolog_error/1', Shape, cocolog_error),
+    catch( catch(use_module('/no/such/library.pl'),
+                 error(existence_error(_, _), _), Inner2 = caught),
+           error(cocolog_error(_), _), Outer2 = caught),
+    ( var(Inner2) -> Miss = missed ; Miss = caught ),
+    must('a handler naming a FORMAL misses it', Miss, missed),
+    must('...and one naming cocolog_error/1 takes it', Outer2, caught),
+    format("   So `error(T, _)' is the catcher that takes both shapes, and~n"),
+    format("   `cocolog_error(Text)' is how you read the message.~n"),
+
+    format("~n-- and the CONTEXT slot is a fresh variable~n"),
+    catch(atom_length(_, _), error(_, Ctx), true),
+    ( var(Ctx) -> C1 = a_fresh_variable ; C1 = Ctx ),
+    must('what a builtin leaves in the second argument', C1, a_fresh_variable),
+    %% WHICH MAKES `context(_,_)' WORSE THAN USELESS, and is the half of
+    %% C2 that surprises people: the pattern does not FAIL to match, it
+    %% matches by BINDING an unbound slot -- so the handler runs and
+    %% everything it reads out of the context is something it invented.
+    %% (This line is what cocolint's C2 rule looks for. A lesson that
+    %% teaches a trap trips it, which is the honest way round.)
+    catch(atom_length(_, _), error(_, context(Who, _)), true),
+    ( var(Who) -> C2 = matched_and_said_nothing ; C2 = Who ),
+    must('`context(_,_)` matches anyway, by binding', C2, matched_and_said_nothing),
+
+    format("~n-- rethrow: handle what you know, pass on what you do not~n"),
+    catch(risky(9), B5, ( B5 = mine(N5) -> Got = N5 ; throw(B5) )),
+    must('the ball you meant', Got, 9),
+    catch( catch(strange, B6, ( B6 = mine(N6) -> Got2 = N6 ; throw(B6) )),
+           not_mine(N7), Passed = N7),
+    ( var(Got2) -> P = passed_on ; P = handled ),
+    must('the ball you did not', P, passed_on),
+    must('...caught by the outer handler instead', Passed, 1),
+
+    format("~n-- cleanup by hand: there is no setup_call_cleanup/3~n"),
+    %% The pattern is `catch(Goal, B, (Cleanup, throw(B)))' -- do the
+    %% cleanup, then let the ball go on to whoever wanted it. Nothing here
+    %% runs the cleanup on SUCCESS as well, so a goal that can both
+    %% succeed and throw needs the call after the catch too.
+    catch( catch(work, B7, (cleanup, throw(B7))), oh_no, Done = ok),
+    must('the ball still arrives', Done, ok),
+    ( touched(cleaned) -> Cl = ran ; Cl = missed ),
+    must('and the cleanup ran on the way', Cl, ran),
+    retract(touched(cleaned)),
+
+    format("~n-- and what an UNCAUGHT ball costs~n"),
+    format("   It reaches the toplevel, which prints it in SWI's words and~n"),
+    format("   exits 2 -- not 1, which is what a goal that merely FAILED~n"),
+    format("   exits with, silently:~n"),
+    format("~n     ERROR: -g main: Unknown message: my_ball~n"),
+    format("     ERROR: -g main: Unknown procedure: nosuch/0~n~n"),
+    format("   0 proved, 1 failed, 2 threw. A script that reads exit codes~n"),
+    format("   can tell the goal that said no from the goal that broke.~n"),
+
     format("~n-- and the shape a library should throw~n"),
     format("   error(type_error(Type, Culprit), Context) -- so a caller can~n"),
     format("   match the FORMAL and ignore the context. Never throw a bare~n"),
     format("   atom from a library: it collides with everybody else's.~n~n"),
     format("done~n").
+
+%% ---- what the sections above throw ------------------------------------
+risky(N) :- N > 5, throw(mine(N)).
+strange  :- throw(not_mine(1)).
+work     :- throw(oh_no).
+cleanup  :- assertz(touched(cleaned)).
 
 %% ---- the two helpers every lesson here carries ------------------------
 %% REPEATED ON PURPOSE, in every file. A tutorial you can copy anywhere and

@@ -143,6 +143,19 @@ out=$(./cocolog --local run "$TMP/ifail.pl" "true" 2>&1)
 has "one that fails is a Warning"    "Initialization goal failed" "$out"
 has "...and the next one still runs" "still ran"                  "$out"
 
+# AND ONE THAT THROWS IS AN ERROR NAMING THE BALL, which is what a real
+# program does with a real failure: `typedef' throwing a term of its own
+# from inside `:- initialization(...)'. The ball is not an error/2, so
+# the message is SWI's `Unknown message:' -- word for word, measured.
+cat > "$TMP/ithrow.pl" <<'PL'
+:- initialization(build).
+build :- throw(my_error("not a type", nosuch_t)).
+PL
+out=$(./cocolog --local run "$TMP/ithrow.pl" "true" 2>&1)
+has "one that throws is an ERROR"  "Initialization goal raised exception:" "$out"
+has "...and the ball is named"     "Unknown message: my_error"             "$out"
+has "...at the line it was written" "$TMP/ithrow.pl:1:"                    "$out"
+
 # ---- 5. initialization(main, main) IS the program -----------------------
 
 cat > "$TMP/m0.pl" <<'PL'

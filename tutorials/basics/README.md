@@ -18,7 +18,7 @@ cocolog binary on its own runs every one of them:
 | 06-findall-and-friends | `findall`, `bagof`, `setof`, `aggregate_all` and the free-variable rule |
 | 07-assert-and-retract | a program that edits itself, and `retract/1`'s determinism |
 | 08-atoms-text-and-codes | atoms, codes, and the string type this Prolog does not have |
-| 09-exceptions | failure is not an error; `catch/3`, `throw/1`, ISO error terms |
+| 09-exceptions | failure is not an error; `catch/3`, `throw/1`, ISO error terms — and the three that are cocolog's: `cocolog_error/1`, an unbound context that matches anyway, cleanup by hand |
 | 10-grammars | `-->`, `phrase/2,3`, pushback, and a parser that also generates |
 | 11-the-knowledge-base | what makes THIS Prolog different: the store outlives the process |
 

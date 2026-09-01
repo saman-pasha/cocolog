@@ -155,6 +155,12 @@ GOT=$(echo "$OUT" | sed -nE 's/^([^ :]+):[0-9]+:[0-9]+ (HARD|WARN) ([A-Z0-9]+) (
 #                       that the failure-driven loop removes exactly ONE
 #                       clause. The lesson IS the finding.
 #   library/04 S1 [F1]  `~t~20|' inside a catch/3 demonstrating the refusal.
+#   basics/09  S1 [C2]  `catch(atom_length(_,_), error(_, context(Who,_)), …)',
+#                       written to show the half of C2 that surprises people:
+#                       the pattern does not fail to match, it matches by
+#                       BINDING an unbound context slot, so the handler runs
+#                       and reads back something it invented. The lesson says
+#                       so in the comment above the line.
 #   37-lint    S1 [H1] x2  the tutorial FOR the linter, writing `lit(halt)'
 #                       as a pattern term. H1 looks for halt after one of
 #                       ` \t\n,(;>' and a `(' is one of those, so naming the
@@ -201,6 +207,7 @@ library/astar.pl WARN T1
 tutorials/basics/04-arithmetic.pl WARN A1 [A2]
 tutorials/basics/04-arithmetic.pl WARN A1 [A2]
 tutorials/basics/07-assert-and-retract.pl HARD S1 [R1]
+tutorials/basics/09-exceptions.pl HARD S1 [C2]
 tutorials/basics/10-grammars.pl HARD N1
 tutorials/basics/10-grammars.pl HARD N1
 tutorials/library/04-builtins.pl HARD S1 [F1]
