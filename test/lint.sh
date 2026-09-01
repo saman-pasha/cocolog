@@ -47,6 +47,44 @@ CARD=$(python3 "$AGENT/traps.py" --check 2>&1)
 CARD_RC=$?
 echo "$CARD" | sed 's/^/  /'
 
+# ---- 1b. and the three verdicts the checker can reach --------------------
+#
+# THE ACCEPTING CASE IS THE ONE WORTH PINNING. traps.py takes a moved anchor
+# on trust when the anchor is UNIQUE in its file -- the range was never
+# distinguishing anything there, so the code moving is a fact about the code
+# and not a defect in the card. That is a deliberate loosening, and a
+# loosening nobody tests is one that quietly becomes "never fails".
+#
+# All three verdicts run against a COPY of traps.jsonl with one cite broken
+# each way, through $COCOLOG_TRAPS; the real card is never written to. The
+# breakages are chosen for what they prove: N1's anchor occurs ONCE in
+# lib/kb.cicili (drift -- accepted), A2's `coco_new_int' occurs THREE times in
+# lib/term.cicili as a macro, a declaration and a definition (ambiguous --
+# refused, because the range is the only thing choosing between them), and an
+# anchor nobody wrote is gone (refused; that row needs rereading, not
+# renumbering).
+VERDICTS=ok
+VTMP=$(mktemp -d)
+vcase() {                       # vcase NAME SED WANT-RC WANT-TEXT
+  sed "$2" "$AGENT/traps.jsonl" > "$VTMP/traps.jsonl"
+  OUT=$(COCOLOG_TRAPS="$VTMP/traps.jsonl" python3 "$AGENT/traps.py" --check 2>&1)
+  RC=$?
+  if [ "$RC" != "$3" ]; then
+    VERDICTS="BAD $1: rc=$RC, wanted $3"
+  elif ! printf '%s' "$OUT" | grep -q "$4"; then
+    VERDICTS="BAD $1: no \"$4\" in the output"
+  fi
+}
+vcase drift     's|"lib/kb.cicili:756-762"|"lib/kb.cicili:1-5"|'      0 "moved to lib/kb.cicili:760"
+vcase ambiguous 's|"lib/term.cicili:655-660"|"lib/term.cicili:1-5"|'  1 "appears 3 times"
+vcase gone      's|unsupported directive: %s/%u|NO SUCH ANCHOR HERE|' 1 "is GONE from"
+rm -rf "$VTMP"
+if [ "$VERDICTS" = ok ]; then
+  echo "  cites  : a moved anchor is accepted, an ambiguous or missing one is not"
+else
+  echo "  cites  : $VERDICTS"
+fi
+
 # ---- 2. the retrieval index ----------------------------------------------
 IDX=$(python3 "$AGENT/index.py" --check --no-run 2>&1)
 IDX_RC=$?
@@ -247,7 +285,9 @@ DIFF=$(diff "$TA" "$TB" 2>/dev/null)
 rm -f "$TA" "$TB"
 
 if [ $CARD_RC -ne 0 ]; then
-  echo "RED: the dialect card has a citation that no longer resolves"
+  echo "RED: the dialect card cites code that is gone, or cannot be told from its namesakes"
+elif [ "${VERDICTS#BAD}" != "$VERDICTS" ]; then
+  echo "RED: traps.py no longer sorts a moved citation from a broken one"
 elif [ $IDX_RC -ne 0 ]; then
   echo "RED: the retrieval index names a path or an anchor that does not resolve"
 elif [ -n "$RDIFF" ]; then

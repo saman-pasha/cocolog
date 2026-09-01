@@ -18,18 +18,43 @@ Z1's page-size limit lives in parsi/01-schema.parsi as a paragraph of measured
 numbers with no code beside it, and R2's evidence IS the Prolog text of the
 clauses in a *X-prolog* string table.  Both are quoted exactly.
 
-    python3 traps.py --check          every cite resolves, every anchor is there
+A MOVED ANCHOR IS NOT A BROKEN CITATION when the anchor is unique in its
+file.  The range is a finding aid there and nothing else -- if the text
+appears exactly once, no range was ever distinguishing it from anything --
+so the code moving is a fact about the code, not a defect in the card, and
+--check accepts it, reports it, and --fix renumbers it.
+
+The range earns its keep when the anchor is NOT unique, and then it is the
+whole answer: `coco_arg_key', `coco_new_int' and `coco_num_value' each
+appear in lib/ as a declaration, a definition and a use or two, and a range
+that has drifted off the definition is now sitting on the declaration
+saying something subtly different.  Nothing here can know which was meant,
+so that stays a complaint for a human -- and it is not hypothetical: when
+master rewrote lib/term.cicili under this card, the old checker's "it is at
+line N" hint named the first occurrence and was wrong for all three.
+
+An anchor that appears NOWHERE is the failure this file exists to catch.
+The evidence for the claim has been deleted or rewritten, and the row needs
+rereading rather than renumbering; the message says so in those words,
+because the reflex on a red citation check is to reach for the line number.
+
+    python3 traps.py --check          every anchor is there; drift is reported
+    python3 traps.py --check --fix    ... and drifted cites are renumbered
     python3 traps.py --card           the card, regenerated from the rows
     python3 traps.py --patterns       the S1 pattern terms, one per line
 """
 
+import io
 import json
 import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.environ.get("COCOLOG_ROOT", os.path.join(HERE, "..", "..")))
-TRAPS = os.path.join(HERE, "traps.jsonl")
+# Overridable so the suite can point the checker at a COPY with one cite
+# broken on purpose. test/lint.sh exercises all three verdicts that way,
+# and the real card is never written to by a test.
+TRAPS = os.environ.get("COCOLOG_TRAPS", os.path.join(HERE, "traps.jsonl"))
 
 REQUIRED = ("id", "severity", "rule", "swi", "cocolog", "why", "cite")
 SEVERITIES = ("HARD", "WARN", "PROMPT")
@@ -149,9 +174,54 @@ def parse_cite(at):
         return None
 
 
+def cite_status(rel, first, last, anchor, lines):
+    """Where one cite stands, as (verdict, line, count).
+
+    THE ANCHOR IS THE CLAIM AND THE RANGE IS ONLY A FINDING AID -- for a
+    unique anchor, at least. If the text appears exactly once in the file
+    then the range never distinguished anything, and a range that no longer
+    contains it says the code MOVED, which is not a defect in the card. So
+    that case is `drift': accepted, reported, and repairable with --fix.
+
+    When the anchor appears more than once the range is load-bearing: it is
+    the only thing separating the definition from the declaration and the
+    three call sites, and a range that has drifted off one of them is now
+    pointing at another. Nothing here can know which was meant, so that is
+    `ambiguous' and a human has to choose -- exactly the case that made the
+    checker's own "it is at line N" hint wrong for three rows when master
+    moved lib/term.cicili under it.
+
+    An anchor that appears nowhere is `gone': the evidence for the claim has
+    been deleted or rewritten, which is the failure the card exists to catch.
+    """
+    whole = "".join(lines)
+    n = whole.count(anchor)
+    if anchor in "".join(lines[first - 1:last]):
+        return "ok", None, n
+    if n == 0:
+        return "gone", None, 0
+    at_line = whole[:whole.index(anchor)].count("\n") + 1
+    return ("drift" if n == 1 else "ambiguous"), at_line, n
+
+
+def anchor_lines(anchor, lines):
+    """Every line the anchor starts on, 1-based. For the ambiguous message:
+    naming the candidates is what lets a human pick one without grepping."""
+    whole = "".join(lines)
+    out, i = [], whole.find(anchor)
+    while i >= 0:
+        out.append(whole[:i].count("\n") + 1)
+        i = whole.find(anchor, i + 1)
+    return out
+
+
 def check(rows):
-    """Every complaint, as a list of strings. Empty means the card is sound."""
+    """(complaints, drifts). Empty complaints means the card is sound.
+
+    A drift is (row id, anchor, old cite, new cite) and is NOT a complaint --
+    see cite_status. --fix writes them back."""
     bad = []
+    drifts = []
     seen = set()
     for r in rows:
         rid = r.get("id", "<no id>")
@@ -189,22 +259,91 @@ def check(rows):
                 continue
             with open(full, encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
-            if last > len(lines):
-                bad.append("%s: %s has %d lines, cite names %d"
-                           % (rid, rel, len(lines), last))
+            verdict, line, n = cite_status(rel, first, last, anchor, lines)
+            if verdict == "ok":
                 continue
-            region = "".join(lines[first - 1:last])
-            if anchor not in region:
-                # Say where it IS, if anywhere -- a moved line is the common
-                # case and the fix is then one number.
-                whole = "".join(lines)
-                where = ""
-                if anchor in whole:
-                    at_line = whole[:whole.index(anchor)].count("\n") + 1
-                    where = " (it is at line %d)" % at_line
-                bad.append("%s: anchor not in %s:%d-%d%s\n      %r"
-                           % (rid, rel, first, last, where, anchor))
-    return bad
+            if verdict == "gone":
+                bad.append("%s: anchor is GONE from %s -- the claim's evidence "
+                           "was deleted or rewritten, so the row needs rereading, "
+                           "not renumbering\n      %r" % (rid, rel, anchor))
+                continue
+            if verdict == "ambiguous":
+                where = ", ".join(str(x) for x in anchor_lines(anchor, lines))
+                bad.append("%s: anchor is not in %s:%d-%d and appears %d times "
+                           "(lines %s) -- the range is what picks the site, so "
+                           "which one this row means is yours to say\n      %r"
+                           % (rid, rel, first, last, n, where, anchor))
+                continue
+            drifts.append((rid, anchor, at, "%s:%d" % (rel, line)))
+    return bad, drifts
+
+
+def fix(rows, drifts):
+    """Rewrite the drifted cites in traps.jsonl, in place, and say how many.
+
+    IT WRITES `path:LINE' AND NOT A WINDOW, because one line is all it knows.
+    A range in the card is editorial -- somebody chose 782-808 to bracket a
+    whole set_prolog_flag block -- and nothing here can reconstruct which of
+    the moved block's lines they meant to include. Widening it back by hand
+    keeps working: a wider range still contains the anchor, so it stays `ok'.
+
+    SURGICAL, not a re-serialisation: json.dumps would reformat all
+    thirty-six rows and bury a nine-line change in a seventy-two-line diff."""
+    if not drifts:
+        return 0
+    want = {}
+    for rid, anchor, old, new in drifts:
+        want.setdefault(rid, []).append((anchor, old, new))
+    lines = io.open(TRAPS, encoding="utf-8").readlines()
+    n = 0
+    for i, line in enumerate(lines):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        rid = json.loads(line).get("id")
+        for anchor, old, new in want.get(rid, []):
+            # Scope the replacement to the cite object carrying THIS anchor:
+            # a row may cite two ranges and one of them may be another's.
+            hit = _replace_in_cite(line, anchor, old, new)
+            if hit is not None:
+                lines[i] = line = hit
+                n += 1
+    io.open(TRAPS, "w", encoding="utf-8").writelines(lines)
+    return n
+
+
+def _replace_in_cite(line, anchor, old, new):
+    """The raw JSONL line with `at' changed inside the cite holding `anchor'.
+
+    None when no such cite is there. Brace-counting rather than a regex,
+    because an anchor may legitimately contain a brace -- `(bitor ...)' does
+    not, but a Cicili anchor easily could, and a regex over `{[^{}]*}' would
+    silently match the wrong span the day one does."""
+    a_j, o_j, n_j = json.dumps(anchor), json.dumps(old), json.dumps(new)
+    i, depth, start, inq, esc = 0, 0, None, False, False
+    while i < len(line):
+        c = line[i]
+        if inq:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                inq = False
+        elif c == '"':
+            inq = True
+        elif c == "{":
+            depth += 1
+            if depth == 2:          # a cite object inside the row object
+                start = i
+        elif c == "}":
+            if depth == 2 and start is not None:
+                obj = line[start:i + 1]
+                if a_j in obj and o_j in obj:
+                    return line[:start] + obj.replace(o_j, n_j, 1) + line[i + 1:]
+                start = None
+            depth -= 1
+        i += 1
+    return None
 
 
 def patterns(rows):
@@ -294,6 +433,7 @@ def card(rows):
 
 def main(argv):
     rows = load()
+    fixing = "--fix" in argv
     if "--patterns" in argv:
         for p in patterns(rows):
             print("%-4s %s" % (p[0], p[1]))
@@ -321,17 +461,30 @@ def main(argv):
     if "--card" in argv:
         card(rows)
         return 0
-    bad = check(rows)
+    bad, drifts = check(rows)
     for b in bad:
         print("traps: " + b)
+    # DRIFT IS NOT A COMPLAINT, and printing it under the same prefix would
+    # make it read as one. It is reported because a range nobody refreshes
+    # rots until the day its anchor stops being unique -- and that day the
+    # message is `ambiguous', which costs a human a read of the code.
+    for rid, anchor, old_at, new_at in drifts:
+        print("traps: %s: %s moved to %s (unique anchor, accepted)\n      %r"
+              % (rid, old_at, new_at, anchor))
     n = len(rows)
     if bad:
         print("traps: %d rows, %d complaints" % (n, len(bad)))
         return 1
+    if fixing:
+        wrote = fix(rows, drifts)
+        print("traps: %d cite(s) renumbered in %s"
+              % (wrote, os.path.relpath(TRAPS, ROOT)))
     cites = sum(len(r.get("cite", [])) for r in rows)
     pats = len(patterns(rows))
-    print("traps: %d rows, %d cites all anchored, %d S1 pattern terms"
-          % (n, cites, pats))
+    print("traps: %d rows, %d cites all anchored%s, %d S1 pattern terms"
+          % (n, cites,
+             "" if not drifts or fixing else " (%d by a moved anchor)" % len(drifts),
+             pats))
     return 0
 
 

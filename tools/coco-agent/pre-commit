@@ -11,14 +11,23 @@
 # A symlink rather than a copy so it follows the branch you are on. To skip it
 # once: git commit --no-verify.
 #
-# It is FAST and OFFLINE by construction -- python3, this repository's own
-# source, and nothing else. No binary, no server, no model, no network.
+# OFFLINE by construction -- this repository's own source and nothing else.
+# No server, no model, no network, ever.
+#
+# THE TWO HALVES HAVE DIFFERENT NEEDS AND THE HOOK DOES NOT PRETEND OTHERWISE.
+# The citation check is python3 and the source tree, so it runs everywhere and
+# always. The linter is cocolog now -- it was Python once, and this hook went
+# on testing for `lint.py' for as long as it took somebody to notice that the
+# test had been failing, silently, on every commit since the rewrite -- so its
+# half runs when there is a built binary and is SKIPPED, out loud, when there
+# is not. A guard that exits 0 for a missing file is indistinguishable from a
+# hook that passed.
 
 ROOT=$(git rev-parse --show-toplevel) || exit 0
 AGENT="$ROOT/tools/coco-agent"
 
 command -v python3 >/dev/null 2>&1 || exit 0
-[ -f "$AGENT/lint.py" ] || exit 0
+[ -f "$AGENT/traps.py" ] || exit 0
 
 rc=0
 
@@ -28,11 +37,20 @@ rc=0
 # point AT lib/, modules/ and library/, so it is a commit to those that breaks
 # them, and that commit is exactly the one whose author can still fix it in
 # one number.
+# A CITE THAT MERELY MOVED IS NOT A FAILURE any more -- traps.py accepts a
+# unique anchor wherever it now sits, and `--check --fix' renumbers it. What
+# reaches here is the two it cannot decide: an anchor that is GONE, where the
+# evidence for the claim was deleted and the row needs rereading; and an
+# ambiguous one, where the anchor occurs several times and the range was the
+# only thing saying which. Neither is a one-number fix, so this no longer
+# offers one.
 if ! OUT=$(python3 "$AGENT/traps.py" --check 2>&1); then
   echo "$OUT"
   echo
-  echo "The dialect card cites a line that has moved. traps.py names where the"
-  echo "anchor is now, so each is a one-number fix in tools/coco-agent/traps.jsonl."
+  echo "The dialect card cites code that is gone, or that it can no longer tell"
+  echo "apart from its namesakes. Read the row against the source and fix"
+  echo "tools/coco-agent/traps.jsonl by hand -- --fix deliberately will not"
+  echo "guess at either of these."
   rc=1
 fi
 
@@ -52,8 +70,10 @@ if [ -n "$FILES" ]; then
     LIST="$LIST $TMP/$f"
   done
   if [ -n "$LIST" ]; then
-    python3 "$AGENT/build.py" >/dev/null 2>&1
-    if ! (cd "$TMP" && COCOLOG_ROOT="$ROOT" python3 "$AGENT/lint.py" $LIST); then
+    if [ ! -x "${COCOLOG_BIN:-$ROOT/cocolog}" ]; then
+      echo "cocolint: SKIPPED, no built cocolog -- the linter is cocolog now."
+      echo "          The dialect card was still checked. Run make to get both."
+    elif ! sh "$AGENT/lint.sh" $LIST; then
       echo
       echo "cocolint found a HARD divergence in a staged .pl file. Every one of"
       echo "these fails SILENTLY or nearly so at run time -- that is the rule for"
