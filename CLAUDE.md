@@ -370,7 +370,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint and eleven of them are the string type |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
@@ -994,12 +994,12 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has three categories and `test/tutorials.sh` runs all
-seventy-six files as one suite case:
+seventy-seven files as one suite case:
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | thirty-eight lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | thirty-nine lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/torch/` | twenty-seven networks, three processes each | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
@@ -1071,7 +1071,7 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **40** case lines (counted
+Run `make test` with a server up, and read all **42** case lines (counted
 from a run, not remembered; this said 39 and the suite has moved). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
@@ -1133,8 +1133,8 @@ and every one has cost a session at least an hour:
   is `unknown symbol: __APPLE__`, and a libc function `lib/std/c` does
   not declare (`_NSGetExecutablePath`, `realpath`) goes through the raw-C
   escape exactly as `files.cicili` reaches `realpath`. The engine now
-  answers `current_prolog_flag(executable, P)` -- SWI's flag, and ONLY
-  that flag -- and `library(kbs)` and CivV's suite read it instead of
+  answers `current_prolog_flag(executable, P)` -- one of the THREE SWI
+  flags it answers, with `argv` and `os_argv`, and no others -- and `library(kbs)` and CivV's suite read it instead of
   `/proc/self/exe`, which had failed silently and made every `kb_*` goal
   fail with nothing printed.
 * **`make schema` dies inside libc++.** ZiguratIP's `memory.hpp` derives

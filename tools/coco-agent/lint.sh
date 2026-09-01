@@ -14,9 +14,13 @@
 # keeps the guarantee and drops the waste: a missing or out-of-date output is
 # rebuilt, and nothing else is.
 #
-# THE FILE LIST GOES THROUGH THE ENVIRONMENT, not the goal term: cocolog has
-# no argv, so the alternative is a goal the shell has to quote, and a path
-# with a space in it breaks that.
+# THE FILE LIST GOES THROUGH THE ENVIRONMENT, not the goal term. cocolog HAS
+# argv now -- `--' ends its own arguments and the tail reaches the program as
+# `current_prolog_flag(argv, V)' -- so this could be `... cl_main -- $@'. It
+# is not, and the reason is worth keeping: a path with a space in it survives
+# a file with one path per line unambiguously, and the environment costs this
+# script one mktemp. Rewriting it to argv would be a change with no defect
+# behind it.
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
