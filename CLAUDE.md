@@ -1177,8 +1177,9 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **42** case lines (counted
-from a run, not remembered; this said 39 and the suite has moved). A change to
+Run `make test` with a server up, and read all **43** case lines (counted
+from a run, not remembered; this said 39, then 42, and the suite keeps
+moving). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make
@@ -1189,9 +1190,11 @@ just as happily as over a real one, and the suite is deliberately built that
 way: "no server here" and "the backend is wrong" are different findings, so
 the first is never dressed up as the second. Seven cases — `zigurat`,
 `shared`, `tunnel`, `tensors`, `zigurat-lib`, `groups`, `ruler` — SKIP
-without a server, and `files` SKIPs without `swipl`
-(`apt-get install swi-prolog-nox`). **A run that says `red: 0` with eight
-SKIPs has not tested the database at all.**
+without a server; `files` and `trace` SKIP without `swipl`
+(`apt-get install swi-prolog-nox`), because both compare cocolog against
+it; and `ray` SKIPs without raylib. **A run that says `red: 0` with ten
+SKIPs has not tested the database at all.** Three is what this box gives
+with a server up and neither swipl nor raylib installed.
 
 ### What macOS gets wrong, and the recipe
 
