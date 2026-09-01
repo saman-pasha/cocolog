@@ -30,8 +30,6 @@ subtract([], _, []).
 digit(D) --> [D].
 
 selftest_main :-
-    %% ---- S1/format(string(S)): there is no string type ----------------
-    format(string(S), "~w", [x]), write(S),
 
     %% ---- F1: the column directives, refused by name -------------------
     format(atom(_), "~t~20|x", []),
@@ -57,8 +55,6 @@ selftest_main :-
     %% ---- A2: a cell is u64 with 3 tag bits; silent wrap at 2^60 -------
     Big is 1152921504606846976 + 1, write(Big),
 
-    %% ---- X1: no string type, so none of these exist -------------------
-    split_string(abc, ",", "", _Parts),
 
     %% ---- X2: there is no stream layer ---------------------------------
     open('f.txt', read, _Stream),

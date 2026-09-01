@@ -262,9 +262,10 @@ somewhere else.
 | `coco_m_is_var` / `coco_m_is_atom` | what a term is |
 | `coco_m_atom(e, t)` | an atom's name, or null |
 | `coco_m_int` / `coco_m_float` | a number, or 0 |
-| `coco_m_text(e, t, buf, cap)` | an atom, an integer **or a code list** as a string |
+| `coco_m_text(e, t, buf, cap)` | an atom, an integer, a string, **or a list of codes OR one-character atoms** as a C string. A string holding a NUL is REFUSED rather than truncated — the buffer cannot carry one |
 | `coco_m_unify(e, t, u)` | plain unification |
 | `coco_m_unify_atom` / `_int` / `_float` | unify with a fresh constant |
+| `coco_m_unify_string(e, t, s, n)` | unify with a fresh STRING. Takes a length where the atom one does not, which is the whole difference between the two types |
 | `coco_m_nil` / `coco_m_cons` / `coco_m_atom_list` | building a list |
 | `coco_m_error(e, what, detail)` | −1, with a message |
 | `coco_m_type_error(e, want, got)` | −1, naming the term that was wrong |
@@ -678,8 +679,11 @@ which is the minimised form, and XML refuses one because XML has none.
 
 ### `str/1`, and why it is not optional
 
-cocolog has no string type. `double_quotes` is `codes`, so `"hello"` IS
-`[104, 101, 108, 108, 111]` and nothing in the term says which you meant.
+`double_quotes` defaults to `codes`, so in a file that did not set the flag
+`"hello"` IS `[104, 101, 108, 108, 111]` and nothing in the term says which
+you meant. There is a string type, and it does not retire `str/1`: these
+three libraries are handed lists by every program that left the default
+alone, and a list is what has to be unambiguous.
 
     json_atom("hi", A).                     A = '[104,105]'      an array
     json_atom(str("hi"), A).                A = '"hi"'           a string
@@ -929,12 +933,19 @@ uppercase and it is the lowercase — `dcg/basics` depends on that, in
 through every category in both systems, which is the only way either of those
 would have been got right.
 
-**`string/1` always fails, and that is the answer rather than a stub.** cocolog
-has no string type, so nothing is a string. It exists because library code
-branches on it: SWI's `string_without//2` asks `string(End)` to decide whether
-to convert its argument and falls through to the code-list clause when the
-answer is no — which is the clause cocolog wants. A missing `string/1` raises
-there instead, and the fall-through never happens.
+**`string/1` answers about a real type now, and the library code it was
+written for still works.** It used to fail always, deliberately, because
+there was no string type and library code branches on it: SWI's
+`string_without//2` asks `string(End)` to decide whether to convert its
+argument, and falls through to the code-list clause when the answer is no
+— which was the clause cocolog wanted. A missing `string/1` would raise
+there instead, and the fall-through would never happen.
+
+Both branches are live now and both are right. `string_without("\n", Cs)`
+in a file that left `double_quotes` alone hands it a code list, `string(End)`
+is false, and the fall-through happens as before; in a file that set the
+flag to `string` it hands a string, `string(End)` is true, and SWI's own
+conversion branch runs. Measured: the same answer either way.
 
 **`with_output_to/2` redirects file descriptor 1**, not a stream this code
 passes around, because cocolog writes to the literal `stdout` in some seventy

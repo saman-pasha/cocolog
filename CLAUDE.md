@@ -395,7 +395,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint and eleven of them are the string type |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
@@ -491,6 +491,87 @@ answer to "which file am I" — no argv[0] guessing, correct through
 symlinks. The caller's `$COCOLOG_LIBRARY` still comes first, because an
 override that cannot override is not one.
 
+## The string type, and the flag that decides what `"..."` is
+
+**There IS a string type** — SWI's, as a sixth cell tag (`STR 5` in
+`*cell-tags*`), an index into a per-machine table of `(pointer, length)`
+pairs. `string/1`, `string_concat/3`, `split_string/4`, `sub_string/5`,
+`atom_string/2`, `string_to_atom/2`, `number_string/2`, `string_codes/2`,
+`string_chars/2`, `term_string/2`, `text_concat/3`, `string_length/2` and
+`string_lower/upper/2` all answer, and `format(string(S), …)` and
+`with_output_to(string(S), …)` build one.
+
+**THE REASON IT EXISTS IS THE NUL.** An atom is a NUL-terminated name in a
+table, so `atom_codes(A, [0'a, 0, 0'b])` gives a ONE-character atom. A
+string of the same three bytes is three characters and comes back whole.
+Everything else about the type follows from that one difference; the
+standard order puts it between atom and compound, which is SWI's.
+
+**`double_quotes` TAKES ALL FOUR OF SWI'S VALUES** — `codes` (the ISO
+default and cocolog's), `chars`, `atom`, `string` — and the flag really
+changes what the reader builds. `:- set_prolog_flag(double_quotes, string).`
+at the head of a file makes every `"..."` in it a string.
+
+* **It takes effect for the REST OF THE FILE, not for the directive's own
+  term** — the term is read before the directive runs. SWI's order too.
+* **It is PER-MACHINE, and it is forced back to `codes` across a module
+  load.** `lib/solve.cicili` saves it around `coco_extern_load` because the
+  vendored SWI libraries in `lib/swipl` are written for codes and a
+  caller's choice must not reach inside them. So a `-s FILE` whose file
+  sets the flag gets what it asked for, and the goal that loaded it does
+  not. Without that guard a file with no string in it failed to load at
+  all, which is how the guard was found.
+* **A fifth value is refused by name**, and the refusal aborts the
+  consult. A flag accepted and not honoured makes every `"..."` in the
+  file mean something other than it says — which was the argument for
+  refusing `string` back when there was nothing to build.
+
+**TWO TEXT SEAMS TAKE A CHAR LIST, and both had to be taught to.**
+`coco_m_text` in `lib/module.cicili` (format, and every module asking for
+a name) and `coco_codes_to_text` in `lib/solve.cicili` (the string
+builtins) walked a list of CODES only. Under `chars` a file's own format
+strings are `[a,b,c]`, so `format/2` raised `type_error(text, [a,n,s,…])`
+from the format call itself, and `string_length("ab", N)` fell through to
+writing the term and answered 5. **A flag you can set and cannot use is
+not a feature**, and the second of those is the silent kind.
+
+**A STRING WITH A NUL IN IT IS REFUSED BY `coco_m_text`, not truncated.**
+That seam hands back a C string and the buffer cannot carry one;
+`string_codes/2` is the way to read such a string and does not go through
+it.
+
+**A STRING DOES NOT SURVIVE THE STORE OR A CHANNEL — it comes back as
+CODES.** Measured, in both: `assertz(note("hi"))` under the flag, read
+from a second process through `--embed`, answers `[104,105]`; the same
+string through a `library(thread)` channel arrives the same way. This is
+NOT the flag's doing — it was true from the day the type landed, and the
+flag only makes it easy to reach.
+
+The cause is one line of the existing design meeting the new type. A
+clause travels as canonical text and is parsed by whichever process
+fetches it, and `lib/syntax.cicili`'s own comment says why that text is
+written with operators IGNORED: a clause written with an operator "could
+only be read by a process that had made the same declaration".
+`double_quotes` is exactly that hazard again — a per-machine READER
+setting that makes canonical text mean different things in different
+processes — and the canonical reader honours it.
+
+**The fix looks small and is not a small change.** A string writes
+canonically as `"hi"` and a code list as `[104,101,…]`, so the two have
+distinct canonical spellings and forcing the canonical reader to
+`string` would be lossless and exact. What makes it a pass of its own is
+that `coco_read_term_from` serves the store's fetch, the module API's
+`coco_m_read_term`, and the user-facing readers (`term_to_atom/2`,
+`term_string/2`) — and those last ones SHOULD honour the flag, the way
+SWI's do. So it needs the two readers split, and it touches all three
+knowledge-base arrangements, which means the cross-process claim has to
+be re-proved rather than assumed. It is written down here rather than
+done in passing.
+
+`test/string.sh` is the case — 36 checks, and the four flag values are
+checked through FILES rather than `query`, because a one-goal query can
+never see its own flag change. Tutorial `basics/08` is the lesson.
+
 ## The three document libraries, and the rules they share
 
 `library(json)`, `library(xml)` and `library(html)` go both ways: a term
@@ -522,9 +603,9 @@ cannot, and copying it is what lets `json.pl` stand alone rather than
 importing a markup library to read a `\uXXXX`.
 
 **A CODE LIST IS A LIST, IN ALL THREE, and `str/1` is the way out.**
-cocolog has no string type — `double_quotes` is `codes`, so `"hello"` IS
-`[104,101,…]` — and a serialiser that guessed would turn a JSON array of
-byte values into a word, or `element(p,[],["hello"])` into
+`double_quotes` defaults to `codes`, so `"hello"` IS `[104,101,…]` unless
+the file set the flag — and a serialiser that guessed would turn a JSON
+array of byte values into a word, or `element(p,[],["hello"])` into
 `<p>104101108108111</p>`. That second one is not hypothetical: it is what
 `xml.pl` did before the rule, and the case is in the suite. So a bare list
 is an array (JSON) or an error (XML, HTML), and `str(X)` is how you say
@@ -1019,13 +1100,13 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has three categories and `test/tutorials.sh` runs all
-seventy-seven files as one suite case:
+seventy-eight files as one suite case:
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
 | `tutorials/library/` | thirty-nine lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
-| `tutorials/torch/` | twenty-seven networks, three processes each | libtorch |
+| `tutorials/torch/` | twenty-eight networks, three processes each | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
 

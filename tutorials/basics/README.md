@@ -30,9 +30,11 @@ that is not in any other Prolog book.
 Each is checked by a `must/3` in the file that teaches it, so if one of
 these ever stops being true the tutorial fails and names both answers.
 
-* **`double_quotes` is `codes`.** `"hi"` IS `[104,105]`. There is no
-  string type — 08 is the whole lesson, and it is why `library(json)`
-  needs `str/1`.
+* **`double_quotes` DEFAULTS to `codes`.** `"hi"` IS `[104,105]` in a
+  file that says nothing — and every one of these eleven says nothing.
+  There IS a string type, and a file gets one out of `"..."` only by
+  setting the flag; 08 is the whole lesson, and the default is why
+  `library(json)` needs `str/1`.
 * **EVERY BUILTIN IS DETERMINISTIC.** Not one leaves a choice point,
   which retires the classic `retract(X), fail` failure-driven loop (07)
   and makes `atom_concat(A, B, abc)` with both unbound an

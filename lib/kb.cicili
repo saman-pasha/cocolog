@@ -779,13 +779,15 @@
                (return 1)))
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate"))) (return 1))
 
-          ;; `:- set_prolog_flag(double_quotes, codes)'. NOT accepted and
-          ;; ignored -- a flag is a request to read the rest of the file
-          ;; differently, and nodding at one cocolog will not honour would make
-          ;; every `"..."' in that file mean something other than it says.
-          ;; cocolog's reader has exactly one behaviour: a double-quoted string
-          ;; is a list of character codes. So the value that names it is
-          ;; accepted and every other value is refused, by name.
+          ;; `:- set_prolog_flag(double_quotes, V)'. ACCEPTED, for all four of
+          ;; SWI's values -- codes, chars, atom, string -- and it really
+          ;; changes what the reader builds for the rest of the file. It used
+          ;; to accept `codes' and refuse the rest BY NAME, on the argument
+          ;; that nodding at a flag cocolog would not honour makes every
+          ;; `"..."' in the file mean something other than it says. That
+          ;; argument was right, and the answer to it was to honour the flag
+          ;; rather than to keep refusing: there is a string type now, and an
+          ;; atom was always makeable.
           (if (and (== n 2) (== 0 (strcmp name "set_prolog_flag")))
               (let ((size_t f . #'(coco_deref m (coco_arg m g 0)))
                     (size_t v . #'(coco_deref m (coco_arg m g 1))))
@@ -800,11 +802,17 @@
                     (block (snprintf err errlen "set_prolog_flag: cocolog has no flag `%s'"
                                      (coco_atom_name m (coco_name_of m f)))
                            (return 0)))
-                (if (and (coco_is_callable m v) (== (coco_arity m v) 0)
-                         (== 0 (strcmp (coco_atom_name m (coco_name_of m v)) "codes")))
-                    (return 1))
+                ;; IT TAKES EFFECT FOR THE REST OF THE CONSULT, not for the
+                ;; directive's own term -- the term is already read by the
+                ;; time this runs, which is the same order SWI reads in.
+                (if (and (coco_is_callable m v) (== (coco_arity m v) 0))
+                    (let ((const char * val . #'(coco_atom_name m (coco_name_of m v))))
+                      (if (== 0 (strcmp val "codes"))  (block (set (-> m double_quotes) 0) (return 1)))
+                      (if (== 0 (strcmp val "chars"))  (block (set (-> m double_quotes) 1) (return 1)))
+                      (if (== 0 (strcmp val "atom"))   (block (set (-> m double_quotes) 2) (return 1)))
+                      (if (== 0 (strcmp val "string")) (block (set (-> m double_quotes) 3) (return 1)))))
                 (snprintf err errlen
-                          "set_prolog_flag: double_quotes is codes here and cannot be changed")
+                          "set_prolog_flag: double_quotes takes codes, chars, atom or string")
                 (return 0)))
 
           (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))

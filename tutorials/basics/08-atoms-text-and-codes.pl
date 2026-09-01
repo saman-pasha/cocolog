@@ -1,22 +1,34 @@
-%% BASICS 08 -- atoms, codes, and the text that is not a string
+%% BASICS 08 -- atoms, codes, and the string you have to ask for
 %%
 %%     ./cocolog run tutorials/basics/08-atoms-text-and-codes.pl main
 %%
-%% COCOLOG HAS NO STRING TYPE, and that is the single most important thing
-%% on this page. `double_quotes' is `codes' -- the ISO default -- so
+%% `double_quotes' DEFAULTS TO `codes', and that is the single most
+%% important thing on this page. It is the ISO default, so
 %%
 %%     "hi"   IS   [104, 105]
 %%
-%% not a string object. There is no `string/1' that answers true of
-%% anything (the one that exists always fails, on purpose, so that
-%% vendored SWI library code takes its code-list branch).
+%% and not a string object -- unless the file says otherwise. There IS a
+%% string type now (library 37 is its whole lesson); what there is not is
+%% a double-quoted literal that gives you one for free.
 %%
-%% SO TEXT COMES IN TWO SHAPES and you convert between them:
+%% SO TEXT COMES IN THREE SHAPES, and you convert between them:
 %%
 %%     an ATOM      'hello'  -- one indivisible name, interned, cheap to
 %%                  compare, and a C string underneath: it STOPS AT A NUL
 %%     a CODE LIST  "hello"  -- a list of integers, one per BYTE, which
 %%                  you can walk with ordinary list predicates
+%%     a STRING     -- a distinct type, from atom_string/2 or its kin, or
+%%                  from "..." in a file that set the flag. It carries a
+%%                  NUL, which is exactly what an atom cannot.
+%%
+%% THE FLAG TAKES ALL FOUR OF SWI'S VALUES -- codes, chars, atom, string --
+%% and `:- set_prolog_flag(double_quotes, string).' at the head of a file
+%% makes every "..." in it a string. It takes effect for the REST OF THE
+%% FILE, not for the directive's own term, which is SWI's order too.
+%%
+%% THIS PAGE STAYS ON THE DEFAULT, and says so rather than setting the
+%% flag, because the default is what every file that says nothing gets --
+%% including every one of the other ten lessons here.
 %%
 %% BYTES, NOT CHARACTERS. cocolog is byte-oriented: `atom_length/2' counts
 %% bytes, so a UTF-8 character outside ASCII counts as its byte length.
@@ -24,7 +36,9 @@
 %% every library in one piece.
 %%
 %% WHICH TO USE: atoms for names and keys, code lists for anything you are
-%% going to take apart. A DCG (basics 10) always parses codes.
+%% going to take apart, a string when you need text that survives a NUL or
+%% when you are talking to something that already speaks SWI's strings. A
+%% DCG (basics 10) always parses codes.
 
 main :-
     format("~n-- \"hi\" is a LIST, and that is not a surprise once you know~n"),
@@ -32,6 +46,29 @@ main :-
     must('"hi"', Codes, [104, 105]),
     ( is_list(Codes) -> K = a_list ; K = something_else ),
     must('is it a list', K, a_list),
+    ( string(Codes) -> S0 = a_string ; S0 = not_a_string ),
+    must('is it a string', S0, not_a_string),
+    format("   The flag DEFAULTS to codes, so a bare \"hi\" is a list here.~n"),
+    format("   `:- set_prolog_flag(double_quotes, string).' changes that~n"),
+    format("   for the rest of a file. This one does not set it.~n"),
+
+    format("~n-- the third shape: a STRING, which you have to ask for~n"),
+    atom_string(hi, Str),
+    ( string(Str) -> S1 = a_string ; S1 = not_a_string ),
+    must('atom_string/2 makes one', S1, a_string),
+    ( atom(Str) -> S2 = also_an_atom ; S2 = not_an_atom ),
+    must('and it is NOT an atom', S2, not_an_atom),
+    ( Str == hi -> S3 = same ; S3 = different ),
+    must('nor equal to the atom it came from', S3, different),
+    %% THE NUL IS THE WHOLE REASON THE TYPE EXISTS. An atom is a
+    %% NUL-terminated name in a table, so the same three bytes are a
+    %% one-character atom and a three-character string.
+    string_codes(NulStr, [0'a, 0, 0'b]),
+    string_length(NulStr, NulLen),
+    must('a string carries a NUL', NulLen, 3),
+    atom_codes(NulAtom, [0'a, 0, 0'b]),
+    atom_length(NulAtom, AtomLen),
+    must('  where an atom of the same bytes stops', AtomLen, 1),
 
     format("~n-- converting between the two shapes~n"),
     atom_codes(hello, HCodes),

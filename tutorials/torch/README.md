@@ -1,4 +1,4 @@
-# Torch: twenty-seven networks, one file each
+# Torch: twenty-eight networks, one file each
 
 *One of three tutorial categories — `../basics/` is the language,
 `../library/` is what ships, and this is the deep end.*

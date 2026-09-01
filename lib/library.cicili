@@ -239,6 +239,17 @@
               (return (coco_m_unify e (coco_m_arg e g 1)
                                     (coco_m_atom_list e lb_os_argv
                                                       (cast size_t lb_os_argc)))))
+          ;; `double_quotes' READS BACK what set_prolog_flag/2 put there, so a
+          ;; program can ask what a "..." in it will become. FOUR flags answer
+          ;; now; the other three are questions about the PROCESS and this one
+          ;; is about the READER, which is the first flag here that a program
+          ;; can also SET.
+          (if (== 0 (strcmp flag "double_quotes"))
+              (let ((coco_machine * mm . #'(coco_m_machine e)) (const char * v . "codes"))
+                (if (== (-> mm double_quotes) 1) (set v "chars"))
+                (if (== (-> mm double_quotes) 2) (set v "atom"))
+                (if (== (-> mm double_quotes) 3) (set v "string"))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) v))))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))

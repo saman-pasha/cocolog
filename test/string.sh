@@ -77,4 +77,84 @@ is "a double-quoted literal is codes" no "$(q "( string(\"abc\") -> write(answer
 is "quoted, it writes in quotes"    '"ell"' "$(q "sub_string(\"hello\",1,3,_,S), format(\"answer(~q)~n\",[S])")"
 is "unquoted, it writes its text"   ell     "$(q "sub_string(\"hello\",1,3,_,S), format(\"answer(~w)~n\",[S])")"
 
+# ---- double_quotes, all four of SWI's values -------------------------------
+#
+# THESE NEED FILES, not `query'. The flag takes effect for the REST OF THE
+# CONSULT and not for the directive's own term -- the term is already read by
+# the time the directive runs -- so a one-goal `query' can never see its own
+# flag change. That is SWI's order too.
+#
+# Each file asks what its own "ab" turned out to BE, and reads the flag back
+# through current_prolog_flag/2, so a flag that were set without changing the
+# reader (or a reader changed without the flag following) fails here.
+
+D=$(mktemp -d) || { echo "SKIP no tmpdir"; exit 0; }
+trap 'rm -rf "$D"' EXIT
+
+dq() {                                  # dq VALUE -> what "ab" is / what the flag says
+  cat > "$D/dq.pl" <<PLEOF
+:- set_prolog_flag(double_quotes, $1).
+main :- X = "ab",
+        ( string(X) -> T = string ; atom(X) -> T = atom
+        ; X = [a,b] -> T = chars ; is_list(X) -> T = codes ; T = other ),
+        current_prolog_flag(double_quotes, F),
+        format("answer(~w/~w)~n", [T, F]).
+PLEOF
+  timeout 60 "$ROOT/cocolog" --local run "$D/dq.pl" main 2>&1 |
+    grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//'
+}
+
+is "codes is the default"           codes/codes   "$(dq codes)"
+is "chars makes one-char atoms"     chars/chars   "$(dq chars)"
+is "atom makes an atom"             atom/atom     "$(dq atom)"
+is "string makes a string"          string/string "$(dq string)"
+
+# A FILE WITH NO DIRECTIVE IS UNCHANGED, which is what makes the default a
+# default rather than whatever the last file to run happened to ask for.
+cat > "$D/plain.pl" <<'PLEOF'
+main :- X = "ab",
+        ( string(X) -> T = string ; is_list(X) -> T = codes ; T = other ),
+        format("answer(~w)~n", [T]).
+PLEOF
+is "a file that asks for nothing"   codes \
+   "$(timeout 60 "$ROOT/cocolog" --local run "$D/plain.pl" main 2>&1 | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//')"
+
+# THE FLAG IS PER-MACHINE AND DOES NOT LEAK OUT OF A MODULE LOAD. It is
+# saved and forced back to codes across `use_module', because the vendored
+# SWI libraries in lib/swipl are written for codes and a caller's choice
+# must not reach inside them. So dq.pl's own "ab" is a string, and the "ab"
+# in the goal that loaded it is still a code list.
+cat > "$D/mod.pl" <<'PLEOF'
+:- set_prolog_flag(double_quotes, string).
+mine(X) :- X = "ab".
+PLEOF
+is "and does not leak out of a module" codes \
+   "$(timeout 60 "$ROOT/cocolog" --local query "use_module('$D/mod.pl'), X = \"ab\", ( string(X) -> T = string ; is_list(X) -> T = codes ; T = other ), write(answer(T)), nl" 2>&1 | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//')"
+is "though the module got what it asked for" string \
+   "$(timeout 60 "$ROOT/cocolog" --local query "use_module('$D/mod.pl'), mine(X), ( string(X) -> T = string ; is_list(X) -> T = codes ; T = other ), write(answer(T)), nl" 2>&1 | grep -aoE 'answer\([^)]*\)' | head -1 | sed 's/^answer(//; s/)$//')"
+
+# A CHAR LIST IS TEXT, which is what makes the flag usable at all rather than
+# merely settable. Under `chars' a file's own format strings are lists of
+# one-character atoms, and BOTH text seams took only codes: format/2 raised
+# type_error(text, [a,n,s,...]) from the format call itself, and every string
+# builtin fell through to writing the term out -- string_length("ab", N)
+# answering 5, the same silent wrong answer as the code-list case above.
+is "a char list is text to format"  ab \
+   "$(q "format(atom(A),['~',w],[ab]), write(answer(A)), nl")"
+is "and to the string builtins"     2 \
+   "$(q "string_length([a,b],N), write(answer(N)), nl")"
+is "a mixed list still is"          2 \
+   "$(q "string_length([a,0'b],N), write(answer(N)), nl")"
+
+# A VALUE THAT IS NOT ONE OF THE FOUR IS REFUSED BY NAME, and the refusal
+# aborts the consult rather than being ignored -- a flag nodded at and not
+# honoured makes every "..." in the file mean something other than it says.
+cat > "$D/bad.pl" <<'PLEOF'
+:- set_prolog_flag(double_quotes, banana).
+main :- true.
+PLEOF
+is "a fifth value is refused" yes \
+   "$(timeout 60 "$ROOT/cocolog" --local run "$D/bad.pl" main 2>&1 |
+      grep -q 'takes codes, chars, atom or string' && echo yes || echo no)"
+
 if [ $red -eq 0 ]; then echo "GREEN: the string type is a type"; else echo "RED: $red"; fi

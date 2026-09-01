@@ -14,7 +14,9 @@
 %%     aes_key_bits(+KeyHex, -Bits)   aes_block_size(-Bytes)
 %%
 %% EVERYTHING IS HEX. A key, an IV and a block of cipher text are
-%% arbitrary bytes and cocolog has no string type.
+%% arbitrary bytes, and the shape a program reaches for them with -- an
+%% atom, or a code list -- stops at a zero byte. (A string does not, but
+%% these entry points predate it and hex is the interface they froze on.)
 %%
 %% READ THE LAST SECTION BEFORE USING THIS. AES-CBC hides content and
 %% does NOT detect tampering, and that is not a footnote.

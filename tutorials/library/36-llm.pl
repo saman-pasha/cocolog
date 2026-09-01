@@ -278,9 +278,9 @@ main :-
     catch(llm_check_messages([msg(tool, 'x')]), error(llm_error(W2, T2), _), true),
     must('a role nobody has heard of', W2, bad_message),
     must('  named in the ball', T2, msg(tool, x)),
-    %% THE BEST LESSON IN THIS FILE, and it is free. `double_quotes' is
-    %% `codes' here and cannot be changed -- there is no string type -- so
-    %% "Hello" is NOT text, it is a list of five integers. A library that
+    %% THE BEST LESSON IN THIS FILE, and it is free. `double_quotes'
+    %% DEFAULTS to `codes', and this file did not set it, so "Hello" is NOT
+    %% text here: it is a list of five integers. A library that
     %% guessed would put `[72,101,108,108,111]' in a JSON document as an
     %% array of numbers and the model would answer a question nobody
     %% asked. `llm_check_messages/1' catches it, and the ball shows you

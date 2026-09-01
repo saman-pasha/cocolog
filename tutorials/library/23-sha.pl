@@ -54,8 +54,8 @@ main :-
     sha_hash_hex(sha256, '616263', H),
     must('sha_hash_hex over 61 62 63 is the same', H, A),
     format("   A DIGEST IS ARBITRARY BYTES, zero bytes included, and~n"),
-    format("   cocolog has no string type -- \"abc\" IS [97,98,99] and a~n"),
-    format("   code list here cannot carry a zero. So data that is bytes~n"),
+    format("   \"abc\" IS [97,98,99] under the default flag, and a code~n"),
+    format("   list cannot carry a zero. So data that is bytes~n"),
     format("   rather than text goes in as hex, and comes out as hex.~n"),
 
     format("~n-- a file, without reading it in~n"),

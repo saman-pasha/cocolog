@@ -24,9 +24,10 @@
 %%
 %% THIS IS NOT SWI'S library(main), and the header of library/main.pl says so
 %% at length. It is the same INTERFACE, implemented here, because SWI's own
-%% file draws 31 HARD findings from cocolint -- eleven of them string
-%% predicates, and there is no string type for them to operate on. Section 8
-%% below is that argument, run rather than asserted.
+%% file draws 31 HARD findings from cocolint. Section 8 below is that
+%% argument, run rather than asserted. (Eleven of the thirty-one were string
+%% predicates when this was written, and are not any more -- the type landed
+%% after it. The other twenty stand, which is why this file still does.)
 %%
 %% WHAT THIS LESSON CLAIMS. Eight sections, every claim a must/3:
 %%

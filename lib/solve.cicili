@@ -1114,9 +1114,26 @@
           ;; running engine -- thawing a machine into it does exactly that --
           ;; and this is the one function every path goes through. The hook's
           ;; own guard makes the usual case two loads and a comparison.
+          ;; A MODULE'S OWN TEXT IS READ AS ITS AUTHOR WROTE IT, so
+          ;; `double_quotes' is forced back to `codes' across the load and
+          ;; restored after. Every module in this tree and all eight vendored
+          ;; SWI files are written for codes; a program that sets the flag to
+          ;; `string' and then provokes a lazy module load would otherwise
+          ;; have its choice reach inside them, and every `"..."' in
+          ;; dcg_basics or yall would come back a string.
+          ;;
+          ;; MEASURED, not guessed: with the flag global and no save here,
+          ;; `:- set_prolog_flag(double_quotes, string).' in a file with no
+          ;; string in it at all failed with "a module's clauses would not
+          ;; load" -- the modules, not the program. SWI keeps the flag
+          ;; per-module and this is the same rule with one machine.
           (if (!= coco_extern_load nil)
-              (if (not (coco_extern_load st m e))
-                  (return (coco_fail_err e "a module's clauses would not load"))))
+              (let ((int saved_dq . #'(-> m double_quotes)) (int ok . 0))
+                (set (-> m double_quotes) 0)
+                (set ok (coco_extern_load st m e))
+                (set (-> m double_quotes) saved_dq)
+                (if (not ok)
+                    (return (coco_fail_err e "a module's clauses would not load")))))
 
           ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
           ;; `coco_engine_ask' for the same reason the hook above is: a
@@ -2017,9 +2034,20 @@
               (if (not (coco-tag-is FUN c)) (return 0))
               (if (!= (coco_arity m lst) 2) (return 0))
               (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) ".")) (return 0))
+              ;; A CODE OR A ONE-CHARACTER ATOM. `double_quotes' has four
+              ;; values and TWO of them make a list, so under `chars' the
+              ;; "ab" a program hands string_length/2 IS [a,b] -- and a walk
+              ;; that took only codes fell through to writing the term, which
+              ;; answers 5. That is the silent wrong answer this whole
+              ;; conversion exists to stop, in the other of its two shapes.
               (let ((size_t h . #'(coco_deref m (coco_arg m lst 0))))
-                (if (not (coco-tag-is INT (nth h (-> m heap)))) (return 0))
-                (coco_sb_putc b (cast char (coco-signed-payload (nth h (-> m heap))))))
+                (if (coco-tag-is INT (nth h (-> m heap)))
+                    (coco_sb_putc b (cast char (coco-signed-payload (nth h (-> m heap)))))
+                    (block
+                     (if (not (coco-tag-is ATOM (nth h (-> m heap)))) (return 0))
+                     (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
+                       (if (!= (strlen cs) 1) (return 0))
+                       (coco_sb_putc b (nth 0 cs))))))
               (set lst (coco_arg m lst 1))))
           (return 0)))
 

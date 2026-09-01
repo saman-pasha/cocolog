@@ -263,21 +263,22 @@ Read them in order — each leans on the one before.
 | [05-backtracking-and-cut](tutorials/basics/05-backtracking-and-cut.pl) | choice points, `!`, and the four shapes it appears in |
 | [06-findall-and-friends](tutorials/basics/06-findall-and-friends.pl) | `findall`, `bagof`, `setof`, `aggregate_all`, and the free-variable rule |
 | [07-assert-and-retract](tutorials/basics/07-assert-and-retract.pl) | a program that edits itself, and `retract/1`'s determinism |
-| [08-atoms-text-and-codes](tutorials/basics/08-atoms-text-and-codes.pl) | atoms, codes, and the string type this Prolog does not have |
+| [08-atoms-text-and-codes](tutorials/basics/08-atoms-text-and-codes.pl) | atoms, codes, and the string you have to ask for |
 | [09-exceptions](tutorials/basics/09-exceptions.pl) | failure is not an error; `catch/3`, `throw/1`, ISO error terms |
 | [10-grammars](tutorials/basics/10-grammars.pl) | `-->`, `phrase/2,3`, and a parser that also generates |
 | [11-the-knowledge-base](tutorials/basics/11-the-knowledge-base.pl) | **the one that is not in any other Prolog book**: the store outlives the process |
 
 Four of them exist because cocolog differs, and each difference is
-checked by a `must/3` in the file that teaches it: `double_quotes` is
-`codes`, so `"hi"` IS `[104,105]` (08); **every builtin is
+checked by a `must/3` in the file that teaches it: `double_quotes`
+DEFAULTS to `codes`, so `"hi"` IS `[104,105]` in a file that does not set
+the flag (08); **every builtin is
 deterministic**, which retires the `retract(X), fail` loop (07) and makes
 `atom_concat(A, B, abc)` with both unbound an `instantiation_error`
 rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — thirty-two lessons, one per library that ships
+### `library/` — thirty-nine lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.
@@ -294,7 +295,7 @@ eleven on the library path.
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
 end. A new library therefore gets a tutorial in the same commit.
 
-### `torch/` — twenty-four networks, three processes each
+### `torch/` — twenty-eight networks, three processes each
 
 The deep end, and its own [README](tutorials/torch/README.md) — described
 under *Prolog that trains* below.
@@ -915,9 +916,11 @@ an integer past 64 bits is refused rather than wrapped, because
 a silently wrong balance is the worst thing a JSON parser can do. Every
 refusal names the term.
 
-**A code list is a list, and `str/1` is the way out.** cocolog has no string
-type — `double_quotes` is `codes`, so `"hello"` *is* `[104,101,…]` and nothing
-in the term says which you meant. Guessing is how a JSON array of byte values
+**A code list is a list, and `str/1` is the way out.** `double_quotes`
+defaults to `codes`, so `"hello"` *is* `[104,101,…]` and nothing in the term
+says which you meant. There is a string type now, and it does not retire the
+rule: a program that never set the flag still hands these libraries lists,
+and a list is what has to be unambiguous. Guessing is how a JSON array of byte values
 silently becomes a word, and how `element(p,[],["hello"])` becomes
 `<p>104101108108111</p>` — which is what an earlier draft of `xml.pl` did,
 and why there is a case for it.
@@ -1167,8 +1170,8 @@ between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
 and fitted Q-iteration reinforcement learning. They are the third
-tutorial category — `sh test/tutorials.sh` runs all sixty-seven files,
-the seventy-two torch processes included, green and deterministically
+tutorial category — `sh test/tutorials.sh` runs all seventy-eight files,
+the eighty-four torch processes included, green and deterministically
 in about forty-five seconds. The one to read first is
 [22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every
 text classifier at toy scale — token ids through a learned embedding

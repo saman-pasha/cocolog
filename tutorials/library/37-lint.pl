@@ -17,8 +17,8 @@
 %% failure needs no linter, because the interpreter already names it. A
 %% program that calls `halt' at the end of main exits 1 with nothing on
 %% stderr; one that defines `step/4' merges its clauses into a library's; one
-%% that writes `format(string(S), ...)' has asked for a type that does not
-%% exist. None of the three says so.
+%% that writes `~t~20|' for alignment gets a format directive refused by
+%% name. None of the three says so.
 %%
 %% WHAT THIS LESSON CLAIMS. Nine sections, every claim a must/3:
 %%
@@ -163,15 +163,15 @@ t37_rules :-
 t37_patterns :-
     format("~n-- 5. S1's PATTERNS ARE TERMS, NOT REGEXES~n"),
     format("   library(text) does bind a POSIX engine, and porting the~n"),
-    format("   seventeen banned forms to it loses six things, THREE OF THEM~n"),
+    format("   fifteen banned forms to it loses six things, THREE OF THEM~n"),
     format("   SILENTLY: \\d becomes a literal `d'; a lazy .*? compiles and~n"),
     format("   is greedy; lookaround fails with no error; [^\\n] reads as~n"),
     format("   \"not backslash, not n\"; a pattern regcomp REJECTS looks~n"),
     format("   exactly like one that missed; and there are no flags.~n"),
-    ( cl_match(seq([lit(format), ws, lit('('), ws, lit(string)]),
-               "x :- format(string(S), a, b).", OffS, _)
+    ( cl_match(seq([bstart, lit(write_canonical), ws, lit('(')]),
+               "x :- write_canonical(a+b).", OffS, _)
     -> true ; OffS = none ),
-    must('format(string(S)) found, at its offset', OffS, 5),
+    must('write_canonical( found, at its offset', OffS, 5),
 
     true.
 
@@ -228,27 +228,31 @@ t37_card :-
     read_file_to_codes('tools/coco-agent/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 36),
+    must('rows in the card', NRows, 35),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 36),
-    %% SIXTEEN OF THE THIRTY-SIX CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 35),
+    %% FIFTEEN OF THE THIRTY-FIVE CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `A1' can be matched --
     %% a big integer literal is right there in the text -- and `I1', which is
     %% about a cut you should not add, cannot be.
     %%
-    %% IT WAS SEVENTEEN UNTIL THE STRING TYPE LANDED. Row X1 said the string
-    %% predicates did not exist and flagged every call to one; they all exist
-    %% now, so flagging them became a false positive and the pattern was
-    %% removed. The ROW stayed, because what it documents is still true --
-    %% `"abc"' is a code list, so `string("abc")' is false where SWI says
-    %% true. A rule retiring because the thing it caught stopped being wrong
-    %% is the healthiest way for a linter to shrink.
+    %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
+    %% the string predicates did not exist and flagged every call to one;
+    %% they all exist now, so the pattern went and the ROW stayed, because
+    %% `"abc"' is still a code list unless a file sets `double_quotes'. Row
+    %% S1 -- `format(string(S), ...)' is a domain_error -- went ENTIRELY,
+    %% row and all: `string/1' is a sink now, so there was nothing left to
+    %% document. A rule retiring because the thing it caught stopped being
+    %% wrong is the healthiest way for a linter to shrink, and the two
+    %% halves of it are worth telling apart: a row loses its PATTERN when
+    %% the form stops being detectable, and loses ITSELF when the form stops
+    %% being a divergence.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 16),
+    must('rows carrying an S1 pattern term', NPats, 15),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 

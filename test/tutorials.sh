@@ -5,7 +5,7 @@
 #             database, no build flag.
 #   library/  thirty-three files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
-#   torch/    twenty-seven networks, THREE processes each and a store per
+#   torch/    twenty-eight networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
 #             and judges it, predict reloads and answers.
 #

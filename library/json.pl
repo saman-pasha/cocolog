@@ -33,9 +33,9 @@
 %%     str(X)                      a string, from an atom, a number or a
 %%                                 CODE LIST -- see the next paragraph
 %%
-%% `str/1' EXISTS BECAUSE A CODE LIST IS A LIST. cocolog has no string
-%% type: `double_quotes' is `codes', so `"hi"' IS `[104,105]' and there is
-%% nothing in the term to tell a serialiser which you meant. Guessing --
+%% `str/1' EXISTS BECAUSE A CODE LIST IS A LIST. `double_quotes' defaults
+%% to `codes', so in a file that did not set it `"hi"' IS `[104,105]' and
+%% there is nothing in the term to tell a serialiser which you meant. Guessing --
 %% "a list of small integers is probably text" -- is how a JSON array of
 %% byte values silently becomes a word. So a bare list is ALWAYS an array,
 %% and `str("hi")' is how you say you meant the other thing. The

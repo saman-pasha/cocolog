@@ -302,6 +302,13 @@
     (member size_t     floats_len)
     (member size_t     floats_cap)
 
+    ;; HOW THE READER TURNS `"..."' INTO A TERM: 0 codes, 1 chars, 2 atom,
+    ;; 3 string -- SWI's four `double_quotes' values. It lives on the MACHINE
+    ;; rather than on the reader because `:- set_prolog_flag(double_quotes,
+    ;; string)' must outlive the term it appears in and govern the rest of
+    ;; the consult, which is what SWI does with it too.
+    (member int        double_quotes)
+
     ;; the string table -- see coco_str above
     (member coco_str * strings)
     (member size_t     strings_len)

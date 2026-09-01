@@ -946,15 +946,35 @@
   ;;; A double-quoted item is a list of character codes -- the ISO default, and
   ;;; the one that makes "abc" something a Prolog program can take apart.
   (static)
+  ;;; `"..."' AS A TERM, under whichever `double_quotes' is in force: 0 codes
+  ;;; (the default, and what this Prolog has always done), 1 chars, 2 atom,
+  ;;; 3 string. SWI's four values, all four honoured, because three of them
+  ;;; are the same walk over the same bytes and refusing them would be a
+  ;;; refusal to do arithmetic somebody has already done.
   (func coco_string_to_list ((coco_reader * r) (size_t * out)) (out int)
-        (let ((size_t tail . #'(coco_new_atom (-> r m) "[]"))
-              (size_t n . #'($ (-> r text) len)))
-          (while (> n 0)
-            (set n (- n 1))
-            (let ((size_t c . #'(coco_new_int (-> r m)
-                                            (cast i64 (cast uchar (nth n ($ (-> r text) s)))))))
-              (set tail (coco_cons (-> r m) c tail))))
-          (set (cof out) tail)
+        (let ((coco_machine * m . #'(-> r m))
+              (size_t n . #'($ (-> r text) len))
+              (int mode . 0))
+          (set mode (-> m double_quotes))
+          (if (== mode 3)
+              (block (set (cof out) (coco_new_string m ($ (-> r text) s) n))
+                     (return 1)))
+          (if (== mode 2)
+              (block (set (cof out)
+                          (coco_new_atom m (? (== ($ (-> r text) s) nil) "" ($ (-> r text) s))))
+                     (return 1)))
+          (let ((size_t tail . #'(coco_new_atom m "[]")))
+            (while (> n 0)
+              (set n (- n 1))
+              (let ((size_t c . 0))
+                (if (== mode 1)
+                    (let ((char one [2]))
+                      (set (nth 0 one) (nth n ($ (-> r text) s)))
+                      (set (nth 1 one) (cast char 0))
+                      (set c (coco_new_atom m one)))
+                  (set c (coco_new_int m (cast i64 (cast uchar (nth n ($ (-> r text) s)))))))
+                (set tail (coco_cons m c tail))))
+            (set (cof out) tail))
           (return 1)))
 
   ;;; `name(...)' -- the bracket has been consumed. Arguments read at 999 so a

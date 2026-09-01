@@ -301,9 +301,9 @@ contributes `smallest_country/2`.
 | **N2** collision-dead | HARD | Defined heads ∩ C-table set (141 + imported modules' 109 + torch/bigint's 54). | *"`memberchk/2` is dispatched before the knowledge base (`lib/solve.cicili:1352-1386`). Your clauses will never run."* |
 | **N3** collision-construct | HARD | Defined head names ∩ the 22 construct names, **any arity**. | *"`once` is a control construct matched by interned id (`lib/solve.cicili:151-154`) before the builtin table and before the store. Your clauses are unreachable and no runtime check can see them."* |
 | **N4** dcg-arity | HARD | Every `-->` head recorded at arity+2 before N1–N3 run. | folded into the N-messages |
-| **E1** existence | WARN | Called goals ∉ (defined ∪ constructs ∪ retrieved symbol scope). | *"`split_string/4` does not exist; `existence_error(procedure, split_string/4)` at run time. cocolog has no string type — see card row X1."* |
+| **E1** existence | WARN | Called goals ∉ (defined ∪ constructs ∪ retrieved symbol scope). | *"`portray_clause/2` does not exist; `existence_error(procedure, portray_clause/2)` at run time — see card row X2 for what the stream family is missing."* |
 | **T1** tier-import | HARD-WARN | A call into a tier-2 library with no `:- use_module`, **and** the inverse: a `use_module` for a tier-1 library (advisory only). | names the exact `sh modules/X/build.sh` |
-| **S1** banned-forms | HARD | ~24 regex/term patterns generated from `traps.jsonl` rows whose `rule` field is set: `format(string(`, `~t`/`~|`/`~+`, `write_canonical(`, `b_setval(`, `retract(…), fail` (term-level, not textual), `halt` on a success path, `atan(_,_)`, `log(_,_)`, `random`, `string_concat/split_string/sub_string/atom_string`, `'[|]'`, `:- table`, `:- initialization`, `catch(findall(`, `\xHH\`, `1_000`, backquotes, `16'FF`, `call_with_inference_limit`, `setup_call_cleanup`, `nb_current`, `current_prolog_flag` with any flag but `executable`. | each message is the card row, verbatim, with its `cite` |
+| **S1** banned-forms | HARD | ~24 regex/term patterns generated from `traps.jsonl` rows whose `rule` field is set: `format(string(`, `~t`/`~|`/`~+`, `write_canonical(`, `b_setval(`, `retract(…), fail` (term-level, not textual), `halt` on a success path, `atan(_,_)`, `log(_,_)`, `random`, `'[|]'`, `:- table`, `:- initialization`, `catch(findall(`, `\xHH\`, `1_000`, backquotes, `16'FF`, `call_with_inference_limit`, `setup_call_cleanup`, `nb_current`, `current_prolog_flag` with any flag but `executable`. | each message is the card row, verbatim, with its `cite` |
 | **S2** divergence-report | HARD | For each `divergences_applied[].swi` the model claimed to suppress, grep the emitted file for that form. Present ⇒ fail. | *"You reported suppressing `format(string(S), …)` but line 31 still contains it."* |
 | **A1** arithmetic-range | WARN | Integer literals or literal products ≥ 2^59. | card row A2 |
 | **Z1** size | WARN | (a) a clause whose canonical text exceeds the configured page budget (default 7900, `--page-bytes`); (b) any single term exceeding 65535 bytes. Two distinct messages. | *(a)* refused by the server at the turn's flush, after the assert that caused it; *(b)* refused by the client with `a Text is limited to 65535 bytes` |
@@ -596,9 +596,9 @@ engine-loop iteration) and it does not bound memory (no GC, no heap ceiling). On
   "multi_file": false,
   "request_divergences": [
     { "phrase": "return it as a string",
-      "issue": "cocolog has no string type",
-      "ask": "an atom, or a code list?",
-      "cite": "lib/builtins.cicili:1120-1152" } ],
+      "issue": "\"...\" is a code list unless the file sets double_quotes",
+      "ask": "an atom, a code list, or a real string?",
+      "cite": "lib/kb.cicili:782-816" } ],
   "refusals": [ { "want": "streaming response",
                   "because": "modules/curl binds no multi interface",
                   "layer": "loadable module + a frozen-Cicili binding",
@@ -798,10 +798,10 @@ found in the human's own wording:
 
 ```
 FEASIBILITY  native_with_caveat
-  You wrote "return the result as a string". cocolog has no string type:
-  "abc" IS [97,98,99] and string/1 always fails, deliberately
-  (lib/builtins.cicili:1120-1152, lib/kb.cicili:745-771).
-  I will answer an ATOM. Say "codes" if you want a code list instead.
+  You wrote "return the result as a string". There IS a string type, but
+  "abc" is a CODE LIST unless the file sets the flag: double_quotes
+  defaults to codes (lib/kb.cicili:782-816, lib/term.cicili:250-276).
+  I will answer an ATOM. Say "codes", or "string", for either of the others.
 ```
 
 **2. The checks, as a table, before the code.** A check the human disagrees with is the
@@ -847,7 +847,7 @@ lives in `.cocoindex/impossible.json`, generated from `traps.jsonl` rows marked 
 | id | what is absent | evidence |
 |---|---|---|
 | `streams` | no `open/3,4`, `close/1`, `read/1`, `read_term/2,3`, `nl/1`, `write/2`, `current_output/1` — there is no stream layer at all | grep of `lib/`, `library/`; `format/3` takes a sink (`lib/builtins.cicili:1120-1152`) |
-| `strings` | no string type; `double_quotes` is fixed at `codes` | `lib/kb.cicili:745-771` |
+| ~~`strings`~~ | **retired.** There is a string type, and `double_quotes` takes all four of SWI's values | `lib/term.cicili:250-276`, `lib/kb.cicili:782-816` |
 | `tabling` | `:- table` does not parse — `table` is not a prefix operator | `lib/syntax.cicili:97-100` |
 | `coroutining` | no `freeze/2`, `dif/2`, `when/2`, `setup_call_cleanup/3` | grep of `lib/` |
 | `bt_global` | `b_setval` **is** `nb_setval` | `lib/builtins.cicili:76-79` |
