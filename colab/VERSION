@@ -1,4 +1,4 @@
-7
+8
 # colab/VERSION -- the notebook's revision, and the ONE PLACE it is declared.
 #
 # The first line is the version. Everything below is a log.
@@ -19,6 +19,10 @@
 # preflight.sh or build.sh does not need a bump -- those come from the
 # repository already, which is the point of their being scripts.
 #
+# 8  2026-09-02  section 2 loads library(torch) before it asks about the
+#                GPU. A bare `torch_cuda_available(B)' answered `false.'
+#                on a T4 that the module, once loaded, reported as
+#                cuda(0); the check was measuring the module's absence.
 # 7  2026-09-02  section 1b: SSH into the VM through a Cloudflare quick
 #                tunnel, public keys only, passwords off. No key in the
 #                notebook: the Colab secret SSH_PUBKEY, else the keys
