@@ -28,10 +28,9 @@ BIN="${COCOLOG_BIN:-$ROOT/cocolog}"
 
 [ -n "$1" ] || { echo "usage: lint.sh FILE.pl ..." >&2; exit 2; }
 [ -x "$BIN" ] || { echo "cocolint: no binary at $BIN" >&2; exit 2; }
-command -v python3 >/dev/null 2>&1 || { echo "cocolint: needs python3 to build the index" >&2; exit 2; }
 
-python3 "$HERE/build.py" --if-stale >/dev/null || exit 2
-python3 "$HERE/traps.py" --facts --if-stale >/dev/null || exit 2
+sh "$HERE/tool.sh" build --if-stale >/dev/null || exit 2
+sh "$HERE/tool.sh" card --facts --if-stale >/dev/null || exit 2
 
 T=$(mktemp) || exit 2
 trap 'rm -f "$T"' EXIT

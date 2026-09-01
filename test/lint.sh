@@ -33,23 +33,18 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 cd "$ROOT" || exit 0
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "SKIP no python3"
-  exit 0
-fi
-
 AGENT="$ROOT/tools/coco-agent"
 [ -f "$AGENT/lint.pl" ] || { echo "SKIP no tools/coco-agent"; exit 0; }
 [ -x "$ROOT/cocolog" ] || { echo "SKIP no binary -- the linter is cocolog now"; exit 0; }
 
 # ---- 1. the dialect card's citations -------------------------------------
-CARD=$(python3 "$AGENT/traps.py" --check 2>&1)
+CARD=$(sh "$AGENT/tool.sh" card --check 2>&1)
 CARD_RC=$?
 echo "$CARD" | sed 's/^/  /'
 
 # ---- 1b. and the three verdicts the checker can reach --------------------
 #
-# THE ACCEPTING CASE IS THE ONE WORTH PINNING. traps.py takes a moved anchor
+# THE ACCEPTING CASE IS THE ONE WORTH PINNING. card.pl takes a moved anchor
 # on trust when the anchor is UNIQUE in its file -- the range was never
 # distinguishing anything there, so the code moving is a fact about the code
 # and not a defect in the card. That is a deliberate loosening, and a
@@ -67,7 +62,7 @@ VERDICTS=ok
 VTMP=$(mktemp -d)
 vcase() {                       # vcase NAME SED WANT-RC WANT-TEXT
   sed "$2" "$AGENT/traps.jsonl" > "$VTMP/traps.jsonl"
-  OUT=$(COCOLOG_TRAPS="$VTMP/traps.jsonl" python3 "$AGENT/traps.py" --check 2>&1)
+  OUT=$(COCOLOG_TRAPS="$VTMP/traps.jsonl" sh "$AGENT/tool.sh" card --check 2>&1)
   RC=$?
   if [ "$RC" != "$3" ]; then
     VERDICTS="BAD $1: rc=$RC, wanted $3"
@@ -86,13 +81,13 @@ else
 fi
 
 # ---- 2. the retrieval index ----------------------------------------------
-IDX=$(python3 "$AGENT/index.py" --check --no-run 2>&1)
+IDX=$(sh "$AGENT/tool.sh" index --check --no-run 2>&1)
 IDX_RC=$?
 printf '%s\n' "$IDX" | sed 's/^/  /'
 echo
 
-python3 "$AGENT/build.py" >/dev/null 2>&1 || { echo "SKIP blocklist would not build"; exit 0; }
-python3 "$AGENT/traps.py" --facts >/dev/null 2>&1 || { echo "SKIP traps.pl would not build"; exit 0; }
+sh "$AGENT/tool.sh" build >/dev/null 2>&1 || { echo "SKIP blocklist would not build"; exit 0; }
+sh "$AGENT/tool.sh" card --facts >/dev/null 2>&1 || { echo "SKIP traps.pl would not build"; exit 0; }
 
 # ---- 3. the reader reads its fixture exactly ------------------------------
 #
@@ -224,7 +219,7 @@ echo
 FIRED=$(printf '%s\n' "$SELF" \
         | sed -n 's/^[^ ]* \(HARD\|WARN\) \([A-Z0-9]*\) \(\[[A-Z0-9]*\]\)\?.*/\2 \3/p' \
         | sed 's/ *$//' | sort -u)
-WANT=$(python3 "$AGENT/traps.py" --patterns | awk '{print "S1 [" $1 "]"}' | sort -u)
+WANT=$(sh "$AGENT/tool.sh" card --patterns | awk '{print "S1 [" $1 "]"}' | sort -u)
 WANT="D1
 N1
 N2
@@ -254,24 +249,27 @@ MISSING=$(printf '%s\n' "$WANT" | sort -u | while read -r r; do
 # by BOTH clause readers at once.
 PROBE="skipped"
 PD=$(mktemp -d)
-python3 - "$AGENT/blocklist.json" "$PD" <<'PY'
-import json, sys
-b = json.load(open(sys.argv[1])); d = sys.argv[2]
-def emit(keys, path):
-    with open(d + "/" + path, "w") as f:
-        f.write("myprog_marker(1).\n")
-        n = 0
-        for k in sorted(keys):
-            nm, ar = k.rsplit("/", 1)
-            if ar == "*" or not nm.replace("_", "").isalnum() or not nm[:1].islower():
-                continue
-            ar = int(ar)
-            f.write("%s%s.\n" % (nm, "(%s)" % ",".join("_" * ar) if ar else ""))
-            n += 1
-    return n
-emit(b["tier1"]["clauses"], "clauses.pl")
-emit(b["tier1"]["c"], "ctable.pl")
-PY
+# GENERATED FROM blocklist.pl, THE FACTS, not from the JSON -- one line per
+# name and the same list the linter reads, so the probe cannot be testing a
+# different extraction from the one it is checking. Operator names and the
+# arity -1 control constructs are skipped: `=(_,_).' is not a clause anybody
+# writes, and a construct is blocked at every arity so no single arity
+# probes it.
+gen() {   # gen FUNCTOR FILE
+  awk -F"'" -v want="$1" '
+    index($1, want "(") == 1 {
+      n = $2; a = $3; gsub(/[^0-9-]/, "", a)
+      if (a + 0 < 0) next
+      if (n !~ /^[a-z][a-zA-Z0-9_]*$/) next
+      if (seen[n "/" a]++) next
+      if (a + 0 == 0) { print n "." ; next }
+      s = ""
+      for (i = 0; i < a + 0; i++) s = s (i ? ",_" : "_")
+      print n "(" s ")."
+    }' "$AGENT/blocklist.pl"
+}
+{ echo "myprog_marker(1)."; gen cl_t1p; } > "$PD/clauses.pl"
+{ echo "myprog_marker(1)."; gen cl_t1c; } > "$PD/ctable.pl"
 CL=$(sh "$AGENT/oracle.sh" "$PD/clauses.pl" 2>/dev/null)
 CT=$(sh "$AGENT/oracle.sh" "$PD/ctable.pl" 2>/dev/null)
 rm -rf "$PD"
@@ -295,7 +293,7 @@ rm -f "$TA" "$TB"
 if [ $CARD_RC -ne 0 ]; then
   echo "RED: the dialect card cites code that is gone, or cannot be told from its namesakes"
 elif [ "${VERDICTS#BAD}" != "$VERDICTS" ]; then
-  echo "RED: traps.py no longer sorts a moved citation from a broken one"
+  echo "RED: card.pl no longer sorts a moved citation from a broken one"
 elif [ $IDX_RC -ne 0 ]; then
   echo "RED: the retrieval index names a path or an anchor that does not resolve"
 elif [ -n "$RDIFF" ]; then

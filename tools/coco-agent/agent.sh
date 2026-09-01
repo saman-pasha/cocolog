@@ -31,22 +31,21 @@ done
 REQ="$*"
 [ -n "$REQ" ] || { echo 'usage: agent.sh [--from FILE.pl] [--dry] "REQUEST"' >&2; exit 2; }
 
-command -v python3 >/dev/null 2>&1 || { echo "agent.sh: needs python3" >&2; exit 2; }
 
 # ---- the index, rebuilt if it is not there -------------------------------
-[ -f "$HERE/blocklist.json" ]   || python3 "$HERE/build.py" >/dev/null || exit 2
-[ -f "$HERE/surface.jsonl" ]    || python3 "$HERE/index.py" >/dev/null || exit 2
+[ -f "$HERE/blocklist.json" ]   || sh "$HERE/tool.sh" build >/dev/null || exit 2
+[ -f "$HERE/surface.jsonl" ]    || sh "$HERE/tool.sh" index >/dev/null || exit 2
 
 echo "== 1. route and assemble"
-python3 "$HERE/assemble.py" --sizes "$REQ" || exit 2
+sh "$HERE/tool.sh" assemble --sizes "$REQ" || exit 2
 echo
 
 if [ "$DRY" = 1 ]; then
   echo "== the system prompt"
-  python3 "$HERE/assemble.py" --show system "$REQ"
+  sh "$HERE/tool.sh" assemble --show system "$REQ"
   echo
   echo "== the user turn"
-  python3 "$HERE/assemble.py" --show user "$REQ"
+  sh "$HERE/tool.sh" assemble --show user "$REQ"
   exit 0
 fi
 
@@ -70,8 +69,8 @@ else
   fi
   [ -x "$BIN" ] || { echo "   no binary at $BIN" >&2; exit 2; }
   WS=$(mktemp -d) || exit 2
-  python3 "$HERE/assemble.py" --show system "$REQ" > "$WS/system.txt"
-  python3 "$HERE/assemble.py" --show user   "$REQ" > "$WS/user.txt"
+  sh "$HERE/tool.sh" assemble --show system "$REQ" > "$WS/system.txt"
+  sh "$HERE/tool.sh" assemble --show user   "$REQ" > "$WS/user.txt"
   # THROUGH THE ENVIRONMENT, NOT argv. cocolog answers exactly one
   # prolog flag -- `executable' -- so there is no current_prolog_flag(argv, _)
   # to read, and `run FILE... GOAL' takes the LAST argument as the goal.
@@ -82,13 +81,9 @@ else
     run "$HERE/generate.pl" coco_generate \
     || { echo "   the model call failed"; exit 4; }
   CAND="$WS/candidate.pl"
-  python3 -c '
-import json, sys
-d = json.load(open(sys.argv[1]))
-if d.get("verdict") != "code":
-    print(json.dumps(d, indent=1)); sys.exit(5)
-open(sys.argv[2], "w").write(d["files"][0]["content"])
-' "$WS/out.json" "$CAND" || exit 5
+  COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
+  "$BIN" --local run "$HERE/clauses.pl" "$HERE/ask.pl" ak_main \
+    -- candidate "$WS/out.json" "$CAND" || exit 5
 fi
 echo
 

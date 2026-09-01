@@ -70,25 +70,17 @@ if want G0; then
   for f in $FILES; do
     [ -f "$f" ] || fail G0 "$f does not exist"
   done
-  if command -v python3 >/dev/null 2>&1; then
-    HAS=$(GOAL="$GOAL" python3 -c '
-import sys, os
-sys.path.insert(0, os.environ["AGENT"])
-import ccbatch as R
-ks = set()
-for p in sys.argv[1:]:
-    ks |= set(R.heads(p))
-print("yes" if os.environ["GOAL"] + "/0" in ks else "no")
-' $FILES 2>/dev/null)
-    [ "$HAS" = yes ] || fail G0 "no $GOAL/0 -- the CLI names the goal and there is none"
-  fi
+  HAS=$(COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
+        "$BIN" --local run "$HERE/clauses.pl" "$HERE/ask.pl" ak_main \
+        -- goal $FILES "$GOAL" 2>/dev/null)
+  [ "$HAS" = yes ] || fail G0 "no $GOAL/0 -- the CLI names the goal and there is none"
   pass G0 "$NAME reads, and defines $GOAL/0"
 fi
 
 # ---- G1: cocolint --------------------------------------------------------
 if want G1; then
-  if ! command -v python3 >/dev/null 2>&1; then
-    skip G1 "no python3"
+  if false; then
+    skip G1 "unreachable"
   else
     if OUT=$(sh "$HERE/lint.sh" $FILES 2>&1); then
       pass G1 "$(printf '%s' "$OUT" | tail -1)"
@@ -182,15 +174,10 @@ if want G4; then
       # a file that CALLS a library it never declared, which 27-ca.pl does.
       EX=$(sed -n 's/.*existence_error(procedure,\([a-z_$][A-Za-z0-9_]*\)\/\([0-9]*\)).*/\1\/\2/p' \
            "$SCRATCH/run.err" 2>/dev/null | head -1)
-      if [ -n "$EX" ] && [ -f "$HERE/blocklist.json" ] && command -v python3 >/dev/null 2>&1; then
-        OWNER=$(python3 -c '
-import json, sys
-b = json.load(open(sys.argv[1]))
-k = sys.argv[2]
-for m, e in sorted(b["tier2"].items()):
-    if k in e["c"] or k in e["clauses"]:
-        print(m); break
-' "$HERE/blocklist.json" "$EX" 2>/dev/null)
+      if [ -n "$EX" ] && [ -f "$HERE/blocklist.pl" ]; then
+        OWNER=$(COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
+                "$BIN" --local run "$HERE/clauses.pl" "$HERE/ask.pl" ak_main \
+                -- owner "$EX" 2>/dev/null)
         if [ -n "$OWNER" ]; then
           echo "    $EX belongs to library($OWNER), which this checkout has not built."
           [ -f "$ROOT/modules/$OWNER/build.sh" ] && \

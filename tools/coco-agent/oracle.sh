@@ -48,16 +48,18 @@ VISIBLE=$(printf '%s\n' "$OUT" | sed -n 's/^coco_oracle_name \(.*\) \([0-9][0-9]
 
 # DECLARED comes from the same clause reader the linter uses, so the two halves
 # cannot disagree about what a DCG head's arity is.
-DECLARED=$(python3 -c '
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath("'"$HERE"'/x")))
-import ccbatch as R
-ks = set()
-for p in sys.argv[1:]:
-    ks |= set(R.heads(p))
-for k in sorted(ks):
-    print(k)
-' $FILES)
+# DECLARED comes from the same clause reader the linter uses, so the two halves
+# cannot disagree about what a DCG head's arity is. cc_dump prints one
+# tab-separated row per clause -- file, offset, line, column, length, name,
+# arity, kind -- and a DIRECTIVE prints `-' and -1 for the two that matter,
+# which is what the filter drops.
+FL=$(mktemp) || exit 2
+for f in $FILES; do printf '%s\n' "$f"; done > "$FL"
+DECLARED=$(COCO_CC_FILES="$FL" \
+           COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \
+           "$BIN" --local run "$HERE/clauses.pl" cc_dump 2>/dev/null \
+           | awk -F'\t' '$6 != "-" { print $6 "/" $7 }' | sort -u)
+rm -f "$FL"
 
 # A DECLARED EXTENSION POINT IS A COLLISION THAT IS MEANT. library/httpd.pl's
 # `httpd_page(_,_,_) :- fail.' exists so a program can add its own pages, and a
@@ -65,14 +67,12 @@ for k in sorted(ks):
 # vanish from current_predicate/1 -- the oracle is not wrong, it just cannot
 # know the intent. The list comes from blocklist.json, which is where the
 # linter's N1 gets it too, so the two halves cannot drift apart.
-[ -f "$HERE/blocklist.json" ] || python3 "$HERE/build.py" >/dev/null 2>&1
-HOOKS=$(python3 -c '
-import json, sys
-try:
-    print("\n".join(sorted(json.load(open(sys.argv[1]))["hooks"])))
-except Exception:
-    pass
-' "$HERE/blocklist.json")
+[ -f "$HERE/blocklist.pl" ] || sh "$HERE/tool.sh" build >/dev/null 2>&1
+# The list comes from blocklist.pl -- the FACTS, not the JSON -- which is
+# where the linter's N1 gets it too, so the two halves cannot drift apart.
+# `cl_hook(Name, Arity, File).' is one line each, so sed is the whole reader.
+HOOKS=$(sed -n "s/^cl_hook('\\([^']*\\)', \\([0-9-]*\\), .*/\\1\\/\\2/p" \
+        "$HERE/blocklist.pl" 2>/dev/null | sort -u)
 
 bad=0
 for k in $DECLARED; do

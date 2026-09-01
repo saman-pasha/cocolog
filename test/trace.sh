@@ -33,7 +33,7 @@ run_case() {
   total=$((total + 1))
   swi=$(yes '' | timeout 20 "$SWIPL" -q -g "leash(-all), consult('$HERE/trace.pl'), trace, ( $q -> true ; true ), notrace, halt" -t halt 2>&1)
   coco=$(timeout 20 "$COCOLOG" --trace run "$HERE/trace.pl" "( $q -> true ; true )" 2>&1 >/dev/null)
-  if python3 "$HERE/trace-diff.py" "$q" "$swi" "$coco"; then
+  if "$COCOLOG" --local run "$HERE/trace-diff.pl" td_main -- "$q" "$swi" "$coco"; then
     printf 'ok   %s\n' "$q"
   else
     printf 'FAIL %s\n' "$q"
