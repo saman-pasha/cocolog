@@ -60,8 +60,7 @@
 
 %% ---- the program: tutorial 30's plane, six rows, one expression per step ---
 %% THE LOSS IS A DEFINED FUNCTION: a clause `Head ::= Body', used by name in
-%% the step's expression. The step itself is a predicate, because it answers
-%% three things -- two new parameters and a number -- and frees the old.
+%% the step's expression.
 
 loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0).
 
@@ -80,18 +79,21 @@ data(From, N, X, Y) :-
     findall(R, (between(From, To, I), row(I, _, R)), YR),
     X := XR, Y := YR, !.
 
-step(X, Y, W, B, LR, W2, B2, Loss) :-
-    L := loss(X, Y, W, B),
-    Loss := item(L),
-    [GW, GB] := grad(L, [W, B]),
-    W2 := step(W, GW, LR),
-    B2 := step(B, GB, LR),
-    tensor_free(L), tensor_free(GW), tensor_free(GB),
-    tensor_free(W), tensor_free(B).
+%% THE STEP IS A PROCEDURE: a DCG rule whose body is bindings, each run
+%% through `:=', and whose output list is every tensor made inside -- L, GW,
+%% GB. proc/1 runs it and frees those, keeping what the head returns; the
+%% old parameters are the caller's to free. The reader translates `-->' as
+%% it translates any grammar, so nothing is declared for this.
+step(X, Y, W, B, LR, W2, B2, Loss) -->
+    L = loss(X, Y, W, B),
+    Loss = item(L),
+    [GW, GB] = grad(L, [W, B]),
+    W2 = step(W, GW, LR),
+    B2 = step(B, GB, LR).
 
 sgd(0, _, _, W, B, _, W, B, Loss, Loss) :- !.
 sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) :-
-    step(X, Y, W, B, LR, W2, B2, Loss),
+    proc(step(X, Y, W, B, LR, W2, B2, Loss)), free_all([W, B]),
     K1 is K - 1,
     sgd(K1, X, Y, W2, B2, LR, WF, BF, Loss, LossF).
 
@@ -181,3 +183,4 @@ predict :-
     D2 is E2 - E0,
     format("-- read once: executed ~w, pending ~w -- the pending one is the [5,6] leaf~n", [D2, P2]),
     torch_execution(eager).
+

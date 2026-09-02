@@ -71,45 +71,46 @@ layer([W1, B1, Ws, Bs, Wt, Bt]) :-
 parameters(Ps) :- layer(L0), layer(L1), layer(L2), layer(L3), append([L0, L1, L2, L3], Ps), !.
 layers(Ps, [L0, L1, L2, L3]) :- length(L0, 6), length(L1, 6), length(L2, 6), length(L3, 6), append([L0, L1, L2, L3], Ps), !.
 
-%% split(+K, +X, -Kept, -Moved) and join(+K, +Kept, +Moved, -Y): even layers
-%% keep x1 and move x2, odd layers the other way round.
-split(K, X, Kept, Moved) :- ( K mod 2 =:= 0 -> Kept := cols(X, 0, 1), Moved := cols(X, 1, 2) ; Kept := cols(X, 1, 2), Moved := cols(X, 0, 1) ), !.
-join(K, Kept, Moved, Y)  :- ( K mod 2 =:= 0 -> Y := cat([Kept, Moved], 1) ; Y := cat([Moved, Kept], 1) ), !.
+%% split//4 and join//4: even layers keep x1 and move x2, odd layers the other
+%% way round. From here down every predicate that makes tensors is a
+%% PROCEDURE -- a DCG rule of bindings -- and a procedure called inside
+%% another threads what it made up to the caller; proc/1 at the top frees
+%% all of it but what the head returns.
+split(K, X, Kept, Moved) --> { K mod 2 =:= 0 }, !, Kept = cols(X, 0, 1), Moved = cols(X, 1, 2).
+split(_, X, Kept, Moved) --> Kept = cols(X, 1, 2), Moved = cols(X, 0, 1).
+join(K, Kept, Moved, Y)  --> { K mod 2 =:= 0 }, !, Y = cat([Kept, Moved], 1).
+join(_, Kept, Moved, Y)  --> Y = cat([Moved, Kept], 1).
 
 %% scale_shift(+Layer, +Kept, -S, -T): what the conditioner says about the kept coordinate.
-scale_shift([W1, B1, Ws, Bs, Wt, Bt], Kept, S, T) :-
-    H := tanh(Kept matmul W1 + B1),
-    S := tanh(H matmul Ws + Bs), T := H matmul Wt + Bt,
-    tensor_free(H), !.
+scale_shift([W1, B1, Ws, Bs, Wt, Bt], Kept, S, T) -->
+    H = tanh(Kept matmul W1 + B1),
+    S = tanh(H matmul Ws + Bs), T = H matmul Wt + Bt.
 
 %% forward(+Layers, +X, -Z, -LogDet): data to noise, and the log-determinant per point, [N, 1].
-forward(Layers, X, Z, LogDet) :- forward(Layers, 0, X, none, Z, LogDet).
-forward([], _, X, LD, X, LD) :- !.
-forward([L|Ls], K, X, LD, Z, LogDet) :-
+forward(Layers, X, Z, LogDet) --> forward(Layers, 0, X, none, Z, LogDet).
+forward([], _, X, LD, X, LD) --> !.
+forward([L|Ls], K, X, LD, Z, LogDet) -->
     split(K, X, Kept, Moved), scale_shift(L, Kept, S, T),
-    Out := Moved * exp(S) + T,
+    Out = Moved * exp(S) + T,
     join(K, Kept, Out, Y),
-    ( LD == none -> LD2 = S ; LD2 := LD + S, free_all([LD, S]) ),
-    free_all([Kept, Moved, T, Out]), ( K > 0 -> tensor_free(X) ; true ),
-    K1 is K + 1,
+    ( { LD == none } -> { LD2 = S } ; LD2 = LD + S ),
+    { K1 is K + 1 },
     forward(Ls, K1, Y, LD2, Z, LogDet).
 
 %% inverse(+Layers, +Z, -X): noise to data, the layers in reverse.
-inverse(Layers, Z, X) :- reverse(Layers, Rev), inverse(Rev, 3, Z, X).
-inverse([], _, X, X) :- !.
-inverse([L|Ls], K, Y, X) :-
+inverse(Layers, Z, X) --> { reverse(Layers, Rev) }, inverse(Rev, 3, Z, X).
+inverse([], _, X, X) --> !.
+inverse([L|Ls], K, Y, X) -->
     split(K, Y, Kept, Out), scale_shift(L, Kept, S, T),
-    Moved := (Out - T) * exp(- S),
+    Moved = (Out - T) * exp(- S),
     join(K, Kept, Moved, Y2),
-    free_all([Kept, Out, S, T, Moved]), ( K < 3 -> tensor_free(Y) ; true ),
-    K1 is K - 1,
+    { K1 is K - 1 },
     inverse(Ls, K1, Y2, X).
 
 %% nll(+Layers, +X, -L): the mean negative log-likelihood, a one-element tensor.
-nll(Layers, X, L) :-
+nll(Layers, X, L) -->
     forward(Layers, X, Z, LogDet),
-    L := mean(row_sum(Z ^ 2.0) * 0.5 - LogDet) + 1.8378771,      % + log 2pi
-    free_all([Z, LogDet]), !.
+    L = mean(row_sum(Z ^ 2.0) * 0.5 - LogDet) + 1.8378771.      % + log 2pi
 
 %% ---- the three goals ------------------------------------------------------------------------
 
@@ -118,14 +119,14 @@ train :-
     moons(0, 256, X),
     parameters(Ps0), adam_init(Ps0, St0),
     fit(1500, Ps0, St0, X, Ps),
-    layers(Ps, Layers), nll(Layers, X, L), Lv := item(L),
+    layers(Ps, Layers), proc(nll(Layers, X, L)), Lv := item(L),
     format("trained: NLL ~4f nats per point on the training moons~n", [Lv]),
     params_save(t39_realnvp, Ps),
     write(saved), nl.
 
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
-    layers(Ps, Layers), nll(Layers, X, L),
+    layers(Ps, Layers), proc(nll(Layers, X, L)),
     Gs := grad(L, Ps),
     ( K mod 300 =:= 0 -> Lv := item(L), format("   ~w steps to go, NLL ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
@@ -144,7 +145,7 @@ variance(Vs, N, Var) :- sum_list(Vs, S), M is S / N, findall(D, ( member(V, Vs),
 
 test :-
     params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    moons(1000, 256, X), nll(Layers, X, L), Lv := item(L),
+    moons(1000, 256, X), proc(nll(Layers, X, L)), Lv := item(L),
     Rows := list(X), gaussian_nll(Rows, G),
     format("test: the flow's NLL ~4f against a fitted Gaussian's ~4f, on 256 fresh points~n", [Lv, G]),
     ( Lv =< G - 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
@@ -152,9 +153,9 @@ test :-
 predict :-
     torch_seed(2039),
     params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    Z := randn([300, 2]), inverse(Layers, Z, X), Rows := list(X),
+    Z := randn([300, 2]), proc(inverse(Layers, Z, X)), Rows := list(X),
     write('300 points drawn from N(0, I) and run backwards through the flow:'), nl, scatter(Rows),
     findall(x, ( member(P, Rows), near_moon(P) ), Near), length(Near, Nn), Frac is Nn / 300,
     format("   ~2f of them within 0.15 of a moon~n", [Frac]),
-    moons(3000, 2, Two), nll(Layers, Two, L2), L2v := item(L2), Far := [[1.5, 1.5], [-1.5, -1.5]], nll(Layers, Far, L3), L3v := item(L3),
+    moons(3000, 2, Two), proc(nll(Layers, Two, L2)), L2v := item(L2), Far := [[1.5, 1.5], [-1.5, -1.5]], proc(nll(Layers, Far, L3)), L3v := item(L3),
     format("   and it can say how likely a point is: two on the moons at ~2f nats, two far away at ~2f~n", [L2v, L3v]).

@@ -1333,7 +1333,14 @@ written in expressions calls no tensor predicate but `tensor_free`, and
 the tutorials from 31 on do not. A program defines a function of its own
 as a clause, `loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0)`, and
 uses it by name in any expression; or it adds a clause to `expr//2`
-itself, in the grammar's own syntax.
+itself, in the grammar's own syntax. And a PROCEDURE is a DCG rule whose
+body is bindings, `V = E`, each run through `:=`, and whose output list is
+every tensor it made -- `proc(step(X, Y, W, B, LR, W2, B2, Loss))` runs
+it and frees all of that but what the head returns. The reader translates
+`-->` as it translates any grammar, so nothing is declared for it, and a
+procedure called inside another threads its temporaries up to the caller;
+from tutorial 31 on, every forward pass, cell and loss is one, and the
+files hold no `free_all` of their own but for the parameters they thread.
 
 **And ten networks written in it**, tutorials 32 to 41, each the
 architecture in the open rather than a layer of the module: a ResNet

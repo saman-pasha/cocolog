@@ -73,62 +73,64 @@ parameters(Ps) :-
 unpack(Ps, EmbIn, EmbOut, Enc, Dec, Wa, Ua, Va, Wo, Bo) :-
     length(Enc, 9), length(Dec, 9), append([[EmbIn, EmbOut], Enc, Dec, [Wa, Ua, Va, Wo, Bo]], Ps), !.
 
-%% gru(+Cell, +X, +H, -H2): one step. Update gate, reset gate, candidate, blend.
-gru([Wz, Uz, Bz, Wr, Ur, Br, Wn, Un, Bn], X, H, H2) :-
-    Z := sigmoid(X matmul Wz + H matmul Uz + Bz),
-    R := sigmoid(X matmul Wr + H matmul Ur + Br),
-    C := tanh(X matmul Wn + (R * H) matmul Un + Bn),
-    H2 := (1.0 - Z) * H + Z * C,
-    free_all([Z, R, C]), !.
+%% gru(+Cell, +X, +H, -H2): one step. Update gate, reset gate, candidate,
+%% blend -- a PROCEDURE, a DCG rule of four bindings. Everything that makes
+%% tensors from here down is one, and a procedure called inside another
+%% threads what it made up to the caller; proc/1 at the top frees all of it
+%% but what the head returns.
+gru([Wz, Uz, Bz, Wr, Ur, Br, Wn, Un, Bn], X, H, H2) -->
+    Z = sigmoid(X matmul Wz + H matmul Uz + Bz),
+    R = sigmoid(X matmul Wr + H matmul Ur + Br),
+    C = tanh(X matmul Wn + (R * H) matmul Un + Bn),
+    H2 = (1.0 - Z) * H + Z * C.
 
 %% encode(+EmbIn, +Enc, +Ins, -Hs): the source, a step a token; every state kept.
-encode(EmbIn, Enc, Ins, Hs) :-
-    Ins = [In0|_], [N] := shape(In0), H0 := zeros([N, 32]),
-    encode(Ins, EmbIn, Enc, H0, Hs), !.
-encode([], _, _, _, []).
-encode([In|Ins], EmbIn, Enc, H, [H2|Hs]) :-
-    X := index_rows(EmbIn, In), gru(Enc, X, H, H2), tensor_free(X),
+encode(EmbIn, Enc, Ins, Hs) -->
+    { Ins = [In0|_] }, [N] = shape(In0), H0 = zeros([N, 32]),
+    encode(Ins, EmbIn, Enc, H0, Hs).
+encode([], _, _, _, []) --> [].
+encode([In|Ins], EmbIn, Enc, H, [H2|Hs]) -->
+    X = index_rows(EmbIn, In), gru(Enc, X, H, H2),
     encode(Ins, EmbIn, Enc, H2, Hs).
 
 %% attend(+Wa, +Ua, +Va, +Hs, +H, -Ctx, -Weights): additive attention -- a
 %% score per encoder state from tanh(H Wa + Hj Ua) Va, softmaxed across the
 %% five, and the context as the weighted sum. Weights is [N, 5].
-attend(Wa, Ua, Va, Hs, H, Ctx, Weights) :-
-    Q := H matmul Wa,
-    findall(S, ( member(Hj, Hs), S := tanh(Q + Hj matmul Ua) matmul Va ), Scores),
-    Weights := softmax(cat(Scores, 1)),
-    Hs = [H1, H2, H3, H4, H5],
-    Ctx := cols(Weights, 0, 1) * H1 + cols(Weights, 1, 2) * H2 + cols(Weights, 2, 3) * H3 + cols(Weights, 3, 4) * H4 + cols(Weights, 4, 5) * H5,
-    free_all([Q|Scores]), !.
+attend(Wa, Ua, Va, Hs, H, Ctx, Weights) -->
+    Q = H matmul Wa,
+    scores(Hs, Q, Ua, Va, Scores),
+    Weights = softmax(cat(Scores, 1)),
+    { Hs = [H1, H2, H3, H4, H5] },
+    Ctx = cols(Weights, 0, 1) * H1 + cols(Weights, 1, 2) * H2 + cols(Weights, 2, 3) * H3 + cols(Weights, 3, 4) * H4 + cols(Weights, 4, 5) * H5.
+scores([], _, _, _, []) --> [].
+scores([Hj|Hs], Q, Ua, Va, [S|Ss]) --> S = tanh(Q + Hj matmul Ua) matmul Va, scores(Hs, Q, Ua, Va, Ss).
 
 %% decode(+Ps, +Hs, +Feeds, -Logits, -Ws): five steps, each fed the token
 %% Feeds says (teacher forcing) or, when Feeds is `self', its own argmax.
 %% Logits is [N*5, 8] step-major; Ws the five weight tensors.
-decode(Ps, Hs, Feeds, Logits, Ws) :-
-    unpack(Ps, _, EmbOut, _, Dec, Wa, Ua, Va, Wo, Bo),
-    last(Hs, HLast),
-    Hs = [H1|_], [N, _] := shape(H1),
-    ( Feeds == self -> findall(8, between(1, N, _), Starts), First := Starts, Plan = self(First) ; Plan = Feeds ),
+decode(Ps, Hs, Feeds, Logits, Ws) -->
+    { unpack(Ps, _, EmbOut, _, Dec, Wa, Ua, Va, Wo, Bo), last(Hs, HLast), Hs = [H1|_] },
+    [N, _] = shape(H1),
+    ( { Feeds == self } -> { findall(8, between(1, N, _), Starts) }, First = Starts, { Plan = self(First) } ; { Plan = Feeds } ),
     decode_steps(0, Plan, EmbOut, Dec, Wa, Ua, Va, Wo, Bo, Hs, HLast, Ls, Ws),
-    Logits := cat(Ls, 0), free_all(Ls), !.
-decode_steps(5, _, _, _, _, _, _, _, _, _, _, [], []) :- !.
-decode_steps(T, Plan, EmbOut, Dec, Wa, Ua, Va, Wo, Bo, Hs, H, [L|Ls], [W|Ws]) :-
-    ( Plan = self(Feed) -> true ; nth0(T, Plan, Feed) ),
+    Logits = cat(Ls, 0).
+decode_steps(5, _, _, _, _, _, _, _, _, _, _, [], []) --> !.
+decode_steps(T, Plan, EmbOut, Dec, Wa, Ua, Va, Wo, Bo, Hs, H, [L|Ls], [W|Ws]) -->
+    { ( Plan = self(Feed) -> true ; nth0(T, Plan, Feed) ) },
     attend(Wa, Ua, Va, Hs, H, Ctx, W),
-    X := cat([index_rows(EmbOut, Feed), Ctx], 1),
+    X = cat([index_rows(EmbOut, Feed), Ctx], 1),
     gru(Dec, X, H, H2),
-    L := H2 matmul Wo + Bo,
-    ( Plan = self(_) -> Next := argmax(L, 1), Plan2 = self(Next) ; Plan2 = Plan ),
-    free_all([Ctx, X]), ( T > 0 -> tensor_free(H) ; true ),
-    T1 is T + 1,
+    L = H2 matmul Wo + Bo,
+    ( { Plan = self(_) } -> Next = argmax(L, 1), { Plan2 = self(Next) } ; { Plan2 = Plan } ),
+    { T1 is T + 1 },
     decode_steps(T1, Plan2, EmbOut, Dec, Wa, Ua, Va, Wo, Bo, Hs, H2, Ls, Ws).
 
-%% run(+Ps, +Ins, +Feeds, -Logits, -Ws): encoder then decoder.
-run(Ps, Ins, Feeds, Logits, Ws) :-
-    unpack(Ps, EmbIn, _, Enc, _, _, _, _, _, _),
+%% run(+Ps, +Ins, +Feeds, -Logits, -Ws): encoder then decoder; proc(run(...))
+%% frees every state and gate along the way and keeps Logits and the weights.
+run(Ps, Ins, Feeds, Logits, Ws) -->
+    { unpack(Ps, EmbIn, _, Enc, _, _, _, _, _, _) },
     encode(EmbIn, Enc, Ins, Hs),
-    decode(Ps, Hs, Feeds, Logits, Ws),
-    free_all(Hs), !.
+    decode(Ps, Hs, Feeds, Logits, Ws).
 
 %% ---- the three goals --------------------------------------------------------------------------
 
@@ -145,7 +147,7 @@ train :-
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, PsF) :-
     B is K mod 8, nth0(B, Batches, b(Ins, Feeds, Y)),
-    run(Ps, Ins, Feeds, Logits, Ws),
+    proc(run(Ps, Ins, Feeds, Logits, Ws)),
     L := cross_entropy(Logits, Y),
     Gs := grad(L, Ps),
     ( K mod 100 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
@@ -156,7 +158,7 @@ fit(K, Ps, St, Batches, PsF) :-
 
 %% own_accuracy(+Ps, +Ins, +Outs, -Acc): the decoder fed its own output, against the targets.
 own_accuracy(Ps, Ins, Outs, Acc) :-
-    run(Ps, Ins, self, Logits, Ws), free_all(Ws),
+    proc(run(Ps, Ins, self, Logits, Ws)), free_all(Ws),
     findall(Tok, ( member(L, Outs), member(Tok, L) ), Flat),
     accuracy(Logits, Flat, Acc), tensor_free(Logits), !.
 
@@ -170,7 +172,7 @@ test :-
 predict :-
     params_load(t41_seq2seq, Ps),
     batch(2000, 4, Ins, _, _, _),
-    run(Ps, Ins, self, Logits, Ws),
+    proc(run(Ps, Ins, self, Logits, Ws)),
     A := argmax(Logits, 1), Got0 := list(A), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
     forall(between(0, 3, I),
            ( J is 2000 + I, sequence(J, Source, Target),

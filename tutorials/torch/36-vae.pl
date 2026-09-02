@@ -67,26 +67,26 @@ parameters([We, Be, Wm, Bm, Wv, Bv, Wd, Bd, Wo, Bo]) :-
     Wd := parameter(glorot(2, 32)),  Bd := parameter(zeros([1, 32])),      % decoder
     Wo := parameter(glorot(32, 64)), Bo := parameter(zeros([1, 64])), !.
 
-%% encode(+Ps, +X, -Mu, -LogVar) and decode(+Ps, +Z, -Out).
-encode([We, Be, Wm, Bm, Wv, Bv | _], X, Mu, LogVar) :-
-    H := relu(X matmul We + Be),
-    Mu := H matmul Wm + Bm, LogVar := H matmul Wv + Bv,
-    tensor_free(H), !.
-decode([_, _, _, _, _, _, Wd, Bd, Wo, Bo], Z, Out) :-
-    Out := sigmoid(relu(Z matmul Wd + Bd) matmul Wo + Bo), !.
+%% encode//4, decode//3 and loss//4 are PROCEDURES: DCG rules of bindings; a
+%% procedure called inside another threads what it made up to the caller,
+%% and proc/1 at the top frees all of it but what the head returns.
+encode([We, Be, Wm, Bm, Wv, Bv | _], X, Mu, LogVar) -->
+    H = relu(X matmul We + Be),
+    Mu = H matmul Wm + Bm, LogVar = H matmul Wv + Bv.
+decode([_, _, _, _, _, _, Wd, Bd, Wo, Bo], Z, Out) -->
+    Out = sigmoid(relu(Z matmul Wd + Bd) matmul Wo + Bo).
 
 %% loss(+Ps, +X, -L, -Parts): the ELBO, negated: the reconstruction as the
 %% summed bce per picture, and the KL to N(0, I), both averaged over the batch.
-loss(Ps, X, L, recon(Rv)-kl(Kv)) :-
-    [N, _] := shape(X), NegHalfOverN is -0.5 / N,
+loss(Ps, X, L, recon(Rv)-kl(Kv)) -->
+    [N, _] = shape(X), { NegHalfOverN is -0.5 / N },
     encode(Ps, X, Mu, LogVar),
-    Z := Mu + exp(LogVar * 0.5) * randn([N, 2]),                              % the reparameterisation trick
+    Z = Mu + exp(LogVar * 0.5) * randn([N, 2]),                              % the reparameterisation trick
     decode(Ps, Z, Out),
-    Recon := bce(Out, X) * 64.0,
-    KL := sum(1.0 + LogVar - Mu ^ 2.0 - exp(LogVar)) * NegHalfOverN,
-    L := Recon + KL,
-    Rv := item(Recon), Kv := item(KL),
-    free_all([Mu, LogVar, Z, Out, Recon, KL]), !.
+    Recon = bce(Out, X) * 64.0,
+    KL = sum(1.0 + LogVar - Mu ^ 2.0 - exp(LogVar)) * NegHalfOverN,
+    L = Recon + KL,
+    Rv = item(Recon), Kv = item(KL).
 
 %% ---- the three goals -------------------------------------------------------------------
 
@@ -100,7 +100,7 @@ train :-
 
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
-    loss(Ps, X, L, Parts),
+    proc(loss(Ps, X, L, Parts)),
     Gs := grad(L, Ps),
     ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~3f  ~w~n", [K, Lv, Parts]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
@@ -109,12 +109,12 @@ fit(K, Ps, St, X, PsF) :-
     fit(K1, Ps2, St2, X, PsF).
 
 %% reconstruct through the MEAN, no draw: what the network thinks the picture is
-reconstruct(Ps, X, Out) :- encode(Ps, X, Mu, LogVar), decode(Ps, Mu, Out), free_all([Mu, LogVar]), !.
+reconstruct(Ps, X, Out) --> encode(Ps, X, Mu, _), decode(Ps, Mu, Out).
 
 test :-
     params_load(t36_vae, Ps),
     pictures(1000, 24, X, Clean),
-    reconstruct(Ps, X, Out),
+    proc(reconstruct(Ps, X, Out)),
     OL := list(Out), CL := list(Clean),
     findall(x, ( nth0(I, OL, ORow), nth0(I, CL, CRow), nth0(P, ORow, V), nth0(P, CRow, C), ( V > 0.5 -> B = 1.0 ; B = 0.0 ), B =:= C ), Hits),
     length(Hits, H), Acc is H / (24 * 64),
@@ -123,11 +123,11 @@ test :-
 
 predict :-
     params_load(t36_vae, Ps),
-    pictures(2000, 2, X, _), encode(Ps, X, Mu, _), MuL := list(Mu),
+    pictures(2000, 2, X, _), proc(encode(Ps, X, Mu, _)), MuL := list(Mu),
     format("two pictures land at ~w in the latent plane~n", [MuL]),
     write('and a 3x3 walk over it, z1 across, z2 down, each decoded:'), nl, nl,
     forall(member(Z2, [-1.5, 0.0, 1.5]),
            ( forall(member(Z1, [-1.5, 0.0, 1.5]),
-                    ( decode(Ps, [[Z1, Z2]], Out), [Vals] := list(Out), tensor_free(Out),
+                    ( proc(decode(Ps, [[Z1, Z2]], Out)), [Vals] := list(Out), tensor_free(Out),
                       format("   z = (~1f, ~1f)~n", [Z1, Z2]), draw(Vals) )),
              nl )).

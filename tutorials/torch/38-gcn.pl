@@ -78,12 +78,12 @@ parameters([W1, B1, W2, B2]) :-
     W1 := parameter(glorot(34, 16)), B1 := parameter(zeros([1, 16])),
     W2 := parameter(glorot(16, 2)),  B2 := parameter(zeros([1, 2])), !.
 
-%% forward(+Ps, +A, -Out): two graph convolutions; Out is [34, 2], a row per member.
-forward([W1, B1, W2, B2], A, Out) :-
-    X := eye(34),                                           % a member knows only which member it is
-    H := relu(A matmul X matmul W1 + B1),                   % one hop
-    Out := A matmul H matmul W2 + B2,                       % two hops
-    free_all([X, H]), !.
+%% forward(+Ps, +A, -Out): two graph convolutions; Out is [34, 2], a row per
+%% member -- a PROCEDURE, a DCG rule of bindings; proc/1 runs it and frees X and H.
+forward([W1, B1, W2, B2], A, Out) -->
+    X = eye(34),                                           % a member knows only which member it is
+    H = relu(A matmul X matmul W1 + B1),                   % one hop
+    Out = A matmul H matmul W2 + B2.                       % two hops
 
 %% ---- the three goals ------------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ train :-
 
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, A, Y, PsF) :-
-    forward(Ps, A, Out),
+    proc(forward(Ps, A, Out)),
     L := cross_entropy(index_rows(Out, [0, 33]), Y),         % the loss at the two labelled rows only
     Gs := grad(L, Ps),
     ( K mod 50 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss at the two labelled members ~4f~n", [K, Lv]) ; true ),
@@ -108,22 +108,21 @@ fit(K, Ps, St, A, Y, PsF) :-
     fit(K1, Ps2, St2, A, Y, PsF).
 
 %% answers(+Ps, -Got, -Probs): every member's faction as the network sees it.
-answers(Ps, Got, Probs) :-
-    normalised(A), forward(Ps, A, Out),
-    P := softmax(Out), Probs := list(P),
-    Am := argmax(Out, 1), Got0 := list(Am), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
-    free_all([Out, P, Am]), !.
+answers(Ps, Got, Probs) -->
+    { normalised(A) }, forward(Ps, A, Out),
+    Probs = list(softmax(Out)),
+    Got0 = list(argmax(Out, 1)), { findall(G, ( member(G0, Got0), G is round(G0) ), Got) }.
 
 test :-
     params_load(t38_gcn, Ps),
-    answers(Ps, Got, _),
+    proc(answers(Ps, Got, _)),
     findall(x, ( nth0(I, Got, G), M is I + 1, faction(M, G) ), Hits), length(Hits, H), Acc is H / 34,
     format("test: ~w of 34 members placed in their faction, accuracy ~3f, from two labels~n", [H, Acc]),
     ( Acc >= 0.85 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
 predict :-
     params_load(t38_gcn, Ps),
-    answers(Ps, Got, Probs),
+    proc(answers(Ps, Got, Probs)),
     forall(member(F, [0, 1]),
            ( findall(M, ( nth0(I, Got, F), M is I + 1 ), Ms),
              ( F =:= 0 -> Who = 'with the instructor (member 1)' ; Who = 'with the administrator (member 34)' ),

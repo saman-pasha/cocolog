@@ -72,23 +72,25 @@ parameters([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, Wc, Bc])
     W2 := parameter(glorot(32, 16)),         B2 := parameter(zeros([1, 16])),
     Wc := parameter(glorot(16, 2)),          Bc := parameter(zeros([1, 2])), !.
 
-%% head(+Q, +K, +V, +Mask, +H, -O): one head's attention, columns H*8 to H*8+8.
-head(Q, K, V, Mask, H, O) :-
-    F is H * 8, T is F + 8,
-    O := softmax(cols(Q, F, T) matmul transpose(cols(K, F, T)) * 0.3535534 + Mask) matmul cols(V, F, T), !.
+%% head(+Q, +K, +V, +Mask, +H, -O): one head's attention, columns H*8 to
+%% H*8+8 -- a PROCEDURE, a DCG rule; called inside forward, it threads what
+%% it made up to the caller.
+head(Q, K, V, Mask, H, O) -->
+    { F is H * 8, T is F + 8 },
+    O = softmax(cols(Q, F, T) matmul transpose(cols(K, F, T)) * 0.3535534 + Mask) matmul cols(V, F, T).
 
-%% forward(+Ps, +Ids, +PosIds, +Mask, -Logits): the block, then the head.
-forward([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, Wc, Bc], Ids, PosIds, Mask, Logits) :-
-    E := index_rows(Emb, Ids) + index_rows(Pos, PosIds),        % [N*6, 16]  what each position is, and where
-    X1 := layer_norm(E) * G1 + Bt1,                              % pre-norm
-    Q := X1 matmul Wq, K := X1 matmul Wk, V := X1 matmul Wv,
+%% forward(+Ps, +Ids, +PosIds, +Mask, -Logits): the block, then the head -- a
+%% PROCEDURE; proc/1 runs it and frees everything it and the heads made but Logits.
+forward([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, Wc, Bc], Ids, PosIds, Mask, Logits) -->
+    E = index_rows(Emb, Ids) + index_rows(Pos, PosIds),        % [N*6, 16]  what each position is, and where
+    X1 = layer_norm(E) * G1 + Bt1,                              % pre-norm
+    Q = X1 matmul Wq, K = X1 matmul Wk, V = X1 matmul Wv,
     head(Q, K, V, Mask, 0, O0), head(Q, K, V, Mask, 1, O1),
-    H := E + cat([O0, O1], 1) matmul Wo,                         % attention, and its residual
-    X2 := layer_norm(H) * G2 + Bt2,
-    Ff := H + relu(X2 matmul W1 + B1) matmul W2 + B2,            % feed-forward, and its residual
-    Pooled := mean_rows(Ff, 6),                                  % [N, 16]  the sequence as one row
-    Logits := Pooled matmul Wc + Bc,
-    free_all([E, X1, Q, K, V, O0, O1, H, X2, Ff, Pooled]), !.
+    H = E + cat([O0, O1], 1) matmul Wo,                         % attention, and its residual
+    X2 = layer_norm(H) * G2 + Bt2,
+    Ff = H + relu(X2 matmul W1 + B1) matmul W2 + B2,            % feed-forward, and its residual
+    Pooled = mean_rows(Ff, 6),                                  % [N, 16]  the sequence as one row
+    Logits = Pooled matmul Wc + Bc.
 
 %% ---- the three goals ----------------------------------------------------------------
 
@@ -101,7 +103,7 @@ train :-
     parameters(Ps0), adam_init(Ps0, St0),
     fit(800, Ps0, St0, Batches, Mask, Ps),
     Batches = [batch(Ids0, PosIds0, _)|_], sequences(0, 64, _, _, Classes0),
-    forward(Ps, Ids0, PosIds0, Mask, Logits), accuracy(Logits, Classes0, Acc), tensor_free(Logits),
+    proc(forward(Ps, Ids0, PosIds0, Mask, Logits)), accuracy(Logits, Classes0, Acc), tensor_free(Logits),
     format("trained: accuracy on the first training batch ~2f~n", [Acc]),
     params_save(t34_encoder, Ps),
     write(saved), nl.
@@ -109,7 +111,7 @@ train :-
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, Mask, PsF) :-
     B is K mod 16, nth0(B, Batches, batch(Ids, PosIds, Y)),
-    forward(Ps, Ids, PosIds, Mask, Logits),
+    proc(forward(Ps, Ids, PosIds, Mask, Logits)),
     L := cross_entropy(Logits, Y),
     Gs := grad(L, Ps),
     ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
@@ -122,7 +124,7 @@ test :-
     params_load(t34_encoder, Ps),
     sequences(1000, 32, Ids, PosIds, Classes),
     block_mask(32, 6, Mask),
-    forward(Ps, Ids, PosIds, Mask, Logits), accuracy(Logits, Classes, Acc),
+    proc(forward(Ps, Ids, PosIds, Mask, Logits)), accuracy(Logits, Classes, Acc),
     format("test accuracy ~2f on 32 fresh sequences~n", [Acc]),
     ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
@@ -130,7 +132,7 @@ predict :-
     params_load(t34_encoder, Ps),
     sequences(2000, 4, Ids, PosIds, Classes),
     block_mask(4, 6, Mask),
-    forward(Ps, Ids, PosIds, Mask, Logits),
+    proc(forward(Ps, Ids, PosIds, Mask, Logits)),
     A := argmax(Logits, 1), Got := list(A),
     forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
            ( J is 2000 + I, sequence(J, Tokens, _), Gi is round(G),

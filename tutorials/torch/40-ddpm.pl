@@ -79,9 +79,10 @@ parameters([Temb, W1, B1, W2, B2, W3, B3]) :-
     W2 := parameter(glorot(128, 128)), B2 := parameter(zeros([1, 128])),
     W3 := parameter(glorot(128, 2)),  B3 := parameter(zeros([1, 2])), !.
 
-%% predict_noise(+Ps, +Xt, +TIds, -Eps): the point and its step's embedding, side by side.
-predict_noise([Temb, W1, B1, W2, B2, W3, B3], Xt, TIds, Eps) :-
-    Eps := relu(relu(cat([Xt, index_rows(Temb, TIds)], 1) matmul W1 + B1) matmul W2 + B2) matmul W3 + B3, !.
+%% predict_noise(+Ps, +Xt, +TIds, -Eps): the point and its step's embedding,
+%% side by side -- a PROCEDURE, a DCG rule of one binding, run by proc/1.
+predict_noise([Temb, W1, B1, W2, B2, W3, B3], Xt, TIds, Eps) -->
+    Eps = relu(relu(cat([Xt, index_rows(Temb, TIds)], 1) matmul W1 + B1) matmul W2 + B2) matmul W3 + B3.
 
 %% ---- the three goals --------------------------------------------------------------------------
 
@@ -101,7 +102,7 @@ fit(K, Ps, St, SA, SOM, PsF) :-
     findall(T, ( between(1, 256, I), J is K * 1009 + I, noise(J, R), T is truncate(abs(R) * 50) ), Ts), TIds := Ts,
     Eps := randn([256, 2]),
     Xt := X0 * index_rows(SA, TIds) + Eps * index_rows(SOM, TIds),
-    predict_noise(Ps, Xt, TIds, Pred),
+    proc(predict_noise(Ps, Xt, TIds, Pred)),
     L := mse(Pred, Eps),
     Gs := grad(L, Ps),
     ( K mod 1000 =:= 0 -> Lv := item(L), format("   ~w steps to go, mse of the predicted noise ~4f~n", [K, Lv]) ; true ),
@@ -119,7 +120,7 @@ sample(Ps, N, Watch, X) :-
 unstep(-1, _, _, _, X, X) :- !.
 unstep(T, Ps, N, Watch, Xt, X) :-
     findall(T, between(1, N, _), Ts), TIds := Ts,
-    predict_noise(Ps, Xt, TIds, Eps),
+    proc(predict_noise(Ps, Xt, TIds, Eps)),
     beta(T, B), alpha(T, A), abar(T, Ab),
     Coef is B / sqrt(1.0 - Ab), Inv is 1.0 / sqrt(A), Sigma is sqrt(B),
     (   T > 0

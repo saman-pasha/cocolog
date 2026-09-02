@@ -62,22 +62,23 @@ parameters([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, G3, Bt3,
     G3 := parameter(ones([1, 32])), Bt3 := parameter(zeros([1, 32])),
     Wout := parameter(glorot(32, 28)), Bout := parameter(zeros([1, 28])), !.
 
-head(Q, K, V, Mask, H, O) :-
-    F is H * 16, T is F + 16,
-    O := softmax(cols(Q, F, T) matmul transpose(cols(K, F, T)) * 0.25 + Mask) matmul cols(V, F, T), !.
+%% head//6 and forward//5 are PROCEDURES: DCG rules of bindings, proc/1 runs
+%% forward and frees everything it and the heads made but Logits.
+head(Q, K, V, Mask, H, O) -->
+    { F is H * 16, T is F + 16 },
+    O = softmax(cols(Q, F, T) matmul transpose(cols(K, F, T)) * 0.25 + Mask) matmul cols(V, F, T).
 
 %% forward(+Ps, +Ids, +PosIds, +Mask, -Logits): logits at every position, [N*8, 28].
-forward([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, G3, Bt3, Wout, Bout], Ids, PosIds, Mask, Logits) :-
-    E := index_rows(Emb, Ids) + index_rows(Pos, PosIds),
-    X1 := layer_norm(E) * G1 + Bt1,
-    Q := X1 matmul Wq, K := X1 matmul Wk, V := X1 matmul Wv,
+forward([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, G3, Bt3, Wout, Bout], Ids, PosIds, Mask, Logits) -->
+    E = index_rows(Emb, Ids) + index_rows(Pos, PosIds),
+    X1 = layer_norm(E) * G1 + Bt1,
+    Q = X1 matmul Wq, K = X1 matmul Wk, V = X1 matmul Wv,
     head(Q, K, V, Mask, 0, O0), head(Q, K, V, Mask, 1, O1),
-    H := E + cat([O0, O1], 1) matmul Wo,
-    X2 := layer_norm(H) * G2 + Bt2,
-    Ff := H + gelu(X2 matmul W1 + B1) matmul W2 + B2,
-    Xf := layer_norm(Ff) * G3 + Bt3,
-    Logits := Xf matmul Wout + Bout,
-    free_all([E, X1, Q, K, V, O0, O1, H, X2, Ff, Xf]), !.
+    H = E + cat([O0, O1], 1) matmul Wo,
+    X2 = layer_norm(H) * G2 + Bt2,
+    Ff = H + gelu(X2 matmul W1 + B1) matmul W2 + B2,
+    Xf = layer_norm(Ff) * G3 + Bt3,
+    Logits = Xf matmul Wout + Bout.
 
 %% ---- the three goals ----------------------------------------------------------
 
@@ -88,7 +89,7 @@ train :-
     parameters(Ps0), adam_init(Ps0, St0),
     fit(800, Ps0, St0, Batches, Mask, Ps),
     Batches = [batch(Ids0, PosIds0, _)|_], windows(0, 292, 5, 64, _, _, Ts0),
-    forward(Ps, Ids0, PosIds0, Mask, Logits), accuracy(Logits, Ts0, Acc), tensor_free(Logits),
+    proc(forward(Ps, Ids0, PosIds0, Mask, Logits)), accuracy(Logits, Ts0, Acc), tensor_free(Logits),
     format("trained: next-character accuracy on the first batch ~2f~n", [Acc]),
     params_save(t35_gpt, Ps),
     write(saved), nl.
@@ -96,7 +97,7 @@ train :-
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, Mask, PsF) :-
     B is K mod 16, nth0(B, Batches, batch(Ids, PosIds, Y)),
-    forward(Ps, Ids, PosIds, Mask, Logits),
+    proc(forward(Ps, Ids, PosIds, Mask, Logits)),
     L := cross_entropy(Logits, Y),
     Gs := grad(L, Ps),
     ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
@@ -110,7 +111,7 @@ test :-
     text(T), atom_length(T, Len), Hi is Len - 9,
     windows(300, Hi, 4242, 64, Ids, PosIds, Ts),
     causal_mask(64, 8, Mask),
-    forward(Ps, Ids, PosIds, Mask, Logits), accuracy(Logits, Ts, Acc),
+    proc(forward(Ps, Ids, PosIds, Mask, Logits)), accuracy(Logits, Ts, Acc),
     format("test next-character accuracy ~2f on 64 windows the training never saw~n", [Acc]),
     ( Acc >= 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
@@ -122,7 +123,7 @@ generate(Ps, Mask, Context, N, Out) :-
     length(Context, Len), Skip is Len - 8, length(Head, Skip), append(Head, Last8, Context),
     findall(I, ( member(C, Last8), id(C, I) ), In), Ids := In,
     PosIds := [0, 1, 2, 3, 4, 5, 6, 7],
-    forward(Ps, Ids, PosIds, Mask, Logits),
+    proc(forward(Ps, Ids, PosIds, Mask, Logits)),
     Next := argmax(rows(Logits, 7, 8), 1), [G] := list(Next), tensor_free(Next), tensor_free(Logits),
     Gi is round(G), id(Char, Gi),
     append(Context, [Char], Context2),

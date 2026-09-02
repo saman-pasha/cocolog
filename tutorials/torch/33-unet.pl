@@ -69,17 +69,18 @@ parameters([K1, B1, K2, B2, K3, B3, K4, B4, K5, B5]) :-
     K4 := parameter(glorot(108, 4)),  B4 := parameter(zeros([1, 4])),     % 8 + 4 -> 4 at 8x8, after the skip
     K5 := parameter(glorot(36, 1)),   B5 := parameter(zeros([1, 1])), !.  % 4 -> 1, the mask
 
-%% forward(+Ps, +Constants, +X, -Out): down, across, and up with the skip.
-forward([K1, B1, K2, B2, K3, B3, K4, B4, K5, B5], c(S8, S4, P8, U8), X, Out) :-
-    E1 := relu(conv2d(X, K1, S8) + B1),                 % [N*64, 4]   encoder, level 1
-    E2 := relu(conv2d(E1, K2, S8) + B2),                % [N*64, 4]
-    Pd := pool2(E2, P8),                                % [N*16, 4]   down
-    Bn := relu(conv2d(Pd, K3, S4) + B3),                % [N*16, 8]   the bottleneck, at 4x4
-    Up := up2(Bn, U8),                                  % [N*64, 8]   up
-    Sk := cat([Up, E2], 1),                             % [N*64, 12]  THE SKIP: what came up, beside what was there
-    D1 := relu(conv2d(Sk, K4, S8) + B4),                % [N*64, 4]   decoder
-    Out := sigmoid(conv2d(D1, K5, S8) + B5),            % [N*64, 1]   a probability per pixel
-    free_all([E1, E2, Pd, Bn, Up, Sk, D1]), !.
+%% forward(+Ps, +Constants, +X, -Out): down, across, and up with the skip --
+%% a PROCEDURE, a DCG rule of bindings; proc/1 runs it and frees everything
+%% it made but Out.
+forward([K1, B1, K2, B2, K3, B3, K4, B4, K5, B5], c(S8, S4, P8, U8), X, Out) -->
+    E1 = relu(conv2d(X, K1, S8) + B1),                 % [N*64, 4]   encoder, level 1
+    E2 = relu(conv2d(E1, K2, S8) + B2),                % [N*64, 4]
+    Pd = pool2(E2, P8),                                % [N*16, 4]   down
+    Bn = relu(conv2d(Pd, K3, S4) + B3),                % [N*16, 8]   the bottleneck, at 4x4
+    Up = up2(Bn, U8),                                  % [N*64, 8]   up
+    Sk = cat([Up, E2], 1),                             % [N*64, 12]  THE SKIP: what came up, beside what was there
+    D1 = relu(conv2d(Sk, K4, S8) + B4),                % [N*64, 4]   decoder
+    Out = sigmoid(conv2d(D1, K5, S8) + B5).            % [N*64, 1]   a probability per pixel
 
 %% ---- the three goals -------------------------------------------------------------
 
@@ -96,7 +97,7 @@ train :-
 
 fit(0, Ps, _, _, _, _, Ps) :- !.
 fit(K, Ps, St, Cs, X, Y, PsF) :-
-    forward(Ps, Cs, X, Out),
+    proc(forward(Ps, Cs, X, Out)),
     L := bce(Out, Y),
     Gs := grad(L, Ps),
     ( K mod 25 =:= 0 -> Lv := item(L), format("   ~w steps to go, bce ~4f~n", [K, Lv]) ; true ),
@@ -108,7 +109,7 @@ fit(K, Ps, St, Cs, X, Y, PsF) :-
 %% iou(+Ps, +Cs, +X, +Y, -IoU): the mask thresholded at 0.5 against the
 %% truth, intersection over union, averaged over the pictures.
 iou(Ps, Cs, X, Y, IoU) :-
-    forward(Ps, Cs, X, Out),
+    proc(forward(Ps, Cs, X, Out)),
     OL := list(Out), YL := list(Y), tensor_free(Out),
     findall(P-T, ( nth0(I, OL, [P]), nth0(I, YL, [T]) ), Pairs),
     length(Pairs, Len), N is Len // 64,
@@ -130,7 +131,7 @@ predict :-
     constants(Cs),
     params_load(t33_unet, Ps),
     pictures(2000, 2, X, _),
-    forward(Ps, Cs, X, Out),
+    proc(forward(Ps, Cs, X, Out)),
     OL := list(Out),
     forall(between(0, 1, I),
            ( J is 2000 + I, picture(J, Pixels, Mask),

@@ -28,6 +28,13 @@
 square_error(A, B) ::= (A - B) ^ 2.0.
 expr(double(A), T) --> expr(A * 2.0, T).
 
+%% and a PROCEDURE: a DCG rule of bindings, its output list the handles it made
+normalise(A, Z) -->
+    Mu = row_mean(A),
+    C = A - Mu,
+    Sd = sqrt(row_mean(C ^ 2.0)),
+    Z = C / Sd.
+
 main :-
     write('1. an expression is a list of goals, one per node, in dependency order'), nl,
     tensor_from_list([[1.0, 2.0], [3.0, 4.0]], X),
@@ -89,6 +96,12 @@ main :-
     Db := list(double(X) + 1.0), must('double(X) + 1.0, a clause of expr//2 in this file', Db, [[3.0, 5.0], [7.0, 9.0]]),
     catch(( _ := nosuch(X), Unknown = accepted ), error(domain_error(tensor_expression, _), _), Unknown = refused),
     must('a form nothing defines is refused', Unknown, refused),
+
+    write('9. a procedure: a DCG rule, its bindings V = E, its list what it made'), nl,
+    phrase(normalise(X, Z0), Made), length(Made, NMade),
+    must('normalise made four tensors: Mu, C, Sd and Z', NMade, 4),
+    proc(normalise(X, Z)), ZL := list(Z),
+    must('proc(normalise(X, Z)) answers Z and frees the other three', ZL, [[-1.0, 1.0], [-1.0, 1.0]]),
     write(done), nl.
 
 %% `must/3' IS WHY THESE FILES ARE TESTS. Every claim a lesson makes is a

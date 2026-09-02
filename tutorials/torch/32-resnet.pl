@@ -73,15 +73,16 @@ parameters([K0, B0, K1a, B1a, K1b, B1b, K2a, B2a, K2b, B2b, Wd, Bd]) :-
     K2b := parameter(glorot(72, 8)),  B2b := parameter(zeros([1, 8])),
     Wd := parameter(glorot(8, 3)),    Bd := parameter(zeros([1, 3])), !.
 
-%% forward(+Ps, +Constants, +X, -Logits): the network, top to bottom.
-forward([K0, B0, K1a, B1a, K1b, B1b, K2a, B2a, K2b, B2b, Wd, Bd], c(S8, S4, P8), X, Logits) :-
-    H0 := relu(conv2d(X, K0, S8) + B0),                                          % stem: 1 -> 8 channels
-    H1 := relu(H0 + conv2d(relu(conv2d(H0, K1a, S8) + B1a), K1b, S8) + B1b),     % residual block at 8x8
-    Pd := pool2(H1, P8),                                                          % 8x8 -> 4x4
-    H2 := relu(Pd + conv2d(relu(conv2d(Pd, K2a, S4) + B2a), K2b, S4) + B2b),     % residual block at 4x4
-    G := mean_rows(H2, 16),                                                       % global average pool: [N, 8]
-    Logits := G matmul Wd + Bd,
-    free_all([H0, H1, Pd, H2, G]), !.
+%% forward(+Ps, +Constants, +X, -Logits): the network, top to bottom -- a
+%% PROCEDURE, a DCG rule of bindings; proc/1 runs it and frees everything it
+%% made but Logits.
+forward([K0, B0, K1a, B1a, K1b, B1b, K2a, B2a, K2b, B2b, Wd, Bd], c(S8, S4, P8), X, Logits) -->
+    H0 = relu(conv2d(X, K0, S8) + B0),                                          % stem: 1 -> 8 channels
+    H1 = relu(H0 + conv2d(relu(conv2d(H0, K1a, S8) + B1a), K1b, S8) + B1b),     % residual block at 8x8
+    Pd = pool2(H1, P8),                                                          % 8x8 -> 4x4
+    H2 = relu(Pd + conv2d(relu(conv2d(Pd, K2a, S4) + B2a), K2b, S4) + B2b),     % residual block at 4x4
+    G = mean_rows(H2, 16),                                                       % global average pool: [N, 8]
+    Logits = G matmul Wd + Bd.
 
 %% ---- the three goals ------------------------------------------------------------
 
@@ -91,14 +92,14 @@ train :-
     pictures(0, 48, X, Classes), one_hot(Classes, 3, Y),
     parameters(Ps0), adam_init(Ps0, St0),
     fit(80, Ps0, St0, Cs, X, Y, Ps),
-    forward(Ps, Cs, X, Logits), accuracy(Logits, Classes, Acc), tensor_free(Logits),
+    proc(forward(Ps, Cs, X, Logits)), accuracy(Logits, Classes, Acc), tensor_free(Logits),
     format("trained: accuracy on the 48 training pictures ~2f~n", [Acc]),
     params_save(t32_resnet, Ps),
     write(saved), nl.
 
 fit(0, Ps, _, _, _, _, Ps) :- !.
 fit(K, Ps, St, Cs, X, Y, PsF) :-
-    forward(Ps, Cs, X, Logits),
+    proc(forward(Ps, Cs, X, Logits)),
     L := cross_entropy(Logits, Y),
     Gs := grad(L, Ps),
     ( K mod 20 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
@@ -111,7 +112,7 @@ test :-
     constants(Cs),
     params_load(t32_resnet, Ps),
     pictures(1000, 30, X, Classes),
-    forward(Ps, Cs, X, Logits), accuracy(Logits, Classes, Acc),
+    proc(forward(Ps, Cs, X, Logits)), accuracy(Logits, Classes, Acc),
     format("test accuracy ~2f on 30 fresh pictures~n", [Acc]),
     ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
@@ -119,7 +120,7 @@ predict :-
     constants(Cs),
     params_load(t32_resnet, Ps),
     pictures(2000, 3, X, Classes),
-    forward(Ps, Cs, X, Logits),
+    proc(forward(Ps, Cs, X, Logits)),
     A := argmax(Logits, 1), Got := list(A),
     forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
            ( J is 2000 + I, picture(J, _, Pixels), draw(Pixels),

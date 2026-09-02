@@ -59,6 +59,26 @@
 %% the handles a program NAMED; the intermediates inside an expression are
 %% freed by `:=' itself.
 %%
+%% AND A PROCEDURE -- a DCG rule whose body is `Var = Expr' bindings, each
+%% run through `:=', and whose output list is EVERY TENSOR MADE INSIDE:
+%%
+%%     step(X, Y, W, B, LR, W2, B2, Loss) -->
+%%         L = loss(X, Y, W, B),
+%%         Loss = item(L),
+%%         [GW, GB] = grad(L, [W, B]),
+%%         W2 = step(W, GW, LR),
+%%         B2 = step(B, GB, LR).
+%%
+%%     proc(step(X, Y, W, B, LR, W2, B2, Loss))
+%%
+%% The reader translates the rule as it translates any grammar: `V = E' is
+%% the nonterminal =//2, this library's, which binds V through `:=' and emits
+%% the handles it made; a procedure called inside another threads its
+%% temporaries up to the caller; a plain goal goes in braces, { format(...) }.
+%% proc/1 runs the rule and frees every emitted handle that is not in the
+%% head: L, GW and GB here; W2 and B2 are returned, X, Y, W and B came in.
+%% No directive, no operator, nothing to declare -- `-->' is the reader's own.
+%%
 %% THE PREDICATES: sgd_step/4, adam_init/2,3, adam_step/6, params_save/2,
 %% params_load/2, one_hot/3, block_mask/3, causal_mask/3, shifts/3,
 %% pool_matrix/3, up_matrix/3, accuracy/3, free_all/1 -- documented at each.
@@ -212,6 +232,38 @@ T := Expr :-
              append(_, [R], Args), integer(R), R \== T ),
            tensor_free(R)).
 '$te_answer_form'(E) :- nonvar(E), ( E = stats -> true ; E =.. [F|_], memberchk(F, [list, item, shape, reduce, grad, split, force]) ).
+
+%% ---- procedures: a DCG rule, its output the handles it made ----------------------
+%% =//2 is the binding nonterminal: `V = E' in a rule body is `V := E', and
+%% the integers V holds afterwards -- a handle, or a list of them from grad
+%% or split -- are emitted into the rule's list.
+%% What it emits: the handles of a tensor made, or of the tensors grad, split
+%% and force answer -- never the integers shape, item, reduce or stats
+%% answer, which only look like handles.
+'='(V, E, S0, S) :-
+    V := E,
+    (   '$te_answer_form'(E)
+    ->  ( E =.. [F|_], memberchk(F, [grad, split, force]) -> '$te_handles'(V, Hs) ; Hs = [] )
+    ;   '$te_handles'(V, Hs) ),
+    append(Hs, S, S0).
+
+%% proc(+Goal): run the procedure Goal names -- a DCG rule of that name with
+%% two more arguments -- and free every handle it emitted that does not
+%% appear in Goal afterwards: what was made and not returned.
+proc(Goal) :-
+    phrase(Goal, Made), !,
+    '$te_handles'(Goal, Kept),
+    forall(( member(H, Made), \+ memberchk(H, Kept) ), tensor_free(H)).
+
+%% '$te_handles'(+Term, -Hs): every integer in Term, at any depth -- a
+%% handle is an integer, and a head or an answer may hold them in lists.
+'$te_handles'(T, Hs) :- '$te_handles'(T, [], Hs0), sort(Hs0, Hs).
+'$te_handles'(V, Acc, Acc) :- var(V), !.
+'$te_handles'(I, Acc, [I|Acc]) :- integer(I), !.
+'$te_handles'(T, Acc, Hs) :- compound(T), !, T =.. [_|Args], '$te_handles_list'(Args, Acc, Hs).
+'$te_handles'(_, Acc, Acc).
+'$te_handles_list'([], Acc, Acc).
+'$te_handles_list'([A|As], Acc, Hs) :- '$te_handles'(A, Acc, Acc1), '$te_handles_list'(As, Acc1, Hs).
 
 
 '$te_run'([]).
