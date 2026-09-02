@@ -49,7 +49,7 @@ and every run agrees with the last.
 | 25-char-lm | a character-level language model, trained on cocolog itself |
 | 26-char-transformer | the same model as a transformer, and what that does and does not buy |
 | 27-induction | where attention actually wins, and the two-layer circuit it needs |
-| 28-source-lm | a character model trained on cocolog's own source |
+| 28-source-lm | a character model trained on cocolog's own source; `heavy/1` adds cocolint's source, raises the cap, and frees the lists it builds with `free_list/2` |
 | 29-sgd-by-hand | the training loop written in Prolog: tensor_grad/3, tensor_step/4, and weights handed to a model |
 
 One cocolog property every file here respects: `run` CONSULTS the file

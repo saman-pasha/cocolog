@@ -210,6 +210,73 @@ test :-
     format("uniform would be ~w%~n", [Uni]),
     write(done), nl.
 
+%% ---- heavy: more source, the linter's included, and the lists freed ----
+%%
+%% THE SAME MODEL ON MORE OF THE SAME DIALECT. cocolint -- tools/coco-agent's
+%% clauses.pl, lint.pl, blocklist.pl and the rest -- is 258 KB of cocolog
+%% written for cocolog, half again what the default corpus holds, so it joins
+%% the corpus here and the cap goes up: heavy(300000) trains on five times the
+%% text `train' does. Not one of the goals the runner drives; it is a workload
+%% for a GPU, and test/torch-replay.sh's neighbour on the Colab T4.
+%%
+%% THE TRANSIENT LISTS ARE FREED. Three hundred thousand codes become three
+%% hundred thousand ids become a hundred thousand windows of thirty-two, and
+%% every one of those is a Prolog list this engine can only reclaim by
+%% backtracking. So the whole build runs inside free_list/2, whose double
+%% negation gives the heap back on the way out, and what has to survive --
+%% two tensor handles, the count and the vocabulary size, four integers --
+%% leaves through an assert. The tensors are process state and outlive the
+%% scope; the lists do not.
+%%
+%%   ./cocolog run tutorials/torch/28-source-lm.pl "heavy(60000)"
+%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), torch_execution(graph), heavy(300000)"
+:- dynamic('$cs_heavy'/4).
+
+cs_sources_heavy(Files) :-
+    cs_sources(F0),
+    expand_file_name('tools/coco-agent/*.pl', G0), sort(G0, G),
+    append(F0, G, Files).
+
+%% the builder: the corpus as one code list, capped
+cs_heavy_build(Cap, Codes) :-
+    cs_sources_heavy(Files),
+    cs_read_all(Files, Codes0),
+    cs_take(Cap, Codes0, Codes).
+
+%% the consumer: ids, windows, tensors -- and the four numbers out
+cs_heavy_use(Codes) :-
+    cs_vocab(Codes, Vocab, V),
+    cs_ids(Codes, Vocab, Ids),
+    cs_windows(Ids, Xs, Ys, N),
+    tensor_from_list(Xs, X),
+    tensor_from_list(Ys, Y),
+    assertz('$cs_heavy'(X, Y, N, V)).
+
+heavy(Cap) :-
+    torch_seed(28),
+    cs_sources_heavy(Files), length(Files, NF),
+    retractall('$cs_heavy'(_, _, _, _)),
+    free_list(cs_heavy_build(Cap), cs_heavy_use),
+    '$cs_heavy'(X, Y, N, V),
+    cs_split(N, NTrain), Held is N - NTrain,
+    cs_spec(V, Spec),
+    cs_epochs(E), cs_batch(B), cs_lr(LR),
+    tensor_rows(X, 0, NTrain, XTr), tensor_rows(Y, 0, NTrain, YTr),
+    tensor_rows(X, NTrain, N, XTe), tensor_rows(Y, NTrain, N, YTe),
+    format("heavy: ~w files, the first ~w bytes, ~w windows over ~w characters, holding out ~w~n",
+           [NF, Cap, N, V, Held]),
+    model_new(Spec, M),
+    model_params(M, P), length(P, NP),
+    model_train(M, XTr, YTr, [epochs(E), batch(B), lr(LR), optimiser(adam),
+                              loss(nll), shuffle(true), final_loss(L)]),
+    model_evaluate(M, XTe, YTe, accuracy, A),
+    Pct is truncate(A * 1000 + 0.5) / 10.0,
+    Uniform is log(V),
+    torch_current_device(D), torch_execution(Mode),
+    format("heavy: ~w parameters on ~w under ~w: final nll ~4f (uniform ~4f), held-out accuracy ~w%~n",
+           [NP, D, Mode, L, Uniform, Pct]),
+    write(done), nl.
+
 %% ---- generation ------------------------------------------------------
 %%
 %% SAMPLED, NOT ARGMAXED. An argmax model writes one file for ever; the
