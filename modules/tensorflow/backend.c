@@ -37,8 +37,8 @@
 #define TF_SLOTS 4096
 #define TF_MAXIN 8
 #define TF_MAXDIM 8
-#define TF_MAXLEAF 256
-#define TF_MAXNODE 2048
+#define TF_MAXLEAF 4096
+#define TF_MAXNODE 8192
 #define TF_MAXENTRY 4096
 
 /* THE DESIGN, SECOND DRAFT. The first built the graph one predicate at a
@@ -90,7 +90,7 @@ typedef struct {
 typedef struct {
   int64_t leaves[TF_MAXLEAF]; int nleaves;
   int64_t nodes[TF_MAXNODE]; int nnodes;
-  char key[65536]; size_t klen;
+  char key[1048576]; size_t klen;
 } Closure;
 
 typedef struct {

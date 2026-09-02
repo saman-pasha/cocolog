@@ -39,24 +39,41 @@ at every run, and a leaf read twice would not be one leaf.
 `tensor_step/4` answers a new leaf, so a step never drags the history
 behind it.
 
-## What it costs, measured
+## What it costs, measured, and the bar it does not meet
 
-The first draft built the graph one predicate at a time and ran a session
-per read: eager execution done badly, and quadratic in the steps — 5 s for
-20 steps of tutorial 31's fit, 82 s for 100, 360 s for 200, on the Colab
-VM, since every step made the graph longer and `TF_AddGradients` walks it
-each call. The second draft is the one above, TensorFlow's own idea of a
-graph, and the same fit takes 3 s for 200 steps, start-up included —
-about 8 ms a step, three session runs — and tutorial 32's ResNet trains
-in 74 s. Three refinements it needed on the way, each found by a run
-that failed: a node keeps its structure after it has a value only when a
-parameter lies under it, or an optimiser's chain of moments holds every
-step before it alive and the handle table fills; the shape of a recorded
-node comes from a rule per operation rather than from compiling its
-prefix, or recording alone compiles thousands of operations; and the keys
-are hashed before they are compared. The first draft was the wrong design
-and the owner said so; this README keeps the numbers of both so that the
-reason stays legible.
+The owner's bar for a second backend is plain: a tutorial under
+TensorFlow must finish within 1.5 times the seconds torch took for it on
+the same T4. **It does not meet it, yet.** On the Colab VM, two by two,
+each within its budget: 34 took 35 s of 32, 35 41 s of 39, 40 71 s of
+69, 37 160 s of 158, 38 10 s of 8, 36 19 s of 17, 41 49 s of 47, 39 63 s
+of 62, 32 11 s of 9, 33 13 s of 11 -- every one over, by a little, at a
+GPU utilisation near zero. What it does meet: the gate, GREEN on all 43
+checks; and quality, since 32's ResNet trained to test accuracy 1.00 and
+33's U-Net to IoU 0.917 on this library, the same files, when given the
+time (77 s and 239 s on the build before the step became a boundary).
+
+The road here was three wrong drafts, each found by a run. The first
+built the graph one predicate at a time and ran a session per read:
+quadratic in the steps, 360 s for 200 steps of tutorial 31's fit. The
+second keyed and compiled closures, but forced every step's result at
+once -- twenty session runs a step for a transformer -- and let an
+optimiser's moments hold every step before them alive, until the handle
+table filled forty steps into 32. The third, this one: a step is recorded
+and marked a parameter, the next loss's one run computes all the new
+parameters and moments together, the gradient is the second run; a node
+keeps its structure only while a parameter lies under it; shapes come by
+rule; keys are hashed; and `allow_growth` is set, so TensorFlow holds
+185 MiB at rest and at most 420 MiB through the tutorials instead of the
+whole card -- the 13.8 GB the owner read, rightly, as the sign of a
+problem, was the allocator's habit hiding the graph's growth. Tutorial
+31's fit: 200 steps in 4 s.
+
+What remains, with the card idle, is dispatch: two session runs a step
+over tiny tensors, and the recording of a few hundred nodes a step
+through the grammar. The next measurement to take is how many of those
+runs are replays and how many compile, per step of 32, which the VM ran
+out of time for; that number says whether the key is stable across steps
+or the bar is a property of sessions themselves.
 
 ## What is here
 
