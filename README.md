@@ -193,7 +193,7 @@ export TORCH_LIB="/usr/local/lib"
 (On Linux with the pip `torch` package, the last three are not needed —
 everything asks Python where the package lives.)
 
-Build ZiguratIP first — plain `make` in its checkout; a C++11 compiler is all
+Build ZiguratIP first — plain `make` in its checkout; a C++17 compiler is all
 it asks — which fills `ZiguratIP/home` with its libraries, its `parsi`
 compiler and the server binary. Then:
 
