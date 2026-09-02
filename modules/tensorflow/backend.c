@@ -220,7 +220,9 @@ int64_t tfb_from_ints(const int64_t* data, int64_t n) {
 }
 static int64_t ivec(const int64_t* v, int n) { int64_t shape[1] = { n }; return slot_from_tensor(tensor_i32(v, shape, 1), 1); }
 static int64_t iscalar(int64_t v) { TF_Tensor* t = TF_AllocateTensor(TF_INT32, 0, 0, 4); *(int32_t*) TF_TensorData(t) = (int32_t) v; return slot_from_tensor(t, 1); }
-static int64_t fscalar(double v) { TF_Tensor* t = TF_AllocateTensor(TF_FLOAT, 0, 0, 4); *(float*) TF_TensorData(t) = (float) v; return slot_from_tensor(t, 1); }
+/* a scalar OPERAND is data, fed each run and keyed by its shape alone -- a learning rate
+ * that changes every step must not change the key, or every step compiles anew */
+static int64_t fscalar(double v) { TF_Tensor* t = TF_AllocateTensor(TF_FLOAT, 0, 0, 4); *(float*) TF_TensorData(t) = (float) v; return slot_from_tensor(t, 0); }
 static int64_t with_free(int64_t result, int64_t tmp) { if (tmp > 0) tfb_free(tmp); return result; }
 
 /* ---- the closure of a node, and its key ------------------------------------- */
