@@ -45,7 +45,7 @@ moon(I, [X, Y]) :-
 moons(From, N, X) :-
     To is From + N - 1,
     findall(P, ( between(From, To, I), moon(I, P) ), Rows),
-    tensor_from_list(Rows, X), !.
+    X := Rows, !.
 
 %% near_moon(+Point): within 0.15 of either moon's arc.
 near_moon([X, Y]) :-
@@ -118,7 +118,7 @@ train :-
     moons(0, 256, X),
     parameters(Ps0), adam_init(Ps0, St0),
     fit(1500, Ps0, St0, X, Ps),
-    layers(Ps, Layers), nll(Layers, X, L), tensor_item(L, Lv),
+    layers(Ps, Layers), nll(Layers, X, L), Lv := item(L),
     format("trained: NLL ~4f nats per point on the training moons~n", [Lv]),
     params_save(t39_realnvp, Ps),
     write(saved), nl.
@@ -126,8 +126,8 @@ train :-
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
     layers(Ps, Layers), nll(Layers, X, L),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 300 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, NLL ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 300 =:= 0 -> Lv := item(L), format("   ~w steps to go, NLL ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
     tensor_free(L),
     K1 is K - 1,
@@ -144,17 +144,17 @@ variance(Vs, N, Var) :- sum_list(Vs, S), M is S / N, findall(D, ( member(V, Vs),
 
 test :-
     params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    moons(1000, 256, X), nll(Layers, X, L), tensor_item(L, Lv),
-    tensor_to_list(X, Rows), gaussian_nll(Rows, G),
+    moons(1000, 256, X), nll(Layers, X, L), Lv := item(L),
+    Rows := list(X), gaussian_nll(Rows, G),
     format("test: the flow's NLL ~4f against a fitted Gaussian's ~4f, on 256 fresh points~n", [Lv, G]),
     ( Lv =< G - 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
 predict :-
     torch_seed(2039),
     params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    Z := randn([300, 2]), inverse(Layers, Z, X), tensor_to_list(X, Rows),
+    Z := randn([300, 2]), inverse(Layers, Z, X), Rows := list(X),
     write('300 points drawn from N(0, I) and run backwards through the flow:'), nl, scatter(Rows),
     findall(x, ( member(P, Rows), near_moon(P) ), Near), length(Near, Nn), Frac is Nn / 300,
     format("   ~2f of them within 0.15 of a moon~n", [Frac]),
-    moons(3000, 2, Two), nll(Layers, Two, L2), tensor_item(L2, L2v), tensor_from_list([[1.5, 1.5], [-1.5, -1.5]], Far), nll(Layers, Far, L3), tensor_item(L3, L3v),
+    moons(3000, 2, Two), nll(Layers, Two, L2), L2v := item(L2), Far := [[1.5, 1.5], [-1.5, -1.5]], nll(Layers, Far, L3), L3v := item(L3),
     format("   and it can say how likely a point is: two on the moons at ~2f nats, two far away at ~2f~n", [L2v, L3v]).

@@ -48,7 +48,7 @@ windows(Lo, Hi, Salt, N, Ids, PosIds, Targets) :-
     findall(X, ( member(O, Offsets), between(0, 7, P), Q is O + P, nth0(Q, All, X) ), In),
     findall(Y, ( member(O, Offsets), between(1, 8, P), Q is O + P, nth0(Q, All, Y) ), Targets),
     findall(P, ( member(_, Offsets), between(0, 7, P) ), Pos),
-    tensor_from_list(In, Ids), tensor_from_list(Pos, PosIds), !.
+    Ids := In, PosIds := Pos, !.
 
 %% ---- the network ------------------------------------------------------------
 
@@ -98,8 +98,8 @@ fit(K, Ps, St, Batches, Mask, PsF) :-
     B is K mod 16, nth0(B, Batches, batch(Ids, PosIds, Y)),
     forward(Ps, Ids, PosIds, Mask, Logits),
     L := cross_entropy(Logits, Y),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 200 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.003, Ps2, St2),
     free_all([Logits, L]),
     K1 is K - 1,
@@ -120,10 +120,10 @@ test :-
 generate(_, _, Context, 0, Context) :- !.
 generate(Ps, Mask, Context, N, Out) :-
     length(Context, Len), Skip is Len - 8, length(Head, Skip), append(Head, Last8, Context),
-    findall(I, ( member(C, Last8), id(C, I) ), In), tensor_from_list(In, Ids),
-    tensor_from_list([0, 1, 2, 3, 4, 5, 6, 7], PosIds),
+    findall(I, ( member(C, Last8), id(C, I) ), In), Ids := In,
+    PosIds := [0, 1, 2, 3, 4, 5, 6, 7],
     forward(Ps, Ids, PosIds, Mask, Logits),
-    Next := argmax(rows(Logits, 7, 8), 1), tensor_to_list(Next, [G]), tensor_free(Next), tensor_free(Logits),
+    Next := argmax(rows(Logits, 7, 8), 1), [G] := list(Next), tensor_free(Next), tensor_free(Logits),
     Gi is round(G), id(Char, Gi),
     append(Context, [Char], Context2),
     N1 is N - 1,

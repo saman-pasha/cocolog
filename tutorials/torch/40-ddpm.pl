@@ -41,7 +41,7 @@ ring(From, N, X) :-
     To is From + N - 1,
     findall([Px, Py], ( between(From, To, I), noise(I, R1), A is R1 * 3.14159265, J is I + 7919, noise(J, R2), Rad is 1.0 + 0.05 * R2,
                         Px is Rad * cos(A), Py is Rad * sin(A) ), Rows),
-    tensor_from_list(Rows, X), !.
+    X := Rows, !.
 
 angle(X, Y, A) :- R is sqrt(X * X + Y * Y), ( R < 1.0e-9 -> A = 0.0 ; C is max(-1.0, min(1.0, X / R)), A0 is acos(C), ( Y >= 0 -> A = A0 ; A is -A0 ) ), !.
 on_ring(Rows, Fraction, Sectors) :-
@@ -68,8 +68,8 @@ product([A|As], P) :- product(As, P0), P is A * P0.
 
 %% tables(-SA, -SOM): [50, 1] constants, sqrt(abar_t) and sqrt(1 - abar_t).
 tables(SA, SOM) :-
-    findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(Ab) ), L1), tensor_from_list(L1, SA),
-    findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(1.0 - Ab) ), L2), tensor_from_list(L2, SOM), !.
+    findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(Ab) ), L1), SA := L1,
+    findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(1.0 - Ab) ), L2), SOM := L2, !.
 
 %% ---- the network: eps from (x_t, t) ------------------------------------------------------
 
@@ -98,13 +98,13 @@ train :-
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, SA, SOM, PsF) :-
     From is K * 256, ring(From, 256, X0),
-    findall(T, ( between(1, 256, I), J is K * 1009 + I, noise(J, R), T is truncate(abs(R) * 50) ), Ts), tensor_from_list(Ts, TIds),
+    findall(T, ( between(1, 256, I), J is K * 1009 + I, noise(J, R), T is truncate(abs(R) * 50) ), Ts), TIds := Ts,
     Eps := randn([256, 2]),
     Xt := X0 * index_rows(SA, TIds) + Eps * index_rows(SOM, TIds),
     predict_noise(Ps, Xt, TIds, Pred),
     L := mse(Pred, Eps),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 1000 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, mse of the predicted noise ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 1000 =:= 0 -> Lv := item(L), format("   ~w steps to go, mse of the predicted noise ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.001, Ps2, St2),
     free_all([X0, TIds, Eps, Xt, Pred, L]),
     K1 is K - 1,
@@ -114,11 +114,11 @@ fit(K, Ps, St, SA, SOM, PsF) :-
 %% backwards; Watch is a list of steps at which to draw the crowd.
 sample(Ps, N, Watch, X) :-
     X49 := randn([N, 2]),
-    ( member(49, Watch) -> write('   at t = 49, pure noise:'), nl, tensor_to_list(X49, R49), scatter(R49) ; true ),
+    ( member(49, Watch) -> write('   at t = 49, pure noise:'), nl, R49 := list(X49), scatter(R49) ; true ),
     unstep(49, Ps, N, Watch, X49, X), !.
 unstep(-1, _, _, _, X, X) :- !.
 unstep(T, Ps, N, Watch, Xt, X) :-
-    findall(T, between(1, N, _), Ts), tensor_from_list(Ts, TIds),
+    findall(T, between(1, N, _), Ts), TIds := Ts,
     predict_noise(Ps, Xt, TIds, Eps),
     beta(T, B), alpha(T, A), abar(T, Ab),
     Coef is B / sqrt(1.0 - Ab), Inv is 1.0 / sqrt(A), Sigma is sqrt(B),
@@ -126,14 +126,14 @@ unstep(T, Ps, N, Watch, Xt, X) :-
     ->  Xn := (Xt - Eps * Coef) * Inv + randn([N, 2]) * Sigma
     ;   Xn := (Xt - Eps * Coef) * Inv ),
     free_all([TIds, Eps, Xt]),
-    ( member(T, Watch), T < 49 -> format("   at t = ~w:~n", [T]), tensor_to_list(Xn, Rows), scatter(Rows) ; true ),
+    ( member(T, Watch), T < 49 -> format("   at t = ~w:~n", [T]), Rows := list(Xn), scatter(Rows) ; true ),
     T1 is T - 1,
     unstep(T1, Ps, N, Watch, Xn, X).
 
 test :-
     torch_seed(1040),
     params_load(t40_ddpm, Ps),
-    sample(Ps, 256, [], X), tensor_to_list(X, Rows),
+    sample(Ps, 256, [], X), Rows := list(X),
     on_ring(Rows, Fraction, Sectors),
     format("test: 256 samples, ~2f within 0.15 of the ring, ~w of 12 sectors reached~n", [Fraction, Sectors]),
     ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).

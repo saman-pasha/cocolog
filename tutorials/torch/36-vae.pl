@@ -52,7 +52,7 @@ pictures(From, N, X, Clean) :-
     To is From + N - 1,
     findall(Ps, ( between(From, To, I), picture(I, Ps, _) ), XR),
     findall(Cs, ( between(From, To, I), picture(I, _, Cs) ), CR),
-    tensor_from_list(XR, X), tensor_from_list(CR, Clean), !.
+    X := XR, Clean := CR, !.
 
 draw(Values) :-
     forall(between(0, 7, Y),
@@ -78,14 +78,14 @@ decode([_, _, _, _, _, _, Wd, Bd, Wo, Bo], Z, Out) :-
 %% loss(+Ps, +X, -L, -Parts): the ELBO, negated: the reconstruction as the
 %% summed bce per picture, and the KL to N(0, I), both averaged over the batch.
 loss(Ps, X, L, recon(Rv)-kl(Kv)) :-
-    tensor_shape(X, [N, _]), NegHalfOverN is -0.5 / N,
+    [N, _] := shape(X), NegHalfOverN is -0.5 / N,
     encode(Ps, X, Mu, LogVar),
     Z := Mu + exp(LogVar * 0.5) * randn([N, 2]),                              % the reparameterisation trick
     decode(Ps, Z, Out),
     Recon := bce(Out, X) * 64.0,
     KL := sum(1.0 + LogVar - Mu ^ 2.0 - exp(LogVar)) * NegHalfOverN,
     L := Recon + KL,
-    tensor_item(Recon, Rv), tensor_item(KL, Kv),
+    Rv := item(Recon), Kv := item(KL),
     free_all([Mu, LogVar, Z, Out, Recon, KL]), !.
 
 %% ---- the three goals -------------------------------------------------------------------
@@ -101,8 +101,8 @@ train :-
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
     loss(Ps, X, L, Parts),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 200 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, loss ~3f  ~w~n", [K, Lv, Parts]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~3f  ~w~n", [K, Lv, Parts]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
     tensor_free(L),
     K1 is K - 1,
@@ -115,7 +115,7 @@ test :-
     params_load(t36_vae, Ps),
     pictures(1000, 24, X, Clean),
     reconstruct(Ps, X, Out),
-    tensor_to_list(Out, OL), tensor_to_list(Clean, CL),
+    OL := list(Out), CL := list(Clean),
     findall(x, ( nth0(I, OL, ORow), nth0(I, CL, CRow), nth0(P, ORow, V), nth0(P, CRow, C), ( V > 0.5 -> B = 1.0 ; B = 0.0 ), B =:= C ), Hits),
     length(Hits, H), Acc is H / (24 * 64),
     format("test pixel accuracy of the reconstruction ~3f on 24 fresh pictures~n", [Acc]),
@@ -123,11 +123,11 @@ test :-
 
 predict :-
     params_load(t36_vae, Ps),
-    pictures(2000, 2, X, _), encode(Ps, X, Mu, _), tensor_to_list(Mu, MuL),
+    pictures(2000, 2, X, _), encode(Ps, X, Mu, _), MuL := list(Mu),
     format("two pictures land at ~w in the latent plane~n", [MuL]),
     write('and a 3x3 walk over it, z1 across, z2 down, each decoded:'), nl, nl,
     forall(member(Z2, [-1.5, 0.0, 1.5]),
            ( forall(member(Z1, [-1.5, 0.0, 1.5]),
-                    ( decode(Ps, [[Z1, Z2]], Out), tensor_to_list(Out, [Vals]), tensor_free(Out),
+                    ( decode(Ps, [[Z1, Z2]], Out), [Vals] := list(Out), tensor_free(Out),
                       format("   z = (~1f, ~1f)~n", [Z1, Z2]), draw(Vals) )),
              nl )).

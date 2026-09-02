@@ -58,7 +58,7 @@ sequences(From, N, Ids, PosIds, Classes) :-
     findall(C, ( between(From, To, I), sequence(I, _, C) ), Classes),
     findall(T, ( between(From, To, I), sequence(I, Ts, _), member(T, Ts) ), IdList),
     findall(P, ( between(From, To, _), between(0, 5, P) ), PosList),
-    tensor_from_list(IdList, Ids), tensor_from_list(PosList, PosIds), !.
+    Ids := IdList, PosIds := PosList, !.
 
 %% ---- the network -------------------------------------------------------------------
 %% D = 16, two heads of 8, the feed-forward 32 wide, six positions.
@@ -111,8 +111,8 @@ fit(K, Ps, St, Batches, Mask, PsF) :-
     B is K mod 16, nth0(B, Batches, batch(Ids, PosIds, Y)),
     forward(Ps, Ids, PosIds, Mask, Logits),
     L := cross_entropy(Logits, Y),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 200 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
     free_all([Logits, L]),
     K1 is K - 1,
@@ -131,7 +131,7 @@ predict :-
     sequences(2000, 4, Ids, PosIds, Classes),
     block_mask(4, 6, Mask),
     forward(Ps, Ids, PosIds, Mask, Logits),
-    tensor_argmax(Logits, 1, A), tensor_to_list(A, Got),
+    A := argmax(Logits, 1), Got := list(A),
     forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
            ( J is 2000 + I, sequence(J, Tokens, _), Gi is round(G),
              answer(Gi, GA), answer(C, CA),

@@ -52,9 +52,9 @@ sequence(I, Source, Target) :-
 batch(From, N, Ins, Outs, Feeds, Y) :-
     To is From + N - 1,
     findall(S-T, ( between(From, To, I), sequence(I, S, T) ), Pairs),
-    findall(In, ( between(0, 4, P), findall(Tok, ( member(S-_, Pairs), nth0(P, S, Tok) ), L), tensor_from_list(L, In) ), Ins),
+    findall(In, ( between(0, 4, P), findall(Tok, ( member(S-_, Pairs), nth0(P, S, Tok) ), L), In := L ), Ins),
     findall(L, ( between(0, 4, P), findall(Tok, ( member(_-T, Pairs), nth0(P, T, Tok) ), L) ), Outs),
-    findall(Feed, ( between(0, 4, P), ( P =:= 0 -> findall(8, member(_, Pairs), L) ; P0 is P - 1, nth0(P0, Outs, L) ), tensor_from_list(L, Feed) ), Feeds),
+    findall(Feed, ( between(0, 4, P), ( P =:= 0 -> findall(8, member(_, Pairs), L) ; P0 is P - 1, nth0(P0, Outs, L) ), Feed := L ), Feeds),
     findall(Tok, ( member(L, Outs), member(Tok, L) ), Flat), one_hot(Flat, 8, Y), !.
 
 %% ---- the networks ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ gru([Wz, Uz, Bz, Wr, Ur, Br, Wn, Un, Bn], X, H, H2) :-
 
 %% encode(+EmbIn, +Enc, +Ins, -Hs): the source, a step a token; every state kept.
 encode(EmbIn, Enc, Ins, Hs) :-
-    Ins = [In0|_], tensor_shape(In0, [N]), H0 := zeros([N, 32]),
+    Ins = [In0|_], [N] := shape(In0), H0 := zeros([N, 32]),
     encode(Ins, EmbIn, Enc, H0, Hs), !.
 encode([], _, _, _, []).
 encode([In|Ins], EmbIn, Enc, H, [H2|Hs]) :-
@@ -107,8 +107,8 @@ attend(Wa, Ua, Va, Hs, H, Ctx, Weights) :-
 decode(Ps, Hs, Feeds, Logits, Ws) :-
     unpack(Ps, _, EmbOut, _, Dec, Wa, Ua, Va, Wo, Bo),
     last(Hs, HLast),
-    Hs = [H1|_], tensor_shape(H1, [N, _]),
-    ( Feeds == self -> findall(8, between(1, N, _), Starts), tensor_from_list(Starts, First), Plan = self(First) ; Plan = Feeds ),
+    Hs = [H1|_], [N, _] := shape(H1),
+    ( Feeds == self -> findall(8, between(1, N, _), Starts), First := Starts, Plan = self(First) ; Plan = Feeds ),
     decode_steps(0, Plan, EmbOut, Dec, Wa, Ua, Va, Wo, Bo, Hs, HLast, Ls, Ws),
     Logits := cat(Ls, 0), free_all(Ls), !.
 decode_steps(5, _, _, _, _, _, _, _, _, _, _, [], []) :- !.
@@ -147,8 +147,8 @@ fit(K, Ps, St, Batches, PsF) :-
     B is K mod 8, nth0(B, Batches, b(Ins, Feeds, Y)),
     run(Ps, Ins, Feeds, Logits, Ws),
     L := cross_entropy(Logits, Y),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 100 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 100 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
     free_all([Logits, L|Ws]),
     K1 is K - 1,
@@ -171,7 +171,7 @@ predict :-
     params_load(t41_seq2seq, Ps),
     batch(2000, 4, Ins, _, _, _),
     run(Ps, Ins, self, Logits, Ws),
-    A := argmax(Logits, 1), tensor_to_list(A, Got0), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
+    A := argmax(Logits, 1), Got0 := list(A), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
     forall(between(0, 3, I),
            ( J is 2000 + I, sequence(J, Source, Target),
              findall(Tok, ( between(0, 4, P), Q is P * 4 + I, nth0(Q, Got, Tok) ), Answer),
@@ -179,5 +179,5 @@ predict :-
              format("   ~w  ->  ~w  (~w)~n", [Source, Answer, Verdict]) )),
     nl, write('   the attention of the first sequence, a row per output step, a column per input position:'), nl,
     forall(nth0(T, Ws, W),
-           ( tensor_to_list(W, [Row|_]),
+           ( [Row|_] := list(W),
              format("   step ~w:", [T]), forall(member(V, Row), format(" ~2f", [V])), nl )).

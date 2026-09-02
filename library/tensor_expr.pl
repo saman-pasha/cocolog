@@ -43,6 +43,20 @@
 %%   pool2(A, P)  up2(A, U)        2x2 average pooling and nearest upsampling, with pool_matrix/3 and up_matrix/3
 %%   cross_entropy(Logits, OneHot) bce(P, Y)  mse(P, Y)     each a one-element tensor, the mean over rows
 %%
+%% AND THE ANSWERS -- the forms that ask about a tensor rather than make one.
+%% They stand OUTERMOST on the right of `:=', and what they answer is a
+%% Prolog term, never freed: answer//2 is their grammar, beside expr//2.
+%%
+%%   L := list(E)              tensor_to_list        V := item(E)          tensor_item
+%%   S := shape(E)             tensor_shape          V := reduce(mean, E)  tensor_reduce: sum mean max min std, a NUMBER
+%%   Gs := grad(E, Ps)         tensor_grad: Ps a list of parameter handles, Gs one gradient each
+%%   Tr-Te := split(E, N)      tensor_train_test     T := force(E)         tensor_force, and the handle
+%%   S := stats                tensor_graph_stats
+%%
+%% Freeing is the one thing left as a goal: tensor_free/1 and free_all/1 for
+%% the handles a program NAMED; the intermediates inside an expression are
+%% freed by `:=' itself.
+%%
 %% THE PREDICATES: sgd_step/4, adam_init/2,3, adam_step/6, params_save/2,
 %% params_load/2, one_hot/3, block_mask/3, causal_mask/3, shifts/3,
 %% pool_matrix/3, up_matrix/3, accuracy/3, free_all/1 -- documented at each.
@@ -156,16 +170,38 @@ expr(E, _) --> { throw(error(domain_error(tensor_expression, E), tensor_expressi
 '$te_arith'(div, A, B, C) :- C is A / B.
 '$te_arith'(pow, A, B, C) :- C is A ** B.
 
+%% ---- the answers: what asks about a tensor ------------------------------------
+%% answer(+Form, -Answer)//: the outermost form of a `:=' whose right side
+%% asks rather than makes. The tensor it asks about is an expression, run
+%% first; the answer is a term, and the driver leaves it alone.
+
+answer(list(A), L)         --> expr(A, TA), [tensor_to_list(TA, L)].
+answer(item(A), V)         --> expr(A, TA), [tensor_item(TA, V)].
+answer(shape(A), S)        --> expr(A, TA), [tensor_shape(TA, S)].
+answer(reduce(Op, A), V)   --> expr(A, TA), [tensor_reduce(Op, TA, V)].
+answer(grad(A, Ps), Gs)    --> expr(A, TA), [tensor_grad(TA, Ps, Gs)].
+answer(split(A, N), Tr-Te) --> expr(A, TA), [tensor_train_test(TA, N, Tr, Te)].
+answer(force(A), T)        --> expr(A, T), [tensor_force(T)].
+answer(stats, S)           --> [tensor_graph_stats(S)].
+
+'$te_answer_goal'(tensor_to_list). '$te_answer_goal'(tensor_item). '$te_answer_goal'(tensor_shape).
+'$te_answer_goal'(tensor_reduce).  '$te_answer_goal'(tensor_grad). '$te_answer_goal'(tensor_train_test).
+'$te_answer_goal'(tensor_force).   '$te_answer_goal'(tensor_graph_stats).
+
 %% ---- the driver ----------------------------------------------------------------
-%% T := Expr: make the tensor Expr names, and free every intermediate. Every
-%% goal the grammar emits ends in its result, which is how the driver knows
-%% what it made; a handle that came IN is never freed.
+%% T := Expr: make the tensor Expr names -- or, when Expr is an answer form,
+%% answer it -- and free every intermediate. Every goal the grammar emits
+%% ends in its result, which is how the driver knows what it made; a handle
+%% that came IN is never freed, and neither is an answer.
 
 T := Expr :-
-    phrase(expr(Expr, T), Goals), !,
+    ( '$te_answer_form'(Expr) -> phrase(answer(Expr, T), Goals) ; phrase(expr(Expr, T), Goals) ), !,
     '$te_run'(Goals),
-    forall(( member(G, Goals), G =.. Args, append(_, [R], Args), integer(R), R \== T ),
+    forall(( member(G, Goals), G =.. [F|Args], \+ '$te_answer_goal'(F),
+             append(_, [R], Args), integer(R), R \== T ),
            tensor_free(R)).
+'$te_answer_form'(E) :- nonvar(E), ( E = stats -> true ; E =.. [F|_], memberchk(F, [list, item, shape, reduce, grad, split, force]) ).
+
 
 '$te_run'([]).
 '$te_run'([G|Gs]) :- call(G), '$te_run'(Gs).

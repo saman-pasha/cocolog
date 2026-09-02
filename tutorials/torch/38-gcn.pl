@@ -70,7 +70,7 @@ normalised(A) :-
     findall(Row, ( between(1, 34, I), degree(I, Di),
                    findall(V, ( between(1, 34, J), degree(J, Dj),
                                 ( ( I =:= J ; linked(I, J) ) -> V is 1.0 / sqrt(Di * Dj) ; V = 0.0 ) ), Row) ), Rows),
-    tensor_from_list(Rows, A), !.
+    A := Rows, !.
 
 %% ---- the network ------------------------------------------------------------------------
 
@@ -100,8 +100,8 @@ fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, A, Y, PsF) :-
     forward(Ps, A, Out),
     L := cross_entropy(index_rows(Out, [0, 33]), Y),         % the loss at the two labelled rows only
-    tensor_grad(L, Ps, Gs),
-    ( K mod 50 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, loss at the two labelled members ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 50 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss at the two labelled members ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.01, Ps2, St2),
     free_all([Out, L]),
     K1 is K - 1,
@@ -110,8 +110,8 @@ fit(K, Ps, St, A, Y, PsF) :-
 %% answers(+Ps, -Got, -Probs): every member's faction as the network sees it.
 answers(Ps, Got, Probs) :-
     normalised(A), forward(Ps, A, Out),
-    P := softmax(Out), tensor_to_list(P, Probs),
-    tensor_argmax(Out, 1, Am), tensor_to_list(Am, Got0), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
+    P := softmax(Out), Probs := list(P),
+    Am := argmax(Out, 1), Got0 := list(Am), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
     free_all([Out, P, Am]), !.
 
 test :-

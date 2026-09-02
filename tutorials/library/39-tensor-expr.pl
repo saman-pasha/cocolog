@@ -67,6 +67,17 @@ main :-
     tensor_grad(Loss, [A], [GA]), sgd_step([A], [GA], 0.5, [A2]),
     tensor_to_list(A2, A2L),
     must('one SGD step of 0.5 on (a - 3)^2 from 1', A2L, [3.0]),
+
+    write('7. the answers: what asks about a tensor stands outermost, and is a term'), nl,
+    V := item(mean(X * 2.0)), must('item(mean(X * 2.0))', V, 5.0),
+    Sh := shape(X matmul W), must('shape(X matmul W)', Sh, [2, 1]),
+    Ls := list(X - 1.0), must('list(X - 1.0)', Ls, [[0.0, 1.0], [2.0, 3.0]]),
+    Rd := reduce(max, X), must('reduce(max, X), a number', Rd, 4.0),
+    B := parameter([[1.0], [1.0]]), [GB] := grad(sum(X matmul B), [B]), GBL := list(GB),
+    must('grad(sum(X matmul B), [B]) is the column sums', GBL, [[4.0], [6.0]]),
+    Tr-Te := split(X, 1), TrL := list(Tr), TeL := list(Te), must('split(X, 1)', TrL-TeL, [[1.0, 2.0]]-[[3.0, 4.0]]),
+    catch(( _ := item(X) + 1.0, Inside = accepted ), error(domain_error(tensor_expression, _), _), Inside = refused),
+    must('an answer form inside an expression is refused', Inside, refused),
     write(done), nl.
 
 %% `must/3' IS WHY THESE FILES ARE TESTS. Every claim a lesson makes is a

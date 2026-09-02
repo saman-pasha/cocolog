@@ -12,7 +12,7 @@
 %% one [N*64, C] tensor, and conv2d/3 from library(tensor_expr) is nine
 %% shifted matmuls over it, with the shift matrices built once by shifts/3
 %% and passed in. Nothing here is a layer of the torch module -- the whole
-%% network is tensor expressions, and tensor_grad/3 differentiates it.
+%% network is tensor expressions, and `Gs := grad(L, Ps)' differentiates it.
 %%
 %%   train    48 pictures, Adam, 80 steps; the parameters saved as t32_resnet
 %%   test     30 fresh pictures, accuracy at least 0.9
@@ -48,7 +48,7 @@ pictures(From, N, X, Classes) :-
     To is From + N - 1,
     findall(C, ( between(From, To, I), picture(I, C, _) ), Classes),
     findall([V], ( between(From, To, I), picture(I, _, Ps), member(V, Ps) ), Rows),
-    tensor_from_list(Rows, X), !.
+    X := Rows, !.
 
 draw(Pixels) :-
     forall(between(0, 7, Y),
@@ -100,8 +100,8 @@ fit(0, Ps, _, _, _, _, Ps) :- !.
 fit(K, Ps, St, Cs, X, Y, PsF) :-
     forward(Ps, Cs, X, Logits),
     L := cross_entropy(Logits, Y),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 20 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 20 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.01, Ps2, St2),
     free_all([Logits, L]),
     K1 is K - 1,
@@ -120,7 +120,7 @@ predict :-
     params_load(t32_resnet, Ps),
     pictures(2000, 3, X, Classes),
     forward(Ps, Cs, X, Logits),
-    tensor_argmax(Logits, 1, A), tensor_to_list(A, Got),
+    A := argmax(Logits, 1), Got := list(A),
     forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
            ( J is 2000 + I, picture(J, _, Pixels), draw(Pixels),
              name_of(C, CN), Gi is round(G), name_of(Gi, GN),

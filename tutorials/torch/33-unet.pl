@@ -50,7 +50,7 @@ pictures(From, N, X, Y) :-
     To is From + N - 1,
     findall([V], ( between(From, To, I), picture(I, Ps, _), member(V, Ps) ), XR),
     findall([M], ( between(From, To, I), picture(I, _, Ms), member(M, Ms) ), YR),
-    tensor_from_list(XR, X), tensor_from_list(YR, Y), !.
+    X := XR, Y := YR, !.
 
 draw(Title, Values, Threshold) :-
     format("   ~w~n", [Title]),
@@ -98,8 +98,8 @@ fit(0, Ps, _, _, _, _, Ps) :- !.
 fit(K, Ps, St, Cs, X, Y, PsF) :-
     forward(Ps, Cs, X, Out),
     L := bce(Out, Y),
-    tensor_grad(L, Ps, Gs),
-    ( K mod 25 =:= 0 -> tensor_item(L, Lv), format("   ~w steps to go, bce ~4f~n", [K, Lv]) ; true ),
+    Gs := grad(L, Ps),
+    ( K mod 25 =:= 0 -> Lv := item(L), format("   ~w steps to go, bce ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.01, Ps2, St2),
     free_all([Out, L]),
     K1 is K - 1,
@@ -109,7 +109,7 @@ fit(K, Ps, St, Cs, X, Y, PsF) :-
 %% truth, intersection over union, averaged over the pictures.
 iou(Ps, Cs, X, Y, IoU) :-
     forward(Ps, Cs, X, Out),
-    tensor_to_list(Out, OL), tensor_to_list(Y, YL), tensor_free(Out),
+    OL := list(Out), YL := list(Y), tensor_free(Out),
     findall(P-T, ( nth0(I, OL, [P]), nth0(I, YL, [T]) ), Pairs),
     length(Pairs, Len), N is Len // 64,
     findall(S, ( between(0, N, Pi), Pi < N, From is Pi * 64, To is From + 63,
@@ -131,7 +131,7 @@ predict :-
     params_load(t33_unet, Ps),
     pictures(2000, 2, X, _),
     forward(Ps, Cs, X, Out),
-    tensor_to_list(Out, OL),
+    OL := list(Out),
     forall(between(0, 1, I),
            ( J is 2000 + I, picture(J, Pixels, Mask),
              From is I * 64, To is From + 63,

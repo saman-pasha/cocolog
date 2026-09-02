@@ -30,6 +30,9 @@
 %%   parameter(A)        tensor_parameter: a fresh leaf that requires gradient
 %%   step(W, G, LR)      tensor_step: W - LR*G as a NEW leaf -- a function, not a `-', because a step makes a parameter, not a node
 %%
+%% AND THE ANSWERS, outermost on the right of `:=', each a Prolog term the driver never frees:
+%%   V := item(E)   L := list(E)   S := shape(E)   V := reduce(mean, E)   Gs := grad(E, Ps)   Tr-Te := split(E, N)   S := stats
+%%
 %% Two rules worth stating. A float is a number and an integer is a tensor
 %% handle, because a handle IS an integer, so `X * 2' names handle 2 and
 %% `X * 2.0' doubles X. And a subexpression written twice is computed twice:
@@ -68,12 +71,12 @@ data(From, N, X, Y) :-
     To is From + N - 1,
     findall(R, (between(From, To, I), row(I, R, _)), XR),
     findall(R, (between(From, To, I), row(I, _, R)), YR),
-    tensor_from_list(XR, X), tensor_from_list(YR, Y), !.
+    X := XR, Y := YR, !.
 
 step(X, Y, W, B, LR, W2, B2, Loss) :-
     L := mean((X matmul W + B - Y) ^ 2.0),
-    tensor_item(L, Loss),
-    tensor_grad(L, [W, B], [GW, GB]),
+    Loss := item(L),
+    [GW, GB] := grad(L, [W, B]),
     W2 := step(W, GW, LR),
     B2 := step(B, GB, LR),
     tensor_free(L), tensor_free(GW), tensor_free(GB),
@@ -90,22 +93,22 @@ fit(X, Y, Loss, Ws, Bv) :-
     W := parameter(randn([2, 1])),
     B := parameter(zeros([1])),
     sgd(200, X, Y, W, B, 0.2, WF, BF, none, Loss),
-    tensor_to_list(WF, [[W1], [W2]]), Ws = [W1, W2],
-    tensor_to_list(BF, [Bv]).
+    [[W1], [W2]] := list(WF), Ws = [W1, W2],
+    [Bv] := list(BF).
 
 under(Mode, Goal) :-
     torch_execution(Mode),
     call(Goal),
-    tensor_graph_stats(S),
+    S := stats,
     format("   ~w: ~w~n", [Mode, S]).
 
 train :-
     data(0, 6, X, Y),
-    tensor_to_list(X, Xs), tensor_to_list(Y, Ys),
+    Xs := list(X), Ys := list(Y),
     format("six rows: x ~w~n          y ~w~n", [Xs, Ys]),
     % the expression, and the goals the grammar makes of it -- printed once,
     % before either path runs it, because the list is the same under both
-    tensor_zeros([2, 1], W0), tensor_zeros([1], B0),
+    W0 := zeros([2, 1]), B0 := zeros([1]),
     phrase(expr(mean((X matmul W0 + B0 - Y) ^ 2.0), _), Goals),
     format("the loss, as goals: ~w~n", [Goals]),
     tensor_free(W0), tensor_free(B0),
@@ -139,22 +142,22 @@ predict :-
     model_load(t31_expressions, M),
     model_params(M, [W1, W2, Bv]),
     data(9000, 2, X, Y),
-    tensor_to_list(Y, Ys),
+    Ys := list(Y),
     forall(member(Mode, [eager, graph]),
            ( torch_execution(Mode),
-             model_predict(M, X, P), tensor_to_list(P, Ps),
-             E := X matmul [[W1], [W2]] + [Bv], tensor_to_list(E, Es),
+             model_predict(M, X, P), Ps := list(P),
+             E := X matmul [[W1], [W2]] + [Bv], Es := list(E),
              format("~w: model ~w  expression ~w  (plane says ~w)~n", [Mode, Ps, Es, Ys]) )),
     torch_execution(graph),
     % the leaves are NAMED here, so `:=' keeps them: a temporary is freed at
     % the `:=', and a freed node no longer counts as pending. The counters
     % are process totals, so the demo reads `executed' before and after.
-    tensor_graph_stats(stats(_, executed(E0), _, _)),
+    St0 := stats, St0 = stats(_, executed(E0), _, _),
     format("~n-- a shape is known with nothing executed~n"),
     A := zeros([3, 4]), B2 := ones([4, 5]),
     C := A matmul B2,
-    tensor_shape(C, Shape),
-    tensor_graph_stats(stats(_, executed(E1), _, pending(P1))),
+    Shape := shape(C),
+    St1 := stats, St1 = stats(_, executed(E1), _, pending(P1)),
     D1 is E1 - E0,
     format("   zeros([3,4]) matmul ones([4,5]) has shape ~w; executed ~w, pending ~w~n", [Shape, D1, P1]),
     format("-- and a shape error is refused at the `:=', as eager refuses it~n"),
@@ -166,8 +169,8 @@ predict :-
     catch(( _ := 2.0 ^ C, write('   accepted?!'), nl ),
           error(Err2, _),
           format("   refused: ~w~n", [Err2])),
-    tensor_to_list(C, _),
-    tensor_graph_stats(stats(_, executed(E2), _, pending(P2))),
+    _ := list(C),
+    St2 := stats, St2 = stats(_, executed(E2), _, pending(P2)),
     D2 is E2 - E0,
     format("-- read once: executed ~w, pending ~w -- the pending one is the [5,6] leaf~n", [D2, P2]),
     torch_execution(eager).

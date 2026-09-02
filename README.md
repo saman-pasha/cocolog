@@ -1325,7 +1325,12 @@ is in force, which is why it is named for what it does and not for a
 path -- and the fit is identical to the digit again, eager against
 graph, on the six rows. The one rule to know: a float is a number and an
 integer is a handle, because a handle IS an integer, so `X * 2.0`
-doubles X and `X * 2` names handle 2.
+doubles X and `X * 2` names handle 2. And what asks about a tensor rather
+than making one stands outermost on the same right-hand side and answers
+a term: `V := item(mean(E))`, `L := list(E)`, `S := shape(E)`,
+`Gs := grad(L, Ps)`, `Tr-Te := split(E, N)`, `S := stats` -- so a file
+written in expressions calls no tensor predicate but `tensor_free`, and
+the tutorials from 31 on do not.
 
 **And ten networks written in it**, tutorials 32 to 41, each the
 architecture in the open rather than a layer of the module: a ResNet

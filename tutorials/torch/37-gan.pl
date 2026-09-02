@@ -5,7 +5,7 @@
 %% the other. The discriminator's loss is bce(D(real), 1) + bce(D(fake), 0);
 %% the generator's is bce(D(fake), 1) -- it wants to be believed -- and the
 %% gradient of that loss flows THROUGH the discriminator to the generator's
-%% parameters, which is why tensor_grad/3 takes the list of parameters to
+%% parameters, which is why `grad(L, Ps)' takes the list of parameters to
 %% differentiate for: the same forward, two lists, two steps.
 %%
 %% The data are points on a ring of radius one, a little blurred. A GAN
@@ -45,7 +45,7 @@ ring(From, N, X) :-
     To is From + N - 1,
     findall([Px, Py], ( between(From, To, I), noise(I, R1), A is R1 * 3.14159265, J is I + 7919, noise(J, R2), Rad is 1.0 + 0.05 * R2,
                         Px is Rad * cos(A), Py is Rad * sin(A) ), Rows),
-    tensor_from_list(Rows, X), !.
+    X := Rows, !.
 
 %% on_ring(+Rows, -Fraction, -Sectors): how many of the points sit within
 %% 0.15 of the ring, and how many of twelve 30-degree sectors hold one.
@@ -105,11 +105,11 @@ rounds(K, G, D, SG, SD, GF, DF) :-
     generate(G, Z, Fake),
     judge(D, X, PReal), judge(D, Fake, PFake),
     Ld := bce(PReal, ones([256, 1])) + bce(PFake, zeros([256, 1])),
-    tensor_grad(Ld, D, GDs), adam_step(D, GDs, SD, 0.0003, D2, SD2),
+    GDs := grad(Ld, D), adam_step(D, GDs, SD, 0.0003, D2, SD2),
     judge(D2, Fake, PFake2),
     Lg := bce(PFake2, ones([256, 1])),
-    tensor_grad(Lg, G, GGs), adam_step(G, GGs, SG, 0.0003, G2, SG2),
-    ( K mod 1000 =:= 0 -> tensor_item(Ld, Ldv), tensor_item(Lg, Lgv), tensor_to_list(Fake, Rows), on_ring(Rows, Fr, Se),
+    GGs := grad(Lg, G), adam_step(G, GGs, SG, 0.0003, G2, SG2),
+    ( K mod 1000 =:= 0 -> Ldv := item(Ld), Lgv := item(Lg), Rows := list(Fake), on_ring(Rows, Fr, Se),
                          format("   ~w rounds to go, D loss ~3f, G loss ~3f; of the fakes ~2f on the ring, ~w sectors~n", [K, Ldv, Lgv, Fr, Se]) ; true ),
     free_all([X, Z, Fake, PReal, PFake, Ld, PFake2, Lg]),
     K1 is K - 1,
@@ -120,7 +120,7 @@ load(G, D) :- params_load(t37_gan, Ps), length(G, 6), append(G, D, Ps), !.
 test :-
     torch_seed(1037),
     load(G, _),
-    Z := randn([256, 2]), generate(G, Z, Fake), tensor_to_list(Fake, Rows),
+    Z := randn([256, 2]), generate(G, Z, Fake), Rows := list(Fake),
     on_ring(Rows, Fraction, Sectors),
     format("test: 256 samples, ~2f within 0.15 of the ring, ~w of 12 sectors reached~n", [Fraction, Sectors]),
     ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
@@ -128,8 +128,8 @@ test :-
 predict :-
     torch_seed(2037),
     load(G, D),
-    Z := randn([300, 2]), generate(G, Z, Fake), tensor_to_list(Fake, Rows),
+    Z := randn([300, 2]), generate(G, Z, Fake), Rows := list(Fake),
     write('300 samples from the generator:'), nl, scatter(Rows), nl,
-    ring(999999, 1, R), judge(D, R, PR), tensor_to_list(PR, [[PRv]]), tensor_to_list(R, [[Rx, Ry]]),
-    Fake = Fake, Rows = [[Fx, Fy]|_], tensor_rows(Fake, 0, 1, F1), judge(D, F1, PF), tensor_to_list(PF, [[PFv]]),
+    ring(999999, 1, R), judge(D, R, PR), [[PRv]] := list(PR), [[Rx, Ry]] := list(R),
+    Fake = Fake, Rows = [[Fx, Fy]|_], F1 := rows(Fake, 0, 1), judge(D, F1, PF), [[PFv]] := list(PF),
     format("   the discriminator gives a real point (~2f, ~2f) ~2f and a fake (~2f, ~2f) ~2f~n", [Rx, Ry, PRv, Fx, Fy, PFv]).
