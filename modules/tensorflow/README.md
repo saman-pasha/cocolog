@@ -59,6 +59,36 @@ number, so `tensorflow_seed/1` set again gives the draws again — the
 stateful ones keep a generator per seed in the eager runtime and would
 continue their stream.
 
+## Where a model trains, and where it runs
+
+Three questions the owner asked, answered by runs:
+
+1. *Trained under `graph` on a GPU, predicting under `eager` on a CPU?*
+   Yes. `params_save` writes each parameter as its shape and its numbers
+   into the knowledge base, and `params(Name)` rebuilds them on whatever
+   backend, device and mode are current when it loads, so a store belongs
+   to no library and no device. On torch the device is its own switch,
+   `torch_device(cpu | cuda)`, independent of the mode; on TensorFlow the
+   backend takes the first GPU the machine has, and there is no per-goal
+   device switch there yet.
+2. *Is `eager` the way to hand work to the GPU and keep the CPU free?* No:
+   `eager` and `graph` are about WHEN, not WHERE, and either mode runs on
+   either device. Eager computes each goal as it runs, so a value or a
+   shape is readable at any point and an error surfaces at its goal --
+   preprocessing, prediction, debugging. Graph records and makes one
+   compiled call a step, so the CPU does the least driving. Handing work to
+   the GPU is the device switch, and graph relieves the CPU more than eager
+   does, one call standing for hundreds of launches.
+3. *Trained on TensorFlow, tested on torch?* Yes, and run: tutorial 31
+   trained under `(tensorflow, graph)`, then tested under `(torch, graph)`
+   and predicted under `(torch, eager)` from the same store, rmse 0.0018;
+   32's ResNet trained on TensorFlow and tested on torch, accuracy 1.00.
+   Two caveats: only the `tensor_*` programs, 29 onward, are portable --
+   1 to 28 use libtorch's `model_*` modules, which have no TensorFlow side;
+   and the two libraries agree within float tolerance, not bit for bit, and
+   draw different random numbers from one seed, so weights trained on each
+   differ.
+
 ## What it costs, measured, against the bar
 
 The owner's bar for a second backend is plain: a tutorial under

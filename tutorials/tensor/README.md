@@ -14,7 +14,16 @@ are libtorch's.
 
 is the same file on TensorFlow, on Linux with `library(tensorflow)` built:
 the backend is a switch set from outside, the file does not name it, and
-`seed/1` seeds whichever is selected.
+`seed/1` seeds whichever is selected. Three things that follow, each run:
+a model trained under `graph` on a GPU predicts under `eager` on a CPU,
+because `params_save` stores shapes and numbers and `params(Name)` rebuilds
+them wherever it is loaded (the device is `torch_device/1`, a switch of
+its own, not the mode); `eager` against `graph` is about WHEN a goal
+computes, not WHERE -- either mode runs on either device, and graph, one
+compiled call a step, is the one that keeps the CPU freest; and a model
+trained on TensorFlow tests on torch from the same store, as 31 and 32
+were run -- for the `tensor_*` programs from 29 on, which are the portable
+ones, within float tolerance and from different random draws.
 
 Twenty-four networks, each a PyTorch-tutorial classic rewritten as a
 standalone Prolog program against the Torch module. Every file carries
