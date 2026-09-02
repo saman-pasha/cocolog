@@ -10,12 +10,14 @@
 %% it stands for, in dependency order -- one goal per node, fresh variables
 %% for the results -- and `:=' runs that list and frees every result but
 %% the last. The list is the
-%% program: under tensor_execution(torch, eager) each goal computes as it runs, under
-%% tensor_execution(torch, graph) each records a node and the numbers come at the
+%% program: under tensor_execution(eager) each goal computes as it runs, under
+%% tensor_execution(graph) each records a node and the numbers come at the
 %% first read, and the grammar cannot tell which, which is why it is named
-%% for what it does and not for a path. `train' proves the point the way
-%% tutorial 30 did, eager then graph in one process, IDENTICAL or halt(1),
-%% and on data small enough to print: six rows.
+%% for what it does and not for a path. Nor does it tell which LIBRARY is
+%% under the predicates: tensor_execution(torch | tensorflow, Mode) is set
+%% from outside, and this file never names one. `train' proves the point
+%% the way tutorial 30 did, eager then graph in one process, IDENTICAL or
+%% halt(1), and on data small enough to print: six rows.
 %%
 %% THE OPERATORS -- infix `matmul' at the priority of `*', the arithmetic
 %% ones Prolog already has, and one prefix operator per unary predicate, so
@@ -118,30 +120,27 @@ fit(X, Y, Loss, Ws, Bv) -->
 %% A rule: tensor_execution is a nonterminal the library provides, and call//1
 %% runs the goal inside, its temporaries threading up.
 under(Mode, Goal) -->
-    { tensor_execution(B, _) }, tensor_execution(B, Mode),   % the mode, on whichever backend is selected
+    tensor_execution(Mode),                                  % the mode, on whichever backend is selected
     seed(31),                                                % the same random start under each path
     call(Goal),
     S = stats,
     { format("   ~w: ~w~n", [Mode, S]) }.
 
-%% fit_under(+Backend, +X, +Y, -Loss, -Ws, -Bv): on torch, the fit under each
-%% path and the identity check; on tensorflow -- whose eager C API has no
-%% tape -- the graph path alone, which is where TensorFlow differentiates.
-%% The program above is the same either way: the backend is a switch set
-%% from outside, `tensor_execution(tensorflow, graph), train'.
-fit_under(torch, X, Y, LG, WG, BG) -->
+%% fit_under(+X, +Y, -Loss, -Ws, -Bv): the fit under each path and the identity
+%% check, on whichever library is selected -- torch, or TensorFlow with
+%% library(tensorflow) -- since both differentiate under both paths. The
+%% program is the same either way: the backend is a switch set from outside,
+%% `tensor_execution(tensorflow, graph), train'.
+fit_under(X, Y, LG, WG, BG) -->
+    { tensor_execution(Backend, _) },
     under(eager, fit(X, Y, LE, WE, BE)),
     under(graph, fit(X, Y, LG, WG, BG)),
     { format("eager: loss ~8f  w ~w  b ~w~n", [LE, WE, BE]),
       format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]),
       (   LE =:= LG, WE == WG, BE =:= BG
-      ->  write('identical -- the same expression, the same numbers'), nl
+      ->  format("identical -- the same expression, the same numbers, on ~w~n", [Backend])
       ;   write('DIFFER'), nl, halt(1)
       ) }.
-fit_under(tensorflow, X, Y, LG, WG, BG) -->
-    { write('tensorflow: its eager C API has no tape, so the fit runs under the graph path alone'), nl },
-    under(graph, fit(X, Y, LG, WG, BG)),
-    { format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]) }.
 
 %% THE THREE GOALS ARE RULES TOO, and the three one-liners under them are
 %% what the runner calls: each runs its rule with exec/1, so every tensor a
@@ -161,17 +160,16 @@ train -->
     W0 = zeros([2, 1]), B0 = zeros([1]),
     { phrase(expr(loss(X, Y, W0, B0), _), Goals),
       format("the loss, as goals: ~w~n", [Goals]) },
-    { tensor_execution(Backend, _) },
-    fit_under(Backend, X, Y, LG, WG, BG),
+    fit_under(X, Y, LG, WG, BG),
     { WG = [W1, W2] },
     % the weights travel as a parameter list, two tensors made from the numbers
     W = [[W1], [W2]], B = [BG],
     params_save(t31_expressions, [W, B]),
-    tensor_execution(torch, eager),
+    tensor_execution(eager),
     { write(saved), nl }.
 
 test -->
-    tensor_execution(torch, graph),
+    tensor_execution(graph),
     [W, B] = params(t31_expressions),
     data(5000, 32, X, Y),
     S = item(sqrt(loss(X, Y, W, B))),                        % the rmse, through the defined loss
@@ -185,7 +183,7 @@ predict -->
     data(9000, 2, X, Y),
     Ys = list(Y),
     each_path(X, W, B, Ys),
-    tensor_execution(torch, graph),
+    tensor_execution(graph),
     % the leaves are NAMED here and made by the rule, so nothing is freed
     % until the rule ends: a freed node no longer counts as pending. The
     % counters are process totals, so the demo reads `executed' before and after.
@@ -208,7 +206,7 @@ predict -->
     _ = list(C),
     St2 = stats, { St2 = stats(_, executed(E2), _, pending(P2)), D2 is E2 - E0,
                    format("-- read once: executed ~w, pending ~w -- the pending one is the [5,6] leaf~n", [D2, P2]) },
-    tensor_execution(torch, eager).
+    tensor_execution(eager).
 
 %% each_path(+X, +W, +B, +Ys): the expression's answer under each path, for
 %% the same rows -- a rule recursing over the modes.

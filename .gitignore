@@ -58,6 +58,7 @@ modules/os/sdk.cicili
 modules/bigint/coco-bigint.cpp
 modules/bigint/zigheaders
 modules/torch/coco-torch.cpp
+modules/tensorflow/coco-tensorflow.c
 
 # ZiguratIP's cryptography: five more of the same shape. Each carries a
 # sdk.cicili symlink into lib/ and a zigheaders symlink into a BUILT

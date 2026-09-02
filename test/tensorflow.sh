@@ -9,8 +9,11 @@
 # libraries' kernels, not one. Under (tensorflow, graph) a loss built of the
 # predicates differentiates through TF_AddGradients to the analytic gradient,
 # a step answers a new parameter, a random leaf read twice is one draw, and a
-# shape is known with nothing executed. Under (tensorflow, eager) a gradient
-# is refused, and says why. Last, tutorial 31's fit under (tensorflow, graph)
+# shape is known with nothing executed. Under (tensorflow, eager) the same
+# gradients come out -- the recorded structure compiled and differentiated
+# the same way, after the values are already there -- and a loss read by
+# item first still differentiates. Last, tutorial 31's fit under tensorflow,
+# eager then graph in one process, is IDENTICAL across its two paths and
 # reaches torch's numbers within a tolerance -- the same program, the other
 # library.
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -80,16 +83,27 @@ check "a parameter the loss never reached gets zeros" "$(q "$G, tensor_from_list
 check "a step is a new leaf: W - 0.5 G from W = 1 on (w - 3)^2 is 3" "$(q "$G, tensor_from_list([1.0], W0), tensor_parameter(W0, W), tensor_scalar(sub, W, 3.0, D), tensor_binary(mul, D, D, D2), tensor_agg(mean, D2, L), tensor_grad(L, [W], [Gr]), tensor_step(W, Gr, 0.5, W2), tensor_to_list(W2, L2), write(answer(L2)), nl")" "[3.0]"
 check "the shape of a matmul, executed nothing" "$(q "$G, tensor_new([3, 4], zeros, A), tensor_new([4, 5], ones, B), tensor_binary(matmul, A, B, C), tensor_shape(C, S), tensor_graph_stats(stats(_, executed(E), _, _)), write(answer(S-E)), nl")" "[3,5]-0"
 check "a shape error is refused when the op is added" "$(q "$G, tensor_new([3, 4], zeros, A), tensor_new([5, 6], ones, B), catch((tensor_binary(matmul, A, B, _), write(answer(accepted))), error(domain_error(_, _), _), write(answer(refused))), nl")" "refused"
-check "a gradient under (tensorflow, eager) is refused, and says why" "$(q "tensor_execution(tensorflow, eager), tensor_from_list([1.0], W0), tensor_parameter(W0, W), tensor_agg(sum, W, L), catch((tensor_grad(L, [W], _), write(answer(accepted))), error(domain_error(D, _), _), (atom(D), sub_atom(D, _, _, _, graph) -> write(answer(refused_naming_graph)) ; write(answer(refused)))), nl")" "refused_naming_graph"
 
 echo
-echo "-- tutorial 31's fit, the same program on the other library"
+echo "-- under (tensorflow, eager): the same gradients, from the tape the recorded structure is"
+E="tensor_execution(tensorflow, eager), tensorflow_seed(11)"
+lsq_e=$(q "$E, $LSQ"); lsq_ed=$(maxdiff "$lsq_e/$lsq_to")
+check "the least-squares gradient under eager, within 1e-5 of torch's" "$(awk -v d="$lsq_ed" 'BEGIN { print (d <= 1e-5) ? "within 1e-5" : "off by " d }')" "within 1e-5"
+check "grad of sum(W*W) under eager is 2W, exactly" "$(q "$E, tensor_from_list([[1.5], [-2.0]], W0), tensor_parameter(W0, W), tensor_binary(mul, W, W, P), tensor_agg(sum, P, L), tensor_grad(L, [W], [Gr]), tensor_to_list(Gr, GL), write(answer(GL)), nl")" "[[3.0],[-4.0]]"
+check "a loss read by item first still differentiates, under eager" "$(q "$E, tensor_from_list([[1.5], [-2.0]], W0), tensor_parameter(W0, W), tensor_binary(mul, W, W, P), tensor_agg(sum, P, L), tensor_item(L, V), tensor_grad(L, [W], [Gr]), tensor_to_list(Gr, GL), write(answer(V-GL)), nl")" "6.25-[[3.0],[-4.0]]"
+check "a step under eager: W - 0.5 G from W = 1 on (w - 3)^2 is 3" "$(q "$E, tensor_from_list([1.0], W0), tensor_parameter(W0, W), tensor_scalar(sub, W, 3.0, D), tensor_binary(mul, D, D, D2), tensor_agg(mean, D2, L), tensor_grad(L, [W], [Gr]), tensor_step(W, Gr, 0.5, W2), tensor_to_list(W2, L2), write(answer(L2)), nl")" "[3.0]"
+check "a parameter the loss never reached gets zeros, under eager" "$(q "$E, tensor_from_list([1.0, 2.0], A0), tensor_parameter(A0, A), tensor_from_list([1.0], U0), tensor_parameter(U0, U), tensor_agg(sum, A, L), tensor_grad(L, [A, U], [_, GU]), tensor_to_list(GU, GL), write(answer(GL)), nl")" "[0.0]"
+check "a gradient twice of one loss is the same gradient" "$(q "$E, tensor_from_list([[1.5], [-2.0]], W0), tensor_parameter(W0, W), tensor_binary(mul, W, W, P), tensor_agg(sum, P, L), tensor_grad(L, [W], [G1]), tensor_grad(L, [W], [G2]), tensor_to_list(G1, L1), tensor_to_list(G2, L2), (L1 == L2 -> write(answer(same)) ; write(answer(different))), nl")" "same"
+
+echo
+echo "-- tutorial 31's fit, the same program on the other library, identical across its two paths"
 T31="$ROOT/tutorials/tensor/31-tensor-expressions.pl"
-[ -f "$T31" ] || T31="$ROOT/tutorials/tensor/31-tensor-expressions.pl"
 if [ -f "$T31" ]; then
-  tf=$(timeout 600 "$C" --kb tutorials --embed "$(mktemp -d)" run "$T31" "tensor_execution(tensorflow, graph), train" 2>/dev/null | grep -a '^graph: loss')
+  tfout=$(timeout 600 "$C" --kb tutorials --embed "$(mktemp -d)" run "$T31" "tensor_execution(tensorflow, graph), train" 2>/dev/null)
+  tf=$(echo "$tfout" | grep -a '^graph: loss')
   to=$(timeout 600 "$C" --kb tutorials --embed "$(mktemp -d)" run "$T31" "tensor_execution(torch, graph), train" 2>/dev/null | grep -a '^graph: loss')
   echo "     tensorflow: $tf"; echo "     torch:      $to"
+  check "eager and graph on tensorflow, identical" "$(echo "$tfout" | grep -ac '^identical')" "1"
   tw=$(echo "$tf" | grep -aoE 'w \[[^]]*\]' | tr -d 'w []'); ow=$(echo "$to" | grep -aoE 'w \[[^]]*\]' | tr -d 'w []')
   if [ -z "$tw" ]; then d=missing; else d=$(maxdiff "$tw/$ow"); fi
   # two libraries' float32, two hundred steps apart: 1e-2, not the 1e-5 of one op

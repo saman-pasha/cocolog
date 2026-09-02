@@ -95,11 +95,13 @@
 %% TWO BACKENDS, ONE GRAMMAR. The goals this grammar emits are the tensor_*
 %% predicates, and those have two implementations behind
 %% tensor_execution(Backend, Mode): libtorch, and -- on Linux, with
-%% library(tensorflow) loaded -- TensorFlow's C library, where the graph
-%% mode is a TF_Graph and the gradient is TF_AddGradients. An expression, a
-%% procedure, a tutorial written in them runs on either; what differs is
-%% only what each library can do -- TensorFlow's eager C API has no tape, so
-%% a gradient there wants (tensorflow, graph).
+%% library(tensorflow) loaded -- TensorFlow's C library, where a closure is
+%% compiled once into a TensorFlow function and the gradient is
+%% TF_AddGradients inside it, under either mode. An expression, a
+%% procedure, a tutorial written in them runs on either library, under
+%% either path, from one file: the backend is set from outside and the file
+%% never names it -- tensor_execution(Mode) moves the path and keeps the
+%% library.
 %%
 %% THE ONE DISCIPLINE: a rule frees nothing by hand. What it made is in its
 %% list and exec/1 frees it once; a tensor_free inside would free it twice,

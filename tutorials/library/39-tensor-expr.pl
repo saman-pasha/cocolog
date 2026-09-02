@@ -73,9 +73,9 @@ main :-
 
     write('4. the list is the same program under both execution paths'), nl,
     tensor_execution(B0, M0), must('the backend and the mode, asked', B0-M0, torch-eager),
-    tensor_execution(torch, eager), E := relu(X - 2.5) matmul W, tensor_to_list(E, EL),
-    tensor_execution(torch, graph), G := relu(X - 2.5) matmul W, tensor_to_list(G, GL),
-    tensor_execution(torch, eager),
+    tensor_execution(eager), E := relu(X - 2.5) matmul W, tensor_to_list(E, EL),
+    tensor_execution(graph), G := relu(X - 2.5) matmul W, tensor_to_list(G, GL),
+    tensor_execution(eager),
     must('eager and graph, the same numbers', GL, EL),
 
     write('5. the composites are ordinary forms'), nl,

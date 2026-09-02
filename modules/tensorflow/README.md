@@ -15,102 +15,113 @@ both at once; the `model_*` predicates stay libtorch's.
 ?- tensorflow_version(V).               % V = '2.20.0'
 ```
 
-## Two modes, and what each can do
+## Two modes, one mechanism
 
 | `tensor_execution(tensorflow, …)` | what a producer does | gradients |
 |---|---|---|
-| `eager` | a `TFE_Execute`, now; a handle holds a `TFE_TensorHandle` | **none** — TensorFlow's eager C API has no tape, and `tensor_grad/3` says so |
-| `graph` | RECORDS a node: the operation, its attributes, its inputs. A read collects the closure of what it needs, keys it by structure, compiles the key ONCE into placeholders and operations, and after that the same structure is one session run with the current values fed in | `TF_AddGradients` over the compiled closure, once per key — TensorFlow's own symbolic differentiation — and thereafter a run |
+| `eager` | a `TFE_Execute`, now, on the device; a handle holds a `TFE_TensorHandle`. A producer that a PARAMETER reaches also RECORDS what it did — the operation, its attributes, its inputs — which is the tape | the recorded structure, compiled and differentiated as below; the forward pass is recomputed inside the gradient's call |
+| `graph` | only records; a read runs what it needs | the same, and one call a step computes the loss, the gradients and the new parameters together |
 
-So a training loop wants `(tensorflow, graph)`, which is TensorFlow's
-native arrangement anyway — a graph built once and run many times with
-fresh values — and `eager` is for forward-only work. The graph grows with
-the DISTINCT SHAPES OF COMPUTATION a program has, not with its steps, and
-`tensor_graph_stats/1` counts nodes recorded, nodes given a value, and
-runs that were REPLAYS of a compiled key. A node keeps its structure after
-it has a value, so a loss read by `item` can still be differentiated by
-`grad` after it; a node holds its inputs alive by reference until it is
-freed. Under `graph` a shape is known with nothing executed
-(`TF_GraphGetTensorShape` on the compiled closure), a shape error is
-refused at the goal that adds the operation, with TensorFlow's own words,
-and a random leaf — `randn`, `rand`, `randperm` — draws ONCE, through the
-eager context, and is a value: a random operation in a graph would redraw
-at every run, and a leaf read twice would not be one leaf.
-`tensor_step/4` answers a new leaf, so a step never drags the history
-behind it.
+Under both, a read of a recorded tensor and a gradient collect the CLOSURE
+of what they need — the nodes down to the values they rest on — key it by
+structure, and the first time a key is seen compile it, once: a `TF_Graph`
+of placeholders and operations, `TF_AddGradients` over it for a gradient
+(TensorFlow's own symbolic differentiation), and the whole made a
+TensorFlow FUNCTION the eager runtime calls, with the leaves' handles as
+its arguments and handles as its results. Nothing crosses to the host: a
+parameter lives on the device and the function that steps it finds it
+there, which is what `tf.function` is, done from C. Every later time the
+same key is one call. So a program is the same program on either path,
+and the same program it is on `library(torch)`: tutorial 31 fits eager
+then graph in one process and checks the two IDENTICAL, on either
+library, and the file never names one.
+
+The graph grows with the DISTINCT SHAPES OF COMPUTATION a program has,
+not with its steps, and `tensor_graph_stats/1` counts nodes recorded,
+nodes given a value, and calls that were REPLAYS of a compiled key. A
+node keeps its structure after it has a value only while a parameter is
+under it, so a loss read by `item` can still be differentiated by `grad`
+after it; a node with none under it — an optimiser's moments, a metric —
+is a value and lets its inputs go; a parameter made by `tensor_step/4` is
+a boundary, a value and nothing behind it; and a node the program has
+dropped but the tape still holds keeps its recipe and lets its VALUE go,
+since a gradient recomputes it from the leaves. Which nodes of a closure
+are RESULTS of the call — the ones the program still names, the
+parameters, the one asked for — is part of the key, because a function's
+outputs are fixed when it is made. Under `graph` a shape is known with
+nothing executed (by rule at the record, or `TF_GraphGetTensorShape` on
+the compiled closure), a shape error is refused at the goal that adds the
+operation, and a random leaf — `randn`, `rand`, `randperm` — draws ONCE,
+through the eager context, and is a value: a random operation in a graph
+would redraw at every run, and a leaf read twice would not be one leaf.
+The draws are the STATELESS random ops, seeded by the seed and the draw's
+number, so `tensorflow_seed/1` set again gives the draws again — the
+stateful ones keep a generator per seed in the eager runtime and would
+continue their stream.
 
 ## What it costs, measured, against the bar
 
 The owner's bar for a second backend is plain: a tutorial under
 TensorFlow must finish within 1.5 times the seconds torch took for it on
-the same T4. **It does not meet it, yet.** On the Colab VM, two by two,
-each within its budget: 34 took 35 s of 32, 35 41 s of 39, 40 71 s of
-69, 37 160 s of 158, 38 10 s of 8, 36 19 s of 17, 41 49 s of 47, 39 63 s
-of 62, 32 11 s of 9, 33 13 s of 11 -- every one over, by a little, at a
-GPU utilisation near zero. What it does meet: the gate, GREEN on all 43
-checks; and quality, since 32's ResNet trained to test accuracy 1.00 and
-33's U-Net to IoU 0.917 on this library, the same files, when given the
-time (77 s and 239 s on the build before the step became a boundary).
+the same T4. **The draft before this one did not meet it**, on any of
+the ten, each cut at its budget with training unfinished: about two to
+three times torch's, at a GPU utilisation near zero — the time was the
+host round trip, every leaf fed from host memory and every result fetched
+back each step, and two session runs a step, the loss and then the
+gradient. What it did meet: the gate, and quality, since 32's ResNet
+trained to test accuracy 1.00 and 33's U-Net to IoU 0.917 on this
+library, the same files, when given the time.
 
-The road here was three wrong drafts, each found by a run. The first
-built the graph one predicate at a time and ran a session per read:
-quadratic in the steps, 360 s for 200 steps of tutorial 31's fit. The
-second keyed and compiled closures, but forced every step's result at
-once -- twenty session runs a step for a transformer -- and let an
-optimiser's moments hold every step before them alive, until the handle
-table filled forty steps into 32. The third, this one: a step is recorded
-and marked a parameter, the next loss's one run computes all the new
-parameters and moments together, the gradient is the second run; a node
-keeps its structure only while a parameter lies under it; shapes come by
-rule; keys are hashed; and `allow_growth` is set, so TensorFlow holds
-185 MiB at rest and at most 420 MiB through the tutorials instead of the
-whole card -- the 13.8 GB the owner read, rightly, as the sign of a
-problem, was the allocator's habit hiding the graph's growth. Tutorial
-31's fit: 200 steps in 4 s.
+This draft, the fourth, takes both away — device-resident handles, one
+call a step — and adds the eager gradient. **Its T4 numbers are not yet
+taken**: the VM went before it was written, and the bar is a T4 bar. What
+is measured is a Mac's CPU, TensorFlow 2.21.0 from Homebrew (a build
+without AVX2/FMA, as it says at start) against libtorch 2.13.0, the same
+files, `train` then `test`, wall-clock seconds including start-up:
 
-The measurement was taken before the VM went: three steps of 32 gave
-five replays, six steps eight -- one replay and one COMPILE a step. Adam's
-bias-corrected learning rate changes every step, and a scalar's value was
-in the key as if it were structure, so every loss was a new key. A scalar
-operand is data now, fed each run and keyed by its shape alone; axes,
-shapes and slice bounds stay in the key, since they are the structure.
-After that: two replays a step, 40 for 20 steps, and 20 steps of the
-ResNet in 5 s with start-up, where 80 took 77 s two drafts before. And
-against the bar, two by two on the T4, each cut at its budget:
+| tutorial | torch, CPU | TensorFlow, CPU | quality on TensorFlow |
+|---|---|---|---|
+| 31 tensor expressions | 200 steps eager and graph, identical | identical, both paths | rmse 0.0018 |
+| 32 ResNet | 3 s + 1 s | 4 s + 1 s | test accuracy 1.00 |
+| 33 U-Net | 4 s + 1 s | 4 s + 1 s | test IoU 0.865 (torch 0.903) |
+| 34 transformer encoder | 18 s + 1 s | 16 s + 1 s | test accuracy 1.00 |
+| 35 GPT | 30 s + 2 s | 26 s + 2 s | next-character accuracy 0.87 |
+| 36 VAE | 8 s + 1 s | 8 s + 1 s | reconstruction pixel accuracy 1.000 |
+| 37 GAN | 123 s + 1 s | 69 s + 1 s | 0.95 within 0.15 of the ring, 12 of 12 sectors |
+| 38 GCN | 1 s + 2 s | 2 s + 1 s | 33 of 34 members, 0.971 |
+| 39 RealNVP | 79 s + 1 s | 23 s + 1 s | NLL 0.545 against a Gaussian's 1.932 (torch 0.649) |
+| 40 DDPM | 42 s + 1 s | 35 s + 1 s | 0.91 within 0.15 of the ring, 12 of 12 sectors |
+| 41 seq2seq with attention | 19 s + 0 s | 16 s + 1 s | token accuracy 0.97 (torch 0.98) |
 
-| tutorial | budget, 1.5 x torch's | TensorFlow, this draft |
-|---|---|---|
-| 32 ResNet | 9 s | over, cut at 13 s |
-| 33 U-Net | 11 s | over, cut at 14 s |
-| 34 transformer encoder | 32 s | over, cut at 35 s |
-| 35 GPT | 39 s | over, cut at 40 s |
-| 36 VAE | 17 s | over, cut at 19 s |
-| 37 GAN | 158 s | over, cut at 160 s |
-| 38 GCN | 8 s | over, cut at 13 s |
-| 39 RealNVP | 62 s | over, cut at 64 s |
-| 40 DDPM | 69 s | over, cut at 72 s |
-| 41 seq2seq with attention | 47 s | over, cut at 51 s |
-
-**None of the ten meets the bar.** Each was cut at its budget with its
-training unfinished, so the true factor is not known beyond "more than
-1.5"; from 20 steps of 32 in 5 s it is about two to three times torch's
-on this card. The gate is GREEN and the quality, given the time, is
-torch's; the speed is not, yet. The next step is known and not yet
-taken: a gradient run already computes the loss's whole closure, so the
-loss run before it is a second run for nothing -- fetch the loss and the
-new parameters from the gradient's run and a step is ONE session run,
-which is where the factor of two lives.
+Every `test` above says ok, its threshold met. The T4 row for each waits
+for the next VM. The road here was four drafts, each
+found wrong by a run. The first built the graph one predicate at a time
+and ran a session per read: quadratic in the steps, 360 s for 200 steps
+of tutorial 31's fit. The second keyed and compiled closures, but forced
+every step's result at once — twenty session runs a step for a
+transformer — and let an optimiser's moments hold every step before them
+alive, until the handle table filled forty steps into 32. The third made
+a step a boundary, kept structure only under a parameter, took shapes by
+rule, hashed the keys, fed a scalar as data rather than keying its value
+(Adam's bias-corrected rate changes every step, and each step was a new
+key), and set `allow_growth`, so TensorFlow held 185 MiB at rest instead
+of the whole card — the 13.8 GB the owner read, rightly, as the sign of a
+problem, was the allocator's habit hiding the graph's growth. It still fed
+and fetched through the host, ran the loss and the gradient as two
+sessions, and had no eager gradient at all, the C eager API having no
+tape. The fourth is above.
 
 ## What is here
 
 `backend.c` is the back end: TensorFlow's C API, wrapped once, in C, as
 the operations the predicates ask for — every producer, the answers, the
-gradient, the session with its feeds. `coco-tensorflow.cicili` is the
-front end: the dispatcher the torch module hands calls to, the arguments
-read out of the engine, the answers put back; and the module's own two
-predicates, `tensorflow_version/1` and `tensorflow_seed/1`. The seam in
-the torch module is `coco_tensor_backend_set`, C linkage, found with
-`dlsym` on `torch.so` beside this file at load; the mode is read from
+closure, its key, its compilation and its call as a function of the eager
+runtime, the gradient. `coco-tensorflow.cicili` is the front end: the
+dispatcher the torch module hands calls to, the arguments read out of the
+engine, the answers put back; and the module's own two predicates,
+`tensorflow_version/1` and `tensorflow_seed/1`. The seam in the torch
+module is `coco_tensor_backend_set`, C linkage, found with `dlsym` on
+`torch.so` beside this file at load; the mode is read from
 `coco_tensor_graph_mode`.
 
 Every predicate of the surface answers here: `tensor_from_list/2`,
@@ -135,13 +146,21 @@ says SKIPPED, as `make modules` reports it; `library(torch)` must be built first
 
 **Versions this was built and gated against**: TensorFlow **2.20.0** (pip,
 Ubuntu 22.04, the Colab VM, where it placed the work on a Tesla T4), with
-`library(torch)` on torch **2.11.0+cu128** from pip there. The C API it
-uses — `c_api.h` and `eager/c_api.h` — has been stable since TensorFlow 2.x
-began, so an earlier 2.x should build; none other was tried.
+`library(torch)` on torch **2.11.0+cu128** from pip there; and, for this
+draft's gate on a Mac's CPU, libtensorflow **2.21.0** from Homebrew, by a
+hand build of the same two files against its `include` and `lib` — the
+module is plain C over the C API, which is why that works, and the script
+stays Linux only on purpose. The C API it uses — `c_api.h` and
+`eager/c_api.h`, with `TF_GraphToFunction` and `TFE_ContextAddFunction`
+— has been stable since TensorFlow 2.x began, so an earlier 2.x should
+build; none other was tried.
 
 `test/tensorflow.sh` is the gate: every producer under `(tensorflow,
-eager)` within 1e-5 of the torch backend, the least-squares gradient
-under `(tensorflow, graph)` equal to torch's, a step, a random leaf read
-twice, the shape before anything runs, the refusal under eager, and
-tutorial 31's fit on the other library within a tolerance. It SKIPs where
-the module is not built, so `make test` is unchanged on a Mac.
+eager)` within 1e-5 of the torch backend; under `(tensorflow, graph)` the
+least-squares gradient equal to torch's, a step, a parameter the loss
+never reached, the shape before anything runs and a shape error refused;
+under `(tensorflow, eager)` the same gradients, a loss read by `item`
+first still differentiating, a gradient twice of one loss; and tutorial
+31's fit on this library IDENTICAL across its two paths and within a
+tolerance of torch's numbers. It SKIPs where the module is not built, so
+`make test` is unchanged on a Mac without the hand build.

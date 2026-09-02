@@ -8,10 +8,11 @@
 ;;;; THE FRONT END IS THIS FILE: the dispatcher the torch module hands calls to,
 ;;;; the arguments read out of the engine and the answers put back. THE BACK END
 ;;;; IS backend.c: TensorFlow's C API, wrapped once, in C, as the operations
-;;;; below ask for -- eager ops under tensor_execution(tensorflow, eager), a
-;;;; TF_Graph and sessions under (tensorflow, graph), where tensor_grad/3 is
-;;;; TF_AddGradients, TensorFlow's own symbolic differentiation. Under eager
-;;;; there is no tape in the C API, and tensor_grad says so.
+;;;; below ask for -- eager ops, executed now, under tensor_execution(tensorflow,
+;;;; eager), recorded nodes under (tensorflow, graph); and under both a read
+;;;; or a gradient compiles the closure it needs, once, into a TensorFlow
+;;;; function the eager runtime calls, with tensor_grad/3 as TF_AddGradients
+;;;; inside it -- TensorFlow's own symbolic differentiation, on either path.
 ;;;;
 ;;;; What this module registers as ITS OWN predicates is only what names the
 ;;;; library: tensorflow_version/1 and tensorflow_seed/1. The tensor_* names

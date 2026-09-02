@@ -171,10 +171,11 @@ What the build needs on the machine:
 * **Versions.** `library(torch)` is built and gated against libtorch
   **2.13.0** (Homebrew `pytorch`, macOS) and torch **2.11.0+cu128** (pip,
   Ubuntu 22.04, the Colab VM); `library(tensorflow)` against TensorFlow
-  **2.20.0** (pip, the same VM). Earlier 2.x releases of either should
-  build — the module code uses nothing newer than the C++ API libtorch
-  has carried since 1.x and TensorFlow's C API, stable across 2.x — but
-  those four are the ones that have been run.
+  **2.20.0** (pip, the same VM) and, for its gate on a Mac's CPU by a
+  hand build, libtensorflow **2.21.0** (Homebrew). Earlier 2.x releases of
+  either should build — the module code uses nothing newer than the C++
+  API libtorch has carried since 1.x and TensorFlow's C API, stable across
+  2.x — but those are the ones that have been run.
 
 Three checkouts, side by side:
 
@@ -1359,9 +1360,11 @@ parameters itself and a rule must not emit what something else frees.
 `graph`: [`library(tensorflow)`](modules/tensorflow/README.md), Linux only,
 is TensorFlow's C library wrapped once behind the same `tensor_*` names,
 registered with the torch module at load and handed every call while it is
-selected. Its graph mode is a `TF_Graph` with sessions and
-`TF_AddGradients`; its eager C API has no tape, so a gradient there wants
-`(tensorflow, graph)`, and says so. The grammar emits the predicates, so an
+selected. Under either mode a read or a gradient compiles the closure it
+needs, once, into a TensorFlow function the eager runtime calls on the
+device, with `TF_AddGradients` inside it -- so the eager path differentiates
+too, though TensorFlow's eager C API has no tape of its own, and a
+parameter never crosses to the host. The grammar emits the predicates, so an
 expression, a procedure and a tutorial written in them run on either
 library from one file, the backend chosen from outside --
 `tensor_execution(tensorflow, graph), train` -- and `seed/1` seeds
