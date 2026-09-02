@@ -22,9 +22,9 @@
 %%   test     256 samples: at least 0.8 within 0.15 of the ring, at least 10 of 12 sectors reached
 %%   predict  the sampling drawn at three moments: pure noise, halfway, and the end
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/40-ddpm.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/40-ddpm.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/40-ddpm.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/40-ddpm.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/40-ddpm.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/40-ddpm.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -96,7 +96,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(40),
+    seed(40),
     tables(SA, SOM),
     { parameters(Ps0), adam_init(Ps0, St0),
       fit(4000, Ps0, St0, SA, SOM, Ps) },
@@ -141,7 +141,7 @@ unstep(T, Ps, N, Watch, Xt, X) :-
     unstep(T1, Ps, N, Watch, Xn, X).
 
 test -->
-    torch_seed(1040),
+    seed(1040),
     params_load(t40_ddpm, Ps),
     { sample(Ps, 256, [], X) }, Rows = list(X),
     { on_ring(Rows, Fraction, Sectors),
@@ -149,6 +149,6 @@ test -->
       ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
 predict -->
-    torch_seed(2040),
+    seed(2040),
     params_load(t40_ddpm, Ps),
     { sample(Ps, 300, [49, 25, 0], _) }.

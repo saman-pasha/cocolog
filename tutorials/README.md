@@ -6,7 +6,7 @@ Three categories, in the order you would read them.
 |---|---|---|
 | [`basics/`](basics/) | the language: eleven lessons, no library needed | `./cocolog run tutorials/basics/01-facts-and-rules.pl main` |
 | [`library/`](library/) | thirty-two lessons, one per library that ships | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/01-lists.pl main` |
-| [`torch/`](torch/) | twenty-seven neural networks, three processes each | `./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train` |
+| [`torch/`](torch/) | twenty-seven neural networks, three processes each | `./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl train` |
 
 ## EVERY TUTORIAL IS A TEST, and that is the design
 
@@ -24,7 +24,7 @@ must(Label, Got, Want) :-
 ```
 
 Every sentence a lesson asserts about cocolog is a goal that has to
-hold. Get one wrong and `main` FAILS, naming both answers. `torch/`
+hold. Get one wrong and `main` FAILS, naming both answers. `tensor/`
 does the same thing one level up: `test` exits nonzero when the network
 it loaded misses its threshold.
 

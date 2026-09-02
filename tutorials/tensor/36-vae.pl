@@ -21,9 +21,9 @@
 %%   test     24 fresh pictures, pixel accuracy of the reconstruction at least 0.95
 %%   predict  a 3x3 walk over the latent space, decoded and drawn
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/36-vae.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/36-vae.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/36-vae.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/36-vae.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/36-vae.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/36-vae.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -98,7 +98,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(36),
+    seed(36),
     pictures(0, 96, X, _),
     { parameters(Ps0), adam_init(Ps0, St0),
       fit(800, Ps0, St0, X, Ps) },

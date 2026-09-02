@@ -10,7 +10,7 @@
 %% `:=' runs the list. The lesson here is the mechanism, in four claims:
 %% an expression is a list of goals; the list is a program; a float is a
 %% number and an integer is a handle; and the operators are declared where
-%% they are read. The networks built with it are tutorials/torch/31 on.
+%% they are read. The networks built with it are tutorials/tensor/31 on.
 %%
 %% THE OPERATORS ARE DECLARED HERE, in the file that uses them: cocolog's
 %% reader applies op/3 to the file it is reading, and a library's clauses

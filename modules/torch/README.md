@@ -143,6 +143,12 @@ that there is a build, because the reason it was right has not changed.
 
 ## Building
 
+**Versions this was built and gated against**: libtorch **2.13.0** (Homebrew
+`pytorch`, macOS, the CPU path) and torch **2.11.0+cu128** (pip, Ubuntu 22.04,
+the Colab T4, the CUDA path). Nothing here is newer than the C++ API libtorch
+has carried since 1.x, so an earlier release should build; those two have run.
+
+
 ```sh
 make modules                # every module that can be built here
 sh modules/torch/build.sh   # just this one, and it says why when it cannot

@@ -65,7 +65,7 @@
 %% NOT RUN. Like library(llm) and its tutorial, this was written in a
 %% tree with no built cocolog and no libtorch, so nothing here has been
 %% executed. The API is read from modules/torch/README.md and from
-%% tutorials/torch/22-embedding-lstm.pl, which is this file's nearest
+%% tutorials/tensor/22-embedding-lstm.pl, which is this file's nearest
 %% relative. A red line is news.
 
 :- use_module(library(torch)).
@@ -147,7 +147,7 @@ clm_floor(0.40).
 %% for all three goals (test/tutorials.sh:107-112), and CONSULT APPENDS --
 %% so by the `test' process every clm_chunk/2 fact exists twice and by
 %% `predict' three times. A `findall/3' over them is the case
-%% tutorials/torch/README.md:55-57 names outright: "for a data generator
+%% tutorials/tensor/README.md:55-57 names outright: "for a data generator
 %% inside a findall it would double the rows". With keysort/2, which keeps
 %% duplicates, `test' would have measured a model against a corpus twice
 %% the size of the one it was trained on and reported the number without

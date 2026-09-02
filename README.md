@@ -99,7 +99,7 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        expression to the goals it stands for), and the
                        .so's that `make modules' builds
 modules/               the LOADABLE modules, one directory each -- tcp,
-                       thread, curl, bigint, torch, and ZiguratIP's
+                       thread, curl, bigint, torch, tensorflow (Linux), and ZiguratIP's
                        cryptography: sha, aes, der, x509, tls. None is part of
                        `make': a cocolog with no libtorch, no ZiguratIP
                        headers and no libcurl still builds and still runs
@@ -127,7 +127,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
                        library/ (forty, ONE PER LIBRARY that
-                       ships), torch/ (forty-one networks, three
+                       ships), tensor/ (forty-one networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
@@ -168,6 +168,13 @@ What the build needs on the machine:
   half it could not find.
 * **SWI-Prolog** — optional; only the `files` test case compares against it,
   and it SKIPs when `swipl` is absent.
+* **Versions.** `library(torch)` is built and gated against libtorch
+  **2.13.0** (Homebrew `pytorch`, macOS) and torch **2.11.0+cu128** (pip,
+  Ubuntu 22.04, the Colab VM); `library(tensorflow)` against TensorFlow
+  **2.20.0** (pip, the same VM). Earlier 2.x releases of either should
+  build — the module code uses nothing newer than the C++ API libtorch
+  has carried since 1.x and TensorFlow's C API, stable across 2.x — but
+  those four are the ones that have been run.
 
 Three checkouts, side by side:
 
@@ -219,7 +226,7 @@ And it runs — the first three need nothing else on the machine at all:
 ./cocolog -s myscript.pl                      # load it, prove main; the
                                               # EXIT CODE says whether it
                                               # proved -- a script's verdict
-./cocolog --embed run tutorials/torch/07-xor.pl train   # the store at ./KB
+./cocolog --embed run tutorials/tensor/07-xor.pl train   # the store at ./KB
 cd $ZIGURATIP && ZIGURATIP_HOME=$PWD/home \
   LD_LIBRARY_PATH=$PWD/home/lib ./home/bin/ziguratip &   # the server
 ./cocolog --kb demo consult demo/family.pl    # naming a kb chooses it
@@ -260,7 +267,7 @@ runs every one of them as a case of the suite.
 ```sh
 ./cocolog run tutorials/basics/01-facts-and-rules.pl main
 COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/12-json.pl main
-./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train
+./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl train
 ```
 
 ### `basics/` — eleven lessons, the language itself
@@ -310,9 +317,9 @@ eleven on the library path.
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
 end. A new library therefore gets a tutorial in the same commit.
 
-### `torch/` — forty-one networks, three processes each
+### `tensor/` — forty-one networks, three processes each
 
-The deep end, and its own [README](tutorials/torch/README.md) — described
+The deep end, and its own [README](tutorials/tensor/README.md) — described
 under *Prolog that trains* below.
 
 ### EVERY CLAIM IN THE FIRST TWO IS A TEST
@@ -537,6 +544,7 @@ code.
 | `library(curl)` | `.so` | an HTTP client, over libcurl |
 | `library(bigint)` | `.so` | arbitrary-precision integers |
 | `library(torch)` | `.so` | libtorch: tensors, nets, training, GPU |
+| `library(tensorflow)` | `.so` | TensorFlow's C library as the second backend of the `tensor_*` predicates, behind `tensor_execution(tensorflow, eager\|graph)`; Linux |
 | `library(http)` | `.pl` | HTTP/1.1 as a DCG over the bytes tcp gives back |
 | `library(httpd)` | `.pl` | a server whose pages are clauses, with a worker pool |
 | `library(json)` | `.pl` | a term as JSON, and JSON as a term |
@@ -1178,7 +1186,7 @@ runs the whole story: train, store in Zigurat, reload in a fresh
 process, predict identically.
 
 The classic AI/ML challenges pass, one `.pl` file at a time.
-**[tutorials/torch/](tutorials/torch/README.md) holds forty-one such programs**,
+**[tutorials/tensor/](tutorials/tensor/README.md) holds forty-one such programs**,
 each a documented file carrying `train`, `test` and `predict` as
 separate goals in separate processes — the store carries the model
 between them: regression and classification, two-moons and spirals,
@@ -1191,15 +1199,15 @@ in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten
 add about three and a half minutes between them, measured one by one. The
 one to read first is
-[22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every
+[22-embedding-lstm](tutorials/tensor/22-embedding-lstm.pl), the shape of every
 text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:
 
 ```console
-$ ./cocolog --embed /tmp/tut run tutorials/torch/22-embedding-lstm.pl train
+$ ./cocolog --embed /tmp/tut run tutorials/tensor/22-embedding-lstm.pl train
 trained: final nll 0.0117
 saved
-$ ./cocolog --embed /tmp/tut run tutorials/torch/22-embedding-lstm.pl predict
+$ ./cocolog --embed /tmp/tut run tutorials/tensor/22-embedding-lstm.pl predict
 [0,1,2,3,4,5]  ->  contains token 3
 [0,1,2,4,5,6]  ->  no token 3
 [3,0,0,0,0,0]  ->  contains token 3
@@ -1209,7 +1217,7 @@ $ ./cocolog --embed /tmp/tut run tutorials/torch/22-embedding-lstm.pl predict
 That third line is the point: the token sat at the very start and the
 LSTM carried the fact across five further steps, in a model that was
 trained by one process, stored as terms, and is answering in another.
-And [24-q-learning](tutorials/torch/24-q-learning.pl) ends the classics
+And [24-q-learning](tutorials/tensor/24-q-learning.pl) ends the classics
 with reinforcement learning — fitted Q-iteration on a gridworld, the
 DQN idea built from nothing but `model_predict` for the Bellman targets
 and `model_train` for the regression, whose greedy policy walks the
@@ -1252,8 +1260,8 @@ nothing is ever mutated -- a step is a NEW parameter the program threads
 on, the way a Prolog program threads anything.
 [modules/torch/DESIGN-lazy-graph.md](modules/torch/DESIGN-lazy-graph.md)
 is the contract and the measurements;
-[29-sgd-by-hand](tutorials/torch/29-sgd-by-hand.pl) is the loop in
-Prolog; [30-two-paths](tutorials/torch/30-two-paths.pl) is the claim as
+[29-sgd-by-hand](tutorials/tensor/29-sgd-by-hand.pl) is the loop in
+Prolog; [30-two-paths](tutorials/tensor/30-two-paths.pl) is the claim as
 a program.
 
 Three gates hold it inside `make test`: `torch-graph` compares every
@@ -1305,7 +1313,7 @@ the process on the CUDA device, and where there is none it says so and
 stops, so the Mac rows above are its last CPU run and the Colab T4 is
 where it lives now. Its CPU twin is the next file.
 
-[31-tensor-expressions](tutorials/torch/31-tensor-expressions.pl) is
+[31-tensor-expressions](tutorials/tensor/31-tensor-expressions.pl) is
 the same program a second time, on six rows, in the syntax the
 predicates were asking for. `matmul` is an infix operator at the
 priority of `*`, every unary predicate is a prefix operator, and a DCG,
@@ -1345,6 +1353,19 @@ module's predicates -- `torch_seed`, `model_load`, `params_save` and the
 rest -- as nonterminals inside them; what stays a predicate, in braces, is
 the loop that steps an optimiser, since `adam_step` frees the old
 parameters itself and a rule must not emit what something else frees.
+
+**And a second backend under the same predicates.** The switch is
+`tensor_execution(Backend, Mode)`, `torch` or `tensorflow`, `eager` or
+`graph`: [`library(tensorflow)`](modules/tensorflow/README.md), Linux only,
+is TensorFlow's C library wrapped once behind the same `tensor_*` names,
+registered with the torch module at load and handed every call while it is
+selected. Its graph mode is a `TF_Graph` with sessions and
+`TF_AddGradients`; its eager C API has no tape, so a gradient there wants
+`(tensorflow, graph)`, and says so. The grammar emits the predicates, so an
+expression, a procedure and a tutorial written in them run on either
+library from one file, the backend chosen from outside --
+`tensor_execution(tensorflow, graph), train` -- and `seed/1` seeds
+whichever is selected.
 
 **And ten networks written in it**, tutorials 32 to 41, each the
 architecture in the open rather than a layer of the module: a ResNet

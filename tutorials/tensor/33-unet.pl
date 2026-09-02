@@ -17,9 +17,9 @@
 %%   test     16 fresh pictures, mean IoU of the thresholded mask at least 0.8
 %%   predict  two pictures: the input, the truth, the network's mask
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/33-unet.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/33-unet.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/33-unet.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/33-unet.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/33-unet.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/33-unet.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -92,7 +92,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(33),
+    seed(33),
     constants(Cs),
     pictures(0, 32, X, Y),
     { parameters(Ps0), adam_init(Ps0, St0),

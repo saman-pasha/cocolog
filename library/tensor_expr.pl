@@ -80,8 +80,9 @@
 %% No directive, no operator, nothing to declare -- `-->' is the reader's own.
 %%
 %% INSIDE A RULE the module's predicates and this library's are nonterminals
-%% too, usable without braces: torch_seed, tensor_execution (one or two
-%% arguments: the mode, or the backend and the mode), torch_device,
+%% too, usable without braces: seed (the selected backend's), torch_seed,
+%% tensor_execution (one or two arguments: the mode, or the backend and the
+%% mode -- torch | tensorflow, eager | graph), torch_device,
 %% torch_cuda_available, torch_cuda_count, torch_current_device; model_new,
 %% model_set_params, model_params, model_spec, model_save, model_load,
 %% model_free, model_train, model_evaluate, model_predict; params_save,
@@ -90,6 +91,15 @@
 %% params_load, one_hot, the masks and matrices -- emit it, so exec/1 frees
 %% it unless the head returns it. Any other goal goes in braces, and so does
 %% a plain unification, since `=' in a rule is the binding.
+%%
+%% TWO BACKENDS, ONE GRAMMAR. The goals this grammar emits are the tensor_*
+%% predicates, and those have two implementations behind
+%% tensor_execution(Backend, Mode): libtorch, and -- on Linux, with
+%% library(tensorflow) loaded -- TensorFlow's C library, where the graph
+%% mode is a TF_Graph and the gradient is TF_AddGradients. An expression, a
+%% procedure, a tutorial written in them runs on either; what differs is
+%% only what each library can do -- TensorFlow's eager C API has no tape, so
+%% a gradient there wants (tensorflow, graph).
 %%
 %% THE ONE DISCIPLINE: a rule frees nothing by hand. What it made is in its
 %% list and exec/1 frees it once; a tensor_free inside would free it twice,
@@ -295,8 +305,14 @@ exec(Goal) :-
 free_all([]).
 free_all([H|Hs]) :- tensor_free(H), free_all(Hs).
 
+%% seed(+N): the seed of WHICHEVER BACKEND tensor_execution/2 has selected --
+%% torch_seed/1, or tensorflow_seed/1 under tensor_execution(tensorflow, _) --
+%% so a tutorial written once seeds the library it runs on.
+seed(N) :- tensor_execution(B, _), ( B == tensorflow -> tensorflow_seed(N) ; torch_seed(N) ).
+
 %% ---- the module's predicates, and this library's, as nonterminals -----------------
 %% In a rule body, without braces. Those that answer a tensor emit it.
+seed(N) --> { seed(N) }.
 torch_seed(N) --> { torch_seed(N) }.
 tensor_execution(M) --> { tensor_execution(M) }.
 tensor_execution(B, M) --> { tensor_execution(B, M) }.     % the backend and the mode: torch | tensorflow, eager | graph

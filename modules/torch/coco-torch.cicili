@@ -2287,6 +2287,7 @@
   (code "  return 0;")
   (code "}")
   (code "extern \"C\" const char* coco_tensor_backend_name(void) { return ct_backend_names[ct_backend]; }")
+  (code "extern \"C\" int coco_tensor_graph_mode(void) { return ct_graph_mode; }")
   ;; what the Cicili side asks of that C state, through declared functions --
   ;; a symbol that lives only in a (code ...) block is invisible to Cicili
   (code "static int  ct_backend_active(void) { return ct_backend == 1 && ct_backend_dispatch != 0; }")
@@ -2298,6 +2299,19 @@
   (decl) (func ct_backend_select ((int b)) (out void))
   (decl) (func ct_backend_forward ((coco_engine * e) (const char * name) (uint32_t arity) (size_t g) (int * found)) (out int))
   (decl) (func coco_tensor_backend_name () (out const char *))
+  ;; ON DEMAND: asked for tensorflow with no backend registered, look for
+  ;; tensorflow.so beside this module and let it register itself -- so a file
+  ;; that names only library(torch) runs on either library from one source.
+  (code "#include <dlfcn.h>")
+  (code "static int ct_backend_try_load(void) {")
+  (code "  Dl_info info; if (!dladdr((void*) &coco_tensor_backend_set, &info) || !info.dli_fname) return 0;")
+  (code "  char path[4096]; snprintf(path, sizeof path, \"%s\", info.dli_fname);")
+  (code "  char* slash = strrchr(path, '/'); if (!slash) return 0; snprintf(slash + 1, sizeof path - (size_t)(slash + 1 - path), \"tensorflow.so\");")
+  (code "  void* h = dlopen(path, RTLD_NOW | RTLD_GLOBAL); if (!h) return 0;")
+  (code "  int (*entry)(void) = (int (*)(void)) dlsym(h, \"coco_library_entry\"); if (!entry) return 0;")
+  (code "  return entry() && ct_backend_dispatch != 0;")
+  (code "}")
+  (decl) (func ct_backend_try_load () (out int))
 
   ;; tensor_execution(?Backend, ?Mode) and tensor_execution(?Mode): Backend is
   ;; torch | tensorflow, Mode is eager | graph; unbound asks. Module state,
@@ -2324,7 +2338,7 @@
             (cond
               ((== 0 (strcmp nm "torch")) (ct_backend_select 0))
               ((== 0 (strcmp nm "tensorflow"))
-               (if (not (ct_backend_loaded))
+               (if (and (not (ct_backend_loaded)) (not (ct_backend_try_load)))
                    (return (coco_m_domain_error e "tensor_backend_loaded" b)))
                (ct_backend_select 1))
               (#t (return (coco_m_domain_error e "tensor_backend" b)))))

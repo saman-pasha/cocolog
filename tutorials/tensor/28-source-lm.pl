@@ -247,9 +247,9 @@ test :-
 %% count and the vocabulary size, four integers -- leaves through an assert.
 %% The tensors are process state and outlive the scope; the lists do not.
 %%
-%%   ./cocolog run tutorials/torch/28-source-lm.pl "heavy(60000)"
-%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), heavy(all)"
-%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), tensor_execution(torch, graph), heavy(all)"
+%%   ./cocolog run tutorials/tensor/28-source-lm.pl "heavy(60000)"
+%%   ./cocolog run tutorials/tensor/28-source-lm.pl "torch_device(cuda), heavy(all)"
+%%   ./cocolog run tutorials/tensor/28-source-lm.pl "torch_device(cuda), tensor_execution(torch, graph), heavy(all)"
 
 %% THE FIVE GROUPS, kept apart so the cap can take from all of them. What
 %% stays out stays out for cs_sources/1's reason: lib/swipl is another
@@ -259,7 +259,7 @@ cs_heavy_groups([A, B, C, D, E]) :-
     expand_file_name('library/*.pl', A0), sort(A0, A),
     expand_file_name('tutorials/basics/[0-9]*.pl', B0), sort(B0, B),
     expand_file_name('tutorials/library/[0-9]*.pl', C0), sort(C0, C),
-    expand_file_name('tutorials/torch/[0-9]*.pl', D0), sort(D0, D),
+    expand_file_name('tutorials/tensor/[0-9]*.pl', D0), sort(D0, D),
     expand_file_name('tools/coco-agent/*.pl', E0), sort(E0, E1),
     expand_file_name('tools/coco-agent/selftest/*.pl', E2), sort(E2, E3),
     append(E1, E3, E).

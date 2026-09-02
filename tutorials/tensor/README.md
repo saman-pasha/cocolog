@@ -1,7 +1,20 @@
-# Torch: forty-one networks, one file each
+# Tensor: forty-one networks, one file each
 
 *One of three tutorial categories — `../basics/` is the language,
 `../library/` is what ships, and this is the deep end.*
+
+The directory is `tensor/` and not `torch/` because the predicates the
+files are written against have two libraries behind them now,
+`tensor_execution(torch | tensorflow, eager | graph)`, and from 31 on a
+file runs on either: torch here and on the Colab T4, TensorFlow on Linux
+with `library(tensorflow)`. The first twenty-eight, through `model_*`,
+are libtorch's.
+
+    ./cocolog --embed /tmp/tutorials run tutorials/tensor/32-resnet.pl "tensor_execution(tensorflow, graph), train"
+
+is the same file on TensorFlow, on Linux with `library(tensorflow)` built:
+the backend is a switch set from outside, the file does not name it, and
+`seed/1` seeds whichever is selected.
 
 Twenty-four networks, each a PyTorch-tutorial classic rewritten as a
 standalone Prolog program against the Torch module. Every file carries
@@ -9,9 +22,9 @@ its own documentation and three goals, each meant to run as its OWN
 process against the same store, because the trained model lives in the
 knowledge base as terms, not in memory:
 
-    ./cocolog --embed /tmp/tutorials run tutorials/torch/01-linear-regression.pl train
-    ./cocolog --embed /tmp/tutorials run tutorials/torch/01-linear-regression.pl test
-    ./cocolog --embed /tmp/tutorials run tutorials/torch/01-linear-regression.pl predict
+    ./cocolog --embed /tmp/tutorials run tutorials/tensor/01-linear-regression.pl train
+    ./cocolog --embed /tmp/tutorials run tutorials/tensor/01-linear-regression.pl test
+    ./cocolog --embed /tmp/tutorials run tutorials/tensor/01-linear-regression.pl predict
 
 `train` builds the data, fits the network, and `model_save`s it;
 `test` `model_load`s it back and judges it against a threshold, exiting

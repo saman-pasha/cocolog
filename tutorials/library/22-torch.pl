@@ -9,13 +9,13 @@
 %% which is the whole reason this is a module and not a builtin.
 %%
 %% THIS FILE IS THE INTRODUCTION. The real collection is
-%% `tutorials/torch/' -- twenty-four networks, each a PyTorch-tutorial
+%% `tutorials/tensor/' -- twenty-four networks, each a PyTorch-tutorial
 %% classic rewritten as a standalone Prolog program, each with three goals
 %% meant to run as their OWN PROCESSES against the same store:
 %%
-%%     ./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train
-%%     ./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl test
-%%     ./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl predict
+%%     ./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl train
+%%     ./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl test
+%%     ./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl predict
 %%
 %% WHY THREE PROCESSES AND NOT THREE GOALS. Because the trained model does
 %% not live in memory: `model_save/2' puts its parameters in the KNOWLEDGE
@@ -172,8 +172,8 @@ main :-
 
     format("~n-- GO AND RUN ONE, which is the real lesson~n"),
     format("~n"),
-    format("     ./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl train~n"),
-    format("     ./cocolog --embed /tmp/t run tutorials/torch/07-xor.pl test~n"),
+    format("     ./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl train~n"),
+    format("     ./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl test~n"),
     format("~n"),
     format("   07-xor is the one to start with: it is the smallest~n"),
     format("   network that cannot be done without a hidden layer, so~n"),

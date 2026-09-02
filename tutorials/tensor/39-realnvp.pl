@@ -20,9 +20,9 @@
 %%   test     on 256 fresh points, the flow's NLL must beat a Gaussian fitted to them by 0.5 nats
 %%   predict  300 samples drawn backwards through the flow, as a scatter, and how many sit on a moon
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/39-realnvp.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/39-realnvp.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/39-realnvp.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/39-realnvp.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/39-realnvp.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/39-realnvp.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -122,7 +122,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(39),
+    seed(39),
     moons(0, 256, X),
     { parameters(Ps0), adam_init(Ps0, St0),
       fit(1500, Ps0, St0, X, Ps),
@@ -160,7 +160,7 @@ test -->
       ( Lv =< G - 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
 predict -->
-    torch_seed(2039),
+    seed(2039),
     params_load(t39_realnvp, Ps), { layers(Ps, Layers) },
     Z = randn([300, 2]), inverse(Layers, Z, X), Rows = list(X),
     { write('300 points drawn from N(0, I) and run backwards through the flow:'), nl, scatter(Rows),

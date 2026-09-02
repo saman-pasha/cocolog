@@ -17,9 +17,9 @@
 %%   test     windows from the rest of the text, next-character accuracy at least 0.5
 %%   predict  the model continues two prompts
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/35-gpt.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/35-gpt.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/35-gpt.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/35-gpt.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/35-gpt.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/35-gpt.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -97,7 +97,7 @@ batches(B, N, [batch(Ids, PosIds, Y)|Bs]) -->
     { B1 is B + 1 }, batches(B1, N, Bs).
 
 train -->
-    torch_seed(35),
+    seed(35),
     batches(0, 16, Batches),
     causal_mask(64, 8, Mask),
     { parameters(Ps0), adam_init(Ps0, St0),

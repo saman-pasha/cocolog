@@ -20,9 +20,9 @@
 %%   test     accuracy over all 34 members against the factions, at least 0.85
 %%   predict  the two factions as the network sees them, with its confidence
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/38-gcn.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/38-gcn.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/38-gcn.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/38-gcn.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/38-gcn.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/38-gcn.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -95,7 +95,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(38),
+    seed(38),
     normalised(A),
     one_hot([0, 1], 2, Y),                                  % member 1 is faction 0, member 34 is faction 1
     { parameters(Ps0), adam_init(Ps0, St0),

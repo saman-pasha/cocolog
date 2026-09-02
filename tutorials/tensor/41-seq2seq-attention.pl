@@ -23,9 +23,9 @@
 %%   test     64 fresh sequences decoded by the model on its own, token accuracy at least 0.9
 %%   predict  four sequences reversed, and the attention weights of the first
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/41-seq2seq-attention.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/41-seq2seq-attention.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/41-seq2seq-attention.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/41-seq2seq-attention.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/41-seq2seq-attention.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/41-seq2seq-attention.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -143,7 +143,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(41),
+    seed(41),
     { findall(b(Ins, Feeds, Y), ( between(0, 7, B), From is B * 64, batch(From, 64, Ins, _, Feeds, Y) ), Batches),
       parameters(Ps0), adam_init(Ps0, St0),
       fit(400, Ps0, St0, Batches, Ps),

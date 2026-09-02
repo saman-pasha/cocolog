@@ -22,9 +22,9 @@
 %%   test     32 fresh sequences, accuracy at least 0.9
 %%   predict  four sequences, with the answer beside the truth
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/34-transformer-encoder.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/34-transformer-encoder.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/34-transformer-encoder.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/34-transformer-encoder.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/34-transformer-encoder.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/34-transformer-encoder.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -112,7 +112,7 @@ batches(B, N, [batch(Ids, PosIds, Y)|Bs]) -->
     { B1 is B + 1 }, batches(B1, N, Bs).
 
 train -->
-    torch_seed(34),
+    seed(34),
     batches(0, 16, Batches),
     block_mask(64, 6, Mask),
     { parameters(Ps0), adam_init(Ps0, St0),

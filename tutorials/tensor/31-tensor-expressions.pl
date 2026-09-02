@@ -38,9 +38,9 @@
 %% `X * 2.0' doubles X. And a subexpression written twice is computed twice:
 %% the grammar shares nothing, so name what you reuse -- `H := relu X, ... H'.
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/31-tensor-expressions.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/31-tensor-expressions.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/31-tensor-expressions.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/31-tensor-expressions.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/31-tensor-expressions.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/31-tensor-expressions.pl predict
 
 :- use_module(library(torch)).
 
@@ -118,11 +118,30 @@ fit(X, Y, Loss, Ws, Bv) -->
 %% A rule: tensor_execution is a nonterminal the library provides, and call//1
 %% runs the goal inside, its temporaries threading up.
 under(Mode, Goal) -->
-    tensor_execution(torch, Mode),
-    torch_seed(31),                         % the same random start under each path
+    { tensor_execution(B, _) }, tensor_execution(B, Mode),   % the mode, on whichever backend is selected
+    seed(31),                                                % the same random start under each path
     call(Goal),
     S = stats,
     { format("   ~w: ~w~n", [Mode, S]) }.
+
+%% fit_under(+Backend, +X, +Y, -Loss, -Ws, -Bv): on torch, the fit under each
+%% path and the identity check; on tensorflow -- whose eager C API has no
+%% tape -- the graph path alone, which is where TensorFlow differentiates.
+%% The program above is the same either way: the backend is a switch set
+%% from outside, `tensor_execution(tensorflow, graph), train'.
+fit_under(torch, X, Y, LG, WG, BG) -->
+    under(eager, fit(X, Y, LE, WE, BE)),
+    under(graph, fit(X, Y, LG, WG, BG)),
+    { format("eager: loss ~8f  w ~w  b ~w~n", [LE, WE, BE]),
+      format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]),
+      (   LE =:= LG, WE == WG, BE =:= BG
+      ->  write('identical -- the same expression, the same numbers'), nl
+      ;   write('DIFFER'), nl, halt(1)
+      ) }.
+fit_under(tensorflow, X, Y, LG, WG, BG) -->
+    { write('tensorflow: its eager C API has no tape, so the fit runs under the graph path alone'), nl },
+    under(graph, fit(X, Y, LG, WG, BG)),
+    { format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]) }.
 
 %% THE THREE GOALS ARE RULES TOO, and the three one-liners under them are
 %% what the runner calls: each runs its rule with exec/1, so every tensor a
@@ -142,15 +161,9 @@ train -->
     W0 = zeros([2, 1]), B0 = zeros([1]),
     { phrase(expr(loss(X, Y, W0, B0), _), Goals),
       format("the loss, as goals: ~w~n", [Goals]) },
-    under(eager, fit(X, Y, LE, WE, BE)),
-    under(graph, fit(X, Y, LG, WG, BG)),
-    { format("eager: loss ~8f  w ~w  b ~w~n", [LE, WE, BE]),
-      format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]),
-      (   LE =:= LG, WE == WG, BE =:= BG
-      ->  write('identical -- the same expression, the same numbers'), nl
-      ;   write('DIFFER'), nl, halt(1)
-      ),
-      WG = [W1, W2] },
+    { tensor_execution(Backend, _) },
+    fit_under(Backend, X, Y, LG, WG, BG),
+    { WG = [W1, W2] },
     % the weights travel as a parameter list, two tensors made from the numbers
     W = [[W1], [W2]], B = [BG],
     params_save(t31_expressions, [W, B]),
@@ -202,7 +215,7 @@ predict -->
 each_path(X, W, B, Ys) --> each_path([eager, graph], X, W, B, Ys).
 each_path([], _, _, _, _) --> [].
 each_path([Mode|Modes], X, W, B, Ys) -->
-    tensor_execution(torch, Mode),
+    { tensor_execution(B0, _) }, tensor_execution(B0, Mode),
     Ps = list(X matmul W + B),
     { format("~w: predicted ~w  (plane says ~w)~n", [Mode, Ps, Ys]) },
     each_path(Modes, X, W, B, Ys).

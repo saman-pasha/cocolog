@@ -18,9 +18,9 @@
 %%   test     reload the model, rmse on fresh rows, pass under 0.05
 %%   predict  reload the model, answer for three rows beside the truth
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/29-sgd-by-hand.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/29-sgd-by-hand.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/29-sgd-by-hand.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/29-sgd-by-hand.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/29-sgd-by-hand.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/29-sgd-by-hand.pl predict
 
 :- use_module(library(torch)).
 
@@ -101,8 +101,8 @@ test :-
 %% times on the Colab T4 against the VM's own CPUs, and it prints how far the
 %% learned weights sit from the plane, which more rows pull closer.
 %%
-%%   ./cocolog run tutorials/torch/29-sgd-by-hand.pl "heavy(20000, 32, 200)"
-%%   ./cocolog run tutorials/torch/29-sgd-by-hand.pl "torch_device(cuda), heavy(200000, 64, 200)"
+%%   ./cocolog run tutorials/tensor/29-sgd-by-hand.pl "heavy(20000, 32, 200)"
+%%   ./cocolog run tutorials/tensor/29-sgd-by-hand.pl "torch_device(cuda), heavy(200000, 64, 200)"
 %% A GPU WORKLOAD, like tutorial 28's: with no CUDA device here the rows are
 %% capped at 20000 and the steps at 100, and the run says so; a machine that
 %% has a GPU but was told torch_device(cpu) runs what it was given.

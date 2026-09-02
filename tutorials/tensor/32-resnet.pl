@@ -18,9 +18,9 @@
 %%   test     30 fresh pictures, accuracy at least 0.9
 %%   predict  three pictures drawn, with the class the network answers
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/32-resnet.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/32-resnet.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/32-resnet.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/32-resnet.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/32-resnet.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/32-resnet.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -97,7 +97,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(32),
+    seed(32),
     constants(Cs),
     pictures(0, 48, X, Classes), one_hot(Classes, 3, Y),
     { parameters(Ps0), adam_init(Ps0, St0),

@@ -21,9 +21,9 @@
 %% `predict' shows the one thing the graph path can do that eager cannot:
 %% know a shape, and refuse a shape error, with nothing executed.
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/30-two-paths.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/30-two-paths.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/30-two-paths.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/30-two-paths.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/30-two-paths.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/30-two-paths.pl predict
 %%
 %% A GPU TUTORIAL, and only that: every goal begins with gpu/0, which puts
 %% the process on the CUDA device or, where there is none, says so and
@@ -34,7 +34,7 @@
 %% And the other way to choose a path, from outside the file, is a goal
 %% prefix -- this is how test/torch-graph.sh runs every tutorial twice:
 %%
-%%   ./cocolog run tutorials/torch/30-two-paths.pl "tensor_execution(torch, graph), train"
+%%   ./cocolog run tutorials/tensor/30-two-paths.pl "tensor_execution(torch, graph), train"
 
 :- use_module(library(torch)).
 

@@ -25,9 +25,9 @@
 %%   test     256 samples: at least 0.8 within 0.15 of the ring, at least 10 of 12 sectors reached
 %%   predict  300 samples as a scatter, and the discriminator on a real and a fake point
 %%
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/37-gan.pl train
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/37-gan.pl test
-%%   ./cocolog --embed /tmp/tutorials run tutorials/torch/37-gan.pl predict
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/37-gan.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/37-gan.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/37-gan.pl predict
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
@@ -98,7 +98,7 @@ test :- exec(test).
 predict :- exec(predict).
 
 train -->
-    torch_seed(37),
+    seed(37),
     { generator(G0), discriminator(D0), adam_init(G0, [beta1(0.5)], SG0), adam_init(D0, [beta1(0.5)], SD0),
       rounds(5000, G0, D0, SG0, SD0, G, D),
       append(G, D, Ps) },
@@ -127,7 +127,7 @@ rounds(K, G, D, SG, SD, GF, DF) :-
 load(G, D) --> params_load(t37_gan, Ps), { length(G, 6), append(G, D, Ps) }, !.
 
 test -->
-    torch_seed(1037),
+    seed(1037),
     load(G, _),
     Z = randn([256, 2]), generate(G, Z, Fake), Rows = list(Fake),
     { on_ring(Rows, Fraction, Sectors),
@@ -135,7 +135,7 @@ test -->
       ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
 predict -->
-    torch_seed(2037),
+    seed(2037),
     load(G, D),
     Z = randn([300, 2]), generate(G, Z, Fake), Rows = list(Fake),
     { write('300 samples from the generator:'), nl, scatter(Rows), nl },
