@@ -1,4 +1,4 @@
-# Torch: thirty-one networks, one file each
+# Torch: forty-one networks, one file each
 
 *One of three tutorial categories — `../basics/` is the language,
 `../library/` is what ships, and this is the deep end.*
@@ -53,6 +53,16 @@ and every run agrees with the last.
 | 29-sgd-by-hand | the training loop written in Prolog: tensor_grad/3, tensor_step/4, and weights handed to a model; `heavy/3` is its GPU workload, scaled down where there is no CUDA device |
 | 30-two-paths | one program, two execution paths: the same clauses fitted under `eager` and under `graph` in one process, held identical, and what only the graph path can do -- A GPU TUTORIAL: it puts itself on the CUDA device, and without one it says so and stops |
 | 31-tensor-expressions | tutorial 30 again, in the syntax the predicates were asking for: `L := mean((X matmul W + B - Y) ^ 2.0)`, with `matmul` an infix operator, one prefix operator per unary predicate, and a DCG, `expr//2`, that turns an expression into the list of tensor goals it stands for -- the same list under both paths -- on six rows |
+| 32-resnet | residual blocks as expressions: `relu(H + conv(relu(conv(H))))`, a stem, two blocks, a pool, global average pooling; three shapes in noisy 8x8 pictures; conv2d/3 is nine shifted matmuls in a pixels-as-rows layout |
+| 33-unet | down, across, and up with the skip: two levels, `cat/2` joining the upsampled features to the encoder's, a sigmoid per pixel, `bce/2`; a rectangle masked out of noise, judged by IoU |
+| 34-transformer-encoder | one encoder block in the open: embeddings, pre-norm multi-head attention through `cols/3` and `cat/2`, the feed-forward, mean pooling; a batch of sequences as ONE score matrix under `block_mask/3`; does a token repeat |
+| 35-gpt | the same block under `causal_mask/3` with a head at every position: a character model of a small text, and `predict` continues a prompt greedily, its own output fed back |
+| 36-vae | the reparameterisation trick as one expression, `Mu + exp(LogVar * 0.5) * randn(S)`; reconstruction plus KL; a 3x3 walk over the two-dimensional latent plane, decoded and drawn |
+| 37-gan | two networks and a loss each, the generator's gradient flowing THROUGH the discriminator; a ring of points; Adam at beta1 0.5 is the one setting that keeps the generator from collapsing onto an arc |
+| 38-gcn | a graph convolution is one matmul more than a dense layer, `A X W` with A the normalised adjacency; Zachary's karate club, two labelled members, thirty-two placed by the graph alone |
+| 39-realnvp | four affine coupling layers, run forwards for the likelihood and backwards for a sample; two moons; the NLL held against a fitted Gaussian's, and a density stated for a point |
+| 40-ddpm | the forward process as a schedule, the network learning the noise, sampling as fifty steps back; the same ring as 37, drawn at three moments of the sampling |
+| 41-seq2seq-attention | an encoder GRU, a decoder GRU, and additive attention between them, the GRU cell four expressions; sequences reversed, teacher forcing, the decoder feeding itself at test, and the attention weights printed |
 
 One cocolog property every file here respects: `run` CONSULTS the file
 into the knowledge base, and the knowledge base is the store -- so the

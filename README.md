@@ -94,8 +94,10 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        (HTTP/1.1 as a grammar), httpd.pl (a server whose
                        pages are clauses), json.pl, xml.pl and html.pl (a
                        term as a document, and back), ca.pl (a certificate
-                       authority as rules), and the .so's that
-                       `make modules' builds
+                       authority as rules), tensor_expr.pl (tensor
+                       expressions over the torch module: a DCG from an
+                       expression to the goals it stands for), and the
+                       .so's that `make modules' builds
 modules/               the LOADABLE modules, one directory each -- tcp,
                        thread, curl, bigint, torch, and ZiguratIP's
                        cryptography: sha, aes, der, x509, tls. None is part of
@@ -124,8 +126,8 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        every claim in the first two is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (thirty-nine, ONE PER LIBRARY that
-                       ships), torch/ (thirty-one networks, three
+                       library/ (forty, ONE PER LIBRARY that
+                       ships), torch/ (forty-one networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
@@ -290,7 +292,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — thirty-nine lessons, one per library that ships
+### `library/` — forty lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.
@@ -302,12 +304,13 @@ eleven on the library path.
 | [12-json](tutorials/library/12-json.pl) [13-xml](tutorials/library/13-xml.pl) [14-html](tutorials/library/14-html.pl) | tier 2 | a term as a document, and back |
 | [15-http](tutorials/library/15-http.pl) [16-httpd](tutorials/library/16-httpd.pl) [17-tcp](tutorials/library/17-tcp.pl) [18-thread](tutorials/library/18-thread.pl) | tier 2 | the grammar, the server, the socket seam, the threads |
 | [19-zigurat](tutorials/library/19-zigurat.pl) [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | the connection, an HTTP client, integers that do not wrap, and Prolog that trains |
+| [39-tensor-expr](tutorials/library/39-tensor-expr.pl) | tier 2 | `tensor_expr`: an expression is a list of tensor goals, `:=` runs it, and the list is the same program under both execution paths |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
 end. A new library therefore gets a tutorial in the same commit.
 
-### `torch/` — thirty-one networks, three processes each
+### `torch/` — forty-one networks, three processes each
 
 The deep end, and its own [README](tutorials/torch/README.md) — described
 under *Prolog that trains* below.
@@ -1175,17 +1178,19 @@ runs the whole story: train, store in Zigurat, reload in a fresh
 process, predict identically.
 
 The classic AI/ML challenges pass, one `.pl` file at a time.
-**[tutorials/torch/](tutorials/torch/README.md) holds thirty-one such programs**,
+**[tutorials/torch/](tutorials/torch/README.md) holds forty-one such programs**,
 each a documented file carrying `train`, `test` and `predict` as
 separate goals in separate processes — the store carries the model
 between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
 and fitted Q-iteration reinforcement learning. They are the third
-tutorial category — `sh test/tutorials.sh` runs all eighty-one files,
-the ninety-three torch processes included, green and deterministically
-in about eleven minutes on this Mac, up from forty-five seconds before
-the transformer lessons joined. The one to read first is
+tutorial category — `sh test/tutorials.sh` runs all ninety-two files,
+the hundred and twenty-three torch processes included, green and deterministically
+in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
+from forty-five seconds before the transformer lessons did -- and those ten
+add about three and a half minutes between them, measured one by one. The
+one to read first is
 [22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every
 text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:
@@ -1321,6 +1326,22 @@ path -- and the fit is identical to the digit again, eager against
 graph, on the six rows. The one rule to know: a float is a number and an
 integer is a handle, because a handle IS an integer, so `X * 2.0`
 doubles X and `X * 2` names handle 2.
+
+**And ten networks written in it**, tutorials 32 to 41, each the
+architecture in the open rather than a layer of the module: a ResNet
+and a U-Net, whose convolutions are nine shifted matmuls in a
+pixels-as-rows layout; a transformer encoder and a GPT-style decoder,
+where a batch of sequences attends as ONE masked score matrix; a VAE, a
+GAN and a diffusion model; a graph convolutional network on the karate
+club; a RealNVP flow that can state a density; and an encoder-decoder
+with additive attention that prints its weights. Every one trains on
+this Mac's CPU in seconds to a minute, has a `test` goal with a number
+it must reach, and prints the same results under both paths -- checked
+for all ten. What they share is [library(tensor_expr)](library/tensor_expr.pl):
+the grammar, the composites -- softmax, layer norm, GELU, the
+convolution, the losses -- Adam and SGD as steps that answer new
+parameters, and the store as the place a parameter list goes between
+processes.
 
 **And what the table does not say, said plainly.** The T4's graph row
 is the slowest of the six, because a sixty-four-row fit is far too small
