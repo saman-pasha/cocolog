@@ -70,7 +70,9 @@ train_main :-
 getenv_path('CSVFILE').
 PL
 # the path rides in by substitution -- cocolog has no getenv
-sed -i "s|'CSVFILE'|'$OUT/data.csv'|" "$OUT/train.pl"
+# no `sed -i': GNU takes an optional suffix, BSD a mandatory one, and the same
+# line means two different things on the two -- on macOS it died here for months
+sed "s|'CSVFILE'|'$OUT/data.csv'|" "$OUT/train.pl" > "$OUT/train.pl.new" && mv "$OUT/train.pl.new" "$OUT/train.pl"
 
 cat > "$OUT/load.pl" <<'PL'
 :- use_module(library(torch)).
@@ -171,7 +173,7 @@ conv_again :-
     model_evaluate(M2, XTe, YTe, accuracy, A),
     ( A >= 0.95 -> write(conv_reloaded) ; write(conv_buffers_lost) ), nl.
 PL
-sed -i "s|'BARS'|'$OUT/bars.csv'|g" "$OUT/conv.pl"
+sed "s|'BARS'|'$OUT/bars.csv'|g" "$OUT/conv.pl" > "$OUT/conv.pl.new" && mv "$OUT/conv.pl.new" "$OUT/conv.pl"
 
 echo "the tensor operations"
 ops_out=$(timeout 120 "$COCOLOG" --local run "$OUT/ops.pl" ops_main 2>&1)

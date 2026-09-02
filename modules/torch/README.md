@@ -56,16 +56,27 @@ small corner of that class — the dataset samples every axis
 log-uniformly precisely so that corner is populated, and the demo's
 first drafts, where it was not, are a lesson the file's comments keep.
 
-## A graph execution path, designed
+## A graph execution path, behind the same predicates
 
-[DESIGN-lazy-graph.md](DESIGN-lazy-graph.md) is the design for a second execution
-path behind the same predicates: `torch_execution(graph)` records the tensor
-ops a proof asks for and executes them at the seams where a number is read or a
-model is fed, with shapes known at record time so shape errors keep their timing,
-stochastic leaves executed at once so random draws keep their order, and on CUDA
-a replay of what was recorded. It lists the gates, in order: equality against
-eager on this Mac's CPU, autograd through the recorded graph, then the T4. Nothing
-in it is built yet.
+```prolog
+torch_execution(graph).     % from here on, producers RECORD; consumers force
+torch_execution(eager).     % the default, what the module always did
+tensor_force(T).            % execute what T depends on, now
+tensor_graph_stats(S).      % S = stats(recorded(N), executed(M), replayed(R), pending(P))
+```
+
+A program written for the eager path runs unchanged under `torch_execution(graph)`:
+every tensor predicate keeps its name, arguments and answers, and only the moment
+the arithmetic happens moves -- to `tensor_to_list`, `tensor_item`,
+`tensor_reduce`, or the model predicate that reads the tensor. A recorded node
+knows its shape from the meta device, so a shape error is raised at the same goal
+eager raises it and `tensor_shape/2` costs nothing; `randn`, `rand` and
+`randperm` execute at once so draws keep program order; a node built on a branch
+that fails is never executed. [DESIGN-lazy-graph.md](DESIGN-lazy-graph.md) is the
+contract and the plan; `test/torch-graph.sh` holds phase 1 to **equality** with
+eager -- every producer, an eleven-op expression, a training run, and the 28
+tutorials' printed results. Phases 2 (autograd through the recorded graph) and 3
+(CUDA graph replay, on the T4) are designed, not built.
 
 ## The transformer layers, and how they were checked
 

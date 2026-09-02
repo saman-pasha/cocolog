@@ -5,8 +5,10 @@ graph path. Same predicates, same arguments, same answers. The only thing
 that moves is *when* the arithmetic happens, and the design below is the list
 of everything that has to be true for that sentence to hold.
 
-Status: design, September 2026. Nothing in this file is built yet. The first
-gate is on this Mac, CPU only; the last is on a Colab T4.
+Status: **phase 1 is built** (September 2026): `torch_execution/1`, recording,
+forcing, meta shapes, `tensor_force/1`, `tensor_graph_stats/1`, and
+`test/torch-graph.sh` holding it to equality against eager on this Mac's CPU.
+Phases 2 and 3 are not. The last gate is on a Colab T4.
 
 ---
 
@@ -98,7 +100,11 @@ struct CtNode {
   same `domain_error`, as eager raises it. `tensor_shape/2` answers from the
   node without executing anything. This is the mechanism that keeps error
   *timing* identical for the whole class of errors a program can provoke
-  with its shapes; §6 lists the class it cannot cover.
+  with its shapes; §6 lists the class it cannot cover. Four producers have no meta kernel in
+  every libtorch -- `abs`, `relu`, `index_rows`, `standardise` -- and for those
+  the shape is written as a rule, since none can raise a shape error the rule
+  would miss; `standardise` still refuses a training count past the rows at
+  record time, as eager refuses it.
 
 ## 4. Which predicates record, which force, and which do neither
 
@@ -138,9 +144,10 @@ on CPU rather than a tolerance.
 
 Written down so the dialect card can carry them:
 
-1. **Resource errors move to the consumer.** Out-of-memory, a CUDA fault, a
-   NaN-producing kernel: eager raises them at the op, graph at the force.
-   Shape and dtype errors do not move (§3).
+1. **Resource and VALUE errors move to the consumer.** Out-of-memory, a CUDA
+   fault, a NaN-producing kernel, an `index_rows` index past the end -- errors
+   that depend on what is *in* a tensor rather than on its shape: eager raises
+   them at the op, graph at the force. Shape and dtype errors do not move (§3).
 2. **Work on a failed branch never happens.** A node recorded on a branch
    that backtracks is never forced; `tensor_graph_stats/1` shows
    `recorded > executed`. Eager already did the work and leaked the slot.

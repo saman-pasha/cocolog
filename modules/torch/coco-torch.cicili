@@ -37,6 +37,16 @@
 ;;;; NUMBERS CROSS THE SEAM AS double -- Prolog's float. Tensors compute
 ;;;; in float32 as libtorch prefers; the conversion happens in tensors,
 ;;;; not element by element.
+;;;;
+;;;; TWO EXECUTION PATHS, ONE SET OF PREDICATES. Under torch_execution(eager),
+;;;; the default, a producer computes and adopts, as it always did. Under
+;;;; torch_execution(graph) it RECORDS a node -- the producer, its arguments,
+;;;; its inputs BY POINTER, and a shape and dtype worked out on the meta
+;;;; device -- and the consumers (tensor_to_list, tensor_item, tensor_reduce,
+;;;; the model predicates) force what they read. The same raw workers run
+;;;; either way, later. Random leaves execute at once so draws keep their
+;;;; order. DESIGN-lazy-graph.md is the contract; test/torch-graph.sh holds
+;;;; it to equality against eager.
 
 (source "coco-torch.cpp"
   ;; COMPILED BY build.sh, NOT BY CICILI, now that this is a LOADABLE
@@ -53,6 +63,8 @@
   (include <cstdlib>)
   (include <string>)
   (include <exception>)
+  (include <memory>)
+  (include <vector>)
 
   (import "lib/cpp/torch/torch.cicili")
 
@@ -179,6 +191,19 @@
   (decl) (func ct_cuda_count () (out llong))
   (decl) (func ct_current_device ((llong * index)) (out int))
   (decl) (func ct_set_device ((int kind) (llong index)) (out int))
+  ;; the graph path (C++ below the raw workers): the node table and its accessors
+  (decl) (func ct_graph_get () (out int))
+  (decl) (func ct_graph_set ((int m)) (out void))
+  (decl) (func ct_slot_exists ((llong h)) (out int))
+  (decl) (func ct_slot_tensor ((llong h)) (out torch::Tensor *))
+  (decl) (func ct_slot_keep ((const torch::Tensor & t)) (out llong))
+  (decl) (func ct_slot_adopt ((torch::Tensor * t)) (out llong))
+  (decl) (func ct_slot_release ((llong h)) (out int))
+  (decl) (func ct_slot_shape ((llong h) (llong * out) (int cap)) (out int))
+  (decl) (func ct_slot_force ((llong h)) (out int))
+  (decl) (func ct_record ((int prod) (int op) (double v) (llong n) (llong dim) (llong from) (llong len)
+                          (const llong * ishape) (int nd) (const llong * ins) (int nins)) (out llong))
+  (decl) (func ct_graph_stats ((llong * rec) (llong * exe) (llong * rep) (llong * pend)) (out void))
 
 
   ;; THE DEVICE IS MODULE STATE, chosen once and honoured everywhere: a
@@ -706,26 +731,141 @@
   (code "  return new torch::Tensor(torch::randperm(n).to(torch::kFloat32));")
   (code "}")
 
-  ;; ---- the handle tables --------------------------------------------
-  ;; Fixed tables of owned pointers; a freed slot is reused; 0 is never
-  ;; a handle. Process state, on purpose -- see the head of the file.
+  (code "// ---- the graph path: nodes, recording, forcing ----------------------------")
+  (code "// A handle names a NODE. A value node holds a tensor; a deferred node holds")
+  (code "// its producer, its arguments, its inputs BY POINTER (so tensor_free of an")
+  (code "// input cannot alias a reused slot), and the shape and dtype the meta device")
+  (code "// answered when it was recorded. Forcing runs the same raw workers eager runs.")
+  (code "struct CtNode {")
+  (code "  int prod;                       // 0 value; producers: 1 unary 2 binary 3 scalar 4 reshape 5 cat")
+  (code "  int op;                         //   6 index_rows 7 argmax 8 factory 9 arange 10 eye 11 narrow 12 standardise")
+  (code "  double v; long long n, dim, from, len;")
+  (code "  std::vector<long long> ishape;")
+  (code "  std::vector<std::shared_ptr<CtNode>> ins;")
+  (code "  std::vector<long long> shape; c10::ScalarType dtype;")
+  (code "  torch::Tensor value; bool done;")
+  (code "  CtNode() : prod(0), op(0), v(0.0), n(0), dim(0), from(0), len(0), dtype(torch::kFloat32), done(false) {}")
+  (code "};")
+  (code "static std::shared_ptr<CtNode> ct_nodes[4096];")
+  (code "static int ct_graph_mode = 0;")
+  (code "static long long ct_rec = 0, ct_exe = 0, ct_rep = 0;")
+  (code "int  ct_graph_get() { return ct_graph_mode; }")
+  (code "void ct_graph_set(int m) { ct_graph_mode = m ? 1 : 0; }")
+  (code "int  ct_slot_exists(long long h) { return (h > 0 && h < 4096 && ct_nodes[h]) ? 1 : 0; }")
+  (code "static long long ct_slot_new(std::shared_ptr<CtNode> nd) {")
+  (code "  for (long long i = 1; i < 4096; i++) if (!ct_nodes[i]) { ct_nodes[i] = nd; return i; }")
+  (code "  return 0;")
+  (code "}")
+  (code "static std::shared_ptr<CtNode> ct_value_node(const torch::Tensor& t) {")
+  (code "  std::shared_ptr<CtNode> nd = std::make_shared<CtNode>();")
+  (code "  nd->value = t; nd->done = true; nd->dtype = t.scalar_type();")
+  (code "  nd->shape.assign(t.sizes().begin(), t.sizes().end());")
+  (code "  return nd;")
+  (code "}")
+  (code "long long ct_slot_keep(const torch::Tensor& t) { return ct_slot_new(ct_value_node(t)); }")
+  (code "long long ct_slot_adopt(torch::Tensor* t) { long long h = ct_slot_new(ct_value_node(*t)); delete t; return h; }")
+  (code "int ct_slot_release(long long h) { if (!ct_slot_exists(h)) return 0; ct_nodes[h].reset(); return 1; }")
+  (code "int ct_slot_shape(long long h, long long* out, int cap) {")
+  (code "  if (!ct_slot_exists(h)) return -1;")
+  (code "  const std::vector<long long>& sh = ct_nodes[h]->shape;")
+  (code "  if ((int)sh.size() > cap) return -1;")
+  (code "  for (size_t i = 0; i < sh.size(); i++) out[i] = sh[i];")
+  (code "  return (int)sh.size();")
+  (code "}")
+  (code "// one producer, on its real inputs or on meta stand-ins of them")
+  (code "static torch::Tensor ct_apply(const CtNode& nd, bool meta) {")
+  (code "  std::vector<torch::Tensor> in;")
+  (code "  for (size_t i = 0; i < nd.ins.size(); i++) {")
+  (code "    const CtNode& p = *nd.ins[i];")
+  (code "    if (meta) in.push_back(torch::empty(c10::IntArrayRef((const int64_t*)p.shape.data(), p.shape.size()),")
+  (code "                                        torch::TensorOptions().dtype(p.dtype).device(torch::kMeta)));")
+  (code "    else in.push_back(p.value);")
+  (code "  }")
+  (code "  torch::TensorOptions fo = torch::TensorOptions().dtype(torch::kFloat32);")
+  (code "  if (meta) fo = fo.device(torch::kMeta);")
+  (code "  c10::IntArrayRef ish((const int64_t*)nd.ishape.data(), nd.ishape.size());")
+  (code "  // Four producers have no meta kernel in every libtorch, and none of them")
+  (code "  // can raise a SHAPE error the rule below would miss: elementwise unaries and")
+  (code "  // scalar ops keep their input's shape; index_rows swaps dim 0 for the index")
+  (code "  // count (a bad index VALUE is found at force, as OOM is -- DESIGN, section 6);")
+  (code "  // standardise keeps its shape and refuses a training count past the rows.")
+  (code "  if (meta) {")
+  (code "    if (nd.prod == 1 && nd.op != 8) return torch::empty_like(in[0]);")
+  (code "    if (nd.prod == 3) return torch::empty_like(in[0]);")
+  (code "    if (nd.prod == 6) { std::vector<int64_t> sz(in[0].sizes().begin(), in[0].sizes().end());")
+  (code "                        if (sz.empty()) throw std::out_of_range(std::to_string(nd.prod));")
+  (code "                        sz[0] = in[1].numel(); return torch::empty(c10::IntArrayRef(sz), in[0].options()); }")
+  (code "    if (nd.prod == 12) { if (in[0].dim() < 1 || nd.n < 0 || nd.n > in[0].size(0)) throw std::out_of_range(std::to_string(nd.n));")
+  (code "                         return torch::empty_like(in[0]); }")
+  (code "  }")
+  (code "  torch::Tensor* r = nullptr;")
+  (code "  switch (nd.prod) {")
+  (code "  case 1: r = ct_unary_raw(nd.op, &in[0]); break;")
+  (code "  case 2: r = ct_binary_raw(nd.op, &in[0], &in[1]); break;")
+  (code "  case 3: r = ct_scalar_raw(nd.op, &in[0], nd.v); break;")
+  (code "  case 4: r = ct_reshape_raw(&in[0], nd.ishape.data(), (int)nd.ishape.size()); break;")
+  (code "  case 5: { std::vector<torch::Tensor*> ps; for (size_t i = 0; i < in.size(); i++) ps.push_back(&in[i]);")
+  (code "            r = ct_cat_raw(ps.data(), (int)ps.size(), nd.dim); break; }")
+  (code "  case 6: r = ct_index_rows_raw(&in[0], &in[1]); break;")
+  (code "  case 7: r = ct_argmax_raw(&in[0], nd.dim); break;")
+  (code "  case 8: if (nd.op == 0) return torch::zeros(ish, fo);")
+  (code "          if (nd.op == 1) return torch::ones(ish, fo);")
+  (code "          return torch::full(ish, nd.v, fo);")
+  (code "  case 9: return torch::arange((double)nd.n, fo);")
+  (code "  case 10: return torch::eye(nd.n, fo);")
+  (code "  case 11: return in[0].narrow((int64_t)nd.dim, nd.from, nd.len).clone();")
+  (code "  case 12: { torch::Tensor head = in[0].narrow(0, 0, nd.n);")
+  (code "             torch::Tensor mu = head.mean(c10::IntArrayRef({0}), true);")
+  (code "             torch::Tensor sd = head.std(c10::IntArrayRef({0}), true, true).clamp_min(1e-7);")
+  (code "             return in[0].sub(mu).div(sd); }")
+  (code "  default: break;")
+  (code "  }")
+  (code "  if (!r) throw std::out_of_range(std::to_string(nd.prod));")
+  (code "  torch::Tensor out = *r; delete r; return out;")
+  (code "}")
+  (code "static torch::Tensor* ct_force_node(const std::shared_ptr<CtNode>& nd) {")
+  (code "  if (!nd->done) {")
+  (code "    for (size_t i = 0; i < nd->ins.size(); i++) ct_force_node(nd->ins[i]);")
+  (code "    nd->value = ct_apply(*nd, false);")
+  (code "    nd->done = true; ct_exe++;")
+  (code "  }")
+  (code "  return &nd->value;")
+  (code "}")
+  (code "torch::Tensor* ct_slot_tensor(long long h) { return ct_slot_exists(h) ? ct_force_node(ct_nodes[h]) : nullptr; }")
+  (code "int ct_slot_force(long long h) { return ct_slot_tensor(h) ? 1 : 0; }")
+  (code "// record a deferred node. Its shape and dtype come from the meta device NOW,")
+  (code "// so a shape error is thrown here -- at the same goal eager throws it.")
+  (code "long long ct_record(int prod, int op, double v, long long n, long long dim, long long from, long long len,")
+  (code "                    const long long* ishape, int nd, const long long* ins, int nins) {")
+  (code "  std::shared_ptr<CtNode> node = std::make_shared<CtNode>();")
+  (code "  node->prod = prod; node->op = op; node->v = v; node->n = n; node->dim = dim; node->from = from; node->len = len;")
+  (code "  if (ishape && nd > 0) node->ishape.assign(ishape, ishape + nd);")
+  (code "  for (int i = 0; i < nins; i++) { if (!ct_slot_exists(ins[i])) return -1; node->ins.push_back(ct_nodes[ins[i]]); }")
+  (code "  torch::Tensor m = ct_apply(*node, true);")
+  (code "  node->shape.assign(m.sizes().begin(), m.sizes().end()); node->dtype = m.scalar_type();")
+  (code "  long long h = ct_slot_new(node);")
+  (code "  if (h > 0) ct_rec++;")
+  (code "  return h;")
+  (code "}")
+  (code "void ct_graph_stats(long long* rec, long long* exe, long long* rep, long long* pend) {")
+  (code "  long long p = 0;")
+  (code "  for (long long i = 1; i < 4096; i++) if (ct_nodes[i] && !ct_nodes[i]->done) p++;")
+  (code "  *rec = ct_rec; *exe = ct_exe; *rep = ct_rep; *pend = p;")
+  (code "}")
 
-  (var torch::Tensor * ct_tensors [4096])
+  ;; ---- the handle tables --------------------------------------------
+  ;; Fixed tables; a freed slot is reused; 0 is never a handle. Process
+  ;; state, on purpose -- see the head of the file. Tensors live in the
+  ;; node table above: tensor_of FORCES a deferred node and answers its
+  ;; value, so every consumer below works in both execution paths.
+
   (var CtNet * ct_models [256])
 
   (func tensor_of ((int64_t h)) (out torch::Tensor *)
-    (if (or (<= h 0) (>= h 4096)) (return nil))
-    (return (nth h ct_tensors)))
+    (return (ct_slot_tensor (cast llong h))))
 
   (func tensor_keep ((const torch::Tensor & t)) (out int64_t)
-    (let ((int64_t i . 1))
-      (while (< i 4096)
-        (if (== (nth i ct_tensors) nil)
-            (block
-              (set (nth i ct_tensors) (new* torch::Tensor t))
-              (return i)))
-        (set i (+ i 1))))
-    (return 0))
+    (return (cast int64_t (ct_slot_keep t))))
 
   (func model_of ((int64_t h)) (out CtNet *)
     (if (or (<= h 0) (>= h 256)) (return nil))
@@ -878,16 +1018,18 @@
           (cast void ex)
           (return 0)))))
 
-  ;; tensor_shape(+T, -Shape)
+  ;; tensor_shape(+T, -Shape): from the node, which knew its shape when it
+  ;; was recorded -- nothing is executed to answer
   (func t_shape ((coco_engine * e) (size_t g)) (out int)
-    (let ((torch::Tensor * t . #'(tensor_of (arg_handle e (coco_m_arg e g 0)))))
-      (if (== t nil) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
-      (let ((coco_machine * m . #'(coco_m_machine e))
-            (size_t cells [16])
-            (int nd . #'(cast int ((-> t dim)))))
+    (let ((llong h . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
+          (llong dimsv [16])
+          (coco_machine * m . #'(coco_m_machine e))
+          (size_t cells [16]))
+      (let ((int nd . #'(ct_slot_shape h dimsv 16)))
+        (if (< nd 0) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
         (let ((int i . 0))
           (while (< i nd)
-            (set (nth i cells) (coco_new_int m ((-> t size) i)))
+            (set (nth i cells) (coco_new_int m (cast int64_t (nth i dimsv))))
             (set i (+ i 1))))
         (return (coco_m_unify e (coco_m_arg e g 1)
                               (coco_m_list e cells (cast size_t nd)))))))
@@ -952,16 +1094,24 @@
 
   ;; tensor_cols(+T, +From, +To, -T2) / tensor_rows(+T, +From, +To, -T2)
   (func t_narrowed ((coco_engine * e) (size_t g) (int dim)) (out int)
-    (let ((torch::Tensor * t . #'(tensor_of (arg_handle e (coco_m_arg e g 0))))
+    (let ((llong h . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
           (int64_t from . 0) (int64_t to . 0))
-      (if (== t nil) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+      (if (not (ct_slot_exists h)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
       (if (or (not (coco_m_int e (coco_m_arg e g 1) (aof from)))
               (not (coco_m_int e (coco_m_arg e g 2) (aof to))))
           (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
       (try
-        (letin* ((part ((-> t narrow) dim from (- to from)))
-                 (own (($ part clone))))
-          (return (coco_m_unify_int e (coco_m_arg e g 3) (tensor_keep own))))
+        (block
+          (if (ct_graph_get)
+              (let ((llong ins [1]))
+                (set (nth 0 ins) h)
+                (return (coco_m_unify_int e (coco_m_arg e g 3)
+                          (ct_record 11 0 0.0 0 (cast llong dim) (cast llong from)
+                                     (cast llong (- to from)) nil 0 ins 1)))))
+          (let ((torch::Tensor * t . #'(tensor_of (cast int64_t h))))
+            (letin* ((part ((-> t narrow) dim from (- to from)))
+                     (own (($ part clone))))
+              (return (coco_m_unify_int e (coco_m_arg e g 3) (tensor_keep own))))))
         (catch ((const std::exception & ex))
           (cast void ex)
           (return (coco_m_domain_error e "tensor_range" g))))))
@@ -973,11 +1123,21 @@
   ;; THE FIRST NTRAIN ROWS ONLY -- over everything leaks the held-out
   ;; rows into the model
   (func t_standardise ((coco_engine * e) (size_t g)) (out int)
-    (let ((torch::Tensor * t . #'(tensor_of (arg_handle e (coco_m_arg e g 0))))
+    (let ((llong h . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
           (int64_t ntrain . 0))
-      (if (== t nil) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+      (if (not (ct_slot_exists h)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
       (if (not (coco_m_int e (coco_m_arg e g 1) (aof ntrain)))
           (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
+      (if (ct_graph_get)
+          (try
+            (let ((llong ins [1]))
+              (set (nth 0 ins) h)
+              (return (coco_m_unify_int e (coco_m_arg e g 2)
+                        (ct_record 12 0 0.0 (cast llong ntrain) 0 0 0 nil 0 ins 1))))
+            (catch ((const std::exception & ex))
+              (cast void ex)
+              (return (coco_m_domain_error e "tensor_range" g)))))
+      (let ((torch::Tensor * t . #'(tensor_of (cast int64_t h))))
       (try
         (letin* ((head ((-> t narrow) 0 0 ntrain))
                  (mu (mean_t head 0))
@@ -988,16 +1148,13 @@
           (return (coco_m_unify_int e (coco_m_arg e g 2) (tensor_keep z))))
         (catch ((const std::exception & ex))
           (cast void ex)
-          (return (coco_m_domain_error e "tensor_range" g))))))
+          (return (coco_m_domain_error e "tensor_range" g)))))))
 
-  ;; tensor_free(+T)
+  ;; tensor_free(+T): Prolog no longer names it; a node that others depend
+  ;; on lives on through their pointers
   (func t_free ((coco_engine * e) (size_t g)) (out int)
-    (let ((int64_t h . #'(arg_handle e (coco_m_arg e g 0)))
-          (torch::Tensor * t . #'(tensor_of (arg_handle e (coco_m_arg e g 0)))))
-      (if (== t nil) (return 0))
-      (delete* t)
-      (set (nth h ct_tensors) nil)
-      (return 1)))
+    (let ((int64_t h . #'(arg_handle e (coco_m_arg e g 0))))
+      (return (ct_slot_release (cast llong h)))))
 
   ;; ---- the tensor operations ------------------------------------------
   ;; Four generic C-half predicates carry every family; the Coco half
@@ -1005,15 +1162,9 @@
   ;; over them, which is what keeps this dispatcher a table rather than
   ;; a catalogue.
 
-  ;; adopts a new'd tensor into the handle table
+  ;; adopts a new'd tensor into the table as a value node
   (func tensor_adopt ((torch::Tensor * t)) (out llong)
-    (let ((llong i . 1))
-      (while (< i 4096)
-        (if (== (nth i ct_tensors) nil)
-            (block (set (nth i ct_tensors) t) (return i)))
-        (set i (+ i 1))))
-    (delete* t)
-    (return 0))
+    (return (ct_slot_adopt t)))
 
   (func op_code ((const char * nm) (const char ** table) (int n)) (out int)
     (let ((int i . 0))
@@ -1025,18 +1176,23 @@
   ;; tensor_unary(+Op, +T, -T2): neg abs exp log sqrt relu sigmoid tanh transpose
   (func t_unary ((coco_engine * e) (size_t g)) (out int)
     (let ((const char * nm . #'(coco_m_atom e (coco_m_arg e g 0)))
-          (torch::Tensor * a . #'(tensor_of (arg_handle e (coco_m_arg e g 1))))
+          (llong ha . #'(cast llong (arg_handle e (coco_m_arg e g 1))))
           (const char * ops [9]))
       (set (nth 0 ops) "neg") (set (nth 1 ops) "abs") (set (nth 2 ops) "exp")
       (set (nth 3 ops) "log") (set (nth 4 ops) "sqrt") (set (nth 5 ops) "relu")
       (set (nth 6 ops) "sigmoid") (set (nth 7 ops) "tanh") (set (nth 8 ops) "transpose")
       (if (== nm nil) (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-      (if (== a nil) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 1))))
+      (if (not (ct_slot_exists ha)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 1))))
       (let ((int op . #'(op_code nm ops 9)))
         (if (< op 0) (return (coco_m_domain_error e "tensor_op" (coco_m_arg e g 0))))
         (try
           (block
-            (let ((torch::Tensor * r . #'(ct_unary_raw op a)))
+            (if (ct_graph_get)
+                (let ((llong ins [1]))
+                  (set (nth 0 ins) ha)
+                  (return (coco_m_unify_int e (coco_m_arg e g 2)
+                            (ct_record 1 op 0.0 0 0 0 0 nil 0 ins 1)))))
+            (let ((torch::Tensor * r . #'(ct_unary_raw op (tensor_of (cast int64_t ha)))))
               (if (== r nil) (return 0))
               (return (coco_m_unify_int e (coco_m_arg e g 2) (tensor_adopt r)))))
           (catch ((const std::exception & ex))
@@ -1046,19 +1202,25 @@
   ;; tensor_binary(+Op, +A, +B, -C): add sub mul div matmul
   (func t_binary ((coco_engine * e) (size_t g)) (out int)
     (let ((const char * nm . #'(coco_m_atom e (coco_m_arg e g 0)))
-          (torch::Tensor * a . #'(tensor_of (arg_handle e (coco_m_arg e g 1))))
-          (torch::Tensor * b . #'(tensor_of (arg_handle e (coco_m_arg e g 2))))
+          (llong ha . #'(cast llong (arg_handle e (coco_m_arg e g 1))))
+          (llong hb . #'(cast llong (arg_handle e (coco_m_arg e g 2))))
           (const char * ops [5]))
       (set (nth 0 ops) "add") (set (nth 1 ops) "sub") (set (nth 2 ops) "mul")
       (set (nth 3 ops) "div") (set (nth 4 ops) "matmul")
       (if (== nm nil) (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-      (if (or (== a nil) (== b nil))
+      (if (or (not (ct_slot_exists ha)) (not (ct_slot_exists hb)))
           (return (coco_m_domain_error e "tensor" g)))
       (let ((int op . #'(op_code nm ops 5)))
         (if (< op 0) (return (coco_m_domain_error e "tensor_op" (coco_m_arg e g 0))))
         (try
           (block
-            (let ((torch::Tensor * r . #'(ct_binary_raw op a b)))
+            (if (ct_graph_get)
+                (let ((llong ins [2]))
+                  (set (nth 0 ins) ha) (set (nth 1 ins) hb)
+                  (return (coco_m_unify_int e (coco_m_arg e g 3)
+                            (ct_record 2 op 0.0 0 0 0 0 nil 0 ins 2)))))
+            (let ((torch::Tensor * r . #'(ct_binary_raw op (tensor_of (cast int64_t ha))
+                                                           (tensor_of (cast int64_t hb)))))
               (if (== r nil) (return 0))
               (return (coco_m_unify_int e (coco_m_arg e g 3) (tensor_adopt r)))))
           (catch ((const std::exception & ex))
@@ -1068,13 +1230,13 @@
   ;; tensor_scalar(+Op, +A, +V, -C): add sub mul div pow
   (func t_scalar ((coco_engine * e) (size_t g)) (out int)
     (let ((const char * nm . #'(coco_m_atom e (coco_m_arg e g 0)))
-          (torch::Tensor * a . #'(tensor_of (arg_handle e (coco_m_arg e g 1))))
+          (llong ha . #'(cast llong (arg_handle e (coco_m_arg e g 1))))
           (double v . 0.0) (int64_t iv . 0)
           (const char * ops [5]))
       (set (nth 0 ops) "add") (set (nth 1 ops) "sub") (set (nth 2 ops) "mul")
       (set (nth 3 ops) "div") (set (nth 4 ops) "pow")
       (if (== nm nil) (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-      (if (== a nil) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 1))))
+      (if (not (ct_slot_exists ha)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 1))))
       (cond
         ((coco_m_float e (coco_m_arg e g 2) (aof v)) (block))
         ((coco_m_int e (coco_m_arg e g 2) (aof iv)) (set v (cast double iv)))
@@ -1083,7 +1245,12 @@
         (if (< op 0) (return (coco_m_domain_error e "tensor_op" (coco_m_arg e g 0))))
         (try
           (block
-            (let ((torch::Tensor * r . #'(ct_scalar_raw op a v)))
+            (if (ct_graph_get)
+                (let ((llong ins [1]))
+                  (set (nth 0 ins) ha)
+                  (return (coco_m_unify_int e (coco_m_arg e g 3)
+                            (ct_record 3 op v 0 0 0 0 nil 0 ins 1)))))
+            (let ((torch::Tensor * r . #'(ct_scalar_raw op (tensor_of (cast int64_t ha)) v)))
               (if (== r nil) (return 0))
               (return (coco_m_unify_int e (coco_m_arg e g 3) (tensor_adopt r)))))
           (catch ((const std::exception & ex))
@@ -1112,14 +1279,20 @@
 
   ;; tensor_argmax(+T, +Dim, -T2)
   (func t_argmax ((coco_engine * e) (size_t g)) (out int)
-    (let ((torch::Tensor * a . #'(tensor_of (arg_handle e (coco_m_arg e g 0))))
+    (let ((llong ha . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
           (int64_t dim . 0))
-      (if (== a nil) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+      (if (not (ct_slot_exists ha)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
       (if (not (coco_m_int e (coco_m_arg e g 1) (aof dim)))
           (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
       (try
-        (return (coco_m_unify_int e (coco_m_arg e g 2)
-                  (tensor_adopt (ct_argmax_raw a (cast llong dim)))))
+        (block
+          (if (ct_graph_get)
+              (let ((llong ins [1]))
+                (set (nth 0 ins) ha)
+                (return (coco_m_unify_int e (coco_m_arg e g 2)
+                          (ct_record 7 0 0.0 0 (cast llong dim) 0 0 nil 0 ins 1)))))
+          (return (coco_m_unify_int e (coco_m_arg e g 2)
+                    (tensor_adopt (ct_argmax_raw (tensor_of (cast int64_t ha)) (cast llong dim))))))
         (catch ((const std::exception & ex))
           (cast void ex)
           (return (coco_m_domain_error e "tensor_op" g))))))
@@ -1142,14 +1315,20 @@
 
   ;; tensor_reshape(+T, +Shape, -T2)
   (func t_reshape ((coco_engine * e) (size_t g)) (out int)
-    (let ((torch::Tensor * a . #'(tensor_of (arg_handle e (coco_m_arg e g 0))))
+    (let ((llong ha . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
           (llong shape [16]))
-      (if (== a nil) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+      (if (not (ct_slot_exists ha)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
       (let ((int nd . #'(shape_arg e (coco_m_arg e g 1) shape 16)))
         (if (< nd 1) (return (coco_m_type_error e "shape" (coco_m_arg e g 1))))
         (try
-          (return (coco_m_unify_int e (coco_m_arg e g 2)
-                    (tensor_adopt (ct_reshape_raw a shape nd))))
+          (block
+            (if (ct_graph_get)
+                (let ((llong ins [1]))
+                  (set (nth 0 ins) ha)
+                  (return (coco_m_unify_int e (coco_m_arg e g 2)
+                            (ct_record 4 0 0.0 0 0 0 0 shape nd ins 1)))))
+            (return (coco_m_unify_int e (coco_m_arg e g 2)
+                      (tensor_adopt (ct_reshape_raw (tensor_of (cast int64_t ha)) shape nd)))))
           (catch ((const std::exception & ex))
             (cast void ex)
             (return (coco_m_domain_error e "tensor_shape" g)))))))
@@ -1166,29 +1345,44 @@
       (if (not (coco_m_int e (coco_m_arg e g 1) (aof dim)))
           (block (free (cast (void *) cells))
                  (return (coco_m_type_error e "integer" (coco_m_arg e g 1)))))
-      (let ((size_t i . 0) (int ok . 1))
+      (let ((size_t i . 0) (int ok . 1) (llong ins [64]))
         (while (< i n)
-          (let ((torch::Tensor * t . #'(tensor_of (arg_handle e (nth i cells)))))
-            (if (== t nil) (set ok 0) (set (nth i parts) t)))
+          (let ((llong h . #'(cast llong (arg_handle e (nth i cells)))))
+            (if (not (ct_slot_exists h)) (set ok 0) (set (nth i ins) h)))
           (set i (+ i 1)))
         (free (cast (void *) cells))
         (if (not ok) (return (coco_m_domain_error e "tensor_list" (coco_m_arg e g 0))))
         (try
-          (return (coco_m_unify_int e (coco_m_arg e g 2)
-                    (tensor_adopt (ct_cat_raw parts (cast int n) (cast llong dim)))))
+          (block
+            (if (ct_graph_get)
+                (return (coco_m_unify_int e (coco_m_arg e g 2)
+                          (ct_record 5 0 0.0 0 (cast llong dim) 0 0 nil 0 ins (cast int n)))))
+            (set i 0)
+            (while (< i n)
+              (set (nth i parts) (tensor_of (cast int64_t (nth i ins))))
+              (set i (+ i 1)))
+            (return (coco_m_unify_int e (coco_m_arg e g 2)
+                      (tensor_adopt (ct_cat_raw parts (cast int n) (cast llong dim))))))
           (catch ((const std::exception & ex))
             (cast void ex)
             (return (coco_m_domain_error e "tensor_op" g)))))))
 
   ;; tensor_index_rows(+T, +IdxT, -T2): rows picked by an index tensor
   (func t_index_rows ((coco_engine * e) (size_t g)) (out int)
-    (let ((torch::Tensor * a . #'(tensor_of (arg_handle e (coco_m_arg e g 0))))
-          (torch::Tensor * idx . #'(tensor_of (arg_handle e (coco_m_arg e g 1)))))
-      (if (or (== a nil) (== idx nil))
+    (let ((llong ha . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
+          (llong hi . #'(cast llong (arg_handle e (coco_m_arg e g 1)))))
+      (if (or (not (ct_slot_exists ha)) (not (ct_slot_exists hi)))
           (return (coco_m_domain_error e "tensor" g)))
       (try
-        (return (coco_m_unify_int e (coco_m_arg e g 2)
-                  (tensor_adopt (ct_index_rows_raw a idx))))
+        (block
+          (if (ct_graph_get)
+              (let ((llong ins [2]))
+                (set (nth 0 ins) ha) (set (nth 1 ins) hi)
+                (return (coco_m_unify_int e (coco_m_arg e g 2)
+                          (ct_record 6 0 0.0 0 0 0 0 nil 0 ins 2)))))
+          (return (coco_m_unify_int e (coco_m_arg e g 2)
+                    (tensor_adopt (ct_index_rows_raw (tensor_of (cast int64_t ha))
+                                                     (tensor_of (cast int64_t hi)))))))
         (catch ((const std::exception & ex))
           (cast void ex)
           (return (coco_m_domain_error e "tensor_op" g))))))
@@ -1206,8 +1400,14 @@
         (if (< nd 1) (return (coco_m_type_error e "shape" (coco_m_arg e g 0))))
         (if (< kind 0) (return (coco_m_domain_error e "tensor_kind" (coco_m_arg e g 1))))
         (try
-          (return (coco_m_unify_int e (coco_m_arg e g 2)
-                    (tensor_adopt (ct_factory_raw kind shape nd 0.0))))
+          (block
+            ;; zeros and ones are deterministic leaves and may wait; randn and
+            ;; rand draw from the generator NOW, so draws keep program order
+            (if (and (ct_graph_get) (< kind 2))
+                (return (coco_m_unify_int e (coco_m_arg e g 2)
+                          (ct_record 8 kind 0.0 0 0 0 0 shape nd nil 0))))
+            (return (coco_m_unify_int e (coco_m_arg e g 2)
+                      (tensor_adopt (ct_factory_raw kind shape nd 0.0)))))
           (catch ((const std::exception & ex))
             (cast void ex)
             (return (coco_m_domain_error e "tensor_shape" g)))))))
@@ -1222,8 +1422,12 @@
       (let ((int nd . #'(shape_arg e (coco_m_arg e g 0) shape 16)))
         (if (< nd 1) (return (coco_m_type_error e "shape" (coco_m_arg e g 0))))
         (try
-          (return (coco_m_unify_int e (coco_m_arg e g 2)
-                    (tensor_adopt (ct_factory_raw 4 shape nd v))))
+          (block
+            (if (ct_graph_get)
+                (return (coco_m_unify_int e (coco_m_arg e g 2)
+                          (ct_record 8 4 v 0 0 0 0 shape nd nil 0))))
+            (return (coco_m_unify_int e (coco_m_arg e g 2)
+                      (tensor_adopt (ct_factory_raw 4 shape nd v)))))
           (catch ((const std::exception & ex))
             (cast void ex)
             (return (coco_m_domain_error e "tensor_shape" g)))))))
@@ -1236,6 +1440,10 @@
       (if (< n 1) (return (coco_m_domain_error e "positive_integer" (coco_m_arg e g 0))))
       (try
         (block
+          ;; arange and eye are deterministic and may wait; randperm draws NOW
+          (if (and (ct_graph_get) (< which 2))
+              (return (coco_m_unify_int e (coco_m_arg e g 1)
+                        (ct_record (? (== which 0) 9 10) 0 0.0 (cast llong n) 0 0 0 nil 0 nil 0))))
           (let ((torch::Tensor * r . nil))
             (cond
               ((== which 0) (set r (ct_arange_raw (cast llong n))))
@@ -1854,6 +2062,43 @@
                     (coco_make1 m "cuda" (coco_new_int m (cast int64_t ix)))))
         (return (coco_m_unify e (coco_m_arg e g 0) (coco_new_atom m "cpu"))))))
 
+  ;; ---- the graph path's own predicates ---------------------------------
+
+  ;; torch_execution(?Mode): eager | graph. Unbound asks. Module state, like
+  ;; torch_device/1; it governs what the NEXT producer does.
+  (func t_execution ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e))
+          (size_t d . #'(coco_deref m (coco_m_arg e g 0))))
+      (if (coco_m_is_atom e d)
+          (let ((const char * nm . #'(coco_m_atom e d)))
+            (cond
+              ((== 0 (strcmp nm "eager")) (ct_graph_set 0) (return 1))
+              ((== 0 (strcmp nm "graph")) (ct_graph_set 1) (return 1))
+              (#t (return (coco_m_domain_error e "torch_execution" d))))))
+      (return (coco_m_unify e d (coco_new_atom m (? (ct_graph_get) "graph" "eager"))))))
+
+  ;; tensor_force(+T): execute what T depends on, now
+  (func t_force ((coco_engine * e) (size_t g)) (out int)
+    (let ((llong h . #'(cast llong (arg_handle e (coco_m_arg e g 0)))))
+      (if (not (ct_slot_exists h)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+      (try
+        (return (ct_slot_force h))
+        (catch ((const std::exception & ex))
+          (cast void ex)
+          (return (coco_m_domain_error e "tensor_op" g))))))
+
+  ;; tensor_graph_stats(-S): stats(recorded(N), executed(M), replayed(R), pending(P))
+  (func t_graph_stats ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e))
+          (llong rec . 0) (llong exe . 0) (llong rep . 0) (llong pend . 0)
+          (size_t args [4]))
+      (ct_graph_stats (aof rec) (aof exe) (aof rep) (aof pend))
+      (set (nth 0 args) (coco_make1 m "recorded" (coco_new_int m (cast int64_t rec))))
+      (set (nth 1 args) (coco_make1 m "executed" (coco_new_int m (cast int64_t exe))))
+      (set (nth 2 args) (coco_make1 m "replayed" (coco_new_int m (cast int64_t rep))))
+      (set (nth 3 args) (coco_make1 m "pending" (coco_new_int m (cast int64_t pend))))
+      (return (coco_m_unify e (coco_m_arg e g 0) (coco_make m "stats" 4 args)))))
+
   ;; ---- the Coco half --------------------------------------------------
   ;; model_save/2 and model_load/2 are the Zigurat bridge, CHUNKED to the
   ;; page discipline; below them, the friendly spellings of the generic
@@ -1879,6 +2124,9 @@
            ((== 0 (strcmp name "torch_current_device")) (return (t_current_device e g)))
            ((== 0 (strcmp name "tensor_free"))  (return (t_free e g)))
            ((== 0 (strcmp name "model_free"))   (return (t_model_free e g)))
+           ((== 0 (strcmp name "torch_execution"))    (return (t_execution e g)))
+           ((== 0 (strcmp name "tensor_force"))       (return (t_force e g)))
+           ((== 0 (strcmp name "tensor_graph_stats")) (return (t_graph_stats e g)))
            (#t (set (cof found) 0) (return 0))))
         ((== arity 2)
          (cond
