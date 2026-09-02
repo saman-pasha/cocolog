@@ -92,15 +92,41 @@ if [ -z "${LIBTORCH:-}" ]; then
 fi
 export LIBTORCH
 
+# CUDA GRAPH REPLAY IS COMPILED IN ONLY WHERE THE CUDA LIBRARY IS. The header
+# ATen/cuda/CUDAGraph.h ships with CPU-only builds too (Homebrew's does), so
+# the header proves nothing; libtorch_cuda beside libtorch does.
+CUDA_FLAGS=""; CUDA_LIBS=""
+for ext in so dylib; do
+  if [ -f "$TORCH_LIB/libtorch_cuda.$ext" ]; then
+    CUDA_FLAGS="-DCOCO_TORCH_CUDA=1"; CUDA_LIBS="-ltorch_cuda -lc10_cuda"
+  fi
+done
+# libtorch's CUDA headers include the toolkit's cuda_runtime.h, which is not
+# theirs to ship: it is under $CUDA_HOME, /usr/local/cuda, or the nvidia pip
+# package a pip torch depends on. Name whichever is here, or compile replay out.
+if [ -n "$CUDA_FLAGS" ]; then
+  CUDA_INC=""
+  for d in "${CUDA_HOME:-}/include" /usr/local/cuda/include \
+           "$(python3 -c 'import nvidia.cuda_runtime, os; print(os.path.join(os.path.dirname(nvidia.cuda_runtime.__file__), "include"))' 2>/dev/null)"; do
+    if [ -n "$d" ] && [ -f "$d/cuda_runtime.h" ]; then CUDA_INC="-I$d"; break; fi
+  done
+  if [ -z "$CUDA_INC" ]; then
+    echo "torch: libtorch_cuda is here but no cuda_runtime.h under CUDA_HOME, /usr/local/cuda or the nvidia pip package -- replay compiled out"
+    CUDA_FLAGS=""; CUDA_LIBS=""
+  else
+    CUDA_FLAGS="$CUDA_FLAGS $CUDA_INC"
+  fi
+fi
+echo "torch: cuda graph replay $( [ -n "$CUDA_FLAGS" ] && echo "compiled in (libtorch_cuda found)" || echo "compiled out (no libtorch_cuda in $TORCH_LIB)" )"
 mkdir -p "$OUT"
 ( cd "$CICILI" && sbcl --script cicili.lisp --release "$HERE/coco-torch.cicili" )
 
 # The -rpath is the module's now, not the binary's, which is the point of
 # the move: a cocolog with no torch.so beside it needs nothing from here.
-"$CXX" -shared -fPIC -O3 -std=c++17 \
+"$CXX" -shared -fPIC -O3 -std=c++17 $CUDA_FLAGS \
     -Wno-c++20-extensions -Wno-parentheses-equality -Wno-dangling-else \
     -I"$TORCH_INCLUDE" -I"$TORCH_API_INCLUDE" \
     -o "$OUT/torch.so" "$HERE/coco-torch.cpp" \
-    -L"$TORCH_LIB" -ltorch -ltorch_cpu -lc10 \
+    -L"$TORCH_LIB" -ltorch -ltorch_cpu -lc10 $CUDA_LIBS \
     -Wl,-rpath,"$TORCH_LIB"
 echo "built $OUT/torch.so"

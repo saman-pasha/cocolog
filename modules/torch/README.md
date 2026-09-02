@@ -89,8 +89,19 @@ differentiated by libtorch's own tape, which forcing builds, so a training
 loop can be written as clauses -- tutorial 29 does, and hands its weights to
 a model. Nothing is mutated: a step is a new parameter the program threads
 on. `test/torch-grad.sh` holds the gradients to analytic values and to
-equality across the two paths. Phase 3 (CUDA graph replay, on the T4) is
-designed, not built.
+equality across the two paths.
+
+Phase 3 is the device. Under `torch_execution(graph)` with `torch_device(cuda)`
+forced values live on the GPU and consumers copy back, and a forward that recurs
+with the same shapes -- an inference loop over fresh batches -- is captured the
+second time as one CUDA graph and replayed after that; `replayed` in
+`tensor_graph_stats/1` counts it, and a closure holding a parameter is never
+captured, since a replay builds no tape. `build.sh` compiles it in only where
+`libtorch_cuda` is, and `test/torch-replay.sh` SKIPs without a CUDA device; on
+the Colab T4 it is GREEN, and tutorial 29's `heavy/3` there runs 200000 rows by
+64 features for 200 steps in 1.5 s against the VM's own CPUs at 3.8 s, to the
+same numbers. This does not speed up the other 28 tutorials: their loops are
+`model_train`'s C++ and record nothing.
 
 ## The transformer layers, and how they were checked
 

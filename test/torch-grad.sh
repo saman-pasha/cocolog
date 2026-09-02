@@ -44,8 +44,10 @@ both() {
   g=$(q "torch_execution(graph), torch_seed(11), $2")
   check "$1" "$g" "$e"
 }
-# the largest |a - b| over two flat lists printed as answer(La-Lb); awk, not python
-maxdiff() { echo "$1" | tr -d '[]' | awk -F'-' '{ n = split($1, a, ","); split($2, b, ",");
+# the largest |a - b| over two flat lists printed as answer(La/Lb) -- `/', because
+# `-' is also a minus sign and splitting on it compared nothing when a value was
+# negative; awk, not python
+maxdiff() { echo "$1" | tr -d '[]' | awk -F'/' '{ n = split($1, a, ","); split($2, b, ",");
   m = 0; for (i = 1; i <= n; i++) { d = a[i] - b[i]; if (d < 0) d = -d; if (d > m) m = d }
   printf "%.2e", m }'; }
 
@@ -56,7 +58,7 @@ check "and it is [2.0,-4.0,7.0]" \
   "$(q "tensor_from_list([1.0, -2.0, 3.5], W0), tensor_parameter(W0, W), tensor_binary(mul, W, W, S), tensor_agg(sum, S, L), tensor_grad(L, [W], [G]), tensor_to_list(G, LG), write(answer(LG)), nl")" \
   "[2.0,-4.0,7.0]"
 # least squares: d/dW mean((XW - Y)^2) = (2/N) X^T (XW - Y), computed with the same ops
-LSQ="tensor_from_list([[1.0, 2.0], [0.5, -1.0], [-2.0, 0.25], [3.0, 1.0]], X), tensor_from_list([[1.0], [0.0], [-1.0], [2.0]], Y), tensor_from_list([[0.3], [-0.7]], W0), tensor_parameter(W0, W), tensor_binary(matmul, X, W, XW), tensor_binary(sub, XW, Y, D), tensor_binary(mul, D, D, D2), tensor_agg(mean, D2, L), tensor_grad(L, [W], [G]), tensor_unary(transpose, X, XT), tensor_binary(matmul, XT, D, A0), tensor_scalar(mul, A0, 0.5, A), tensor_reshape(G, [2], G1), tensor_reshape(A, [2], A1), tensor_to_list(G1, LG), tensor_to_list(A1, LA), write(answer(LG-LA)), nl"
+LSQ="tensor_from_list([[1.0, 2.0], [0.5, -1.0], [-2.0, 0.25], [3.0, 1.0]], X), tensor_from_list([[1.0], [0.0], [-1.0], [2.0]], Y), tensor_from_list([[0.3], [-0.7]], W0), tensor_parameter(W0, W), tensor_binary(matmul, X, W, XW), tensor_binary(sub, XW, Y, D), tensor_binary(mul, D, D, D2), tensor_agg(mean, D2, L), tensor_grad(L, [W], [G]), tensor_unary(transpose, X, XT), tensor_binary(matmul, XT, D, A0), tensor_scalar(mul, A0, 0.5, A), tensor_reshape(G, [2], G1), tensor_reshape(A, [2], A1), tensor_to_list(G1, LG), tensor_to_list(A1, LA), write(answer(LG/LA)), nl"
 d=$(maxdiff "$(q "$LSQ")")
 check "least squares: autograd within 1e-6 of the analytic gradient" \
   "$(awk -v d="$d" 'BEGIN { print (d < 1e-6) ? "within" : "off by " d }')" "within"

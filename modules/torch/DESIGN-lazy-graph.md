@@ -5,12 +5,13 @@ graph path. Same predicates, same arguments, same answers. The only thing
 that moves is *when* the arithmetic happens, and the design below is the list
 of everything that has to be true for that sentence to hold.
 
-Status: **phases 1 and 2 are built** (September 2026). Phase 1: `torch_execution/1`,
+Status: **all three phases are built** (September 2026). Phase 1: `torch_execution/1`,
 recording, forcing, meta shapes, `tensor_force/1`, `tensor_graph_stats/1`, and
 `test/torch-graph.sh` holding it to equality against eager on this Mac's CPU.
 Phase 2: `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`,
-`test/torch-grad.sh`, and tutorial 29, a training loop written in Prolog. Phase 3
-is not built. The last gate is on a Colab T4.
+`test/torch-grad.sh`, and tutorial 29, a training loop written in Prolog. Phase 3:
+forced values living on the CUDA device and a recurring forward replayed as one
+CUDA graph, `test/torch-replay.sh`, gated on a Colab T4.
 
 ---
 
@@ -204,14 +205,34 @@ three-input plane — hands the weights to a `dense(1)` model through
 `model_set_params/2`, saves it, and its `test` process reloads a model no
 `model_train` ever saw.
 
-**Gate C — Colab, the T4, speed.** The same suite, then the 28 trainings with
-CUDA graph replay: a forced subgraph is keyed by its op sequence and shapes;
-the second force of the same key replays a captured `at::cuda::CUDAGraph`
-instead of launching kernel by kernel. Measured against the eager GPU run of
-2026-09-02 (4 min 12 s, the 24 small nets at 96 s), the claim to test is
-that the small nets stop paying launch cost. Static shapes are the
-precondition — the tutorials have them — and a subgraph whose key never
-recurs is simply executed eagerly, which is never slower than today.
+**Gate C — Colab, the T4.** As built, and with one correction to what was
+written here first: replay cannot speed up the 28 tutorials, because their
+loops live inside `model_train`'s C++ and record nothing; what the graph path
+records is tensor work composed in Prolog. Two mechanisms, then. **Placement:**
+under `torch_execution(graph)` with `torch_device(cuda)`, a leaf moves to the
+device the first time a deferred node reads it, once and for good, a parameter
+is re-made as a leaf there, forced values stay there, and consumers copy back;
+eager never forces, so eager's handles stay CPU tensors as they always were.
+**Replay:** the closure of a forced node — its undone nodes in dependency order
+and the done leaves they read — is keyed by every shape, dtype, producer and
+argument in it; the first force of a key runs plainly, the second is captured
+as one `at::cuda::CUDAGraph` over static copies of its leaves and replayed,
+and every later force copies the new leaf values into those buffers and
+replays. A closure with a parameter requiring gradient is never captured,
+since a replay builds no tape. Compiled in only where `libtorch_cuda` is
+(`build.sh` decides by the library, not the header, which CPU builds ship too,
+and finds the toolkit's `cuda_runtime.h`); elsewhere every force is plain.
+
+Measured on the T4 on 2026-09-02, `test/torch-replay.sh` GREEN: every producer
+within 1e-4 of the CPU path, most exactly; a forward forced six times on fresh
+leaves executed its four nodes once and replayed five times, sums equal to the
+CPU's; a closure with a parameter replayed zero times and its gradient matched
+the CPU's within 1e-5. Tutorial 29's `heavy/3`, plain SGD in Prolog on
+200000 rows by 64 features for 200 steps: the VM's two CPUs 3.8 s eager and
+4.3 s graph, the T4 1.5 s including its start-up, and the same loss and the
+same distance from the plane to six decimals on all three. At 20000 by 32 the
+T4 was slower than the CPUs, 1.4 s to 0.8 s: the arithmetic has to be worth
+the device's while, and the numbers say where that line is.
 
 ## 8. Phases, and their size
 
@@ -219,7 +240,7 @@ recurs is simply executed eagerly, which is never slower than today.
 |---|---|---|---|
 | 1 | `CtNode`, the switch, record/force, meta shapes, stats, `tensor_force`; `test/torch-graph.sh` gate A | `coco-torch.cicili`, `coco-torch.cpp`, a test | ~500 lines, no engine change |
 | 2 | `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`, tutorial 29 (the loop in Prolog); gate B | `coco-torch.cicili`, `test/torch-grad.sh`, one tutorial | ~200 lines, built |
-| 3 | subgraph keys, CUDA graph capture and replay, `replayed` in the stats; gate C on Colab | `coco-torch.cpp`, `run-trains.sh cpu\|auto\|graph` | ~250 lines, CUDA only |
+| 3 | placement on the device, subgraph keys, CUDA graph capture and replay, `replayed` in the stats; gate C on the T4 | `coco-torch.cicili`, `build.sh`, `test/torch-replay.sh`, tutorial 29's `heavy/3` | ~200 lines, built; compiled in only with `libtorch_cuda` |
 
 Nothing here touches the engine, the store, or the freeze discipline. The
 resolution loop stays what it is; the graph sits beside it, behind the same

@@ -94,6 +94,32 @@ test :-
     format("test rmse ~4f~n", [S]),
     ( S < 0.05 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
+%% HEAVY: the same loop on far more data, generated as tensors rather than
+%% rows -- Rows x Features inputs, a hidden plane with Features weights, a
+%% little noise -- so the matmuls are worth a GPU's while. Not one of the
+%% three goals the runner drives; it is the workload test/torch-replay.sh
+%% times on the Colab T4 against the VM's own CPUs, and it prints how far the
+%% learned weights sit from the plane, which more rows pull closer.
+%%
+%%   ./cocolog run tutorials/torch/29-sgd-by-hand.pl "heavy(20000, 32, 200)"
+%%   ./cocolog run tutorials/torch/29-sgd-by-hand.pl "torch_device(cuda), heavy(200000, 64, 200)"
+heavy(Rows, Features, Steps) :-
+    torch_seed(29),
+    tensor_randn([Rows, Features], X),
+    tensor_randn([Features, 1], WT0), tensor_scalar(mul, WT0, 2.0, WT),   % the plane's weights
+    tensor_binary(matmul, X, WT, Y0),
+    tensor_scalar(add, Y0, 1.0, Y1),                                       % ... and its bias, 1
+    tensor_randn([Rows, 1], E0), tensor_scalar(mul, E0, 0.1, E),
+    tensor_binary(add, Y1, E, Y),
+    tensor_zeros([Features, 1], W0), tensor_parameter(W0, W),
+    tensor_zeros([1], B0), tensor_parameter(B0, B),
+    sgd(Steps, X, Y, W, B, 0.05, WF, BF, none, Loss),
+    tensor_binary(sub, WF, WT, DW), tensor_unary(abs, DW, ADW), tensor_reduce(max, ADW, WErr),
+    tensor_to_list(BF, [Bv]), BErr is abs(Bv - 1),
+    torch_current_device(D), torch_execution(Mode),
+    format("heavy ~w rows ~w features ~w steps on ~w under ~w: final mse ~6f, max |w - plane| ~6f, |b - 1| ~6f~n",
+           [Rows, Features, Steps, D, Mode, Loss, WErr, BErr]).
+
 predict :-
     model_load(t29_sgd, M),
     data(9000, 3, X, Y),
