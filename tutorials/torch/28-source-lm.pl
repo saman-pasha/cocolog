@@ -250,7 +250,6 @@ test :-
 %%   ./cocolog run tutorials/torch/28-source-lm.pl "heavy(60000)"
 %%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), heavy(all)"
 %%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), torch_execution(graph), heavy(all)"
-:- dynamic('$cs_heavy'/4).
 
 %% THE FIVE GROUPS, kept apart so the cap can take from all of them. What
 %% stays out stays out for cs_sources/1's reason: lib/swipl is another
@@ -298,43 +297,100 @@ cs_reach(Cap, [F|Fs], N) :-
     ;   Rem is Cap - S, cs_reach(Rem, Fs, N0), N is N0 + 1
     ), !.
 
-%% the builder: whole files in round-robin order until the cap is met
-cs_fill(Cap, _, []) :- Cap =< 0, !.
-cs_fill(_, [], []) :- !.
-cs_fill(Cap, [F|Fs], Out) :-
-    read_file_to_codes(F, Cs),
-    length(Cs, L),
-    (   L >= Cap
-    ->  cs_take(Cap, Cs, Out)
-    ;   Rem is Cap - L,
-        cs_fill(Rem, Fs, Rest),
-        append(Cs, Rest, Out)
+%% THE CORPUS IS LOADED ONE FILE AT A TIME, and here is why. The first
+%% whole-corpus run built a megabyte of codes, as many ids and three hundred
+%% thousand windows as ONE set of lists inside ONE free_list scope, and the
+%% container killed it at 11 GB resident: a scope reclaims on the way out, and
+%% nothing about a scope lowers its peak. So the peak is made small instead.
+%% Pass one reads each file inside its own scope and asserts the distinct
+%% codes it saw -- at most a few hundred facts -- and the vocabulary is their
+%% sorted union, the same for every file. Pass two reads each file again
+%% inside its own scope, makes its ids, windows and TWO TENSORS, and asserts
+%% the two handles; on the way out that file's lists are gone. The parts are
+%% then concatenated along the rows, and the parts freed. What is lost: the
+%% windows that would have straddled a file boundary, at most thirty-one
+%% per boundary out of thousands per file. What is kept: the round-robin
+%% order, the cap that cuts exactly one file, and the positional held-out
+%% split over the concatenation.
+:- dynamic('$cs_code'/1).
+:- dynamic('$cs_part'/3).
+
+%% the files a cap reaches, each with the byte count to take from it
+cs_plan(Cap, _, []) :- Cap =< 0, !.
+cs_plan(_, [], []) :- !.
+cs_plan(Cap, [F|Fs], [F-Take|Rest]) :-
+    size_file(F, S),
+    (   S >= Cap
+    ->  Take = Cap, Rest = []
+    ;   Take = S, Rem is Cap - S, cs_plan(Rem, Fs, Rest)
     ), !.
 
-cs_heavy_build(Cap, Codes) :-
-    cs_sources_heavy(Files),
-    cs_fill(Cap, Files, Codes).
+%% pass one: the distinct codes of one file, out through facts
+cs_note_codes(F-Take) :-
+    free_list([Cs]>>(read_file_to_codes(F, Cs0), cs_take(Take, Cs0, Cs)),
+              [Cs]>>(sort(Cs, Ds), forall(member(C, Ds),
+                                          ( '$cs_code'(C) -> true ; assertz('$cs_code'(C)) )))).
 
-%% the consumer: ids, windows, tensors -- and the four numbers out
-cs_heavy_use(Codes) :-
-    cs_vocab(Codes, Vocab, V),
-    cs_ids(Codes, Vocab, Ids),
-    cs_windows(Ids, Xs, Ys, N),
-    tensor_from_list(Xs, X),
-    tensor_from_list(Ys, Y),
-    assertz('$cs_heavy'(X, Y, N, V)).
+%% pass two: one file's windows as two tensors, out through a fact
+cs_load_part(Seq, Vocab, F-Take) :-
+    free_list([Cs]>>(read_file_to_codes(F, Cs0), cs_take(Take, Cs0, Cs)),
+              [Cs]>>( cs_ids(Cs, Vocab, Ids),
+                      cs_windows(Ids, Xs, Ys, N),
+                      (   N > 0
+                      ->  tensor_from_list(Xs, X), tensor_from_list(Ys, Y),
+                          assertz('$cs_part'(Seq, X, Y))
+                      ;   true ))).
+
+cs_load_parts(_, _, []).
+cs_load_parts(Seq, Vocab, [P|Ps]) :-
+    cs_load_part(Seq, Vocab, P),
+    Seq1 is Seq + 1,
+    cs_load_parts(Seq1, Vocab, Ps).
+
+%% the parts in order, concatenated two at a time so no list of sixty-five
+%% handles is ever needed; the consumed parts are freed as it goes
+cs_cat_parts([X-Y], X, Y) :- !.
+cs_cat_parts([X1-Y1, X2-Y2 | Rest], X, Y) :-
+    tensor_cat([X1, X2], 0, X12), tensor_cat([Y1, Y2], 0, Y12),
+    tensor_free(X1), tensor_free(X2), tensor_free(Y1), tensor_free(Y2),
+    cs_cat_parts([X12-Y12 | Rest], X, Y).
+
+%% cs_heavy_load(+Cap, -X, -Y, -N, -V): the capped corpus as two tensors,
+%% never more than one file's lists on the heap at a time
+cs_heavy_load(Cap, X, Y, N, V) :-
+    cs_sources_heavy(Files),
+    cs_plan(Cap, Files, Plan),
+    retractall('$cs_code'(_)), retractall('$cs_part'(_, _, _)),
+    forall(member(P, Plan), cs_note_codes(P)),
+    findall(C, '$cs_code'(C), Cs0), sort(Cs0, Vocab), length(Vocab, V),
+    cs_load_parts(0, Vocab, Plan),
+    findall(S-Xp-Yp, '$cs_part'(S, Xp, Yp), Parts0), msort(Parts0, Parts1),
+    findall(Xp-Yp, member(_-Xp-Yp, Parts1), Parts),
+    retractall('$cs_part'(_, _, _)),
+    cs_cat_parts(Parts, X, Y),
+    tensor_shape(X, [N | _]).
 
 %% heavy(+Cap) is det.   Cap is a byte count, or `all' for the whole corpus.
+%%
+%% A GPU WORKLOAD. On a machine with no CUDA device the cap is brought down to
+%% cs_cpu_cap/1 and the run says so: the whole corpus is minutes on a T4 and
+%% the better part of an hour on two CPUs, and a small run proves the same
+%% path. A machine that HAS a GPU but was told torch_device(cpu) runs the cap
+%% it was given -- that is the comparison, and it is asked for on purpose.
+cs_cpu_cap(20000).
 heavy(all) :- !, cs_heavy_bytes(B), heavy(B).
-heavy(Cap) :-
+heavy(Cap0) :-
+    cs_cpu_cap(Small),
+    (   torch_cuda_available(false), Cap0 > Small
+    ->  format("heavy: no CUDA device here -- running heavy(~w) instead of heavy(~w); the full run wants a GPU~n", [Small, Cap0]),
+        Cap = Small
+    ;   Cap = Cap0 ),
     torch_seed(28),
     cs_sources_heavy(Files), length(Files, NF),
     cs_heavy_bytes(Bytes),
     cs_reach(Cap, Files, NR),
     Used is min(Bytes, Cap),
-    retractall('$cs_heavy'(_, _, _, _)),
-    free_list(cs_heavy_build(Cap), cs_heavy_use),
-    '$cs_heavy'(X, Y, N, V),
+    cs_heavy_load(Cap, X, Y, N, V),
     cs_split(N, NTrain), Held is N - NTrain,
     cs_spec(V, Spec),
     cs_epochs(E), cs_batch(B), cs_lr(LR),

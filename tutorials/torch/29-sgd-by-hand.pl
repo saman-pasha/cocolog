@@ -103,7 +103,15 @@ test :-
 %%
 %%   ./cocolog run tutorials/torch/29-sgd-by-hand.pl "heavy(20000, 32, 200)"
 %%   ./cocolog run tutorials/torch/29-sgd-by-hand.pl "torch_device(cuda), heavy(200000, 64, 200)"
-heavy(Rows, Features, Steps) :-
+%% A GPU WORKLOAD, like tutorial 28's: with no CUDA device here the rows are
+%% capped at 20000 and the steps at 100, and the run says so; a machine that
+%% has a GPU but was told torch_device(cpu) runs what it was given.
+heavy(Rows0, Features, Steps0) :-
+    (   torch_cuda_available(false), ( Rows0 > 20000 ; Steps0 > 100 )
+    ->  Rows is min(Rows0, 20000), Steps is min(Steps0, 100),
+        format("heavy: no CUDA device here -- running heavy(~w, ~w, ~w) instead of heavy(~w, ~w, ~w); the full run wants a GPU~n",
+               [Rows, Features, Steps, Rows0, Features, Steps0])
+    ;   Rows = Rows0, Steps = Steps0 ),
     torch_seed(29),
     tensor_randn([Rows, Features], X),
     tensor_randn([Features, 1], WT0), tensor_scalar(mul, WT0, 2.0, WT),   % the plane's weights
