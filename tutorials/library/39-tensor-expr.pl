@@ -21,7 +21,12 @@
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
 :- op(700, xfx, :=).
+:- op(700, xfx, ::=).
 :- op(400, yfx, matmul).
+
+%% two functions of this file's own: one DEFINED, one a clause of the grammar itself
+square_error(A, B) ::= (A - B) ^ 2.0.
+expr(double(A), T) --> expr(A * 2.0, T).
 
 main :-
     write('1. an expression is a list of goals, one per node, in dependency order'), nl,
@@ -78,6 +83,12 @@ main :-
     Tr-Te := split(X, 1), TrL := list(Tr), TeL := list(Te), must('split(X, 1)', TrL-TeL, [[1.0, 2.0]]-[[3.0, 4.0]]),
     catch(( _ := item(X) + 1.0, Inside = accepted ), error(domain_error(tensor_expression, _), _), Inside = refused),
     must('an answer form inside an expression is refused', Inside, refused),
+
+    write('8. a function the program defines, and a clause it adds to the grammar'), nl,
+    SE := list(square_error(X, 1.0)), must('square_error(X, 1.0), defined with ::=', SE, [[0.0, 1.0], [4.0, 9.0]]),
+    Db := list(double(X) + 1.0), must('double(X) + 1.0, a clause of expr//2 in this file', Db, [[3.0, 5.0], [7.0, 9.0]]),
+    catch(( _ := nosuch(X), Unknown = accepted ), error(domain_error(tensor_expression, _), _), Unknown = refused),
+    must('a form nothing defines is refused', Unknown, refused),
     write(done), nl.
 
 %% `must/3' IS WHY THESE FILES ARE TESTS. Every claim a lesson makes is a

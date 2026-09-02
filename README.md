@@ -1330,7 +1330,10 @@ than making one stands outermost on the same right-hand side and answers
 a term: `V := item(mean(E))`, `L := list(E)`, `S := shape(E)`,
 `Gs := grad(L, Ps)`, `Tr-Te := split(E, N)`, `S := stats` -- so a file
 written in expressions calls no tensor predicate but `tensor_free`, and
-the tutorials from 31 on do not.
+the tutorials from 31 on do not. A program defines a function of its own
+as a clause, `loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0)`, and
+uses it by name in any expression; or it adds a clause to `expr//2`
+itself, in the grammar's own syntax.
 
 **And ten networks written in it**, tutorials 32 to 41, each the
 architecture in the open rather than a layer of the module: a ResNet

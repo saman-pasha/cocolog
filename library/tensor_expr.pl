@@ -30,6 +30,8 @@
 %%   parameter(A)           a fresh leaf that requires gradient, with A's values
 %%   step(W, G, LR)         W - LR*G as a NEW leaf -- a function, not a `-': a step makes a parameter, not a node
 %%   glorot(R, C)           randn([R, C]) scaled by sqrt(2/(R+C)); wrap it in parameter(...)
+%%   loss(X, Y, W, B)       A FUNCTION THE PROGRAM DEFINED, `loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0)':
+%%                          a clause, Head ::= Body, used by name in any expression (declare `:- op(700, xfx, ::=)')
 %%
 %% AND THE COMPOSITES, each a helper goal that reads the shapes it needs when it runs:
 %%
@@ -64,6 +66,7 @@
 :- use_module(library(torch)).
 
 :- op(700, xfx, :=).
+:- op(700, xfx, ::=).
 :- op(400, yfx, matmul).
 :- op(200, fy, relu).
 :- op(200, fy, sigmoid).
@@ -142,7 +145,13 @@ expr(up2(A, U), T)         --> !, expr(A, TA), ['$te_pixels'(TA, U, T)].
 expr(cross_entropy(A, Y), T) --> !, expr(A, TA), expr(Y, TY), ['$te_cross_entropy'(TA, TY, T)].
 expr(bce(A, Y), T)         --> !, expr(A, TA), expr(Y, TY), ['$te_bce'(TA, TY, T)].
 expr(mse(A, Y), T)         --> !, expr(A, TA), expr(Y, TY), ['$te_mse'(TA, TY, T)].
-expr(E, _) --> { throw(error(domain_error(tensor_expression, E), tensor_expression)) }.
+%% A DEFINED FUNCTION: a clause `Head ::= Body' in the program, Head a term
+%% with variables, Body an expression in them. Used by name inside any
+%% expression; the grammar looks the definition up and expands the body.
+%% A file may also extend expr//2 with clauses of its own, in the DCG's own
+%% syntax -- there is no catch-all here to stand in their way; an expression
+%% nothing matches FAILS, and `:=' turns that into the domain error.
+expr(E, T) --> { nonvar(E), clause(E ::= Body, true) }, !, expr(Body, T).
 
 '$te_exprs'([], []) --> [].
 '$te_exprs'([E|Es], [T|Ts]) --> expr(E, T), '$te_exprs'(Es, Ts).
@@ -195,7 +204,9 @@ answer(stats, S)           --> [tensor_graph_stats(S)].
 %% that came IN is never freed, and neither is an answer.
 
 T := Expr :-
-    ( '$te_answer_form'(Expr) -> phrase(answer(Expr, T), Goals) ; phrase(expr(Expr, T), Goals) ), !,
+    (   '$te_answer_form'(Expr) -> phrase(answer(Expr, T), Goals)
+    ;   phrase(expr(Expr, T), Goals) -> true
+    ;   throw(error(domain_error(tensor_expression, Expr), tensor_expression)) ), !,
     '$te_run'(Goals),
     forall(( member(G, Goals), G =.. [F|Args], \+ '$te_answer_goal'(F),
              append(_, [R], Args), integer(R), R \== T ),

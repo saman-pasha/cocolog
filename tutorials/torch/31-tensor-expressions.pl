@@ -3,7 +3,7 @@
 %% Tutorial 30 wrote its forward pass as five tensor predicates in a row,
 %% each naming its result. This file writes the same fit as ONE line,
 %%
-%%     L := mean((X matmul W + B - Y) ^ 2.0)
+%%     loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0).      L := loss(X, Y, W, B)
 %%
 %% and the five predicates are still there. A DCG, expr//2 in
 %% library(tensor_expr), turns the expression into the LIST OF TENSOR GOALS
@@ -55,9 +55,16 @@
 
 :- use_module(library(tensor_expr)).
 :- op(700, xfx, :=).
+:- op(700, xfx, ::=).
 :- op(400, yfx, matmul).
 
 %% ---- the program: tutorial 30's plane, six rows, one expression per step ---
+%% THE LOSS IS A DEFINED FUNCTION: a clause `Head ::= Body', used by name in
+%% the step's expression. The step itself is a predicate, because it answers
+%% three things -- two new parameters and a number -- and frees the old.
+
+loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0).
+
 
 noise(I, R) :-
     S is sin(I * 12.9898) * 43758.5453,
@@ -74,7 +81,7 @@ data(From, N, X, Y) :-
     X := XR, Y := YR, !.
 
 step(X, Y, W, B, LR, W2, B2, Loss) :-
-    L := mean((X matmul W + B - Y) ^ 2.0),
+    L := loss(X, Y, W, B),
     Loss := item(L),
     [GW, GB] := grad(L, [W, B]),
     W2 := step(W, GW, LR),
@@ -109,7 +116,7 @@ train :-
     % the expression, and the goals the grammar makes of it -- printed once,
     % before either path runs it, because the list is the same under both
     W0 := zeros([2, 1]), B0 := zeros([1]),
-    phrase(expr(mean((X matmul W0 + B0 - Y) ^ 2.0), _), Goals),
+    phrase(expr(loss(X, Y, W0, B0), _), Goals),
     format("the loss, as goals: ~w~n", [Goals]),
     tensor_free(W0), tensor_free(B0),
     under(eager, fit(X, Y, LE, WE, BE)),
