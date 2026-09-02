@@ -104,6 +104,7 @@
 %% the comparison above is exact.
 
 :- use_module(library(torch)).
+% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
 
 %% ---- the corpus, byte for byte lesson 25's --------------------------------
 ctf_chunk(1, 'parent(tom, bob).\nparent(tom, liz).\nparent(bob, ann).\nparent(bob, pat).\nparent(pat, jim).\nmale(tom).   male(bob).   male(jim).\nfemale(liz). female(ann). female(pat).\ngrandparent(X, Z) :- parent(X, Y), parent(Y, Z).\ngrandfather(X, Z) :- grandparent(X, Z), male(X).\nsibling(A, B) :- parent(P, A), parent(P, B), A \\== B.\nmain :-\n    ( parent(tom, bob) -> R1 = yes ; R1 = no ),\n    must(\'parent(tom, bob)\', R1, yes),\n    ( parent(bob, tom) -> R2 = yes ; R2 = no ),\n    must(\'parent(bob, tom)\', R2, no),\n    format("~n-- leav').

@@ -13,6 +13,7 @@
 %% asked for like any other library. It used to be compiled into the
 %% binary and always present.
 :- use_module(library(torch)).
+% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
 
 sine_row(I, [X], [Y]) :- X is -1 + 2 * I / 159, Y is sin(2 * pi * X), !.
 

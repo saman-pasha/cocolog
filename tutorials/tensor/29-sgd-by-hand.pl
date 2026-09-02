@@ -23,6 +23,7 @@
 %%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/29-sgd-by-hand.pl predict
 
 :- use_module(library(torch)).
+% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
 
 % Deterministic "random" numbers in (-1, 1): the sin-hash the other
 % tutorials use, so every process sees the same rows with no files.

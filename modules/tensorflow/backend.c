@@ -122,7 +122,8 @@ static TfSlot slots[TF_SLOTS];
 static Entry* entries[TF_MAXENTRY]; static int nentries = 0;
 static TFE_Context* ctx = 0;
 static TF_Status* st = 0;
-static char gpu_name[256];           /* the first GPU's device name, or empty */
+static char cpu_name[256], gpu_name[256];   /* the first CPU's and the first GPU's device names; gpu_name empty when there is none */
+static int dev_gpu = 0;              /* where new work goes: the GPU, or the CPU */
 static int opcount = 0, fncount = 0;
 static int64_t seed_base = 1234, seed_next = 0;
 static char errbuf[512];
@@ -145,31 +146,47 @@ int tfb_mode(void) { return graph_mode_fn ? graph_mode_fn() : 0; }
 int tfb_init(void* torch_so) {
   if (ctx) return 1;
   st = TF_NewStatus();
-  /* a ConfigProto with gpu_options.allow_growth = true, serialised: TensorFlow
-   * would otherwise take the whole card at start, and share it with nobody */
-  static const char grow[] = { 0x32, 0x02, 0x20, 0x01 };
+  /* a ConfigProto, serialised: gpu_options.allow_growth = true, or TensorFlow
+   * would take the whole card at start and share it with nobody; and
+   * allow_soft_placement = true, so an operation pinned to a device it has no
+   * kernel for runs on the CPU instead of failing */
+  static const char grow[] = { 0x32, 0x02, 0x20, 0x01, 0x38, 0x01 };
   TFE_ContextOptions* o = TFE_NewContextOptions();
   TFE_ContextOptionsSetConfig(o, grow, sizeof grow, st); TF_SetStatus(st, TF_OK, "");
   TFE_ContextOptionsSetDevicePlacementPolicy(o, TFE_DEVICE_PLACEMENT_SILENT);
   ctx = TFE_NewContext(o, st); TFE_DeleteContextOptions(o);
   if (bad()) { ctx = 0; return 0; }
-  gpu_name[0] = 0;
+  gpu_name[0] = 0; cpu_name[0] = 0;
   TF_DeviceList* dl = TFE_ContextListDevices(ctx, st);
   if (!bad() && dl) {
     int n = TF_DeviceListCount(dl);
     for (int i = 0; i < n; i++) {
       const char* ty = TF_DeviceListType(dl, i, st); if (bad()) break;
       const char* nm = TF_DeviceListName(dl, i, st); if (bad()) break;
-      if (ty && nm && 0 == strcmp(ty, "GPU")) { snprintf(gpu_name, sizeof gpu_name, "%s", nm); break; }
+      if (ty && nm && 0 == strcmp(ty, "GPU") && !gpu_name[0]) snprintf(gpu_name, sizeof gpu_name, "%s", nm);
+      if (ty && nm && 0 == strcmp(ty, "CPU") && !cpu_name[0]) snprintf(cpu_name, sizeof cpu_name, "%s", nm);
     }
     TF_DeleteDeviceList(dl);
   }
+  dev_gpu = gpu_name[0] ? 1 : 0;     /* auto, until tensor_execution/3 says otherwise */
   if (torch_so) graph_mode_fn = (int (*)(void)) dlsym(torch_so, "coco_tensor_graph_mode");
   memset(slots, 0, sizeof slots);
   return 1;
 }
 const char* tfb_version(void) { return TF_Version(); }
-const char* tfb_device(void) { return gpu_name[0] ? gpu_name : "CPU"; }
+/* the device: 0 cpu, 1 cuda, 2 auto (cuda when there is one). Answers 1 when
+ * the choice stands, 0 when cuda was asked for and there is none -- the work
+ * goes to the CPU then, and the caller says so */
+int tfb_device_set(int kind) {
+  if (kind == 0) { dev_gpu = 0; return 1; }
+  if (kind == 2) { dev_gpu = gpu_name[0] ? 1 : 0; return 1; }
+  if (gpu_name[0]) { dev_gpu = 1; return 1; }
+  dev_gpu = 0; return 0;
+}
+int tfb_on_gpu(void) { return dev_gpu; }
+/* every operation and every call is pinned to the chosen device, once a
+ * machine has more than one to choose from; with only a CPU, nothing is */
+static void pin(TFE_Op* op) { if (gpu_name[0]) { TFE_OpSetDevice(op, dev_gpu ? gpu_name : cpu_name, st); TF_SetStatus(st, TF_OK, ""); } }
 void tfb_seed(int64_t s) { seed_base = s; seed_next = 0; }
 
 /* ---- slots ----------------------------------------------------------- */
@@ -234,7 +251,7 @@ static void take_handle(TfSlot* s, TFE_TensorHandle* eh) {
  * that reads it every step then finds it there. Integers -- axes, shapes,
  * indices -- are host-side operands and stay. */
 static TFE_TensorHandle* placed(TFE_TensorHandle* h) {
-  if (!gpu_name[0] || TFE_TensorHandleDataType(h) != TF_FLOAT) return h;
+  if (!dev_gpu || TFE_TensorHandleDataType(h) != TF_FLOAT) return h;
   TFE_TensorHandle* d = TFE_TensorHandleCopyToDevice(h, ctx, gpu_name, st);
   if (TF_GetCode(st) != TF_OK || !d) { TF_SetStatus(st, TF_OK, ""); return h; }
   TFE_DeleteTensorHandle(h);
@@ -445,6 +462,7 @@ static int execute(Closure* c, Entry* e, const int64_t* ps, int np, int64_t* gs)
   TFE_TensorHandle** ret = 0;
   if (e->noutputs > 0) {
     TFE_Op* op = TFE_NewOp(ctx, e->fname, st); if (bad()) return 0;
+    pin(op);
     for (int k = 0; k < e->nin; k++) {
       TFE_OpAddInput(op, slots[c->leaves[e->in_leaf[k]]].eh, st);
       if (bad()) { TFE_DeleteOp(op); return 0; }
@@ -646,6 +664,7 @@ static int64_t run_spec(OpSpec* p) {
     /* a recorded tensor from before the switch was moved is run first */
     for (int i = 0; i < p->nin; i++) if (!slots[p->in[i]].eh && !run_closure(p->in[i])) return -1;
     TFE_Op* op = TFE_NewOp(ctx, p->op, st); if (bad()) return -1;
+    pin(op);
     for (int i = 0; i < p->ntypes; i++) TFE_OpSetAttrType(op, p->type_attrs[i], p->type_vals[i]);
     for (int i = 0; i < p->nints; i++) TFE_OpSetAttrInt(op, p->int_attrs[i], p->int_vals[i]);
     for (int i = 0; i < p->nbools; i++) TFE_OpSetAttrBool(op, p->bool_attrs[i], p->bool_vals[i]);
@@ -822,6 +841,7 @@ int64_t tfb_random(const int64_t* shape, int nd, int normal) {
   TFE_TensorHandle* sd = TFE_NewTensorHandle(ts, st); TF_DeleteTensor(ts); if (bad()) { TFE_DeleteTensorHandle(shp); return -1; }
   TFE_Op* op = TFE_NewOp(ctx, normal ? "StatelessRandomNormal" : "StatelessRandomUniform", st);
   if (bad()) { TFE_DeleteTensorHandle(shp); TFE_DeleteTensorHandle(sd); return -1; }
+  pin(op);
   TFE_OpSetAttrType(op, "dtype", TF_FLOAT); TFE_OpSetAttrType(op, "T", TF_INT32); TFE_OpSetAttrType(op, "Tseed", TF_INT32);
   TFE_OpAddInput(op, shp, st); TFE_OpAddInput(op, sd, st);
   TFE_TensorHandle* ret = 0; int nret = 1; TFE_Execute(op, &ret, &nret, st); TFE_DeleteOp(op);

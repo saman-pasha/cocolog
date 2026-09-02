@@ -71,6 +71,7 @@
 %% asks for neither.
 
 :- use_module(library(torch)).
+% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
 
 %% ---- the task -------------------------------------------------------------
 

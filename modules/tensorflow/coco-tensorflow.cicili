@@ -64,6 +64,8 @@
   (decl) (func tfb_attach ((func fn ((coco_engine * e) (const char * nm) (uint32_t arity) (size_t g) (int * found)) (out int))) (out int))
   (decl) (func tfb_error () (out const char *))
   (decl) (func tfb_version () (out const char *))
+  (decl) (func tfb_device_set ((int kind)) (out int))
+  (decl) (func tfb_on_gpu () (out int))
   (decl) (func tfb_seed ((int64_t s)) (out void))
   (decl) (func tfb_mode () (out int))
   (decl) (func tfb_exists ((int64_t h)) (out int))
@@ -410,6 +412,26 @@
       (tfb_seed s)
       (return 1)))
 
+  ;; tensor_execution(+Backend, +Mode, ?Device), the device third: cpu | cuda |
+  ;; auto sets where the NEXT producer runs, unbound asks. The torch module has
+  ;; set the backend and the mode by the time this is reached. cuda on a
+  ;; machine without one is not an error here: the work goes to the CPU, and
+  ;; this says so, once per call.
+  (func p_execution3 ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e))
+          (size_t d . #'(coco_deref m (coco_m_arg e g 2))))
+      (if (coco_m_is_atom e d)
+          (let ((const char * nm . #'(coco_m_atom e d)))
+            (cond
+              ((== 0 (strcmp nm "cpu"))  (tfb_device_set 0) (return 1))
+              ((== 0 (strcmp nm "auto")) (tfb_device_set 2) (return 1))
+              ((== 0 (strcmp nm "cuda"))
+               (if (not (tfb_device_set 1))
+                   (fprintf stderr "cocolog: tensor_execution: no cuda for tensorflow on this machine -- running on cpu\n"))
+               (return 1))
+              (#t (return (coco_m_domain_error e "device" d))))))
+      (return (coco_m_unify e d (coco_new_atom m (? (tfb_on_gpu) "cuda" "cpu"))))))
+
   (func p_version ((coco_engine * e) (size_t g)) (out int)
     (let ((coco_machine * m . #'(coco_m_machine e)))
       (return (coco_m_unify e (coco_m_arg e g 0) (coco_new_atom m (tfb_version))))))
@@ -451,6 +473,7 @@
          ((== 0 (strcmp name "tensor_index_rows"))  (return (p_index_rows e g)))
          ((== 0 (strcmp name "tensor_standardise")) (return (p_standardise e g)))
          ((== 0 (strcmp name "tensor_grad"))        (return (p_grad e g)))
+         ((== 0 (strcmp name "tensor_execution"))   (return (p_execution3 e g)))
          (#t (set (cof found) 0) (return 0))))
       ((== arity 4)
        (cond

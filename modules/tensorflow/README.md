@@ -59,6 +59,14 @@ number, so `tensorflow_seed/1` set again gives the draws again — the
 stateful ones keep a generator per seed in the eager runtime and would
 continue their stream.
 
+The device is the third argument of the switch,
+`tensor_execution(tensorflow, Mode, cpu | cuda | auto)`: every operation
+and every call is pinned to it, a float made on the host goes to it at
+birth, and `auto` -- the default -- takes the first GPU when there is one.
+`cuda` on a machine without one runs on the CPU and says so on stderr. The
+choice governs what the NEXT producer does; a value already made stays
+where it is, and is copied when an operation on the other device reads it.
+
 ## Where a model trains, and where it runs
 
 Three questions the owner asked, answered by runs:
@@ -67,17 +75,17 @@ Three questions the owner asked, answered by runs:
    Yes. `params_save` writes each parameter as its shape and its numbers
    into the knowledge base, and `params(Name)` rebuilds them on whatever
    backend, device and mode are current when it loads, so a store belongs
-   to no library and no device. On torch the device is its own switch,
-   `torch_device(cpu | cuda)`, independent of the mode; on TensorFlow the
-   backend takes the first GPU the machine has, and there is no per-goal
-   device switch there yet.
+   to no library and no device. The device is the switch's third argument,
+   `tensor_execution(Backend, Mode, cpu | cuda | auto)`, on either library
+   and independent of the mode: `auto` takes cuda when there is one, and
+   `cuda` on a machine without one runs on the CPU and says so.
 2. *Is `eager` the way to hand work to the GPU and keep the CPU free?* No:
    `eager` and `graph` are about WHEN, not WHERE, and either mode runs on
    either device. Eager computes each goal as it runs, so a value or a
    shape is readable at any point and an error surfaces at its goal --
    preprocessing, prediction, debugging. Graph records and makes one
    compiled call a step, so the CPU does the least driving. Handing work to
-   the GPU is the device switch, and graph relieves the CPU more than eager
+   the GPU is the third argument, and graph relieves the CPU more than eager
    does, one call standing for hundreds of launches.
 3. *Trained on TensorFlow, tested on torch?* Yes, and run: tutorial 31
    trained under `(tensorflow, graph)`, then tested under `(torch, graph)`

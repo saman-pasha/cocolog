@@ -41,6 +41,7 @@
 %%     torch_seed/1  torch_device/1  torch_cuda_available/1   determinism, GPU
 
 :- use_module(library(torch)).
+% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
 
 main :-
     format("~n-- the module loads, and says whether there is a GPU~n"),

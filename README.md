@@ -1368,7 +1368,11 @@ parameter never crosses to the host. The grammar emits the predicates, so an
 expression, a procedure and a tutorial written in them run on either
 library from one file, the backend chosen from outside --
 `tensor_execution(tensorflow, graph), train` -- and `seed/1` seeds
-whichever is selected.
+whichever is selected. The third argument is the device,
+`tensor_execution(Backend, Mode, cpu | cuda | auto)`, on either library and
+under either mode: `auto` takes cuda when there is one, and `cuda` where
+there is none runs on the CPU and says so on stderr, so a file that names
+cuda runs everywhere and the notice tells the reader why it is slow.
 
 **Where a model trains, and where it runs** -- three questions the owner
 asked, answered by runs:
@@ -1377,17 +1381,17 @@ asked, answered by runs:
    Yes. `params_save` writes each parameter as its shape and its numbers
    into the knowledge base, and `params(Name)` rebuilds them on whatever
    backend, device and mode are current when it loads, so a store belongs
-   to no library and no device. On torch the device is its own switch,
-   `torch_device(cpu | cuda)`, independent of the mode; on TensorFlow the
-   backend takes the first GPU the machine has, and there is no per-goal
-   device switch there yet.
+   to no library and no device. The device is the switch's third argument,
+   `tensor_execution(Backend, Mode, cpu | cuda | auto)`, on either library
+   and independent of the mode: `auto` takes cuda when there is one, and
+   `cuda` on a machine without one runs on the CPU and says so.
 2. *Is `eager` the way to hand work to the GPU and keep the CPU free?* No:
    `eager` and `graph` are about WHEN, not WHERE, and either mode runs on
    either device. Eager computes each goal as it runs, so a value or a
    shape is readable at any point and an error surfaces at its goal --
    preprocessing, prediction, debugging. Graph records and makes one
    compiled call a step, so the CPU does the least driving. Handing work to
-   the GPU is the device switch, and graph relieves the CPU more than eager
+   the GPU is the third argument, and graph relieves the CPU more than eager
    does, one call standing for hundreds of launches.
 3. *Trained on TensorFlow, tested on torch?* Yes, and run: tutorial 31
    trained under `(tensorflow, graph)`, then tested under `(torch, graph)`

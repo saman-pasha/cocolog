@@ -17,8 +17,8 @@ the backend is a switch set from outside, the file does not name it, and
 `seed/1` seeds whichever is selected. Three things that follow, each run:
 a model trained under `graph` on a GPU predicts under `eager` on a CPU,
 because `params_save` stores shapes and numbers and `params(Name)` rebuilds
-them wherever it is loaded (the device is `torch_device/1`, a switch of
-its own, not the mode); `eager` against `graph` is about WHEN a goal
+them wherever it is loaded (the device is the third argument of
+`tensor_execution/3`, `cpu | cuda | auto`, not the mode); `eager` against `graph` is about WHEN a goal
 computes, not WHERE -- either mode runs on either device, and graph, one
 compiled call a step, is the one that keeps the CPU freest; and a model
 trained on TensorFlow tests on torch from the same store, as 31 and 32

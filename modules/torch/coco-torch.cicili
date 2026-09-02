@@ -795,7 +795,9 @@
   (code "  for (long long i = 1; i < 4096; i++) if (!ct_nodes[i]) { ct_nodes[i] = nd; return i; }")
   (code "  return 0;")
   (code "}")
-  (code "static std::shared_ptr<CtNode> ct_value_node(const torch::Tensor& t) {")
+  (code "static torch::Tensor ct_place(const torch::Tensor& t);")
+  (code "static std::shared_ptr<CtNode> ct_value_node(const torch::Tensor& t0) {")
+  (code "  torch::Tensor t = ct_place(t0);   // an eager value lives on the chosen device")
   (code "  std::shared_ptr<CtNode> nd = std::make_shared<CtNode>();")
   (code "  nd->value = t; nd->done = true; nd->dtype = t.scalar_type();")
   (code "  nd->shape.assign(t.sizes().begin(), t.sizes().end());")
@@ -823,20 +825,21 @@
   (code "  }")
   (code "}")
   (code "// one producer, on its real inputs or on meta stand-ins of them")
-  (code "// ---- phase 3: where forced work runs -------------------------------------")
-  (code "// Under the graph path with a CUDA device chosen, a leaf is moved to the")
-  (code "// device the first time a deferred node reads it, ONCE and for good; a")
-  (code "// parameter is re-made as a leaf there so it stays a leaf. Eager never")
-  (code "// forces, so eager never moves anything: its handles stay CPU tensors.")
+  (code "// ---- phase 3: where work runs ---------------------------------------------")
+  (code "// With a CUDA device chosen -- torch_device/1, or the third argument of")
+  (code "// tensor_execution/3 -- a value is moved there ONCE and for good: under the")
+  (code "// graph path a leaf the first time a deferred node reads it, under eager")
+  (code "// every value as it is made (ct_value_node below); a parameter is re-made")
+  (code "// as a leaf there so it stays a leaf. Either path, either device.")
   (code "static torch::Tensor ct_place(const torch::Tensor& t) {")
-  (code "  if (!ct_graph_mode || !ct_device.is_cuda() || t.device() == ct_device) return t;")
+  (code "  if (!ct_device.is_cuda() || t.device() == ct_device) return t;")
   (code "  if (t.requires_grad()) { torch::Tensor u = t.detach().to(ct_device); u.set_requires_grad(true); return u; }")
   (code "  return t.to(ct_device);")
   (code "}")
   (code "static torch::Tensor ct_apply_in(const CtNode& nd, std::vector<torch::Tensor>& in, bool meta) {")
   (code "  torch::TensorOptions fo = torch::TensorOptions().dtype(torch::kFloat32);")
   (code "  if (meta) fo = fo.device(torch::kMeta);")
-  (code "  else if (ct_graph_mode && ct_device.is_cuda()) fo = fo.device(ct_device);")
+  (code "  else if (ct_device.is_cuda()) fo = fo.device(ct_device);")
   (code "  c10::IntArrayRef ish((const int64_t*)nd.ishape.data(), nd.ishape.size());")
   (code "  // Four producers have no meta kernel in every libtorch, and none of them")
   (code "  // can raise a SHAPE error the rule below would miss: elementwise unaries and")
@@ -2345,6 +2348,45 @@
         (if (not (coco_m_unify e b (coco_new_atom m (coco_tensor_backend_name)))) (return 0)))
       (return (t_execution_mode e (coco_deref m (coco_m_arg e g 1))))))
 
+  ;; tensor_execution(?Backend, ?Mode, ?Device): the device third -- cpu | cuda
+  ;; | auto sets where the NEXT producer runs, unbound asks. `auto' takes cuda
+  ;; when there is one; `cuda' on a machine without one goes to the CPU and
+  ;; SAYS SO, once per call, where torch_device/1 refuses -- a file that names
+  ;; cuda runs everywhere, and the notice tells the reader why it is slow. On
+  ;; tensorflow the device is that module's to set, so the call goes on to it.
+  ;; ONE CARE: library(tensor_expr)'s nonterminal tensor_execution//1 is, once
+  ;; the grammar is translated, a clause tensor_execution(Mode, S0, S) -- three
+  ;; arguments too. That shape has a mode where a backend would be, or a list
+  ;; where a mode would be; it is not this predicate's call, and is handed
+  ;; back to the clauses by answering `not found'.
+  (func t_execution3 ((coco_engine * e) (size_t g) (int * found)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e))
+          (size_t a0 . #'(coco_deref m (coco_m_arg e g 0)))
+          (size_t a1 . #'(coco_deref m (coco_m_arg e g 1)))
+          (size_t d . #'(coco_deref m (coco_m_arg e g 2)))
+          (size_t * cells . nil) (size_t ncells . 0)
+          (int fwd . 0))
+      (if (and (coco_m_is_atom e a0)
+               (or (== 0 (strcmp (coco_m_atom e a0) "eager")) (== 0 (strcmp (coco_m_atom e a0) "graph"))))
+          (block (set (cof found) 0) (return 0)))
+      (if (coco_m_list_array e a1 (aof cells) (aof ncells))
+          (block (if (!= cells nil) (free (cast (void *) cells))) (set (cof found) 0) (return 0)))
+      (if (not (t_execution2 e g)) (return 0))
+      (if (ct_backend_active) (return (ct_backend_forward e "tensor_execution" 3 g (aof fwd))))
+      (if (coco_m_is_atom e d)
+          (let ((const char * nm . #'(coco_m_atom e d)))
+            (cond
+              ((== 0 (strcmp nm "cpu"))  (ct_set_device 0 0) (return 1))
+              ((== 0 (strcmp nm "auto")) (ct_set_device 2 0) (return 1))
+              ((== 0 (strcmp nm "cuda"))
+               (if (not (ct_set_device 1 0))
+                   (block (ct_set_device 0 0)
+                          (fprintf stderr "cocolog: tensor_execution: no cuda for torch on this machine -- running on cpu\n")))
+               (return 1))
+              (#t (return (coco_m_domain_error e "device" d))))))
+      (let ((llong ix . 0))
+        (return (coco_m_unify e d (coco_new_atom m (? (ct_current_device (aof ix)) "cuda" "cpu")))))))
+
   ;; tensor_force(+T): execute what T depends on, now
   (func t_force ((coco_engine * e) (size_t g)) (out int)
     (let ((llong h . #'(cast llong (arg_handle e (coco_m_arg e g 0)))))
@@ -2521,6 +2563,7 @@
            (#t (set (cof found) 0) (return 0))))
         ((== arity 3)
          (cond
+           ((== 0 (strcmp name "tensor_execution")) (return (t_execution3 e g found)))
            ((== 0 (strcmp name "tensor_standardise")) (return (t_standardise e g)))
            ((== 0 (strcmp name "tensor_unary"))       (return (t_unary e g)))
            ((== 0 (strcmp name "tensor_reduce"))      (return (t_reduce e g)))

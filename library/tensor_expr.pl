@@ -81,8 +81,9 @@
 %%
 %% INSIDE A RULE the module's predicates and this library's are nonterminals
 %% too, usable without braces: seed (the selected backend's), torch_seed,
-%% tensor_execution (one or two arguments: the mode, or the backend and the
-%% mode -- torch | tensorflow, eager | graph), torch_device,
+%% tensor_execution (one, two or three arguments: the mode, the backend and
+%% the mode, or those and the device -- torch | tensorflow, eager | graph,
+%% cpu | cuda | auto), torch_device,
 %% torch_cuda_available, torch_cuda_count, torch_current_device; model_new,
 %% model_set_params, model_params, model_spec, model_save, model_load,
 %% model_free, model_train, model_evaluate, model_predict; params_save,
@@ -101,7 +102,9 @@
 %% procedure, a tutorial written in them runs on either library, under
 %% either path, from one file: the backend is set from outside and the file
 %% never names it -- tensor_execution(Mode) moves the path and keeps the
-%% library.
+%% library, and tensor_execution(Backend, Mode, cpu | cuda | auto) names the
+%% device too, on either library: cuda where there is none runs on the CPU,
+%% with a notice.
 %%
 %% THE ONE DISCIPLINE: a rule frees nothing by hand. What it made is in its
 %% list and exec/1 frees it once; a tensor_free inside would free it twice,
@@ -317,7 +320,8 @@ seed(N) :- tensor_execution(B, _), ( B == tensorflow -> tensorflow_seed(N) ; tor
 seed(N) --> { seed(N) }.
 torch_seed(N) --> { torch_seed(N) }.
 tensor_execution(M) --> { tensor_execution(M) }.
-tensor_execution(B, M) --> { tensor_execution(B, M) }.     % the backend and the mode: torch | tensorflow, eager | graph
+tensor_execution(B, M) --> { tensor_execution(B, M) }.
+tensor_execution(B, M, D) --> { tensor_execution(B, M, D) }.     % the backend, the mode, the device: torch | tensorflow, eager | graph, cpu | cuda | auto
 torch_execution(M) --> { tensor_execution(M) }.          % the old name, still answered
 torch_device(D) --> { torch_device(D) }.
 torch_cuda_available(A) --> { torch_cuda_available(A) }.

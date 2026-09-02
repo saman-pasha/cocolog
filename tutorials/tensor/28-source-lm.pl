@@ -48,6 +48,7 @@
 %% is even a clause.
 
 :- use_module(library(torch)).
+% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
 
 %% THE CLAUSE READER, to judge the model's output with. It is a tool under
 %% tools/coco-agent rather than a library on the path, so it loads by plain

@@ -15,6 +15,7 @@
 %% asked for like any other library. It used to be compiled into the
 %% binary and always present.
 :- use_module(library(torch)).
+% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
 
 bump_row(I, [X], [Y]) :- X is -2 + 4 * I / 159, Y is exp(-4 * X * X), !.
 
