@@ -91,17 +91,24 @@ step(X, Y, W, B, LR, W2, B2, Loss) -->
     W2 = step(W, GW, LR),
     B2 = step(B, GB, LR).
 
-sgd(0, _, _, W, B, _, W, B, Loss, Loss) :- !.
-sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) :-
-    proc(step(X, Y, W, B, LR, W2, B2, Loss)), free_all([W, B]),
-    K1 is K - 1,
+%% THE LOOP IS A PROCEDURE TOO, and the step is a nonterminal inside it: each
+%% step's L, GW, GB and the parameters it makes thread up into the loop's
+%% list, and proc/1 frees them all at once when the loop returns, keeping WF
+%% and BF, which the head names. Two hundred steps make a thousand handles
+%% held until then, out of the module's 4096: a loop of thousands of steps
+%% should stay a predicate that frees as it goes, as the tutorials from 32
+%% on do with their fit loops.
+sgd(0, _, _, W, B, _, W, B, Loss, Loss) --> !.
+sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) -->
+    step(X, Y, W, B, LR, W2, B2, Loss),
+    { K1 is K - 1 },
     sgd(K1, X, Y, W2, B2, LR, WF, BF, Loss, LossF).
 
 fit(X, Y, Loss, Ws, Bv) :-
     torch_seed(31),
     W := parameter(randn([2, 1])),
     B := parameter(zeros([1])),
-    sgd(200, X, Y, W, B, 0.2, WF, BF, none, Loss),
+    proc(sgd(200, X, Y, W, B, 0.2, WF, BF, none, Loss)), free_all([W, B]),
     [[W1], [W2]] := list(WF), Ws = [W1, W2],
     [Bv] := list(BF).
 
