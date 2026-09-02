@@ -142,6 +142,11 @@ art/                   the banners, hand-drawn SVG with PNG renders: the
 
 ## Installing
 
+`sh install/install-linux.sh` (Debian, Ubuntu, Fedora) or `sh install/install-macos.sh`
+does everything below on one machine — packages, the two sibling checkouts,
+ZiguratIP, cocolog, its schema and modules — and ends by printing the exports;
+[install/README.md](install/README.md) has the knobs. By hand, it is this:
+
 What the build needs on the machine:
 
 * **SBCL** — Cicili is Lisp that emits C, and `sbcl` runs it. Needed only to
