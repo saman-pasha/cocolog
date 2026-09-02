@@ -1,7 +1,7 @@
 #!/bin/sh
 # library(torch)'s GRAPH execution path, held to EQUALITY against eager.
 #
-#   sh test/torch-graph.sh            the predicates, and five tutorials
+#   sh test/torch-graph.sh            the predicates, and six tutorials
 #   ALL=1 sh test/torch-graph.sh      the predicates, and all 28 tutorials
 #
 # THE RULE UNDER TEST is DESIGN-lazy-graph.md's first sentence: a program
@@ -137,8 +137,11 @@ trap 'rm -rf "$OUT"' EXIT INT TERM
 if [ "${ALL:-0}" = 1 ]; then
   TUTS=$(ls "$ROOT"/tutorials/torch/[0-9]*.pl)
 else
+  # 30 is the tutorial ABOUT the two paths: its train runs both itself and refuses
+  # to save unless they agree, so under either prefix it prints the same lines
   TUTS="$ROOT/tutorials/torch/01-linear-regression.pl $ROOT/tutorials/torch/04-sine-approximation.pl
-        $ROOT/tutorials/torch/07-xor.pl $ROOT/tutorials/torch/14-autoencoder.pl $ROOT/tutorials/torch/20-save-load.pl"
+        $ROOT/tutorials/torch/07-xor.pl $ROOT/tutorials/torch/14-autoencoder.pl $ROOT/tutorials/torch/20-save-load.pl
+        $ROOT/tutorials/torch/30-two-paths.pl"
 fi
 for pl in $TUTS; do
   name=$(basename "$pl" .pl)
