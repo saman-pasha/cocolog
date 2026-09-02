@@ -204,6 +204,11 @@
   (decl) (func ct_record ((int prod) (int op) (double v) (llong n) (llong dim) (llong from) (llong len)
                           (const llong * ishape) (int nd) (const llong * ins) (int nins)) (out llong))
   (decl) (func ct_graph_stats ((llong * rec) (llong * exe) (llong * rep) (llong * pend)) (out void))
+  ;; phase 2: autograd through what was recorded
+  (decl) (func ct_agg_raw ((int op) (const torch::Tensor * a)) (out torch::Tensor *))
+  (decl) (func ct_parameter ((llong h)) (out llong))
+  (decl) (func ct_step ((llong hp) (llong hg) (double lr)) (out llong))
+  (decl) (func ct_grad ((llong hloss) (const llong * hps) (int n) (llong * out)) (out int))
 
 
   ;; THE DEVICE IS MODULE STATE, chosen once and honoured everywhere: a
@@ -772,6 +777,17 @@
   (code "  for (size_t i = 0; i < sh.size(); i++) out[i] = sh[i];")
   (code "  return (int)sh.size();")
   (code "}")
+  (code "// the one reduction that stays a TENSOR (0-d), so a loss can be differentiated")
+  (code "torch::Tensor* ct_agg_raw(int op, const torch::Tensor* a) {")
+  (code "  switch (op) {")
+  (code "  case 0: return new torch::Tensor(a->sum());")
+  (code "  case 1: return new torch::Tensor(a->mean());")
+  (code "  case 2: return new torch::Tensor(a->max());")
+  (code "  case 3: return new torch::Tensor(a->min());")
+  (code "  case 4: return new torch::Tensor(a->std());")
+  (code "  default: return nullptr;")
+  (code "  }")
+  (code "}")
   (code "// one producer, on its real inputs or on meta stand-ins of them")
   (code "static torch::Tensor ct_apply(const CtNode& nd, bool meta) {")
   (code "  std::vector<torch::Tensor> in;")
@@ -792,6 +808,7 @@
   (code "  if (meta) {")
   (code "    if (nd.prod == 1 && nd.op != 8) return torch::empty_like(in[0]);")
   (code "    if (nd.prod == 3) return torch::empty_like(in[0]);")
+  (code "    if (nd.prod == 14) return torch::empty(c10::IntArrayRef(), fo);")
   (code "    if (nd.prod == 6) { std::vector<int64_t> sz(in[0].sizes().begin(), in[0].sizes().end());")
   (code "                        if (sz.empty()) throw std::out_of_range(std::to_string(nd.prod));")
   (code "                        sz[0] = in[1].numel(); return torch::empty(c10::IntArrayRef(sz), in[0].options()); }")
@@ -808,6 +825,7 @@
   (code "            r = ct_cat_raw(ps.data(), (int)ps.size(), nd.dim); break; }")
   (code "  case 6: r = ct_index_rows_raw(&in[0], &in[1]); break;")
   (code "  case 7: r = ct_argmax_raw(&in[0], nd.dim); break;")
+  (code "  case 14: r = ct_agg_raw(nd.op, &in[0]); break;")
   (code "  case 8: if (nd.op == 0) return torch::zeros(ish, fo);")
   (code "          if (nd.op == 1) return torch::ones(ish, fo);")
   (code "          return torch::full(ish, nd.v, fo);")
@@ -846,6 +864,40 @@
   (code "  long long h = ct_slot_new(node);")
   (code "  if (h > 0) ct_rec++;")
   (code "  return h;")
+  (code "}")
+  (code "// ---- phase 2: autograd through what was recorded -------------------------")
+  (code "// Forcing runs real ops on real tensors, and libtorch records them on its own")
+  (code "// tape whenever an input requires grad -- in BOTH execution paths. So a")
+  (code "// parameter is a leaf that requires grad, a gradient is what autograd answers")
+  (code "// for a forced scalar, and a step is a NEW leaf: nothing is mutated in place,")
+  (code "// which is what keeps a deferred node that still names the old parameter")
+  (code "// honest. See DESIGN-lazy-graph.md, gate B.")
+  (code "long long ct_parameter(long long h) {")
+  (code "  torch::Tensor* t = ct_slot_tensor(h); if (!t) return -1;")
+  (code "  torch::Tensor p = t->detach().clone(); p.set_requires_grad(true);")
+  (code "  return ct_slot_keep(p);")
+  (code "}")
+  (code "long long ct_step(long long hp, long long hg, double lr) {")
+  (code "  torch::Tensor* p = ct_slot_tensor(hp); torch::Tensor* g = ct_slot_tensor(hg);")
+  (code "  if (!p || !g) return -1;")
+  (code "  torch::Tensor q;")
+  (code "  { torch::NoGradGuard ng; q = p->detach().sub(g->detach().mul(lr)); }")
+  (code "  q.set_requires_grad(true);")
+  (code "  return ct_slot_keep(q);")
+  (code "}")
+  (code "// -1 no such tensor; -2 the loss is not one element; -3 it depends on no parameter")
+  (code "int ct_grad(long long hloss, const long long* hps, int n, long long* out) {")
+  (code "  torch::Tensor* l = ct_slot_tensor(hloss); if (!l) return -1;")
+  (code "  if (l->numel() != 1) return -2;")
+  (code "  if (!l->requires_grad()) return -3;")
+  (code "  std::vector<torch::Tensor> ps;")
+  (code "  for (int i = 0; i < n; i++) { torch::Tensor* p = ct_slot_tensor(hps[i]); if (!p) return -1; ps.push_back(*p); }")
+  (code "  std::vector<torch::Tensor> gs = torch::autograd::grad({*l}, ps, {}, true, false, true);")
+  (code "  for (int i = 0; i < n; i++) {")
+  (code "    torch::Tensor g = gs[i].defined() ? gs[i].detach() : torch::zeros_like(ps[i]);")
+  (code "    out[i] = ct_slot_keep(g);")
+  (code "  }")
+  (code "  return 1;")
   (code "}")
   (code "void ct_graph_stats(long long* rec, long long* exe, long long* rep, long long* pend) {")
   (code "  long long p = 0;")
@@ -2099,6 +2151,105 @@
       (set (nth 3 args) (coco_make1 m "pending" (coco_new_int m (cast int64_t pend))))
       (return (coco_m_unify e (coco_m_arg e g 0) (coco_make m "stats" 4 args)))))
 
+  ;; ---- autograd through what was recorded (phase 2) ----------------------
+
+  ;; tensor_agg(+Op, +T, -T2): sum mean max min std, as a ONE-ELEMENT TENSOR
+  ;; rather than a number -- tensor_reduce/3 answers a number, and a number
+  ;; cannot be differentiated. Recordable, like every other producer.
+  (func t_agg ((coco_engine * e) (size_t g)) (out int)
+    (let ((const char * nm . #'(coco_m_atom e (coco_m_arg e g 0)))
+          (llong ha . #'(cast llong (arg_handle e (coco_m_arg e g 1))))
+          (const char * ops [5]))
+      (set (nth 0 ops) "sum") (set (nth 1 ops) "mean") (set (nth 2 ops) "max")
+      (set (nth 3 ops) "min") (set (nth 4 ops) "std")
+      (if (== nm nil) (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+      (if (not (ct_slot_exists ha)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 1))))
+      (let ((int op . #'(op_code nm ops 5)))
+        (if (< op 0) (return (coco_m_domain_error e "tensor_op" (coco_m_arg e g 0))))
+        (try
+          (block
+            (if (ct_graph_get)
+                (let ((llong ins [1]))
+                  (set (nth 0 ins) ha)
+                  (return (coco_m_unify_int e (coco_m_arg e g 2)
+                            (ct_record 14 op 0.0 0 0 0 0 nil 0 ins 1)))))
+            (let ((torch::Tensor * r . #'(ct_agg_raw op (tensor_of (cast int64_t ha)))))
+              (if (== r nil) (return 0))
+              (return (coco_m_unify_int e (coco_m_arg e g 2) (tensor_adopt r)))))
+          (catch ((const std::exception & ex))
+            (cast void ex)
+            (return (coco_m_domain_error e "tensor_op" g)))))))
+
+  ;; tensor_parameter(+T0, -T): a fresh leaf that requires grad, with T0's
+  ;; values; T0 is untouched. Executes now in both paths -- it is a leaf.
+  (func t_parameter ((coco_engine * e) (size_t g)) (out int)
+    (let ((llong h . #'(cast llong (arg_handle e (coco_m_arg e g 0)))))
+      (if (not (ct_slot_exists h)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+      (try
+        (let ((llong p . #'(ct_parameter h)))
+          (if (< p 0) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) p)))
+        (catch ((const std::exception & ex))
+          (cast void ex)
+          (return (coco_m_domain_error e "tensor_op" g))))))
+
+  ;; tensor_step(+P, +G, +LR, -P2): P2 = P - LR*G, a fresh leaf that requires
+  ;; grad. P is not mutated: a program threads P2 into its next step.
+  (func t_step ((coco_engine * e) (size_t g)) (out int)
+    (let ((llong hp . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
+          (llong hg . #'(cast llong (arg_handle e (coco_m_arg e g 1))))
+          (double lr . 0.0) (int64_t ilr . 0))
+      (if (or (not (ct_slot_exists hp)) (not (ct_slot_exists hg)))
+          (return (coco_m_domain_error e "tensor" g)))
+      (cond
+        ((coco_m_float e (coco_m_arg e g 2) (aof lr)) (block))
+        ((coco_m_int e (coco_m_arg e g 2) (aof ilr)) (set lr (cast double ilr)))
+        (#t (return (coco_m_type_error e "number" (coco_m_arg e g 2)))))
+      (try
+        (let ((llong p . #'(ct_step hp hg lr)))
+          (if (< p 0) (return (coco_m_domain_error e "tensor" g)))
+          (return (coco_m_unify_int e (coco_m_arg e g 3) p)))
+        (catch ((const std::exception & ex))
+          (cast void ex)
+          (return (coco_m_domain_error e "tensor_op" g))))))
+
+  ;; tensor_grad(+Loss, +Params, -Grads): d Loss / d each parameter, one
+  ;; tensor per parameter, in order. Loss is forced first, which is what
+  ;; builds the tape under the graph path; a parameter Loss never touched
+  ;; answers zeros of its shape.
+  (func t_grad ((coco_engine * e) (size_t g)) (out int)
+    (let ((llong hl . #'(cast llong (arg_handle e (coco_m_arg e g 0))))
+          (size_t * cells . nil) (size_t n . 0)
+          (llong hps [64]) (llong outs [64]) (size_t items [64])
+          (coco_machine * m . #'(coco_m_machine e)))
+      (if (not (ct_slot_exists hl)) (return (coco_m_domain_error e "tensor" (coco_m_arg e g 0))))
+      (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof cells) (aof n)))
+          (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+      (if (or (== n 0) (> n 64))
+          (block (if (!= cells nil) (free (cast (void *) cells)))
+                 (return (coco_m_domain_error e "tensor_list" (coco_m_arg e g 1)))))
+      (let ((size_t i . 0) (int ok . 1))
+        (while (< i n)
+          (let ((llong h . #'(cast llong (arg_handle e (nth i cells)))))
+            (if (not (ct_slot_exists h)) (set ok 0) (set (nth i hps) h)))
+          (set i (+ i 1)))
+        (free (cast (void *) cells))
+        (if (not ok) (return (coco_m_domain_error e "tensor_list" (coco_m_arg e g 1))))
+        (try
+          (let ((int rc . #'(ct_grad hl hps (cast int n) outs)))
+            (cond
+              ((== rc -2) (return (coco_m_domain_error e "scalar_tensor" (coco_m_arg e g 0))))
+              ((== rc -3) (return (coco_m_domain_error e "differentiable" (coco_m_arg e g 0))))
+              ((< rc 0)   (return (coco_m_domain_error e "tensor" g))))
+            (set i 0)
+            (while (< i n)
+              (set (nth i items) (coco_new_int m (cast int64_t (nth i outs))))
+              (set i (+ i 1)))
+            (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_list e items n))))
+          (catch ((const std::exception & ex))
+            (cast void ex)
+            (return (coco_m_domain_error e "parameter" g)))))))
+
   ;; ---- the Coco half --------------------------------------------------
   ;; model_save/2 and model_load/2 are the Zigurat bridge, CHUNKED to the
   ;; page discipline; below them, the friendly spellings of the generic
@@ -2144,6 +2295,7 @@
            ((== 0 (strcmp name "model_set_params")) (return (t_model_set_params e g)))
            ((== 0 (strcmp name "$tensor_save"))     (return (t_tensor_save e g)))
            ((== 0 (strcmp name "$tensor_load"))     (return (t_tensor_load e g)))
+           ((== 0 (strcmp name "tensor_parameter")) (return (t_parameter e g)))
            (#t (set (cof found) 0) (return 0))))
         ((== arity 3)
          (cond
@@ -2157,6 +2309,8 @@
            ((== 0 (strcmp name "tensor_new"))         (return (t_new e g)))
            ((== 0 (strcmp name "tensor_full"))        (return (t_full e g)))
            ((== 0 (strcmp name "model_predict"))      (return (t_model_predict e g)))
+           ((== 0 (strcmp name "tensor_agg"))         (return (t_agg e g)))
+           ((== 0 (strcmp name "tensor_grad"))        (return (t_grad e g)))
            (#t (set (cof found) 0) (return 0))))
         ((== arity 4)
          (cond
@@ -2165,6 +2319,7 @@
            ((== 0 (strcmp name "tensor_binary")) (return (t_binary e g)))
            ((== 0 (strcmp name "tensor_scalar")) (return (t_scalar e g)))
            ((== 0 (strcmp name "model_train"))   (return (t_model_train e g)))
+           ((== 0 (strcmp name "tensor_step"))   (return (t_step e g)))
            (#t (set (cof found) 0) (return 0))))
         ((== arity 5)
          (cond

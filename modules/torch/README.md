@@ -75,8 +75,22 @@ eager raises it and `tensor_shape/2` costs nothing; `randn`, `rand` and
 that fails is never executed. [DESIGN-lazy-graph.md](DESIGN-lazy-graph.md) is the
 contract and the plan; `test/torch-graph.sh` holds phase 1 to **equality** with
 eager -- every producer, an eleven-op expression, a training run, and the 28
-tutorials' printed results. Phases 2 (autograd through the recorded graph) and 3
-(CUDA graph replay, on the T4) are designed, not built.
+tutorials' printed results.
+
+```prolog
+tensor_parameter(T0, T).    % a fresh leaf that requires gradient, with T0's values
+tensor_agg(mean, D2, L).    % the one reduction that stays a TENSOR: sum mean max min std
+tensor_grad(L, [W, B], [GW, GB]).   % d L / d W, d L / d B -- L is forced first
+tensor_step(W, GW, 0.3, W2).        % W - 0.3*GW as a NEW leaf; W is untouched
+```
+
+Phase 2 is autograd from Prolog: a loss built with the tensor predicates is
+differentiated by libtorch's own tape, which forcing builds, so a training
+loop can be written as clauses -- tutorial 29 does, and hands its weights to
+a model. Nothing is mutated: a step is a new parameter the program threads
+on. `test/torch-grad.sh` holds the gradients to analytic values and to
+equality across the two paths. Phase 3 (CUDA graph replay, on the T4) is
+designed, not built.
 
 ## The transformer layers, and how they were checked
 

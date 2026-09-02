@@ -5,10 +5,12 @@ graph path. Same predicates, same arguments, same answers. The only thing
 that moves is *when* the arithmetic happens, and the design below is the list
 of everything that has to be true for that sentence to hold.
 
-Status: **phase 1 is built** (September 2026): `torch_execution/1`, recording,
-forcing, meta shapes, `tensor_force/1`, `tensor_graph_stats/1`, and
+Status: **phases 1 and 2 are built** (September 2026). Phase 1: `torch_execution/1`,
+recording, forcing, meta shapes, `tensor_force/1`, `tensor_graph_stats/1`, and
 `test/torch-graph.sh` holding it to equality against eager on this Mac's CPU.
-Phases 2 and 3 are not. The last gate is on a Colab T4.
+Phase 2: `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`,
+`test/torch-grad.sh`, and tutorial 29, a training loop written in Prolog. Phase 3
+is not built. The last gate is on a Colab T4.
 
 ---
 
@@ -186,12 +188,21 @@ Written down so the dialect card can carry them:
   deferred.
 
 **Gate B — this Mac, the payoff a CPU can show.** Autograd through a
-recorded graph: `tensor_parameter(T)` marks a leaf as requiring gradient,
-`tensor_grad(Loss, [W…], [G…])` forces `Loss` with autograd on and answers
-gradient handles. A tutorial writes its own training step in Prolog —
-forward, loss, `tensor_grad`, `tensor_scalar(sub, W, lr·G)` — and reaches the
-same loss as `model_train` on the same data. That is a thing eager could not
-do, since eager's tape is gone by the time Prolog asks.
+recorded graph. As built: `tensor_parameter(T0, T)` answers a fresh LEAF that
+requires gradient, with `T0`'s values; `tensor_agg(Op, T, T2)` is the one
+reduction that stays a tensor, since a number cannot be differentiated;
+`tensor_grad(Loss, [W…], [G…])` forces `Loss` — which under the graph path is
+what builds libtorch's tape — and answers one gradient per parameter, zeros for
+a parameter the loss never reached; `tensor_step(W, G, LR, W2)` answers
+`W - LR·G` as a NEW leaf and leaves `W` as it was, so nothing is ever mutated
+and a deferred node that still names the old parameter stays honest. Because
+libtorch records its tape whenever an input requires grad, all four work under
+eager too, and `test/torch-grad.sh` holds them equal across the two paths, to
+the analytic least-squares gradient within 1e-6, and to `2W` for `sum(W·W)`
+exactly. Tutorial 29 writes its loop in Prolog — 300 steps of plain SGD on a
+three-input plane — hands the weights to a `dense(1)` model through
+`model_set_params/2`, saves it, and its `test` process reloads a model no
+`model_train` ever saw.
 
 **Gate C — Colab, the T4, speed.** The same suite, then the 28 trainings with
 CUDA graph replay: a forced subgraph is keyed by its op sequence and shapes;
@@ -207,7 +218,7 @@ recurs is simply executed eagerly, which is never slower than today.
 | phase | what | where | size |
 |---|---|---|---|
 | 1 | `CtNode`, the switch, record/force, meta shapes, stats, `tensor_force`; `test/torch-graph.sh` gate A | `coco-torch.cicili`, `coco-torch.cpp`, a test | ~500 lines, no engine change |
-| 2 | `tensor_parameter/1`, `tensor_grad/3`, tutorial 29 (a training step in Prolog); gate B | the same two files, one tutorial | ~200 lines |
+| 2 | `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`, tutorial 29 (the loop in Prolog); gate B | `coco-torch.cicili`, `test/torch-grad.sh`, one tutorial | ~200 lines, built |
 | 3 | subgraph keys, CUDA graph capture and replay, `replayed` in the stats; gate C on Colab | `coco-torch.cpp`, `run-trains.sh cpu\|auto\|graph` | ~250 lines, CUDA only |
 
 Nothing here touches the engine, the store, or the freeze discipline. The
