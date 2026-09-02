@@ -39,7 +39,7 @@ at every run, and a leaf read twice would not be one leaf.
 `tensor_step/4` answers a new leaf, so a step never drags the history
 behind it.
 
-## What it costs, measured, and the bar it does not meet
+## What it costs, measured, against the bar
 
 The owner's bar for a second backend is plain: a tutorial under
 TensorFlow must finish within 1.5 times the seconds torch took for it on
@@ -68,12 +68,16 @@ whole card -- the 13.8 GB the owner read, rightly, as the sign of a
 problem, was the allocator's habit hiding the graph's growth. Tutorial
 31's fit: 200 steps in 4 s.
 
-What remains, with the card idle, is dispatch: two session runs a step
-over tiny tensors, and the recording of a few hundred nodes a step
-through the grammar. The next measurement to take is how many of those
-runs are replays and how many compile, per step of 32, which the VM ran
-out of time for; that number says whether the key is stable across steps
-or the bar is a property of sessions themselves.
+The measurement was taken before the VM went: three steps of 32 gave
+five replays, six steps eight -- one replay and one COMPILE a step. Adam's
+bias-corrected learning rate changes every step, and a scalar's value was
+in the key as if it were structure, so every loss was a new key. A scalar
+operand is data now, fed each run and keyed by its shape alone; axes,
+shapes and slice bounds stay in the key, since they are the structure.
+After that: two replays a step, 40 for 20 steps, and 20 steps of the
+ResNet in 5 s with start-up, where 80 took 77 s two drafts before. Whether
+that clears the 1.5x bar across the ten was being run when the VM's hour
+ended; what was seen is in the commits.
 
 ## What is here
 
