@@ -75,9 +75,31 @@ in the key as if it were structure, so every loss was a new key. A scalar
 operand is data now, fed each run and keyed by its shape alone; axes,
 shapes and slice bounds stay in the key, since they are the structure.
 After that: two replays a step, 40 for 20 steps, and 20 steps of the
-ResNet in 5 s with start-up, where 80 took 77 s two drafts before. Whether
-that clears the 1.5x bar across the ten was being run when the VM's hour
-ended; what was seen is in the commits.
+ResNet in 5 s with start-up, where 80 took 77 s two drafts before. And
+against the bar, two by two on the T4, each cut at its budget:
+
+| tutorial | budget, 1.5 x torch's | TensorFlow, this draft |
+|---|---|---|
+| 32 ResNet | 9 s | over, cut at 13 s |
+| 33 U-Net | 11 s | over, cut at 14 s |
+| 34 transformer encoder | 32 s | over, cut at 35 s |
+| 35 GPT | 39 s | over, cut at 40 s |
+| 36 VAE | 17 s | over, cut at 19 s |
+| 37 GAN | 158 s | over, cut at 160 s |
+| 38 GCN | 8 s | over, cut at 13 s |
+| 39 RealNVP | 62 s | over, cut at 64 s |
+| 40 DDPM | 69 s | over, cut at 72 s |
+| 41 seq2seq with attention | 47 s | over, cut at 51 s |
+
+**None of the ten meets the bar.** Each was cut at its budget with its
+training unfinished, so the true factor is not known beyond "more than
+1.5"; from 20 steps of 32 in 5 s it is about two to three times torch's
+on this card. The gate is GREEN and the quality, given the time, is
+torch's; the speed is not, yet. The next step is known and not yet
+taken: a gradient run already computes the loss's whole closure, so the
+loss run before it is a second run for nothing -- fetch the loss and the
+new parameters from the gradient's run and a step is ONE session run,
+which is where the factor of two lives.
 
 ## What is here
 
