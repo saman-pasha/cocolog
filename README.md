@@ -1351,6 +1351,35 @@ convolution, the losses -- Adam and SGD as steps that answer new
 parameters, and the store as the place a parameter list goes between
 processes.
 
+The same ten on the Colab T4, under `torch_device(cuda),
+torch_execution(graph)`, reached the same test numbers -- the flow's NLL
+0.6454 for the Mac's 0.6491 was the largest difference, a GPU's
+arithmetic against a CPU's -- and took this long for `train` and `test`
+together, beside the Mac's three goals:
+
+| tutorial | Mac CPU, three goals | Colab T4, graph path, train and test |
+|---|---|---|
+| 32 ResNet | 4 s | 5 s |
+| 33 U-Net | 6 s | 6 s |
+| 34 transformer encoder | 15 s | 19 s |
+| 35 GPT | 24 s | 23 s |
+| 36 VAE | 7 s | 10 s |
+| 37 GAN | 59 s | 93 s |
+| 38 GCN | 5 s | 4 s |
+| 39 RealNVP | 27 s | 35 s |
+| 40 DDPM | 40 s | 43 s |
+| 41 seq2seq with attention | 18 s | 27 s |
+
+Nothing here is big enough for the device to matter: every tensor is a
+few kilobytes, each step is dozens of launches, and the Prolog that
+composes them runs on the VM's two CPUs. The line where the T4 earns its
+keep is tutorial 29's heavy goal, above. Tutorial 30 on the same T4 was
+the one instructive failure: its fits printed the same fourteen digits
+under both paths and its identity check still failed, because eager's
+handles never leave the CPU while the graph path computes on the
+device, and the loss's reduction differed by 6.5e-12. The check is a
+tolerance now, and the run says which device did what.
+
 **And what the table does not say, said plainly.** The T4's graph row
 is the slowest of the six, because a sixty-four-row fit is far too small
 for a GPU: each step moves its leaves to the device and copies the loss

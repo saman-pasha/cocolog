@@ -10,10 +10,14 @@
 %% same predicates, same arguments, same answers.
 %%
 %% `train' runs the same fit twice in this one process, eager then graph,
-%% prints both, and refuses to save unless the numbers are IDENTICAL -- not
-%% close, identical, which holds on a CPU because the graph path forces
-%% through the very workers eager calls and because random leaves draw at
-%% record time, in program order. `test' reloads under the graph path;
+%% prints both, and refuses to save unless they agree. On a CPU they are
+%% IDENTICAL, because the graph path forces through the very workers eager
+%% calls and random leaves draw at record time, in program order -- that is
+%% what tutorial 31 shows. On a CUDA device, where this file lives, they are
+%% NOT: eager's handles never leave the CPU, and the graph path moves its
+%% leaves to the device and computes there, so the same program runs on two
+%% pieces of silicon and the numbers agree to about six decimals and no
+%% further. The check is a tolerance, and the run says which device did what. `test' reloads under the graph path;
 %% `predict' shows the one thing the graph path can do that eager cannot:
 %% know a shape, and refuse a shape error, with nothing executed.
 %%
@@ -109,9 +113,12 @@ train :-
     under(graph, fit(X, Y, LG, WG, BG)),
     format("eager: loss ~8f  w ~w  b ~w~n", [LE, WE, BE]),
     format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]),
-    (   LE =:= LG, WE == WG, BE =:= BG
-    ->  write('identical -- the same program, the same numbers'), nl
-    ;   write('DIFFER'), nl, halt(1)
+    WE = [WE1, WE2], WG = [WG1, WG2],
+    Diff is max(max(abs(LE - LG), abs(BE - BG)), max(abs(WE1 - WG1), abs(WE2 - WG2))),
+    torch_current_device(Dev),
+    (   Diff < 1.0e-5
+    ->  format("agree within ~e: eager on the CPU, where its handles live, graph on ~w~n", [Diff, Dev])
+    ;   format("DIFFER by ~e~n", [Diff]), halt(1)
     ),
     WG = [W1, W2],
     model_new([input(2), dense(1)], M),
