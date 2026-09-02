@@ -1,0 +1,80 @@
+%% LIBRARY 39 -- library(tensor_expr): tensor expressions over library(torch)
+%%
+%%     COCOLOG_LIBRARY=$PWD/library \
+%%       ./cocolog run tutorials/library/39-tensor-expr.pl main
+%%
+%% TIER 2, a .pl on the library path, and it wants library(torch) loaded
+%% first. A tensor predicate names a value; this library lets a program
+%% write the value as an EXPRESSION and turns the expression into the list
+%% of tensor goals it stands for -- a DCG, expr//2, does the turning, and
+%% `:=' runs the list. The lesson here is the mechanism, in four claims:
+%% an expression is a list of goals; the list is a program; a float is a
+%% number and an integer is a handle; and the operators are declared where
+%% they are read. The networks built with it are tutorials/torch/31 on.
+%%
+%% THE OPERATORS ARE DECLARED HERE, in the file that uses them: cocolog's
+%% reader applies op/3 to the file it is reading, and a library's clauses
+%% are consulted after the file naming it has been read, so a library cannot
+%% lend its operators to the file above it. Two lines, before the first
+%% clause that writes an expression.
+
+:- use_module(library(torch)).
+:- use_module(library(tensor_expr)).
+:- op(700, xfx, :=).
+:- op(400, yfx, matmul).
+
+main :-
+    write('1. an expression is a list of goals, one per node, in dependency order'), nl,
+    tensor_from_list([[1.0, 2.0], [3.0, 4.0]], X),
+    tensor_from_list([[1.0], [-1.0]], W),
+    phrase(expr(mean((X matmul W) ^ 2.0), _), Goals),
+    length(Goals, NGoals),
+    must('goals for mean((X matmul W) ^ 2.0)', NGoals, 3),
+    Goals = [G1, G2, G3],
+    G1 =.. [F1, Op1 | _], must('the first', F1-Op1, tensor_binary-matmul),
+    G2 =.. [F2, Op2 | _], must('the second', F2-Op2, tensor_scalar-pow),
+    G3 =.. [F3, Op3 | _], must('the third', F3-Op3, tensor_agg-mean),
+
+    write('2. `:='' runs the list and answers the last result; the rest are freed'), nl,
+    L := mean((X matmul W) ^ 2.0),
+    tensor_item(L, Lv),
+    must('mean of (-1)^2 and (-1)^2', Lv, 1.0),
+    tensor_shape(L, LS), must('a one-element TENSOR, so it can be differentiated', LS, []),
+
+    write('3. a float is a number, an integer is a handle'), nl,
+    T := X * 2.0, tensor_to_list(T, TL),
+    must('X * 2.0 doubles', TL, [[2.0, 4.0], [6.0, 8.0]]),
+    C := 2.0 + 3.0,
+    must('two numbers stay a number', C, 5.0),
+    catch(( _ := 2.0 ^ X, Refused = no ), error(domain_error(tensor_expression, _), _), Refused = yes),
+    must('a number on the left of ^ is refused by the grammar', Refused, yes),
+
+    write('4. the list is the same program under both execution paths'), nl,
+    torch_execution(eager), E := relu(X - 2.5) matmul W, tensor_to_list(E, EL),
+    torch_execution(graph), G := relu(X - 2.5) matmul W, tensor_to_list(G, GL),
+    torch_execution(eager),
+    must('eager and graph, the same numbers', GL, EL),
+
+    write('5. the composites are ordinary forms'), nl,
+    P := softmax([[1.0, 1.0, 1.0, 1.0]]), tensor_to_list(P, [PL]),
+    must('softmax of a flat row', PL, [0.25, 0.25, 0.25, 0.25]),
+    one_hot([1, 0], 2, Y),
+    CE := cross_entropy([[0.0, 5.0], [5.0, 0.0]], Y), tensor_item(CE, CEv), ( CEv < 0.01 -> Small = yes ; Small = no ),
+    must('cross_entropy of two confident right answers is under 0.01', Small, yes),
+
+    write('6. an optimiser step answers NEW parameters'), nl,
+    A := parameter([1.0]), Loss := mean((A - 3.0) ^ 2.0),
+    tensor_grad(Loss, [A], [GA]), sgd_step([A], [GA], 0.5, [A2]),
+    tensor_to_list(A2, A2L),
+    must('one SGD step of 0.5 on (a - 3)^2 from 1', A2L, [3.0]),
+    write(done), nl.
+
+%% `must/3' IS WHY THESE FILES ARE TESTS. Every claim a lesson makes is a
+%% goal that has to hold: get it wrong and `main' FAILS, loudly, naming
+%% both answers.
+must(Label, Got, Want) :-
+    (   Got == Want
+    ->  format("   ~w = ~q~n", [Label, Got])
+    ;   format("   ~w = ~q  BUT THIS LESSON SAYS ~q~n", [Label, Got, Want]),
+        fail
+    ).

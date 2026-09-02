@@ -3,9 +3,9 @@
 #
 #   basics/   eleven files, one process each, goal `main'. No library, no
 #             database, no build flag.
-#   library/  thirty-three files, one process each, goal `main'. Tier 2
+#   library/  forty files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
-#   torch/    twenty-eight networks, THREE processes each and a store per
+#   torch/    forty-one networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
 #             and judges it, predict reloads and answers.
 #
@@ -72,7 +72,7 @@ skipped=0
 for pl in "$ROOT"/tutorials/basics/[0-9]*.pl "$ROOT"/tutorials/library/[0-9]*.pl; do
   name=$(basename "$(dirname "$pl")")/$(basename "$pl" .pl)
   case "$name:$HAVE_TORCH" in
-    library/22-torch:no)
+    library/22-torch:no|library/39-tensor-expr:no)
       skipped=$((skipped + 1)); echo "SKIP  $name (no torch module)"; continue ;;
   esac
   case "$name:$HAVE_CRYPTO" in

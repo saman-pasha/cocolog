@@ -60,6 +60,7 @@ written anywhere in this repository.
 | 35-os | `library/os.so` | which system, who am I, cores, environment | `sh modules/os/build.sh` |
 | 36-llm | `library/llm.pl` | a language model as a GOAL | `curl`, an API key |
 | 37-lint | *(a tool, not a library)* | cocolint: the dialect linter, and why it is clauses | nothing |
+| 39-tensor-expr | `library/tensor_expr.pl` | tensor expressions over `library(torch)`: a DCG from an expression to the tensor goals it stands for, `:=` to run them, the composites and optimisers the torch tutorials from 31 on share | `sh modules/torch/build.sh` |
 
 22 is the introduction to torch; `../torch/` is the collection. 37 is the
 odd one out and says so in its header: cocolint is a TOOL under

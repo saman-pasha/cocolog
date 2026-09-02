@@ -5,10 +5,11 @@
 %%
 %%     L := mean((X matmul W + B - Y) ^ 2.0)
 %%
-%% and the five predicates are still there. A DCG, expr//2, turns the
-%% expression into the LIST OF TENSOR GOALS it stands for, in dependency
-%% order -- one goal per node, fresh variables for the results -- and `:='
-%% runs that list and frees every result but the last. The list is the
+%% and the five predicates are still there. A DCG, expr//2 in
+%% library(tensor_expr), turns the expression into the LIST OF TENSOR GOALS
+%% it stands for, in dependency order -- one goal per node, fresh variables
+%% for the results -- and `:=' runs that list and frees every result but
+%% the last. The list is the
 %% program: under torch_execution(eager) each goal computes as it runs, under
 %% torch_execution(graph) each records a node and the numbers come at the
 %% first read, and the grammar cannot tell which, which is why it is named
@@ -40,113 +41,18 @@
 
 :- use_module(library(torch)).
 
-%% ---- the operators ----------------------------------------------------------
+%% ---- the grammar lives in library(tensor_expr) ------------------------------
+%%
+%% expr//2, `:=', the composites and the optimisers are the library's; this
+%% file is the lesson. THE OPERATORS ARE DECLARED WHERE THEY ARE READ:
+%% cocolog's reader applies op/3 to the file it is reading, and a library's
+%% clauses are consulted after the file that names it has been read, so a
+%% file that writes expressions declares the two it needs before its first
+%% clause. The functional forms -- relu(X), mean(X) -- need nothing.
 
+:- use_module(library(tensor_expr)).
 :- op(700, xfx, :=).
 :- op(400, yfx, matmul).
-:- op(200, fy, relu).
-:- op(200, fy, sigmoid).
-:- op(200, fy, tanh).
-:- op(200, fy, exp).
-:- op(200, fy, log).
-:- op(200, fy, sqrt).
-:- op(200, fy, abs).
-:- op(200, fy, transpose).
-:- op(200, fy, mean).
-:- op(200, fy, sum).
-:- op(200, fy, max).
-:- op(200, fy, min).
-:- op(200, fy, std).
-
-%% ---- the grammar: an expression to the goals it stands for ------------------
-%%
-%% expr(+Expr, -T)//: emits the tensor goals that make T, Expr's value, in
-%% the order they must run. A handle or a number emits nothing. Every goal
-%% ends in its result, which is how `:=' knows what to free. At grammar time
-%% a compound's result is still a VARIABLE -- its goal has not run -- so the
-%% one test the grammar makes is float or not: a float is a number, and
-%% anything else on a tensor's side of an operator is a tensor.
-
-expr(V, _) --> { var(V) }, !, { throw(error(instantiation_error, tensor_expression)) }.
-expr(T, T) --> { integer(T) }, !.                     % a handle: already a tensor
-expr(N, N) --> { float(N) }, !.                       % a number: stays one until an op meets it
-expr(L, T) --> { is_list(L) }, !, [tensor_from_list(L, T)].
-expr(A matmul B, T) --> !, expr(A, TA), expr(B, TB),
-    { tensor_only(A matmul B, TA), tensor_only(A matmul B, TB) },
-    [tensor_binary(matmul, TA, TB, T)].
-expr(A + B, T) --> !, binary(add, A, B, T).
-expr(A - B, T) --> !, binary(sub, A, B, T).
-expr(A * B, T) --> !, binary(mul, A, B, T).
-expr(A / B, T) --> !, binary(div, A, B, T).
-expr(A ^ B, T) --> !, binary(pow, A, B, T).
-expr(- A, T)         --> !, unary(neg, A, T).
-expr(relu A, T)      --> !, unary(relu, A, T).
-expr(sigmoid A, T)   --> !, unary(sigmoid, A, T).
-expr(tanh A, T)      --> !, unary(tanh, A, T).
-expr(exp A, T)       --> !, unary(exp, A, T).
-expr(log A, T)       --> !, unary(log, A, T).
-expr(sqrt A, T)      --> !, unary(sqrt, A, T).
-expr(abs A, T)       --> !, unary(abs, A, T).
-expr(transpose A, T) --> !, unary(transpose, A, T).
-expr(mean A, T) --> !, agg(mean, A, T).
-expr(sum A, T)  --> !, agg(sum, A, T).
-expr(max A, T)  --> !, agg(max, A, T).
-expr(min A, T)  --> !, agg(min, A, T).
-expr(std A, T)  --> !, agg(std, A, T).
-expr(zeros(S), T)   --> !, [tensor_new(S, zeros, T)].
-expr(ones(S), T)    --> !, [tensor_new(S, ones, T)].
-expr(randn(S), T)   --> !, [tensor_new(S, randn, T)].
-expr(rand(S), T)    --> !, [tensor_new(S, rand, T)].
-expr(eye(N), T)     --> !, [tensor_eye(N, T)].
-expr(arange(N), T)  --> !, [tensor_arange(N, T)].
-expr(full(S, V), T) --> !, [tensor_full(S, V, T)].
-expr(reshape(A, S), T)     --> !, expr(A, TA), [tensor_reshape(TA, S, T)].
-expr(argmax(A, Dim), T)    --> !, expr(A, TA), [tensor_argmax(TA, Dim, T)].
-expr(rows(A, From, To), T) --> !, expr(A, TA), [tensor_rows(TA, From, To, T)].
-expr(cols(A, From, To), T) --> !, expr(A, TA), [tensor_cols(TA, From, To, T)].
-expr(standardise(A, N), T) --> !, expr(A, TA), [tensor_standardise(TA, N, T)].
-expr(index_rows(A, I), T)  --> !, expr(A, TA), expr(I, TI), [tensor_index_rows(TA, TI, T)].
-expr(cat(Es, Dim), T)      --> !, exprs(Es, Ts), [tensor_cat(Ts, Dim, T)].
-expr(parameter(A), T)      --> !, expr(A, TA), [tensor_parameter(TA, T)].
-expr(step(W, G, LR), T)    --> !, expr(W, TW), expr(G, TG), [tensor_step(TW, TG, LR, T)].
-expr(E, _) --> { throw(error(domain_error(tensor_expression, E), tensor_expression)) }.
-
-exprs([], []) --> [].
-exprs([E|Es], [T|Ts]) --> expr(E, T), exprs(Es, Ts).
-
-%% A number meeting a tensor is tensor_scalar; two numbers are arithmetic;
-%% two tensors are tensor_binary. A number on the LEFT of `-' or `/' has no
-%% tensor_scalar shape, so it goes through neg, or through pow -1.0.
-binary(Op, A, B, T) --> expr(A, TA), expr(B, TB), combine(Op, TA, TB, T).
-combine(Op, A, B, T) --> { float(A), float(B) }, !, { arith(Op, A, B, T) }.
-combine(Op, A, B, T) --> { float(B) }, !, [tensor_scalar(Op, A, B, T)].
-combine(Op, A, B, T) --> { float(A) }, !, scalar_left(Op, A, B, T).
-combine(Op, A, B, T) --> [tensor_binary(Op, A, B, T)].
-scalar_left(add, A, B, T) --> !, [tensor_scalar(add, B, A, T)].
-scalar_left(mul, A, B, T) --> !, [tensor_scalar(mul, B, A, T)].
-scalar_left(sub, A, B, T) --> !, [tensor_unary(neg, B, N), tensor_scalar(add, N, A, T)].
-scalar_left(div, A, B, T) --> !, [tensor_scalar(pow, B, -1.0, R), tensor_scalar(mul, R, A, T)].
-scalar_left(pow, A, B, _) --> { throw(error(domain_error(tensor_expression, A ^ B), tensor_expression)) }.
-unary(Op, A, T) --> expr(A, TA), { tensor_only(Op, TA) }, [tensor_unary(Op, TA, T)].
-agg(Op, A, T)   --> expr(A, TA), { tensor_only(Op, TA) }, [tensor_agg(Op, TA, T)].
-tensor_only(E, X) :-
-    ( float(X) -> throw(error(domain_error(tensor_expression, E), tensor_expression)) ; true ).
-arith(add, A, B, C) :- C is A + B.
-arith(sub, A, B, C) :- C is A - B.
-arith(mul, A, B, C) :- C is A * B.
-arith(div, A, B, C) :- C is A / B.
-arith(pow, A, B, C) :- C is A ** B.
-
-%% ---- the driver: run the list, keep the last result ------------------------
-
-T := Expr :-
-    phrase(expr(Expr, T), Goals), !,
-    run(Goals),
-    forall(( member(G, Goals), G =.. Args, append(_, [R], Args), integer(R), R \== T ),
-           tensor_free(R)).
-
-run([]).
-run([G|Gs]) :- call(G), run(Gs).
 
 %% ---- the program: tutorial 30's plane, six rows, one expression per step ---
 
