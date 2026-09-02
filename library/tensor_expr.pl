@@ -25,7 +25,7 @@
 %%   A + 1.5   A ^ 2.0      tensor_scalar             1.5 - A  2.0 / A  go through neg, pow -1.0
 %%   - A  relu(A) sigmoid(A) tanh(A) exp(A) log(A) sqrt(A) abs(A) transpose(A)     tensor_unary
 %%   mean(A) sum(A) max(A) min(A) std(A)     tensor_agg: a one-element TENSOR, so it differentiates
-%%   [[1.0],[2.0]]  zeros(S) ones(S) randn(S) rand(S) full(S, V) eye(N) arange(N)  leaves
+%%   [[1.0],[2.0]]  zeros(S) ones(S) randn(S) rand(S) full(S, V) eye(N) arange(N) randperm(N) csv(Path)  leaves
 %%   reshape(A, S) cat([A, B], Dim) argmax(A, Dim) rows(A, F, T) cols(A, F, T) standardise(A, N) index_rows(A, I)
 %%   parameter(A)           a fresh leaf that requires gradient, with A's values
 %%   step(W, G, LR)         W - LR*G as a NEW leaf -- a function, not a `-': a step makes a parameter, not a node
@@ -102,6 +102,8 @@ expr(randn(S), T)   --> !, [tensor_new(S, randn, T)].
 expr(rand(S), T)    --> !, [tensor_new(S, rand, T)].
 expr(eye(N), T)     --> !, [tensor_eye(N, T)].
 expr(arange(N), T)  --> !, [tensor_arange(N, T)].
+expr(randperm(N), T) --> !, [tensor_randperm(N, T)].
+expr(csv(Path), T)   --> !, [tensor_load_csv(Path, T)].
 expr(full(S, V), T) --> !, [tensor_full(S, V, T)].
 expr(glorot(R, C), T) --> !, { S is sqrt(2.0 / (R + C)) }, [tensor_new([R, C], randn, T0), tensor_scalar(mul, T0, S, T)].
 expr(reshape(A, S), T)     --> !, expr(A, TA), [tensor_reshape(TA, S, T)].
