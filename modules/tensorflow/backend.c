@@ -128,11 +128,16 @@ int tfb_mode(void) { return graph_mode_fn ? graph_mode_fn() : 0; }
 int tfb_init(void* torch_so) {
   if (ctx) return 1;
   st = TF_NewStatus();
+  /* a ConfigProto with gpu_options.allow_growth = true, serialised: TensorFlow
+   * would otherwise take the whole card at start, and share it with nobody */
+  static const char grow[] = { 0x32, 0x02, 0x20, 0x01 };
   TFE_ContextOptions* o = TFE_NewContextOptions();
+  TFE_ContextOptionsSetConfig(o, grow, sizeof grow, st); TF_SetStatus(st, TF_OK, "");
   ctx = TFE_NewContext(o, st); TFE_DeleteContextOptions(o);
   if (bad()) { ctx = 0; return 0; }
   graph = TF_NewGraph();
   TF_SessionOptions* so = TF_NewSessionOptions();
+  TF_SetConfig(so, grow, sizeof grow, st); TF_SetStatus(st, TF_OK, "");
   sess = TF_NewSession(graph, so, st); TF_DeleteSessionOptions(so);
   if (bad()) { sess = 0; return 0; }
   if (torch_so) graph_mode_fn = (int (*)(void)) dlsym(torch_so, "coco_tensor_graph_mode");
@@ -234,7 +239,7 @@ static int visit(int64_t h, Closure* c, unsigned char* seen, int grad_mode) {
   seen[h] = 1;
   TfSlot* s = &slots[h];
   if (s->kind == K_EAGER) { fail("an eager tensor in a graph: the switch was moved mid-way"); return 0; }
-  int leaf = (s->kind == K_VALUE) || (s->kind == K_NODE && s->val && !grad_mode);
+  int leaf = (s->kind == K_VALUE) || (s->kind == K_NODE && s->val && (!grad_mode || s->is_param));
   if (leaf) { if (c->nleaves >= TF_MAXLEAF) { fail("too many leaves"); return 0; } c->leaves[c->nleaves++] = h; return 1; }
   int up = 0;
   for (int i = 0; i < s->spec.nin; i++) {
@@ -372,7 +377,7 @@ static int run_closure(int64_t h) {
   }
   for (int i = 0; i < c->nnodes; i++) {
     TfSlot* s = &slots[c->nodes[i]];
-    if (s->under_param) continue;
+    if (s->under_param && !s->is_param) continue;
     OpSpec sp = s->spec; s->spec.nin = 0; s->kind = K_VALUE;
     for (int k = 0; k < sp.nin; k++) unref(sp.in[k]);
   }
@@ -737,10 +742,14 @@ int64_t tfb_parameter(int64_t a) {
   if (h > 0) slots[h].is_param = 1;
   return h;
 }
-/* a step: W - lr G, as a NEW leaf, so no step drags the history behind it */
+/* a step: W - lr G, RECORDED like any node and marked a parameter, so that
+ * the next loss's one run computes it along with everything else, and the
+ * gradient walk stops at it -- a step is a boundary, not a history. Once it
+ * has a value it is a plain leaf and lets its inputs go. */
 int64_t tfb_step(int64_t w, int64_t g, double lr) {
   int64_t scaled = tfb_scalar("mul", g, lr); if (scaled < 0) return -1;
   int64_t next = tfb_binary("sub", w, scaled); tfb_free(scaled); if (next < 0) return -1;
+  if (tfb_mode() == 1) { slots[next].is_param = 1; return next; }
   int64_t leaf = tfb_parameter(next); tfb_free(next); return leaf;
 }
 /* the gradients of loss for ps: the closure of loss in grad mode, keyed with
@@ -749,7 +758,10 @@ int tfb_grad(int64_t loss, const int64_t* ps, int n, int64_t* gs) {
   if (tfb_mode() == 0) { fail("gradients need tensor_execution(tensorflow, graph): the eager C API has no tape"); return 0; }
   if (!tfb_exists(loss) || slots[loss].kind != K_NODE) { fail("the loss is not a recorded tensor"); return 0; }
   if (n > 64) { fail("at most 64 parameters"); return 0; }
-  for (int i = 0; i < n; i++) if (!tfb_exists(ps[i]) || slots[ps[i]].kind != K_VALUE) { fail("a parameter must be a leaf: tensor_parameter/2 makes one"); return 0; }
+  for (int i = 0; i < n; i++) if (!tfb_exists(ps[i]) || !(slots[ps[i]].kind == K_VALUE || (slots[ps[i]].kind == K_NODE && slots[ps[i]].is_param))) { fail("a parameter must be a leaf: tensor_parameter/2 or tensor_step/4 makes one"); return 0; }
+  /* one run: the loss, and with it every recorded step and moment it rests on */
+  if (!run_closure(loss)) return 0;
+  for (int i = 0; i < n; i++) if (slots[ps[i]].kind == K_NODE && !slots[ps[i]].val) { if (!run_closure(ps[i])) return 0; }
   Closure* c = (Closure*) malloc(sizeof(Closure));
   if (!closure_of(loss, 1, c)) { free(c); return 0; }
   int li[64];
