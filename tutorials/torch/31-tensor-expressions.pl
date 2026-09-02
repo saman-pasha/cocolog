@@ -104,17 +104,21 @@ sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) -->
     { K1 is K - 1 },
     sgd(K1, X, Y, W2, B2, LR, WF, BF, Loss, LossF).
 
-fit(X, Y, Loss, Ws, Bv) :-
-    torch_seed(31),
-    W := parameter(randn([2, 1])),
-    B := parameter(zeros([1])),
-    proc(sgd(200, X, Y, W, B, 0.2, WF, BF, none, Loss)), free_all([W, B]),
-    [[W1], [W2]] := list(WF), Ws = [W1, W2],
-    [Bv] := list(BF).
+%% AND THE FIT: the parameters are made here, the loop runs inside, and the
+%% head names only numbers -- so when proc/1 returns, every tensor the fit
+%% ever made is freed, and the file has no free_all at all. Inside a rule
+%% `=' is the binding, so the one plain unification is in braces.
+fit(X, Y, Loss, Ws, Bv) -->
+    { torch_seed(31) },
+    W = parameter(randn([2, 1])),
+    B = parameter(zeros([1])),
+    sgd(200, X, Y, W, B, 0.2, WF, BF, none, Loss),
+    [[W1], [W2]] = list(WF), { Ws = [W1, W2] },
+    [Bv] = list(BF).
 
 under(Mode, Goal) :-
     torch_execution(Mode),
-    call(Goal),
+    proc(Goal),
     S := stats,
     format("   ~w: ~w~n", [Mode, S]).
 
