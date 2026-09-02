@@ -56,6 +56,17 @@ small corner of that class — the dataset samples every axis
 log-uniformly precisely so that corner is populated, and the demo's
 first drafts, where it was not, are a lesson the file's comments keep.
 
+## A graph execution path, designed
+
+[DESIGN-lazy-graph.md](DESIGN-lazy-graph.md) is the design for a second execution
+path behind the same predicates: `torch_execution(graph)` records the tensor
+ops a proof asks for and executes them at the seams where a number is read or a
+model is fed, with shapes known at record time so shape errors keep their timing,
+stochastic leaves executed at once so random draws keep their order, and on CUDA
+a replay of what was recorded. It lists the gates, in order: equality against
+eager on this Mac's CPU, autograd through the recorded graph, then the T4. Nothing
+in it is built yet.
+
 ## The transformer layers, and how they were checked
 
 `attention/1`, `ffn/1` and `positional/0,1` were written without a build and then
