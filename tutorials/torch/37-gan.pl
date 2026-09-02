@@ -41,11 +41,11 @@
 noise(I, R) :- S is sin(I * 12.9898) * 43758.5453, R is S - truncate(S), !.
 
 %% ring(+From, +N, -X): N points at angles the noise picks, radius 1 blurred by 0.05.
-ring(From, N, X) :-
-    To is From + N - 1,
-    findall([Px, Py], ( between(From, To, I), noise(I, R1), A is R1 * 3.14159265, J is I + 7919, noise(J, R2), Rad is 1.0 + 0.05 * R2,
-                        Px is Rad * cos(A), Py is Rad * sin(A) ), Rows),
-    X := Rows, !.
+ring(From, N, X) -->
+    { To is From + N - 1,
+      findall([Px, Py], ( between(From, To, I), noise(I, R1), A is R1 * 3.14159265, J is I + 7919, noise(J, R2), Rad is 1.0 + 0.05 * R2,
+                        Px is Rad * cos(A), Py is Rad * sin(A) ), Rows) },
+    X = Rows, !.
 
 %% on_ring(+Rows, -Fraction, -Sectors): how many of the points sit within
 %% 0.15 of the ring, and how many of twelve 30-degree sectors hold one.
@@ -90,18 +90,26 @@ judge([Wd1, Bd1, Wd2, Bd2, Wd3, Bd3], X, P) -->
 
 %% ---- the three goals ---------------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the rounds stay a predicate in braces, since they step two
+%% optimisers that free the old parameters themselves.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(37),
-    generator(G0), discriminator(D0), adam_init(G0, [beta1(0.5)], SG0), adam_init(D0, [beta1(0.5)], SD0),
-    rounds(5000, G0, D0, SG0, SD0, G, D),
-    append(G, D, Ps), params_save(t37_gan, Ps),
-    write(saved), nl.
+    { generator(G0), discriminator(D0), adam_init(G0, [beta1(0.5)], SG0), adam_init(D0, [beta1(0.5)], SD0),
+      rounds(5000, G0, D0, SG0, SD0, G, D),
+      append(G, D, Ps) },
+    params_save(t37_gan, Ps),
+    { write(saved), nl }.
 
 %% one round: fresh real points and fresh noise, the discriminator's step on
 %% real and fake, then the generator's step through the updated discriminator
 rounds(0, G, D, _, _, G, D) :- !.
 rounds(K, G, D, SG, SD, GF, DF) :-
-    From is K * 256, ring(From, 256, X),
+    From is K * 256, exec(ring(From, 256, X)),
     Z := randn([256, 2]),
     exec(generate(G, Z, Fake)),
     exec(judge(D, X, PReal)), exec(judge(D, Fake, PFake)),
@@ -116,21 +124,22 @@ rounds(K, G, D, SG, SD, GF, DF) :-
     K1 is K - 1,
     rounds(K1, G2, D2, SG2, SD2, GF, DF).
 
-load(G, D) :- params_load(t37_gan, Ps), length(G, 6), append(G, D, Ps), !.
+load(G, D) --> params_load(t37_gan, Ps), { length(G, 6), append(G, D, Ps) }, !.
 
-test :-
+test -->
     torch_seed(1037),
     load(G, _),
-    Z := randn([256, 2]), exec(generate(G, Z, Fake)), Rows := list(Fake),
-    on_ring(Rows, Fraction, Sectors),
-    format("test: 256 samples, ~2f within 0.15 of the ring, ~w of 12 sectors reached~n", [Fraction, Sectors]),
-    ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    Z = randn([256, 2]), generate(G, Z, Fake), Rows = list(Fake),
+    { on_ring(Rows, Fraction, Sectors),
+      format("test: 256 samples, ~2f within 0.15 of the ring, ~w of 12 sectors reached~n", [Fraction, Sectors]),
+      ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     torch_seed(2037),
     load(G, D),
-    Z := randn([300, 2]), exec(generate(G, Z, Fake)), Rows := list(Fake),
-    write('300 samples from the generator:'), nl, scatter(Rows), nl,
-    ring(999999, 1, R), exec(judge(D, R, PR)), [[PRv]] := list(PR), [[Rx, Ry]] := list(R),
-    Fake = Fake, Rows = [[Fx, Fy]|_], F1 := rows(Fake, 0, 1), exec(judge(D, F1, PF)), [[PFv]] := list(PF),
-    format("   the discriminator gives a real point (~2f, ~2f) ~2f and a fake (~2f, ~2f) ~2f~n", [Rx, Ry, PRv, Fx, Fy, PFv]).
+    Z = randn([300, 2]), generate(G, Z, Fake), Rows = list(Fake),
+    { write('300 samples from the generator:'), nl, scatter(Rows), nl },
+    ring(999999, 1, R), judge(D, R, PR), [[PRv]] = list(PR), [[Rx, Ry]] = list(R),
+    F1 = rows(Fake, 0, 1), judge(D, F1, PF), [[PFv]] = list(PF),
+    { Rows = [[Fx, Fy]|_],
+      format("   the discriminator gives a real point (~2f, ~2f) ~2f and a fake (~2f, ~2f) ~2f~n", [Rx, Ry, PRv, Fx, Fy, PFv]) }.

@@ -41,14 +41,15 @@ noise(I, R) :- S is sin(I * 12.9898) * 43758.5453, R is S - truncate(S), !.
 %% windows(+Lo, +Hi, +Salt, +N, -Ids, -PosIds, -Targets): N windows of 8
 %% characters starting at offsets in [Lo, Hi), chosen by the noise; the
 %% inputs as N*8 token ids, their positions, and the N*8 next characters.
-windows(Lo, Hi, Salt, N, Ids, PosIds, Targets) :-
-    text(T), atom_codes(T, Codes), findall(I, ( member(C, Codes), id(C, I) ), All),
+windows(Lo, Hi, Salt, N, Ids, PosIds, Targets) -->
+    {     text(T), atom_codes(T, Codes), findall(I, ( member(C, Codes), id(C, I) ), All),
     Span is Hi - Lo, N1 is N - 1,
     findall(O, ( between(0, N1, K), J is K * 31 + Salt, noise(J, R), O is Lo + truncate(abs(R) * Span) ), Offsets),
     findall(X, ( member(O, Offsets), between(0, 7, P), Q is O + P, nth0(Q, All, X) ), In),
     findall(Y, ( member(O, Offsets), between(1, 8, P), Q is O + P, nth0(Q, All, Y) ), Targets),
     findall(P, ( member(_, Offsets), between(0, 7, P) ), Pos),
-    Ids := In, PosIds := Pos, !.
+      Ids0 = In, PosIds0 = Pos },
+    Ids = Ids0, PosIds = PosIds0, !.
 
 %% ---- the network ------------------------------------------------------------
 
@@ -82,17 +83,31 @@ forward([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, G3, Bt3, Wo
 
 %% ---- the three goals ----------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the batches are a rule recursing over their number; the fit loop
+%% and the greedy generator stay predicates in braces, since one steps an
+%% optimiser that frees the old parameters and the other frees as it goes.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+batches(N, N, []) --> !.
+batches(B, N, [batch(Ids, PosIds, Y)|Bs]) -->
+    { Salt is B * 977 + 5 }, windows(0, 292, Salt, 64, Ids, PosIds, Ts), one_hot(Ts, 28, Y),
+    { B1 is B + 1 }, batches(B1, N, Bs).
+
+train -->
     torch_seed(35),
-    findall(batch(Ids, PosIds, Y), ( between(0, 15, B), Salt is B * 977 + 5, windows(0, 292, Salt, 64, Ids, PosIds, Ts), one_hot(Ts, 28, Y) ), Batches),
+    batches(0, 16, Batches),
     causal_mask(64, 8, Mask),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(800, Ps0, St0, Batches, Mask, Ps),
-    Batches = [batch(Ids0, PosIds0, _)|_], windows(0, 292, 5, 64, _, _, Ts0),
-    exec(forward(Ps, Ids0, PosIds0, Mask, Logits)), accuracy(Logits, Ts0, Acc), tensor_free(Logits),
-    format("trained: next-character accuracy on the first batch ~2f~n", [Acc]),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(800, Ps0, St0, Batches, Mask, Ps),
+      Batches = [batch(Ids0, PosIds0, _)|_] },
+    windows(0, 292, 5, 64, _, _, Ts0),
+    forward(Ps, Ids0, PosIds0, Mask, Logits), accuracy(Logits, Ts0, Acc),
+    { format("trained: next-character accuracy on the first batch ~2f~n", [Acc]) },
     params_save(t35_gpt, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, Mask, PsF) :-
@@ -106,14 +121,14 @@ fit(K, Ps, St, Batches, Mask, PsF) :-
     K1 is K - 1,
     fit(K1, Ps2, St2, Batches, Mask, PsF).
 
-test :-
+test -->
     params_load(t35_gpt, Ps),
-    text(T), atom_length(T, Len), Hi is Len - 9,
+    { text(T), atom_length(T, Len), Hi is Len - 9 },
     windows(300, Hi, 4242, 64, Ids, PosIds, Ts),
     causal_mask(64, 8, Mask),
-    exec(forward(Ps, Ids, PosIds, Mask, Logits)), accuracy(Logits, Ts, Acc),
-    format("test next-character accuracy ~2f on 64 windows the training never saw~n", [Acc]),
-    ( Acc >= 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    forward(Ps, Ids, PosIds, Mask, Logits), accuracy(Logits, Ts, Acc),
+    { format("test next-character accuracy ~2f on 64 windows the training never saw~n", [Acc]),
+      ( Acc >= 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
 %% generate(+Ps, +Mask, +Context, +N, -Out): N more characters, greedily --
 %% the last eight characters are the context, the argmax at the last
@@ -130,9 +145,9 @@ generate(Ps, Mask, Context, N, Out) :-
     N1 is N - 1,
     generate(Ps, Mask, Context2, N1, Out).
 
-predict :-
+predict -->
     params_load(t35_gpt, Ps),
     causal_mask(1, 8, Mask),
-    forall(member(Prompt, ['the cat ', 'the dog ']),
-           ( atom_codes(Prompt, Codes), generate(Ps, Mask, Codes, 40, Out), atom_codes(Text, Out),
-             format("   ~w|~w~n", [Prompt, Text]) )).
+    { forall(member(Prompt, ['the cat ', 'the dog ']),
+             ( atom_codes(Prompt, Codes), generate(Ps, Mask, Codes, 40, Out), atom_codes(Text, Out),
+               format("   ~w|~w~n", [Prompt, Text]) )) }.

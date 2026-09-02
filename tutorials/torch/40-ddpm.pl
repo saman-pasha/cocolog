@@ -37,11 +37,11 @@
 
 noise(I, R) :- S is sin(I * 12.9898) * 43758.5453, R is S - truncate(S), !.
 
-ring(From, N, X) :-
-    To is From + N - 1,
-    findall([Px, Py], ( between(From, To, I), noise(I, R1), A is R1 * 3.14159265, J is I + 7919, noise(J, R2), Rad is 1.0 + 0.05 * R2,
-                        Px is Rad * cos(A), Py is Rad * sin(A) ), Rows),
-    X := Rows, !.
+ring(From, N, X) -->
+    { To is From + N - 1,
+      findall([Px, Py], ( between(From, To, I), noise(I, R1), A is R1 * 3.14159265, J is I + 7919, noise(J, R2), Rad is 1.0 + 0.05 * R2,
+                        Px is Rad * cos(A), Py is Rad * sin(A) ), Rows) },
+    X = Rows, !.
 
 angle(X, Y, A) :- R is sqrt(X * X + Y * Y), ( R < 1.0e-9 -> A = 0.0 ; C is max(-1.0, min(1.0, X / R)), A0 is acos(C), ( Y >= 0 -> A = A0 ; A is -A0 ) ), !.
 on_ring(Rows, Fraction, Sectors) :-
@@ -67,9 +67,10 @@ product([], 1.0).
 product([A|As], P) :- product(As, P0), P is A * P0.
 
 %% tables(-SA, -SOM): [50, 1] constants, sqrt(abar_t) and sqrt(1 - abar_t).
-tables(SA, SOM) :-
-    findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(Ab) ), L1), SA := L1,
-    findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(1.0 - Ab) ), L2), SOM := L2, !.
+tables(SA, SOM) -->
+    { findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(Ab) ), L1),
+      findall([V], ( between(0, 49, T), abar(T, Ab), V is sqrt(1.0 - Ab) ), L2) },
+    SA = L1, SOM = L2, !.
 
 %% ---- the network: eps from (x_t, t) ------------------------------------------------------
 
@@ -86,19 +87,27 @@ predict_noise([Temb, W1, B1, W2, B2, W3, B3], Xt, TIds, Eps) -->
 
 %% ---- the three goals --------------------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the fit loop and the sampler stay predicates in braces, since one
+%% steps an optimiser that frees the old parameters and the other frees as
+%% it goes, fifty times.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(40),
     tables(SA, SOM),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(4000, Ps0, St0, SA, SOM, Ps),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(4000, Ps0, St0, SA, SOM, Ps) },
     params_save(t40_ddpm, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 %% one step: fresh points, a step t for each, fresh noise, x_t by the
 %% schedule, and the regression of the network's noise onto the real one
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, SA, SOM, PsF) :-
-    From is K * 256, ring(From, 256, X0),
+    From is K * 256, exec(ring(From, 256, X0)),
     findall(T, ( between(1, 256, I), J is K * 1009 + I, noise(J, R), T is truncate(abs(R) * 50) ), Ts), TIds := Ts,
     Eps := randn([256, 2]),
     Xt := X0 * index_rows(SA, TIds) + Eps * index_rows(SOM, TIds),
@@ -131,15 +140,15 @@ unstep(T, Ps, N, Watch, Xt, X) :-
     T1 is T - 1,
     unstep(T1, Ps, N, Watch, Xn, X).
 
-test :-
+test -->
     torch_seed(1040),
     params_load(t40_ddpm, Ps),
-    sample(Ps, 256, [], X), Rows := list(X),
-    on_ring(Rows, Fraction, Sectors),
-    format("test: 256 samples, ~2f within 0.15 of the ring, ~w of 12 sectors reached~n", [Fraction, Sectors]),
-    ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    { sample(Ps, 256, [], X) }, Rows = list(X),
+    { on_ring(Rows, Fraction, Sectors),
+      format("test: 256 samples, ~2f within 0.15 of the ring, ~w of 12 sectors reached~n", [Fraction, Sectors]),
+      ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     torch_seed(2040),
     params_load(t40_ddpm, Ps),
-    sample(Ps, 300, [49, 25, 0], _).
+    { sample(Ps, 300, [49, 25, 0], _) }.

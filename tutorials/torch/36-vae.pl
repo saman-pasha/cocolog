@@ -48,11 +48,11 @@ bar(Kind, Y, X) :- Kind < 6, Y =:= Kind + 1, X >= 1, X =< 6, !.
 bar(Kind, Y, X) :- Kind >= 6, X =:= Kind - 5, Y >= 1, Y =< 6, !.
 
 %% pictures(+From, +N, -X, -Clean): N pictures as [N, 64] rows, and their clean masks.
-pictures(From, N, X, Clean) :-
-    To is From + N - 1,
-    findall(Ps, ( between(From, To, I), picture(I, Ps, _) ), XR),
-    findall(Cs, ( between(From, To, I), picture(I, _, Cs) ), CR),
-    X := XR, Clean := CR, !.
+pictures(From, N, X, Clean) -->
+    { To is From + N - 1,
+      findall(Ps, ( between(From, To, I), picture(I, Ps, _) ), XR),
+      findall(Cs, ( between(From, To, I), picture(I, _, Cs) ), CR) },
+    X = XR, Clean = CR, !.
 
 draw(Values) :-
     forall(between(0, 7, Y),
@@ -90,13 +90,20 @@ loss(Ps, X, L, recon(Rv)-kl(Kv)) -->
 
 %% ---- the three goals -------------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the fit loop stays a predicate in braces, since it steps an
+%% optimiser that frees the old parameters itself.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(36),
     pictures(0, 96, X, _),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(800, Ps0, St0, X, Ps),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(800, Ps0, St0, X, Ps) },
     params_save(t36_vae, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
@@ -111,23 +118,23 @@ fit(K, Ps, St, X, PsF) :-
 %% reconstruct through the MEAN, no draw: what the network thinks the picture is
 reconstruct(Ps, X, Out) --> encode(Ps, X, Mu, _), decode(Ps, Mu, Out).
 
-test :-
+test -->
     params_load(t36_vae, Ps),
     pictures(1000, 24, X, Clean),
-    exec(reconstruct(Ps, X, Out)),
-    OL := list(Out), CL := list(Clean),
-    findall(x, ( nth0(I, OL, ORow), nth0(I, CL, CRow), nth0(P, ORow, V), nth0(P, CRow, C), ( V > 0.5 -> B = 1.0 ; B = 0.0 ), B =:= C ), Hits),
-    length(Hits, H), Acc is H / (24 * 64),
-    format("test pixel accuracy of the reconstruction ~3f on 24 fresh pictures~n", [Acc]),
-    ( Acc >= 0.95 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    reconstruct(Ps, X, Out),
+    OL = list(Out), CL = list(Clean),
+    { findall(x, ( nth0(I, OL, ORow), nth0(I, CL, CRow), nth0(P, ORow, V), nth0(P, CRow, C), ( V > 0.5 -> B = 1.0 ; B = 0.0 ), B =:= C ), Hits),
+      length(Hits, H), Acc is H / (24 * 64),
+      format("test pixel accuracy of the reconstruction ~3f on 24 fresh pictures~n", [Acc]),
+      ( Acc >= 0.95 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     params_load(t36_vae, Ps),
-    pictures(2000, 2, X, _), exec(encode(Ps, X, Mu, _)), MuL := list(Mu),
-    format("two pictures land at ~w in the latent plane~n", [MuL]),
-    write('and a 3x3 walk over it, z1 across, z2 down, each decoded:'), nl, nl,
-    forall(member(Z2, [-1.5, 0.0, 1.5]),
-           ( forall(member(Z1, [-1.5, 0.0, 1.5]),
-                    ( exec(decode(Ps, [[Z1, Z2]], Out)), [Vals] := list(Out), tensor_free(Out),
-                      format("   z = (~1f, ~1f)~n", [Z1, Z2]), draw(Vals) )),
-             nl )).
+    pictures(2000, 2, X, _), encode(Ps, X, Mu, _), MuL = list(Mu),
+    { format("two pictures land at ~w in the latent plane~n", [MuL]),
+      write('and a 3x3 walk over it, z1 across, z2 down, each decoded:'), nl, nl,
+      forall(member(Z2, [-1.5, 0.0, 1.5]),
+             ( forall(member(Z1, [-1.5, 0.0, 1.5]),
+                      ( exec(decode(Ps, [[Z1, Z2]], Out)), [Vals] := list(Out), tensor_free(Out),
+                        format("   z = (~1f, ~1f)~n", [Z1, Z2]), draw(Vals) )),
+               nl )) }.

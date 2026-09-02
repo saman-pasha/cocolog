@@ -42,10 +42,10 @@ moon(I, [X, Y]) :-
     ->  X is cos(T) - 0.5 + 0.06 * R2,       Y is sin(T) - 0.25 + 0.06 * R3
     ;   X is 0.5 - cos(T) + 0.06 * R2,       Y is 0.25 - sin(T) + 0.06 * R3 ), !.
 
-moons(From, N, X) :-
-    To is From + N - 1,
-    findall(P, ( between(From, To, I), moon(I, P) ), Rows),
-    X := Rows, !.
+moons(From, N, X) -->
+    { To is From + N - 1,
+      findall(P, ( between(From, To, I), moon(I, P) ), Rows) },
+    X = Rows, !.
 
 %% near_moon(+Point): within 0.15 of either moon's arc.
 near_moon([X, Y]) :-
@@ -114,15 +114,23 @@ nll(Layers, X, L) -->
 
 %% ---- the three goals ------------------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the fit loop stays a predicate in braces, since it steps an
+%% optimiser that frees the old parameters itself.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(39),
     moons(0, 256, X),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(1500, Ps0, St0, X, Ps),
-    layers(Ps, Layers), exec(nll(Layers, X, L)), Lv := item(L),
-    format("trained: NLL ~4f nats per point on the training moons~n", [Lv]),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(1500, Ps0, St0, X, Ps),
+      layers(Ps, Layers) },
+    nll(Layers, X, L), Lv = item(L),
+    { format("trained: NLL ~4f nats per point on the training moons~n", [Lv]) },
     params_save(t39_realnvp, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
@@ -143,19 +151,21 @@ gaussian_nll(Rows, G) :-
     G is 0.5 * (log(2 * 3.14159265 * Vx) + 1) + 0.5 * (log(2 * 3.14159265 * Vy) + 1), !.
 variance(Vs, N, Var) :- sum_list(Vs, S), M is S / N, findall(D, ( member(V, Vs), D is (V - M) * (V - M) ), Ds), sum_list(Ds, SD), Var is SD / N, !.
 
-test :-
-    params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    moons(1000, 256, X), exec(nll(Layers, X, L)), Lv := item(L),
-    Rows := list(X), gaussian_nll(Rows, G),
-    format("test: the flow's NLL ~4f against a fitted Gaussian's ~4f, on 256 fresh points~n", [Lv, G]),
-    ( Lv =< G - 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+test -->
+    params_load(t39_realnvp, Ps), { layers(Ps, Layers) },
+    moons(1000, 256, X), nll(Layers, X, L), Lv = item(L),
+    Rows = list(X),
+    { gaussian_nll(Rows, G),
+      format("test: the flow's NLL ~4f against a fitted Gaussian's ~4f, on 256 fresh points~n", [Lv, G]),
+      ( Lv =< G - 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     torch_seed(2039),
-    params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    Z := randn([300, 2]), exec(inverse(Layers, Z, X)), Rows := list(X),
-    write('300 points drawn from N(0, I) and run backwards through the flow:'), nl, scatter(Rows),
-    findall(x, ( member(P, Rows), near_moon(P) ), Near), length(Near, Nn), Frac is Nn / 300,
-    format("   ~2f of them within 0.15 of a moon~n", [Frac]),
-    moons(3000, 2, Two), exec(nll(Layers, Two, L2)), L2v := item(L2), Far := [[1.5, 1.5], [-1.5, -1.5]], exec(nll(Layers, Far, L3)), L3v := item(L3),
-    format("   and it can say how likely a point is: two on the moons at ~2f nats, two far away at ~2f~n", [L2v, L3v]).
+    params_load(t39_realnvp, Ps), { layers(Ps, Layers) },
+    Z = randn([300, 2]), inverse(Layers, Z, X), Rows = list(X),
+    { write('300 points drawn from N(0, I) and run backwards through the flow:'), nl, scatter(Rows),
+      findall(x, ( member(P, Rows), near_moon(P) ), Near), length(Near, Nn), Frac is Nn / 300,
+      format("   ~2f of them within 0.15 of a moon~n", [Frac]) },
+    moons(3000, 2, Two), nll(Layers, Two, L2), L2v = item(L2),
+    Far = [[1.5, 1.5], [-1.5, -1.5]], nll(Layers, Far, L3), L3v = item(L3),
+    { format("   and it can say how likely a point is: two on the moons at ~2f nats, two far away at ~2f~n", [L2v, L3v]) }.

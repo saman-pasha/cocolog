@@ -109,7 +109,7 @@ sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) -->
 %% ever made is freed, and the file has no free_all at all. Inside a rule
 %% `=' is the binding, so the one plain unification is in braces.
 fit(X, Y, Loss, Ws, Bv) -->
-    { torch_seed(31) },
+    torch_seed(31),
     W = parameter(randn([2, 1])),
     B = parameter(zeros([1])),
     sgd(200, X, Y, W, B, 0.2, WF, BF, none, Loss),

@@ -1339,8 +1339,12 @@ every tensor it made -- `exec(step(X, Y, W, B, LR, W2, B2, Loss))` runs
 it and frees all of that but what the head returns. The reader translates
 `-->` as it translates any grammar, so nothing is declared for it, and a
 procedure called inside another threads its temporaries up to the caller;
-from tutorial 31 on, every forward pass, cell and loss is one, and the
-files hold no `free_all` of their own but for the parameters they thread.
+from tutorial 31 on, every forward pass, cell, loss and data generator is
+one, and so are `train`, `test` and `predict` themselves, with the
+module's predicates -- `torch_seed`, `model_load`, `params_save` and the
+rest -- as nonterminals inside them; what stays a predicate, in braces, is
+the loop that steps an optimiser, since `adam_step` frees the old
+parameters itself and a rule must not emit what something else frees.
 
 **And ten networks written in it**, tutorials 32 to 41, each the
 architecture in the open rather than a layer of the module: a ResNet

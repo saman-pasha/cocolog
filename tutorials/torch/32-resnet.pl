@@ -44,11 +44,11 @@ on(1, A, _, Y, X) :- X =:= A + 1, Y >= 1, Y =< 6.                   % a vertical
 on(2, A, B, Y, X) :- Y >= A, Y =< A + 2, X >= B, X =< B + 2.         % a 3x3 square at (A, B)
 
 %% pictures(+From, +N, -X, -Classes): N pictures as one [N*64, 1] tensor.
-pictures(From, N, X, Classes) :-
-    To is From + N - 1,
-    findall(C, ( between(From, To, I), picture(I, C, _) ), Classes),
-    findall([V], ( between(From, To, I), picture(I, _, Ps), member(V, Ps) ), Rows),
-    X := Rows, !.
+pictures(From, N, X, Classes) -->
+    { To is From + N - 1,
+      findall(C, ( between(From, To, I), picture(I, C, _) ), Classes),
+      findall([V], ( between(From, To, I), picture(I, _, Ps), member(V, Ps) ), Rows) },
+    X = Rows, !.
 
 draw(Pixels) :-
     forall(between(0, 7, Y),
@@ -63,7 +63,7 @@ draw(Pixels) :-
 
 %% the constants every process builds once: the nine tap matrices at 8x8 and
 %% at 4x4, and the pooling matrix
-constants(c(S8, S4, P8)) :- shifts(8, 8, S8), shifts(4, 4, S4), pool_matrix(8, 8, P8), !.
+constants(c(S8, S4, P8)) --> shifts(8, 8, S8), shifts(4, 4, S4), pool_matrix(8, 8, P8), !.
 
 parameters([K0, B0, K1a, B1a, K1b, B1b, K2a, B2a, K2b, B2b, Wd, Bd]) :-
     K0 := parameter(glorot(9, 8)),    B0 := parameter(zeros([1, 8])),
@@ -86,16 +86,26 @@ forward([K0, B0, K1a, B1a, K1b, B1b, K2a, B2a, K2b, B2b, Wd, Bd], c(S8, S4, P8),
 
 %% ---- the three goals ------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the constants, the pictures, the forward pass and the module's
+%% predicates are nonterminals in them, and every tensor a goal makes is
+%% freed when it ends. The fit loop stays a predicate, in braces: it steps an
+%% optimiser, which frees the old parameters itself, and a rule must not
+%% emit what something else frees.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(32),
     constants(Cs),
     pictures(0, 48, X, Classes), one_hot(Classes, 3, Y),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(80, Ps0, St0, Cs, X, Y, Ps),
-    exec(forward(Ps, Cs, X, Logits)), accuracy(Logits, Classes, Acc), tensor_free(Logits),
-    format("trained: accuracy on the 48 training pictures ~2f~n", [Acc]),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(80, Ps0, St0, Cs, X, Y, Ps) },
+    forward(Ps, Cs, X, Logits), accuracy(Logits, Classes, Acc),
+    { format("trained: accuracy on the 48 training pictures ~2f~n", [Acc]) },
     params_save(t32_resnet, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, _, _, Ps) :- !.
 fit(K, Ps, St, Cs, X, Y, PsF) :-
@@ -108,24 +118,24 @@ fit(K, Ps, St, Cs, X, Y, PsF) :-
     K1 is K - 1,
     fit(K1, Ps2, St2, Cs, X, Y, PsF).
 
-test :-
+test -->
     constants(Cs),
     params_load(t32_resnet, Ps),
     pictures(1000, 30, X, Classes),
-    exec(forward(Ps, Cs, X, Logits)), accuracy(Logits, Classes, Acc),
-    format("test accuracy ~2f on 30 fresh pictures~n", [Acc]),
-    ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    forward(Ps, Cs, X, Logits), accuracy(Logits, Classes, Acc),
+    { format("test accuracy ~2f on 30 fresh pictures~n", [Acc]),
+      ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     constants(Cs),
     params_load(t32_resnet, Ps),
     pictures(2000, 3, X, Classes),
-    exec(forward(Ps, Cs, X, Logits)),
-    A := argmax(Logits, 1), Got := list(A),
-    forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
-           ( J is 2000 + I, picture(J, _, Pixels), draw(Pixels),
-             name_of(C, CN), Gi is round(G), name_of(Gi, GN),
-             format("   the network says ~w (it is ~w)~n~n", [GN, CN]) )).
+    forward(Ps, Cs, X, Logits),
+    Got = list(argmax(Logits, 1)),
+    { forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
+             ( J is 2000 + I, picture(J, _, Pixels), draw(Pixels),
+               name_of(C, CN), Gi is round(G), name_of(Gi, GN),
+               format("   the network says ~w (it is ~w)~n~n", [GN, CN]) )) }.
 name_of(0, 'a horizontal bar') :- !.
 name_of(1, 'a vertical bar') :- !.
 name_of(2, 'a square') :- !.

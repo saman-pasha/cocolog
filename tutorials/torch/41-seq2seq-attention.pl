@@ -134,15 +134,24 @@ run(Ps, Ins, Feeds, Logits, Ws) -->
 
 %% ---- the three goals --------------------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the batches and the fit loop stay predicates in braces -- one is
+%% findall over positions, the other steps an optimiser that frees the old
+%% parameters itself.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(41),
-    findall(b(Ins, Feeds, Y), ( between(0, 7, B), From is B * 64, batch(From, 64, Ins, _, Feeds, Y) ), Batches),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(400, Ps0, St0, Batches, Ps),
-    batch(0, 64, Ins0, Outs0, _, _), own_accuracy(Ps, Ins0, Outs0, Acc),
-    format("trained: token accuracy on the first batch, the decoder feeding itself, ~2f~n", [Acc]),
+    { findall(b(Ins, Feeds, Y), ( between(0, 7, B), From is B * 64, batch(From, 64, Ins, _, Feeds, Y) ), Batches),
+      parameters(Ps0), adam_init(Ps0, St0),
+      fit(400, Ps0, St0, Batches, Ps),
+      batch(0, 64, Ins0, Outs0, _, _) },
+    own_accuracy(Ps, Ins0, Outs0, Acc),
+    { format("trained: token accuracy on the first batch, the decoder feeding itself, ~2f~n", [Acc]) },
     params_save(t41_seq2seq, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, PsF) :-
@@ -157,29 +166,30 @@ fit(K, Ps, St, Batches, PsF) :-
     fit(K1, Ps2, St2, Batches, PsF).
 
 %% own_accuracy(+Ps, +Ins, +Outs, -Acc): the decoder fed its own output, against the targets.
-own_accuracy(Ps, Ins, Outs, Acc) :-
-    exec(run(Ps, Ins, self, Logits, Ws)), free_all(Ws),
-    findall(Tok, ( member(L, Outs), member(Tok, L) ), Flat),
-    accuracy(Logits, Flat, Acc), tensor_free(Logits), !.
+own_accuracy(Ps, Ins, Outs, Acc) -->
+    run(Ps, Ins, self, Logits, _),
+    { findall(Tok, ( member(L, Outs), member(Tok, L) ), Flat) },
+    accuracy(Logits, Flat, Acc), !.
 
-test :-
+test -->
     params_load(t41_seq2seq, Ps),
-    batch(1000, 64, Ins, Outs, _, _),
+    { batch(1000, 64, Ins, Outs, _, _) },
     own_accuracy(Ps, Ins, Outs, Acc),
-    format("test token accuracy ~2f on 64 fresh sequences, the decoder feeding itself~n", [Acc]),
-    ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    { format("test token accuracy ~2f on 64 fresh sequences, the decoder feeding itself~n", [Acc]),
+      ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     params_load(t41_seq2seq, Ps),
-    batch(2000, 4, Ins, _, _, _),
-    exec(run(Ps, Ins, self, Logits, Ws)),
-    A := argmax(Logits, 1), Got0 := list(A), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
-    forall(between(0, 3, I),
-           ( J is 2000 + I, sequence(J, Source, Target),
-             findall(Tok, ( between(0, 4, P), Q is P * 4 + I, nth0(Q, Got, Tok) ), Answer),
-             ( Answer == Target -> Verdict = right ; Verdict = wrong ),
-             format("   ~w  ->  ~w  (~w)~n", [Source, Answer, Verdict]) )),
-    nl, write('   the attention of the first sequence, a row per output step, a column per input position:'), nl,
-    forall(nth0(T, Ws, W),
-           ( [Row|_] := list(W),
-             format("   step ~w:", [T]), forall(member(V, Row), format(" ~2f", [V])), nl )).
+    { batch(2000, 4, Ins, _, _, _) },
+    run(Ps, Ins, self, Logits, Ws),
+    Got0 = list(argmax(Logits, 1)),
+    { findall(G, ( member(G0, Got0), G is round(G0) ), Got),
+      forall(between(0, 3, I),
+             ( J is 2000 + I, sequence(J, Source, Target),
+               findall(Tok, ( between(0, 4, P), Q is P * 4 + I, nth0(Q, Got, Tok) ), Answer),
+               ( Answer == Target -> Verdict = right ; Verdict = wrong ),
+               format("   ~w  ->  ~w  (~w)~n", [Source, Answer, Verdict]) )),
+      nl, write('   the attention of the first sequence, a row per output step, a column per input position:'), nl,
+      forall(nth0(T, Ws, W),
+             ( [Row|_] := list(W),
+               format("   step ~w:", [T]), forall(member(V, Row), format(" ~2f", [V])), nl )) }.

@@ -46,11 +46,11 @@ picture(I, Pixels, Mask) :-
     findall(V, member(V-_, Pairs), Pixels), findall(M, member(_-M, Pairs), Mask), !.
 
 %% pictures(+From, +N, -X, -Y): the inputs as [N*64, 1], the masks likewise.
-pictures(From, N, X, Y) :-
-    To is From + N - 1,
-    findall([V], ( between(From, To, I), picture(I, Ps, _), member(V, Ps) ), XR),
-    findall([M], ( between(From, To, I), picture(I, _, Ms), member(M, Ms) ), YR),
-    X := XR, Y := YR, !.
+pictures(From, N, X, Y) -->
+    { To is From + N - 1,
+      findall([V], ( between(From, To, I), picture(I, Ps, _), member(V, Ps) ), XR),
+      findall([M], ( between(From, To, I), picture(I, _, Ms), member(M, Ms) ), YR) },
+    X = XR, Y = YR, !.
 
 draw(Title, Values, Threshold) :-
     format("   ~w~n", [Title]),
@@ -60,7 +60,7 @@ draw(Title, Values, Threshold) :-
 
 %% ---- the network ---------------------------------------------------------------
 
-constants(c(S8, S4, P8, U8)) :- shifts(8, 8, S8), shifts(4, 4, S4), pool_matrix(8, 8, P8), up_matrix(8, 8, U8), !.
+constants(c(S8, S4, P8, U8)) --> shifts(8, 8, S8), shifts(4, 4, S4), pool_matrix(8, 8, P8), up_matrix(8, 8, U8), !.
 
 parameters([K1, B1, K2, B2, K3, B3, K4, B4, K5, B5]) :-
     K1 := parameter(glorot(9, 4)),    B1 := parameter(zeros([1, 4])),     % 1 -> 4 at 8x8
@@ -84,16 +84,23 @@ forward([K1, B1, K2, B2, K3, B3, K4, B4, K5, B5], c(S8, S4, P8, U8), X, Out) -->
 
 %% ---- the three goals -------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the fit loop stays a predicate in braces, since it steps an
+%% optimiser that frees the old parameters itself.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(33),
     constants(Cs),
     pictures(0, 32, X, Y),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(100, Ps0, St0, Cs, X, Y, Ps),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(100, Ps0, St0, Cs, X, Y, Ps) },
     iou(Ps, Cs, X, Y, IoU),
-    format("trained: mean IoU on the 32 training pictures ~3f~n", [IoU]),
+    { format("trained: mean IoU on the 32 training pictures ~3f~n", [IoU]) },
     params_save(t33_unet, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, _, _, Ps) :- !.
 fit(K, Ps, St, Cs, X, Y, PsF) :-
@@ -108,33 +115,33 @@ fit(K, Ps, St, Cs, X, Y, PsF) :-
 
 %% iou(+Ps, +Cs, +X, +Y, -IoU): the mask thresholded at 0.5 against the
 %% truth, intersection over union, averaged over the pictures.
-iou(Ps, Cs, X, Y, IoU) :-
-    exec(forward(Ps, Cs, X, Out)),
-    OL := list(Out), YL := list(Y), tensor_free(Out),
-    findall(P-T, ( nth0(I, OL, [P]), nth0(I, YL, [T]) ), Pairs),
+iou(Ps, Cs, X, Y, IoU) -->
+    forward(Ps, Cs, X, Out),
+    OL = list(Out), YL = list(Y),
+    { findall(P-T, ( nth0(I, OL, [P]), nth0(I, YL, [T]) ), Pairs),
     length(Pairs, Len), N is Len // 64,
     findall(S, ( between(0, N, Pi), Pi < N, From is Pi * 64, To is From + 63,
                  findall(x, ( between(From, To, Q), nth0(Q, Pairs, P-T), ( P > 0.5 -> true ; T > 0.5 ) ), U), length(U, Un),
                  findall(x, ( between(From, To, Q), nth0(Q, Pairs, P-T), P > 0.5, T > 0.5 ), In), length(In, Inn),
                  ( Un =:= 0 -> S = 1.0 ; S is Inn / Un ) ), Ss),
-    sum_list(Ss, Sum), IoU is Sum / N, !.
+      sum_list(Ss, Sum), IoU is Sum / N }, !.
 
-test :-
+test -->
     constants(Cs),
     params_load(t33_unet, Ps),
     pictures(1000, 16, X, Y),
     iou(Ps, Cs, X, Y, IoU),
-    format("test mean IoU ~3f on 16 fresh pictures~n", [IoU]),
-    ( IoU >= 0.8 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    { format("test mean IoU ~3f on 16 fresh pictures~n", [IoU]),
+      ( IoU >= 0.8 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     constants(Cs),
     params_load(t33_unet, Ps),
     pictures(2000, 2, X, _),
-    exec(forward(Ps, Cs, X, Out)),
-    OL := list(Out),
-    forall(between(0, 1, I),
-           ( J is 2000 + I, picture(J, Pixels, Mask),
-             From is I * 64, To is From + 63,
-             findall(P, ( between(From, To, Q), nth0(Q, OL, [P]) ), Got),
-             draw('the picture', Pixels, 0.45), draw('the truth', Mask, 0.5), draw('the network', Got, 0.5), nl )).
+    forward(Ps, Cs, X, Out),
+    OL = list(Out),
+    { forall(between(0, 1, I),
+             ( J is 2000 + I, picture(J, Pixels, Mask),
+               From is I * 64, To is From + 63,
+               findall(P, ( between(From, To, Q), nth0(Q, OL, [P]) ), Got),
+               draw('the picture', Pixels, 0.45), draw('the truth', Mask, 0.5), draw('the network', Got, 0.5), nl )) }.

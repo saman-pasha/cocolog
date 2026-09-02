@@ -66,11 +66,11 @@ linked(A, B) :- ( edge(A, B) ; edge(B, A) ), !.
 degree(M, D) :- findall(x, ( between(1, 34, N), N =\= M, linked(M, N) ), L), length(L, D0), D is D0 + 1, !.   % +1: the self loop
 
 %% normalised(-A): D^-1/2 (A + I) D^-1/2 as a [34, 34] tensor.
-normalised(A) :-
-    findall(Row, ( between(1, 34, I), degree(I, Di),
+normalised(A) -->
+    { findall(Row, ( between(1, 34, I), degree(I, Di),
                    findall(V, ( between(1, 34, J), degree(J, Dj),
-                                ( ( I =:= J ; linked(I, J) ) -> V is 1.0 / sqrt(Di * Dj) ; V = 0.0 ) ), Row) ), Rows),
-    A := Rows, !.
+                                ( ( I =:= J ; linked(I, J) ) -> V is 1.0 / sqrt(Di * Dj) ; V = 0.0 ) ), Row) ), Rows) },
+    A = Rows, !.
 
 %% ---- the network ------------------------------------------------------------------------
 
@@ -87,14 +87,21 @@ forward([W1, B1, W2, B2], A, Out) -->
 
 %% ---- the three goals ------------------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the fit loop stays a predicate in braces, since it steps an
+%% optimiser that frees the old parameters itself.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
     torch_seed(38),
     normalised(A),
     one_hot([0, 1], 2, Y),                                  % member 1 is faction 0, member 34 is faction 1
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(200, Ps0, St0, A, Y, Ps),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(200, Ps0, St0, A, Y, Ps) },
     params_save(t38_gcn, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, A, Y, PsF) :-
@@ -109,24 +116,24 @@ fit(K, Ps, St, A, Y, PsF) :-
 
 %% answers(+Ps, -Got, -Probs): every member's faction as the network sees it.
 answers(Ps, Got, Probs) -->
-    { normalised(A) }, forward(Ps, A, Out),
+    normalised(A), forward(Ps, A, Out),
     Probs = list(softmax(Out)),
     Got0 = list(argmax(Out, 1)), { findall(G, ( member(G0, Got0), G is round(G0) ), Got) }.
 
-test :-
+test -->
     params_load(t38_gcn, Ps),
-    exec(answers(Ps, Got, _)),
-    findall(x, ( nth0(I, Got, G), M is I + 1, faction(M, G) ), Hits), length(Hits, H), Acc is H / 34,
-    format("test: ~w of 34 members placed in their faction, accuracy ~3f, from two labels~n", [H, Acc]),
-    ( Acc >= 0.85 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    answers(Ps, Got, _),
+    { findall(x, ( nth0(I, Got, G), M is I + 1, faction(M, G) ), Hits), length(Hits, H), Acc is H / 34,
+      format("test: ~w of 34 members placed in their faction, accuracy ~3f, from two labels~n", [H, Acc]),
+      ( Acc >= 0.85 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     params_load(t38_gcn, Ps),
-    exec(answers(Ps, Got, Probs)),
-    forall(member(F, [0, 1]),
-           ( findall(M, ( nth0(I, Got, F), M is I + 1 ), Ms),
-             ( F =:= 0 -> Who = 'with the instructor (member 1)' ; Who = 'with the administrator (member 34)' ),
-             format("   ~w: ~w~n", [Who, Ms]) )),
-    findall(M-Pv, ( nth0(I, Probs, [P0, P1]), M is I + 1, faction(M, F), nth0(I, Got, G), G =\= F, ( F =:= 0 -> Pv = P0 ; Pv = P1 ) ), Wrong),
-    ( Wrong == [] -> write('   every member where Zachary put them'), nl
-    ; format("   misplaced, with the network's probability for their real faction: ~w~n", [Wrong]) ).
+    answers(Ps, Got, Probs),
+    { forall(member(F, [0, 1]),
+             ( findall(M, ( nth0(I, Got, F), M is I + 1 ), Ms),
+               ( F =:= 0 -> Who = 'with the instructor (member 1)' ; Who = 'with the administrator (member 34)' ),
+               format("   ~w: ~w~n", [Who, Ms]) )),
+      findall(M-Pv, ( nth0(I, Probs, [P0, P1]), M is I + 1, faction(M, F), nth0(I, Got, G), G =\= F, ( F =:= 0 -> Pv = P0 ; Pv = P1 ) ), Wrong),
+      ( Wrong == [] -> write('   every member where Zachary put them'), nl
+      ; format("   misplaced, with the network's probability for their real faction: ~w~n", [Wrong]) ) }.

@@ -53,12 +53,13 @@ sequence(I, Tokens, Class) :-
 
 %% sequences(+From, +N, -Ids, -PosIds, -Classes): N sequences as one list of
 %% N*6 token ids, the position of each, and the classes.
-sequences(From, N, Ids, PosIds, Classes) :-
-    To is From + N - 1,
+sequences(From, N, Ids, PosIds, Classes) -->
+    { To is From + N - 1,
     findall(C, ( between(From, To, I), sequence(I, _, C) ), Classes),
     findall(T, ( between(From, To, I), sequence(I, Ts, _), member(T, Ts) ), IdList),
     findall(P, ( between(From, To, _), between(0, 5, P) ), PosList),
-    Ids := IdList, PosIds := PosList, !.
+      Ids0 = IdList, PosIds0 = PosList },
+    Ids = Ids0, PosIds = PosIds0, !.
 
 %% ---- the network -------------------------------------------------------------------
 %% D = 16, two heads of 8, the feed-forward 32 wide, six positions.
@@ -94,19 +95,34 @@ forward([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, Wc, Bc], Id
 
 %% ---- the three goals ----------------------------------------------------------------
 
-train :-
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the batches are a rule recursing over their number, and the fit
+%% loop stays a predicate in braces, since it steps an optimiser that frees
+%% the old parameters itself.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+%% batches(+B, +N, -Batches): batches B to N-1, of 64 sequences each. Sixteen
+%% of them: a step sees one, the next step the next, so the network meets
+%% 1024 sequences and cannot learn them by heart.
+batches(N, N, []) --> !.
+batches(B, N, [batch(Ids, PosIds, Y)|Bs]) -->
+    { From is B * 64 }, sequences(From, 64, Ids, PosIds, Classes), one_hot(Classes, 2, Y),
+    { B1 is B + 1 }, batches(B1, N, Bs).
+
+train -->
     torch_seed(34),
-    % sixteen batches of 64: a step sees one, the next step the next, so the
-    % network meets 1024 sequences and cannot learn them by heart
-    findall(batch(Ids, PosIds, Y), ( between(0, 15, B), From is B * 64, sequences(From, 64, Ids, PosIds, Classes), one_hot(Classes, 2, Y) ), Batches),
+    batches(0, 16, Batches),
     block_mask(64, 6, Mask),
-    parameters(Ps0), adam_init(Ps0, St0),
-    fit(800, Ps0, St0, Batches, Mask, Ps),
-    Batches = [batch(Ids0, PosIds0, _)|_], sequences(0, 64, _, _, Classes0),
-    exec(forward(Ps, Ids0, PosIds0, Mask, Logits)), accuracy(Logits, Classes0, Acc), tensor_free(Logits),
-    format("trained: accuracy on the first training batch ~2f~n", [Acc]),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(800, Ps0, St0, Batches, Mask, Ps),
+      Batches = [batch(Ids0, PosIds0, _)|_] },
+    sequences(0, 64, _, _, Classes0),
+    forward(Ps, Ids0, PosIds0, Mask, Logits), accuracy(Logits, Classes0, Acc),
+    { format("trained: accuracy on the first training batch ~2f~n", [Acc]) },
     params_save(t34_encoder, Ps),
-    write(saved), nl.
+    { write(saved), nl }.
 
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, Mask, PsF) :-
@@ -120,23 +136,23 @@ fit(K, Ps, St, Batches, Mask, PsF) :-
     K1 is K - 1,
     fit(K1, Ps2, St2, Batches, Mask, PsF).
 
-test :-
+test -->
     params_load(t34_encoder, Ps),
     sequences(1000, 32, Ids, PosIds, Classes),
     block_mask(32, 6, Mask),
-    exec(forward(Ps, Ids, PosIds, Mask, Logits)), accuracy(Logits, Classes, Acc),
-    format("test accuracy ~2f on 32 fresh sequences~n", [Acc]),
-    ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    forward(Ps, Ids, PosIds, Mask, Logits), accuracy(Logits, Classes, Acc),
+    { format("test accuracy ~2f on 32 fresh sequences~n", [Acc]),
+      ( Acc >= 0.9 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-predict :-
+predict -->
     params_load(t34_encoder, Ps),
     sequences(2000, 4, Ids, PosIds, Classes),
     block_mask(4, 6, Mask),
-    exec(forward(Ps, Ids, PosIds, Mask, Logits)),
-    A := argmax(Logits, 1), Got := list(A),
-    forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
-           ( J is 2000 + I, sequence(J, Tokens, _), Gi is round(G),
-             answer(Gi, GA), answer(C, CA),
-             format("   ~w  ->  ~w  (~w)~n", [Tokens, GA, CA]) )).
+    forward(Ps, Ids, PosIds, Mask, Logits),
+    Got = list(argmax(Logits, 1)),
+    { forall(( nth0(I, Classes, C), nth0(I, Got, G) ),
+             ( J is 2000 + I, sequence(J, Tokens, _), Gi is round(G),
+               answer(Gi, GA), answer(C, CA),
+               format("   ~w  ->  ~w  (~w)~n", [Tokens, GA, CA]) )) }.
 answer(0, 'all different') :- !.
 answer(1, 'a repeat') :- !.
