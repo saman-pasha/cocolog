@@ -135,14 +135,14 @@ echo "-- the tutorials: the same program, the same printed result"
 OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-torch-graph-XXXXXX")
 trap 'rm -rf "$OUT"' EXIT INT TERM
 if [ "${ALL:-0}" = 1 ]; then
-  TUTS=$(ls "$ROOT"/tutorials/torch/[0-9]*.pl)
+  TUTS=$(ls "$ROOT"/tutorials/tensor/[0-9]*.pl)
 else
   # 31 is tutorial 30 -- the one ABOUT the two paths -- again as expressions, on a
   # CPU: 30 itself runs on a GPU or not at all. Its train runs both paths itself and
   # refuses to save unless they agree, so under either prefix it prints the same lines
-  TUTS="$ROOT/tutorials/torch/01-linear-regression.pl $ROOT/tutorials/torch/04-sine-approximation.pl
-        $ROOT/tutorials/torch/07-xor.pl $ROOT/tutorials/torch/14-autoencoder.pl $ROOT/tutorials/torch/20-save-load.pl
-        $ROOT/tutorials/torch/31-tensor-expressions.pl"
+  TUTS="$ROOT/tutorials/tensor/01-linear-regression.pl $ROOT/tutorials/tensor/04-sine-approximation.pl
+        $ROOT/tutorials/tensor/07-xor.pl $ROOT/tutorials/tensor/14-autoencoder.pl $ROOT/tutorials/tensor/20-save-load.pl
+        $ROOT/tutorials/tensor/31-tensor-expressions.pl"
 fi
 for pl in $TUTS; do
   name=$(basename "$pl" .pl)

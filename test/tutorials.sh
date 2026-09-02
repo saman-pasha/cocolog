@@ -5,7 +5,7 @@
 #             database, no build flag.
 #   library/  forty files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
-#   torch/    forty-one networks, THREE processes each and a store per
+#   tensor/   forty-one networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
 #             and judges it, predict reloads and answers.
 #
@@ -99,10 +99,10 @@ done
 # ---- torch: three processes and a store each --------------------------
 if [ "$HAVE_TORCH" = no ]; then
   skipped=$((skipped + 1))
-  echo "SKIP  torch/ (27 tutorials, no torch module)"
+  echo "SKIP  tensor/ (41 tutorials, no torch module)"
 else
-  for pl in "$ROOT"/tutorials/torch/[0-9]*.pl; do
-    name=torch/$(basename "$pl" .pl)
+  for pl in "$ROOT"/tutorials/tensor/[0-9]*.pl; do
+    name=tensor/$(basename "$pl" .pl)
     STORE="$OUT/store-$(basename "$pl" .pl)"
     bad=0
     # TWENTY MINUTES, AND 27-induction IS WHY. Its `train' fits four
@@ -110,7 +110,7 @@ else
     # at 791%, on an i9-9880H running libtorch on the CPU. The 300s that
     # every other goal here finishes inside killed it at rc=124, and a
     # kill takes the output with it: the case printed `FAIL
-    # torch/27-induction train' over three blank lines, with no way to
+    # tensor/27-induction train' over three blank lines, with no way to
     # tell a slow model from a broken one. A budget must be bigger than
     # the thing it is measuring, and a timeout should say it is one.
     for goal in train test predict; do

@@ -100,9 +100,9 @@ near "and its gradient on the device matches the CPU's" \
 
 echo
 echo "-- tutorial 29's heavy goal, both devices"
-cpu=$(timeout 900 "$C" run "$ROOT/tutorials/torch/29-sgd-by-hand.pl" "torch_device(cpu), tensor_execution(torch, graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
+cpu=$(timeout 900 "$C" run "$ROOT/tutorials/tensor/29-sgd-by-hand.pl" "torch_device(cpu), tensor_execution(torch, graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
 T0=$(date +%s)
-gpu=$(timeout 900 "$C" run "$ROOT/tutorials/torch/29-sgd-by-hand.pl" "torch_device(cuda), tensor_execution(torch, graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
+gpu=$(timeout 900 "$C" run "$ROOT/tutorials/tensor/29-sgd-by-hand.pl" "torch_device(cuda), tensor_execution(torch, graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
 echo "     cpu:  $(echo "$cpu" | sed 's/^heavy [0-9]* rows [0-9]* features [0-9]* steps //')"
 echo "     cuda: $(echo "$gpu" | sed 's/^heavy [0-9]* rows [0-9]* features [0-9]* steps //')  ($(( $(date +%s) - T0 ))s)"
 check "the heavy loop reaches the same loss on both devices" \

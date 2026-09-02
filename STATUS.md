@@ -465,7 +465,7 @@ in the suite rather than a script beside it:
 |---|---|---|
 | `tutorials/basics/` | eleven lessons: facts and rules, unification, lists, arithmetic, cut, `findall`, assert and retract, atoms and codes, exceptions, grammars, and the knowledge base | nothing at all |
 | `tutorials/library/` | thirty-two lessons, **one per library that ships** — tier 1 and tier 2 alike | `$COCOLOG_LIBRARY` for tier 2 |
-| `tutorials/torch/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
+| `tutorials/tensor/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
 
 **Every claim in the first two is a `must/3`**, which is what makes them
 tests: `Got == Want` or the lesson fails, printing both. Fifty-nine
@@ -1937,7 +1937,7 @@ fourteen seconds on a CPU.
 ### The tutorials, one file each
 
 The suite's twenty-three networks rewritten as standalone tutorial
-programs (`tutorials/torch/NN-name.pl`) — plus a twenty-fourth the suite does
+programs (`tutorials/tensor/NN-name.pl`) — plus a twenty-fourth the suite does
 not have: reinforcement learning, as fitted Q-iteration on a gridworld,
 the DQN idea built from nothing but `model_predict` for the Bellman
 targets and `model_train` for the regression, whose greedy policy walks
@@ -1961,7 +1961,7 @@ clock, which is the determinism doing its job. The whole stack, engine
 to tutorials, green at once.
 
 Writing them taught two properties of the platform the hard way, both
-now documented in `tutorials/torch/README.md`. Consulted clauses live in the
+now documented in `tutorials/tensor/README.md`. Consulted clauses live in the
 knowledge base like everything else, so twenty-three tutorials sharing
 one store shadowed each other's `train` — the first tutorial consulted
 answered for all of them, and the first "all green" run had mostly

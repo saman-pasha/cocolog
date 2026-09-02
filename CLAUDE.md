@@ -1157,7 +1157,7 @@ seventy-eight files as one suite case:
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
 | `tutorials/library/` | thirty-nine lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
-| `tutorials/torch/` | twenty-eight networks, three processes each | libtorch |
+| `tutorials/tensor/` | twenty-eight networks, three processes each | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
 

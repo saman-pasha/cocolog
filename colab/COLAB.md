@@ -360,7 +360,7 @@ The torch module takes it with one goal — `torch_device(auto)` picks
 `cuda` when it is available — so training a tutorial on the GPU is:
 
 ```sh
-./cocolog --kb brain run tutorials/torch/07-xor.pl "torch_device(auto), train"
+./cocolog --kb brain run tutorials/tensor/07-xor.pl "torch_device(auto), train"
 ```
 
 Tensors live on the model's device and every answer comes back to the
