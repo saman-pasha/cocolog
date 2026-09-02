@@ -1228,9 +1228,9 @@ different systems to begin with.
 
 A tensor predicate names a value. *When* the arithmetic behind it
 happens is module state, not something the clause says, and there are
-two answers. `torch_execution(eager)`, the default, computes at the
+two answers. `tensor_execution(torch, eager)`, the default, computes at the
 predicate that names the tensor, as the module always did.
-`torch_execution(graph)` records a node there instead and computes at
+`tensor_execution(torch, graph)` records a node there instead and computes at
 the first predicate that needs the numbers -- `tensor_to_list`,
 `tensor_item`, `tensor_reduce`, `tensor_grad`, or the model predicate
 that reads the tensor. A program written for one path runs unchanged
@@ -1363,7 +1363,7 @@ parameters, and the store as the place a parameter list goes between
 processes.
 
 The same ten on the Colab T4, under `torch_device(cuda),
-torch_execution(graph)`, reached the same test numbers -- the flow's NLL
+tensor_execution(torch, graph)`, reached the same test numbers -- the flow's NLL
 0.6454 for the Mac's 0.6491 was the largest difference, a GPU's
 arithmetic against a CPU's -- and took this long for `train` and `test`
 together, beside the Mac's three goals:

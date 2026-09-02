@@ -10,8 +10,8 @@
 %% it stands for, in dependency order -- one goal per node, fresh variables
 %% for the results -- and `:=' runs that list and frees every result but
 %% the last. The list is the
-%% program: under torch_execution(eager) each goal computes as it runs, under
-%% torch_execution(graph) each records a node and the numbers come at the
+%% program: under tensor_execution(torch, eager) each goal computes as it runs, under
+%% tensor_execution(torch, graph) each records a node and the numbers come at the
 %% first read, and the grammar cannot tell which, which is why it is named
 %% for what it does and not for a path. `train' proves the point the way
 %% tutorial 30 did, eager then graph in one process, IDENTICAL or halt(1),
@@ -109,24 +109,24 @@ sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) -->
 %% ever made is freed, and the file has no free_all at all. Inside a rule
 %% `=' is the binding, so the one plain unification is in braces.
 fit(X, Y, Loss, Ws, Bv) -->
-    torch_seed(31),
     W = parameter(randn([2, 1])),
     B = parameter(zeros([1])),
     sgd(200, X, Y, W, B, 0.2, WF, BF, none, Loss),
     [[W1], [W2]] = list(WF), { Ws = [W1, W2] },
     [Bv] = list(BF).
 
-%% A rule: torch_execution is a nonterminal the library provides, and call//1
+%% A rule: tensor_execution is a nonterminal the library provides, and call//1
 %% runs the goal inside, its temporaries threading up.
 under(Mode, Goal) -->
-    torch_execution(Mode),
+    tensor_execution(torch, Mode),
+    torch_seed(31),                         % the same random start under each path
     call(Goal),
     S = stats,
     { format("   ~w: ~w~n", [Mode, S]) }.
 
 %% THE THREE GOALS ARE RULES TOO, and the three one-liners under them are
 %% what the runner calls: each runs its rule with exec/1, so every tensor a
-%% goal makes is freed when it ends. The model predicates, torch_execution
+%% goal makes is freed when it ends. params_save, tensor_execution
 %% and torch_seed are nonterminals the library provides; printing and the
 %% decision go in braces.
 train :- exec(train).
@@ -151,30 +151,28 @@ train -->
       ;   write('DIFFER'), nl, halt(1)
       ),
       WG = [W1, W2] },
-    model_new([input(2), dense(1)], M),
-    model_set_params(M, [W1, W2, BG]),
-    model_save(t31_expressions, M),
-    torch_execution(eager),
+    % the weights travel as a parameter list, two tensors made from the numbers
+    W = [[W1], [W2]], B = [BG],
+    params_save(t31_expressions, [W, B]),
+    tensor_execution(torch, eager),
     { write(saved), nl }.
 
 test -->
-    torch_execution(graph),
-    model_load(t31_expressions, M),
+    tensor_execution(torch, graph),
+    [W, B] = params(t31_expressions),
     data(5000, 32, X, Y),
-    model_evaluate(M, X, Y, rmse, S),
+    S = item(sqrt(loss(X, Y, W, B))),                        % the rmse, through the defined loss
     { format("test rmse ~6f under the graph path~n", [S]),
       ( S < 0.01 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
-%% predict answers twice for the same rows: through the model, and through
-%% the expression the model IS -- its weights as list literals, which the
-%% grammar makes leaves of -- under each path.
+%% predict answers for the same rows under each path, through the expression
+%% the saved parameters make -- `[W, B] = params(Name)' is how they come back.
 predict -->
-    model_load(t31_expressions, M),
-    model_params(M, [W1, W2, Bv]),
+    [W, B] = params(t31_expressions),
     data(9000, 2, X, Y),
     Ys = list(Y),
-    each_path(M, X, [W1, W2, Bv], Ys),
-    torch_execution(graph),
+    each_path(X, W, B, Ys),
+    tensor_execution(torch, graph),
     % the leaves are NAMED here and made by the rule, so nothing is freed
     % until the rule ends: a freed node no longer counts as pending. The
     % counters are process totals, so the demo reads `executed' before and after.
@@ -197,15 +195,14 @@ predict -->
     _ = list(C),
     St2 = stats, { St2 = stats(_, executed(E2), _, pending(P2)), D2 is E2 - E0,
                    format("-- read once: executed ~w, pending ~w -- the pending one is the [5,6] leaf~n", [D2, P2]) },
-    torch_execution(eager).
+    tensor_execution(torch, eager).
 
-%% each_path(+M, +X, +Weights, +Ys): under each path, the model's answer and
-%% the expression's, for the same rows -- a rule recursing over the modes.
-each_path(M, X, Ws, Ys) --> each_path([eager, graph], M, X, Ws, Ys).
+%% each_path(+X, +W, +B, +Ys): the expression's answer under each path, for
+%% the same rows -- a rule recursing over the modes.
+each_path(X, W, B, Ys) --> each_path([eager, graph], X, W, B, Ys).
 each_path([], _, _, _, _) --> [].
-each_path([Mode|Modes], M, X, [W1, W2, Bv], Ys) -->
-    torch_execution(Mode),
-    model_predict(M, X, P), Ps = list(P),
-    E = X matmul [[W1], [W2]] + [Bv], Es = list(E),
-    { format("~w: model ~w  expression ~w  (plane says ~w)~n", [Mode, Ps, Es, Ys]) },
-    each_path(Modes, M, X, [W1, W2, Bv], Ys).
+each_path([Mode|Modes], X, W, B, Ys) -->
+    tensor_execution(torch, Mode),
+    Ps = list(X matmul W + B),
+    { format("~w: predicted ~w  (plane says ~w)~n", [Mode, Ps, Ys]) },
+    each_path(Modes, X, W, B, Ys).

@@ -6,8 +6,8 @@
 %% the program itself built out of tensor_binary/4 and tensor_agg/3, and
 %% tensor_step/4 answers a NEW parameter -- nothing is ever overwritten. The
 %% parameters are threaded through a recursion, the way a Prolog program
-%% threads anything, and the same file runs under torch_execution(eager) and
-%% torch_execution(graph) with identical numbers (test/torch-graph.sh checks).
+%% threads anything, and the same file runs under tensor_execution(torch, eager) and
+%% tensor_execution(torch, graph) with identical numbers (test/torch-graph.sh checks).
 %%
 %% The learned weights are then handed to a one-layer model through
 %% model_set_params/2 and saved, so `test' and `predict' are the usual two
@@ -124,7 +124,7 @@ heavy(Rows0, Features, Steps0) :-
     sgd(Steps, X, Y, W, B, 0.05, WF, BF, none, Loss),
     tensor_binary(sub, WF, WT, DW), tensor_unary(abs, DW, ADW), tensor_reduce(max, ADW, WErr),
     tensor_to_list(BF, [Bv]), BErr is abs(Bv - 1),
-    torch_current_device(D), torch_execution(Mode),
+    torch_current_device(D), tensor_execution(Mode),
     format("heavy ~w rows ~w features ~w steps on ~w under ~w: final mse ~6f, max |w - plane| ~6f, |b - 1| ~6f~n",
            [Rows, Features, Steps, D, Mode, Loss, WErr, BErr]).
 

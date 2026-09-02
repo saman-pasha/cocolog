@@ -249,7 +249,7 @@ test :-
 %%
 %%   ./cocolog run tutorials/torch/28-source-lm.pl "heavy(60000)"
 %%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), heavy(all)"
-%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), torch_execution(graph), heavy(all)"
+%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), tensor_execution(torch, graph), heavy(all)"
 
 %% THE FIVE GROUPS, kept apart so the cap can take from all of them. What
 %% stays out stays out for cs_sources/1's reason: lib/swipl is another
@@ -405,7 +405,7 @@ heavy(Cap0) :-
     model_evaluate(M, XTe, YTe, accuracy, A),
     Pct is truncate(A * 1000 + 0.5) / 10.0,
     Uniform is log(V),
-    torch_current_device(D), torch_execution(Mode),
+    torch_current_device(D), tensor_execution(Mode),
     format("heavy: ~w parameters on ~w under ~w: final nll ~4f (uniform ~4f), held-out accuracy ~w%~n",
            [NP, D, Mode, L, Uniform, Pct]),
     write(done), nl.

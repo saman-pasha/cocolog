@@ -40,8 +40,8 @@ q() { timeout 120 "$C" query "$U, $1" 2>/dev/null \
       | grep -aoE 'answer\(.*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
 qn() { q "$1" | sed -E 's/_G[0-9]+/_/g'; }
 both() {
-  e=$(q "torch_execution(eager), torch_seed(11), $2")
-  g=$(q "torch_execution(graph), torch_seed(11), $2")
+  e=$(q "tensor_execution(torch, eager), torch_seed(11), $2")
+  g=$(q "tensor_execution(torch, graph), torch_seed(11), $2")
   check "$1" "$g" "$e"
 }
 # the largest |a - b| over two flat lists printed as answer(La/Lb) -- `/', because
@@ -121,7 +121,7 @@ sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) :-
     step(X, Y, W, B, LR, W2, B2, Loss), K1 is K - 1,
     sgd(K1, X, Y, W2, B2, LR, WF, BF, Loss, LossF).
 main(Mode) :-
-    torch_execution(Mode),
+    tensor_execution(Mode),
     data(64, X, Y),
     tensor_zeros([3, 1], W0), tensor_parameter(W0, W1),
     tensor_zeros([1], B0), tensor_parameter(B0, B1),

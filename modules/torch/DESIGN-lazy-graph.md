@@ -5,7 +5,7 @@ graph path. Same predicates, same arguments, same answers. The only thing
 that moves is *when* the arithmetic happens, and the design below is the list
 of everything that has to be true for that sentence to hold.
 
-Status: **all three phases are built** (September 2026). Phase 1: `torch_execution/1`,
+Status: **all three phases are built** (September 2026). Phase 1: `tensor_execution/1`,
 recording, forcing, meta shapes, `tensor_force/1`, `tensor_graph_stats/1`, and
 `test/torch-graph.sh` holding it to equality against eager on this Mac's CPU.
 Phase 2: `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`,
@@ -55,9 +55,9 @@ the price of keeping the first sentence true.
 ## 2. The switch, and what it does not change
 
 ```prolog
-torch_execution(eager).     % the default: what the module does today
-torch_execution(graph).     % record, force at the seams, replay when it can
-torch_execution(X).         % asks
+tensor_execution(torch, eager).     % the default: what the module does today
+tensor_execution(torch, graph).     % record, force at the seams, replay when it can
+tensor_execution(X).         % asks
 ```
 
 Module state, like `torch_device/1`. Every existing predicate keeps its name,
@@ -169,8 +169,8 @@ Written down so the dialect card can carry them:
 
 **Gate A — this Mac, CPU, equality.** `test/torch-graph.sh`:
 
-* every producer in §4, one goal each, run under `torch_execution(eager)` and
-  again under `torch_execution(graph)` in a fresh process, `tensor_to_list`
+* every producer in §4, one goal each, run under `tensor_execution(torch, eager)` and
+  again under `tensor_execution(torch, graph)` in a fresh process, `tensor_to_list`
   results compared as **equal**, not close;
 * the composed case: a ten-op expression, forced once, compared equal; the
   same expression forced twice (a second `tensor_to_list`) executes nothing
@@ -183,7 +183,7 @@ Written down so the dialect card can carry them:
   node: the right answer, not a stranger's tensor;
 * random order: two `randn` leaves recorded, forced in the reverse order,
   equal to eager's draws under the same seed;
-* the 28 tutorials' `train` goals with `torch_execution(graph)` prepended,
+* the 28 tutorials' `train` goals with `tensor_execution(torch, graph)` prepended,
   compared to eager on final loss and accuracy — equal on CPU, because the
   training loop is C++ in both modes and only the data preparation is
   deferred.
@@ -209,7 +209,7 @@ three-input plane — hands the weights to a `dense(1)` model through
 written here first: replay cannot speed up the 28 tutorials, because their
 loops live inside `model_train`'s C++ and record nothing; what the graph path
 records is tensor work composed in Prolog. Two mechanisms, then. **Placement:**
-under `torch_execution(graph)` with `torch_device(cuda)`, a leaf moves to the
+under `tensor_execution(torch, graph)` with `torch_device(cuda)`, a leaf moves to the
 device the first time a deferred node reads it, once and for good, a parameter
 is re-made as a leaf there, forced values stay there, and consumers copy back;
 eager never forces, so eager's handles stay CPU tensors as they always were.

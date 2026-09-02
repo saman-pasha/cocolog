@@ -59,13 +59,13 @@ first drafts, where it was not, are a lesson the file's comments keep.
 ## A graph execution path, behind the same predicates
 
 ```prolog
-torch_execution(graph).     % from here on, producers RECORD; consumers force
-torch_execution(eager).     % the default, what the module always did
+tensor_execution(torch, graph).     % from here on, producers RECORD; consumers force
+tensor_execution(torch, eager).     % the default, what the module always did
 tensor_force(T).            % execute what T depends on, now
 tensor_graph_stats(S).      % S = stats(recorded(N), executed(M), replayed(R), pending(P))
 ```
 
-A program written for the eager path runs unchanged under `torch_execution(graph)`:
+A program written for the eager path runs unchanged under `tensor_execution(torch, graph)`:
 every tensor predicate keeps its name, arguments and answers, and only the moment
 the arithmetic happens moves -- to `tensor_to_list`, `tensor_item`,
 `tensor_reduce`, or the model predicate that reads the tensor. A recorded node
@@ -91,7 +91,7 @@ a model. Nothing is mutated: a step is a new parameter the program threads
 on. `test/torch-grad.sh` holds the gradients to analytic values and to
 equality across the two paths.
 
-Phase 3 is the device. Under `torch_execution(graph)` with `torch_device(cuda)`
+Phase 3 is the device. Under `tensor_execution(torch, graph)` with `torch_device(cuda)`
 forced values live on the GPU and consumers copy back, and a forward that recurs
 with the same shapes -- an inference loop over fresh batches -- is captured the
 second time as one CUDA graph and replayed after that; `replayed` in
@@ -253,6 +253,7 @@ The device — one process-wide choice, made before `model_new`:
 
 | predicate | is |
 |---|---|
+| `tensor_execution(?Backend, ?Mode)` | `torch` or `tensorflow`, `eager` or `graph`; unbound asks; `tensor_execution(?Mode)` sets the mode alone. `tensorflow` answers only where `library(tensorflow)` is loaded (Linux); elsewhere a domain error, never a silent fallback |
 | `torch_device(+D)` | `cpu`, `cuda`, `cuda(N)`, or `auto` (cuda if available, else cpu) |
 | `torch_cuda_available(-A)` | `true` or `false` |
 | `torch_cuda_count(-N)` | how many CUDA devices libtorch sees |

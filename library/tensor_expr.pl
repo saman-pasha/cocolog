@@ -3,8 +3,8 @@
 %% An expression names a tensor; a DCG, expr//2, turns it into the LIST OF
 %% TENSOR GOALS it stands for, one per node in dependency order with fresh
 %% variables for the results, and `:=' runs that list and frees every result
-%% but the last. The list is the same under torch_execution(eager) and
-%% torch_execution(graph): eager computes each goal as it runs, graph records
+%% but the last. The list is the same under tensor_execution(torch, eager) and
+%% tensor_execution(torch, graph): eager computes each goal as it runs, graph records
 %% a node and computes at the first read, and the grammar cannot tell which.
 %%
 %%     L := mean((X matmul W + B - Y) ^ 2.0)
@@ -53,7 +53,7 @@
 %%   S := shape(E)             tensor_shape          V := reduce(mean, E)  tensor_reduce: sum mean max min std, a NUMBER
 %%   Gs := grad(E, Ps)         tensor_grad: Ps a list of parameter handles, Gs one gradient each
 %%   Tr-Te := split(E, N)      tensor_train_test     T := force(E)         tensor_force, and the handle
-%%   S := stats                tensor_graph_stats
+%%   S := stats                tensor_graph_stats    Ps := params(Name)    params_load: the list saved under Name, as parameters
 %%
 %% Freeing is the one thing left as a goal: tensor_free/1 and free_all/1 for
 %% the handles a program NAMED; the intermediates inside an expression are
@@ -80,7 +80,8 @@
 %% No directive, no operator, nothing to declare -- `-->' is the reader's own.
 %%
 %% INSIDE A RULE the module's predicates and this library's are nonterminals
-%% too, usable without braces: torch_seed, torch_execution, torch_device,
+%% too, usable without braces: torch_seed, tensor_execution (one or two
+%% arguments: the mode, or the backend and the mode), torch_device,
 %% torch_cuda_available, torch_cuda_count, torch_current_device; model_new,
 %% model_set_params, model_params, model_spec, model_save, model_load,
 %% model_free, model_train, model_evaluate, model_predict; params_save,
@@ -230,10 +231,11 @@ answer(grad(A, Ps), Gs)    --> expr(A, TA), [tensor_grad(TA, Ps, Gs)].
 answer(split(A, N), Tr-Te) --> expr(A, TA), [tensor_train_test(TA, N, Tr, Te)].
 answer(force(A), T)        --> expr(A, T), [tensor_force(T)].
 answer(stats, S)           --> [tensor_graph_stats(S)].
+answer(params(Name), Ps)   --> [params_load(Name, Ps)].          % the list saved under Name, as parameters
 
 '$te_answer_goal'(tensor_to_list). '$te_answer_goal'(tensor_item). '$te_answer_goal'(tensor_shape).
 '$te_answer_goal'(tensor_reduce).  '$te_answer_goal'(tensor_grad). '$te_answer_goal'(tensor_train_test).
-'$te_answer_goal'(tensor_force).   '$te_answer_goal'(tensor_graph_stats).
+'$te_answer_goal'(tensor_force).   '$te_answer_goal'(tensor_graph_stats). '$te_answer_goal'(params_load).
 
 %% ---- the driver ----------------------------------------------------------------
 %% T := Expr: make the tensor Expr names -- or, when Expr is an answer form,
@@ -249,7 +251,7 @@ T := Expr :-
     forall(( member(G, Goals), G =.. [F|Args], \+ '$te_answer_goal'(F),
              append(_, [R], Args), integer(R), R \== T ),
            tensor_free(R)).
-'$te_answer_form'(E) :- nonvar(E), ( E = stats -> true ; E =.. [F|_], memberchk(F, [list, item, shape, reduce, grad, split, force]) ).
+'$te_answer_form'(E) :- nonvar(E), ( E = stats -> true ; E =.. [F|_], memberchk(F, [list, item, shape, reduce, grad, split, force, params]) ).
 
 %% ---- procedures: a DCG rule, its output the handles it made ----------------------
 %% =//2 is the binding nonterminal: `V = E' in a rule body is `V := E', and
@@ -261,12 +263,12 @@ T := Expr :-
 '='(V, E, S0, S) :-
     V := E,
     (   '$te_answer_form'(E)
-    ->  ( E =.. [F|_], memberchk(F, [grad, split, force]) -> '$te_handles'(V, Hs) ; Hs = [] )
+    ->  ( E =.. [F|_], memberchk(F, [grad, split, force, params]) -> '$te_handles'(V, Hs) ; Hs = [] )
     ;   '$te_handles'(V, Hs) ),
     append(Hs, S, S0).
 
 %% exec(+Goal): EXECUTE the procedure Goal names -- under whichever execution
-%% path torch_execution/1 has set, which is what the name says -- a DCG rule of that name with
+%% path tensor_execution/1 has set, which is what the name says -- a DCG rule of that name with
 %% two more arguments -- and free every handle it emitted that does not
 %% appear in Goal afterwards: what was made and not returned.
 exec(Goal) :-
@@ -296,7 +298,9 @@ free_all([H|Hs]) :- tensor_free(H), free_all(Hs).
 %% ---- the module's predicates, and this library's, as nonterminals -----------------
 %% In a rule body, without braces. Those that answer a tensor emit it.
 torch_seed(N) --> { torch_seed(N) }.
-torch_execution(M) --> { torch_execution(M) }.
+tensor_execution(M) --> { tensor_execution(M) }.
+tensor_execution(B, M) --> { tensor_execution(B, M) }.     % the backend and the mode: torch | tensorflow, eager | graph
+torch_execution(M) --> { tensor_execution(M) }.          % the old name, still answered
 torch_device(D) --> { torch_device(D) }.
 torch_cuda_available(A) --> { torch_cuda_available(A) }.
 torch_cuda_count(N) --> { torch_cuda_count(N) }.

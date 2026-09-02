@@ -72,9 +72,10 @@ main :-
     must('a number on the left of ^ is refused by the grammar', Refused, yes),
 
     write('4. the list is the same program under both execution paths'), nl,
-    torch_execution(eager), E := relu(X - 2.5) matmul W, tensor_to_list(E, EL),
-    torch_execution(graph), G := relu(X - 2.5) matmul W, tensor_to_list(G, GL),
-    torch_execution(eager),
+    tensor_execution(B0, M0), must('the backend and the mode, asked', B0-M0, torch-eager),
+    tensor_execution(torch, eager), E := relu(X - 2.5) matmul W, tensor_to_list(E, EL),
+    tensor_execution(torch, graph), G := relu(X - 2.5) matmul W, tensor_to_list(G, GL),
+    tensor_execution(torch, eager),
     must('eager and graph, the same numbers', GL, EL),
 
     write('5. the composites are ordinary forms'), nl,
@@ -98,6 +99,8 @@ main :-
     B := parameter([[1.0], [1.0]]), [GB] := grad(sum(X matmul B), [B]), GBL := list(GB),
     must('grad(sum(X matmul B), [B]) is the column sums', GBL, [[4.0], [6.0]]),
     Tr-Te := split(X, 1), TrL := list(Tr), TeL := list(Te), must('split(X, 1)', TrL-TeL, [[1.0, 2.0]]-[[3.0, 4.0]]),
+    params_save(lesson, [X, B]), [X2, _] := params(lesson), X2L := list(X2),
+    must('params(lesson): what params_save put there, back as parameters', X2L, [[1.0, 2.0], [3.0, 4.0]]),
     catch(( _ := item(X) + 1.0, Inside = accepted ), error(domain_error(tensor_expression, _), _), Inside = refused),
     must('an answer form inside an expression is refused', Inside, refused),
 

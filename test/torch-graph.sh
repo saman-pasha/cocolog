@@ -5,7 +5,7 @@
 #   ALL=1 sh test/torch-graph.sh      the predicates, and all 28 tutorials
 #
 # THE RULE UNDER TEST is DESIGN-lazy-graph.md's first sentence: a program
-# written for the eager path runs unchanged under torch_execution(graph) --
+# written for the eager path runs unchanged under tensor_execution(torch, graph) --
 # same predicates, same answers. So nearly every check here runs ONE goal
 # twice, in two fresh processes, one per mode, and demands that the two
 # answers be EQUAL, not close. That is possible because the graph path
@@ -33,7 +33,7 @@ check() {
 [ -x "$C" ] || { echo "SKIP (build cocolog first)"; exit 0; }
 [ -f "$ROOT/library/torch.so" ] || {
   echo "SKIP (no library/torch.so -- sh modules/torch/build.sh)"; exit 0; }
-if ! timeout 20 "$C" query "use_module(library(torch)), torch_execution(M), write(M), nl" 2>/dev/null \
+if ! timeout 20 "$C" query "use_module(library(torch)), tensor_execution(M), write(M), nl" 2>/dev/null \
      | grep -aq '^eager$'; then
   echo "SKIP (library(torch) will not load, or has no graph path)"
   exit 0
@@ -46,20 +46,20 @@ q() { timeout 120 "$C" query "$U, $1" 2>/dev/null \
 qn() { q "$1" | sed -E 's/_G[0-9]+/_/g'; }
 # the same goal under both modes, in two fresh processes; equal or FAIL
 both() {
-  e=$(q "torch_execution(eager), torch_seed(11), $2")
-  g=$(q "torch_execution(graph), torch_seed(11), $2")
+  e=$(q "tensor_execution(torch, eager), torch_seed(11), $2")
+  g=$(q "tensor_execution(torch, graph), torch_seed(11), $2")
   check "$1" "$g" "$e"
 }
 # the leaves every check below starts from
 LEAVES="tensor_new([2,3], randn, A), tensor_new([3,2], randn, B), tensor_new([2,3], randn, A2)"
 
 echo "-- the switch"
-check "eager is the default" "$(q "torch_execution(M), write(answer(M)), nl")" "eager"
+check "eager is the default" "$(q "tensor_execution(M), write(answer(M)), nl")" "eager"
 check "graph, once asked for, is what it answers" \
-  "$(q "torch_execution(graph), torch_execution(M), write(answer(M)), nl")" "graph"
+  "$(q "tensor_execution(torch, graph), tensor_execution(M), write(answer(M)), nl")" "graph"
 check "an unknown mode is a domain error" \
-  "$(q "catch(torch_execution(fast), error(E, _), true), write(answer(E)), nl")" \
-  "domain_error(torch_execution,fast)"
+  "$(q "catch(tensor_execution(fast), error(E, _), true), write(answer(E)), nl")" \
+  "domain_error(tensor_execution,fast)"
 
 echo
 echo "-- every producer, equal to eager"
@@ -100,7 +100,7 @@ both "model_train forces its data, then trains the same" \
 
 echo
 echo "-- what the graph path knows without executing, and says"
-G="torch_execution(graph)"
+G="tensor_execution(torch, graph)"
 check "a shape is known with nothing executed" \
   "$(q "$G, tensor_zeros([3,4], A), tensor_ones([4,5], B), tensor_binary(matmul, A, B, C), tensor_shape(C, S), tensor_graph_stats(stats(_, executed(X), _, pending(P))), write(answer(S-X-P)), nl")" \
   "[3,5]-0-3"
@@ -146,8 +146,8 @@ else
 fi
 for pl in $TUTS; do
   name=$(basename "$pl" .pl)
-  e=$(timeout 1200 "$C" --kb tutorials --embed "$OUT/eager-$name" run "$pl" "torch_execution(eager), train" 2>&1 | tr -d '\r')
-  g=$(timeout 1200 "$C" --kb tutorials --embed "$OUT/graph-$name" run "$pl" "torch_execution(graph), train" 2>&1 | tr -d '\r')
+  e=$(timeout 1200 "$C" --kb tutorials --embed "$OUT/eager-$name" run "$pl" "tensor_execution(torch, eager), train" 2>&1 | tr -d '\r')
+  g=$(timeout 1200 "$C" --kb tutorials --embed "$OUT/graph-$name" run "$pl" "tensor_execution(torch, graph), train" 2>&1 | tr -d '\r')
   check "tutorial $name" "$(echo "$g" | tail -3 | tr '\n' ' ')" "$(echo "$e" | tail -3 | tr '\n' ' ')"
 done
 

@@ -2,7 +2,7 @@
 %%
 %% NOTHING BELOW MENTIONS THE MODE. The clauses that build the data, run a
 %% forward pass, take a loss, ask for a gradient and step the parameters are
-%% written once, with the ordinary tensor predicates. torch_execution/1 is
+%% written once, with the ordinary tensor predicates. tensor_execution/1 is
 %% module state, set before the clauses run; `eager' computes every tensor at
 %% the predicate that names it, `graph' records a node there and computes it
 %% at the first predicate that needs its numbers. The clauses cannot tell
@@ -34,7 +34,7 @@
 %% And the other way to choose a path, from outside the file, is a goal
 %% prefix -- this is how test/torch-graph.sh runs every tutorial twice:
 %%
-%%   ./cocolog run tutorials/torch/30-two-paths.pl "torch_execution(graph), train"
+%%   ./cocolog run tutorials/torch/30-two-paths.pl "tensor_execution(torch, graph), train"
 
 :- use_module(library(torch)).
 
@@ -101,7 +101,7 @@ gpu :-
 %% `graph' recorded equals executed with nothing pending, because every node
 %% was read by tensor_item/2 or tensor_grad/3 before the goal ended.
 under(Mode, Goal) :-
-    torch_execution(Mode),
+    tensor_execution(torch, Mode),
     call(Goal),
     tensor_graph_stats(S),
     format("   ~w: ~w~n", [Mode, S]).
@@ -124,12 +124,12 @@ train :-
     model_new([input(2), dense(1)], M),
     model_set_params(M, [W1, W2, BG]),
     model_save(t30_two_paths, M),
-    torch_execution(eager),
+    tensor_execution(torch, eager),
     write(saved), nl.
 
 test :-
     gpu,
-    torch_execution(graph),
+    tensor_execution(torch, graph),
     model_load(t30_two_paths, M),
     data(5000, 32, X, Y),
     model_evaluate(M, X, Y, rmse, S),
@@ -142,10 +142,10 @@ predict :-
     model_load(t30_two_paths, M),
     data(9000, 2, X, Y),
     forall(member(Mode, [eager, graph]),
-           ( torch_execution(Mode),
+           ( tensor_execution(Mode),
              model_predict(M, X, P), tensor_to_list(P, Ps), tensor_to_list(Y, Ys),
              format("~w: predicted ~w  (plane says ~w)~n", [Mode, Ps, Ys]) )),
-    torch_execution(graph),
+    tensor_execution(torch, graph),
     format("~n-- a shape is known with nothing executed~n"),
     tensor_zeros([3, 4], A), tensor_ones([4, 5], B2),
     tensor_binary(matmul, A, B2, C),
@@ -161,4 +161,4 @@ predict :-
     tensor_graph_stats(stats(_, executed(E1), _, pending(P1))),
     format("-- read once: executed ~w, pending ~w -- the pending one is the [5,6] leaf~n", [E1, P1]),
     format("   the refused matmul never needed; a leaf nobody reads is never made~n"),
-    torch_execution(eager).
+    tensor_execution(torch, eager).

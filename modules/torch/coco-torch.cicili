@@ -38,9 +38,9 @@
 ;;;; in float32 as libtorch prefers; the conversion happens in tensors,
 ;;;; not element by element.
 ;;;;
-;;;; TWO EXECUTION PATHS, ONE SET OF PREDICATES. Under torch_execution(eager),
+;;;; TWO EXECUTION PATHS, ONE SET OF PREDICATES. Under tensor_execution(eager),
 ;;;; the default, a producer computes and adopts, as it always did. Under
-;;;; torch_execution(graph) it RECORDS a node -- the producer, its arguments,
+;;;; tensor_execution(graph) it RECORDS a node -- the producer, its arguments,
 ;;;; its inputs BY POINTER, and a shape and dtype worked out on the meta
 ;;;; device -- and the consumers (tensor_to_list, tensor_item, tensor_reduce,
 ;;;; the model predicates) force what they read. The same raw workers run
@@ -2271,18 +2271,65 @@
 
   ;; ---- the graph path's own predicates ---------------------------------
 
-  ;; torch_execution(?Mode): eager | graph. Unbound asks. Module state, like
-  ;; torch_device/1; it governs what the NEXT producer does.
-  (func t_execution ((coco_engine * e) (size_t g)) (out int)
-    (let ((coco_machine * m . #'(coco_m_machine e))
-          (size_t d . #'(coco_deref m (coco_m_arg e g 0))))
+  ;; THE BACKEND SEAM. The tensor_* predicates are one surface with two
+  ;; implementations: this file, libtorch, and -- on Linux, when
+  ;; library(tensorflow) is loaded -- TensorFlow's C library. That module
+  ;; registers its dispatcher here through coco_tensor_backend_set, and while
+  ;; tensor_execution(tensorflow, _) is in force every tensor_* call is handed
+  ;; to it. The model_* predicates stay libtorch's. Asking for tensorflow with
+  ;; no backend registered is a domain error, not a silent fallback.
+  (code "typedef int (*coco_tensor_dispatch_t)(struct coco_engine*, const char*, uint32_t, size_t, int*);")
+  (code "static int ct_backend = 0;   /* 0 torch, 1 tensorflow */")
+  (code "static coco_tensor_dispatch_t ct_backend_dispatch = 0;")
+  (code "static const char* ct_backend_names[2] = { \"torch\", \"tensorflow\" };")
+  (code "extern \"C\" int coco_tensor_backend_set(const char* name, coco_tensor_dispatch_t fn) {")
+  (code "  if (name && 0 == strcmp(name, \"tensorflow\")) { ct_backend_dispatch = fn; return 1; }")
+  (code "  return 0;")
+  (code "}")
+  (code "extern \"C\" const char* coco_tensor_backend_name(void) { return ct_backend_names[ct_backend]; }")
+  ;; what the Cicili side asks of that C state, through declared functions --
+  ;; a symbol that lives only in a (code ...) block is invisible to Cicili
+  (code "static int  ct_backend_active(void) { return ct_backend == 1 && ct_backend_dispatch != 0; }")
+  (code "static int  ct_backend_loaded(void) { return ct_backend_dispatch != 0; }")
+  (code "static void ct_backend_select(int b) { ct_backend = b; }")
+  (code "static int  ct_backend_forward(struct coco_engine* e, const char* name, uint32_t arity, size_t g, int* found) { return ct_backend_dispatch(e, name, arity, g, found); }")
+  (decl) (func ct_backend_active () (out int))
+  (decl) (func ct_backend_loaded () (out int))
+  (decl) (func ct_backend_select ((int b)) (out void))
+  (decl) (func ct_backend_forward ((coco_engine * e) (const char * name) (uint32_t arity) (size_t g) (int * found)) (out int))
+  (decl) (func coco_tensor_backend_name () (out const char *))
+
+  ;; tensor_execution(?Backend, ?Mode) and tensor_execution(?Mode): Backend is
+  ;; torch | tensorflow, Mode is eager | graph; unbound asks. Module state,
+  ;; like torch_device/1; it governs what the NEXT producer does. The one-
+  ;; argument form sets or asks the mode and leaves the backend as it is.
+  ;; (torch_execution/1 is the old name and still answers.)
+  (func t_execution_mode ((coco_engine * e) (size_t d)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e)))
       (if (coco_m_is_atom e d)
           (let ((const char * nm . #'(coco_m_atom e d)))
             (cond
               ((== 0 (strcmp nm "eager")) (ct_graph_set 0) (return 1))
               ((== 0 (strcmp nm "graph")) (ct_graph_set 1) (return 1))
-              (#t (return (coco_m_domain_error e "torch_execution" d))))))
+              (#t (return (coco_m_domain_error e "tensor_execution" d))))))
       (return (coco_m_unify e d (coco_new_atom m (? (ct_graph_get) "graph" "eager"))))))
+  (func t_execution ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e)))
+      (return (t_execution_mode e (coco_deref m (coco_m_arg e g 0))))))
+  (func t_execution2 ((coco_engine * e) (size_t g)) (out int)
+    (let ((coco_machine * m . #'(coco_m_machine e))
+          (size_t b . #'(coco_deref m (coco_m_arg e g 0))))
+      (if (coco_m_is_atom e b)
+          (let ((const char * nm . #'(coco_m_atom e b)))
+            (cond
+              ((== 0 (strcmp nm "torch")) (ct_backend_select 0))
+              ((== 0 (strcmp nm "tensorflow"))
+               (if (not (ct_backend_loaded))
+                   (return (coco_m_domain_error e "tensor_backend_loaded" b)))
+               (ct_backend_select 1))
+              (#t (return (coco_m_domain_error e "tensor_backend" b)))))
+        (if (not (coco_m_unify e b (coco_new_atom m (coco_tensor_backend_name)))) (return 0)))
+      (return (t_execution_mode e (coco_deref m (coco_m_arg e g 1))))))
 
   ;; tensor_force(+T): execute what T depends on, now
   (func t_force ((coco_engine * e) (size_t g)) (out int)
@@ -2420,6 +2467,10 @@
     (func coco_torch_dispatch ((coco_engine * e) (const char * name)
                                (uint32_t arity) (size_t g) (int * found)) (out int)
       (set (cof found) 1)
+      ;; the seam: under tensor_execution(tensorflow, _) every tensor_* call is the other module's
+      (if (and (ct_backend_active) (== 0 (strncmp name "tensor_" 7))
+               (!= 0 (strcmp name "tensor_execution")))
+          (return (ct_backend_forward e name arity g found)))
       (cond
         ((== arity 1)
          (cond
@@ -2430,12 +2481,14 @@
            ((== 0 (strcmp name "torch_current_device")) (return (t_current_device e g)))
            ((== 0 (strcmp name "tensor_free"))  (return (t_free e g)))
            ((== 0 (strcmp name "model_free"))   (return (t_model_free e g)))
+           ((== 0 (strcmp name "tensor_execution"))   (return (t_execution e g)))
            ((== 0 (strcmp name "torch_execution"))    (return (t_execution e g)))
            ((== 0 (strcmp name "tensor_force"))       (return (t_force e g)))
            ((== 0 (strcmp name "tensor_graph_stats")) (return (t_graph_stats e g)))
            (#t (set (cof found) 0) (return 0))))
         ((== arity 2)
          (cond
+           ((== 0 (strcmp name "tensor_execution")) (return (t_execution2 e g)))
            ((== 0 (strcmp name "tensor_from_list")) (return (t_from_list e g)))
            ((== 0 (strcmp name "tensor_to_list"))   (return (t_to_list e g)))
            ((== 0 (strcmp name "tensor_shape"))     (return (t_shape e g)))

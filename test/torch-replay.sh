@@ -4,7 +4,7 @@
 #
 #   sh test/torch-replay.sh          SKIPs where torch_cuda_available(false)
 #
-# WHAT IS BEING CHECKED. Under torch_execution(graph) with torch_device(cuda)
+# WHAT IS BEING CHECKED. Under tensor_execution(torch, graph) with torch_device(cuda)
 # a leaf moves to the device the first time a deferred node reads it, and the
 # forced values stay there; consumers copy back. So every producer must answer
 # what the CPU path answers, WITHIN A TOLERANCE -- a GPU's kernels are not the
@@ -38,8 +38,8 @@ fi
 U="use_module(library(torch))"
 q() { timeout 300 "$C" query "$U, $1" 2>/dev/null \
       | grep -aoE 'answer\(.*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
-GPU="torch_execution(graph), torch_device(cuda), torch_seed(11)"
-CPU="torch_execution(eager), torch_device(cpu), torch_seed(11)"
+GPU="tensor_execution(torch, graph), torch_device(cuda), torch_seed(11)"
+CPU="tensor_execution(torch, eager), torch_device(cpu), torch_seed(11)"
 # the largest |a - b| over two flat lists joined by `/' -- not `-', which is also a
 # minus sign and made every list with a negative value compare as garbage
 maxdiff() { echo "$1" | tr -d '[]' | awk -F'/' '{ n = split($1, a, ","); split($2, b, ",");
@@ -100,9 +100,9 @@ near "and its gradient on the device matches the CPU's" \
 
 echo
 echo "-- tutorial 29's heavy goal, both devices"
-cpu=$(timeout 900 "$C" run "$ROOT/tutorials/torch/29-sgd-by-hand.pl" "torch_device(cpu), torch_execution(graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
+cpu=$(timeout 900 "$C" run "$ROOT/tutorials/torch/29-sgd-by-hand.pl" "torch_device(cpu), tensor_execution(torch, graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
 T0=$(date +%s)
-gpu=$(timeout 900 "$C" run "$ROOT/tutorials/torch/29-sgd-by-hand.pl" "torch_device(cuda), torch_execution(graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
+gpu=$(timeout 900 "$C" run "$ROOT/tutorials/torch/29-sgd-by-hand.pl" "torch_device(cuda), tensor_execution(torch, graph), heavy(20000, 32, 100)" 2>&1 | grep -a '^heavy')
 echo "     cpu:  $(echo "$cpu" | sed 's/^heavy [0-9]* rows [0-9]* features [0-9]* steps //')"
 echo "     cuda: $(echo "$gpu" | sed 's/^heavy [0-9]* rows [0-9]* features [0-9]* steps //')  ($(( $(date +%s) - T0 ))s)"
 check "the heavy loop reaches the same loss on both devices" \
