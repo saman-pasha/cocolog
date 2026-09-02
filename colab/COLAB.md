@@ -306,6 +306,12 @@ Two honest limits:
 
 ## SSH into the VM, when a machine of yours should drive it
 
+**`cocolog_vm.ipynb` is this section as a notebook of its own**: the tunnel
+cell, a keep-alive that touches the GPU once a minute, and an optional cell that
+builds the stack with `install/install-linux.sh`. Open it when the VM is to be
+driven from outside and nothing else; the notebook below is the one that trains
+and serves from cells.
+
 Section 1b is the one cell that is not for the notebook's own use: it lets
 some machine of yours — a Claude Code session on a laptop was the first —
 build, train and measure over an SSH tunnel instead of through cells.
