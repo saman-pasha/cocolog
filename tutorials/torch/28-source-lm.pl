@@ -210,38 +210,110 @@ test :-
     format("uniform would be ~w%~n", [Uni]),
     write(done), nl.
 
-%% ---- heavy: more source, the linter's included, and the lists freed ----
+%% ---- heavy: the whole dialect, round robin, and the lists freed ------
 %%
-%% THE SAME MODEL ON MORE OF THE SAME DIALECT. cocolint -- tools/coco-agent's
-%% clauses.pl, lint.pl, blocklist.pl and the rest -- is 258 KB of cocolog
-%% written for cocolog, half again what the default corpus holds, so it joins
-%% the corpus here and the cap goes up: heavy(300000) trains on five times the
-%% text `train' does. Not one of the goals the runner drives; it is a workload
-%% for a GPU, and test/torch-replay.sh's neighbour on the Colab T4.
+%% THE SAME MODEL ON MORE OF THE SAME DIALECT. `train' learns from the
+%% libraries and the two prose tutorial sets; this adds the two that were
+%% never in cs_sources/1 -- the torch lessons, and cocolint, which is
+%% tools/coco-agent's clauses.pl, lint.pl, blocklist.pl and the rest, a
+%% quarter of a megabyte of cocolog written to READ cocolog. Five groups and
+%% about a megabyte, which is a workload for a GPU rather than one of the
+%% goals the runner drives.
 %%
-%% THE TRANSIENT LISTS ARE FREED. Three hundred thousand codes become three
-%% hundred thousand ids become a hundred thousand windows of thirty-two, and
-%% every one of those is a Prolog list this engine can only reclaim by
-%% backtracking. So the whole build runs inside free_list/2, whose double
-%% negation gives the heap back on the way out, and what has to survive --
-%% two tensor handles, the count and the vocabulary size, four integers --
-%% leaves through an assert. The tensors are process state and outlive the
-%% scope; the lists do not.
+%% THE CAP TAKES ROUND ROBIN, NOT A PREFIX, and that is a correction rather
+%% than a refinement. Appending a group to the end of a concatenation and
+%% training on the first Cap bytes puts that group in the corpus only when
+%% the cap REACHES it -- and library/*.pl and the basics are 286 KB, so a run
+%% capped at 300 000 stopped fourteen kilobytes into the library tutorials
+%% and read not one byte of the linter it was named for. Its numbers were
+%% real and they were about a different corpus. So the groups are interleaved
+%% a file at a time and the cap is filled from THAT order: every group is in
+%% every cap, the file that crosses the line is the only one cut, and the
+%% files past it are never read.
+%%
+%% THE HELD-OUT SPLIT STAYS POSITIONAL, and it looks like an oversight. A
+%% shuffled split is what a table of independent rows wants; these rows are
+%% windows striding by three over a context of thirty-two, so two neighbours
+%% share twenty-nine characters. Shuffle them and nearly every held-out
+%% window has its own text in the training set: the accuracy goes up and
+%% stops measuring anything. The last tenth of the stream is the only tenth
+%% whose TEXT the model has not seen.
+%%
+%% THE TRANSIENT LISTS ARE FREED. A megabyte of codes becomes as many ids
+%% becomes three hundred thousand windows of thirty-two, and every one of
+%% those is a Prolog list this engine reclaims only by backtracking. So the
+%% whole build runs inside free_list/2, whose double negation gives the heap
+%% back on the way out, and what has to survive -- two tensor handles, the
+%% count and the vocabulary size, four integers -- leaves through an assert.
+%% The tensors are process state and outlive the scope; the lists do not.
 %%
 %%   ./cocolog run tutorials/torch/28-source-lm.pl "heavy(60000)"
-%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), torch_execution(graph), heavy(300000)"
+%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), heavy(all)"
+%%   ./cocolog run tutorials/torch/28-source-lm.pl "torch_device(cuda), torch_execution(graph), heavy(all)"
 :- dynamic('$cs_heavy'/4).
 
-cs_sources_heavy(Files) :-
-    cs_sources(F0),
-    expand_file_name('tools/coco-agent/*.pl', G0), sort(G0, G),
-    append(F0, G, Files).
+%% THE FIVE GROUPS, kept apart so the cap can take from all of them. What
+%% stays out stays out for cs_sources/1's reason: lib/swipl is another
+%% Prolog's code, and test/files/*.pl is written to read under swipl TOO,
+%% which makes it the portable subset rather than this dialect.
+cs_heavy_groups([A, B, C, D, E]) :-
+    expand_file_name('library/*.pl', A0), sort(A0, A),
+    expand_file_name('tutorials/basics/[0-9]*.pl', B0), sort(B0, B),
+    expand_file_name('tutorials/library/[0-9]*.pl', C0), sort(C0, C),
+    expand_file_name('tutorials/torch/[0-9]*.pl', D0), sort(D0, D),
+    expand_file_name('tools/coco-agent/*.pl', E0), sort(E0, E1),
+    expand_file_name('tools/coco-agent/selftest/*.pl', E2), sort(E2, E3),
+    append(E1, E3, E).
 
-%% the builder: the corpus as one code list, capped
+%% one file from each group in turn, until every group is spent
+cs_roundrobin([], []) :- !.
+cs_roundrobin(Groups, Files) :-
+    cs_rr_heads(Groups, Heads, Tails),
+    append(Heads, Rest, Files),
+    cs_roundrobin(Tails, Rest).
+
+cs_rr_heads([], [], []).
+cs_rr_heads([[]|Gs], Hs, Ts) :- !, cs_rr_heads(Gs, Hs, Ts).
+cs_rr_heads([[H|T]|Gs], [H|Hs], [T|Ts]) :- cs_rr_heads(Gs, Hs, Ts).
+
+cs_sources_heavy(Files) :-
+    cs_heavy_groups(Gs),
+    cs_roundrobin(Gs, Files).
+
+%% size_file/2 answers without reading, so the whole corpus can be measured
+%% and the reach of a cap counted before a byte goes on the heap.
+cs_heavy_bytes(Bytes) :-
+    cs_sources_heavy(Files),
+    cs_bytes(Files, Bytes).
+
+cs_bytes([], 0).
+cs_bytes([F|Fs], N) :- size_file(F, S), cs_bytes(Fs, R), N is S + R.
+
+cs_reach(_, [], 0) :- !.
+cs_reach(Cap, _, 0) :- Cap =< 0, !.
+cs_reach(Cap, [F|Fs], N) :-
+    size_file(F, S),
+    (   S >= Cap
+    ->  N = 1
+    ;   Rem is Cap - S, cs_reach(Rem, Fs, N0), N is N0 + 1
+    ), !.
+
+%% the builder: whole files in round-robin order until the cap is met
+cs_fill(Cap, _, []) :- Cap =< 0, !.
+cs_fill(_, [], []) :- !.
+cs_fill(Cap, [F|Fs], Out) :-
+    read_file_to_codes(F, Cs),
+    length(Cs, L),
+    (   L >= Cap
+    ->  cs_take(Cap, Cs, Out)
+    ;   Rem is Cap - L,
+        cs_fill(Rem, Fs, Rest),
+        append(Cs, Rest, Out)
+    ), !.
+
 cs_heavy_build(Cap, Codes) :-
     cs_sources_heavy(Files),
-    cs_read_all(Files, Codes0),
-    cs_take(Cap, Codes0, Codes).
+    cs_fill(Cap, Files, Codes).
 
 %% the consumer: ids, windows, tensors -- and the four numbers out
 cs_heavy_use(Codes) :-
@@ -252,9 +324,14 @@ cs_heavy_use(Codes) :-
     tensor_from_list(Ys, Y),
     assertz('$cs_heavy'(X, Y, N, V)).
 
+%% heavy(+Cap) is det.   Cap is a byte count, or `all' for the whole corpus.
+heavy(all) :- !, cs_heavy_bytes(B), heavy(B).
 heavy(Cap) :-
     torch_seed(28),
     cs_sources_heavy(Files), length(Files, NF),
+    cs_heavy_bytes(Bytes),
+    cs_reach(Cap, Files, NR),
+    Used is min(Bytes, Cap),
     retractall('$cs_heavy'(_, _, _, _)),
     free_list(cs_heavy_build(Cap), cs_heavy_use),
     '$cs_heavy'(X, Y, N, V),
@@ -263,8 +340,8 @@ heavy(Cap) :-
     cs_epochs(E), cs_batch(B), cs_lr(LR),
     tensor_rows(X, 0, NTrain, XTr), tensor_rows(Y, 0, NTrain, YTr),
     tensor_rows(X, NTrain, N, XTe), tensor_rows(Y, NTrain, N, YTe),
-    format("heavy: ~w files, the first ~w bytes, ~w windows over ~w characters, holding out ~w~n",
-           [NF, Cap, N, V, Held]),
+    format("heavy: ~w bytes of ~w, reaching ~w of ~w files, ~w windows over ~w characters, holding out ~w~n",
+           [Used, Bytes, NR, NF, N, V, Held]),
     model_new(Spec, M),
     model_params(M, P), length(P, NP),
     model_train(M, XTr, YTr, [epochs(E), batch(B), lr(LR), optimiser(adam),
