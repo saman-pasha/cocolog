@@ -1,4 +1,4 @@
-# Torch: twenty-nine networks, one file each
+# Torch: thirty networks, one file each
 
 *One of three tutorial categories — `../basics/` is the language,
 `../library/` is what ships, and this is the deep end.*
@@ -51,6 +51,7 @@ and every run agrees with the last.
 | 27-induction | where attention actually wins, and the two-layer circuit it needs |
 | 28-source-lm | a character model trained on cocolog's own source; `heavy/1` trains on all five groups of it -- the torch lessons and cocolint's own source included -- filling the cap ROUND ROBIN so every group is in every cap, and loads it a file at a time, each inside its own `free_list/2` scope -- a GPU workload, which scales itself down where there is no CUDA device |
 | 29-sgd-by-hand | the training loop written in Prolog: tensor_grad/3, tensor_step/4, and weights handed to a model; `heavy/3` is its GPU workload, scaled down where there is no CUDA device |
+| 30-two-paths | one program, two execution paths: the same clauses fitted under `eager` and under `graph` in one process, held identical, and what only the graph path can do |
 
 One cocolog property every file here respects: `run` CONSULTS the file
 into the knowledge base, and the knowledge base is the store -- so the

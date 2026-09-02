@@ -307,7 +307,7 @@ eleven on the library path.
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
 end. A new library therefore gets a tutorial in the same commit.
 
-### `torch/` — twenty-nine networks, three processes each
+### `torch/` — thirty networks, three processes each
 
 The deep end, and its own [README](tutorials/torch/README.md) — described
 under *Prolog that trains* below.
