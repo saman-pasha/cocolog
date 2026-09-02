@@ -73,11 +73,11 @@ row(I, [X1, X2], [Y]) :-
     noise(I, X1), J is I + 1000, noise(J, X2),
     Y is 2*X1 - 3*X2 + 0.5, !.
 
-data(From, N, X, Y) :-
-    To is From + N - 1,
-    findall(R, (between(From, To, I), row(I, R, _)), XR),
-    findall(R, (between(From, To, I), row(I, _, R)), YR),
-    X := XR, Y := YR, !.
+data(From, N, X, Y) -->
+    { To is From + N - 1,
+      findall(R, (between(From, To, I), row(I, R, _)), XR),
+      findall(R, (between(From, To, I), row(I, _, R)), YR) },
+    X = XR, Y = YR.
 
 %% THE STEP IS A PROCEDURE: a DCG rule whose body is bindings, each run
 %% through `:=', and whose output list is every tensor made inside -- L, GW,
@@ -116,82 +116,96 @@ fit(X, Y, Loss, Ws, Bv) -->
     [[W1], [W2]] = list(WF), { Ws = [W1, W2] },
     [Bv] = list(BF).
 
-under(Mode, Goal) :-
+%% A rule: torch_execution is a nonterminal the library provides, and call//1
+%% runs the goal inside, its temporaries threading up.
+under(Mode, Goal) -->
     torch_execution(Mode),
-    proc(Goal),
-    S := stats,
-    format("   ~w: ~w~n", [Mode, S]).
+    call(Goal),
+    S = stats,
+    { format("   ~w: ~w~n", [Mode, S]) }.
 
-train :-
+%% THE THREE GOALS ARE RULES TOO, and the three one-liners under them are
+%% what the runner calls: each runs its rule with proc/1, so every tensor a
+%% goal makes is freed when it ends. The model predicates, torch_execution
+%% and torch_seed are nonterminals the library provides; printing and the
+%% decision go in braces.
+train :- proc(train).
+test :- proc(test).
+predict :- proc(predict).
+
+train -->
     data(0, 6, X, Y),
-    Xs := list(X), Ys := list(Y),
-    format("six rows: x ~w~n          y ~w~n", [Xs, Ys]),
+    Xs = list(X), Ys = list(Y),
+    { format("six rows: x ~w~n          y ~w~n", [Xs, Ys]) },
     % the expression, and the goals the grammar makes of it -- printed once,
     % before either path runs it, because the list is the same under both
-    W0 := zeros([2, 1]), B0 := zeros([1]),
-    phrase(expr(loss(X, Y, W0, B0), _), Goals),
-    format("the loss, as goals: ~w~n", [Goals]),
-    tensor_free(W0), tensor_free(B0),
+    W0 = zeros([2, 1]), B0 = zeros([1]),
+    { phrase(expr(loss(X, Y, W0, B0), _), Goals),
+      format("the loss, as goals: ~w~n", [Goals]) },
     under(eager, fit(X, Y, LE, WE, BE)),
     under(graph, fit(X, Y, LG, WG, BG)),
-    format("eager: loss ~8f  w ~w  b ~w~n", [LE, WE, BE]),
-    format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]),
-    (   LE =:= LG, WE == WG, BE =:= BG
-    ->  write('identical -- the same expression, the same numbers'), nl
-    ;   write('DIFFER'), nl, halt(1)
-    ),
-    WG = [W1, W2],
+    { format("eager: loss ~8f  w ~w  b ~w~n", [LE, WE, BE]),
+      format("graph: loss ~8f  w ~w  b ~w~n", [LG, WG, BG]),
+      (   LE =:= LG, WE == WG, BE =:= BG
+      ->  write('identical -- the same expression, the same numbers'), nl
+      ;   write('DIFFER'), nl, halt(1)
+      ),
+      WG = [W1, W2] },
     model_new([input(2), dense(1)], M),
     model_set_params(M, [W1, W2, BG]),
     model_save(t31_expressions, M),
     torch_execution(eager),
-    write(saved), nl.
+    { write(saved), nl }.
 
-test :-
+test -->
     torch_execution(graph),
     model_load(t31_expressions, M),
     data(5000, 32, X, Y),
     model_evaluate(M, X, Y, rmse, S),
-    format("test rmse ~6f under the graph path~n", [S]),
-    ( S < 0.01 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+    { format("test rmse ~6f under the graph path~n", [S]),
+      ( S < 0.01 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
 %% predict answers twice for the same rows: through the model, and through
 %% the expression the model IS -- its weights as list literals, which the
 %% grammar makes leaves of -- under each path.
-predict :-
+predict -->
     model_load(t31_expressions, M),
     model_params(M, [W1, W2, Bv]),
     data(9000, 2, X, Y),
-    Ys := list(Y),
-    forall(member(Mode, [eager, graph]),
-           ( torch_execution(Mode),
-             model_predict(M, X, P), Ps := list(P),
-             E := X matmul [[W1], [W2]] + [Bv], Es := list(E),
-             format("~w: model ~w  expression ~w  (plane says ~w)~n", [Mode, Ps, Es, Ys]) )),
+    Ys = list(Y),
+    each_path(M, X, [W1, W2, Bv], Ys),
     torch_execution(graph),
-    % the leaves are NAMED here, so `:=' keeps them: a temporary is freed at
-    % the `:=', and a freed node no longer counts as pending. The counters
-    % are process totals, so the demo reads `executed' before and after.
-    St0 := stats, St0 = stats(_, executed(E0), _, _),
-    format("~n-- a shape is known with nothing executed~n"),
-    A := zeros([3, 4]), B2 := ones([4, 5]),
-    C := A matmul B2,
-    Shape := shape(C),
-    St1 := stats, St1 = stats(_, executed(E1), _, pending(P1)),
-    D1 is E1 - E0,
-    format("   zeros([3,4]) matmul ones([4,5]) has shape ~w; executed ~w, pending ~w~n", [Shape, D1, P1]),
-    format("-- and a shape error is refused at the `:=', as eager refuses it~n"),
-    Bad := ones([5, 6]),
-    catch(( _ := A matmul Bad, write('   accepted?!'), nl ),
-          error(Err, _),
-          format("   refused: ~w~n", [Err])),
-    format("-- and a number on the wrong side of a power is refused by the grammar~n"),
-    catch(( _ := 2.0 ^ C, write('   accepted?!'), nl ),
-          error(Err2, _),
-          format("   refused: ~w~n", [Err2])),
-    _ := list(C),
-    St2 := stats, St2 = stats(_, executed(E2), _, pending(P2)),
-    D2 is E2 - E0,
-    format("-- read once: executed ~w, pending ~w -- the pending one is the [5,6] leaf~n", [D2, P2]),
+    % the leaves are NAMED here and made by the rule, so nothing is freed
+    % until the rule ends: a freed node no longer counts as pending. The
+    % counters are process totals, so the demo reads `executed' before and after.
+    St0 = stats, { St0 = stats(_, executed(E0), _, _),
+                   format("~n-- a shape is known with nothing executed~n") },
+    A = zeros([3, 4]), B2 = ones([4, 5]),
+    C = A matmul B2,
+    Shape = shape(C),
+    St1 = stats, { St1 = stats(_, executed(E1), _, pending(P1)), D1 is E1 - E0,
+                   format("   zeros([3,4]) matmul ones([4,5]) has shape ~w; executed ~w, pending ~w~n", [Shape, D1, P1]),
+                   format("-- and a shape error is refused at the `:=', as eager refuses it~n") },
+    Bad = ones([5, 6]),
+    { catch(( _ := A matmul Bad, write('   accepted?!'), nl ),
+            error(Err, _),
+            format("   refused: ~w~n", [Err])),
+      format("-- and a number on the wrong side of a power is refused by the grammar~n"),
+      catch(( _ := 2.0 ^ C, write('   accepted?!'), nl ),
+            error(Err2, _),
+            format("   refused: ~w~n", [Err2])) },
+    _ = list(C),
+    St2 = stats, { St2 = stats(_, executed(E2), _, pending(P2)), D2 is E2 - E0,
+                   format("-- read once: executed ~w, pending ~w -- the pending one is the [5,6] leaf~n", [D2, P2]) },
     torch_execution(eager).
 
+%% each_path(+M, +X, +Weights, +Ys): under each path, the model's answer and
+%% the expression's, for the same rows -- a rule recursing over the modes.
+each_path(M, X, Ws, Ys) --> each_path([eager, graph], M, X, Ws, Ys).
+each_path([], _, _, _, _) --> [].
+each_path([Mode|Modes], M, X, [W1, W2, Bv], Ys) -->
+    torch_execution(Mode),
+    model_predict(M, X, P), Ps = list(P),
+    E = X matmul [[W1], [W2]] + [Bv], Es = list(E),
+    { format("~w: model ~w  expression ~w  (plane says ~w)~n", [Mode, Ps, Es, Ys]) },
+    each_path(Modes, M, X, [W1, W2, Bv], Ys).

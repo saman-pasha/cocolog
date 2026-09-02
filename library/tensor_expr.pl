@@ -79,6 +79,24 @@
 %% head: L, GW and GB here; W2 and B2 are returned, X, Y, W and B came in.
 %% No directive, no operator, nothing to declare -- `-->' is the reader's own.
 %%
+%% INSIDE A RULE the module's predicates and this library's are nonterminals
+%% too, usable without braces: torch_seed, torch_execution, torch_device,
+%% torch_cuda_available, torch_cuda_count, torch_current_device; model_new,
+%% model_set_params, model_params, model_spec, model_save, model_load,
+%% model_free, model_train, model_evaluate, model_predict; params_save,
+%% params_load, one_hot, accuracy, block_mask, causal_mask, shifts,
+%% pool_matrix, up_matrix. The ones that answer a tensor -- model_predict,
+%% params_load, one_hot, the masks and matrices -- emit it, so proc/1 frees
+%% it unless the head returns it. Any other goal goes in braces, and so does
+%% a plain unification, since `=' in a rule is the binding.
+%%
+%% THE ONE DISCIPLINE: a rule frees nothing by hand. What it made is in its
+%% list and proc/1 frees it once; a tensor_free inside would free it twice,
+%% and a slot freed early may already be somebody else's. So tensor_free,
+%% free_all, adam_step and sgd_step -- which free what they are given -- are
+%% not nonterminals: a loop that steps an optimiser is a predicate, as the
+%% fit loops of tutorials 32 to 41 are, and its forward pass a procedure.
+%%
 %% THE PREDICATES: sgd_step/4, adam_init/2,3, adam_step/6, params_save/2,
 %% params_load/2, one_hot/3, block_mask/3, causal_mask/3, shifts/3,
 %% pool_matrix/3, up_matrix/3, accuracy/3, free_all/1 -- documented at each.
@@ -273,6 +291,35 @@ proc(Goal) :-
 %% anything else the program is done naming.
 free_all([]).
 free_all([H|Hs]) :- tensor_free(H), free_all(Hs).
+
+%% ---- the module's predicates, and this library's, as nonterminals -----------------
+%% In a rule body, without braces. Those that answer a tensor emit it.
+torch_seed(N) --> { torch_seed(N) }.
+torch_execution(M) --> { torch_execution(M) }.
+torch_device(D) --> { torch_device(D) }.
+torch_cuda_available(A) --> { torch_cuda_available(A) }.
+torch_cuda_count(N) --> { torch_cuda_count(N) }.
+torch_current_device(D) --> { torch_current_device(D) }.
+model_new(Spec, M) --> { model_new(Spec, M) }.
+model_set_params(M, L) --> { model_set_params(M, L) }.
+model_params(M, L) --> { model_params(M, L) }.
+model_spec(M, S) --> { model_spec(M, S) }.
+model_save(Name, M) --> { model_save(Name, M) }.
+model_load(Name, M) --> { model_load(Name, M) }.
+model_free(M) --> { model_free(M) }.
+model_train(M, X, Y, Opts) --> { model_train(M, X, Y, Opts) }.
+model_evaluate(M, X, Y, Metric, S) --> { model_evaluate(M, X, Y, Metric, S) }.
+model_predict(M, X, T) --> { model_predict(M, X, T) }, [T].
+params_save(Name, Ps) --> { params_save(Name, Ps) }.
+params_load(Name, Ps) --> { params_load(Name, Ps) }, '$te_emit'(Ps).
+one_hot(Ids, K, T) --> { one_hot(Ids, K, T) }, [T].
+accuracy(Logits, Ids, Acc) --> { accuracy(Logits, Ids, Acc) }.
+block_mask(N, L, M) --> { block_mask(N, L, M) }, [M].
+causal_mask(N, L, M) --> { causal_mask(N, L, M) }, [M].
+shifts(H, W, Ss) --> { shifts(H, W, Ss) }, '$te_emit'(Ss).
+pool_matrix(H, W, P) --> { pool_matrix(H, W, P) }, [P].
+up_matrix(H, W, U) --> { up_matrix(H, W, U) }, [U].
+'$te_emit'(Hs, S0, S) :- append(Hs, S, S0).
 
 %% ---- the composites --------------------------------------------------------------
 %% Each reads the shape it needs when it runs -- free under the graph path,
