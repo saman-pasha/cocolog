@@ -1335,7 +1335,7 @@ as a clause, `loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0)`, and
 uses it by name in any expression; or it adds a clause to `expr//2`
 itself, in the grammar's own syntax. And a PROCEDURE is a DCG rule whose
 body is bindings, `V = E`, each run through `:=`, and whose output list is
-every tensor it made -- `proc(step(X, Y, W, B, LR, W2, B2, Loss))` runs
+every tensor it made -- `exec(step(X, Y, W, B, LR, W2, B2, Loss))` runs
 it and frees all of that but what the head returns. The reader translates
 `-->` as it translates any grammar, so nothing is declared for it, and a
 procedure called inside another threads its temporaries up to the caller;

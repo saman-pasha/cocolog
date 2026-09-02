@@ -76,7 +76,7 @@ unpack(Ps, EmbIn, EmbOut, Enc, Dec, Wa, Ua, Va, Wo, Bo) :-
 %% gru(+Cell, +X, +H, -H2): one step. Update gate, reset gate, candidate,
 %% blend -- a PROCEDURE, a DCG rule of four bindings. Everything that makes
 %% tensors from here down is one, and a procedure called inside another
-%% threads what it made up to the caller; proc/1 at the top frees all of it
+%% threads what it made up to the caller; exec/1 at the top frees all of it
 %% but what the head returns.
 gru([Wz, Uz, Bz, Wr, Ur, Br, Wn, Un, Bn], X, H, H2) -->
     Z = sigmoid(X matmul Wz + H matmul Uz + Bz),
@@ -125,7 +125,7 @@ decode_steps(T, Plan, EmbOut, Dec, Wa, Ua, Va, Wo, Bo, Hs, H, [L|Ls], [W|Ws]) --
     { T1 is T + 1 },
     decode_steps(T1, Plan2, EmbOut, Dec, Wa, Ua, Va, Wo, Bo, Hs, H2, Ls, Ws).
 
-%% run(+Ps, +Ins, +Feeds, -Logits, -Ws): encoder then decoder; proc(run(...))
+%% run(+Ps, +Ins, +Feeds, -Logits, -Ws): encoder then decoder; exec(run(...))
 %% frees every state and gate along the way and keeps Logits and the weights.
 run(Ps, Ins, Feeds, Logits, Ws) -->
     { unpack(Ps, EmbIn, _, Enc, _, _, _, _, _, _) },
@@ -147,7 +147,7 @@ train :-
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, PsF) :-
     B is K mod 8, nth0(B, Batches, b(Ins, Feeds, Y)),
-    proc(run(Ps, Ins, Feeds, Logits, Ws)),
+    exec(run(Ps, Ins, Feeds, Logits, Ws)),
     L := cross_entropy(Logits, Y),
     Gs := grad(L, Ps),
     ( K mod 100 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
@@ -158,7 +158,7 @@ fit(K, Ps, St, Batches, PsF) :-
 
 %% own_accuracy(+Ps, +Ins, +Outs, -Acc): the decoder fed its own output, against the targets.
 own_accuracy(Ps, Ins, Outs, Acc) :-
-    proc(run(Ps, Ins, self, Logits, Ws)), free_all(Ws),
+    exec(run(Ps, Ins, self, Logits, Ws)), free_all(Ws),
     findall(Tok, ( member(L, Outs), member(Tok, L) ), Flat),
     accuracy(Logits, Flat, Acc), tensor_free(Logits), !.
 
@@ -172,7 +172,7 @@ test :-
 predict :-
     params_load(t41_seq2seq, Ps),
     batch(2000, 4, Ins, _, _, _),
-    proc(run(Ps, Ins, self, Logits, Ws)),
+    exec(run(Ps, Ins, self, Logits, Ws)),
     A := argmax(Logits, 1), Got0 := list(A), findall(G, ( member(G0, Got0), G is round(G0) ), Got),
     forall(between(0, 3, I),
            ( J is 2000 + I, sequence(J, Source, Target),

@@ -70,7 +70,7 @@ parameters([K1, B1, K2, B2, K3, B3, K4, B4, K5, B5]) :-
     K5 := parameter(glorot(36, 1)),   B5 := parameter(zeros([1, 1])), !.  % 4 -> 1, the mask
 
 %% forward(+Ps, +Constants, +X, -Out): down, across, and up with the skip --
-%% a PROCEDURE, a DCG rule of bindings; proc/1 runs it and frees everything
+%% a PROCEDURE, a DCG rule of bindings; exec/1 runs it and frees everything
 %% it made but Out.
 forward([K1, B1, K2, B2, K3, B3, K4, B4, K5, B5], c(S8, S4, P8, U8), X, Out) -->
     E1 = relu(conv2d(X, K1, S8) + B1),                 % [N*64, 4]   encoder, level 1
@@ -97,7 +97,7 @@ train :-
 
 fit(0, Ps, _, _, _, _, Ps) :- !.
 fit(K, Ps, St, Cs, X, Y, PsF) :-
-    proc(forward(Ps, Cs, X, Out)),
+    exec(forward(Ps, Cs, X, Out)),
     L := bce(Out, Y),
     Gs := grad(L, Ps),
     ( K mod 25 =:= 0 -> Lv := item(L), format("   ~w steps to go, bce ~4f~n", [K, Lv]) ; true ),
@@ -109,7 +109,7 @@ fit(K, Ps, St, Cs, X, Y, PsF) :-
 %% iou(+Ps, +Cs, +X, +Y, -IoU): the mask thresholded at 0.5 against the
 %% truth, intersection over union, averaged over the pictures.
 iou(Ps, Cs, X, Y, IoU) :-
-    proc(forward(Ps, Cs, X, Out)),
+    exec(forward(Ps, Cs, X, Out)),
     OL := list(Out), YL := list(Y), tensor_free(Out),
     findall(P-T, ( nth0(I, OL, [P]), nth0(I, YL, [T]) ), Pairs),
     length(Pairs, Len), N is Len // 64,
@@ -131,7 +131,7 @@ predict :-
     constants(Cs),
     params_load(t33_unet, Ps),
     pictures(2000, 2, X, _),
-    proc(forward(Ps, Cs, X, Out)),
+    exec(forward(Ps, Cs, X, Out)),
     OL := list(Out),
     forall(between(0, 1, I),
            ( J is 2000 + I, picture(J, Pixels, Mask),

@@ -36,7 +36,7 @@ normalise(A, Z) -->
     Z = C / Sd.
 
 %% and one that uses the module's predicates as nonterminals, no braces: the
-%% seed, a model, and a prediction -- which model_predict emits, so proc frees it
+%% seed, a model, and a prediction -- which model_predict emits, so exec frees it
 through_a_model(X, Ps) -->
     torch_seed(1),
     model_new([input(2), dense(1)], M),
@@ -110,14 +110,14 @@ main :-
     write('9. a procedure: a DCG rule, its bindings V = E, its list what it made'), nl,
     phrase(normalise(X, Z0), Made), length(Made, NMade),
     must('normalise made four tensors: Mu, C, Sd and Z', NMade, 4),
-    proc(normalise(X, Z)), ZL := list(Z),
-    must('proc(normalise(X, Z)) answers Z and frees the other three', ZL, [[-1.0, 1.0], [-1.0, 1.0]]),
+    exec(normalise(X, Z)), ZL := list(Z),
+    must('exec(normalise(X, Z)) answers Z and frees the other three', ZL, [[-1.0, 1.0], [-1.0, 1.0]]),
 
     write('10. the module''s predicates are nonterminals in a rule, and the tensor one emits'), nl,
     phrase(through_a_model(X, Ps1), Made2), length(Made2, NMade2),
     must('through_a_model: the row sums of X through a dense(1) of ones', Ps1, [[3.0], [7.0]]),
     must('and it made one tensor, the prediction, which model_predict emitted', NMade2, 1),
-    proc(through_a_model(X, _)),
+    exec(through_a_model(X, _)),
     write(done), nl.
 
 %% `must/3' IS WHY THESE FILES ARE TESTS. Every claim a lesson makes is a

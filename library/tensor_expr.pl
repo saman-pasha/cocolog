@@ -69,13 +69,13 @@
 %%         W2 = step(W, GW, LR),
 %%         B2 = step(B, GB, LR).
 %%
-%%     proc(step(X, Y, W, B, LR, W2, B2, Loss))
+%%     exec(step(X, Y, W, B, LR, W2, B2, Loss))
 %%
 %% The reader translates the rule as it translates any grammar: `V = E' is
 %% the nonterminal =//2, this library's, which binds V through `:=' and emits
 %% the handles it made; a procedure called inside another threads its
 %% temporaries up to the caller; a plain goal goes in braces, { format(...) }.
-%% proc/1 runs the rule and frees every emitted handle that is not in the
+%% exec/1 runs the rule and frees every emitted handle that is not in the
 %% head: L, GW and GB here; W2 and B2 are returned, X, Y, W and B came in.
 %% No directive, no operator, nothing to declare -- `-->' is the reader's own.
 %%
@@ -86,12 +86,12 @@
 %% model_free, model_train, model_evaluate, model_predict; params_save,
 %% params_load, one_hot, accuracy, block_mask, causal_mask, shifts,
 %% pool_matrix, up_matrix. The ones that answer a tensor -- model_predict,
-%% params_load, one_hot, the masks and matrices -- emit it, so proc/1 frees
+%% params_load, one_hot, the masks and matrices -- emit it, so exec/1 frees
 %% it unless the head returns it. Any other goal goes in braces, and so does
 %% a plain unification, since `=' in a rule is the binding.
 %%
 %% THE ONE DISCIPLINE: a rule frees nothing by hand. What it made is in its
-%% list and proc/1 frees it once; a tensor_free inside would free it twice,
+%% list and exec/1 frees it once; a tensor_free inside would free it twice,
 %% and a slot freed early may already be somebody else's. So tensor_free,
 %% free_all, adam_step and sgd_step -- which free what they are given -- are
 %% not nonterminals: a loop that steps an optimiser is a predicate, as the
@@ -265,10 +265,11 @@ T := Expr :-
     ;   '$te_handles'(V, Hs) ),
     append(Hs, S, S0).
 
-%% proc(+Goal): run the procedure Goal names -- a DCG rule of that name with
+%% exec(+Goal): EXECUTE the procedure Goal names -- under whichever execution
+%% path torch_execution/1 has set, which is what the name says -- a DCG rule of that name with
 %% two more arguments -- and free every handle it emitted that does not
 %% appear in Goal afterwards: what was made and not returned.
-proc(Goal) :-
+exec(Goal) :-
     phrase(Goal, Made), !,
     '$te_handles'(Goal, Kept),
     forall(( member(H, Made), \+ memberchk(H, Kept) ), tensor_free(H)).

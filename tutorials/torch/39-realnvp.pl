@@ -74,7 +74,7 @@ layers(Ps, [L0, L1, L2, L3]) :- length(L0, 6), length(L1, 6), length(L2, 6), len
 %% split//4 and join//4: even layers keep x1 and move x2, odd layers the other
 %% way round. From here down every predicate that makes tensors is a
 %% PROCEDURE -- a DCG rule of bindings -- and a procedure called inside
-%% another threads what it made up to the caller; proc/1 at the top frees
+%% another threads what it made up to the caller; exec/1 at the top frees
 %% all of it but what the head returns.
 split(K, X, Kept, Moved) --> { K mod 2 =:= 0 }, !, Kept = cols(X, 0, 1), Moved = cols(X, 1, 2).
 split(_, X, Kept, Moved) --> Kept = cols(X, 1, 2), Moved = cols(X, 0, 1).
@@ -119,14 +119,14 @@ train :-
     moons(0, 256, X),
     parameters(Ps0), adam_init(Ps0, St0),
     fit(1500, Ps0, St0, X, Ps),
-    layers(Ps, Layers), proc(nll(Layers, X, L)), Lv := item(L),
+    layers(Ps, Layers), exec(nll(Layers, X, L)), Lv := item(L),
     format("trained: NLL ~4f nats per point on the training moons~n", [Lv]),
     params_save(t39_realnvp, Ps),
     write(saved), nl.
 
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
-    layers(Ps, Layers), proc(nll(Layers, X, L)),
+    layers(Ps, Layers), exec(nll(Layers, X, L)),
     Gs := grad(L, Ps),
     ( K mod 300 =:= 0 -> Lv := item(L), format("   ~w steps to go, NLL ~4f~n", [K, Lv]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
@@ -145,7 +145,7 @@ variance(Vs, N, Var) :- sum_list(Vs, S), M is S / N, findall(D, ( member(V, Vs),
 
 test :-
     params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    moons(1000, 256, X), proc(nll(Layers, X, L)), Lv := item(L),
+    moons(1000, 256, X), exec(nll(Layers, X, L)), Lv := item(L),
     Rows := list(X), gaussian_nll(Rows, G),
     format("test: the flow's NLL ~4f against a fitted Gaussian's ~4f, on 256 fresh points~n", [Lv, G]),
     ( Lv =< G - 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
@@ -153,9 +153,9 @@ test :-
 predict :-
     torch_seed(2039),
     params_load(t39_realnvp, Ps), layers(Ps, Layers),
-    Z := randn([300, 2]), proc(inverse(Layers, Z, X)), Rows := list(X),
+    Z := randn([300, 2]), exec(inverse(Layers, Z, X)), Rows := list(X),
     write('300 points drawn from N(0, I) and run backwards through the flow:'), nl, scatter(Rows),
     findall(x, ( member(P, Rows), near_moon(P) ), Near), length(Near, Nn), Frac is Nn / 300,
     format("   ~2f of them within 0.15 of a moon~n", [Frac]),
-    moons(3000, 2, Two), proc(nll(Layers, Two, L2)), L2v := item(L2), Far := [[1.5, 1.5], [-1.5, -1.5]], proc(nll(Layers, Far, L3)), L3v := item(L3),
+    moons(3000, 2, Two), exec(nll(Layers, Two, L2)), L2v := item(L2), Far := [[1.5, 1.5], [-1.5, -1.5]], exec(nll(Layers, Far, L3)), L3v := item(L3),
     format("   and it can say how likely a point is: two on the moons at ~2f nats, two far away at ~2f~n", [L2v, L3v]).

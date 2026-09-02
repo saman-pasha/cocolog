@@ -62,7 +62,7 @@ parameters([Emb, Pos, G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2, G3, Bt3,
     G3 := parameter(ones([1, 32])), Bt3 := parameter(zeros([1, 32])),
     Wout := parameter(glorot(32, 28)), Bout := parameter(zeros([1, 28])), !.
 
-%% head//6 and forward//5 are PROCEDURES: DCG rules of bindings, proc/1 runs
+%% head//6 and forward//5 are PROCEDURES: DCG rules of bindings, exec/1 runs
 %% forward and frees everything it and the heads made but Logits.
 head(Q, K, V, Mask, H, O) -->
     { F is H * 16, T is F + 16 },
@@ -89,7 +89,7 @@ train :-
     parameters(Ps0), adam_init(Ps0, St0),
     fit(800, Ps0, St0, Batches, Mask, Ps),
     Batches = [batch(Ids0, PosIds0, _)|_], windows(0, 292, 5, 64, _, _, Ts0),
-    proc(forward(Ps, Ids0, PosIds0, Mask, Logits)), accuracy(Logits, Ts0, Acc), tensor_free(Logits),
+    exec(forward(Ps, Ids0, PosIds0, Mask, Logits)), accuracy(Logits, Ts0, Acc), tensor_free(Logits),
     format("trained: next-character accuracy on the first batch ~2f~n", [Acc]),
     params_save(t35_gpt, Ps),
     write(saved), nl.
@@ -97,7 +97,7 @@ train :-
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, Batches, Mask, PsF) :-
     B is K mod 16, nth0(B, Batches, batch(Ids, PosIds, Y)),
-    proc(forward(Ps, Ids, PosIds, Mask, Logits)),
+    exec(forward(Ps, Ids, PosIds, Mask, Logits)),
     L := cross_entropy(Logits, Y),
     Gs := grad(L, Ps),
     ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
@@ -111,7 +111,7 @@ test :-
     text(T), atom_length(T, Len), Hi is Len - 9,
     windows(300, Hi, 4242, 64, Ids, PosIds, Ts),
     causal_mask(64, 8, Mask),
-    proc(forward(Ps, Ids, PosIds, Mask, Logits)), accuracy(Logits, Ts, Acc),
+    exec(forward(Ps, Ids, PosIds, Mask, Logits)), accuracy(Logits, Ts, Acc),
     format("test next-character accuracy ~2f on 64 windows the training never saw~n", [Acc]),
     ( Acc >= 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
@@ -123,7 +123,7 @@ generate(Ps, Mask, Context, N, Out) :-
     length(Context, Len), Skip is Len - 8, length(Head, Skip), append(Head, Last8, Context),
     findall(I, ( member(C, Last8), id(C, I) ), In), Ids := In,
     PosIds := [0, 1, 2, 3, 4, 5, 6, 7],
-    proc(forward(Ps, Ids, PosIds, Mask, Logits)),
+    exec(forward(Ps, Ids, PosIds, Mask, Logits)),
     Next := argmax(rows(Logits, 7, 8), 1), [G] := list(Next), tensor_free(Next), tensor_free(Logits),
     Gi is round(G), id(Char, Gi),
     append(Context, [Char], Context2),

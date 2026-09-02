@@ -69,7 +69,7 @@ parameters([We, Be, Wm, Bm, Wv, Bv, Wd, Bd, Wo, Bo]) :-
 
 %% encode//4, decode//3 and loss//4 are PROCEDURES: DCG rules of bindings; a
 %% procedure called inside another threads what it made up to the caller,
-%% and proc/1 at the top frees all of it but what the head returns.
+%% and exec/1 at the top frees all of it but what the head returns.
 encode([We, Be, Wm, Bm, Wv, Bv | _], X, Mu, LogVar) -->
     H = relu(X matmul We + Be),
     Mu = H matmul Wm + Bm, LogVar = H matmul Wv + Bv.
@@ -100,7 +100,7 @@ train :-
 
 fit(0, Ps, _, _, Ps) :- !.
 fit(K, Ps, St, X, PsF) :-
-    proc(loss(Ps, X, L, Parts)),
+    exec(loss(Ps, X, L, Parts)),
     Gs := grad(L, Ps),
     ( K mod 200 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss ~3f  ~w~n", [K, Lv, Parts]) ; true ),
     adam_step(Ps, Gs, St, 0.005, Ps2, St2),
@@ -114,7 +114,7 @@ reconstruct(Ps, X, Out) --> encode(Ps, X, Mu, _), decode(Ps, Mu, Out).
 test :-
     params_load(t36_vae, Ps),
     pictures(1000, 24, X, Clean),
-    proc(reconstruct(Ps, X, Out)),
+    exec(reconstruct(Ps, X, Out)),
     OL := list(Out), CL := list(Clean),
     findall(x, ( nth0(I, OL, ORow), nth0(I, CL, CRow), nth0(P, ORow, V), nth0(P, CRow, C), ( V > 0.5 -> B = 1.0 ; B = 0.0 ), B =:= C ), Hits),
     length(Hits, H), Acc is H / (24 * 64),
@@ -123,11 +123,11 @@ test :-
 
 predict :-
     params_load(t36_vae, Ps),
-    pictures(2000, 2, X, _), proc(encode(Ps, X, Mu, _)), MuL := list(Mu),
+    pictures(2000, 2, X, _), exec(encode(Ps, X, Mu, _)), MuL := list(Mu),
     format("two pictures land at ~w in the latent plane~n", [MuL]),
     write('and a 3x3 walk over it, z1 across, z2 down, each decoded:'), nl, nl,
     forall(member(Z2, [-1.5, 0.0, 1.5]),
            ( forall(member(Z1, [-1.5, 0.0, 1.5]),
-                    ( proc(decode(Ps, [[Z1, Z2]], Out)), [Vals] := list(Out), tensor_free(Out),
+                    ( exec(decode(Ps, [[Z1, Z2]], Out)), [Vals] := list(Out), tensor_free(Out),
                       format("   z = (~1f, ~1f)~n", [Z1, Z2]), draw(Vals) )),
              nl )).

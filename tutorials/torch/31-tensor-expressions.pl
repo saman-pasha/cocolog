@@ -81,7 +81,7 @@ data(From, N, X, Y) -->
 
 %% THE STEP IS A PROCEDURE: a DCG rule whose body is bindings, each run
 %% through `:=', and whose output list is every tensor made inside -- L, GW,
-%% GB. proc/1 runs it and frees those, keeping what the head returns; the
+%% GB. exec/1 runs it and frees those, keeping what the head returns; the
 %% old parameters are the caller's to free. The reader translates `-->' as
 %% it translates any grammar, so nothing is declared for this.
 step(X, Y, W, B, LR, W2, B2, Loss) -->
@@ -93,7 +93,7 @@ step(X, Y, W, B, LR, W2, B2, Loss) -->
 
 %% THE LOOP IS A PROCEDURE TOO, and the step is a nonterminal inside it: each
 %% step's L, GW, GB and the parameters it makes thread up into the loop's
-%% list, and proc/1 frees them all at once when the loop returns, keeping WF
+%% list, and exec/1 frees them all at once when the loop returns, keeping WF
 %% and BF, which the head names. Two hundred steps make a thousand handles
 %% held until then, out of the module's 4096: a loop of thousands of steps
 %% should stay a predicate that frees as it goes, as the tutorials from 32
@@ -105,7 +105,7 @@ sgd(K, X, Y, W, B, LR, WF, BF, _, LossF) -->
     sgd(K1, X, Y, W2, B2, LR, WF, BF, Loss, LossF).
 
 %% AND THE FIT: the parameters are made here, the loop runs inside, and the
-%% head names only numbers -- so when proc/1 returns, every tensor the fit
+%% head names only numbers -- so when exec/1 returns, every tensor the fit
 %% ever made is freed, and the file has no free_all at all. Inside a rule
 %% `=' is the binding, so the one plain unification is in braces.
 fit(X, Y, Loss, Ws, Bv) -->
@@ -125,13 +125,13 @@ under(Mode, Goal) -->
     { format("   ~w: ~w~n", [Mode, S]) }.
 
 %% THE THREE GOALS ARE RULES TOO, and the three one-liners under them are
-%% what the runner calls: each runs its rule with proc/1, so every tensor a
+%% what the runner calls: each runs its rule with exec/1, so every tensor a
 %% goal makes is freed when it ends. The model predicates, torch_execution
 %% and torch_seed are nonterminals the library provides; printing and the
 %% decision go in braces.
-train :- proc(train).
-test :- proc(test).
-predict :- proc(predict).
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
 
 train -->
     data(0, 6, X, Y),

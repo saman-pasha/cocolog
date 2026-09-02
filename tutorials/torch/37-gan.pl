@@ -77,7 +77,7 @@ discriminator([Wd1, Bd1, Wd2, Bd2, Wd3, Bd3]) :-
     Wd2 := parameter(glorot(32, 32)), Bd2 := parameter(zeros([1, 32])),
     Wd3 := parameter(glorot(32, 1)),  Bd3 := parameter(zeros([1, 1])), !.
 
-%% generate//3 and judge//3 are PROCEDURES: DCG rules of bindings, run by proc/1,
+%% generate//3 and judge//3 are PROCEDURES: DCG rules of bindings, run by exec/1,
 %% which frees what they made but what the head returns.
 generate([Wg1, Bg1, Wg2, Bg2, Wg3, Bg3], Z, Fake) -->
     Fake = relu(relu(Z matmul Wg1 + Bg1) matmul Wg2 + Bg2) matmul Wg3 + Bg3.
@@ -103,11 +103,11 @@ rounds(0, G, D, _, _, G, D) :- !.
 rounds(K, G, D, SG, SD, GF, DF) :-
     From is K * 256, ring(From, 256, X),
     Z := randn([256, 2]),
-    proc(generate(G, Z, Fake)),
-    proc(judge(D, X, PReal)), proc(judge(D, Fake, PFake)),
+    exec(generate(G, Z, Fake)),
+    exec(judge(D, X, PReal)), exec(judge(D, Fake, PFake)),
     Ld := bce(PReal, ones([256, 1])) + bce(PFake, zeros([256, 1])),
     GDs := grad(Ld, D), adam_step(D, GDs, SD, 0.0003, D2, SD2),
-    proc(judge(D2, Fake, PFake2)),
+    exec(judge(D2, Fake, PFake2)),
     Lg := bce(PFake2, ones([256, 1])),
     GGs := grad(Lg, G), adam_step(G, GGs, SG, 0.0003, G2, SG2),
     ( K mod 1000 =:= 0 -> Ldv := item(Ld), Lgv := item(Lg), Rows := list(Fake), on_ring(Rows, Fr, Se),
@@ -121,7 +121,7 @@ load(G, D) :- params_load(t37_gan, Ps), length(G, 6), append(G, D, Ps), !.
 test :-
     torch_seed(1037),
     load(G, _),
-    Z := randn([256, 2]), proc(generate(G, Z, Fake)), Rows := list(Fake),
+    Z := randn([256, 2]), exec(generate(G, Z, Fake)), Rows := list(Fake),
     on_ring(Rows, Fraction, Sectors),
     format("test: 256 samples, ~2f within 0.15 of the ring, ~w of 12 sectors reached~n", [Fraction, Sectors]),
     ( Fraction >= 0.8, Sectors >= 10 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
@@ -129,8 +129,8 @@ test :-
 predict :-
     torch_seed(2037),
     load(G, D),
-    Z := randn([300, 2]), proc(generate(G, Z, Fake)), Rows := list(Fake),
+    Z := randn([300, 2]), exec(generate(G, Z, Fake)), Rows := list(Fake),
     write('300 samples from the generator:'), nl, scatter(Rows), nl,
-    ring(999999, 1, R), proc(judge(D, R, PR)), [[PRv]] := list(PR), [[Rx, Ry]] := list(R),
-    Fake = Fake, Rows = [[Fx, Fy]|_], F1 := rows(Fake, 0, 1), proc(judge(D, F1, PF)), [[PFv]] := list(PF),
+    ring(999999, 1, R), exec(judge(D, R, PR)), [[PRv]] := list(PR), [[Rx, Ry]] := list(R),
+    Fake = Fake, Rows = [[Fx, Fy]|_], F1 := rows(Fake, 0, 1), exec(judge(D, F1, PF)), [[PFv]] := list(PF),
     format("   the discriminator gives a real point (~2f, ~2f) ~2f and a fake (~2f, ~2f) ~2f~n", [Rx, Ry, PRv, Fx, Fy, PFv]).

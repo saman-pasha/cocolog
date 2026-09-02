@@ -79,7 +79,7 @@ parameters([W1, B1, W2, B2]) :-
     W2 := parameter(glorot(16, 2)),  B2 := parameter(zeros([1, 2])), !.
 
 %% forward(+Ps, +A, -Out): two graph convolutions; Out is [34, 2], a row per
-%% member -- a PROCEDURE, a DCG rule of bindings; proc/1 runs it and frees X and H.
+%% member -- a PROCEDURE, a DCG rule of bindings; exec/1 runs it and frees X and H.
 forward([W1, B1, W2, B2], A, Out) -->
     X = eye(34),                                           % a member knows only which member it is
     H = relu(A matmul X matmul W1 + B1),                   % one hop
@@ -98,7 +98,7 @@ train :-
 
 fit(0, Ps, _, _, _, Ps) :- !.
 fit(K, Ps, St, A, Y, PsF) :-
-    proc(forward(Ps, A, Out)),
+    exec(forward(Ps, A, Out)),
     L := cross_entropy(index_rows(Out, [0, 33]), Y),         % the loss at the two labelled rows only
     Gs := grad(L, Ps),
     ( K mod 50 =:= 0 -> Lv := item(L), format("   ~w steps to go, loss at the two labelled members ~4f~n", [K, Lv]) ; true ),
@@ -115,14 +115,14 @@ answers(Ps, Got, Probs) -->
 
 test :-
     params_load(t38_gcn, Ps),
-    proc(answers(Ps, Got, _)),
+    exec(answers(Ps, Got, _)),
     findall(x, ( nth0(I, Got, G), M is I + 1, faction(M, G) ), Hits), length(Hits, H), Acc is H / 34,
     format("test: ~w of 34 members placed in their faction, accuracy ~3f, from two labels~n", [H, Acc]),
     ( Acc >= 0.85 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
 
 predict :-
     params_load(t38_gcn, Ps),
-    proc(answers(Ps, Got, Probs)),
+    exec(answers(Ps, Got, Probs)),
     forall(member(F, [0, 1]),
            ( findall(M, ( nth0(I, Got, F), M is I + 1 ), Ms),
              ( F =:= 0 -> Who = 'with the instructor (member 1)' ; Who = 'with the administrator (member 34)' ),
