@@ -124,8 +124,8 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        every claim in the first two is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (thirty-two, ONE PER LIBRARY that
-                       ships), torch/ (twenty-four networks, three
+                       library/ (thirty-nine, ONE PER LIBRARY that
+                       ships), torch/ (thirty-one networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
@@ -307,7 +307,7 @@ eleven on the library path.
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
 end. A new library therefore gets a tutorial in the same commit.
 
-### `torch/` — thirty networks, three processes each
+### `torch/` — thirty-one networks, three processes each
 
 The deep end, and its own [README](tutorials/torch/README.md) — described
 under *Prolog that trains* below.
@@ -1175,16 +1175,17 @@ runs the whole story: train, store in Zigurat, reload in a fresh
 process, predict identically.
 
 The classic AI/ML challenges pass, one `.pl` file at a time.
-**[tutorials/torch/](tutorials/torch/README.md) holds twenty-four such programs**,
+**[tutorials/torch/](tutorials/torch/README.md) holds thirty-one such programs**,
 each a documented file carrying `train`, `test` and `predict` as
 separate goals in separate processes — the store carries the model
 between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
 and fitted Q-iteration reinforcement learning. They are the third
-tutorial category — `sh test/tutorials.sh` runs all seventy-eight files,
-the eighty-four torch processes included, green and deterministically
-in about forty-five seconds. The one to read first is
+tutorial category — `sh test/tutorials.sh` runs all eighty-one files,
+the ninety-three torch processes included, green and deterministically
+in about eleven minutes on this Mac, up from forty-five seconds before
+the transformer lessons joined. The one to read first is
 [22-embedding-lstm](tutorials/torch/22-embedding-lstm.pl), the shape of every
 text classifier at toy scale — token ids through a learned embedding
 into an LSTM, trained to remember whether token 3 ever appeared:
@@ -1203,7 +1204,7 @@ $ ./cocolog --embed /tmp/tut run tutorials/torch/22-embedding-lstm.pl predict
 That third line is the point: the token sat at the very start and the
 LSTM carried the fact across five further steps, in a model that was
 trained by one process, stored as terms, and is answering in another.
-And [24-q-learning](tutorials/torch/24-q-learning.pl) closes the collection
+And [24-q-learning](tutorials/torch/24-q-learning.pl) ends the classics
 with reinforcement learning — fitted Q-iteration on a gridworld, the
 DQN idea built from nothing but `model_predict` for the Bellman targets
 and `model_train` for the regression, whose greedy policy walks the
@@ -1217,6 +1218,124 @@ learned knowledge survives the process the same way asserted knowledge
 does. Where a neural net stops — explaining, constraining, chaining
 conclusions — the Prolog engine picks up, because they were never in
 different systems to begin with.
+
+### Two execution paths, one set of predicates
+
+A tensor predicate names a value. *When* the arithmetic behind it
+happens is module state, not something the clause says, and there are
+two answers. `torch_execution(eager)`, the default, computes at the
+predicate that names the tensor, as the module always did.
+`torch_execution(graph)` records a node there instead and computes at
+the first predicate that needs the numbers -- `tensor_to_list`,
+`tensor_item`, `tensor_reduce`, `tensor_grad`, or the model predicate
+that reads the tensor. A program written for one path runs unchanged
+under the other: the same predicates, the same arguments, the same
+answers -- and on a CPU IDENTICAL answers rather than close ones,
+because the graph path forces through the very workers eager calls, and
+a random leaf draws at record time, in program order. What a recorded
+node knows before anything runs is the gain: its shape, from libtorch's
+meta device, so `tensor_shape/2` costs nothing and a shape error is
+refused at the goal eager refuses it at; a node built on a branch that
+fails is never executed; and on a CUDA device forced values stay on the
+device, consumers copy back, and a forward that recurs with the same
+shapes is captured the second time as one CUDA graph and replayed after
+that. A closure holding a parameter is never captured, since a replay
+builds no tape. Autograd came with the path: `tensor_parameter/2`,
+`tensor_agg/3`, `tensor_grad/3` and `tensor_step/4` let a training loop
+be written as clauses and differentiated by libtorch's own tape, and
+nothing is ever mutated -- a step is a NEW parameter the program threads
+on, the way a Prolog program threads anything.
+[modules/torch/DESIGN-lazy-graph.md](modules/torch/DESIGN-lazy-graph.md)
+is the contract and the measurements;
+[29-sgd-by-hand](tutorials/torch/29-sgd-by-hand.pl) is the loop in
+Prolog; [30-two-paths](tutorials/torch/30-two-paths.pl) is the claim as
+a program.
+
+Three gates hold it inside `make test`: `torch-graph` compares every
+producer, an eleven-op expression, a failing branch, a freed input, two
+draws forced in reverse order, and six tutorials under both paths for
+EQUALITY; `torch-grad` holds the gradients to the analytic least-squares
+values within 1e-6, to `2W` for `sum(W.W)` exactly, and equal across the
+paths; `torch-replay` SKIPs without a CUDA device and is GREEN on the
+Colab T4, where every producer sits within 1e-4 of the CPU, a forward
+forced six times executes its four nodes once and replays five times,
+and a closure with a parameter replays zero times.
+
+**Tutorial 30 is the demonstration.** Nothing in its clauses mentions
+the mode: `train` fits a plane by a hundred SGD steps from the same
+seeded random start, once under each path in one process, prints both,
+and refuses to save unless they are identical to the digit. Run on this
+Mac and on a Colab VM with a Tesla T4, from outside the file with the
+path and the device as a goal prefix, the fit is the same in all six
+places -- the plane is w = [2, -3], b = 0.5:
+
+| machine | device | path | loss | w | b | recorded / executed / replayed / pending | wall, process start included |
+|---|---|---|---|---|---|---|---|
+| Mac, i9-9880H | cpu | eager | 2.01e-8 | [2.0002079, -2.9998102] | 0.4999986 | 0 / 0 / 0 / 0 | 0.60 s |
+| Mac, i9-9880H | cpu | graph | 2.01e-8 | [2.0002079, -2.9998102] | 0.4999986 | 501 / 501 / 0 / 0 | 0.59 s |
+| Colab VM | cpu | eager | 2.01e-8 | [2.0002079, -2.9998102] | 0.4999986 | 0 / 0 / 0 / 0 | 0.81 s |
+| Colab VM | cpu | graph | 2.01e-8 | [2.0002079, -2.9998102] | 0.4999986 | 501 / 501 / 0 / 0 | 0.78 s |
+| Colab VM | T4, cuda(0) | eager | 2.01e-8 | [2.0002079, -2.9998102] | 0.4999986 | 0 / 0 / 0 / 0 | 0.77 s |
+| Colab VM | T4, cuda(0) | graph | 2.01e-8 | [2.0002079, -2.9998102] | 0.4999986 | 501 / 501 / 0 / 0 | 1.23 s |
+
+(Every row's full weights are `2.00020790100098, -2.99981021881104` and
+its bias `0.49999862909317`. Eager records nothing, so its stats are
+zero; under graph the hundred steps record 501 nodes and every one is
+executed by the `tensor_item` and `tensor_grad` that read it, so nothing
+is pending when the goal ends. Measured 2026-09-02.)
+
+The file's three goals, each its own process against the store, agree
+the same way on both machines:
+
+| goal | what it checks | Mac | Colab VM |
+|---|---|---|---|
+| `train` | eager and graph fitted in one process; `halt(1)` unless identical | identical, saved | identical, saved |
+| `test` | the model reloaded under the graph path; rmse on 32 fresh rows under 0.01 | rmse 0.000133, ok | rmse 0.000133, ok |
+| `predict` | both paths predict two rows; a [3,4] by [4,5] matmul knows its shape [3,5] with 0 executed and 3 pending; a [3,4] by [5,6] matmul is refused at the goal with nothing run; after one read, 3 executed and the [5,6] leaf still pending | as stated | as stated |
+
+The predictions were `1.72068` and `-0.30111` against the plane's
+`1.72077` and `-0.30084`, under both paths, on both machines.
+Since that run, tutorial 30 has been made a GPU tutorial: every goal puts
+the process on the CUDA device, and where there is none it says so and
+stops, so the Mac rows above are its last CPU run and the Colab T4 is
+where it lives now. Its CPU twin is the next file.
+
+[31-tensor-expressions](tutorials/torch/31-tensor-expressions.pl) is
+the same program a second time, on six rows, in the syntax the
+predicates were asking for. `matmul` is an infix operator at the
+priority of `*`, every unary predicate is a prefix operator, and a DCG,
+`expr//2`, turns an expression into the list of tensor goals it stands
+for -- one per node, fresh variables for the results -- which `:=` runs
+and then frees every result but the last:
+
+```prolog
+L := mean((X matmul W + B - Y) ^ 2.0)
+%% the loss, as goals: [tensor_binary(matmul,1,3,_G1831), tensor_binary(add,_G1831,4,_G1713),
+%%                      tensor_binary(sub,_G1713,2,_G1595), tensor_scalar(pow,_G1595,2.0,_G1471),
+%%                      tensor_agg(mean,_G1471,_G231)]
+```
+
+The list is the same under both paths -- the grammar cannot tell which
+is in force, which is why it is named for what it does and not for a
+path -- and the fit is identical to the digit again, eager against
+graph, on the six rows. The one rule to know: a float is a number and an
+integer is a handle, because a handle IS an integer, so `X * 2.0`
+doubles X and `X * 2` names handle 2.
+
+**And what the table does not say, said plainly.** The T4's graph row
+is the slowest of the six, because a sixty-four-row fit is far too small
+for a GPU: each step moves its leaves to the device and copies the loss
+and two gradients back, and a closure with parameters never replays.
+The other twenty-eight tutorials are neither faster nor different under
+the graph path -- their loops live inside `model_train`'s C++ and record
+nothing; what the path records is tensor work composed in Prolog. Where
+the device earns its keep is tutorial 29's `heavy/3`, the same loop on
+200000 rows by 64 features for 200 steps: the VM's two CPUs 3.8 s eager
+and 4.3 s graph, the T4 1.5 s with its start-up, the same loss and the
+same distance from the plane to six decimals on all three -- and at
+20000 by 32 the T4 was the slower one, 1.4 s to 0.8 s. The arithmetic
+has to be worth the device's while, and the numbers say where that
+line is.
 
 And because a trained model is clauses, it travels the way clauses do.
 [colab/COLAB.md](colab/COLAB.md) is that claim on free hardware: one
@@ -1306,7 +1425,7 @@ interpreter in any of the four knowledge-base arrangements.
 
 The interpreter, the serialisation, all four transports, the schema and
 the concurrent arrangements are done and tested; `make test` ends
-`red: 0` over 39 cases, three of them TLS and one of them a window under Xvfb.
+`red: 0` over 47 cases, three of them TLS and one of them a window under Xvfb.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 

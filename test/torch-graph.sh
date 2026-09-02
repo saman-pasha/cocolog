@@ -137,12 +137,12 @@ trap 'rm -rf "$OUT"' EXIT INT TERM
 if [ "${ALL:-0}" = 1 ]; then
   TUTS=$(ls "$ROOT"/tutorials/torch/[0-9]*.pl)
 else
-  # 30 is the tutorial ABOUT the two paths, and 31 is 30 again as expressions: their
-  # train runs both paths itself and refuses to save unless they agree, so under
-  # either prefix each prints the same lines
+  # 31 is tutorial 30 -- the one ABOUT the two paths -- again as expressions, on a
+  # CPU: 30 itself runs on a GPU or not at all. Its train runs both paths itself and
+  # refuses to save unless they agree, so under either prefix it prints the same lines
   TUTS="$ROOT/tutorials/torch/01-linear-regression.pl $ROOT/tutorials/torch/04-sine-approximation.pl
         $ROOT/tutorials/torch/07-xor.pl $ROOT/tutorials/torch/14-autoencoder.pl $ROOT/tutorials/torch/20-save-load.pl
-        $ROOT/tutorials/torch/30-two-paths.pl $ROOT/tutorials/torch/31-tensor-expressions.pl"
+        $ROOT/tutorials/torch/31-tensor-expressions.pl"
 fi
 for pl in $TUTS; do
   name=$(basename "$pl" .pl)

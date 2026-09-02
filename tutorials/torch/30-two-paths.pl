@@ -21,6 +21,12 @@
 %%   ./cocolog --embed /tmp/tutorials run tutorials/torch/30-two-paths.pl test
 %%   ./cocolog --embed /tmp/tutorials run tutorials/torch/30-two-paths.pl predict
 %%
+%% A GPU TUTORIAL, and only that: every goal begins with gpu/0, which puts
+%% the process on the CUDA device or, where there is none, says so and
+%% stops without failing -- this file never runs on a CPU. Its CPU twin is
+%% tutorial 31, the same fit on six rows in the expression syntax, and that
+%% is the one test/torch-graph.sh runs here; this one runs on the Colab T4.
+%%
 %% And the other way to choose a path, from outside the file, is a goal
 %% prefix -- this is how test/torch-graph.sh runs every tutorial twice:
 %%
@@ -75,6 +81,15 @@ fit(X, Y, Loss, Ws, Bv) :-
     tensor_to_list(WF, [[W1], [W2]]), Ws = [W1, W2],
     tensor_to_list(BF, [Bv]).
 
+%% ---- the device: this file runs on a GPU or not at all ---------------------
+
+gpu :-
+    (   torch_cuda_available(true)
+    ->  torch_device(cuda)
+    ;   write('30 is a GPU tutorial: no CUDA device here, not running'), nl,
+        halt(0)
+    ).
+
 %% ---- the switch, and the comparison ---------------------------------------
 
 %% under(+Mode, +Goal): set the path, run the goal, report what the path did.
@@ -88,6 +103,7 @@ under(Mode, Goal) :-
     format("   ~w: ~w~n", [Mode, S]).
 
 train :-
+    gpu,
     data(0, 64, X, Y),
     under(eager, fit(X, Y, LE, WE, BE)),
     under(graph, fit(X, Y, LG, WG, BG)),
@@ -105,6 +121,7 @@ train :-
     write(saved), nl.
 
 test :-
+    gpu,
     torch_execution(graph),
     model_load(t30_two_paths, M),
     data(5000, 32, X, Y),
@@ -114,6 +131,7 @@ test :-
 
 %% ---- what only the graph path can do --------------------------------------
 predict :-
+    gpu,
     model_load(t30_two_paths, M),
     data(9000, 2, X, Y),
     forall(member(Mode, [eager, graph]),
