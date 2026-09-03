@@ -78,8 +78,10 @@
 %% the nonterminal =//2, this library's, which binds V through `:=' and emits
 %% the handles it made; a procedure called inside another threads its
 %% temporaries up to the caller; a plain goal goes in braces, { format(...) }.
-%% exec/1 runs the rule and frees every emitted handle that is not in the
-%% head: L, GW and GB here; W2 and B2 are returned, X, Y, W and B came in.
+%% exec/1 runs the rule and frees every emitted handle the head does not
+%% return: L, GW and GB here; W2 and B2 are returned, X, Y, W and B came in
+%% -- and an input is never read as a handle the rule made, so LR, or any
+%% count or index in a head, keeps nothing alive by coincidence of number.
 %% No directive, no operator, nothing to declare -- `-->' is the reader's own.
 %%
 %% INSIDE A RULE the module's predicates and this library's are nonterminals
@@ -296,10 +298,20 @@ T := Expr :-
 %% exec(+Goal): EXECUTE the procedure Goal names -- under whichever execution
 %% path tensor_execution/1 has set, which is what the name says -- a DCG rule of that name with
 %% two more arguments -- and free every handle it emitted that does not
-%% appear in Goal afterwards: what was made and not returned.
+%% come back through Goal's OUTPUTS: what was made and not returned.
+%%
+%% THE OUTPUTS ARE THE VARIABLES GOAL HAD BEFORE THE CALL, and only they
+%% are searched for handles afterwards. A handle made during the call
+%% cannot have been an input, so an integer that was bound going in is
+%% never a handle the call made -- it is a hyperparameter, a count, an
+%% index -- and reading it as one kept a tensor alive whenever the two
+%% numbers coincided. They do, at once, in a fresh process: the first
+%% handle is 1. Nothing can be freed early by this: every handle a
+%% procedure hands back arrives through an output variable.
 exec(Goal) :-
+    term_variables(Goal, Outs),
     phrase(Goal, Made), !,
-    '$te_handles'(Goal, Kept),
+    '$te_handles'(Outs, Kept),
     forall(( member(H, Made), \+ memberchk(H, Kept) ), tensor_free(H)).
 
 %% '$te_handles'(+Term, -Hs): every integer in Term, at any depth -- a

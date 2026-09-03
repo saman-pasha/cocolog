@@ -172,6 +172,22 @@ check "and its eager and graph fits of tutorial 31 agree under auto" \
   "1"
 
 echo
+echo "-- exec/1 frees what a procedure made, even when an input is the same integer"
+# Handles start at 1 and a freed slot is reused, so in a fresh process the
+# first tensor a procedure makes IS handle 1 -- and `exec(p(1))', with the 1
+# a count, once read that 1 as a handle to keep: a tensor kept alive by a
+# hyperparameter that happened to equal its number. Only the head's outputs
+# can carry a handle the call made; an input never can, and is not searched.
+# The rules are asserted as their translated clauses, `V = E' being =//2.
+TE="use_module(library(tensor_expr)), assertz((te_gate_count(N, S0, S) :- '='(_, zeros([N]), S0, S))), assertz((te_gate_return(N, T, S0, S) :- '='(T, zeros([N]), S0, S)))"
+check "a count of 1 in the head does not keep handle 1 alive" \
+  "$(q "$TE, exec(te_gate_count(1)), ( catch(tensor_shape(1, _), _, fail) -> A = kept ; A = freed ), write(answer(A)), nl")" \
+  "freed"
+check "and handle 1 returned through the head is kept, with its shape" \
+  "$(q "$TE, exec(te_gate_return(1, H)), tensor_shape(H, Sh), write(answer(H-Sh)), nl")" \
+  "1-[1]"
+
+echo
 if [ "$failures" -eq 0 ]; then
   echo "GREEN: 0 failure(s)"
 else
