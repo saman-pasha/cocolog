@@ -43,6 +43,7 @@
 #include <math.h>
 #include <dlfcn.h>
 #include <stdarg.h>
+#include <time.h>
 #include "tensorflow/c/c_api.h"
 #include "tensorflow/c/eager/c_api.h"
 
@@ -114,7 +115,7 @@ typedef struct {
   int* in_leaf; int nin;            /* the function's arguments: the leaves fed, in order */
   int* out_node; int nwant;         /* the function's first results: the nodes wanted, in order */
   TF_Output grads[TF_MAXPARAM]; int grad_at[TF_MAXPARAM]; int ngrads;  /* then the gradients that exist */
-  int noutputs;
+  int noutputs; int calls;
   TF_Function* fn; char fname[40];
 } Entry;
 
@@ -129,6 +130,17 @@ static int64_t seed_base = 1234, seed_next = 0;
 static char errbuf[512];
 static long long stat_rec = 0, stat_exe = 0, stat_rep = 0;
 static int (*graph_mode_fn)(void) = 0;
+/* what a run cost, by phase, printed at exit under COCO_TF_TRACE=1 */
+static int tf_trace = 0;
+enum { P_EXEC, P_CLOSURE, P_COMPILE, P_PLACED, P_SPEC, P_READ, P_N };
+static const char* prof_names[P_N] = { "calls", "closures", "compiles", "device copies", "eager ops", "reads" };
+static double prof_ms[P_N]; static long prof_n[P_N];
+static double now_ms(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (double) t.tv_sec * 1e3 + (double) t.tv_nsec / 1e6; }
+static void prof_add(int k, double t0) { prof_ms[k] += now_ms() - t0; prof_n[k]++; }
+static void prof_report(void) {
+  fprintf(stderr, "cocolog: tensorflow: what it cost --");
+  for (int k = 0; k < P_N; k++) fprintf(stderr, " %s %ld in %.0f ms%s", prof_names[k], prof_n[k], prof_ms[k], k + 1 < P_N ? "," : "\n");
+}
 
 /* ---- status --------------------------------------------------------- */
 static int bad(void) {
@@ -144,6 +156,7 @@ int tfb_mode(void) { return graph_mode_fn ? graph_mode_fn() : 0; }
 
 /* ---- init ------------------------------------------------------------ */
 int tfb_init(void* torch_so) {
+  tf_trace = getenv("COCO_TF_TRACE") ? 1 : 0; if (tf_trace) atexit(prof_report);
   if (ctx) return 1;
   st = TF_NewStatus();
   /* a ConfigProto, serialised: gpu_options.allow_growth = true, or TensorFlow
@@ -250,13 +263,15 @@ static void take_handle(TfSlot* s, TFE_TensorHandle* eh) {
 /* a float made on the host goes to the device once, at birth: the function
  * that reads it every step then finds it there. Integers -- axes, shapes,
  * indices -- are host-side operands and stay. */
-static TFE_TensorHandle* placed(TFE_TensorHandle* h) {
+static TFE_TensorHandle* placed_(TFE_TensorHandle* h) {
   if (!dev_gpu || TFE_TensorHandleDataType(h) != TF_FLOAT) return h;
   TFE_TensorHandle* d = TFE_TensorHandleCopyToDevice(h, ctx, gpu_name, st);
   if (TF_GetCode(st) != TF_OK || !d) { TF_SetStatus(st, TF_OK, ""); return h; }
   TFE_DeleteTensorHandle(h);
   return d;
 }
+static TFE_TensorHandle* placed(TFE_TensorHandle* h) { double t = now_ms(); TFE_TensorHandle* r = placed_(h); prof_add(P_PLACED, t); return r; }
+
 
 /* ---- tensors from data --------------------------------------------- */
 static TF_Tensor* tensor_f32(const double* data, const int64_t* shape, int nd) {
@@ -302,7 +317,34 @@ static int64_t ivec(const int64_t* v, int n) { int64_t shape[1] = { n }; return 
 static int64_t iscalar(int64_t v) { TF_Tensor* t = TF_AllocateTensor(TF_INT32, 0, 0, 4); *(int32_t*) TF_TensorData(t) = (int32_t) v; return slot_from_tensor(t, 1); }
 /* a scalar OPERAND is data, an argument each call and keyed by its shape alone -- a learning
  * rate that changes every step must not change the key, or every step compiles anew */
-static int64_t fscalar(double v) { TF_Tensor* t = TF_AllocateTensor(TF_FLOAT, 0, 0, 4); *(float*) TF_TensorData(t) = (float) v; return slot_from_tensor(t, 0); }
+/* ONE DEVICE TENSOR PER DISTINCT SCALAR VALUE. Adam makes seven scalar
+ * operands per parameter per step -- the betas, the epsilon, the corrected
+ * rate -- and each was a host tensor copied to the device at birth: on a T4
+ * those copies, a hundred and more a step, cost tutorial 34 more than its
+ * calls did (7.9 s against 6.7 s, COCO_TF_TRACE=1). A value made once is
+ * shared now, the slot holding a handle on the same device tensor; the
+ * table keeps the last TF_SCALARS distinct values, and the rate that changes
+ * every step turns over one entry a step. Nothing is ever written into a
+ * value, so sharing is safe. */
+#define TF_SCALARS 256
+static struct { float v; TFE_TensorHandle* eh; } scalar_cache[TF_SCALARS];
+static int nscalars = 0, scalar_next = 0;
+static int64_t fscalar(double v) {
+  float f = (float) v;
+  for (int i = 0; i < nscalars; i++) if (scalar_cache[i].v == f) {
+    TFE_TensorHandle* sh = TFE_TensorHandleCopySharingTensor(scalar_cache[i].eh, st); if (bad()) return -1;
+    return slot_from_handle(sh);
+  }
+  TF_Tensor* t = TF_AllocateTensor(TF_FLOAT, 0, 0, 4); *(float*) TF_TensorData(t) = f;
+  int64_t h = slot_from_tensor(t, 0); if (h < 0) return -1;
+  TFE_TensorHandle* keep = TFE_TensorHandleCopySharingTensor(slots[h].eh, st);
+  if (bad()) return h;
+  int i = nscalars < TF_SCALARS ? nscalars++ : scalar_next;
+  if (i == scalar_next) scalar_next = (scalar_next + 1) % TF_SCALARS;
+  if (scalar_cache[i].eh) TFE_DeleteTensorHandle(scalar_cache[i].eh);
+  scalar_cache[i].v = f; scalar_cache[i].eh = keep;
+  return h;
+}
 static int64_t with_free(int64_t result, int64_t tmp) { if (tmp > 0) tfb_free(tmp); return result; }
 
 /* ---- the closure of a node, and its key ------------------------------------- */
@@ -344,7 +386,7 @@ static void key_leaf(Closure* c, int j) {
 }
 /* the closure of h, keyed; the results of a call on it are the nodes without a
  * value that the program still names, the parameters, and h itself */
-static int closure_of(int64_t h, int grad_mode, Closure* c) {
+static int closure_of_(int64_t h, int grad_mode, Closure* c) {
   c->nleaves = 0; c->nnodes = 0; c->klen = 0; c->key[0] = 0;
   unsigned char* seen = (unsigned char*) calloc(TF_SLOTS, 1);
   int ok = visit(h, c, seen, grad_mode);
@@ -370,6 +412,8 @@ static int closure_of(int64_t h, int grad_mode, Closure* c) {
   }
   return 1;
 }
+static int closure_of(int64_t h, int grad_mode, Closure* c) { double t = now_ms(); int r = closure_of_(h, grad_mode, c); prof_add(P_CLOSURE, t); return r; }
+
 
 /* ---- compiling a closure, once per key ---------------------------------------- */
 static uint64_t fnv(const char* k) { uint64_t h = 1469598103934665603ULL; while (*k) { h ^= (unsigned char) *k++; h *= 1099511628211ULL; } return h; }
@@ -383,7 +427,7 @@ static void entry_drop(Entry* e) {
   free(e->key); free(e->ph); free(e->out); free(e->in_leaf); free(e->out_node); free(e);
 }
 /* the graph of a closure: a placeholder or a Const per leaf, an operation per node */
-static Entry* entry_compile(Closure* c) {
+static Entry* entry_compile_(Closure* c) {
   if (nentries >= TF_MAXENTRY) { fail("too many compiled closures"); return 0; }
   Entry* e = (Entry*) calloc(1, sizeof(Entry));
   e->key = strdup(c->key); e->hash = fnv(c->key); e->nleaves = c->nleaves; e->nnodes = c->nnodes;
@@ -432,13 +476,15 @@ static Entry* entry_compile(Closure* c) {
   entries[nentries++] = e;
   return e;
 }
+static Entry* entry_compile(Closure* c) { double t = now_ms(); Entry* r = entry_compile_(c); prof_add(P_COMPILE, t); return r; }
+
 static Entry* entry_for(Closure* c, int* hit) {
   Entry* e = entry_find(c->key);
   if (e) { *hit = 1; return e; }
   *hit = 0; return entry_compile(c);
 }
 /* the graph as a function of the eager runtime, made once, after any gradients are in */
-static int entry_function(Entry* e) {
+static int entry_function_(Entry* e) {
   if (e->fn) return 1;
   int nout = e->nwant;
   for (int i = 0; i < e->ngrads; i++) e->grad_at[i] = e->grads[i].oper ? nout++ : -1;
@@ -456,13 +502,30 @@ static int entry_function(Entry* e) {
   e->noutputs = nout;
   return 1;
 }
-/* one call: the leaves in, the wanted nodes and the gradients out */
+static int entry_function(Entry* e) { double t = now_ms(); int r = entry_function_(e); prof_add(P_COMPILE, t); return r; }
+
+/* one call: the leaves in, the wanted nodes and the gradients out.
+ * COCO_TF_TRACE=1 in the environment prints each call to stderr -- its
+ * function, arguments, results, gradients and milliseconds -- which is how
+ * a step is counted in calls, the number that decides what it costs. */
+static int execute_(Closure* c, Entry* e, const int64_t* ps, int np, int64_t* gs);
 static int execute(Closure* c, Entry* e, const int64_t* ps, int np, int64_t* gs) {
+  if (!tf_trace) return execute_(c, e, ps, np, gs);
+  double t0 = now_ms();
+  int ok = execute_(c, e, ps, np, gs);
+  prof_add(P_EXEC, t0);
+  fprintf(stderr, "cocolog: tensorflow: call %s: %d nodes, %d in, %d out, %d gradients, %.1f ms%s\n",
+          e->fname, e->nnodes, e->nin, e->nwant, np, now_ms() - t0, ok ? "" : " FAILED");
+  return ok;
+}
+static int execute_(Closure* c, Entry* e, const int64_t* ps, int np, int64_t* gs) {
   if (!entry_function(e)) return 0;
   TFE_TensorHandle** ret = 0;
   if (e->noutputs > 0) {
     TFE_Op* op = TFE_NewOp(ctx, e->fname, st); if (bad()) return 0;
     pin(op);
+    static int xla = -1; if (xla < 0) xla = getenv("COCO_TF_XLA") ? atoi(getenv("COCO_TF_XLA")) : 0;
+    if (xla > 0 && ++e->calls > xla) { TFE_OpSetAttrBool(op, "_XlaMustCompile", 1); }
     for (int k = 0; k < e->nin; k++) {
       TFE_OpAddInput(op, slots[c->leaves[e->in_leaf[k]]].eh, st);
       if (bad()) { TFE_DeleteOp(op); return 0; }
@@ -516,7 +579,7 @@ int tfb_force(int64_t h) {
 
 /* ---- reading a value ------------------------------------------------ */
 /* values as doubles, the caller frees; shape and nd filled */
-double* tfb_values(int64_t h, int64_t* n, int64_t* shape, int* nd) {
+double* tfb_values_(int64_t h, int64_t* n, int64_t* shape, int* nd) {
   if (!tfb_exists(h)) { fail("not a tensor"); return 0; }
   if (!tfb_force(h)) return 0;
   TfSlot* s = &slots[h];
@@ -534,6 +597,8 @@ double* tfb_values(int64_t h, int64_t* n, int64_t* shape, int* nd) {
   TF_DeleteTensor(t);
   return buf;
 }
+double* tfb_values(int64_t h, int64_t* n, int64_t* shape, int* nd) { double t = now_ms(); double* r = tfb_values_(h, n, shape, nd); prof_add(P_READ, t); return r; }
+
 int tfb_is_int(int64_t h) { return tfb_exists(h) && (slots[h].dtype == TF_INT32 || slots[h].dtype == TF_INT64); }
 /* the shape without running anything: known at birth for a value, by rule for
  * a recorded node, or from the compiled graph's inference */
@@ -656,7 +721,7 @@ static int shape_rule(OpSpec* p, int64_t* sh, int* nd) {
 /* a producer: under eager, executed now and recorded when a parameter reaches
  * it; under graph, recorded, with its shape by rule -- which is also where a
  * wrong shape is refused, at this goal */
-static int64_t run_spec(OpSpec* p) {
+static int64_t run_spec_(OpSpec* p) {
   for (int i = 0; i < p->nin; i++) if (!tfb_exists(p->in[i])) { fail("not a tensor"); return -1; }
   int up = 0;
   for (int i = 0; i < p->nin; i++) { TfSlot* in = &slots[p->in[i]]; if (in->is_param || (in->kind == K_NODE && in->under_param)) up = 1; }
@@ -711,6 +776,8 @@ static int64_t run_spec(OpSpec* p) {
   }
   return h;
 }
+static int64_t run_spec(OpSpec* p) { double t = now_ms(); int64_t r = run_spec_(p); prof_add(P_SPEC, t); return r; }
+
 
 /* ---- the producers ---------------------------------------------------- */
 int64_t tfb_unary(const char* nm, int64_t a) {
