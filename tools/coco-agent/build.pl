@@ -209,18 +209,40 @@ bd_take(0, _, []) :- !.
 bd_take(_, [], []) :- !.
 bd_take(N, [C|T], [C|R]) :- N1 is N - 1, bd_take(N1, T, R).
 
-%% Every clause text inside a *X-prolog* DEFPARAMETER.
+%% Every clause text inside a *X-prolog* DEFPARAMETER -- OR the one string a
+%% C++ module binds its half to.
+%%
+%% TWO SHAPES, BECAUSE A C++ TARGET CANNOT USE THE FIRST. modules/tcp writes
+%% `(DEFPARAMETER *tcp-prolog* (...))' and its half is a LIST of strings, one
+%% clause each; modules/torch is `:cpp #t' and writes
+%% `(var const char * torch_prolog . "...")', which is ONE string with the
+%% whole program in it, newlines and all. Only the first was read, so
+%% library(torch)'s friendly spellings -- tensor_add/3 through tensor_std/2,
+%% model_save/2, model_load/2, tensor_train_test/4 -- were names cocolint had
+%% never heard of: no collision warning if a program redefined one, and none
+%% of them offered to a generator. Thirty predicates of the library a tensor
+%% program is most likely to call.
+%%
+%% THE GUARD IS THE REGION, NOT THE STRING, for the second shape. A table's
+%% strings are guarded one at a time because a DEFPARAMETER holds arbitrary
+%% literals beside the clauses; a `*_prolog' binding holds the half and
+%% nothing else, and its text starts `:- dynamic ...', which no per-clause
+%% guard would let through. The clause splitter downstream is the same one
+%% either way, and it drops the directives itself.
 bd_fragments(Codes, Texts) :-
     bd_table_regions(Codes, Regions),
     findall(T,
-            ( member(Region, Regions),
+            ( member(Kind-Region, Regions),
               bd_strings(Region, Raw),
               member(R, Raw),
               bd_unescape(R, U),
               bd_strip(U, Text),
-              bd_fragment_ok(Text, T)
+              bd_region_text(Kind, Text, T)
             ),
             Texts).
+
+bd_region_text(table, Text, T) :- bd_fragment_ok(Text, T).
+bd_region_text(blob, Text, Text) :- Text \== [].
 
 %% `not text or not re.match(r"^'?[$a-z]", text)' then the structural guard,
 %% then a `.' if it has none.
@@ -268,13 +290,16 @@ bd_all_space([C|T]) :- bd_space(C), bd_all_space(T).
 bd_table_regions([], []) :- !.
 bd_table_regions([0'(|T], Out) :-
     !,
-    (   bd_is_prolog_table(T)
+    (   bd_prolog_region(T, Kind)
     ->  bd_sexp([0'(|T], Region),
-        Out = [Region|Rest]
+        Out = [Kind-Region|Rest]
     ;   Out = Rest
     ),
     bd_table_regions(T, Rest).
 bd_table_regions([_|T], Out) :- bd_table_regions(T, Out).
+
+bd_prolog_region(Cs, table) :- bd_is_prolog_table(Cs), !.
+bd_prolog_region(Cs, blob)  :- bd_is_prolog_blob(Cs).
 
 bd_is_prolog_table(Cs) :-
     bd_ci_word("defparameter", Cs, T1),
@@ -283,6 +308,23 @@ bd_is_prolog_table(Cs) :-
     bd_tablename(T3, T4),
     bd_ci_word("-prolog", T4, T5),
     T5 = [0'*|_].
+
+%% `(var const char * torch_prolog . "...")'. The name is anchored on both
+%% sides -- a lower-case word, then the literal `_prolog', then whitespace --
+%% so it cannot match a `const char *' that merely mentions prolog, and the
+%% `(const char * prolog)' ARGUMENT in every module's own declaration of
+%% coco_module_register is not it: that one has no name before `prolog'.
+bd_is_prolog_blob(Cs) :-
+    bd_ci_word("var", Cs, T1),
+    bd_ws1(T1, T2),
+    bd_ci_word("const", T2, T3),
+    bd_ws1(T3, T4),
+    bd_ci_word("char", T4, T5),
+    bd_ws1(T5, [0'*|T6]),
+    bd_ws1(T6, T7),
+    bd_tablename(T7, T8),
+    bd_ci_word("_prolog", T8, T9),
+    bd_ws1(T9, _).
 
 bd_tablename([C|T], R) :- bd_namechar(C), bd_tablename_(T, R).
 bd_tablename_([C|T], R) :- bd_namechar(C), !, bd_tablename_(T, R).

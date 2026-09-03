@@ -6,14 +6,16 @@
 %%
 %% THE COCOLOG REWRITE OF index.py, and the Python is gone.
 %%
-%% Nothing here is written by hand except the twenty-one capability rows and
-%% the seven exemplar rows, and the builder validates every path and every
+%% Nothing here is written by hand except the twenty-three capability rows and
+%% the eight exemplar rows, and the builder validates every path and every
 %% anchor those name. IN PYTHON THEY WERE LIST-OF-DICT LITERALS; here they are
 %% CLAUSES, which is the shape they should always have had -- `listing(ix_capability/5)'
 %% prints the topic table, and a row can be queried rather than parsed.
 %%
-%%   surface.jsonl     one row per library: its own %% header block, verbatim,
-%%                     plus the name/arity it DOCUMENTS
+%%   surface.jsonl     one row per library: its own header block, verbatim,
+%%                     plus the name/arity it DOCUMENTS -- for the .pl
+%%                     libraries AND for the loadable modules, which are
+%%                     `library(NAME)' to a caller exactly as the .pl are
 %%   exemplars.jsonl   whole files and anchored spans, with what they print
 %%   capabilities.json the topic table, every path in it checked
 %%
@@ -71,6 +73,8 @@ ix_tier_dir(1, 'lib/swipl').
 
 %% ---- the surface --------------------------------------------------------
 
+%% THE .pl LIBRARIES FIRST, THEN THE LOADABLE MODULES, in that order, so a
+%% row's `kind' says which of the two a `library(NAME)' is.
 ix_surface(Rows) :-
     findall(Row,
             ( ix_tier_dir(Tier, Dir),
@@ -78,7 +82,9 @@ ix_surface(Rows) :-
               member(Rel-Abs, Files),
               ix_surface_row(Tier, Dir, Rel, Abs, Row)
             ),
-            Rows).
+            PlRows),
+    ix_module_rows(ModRows),
+    append(PlRows, ModRows, Rows).
 
 %% Sorted by name within a directory, which is what os.listdir + sorted gave.
 ix_pl_files(Dir, Files) :-
@@ -121,7 +127,7 @@ ix_surface_row(Tier, _Dir, Rel, Abs, json(Row)) :-
     ;   atomic_list_concat([':- use_module(library(', Mod, ')).'], Import)
     ),
     atom_codes(HeaderA, Header),
-    Row = [ path-Rel, module-Mod, tier-Tier, import-Import,
+    Row = [ path-Rel, module-Mod, tier-Tier, kind-pl, import-Import,
             header-HeaderA, header_bytes-HB, documented-Doc, heads-NH ].
 
 %% The leading run of %% lines: the file's own account of itself. Ends at the
@@ -161,21 +167,47 @@ ix_skip_blank(L, L).
 %% name must be one the file DEFINES, or prose about a predicate that does not
 %% exist here would enter the index as one that does.
 
-ix_documented(Src, Heads, Doc) :-
+ix_documented(Src, Heads, Doc) :- ix_documented(Src, "%%", Heads, Doc).
+
+%% THE MARKER IS AN ARGUMENT because a module's is `;;', and a run of them:
+%% `;;;;' is one comment marker and not two, so the prefix is `;;' followed
+%% by however many more the file writes. Everything after it -- the optional
+%% quote, the name, the `/N', the `//N', the argument list read through
+%% clauses.pl -- is the same grammar for both kinds of file.
+ix_documented(Src, Marker, Heads, Doc) :-
     ix_lines(Src, Lines),
     findall(K,
             ( member(L, Lines),
               ix_rstrip(L, L1),
-              ix_doc_line(L1, Name, Arity),
+              ix_doc_line(Marker, L1, Name, Arity),
               atomic_list_concat([Name, '/', Arity], K),
-              memberchk(K, Heads)
+              ix_head_known(K, Name, Heads)
             ),
             Ks),
     sort(Ks, Doc).
 
+%% `name/*' IS A MATCH FOR `name/3', and only here. A strcmp chain records no
+%% arity -- shape 3 keys every name it finds as `name/*' -- so library(bigint)
+%% and library(tensorflow), whose C++ dispatchers are chains, would have
+%% answered "documents 0" over a header that lists their whole surface. What
+%% the wildcard confirms is that the module registers the NAME; the arity in
+%% the doc line is the header's word and nothing checks it, which is the
+%% chain's limit and is worth having over no check at all.
+ix_head_known(K, _, Heads) :- memberchk(K, Heads), !.
+ix_head_known(_, Name, Heads) :-
+    atom_concat(Name, '/*', Star),
+    memberchk(Star, Heads).
+
+ix_doc_prefix("%%", L, R) :- append("%%", R, L).
+ix_doc_prefix(";;", L, R) :- append(";;", R0, L), ix_semis(R0, R).
+
+ix_semis([0';|T], R) :- !, ix_semis(T, R).
+ix_semis(L, L).
+
+%% The Python it replaced, with `^%%' where the marker is now an argument:
 %% `^%%\\s+'?([a-z_$][A-Za-z0-9_]*)'?\\s*(?:/(\\d+)|//(\\d+)|\\(([^)]*)\\))'
-ix_doc_line(L, Name, Arity) :-
-    append("%%", R0, L),
+ix_doc_line(Marker, L, Name, Arity) :-
+    ix_doc_prefix(Marker, L, R0),
     ix_ws1(R0, R1),
     ix_opt_quote(R1, R2),
     ix_name(R2, NameCs, R3),
@@ -230,6 +262,106 @@ ix_heads(Abs, Keys) :-
     ;   Keys = []
     ).
 
+%% ---- the loadable modules ------------------------------------------------
+%%
+%% TIER 2 HAS TWO KINDS AND A CALLER CANNOT TELL THEM APART. `library(json)'
+%% is a .pl on the library path; `library(tcp)' is a .so dlopen'd from
+%% modules/tcp; both are one `use_module' and neither says which it is. The
+%% index had rows for the first kind only -- so a request routed to torch,
+%% tcp or tensorflow reached the model with its NAMES, out of the blocklist
+%% in block D, and not one line saying what any of them is for. Fifteen
+%% modules, and half the tree's capability table pointed at them.
+%%
+%% A MODULE'S HEADER IS THE SAME KIND OF DOCUMENT, in the same voice; the
+%% comment marker is Lisp's, and `;;;;' is `%%'. It is the .cicili's, not the
+%% README's: modules/torch and modules/tensorflow each carry seventeen
+%% kilobytes of README, which is the right size for a reader and four times
+%% the budget of a prompt block. What the index serves is the file's own
+%% account of itself, as it does for a library.
+%%
+%% ITS HEADS COME FROM build.pl'S OWN SHAPES, not from a second reader. A
+%% module registers what it defines in a ("name" arity fn) table, in a
+%% `*X-prolog*' half, or in the strcmp chain a C++ target dispatches on --
+%% shapes 1, 2 and 3 of the blocklist -- so "does this module really define
+%% the name its header documents" is answered by the code that already
+%% answers it for the linter. tool.sh consults build.pl beside this file for
+%% exactly that, and the alternative was a fourth scanner over the same
+%% three shapes.
+
+ix_module_rows(Rows) :-
+    ix_module_dirs(Dirs0),
+    sort(Dirs0, Dirs),
+    findall(Row,
+            ( member(Name, Dirs),
+              ix_module_file(Name, Rel, Abs),
+              ix_module_row(Name, Rel, Abs, Row)
+            ),
+            Rows).
+
+%% modules/NAME/*.cicili, MINUS sdk.cicili -- which is a symlink into lib/,
+%% the API every module is written against and not one of them. A directory
+%% with no .cicili of its own is skipped rather than reported: `modules/' is
+%% a place a checkout may leave a stray directory.
+ix_module_file(Name, Rel, Abs) :-
+    atomic_list_concat(['modules/', Name], Dir),
+    ix_path(Dir, Full),
+    atomic_list_concat([Full, '/*.cicili'], Pattern),
+    expand_file_name(Pattern, Es0),
+    sort(Es0, Es),
+    findall(A, ( member(A, Es), ix_basename(A, B), B \== 'sdk.cicili' ), [Abs|_]),
+    ix_basename(Abs, Base),
+    atomic_list_concat([Dir, '/', Base], Rel).
+
+ix_module_row(Name, Rel, Abs, json(Row)) :-
+    read_file_to_codes(Abs, Src),
+    ix_cc_header(Src, Header),
+    length(Header, HB),
+    ix_module_heads(Abs, Heads),
+    length(Heads, NH),
+    ix_documented(Src, ";;", Heads, Doc),
+    atomic_list_concat([':- use_module(library(', Name, ')).'], Import),
+    atom_codes(HeaderA, Header),
+    Row = [ path-Rel, module-Name, tier-2, kind-so, import-Import,
+            header-HeaderA, header_bytes-HB, documented-Doc, heads-NH ].
+
+%% The leading run of `;;' lines, after any blank ones above it -- one file
+%% starts with an empty line -- and it STOPS AT A BLANK. A .pl header's own
+%% blank lines are `%%' lines and stay inside the block; a .cicili's are
+%% empty, and the first of them is the end of the intro and the beginning of
+%% the section banners.
+ix_cc_header(Src, Header) :-
+    ix_lines(Src, Lines),
+    ix_skip_blank_lines(Lines, Rest),
+    ix_cc_take(Rest, [], Kept),
+    ix_unlines_nolast(Kept, Header).
+
+ix_skip_blank_lines([L|T], R) :- ix_blank(L), !, ix_skip_blank_lines(T, R).
+ix_skip_blank_lines(L, L).
+
+ix_cc_take([], Acc, Out) :- !, reverse(Acc, Out).
+ix_cc_take([L|Ls], Acc, Out) :-
+    (   append(";;", _, L)
+    ->  ix_cc_take(Ls, [L|Acc], Out)
+    ;   reverse(Acc, Out)
+    ).
+
+%% SHAPES 1, 2 AND 3 OVER THE ONE FILE, which is what a module is. Three and
+%% not two: a C++ target dispatches on a strcmp chain rather than a
+%% ("name" arity fn) table -- torch, tensorflow and bigint all do -- and with
+%% shape 3 left out those three answered zero heads, which would have read as
+%% "documents nothing" when the truth is "counted nothing". A shape-3 name
+%% carries no arity and is keyed `name/*', so it will not match a doc line
+%% that names one; that is a limit of the chain, not of the header, and it is
+%% why torch's own count is the low one.
+ix_module_heads(Abs, Keys) :-
+    (   catch(( bd_shape1([Abs], P1),
+                bd_shape2([Abs], P2),
+                bd_shape3([Abs], P3) ), _, fail)
+    ->  findall(K, ( member(K-_, P1) ; member(K-_, P2) ; member(K-_, P3) ), Ks),
+        sort(Ks, Keys)
+    ;   Keys = []
+    ).
+
 %% ---- the exemplars, by capability tag ------------------------------------
 %%
 %% Seven rows, from DESIGN.md section 9.1. A row with no span is the WHOLE
@@ -250,6 +382,8 @@ ix_exemplar('cross-process', 'tutorials/library/34-kbs.pl',
   'goals as terms, marker-line verdicts, the honest-skip idiom').
 ix_exemplar('bulk KB write', 'coworker/balancer/worker.pl',
   'chunk, then the completion mark, in one turn; every clause ends in a cut because consult appends').
+ix_exemplar('tensor program', 'tutorials/library/39-tensor-expr.pl',
+  'the whole of how a tensor program is written here: the two op/3 directives the file must declare ITSELF because a library cannot lend its operators upward, `:=\' running an expression as the list of goals it stands for, `::=\' for a function of the program\'s own, and a procedure as a DCG rule whose output list is what it made. Every network under tutorials/tensor is this shape').
 
 ix_span('parser: dispatch',
         'json_emit(V, _, _) --> { var(V) }',
@@ -370,7 +504,9 @@ ix_record_stdout(Rel, Got, Absent) :-
 %% HAND-WRITTEN AND VALIDATED, which is the whole of section 9.2's argument
 %% against embeddings: what retrieval would serve here is an exact-match
 %% problem over a few dozen documents with one hand-labelled topic each, not a
-%% similarity problem. Twenty-one rows fit on a page and every path is checked.
+%% similarity problem. Twenty-three rows fit on a page and every path is
+%% checked -- and ix_unrouted below says which library no row reaches, which
+%% is the half a hand-written table cannot check about itself.
 
 ix_capability('JSON', [json, serialise, serialize, 'api payload'],
               [json], ['parser: dispatch'], local).
@@ -403,8 +539,10 @@ ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
 ix_capability('big integers', [bignum, 'big integer', 'arbitrary precision', rsa],
               [bigint], ['tier-2 library'], local).
-ix_capability('tensors or a model', [tensor, neural, train, torch, model],
-              [torch], ['self-checking program'], local).
+ix_capability('tensors or a model',
+              [tensor, neural, train, torch, model, tensorflow, gpu, cuda,
+               gradient, network, 'tensor expression'],
+              [torch, tensor_expr, tensorflow], ['tensor program'], local).
 ix_capability('a language model', [llm, chat, prompt, completion, openai, anthropic],
               [llm, curl, json], ['tier-2 library'], local).
 ix_capability('files and paths', [file, directory, path, 'read a file'],
@@ -415,6 +553,11 @@ ix_capability('the operating system', [platform, 'which os', cpus, 'temp dir', e
               [os], ['self-checking program'], local).
 ix_capability('assert and retract', [assert, retract, remember, counter, mutable],
               [], ['assert/retract'], local).
+ix_capability('a command line', [argv, 'command line', flag, option, usage, script],
+              [main], ['self-checking program'], local).
+ix_capability('a window or a game', [draw, game, window, sprite, raylib, graphics,
+                                     '2d', '3d', keyboard, mouse],
+              [ray], ['self-checking program'], local).
 
 ix_capabilities(Rows) :-
     findall(json([topic-T, words-W, libraries-L, exemplars-E, arrangement-A]),
@@ -537,6 +680,9 @@ ix_main :-
 ix_report(Surf, Exs) :-
     findall(R, ( member(json(R), Surf), memberchk(tier-2, R) ), T2),
     length(T2, NT2),
+    findall(R, ( member(R, T2), memberchk(kind-so, R) ), Mods),
+    length(Mods, NMod),
+    NPl is NT2 - NMod,
     length(Surf, NAll),
     NT1 is NAll - NT2,
     ix_sum(T2, header_bytes, HB),
@@ -548,8 +694,8 @@ ix_report(Surf, Exs) :-
     length(Rs, NRan),
     length(Exs, NEx),
     findall(1, ix_capability(_, _, _, _, _), Cs), length(Cs, NCap),
-    format("surface : ~w tier-2 libraries, ~w KB of header, ~w documented of ~w heads~n",
-           [NT2, KB, NDoc, HD]),
+    format("surface : ~w tier-2 libraries and ~w loadable modules, ~w KB of header, ~w documented of ~w heads~n",
+           [NPl, NMod, KB, NDoc, HD]),
     format("          ~w tier-1 vendored libraries~n", [NT1]),
     format("exemplar: ~w rows, ~w with recorded stdout, all anchors matched once~n",
            [NEx, NRan]),
@@ -557,7 +703,27 @@ ix_report(Surf, Exs) :-
     ix_thin(Surf, Thin),
     forall(member(m(Mod, ND, NH), Thin),
            format("thin    : library(~w) documents ~w of ~w heads -- its header has no signature list, so the index cannot offer a surface for it~n",
-                  [Mod, ND, NH])).
+                  [Mod, ND, NH])),
+    ix_unrouted(Surf, Un),
+    forall(member(U, Un),
+           format("unrouted: library(~w) ships and no capability row names it -- nothing a reader asks for can route to it~n",
+                  [U])).
+
+%% A tier-2 library the topic table does not name.
+%%
+%% NOT A BUILD FAILURE, A REPORT, for ix_thin's reason and one of its own: a
+%% row is a judgement about ENGLISH -- which words should reach this library
+%% -- and a builder cannot make one up. What it can do is notice.
+%%
+%% FOUR WERE UNROUTED WHEN THIS WAS WRITTEN and not one was a decision.
+%% library(tensor_expr) and library(tensorflow) arrived after the table did;
+%% library(main) and library(ray) were simply missed on the day it was
+%% written, which is why this is a standing check and not a sweep.
+ix_unrouted(Surf, Names) :-
+    findall(M, ( member(json(R), Surf),
+                 memberchk(tier-2, R), memberchk(module-M, R) ), Mods),
+    findall(L, ( ix_capability(_, _, Ls, _, _), member(L, Ls) ), Named),
+    findall(M, ( member(M, Mods), \+ memberchk(M, Named) ), Names).
 
 ix_sum(Rows, Key, Sum) :-
     findall(V, ( member(R, Rows), memberchk(Key-V, R) ), Vs),

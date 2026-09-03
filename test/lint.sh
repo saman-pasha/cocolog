@@ -21,7 +21,7 @@
 #      blocklist still matches what the running store says
 #
 # A FINDING IN 5 IS A LINTER BUG UNTIL SHOWN OTHERWISE, which is the point of
-# calibrating against code known to work. The seventeen that survived are
+# calibrating against code known to work. The twenty-two that survived are
 # listed below with the argument for each.
 #
 #   sh test/lint.sh
@@ -144,9 +144,9 @@ SELF=$(sh "$AGENT/lint.sh" "$AGENT/selftest/traps.pl" 2>&1)
 GOT=$(echo "$OUT" | sed -nE 's/^([^ :]+):[0-9]+:[0-9]+ (HARD|WARN) ([A-Z0-9]+) (\[[A-Z0-9]+\] )?.*/\1 \2 \3 \4/p' \
       | sed 's/ *$//' | sort)
 
-# ---- the nineteen, and why each is kept rather than silenced -------------
+# ---- the twenty-two, and why each is kept rather than silenced -----------
 #
-# TWELVE OF THE NINETEEN ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
+# FOURTEEN OF THE TWENTY-TWO ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
 # ENFORCES, which is the most satisfying kind of true positive there is --
 # and a standing argument that the rules point at real divergences, because
 # somebody thought each one worth a lesson:
@@ -188,7 +188,7 @@ GOT=$(echo "$OUT" | sed -nE 's/^([^ :]+):[0-9]+:[0-9]+ (HARD|WARN) ([A-Z0-9]+) (
 # edited:
 #
 #   29-ray, 30-hex, 31-astar  S1 [H1]  their must/3 calls halt(1) on the
-#                       failure branch where the other 44 tutorials fail.
+#                       failure branch where the other 48 tutorials fail.
 #                       The exit code coincides, so it works; what it costs is
 #                       the remaining checks and any stdout not yet flushed --
 #                       the failure mode CLAUDE.md records under flush_output.
@@ -199,9 +199,27 @@ GOT=$(echo "$OUT" | sed -nE 's/^([^ :]+):[0-9]+:[0-9]+ (HARD|WARN) ([A-Z0-9]+) (
 #                       process, 8020 does not, and the writing process exits
 #                       0 with empty stderr both times.
 #
-# AND THREE ARE NO-OP IMPORTS already named in CLAUDE.md:
+# THREE ARE NO-OP IMPORTS already named in CLAUDE.md:
 #
 #   26-x509, 27-ca, library/astar.pl  T1  use_module for a tier-1 library.
+#
+# AND ONE IS AN EXTENSION POINT THAT IS NOT DECLARED AS ONE:
+#
+#   39-tensor-expr  N1  defines expr//2, which library(tensor_expr) also
+#                       defines -- ON PURPOSE. The grammar is open to a file's
+#                       own clauses and the lesson is exactly that: one line
+#                       of the tutorial adds `double(A)' to it. N1 is right
+#                       about the mechanism -- consult APPENDS, so the two
+#                       sets merge and which is tried first depends on how the
+#                       file is run -- and it is harmless HERE only because
+#                       every clause of the library's grammar cuts on a
+#                       different functor, so `double(A)' reaches the file's
+#                       clause either way. A library that wanted this excused
+#                       would DECLARE the hook the way library(httpd) declares
+#                       httpd_page/3, `H :- fail.', which the blocklist's
+#                       shape 4 excuses in both halves. library(tensor_expr)
+#                       does not, so the finding stands and is pinned; that is
+#                       the owner's call to make, not the linter's.
 EXPECT=$(cat <<'EOF'
 library/astar.pl WARN T1
 tutorials/basics/04-arithmetic.pl WARN A1 [A2]
@@ -224,6 +242,7 @@ tutorials/library/36-llm.pl WARN Z1 [Z1]
 tutorials/library/37-lint.pl HARD S1 [H1]
 tutorials/library/37-lint.pl HARD S1 [H1]
 tutorials/library/38-main.pl HARD S1 [P1]
+tutorials/library/39-tensor-expr.pl HARD N1
 EOF
 )
 

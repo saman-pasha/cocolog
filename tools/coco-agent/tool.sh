@@ -16,6 +16,12 @@
 # clauses.pl or card.pl beside them. Where a tool stands alone -- trace-diff --
 # test/trace.sh calls it with `-s' directly and does not come through here.
 #
+# `index' takes build.pl as well, and that is not a convenience: a module's
+# surface row has to say which names the module really registers, and the two
+# shapes that answer that -- the ("name" arity fn) table and the *X-prolog*
+# half -- are already written, in build.pl, for the blocklist. Consulting them
+# is what stops a third scanner over the same two shapes existing.
+#
 # Exits with the tool's own status: 1 when the goal fails, which is how a
 # failing check reaches the shell.
 
@@ -32,7 +38,7 @@ shift
 case "$TOOL" in
   build)    FILES="$HERE/clauses.pl $HERE/build.pl";                       GOAL=bd_main ;;
   card)     FILES="$HERE/card.pl";                                        GOAL=cd_main ;;
-  index)    FILES="$HERE/clauses.pl $HERE/index.pl";                      GOAL=ix_main ;;
+  index)    FILES="$HERE/clauses.pl $HERE/build.pl $HERE/index.pl";       GOAL=ix_main ;;
   assemble) FILES="$HERE/clauses.pl $HERE/index.pl $HERE/card.pl $HERE/assemble.pl"
             GOAL=as_main ;;
   *) echo "coco-agent: no tool named $TOOL" >&2; exit 2 ;;
