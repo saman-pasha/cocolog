@@ -188,6 +188,25 @@ check "and handle 1 returned through the head is kept, with its shape" \
   "1-[1]"
 
 echo
+echo "-- use_module lends the library's operators to the file that names it"
+# The operator table is the process's, and a library's `:- op' reached a
+# file only when the library's clauses were consulted -- at the first goal,
+# after the file had been read whole -- so every tensor program opened with
+# the library's three declarations copied out. The load applies them as the
+# directive runs now. This file writes `:=' and `matmul' with no op/3 of its
+# own, and is consulted by `run', which is how a program is read.
+LD=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-lend-XXXXXX")
+cat > "$LD/lent.pl" <<'PL'
+:- use_module(library(torch)).
+:- use_module(library(tensor_expr)).
+lent(L) :- X := [[1.0, 2.0]] matmul [[3.0], [4.0]], L := list(X).
+PL
+check "a file with no op/3 of its own reads := and matmul after use_module" \
+  "$(timeout 120 "$C" --local run "$LD/lent.pl" "lent(L), write(answer(L)), nl" 2>&1 | grep -aoE 'answer\(.*\)' | head -1 | sed 's/^answer(//; s/)$//')" \
+  "[[11.0]]"
+rm -rf "$LD"
+
+echo
 if [ "$failures" -eq 0 ]; then
   echo "GREEN: 0 failure(s)"
 else

@@ -72,9 +72,6 @@
 :- use_module(library(torch)).
 % :- use_module(library(tensorflow)).   % the second backend; tensor_execution(tensorflow, Mode, Device) loads it on demand
 :- use_module(library(tensor_expr)).
-:- op(700, xfx, :=).
-:- op(700, xfx, ::=).
-:- op(400, yfx, matmul).
 
 %% ---- the corpus, byte for byte lesson 25's --------------------------------
 chunk(1, 'parent(tom, bob).\nparent(tom, liz).\nparent(bob, ann).\nparent(bob, pat).\nparent(pat, jim).\nmale(tom).   male(bob).   male(jim).\nfemale(liz). female(ann). female(pat).\ngrandparent(X, Z) :- parent(X, Y), parent(Y, Z).\ngrandfather(X, Z) :- grandparent(X, Z), male(X).\nsibling(A, B) :- parent(P, A), parent(P, B), A \\== B.\nmain :-\n    ( parent(tom, bob) -> R1 = yes ; R1 = no ),\n    must(\'parent(tom, bob)\', R1, yes),\n    ( parent(bob, tom) -> R2 = yes ; R2 = no ),\n    must(\'parent(bob, tom)\', R2, no),\n    format("~n-- leav').

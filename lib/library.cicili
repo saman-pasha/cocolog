@@ -383,6 +383,47 @@
                        (return 0))))
           (return 1)))
 
+  ;;; ---- lending the operators -------------------------------------------
+  ;;;
+  ;;; A LIBRARY LENDS ITS OPERATORS TO THE FILE THAT NAMES IT. The table
+  ;;; `op/3' writes is the process's, so a library's `:- op' would reach
+  ;;; the importing file on its own -- except for WHEN it runs: a library's
+  ;;; clauses are consulted at the first goal, after the file naming it has
+  ;;; been read whole, and a clause parsed before its operator existed was
+  ;;; parsed wrong or refused. Every tensor program therefore opened with
+  ;;; the library's own three `:- op' lines, copied. So the load reads the
+  ;;; library's text once here, for its `:- op(P, T, N)' directives only,
+  ;;; and applies each as it is met -- in order, since a later one may
+  ;;; need an earlier one to read -- and the rest of the importing file
+  ;;; parses with them. The ask-time consult applies them again, which is
+  ;;; the same definition twice and changes nothing.
+  ;;;
+  ;;; Every other directive is skipped: a `use_module' inside the library
+  ;;; is not followed, so a library lends what it declares, not what it
+  ;;; borrowed. A clause the reader cannot take ends the walk -- what was
+  ;;; lent before it stands, and the consult that follows names the line.
+  ;;; The heap is wound back a clause at a time, as coco_consult winds it.
+  (static)
+  (func lb_lend_ops ((coco_machine * m) (const char * text)) (out int)
+        (if (== text nil) (return 0))
+        (let ((coco_reader r) (size_t t . 0) (int rc . 1) (int n . 0)
+              (size_t mark . 0) (char err [128]))
+          (coco_reader_init (aof r) m text)
+          (while (== rc 1)
+            (set mark (-> m heap_len))
+            (set rc (coco_read_clause (aof r) (aof t)))
+            (if (== rc 1)
+                (let ((size_t c . #'(coco_deref m t)))
+                  (if (and (coco_is_callable m c) (== (coco_arity m c) 1)
+                           (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) ":-")))
+                      (let ((size_t d . #'(coco_deref m (coco_arg m c 0))))
+                        (if (and (coco_is_callable m d) (== (coco_arity m d) 3)
+                                 (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "op")))
+                            (if (coco_op_apply m d err 128) (set n (+ n 1))))))))
+            (set (-> m heap_len) mark))
+          (coco_reader_free (aof r))
+          (return n)))
+
   ;;; ---- resolution ------------------------------------------------------
 
   (func coco_library_load ((coco_store * st) (coco_machine * m)
@@ -419,9 +460,12 @@
               (block (snprintf err errlen "use_module wants library(Name) or a file atom")
                      (return 0))))
 
-          ;; 1. already registered, by name
+          ;; 1. already registered, by name -- and its operators lent again,
+          ;; because a second file naming it is being read now
           (if (!= (coco_module_find name) nil)
               (block
+               (let ((const coco_module * mod . #'(coco_module_find name)))
+                 (lb_lend_ops m (-> mod prolog)))
                (if (!= e nil) (coco_module_load st m e))
                (return 1)))
 
@@ -451,6 +495,10 @@
           (if (== kind 1)
               (block (if (not (lb_load_so path err errlen)) (return 0)))
             (block (if (not (lb_load_pl path name err errlen)) (return 0))))
+
+          ;; its operators, for the rest of the file being read
+          (let ((const coco_module * mod . #'(coco_module_find name)))
+            (if (!= mod nil) (lb_lend_ops m (-> mod prolog))))
 
           ;; the freshly registered clauses, into THIS store now when an
           ;; engine is running the goal; a directive leaves them for the

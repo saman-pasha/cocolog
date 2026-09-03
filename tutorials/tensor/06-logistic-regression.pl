@@ -25,9 +25,6 @@
 :- use_module(library(torch)).
 % :- use_module(library(tensorflow)).   % the second backend; tensor_execution(tensorflow, Mode, Device) loads it on demand
 :- use_module(library(tensor_expr)).
-:- op(700, xfx, :=).
-:- op(700, xfx, ::=).
-:- op(400, yfx, matmul).
 
 %% ---- the data ---------------------------------------------------------------
 %% Deterministic noise in (-1, 1), the sin-hash; every predicate ends in a

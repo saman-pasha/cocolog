@@ -9,21 +9,20 @@
 %% of tensor goals it stands for -- a DCG, expr//2, does the turning, and
 %% `:=' runs the list. The lesson here is the mechanism, in four claims:
 %% an expression is a list of goals; the list is a program; a float is a
-%% number and an integer is a handle; and the operators are declared where
-%% they are read. The networks built with it are tutorials/tensor/31 on.
+%% number and an integer is a handle; and the operators come with the
+%% library. The networks built with it are tutorials/tensor/31 on.
 %%
-%% THE OPERATORS ARE DECLARED HERE, in the file that uses them: cocolog's
-%% reader applies op/3 to the file it is reading, and a library's clauses
-%% are consulted after the file naming it has been read, so a library cannot
-%% lend its operators to the file above it. Two lines, before the first
-%% clause that writes an expression.
+%% THE OPERATORS ARE NOT DECLARED HERE. cocolog's reader applies op/3 to
+%% the file it is reading, and a library's clauses are consulted after the
+%% file naming it has been read -- so for a long time every file like this
+%% one opened with the library's three `:- op' lines copied out, because a
+%% library could not lend its operators upward. use_module lends them now,
+%% as the directive runs: `:=', `::=' and `matmul' read from the line after
+%% it, and this file declares none.
 
 :- use_module(library(torch)).
 % :- use_module(library(tensorflow)).   % the second backend; tensor_execution(tensorflow, Mode, Device) loads it on demand
 :- use_module(library(tensor_expr)).
-:- op(700, xfx, :=).
-:- op(700, xfx, ::=).
-:- op(400, yfx, matmul).
 
 %% two functions of this file's own: one DEFINED, one a clause of the grammar itself
 square_error(A, B) ::= (A - B) ^ 2.0.

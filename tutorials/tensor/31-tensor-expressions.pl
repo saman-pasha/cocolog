@@ -58,9 +58,6 @@
 %% clause. The functional forms -- relu(X), mean(X) -- need nothing.
 
 :- use_module(library(tensor_expr)).
-:- op(700, xfx, :=).
-:- op(700, xfx, ::=).
-:- op(400, yfx, matmul).
 
 %% ---- the program: tutorial 30's plane, six rows, one expression per step ---
 %% THE LOSS IS A DEFINED FUNCTION: a clause `Head ::= Body', used by name in

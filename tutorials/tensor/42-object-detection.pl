@@ -49,9 +49,6 @@
 :- use_module(library(tensor_expr)).
 :- use_module(library(process)).
 :- use_module(library(os)).
-:- op(700, xfx, :=).
-:- op(700, xfx, ::=).
-:- op(400, yfx, matmul).
 
 %% ---- the shape of the problem ---------------------------------------------------
 %% Every predicate here ends in a cut: a `run' consults this file into the

@@ -383,7 +383,7 @@ ix_exemplar('cross-process', 'tutorials/library/34-kbs.pl',
 ix_exemplar('bulk KB write', 'coworker/balancer/worker.pl',
   'chunk, then the completion mark, in one turn; every clause ends in a cut because consult appends').
 ix_exemplar('tensor program', 'tutorials/library/39-tensor-expr.pl',
-  'the whole of how a tensor program is written here: the two op/3 directives the file must declare ITSELF because a library cannot lend its operators upward, `:=\' running an expression as the list of goals it stands for, `::=\' for a function of the program\'s own, and a procedure as a DCG rule whose output list is what it made. Every network under tutorials/tensor is this shape').
+  'the whole of how a tensor program is written here: no op/3 of its own, since use_module lends the library\'s operators to the file naming it, `:=\' running an expression as the list of goals it stands for, `::=\' for a function of the program\'s own, and a procedure as a DCG rule whose output list is what it made. Every network under tutorials/tensor is this shape').
 
 ix_span('parser: dispatch',
         'json_emit(V, _, _) --> { var(V) }',

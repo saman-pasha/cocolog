@@ -9,15 +9,18 @@
 %%
 %%     L := mean((X matmul W + B - Y) ^ 2.0)
 %%
-%% THE OPERATORS ARE DECLARED WHERE THEY ARE READ. cocolog's reader applies
-%% op/3 to the file it is reading, so a file that writes expressions declares
-%% the two it needs itself, before its first clause:
+%% THE OPERATORS COME WITH THE LIBRARY. cocolog's reader applies op/3 to the
+%% file it is reading, and use_module lends a library's `:- op' directives to
+%% the file that names it as the directive runs -- so a file that writes
+%% expressions declares nothing: after
 %%
-%%     :- op(700, xfx, :=).
-%%     :- op(400, yfx, matmul).
+%%     :- use_module(library(tensor_expr)).
 %%
-%% and any of the prefix ones it likes (`:- op(200, fy, relu).' lets it write
-%% `relu X'); the functional forms `relu(X)', `mean(X)' need no declaration.
+%% `:=', `::=', `matmul' and the prefix forms below read from the next line
+%% on. (Every tensor program used to open with those three declared again,
+%% because the lend is newer than they are.) A file may still add its own,
+%% before its first clause: `:- op(200, fy, softmax).' lets it write
+%% `softmax X'. The functional forms `relu(X)', `mean(X)' need no operator.
 %%
 %% THE FORMS.  A FLOAT IS A NUMBER, AN INTEGER IS A HANDLE (a handle is one).
 %%
@@ -31,7 +34,7 @@
 %%   step(W, G, LR)         W - LR*G as a NEW leaf -- a function, not a `-': a step makes a parameter, not a node
 %%   glorot(R, C)           randn([R, C]) scaled by sqrt(2/(R+C)); wrap it in parameter(...)
 %%   loss(X, Y, W, B)       A FUNCTION THE PROGRAM DEFINED, `loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0)':
-%%                          a clause, Head ::= Body, used by name in any expression (declare `:- op(700, xfx, ::=)')
+%%                          a clause, Head ::= Body, used by name in any expression (`::=' is lent with the rest)
 %%
 %% AND THE COMPOSITES, each a helper goal that reads the shapes it needs when it runs:
 %%
