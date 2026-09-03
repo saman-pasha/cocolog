@@ -57,6 +57,8 @@ modules/os/os.c
 modules/os/sdk.cicili
 modules/numpy/numpy.c
 modules/numpy/sdk.cicili
+modules/opencv/coco-opencv.cpp
+modules/opencv/sdk.cicili
 modules/bigint/coco-bigint.cpp
 modules/bigint/zigheaders
 modules/torch/coco-torch.cpp
@@ -98,3 +100,6 @@ __pycache__/
 
 # tutorial 42 downloads the Penn-Fudan pedestrians here: 54 MB of photographs, never in the repository
 tutorials/tensor/data/
+
+# the two dnn lessons fetch their models here (SqueezeNet 5 MB, YOLOv4-tiny 24 MB), never in the repository
+tutorials/opencv/models/

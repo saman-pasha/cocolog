@@ -1,10 +1,12 @@
 #!/bin/sh
-# EVERY TUTORIAL, ALL THREE CATEGORIES.
+# EVERY TUTORIAL, ALL FOUR CATEGORIES.
 #
 #   basics/   eleven files, one process each, goal `main'. No library, no
 #             database, no build flag.
-#   library/  forty-one files, one process each, goal `main'. Tier 2
+#   library/  forty-two files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
+#   opencv/   twenty-three files, one process each, goal `main', from the
+#             repo root; the dnn two end early without their models.
 #   tensor/   forty-two networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
 #             and judges it, predict reloads and answers.
@@ -73,6 +75,11 @@ if "$COCOLOG" query "use_module(library(numpy)), np_zeros([1], A), np_free(A)" >
 else
   HAVE_NUMPY=no
 fi
+if "$COCOLOG" query "use_module(library(opencv)), cv_new(1, 1, '8u', I), cv_free(I)" >/dev/null 2>&1; then
+  HAVE_OPENCV=yes
+else
+  HAVE_OPENCV=no
+fi
 
 failures=0
 skipped=0
@@ -108,6 +115,27 @@ for pl in "$ROOT"/tutorials/basics/[0-9]*.pl "$ROOT"/tutorials/library/[0-9]*.pl
     printf '%s\n' "$out" | tail -4 | sed 's/^/      /'
   fi
 done
+
+# ---- opencv: one process, goal `main', from the repo root ---------------
+# The photographs are ../tensor/42-detection-*.jpg by relative path, and
+# the two dnn lessons END EARLY with a notice when their models are not
+# downloaded, so the category is green offline.
+if [ "$HAVE_OPENCV" = no ]; then
+  skipped=$((skipped + 1))
+  echo "SKIP  opencv/ (23 tutorials, no opencv module)"
+else
+  for pl in "$ROOT"/tutorials/opencv/[0-9]*.pl; do
+    name=opencv/$(basename "$pl" .pl)
+    if out=$(cd "$ROOT" && timeout 600 "$COCOLOG" run "$pl" main 2>&1) \
+       && [ "$(printf '%s\n' "$out" | tail -1)" = done ]; then
+      echo "ok    $name"
+    else
+      failures=$((failures + 1))
+      echo "FAIL  $name"
+      printf '%s\n' "$out" | tail -4 | sed 's/^/      /'
+    fi
+  done
+fi
 
 # ---- torch: three processes and a store each --------------------------
 if [ "$HAVE_TORCH" = no ]; then

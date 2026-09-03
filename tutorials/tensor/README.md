@@ -1,6 +1,6 @@
 # Tensor: forty-two networks, one file each
 
-*One of three tutorial categories — `../basics/` is the language,
+*One of four tutorial categories — `../basics/` is the language,
 `../library/` is what ships, and this is the deep end.*
 
 Every file here is written in `library(tensor_expr)`, which is THE way to

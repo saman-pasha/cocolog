@@ -433,6 +433,9 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/der` | a **built** ZiguratIP | `sh modules/der/build.sh` |
 | `modules/x509` | a **built** ZiguratIP | `sh modules/x509/build.sh` |
 | `modules/tls` | a **built** ZiguratIP | `sh modules/tls/build.sh` |
+| `modules/ray` | raylib | `sh modules/ray/build.sh` |
+| `modules/numpy` | a python3 with numpy and a shared libpython | `sh modules/numpy/build.sh` |
+| `modules/opencv` | an OpenCV 4 with dnn (pkg-config `opencv4`) | `sh modules/opencv/build.sh` |
 
 `make modules` builds every one that can be built here and says SKIPPED,
 by name, for the rest. **None of them is part of `make`** — which is the
@@ -464,6 +467,25 @@ not the cause. And **every `.pl` that calls a moved predicate now needs
 the directive** — 27 tutorials, the coworkers, and the heredocs inside the
 tests. `tensor_*` belongs to torch as much as `torch_*` does, which a
 sweep looking only for the latter will miss.
+
+**A C++ LIBRARY BECOMES A MODULE ONE WAY, and it is the owner's standard.**
+The module is ONE Cicili file with `(make :cpp #t :compile #f)`. Every
+C++ call and every C++ type in it is a Cicili clause -- `(cv::imread path
+flags)`, `(($ m channels))`, `(letin* ((pts ((t<> std::vector
+cv::Point)))) …)`, `(try … (catch ((const cv::Exception & ex)) …))` --
+written against a DECLARATION BINDING under Cicili's `lib/cpp/<lib>/`,
+the shape `lib/cpp/torch` has: a package, an `init-macro` that declares
+what the module uses and emits nothing, imported inside the target. The
+SDK is declared raw in an `extern "C"` block first, and everything
+cocolog reaches -- `coco_library_entry`, the dispatcher -- sits in
+`(extern-c …)`. **Not C++ pasted into `(code "…")` lines, and not a
+`.cpp` beside the file**: `code` is the fire escape for the one thing
+Cicili cannot say (an operator overload, a macro), and a back end made of
+pasted C++ is a back end the front end cannot see. `modules/opencv` is
+the exemplar; `torch`, `bigint`, `sha`, `aes`, `der`, `x509` and `tls`
+predate the rule and carry their C++ as code lines still -- each is to be
+refactored to it, gated by its own suite case, when it is next touched.
+`doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the language.
 
 **WHAT A `build.sh` MAKES IS NEVER COMMITTED**, and every module
 directory here is the same shape: a `.cicili`, a `build.sh`, and output.
@@ -1168,7 +1190,7 @@ transaction and a machine is many rows).
 
 ## The tutorials are documentation that RUNS
 
-`tutorials/` has three categories and `test/tutorials.sh` runs all
+`tutorials/` has four categories and `test/tutorials.sh` runs all
 ninety-three files as one suite case:
 
 | | | needs |

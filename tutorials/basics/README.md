@@ -1,6 +1,6 @@
 # Basics: the language, eleven lessons
 
-*One of three tutorial categories — this is the language, `../library/`
+*One of four tutorial categories — this is the language, `../library/`
 is what ships, `../torch/` is the deep end.*
 
 Nothing here needs a library path, a database, or a build flag. A

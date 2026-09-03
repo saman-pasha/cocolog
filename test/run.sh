@@ -135,7 +135,7 @@ done
 #           certificate issued against ZiguratIP's sample authority,
 #           validated, signed with and checked -- 74 checks
 #   tutorials  all sixty-four tutorial files, as tests: eleven in
-#           `basics/' and forty-one in `library/' run their `main'
+#           `basics/' and forty-two in `library/' and twenty-three in `opencv/' run their `main'
 #           and must print `done', and forty-two in `tensor/' run
 #           train, test and predict as three processes against a store
 #           of their own. EVERY CLAIM IN basics/ AND library/ IS A
@@ -145,7 +145,7 @@ done
 #           The torch category SKIPs inside the case without libtorch
 #   groups  twelve interpreters sharing four machine STATES
 #   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-for c in files trace vacuum repl script tunnel reconsult tensors torch-graph torch-grad torch-replay tensorflow library bigint zigurat-lib tcp engine meter thread process text os kbs http curl ray numpy hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab lint argv string directives groups ruler; do
+for c in files trace vacuum repl script tunnel reconsult tensors torch-graph torch-grad torch-replay tensorflow library bigint zigurat-lib tcp engine meter thread process text os kbs http curl ray numpy opencv hex astar serialize httpd httpd-tls crypto tls zigurat-tls tutorials colab lint argv string directives groups ruler; do
   [ -n "$1" ] && [ "$1" != "$c" ] && continue
   printf '%-10s ' "$c"
   # `colab' reads the notebook and the scripts beside it and needs no binary,

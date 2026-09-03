@@ -130,13 +130,14 @@ test/                  the suite; groups.sh and ruler.sh are the concurrent
                        that raise real handshakes between real processes
 test/files/            Prolog programs run by BOTH swipl and cocolog, with
                        their output compared line for line
-tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
-                       every claim in the first two is a `must/3' that
+tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
+                       every claim outside tensor/ is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (forty-one, ONE PER LIBRARY that
+                       library/ (forty-two, ONE PER LIBRARY that
                        ships), tensor/ (forty-two networks, three
-                       processes each). `sh test/tutorials.sh'
+                       processes each), opencv/ (twenty-three lessons
+                       of image processing). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
                        variables and execution graphs drawn under the rules,
@@ -268,9 +269,9 @@ embedded engine links against the built ZiguratIP's `Core` and `StreamIO`,
 the torch module against libtorch, and a server is needed only when a run
 chooses the server arrangement.
 
-## Learning it: `tutorials/`, in three categories
+## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. Fifty-nine files, and `sh test/tutorials.sh`
+Documentation that RUNS. Ninety-nine files, and `sh test/tutorials.sh`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -308,7 +309,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — forty-one lessons, one per library that ships
+### `library/` — forty-two lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.

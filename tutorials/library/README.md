@@ -1,6 +1,6 @@
 # Library: one lesson per library that ships
 
-*One of three tutorial categories — `../basics/` is the language, this
+*One of four tutorial categories — `../basics/` is the language, this
 is what ships, `../tensor/` is the deep end.*
 
     COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/12-json.pl main
@@ -63,6 +63,7 @@ written anywhere in this repository.
 | 38-main | `library/main.pl` | a command line as terms: `main/0`, `argv_options/3`, and the `--` that separates a program's arguments from cocolog's | nothing |
 | 39-tensor-expr | `library/tensor_expr.pl` | tensor expressions over `library(torch)`: a DCG from an expression to the tensor goals it stands for, `:=` to run them, the composites and optimisers the torch tutorials from 31 on share | `sh modules/torch/build.sh` |
 | 40-numpy | `library/numpy.so` | numpy arrays as clauses: the C API behind integer handles, `.npy` files in C, and `np_store`/`np_fetch` into the knowledge base beside `np_save`/`np_load` to a file | a python3 with numpy |
+| 41-opencv | `opencv` | images as handles, a pipeline as a conjunction, an error in OpenCV's words; the doorway to `../opencv/`, twenty-three lessons |
 
 22 is the introduction to torch; `../tensor/` is the collection. 37 is the
 odd one out and says so in its header: cocolint is a TOOL under
@@ -75,7 +76,7 @@ path instead.
 **A new library gets a file here in the same commit.** The numbering is
 one per library and a gap is visible, which is the point: a library with
 no tutorial is a library nobody has demonstrated end to end. Each of the
-forty-one above found something while being written — a predicate that
+forty-two above found something while being written — a predicate that
 did not exist, an arity that was wrong, a return value documented as
 `-1/0/1` and actually `<`/`=`/`>`. 37 found an arithmetic slip in its own
 claim: it asserted that `halt' begins at offset 3 of `"x halt y"' and the

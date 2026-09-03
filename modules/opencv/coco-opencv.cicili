@@ -1,0 +1,1689 @@
+;;;; cocolog -- library(opencv): OpenCV as cocolog predicates -- images,
+;;;; processing, features, video, and the dnn module.
+;;;;
+;;;; WHAT THIS IS. An image is a handle -- an integer naming a slot in the
+;;;; module's table, as a tensor is in library(torch) -- and so is a
+;;;; network, a cascade, a video and a background subtractor. Every
+;;;; predicate is one OpenCV call on what the handles name, and answers
+;;;; what OpenCV answered: an image as a new handle, a number as a number,
+;;;; points and rectangles as lists of numbers, contours as lists of lists.
+;;;; Nothing is mutated except by the drawing predicates, cv_set/4,
+;;;; cv_flood_fill/3 and cv_watershed/2, which work ON the image they are
+;;;; given and say so.
+;;;;
+;;;; ONE FILE, ONE LANGUAGE. This is a Cicili :cpp target: the OpenCV calls
+;;;; are Cicili clauses -- (cv::GaussianBlur (cof m) out (cv::Size k k) 0.0),
+;;;; (($ net forward) name), (letin* ((pts ((t<> std::vector cv::Point2f))))
+;;;; ...) -- written against the declarations in cicili/lib/cpp/opencv, so
+;;;; the transpiler knows what a cv::Mat is and what its members answer,
+;;;; and the C++ compiler sees ordinary C++ with OpenCV's own headers. The
+;;;; only raw lines are the SDK's C prototypes inside extern "C", which is
+;;;; modules/README.md's rule for a :cpp module. A cv::Exception comes back
+;;;; as error(cocolog_error(...)) with OpenCV's own words; a bad argument as
+;;;; the same, saying which argument and what it had to be.
+;;;;
+;;;; WHAT CROSSES. A COLOR is [B, G, R] (OpenCV's order; one number is
+;;;; grey; a fourth is alpha), or a name cv_color/2 knows: red, green, blue,
+;;;; white, black, yellow, cyan, magenta, gray, orange, purple. A POINT is [X, Y]; POINTS are a list of
+;;;; them; a RECT is [X, Y, W, H]; a SIZE is [W, H]; a CONTOUR is points
+;;;; and CONTOURS a list of contours. A MATRIX is a list of rows, so a 2 by
+;;;; 3 affine is [[A, B, C], [D, E, F]]. A TYPE is 8u, 8uc3, 16u, 16s, 32s,
+;;;; 32f, 32fc2, 64f ... -- the depth and the channels. cv_to_list/2
+;;;; answers rows of pixels, each a list of channel values (or one value
+;;;; for a grey image), integers for integer depths and floats for float
+;;;; ones. A FLAG is an atom: gray, linear, otsu, rect, external ...
+;;;;
+;;;; A DNN OUTPUT IS AN IMAGE OF ANOTHER SHAPE: a blob is an N-dimensional
+;;;; Mat, and cv_shape/2 answers its dimensions in full; cv_to_list/2 nests
+;;;; them; cv_minmax/5 on a 1 by N output is the top class and its score,
+;;;; which cv_dnn_top/3 spells.
+;;;;
+;;;; THE SURFACE:
+;;;;
+;;;;   cv_version(-V)                                 OpenCV's own
+;;;;   cv_data_dir(-Dir)                              where the haarcascades are, or ''
+;;;;   cv_handles(-N)                                 live handles: the leak test
+;;;;   cv_imread(+Path, -Img)                         BGR, 8uc3
+;;;;   cv_imread(+Path, +Mode, -Img)                  color | gray | unchanged
+;;;;   cv_imwrite(+Path, +Img)                        by the suffix: .png .jpg .bmp .tif ...
+;;;;   cv_encode(+Ext, +Img, -Bytes)                  '.png' or '.jpg', as a list of byte values
+;;;;   cv_decode(+Bytes, -Img)
+;;;;   cv_new(+Rows, +Cols, +Type, -Img)              zeros
+;;;;   cv_new(+Rows, +Cols, +Type, +Color, -Img)      filled
+;;;;   cv_shape(+Img, -Shape)                         [Rows, Cols, Channels], or a blob's dimensions
+;;;;   cv_type(+Img, -Type)
+;;;;   cv_clone(+Img, -Img2)
+;;;;   cv_free(+Handle)                               any kind
+;;;;   cv_to_list(+Img, -Rows)
+;;;;   cv_from_list(+Rows, +Type, -Img)               rows of values or of channel lists
+;;;;   cv_convert(+Img, +Type, -Img2)                 the depth, values as they are
+;;;;   cv_convert(+Img, +Type, +Alpha, +Beta, -Img2)  V * Alpha + Beta, then the depth
+;;;;   cv_scale(+Img, +Factor, -Img2)
+;;;;   cv_get(+Img, +Row, +Col, -Value)               a number, or a list per channel
+;;;;   cv_set(+Img, +Row, +Col, +Value)               ON Img
+;;;;   cv_roi(+Img, +Rect, -Img2)                     a copy of the region
+;;;;   cv_paste(+Img, +Patch, +[X, Y])                ON Img: the patch copied in at X, Y
+;;;;   cv_split(+Img, -Channels)                      a list of grey images
+;;;;   cv_merge(+Channels, -Img)
+;;;;   cv_hconcat(+Imgs, -Img) / cv_vconcat(+Imgs, -Img)
+;;;;
+;;;;   cv_add/3 cv_sub/3 cv_mul/3 cv_div/3 cv_absdiff/3 cv_max/3 cv_min/3
+;;;;   cv_and/3 cv_or/3 cv_xor/3                      (+A, +B, -Out), saturating
+;;;;   cv_not(+A, -Out)
+;;;;   cv_add_scalar(+Img, +Color, -Out)
+;;;;   cv_pow(+Img, +P, -Out)
+;;;;   cv_add_weighted(+A, +Alpha, +B, +Beta, +Gamma, -Out)
+;;;;   cv_normalize(+Img, +Lo, +Hi, +Norm, -Out)      minmax | l1 | l2 | inf
+;;;;   cv_flip(+Img, +How, -Out)                      horizontal | vertical | both
+;;;;   cv_rotate(+Img, +Degrees, -Out)                90 | 180 | 270
+;;;;   cv_transpose(+Img, -Out)
+;;;;   cv_compare(+A, +B, +Op, -Mask)                 eq ne gt ge lt le
+;;;;   cv_in_range(+Img, +Lower, +Upper, -Mask)       colors
+;;;;   cv_mean(+Img, -Means)                          one per channel
+;;;;   cv_mean_std(+Img, -Means, -Stds)
+;;;;   cv_minmax(+Img, -Min, -Max, -MinLoc, -MaxLoc)  locations as [X, Y]
+;;;;   cv_sum(+Img, -Sums)
+;;;;   cv_count_nonzero(+Img, -N)
+;;;;   cv_seed(+N)                                    OpenCV's random generator
+;;;;   cv_noise(+Img, +Sigma, -Out)                   Gaussian noise added, saturating
+;;;;   cv_rand(+Rows, +Cols, +Type, +Lo, +Hi, -Img)   uniform
+;;;;   cv_colormap(+Gray, +Map, -Out)                 jet hot bone viridis inferno turbo
+;;;;   cv_kmeans(+Img, +K, -Quantized)                colour quantisation
+;;;;   cv_kmeans_points(+Pts, +K, -Labels, -Centers)
+;;;;   cv_dft(+Img, -Complex)                         32fc2
+;;;;   cv_spectrum(+Img, -Img2)                       log magnitude, quadrants swapped, 32f
+;;;;
+;;;;   cv_cvt_color(+Img, +Code, -Out)                bgr2gray gray2bgr bgr2rgb bgr2hsv hsv2bgr bgr2lab lab2bgr
+;;;;                                                  bgr2ycrcb ycrcb2bgr bgr2hls hls2bgr bgr2luv luv2bgr bgr2xyz ...
+;;;;   cv_resize(+Img, +SizeOrFactor, -Out)           [W, H], or one number scaling both
+;;;;   cv_resize(+Img, +SizeOrFactor, +Interp, -Out)  nearest linear cubic area lanczos
+;;;;   cv_blur(+Img, +K, -Out)
+;;;;   cv_gaussian_blur(+Img, +K, +Sigma, -Out)
+;;;;   cv_median_blur(+Img, +K, -Out)
+;;;;   cv_bilateral(+Img, +D, +SigmaColor, +SigmaSpace, -Out)
+;;;;   cv_threshold(+Img, +T, +Max, +Type, -Out)      binary binary_inv trunc tozero tozero_inv otsu triangle
+;;;;   cv_threshold(+Img, +T, +Max, +Type, -Out, -Used)  the threshold otsu chose
+;;;;   cv_adaptive_threshold(+Img, +Max, +Method, +Type, +Block, +C, -Out)  mean | gaussian
+;;;;   cv_canny(+Img, +T1, +T2, -Edges)
+;;;;   cv_sobel(+Img, +Dx, +Dy, +K, -Out)             64f
+;;;;   cv_laplacian(+Img, +K, -Out)                   64f
+;;;;   cv_abs8u(+Img, -Out)                           |V| saturated to 8u
+;;;;   cv_morph(+Op, +Img, +K, +Shape, +Iterations, -Out)  erode dilate open close gradient tophat blackhat; rect ellipse cross
+;;;;   cv_find_contours(+Img, +Mode, +Method, -Contours)  external list ccomp tree; none simple
+;;;;   cv_contour_area(+Pts, -A)
+;;;;   cv_arc_length(+Pts, +Closed, -L)
+;;;;   cv_bounding_rect(+Pts, -Rect)
+;;;;   cv_min_area_rect(+Pts, -[[Cx, Cy], [W, H], Angle])
+;;;;   cv_min_enclosing_circle(+Pts, -[Cx, Cy], -R)
+;;;;   cv_approx_poly(+Pts, +Epsilon, +Closed, -Pts2)
+;;;;   cv_convex_hull(+Pts, -Hull)
+;;;;   cv_moments(+Pts, -[M00, M10, M01, M20, M11, M02, M30, M21, M12, M03])
+;;;;   cv_point_polygon_test(+Pts, +Pt, +Measure, -D)  +inside, -outside, 0 on
+;;;;   cv_fit_ellipse(+Pts, -[[Cx, Cy], [W, H], Angle])
+;;;;   cv_is_convex(+Pts)
+;;;;   cv_draw_contours(+Img, +Contours, +Index, +Color, +Thickness)  ON Img; -1 draws all
+;;;;   cv_hough_lines(+Edges, +Rho, +Theta, +Threshold, -[[Rho, Theta] ...])
+;;;;   cv_hough_lines_p(+Edges, +Rho, +Theta, +Threshold, +MinLen, +MaxGap, -[[X1, Y1, X2, Y2] ...])
+;;;;   cv_hough_circles(+Gray, +Dp, +MinDist, +P1, +P2, +MinR, +MaxR, -[[X, Y, R] ...])
+;;;;   cv_hist(+Img, +Channel, +Bins, -Counts)        over [0, 256)
+;;;;   cv_hist(+Img, +Channel, +Bins, +Lo, +Hi, -Counts)
+;;;;   cv_compare_hist(+H1, +H2, +Method, -D)         correl chisqr intersect bhattacharyya
+;;;;   cv_equalize_hist(+Gray, -Out)
+;;;;   cv_clahe(+Gray, +Clip, +Tiles, -Out)
+;;;;   cv_match_template(+Img, +Template, +Method, -Scores)  sqdiff sqdiff_normed ccorr ccorr_normed ccoeff ccoeff_normed
+;;;;   cv_rotation_matrix(+Center, +Angle, +Scale, -M)
+;;;;   cv_affine_transform(+Src3, +Dst3, -M)
+;;;;   cv_warp_affine(+Img, +M, +Size, -Out)
+;;;;   cv_perspective_transform(+Src4, +Dst4, -M)
+;;;;   cv_warp_perspective(+Img, +M, +Size, -Out)
+;;;;   cv_transform_points(+Pts, +M, -Pts2)           by a 3 by 3
+;;;;   cv_pyr_down(+Img, -Out) / cv_pyr_up(+Img, -Out)
+;;;;   cv_distance_transform(+Mask, -Out)             32f, L2
+;;;;   cv_watershed(+Img, +Markers)                   ON Markers, a 32s image
+;;;;   cv_connected_components(+Mask, -N, -Labels)
+;;;;   cv_flood_fill(+Img, +Seed, +Color)             ON Img
+;;;;   cv_filter2d(+Img, +Kernel, -Out)
+;;;;   cv_make_border(+Img, +Top, +Bottom, +Left, +Right, +Type, +Color, -Out)  constant replicate reflect wrap reflect101
+;;;;   cv_grabcut(+Img, +Rect, +Iterations, -Mask)    foreground inside the rectangle, 255 where it is
+;;;;   cv_corner_harris(+Gray, +Block, +K, +Kappa, -Out)
+;;;;   cv_good_features(+Gray, +Max, +Quality, +MinDist, -Pts)
+;;;;
+;;;;   cv_line(+Img, +P1, +P2, +Color, +Thickness)    ON Img, all of these
+;;;;   cv_rectangle(+Img, +Rect, +Color, +Thickness)  -1 fills
+;;;;   cv_circle(+Img, +Center, +R, +Color, +Thickness)
+;;;;   cv_ellipse(+Img, +Center, +Axes, +Angle, +Start, +End, +Color, +Thickness)
+;;;;   cv_polylines(+Img, +Pts, +Closed, +Color, +Thickness)
+;;;;   cv_fill_poly(+Img, +Pts, +Color)
+;;;;   cv_put_text(+Img, +Text, +Org, +Scale, +Color, +Thickness)
+;;;;   cv_text_size(+Text, +Scale, +Thickness, -[W, H])
+;;;;
+;;;;   cv_dnn_read(+Model, -Net)                      .onnx .pb .caffemodel .weights ... by suffix
+;;;;   cv_dnn_read(+Model, +Config, -Net)
+;;;;   cv_dnn_blob(+Img, +Scale, +Size, +Mean, +SwapRB, +Crop, -Blob)
+;;;;   cv_dnn_input(+Net, +Blob)
+;;;;   cv_dnn_forward(+Net, -Out)                     the first output layer
+;;;;   cv_dnn_forward(+Net, +Layer, -Out)
+;;;;   cv_dnn_outputs(+Net, -Outs)                    every unconnected output, in order
+;;;;   cv_dnn_layers(+Net, -Names)
+;;;;   cv_dnn_out_layers(+Net, -Names)
+;;;;   cv_dnn_time(+Net, -Ms)                         the last forward
+;;;;   cv_dnn_nms(+Rects, +Scores, +ScoreT, +NmsT, -Indices)
+;;;;
+;;;;   cv_cascade_load(+Path, -C)
+;;;;   cv_detect(+C, +Img, -Rects)
+;;;;   cv_detect(+C, +Img, +Scale, +MinNeighbors, +MinSize, -Rects)
+;;;;   cv_hog_people(+Img, -Rects)                    the default people detector
+;;;;   cv_qr_detect(+Img, -Text, -Corners)            fails when there is none
+;;;;   cv_qr_encode(+Text, -Img)
+;;;;
+;;;;   cv_features(+Kind, +Img, -Keypoints, -Descriptors)  orb sift akaze; [X, Y, Size, Angle, Response]
+;;;;   cv_match(+D1, +D2, +Norm, -[[Q, T, Dist] ...])  hamming | l2, sorted by distance; Q, T index the keypoints
+;;;;   cv_knn_match(+D1, +D2, +Norm, +K, -Matches)    a list per query point
+;;;;   cv_draw_keypoints(+Img, +Keypoints, +Color, -Out)
+;;;;   cv_find_homography(+Src, +Dst, +Threshold, -M)  RANSAC; fails when none
+;;;;   cv_find_homography(+Src, +Dst, +Threshold, -M, -Inliers)  one 0/1 per point
+;;;;
+;;;;   cv_denoise(+Img, +H, -Out)
+;;;;   cv_inpaint(+Img, +Mask, +Radius, -Out)
+;;;;   cv_detail_enhance(+Img, -Out) / cv_stylize(+Img, -Out)
+;;;;   cv_pencil_sketch(+Img, -Gray, -Color)
+;;;;   cv_merge_mertens(+Imgs, -Out)                  exposure fusion, 32f, about [0, 1]
+;;;;
+;;;;   cv_video_open(+Path, -V)
+;;;;   cv_video_read(+V, -Frame)                      fails at the end
+;;;;   cv_video_prop(+V, +Prop, -Value)               width height fps frames
+;;;;   cv_video_writer(+Path, +Fourcc, +Fps, +Size, -W)  'mp4v' 'MJPG' 'XVID' ...
+;;;;   cv_video_write(+W, +Img)
+;;;;   cv_bgsub_new(+Kind, -B)                        mog2 | knn
+;;;;   cv_bgsub_apply(+B, +Img, -Mask)
+;;;;   cv_optical_flow(+Prev, +Next, -Flow)           Farneback, 32fc2
+;;;;   cv_flow_polar(+Flow, -Magnitude, -Angle)       degrees
+;;;;   cv_optical_flow_lk(+Prev, +Next, +Pts, -Pts2, -Status)
+;;;;
+;;;;   cv_find_chessboard(+Img, +[Cols, Rows], -Corners)  fails when not found
+;;;;   cv_draw_chessboard(+Img, +[Cols, Rows], +Corners)  ON Img
+;;;;
+;;;; And in Prolog, on top: cv_color/2 names, cv_gray/2, cv_erode/3,
+;;;; cv_dilate/3, cv_open/3, cv_close/3, cv_sharpen/2, cv_centroid/3,
+;;;; cv_rect_center/3, cv_iou/3, cv_dnn_top/3, cv_video_close/1,
+;;;; cv_free_all/1.
+;;;;
+;;;; BUILD: sh modules/opencv/build.sh -- which finds OpenCV through
+;;;; pkg-config and compiles the emitted C++ against it. The module is a
+;;;; loadable library: `use_module(library(opencv))'.
+
+;;;; ------------------------------------------------------------------
+;;;; The table: name, arity, the function
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *opencv-predicates*
+  '(("cv_version" 1 cv_p_version) ("cv_data_dir" 1 cv_p_data_dir) ("cv_handles" 1 cv_p_handles)
+    ("cv_imread" 2 cv_p_imread2) ("cv_imread" 3 cv_p_imread3) ("cv_imwrite" 2 cv_p_imwrite)
+    ("cv_encode" 3 cv_p_encode) ("cv_decode" 2 cv_p_decode)
+    ("cv_new" 4 cv_p_new4) ("cv_new" 5 cv_p_new5)
+    ("cv_shape" 2 cv_p_shape) ("cv_type" 2 cv_p_type) ("cv_clone" 2 cv_p_clone) ("cv_free" 1 cv_p_free)
+    ("cv_to_list" 2 cv_p_to_list) ("cv_from_list" 3 cv_p_from_list)
+    ("cv_convert" 3 cv_p_convert3) ("cv_convert" 5 cv_p_convert5) ("cv_scale" 3 cv_p_scale)
+    ("cv_get" 4 cv_p_get) ("cv_set" 4 cv_p_set) ("cv_roi" 3 cv_p_roi) ("cv_paste" 3 cv_p_paste)
+    ("cv_split" 2 cv_p_split) ("cv_merge" 2 cv_p_merge) ("cv_hconcat" 2 cv_p_hconcat) ("cv_vconcat" 2 cv_p_vconcat)
+    ("cv_add" 3 cv_p_add) ("cv_sub" 3 cv_p_sub) ("cv_mul" 3 cv_p_mul) ("cv_div" 3 cv_p_div)
+    ("cv_absdiff" 3 cv_p_absdiff) ("cv_max" 3 cv_p_max) ("cv_min" 3 cv_p_min)
+    ("cv_and" 3 cv_p_and) ("cv_or" 3 cv_p_or) ("cv_xor" 3 cv_p_xor) ("cv_not" 2 cv_p_not)
+    ("cv_add_scalar" 3 cv_p_add_scalar) ("cv_pow" 3 cv_p_pow) ("cv_add_weighted" 6 cv_p_add_weighted)
+    ("cv_normalize" 5 cv_p_normalize) ("cv_flip" 3 cv_p_flip) ("cv_rotate" 3 cv_p_rotate) ("cv_transpose" 2 cv_p_transpose)
+    ("cv_compare" 4 cv_p_compare) ("cv_in_range" 4 cv_p_in_range)
+    ("cv_mean" 2 cv_p_mean) ("cv_mean_std" 3 cv_p_mean_std) ("cv_minmax" 5 cv_p_minmax)
+    ("cv_sum" 2 cv_p_sum) ("cv_count_nonzero" 2 cv_p_count_nonzero)
+    ("cv_dft" 2 cv_p_dft) ("cv_spectrum" 2 cv_p_spectrum)
+    ("cv_seed" 1 cv_p_seed) ("cv_noise" 3 cv_p_noise) ("cv_rand" 6 cv_p_rand) ("cv_colormap" 3 cv_p_colormap)
+    ("cv_kmeans" 3 cv_p_kmeans) ("cv_kmeans_points" 4 cv_p_kmeans_points) ("cv_grabcut" 4 cv_p_grabcut) ("cv_hog_people" 2 cv_p_hog_people)
+    ("cv_cvt_color" 3 cv_p_cvt_color) ("cv_resize" 3 cv_p_resize3) ("cv_resize" 4 cv_p_resize4)
+    ("cv_blur" 3 cv_p_blur) ("cv_gaussian_blur" 4 cv_p_gaussian_blur) ("cv_median_blur" 3 cv_p_median_blur)
+    ("cv_bilateral" 5 cv_p_bilateral)
+    ("cv_threshold" 5 cv_p_threshold5) ("cv_threshold" 6 cv_p_threshold6) ("cv_adaptive_threshold" 7 cv_p_adaptive_threshold)
+    ("cv_canny" 4 cv_p_canny) ("cv_sobel" 5 cv_p_sobel) ("cv_laplacian" 3 cv_p_laplacian) ("cv_abs8u" 2 cv_p_abs8u)
+    ("cv_morph" 6 cv_p_morph)
+    ("cv_find_contours" 4 cv_p_find_contours) ("cv_contour_area" 2 cv_p_contour_area) ("cv_arc_length" 3 cv_p_arc_length)
+    ("cv_bounding_rect" 2 cv_p_bounding_rect) ("cv_min_area_rect" 2 cv_p_min_area_rect)
+    ("cv_min_enclosing_circle" 3 cv_p_min_enclosing_circle) ("cv_approx_poly" 4 cv_p_approx_poly)
+    ("cv_convex_hull" 2 cv_p_convex_hull) ("cv_moments" 2 cv_p_moments) ("cv_point_polygon_test" 4 cv_p_point_polygon_test)
+    ("cv_fit_ellipse" 2 cv_p_fit_ellipse) ("cv_is_convex" 1 cv_p_is_convex) ("cv_draw_contours" 5 cv_p_draw_contours)
+    ("cv_hough_lines" 5 cv_p_hough_lines) ("cv_hough_lines_p" 7 cv_p_hough_lines_p) ("cv_hough_circles" 8 cv_p_hough_circles)
+    ("cv_hist" 4 cv_p_hist4) ("cv_hist" 6 cv_p_hist6) ("cv_compare_hist" 4 cv_p_compare_hist)
+    ("cv_equalize_hist" 2 cv_p_equalize_hist) ("cv_clahe" 4 cv_p_clahe)
+    ("cv_match_template" 4 cv_p_match_template)
+    ("cv_rotation_matrix" 4 cv_p_rotation_matrix) ("cv_affine_transform" 3 cv_p_affine_transform)
+    ("cv_warp_affine" 4 cv_p_warp_affine) ("cv_perspective_transform" 3 cv_p_perspective_transform)
+    ("cv_warp_perspective" 4 cv_p_warp_perspective) ("cv_transform_points" 3 cv_p_transform_points)
+    ("cv_pyr_down" 2 cv_p_pyr_down) ("cv_pyr_up" 2 cv_p_pyr_up)
+    ("cv_distance_transform" 2 cv_p_distance_transform) ("cv_watershed" 2 cv_p_watershed)
+    ("cv_connected_components" 3 cv_p_connected_components) ("cv_flood_fill" 3 cv_p_flood_fill)
+    ("cv_filter2d" 3 cv_p_filter2d) ("cv_make_border" 8 cv_p_make_border)
+    ("cv_corner_harris" 5 cv_p_corner_harris) ("cv_good_features" 5 cv_p_good_features)
+    ("cv_line" 5 cv_p_line) ("cv_rectangle" 4 cv_p_rectangle) ("cv_circle" 5 cv_p_circle) ("cv_ellipse" 8 cv_p_ellipse)
+    ("cv_polylines" 5 cv_p_polylines) ("cv_fill_poly" 3 cv_p_fill_poly) ("cv_put_text" 6 cv_p_put_text)
+    ("cv_text_size" 4 cv_p_text_size)
+    ("cv_dnn_read" 2 cv_p_dnn_read2) ("cv_dnn_read" 3 cv_p_dnn_read3) ("cv_dnn_blob" 7 cv_p_dnn_blob)
+    ("cv_dnn_input" 2 cv_p_dnn_input) ("cv_dnn_forward" 2 cv_p_dnn_forward2) ("cv_dnn_forward" 3 cv_p_dnn_forward3)
+    ("cv_dnn_outputs" 2 cv_p_dnn_outputs) ("cv_dnn_layers" 2 cv_p_dnn_layers) ("cv_dnn_out_layers" 2 cv_p_dnn_out_layers)
+    ("cv_dnn_time" 2 cv_p_dnn_time) ("cv_dnn_nms" 5 cv_p_dnn_nms)
+    ("cv_cascade_load" 2 cv_p_cascade_load) ("cv_detect" 3 cv_p_detect3) ("cv_detect" 6 cv_p_detect6)
+    ("cv_qr_detect" 3 cv_p_qr_detect) ("cv_qr_encode" 2 cv_p_qr_encode)
+    ("cv_features" 4 cv_p_features) ("cv_match" 4 cv_p_match) ("cv_knn_match" 5 cv_p_knn_match)
+    ("cv_draw_keypoints" 4 cv_p_draw_keypoints)
+    ("cv_find_homography" 4 cv_p_find_homography4) ("cv_find_homography" 5 cv_p_find_homography5)
+    ("cv_denoise" 3 cv_p_denoise) ("cv_inpaint" 4 cv_p_inpaint) ("cv_detail_enhance" 2 cv_p_detail_enhance)
+    ("cv_stylize" 2 cv_p_stylize) ("cv_pencil_sketch" 3 cv_p_pencil_sketch) ("cv_merge_mertens" 2 cv_p_merge_mertens)
+    ("cv_video_open" 2 cv_p_video_open) ("cv_video_read" 2 cv_p_video_read) ("cv_video_prop" 3 cv_p_video_prop)
+    ("cv_video_writer" 5 cv_p_video_writer) ("cv_video_write" 2 cv_p_video_write)
+    ("cv_bgsub_new" 2 cv_p_bgsub_new) ("cv_bgsub_apply" 3 cv_p_bgsub_apply)
+    ("cv_optical_flow" 3 cv_p_optical_flow) ("cv_flow_polar" 3 cv_p_flow_polar) ("cv_optical_flow_lk" 5 cv_p_optical_flow_lk)
+    ("cv_find_chessboard" 3 cv_p_find_chessboard) ("cv_draw_chessboard" 3 cv_p_draw_chessboard)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half: names, shorthands, and the small geometry
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *opencv-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; OpenCV's order: blue, green, red
+           "cv_color(red, [0, 0, 255])."
+           "cv_color(green, [0, 255, 0])."
+           "cv_color(blue, [255, 0, 0])."
+           "cv_color(white, [255, 255, 255])."
+           "cv_color(black, [0, 0, 0])."
+           "cv_color(yellow, [0, 255, 255])."
+           "cv_color(cyan, [255, 255, 0])."
+           "cv_color(magenta, [255, 0, 255])."
+           "cv_color(gray, [128, 128, 128])."
+           "cv_color(orange, [0, 165, 255])."
+           "cv_color(purple, [128, 0, 128])."
+
+           "cv_gray(I, G) :- cv_cvt_color(I, bgr2gray, G)."
+           "cv_erode(I, K, O) :- cv_morph(erode, I, K, rect, 1, O)."
+           "cv_dilate(I, K, O) :- cv_morph(dilate, I, K, rect, 1, O)."
+           "cv_open(I, K, O) :- cv_morph(open, I, K, rect, 1, O)."
+           "cv_close(I, K, O) :- cv_morph(close, I, K, rect, 1, O)."
+           "cv_sharpen(I, O) :- cv_filter2d(I, [[0, -1, 0], [-1, 5, -1], [0, -1, 0]], O)."
+
+           ;; the centroid from the moments, when there is any area
+           "cv_centroid(C, X, Y) :- cv_moments(C, [M00, M10, M01|_]), M00 > 0, X is M10 / M00, Y is M01 / M00."
+           "cv_rect_center([X, Y, W, H], Cx, Cy) :- Cx is X + W / 2, Cy is Y + H / 2."
+           ;; intersection over union of two [X, Y, W, H]
+           "cv_iou([X1, Y1, W1, H1], [X2, Y2, W2, H2], IoU) :- L is max(X1, X2), T is max(Y1, Y2), R is min(X1 + W1, X2 + W2), B is min(Y1 + H1, Y2 + H2), IW is max(0, R - L), IH is max(0, B - T), I is IW * IH, U is W1 * H1 + W2 * H2 - I, ( U > 0 -> IoU is I / U ; IoU = 0.0 )."
+
+           ;; a classifier's top answer: the one-by-N output's maximum
+           "cv_dnn_top(Out, Class, Score) :- cv_minmax(Out, _, Score, _, [Class, _])."
+           "cv_video_close(V) :- cv_free(V)."
+           "cv_free_all(Hs) :- forall(member(H, Hs), cv_free(H)).")))
+
+;;; the Coco half as the literal the registration takes
+(DEFMACRO cv-prolog () *opencv-prolog*)
+
+;;; A predicate: (cv-pred name BODY...) is the function the table names,
+;;; its body run under the one net every predicate needs. OpenCV throws
+;;; cv::Exception with its own message in `err'; the argument readers
+;;; below throw std::runtime_error saying which argument and why; both
+;;; become error(cocolog_error(Text), _) with the text as it was.
+(DEFMACRO cv-pred (name &REST body)
+  `(func ,name ((coco_engine * e) (size_t g)) (out int)
+     (try (block ,@body)
+          (catch ((const cv::Exception & ex)) (return (coco_m_error e "opencv" (($ ex err c_str)))))
+          (catch ((const std::exception & ex)) (return (coco_m_error e "opencv" (($ ex what))))))))
+
+;;; An atom's code: (cv-atom-code fname "what" "name" CONST ...) is a
+;;; function from the atom's text to OpenCV's constant, throwing for a
+;;; name it does not know.
+(DEFMACRO cv-atom-code (fname what &REST pairs)
+  `(func ,fname ((const char * a)) (out int)
+     (cond ,@(LOOP FOR (n c) ON pairs BY #'CDDR COLLECT `((== 0 (strcmp a ,n)) (return ,c)))
+           (#t (cv_badatom ,what a) (return 0)))))
+
+;;; The image-in, image-out predicates that differ only in the call:
+;;; (cv-unary name (cv::pyrDown SRC DST)) reads the image at 0, runs the
+;;; form with SRC and DST bound, and answers DST at 1.
+(DEFMACRO cv-unary (name form)
+  `(cv-pred ,name
+     (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+       ,(SUBST '(cof m) 'SRC (SUBST 'out 'DST form))
+       (return (cv_ret_mat e g 1 out)))))
+
+;;; The two-images-in, image-out family, cv::add and its kin.
+(DEFMACRO cv-binary (name fn)
+  `(cv-pred ,name
+     (let ((cv::Mat * a . #'(cv_mat e g 0)) (cv::Mat * b . #'(cv_mat e g 1)) (cv::Mat out))
+       (,fn (cof a) (cof b) out)
+       (return (cv_ret_mat e g 2 out)))))
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+(source "coco-opencv.cpp"
+  ;; COMPILED BY build.sh, NOT BY CICILI: a loadable module is a shared
+  ;; object linked against OpenCV, and the flags for one belong beside it.
+  (make :cpp #t :compile #f)
+
+  (include <opencv2/core.hpp>)
+  (include <opencv2/imgproc.hpp>)
+  (include <opencv2/imgcodecs.hpp>)
+  (include <opencv2/dnn.hpp>)
+  (include <opencv2/objdetect.hpp>)
+  (include <opencv2/features2d.hpp>)
+  (include <opencv2/photo.hpp>)
+  (include <opencv2/video.hpp>)
+  (include <opencv2/videoio.hpp>)
+  (include <opencv2/calib3d.hpp>)
+  (include <opencv2/core/utils/logger.hpp>)
+  (include <cstdio>)
+  (include <cstdint>)
+  (include <cstring>)
+  (include <cstdlib>)
+  (include <string>)
+  (include <vector>)
+  (include <stdexcept>)
+  (include <cmath>)
+
+  (@define (code "i64 int64_t"))
+  (@define (code "u32 uint32_t"))
+
+  ;; ---- the slice of cocolog this module is written against ------------
+  ;; THE LINKAGE, FIRST AND RAW. These are C names; this block is their
+  ;; real declaration for the C++ compiler, and C++ gives a redeclaration
+  ;; the linkage of the first one it saw -- modules/README.md's first rule
+  ;; for a :cpp module.
+  (decl) (struct coco_engine)
+  (code "extern \"C\" {")
+  (code "int coco_module_register(const char*, int (*)(struct coco_engine*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine*));")
+  (code "size_t coco_m_arg(struct coco_engine*, size_t, uint32_t);")
+  (code "int coco_m_is_var(struct coco_engine*, size_t); int coco_m_is_atom(struct coco_engine*, size_t);")
+  (code "const char* coco_m_atom(struct coco_engine*, size_t);")
+  (code "int coco_m_int(struct coco_engine*, size_t, int64_t*); int coco_m_float(struct coco_engine*, size_t, double*);")
+  (code "int coco_m_unify(struct coco_engine*, size_t, size_t);")
+  (code "int coco_m_unify_int(struct coco_engine*, size_t, int64_t); int coco_m_unify_float(struct coco_engine*, size_t, double);")
+  (code "size_t coco_m_new_int(struct coco_engine*, int64_t); size_t coco_m_new_float(struct coco_engine*, double); size_t coco_m_new_atom(struct coco_engine*, const char*);")
+  (code "size_t coco_m_nil(struct coco_engine*); size_t coco_m_list(struct coco_engine*, const size_t*, size_t);")
+  (code "int coco_m_list_array(struct coco_engine*, size_t, size_t**, size_t*);")
+  (code "int coco_m_error(struct coco_engine*, const char*, const char*);")
+  (code "}")
+  (decl) (func coco_module_register ((const char * name)
+                                     (func dispatch ((coco_engine * e) (const char * nm)
+                                                     (u32 arity) (size_t g)
+                                                     (int * found)) (out int))
+                                     (const char * prolog)
+                                     (func init ((coco_engine * e)) (out int))) (out int))
+  (decl) (func coco_m_arg ((coco_engine * e) (size_t g) (u32 i)) (out size_t))
+  (decl) (func coco_m_is_var ((coco_engine * e) (size_t t)) (out int))
+  (decl) (func coco_m_is_atom ((coco_engine * e) (size_t t)) (out int))
+  (decl) (func coco_m_atom ((coco_engine * e) (size_t t)) (out const char *))
+  (decl) (func coco_m_int ((coco_engine * e) (size_t t) (i64 * out)) (out int))
+  (decl) (func coco_m_float ((coco_engine * e) (size_t t) (double * out)) (out int))
+  (decl) (func coco_m_unify ((coco_engine * e) (size_t t) (size_t u)) (out int))
+  (decl) (func coco_m_unify_int ((coco_engine * e) (size_t t) (i64 v)) (out int))
+  (decl) (func coco_m_unify_float ((coco_engine * e) (size_t t) (double v)) (out int))
+  (decl) (func coco_m_new_int ((coco_engine * e) (i64 v)) (out size_t))
+  (decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
+  (decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
+  (decl) (func coco_m_nil ((coco_engine * e)) (out size_t))
+  (decl) (func coco_m_list ((coco_engine * e) (const size_t * items) (size_t n)) (out size_t))
+  (decl) (func coco_m_list_array ((coco_engine * e) (size_t t) (size_t ** out) (size_t * n)) (out int))
+  (decl) (func coco_m_error ((coco_engine * e) (const char * what) (const char * detail)) (out int))
+
+  ;; the dispatcher macro, and OpenCV as inference sees it
+  (import "./sdk.cicili")
+  (import "lib/cpp/opencv/opencv.cicili")
+
+  ;; ---- the handle table -----------------------------------------------
+  ;; A slot holds one heap object and the kind that says how to read and
+  ;; free it. Slot 0 is never handed out, so 0 is never a handle.
+  (struct cv_slot (member int kind) (member void * p))
+  (static) (var cv_slot cv_slots [4096])
+  (static) (var int cv_live . 0)
+  (typedef int CV_K_MAT) (typedef int CV_K_NET) (typedef int CV_K_CASCADE)
+  (typedef int CV_K_CAPTURE) (typedef int CV_K_WRITER) (typedef int CV_K_BGSUB)
+  (@define (code "CV_K_MAT 1"))
+  (@define (code "CV_K_NET 2"))
+  (@define (code "CV_K_CASCADE 3"))
+  (@define (code "CV_K_CAPTURE 4"))
+  (@define (code "CV_K_WRITER 5"))
+  (@define (code "CV_K_BGSUB 6"))
+
+  ;; ---- what goes wrong, said once ---------------------------------------
+  (func cv_throw ((const char * msg)) (out int)
+    (throw* (std::runtime_error msg))
+    (return 0))
+  (func cv_throw2 ((const char * what) (const char * detail)) (out int)
+    (let ((char msg [512]))
+      (snprintf msg 512 "%s: %s" what detail)
+      (throw* (std::runtime_error msg))
+      (return 0)))
+  (func cv_throwi ((const char * what) (i64 n)) (out int)
+    (let ((char msg [256]))
+      (snprintf msg 256 "%s: %ld" what (cast long n))
+      (throw* (std::runtime_error msg))
+      (return 0)))
+  (func cv_argfail ((u32 i) (const char * what)) (out int)
+    (let ((char msg [256]))
+      (snprintf msg 256 "argument %u %s" (+ i 1) what)
+      (throw* (std::runtime_error msg))
+      (return 0)))
+  (func cv_badatom ((const char * what) (const char * a)) (out int)
+    (let ((char msg [256]))
+      (snprintf msg 256 "unknown %s: %s" what a)
+      (throw* (std::runtime_error msg))
+      (return 0)))
+
+  (func cv_adopt ((int kind) (void * p)) (out i64)
+    (for ((i64 h . 1)) (< h 4096) ((++ h))
+      (if (== ($ (nth h cv_slots) p) nil)
+          (block (set ($ (nth h cv_slots) kind) kind)
+                 (set ($ (nth h cv_slots) p) p)
+                 (set cv_live (+ cv_live 1))
+                 (return h))))
+    (cv_throw "the handle table is full (4096 live handles); cv_free what is done with")
+    (return 0))
+  (func cv_slot_of ((i64 h) (int kind) (const char * what)) (out void *)
+    (if (or (< h 1) (>= h 4096)) (cv_throwi "not a live handle" h))
+    (if (== ($ (nth h cv_slots) p) nil) (cv_throwi "not a live handle" h))
+    (if (!= ($ (nth h cv_slots) kind) kind) (cv_throw2 "the handle is not" what))
+    (return ($ (nth h cv_slots) p)))
+  (func cv_mat_h ((i64 h)) (out cv::Mat *)
+    (return (cast (cv::Mat *) (cv_slot_of h CV_K_MAT "an image"))))
+  (func cv_release ((i64 h)) (out int)
+    (if (or (< h 1) (>= h 4096)) (return 0))
+    (let ((void * p . #'($ (nth h cv_slots) p)))
+      (if (== p nil) (return 0))
+      (cond ((== ($ (nth h cv_slots) kind) CV_K_MAT) (delete* (cast (cv::Mat *) p)))
+            ((== ($ (nth h cv_slots) kind) CV_K_NET) (delete* (cast (cv::dnn::Net *) p)))
+            ((== ($ (nth h cv_slots) kind) CV_K_CASCADE) (delete* (cast (cv::CascadeClassifier *) p)))
+            ((== ($ (nth h cv_slots) kind) CV_K_CAPTURE) (delete* (cast (cv::VideoCapture *) p)))
+            ((== ($ (nth h cv_slots) kind) CV_K_WRITER) (delete* (cast (cv::VideoWriter *) p)))
+            ((== ($ (nth h cv_slots) kind) CV_K_BGSUB) (delete* (cast ((t<> cv::Ptr cv::BackgroundSubtractor) *) p))))
+      (set ($ (nth h cv_slots) p) nil)
+      (set ($ (nth h cv_slots) kind) 0)
+      (set cv_live (- cv_live 1))
+      (return 1)))
+
+  ;; ---- reading arguments -------------------------------------------------
+  (func cv_int ((coco_engine * e) (size_t g) (u32 i)) (out i64)
+    (let ((size_t t . #'(coco_m_arg e g i)) (i64 v . 0) (double d . 0.0))
+      (if (coco_m_is_var e t) (cv_argfail i "must be bound"))
+      (if (coco_m_int e t (aof v)) (return v))
+      (if (coco_m_float e t (aof d)) (return (cast i64 d)))
+      (cv_argfail i "must be an integer")
+      (return 0)))
+  (func cv_dbl ((coco_engine * e) (size_t g) (u32 i)) (out double)
+    (let ((size_t t . #'(coco_m_arg e g i)) (i64 v . 0) (double d . 0.0))
+      (if (coco_m_is_var e t) (cv_argfail i "must be bound"))
+      (if (coco_m_float e t (aof d)) (return d))
+      (if (coco_m_int e t (aof v)) (return (cast double v)))
+      (cv_argfail i "must be a number")
+      (return 0.0)))
+  (func cv_atom ((coco_engine * e) (size_t g) (u32 i)) (out const char *)
+    (let ((size_t t . #'(coco_m_arg e g i)))
+      (if (coco_m_is_var e t) (cv_argfail i "must be bound"))
+      (if (not (coco_m_is_atom e t)) (cv_argfail i "must be an atom"))
+      (return (coco_m_atom e t))))
+  (func cv_bool ((coco_engine * e) (size_t g) (u32 i)) (out int)
+    (let ((size_t t . #'(coco_m_arg e g i)) (i64 v . 0))
+      (if (coco_m_is_var e t) (cv_argfail i "must be bound"))
+      (if (coco_m_int e t (aof v)) (return (? (!= v 0) 1 0)))
+      (if (coco_m_is_atom e t)
+          (block (if (== 0 (strcmp (coco_m_atom e t) "true")) (return 1))
+                 (if (== 0 (strcmp (coco_m_atom e t) "false")) (return 0))))
+      (cv_argfail i "must be true or false")
+      (return 0)))
+  (func cv_mat ((coco_engine * e) (size_t g) (u32 i)) (out cv::Mat *)
+    (return (cv_mat_h (cv_int e g i))))
+  (func cv_net ((coco_engine * e) (size_t g) (u32 i)) (out cv::dnn::Net *)
+    (return (cast (cv::dnn::Net *) (cv_slot_of (cv_int e g i) CV_K_NET "a network"))))
+  (func cv_cascade ((coco_engine * e) (size_t g) (u32 i)) (out cv::CascadeClassifier *)
+    (return (cast (cv::CascadeClassifier *) (cv_slot_of (cv_int e g i) CV_K_CASCADE "a cascade"))))
+  (func cv_capture ((coco_engine * e) (size_t g) (u32 i)) (out cv::VideoCapture *)
+    (return (cast (cv::VideoCapture *) (cv_slot_of (cv_int e g i) CV_K_CAPTURE "a video"))))
+  (func cv_writer ((coco_engine * e) (size_t g) (u32 i)) (out cv::VideoWriter *)
+    (return (cast (cv::VideoWriter *) (cv_slot_of (cv_int e g i) CV_K_WRITER "a video writer"))))
+  (func cv_bgsub ((coco_engine * e) (size_t g) (u32 i)) (out (t<> cv::Ptr cv::BackgroundSubtractor) *)
+    (return (cast ((t<> cv::Ptr cv::BackgroundSubtractor) *) (cv_slot_of (cv_int e g i) CV_K_BGSUB "a background subtractor"))))
+
+  ;;; A numeric tree -- a number, a list of numbers, a list of lists ... --
+  ;;; flattened into v with its dimensions in dims; every branch must be
+  ;;; as long as its siblings. is_int stays 1 while every leaf was an integer.
+  (func cv_flatten ((coco_engine * e) (size_t t) (int depth) ((t<> std::vector int) & dims)
+                    ((t<> std::vector double) & v) (int * is_int)) (out int)
+    (let ((size_t * items . nil) (size_t n . 0) (double d . 0.0) (i64 iv . 0))
+      (cond
+        ((coco_m_int e t (aof iv))
+         (if (!= depth (cast int (($ dims size)))) (return 0))
+         (($ v push_back) (cast double iv))
+         (return 1))
+        ((coco_m_float e t (aof d))
+         (if (!= depth (cast int (($ dims size)))) (return 0))
+         (set (cof is_int) 0)
+         (($ v push_back) d)
+         (return 1))
+        ((coco_m_list_array e t (aof items) (aof n))
+         (if (== depth (cast int (($ dims size))))
+             (($ dims push_back) (cast int n))
+             (if (!= (($ dims at) depth) (cast int n)) (return 0)))
+         (for ((size_t k . 0)) (< k n) ((++ k))
+           (if (not (cv_flatten e (nth k items) (+ depth 1) dims v is_int)) (return 0)))
+         (return 1))
+        (#t (return 0)))))
+  (func cv_nums_t ((coco_engine * e) (size_t t) (u32 i) ((t<> std::vector double) & v)
+                   ((t<> std::vector int) & dims)) (out int)
+    (let ((int is_int . 1))
+      (if (coco_m_is_var e t) (cv_argfail i "must be bound"))
+      (if (not (cv_flatten e t 0 dims v (aof is_int))) (cv_argfail i "must be a number or a list of numbers"))
+      (return is_int)))
+  (func cv_nums ((coco_engine * e) (size_t g) (u32 i) ((t<> std::vector double) & v)
+                 ((t<> std::vector int) & dims)) (out int)
+    (return (cv_nums_t e (coco_m_arg e g i) i v dims)))
+  ;; a flat list of N numbers, or a lone number
+  (func cv_dlist ((coco_engine * e) (size_t g) (u32 i) ((t<> std::vector double) & v)) (out int)
+    (letin* ((dims ((t<> std::vector int))))
+      (cv_nums e g i v dims)
+      (if (> (cast int (($ dims size))) 1) (cv_argfail i "must be a flat list of numbers"))
+      (return (cast int (($ v size))))))
+  ;; a color: [B, G, R], [B, G, R, A], a grey level, or one of the names cv_color/2 knows
+  (func cv_named_color ((const char * a)) (out cv::Scalar)
+    (cond ((== 0 (strcmp a "red")) (return (cv::Scalar 0.0 0.0 255.0 0.0)))
+          ((== 0 (strcmp a "green")) (return (cv::Scalar 0.0 255.0 0.0 0.0)))
+          ((== 0 (strcmp a "blue")) (return (cv::Scalar 255.0 0.0 0.0 0.0)))
+          ((== 0 (strcmp a "white")) (return (cv::Scalar 255.0 255.0 255.0 0.0)))
+          ((== 0 (strcmp a "black")) (return (cv::Scalar 0.0 0.0 0.0 0.0)))
+          ((== 0 (strcmp a "yellow")) (return (cv::Scalar 0.0 255.0 255.0 0.0)))
+          ((== 0 (strcmp a "cyan")) (return (cv::Scalar 255.0 255.0 0.0 0.0)))
+          ((== 0 (strcmp a "magenta")) (return (cv::Scalar 255.0 0.0 255.0 0.0)))
+          ((== 0 (strcmp a "gray")) (return (cv::Scalar 128.0 128.0 128.0 0.0)))
+          ((== 0 (strcmp a "orange")) (return (cv::Scalar 0.0 165.0 255.0 0.0)))
+          ((== 0 (strcmp a "purple")) (return (cv::Scalar 128.0 0.0 128.0 0.0)))
+          (#t (cv_badatom "color" a) (return (cv::Scalar::all 0.0)))))
+  (func cv_color ((coco_engine * e) (size_t g) (u32 i)) (out cv::Scalar)
+    (letin* ((v ((t<> std::vector double))))
+      (if (coco_m_is_atom e (coco_m_arg e g i)) (return (cv_named_color (coco_m_atom e (coco_m_arg e g i)))))
+      (let ((int n . #'(cv_dlist e g i v)))
+        (if (or (< n 1) (> n 4)) (cv_argfail i "must be a color: [B, G, R], [B, G, R, A] or a grey level"))
+        (if (== n 1) (return (cv::Scalar::all (($ v at) 0))))
+        (return (cv::Scalar (($ v at) 0) (($ v at) 1) (? (> n 2) (($ v at) 2) 0.0) (? (> n 3) (($ v at) 3) 0.0))))))
+  (func cv_size ((coco_engine * e) (size_t g) (u32 i)) (out cv::Size)
+    (letin* ((v ((t<> std::vector double))))
+      (if (!= 2 (cv_dlist e g i v)) (cv_argfail i "must be a size [W, H]"))
+      (return (cv::Size (cast int (($ v at) 0)) (cast int (($ v at) 1))))))
+  (func cv_point ((coco_engine * e) (size_t g) (u32 i)) (out cv::Point)
+    (letin* ((v ((t<> std::vector double))))
+      (if (!= 2 (cv_dlist e g i v)) (cv_argfail i "must be a point [X, Y]"))
+      (return (cv::Point (cvRound (($ v at) 0)) (cvRound (($ v at) 1))))))
+  (func cv_point2f ((coco_engine * e) (size_t g) (u32 i)) (out cv::Point2f)
+    (letin* ((v ((t<> std::vector double))))
+      (if (!= 2 (cv_dlist e g i v)) (cv_argfail i "must be a point [X, Y]"))
+      (return (cv::Point2f (cast float (($ v at) 0)) (cast float (($ v at) 1))))))
+  (func cv_rect ((coco_engine * e) (size_t g) (u32 i)) (out cv::Rect)
+    (letin* ((v ((t<> std::vector double))))
+      (if (!= 4 (cv_dlist e g i v)) (cv_argfail i "must be a rectangle [X, Y, W, H]"))
+      (return (cv::Rect (cvRound (($ v at) 0)) (cvRound (($ v at) 1)) (cvRound (($ v at) 2)) (cvRound (($ v at) 3))))))
+  ;; a list of [X, Y]
+  (func cv_points_t ((coco_engine * e) (size_t t) (u32 i)) (out (t<> std::vector cv::Point2f))
+    (letin* ((v ((t<> std::vector double))) (dims ((t<> std::vector int))) (pts ((t<> std::vector cv::Point2f))))
+      (cv_nums_t e t i v dims)
+      (if (and (== (cast int (($ dims size))) 1) (== (($ dims at) 0) 0)) (return pts))
+      (if (or (!= (cast int (($ dims size))) 2) (!= (($ dims at) 1) 2)) (cv_argfail i "must be a list of points [X, Y]"))
+      (for ((size_t k . 0)) (< k (($ v size))) ((set k (+ k 2)))
+        (($ pts push_back) (cv::Point2f (cast float (($ v at) k)) (cast float (($ v at) (+ k 1))))))
+      (return pts)))
+  (func cv_points ((coco_engine * e) (size_t g) (u32 i)) (out (t<> std::vector cv::Point2f))
+    (return (cv_points_t e (coco_m_arg e g i) i)))
+  (func cv_ipoints_t ((coco_engine * e) (size_t t) (u32 i)) (out (t<> std::vector cv::Point))
+    (letin* ((pf (cv_points_t e t i)) (pts ((t<> std::vector cv::Point))))
+      (for ((size_t k . 0)) (< k (($ pf size))) ((++ k))
+        (($ pts push_back) (cv::Point (cvRound ($ (($ pf at) k) x)) (cvRound ($ (($ pf at) k) y)))))
+      (return pts)))
+  (func cv_ipoints ((coco_engine * e) (size_t g) (u32 i)) (out (t<> std::vector cv::Point))
+    (return (cv_ipoints_t e (coco_m_arg e g i) i)))
+  ;; a list of point lists
+  (func cv_contours ((coco_engine * e) (size_t g) (u32 i)) (out (t<> std::vector (t<> std::vector cv::Point)))
+    (letin* ((cs ((t<> std::vector (t<> std::vector cv::Point)))))
+      (let ((size_t * items . nil) (size_t n . 0) (size_t t . #'(coco_m_arg e g i)))
+        (if (not (coco_m_list_array e t (aof items) (aof n))) (cv_argfail i "must be a list of contours"))
+        (for ((size_t k . 0)) (< k n) ((++ k))
+          (($ cs push_back) (cv_ipoints_t e (nth k items) i)))
+        (return cs))))
+  ;; a matrix: rows of numbers, as a 64f Mat
+  (func cv_matrix ((coco_engine * e) (size_t g) (u32 i)) (out cv::Mat)
+    (letin* ((v ((t<> std::vector double))) (dims ((t<> std::vector int))))
+      (cv_nums e g i v dims)
+      (if (!= (cast int (($ dims size))) 2) (cv_argfail i "must be a matrix: a list of rows of numbers"))
+      (let ((int rows . #'(($ dims at) 0)) (int cols . #'(($ dims at) 1))
+            (cv::Mat m . #'(cv::Mat rows cols CV_64F)))
+        (for ((int r . 0)) (< r rows) ((++ r))
+          (for ((int c . 0)) (< c cols) ((++ c))
+            (set (nth c (($ m (t<> ptr double)) r)) (($ v at) (+ (* r cols) c)))))
+        (return m))))
+  ;; a list of image handles
+  (func cv_mats ((coco_engine * e) (size_t g) (u32 i)) (out (t<> std::vector cv::Mat))
+    (letin* ((ms ((t<> std::vector cv::Mat))))
+      (let ((size_t * items . nil) (size_t n . 0) (i64 h . 0))
+        (if (not (coco_m_list_array e (coco_m_arg e g i) (aof items) (aof n))) (cv_argfail i "must be a list of images"))
+        (for ((size_t k . 0)) (< k n) ((++ k))
+          (if (not (coco_m_int e (nth k items) (aof h))) (cv_argfail i "must be a list of image handles"))
+          (($ ms push_back) (cof (cv_mat_h h))))
+        (return ms))))
+  ;; a type name: 8u 8uc3 16u 16s 32s 32f 32fc2 64f 16f
+  (func cv_type_code ((const char * name)) (out int)
+    (let ((int depth . -1) (int cn . 1) (const char * p . name))
+      (cond ((== 0 (strncmp p "8u" 2)) (set depth CV_8U) (set p (+ p 2)))
+            ((== 0 (strncmp p "8s" 2)) (set depth CV_8S) (set p (+ p 2)))
+            ((== 0 (strncmp p "16u" 3)) (set depth CV_16U) (set p (+ p 3)))
+            ((== 0 (strncmp p "16s" 3)) (set depth CV_16S) (set p (+ p 3)))
+            ((== 0 (strncmp p "16f" 3)) (set depth CV_16F) (set p (+ p 3)))
+            ((== 0 (strncmp p "32s" 3)) (set depth CV_32S) (set p (+ p 3)))
+            ((== 0 (strncmp p "32f" 3)) (set depth CV_32F) (set p (+ p 3)))
+            ((== 0 (strncmp p "64f" 3)) (set depth CV_64F) (set p (+ p 3)))
+            (#t (cv_badatom "image type" name)))
+      ;; an optional cN, N in 1..4
+      (if (== (cast int (nth 0 p)) 99)
+          (block (set cn (- (cast int (nth 1 p)) 48))
+                 (if (or (< cn 1) (> cn 4)) (cv_badatom "image type" name))
+                 (set p (+ p 2))))
+      (if (!= (cast int (nth 0 p)) 0) (cv_badatom "image type" name))
+      (return (CV_MAKETYPE depth cn))))
+  (static) (var char cv_tn [16])
+  (func cv_type_name ((int type)) (out const char *)
+    (let ((int depth . #'(CV_MAT_DEPTH type)) (int cn . #'(CV_MAT_CN type)) (const char * d . "?"))
+      (cond ((== depth CV_8U) (set d "8u")) ((== depth CV_8S) (set d "8s"))
+            ((== depth CV_16U) (set d "16u")) ((== depth CV_16S) (set d "16s"))
+            ((== depth CV_16F) (set d "16f")) ((== depth CV_32S) (set d "32s"))
+            ((== depth CV_32F) (set d "32f")) ((== depth CV_64F) (set d "64f")))
+      (if (== cn 1) (snprintf cv_tn 16 "%s" d) (snprintf cv_tn 16 "%sc%d" d cn))
+      (return cv_tn)))
+
+  ;; the atoms
+  (cv-atom-code cv_imread_code "read mode" "color" cv::IMREAD_COLOR "gray" cv::IMREAD_GRAYSCALE "unchanged" cv::IMREAD_UNCHANGED)
+  (cv-atom-code cv_color_code "color conversion"
+    "bgr2gray" cv::COLOR_BGR2GRAY "gray2bgr" cv::COLOR_GRAY2BGR "bgr2rgb" cv::COLOR_BGR2RGB "rgb2bgr" cv::COLOR_RGB2BGR
+    "bgr2hsv" cv::COLOR_BGR2HSV "hsv2bgr" cv::COLOR_HSV2BGR "bgr2lab" cv::COLOR_BGR2Lab "lab2bgr" cv::COLOR_Lab2BGR
+    "bgr2ycrcb" cv::COLOR_BGR2YCrCb "ycrcb2bgr" cv::COLOR_YCrCb2BGR "bgr2bgra" cv::COLOR_BGR2BGRA "bgra2bgr" cv::COLOR_BGRA2BGR
+    "rgb2gray" cv::COLOR_RGB2GRAY "gray2rgb" cv::COLOR_GRAY2RGB "bgr2hls" cv::COLOR_BGR2HLS "hls2bgr" cv::COLOR_HLS2BGR
+    "bgr2luv" cv::COLOR_BGR2Luv "luv2bgr" cv::COLOR_Luv2BGR "bgr2xyz" cv::COLOR_BGR2XYZ "xyz2bgr" cv::COLOR_XYZ2BGR)
+  (cv-atom-code cv_interp_code "interpolation"
+    "nearest" cv::INTER_NEAREST "linear" cv::INTER_LINEAR "cubic" cv::INTER_CUBIC "area" cv::INTER_AREA "lanczos" cv::INTER_LANCZOS4)
+  (cv-atom-code cv_thresh_code "threshold type"
+    "binary" cv::THRESH_BINARY "binary_inv" cv::THRESH_BINARY_INV "trunc" cv::THRESH_TRUNC "tozero" cv::THRESH_TOZERO
+    "tozero_inv" cv::THRESH_TOZERO_INV "otsu" (bitor cv::THRESH_BINARY cv::THRESH_OTSU) "triangle" (bitor cv::THRESH_BINARY cv::THRESH_TRIANGLE))
+  (cv-atom-code cv_adaptive_code "adaptive method" "mean" cv::ADAPTIVE_THRESH_MEAN_C "gaussian" cv::ADAPTIVE_THRESH_GAUSSIAN_C)
+  (cv-atom-code cv_morph_code "morphology"
+    "erode" -1 "dilate" -2 "open" cv::MORPH_OPEN "close" cv::MORPH_CLOSE "gradient" cv::MORPH_GRADIENT
+    "tophat" cv::MORPH_TOPHAT "blackhat" cv::MORPH_BLACKHAT "hitmiss" cv::MORPH_HITMISS)
+  (cv-atom-code cv_shape_code "kernel shape" "rect" cv::MORPH_RECT "ellipse" cv::MORPH_ELLIPSE "cross" cv::MORPH_CROSS)
+  (cv-atom-code cv_retr_code "contour mode" "external" cv::RETR_EXTERNAL "list" cv::RETR_LIST "ccomp" cv::RETR_CCOMP "tree" cv::RETR_TREE)
+  (cv-atom-code cv_chain_code "contour method" "none" cv::CHAIN_APPROX_NONE "simple" cv::CHAIN_APPROX_SIMPLE)
+  (cv-atom-code cv_histcmp_code "histogram comparison"
+    "correl" cv::HISTCMP_CORREL "chisqr" cv::HISTCMP_CHISQR "intersect" cv::HISTCMP_INTERSECT "bhattacharyya" cv::HISTCMP_BHATTACHARYYA)
+  (cv-atom-code cv_tm_code "template matching method"
+    "sqdiff" cv::TM_SQDIFF "sqdiff_normed" cv::TM_SQDIFF_NORMED "ccorr" cv::TM_CCORR "ccorr_normed" cv::TM_CCORR_NORMED
+    "ccoeff" cv::TM_CCOEFF "ccoeff_normed" cv::TM_CCOEFF_NORMED)
+  (cv-atom-code cv_border_code "border type"
+    "constant" cv::BORDER_CONSTANT "replicate" cv::BORDER_REPLICATE "reflect" cv::BORDER_REFLECT "wrap" cv::BORDER_WRAP "reflect101" cv::BORDER_REFLECT_101)
+  (cv-atom-code cv_norm_code "norm" "minmax" cv::NORM_MINMAX "l2" cv::NORM_L2 "l1" cv::NORM_L1 "inf" cv::NORM_INF)
+  (cv-atom-code cv_cmp_code "comparison" "eq" cv::CMP_EQ "ne" cv::CMP_NE "gt" cv::CMP_GT "ge" cv::CMP_GE "lt" cv::CMP_LT "le" cv::CMP_LE)
+  (cv-atom-code cv_flip_code "flip" "horizontal" 1 "vertical" 0 "both" -1)
+  (cv-atom-code cv_match_norm_code "matcher norm" "hamming" cv::NORM_HAMMING "l2" cv::NORM_L2 "l1" cv::NORM_L1)
+  (cv-atom-code cv_colormap_code "colormap"
+    "jet" cv::COLORMAP_JET "hot" cv::COLORMAP_HOT "bone" cv::COLORMAP_BONE "viridis" cv::COLORMAP_VIRIDIS "inferno" cv::COLORMAP_INFERNO "turbo" cv::COLORMAP_TURBO)
+  (cv-atom-code cv_prop_code "video property"
+    "width" cv::CAP_PROP_FRAME_WIDTH "height" cv::CAP_PROP_FRAME_HEIGHT "fps" cv::CAP_PROP_FPS "frames" cv::CAP_PROP_FRAME_COUNT)
+
+  ;; ---- building answers ---------------------------------------------------
+  (func cv_ret_mat ((coco_engine * e) (size_t g) (u32 i) (const cv::Mat & m)) (out int)
+    (return (coco_m_unify_int e (coco_m_arg e g i) (cv_adopt CV_K_MAT (cast (void *) (new* cv::Mat m))))))
+  (func cv_ret_int ((coco_engine * e) (size_t g) (u32 i) (i64 v)) (out int)
+    (return (coco_m_unify_int e (coco_m_arg e g i) v)))
+  (func cv_ret_dbl ((coco_engine * e) (size_t g) (u32 i) (double v)) (out int)
+    (return (coco_m_unify_float e (coco_m_arg e g i) v)))
+  (func cv_ret_atom ((coco_engine * e) (size_t g) (u32 i) (const char * s)) (out int)
+    (return (coco_m_unify e (coco_m_arg e g i) (coco_m_new_atom e s))))
+  (func cv_num ((coco_engine * e) (double x) (int as_int)) (out size_t)
+    (return (? as_int (coco_m_new_int e (cast i64 (std::llround x))) (coco_m_new_float e x))))
+  ;; [X, Y]
+  (func cv_pair ((coco_engine * e) (double x) (double y) (int as_int)) (out size_t)
+    (let ((size_t it [2]))
+      (set (nth 0 it) (cv_num e x as_int))
+      (set (nth 1 it) (cv_num e y as_int))
+      (return (coco_m_list e it 2))))
+  (func cv_quad ((coco_engine * e) (double a) (double b) (double c) (double d) (int as_int)) (out size_t)
+    (let ((size_t it [4]))
+      (set (nth 0 it) (cv_num e a as_int))
+      (set (nth 1 it) (cv_num e b as_int))
+      (set (nth 2 it) (cv_num e c as_int))
+      (set (nth 3 it) (cv_num e d as_int))
+      (return (coco_m_list e it 4))))
+  (func cv_dlist_term ((coco_engine * e) (const (t<> std::vector double) & v) (int as_int)) (out size_t)
+    (letin* ((items ((t<> std::vector size_t))))
+      (for ((size_t k . 0)) (< k (($ v size))) ((++ k))
+        (($ items push_back) (cv_num e (($ v at) k) as_int)))
+      (return (coco_m_list e (($ items data)) (($ items size))))))
+  (func cv_ret_dlist ((coco_engine * e) (size_t g) (u32 i) (const (t<> std::vector double) & v) (int as_int)) (out int)
+    (return (coco_m_unify e (coco_m_arg e g i) (cv_dlist_term e v as_int))))
+  ;; the flat values with their dimensions, nested back into lists
+  (func cv_nest ((coco_engine * e) (const (t<> std::vector double) & v) (const (t<> std::vector int) & dims)
+                 (int level) (size_t * off) (int as_int)) (out size_t)
+    (letin* ((items ((t<> std::vector size_t))))
+      (let ((int n . #'(($ dims at) level)))
+        (for ((int k . 0)) (< k n) ((++ k))
+          (if (== (+ level 1) (cast int (($ dims size))))
+              (block (($ items push_back) (cv_num e (($ v at) (cof off)) as_int))
+                     (set (cof off) (+ (cof off) 1)))
+              (($ items push_back) (cv_nest e v dims (+ level 1) off as_int))))
+        (return (coco_m_list e (($ items data)) (($ items size)))))))
+  (func cv_ret_points ((coco_engine * e) (size_t g) (u32 i) (const (t<> std::vector cv::Point2f) & pts) (int as_int)) (out int)
+    (letin* ((items ((t<> std::vector size_t))))
+      (for ((size_t k . 0)) (< k (($ pts size))) ((++ k))
+        (($ items push_back) (cv_pair e ($ (($ pts at) k) x) ($ (($ pts at) k) y) as_int)))
+      (return (coco_m_unify e (coco_m_arg e g i) (coco_m_list e (($ items data)) (($ items size)))))))
+  (func cv_ipoints_term ((coco_engine * e) (const (t<> std::vector cv::Point) & pts)) (out size_t)
+    (letin* ((items ((t<> std::vector size_t))))
+      (for ((size_t k . 0)) (< k (($ pts size))) ((++ k))
+        (($ items push_back) (cv_pair e ($ (($ pts at) k) x) ($ (($ pts at) k) y) 1)))
+      (return (coco_m_list e (($ items data)) (($ items size))))))
+  (func cv_ret_contours ((coco_engine * e) (size_t g) (u32 i) (const (t<> std::vector (t<> std::vector cv::Point)) & cs)) (out int)
+    (letin* ((items ((t<> std::vector size_t))))
+      (for ((size_t k . 0)) (< k (($ cs size))) ((++ k))
+        (($ items push_back) (cv_ipoints_term e (($ cs at) k))))
+      (return (coco_m_unify e (coco_m_arg e g i) (coco_m_list e (($ items data)) (($ items size)))))))
+  (func cv_ret_rects ((coco_engine * e) (size_t g) (u32 i) (const (t<> std::vector cv::Rect) & rs)) (out int)
+    (letin* ((items ((t<> std::vector size_t))))
+      (for ((size_t k . 0)) (< k (($ rs size))) ((++ k))
+        (($ items push_back) (cv_quad e ($ (($ rs at) k) x) ($ (($ rs at) k) y) ($ (($ rs at) k) width) ($ (($ rs at) k) height) 1)))
+      (return (coco_m_unify e (coco_m_arg e g i) (coco_m_list e (($ items data)) (($ items size)))))))
+  (func cv_ret_texts ((coco_engine * e) (size_t g) (u32 i) (const (t<> std::vector std::string) & ts)) (out int)
+    (letin* ((items ((t<> std::vector size_t))))
+      (for ((size_t k . 0)) (< k (($ ts size))) ((++ k))
+        (($ items push_back) (coco_m_new_atom e (($ (($ ts at) k) c_str)))))
+      (return (coco_m_unify e (coco_m_arg e g i) (coco_m_list e (($ items data)) (($ items size)))))))
+  (func cv_ret_scalar ((coco_engine * e) (size_t g) (u32 i) (const cv::Scalar & s) (int n)) (out int)
+    (letin* ((v ((t<> std::vector double))))
+      (for ((int k . 0)) (< k n) ((++ k)) (($ v push_back) (nth k s)))
+      (return (cv_ret_dlist e g i v 0))))
+  ;; a 2-D Mat as rows of numbers, through 64f
+  (func cv_ret_matrix ((coco_engine * e) (size_t g) (u32 i) (const cv::Mat & m)) (out int)
+    (let ((cv::Mat d))
+      (($ m convertTo) d CV_64F 1.0 0.0)
+      (letin* ((items ((t<> std::vector size_t))) (row ((t<> std::vector double))))
+        (for ((int r . 0)) (< r ($ d rows)) ((++ r))
+          (($ row clear))
+          (for ((int c . 0)) (< c ($ d cols)) ((++ c))
+            (($ row push_back) (nth c (($ d (t<> ptr double)) r))))
+          (($ items push_back) (cv_dlist_term e row 0)))
+        (return (coco_m_unify e (coco_m_arg e g i) (coco_m_list e (($ items data)) (($ items size))))))))
+  (func cv_ret_rotated ((coco_engine * e) (size_t g) (u32 i) (const cv::RotatedRect & r)) (out int)
+    (let ((size_t it [3]))
+      (set (nth 0 it) (cv_pair e ($ r center x) ($ r center y) 0))
+      (set (nth 1 it) (cv_pair e ($ r size width) ($ r size height) 0))
+      (set (nth 2 it) (coco_m_new_float e ($ r angle)))
+      (return (coco_m_unify e (coco_m_arg e g i) (coco_m_list e it 3)))))
+  ;; an image's values, flattened through 64f with its shape
+  (func cv_mat_values ((const cv::Mat & m) ((t<> std::vector double) & v) ((t<> std::vector int) & dims)) (out int)
+    (let ((cv::Mat d) (int cn . #'(($ m channels))))
+      (($ m convertTo) d (CV_64FC cn) 1.0 0.0)
+      (if (not (($ d isContinuous))) (set d (($ d clone))))
+      (if (== ($ m dims) 2)
+          (block (($ dims push_back) ($ m rows)) (($ dims push_back) ($ m cols)))
+          (for ((int k . 0)) (< k ($ m dims)) ((++ k)) (($ dims push_back) (nth k ($ m size)))))
+      (if (> cn 1) (($ dims push_back) cn))
+      (let ((size_t n . #'(* (($ d total)) (cast size_t cn))) (const double * p . #'(($ d (t<> ptr double)) 0)))
+        (for ((size_t k . 0)) (< k n) ((++ k)) (($ v push_back) (nth k p))))
+      (return (? (or (== (($ m depth)) CV_32F) (or (== (($ m depth)) CV_64F) (== (($ m depth)) CV_16F))) 0 1))))
+  (func cv_gray_of ((const cv::Mat & m)) (out cv::Mat)
+    (let ((cv::Mat gray))
+      (cond ((== (($ m channels)) 3) (cv::cvtColor m gray cv::COLOR_BGR2GRAY))
+            ((== (($ m channels)) 4) (cv::cvtColor m gray cv::COLOR_BGRA2BGR) (cv::cvtColor gray gray cv::COLOR_BGR2GRAY))
+            (#t (set gray m)))
+      (return gray)))
+
+  ;; ---- core and imgcodecs ---------------------------------------------
+  (cv-pred cv_p_version (return (cv_ret_atom e g 0 CV_VERSION)))
+  ;; the data directory build.sh found, a macro the preprocessor fills in
+  (static) (var const char * cv_data_c . #'(code "COCO_CV_DATA"))
+  (cv-pred cv_p_data_dir
+    (let ((const char * env . #'(getenv "OPENCV_DATA")))
+      (return (cv_ret_atom e g 0 (? (!= env nil) env cv_data_c)))))
+  (cv-pred cv_p_handles (return (cv_ret_int e g 0 cv_live)))
+  (cv-pred cv_p_imread2
+    (let ((const char * path . #'(cv_atom e g 0)) (cv::Mat m . #'(cv::imread (std::string path) cv::IMREAD_COLOR)))
+      (if (!= 0 (cast int (($ m empty)))) (cv_throw2 "cannot read image" path))
+      (return (cv_ret_mat e g 1 m))))
+  (cv-pred cv_p_imread3
+    (let ((const char * path . #'(cv_atom e g 0)) (cv::Mat m . #'(cv::imread (std::string path) (cv_imread_code (cv_atom e g 1)))))
+      (if (!= 0 (cast int (($ m empty)))) (cv_throw2 "cannot read image" path))
+      (return (cv_ret_mat e g 2 m))))
+  (cv-pred cv_p_imwrite
+    (let ((const char * path . #'(cv_atom e g 0)) (cv::Mat * m . #'(cv_mat e g 1)))
+      (if (not (cv::imwrite (std::string path) (cof m))) (cv_throw2 "cannot write image" path))
+      (return 1)))
+  (cv-pred cv_p_encode
+    (let ((const char * ext . #'(cv_atom e g 0)) (cv::Mat * m . #'(cv_mat e g 1)))
+      (letin* ((buf ((t<> std::vector u8))) (v ((t<> std::vector double))))
+        (if (not (cv::imencode (std::string ext) (cof m) buf)) (cv_throw2 "cannot encode as" ext))
+        (for ((size_t k . 0)) (< k (($ buf size))) ((++ k)) (($ v push_back) (cast double (($ buf at) k))))
+        (return (cv_ret_dlist e g 2 v 1)))))
+  (cv-pred cv_p_decode
+    (letin* ((v ((t<> std::vector double))) (buf ((t<> std::vector u8))))
+      (cv_dlist e g 0 v)
+      (for ((size_t k . 0)) (< k (($ v size))) ((++ k)) (($ buf push_back) (cast u8 (($ v at) k))))
+      (let ((cv::Mat m . #'(cv::imdecode buf cv::IMREAD_UNCHANGED)))
+        (if (!= 0 (cast int (($ m empty)))) (cv_throw "cannot decode the bytes as an image"))
+        (return (cv_ret_mat e g 1 m)))))
+  (cv-pred cv_p_new4
+    (let ((cv::Mat m . #'(cv::Mat::zeros (cast int (cv_int e g 0)) (cast int (cv_int e g 1)) (cv_type_code (cv_atom e g 2)))))
+      (return (cv_ret_mat e g 3 m))))
+  (cv-pred cv_p_new5
+    (let ((cv::Mat m . #'(cv::Mat (cast int (cv_int e g 0)) (cast int (cv_int e g 1)) (cv_type_code (cv_atom e g 2)) (cv_color e g 3))))
+      (return (cv_ret_mat e g 4 m))))
+  (cv-pred cv_p_shape
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((v ((t<> std::vector double))))
+        (if (== (-> m dims) 2)
+            (block (($ v push_back) (-> m rows)) (($ v push_back) (-> m cols)) (($ v push_back) ((-> m channels))))
+            (block (for ((int k . 0)) (< k (-> m dims)) ((++ k)) (($ v push_back) (nth k (-> m size))))
+                   (if (> ((-> m channels)) 1) (($ v push_back) ((-> m channels))))))
+        (return (cv_ret_dlist e g 1 v 1)))))
+  (cv-pred cv_p_type
+    (let ((cv::Mat * m . #'(cv_mat e g 0))) (return (cv_ret_atom e g 1 (cv_type_name ((-> m type)))))))
+  (cv-pred cv_p_clone
+    (let ((cv::Mat * m . #'(cv_mat e g 0))) (return (cv_ret_mat e g 1 ((-> m clone))))))
+  (cv-pred cv_p_free (return (cv_release (cv_int e g 0))))
+  (cv-pred cv_p_to_list
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (size_t off . 0))
+      (letin* ((v ((t<> std::vector double))) (dims ((t<> std::vector int))))
+        (let ((int as_int . #'(cv_mat_values (cof m) v dims)))
+          (return (coco_m_unify e (coco_m_arg e g 1) (cv_nest e v dims 0 (aof off) as_int)))))))
+  (cv-pred cv_p_from_list
+    (letin* ((v ((t<> std::vector double))) (dims ((t<> std::vector int))))
+      (cv_nums e g 0 v dims)
+      (let ((int nd . #'(cast int (($ dims size)))) (int type . #'(cv_type_code (cv_atom e g 1))))
+        (if (or (< nd 2) (> nd 3)) (cv_argfail 0 "must be rows of values, or rows of channel lists"))
+        (let ((int rows . #'(($ dims at) 0)) (int cols . #'(($ dims at) 1)) (int cn . #'(? (== nd 3) (($ dims at) 2) 1)))
+          (if (!= cn (CV_MAT_CN type)) (cv_throw "the rows have a different number of channels than the type says"))
+          (let ((cv::Mat d . #'(cv::Mat rows cols (CV_64FC cn))) (cv::Mat out))
+            (for ((size_t k . 0)) (< k (($ v size))) ((++ k))
+              (set (nth k (($ d (t<> ptr double)) 0)) (($ v at) k)))
+            (($ d convertTo) out type 1.0 0.0)
+            (return (cv_ret_mat e g 2 out)))))))
+  (cv-pred cv_p_convert3
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int type . #'(cv_type_code (cv_atom e g 1))) (cv::Mat out))
+      (if (!= (CV_MAT_CN type) ((-> m channels))) (cv_throw "cv_convert changes the depth, not the channels; cv_cvt_color does that"))
+      ((-> m convertTo) out type 1.0 0.0)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_convert5
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int type . #'(cv_type_code (cv_atom e g 1))) (cv::Mat out))
+      (if (!= (CV_MAT_CN type) ((-> m channels))) (cv_throw "cv_convert changes the depth, not the channels; cv_cvt_color does that"))
+      ((-> m convertTo) out type (cv_dbl e g 2) (cv_dbl e g 3))
+      (return (cv_ret_mat e g 4 out))))
+  (cv-pred cv_p_scale
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      ((-> m convertTo) out -1 (cv_dbl e g 1) 0.0)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_get
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int r . #'(cast int (cv_int e g 1))) (int c . #'(cast int (cv_int e g 2))))
+      (if (or (or (< r 0) (>= r (-> m rows))) (or (< c 0) (>= c (-> m cols)))) (cv_throw "the pixel is outside the image"))
+      (let ((cv::Mat px . #'(cv::Mat (cof m) (cv::Rect c r 1 1))) (cv::Mat d) (int cn . #'((-> m channels))))
+        (($ px convertTo) d (CV_64FC cn) 1.0 0.0)
+        (let ((int as_int . #'(? (or (== ((-> m depth)) CV_32F) (== ((-> m depth)) CV_64F)) 0 1))
+              (const double * p . #'(($ d (t<> ptr double)) 0)))
+          (if (== cn 1) (return (coco_m_unify e (coco_m_arg e g 3) (cv_num e (nth 0 p) as_int))))
+          (letin* ((v ((t<> std::vector double))))
+            (for ((int k . 0)) (< k cn) ((++ k)) (($ v push_back) (nth k p)))
+            (return (cv_ret_dlist e g 3 v as_int)))))))
+  (cv-pred cv_p_set
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int r . #'(cast int (cv_int e g 1))) (int c . #'(cast int (cv_int e g 2))))
+      (if (or (or (< r 0) (>= r (-> m rows))) (or (< c 0) (>= c (-> m cols)))) (cv_throw "the pixel is outside the image"))
+      (letin* ((v ((t<> std::vector double))))
+        (let ((int n . #'(cv_dlist e g 3 v)) (int cn . #'((-> m channels))))
+          (if (and (!= n cn) (!= n 1)) (cv_throw "the value has a different number of channels than the image"))
+          (let ((cv::Mat px . #'(cv::Mat (cof m) (cv::Rect c r 1 1))) (cv::Mat d . #'(cv::Mat 1 1 (CV_64FC cn))))
+            (for ((int k . 0)) (< k cn) ((++ k))
+              (set (nth k (($ d (t<> ptr double)) 0)) (($ v at) (? (== n 1) 0 k))))
+            (($ d convertTo) px ((-> m type)) 1.0 0.0)
+            (return 1))))))
+  (cv-pred cv_p_roi
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Rect r . #'(cv_rect e g 1)))
+      (if (or (or (< ($ r x) 0) (< ($ r y) 0)) (or (> (+ ($ r x) ($ r width)) (-> m cols)) (> (+ ($ r y) ($ r height)) (-> m rows))))
+          (cv_throw "the region is outside the image"))
+      (let ((cv::Mat roi . #'(cv::Mat (cof m) r)))
+        (return (cv_ret_mat e g 2 (($ roi clone)))))))
+  (cv-pred cv_p_paste
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat * p . #'(cv_mat e g 1)) (cv::Point at . #'(cv_point e g 2)))
+      (if (or (or (< ($ at x) 0) (< ($ at y) 0)) (or (> (+ ($ at x) (-> p cols)) (-> m cols)) (> (+ ($ at y) (-> p rows)) (-> m rows))))
+          (cv_throw "the patch does not fit inside the image there"))
+      (if (!= ((-> p type)) ((-> m type))) (cv_throw "the patch has another type than the image; cv_convert or cv_cvt_color it first"))
+      (let ((cv::Mat roi . #'(cv::Mat (cof m) (cv::Rect ($ at x) ($ at y) (-> p cols) (-> p rows)))))
+        ((-> p copyTo) roi)
+        (return 1))))
+  (cv-pred cv_p_split
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((ch ((t<> std::vector cv::Mat))) (items ((t<> std::vector size_t))))
+        (cv::split (cof m) ch)
+        (for ((size_t k . 0)) (< k (($ ch size))) ((++ k))
+          (($ items push_back) (coco_m_new_int e (cv_adopt CV_K_MAT (cast (void *) (new* cv::Mat (($ ch at) k)))))))
+        (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e (($ items data)) (($ items size))))))))
+  (cv-pred cv_p_merge
+    (letin* ((ms (cv_mats e g 0)))
+      (let ((cv::Mat out))
+        (cv::merge ms out)
+        (return (cv_ret_mat e g 1 out)))))
+  (cv-pred cv_p_hconcat
+    (letin* ((ms (cv_mats e g 0)))
+      (let ((cv::Mat out)) (cv::hconcat ms out) (return (cv_ret_mat e g 1 out)))))
+  (cv-pred cv_p_vconcat
+    (letin* ((ms (cv_mats e g 0)))
+      (let ((cv::Mat out)) (cv::vconcat ms out) (return (cv_ret_mat e g 1 out)))))
+
+  ;; ---- arithmetic ------------------------------------------------------
+  (cv-binary cv_p_add cv::add)
+  (cv-binary cv_p_sub cv::subtract)
+  (cv-binary cv_p_mul cv::multiply)
+  (cv-binary cv_p_div cv::divide)
+  (cv-binary cv_p_absdiff cv::absdiff)
+  (cv-binary cv_p_max cv::max)
+  (cv-binary cv_p_min cv::min)
+  (cv-binary cv_p_and cv::bitwise_and)
+  (cv-binary cv_p_or cv::bitwise_or)
+  (cv-binary cv_p_xor cv::bitwise_xor)
+  (cv-unary cv_p_not (cv::bitwise_not SRC DST))
+  (cv-pred cv_p_add_scalar
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out)
+          (cv::Mat s . #'(cv::Mat (-> m rows) (-> m cols) ((-> m type)) (cv_color e g 1))))
+      (cv::add (cof m) s out)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_pow
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::pow (cof m) (cv_dbl e g 1) out)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_add_weighted
+    (let ((cv::Mat * a . #'(cv_mat e g 0)) (cv::Mat * b . #'(cv_mat e g 2)) (cv::Mat out))
+      (cv::addWeighted (cof a) (cv_dbl e g 1) (cof b) (cv_dbl e g 3) (cv_dbl e g 4) out)
+      (return (cv_ret_mat e g 5 out))))
+  (cv-pred cv_p_normalize
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::normalize (cof m) out (cv_dbl e g 1) (cv_dbl e g 2) (cv_norm_code (cv_atom e g 3)))
+      (return (cv_ret_mat e g 4 out))))
+  (cv-pred cv_p_flip
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::flip (cof m) out (cv_flip_code (cv_atom e g 1)))
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_rotate
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (i64 deg . #'(cv_int e g 1)) (cv::Mat out) (int code . 0))
+      (cond ((== deg 90) (set code cv::ROTATE_90_CLOCKWISE))
+            ((== deg 180) (set code cv::ROTATE_180))
+            ((or (== deg 270) (== deg -90)) (set code cv::ROTATE_90_COUNTERCLOCKWISE))
+            (#t (cv_throw "cv_rotate turns by 90, 180 or 270; cv_warp_affine with cv_rotation_matrix does any angle")))
+      (cv::rotate (cof m) out code)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-unary cv_p_transpose (cv::transpose SRC DST))
+  (cv-pred cv_p_compare
+    (let ((cv::Mat * a . #'(cv_mat e g 0)) (cv::Mat * b . #'(cv_mat e g 1)) (cv::Mat out))
+      (cv::compare (cof a) (cof b) out (cv_cmp_code (cv_atom e g 2)))
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_in_range
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::inRange (cof m) (cv_color e g 1) (cv_color e g 2) out)
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_mean
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (return (cv_ret_scalar e g 1 (cv::mean (cof m)) ((-> m channels))))))
+  (cv-pred cv_p_mean_std
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Scalar mu) (cv::Scalar sd))
+      (cv::meanStdDev (cof m) mu sd)
+      (if (not (cv_ret_scalar e g 1 mu ((-> m channels)))) (return 0))
+      (return (cv_ret_scalar e g 2 sd ((-> m channels))))))
+  (cv-pred cv_p_minmax
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (double lo . 0.0) (double hi . 0.0) (cv::Point pl) (cv::Point ph))
+      (if (> ((-> m channels)) 1) (cv_throw "cv_minmax wants one channel; cv_split first"))
+      (cv::minMaxLoc (cof m) (aof lo) (aof hi) (aof pl) (aof ph))
+      (if (not (cv_ret_dbl e g 1 lo)) (return 0))
+      (if (not (cv_ret_dbl e g 2 hi)) (return 0))
+      (if (not (coco_m_unify e (coco_m_arg e g 3) (cv_pair e ($ pl x) ($ pl y) 1))) (return 0))
+      (return (coco_m_unify e (coco_m_arg e g 4) (cv_pair e ($ ph x) ($ ph y) 1)))))
+  (cv-pred cv_p_sum
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (return (cv_ret_scalar e g 1 (cv::sum (cof m)) ((-> m channels))))))
+  (cv-pred cv_p_count_nonzero (return (cv_ret_int e g 1 (cv::countNonZero (cof (cv_mat e g 0))))))
+  (cv-pred cv_p_dft
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat f) (cv::Mat out))
+      (($ (cv_gray_of (cof m)) convertTo) f CV_32F 1.0 0.0)
+      (cv::dft f out cv::DFT_COMPLEX_OUTPUT)
+      (return (cv_ret_mat e g 1 out))))
+  ;; the classic spectrum picture: log(1 + |F|), the zero frequency moved to the centre
+  (cv-pred cv_p_spectrum
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat f) (cv::Mat c) (cv::Mat mag))
+      (($ (cv_gray_of (cof m)) convertTo) f CV_32F 1.0 0.0)
+      (cv::dft f c cv::DFT_COMPLEX_OUTPUT)
+      (letin* ((planes ((t<> std::vector cv::Mat))))
+        (cv::split c planes)
+        (cv::magnitude (($ planes at) 0) (($ planes at) 1) mag))
+      (cv::add mag (cv::Mat ($ mag rows) ($ mag cols) CV_32F (cv::Scalar::all 1.0)) mag)
+      (cv::log mag mag)
+      (let ((int cx . #'(/ ($ mag cols) 2)) (int cy . #'(/ ($ mag rows) 2))
+            (cv::Mat spec . #'(cv::Mat mag (cv::Rect 0 0 (* cx 2) (* cy 2)))))
+        (let ((cv::Mat q0 . #'(cv::Mat spec (cv::Rect 0 0 cx cy))) (cv::Mat q1 . #'(cv::Mat spec (cv::Rect cx 0 cx cy)))
+              (cv::Mat q2 . #'(cv::Mat spec (cv::Rect 0 cy cx cy))) (cv::Mat q3 . #'(cv::Mat spec (cv::Rect cx cy cx cy)))
+              (cv::Mat tmp))
+          (($ q0 copyTo) tmp) (($ q3 copyTo) q0) (($ tmp copyTo) q3)
+          (($ q1 copyTo) tmp) (($ q2 copyTo) q1) (($ tmp copyTo) q2))
+        (let ((cv::Mat out))
+          (cv::normalize spec out 0.0 1.0 cv::NORM_MINMAX)
+          (return (cv_ret_mat e g 1 out))))))
+
+  ;; ---- randomness, colour maps, clustering -----------------------------------
+  (cv-pred cv_p_seed (cv::setRNGSeed (cast int (cv_int e g 0))) (return 1))
+  (cv-pred cv_p_noise
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (double sigma . #'(cv_dbl e g 1)) (int cn . #'((-> m channels)))
+          (cv::Mat noise . #'(cv::Mat (-> m rows) (-> m cols) (CV_MAKETYPE CV_16S cn))) (cv::Mat wide) (cv::Mat sum) (cv::Mat out))
+      (if (> ((-> m depth)) CV_8S) (cv_throw "cv_noise works on 8-bit images; cv_convert first"))
+      (cv::randn noise (cv::Scalar::all 0.0) (cv::Scalar::all sigma))
+      ((-> m convertTo) wide (CV_MAKETYPE CV_16S cn) 1.0 0.0)
+      (cv::add wide noise sum)
+      (($ sum convertTo) out ((-> m type)) 1.0 0.0)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_rand
+    (let ((cv::Mat m . #'(cv::Mat (cast int (cv_int e g 0)) (cast int (cv_int e g 1)) (cv_type_code (cv_atom e g 2)))))
+      (cv::randu m (cv::Scalar::all (cv_dbl e g 3)) (cv::Scalar::all (cv_dbl e g 4)))
+      (return (cv_ret_mat e g 5 m))))
+  (cv-pred cv_p_colormap
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::applyColorMap (cof m) out (cv_colormap_code (cv_atom e g 1)))
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_kmeans
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int k . #'(cast int (cv_int e g 1))) (int cn . #'((-> m channels)))
+          (cv::Mat samples . #'((-> m reshape) 1 (* (-> m rows) (-> m cols)))) (cv::Mat data) (cv::Mat labels) (cv::Mat centers))
+      (($ samples convertTo) data CV_32F 1.0 0.0)
+      (cv::kmeans data k labels (cv::TermCriteria (+ cv::TermCriteria::EPS cv::TermCriteria::COUNT) 10 1.0) 3 cv::KMEANS_PP_CENTERS centers)
+      (let ((cv::Mat q . #'(cv::Mat ($ data rows) ($ data cols) CV_32F)) (cv::Mat q8))
+        (for ((int i . 0)) (< i ($ data rows)) ((++ i))
+          (let ((int lab . #'(nth 0 (($ labels (t<> ptr int)) i))))
+            (for ((int c . 0)) (< c ($ data cols)) ((++ c))
+              (set (nth c (($ q (t<> ptr float)) i)) (nth c (($ centers (t<> ptr float)) lab))))))
+        (($ q convertTo) q8 ((-> m depth)) 1.0 0.0)
+        (let ((cv::Mat out . #'(($ q8 reshape) cn (-> m rows))))
+          (return (cv_ret_mat e g 2 (($ out clone))))))))
+  (cv-pred cv_p_kmeans_points
+    (letin* ((pts (cv_points e g 0)) (labs ((t<> std::vector double))) (cs ((t<> std::vector cv::Point2f))))
+      (let ((int k . #'(cast int (cv_int e g 1))) (int n . #'(cast int (($ pts size)))) (cv::Mat labels) (cv::Mat centers)
+            (cv::Mat data . #'(cv::Mat (cast int (($ pts size))) 2 CV_32F)))
+        (if (< n k) (cv_throw "fewer points than clusters"))
+        (for ((int i . 0)) (< i n) ((++ i))
+          (set (nth 0 (($ data (t<> ptr float)) i)) ($ (($ pts at) i) x))
+          (set (nth 1 (($ data (t<> ptr float)) i)) ($ (($ pts at) i) y)))
+        (cv::kmeans data k labels (cv::TermCriteria (+ cv::TermCriteria::EPS cv::TermCriteria::COUNT) 20 0.1) 5 cv::KMEANS_PP_CENTERS centers)
+        (for ((int i . 0)) (< i n) ((++ i)) (($ labs push_back) (cast double (nth 0 (($ labels (t<> ptr int)) i)))))
+        (for ((int i . 0)) (< i k) ((++ i))
+          (($ cs push_back) (cv::Point2f (nth 0 (($ centers (t<> ptr float)) i)) (nth 1 (($ centers (t<> ptr float)) i)))))
+        (if (not (cv_ret_dlist e g 2 labs 1)) (return 0))
+        (return (cv_ret_points e g 3 cs 0)))))
+  (cv-pred cv_p_grabcut
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Rect r . #'(cv_rect e g 1)) (int iters . #'(cast int (cv_int e g 2)))
+          (cv::Mat mask . #'(cv::Mat::zeros (-> m rows) (-> m cols) CV_8U)) (cv::Mat bgd) (cv::Mat fgd) (cv::Mat a) (cv::Mat b) (cv::Mat out))
+      (if (!= ((-> m channels)) 3) (cv_throw "cv_grabcut wants a colour image"))
+      (cv::grabCut (cof m) mask r bgd fgd iters cv::GC_INIT_WITH_RECT)
+      (cv::inRange mask (cv::Scalar::all cv::GC_FGD) (cv::Scalar::all cv::GC_FGD) a)
+      (cv::inRange mask (cv::Scalar::all cv::GC_PR_FGD) (cv::Scalar::all cv::GC_PR_FGD) b)
+      (cv::bitwise_or a b out)
+      (return (cv_ret_mat e g 3 out))))
+
+  ;; ---- imgproc ------------------------------------------------------------
+  (cv-pred cv_p_cvt_color
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::cvtColor (cof m) out (cv_color_code (cv_atom e g 1)))
+      (return (cv_ret_mat e g 2 out))))
+  (func cv_resize_to ((coco_engine * e) (size_t g) (u32 i) (const cv::Mat & m) (int interp) (cv::Mat & out)) (out int)
+    (letin* ((v ((t<> std::vector double))))
+      (let ((int n . #'(cv_dlist e g i v)))
+        (cond ((== n 1) (cv::resize m out (cv::Size 0 0) (($ v at) 0) (($ v at) 0) interp))
+              ((== n 2) (cv::resize m out (cv::Size (cast int (($ v at) 0)) (cast int (($ v at) 1))) 0.0 0.0 interp))
+              (#t (cv_argfail i "must be a size [W, H] or one scale factor")))
+        (return 1))))
+  (cv-pred cv_p_resize3
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv_resize_to e g 1 (cof m) cv::INTER_LINEAR out)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_resize4
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv_resize_to e g 1 (cof m) (cv_interp_code (cv_atom e g 2)) out)
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_blur
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int k . #'(cast int (cv_int e g 1))) (cv::Mat out))
+      (cv::blur (cof m) out (cv::Size k k))
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_gaussian_blur
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int k . #'(cast int (cv_int e g 1))) (cv::Mat out))
+      (cv::GaussianBlur (cof m) out (cv::Size k k) (cv_dbl e g 2))
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_median_blur
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::medianBlur (cof m) out (cast int (cv_int e g 1)))
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_bilateral
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::bilateralFilter (cof m) out (cast int (cv_int e g 1)) (cv_dbl e g 2) (cv_dbl e g 3))
+      (return (cv_ret_mat e g 4 out))))
+  (cv-pred cv_p_threshold5
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::threshold (cof m) out (cv_dbl e g 1) (cv_dbl e g 2) (cv_thresh_code (cv_atom e g 3)))
+      (return (cv_ret_mat e g 4 out))))
+  (cv-pred cv_p_threshold6
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out)
+          (double used . #'(cv::threshold (cof m) out (cv_dbl e g 1) (cv_dbl e g 2) (cv_thresh_code (cv_atom e g 3)))))
+      (if (not (cv_ret_mat e g 4 out)) (return 0))
+      (return (cv_ret_dbl e g 5 used))))
+  (cv-pred cv_p_adaptive_threshold
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::adaptiveThreshold (cof m) out (cv_dbl e g 1) (cv_adaptive_code (cv_atom e g 2)) (cv_thresh_code (cv_atom e g 3))
+                             (cast int (cv_int e g 4)) (cv_dbl e g 5))
+      (return (cv_ret_mat e g 6 out))))
+  (cv-pred cv_p_canny
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::Canny (cof m) out (cv_dbl e g 1) (cv_dbl e g 2))
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_sobel
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::Sobel (cof m) out CV_64F (cast int (cv_int e g 1)) (cast int (cv_int e g 2)) (cast int (cv_int e g 3)))
+      (return (cv_ret_mat e g 4 out))))
+  (cv-pred cv_p_laplacian
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::Laplacian (cof m) out CV_64F (cast int (cv_int e g 1)))
+      (return (cv_ret_mat e g 2 out))))
+  (cv-unary cv_p_abs8u (cv::convertScaleAbs SRC DST))
+  (cv-pred cv_p_morph
+    (let ((int op . #'(cv_morph_code (cv_atom e g 0))) (cv::Mat * m . #'(cv_mat e g 1)) (int k . #'(cast int (cv_int e g 2)))
+          (cv::Mat kernel . #'(cv::getStructuringElement (cv_shape_code (cv_atom e g 3)) (cv::Size k k)))
+          (int iters . #'(cast int (cv_int e g 4))) (cv::Mat out))
+      (cond ((== op -1) (cv::erode (cof m) out kernel (cv::Point -1 -1) iters))
+            ((== op -2) (cv::dilate (cof m) out kernel (cv::Point -1 -1) iters))
+            (#t (cv::morphologyEx (cof m) out op kernel (cv::Point -1 -1) iters)))
+      (return (cv_ret_mat e g 5 out))))
+  (cv-pred cv_p_find_contours
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((cs ((t<> std::vector (t<> std::vector cv::Point)))))
+        (cv::findContours (cof m) cs (cv_retr_code (cv_atom e g 1)) (cv_chain_code (cv_atom e g 2)))
+        (return (cv_ret_contours e g 3 cs)))))
+  (cv-pred cv_p_contour_area
+    (letin* ((pts (cv_points e g 0))) (return (cv_ret_dbl e g 1 (cv::contourArea pts)))))
+  (cv-pred cv_p_arc_length
+    (letin* ((pts (cv_points e g 0))) (return (cv_ret_dbl e g 2 (cv::arcLength pts (!= 0 (cv_bool e g 1)))))))
+  (cv-pred cv_p_bounding_rect
+    (letin* ((pts (cv_points e g 0)))
+      (let ((cv::Rect r . #'(cv::boundingRect pts)))
+        (return (coco_m_unify e (coco_m_arg e g 1) (cv_quad e ($ r x) ($ r y) ($ r width) ($ r height) 1))))))
+  (cv-pred cv_p_min_area_rect
+    (letin* ((pts (cv_points e g 0))) (return (cv_ret_rotated e g 1 (cv::minAreaRect pts)))))
+  (cv-pred cv_p_min_enclosing_circle
+    (letin* ((pts (cv_points e g 0)))
+      (let ((cv::Point2f c) (float r . 0.0))
+        (cv::minEnclosingCircle pts c r)
+        (if (not (coco_m_unify e (coco_m_arg e g 1) (cv_pair e ($ c x) ($ c y) 0))) (return 0))
+        (return (cv_ret_dbl e g 2 r)))))
+  (cv-pred cv_p_approx_poly
+    (letin* ((pts (cv_points e g 0)) (out ((t<> std::vector cv::Point2f))))
+      (cv::approxPolyDP pts out (cv_dbl e g 1) (!= 0 (cv_bool e g 2)))
+      (return (cv_ret_points e g 3 out 0))))
+  (cv-pred cv_p_convex_hull
+    (letin* ((pts (cv_points e g 0)) (hull ((t<> std::vector cv::Point2f))))
+      (cv::convexHull pts hull)
+      (return (cv_ret_points e g 1 hull 0))))
+  (cv-pred cv_p_moments
+    (letin* ((pts (cv_points e g 0)) (v ((t<> std::vector double))))
+      (let ((cv::Moments mo . #'(cv::moments pts)))
+        (($ v push_back) ($ mo m00)) (($ v push_back) ($ mo m10)) (($ v push_back) ($ mo m01))
+        (($ v push_back) ($ mo m20)) (($ v push_back) ($ mo m11)) (($ v push_back) ($ mo m02))
+        (($ v push_back) ($ mo m30)) (($ v push_back) ($ mo m21)) (($ v push_back) ($ mo m12)) (($ v push_back) ($ mo m03))
+        (return (cv_ret_dlist e g 1 v 0)))))
+  (cv-pred cv_p_point_polygon_test
+    (letin* ((pts (cv_points e g 0)))
+      (return (cv_ret_dbl e g 3 (cv::pointPolygonTest pts (cv_point2f e g 1) (!= 0 (cv_bool e g 2)))))))
+  (cv-pred cv_p_fit_ellipse
+    (letin* ((pts (cv_points e g 0)))
+      (if (< (($ pts size)) 5) (cv_throw "cv_fit_ellipse wants at least five points"))
+      (return (cv_ret_rotated e g 1 (cv::fitEllipse pts)))))
+  (cv-pred cv_p_is_convex
+    (letin* ((pts (cv_points e g 0))) (return (? (cv::isContourConvex pts) 1 0))))
+  (cv-pred cv_p_draw_contours
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((cs (cv_contours e g 1)))
+        (cv::drawContours (cof m) cs (cast int (cv_int e g 2)) (cv_color e g 3) (cast int (cv_int e g 4)) cv::LINE_8)
+        (return 1))))
+  (cv-pred cv_p_hough_lines
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((lines ((t<> std::vector cv::Vec2f))) (items ((t<> std::vector size_t))))
+        (cv::HoughLines (cof m) lines (cv_dbl e g 1) (cv_dbl e g 2) (cast int (cv_int e g 3)))
+        (for ((size_t k . 0)) (< k (($ lines size))) ((++ k))
+          (($ items push_back) (cv_pair e (nth 0 (($ lines at) k)) (nth 1 (($ lines at) k)) 0)))
+        (return (coco_m_unify e (coco_m_arg e g 4) (coco_m_list e (($ items data)) (($ items size))))))))
+  (cv-pred cv_p_hough_lines_p
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((lines ((t<> std::vector cv::Vec4i))) (items ((t<> std::vector size_t))))
+        (cv::HoughLinesP (cof m) lines (cv_dbl e g 1) (cv_dbl e g 2) (cast int (cv_int e g 3)) (cv_dbl e g 4) (cv_dbl e g 5))
+        (for ((size_t k . 0)) (< k (($ lines size))) ((++ k))
+          (($ items push_back) (cv_quad e (nth 0 (($ lines at) k)) (nth 1 (($ lines at) k)) (nth 2 (($ lines at) k)) (nth 3 (($ lines at) k)) 1)))
+        (return (coco_m_unify e (coco_m_arg e g 6) (coco_m_list e (($ items data)) (($ items size))))))))
+  (cv-pred cv_p_hough_circles
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((cs ((t<> std::vector cv::Vec3f))) (items ((t<> std::vector size_t))) (v ((t<> std::vector double))))
+        (cv::HoughCircles (cof m) cs cv::HOUGH_GRADIENT (cv_dbl e g 1) (cv_dbl e g 2) (cv_dbl e g 3) (cv_dbl e g 4)
+                          (cast int (cv_int e g 5)) (cast int (cv_int e g 6)))
+        (for ((size_t k . 0)) (< k (($ cs size))) ((++ k))
+          (($ v clear))
+          (($ v push_back) (nth 0 (($ cs at) k))) (($ v push_back) (nth 1 (($ cs at) k))) (($ v push_back) (nth 2 (($ cs at) k)))
+          (($ items push_back) (cv_dlist_term e v 0)))
+        (return (coco_m_unify e (coco_m_arg e g 7) (coco_m_list e (($ items data)) (($ items size))))))))
+  (func cv_hist_of ((coco_engine * e) (size_t g) (const cv::Mat & m) (int ch) (int bins) (float lo) (float hi) (u32 out)) (out int)
+    (let ((cv::Mat hist) (float range [2]) (int hsize [1]) (int chans [1]) (const float * ranges [1]))
+      (if (or (< ch 0) (>= ch (($ m channels)))) (cv_throw "no such channel"))
+      (set (nth 0 range) lo) (set (nth 1 range) hi)
+      (set (nth 0 ranges) range) (set (nth 0 hsize) bins) (set (nth 0 chans) ch)
+      (cv::calcHist (aof m) 1 chans (cv::Mat) hist 1 hsize ranges)
+      (letin* ((v ((t<> std::vector double))))
+        (for ((int k . 0)) (< k bins) ((++ k)) (($ v push_back) (nth 0 (($ hist (t<> ptr float)) k))))
+        (return (cv_ret_dlist e g out v 1)))))
+  (cv-pred cv_p_hist4
+    (return (cv_hist_of e g (cof (cv_mat e g 0)) (cast int (cv_int e g 1)) (cast int (cv_int e g 2)) 0.0 256.0 3)))
+  (cv-pred cv_p_hist6
+    (return (cv_hist_of e g (cof (cv_mat e g 0)) (cast int (cv_int e g 1)) (cast int (cv_int e g 2))
+                        (cast float (cv_dbl e g 3)) (cast float (cv_dbl e g 4)) 5)))
+  (func cv_hist_mat ((coco_engine * e) (size_t g) (u32 i)) (out cv::Mat)
+    (letin* ((v ((t<> std::vector double))))
+      (let ((int n . #'(cv_dlist e g i v)) (cv::Mat h . #'(cv::Mat n 1 CV_32F)))
+        (for ((int k . 0)) (< k n) ((++ k)) (set (nth 0 (($ h (t<> ptr float)) k)) (cast float (($ v at) k))))
+        (return h))))
+  (cv-pred cv_p_compare_hist
+    (let ((cv::Mat h1 . #'(cv_hist_mat e g 0)) (cv::Mat h2 . #'(cv_hist_mat e g 1)))
+      (return (cv_ret_dbl e g 3 (cv::compareHist h1 h2 (cv_histcmp_code (cv_atom e g 2)))))))
+  (cv-unary cv_p_equalize_hist (cv::equalizeHist SRC DST))
+  (cv-pred cv_p_clahe
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (int t . #'(cast int (cv_int e g 2))) (cv::Mat out))
+      (letin* ((c (cv::createCLAHE (cv_dbl e g 1) (cv::Size t t))))
+        (let ((cv::CLAHE * p . #'(($ c get))))
+          ((-> p apply) (cof m) out)
+          (return (cv_ret_mat e g 3 out))))))
+  (cv-pred cv_p_match_template
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat * t . #'(cv_mat e g 1)) (cv::Mat out))
+      (cv::matchTemplate (cof m) (cof t) out (cv_tm_code (cv_atom e g 2)))
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_rotation_matrix
+    (return (cv_ret_matrix e g 3 (cv::getRotationMatrix2D (cv_point2f e g 0) (cv_dbl e g 1) (cv_dbl e g 2)))))
+  (cv-pred cv_p_affine_transform
+    (letin* ((src (cv_points e g 0)) (dst (cv_points e g 1)))
+      (if (or (!= (($ src size)) 3) (!= (($ dst size)) 3)) (cv_throw "an affine transform is fixed by three point pairs"))
+      (return (cv_ret_matrix e g 2 (cv::getAffineTransform src dst)))))
+  (cv-pred cv_p_warp_affine
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat mtx . #'(cv_matrix e g 1)) (cv::Mat out))
+      (cv::warpAffine (cof m) out mtx (cv_size e g 2))
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_perspective_transform
+    (letin* ((src (cv_points e g 0)) (dst (cv_points e g 1)))
+      (if (or (!= (($ src size)) 4) (!= (($ dst size)) 4)) (cv_throw "a perspective transform is fixed by four point pairs"))
+      (return (cv_ret_matrix e g 2 (cv::getPerspectiveTransform src dst)))))
+  (cv-pred cv_p_warp_perspective
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat mtx . #'(cv_matrix e g 1)) (cv::Mat out))
+      (cv::warpPerspective (cof m) out mtx (cv_size e g 2))
+      (return (cv_ret_mat e g 3 out))))
+  (cv-pred cv_p_transform_points
+    (letin* ((src (cv_points e g 0)) (dst ((t<> std::vector cv::Point2f))))
+      (let ((cv::Mat mtx . #'(cv_matrix e g 1)))
+        (cv::perspectiveTransform src dst mtx)
+        (return (cv_ret_points e g 2 dst 0)))))
+  (cv-unary cv_p_pyr_down (cv::pyrDown SRC DST))
+  (cv-unary cv_p_pyr_up (cv::pyrUp SRC DST))
+  (cv-unary cv_p_distance_transform (cv::distanceTransform SRC DST cv::DIST_L2 3))
+  (cv-pred cv_p_watershed
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat * markers . #'(cv_mat e g 1)))
+      (cv::watershed (cof m) (cof markers))
+      (return 1)))
+  (cv-pred cv_p_connected_components
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat labels) (int n . #'(cv::connectedComponents (cof m) labels)))
+      (if (not (cv_ret_int e g 1 n)) (return 0))
+      (return (cv_ret_mat e g 2 labels))))
+  (cv-pred cv_p_flood_fill
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (cv::floodFill (cof m) (cv_point e g 1) (cv_color e g 2))
+      (return 1)))
+  (cv-pred cv_p_filter2d
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat k . #'(cv_matrix e g 1)) (cv::Mat out))
+      (cv::filter2D (cof m) out -1 k)
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_make_border
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::copyMakeBorder (cof m) out (cast int (cv_int e g 1)) (cast int (cv_int e g 2)) (cast int (cv_int e g 3)) (cast int (cv_int e g 4))
+                          (cv_border_code (cv_atom e g 5)) (cv_color e g 6))
+      (return (cv_ret_mat e g 7 out))))
+  (cv-pred cv_p_corner_harris
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (cv::cornerHarris (cof m) out (cast int (cv_int e g 1)) (cast int (cv_int e g 2)) (cv_dbl e g 3))
+      (return (cv_ret_mat e g 4 out))))
+  (cv-pred cv_p_good_features
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((pts ((t<> std::vector cv::Point2f))))
+        (cv::goodFeaturesToTrack (cof m) pts (cast int (cv_int e g 1)) (cv_dbl e g 2) (cv_dbl e g 3))
+        (return (cv_ret_points e g 4 pts 0)))))
+
+  ;; ---- drawing, on the image given -------------------------------------------
+  (cv-pred cv_p_line
+    (cv::line (cof (cv_mat e g 0)) (cv_point e g 1) (cv_point e g 2) (cv_color e g 3) (cast int (cv_int e g 4)) cv::LINE_AA)
+    (return 1))
+  (cv-pred cv_p_rectangle
+    (cv::rectangle (cof (cv_mat e g 0)) (cv_rect e g 1) (cv_color e g 2) (cast int (cv_int e g 3)) cv::LINE_8)
+    (return 1))
+  (cv-pred cv_p_circle
+    (cv::circle (cof (cv_mat e g 0)) (cv_point e g 1) (cast int (cv_int e g 2)) (cv_color e g 3) (cast int (cv_int e g 4)) cv::LINE_AA)
+    (return 1))
+  (cv-pred cv_p_ellipse
+    (cv::ellipse (cof (cv_mat e g 0)) (cv_point e g 1) (cv_size e g 2) (cv_dbl e g 3) (cv_dbl e g 4) (cv_dbl e g 5)
+                 (cv_color e g 6) (cast int (cv_int e g 7)) cv::LINE_AA)
+    (return 1))
+  (cv-pred cv_p_polylines
+    (letin* ((pts ((t<> std::vector (t<> std::vector cv::Point)))))
+      (($ pts push_back) (cv_ipoints e g 1))
+      (cv::polylines (cof (cv_mat e g 0)) pts (!= 0 (cv_bool e g 2)) (cv_color e g 3) (cast int (cv_int e g 4)) cv::LINE_AA)
+      (return 1)))
+  (cv-pred cv_p_fill_poly
+    (letin* ((pts ((t<> std::vector (t<> std::vector cv::Point)))))
+      (($ pts push_back) (cv_ipoints e g 1))
+      (cv::fillPoly (cof (cv_mat e g 0)) pts (cv_color e g 2) cv::LINE_AA)
+      (return 1)))
+  (cv-pred cv_p_put_text
+    (cv::putText (cof (cv_mat e g 0)) (std::string (cv_atom e g 1)) (cv_point e g 2) cv::FONT_HERSHEY_SIMPLEX (cv_dbl e g 3)
+                 (cv_color e g 4) (cast int (cv_int e g 5)) cv::LINE_AA)
+    (return 1))
+  (cv-pred cv_p_text_size
+    (let ((int base . 0)
+          (cv::Size s . #'(cv::getTextSize (std::string (cv_atom e g 0)) cv::FONT_HERSHEY_SIMPLEX (cv_dbl e g 1) (cast int (cv_int e g 2)) (aof base))))
+      (return (coco_m_unify e (coco_m_arg e g 3) (cv_pair e ($ s width) ($ s height) 1)))))
+
+  ;; ---- dnn -----------------------------------------------------------------
+  (func cv_read_net ((const char * model) (const char * config)) (out cv::dnn::Net)
+    (let ((cv::dnn::Net net . #'(cv::dnn::readNet (std::string model) (std::string config))))
+      (if (!= 0 (cast int (($ net empty)))) (cv_throw2 "the network is empty after reading" model))
+      (return net)))
+  (cv-pred cv_p_dnn_read2
+    (let ((cv::dnn::Net net . #'(cv_read_net (cv_atom e g 0) "")))
+      (return (cv_ret_int e g 1 (cv_adopt CV_K_NET (cast (void *) (new* cv::dnn::Net net)))))))
+  (cv-pred cv_p_dnn_read3
+    (let ((cv::dnn::Net net . #'(cv_read_net (cv_atom e g 0) (cv_atom e g 1))))
+      (return (cv_ret_int e g 2 (cv_adopt CV_K_NET (cast (void *) (new* cv::dnn::Net net)))))))
+  (cv-pred cv_p_dnn_blob
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (double scale . #'(cv_dbl e g 1)) (cv::Size size . #'(cv_size e g 2))
+          (cv::Scalar mean . #'(cv_color e g 3)) (int swap . #'(cv_bool e g 4)) (int crop . #'(cv_bool e g 5)))
+      (return (cv_ret_mat e g 6 (cv::dnn::blobFromImage (cof m) scale size mean (!= 0 swap) (!= 0 crop))))))
+  (cv-pred cv_p_dnn_input
+    (let ((cv::dnn::Net * net . #'(cv_net e g 0)) (cv::Mat * blob . #'(cv_mat e g 1)))
+      ((-> net setInput) (cof blob))
+      (return 1)))
+  (cv-pred cv_p_dnn_forward2
+    (let ((cv::dnn::Net * net . #'(cv_net e g 0)))
+      (letin* ((names ((-> net getUnconnectedOutLayersNames))))
+        (if (== (($ names size)) 0) (cv_throw "the network has no output layer"))
+        (return (cv_ret_mat e g 1 ((-> net forward) (($ names at) 0)))))))
+  (cv-pred cv_p_dnn_forward3
+    (let ((cv::dnn::Net * net . #'(cv_net e g 0)))
+      (return (cv_ret_mat e g 2 ((-> net forward) (std::string (cv_atom e g 1)))))))
+  (cv-pred cv_p_dnn_outputs
+    (let ((cv::dnn::Net * net . #'(cv_net e g 0)))
+      (letin* ((names ((-> net getUnconnectedOutLayersNames))) (items ((t<> std::vector size_t))))
+        (for ((size_t k . 0)) (< k (($ names size))) ((++ k))
+          (let ((cv::Mat out . #'((-> net forward) (($ names at) k))))
+            (($ items push_back) (coco_m_new_int e (cv_adopt CV_K_MAT (cast (void *) (new* cv::Mat out)))))))
+        (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e (($ items data)) (($ items size))))))))
+  (cv-pred cv_p_dnn_layers
+    (let ((cv::dnn::Net * net . #'(cv_net e g 0)))
+      (letin* ((names ((-> net getLayerNames)))) (return (cv_ret_texts e g 1 names)))))
+  (cv-pred cv_p_dnn_out_layers
+    (let ((cv::dnn::Net * net . #'(cv_net e g 0)))
+      (letin* ((names ((-> net getUnconnectedOutLayersNames)))) (return (cv_ret_texts e g 1 names)))))
+  (cv-pred cv_p_dnn_time
+    (let ((cv::dnn::Net * net . #'(cv_net e g 0)))
+      (letin* ((timings ((t<> std::vector double))))
+        (let ((i64 ticks . #'((-> net getPerfProfile) timings)))
+          (return (cv_ret_dbl e g 1 (/ (* 1000.0 (cast double ticks)) (cv::getTickFrequency))))))))
+  (cv-pred cv_p_dnn_nms
+    (letin* ((rv ((t<> std::vector double))) (rdims ((t<> std::vector int))) (sv ((t<> std::vector double)))
+             (boxes ((t<> std::vector cv::Rect))) (scores ((t<> std::vector float))) (keep ((t<> std::vector int)))
+             (out ((t<> std::vector double))))
+      (cv_nums e g 0 rv rdims)
+      (if (and (== (cast int (($ rdims size))) 1) (== (($ rdims at) 0) 0)) (return (cv_ret_dlist e g 4 out 1)))
+      (if (or (!= (cast int (($ rdims size))) 2) (!= (($ rdims at) 1) 4)) (cv_argfail 0 "must be a list of rectangles [X, Y, W, H]"))
+      (for ((size_t k . 0)) (< k (($ rv size))) ((set k (+ k 4)))
+        (($ boxes push_back) (cv::Rect (cvRound (($ rv at) k)) (cvRound (($ rv at) (+ k 1))) (cvRound (($ rv at) (+ k 2))) (cvRound (($ rv at) (+ k 3))))))
+      (cv_dlist e g 1 sv)
+      (if (!= (($ sv size)) (($ boxes size))) (cv_throw "one score per rectangle"))
+      (for ((size_t k . 0)) (< k (($ sv size))) ((++ k)) (($ scores push_back) (cast float (($ sv at) k))))
+      (cv::dnn::NMSBoxes boxes scores (cast float (cv_dbl e g 2)) (cast float (cv_dbl e g 3)) keep)
+      (for ((size_t k . 0)) (< k (($ keep size))) ((++ k)) (($ out push_back) (cast double (($ keep at) k))))
+      (return (cv_ret_dlist e g 4 out 1))))
+
+  ;; ---- objdetect -------------------------------------------------------------
+  (cv-pred cv_p_cascade_load
+    (let ((const char * path . #'(cv_atom e g 0)) (cv::CascadeClassifier * c . #'(new* cv::CascadeClassifier)))
+      (if (not ((-> c load) (std::string path)))
+          (block (delete* c) (cv_throw2 "cannot load cascade" path)))
+      (return (cv_ret_int e g 1 (cv_adopt CV_K_CASCADE (cast (void *) c))))))
+  (func cv_detect_with ((coco_engine * e) (size_t g) (cv::CascadeClassifier * c) (const cv::Mat & img)
+                        (double scale) (int neighbors) (int minsize) (u32 out)) (out int)
+    (letin* ((rects ((t<> std::vector cv::Rect))))
+      (let ((cv::Mat gray . #'(cv_gray_of img)))
+        ((-> c detectMultiScale) gray rects scale neighbors 0 (cv::Size minsize minsize))
+        (return (cv_ret_rects e g out rects)))))
+  (cv-pred cv_p_detect3
+    (return (cv_detect_with e g (cv_cascade e g 0) (cof (cv_mat e g 1)) 1.1 3 30 2)))
+  (cv-pred cv_p_detect6
+    (return (cv_detect_with e g (cv_cascade e g 0) (cof (cv_mat e g 1)) (cv_dbl e g 2) (cast int (cv_int e g 3)) (cast int (cv_int e g 4)) 5)))
+  (cv-pred cv_p_hog_people
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((hog (cv::HOGDescriptor)) (found ((t<> std::vector cv::Rect))))
+        (($ hog setSVMDetector) (cv::HOGDescriptor::getDefaultPeopleDetector))
+        (($ hog detectMultiScale) (cof m) found 0.0 (cv::Size 8 8) (cv::Size 0 0) 1.05 2.0)
+        (return (cv_ret_rects e g 1 found)))))
+  (cv-pred cv_p_qr_detect
+    (let ((cv::Mat * m . #'(cv_mat e g 0)))
+      (letin* ((det (cv::QRCodeDetector)) (pts ((t<> std::vector cv::Point2f))))
+        (let ((std::string text . #'(($ det detectAndDecode) (cof m) pts)))
+          (if (!= 0 (cast int (($ text empty)))) (return 0))
+          (if (not (cv_ret_atom e g 1 (($ text c_str)))) (return 0))
+          (return (cv_ret_points e g 2 pts 0))))))
+  (cv-pred cv_p_qr_encode
+    (letin* ((enc (cv::QRCodeEncoder::create)))
+      (let ((cv::QRCodeEncoder * q . #'(($ enc get))) (cv::Mat qr))
+        ((-> q encode) (std::string (cv_atom e g 0)) qr)
+        (return (cv_ret_mat e g 1 qr)))))
+
+  ;; ---- features2d -----------------------------------------------------------
+  (func cv_ret_keypoints ((coco_engine * e) (size_t g) (u32 i) (const (t<> std::vector cv::KeyPoint) & kps)) (out int)
+    (letin* ((items ((t<> std::vector size_t))) (v ((t<> std::vector double))))
+      (for ((size_t k . 0)) (< k (($ kps size))) ((++ k))
+        (($ v clear))
+        (($ v push_back) ($ (($ kps at) k) pt x)) (($ v push_back) ($ (($ kps at) k) pt y))
+        (($ v push_back) ($ (($ kps at) k) size)) (($ v push_back) ($ (($ kps at) k) angle)) (($ v push_back) ($ (($ kps at) k) response))
+        (($ items push_back) (cv_dlist_term e v 0)))
+      (return (coco_m_unify e (coco_m_arg e g i) (coco_m_list e (($ items data)) (($ items size)))))))
+  (func cv_keypoints_of ((coco_engine * e) (size_t g) (u32 i)) (out (t<> std::vector cv::KeyPoint))
+    (letin* ((kps ((t<> std::vector cv::KeyPoint))) (v ((t<> std::vector double))) (dims ((t<> std::vector int))))
+      (cv_nums e g i v dims)
+      (if (and (== (cast int (($ dims size))) 1) (== (($ dims at) 0) 0)) (return kps))
+      (if (or (!= (cast int (($ dims size))) 2) (< (($ dims at) 1) 2)) (cv_argfail i "must be a list of keypoints [X, Y, Size, Angle, Response]"))
+      (let ((int w . #'(($ dims at) 1)))
+        (for ((size_t k . 0)) (< k (($ v size))) ((set k (+ k w)))
+          (($ kps push_back) (cv::KeyPoint (cast float (($ v at) k)) (cast float (($ v at) (+ k 1)))
+                                           (cast float (? (> w 2) (($ v at) (+ k 2)) 1.0))
+                                           (cast float (? (> w 3) (($ v at) (+ k 3)) -1.0))
+                                           (cast float (? (> w 4) (($ v at) (+ k 4)) 0.0)))))
+        (return kps))))
+  (func cv_detect_compute ((cv::Feature2D * f) (const cv::Mat & img) ((t<> std::vector cv::KeyPoint) & kps) (cv::Mat & desc)) (out int)
+    (let ((cv::Mat mask))
+      ((-> f detectAndCompute) img mask kps desc)
+      (return 1)))
+  (cv-pred cv_p_features
+    (let ((const char * kind . #'(cv_atom e g 0)) (cv::Mat * m . #'(cv_mat e g 1)) (cv::Mat desc))
+      (letin* ((kps ((t<> std::vector cv::KeyPoint))))
+        (cond ((== 0 (strcmp kind "orb"))
+               (letin* ((d (cv::ORB::create 500))) (cv_detect_compute (($ d get)) (cof m) kps desc)))
+              ((== 0 (strcmp kind "sift"))
+               (letin* ((d (cv::SIFT::create 0))) (cv_detect_compute (($ d get)) (cof m) kps desc)))
+              ((== 0 (strcmp kind "akaze"))
+               (letin* ((d (cv::AKAZE::create))) (cv_detect_compute (($ d get)) (cof m) kps desc)))
+              (#t (cv_badatom "feature detector" kind)))
+        (if (not (cv_ret_keypoints e g 2 kps)) (return 0))
+        (return (cv_ret_mat e g 3 desc)))))
+  ;; [Query, Train, Distance]: two indices and a float
+  (func cv_match_term ((coco_engine * e) (const cv::DMatch & m)) (out size_t)
+    (let ((size_t it [3]))
+      (set (nth 0 it) (coco_m_new_int e ($ m queryIdx)))
+      (set (nth 1 it) (coco_m_new_int e ($ m trainIdx)))
+      (set (nth 2 it) (coco_m_new_float e ($ m distance)))
+      (return (coco_m_list e it 3))))
+  (cv-pred cv_p_match
+    (let ((cv::Mat * d1 . #'(cv_mat e g 0)) (cv::Mat * d2 . #'(cv_mat e g 1)))
+      (letin* ((matcher (cv::BFMatcher (cv_match_norm_code (cv_atom e g 2)) true)) (ms ((t<> std::vector cv::DMatch)))
+               (items ((t<> std::vector size_t))))
+        (if (or ((-> d1 empty)) ((-> d2 empty))) (return (coco_m_unify e (coco_m_arg e g 3) (coco_m_nil e))))
+        (($ matcher match) (cof d1) (cof d2) ms)
+        ;; sorted by distance, the best first
+        (for ((size_t a . 0)) (< a (($ ms size))) ((++ a))
+          (for ((size_t b . #'(+ a 1))) (< b (($ ms size))) ((++ b))
+            (if (< ($ (($ ms at) b) distance) ($ (($ ms at) a) distance))
+                (let ((cv::DMatch t . #'(($ ms at) a)))
+                  (set (($ ms at) a) (($ ms at) b))
+                  (set (($ ms at) b) t)))))
+        (for ((size_t k . 0)) (< k (($ ms size))) ((++ k))
+          (($ items push_back) (cv_match_term e (($ ms at) k))))
+        (return (coco_m_unify e (coco_m_arg e g 3) (coco_m_list e (($ items data)) (($ items size))))))))
+  (cv-pred cv_p_knn_match
+    (let ((cv::Mat * d1 . #'(cv_mat e g 0)) (cv::Mat * d2 . #'(cv_mat e g 1)))
+      (letin* ((matcher (cv::BFMatcher (cv_match_norm_code (cv_atom e g 2)) false)) (ms ((t<> std::vector (t<> std::vector cv::DMatch))))
+               (items ((t<> std::vector size_t))) (inner ((t<> std::vector size_t))))
+        (if (or ((-> d1 empty)) ((-> d2 empty))) (return (coco_m_unify e (coco_m_arg e g 4) (coco_m_nil e))))
+        (($ matcher knnMatch) (cof d1) (cof d2) ms (cast int (cv_int e g 3)))
+        (for ((size_t q . 0)) (< q (($ ms size))) ((++ q))
+          (($ inner clear))
+          (for ((size_t k . 0)) (< k (($ (($ ms at) q) size))) ((++ k))
+            (($ inner push_back) (cv_match_term e (($ (($ ms at) q) at) k))))
+          (($ items push_back) (coco_m_list e (($ inner data)) (($ inner size)))))
+        (return (coco_m_unify e (coco_m_arg e g 4) (coco_m_list e (($ items data)) (($ items size))))))))
+  (cv-pred cv_p_draw_keypoints
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
+      (letin* ((kps (cv_keypoints_of e g 1)))
+        (cv::drawKeypoints (cof m) kps out (cv_color e g 2) cv::DrawMatchesFlags::DEFAULT)
+        (return (cv_ret_mat e g 3 out)))))
+  (func cv_homography ((coco_engine * e) (size_t g) (int with_mask)) (out int)
+    (letin* ((src (cv_points e g 0)) (dst (cv_points e g 1)) (inl ((t<> std::vector double))))
+      (let ((cv::Mat mask))
+        (if (or (< (($ src size)) 4) (!= (($ src size)) (($ dst size)))) (cv_throw "a homography wants at least four point pairs"))
+        (let ((cv::Mat h . #'(cv::findHomography src dst cv::RANSAC (cv_dbl e g 2) mask)))
+          (if (!= 0 (cast int (($ h empty)))) (return 0))
+          (if (not (cv_ret_matrix e g 3 h)) (return 0))
+          (if (not with_mask) (return 1))
+          (for ((int k . 0)) (< k ($ mask rows)) ((++ k))
+            (($ inl push_back) (cast double (nth 0 (($ mask (t<> ptr u8)) k)))))
+          (return (cv_ret_dlist e g 4 inl 1))))))
+  (cv-pred cv_p_find_homography4 (return (cv_homography e g 0)))
+  (cv-pred cv_p_find_homography5 (return (cv_homography e g 1)))
+
+  ;; ---- photo ------------------------------------------------------------------
+  (cv-pred cv_p_denoise
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (float h . #'(cast float (cv_dbl e g 1))) (cv::Mat out))
+      (if (== ((-> m channels)) 3)
+          (cv::fastNlMeansDenoisingColored (cof m) out h h 7 21)
+          (cv::fastNlMeansDenoising (cof m) out h 7 21))
+      (return (cv_ret_mat e g 2 out))))
+  (cv-pred cv_p_inpaint
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat * mask . #'(cv_mat e g 1)) (cv::Mat out))
+      (cv::inpaint (cof m) (cof mask) out (cv_dbl e g 2) cv::INPAINT_TELEA)
+      (return (cv_ret_mat e g 3 out))))
+  (cv-unary cv_p_detail_enhance (cv::detailEnhance SRC DST 10.0 0.15))
+  (cv-unary cv_p_stylize (cv::stylization SRC DST 60.0 0.45))
+  (cv-pred cv_p_pencil_sketch
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat gray) (cv::Mat color))
+      (cv::pencilSketch (cof m) gray color 60.0 0.07 0.02)
+      (if (not (cv_ret_mat e g 1 gray)) (return 0))
+      (return (cv_ret_mat e g 2 color))))
+  (cv-pred cv_p_merge_mertens
+    (letin* ((ms (cv_mats e g 0)) (mm (cv::createMergeMertens)))
+      (let ((cv::MergeMertens * p . #'(($ mm get))) (cv::Mat out))
+        ((-> p process) ms out)
+        (return (cv_ret_mat e g 1 out)))))
+
+  ;; ---- video ------------------------------------------------------------------
+  (cv-pred cv_p_video_open
+    (let ((const char * path . #'(cv_atom e g 0)) (cv::VideoCapture * v . #'(new* cv::VideoCapture (std::string path))))
+      (if (not ((-> v isOpened))) (block (delete* v) (cv_throw2 "cannot open video" path)))
+      (return (cv_ret_int e g 1 (cv_adopt CV_K_CAPTURE (cast (void *) v))))))
+  (cv-pred cv_p_video_read
+    (let ((cv::VideoCapture * v . #'(cv_capture e g 0)) (cv::Mat frame))
+      (if (not ((-> v read) frame)) (return 0))
+      (if (!= 0 (cast int (($ frame empty)))) (return 0))
+      (return (cv_ret_mat e g 1 frame))))
+  (cv-pred cv_p_video_prop
+    (let ((cv::VideoCapture * v . #'(cv_capture e g 0)))
+      (return (cv_ret_dbl e g 2 ((-> v get) (cv_prop_code (cv_atom e g 1)))))))
+  (cv-pred cv_p_video_writer
+    (let ((const char * path . #'(cv_atom e g 0)) (const char * fcc . #'(cv_atom e g 1)))
+      (if (!= (strlen fcc) 4) (cv_argfail 1 "must be a four-character code such as mp4v or MJPG"))
+      (let ((int code . #'(cv::VideoWriter::fourcc (nth 0 fcc) (nth 1 fcc) (nth 2 fcc) (nth 3 fcc)))
+            (cv::VideoWriter * w . #'(new* cv::VideoWriter (std::string path) code (cv_dbl e g 2) (cv_size e g 3) true)))
+        (if (not ((-> w isOpened))) (block (delete* w) (cv_throw2 "cannot open video for writing" path)))
+        (return (cv_ret_int e g 4 (cv_adopt CV_K_WRITER (cast (void *) w)))))))
+  (cv-pred cv_p_video_write
+    (let ((cv::VideoWriter * w . #'(cv_writer e g 0)) (cv::Mat * m . #'(cv_mat e g 1)))
+      ((-> w write) (cof m))
+      (return 1)))
+  (cv-pred cv_p_bgsub_new
+    (let ((const char * kind . #'(cv_atom e g 0)) ((t<> cv::Ptr cv::BackgroundSubtractor) * b . nil))
+      (cond ((== 0 (strcmp kind "mog2")) (set b (new* (t<> cv::Ptr cv::BackgroundSubtractor) (cv::createBackgroundSubtractorMOG2 500 16.0 true))))
+            ((== 0 (strcmp kind "knn")) (set b (new* (t<> cv::Ptr cv::BackgroundSubtractor) (cv::createBackgroundSubtractorKNN 500 400.0 true))))
+            (#t (cv_badatom "background subtractor" kind)))
+      (return (cv_ret_int e g 1 (cv_adopt CV_K_BGSUB (cast (void *) b))))))
+  (cv-pred cv_p_bgsub_apply
+    (let (((t<> cv::Ptr cv::BackgroundSubtractor) * b . #'(cv_bgsub e g 0)) (cv::Mat * m . #'(cv_mat e g 1)) (cv::Mat mask))
+      (let ((cv::BackgroundSubtractor * s . #'(($ (cof b) get))))
+        ((-> s apply) (cof m) mask -1.0)
+        (return (cv_ret_mat e g 2 mask)))))
+  (cv-pred cv_p_optical_flow
+    (let ((cv::Mat * a . #'(cv_mat e g 0)) (cv::Mat * b . #'(cv_mat e g 1)) (cv::Mat flow))
+      (cv::calcOpticalFlowFarneback (cv_gray_of (cof a)) (cv_gray_of (cof b)) flow 0.5 3 15 3 5 1.2 0)
+      (return (cv_ret_mat e g 2 flow))))
+  (cv-pred cv_p_flow_polar
+    (let ((cv::Mat * flow . #'(cv_mat e g 0)) (cv::Mat mag) (cv::Mat ang))
+      (letin* ((ch ((t<> std::vector cv::Mat))))
+        (cv::split (cof flow) ch)
+        (cv::cartToPolar (($ ch at) 0) (($ ch at) 1) mag ang true))
+      (if (not (cv_ret_mat e g 1 mag)) (return 0))
+      (return (cv_ret_mat e g 2 ang))))
+  (cv-pred cv_p_optical_flow_lk
+    (let ((cv::Mat * a . #'(cv_mat e g 0)) (cv::Mat * b . #'(cv_mat e g 1)))
+      (letin* ((pts (cv_points e g 2)) (next ((t<> std::vector cv::Point2f))) (status ((t<> std::vector u8)))
+               (err ((t<> std::vector float))) (st ((t<> std::vector double))))
+        (if (== (($ pts size)) 0) (cv_throw "no points to track"))
+        (cv::calcOpticalFlowPyrLK (cv_gray_of (cof a)) (cv_gray_of (cof b)) pts next status err)
+        (for ((size_t k . 0)) (< k (($ status size))) ((++ k)) (($ st push_back) (cast double (($ status at) k))))
+        (if (not (cv_ret_points e g 3 next 0)) (return 0))
+        (return (cv_ret_dlist e g 4 st 1)))))
+
+  ;; ---- calib3d -----------------------------------------------------------------
+  (cv-pred cv_p_find_chessboard
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Size pattern . #'(cv_size e g 1)) (cv::Mat gray . #'(cv_gray_of (cof m))))
+      (letin* ((corners ((t<> std::vector cv::Point2f))))
+        (if (not (cv::findChessboardCorners gray pattern corners (bitor cv::CALIB_CB_ADAPTIVE_THRESH cv::CALIB_CB_NORMALIZE_IMAGE)))
+            (return 0))
+        (cv::cornerSubPix gray corners (cv::Size 11 11) (cv::Size -1 -1)
+                          (cv::TermCriteria (+ cv::TermCriteria::EPS cv::TermCriteria::COUNT) 30 0.001))
+        (return (cv_ret_points e g 2 corners 0)))))
+  (cv-pred cv_p_draw_chessboard
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Size pattern . #'(cv_size e g 1)))
+      (letin* ((corners (cv_points e g 2)))
+        (cv::drawChessboardCorners (cof m) pattern corners true)
+        (return 1))))
+
+  ;; ---- the front door -----------------------------------------------------------
+  (static) (coco-emit-module-dispatch cv_dispatch *opencv-predicates*)
+  (extern-c
+    (func coco_library_entry () (out int)
+      ;; OpenCV logs to stderr on its own account (a file that would not open,
+      ;; a codec that is missing); every one of those reaches Prolog as an
+      ;; error term with the same words, so the log is noise here.
+      (cv::utils::logging::setLogLevel cv::utils::logging::LOG_LEVEL_SILENT)
+      (return (coco_module_register "opencv" cv_dispatch (cv-prolog) nil)))))
