@@ -49,6 +49,23 @@
 ;;;; at all, which is honest for a first version and wrong for a large
 ;;;; download -- `max-size' is there so that stays a refusal rather than
 ;;;; a surprise.
+;;;;
+;;;; ---- the surface -------------------------------------------------------
+;;;;
+;;;;   curl_get(+Url, -Status, -Body)                      GET, the defaults
+;;;;   curl_get(+Url, +Opts, -Status, -Body)
+;;;;   curl_post(+Url, +ContentType, +Data, -Status, -Body)
+;;;;   curl_post(+Url, +ContentType, +Data, +Opts, -Status, -Body)
+;;;;   curl_request(+Method, +Url, +Opts, -Status, -Body)  get, post, head, or any verb
+;;;;   curl_get_json(+Url, -Status, -Body)                 GET with Accept: application/json
+;;;;   curl_ssl(-Version)                                  the TLS behind https, or none
+;;;;   curl_version(-Version)                              libcurl's own
+;;;;
+;;;; Status is the HTTP code and Body is CODES. Opts is a list drawn from
+;;;; timeout(Seconds), follow(Bool), verify_peer(Bool), ca_info(Path),
+;;;; max_size(Bytes), body(Codes or Atom) and header(Line), each with the safe
+;;;; default -- 30 s, not followed, verified, the system roots, 16 MB -- and a
+;;;; transfer that fails binds nothing.
 
 (DEFPARAMETER *curl-predicates*
   '(("$curl_do"    11 cl_p_do)

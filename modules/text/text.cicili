@@ -27,6 +27,22 @@
 ;;; full command language is an app, not an ability), lazy quantifiers
 ;;; and lookaround (POSIX has none -- a suite needing PCRE has found a
 ;;; test worth simplifying), and file reading (files.cicili's).
+;;;
+;;; THE SURFACE. A Pat is POSIX extended, a Text is an atom or codes, and
+;;; what comes back is codes unless the name says _atom:
+;;;
+;;;   re_match(+Pat, +Text)                        grep -qE
+;;;   re_first(+Pat, +Text, -Match)                grep -oE | head -1
+;;;   re_first_atom(+Pat, +Text, -Atom)
+;;;   re_replace(+Pat, +With, +Text, -Out)         sed -E s///g, with & and \1..\9
+;;;   re_replace_atom(+Pat, +With, +Text, -Atom)
+;;;   re_lines(+Pat, +Codes, -Lines)               grep -E as a filter over lines
+;;;   codes_lines(?Codes, ?Lines)                  either direction, no choice point left
+;;;   first_line(+Codes, -Line)                    head -1
+;;;   head_lines(+N, +Lines, -Head)                head -N
+;;;   tail_lines(+N, +Lines, -Tail)                tail -N
+;;;   delete_code(+Codes, +Code, -Out)             tr -d
+;;;   chomp(+Codes, -Out)                          the trailing newline gone
 
 ;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit.
 

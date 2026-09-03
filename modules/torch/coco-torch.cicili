@@ -47,6 +47,93 @@
 ;;;; either way, later. Random leaves execute at once so draws keep their
 ;;;; order. DESIGN-lazy-graph.md is the contract; test/torch-graph.sh holds
 ;;;; it to equality against eager.
+;;;;
+;;;; ---- the surface -------------------------------------------------------
+;;;;
+;;;; A T or an M is a handle, a Shape is a list of integers, and numbers
+;;;; cross as floats. README.md beside this file has the layer vocabulary
+;;;; and the training options in full.
+;;;;
+;;;; tensors:
+;;;;   tensor_from_list(+List, -T)               numbers -> [N]; rows -> [R,C]
+;;;;   tensor_to_list(+T, -List)                 the inverse; a READ under graph
+;;;;   tensor_shape(+T, -Shape)                  costs nothing under graph
+;;;;   tensor_item(+T, -Number)                  the one element of a one-element tensor
+;;;;   tensor_load_csv(+Path, -T)                a rectangle of numbers -> [R,C]
+;;;;   tensor_new(+Shape, +Kind, -T)             zeros ones randn rand
+;;;;   tensor_zeros(+Shape, -T)
+;;;;   tensor_ones(+Shape, -T)
+;;;;   tensor_randn(+Shape, -T)
+;;;;   tensor_rand(+Shape, -T)
+;;;;   tensor_full(+Shape, +Value, -T)
+;;;;   tensor_eye(+N, -T)
+;;;;   tensor_arange(+N, -T)
+;;;;   tensor_randperm(+N, -T)
+;;;;   tensor_rows(+T, +From, +To, -T2)          rows [From, To)
+;;;;   tensor_cols(+T, +From, +To, -T2)          columns [From, To)
+;;;;   tensor_standardise(+T, +NTrain, -T2)      per column, from the first NTrain rows ONLY
+;;;;   tensor_train_test(+T, +NTrain, -Train, -Test)
+;;;;   tensor_reshape(+T, +Shape, -T2)
+;;;;   tensor_cat(+Ts, +Dim, -T2)
+;;;;   tensor_index_rows(+T, +IndexT, -T2)       rows picked by an index tensor
+;;;;   tensor_argmax(+T, +Dim, -T2)
+;;;;   tensor_free(+T)
+;;;;
+;;;; operations -- four generics, and the names spelled over them:
+;;;;   tensor_unary(+Op, +T, -T2)                neg abs exp log sqrt relu sigmoid tanh transpose
+;;;;   tensor_binary(+Op, +A, +B, -C)            add sub mul div matmul
+;;;;   tensor_scalar(+Op, +A, +Value, -C)        add sub mul div pow
+;;;;   tensor_reduce(+Op, +T, -Number)           sum mean max min std, over everything
+;;;;   tensor_neg(+T, -T2)
+;;;;   tensor_abs(+T, -T2)
+;;;;   tensor_exp(+T, -T2)
+;;;;   tensor_log(+T, -T2)
+;;;;   tensor_sqrt(+T, -T2)
+;;;;   tensor_relu(+T, -T2)
+;;;;   tensor_sigmoid(+T, -T2)
+;;;;   tensor_tanh(+T, -T2)
+;;;;   tensor_transpose(+T, -T2)
+;;;;   tensor_add(+A, +B, -C)
+;;;;   tensor_sub(+A, +B, -C)
+;;;;   tensor_mul(+A, +B, -C)
+;;;;   tensor_div(+A, +B, -C)
+;;;;   tensor_matmul(+A, +B, -C)
+;;;;   tensor_sum(+T, -Number)
+;;;;   tensor_mean(+T, -Number)
+;;;;   tensor_max(+T, -Number)
+;;;;   tensor_min(+T, -Number)
+;;;;   tensor_std(+T, -Number)
+;;;;
+;;;; the two paths, and autograd through what was recorded:
+;;;;   tensor_execution(?Mode)                   eager | graph; unbound asks
+;;;;   tensor_execution(?Backend, ?Mode)         torch | tensorflow, and the mode
+;;;;   tensor_execution(?Backend, ?Mode, ?Device)   and cpu | cuda | auto
+;;;;   tensor_parameter(+T0, -P)                 a fresh leaf that requires grad; T0 untouched
+;;;;   tensor_agg(+Op, +T, -T2)                  sum mean max min std, as a ONE-ELEMENT tensor
+;;;;   tensor_grad(+Loss, +Params, -Grads)       d Loss / d each parameter, in order
+;;;;   tensor_step(+P, +G, +LR, -P2)             P - LR*G as a new leaf; P is not mutated
+;;;;   tensor_force(+T)                          execute what T depends on, now
+;;;;   tensor_graph_stats(-Stats)                stats(recorded(N), executed(M), replayed(R), pending(P))
+;;;;
+;;;; models:
+;;;;   model_new(+Spec, -M)                      the layer list; the shape flows down it
+;;;;   model_train(+M, +X, +Y, +Options)         epochs batch lr optimiser loss shuffle schedule final_loss
+;;;;   model_predict(+M, +X, -T)                 forward, gradients off
+;;;;   model_evaluate(+M, +X, +Y, +Metric, -Score)   rmse | accuracy | mae
+;;;;   model_spec(+M, -Spec)                     the architecture back as terms
+;;;;   model_params(+M, -Floats)                 parameters AND buffers, flat
+;;;;   model_set_params(+M, +Floats)             the inverse
+;;;;   model_save(+Name, +M)                     spec and params into the knowledge base
+;;;;   model_load(+Name, -M)                     and back, onto whatever device is current
+;;;;   model_free(+M)
+;;;;
+;;;; the device, and the seed:
+;;;;   torch_device(+D)                          cpu | cuda | cuda(N) | auto; governs the NEXT model_new
+;;;;   torch_current_device(-D)                  cpu or cuda(N)
+;;;;   torch_cuda_available(-Bool)
+;;;;   torch_cuda_count(-N)
+;;;;   torch_seed(+N)                            libtorch's manual seed
+;;;;   torch_execution(?Mode)                    tensor_execution/1 under its first name
 
 (source "coco-torch.cpp"
   ;; COMPILED BY build.sh, NOT BY CICILI, now that this is a LOADABLE

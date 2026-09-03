@@ -46,6 +46,28 @@
 ;;; commands a test writes carry pipes, redirections and quoting, and
 ;;; sh is the one tool whose parsing of them is the contract everybody
 ;;; already writes against.
+;;;
+;;; THE SURFACE. A Cmd is an atom for /bin/sh -c, Out is CODES, and an Exit
+;;; is the child's status -- 124 for a timeout, past 127 for a signal:
+;;;
+;;;   proc_run(+Cmd, +TimeoutMs, -Out, -Exit)    run, capture, reap
+;;;   proc_spawn(+Cmd, -Pid)                     in its own session: the server a suite raises
+;;;   proc_wait(+Pid, +TimeoutMs, -Exit)         fails when nobody exits in time
+;;;   proc_kill(+Pid, +Signal)
+;;;   proc_running(+Pid)
+;;;   proc_sleep(+Ms)
+;;;   proc_until(+Goal, +BudgetMs, +StepMs)      retry Goal until it proves or the budget ends
+;;;   proc_stop(+Pid)                            15, a moment, 9, and always the wait
+;;;   sh(+Cmd)                                   demands exit 0, the way `set -e' does
+;;;   sh(+Cmd, -Out)                             and captures
+;;;   sh_exit(+Cmd, -Exit)                       never fails on the code
+;;;   sh_atom(+Cmd, -Atom)                       the one short answer
+;;;   sh_join(+Parts, -Cmd)                      atoms and numbers, joined: the interpolation
+;;;   shl(+Parts)                                sh over the joined parts
+;;;   shl(+Parts, -Out)
+;;;   shl_atom(+Parts, -Atom)                    chomped
+;;;   check(+Label, +Got, +Want)                 ok or FAIL with both values, and remembered
+;;;   checks_done/0                              GREEN, or RED and fail
 
 ;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit, and a
 ;;; DEFPACKAGE here expands to an EVAL-WHEN Cicili cannot read.

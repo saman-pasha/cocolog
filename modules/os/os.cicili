@@ -23,6 +23,34 @@
 ;;;
 ;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit;
 ;;; modules/tcp/tcp.cicili says why at its top.
+;;;
+;;; THE SURFACE, every answer an atom or an integer:
+;;;
+;;;   os_name(-Name)                   darwin, linux, freebsd: uname's sysname, folded
+;;;   os_is(+Name)                     the platform branch, as one goal
+;;;   os_arch(-Machine)                x86_64, arm64
+;;;   os_uname(-Sys, -Node, -Release, -Version, -Machine)
+;;;   os_hostname(-Host)
+;;;   os_pid(-Pid)
+;;;   os_ppid(-Pid)
+;;;   os_uid(-Uid)
+;;;   os_gid(-Gid)
+;;;   os_cpus(-N)                      the cores online, what a pool sizes to
+;;;   os_user(-Name)                   $USER, else $LOGNAME
+;;;   os_home(-Dir)                    $HOME
+;;;   os_shell(-Path)                  $SHELL, else /bin/sh
+;;;   os_tmp(-Dir)                     $TMPDIR without its trailing slash, else /tmp
+;;;   os_env(+Name, -Value)            fails when the name is unset
+;;;   os_env(+Name, -Value, +Default)  answers the default instead
+;;;   os_setenv(+Name, +Value)         this process's, which its children inherit
+;;;   os_unsetenv(+Name)
+;;;   os_environ(-Pairs)               every Name-Value, in environ's order
+;;;   os_path(-Dirs)                   $PATH as a list
+;;;   os_which(+Tool, -Path)           the first executable Dir/Tool along it; no shell
+;;;   os_has(+Tool)
+;;;   os_lib_path_var(-Name)           DYLD_LIBRARY_PATH here, LD_LIBRARY_PATH there
+;;;   os_setsid_prefix(-Prefix)        'setsid ' where the tool exists, else ''
+;;;   os_describe(-Line)               `darwin x86_64 16 cpus'
 
 ;;;; ------------------------------------------------------------------
 ;;;; The C half, as a table

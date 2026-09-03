@@ -22,6 +22,42 @@
 ;;;; Built by build.sh against the pip tensorflow package's C library on
 ;;;; Linux and Homebrew's libtensorflow on macOS -- plain C over the C API,
 ;;;; which is why one file serves both.
+;;;;
+;;;; THE SURFACE IT ANSWERS, forwarded from the torch module while
+;;;; tensor_execution(tensorflow, _) is in force -- the same names, arguments
+;;;; and answers as there. A T is a handle; numbers cross as floats:
+;;;;
+;;;;   tensorflow_version(-Version)                   the library's own, '2.20.0'
+;;;;   tensorflow_seed(+N)                            the stateless draws' seed
+;;;;   tensor_execution(?Backend, ?Mode, ?Device)     tensorflow, eager|graph, cpu|cuda|auto
+;;;;   tensor_from_list(+List, -T)
+;;;;   tensor_to_list(+T, -List)                      a READ: runs what T needs
+;;;;   tensor_shape(+T, -Shape)                       known under graph with nothing run
+;;;;   tensor_item(+T, -Number)                       the one element; a READ
+;;;;   tensor_new(+Shape, +Kind, -T)                  zeros ones randn rand
+;;;;   tensor_full(+Shape, +Value, -T)
+;;;;   tensor_eye(+N, -T)
+;;;;   tensor_arange(+N, -T)
+;;;;   tensor_randperm(+N, -T)                        drawn once, through the eager context
+;;;;   tensor_load_csv(+Path, -T)
+;;;;   tensor_unary(+Op, +T, -T2)                     neg abs exp log sqrt relu sigmoid tanh transpose
+;;;;   tensor_binary(+Op, +A, +B, -C)                 add sub mul div matmul
+;;;;   tensor_scalar(+Op, +A, +Value, -C)             add sub mul div pow
+;;;;   tensor_agg(+Op, +T, -T2)                       sum mean max min std, still a tensor
+;;;;   tensor_reduce(+Op, +T, -Number)                the same as a number: a READ
+;;;;   tensor_argmax(+T, +Dim, -T2)
+;;;;   tensor_reshape(+T, +Shape, -T2)
+;;;;   tensor_cat(+Ts, +Dim, -T2)
+;;;;   tensor_index_rows(+T, +IndexT, -T2)
+;;;;   tensor_rows(+T, +From, +To, -T2)
+;;;;   tensor_cols(+T, +From, +To, -T2)
+;;;;   tensor_standardise(+T, +NTrain, -T2)
+;;;;   tensor_parameter(+T0, -P)                      a leaf the tape reaches
+;;;;   tensor_step(+P, +G, +LR, -P2)                  P - LR*G, a new leaf and a boundary
+;;;;   tensor_grad(+Loss, +Params, -Grads)            TF_AddGradients over the closure
+;;;;   tensor_force(+T)                               run what T needs, now
+;;;;   tensor_free(+T)
+;;;;   tensor_graph_stats(-Stats)                     recorded, executed, replayed
 
 (source "coco-tensorflow.c"
   (make :compile #f)

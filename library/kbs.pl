@@ -31,6 +31,20 @@
 %% DIFFERENT claim), and transcript parsing beyond the answer line
 %% (a page's whole output is the caller's to read with text's own
 %% tools).
+%%
+%% THE SURFACE. KB names a base, a Goal is a term, Files are paths:
+%%
+%%   kb_run(+KB, +Goal)                one goal, one process, one transaction: succeeds iff it PROVED
+%%   kb_answer(+KB, +Goal, -Answer)    the same, keeping the transcript's answer(...) line
+%%   kb_consult(+KB, +Files)           load a program into the base
+%%   kb_forget(+KB)                    empty it
+%%   kb_vacuum(+KB)                    reclaim; never fails
+%%   kb_fresh(+KB, +Files)             vacuum, forget, consult: a case's first word
+%%   kb_up(+KB)                        is anybody there? -- the SKIP probe
+%%   kb_at(+KB, -Host, -Port)          kb_server/3, else $ZIGURAT_HOST/$ZIGURAT_PORT, else 127.0.0.1:2160
+%%   kb_cli(+KB, -Cmd)                 the cocolog command line every verb runs
+%%   kb_binary(-Path)                  the cocolog that proves: $COCOLOG's checkout, else this very one
+%%   kb_server(?KB, ?Host, ?Port)      dynamic; assert one to name a base's server
 
 :- use_module(library(process)).
 :- use_module(library(text)).

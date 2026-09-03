@@ -45,6 +45,25 @@
 ;;; NOT HERE, DELIBERATELY: TLS (the tunnel and any real deployment
 ;;; terminate it in front), UDP, and non-blocking connect. Each is a
 ;;; separate decision and none of them is needed to serve a page.
+;;;
+;;; THE SURFACE. A Sock or a Conn is a slot index, Codes is a list of
+;;; bytes, every timeout is milliseconds, and one expiring is a failure:
+;;;
+;;;   tcp_listen(+Port, -Sock)                         bind with SO_REUSEADDR, listen
+;;;   tcp_connect(+Host, +Port, -Conn)                 by name, through getaddrinfo
+;;;   tcp_accept(+Sock, -Conn)                         an hour's patience, not forever
+;;;   tcp_accept(+Sock, -Conn, -Peer)
+;;;   tcp_accept(+Sock, +TimeoutMs, -Conn, -Peer)      Peer is 'host:port'
+;;;   tcp_read(+Conn, -Codes)                          one chunk: 64 KB, 30 s
+;;;   tcp_read(+Conn, +MaxBytes, +TimeoutMs, -Codes)
+;;;   tcp_read_all(+Conn, -Codes)                      until the peer closes
+;;;   tcp_write(+Conn, +AtomOrCodes)                   whole; a partial send is looped
+;;;   tcp_reply(+Conn, +AtomOrCodes)                   write, then close, in that order
+;;;   tcp_close(+Sock)                                 the descriptor and the slot
+;;;   tcp_with(+Sock, +Goal)                           closed whatever Goal did
+;;;   tcp_sockets(-Slots)                              what is open: the leak test
+;;;   tcp_peer(+Conn, -Peer)                           '' for one this side opened
+;;;   tcp_why(-Reason)                                 why the last read failed
 
 ;;; NO `DEFPACKAGE' HERE, and that is not an omission. A file compiled as
 ;;; PART of cocolog.cicili is read inside the :cocolog package that file

@@ -44,6 +44,49 @@
 ;;;; loop, 2D shapes and text, a 3D camera with primitives, keyboard and
 ;;;; mouse -- enough to write a real game as clauses, and each absence is
 ;;;; a predicate away rather than a redesign.
+;;;;
+;;;; ---- the surface -------------------------------------------------------
+;;;;
+;;;; A Color is a palette name, rgb(R,G,B) or rgba(R,G,B,A); a Key is a name
+;;;; (space, escape, left, ...) or a letter or digit standing for itself; a
+;;;; coordinate takes an integer, or a float where raylib takes one.
+;;;;
+;;;;   ray_open(+Width, +Height, +Title)                  InitWindow; fails if no window came
+;;;;   ray_close/0
+;;;;   ray_closing/0                                      WindowShouldClose: the loop's exit
+;;;;   ray_ready/0
+;;;;   ray_fps(+Target)                                   SetTargetFPS
+;;;;   ray_begin/0                                        a frame is what happens between
+;;;;   ray_end/0                                          ... these two
+;;;;   ray_clear(+Color)
+;;;;   ray_rect(+X, +Y, +W, +H, +Color)
+;;;;   ray_circle(+X, +Y, +Radius, +Color)
+;;;;   ray_line(+X1, +Y1, +X2, +Y2, +Color)
+;;;;   ray_pixel(+X, +Y, +Color)
+;;;;   ray_poly(+X, +Y, +Sides, +Radius, +Rotation, +Color)        regular, filled
+;;;;   ray_poly_lines(+X, +Y, +Sides, +Radius, +Rotation, +Color)  its outline
+;;;;   ray_text(+Text, +X, +Y, +Size, +Color)
+;;;;   ray_draw_fps(+X, +Y)
+;;;;   ray_begin3d(+PX, +PY, +PZ, +TX, +TY, +TZ, +Fov)    a camera at P looking at T
+;;;;   ray_end3d/0
+;;;;   ray_cube(+X, +Y, +Z, +W, +H, +L, +Color)
+;;;;   ray_cube_wires(+X, +Y, +Z, +W, +H, +L, +Color)
+;;;;   ray_sphere(+X, +Y, +Z, +Radius, +Color)
+;;;;   ray_grid(+Slices, +Spacing)
+;;;;   ray_key_down(+Key)                                 held, polled
+;;;;   ray_key_pressed(+Key)                              this frame only
+;;;;   ray_mouse(-X, -Y)
+;;;;   ray_mouse_down(+Button)                            left, right, middle
+;;;;   ray_frame_time(-Seconds)                           the last frame's
+;;;;   ray_time(-Seconds)                                 since the window opened
+;;;;   ray_screenshot(+Path)                              the framebuffer as a PNG, at that path
+;;;;   ray_log_level(+Level)                              all trace debug info warning error fatal none
+;;;;   ray_color(?Name, ?R, ?G, ?B)                       the palette, as facts a program can query
+;;;;   ray_rgba(+Color, -R, -G, -B, -A)                   a color spec resolved
+;;;;   ray_key(?Name, ?Code)                              the key table
+;;;;   ray_keycode(+Key, -Code)                           a name, a letter, or a code as itself
+;;;;   ray_button(?Name, ?Code)
+;;;;   ray_level(?Name, ?Code)
 
 (DEFPARAMETER *ray-predicates*
   '(("ray_open"        3 ray_p_open)
