@@ -381,7 +381,7 @@ ix_exemplar('parser: dispatch', 'library/json.pl',
 ix_exemplar('cross-process', 'tutorials/library/34-kbs.pl',
   'goals as terms, marker-line verdicts, the honest-skip idiom').
 ix_exemplar('bulk KB write', 'coworker/balancer/worker.pl',
-  'chunk, then the completion mark, in one turn; every clause ends in a cut because consult appends').
+  'chunk, then the completion mark, in one turn; every clause ends in a cut, since chunks published by several workers sit side by side in one base').
 ix_exemplar('tensor program', 'tutorials/library/39-tensor-expr.pl',
   'the whole of how a tensor program is written here: no op/3 of its own, since use_module lends the library\'s operators to the file naming it, `:=\' running an expression as the list of goals it stands for, `::=\' for a function of the program\'s own, and a procedure as a DCG rule whose output list is what it made. Every network under tutorials/tensor is this shape').
 

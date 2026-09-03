@@ -111,15 +111,19 @@ all twelve photographs `predict` shows:
 
 One cocolog property every file here respects: `run` CONSULTS the file
 into the knowledge base, and the knowledge base is the store -- so the
-second goal's process consults the same clauses AGAIN, and consulting
-appends. A predicate defined once in the file exists twice in the second
-process. For the goals that only matters as a duplicate solution nobody
-asks for; for a data generator inside a findall it would double the rows
--- or, with a nondeterministic helper inside an inner findall, WIDEN
-them. Every single-clause data helper here therefore ends in a cut,
-which makes the first (and every) copy deterministic. Two tutorials
-sharing a store would still shadow each other's train/test/predict, so
-the runner gives each tutorial a store of its own.
+second goal's process consults the same clauses AGAIN. Consulting used
+to append, and a predicate defined once in the file existed twice in the
+second process: for the goals that only meant a duplicate solution nobody
+asked for; for a data generator inside a findall it doubled the rows --
+or, with a nondeterministic helper inside an inner findall, WIDENED them.
+A consult REPLACES the file's own clauses now (`test/reconsult.sh`: the
+same file twice is one copy, what the program asserted stays, an edited
+file is the new file), so the store holds the program once; the
+single-clause data helpers still end in a cut, because a deterministic
+helper is deterministic under either rule and a store written before the
+change still holds what it held. Two tutorials sharing a store would
+still shadow each other's train/test/predict, so the runner gives each
+tutorial a store of its own.
 
 `test/tutorials.sh` runs all three goals of every file against a
 throwaway store per tutorial; `test/torch-nets.sh` is the same twenty-three networks

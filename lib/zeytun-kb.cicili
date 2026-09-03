@@ -275,7 +275,7 @@
                (for ((size_t i . 0)) (< i n) ((++ i))
                  (let ((size_t t) (size_t mark . #'(-> m heap_len)))
                    (if (coco_read_term_from m ($ (nth i rows) body) (aof t))
-                       (coco_assert st m t 1)
+                       (coco_assert_stored st m t)
                      (set ok 0))
                    (set (-> m heap_len) mark)))))
 

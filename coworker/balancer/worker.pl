@@ -4,8 +4,10 @@
 %% and publishes it back into its own knowledge base -- so when the
 %% dust settles ANY of the three answers test and predict, and queries
 %% can go to whichever is nearest. run.sh drives the choreography;
-%% every predicate here ends in a cut so a clause consulted twice
-%% (consult ADDS) never doubles an answer.
+%% every predicate here ends in a cut so a clause that is there twice
+%% never doubles an answer. (A consult REPLACES what the same file put
+%% in the base before, so the file itself no longer doubles; the cut
+%% stays for the chunks a worker publishes beside another's.)
 
 %% Two concentric rings, deterministic in I: class 0 at radius ~0.5,
 %% class 1 at radius ~1.0, both jittered. Indices 0..899 are training

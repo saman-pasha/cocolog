@@ -119,12 +119,16 @@ while [ "$q" -le "$QUERIERS" ]; do
   q=$((q + 1))
 done
 
-# And now the program arrives, one clause at a time.
+# And now the program arrives, one clause at a time -- EACH FROM A FILE OF
+# ITS OWN. A consult replaces the clauses the same file put there before
+# (test/reconsult.sh), so one scratch file rewritten per clause would leave
+# the knowledge base holding only the last clause written; a file per
+# clause is eight consults of eight files, which is what appending means now.
 sleep 1
 n=1
 while [ "$n" -le "$CLAUSES" ]; do
-  sed -n "${n}p" "$OUT/program" > "$OUT/clause"
-  $CL consult "$OUT/clause" >> "$OUT/ruler.log" 2>&1
+  sed -n "${n}p" "$OUT/program" > "$OUT/clause-$n"
+  $CL consult "$OUT/clause-$n" >> "$OUT/ruler.log" 2>&1
   sleep 1
   n=$((n + 1))
 done

@@ -58,6 +58,16 @@
     (member size_t * clauses)          ; indices into the store's cells
     (member size_t   nclauses)
     (member size_t   clause_cap)
+    ;; WHERE EACH CLAUSE CAME FROM, parallel to CLAUSES: the interned real
+    ;; path of the file that consulted it PLUS ONE -- atom 0 is a real
+    ;; atom, and under `run' it is the file's own path, the first thing a
+    ;; fresh machine interns -- or 0 for a clause a running program
+    ;; asserted, a module's Coco half, or a row that never said. Consulting
+    ;; a file again REPLACES the clauses that carry its name and touches
+    ;; nothing else -- so a second `run' against the same store holds one
+    ;; copy of the program, not two, and what the program asserted stays.
+    (member u64 *    origins)
+    (member size_t   origin_cap)
     (member int      dynamic)
     (member int      loaded)
     ;; Came from a MODULE's Coco half rather than from the program. `listing'
@@ -269,6 +279,31 @@
   ;;; is assertz, otherwise asserta. Answers 1, or 0 if the term is not a
   ;;; clause.
   (decl) (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int))
+
+  ;;; The predicates one consult has already reset, so each is reset ONCE
+  ;;; per consult -- at its first clause -- however many clauses the file
+  ;;; holds for it and however they are scattered. A frame of the consult,
+  ;;; so a file consulted from inside another keeps its own.
+  (struct coco_origin_seen
+    (member size_t * pis)
+    (member size_t   n)
+    (member size_t   cap))
+
+  ;;; `coco_assert' with a PROVENANCE. ORIGIN is the interned real path of
+  ;;; the file the clause was read from plus one, 0 for none. With SEEN given and an
+  ;;; origin, the first clause of each predicate first drops every clause
+  ;;; that predicate already holds from the same origin: the reconsult.
+  (decl) (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
+                               (int at_end) (u64 origin) (coco_origin_seen * seen)) (out int))
+
+  ;;; A clause as a backend stores it: bare, or `'$from'(Path, Clause)'
+  ;;; carrying the name of the file that consulted it. Either goes into the
+  ;;; store; the wrapper becomes the clause's origin and is not kept.
+  (decl) (func coco_assert_stored ((coco_store * st) (coco_machine * m) (size_t t)) (out int))
+
+  ;;; Drops every clause of predicate PI that came from ORIGIN, telling the
+  ;;; backend once if anything went. Answers how many went.
+  (decl) (func coco_pred_forget_from ((coco_store * st) (size_t pi) (u64 origin)) (out int))
 
   ;;; ---- first-argument indexing, the two the engine calls -----------------
 
@@ -535,6 +570,7 @@
   (func coco_store_free ((coco_store * st))
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
           (free ($ (nth i (-> st preds)) clauses))
+          (free ($ (nth i (-> st preds)) origins))
           ;; the index's three arrays go with the clause list they describe
           (free ($ (nth i (-> st preds)) keys))
           (free ($ (nth i (-> st preds)) chain))
@@ -1163,8 +1199,12 @@
 
   (static)
   (func coco_pred_add_clause ((coco_store * st) (size_t pi) (size_t clause)
-                            (int at_end) (u64 key)) (out int)
+                            (int at_end) (u64 key) (u64 origin)) (out int)
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (if (not (coco_store_grow st (cast (void **) (aof (-> p origins)))
+                                  (aof (-> p origin_cap)) (+ (-> p nclauses) 1)
+                                  (sizeof u64)))
+              (return 0))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p clauses)))
                                   (aof (-> p clause_cap)) (+ (-> p nclauses) 1)
                                   (sizeof size_t)))
@@ -1182,7 +1222,8 @@
               (return 0))
           (if at_end
               (block (set (nth (-> p nclauses) (-> p clauses)) clause)
-                     (set (nth (-> p nclauses) (-> p keys)) key))
+                     (set (nth (-> p nclauses) (-> p keys)) key)
+                     (set (nth (-> p nclauses) (-> p origins)) origin))
             ;; asserta: shift the rest up by one and put this first. Every
             ;; clause after it is renumbered, and the chains hold POSITIONS,
             ;; so the index is dropped rather than patched.
@@ -1190,9 +1231,11 @@
                      (while (> i 0)
                        (set (nth i (-> p clauses)) (nth (- i 1) (-> p clauses)))
                        (set (nth i (-> p keys)) (nth (- i 1) (-> p keys)))
+                       (set (nth i (-> p origins)) (nth (- i 1) (-> p origins)))
                        (set i (- i 1))))
                    (set (nth 0 (-> p clauses)) clause)
                    (set (nth 0 (-> p keys)) key)
+                   (set (nth 0 (-> p origins)) origin)
                    (set (-> p indexed) 0)))
           (set (-> p nclauses) (+ (-> p nclauses) 1))
           ;; ASSERTZ KEEPS THE INDEX, and that is the case worth keeping: the
@@ -1208,7 +1251,61 @@
                 (set (-> p indexed) 0)))
           (return 1)))
 
+  (static)
+  (func coco_origin_seen_has ((coco_origin_seen * s) (size_t pi)) (out int)
+        (for ((size_t i . 0)) (< i (-> s n)) ((++ i))
+          (if (== (nth i (-> s pis)) pi) (return 1)))
+        (return 0))
+
+  (static)
+  (func coco_origin_seen_add ((coco_store * st) (coco_origin_seen * s) (size_t pi)) (out int)
+        (if (not (coco_store_grow st (cast (void **) (aof (-> s pis)))
+                                (aof (-> s cap)) (+ (-> s n) 1) (sizeof size_t)))
+            (return 0))
+        (set (nth (-> s n) (-> s pis)) pi)
+        (set (-> s n) (+ (-> s n) 1))
+        (return 1))
+
+  ;;; THE RECONSULT, as one predicate at a time: the clauses of PI that
+  ;;; ORIGIN put there are taken out, in place, and the rest close up. The
+  ;;; cells stay in the store, orphaned, as a retract leaves them; the
+  ;;; positions have shifted, so the index is dropped; and the backend hears
+  ;;; once, through the retract hook, which rewrites the predicate whole.
+  (func coco_pred_forget_from ((coco_store * st) (size_t pi) (u64 origin)) (out int)
+        (if (or (>= pi (-> st npreds)) (== origin 0)) (return 0))
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (size_t kept . 0) (int gone . 0))
+          (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+            (if (== (nth i (-> p origins)) origin)
+                (set gone (+ gone 1))
+              (block
+                (if (!= kept i)
+                    (block (set (nth kept (-> p clauses)) (nth i (-> p clauses)))
+                           (set (nth kept (-> p keys)) (nth i (-> p keys)))
+                           (set (nth kept (-> p origins)) (nth i (-> p origins)))))
+                (set kept (+ kept 1)))))
+          (if (== gone 0) (return 0))
+          (set (-> p nclauses) kept)
+          (set (-> p indexed) 0)
+          (if (and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))
+              ((-> st on_retract) st (-> st ctx) pi))
+          (return gone)))
+
   (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int)
+        (return (coco_assert_from st m clause at_end 0 nil)))
+
+  (func coco_assert_stored ((coco_store * st) (coco_machine * m) (size_t t)) (out int)
+        (set t (coco_deref m t))
+        (if (and (coco_is_callable m t) (== (coco_arity m t) 2)
+                 (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "$from")))
+            (let ((size_t from . #'(coco_deref m (coco_arg m t 0))))
+              (if (coco-tag-is ATOM (nth from (-> m heap)))
+                  (return (coco_assert_from st m (coco_arg m t 1) 1
+                                            (+ (coco_name_of m from) 1) nil)))))
+        (return (coco_assert_from st m t 1 0 nil)))
+
+  (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
+                          (int at_end) (u64 origin) (coco_origin_seen * seen)) (out int)
         (set clause (coco_deref m clause))
 
         ;; A GRAMMAR RULE IS REWRITTEN HERE AND NOWHERE ELSE. Everything that
@@ -1295,6 +1392,15 @@
             ;; every start-up, in an arrangement where a predicate is a page
             ;; over the network.
             (if (not (coco_store_is_muted st)) (coco_pred_ensure st pi))
+            ;; THE RECONSULT: the first clause this consult adds to the
+            ;; predicate first takes out what the same file put there last
+            ;; time -- after the fetch, so the rows are here to be taken out,
+            ;; and before the add, so this consult's own clauses stay.
+            (if (and (!= origin 0) (!= seen nil))
+                (if (not (coco_origin_seen_has seen pi))
+                    (block
+                      (if (not (coco_origin_seen_add st seen pi)) (return 0))
+                      (coco_pred_forget_from st pi origin))))
             (set stored (coco_store_put st m clause))
             ;; THE KEY IS TAKEN FROM THE HEAP HEAD, before the clause is a
             ;; store term: the accessors here read the machine's heap, the
@@ -1302,7 +1408,7 @@
             ;; is a copy of exactly this term. Doing it on the way in is what
             ;; keeps the index free -- nothing ever walks the clauses to
             ;; work out what they are keyed on.
-            (if (not (coco_pred_add_clause st pi stored at_end (coco_arg_key m head)))
+            (if (not (coco_pred_add_clause st pi stored at_end (coco_arg_key m head) origin))
                 (return 0))
             ;; muted means this is a module's clause, not the program's
             (if (coco_store_is_muted st) (set ($ (nth pi (-> st preds)) library) 1))
@@ -1358,9 +1464,42 @@
           (snprintf err errlen "if: cannot decide `%s/%u' while reading" name n)
           (return 0)))
 
+  ;;; CONSULTING A FILE REPLACES THE CLAUSES IT PUT THERE LAST TIME. Every
+  ;;; clause read here is owned by the file, under its REAL path -- so
+  ;;; `tutorials/x.pl' and `./tutorials/x.pl' are one file and replace each
+  ;;; other, while the name as given stays in the messages -- and the first
+  ;;; clause of each predicate takes the file's old clauses of it out before
+  ;;; going in. What a program asserted, and what another file put there,
+  ;;; is untouched: the store used to APPEND, so the second of the three
+  ;;; processes a tutorial runs against one store held two copies of every
+  ;;; clause, and a generator without a cut answered once per copy. A
+  ;;; module's text (muted) and a caller naming no file own nothing, as
+  ;;; before.
+  (static) (decl) (func coco_consult_owned ((coco_store * st) (coco_machine * m)
+                                           (const char * text) (const char * origin)
+                                           (u64 oid) (coco_origin_seen * seen)
+                                           (char * err) (size_t errlen)) (out int))
+
   (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
                     (const char * origin)
                     (char * err) (size_t errlen)) (out int)
+        (let ((u64 oid . 0) (coco_origin_seen seen) (int n . 0))
+          (memset (aof seen) 0 (sizeof coco_origin_seen))
+          (if (and (!= origin nil) (not (coco_store_is_muted st)))
+              (let ((char full [4096]))
+                ;; `realpath' is not among the std POSIX declarations, so it
+                ;; is reached the way files.cicili reaches it
+                (if (!= 0 (code "(realpath(origin, full) != NULL)"))
+                    (set oid (+ (coco_intern m full) 1))
+                  (set oid (+ (coco_intern m origin) 1)))))
+          (set n (coco_consult_owned st m text origin oid (aof seen) err errlen))
+          (free (cast (void *) ($ seen pis)))
+          (return n)))
+
+  (static)
+  (func coco_consult_owned ((coco_store * st) (coco_machine * m) (const char * text)
+                            (const char * origin) (u64 oid) (coco_origin_seen * seen)
+                            (char * err) (size_t errlen)) (out int)
         (let ((coco_reader r) (size_t t) (int rc . 1) (int n . 0) (size_t mark)
               ;; `:- if/elif/else/endif' -- conditional reading, sixteen deep.
               ;; A frame remembers whether its current branch is being TAKEN
@@ -1477,7 +1616,7 @@
                    (block
                     (if active
                         (block
-                         (if (not (coco_assert st m t 1))
+                         (if (not (coco_assert_from st m t 1 oid seen))
                              (block (snprintf err errlen "not a clause")
                                     (coco_reader_free (aof r))
                                     (return -1)))
@@ -1605,7 +1744,8 @@
                        ;; after this clause has just been renumbered.
                        (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
                          (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
-                         (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys))))
+                         (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
+                         (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins))))
                        (set (-> p nclauses) (- (-> p nclauses) 1))
                        (set (-> p indexed) 0)
                        ;; anything retractable is dynamic by definition, whether

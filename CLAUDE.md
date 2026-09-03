@@ -535,6 +535,19 @@ Warning: p.pl:1: Initialization goal failed
 **A syntax error is now the ONLY thing that ends a consult**, and it has
 to be: after one the reader does not know where the next clause begins.
 
+**Consulting a file REPLACES the clauses it put in the store last time.**
+Every clause a consult reads is owned by the file, under its real path
+(`coco_pred`'s `origins`, beside `clauses`), and the first clause of each
+predicate the file defines takes the file's old clauses of it out before
+going in. What a program asserted, and what another file put there, is
+untouched — and on the wire the owner travels with the clause as
+`'$from'(Path, Clause)` in the same text column, unwrapped at fetch, so a
+row written before this existed is a bare clause nobody replaces. The
+store used to APPEND, so the second of the three processes a tutorial
+runs against one store held two copies of every clause. `test/reconsult.sh`
+is the case; a test that built a program by rewriting one scratch file
+per clause (`test/ruler.sh` did) now writes one file per clause.
+
 **An uncaught exception reads as a sentence.** `coco_error_text`
 (`lib/solve.cicili`) turns a ball into SWI's words — `Unknown procedure:
 main/0`, ``Arithmetic: `foo/0' is not a function``, `Unknown message:

@@ -338,7 +338,7 @@
                  (for ((size_t i . 0)) (< i n) ((++ i))
                    (let ((size_t t) (size_t mark . #'(-> m heap_len)))
                      (if (coco_read_term_from m ($ (nth i rows) body) (aof t))
-                         (coco_assert st m t 1)
+                         (coco_assert_stored st m t)
                        (set ok 0))
                      ;; the clause now lives in the store, so the copy that was
                      ;; parsed on to the heap is not needed
@@ -401,8 +401,18 @@
                 (if (and (< head (-> p nclauses)) (< (- head tail) window))
                     (let ((size_t mark . #'(-> m heap_len))
                           (size_t t . #'(coco_store_get m st (nth head (-> p clauses))))
+                          (u64 from . #'(nth head (-> p origins)))
                           (coco_strbuf b))
                       (coco_sb_init (aof b))
+                      ;; A CLAUSE A FILE CONSULTED TRAVELS WITH THE FILE'S NAME,
+                      ;; as `'$from'(Path, Clause)' in the same text column --
+                      ;; one wrapper term the fetch takes off again -- so the
+                      ;; next consult of that file, in this process or another,
+                      ;; replaces exactly what it put here. A row that never
+                      ;; said stays a bare clause, and is nobody's to replace.
+                      (if (!= from 0)
+                          (set t (coco_make2 m "$from"
+                                             (coco_new_atom m (coco_atom_name m (- from 1))) t)))
                       (coco_write_storable m (aof b) t)
                       (if (not (zg_call_send (-> z db) "cocolog::assert_clause"))
                           (block (coco_sb_free (aof b)) (set (-> m heap_len) mark)
