@@ -133,24 +133,28 @@ call a step — and adds the eager gradient. **Its T4 numbers are not yet
 taken**: the VM went before it was written, and the bar is a T4 bar. What
 is measured is a Mac's CPU, TensorFlow 2.21.0 from Homebrew (a build
 without AVX2/FMA, as it says at start) against libtorch 2.13.0, the same
-files, `train` then `test`, wall-clock seconds including start-up:
+files, `train` then `test`, wall-clock seconds including start-up, each
+pair measured one after the other on an otherwise idle machine, after
+every tutorial was rewritten in expressions:
 
-| tutorial | torch, CPU | TensorFlow, CPU | quality on TensorFlow |
+| tutorial | torch, CPU | TensorFlow, CPU | quality, torch / TensorFlow |
 |---|---|---|---|
-| 31 tensor expressions | 200 steps eager and graph, identical | identical, both paths | rmse 0.0018 |
-| 32 ResNet | 3 s + 1 s | 4 s + 1 s | test accuracy 1.00 |
-| 33 U-Net | 4 s + 1 s | 4 s + 1 s | test IoU 0.865 (torch 0.903) |
-| 34 transformer encoder | 18 s + 1 s | 16 s + 1 s | test accuracy 1.00 |
-| 35 GPT | 30 s + 2 s | 26 s + 2 s | next-character accuracy 0.87 |
-| 36 VAE | 8 s + 1 s | 8 s + 1 s | reconstruction pixel accuracy 1.000 |
-| 37 GAN | 123 s + 1 s | 69 s + 1 s | 0.95 within 0.15 of the ring, 12 of 12 sectors |
-| 38 GCN | 1 s + 2 s | 2 s + 1 s | 33 of 34 members, 0.971 |
-| 39 RealNVP | 79 s + 1 s | 23 s + 1 s | NLL 0.545 against a Gaussian's 1.932 (torch 0.649) |
-| 40 DDPM | 42 s + 1 s | 35 s + 1 s | 0.91 within 0.15 of the ring, 12 of 12 sectors |
-| 41 seq2seq with attention | 19 s + 0 s | 16 s + 1 s | token accuracy 0.97 (torch 0.98) |
+| 31 tensor expressions | 1 s + 0 s | 1 s + 1 s | rmse 0.0011 / 0.0018; eager and graph identical on both |
+| 32 ResNet | 4 s + 1 s | 3 s + 1 s | test accuracy 1.00 / 1.00 |
+| 33 U-Net | 4 s + 1 s | 4 s + 1 s | test IoU 0.903 / 0.865 |
+| 34 transformer encoder | 16 s + 1 s | 15 s + 1 s | test accuracy 1.00 / 1.00 |
+| 35 GPT | 25 s + 2 s | 23 s + 2 s | next-character accuracy 0.87 / 0.87 |
+| 36 VAE | 7 s + 1 s | 7 s + 0 s | reconstruction pixel accuracy 1.000 / 1.000 |
+| 37 GAN | 134 s + 1 s | 65 s + 1 s | 0.95 / 0.95 within 0.15 of the ring, 12 of 12 sectors |
+| 38 GCN | 1 s + 1 s | 1 s + 1 s | 32 / 33 of 34 members, 0.941 / 0.971 |
+| 39 RealNVP | 85 s + 1 s | 24 s + 1 s | NLL 0.649 / 0.545 against a Gaussian's 1.932 |
+| 40 DDPM | 45 s + 1 s | 41 s + 1 s | 0.86 / 0.91 within 0.15 of the ring, 12 of 12 sectors |
+| 41 seq2seq with attention | 21 s + 1 s | 18 s + 1 s | token accuracy 0.98 / 0.97 |
 
-Every `test` above says ok, its threshold met. The T4 row for each waits
-for the next VM. The road here was four drafts, each
+Every `test` above says ok, its threshold met; on this CPU TensorFlow
+is at or under torch's time on all eleven, and well under on the two
+that run longest, the GAN and the flow. The T4 row for each waits for
+the next VM. The road here was four drafts, each
 found wrong by a run. The first built the graph one predicate at a time
 and ran a session per read: quadratic in the steps, 360 s for 200 steps
 of tutorial 31's fit. The second keyed and compiled closures, but forced
