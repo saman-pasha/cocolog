@@ -493,7 +493,7 @@ halves off.
 
 A cocolog checkout carries two programs that read cocolog programs, and
 both of them *are* cocolog — there is no Python left in
-`tools/coco-agent`. `C-c C-f` (`cocolog-lint-buffer`) runs the first of
+`tools/cocolint`. `C-c C-f` (`cocolog-lint-buffer`) runs the first of
 them, **cocolint**, over the buffer's file.
 
 What it knows is this dialect, and each finding carries the fix and the
@@ -529,7 +529,7 @@ reader*, with the two commands below.
 
 ### What the reader is for
 
-The other program is `tools/coco-agent/clauses.pl`, the **clause
+The other program is `tools/cocolint/clauses.pl`, the **clause
 reader** the linter and the name blocklist stand on. `C-c C-j`
 (`cocolog-clauses-list`) shows what it makes of the file:
 
@@ -572,7 +572,7 @@ worth nothing.)
 
 Both commands read the **file**, not the buffer, so both offer to save
 it first — as `C-c C-e` does. Both need a checkout: the mode finds
-`tools/coco-agent` beside itself when it is loaded from one, and says
+`tools/cocolint` beside itself when it is loaded from one, and says
 so plainly when there is nothing to find.
 
 ## Grammar rules
@@ -697,8 +697,8 @@ turn it on from the **Coco** menu under "Test cases".
 | `cocolog-coco-host`, `-port`, `-http-port` | the binary's | where the `server` and `http` arrangements connect |
 | `cocolog-coco-check` | `t` | certify every drawn graph against the binary, when one is reachable |
 | `cocolog-coco-trace-on-test` | `t` | refresh the `*coco trace*` ports on every test run |
-| `cocolog-lint-program` | the checkout's | `tools/coco-agent/lint.sh`, the linter `C-c C-f` runs — found beside the mode in a checkout, nil anywhere else |
-| `cocolog-clauses-program` | the checkout's | `tools/coco-agent/clauses.pl`, the clause reader `C-c C-j` and `cocolog-clauses-check` run |
+| `cocolog-lint-program` | the checkout's | `tools/cocolint/lint.sh`, the linter `C-c C-f` runs — found beside the mode in a checkout, nil anywhere else |
+| `cocolog-clauses-program` | the checkout's | `tools/cocolint/clauses.pl`, the clause reader `C-c C-j` and `cocolog-clauses-check` run |
 | `cocolog-lint-on-save` | `nil` | run cocolint again on every save of the file |
 | `cocolog-color-plain-variables` | `nil` | colour ordinary variables on screen, writing nothing (`C-c C-c`) — off to begin with, since it is what font lock spends its time on in a very large file |
 | `cocolog-adopt-known-variables` | `t` | a name the clause already has becomes that variable |

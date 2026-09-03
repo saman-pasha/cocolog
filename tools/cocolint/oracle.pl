@@ -5,7 +5,7 @@
 %% file under test and asks the store one question, so a program that loops,
 %% throws or reads a file cannot affect the answer.
 %%
-%%     cocolog --local run CANDIDATE.pl tools/coco-agent/oracle.pl coco_oracle
+%%     cocolog --local run CANDIDATE.pl tools/cocolint/oracle.pl coco_oracle
 %%
 %% HOW IT SEES A COLLISION. `'$predicates'/1' skips every predicate record
 %% whose library flag is set (lib/builtins.cicili:1731-1753), and that flag is

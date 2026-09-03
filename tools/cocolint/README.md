@@ -1,4 +1,4 @@
-# coco-agent — the deterministic half, in cocolog
+# cocolint — the deterministic half, in cocolog
 
 The deterministic half of the NL-to-cocolog agent designed in
 [`library/llm/DESIGN.md`](../../library/llm/DESIGN.md). These are increments **1–6 and 8** of
@@ -7,32 +7,39 @@ no network**. All of it is useful on its own — a cocolog dialect linter a huma
 runs by hand, a dialect card whose citations are checked rather than trusted,
 and a gate script that says why a program did not prove.
 
+**The directory is named for the part you run by hand.** cocolint is one of
+the things in it — the linter, `lint.pl` and the reader under it — and the
+card, the retrieval index, the oracle probe and the agent's own driver live
+here too, because every one of them is deterministic and they share the one
+clause reader. `library/llm/DESIGN.md` names the whole system Ashurbanipal;
+nothing in this directory needs a model.
+
 ```sh
-sh tools/coco-agent/verify.sh myprogram.pl   # every gate, in order
-sh tools/coco-agent/lint.sh    myprogram.pl  # G1 alone
-sh tools/coco-agent/oracle.sh  myprogram.pl  # G2+G3 alone
-make lint FILES=myprogram.pl                 # G1, through make
-make index                                   # rebuild the blocklist and index
-make dialect-check                           # every citation still resolves
-sh test/lint.sh                              # the suite case
+sh tools/cocolint/verify.sh myprogram.pl   # every gate, in order
+sh tools/cocolint/lint.sh   myprogram.pl   # G1 alone
+sh tools/cocolint/oracle.sh myprogram.pl   # G2+G3 alone
+make lint FILES=myprogram.pl               # G1, through make
+make index                                 # rebuild the blocklist and index
+make dialect-check                         # every citation still resolves
+sh test/lint.sh                            # the suite case
 ```
 
 | file | is |
 |---|---|
 | `clauses.pl` | **the clause reader**, as one grammar |
 | `lint.pl` | **the rules**, as clauses |
-| `ccbatch.py` | the adapter the Python tools read clauses through |
+| `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
-| `build.py` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 36 rows, 43 checked citations |
-| `traps.py` | the anchor checker, and the generator of `traps.pl` |
+| `build.pl` | the reserved-name blocklist, from five registration shapes |
+| `traps.jsonl` | the dialect card as data: 34 rows, 42 checked citations |
+| `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
-| `assemble.py` | the prompt, block by block, with the budget ladder |
+| `assemble.pl` | the prompt, block by block, with the budget ladder |
 | `agent.sh` | the driver: route, assemble, generate, verify |
 | `generate.pl` | the model call, through `library(llm)` — the one unexercised line |
 | `verify.sh` | G0–G5 in order, each with the reason it exists |
-| `index.py` | `surface.jsonl`, `exemplars.jsonl`, `capabilities.json` |
+| `index.pl` | `surface.jsonl`, `exemplars.jsonl`, `capabilities.json` — the libraries AND the loadable modules |
 | `pre-commit` | an opt-in git hook: the card, plus cocolint over staged `.pl` |
 | `selftest/traps.pl` | a file that walks into every divergence, on purpose |
 | `blocklist.pl` `traps.pl` | the blocklist and the card as CLAUSES, generated |
@@ -124,7 +131,7 @@ Nine constructors cover all seventeen — `seq alt lit ws oneof noneof someof
 exactly bstart bend notword bol` — and a tenth would mean a rule wants a real
 parser and should be a rule of its own.
 
-**`traps.py --check` validates the terms**, and it checks more than the
+**`card --check` validates the terms**, and it checks more than the
 `re.compile` it replaced could: a regex that compiled might still be a rule
 nobody had written a matcher for, whereas an unknown constructor here is a
 rule that loads fine and **silently never fires**. It knows which arguments
@@ -258,10 +265,10 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 36 rows of
+`traps.jsonl` is section 4 of the design doc as 34 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
-inside it. `traps.py --check` verifies all 43, and when one has moved it says
+inside it. `card --check` verifies all 42, and when one has moved it says
 where it is now, so the repair is a single number:
 
 ```
@@ -375,7 +382,7 @@ verdict, not a gate bug.
 
 ## The index: what a library says about itself
 
-`index.py` builds three files, and validates everything it names.
+`index.pl` builds three files, and validates everything it names.
 
 **A header block is the only authority on what a library offers.**
 `library/json.pl` has **70 clause heads and documents 6**; a clause-head
@@ -383,13 +390,38 @@ listing would offer `json_hex4/3` as API, and a model handed that will call it.
 So `surface.jsonl` carries the leading `%%` block verbatim plus every
 `%% name(...)` doc line whose name the file *actually defines* — that last
 condition matters, or prose naming `split_string/4` as something cocolog does
-**not** have would enter the index as something it does. Across the ten tier-2
-libraries: 43 KB of header, **86 documented names of 450 heads**.
+**not** have would enter the index as something it does.
+
+**Tier 2 has two kinds and a caller cannot tell them apart.** `library(json)`
+is a `.pl` on the library path; `library(tcp)` is a `.so` dlopen'd from
+`modules/tcp`; both are one `use_module` and neither says which it is. The
+index had rows for the first kind only — so a request routed to `torch`, `tcp`
+or `tensorflow` reached the model with its NAMES, out of the blocklist in
+block D, and not one line saying what any of them is for. Fifteen modules, and
+half the capability table pointed at them.
+
+A module's header is the same kind of document in the same voice; the comment
+marker is Lisp's, and `;;;;` is `%%`. It is the `.cicili`'s and not the
+README's: `modules/torch` and `modules/tensorflow` each carry seventeen
+kilobytes of README, which is the right size for a reader and four times the
+budget of a prompt block. And its heads come from **`build.pl`'s own three
+shapes** — the `("name" arity fn)` table, the `*X-prolog*` half and the strcmp
+chain a C++ target dispatches on — rather than from a second scanner over the
+same two files. Across the whole of tier 2: **12 libraries and 15 modules,
+98 KB of header, 176 documented names of 940 heads**.
 
 Where a header has no signature list the index says so rather than
 under-serving quietly: `library(kbs)` documents 1 of 14, because its header
 explains the design at length and names its predicates only inside running
-prose.
+prose. Nine rows say it now, and eight of the nine are modules whose surface
+lives in a README or nowhere but the code.
+
+**And it says which library nothing can route to.** `ix_unrouted` compares
+what ships against what the topic table names, because that is the half a
+hand-written table cannot check about itself. Four were unrouted when the
+check was written and not one was a decision: `tensor_expr` and `tensorflow`
+arrived after the table did, and `main` and `ray` were missed on the day it
+was written.
 
 **Exemplars are anchored by substring and they are RUN.** A line-range citation
 rots faster than a file citation, and silently — the span still resolves, it
@@ -399,14 +431,14 @@ build fails. And each runnable exemplar carries the stdout
 the repository that a stale comment cannot corrupt, because the model sees
 behaviour rather than appearance.
 
-**`capabilities.json` is twenty-one hand-written topic rows** and the builder
+**`capabilities.json` is twenty-three hand-written topic rows** and the builder
 checks every library and every exemplar tag they name — which is §9.2's whole
 argument against embeddings, that this is an exact-match problem over a few
 dozen documents with one hand-labelled topic each.
 
 ## The prompt, and a correction to the drop order
 
-`assemble.py` builds the system prompt and the user turn from the index and
+`assemble.pl` builds the system prompt and the user turn from the index and
 nothing else, so the budget ladder can be checked without spending a token.
 
 ```

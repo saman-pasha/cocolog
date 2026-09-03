@@ -69,9 +69,9 @@
 :- op(400, yfx, matmul).
 
 %% THE CLAUSE READER, to judge the model's output with. It is a tool under
-%% tools/coco-agent rather than a library on the path, so it loads by plain
+%% tools/cocolint rather than a library on the path, so it loads by plain
 %% path -- see tutorials/library/37-lint.pl for what it is.
-:- use_module('tools/coco-agent/clauses.pl').
+:- use_module('tools/cocolint/clauses.pl').
 
 %% ---- the corpus ------------------------------------------------------
 %%
@@ -392,7 +392,7 @@ evaluate([Offsets|Bs], Ps, Stream, Ctx, H0, T0, LH0, LT0, H, T, LH, LT) :-
 %% THE SAME MODEL ON MORE OF THE SAME DIALECT. `train' learns from the
 %% libraries and the two prose tutorial sets; this adds the two that were
 %% never in cs_sources/1 -- the torch lessons, and cocolint, which is
-%% tools/coco-agent's clauses.pl, lint.pl, blocklist.pl and the rest, a
+%% tools/cocolint's clauses.pl, lint.pl, blocklist.pl and the rest, a
 %% quarter of a megabyte of cocolog written to READ cocolog. Five groups and
 %% about a megabyte, which is a workload for a GPU rather than one of the
 %% goals the runner drives.
@@ -430,8 +430,8 @@ cs_heavy_groups([A, B, C, D, E]) :-
     expand_file_name('tutorials/basics/[0-9]*.pl', B0), sort(B0, B),
     expand_file_name('tutorials/library/[0-9]*.pl', C0), sort(C0, C),
     expand_file_name('tutorials/tensor/[0-9]*.pl', D0), sort(D0, D),
-    expand_file_name('tools/coco-agent/*.pl', E0), sort(E0, E1),
-    expand_file_name('tools/coco-agent/selftest/*.pl', E2), sort(E2, E3),
+    expand_file_name('tools/cocolint/*.pl', E0), sort(E0, E1),
+    expand_file_name('tools/cocolint/selftest/*.pl', E2), sort(E2, E3),
     append(E1, E3, E), !.
 
 %% one file from each group in turn, until every group is spent

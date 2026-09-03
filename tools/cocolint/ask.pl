@@ -18,7 +18,7 @@
 ak_root(R) :- ( getenv('COCOLOG_ROOT', X) -> R = X ; working_directory(R, R) ).
 
 ak_here(Rel, Abs) :-
-    ak_root(R), atomic_list_concat([R, '/tools/coco-agent/', Rel], Abs).
+    ak_root(R), atomic_list_concat([R, '/tools/cocolint/', Rel], Abs).
 
 ak_main :-
     current_prolog_flag(argv, [_, Verb|Rest]),

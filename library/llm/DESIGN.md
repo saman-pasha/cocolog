@@ -126,17 +126,17 @@ Eight components. Two call a model. Everything else is Python, shell, or cocolog
 
 | component | file | model | responsibility |
 |---|---|---|---|
-| Clause reader | `tools/coco-agent/clauses.py` | none | Read a Prolog clause head to its terminating `.`; answer name/arity, **+2 when the neck is `-->`**. Respects `'`, `"`, `%`, `/* */`, bracket nesting. ~90 lines. |
-| Index builder | `tools/coco-agent/build.py` | none | Read source only — **no binary, no `../cicili`, no `../ZiguratIP`** — and emit `.cocoindex/`. Verify every trap anchor; fail loudly on drift. |
-| cocolint | `tools/coco-agent/lint.py` | none | 14 rule families over the read terms and the raw text. Also shipped standalone as `sh tools/coco-agent/lint.sh FILE...` and as suite case `test/lint.sh`. |
-| Oracle probe | `tools/coco-agent/oracle.pl` | none | 12 lines of tier-1 Prolog, consulted *after* the candidate, enumerating `current_predicate/1`. |
+| Clause reader | `tools/cocolint/clauses.py` | none | Read a Prolog clause head to its terminating `.`; answer name/arity, **+2 when the neck is `-->`**. Respects `'`, `"`, `%`, `/* */`, bracket nesting. ~90 lines. |
+| Index builder | `tools/cocolint/build.py` | none | Read source only — **no binary, no `../cicili`, no `../ZiguratIP`** — and emit `.cocoindex/`. Verify every trap anchor; fail loudly on drift. |
+| cocolint | `tools/cocolint/lint.py` | none | 14 rule families over the read terms and the raw text. Also shipped standalone as `sh tools/cocolint/lint.sh FILE...` and as suite case `test/lint.sh`. |
+| Oracle probe | `tools/cocolint/oracle.pl` | none | 12 lines of tier-1 Prolog, consulted *after* the candidate, enumerating `current_predicate/1`. |
 | Router | model call | small | Feasibility verdict + capabilities + arrangement + tier-2 imports + **request_divergences** (§11). |
-| Retriever + Assembler | `tools/coco-agent/retrieve.py`, `assemble.py` | none | Three dictionary lookups; prompt layout and budget ladder. No embeddings (§9). |
+| Retriever + Assembler | `tools/cocolint/retrieve.py`, `assemble.py` | none | Three dictionary lookups; prompt layout and budget ladder. No embeddings (§9). |
 | Generator / Repair | model call | large | The one place judgement is required. |
-| Verifier | `tools/coco-agent/verify.sh` | none | Gates 2–7, each command echoed verbatim into the transcript. |
-| Presenter | `tools/coco-agent/present.py` | none | Verdict → program → transcript → receipts. |
+| Verifier | `tools/cocolint/verify.sh` | none | Gates 2–7, each command echoed verbatim into the transcript. |
+| Presenter | `tools/cocolint/present.py` | none | Verdict → program → transcript → receipts. |
 
-Driver: `tools/coco-agent/agent.py` (Python, ~250 lines), a `while` loop with a counter.
+Driver: `tools/cocolint/agent.py` (Python, ~250 lines), a `while` loop with a counter.
 Python rather than shell only because it shares `clauses.py` with the linter; **every process
 it spawns is echoed into the transcript as a copy-pasteable line**, which is the auditability
 property the shell version was chosen for.
@@ -262,7 +262,7 @@ a gate for free.
 
 ## 5. cocolint — the deterministic linter
 
-`tools/coco-agent/lint.py`, plus `lint.sh` (a human-facing wrapper) and `test/lint.sh`
+`tools/cocolint/lint.py`, plus `lint.sh` (a human-facing wrapper) and `test/lint.sh`
 (the suite case). It reads terms with `clauses.py` and applies fourteen rule families.
 Findings are `{file, line, col, rule, severity, name_arity, message, fix, cite}`.
 
@@ -430,14 +430,14 @@ accompanied by `tutorials/library/NN-name.pl`; `run[]` names a goal explicitly (
 
 ### G1 — cocolint (free)
 ```sh
-python3 "$ROOT/tools/coco-agent/lint.py" --scope tier1,json,curl gen/*.pl
+python3 "$ROOT/tools/cocolint/lint.py" --scope tier1,json,curl gen/*.pl
 ```
 HARD findings block. No process has started, so the message is exact and the fix mechanical.
 
 ### G2+G3 — consult and oracle (one process)
 ```sh
 cd "$SCRATCH" && timeout 60 "$ROOT/cocolog" --local \
-  run "$WS/solver.pl" "$ROOT/tools/coco-agent/oracle.pl" coco_oracle \
+  run "$WS/solver.pl" "$ROOT/tools/cocolint/oracle.pl" coco_oracle \
   >oracle.out 2>oracle.err
 ```
 `oracle.pl`, tier 1 only — `findall/3`, `msort/2`, `format/2`, `forall/2`,
@@ -813,7 +813,7 @@ confidently green implementation of the wrong spec.
 ```
 G0  shape             PASS  4 predicates declared, 4 found mechanically
 G1  cocolint          PASS  0 hard, 1 advisory (D3: use_module on tier-1 lists, removed)
-G2  consult + oracle  PASS  cocolog --local run gen/solver.pl tools/coco-agent/oracle.pl coco_oracle
+G2  consult + oracle  PASS  cocolog --local run gen/solver.pl tools/cocolint/oracle.pl coco_oracle
 G3  collisions        PASS  4 new, 0 collisions, 0 undeclared    [--local only]
 G4  run               PASS  timeout 60 cocolog --local run gen/solver.pl main  (exit 0, last line: done)
 G5  trace             n/a
@@ -955,7 +955,7 @@ point — **no built binary**, so it is developable in exactly this container.
 
 | # | deliverable | needs | days | acceptance |
 |---|---|---|---|---|
-| **1** | `tools/coco-agent/clauses.py` | nothing | 0.5 | On `lib/swipl/dcg_basics.pl` it answers `digit/3`, `digits/3`, `string/3`, `blank/2` — not `digit/1`, `blank/0`. Comment regions stripped: `call/1..4` and `smallest_country/2` absent. |
+| **1** | `tools/cocolint/clauses.py` | nothing | 0.5 | On `lib/swipl/dcg_basics.pl` it answers `digit/3`, `digits/3`, `string/3`, `blank/2` — not `digit/1`, `blank/0`. Comment regions stripped: `call/1..4` and `smallest_country/2` absent. |
 | **2** | `build.py` → the blocklist, **five shapes** | nothing | 1 | 141 tier-1 C pairs exactly; 37 torch, 17 bigint; the 22 construct names present with no arity; **twenty rows hand-checked against source.** No total is an acceptance test. |
 | **3** | **`lint.py` rules P1, D1, N1–N4, C2 + `lint.sh` + `test/lint.sh`, added to `test/run.sh`** | nothing | 1.5 | Zero HARD findings over the 47 tutorials and 10 `library/*.pl`, with the two `astar.pl` exceptions printed by name. **This is the shippable product of increment one: a cocolog dialect linter a human runs by hand.** |
 | **4** | `traps.jsonl` (~40 rows) + the anchor checker + `make index` + `make dialect-check` + a pre-commit hook | nothing | 2 | `build.py --check` green; every row's `cite` and `anchor` verified by hand. Slowest step, because every row is a manual verification. Note the authoring rule learned the hard way: **anchor on the code, not on prose near it** — the column-directive refusal is written as character codes 116/124/43, not the word "column". |
@@ -1019,7 +1019,7 @@ failure is discovered early.
 ### The eval set
 
 40 held-out natural-language requests with expected verdicts (`code` / `impossible` /
-`needs-a-layer`), in `tools/coco-agent/eval/`, run in `test/run.sh`'s shape (last line
+`needs-a-layer`), in `tools/cocolint/eval/`, run in `test/run.sh`'s shape (last line
 `GREEN`/`SKIP`). Five measured quantities:
 
 1. **First-attempt gate pass rate** — lint clean and G4 green with zero repair rounds.
@@ -1223,6 +1223,6 @@ confirmed, only the fresh `myprog_own/1` prints — but `listing(Name/Arity)` sh
 of clauses, in the order the arrangement will try them. That makes it the one in-language
 diagnostic for a collision, and worth naming in the N1 message.
 
-These answers live in `tools/coco-agent/traps.jsonl` as `empirical` fields on the rows they
+These answers live in `tools/cocolint/traps.jsonl` as `empirical` fields on the rows they
 correct, so the linter's messages carry them and `traps.py --check` keeps every citation
 pointing at the code it claims.

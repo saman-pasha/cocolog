@@ -13,6 +13,18 @@
 #   accumulator-style pollers ask for) is still a clause. model_load in
 #   a SECOND process gets the model back whole: 100% on the corners.
 #
+#   AND THE TUTORIAL IT DRIVES NO LONGER CALLS model_save/2, which is
+#   why the two claims above are made about a model of this case's own.
+#   Every tensor lesson from 1 to 30 was rewritten in
+#   library(tensor_expr), so 07-xor saves with params_save/2 -- and
+#   that is arrangement-independent by design: it writes
+#   '$te_param'(Name, I, Shape) and '$te_chunk'(Name, I, Seq, Chunk) as
+#   ordinary clauses and never reaches for the tensors table. So the
+#   tutorial proves the ROUND TRIP, in every arrangement, and a
+#   model_save/2 beside it proves the TABLE. Asked about the tutorial's
+#   name instead, torch_model/2 was empty -- a red -- and torch_params/3
+#   answered false for the wrong reason, which is the worse of the two.
+#
 #   HTTP READS IT PAGED. The tensor page takes `from' and `limit', so a
 #   tensor of any number of rows streams a piece per request -- the way
 #   anything over HTTP should face a table that can hold a huge number
@@ -71,20 +83,33 @@ if ! timeout 20 "$C" $W list >/dev/null 2>&1; then
 fi
 timeout 60 "$C" $W forget >/dev/null 2>&1
 
-# ---- wire: the table, not the chunks --------------------------------
+# ---- wire: the tutorial's clauses, and the table --------------------
 
 timeout 300 "$C" $W run "$ROOT/tutorials/tensor/07-xor.pl" train > "$OUT/train.log" 2>&1
 got=$(grep -c '^saved$' "$OUT/train.log")
 check "a model trains and saves over the wire" "$got" "1"
 
-got=$(timeout 60 "$C" $W query "$T, torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
-check "the parameters are rows, not chunk clauses" "$got" "false."
-
-got=$(timeout 60 "$C" $W --answers 1 query "$T, torch_model(t07_xor, _)" 2>/dev/null | grep -c '^  1\.')
-check "the spec is still the clause pollers ask for" "$got" "1"
+# FOUR ROWS BECAUSE THE XOR MODEL IS TWO DENSE LAYERS, a weight and a
+# bias each; params_save/2 writes one '$te_param'(Name, I, Shape) per
+# tensor and chunks the values into '$te_chunk'/4 beside it. Pinned
+# rather than "some": a shape row that stopped appearing would leave
+# params_load/2 throwing existence_error, and "more than none" would
+# not notice three of the four going missing.
+got=$(timeout 60 "$C" $W query "$T, '\$te_param'(t07_xor, _, _)" 2>/dev/null | tail -1)
+check "the tutorial's parameters are params_save/2's clauses" "$got" "4 answer(s)."
 
 got=$(timeout 300 "$C" $W run "$ROOT/tutorials/tensor/07-xor.pl" test 2>/dev/null | tail -1)
 check "a second process loads it back whole" "$got" "ok"
+
+# THE TABLE, ASKED ABOUT THE PREDICATE THAT USES IT. `big' is also what
+# the --http checks below page through, so it is made once, here.
+timeout 120 "$C" $W query "$T, torch_seed(1), model_new([input(20), dense(64, relu), dense(10, log_softmax)], M), model_save(big, M)" >/dev/null 2>&1
+
+got=$(timeout 60 "$C" $W query "$T, torch_params(big, _, _)" 2>/dev/null | tail -1)
+check "the parameters are rows, not chunk clauses" "$got" "false."
+
+got=$(timeout 60 "$C" $W --answers 1 query "$T, torch_model(big, _)" 2>/dev/null | grep -c '^  1\.')
+check "the spec is still the clause pollers ask for" "$got" "1"
 
 # ---- http: paged, and exact -----------------------------------------
 
@@ -92,7 +117,6 @@ got=$(timeout 300 "$C" --kb $KB --host "$HOST" --http "$ZEYTUN" \
         run "$ROOT/tutorials/tensor/07-xor.pl" test 2>/dev/null | tail -1)
 check "model_load works over --http" "$got" "ok"
 
-timeout 120 "$C" $W query "$T, torch_seed(1), model_new([input(20), dense(64, relu), dense(10, log_softmax)], M), model_save(big, M)" >/dev/null 2>&1
 got=$(timeout 30 "$C" --kb $KB --host "$HOST" --http "$ZEYTUN" \
         query "$T, model_load(big, M), model_params(M, P), length(P, N), N == 1994" 2>/dev/null | grep -c '^  1\.')
 check "a four-piece tensor loads over --http, all 1994" "$got" "1"
@@ -111,16 +135,28 @@ fi
 # ---- embed: the same rows, in-process -------------------------------
 # The engine's VECTOR column kind carries the tensors table inside the
 # one binary, so the embedded arrangement stores parameters exactly as
-# the server does: rows, not clause chunks.
+# the server does: rows, not clause chunks. The same split as over the
+# wire -- the tutorial's params_save/2 clauses, then a model_save/2 of
+# this case's own for the table.
 
 timeout 300 "$C" --embed "$OUT/store" --kb $KB run "$ROOT/tutorials/tensor/07-xor.pl" train \
   > "$OUT/etrain.log" 2>&1
 got=$(timeout 60 "$C" --embed "$OUT/store" --kb $KB \
-        query "$T, torch_params(t07_xor, _, _)" 2>/dev/null | tail -1)
-check "embedded: the parameters are rows, not clauses" "$got" "false."
+        query "$T, '\$te_param'(t07_xor, _, _)" 2>/dev/null | tail -1)
+check "embedded: the same four shape rows" "$got" "4 answer(s)."
 got=$(timeout 300 "$C" --embed "$OUT/store" --kb $KB \
         run "$ROOT/tutorials/tensor/07-xor.pl" test 2>/dev/null | tail -1)
 check "and a second process loads them back whole" "$got" "ok"
+
+timeout 120 "$C" --embed "$OUT/store" --kb $KB \
+  query "$T, torch_seed(1), model_new([input(4), dense(8, relu), dense(2, log_softmax)], M), model_save(esmall, M)" \
+  >/dev/null 2>&1
+got=$(timeout 60 "$C" --embed "$OUT/store" --kb $KB \
+        query "$T, torch_params(esmall, _, _)" 2>/dev/null | tail -1)
+check "embedded: the parameters are rows, not clauses" "$got" "false."
+got=$(timeout 60 "$C" --embed "$OUT/store" --kb $KB --answers 1 \
+        query "$T, torch_model(esmall, _)" 2>/dev/null | grep -c '^  1\.')
+check "embedded: and the spec is still a clause" "$got" "1"
 
 timeout 60 "$C" $W forget >/dev/null 2>&1
 

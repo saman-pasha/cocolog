@@ -3,8 +3,8 @@
 # offset  line  col  len  name  arity  kind
 #
 # Regenerate deliberately, never casually:
-#   printf '%s\\n' "$PWD/tools/coco-agent/selftest/reader.pl" > /tmp/f
-#   COCO_CC_FILES=/tmp/f ./cocolog --local run tools/coco-agent/clauses.pl cc_dump
+#   printf '%s\\n' "$PWD/tools/cocolint/selftest/reader.pl" > /tmp/f
+#   COCO_CC_FILES=/tmp/f ./cocolog --local run tools/cocolint/clauses.pl cc_dump
 #
 # A change here is a change in what a clause IS, and every row was
 # hand-checked when it was written. `rd_it''s' keeps its doubled quote:

@@ -199,10 +199,10 @@ schema:
 	sh parsi/build.sh
 
 # ---- the agent's index -------------------------------------------------------
-# tools/coco-agent reads this repository rather than being told about it: the
+# tools/cocolint reads this repository rather than being told about it: the
 # reserved-name blocklist is EXTRACTED from lib/, modules/ and library/, and
 # the dialect card's citations are CHECKED against the lines they name. Both
-# are cocolog now -- there is no Python left in tools/coco-agent -- so both
+# are cocolog now -- there is no Python left in tools/cocolint -- so both
 # need a built binary, which is why they are separate targets rather than
 # part of `all'.
 #
@@ -214,14 +214,14 @@ schema:
 #     make lint FILES="myprogram.pl"
 
 index:
-	sh tools/coco-agent/tool.sh build
-	sh tools/coco-agent/tool.sh index
+	sh tools/cocolint/tool.sh build
+	sh tools/cocolint/tool.sh index
 
 dialect-check:
-	sh tools/coco-agent/tool.sh card --check
+	sh tools/cocolint/tool.sh card --check
 
 lint: index
-	@sh tools/coco-agent/lint.sh $(FILES)
+	@sh tools/cocolint/lint.sh $(FILES)
 
 # ---- tests -------------------------------------------------------------------
 

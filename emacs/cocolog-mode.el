@@ -3544,11 +3544,11 @@ arrangement says, so a redraw can never write into a store."
 ;;;; cocolint, and the reader it stands on
 ;;;; ------------------------------------------------------------------
 ;; The checkout carries two programs that read cocolog programs, and
-;; both of them ARE cocolog: `tools/coco-agent/lint.sh' names every
+;; both of them ARE cocolog: `tools/cocolint/lint.sh' names every
 ;; place a file diverges from this dialect -- a directive the consulter
 ;; refuses, a name the engine dispatches before it ever reaches the
 ;; knowledge base, `~t~|' in a format string -- and
-;; `tools/coco-agent/clauses.pl' is the CLAUSE READER underneath it, the
+;; `tools/cocolint/clauses.pl' is the CLAUSE READER underneath it, the
 ;; one the blocklist is extracted with and the linter's lines come from.
 ;;
 ;; THE MODE HAS A READER OF ITS OWN, in Elisp, and the same rule applies
@@ -3566,22 +3566,22 @@ arrangement says, so a redraw can never write into a store."
   :group 'cocolog)
 
 (defun cocolog--agent-program (name)
-  "NAME under `tools/coco-agent\=' of the checkout this file loads from.
+  "NAME under `tools/cocolint\=' of the checkout this file loads from.
 Nil anywhere else: the mode installed on its own has no checkout to
 read, and the commands that want one say so rather than guess."
   (let* ((here (and load-file-name (file-name-directory load-file-name)))
          (guess (and here (expand-file-name
-                           (concat "../tools/coco-agent/" name) here))))
+                           (concat "../tools/cocolint/" name) here))))
     (and guess (file-readable-p guess) guess)))
 
 (defcustom cocolog-lint-program (cocolog--agent-program "lint.sh")
-  "The cocolint driver: `tools/coco-agent/lint.sh\=' of a cocolog checkout.
+  "The cocolint driver: `tools/cocolint/lint.sh\=' of a cocolog checkout.
 Found by itself when this file loads from one; name it here otherwise."
   :type '(choice (const :tag "None found" nil) file)
   :group 'cocolog-lint)
 
 (defcustom cocolog-clauses-program (cocolog--agent-program "clauses.pl")
-  "The clause reader: `tools/coco-agent/clauses.pl\=' of a cocolog checkout.
+  "The clause reader: `tools/cocolint/clauses.pl\=' of a cocolog checkout.
 It is a cocolog program, run under `cocolog-coco-program\='."
   :type '(choice (const :tag "None found" nil) file)
   :group 'cocolog-lint)
@@ -3594,7 +3594,7 @@ it, and the findings land where \\[cocolog-lint-buffer] puts them."
   :type 'boolean :group 'cocolog-lint)
 
 (defun cocolog--agent-root (program)
-  "The checkout PROGRAM belongs to: two doors up from `tools/coco-agent\='."
+  "The checkout PROGRAM belongs to: two doors up from `tools/cocolint\='."
   (file-name-as-directory
    (expand-file-name "../.." (file-name-directory program))))
 
@@ -3644,7 +3644,7 @@ They land in a `*cocolint*\=' buffer as compiler errors, so
   (let ((file (cocolog--tool-file)))
     (unless cocolog-lint-program
       (user-error
-       "Set `cocolog-lint-program' to tools/coco-agent/lint.sh of a checkout"))
+       "Set `cocolog-lint-program' to tools/cocolint/lint.sh of a checkout"))
     (let ((default-directory (cocolog--agent-root cocolog-lint-program)))
       (compilation-start
        (mapconcat #'shell-quote-argument
@@ -3691,7 +3691,7 @@ The file list reaches the reader through the environment, the way
 survives."
   (unless cocolog-clauses-program
     (user-error
-     "Set `cocolog-clauses-program' to tools/coco-agent/clauses.pl"))
+     "Set `cocolog-clauses-program' to tools/cocolint/clauses.pl"))
   (unless (cocolog--coco-available-p)
     (user-error "No cocolog binary: the clause reader is cocolog itself"))
   (let* ((root (cocolog--agent-root cocolog-clauses-program))
@@ -3765,7 +3765,7 @@ atom."
 ;;;###autoload
 (defun cocolog-clauses-list ()
   "List the clauses cocolog's own reader finds in this buffer's file.
-`tools/coco-agent/clauses.pl\=' is the reader the linter and the
+`tools/cocolint/clauses.pl\=' is the reader the linter and the
 blocklist stand on, and this is its answer: every clause with the line
 it starts on, what it defines, and whether it is a plain clause, a
 grammar rule -- which occupies arity+2, and is why the arity here can
@@ -3805,7 +3805,7 @@ to the clause."
 ;;;###autoload
 (defun cocolog-clauses-check ()
   "Hold the mode's own reader to the one cocolog's tools use.
-The mode reads clauses in Elisp and `tools/coco-agent/clauses.pl\=' reads
+The mode reads clauses in Elisp and `tools/cocolint/clauses.pl\=' reads
 them in cocolog; both answer a list of definitions in source order, and
 this compares the two.  Agreement is a word in the echo area,
 disagreement a warning naming the line and both answers -- the bargain
@@ -4007,7 +4007,7 @@ the engine already keeps with the binary, kept by the reader too."
       :help "Run cocolint again each time the file is saved"]
      "---"
      ["List the clauses cocolog reads here" cocolog-clauses-list
-      :help "What tools/coco-agent/clauses.pl makes of this file, clause by clause"]
+      :help "What tools/cocolint/clauses.pl makes of this file, clause by clause"]
      ["Hold the mode's reading to cocolog's" cocolog-clauses-check
       :help "Compare the mode's own reader with the one the linter stands on"])
 
@@ -4073,7 +4073,7 @@ buffer and \\[cocolog-clear-trace-at-point] removes a graph again.
 
 The checkout's own tools
 ------------------------
-\\[cocolog-lint-buffer] runs cocolint -- `tools/coco-agent/lint.sh\=',
+\\[cocolog-lint-buffer] runs cocolint -- `tools/cocolint/lint.sh\=',
 cocolog itself -- over the file and lists what it finds as errors to
 walk with \\[next-error].  \\[cocolog-clauses-list] shows the clauses
 cocolog's own reader makes of the file, and

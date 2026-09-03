@@ -1,8 +1,8 @@
 #!/bin/sh
 # verify.sh -- the gates of DESIGN.md section 7 that need no model.
 #
-#     sh tools/coco-agent/verify.sh FILE.pl [FILE.pl ...]
-#     sh tools/coco-agent/verify.sh --gates G1,G4 FILE.pl
+#     sh tools/cocolint/verify.sh FILE.pl [FILE.pl ...]
+#     sh tools/cocolint/verify.sh --gates G1,G4 FILE.pl
 #
 #   G0  shape      the file exists, reads, and names main/0
 #   G1  cocolint   the dialect linter; HARD findings block

@@ -106,6 +106,14 @@ modules/               the LOADABLE modules, one directory each -- tcp,
 tools/cc/              the toolchain, in four small files: clang, plus the
                        one flag Ubuntu makes necessary and two shims for
                        the one build step that names gcc outright
+tools/cocolint/        THE DIALECT LINTER, and the deterministic half of the
+                       NL-to-cocolog agent around it -- the clause reader as
+                       one grammar, the rules as clauses, the dialect card
+                       whose citations are checked rather than trusted, the
+                       retrieval index, the collision oracle and the gates.
+                       Every line of it is cocolog: `sh tools/cocolint/lint.sh
+                       FILE.pl', or `make lint FILES=FILE.pl'. Named for the
+                       part a person runs by hand
 
 client/                the two protocols, in C. No C++, no ZiguratIP headers:
                        libc and the sockets API and nothing else -- except

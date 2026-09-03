@@ -1,15 +1,15 @@
 %% cocolog tutorial 37 -- cocolint: the dialect linter, and why it is clauses.
 %%
 %% TIER: none. cocolint is a TOOL, not a library, so there is no
-%% `use_module(library(lint))'. It lives in tools/coco-agent and you run it:
+%% `use_module(library(lint))'. It lives in tools/cocolint and you run it:
 %%
-%%     sh tools/coco-agent/lint.sh myprogram.pl
+%%     sh tools/cocolint/lint.sh myprogram.pl
 %%
 %% This lesson loads its two halves directly, which is what `use_module' on a
 %% plain path is for:
 %%
-%%     :- use_module('tools/coco-agent/clauses.pl').   the clause reader
-%%     :- use_module('tools/coco-agent/lint.pl').      the rules
+%%     :- use_module('tools/cocolint/clauses.pl').   the clause reader
+%%     :- use_module('tools/cocolint/lint.pl').      the rules
 %%
 %% WHAT IT IS FOR. cocolog is close enough to SWI that your instincts will
 %% compile, and far enough that they will be wrong. Every rule cocolint has
@@ -36,8 +36,8 @@
 %% committed; the blocklist the collision rules consult is not, and section 9
 %% says how to make one rather than pretending it is there.
 
-:- use_module('tools/coco-agent/clauses.pl').
-:- use_module('tools/coco-agent/lint.pl').
+:- use_module('tools/cocolint/clauses.pl').
+:- use_module('tools/cocolint/lint.pl').
 :- use_module(library(json)).
 
 %% ---- a small helper, so each claim reads as one line ------------------
@@ -230,13 +230,13 @@ t37_lookahead :-
 
 t37_card :-
     format("~n-- 8. THE DIALECT CARD IS DATA, and its citations are CHECKED~n"),
-    format("   tools/coco-agent/traps.jsonl is the card as rows. Each one~n"),
+    format("   tools/cocolint/traps.jsonl is the card as rows. Each one~n"),
     format("   carries the source it is claiming something about, and an~n"),
     format("   ANCHOR -- a literal substring that must appear in the cited~n"),
     format("   lines. A citation nobody checks is a citation that rots: a~n"),
     format("   line number moves and the row goes on asserting a fact about~n"),
     format("   code that is no longer there.~n"),
-    read_file_to_codes('tools/coco-agent/traps.jsonl', TrapCodes),
+    read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
     must('rows in the card', NRows, 34),
@@ -275,12 +275,12 @@ t37_running :-
     format("   directly, which needs nothing generated. The COLLISION rules~n"),
     format("   -- N1, N2, N3 -- need a blocklist extracted from this~n"),
     format("   checkout, and lint.sh makes one for you:~n"),
-    format("~n       sh tools/coco-agent/lint.sh myprogram.pl~n~n"),
+    format("~n       sh tools/cocolint/lint.sh myprogram.pl~n~n"),
     format("   It exits 1 if there is a HARD finding, which is how a cocolog~n"),
     format("   program sets an exit code at all: `cocolog run FILE GOAL'~n"),
     format("   exits 1 when the goal FAILS, so cl_lint/1 simply fails. No~n"),
     format("   halt is involved, and could not be -- see section 6.~n"),
-    ( exists_file('tools/coco-agent/blocklist.pl') -> Index = built ; Index = absent ),
+    ( exists_file('tools/cocolint/blocklist.pl') -> Index = built ; Index = absent ),
     show('the generated blocklist is', Index),
     (   Index == built
     ->  format("   It is here, so the collision rules would run.~n")

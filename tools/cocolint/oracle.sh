@@ -2,10 +2,10 @@
 # G2+G3 -- consult the candidate and ask the store which of its predicates it
 # calls its own. A name that collided with a tier-1 library is ABSENT.
 #
-#     sh tools/coco-agent/oracle.sh myprogram.pl
+#     sh tools/cocolint/oracle.sh myprogram.pl
 #
 # Answers one line per predicate, `own' or `COLLIDED', and exits 1 if anything
-# collided. See tools/coco-agent/oracle.pl for the mechanism and its blind
+# collided. See tools/cocolint/oracle.pl for the mechanism and its blind
 # spot, and DESIGN.md section 16.1 for the run that confirmed it.
 #
 # --local ONLY, deliberately. Under --kb or --embed the store is warmed before

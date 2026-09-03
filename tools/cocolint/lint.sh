@@ -1,7 +1,7 @@
 #!/bin/sh
 # cocolint -- the cocolog dialect linter, written in cocolog.
 #
-#     sh tools/coco-agent/lint.sh myprogram.pl [more.pl ...]
+#     sh tools/cocolint/lint.sh myprogram.pl [more.pl ...]
 #
 # Exits 1 if there is a HARD finding, 0 otherwise.
 #
