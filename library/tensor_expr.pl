@@ -43,6 +43,9 @@
 %%   conv2d(A, K, Shifts)          A is [N*H*W, Cin] PIXELS AS ROWS, channels last; K is [9*Cin, Cout], the
 %%                                 nine 3x3 taps stacked; Shifts from shifts(H, W, Shifts). Zero padding, same size.
 %%   pool2(A, P)  up2(A, U)        2x2 average pooling and nearest upsampling, with pool_matrix/3 and up_matrix/3
+%%   taps(N, H, W, Taps)           THE SAME CONVOLUTION BY GATHER: Taps from taps/4 in place of Shifts, an index per
+%%                                 pixel per tap instead of a [H*W, H*W] matrix, for pictures the matrices cannot fit;
+%%                                 pool_taps/4 and up_taps/4 likewise for pool2 and up2. N is the pictures in the batch.
 %%   cross_entropy(Logits, OneHot) bce(P, Y)  mse(P, Y)     each a one-element tensor, the mean over rows
 %%
 %% AND THE ANSWERS -- the forms that ask about a tensor rather than make one.
@@ -397,6 +400,24 @@ up_matrix(H, W, U) --> { up_matrix(H, W, U) }, [U].
 %% the rows ([Cin*N, H*W]), shift it with the tap's [H*W, H*W] 0/1 matrix, move
 %% it back, and multiply by the tap's [Cin, Cout] slice of the kernel; the nine
 %% products are summed. Zero padding is a row of the shift matrix with no 1.
+%%
+%% BY GATHER, when the third argument came from taps/4: the tap is an index per
+%% output pixel naming the input pixel it reads, and index_rows does the shift
+%% on a copy of X with one zero row appended, which is where a tap outside the
+%% picture points. Same kernel layout, same tap order, same numbers; the shift
+%% matrix at 96 by 96 would be 85 million numbers a tap, the index is 9216.
+'$te_conv2d'(X, K, taps(Is), T) :- !,
+    tensor_shape(X, [_, Cin]),
+    Xz := cat([X, zeros([1, Cin])], 0),
+    '$te_gathers'(Is, 0, Xz, K, Cin, none, T),
+    tensor_free(Xz).
+'$te_gathers'([], _, _, _, _, Acc, Acc).
+'$te_gathers'([I|Is], J, Xz, K, Cin, Acc, T) :-
+    F is J * Cin, To is F + Cin,
+    Y := index_rows(Xz, I) matmul rows(K, F, To),
+    ( Acc == none -> Acc2 = Y ; Acc2 := Acc + Y, free_all([Acc, Y]) ),
+    J1 is J + 1,
+    '$te_gathers'(Is, J1, Xz, K, Cin, Acc2, T).
 '$te_conv2d'(X, K, Shifts, T) :-
     tensor_shape(X, [NHW, Cin]), Shifts = [S0|_], tensor_shape(S0, [HW, _]),
     N is NHW // HW, CN is Cin * N,
@@ -411,7 +432,12 @@ up_matrix(H, W, U) --> { up_matrix(H, W, U) }, [U].
     I1 is I + 1,
     '$te_taps'(Ss, I1, Xr, K, Cin, NHW, Acc2, T).
 
-%% pool2 and up2 are the same move with a [H*W, H*W/4] or [H*W/4, H*W] matrix.
+%% pool2 and up2 are the same move with a [H*W, H*W/4] or [H*W/4, H*W] matrix --
+%% or, from pool_taps/4 and up_taps/4, four gathers averaged and one gather.
+'$te_pixels'(X, pool([I0, I1, I2, I3]), T) :- !,
+    T := (index_rows(X, I0) + index_rows(X, I1) + index_rows(X, I2) + index_rows(X, I3)) * 0.25.
+'$te_pixels'(X, up(I), T) :- !,
+    T := index_rows(X, I).
 '$te_pixels'(X, P, T) :-
     tensor_shape(X, [NHW, C]), tensor_shape(P, [HW, HW2]),
     N is NHW // HW, CN is C * N, NHW2 is N * HW2,
@@ -439,6 +465,42 @@ shifts(H, W, Shifts) :-
                    findall(V, ( between(0, HW1, P), PY is P // W, PX is P mod W,
                                 ( QY =:= PY + DY, QX =:= PX + DX -> V = 1.0 ; V = 0.0 ) ), Row) ), Rows),
     tensor_from_list(Rows, S).
+
+%% taps(+N, +H, +W, -Taps): the nine taps of a 3x3 convolution over N pictures
+%% of H by W as INDEX VECTORS, taps(Is), in the same (dy, dx) order as
+%% shifts/3: one number per output pixel, the row of the input pixel it
+%% reads, or N*H*W -- the zero row conv2d appends -- outside the picture.
+%% As a nonterminal the nine tensors join the rule's temporaries.
+taps(N, H, W, taps(Is)) --> { taps(N, H, W, taps(Is)) }, '$te_emit'(Is).
+taps(N, H, W, taps(Is)) :-
+    Z is N * H * W,
+    findall(I, ( member(DY, [-1, 0, 1]), member(DX, [-1, 0, 1]),
+                 '$te_tap'(N, H, W, DY, DX, Z, I) ), Is).
+'$te_tap'(N, H, W, DY, DX, Z, I) :-
+    HW is H * W, N1 is N - 1, H1 is H - 1, W1 is W - 1,
+    findall(V, ( between(0, N1, Pn), between(0, H1, Py), between(0, W1, Px),
+                 Qy is Py + DY, Qx is Px + DX,
+                 ( Qy >= 0, Qy < H, Qx >= 0, Qx < W -> V is float(Pn * HW + Qy * W + Qx) ; V is float(Z) ) ), Vs),
+    tensor_from_list(Vs, I).
+
+%% pool_taps(+N, +H, +W, -P): 2x2 average pooling as four index vectors,
+%% pool(Is), one per corner of the block, each N*H*W/4 long; up_taps(+N, +H,
+%% +W, -U): nearest upsampling back to H by W as one index vector, up(I),
+%% N*H*W long. H and W are the BIG picture's, even, as for the matrices.
+pool_taps(N, H, W, pool(Is)) --> { pool_taps(N, H, W, pool(Is)) }, '$te_emit'(Is).
+pool_taps(N, H, W, pool(Is)) :-
+    findall(I, ( member(DY, [0, 1]), member(DX, [0, 1]), '$te_pool_tap'(N, H, W, DY, DX, I) ), Is).
+'$te_pool_tap'(N, H, W, DY, DX, I) :-
+    HW is H * W, H2 is H // 2, W2 is W // 2, N1 is N - 1, H21 is H2 - 1, W21 is W2 - 1,
+    findall(V, ( between(0, N1, Pn), between(0, H21, Cy), between(0, W21, Cx),
+                 V is float(Pn * HW + (2 * Cy + DY) * W + 2 * Cx + DX) ), Vs),
+    tensor_from_list(Vs, I).
+up_taps(N, H, W, up(I)) --> { up_taps(N, H, W, up(I)) }, [I].
+up_taps(N, H, W, up(I)) :-
+    H2 is H // 2, W2 is W // 2, HW4 is H2 * W2, N1 is N - 1, H1 is H - 1, W1 is W - 1,
+    findall(V, ( between(0, N1, Pn), between(0, H1, Y), between(0, W1, X),
+                 V is float(Pn * HW4 + (Y // 2) * W2 + X // 2) ), Vs),
+    tensor_from_list(Vs, I).
 
 %% pool_matrix(+H, +W, -P): [H*W, H*W/4], each 2x2 block averaged into one
 %% pixel of the half-size picture; up_matrix(+H, +W, -U): [H*W/4, H*W], the

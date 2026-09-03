@@ -127,7 +127,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
                        library/ (forty, ONE PER LIBRARY that
-                       ships), tensor/ (forty-one networks, three
+                       ships), tensor/ (forty-two networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
@@ -318,7 +318,7 @@ eleven on the library path.
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
 end. A new library therefore gets a tutorial in the same commit.
 
-### `tensor/` — forty-one networks, three processes each
+### `tensor/` — forty-two networks, three processes each
 
 The deep end, and its own [README](tutorials/tensor/README.md) — described
 under *Prolog that trains* below.
@@ -1188,15 +1188,18 @@ runs the whole story: train, store in Zigurat, reload in a fresh
 process, predict identically.
 
 The classic AI/ML challenges pass, one `.pl` file at a time.
-**[tutorials/tensor/](tutorials/tensor/README.md) holds forty-one such programs**,
+**[tutorials/tensor/](tutorials/tensor/README.md) holds forty-two such programs**,
 each a documented file carrying `train`, `test` and `predict` as
 separate goals in separate processes — the store carries the model
 between them: regression and classification, two-moons and spirals,
 autoencoders and denoising, CNNs through a mini-LeNet, batch norm,
 dropout, learning-rate schedules, LSTM sequence models with embeddings,
-and fitted Q-iteration reinforcement learning. They are the third
-tutorial category — `sh test/tutorials.sh` runs all ninety-two files,
-the hundred and twenty-three torch processes included, green and deterministically
+fitted Q-iteration reinforcement learning -- and, in 42, object detection
+on real photographs, the Penn-Fudan pedestrians, trained on a T4 with the
+boxes-to-cells assignment, the suppression and the matching written as
+clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the third
+tutorial category — `sh test/tutorials.sh` runs all ninety-three files,
+the hundred and twenty-six torch processes included, green and deterministically
 in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten
 add about three and a half minutes between them, measured one by one. The

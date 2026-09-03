@@ -1,4 +1,4 @@
-# Tensor: forty-one networks, one file each
+# Tensor: forty-two networks, one file each
 
 *One of three tutorial categories — `../basics/` is the language,
 `../library/` is what ships, and this is the deep end.*
@@ -94,6 +94,20 @@ use it, so that each is one program on both libraries.
 | 39-realnvp | four affine coupling layers, run forwards for the likelihood and backwards for a sample; two moons; the NLL held against a fitted Gaussian's, and a density stated for a point |
 | 40-ddpm | the forward process as a schedule, the network learning the noise, sampling as fifty steps back; the same ring as 37, drawn at three moments of the sampling |
 | 41-seq2seq-attention | an encoder GRU, a decoder GRU, and additive attention between them, the GRU cell four expressions; sequences reversed, teacher forcing, the decoder feeding itself at test, and the attention weights printed |
+| 42-object-detection | THE FIRST ONE ON REAL DATA, AND A GPU ONLY: the Penn-Fudan pedestrians, 170 photographs a `download` goal fetches and converts; a one-stage detector -- four convolutions by gather, since a real picture is too big for a shift matrix, a 12 by 12 grid, five numbers a cell -- with the boxes-to-cells assignment, the decoding, non-maximum suppression and the matching by overlap all in Prolog; `test` is precision and recall on the 34 held out, and `predict` runs twelve of them on torch and then on TensorFlow and compares the boxes |
+
+**42 is the one on real data, and it looks like this.** The Penn-Fudan
+photographs, held out from training, with the people in green and what
+the network found in red, as `predict` draws them on the T4 -- the
+model is a small convolutional network trained from nothing in under two
+minutes, and on the 34 held-out photographs it finds 44 of every hundred
+people and is right 70 times in a hundred when it speaks. The same
+parameters, loaded on torch and on TensorFlow, gave the same boxes on
+all twelve photographs `predict` shows:
+
+![three people on a road, each boxed](42-detection-1.jpg)
+![two people beside a bus, each boxed](42-detection-2.jpg)
+![one person walking, boxed](42-detection-3.jpg)
 
 One cocolog property every file here respects: `run` CONSULTS the file
 into the knowledge base, and the knowledge base is the store -- so the
