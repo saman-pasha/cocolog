@@ -61,7 +61,7 @@ ix_root(Root) :-
 
 ix_path(Rel, Abs) :- ix_root(Root), atomic_list_concat([Root, '/', Rel], Abs).
 
-ix_here(Rel, Abs) :- ix_path('tools/coco-agent/', D), atom_concat(D, Rel, Abs).
+ix_here(Rel, Abs) :- ix_path('tools/cocolint/', D), atom_concat(D, Rel, Abs).
 
 ix_bin(Bin) :-
     (   getenv('COCOLOG_BIN', B) -> Bin = B ; ix_path(cocolog, Bin) ).

@@ -2,8 +2,8 @@
 %%
 %% TIER: none. It is a tool, not a library. Run it:
 %%
-%%     COCO_CC_FILES=list.txt cocolog --local run tools/coco-agent/clauses.pl cc_dump
-%%     cocolog --local run tools/coco-agent/clauses.pl "cc_heads_of('f.pl', Ks), write(Ks), nl"
+%%     COCO_CC_FILES=list.txt cocolog --local run tools/cocolint/clauses.pl cc_dump
+%%     cocolog --local run tools/cocolint/clauses.pl "cc_heads_of('f.pl', Ks), write(Ks), nl"
 %%
 %% THE PUBLIC SURFACE
 %%
@@ -753,17 +753,20 @@ cc_heads_of(File, Keys) :-
     sort(Keys0, Keys).
 
 %% ======================================================================
-%% ---- cc_dump: the equivalence gate's input ---------------------------
+%% ---- cc_dump: one row per clause, for whoever is asking ---------------
 %% ======================================================================
 
 %% cc_dump is det.
-%% One tab-separated row per clause, for tools/coco-agent/equiv.sh to diff
-%% against clauses.py over every .pl this repository owns.
+%% One tab-separated row per clause over every file the environment names.
+%% It was written as the input to an equivalence gate that diffed this
+%% reader against clauses.py, and both of those are gone -- what reads it
+%% now is test/lint.sh's reader fixture, oracle.sh's declared-name list,
+%% and the Emacs mode's `C-c C-j'.
 %%
-%% THE FILE LIST COMES THROUGH THE ENVIRONMENT, not a goal term. cocolog has
-%% no argv -- current_prolog_flag/2 answers `executable' and nothing else --
-%% so the alternative is a goal the shell has to quote, and a path with a
-%% space in it breaks that. getenv/2 is tier 1 and does not care.
+%% THE FILE LIST COMES THROUGH THE ENVIRONMENT, not a goal term. It predates
+%% argv here -- `--' and library(main) would serve now -- and it is still the
+%% better seam: the alternative is a goal the shell has to quote, and a path
+%% with a space in it breaks that. getenv/2 is tier 1 and does not care.
 cc_dump :-
     getenv('COCO_CC_FILES', ListFile),
     read_file_to_codes(ListFile, Codes),

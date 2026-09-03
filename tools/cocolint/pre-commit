@@ -6,7 +6,7 @@
 # installs its own hooks behind your back is a repository nobody trusts, so
 # this is a file you copy on purpose:
 #
-#     ln -s ../../tools/coco-agent/pre-commit .git/hooks/pre-commit
+#     ln -s ../../tools/cocolint/pre-commit .git/hooks/pre-commit
 #
 # A symlink rather than a copy so it follows the branch you are on. To skip it
 # once: git commit --no-verify.
@@ -24,7 +24,7 @@
 # hook that passed.
 
 ROOT=$(git rev-parse --show-toplevel) || exit 0
-AGENT="$ROOT/tools/coco-agent"
+AGENT="$ROOT/tools/cocolint"
 
 [ -f "$AGENT/card.pl" ] || exit 0
 
@@ -48,7 +48,7 @@ if ! OUT=$(sh "$AGENT/tool.sh" card --check 2>&1); then
   echo
   echo "The dialect card cites code that is gone, or that it can no longer tell"
   echo "apart from its namesakes. Read the row against the source and fix"
-  echo "tools/coco-agent/traps.jsonl by hand -- --fix deliberately will not"
+  echo "tools/cocolint/traps.jsonl by hand -- --fix deliberately will not"
   echo "guess at either of these."
   rc=1
 fi

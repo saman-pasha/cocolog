@@ -65,7 +65,7 @@ written anywhere in this repository.
 
 22 is the introduction to torch; `../tensor/` is the collection. 37 is the
 odd one out and says so in its header: cocolint is a TOOL under
-`tools/coco-agent`, not a library on the path, so there is no
+`tools/cocolint`, not a library on the path, so there is no
 `use_module(library(lint))' and the lesson loads its two halves by plain
 path instead.
 

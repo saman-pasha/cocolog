@@ -1,4 +1,4 @@
-# coco-agent — the deterministic half, in cocolog
+# cocolint — the deterministic half, in cocolog
 
 The deterministic half of the NL-to-cocolog agent designed in
 [`library/llm/DESIGN.md`](../../library/llm/DESIGN.md). These are increments **1–6 and 8** of
@@ -7,14 +7,21 @@ no network**. All of it is useful on its own — a cocolog dialect linter a huma
 runs by hand, a dialect card whose citations are checked rather than trusted,
 and a gate script that says why a program did not prove.
 
+**The directory is named for the part you run by hand.** cocolint is one of
+the things in it — the linter, `lint.pl` and the reader under it — and the
+card, the retrieval index, the oracle probe and the agent's own driver live
+here too, because every one of them is deterministic and they share the one
+clause reader. `library/llm/DESIGN.md` names the whole system Ashurbanipal;
+nothing in this directory needs a model.
+
 ```sh
-sh tools/coco-agent/verify.sh myprogram.pl   # every gate, in order
-sh tools/coco-agent/lint.sh    myprogram.pl  # G1 alone
-sh tools/coco-agent/oracle.sh  myprogram.pl  # G2+G3 alone
-make lint FILES=myprogram.pl                 # G1, through make
-make index                                   # rebuild the blocklist and index
-make dialect-check                           # every citation still resolves
-sh test/lint.sh                              # the suite case
+sh tools/cocolint/verify.sh myprogram.pl   # every gate, in order
+sh tools/cocolint/lint.sh   myprogram.pl   # G1 alone
+sh tools/cocolint/oracle.sh myprogram.pl   # G2+G3 alone
+make lint FILES=myprogram.pl               # G1, through make
+make index                                 # rebuild the blocklist and index
+make dialect-check                         # every citation still resolves
+sh test/lint.sh                            # the suite case
 ```
 
 | file | is |

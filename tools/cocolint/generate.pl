@@ -1,6 +1,6 @@
 %% generate.pl -- the model call, and only the model call.
 %%
-%% Everything around it is deterministic and lives in tools/coco-agent/*.py;
+%% Everything around it is deterministic and lives in tools/cocolint/*.pl;
 %% this is the one place a key is needed. Run by agent.sh:
 %%
 %%     cocolog --local run generate.pl coco_generate SYS.txt USER.txt OUT.json

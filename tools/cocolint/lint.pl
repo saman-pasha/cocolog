@@ -2,13 +2,13 @@
 %%
 %% TIER: none. It is a tool. Run it through its wrapper:
 %%
-%%     sh tools/coco-agent/lint.sh myprogram.pl
+%%     sh tools/cocolint/lint.sh myprogram.pl
 %%
 %% or by hand, which is the same thing without the file-list plumbing:
 %%
-%%     cocolog --local run tools/coco-agent/blocklist.pl \
-%%         tools/coco-agent/traps.pl tools/coco-agent/clauses.pl \
-%%         tools/coco-agent/lint.pl "cl_lint(['myprogram.pl'])"
+%%     cocolog --local run tools/cocolint/blocklist.pl \
+%%         tools/cocolint/traps.pl tools/cocolint/clauses.pl \
+%%         tools/cocolint/lint.pl "cl_lint(['myprogram.pl'])"
 %%
 %% WHAT IT IS FOR. cocolog is close enough to SWI that your instincts will
 %% compile and far enough that they will be wrong. Every rule below exists

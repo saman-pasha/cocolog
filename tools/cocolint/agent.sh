@@ -1,9 +1,9 @@
 #!/bin/sh
 # agent.sh -- natural language in, a verified cocolog program out.
 #
-#     sh tools/coco-agent/agent.sh "read a JSON file and count the keys"
-#     sh tools/coco-agent/agent.sh --from gen/solver.pl "..."   # skip the model
-#     sh tools/coco-agent/agent.sh --dry  "..."                 # show the prompt only
+#     sh tools/cocolint/agent.sh "read a JSON file and count the keys"
+#     sh tools/cocolint/agent.sh --from gen/solver.pl "..."   # skip the model
+#     sh tools/cocolint/agent.sh --dry  "..."                 # show the prompt only
 #
 # THE MODEL CALL IS THE ONE THING HERE THAT IS NOT EXERCISED, and this script
 # is arranged so that everything else is. `--from FILE' takes a candidate that

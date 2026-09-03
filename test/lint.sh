@@ -1,7 +1,7 @@
 #!/bin/sh
 # cocolint over the calibration corpus, and the two rewrites it stands on.
 #
-# THE LINTER IS COCOLOG. tools/coco-agent/clauses.pl and lint.pl are the whole
+# THE LINTER IS COCOLOG. tools/cocolint/clauses.pl and lint.pl are the whole
 # of it; the Python they replaced is gone, and with it the differential check
 # that proved the rewrite faithful. WHAT REPLACED THAT CHECK IS TWO FIXTURES
 # AND A PROBE, and the trade is worth naming: a second implementation catches
@@ -33,8 +33,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
 cd "$ROOT" || exit 0
 
-AGENT="$ROOT/tools/coco-agent"
-[ -f "$AGENT/lint.pl" ] || { echo "SKIP no tools/coco-agent"; exit 0; }
+AGENT="$ROOT/tools/cocolint"
+[ -f "$AGENT/lint.pl" ] || { echo "SKIP no tools/cocolint"; exit 0; }
 [ -x "$ROOT/cocolog" ] || { echo "SKIP no binary -- the linter is cocolog now"; exit 0; }
 
 # ---- 1. the dialect card's citations -------------------------------------

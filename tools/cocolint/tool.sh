@@ -1,10 +1,10 @@
 #!/bin/sh
 # tool.sh -- run one of the cocolog tools in this directory.
 #
-#     sh tools/coco-agent/tool.sh build    [--if-stale]
-#     sh tools/coco-agent/tool.sh card     --check [--fix] | --facts | --card | --patterns
-#     sh tools/coco-agent/tool.sh index    [--check] [--no-run]
-#     sh tools/coco-agent/tool.sh assemble [--show system|user] [--sizes] "REQUEST"
+#     sh tools/cocolint/tool.sh build    [--if-stale]
+#     sh tools/cocolint/tool.sh card     --check [--fix] | --facts | --card | --patterns
+#     sh tools/cocolint/tool.sh index    [--check] [--no-run]
+#     sh tools/cocolint/tool.sh assemble [--show system|user] [--sizes] "REQUEST"
 #
 # ONE DRIVER, BECAUSE THE FILE LIST IS THE ONLY THING THAT VARIES. These were
 # `python3 build.py ...' and so on, and a tool that needs its dependencies
@@ -29,7 +29,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 BIN="${COCOLOG_BIN:-$ROOT/cocolog}"
 
-[ -x "$BIN" ] || { echo "coco-agent: no binary at $BIN" >&2; exit 2; }
+[ -x "$BIN" ] || { echo "cocolint: no binary at $BIN" >&2; exit 2; }
 
 TOOL=$1
 [ -n "$TOOL" ] || { echo "usage: tool.sh build|card|index|assemble [args...]" >&2; exit 2; }
@@ -41,7 +41,7 @@ case "$TOOL" in
   index)    FILES="$HERE/clauses.pl $HERE/build.pl $HERE/index.pl";       GOAL=ix_main ;;
   assemble) FILES="$HERE/clauses.pl $HERE/index.pl $HERE/card.pl $HERE/assemble.pl"
             GOAL=as_main ;;
-  *) echo "coco-agent: no tool named $TOOL" >&2; exit 2 ;;
+  *) echo "cocolint: no tool named $TOOL" >&2; exit 2 ;;
 esac
 
 COCOLOG_LIBRARY="$ROOT/library:$COCOLOG_LIBRARY" \

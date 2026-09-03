@@ -46,7 +46,7 @@ as_root(Root) :-
 
 as_path(Rel, Abs) :- as_root(Root), atomic_list_concat([Root, '/', Rel], Abs).
 
-as_here(Rel, Abs) :- as_path('tools/coco-agent/', D), atom_concat(D, Rel, Abs).
+as_here(Rel, Abs) :- as_path('tools/cocolint/', D), atom_concat(D, Rel, Abs).
 
 %% Hard cap on the user turn, DESIGN.md section 9. `--cap' is for exercising
 %% the ladder; nothing on a real request should change it.
