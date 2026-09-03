@@ -36,11 +36,15 @@ has no tracked files — so `git status` in it stays empty. Verify that it does.
 export CICILI=/home/user/cicili                  # a Cicili checkout, for sbcl
 export ZIGURATIP=/home/user/ZiguratIP            # a BUILT ZiguratIP checkout
 export ZIGURATIP_HOME=/home/user/ZiguratIP/home  # and its home
-make            # the C client and the ONE cocolog binary (embedded store
-                # and torch module linked in; needs libtorch too)
+make            # the C client and the ONE cocolog binary (the embedded
+                # store is linked in; every module is tier 2 and separate,
+                # so this needs no libtorch and no libcurl)
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
+make modules    # every loadable module buildable here; SKIPPED, by name,
+                # for the rest
 make test       # the suite
-sh test/run.sh solve      # one case
+sh test/run.sh solve            # one case
+make lint FILES=myprogram.pl    # cocolint, over a file you name
 ```
 
 There is one `cocolog` binary and it is full: the four knowledge-base
@@ -1134,12 +1138,13 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/swipl/` | EIGHT of SWI's libraries — `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg/basics`, `dcg/high_order` — copied unmodified under their own BSD-2 headers and read at start-up. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
-| `modules/` | the loadable modules: `tcp`, `thread`, `curl`, `bigint`, `torch`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
+| `modules/` | the fifteen loadable modules: `tcp`, `thread`, `process`, `text`, `os`, `curl`, `bigint`, `torch`, `tensorflow`, `ray`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`, `tls`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |
 | `client/` | pure C, speaks the wire protocol, includes nothing of ZiguratIP |
 | `parsi/` | the schema, procedures and pages compiled into a ZiguratIP home |
+| `tools/cocolint/` | **the dialect linter**, and the deterministic half of the NL-to-cocolog agent around it: the clause reader as one grammar, the rules as clauses, the dialect card whose citations are checked rather than trusted, the retrieval index, the collision oracle and the gate script. `sh tools/cocolint/lint.sh FILE.pl` or `make lint FILES=FILE.pl`; `test/lint.sh` is the suite case, and `tutorials/library/37-lint.pl` the lesson. It was `tools/coco-agent` and is named for the part a person runs by hand |
 
 The store's hooks — `fetch`, `on_assert`, `on_retract`, `on_dynamic`, `warm` —
 are the seam. Everything above them is written against the store and knows
@@ -1151,13 +1156,13 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has three categories and `test/tutorials.sh` runs all
-seventy-eight files as one suite case:
+ninety-three files as one suite case:
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | thirty-nine lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
-| `tutorials/tensor/` | twenty-eight networks, three processes each | libtorch |
+| `tutorials/library/` | forty lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/tensor/` | forty-two networks, each running on either tensor library | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
 
@@ -1228,9 +1233,9 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **43** case lines (counted
-from a run, not remembered; this said 39, then 42, and the suite keeps
-moving). A change to
+Run `make test` with a server up, and read all **48** case lines (counted
+from a run, not remembered; this said 39, then 42, then 43, and the suite
+keeps moving). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make
@@ -1243,9 +1248,11 @@ the first is never dressed up as the second. Seven cases — `zigurat`,
 `shared`, `tunnel`, `tensors`, `zigurat-lib`, `groups`, `ruler` — SKIP
 without a server; `files` and `trace` SKIP without `swipl`
 (`apt-get install swi-prolog-nox`), because both compare cocolog against
-it; and `ray` SKIPs without raylib. **A run that says `red: 0` with ten
-SKIPs has not tested the database at all.** Three is what this box gives
-with a server up and neither swipl nor raylib installed.
+it; `ray` SKIPs without raylib, `tensorflow` without libtensorflow, and
+`torch-replay` without a CUDA toolkit to compile the replay path in.
+**A run that says `red: 0` with ten SKIPs has not tested the database at
+all.** Five is what this box gives with a server up and none of swipl,
+raylib, libtensorflow or CUDA installed.
 
 ### What macOS gets wrong, and the recipe
 
