@@ -1176,8 +1176,9 @@ learned weights are facts — saved, queried, and reloaded through the
 same knowledge base that holds your rules. The last seam to be filled:
 [modules/torch/](modules/torch/README.md) puts libtorch behind the module system, so a
 Prolog program can load a dataset the Files module vouched for, train a
-network on it, and `model_save` the result — an assert of the model *as
-terms*, which the knowledge base persists like any other fact.
+network on it, and `params_save` the result — an assert of the
+parameters *as terms*, which the knowledge base persists like any other
+fact.
 It is a LOADABLE module — `library/torch.so`, built by
 `sh modules/torch/build.sh` and reached with
 `use_module(library(torch))` — because a dependency this large should
@@ -1220,9 +1221,10 @@ LSTM carried the fact across five further steps, in a model that was
 trained by one process, stored as terms, and is answering in another.
 And [24-q-learning](tutorials/tensor/24-q-learning.pl) ends the classics
 with reinforcement learning — fitted Q-iteration on a gridworld, the
-DQN idea built from nothing but `model_predict` for the Bellman targets
-and `model_train` for the regression, whose greedy policy walks the
-optimal six moves around the pit.
+DQN idea built from nothing but a defined function for the Q-network,
+`list(q(Ps, Xall))` for the Bellman targets and `mse(q(Ps, Xs), Y)`
+under Adam for the regression, whose greedy policy walks the optimal six
+moves around the pit.
 
 Underneath: a full torch surface — layers, losses, optimisers, metrics,
 and device selection with honest CUDA refusal rather than silent
@@ -1393,17 +1395,38 @@ asked, answered by runs:
    compiled call a step, so the CPU does the least driving. Handing work to
    the GPU is the third argument, and graph relieves the CPU more than eager
    does, one call standing for hundreds of launches.
-3. *Trained on TensorFlow, tested on torch?* Yes, and run: tutorial 31
-   trained under `(tensorflow, graph)`, then tested under `(torch, graph)`
-   and predicted under `(torch, eager)` from the same store, rmse 0.0018;
-   32's ResNet trained on TensorFlow and tested on torch, accuracy 1.00.
+3. *Trained on TensorFlow, tested on torch, and the reverse?* Yes, both
+   ways, and run: tutorial 31 trained under `(tensorflow, graph)`, then
+   tested under `(torch, graph)` and predicted under `(torch, eager)` from
+   the same store, rmse 0.0018, and trained on torch, tested and predicted
+   on TensorFlow, rmse 0.0011; 32's ResNet trained on either and tested on
+   the other, accuracy 1.00 both ways.
    Two caveats: only the `tensor_*` programs, 29 onward, are portable --
    1 to 28 use libtorch's `model_*` modules, which have no TensorFlow side;
    and the two libraries agree within float tolerance, not bit for bit, and
    draw different random numbers from one seed, so weights trained on each
    differ.
+4. *Is the difference between `eager` and `graph` only the gradient?* No:
+   both differentiate, on both libraries. The difference is WHEN work
+   runs. Eager executes each producer as its goal runs, so every handle has
+   a value at once; graph records, and nothing runs until a read, when the
+   whole closure -- a training step's loss, gradients and new parameters --
+   is compiled once per structure and thereafter runs as ONE call (torch:
+   a lazy graph with CUDA-graph replay; TensorFlow: one function). What
+   follows from that: on a GPU graph is the faster path, since one call
+   stands for hundreds of launches and the CPU drives less; under graph
+   the intermediates a program never names are never kept, so it holds
+   less; a runtime error surfaces at the read rather than at the goal
+   (shape errors are refused at the goal under both, by rule); and under
+   TensorFlow eager a gradient recomputes its forward pass inside the
+   gradient's call, a cost graph does not pay. `tensor_graph_stats/1`
+   shows the two: recorded and replayed count under graph, executed
+   under eager.
 
-**And ten networks written in it**, tutorials 32 to 41, each the
+**And every network in the tutorials written in it.** Tutorials 1 to
+30, the classics from linear regression to a character transformer,
+were rewritten from the module's `model_*` layers into expressions, one
+program each on both libraries; and 32 to 41 are ten more, each the
 architecture in the open rather than a layer of the module: a ResNet
 and a U-Net, whose convolutions are nine shifted matmuls in a
 pixels-as-rows layout; a transformer encoder and a GPT-style decoder,
@@ -1452,9 +1475,10 @@ tolerance now, and the run says which device did what.
 is the slowest of the six, because a sixty-four-row fit is far too small
 for a GPU: each step moves its leaves to the device and copies the loss
 and two gradients back, and a closure with parameters never replays.
-The other twenty-eight tutorials are neither faster nor different under
-the graph path -- their loops live inside `model_train`'s C++ and record
-nothing; what the path records is tensor work composed in Prolog. Where
+Every tutorial composes its tensor work in Prolog now, so the path
+applies to all of them; the ones written against `model_train` before
+were neither faster nor different under it, their loops living inside
+libtorch's C++ and recording nothing. Where
 the device earns its keep is tutorial 29's `heavy/3`, the same loop on
 200000 rows by 64 features for 200 steps: the VM's two CPUs 3.8 s eager
 and 4.3 s graph, the T4 1.5 s with its start-up, the same loss and the
@@ -1468,9 +1492,9 @@ And because a trained model is clauses, it travels the way clauses do.
 Colab session trains on its GPU into a knowledge base that Google Drive
 keeps between sessions, a Cloudflare tunnel publishes Zeytun's
 read-only view of it, and every other cocolog — another Colab, a
-laptop's `?- ` prompt — does `model_load(xor, M), model_predict(M, ...)`
-over `--http`, the weights arriving as terms and the prediction running
-wherever the querier is. One writer, many readers, enforced by which
+laptop's `?- ` prompt — does `Ps = params(t07_xor)` and the network's
+expression over `--http`, the weights arriving as terms and the
+prediction running wherever the querier is. One writer, many readers, enforced by which
 port is public; `test/tunnel.sh` rehearses the edge locally, port for
 port and Host for Host.
 

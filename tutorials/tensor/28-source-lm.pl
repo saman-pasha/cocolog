@@ -1,14 +1,16 @@
 %% cocolog tutorial 28 -- a character model trained on cocolog's OWN SOURCE.
 %%
-%% TIER 2: `use_module(library(torch))', from `sh modules/torch/build.sh'.
+%% TIER 2: `use_module(library(torch))', from `sh modules/torch/build.sh',
+%% and library(tensor_expr) over it.
 %%
 %%     S=/tmp/t28; cocolog --kb tutorials --embed $S run FILE corpus
 %%     ...                                                  FILE train
 %%     ...                                                  FILE test
 %%     ...                                                  FILE generate
 %%     ...                                                  FILE judge
+%%     ...                                                  FILE predict
 %%
-%% IT NEEDS A STORE, and --local will waste your training run. model_save/2
+%% IT NEEDS A STORE, and --local will waste your training run. params_save/2
 %% writes the weights into the KNOWLEDGE BASE as clauses; under --local there
 %% is nothing behind those clauses, so `train' reports success, the process
 %% exits, and `generate' answers not_found. Every torch lesson here is run
@@ -28,12 +30,25 @@
 %% an edit -- or run `main', which does everything in one process.
 %%
 %% THE QUESTION. Lessons 25 and 26 trained on English and tied at 51.1%. This
-%% asks a different one: train the same transformer on the .pl files in this
+%% asks a different one: train a small transformer on the .pl files in this
 %% repository -- the tutorials and the libraries, cocolog's own source -- and
 %% look at what it generates.
 %%
+%% THE MODEL IS TUTORIAL 35'S DECODER, one size up: character and position
+%% embeddings of 128, two blocks of four-head causal attention and a GELU
+%% feed-forward of 256, a final layer norm and a head over the vocabulary,
+%% every piece a tensor expression and the batch one [N*32, 128] matrix that
+%% causal_mask/3 keeps honest -- a position sees itself and what came before
+%% it, never after. So a window of 32 characters is 32 predictions, one per
+%% position, and cross_entropy over all of them is the loss. The earlier
+%% version of this file built the same shape with model_new/2 and predicted
+%% only the character after the window; library lesson 22 still teaches
+%% that API. The CORPUS IS ONE TENSOR, the id of every character in order,
+%% and a batch is two gathers from it through index_rows -- the windows,
+%% and the windows shifted by one, which are their targets.
+%%
 %% WHAT TO EXPECT, SAID BEFORE THE RESULT SO IT CANNOT BE DRESSED UP AFTER.
-%% This is a CHARACTER model of about a hundred thousand parameters. It has no
+%% This is a CHARACTER model of about three hundred thousand parameters. It has no
 %% notion of a predicate, a clause or a variable's scope; it predicts the next
 %% BYTE from the previous few. On source code that is enough to learn the
 %% shape of the language -- indentation, `:-', matching brackets over a short
@@ -49,6 +64,9 @@
 
 :- use_module(library(torch)).
 % :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
+:- use_module(library(tensor_expr)).
+:- op(700, xfx, :=).
+:- op(400, yfx, matmul).
 
 %% THE CLAUSE READER, to judge the model's output with. It is a tool under
 %% tools/coco-agent rather than a library on the path, so it loads by plain
@@ -67,7 +85,7 @@ cs_sources(Files) :-
     expand_file_name('tutorials/basics/[0-9]*.pl', B0), sort(B0, B),
     expand_file_name('tutorials/library/[0-9]*.pl', C0), sort(C0, C),
     append(A, B, AB),
-    append(AB, C, Files).
+    append(AB, C, Files), !.
 
 %% cs_text(-Codes, -Bytes) is det.
 %% The whole corpus as one code list. A cut per file: read_file_to_codes/2 is
@@ -75,7 +93,7 @@ cs_sources(Files) :-
 cs_text(Codes, Bytes) :-
     cs_sources(Files),
     cs_read_all(Files, Codes),
-    length(Codes, Bytes).
+    length(Codes, Bytes), !.
 
 cs_read_all([], []).
 cs_read_all([F|Fs], Out) :-
@@ -92,58 +110,153 @@ cs_read_all([F|Fs], Out) :-
 %% higher.
 cs_vocab(Codes, Vocab, V) :-
     sort(Codes, Vocab),
-    length(Vocab, V).
+    length(Vocab, V), !.
 
 cs_id(Vocab, Code, Id) :- nth0(Id, Vocab, Code), !.
 
-cs_ids([], _, []).
-cs_ids([C|Cs], Vocab, [I|Is]) :- cs_id(Vocab, C, I), cs_ids(Cs, Vocab, Is).
+cs_ids([], _, []) :- !.
+cs_ids([C|Cs], Vocab, [I|Is]) :- cs_id(Vocab, C, I), cs_ids(Cs, Vocab, Is), !.
 
 %% ---- windows ---------------------------------------------------------
 %%
-%% K CHARACTERS IN, THE NEXT ONE OUT, striding by cs_stride/1 rather than by
-%% one. A stride of 1 over 400 KB is 400 000 windows and hours of CPU; a
-%% stride of 3 is a third of that and loses nothing a character model can use,
-%% because consecutive windows overlap in all but one position anyway.
+%% K CHARACTERS IN, THE NEXT K OUT: a window at offset O is the characters
+%% O .. O+K-1 and its targets are O+1 .. O+K, so every position predicts its
+%% successor from what it can see. Windows start every cs_stride/1
+%% characters; a window is only its OFFSET until a step gathers it, so the
+%% corpus is never a list of windows -- which is what kept the first
+%% whole-corpus run under control, below.
 cs_context(32).
 cs_stride(3).
 
-cs_windows(Ids, Xs, Ys, N) :-
-    cs_context(K),
-    cs_stride(S),
-    cs_windows_(Ids, K, S, Xs, Ys),
-    length(Xs, N).
+%% cs_offsets(+Len, -Offsets): every window offset a stream of Len ids allows.
+cs_offsets(Len, Offsets) :-
+    cs_context(K), cs_stride(S), Last is Len - K - 1,
+    findall(O, ( between(0, Last, O), O mod S =:= 0 ), Offsets), !.
 
-cs_windows_(Ids, K, S, [X|Xs], [Y|Ys]) :-
-    length(X, K),
-    append(X, [Y|_], Ids),
-    !,
-    cs_drop(S, Ids, Rest),
-    cs_windows_(Rest, K, S, Xs, Ys).
-cs_windows_(_, _, _, [], []).
-
-cs_drop(0, L, L) :- !.
-cs_drop(_, [], []) :- !.
-cs_drop(N, [_|T], R) :- N1 is N - 1, cs_drop(N1, T, R).
+%% cs_gather(+Offsets, -In, -Out): the K positions of every window in
+%% Offsets, and the K after them, as flat lists -- the two index lists a
+%% batch is gathered by.
+cs_gather(Offsets, In, Out) :-
+    cs_context(K), K1 is K - 1,
+    findall(P, ( member(O, Offsets), between(0, K1, D), P is O + D ), In),
+    findall(P, ( member(O, Offsets), between(1, K, D), P is O + D ), Out), !.
 
 %% ---- the model -------------------------------------------------------
 %%
-%% THE SAME SHAPE AS LESSON 26, one width up. attention(4) is four heads over
-%% a 128-wide embedding; positional is the learned position embedding the
-%% attention needs to know order at all; ffn(256) is the pointwise half.
-%% dense(V, log_softmax) makes the output a distribution over the vocabulary,
-%% which is what the sampler in `generate' needs -- an argmax model can only
-%% ever write the same file twice.
-cs_spec(V, [sequence(K), embedding(V, 128), positional,
-            attention(4), ffn(256),
-            attention(4), ffn(256),
-            dense(V, log_softmax)]) :-
-    cs_context(K).
+%% D = 128, four heads of 32, the feed-forward 256 wide, two blocks -- the
+%% GPT-2 arrangement of tutorial 35, one size up.
+cs_dim(128).
+cs_heads(4).
+cs_ffn(256).
+cs_blocks(2).
 
-cs_epochs(4).
-cs_batch(64).
-cs_lr(0.0015).
+cs_batch(32).           %% windows per step
+cs_epochs(1).           %% passes over the training windows
+cs_lr(0.002).
 cs_cap(60000).
+
+%% cs_parameters(+V, -Ps): the embeddings, the blocks, the final norm and the head, one flat list.
+cs_parameters(V, Ps) :-
+    cs_dim(D), cs_context(K), cs_blocks(NB),
+    Emb := parameter(randn([V, D]) * 0.3), Pos := parameter(randn([K, D]) * 0.3),
+    cs_block_params(NB, Blocks),
+    G := parameter(ones([1, D])), Bt := parameter(zeros([1, D])),
+    Wout := parameter(glorot(D, V)), Bout := parameter(zeros([1, V])),
+    append(Blocks, Flat),
+    append([[Emb, Pos], Flat, [G, Bt, Wout, Bout]], Ps), !.
+cs_block_params(0, []) :- !.
+cs_block_params(N, [[G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2]|Bs]) :-
+    cs_dim(D), cs_ffn(F),
+    G1 := parameter(ones([1, D])), Bt1 := parameter(zeros([1, D])),
+    Wq := parameter(glorot(D, D)), Wk := parameter(glorot(D, D)), Wv := parameter(glorot(D, D)), Wo := parameter(glorot(D, D)),
+    G2 := parameter(ones([1, D])), Bt2 := parameter(zeros([1, D])),
+    W1 := parameter(glorot(D, F)), B1 := parameter(zeros([1, F])),
+    W2 := parameter(glorot(F, D)), B2 := parameter(zeros([1, D])),
+    N1 is N - 1, cs_block_params(N1, Bs), !.
+
+%% cs_unpack(+Ps, -Emb, -Pos, -Blocks, -G, -Bt, -Wout, -Bout): the flat list
+%% back into its parts -- the twelve parameters of each block as one list.
+cs_unpack(Ps, Emb, Pos, Blocks, G, Bt, Wout, Bout) :-
+    cs_blocks(NB), Total is NB * 12, length(Flat, Total),
+    append([[Emb, Pos], Flat, [G, Bt, Wout, Bout]], Ps),
+    cs_unflat(Flat, Blocks), !.
+cs_unflat([], []) :- !.
+cs_unflat(Flat, [B|Bs]) :- length(B, 12), append(B, Rest, Flat), cs_unflat(Rest, Bs), !.
+
+%% head//6, block//4 and forward//5 are PROCEDURES: DCG rules of bindings,
+%% and exec(forward(...)) frees everything they made but the logits.
+head(Q, K, V, Mask, H, O) -->
+    { cs_dim(D), cs_heads(Hn), Dh is D // Hn, F is H * Dh, T is F + Dh, Scale is 1.0 / sqrt(Dh) },
+    O = softmax(cols(Q, F, T) matmul transpose(cols(K, F, T)) * Scale + Mask) matmul cols(V, F, T).
+heads(Hn, Hn, _, _, _, _, []) --> !.
+heads(H, Hn, Q, K, V, Mask, [O|Os]) -->
+    head(Q, K, V, Mask, H, O), { H1 is H + 1 }, heads(H1, Hn, Q, K, V, Mask, Os).
+
+blocks([], _, X, X) --> [].
+blocks([[G1, Bt1, Wq, Wk, Wv, Wo, G2, Bt2, W1, B1, W2, B2]|Bs], Mask, X, Out) -->
+    { cs_heads(Hn) },
+    Xn = layer_norm(X) * G1 + Bt1,                              % pre-norm
+    Q = Xn matmul Wq, K = Xn matmul Wk, V = Xn matmul Wv,
+    heads(0, Hn, Q, K, V, Mask, Os),
+    H = X + cat(Os, 1) matmul Wo,                               % attention, and its residual
+    X2 = layer_norm(H) * G2 + Bt2,
+    Ff = H + gelu(X2 matmul W1 + B1) matmul W2 + B2,            % feed-forward, and its residual
+    blocks(Bs, Mask, Ff, Out).
+
+%% forward(+Ps, +Ids, +PosIds, +Mask, -Logits): logits at every position, [N*K, V].
+forward(Ps, Ids, PosIds, Mask, Logits) -->
+    { cs_unpack(Ps, Emb, Pos, Blocks, G, Bt, Wout, Bout) },
+    E = index_rows(Emb, Ids) + index_rows(Pos, PosIds),
+    blocks(Blocks, Mask, E, H),
+    Xf = layer_norm(H) * G + Bt,
+    Logits = Xf matmul Wout + Bout.
+
+%% constants(+N, -Ctx): what a batch of N windows reads -- the position of
+%% every row, the causal mask, and the rows where each window ends.
+constants(N, c(N, PosIds, Mask, Lasts)) -->
+    { cs_context(K), K1 is K - 1,
+      findall(P, ( between(1, N, _), between(0, K1, P) ), PosList),
+      findall(L, ( between(1, N, I), L is I * K - 1 ), LastList) },
+    PosIds = PosList, Lasts = LastList,
+    causal_mask(N, K, Mask), !.
+
+%% ---- the corpus as a stream, and its batches -------------------------
+%%
+%% cs_stream(-Vocab, -V, -Stream, -Len): the first cs_cap/1 bytes of the
+%% corpus as one index tensor of character ids -- a rule, so the tensor is
+%% the caller's to keep or to let exec/1 free.
+cs_stream(Vocab, V, Stream, Len) -->
+    { cs_text(Codes0, _), cs_cap(Cap), cs_take(Cap, Codes0, Codes),
+      cs_vocab(Codes, Vocab, V), cs_ids(Codes, Vocab, Ids), length(Ids, Len) },
+    Stream = Ids.
+
+cs_take(0, _, []) :- !.
+cs_take(_, [], []) :- !.
+cs_take(N, [C|T], [C|R]) :- N1 is N - 1, cs_take(N1, T, R), !.
+
+cs_split(N, NTrain) :- NTrain is (N * 9) // 10, !.
+
+%% THE HELD-OUT SPLIT IS POSITIONAL, and it looks like an oversight. A
+%% shuffled split is what a table of independent rows wants; these rows are
+%% windows striding by three over a context of thirty-two, so two neighbours
+%% share twenty-nine characters. Shuffle them and nearly every held-out
+%% window has its own text in the training set: the accuracy goes up and
+%% stops measuring anything. The last tenth of the windows is the only tenth
+%% whose TEXT the model has not seen. The TRAINING windows are shuffled --
+%% by the hash, so a run repeats -- and cut into batches of cs_batch/1.
+cs_windows(Len, Train, Held, N, NTrain) :-
+    cs_offsets(Len, Offsets), length(Offsets, N), cs_split(N, NTrain),
+    length(Train, NTrain), append(Train, Held, Offsets), !.
+
+cs_shuffle(Offsets, Shuffled) :-
+    findall(R-O, ( member(O, Offsets), cs_noise(O, R) ), Keyed), msort(Keyed, Sorted),
+    findall(O, member(_-O, Sorted), Shuffled), !.
+
+%% cs_batches(+Offsets, -Batches): consecutive groups of cs_batch/1 offsets;
+%% what does not fill a batch is left out.
+cs_batches(Offsets, Batches) :- cs_batch(B), cs_groups(Offsets, B, Batches), !.
+cs_groups(Offsets, B, [G|Gs]) :- length(G, B), append(G, Rest, Offsets), !, cs_groups(Rest, B, Gs).
+cs_groups(_, _, []).
 
 %% ---- what it learns from ---------------------------------------------
 
@@ -158,58 +271,121 @@ corpus :-
     Uniform is log(V),
     UniAcc is 1.0 / V,
     format("uniform baseline: nll ~4f, accuracy ~4f~n", [Uniform, UniAcc]),
-    write(done), nl.
+    write(done), nl, !.
 
 %% ---- training --------------------------------------------------------
+%%
+%% THE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls: the stream, the constants and the parameters a goal loads are
+%% made inside it and freed when it ends. The fit loop and the sampler are
+%% predicates in braces: one steps an optimiser that frees the old
+%% parameters itself, the other frees each step's logits as it goes.
+train :- exec(train).
+test :- exec(test).
+generate :- exec(generate).
+judge :- exec(judge).
+predict :- exec(predict).
 
-cs_data(Vocab, V, X, Y, N) :-
-    cs_text(Codes0, _),
-    cs_cap(Cap),
-    cs_take(Cap, Codes0, Codes),
-    cs_vocab(Codes, Vocab, V),
-    cs_ids(Codes, Vocab, Ids),
-    cs_windows(Ids, Xs, Ys, N),
-    tensor_from_list(Xs, X),
-    tensor_from_list(Ys, Y).
+train -->
+    seed(28),
+    cs_stream(_, V, Stream, Len),
+    { cs_windows(Len, Train0, _, N, NTrain), Held is N - NTrain,
+      cs_shuffle(Train0, Train), cs_batches(Train, Batches), length(Batches, NB),
+      cs_batch(B), cs_epochs(E), cs_lr(LR), Steps is E * NB,
+      format("~w windows over a ~w-character vocabulary~n", [N, V]),
+      format("training on ~w, holding out ~w~n", [NTrain, Held]),
+      format("~w steps of ~w windows, ~w pass(es) over the training windows~n", [Steps, B, E]) },
+    constants(B, Ctx),
+    Eye = eye(V),
+    { cs_parameters(V, Ps0), cs_count(Ps0, NP), format("~w parameters~n", [NP]),
+      train_fit(Steps, Ps0, Stream, Eye, Ctx, Batches, LR, L),
+      Uniform is log(V),
+      format("final loss ~4f  (uniform is ~4f)~n", [L, Uniform]),
+      write(done), nl }.
 
-cs_take(0, _, []) :- !.
-cs_take(_, [], []) :- !.
-cs_take(N, [C|T], [C|R]) :- N1 is N - 1, cs_take(N1, T, R).
+cs_count(Ps, N) :- findall(S, ( member(P, Ps), tensor_shape(P, Sh), cs_product(Sh, S) ), Ss), sum_list(Ss, N), !.
+cs_product([], 1) :- !.
+cs_product([D|Ds], P) :- cs_product(Ds, P0), P is P0 * D, !.
 
-cs_split(N, NTrain) :- NTrain is (N * 9) // 10.
+%% train_fit(+Steps, +Ps0, +Stream, +Eye, +Ctx, +Batches, +LR, -Loss): the
+%% whole fit as a predicate -- Adam's state made, the steps taken, the
+%% parameters saved under t28_cs and freed with the state; what comes out
+%% is the last loss, a number.
+train_fit(Steps, Ps0, Stream, Eye, Ctx, Batches, LR, Loss) :-
+    adam_init(Ps0, St0),
+    fit(Steps, Ps0, St0, Stream, Eye, Ctx, Batches, LR, none, Ps, St, Loss),
+    params_save(t28_cs, Ps),
+    free_all(Ps), adam_free(St), !.
+adam_free(adam(_, Ms, Vs, _)) :- free_all(Ms), free_all(Vs), !.
 
-train :-
-    torch_seed(28),
-    cs_data(_, V, X, Y, N),
-    cs_split(N, NTrain), Held is N - NTrain,
-    cs_spec(V, Spec),
-    cs_epochs(E), cs_batch(B), cs_lr(LR),
-    tensor_rows(X, 0, NTrain, XTr), tensor_rows(Y, 0, NTrain, YTr),
-    format("~w windows over a ~w-character vocabulary~n", [N, V]),
-    format("training on ~w, holding out ~w~n", [NTrain, Held]),
-    model_new(Spec, M),
-    model_params(M, P), length(P, NP),
-    format("~w parameters~n", [NP]),
-    model_train(M, XTr, YTr, [epochs(E), batch(B), lr(LR), optimiser(adam),
-                              loss(nll), shuffle(true), final_loss(L)]),
-    Uniform is log(V),
-    format("final nll ~4f  (uniform is ~4f)~n", [L, Uniform]),
-    model_save(t28_cs, M),
-    write(done), nl.
+%% fit(+K, +Ps, +St, +Stream, +Eye, +Ctx, +Batches, +LR, +L0, -PsF, -StF, -Loss):
+%% K Adam steps, each over the next batch of window offsets; the loss of
+%% the last step comes out.
+fit(0, Ps, St, _, _, _, _, _, Loss, Ps, St, Loss) :- !.
+fit(K, Ps, St, Stream, Eye, Ctx, Batches, LR, _, PsF, StF, Loss) :-
+    length(Batches, NB), B is K mod NB, nth0(B, Batches, Offsets),
+    fit_step(Ps, St, Stream, Eye, Ctx, Offsets, LR, Ps2, St2, Lv),
+    ( K mod 100 =:= 0 -> format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
+    K1 is K - 1,
+    fit(K1, Ps2, St2, Stream, Eye, Ctx, Batches, LR, Lv, PsF, StF, Loss).
+
+%% fit_step(+Ps, +St, +Stream, +Eye, +Ctx, +Offsets, +LR, -Ps2, -St2, -Loss):
+%% one step -- the windows and their targets gathered from the stream, the
+%% targets one-hot through the identity, the loss over every position, the
+%% gradient, and Adam; what the step made is freed here, and the old
+%% parameters by adam_step/6.
+fit_step(Ps, St, Stream, Eye, c(_, PosIds, Mask, _), Offsets, LR, Ps2, St2, Loss) :-
+    cs_gather(Offsets, InL, OutL),
+    In := InL, Out := OutL,
+    Ids := index_rows(Stream, In), Tgt := index_rows(Stream, Out),
+    exec(forward(Ps, Ids, PosIds, Mask, Logits)),
+    L := cross_entropy(Logits, index_rows(Eye, Tgt)),
+    Gs := grad(L, Ps),
+    Loss := item(L),
+    adam_step(Ps, Gs, St, LR, Ps2, St2),
+    free_all([In, Out, Ids, Tgt, Logits, L]), !.
 
 %% ---- held-out accuracy -----------------------------------------------
+%%
+%% Two numbers. Every position of a held-out window predicts its successor,
+%% and the first is how often it is right -- the loss's own measure, over a
+%% context of anything from one character to thirty-one. The second is the
+%% last position only: a full window of context, which is what the earlier
+%% version of this file measured and what the sampler runs on.
+cs_floor(0.35).         %% what the all-positions accuracy must clear
 
-test :-
-    model_load(t28_cs, M),
-    cs_data(_, V, X, Y, N),
-    cs_split(N, NTrain),
-    tensor_rows(X, NTrain, N, XTe), tensor_rows(Y, NTrain, N, YTe),
-    model_evaluate(M, XTe, YTe, accuracy, A),
-    Pct is truncate(A * 1000 + 0.5) / 10.0,
-    Uni is truncate(100000.0 / V + 0.5) / 1000.0,
-    format("held-out accuracy ~w% over ~w windows~n", [Pct, N]),
-    format("uniform would be ~w%~n", [Uni]),
-    write(done), nl.
+test -->
+    Ps = params(t28_cs),
+    cs_stream(_, V, Stream, Len),
+    { cs_windows(Len, _, Held, N, _), cs_batches(Held, Batches), length(Batches, NB), cs_batch(B), Seen is NB * B },
+    constants(B, Ctx),
+    { evaluate(Batches, Ps, Stream, Ctx, 0, 0, 0, 0, Hits, Total, LHits, LTotal),
+      Acc is Hits / Total, LAcc is LHits / LTotal,
+      Pct is truncate(Acc * 1000 + 0.5) / 10.0, LPct is truncate(LAcc * 1000 + 0.5) / 10.0,
+      Uni is truncate(100000.0 / V + 0.5) / 1000.0,
+      format("held-out next-character accuracy ~w% over every position of ~w windows~n", [Pct, Seen]),
+      format("~w% at the last position, a full ~w-character context~n", [LPct, 32]),
+      format("uniform would be ~w%~n", [Uni]),
+      cs_floor(F), FPct is truncate(F * 100 + 0.5),
+      (   Acc >= F
+      ->  write(ok), nl
+      ;   format("BELOW ~w%~n", [FPct]), write('FAIL'), nl, halt(1) ) }.
+
+%% evaluate(+Batches, +Ps, +Stream, +Ctx, +H0, +T0, +LH0, +LT0, -H, -T, -LH, -LT):
+%% hits and totals over every position, and over the last positions.
+evaluate([], _, _, _, H, T, LH, LT, H, T, LH, LT) :- !.
+evaluate([Offsets|Bs], Ps, Stream, Ctx, H0, T0, LH0, LT0, H, T, LH, LT) :-
+    Ctx = c(_, PosIds, Mask, Lasts),
+    cs_gather(Offsets, InL, OutL),
+    In := InL, Out := OutL,
+    Ids := index_rows(Stream, In), Tgt := index_rows(Stream, Out),
+    exec(forward(Ps, Ids, PosIds, Mask, Logits)),
+    TgtL := list(Tgt), accuracy(Logits, TgtL, A), length(TgtL, NT),
+    LastLogits := index_rows(Logits, Lasts), LastL := list(index_rows(Tgt, Lasts)),
+    accuracy(LastLogits, LastL, LA), length(LastL, NL),
+    free_all([In, Out, Ids, Tgt, Logits, LastLogits]),
+    H1 is H0 + round(A * NT), T1 is T0 + NT, LH1 is LH0 + round(LA * NL), LT1 is LT0 + NL,
+    evaluate(Bs, Ps, Stream, Ctx, H1, T1, LH1, LT1, H, T, LH, LT).
 
 %% ---- heavy: the whole dialect, round robin, and the lists freed ------
 %%
@@ -232,25 +408,18 @@ test :-
 %% every cap, the file that crosses the line is the only one cut, and the
 %% files past it are never read.
 %%
-%% THE HELD-OUT SPLIT STAYS POSITIONAL, and it looks like an oversight. A
-%% shuffled split is what a table of independent rows wants; these rows are
-%% windows striding by three over a context of thirty-two, so two neighbours
-%% share twenty-nine characters. Shuffle them and nearly every held-out
-%% window has its own text in the training set: the accuracy goes up and
-%% stops measuring anything. The last tenth of the stream is the only tenth
-%% whose TEXT the model has not seen.
-%%
-%% THE TRANSIENT LISTS ARE FREED. A megabyte of codes becomes as many ids
-%% becomes three hundred thousand windows of thirty-two, and every one of
-%% those is a Prolog list this engine reclaims only by backtracking. So the
-%% whole build runs inside free_list/2, whose double negation gives the heap
-%% back on the way out, and what has to survive -- two tensor handles, the
-%% count and the vocabulary size, four integers -- leaves through an assert.
-%% The tensors are process state and outlive the scope; the lists do not.
+%% THE TRANSIENT LISTS ARE FREED. A megabyte of codes becomes as many ids,
+%% and every one of those is a Prolog list this engine reclaims only by
+%% backtracking. So each file is read inside free_list/2, whose double
+%% negation gives the heap back on the way out, and what has to survive --
+%% one tensor handle and a length per file -- leaves through an assert. The
+%% tensors are process state and outlive the scope; the lists do not. And
+%% there is no list of windows at all, on any path: a window is an offset
+%% into its file's stream until the step that gathers it.
 %%
 %%   ./cocolog run tutorials/tensor/28-source-lm.pl "heavy(60000)"
-%%   ./cocolog run tutorials/tensor/28-source-lm.pl "torch_device(cuda), heavy(all)"
-%%   ./cocolog run tutorials/tensor/28-source-lm.pl "torch_device(cuda), tensor_execution(torch, graph), heavy(all)"
+%%   ./cocolog run tutorials/tensor/28-source-lm.pl "tensor_execution(torch, graph, cuda), heavy(all)"
+%%   ./cocolog run tutorials/tensor/28-source-lm.pl "tensor_execution(tensorflow, graph, cuda), heavy(all)"
 
 %% THE FIVE GROUPS, kept apart so the cap can take from all of them. What
 %% stays out stays out for cs_sources/1's reason: lib/swipl is another
@@ -263,40 +432,31 @@ cs_heavy_groups([A, B, C, D, E]) :-
     expand_file_name('tutorials/tensor/[0-9]*.pl', D0), sort(D0, D),
     expand_file_name('tools/coco-agent/*.pl', E0), sort(E0, E1),
     expand_file_name('tools/coco-agent/selftest/*.pl', E2), sort(E2, E3),
-    append(E1, E3, E).
+    append(E1, E3, E), !.
 
 %% one file from each group in turn, until every group is spent
 cs_roundrobin([], []) :- !.
 cs_roundrobin(Groups, Files) :-
     cs_rr_heads(Groups, Heads, Tails),
     append(Heads, Rest, Files),
-    cs_roundrobin(Tails, Rest).
+    cs_roundrobin(Tails, Rest), !.
 
-cs_rr_heads([], [], []).
+cs_rr_heads([], [], []) :- !.
 cs_rr_heads([[]|Gs], Hs, Ts) :- !, cs_rr_heads(Gs, Hs, Ts).
-cs_rr_heads([[H|T]|Gs], [H|Hs], [T|Ts]) :- cs_rr_heads(Gs, Hs, Ts).
+cs_rr_heads([[H|T]|Gs], [H|Hs], [T|Ts]) :- cs_rr_heads(Gs, Hs, Ts), !.
 
 cs_sources_heavy(Files) :-
     cs_heavy_groups(Gs),
-    cs_roundrobin(Gs, Files).
+    cs_roundrobin(Gs, Files), !.
 
 %% size_file/2 answers without reading, so the whole corpus can be measured
 %% and the reach of a cap counted before a byte goes on the heap.
 cs_heavy_bytes(Bytes) :-
     cs_sources_heavy(Files),
-    cs_bytes(Files, Bytes).
+    cs_bytes(Files, Bytes), !.
 
-cs_bytes([], 0).
-cs_bytes([F|Fs], N) :- size_file(F, S), cs_bytes(Fs, R), N is S + R.
-
-cs_reach(_, [], 0) :- !.
-cs_reach(Cap, _, 0) :- Cap =< 0, !.
-cs_reach(Cap, [F|Fs], N) :-
-    size_file(F, S),
-    (   S >= Cap
-    ->  N = 1
-    ;   Rem is Cap - S, cs_reach(Rem, Fs, N0), N is N0 + 1
-    ), !.
+cs_bytes([], 0) :- !.
+cs_bytes([F|Fs], N) :- size_file(F, S), cs_bytes(Fs, R), N is S + R, !.
 
 %% THE CORPUS IS LOADED ONE FILE AT A TIME, and here is why. The first
 %% whole-corpus run built a megabyte of codes, as many ids and three hundred
@@ -306,13 +466,13 @@ cs_reach(Cap, [F|Fs], N) :-
 %% Pass one reads each file inside its own scope and asserts the distinct
 %% codes it saw -- at most a few hundred facts -- and the vocabulary is their
 %% sorted union, the same for every file. Pass two reads each file again
-%% inside its own scope, makes its ids, windows and TWO TENSORS, and asserts
-%% the two handles; on the way out that file's lists are gone. The parts are
-%% then concatenated along the rows, and the parts freed. What is lost: the
-%% windows that would have straddled a file boundary, at most thirty-one
-%% per boundary out of thousands per file. What is kept: the round-robin
-%% order, the cap that cuts exactly one file, and the positional held-out
-%% split over the concatenation.
+%% inside its own scope, makes its ids and ONE TENSOR of them, and asserts
+%% the handle and the length; on the way out that file's lists are gone. A
+%% batch is then thirty-two windows of one file, gathered from that file's
+%% stream. What is lost: the windows that would have straddled a file
+%% boundary, at most thirty-one per boundary out of thousands per file.
+%% What is kept: the round-robin order, the cap that cuts exactly one file,
+%% and the positional held-out split over the concatenation.
 :- dynamic('$cs_code'/1).
 :- dynamic('$cs_part'/3).
 
@@ -330,86 +490,122 @@ cs_plan(Cap, [F|Fs], [F-Take|Rest]) :-
 cs_note_codes(F-Take) :-
     free_list([Cs]>>(read_file_to_codes(F, Cs0), cs_take(Take, Cs0, Cs)),
               [Cs]>>(sort(Cs, Ds), forall(member(C, Ds),
-                                          ( '$cs_code'(C) -> true ; assertz('$cs_code'(C)) )))).
+                                          ( '$cs_code'(C) -> true ; assertz('$cs_code'(C)) )))), !.
 
-%% pass two: one file's windows as two tensors, out through a fact
+%% pass two: one file's ids as one tensor, out through a fact
 cs_load_part(Seq, Vocab, F-Take) :-
     free_list([Cs]>>(read_file_to_codes(F, Cs0), cs_take(Take, Cs0, Cs)),
-              [Cs]>>( cs_ids(Cs, Vocab, Ids),
-                      cs_windows(Ids, Xs, Ys, N),
-                      (   N > 0
-                      ->  tensor_from_list(Xs, X), tensor_from_list(Ys, Y),
-                          assertz('$cs_part'(Seq, X, Y))
-                      ;   true ))).
+              [Cs]>>( cs_ids(Cs, Vocab, Ids), length(Ids, Len),
+                      cs_context(K),
+                      (   Len > K + 1
+                      ->  Stream := Ids, assertz('$cs_part'(Seq, Stream, Len))
+                      ;   true ))), !.
 
-cs_load_parts(_, _, []).
+cs_load_parts(_, _, []) :- !.
 cs_load_parts(Seq, Vocab, [P|Ps]) :-
     cs_load_part(Seq, Vocab, P),
     Seq1 is Seq + 1,
-    cs_load_parts(Seq1, Vocab, Ps).
+    cs_load_parts(Seq1, Vocab, Ps), !.
 
-%% the parts in order, concatenated two at a time so no list of sixty-five
-%% handles is ever needed; the consumed parts are freed as it goes
-cs_cat_parts([X-Y], X, Y) :- !.
-cs_cat_parts([X1-Y1, X2-Y2 | Rest], X, Y) :-
-    tensor_cat([X1, X2], 0, X12), tensor_cat([Y1, Y2], 0, Y12),
-    tensor_free(X1), tensor_free(X2), tensor_free(Y1), tensor_free(Y2),
-    cs_cat_parts([X12-Y12 | Rest], X, Y).
-
-%% cs_heavy_load(+Cap, -X, -Y, -N, -V): the capped corpus as two tensors,
-%% never more than one file's lists on the heap at a time
-cs_heavy_load(Cap, X, Y, N, V) :-
+%% cs_heavy_load(+Cap, -Parts, -V): the capped corpus as one stream tensor
+%% per file, in order, never more than one file's lists on the heap at a time
+cs_heavy_load(Cap, Parts, V) :-
     cs_sources_heavy(Files),
     cs_plan(Cap, Files, Plan),
     retractall('$cs_code'(_)), retractall('$cs_part'(_, _, _)),
     forall(member(P, Plan), cs_note_codes(P)),
     findall(C, '$cs_code'(C), Cs0), sort(Cs0, Vocab), length(Vocab, V),
     cs_load_parts(0, Vocab, Plan),
-    findall(S-Xp-Yp, '$cs_part'(S, Xp, Yp), Parts0), msort(Parts0, Parts1),
-    findall(Xp-Yp, member(_-Xp-Yp, Parts1), Parts),
-    retractall('$cs_part'(_, _, _)),
-    cs_cat_parts(Parts, X, Y),
-    tensor_shape(X, [N | _]).
+    findall(S-Stream-Len, '$cs_part'(S, Stream, Len), Parts0), msort(Parts0, Parts1),
+    findall(Stream-Len, member(_-Stream-Len, Parts1), Parts),
+    retractall('$cs_part'(_, _, _)), !.
+
+%% cs_heavy_windows(+Parts, -Train, -Held, -N, -NTrain): the windows of
+%% every part, the last tenth of the concatenation held out, as batches of
+%% b(Stream, Offsets) -- one file each. The training windows are shuffled
+%% within their file, and the training batches among themselves.
+cs_heavy_windows(Parts, TrainBatches, HeldBatches, N, NTrain) :-
+    findall(Len, member(_-Len, Parts), Lens), sum_list(Lens, Total),
+    Boundary is (Total * 9) // 10,
+    cs_part_batches(Parts, 0, Boundary, Batches0, HeldBatches, 0, NTrain, 0, NHeld),
+    N is NTrain + NHeld,
+    findall(R-B, ( nth0(I, Batches0, B), cs_noise(I, R) ), Keyed), msort(Keyed, Sorted),
+    findall(B, member(_-B, Sorted), TrainBatches), !.
+
+cs_part_batches([], _, _, [], [], NT, NT, NH, NH) :- !.
+cs_part_batches([Stream-Len|Ps], Start, Boundary, Train, Held, NT0, NT, NH0, NH) :-
+    cs_context(K),
+    cs_offsets(Len, Offsets),
+    findall(O, ( member(O, Offsets), Start + O + K < Boundary ), TrainO), length(TrainO, T),
+    findall(O, ( member(O, Offsets), Start + O + K >= Boundary ), HeldO), length(HeldO, H),
+    cs_shuffle(TrainO, Shuffled), cs_batches(Shuffled, TG), findall(b(Stream, G), member(G, TG), TrainHere),
+    cs_batches(HeldO, HG), findall(b(Stream, G), member(G, HG), HeldHere),
+    Next is Start + Len, NT1 is NT0 + T, NH1 is NH0 + H,
+    cs_part_batches(Ps, Next, Boundary, TrainRest, HeldRest, NT1, NT, NH1, NH),
+    append(TrainHere, TrainRest, Train), append(HeldHere, HeldRest, Held), !.
 
 %% heavy(+Cap) is det.   Cap is a byte count, or `all' for the whole corpus.
 %%
-%% A GPU WORKLOAD. On a machine with no CUDA device the cap is brought down to
-%% cs_cpu_cap/1 and the run says so: the whole corpus is minutes on a T4 and
-%% the better part of an hour on two CPUs, and a small run proves the same
-%% path. A machine that HAS a GPU but was told torch_device(cpu) runs the cap
-%% it was given -- that is the comparison, and it is asked for on purpose.
+%% A GPU WORKLOAD. When the run is on the CPU -- no device here, or none
+%% asked for -- the cap is brought down to cs_cpu_cap/1 and the run says so:
+%% the whole corpus is minutes on a T4 and hours on two CPUs, and a small run
+%% proves the same path. The device is the third argument of the switch,
+%% tensor_execution(Backend, Mode, cuda), set from outside before the goal.
 cs_cpu_cap(20000).
 heavy(all) :- !, cs_heavy_bytes(B), heavy(B).
 heavy(Cap0) :-
     cs_cpu_cap(Small),
-    (   torch_cuda_available(false), Cap0 > Small
-    ->  format("heavy: no CUDA device here -- running heavy(~w) instead of heavy(~w); the full run wants a GPU~n", [Small, Cap0]),
+    tensor_execution(_, _, Dev),
+    (   Dev == cpu, Cap0 > Small
+    ->  format("heavy: on the cpu -- running heavy(~w) instead of heavy(~w); the full run wants a GPU~n", [Small, Cap0]),
         Cap = Small
     ;   Cap = Cap0 ),
-    torch_seed(28),
-    cs_sources_heavy(Files), length(Files, NF),
-    cs_heavy_bytes(Bytes),
-    cs_reach(Cap, Files, NR),
-    Used is min(Bytes, Cap),
-    cs_heavy_load(Cap, X, Y, N, V),
-    cs_split(N, NTrain), Held is N - NTrain,
-    cs_spec(V, Spec),
-    cs_epochs(E), cs_batch(B), cs_lr(LR),
-    tensor_rows(X, 0, NTrain, XTr), tensor_rows(Y, 0, NTrain, YTr),
-    tensor_rows(X, NTrain, N, XTe), tensor_rows(Y, NTrain, N, YTe),
-    format("heavy: ~w bytes of ~w, reaching ~w of ~w files, ~w windows over ~w characters, holding out ~w~n",
-           [Used, Bytes, NR, NF, N, V, Held]),
-    model_new(Spec, M),
-    model_params(M, P), length(P, NP),
-    model_train(M, XTr, YTr, [epochs(E), batch(B), lr(LR), optimiser(adam),
-                              loss(nll), shuffle(true), final_loss(L)]),
-    model_evaluate(M, XTe, YTe, accuracy, A),
-    Pct is truncate(A * 1000 + 0.5) / 10.0,
-    Uniform is log(V),
-    torch_current_device(D), tensor_execution(Mode),
-    format("heavy: ~w parameters on ~w under ~w: final nll ~4f (uniform ~4f), held-out accuracy ~w%~n",
-           [NP, D, Mode, L, Uniform, Pct]),
-    write(done), nl.
+    exec(heavy_run(Cap, Parts)),
+    forall(member(Stream-_, Parts), tensor_free(Stream)), !.
+
+%% heavy_run(+Cap, -Parts): the run as a rule; the file streams come out,
+%% since the loader made them outside it and heavy/1 frees them after.
+heavy_run(Cap, Parts) -->
+    seed(28),
+    { cs_sources_heavy(Files), length(Files, NF),
+      cs_heavy_bytes(Bytes),
+      Used is min(Bytes, Cap),
+      cs_heavy_load(Cap, Parts, V), length(Parts, NR),
+      cs_heavy_windows(Parts, Batches, HeldBatches, N, NTrain), Held is N - NTrain,
+      length(Batches, NB), cs_batch(B), cs_epochs(E), cs_lr(LR), Steps is E * NB,
+      format("heavy: ~w bytes of ~w, reaching ~w of ~w files, ~w windows over ~w characters, holding out ~w~n",
+             [Used, Bytes, NR, NF, N, V, Held]) },
+    constants(B, Ctx),
+    Eye = eye(V),
+    { cs_parameters(V, Ps0), cs_count(Ps0, NP),
+      heavy_fit(Steps, Ps0, Eye, Ctx, Batches, LR, HeldBatches, L, A),
+      Pct is truncate(A * 1000 + 0.5) / 10.0,
+      Uniform is log(V),
+      tensor_execution(Backend, Mode, D),
+      format("heavy: ~w parameters on ~w under ~w ~w: final loss ~4f (uniform ~4f), held-out accuracy ~w%~n",
+             [NP, D, Backend, Mode, L, Uniform, Pct]),
+      write(done), nl }.
+
+%% heavy_fit(+Steps, +Ps0, +Eye, +Ctx, +Batches, +LR, +Held, -Loss, -Acc): the
+%% fit and the measure over b(Stream, Offsets) batches -- fit_step/10 and
+%% evaluate/12 with the stream taken from the batch rather than passed in;
+%% the parameters and Adam's state freed at the end.
+heavy_fit(Steps, Ps0, Eye, Ctx, Batches, LR, Held, Loss, Acc) :-
+    adam_init(Ps0, St0),
+    heavy_steps(Steps, Ps0, St0, Eye, Ctx, Batches, LR, none, Ps, St, Loss),
+    heavy_evaluate(Held, Ps, Ctx, 0, 0, Hits, Total), Acc is Hits / Total,
+    free_all(Ps), adam_free(St), !.
+heavy_steps(0, Ps, St, _, _, _, _, Loss, Ps, St, Loss) :- !.
+heavy_steps(K, Ps, St, Eye, Ctx, Batches, LR, _, PsF, StF, Loss) :-
+    length(Batches, NB), B is K mod NB, nth0(B, Batches, b(Stream, Offsets)),
+    fit_step(Ps, St, Stream, Eye, Ctx, Offsets, LR, Ps2, St2, Lv),
+    ( K mod 100 =:= 0 -> format("   ~w steps to go, loss ~4f~n", [K, Lv]) ; true ),
+    K1 is K - 1,
+    heavy_steps(K1, Ps2, St2, Eye, Ctx, Batches, LR, Lv, PsF, StF, Loss).
+heavy_evaluate([], _, _, H, T, H, T) :- !.
+heavy_evaluate([b(Stream, Offsets)|Bs], Ps, Ctx, H0, T0, H, T) :-
+    evaluate([Offsets], Ps, Stream, Ctx, H0, T0, 0, 0, H1, T1, _, _),
+    heavy_evaluate(Bs, Ps, Ctx, H1, T1, H, T).
 
 %% ---- generation ------------------------------------------------------
 %%
@@ -417,24 +613,25 @@ heavy(Cap0) :-
 %% temperature divides the log-probabilities before they are exponentiated, so
 %% low T is timid and repetitive and high T is adventurous and wrong. Both
 %% failure modes are worth seeing, which is why generate/0 shows three.
+%%
+%% cs_step(+Ps, +Ctx, +Context, +T, +Step, -Id): one character -- the window
+%% through the network, the last position's distribution, one draw.
+cs_step(Ps, c(_, PosIds, Mask, _), Context, T, Step, Id) :-
+    cs_context(K), K1 is K - 1,
+    Ids := Context,
+    exec(forward(Ps, Ids, PosIds, Mask, Logits)),
+    [LogProbs] := list(log_softmax(rows(Logits, K1, K))),
+    free_all([Ids, Logits]),
+    cs_sample(LogProbs, T, Step, Id), !.
 
-cs_step(M, Ctx, T, Step, Id) :-
-    tensor_from_list([Ctx], X),
-    model_predict(M, X, P),
-    tensor_to_list(P, [LogProbs]),
-    cs_sample(LogProbs, T, Step, Id),
-    tensor_free(X),
-    tensor_free(P), !.
-
-cs_generate(_, _, _, _, 0, []) :- !.
-cs_generate(M, Vocab, Ctx, T, N, [Code|Rest]) :-
-    cs_step(M, Ctx, T, N, Id),
+cs_generate(_, _, _, _, _, 0, []) :- !.
+cs_generate(Ps, Ctx, Vocab, Context, T, N, [Code|Rest]) :-
+    cs_step(Ps, Ctx, Context, T, N, Id),
     nth0(Id, Vocab, Code),
-    append(_, [_|Tail], Ctx),
-    length(Ctx, K), length(Tail, K1), K1 is K - 1,
-    append(Tail, [Id], Ctx1),
+    Context = [_|Tail],
+    append(Tail, [Id], Context1),
     N1 is N - 1,
-    cs_generate(M, Vocab, Ctx1, T, N1, Rest).
+    cs_generate(Ps, Ctx, Vocab, Context1, T, N1, Rest), !.
 
 %% THE WEIGHTS, exponentiated at temperature T. exp/1 of a log-probability
 %% divided by T: at T=1 that is the model's own distribution, below it sharpens
@@ -446,16 +643,16 @@ cs_sample(LogProbs, T, Step, Id) :-
     Target is R * Sum,
     cs_pick(Ws, Target, 0.0, Id), !.
 
-cs_weights([], _, []).
-cs_weights([L|Ls], T, [W|Ws]) :- W is exp(L / T), cs_weights(Ls, T, Ws).
+cs_weights([], _, []) :- !.
+cs_weights([L|Ls], T, [W|Ws]) :- W is exp(L / T), cs_weights(Ls, T, Ws), !.
 
-cs_sum([], 0.0).
-cs_sum([W|Ws], S) :- cs_sum(Ws, S0), S is S0 + W.
+cs_sum([], 0.0) :- !.
+cs_sum([W|Ws], S) :- cs_sum(Ws, S0), S is S0 + W, !.
 
 %% THERE IS NO random/1 IN THIS DIALECT -- an unknown arithmetic functor is
 %% uncatchably fatal, not an error you can catch. This is the same sin-based
 %% hash lesson 22 uses: deterministic, so a run repeats, and uncorrelated
-%% enough across steps to sample with.
+%% enough across steps to sample with -- and to shuffle the windows with.
 %% THE abs/1 IS NOT DECORATION. truncate/1 rounds TOWARD ZERO, so for a
 %% negative S the fraction S - truncate(S) is NEGATIVE -- and a negative
 %% target makes cs_pick/4 match its first clause immediately, returning id 0
@@ -464,23 +661,24 @@ cs_sum([W|Ws], S) :- cs_sum(Ws, S0), S is S0 + W.
 %% half of all steps. Lesson 25 has the abs and this did not.
 cs_noise(Step, R) :-
     S is sin(Step * 12.9898 + 78.233) * 43758.5453,
-    R is abs(S - truncate(S)).
+    R is abs(S - truncate(S)), !.
 
 cs_pick([W|_], Target, Acc, 0) :- Acc + W >= Target, !.
 cs_pick([W|Ws], Target, Acc, Id) :-
     Acc1 is Acc + W,
     cs_pick(Ws, Target, Acc1, Id0),
-    Id is Id0 + 1.
+    Id is Id0 + 1, !.
 
-generate :-
-    model_load(t28_cs, M),
-    cs_data(Vocab, _, _, _, _),
-    cs_seed_context(Vocab, Ctx),
-    forall(member(T, [0.5, 0.8, 1.0]),
-           ( format("~n---- temperature ~w ----~n", [T]),
-             cs_generate(M, Vocab, Ctx, T, 400, Codes),
-             format("~s~n", [Codes]) )),
-    write(done), nl.
+generate -->
+    Ps = params(t28_cs),
+    { cs_text(Codes0, _), cs_cap(Cap), cs_take(Cap, Codes0, Codes), cs_vocab(Codes, Vocab, _),
+      cs_seed_context(Vocab, Context) },
+    constants(1, Ctx),
+    { forall(member(T, [0.5, 0.8, 1.0]),
+             ( format("~n---- temperature ~w ----~n", [T]),
+               cs_generate(Ps, Ctx, Vocab, Context, T, 400, Out),
+               format("~s~n", [Out]) )),
+      write(done), nl }.
 
 %% A REAL PROMPT FROM THE CORPUS, so the model starts somewhere it has seen
 %% rather than from a context of one repeated character.
@@ -488,17 +686,21 @@ cs_seed_context(Vocab, Ctx) :-
     cs_context(K),
     atom_codes('main :-\n    format("~n-- ', Seed),
     cs_pad(Seed, K, Padded),
-    cs_ids(Padded, Vocab, Ctx).
+    cs_ids(Padded, Vocab, Ctx), !.
 
 cs_pad(Codes, K, Out) :-
     length(Codes, N),
     (   N >= K
     ->  Skip is N - K, cs_drop(Skip, Codes, Out)
     ;   Pad is K - N, cs_spaces(Pad, Sp), append(Sp, Codes, Out)
-    ).
+    ), !.
+
+cs_drop(0, L, L) :- !.
+cs_drop(_, [], []) :- !.
+cs_drop(N, [_|T], R) :- N1 is N - 1, cs_drop(N1, T, R), !.
 
 cs_spaces(0, []) :- !.
-cs_spaces(N, [32|R]) :- N1 is N - 1, cs_spaces(N1, R).
+cs_spaces(N, [32|R]) :- N1 is N - 1, cs_spaces(N1, R), !.
 
 %% ---- what it wrote, put to the real reader ---------------------------
 %%
@@ -515,14 +717,15 @@ cs_spaces(N, [32|R]) :- N1 is N - 1, cs_spaces(N1, R).
 %% whether the arity matches, or whether the body could ever prove. Expect the
 %% count to be much better than the content.
 
-judge :-
-    model_load(t28_cs, M),
-    cs_data(Vocab, _, _, _, _),
-    cs_seed_context(Vocab, Ctx),
-    forall(member(T, [0.5, 0.8, 1.0]),
-           ( cs_generate(M, Vocab, Ctx, T, 1200, Codes),
-             cs_judge_one(T, Codes) )),
-    write(done), nl.
+judge -->
+    Ps = params(t28_cs),
+    { cs_text(Codes0, _), cs_cap(Cap), cs_take(Cap, Codes0, Codes), cs_vocab(Codes, Vocab, _),
+      cs_seed_context(Vocab, Context) },
+    constants(1, Ctx),
+    { forall(member(T, [0.5, 0.8, 1.0]),
+             ( cs_generate(Ps, Ctx, Vocab, Context, T, 1200, Out),
+               cs_judge_one(T, Out) )),
+      write(done), nl }.
 
 cs_judge_one(T, Codes) :-
     cc_split_clauses(Codes, Spans),
@@ -533,9 +736,9 @@ cs_judge_one(T, Codes) :-
     format("~n-- temperature ~w: ~w bytes~n", [T, NB]),
     format("   ~w runs the reader accepted as a clause~n", [NSpans]),
     format("   ~w of them had a head it could name~n", [NHeads]),
-    cs_show_heads(Heads, 6).
+    cs_show_heads(Heads, 6), !.
 
-cs_heads([], _, []).
+cs_heads([], _, []) :- !.
 cs_heads([Span|Ss], Codes, Out) :-
     Span = at(Off, _, _, Len),
     cs_drop(Off, Codes, Tail),
@@ -544,26 +747,27 @@ cs_heads([Span|Ss], Codes, Out) :-
     ->  Out = [N/A|Rest]
     ;   Out = Rest
     ),
-    cs_heads(Ss, Codes, Rest).
+    cs_heads(Ss, Codes, Rest), !.
 
 cs_show_heads([], _) :- !.
 cs_show_heads(_, 0) :- !.
 cs_show_heads([H|Hs], N) :-
     format("     ~q~n", [H]),
     N1 is N - 1,
-    cs_show_heads(Hs, N1).
+    cs_show_heads(Hs, N1), !.
 
-%% predict/0 IS THE SUITE'S THIRD GOAL, and it has to fit in 300 seconds like
-%% the other twenty-seven. It generates a short sample at one temperature and
+%% predict/0 IS THE SUITE'S THIRD GOAL, and it has to fit the budget like
+%% the other tutorials'. It generates a short sample at one temperature and
 %% puts it to the reader, which is the whole lesson in miniature; generate/0
 %% and judge/0 above are the same thing at a length a human wants to read.
-predict :-
-    model_load(t28_cs, M),
-    cs_data(Vocab, _, _, _, _),
-    cs_seed_context(Vocab, Ctx),
-    cs_generate(M, Vocab, Ctx, 0.8, 200, Codes),
-    format("~n~s~n", [Codes]),
-    cs_judge_one(0.8, Codes),
-    write(done), nl.
+predict -->
+    Ps = params(t28_cs),
+    { cs_text(Codes0, _), cs_cap(Cap), cs_take(Cap, Codes0, Codes), cs_vocab(Codes, Vocab, _),
+      cs_seed_context(Vocab, Context) },
+    constants(1, Ctx),
+    { cs_generate(Ps, Ctx, Vocab, Context, 0.8, 200, Out),
+      format("~n~s~n", [Out]),
+      cs_judge_one(0.8, Out),
+      write(done), nl }.
 
 main :- corpus, train, test, generate, judge.

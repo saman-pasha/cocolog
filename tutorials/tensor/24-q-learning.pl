@@ -7,16 +7,27 @@
 %% optimal path around the pit.
 %%
 %% The method is FITTED Q-ITERATION, which is the DQN idea with the
-%% training loop turned inside out, and it needs nothing the module does
-%% not already have: model_predict computes the Bellman targets
+%% training loop turned inside out. The Q-network is ONE EXPRESSION, a
+%% function the file defines,
+%%
+%%     q([W1, B1, W2, B2], X) ::= relu(X matmul W1 + B1) matmul W2 + B2.
+%%
+%% over one-hot states. A sweep reads the whole table at once --
+%% `list(q(Ps, Xall))' over the sixteen states -- and builds the Bellman
+%% targets
 %%
 %%     target(s, a)  =  reward(s')  +  gamma * max_a' Q(s', a')
 %%
-%% over every state at once, model_train regresses the network onto
-%% those targets with plain mse, and repeating that sweep is the whole
-%% algorithm. No replay buffer, no exploration schedule: the world here
-%% is small enough to sweep exhaustively, which is also what makes the
-%% run deterministic and the test exact.
+%% in Prolog, then regresses the network onto them: forty Adam steps on
+%% `mse(q(Ps, Xs), Y)', the gradient of the expression by grad/2. Repeating
+%% that sweep is the whole algorithm, and the sweep loop is a predicate in
+%% braces, since a step frees the old parameters. The greedy policy is
+%% `argmax(q(Ps, [Row]), 1)': one state in, the best move out. No replay
+%% buffer, no exploration schedule: the world here is small enough to sweep
+%% exhaustively, which is also what makes the run deterministic and the
+%% test exact. An earlier version of this file held the same network in a
+%% model_new model; that layer API is still taught in
+%% tutorials/library/22-torch.pl.
 %%
 %% The grid (row 0 at the top, cell = 4 * Row + Col):
 %%
@@ -25,18 +36,25 @@
 %%       8   9  10  11        goal  = 15  (reward +1, ends the episode)
 %%      12  13  14  15        every other step: -0.04, gamma 0.9
 %%
-%%   train    30 Bellman sweeps, save the Q-network as t24_qlearn
+%%   train    30 Bellman sweeps of 40 Adam steps each; the parameters saved as t24_qlearn
 %%   test     reload, walk greedily from the start: must reach the goal
 %%            in the optimal six steps and never touch the pit
 %%   predict  reload, print the greedy route and the value of the start
+%%
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/24-q-learning.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/24-q-learning.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/24-q-learning.pl predict
 
-% ---- the world --------------------------------------------------------------
-
-%% libtorch is a LOADABLE module now, under modules/torch, so it is
-%% asked for like any other library. It used to be compiled into the
-%% binary and always present.
 :- use_module(library(torch)).
 % :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
+:- use_module(library(tensor_expr)).
+:- op(700, xfx, :=).
+:- op(700, xfx, ::=).
+:- op(400, yfx, matmul).
+
+%% ---- the world --------------------------------------------------------------
+%% Every predicate here ends in a cut: the store keeps every consult of this
+%% file, and a clause without one would answer once per copy.
 
 goal(15) :- !.
 pit(5) :- !.
@@ -52,96 +70,127 @@ move(S, 1, S2) :- R is S // 4, ( R =:= 3 -> S2 = S ; S2 is S + 4 ), !.
 move(S, 2, S2) :- C is S mod 4, ( C =:= 0 -> S2 = S ; S2 is S - 1 ), !.
 move(S, 3, S2) :- C is S mod 4, ( C =:= 3 -> S2 = S ; S2 is S + 1 ), !.
 
-one_hot(S, Row) :-
-    findall(V, (between(0, 15, J), ( J =:= S -> V = 1.0 ; V = 0.0 )), Row), !.
+%% state_row(+S, -Row): a cell as its one-hot, sixteen floats.
+state_row(S, Row) :-
+    findall(V, ( between(0, 15, J), ( J =:= S -> V = 1.0 ; V = 0.0 ) ), Row), !.
 
-% ---- the Bellman sweep ------------------------------------------------------
+%% ---- the Q-network ----------------------------------------------------------
+%% A DEFINED FUNCTION: sixteen in, a hidden layer of 32 with relu, four out
+%% -- one value per action. Used by name in every expression below.
+
+q([W1, B1, W2, B2], X) ::= relu(X matmul W1 + B1) matmul W2 + B2.
+
+parameters([W1, B1, W2, B2]) :-
+    W1 := parameter(glorot(16, 32)), B1 := parameter(zeros([1, 32])),
+    W2 := parameter(glorot(32, 4)),  B2 := parameter(zeros([1, 4])), !.
+
+%% q_table(+Ps, +Xall, -Q): all sixteen Q rows under the current parameters,
+%% as lists -- one expression, its answer a Prolog term.
+q_table(Ps, Xall, Q) :- Q := list(q(Ps, Xall)), !.
+
+%% ---- the Bellman sweep ------------------------------------------------------
 
 max_of([X], X) :- !.
 max_of([X|Xs], M) :- max_of(Xs, M0), ( X > M0 -> M = X ; M = M0 ), !.
-
-argmax_of(Xs, I) :- max_of(Xs, M), nth0(I, Xs, V), V =:= M, !.
 
 % One target row: for each action from S, reward at the landing square plus
 % the discounted value of the best move from there -- zero beyond a terminal,
 % because the episode is over and there is nothing left to collect.
 target_row(S, Q, Row) :-
-    findall(T, (between(0, 3, A),
-                move(S, A, S2),
-                reward(S2, R),
-                ( terminal(S2) -> T = R
-                ; nth0(S2, Q, QRow), max_of(QRow, Best), T is R + 0.9 * Best )),
+    findall(T, ( between(0, 3, A),
+                 move(S, A, S2),
+                 reward(S2, R),
+                 ( terminal(S2) -> T = R
+                 ; nth0(S2, Q, QRow), max_of(QRow, Best), T is R + 0.9 * Best ) ),
             Row), !.
 
-% All sixteen Q rows under the current network, as one predict.
-q_table(M, Q) :-
-    findall(Row, (between(0, 15, S), one_hot(S, Row)), All),
-    tensor_from_list(All, X),
-    model_predict(M, X, P),
-    tensor_to_list(P, Q),
-    tensor_free(X), tensor_free(P), !.
-
 % One sweep: read the table, build targets for the non-terminal states,
-% regress the network onto them.
-sweep(M) :-
-    q_table(M, Q),
-    findall(Row, (between(0, 15, S), \+ terminal(S), one_hot(S, Row)), XR),
-    findall(Row, (between(0, 15, S), \+ terminal(S), target_row(S, Q, Row)), YR),
-    tensor_from_list(XR, X), tensor_from_list(YR, Y),
-    model_train(M, X, Y, [epochs(40), batch(14), lr(0.01), optimiser(adam)]),
-    tensor_free(X), tensor_free(Y), !.
+% regress the network onto them. A step answers NEW parameters and frees
+% the old, so the parameters and the optimiser's state thread through.
+sweep(Ps, St, Xall, Xnt, Ps2, St2) :-
+    q_table(Ps, Xall, Q),
+    findall(Row, ( between(0, 15, S), \+ terminal(S), target_row(S, Q, Row) ), YR),
+    Y := YR,
+    fit(40, Ps, St, Xnt, Y, Ps2, St2),
+    tensor_free(Y), !.
 
-sweeps(0, _) :- !.
-sweeps(K, M) :- sweep(M), K1 is K - 1, sweeps(K1, M).
+fit(0, Ps, St, _, _, Ps, St) :- !.
+fit(K, Ps, St, X, Y, PsF, StF) :-
+    L := mse(q(Ps, X), Y),
+    Gs := grad(L, Ps),
+    adam_step(Ps, Gs, St, 0.01, Ps2, St2),
+    tensor_free(L),
+    K1 is K - 1,
+    fit(K1, Ps2, St2, X, Y, PsF, StF).
 
-% ---- the greedy walk --------------------------------------------------------
+sweeps(0, Ps, St, _, _, Ps, St) :- !.
+sweeps(K, Ps, St, Xall, Xnt, PsF, StF) :-
+    sweep(Ps, St, Xall, Xnt, Ps2, St2),
+    ( K mod 10 =:= 0
+    -> q_table(Ps2, Xall, Q), nth0(0, Q, Q0), max_of(Q0, V0),
+       format("   ~w sweeps to go, the start worth ~4f~n", [K, V0])
+    ;  true ),
+    K1 is K - 1,
+    sweeps(K1, Ps2, St2, Xall, Xnt, PsF, StF).
+
+%% ---- the greedy walk --------------------------------------------------------
+%% The policy is argmax over the network's row for one state -- a predicate,
+%% since it frees as it goes: `:=' frees the one-hot leaf and the argmax.
 
 greedy_path(_, S, _, [S]) :- terminal(S), !.
 greedy_path(_, _, 0, []) :- !.               % out of patience: not a path
-greedy_path(M, S, Fuel, [S|Rest]) :-
-    one_hot(S, Row),
-    tensor_from_list([Row], X),
-    model_predict(M, X, P),
-    tensor_to_list(P, [QRow]),
-    tensor_free(X), tensor_free(P),
-    argmax_of(QRow, A),
+greedy_path(Ps, S, Fuel, [S|Rest]) :-
+    state_row(S, Row),
+    [A0] := list(argmax(q(Ps, [Row]), 1)),
+    A is round(A0),
     move(S, A, S2),
     Fuel1 is Fuel - 1,
-    greedy_path(M, S2, Fuel1, Rest), !.
+    greedy_path(Ps, S2, Fuel1, Rest), !.
 
-% ---- the goals --------------------------------------------------------------
+%% ---- the three goals ----------------------------------------------------------
 
-train :-
-    torch_seed(24),
-    model_new([input(16), dense(32, relu), dense(4)], M),
-    sweeps(30, M),
-    q_table(M, Q),
-    nth0(0, Q, Q0), max_of(Q0, V0),
-    format("trained: 30 sweeps, value of the start ~4f~n", [V0]),
-    model_save(t24_qlearn, M),
-    write(saved), nl.
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls; the one-hot states are the library's nonterminal, so exec/1 frees
+%% them when a goal ends; the sweeps stay a predicate in braces.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
 
-test :-
-    model_load(t24_qlearn, M),
-    greedy_path(M, 0, 10, Path),
-    format("greedy path ~w~n", [Path]),
-    ( Path = [] -> write('FAIL never reached a terminal'), nl, halt(1) ; true ),
-    last(Path, End),
-    ( End =:= 15 -> true ; write('FAIL did not reach the goal'), nl, halt(1) ),
-    ( member(5, Path) -> write('FAIL walked into the pit'), nl, halt(1) ; true ),
-    length(Path, Len),
-    % six moves is optimal: Manhattan distance from corner to corner
-    ( Len =:= 7 -> write('ok optimal in six moves'), nl
-    ; L2 is Len - 1, format("FAIL took ~w moves~n", [L2]), halt(1) ).
+train -->
+    seed(24),
+    { findall(S, between(0, 15, S), All),
+      findall(S, ( between(0, 15, S), \+ terminal(S) ), Live) },
+    one_hot(All, 16, Xall), one_hot(Live, 16, Xnt),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      sweeps(30, Ps0, St0, Xall, Xnt, Ps, _),
+      q_table(Ps, Xall, Q), nth0(0, Q, Q0), max_of(Q0, V0),
+      format("trained: 30 sweeps, value of the start ~4f~n", [V0]) },
+    params_save(t24_qlearn, Ps),
+    { write(saved), nl }.
 
-predict :-
-    model_load(t24_qlearn, M),
-    greedy_path(M, 0, 10, Path),
-    format("the greedy route: ~w~n", [Path]),
-    forall(member(S, Path),
-           ( R is S // 4, C is S mod 4,
-             ( goal(S) -> W = ' (the goal)' ; pit(S) -> W = ' (the pit!)' ; W = '' ),
-             format("  cell ~w = row ~w col ~w~w~n", [S, R, C, W]) )),
-    q_table(M, Q),
-    nth0(0, Q, Q0), max_of(Q0, V0),
-    format("the start is worth ~4f under the learned policy~n", [V0]).
+test -->
+    Ps = params(t24_qlearn),
+    { greedy_path(Ps, 0, 10, Path),
+      format("greedy path ~w~n", [Path]),
+      ( Path = [] -> write('FAIL never reached a terminal'), nl, halt(1) ; true ),
+      last(Path, End),
+      ( End =:= 15 -> true ; write('FAIL did not reach the goal'), nl, halt(1) ),
+      ( member(5, Path) -> write('FAIL walked into the pit'), nl, halt(1) ; true ),
+      length(Path, Len),
+      % six moves is optimal: Manhattan distance from corner to corner
+      ( Len =:= 7 -> write('ok optimal in six moves'), nl
+      ; L2 is Len - 1, format("FAIL took ~w moves~n", [L2]), halt(1) ) }.
+
+predict -->
+    Ps = params(t24_qlearn),
+    { findall(S, between(0, 15, S), All) },
+    one_hot(All, 16, Xall),
+    { greedy_path(Ps, 0, 10, Path),
+      format("the greedy route: ~w~n", [Path]),
+      forall(member(S, Path),
+             ( R is S // 4, C is S mod 4,
+               ( goal(S) -> W = ' (the goal)' ; pit(S) -> W = ' (the pit!)' ; W = '' ),
+               format("  cell ~w = row ~w col ~w~w~n", [S, R, C, W]) )),
+      q_table(Ps, Xall, Q),
+      nth0(0, Q, Q0), max_of(Q0, V0),
+      format("the start is worth ~4f under the learned policy~n", [V0]) }.

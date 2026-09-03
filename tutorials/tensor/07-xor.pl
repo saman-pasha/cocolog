@@ -2,19 +2,33 @@
 %%
 %% The historical one. No line separates xor's classes, so a single linear
 %% unit CANNOT learn it -- the fact that stalled neural networks for a
-%% generation -- and one small tanh layer settles it. The head is
-%% dense(2, log_softmax) with loss(nll): two log-probabilities, integer
-%% labels, the standard classification pairing.
+%% generation -- and one small tanh layer settles it. The network is two
+%% expressions, `H = tanh(X matmul W1 + B1)' and `Logits = H matmul W2 + B2';
+%% the loss is cross_entropy over the logits against one-hot labels --
+%% log_softmax and the negative log-likelihood folded into one composite,
+%% the standard classification pairing -- and `Gs := grad(L, Ps)'
+%% differentiates the lot. The fit is Adam from library(tensor_expr), full
+%% batch, 300 steps. (An earlier version of this file built the same
+%% network as model_new's dense(8, tanh) and dense(2, log_softmax);
+%% tutorials/library/22-torch.pl still teaches that API.)
 %%
-%%   train    learn xor from jittered corner points, save as t07_xor
+%%   train    learn xor from 128 jittered corner points, save as t07_xor
 %%   test     reload, the four CLEAN corners must all be right
 %%   predict  reload, show the class and confidence at each corner
+%%
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/07-xor.pl train
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/07-xor.pl test
+%%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/07-xor.pl predict
 
-%% libtorch is a LOADABLE module now, under modules/torch, so it is
-%% asked for like any other library. It used to be compiled into the
-%% binary and always present.
 :- use_module(library(torch)).
 % :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
+:- use_module(library(tensor_expr)).
+:- op(700, xfx, :=).
+:- op(400, yfx, matmul).
+
+%% ---- the points ---------------------------------------------------------------
+%% Every predicate here ends in a cut: the store keeps every consult of this
+%% file, and a generator without a cut would answer once per copy.
 
 noise(I, R) :-
     S is sin(I * 12.9898) * 43758.5453,
@@ -29,33 +43,73 @@ xor_point(I, [A, B], L) :-
     noise(I, E1), noise(I + 300, E2),
     A is A0 + 0.05 * E1, B is B0 + 0.05 * E2, !.
 
-train :-
-    torch_seed(7),
-    findall(R, (between(0, 127, I), xor_point(I, R, _)), XR),
-    findall(L, (between(0, 127, I), xor_point(I, _, L)), LR),
-    tensor_from_list(XR, X), tensor_from_list(LR, Y),
-    model_new([input(2), dense(8, tanh), dense(2, log_softmax)], M),
-    model_train(M, X, Y, [epochs(400), batch(16), lr(0.05), optimiser(adam),
-                          loss(nll), final_loss(L)]),
-    format("trained: final nll ~4f~n", [L]),
-    model_save(t07_xor, M),
-    write(saved), nl.
+%% points(+From, +N, -X, -Classes): N jittered corners as an [N, 2] tensor,
+%% and their classes as a list -- what one_hot/3 and accuracy/3 take.
+points(From, N, X, Classes) -->
+    { To is From + N - 1,
+      findall(R, ( between(From, To, I), xor_point(I, R, _) ), Rows),
+      findall(L, ( between(From, To, I), xor_point(I, _, L) ), Classes) },
+    X = Rows, !.
 
-test :-
-    model_load(t07_xor, M),
-    tensor_from_list([[0.0,0.0],[0.0,1.0],[1.0,0.0],[1.0,1.0]], X),
-    tensor_from_list([0, 1, 1, 0], Y),
-    model_evaluate(M, X, Y, accuracy, A),
-    Pct is truncate(A * 100 + 0.5),
-    format("corners right ~w%~n", [Pct]),
-    ( Pct =:= 100 -> write(ok), nl ; write('FAIL'), nl, halt(1) ).
+corners([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]], [0, 1, 1, 0]) :- !.
 
-predict :-
-    model_load(t07_xor, M),
-    Corners = [[0.0,0.0],[0.0,1.0],[1.0,0.0],[1.0,1.0]],
-    tensor_from_list(Corners, X),
-    model_predict(M, X, P),
-    tensor_to_list(P, Out),
-    forall(( nth0(I, Out, [L0, L1]), nth0(I, Corners, [A, B]) ),
-           ( ( L1 > L0 -> C = 1, Conf is exp(L1) ; C = 0, Conf is exp(L0) ),
-             format("xor(~0f, ~0f) = ~w  (confidence ~2f)~n", [A, B, C, Conf]) )).
+%% ---- the network --------------------------------------------------------------
+
+parameters([W1, B1, W2, B2]) :-
+    W1 := parameter(glorot(2, 8)), B1 := parameter(zeros([1, 8])),
+    W2 := parameter(glorot(8, 2)), B2 := parameter(zeros([1, 2])), !.
+
+%% forward(+Ps, +X, -Logits): the hidden tanh layer and the linear head -- a
+%% PROCEDURE, a DCG rule of bindings; exec/1 runs it and frees H.
+forward([W1, B1, W2, B2], X, Logits) -->
+    H = tanh(X matmul W1 + B1),
+    Logits = H matmul W2 + B2.
+
+%% ---- the three goals ----------------------------------------------------------
+
+%% THE THREE GOALS ARE RULES, run by exec/1 through the one-liners the runner
+%% calls, so every tensor a goal makes is freed when it ends. The fit loop
+%% stays a predicate in braces: it steps an optimiser, which frees the old
+%% parameters itself, and a rule must not emit what something else frees.
+train :- exec(train).
+test :- exec(test).
+predict :- exec(predict).
+
+train -->
+    seed(7),
+    points(0, 128, X, Classes), one_hot(Classes, 2, Y),
+    { parameters(Ps0), adam_init(Ps0, St0),
+      fit(300, Ps0, St0, X, Y, Ps) },
+    forward(Ps, X, Logits), accuracy(Logits, Classes, Acc),
+    L = item(cross_entropy(Logits, Y)),
+    { format("trained: cross-entropy ~4f, accuracy on the 128 training points ~2f~n", [L, Acc]) },
+    params_save(t07_xor, Ps),
+    { write(saved), nl }.
+
+fit(0, Ps, _, _, _, Ps) :- !.
+fit(K, Ps, St, X, Y, PsF) :-
+    exec(forward(Ps, X, Logits)),
+    L := cross_entropy(Logits, Y),
+    Gs := grad(L, Ps),
+    ( K mod 100 =:= 0 -> Lv := item(L), format("   ~w steps to go, cross-entropy ~4f~n", [K, Lv]) ; true ),
+    adam_step(Ps, Gs, St, 0.05, Ps2, St2),
+    free_all([Logits, L]),
+    K1 is K - 1,
+    fit(K1, Ps2, St2, X, Y, PsF).
+
+test -->
+    Ps = params(t07_xor),
+    { corners(Rows, Classes) }, X = Rows,
+    forward(Ps, X, Logits), accuracy(Logits, Classes, Acc),
+    { Pct is truncate(Acc * 100 + 0.5),
+      format("corners right ~w%~n", [Pct]),
+      ( Pct =:= 100 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
+
+predict -->
+    Ps = params(t07_xor),
+    { corners(Rows, Classes) }, X = Rows,
+    forward(Ps, X, Logits),
+    Probs = list(softmax(Logits)),
+    { forall(( nth0(I, Probs, [P0, P1]), nth0(I, Rows, [A, B]), nth0(I, Classes, Truth) ),
+             ( ( P1 > P0 -> C = 1, Conf = P1 ; C = 0, Conf = P0 ),
+               format("xor(~0f, ~0f) = ~w  (confidence ~2f; the truth is ~w)~n", [A, B, C, Conf, Truth]) )) }.

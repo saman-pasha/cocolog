@@ -1,7 +1,8 @@
 %% 31. Tensor expressions: operators, and the grammar that runs them
 %%
-%% Tutorial 30 wrote its forward pass as five tensor predicates in a row,
-%% each naming its result. This file writes the same fit as ONE line,
+%% Tutorial 30 is this fit on data too large to print, on a GPU; before the
+%% grammar it was five tensor predicates in a row, each naming its result.
+%% This file writes the same fit as ONE line,
 %%
 %%     loss(X, Y, W, B) ::= mean((X matmul W + B - Y) ^ 2.0).      L := loss(X, Y, W, B)
 %%

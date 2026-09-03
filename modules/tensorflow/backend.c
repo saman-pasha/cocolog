@@ -47,7 +47,7 @@
 #include "tensorflow/c/eager/c_api.h"
 
 #define TF_SLOTS 65536
-#define TF_MAXIN 8
+#define TF_MAXIN 65                /* an operation's inputs: cat takes up to 64, as the front end allows */
 #define TF_MAXDIM 8
 #define TF_MAXLEAF 4096
 #define TF_MAXNODE 8192
@@ -582,7 +582,7 @@ static int shape_rule(OpSpec* p, int64_t* sh, int* nd) {
   int64_t a[TF_MAXDIM], b[TF_MAXDIM]; int na = 0, nb = 0;
   if (p->nin >= 1 && !leaf_shape(p->in[0], a, &na)) return 0;
   if (!strcmp(op, "Neg") || !strcmp(op, "Abs") || !strcmp(op, "Exp") || !strcmp(op, "Log") || !strcmp(op, "Sqrt") ||
-      !strcmp(op, "Relu") || !strcmp(op, "Sigmoid") || !strcmp(op, "Tanh")) { *nd = na; for (int i = 0; i < na; i++) sh[i] = a[i]; return 1; }
+      !strcmp(op, "Relu") || !strcmp(op, "Sigmoid") || !strcmp(op, "Tanh") || !strcmp(op, "Cast")) { *nd = na; for (int i = 0; i < na; i++) sh[i] = a[i]; return 1; }
   if (!strcmp(op, "AddV2") || !strcmp(op, "Sub") || !strcmp(op, "Mul") || !strcmp(op, "RealDiv") || !strcmp(op, "Pow") || !strcmp(op, "Maximum")) {
     if (!leaf_shape(p->in[1], b, &nb)) return 0;
     if (!bcast(a, na, b, nb, sh, nd)) { snprintf(errbuf, sizeof errbuf, "!shapes do not broadcast"); return 0; }
@@ -693,7 +693,7 @@ static int64_t run_spec(OpSpec* p) {
   s->kind = K_NODE; s->spec = *p; s->under_param = up;
   for (int i = 0; i < p->nin; i++) slots[p->in[i]].refs++;
   s->dtype = TF_FLOAT;
-  for (int i = 0; i < p->ntypes; i++) if (0 == strcmp(p->type_attrs[i], "output_type")) s->dtype = p->type_vals[i];
+  for (int i = 0; i < p->ntypes; i++) if (0 == strcmp(p->type_attrs[i], "output_type") || 0 == strcmp(p->type_attrs[i], "DstT")) s->dtype = p->type_vals[i];
   if (0 == strcmp(p->op, "Reshape") || 0 == strcmp(p->op, "GatherV2") || 0 == strcmp(p->op, "Slice")) s->dtype = slots[p->in[0]].dtype;
   stat_rec++;
   int64_t shape[TF_MAXDIM]; int nd = 0;
@@ -790,12 +790,20 @@ int64_t tfb_cat(const int64_t* hs, int n, int64_t dim) {
   spec_type(&p, "T", TF_FLOAT); spec_type(&p, "Tidx", TF_INT32); spec_int(&p, "N", n);
   return with_free(run_spec(&p), ax);
 }
+/* rows by index. An index tensor is a float tensor of whole values, as it is
+ * on torch (tensor_from_list, randperm, arange); an argmax is int64. Floats
+ * are cast to int32 here, where they are read -- torch's gather does the same */
 int64_t tfb_gather(int64_t a, int64_t idx) {
-  int64_t ax = iscalar(0); if (ax < 0) return -1;
-  OpSpec p; spec_init(&p, "GatherV2"); spec_in(&p, a); spec_in(&p, idx); spec_in(&p, ax);
-  spec_type(&p, "Tparams", tfb_is_int(a) ? slots[a].dtype : TF_FLOAT); spec_type(&p, "Tindices", tfb_is_int(idx) ? slots[idx].dtype : TF_INT32); spec_type(&p, "Taxis", TF_INT32);
+  int64_t ix = idx, tmp = -1;
+  if (!tfb_is_int(idx)) {
+    OpSpec c; spec_init(&c, "Cast"); spec_in(&c, idx); spec_type(&c, "SrcT", TF_FLOAT); spec_type(&c, "DstT", TF_INT32); spec_bool(&c, "Truncate", 0);
+    tmp = run_spec(&c); if (tmp < 0) return -1; ix = tmp;
+  }
+  int64_t ax = iscalar(0); if (ax < 0) { if (tmp > 0) tfb_free(tmp); return -1; }
+  OpSpec p; spec_init(&p, "GatherV2"); spec_in(&p, a); spec_in(&p, ix); spec_in(&p, ax);
+  spec_type(&p, "Tparams", tfb_is_int(a) ? slots[a].dtype : TF_FLOAT); spec_type(&p, "Tindices", slots[ix].dtype); spec_type(&p, "Taxis", TF_INT32);
   spec_int(&p, "batch_dims", 0);
-  return with_free(run_spec(&p), ax);
+  int64_t r = run_spec(&p); tfb_free(ax); if (tmp > 0) tfb_free(tmp); return r;
 }
 int64_t tfb_slice(int64_t a, int axis, int64_t from, int64_t to) {
   int64_t shape[TF_MAXDIM]; int nd = 0; if (!tfb_shape(a, shape, &nd)) return -1;
@@ -859,12 +867,14 @@ int64_t tfb_arange(int64_t n) {
   for (int64_t i = 0; i < n; i++) buf[i] = (double) i;
   int64_t shape[1] = { n }; int64_t h = tfb_from_doubles(buf, shape, 1); free(buf); return h;
 }
+/* a permutation as FLOATS, as torch's is: an index tensor is a float tensor
+ * whose values are whole, and index_rows casts it where it reads */
 int64_t tfb_randperm(int64_t n) {
-  int64_t* v = (int64_t*) malloc((size_t)(n > 0 ? n : 1) * sizeof(int64_t));
-  for (int64_t i = 0; i < n; i++) v[i] = i;
+  double* v = (double*) malloc((size_t)(n > 0 ? n : 1) * sizeof(double));
+  for (int64_t i = 0; i < n; i++) v[i] = (double) i;
   uint64_t x = (uint64_t) seed_base * 6364136223846793005ULL + (uint64_t)(++seed_next) * 1442695040888963407ULL;
-  for (int64_t i = n - 1; i > 0; i--) { x = x * 6364136223846793005ULL + 1442695040888963407ULL; int64_t j = (int64_t)((x >> 33) % (uint64_t)(i + 1)); int64_t t = v[i]; v[i] = v[j]; v[j] = t; }
-  int64_t h = tfb_from_ints(v, n); free(v); return h;
+  for (int64_t i = n - 1; i > 0; i--) { x = x * 6364136223846793005ULL + 1442695040888963407ULL; int64_t j = (int64_t)((x >> 33) % (uint64_t)(i + 1)); double t = v[i]; v[i] = v[j]; v[j] = t; }
+  int64_t shape[1] = { n }; int64_t h = tfb_from_doubles(v, shape, 1); free(v); return h;
 }
 /* a parameter: a leaf sharing a's value, with gradient wanted -- a new name
  * for the same device tensor, and no history behind it */

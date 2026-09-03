@@ -188,12 +188,14 @@ caller did not vouch for is refused, because verification defaulting to
 ON is the client's security posture.
 
 The reason this composes at all is the project's one claim: **a trained
-model is clauses.** `model_save/2` is `model_spec/2` and `model_params/2`
-and an assert, so what training produces is rows — and rows travel over
-Zeytun like any others. A querier does `model_load(xor, M),
-model_predict(M, ...)` and the spec and the weights arrive as terms over
-HTTP; the prediction itself runs on the querier's own CPU. Train on the
-GPU once, predict anywhere, no model file ever copied.
+model is clauses.** `params_save/2` is a shape fact and the numbers in
+chunks -- `'$te_param'/3` and `'$te_chunk'/4` -- and an assert, so what
+training produces is rows — and rows travel over Zeytun like any others.
+A querier does `params_load(t07_xor, Ps)` and writes the network's
+expression over those parameters; the weights arrive as terms over HTTP
+and the prediction itself runs on the querier's own CPU, on whichever
+library it has. Train on the GPU once, predict anywhere, no model file
+ever copied.
 
 ## Why this shape is safe to publish
 
@@ -360,7 +362,7 @@ The torch module takes it with one goal — `torch_device(auto)` picks
 `cuda` when it is available — so training a tutorial on the GPU is:
 
 ```sh
-./cocolog --kb brain run tutorials/tensor/07-xor.pl "torch_device(auto), train"
+./cocolog --kb brain run tutorials/tensor/07-xor.pl "tensor_execution(torch, graph, auto), train"
 ```
 
 Tensors live on the model's device and every answer comes back to the
@@ -374,15 +376,19 @@ server, no tunnel), then
 
 ```sh
 ./cocolog --host NAME.trycloudflare.com --https --kb brain \
-  query "model_load(xor, M), model_predict(M, [[0.0,1.0]], P)"
+  query "use_module(library(tensor_expr)), params_load(t07_xor, [W1, B1, W2, B2]), ':='(P, list(matmul(tanh(matmul([[0.0, 1.0]], W1) + B1), W2) + B2))"
 ```
+
+The expression is tutorial 07's forward pass, `tanh(X matmul W1 + B1)
+matmul W2 + B2`, in canonical form because a one-line query declares no
+operators; the two logits answer xor(0, 1) = 1.
 
 **Your own machine**: a built cocolog and the URL are enough — the
 toplevel runs in the `--http` arrangement like any other:
 
 ```console
 $ cocolog --host NAME.trycloudflare.com --https --kb brain
-?- model_load(xor, M), model_predict(M, [[0.0,1.0]], P).
+?- use_module(library(tensor_expr)), params_load(t07_xor, [W1, B1, W2, B2]), ':='(P, list(matmul(tanh(matmul([[0.0, 1.0]], W1) + B1), W2) + B2)).
 ```
 
 **A browser**: the `https://` URL serves Zeytun's pages directly.

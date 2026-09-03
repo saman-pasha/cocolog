@@ -83,7 +83,9 @@
 %% too, usable without braces: seed (the selected backend's), torch_seed,
 %% tensor_execution (one, two or three arguments: the mode, the backend and
 %% the mode, or those and the device -- torch | tensorflow, eager | graph,
-%% cpu | cuda | auto), torch_device,
+%% cpu | cuda | auto -- to SET; to ask the mode inside a rule write it in
+%% braces, `{ tensor_execution(M) }', since the nonterminal with its argument
+%% unbound has the shape of the module's own tensor_execution/3), torch_device,
 %% torch_cuda_available, torch_cuda_count, torch_current_device; model_new,
 %% model_set_params, model_params, model_spec, model_save, model_load,
 %% model_free, model_train, model_evaluate, model_predict; params_save,
@@ -112,6 +114,12 @@
 %% free_all, adam_step and sgd_step -- which free what they are given -- are
 %% not nonterminals: a loop that steps an optimiser is a predicate, as the
 %% fit loops of tutorials 32 to 41 are, and its forward pass a procedure.
+%% The same discipline names where PARAMETERS are made: in that predicate,
+%% in braces -- `{ parameters(Ps0), fit(..., Ps0, Ps) }' -- never as
+%% `W0 = parameter(...)' bindings in the rule, since the rule would emit
+%% W0, the optimiser's first step would free it, and exec/1 would free it
+%% a second time at the end: the goal fails after its last print, and a
+%% store it meant to save into is never committed.
 %%
 %% THE PREDICATES: sgd_step/4, adam_init/2,3, adam_step/6, params_save/2,
 %% params_load/2, one_hot/3, block_mask/3, causal_mask/3, shifts/3,

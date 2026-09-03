@@ -87,15 +87,33 @@ Three questions the owner asked, answered by runs:
    compiled call a step, so the CPU does the least driving. Handing work to
    the GPU is the third argument, and graph relieves the CPU more than eager
    does, one call standing for hundreds of launches.
-3. *Trained on TensorFlow, tested on torch?* Yes, and run: tutorial 31
-   trained under `(tensorflow, graph)`, then tested under `(torch, graph)`
-   and predicted under `(torch, eager)` from the same store, rmse 0.0018;
-   32's ResNet trained on TensorFlow and tested on torch, accuracy 1.00.
+3. *Trained on TensorFlow, tested on torch, and the reverse?* Yes, both
+   ways, and run: tutorial 31 trained under `(tensorflow, graph)`, then
+   tested under `(torch, graph)` and predicted under `(torch, eager)` from
+   the same store, rmse 0.0018, and trained on torch, tested and predicted
+   on TensorFlow, rmse 0.0011; 32's ResNet trained on either and tested on
+   the other, accuracy 1.00 both ways.
    Two caveats: only the `tensor_*` programs, 29 onward, are portable --
    1 to 28 use libtorch's `model_*` modules, which have no TensorFlow side;
    and the two libraries agree within float tolerance, not bit for bit, and
    draw different random numbers from one seed, so weights trained on each
    differ.
+4. *Is the difference between `eager` and `graph` only the gradient?* No:
+   both differentiate, on both libraries. The difference is WHEN work
+   runs. Eager executes each producer as its goal runs, so every handle has
+   a value at once; graph records, and nothing runs until a read, when the
+   whole closure -- a training step's loss, gradients and new parameters --
+   is compiled once per structure and thereafter runs as ONE call (torch:
+   a lazy graph with CUDA-graph replay; TensorFlow: one function). What
+   follows from that: on a GPU graph is the faster path, since one call
+   stands for hundreds of launches and the CPU drives less; under graph
+   the intermediates a program never names are never kept, so it holds
+   less; a runtime error surfaces at the read rather than at the goal
+   (shape errors are refused at the goal under both, by rule); and under
+   TensorFlow eager a gradient recomputes its forward pass inside the
+   gradient's call, a cost graph does not pay. `tensor_graph_stats/1`
+   shows the two: recorded and replayed count under graph, executed
+   under eager.
 
 ## What it costs, measured, against the bar
 

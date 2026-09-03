@@ -150,8 +150,9 @@
 
   ;; ---- the predicates --------------------------------------------------------
 
-  ;; tensor_from_list(+L, -T): a flat list of numbers -> [N] (all integers: an
-  ;; index tensor), a list of rows -> [R, C]
+  ;; tensor_from_list(+L, -T): a flat list of numbers -> [N], a list of rows
+  ;; -> [R, C]; FLOAT either way, as torch's is -- an index tensor is a float
+  ;; tensor of whole values, cast where index_rows reads it
   (func p_from_list ((coco_engine * e) (size_t g)) (out int)
     (let ((size_t lt . #'(coco_m_arg e g 0))
           (size_t * rows . nil) (size_t nrows . 0))
@@ -161,22 +162,20 @@
         (if (or (coco_m_float e (nth 0 rows) (aof probe)) (coco_m_int e (nth 0 rows) (aof iprobe)))
             ;; ---- flat: all integers make an index tensor, otherwise floats
             (let ((double * data . #'(cast (double *) (malloc (* nrows (sizeof double)))))
-                  (int64_t * idata . #'(cast (int64_t *) (malloc (* nrows (sizeof int64_t)))))
-                  (int allint . 1) (int ok . 1) (size_t i . 0))
+                  (int ok . 1) (size_t i . 0))
               (while (< i nrows)
                 (let ((double v . 0.0) (int64_t iv . 0))
                   (cond
-                    ((coco_m_int e (nth i rows) (aof iv)) (set (nth i data) (cast double iv)) (set (nth i idata) iv))
-                    ((coco_m_float e (nth i rows) (aof v)) (set (nth i data) v) (set allint 0))
+                    ((coco_m_int e (nth i rows) (aof iv)) (set (nth i data) (cast double iv)))
+                    ((coco_m_float e (nth i rows) (aof v)) (set (nth i data) v))
                     (#t (set ok 0))))
                 (set i (+ i 1)))
               (free (cast (void *) rows))
-              (if (not ok) (block (free (cast (void *) data)) (free (cast (void *) idata)) (return (coco_m_type_error e "number" lt))))
+              (if (not ok) (block (free (cast (void *) data)) (return (coco_m_type_error e "number" lt))))
               (let ((int64_t h . 0) (int64_t shape [1]))
                 (set (nth 0 shape) (cast int64_t nrows))
-                (if allint (set h (tfb_from_ints idata (cast int64_t nrows)))
-                  (set h (tfb_from_doubles data shape 1)))
-                (free (cast (void *) data)) (free (cast (void *) idata))
+                (set h (tfb_from_doubles data shape 1))
+                (free (cast (void *) data))
                 (return (answer e g 1 h))))
           ;; ---- rows
           (let ((size_t * cols . nil) (size_t ncols . 0))
