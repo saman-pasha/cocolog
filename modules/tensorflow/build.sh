@@ -4,13 +4,14 @@
 #
 #   sh modules/tensorflow/build.sh
 #
-# LINUX ONLY, by design. It builds against the pip tensorflow package --
-# `pip install tensorflow' -- whose wheel carries the C API headers under
-# include/tensorflow/c and the library libtensorflow_cc.so.2 beside them;
-# or name the two halves yourself:
+# On Linux it builds against the pip tensorflow package -- `pip install
+# tensorflow' -- whose wheel carries the C API headers under
+# include/tensorflow/c and the library libtensorflow_cc.so.2 beside them.
+# On macOS it builds against Homebrew's C library, `brew install
+# libtensorflow'. Anywhere, name the two halves yourself:
 #
 #   export TF_INCLUDE=/opt/libtensorflow/include
-#   export TF_LIB=/opt/libtensorflow/lib          # libtensorflow.so, the standalone download
+#   export TF_LIB=/opt/libtensorflow/lib          # libtensorflow.so or .dylib, the standalone download
 #
 # library(torch) must be built first: this module attaches to torch.so beside
 # itself at load, and the torch module owns the switch and the predicates.
@@ -20,26 +21,29 @@ ROOT=$(cd "$HERE/../.." && pwd)
 CICILI=${CICILI:-$HOME/cicili}
 . "$ROOT/tools/cc/env.sh"
 OUT=${OUT:-$ROOT/library}
-case "$(uname -s)" in
-  Linux) ;;
-  *) echo "tensorflow: SKIPPED -- this module is Linux only (the pip wheel's C library is built for it there)" >&2; exit 1 ;;
-esac
 if [ -z "${TF_INCLUDE:-}" ] || [ -z "${TF_LIB:-}" ]; then
-  TF_ROOT=$(python3 -c "import tensorflow, os; print(os.path.dirname(tensorflow.__file__))" 2>/dev/null) || TF_ROOT=
-  TF_INCLUDE=${TF_INCLUDE:-${TF_ROOT:+$TF_ROOT/include}}
-  TF_LIB=${TF_LIB:-$TF_ROOT}
+  case "$(uname -s)" in
+    Darwin)
+      BREW_TF=$(brew --prefix libtensorflow 2>/dev/null) || BREW_TF=
+      TF_INCLUDE=${TF_INCLUDE:-${BREW_TF:+$BREW_TF/include}}
+      TF_LIB=${TF_LIB:-${BREW_TF:+$BREW_TF/lib}} ;;
+    *)
+      TF_ROOT=$(python3 -c "import tensorflow, os; print(os.path.dirname(tensorflow.__file__))" 2>/dev/null) || TF_ROOT=
+      TF_INCLUDE=${TF_INCLUDE:-${TF_ROOT:+$TF_ROOT/include}}
+      TF_LIB=${TF_LIB:-$TF_ROOT} ;;
+  esac
 fi
 if [ -z "$TF_INCLUDE" ] || [ ! -f "$TF_INCLUDE/tensorflow/c/c_api.h" ]; then
-  echo "tensorflow: SKIPPED -- no tensorflow/c/c_api.h under ${TF_INCLUDE:-(unset)}: pip install tensorflow, or set TF_INCLUDE and TF_LIB" >&2
+  echo "tensorflow: SKIPPED -- no tensorflow/c/c_api.h under ${TF_INCLUDE:-(unset)}: pip install tensorflow (Linux), brew install libtensorflow (macOS), or set TF_INCLUDE and TF_LIB" >&2
   exit 1
 fi
 TF_LINK=""
 if [ -f "$TF_LIB/libtensorflow_cc.so.2" ]; then
   TF_LINK="-l:libtensorflow_cc.so.2 -l:libtensorflow_framework.so.2"
-elif [ -f "$TF_LIB/libtensorflow.so" ]; then
+elif [ -f "$TF_LIB/libtensorflow.so" ] || [ -f "$TF_LIB/libtensorflow.dylib" ]; then
   TF_LINK="-ltensorflow"
 else
-  echo "tensorflow: SKIPPED -- no libtensorflow_cc.so.2 or libtensorflow.so under $TF_LIB" >&2
+  echo "tensorflow: SKIPPED -- no libtensorflow_cc.so.2, libtensorflow.so or libtensorflow.dylib under $TF_LIB" >&2
   exit 1
 fi
 [ -f "$OUT/torch.so" ] || { echo "tensorflow: build library(torch) first (sh modules/torch/build.sh) -- this module attaches to torch.so" >&2; exit 1; }

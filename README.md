@@ -99,7 +99,7 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        expression to the goals it stands for), and the
                        .so's that `make modules' builds
 modules/               the LOADABLE modules, one directory each -- tcp,
-                       thread, curl, bigint, torch, tensorflow (Linux), and ZiguratIP's
+                       thread, curl, bigint, torch, tensorflow, and ZiguratIP's
                        cryptography: sha, aes, der, x509, tls. None is part of
                        `make': a cocolog with no libtorch, no ZiguratIP
                        headers and no libcurl still builds and still runs
@@ -171,8 +171,8 @@ What the build needs on the machine:
 * **Versions.** `library(torch)` is built and gated against libtorch
   **2.13.0** (Homebrew `pytorch`, macOS) and torch **2.11.0+cu128** (pip,
   Ubuntu 22.04, the Colab VM); `library(tensorflow)` against TensorFlow
-  **2.20.0** (pip, the same VM) and, for its gate on a Mac's CPU by a
-  hand build, libtensorflow **2.21.0** (Homebrew). Earlier 2.x releases of
+  **2.20.0** (pip, the same VM) and libtensorflow **2.21.0** (Homebrew,
+  macOS). Earlier 2.x releases of
   either should build — the module code uses nothing newer than the C++
   API libtorch has carried since 1.x and TensorFlow's C API, stable across
   2.x — but those are the ones that have been run.
@@ -545,7 +545,7 @@ code.
 | `library(curl)` | `.so` | an HTTP client, over libcurl |
 | `library(bigint)` | `.so` | arbitrary-precision integers |
 | `library(torch)` | `.so` | libtorch: tensors, nets, training, GPU |
-| `library(tensorflow)` | `.so` | TensorFlow's C library as the second backend of the `tensor_*` predicates, behind `tensor_execution(tensorflow, eager\|graph)`; Linux |
+| `library(tensorflow)` | `.so` | TensorFlow's C library as the second backend of the `tensor_*` predicates, behind `tensor_execution(tensorflow, eager\|graph, cpu\|cuda\|auto)` |
 | `library(http)` | `.pl` | HTTP/1.1 as a DCG over the bytes tcp gives back |
 | `library(httpd)` | `.pl` | a server whose pages are clauses, with a worker pool |
 | `library(json)` | `.pl` | a term as JSON, and JSON as a term |
@@ -1359,7 +1359,7 @@ parameters itself and a rule must not emit what something else frees.
 
 **And a second backend under the same predicates.** The switch is
 `tensor_execution(Backend, Mode)`, `torch` or `tensorflow`, `eager` or
-`graph`: [`library(tensorflow)`](modules/tensorflow/README.md), Linux only,
+`graph`: [`library(tensorflow)`](modules/tensorflow/README.md)
 is TensorFlow's C library wrapped once behind the same `tensor_*` names,
 registered with the torch module at load and handed every call while it is
 selected. Under either mode a read or a gradient compiles the closure it

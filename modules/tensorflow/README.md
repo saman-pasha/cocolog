@@ -9,7 +9,7 @@ both at once; the `model_*` predicates stay libtorch's.
 
 ```prolog
 :- use_module(library(torch)).          % first: the predicates and the switch are its
-:- use_module(library(tensorflow)).     % Linux; attaches to torch.so beside itself
+:- use_module(library(tensorflow)).     % attaches to torch.so beside itself
 ?- tensor_execution(tensorflow, graph). % from here, every tensor_* is TensorFlow's
 ?- tensor_execution(B, M).              % B = tensorflow, M = graph
 ?- tensorflow_version(V).               % V = '2.20.0'
@@ -193,20 +193,21 @@ Every predicate of the surface answers here: `tensor_from_list/2`,
 
 ## Building, and where
 
-**Linux only, by design.** `sh modules/tensorflow/build.sh` builds
-`library/tensorflow.so` against the pip `tensorflow` package — its wheel
-carries the C API headers under `include/tensorflow/c` and
-`libtensorflow_cc.so.2` beside them — or against a standalone
-libtensorflow named by `TF_INCLUDE` and `TF_LIB`. Elsewhere the script
-says SKIPPED, as `make modules` reports it; `library(torch)` must be built first.
+`sh modules/tensorflow/build.sh` builds `library/tensorflow.so`: on Linux
+against the pip `tensorflow` package — its wheel carries the C API headers
+under `include/tensorflow/c` and `libtensorflow_cc.so.2` beside them — on
+macOS against Homebrew's `libtensorflow`, the C library and its headers;
+anywhere against a standalone libtensorflow named by `TF_INCLUDE` and
+`TF_LIB`. Where none is found the script says SKIPPED, as `make modules`
+reports it; `library(torch)` must be built first, since this module
+attaches to `torch.so` beside itself.
 
 **Versions this was built and gated against**: TensorFlow **2.20.0** (pip,
 Ubuntu 22.04, the Colab VM, where it placed the work on a Tesla T4), with
-`library(torch)` on torch **2.11.0+cu128** from pip there; and, for this
-draft's gate on a Mac's CPU, libtensorflow **2.21.0** from Homebrew, by a
-hand build of the same two files against its `include` and `lib` — the
-module is plain C over the C API, which is why that works, and the script
-stays Linux only on purpose. The C API it uses — `c_api.h` and
+`library(torch)` on torch **2.11.0+cu128** from pip there; and, on a
+Mac's CPU, libtensorflow **2.21.0** from Homebrew, where this draft's gate
+and every tutorial ran. The module is plain C over the C API, which is
+why one build script serves both. The C API it uses — `c_api.h` and
 `eager/c_api.h`, with `TF_GraphToFunction` and `TFE_ContextAddFunction`
 — has been stable since TensorFlow 2.x began, so an earlier 2.x should
 build; none other was tried.

@@ -2,7 +2,7 @@
 # library(tensorflow): the tensor_* predicates over TensorFlow's C library, as
 # the second backend behind tensor_execution(Backend, Mode).
 #
-#   sh test/tensorflow.sh          SKIPs where library/tensorflow.so is not built (Linux only)
+#   sh test/tensorflow.sh          SKIPs where library/tensorflow.so is not built
 #
 # WHAT IS BEING CHECKED. Under tensor_execution(tensorflow, eager) every
 # producer answers what the torch backend answers, within a tolerance -- two
@@ -27,7 +27,7 @@ check() {
 }
 [ -x "$C" ] || { echo "SKIP (build cocolog first)"; exit 0; }
 [ -f "$ROOT/library/torch.so" ] || { echo "SKIP (no library/torch.so)"; exit 0; }
-[ -f "$ROOT/library/tensorflow.so" ] || { echo "SKIP (no library/tensorflow.so -- sh modules/tensorflow/build.sh, Linux)"; exit 0; }
+[ -f "$ROOT/library/tensorflow.so" ] || { echo "SKIP (no library/tensorflow.so -- sh modules/tensorflow/build.sh)"; exit 0; }
 U="use_module(library(torch)), use_module(library(tensorflow))"
 q() { timeout 300 "$C" query "$U, $1" 2>/dev/null | grep -aoE 'answer\(.*\)' | head -1 | sed 's/^answer(//; s/)$//'; }
 TF="tensor_execution(tensorflow, eager), tensorflow_seed(11), torch_seed(11)"

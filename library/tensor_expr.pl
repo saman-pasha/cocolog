@@ -97,8 +97,8 @@
 %%
 %% TWO BACKENDS, ONE GRAMMAR. The goals this grammar emits are the tensor_*
 %% predicates, and those have two implementations behind
-%% tensor_execution(Backend, Mode): libtorch, and -- on Linux, with
-%% library(tensorflow) loaded -- TensorFlow's C library, where a closure is
+%% tensor_execution(Backend, Mode): libtorch, and -- with library(tensorflow)
+%% built -- TensorFlow's C library, where a closure is
 %% compiled once into a TensorFlow function and the gradient is
 %% TF_AddGradients inside it, under either mode. An expression, a
 %% procedure, a tutorial written in them runs on either library, under

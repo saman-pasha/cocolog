@@ -2,7 +2,7 @@
 ;;;; TensorFlow's C library, as a second BACKEND behind library(torch)'s switch.
 ;;;;
 ;;;;   use_module(library(torch)).          % first: it owns the predicates and the switch
-;;;;   use_module(library(tensorflow)).     % Linux; registers itself with the torch module
+;;;;   use_module(library(tensorflow)).     % registers itself with the torch module
 ;;;;   tensor_execution(tensorflow, graph). % from here every tensor_* call is TensorFlow's
 ;;;;
 ;;;; THE FRONT END IS THIS FILE: the dispatcher the torch module hands calls to,
@@ -19,8 +19,9 @@
 ;;;; stay the torch module's, which forwards them here while the backend is
 ;;;; selected -- one surface, two implementations, and never both at once.
 ;;;;
-;;;; Linux only, by design: it is built by build.sh against the pip tensorflow
-;;;; package's C library, and the script says so elsewhere.
+;;;; Built by build.sh against the pip tensorflow package's C library on
+;;;; Linux and Homebrew's libtensorflow on macOS -- plain C over the C API,
+;;;; which is why one file serves both.
 
 (source "coco-tensorflow.c"
   (make :compile #f)

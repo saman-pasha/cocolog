@@ -21,8 +21,8 @@ the file does not name it, and `seed/1` seeds whichever is selected.
 
     ./cocolog --embed /tmp/tutorials run tutorials/tensor/32-resnet.pl "tensor_execution(tensorflow, graph), train"
 
-is the same file on TensorFlow, on Linux with `library(tensorflow)` built
-(or on a Mac by a hand build against Homebrew's libtensorflow). Three
+is the same file on TensorFlow, with `library(tensorflow)` built -- the
+pip `tensorflow` on Linux, Homebrew's `libtensorflow` on macOS. Three
 things that follow, each run: a model trained under `graph` on a GPU
 predicts under `eager` on a CPU, because the store holds shapes and
 numbers and `params(Name)` rebuilds them wherever it is loaded (the

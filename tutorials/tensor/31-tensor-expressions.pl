@@ -46,7 +46,7 @@
 %%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/31-tensor-expressions.pl predict
 
 :- use_module(library(torch)).
-% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
+% :- use_module(library(tensorflow)).   % the second backend; tensor_execution(tensorflow, Mode, Device) loads it on demand
 
 %% ---- the grammar lives in library(tensor_expr) ------------------------------
 %%

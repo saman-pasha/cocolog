@@ -63,7 +63,7 @@
 %% is even a clause.
 
 :- use_module(library(torch)).
-% :- use_module(library(tensorflow)).   % the second backend, Linux; tensor_execution(tensorflow, _) loads it on demand
+% :- use_module(library(tensorflow)).   % the second backend; tensor_execution(tensorflow, Mode, Device) loads it on demand
 :- use_module(library(tensor_expr)).
 :- op(700, xfx, :=).
 :- op(400, yfx, matmul).
