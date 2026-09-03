@@ -129,13 +129,65 @@ trained to test accuracy 1.00 and 33's U-Net to IoU 0.917 on this
 library, the same files, when given the time.
 
 This draft, the fourth, takes both away — device-resident handles, one
-call a step — and adds the eager gradient. **Its T4 numbers are not yet
-taken**: the VM went before it was written, and the bar is a T4 bar. What
-is measured is a Mac's CPU, TensorFlow 2.21.0 from Homebrew (a build
+call a step — and adds the eager gradient. **On the T4 it meets the bar
+on the nine tutorials that compute for longer than a few seconds, within
+1.05 times torch or under it, and misses it on the two shortest by a
+process start-up.** The same files, `train` then `test` under
+`tensor_execution(Backend, graph, auto)`, wall-clock seconds including
+start-up, each pair one after the other on a Colab VM — a Tesla T4,
+two host cores, torch 2.11.0+cu128 and TensorFlow 2.20.0 from pip —
+with the GPU's utilisation sampled once a second while each ran:
+
+| tutorial | torch, T4 | TensorFlow, T4 | GPU busy, torch / TensorFlow | quality, torch / TensorFlow |
+|---|---|---|---|---|
+| 31 tensor expressions | 2 s + 1 s | 3 s + 2 s | 3% / 3% | rmse 0.0011 / 0.0018; eager and graph identical on both |
+| 32 ResNet | 4 s + 2 s | 6 s + 2 s | 8% / 9% | test accuracy 1.00 / 1.00 |
+| 33 U-Net | 5 s + 2 s | 5 s + 2 s | 8% / 8% | test IoU 0.903 / 0.865 |
+| 34 transformer encoder | 20 s + 1 s | 20 s + 2 s | 13% / 11% | test accuracy 1.00 / 0.97 |
+| 35 GPT | 24 s + 2 s | 23 s + 4 s | 13% / 11% | next-character accuracy 0.87 / 0.87 |
+| 36 VAE | 11 s + 1 s | 12 s + 2 s | 9% / 9% | reconstruction pixel accuracy 1.000 / 1.000 |
+| 37 GAN | 106 s + 1 s | 102 s + 2 s | 11% / 10% | 0.95 / 0.95 within 0.15 of the ring, 12 of 12 sectors |
+| 38 GCN | 3 s + 1 s | 4 s + 2 s | 2% / 2% | 32 / 33 of 34 members, 0.941 / 0.971 |
+| 39 RealNVP | 40 s + 1 s | 35 s + 2 s | 11% / 8% | NLL 0.645 / 0.525 against a Gaussian's 1.932 |
+| 40 DDPM | 46 s + 1 s | 48 s + 2 s | 9% / 6% | 0.87 / 0.91 within 0.15 of the ring, 12 of 12 sectors |
+| 41 seq2seq with attention | 28 s + 1 s | 27 s + 2 s | 16% / 14% | token accuracy 0.98 / 0.97 |
+
+Every `test` says ok. Neither library keeps the T4 busy, at a tenth or
+less: every tensor here is kilobytes, a step is dozens of launches, and
+the Prolog that composes them runs on the VM's two host cores, as the
+torch table in the main README found before. On 31 and 38, three and four
+seconds of training, TensorFlow reads 1.7 to 1.9 times torch, measured
+to the millisecond, and the profile says where: the first call of a
+closure that uses a kernel for the first time pays for loading it —
+0.5 s for 38's forward, 0.7 s for its gradient, 1.2 s for 34's first
+forward — a cost per process that torch pays less of, and that two
+hundred steps of a two-second tutorial cannot spread. Turning Grappler
+off changed nothing; a smaller start would need the library to load less.
+
+**The first run on the T4 met the bar on none of them**, and the calls
+were not the reason. `COCO_TF_TRACE=1` prints a line per call and, at
+exit, what the run cost by phase — calls, closures, compiles, device
+copies, eager operations, reads — and put tutorial 34's calls at
+6.7 s of its 31 s and its 101,721 device copies at 7.9 s: Adam makes
+seven scalar operands per parameter per step, the betas, the epsilon,
+the corrected rate, and each was a host tensor copied to the device at
+birth. A scalar value is one device tensor now, shared by every slot
+that holds it, and a step copies its corrected rate and nothing else: 34
+fell from 31 s to 20 s, 36 from 19 s to 13 s. `COCO_TF_XLA=N` compiles a
+closure with XLA after its Nth call; on the T4 it took a fifth off the
+calls and little off the total, and is left as the measured knob it is.
+And before either library could be measured, torch had to be fixed:
+under `auto` it set its device to `cuda` with no index, every tensor
+lives on `cuda:0`, and torch's comparison of the two said different —
+so each parameter was re-made a detached leaf at every touch, and thirty
+tutorials trained to chance without one error. `cuda`, index 0, compared
+equal, which is why every gate had passed. The test is by type now, and
+a parameter read twice under `auto` is in `test/torch-grad.sh`.
+
+The same on a Mac's CPU, TensorFlow 2.21.0 from Homebrew (a build
 without AVX2/FMA, as it says at start) against libtorch 2.13.0, the same
-files, `train` then `test`, wall-clock seconds including start-up, each
-pair measured one after the other on an otherwise idle machine, after
-every tutorial was rewritten in expressions:
+files and goals, each pair measured one after the other on an otherwise
+idle machine:
 
 | tutorial | torch, CPU | TensorFlow, CPU | quality, torch / TensorFlow |
 |---|---|---|---|
@@ -151,11 +203,10 @@ every tutorial was rewritten in expressions:
 | 40 DDPM | 45 s + 1 s | 41 s + 1 s | 0.86 / 0.91 within 0.15 of the ring, 12 of 12 sectors |
 | 41 seq2seq with attention | 21 s + 1 s | 18 s + 1 s | token accuracy 0.98 / 0.97 |
 
-Every `test` above says ok, its threshold met; on this CPU TensorFlow
-is at or under torch's time on all eleven, and well under on the two
-that run longest, the GAN and the flow. The T4 row for each waits for
-the next VM. The road here was four drafts, each
-found wrong by a run. The first built the graph one predicate at a time
+Every `test` here says ok too; on this CPU TensorFlow is at or under
+torch's time on all eleven, and well under on the two that run longest,
+the GAN and the flow. The road here was four drafts, each found wrong
+by a run. The first built the graph one predicate at a time
 and ran a session per read: quadratic in the steps, 360 s for 200 steps
 of tutorial 31's fit. The second keyed and compiled closures, but forced
 every step's result at once — twenty session runs a step for a
