@@ -2516,8 +2516,11 @@
               (set i (+ i 1)))
             (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_list e items n))))
           (catch ((const std::exception & ex))
-            (cast void ex)
-            (return (coco_m_domain_error e "parameter" g)))))))
+            ;; an exception from the backward pass -- out of device memory, most
+            ;; often -- said `parameter expected' and nothing else, once, for
+            ;; an afternoon: the message goes to stderr before the error
+            (fprintf stderr "cocolog: tensor_grad: %s\n" (code "ex.what()"))
+            (return (coco_m_domain_error e "tensor_op" g)))))))
 
   ;; ---- the Coco half --------------------------------------------------
   ;; model_save/2 and model_load/2 are the Zigurat bridge, CHUNKED to the
