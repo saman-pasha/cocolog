@@ -45,13 +45,17 @@
 ;;;; the memory. `bigint_pow' checks before it multiplies, because the
 ;;;; refusal has to come before the cost, not after it.
 ;;;;
-;;;; TWO LANGUAGES, ONE TARGET -- the shape torch/coco-torch.cicili uses
-;;;; and for the same reason. The arithmetic is RAW C++ inside (code ...)
-;;;; blocks, because Zigurat::BigInt is a C++ class with C++ operators
-;;;; and that is where it is at home. Everything facing the engine --
-;;;; argument marshalling, errors, the dispatcher -- is Cicili. The seam
-;;;; between them is deliberately one function wide: text in, text out,
-;;;; an integer saying what went wrong.
+;;;; ONE LANGUAGE, ONE TARGET. This is a Cicili :cpp target and the
+;;;; arithmetic is Cicili clauses over Zigurat::BigInt -- (+ a b) is the
+;;;; class's own operator+, (Zigurat::BigInt::cmp a b) its comparison --
+;;;; written against the declarations in cicili/lib/cpp/zigurat. The seam
+;;;; to the engine is still one function wide: text in, text out, an
+;;;; integer saying what went wrong.
+
+;;; A METHOD CALL AS A CONDITION goes through `bool?': the emitter takes a
+;;; bare (($ x is_zero)) in an `if' for a construct, and (not (not ...)) is
+;;; the same truth written as an expression it does read.
+(DEFMACRO bool? (x) `(not (not ,x)))
 
 (source "coco-bigint.cpp"
   ;; COMPILED BY build.sh, NOT BY CICILI. `:compile #f' stops Cicili
@@ -116,196 +120,248 @@
   ;; representation both sides agree on -- BigInt constructs from them
   ;; and writes back to them -- so decimal is converted against those.
 
-  (code "#include <bigint.hpp>")
-  (code "#include <bufferstream.hpp>")
-  (code "using Zigurat::BigInt;")
+  (include <bigint.hpp>)
+  (include <bufferstream.hpp>)
+  (include <cmath>)
+  (import "lib/cpp/zigurat/stream.cicili")
+  (import "lib/cpp/zigurat/bigint.cicili")
 
-  (code "#define BI_MAX_DIGITS 4096")
+  ;; ---- the arithmetic, as Cicili clauses over Zigurat::BigInt --------
+  ;;
+  ;; ONE LANGUAGE, ONE TARGET: this is a :cpp target, so a BigInt sum is
+  ;; (+ a b) and a comparison (Zigurat::BigInt::cmp a b), written against
+  ;; the declarations in cicili/lib/cpp/zigurat, and the C++ compiler sees
+  ;; the class's own operators. The only arithmetic here that is not a
+  ;; call into BigInt is the TEXT conversion, done on plain byte strings:
+  ;; to_string() answers a colon-separated hex octet dump ("01:A3:FF"),
+  ;; which is a debug format and not a number anybody typed. Magnitude
+  ;; bytes are the one representation both sides agree on -- BigInt
+  ;; constructs from them and writes back to them -- so decimal is
+  ;; converted against those, held in a std::string of bytes.
+  ;;
+  ;; `sign' IS THE GETTER, and negation is subtraction from zero: BigInt's
+  ;; setter is a second signature under the same name, which Cicili does
+  ;; not hold, and zero minus a number is the same number the other way.
 
   ;; A magnitude as big-endian bytes, multiplied by ten and added to.
-  (code "static void mag_mul10_add(std::vector<uint8_t>& m, int d) {")
-  (code "  int carry = d;")
-  (code "  for (size_t i = m.size(); i > 0; i--) {")
-  (code "    int v = (int)m[i-1] * 10 + carry; m[i-1] = (uint8_t)(v & 0xff); carry = v >> 8; }")
-  (code "  while (carry) { m.insert(m.begin(), (uint8_t)(carry & 0xff)); carry >>= 8; } }")
+  (static) (func bi_mul10_add ((std::string & m) (int d))
+    (let ((int carry . d))
+      (for ((size_t i . #'(($ m size)))) (> i 0) ((-- i))
+        (let ((int v . #'(+ (* (cast int (cast u8 (nth (- i 1) m))) 10) carry)))
+          (set (nth (- i 1) m) (cast char (bitand v 255)))
+          (set carry (>> v 8))))
+      (while (!= carry 0)
+        (($ m insert) 0 1 (cast char (bitand carry 255)))
+        (set carry (>> carry 8)))))
 
   ;; And divided by ten, answering the digit that fell out.
-  (code "static int mag_divmod10(std::vector<uint8_t>& m) {")
-  (code "  int rem = 0;")
-  (code "  for (size_t i = 0; i < m.size(); i++) {")
-  (code "    int cur = (rem << 8) | m[i]; m[i] = (uint8_t)(cur / 10); rem = cur % 10; }")
-  (code "  while (m.size() > 1 && m[0] == 0) m.erase(m.begin());")
-  (code "  return rem; }")
+  (static) (func bi_divmod10 ((std::string & m)) (out int)
+    (let ((int rem . 0))
+      (for ((size_t i . 0)) (< i (($ m size))) ((++ i))
+        (let ((int cur . #'(bitor (<< rem 8) (cast int (cast u8 (nth i m))))))
+          (set (nth i m) (cast char (/ cur 10)))
+          (set rem (% cur 10))))
+      (while (and (> (($ m size)) 1) (== 0 (cast int (cast u8 (nth 0 m)))))
+        (($ m erase) 0 1))
+      (return rem)))
 
-  (code "static bool mag_zero(const std::vector<uint8_t>& m) {")
-  (code "  for (size_t i = 0; i < m.size(); i++) if (m[i]) return false; return true; }")
+  (static) (func bi_mag_zero ((const std::string & m)) (out int)
+    (for ((size_t i . 0)) (< i (($ m size))) ((++ i))
+      (if (!= 0 (cast int (cast u8 (nth i m)))) (return 0)))
+    (return 1))
+
+  (static) (func bi_hexval ((int c)) (out int)
+    (if (and (>= c 48) (<= c 57)) (return (- c 48)))
+    (if (and (>= c 97) (<= c 102)) (return (+ (- c 97) 10)))
+    (if (and (>= c 65) (<= c 70)) (return (+ (- c 65) 10)))
+    (return -1))
 
   ;; Text in. Decimal, or 0x hex, either with a leading minus. Answers
-  ;; false on anything else -- an empty atom and a stray letter included.
-  (code "static bool bi_parse(const char* s, BigInt& out) {")
-  (code "  if (!s) return false;")
-  (code "  bool neg = false; if (*s == '-') { neg = true; s++; } else if (*s == '+') s++;")
-  (code "  if (!*s) return false;")
-  (code "  std::vector<uint8_t> mag; mag.push_back(0);")
-  (code "  if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {")
-  (code "    const char* h = s + 2; if (!*h) return false;")
-  (code "    size_t n = strlen(h); if (n > BI_MAX_DIGITS) return false;")
-  (code "    std::vector<uint8_t> b; std::vector<int> d;")
-  (code "    for (size_t i = 0; i < n; i++) {")
-  (code "      int c = h[i], v;")
-  (code "      if (c >= '0' && c <= '9') v = c - '0';")
-  (code "      else if (c >= 'a' && c <= 'f') v = 10 + c - 'a';")
-  (code "      else if (c >= 'A' && c <= 'F') v = 10 + c - 'A';")
-  (code "      else return false;")
-  (code "      d.push_back(v); }")
-  ;; Digits pair from the RIGHT, so an odd count leaves the FIRST one
-  ;; alone as a high nibble. Pairing from the left instead read "ff" as
-  ;; two separate nibbles and answered 3855 where 255 was meant.
-  (code "    size_t start = 0;")
-  (code "    if (d.size() % 2 == 1) { b.push_back((uint8_t)d[0]); start = 1; }")
-  (code "    for (size_t i = start; i + 1 < d.size(); i += 2)")
-  (code "      b.push_back((uint8_t)(d[i] * 16 + d[i+1]));")
-  (code "    if (b.empty()) b.push_back(0);")
-  (code "    mag = b; }")
-  (code "  else {")
-  (code "    size_t n = strlen(s); if (n > BI_MAX_DIGITS) return false;")
-  (code "    for (size_t i = 0; i < n; i++) {")
-  (code "      if (s[i] < '0' || s[i] > '9') return false;")
-  (code "      mag_mul10_add(mag, s[i] - '0'); } }")
-  (code "  out = BigInt(mag.data(), mag.size(), false);")
-  (code "  if (neg && !out.is_zero()) out.sign(true);")
-  (code "  return true; }")
+  ;; 0 on anything else -- an empty atom and a stray letter included.
+  (static) (func bi_parse ((const char * s) (Zigurat::BigInt & out)) (out int)
+    (if (== s nil) (return 0))
+    (let ((int neg . 0) (const char * p . s))
+      (cond ((== (cast int (nth 0 p)) 45) (set neg 1) (set p (+ p 1)))
+            ((== (cast int (nth 0 p)) 43) (set p (+ p 1))))
+      (if (== (cast int (nth 0 p)) 0) (return 0))
+      (letin* ((mag (std::string 1 (cast char 0))))
+        (if (and (== (cast int (nth 0 p)) 48) (or (== (cast int (nth 1 p)) 120) (== (cast int (nth 1 p)) 88)))
+            ;; hex: the digits PAIR FROM THE RIGHT, so an odd count leaves the
+            ;; first one alone as a high nibble. Pairing from the left read
+            ;; "ff" as two separate nibbles and answered 3855 where 255 was meant.
+            (let ((const char * h . #'(+ p 2)))
+              (if (== (cast int (nth 0 h)) 0) (return 0))
+              (let ((size_t n . #'(strlen h)))
+                (if (> n 4096) (return 0))
+                (letin* ((d (std::string)) (b (std::string)))
+                  (for ((size_t i . 0)) (< i n) ((++ i))
+                    (let ((int v . #'(bi_hexval (cast int (nth i h)))))
+                      (if (< v 0) (return 0))
+                      (($ d push_back) (cast char v))))
+                  (let ((size_t start . 0))
+                    (if (== 1 (% (($ d size)) 2))
+                        (block (($ b push_back) (nth 0 d)) (set start 1)))
+                    (for ((size_t i . start)) (< (+ i 1) (($ d size))) ((set i (+ i 2)))
+                      (($ b push_back) (cast char (+ (* (cast int (nth i d)) 16) (cast int (nth (+ i 1) d)))))))
+                  (if (bool? (($ b empty))) (($ b push_back) (cast char 0)))
+                  (set mag b))))
+            (let ((size_t n . #'(strlen p)))
+              (if (> n 4096) (return 0))
+              (for ((size_t i . 0)) (< i n) ((++ i))
+                (let ((int c . #'(cast int (nth i p))))
+                  (if (or (< c 48) (> c 57)) (return 0))
+                  (bi_mul10_add mag (- c 48))))))
+        (set out (Zigurat::BigInt (cast (const u8 *) (($ mag data))) (($ mag size)) false))
+        (if (and neg (not (($ out is_zero))))
+            (set out (- (Zigurat::BigInt (cast i32 0)) out)))
+        (return 1))))
 
   ;; The magnitude of a BigInt as bytes -- through the same bufferstream
   ;; its own print() uses, because the length is not otherwise askable.
-  (code "static void bi_mag(const BigInt& v, std::vector<uint8_t>& out) {")
-  (code "  out.clear();")
-  (code "  Zigurat::bufferstream buf;")
-  (code "  v.to_octet_string(buf, false);")
-  (code "  size_t n = buf.length();")
-  (code "  for (size_t i = 0; i < n; i++) out.push_back((uint8_t)buf.get());")
-  (code "  while (out.size() > 1 && out[0] == 0) out.erase(out.begin());")
-  (code "  if (out.empty()) out.push_back(0); }")
+  (static) (func bi_mag ((const Zigurat::BigInt & v) (std::string & out))
+    (($ out clear))
+    (letin* ((buf (Zigurat::bufferstream)))
+      (($ v to_octet_string) buf false)
+      (let ((size_t n . #'(($ buf length))))
+        (for ((size_t i . 0)) (< i n) ((++ i)) (($ out push_back) (cast char (($ buf get)))))))
+    (while (and (> (($ out size)) 1) (== 0 (cast int (cast u8 (nth 0 out)))))
+      (($ out erase) 0 1))
+    (if (bool? (($ out empty))) (($ out push_back) (cast char 0))))
 
   ;; Text out, decimal, canonical: no leading zero, a minus only when
   ;; the value is actually below zero (never on a negative zero).
-  (code "static bool bi_dec(const BigInt& v, std::string& out) {")
-  (code "  std::vector<uint8_t> m; bi_mag(v, m);")
-  (code "  std::string d;")
-  (code "  if (mag_zero(m)) { out = \"0\"; return true; }")
-  (code "  while (!mag_zero(m)) { int r = mag_divmod10(m); d.push_back((char)('0' + r));")
-  (code "    if (d.size() > BI_MAX_DIGITS) return false; }")
-  (code "  out.clear(); if (v.sign()) out.push_back('-');")
-  (code "  for (size_t i = d.size(); i > 0; i--) out.push_back(d[i-1]);")
-  (code "  return true; }")
+  (static) (func bi_dec ((const Zigurat::BigInt & v) (std::string & out)) (out int)
+    (letin* ((m (std::string)) (d (std::string)))
+      (bi_mag v m)
+      (if (bi_mag_zero m) (block (set out (std::string "0")) (return 1)))
+      (while (not (bi_mag_zero m))
+        (let ((int r . #'(bi_divmod10 m)))
+          (($ d push_back) (cast char (+ 48 r)))
+          (if (> (($ d size)) 4096) (return 0))))
+      (($ out clear))
+      (if (bool? (($ v sign))) (($ out push_back) (cast char 45)))
+      (for ((size_t i . #'(($ d size)))) (> i 0) ((-- i)) (($ out push_back) (nth (- i 1) d)))
+      (return 1)))
 
-  (code "static bool bi_hexs(const BigInt& v, std::string& out) {")
-  (code "  std::vector<uint8_t> m; bi_mag(v, m);")
-  (code "  const char* hx = \"0123456789abcdef\";")
-  (code "  std::string h;")
-  (code "  for (size_t i = 0; i < m.size(); i++) { h.push_back(hx[m[i] >> 4]); h.push_back(hx[m[i] & 15]); }")
-  (code "  size_t z = 0; while (z + 1 < h.size() && h[z] == '0') z++;")
-  (code "  out.clear(); if (v.sign() && !mag_zero(m)) out.push_back('-');")
-  (code "  out += h.substr(z);")
-  (code "  return true; }")
+  (static) (func bi_hexs ((const Zigurat::BigInt & v) (std::string & out)) (out int)
+    (letin* ((m (std::string)) (h (std::string)))
+      (bi_mag v m)
+      (let ((const char * hx . "0123456789abcdef"))
+        (for ((size_t i . 0)) (< i (($ m size))) ((++ i))
+          (($ h push_back) (nth (>> (cast int (cast u8 (nth i m))) 4) hx))
+          (($ h push_back) (nth (bitand (cast int (cast u8 (nth i m))) 15) hx))))
+      (let ((size_t z . 0))
+        (while (and (< (+ z 1) (($ h size))) (== (cast int (nth z h)) 48)) (set z (+ z 1)))
+        (($ out clear))
+        (if (and (($ v sign)) (not (bi_mag_zero m))) (($ out push_back) (cast char 45)))
+        (set out (+ out (($ h substr) z (- (($ h size)) z))))
+        (return 1))))
 
-  ;; The number of decimal digits, without building them -- what
-  ;; `bigint_pow' asks before it agrees to multiply anything.
-  (code "#include <cmath>")
-  (code "static double bi_log2(const BigInt& v) {")
-  (code "  std::vector<uint8_t> m; bi_mag(v, m);")
-  (code "  if (mag_zero(m)) return 0.0;")
-  (code "  size_t n = m.size(), take = n < 8 ? n : 8; double top = 0.0;")
-  (code "  for (size_t i = 0; i < take; i++) top = top * 256.0 + (double)m[i];")
-  (code "  return std::log2(top) + 8.0 * (double)(n - take); }")
+  ;; The number of bits, without building the digits -- what `bigint_pow'
+  ;; asks before it agrees to multiply anything.
+  (static) (func bi_log2 ((const Zigurat::BigInt & v)) (out double)
+    (letin* ((m (std::string)))
+      (bi_mag v m)
+      (if (bi_mag_zero m) (return 0.0))
+      (let ((size_t n . #'(($ m size))) (size_t take . #'(? (< (($ m size)) 8) (($ m size)) 8)) (double top . 0.0))
+        (for ((size_t i . 0)) (< i take) ((++ i))
+          (set top (+ (* top 256.0) (cast double (cast u8 (nth i m))))))
+        (return (+ (std::log2 top) (* 8.0 (cast double (- n take))))))))
 
   ;; Newton's, on integers: the floor of the square root. BigInt has no
   ;; sqrt of its own, and this is the one piece of arithmetic here that
   ;; is not simply a call into it. Starting from a halving of the
   ;; digit count rather than from N keeps it to a handful of divides.
-  (code "static bool bi_sqrt(const BigInt& n, BigInt& out) {")
-  (code "  if (n.sign()) return false;")
-  (code "  if (n.is_zero()) { out = BigInt((int32_t)0); return true; }")
-  (code "  BigInt one((int32_t)1), two((int32_t)2);")
-  (code "  if (BigInt::cmp(n, one) <= 0) { out = one; return true; }")
-  (code "  BigInt x = n, y = (n / two) + one;")
-  (code "  while (BigInt::cmp(y, x) < 0) { x = y; y = (x + (n / x)) / two; }")
-  (code "  out = x; return true; }")
+  (static) (func bi_sqrt ((const Zigurat::BigInt & n) (Zigurat::BigInt & out)) (out int)
+    (if (bool? (($ n sign))) (return 0))
+    (if (bool? (($ n is_zero))) (block (set out (Zigurat::BigInt (cast i32 0))) (return 1)))
+    (let ((Zigurat::BigInt one . #'(Zigurat::BigInt (cast i32 1))) (Zigurat::BigInt two . #'(Zigurat::BigInt (cast i32 2))))
+      (if (<= (Zigurat::BigInt::cmp n one) 0) (block (set out one) (return 1)))
+      (let ((Zigurat::BigInt x . n) (Zigurat::BigInt y . #'(+ (/ n two) one)))
+        (while (< (Zigurat::BigInt::cmp y x) 0)
+          (set x y)
+          (set y (/ (+ x (/ n x)) two)))
+        (set out x)
+        (return 1))))
 
   ;; THE SEAM, one function wide. Text in, text out, and a code saying
-  ;; what went wrong -- so the Cicili side below never holds a BigInt and
-  ;; the C++ side never holds an engine.
+  ;; what went wrong -- so the predicates below never hold a BigInt.
   ;;
   ;;   0 ok   1 bad A   2 bad B   3 bad C   4 divide by zero
   ;;   5 the answer is too big to be written   6 no modular inverse
   ;;   7 no such operation   8 the argument is out of the domain
-  (code "extern \"C\" int coco_bi_eval(const char* op, const char* a, const char* b,")
-  (code "                             const char* c, char* out, size_t cap) {")
-  (code "  BigInt A, B, C;")
-  (code "  if (a && !bi_parse(a, A)) return 1;")
-  (code "  if (b && !bi_parse(b, B)) return 2;")
-  (code "  if (c && !bi_parse(c, C)) return 3;")
-  (code "  BigInt R; std::string s;")
-  (code "  if (!strcmp(op, \"add\")) R = A + B;")
-  (code "  else if (!strcmp(op, \"sub\")) R = A - B;")
-  (code "  else if (!strcmp(op, \"mul\")) R = A * B;")
-  (code "  else if (!strcmp(op, \"div\")) { if (B.is_zero()) return 4; R = A / B; }")
-  (code "  else if (!strcmp(op, \"mod\")) { if (B.is_zero()) return 4; R = A % B; }")
-  (code "  else if (!strcmp(op, \"gcd\")) R = BigInt::gcd(A, B);")
-  (code "  else if (!strcmp(op, \"lcm\")) { if (A.is_zero() || B.is_zero()) return 4; R = BigInt::lcm(A, B); }")
-  ;; COPRIMALITY IS ASKED FIRST, because BigInt::inverse does not return
-  ;; when there is no inverse -- it ABORTS THE PROCESS. Checking the
-  ;; answer afterwards, which is what this did at first, never runs.
-  (code "  else if (!strcmp(op, \"inverse\")) { if (B.is_zero()) return 4;")
-  (code "    BigInt g = BigInt::gcd(A, B); BigInt one((int32_t)1);")
-  (code "    if (BigInt::cmp(g, one) != 0) return 6;")
-  (code "    R = BigInt::inverse(A, B); }")
-  (code "  else if (!strcmp(op, \"mod_pow\")) { if (C.is_zero()) return 4;")
-  (code "    if (B.sign()) return 8; R = BigInt::mod_pow(A, B, C); }")
-  (code "  else if (!strcmp(op, \"pow\")) {")
-  (code "    if (B.sign()) return 8;")
-  (code "    std::string es; if (!bi_dec(B, es)) return 5;")
-  (code "    if (es.size() > 7) return 5;")
-  (code "    long ex = atol(es.c_str());")
-  (code "    if (bi_log2(A) * 0.30103 * (double)ex + 1.0 > (double)BI_MAX_DIGITS) return 5;")
-  (code "    R = BigInt::pow(A, B); }")
-  (code "  else if (!strcmp(op, \"sqrt\")) { if (!bi_sqrt(A, R)) return 8; }")
-  (code "  else if (!strcmp(op, \"abs\")) { R = A; R.sign(false); }")
-  (code "  else if (!strcmp(op, \"neg\")) { R = A; if (!R.is_zero()) R.sign(!A.sign()); }")
-  (code "  else if (!strcmp(op, \"dec\")) R = A;")
-  (code "  else if (!strcmp(op, \"cmp\")) {")
-  (code "    int r = BigInt::cmp(A, B);")
-  (code "    const char* t = (r < 0) ? \"<\" : (r > 0 ? \">\" : \"=\");")
-  (code "    if (strlen(t) + 1 > cap) return 5; strcpy(out, t); return 0; }")
-  (code "  else if (!strcmp(op, \"hex\")) { if (!bi_hexs(A, s)) return 5;")
-  (code "    if (s.size() + 1 > cap) return 5; strcpy(out, s.c_str()); return 0; }")
-  (code "  else return 7;")
-  (code "  if (!bi_dec(R, s)) return 5;")
-  (code "  if (s.size() + 1 > cap) return 5;")
-  (code "  strcpy(out, s.c_str()); return 0; }")
-
-  (decl) (func coco_bi_eval ((const char * op) (const char * a) (const char * b)
-                             (const char * c) (char * out) (size_t cap)) (out int))
+  (static) (func coco_bi_eval ((const char * op) (const char * a) (const char * b)
+                               (const char * c) (char * out) (size_t cap)) (out int)
+    (let ((Zigurat::BigInt A) (Zigurat::BigInt B) (Zigurat::BigInt C) (Zigurat::BigInt R)
+          (Zigurat::BigInt zero . #'(Zigurat::BigInt (cast i32 0))))
+      (if (and (!= a nil) (not (bi_parse a A))) (return 1))
+      (if (and (!= b nil) (not (bi_parse b B))) (return 2))
+      (if (and (!= c nil) (not (bi_parse c C))) (return 3))
+      (letin* ((s (std::string)))
+        (cond
+          ((== 0 (strcmp op "add")) (set R (+ A B)))
+          ((== 0 (strcmp op "sub")) (set R (- A B)))
+          ((== 0 (strcmp op "mul")) (set R (* A B)))
+          ((== 0 (strcmp op "div")) (if (bool? (($ B is_zero))) (return 4)) (set R (/ A B)))
+          ((== 0 (strcmp op "mod")) (if (bool? (($ B is_zero))) (return 4)) (set R (% A B)))
+          ((== 0 (strcmp op "gcd")) (set R (Zigurat::BigInt::gcd A B)))
+          ((== 0 (strcmp op "lcm"))
+           (if (or (($ A is_zero)) (($ B is_zero))) (return 4))
+           (set R (Zigurat::BigInt::lcm A B)))
+          ;; COPRIMALITY IS ASKED FIRST, because BigInt::inverse does not return
+          ;; when there is no inverse -- it ABORTS THE PROCESS. Checking the
+          ;; answer afterwards, which is what this did at first, never runs.
+          ((== 0 (strcmp op "inverse"))
+           (if (bool? (($ B is_zero))) (return 4))
+           (let ((Zigurat::BigInt g . #'(Zigurat::BigInt::gcd A B)) (Zigurat::BigInt one . #'(Zigurat::BigInt (cast i32 1))))
+             (if (!= (Zigurat::BigInt::cmp g one) 0) (return 6))
+             (set R (Zigurat::BigInt::inverse A B))))
+          ((== 0 (strcmp op "mod_pow"))
+           (if (bool? (($ C is_zero))) (return 4))
+           (if (bool? (($ B sign))) (return 8))
+           (set R (Zigurat::BigInt::mod_pow A B C)))
+          ((== 0 (strcmp op "pow"))
+           (if (bool? (($ B sign))) (return 8))
+           (letin* ((es (std::string)))
+             (if (not (bi_dec B es)) (return 5))
+             (if (> (($ es size)) 7) (return 5))
+             (let ((long ex . #'(atol (($ es c_str)))))
+               (if (> (+ (* (* (bi_log2 A) 0.30103) (cast double ex)) 1.0) 4096.0) (return 5))
+               (set R (Zigurat::BigInt::pow A B)))))
+          ((== 0 (strcmp op "sqrt")) (if (not (bi_sqrt A R)) (return 8)))
+          ((== 0 (strcmp op "abs")) (if (bool? (($ A sign))) (set R (- zero A)) (set R A)))
+          ((== 0 (strcmp op "neg")) (if (bool? (($ A is_zero))) (set R A) (set R (- zero A))))
+          ((== 0 (strcmp op "dec")) (set R A))
+          ((== 0 (strcmp op "cmp"))
+           (let ((int r . #'(Zigurat::BigInt::cmp A B)) (const char * t . #'(? (< r 0) "<" (? (> r 0) ">" "="))))
+             (if (> (+ (strlen t) 1) cap) (return 5))
+             (strcpy out t)
+             (return 0)))
+          ((== 0 (strcmp op "hex"))
+           (if (not (bi_hexs A s)) (return 5))
+           (if (> (+ (($ s size)) 1) cap) (return 5))
+           (strcpy out (($ s c_str)))
+           (return 0))
+          (#t (return 7)))
+        (if (not (bi_dec R s)) (return 5))
+        (if (> (+ (($ s size)) 1) cap) (return 5))
+        (strcpy out (($ s c_str)))
+        (return 0))))
 
   ;; ---- facing the engine ----------------------------------------------
 
-  ;;; A 64-bit integer as its own digits. In C++ because `long long' is
-  ;;; TWO type tokens and a Cicili cast takes one -- the printf length
-  ;;; modifier has to meet the type somewhere, and here is the place.
-  (code "#include <cerrno>")
-  (code "static void bi_i64_text(int64_t v, char* buf, size_t cap) {")
-  (code "  snprintf(buf, cap, \"%lld\", (long long)v); }")
-  (decl) (func bi_i64_text ((int64_t v) (char * buf) (size_t cap)) (out void))
+  ;;; A 64-bit integer as its own digits.
+  (static) (func bi_i64_text ((int64_t v) (char * buf) (size_t cap))
+    (snprintf buf cap "%ld" (cast long v)))
 
-  ;;; And the way back, refusing rather than truncating: strtoll's own
-  ;;; range check, which is the only one that knows what the platform's
-  ;;; 64 bits actually hold.
-  (code "static int bi_fits_i64(const char* dec, int64_t* out) {")
-  (code "  char* end = 0; errno = 0;")
-  (code "  long long v = strtoll(dec, &end, 10);")
-  (code "  if (errno != 0 || end == dec || *end != '\\0') return 0;")
-  (code "  *out = (int64_t)v; return 1; }")
-  (decl) (func bi_fits_i64 ((const char * dec) (int64_t * out)) (out int))
+  ;;; And the way back, refusing rather than truncating: std::stoll throws
+  ;;; on a value outside the platform's 64 bits, and that is the check.
+  (static) (func bi_fits_i64 ((const char * dec) (int64_t * out)) (out int)
+    (try
+      (block
+        (set (cof out) (cast int64_t (std::stoll (std::string dec))))
+        (return 1))
+      (catch () (return 0))))
 
   ;;; An argument as text, whatever it was spelled as: a cocolog integer
   ;;; becomes its own digits, an atom is taken as it stands.

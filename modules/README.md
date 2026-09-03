@@ -69,6 +69,32 @@ hit it:
   FINE** — a shared object may leave a symbol undefined.
   `nm -D --defined-only` over `$ZIGURATIP/home/lib` settles it.
 
+And the emitter's habits, met while writing eight modules' C++ AS Cicili
+(the traps of the language itself are in the Cicili checkout's
+`CLAUDE.md` and `doc/DOC-CPP.md`):
+
+* **A method call or a zero-argument call as an `if`/`?` condition
+  breaks the emitter**: `(if (($ m empty)) …)`, `(if (torch::cuda::is_available) …)`.
+  Every module defines `(DEFMACRO bool? (x) `(not (not ,x)))` and writes
+  `(if (bool? (($ m empty))) …)`; a comparison works too.
+* **A member reached through `$` must have a declared type, and a
+  template-id is a type of its own**: `(decl) (struct (t<> std::vector CtLayer))`
+  in the target (it emits nothing) before a struct holds one. A
+  template-id spelled with a two-word builtin (`uchar`, `llong`) cannot be
+  declared at all — write `u8`, `i64`.
+* **What `(extern-c …)` defines is not visible by name outside the
+  block.** Route through a file-local function (`ct_backend_name` calls
+  nothing, `coco_tensor_backend_name` calls it).
+* **One signature per name**, so where a class overloads (a getter and a
+  setter, a bytes form and a stream form) declare the one the module
+  reaches for and get the other effect another way: a `bufferstream` is
+  BUILT from a string, a BigInt is negated by subtraction, a digest is
+  taken through the stream overload for bytes and files alike.
+* **`letin*` writes the DECLARED type of a call**, so a wrong declaration
+  in the binding is a C++ error at the letin* — the LSTM forward's tuple
+  was one; and `(t<> std::make_shared T)` infers nothing, so the
+  shared_ptr is spelled: `(let (((t<> std::shared_ptr T) p . #'((t<> std::make_shared T)))) …)`.
+
 And one that bites the Prolog half: **`$`-prefixed predicate names must
 be quoted.** `$` is a symbol character and `x` is alphanumeric, so
 `$x509_issue` is two tokens to the reader and the clause will not read —

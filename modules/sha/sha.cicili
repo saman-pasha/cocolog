@@ -120,124 +120,107 @@
   ;;; the end of the C++ block already name it.
   (@define (code "ubyte_t unsigned char"))
 
-  (code "#include <shahelper.hpp>")
-  (code "#include <bufferstream.hpp>")
-  (code "#include <fstream>")
+  (include <shahelper.hpp>)
+  (include <bufferstream.hpp>)
+  (include <fstream>)
+  (import "lib/cpp/zigurat/stream.cicili")
+  (import "lib/cpp/zigurat/sha.cicili")
 
-  ;;; ---- the seam, ONE FUNCTION WIDE ----------------------------------
+  ;;; ---- the hashing, as Cicili clauses over Zigurat::SHA ----------------
   ;;;
-  ;;; TWO LANGUAGES, ONE TARGET -- the shape modules/bigint/bigint.cicili
-  ;;; uses, and for the same reason. The hashing is raw C++ because
-  ;;; `Zigurat::SHA' is a C++ class with C++ streams; everything facing
-  ;;; the engine -- arguments, errors, the dispatcher -- is Cicili. The
-  ;;; boundary between them is one function: an operation name, up to two
-  ;;; inputs, a buffer for the answer, and an integer saying what went
-  ;;; wrong.
+  ;;; ONE LANGUAGE, ONE TARGET. `Zigurat::SHA' is a C++ class with C++
+  ;;; streams, and this is a :cpp target: the calls below are Cicili
+  ;;; clauses over the declarations in cicili/lib/cpp/zigurat, and the C++
+  ;;; compiler sees ordinary C++ against the real header. The seam to the
+  ;;; engine is still one function wide -- an operation name, up to two
+  ;;; inputs, a buffer, an integer saying what went wrong -- so the
+  ;;; predicates below hold no stream and catch nothing.
   ;;;
-  ;;; NARROW ON PURPOSE. Every C++ type, every exception and every stream
-  ;;; stops at that line, so the Cicili side has no `try', no destructor
-  ;;; and nothing to leak. It also means the C++ can be read as C++
-  ;;; rather than as Lisp pretending.
+  ;;; THE STREAM OVERLOADS ARE THE ONES USED, for bytes in memory and for a
+  ;;; file alike: a bufferstream built from the bytes goes in where an
+  ;;; std::ifstream goes in for a file, and the digest comes back out of a
+  ;;; bufferstream. One signature serves both, which is what the language's
+  ;;; one-signature-per-name asks; it is also why the file case never reads
+  ;;; the file into memory.
 
-  (code "namespace {")
-  (code "")
-  (code "int hexval(int c) {")
-  (code "  if (c >= '0' && c <= '9') return c - '0';")
-  (code "  if (c >= 'a' && c <= 'f') return c - 'a' + 10;")
-  (code "  if (c >= 'A' && c <= 'F') return c - 'A' + 10;")
-  (code "  return -1;")
-  (code "}")
-  (code "")
-  (code "// Hex in, bytes out. Answers the byte count, or -1 for anything that")
-  (code "// is not an even run of hex digits -- an odd length included, because")
-  (code "// half a byte is not a byte and guessing which half is padding is how")
-  (code "// two programs come to disagree about the same key.")
-  (code "long unhex(const char* s, unsigned char* out, size_t cap) {")
-  (code "  size_t n = std::strlen(s);")
-  (code "  if (n % 2) return -1;")
-  (code "  if (n / 2 > cap) return -1;")
-  (code "  for (size_t i = 0; i < n; i += 2) {")
-  (code "    int hi = hexval((unsigned char) s[i]), lo = hexval((unsigned char) s[i+1]);")
-  (code "    if (hi < 0 || lo < 0) return -1;")
-  (code "    out[i/2] = (unsigned char)((hi << 4) | lo);")
-  (code "  }")
-  (code "  return (long)(n / 2);")
-  (code "}")
-  (code "")
-  (code "void tohex(const unsigned char* b, size_t n, char* out) {")
-  (code "  static const char* D = \"0123456789abcdef\";")
-  (code "  for (size_t i = 0; i < n; i++) {")
-  (code "    out[2*i]   = D[b[i] >> 4];")
-  (code "    out[2*i+1] = D[b[i] & 15];")
-  (code "  }")
-  (code "  out[2*n] = 0;")
-  (code "}")
-  (code "")
-  (code "int version_of(const char* alg) {")
-  (code "  if (!std::strcmp(alg, \"sha1\"))   return 1;")
-  (code "  if (!std::strcmp(alg, \"sha224\")) return 224;")
-  (code "  if (!std::strcmp(alg, \"sha256\")) return 256;")
-  (code "  if (!std::strcmp(alg, \"sha384\")) return 384;")
-  (code "  if (!std::strcmp(alg, \"sha512\")) return 512;")
-  (code "  return 0;")
-  (code "}")
-  (code "")
-  (code "} // namespace")
-  (code "")
-  (code "// 0 ok. -1 unknown algorithm, -2 not hex, -3 no such file, -4 too")
-  (code "// long for the buffer. The caller turns each into the error term")
-  (code "// that names the right argument.")
-  (code "extern \"C\" int coco_sha_eval(const char* op, const char* alg,")
-  (code "                              const unsigned char* a, size_t an,")
-  (code "                              const unsigned char* b, size_t bn,")
-  (code "                              char* out, size_t cap, long* num) {")
-  (code "  int v = version_of(alg);")
-  (code "  if (!v) return -1;")
-  (code "  Zigurat::SHA::Version ver = (Zigurat::SHA::Version) v;")
-  (code "  size_t sz = Zigurat::SHA::size(ver);")
-  (code "  if (!std::strcmp(op, \"size\")) { *num = (long) sz; return 0; }")
-  (code "  if (2 * sz + 1 > cap) return -4;")
-  (code "  unsigned char digest[64];")
-  (code "  try {")
-  (code "    if (!std::strcmp(op, \"hash\")) {")
-  (code "      Zigurat::SHA::checksum(ver, a, an, digest);")
-  (code "    } else if (!std::strcmp(op, \"hmac\")) {")
-  (code "      // KEY FIRST -- a is the key, b is the message. HMAC(k,m) is not")
-  (code "      // HMAC(m,k), and ZiguratIP's own header records callers getting")
-  (code "      // exactly this backwards against an older interface.")
-  (code "      Zigurat::SHA::hmac(ver, a, an, b, bn, digest);")
-  (code "    } else if (!std::strcmp(op, \"file\")) {")
-  (code "      std::ifstream in((const char*) a, std::ios::binary);")
-  (code "      if (!in.good()) return -3;")
-  (code "      in.seekg(0, std::ios::end);")
-  (code "      std::streamoff len = in.tellg();")
-  (code "      in.seekg(0, std::ios::beg);")
-  (code "      if (len < 0) return -3;")
-  (code "      // binarystream is ABSTRACT: it declares write_std_* pure, so a")
-  (code "      // concrete one is what the streaming overload wants, and")
-  (code "      // bufferstream is the one that holds bytes in memory.")
-  (code "      Zigurat::bufferstream out_stream;")
-  (code "      Zigurat::SHA::checksum(ver, in, (size_t) len, out_stream);")
-  (code "      for (size_t i = 0; i < sz; i++) digest[i] = (unsigned char) out_stream.get();")
-  (code "    } else {")
-  (code "      return -1;")
-  (code "    }")
-  (code "  } catch (...) { return -5; }")
-  (code "  tohex(digest, sz, out);")
-  (code "  return 0;")
-  (code "}")
-  (code "")
-  (code "// Hex to bytes across the seam, so the Cicili side never spells a")
-  (code "// nibble. Answers the byte count or -1.")
-  (code "extern \"C\" long coco_sha_unhex(const char* s, unsigned char* out, size_t cap) {")
-  (code "  return unhex(s, out, cap);")
-  (code "}")
+  (static) (func sh_hexval ((int c)) (out int)
+    (if (and (>= c 48) (<= c 57)) (return (- c 48)))
+    (if (and (>= c 97) (<= c 102)) (return (+ (- c 97) 10)))
+    (if (and (>= c 65) (<= c 70)) (return (+ (- c 65) 10)))
+    (return -1))
 
-  (decl) (func coco_sha_eval ((const char * op) (const char * alg)
-                              (const ubyte_t * a) (size_t an)
-                              (const ubyte_t * b) (size_t bn)
-                              (char * out) (size_t cap) (long * num)) (out int))
-  (decl) (func coco_sha_unhex ((const char * s) (ubyte_t * out) (size_t cap)) (out long))
+  ;;; Hex in, bytes out. Answers the byte count, or -1 for anything that
+  ;;; is not an even run of hex digits -- an odd length included, because
+  ;;; half a byte is not a byte and guessing which half is padding is how
+  ;;; two programs come to disagree about the same key.
+  (static) (func coco_sha_unhex ((const char * s) (ubyte_t * out) (size_t cap)) (out long)
+    (let ((size_t n . #'(strlen s)))
+      (if (!= 0 (% n 2)) (return -1))
+      (if (> (/ n 2) cap) (return -1))
+      (for ((size_t i . 0)) (< i n) ((set i (+ i 2)))
+        (let ((int hi . #'(sh_hexval (cast int (cast ubyte_t (nth i s)))))
+              (int lo . #'(sh_hexval (cast int (cast ubyte_t (nth (+ i 1) s))))))
+          (if (or (< hi 0) (< lo 0)) (return -1))
+          (set (nth (/ i 2) out) (cast ubyte_t (bitor (<< hi 4) lo)))))
+      (return (cast long (/ n 2)))))
+
+  (static) (func sh_tohex ((const ubyte_t * b) (size_t n) (char * out))
+    (let ((const char * d . "0123456789abcdef"))
+      (for ((size_t i . 0)) (< i n) ((++ i))
+        (set (nth (* 2 i) out) (nth (>> (nth i b) 4) d))
+        (set (nth (+ (* 2 i) 1) out) (nth (bitand (nth i b) 15) d)))
+      (set (nth (* 2 n) out) 0)))
+
+  (static) (func sh_version ((const char * alg)) (out int)
+    (cond ((== 0 (strcmp alg "sha1")) (return 1))
+          ((== 0 (strcmp alg "sha224")) (return 224))
+          ((== 0 (strcmp alg "sha256")) (return 256))
+          ((== 0 (strcmp alg "sha384")) (return 384))
+          ((== 0 (strcmp alg "sha512")) (return 512))
+          (#t (return 0))))
+
+  ;;; 0 ok. -1 unknown algorithm, -2 not hex, -3 no such file, -4 too
+  ;;; long for the buffer, -5 the library threw. The caller turns each
+  ;;; into the error term that names the right argument.
+  (static) (func coco_sha_eval ((const char * op) (const char * alg)
+                                (const ubyte_t * a) (size_t an)
+                                (const ubyte_t * b) (size_t bn)
+                                (char * out) (size_t cap) (long * num)) (out int)
+    (let ((int v . #'(sh_version alg)))
+      (if (== v 0) (return -1))
+      (let ((Zigurat::SHA::Version ver . #'(static-cast Zigurat::SHA::Version v))
+            (size_t sz . #'(Zigurat::SHA::size ver))
+            (ubyte_t digest [64]))
+        (if (== 0 (strcmp op "size")) (block (set (cof num) (cast long sz)) (return 0)))
+        (if (> (+ (* 2 sz) 1) cap) (return -4))
+        (try
+          (block
+            (letin* ((res (Zigurat::bufferstream)))
+              (cond
+                ((== 0 (strcmp op "hash"))
+                 (letin* ((in (Zigurat::bufferstream (std::string (cast (const char *) a) an))))
+                   (Zigurat::SHA::checksum ver in an res)))
+                ;; KEY FIRST -- a is the key, b is the message. HMAC(k,m) is not
+                ;; HMAC(m,k), and ZiguratIP's own header records callers getting
+                ;; exactly this backwards against an older interface.
+                ((== 0 (strcmp op "hmac"))
+                 (letin* ((key (Zigurat::bufferstream (std::string (cast (const char *) a) an)))
+                          (msg (Zigurat::bufferstream (std::string (cast (const char *) b) bn))))
+                   (Zigurat::SHA::hmac ver key an msg bn res)))
+                ((== 0 (strcmp op "file"))
+                 (letin* ((in (std::ifstream (cast (const char *) a) std::ios::binary)))
+                   (if (not (($ in good))) (return -3))
+                   (($ in seekg) 0 std::ios::end)
+                   (let ((long len . #'(($ in tellg))))
+                     (($ in seekg) 0 std::ios::beg)
+                     (if (< len 0) (return -3))
+                     (Zigurat::SHA::checksum ver in (cast size_t len) res))))
+                (#t (return -1)))
+              (for ((size_t i . 0)) (< i sz) ((++ i))
+                (set (nth i digest) (cast ubyte_t (($ res get)))))))
+          (catch () (return -5)))
+        (sh_tohex digest sz out)
+        (return 0))))
 
   ;;; ---- the Cicili side: arguments, errors, dispatch ------------------
   ;;;

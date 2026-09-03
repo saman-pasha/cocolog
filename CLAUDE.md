@@ -481,11 +481,14 @@ cocolog reaches -- `coco_library_entry`, the dispatcher -- sits in
 `(extern-c …)`. **Not C++ pasted into `(code "…")` lines, and not a
 `.cpp` beside the file**: `code` is the fire escape for the one thing
 Cicili cannot say (an operator overload, a macro), and a back end made of
-pasted C++ is a back end the front end cannot see. `modules/opencv` is
-the exemplar; `torch`, `bigint`, `sha`, `aes`, `der`, `x509` and `tls`
-predate the rule and carry their C++ as code lines still -- each is to be
-refactored to it, gated by its own suite case, when it is next touched.
-`doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the language.
+pasted C++ is a back end the front end cannot see. Every C++ module is
+written this way now: `opencv` over `lib/cpp/opencv`; `sha`, `aes`,
+`bigint`, `der`, `x509` and `tls` over `lib/cpp/zigurat` (one part per
+ZiguratIP header, importable alone); `torch` over `lib/cpp/torch` with
+`lib/cpp/dl` for the sibling it dlopens. What `code` still carries in
+them is the SDK's C prototypes and a function-pointer typedef, nothing
+else. `doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the
+language, and `modules/README.md` lists what bites when writing one.
 
 **WHAT A `build.sh` MAKES IS NEVER COMMITTED**, and every module
 directory here is the same shape: a `.cicili`, a `build.sh`, and output.

@@ -26,13 +26,15 @@
 %% run. The two hundred and more launches of a step are nothing to a GPU
 %% and a quarter of an hour to a CPU; this file runs on the Colab T4.
 %%
-%%   download   fetches the 54 MB archive, unpacks it and writes the CSVs -- curl, unzip and
-%%              python3 with Pillow, the one step that is not Prolog, since the pictures are PNG
+%%   download   fetches the 54 MB archive, unpacks it (curl and unzip) and writes the CSVs --
+%%              in Prolog, through library(opencv): each PNG read, resized, and its people's
+%%              boxes read off the instance masks
 %%   train      136 photographs and their mirror images, Adam, 120 passes in batches of 17; saved as t42_detector
 %%   test       the 34 held out: precision and recall at IoU 0.5 after suppression; ok at F1 >= 0.5 --
 %%              on the T4, precision 0.70, recall 0.44, F1 0.54 at the default confidence, after 110 s of training
 %%   predict    twelve of the held out, box by box, on torch and then on TensorFlow, and the two compared;
-%%              then the three best drawn on the original photographs, 42-detection-1..3.jpg beside this file
+%%              then the three best drawn on the original photographs with library(opencv),
+%%              42-detection-1..3.jpg beside this file
 %%
 %%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/42-object-detection.pl download
 %%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/42-object-detection.pl "tensor_execution(torch, graph, cuda), train"
@@ -82,27 +84,98 @@ no_data :- data_dir(D), format("42 needs the Penn-Fudan CSVs under ~w: run the d
 ready :- ( gpu -> true ; no_gpu, fail ), ( have_data -> true ; no_data, fail ), !.
 
 %% ---- download -------------------------------------------------------------------
-%% One shell line, run through library(process): the archive, the unpacking,
-%% and the converter beside this file. Nothing here is quiet: the converter's
-%% two lines say how many photographs and people each split holds.
+%% One shell line through library(process) for the archive and the unpacking,
+%% then the conversion IN PROLOG through library(opencv) -- it used to be a
+%% Python script beside this file, the one step that was not Prolog, because
+%% cocolog read no image format. Now it does: each photograph is read,
+%% resized to 96 by 96 (INTER_AREA, the downscaling filter), turned RGB and
+%% written as PIXELS AS ROWS, 9216 lines of three numbers in 0..1 -- the
+%% layout conv2d/3 takes; and each pedestrian's box is read off the
+%% instance mask, a plain 8-bit picture whose pixel values are the person
+%% numbers, as the bounding rectangle of that value, scaled to the same 96
+%% by 96. Every fifth photograph is held out: 34 to test on, 136 to train
+%% on, the same split every time. Nothing here is quiet: one line per split
+%% says how many photographs and people it holds.
 
 download :-
     data_dir(D),
     (   have_data
     ->  format("the data is already at ~w~n", [D])
-    ;   forall(member(Tool, [curl, unzip, python3]),
+    ;   forall(member(Tool, [curl, unzip]),
                ( os_has(Tool) -> true ; format("~w is needed on PATH~n", [Tool]), halt(1) )),
-        format("downloading Penn-Fudan, 54 MB, into ~w~n", [D]),
-        atomic_list_concat(['mkdir -p ', D,
-                            ' && curl -sSL -o ', D, '/PennFudanPed.zip https://www.cis.upenn.edu/~jshi/ped_html/PennFudanPed.zip',
-                            ' && unzip -qo ', D, '/PennFudanPed.zip -d ', D,
-                            ' && python3 tutorials/tensor/42-object-detection.py ', D, '/PennFudanPed ', D, ' 2>&1'], Cmd),
-        proc_run(Cmd, 900000, Out, Exit), atom_codes(A, Out), write(A),
-        (   Exit =:= 0, have_data
+        ( catch(use_module(library(opencv)), _, fail) -> true
+        ; write('library(opencv) is needed to convert the pictures: sh modules/opencv/build.sh'), nl, halt(1) ),
+        atom_concat(D, '/PennFudanPed/PNGImages', Pngs),
+        (   exists_directory(Pngs)
+        ->  format("the archive is already unpacked at ~w~n", [D])
+        ;   format("downloading Penn-Fudan, 54 MB, into ~w~n", [D]),
+            atomic_list_concat(['mkdir -p ', D,
+                                ' && curl -sSL -o ', D, '/PennFudanPed.zip https://www.cis.upenn.edu/~jshi/ped_html/PennFudanPed.zip',
+                                ' && unzip -qo ', D, '/PennFudanPed.zip -d ', D, ' 2>&1'], Cmd),
+            proc_run(Cmd, 900000, Out, Exit), atom_codes(A, Out), write(A),
+            ( Exit =:= 0 -> true ; format("the download ended ~w~n", [Exit]), halt(1) )
+        ),
+        convert(D),
+        (   have_data
         ->  write(downloaded), nl
-        ;   format("the download ended ~w and left no CSVs~n", [Exit]), halt(1)
+        ;   write('the conversion left no CSVs'), nl, halt(1)
         )
     ), !.
+
+%% convert(+D): the CSVs and test-names.txt from PennFudanPed under D.
+convert(D) :-
+    atom_concat(D, '/PennFudanPed', Src), atom_concat(Src, '/PNGImages', Pngs),
+    directory_files(Pngs, Entries), findall(N, ( member(N, Entries), atom_concat(_, '.png', N) ), Unsorted),
+    msort(Unsorted, Names),
+    findall(N, ( nth0(I, Names, N), I mod 5 =:= 0 ), Test),
+    findall(N, ( nth0(I, Names, N), I mod 5 =\= 0 ), Train),
+    convert_split(Src, D, train, Train),
+    convert_split(Src, D, test, Test),
+    atom_concat(D, '/test-names.txt', NP),
+    with_output_to(codes(NC), forall(member(N, Test), ( write(N), nl ))),
+    write_file_from_codes(NP, NC), !.
+
+convert_split(Src, D, Split, Names) :-
+    csv_path(Split, pixels, PP), csv_path(Split, boxes, BP),
+    write_file_from_codes(PP, []), write_file_from_codes(BP, []),
+    side(S),
+    foldl([Name, K0-P0, K-P]>>( convert_one(Src, Name, K0, S, PP, BP, People), K is K0 + 1, P is P0 + People ),
+          Names, 0-0, _-People),
+    length(Names, NN), format("~w: ~w photographs, ~w people~n", [Split, NN, People]), !.
+
+%% convert_one(+Src, +Name, +K, +S, +PixelsCsv, +BoxesCsv, -People): photograph K
+%% of the split -- its pixels appended as rows, its people's boxes as lines
+%% `K, x1, y1, x2, y2' in the S by S frame.
+convert_one(Src, Name, K, S, PP, BP, People) :-
+    atomic_list_concat([Src, '/PNGImages/', Name], Path),
+    cv_imread(Path, Img), cv_shape(Img, [H, W, _]),
+    cv_resize(Img, [S, S], area, Small), cv_cvt_color(Small, bgr2rgb, Rgb), cv_to_list(Rgb, Rows),
+    with_output_to(codes(PC),
+        forall(( member(Row, Rows), member([R, G, B], Row) ),
+               ( Rf is R / 255, Gf is G / 255, Bf is B / 255, format("~4f,~4f,~4f~n", [Rf, Gf, Bf]) ))),
+    append_file_from_codes(PP, PC),
+    atom_concat(Stem, '.png', Name), atomic_list_concat([Src, '/PedMasks/', Stem, '_mask.png'], MaskPath),
+    cv_imread(MaskPath, unchanged, Mask), cv_minmax(Mask, _, MaxId, _, _), Last is truncate(MaxId),
+    findall([X1, Y1, X2, Y2], ( between(1, Last, Id), person_box(Mask, Id, W, H, S, X1, Y1, X2, Y2) ), Boxes),
+    with_output_to(codes(BC),
+        forall(member([X1, Y1, X2, Y2], Boxes), format("~w,~2f,~2f,~2f,~2f~n", [K, X1, Y1, X2, Y2]))),
+    append_file_from_codes(BP, BC),
+    length(Boxes, People),
+    cv_free_all([Img, Small, Rgb, Mask]), !.
+
+%% person_box(+Mask, +Id, +W, +H, +S, -X1, -Y1, -X2, -Y2): the pixels valued
+%% Id, as the rectangle around them, scaled from W by H to S by S. The
+%% rectangle is the union of the external contours' boxes: x2 is one past
+%% the rightmost pixel, as the original converter had it.
+person_box(Mask, Id, W, H, S, X1, Y1, X2, Y2) :-
+    cv_in_range(Mask, Id, Id, Bin), cv_count_nonzero(Bin, N), N > 0,
+    cv_find_contours(Bin, external, simple, Cs), cv_free(Bin), Cs \== [],
+    findall(R, ( member(C, Cs), cv_bounding_rect(C, R) ), Rs),
+    findall(X, member([X, _, _, _], Rs), Xs), min_list(Xs, Xmin),
+    findall(Y, member([_, Y, _, _], Rs), Ys), min_list(Ys, Ymin),
+    findall(XR, ( member([X, _, Wd, _], Rs), XR is X + Wd ), XRs), max_list(XRs, Xmax),
+    findall(YB, ( member([_, Y, _, Ht], Rs), YB is Y + Ht ), YBs), max_list(YBs, Ymax),
+    X1 is Xmin * S / W, Y1 is Ymin * S / H, X2 is Xmax * S / W, Y2 is Ymax * S / H, !.
 
 %% ---- the pictures and their boxes ---------------------------------------------------
 %% pictures(+Split, -X, -Boxes, -N): the pixels of a split as [N*9216, 3],
@@ -351,18 +424,66 @@ predict :-
     ), !.
 
 %% draw(+Results): the three photographs the network did best on, with the
-%% people in green and what it found in red, written beside this file by the
-%% converter's draw mode -- the boxes go to it as one argument.
+%% people in green and what it found in red, written beside this file
+%% through library(opencv). A photograph's score is its hits (a found box
+%% overlapping a person by 0.5 or more) less half a point per stray box and
+%% a quarter per person missed; the best three are drawn, each shrunk to
+%% 720 pixels a side at most, with a caption strip under it.
 draw(R) :-
-    findall(PA, ( member(I-F, R),
-                  findall(BA, ( member(found(P, X1, Y1, X2, Y2), F),
-                                format(atom(BA), '~1f,~1f,~1f,~1f,~2f', [X1, Y1, X2, Y2, P]) ), BAs),
-                  atomic_list_concat(BAs, '|', BS), format(atom(PA), '~w:~w', [I, BS]) ), PAs),
-    atomic_list_concat(PAs, ';', Spec),
-    data_dir(D),
-    atomic_list_concat(['python3 tutorials/tensor/42-object-detection.py draw ', D, ' tutorials/tensor \'', Spec, '\' 2>&1'], Cmd),
-    proc_run(Cmd, 120000, Out, Exit), atom_codes(A, Out), nl, write(A),
-    ( Exit =:= 0 -> true ; write('the pictures were not drawn (python3 with Pillow)'), nl ), !.
+    (   catch(use_module(library(opencv)), _, fail)
+    ->  data_dir(D),
+        atom_concat(D, '/test-names.txt', NP), read_file_to_codes(NP, NC), lines(NC, NameLines),
+        findall(N, ( member(L, NameLines), L \== [], atom_codes(N, L) ), Names),
+        csv_path(test, boxes, BP), read_file_to_codes(BP, BC), lines(BC, BoxLines),
+        findall(box(I, X1, Y1, X2, Y2),
+                ( member(L, BoxLines), L \== [], atom_codes(A, L), atomic_list_concat(Fs, ',', A),
+                  Fs = [If, X1a, Y1a, X2a, Y2a], atom_number(If, I),
+                  atom_number(X1a, X1), atom_number(Y1a, Y1), atom_number(X2a, X2), atom_number(Y2a, Y2) ), Boxes),
+        findall(Score-I,
+                ( member(I-F, R), truth_of(I, Boxes, Truth),
+                  findall(x, ( member(B, F), member(T, Truth), iou(B, T, V), V >= 0.5 ), Hs), length(Hs, Hits0),
+                  length(F, NF), length(Truth, NT), Hits is min(Hits0, NF),
+                  Score is Hits - 0.5 * (NF - Hits) - 0.25 * (NT - Hits) ), Scored),
+        msort(Scored, Asc), reverse(Asc, Desc),
+        findall(I, member(_-I, Desc), Ranked), take(3, Ranked, Best),
+        nl,
+        forall(nth1(N, Best, I), ( member(I-F, R), truth_of(I, Boxes, Truth), nth0(I, Names, Name),
+                                   draw_one(D, N, Name, Truth, F) ))
+    ;   write('library(opencv) is not built here: the pictures were not drawn'), nl
+    ), !.
+
+%% draw_one(+D, +N, +Name, +Truth, +Found): photograph Name as 42-detection-N.jpg.
+draw_one(D, N, Name, Truth, Found) :-
+    atomic_list_concat([D, '/PennFudanPed/PNGImages/', Name], Path),
+    cv_imread(Path, Img), cv_shape(Img, [H, W, _]), side(S), Sx is W / S, Sy is H / S,
+    forall(member(box(_, X1, Y1, X2, Y2), Truth),
+           ( scaled(X1, Y1, X2, Y2, Sx, Sy, Rect), cv_rectangle(Img, Rect, [40, 200, 40], 3) )),
+    forall(member(found(P, X1, Y1, X2, Y2), Found),
+           ( scaled(X1, Y1, X2, Y2, Sx, Sy, Rect), cv_rectangle(Img, Rect, [40, 40, 235], 3),
+             Rect = [Rx, Ry|_], Tx is Rx + 5, Ty is Ry + 22, format(atom(PA), '~2f', [P]),
+             cv_put_text(Img, PA, [Tx, Ty], 0.6, [40, 40, 235], 2) )),
+    Longest is max(W, H), ( Longest > 720 -> F is 720 / Longest, cv_resize(Img, F, area, Shown) ; cv_clone(Img, Shown) ),
+    cv_shape(Shown, [SH, SW, _]),
+    atom_concat(Stem, '.png', Name), length(Truth, NT), length(Found, NF),
+    format(atom(Caption), 'cocolog 42, ~w: green the people, red the network', [Stem]),
+    %% the caption at 0.45, or smaller when the photograph is narrower than it
+    cv_text_size(Caption, 0.45, 1, [TW, _]), ( TW + 16 > SW -> Fs is 0.45 * (SW - 16) / TW ; Fs = 0.45 ),
+    cv_new(26, SW, '8uc3', [20, 20, 20], Strip), cv_put_text(Strip, Caption, [8, 18], Fs, [240, 240, 240], 1),
+    cv_vconcat([Shown, Strip], Page),
+    format(atom(Out), 'tutorials/tensor/42-detection-~w.jpg', [N]), cv_imwrite(Out, Page),
+    format("wrote ~w: ~w, ~w people, ~w boxes found~n", [Out, Name, NT, NF]),
+    cv_free_all([Img, Shown, Strip, Page]), SH > 0, !.
+
+scaled(X1, Y1, X2, Y2, Sx, Sy, [Rx, Ry, Rw, Rh]) :-
+    Rx is round(X1 * Sx), Ry is round(Y1 * Sy), Rw is round((X2 - X1) * Sx), Rh is round((Y2 - Y1) * Sy), !.
+
+take(0, _, []) :- !.
+take(_, [], []) :- !.
+take(N, [X|Xs], [X|Ys]) :- N1 is N - 1, take(N1, Xs, Ys), !.
+
+lines([], []) :- !.
+lines(Codes, [Line|Lines]) :- append(Line, [10|Rest], Codes), !, lines(Rest, Lines).
+lines(Codes, [Codes]) :- !.
 
 predict(Backend, Results) -->
     { tensor_execution(Backend, graph, cuda), predict_count(PC), PC1 is PC - 1,
