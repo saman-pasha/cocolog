@@ -166,8 +166,21 @@ spent.
   (CLAUDE.md, "The engine was quadratic"). The single largest speed-up this
   interpreter has had was one call in `coco_make`, not a compiler.
 
-What is left after all that is mostly the cost of the continuation being data.
-Which is the thing that must not be removed.
+**Two cheap wins are NOT taken, and a second pass found them.** Every call of
+a user predicate resolves its name through `coco_pred_find`
+(`lib/kb.cicili:714`), which is a `for` loop over every predicate in the store
+comparing name and arity — reached on each goal by way of `coco_pred_of` ->
+`coco_pred_make` (`:740`, `:727`). That is O(predicates) per inference, and a
+hash or an interned slot would remove it without touching the engine's shape.
+And `coco_bind` (`lib/term.cicili:847`) trails unconditionally: two statements,
+write the cell and push the trail, with no test of the variable's age against
+the newest choice point's `heap_mark`. The WAM's conditional-trail test is
+absent from the tree.
+
+So the sentence to keep is narrower than "the cheap wins are spent": the
+LARGEST ones are spent, and two ordinary ones are still on the table and are
+cheaper than any compiler. What is left after those is the cost of the
+continuation being data — which is the thing that must not be removed.
 
 ## 6. What the other systems gave up
 
@@ -195,10 +208,21 @@ IN A DATABASE that another process may be writing.
 ## 7. The database is the deepest obstacle, and it is not incidental
 
 In the three server arrangements a predicate's clauses are fetched from the
-store on first use and can be changed by another process between one call and
-the next. `lib/kb.cicili`'s five hooks (`fetch`, `on_assert`, `on_retract`,
-`on_dynamic`, `warm`) exist precisely so that "what clauses does `p/2` have"
-is a question answered at run time, over the wire.
+store on first use. `lib/kb.cicili`'s five hooks (`fetch`, `on_assert`,
+`on_retract`, `on_dynamic`, `warm`) exist precisely so that "what clauses does
+`p/2` have" is a question answered at RUN time, over the wire.
+
+**A first draft of this section said the clauses can change under a running
+proof from another process, and the code says otherwise.** `coco_pred_ensure`
+(`lib/kb.cicili:748`) is `if (loaded) return 1; loaded = 1; fetch(...)`, and
+the comment above it gives the reason: "The backend is asked once per
+predicate and the answer is remembered whether or not it produced clauses --
+otherwise a call to an undefined predicate inside a loop is a database round
+trip per iteration." So within one process a predicate is fetched ONCE and
+then held; a writer elsewhere does not move it under the proof. That makes the
+obstacle smaller and sharper than the first draft claimed: not "the clause set
+mutates mid-proof", but "the clause set is unknown until the first call, and
+the first call happens at run time in another process's database".
 
 A compiler must therefore compile only what it can prove nobody will change,
 and fall back to the interpreter for the rest. That is a normal design — but
@@ -245,3 +269,139 @@ Said plainly, so nobody mistakes its scope:
   `set_prolog_flag(double_quotes, …)` changes what `"..."` MEANS for the rest
   of the file. A compiler has to run the loader to know what the program even
   is.
+
+## 10. A second pass, and what it changed
+
+Sections 1–9 were written from a first reading. A second pass — six
+independent readers over the engine, the terms, the knowledge base, the build,
+this tree's own documents and the prior art, each then challenged by a reader
+told to refute it — corrected two claims above and added five facts worth
+having. Everything below was checked against the code by hand afterwards; the
+two corrections are already folded into §5 and §7.
+
+### 10.1 This engine is BinProlog's shape, and that is thirty years of evidence
+
+`'$k'(Goal, Barrier, Rest)` as a term on the heap is **binarization** — Paul
+Tarau's transformation, `a(X) :- b(X), c(X,Y), d(Y).` becoming
+`a(X, Cont) :- b(X, c(X, Y, d(Y, Cont)))` — which drops the WAM's environment
+stack and makes the continuation an explicit heap object. cocolog arrived there
+for its own reason (freeze and thaw, `lib/state.cicili:7`) rather than Tarau's
+(a simplified WAM), but the machine is the same shape.
+
+That converts several of the questions above from speculation into a documented
+experiment, and the two most useful results point the same way as §8:
+
+* **BinProlog ships a copying garbage collector and a term-compression scheme,
+  and needs both**, because on a binarized machine every inference allocates a
+  continuation frame. That is §1's 34 cells per inference, named by somebody
+  else thirty years earlier.
+* **Prolog Cafe**, also binarization-based, compiling one Java class per binary
+  clause, measured about **10.9× slower than LLP** — and its authors attribute
+  the loss to allocation, not to dispatch. A compiler that does not also fix
+  allocation can lose to an interpreter that does.
+
+These are read, not measured here, and the comparison across implementations
+is soft. The direction is what matters: **allocation, not dispatch, is the
+thing to fix first**, and that is the same conclusion §8 reached from this
+box's own numbers.
+
+### 10.2 The delivery channel for a compiled program already exists
+
+`-s FILE` is literally `use_module('FILE'), main` (`cocolog.cicili:772`), and
+`use_module` takes the **dlopen** branch for any path ending in `.so`
+(`lib/library.cicili:347`, dispatched at `:451`). So `cocolog -s ./prog.so`
+already loads and runs a compiled object today, with no new mechanism: one
+exported symbol, `int coco_library_entry(void)`, returning ABI version 1.
+
+**With one catch that matters.** `coco_module_load` MUTES the store while it
+consults a module's Prolog half (`lib/module.cicili:455`, `:468`), so a program
+delivered that way has its clauses marked `library` and writes nothing through.
+A compiled program shipped as a module is therefore a program that has opted
+out of the knowledge base — which for many programs is right, and for the ones
+this project exists to demonstrate is exactly wrong.
+
+### 10.3 There is nothing for an object file to link against
+
+`main` is inside the same 16 960-line translation unit as the engine
+(`cocolog.c`), the Makefile links `.libs/cocolog.o` plus `embed/.libs/embed.o`
+straight to the executable, and the only archive in the tree,
+`build/libcocologc.a`, holds the wire client (`zigurat.o`, `zeytun.o`) and
+nothing else. There is no engine runtime library.
+
+Worse for a code generator: the four functions it would most need —
+`coco_k_push`, `coco_push_choice`, `coco_backtrack`, `coco_select_clause` — are
+all declared `(static)`, and `nm -D --defined-only ./cocolog` finds none of
+them. Option 3B's first task is therefore not a code generator: it is
+splitting a runtime out of `cocolog.c` and deciding what it exports.
+
+### 10.4 Two things a compiler would not be allowed to do
+
+* **`clause_ix` is an ordinal a frozen choice frame holds** (`lib/state.cicili`
+  writes it; `lib/solve.cicili:284` is the frame). A machine suspended part way
+  through a predicate resumes at "clause number N". So a compiled predicate may
+  not reorder, merge, inline, specialise or dead-eliminate its clauses without
+  breaking resumption — which removes most of the optimisations that make
+  compiling a predicate worth doing.
+* **Atom and functor ids are assigned in intern ORDER** (`lib/term.cicili:638`,
+  `:656`), and a store cell carries the machine's ids unchanged. So compiled
+  clause data cannot be a static blob of cells; it has to be built through the
+  intern table at load time, which is most of what `coco_store_get` already
+  costs.
+
+### 10.5 The binary is not self-contained today
+
+`readelf -d ./cocolog` lists `libCore.so` and `libStreamIO.so` as NEEDED with
+**no RUNPATH and no RPATH at all**, so the shipped binary finds ZiguratIP's
+libraries only through `LD_LIBRARY_PATH` at run time. Option 3A's "one file you
+can run" therefore has a step before it that has nothing to do with compiling:
+either static linkage of those two, or an RPATH, or a launcher. (An earlier
+draft of this section said an absolute RUNPATH was baked in. It is not; there
+is none. Checked.)
+
+### 10.6 A bug, found on the path this study recommends compiling
+
+Not a feasibility finding — a defect, discovered while checking §9's claim
+about load-time semantics, and reported here because this is where the evidence
+is.
+
+**`use_module` of any file containing a GOAL directive exhausts the C stack and
+dies of SIGSEGV.** Since `-s FILE` *is* `use_module('FILE'), main`, that means
+the documented form for running a program crashes on the documented behaviour
+of a directive:
+
+```
+$ printf ':- write(hello), nl.\nmain :- write(done), nl.\n' > p.pl
+$ ./cocolog -s p.pl ; echo $?
+139                      # no output, empty stderr
+$ ./cocolog run p.pl main
+hello
+done
+```
+
+Measured and characterised:
+
+| directive | `-s` |
+|---|---|
+| `:- dynamic(foo/1).` `:- op(700, xfx, ===).` `:- use_module(library(lists)).` | fine |
+| `:- write(x), nl.` `:- true.` `:- X is 1+1.` `:- initialization(main).` | **SIGSEGV** |
+
+That is exactly CLAUDE.md's split: the handful of directives that act on the
+READER are answered by `coco_directive`, "and everything else is called" — and
+the called path is the one that dies. It reproduces through a nested
+`use_module` too (`run outer.pl main` where `outer.pl` imports a file with a
+goal directive), so it is `use_module` and not `-s` that is broken.
+
+It is stack exhaustion, not a null dereference: time-to-crash scales with the
+limit — `ulimit -s 1024` 14 ms, `8192` 21 ms, `65536` 75 ms.
+
+`lb_goal_hook` (`lib/library.cicili:557`) is where to look: it makes a whole
+`coco_engine` as a C local and runs the directive's goal on it, over the same
+machine and store, from inside a consult that the module loader is holding.
+
+**Why it has never been seen:** no shipped `library/*.pl` has a goal directive
+— checked, all twelve — and `test/directives.sh` exercises directives through
+`run` only and never once through `-s`. The suite is green because nothing in
+it stands on this path.
+
+The obvious repair — a re-entrancy guard on the goal hook — is not applied
+here; the diagnosis is, and it wants the full suite behind it.
