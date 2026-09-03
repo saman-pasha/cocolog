@@ -134,7 +134,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- three categories, and
                        every claim in the first two is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (forty, ONE PER LIBRARY that
+                       library/ (forty-one, ONE PER LIBRARY that
                        ships), tensor/ (forty-two networks, three
                        processes each). `sh test/tutorials.sh'
 demo/family.pl         something to run it on
@@ -308,7 +308,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — forty lessons, one per library that ships
+### `library/` — forty-one lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.

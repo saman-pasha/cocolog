@@ -55,6 +55,8 @@ modules/ray/ray.c
 modules/ray/sdk.cicili
 modules/os/os.c
 modules/os/sdk.cicili
+modules/numpy/numpy.c
+modules/numpy/sdk.cicili
 modules/bigint/coco-bigint.cpp
 modules/bigint/zigheaders
 modules/torch/coco-torch.cpp

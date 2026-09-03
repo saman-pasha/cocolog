@@ -1,0 +1,1330 @@
+;;;; cocolog -- library(numpy): numpy arrays as cocolog predicates, over
+;;;; numpy's C API.
+;;;;
+;;;; WHAT THIS IS. An ndarray is a handle -- an integer naming a slot in this
+;;;; module's table, the way a tensor is one in library(torch) and a socket
+;;;; is one in library(tcp) -- and every predicate here is one call of
+;;;; numpy's C API on the arrays behind the handles: the array object, the
+;;;; reductions, the number protocol that is the ufuncs. NOTHING HERE CALLS
+;;;; A PYTHON FUNCTION. What numpy offers only as Python -- its file format,
+;;;; loadtxt, the random draws, the elementwise math -- is written here in
+;;;; C over the same arrays, which is what a module of this repository is:
+;;;; C or C++ over a C or C++ API, and clauses over that.
+;;;;
+;;;; THE INTERPRETER IS THERE BECAUSE THE API NEEDS IT. numpy's C API is a
+;;;; table of function pointers a running CPython fills in (the Cicili
+;;;; binding's README says so at length), so the first predicate to run
+;;;; starts one, once, and it lives as long as the process. It runs no
+;;;; Python: it is the allocator and the type table the arrays stand on.
+;;;;
+;;;; TWO WAYS TO KEEP AN ARRAY, both here on purpose:
+;;;;
+;;;;   np_save/2 and np_load/2 are the `.npy' FORMAT -- numpy's own, so an
+;;;;   array a cocolog program made is a file a notebook opens with
+;;;;   numpy.load and the other way round -- written and read here in C:
+;;;;   the magic, the version, the header dict, the bytes. Versions 1, 2
+;;;;   and 3 read; version 1 is written. np_save_csv/2 and np_load_csv/2
+;;;;   are the flat text kind, for the spreadsheet and the shell.
+;;;;
+;;;;   np_store/2 and np_fetch/2 put an array INTO THE KNOWLEDGE BASE, the
+;;;;   way library(torch)'s model_save does: the numbers as rows of one
+;;;;   vector field in cocolog::tensors, 512 doubles a piece, where the
+;;;;   arrangement has tensor storage (the wire), and as clause chunks where
+;;;;   it has not (--local, --embed) -- and the shape and dtype as one
+;;;;   clause, np_meta/3, in every arrangement. A fetch in another process
+;;;;   rebuilds the array, dtype and all; np_stored/1 says what is there.
+;;;;
+;;;; NUMBERS CROSS THE SEAM AS PROLOG NUMBERS: a float is a float, an
+;;;; integer an integer, a list of lists a matrix. np_to_list/2 is tolist();
+;;;; np_from_list/2 makes float64 and np_array/3 the dtype you name. A
+;;;; HANDLE IS AN INTEGER, so a predicate taking a number and an array
+;;;; cannot tell them apart -- which is why np_binary/4 takes two arrays
+;;;; and np_scalar/4 an array and a number. A result that is an array is a
+;;;; new handle; a reduction is a number; nothing is mutated but by
+;;;; np_set/3, which says so.
+;;;;
+;;;; THE SURFACE:
+;;;;
+;;;;   np_from_list(+List, -A)                      numbers -> [N]; rows -> [R,C]; float64
+;;;;   np_array(+List, +Dtype, -A)                  float64 float32 int64 int32 int16 int8 uint8 bool
+;;;;   np_to_list(+A, -List)                        tolist()
+;;;;   np_shape(+A, -Shape)                         a list of integers
+;;;;   np_ndim(+A, -N)
+;;;;   np_size(+A, -N)                              elements, all axes
+;;;;   np_dtype(+A, -Dtype)                         as an atom
+;;;;   np_zeros(+Shape, -A)                         float64
+;;;;   np_ones(+Shape, -A)
+;;;;   np_full(+Shape, +Value, -A)
+;;;;   np_eye(+N, -A)
+;;;;   np_arange(+Start, +Stop, +Step, -A)          half-open, float64
+;;;;   np_linspace(+Start, +Stop, +N, -A)
+;;;;   np_rand(+Shape, -A)                          uniform on [0, 1)
+;;;;   np_randn(+Shape, -A)                         standard normal
+;;;;   np_seed(+N)                                  the two draws above repeat from here
+;;;;   np_get(+A, +Index, -Value)                   Index a list, one integer per axis, or one integer
+;;;;   np_set(+A, +Index, +Value)                   in place: the one mutation here
+;;;;   np_unary(+Op, +A, -B)                        neg abs transpose sqrt exp log sin cos tan tanh floor ceil round sign relu sigmoid
+;;;;   np_binary(+Op, +A, +B, -C)                   add sub mul div pow matmul maximum minimum lt le eq ne gt ge
+;;;;   np_scalar(+Op, +A, +Number, -C)              the same with a number on the right
+;;;;   np_where(+Cond, +A, +B, -C)                  A where Cond holds, else B
+;;;;   np_reduce(+Op, +A, -Number)                  sum prod mean std var max min argmax argmin
+;;;;   np_reduce(+Op, +A, +Axis, -B)                the same along one axis, an array
+;;;;   np_cumsum(+A, -B)
+;;;;   np_reshape(+A, +Shape, -B)
+;;;;   np_transpose(+A, -B)
+;;;;   np_flatten(+A, -B)
+;;;;   np_concat(+As, +Axis, -B)                    a list of handles
+;;;;   np_rows(+A, +From, +To, -B)                  rows [From, To), a copy
+;;;;   np_cols(+A, +From, +To, -B)                  columns [From, To), a copy
+;;;;   np_copy(+A, -B)
+;;;;   np_astype(+A, +Dtype, -B)
+;;;;   np_sort(+A, -B)                              along the last axis, a copy
+;;;;   np_argsort(+A, -B)
+;;;;   np_dot(+A, +B, -C)                           inner product for vectors, matrix product for matrices
+;;;;   np_norm(+A, -X)                              sqrt of the sum of squares
+;;;;   np_add(+A, +B, -C)
+;;;;   np_sub(+A, +B, -C)
+;;;;   np_mul(+A, +B, -C)
+;;;;   np_div(+A, +B, -C)
+;;;;   np_matmul(+A, +B, -C)
+;;;;   np_neg(+A, -B)
+;;;;   np_abs(+A, -B)
+;;;;   np_sqrt(+A, -B)
+;;;;   np_exp(+A, -B)
+;;;;   np_log(+A, -B)
+;;;;   np_sum(+A, -X)
+;;;;   np_mean(+A, -X)
+;;;;   np_std(+A, -X)
+;;;;   np_max(+A, -X)
+;;;;   np_min(+A, -X)
+;;;;   np_argmax(+A, -I)
+;;;;   np_argmin(+A, -I)
+;;;;   np_save(+Path, +A)                           a .npy file, version 1
+;;;;   np_load(+Path, -A)                           a .npy file, version 1, 2 or 3, little-endian
+;;;;   np_save_csv(+Path, +A)                       one row a line, comma-separated, %.17g
+;;;;   np_load_csv(+Path, -A)                       a rectangle of numbers -> [R, C], float64
+;;;;   np_store(+Name, +A)                          into the knowledge base: rows of doubles, or clause chunks; np_meta/3 keeps shape and dtype
+;;;;   np_fetch(+Name, -A)                          and back, in any process that shares the base
+;;;;   np_forget(+Name)                             the rows, the chunks and the meta clause
+;;;;   np_stored(?Name)                             what the base holds
+;;;;   np_free(+A)                                  lets the handle go
+;;;;   np_handles(-N)                               live handles: the leak test
+;;;;
+;;;; NOT HERE: linalg (inv, det, solve have no C entry point, and a second
+;;;; LU written here would be the second implementation this repository
+;;;; does not keep), einsum, fancy indexing beyond one integer per axis,
+;;;; big-endian files. Each is a predicate away if it is ever needed.
+;;;;
+;;;; BUILT BY build.sh against the python3 on the path (or $PYTHON), which
+;;;; must have numpy and a shared libpython. Cicili's lib/python is the
+;;;; binding; nothing here declares numpy a second time.
+
+(DEFPARAMETER *numpy-predicates*
+  '(("np_array"     3 np_p_array)
+    ("np_to_list"   2 np_p_to_list)
+    ("np_shape"     2 np_p_shape)
+    ("np_ndim"      2 np_p_ndim)
+    ("np_size"      2 np_p_size)
+    ("np_dtype"     2 np_p_dtype)
+    ("np_zeros"     2 np_p_zeros)
+    ("np_ones"      2 np_p_ones)
+    ("np_full"      3 np_p_full)
+    ("np_eye"       2 np_p_eye)
+    ("np_arange"    4 np_p_arange)
+    ("np_linspace"  4 np_p_linspace)
+    ("np_rand"      2 np_p_rand)
+    ("np_randn"     2 np_p_randn)
+    ("np_seed"      1 np_p_seed)
+    ("np_get"       3 np_p_get)
+    ("np_set"       3 np_p_set)
+    ("np_unary"     3 np_p_unary)
+    ("np_binary"    4 np_p_binary)
+    ("np_scalar"    4 np_p_scalar)
+    ("np_where"     4 np_p_where)
+    ("np_reduce"    3 np_p_reduce3)
+    ("np_reduce"    4 np_p_reduce4)
+    ("np_cumsum"    2 np_p_cumsum)
+    ("np_reshape"   3 np_p_reshape)
+    ("np_flatten"   2 np_p_flatten)
+    ("np_concat"    3 np_p_concat)
+    ("np_rows"      4 np_p_rows)
+    ("np_cols"      4 np_p_cols)
+    ("np_copy"      2 np_p_copy)
+    ("np_astype"    3 np_p_astype)
+    ("np_sort"      2 np_p_sort)
+    ("np_argsort"   2 np_p_argsort)
+    ("np_dot"       3 np_p_dot)
+    ("np_save"      2 np_p_save)
+    ("np_load"      2 np_p_load)
+    ("np_save_csv"  2 np_p_save_csv)
+    ("np_load_csv"  2 np_p_load_csv)
+    ("$np_kb_put"   2 np_p_kb_put)
+    ("$np_kb_get"   2 np_p_kb_get)
+    ("$np_kb_forget" 1 np_p_kb_forget)
+    ("np_free"      1 np_p_free)
+    ("np_handles"   1 np_p_handles)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half: the names over the generics, and the knowledge base
+;;;; ------------------------------------------------------------------
+;;; Joined with spaces -- a Cicili string literal cannot carry a newline.
+(DEFPARAMETER *numpy-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ":- dynamic np_meta/3."
+           ":- dynamic np_chunk/3."
+
+           ;; the everyday spellings
+           "np_from_list(L, A) :- np_array(L, float64, A)."
+           "np_add(A, B, C) :- np_binary(add, A, B, C)."
+           "np_sub(A, B, C) :- np_binary(sub, A, B, C)."
+           "np_mul(A, B, C) :- np_binary(mul, A, B, C)."
+           "np_div(A, B, C) :- np_binary(div, A, B, C)."
+           "np_matmul(A, B, C) :- np_binary(matmul, A, B, C)."
+           "np_neg(A, B) :- np_unary(neg, A, B)."
+           "np_abs(A, B) :- np_unary(abs, A, B)."
+           "np_sqrt(A, B) :- np_unary(sqrt, A, B)."
+           "np_exp(A, B) :- np_unary(exp, A, B)."
+           "np_log(A, B) :- np_unary(log, A, B)."
+           "np_transpose(A, B) :- np_unary(transpose, A, B)."
+           "np_sum(A, X) :- np_reduce(sum, A, X)."
+           "np_mean(A, X) :- np_reduce(mean, A, X)."
+           "np_std(A, X) :- np_reduce(std, A, X)."
+           "np_max(A, X) :- np_reduce(max, A, X)."
+           "np_min(A, X) :- np_reduce(min, A, X)."
+           "np_argmax(A, X) :- np_reduce(argmax, A, X)."
+           "np_argmin(A, X) :- np_reduce(argmin, A, X)."
+           ;; the L2 norm: the one piece of linalg the array API can spell
+           "np_norm(A, X) :- np_binary(mul, A, A, S), np_reduce(sum, S, T), np_free(S), X is sqrt(T)."
+
+           ;; THE KNOWLEDGE BASE. The rows when the arrangement has tensor
+           ;; storage, chunks of 120 numbers as clauses when it has not (a row
+           ;; must fit in a page), and the shape and dtype as a clause either
+           ;; way. np_forget first, so a store under a name replaces it.
+           "np_store(Name, A) :- np_dtype(A, T), np_shape(A, S), np_forget(Name), assertz(np_meta(Name, T, S)), ( '$np_kb_put'(Name, A) -> true ; np_flatten(A, F), np_to_list(F, L), np_free(F), '$np_chunks'(L, Name, 0) )."
+           "'$np_chunks'([], _, _) :- !."
+           "'$np_chunks'(L, Name, Seq) :- '$np_split'(L, 120, C, R), assertz(np_chunk(Name, Seq, C)), Seq1 is Seq + 1, '$np_chunks'(R, Name, Seq1)."
+           "'$np_split'(Xs, 0, [], Xs) :- !."
+           "'$np_split'([], _, [], []) :- !."
+           "'$np_split'([X|Xs], N, [X|Cs], R) :- N1 is N - 1, '$np_split'(Xs, N1, Cs, R)."
+           "np_fetch(Name, A) :- np_meta(Name, T, S), ( '$np_kb_get'(Name, F) -> true ; findall(Seq-C, np_chunk(Name, Seq, C), Ps), msort(Ps, Sorted), '$np_join'(Sorted, L), np_from_list(L, F) ), np_reshape(F, S, R), np_free(F), np_astype(R, T, A), np_free(R)."
+           "'$np_join'([], [])."
+           "'$np_join'([_-C|T], L) :- '$np_join'(T, R), append(C, R, L)."
+           "np_forget(Name) :- ( retract(np_meta(Name, _, _)) -> true ; true ), '$np_forget_chunks'(Name), ( '$np_kb_forget'(Name) -> true ; true )."
+           "'$np_forget_chunks'(Name) :- ( retract(np_chunk(Name, _, _)) -> '$np_forget_chunks'(Name) ; true )."
+           "np_stored(Name) :- np_meta(Name, _, _).")))
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+(source "numpy.c"
+  (make :std #t :compile #f)
+
+  ;; Python.h first among the headers this file adds; the std prelude's
+  ;; come before it, and a feature macro redefined to the same value is
+  ;; not a warning. build.sh compiles this C itself, with the flags the
+  ;; interpreter reports.
+  (include <Python.h>)
+  (include <numpy/arrayobject.h>)
+  (include <math.h>)
+
+  (import "lib/python/python.cicili")
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;;; A cast takes ONE type token, so `unsigned char' needs a name -- the
+  ;;; same typedef every byte-handling module here carries.
+  (@define (code "ubyte_t unsigned char"))
+
+  ;;; Three type checks the binding leaves out, being MACROS in C: a
+  ;;; declaration of one would emit a prototype the preprocessor mangles, so
+  ;;; each is a one-line C wrapper -- the fire escape, used as library(ray)
+  ;;; uses it for raylib's bool queries -- and the wrapper is what Cicili
+  ;;; sees. And the two draws from libc, which the std POSIX declarations do
+  ;;; not carry; those are functions, and a prototype is right for them.
+  (code "static int np_is_list(PyObject * o) { return PyList_Check(o); }")
+  (code "static int np_is_tuple(PyObject * o) { return PyTuple_Check(o); }")
+  (code "static int np_is_str(PyObject * o) { return PyUnicode_Check(o); }")
+  (decl) (func np_is_list ((PyObject * o)) (out int))
+  (decl) (func np_is_tuple ((PyObject * o)) (out int))
+  (decl) (func np_is_str ((PyObject * o)) (out int))
+  (decl) (func drand48 () (out double))
+  (decl) (func srand48 ((long seed)))
+
+  ;;; ---- the table of handles --------------------------------------------
+  ;;; Slot 0 is never handed out, so no handle is 0. 4096 arrays is a great
+  ;;; many for one interpreter, and running out says so.
+  (static) (var PyObject * np_slots [4096])
+  (static) (var int np_started . 0)
+
+  ;;; The interpreter, once. Py_Initialize is idempotent by the book, and
+  ;;; _import_array is the ritual numpy's C API needs in every translation
+  ;;; unit that touches it -- skipped, the first PyArray_ call segfaults.
+  ;;; Never finalised: the arrays this module holds live in it.
+  (static)
+  (func np_ready ((coco_engine * e) (int * rc)) (out int)
+        (if np_started (return 1))
+        (if (not (Py_IsInitialized)) (Py_Initialize))
+        (if (< (_import_array) 0)
+            (block (PyErr_Print)
+                   (set (cof rc) (coco_m_error e "numpy" "numpy's C API did not import into the embedded interpreter"))
+                   (return 0)))
+        (for ((int i . 0)) (< i 4096) ((++ i)) (set (nth i np_slots) nil))
+        (srand48 1)
+        (set np_started 1)
+        (return 1))
+
+  ;;; A failure inside numpy, as a cocolog error: the traceback to stderr,
+  ;;; where a person reads it, and error(cocolog_error(Text), _) to the
+  ;;; program -- the form every library failure takes here (card row C2).
+  (static)
+  (func np_fail ((coco_engine * e) (const char * what)) (out int)
+        (if (!= (PyErr_Occurred) nil) (PyErr_Print))
+        (return (coco_m_error e "numpy" what)))
+
+  ;;; Takes the reference; answers the slot, or 0 having dropped it.
+  (static)
+  (func np_slot_new ((PyObject * o)) (out int)
+        (for ((int i . 1)) (< i 4096) ((++ i))
+          (if (== (nth i np_slots) nil)
+              (block (set (nth i np_slots) o) (return i))))
+        (Py_DecRef o)
+        (return 0))
+
+  ;;; Argument T as an array this module holds. A borrowed pointer.
+  (static)
+  (func np_arg ((coco_engine * e) (size_t t) (PyObject ** out) (int * rc)) (out int)
+        (let ((i64 h . 0))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (not (coco_m_int e t (aof h)))
+              (block (set (cof rc) (coco_m_type_error e "numpy_array" t)) (return 0)))
+          (if (or (<= h 0) (or (>= h 4096) (== (nth h np_slots) nil)))
+              (block (set (cof rc) (coco_m_domain_error e "numpy_array" t)) (return 0)))
+          (set (cof out) (nth h np_slots))
+          (return 1)))
+
+  ;;; ---- dtypes --------------------------------------------------------------
+
+  ;;; the dtype names this module speaks, and numpy's type numbers for them.
+  ;;; NPY_INT64 IS NPY_LONG on every 64-bit platform this runs on, which is
+  ;;; why a default-integer array reads as int64 here; a NPY_LONGLONG array
+  ;;; would not, and nothing in this file makes one.
+  (static)
+  (func np_typenum ((const char * name)) (out int)
+        (if (== 0 (strcmp name "float64")) (return NPY_FLOAT64))
+        (if (== 0 (strcmp name "float32")) (return NPY_FLOAT32))
+        (if (== 0 (strcmp name "int64"))   (return NPY_INT64))
+        (if (== 0 (strcmp name "int32"))   (return NPY_INT32))
+        (if (== 0 (strcmp name "int16"))   (return NPY_INT16))
+        (if (== 0 (strcmp name "int8"))    (return NPY_INT8))
+        (if (== 0 (strcmp name "uint8"))   (return NPY_UINT8))
+        (if (== 0 (strcmp name "uint16"))  (return NPY_UINT16))
+        (if (== 0 (strcmp name "uint32"))  (return NPY_UINT32))
+        (if (== 0 (strcmp name "uint64"))  (return NPY_UINT64))
+        (if (== 0 (strcmp name "bool"))    (return NPY_BOOL))
+        (return -1))
+
+  (static)
+  (func np_typename ((int t)) (out const char *)
+        (if (== t NPY_FLOAT64) (return "float64"))
+        (if (== t NPY_FLOAT32) (return "float32"))
+        (if (== t NPY_INT64)   (return "int64"))
+        (if (== t NPY_INT32)   (return "int32"))
+        (if (== t NPY_INT16)   (return "int16"))
+        (if (== t NPY_INT8)    (return "int8"))
+        (if (== t NPY_UINT8)   (return "uint8"))
+        (if (== t NPY_UINT16)  (return "uint16"))
+        (if (== t NPY_UINT32)  (return "uint32"))
+        (if (== t NPY_UINT64)  (return "uint64"))
+        (if (== t NPY_BOOL)    (return "bool"))
+        (return "other"))
+
+  ;;; the `.npy' descr for a type number, little-endian; nil for one this
+  ;;; does not write (the writer casts those to float64 first)
+  (static)
+  (func np_descr_of ((int t)) (out const char *)
+        (if (== t NPY_FLOAT64) (return "<f8"))
+        (if (== t NPY_FLOAT32) (return "<f4"))
+        (if (== t NPY_INT64)   (return "<i8"))
+        (if (== t NPY_INT32)   (return "<i4"))
+        (if (== t NPY_INT16)   (return "<i2"))
+        (if (== t NPY_INT8)    (return "|i1"))
+        (if (== t NPY_UINT8)   (return "|u1"))
+        (if (== t NPY_UINT16)  (return "<u2"))
+        (if (== t NPY_UINT32)  (return "<u4"))
+        (if (== t NPY_UINT64)  (return "<u8"))
+        (if (== t NPY_BOOL)    (return "|b1"))
+        (return nil))
+
+  ;;; and back: a descr as read from a file, -1 for one not spoken here
+  (static)
+  (func np_typenum_of_descr ((const char * d)) (out int)
+        (if (or (== 0 (strcmp d "<f8")) (== 0 (strcmp d "=f8"))) (return NPY_FLOAT64))
+        (if (or (== 0 (strcmp d "<f4")) (== 0 (strcmp d "=f4"))) (return NPY_FLOAT32))
+        (if (or (== 0 (strcmp d "<i8")) (== 0 (strcmp d "=i8"))) (return NPY_INT64))
+        (if (or (== 0 (strcmp d "<i4")) (== 0 (strcmp d "=i4"))) (return NPY_INT32))
+        (if (or (== 0 (strcmp d "<i2")) (== 0 (strcmp d "=i2"))) (return NPY_INT16))
+        (if (or (== 0 (strcmp d "|i1")) (== 0 (strcmp d "<i1"))) (return NPY_INT8))
+        (if (or (== 0 (strcmp d "|u1")) (== 0 (strcmp d "<u1"))) (return NPY_UINT8))
+        (if (or (== 0 (strcmp d "<u2")) (== 0 (strcmp d "=u2"))) (return NPY_UINT16))
+        (if (or (== 0 (strcmp d "<u4")) (== 0 (strcmp d "=u4"))) (return NPY_UINT32))
+        (if (or (== 0 (strcmp d "<u8")) (== 0 (strcmp d "=u8"))) (return NPY_UINT64))
+        (if (or (== 0 (strcmp d "|b1")) (== 0 (strcmp d "<b1"))) (return NPY_BOOL))
+        (return -1))
+
+  ;;; ---- terms to Python objects, and back ---------------------------------
+
+  ;;; A Prolog term as a NEW Python object -- numbers, and lists of them
+  ;;; nested to any depth -- for PyArray_FROM_OTF to read as an array. Nil
+  ;;; for a term that is not one of those (no exception set).
+  (static) (decl) (func np_to_py ((coco_engine * e) (size_t t)) (out PyObject *))
+  (func np_to_py ((coco_engine * e) (size_t t)) (out PyObject *)
+        (let ((double d . 0.0) (i64 i . 0))
+          (if (coco_m_is_var e t) (return nil))
+          (if (coco_m_int e t (aof i)) (return (PyLong_FromLong (cast long i))))
+          (if (coco_m_float e t (aof d)) (return (PyFloat_FromDouble d)))
+          (if (coco_m_is_atom e t)
+              (block
+                (if (== 0 (strcmp (coco_m_atom e t) "[]")) (return (PyList_New 0)))
+                (if (== 0 (strcmp (coco_m_atom e t) "true")) (return (PyBool_FromLong 1)))
+                (if (== 0 (strcmp (coco_m_atom e t) "false")) (return (PyBool_FromLong 0)))
+                (return nil)))
+          (let ((size_t * items . nil) (size_t n . 0))
+            (if (not (coco_m_list_array e t (aof items) (aof n))) (return nil))
+            (let ((PyObject * l . #'(PyList_New (cast ssize_t n))))
+              (if (== l nil) (block (free items) (return nil)))
+              (for ((size_t k . 0)) (< k n) ((++ k))
+                (let ((PyObject * v . #'(np_to_py e (nth k items))))
+                  (if (== v nil) (block (free items) (Py_DecRef l) (return nil)))
+                  (PyList_SetItem l (cast ssize_t k) v)))   ; steals v
+              (free items)
+              (return l)))))
+
+  ;;; A Python object as a Prolog term, BORROWING the object. An ndarray of
+  ;;; any rank but zero becomes a new handle (increfed: the slot owns a
+  ;;; reference of its own); a zero-rank array is its one element; float,
+  ;;; int, bool, None, list and tuple are what they say; a numpy scalar is
+  ;;; an integer if it indexes and a float otherwise. Answers 1, or 0 when
+  ;;; the handle table is full.
+  (static) (decl) (func np_from_py ((coco_engine * e) (PyObject * o) (size_t * out)) (out int))
+  (func np_from_py ((coco_engine * e) (PyObject * o) (size_t * out)) (out int)
+        (if (== o Py_None) (block (set (cof out) (coco_m_new_atom e "none")) (return 1)))
+        (if (== o Py_True) (block (set (cof out) (coco_m_new_atom e "true")) (return 1)))
+        (if (== o Py_False) (block (set (cof out) (coco_m_new_atom e "false")) (return 1)))
+        (if (PyArray_Check o)
+            (block
+              (if (== (PyArray_NDIM (nparr o)) 0)
+                  (let ((PyObject * s . #'(PyArray_GETITEM (nparr o) (cast (const char *) (PyArray_DATA (nparr o))))))
+                    (if (== s nil) (return 0))
+                    (let ((int r . #'(np_from_py e s out)))
+                      (Py_DecRef s)
+                      (return r))))
+              (Py_IncRef o)
+              (let ((int h . #'(np_slot_new o)))
+                (if (== h 0) (return 0))
+                (set (cof out) (coco_m_new_int e (cast i64 h)))
+                (return 1))))
+        (if (PyFloat_Check o)
+            (block (set (cof out) (coco_m_new_float e (PyFloat_AsDouble o))) (return 1)))
+        (if (PyLong_Check o)
+            (block (set (cof out) (coco_m_new_int e (cast i64 (PyLong_AsLong o)))) (return 1)))
+        (if (np_is_str o)
+            (block (set (cof out) (coco_m_new_atom e (PyUnicode_AsUTF8 o))) (return 1)))
+        (if (or (np_is_list o) (np_is_tuple o))
+            (let ((int islist . #'(np_is_list o)))
+              (let ((ssize_t n . #'(? islist (PyList_Size o) (PyTuple_Size o))))
+                (let ((size_t * cells . #'(cast (size_t *) (malloc (* (cast size_t (+ n 1)) (sizeof size_t))))))
+                  (if (== cells nil) (return 0))
+                  (for ((ssize_t k . 0)) (< k n) ((++ k))
+                    (let ((PyObject * v . #'(? islist (PyList_GetItem o k) (PyTuple_GetItem o k))))
+                      (if (not (np_from_py e v (aof (nth k cells))))
+                          (block (free (cast (void *) cells)) (return 0)))))
+                  (set (cof out) (coco_m_list e cells (cast size_t n)))
+                  (free (cast (void *) cells))
+                  (return 1)))))
+        ;; a numpy scalar: an integer if it indexes, else a float
+        (let ((long l . #'(PyLong_AsLong o)))
+          (if (== (PyErr_Occurred) nil)
+              (block (set (cof out) (coco_m_new_int e (cast i64 l))) (return 1)))
+          (PyErr_Clear))
+        (let ((double d . #'(PyFloat_AsDouble o)))
+          (if (== (PyErr_Occurred) nil)
+              (block (set (cof out) (coco_m_new_float e d)) (return 1)))
+          (PyErr_Clear))
+        (set (cof out) (coco_m_new_atom e "unreadable"))
+        (return 1))
+
+  ;;; The answer: object O, NEW and owned here, unified with argument I as
+  ;;; the term np_from_py makes of it. Drops O either way.
+  (static)
+  (func np_answer ((coco_engine * e) (size_t g) (u32 i) (PyObject * o) (const char * what)) (out int)
+        (if (== o nil) (return (np_fail e what)))
+        (let ((size_t t . 0) (int ok . #'(np_from_py e o (aof t))))
+          (Py_DecRef o)
+          (if (not ok) (return (coco_m_error e "numpy" "no free handle: np_free what you no longer need")))
+          (return (coco_m_unify e (coco_m_arg e g i) t))))
+
+  ;;; ---- reading arguments ---------------------------------------------------
+
+  ;;; A shape from a Prolog list of integers, or one integer: into DIMS,
+  ;;; answering the rank, or -1 having raised through RC. 32 axes is far
+  ;;; past anything an array here will have and well under numpy's 64.
+  (static)
+  (func np_shape_arg ((coco_engine * e) (size_t t) (npy_intp * dims) (int * rc)) (out int)
+        (let ((i64 one . 0))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return -1)))
+          (if (coco_m_int e t (aof one))
+              (block (set (nth 0 dims) (cast npy_intp one)) (return 1)))
+          (let ((size_t * items . nil) (size_t n . 0))
+            (if (not (coco_m_list_array e t (aof items) (aof n)))
+                (block (set (cof rc) (coco_m_type_error e "shape" t)) (return -1)))
+            (if (> n 32)
+                (block (free items) (set (cof rc) (coco_m_domain_error e "shape" t)) (return -1)))
+            (for ((size_t k . 0)) (< k n) ((++ k))
+              (let ((i64 v . 0))
+                (if (not (coco_m_int e (nth k items) (aof v)))
+                    (block (free items)
+                           (set (cof rc) (coco_m_type_error e "integer" (nth k items)))
+                           (return -1)))
+                (set (nth k dims) (cast npy_intp v))))
+            (free items)
+            (return (cast int n)))))
+
+  ;;; the same shape as the tuple Reshape wants; NEW, or nil having raised
+  (static)
+  (func np_shape_tuple ((coco_engine * e) (size_t t) (int * rc)) (out PyObject *)
+        (let ((npy_intp dims [32]) (int nd . #'(np_shape_arg e t dims rc)))
+          (if (< nd 0) (return nil))
+          (let ((PyObject * tp . #'(PyTuple_New (cast ssize_t nd))))
+            (for ((int k . 0)) (< k nd) ((++ k))
+              (PyTuple_SetItem tp (cast ssize_t k) (PyLong_FromLong (cast long (nth k dims)))))
+            (return tp))))
+
+  ;;; a number argument as a C double; 0 having raised
+  (static)
+  (func np_double_arg ((coco_engine * e) (size_t t) (double * out) (int * rc)) (out int)
+        (let ((i64 i . 0))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (coco_m_float e t out) (return 1))
+          (if (coco_m_int e t (aof i)) (block (set (cof out) (cast double i)) (return 1)))
+          (set (cof rc) (coco_m_type_error e "number" t))
+          (return 0)))
+
+  ;;; a number argument as a NEW Python number, keeping an integer an integer
+  (static)
+  (func np_number_arg ((coco_engine * e) (size_t t) (int * rc)) (out PyObject *)
+        (let ((double d . 0.0) (i64 i . 0))
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return nil)))
+          (if (coco_m_int e t (aof i)) (return (PyLong_FromLong (cast long i))))
+          (if (coco_m_float e t (aof d)) (return (PyFloat_FromDouble d)))
+          (set (cof rc) (coco_m_type_error e "number" t))
+          (return nil)))
+
+  ;;; an atom argument as text; nil having raised
+  (static)
+  (func np_atom_arg ((coco_engine * e) (size_t t) (int * rc)) (out const char *)
+        (if (coco_m_is_var e t)
+            (block (set (cof rc) (coco_m_instantiation_error e)) (return nil)))
+        (if (not (coco_m_is_atom e t))
+            (block (set (cof rc) (coco_m_type_error e "atom" t)) (return nil)))
+        (return (coco_m_atom e t)))
+
+  ;;; a fresh float64 array of a shape, for the fills below; NEW or nil
+  (static)
+  (func np_empty64 ((int nd) (npy_intp * dims)) (out PyObject *)
+        (return (PyArray_EMPTY nd dims NPY_FLOAT64 0)))
+
+  ;;; ---- the predicates: making --------------------------------------------
+
+  ;;; np_array(+List, +Dtype, -A): the list read as an array of that type
+  (func np_p_array ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * dt . #'(np_atom_arg e (coco_m_arg e g 1) (aof rc))))
+            (if (== dt nil) (return rc))
+            (let ((int tn . #'(np_typenum dt)))
+              (if (< tn 0) (return (coco_m_domain_error e "dtype" (coco_m_arg e g 1))))
+              (let ((PyObject * l . #'(np_to_py e (coco_m_arg e g 0))))
+                (if (== l nil) (return (coco_m_type_error e "number_list" (coco_m_arg e g 0))))
+                (let ((PyObject * a . #'(PyArray_FROM_OTF l tn (bitor NPY_ARRAY_IN_ARRAY NPY_ARRAY_FORCECAST))))
+                  (Py_DecRef l)
+                  (return (np_answer e g 2 a "the list is not rectangular, or holds what the dtype cannot"))))))))
+
+  ;;; np_to_list(+A, -L): tolist()
+  (func np_p_to_list ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (np_answer e g 1 (PyArray_ToList (nparr a)) "tolist failed"))))
+
+  ;;; np_shape(+A, -Shape)
+  (func np_p_shape ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (let ((int nd . #'(PyArray_NDIM (nparr a))) (npy_intp * ds . #'(PyArray_DIMS (nparr a)))
+                (size_t lst . #'(coco_m_nil e)))
+            (for ((int k . #'(- nd 1))) (>= k 0) ((-- k))
+              (set lst (coco_m_cons e (coco_m_new_int e (cast i64 (nth k ds))) lst)))
+            (return (coco_m_unify e (coco_m_arg e g 1) lst)))))
+
+  (func np_p_ndim ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (PyArray_NDIM (nparr a)))))))
+
+  (func np_p_size ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (PyArray_SIZE (nparr a)))))))
+
+  ;;; np_dtype(+A, -Name)
+  (func np_p_dtype ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (coco_m_unify_atom e (coco_m_arg e g 1) (np_typename (PyArray_TYPE (nparr a)))))))
+
+  ;;; np_zeros(+Shape, -A)
+  (func np_p_zeros ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (npy_intp dims [32]))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((int nd . #'(np_shape_arg e (coco_m_arg e g 0) dims (aof rc))))
+            (if (< nd 0) (return rc))
+            (return (np_answer e g 1 (PyArray_ZEROS nd dims NPY_FLOAT64 0) "zeros")))))
+
+  ;;; a float64 array of a shape filled with one value: ones and full
+  (static)
+  (func np_filled ((coco_engine * e) (size_t g) (u32 out_i) (double v)) (out int)
+        (let ((int rc . 0) (npy_intp dims [32]))
+          (let ((int nd . #'(np_shape_arg e (coco_m_arg e g 0) dims (aof rc))))
+            (if (< nd 0) (return rc))
+            (let ((PyObject * a . #'(np_empty64 nd dims)))
+              (if (== a nil) (return (np_fail e "no memory for the array")))
+              (let ((double * d . #'(cast (double *) (PyArray_DATA (nparr a))))
+                    (size_t n . #'(cast size_t (PyArray_SIZE (nparr a)))))
+                (for ((size_t k . 0)) (< k n) ((++ k)) (set (nth k d) v)))
+              (return (np_answer e g out_i a "fill"))))))
+
+  (func np_p_ones ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (return (np_filled e g 1 1.0))))
+
+  ;;; np_full(+Shape, +Value, -A)
+  (func np_p_full ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (double v . 0.0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_double_arg e (coco_m_arg e g 1) (aof v) (aof rc))) (return rc))
+          (return (np_filled e g 2 v))))
+
+  ;;; np_eye(+N, -A)
+  (func np_p_eye ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 n . 0) (npy_intp dims [2]))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (if (< n 0) (return (coco_m_domain_error e "size" (coco_m_arg e g 0))))
+          (set (nth 0 dims) (cast npy_intp n))
+          (set (nth 1 dims) (cast npy_intp n))
+          (let ((PyObject * a . #'(PyArray_ZEROS 2 dims NPY_FLOAT64 0)))
+            (if (== a nil) (return (np_fail e "no memory for the array")))
+            (let ((double * d . #'(cast (double *) (PyArray_DATA (nparr a)))))
+              (for ((i64 k . 0)) (< k n) ((++ k)) (set (nth (+ (* k n) k) d) 1.0)))
+            (return (np_answer e g 1 a "eye")))))
+
+  ;;; np_arange(+Start, +Stop, +Step, -A): float64, half-open
+  (func np_p_arange ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (double s . 0.0) (double t . 0.0) (double st . 0.0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_double_arg e (coco_m_arg e g 0) (aof s) (aof rc))) (return rc))
+          (if (not (np_double_arg e (coco_m_arg e g 1) (aof t) (aof rc))) (return rc))
+          (if (not (np_double_arg e (coco_m_arg e g 2) (aof st) (aof rc))) (return rc))
+          (if (== st 0.0) (return (coco_m_domain_error e "step" (coco_m_arg e g 2))))
+          (return (np_answer e g 3 (PyArray_Arange s t st NPY_FLOAT64) "arange"))))
+
+  ;;; np_linspace(+Start, +Stop, +N, -A): N points, both ends included
+  (func np_p_linspace ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (double s . 0.0) (double t . 0.0) (i64 n . 0) (npy_intp dims [1]))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_double_arg e (coco_m_arg e g 0) (aof s) (aof rc))) (return rc))
+          (if (not (np_double_arg e (coco_m_arg e g 1) (aof t) (aof rc))) (return rc))
+          (if (not (coco_m_int e (coco_m_arg e g 2) (aof n)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 2))))
+          (if (< n 0) (return (coco_m_domain_error e "count" (coco_m_arg e g 2))))
+          (set (nth 0 dims) (cast npy_intp n))
+          (let ((PyObject * a . #'(np_empty64 1 dims)))
+            (if (== a nil) (return (np_fail e "no memory for the array")))
+            (let ((double * d . #'(cast (double *) (PyArray_DATA (nparr a))))
+                  (double step . #'(? (> n 1) (/ (- t s) (cast double (- n 1))) 0.0)))
+              (for ((i64 k . 0)) (< k n) ((++ k)) (set (nth k d) (+ s (* step (cast double k)))))
+              (if (> n 1) (set (nth (- n 1) d) t)))
+            (return (np_answer e g 3 a "linspace")))))
+
+  ;;; np_rand(+Shape, -A) and np_randn(+Shape, -A): drand48, and Box-Muller
+  ;;; over it for the normal draw -- so np_seed/1 repeats both
+  (static)
+  (func np_drawn ((coco_engine * e) (size_t g) (int normal)) (out int)
+        (let ((int rc . 0) (npy_intp dims [32]))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((int nd . #'(np_shape_arg e (coco_m_arg e g 0) dims (aof rc))))
+            (if (< nd 0) (return rc))
+            (let ((PyObject * a . #'(np_empty64 nd dims)))
+              (if (== a nil) (return (np_fail e "no memory for the array")))
+              (let ((double * d . #'(cast (double *) (PyArray_DATA (nparr a))))
+                    (size_t n . #'(cast size_t (PyArray_SIZE (nparr a)))))
+                (for ((size_t k . 0)) (< k n) ((++ k))
+                  (if normal
+                      (let ((double u . #'(drand48)) (double v . #'(drand48)))
+                        (if (< u 1e-300) (set u 1e-300))
+                        (set (nth k d) (* (sqrt (* -2.0 (log u))) (cos (* 6.283185307179586 v)))))
+                    (set (nth k d) (drand48)))))
+              (return (np_answer e g 1 a "draw"))))))
+
+  (func np_p_rand  ((coco_engine * e) (size_t g)) (out int) (return (np_drawn e g 0)))
+  (func np_p_randn ((coco_engine * e) (size_t g)) (out int) (return (np_drawn e g 1)))
+
+  ;;; np_seed(+N)
+  (func np_p_seed ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 n . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (srand48 (cast long n))
+          (return 1)))
+
+  ;;; ---- elements ------------------------------------------------------------
+
+  ;;; an index: a list of integers as a tuple of them, or one integer
+  (static)
+  (func np_index_arg ((coco_engine * e) (size_t t) (int * rc)) (out PyObject *)
+        (let ((i64 one . 0))
+          (if (coco_m_int e t (aof one)) (return (PyLong_FromLong (cast long one))))
+          (return (np_shape_tuple e t rc))))
+
+  ;;; np_get(+A, +Index, -V)
+  (func np_p_get ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (let ((PyObject * key . #'(np_index_arg e (coco_m_arg e g 1) (aof rc))))
+            (if (== key nil) (return rc))
+            (let ((PyObject * v . #'(PyObject_GetItem a key)))
+              (Py_DecRef key)
+              (return (np_answer e g 2 v "index out of range"))))))
+
+  ;;; np_set(+A, +Index, +V) -- in place
+  (func np_p_set ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (let ((PyObject * key . #'(np_index_arg e (coco_m_arg e g 1) (aof rc))))
+            (if (== key nil) (return rc))
+            (let ((PyObject * v . #'(np_number_arg e (coco_m_arg e g 2) (aof rc))))
+              (if (== v nil) (block (Py_DecRef key) (return rc)))
+              (let ((int r . #'(PyObject_SetItem a key v)))
+                (Py_DecRef key) (Py_DecRef v)
+                (if (< r 0) (return (np_fail e "assignment refused")))
+                (return 1))))))
+
+  ;;; ---- arithmetic ----------------------------------------------------------
+
+  ;;; the elementwise functions over a float64 copy, from libm
+  (static)
+  (func np_map ((coco_engine * e) (size_t g) (PyObject * a) (const char * op)) (out int)
+        (let ((PyObject * c . #'(PyArray_FROM_OTF a NPY_FLOAT64 (bitor NPY_ARRAY_IN_ARRAY NPY_ARRAY_ENSURECOPY))))
+          (if (== c nil) (return (np_fail e "the array would not become float64")))
+          (let ((double * d . #'(cast (double *) (PyArray_DATA (nparr c))))
+                (size_t n . #'(cast size_t (PyArray_SIZE (nparr c)))) (int which . -1))
+            (cond
+              ((== 0 (strcmp op "sqrt"))    (set which 0))
+              ((== 0 (strcmp op "exp"))     (set which 1))
+              ((== 0 (strcmp op "log"))     (set which 2))
+              ((== 0 (strcmp op "sin"))     (set which 3))
+              ((== 0 (strcmp op "cos"))     (set which 4))
+              ((== 0 (strcmp op "tan"))     (set which 5))
+              ((== 0 (strcmp op "tanh"))    (set which 6))
+              ((== 0 (strcmp op "floor"))   (set which 7))
+              ((== 0 (strcmp op "ceil"))    (set which 8))
+              ((== 0 (strcmp op "round"))   (set which 9))
+              ((== 0 (strcmp op "sign"))    (set which 10))
+              ((== 0 (strcmp op "relu"))    (set which 11))
+              ((== 0 (strcmp op "sigmoid")) (set which 12)))
+            (if (< which 0)
+                (block (Py_DecRef c) (return (coco_m_domain_error e "numpy_unary" (coco_m_arg e g 0)))))
+            (for ((size_t k . 0)) (< k n) ((++ k))
+              (let ((double x . #'(nth k d)))
+                (cond
+                  ((== which 0)  (set (nth k d) (sqrt x)))
+                  ((== which 1)  (set (nth k d) (exp x)))
+                  ((== which 2)  (set (nth k d) (log x)))
+                  ((== which 3)  (set (nth k d) (sin x)))
+                  ((== which 4)  (set (nth k d) (cos x)))
+                  ((== which 5)  (set (nth k d) (tan x)))
+                  ((== which 6)  (set (nth k d) (tanh x)))
+                  ((== which 7)  (set (nth k d) (floor x)))
+                  ((== which 8)  (set (nth k d) (ceil x)))
+                  ((== which 9)  (set (nth k d) (round x)))
+                  ((== which 10) (set (nth k d) (? (> x 0.0) 1.0 (? (< x 0.0) -1.0 0.0))))
+                  ((== which 11) (set (nth k d) (? (> x 0.0) x 0.0)))
+                  ((== which 12) (set (nth k d) (/ 1.0 (+ 1.0 (exp (- 0.0 x)))))))))
+            (return (np_answer e g 2 c op)))))
+
+  ;;; np_unary(+Op, +A, -B): the number protocol and the array API where
+  ;;; they reach, libm for the rest
+  (func np_p_unary ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * op . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== op nil) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+            (if (== 0 (strcmp op "neg")) (return (np_answer e g 2 (PyNumber_Negative a) op)))
+            (if (== 0 (strcmp op "abs")) (return (np_answer e g 2 (PyNumber_Absolute a) op)))
+            (if (== 0 (strcmp op "transpose")) (return (np_answer e g 2 (PyArray_Transpose (nparr a) nil) op)))
+            (return (np_map e g a op)))))
+
+  ;;; the binary operators: the number protocol, a comparison, or a choice
+  ;;; by comparison (maximum, minimum) -- all of it the C API
+  (static)
+  (func np_operate ((coco_engine * e) (size_t g) (const char * op) (PyObject * a) (PyObject * b)) (out int)
+        (let ((PyObject * r . nil) (int cmp . -1))
+          (cond
+            ((== 0 (strcmp op "add")) (set r (PyNumber_Add a b)))
+            ((== 0 (strcmp op "sub")) (set r (PyNumber_Subtract a b)))
+            ((== 0 (strcmp op "mul")) (set r (PyNumber_Multiply a b)))
+            ((== 0 (strcmp op "div")) (set r (PyNumber_TrueDivide a b)))
+            ((== 0 (strcmp op "pow")) (set r (PyNumber_Power a b Py_None)))
+            ((== 0 (strcmp op "matmul")) (set r (PyNumber_MatrixMultiply a b)))
+            ((== 0 (strcmp op "lt")) (set cmp Py_LT))
+            ((== 0 (strcmp op "le")) (set cmp Py_LE))
+            ((== 0 (strcmp op "eq")) (set cmp Py_EQ))
+            ((== 0 (strcmp op "ne")) (set cmp Py_NE))
+            ((== 0 (strcmp op "gt")) (set cmp Py_GT))
+            ((== 0 (strcmp op "ge")) (set cmp Py_GE))
+            ((or (== 0 (strcmp op "maximum")) (== 0 (strcmp op "minimum")))
+             (let ((PyObject * m . #'(PyObject_RichCompare a b (? (== 0 (strcmp op "maximum")) Py_GT Py_LT))))
+               (if (== m nil) (return (np_fail e op)))
+               (set r (PyArray_Where m a b))
+               (Py_DecRef m)))
+            (#t (return (coco_m_domain_error e "numpy_binary" (coco_m_arg e g 0)))))
+          (if (>= cmp 0) (set r (PyObject_RichCompare a b cmp)))
+          (return (np_answer e g 3 r op))))
+
+  ;;; np_binary(+Op, +A, +B, -C)
+  (func np_p_binary ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil) (PyObject * b . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * op . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== op nil) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 2) (aof b) (aof rc))) (return rc))
+            (return (np_operate e g op a b)))))
+
+  ;;; np_scalar(+Op, +A, +Number, -C)
+  (func np_p_scalar ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * op . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== op nil) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+            (let ((PyObject * v . #'(np_number_arg e (coco_m_arg e g 2) (aof rc))))
+              (if (== v nil) (return rc))
+              (let ((int r . #'(np_operate e g op a v)))
+                (Py_DecRef v)
+                (return r))))))
+
+  ;;; np_where(+Cond, +A, +B, -C)
+  (func np_p_where ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * c . nil) (PyObject * a . nil) (PyObject * b . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof c) (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 2) (aof b) (aof rc))) (return rc))
+          (return (np_answer e g 3 (PyArray_Where c a b) "where: the shapes do not agree"))))
+
+  ;;; ---- reductions ----------------------------------------------------------
+
+  ;;; numpy's own, over everything or along an axis: a number or an array
+  (static)
+  (func np_reduce ((coco_engine * e) (size_t g) (int with_axis)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil) (int axis . NPY_RAVEL_AXIS) (i64 ax . 0)
+              (PyObject * r . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * op . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== op nil) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+            (if with_axis
+                (block
+                  (if (not (coco_m_int e (coco_m_arg e g 2) (aof ax)))
+                      (return (coco_m_type_error e "integer" (coco_m_arg e g 2))))
+                  (set axis (cast int ax))))
+            (cond
+              ((== 0 (strcmp op "sum"))    (set r (PyArray_Sum  (nparr a) axis NPY_NOTYPE nil)))
+              ((== 0 (strcmp op "prod"))   (set r (PyArray_Prod (nparr a) axis NPY_NOTYPE nil)))
+              ((== 0 (strcmp op "mean"))   (set r (PyArray_Mean (nparr a) axis NPY_NOTYPE nil)))
+              ((== 0 (strcmp op "std"))    (set r (PyArray_Std  (nparr a) axis NPY_NOTYPE nil 0)))
+              ((== 0 (strcmp op "var"))    (set r (PyArray_Std  (nparr a) axis NPY_NOTYPE nil 1)))
+              ((== 0 (strcmp op "max"))    (set r (PyArray_Max  (nparr a) axis nil)))
+              ((== 0 (strcmp op "min"))    (set r (PyArray_Min  (nparr a) axis nil)))
+              ((== 0 (strcmp op "argmax")) (set r (PyArray_ArgMax (nparr a) axis nil)))
+              ((== 0 (strcmp op "argmin")) (set r (PyArray_ArgMin (nparr a) axis nil)))
+              (#t (return (coco_m_domain_error e "numpy_reduction" (coco_m_arg e g 0)))))
+            (return (np_answer e g (? with_axis 3 2) r op)))))
+
+  (func np_p_reduce3 ((coco_engine * e) (size_t g)) (out int) (return (np_reduce e g 0)))
+  (func np_p_reduce4 ((coco_engine * e) (size_t g)) (out int) (return (np_reduce e g 1)))
+
+  ;;; np_cumsum(+A, -B): over the flattened array
+  (func np_p_cumsum ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (np_answer e g 1 (PyArray_CumSum (nparr a) NPY_RAVEL_AXIS NPY_NOTYPE nil) "cumsum"))))
+
+  ;;; ---- shape ---------------------------------------------------------------
+
+  ;;; np_reshape(+A, +Shape, -B)
+  (func np_p_reshape ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (let ((PyObject * shape . #'(np_shape_tuple e (coco_m_arg e g 1) (aof rc))))
+            (if (== shape nil) (return rc))
+            (let ((PyObject * r . #'(PyArray_Reshape (nparr a) shape)))
+              (Py_DecRef shape)
+              (return (np_answer e g 2 r "reshape: the sizes do not agree"))))))
+
+  (func np_p_flatten ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (np_answer e g 1 (PyArray_Flatten (nparr a) NPY_CORDER) "flatten"))))
+
+  (func np_p_copy ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (np_answer e g 1 (PyArray_NewCopy (nparr a) NPY_CORDER) "copy"))))
+
+  ;;; np_astype(+A, +Dtype, -B): CastToType steals the descr it is given
+  (func np_p_astype ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (let ((const char * dt . #'(np_atom_arg e (coco_m_arg e g 1) (aof rc))))
+            (if (== dt nil) (return rc))
+            (let ((int tn . #'(np_typenum dt)))
+              (if (< tn 0) (return (coco_m_domain_error e "dtype" (coco_m_arg e g 1))))
+              (return (np_answer e g 2 (PyArray_CastToType (nparr a) (PyArray_DescrFromType tn) 0) "astype"))))))
+
+  ;;; np_concat(+As, +Axis, -B)
+  (func np_p_concat ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (size_t * items . nil) (size_t n . 0) (i64 ax . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof items) (aof n)))
+              (return (coco_m_type_error e "list" (coco_m_arg e g 0))))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof ax)))
+              (block (free items) (return (coco_m_type_error e "integer" (coco_m_arg e g 1)))))
+          (let ((PyObject * seq . #'(PyTuple_New (cast ssize_t n))))
+            (for ((size_t k . 0)) (< k n) ((++ k))
+              (let ((PyObject * a . nil))
+                (if (not (np_arg e (nth k items) (aof a) (aof rc)))
+                    (block (free items) (Py_DecRef seq) (return rc)))
+                (Py_IncRef a)
+                (PyTuple_SetItem seq (cast ssize_t k) a)))
+            (free items)
+            (let ((PyObject * r . #'(PyArray_Concatenate seq (cast int ax))))
+              (Py_DecRef seq)
+              (return (np_answer e g 2 r "concatenate: the shapes do not agree"))))))
+
+  ;;; np_rows and np_cols: a slice, then a COPY, so the answer is an array
+  ;;; of its own and not a view np_set on either would write through
+  (static)
+  (func np_slice ((coco_engine * e) (size_t g) (int axis)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (let ((PyObject * lo . #'(np_number_arg e (coco_m_arg e g 1) (aof rc))))
+            (if (== lo nil) (return rc))
+            (let ((PyObject * hi . #'(np_number_arg e (coco_m_arg e g 2) (aof rc))))
+              (if (== hi nil) (block (Py_DecRef lo) (return rc)))
+              (let ((PyObject * sl . #'(PySlice_New lo hi nil)) (PyObject * key . nil))
+                (Py_DecRef lo) (Py_DecRef hi)
+                (if (== axis 0)
+                    (set key sl)
+                  (let ((PyObject * all . #'(PySlice_New nil nil nil)))
+                    (set key (PyTuple_New 2))
+                    (PyTuple_SetItem key 0 all)   ; steals both
+                    (PyTuple_SetItem key 1 sl)))
+                (let ((PyObject * view . #'(PyObject_GetItem a key)))
+                  (Py_DecRef key)
+                  (if (== view nil) (return (np_fail e "slice out of range")))
+                  (if (not (PyArray_Check view)) (return (np_answer e g 3 view "slice")))
+                  (let ((PyObject * c . #'(PyArray_NewCopy (nparr view) NPY_CORDER)))
+                    (Py_DecRef view)
+                    (return (np_answer e g 3 c "copy")))))))))
+
+  (func np_p_rows ((coco_engine * e) (size_t g)) (out int) (return (np_slice e g 0)))
+  (func np_p_cols ((coco_engine * e) (size_t g)) (out int) (return (np_slice e g 1)))
+
+  ;;; np_sort(+A, -B): a copy, sorted in place along the last axis
+  (func np_p_sort ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (let ((PyObject * c . #'(PyArray_NewCopy (nparr a) NPY_CORDER)))
+            (if (== c nil) (return (np_fail e "copy")))
+            (if (< (PyArray_Sort (nparr c) -1 NPY_QUICKSORT) 0)
+                (block (Py_DecRef c) (return (np_fail e "sort"))))
+            (return (np_answer e g 1 c "sort")))))
+
+  (func np_p_argsort ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (return (np_answer e g 1 (PyArray_ArgSort (nparr a) -1 NPY_QUICKSORT) "argsort"))))
+
+  ;;; np_dot(+A, +B, -C)
+  (func np_p_dot ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil) (PyObject * b . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 1) (aof b) (aof rc))) (return rc))
+          (return (np_answer e g 2 (PyArray_MatrixProduct a b) "dot: the shapes do not agree"))))
+
+  ;;; ---- files: the .npy format ---------------------------------------------
+  ;;;
+  ;;; THE FORMAT, as numpy documents it: six bytes of magic, `\x93NUMPY';
+  ;;; a major and a minor version byte; the header's length, two bytes
+  ;;; little-endian for version 1 and four for 2 and 3; the header, a
+  ;;; Python dict literal of `descr', `fortran_order' and `shape', padded
+  ;;; with spaces and ending in a newline so the data starts on a 64-byte
+  ;;; boundary; then the bytes, C order unless fortran_order says otherwise.
+  ;;; Written here in C and read here in C: what numpy.load reads is what
+  ;;; np_save writes, and the other way round.
+
+  ;;; np_save(+Path, +A): version 1, the array's own dtype where the format
+  ;;; here spells it and float64 otherwise
+  (func np_p_save ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * path . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== path nil) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+            (let ((const char * descr . #'(np_descr_of (PyArray_TYPE (nparr a)))) (PyObject * c . nil))
+              (if (== descr nil)
+                  (block (set descr "<f8")
+                         (set c (PyArray_FROM_OTF a NPY_FLOAT64 NPY_ARRAY_IN_ARRAY)))
+                (set c (cast (PyObject *) (PyArray_GETCONTIGUOUS (nparr a)))))
+              (if (== c nil) (return (np_fail e "the array would not become contiguous")))
+              (let ((char shape [512]) (size_t sl . 0) (int nd . #'(PyArray_NDIM (nparr c)))
+                    (npy_intp * ds . #'(PyArray_DIMS (nparr c))))
+                (set (nth 0 shape) (cast char 0))
+                (for ((int k . 0)) (< k nd) ((++ k))
+                  (set sl (+ sl (cast size_t (snprintf (+ shape sl) (- 512 sl) "%ld," (cast long (nth k ds)))))))
+                ;; a one-axis shape is `(3,)' and a rank-0 one is `()': the
+                ;; trailing comma is right for one and wrong for none
+                (if (and (> nd 1) (> sl 0)) (set (nth (- sl 1) shape) (cast char 0)))
+                (let ((char dict [768]) (int dl . 0))
+                  (set dl (snprintf dict 768 "{'descr': '%s', 'fortran_order': False, 'shape': (%s), }" descr shape))
+                  ;; pad so that 10 + header is a multiple of 64, the newline last
+                  (let ((int total . #'(+ 10 dl 1)) (int pad . 0))
+                    (set pad (- 64 (% total 64)))
+                    (if (== pad 64) (set pad 0))
+                    (for ((int k . 0)) (< k pad) ((++ k)) (block (set (nth dl dict) (cast char 32)) (set dl (+ dl 1))))
+                    (set (nth dl dict) (cast char 10))
+                    (set dl (+ dl 1))
+                    (let ((FILE * f . #'(fopen path "wb")))
+                      (if (== f nil) (block (Py_DecRef c) (return (coco_m_error e "numpy" "the file could not be opened for writing"))))
+                      (let ((ubyte_t head [10]) (int ok . 1))
+                        (set (nth 0 head) 147) (set (nth 1 head) 78) (set (nth 2 head) 85) (set (nth 3 head) 77)
+                        (set (nth 4 head) 80) (set (nth 5 head) 89) (set (nth 6 head) 1) (set (nth 7 head) 0)
+                        (set (nth 8 head) (cast ubyte_t (bitand dl 255)))
+                        (set (nth 9 head) (cast ubyte_t (bitand (>> dl 8) 255)))
+                        (if (!= (fwrite head 1 10 f) 10) (set ok 0))
+                        (if (and ok (!= (fwrite dict 1 (cast size_t dl) f) (cast size_t dl))) (set ok 0))
+                        (let ((size_t nb . #'(cast size_t (PyArray_NBYTES (nparr c)))))
+                          (if (and ok (> nb 0))
+                              (if (!= (fwrite (PyArray_DATA (nparr c)) 1 nb f) nb) (set ok 0))))
+                        (fclose f)
+                        (Py_DecRef c)
+                        (if (not ok) (return (coco_m_error e "numpy" "the file could not be written whole")))
+                        (return 1))))))))))
+
+  ;;; np_load(+Path, -A): versions 1, 2 and 3; little-endian dtypes; C or
+  ;;; Fortran order, the latter read into the reversed shape and transposed
+  (func np_p_load ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * path . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== path nil) (return rc))
+            (let ((FILE * f . #'(fopen path "rb")))
+              (if (== f nil) (return (coco_m_existence_error e "file" (coco_m_arg e g 0))))
+              (let ((ubyte_t head [12]) (size_t hlen . 0) (int ok . 1))
+                (if (!= (fread head 1 8 f) 8) (set ok 0))
+                (if (and ok (or (!= (nth 0 head) 147) (or (!= (nth 1 head) 78) (!= (nth 2 head) 85)))) (set ok 0))
+                (if (not ok) (block (fclose f) (return (coco_m_domain_error e "npy_file" (coco_m_arg e g 0)))))
+                (if (== (nth 6 head) 1)
+                    (block (if (!= (fread head 1 2 f) 2) (set ok 0))
+                           (set hlen (+ (cast size_t (nth 0 head)) (* 256 (cast size_t (nth 1 head))))))
+                  (block (if (!= (fread head 1 4 f) 4) (set ok 0))
+                         (set hlen (+ (cast size_t (nth 0 head))
+                                      (+ (* 256 (cast size_t (nth 1 head)))
+                                         (+ (* 65536 (cast size_t (nth 2 head)))
+                                            (* 16777216 (cast size_t (nth 3 head)))))))))
+                (if (or (not ok) (> hlen 65536))
+                    (block (fclose f) (return (coco_m_domain_error e "npy_file" (coco_m_arg e g 0)))))
+                (let ((char * hdr . #'(cast (char *) (malloc (+ hlen 1)))))
+                  (if (== hdr nil) (block (fclose f) (return 0)))
+                  (if (!= (fread hdr 1 hlen f) hlen)
+                      (block (free (cast (void *) hdr)) (fclose f)
+                             (return (coco_m_domain_error e "npy_file" (coco_m_arg e g 0)))))
+                  (set (nth hlen hdr) (cast char 0))
+                  ;; the three keys, found by name -- a dict literal numpy
+                  ;; writes in one order and a reader must not assume
+                  (let ((char descr [16]) (int fortran . 0) (npy_intp dims [32]) (int nd . 0)
+                        (int tn . -1) (char * p . nil))
+                    (set (nth 0 descr) (cast char 0))
+                    (set p (strstr hdr "'descr':"))
+                    (if (!= p nil)
+                        (block (set p (strchr (+ p 8) 39))
+                               (if (!= p nil)
+                                   (let ((char * q . #'(strchr (+ p 1) 39)))
+                                     (if (and (!= q nil) (< (- q p) 15))
+                                         (block (memcpy descr (+ p 1) (cast size_t (- q (+ p 1))))
+                                                (set (nth (- q (+ p 1)) descr) (cast char 0))))))))
+                    (if (!= (strstr hdr "'fortran_order': True") nil) (set fortran 1))
+                    (set p (strstr hdr "'shape':"))
+                    (if (!= p nil)
+                        (block
+                          (set p (strchr p 40))   ; (
+                          (if (!= p nil)
+                              (block
+                                (set p (+ p 1))
+                                (while (and (< nd 32) (!= (cof p) (cast char 41)))   ; )
+                                  (while (or (== (cof p) (cast char 32)) (== (cof p) (cast char 44))) (set p (+ p 1)))
+                                  (if (== (cof p) (cast char 41)) break)
+                                  (set (nth nd dims) (cast npy_intp (strtoll p (aof p) 10)))
+                                  (set nd (+ nd 1)))))))
+                    (set tn (np_typenum_of_descr descr))
+                    (free (cast (void *) hdr))
+                    (if (< tn 0)
+                        (block (fclose f) (return (coco_m_domain_error e "npy_dtype" (coco_m_arg e g 0)))))
+                    ;; Fortran order: the bytes are the transpose's, so read
+                    ;; them into the reversed shape and transpose back
+                    (if fortran
+                        (for ((int k . 0)) (< k (/ nd 2)) ((++ k))
+                          (let ((npy_intp tmp . #'(nth k dims)))
+                            (set (nth k dims) (nth (- nd (+ k 1)) dims))
+                            (set (nth (- nd (+ k 1)) dims) tmp))))
+                    (let ((PyObject * a . #'(PyArray_SimpleNew nd dims tn)))
+                      (if (== a nil) (block (fclose f) (return (np_fail e "no memory for the array"))))
+                      (let ((size_t nb . #'(cast size_t (PyArray_NBYTES (nparr a)))))
+                        (if (and (> nb 0) (!= (fread (PyArray_DATA (nparr a)) 1 nb f) nb))
+                            (block (fclose f) (Py_DecRef a)
+                                   (return (coco_m_domain_error e "npy_file" (coco_m_arg e g 0))))))
+                      (fclose f)
+                      (if fortran
+                          (let ((PyObject * t . #'(PyArray_Transpose (nparr a) nil)))
+                            (Py_DecRef a)
+                            (if (== t nil) (return (np_fail e "transpose")))
+                            (set a (PyArray_NewCopy (nparr t) NPY_CORDER))
+                            (Py_DecRef t)))
+                      (return (np_answer e g 1 a "load"))))))))))
+
+  ;;; ---- files: CSV --------------------------------------------------------
+
+  ;;; np_save_csv(+Path, +A): one row a line, %.17g so a double survives
+  (func np_p_save_csv ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * path . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== path nil) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+            (if (> (PyArray_NDIM (nparr a)) 2)
+                (return (coco_m_domain_error e "rank_at_most_2" (coco_m_arg e g 1))))
+            (let ((PyObject * c . #'(PyArray_FROM_OTF a NPY_FLOAT64 NPY_ARRAY_IN_ARRAY)))
+              (if (== c nil) (return (np_fail e "the array would not become float64")))
+              (let ((int nd . #'(PyArray_NDIM (nparr c)))
+                    (size_t rows . 1) (size_t cols . 1)
+                    (double * d . #'(cast (double *) (PyArray_DATA (nparr c)))))
+                (if (== nd 1) (set cols (cast size_t (PyArray_DIM (nparr c) 0))))
+                (if (== nd 2) (block (set rows (cast size_t (PyArray_DIM (nparr c) 0)))
+                                     (set cols (cast size_t (PyArray_DIM (nparr c) 1)))))
+                (let ((FILE * f . #'(fopen path "w")))
+                  (if (== f nil) (block (Py_DecRef c) (return (coco_m_error e "numpy" "the file could not be opened for writing"))))
+                  (for ((size_t r . 0)) (< r rows) ((++ r))
+                    (for ((size_t k . 0)) (< k cols) ((++ k))
+                      (fprintf f (? (== k 0) "%.17g" ",%.17g") (nth (+ (* r cols) k) d)))
+                    (fprintf f "\n"))
+                  (fclose f)
+                  (Py_DecRef c)
+                  (return 1)))))))
+
+  ;;; np_load_csv(+Path, -A): commas or whitespace between numbers, one row
+  ;;; a line, blank lines and lines opening with # skipped; every row must
+  ;;; be as wide as the first
+  (func np_p_load_csv ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * path . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== path nil) (return rc))
+            (let ((FILE * f . #'(fopen path "rb")))
+              (if (== f nil) (return (coco_m_existence_error e "file" (coco_m_arg e g 0))))
+              ;; the whole file, then a walk over it
+              (let ((char * text . nil) (size_t len . 0) (size_t cap . 65536))
+                (set text (cast (char *) (malloc (+ cap 1))))
+                (if (== text nil) (block (fclose f) (return 0)))
+                (while 1
+                  (let ((size_t got . #'(fread (+ text len) 1 (- cap len) f)))
+                    (set len (+ len got))
+                    (if (< len cap) break)
+                    (set cap (* cap 2))
+                    (let ((char * nt . #'(cast (char *) (realloc (cast (void *) text) (+ cap 1)))))
+                      (if (== nt nil) (block (free (cast (void *) text)) (fclose f) (return 0)))
+                      (set text nt))))
+                (fclose f)
+                (set (nth len text) (cast char 0))
+                ;; count the rows and the first row's width
+                (let ((size_t rows . 0) (size_t cols . 0) (char * p . text) (int bad . 0)
+                      (double * vals . nil) (size_t nv . 0) (size_t vcap . 0))
+                  (while (< (- p text) (cast long len))
+                    (let ((char * eol . #'(strchr p 10)) (size_t here . 0))
+                      (if (== eol nil) (set eol (+ text len)))
+                      ;; a line: numbers separated by commas or blanks
+                      (let ((char * q . p))
+                        (while (< q eol)
+                          (while (and (< q eol) (or (== (cof q) (cast char 32)) (or (== (cof q) (cast char 44)) (or (== (cof q) (cast char 9)) (== (cof q) (cast char 13))))))
+                            (set q (+ q 1)))
+                          (if (>= q eol) break)
+                          (if (== (cof q) (cast char 35)) break)   ; # comment
+                          (let ((char * end . nil) (double v . #'(strtod q (aof end))))
+                            (if (== end q) (block (set bad 1) break))
+                            (if (>= nv vcap)
+                                (let ((size_t nc . #'(? (== vcap 0) 1024 (* vcap 2))))
+                                  (let ((double * nb . #'(cast (double *) (realloc (cast (void *) vals) (* nc (sizeof double))))))
+                                    (if (== nb nil) (block (set bad 1) break))
+                                    (set vals nb) (set vcap nc))))
+                            (set (nth nv vals) v)
+                            (set nv (+ nv 1))
+                            (set here (+ here 1))
+                            (set q end))))
+                      (if bad break)
+                      (if (> here 0)
+                          (block
+                            (if (== rows 0) (set cols here))
+                            (if (!= here cols) (block (set bad 1) break))
+                            (set rows (+ rows 1))))
+                      (set p (+ eol 1))))
+                  (free (cast (void *) text))
+                  (if bad
+                      (block (free (cast (void *) vals))
+                             (return (coco_m_domain_error e "csv_rectangle" (coco_m_arg e g 0)))))
+                  (let ((npy_intp dims [2]))
+                    (set (nth 0 dims) (cast npy_intp rows))
+                    (set (nth 1 dims) (cast npy_intp cols))
+                    (let ((PyObject * a . #'(np_empty64 2 dims)))
+                      (if (== a nil) (block (free (cast (void *) vals)) (return (np_fail e "no memory for the array"))))
+                      (if (> nv 0) (memcpy (PyArray_DATA (nparr a)) vals (* nv (sizeof double))))
+                      (free (cast (void *) vals))
+                      (return (np_answer e g 1 a "loadtxt"))))))))))
+
+  ;;; ---- the knowledge base -------------------------------------------------
+
+  ;;; '$np_kb_put'(+Name, +A): the array's numbers as float64 rows of 512
+  ;;; through the tensor hooks -- the same table and the same pieces as
+  ;;; library(torch)'s parameters. FAILS, having written nothing, where the
+  ;;; arrangement has no tensor storage: the forget is the probe, and the
+  ;;; Coco half falls back to clause chunks.
+  (func np_p_kb_put ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * name . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== name nil) (return rc))
+            (if (not (np_arg e (coco_m_arg e g 1) (aof a) (aof rc))) (return rc))
+            (if (not (coco_m_tensor_forget e name)) (return 0))
+            (let ((PyObject * c . #'(PyArray_FROM_OTF a NPY_FLOAT64 NPY_ARRAY_IN_ARRAY)))
+              (if (== c nil) (return (np_fail e "the array would not become float64")))
+              (let ((size_t n . #'(cast size_t (PyArray_SIZE (nparr c))))
+                    (double * d . #'(cast (double *) (PyArray_DATA (nparr c))))
+                    (size_t off . 0) (i64 seq . 0) (int ok . 1))
+                (while (and ok (< off n))
+                  (let ((size_t take . #'(? (> (- n off) 512) 512 (- n off))))
+                    (if (not (coco_m_tensor_put e name seq (aof (nth off d)) (cast u32 take)))
+                        (set ok 0))
+                    (set off (+ off take))
+                    (set seq (+ seq 1))))
+                ;; an empty array is one empty piece, so a fetch can tell
+                ;; "saved empty" from "not there"
+                (if (and ok (== n 0))
+                    (if (not (coco_m_tensor_put e name 0 d 0)) (set ok 0)))
+                (Py_DecRef c)
+                (return ok))))))
+
+  ;;; '$np_kb_get'(+Name, -Flat): the pieces back in order, as one flat
+  ;;; float64 array; the Coco half gives it its shape and dtype. Fails
+  ;;; where there is no tensor storage or no such name.
+  (func np_p_kb_get ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (let ((const char * name . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== name nil) (return rc))
+            (let ((double * buf . nil) (size_t n . 0) (size_t cap . 0)
+                  (double piece [512]) (u32 pn . 0) (i64 seq . 0) (int any . 0) (int ok . 1))
+              (while (and ok (coco_m_tensor_row e name seq piece 512 (aof pn)))
+                (set any 1)
+                (if (> (+ n (cast size_t pn)) cap)
+                    (let ((size_t ncap . #'(? (== cap 0) 1024 (* cap 2))))
+                      (while (> (+ n (cast size_t pn)) ncap) (set ncap (* ncap 2)))
+                      (let ((double * nb . #'(cast (double *) (realloc (cast (void *) buf) (* ncap (sizeof double))))))
+                        (if (== nb nil) (set ok 0) (block (set buf nb) (set cap ncap))))))
+                (if ok
+                    (block (memcpy (aof (nth n buf)) piece (* (cast size_t pn) (sizeof double)))
+                           (set n (+ n (cast size_t pn)))))
+                (set seq (+ seq 1))
+                (if (== pn 0) break))
+              (if (or (not ok) (not any))
+                  (block (free (cast (void *) buf)) (return 0)))
+              (let ((npy_intp dims [1]))
+                (set (nth 0 dims) (cast npy_intp n))
+                (let ((PyObject * a . #'(np_empty64 1 dims)))
+                  (if (== a nil) (block (free (cast (void *) buf)) (return (np_fail e "no memory for the array"))))
+                  (if (> n 0) (memcpy (PyArray_DATA (nparr a)) buf (* n (sizeof double))))
+                  (free (cast (void *) buf))
+                  (return (np_answer e g 1 a "fetch"))))))))
+
+  ;;; '$np_kb_forget'(+Name): the rows, where there are rows to forget
+  (func np_p_kb_forget ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0))
+          (let ((const char * name . #'(np_atom_arg e (coco_m_arg e g 0) (aof rc))))
+            (if (== name nil) (return rc))
+            (return (coco_m_tensor_forget e name)))))
+
+  ;;; ---- handles ------------------------------------------------------------
+
+  ;;; np_free(+A)
+  (func np_p_free ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (PyObject * a . nil) (i64 h . 0))
+          (if (not (np_ready e (aof rc))) (return rc))
+          (if (not (np_arg e (coco_m_arg e g 0) (aof a) (aof rc))) (return rc))
+          (coco_m_int e (coco_m_arg e g 0) (aof h))
+          (Py_DecRef a)
+          (set (nth h np_slots) nil)
+          (return 1)))
+
+  ;;; np_handles(-N): how many are live
+  (func np_p_handles ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (if np_started
+              (for ((int i . 1)) (< i 4096) ((++ i))
+                (if (!= (nth i np_slots) nil) (set n (+ n 1)))))
+          (return (coco_m_unify_int e (coco_m_arg e g 0) n))))
+
+  (static) (coco-emit-module-dispatch np_dispatch *numpy-predicates*)
+  (coco-deflibrary "numpy" np_dispatch *numpy-prolog*))

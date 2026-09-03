@@ -543,6 +543,8 @@ ix_capability('tensors or a model',
               [tensor, neural, train, torch, model, tensorflow, gpu, cuda,
                gradient, network, 'tensor expression'],
               [torch, tensor_expr, tensorflow], ['tensor program'], local).
+ix_capability('numpy arrays', [numpy, ndarray, array, matrix, vector, npy, 'linear algebra', csv],
+              [numpy], ['tier-2 library'], local).
 ix_capability('a language model', [llm, chat, prompt, completion, openai, anthropic],
               [llm, curl, json], ['tier-2 library'], local).
 ix_capability('files and paths', [file, directory, path, 'read a file'],

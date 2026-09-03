@@ -181,7 +181,7 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 #
 # Each is skipped, loudly, when what it needs is absent.
 modules:
-	@for m in tcp thread process text os curl bigint torch tensorflow sha aes der x509 tls ray; do \
+	@for m in tcp thread process text os curl bigint torch tensorflow sha aes der x509 tls ray numpy; do \
 	  printf '%-8s ' "$$m"; \
 	  if CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh modules/$$m/build.sh >/dev/null 2>&1; then \
 	    echo "built"; \

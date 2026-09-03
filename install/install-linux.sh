@@ -25,8 +25,8 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     # ---- Debian, Ubuntu ------------------------------------------------
     export DEBIAN_FRONTEND=noninteractive
     $SUDO apt-get -qq update
-    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev python3 >/dev/null
-    say "build-essential make git curl sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev python3"
+    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev python3 python3-dev python3-numpy >/dev/null
+    say "build-essential make git curl sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev python3 python3-dev python3-numpy"
     if ! cxx_ok 16; then
       case "${CICILI_CXX:-clang++}" in
         *clang*)
@@ -53,8 +53,8 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     # Fedora's clang is 17 or newer, so it is taken as is; redhat-rpm-config
     # provides the hardened-cc1 specs file that home/etc/ziguratip-RedHat.conf
     # names in its CPP_FLAGS.
-    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates clang sbcl libtool openssl-devel zlib-devel libcurl-devel python3 redhat-rpm-config >/dev/null
-    say "gcc gcc-c++ make git curl clang sbcl libtool openssl-devel zlib-devel libcurl-devel python3 redhat-rpm-config"
+    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates clang sbcl libtool openssl-devel zlib-devel libcurl-devel python3 python3-devel python3-numpy redhat-rpm-config >/dev/null
+    say "gcc gcc-c++ make git curl clang sbcl libtool openssl-devel zlib-devel libcurl-devel python3 python3-devel python3-numpy redhat-rpm-config"
     cxx_ok 16 || case "${CICILI_CXX:-clang++}" in
       *clang*) die "this clang is older than 16 and tools/cc/cxx needs --gcc-install-dir; dnf install a newer clang, or CICILI_CC=gcc CICILI_CXX=g++" ;;
       *) die "${CICILI_CXX} is too old for C++17" ;;

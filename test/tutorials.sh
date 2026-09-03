@@ -3,7 +3,7 @@
 #
 #   basics/   eleven files, one process each, goal `main'. No library, no
 #             database, no build flag.
-#   library/  forty files, one process each, goal `main'. Tier 2
+#   library/  forty-one files, one process each, goal `main'. Tier 2
 #             needs $COCOLOG_LIBRARY, which library-path.sh sets.
 #   tensor/   forty-two networks, THREE processes each and a store per
 #             tutorial: train saves the model into the store, test reloads
@@ -21,8 +21,9 @@
 #
 # THREE KINDS OF SKIP, all because "not built here" and "wrong" are
 # different findings: the torch category needs the torch module,
-# `library/22-torch.pl' needs it too, and 23 to 28 need ZiguratIP's
-# cryptography and its sample certificate directory.
+# `library/22-torch.pl' needs it too, 23 to 28 need ZiguratIP's
+# cryptography and its sample certificate directory, 29 needs the ray
+# module and 40 the numpy one.
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/.." && pwd)
@@ -65,6 +66,14 @@ else
   HAVE_RAY=no
 fi
 
+# And for the arrays: the module starts an interpreter at its first
+# predicate, so loadable is asked with one, not with use_module alone.
+if "$COCOLOG" query "use_module(library(numpy)), np_zeros([1], A), np_free(A)" >/dev/null 2>&1; then
+  HAVE_NUMPY=yes
+else
+  HAVE_NUMPY=no
+fi
+
 failures=0
 skipped=0
 
@@ -83,6 +92,10 @@ for pl in "$ROOT"/tutorials/basics/[0-9]*.pl "$ROOT"/tutorials/library/[0-9]*.pl
   case "$name:$HAVE_RAY" in
     library/29-ray:no)
       skipped=$((skipped + 1)); echo "SKIP  $name (no ray module)"; continue ;;
+  esac
+  case "$name:$HAVE_NUMPY" in
+    library/40-numpy:no)
+      skipped=$((skipped + 1)); echo "SKIP  $name (no numpy module)"; continue ;;
   esac
   # FROM THE REPO ROOT, which `library/03-files.pl' depends on: it reads
   # its own source through the relative path the header tells you to use.

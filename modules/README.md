@@ -23,6 +23,7 @@ still builds and still runs.
 | `der` | Distinguished Encoding Rules, both directions | a built ZiguratIP |
 | `x509` | certificates, and the CA that issues them | a built ZiguratIP |
 | `tls` | a secure connection: `library(tcp)` with a handshake | a built ZiguratIP |
+| `numpy` | numpy arrays as handles, over numpy's C API and nothing Python-level: `.npy` and CSV files written and read in C, `np_store`/`np_fetch` into the knowledge base as rows or clause chunks | a python3 with numpy and a shared libpython |
 
 `MODULES.md` at the root is the mechanism; this is the inventory.
 
