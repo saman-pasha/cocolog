@@ -149,6 +149,29 @@ check "and the graph path recorded and executed every node, none pending" \
   "all executed, none pending"
 
 echo
+echo "-- the device, third: auto, whichever this machine has, and a parameter read twice"
+# `auto' is cuda:0 where there is a card and cpu elsewhere. A parameter the
+# loss reads TWICE must stay one leaf across both reads, under either path
+# -- on a T4 it did not: `cuda' with no index compared unequal to `cuda:0'
+# and every touch re-made the parameter, so the gradient reached nothing
+# and thirty tutorials trained to chance without an error. Here the
+# gradient of sum(W*W) + sum(W) at W = [1, 2] is 2W + 1, both paths.
+check "sum(W*W) + sum(W) differentiates to 2W + 1 under eager auto" \
+  "$(q "tensor_execution(torch, eager, auto), tensor_from_list([1.0, 2.0], W0), tensor_parameter(W0, W), tensor_binary(mul, W, W, S), tensor_agg(sum, S, A), tensor_agg(sum, W, B), tensor_binary(add, A, B, L), tensor_grad(L, [W], [G]), tensor_to_list(G, GL), write(answer(GL)), nl")" \
+  "[3.0,5.0]"
+check "and under graph auto" \
+  "$(q "tensor_execution(torch, graph, auto), tensor_from_list([1.0, 2.0], W0), tensor_parameter(W0, W), tensor_binary(mul, W, W, S), tensor_agg(sum, S, A), tensor_agg(sum, W, B), tensor_binary(add, A, B, L), tensor_grad(L, [W], [G]), tensor_to_list(G, GL), write(answer(GL)), nl")" \
+  "[3.0,5.0]"
+# a value made BEFORE the switch follows it: the other library does this on
+# its own, and the graph path always did at force; eager places at the read
+check "a tensor made under cpu is read by an op under eager auto" \
+  "$(q "tensor_execution(torch, eager, cpu), tensor_from_list([[1.0, 2.0]], X), tensor_execution(torch, eager, auto), tensor_from_list([[1.0], [1.0]], Y), tensor_binary(matmul, X, Y, Z), tensor_to_list(Z, ZL), write(answer(ZL)), nl")" \
+  "[[3.0]]"
+check "and its eager and graph fits of tutorial 31 agree under auto" \
+  "$(D=$(mktemp -d); timeout 300 "$C" --kb tutorials --embed "$D" run "$ROOT/tutorials/tensor/31-tensor-expressions.pl" "tensor_execution(torch, graph, auto), train" 2>&1 | grep -ac '^identical'; rm -rf "$D")" \
+  "1"
+
+echo
 if [ "$failures" -eq 0 ]; then
   echo "GREEN: 0 failure(s)"
 else
