@@ -3039,11 +3039,16 @@ is 14000), which is how it has always read and is worth a look.
   program can with `op/3` and a module's Coco half can carry a `:- op(...)`.
   The remaining seam limits — no choice points, no per-session state — are the
   price of being suspendable and are not going to change.
-* **No garbage collection.** The heap only grows within a solution; it is
-  reclaimed on backtracking and on a new query. A long deterministic run that
-  builds structure will grow until it ends. `free_list/2` in `library(lists)`
-  is the idiom for working inside that rule — a scope failed out of, below —
-  not an exception to it.
+* **No garbage collection**, and the rule is narrower than this line used to
+  say. It read "reclaimed on backtracking and on a new query", and the second
+  half is false: `coco_engine_ask` (`lib/solve.cicili:1097`) resets
+  `nchoices`, `steps`, `resume`, `halted` and the ball, and does not touch
+  `heap_len`. Backtracking is the only thing that reclaims. Measured: one
+  `count(400000)` peaks at 120 MB and five of them in one goal at 571 MB —
+  linear in total work, with nothing given back between them — and
+  `count(2000000)` costs 572 MB. `free_list/2` in `library(lists)` is the
+  idiom for working inside that rule — a scope failed out of, below — not an
+  exception to it.
 
 ### Two reds from one morning's pull, on the Mac
 
@@ -3137,10 +3142,107 @@ asserted result escapes the scope, the smuggled binding does not (checked
 through plain helper predicates, because yall's `>>` copies its goal and
 the copy would hide what the check is about).
 
+## Compiling a program: what the study measured, and the segfault it found
+
+`DESIGN-compiling.md` is the feasibility report — could a cocolog program
+become an object file and a binary rather than being interpreted from clauses.
+The report argues; what belongs here is what it MEASURED, on this box, and the
+defect it turned up on the way.
+
+**The engine's rate and appetite**, `-s` a file, best of three, peak RSS from
+`getrusage`:
+
+| | wall | peak |
+|---|---|---|
+| start-up, `main :- write(done), nl.` | 8 ms | — |
+| `nrev` of 100 ×50 — 257 550 inferences | 0.217 s | 66 MB |
+| `count(400000)` | — | 120 MB |
+| the same five times in one goal | — | 571 MB |
+| `count(2000000)` | 1.87 s | 572 MB |
+| `( between(1, 2000000, _), fail ; true )` | 5.48 s | 938 MB |
+
+**1.19 MLIPS, and about 270 bytes — some 34 cells — per logical inference.**
+
+**The heap is reclaimed by backtracking and by NOTHING else**, which corrected
+a line in this file: it used to say "on backtracking and on a new query", and
+`coco_engine_ask` (`lib/solve.cicili:1097`) resets `nchoices`, `steps`,
+`resume`, `halted` and the ball while never touching `heap_len`. The five-goal
+row above is that fact measured: five times the work, five times the memory,
+nothing given back between goals.
+
+**So the binding constraint on this interpreter is memory, not speed**, and no
+compiler addresses it. That is the report's §8 recommendation in one line: a
+collector before a code generator.
+
+**Two ordinary optimisations are still on the table**, and both are cheaper
+than any compiler. `coco_pred_find` (`lib/kb.cicili:714`) is a `for` loop over
+every predicate in the store comparing name and arity, reached on every user
+goal through `coco_pred_of` → `coco_pred_make`; and `coco_bind`
+(`lib/term.cicili:847`) trails unconditionally, the WAM's conditional-trail
+test being absent from the tree.
+
+**What native compilation would cost is stated in the engine itself.**
+`lib/solve.cicili:3`: "a machine whose continuation is the C stack cannot be
+stopped and written to a database, because the C stack is not data."
+`lib/state.cicili:8`: "if terms were made of malloc'd nodes and the engine
+recursed in C, this file could not exist at all." Ordinary native compilation
+puts the continuation back on the machine stack and takes freeze-and-resume
+with it.
+
+**And the shape has a name and a literature.** `'$k'(Goal, Barrier, Rest)` is
+BinProlog's *binarization*, reached here for freeze/thaw rather than Tarau's
+reason. Two published results from that lineage point the same way as the
+measurements above: BinProlog ships a copying collector and a term-compression
+scheme because a binarized machine allocates per inference, and Prolog Cafe —
+binarized, compiled to one Java class per clause — came out about 10.9× slower
+than LLP, its authors blaming allocation rather than dispatch. Read, not
+measured here.
+
+### A goal directive under `use_module` exhausts the C stack
+
+Found while checking the report's claims about load-time semantics, and NOT
+fixed.
+
+`use_module` of any file holding a **goal** directive dies of SIGSEGV. `-s
+FILE` is literally `use_module('FILE'), main` (`cocolog.cicili:772`), so the
+documented form for running a program crashes on the documented behaviour of a
+directive:
+
+```
+$ printf ':- write(hello), nl.\nmain :- write(done), nl.\n' > p.pl
+$ ./cocolog -s p.pl ; echo $?
+139                        # no output, empty stderr
+$ ./cocolog run p.pl main
+hello
+done
+```
+
+`dynamic/1`, `op/3` and `use_module/1` are fine; `write/1`, `true`, `is/2` and
+`initialization(main)` all segfault. That is exactly the split the seam
+describes — `coco_directive` answers the ones that must act on the reader, and
+everything else is CALLED — and the called path is the one that dies. It
+reproduces through a nested `use_module` too, so it is `use_module` and not
+`-s`.
+
+Stack exhaustion rather than a null dereference: time-to-crash scales with the
+limit, 14 ms at `ulimit -s 1024`, 21 ms at 8192, 75 ms at 65536.
+`lb_goal_hook` (`lib/library.cicili:557`) is where to look — it builds a whole
+`coco_engine` as a C local and runs the directive's goal on it, from inside a
+consult the module loader is holding.
+
+**Why the suite is green over it:** no shipped `library/*.pl` has a goal
+directive, all twelve checked, and `test/directives.sh` exercises directives
+through `run` only and never once through `-s`. Nothing in the tree stands on
+this path, which is why it has gone unseen rather than why it is harmless.
+
 ## Not started
 
-* Strings as a type; `"abc"` reads as a code list, which is the ISO default.
-* Any indexing on the first argument. A predicate's clauses are tried in order.
+* A garbage collector. The heap is reclaimed by backtracking and by nothing
+  else, which is the binding constraint on how long a deterministic program
+  can run. Measured and argued in `DESIGN-compiling.md` §1 and §8.
+* Compiling a program to an object file. Studied, not begun:
+  `DESIGN-compiling.md` is the feasibility report and its §8 says what to do
+  first, which is the collector above rather than a code generator.
 * The Coco — the intelligent aggregator hub this project's machinery makes
   possible: chains as knowledge bases, consensus as clauses, contracts
   that learn. Its missions moved to their own repository, where the hub
