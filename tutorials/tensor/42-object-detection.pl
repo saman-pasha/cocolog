@@ -30,12 +30,12 @@
 %%              in Prolog, through library(opencv): each PNG read, resized, and its people's
 %%              boxes read off the instance masks
 %%   train      136 photographs and their mirror images, Adam, 120 passes in batches of 17; saved as t42_detector
-%%   test       the 34 held out: precision and recall at IoU 0.5 after suppression; ok at F1 >= 0.4 --
-%%              on the T4, precision 0.62, recall 0.36, F1 0.45 at the default confidence, after 123 s of training.
-%%              (The Python converter this file replaced resized with PIL's bilinear filter and the same
-%%              seed and training then measured 0.54; OpenCV's filters -- area the best, then a Gaussian
-%%              tent, lanczos, cubic, linear -- land between 0.34 and 0.45 on the same run. That is the
-%%              seed-level spread of a detector this small, and the bar sits under it.)
+%%   test       the 34 held out: precision and recall at IoU 0.5 after suppression; ok at F1 >= 0.5 --
+%%              on the T4, precision 0.70, recall 0.44, F1 0.54 at the default confidence, after 120 s of training.
+%%              (The pixels decide: OpenCV's own resize filters -- area, a Gaussian tent, lanczos,
+%%              cubic, linear -- measured 0.34 to 0.45 on the same seed and training, so the filter
+%%              the original Python converter used, Pillow's antialiased bilinear, is vendored into
+%%              library(opencv) as cv_resample; the CSVs are byte for byte what that converter wrote.)
 %%   predict    twelve of the held out, box by box, on torch and then on TensorFlow, and the two compared;
 %%              then the three best drawn on the original photographs with library(opencv),
 %%              42-detection-1..3.jpg beside this file
@@ -92,7 +92,9 @@ ready :- ( gpu -> true ; no_gpu, fail ), ( have_data -> true ; no_data, fail ), 
 %% then the conversion IN PROLOG through library(opencv) -- it used to be a
 %% Python script beside this file, the one step that was not Prolog, because
 %% cocolog read no image format. Now it does: each photograph is read,
-%% resized to 96 by 96 (INTER_AREA, the downscaling filter), turned RGB and
+%% resized to 96 by 96 with cv_resample's bilinear -- Pillow's antialiased filter, the
+%% one the Python converter used, vendored into library(opencv) so the pixels are
+%% byte for byte the same -- turned RGB and
 %% written as PIXELS AS ROWS, 9216 lines of three numbers in 0..1 -- the
 %% layout conv2d/3 takes; and each pedestrian's box is read off the
 %% instance mask, a plain 8-bit picture whose pixel values are the person
@@ -153,7 +155,7 @@ convert_split(Src, D, Split, Names) :-
 convert_one(Src, Name, K, S, PP, BP, People) :-
     atomic_list_concat([Src, '/PNGImages/', Name], Path),
     cv_imread(Path, Img), cv_shape(Img, [H, W, _]),
-    cv_resize(Img, [S, S], area, Small), cv_cvt_color(Small, bgr2rgb, Rgb), cv_to_list(Rgb, Rows),
+    cv_resample(Img, [S, S], bilinear, Small), cv_cvt_color(Small, bgr2rgb, Rgb), cv_to_list(Rgb, Rows),
     with_output_to(codes(PC),
         forall(( member(Row, Rows), member([R, G, B], Row) ),
                ( Rf is R / 255, Gf is G / 255, Bf is B / 255, format("~4f,~4f,~4f~n", [Rf, Gf, Bf]) ))),
@@ -391,7 +393,7 @@ test -->
       F1 is 2 * Prec * Rec / max(1.0e-9, Prec + Rec),
       format("test: ~w people in ~w photographs; found ~w, ~w right, ~w missed: precision ~2f recall ~2f F1 ~2f~n",
              [NB, N, NF, TP, FN, Prec, Rec, F1]),
-      ( F1 >= 0.4 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
+      ( F1 >= 0.5 -> write(ok), nl ; write('FAIL'), nl, halt(1) ) }.
 
 %% evaluate/12 is a predicate that runs detect/5 through exec/1 one
 %% photograph at a time, so each one's hundred-odd temporaries are freed

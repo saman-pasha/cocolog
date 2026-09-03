@@ -71,11 +71,19 @@ ln -sfn "$ROOT/lib/sdk.cicili" "$HERE/sdk.cicili"
 mkdir -p "$OUT"
 ( cd "$CICILI" && sbcl --script cicili.lisp --release "$HERE/coco-opencv.cicili" )
 
-# One Cicili :cpp target, one emitted C++ file, one compile against OpenCV.
+# Pillow's resampler, vendored: pil/Resample.c is Pillow 11.3.0's file unchanged
+# (LICENSE beside it), pil/Imaging.h the shim of what it reads, pil/pil-resample.c
+# the allocation and the entry cv_resample calls. Compiled as C, linked in.
+: "${CC:=cc}"
+for c in Resample pil-resample; do
+  "$CC" -c -O2 -fPIC -o "$HERE/pil/$c.o" "$HERE/pil/$c.c" || exit 1
+done
+
+# One Cicili :cpp target, one emitted C++ file, the vendored C, one link against OpenCV.
 # The data directory is compiled in so cv_data_dir/1 can name the
 # haarcascades without a search; OPENCV_DATA in the environment overrides it.
 "$CXX" -shared -fPIC -O2 -std=c++17 -Wno-deprecated-declarations -Wno-unused-function \
     $CV_CFLAGS $CV_QRENC -DCOCO_CV_DATA="\"$CV_DATA\"" \
-    -o "$OUT/opencv.so" "$HERE/coco-opencv.cpp" \
+    -o "$OUT/opencv.so" "$HERE/coco-opencv.cpp" "$HERE/pil/Resample.o" "$HERE/pil/pil-resample.o" \
     $CV_LIBS -Wl,-rpath,"$CV_LIBDIR"
 echo "built $OUT/opencv.so against OpenCV $CV_VERSION at $CV_PREFIX${CV_DATA:+ (data: $CV_DATA)}"

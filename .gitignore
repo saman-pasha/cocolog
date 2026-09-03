@@ -59,6 +59,7 @@ modules/numpy/numpy.c
 modules/numpy/sdk.cicili
 modules/opencv/coco-opencv.cpp
 modules/opencv/sdk.cicili
+modules/opencv/pil/*.o
 modules/bigint/coco-bigint.cpp
 modules/bigint/zigheaders
 modules/torch/coco-torch.cpp

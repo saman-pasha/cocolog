@@ -97,6 +97,7 @@
 ;;;;                                                  bgr2ycrcb ycrcb2bgr bgr2hls hls2bgr bgr2luv luv2bgr bgr2xyz ...
 ;;;;   cv_resize(+Img, +SizeOrFactor, -Out)           [W, H], or one number scaling both
 ;;;;   cv_resize(+Img, +SizeOrFactor, +Interp, -Out)  nearest linear cubic area lanczos
+;;;;   cv_resample(+Img, +[W, H], +Filter, -Out)       Pillow's antialiased resize, vendored: box bilinear hamming bicubic lanczos
 ;;;;   cv_blur(+Img, +K, -Out)
 ;;;;   cv_gaussian_blur(+Img, +K, +Sigma, -Out)
 ;;;;   cv_median_blur(+Img, +K, -Out)
@@ -236,7 +237,7 @@
     ("cv_dft" 2 cv_p_dft) ("cv_spectrum" 2 cv_p_spectrum)
     ("cv_seed" 1 cv_p_seed) ("cv_noise" 3 cv_p_noise) ("cv_rand" 6 cv_p_rand) ("cv_colormap" 3 cv_p_colormap)
     ("cv_kmeans" 3 cv_p_kmeans) ("cv_kmeans_points" 4 cv_p_kmeans_points) ("cv_grabcut" 4 cv_p_grabcut) ("cv_hog_people" 2 cv_p_hog_people)
-    ("cv_cvt_color" 3 cv_p_cvt_color) ("cv_resize" 3 cv_p_resize3) ("cv_resize" 4 cv_p_resize4)
+    ("cv_cvt_color" 3 cv_p_cvt_color) ("cv_resize" 3 cv_p_resize3) ("cv_resize" 4 cv_p_resize4) ("cv_resample" 4 cv_p_resample)
     ("cv_blur" 3 cv_p_blur) ("cv_gaussian_blur" 4 cv_p_gaussian_blur) ("cv_median_blur" 3 cv_p_median_blur)
     ("cv_bilateral" 5 cv_p_bilateral)
     ("cv_threshold" 5 cv_p_threshold5) ("cv_threshold" 6 cv_p_threshold6) ("cv_adaptive_threshold" 7 cv_p_adaptive_threshold)
@@ -403,7 +404,10 @@
   (code "size_t coco_m_nil(struct coco_engine*); size_t coco_m_list(struct coco_engine*, const size_t*, size_t);")
   (code "int coco_m_list_array(struct coco_engine*, size_t, size_t**, size_t*);")
   (code "int coco_m_error(struct coco_engine*, const char*, const char*);")
+  (code "const char *pil_resample_8u(const unsigned char *, int, int, int, size_t, int, int, int, unsigned char *, size_t);")
   (code "}")
+  (decl) (func pil_resample_8u ((const u8 * src) (int w) (int h) (int channels) (size_t step)
+                                (int outw) (int outh) (int filter) (u8 * dst) (size_t dststep)) (out const char *))
   (decl) (func coco_module_register ((const char * name)
                                      (func dispatch ((coco_engine * e) (const char * nm)
                                                      (u32 arity) (size_t g)
@@ -703,6 +707,8 @@
     "bgr2ycrcb" cv::COLOR_BGR2YCrCb "ycrcb2bgr" cv::COLOR_YCrCb2BGR "bgr2bgra" cv::COLOR_BGR2BGRA "bgra2bgr" cv::COLOR_BGRA2BGR
     "rgb2gray" cv::COLOR_RGB2GRAY "gray2rgb" cv::COLOR_GRAY2RGB "bgr2hls" cv::COLOR_BGR2HLS "hls2bgr" cv::COLOR_HLS2BGR
     "bgr2luv" cv::COLOR_BGR2Luv "luv2bgr" cv::COLOR_Luv2BGR "bgr2xyz" cv::COLOR_BGR2XYZ "xyz2bgr" cv::COLOR_XYZ2BGR)
+  ;; Pillow's filters, by the numbers Resample.c switches on (IMAGING_TRANSFORM_*)
+  (cv-atom-code cv_pil_filter_code "resampling filter" "box" 4 "bilinear" 2 "hamming" 5 "bicubic" 3 "lanczos" 1)
   (cv-atom-code cv_interp_code "interpolation"
     "nearest" cv::INTER_NEAREST "linear" cv::INTER_LINEAR "cubic" cv::INTER_CUBIC "area" cv::INTER_AREA "lanczos" cv::INTER_LANCZOS4)
   (cv-atom-code cv_thresh_code "threshold type"
@@ -1148,6 +1154,24 @@
     (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Mat out))
       (cv_resize_to e g 1 (cof m) (cv_interp_code (cv_atom e g 2)) out)
       (return (cv_ret_mat e g 3 out))))
+  ;; cv_resample: Pillow's resize (pil/Resample.c, vendored) over the Mat's bytes --
+  ;; the filter's support scales with the reduction, which is the antialiasing
+  ;; OpenCV's resize has no flag for. 8-bit, 1, 3 or 4 channels; a view of a
+  ;; bigger picture is made continuous first.
+  (cv-pred cv_p_resample
+    (let ((cv::Mat * m . #'(cv_mat e g 0)) (cv::Size sz . #'(cv_size e g 1))
+          (int f . #'(cv_pil_filter_code (cv_atom e g 2))))
+      (let ((cv::Mat src . #'(cof m)) (cv::Mat out))
+        (if (!= (($ src depth)) CV_8U) (cv_argfail 0 "must be an 8-bit image"))
+        (if (or (< ($ sz width) 1) (< ($ sz height) 1)) (cv_argfail 1 "must be a positive size [W, H]"))
+        (if (not (($ src isContinuous))) (set src (($ src clone))))
+        (set out (cv::Mat::zeros ($ sz height) ($ sz width) (($ src type))))
+        (let ((const char * why . #'(pil_resample_8u (($ src (t<> ptr u8)) 0) ($ src cols) ($ src rows) (($ src channels))
+                                                     (* (cast size_t ($ src cols)) (($ src elemSize)))
+                                                     ($ sz width) ($ sz height) f
+                                                     (($ out (t<> ptr u8)) 0) (* (cast size_t ($ sz width)) (($ out elemSize))))))
+          (if (!= why nil) (return (coco_m_error e "opencv" why)))
+          (return (cv_ret_mat e g 3 out))))))
   (cv-pred cv_p_blur
     (let ((cv::Mat * m . #'(cv_mat e g 0)) (int k . #'(cast int (cv_int e g 1))) (cv::Mat out))
       (cv::blur (cof m) out (cv::Size k k))

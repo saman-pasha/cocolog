@@ -9,6 +9,7 @@
 %% perspective one, and both are plain lists of rows.
 %%
 %%     cv_resize(+Img, +[W, H] | +Factor, -Out)   cv_resize(..., +Interp, -Out)
+%%     cv_resample(+Img, +[W, H], +Filter, -Out)   box bilinear hamming bicubic lanczos -- Pillow's antialiased resize
 %%     cv_rotation_matrix(+Center, +Angle, +Scale, -M)   cv_warp_affine(+Img, +M, +[W, H], -Out)
 %%     cv_affine_transform(+Src3, +Dst3, -M)
 %%     cv_perspective_transform(+Src4, +Dst4, -M)   cv_warp_perspective(+Img, +M, +[W, H], -Out)
@@ -28,6 +29,16 @@ main :-
     cv_resize(Chk, 4, linear, Lin), cv_get(Lin, 3, 4, Lv),
     ( Lv > 0, Lv < 255 -> Between = yes ; Between = Lv ), must('linear: the seam is blended', Between, yes),
     scene(Sc), cv_resize(Sc, 0.5, Half), cv_shape(Half, HS), must('factor 0.5', HS, [128, 128, 3]),
+
+    format("~n-- resample: Pillow's filters, whose support grows with the reduction~n"),
+    format("   (OpenCV's linear, cubic and lanczos sample a fixed neighbourhood, so a big~n"),
+    format("    reduction aliases; area averages a box. Pillow's resize widens the filter to~n"),
+    format("    the scale -- a triangle for bilinear -- and library(opencv) carries that code.)~n"),
+    cv_from_list([[0, 0, 255, 255]], '8u', Strip),
+    cv_resample(Strip, [2, 1], box, SB), cv_to_list(SB, [RBL]), must('box halves the row to its two means', RBL, [0, 255]),
+    cv_resample(Strip, [2, 1], bilinear, SL), cv_to_list(SL, [RLL]), must('bilinear: a triangle two pixels wide, so the edge bleeds', RLL, [36, 219]),
+    cv_resample(Sc, [96, 96], lanczos, Small), cv_shape(Small, SmS), must('a scene to 96 by 96', SmS, [96, 96, 3]),
+    cv_free_all([Strip, SB, SL, Small]),
 
     format("~n-- rotation about the centre, as an affine warp~n"),
     cv_from_list([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], '8u', Sq),

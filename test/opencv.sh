@@ -93,6 +93,29 @@ check "mean, minmax with locations, count_nonzero" \
   "$(q "cv_from_list([[5,1],[9,3]], '8u', Q), cv_mean(Q, M), cv_minmax(Q, Lo, Hi, LoAt, HiAt), cv_count_nonzero(Q, N), cv_free(Q), write(answer(M-Lo-Hi-LoAt-HiAt-N)), nl")" \
   "[4.5]-1.0-9.0-[1,0]-[0,1]-4"
 
+echo "-- resampling: Pillow's filters, vendored; the numbers are Pillow 11.3.0's own"
+check "box halves [0,0,255,255] to [0,255]" \
+  "$(q "cv_from_list([[0,0,255,255]], '8u', A), cv_resample(A, [2,1], box, B), cv_to_list(B, L), cv_free_all([A,B]), write(answer(L)), nl")" \
+  "[[0,255]]"
+check "bilinear, hamming, bicubic, lanczos on the same row" \
+  "$(q "cv_from_list([[0,0,255,255]], '8u', A), findall(V, ( member(F, [bilinear,hamming,bicubic,lanczos]), cv_resample(A, [2,1], F, B), cv_to_list(B, [V]), cv_free(B) ), Vs), cv_free(A), write(answer(Vs)), nl")" \
+  "[[36,219],[10,245],[21,234],[18,237]]"
+check "bilinear on a 4x4 ramp to 2x2" \
+  "$(q "cv_from_list([[0,16,32,48],[64,80,96,112],[128,144,160,176],[192,208,224,240]], '8u', A), cv_resample(A, [2,2], bilinear, B), cv_to_list(B, L), cv_free_all([A,B]), write(answer(L)), nl")" \
+  "[[57,83],[157,183]]"
+check "bilinear upscales too: [0,255] to six" \
+  "$(q "cv_from_list([[0,255]], '8u', A), cv_resample(A, [6,1], bilinear, B), cv_to_list(B, [L]), cv_free_all([A,B]), write(answer(L)), nl")" \
+  "[0,0,85,170,255,255]"
+check "three channels are three bands, each resampled alone" \
+  "$(q "cv_from_list([[[0,255,0],[0,255,0],[255,0,255],[255,0,255]]], '8uc3', A), cv_resample(A, [2,1], bilinear, B), cv_to_list(B, L), cv_free_all([A,B]), write(answer(L)), nl")" \
+  "[[[36,219,36],[219,36,219]]]"
+check "a view of a bigger picture resamples as itself" \
+  "$(q "cv_from_list([[9,0,0,255,255,9]], '8u', A), cv_roi(A, [1,0,4,1], R), cv_resample(R, [2,1], bilinear, B), cv_to_list(B, L), cv_free_all([A,R,B]), write(answer(L)), nl")" \
+  "[[36,219]]"
+check "an unknown filter is a domain error" \
+  "$(q "cv_from_list([[1,2]], '8u', A), catch(cv_resample(A, [1,1], nearest, _), error(cocolog_error(M), _), true), cv_free(A), write(answer(M)), nl")" \
+  "opencv: unknown resampling filter: nearest"
+
 echo "-- shapes"
 check "a filled 40 by 30 rectangle: one contour, its box, its pixel-polygon area" \
   "$(q "cv_new(100, 100, '8u', 0, I), cv_rectangle(I, [20,20,40,30], 255, -1), cv_find_contours(I, external, simple, [C]), cv_contour_area(C, A), cv_bounding_rect(C, R), cv_free(I), write(answer(A-R)), nl")" \
@@ -134,9 +157,11 @@ check "background subtraction sees a mover and not the ground" \
 
 echo "-- dnn"
 if [ -f "$ROOT/tutorials/opencv/models/squeezenet1.1-7.onnx" ]; then
+  # the class index belongs to the CURRENT 42-detection-1.jpg -- tutorial 42's predict
+  # redraws the photographs, and a new picture is a new class (602, 480, 843 so far)
   check "SqueezeNet forward: 1 by 1000, and the class it names for the walkers" \
     "$(cd "$ROOT" && q "cv_dnn_read('tutorials/opencv/models/squeezenet1.1-7.onnx', N), cv_imread('tutorials/tensor/42-detection-1.jpg', I), cv_dnn_blob(I, 0.017353, [224,224], [123.675,116.28,103.53], true, true, B), cv_dnn_input(N, B), cv_dnn_forward(N, O), cv_shape(O, S), cv_dnn_top(O, C, _), cv_free_all([N,I,B,O]), write(answer(S-C)), nl")" \
-    "[1,1000,1]-602"
+    "[1,1000,1]-843"
 else
   echo "SKIP dnn (no tutorials/opencv/models/squeezenet1.1-7.onnx -- ./cocolog run tutorials/opencv/22-dnn-classification.pl download)"
 fi

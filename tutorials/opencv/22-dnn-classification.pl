@@ -67,7 +67,9 @@ classify(M, L) :-
     cv_dnn_time(Net, Ms), show('milliseconds', Ms),
     cv_dnn_top(Out, Class, Score), show('the top class index and raw score', Class-Score),
     class_names(L, Names), nth0(Class, Names, Name), show('which is', Name),
-    must('the same picture, the same model, the same class every run', Class, 602),
+    %% the index belongs to the CURRENT 42-detection-1.jpg: tutorial 42's predict redraws
+    %% the photographs, and a new picture is a new class -- re-pin it with the pictures
+    must('the same picture, the same model, the same class every run', Class, 843),
 
     format("~n-- softmax in Prolog: the top five with probabilities~n"),
     cv_to_list(Out, [Scores]), max_list(Scores, Max),

@@ -24,7 +24,7 @@ still builds and still runs.
 | `x509` | certificates, and the CA that issues them | a built ZiguratIP |
 | `tls` | a secure connection: `library(tcp)` with a handshake | a built ZiguratIP |
 | `numpy` | numpy arrays as handles, over numpy's C API and nothing Python-level: `.npy` and CSV files written and read in C, `np_store`/`np_fetch` into the knowledge base as rows or clause chunks | a python3 with numpy and a shared libpython |
-| `opencv` | OpenCV 4 as predicates -- images as handles; imgcodecs, imgproc, drawing, features2d, objdetect (cascades, HOG, QR), photo, video, calib3d and dnn -- ONE Cicili `:cpp #t` file, the C++ as Cicili clauses over `cicili/lib/cpp/opencv`; `tutorials/opencv/` is its course | an OpenCV 4 with those modules, found through pkg-config (`libopencv-dev`, `opencv-devel`, or a source build into `~/opencv4`) |
+| `opencv` | OpenCV 4 as predicates -- images as handles; imgcodecs, imgproc, drawing, features2d, objdetect (cascades, HOG, QR), photo, video, calib3d and dnn -- ONE Cicili `:cpp #t` file, the C++ as Cicili clauses over `cicili/lib/cpp/opencv`, plus ONE vendored C file: `pil/Resample.c` is Pillow 11.3.0's antialiased resize, unchanged, behind `cv_resample` (the shim `pil/Imaging.h` declares what it reads, `pil/pil-resample.c` allocates and carries a Mat's bytes across); `tutorials/opencv/` is its course | an OpenCV 4 with those modules, found through pkg-config (`libopencv-dev`, `opencv-devel`, or a source build into `~/opencv4`) |
 
 `MODULES.md` at the root is the mechanism; this is the inventory.
 

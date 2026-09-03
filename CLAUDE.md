@@ -487,7 +487,11 @@ written this way now: `opencv` over `lib/cpp/opencv`; `sha`, `aes`,
 ZiguratIP header, importable alone); `torch` over `lib/cpp/torch` with
 `lib/cpp/dl` for the sibling it dlopens. What `code` still carries in
 them is the SDK's C prototypes and a function-pointer typedef, nothing
-else. `doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the
+else. (A LIBRARY'S OWN SOURCE is a different thing from pasted code:
+`modules/opencv/pil/Resample.c` is Pillow's resampler, unchanged and
+licensed, compiled as C beside the module and reached through one declared
+entry -- a back end that is somebody else's, kept whole so it stays
+byte-exact.) `doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the
 language, and `modules/README.md` lists what bites when writing one.
 
 **WHAT A `build.sh` MAKES IS NEVER COMMITTED**, and every module
