@@ -14,6 +14,10 @@ here too, because every one of them is deterministic and they share the one
 clause reader. `library/llm/DESIGN.md` names the whole system Ashurbanipal;
 nothing in this directory needs a model.
 
+**[`GUIDE.md`](GUIDE.md) is how to use the tools** -- every script, its
+options, what its lines mean, the exit codes, the environment, and the
+recipes. This file is why they are the way they are.
+
 ```sh
 sh tools/cocolint/verify.sh myprogram.pl   # every gate, in order
 sh tools/cocolint/lint.sh   myprogram.pl   # G1 alone
