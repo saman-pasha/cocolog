@@ -50,6 +50,15 @@ for m in dnn objdetect features2d photo video videoio calib3d; do
     *) echo "opencv: SKIPPED -- this OpenCV has no $m module (opencv4.pc lists no -lopencv_$m)" >&2; exit 1 ;;
   esac
 done
+# cv::QRCodeEncoder is missing from some 4.x headers (Ubuntu 22.04's 4.5.4);
+# the module compiles cv_qr_encode in only where objdetect.hpp declares it.
+CV_QRENC=""
+for f in $CV_CFLAGS; do
+  case "$f" in
+    -I*) d=${f#-I}
+         if [ -f "$d/opencv2/objdetect.hpp" ] && grep -q "class.*QRCodeEncoder" "$d/opencv2/objdetect.hpp"; then CV_QRENC="-DCOCO_CV_QRENCODER"; fi ;;
+  esac
+done
 CV_DATA=""
 for d in "$CV_PREFIX/share/opencv4" "$CV_PREFIX/share/OpenCV" /usr/share/opencv4 /usr/share/opencv; do
   [ -d "$d/haarcascades" ] && { CV_DATA="$d"; break; }
@@ -66,7 +75,7 @@ mkdir -p "$OUT"
 # The data directory is compiled in so cv_data_dir/1 can name the
 # haarcascades without a search; OPENCV_DATA in the environment overrides it.
 "$CXX" -shared -fPIC -O2 -std=c++17 -Wno-deprecated-declarations -Wno-unused-function \
-    $CV_CFLAGS -DCOCO_CV_DATA="\"$CV_DATA\"" \
+    $CV_CFLAGS $CV_QRENC -DCOCO_CV_DATA="\"$CV_DATA\"" \
     -o "$OUT/opencv.so" "$HERE/coco-opencv.cpp" \
     $CV_LIBS -Wl,-rpath,"$CV_LIBDIR"
 echo "built $OUT/opencv.so against OpenCV $CV_VERSION at $CV_PREFIX${CV_DATA:+ (data: $CV_DATA)}"

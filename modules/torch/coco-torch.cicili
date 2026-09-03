@@ -2475,7 +2475,11 @@
           (block (set (cof found) 0) (return 0)))
       (if (coco_m_list_array e a1 (aof cells) (aof ncells))
           (block (if (!= cells nil) (free (cast (void *) cells))) (set (cof found) 0) (return 0)))
-      (if (not (t_execution2 e g)) (return 0))
+      ;; t_execution2 answers 1, 0 or the machine's own value for a raised error;
+      ;; only a 1 goes on -- treating that value as true here once returned success
+      ;; over a domain_error, and the continuation after the catch was lost.
+      (let ((int r2 . #'(t_execution2 e g)))
+        (if (!= r2 1) (return r2)))
       (if (ct_backend_active) (return (ct_backend_forward e "tensor_execution" 3 g (aof fwd))))
       (if (coco_m_is_atom e d)
           (let ((const char * nm . #'(coco_m_atom e d)))

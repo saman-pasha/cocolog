@@ -101,6 +101,16 @@ be quoted.** `$` is a symbol character and `x` is alphanumeric, so
 surfacing as `use_module: its clauses would not consult`, which names
 the module and not the line.
 
+And one that bites the SDK side of any module, C or C++: **an error call's
+value is the machine's, and it is RETURNED, never tested.** `coco_m_domain_error`
+and its siblings answer a value that is neither 1 nor 0, and a predicate
+returns it as its own answer. A helper that calls one and is then tested as
+a boolean -- `(if (not (t_execution2 e g)) (return 0))` -- goes on, succeeds
+OVER the raised error, and the machine loses the continuation: a
+`catch/3` around the call reports one answer and runs nothing after it,
+which is how tutorial 42's `predict` stopped drawing on a machine without
+library(tensorflow). Keep the value: `(let ((int r . #'(helper e g))) (if (!= r 1) (return r)))`.
+
 ## Output is never committed
 
 The `.o`, the `.so`, the C or C++ Cicili generates, **and the symlinks**

@@ -109,9 +109,17 @@ check "an affine map from three pairs is exact" \
 check "a homography from a doubling doubles a point" \
   "$(q "cv_perspective_transform([[0,0],[100,0],[100,100],[0,100]], [[0,0],[200,0],[200,200],[0,200]], M), cv_transform_points([[10,20]], M, P), write(answer(P)), nl")" \
   "[[20.0,40.0]]"
-check "a QR code made here reads back, with four corners" \
-  "$(q "cv_qr_encode('cocolog', Q), cv_resize(Q, 6, nearest, B), cv_qr_detect(B, T, Ps), length(Ps, N), cv_free_all([Q,B]), write(answer(T-N)), nl")" \
-  "cocolog-4"
+# Ubuntu 22.04's OpenCV 4.5.4 has no cv::QRCodeEncoder; the module then says so
+# from cv_qr_encode, and the round trip is a SKIP line, not a red.
+if [ "$(q "catch(cv_qr_encode(x, Q), error(cocolog_error(_), _), fail) -> cv_free(Q), write(answer(yes)), nl ; write(answer(no)), nl")" = yes ]; then
+  HAVE_QRENC=yes
+  check "a QR code made here reads back, with four corners" \
+    "$(q "cv_qr_encode('cocolog', Q), cv_resize(Q, 6, nearest, B), cv_qr_detect(B, T, Ps), length(Ps, N), cv_free_all([Q,B]), write(answer(T-N)), nl")" \
+    "cocolog-4"
+else
+  HAVE_QRENC=no
+  echo "SKIP the QR round trip (this OpenCV was built without cv::QRCodeEncoder)"
+fi
 check "ORB descriptors: 32 bytes per keypoint, matches index them as integers" \
   "$(q "cv_new(128, 128, '8uc3', [40,40,40], I), cv_rectangle(I, [30,30,40,50], white, -1), cv_circle(I, [90,80], 20, red, -1), cv_put_text(I, abc, [10,120], 0.8, yellow, 2), cv_features(orb, I, K, D), cv_shape(D, [N,32,1]), cv_match(D, D, hamming, [[Q,T,Dist]|_]), ( integer(Q), integer(T), Dist =:= 0 -> R = self_match ; R = [Q,T,Dist] ), cv_free_all([I,D]), write(answer(R)), nl")" \
   "self_match"
@@ -149,7 +157,7 @@ check "an unbound argument" \
 
 echo "-- nothing leaks"
 check "cv_handles is 0 after a session that made and freed" \
-  "$(q "cv_new(2, 2, '8uc3', A), cv_gray(A, G), cv_split(A, Cs), cv_free_all([A, G|Cs]), cv_qr_encode(x, Q), cv_free(Q), cv_handles(N), write(answer(N)), nl")" \
+  "$(q "cv_new(2, 2, '8uc3', A), cv_gray(A, G), cv_split(A, Cs), cv_free_all([A, G|Cs]), ( catch(cv_qr_encode(x, Q), _, fail) -> cv_free(Q) ; true ), cv_handles(N), write(answer(N)), nl")" \
   "0"
 
 if [ "$failures" -eq 0 ]; then echo "GREEN: opencv"; else echo "RED: $failures failure(s)"; exit 1; fi

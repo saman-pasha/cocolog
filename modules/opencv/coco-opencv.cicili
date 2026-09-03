@@ -1487,10 +1487,18 @@
           (if (not (cv_ret_atom e g 1 (($ text c_str)))) (return 0))
           (return (cv_ret_points e g 2 pts 0))))))
   (cv-pred cv_p_qr_encode
+    ;; cv::QRCodeEncoder is not in every 4.x (Ubuntu 22.04 ships a 4.5.4
+    ;; without it); build.sh reads objdetect.hpp and defines COCO_CV_QRENCODER
+    ;; when the class is there. Without it the predicate says so; the
+    ;; detector is unaffected.
+    (@ifdef (code "COCO_CV_QRENCODER"))
     (letin* ((enc (cv::QRCodeEncoder::create)))
       (let ((cv::QRCodeEncoder * q . #'(($ enc get))) (cv::Mat qr))
         ((-> q encode) (std::string (cv_atom e g 0)) qr)
-        (return (cv_ret_mat e g 1 qr)))))
+        (return (cv_ret_mat e g 1 qr))))
+    (@else)
+    (return (coco_m_error e "opencv" "cv_qr_encode: this OpenCV was built without cv::QRCodeEncoder (4.5.4 on Ubuntu 22.04 lacks it); the detector, cv_qr_detect, is unaffected"))
+    (@endif))
 
   ;; ---- features2d -----------------------------------------------------------
   (func cv_ret_keypoints ((coco_engine * e) (size_t g) (u32 i) (const (t<> std::vector cv::KeyPoint) & kps)) (out int)

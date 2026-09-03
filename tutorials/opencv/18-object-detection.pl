@@ -50,7 +50,11 @@ main :-
             format("   photo ~w: ~w people~n", [K2, NPeople]), cv_free(I2))),
 
     format("~n-- QR codes: made here, read back, and found inside a bigger picture~n"),
-    cv_qr_encode('https://github.com/saman-pasha/cocolog', Qr), cv_shape(Qr, [QS, QS, 1]), show('a QR code, pixels a side', QS),
+    % Ubuntu 22.04's OpenCV 4.5.4 has no cv::QRCodeEncoder; there cv_qr_encode
+    % says so, and the round trip below is skipped -- the detector still runs.
+    ( catch(cv_qr_encode('https://github.com/saman-pasha/cocolog', Qr), error(cocolog_error(_), _), fail)
+    ->
+    cv_shape(Qr, [QS, QS, 1]), show('a QR code, pixels a side', QS),
     cv_resize(Qr, 4, nearest, QrBig), cv_make_border(QrBig, 16, 16, 16, 16, constant, 255, Padded),
     cv_qr_detect(Padded, Text, Corners),
     must('decoded', Text, 'https://github.com/saman-pasha/cocolog'),
@@ -71,7 +75,13 @@ main :-
     ( cv_qr_detect(Sc, _, _) -> NoQr = found_something ; NoQr = failed ), must('and cv_qr_detect fails on a picture with none', NoQr, failed),
     out('18-qr.png', Path2), cv_imwrite(Path2, Big), show('written', Path2),
 
-    cv_free_all([Qr, QrBig, Padded, Sc, Sc2, Qr3, Big]),
+    cv_free_all([Qr, QrBig, Padded, Sc, Sc2, Qr3, Big])
+    ;
+    format("   (this OpenCV was built without cv::QRCodeEncoder, as Ubuntu 22.04's~n"),
+    format("    4.5.4 is; the round trip is skipped here. The detector is unaffected:)~n"),
+    scene(Sc0), ( cv_qr_detect(Sc0, _, _) -> NoQr0 = found_something ; NoQr0 = failed ),
+    must('cv_qr_detect fails on a picture with no code', NoQr0, failed), cv_free(Sc0)
+    ),
     cv_handles(N), must('every handle freed', N, 0),
     format("~ndone~n").
 
