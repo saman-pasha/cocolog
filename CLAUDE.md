@@ -1244,15 +1244,26 @@ it.
 **COUNT THE SKIPs.** `red: 0` is printed over a run where nothing happened
 just as happily as over a real one, and the suite is deliberately built that
 way: "no server here" and "the backend is wrong" are different findings, so
-the first is never dressed up as the second. Seven cases — `zigurat`,
-`shared`, `tunnel`, `tensors`, `zigurat-lib`, `groups`, `ruler` — SKIP
-without a server; `files` and `trace` SKIP without `swipl`
+the first is never dressed up as the second. Measured, with nothing
+listening on 2160: **48 case lines, `red: 0`, and FOURTEEN SKIPs.** Both
+halves of that are worth having — the discipline holds, not one case
+mistakes a missing server for a broken backend, and the trap is exactly as
+wide as it looks.
+
+**NINE CASES SKIP WITHOUT A SERVER** — `zigurat`, `shared`, `tunnel`,
+`tensors`, `zigurat-lib`, `kbs`, `zigurat-tls`, `groups`, `ruler`. This said
+SEVEN for a long time and named the wrong set; `kbs` and `zigurat-tls` were
+missing. **And do not extend the list by reading the guards**, which is how
+it went wrong: `vacuum`, `repl`, `library` and `httpd` each carry a SKIP
+message of their own that mentions a server, and all four come out GREEN
+without one, because what they skip is a SECTION rather than the case.
+
+The other five are missing tools: `files` and `trace` want `swipl`
 (`apt-get install swi-prolog-nox`), because both compare cocolog against
-it; `ray` SKIPs without raylib, `tensorflow` without libtensorflow, and
-`torch-replay` without a CUDA toolkit to compile the replay path in.
-**A run that says `red: 0` with ten SKIPs has not tested the database at
-all.** Five is what this box gives with a server up and none of swipl,
-raylib, libtensorflow or CUDA installed.
+it; `ray` wants raylib, `tensorflow` libtensorflow, and `torch-replay` a
+CUDA toolkit to compile the replay path in. **A run that says `red: 0` with
+fourteen SKIPs has not touched the database at all.** Five is what this box
+gives with a server up.
 
 ### What macOS gets wrong, and the recipe
 
