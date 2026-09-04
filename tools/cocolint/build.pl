@@ -835,7 +835,7 @@ bd_min([T|Ts], M) :- bd_min(Ts, M0), ( T < M0 -> M = T ; M = M0 ).
 %% ---- writing -----------------------------------------------------------
 %%
 %% ATOMIC, VIA A TEMPORARY AND A RENAME. A GENERATED FILE IS READ WHILE IT
-%% IS BEING WRITTEN: test/lint.sh invokes lint.sh several times and each may
+%% IS BEING WRITTEN: test/lint.pl invokes lint.sh several times and each may
 %% rebuild the index, so a reader can open blocklist.pl exactly as a writer
 %% is truncating it -- and what comes back is a partial file that either
 %% fails to parse or, worse, parses into a short blocklist and reports fewer

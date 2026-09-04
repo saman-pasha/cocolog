@@ -75,7 +75,7 @@ exactly as in SWI. Its clauses are muted — they belong to the library,
 not to the knowledge base — so a second process on the same database
 does not see them unless it, too, says use_module. A program that wants
 clauses shared across processes consults them into the knowledge base;
-the two are different acts and stay so, and `test/library.sh` proves
+the two are different acts and stay so, and `test/library.pl` proves
 the difference across processes.
 
 The two spellings differ in one place: as a **goal**, a library that
@@ -166,7 +166,7 @@ it because it is generated from it.
 tier 2 alike, so a gap in the numbering is a library nobody has
 demonstrated end to end. A new module or a new `library/*.pl` is not
 finished until there is a `tutorials/library/NN-name.pl` beside it and
-`sh test/tutorials.sh` is green.
+`cocolog -s test/tutorials.pl` is green.
 
 It is not ceremony, and the crypto modules are the latest evidence:
 writing `tutorials/library/26-x509.pl` is what established that
@@ -228,7 +228,7 @@ Under `--local` every one of them throws `error(cocolog_error(...), _)` —
 a local store has no connection to steer. `--http` likewise. An embedded
 store answers the transaction verbs; a `/3` Reply is the wire's alone,
 because only the wire's fields carry the type descriptors a generic
-reader needs. `test/zigurat-lib.sh` is the proof, commit and rollback
+reader needs. `test/zigurat-lib.pl` is the proof, commit and rollback
 across processes included.
 
 ## The rules a module predicate must obey
@@ -363,7 +363,7 @@ In Prolog, on three C primitives: `file_base_name/2` `file_directory_name/2`
 `test/files/*.pl` are Prolog programs run **twice** — once by `swipl` and once
 by `cocolog --local run` — in a freshly made empty directory that is the same
 absolute path both times, and their output compared byte for byte. `sh
-test/files/run.sh`. It skips when there is no `swipl`, because "no SWI here"
+test/files.pl`. It skips when there is no `swipl`, because "no SWI here"
 and "the library is wrong" are different findings.
 
 That is the only way to check a claim of compatibility that cannot be fooled by
@@ -608,7 +608,7 @@ and a meter that decided would be deciding for everybody.
 **The count is deterministic**, which is what makes it usable as a *price*:
 the same goal against the same clauses spends the same inferences in every
 process, so two parties who never met can compute the same fee and check each
-other's arithmetic. `test/meter.sh` pins that across two invocations, along
+other's arithmetic. `test/meter.pl` pins that across two invocations, along
 with the two checks that keep the number honest — a tiny goal under a huge
 ceiling costs a tiny number, and ten times the work costs strictly more.
 
@@ -796,7 +796,7 @@ is the line the writer draws when it refuses to indent mixed content.
 
 A reader and a writer that disagree about the same bytes are worse than
 either one alone, and no amount of hand-written expectations on each half
-finds a disagreement between them. Six cases in `test/serialize.sh` write,
+finds a disagreement between them. Six cases in `test/serialize.pl` write,
 read and write again, for all three libraries, and compare the texts.
 
 ### There is no DTD, and that is the XXE answer

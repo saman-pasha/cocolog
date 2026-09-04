@@ -37,7 +37,7 @@ builtin in cocolog is deterministic. Writing `library/` found that
 is the one that takes a file name, and that `curl_get/2` was never the
 API. Three fixes and a dozen corrections, from documentation that runs.
 
-`sh test/tutorials.sh` runs all of it.
+`sh test/tutorials.pl` runs all of it.
 
 ## THE CONVENTION, for whatever is added next
 

@@ -40,6 +40,11 @@
 %%                                   stderr, two minutes' grace
 %%   cocolog_answer(+Args, -Term)    the child's `answer(...)' line read
 %%                                   back as a term, or `none'
+%%   spawn(+Cmd, -Pid)               a server, exec'd so the pid IS it
+%%   shell(+Cmd, -Text, -Exit)       /bin/sh -c Cmd: stdout as an atom, last
+%%                                   newline off, and the exit status
+%%   cocolog_run(+Args, -Text, -Exit) shell/3 over `cocolog ARGS'
+%%   has(+Label, +Needle, +Text)     a check that Needle occurs in Text
 %%
 %% A `SKIP' AT COLUMN 0 SKIPS THE WHOLE CASE -- run.sh greps for it, the
 %% way CivV's does -- so a SECTION that cannot run says so indented:
@@ -77,20 +82,113 @@ section(Title) :- format("-- ~w~n", [Title]).
 
 skip(Why) :- format("SKIP ~w~n", [Why]), halt(0).
 
-scratch(Dir) :- tmp_file(cocolog_test, Dir), make_directory(Dir).
+%% ONE SLASH: macOS's TMPDIR ends in one, so tmp_file/2 answers `.../T//coco...'
+%% -- a path that works and that no other program prints back that way
+%% (swipl names files by their real path, and a check that strips the
+%% scratch prefix from both outputs then strips only ours)
+scratch(Dir) :-
+    tmp_file(cocolog_test, Raw),
+    re_replace_atom('//', '/', Raw, Dir),
+    make_directory(Dir).
 
+%% JOINED AS CODES, never as one atom: a fixture of a hundred CSV rows is
+%% thirty kilobytes, and an atom that size is a buffer somewhere waiting
+%% to be overrun
 fixture(Path, Lines) :-
-    atomic_list_concat(Lines, '\n', Body),
-    atom_concat(Body, '\n', Text),
-    atom_codes(Text, Codes),
+    findall(Cs, ( member(L, Lines), atom_codes(L, LCs), append(LCs, [10], Cs) ), Rows),
+    append(Rows, Codes),
     write_file_from_codes(Path, Codes).
 
 cocolog(C) :- current_prolog_flag(executable, C).
+
+%% the checkout root, WITHOUT the trailing slash working_directory/2 answers
+%% with: `ROOT/test/x' built on the raw answer is `.../cocolog//test/x', and
+%% Cicili, handed such a target, put its output somewhere it did not then
+%% find
+root(Root) :-
+    working_directory(Raw, Raw),
+    (   atom_concat(Root, '/', Raw), Root \== '' -> true ; Root = Raw ).
 
 cocolog_out(Args, Out) :-
     cocolog(C),
     sh_join([C, ' ', Args, ' 2>&1'], Cmd),
     proc_run(Cmd, 120000, Out, _).
+
+%% spawn(+Cmd, -Pid): proc_spawn/2 with `exec' in front, for the ONE case a
+%% test spawns -- a server it will stop again.
+%%
+%% THE PID MUST BE THE SERVER, NOT A SHELL THAT FORKED IT. proc_spawn runs
+%% /bin/sh -c CMD, and this /bin/sh FORKS for a command carrying
+%% redirections rather than execing it -- measured: proc_stop said `gone'
+%% of the pid it was given while the port was still held, by a pid two
+%% higher. The orphan goes on listening, and the next run of that case
+%% meets its own port taken: the suite's first end-to-end run lost `tunnel'
+%% and `zigurat-tls' that way, to servers a standalone run of the same two
+%% cases had left behind an hour earlier. `exec' makes the shell replace
+%% itself, so the pid proc_spawn answers is the thing to kill.
+%%
+%% ONLY FOR A SINGLE COMMAND. A shell LOOP cannot be exec'd, so a case that
+%% spawns one (test/ruler.pl's queriers) keeps proc_spawn and lets the loop
+%% end on its own.
+spawn(Cmd, Pid) :- sh_join(['exec ', Cmd], Exec), proc_spawn(Exec, Pid).
+
+%% shell(+Cmd, -Text, -Exit): /bin/sh -c Cmd with two minutes' grace, its
+%% stdout (and whatever Cmd redirected into it) as an atom with the last
+%% newline taken off -- what `$(...)' handed a .sh -- and the exit status,
+%% never failed on. cocolog_run/3 is the same over `cocolog ARGS'.
+shell(Cmd, Text, Exit) :-
+    proc_run(Cmd, 120000, Out, Exit),
+    chomp(Out, Body),
+    atom_codes(Text, Body).
+
+cocolog_run(Args, Text, Exit) :- cocolog_run(Args, Text, Exit, 120000).
+
+%% the same with a ceiling of its own, for a child that trains: `timeout N'
+%% cannot go in ARGS, since ARGS come after the binary
+cocolog_run(Args, Text, Exit, Ms) :-
+    cocolog(C),
+    sh_join([C, ' ', Args], Cmd),
+    proc_run(Cmd, Ms, Out, Exit),
+    chomp(Out, Body),
+    atom_codes(Text, Body).
+
+%% answer_text(+Args, -Text): the .sh suites' `q()' -- a child `cocolog ARGS',
+%% stderr dropped, and the inside of the first `answer(...)' on a line of
+%% its own, greedy to that line's last `)'; '' when there is none
+answer_text(Args, Text) :-
+    cocolog(C),
+    sh_join([C, ' ', Args, ' 2>/dev/null'], Cmd),
+    proc_run(Cmd, 300000, Out, _),
+    (   re_first_atom('answer\\([^\n]*\\)', Out, A)
+    ->  sub_atom(A, 7, _, 1, Text)
+    ;   Text = ''
+    ).
+
+%% maxdiff(+Text, -D): the largest |a - b| over two flat lists written as
+%% `[a1,a2,...]/[b1,b2,...]' -- `/', because `-' is also a minus sign. A
+%% text that is not that shape answers `inf', so a missing answer is off
+%% by infinity rather than within anything.
+maxdiff(Text, D) :-
+    (   atomic_list_concat(Parts, '/', Text), Parts = [LA, LB],
+        numbers_of(LA, As), numbers_of(LB, Bs),
+        length(As, N), length(Bs, N)
+    ->  findall(Ab, ( nth0(I, As, A), nth0(I, Bs, B), Ab is abs(A - B) ), Ds),
+        max_list([0|Ds], D)
+    ;   D = inf
+    ).
+
+numbers_of(Text, Ns) :-
+    re_replace_atom('[][]', '', Text, Bare),
+    atomic_list_concat(Parts, ',', Bare),
+    findall(N, ( member(P, Parts), P \== '', atom_number(P, N) ), Ns).
+
+%% has(+Label, +Needle, +Text): the .sh's `case "$3" in *"$2"*)' -- a
+%% check that Needle occurs in Text, the FAIL line showing both
+has(Label, Needle, Text) :-
+    (   sub_atom(Text, _, _, _, Needle)
+    ->  check(Label, found, found)
+    ;   check(Label, Text, Needle)
+    ).
 
 %% ONE LINE, not the rest of the transcript: libc's `.' matches a newline,
 %% so `answer\(.*\)' ran on to the last `)' of the child's `1 answer(s).'

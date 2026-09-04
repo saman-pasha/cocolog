@@ -117,7 +117,7 @@ to append, and a predicate defined once in the file existed twice in the
 second process: for the goals that only meant a duplicate solution nobody
 asked for; for a data generator inside a findall it doubled the rows --
 or, with a nondeterministic helper inside an inner findall, WIDENED them.
-A consult REPLACES the file's own clauses now (`test/reconsult.sh`: the
+A consult REPLACES the file's own clauses now (`test/reconsult.pl`: the
 same file twice is one copy, what the program asserted stays, an edited
 file is the new file), so the store holds the program once; the
 single-clause data helpers still end in a cut, because a deterministic
@@ -126,7 +126,7 @@ change still holds what it held. Two tutorials sharing a store would
 still shadow each other's train/test/predict, so the runner gives each
 tutorial a store of its own.
 
-`test/tutorials.sh` runs all three goals of every file against a
-throwaway store per tutorial; `test/torch-nets.sh` is the same twenty-three networks
+`test/tutorials.pl` runs all three goals of every file against a
+throwaway store per tutorial; `test/torch-nets.pl` is the same twenty-three networks
 as one fast in-process suite. The module itself is documented in
 `modules/torch/README.md`.

@@ -190,7 +190,7 @@ main :-
     format("   can tell the goal that said no from the goal that broke.~n"),
     %% AND ONE THING THE MESSAGE DOES NOT SAY. Thrown at LOAD time -- out
     %% of a directive or an `initialization' goal -- the report is SWI's,
-    %% line for line, and test/directives.sh diffs the two to keep it so:
+    %% line for line, and test/directives.pl diffs the two to keep it so:
     %%
     %%     ERROR: p.pl:76: Initialization goal raised exception:
     %%     ERROR: Unknown message: my_error(...)

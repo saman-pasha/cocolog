@@ -12,7 +12,7 @@
 #   G5  localise   only when G4 failed with no must/3 line: a --trace tail
 #
 # BOTH CONDITIONS IN G4, ALWAYS. Exit 0 alone is satisfied by `main :- true.',
-# which is why test/tutorials.sh checks the same two things and why a generated
+# which is why test/tutorials.pl checks the same two things and why a generated
 # program that proves nothing must not be able to pass.
 #
 # THE STREAMS ARE NEVER MERGED. stdout is block-buffered into a file (the only

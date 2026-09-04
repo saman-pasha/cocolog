@@ -19,39 +19,49 @@ different findings.
 | `test/state.cicili` | a machine run to one solution, frozen, its machine and store **freed**, thawed into new ones, and finishing the proof correctly; and `freeze(thaw(x)) == x` byte for byte |
 | `test/zigurat.cicili` | the Cicili binding against a real server: every parameter width, a cursor, and a Text large enough to matter |
 | `test/shared.cicili` | ten interpreters in sequence — one writes the knowledge base, a second built from nothing answers from it, a third suspends mid-proof and is freed, a fourth picks it up and finishes it, a fifth asserts at run time, a sixth sees it, a seventh retracts, an eighth agrees it is gone, a ninth declares two predicates dynamic and a tenth — which starts knowing nothing — warms its store and finds them declared and empty. Then the same knowledge base over HTTP, and a machine written over the binary protocol picked up over HTTP — 39 checks |
-| `test/groups.sh` | **twelve interpreters at once over four machine states** — below |
-| `test/ruler.sh` | **one interpreter writing the knowledge base while eight read it** — below |
+| `test/groups.pl` | **twelve interpreters at once over four machine states** — below |
+| `test/ruler.pl` | **one interpreter writing the knowledge base while eight read it** — below |
 | `client/probe.c` | the C client against a real server, including a clause made of nothing but the five HTML-escapable characters, asserted over the binary protocol and read back through a page unchanged |
 | `test/engine.pl` | the engine's COMPLEXITY, which nothing else here checks: 100 000 solutions from `between/3`, a `findall` over the same range, ten times the work in far less than a hundred times the time, and a 500 000-deep deterministic recursion — with the answers still right, because a representation change that made everything fast and one thing wrong would pass every timing check |
 | `test/meter.pl` | `call_metered/4`, a goal under a ceiling and WHAT IT COST — the engine's own inference count, which it has always kept and never handed to a program. Checked as a PRICE rather than as a number: it measures rather than echoing the ceiling (a tiny goal under a huge one costs a tiny number; ten times the work costs strictly more), it answers for a goal that FAILED because a search is work, and two processes sharing nothing but the goal report the same number — 14 checks |
 | `test/thread.pl` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
 | `test/httpd.pl` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
-| `test/crypto.sh` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
-| `test/tutorials.sh` | **the documentation, run as a suite**: sixty-eight tutorial files in three categories — eleven `basics/` and thirty-three `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
-| `test/tls.sh` | `library(tls)`: a server and three clients AS SEPARATE PROCESSES -- enrolled, impostor, browser -- because a handshake is between two ends that do not share memory. The permissions that rode in with alice's certificate, the impostor refused and told why, the server carrying on serving afterwards, a certificate-less client admitted and granted nothing, four bogus handles refusing rather than crashing, and an accept that times out and frees its slot -- 19 checks |
-| `test/httpd-tls.sh` | the same server over TLS, and the seam that keeps them one server: routing, keep-alive, the path rules and `httpd_answer/3` are the SAME code on both, and a page reads the peer's subject and permissions as two synthetic headers. Weighted on the reverse-proxy hole -- a client sending `Tls-Peer-Subject: CN=root` must not be believed, and on a plain connection those headers are stripped and not replaced -- 9 checks |
-| `test/zigurat-tls.sh` | `--tls`, the binary protocol over TLS, against TWO terminators -- one per `SERVER/TLS_CLIENT_AUTH` setting. The handshake before the greeting, a clause written and read back by two processes over an encrypted connection, the hostname checked and not just the chain, plaintext against a TLS port refused, and all four certificate combinations including the one that must be legible: no certificate where one is required -- 11 checks |
+| `test/crypto.pl` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
+| `test/tutorials.pl` | **the documentation, run as a suite**: sixty-eight tutorial files in three categories — eleven `basics/` and thirty-three `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/tls.pl` | `library(tls)`: a server and three clients AS SEPARATE PROCESSES -- enrolled, impostor, browser -- because a handshake is between two ends that do not share memory. The permissions that rode in with alice's certificate, the impostor refused and told why, the server carrying on serving afterwards, a certificate-less client admitted and granted nothing, four bogus handles refusing rather than crashing, and an accept that times out and frees its slot -- 19 checks |
+| `test/httpd-tls.pl` | the same server over TLS, and the seam that keeps them one server: routing, keep-alive, the path rules and `httpd_answer/3` are the SAME code on both, and a page reads the peer's subject and permissions as two synthetic headers. Weighted on the reverse-proxy hole -- a client sending `Tls-Peer-Subject: CN=root` must not be believed, and on a plain connection those headers are stripped and not replaced -- 9 checks |
+| `test/zigurat-tls.pl` | `--tls`, the binary protocol over TLS, against TWO terminators -- one per `SERVER/TLS_CLIENT_AUTH` setting. The handshake before the greeting, a clause written and read back by two processes over an encrypted connection, the hostname checked and not just the chain, plaintext against a TLS port refused, and all four certificate combinations including the one that must be legible: no certificate where one is required -- 11 checks |
 | `test/hex.pl` | `library(hex)`: hexagonal-grid arithmetic held to its IDENTITIES rather than spot values -- ring sizes 6R, disk sizes 1+3R(R+1), lines distance+1 with every step distance one, six left-rotations the identity, and offset (all four layouts, negatives included) and pixel (both orientations) conversions round-tripping over whole 7x7 windows -- 19 checks |
 | `test/astar.pl` | `library(astar)`: A* whose graph is two caller goals, held to an ORACLE -- on a costed hex grid, the heuristic search must answer the exact cost the exported Dijkstra answers across twelve varied pairs -- plus the laws: paths connect through the caller's own neighbor goal, costs sum, walls detour, unreachable fails, and the same question twice is the same path (the pinned tiebreak, observed) -- 7 checks |
 | `test/serialize.pl` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 | `test/string.pl` | the string type, checked as a TYPE rather than as a set of predicates that answer: it must not BE an atom, it must carry a NUL where an atom of the same bytes stops at one, and it must sit between atom and compound in the standard order. Plus `double_quotes` in all four of SWI's values, each through a FILE because a one-goal query cannot see its own flag change, and the guard that keeps a module's choice from reaching the vendored SWI libraries -- 36 checks |
 
-### The suite is Prolog files now, one process a case
+### The suite is Prolog files now, one process a case, and no shell at all
 
-Nineteen of the shell cases above -- string, serialize, os, bigint, hex,
-astar, text, opencv, numpy, thread, http, tcp, meter, process, engine,
-kbs, library, curl, httpd -- are `test/<case>.pl` since 2026-09-04: `main/0`
-on `test/prelude.pl`, `library(process)`'s `check/3` and `checks_done/0`,
-the exit code the verdict, run by `test/run.sh` as `cocolog -s`. The checks
-and the pins are the `.sh`'s own; what changed is that a check no longer
-starts an interpreter. Measured on the Mac: the nineteen took **361 s** as
-shell and take **74 s** as Prolog, 533 checks, every one GREEN, with the
-children that remain being the ones whose claim IS a second process.
+Every case above is `test/<case>.pl` since 2026-09-04 -- `main/0` on
+`test/prelude.pl`, `library(process)`'s `check/3` and `checks_done/0`, the
+exit code the verdict -- and the runner is `test/run.pl`, a cocolog script
+that builds the seven `.cicili` binaries through Cicili and runs the rest
+as `cocolog -s`; `make test` is that one line. There is no `.sh` under
+`test/` any more, the helpers included. The checks and the pins are the
+`.sh`'s own; what changed is that a check no longer starts an interpreter.
+Measured on the Mac when the first nineteen were converted: they took
+**361 s** as shell and **74 s** as Prolog, 533 checks, every one GREEN;
 `httpd` alone went from 230 s to 32 s, most of it servers the `.sh` slept
-for and then waited on. CLAUDE.md, "A test case is a Prolog file", has the
-per-case numbers and the four things the conversion found -- one of them
-the `double_quotes` guard on the wrong path, fixed in `coco_module_load`,
-and one `get_time/1` answering whole seconds, fixed with `gettimeofday`.
+for and then waited on. The rest are process-shaped by nature -- servers,
+handshakes, a toplevel on a pipe, another Prolog to compare with, a crowd
+of interpreters -- and their children are the claim, so they run in about
+the time they did. CLAUDE.md, "A test case is a Prolog file", has the
+numbers and what the conversion found: the `double_quotes` guard on the
+wrong path, fixed in `coco_module_load`; `get_time/1` answering whole
+seconds, fixed with `gettimeofday`; a spawned server that `proc_stop/1`
+could not kill, because `/bin/sh -c` forks for a redirected command and
+the pid was the shell's -- fixed by `exec`, in the prelude's `spawn/2`,
+after two cases of the first end-to-end run met ports an earlier
+standalone run had left held; and three engine limits it wrote down
+rather than fixed -- `atomic_list_concat/3` splitting into a partial list
+crashes, its join of thirty kilobytes answers `false`, and
+`set_prolog_flag/2` does not exist as a goal.
 
 ### One stack, three suites, one server
 
@@ -63,8 +73,8 @@ that order — ZiguratIP `make MODE=Release`, then here `make`, `make schema`,
 | | cases | |
 |---|---|---|
 | cocolog `make test` | **40**, no SKIP | `red: 0` |
-| The Coco `test/run.sh` | **19**, no SKIP | `red: 0` |
-| CivV `test/run.sh` | **32**, no SKIP | `red: 0` |
+| The Coco `test/run.pl` | **19**, no SKIP | `red: 0` |
+| CivV `test/run.pl` | **32**, no SKIP | `red: 0` |
 
 `make modules` is a step of its own and was run as one: `make` does not
 rebuild the loadable modules, and a stale `library/tcp.so` is exactly what
@@ -261,7 +271,7 @@ at-least-one-byte**, via `peek()` then `in_avail()`, because a blocking
 `read(buf, max)` waits for ALL of max and a reader asking for 4096 bytes
 of a 20-byte request never returns.
 
-`test/tls.sh` raises a server and runs three clients at it AS SEPARATE
+`test/tls.pl` raises a server and runs three clients at it AS SEPARATE
 PROCESSES -- enrolled, impostor, browser -- because a handshake is
 between two ends that do not share memory, and a test proving one
 process can talk to itself would have proved the least interesting half.
@@ -274,7 +284,7 @@ carrying its credentials as `secure(S, Creds)` -- and five predicates
 dispatch on the tag. Routing, keep-alive, the path rules and
 `httpd_answer/3' are the same code on both, which is the point of doing
 it as a term rather than a flag: HTTPS cannot drift away from HTTP by
-being maintained separately, and `test/httpd.sh' still passes unchanged.
+being maintained separately, and `test/httpd.pl' still passes unchanged.
 
     httpd_serve(9443, [ tls([ certificate('node.crt'),
                               key('node.key'),
@@ -295,14 +305,14 @@ is the part that makes this more than encryption:
 
 A page needs no new predicate and no access to the socket, and
 `httpd_answer/3' stays a request in and bytes out -- which is what lets
-`test/httpd.sh' check every routing rule with no port open.
+`test/httpd.pl' check every routing rule with no port open.
 
 **THEY ARE STRIPPED FROM THE CLIENT'S REQUEST FIRST, on both
 transports.** A client may send any header it likes; a server that merely
 ADDED its own would leave two, with the client's first, which is the one
 `http_header/3' finds. That is the standard reverse-proxy hole. On a
 plain connection they are stripped and NOT replaced, so a page that
-trusts them is closed to port 80 by construction. `test/httpd-tls.sh'
+trusts them is closed to port 80 by construction. `test/httpd-tls.pl'
 sends `Tls-Peer-Subject: CN=root' and `Tls-Peer-Permissions:
 ledger.write,admin' and checks the page still sees alice.
 
@@ -335,7 +345,7 @@ both live in one process when a cocolog serves and queries at once.
 `zigurat.c` and `zeytun.c` stay libc and the sockets API; each reaches it
 weakly, and neither the archive nor a test target carries OpenSSL.
 
-`test/zigurat-tls.sh` is the rehearsal, and says what it is: a TLS
+`test/zigurat-tls.pl` is the rehearsal, and says what it is: a TLS
 terminator in front of the suite's own server, the same shape `tunnel`
 uses for the Cloudflare edge. What it proves is the CLIENT half -- the
 handshake happening before the server's greeting, the framing surviving,
@@ -379,7 +389,7 @@ certificate and an empty knowledge base were all
 unacceptable: the purpose of checking a server's name is to REFUSE, and a
 refusal nobody can tell from an empty database is not one.
 
-`test/tunnel.sh` gains a TLS-terminating edge stand-in -- which is what
+`test/tunnel.pl` gains a TLS-terminating edge stand-in -- which is what
 Cloudflare is -- and checks a query through it, `--insecure` going
 through loudly, and a second edge presenting a certificate for a name
 nobody asked for, refused by name with `hostname mismatch`.
@@ -390,7 +400,7 @@ cocolog writes to the literal stdout, which the C library buffers by
 LINE at a terminal and by BLOCK everywhere else. So a program that
 printed a marker and then blocked -- a server saying it is listening --
 printed nothing into a pipe or a file and everything at once when it
-finally exited. Found by writing `test/tls.sh`, whose harness waited for
+finally exited. Found by writing `test/tls.pl`, whose harness waited for
 a READY that was sitting in a buffer. Interactively it had always
 worked, which is why nothing had noticed.
 
@@ -418,7 +428,7 @@ key generation costs **2.6 to 7.8 seconds** on this box (twenty draws,
 median 5.3, mean 5.0), which is what makes the distinction worth making
 rather than retrying everything and hoping.
 
-`test/crypto.sh` pins the half that can be checked deterministically: a
+`test/crypto.pl` pins the half that can be checked deterministically: a
 bad option comes back **whole and at once**, with the library's own
 message, rather than after eight draws. The retry itself cannot be
 forced from outside -- there is no way to make a random draw fail on
@@ -475,7 +485,7 @@ validity window had nowhere to get the number from. It is in
 
 ## Documentation that runs, and the three bugs it found
 
-`tutorials/` is three categories now, and `test/tutorials.sh` is a case
+`tutorials/` is three categories now, and `test/tutorials.pl` is a case
 in the suite rather than a script beside it:
 
 | | | needs |
@@ -590,7 +600,7 @@ transaction boundaries a GOAL can draw.
 
 5.2x per doubling before -- roughly N^2.4 -- against about 1.8x after. The
 explicit-boundary half of it is not a nicety and the suite proved it: with
-the batch spanning the turn and nothing else, `test/zigurat-lib.sh` went RED
+the batch spanning the turn and nothing else, `test/zigurat-lib.pl` went RED
 on "an explicit rollback is invisible to a second process", because a goal
 that asserted and then rolled ITSELF back had its assertion written
 afterwards by the turn's own close.
@@ -703,7 +713,7 @@ Measured on the same base and store arrangement: the 3 227-clause
 whole-base forget went **31s → 1.59s**; a 20 000-clause consult killed
 mid-write leaves a CLEAN base and the very next forget runs in 43ms where
 it used to wait its whole lock timeout and fail. The engine's own gauntlet
-— consumer, contention, carryover, ageing — stays green, `test/vacuum.sh`
+— consumer, contention, carryover, ageing — stays green, `test/vacuum.pl`
 pins forget's contract (count, emptiness with declarations, idempotence)
 in both arrangements, and both full suites are green on the patched stack.
 
@@ -778,7 +788,7 @@ the three ways to be wrong.
 
 ## Twelve interpreters, four states
 
-`test/groups.sh`. Four groups of three: twelve `cocolog work` processes at once,
+`test/groups.pl`. Four groups of three: twelve `cocolog work` processes at once,
 each group taking turns on one machine and handing it back and forth through the
 database. Every machine produces its full answer set with **no answer twice**,
 every member of every group takes turns, and nothing is left suspended.
@@ -828,7 +838,7 @@ work — a faster proof, a bigger `--steps`, a smaller program — fails naming
 the number instead of turning back into an occasional red nobody can
 reproduce.
 
-**`test/groups-embed.sh` is the same check and is NOT fixed by this.** It runs
+**`test/groups-embed.pl` is the same check and is NOT fixed by this.** It runs
 the same four groups as twelve THREADS of one `swarm` process, and its split is
 measurably unfair: five runs gave one thread 51, 59, 55, 58 and 35 of a group's
 ~62 turns while a partner took 1. More turns cannot rescue a check whose
@@ -1005,7 +1015,7 @@ a turn, or produce an answer twice. The claim settles all of that exactly.
 
 ## One ruler, eight queriers
 
-`test/ruler.sh`. One process asserts a program one clause at a time — rules
+`test/ruler.pl`. One process asserts a program one clause at a time — rules
 first, so that for most of the run there are rules whose facts have not arrived —
 while eight others query the same knowledge base against the same server.
 
@@ -1122,14 +1132,14 @@ MISSED and retried like the other half of its window; and the server's save
 is **one** UPDATE (`SET status, chunks, note`) rather than three, for the
 reason measured below.
 
-**Measured, embedded — `test/groups-embed.sh`, five runs in a row:** GREEN
+**Measured, embedded — `test/groups-embed.pl`, five runs in a row:** GREEN
 five times, no worker stopped, no machine left, and every group's total
 exactly its proof's length — a 34 ×5, b 24/24/24/24/25, c 61/60/60/60/60,
 d 59/60/59/60/59. The `missing chunk` window was hit in four runs of five,
 once each, and taken again. Six to seven seconds a run, where the run that
 grew ninety rows took ninety seconds.
 
-**Measured, over the server — `test/groups.sh`.** With the save as three
+**Measured, over the server — `test/groups.pl`.** With the save as three
 UPDATEs: GREEN, but a kept-logs run showed **16 `no suspended machine`
 retries, 3 `machine_find: the server refused it: NULL value` refusals** (each
 a LOST turn and a reopen) and group totals of 82/99 and 71/62 against proofs
@@ -1164,10 +1174,10 @@ seeking the canonical streams directly.
 **Measured after the fix.** The engine's build gate whole-green (unit,
 consumer, contention, ageing; carry-over SKIPs without its golden pair),
 and `contention_test` at zero failures over twenty rc-checked runs, both
-store kinds. Over the server, `test/groups.sh` three times: totals exactly
+store kinds. Over the server, `test/groups.pl` three times: totals exactly
 34/24/60/59 — the proofs' own lengths — **zero** `no suspended machine`,
 **zero** `missing chunk`, **zero** lost connections, where the day began
-at 7–69 retries a run. Embedded, `test/groups-embed.sh` three times: the
+at 7–69 retries a run. Embedded, `test/groups-embed.pl` three times: the
 same exact totals and **zero** `missing chunk` — the residual window this
 file's MISSED retry was built for no longer occurs in the arrangement that
 measured it.
@@ -1217,7 +1227,7 @@ in place.
 **What it blocks.** The worker that dies on a transient load
 (`missing chunk 3 of 4`) cannot be made to retry until this holds — retrying is
 correct and it is what turns this from rare into common. So the death stays,
-and with it the uneven turn counts of `test/groups-embed.sh`.
+and with it the uneven turn counts of `test/groups-embed.pl`.
 
 ## Modules, and the Files library
 
@@ -1293,7 +1303,7 @@ so the type error came back correct — `tcp_write(C, [foo])` answered
 and says so exactly: `Invalid read of size 8 ... 0 bytes inside a block of
 size 8 free'd`. The same probe against the fixed module is silent. So the
 fix is the same three lines — take the offending term before the free — and
-the case that pins it is new, in `test/tcp.sh`, because a bug that answers
+the case that pins it is new, in `test/tcp.pl`, because a bug that answers
 correctly is a bug nothing but a memory checker or a later allocator will
 ever report. Suite here after it: `red: 0` over all **40** case lines, no SKIP
 among them, server up.
@@ -1483,7 +1493,7 @@ an atom when it stands as an operand.
 
 ## Twelve workers: what was actually wrong, and what still is
 
-`test/groups.sh` used to fail, and the cause was none of the things it looked
+`test/groups.pl` used to fail, and the cause was none of the things it looked
 like. Written down because several wrong answers looked right for a while, and
 two of them were acted on before being checked.
 
@@ -1561,7 +1571,7 @@ truncate) alike; `vacuum_kb/0,1` is the builtin, and it is **gated**: without
 point-in-time reads is the operator's scheduled decision and never a
 program's side effect. README's "A worked store slows down. Truncate it."
 carries the measured numbers (12s empty, 60s aged, 16s after one pass) and
-the schedule doctrine; `test/vacuum.sh` proves the pass and the gate in both
+the schedule doctrine; `test/vacuum.pl` proves the pass and the gate in both
 arrangements, and the concurrency suites run the verb in setup, which is why
 they no longer slow down run over run. The honest long-term fix is still a
 vacuum that does not cost point-in-time reads.
@@ -1912,7 +1922,7 @@ with zero engine errors, and groups-embed green on the aged store.
 
 The PyTorch tutorial classics, each rewritten as a Prolog program
 against the module's own surface and run as one suite
-(`test/torch-nets.sh`): linear regression under sgd and adam,
+(`test/torch-nets.pl`): linear regression under sgd and adam,
 polynomial features, sine through tanh and a gaussian bump through
 relu, step-scheduled sgd, mae over deliberate outliers, two regression
 targets at once; logistic regression on a bce sigmoid head, xor, two
@@ -1964,7 +1974,7 @@ store: `train` builds its data, fits, and `model_save`s; `test`
 `model_load`s in a fresh process and judges against a threshold;
 `predict` loads and answers for visible inputs beside the truth —
 `xor(0, 1) = 1 (confidence 1.00)`, `[3,0,0,0,0,0] -> contains token 3`.
-`test/tutorials.sh` runs all seventy-two processes green in about
+`test/tutorials.pl` runs all seventy-two processes green in about
 seventy-seven seconds, and the main README features 22-embedding-lstm
 with its transcript — the token remembered across five steps, in a
 model trained by one process and answering in another. And with all of
@@ -2072,7 +2082,7 @@ match is discarded in silence — the quiet SWI's clause indexing buys
 by never keeping the frame, bought here without indexing by
 remembering the exit; and the desugared arms of `->` and `\+` travel
 as `$true`/`$fail`, which the program never wrote and the trace never
-shows. `test/trace.sh` holds all of it: twenty-one queries over one
+shows. `test/trace.pl` holds all of it: twenty-one queries over one
 program, both tracers, port lines compared one for one after
 normalising the depth base, variable names and spacing — the `trace`
 case of the suite, SKIPping without swipl. TRACING.md is the
@@ -2172,7 +2182,7 @@ input has the `;` a terminal would have echoed restored on the way
 out, so a piped transcript reads as a terminal session and stdout is
 the answers alone.
 
-`test/repl.sh` — the suite's thirteenth case — holds sixteen local
+`test/repl.pl` — the suite's thirteenth case — holds sixteen local
 cases (the SWI alias trio verbatim from the live run) and the
 cross-process claim in both store arrangements: a piped session
 asserts and `halt.`s, and a second process that consulted nothing
@@ -2217,7 +2227,7 @@ output and keeps the queue.
 
 Only the toplevel at a terminal comes near any of this. Piped input
 takes the plain path it always took, byte for byte, and the piped half
-of `test/repl.sh` stands untouched to prove it. The tty half is new,
+of `test/repl.pl` stands untouched to prove it. The tty half is new,
 through a pseudo-terminal from `script(1)`: the editing is proven by
 what the READER got — an answer can only say `X = 1.` if the
 backspaces really deleted — the arrows and `C-e` by an inserted digit
@@ -2279,7 +2289,7 @@ the real headers by include-order accident, and somewhere a generated
 header had been hand-patched above its own include guard to paper over
 it — the compiler now emits the includes itself.
 
-`test/tensors.sh`, the suite's fifteenth case, holds the whole story:
+`test/tensors.pl`, the suite's fifteenth case, holds the whole story:
 the wire arrangement trains and saves and `torch_params/3` answers
 **false** — the parameters are rows, not clauses — while a second
 process loads the model back at 100%; a 1994-parameter model makes
@@ -2372,7 +2382,7 @@ Closed from the bottom up:
   answers **false** there too. The clause-chunk fallback remains for
   what it was always for: `--local`, which has no store behind it.
 
-`test/tensors.sh`'s embed half flipped from "the parameters stay in
+`test/tensors.pl`'s embed half flipped from "the parameters stay in
 chunk clauses" to "the parameters are rows, not clauses", and a second
 process loads the model back at 100% from the store files alone. All
 fifteen GREEN against a live server, `red: 0`.
@@ -2402,7 +2412,7 @@ mid-session must not re-consult the ones before it.
 
 A library loads INTO THE PROCESS, exactly as in SWI: its clauses are
 muted, so a second process on the same knowledge base does not see them
--- `test/library.sh`, the suite's sixteenth case, proves that across
+-- `test/library.pl`, the suite's sixteenth case, proves that across
 processes, along with both halves of a dlopen'd module answering
 (`test/hoot.cicili`, the twenty-line worked example), load-twice
 answering once, and the goal/directive split: a goal throws a catchable
@@ -2507,7 +2517,7 @@ UNDEFINED" is a comment above the branch that was being skipped. The fix
 is to warm on the path that was about to throw, and re-check: a round
 trip on an error path, which is not a path anything runs in a loop, and
 no cost at all on any other. A genuinely undefined predicate raises
-exactly as before, and `test/library.sh` checks both — the same case that
+exactly as before, and `test/library.pl` checks both — the same case that
 proves a library does NOT outlive the process now proves a declaration
 does, which are the two halves of one question.
 
@@ -2567,7 +2577,7 @@ errno on a TLS connection:
     certificate required -- this server wants a client certificate:
     --cert and --key
 
-`test/zigurat-tls.sh` runs TWO terminators now, one per client-auth
+`test/zigurat-tls.pl` runs TWO terminators now, one per client-auth
 setting, and holds all four combinations: a certificate offered where
 none is wanted, a certificate where one is required, none where none is
 required (which every other check in the case already was), and none
@@ -2585,7 +2595,7 @@ this suite that compare stderr exactly -- and the flag is a spelling
 rather than a mistake. It is marked deprecated in `--help` and in the
 documentation, the repository's own thirty-odd uses moved to `--tcp`
 (tests, the two coworkers, the tutorials, the emacs mode and its test),
-and `test/zigurat-lib.sh` holds it to both halves: that it still reaches
+and `test/zigurat-lib.pl` holds it to both halves: that it still reaches
 the server, and that it prints nothing while doing so.
 
 ### What the client is worth, measured somewhere else
@@ -2606,7 +2616,7 @@ sealing, gossiping and re-verifying; a fork opened and closed by rule; a
 chain audited by a process that consulted nothing; a PoH spine verified
 in parallel segments; a stake-weighted BFT vote to finality -- all of it
 through `zg_conn`'s TLS path, with the handshake before the greeting and
-the framing surviving every one of them. `test/zigurat-tls.sh` proves the
+the framing surviving every one of them. `test/zigurat-tls.pl` proves the
 transport in the small. That proved it under load, in an arrangement
 nobody wrote to test a socket.
 
@@ -2682,7 +2692,7 @@ rounding is a coin toss two runs could call differently; the standard
 epsilon makes every tie break the same way, because determinism is not
 optional in this family.
 
-`test/hex.sh` holds it to IDENTITIES over whole windows rather than
+`test/hex.pl` holds it to IDENTITIES over whole windows rather than
 spot values -- a spot value can be right by accident; a 7x7 round-trip
 window cannot. 19 checks. `tutorials/library/30-hex.pl` in the same
 commit, as the rule demands.
@@ -2697,7 +2707,7 @@ goal IS the game's movement rule -- a hex neighbor that is on the map,
 not a wall, at the terrain's cost -- nondeterministic clauses a C half
 could not call back into. `shortest_path/5` is the zero heuristic
 (Dijkstra), exported both as the API's simple face and as the ORACLE:
-test/astar.sh holds astar's costs to Dijkstra's across twelve varied
+test/astar.pl holds astar's costs to Dijkstra's across twelve varied
 pairs on a costed hex grid, because a pathfinder's classic failure is
 being almost right. Ties break by the standard order of terms, so the
 same question is always the same path. Honest limits in the header:
@@ -2734,7 +2744,7 @@ everything scalar is declared to Cicili with `(decl)` and called from
 Cicili.
 
 **THE TEST IS HELD TO PIXELS, HEADLESS.** A graphics test that checks
-exit codes has proved a linker worked. `test/ray.sh` runs the windowed
+exit codes has proved a linker worked. `test/ray.pl` runs the windowed
 half under Xvfb -- a real X server, Mesa's software GL, only the glass
 missing -- and its assertions are about FILES: the screenshot is a real
 PNG by its magic bytes, and two frames the clauses drew differently are
@@ -2785,7 +2795,7 @@ conformed all along). Two consequences, both pinned:
   removing rules -- while SWI's retractall removes EVERY clause whose
   head unifies, rules included. `builtins.cicili` now asks
   `retract((C :- _))`, the wide contract spelled out, and
-  `test/repl.sh` holds the whole story to a live SWI transcript:
+  `test/repl.pl` holds the whole story to a live SWI transcript:
   retract minds the body, retractall takes the rules too.
 
 `retract/1` still answers once (deterministic, like every builtin
@@ -2910,7 +2920,7 @@ owner's PR) and two here:
    acknowledgement, the name's, the answer -- and both ends sat in
    `recv` most of the time. `zg_call_send` / `zg_call_wait` in
    `client/zigurat.c`, and `coco_zg_sync_pred` keeps 128 calls in flight
-   (one, embedded: `ce_call` holds one call at a time, `test/vacuum.sh`
+   (one, embedded: `ce_call` holds one call at a time, `test/vacuum.pl`
    found it).
 5. **Here: every read of a predicate walked the whole knowledge base.**
    `clauses_of`, `forget_clauses`, `predicates_of` and `forget_all` all
@@ -3019,7 +3029,7 @@ is 14000), which is how it has always read and is worth a look.
   `integer' expected, found `foo'``, ``Arithmetic: `foo/0' is not a function``,
   `Unknown message: my_ball` for a ball that is not an `error/2` at all — and
   the CLI prints `ERROR: -g main: …`. The exit status is SWI's too: 0 proved, 1
-  failed **silently**, 2 threw. `test/directives.sh` runs the same files under
+  failed **silently**, 2 threw. `test/directives.pl` runs the same files under
   both and diffs what the programs printed.
 * **`format/2` has no column directives.** `~t`, `~|` and `~+` measure what has
   been written since the last column stop, which is a second pass over the
@@ -3088,7 +3098,7 @@ machine work above.
   query met nothing on the port, `Connection refused` read as a routing
   failure, and the kill at the end of the check reached the edge before it
   had printed a line — which is why the edge's own output file was empty
-  rather than wrong. `test/tunnel.sh` now waits for the edge to say `edge up`
+  rather than wrong. `test/tunnel.pl` now waits for the edge to say `edge up`
   (or `CANNOT BIND`, on port 80 without privilege, so that SKIP is decided on
   what the edge said rather than on what it had not said yet), fifteen
   seconds at most and well under one in practice. GREEN, port 80 SKIP.
@@ -3248,7 +3258,7 @@ limit, 14 ms at `ulimit -s 1024`, 21 ms at 8192, 75 ms at 65536.
 consult the module loader is holding.
 
 **Why the suite is green over it:** no shipped `library/*.pl` has a goal
-directive, all twelve checked, and `test/directives.sh` exercises directives
+directive, all twelve checked, and `test/directives.pl` exercises directives
 through `run` only and never once through `-s`. Nothing in the tree stands on
 this path, which is why it has gone unseen rather than why it is harmless.
 

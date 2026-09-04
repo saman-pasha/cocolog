@@ -1,4 +1,4 @@
-%% colab-check.pl -- the notebook checks test/colab.sh used to ask Python.
+%% colab-check.pl -- the notebook checks test/colab.pl used to ask Python.
 %%
 %%     cocolog --local run test/colab-check.pl cb_main -- VERB NOTEBOOK [ARG]
 %%

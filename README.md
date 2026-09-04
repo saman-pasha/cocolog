@@ -124,10 +124,12 @@ client/                the two protocols, in C. No C++, no ZiguratIP headers:
 parsi/                 the schema and the pages, compiled into a ZiguratIP
                        home by ZiguratIP's own parsi compiler
 cocolog.cicili         the program
-test/                  the suite; groups.sh and ruler.sh are the concurrent
-                       ones, and are crowds of processes rather than .cicili;
-                       tls.sh, httpd-tls.sh and zigurat-tls.sh are the three
-                       that raise real handshakes between real processes
+test/                  the suite, every case a cocolog script on
+                       test/prelude.pl and test/run.pl the runner; groups.pl
+                       and ruler.pl are the concurrent ones, crowds of
+                       processes rather than .cicili; tls.pl, httpd-tls.pl and
+                       zigurat-tls.pl are the three that raise real handshakes
+                       between real processes
 test/files/            Prolog programs run by BOTH swipl and cocolog, with
                        their output compared line for line
 tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
@@ -137,7 +139,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        library/ (forty-two, ONE PER LIBRARY that
                        ships), tensor/ (forty-two networks, three
                        processes each), opencv/ (twenty-three lessons
-                       of image processing). `sh test/tutorials.sh'
+                       of image processing). `cocolog -s test/tutorials.pl'
 demo/family.pl         something to run it on
 emacs/                 cocolog-mode: a Prolog major mode with colours for
                        variables and execution graphs drawn under the rules,
@@ -271,7 +273,7 @@ chooses the server arrangement.
 
 ## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. Ninety-nine files, and `sh test/tutorials.sh`
+Documentation that RUNS. Ninety-nine files, and `cocolog -s test/tutorials.pl`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -542,8 +544,8 @@ export COCOLOG_LIBRARY=/opt/my/modules:/opt/vendor/prolog
 ```
 
 The suite appends to it rather than replacing it, and The Coco's
-`test/config.sh` does the same, so `COCOLOG_LIBRARY=/opt/my/modules sh
-test/run.sh` works in both. What ships always comes first: a suite that let
+`test/config.pl` does the same, so `COCOLOG_LIBRARY=/opt/my/modules sh
+test/run.pl` works in both. What ships always comes first: a suite that let
 somebody else's `library(httpd)` win would be green about somebody else's
 code.
 
@@ -589,7 +591,7 @@ of a start-up dominated by the embedded store. Instead the things they needed
 were built here — the soft cut `*->`, `code_type/2`, `must_be/2`,
 `format/1,2,3` with its `codes(H,T)` sink, `with_output_to/2`,
 `ord_intersection/3` and `ord_subtract/3`, and acceptance of the `:- module`
-and `:- use_module` lines a library file starts with. `test/files/run.sh`
+and `:- use_module` lines a library file starts with. `test/files.pl`
 consults those very bytes into cocolog and runs the same test file under SWI,
 and the two agree exactly.
 
@@ -839,7 +841,7 @@ certificate this authority did not sign, and nobody arriving inside the
 timeout are all ordinary answers; `tls_why/1` says which. A server that
 raised would stop serving everybody else because one impostor knocked.
 
-`test/tls.sh` raises a server and runs three clients at it as separate
+`test/tls.pl` raises a server and runs three clients at it as separate
 processes — enrolled, impostor, browser — because a handshake is between
 two ends that do not share memory.
 
@@ -876,7 +878,7 @@ the client's first — the standard reverse-proxy hole. On a plain
 connection they are stripped and not replaced, so a page that trusts
 them is closed to port 80 by construction.
 
-`test/crypto.sh` holds them to FIPS 180, RFC 4231, NIST SP 800-38A and
+`test/crypto.pl` holds them to FIPS 180, RFC 4231, NIST SP 800-38A and
 DER's own worked examples, then issues a certificate for real — key,
 request, issuance, validation, signature, verification: 74 checks.
 
@@ -1054,7 +1056,7 @@ later as `Package +-*/\^<>=~ does not exist`.
 ## Twelve interpreters, four states
 
 ```console
-$ sh test/groups.sh
+$ cocolog -s test/groups.pl
 twelve interpreters, three per machine
 starting four machines
 ok   state-a produced its full answer set   ancestor(tom,ann) ... ancestor(tom,zoe)
@@ -1073,7 +1075,7 @@ Twelve `cocolog work` processes against one server, three per machine. Each
 machine produces its full answer set exactly once however many workers produced
 it, and every member of every group does some of the work.
 
-`test/ruler.sh` is the other half of the claim: one interpreter asserting a
+`test/ruler.pl` is the other half of the claim: one interpreter asserting a
 program clause by clause while eight others query the same knowledge base, and
 none of them may ever answer something the finished program cannot prove.
 
@@ -1111,7 +1113,7 @@ An embedded store belongs to one process, so the group test's concurrency
 moves inside it: `cocolog swarm A1 M1 A2 M2 ...` runs each worker as a thread
 with its own session (the engine keeps transactions thread-local, and the
 `SERIALIZABLE` claim is the same gate of one the server uses), and
-`test/groups-embed.sh` runs the identical twelve-worker choreography and
+`test/groups-embed.pl` runs the identical twelve-worker choreography and
 checks. What the two arrangements measure, three runs each, same machine:
 
 |                          | run 1 | run 2 | run 3 | run 4 | run 5 |
@@ -1128,7 +1130,7 @@ vacuum` went into its setup — flat for as long as it is run, on the same
 worked store the first row was ageing.
 
 Then the same benchmark was pointed at a PERSISTENT embedded store
-(`GROUPS_EMBED_STORE=DIR test/groups-embed.sh`), and what it found was not a
+(`GROUPS_EMBED_STORE=DIR test/groups-embed.pl`), and what it found was not a
 number but three storage engine bugs, shared by the C++ engine and the
 Cicili port alike: a record sized at an exact chunk multiple measured one
 chunk short everywhere it was read back (so its frees leaked and its holes
@@ -1192,7 +1194,7 @@ It is a LOADABLE module — `library/torch.so`, built by
 `sh modules/torch/build.sh` and reached with
 `use_module(library(torch))` — because a dependency this large should
 not be everybody's: a cocolog with no libtorch still builds and still
-runs, and `ldd` on the binary shows no torch at all. `test/torch.sh`
+runs, and `ldd` on the binary shows no torch at all. `test/torch.pl`
 runs the whole story: train, store in Zigurat, reload in a fresh
 process, predict identically.
 
@@ -1207,7 +1209,7 @@ fitted Q-iteration reinforcement learning -- and, in 42, object detection
 on real photographs, the Penn-Fudan pedestrians, trained on a T4 with the
 boxes-to-cells assignment, the suppression and the matching written as
 clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the third
-tutorial category — `sh test/tutorials.sh` runs all ninety-three files,
+tutorial category — `cocolog -s test/tutorials.pl` runs all ninety-three files,
 the hundred and twenty-six torch processes included, green and deterministically
 in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten
@@ -1507,7 +1509,7 @@ read-only view of it, and every other cocolog — another Colab, a
 laptop's `?- ` prompt — does `Ps = params(t07_xor)` and the network's
 expression over `--http`, the weights arriving as terms and the
 prediction running wherever the querier is. One writer, many readers, enforced by which
-port is public; `test/tunnel.sh` rehearses the edge locally, port for
+port is public; `test/tunnel.pl` rehearses the edge locally, port for
 port and Host for Host.
 
 ## Coworking: Cocos that work a problem together
@@ -1550,7 +1552,7 @@ the knowledge but the *proof in progress*.
 lines in SWI-Prolog's own format, on stderr, for every goal the engine
 proves — and `trace/0` / `notrace/0` switch it from inside a program, as
 they do there. It is held to SWI the way everything here is held to
-something: `test/trace.sh` asks both tracers the same queries over the
+something: `test/trace.pl` asks both tracers the same queries over the
 same program and compares the port lines one for one, down to the
 subtleties — a `Redo` re-entering a clause shows the call with its
 bindings undone, taking the other arm of a `;` (or the else of an
@@ -1756,7 +1758,7 @@ longer has a knowledge base to belong to.
 Run it the way any store with MVCC and no background vacuum wants its
 maintenance run: **on a schedule, whenever the store has been worked** —
 between benchmark runs always, between test-suite runs if the numbers are to
-mean anything (`test/groups.sh` and `test/ruler.sh` run it in setup, which is
+mean anything (`test/groups.pl` and `test/ruler.pl` run it in setup, which is
 why they no longer slow down run over run), and periodically in any
 long-lived deployment. The first measured pass took a 35MB store down to its
 263 live rows.

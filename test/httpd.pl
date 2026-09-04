@@ -314,7 +314,7 @@ pages(D, Root) :-
 serving(Args, Port, Pid) :-
     cocolog(C),
     sh_join(['timeout 120 ', C, ' ', Args, ' >/dev/null 2>&1'], Cmd),
-    proc_spawn(Cmd, Pid),
+    spawn(Cmd, Pid),
     sh_join(['lsof -iTCP:', Port, ' -sTCP:LISTEN >/dev/null 2>&1'], Listening),
     ( proc_until(sh_exit(Listening, 0), 8000, 100) -> true ; true ).
 

@@ -399,7 +399,7 @@ limit — `ulimit -s 1024` 14 ms, `8192` 21 ms, `65536` 75 ms.
 machine and store, from inside a consult that the module loader is holding.
 
 **Why it has never been seen:** no shipped `library/*.pl` has a goal directive
-— checked, all twelve — and `test/directives.sh` exercises directives through
+— checked, all twelve — and `test/directives.pl` exercises directives through
 `run` only and never once through `-s`. The suite is green because nothing in
 it stands on this path.
 

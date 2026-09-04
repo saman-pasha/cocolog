@@ -17,7 +17,7 @@
 %%     x509_subject_file_name/2  x509_file_name_subject/2
 %%
 %% THIS LESSON READS ONLY. Issuing needs an RSA key pair, which is a few
-%% seconds of prime search, and `test/crypto.sh' does that end to end --
+%% seconds of prime search, and `test/crypto.pl' does that end to end --
 %% key, request, certificate, signature, the lot. Here the material is
 %% the sample authority ZiguratIP ships, whose private key is in that
 %% repository and in every clone of it: it is not a secret and was never
@@ -121,7 +121,7 @@ main :-
     format("   the same ones that server reads, which is the part that~n"),
     format("   had to be true.~n"),
     format("~n"),
-    format("   `sh test/crypto.sh' issues one for real: 74 checks, key~n"),
+    format("   `sh test/crypto.pl' issues one for real: 74 checks, key~n"),
     format("   generation included.~n~n"),
     format("done~n").
 %% ---- the two helpers every lesson here carries ------------------------

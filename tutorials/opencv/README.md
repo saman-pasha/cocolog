@@ -36,7 +36,7 @@ pictures `../tensor/42-detection-*.jpg`, and everything else is drawn in
 the file. The two dnn lessons need a model that is NOT in the repository:
 each has a `download` goal that fetches it with curl into
 `tutorials/opencv/models/` (ignored by git), and `main` says so and ends
-when it is missing, so `sh test/tutorials.sh` stays green offline.
+when it is missing, so `sh test/tutorials.pl` stays green offline.
 
 | file | OpenCV lesson | teaches |
 |---|---|---|
@@ -83,5 +83,5 @@ rest of calib3d. A predicate the lesson needs and the module lacks goes
 into `modules/opencv/coco-opencv.cicili` as one row of the table and one
 `cv-pred`, with the binding under Cicili's `lib/cpp/opencv/` declaring
 whatever new OpenCV names it calls -- and the lesson lands in the same
-commit, with its row in this table and a line in `test/tutorials.sh` if
+commit, with its row in this table and a line in `test/tutorials.pl` if
 it needs a skip.

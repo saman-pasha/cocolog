@@ -527,7 +527,7 @@ cd_patterns(Ps) :-
 %% THE MESSAGES ARE NOT COPIED INTO lint.pl. A rule and the evidence for it
 %% drifting apart is the failure this whole file was built to prevent, so
 %% there is one source -- traps.jsonl -- and two renderings of it, and
-%% test/lint.sh proves the renderings agree.
+%% test/lint.pl proves the renderings agree.
 cd_facts(Text) :-
     cd_patterns(Ps),
     cd_facts_header(H),

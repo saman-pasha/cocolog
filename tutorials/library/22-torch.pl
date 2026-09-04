@@ -182,7 +182,7 @@ main :-
     format("   visible. Then 09-four-blobs for multiclass, 17-cnn-bars~n"),
     format("   for convolution, and 21-lstm-sum for sequences.~n"),
     format("~n"),
-    format("   `sh test/tutorials.sh' runs all twenty-four, three~n"),
+    format("   `sh test/tutorials.pl' runs all twenty-four, three~n"),
     format("   processes each, and checks every one against a threshold~n"),
     format("   -- so the collection is a suite as well as a course.~n~n"),
     format("done~n").

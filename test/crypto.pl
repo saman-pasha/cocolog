@@ -1,124 +1,67 @@
-#!/bin/sh
-# ZiguratIP's cryptography and its CA, as cocolog predicates: library(sha),
-# library(aes), library(der), library(x509) and library(ca).
-#
-# HELD TO PUBLISHED VECTORS WHERE THERE ARE ANY -- FIPS 180 for the
-# digests, RFC 4231 for HMAC, NIST SP 800-38A F.2.1 for AES-CBC, and DER's
-# own worked examples for the integer encoding. A binding that answers
-# confidently and wrongly is worse than one that does not build, and the
-# only defence is an answer somebody else published first.
-#
-# AND TO A ROUND TRIP WHERE THERE ARE NOT. `library(der)' writes a term,
-# reads it back and writes it again, and the two texts are compared --
-# the same discipline test/serialize.pl holds json, xml and html to, for
-# the same reason: a reader and a writer that disagree about the same
-# certificate are worse than either alone.
-#
-# THE CA IS EXERCISED FOR REAL, not mocked: a key is generated, a signing
-# request made from it, a certificate issued against ZiguratIP's own
-# sample authority, and the result validated, read, signed with and
-# checked. That takes a few seconds of RSA key generation and is worth it
-# -- everything cheaper proves the module loads and nothing else.
-#
-# SKIPS when the .so's are not there, because "no ZiguratIP built here"
-# and "the binding is wrong" are different findings.
+%% ZiguratIP's cryptography and its CA, as cocolog predicates: library(sha),
+%% library(aes), library(der), library(x509) and library(ca).
+%%
+%% HELD TO PUBLISHED VECTORS WHERE THERE ARE ANY -- FIPS 180 for the
+%% digests, RFC 4231 for HMAC, NIST SP 800-38A F.2.1 for AES-CBC, and DER's
+%% own worked examples for the integer encoding. A binding that answers
+%% confidently and wrongly is worse than one that does not build, and the
+%% only defence is an answer somebody else published first.
+%%
+%% AND TO A ROUND TRIP WHERE THERE ARE NOT. `library(der)' writes a term,
+%% reads it back and writes it again, and the two texts are compared --
+%% the same discipline test/serialize.pl holds json, xml and html to, for
+%% the same reason: a reader and a writer that disagree about the same
+%% certificate are worse than either alone.
+%%
+%% THE CA IS EXERCISED FOR REAL, not mocked: a key is generated, a signing
+%% request made from it, a certificate issued against ZiguratIP's own
+%% sample authority, and the result validated, read, signed with and
+%% checked. That takes a few seconds of RSA key generation and is worth it
+%% -- everything cheaper proves the module loads and nothing else.
+%%
+%%     cocolog -s test/crypto.pl        from the checkout root
+%%
+%% ONE PROCESS, as it always was: crypto.sh wrote this program into a
+%% scratch file and ran it once; it is the case file now, with the
+%% harness's own check/3 in place of the four clauses it carried. SKIPs
+%% when the .so's are not there, because "no ZiguratIP built here" and
+%% "the binding is wrong" are different findings.
 
-HERE=$(cd "$(dirname "$0")" && pwd)
-ROOT=$(cd "$HERE/.." && pwd)
-COCOLOG="$ROOT/cocolog"
-. "$HERE/library-path.sh"
-
-if [ ! -x "$COCOLOG" ]; then
-  echo "SKIP no cocolog built"
-  exit 0
-fi
-for m in sha aes der x509; do
-  if [ ! -f "$ROOT/library/$m.so" ]; then
-    echo "SKIP no library/$m.so -- sh modules/$m/build.sh (needs a built ZiguratIP)"
-    exit 0
-  fi
-done
-
-# The sample authority ZiguratIP ships. Its private key is in that
-# repository and in every clone of it, which is the point: it is not a
-# secret and a test may use it.
-CERT="${ZIGURATIP:-$HOME/ZiguratIP}/home/etc/cert"
-if [ ! -f "$CERT/issuer.conf" ]; then
-  echo "SKIP no $CERT/issuer.conf -- set ZIGURATIP to a built checkout"
-  exit 0
-fi
-
-OUT=$(mktemp -d "${TMPDIR:-/tmp}/cocolog-crypto-XXXXXX")
-trap 'rm -rf "$OUT"' EXIT INT TERM
-
-cat > "$OUT/subject.conf" <<'CONF'
-COUNTRY: IR
-ORGANIZATION: Coco
-ORGANIZATIONAL_UNIT: 
-DISTINGUISHED_NAME_QUALIFIER: 
-STATE_OR_PROVINCE_NAME: 
-COMMON_NAME: alice
-SERIAL_NUMBER: 
-LOCALITY: 
-TITLE: 
-NAME: 
-SURNAME: 
-GIVEN_NAME: 
-INITIALS: 
-PSEUDONYM: 
-GENERATION_QUALIFIER: 
-DOMAIN_COMPONENT: 
-EMAIL_ADDRESS: alice@example.org
-CONF
-
-cat > "$OUT/case.pl" <<PL
-:- use_module(library(sha)).
-:- use_module(library(aes)).
-:- use_module(library(der)).
-:- use_module(library(x509)).
-:- use_module(library(ca)).
-
-cert_dir('$CERT').
-work('$OUT').
-PL
-
-cat >> "$OUT/case.pl" <<'PL'
+:- use_module('test/prelude.pl').
 
 main :-
-    nb_zero,
-    digests, macs, ciphers, encodings, certificates, authority,
-    checks(N), fails(F),
-    format("~w check(s)~n", [N]),
-    (   F =:= 0
-    ->  format("GREEN: 0 failure(s)~n")
-    ;   format("RED: ~w failure(s)~n", [F])
-    ).
+    forall(member(M, [sha, aes, der, x509]),
+           ( sh_join(['library/', M, '.so'], So),
+             ( exists_file(So) -> true ; sh_join(['no ', So, ' -- sh modules/', M, '/build.sh (needs a built ZiguratIP)'], Why), skip(Why) ) )),
+    %% The sample authority ZiguratIP ships. Its private key is in that
+    %% repository and in every clone of it, which is the point: it is not a
+    %% secret and a test may use it.
+    ( getenv('ZIGURATIP', Z) -> true ; getenv('HOME', H), atom_concat(H, '/ZiguratIP', Z) ),
+    atom_concat(Z, '/home/etc/cert', Cert),
+    atom_concat(Cert, '/issuer.conf', Issuer),
+    ( exists_file(Issuer) -> true ; sh_join(['no ', Issuer, ' -- set ZIGURATIP to a built checkout'], Why2), skip(Why2) ),
+    use_module(library(sha)), use_module(library(aes)), use_module(library(der)),
+    use_module(library(x509)), use_module(library(ca)),
+    scratch(W),
+    atom_concat(W, '/subject.conf', Subject),
+    fixture(Subject,
+            [ 'COUNTRY: IR', 'ORGANIZATION: Coco', 'ORGANIZATIONAL_UNIT: ',
+              'DISTINGUISHED_NAME_QUALIFIER: ', 'STATE_OR_PROVINCE_NAME: ', 'COMMON_NAME: alice',
+              'SERIAL_NUMBER: ', 'LOCALITY: ', 'TITLE: ', 'NAME: ', 'SURNAME: ', 'GIVEN_NAME: ',
+              'INITIALS: ', 'PSEUDONYM: ', 'GENERATION_QUALIFIER: ', 'DOMAIN_COMPONENT: ',
+              'EMAIL_ADDRESS: alice@example.org' ]),
+    digests, macs, ciphers, encodings, certificates(Cert, W), authority(Cert, W),
+    shl(['rm -rf ', W]),
+    checks_done.
 
-%% ---- the harness, four clauses ---------------------------------------
-:- dynamic count/2.
-nb_zero :- retractall(count(_, _)), assertz(count(checks, 0)), assertz(count(fails, 0)).
-checks(N) :- count(checks, N).
-fails(N) :- count(fails, N).
-bump(K) :- retract(count(K, N)), N1 is N + 1, assertz(count(K, N1)).
-
-ok(Label, Got, Want) :-
-    bump(checks),
-    (   Got == Want
-    ->  true
-    ;   bump(fails),
-        format("FAIL ~w~n  got  ~q~n  want ~q~n", [Label, Got, Want])
-    ).
-
-yes(Label, Goal) :-
-    bump(checks),
-    (   call(Goal) -> true ; bump(fails), format("FAIL ~w (did not hold)~n", [Label]) ).
-
-no(Label, Goal) :-
-    bump(checks),
-    (   call(Goal) -> bump(fails), format("FAIL ~w (held, and must not)~n", [Label]) ; true ).
+%% the .sh program's three verdict shapes, over the harness's one
+ok(Label, Got, Want) :- check(Label, Got, Want).
+yes(Label, Goal) :- ( catch(Goal, _, fail) -> check(Label, held, held) ; check(Label, 'did not hold', held) ).
+no(Label, Goal) :- ( catch(Goal, _, fail) -> check(Label, 'held, and must not', 'did not hold') ; check(Label, 'did not hold', 'did not hold') ).
 
 %% ---- library(sha): FIPS 180 and RFC 4231 -----------------------------
 digests :-
+    section('library(sha): FIPS 180 and RFC 4231'),
     sha_hash(sha256, abc, A),
     ok('sha256("abc")', A, ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad),
     sha_hash(sha1, '', B),
@@ -157,6 +100,7 @@ macs :-
 
 %% ---- library(aes): NIST SP 800-38A -----------------------------------
 ciphers :-
+    section('library(aes): NIST SP 800-38A'),
     K = '2b7e151628aed2a6abf7158809cf4f3c',
     IV = '000102030405060708090a0b0c0d0e0f',
     P = '6bc1bee22e409f96e93d7e117393172a',
@@ -186,6 +130,7 @@ ciphers :-
 
 %% ---- library(der) ----------------------------------------------------
 encodings :-
+    section('library(der)'),
     %% TWO'S COMPLEMENT, SHORTEST FORM. 127 fits in a byte; 128 needs a
     %% leading zero or it reads as -128; -1 is 0xFF. This is where a
     %% hand-rolled encoder is wrong and stays wrong for years.
@@ -229,8 +174,8 @@ roundtrip(Term) :-
     ok('round trip, term', Back, Term).
 
 %% ---- library(x509): a real certificate -------------------------------
-certificates :-
-    cert_dir(C), work(W),
+certificates(C, W) :-
+    section('library(x509): a real certificate'),
     atom_concat(C, '/dont-use-certificate.crt', CaCrt),
     atom_concat(C, '/dont-use-public.key', CaPub),
     x509_subject(CaCrt, S),
@@ -310,8 +255,8 @@ certificates :-
     ok('encrypt to a certificate, decrypt with the key', Dec, '48656c6c6f').
 
 %% ---- library(ca): the rules ------------------------------------------
-authority :-
-    cert_dir(C), work(W),
+authority(C, W) :-
+    section('library(ca): the rules'),
     atom_concat(C, '/dont-use-public.key', CaPub),
     atom_concat(W, '/alice.crt', Crt),
     ca_root(zigurat, CaPub),
@@ -335,6 +280,3 @@ authority :-
     ca_forget(Crt),
     no('forgetting takes the holder away', ca_holder(Subject, _)),
     no('and the grants with them', ca_grants(Subject, _)).
-PL
-
-"$COCOLOG" run "$OUT/case.pl" main 2>&1

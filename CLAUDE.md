@@ -43,7 +43,7 @@ make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make modules    # every loadable module buildable here; SKIPPED, by name,
                 # for the rest
 make test       # the suite
-sh test/run.sh solve            # one case
+cocolog -s test/run.pl -- solve            # one case
 make lint FILES=myprogram.pl    # cocolint, over a file you name
 ```
 
@@ -68,7 +68,7 @@ Under `--local` there is nothing behind the clauses and the two look
 identical, which is how the difference stays invisible until a tool is
 pointed at a real knowledge base. The suite still runs the tutorials with
 `run` on purpose — a lesson has nothing private to leak — and
-`test/argv.sh` pins both halves. It also decides which `main/0` wins when a
+`test/argv.pl` pins both halves. It also decides which `main/0` wins when a
 file defines one beside `library(main)`'s: `run` puts the file's clauses
 first, `-s` puts the library's, which is the N1 trap seen from the inside.
 
@@ -98,8 +98,10 @@ stays what it was. Without `--config` the usual lookup order applies.
 ### A test case is a Prolog file, and one process runs all of it
 
 **`test/<case>.pl`, run as `./cocolog -s test/<case>.pl` FROM THE CHECKOUT
-ROOT with `test/library-path.sh` sourced**, is what most of the shell
-cases became on 2026-09-04, and `test/prelude.pl` is what they share.
+ROOT with `COCOLOG_LIBRARY` naming this checkout's `library/`** (which
+`test/run.pl` sets for every case it runs), is what EVERY shell case
+became on 2026-09-04 -- there is no `.sh` under `test/` any more, the
+runner included -- and `test/prelude.pl` is what they share.
 The `.sh` shape spawned a cocolog per check -- `timeout 60 cocolog query
 ... | grep -aoE 'answer(...)' | sed`, forty times in `string.sh` alone --
 and a check cost ~120 ms of start-up and pipes to hear an answer that
@@ -127,12 +129,16 @@ stops a server that has answered.
 checks; `check/3` and `checks_done/0` are `library(process)`'s -- the
 harness every `.sh` re-implemented -- and the EXIT CODE IS THE VERDICT,
 0 exactly when `main` proved, which `checks_done` withholds on any red
-check. `test/run.sh` runs a `.pl` where one exists and no `.sh` does (a
-shell case may keep a fixture of its own name beside it: `test/trace.pl`
-is `trace.sh`'s program under the tracer) and reads it that way; a line
-beginning `SKIP` at column 0 skips the case (so a SECTION
-that cannot run says so indented, `     (skipped: ...)`), and every case
-line now carries its seconds. `test/prelude.pl` adds `answer/3` (prove
+check. `test/run.pl` -- a cocolog script itself, `make test` is
+`./cocolog -s test/run.pl` and `-- NAME` runs one case -- builds the seven
+`.cicili` binaries through Cicili and runs every `.pl` case that way; a
+line beginning `SKIP` at column 0 skips the case (so a SECTION that
+cannot run says so indented, `     (skipped: ...)`), and every case line
+carries its seconds. A case's fixtures are files it writes to a scratch
+directory, or programs beside it under another name (`test/trace-program.pl`
+is what `trace.pl` traces; `test/edge.pl`, `test/term.pl` and
+`test/colab-check.pl` are the programs `tunnel`, `zigurat-tls` and `colab`
+raise). `test/prelude.pl` adds `answer/3` (prove
 once; `failed` or `error(Ball)` instead of ending the case), `written/3`
 (the value as `write/1` spells it, for a pin the `.sh` made against a
 written term -- kept byte for byte rather than re-guessed as a term),
@@ -142,7 +148,20 @@ purpose: a consult whose directive reports on stderr, a store read back
 by another cocolog, a server, a goal that must run under something that
 can kill it (`engine.pl`'s timed runs through `proc_run/4`).
 
-**Four things bit, in order of how long each cost:**
+**Five things bit, in order of how long each cost:**
+
+* **A SPAWNED SERVER MUST BE `exec`'d, or `proc_stop/1` kills a shell and
+  orphans it.** `proc_spawn/2` runs `/bin/sh -c CMD`, and this `/bin/sh`
+  FORKS for a command carrying redirections rather than execing it, so the
+  pid it answers is the shell's: measured, `proc_stop` reported the pid
+  `gone` while the port was still held, by a pid two higher. The orphan
+  goes on listening, and the next run of that case meets its own port
+  taken -- the suite's first end-to-end run lost `tunnel` and
+  `zigurat-tls` to servers a standalone run of those two cases had left
+  behind an hour earlier, which reads as a routing bug and is not one.
+  `test/prelude.pl`'s `spawn/2` puts `exec` in front; every case that
+  raises a server uses it, and a case whose child is a shell LOOP
+  (`ruler.pl`'s queriers) keeps `proc_spawn` and lets the loop end itself.
 
 * **A clause has ONE scope.** `opencv.pl` named a PNG's signature bytes
   `B0..B3` in a check six lines below one that named a 64f handle `B2`;
@@ -226,7 +245,7 @@ three MVCCS-cicili targets carry them.
 **A slow suite is the store ageing, not your change.** Deleted rows are kept
 under MVCC and nothing reclaims them, so every run leaves more behind and every
 later read walks past it. Twelve workers went from 14s to 32s over five identical
-runs. `test/groups.sh` allows 60s per worker, so a long-lived store will
+runs. `test/groups.pl` allows 60s per worker, so a long-lived store will
 eventually push it over — and that reads as a hang. Restart from a fresh
 `$ZIGURATIP_HOME/data` if the numbers stop making sense. `cocolog vacuum` is
 the answer on a store written since the schema went `NOT NULL` — `groups` and
@@ -298,7 +317,7 @@ connection, the whole-base forget is ONE atomic call again (a brief
 predicate-at-a-time chunking of `cmd_forget` lived between diagnosis and
 fix, and is retired), and a `lock wait timeout` today means a LIVE
 contending writer, or a server old enough to predate the patch.
-`test/vacuum.sh` pins forget's contract: count, emptiness with
+`test/vacuum.pl` pins forget's contract: count, emptiness with
 declarations, idempotence.
 
 ### Two findings about ZiguratIP, diagnosed and then APPLIED
@@ -441,7 +460,7 @@ like a dependency and is not one; the first two libraries here already
 knew it (neither `http.pl` nor `httpd.pl` imports `lists`) and 26 lines
 written out of habit for another Prolog have been removed — three in
 `library/json.pl`, `xml.pl` and `html.pl`, eight in
-`test/zigurat-lib.sh`, and 23 across The Coco. The list to check against
+`test/zigurat-lib.pl`, and 23 across The Coco. The list to check against
 is the two rows above, and it can be checked rather than remembered:
 
 ```sh
@@ -478,14 +497,14 @@ have measured it in the arrangement where a predicate is a page.**
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
-REPLACING IT.** `test/library-path.sh` is the one place that sets it —
-sourced by the ten cases that need a tier-2 library — and it puts this
-checkout's `library/` at the FRONT and keeps whatever the caller had behind
-it. Ours first so a suite cannot go green about somebody else's `httpd.pl`;
-theirs kept because ten cases used to write `export
-COCOLOG_LIBRARY="$ROOT/library"` and every one of them threw away a path
-somebody had exported on purpose. So `COCOLOG_LIBRARY=/opt/my/modules sh
-test/run.sh` now works. The Coco's `test/config.sh` does the same, and is
+REPLACING IT.** `test/run.pl`'s `environment/1` is the one place that sets
+it — for every case it runs — and it puts this checkout's `library/` at
+the FRONT and keeps whatever the caller had behind it. Ours first so a
+suite cannot go green about somebody else's `httpd.pl`; theirs kept
+because ten cases used to write `export COCOLOG_LIBRARY="$ROOT/library"`
+and every one of them threw away a path somebody had exported on purpose.
+So `COCOLOG_LIBRARY=/opt/my/modules make test` works, and a case run by
+hand wants the variable set the same way. The Coco's `test/config.sh` does the same, and is
 the one variable in that file which appends instead of deferring to the
 environment — the two directories it names are not a default anybody could
 have meant to replace.
@@ -648,9 +667,9 @@ untouched — and on the wire the owner travels with the clause as
 `'$from'(Path, Clause)` in the same text column, unwrapped at fetch, so a
 row written before this existed is a bare clause nobody replaces. The
 store used to APPEND, so the second of the three processes a tutorial
-runs against one store held two copies of every clause. `test/reconsult.sh`
+runs against one store held two copies of every clause. `test/reconsult.pl`
 is the case; a test that built a program by rewriting one scratch file
-per clause (`test/ruler.sh` did) now writes one file per clause.
+per clause (`test/ruler.pl` did) now writes one file per clause.
 
 **An uncaught exception reads as a sentence.** `coco_error_text`
 (`lib/solve.cicili`) turns a ball into SWI's words — `Unknown procedure:
@@ -659,7 +678,7 @@ my_ball` for a ball that is not an `error/2` — and the CLI prints `ERROR:
 -g main: …`. **The exit status is SWI's: 0 proved, 1 failed silently, 2
 threw.** A test that expected 1 for a thrown ball wants 2 now.
 
-`test/directives.sh` is the case, and its last section runs the same files
+`test/directives.pl` is the case, and its last section runs the same files
 under `swipl` and diffs what the programs printed.
 
 ## The string type, and the flag that decides what `"..."` is
@@ -972,7 +991,7 @@ Every test that asserts a TLS-1.3 refusal must check what the peer
 PORT`. It named a number when there was one transport. Nothing warns —
 the flag is a spelling, not a mistake, and a line on stderr every run
 would land in the output of every script that pipes cocolog — and
-nothing in this tree spells it any more. `test/zigurat-lib.sh` holds it
+nothing in this tree spells it any more. `test/zigurat-lib.pl` holds it
 to both halves: that it still reaches the server, and that it says
 nothing on stderr.
 
@@ -1012,7 +1031,7 @@ name — one decision rather than two.
   never used — and a querier that could only reach the HTTP edge got
   `no server at NAME:2160`. Which defeats the entire point of the
   tunnel. **It went unnoticed because the suite always has a server**:
-  `test/tunnel.sh` raises its edge stand-in on localhost, where 2160 is
+  `test/tunnel.pl` raises its edge stand-in on localhost, where 2160 is
   answering too, so the extra connection succeeded and paid for nothing.
 * **A failed Zeytun fetch was SILENT.** `coco_zt_fail` put the reason in
   `z->err` and answered 0, which the engine reads as "this predicate has
@@ -1025,7 +1044,7 @@ name — one decision rather than two.
   HTTP errors reach it; a predicate with no clauses is a 200 with an
   empty body.
 
-`test/tunnel.sh` gains a TLS-terminating edge stand-in — the arrangement
+`test/tunnel.pl` gains a TLS-terminating edge stand-in — the arrangement
 Cloudflare actually is — and checks a query through it, `--insecure`
 going through loudly, and a **second** edge presenting a certificate for
 a name nobody asked for, refused with `hostname mismatch`.
@@ -1098,7 +1117,7 @@ ADDED its own would leave two, with the client's first — which is the one
 `http_header/3` finds. That is the standard reverse-proxy hole. On a
 plain connection they are stripped and NOT replaced, so a page that
 trusts them is closed to port 80 by construction. Both halves are in
-`test/httpd-tls.sh`.
+`test/httpd-tls.pl`.
 
 **`current_predicate/1` IS NOT AN AVAILABILITY PROBE**, and it cost a
 debugging round here: it answers about the KNOWLEDGE BASE, and a
@@ -1261,7 +1280,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |
 | `client/` | pure C, speaks the wire protocol, includes nothing of ZiguratIP |
 | `parsi/` | the schema, procedures and pages compiled into a ZiguratIP home |
-| `tools/cocolint/` | **the dialect linter**, and the deterministic half of the NL-to-cocolog agent around it: the clause reader as one grammar, the rules as clauses, the dialect card whose citations are checked rather than trusted, the retrieval index, the collision oracle and the gate script. `sh tools/cocolint/lint.sh FILE.pl` or `make lint FILES=FILE.pl`; `test/lint.sh` is the suite case, and `tutorials/library/37-lint.pl` the lesson. It was `tools/coco-agent` and is named for the part a person runs by hand |
+| `tools/cocolint/` | **the dialect linter**, and the deterministic half of the NL-to-cocolog agent around it: the clause reader as one grammar, the rules as clauses, the dialect card whose citations are checked rather than trusted, the retrieval index, the collision oracle and the gate script. `sh tools/cocolint/lint.sh FILE.pl` or `make lint FILES=FILE.pl`; `test/lint.pl` is the suite case, and `tutorials/library/37-lint.pl` the lesson. It was `tools/coco-agent` and is named for the part a person runs by hand |
 
 The store's hooks — `fetch`, `on_assert`, `on_retract`, `on_dynamic`, `warm` —
 are the seam. Everything above them is written against the store and knows
@@ -1272,7 +1291,7 @@ transaction and a machine is many rows).
 
 ## The tutorials are documentation that RUNS
 
-`tutorials/` has four categories and `test/tutorials.sh` runs all
+`tutorials/` has four categories and `test/tutorials.pl` runs all
 ninety-three files as one suite case:
 
 | | | needs |
@@ -1316,7 +1335,7 @@ argument for the shape:
   stdout, which the C library buffers by LINE at a terminal and by BLOCK
   everywhere else — so a program that prints a marker and then blocks
   prints nothing at all into a pipe or a file, and everything at once
-  when it exits. Found by `test/tls.sh`: the server printed READY, the
+  when it exits. Found by `test/tls.pl`: the server printed READY, the
   harness waited for it, and it arrived after the server gave up.
   Interactively it had always worked.
 * **`retractall/1` was one clause short of correct.** It was written
@@ -1343,16 +1362,17 @@ name.
 ## modules/ray changes are validated downstream
 
 The owner's rule: a change to modules/ray does NOT require the full
-suite here -- run `sh test/ray.sh` (and the tutorial if the surface
+suite here -- run `cocolog -s test/ray.pl` (and the tutorial if the surface
 changed) and let CivV's own suite exercise it fully, which it does
 against real worlds. The full-suite discipline stands for everything
 else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **48** case lines (counted
-from a run, not remembered; this said 39, then 42, then 43, and the suite
-keeps moving). A change to
+Run `make test` with a server up, and read all **51** case lines (counted
+from a run, not remembered; this said 39, then 42, then 43, then 48, and
+the suite keeps moving -- seven `.cicili` binaries and forty-four `.pl`
+cases, each line with its seconds). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make
@@ -1407,8 +1427,9 @@ and every one has cost a session at least an hour:
   (its config.lisp says so), so `tools/cc` carries `clang` and `clang++`
   shims beside `gcc` and `g++` -- each takes itself off PATH before
   handing over, or the wrapper's `exec clang` would be the shim again --
-  and `test/run.sh` sources `tools/cc/env.sh`, which it never had: the
-  seven test binaries were built with whatever the bare name resolved
+  and `test/run.pl` puts `tools/cc` at the front of PATH (what
+  `tools/cc/env.sh` does for a shell), which the runner never used to:
+  the seven test binaries were built with whatever the bare name resolved
   to, and failed on a Mac beside a `make` that succeeded.
 * **Apple's clang 21 defaults to C++14** (`__cplusplus 201402L`) where
   Ubuntu's defaults to gnu++17, and fires `-Wparentheses-equality` on
@@ -1464,7 +1485,7 @@ and every one has cost a session at least an hour:
   tutorial 35, `test/os.pl`.
 * **No `setsid`, no `LD_LIBRARY_PATH`, no `date +%N`, and `wc` pads.**
   Raise the server with `nohup` in a subshell and `DYLD_LIBRARY_PATH`;
-  `timeout` is coreutils' (brew). `test/portable.sh` carries `now_ms`
+  `timeout` is coreutils' (brew). `test/portable.pl` carries `now_ms`
   (perl's Time::HiRes -- BSD date prints a literal `3N`, and the
   arithmetic after it died with `value too great for base`, which is how
   a timing check came to call parallel threads "serial") and `detach`

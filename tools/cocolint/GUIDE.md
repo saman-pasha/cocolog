@@ -20,7 +20,7 @@ sh tools/cocolint/agent.sh --dry "REQUEST"      # the prompt a model would get, 
 make lint FILES=myprogram.pl                    # lint.sh through make, index rebuilt first
 make index                                      # rebuild the blocklist and the retrieval index
 make dialect-check                              # every citation of the dialect card still anchors
-sh test/lint.sh                                 # the suite case: about three minutes
+sh test/lint.pl                                 # the suite case: about three minutes
 ```
 
 Paths may be relative or absolute; relative ones are taken from where you
@@ -39,7 +39,7 @@ stand. Every script accepts more than one file.
 | `tool.sh index` | the retrieval index | every library and module header, the exemplars | `surface.jsonl`, `exemplars.jsonl`, `capabilities.json` |
 | `tool.sh assemble` | the prompt, block by block | the index, `blocklist.json`, `traps.jsonl` | text, or sizes |
 | `pre-commit` | a git hook | staged `.pl` files | nothing |
-| `test/lint.sh` | the suite case | all of the above | GREEN, RED or SKIP |
+| `test/lint.pl` | the suite case | all of the above | GREEN, RED or SKIP |
 
 The generated files — `blocklist.json`, `blocklist.pl`, `traps.pl`,
 `surface.jsonl`, `exemplars.jsonl`, `capabilities.json` — are **never
@@ -335,7 +335,7 @@ without one it says SKIPPED rather than passing quietly. `git commit
 ## The suite case
 
 ```sh
-sh test/lint.sh
+sh test/lint.pl
 ```
 
 Five things, in cost order: the card's 42 citations anchor and the checker's
@@ -390,7 +390,7 @@ is code, never a comment), `fix`, and a `pattern` from the nine constructors
 — `seq alt lit ws oneof noneof someof exactly bstart bend notword bol` — if
 the linter is to catch it. Add the form to `selftest/traps.pl` so the suite
 proves the rule fires. Run `sh tools/cocolint/tool.sh card --check`, then
-`sh test/lint.sh`; if the new rule fires on the corpus, decide whether that
+`sh test/lint.pl`; if the new rule fires on the corpus, decide whether that
 finding is real before touching the pinned set. Never edit `lint.pl` for an
 S1 rule: S1 is generated from the card.
 

@@ -88,7 +88,7 @@ deliberately, because SWI has them:
 
 ## How it is held to SWI
 
-`test/trace.sh` — the `trace` case of `make test` — asks both tracers
+`test/trace.pl` — the `trace` case of `make test` — asks both tracers
 the same twenty-one queries over `test/trace.pl` and compares the port
 lines one for one: same ports, same order, same relative depths, same
 goals. Three things are normalised first, because the two writers are

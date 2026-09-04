@@ -47,7 +47,7 @@
 %% wire"). Changing a shipped library to make a tool's output diff smaller is
 %% the tail wagging the dog, so the files are regenerated in cocolog's form
 %% and the equivalence claim is about the DATA: parse both, compare the terms.
-%% test/lint.sh does exactly that.
+%% test/lint.pl does exactly that.
 
 :- use_module(library(json)).
 :- use_module(library(process)).

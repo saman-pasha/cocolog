@@ -760,7 +760,7 @@ cc_heads_of(File, Keys) :-
 %% One tab-separated row per clause over every file the environment names.
 %% It was written as the input to an equivalence gate that diffed this
 %% reader against clauses.py, and both of those are gone -- what reads it
-%% now is test/lint.sh's reader fixture, oracle.sh's declared-name list,
+%% now is test/lint.pl's reader fixture, oracle.sh's declared-name list,
 %% and the Emacs mode's `C-c C-j'.
 %%
 %% THE FILE LIST COMES THROUGH THE ENVIRONMENT, not a goal term. It predates

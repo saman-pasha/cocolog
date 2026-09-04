@@ -70,7 +70,7 @@
 %%
 %% (20-curl.pl is a different case and worth knowing about: it calls
 %% `curl_version/1' unguarded in its first line of `main', and
-%% test/tutorials.sh has HAVE_TORCH, HAVE_CRYPTO and HAVE_RAY arms but no
+%% test/tutorials.pl has HAVE_TORCH, HAVE_CRYPTO and HAVE_RAY arms but no
 %% HAVE_CURL. On a box without libcurl that lesson goes RED rather than
 %% SKIPping, which inverts the suite's own rule that "not built here" and
 %% "wrong" are different findings. Not this file's to fix.)

@@ -125,7 +125,7 @@ two_halves(D) :-
 served(Server, Port, Goal, Template, Got) :-
     cocolog(C),
     sh_join(['timeout 25 ', C, ' run ', Server, ' "serve(', Port, ')" >/dev/null 2>&1'], Cmd),
-    proc_spawn(Cmd, Pid),
+    spawn(Cmd, Pid),
     sh_join(['lsof -iTCP:', Port, ' -sTCP:LISTEN >/dev/null 2>&1'], Listening),
     ( proc_until(sh_exit(Listening, 0), 5000, 100) -> true ; true ),
     written(Goal, Template, Got),

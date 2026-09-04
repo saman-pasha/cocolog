@@ -25,7 +25,7 @@
 %% rather than as a rule (tutorial 31 shows the other way, on six rows).
 %% Nothing here names the execution path or the library: the same file runs
 %% under tensor_execution(eager) and tensor_execution(graph) with identical
-%% numbers (ALL=1 sh test/torch-graph.sh checks), and under
+%% numbers (ALL=1 sh test/torch-graph.pl checks), and under
 %% tensor_execution(tensorflow, graph) on the second backend, from outside:
 %%
 %%   ./cocolog --embed /tmp/tutorials run tutorials/tensor/29-sgd-by-hand.pl "tensor_execution(graph), train"
@@ -146,7 +146,7 @@ predict -->
 %% HEAVY: the same loop on data generated as tensors rather than rows --
 %% Rows x Features inputs, a hidden plane with Features weights, a little
 %% noise -- so the matmuls are worth a GPU's while. Not one of the three
-%% goals the runner drives; it is the workload test/torch-replay.sh times on
+%% goals the runner drives; it is the workload test/torch-replay.pl times on
 %% the Colab T4 against the VM's own CPUs, and it prints how far the learned
 %% weights sit from the plane, which more rows pull closer. The path and the
 %% device come from outside, as a goal prefix:

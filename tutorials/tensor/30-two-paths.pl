@@ -34,7 +34,7 @@
 %% A GPU TUTORIAL, and only that: every goal begins with gpu/0, which puts
 %% the process on the CUDA device, and where there is none the goal says so
 %% and stops, ending 0 without having run -- this file never runs on a CPU.
-%% Its CPU twin is tutorial 31, and that is the one test/torch-graph.sh runs
+%% Its CPU twin is tutorial 31, and that is the one test/torch-graph.pl runs
 %% here; this one runs on the Colab T4.
 
 :- use_module(library(torch)).

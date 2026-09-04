@@ -51,7 +51,7 @@
 %% display any more than the curl lesson can assume a network -- and the
 %% half of the library that needs no window is exactly the half that is
 %% clauses, which a lesson can hold to `must/3'. The windowed half is
-%% proved, to the PIXEL, by test/ray.sh under Xvfb: it draws frames and
+%% proved, to the PIXEL, by test/ray.pl under Xvfb: it draws frames and
 %% compares the PNGs. Run this file's loop yourself where there is
 %% glass; the header above is the whole program.
 

@@ -16,7 +16,7 @@
 %%     tls_peer(+Conn, -Address)          tls_why(-Reason)
 %%
 %% THIS LESSON OPENS NO PORT. A handshake needs two ends and a tutorial
-%% is one process; `sh test/tls.sh' raises a server and runs three
+%% is one process; `sh test/tls.pl' raises a server and runs three
 %% different clients at it -- enrolled, impostor, browser. Here the
 %% checks are the ones a single process can make honestly, and the rest
 %% is the argument.
@@ -87,7 +87,7 @@ main :-
     format("   what is left is AUTHORISATION, which is a rule over facts.~n"),
     format("   The permissions came out of a certificate an issuer~n"),
     format("   signed; `library(ca)' is the half that decides what they~n"),
-    format("   mean. test/tls.sh shows alice arriving with~n"),
+    format("   mean. test/tls.pl shows alice arriving with~n"),
     format("   [read, 'ledger.write'] and being allowed to write.~n"),
 
     format("~n-- A REFUSED HANDSHAKE IS NOT AN ERROR~n"),
@@ -131,7 +131,7 @@ main :-
     format("   transport indirection through fourteen call sites, not a~n"),
     format("   new mechanism -- and it is not done yet.~n"),
     format("~n"),
-    format("   `sh test/tls.sh' is the real demonstration: a server and~n"),
+    format("   `sh test/tls.pl' is the real demonstration: a server and~n"),
     format("   three clients as SEPARATE PROCESSES, because a handshake~n"),
     format("   is between two ends that do not share memory and a test~n"),
     format("   proving one process can talk to itself would have proved~n"),

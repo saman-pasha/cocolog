@@ -13,7 +13,7 @@
 %%     cocolog --embed KB -s  tool.pl      -> tool_private_fact/1 absent
 %%     cocolog --embed KB run tool.pl main -> tool_private_fact(1) stored
 %%
-%% (This lesson still runs under either, and test/tutorials.sh uses `run'
+%% (This lesson still runs under either, and test/tutorials.pl uses `run'
 %% for all seventy-seven files. A lesson has nothing private to leak.)
 %%
 %% `--' IS THE WHOLE ARRANGEMENT AND IT IS NOT OPTIONAL. Everything before it
@@ -217,7 +217,7 @@ s6 :-
 %%
 %% This lesson DOES define opt_type/3, so it cannot show the mode by calling
 %% argv_options/3 here. tutorials/library/38-main-unguided.pl is not a file;
-%% the claim is checked in test/argv.sh, which runs a program that defines no
+%% the claim is checked in test/argv.pl, which runs a program that defines no
 %% opt_type/3 at all. What IS shown here is the switch itself.
 s7 :-
     ( opt_types_defined -> D = yes ; D = no ),

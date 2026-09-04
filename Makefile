@@ -225,8 +225,17 @@ lint: index
 
 # ---- tests -------------------------------------------------------------------
 
+# THE RUNNER IS A COCOLOG SCRIPT, test/run.pl, and it stands on two of the
+# dependency-free modules -- library(process) for the children and
+# library(text) for the pins -- so they are built here when they are not,
+# the way `make modules' builds them. Everything else about the suite is in
+# test/run.pl's header.
 test: all $(BUILD)/probe
-	sh test/run.sh
+	@for m in process text; do \
+	  [ -f library/$$m.so ] || CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh modules/$$m/build.sh >/dev/null 2>&1 \
+	    || { echo "cocolog: library/$$m.so would not build -- sh modules/$$m/build.sh"; exit 1; }; \
+	done
+	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" ./cocolog -s test/run.pl
 
 clean:
 	rm -rf $(BUILD) cocolog cocolog.c *.o *.lo .libs

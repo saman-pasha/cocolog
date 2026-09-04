@@ -1,4 +1,4 @@
-%% edge.pl -- the edge stand-in test/tunnel.sh raises.
+%% edge.pl -- the edge stand-in test/tunnel.pl raises.
 %%
 %%     cocolog -s test/edge.pl -- PORT PUBLIC ORIGIN LOGFILE [CERT.pem]
 %%

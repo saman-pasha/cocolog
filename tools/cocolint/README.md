@@ -25,7 +25,7 @@ sh tools/cocolint/oracle.sh myprogram.pl   # G2+G3 alone
 make lint FILES=myprogram.pl               # G1, through make
 make index                                 # rebuild the blocklist and index
 make dialect-check                         # every citation still resolves
-sh test/lint.sh                            # the suite case
+sh test/lint.pl                            # the suite case
 ```
 
 | file | is |
@@ -318,7 +318,7 @@ that was wrong, under `empirical`:
 
 ## Every rule has to fire, and a corpus of correct code cannot show that
 
-`test/lint.sh` has two halves. The first runs cocolint over the 58 files and
+`test/lint.pl` has two halves. The first runs cocolint over the 58 files and
 pins the exact **set** of findings — not a count, because two findings that
 cancel out in a total would slip through. The second runs it over
 `selftest/traps.pl`, which walks into every divergence on purpose, and asserts

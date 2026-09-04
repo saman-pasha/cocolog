@@ -123,7 +123,7 @@ main :-
     format("   issuer's .crt fails deep inside a configuration parser~n"),
     format("   with a message about line 1 and some DER bytes.~n"),
     format("~n"),
-    format("   `sh test/crypto.sh' runs the whole thing for real -- key,~n"),
+    format("   `sh test/crypto.pl' runs the whole thing for real -- key,~n"),
     format("   request, certificate, signature, verification, and these~n"),
     format("   rules over a certificate that was issued a second earlier.~n~n"),
     format("done~n").

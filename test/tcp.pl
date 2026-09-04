@@ -153,7 +153,7 @@ across_processes :-
               '    tcp_close(S).' ]),
     cocolog(Bin),
     sh_join(['timeout 25 ', Bin, ' run ', Listener, ' serve >/dev/null 2>&1'], Cmd),
-    proc_spawn(Cmd, Pid),
+    spawn(Cmd, Pid),
     ( proc_until(sh_exit('lsof -iTCP:18820 -sTCP:LISTEN >/dev/null 2>&1', 0), 5000, 100) -> true ; true ),
     written(( tcp_connect('127.0.0.1', 18820, C1), tcp_write(C1, 'over the wire'),
               tcp_read(C1, 4096, 5000, Cs1), atom_codes(T1, Cs1), tcp_close(C1) ), T1, G1),

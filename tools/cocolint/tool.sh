@@ -14,7 +14,7 @@
 #
 # WHY NOT `-s': `-s FILE' loads exactly one file, and three of these four need
 # clauses.pl or card.pl beside them. Where a tool stands alone -- trace-diff --
-# test/trace.sh calls it with `-s' directly and does not come through here.
+# test/trace.pl calls it with `-s' directly and does not come through here.
 #
 # `index' takes build.pl as well, and that is not a convenience: a module's
 # surface row has to say which names the module really registers, and the two

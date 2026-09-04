@@ -1,7 +1,7 @@
 %% reader.pl -- every shape that has ever fooled a clause reader here.
 %%
 %% NOT MEANT TO RUN. It is a FIXTURE: clauses.pl must read it into exactly the
-%% clause list in reader.expected, and test/lint.sh checks that. Every case is
+%% clause list in reader.expected, and test/lint.pl checks that. Every case is
 %% one that was got wrong at some point, by this reader or by the Python one it
 %% replaced, and each is labelled with what went wrong.
 %%

@@ -1,4 +1,4 @@
-%% term.pl -- the TLS terminator test/zigurat-tls.sh raises.
+%% term.pl -- the TLS terminator test/zigurat-tls.pl raises.
 %%
 %%     cocolog -s test/term.pl -- FULL.pem PORT ORIGIN MODE [CA.crt]
 %%

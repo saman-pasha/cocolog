@@ -214,7 +214,7 @@ against_curl :-
 served(Server, Port, Client, Got) :-
     cocolog(C),
     sh_join(['timeout 25 ', C, ' run ', Server, ' "serve(', Port, ')" >/dev/null 2>&1'], Cmd),
-    proc_spawn(Cmd, Pid),
+    spawn(Cmd, Pid),
     sh_join(['lsof -iTCP:', Port, ' -sTCP:LISTEN >/dev/null 2>&1'], Listening),
     ( proc_until(sh_exit(Listening, 0), 5000, 100) -> true ; true ),
     shl_atom([Client, ' 2>/dev/null'], Got),
