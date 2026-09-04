@@ -372,8 +372,22 @@
         (if (== 0 (strcmp a "drop"))    (return 1))
         (return 0))
 
+  ;;; THE VERSION, AND THE ONE PLACE IT IS WRITTEN.
+  ;;;
+  ;;; Bumped with every change to this repository -- the patch for an
+  ;;; ordinary one, the minor when something new is reachable from a
+  ;;; program, the major when a program that worked stops working. It is a
+  ;;; function rather than a `#define' because a `#define' is raw C that
+  ;;; Cicili cannot see (CLAUDE.md), and a function is one token every caller
+  ;;; here can use.
+  ;;;
+  ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
+  ;;; SHAPE, never the number, so a bump is one line and not two.
+  (func coco_version_text () (out const char *) (return "1.1.0"))
+
   (func usage ()
-        (fprintf stderr "cocolog -- a Prolog interpreter with its knowledge base in Zigurat\n\n")
+        (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
+                 (coco_version_text))
         (fprintf stderr "  cocolog [options]             the toplevel: a `?- ' prompt, answers\n")
         (fprintf stderr "                                under the query's own variable names,\n")
         (fprintf stderr "                                `;' for another solution, halt. leaves\n")
@@ -427,7 +441,8 @@
         (fprintf stderr "                rows at the cost of point-in-time reads\n")
         (fprintf stderr "  --trace       the four-port tracer, SWI's format, on stderr:\n")
         (fprintf stderr "                Call, Exit, Redo and Fail for every goal proved.\n")
-        (fprintf stderr "                trace/0 and notrace/0 switch it from inside\n"))
+        (fprintf stderr "                trace/0 and notrace/0 switch it from inside\n")
+        (fprintf stderr "  --version     the version, on stdout, and nothing else\n"))
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
   (func slurp ((const char * path)) (out char *)
@@ -2355,6 +2370,13 @@
                 ((== 0 (strcmp a "--vacuum")) (set ($ opts vacuum) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--trace")) (set coco_trace_default 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--help")) (usage) (return 0))
+                ;; ON STDOUT, and alone on its line. `--help' explains and
+                ;; goes to stderr; a version is an ANSWER, and a script
+                ;; asking which cocolog this is should be able to read it
+                ;; with `$(cocolog --version)' and no redirection.
+                ((== 0 (strcmp a "--version"))
+                 (printf "cocolog %s\n" (coco_version_text))
+                 (return 0))
                 (#t
                  (if (>= (+ i 1) argc)
                      (block (fprintf stderr "cocolog: %s needs a value\n" a) (return 1)))

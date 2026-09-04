@@ -235,6 +235,30 @@
         (set (-> z write_through) 1)
         (snprintf (-> z kb) 64 "%s" kb)
         (set (-> st ctx) (cast (void *) z))
+        ;; WHAT A ROW WILL HOLD. Zigurat allocates a row inside ONE page --
+        ;; 8192 bytes by default, less its own control words -- and throws
+        ;; `allocation overflow' when it will not fit, AT COMMIT. Measured
+        ;; against the embedded engine with a short kb and predicate name: a
+        ;; clause of 8013 characters stores and one of 8014 does not, and the
+        ;; refusal took every other clause of that transaction with it.
+        ;;
+        ;; 7800 rather than 8013 because the row is not the clause alone: the
+        ;; knowledge base's name, the predicate's, the arity and the ordinal
+        ;; share the page with it. It is the figure that makes the refusal
+        ;; land HERE, one clause at a time and named, rather than on the whole
+        ;; transaction; a clause anywhere near it wants storing as several
+        ;; clauses whatever the exact ceiling turns out to be.
+        ;;
+        ;; IT IS FIXED AND THE PAGE SIZE IS NOT, and that is the honest limit
+        ;; of this line. The engine keeps no value across pages -- there is no
+        ;; overflow chain, no blob table, one allocation inside one page -- but
+        ;; `MEMORY/PAGE_SIZE' is a setting (default 8192, and the cursor's
+        ;; hexmap buffer caps it at 65536), so a server raised to 32768 would
+        ;; hold a clause four times this long and be refused one here. The
+        ;; embedded store cannot drift: `embed/embed.cicili' opens its Memory
+        ;; at 8192 outright. Asking the backend its page size, rather than
+        ;; assuming the default, is the pass that would retire this constant.
+        (set (-> st clause_max) 7800)
         (set (-> st fetch) coco_zg_fetch)
         (set (-> st on_assert) coco_zg_on_assert)
         (set (-> st on_retract) coco_zg_on_retract)

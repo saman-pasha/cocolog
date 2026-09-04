@@ -100,9 +100,14 @@ cl_severity(t1, warn).  cl_severity(a1, warn).  cl_severity(z1, warn).
 cl_wrap_digits(18).
 cl_wrap_at('576460752303423488').
 
-%% A row must fit inside a database page. 8000 stores and 8192 comes back
-%% `allocation overflow'. 7900 leaves room for the rest of the row.
-cl_page_bytes(7900).
+%% A row must fit inside a database page. 8013 characters of clause store
+%% and 8014 comes back `allocation overflow'. 7800 leaves room for the rest
+%% of the row, and it is the SAME number the store itself now refuses at --
+%% `clause_max' in coco_zg_attach -- so a clause this warns about is a
+%% clause that would raise, and one it passes is one that will store. Two
+%% budgets that disagree would leave a band where the linter says yes and
+%% the database says no.
+cl_page_bytes(7800).
 %% The client refuses earlier and differently: a Text is a 16-bit length.
 cl_wire_bytes(65535).
 

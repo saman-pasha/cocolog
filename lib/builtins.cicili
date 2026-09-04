@@ -420,10 +420,17 @@
 
   ;;; ---- all solutions ---------------------------------------------------
 
+  ;;; 2 IS PASSED STRAIGHT THROUGH, in all four of these. It means the goal
+  ;;; threw, a catch frame took the ball, and the engine is already pointed at
+  ;;; that catch's recovery -- so answering anything else here would throw the
+  ;;; recovery away. It used to be -1, which ended the whole query: a `throw'
+  ;;; inside a findall, a forall or an aggregate_all was uncatchable.
   (func coco_b_findall ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t lst . 0))
-          (if (not (coco_engine_findall e (coco_m_arg e g 0) (coco_m_arg e g 1) (aof lst)))
-              (return -1))
+        (let ((size_t lst . 0)
+              (int fr . #'(coco_engine_findall e (coco_m_arg e g 0)
+                                               (coco_m_arg e g 1) (aof lst))))
+          (if (== fr 2) (return 2))
+          (if (not fr) (return -1))
           (return (coco_m_unify e (coco_m_arg e g 2) lst))))
 
   ;;; `findall(T, G, L, Tail)' -- the difference list form. The collected list
@@ -431,9 +438,11 @@
   ;;; walking it again.
   (func coco_b_findall4 ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t lst . 0) (size_t * v . nil) (size_t n . 0) (size_t out))
-          (if (not (coco_engine_findall e (coco_m_arg e g 0) (coco_m_arg e g 1) (aof lst)))
-              (return -1))
+              (size_t lst . 0) (size_t * v . nil) (size_t n . 0) (size_t out)
+              (int fr . #'(coco_engine_findall e (coco_m_arg e g 0)
+                                               (coco_m_arg e g 1) (aof lst))))
+          (if (== fr 2) (return 2))
+          (if (not fr) (return -1))
           (if (not (coco_m_list_array e lst (aof v) (aof n))) (return 0))
           (set out (coco_m_arg e g 3))
           (for ((size_t i . n)) (> i 0) ((-- i))
@@ -570,9 +579,10 @@
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t lst . 0)
               (size_t goal . #'(coco_make2 m "," (coco_m_arg e g 0)
-                                         (coco_make1 m "\\+" (coco_m_arg e g 1)))))
-          (if (not (coco_engine_findall e (coco_new_atom m "x") goal (aof lst)))
-              (return -1))
+                                         (coco_make1 m "\\+" (coco_m_arg e g 1))))
+              (int fr . #'(coco_engine_findall e (coco_new_atom m "x") goal (aof lst))))
+          (if (== fr 2) (return 2))
+          (if (not fr) (return -1))
           ;; no counterexample means the list is empty
           (return (? (coco_m_is_atom e (coco_deref m lst)) 1 0))))
 
@@ -606,7 +616,9 @@
                 (set tmpl (coco_arg m spec 0)))
                (#t (return (coco_m_domain_error e "aggregate_spec" spec))))))
 
-          (if (not (coco_engine_findall e tmpl goal (aof lst))) (return -1))
+          (let ((int fr . #'(coco_engine_findall e tmpl goal (aof lst))))
+            (if (== fr 2) (return 2))
+            (if (not fr) (return -1)))
           (if (not (coco_m_list_array e lst (aof v) (aof n))) (return 0))
 
           (if (== 0 (strcmp what "count"))
@@ -1580,18 +1592,56 @@
           (free out)
           (return rc)))
 
+  ;;; A term's text in a buffer of its own, or nil when it is not text.
+  ;;;
+  ;;; `coco_m_text' writes into a buffer the CALLER sizes and answers 0 both
+  ;;; for "this is not text" and for "it did not fit" -- so a fixed buffer
+  ;;; turns a long atom into a type error or a silent failure, and there is
+  ;;; no way to tell the two apart without asking again with more room. An
+  ;;; atom is asked its own length and fits first time; everything else is
+  ;;; guessed at, doubling, and stops at 16 MB -- because a term that is not
+  ;;; text fails at EVERY size, and doubling for ever on a `foo(1)' would be
+  ;;; a way to run out of memory reporting a type error.
+  ;;;
+  ;;; The caller frees it, and decides which error a nil is.
+  (static)
+  (func coco_b_text_dup ((coco_engine * e) (size_t t)) (out char *)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t d . #'(coco_deref (coco_m_machine e) t))
+              (size_t cap . 4096))
+          ;; AN ATOM ANSWERS ITS OWN SIZE, so the large case that actually
+          ;; turns up -- a file read into one atom, a generated program, a
+          ;; page -- is ONE malloc of exactly the right length and no
+          ;; doubling at all. Only a string or a code list has to be guessed
+          ;; at, and only a term that is not text pays the whole ladder.
+          (if (coco_m_is_atom e d)
+              (set cap (+ 1 (strlen (coco_atom_name m (coco_name_of m d))))))
+          (while (<= cap 16777216)
+            (let ((char * one . #'(cast (char *) (malloc cap))))
+              (if (== one nil) (return nil))
+              (if (coco_m_text e d one cap) (return one))
+              (free one)
+              (set cap (* cap 2))))
+          (return nil)))
+
   ;;; `$atom_split(Atom, Sep, Parts)'. An empty separator would split into
   ;;; nothing sensible, so it is refused here and the caller's clause never
   ;;; sends one.
+  ;;;
+  ;;; THE ATOM GROWS. It was a `char a[8192]', so splitting anything larger
+  ;;; -- a page, a file read in, a joined program -- raised
+  ;;; `type_error(atom, ...)' about an atom that is plainly an atom, which is
+  ;;; the same 8 KB ceiling `$atom_join' had on the way out.
   (func coco_b_atom_split ((coco_engine * e) (size_t g)) (out int)
-        (let ((char a [8192]) (char sep [256])
+        (let ((char * a . #'(coco_b_text_dup e (coco_m_arg e g 0))) (char sep [256])
               (char ** parts . nil) (size_t n . 0) (size_t cap . 0) (int rc))
-          (if (not (coco_m_text e (coco_m_arg e g 0) a (sizeof a)))
+          (if (== a nil)
               (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
           (if (not (coco_m_text e (coco_m_arg e g 1) sep (sizeof sep)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
+              (block (free a) (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
           (if (== 0 (strlen sep))
-              (return (coco_m_error e "atomic_list_concat/3 cannot split on an empty separator" nil)))
+              (block (free a)
+                     (return (coco_m_error e "atomic_list_concat/3 cannot split on an empty separator" nil))))
           (let ((char * p . a))
             (while 1
               (let ((char * q . #'(strstr p sep)))
@@ -1612,32 +1662,58 @@
           (set rc (coco_m_unify e (coco_m_arg e g 2) (coco_m_atom_list e parts n)))
           (for ((size_t i . 0)) (< i n) ((++ i)) (free (nth i parts)))
           (free parts)
+          (free a)
           (return rc)))
 
+  ;;; `'$atom_join'(List, Sep, Atom)' -- what atomic_list_concat/2,3 joins with.
+  ;;;
+  ;;; THE RESULT GROWS. It was a `char out[8192]' and a bare `return 0' when
+  ;;; the join outran it, so `atomic_list_concat/2' over anything sizeable
+  ;;; simply FAILED, with no error term and nothing on stderr: measured, 6400
+  ;;; characters answered and 8320 did not. A caller reading that failure as
+  ;;; "these atoms do not join" is reading a buffer size, and the sizeable
+  ;;; case is the ordinary one -- a page, a generated program, a CSV row.
+  ;;; A `coco_strbuf' grows, so what is left is memory.
+  ;;;
+  ;;; AND THE ERROR TERM IS BUILT BEFORE THE ARRAY IS FREED. It was
+  ;;; `(block (free v) (return (coco_m_type_error e "atomic" (nth i v))))',
+  ;;; reading the culprit out of memory it had just handed back -- which is
+  ;;; why the ball named the FIRST element rather than the offending one, and
+  ;;; why it could crash outright instead. The heap INDEX is copied out
+  ;;; first now: it is a number, and the array being freed held numbers, not
+  ;;; the heap they point into.
+  ;;;
+  ;;; AN UNBOUND ELEMENT IS AN instantiation_error, which is SWI's answer and
+  ;;; the one a caller can act on. It used to be `type_error(atomic, ...)'
+  ;;; naming whatever the freed array happened to still hold.
   (func coco_b_atom_join ((coco_engine * e) (size_t g)) (out int)
         (let ((size_t * v . nil) (size_t n . 0)
-              (char sep [256]) (char out [8192]) (size_t len . 0))
+              (char sep [256]) (coco_strbuf b)
+              (int why . 0) (size_t bad . 0) (int rc . 0))
           (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof v) (aof n)))
               (return (coco_m_type_error e "list" (coco_m_arg e g 0))))
           (if (not (coco_m_text e (coco_m_arg e g 1) sep (sizeof sep)))
               (block (free v) (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
-          (set (nth 0 out) (cast char 0))
+          (coco_sb_init (aof b))
           (for ((size_t i . 0)) (< i n) ((++ i))
-            (let ((char one [4096]))
-              (if (not (coco_m_text e (nth i v) one (sizeof one)))
-                  (block (free v) (return (coco_m_type_error e "atomic" (nth i v)))))
-              (if (> i 0)
-                  (block (if (>= (+ len (strlen sep)) (sizeof out))
-                             (block (free v) (return 0)))
-                         (memcpy (+ out len) sep (strlen sep))
-                         (set len (+ len (strlen sep)))))
-              (if (>= (+ len (strlen one) 1) (sizeof out))
-                  (block (free v) (return 0)))
-              (memcpy (+ out len) one (strlen one))
-              (set len (+ len (strlen one)))
-              (set (nth len out) (cast char 0))))
+            (block
+             (if (> i 0) (coco_sb_put (aof b) sep))
+             (if (coco_m_is_var e (nth i v))
+                 (block (set why 1) (set bad (nth i v)) break))
+             (let ((char * one . #'(coco_b_text_dup e (nth i v))))
+               (if (== one nil)
+                   (block (set why 2) (set bad (nth i v)) break))
+               (coco_sb_put (aof b) one)
+               (free one))))
           (free v)
-          (return (coco_m_unify_atom e (coco_m_arg e g 2) out))))
+          (if (== why 1)
+              (block (coco_sb_free (aof b)) (return (coco_m_instantiation_error e))))
+          (if (== why 2)
+              (block (coco_sb_free (aof b)) (return (coco_m_type_error e "atomic" bad))))
+          (set rc (coco_m_unify_atom e (coco_m_arg e g 2)
+                                     (? (== ($ b s) nil) "" ($ b s))))
+          (coco_sb_free (aof b))
+          (return rc)))
 
   ;;; ---- writing ----------------------------------------------------------
 

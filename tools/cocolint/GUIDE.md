@@ -92,7 +92,7 @@ the wrap, a clause that will not fit a page).
 | **S1** | HARD | one of the fourteen banned forms below, matched as a term with comments and quotes masked | the row's own fix |
 | **T1** | WARN | `use_module` of a tier-1 library, compiled in or preloaded; the directive succeeds and does nothing | delete it |
 | **A1** | WARN | an integer literal at or above 2^59 — a cell is a u64 with three tag bits and no range check, so arithmetic wraps SILENTLY at 2^60 | keep under 2^59, or `library(bigint)` |
-| **Z1** | WARN | a clause over 7,900 bytes stored (a row must fit a page), or a term over 65,535 bytes (the wire refuses it) | chunk it |
+| **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page, and the store refuses it there with `resource_error(clause_length)`), or a term over 65,535 bytes (the wire refuses it) | chunk it |
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 
 S1's fourteen forms are rows of the dialect card, `traps.jsonl`, each with

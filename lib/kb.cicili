@@ -145,6 +145,28 @@
     (member func fetch ((coco_store * st) (void * ctx) (u64 name) (u32 arity)) (out int))
     (member void *    ctx)
 
+    ;; THE LONGEST CLAUSE THIS BACKEND CAN HOLD, as canonical text, or 0 for a
+    ;; store with no such limit -- a purely local one, which keeps clauses in
+    ;; memory and has no row to fit them into.
+    ;;
+    ;; A ROW MUST FIT IN A PAGE. Zigurat allocates a row inside one 8192-byte
+    ;; page and throws `allocation overflow' if it will not fit, and the throw
+    ;; comes at COMMIT: measured, a clause of 8013 characters stores and one
+    ;; of 8014 does not, and the refusal took the WHOLE TRANSACTION with it --
+    ;; every clause the process had asserted, the small ones before and after
+    ;; the big one included, silently as far as the program could tell,
+    ;; because its own `findall' had already answered with all of them in it.
+    ;;
+    ;; So the length is checked HERE, on the way in, where the clause can
+    ;; still be refused one at a time and named. See `coco_assert_from'.
+    (member size_t    clause_max)
+
+    ;; Why the last assert was refused, as a sentence, or empty. It is a
+    ;; buffer on the store because `coco_assert_from' runs BELOW the engine
+    ;; and has no ball to throw: the two callers that do -- `assertz/1' and
+    ;; the consult loop -- read it and say so in their own shapes.
+    (member char      assert_err [256])
+
     ;; Set when a clause is asserted, so a backend can write through. Null for
     ;; a store that is not backed by anything.
     (member func on_assert ((coco_store * st) (void * ctx) (size_t clause)) (out int))
@@ -1307,6 +1329,7 @@
   (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                           (int at_end) (u64 origin) (coco_origin_seen * seen)) (out int)
         (set clause (coco_deref m clause))
+        (set (nth 0 (-> st assert_err)) (cast char 0))
 
         ;; A GRAMMAR RULE IS REWRITTEN HERE AND NOWHERE ELSE. Everything that
         ;; puts a clause in the store comes through this function -- consulting
@@ -1361,6 +1384,43 @@
               (if (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) ":-"))
                   (set head (coco_deref m (coco_arg m clause 0)))))
           (if (not (coco_is_callable m head)) (return 0))
+
+          ;; WILL IT FIT? Asked HERE -- before the predicate is touched at
+          ;; all, and above the reconsult forget in particular, because the
+          ;; backend only finds out at COMMIT and by then the whole
+          ;; transaction is lost. See `clause_max' on the store: measured, a
+          ;; clause of 8014 characters took every other clause the process
+          ;; had written down with it.
+          ;;
+          ;; THE TERM MEASURED IS THE ONE THE BACKEND WILL WRITE, `'$from''
+          ;; wrapper and all, so a long path counts against the clause here
+          ;; exactly as it will on the way out.
+          ;;
+          ;; A LOCAL STORE PAYS NOTHING: `clause_max' is 0, and there is no
+          ;; row for a clause to fit into. A module's clauses pay nothing
+          ;; either -- muted means they never reach one.
+          (if (and (!= (-> st clause_max) 0) (not (coco_store_is_muted st)))
+              (let ((coco_strbuf b) (size_t len . 0)
+                    (size_t mark . #'(-> m heap_len))
+                    (size_t t . clause))
+                (if (!= origin 0)
+                    (set t (coco_make2 m "$from"
+                                       (coco_new_atom m (coco_atom_name m (- origin 1)))
+                                       t)))
+                (coco_sb_init (aof b))
+                (coco_write_storable m (aof b) t)
+                (set len (? (== ($ b s) nil) 0 (strlen ($ b s))))
+                (coco_sb_free (aof b))
+                (set (-> m heap_len) mark)
+                (if (> len (-> st clause_max))
+                    (block
+                     (snprintf (-> st assert_err) 256
+                               "%s/%u: a clause of %lu characters, and a row holds %lu -- store it as several clauses"
+                               (coco_atom_name m (coco_name_of m head))
+                               (coco_arity m head)
+                               (cast ulong len) (cast ulong (-> st clause_max)))
+                     (return 0)))))
+
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored))
             (if (>= pi (-> st npreds)) (return 0))
@@ -1616,11 +1676,24 @@
                    (block
                     (if active
                         (block
+                         ;; A CLAUSE THE STORE CAN EXPLAIN REFUSING IS
+                         ;; REPORTED AND THE LOAD GOES ON, the way a directive
+                         ;; that failed does -- a syntax error is still the
+                         ;; only thing that ends a consult, because after one
+                         ;; the reader does not know where the next clause
+                         ;; begins, and this reader does. The rest of the file
+                         ;; is not the refused clause's fault, and losing it
+                         ;; is how ONE clause over the row limit came to empty
+                         ;; a whole predicate.
                          (if (not (coco_assert_from st m t 1 oid seen))
-                             (block (snprintf err errlen "not a clause")
-                                    (coco_reader_free (aof r))
-                                    (return -1)))
-                         (set n (+ n 1))))
+                             (if (!= (nth 0 (-> st assert_err)) (cast char 0))
+                                 (block (snprintf err errlen "%s" (-> st assert_err))
+                                        (coco_load_message "ERROR" origin at err)
+                                        (set (nth 0 err) (cast char 0)))
+                               (block (snprintf err errlen "not a clause")
+                                      (coco_reader_free (aof r))
+                                      (return -1)))
+                           (set n (+ n 1)))))
                     (set (-> m heap_len) mark))))))
           (if (== rc -1)
               (block (snprintf err errlen "%s" ($ r err))

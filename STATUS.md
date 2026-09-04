@@ -35,6 +35,7 @@ different findings.
 | `test/astar.pl` | `library(astar)`: A* whose graph is two caller goals, held to an ORACLE -- on a costed hex grid, the heuristic search must answer the exact cost the exported Dijkstra answers across twelve varied pairs -- plus the laws: paths connect through the caller's own neighbor goal, costs sum, walls detour, unreachable fails, and the same question twice is the same path (the pinned tiebreak, observed) -- 7 checks |
 | `test/serialize.pl` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 | `test/string.pl` | the string type, checked as a TYPE rather than as a set of predicates that answer: it must not BE an atom, it must carry a NUL where an atom of the same bytes stops at one, and it must sit between atom and compound in the standard order. Plus `double_quotes` in all four of SWI's values, each through a FILE because a one-goal query cannot see its own flag change, and the guard that keeps a module's choice from reaching the vendored SWI libraries -- 36 checks |
+| `test/errors.pl` | what cocolog RAISES, and what it used to lose on the way. Four defects of one family — the interpreter knew and the program could not find out: a `catch/3` whose goal had EXITED went on catching, so a later `throw/1` ran its recovery and the outer catch never heard; a `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` escaped the catch around it, because those run on a sub-engine with a choice stack of its own; `atomic_list_concat/2,3` FAILED with no error term once its 8 KB buffer overflowed, and built its error ball from an array it had already freed; and a clause too long for a ROW took every other clause of the transaction with it, at commit, silently. The last is checked ACROSS PROCESSES, which is the only place it was ever visible — 31 checks |
 
 ### The suite is Prolog files now, one process a case, and no shell at all
 
@@ -61,7 +62,11 @@ after two cases of the first end-to-end run met ports an earlier
 standalone run had left held; and three engine limits it wrote down
 rather than fixed -- `atomic_list_concat/3` splitting into a partial list
 crashes, its join of thirty kilobytes answers `false`, and
-`set_prolog_flag/2` does not exist as a goal.
+`set_prolog_flag/2` does not exist as a goal. **Two of those three are
+fixed now** (below): the join has no ceiling, and the partial list raises
+`instantiation_error` where it used to crash -- though it still JOINS
+where SWI would split, which is a mode difference and not a defect in the
+buffer. `set_prolog_flag/2` remains a directive by construction.
 
 ### One stack, three suites, one server
 
@@ -1428,7 +1433,145 @@ One thing had to change in the engine's dispatch and is worth remembering: a
 builtin that threw *and was caught* must answer **2**, not 1. The engine sets
 the continuation from the builtin's own `k` on a 1, which would throw away the
 recovery goal `throw/1` had just installed and carry on as if nothing had been
-raised. That bug printed nothing at all and returned success.
+raised. That bug printed nothing at all and returned success. `findall/3`,
+`forall/2` and `aggregate_all/3` answer that same 2 now, for the same reason
+-- see the section below, where the frame a catch leaves behind is the other
+half of the story.
+
+## Four defects that lost information, and what each is now
+
+All four were reported from cicili-lang, which had worked around three of
+them -- no bare `catch/3` anywhere in that repository, loops that can raise
+written as plain recursion, and anything long joined as codes. They are one
+family: the interpreter knew something had gone wrong and the program could
+not find out. `test/errors.pl` is the case -- **31 checks**, four sections,
+each naming what it guards -- and the fourth section runs ACROSS PROCESSES
+because that is the only place its defect was ever visible.
+
+**A `catch/3` whose goal SUCCEEDED went on catching.** The frame was pushed
+and never taken down, so
+
+```prolog
+catch(( catch(true, _, assertz(seen)), throw(b) ), Ball, true)
+```
+
+ran the INNER recovery and continued from after the inner catch; the outer
+one, written for exactly that ball, never heard. Measured before the fix:
+`recoveries=[inner] caught=b`, where both halves should be `[]` and `b`.
+
+The goal now carries a `'$catch_exit'(Ci)` marker after it, which marks the
+frame **DEAD**, and a **COCO_CH_CATCH_RETRY** frame above the goal's own
+alternatives marks it live again if anything ever fails back INTO the goal.
+Three things about that shape are worth keeping:
+
+* **The retry frame is only pushed when there is something to fail back
+  into.** The scan stops at the first frame that is not itself a catch, a
+  dead one or another retry, so a deterministic goal -- the common case --
+  leaves no extra choice point at all, and the case that pays for the scan
+  is the one that needed it.
+* **It carries the index it revives in `clause_ix`**, a field a catch frame
+  does not use. A frozen machine still travels as a row of numbers with no
+  new field in it, which is the same argument COCO_CH_DEAD was added under;
+  `test/state.cicili` freezes and thaws inside a guarded goal and is green.
+* **It is silent under `--trace`.** `$catch_exit` is a control construct
+  like `$trace_exit`, and a control construct prints only what its own arm
+  prints. `test/trace.pl`, which diffs cocolog's four ports against SWI's
+  port for port, is unchanged.
+
+**A `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` escaped
+the catch around it.** This was filed separately and is the same family seen
+from the other side. All three are `coco_engine_findall`, which runs the
+goal on a SUB-ENGINE with a choice stack of its own: the ball found no catch
+frame there and came back as an error, which all four callers turned into
+-1 and ended the query. `coco_engine_call_limited` already had the answer --
+put the machine back, then throw again from the outer engine, where the
+frames are -- so `coco_engine_findall` answers **2** now, the builtin
+protocol's "the continuation is already set", and its callers pass that
+straight through instead of setting a continuation of their own.
+
+**`atomic_list_concat/2,3` had an 8 KB ceiling and a use-after-free.** The
+output was a `char out[8192]` and the overflow was a bare `return 0`, so
+joining anything sizeable simply FAILED with no error term at all --
+measured, 6400 characters answered and 8320 did not. A caller reading that
+as "these atoms do not join" is reading a buffer size. The split half had
+the same ceiling on its INPUT, so a page or a file read into one atom could
+not be taken apart either.
+
+And the error path built its ball from an array it had **just freed**, which
+is why an unbound element named the FIRST element rather than the culprit
+and could crash outright instead. It is a `coco_strbuf` for the result now,
+so the result has no ceiling; `coco_b_text_dup` for each element, which asks
+an ATOM its own length and fits first time and doubles to 16 MB for anything
+else, because `coco_m_text` answers 0 both for "this is not text" and for
+"it did not fit" and only a bigger buffer tells them apart; the culprit's
+heap INDEX copied out before the free; and an unbound element is an
+`instantiation_error`, which is SWI's answer. Measured after: a 60001-
+character join, a 60002-character atom split into its three parts, and
+`error(type_error(atomic, foo(1)), _)` naming the term that was actually
+wrong.
+
+**A clause too long for a ROW took every other clause of the transaction
+with it.** Zigurat fits a row in ONE page and throws `allocation overflow`
+at COMMIT. Measured on the embedded engine with a short kb and predicate
+name: **a clause of 8013 characters stores and one of 8014 does not** -- and
+the refusal lost the small facts asserted before and after it, silently as
+far as the program could tell, because its own `findall` had already
+answered with all of them in it. A second process then read back nothing at
+all.
+
+The store now carries `clause_max` -- 7800, set by the backend that has a
+row; **0 for a local store, which pays nothing** -- and `coco_assert_from`
+measures the term the backend will write, `'$from'(Path, Clause)` wrapper
+and all, so a long path counts against the clause here exactly as it will on
+the way out. It is measured BEFORE the predicate is touched, and above the
+reconsult forget in particular, which is the line that did the emptying.
+
+What a program sees now: `assertz/1` raises `resource_error(clause_length)`,
+catchable, and the clauses beside it are still there in a second process; a
+consult REPORTS it in SWI's shape --
+
+```
+ERROR: big.pl:2:
+ERROR:    p/1: a clause of 9132 characters, and a row holds 7800 -- store it as several clauses
+```
+
+-- and goes on to the next clause, because a syntax error is still the only
+thing that ends a load. 7800 rather than 8013 because the row is not the
+clause alone and a server may have a smaller page than the default; a clause
+anywhere near either number wants storing as several clauses whatever the
+exact ceiling turns out to be, which is what machine state already does at
+4000.
+
+**The fifth report -- about seventy goal-carrying facts segfaulting a
+consult -- does NOT reproduce**, and that is stated rather than claimed
+fixed. Tried: the real cicili-lang gate rewritten from `kN :- check(A, B).`
+into `chk(kN, A, B).` facts and driven by `findall/3`; 30, 70, 100 and 200
+synthetic ones; seventy facts of 3700 characters each, which is as close to
+the row limit as they go; one clause with a 20 000-deep conjunction; and
+each of those through both `run` and `-s`. Every one exits 0. The two fixes
+that most plausibly covered it are the iterative term walks of 2026-09-04
+and the row limit above -- the second especially, since a transaction lost
+at commit and a process that died are hard to tell apart from the outside.
+
+## The version is a number now, and it goes up
+
+`cocolog --version` answers `cocolog 1.1.0` **on stdout**, alone on the
+line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
+and goes to stderr, which is what a usage message should do and what makes
+the two safe to have side by side.
+
+It lives in ONE place -- `coco_version_text` in `cocolog.cicili` -- because
+a `#define` is raw C that Cicili cannot see, and a second copy anywhere is a
+second thing to forget. The patch goes up for an ordinary change, the minor
+when something new is reachable from a program, the major when a program
+that worked stops working; it is bumped in the same commit as the change and
+never afterwards.
+
+**`test/argv.pl` pins the SHAPE and deliberately not the number** -- exit 0,
+the name in front, three dotted numbers and nothing else on the line, and
+nothing at all on stderr. A case that named the number would be a second
+place to edit on every change, and the one somebody forgets, which turns a
+release into a red suite.
 
 ## op/3, and what it forced about the database
 

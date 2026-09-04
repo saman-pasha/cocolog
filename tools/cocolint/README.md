@@ -310,11 +310,18 @@ that was wrong, under `empirical`:
   does make the directive succeed in total silence — verified with an empty
   stderr and exit 0 — and the reason is one line: `lb_directive_hook` maps every
   non-zero return to success, including the **−1** that means *not found*.
-* **Z1 is worse than documented.** The card says a too-big row is refused at the
-  turn's flush. Measured under `--embed`: a clause of 8000 bytes reads back from
-  a second process and one of 8020 does not, and the writing process reports
-  **exit 0, empty stderr and `done` on stdout** either way. Nothing says the
-  clause was lost. That makes the lint rule the only warning there is.
+* **Z1 was worse than documented, and is now fixed at the source.** The card
+  said a too-big row is refused at the turn's flush. Measured under `--embed`:
+  a clause of 8000 bytes read back from a second process and one of 8020 did
+  not, and the writing process reported **exit 0, empty stderr and `done` on
+  stdout** either way — nothing said the clause was lost, and the refusal at
+  COMMIT took every other clause of the transaction with it. Since cocolog
+  1.1.0 the store carries `clause_max` and refuses the clause on the way IN:
+  `assertz/1` raises `resource_error(clause_length)` and a consult reports it
+  and carries on. **The rule stays**, because a clause that long still cannot
+  be stored and a linter that catches it before the run is worth more than an
+  exception at it — and its budget is now the same 7,800 the store uses, so
+  there is no band where the linter says yes and the database says no.
 
 ## Every rule has to fire, and a corpus of correct code cannot show that
 
@@ -347,8 +354,8 @@ thought each one worth writing a lesson about.
 
 Four are real findings left for the owner rather than quietly edited: three
 tutorials whose `must/3` calls `halt(1)` where the other 44 fail, and one whose
-`main/0` is ~15 KB stored — twice the page budget, harmless only because the
-tutorial runs `--local`. The last three are no-op tier-1 imports already named
+`main/0` is ~15 KB stored — nearly twice the page budget, harmless only
+because the tutorial runs `--local`. The last three are no-op tier-1 imports already named
 in `CLAUDE.md`.
 
 ## The gates, and what each is for

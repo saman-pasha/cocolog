@@ -21,7 +21,7 @@
 
 main :-
     scratch(D),
-    the_flag(D), unguided(D), main0(D), a_tool(D), dash_s(D),
+    the_flag(D), unguided(D), main0(D), a_tool(D), dash_s(D), the_version,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -128,3 +128,30 @@ stored(KB, S) :-
     sh_join(['--embed ', KB, ' query "tool_private_fact(_)" >/dev/null 2>&1'], A),
     cocolog_run(A, _, Rc),
     ( Rc =:= 0 -> S = stored ; S = absent ).
+
+%% ---- --version -----------------------------------------------------------
+%%
+%% ON STDOUT AND ALONE, so `V=$(cocolog --version)' is the whole answer.
+%% `--help' explains and goes to stderr; a version is an ANSWER, and a
+%% script asking which cocolog this is should not have to redirect.
+%%
+%% THE SHAPE IS PINNED AND THE NUMBER IS NOT. The version goes up with
+%% every change to this repository, so a case that named it would be a
+%% second place to edit -- and one somebody would forget, turning a
+%% release into a red suite.
+
+the_version :-
+    section('--version'),
+    cocolog_run('--version 2>/dev/null', T1, X1),
+    check('exits 0', X1, 0),
+    has('and answers on STDOUT, with the program''s name in front', 'cocolog ', T1),
+    (   atom_concat('cocolog ', N1, T1), atomic_list_concat(Parts1, '.', N1),
+        length(Parts1, 3), forall(member(P1, Parts1), atom_number(P1, _))
+    ->  check('three dotted numbers, and nothing else on the line', yes, yes)
+    ;   check('three dotted numbers, and nothing else on the line', T1, 'cocolog X.Y.Z')
+    ),
+    cocolog_run('--help 2>/dev/null', T2, X2),
+    check('--help exits 0 too', X2, 0),
+    check('but says nothing on stdout -- it is not an answer', T2, ''),
+    cocolog_run('--version 2>&1 >/dev/null', T3, _),
+    check('and --version says nothing on stderr', T3, '').

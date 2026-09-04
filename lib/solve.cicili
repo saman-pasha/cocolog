@@ -168,7 +168,7 @@
 (DEFPARAMETER *construct-names*
   '("true" "fail" "false" "$true" "$fail" "$trace_exit" "," "!" "$cut"
     "$softcut" ";" "->" "*->" "\\+" "not" "once" "ignore" "call" "catch"
-    "throw" "trace" "notrace"))
+    "$catch_exit" "throw" "trace" "notrace"))
 
 ;;; Constructs first, then every builtin name once. The ORDER is what fixes
 ;;; the indices, so it is computed here and nowhere else.
@@ -278,8 +278,21 @@
   ;;; It cannot simply be popped instead. The frames are an array and every
   ;;; barrier, every `$cut' height and every restored `nchoices' is an INDEX
   ;;; into it, so removing one from the middle would move all of them.
+  ;;; CATCH_RETRY is what turns a catch frame back ON. A catch whose goal has
+  ;;; EXITED must stop catching -- a `throw' after it belongs to whoever is
+  ;;; outside -- and the frame was simply left active, so
+  ;;;
+  ;;;     catch(( catch(true, _, assertz(seen)), throw(b) ), B, true)
+  ;;;
+  ;;; ran the INNER recovery and then went on from after the inner catch,
+  ;;; with the outer one never hearing about `b'. The exit marks the frame
+  ;;; DEAD; this frame, pushed above the goal's own alternatives, marks it
+  ;;; live again if anything ever fails back INTO the goal, and carries the
+  ;;; index of the frame it revives in `clause_ix' -- a field a catch frame
+  ;;; does not use, and a number, so a frozen machine still travels as a row
+  ;;; of numbers with no new field in it.
   (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
-                         (COCO_CH_DEAD . 3))
+                         (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4))
 
   (struct coco_choice
     (member int      kind)
@@ -412,7 +425,11 @@
   ;;; cannot be suspended half way, so a machine frozen during a `findall' is
   ;;; frozen before it or after it and never inside it.
   ;;;
-  ;;; Answers 1, or 0 with `e->err' carrying whatever went wrong inside.
+  ;;; Answers 1; 0 with `e->err' carrying whatever went wrong inside; or 2
+  ;;; when the goal THREW and a catch frame of the outer engine took the
+  ;;; ball, in which case the engine already points at that catch's recovery
+  ;;; goal and the caller must answer 2 in its turn rather than setting a
+  ;;; continuation of its own.
   (decl) (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
                                   (size_t * out)) (out int))
 
@@ -821,6 +838,15 @@
                    (set (-> e nchoices) ci)
                    (set (-> e goals) (coco_k_push e call barrier goals))
                    (return 1)))
+              ;; WE ARE FAILING BACK INTO A CATCH'S GOAL, so that catch is
+              ;; catching again. It offers no alternative of its own -- the
+              ;; frame below it does, which is why this one sits above them.
+              (if (== kind COCO_CH_CATCH_RETRY)
+                  (let ((size_t ri . #'($ (nth ci (-> e choices)) clause_ix)))
+                    (if (and (< ri ci) (== ($ (nth ri (-> e choices)) kind) COCO_CH_DEAD))
+                        (set ($ (nth ri (-> e choices)) kind) COCO_CH_CATCH))
+                    (set (-> e nchoices) ci)
+                    continue))
               ;; a catch offers no alternative, and neither does a frame the
               ;; soft cut killed: drop it and keep going down
               (if (or (== kind COCO_CH_CATCH) (== kind COCO_CH_DEAD))
@@ -1116,7 +1142,7 @@
               (coco_store * st . #'(-> e st))
               (coco_engine sub)
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
-              (int ok . 1) (int rc . 0))
+              (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0))
 
           ;; WHERE THE MACHINE STOOD BEFORE THE SEARCH. The sub-engine's last
           ;; solution leaves its bindings on the trail: the final clause of a
@@ -1151,9 +1177,12 @@
                        ;; one can name what was thrown -- without this a
                        ;; findall whose goal threw reported the raw term
                        ;; where every other error reads as a sentence.
+                       ;;
+                       ;; The cell is read HERE, before `coco_engine_free'
+                       ;; memsets the sub-engine; the ball is thrown again
+                       ;; below, once the machine is back where it was.
                        (if ($ sub has_ball)
-                           (block (set (-> e has_ball) 1)
-                                  (set (-> e ball_cell) ($ sub ball_cell))))
+                           (block (set threw 1) (set ball_cell ($ sub ball_cell))))
                        (set ok 0) break))
             (if (== rc 0) break)
             (if (>= n cap)
@@ -1174,6 +1203,24 @@
           ;; that costs a million inferences inside a findall costs them
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           (coco_engine_free (aof sub))
+
+          ;; AND NOW THROW IT AGAIN, IN THE OUTER ENGINE. The sub-engine is a
+          ;; whole engine with a choice stack of its own, so a `throw' inside
+          ;; the goal found no catch frame there and came back as an error --
+          ;; which every caller turned into -1, ending the query. So
+          ;;
+          ;;     catch(findall(X, r(X), L), E, true)
+          ;;
+          ;; did not catch anything, and neither did the same around
+          ;; `forall/2' or `aggregate_all/3', which are this function too.
+          ;; `coco_engine_call_limited' had the answer already: put the
+          ;; machine back first, then throw from here, where the catch frames
+          ;; are. 2 means the continuation now points at a recovery goal.
+          (if threw
+              (block (coco_undo_to m tmark)
+                     (set ($ (cof m) heap_len) hmark)
+                     (free kept)
+                     (return (? (== 1 (coco_throw e (coco_store_get m st ball_cell))) 2 0))))
 
           (if (not ok) (block (coco_undo_to m tmark)
                               (set ($ (cof m) heap_len) hmark)
@@ -1474,12 +1521,55 @@
                    ;; a `catch' is local to it -- the same rule `call/1'
                    ;; follows, and what stops a cut from removing the very
                    ;; frame that is meant to catch.
+                   ;;
+                   ;; AND THE GOAL IS FOLLOWED BY A MARKER, because a catch
+                   ;; that has finished catching has to say so. See
+                   ;; `$catch_exit' below and COCO_CH_CATCH_RETRY above.
                    (let ((size_t cr . #'(coco_make2 m "$catch"
-                                                  (coco_arg m g 1) (coco_arg m g 2))))
+                                                  (coco_arg m g 1) (coco_arg m g 2)))
+                         (size_t ci . #'(-> e nchoices)))
                      (if (not (coco_push_choice e COCO_CH_CATCH cr k b))
                          (return (coco_fail_err e "out of memory")))
                      (set (-> e goals)
-                          (coco_k_push e (coco_arg m g 0) (-> e nchoices) k))))
+                          (coco_k_push e (coco_arg m g 0) (-> e nchoices)
+                                       (coco_k_push e (coco_make1 m "$catch_exit"
+                                                                  (coco_new_int m (cast i64 ci)))
+                                                    b k)))))
+
+                  ;;; The goal of the catch frame at CI has EXITED. From here
+                  ;;; on a throw is somebody else's, so the frame stops being
+                  ;;; a catch -- and starts again the moment anything fails
+                  ;;; back into the goal, which is what the retry frame is
+                  ;;; for. Silent under --trace: the program never wrote it.
+                  ;;;
+                  ;;; THE RETRY FRAME IS ONLY PUSHED WHEN THERE IS SOMETHING
+                  ;;; TO FAIL BACK INTO. A goal that left no alternative can
+                  ;;; never be re-entered, so the frame would be a choice
+                  ;;; point that exists to do nothing -- and the scan stops at
+                  ;;; the first real alternative, so the case that pays for it
+                  ;;; is the one that needed it.
+                  ((and (== n 1) (== nid (coco-id m "$catch_exit")))
+                   (let ((size_t ci . #'(cast size_t (coco-signed-payload
+                                                      (nth (coco_deref m (coco_arg m g 0))
+                                                           (-> m heap))))))
+                     (if (and (< ci (-> e nchoices))
+                              (== ($ (nth ci (-> e choices)) kind) COCO_CH_CATCH))
+                         (block
+                          (set ($ (nth ci (-> e choices)) kind) COCO_CH_DEAD)
+                          (let ((int live . 0) (i64 fi . #'(- (cast i64 (-> e nchoices)) 1)))
+                            (while (> fi (cast i64 ci))
+                              (let ((int fk . #'($ (nth (cast size_t fi) (-> e choices)) kind)))
+                                (if (and (!= fk COCO_CH_DEAD) (!= fk COCO_CH_CATCH)
+                                         (!= fk COCO_CH_CATCH_RETRY))
+                                    (block (set live 1) break)))
+                              (set fi (- fi 1)))
+                            (if live
+                                (block
+                                 (if (not (coco_push_choice e COCO_CH_CATCH_RETRY 0 k b))
+                                     (return (coco_fail_err e "out of memory")))
+                                 (set ($ (nth (- (-> e nchoices) 1) (-> e choices)) clause_ix)
+                                      ci)))))))
+                   (set (-> e goals) k))
 
                   ((and (== n 1) (== nid (coco-id m "throw")))
                    ;; never fails and never simply succeeds: it either transfers
@@ -2655,7 +2745,18 @@
           (if (and (coco_is_callable m c) (== (coco_arity m c) 2))
               (if (== 0 (strcmp (coco_atom_name m (coco_name_of m c)) ":-"))
                   (set head (coco_deref m (coco_arg m c 0)))))
-          (if (not (coco_assert (-> e st) m c at_end)) (return 0))
+          ;; A REFUSAL THE STORE CAN EXPLAIN IS AN EXCEPTION, not a failure.
+          ;; `coco_assert' runs below the engine and has no ball to throw, so
+          ;; it leaves a sentence behind instead -- today, a clause too long
+          ;; for a row. `resource_error/1' is ISO's shape and catchable, which
+          ;; is the whole point: the alternative was a commit that took every
+          ;; other clause of the transaction with it.
+          (if (not (coco_assert (-> e st) m c at_end))
+              (block
+               (if (!= (nth 0 ($ (cof (-> e st)) assert_err)) (cast char 0))
+                   (return (coco_raise e (coco_make1 m "resource_error"
+                                                     (coco_new_atom m "clause_length")))))
+               (return 0)))
           (if (coco_is_callable m head)
               (coco_pred_dynamic (-> e st) (coco_name_of m head) (coco_arity m head)))
           (return 1)))

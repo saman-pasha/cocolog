@@ -233,6 +233,7 @@ make test       # the suite; the database tests skip without a server
 And it runs — the first three need nothing else on the machine at all:
 
 ```sh
+./cocolog --version                           # `cocolog 1.1.0', on stdout
 ./cocolog                                     # the toplevel: ?- awaits
 ./cocolog query "X is 2 + 2"                  # local: memory, the default
 ./cocolog -s myscript.pl                      # load it, prove main; the
@@ -257,6 +258,13 @@ what one goal asserts the next goal sees, `halt.` leaves. It runs in any of
 the four arrangements: against a store or the server, every finished goal is
 one committed transaction, so a toplevel session is also the quickest way to
 poke at a knowledge base other processes are working.
+
+`--version` answers on **stdout** and nothing else is on the line, so
+`V=$(cocolog --version)` is the whole of asking; `--help` explains, and goes
+to stderr the way a usage message should. The number goes up with every
+change to the repository — patch for an ordinary one, minor when something
+new is reachable from a program, major when a program that worked stops
+working.
 
 There is one `cocolog` binary and it is the full one: the interpreter, the
 embedded MVCCS engine and the torch module, all in it. Which knowledge base a

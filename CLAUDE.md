@@ -47,6 +47,18 @@ cocolog -s test/run.pl -- solve            # one case
 make lint FILES=myprogram.pl    # cocolint, over a file you name
 ```
 
+**`cocolog --version` ANSWERS ON STDOUT, AND THE NUMBER GOES UP WITH
+EVERY CHANGE.** It lives in ONE place -- `coco_version_text` in
+`cocolog.cicili` -- because a `#define` is raw C that Cicili cannot see and
+a second copy anywhere is a second thing to forget. The patch for an
+ordinary change, the minor when something new is reachable from a program,
+the major when a program that worked stops working; bump it in the same
+commit as the change, never afterwards. `--help` explains and goes to
+stderr, so a script can read `V=$(cocolog --version)` with no redirection.
+`test/argv.pl` pins the SHAPE and deliberately not the number -- a case
+that named it would be a second place to edit, and the one somebody
+forgets.
+
 There is one `cocolog` binary and it is full: the four knowledge-base
 arrangements — `--local`, the server, `--http`/`--https`, `--embed [DIR]`
 — are runtime options, never builds. Local is the default; naming `--kb`, `--host`
@@ -239,6 +251,76 @@ about both. Without them the build stops with an `Unhandled SIMPLE-ERROR`
 whose text is a warning. gcc ignores unknown `-Wno-` options, so the flags
 travel to every platform. `cocolog.cicili`, `embed/embed.cicili` and all
 three MVCCS-cicili targets carry them.
+
+## Four defects that lost information, and the shapes that fix them
+
+All four were reported from cicili-lang, which had worked around three of
+them. They are one family: the interpreter knew something had gone wrong
+and the program could not find out. `test/errors.pl` is the case, 31
+checks, and each section names what it is guarding.
+
+**A `catch/3` WHOSE GOAL SUCCEEDED WENT ON CATCHING.** The frame was pushed
+and never taken down, so
+
+```prolog
+catch(( catch(true, _, assertz(seen)), throw(b) ), Ball, true)
+```
+
+ran the INNER recovery and continued from after the inner catch; the outer
+one, written for exactly that ball, never heard. The goal now carries a
+`'$catch_exit'(Ci)` marker after it (`*construct-names*` in
+`lib/solve.cicili` -- **add the name to the table, or the build stops at
+`no dispatch id`**), which marks the frame DEAD, and a COCO_CH_CATCH_RETRY
+frame above the goal's own alternatives marks it live again if anything
+ever fails back INTO the goal. The retry frame carries the index it
+revives in `clause_ix`, a field a catch frame does not use -- so a frozen
+machine still travels as a row of numbers with no new field in it, the
+same argument COCO_CH_DEAD was added under. It is only pushed when the goal
+left something to fail back into.
+
+**A `throw/1` INSIDE `findall/3`, `forall/2` OR `aggregate_all/3` ESCAPED
+THE CATCH AROUND IT.** All three are `coco_engine_findall`, which runs the
+goal on a SUB-ENGINE with a choice stack of its own: the ball found no
+catch frame there and came back as an error, which all four callers turned
+into -1 and ended the query. `coco_engine_call_limited` had the answer
+already -- put the machine back, then throw again from the outer engine,
+where the frames are -- so findall answers **2** now, the builtin protocol's
+"the continuation is already set", and its callers pass that straight
+through.
+
+**`atomic_list_concat/2,3` HAD AN 8 KB CEILING AND A USE-AFTER-FREE.** The
+output was a `char out[8192]` and the overflow was a bare `return 0`, so
+joining anything sizeable simply FAILED with no error term -- measured,
+6400 characters answered and 8320 did not, and a caller reading that as
+"these atoms do not join" is reading a buffer size. The split half had the
+same ceiling on its INPUT. And the error path built its ball from an array
+it had just freed, which is why an unbound element named the FIRST element
+rather than the culprit, and could crash instead. It is a `coco_strbuf` for
+the result now, `coco_b_text_dup` for each element (an atom answers its own
+length and fits first time; everything else doubles to 16 MB), the culprit's
+heap INDEX copied out before the free, and an unbound element is an
+`instantiation_error`.
+
+**A CLAUSE TOO LONG FOR A ROW TOOK EVERY OTHER CLAUSE OF THE TRANSACTION
+WITH IT.** Zigurat fits a row in ONE page and throws `allocation overflow`
+at COMMIT: measured on the embedded engine, a clause of 8013 characters
+stores and one of 8014 does not, and the refusal lost the small facts
+asserted before and after it -- silently as far as the program could tell,
+because its own `findall` had already answered with all of them in it. The
+store now carries `clause_max` (7800, set by the backend that has a row;
+0 for a local store, which pays nothing) and `coco_assert_from` measures the
+term the backend will write, `'$from'` wrapper and all, BEFORE the predicate
+is touched -- above the reconsult forget in particular, which is the line
+that did the emptying. `assertz/1` raises `resource_error(clause_length)`,
+catchable, and a consult REPORTS it in SWI's shape and goes on to the next
+clause, because a syntax error is still the only thing that ends a load.
+
+**The fifth report, ~70 goal-carrying facts segfaulting a consult, does NOT
+reproduce** on this binary -- tried as the real cicili-lang gate rewritten
+as facts, as 30/70/100/200 synthetic ones, as 70 facts of 3700 characters
+each, as one clause with a 20 000-deep conjunction, and through both `run`
+and `-s`. The two fixes that most plausibly covered it are the iterative
+term walks of 2026-09-04 and the row limit above.
 
 ## Four hazards, each of which has already cost a day
 
@@ -1369,10 +1451,10 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **51** case lines (counted
-from a run, not remembered; this said 39, then 42, then 43, then 48, and
-the suite keeps moving -- seven `.cicili` binaries and forty-four `.pl`
-cases, each line with its seconds). A change to
+Run `make test` with a server up, and read all **52** case lines (counted
+from a run, not remembered; this said 39, then 42, then 43, then 48, then
+51, and the suite keeps moving -- seven `.cicili` binaries and forty-five
+`.pl` cases, each line with its seconds). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

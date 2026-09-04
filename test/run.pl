@@ -142,6 +142,9 @@ fail_lines(Text) :-
 %%   http    HTTP/1.1 as a grammar, held to written-out answers and to curl
 %%   curl    the client half, over cicili's libcurl binding
 %%   engine  the engine's COMPLEXITY: a timeout at a hundred-fold margin
+%%   errors  what cocolog RAISES: the catch frame a later throw re-entered,
+%%           a throw out of findall/forall/aggregate_all, atomic_list_concat
+%%           past its buffer, and a clause too long for a row
 %%   meter   `call_metered/4': a goal under a ceiling, and WHAT IT COST
 %%   os      library(os), each answer held to the shell's own
 %%   thread  threads that share nothing and channels that copy
@@ -156,7 +159,7 @@ fail_lines(Text) :-
 %%   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
 pl_names([files, trace, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
-          'zigurat-lib', tcp, engine, meter, thread, process, text, os, kbs, http,
+          'zigurat-lib', tcp, engine, errors, meter, thread, process, text, os, kbs, http,
           curl, ray, numpy, opencv, hex, astar, serialize, httpd, 'httpd-tls', crypto,
           tls, 'zigurat-tls', tutorials, colab, lint, argv, string, directives,
           groups, ruler]).
