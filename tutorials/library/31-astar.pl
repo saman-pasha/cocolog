@@ -11,7 +11,7 @@
 %%         call(Heuristic, Node, H)               admissible estimate
 %%     shortest_path(+Start, +Goal, :Neighbor, -Path, -Cost)
 %%         the zero heuristic -- Dijkstra, and the oracle astar's
-%%         answers are held to in test/astar.sh
+%%         answers are held to in test/astar.pl
 %%
 %% Path carries both endpoints, Start first; Cost is the sum of the
 %% steps; Start == Goal answers [Start] and 0; unreachable FAILS, an

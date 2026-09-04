@@ -95,6 +95,81 @@ that needs different settings (TLS_MODE, ports, permissions) copies the
 conf, edits the copy, and raises a second server on it; the home config
 stays what it was. Without `--config` the usual lookup order applies.
 
+### A test case is a Prolog file, and one process runs all of it
+
+**`test/<case>.pl`, run as `./cocolog -s test/<case>.pl` FROM THE CHECKOUT
+ROOT with `test/library-path.sh` sourced**, is what most of the shell
+cases became on 2026-09-04, and `test/prelude.pl` is what they share.
+The `.sh` shape spawned a cocolog per check -- `timeout 60 cocolog query
+... | grep -aoE 'answer(...)' | sed`, forty times in `string.sh` alone --
+and a check cost ~120 ms of start-up and pipes to hear an answer that
+takes a millisecond to compute. Measured on the Mac, same checks, same
+pins:
+
+| case | `.sh` | `.pl` | checks |
+|---|---|---|---|
+| serialize | 15.6 s | 0.2 s | 114 |
+| httpd | 230 s | 32 s | 73 |
+| http | 18.3 s | 2.8 s | 47 |
+| opencv | 8.3 s | 0.6 s | 33 |
+| thread | 13.1 s | 3.4 s | 19 |
+| curl | 9.0 s | 1.5 s | 12 |
+| nineteen cases together | 361 s | 74 s | 533 |
+
+`httpd.sh`'s four minutes were not spawning at all: it `sleep 3`'d for
+each of seventeen servers and then `wait`ed for servers told to accept
+more times than the case connected, forty seconds a server. The `.pl`
+waits for a port with `lsof -iTCP:PORT -sTCP:LISTEN` -- never a probe
+connection, since a server that accepts N times would count it -- and
+stops a server that has answered.
+
+**THE SHAPE IS CivV's, decision for decision.** `main/0` runs the
+checks; `check/3` and `checks_done/0` are `library(process)`'s -- the
+harness every `.sh` re-implemented -- and the EXIT CODE IS THE VERDICT,
+0 exactly when `main` proved, which `checks_done` withholds on any red
+check. `test/run.sh` runs a `.pl` where one exists and no `.sh` does (a
+shell case may keep a fixture of its own name beside it: `test/trace.pl`
+is `trace.sh`'s program under the tracer) and reads it that way; a line
+beginning `SKIP` at column 0 skips the case (so a SECTION
+that cannot run says so indented, `     (skipped: ...)`), and every case
+line now carries its seconds. `test/prelude.pl` adds `answer/3` (prove
+once; `failed` or `error(Ball)` instead of ending the case), `written/3`
+(the value as `write/1` spells it, for a pin the `.sh` made against a
+written term -- kept byte for byte rather than re-guessed as a term),
+`yes_no/2`, `skip/1`, `scratch/1`, `fixture/2` and `cocolog_out/2` for
+the checks that genuinely ARE a second process. Those remain children on
+purpose: a consult whose directive reports on stderr, a store read back
+by another cocolog, a server, a goal that must run under something that
+can kill it (`engine.pl`'s timed runs through `proc_run/4`).
+
+**Four things bit, in order of how long each cost:**
+
+* **A clause has ONE scope.** `opencv.pl` named a PNG's signature bytes
+  `B0..B3` in a check six lines below one that named a 64f handle `B2`;
+  the byte was unified with a handle and the check FAILED only in
+  sequence, never in isolation. Suffix a check's variables with its
+  number, and do not reuse a suffix.
+* **libc's regex `.` matches a newline.** `answer\(.*\)` over a child's
+  whole transcript ran on to the last `)` of `1 answer(s).`; the
+  prelude's `cocolog_answer/2` uses `answer\([^\n]*\)`.
+* **`get_time/1` answered WHOLE SECONDS** -- `time(NULL)` cast to a
+  double -- so `thread.pl` timed one thread at 2000 ms and four at
+  1000 ms. It is `gettimeofday` now (`lib/files.cicili`, with
+  `<sys/time.h>` in `cocolog.cicili`'s includes), SWI's resolution.
+* **The `double_quotes` guard was on the wrong path.** `string.pl`'s
+  first in-process run loaded `library(json)` AS A GOAL after a module
+  had set the flag to `string`, and json.pl "would not consult": the
+  guard sat in `lib/solve.cicili` around the ask-time hook, and a
+  runtime `use_module` reached `coco_module_load` without passing it. It
+  lives in `coco_module_load` now (`lib/module.cicili`), on the one path
+  every module consult takes, and the goal that loads a module keeps its
+  own flag -- which CLAUDE.md had claimed all along and the `.sh` never
+  checked, because its goal's `"ab"` was read before the load.
+
+`set_prolog_flag/2` is a DIRECTIVE, not a goal -- it acts on the reader
+and does not exist at run time -- which is why a case cannot put the flag
+back itself and the guard had to.
+
 ### One compiler, and where it is written down
 
 Everything here is built by **clang**: the client, the interpreter, the
@@ -378,7 +453,7 @@ Answering `yes` from a directory with no library path at all is what
 compiled-in means. Three places legitimately keep such a directive and
 each says why in the file: `test/files/*.pl` and
 `emacs/test/conformance.pl` are run by **swipl as well**, where the
-import is required; and `test/library.sh` is the case that checks
+import is required; and `test/library.pl` is the case that checks
 `use_module` on a registered module succeeds at once.
 
 **It measured free LOCALLY and cost 272 HTTP round trips over Zeytun**,
@@ -665,7 +740,7 @@ knowledge-base arrangements, which means the cross-process claim has to
 be re-proved rather than assumed. It is written down here rather than
 done in passing.
 
-`test/string.sh` is the case — 36 checks, and the four flag values are
+`test/string.pl` is the case — 39 checks, and the four flag values are
 checked through FILES rather than `query`, because a one-goal query can
 never see its own flag change. Tutorial `basics/08` is the lesson.
 
@@ -688,7 +763,7 @@ at the first NUL; codes are what `tcp_write/2` wants), and all three take
 again, compare the two texts — a reader and a writer that disagree about
 the same bytes are worse than either alone, and no amount of hand-written
 expectations on each half finds a disagreement between them. Six cases in
-`test/serialize.sh` do exactly that.
+`test/serialize.pl` do exactly that.
 
 `html.pl` stands on `xml.pl` by NAME — `xml_escaped//1`,
 `xml_text_codes/2`, `xml_no_nul/2` — rather than by copy. One namespace is
@@ -771,7 +846,7 @@ a value parser or a selector-tree builder (a value and a selector come
 back as the atoms they were written as, stated in the header), and it
 throws rather than guesses in both directions — the writer checks with
 the reader's own scanner, so nothing it emits reparses as a different
-stylesheet. Round trips in `test/serialize.sh`, lesson in tutorial 14.
+stylesheet. Round trips in `test/serialize.pl`, lesson in tutorial 14.
 
 ## ZiguratIP's cryptography, imported rather than rewritten
 
@@ -1015,7 +1090,7 @@ another machine exactly as `conn(7)` did.
 `Tls-Peer-Subject` and `Tls-Peer-Permissions` — so a page reads them with
 `http_header/3` like any other and needs no new predicate and no access
 to the socket. `httpd_answer/3` stays a request in and bytes out, which
-is what lets `test/httpd.sh` check every routing rule with no port open.
+is what lets `test/httpd.pl` check every routing rule with no port open.
 
 **THEY ARE STRIPPED FROM THE CLIENT'S REQUEST FIRST, on both
 transports.** A client may send any header it likes; a server that merely
@@ -1067,7 +1142,7 @@ longest chain of 8 999. With the deref the longest is **2**.
 | naive reverse of 700 | 178 ms | 182 ms (noise) |
 
 So it is enormous for deep recursion that backtracks, and free everywhere
-else. `test/engine.sh` guards it with a **timeout at a hundred-fold
+else. `test/engine.pl` guards it with a **timeout at a hundred-fold
 margin**, not a stopwatch with a threshold — the latter fails on a loaded
 machine, and this property is coarse enough not to need the precision.
 
@@ -1156,7 +1231,7 @@ at the end, a rollback when the goal did not prove.
 pages must be loaded with `use_module` and not consulted, asserted, or
 written into the file handed to `cocolog run`. `workers(0)` serves those
 perfectly well, which is exactly how this is easy to meet in a demo and lose
-the moment a pool is added. Four cases in `test/httpd.sh` hold both halves.
+the moment a pool is added. Four cases in `test/httpd.pl` hold both halves.
 
 **Measured**: four threads doing four times the work of one took 1.7× the
 time on four cores. Eight senders put 800 terms through one channel and all
@@ -1386,16 +1461,18 @@ and every one has cost a session at least an hour:
   `os_lib_path_var(V)`, `os_tmp(T)`, `os_cpus(N)` are the questions the
   suites used to put to `uname`, `command -v`, `$TMPDIR` and `nproc` --
   answered by libc, the same clause on both systems. `modules/os`,
-  tutorial 35, `test/os.sh`.
+  tutorial 35, `test/os.pl`.
 * **No `setsid`, no `LD_LIBRARY_PATH`, no `date +%N`, and `wc` pads.**
   Raise the server with `nohup` in a subshell and `DYLD_LIBRARY_PATH`;
   `timeout` is coreutils' (brew). `test/portable.sh` carries `now_ms`
   (perl's Time::HiRes -- BSD date prints a literal `3N`, and the
   arithmetic after it died with `value too great for base`, which is how
   a timing check came to call parallel threads "serial") and `detach`
-  (setsid where it exists, plain elsewhere); `httpd.sh`, `curl.sh` and
-  `thread.sh` source it. BSD `wc -c` left-pads its count: `tr -d " "`.
-  `library(process)`'s `proc_spawn` calls the syscall and is unaffected.
+  (setsid where it exists, plain elsewhere); the cases that sourced it
+  are `.pl` now and time with `get_time/1` and spawn with `proc_spawn/2`,
+  so it waits for whatever `.sh` still wants it. BSD `wc -c` left-pads
+  its count: `tr -d " "`. `library(process)`'s `proc_spawn` calls the
+  syscall and is unaffected.
 * **A page that warms a store takes ~4x longer here** -- CivV's `/view`
   measured 12-13s against ~3s on the Linux box -- so a client's first
   read must wait for that, and a server's READY line is printed ~1.4s

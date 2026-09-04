@@ -10,7 +10,7 @@
 #
 # AND TO A ROUND TRIP WHERE THERE ARE NOT. `library(der)' writes a term,
 # reads it back and writes it again, and the two texts are compared --
-# the same discipline test/serialize.sh holds json, xml and html to, for
+# the same discipline test/serialize.pl holds json, xml and html to, for
 # the same reason: a reader and a writer that disagree about the same
 # certificate are worse than either alone.
 #

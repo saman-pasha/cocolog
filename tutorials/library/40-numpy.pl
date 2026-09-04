@@ -39,7 +39,7 @@
 %% tensors table, clause chunks where it has not, and one clause
 %% np_meta/3 for the shape and dtype -- so a second cocolog process
 %% sharing the base fetches it, dtype and all. Under `run' with no store
-%% this file's np_store lands in the local session; test/numpy.sh is
+%% this file's np_store lands in the local session; test/numpy.pl is
 %% where the across-processes claim is pinned, on the embedded store and
 %% on the wire.
 %%

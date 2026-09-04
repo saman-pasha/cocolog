@@ -84,7 +84,7 @@ main :-
     der_encode(Read, Twice),
     must('write, read, write again', Once, Twice),
     must('...and the term survives too', Read, Doc),
-    format("   The same discipline test/serialize.sh holds json, xml and~n"),
+    format("   The same discipline test/serialize.pl holds json, xml and~n"),
     format("   html to. A reader and a writer that disagree about the~n"),
     format("   same certificate are worse than either alone, and no~n"),
     format("   amount of expectations on each half separately finds it.~n"),

@@ -143,7 +143,7 @@ if openssl req -x509 -newkey rsa:2048 -nodes -keyout "$OUT/edge.pem" \
   #
   # THE DEFAULT IS ALSO HELD: without ca_info, the self-signed edge must be
   # REFUSED, because verification defaulting to on is the client's security
-  # posture (test/curl.sh pins it for file URLs; this pins it against a
+  # posture (test/curl.pl pins it for file URLs; this pins it against a
   # live TLS listener). A curl_get that quietly trusted a self-signed edge
   # would pass every other line in this file and be wrong.
   if [ -f "$ROOT/library/curl.so" ] && \

@@ -15,7 +15,7 @@
 #
 #   sh modules/curl/build.sh
 #
-# and test/curl.sh SKIPs, loudly, when the .so is not there.
+# and test/curl.pl SKIPs, loudly, when the .so is not there.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)

@@ -1,6 +1,6 @@
 ;;;; The loadable-module fixture: the smallest module that exercises the
 ;;;; whole SDK -- one C predicate, one Coco clause, one entry point.
-;;;; test/library.sh transpiles it with Cicili, compiles the emitted C
+;;;; test/library.pl transpiles it with Cicili, compiles the emitted C
 ;;;; into hoot.so with `gcc -shared -fPIC', puts it on $COCOLOG_LIBRARY,
 ;;;; and `use_module(library(hoot))' does the rest.
 

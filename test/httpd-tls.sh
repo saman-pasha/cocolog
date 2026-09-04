@@ -5,7 +5,7 @@
 # ONLY THE TRANSPORT CHANGED, which is what this case is really checking.
 # A connection became a tagged term -- plain(S) or secure(S) -- and five
 # predicates dispatch on the tag; routing, keep-alive, the path rules and
-# httpd_answer/3 are the same code on both. test/httpd.sh proves the
+# httpd_answer/3 are the same code on both. test/httpd.pl proves the
 # plaintext half still passes; this one proves the secure half works and
 # that the two cannot be confused.
 #

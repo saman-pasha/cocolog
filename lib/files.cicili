@@ -139,6 +139,9 @@
   ;;; is already a typedef in the header.
   (@define (code "stat_t struct stat"))
   (@define (code "dirent struct dirent"))
+  ;;; `struct timeval' likewise -- std's posix/sys-time declares the members
+  ;;; under `timeval', so that is the one name that reaches them
+  (@define (code "timeval struct timeval"))
 
   ;;; Registers the module. A target calls this after `coco_module_init'.
   (decl) (func coco_files_module () (out int))
@@ -249,9 +252,20 @@
   ;;; same units, and a reader looking for "how do I get a timestamp" looks
   ;;; where timestamps already are. Both are tier 1, so nothing about the
   ;;; choice reaches a caller.
+  ;;;
+  ;;; MICROSECONDS, NOT WHOLE SECONDS. It was `time(NULL)' cast to a
+  ;;; double, which answers 1788540000.0 and, a moment later, the same
+  ;;; number: two reads inside one second are equal, and a program timing
+  ;;; anything shorter than a second measures 0 or 1000 ms and nothing in
+  ;;; between. test/thread.pl found it -- "one thread 2000ms, four threads
+  ;;; 1000ms" -- when it stopped timing whole processes and timed the
+  ;;; threads. gettimeofday is SWI's resolution and every libc has it.
   (func coco_f_get_time ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_m_unify_float e (coco_m_arg e g 0)
-                                    (cast double (time nil)))))
+        (let ((timeval tv))
+          (gettimeofday (aof tv) nil)
+          (return (coco_m_unify_float e (coco_m_arg e g 0)
+                                      (+ (cast double ($ tv tv_sec))
+                                         (/ (cast double ($ tv tv_usec)) 1000000.0))))))
 
   ;;; THE ONLY WAY TO READ A FILE'S BYTES, and until this existed there was
   ;;; none: `consult' reads Prolog source in C and hands a program nothing,

@@ -151,7 +151,7 @@ has "...and the next one still runs" "still ran"                  "$out"
 # `double_quotes' default is ISO's `codes' and SWI's is `string', so a
 # "..." here would make this check about the flag rather than about the
 # message. `:- set_prolog_flag(double_quotes, string).' is how a file
-# that wants SWI's reading asks for it -- test/string.sh covers that.
+# that wants SWI's reading asks for it -- test/string.pl covers that.
 cat > "$TMP/ithrow.pl" <<'PL'
 :- initialization(build).
 build :- throw(my_error('not a type', nosuch_t)).

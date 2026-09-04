@@ -31,7 +31,7 @@
 # registered before the first goal, like lists, apply, dcg, files and
 # builtins -- so asking for it is a directive that does nothing. These
 # cases used to open with one, which made every query read as though the
-# import were doing some work. `test/library.sh' is where the fact that
+# import were doing some work. `test/library.pl' is where the fact that
 # `use_module' on a registered module succeeds at once is checked.
 #
 # SKIPs without a server, because "no server here" and "the module is

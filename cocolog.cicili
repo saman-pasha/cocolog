@@ -131,6 +131,8 @@
   (include <sys/stat.h>)
   (include <sys/types.h>)
   (include <dirent.h>)
+  ;; and gettimeofday, for get_time/1's fraction of a second
+  (include <sys/time.h>)
   ;; and open(2), for read_file_to_codes/2 -- the same rule as <unistd.h>
   ;; above: lib/std/c/posix/fcntl.cicili declares `open' and O_RDONLY so
   ;; Cicili can infer through them, and the target still has to name the

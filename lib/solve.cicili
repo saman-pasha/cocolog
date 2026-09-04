@@ -1263,26 +1263,15 @@
           ;; running engine -- thawing a machine into it does exactly that --
           ;; and this is the one function every path goes through. The hook's
           ;; own guard makes the usual case two loads and a comparison.
-          ;; A MODULE'S OWN TEXT IS READ AS ITS AUTHOR WROTE IT, so
-          ;; `double_quotes' is forced back to `codes' across the load and
-          ;; restored after. Every module in this tree and all eight vendored
-          ;; SWI files are written for codes; a program that sets the flag to
-          ;; `string' and then provokes a lazy module load would otherwise
-          ;; have its choice reach inside them, and every `"..."' in
-          ;; dcg_basics or yall would come back a string.
-          ;;
-          ;; MEASURED, not guessed: with the flag global and no save here,
-          ;; `:- set_prolog_flag(double_quotes, string).' in a file with no
-          ;; string in it at all failed with "a module's clauses would not
-          ;; load" -- the modules, not the program. SWI keeps the flag
-          ;; per-module and this is the same rule with one machine.
+          ;; A MODULE'S OWN TEXT IS READ AS ITS AUTHOR WROTE IT: the
+          ;; `double_quotes' guard that used to sit here, around this one
+          ;; call, is inside coco_module_load now (lib/module.cicili),
+          ;; because a runtime `use_module' reaches that function without
+          ;; passing this hook -- and a library loaded as a GOAL after a
+          ;; file had set the flag would not consult. The story is told there.
           (if (!= coco_extern_load nil)
-              (let ((int saved_dq . #'(-> m double_quotes)) (int ok . 0))
-                (set (-> m double_quotes) 0)
-                (set ok (coco_extern_load st m e))
-                (set (-> m double_quotes) saved_dq)
-                (if (not ok)
-                    (return (coco_fail_err e "a module's clauses would not load")))))
+              (if (not (coco_extern_load st m e))
+                  (return (coco_fail_err e "a module's clauses would not load"))))
 
           ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
           ;; `coco_engine_ask' for the same reason the hook above is: a

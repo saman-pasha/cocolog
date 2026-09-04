@@ -448,11 +448,31 @@
   ;;; build, not to the knowledge base: written through, they would be saved
   ;;; into the shared database, come back on every fetch, and be listed as the
   ;;; user's own -- and a second interpreter would then have two copies.
+  ;;;
+  ;;; A MODULE'S OWN TEXT IS READ AS ITS AUTHOR WROTE IT, so `double_quotes'
+  ;;; is forced back to `codes' across the consult and the caller's value
+  ;;; restored after. Every module in this tree and all eight vendored SWI
+  ;;; files are written for codes; a program that sets the flag to `string'
+  ;;; would otherwise have its choice reach inside them, and every `"..."'
+  ;;; in dcg_basics or yall would come back a string. SWI keeps the flag
+  ;;; per-module and this is the same rule with one machine.
+  ;;;
+  ;;; MEASURED TWICE. First with the flag global and no guard at all:
+  ;;; `:- set_prolog_flag(double_quotes, string).' in a file with no string
+  ;;; in it failed with "a module's clauses would not load" -- the modules,
+  ;;; not the program. Then with the guard in solve.cicili around the
+  ;;; ask-time hook only: `use_module(library(json))' AS A GOAL, after a
+  ;;; file had set the flag, failed with "its clauses would not consult",
+  ;;; because a runtime use_module reaches this function directly and never
+  ;;; passed the hook. So the guard lives HERE, on the one path every
+  ;;; consult of a module takes. test/string.pl pins both halves: the
+  ;;; module got the flag it asked for, and the goal that loaded it did not.
   (func coco_module_load ((coco_store * st) (coco_machine * m) (coco_engine * e)) (out int)
         (if (== coco_nmodules 0) (return 1))
         (if (>= (-> st libs) coco_nmodules) (return 1))
-        (let ((char err [256]) (int ok . 1))
+        (let ((char err [256]) (int ok . 1) (int saved_dq . #'(-> m double_quotes)))
           (coco_store_mute st)
+          (set (-> m double_quotes) 0)
           (for ((size_t i . #'(-> st libs))) (< i coco_nmodules) ((++ i))
             (let ((coco_module * mod . #'(aof (nth i coco_modules))))
               (if (and ok (!= (-> mod init) nil))
@@ -465,6 +485,7 @@
                   (if (< (coco_consult st m (-> mod prolog) (-> mod name) err (sizeof err)) 0)
                       (set ok 0)))
               (if (== ok 1) (set (-> st libs) (+ i 1)))))
+          (set (-> m double_quotes) saved_dq)
           (coco_store_unmute st)
           (return (? (== ok 0) 0 1))))
 
