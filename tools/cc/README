@@ -1,10 +1,40 @@
 The toolchain, in one directory.
 
-    cc      the C compiler this repository builds with: clang
-    cxx     the C++ compiler: clang++, plus one flag (below)
-    gcc     a shim onto ./cc,  for the one step that names gcc outright
-    g++     a shim onto ./cxx, likewise
-    env.sh  sourced by embed/build.sh and every modules/*/build.sh
+    cc          the C compiler this repository builds with: clang
+    cxx         the C++ compiler: clang++, plus one flag (below)
+    gcc         a shim onto ./cc,  for the one step that names gcc outright
+    g++         a shim onto ./cxx, likewise
+    compiler.sh WHICH clang, chosen rather than inherited -- sourced by both
+    env.sh      sourced by embed/build.sh and every modules/*/build.sh
+
+WHICH clang, AND WHY IT IS WRITTEN DOWN. `clang' as a bare name is
+whatever PATH answers first, and on a Mac with Homebrew's LLVM installed
+that is Homebrew's: /usr/local/opt/llvm/bin sits ahead of /usr/bin in an
+ordinary login PATH. So this repository's compiler changed the day
+somebody ran `brew install llvm' and would change back under a PATH that
+did not have it -- a fact nobody wrote down and nobody could see. ./compiler.sh
+makes the choice instead: Homebrew's LLVM where it is installed
+($HOMEBREW_PREFIX, then /opt/homebrew, then /usr/local), the platform's
+clang where it is not, and $CICILI_CC / $CICILI_CXX over both.
+
+IT IS THE NEWER COMPILER AND IT SAYS MORE. Homebrew's 23.1.0 against
+Apple's 21.0.0 here, and its libc++ headers have had the transitive
+includes removed -- so code that reached a name through a header it never
+asked for fails HERE rather than on somebody else's machine later.
+ZiguratIP's Core/utility.hpp calling std::back_inserter with only
+<algorithm> included is exactly that, and Homebrew's clang is what found
+it. Apple's compiles it, which is not the same as it being right.
+
+BUT ONE libc++ IN THE PROCESS, AND IT IS THE SYSTEM'S. Homebrew's clang
+compiles against its own headers and still links /usr/lib/libc++.1.dylib,
+which is what ZiguratIP's libCore, every module .so and the binary itself
+already link -- checked with `otool -L', not assumed. Nothing here adds
+-L/usr/local/opt/llvm/lib/c++ or an rpath to it, and nothing should: two
+libc++ runtimes in one address space is the hazard the last paragraph of
+this file is about, and cocolog links libCore into its own binary and
+dlopen's modules into its own process.
+
+GOING BACK TO APPLE'S: `make CICILI_CC=/usr/bin/clang CICILI_CXX=/usr/bin/clang++'.
 
 WHY cxx IS A SCRIPT AND NOT A SYMLINK. clang has no C++ standard library
 of its own on Linux: it borrows libstdc++ from a gcc installation, and it

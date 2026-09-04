@@ -12,7 +12,9 @@
 #
 # IT IS COMPUTED, NOT WRITTEN DOWN. A hardcoded 13 is a build that breaks
 # on the next machine, and this cost an afternoon once already.
-cxx=${CICILI_CXX:-clang++}
+here=$(cd "$(dirname "$0")" && pwd)
+. "$here/compiler.sh"
+cxx=$(coco_compiler cxx)
 # The same Darwin rule ./cc carries: a shared object may leave the
 # interpreter's symbols to load time.
 extra=

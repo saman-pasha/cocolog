@@ -13,6 +13,9 @@
 # which is what every module here means. Here rather than in thirteen
 # build.sh files, because a flag that appears in thirteen places will be
 # missing from the fourteenth.
+here=$(cd "$(dirname "$0")" && pwd)
+. "$here/compiler.sh"
+
 extra=
 case "$(uname -s)" in
   Darwin)
@@ -26,4 +29,4 @@ case "$(uname -s)" in
     link=1; for a in "$@"; do [ "$a" = -c ] && link=0; done
     [ $link = 1 ] && extra="-Wl,-undefined,dynamic_lookup" ;;
 esac
-exec "${CICILI_CC:-clang}" $extra "$@"
+exec "$(coco_compiler cc)" $extra "$@"
