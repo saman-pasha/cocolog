@@ -100,13 +100,18 @@ cl_severity(t1, warn).  cl_severity(a1, warn).  cl_severity(z1, warn).
 cl_wrap_digits(18).
 cl_wrap_at('576460752303423488').
 
-%% A row must fit inside a database page. 8013 characters of clause store
-%% and 8014 comes back `allocation overflow'. 7800 leaves room for the rest
-%% of the row, and it is the SAME number the store itself now refuses at --
-%% `clause_max' in coco_zg_attach -- so a clause this warns about is a
-%% clause that would raise, and one it passes is one that will store. Two
-%% budgets that disagree would leave a band where the linter says yes and
-%% the database says no.
+%% A row must fit inside a database page, and the store's own budget --
+%% `clause_max', settled in coco_zg_attach -- is
+%%
+%%     page - 190 - length(knowledge base name) - length(predicate name)
+%%
+%% measured at three page sizes and three name lengths. On the default 8192
+%% page with a knowledge base called `main' that is 7998 minus the head's
+%% name, so 7800 sits DELIBERATELY BELOW it: a linter has no store to ask,
+%% cannot know the page or which knowledge base a program will be run
+%% against, and a warning that fires a couple of hundred bytes early costs
+%% a sentence while one that fires late costs a transaction. Erring the
+%% other way is the direction that must not happen.
 cl_page_bytes(7800).
 %% The client refuses earlier and differently: a Text is a 16-bit length.
 cl_wire_bytes(65535).

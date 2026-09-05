@@ -94,6 +94,18 @@
   ;; ---- the one store this process holds ----------------------------
 
   (var pthread_mutex_t ce_open_access . PTHREAD_MUTEX_INITIALIZER)
+  ;;; THE PAGE THIS STORE IS OPENED ON, and the one place it is written.
+  ;;; A row must fit inside a page -- the engine's `allocate' throws
+  ;;; `allocation overflow' rather than chaining across pages -- so this
+  ;;; number decides the longest clause an embedded knowledge base can hold.
+  ;;; `ce_page_size' hands it to the client, which turns it into a refusal on
+  ;;; the way IN rather than a transaction lost at commit.
+  ;;;
+  ;;; The server's page is `MEMORY/PAGE_SIZE' in its configuration and has
+  ;;; nothing to do with this one; over the wire the client cannot ask, and
+  ;;; lib/zigurat-kb.cicili says what it assumes instead.
+  (var const int64_t ce_page_bytes . 8192)
+
   (var int ce_open_count . 0)
   (var Memory ce_mem)
   (var Zigurat::mapstream * ce_hexmap . nil)
@@ -1051,6 +1063,13 @@
 
   (extern-c
 
+    ;;; The page this store was opened on. It answers whether or not the
+    ;;; store is open, because it is a build-time constant and the caller
+    ;;; asks it while ATTACHING -- see `coco_zg_attach', which turns it into
+    ;;; the longest clause this arrangement will hold.
+    (func ce_page_size () (out llong)
+      (return (cast llong ce_page_bytes)))
+
     (func ce_engine_open ((const char * dir) (char * err) (size_t errcap)) (out int)
       (pthread_mutex_lock (aof ce_open_access))
       (if (> ce_open_count 0)
@@ -1080,7 +1099,7 @@
                   (set ce_data (new* Zigurat::mapstream (std::string datapath)
                                      (bitor std::ios::in std::ios::out)))))
               (memory_open (aof ce_mem) (cast (binarystream *) ce_hexmap)
-                           (cast (binarystream *) ce_data) 8192)
+                           (cast (binarystream *) ce_data) ce_page_bytes)
               ;; handing the engine the two file paths is what turns the
               ;; shared read side on: read-only cursors then run
               ;; concurrently on per-thread streams instead of queueing on

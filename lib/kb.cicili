@@ -1412,14 +1412,21 @@
                 (set len (? (== ($ b s) nil) 0 (strlen ($ b s))))
                 (coco_sb_free (aof b))
                 (set (-> m heap_len) mark)
-                (if (> len (-> st clause_max))
-                    (block
-                     (snprintf (-> st assert_err) 256
-                               "%s/%u: a clause of %lu characters, and a row holds %lu -- store it as several clauses"
-                               (coco_atom_name m (coco_name_of m head))
-                               (coco_arity m head)
-                               (cast ulong len) (cast ulong (-> st clause_max)))
-                     (return 0)))))
+                ;; THE PREDICATE'S NAME SHARES THE ROW, and this is the only
+                ;; place that knows it -- `clause_max' is per-store and was
+                ;; settled from the page and the knowledge base's name. It is
+                ;; one byte per character, measured.
+                (let ((const char * pname . #'(coco_atom_name m (coco_name_of m head))))
+                  (let ((size_t room . #'(? (>= (strlen pname) (-> st clause_max))
+                                            0
+                                            (- (-> st clause_max) (strlen pname)))))
+                    (if (> len room)
+                        (block
+                         (snprintf (-> st assert_err) 256
+                                   "%s/%u: a clause of %lu characters, and a row holds %lu -- store it as several clauses"
+                                   pname (coco_arity m head)
+                                   (cast ulong len) (cast ulong room))
+                         (return 0)))))))
 
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
                 (size_t stored))

@@ -7,11 +7,11 @@ of everything that has to be true for that sentence to hold.
 
 Status: **all three phases are built** (September 2026). Phase 1: `tensor_execution/1`,
 recording, forcing, meta shapes, `tensor_force/1`, `tensor_graph_stats/1`, and
-`test/torch-graph.sh` holding it to equality against eager on this Mac's CPU.
+`test/torch-graph.pl` holding it to equality against eager on this Mac's CPU.
 Phase 2: `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`,
-`test/torch-grad.sh`, and tutorial 29, a training loop written in Prolog. Phase 3:
+`test/torch-grad.pl`, and tutorial 29, a training loop written in Prolog. Phase 3:
 forced values living on the CUDA device and a recurring forward replayed as one
-CUDA graph, `test/torch-replay.sh`, gated on a Colab T4.
+CUDA graph, `test/torch-replay.pl`, gated on a Colab T4.
 
 ---
 
@@ -167,7 +167,7 @@ Written down so the dialect card can carry them:
 
 ## 7. The gates, in order
 
-**Gate A — this Mac, CPU, equality.** `test/torch-graph.sh`:
+**Gate A — this Mac, CPU, equality.** `test/torch-graph.pl`:
 
 * every producer in §4, one goal each, run under `tensor_execution(torch, eager)` and
   again under `tensor_execution(torch, graph)` in a fresh process, `tensor_to_list`
@@ -198,7 +198,7 @@ a parameter the loss never reached; `tensor_step(W, G, LR, W2)` answers
 `W - LR·G` as a NEW leaf and leaves `W` as it was, so nothing is ever mutated
 and a deferred node that still names the old parameter stays honest. Because
 libtorch records its tape whenever an input requires grad, all four work under
-eager too, and `test/torch-grad.sh` holds them equal across the two paths, to
+eager too, and `test/torch-grad.pl` holds them equal across the two paths, to
 the analytic least-squares gradient within 1e-6, and to `2W` for `sum(W·W)`
 exactly. Tutorial 29 writes its loop in Prolog — 300 steps of plain SGD on a
 three-input plane — hands the weights to a `dense(1)` model through
@@ -223,7 +223,7 @@ since a replay builds no tape. Compiled in only where `libtorch_cuda` is
 (`build.sh` decides by the library, not the header, which CPU builds ship too,
 and finds the toolkit's `cuda_runtime.h`); elsewhere every force is plain.
 
-Measured on the T4 on 2026-09-02, `test/torch-replay.sh` GREEN: every producer
+Measured on the T4 on 2026-09-02, `test/torch-replay.pl` GREEN: every producer
 within 1e-4 of the CPU path, most exactly; a forward forced six times on fresh
 leaves executed its four nodes once and replayed five times, sums equal to the
 CPU's; a closure with a parameter replayed zero times and its gradient matched
@@ -238,9 +238,9 @@ the device's while, and the numbers say where that line is.
 
 | phase | what | where | size |
 |---|---|---|---|
-| 1 | `CtNode`, the switch, record/force, meta shapes, stats, `tensor_force`; `test/torch-graph.sh` gate A | `coco-torch.cicili`, `coco-torch.cpp`, a test | ~500 lines, no engine change |
-| 2 | `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`, tutorial 29 (the loop in Prolog); gate B | `coco-torch.cicili`, `test/torch-grad.sh`, one tutorial | ~200 lines, built |
-| 3 | placement on the device, subgraph keys, CUDA graph capture and replay, `replayed` in the stats; gate C on the T4 | `coco-torch.cicili`, `build.sh`, `test/torch-replay.sh`, tutorial 29's `heavy/3` | ~200 lines, built; compiled in only with `libtorch_cuda` |
+| 1 | `CtNode`, the switch, record/force, meta shapes, stats, `tensor_force`; `test/torch-graph.pl` gate A | `coco-torch.cicili`, `coco-torch.cpp`, a test | ~500 lines, no engine change |
+| 2 | `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4`, tutorial 29 (the loop in Prolog); gate B | `coco-torch.cicili`, `test/torch-grad.pl`, one tutorial | ~200 lines, built |
+| 3 | placement on the device, subgraph keys, CUDA graph capture and replay, `replayed` in the stats; gate C on the T4 | `coco-torch.cicili`, `build.sh`, `test/torch-replay.pl`, tutorial 29's `heavy/3` | ~200 lines, built; compiled in only with `libtorch_cuda` |
 
 Nothing here touches the engine, the store, or the freeze discipline. The
 resolution loop stays what it is; the graph sits beside it, behind the same

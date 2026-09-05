@@ -190,6 +190,12 @@ int zg_serialise(zg_conn *c, const char *path, int wait_seconds);
  * tensor hooks needs to know not to on an embedded store. */
 int zg_embedded(zg_conn *c);
 
+/* The page a row has to fit inside, or 0 when this end cannot know it --
+ * which is every connection over the wire, because a server's page is its
+ * own configuration on its own machine and no call in the protocol asks.
+ * The embedded engine answers exactly. See zg_page_size in zigurat.c. */
+long long zg_page_size(zg_conn *c);
+
 /* The last failure on this connection, or "" if there has not been one. */
 const char *zg_error(const zg_conn *c);
 

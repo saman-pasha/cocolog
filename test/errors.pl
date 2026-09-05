@@ -142,7 +142,21 @@ join_and_split :-
     answer(atomic_list_concat([a,b,c], '-', T8), T8, G8),
     check('three still join with the separator between them', G8, 'a-b-c'),
     answer(atomic_list_concat(S9, '-', 'a-b-c'), S9, G9),
-    check('and the same atom splits back', G9, [a,b,c]).
+    check('and the same atom splits back', G9, [a,b,c]),
+
+    %% A LIST THAT IS MERELY NOT GROUND SPLITS TOO, which is SWI's rule.
+    %% Only a BARE variable used to, so `atomic_list_concat([A,B], -, 'x-y')'
+    %% -- what a caller writes when it knows how many parts it wants -- went
+    %% to the join and raised instantiation_error about its own output.
+    answer(atomic_list_concat([A10, B10], '-', 'x-y'), A10-B10, G10),
+    check('a partial list SPLITS when the atom is bound', G10, x-y),
+    answer(atomic_list_concat([a, B11], '-', 'a-b'), B11, G11),
+    check('and a half-bound one splits into what is left', G11, b),
+    answer(atomic_list_concat([_, _, _], '-', 'x-y'), yes, G12),
+    check('the wrong number of parts FAILS rather than raising', G12, failed),
+    %% and the join is still reached when there is nothing to split FROM
+    answer(catch(atomic_list_concat([a, _, c], '-', _), error(F13, _), true), F13, G13),
+    check('an unbound output still joins, and still raises', G13, instantiation_error).
 
 long_atom(N, A) :- length(L, N), maplist(=(0'x), L), atom_codes(A, L).
 
@@ -197,4 +211,46 @@ clause_too_long :-
     cocolog_run(A4, T4, _),
     has('and the rest of the file is in the store', 'back([small1,small2])', T4),
 
+    %% THE BUDGET IS DERIVED, NOT A CONSTANT, and this is the boundary.
+    %% `clause_max' is page - 190 - length(kb) - length(name), measured at
+    %% three page sizes and three name lengths; the embedded engine opens at
+    %% 8192, so under `--kb main' a p/1 clause of 7997 characters stores and
+    %% one of 7998 does not. Both halves are pinned, because a budget that
+    %% only refuses is a budget nobody can tell from a broken store.
+    atom_concat(D, '/KB3', KB3),
+    boundary(D, KB3, 7994, In1),
+    check('a clause at the budget stores', In1, stored),
+    boundary(D, KB3, 7995, In2),
+    has('and one character more raises, catchably',
+        'error(resource_error(clause_length)', In2),
+
+    %% and the predicate's NAME comes out of the same row: a name nineteen
+    %% characters longer leaves nineteen characters less for the clause
+    named(D, KB3, 7956, N1),
+    check('a 20-character name at ITS budget stores', N1, stored),
+    named(D, KB3, 7957, N2),
+    has('and one more raises', 'error(resource_error(clause_length)', N2),
+
     shl(['rm -rf ', D]).
+
+%% assert p(<N x's>) in a child against a fresh store; answers `stored' or
+%% the ball, written. A child because the refusal is the STORE's, and a
+%% --local run has no row to overflow.
+boundary(D, KB, N, Got) :- one_clause(D, KB, p, N, Got).
+named(D, KB, N, Got)    :- one_clause(D, KB, pppppppppppppppppppp, N, Got).
+
+one_clause(D, KB, Name, N, Got) :-
+    atom_concat(D, '/one.pl', Prog),
+    atomic_list_concat(
+        ['main :- length(L, ', N, '), maplist(=(0\'x), L), atom_codes(A, L),',
+         ' catch((assertz(', Name, '(A)), R = stored), Ball, R = Ball),',
+         ' print_message_(R).'], Line),
+    fixture(Prog, [Line, 'print_message_(R) :- write(R), nl.']),
+    shl(['rm -rf ', KB]), shl(['mkdir -p ', KB]),
+    atomic_list_concat(['--embed ', KB, ' run ', Prog, ' main 2>&1'], Args),
+    cocolog_run(Args, Text, _),
+    (   sub_atom(Text, B, _, 0, Last), sub_atom(Text, B, 1, _, C), C \== '\n',
+        ( B =:= 0 -> true ; Bm is B - 1, sub_atom(Text, Bm, 1, _, '\n') )
+    ->  Got = Last
+    ;   Got = Text
+    ).

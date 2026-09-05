@@ -256,7 +256,7 @@ three MVCCS-cicili targets carry them.
 
 All four were reported from cicili-lang, which had worked around three of
 them. They are one family: the interpreter knew something had gone wrong
-and the program could not find out. `test/errors.pl` is the case, 31
+and the program could not find out. `test/errors.pl` is the case, 39
 checks, and each section names what it is guarding.
 
 **A `catch/3` WHOSE GOAL SUCCEEDED WENT ON CATCHING.** The frame was pushed
@@ -301,19 +301,53 @@ length and fits first time; everything else doubles to 16 MB), the culprit's
 heap INDEX copied out before the free, and an unbound element is an
 `instantiation_error`.
 
+**AND A PARTIAL LIST SPLITS, which is SWI's rule and was not this one.**
+Only a bare variable did, so `atomic_list_concat([A,B], -, 'x-y')` -- what
+a caller writes when it knows how many parts it wants -- went to the JOIN
+and raised `instantiation_error` about its own output. The third argument
+decides: bound, with a list that is not ground, means split.
+
 **A CLAUSE TOO LONG FOR A ROW TOOK EVERY OTHER CLAUSE OF THE TRANSACTION
 WITH IT.** Zigurat fits a row in ONE page and throws `allocation overflow`
 at COMMIT: measured on the embedded engine, a clause of 8013 characters
 stores and one of 8014 does not, and the refusal lost the small facts
 asserted before and after it -- silently as far as the program could tell,
 because its own `findall` had already answered with all of them in it. The
-store now carries `clause_max` (7800, set by the backend that has a row;
-0 for a local store, which pays nothing) and `coco_assert_from` measures the
-term the backend will write, `'$from'` wrapper and all, BEFORE the predicate
-is touched -- above the reconsult forget in particular, which is the line
-that did the emptying. `assertz/1` raises `resource_error(clause_length)`,
+store now carries `clause_max`, and `coco_assert_from` measures the term
+the backend will write, `'$from'` wrapper and all, BEFORE the predicate is
+touched -- above the reconsult forget in particular, which is the line that
+did the emptying. `assertz/1` raises `resource_error(clause_length)`,
 catchable, and a consult REPORTS it in SWI's shape and goes on to the next
 clause, because a syntax error is still the only thing that ends a load.
+
+**THE BUDGET IS MEASURED, NOT GUESSED.** Bisecting the longest clause text
+that stores, against the embedded engine:
+
+| page | max | | name | kb | max |
+|---|---|---|---|---|---|
+| 8192 | 8013 | | 1 | 4 | 8013 |
+| 16384 | 16205 | | 20 | 4 | 7994 |
+| 32768 | 32589 | | 1 | 20 | 7997 |
+
+-- exactly `page - 174 - len(kb) - len(name)` at every one of them, so
+`coco_zg_attach` sets `clause_max` to `page - 190 - len(kb)` (sixteen bytes
+of margin, because 174 is the engine's row layout and a change to it should
+shorten the budget rather than break a store) and `coco_assert_from` takes
+the predicate's name off per clause. A local store keeps 0 and pays nothing.
+
+**ONLY THE EMBEDDED ENGINE CAN BE ASKED**, and `zg_page_size` is the
+question: `embed/embed.cicili` opens its `Memory` on `ce_page_bytes` and
+`ce_page_size` hands that number to the client. A SERVER's page is
+`MEMORY/PAGE_SIZE` in its own configuration on its own machine and no call
+in the protocol asks, so over the wire the client assumes the documented
+8192 and **`$COCOLOG_PAGE_SIZE` is how an operator who raised it says so**.
+Assuming the default is the safe way to be wrong: too small a budget
+refuses a clause that would have fitted and the program gets a catchable
+error naming the number; too large a one loses the transaction, which is
+the defect this exists for. The engine keeps no value across pages -- no
+overflow chain, no blob table, one allocation inside one page -- and
+`MEMORY/PAGE_SIZE` is capped at 65536 by the cursor's hexmap buffer, which
+`cursor_page_hexmap` refuses by name rather than overrunning.
 
 **The fifth report, ~70 goal-carrying facts segfaulting a consult, does NOT
 reproduce** on this binary -- tried as the real cicili-lang gate rewritten
@@ -575,7 +609,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
@@ -609,6 +643,7 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/der` | a **built** ZiguratIP | `sh modules/der/build.sh` |
 | `modules/x509` | a **built** ZiguratIP | `sh modules/x509/build.sh` |
 | `modules/tls` | a **built** ZiguratIP | `sh modules/tls/build.sh` |
+| `modules/tensorflow` | libtensorflow (the C API) | `sh modules/tensorflow/build.sh` |
 | `modules/ray` | raylib | `sh modules/ray/build.sh` |
 | `modules/numpy` | a python3 with numpy and a shared libpython | `sh modules/numpy/build.sh` |
 | `modules/opencv` | an OpenCV 4 with dnn (pkg-config `opencv4`) | `sh modules/opencv/build.sh` |
@@ -1356,7 +1391,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/swipl/` | EIGHT of SWI's libraries — `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg/basics`, `dcg/high_order` — copied unmodified under their own BSD-2 headers and read at start-up. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
-| `modules/` | the fifteen loadable modules: `tcp`, `thread`, `process`, `text`, `os`, `curl`, `bigint`, `torch`, `tensorflow`, `ray`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`, `tls`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
+| `modules/` | the seventeen loadable modules: `tcp`, `thread`, `process`, `text`, `os`, `curl`, `bigint`, `torch`, `tensorflow`, `numpy`, `opencv`, `ray`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`, `tls`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |
@@ -1374,12 +1409,14 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has four categories and `test/tutorials.pl` runs all
-ninety-three files as one suite case:
+**118** files as one suite case (counted from the tree, not remembered;
+this said ninety-three, and before that sixty-eight):
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | forty lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | forty-two lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/opencv/` | twenty-three lessons of image processing | `library/opencv.so` |
 | `tutorials/tensor/` | forty-two networks, each running on either tensor library | libtorch |
 
 **EVERY CLAIM IS A `must/3`**, in every basics and library file:
@@ -1435,7 +1472,7 @@ slow here, it is wrong, and it is wrong quietly.
 **A NEW LIBRARY GETS A TUTORIAL IN THE SAME COMMIT.** `tutorials/library/`
 is numbered one per library, so a gap is visible — and a library with no
 `NN-name.pl` beside it is one nobody has demonstrated end to end. Each of
-the twenty-nine found something while being written: a predicate that
+them found something while being written: a predicate that
 did not exist, an arity that was wrong, `bigint_cmp/3` documented as
 `-1/0/1` and actually answering `<`/`=`/`>`, `httpd_content_type/2` keyed
 on the bare extension where `httpd_type/2` is the one that takes a file
@@ -1463,11 +1500,12 @@ it.
 **COUNT THE SKIPs.** `red: 0` is printed over a run where nothing happened
 just as happily as over a real one, and the suite is deliberately built that
 way: "no server here" and "the backend is wrong" are different findings, so
-the first is never dressed up as the second. Measured, with nothing
-listening on 2160: **48 case lines, `red: 0`, and FOURTEEN SKIPs.** Both
-halves of that are worth having — the discipline holds, not one case
+the first is never dressed up as the second. Measured with nothing listening
+on 2160, when the suite was 48 lines long: **`red: 0` and FOURTEEN SKIPs.**
+Both halves of that are worth having — the discipline holds, not one case
 mistakes a missing server for a broken backend, and the trap is exactly as
-wide as it looks.
+wide as it looks. **The number of SKIPs is a fact about the MACHINE, not
+about the suite**, so it is not worth memorising: count them each run.
 
 **NINE CASES SKIP WITHOUT A SERVER** — `zigurat`, `shared`, `tunnel`,
 `tensors`, `zigurat-lib`, `kbs`, `zigurat-tls`, `groups`, `ruler`. This said
@@ -1481,8 +1519,10 @@ The other five are missing tools: `files` and `trace` want `swipl`
 (`apt-get install swi-prolog-nox`), because both compare cocolog against
 it; `ray` wants raylib, `tensorflow` libtensorflow, and `torch-replay` a
 CUDA toolkit to compile the replay path in. **A run that says `red: 0` with
-fourteen SKIPs has not touched the database at all.** Five is what this box
-gives with a server up.
+fourteen SKIPs has not touched the database at all.** What a box gives
+depends on what is installed on it: measured on this Mac with a server up
+and swipl, raylib and libtensorflow all present, **52 case lines and ONE
+SKIP** -- `torch-replay`, for want of a CUDA toolkit.
 
 ### What macOS gets wrong, and the recipe
 
@@ -1567,13 +1607,16 @@ and every one has cost a session at least an hour:
   tutorial 35, `test/os.pl`.
 * **No `setsid`, no `LD_LIBRARY_PATH`, no `date +%N`, and `wc` pads.**
   Raise the server with `nohup` in a subshell and `DYLD_LIBRARY_PATH`;
-  `timeout` is coreutils' (brew). `test/portable.pl` carries `now_ms`
-  (perl's Time::HiRes -- BSD date prints a literal `3N`, and the
-  arithmetic after it died with `value too great for base`, which is how
-  a timing check came to call parallel threads "serial") and `detach`
-  (setsid where it exists, plain elsewhere); the cases that sourced it
-  are `.pl` now and time with `get_time/1` and spawn with `proc_spawn/2`,
-  so it waits for whatever `.sh` still wants it. BSD `wc -c` left-pads
+  `timeout` is coreutils' (brew). **`test/portable.sh` is GONE and there
+  is nothing in its place**, which is the right end of that story: it
+  carried `now_ms` (perl's Time::HiRes -- BSD `date` prints a literal
+  `3N`, and the arithmetic after it died with `value too great for base`,
+  which is how a timing check came to call parallel threads "serial") and
+  `detach` (setsid where it exists, plain elsewhere), and it went with the
+  rest of the shell on 2026-09-04 because every case that sourced it now
+  times with `get_time/1` and spawns with `proc_spawn/2` -- neither of
+  which cares which `date` or which `setsid` the machine has. BSD `wc -c`
+  left-pads
   its count: `tr -d " "`. `library(process)`'s `proc_spawn` calls the
   syscall and is unaffected.
 * **A page that warms a store takes ~4x longer here** -- CivV's `/view`
@@ -1584,22 +1627,26 @@ and every one has cost a session at least an hour:
   ENDS on a failed accept, and a bare TCP connect to a TLS listener is
   exactly that.
 
-**The suite is 27 of 39 GREEN on a Mac, and the twelve are the tests'
-own portability, not the interpreter's.** Every case a downstream
-repository stands on is green there -- term syntax solve module state
-zigurat shared script library bigint zigurat-lib meter thread process
-text kbs curl ray hex astar serialize httpd httpd-tls crypto tls
-zigurat-tls tutorials. The twelve that are not, and what each smells of:
-`files` and `trace` (a byte-for-byte comparison against this machine's
-swipl, which is a different release); `vacuum`, `repl`, `tensors`
-(`rm` of a `$TMPDIR` scratch dir that is not empty -- BSD rm); `tunnel`
-and `colab` (the Zeytun edge on privileged ports, and GNU tools);
-`http` and `tcp` (a second process reaching a first -- `detach` and
-timing); `engine` (a timing ratio); `groups` and `ruler` (`vacuum:
-read failed: Resource temporarily unavailable` -- a socket read timing
-out under a slow vacuum, worth a look of its own). None of them is a
-CivV or Coco dependency, and none has been dressed up: read the
-per-case lines, as always.
+**THE SUITE IS GREEN ON A MAC NOW -- 51 of 52, the one SKIP being
+`torch-replay` for want of a CUDA toolkit -- and the twelve that used to
+fail were the tests' own portability, exactly as this said.** They fixed
+themselves when the suite stopped being shell (2026-09-04): `files` and
+`trace` compared byte for byte against this machine's swipl, `vacuum`,
+`repl` and `tensors` fell over BSD `rm` on a `$TMPDIR` scratch directory,
+`tunnel` and `colab` wanted GNU tools and privileged ports, `http` and
+`tcp` were a second process reaching a first through `detach` and a
+sleep, `engine` was a timing ratio taken with `date +%N`, and `groups`
+and `ruler` timed a socket read out under a slow vacuum. A `.pl` case
+times with `get_time/1`, spawns with `proc_spawn/2`, waits for a port
+with `lsof`, and removes its scratch directory with one `rm -rf` it
+issues itself -- so eleven of the twelve had nothing left to be
+unportable about, and the twelfth (`engine`) had already been rewritten
+as a timeout at a hundred-fold margin rather than a stopwatch.
+
+**The list is kept because the DIAGNOSIS is the useful part**: when a
+case goes red on a Mac and green on Linux, suspect what the case shells
+out to before suspecting the interpreter. Read the per-case lines, as
+always, and count the SKIPs.
 
 One engine self-test fails on this Mac and passes on Linux --
 `contention_test`'s "rewrite vs index" (a writer rewriting one row under

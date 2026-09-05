@@ -318,8 +318,16 @@
            ;; ---- atomic_list_concat/2,3 -------------------------------------
            ;; With a separator and an unbound list it SPLITS, which is the mode
            ;; everybody actually uses it in.
+           ;;
+           ;; A LIST THAT IS MERELY NOT GROUND SPLITS TOO, which is SWI's rule
+           ;; and was not this one: only a bare variable did, so
+           ;; `atomic_list_concat([A,B], -, 'x-y')' -- the shape a caller
+           ;; writes when it knows how many parts it wants -- went to the JOIN
+           ;; and raised instantiation_error about its own output. The third
+           ;; argument decides: bound, and the list not ground, means split.
            "atomic_list_concat(L, A) :- '$atom_join'(L, '', A)."
            "atomic_list_concat(L, Sep, A) :- var(L), !, '$atom_split'(A, Sep, L)."
+           "atomic_list_concat(L, Sep, A) :- nonvar(A), \\+ ground(L), !, '$atom_split'(A, Sep, L)."
            "atomic_list_concat(L, Sep, A) :- '$atom_join'(L, Sep, A)."
 
            ;; ---- current_op/3 -----------------------------------------------

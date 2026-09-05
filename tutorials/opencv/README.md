@@ -36,7 +36,7 @@ pictures `../tensor/42-detection-*.jpg`, and everything else is drawn in
 the file. The two dnn lessons need a model that is NOT in the repository:
 each has a `download` goal that fetches it with curl into
 `tutorials/opencv/models/` (ignored by git), and `main` says so and ends
-when it is missing, so `sh test/tutorials.pl` stays green offline.
+when it is missing, so `cocolog -s test/tutorials.pl` stays green offline.
 
 | file | OpenCV lesson | teaches |
 |---|---|---|

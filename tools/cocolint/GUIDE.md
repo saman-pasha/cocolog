@@ -20,7 +20,7 @@ sh tools/cocolint/agent.sh --dry "REQUEST"      # the prompt a model would get, 
 make lint FILES=myprogram.pl                    # lint.sh through make, index rebuilt first
 make index                                      # rebuild the blocklist and the retrieval index
 make dialect-check                              # every citation of the dialect card still anchors
-sh test/lint.pl                                 # the suite case: about three minutes
+cocolog -s test/lint.pl                                 # the suite case: about three minutes
 ```
 
 Paths may be relative or absolute; relative ones are taken from where you
@@ -92,7 +92,7 @@ the wrap, a clause that will not fit a page).
 | **S1** | HARD | one of the fourteen banned forms below, matched as a term with comments and quotes masked | the row's own fix |
 | **T1** | WARN | `use_module` of a tier-1 library, compiled in or preloaded; the directive succeeds and does nothing | delete it |
 | **A1** | WARN | an integer literal at or above 2^59 — a cell is a u64 with three tag bits and no range check, so arithmetic wraps SILENTLY at 2^60 | keep under 2^59, or `library(bigint)` |
-| **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page, and the store refuses it there with `resource_error(clause_length)`), or a term over 65,535 bytes (the wire refuses it) | chunk it |
+| **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page; the store's own budget is `page - 190 - len(kb) - len(name)` and it refuses there with `resource_error(clause_length)`, so this warns a little early on purpose), or a term over 65,535 bytes (the wire refuses it) | chunk it |
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 
 S1's fourteen forms are rows of the dialect card, `traps.jsonl`, each with
@@ -335,7 +335,7 @@ without one it says SKIPPED rather than passing quietly. `git commit
 ## The suite case
 
 ```sh
-sh test/lint.pl
+cocolog -s test/lint.pl
 ```
 
 Five things, in cost order: the card's 42 citations anchor and the checker's
@@ -390,7 +390,7 @@ is code, never a comment), `fix`, and a `pattern` from the nine constructors
 — `seq alt lit ws oneof noneof someof exactly bstart bend notword bol` — if
 the linter is to catch it. Add the form to `selftest/traps.pl` so the suite
 proves the rule fires. Run `sh tools/cocolint/tool.sh card --check`, then
-`sh test/lint.pl`; if the new rule fires on the corpus, decide whether that
+`cocolog -s test/lint.pl`; if the new rule fires on the corpus, decide whether that
 finding is real before touching the pinned set. Never edit `lint.pl` for an
 S1 rule: S1 is generated from the card.
 

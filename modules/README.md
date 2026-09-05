@@ -1,4 +1,4 @@
-# `modules/` — the loadable modules
+# `modules/` — the seventeen loadable modules
 
 One directory each, all the same shape: a `.cicili`, a `build.sh`, and
 output nobody commits. **None of them is part of `make`**, which is the
@@ -15,6 +15,7 @@ still builds and still runs.
 | `thread` | threads and channels, sharing nothing | nothing |
 | `process` | run, capture, spawn, wait, kill -- the test-suite vocabulary (`timeout ... \| grep`, check/3, the sleep-poll loop) as predicates, so a suite can be a .pl file | nothing |
 | `text` | grep, sed and the line tools as clauses over libc's own POSIX regex (`re_match`, `re_first`, `re_replace` with & and \1..\9; lines, head, tail, chomp in the Prolog half) | nothing |
+| `os` | which operating system, who am I, how many cores, what is in the environment, where is a tool -- the questions a suite used to put to `uname`, `command -v`, `nproc` and `$TMPDIR`, answered by libc | nothing |
 | `curl` | an HTTP client | libcurl |
 | `bigint` | `Zigurat::BigInt` — integers that do not wrap | a built ZiguratIP |
 | `torch` | Prolog that trains | libtorch |
@@ -23,6 +24,8 @@ still builds and still runs.
 | `der` | Distinguished Encoding Rules, both directions | a built ZiguratIP |
 | `x509` | certificates, and the CA that issues them | a built ZiguratIP |
 | `tls` | a secure connection: `library(tcp)` with a handshake | a built ZiguratIP |
+| `tensorflow` | the same `tensor_*` predicates over TensorFlow's C library, as a second BACKEND behind `library(torch)`'s switch -- `tensor_execution(tensorflow, graph)` and every call after it is TensorFlow's | libtensorflow (the C API) |
+| `ray` | raylib as predicates, 2D, 3D and input. **The caller owns the game loop**, which is why raylib and not another engine: input is polled, a frame is what happens between `BeginDrawing` and `EndDrawing`, and nothing calls back | raylib |
 | `numpy` | numpy arrays as handles, over numpy's C API and nothing Python-level: `.npy` and CSV files written and read in C, `np_store`/`np_fetch` into the knowledge base as rows or clause chunks | a python3 with numpy and a shared libpython |
 | `opencv` | OpenCV 4 as predicates -- images as handles; imgcodecs, imgproc, drawing, features2d, objdetect (cascades, HOG, QR), photo, video, calib3d and dnn -- ONE Cicili `:cpp #t` file, the C++ as Cicili clauses over `cicili/lib/cpp/opencv`, plus ONE vendored C file: `pil/Resample.c` is Pillow 11.3.0's antialiased resize, unchanged, behind `cv_resample` (the shim `pil/Imaging.h` declares what it reads, `pil/pil-resample.c` allocates and carries a Mat's bytes across); `tutorials/opencv/` is its course | an OpenCV 4 with those modules, found through pkg-config (`libopencv-dev`, `opencv-devel`, or a source build into `~/opencv4`) |
 

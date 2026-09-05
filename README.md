@@ -233,7 +233,7 @@ make test       # the suite; the database tests skip without a server
 And it runs — the first three need nothing else on the machine at all:
 
 ```sh
-./cocolog --version                           # `cocolog 1.1.0', on stdout
+./cocolog --version                           # `cocolog 1.2.0', on stdout
 ./cocolog                                     # the toplevel: ?- awaits
 ./cocolog query "X is 2 + 2"                  # local: memory, the default
 ./cocolog -s myscript.pl                      # load it, prove main; the
@@ -281,7 +281,7 @@ chooses the server arrangement.
 
 ## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. Ninety-nine files, and `cocolog -s test/tutorials.pl`
+Documentation that RUNS. **118 files**, and `cocolog -s test/tutorials.pl`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -336,6 +336,13 @@ eleven on the library path.
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
 end. A new library therefore gets a tutorial in the same commit.
+
+### `opencv/` — twenty-three lessons of image processing
+
+`library(opencv)`, one lesson at a time: reading and writing an image,
+colour spaces, filtering and morphology, edges and contours, features and
+matching, geometry, video, and the dnn module. They need `library/opencv.so`,
+which `sh modules/opencv/build.sh` makes against an OpenCV 4 with dnn.
 
 ### `tensor/` — forty-two networks, three processes each
 
@@ -441,13 +448,20 @@ machine in this process is still this process and this process's
 connection. Those checks start a real `cocolog` and always should;
 converting them would keep a suite green and delete its proof.
 
-**cocolog's own 39 cases are still shell, and that is not an oversight.**
-They test this binary from the outside -- including the arrangements
-where the point is that the binary is wrong -- and a case written in the
-language under test cannot report on an interpreter too broken to read
-it. A suite for something ELSE, written in cocolog, is a different
-proposition entirely: there the interpreter is the tool and not the
-subject.
+**cocolog's own suite went the same way, and kept the part of that
+argument which was true.** It was 39 shell cases and it is 52 now --
+seven `.cicili` binaries and forty-five Prolog scripts -- because a case
+that spawned an interpreter per check paid ~120 ms to hear an answer that
+takes a millisecond to compute: nineteen cases went from 361 s to 74 s in
+the conversion, same checks, same pins. What did NOT move is the
+objection: a case written in the language under test cannot report on an
+interpreter too broken to read it, so the engine's own foundations --
+terms, unification, the trail, the reader and writer, the module seam,
+freeze and thaw -- stay `.cicili` programs linked against the library and
+run from outside the language. And every check whose claim IS a second
+process still starts one: a store written by one `cocolog` and read by
+another, a server, a consult whose directive reports on stderr, a goal
+that must run under something that can kill it.
 
 ## The knowledge base is a seam, not a dependency
 
@@ -552,8 +566,8 @@ export COCOLOG_LIBRARY=/opt/my/modules:/opt/vendor/prolog
 ```
 
 The suite appends to it rather than replacing it, and The Coco's
-`test/config.pl` does the same, so `COCOLOG_LIBRARY=/opt/my/modules sh
-test/run.pl` works in both. What ships always comes first: a suite that let
+`test/config.sh` does the same, so `COCOLOG_LIBRARY=/opt/my/modules make
+test` works in both. What ships always comes first: a suite that let
 somebody else's `library(httpd)` win would be green about somebody else's
 code.
 
@@ -1216,8 +1230,8 @@ dropout, learning-rate schedules, LSTM sequence models with embeddings,
 fitted Q-iteration reinforcement learning -- and, in 42, object detection
 on real photographs, the Penn-Fudan pedestrians, trained on a T4 with the
 boxes-to-cells assignment, the suppression and the matching written as
-clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the third
-tutorial category — `cocolog -s test/tutorials.pl` runs all ninety-three files,
+clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the fourth
+tutorial category — `cocolog -s test/tutorials.pl` runs all 118 files,
 the hundred and twenty-six torch processes included, green and deterministically
 in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten
@@ -1597,7 +1611,12 @@ interpreter in any of the four knowledge-base arrangements.
 
 The interpreter, the serialisation, all four transports, the schema and
 the concurrent arrangements are done and tested; `make test` ends
-`red: 0` over 47 cases, three of them TLS and one of them a window under Xvfb.
+`red: 0` over **52 cases** — seven `.cicili` binaries and forty-five Prolog
+scripts, three of them TLS and one of them a window under Xvfb. Read the
+per-case lines rather than the last one, and count the SKIPs: a case that
+needs a server, `swipl`, raylib, libtensorflow or a CUDA toolkit says so by
+name instead of failing, and `red: 0` is printed over a run where nothing
+happened just as happily as over a real one.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 

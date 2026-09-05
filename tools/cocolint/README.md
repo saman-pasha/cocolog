@@ -25,7 +25,7 @@ sh tools/cocolint/oracle.sh myprogram.pl   # G2+G3 alone
 make lint FILES=myprogram.pl               # G1, through make
 make index                                 # rebuild the blocklist and index
 make dialect-check                         # every citation still resolves
-sh test/lint.pl                            # the suite case
+cocolog -s test/lint.pl                            # the suite case
 ```
 
 | file | is |
@@ -320,8 +320,11 @@ that was wrong, under `empirical`:
   `assertz/1` raises `resource_error(clause_length)` and a consult reports it
   and carries on. **The rule stays**, because a clause that long still cannot
   be stored and a linter that catches it before the run is worth more than an
-  exception at it — and its budget is now the same 7,800 the store uses, so
-  there is no band where the linter says yes and the database says no.
+  exception at it — and its budget of 7,800 sits deliberately BELOW what the store
+  allows on a default page (`page - 190 - len(kb) - len(name)`, so 7,998
+  minus the head's name), because a linter has no store to ask and a
+  warning that fires early costs a sentence where one that fires late
+  costs a transaction.
 
 ## Every rule has to fire, and a corpus of correct code cannot show that
 

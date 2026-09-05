@@ -5,9 +5,12 @@ again rather than to look finished.
 
 ## Done and tested
 
-`make test` ends `red: 0`. The database suites **skip** rather than fail when
-there is no server, because "no server here" and "the backend is wrong" are
-different findings.
+`make test` ends `red: 0` over **52 case lines** — seven `.cicili` binaries
+and forty-five Prolog scripts, each line with its seconds. The database
+suites **skip** rather than fail when there is no server, because "no server
+here" and "the backend is wrong" are different findings, so **count the
+SKIPs**: `red: 0` is printed over a run where nothing happened just as
+happily as over a real one.
 
 | suite | what it establishes |
 |---|---|
@@ -27,7 +30,7 @@ different findings.
 | `test/thread.pl` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
 | `test/httpd.pl` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
 | `test/crypto.pl` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
-| `test/tutorials.pl` | **the documentation, run as a suite**: sixty-eight tutorial files in three categories — eleven `basics/` and thirty-three `library/` proving their own claims through `must/3`, and twenty-four `torch/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
+| `test/tutorials.pl` | **the documentation, run as a suite**: **118** tutorial files in four categories — eleven `basics/`, forty-two `library/` and twenty-three `opencv/` proving their own claims through `must/3`, and forty-two `tensor/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
 | `test/tls.pl` | `library(tls)`: a server and three clients AS SEPARATE PROCESSES -- enrolled, impostor, browser -- because a handshake is between two ends that do not share memory. The permissions that rode in with alice's certificate, the impostor refused and told why, the server carrying on serving afterwards, a certificate-less client admitted and granted nothing, four bogus handles refusing rather than crashing, and an accept that times out and frees its slot -- 19 checks |
 | `test/httpd-tls.pl` | the same server over TLS, and the seam that keeps them one server: routing, keep-alive, the path rules and `httpd_answer/3` are the SAME code on both, and a page reads the peer's subject and permissions as two synthetic headers. Weighted on the reverse-proxy hole -- a client sending `Tls-Peer-Subject: CN=root` must not be believed, and on a plain connection those headers are stripped and not replaced -- 9 checks |
 | `test/zigurat-tls.pl` | `--tls`, the binary protocol over TLS, against TWO terminators -- one per `SERVER/TLS_CLIENT_AUTH` setting. The handshake before the greeting, a clause written and read back by two processes over an encrypted connection, the hostname checked and not just the chain, plaintext against a TLS port refused, and all four certificate combinations including the one that must be legible: no certificate where one is required -- 11 checks |
@@ -35,7 +38,7 @@ different findings.
 | `test/astar.pl` | `library(astar)`: A* whose graph is two caller goals, held to an ORACLE -- on a costed hex grid, the heuristic search must answer the exact cost the exported Dijkstra answers across twelve varied pairs -- plus the laws: paths connect through the caller's own neighbor goal, costs sum, walls detour, unreachable fails, and the same question twice is the same path (the pinned tiebreak, observed) -- 7 checks |
 | `test/serialize.pl` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 | `test/string.pl` | the string type, checked as a TYPE rather than as a set of predicates that answer: it must not BE an atom, it must carry a NUL where an atom of the same bytes stops at one, and it must sit between atom and compound in the standard order. Plus `double_quotes` in all four of SWI's values, each through a FILE because a one-goal query cannot see its own flag change, and the guard that keeps a module's choice from reaching the vendored SWI libraries -- 36 checks |
-| `test/errors.pl` | what cocolog RAISES, and what it used to lose on the way. Four defects of one family — the interpreter knew and the program could not find out: a `catch/3` whose goal had EXITED went on catching, so a later `throw/1` ran its recovery and the outer catch never heard; a `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` escaped the catch around it, because those run on a sub-engine with a choice stack of its own; `atomic_list_concat/2,3` FAILED with no error term once its 8 KB buffer overflowed, and built its error ball from an array it had already freed; and a clause too long for a ROW took every other clause of the transaction with it, at commit, silently. The last is checked ACROSS PROCESSES, which is the only place it was ever visible — 31 checks |
+| `test/errors.pl` | what cocolog RAISES, and what it used to lose on the way. Four defects of one family — the interpreter knew and the program could not find out: a `catch/3` whose goal had EXITED went on catching, so a later `throw/1` ran its recovery and the outer catch never heard; a `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` escaped the catch around it, because those run on a sub-engine with a choice stack of its own; `atomic_list_concat/2,3` FAILED with no error term once its 8 KB buffer overflowed, and built its error ball from an array it had already freed; and a clause too long for a ROW took every other clause of the transaction with it, at commit, silently. The last is checked ACROSS PROCESSES, which is the only place it was ever visible — 39 checks. The row budget is checked at its BOUNDARY in both variables: a clause at `page - 190 - len(kb) - len(name)` stores and one character more raises |
 
 ### The suite is Prolog files now, one process a case, and no shell at all
 
@@ -496,8 +499,9 @@ in the suite rather than a script beside it:
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons: facts and rules, unification, lists, arithmetic, cut, `findall`, assert and retract, atoms and codes, exceptions, grammars, and the knowledge base | nothing at all |
-| `tutorials/library/` | thirty-two lessons, **one per library that ships** — tier 1 and tier 2 alike | `$COCOLOG_LIBRARY` for tier 2 |
-| `tutorials/tensor/` | the twenty-four networks, unchanged, moved under their own directory | libtorch |
+| `tutorials/library/` | forty-two lessons, **one per library that ships** — tier 1 and tier 2 alike, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/opencv/` | twenty-three lessons of image processing, one part of `library(opencv)` at a time | `library/opencv.so` |
+| `tutorials/tensor/` | forty-two networks, each running on either tensor library | libtorch |
 
 **Every claim in the first two is a `must/3`**, which is what makes them
 tests: `Got == Want` or the lesson fails, printing both. Fifty-nine
@@ -1444,7 +1448,7 @@ All four were reported from cicili-lang, which had worked around three of
 them -- no bare `catch/3` anywhere in that repository, loops that can raise
 written as plain recursion, and anything long joined as codes. They are one
 family: the interpreter knew something had gone wrong and the program could
-not find out. `test/errors.pl` is the case -- **31 checks**, four sections,
+not find out. `test/errors.pl` is the case -- **39 checks**, four sections,
 each naming what it guards -- and the fourth section runs ACROSS PROCESSES
 because that is the only place its defect was ever visible.
 
@@ -1510,6 +1514,14 @@ character join, a 60002-character atom split into its three parts, and
 `error(type_error(atomic, foo(1)), _)` naming the term that was actually
 wrong.
 
+**And a PARTIAL list splits.** SWI splits whenever the atom is bound and
+the list is not ground; this splits only when the list was a bare variable,
+so `atomic_list_concat([A, B], -, 'x-y')` -- the shape a caller writes when
+it knows how many parts it wants -- went to the join and raised
+`instantiation_error` about its own output. One clause between the two that
+were there, and the mode difference is gone: a list of the wrong length
+FAILS, as SWI's does, and an unbound output still joins and still raises.
+
 **A clause too long for a ROW took every other clause of the transaction
 with it.** Zigurat fits a row in ONE page and throws `allocation overflow`
 at COMMIT. Measured on the embedded engine with a short kb and predicate
@@ -1519,12 +1531,53 @@ far as the program could tell, because its own `findall` had already
 answered with all of them in it. A second process then read back nothing at
 all.
 
-The store now carries `clause_max` -- 7800, set by the backend that has a
-row; **0 for a local store, which pays nothing** -- and `coco_assert_from`
-measures the term the backend will write, `'$from'(Path, Clause)` wrapper
-and all, so a long path counts against the clause here exactly as it will on
-the way out. It is measured BEFORE the predicate is touched, and above the
-reconsult forget in particular, which is the line that did the emptying.
+The store now carries `clause_max` -- **0 for a local store, which has no
+row and pays nothing** -- and `coco_assert_from` measures the term the
+backend will write, `'$from'(Path, Clause)` wrapper and all, so a long path
+counts against the clause here exactly as it will on the way out. It is
+measured BEFORE the predicate is touched, and above the reconsult forget in
+particular, which is the line that did the emptying.
+
+**THE BUDGET IS THREE MEASUREMENTS, not one fitted point.** Bisecting the
+longest clause text that stores, against the embedded engine:
+
+| page | max text | | predicate name | kb name | max text |
+|---|---|---|---|---|---|
+| 8192 | 8013 | | 1 | 4 | 8013 |
+| 16384 | 16205 | | 20 | 4 | 7994 |
+| 32768 | 32589 | | 1 | 20 | 7997 |
+
+-- exactly `page - 174 - len(kb) - len(name)` at every one of them. The 174
+is the row's fixed part; the two names are the only variable-width columns
+beside the clause itself. `coco_zg_attach` sets `clause_max` to
+`page - 190 - len(kb)`, sixteen bytes of margin because 174 is this engine's
+row layout and a change to it should shorten the budget rather than silently
+break a store, and `coco_assert_from` takes the predicate's name off per
+clause -- it is the only place that knows it. Verified at the boundary in
+both variables: under `--embed` with `--kb main`, a `p/1` clause of 7997
+characters stores and 7998 raises; with a twenty-character name, 7978 and
+7979.
+
+**ONLY THE EMBEDDED ENGINE CAN BE ASKED.** `embed/embed.cicili` opens its
+`Memory` on `ce_page_bytes` -- one place, where it used to be a literal
+8192 inside the `memory_open` call -- and `ce_page_size` hands that number
+to the client, which `zg_page_size` answers with. A SERVER's page is
+`MEMORY/PAGE_SIZE` in its own configuration on its own machine and **no
+call in the protocol asks**, so over the wire the client assumes the
+documented default and `$COCOLOG_PAGE_SIZE` is how an operator who raised
+it says so. Assuming the default is the safe way to be wrong: too small a
+budget refuses a clause that would have fitted, and the program gets a
+catchable error naming the number; too large a one loses the transaction,
+which is the defect this exists for.
+
+Adding `cocolog::page_size` as a procedure was considered and not done. The
+server knows the number -- `memory_page_size` in `ziguratip/shared.cpp` --
+but it is a global with no header, and reaching it from a compiled Parsi
+object means an `extern` declaration resolved at `dlopen` against the
+server binary. Doing it properly means an accessor on `Memory` in
+`MVCCS-cicili`, which rebuilds cocolog's embedded engine through the
+symlink and makes every object in `home/ld` stale. That is a pass with a
+hazard chain, not a constant to retire in passing.
 
 What a program sees now: `assertz/1` raises `resource_error(clause_length)`,
 catchable, and the clauses beside it are still there in a second process; a
@@ -1555,7 +1608,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.1.0` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.0` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.

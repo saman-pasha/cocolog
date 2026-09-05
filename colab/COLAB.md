@@ -181,7 +181,7 @@ fetches a Zeytun page from inside a query, verified against the system
 roots -- which is all a trycloudflare certificate needs. **The notebook's
 section 7b runs exactly this**, against the real tunnel when section 6
 opened one and over loopback otherwise, and answers
-`200-page_lists_the_model` once section 5 has trained. `test/tunnel.sh`
+`200-page_lists_the_model` once section 5 has trained. `test/tunnel.pl`
 holds both readers against a local TLS edge: the `--https` arrangement,
 and a `curl_get` with an https URL -- including that a certificate the
 caller did not vouch for is refused, because verification defaulting to
@@ -287,7 +287,7 @@ but there is no longer a reason to prefer it.
 The edge routes by the `Host` header, and the hostname is registered
 **bare** — so on the default ports the client now sends `Host: name`
 rather than `Host: name:80` (`client/zeytun.c`; an edge answers for
-nobody under the port-qualified spelling). `test/tunnel.sh` — the
+nobody under the port-qualified spelling). `test/tunnel.pl` — the
 suite's `tunnel` case — is the local rehearsal: a hostname-routing edge
 stand-in on ports 80 and 18080 that admits only the exact registered
 name and forwards verbatim, which is what the Cloudflare edge and

@@ -127,6 +127,6 @@ still shadow each other's train/test/predict, so the runner gives each
 tutorial a store of its own.
 
 `test/tutorials.pl` runs all three goals of every file against a
-throwaway store per tutorial; `test/torch-nets.pl` is the same twenty-three networks
+throwaway store per tutorial; `test/torch-nets.pl` is twenty-three of these networks
 as one fast in-process suite. The module itself is documented in
 `modules/torch/README.md`.

@@ -5,6 +5,18 @@ There is no `./cocolog` binary in this container, no `../cicili`, no `../Zigurat
 claim carries a `file:line` and was read, not run. §16 lists exactly which parts must be
 checked against a live binary before anyone builds on them.
 
+> **INCREMENT ONE HAS SINCE SHIPPED, AND NOT IN PYTHON.** This document plans
+> cocolint as `tools/cocolint/*.py` with a shell suite case; what was built is
+> Prolog, run by the interpreter it lints — `lint.pl`, `clauses.pl`, `build.pl`,
+> `card.pl`, `index.pl`, `assemble.pl`, `traps.pl`, `oracle.pl`, driven by
+> `tool.sh` and `lint.sh`, with `test/lint.pl` as the suite case. There is no
+> `python3` anywhere in it, so the SKIP path this document designs around a
+> missing Python does not exist either. The DESIGN is left as it was written —
+> it is the record of the argument, and §16 is still the list of what to check —
+> but every `tools/cocolint/*.py` and `test/*.sh` filename below should be read
+> as the plan, not the tree. `tools/cocolint/README.md` describes what is
+> actually there.
+
 ---
 
 ## 0. Reading guide

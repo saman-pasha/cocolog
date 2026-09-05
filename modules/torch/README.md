@@ -26,11 +26,11 @@ train :-
 **`tutorials/` holds twenty-three of these programs**, one file per
 network -- regression to stacked LSTMs -- each documented in place with
 `train`, `test` and `predict` goals meant to run as separate processes
-against a store; `test/tutorials.sh` runs them all, and
-`test/torch-nets.sh` is the same twenty-three as one fast in-process
+against a store; `test/tutorials.pl` runs them all, and
+`test/torch-nets.pl` is the same twenty-three as one fast in-process
 suite.
 
-`test/torch.sh` is that program, end to end: it trains (test rmse
+`test/torch.pl` is that program, end to end: it trains (test rmse
 ≈ 0.03 on its dataset), saves, and a **fresh process** reloads the
 model out of the store and reproduces the predictions.
 
@@ -73,7 +73,7 @@ knows its shape from the meta device, so a shape error is raised at the same goa
 eager raises it and `tensor_shape/2` costs nothing; `randn`, `rand` and
 `randperm` execute at once so draws keep program order; a node built on a branch
 that fails is never executed. [DESIGN-lazy-graph.md](DESIGN-lazy-graph.md) is the
-contract and the plan; `test/torch-graph.sh` holds phase 1 to **equality** with
+contract and the plan; `test/torch-graph.pl` holds phase 1 to **equality** with
 eager -- every producer, an eleven-op expression, a training run, and the 28
 tutorials' printed results.
 
@@ -88,7 +88,7 @@ Phase 2 is autograd from Prolog: a loss built with the tensor predicates is
 differentiated by libtorch's own tape, which forcing builds, so a training
 loop can be written as clauses -- tutorial 29 does, and hands its weights to
 a model. Nothing is mutated: a step is a new parameter the program threads
-on. `test/torch-grad.sh` holds the gradients to analytic values and to
+on. `test/torch-grad.pl` holds the gradients to analytic values and to
 equality across the two paths.
 
 Phase 3 is the device. Under `tensor_execution(torch, graph)` with `torch_device(cuda)`
@@ -97,7 +97,7 @@ with the same shapes -- an inference loop over fresh batches -- is captured the
 second time as one CUDA graph and replayed after that; `replayed` in
 `tensor_graph_stats/1` counts it, and a closure holding a parameter is never
 captured, since a replay builds no tape. `build.sh` compiles it in only where
-`libtorch_cuda` is, and `test/torch-replay.sh` SKIPs without a CUDA device; on
+`libtorch_cuda` is, and `test/torch-replay.pl` SKIPs without a CUDA device; on
 the Colab T4 it is GREEN, and tutorial 29's `heavy/3` there runs 200000 rows by
 64 features for 200 steps in 1.5 s against the VM's own CPUs at 3.8 s, to the
 same numbers. This does not speed up the other 28 tutorials: their loops are
@@ -121,7 +121,7 @@ What was checked, against libtorch 2.13.0 on CPU:
 | the spec round-trips | comes back as `positional(8)` -- the length filled in, which is what `model_load` needs |
 | it trains | a learnable 400-row task reaches nll 0.0000, accuracy 1.0000, so gradients reach the attention weights, the layernorms, the position embedding and through both residuals |
 | the mask is causal | `torch.ones(T,T,bool).triu(1)` masks strictly `j > i`; after the softmax, row *i* puts zero weight on every key above *i* and its weights sum to 1 |
-| nothing regressed | `test/torch.sh` and `test/torch-nets.sh` -- 23 networks -- stay green |
+| nothing regressed | `test/torch.pl` and `test/torch-nets.pl` -- 23 networks -- stay green |
 
 **One honest nuance about the mask.** In this arrangement the dense head reads the
 LAST position, which legitimately sees the whole window, and the label is not in the
@@ -275,7 +275,7 @@ its `model_new`, and its training batches follow it there.
 The device never leaks into the term seam: tensor handles stay
 CPU-side, `model_params` comes back through the CPU, and predictions
 land as CPU tensors — so a model saved on a GPU box reloads onto
-whatever device the next process chose, and `test/torch.sh`'s stored
+whatever device the next process chose, and `test/torch.pl`'s stored
 predictions agree across machines.
 
 ## Handles are not terms — and that is the design

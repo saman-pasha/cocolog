@@ -69,6 +69,7 @@
 #else
 #define CE_WEAK __attribute__((weak))
 #endif
+extern long long ce_page_size(void) CE_WEAK;
 extern int  ce_engine_open(const char *dir, char *err, size_t errcap) CE_WEAK;
 extern void ce_engine_close(void) CE_WEAK;
 extern void *ce_session_new(void) CE_WEAK;
@@ -204,6 +205,20 @@ static void give_turn(zg_conn *c)
 int zg_embedded(zg_conn *c)
 {
   return c && c->ce ? 1 : 0;
+}
+
+/* THE PAGE A ROW HAS TO FIT INSIDE, or 0 when this end cannot know.
+ *
+ * The embedded engine is opened by this process and answers exactly; a
+ * SERVER's page is MEMORY/PAGE_SIZE in its own configuration, on its own
+ * machine, and there is no call in the protocol that asks -- so the wire
+ * answers 0 and the caller says what it assumes instead. The symbol is
+ * weak: a build with no embedded engine has no ce_page_size to call. */
+long long zg_page_size(zg_conn *c)
+{
+  if (!c || !c->ce) return 0;
+  if (!ce_page_size) return 0;
+  return ce_page_size();
 }
 
 int zg_serialise(zg_conn *c, const char *path, int wait_seconds)

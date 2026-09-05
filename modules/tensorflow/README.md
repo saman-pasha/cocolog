@@ -182,7 +182,7 @@ lives on `cuda:0`, and torch's comparison of the two said different —
 so each parameter was re-made a detached leaf at every touch, and thirty
 tutorials trained to chance without one error. `cuda`, index 0, compared
 equal, which is why every gate had passed. The test is by type now, and
-a parameter read twice under `auto` is in `test/torch-grad.sh`.
+a parameter read twice under `auto` is in `test/torch-grad.pl`.
 
 The same on a Mac's CPU, TensorFlow 2.21.0 from Homebrew (a build
 without AVX2/FMA, as it says at start) against libtorch 2.13.0, the same
@@ -267,7 +267,7 @@ why one build script serves both. The C API it uses — `c_api.h` and
 — has been stable since TensorFlow 2.x began, so an earlier 2.x should
 build; none other was tried.
 
-`test/tensorflow.sh` is the gate: every producer under `(tensorflow,
+`test/tensorflow.pl` is the gate: every producer under `(tensorflow,
 eager)` within 1e-5 of the torch backend; under `(tensorflow, graph)` the
 least-squares gradient equal to torch's, a step, a parameter the loss
 never reached, the shape before anything runs and a shape error refused;

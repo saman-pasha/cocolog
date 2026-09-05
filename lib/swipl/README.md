@@ -97,5 +97,7 @@ cocolog --local run lib/swipl/dcg_basics.pl my_program.pl main
 With more than one argument `run` takes the LAST as the goal, so `main` has to
 be written out once a library is listed alongside the program.
 
-`test/files/run.sh` consults them the same way for the conformance cases, which
-is what proves the copy runs here as it does there.
+`test/files.pl` consults them the same way for the conformance cases -- the
+programs under `test/files/` are run by BOTH `swipl` and cocolog and their
+output compared line for line, which is what proves the copy runs here as it
+does there.

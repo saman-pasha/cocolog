@@ -173,6 +173,13 @@
 (generic impl-zigurat-kb
   ()
 
+  ;;; DECLARED HERE, because `../cicili/lib/db/zigurat.cicili' -- where every
+  ;;; other zg_* prototype comes from -- is an INPUT to this repository and
+  ;;; frozen. The function is cocolog's own, added to client/zigurat.c beside
+  ;;; `zg_embedded', so the declaration belongs with the caller until the
+  ;;; binding upstream catches up.
+  (decl) (func zg_page_size ((zg_conn * c)) (out llong))
+
   (static)
   (func coco_zg_fail ((coco_zg * z) (const char * what)) (out int)
         (snprintf (-> z err) 256 "%s: %s" what
@@ -235,30 +242,49 @@
         (set (-> z write_through) 1)
         (snprintf (-> z kb) 64 "%s" kb)
         (set (-> st ctx) (cast (void *) z))
-        ;; WHAT A ROW WILL HOLD. Zigurat allocates a row inside ONE page --
-        ;; 8192 bytes by default, less its own control words -- and throws
-        ;; `allocation overflow' when it will not fit, AT COMMIT. Measured
-        ;; against the embedded engine with a short kb and predicate name: a
-        ;; clause of 8013 characters stores and one of 8014 does not, and the
-        ;; refusal took every other clause of that transaction with it.
+        ;; WHAT A ROW WILL HOLD, MEASURED AND NOT GUESSED.
         ;;
-        ;; 7800 rather than 8013 because the row is not the clause alone: the
-        ;; knowledge base's name, the predicate's, the arity and the ordinal
-        ;; share the page with it. It is the figure that makes the refusal
-        ;; land HERE, one clause at a time and named, rather than on the whole
-        ;; transaction; a clause anywhere near it wants storing as several
-        ;; clauses whatever the exact ceiling turns out to be.
+        ;; Zigurat allocates a row inside ONE page and throws `allocation
+        ;; overflow' when it will not fit -- there is no overflow chain and no
+        ;; blob table, one allocation inside one page -- and the throw comes
+        ;; at COMMIT, by which time the process has asserted everything else
+        ;; and answered about it. So the length is checked on the way IN, and
+        ;; this is the number it is checked against.
         ;;
-        ;; IT IS FIXED AND THE PAGE SIZE IS NOT, and that is the honest limit
-        ;; of this line. The engine keeps no value across pages -- there is no
-        ;; overflow chain, no blob table, one allocation inside one page -- but
-        ;; `MEMORY/PAGE_SIZE' is a setting (default 8192, and the cursor's
-        ;; hexmap buffer caps it at 65536), so a server raised to 32768 would
-        ;; hold a clause four times this long and be refused one here. The
-        ;; embedded store cannot drift: `embed/embed.cicili' opens its Memory
-        ;; at 8192 outright. Asking the backend its page size, rather than
-        ;; assuming the default, is the pass that would retire this constant.
-        (set (-> st clause_max) 7800)
+        ;; THE FORMULA IS THREE MEASUREMENTS, not one fitted point. Bisecting
+        ;; the longest clause TEXT that stores, against the embedded engine:
+        ;;
+        ;;     page   8192 -> 8013      name  1, kb  4 -> 8013
+        ;;     page  16384 -> 16205     name 20, kb  4 -> 7994
+        ;;     page  32768 -> 32589     name  1, kb 20 -> 7997
+        ;;
+        ;; -- exactly `page - 174 - strlen(kb) - strlen(name)' at every one of
+        ;; them. The 174 is the row's fixed part (the engine's two control
+        ;; blocks, the arity, the ordinal, the column framing); the two names
+        ;; are the only variable-width columns beside the clause itself.
+        ;;
+        ;; 190 rather than 174 leaves sixteen bytes of margin, because the 174
+        ;; is this engine's row layout and a change to it should shorten the
+        ;; budget rather than silently break a store. The predicate's name is
+        ;; taken off per clause by `coco_assert_from', which is the only place
+        ;; that knows it.
+        ;;
+        ;; ONLY THE EMBEDDED ENGINE CAN BE ASKED. `zg_page_size' answers the
+        ;; page this process opened its own store on; a SERVER's page is
+        ;; `MEMORY/PAGE_SIZE' in its own configuration on its own machine, and
+        ;; no call in the protocol asks -- so over the wire this assumes the
+        ;; documented default and $COCOLOG_PAGE_SIZE is how an operator who
+        ;; raised it says so. Assuming the default is the safe way to be
+        ;; wrong: too small a budget refuses a clause that would have fitted,
+        ;; and the program gets a catchable error naming the number; too large
+        ;; a one loses the transaction, which is the defect this exists for.
+        (let ((llong page . #'(zg_page_size db)))
+          (if (<= page 0)
+              (let ((const char * env . #'(getenv "COCOLOG_PAGE_SIZE")))
+                (set page (? (== env nil) 8192 (cast llong (atoll env))))
+                (if (<= page 0) (set page 8192))))
+          (let ((llong budget . #'(- page (+ 190 (cast llong (strlen kb))))))
+            (set (-> st clause_max) (? (<= budget 0) 0 (cast size_t budget)))))
         (set (-> st fetch) coco_zg_fetch)
         (set (-> st on_assert) coco_zg_on_assert)
         (set (-> st on_retract) coco_zg_on_retract)

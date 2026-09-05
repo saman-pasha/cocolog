@@ -882,10 +882,26 @@ one-directional: the writer can still emit a NUL that arrived some other way.
 `lib/builtins.cicili`. SWI has **655** built-in predicates. Most cannot exist
 here and it is worth saying which rather than leaving a reader to find out:
 everything stream-shaped (there is no `open/3`, so nothing to answer with),
-everything module-shaped, threads, tabling, the foreign interface, SWI's own
-`prolog_*` introspection, and the string family — cocolog reads `"abc"` as a
-code list, which is the ISO default, so `string_concat/3` has no type to work
-on.
+everything module-shaped, tabling, SWI's own `prolog_*` introspection, and
+SWI's `thread_*` family — cocolog HAS threads, in `library(thread)`, but a
+thread here gets its own machine, store and engine and a channel copies the
+term, so a predicate written for one shared database is not one it can offer.
+SWI's foreign interface is absent for the same kind of reason: cocolog has one
+of its own, written against `lib/sdk.cicili`, which is what this file is about.
+
+**The string family DOES exist, and this paragraph used to say it could not.**
+There is a string type — SWI's, as a sixth cell tag — because an atom is a
+NUL-terminated name in a table and a string is a (pointer, length) pair, so
+`atom_codes(A, [0'a, 0, 0'b])` gives a ONE-character atom where the string of
+the same three bytes comes back whole. `string_concat/3`, `split_string/4`,
+`sub_string/5`, `string_length/2`, `atom_string/2`, `number_string/2` and the
+rest all answer, `double_quotes` takes all four of SWI's values, and
+`format(string(S), ...)` builds one. `string/1` is listed below among what was
+added alongside the ISO core; the rest of the family is in `lib/builtins.cicili`
+beside it. README and CLAUDE.md have the type's own story, including the one
+thing to know about it: **a string does not survive the store or a channel —
+it comes back as codes**, because a clause travels as canonical text and the
+canonical reader is deliberately deaf to per-machine reader settings.
 
 **What is left is the ISO core, and that is what this module is.** The set was
 computed rather than remembered: the ISO built-in predicates plus the SWI
@@ -896,8 +912,8 @@ Thirty-eight remained, and they are all here:
 `keysort/2` · `op/3` `current_op/3` · `between/3` `succ/2`
 `plus/3` · `ground/1` `term_variables/2` `unify_with_occurs_check/2` ·
 `atom_chars/2` `char_code/2` `number_chars/2` `atom_number/2` `upcase_atom/2`
-`downcase_atom/2` `term_to_atom/2` `sub_atom/5` `atomic_list_concat/2`
-`atomic_list_concat/3` · `writeq/1` `print/1` `write_term/2` `tab/1` ·
+`downcase_atom/2` `term_to_atom/2` `sub_atom/5` **`atomic_list_concat/2`**
+**`atomic_list_concat/3`** · `writeq/1` `print/1` `write_term/2` `tab/1` ·
 `clause/2` `current_predicate/1` `retractall/1` `abolish/1` ·
 `nb_setval/2` `nb_getval/2` `b_setval/2` `b_getval/2` · `halt/1`.
 

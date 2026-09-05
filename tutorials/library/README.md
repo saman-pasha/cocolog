@@ -1,7 +1,8 @@
 # Library: one lesson per library that ships
 
 *One of four tutorial categories — `../basics/` is the language, this
-is what ships, `../tensor/` is the deep end.*
+is what ships, `../opencv/` is image processing, `../tensor/` is the
+deep end.*
 
     COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/12-json.pl main
 
@@ -11,7 +12,9 @@ nothing at all, which is what 00 is about.
 
 ## TIER 1 — compiled in or preloaded, no import needed
 
-Sixteen libraries answer before the first goal runs. `use_module` on any
+Fifteen libraries answer before the first goal runs -- seven Cicili
+modules compiled into the binary and eight of SWI's own, vendored in
+`lib/swipl` and read from disk at start-up. `use_module` on any
 of them succeeds instantly and does nothing, which is why none is
 written anywhere in this repository.
 
