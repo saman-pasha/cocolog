@@ -1637,7 +1637,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.0` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.2` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3518,6 +3518,39 @@ consult the module loader is holding.
 directive, all twelve checked, and `test/directives.pl` exercises directives
 through `run` only and never once through `-s`. Nothing in the tree stands on
 this path, which is why it has gone unseen rather than why it is harmless.
+
+## The first call of a predicate under `--embed` cost the whole table, measured
+
+Reported from cicili-lang, where a parse touching ~500 predicates spent ten of
+its thirteen seconds on first calls, in proportion to the store: 39 µs over an
+empty store, 0.06–0.16 s over 119 MB, 0.4–1.1 s over 1 GB. Reproduced here
+before the section above landed, with fifty predicates that are NOT in the
+store at all — the sharpest form, since a predicate the store has never heard
+of cost a full scan to discover that:
+
+| store | live rows | 50 first-calls, before | after |
+|---|---|---|---|
+| empty | 0 | 0.37 ms | 0.42 ms |
+| 1.1 MB | 2 000 | 46 ms | 0.34 ms |
+| 8.7 MB | 20 000 | 465 ms | — |
+| 10 MB | 20 000 | 474 ms | **0.35 ms** |
+
+**It was per ROW, not per byte** — 20 000 rows cost the same at 8.7 MB and
+10 MB, 2 000 rows a tenth — about 0.45 µs a row a probe, which is
+`COCOLOG_CLAUSES_cursor` walking every row and `clauses_cb` comparing the
+strings. Bytes and rows moved together in the reporter's store, which is why
+it read as size. Dead rows cost too: 1 000 live over 19 000 retracted took
+150 ms where the 1 000 alone deserve 22 ms, and **`cocolog vacuum` brought
+it to 22 ms** — the reclaim the reporter did by starting the store afresh was
+already a verb.
+
+The section above is the fix: `clauses_walk` takes the `(kb, name)` index
+for a call that names both, and the row count stops mattering. The index does
+not carry the arity — `clauses_cb` still filters it, so a name defined at two
+arities visits the other arity's rows — which is a schema change with the
+live-server hazard for a case that is rare, and is left. The server path
+never had the problem: its generated C++ always reached the composite through
+`engine_text_key`.
 
 ## Every Zigurat type is an index key, and `--embed` indexes its strings
 
