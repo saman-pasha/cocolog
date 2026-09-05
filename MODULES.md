@@ -889,19 +889,14 @@ term, so a predicate written for one shared database is not one it can offer.
 SWI's foreign interface is absent for the same kind of reason: cocolog has one
 of its own, written against `lib/sdk.cicili`, which is what this file is about.
 
-**The string family DOES exist, and this paragraph used to say it could not.**
-There is a string type — SWI's, as a sixth cell tag — because an atom is a
-NUL-terminated name in a table and a string is a (pointer, length) pair, so
-`atom_codes(A, [0'a, 0, 0'b])` gives a ONE-character atom where the string of
-the same three bytes comes back whole. `string_concat/3`, `split_string/4`,
-`sub_string/5`, `string_length/2`, `atom_string/2`, `number_string/2` and the
-rest all answer, `double_quotes` takes all four of SWI's values, and
-`format(string(S), ...)` builds one. `string/1` is listed below among what was
-added alongside the ISO core; the rest of the family is in `lib/builtins.cicili`
-beside it. README and CLAUDE.md have the type's own story, including the one
-thing to know about it: **a string does not survive the store or a channel —
-it comes back as codes**, because a clause travels as canonical text and the
-canonical reader is deliberately deaf to per-machine reader settings.
+**The string family is not in that list either, and it is not in this
+module** — it is in the ENGINE's own builtin table (`*builtins*` in
+`lib/solve.cicili`), which is why none of it appears among the thirty-eight
+below. `sub_string/5` is the one exception and it is here, as clauses over
+`string_length/2`, `string_codes/2` and `between/3`, because it is
+nondeterministic in two arguments and a C half has no access to the choice
+stack. See *The string type* below for what the type is and what to watch
+for.
 
 **What is left is the ISO core, and that is what this module is.** The set was
 computed rather than remembered: the ISO built-in predicates plus the SWI
@@ -923,12 +918,53 @@ needed them first.)
 ### What was added alongside the ISO core
 
 `format/1,2,3`, `with_output_to/2`, `code_type/2`, `char_type/2`, `must_be/2`
-and `is_of_type/2`, and `string/1`.
+and `is_of_type/2`.
 
 None of these is ISO. They are here because SWI's `library(dcg/basics)` calls
 them and cocolog is meant to run that file unmodified — and because `format/2`
 is the predicate a Prolog program reaches for more than any other, so its
 absence was a hole rather than a choice.
+
+### The string type
+
+Not this module's — the thirteen C halves are entries in `*builtins*` in
+`lib/solve.cicili`, beside `atom_codes/2`, and `sub_string/5` is the only
+piece that lives here. It is described in this file because a reader looking
+for "which text predicates does cocolog have" arrives at the builtins list,
+finds no `string_concat/3` in it, and would otherwise conclude there is none.
+
+**THE REASON THE TYPE EXISTS IS THE NUL.** It is SWI's, a sixth cell tag, an
+index into a per-machine table of (pointer, length) pairs. An atom is a
+NUL-terminated name in a table, so `atom_codes(A, [0'a, 0, 0'b])` gives a
+ONE-character atom; a string of the same three bytes is three characters and
+comes back whole. Everything else about the type follows from that one
+difference, and the standard order puts it between atom and compound, which
+is SWI's.
+
+The thirteen in the engine's table: `string/1`, `string_length/2`,
+`atom_string/2`, `string_to_atom/2`, `number_string/2`, `string_codes/2`,
+`string_chars/2`, `string_concat/3`, `text_concat/3`, `string_lower/2`,
+`string_upper/2`, `term_string/2` and `split_string/4`. Plus `sub_string/5`
+here, and `format(string(S), ...)` and `with_output_to(string(S), ...)`,
+which build one.
+
+**`double_quotes` decides what `"..."` IS**, and it takes all four of SWI's
+values — `codes` (the ISO default and cocolog's), `chars`, `atom`, `string`.
+So `string("abc")` is FALSE in a file that did not set the flag, because
+there `"abc"` is a code list; `string_concat("a", "b", S)` still answers a
+string, because it builds one. The flag is a DIRECTIVE, it takes effect for
+the rest of the file rather than for its own term, and it is forced back to
+`codes` across a module load so a caller's choice cannot reach inside the
+vendored SWI libraries.
+
+**A STRING DOES NOT SURVIVE THE STORE OR A CHANNEL — it comes back as
+codes.** Measured in both. This is not the flag's doing: a clause travels as
+canonical text and is parsed by whichever process fetches it, and that text
+is written with operators ignored precisely so it cannot depend on a
+per-machine reader setting. `double_quotes` is that hazard again. README and
+CLAUDE.md carry the argument and what fixing it would cost.
+
+### Back to this module
 
 **`format/2` has no column directives.** `~t`, `~|` and `~+` lay text out in
 fields by measuring what has been written since the last column stop, which is
