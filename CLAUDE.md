@@ -50,10 +50,17 @@ make lint FILES=myprogram.pl    # cocolint, over a file you name
 **`cocolog --version` ANSWERS ON STDOUT, AND THE NUMBER GOES UP WITH
 EVERY CHANGE.** It lives in ONE place -- `coco_version_text` in
 `cocolog.cicili` -- because a `#define` is raw C that Cicili cannot see and
-a second copy anywhere is a second thing to forget. The patch for an
-ordinary change, the minor when something new is reachable from a program,
-the major when a program that worked stops working; bump it in the same
-commit as the change, never afterwards. `--help` explains and goes to
+a second copy anywhere is a second thing to forget.
+
+**THE PATCH IS THE DEFAULT**, and the owner's instruction: bump it for an
+ordinary change and keep bumping it. The minor is for something new being
+reachable from a program and the major for a program that worked stopping,
+but neither is TAKEN -- it is proposed, with what changed observably, and
+the owner decides. Getting that wrong the timid way costs nothing; getting
+it wrong the loud way tells every reader downstream that something broke
+when nothing did. Bump it in the same commit as the change, never
+afterwards, and a documentation-only commit does not bump at all -- there
+is no new binary for the number to describe. `--help` explains and goes to
 stderr, so a script can read `V=$(cocolog --version)` with no redirection.
 `test/argv.pl` pins the SHAPE and deliberately not the number -- a case
 that named it would be a second place to edit, and the one somebody

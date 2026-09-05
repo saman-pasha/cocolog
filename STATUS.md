@@ -1615,10 +1615,14 @@ the two safe to have side by side.
 
 It lives in ONE place -- `coco_version_text` in `cocolog.cicili` -- because
 a `#define` is raw C that Cicili cannot see, and a second copy anywhere is a
-second thing to forget. The patch goes up for an ordinary change, the minor
-when something new is reachable from a program, the major when a program
-that worked stops working; it is bumped in the same commit as the change and
-never afterwards.
+second thing to forget. **The patch is the default** and goes up for an
+ordinary change; the minor is for something new being reachable from a
+program and the major for a program that worked stopping, and neither is
+taken without saying so first -- 1.2.1 removed a dead clause that made
+`listing(string/1)` print a falsehood, which is program-visible and still a
+patch, because nothing anybody should have relied on changed. It is bumped
+in the same commit as the change and never afterwards; a documentation-only
+commit does not bump it at all.
 
 **`test/argv.pl` pins the SHAPE and deliberately not the number** -- exit 0,
 the name in front, three dotted numbers and nothing else on the line, and

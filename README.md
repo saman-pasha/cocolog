@@ -262,9 +262,10 @@ poke at a knowledge base other processes are working.
 `--version` answers on **stdout** and nothing else is on the line, so
 `V=$(cocolog --version)` is the whole of asking; `--help` explains, and goes
 to stderr the way a usage message should. The number goes up with every
-change to the repository — patch for an ordinary one, minor when something
-new is reachable from a program, major when a program that worked stops
-working.
+change that produces a new binary — the patch by default, the minor when
+something new is reachable from a program, the major when a program that
+worked stops working. A documentation-only commit does not bump it: there is
+no new binary for the number to describe.
 
 There is one `cocolog` binary and it is the full one: the interpreter, the
 embedded MVCCS engine and the torch module, all in it. Which knowledge base a
