@@ -808,6 +808,18 @@ pairs. `string/1`, `string_concat/3`, `split_string/4`, `sub_string/5`,
 `string_lower/upper/2` all answer, and `format(string(S), …)` and
 `with_output_to(string(S), …)` build one.
 
+**THE C HALVES ARE THE ENGINE'S, not `lib/builtins.cicili`'s** — thirteen
+entries in `*builtins*` in `lib/solve.cicili`, beside `atom_codes/2`.
+`sub_string/5` is the one piece in the builtins module, as clauses, because
+it is nondeterministic in two arguments and a C half has no choice stack.
+A `string(_) :- fail.` clause and a comment saying cocolog has no string
+type lived in `lib/builtins.cicili` until 1.2.1: **shadowed and therefore
+dead** — dispatch is construct, C builtin, module, store, so a C-registered
+name never reaches the knowledge base — but `listing(string/1)` printed it,
+which told a reader the opposite of what the interpreter does, and MODULES.md
+had taken the claim from that comment. `listing(string/1)` fails now, the way
+it does for any predicate with no clauses of its own.
+
 **THE REASON IT EXISTS IS THE NUL.** An atom is a NUL-terminated name in a
 table, so `atom_codes(A, [0'a, 0, 0'b])` gives a ONE-character atom. A
 string of the same three bytes is three characters and comes back whole.

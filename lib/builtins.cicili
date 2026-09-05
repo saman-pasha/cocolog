@@ -100,18 +100,29 @@
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
-           ;; ---- string/1 -------------------------------------------------
+           ;; ---- string/1 IS NOT HERE ------------------------------------
            ;;
-           ;; ALWAYS FAILS, and that is the correct answer rather than a stub.
-           ;; SWI has a string type distinct from atoms and code lists; cocolog
-           ;; does not, so nothing here IS a string and the type check is false
-           ;; of everything. It exists because library code branches on it:
-           ;; SWI's `string_without//2' asks `string(End)' to decide whether to
-           ;; convert its argument, and falls through to the code-list clause
-           ;; when the answer is no -- which is the clause cocolog wants. A
-           ;; missing `string/1' raises there instead, and the fall-through
-           ;; never happens.
-           "string(_) :- fail."
+           ;; It was `string(_) :- fail.', with a comment saying cocolog has
+           ;; no string type. It has one -- a sixth cell tag, `STR' in
+           ;; `*cell-tags*' -- and `string/1' is a C builtin in
+           ;; lib/solve.cicili's `*builtins*' table, which SHADOWS a clause:
+           ;; dispatch is construct, then C builtin, then module, then the
+           ;; knowledge base, so a C-registered name never reaches the store.
+           ;;
+           ;; So the clause could not run, and it was not merely inert.
+           ;; `listing(string/1)' printed `string(_):-fail.' and told a reader
+           ;; the opposite of what the interpreter does, and the comment above
+           ;; it was where MODULES.md got the claim that cocolog has no string
+           ;; type. cocolint's own N2 rule is about exactly this shape: a
+           ;; C-registered name given clauses is dead code that `listing/1'
+           ;; will happily show.
+           ;;
+           ;; What the old comment was RIGHT about is why the predicate has to
+           ;; exist at all: SWI's `string_without//2' asks `string(End)' to
+           ;; decide whether to convert its argument and falls through to the
+           ;; code-list clause when the answer is no. That still works -- the C
+           ;; `string/1' answers false for a code list -- and the vendored
+           ;; dcg/basics is gated on it.
 
            ;; ---- once/1 and ignore/1 ARE NOT HERE -------------------------
            ;;
