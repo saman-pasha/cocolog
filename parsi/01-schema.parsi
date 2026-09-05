@@ -39,17 +39,24 @@
 -- A column costs an index and lets a knowledge base be created by inserting
 -- into it.
 --
--- WHY THE INDEX IS (kb, name) AND NOT kb AND name. Every read of a predicate
--- -- clauses_of, forget_clauses, the page -- asks `kb == K AND name == N', and
--- the compiler drives an index from its leading column only: over a single
--- `kb' index that was a walk of the WHOLE knowledge base filtered by name,
--- so loading a program of 377 predicates walked its 6 778 clauses 377 times
--- (23.8 s over a mapped store; 72 s before it), and a `name' index beside it
--- served nothing but the cost of a map per row. A composite index answers
--- the pair in one descent and `kb == K' alone through its outer level.
--- CHANGING AN INDEX ON A LIVE STORE: the new tree comes up empty and the old
--- ones stay as orphan pages, so `cocolog vacuum' must run before anything
--- else -- its TRUNCATE rebuilds every index from the live rows.
+-- WHY THE INDEX IS (kb, name, arity) AND NOT kb AND name. Every read of a
+-- predicate -- clauses_of, forget_clauses, the page -- asks `kb == K AND
+-- name == N AND arity == A', and the compiler drives an index from its
+-- leading column only: over a single `kb' index that was a walk of the WHOLE
+-- knowledge base filtered by name, so loading a program of 377 predicates
+-- walked its 6 778 clauses 377 times (23.8 s over a mapped store; 72 s
+-- before it), and a `name' index beside it served nothing but the cost of a
+-- map per row. A composite index answers the triple in one descent and
+-- `kb == K' alone through its outer level.
+-- THE ARITY IS THE THIRD LEVEL because name and arity together are the
+-- identity: over (kb, name) alone a name defined at two arities walked the
+-- other arity's rows and filtered them -- measured, the first call of a
+-- shared/2 beside 20 000 shared/1 cost 21 ms under --embed where the three
+-- rows deserve microseconds.
+-- CHANGING AN INDEX ON A LIVE SERVER STORE: the new tree comes up empty and
+-- the old ones stay as orphan pages, so `cocolog vacuum' must run before
+-- anything else -- its TRUNCATE rebuilds every index from the live rows.
+-- The embedded engine rebuilds an index it meets for the first time at open.
 -- ---------------------------------------------------------------------------
 
 TABLE cocolog::clauses
@@ -60,7 +67,7 @@ BEGIN
     -- the predicate: name and arity together are the identity
     COLUMN name    AS String NOT NULL;
     COLUMN arity   AS Int    NOT NULL;
-    INDEX KEY (kb, name);
+    INDEX KEY (kb, name, arity);
     -- position within the predicate. Clause order is part of the meaning of a
     -- Prolog program, and a cursor is not ordered, so it travels as data and
     -- the client sorts on it.

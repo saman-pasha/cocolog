@@ -412,8 +412,12 @@ that was already there, so every read through it answers nothing -- and a
 `cocolog vacuum` right after the restart, before any base is touched: its
 TRUNCATE rebuilds every index from the live rows. (Learned changing
 `cocolog::clauses` from two single-column indexes to the composite
-`(kb, name)`, on the server; not re-measured there since the engine change
-below.)
+`(kb, name)`, on the server.) **Re-run for `(kb, name)` to `(kb, name,
+arity)` on 2026-09-05**: after the restart and the vacuum, rows written under
+the old index answer through the new one -- `tls_test` 1 predicate,
+`groups_test` 4 -- and fresh rows at two arities round-trip through a second
+process. Whether the vacuum was NECESSARY on the Cicili engine was not
+captured (the non-empty bases were probed only after it), so keep running it.
 
 **`--embed` DOES NOT HAVE THIS HAZARD ANY MORE.** Since ZiguratIP `b290cc6`
 `_attach` answers 1 the first time a store meets an index and `_rebuild`
@@ -424,6 +428,26 @@ made before the `(kb, name)` index answers every row through it on first
 open, a present key is found, an absent one stays absent, and the first call
 of a predicate costs **0.35 ms for fifty** where it cost 474 ms -- flat from
 an empty store to 10 MB, because the walk is the index and not the table.
+The index is `(kb, name, arity)` -- the arity joined it the same day, because
+over `(kb, name)` a name at two arities walked the other arity's rows:
+`shared/2` beside 20 000 `shared/1` cost 21.3 ms on its first call and costs
+0.027 ms, and a store from before the change rebuilt the three-level tree at
+its first open.
+
+**`make schema` COPIES THE EMITTED TABLES INTO `$ZIGURATIP/MVCCS-cicili/generated/`**,
+which used to be a step done by hand and then forgotten: parsi writes each
+table as `_COCOLOG::CLAUSES_.cicili` into `$ZIGURATIP_HOME/ld`, the embedded
+engine imports `cocolog-clauses.cicili` from `generated/` (a symlink from
+`embed/generated`), and a schema change that reached the server's objects
+left the embedded engine on the previous tables. `parsi/build.sh` does the
+copy under the one rule that maps every name, and needs `$ZIGURATIP` set.
+
+**A THREE-LEVEL COMPOSITE BROKE THE WHERE COMPILER, and it is fixed in
+ZiguratIP.** A predicate binding only the leading column has every level
+below it walked whole; the compiler wrote those walks as siblings, which
+compiles for two levels and not for three -- `make schema` died in
+`predicates_of` with `no matching function for call to object of type
+lambda`. `Test/run-keys-e2e.sh` there carries the `demo::triple` proof.
 
 **A PAGE and a PROCEDURE of the same name are ONE compiled object**, and pages
 compile last. `cocolog::predicates` was both, so the procedure's `.so` was

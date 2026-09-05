@@ -44,5 +44,26 @@ done
 rm -f "$HERE/.build.log"
 
 echo
+# THE EMITTED CICILI TABLES GO BESIDE THE ENGINE, and this is the step that
+# was done by hand until it was forgotten. parsi writes each table and
+# sequence as one .cicili into $ZIGURATIP_HOME/ld -- `_COCOLOG::CLAUSES_.cicili'
+# -- and cocolog's embedded store imports them from
+# $ZIGURATIP/MVCCS-cicili/generated/ under the folded name
+# `cocolog-clauses.cicili' (embed/generated is a symlink to that directory).
+# Nothing copied them: a schema change reached the server's objects and not
+# the embedded engine, which went on being built from the previous tables.
+# So the copy is here, where the emission is, under the one rule that maps
+# every name: the `_' fence off, lower case, `::' and `_' to `-'.
+if [ -n "$ZIGURATIP" ] && [ -d "$ZIGURATIP/MVCCS-cicili/generated" ]; then
+  for f in "$ZIGURATIP_HOME"/ld/_COCOLOG::*_.cicili; do
+    [ -e "$f" ] || continue
+    b=$(basename "$f" .cicili)
+    n=$(printf '%s' "$b" | sed -e 's/^_//' -e 's/_$//' | tr 'A-Z' 'a-z' | sed -e 's/::/-/g' -e 's/_/-/g')
+    cp "$f" "$ZIGURATIP/MVCCS-cicili/generated/$n.cicili"
+  done
+  echo "Emitted tables copied into $ZIGURATIP/MVCCS-cicili/generated/"
+else
+  echo "cocolog: ZIGURATIP not set, or no MVCCS-cicili/generated there -- the emitted tables stay in $ZIGURATIP_HOME/ld" >&2
+fi
 echo "Compiled into $ZIGURATIP_HOME/ld:"
 ls "$ZIGURATIP_HOME"/ld/*COCOLOG*.so 2>/dev/null | sed 's|.*/|  |'

@@ -1637,7 +1637,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.2` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.3` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3544,13 +3544,44 @@ it read as size. Dead rows cost too: 1 000 live over 19 000 retracted took
 it to 22 ms** — the reclaim the reporter did by starting the store afresh was
 already a verb.
 
-The section above is the fix: `clauses_walk` takes the `(kb, name)` index
-for a call that names both, and the row count stops mattering. The index does
-not carry the arity — `clauses_cb` still filters it, so a name defined at two
-arities visits the other arity's rows — which is a schema change with the
-live-server hazard for a case that is rare, and is left. The server path
-never had the problem: its generated C++ always reached the composite through
+The section above is the fix: `clauses_walk` takes the index for a call that
+names the predicate, and the row count stops mattering. The server path never
+had the problem: its generated C++ always reached the composite through
 `engine_text_key`.
+
+**THE ARITY IS THE INDEX'S THIRD LEVEL NOW — `(kb, name, arity)` in
+`parsi/01-schema.parsi`** — because name and arity together are the identity,
+and over `(kb, name)` alone a name defined at two arities walked the other
+arity's rows and filtered them. Measured under `--embed`, the first call of
+`shared/2` beside 20 000 `shared/1`: **21.3 ms before, 0.027 ms after**, the
+store from before the change rebuilt at its first open (20 000 and 3 answered,
+a present key found, an absent one absent), and the fifty-absent probe
+unchanged at 0.34 ms.
+
+**It exposed a compiler bug, fixed in ZiguratIP.** `predicates_of` binds only
+`kb` — the leading level — and the WHERE compiler wrote the levels below it
+as SIBLINGS: each middle level's lambda returning at once, the row walk then
+called on the OUTER handle. That compiled for two levels, where there is no
+middle, and failed for three with `no matching function for call to object
+of type lambda`, from `make schema`. Each middle level now opens a lambda that
+stays open until the row walk is written, and they close in reverse;
+ZiguratIP's `Test/run-keys-e2e.sh` gained `demo::triple` — four rows under
+`a == 'x'`, two under `(a, b)`, one under all three, the generated C++ grepped
+for both dependent handles — 13 checks, 0 failed.
+
+**And a step nobody had scripted.** parsi emits each table as one `.cicili`
+into `$ZIGURATIP_HOME/ld`, and the embedded engine imports it from
+`$ZIGURATIP/MVCCS-cicili/generated/` under a folded name; nothing copied
+between the two, so `make schema` reached the server's objects and left the
+embedded engine on the previous tables. `parsi/build.sh` copies now, under the
+one rule that maps every name.
+
+**The live-server recipe, measured for this change.** After the restart and
+`cocolog vacuum`, rows written under `(kb, name)` answer through
+`(kb, name, arity)` — `tls_test` 1 predicate, `groups_test` 4 — and fresh
+rows at two arities round-trip through a second process. Whether the vacuum
+was NECESSARY on this engine was not captured: the non-empty bases were probed
+only after it. The recipe stands, and CLAUDE.md says which half is measured.
 
 ## Every Zigurat type is an index key, and `--embed` indexes its strings
 
