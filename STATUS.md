@@ -39,6 +39,35 @@ happily as over a real one.
 | `test/serialize.pl` | `library(json)`, `library(xml)` and `library(html)`, both directions. Weighted toward escaping and refusals, because those are where a serialiser is silently wrong rather than loudly wrong, and six ROUND TRIPS — write, read, write again, compare the texts — because a reader and a writer that disagree are worse than either alone. 101 checks |
 | `test/string.pl` | the string type, checked as a TYPE rather than as a set of predicates that answer: it must not BE an atom, it must carry a NUL where an atom of the same bytes stops at one, and it must sit between atom and compound in the standard order. Plus `double_quotes` in all four of SWI's values, each through a FILE because a one-goal query cannot see its own flag change, and the guard that keeps a module's choice from reaching the vendored SWI libraries -- 36 checks |
 | `test/errors.pl` | what cocolog RAISES, and what it used to lose on the way. Four defects of one family — the interpreter knew and the program could not find out: a `catch/3` whose goal had EXITED went on catching, so a later `throw/1` ran its recovery and the outer catch never heard; a `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` escaped the catch around it, because those run on a sub-engine with a choice stack of its own; `atomic_list_concat/2,3` FAILED with no error term once its 8 KB buffer overflowed, and built its error ball from an array it had already freed; and a clause too long for a ROW took every other clause of the transaction with it, at commit, silently. The last is checked ACROSS PROCESSES, which is the only place it was ever visible — 39 checks. The row budget is checked at its BOUNDARY in both variables: a clause at `page - 190 - len(kb) - len(name)` stores and one character more raises |
+| `test/files.pl` | the Files module held to SWI: every case is ONE Prolog file run TWICE — once by `swipl`, once by cocolog, in a freshly made empty directory at the same absolute path both times — and the two outputs compared byte for byte. A library that claims to be SWI's is checked against SWI and not against its own opinion. SKIPs without `swipl` |
+| `test/trace.pl` | the four-port tracer held to SWI the same way: both are asked the same queries over `test/trace-program.pl` with the tracer on, and the port lines compared one for one — Call, Exit, Redo and Fail, in order, at the same relative depths, over the same goals. SKIPs without `swipl` |
+| `test/vacuum.pl` | the store's two hygiene verbs — `forget` and the vacuum — in BOTH arrangements, plus the gate on `vacuum_kb/0`: the hook is installed only when the operator said `--vacuum`, and a run that did not raises `permission_error` rather than quietly spending the store's point-in-time reads. Forget's contract is pinned as count, emptiness with declarations, and idempotence |
+| `test/repl.pl` | the toplevel, piped: answers under the QUERY's own variable names in SWI's shapes down to the aliases, `;` for another solution, punctuation that is honest about whether a choice point was left, one session one world, and a session's writes read back by a second process |
+| `test/script.pl` | `-s SCRIPT`: load a script as a module, prove `main`, and SAY SO IN THE EXIT CODE — 0 exactly when `main` proved. `query` answers 0 for "the engine ran", which is why the flag exists |
+| `test/tunnel.pl` | the Zeytun READ path through a hostname-routing edge — the local rehearsal of the Cloudflare tunnel in `colab/COLAB.md` — with a TLS-terminating stand-in, `--insecure` going through loudly, and a second edge presenting a certificate for a name nobody asked for, refused with `hostname mismatch` |
+| `test/reconsult.pl` | consulting a file REPLACES the clauses it put in the store last time, and touches neither what a program asserted nor what another file put there. The store used to APPEND, so the second of the three processes a tutorial runs held two copies of every clause |
+| `test/tensors.pl` | model parameters as ROWS: doubles in `Vector<Double>` in `cocolog::tensors`, the id columns saying which tensor and `seq` which piece, the paged tensor page over HTTP, and the clause-chunk fallback for the arrangements with no tensor storage |
+| `test/torch-graph.pl` | `library(torch)`'s GRAPH execution path held to EQUALITY against eager — the same predicates and six tutorials, or all 28 under `ALL=1`. Two paths that disagree are worse than one |
+| `test/torch-grad.pl` | autograd from Prolog: `tensor_parameter/2`, `tensor_agg/3`, `tensor_grad/3`, `tensor_step/4` — gate B of `modules/torch/DESIGN-lazy-graph.md` |
+| `test/torch-replay.pl` | the graph path on a CUDA device: forced values living there and a recurring forward replayed as ONE CUDA graph — gate C of the same design. SKIPs where `torch_cuda_available(false)` |
+| `test/tensorflow.pl` | the same `tensor_*` predicates over TensorFlow's C library as the SECOND backend behind `tensor_execution/2`: every producer under `(tensorflow, graph)` answering what torch answers. SKIPs where `library/tensorflow.so` is not built |
+| `test/library.pl` | `use_module` at run time: a registered module answering at once without touching the disk, a `.pl` library found on the path, a `.so` `dlopen`'d — `test/hoot.cicili` transpiled and compiled by the case itself is the twenty-line worked example — loading twice, and the four search directories in order |
+| `test/bigint.pl` | `library(bigint)`, and the case exists because cocolog's own integers are 64 bits and WRAP IN SILENCE: the first check asks `is/2` for a product at the scale tokens actually use and PINS THE WRONG ANSWER, so that check passing is what says the module is still needed |
+| `test/zigurat-lib.pl` | `library(zigurat)`: the connection under the knowledge base steered from Prolog — commit and rollback as boundaries a GOAL can draw, and `--port` held to both halves of being deprecated-but-accepted, reaching the server and saying nothing on stderr |
+| `test/tcp.pl` | the socket seam and the three claims its header makes, the first being that A HANDLE IS NOT A FILE DESCRIPTOR — an integer this module did not hand out is not a connection, which is the difference between a failed call and a closed stdout |
+| `test/process.pl` | `library(process)`: run, capture, spawn, wait, kill — and a timeout that KILLS and answers 124, coreutils' own number, with the partial output kept |
+| `test/text.pl` | `library(text)`: grep, sed and the line tools over libc's POSIX EXTENDED regex, so a `grep -E` from the old shell suite moves across unchanged |
+| `test/os.pl` | `library(os)`, and nearly every answer is held against the SHELL's own — `uname -s`, `id -u`, `hostname`, `$HOME` — because a fact both can state is a fact that can be checked rather than asserted |
+| `test/kbs.pl` | `library(kbs)`: two bases seeded from one script and DIFFERENT answers read back from each, every `kb_*` goal a process-proof over the wire |
+| `test/http.pl` | `library(http)`, HTTP/1.1 as a grammar: percent- and form-decoding held to WRITTEN-OUT answers rather than to the file's opinion of itself, and to `curl` where there is one |
+| `test/curl.pl` | the client half, and what it refuses. NOTHING HERE TOUCHES THE NETWORK — every transfer is a `file://` URL over a file the case wrote — because a test that fetched a real host would be measuring somebody else's uptime |
+| `test/ray.pl` | `library(ray)` held to PIXELS: a graphics test that checks exit codes has proved a linker worked, so every windowed check ends in `ray_screenshot/1` and reads the frame back. Needs raylib and a window |
+| `test/numpy.pl` | `library(numpy)`: a list of lists becoming a matrix with the shape, dtype and elements it says; reductions, operations, `.npy` and CSV round trips, and `np_store`/`np_fetch` into the knowledge base. Needs a python3 with numpy |
+| `test/opencv.pl` | `library(opencv)`: an image is a HANDLE with a shape and a type, what goes in as rows comes out as the same rows, a pixel reads and writes, a region is a view — through imgcodecs, imgproc, features2d, objdetect, photo, video, calib3d and dnn. Needs OpenCV 4 |
+| `test/colab.pl` | `colab/`: the notebook and the scripts beside it, checked WITHOUT a VM — the version declared TWICE (`colab/VERSION` and `NOTEBOOK_VERSION` inside the notebook) and having to agree, so that what stays free to drift is exactly the copy in somebody's browser; the notebook parsing as JSON, nbformat 4, every cell well-formed, because a broken one fails in Colab twenty minutes into a session and nowhere else; and the scripts the cell calls by name existing |
+| `test/lint.pl` | cocolint over the calibration corpus: the dialect card's citations still pointing at the code they claim, every rule still firing on `selftest/traps.pl`, the blocklist probed against the RUNNING store, and the findings over 65 files being the pinned set exactly |
+| `test/argv.pl` | `current_prolog_flag(argv, V)` out of `main()`'s own argv with `--` ending cocolog's arguments, `library(main)` over it, the `-s`-versus-`run` difference in what reaches the store, and `--version`'s SHAPE — deliberately not its number |
+| `test/directives.pl` | `:- G` is a GOAL, `initialization/1,2` puts one off, and a directive that fails or throws is REPORTED in SWI's shapes rather than ending the load — a syntax error being the only thing that still does. Its last section runs the same files under `swipl` and diffs what the programs printed |
 
 ### The suite is Prolog files now, one process a case, and no shell at all
 
@@ -3186,16 +3215,30 @@ is 14000), which is how it has always read and is worth a look.
   take turns through a `flock`, one per transaction, which is what a server that
   cannot take concurrent clients needs and is about as concurrent as a queue. It
   is kept for talking to a ZiguratIP without the fixes above.
-* **A claim has no lease.** `cocolog::machine_release` puts a machine back, and a
-  worker that loses its connection calls it — but one killed outright strands its
-  machine as claimed, and only `cocolog drop` clears it. A lease with an expiry
-  would want a timestamp column and a clock the server agrees with.
+* **A claim still has no lease, but a dead worker no longer strands one.**
+  `cocolog::machine_release` puts a machine back and a worker that loses its
+  connection calls it; a worker KILLED outright used to leave its machine
+  claimed until `cocolog drop`, and does not now — the turn became ONE
+  transaction with the claim inside it, so a dead or failed worker's claim
+  rolls back with its turn and the machine goes straight back to the pool.
+  What is still missing is a lease with an expiry, which would want a
+  timestamp column and a clock the server agrees with; without one, a machine
+  held by a LIVE wedged worker looks exactly as it always did, so a `list`
+  after a bad run is still worth reading.
 * **The HTTP backend does not write.** One request is one transaction; a machine
   is a header row plus a row per chunk. Stated in `lib/zeytun-kb.cicili` and in
   `parsi/03-pages.parsi`.
-* **`consult` asserts, it does not replace.** Consult the same file twice and
-  every proof answers everything twice; `cocolog forget` is how a knowledge base
-  is emptied.
+* **`consult` REPLACES the clauses the same file put there last time**, which
+  this entry used to say it did not. Every clause a consult reads is owned by
+  the file under its real path (`coco_pred`'s `origins`, beside `clauses`),
+  and the first clause of each predicate the file defines takes the file's own
+  old clauses out before going in; what a program asserted and what another
+  file put there are untouched. On the wire the owner travels with the clause
+  as `'$from'(Path, Clause)` in the same text column, so a row written before
+  this existed is a bare clause nobody replaces. Measured: consulting a
+  two-fact file twice leaves two facts, where it used to leave four.
+  `test/reconsult.pl` is the case, and `cocolog forget` is still how a
+  knowledge base is emptied outright.
 * **A directive IS run as a goal**, since the seam below. `coco_directive` still
   answers the ones that have to act on the READER while the file is being read —
   `op/3` (the clauses after it parse with it in force), `dynamic/1`,
@@ -3243,9 +3286,20 @@ is 14000), which is how it has always read and is worth a look.
 * **`listing` writes to stdout.** It is a builtin that prints, not one that
   builds a term, so a program cannot capture what it produces. `listing/0` and
   `listing/1` both answer once and are deterministic like every other builtin.
-* **Builtins are all deterministic.** One that could leave a choice point behind
-  — `between/3`, `clause/2` — would need the engine's choice stack in its hands.
-  They belong in a Prolog-level library instead, which does not yet exist.
+* **A builtin's C half is deterministic, always.** One that could leave a
+  choice point behind would need the engine's choice stack in its hands, and a
+  module's C half deliberately has no access to it. This is not a small
+  detail: a failure-driven loop written from habit against another Prolog is
+  not slow here, it is WRONG and wrong quietly, which is how `retractall/1`
+  came to retract exactly one clause.
+  **The Prolog-level answer this entry said did not exist now does**, and it
+  is where every enumerating predicate lives: `between/3` is three clauses in
+  `lib/builtins.cicili`'s Coco half and `clause/2` is one over a `$clause/3`
+  primitive, so both backtrack properly — `findall(X, between(1,3,X), L)`
+  answers `[1,2,3]` — while the C they stand on stays deterministic. The rule
+  is the one MODULES.md states: nondeterministic goes in the Coco half, the
+  outside world goes in the C half, and both means a `$`-prefixed primitive
+  wrapped in a clause.
 * **Resuming assumes the clauses have not moved.** A choice point remembers a
   predicate by name and the position of the next clause to try, so retracting
   from underneath a suspended machine makes it resume at the wrong one. This is
@@ -3292,16 +3346,19 @@ machine work above.
   imply. Rebuilt, the case is GREEN with no change to anything. Worth
   knowing before the next hunt: a red in a `library/*.so` case after a pull
   is a stale module until proven otherwise.
-* **`tunnel`: nine reds, every one the same second.** The edge stand-in is a
-  `python3` process given a fixed `sleep 1` before the query, and this Mac's
-  `python3` is a pyenv shim that takes two to four seconds to start. The
-  query met nothing on the port, `Connection refused` read as a routing
+* **`tunnel`: nine reds, every one the same second.** The edge stand-in was
+  then a `python3` process given a fixed `sleep 1` before the query, and this
+  Mac's `python3` is a pyenv shim that takes two to four seconds to start.
+  The query met nothing on the port, `Connection refused` read as a routing
   failure, and the kill at the end of the check reached the edge before it
   had printed a line — which is why the edge's own output file was empty
-  rather than wrong. `test/tunnel.pl` now waits for the edge to say `edge up`
+  rather than wrong. `test/tunnel.pl` waits for the edge to say `edge up`
   (or `CANNOT BIND`, on port 80 without privilege, so that SKIP is decided on
   what the edge said rather than on what it had not said yet), fifteen
   seconds at most and well under one in practice. GREEN, port 80 SKIP.
+  **The edge is `test/edge.pl` now**, cocolog rather than python3 — it went
+  with the rest of the shell and Python on 2026-09-04 — so the start-up
+  wobble that caused this has no way back in.
 
 ## A list's depth is its length: five term walks off the C stack
 
