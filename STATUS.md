@@ -3519,6 +3519,80 @@ directive, all twelve checked, and `test/directives.pl` exercises directives
 through `run` only and never once through `-s`. Nothing in the tree stands on
 this path, which is why it has gone unseen rather than why it is harmless.
 
+## Every Zigurat type is an index key, and `--embed` indexes its strings
+
+The embedded store had no index on a String column. Not a cocolog limit: the
+Cicili MVCCS engine's B-tree holds ONE int64 per key (`BTKey`, a 56-byte
+record, every `bt_*` taking `int64_t k`), the server bridged a String key
+through an FNV-1a fold (`engine_text_key`) with the generated C++ re-checking
+the string on every row the index handed back, and the `defindex` macro could
+not do the same because it spliced the raw member as the key — `(bt_map idx
+(-> r NAME) …)`, a `std::string` where an `int64_t` goes — and had no way to
+know a column's kind: it receives the column's name, and `deftable`'s
+knowledge of which columns are TEXT died with its own expansion. So the Parsi
+compiler shipped every string-keyed index commented out ("string-keyed, no
+Cicili B-tree"), `embed/embed.cicili` scanned for every name and kb, and the
+`UNIQUE KEY` on a machine's name was never enforced here — the line the ninety
+rows entry above records as "that, and nothing deeper".
+
+**What changed, in ZiguratIP.** The engine states one key rule per column
+kind beside `text_key64` and exports the three folds (`engine_text_key`,
+`engine_real_key`, `engine_words_key`), so a defindex expansion and the
+server's generated C++ derive the same key from the same value: an INT key is
+the value; a REAL key (a new `(REAL c)` column kind, a double as its eight
+bytes — Parsi `Float`/`Double`/`Real` map to it, where before they rode as an
+int64) folds order-preserving, so its ranges are real ranges; a TEXT key is
+the FNV-1a hash, and a VECTOR key the hash over its elements' folds — hash
+order, so those two get `_equal` and nothing else, and the WHERE compiler
+scans for anything but equality on them (the `Float`/`Double` family is not
+hashed and ranges like a `Long`). `deftable` leaves its column kinds on the
+table symbol's plist and `defindex` reads them back — the one place two
+macro expansions in one image can meet — folding each key by kind and typing
+each wrapper by it (`_equal` over a TEXT column takes a `const std::string &`,
+over a REAL a `double`, over a VECTOR a `const dvec_t &`); a composite also
+answers its leading column alone through `_equal_first`. `_attach` answers 1
+the first time a store meets an index, and `_rebuild` fills the tree from the
+rows already there, counting rather than throwing the rows a UNIQUE tree
+refuses. The compiler's Cicili emitter no longer comments anything out;
+`doc/table.md` has a Keys section saying which types order and which hash.
+
+**What changed here.** `embed/embed.cicili` attaches the generated `(kb, name)`
+composites of clauses, props and tensors and the machines' NAME (unique) and
+KB indexes, rebuilding any the store meets for the first time inside the open
+transaction its first commit settles; every filtered walk goes through a
+`*_walk` that picks the narrowest index the context allows and hands the same
+callback the same context, so the string comparisons in the callbacks still
+decide — a hash collision is a wasted row visit. The one rebuild that can
+refuse rows is the machines' unique name, over a store holding two machines
+under one name, which only a store from before the twin fix can: the store
+still opens, by-name lookups scan as before, a `machines-name.rebuild` marker
+beside the store asks for the rebuild at the next open, and stderr says which
+twin to drop. `--embed` now refuses a twin name exactly as the server does.
+
+**Proof.** ZiguratIP's `mvccs_test` gained the TEXT index (find, miss, the
+empty text, a UNIQUE refusal, an update re-keying, a delete unmapping, a
+restart), the REAL index (the two zeros as one key, `less_than`,
+`greater_than_equal`, `not_equal` over six doubles), the VECTOR index (the
+whole vector, in order, not a prefix) and `_equal_first` over the five-by-six
+composite grid; `schema_test` proves the generated machines' TEXT index, its
+UNIQUE refusing a twin, and the KB index attached only at a reopen answering
+1, rebuilding to three rows, and being known and full on a third open. All
+green, with the consumer, contention and ageing suites. The regenerated
+`MVCCS-cicili/generated/` files are byte-for-byte what `make schema` writes.
+The server path has its own proof, `Test/run-keys-e2e.sh` over
+`Test/rpc/keys.parsi`: a table keyed by a `Double`, a `String` and a
+`Vector<Double>`, compiled by `parsi`, seeded and queried through the wire
+— the Double ranges (`<`, `>=`, the two zeros one key), the String equality
+and its UNIQUE refusing a twin, the Vector equality by whole content and
+order with a prefix never matching, every WHERE confirmed in the generated
+C++ to walk its index rather than the table, twice over, 10 checks, 0
+failed. Here: `test/groups-embed.pl` GREEN at the exact totals (34/24/60/59),
+the machines now claimed through the UNIQUE name index; the full suite
+`red: 0` — 51 GREEN, `torch-replay` SKIP on this box — on the rebuilt server
+and objects. One finding on the way, fixed where it bit: `doc/try.md` had the
+`CATCH` clause backwards; it is `CATCH ex AS Exception`, as `System/*.parsi`
+always wrote it.
+
 ## Not started
 
 * A garbage collector. The heap is reclaimed by backtracking and by nothing

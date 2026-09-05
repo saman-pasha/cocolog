@@ -18,11 +18,15 @@
 ;;;; (refcounted); every session shares the one Memory, exactly like the
 ;;;; server's connection threads share one store.
 ;;;;
-;;;; STRING COLUMNS HAVE NO INDEX HERE -- the Cicili B-tree keys int64,
-;;;; so the generated string-keyed defindex forms ship commented out and
-;;;; every by-name lookup below is a table scan. At cocolog's scale (a
-;;;; knowledge base of hundreds of clauses, a handful of machines) the
-;;;; scan is microseconds; the ID indexes do the row-precise work.
+;;;; STRING COLUMNS ARE INDEXED, as they are on the server: the generated
+;;;; KB and NAME indexes are defindex forms over the TEXT columns, keyed
+;;;; by the text's hash, equality only. A hash can collide, so every
+;;;; callback below still compares the strings it filters on -- the
+;;;; index narrows the walk, the callback decides -- and the machines'
+;;;; UNIQUE name is enforced here exactly as on the wire. An index a
+;;;; store meets for the first time (one written before the indexes
+;;;; existed) is rebuilt from its rows at open; see ce_engine_open for
+;;;; the one way that can fail and what happens then.
 
 (source "embed.cpp"
   (make :cpp #t
@@ -110,6 +114,13 @@
   (var Memory ce_mem)
   (var Zigurat::mapstream * ce_hexmap . nil)
   (var Zigurat::mapstream * ce_data . nil)
+
+  ;; 1 when the machines' UNIQUE name index could not be built over this
+  ;; store (it holds two machines under one name -- only a store from
+  ;; before the twin fix can) and the by-name lookups scan instead; the
+  ;; marker file beside the store asks for the rebuild again next open
+  (var int ce_names_scan . 0)
+  (var char ce_name_marker [600])
 
   ;; ---- the result stream, as tokens --------------------------------
   ;; The wire interleaves result bytes and typed fields in one stream;
@@ -535,6 +546,57 @@
       (state_delete_ids (aof ($ c ids)))
       (ce_ids_free (aof ($ c ids)))))
 
+  ;; ---- the walks: an index where the context names a key ---------
+  ;; Each picks the narrowest walk the context's filters allow and
+  ;; hands the same callback the same context, so the string
+  ;; comparisons in the callback still decide: a hash collision costs a
+  ;; row visit and never a wrong answer. Clauses, props and tensors each
+  ;; carry one (kb, name) index: both set is equality over the pair, a
+  ;; kb alone is equality on the leading level with every name under
+  ;; it walked (_equal_first), and a context naming neither walks the
+  ;; table.
+
+  (func clauses_walk ((ClausesCtx * c)) (out void)
+    (if (== (-> c kb) nil)
+        (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) c) clauses_cb)
+      (if (!= (-> c name) nil)
+          (IDX_COCOLOG_CLAUSES_KB_NAME_equal (aof ce_mem) (std::string (-> c kb))
+                                             (std::string (-> c name))
+                                             (cast (void *) c) clauses_cb)
+        (IDX_COCOLOG_CLAUSES_KB_NAME_equal_first (aof ce_mem) (std::string (-> c kb))
+                                                 (cast (void *) c) clauses_cb))))
+
+  (func props_walk ((PropsCtx * c)) (out void)
+    (if (== (-> c kb) nil)
+        (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) c) props_cb)
+      (if (!= (-> c name) nil)
+          (IDX_COCOLOG_PROPS_KB_NAME_equal (aof ce_mem) (std::string (-> c kb))
+                                           (std::string (-> c name))
+                                           (cast (void *) c) props_cb)
+        (IDX_COCOLOG_PROPS_KB_NAME_equal_first (aof ce_mem) (std::string (-> c kb))
+                                               (cast (void *) c) props_cb))))
+
+  (func tensors_walk ((TensorsCtx * c)) (out void)
+    (if (== (-> c kb) nil)
+        (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) c) tensors_cb)
+      (if (!= (-> c name) nil)
+          (IDX_COCOLOG_TENSORS_KB_NAME_equal (aof ce_mem) (std::string (-> c kb))
+                                             (std::string (-> c name))
+                                             (cast (void *) c) tensors_cb)
+        (IDX_COCOLOG_TENSORS_KB_NAME_equal_first (aof ce_mem) (std::string (-> c kb))
+                                                 (cast (void *) c) tensors_cb))))
+
+  ;; machines: the NAME index is UNIQUE, and the one that can be missing
+  ;; (ce_names_scan) -- then a name walks the table as it always did
+  (func machines_walk ((MachinesCtx * c)) (out void)
+    (if (and (!= (-> c name) nil) (== ce_names_scan 0))
+        (IDX_COCOLOG_MACHINES_NAME_equal (aof ce_mem) (std::string (-> c name))
+                                         (cast (void *) c) machines_cb)
+      (if (and (!= (-> c kb) nil) (== (-> c name) nil))
+          (IDX_COCOLOG_MACHINES_KB_equal (aof ce_mem) (std::string (-> c kb))
+                                         (cast (void *) c) machines_cb)
+        (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) c) machines_cb))))
+
   ;; finds one machine's row by name; answers whether it was there
   (func machine_by_name ((const char * name) (COCOLOG_MACHINES * out_row)) (out int)
     (let ((MachinesCtx c))
@@ -545,7 +607,7 @@
       (set ($ c emit) 0)
       (set ($ c first_only) 1)
       (set ($ c got) 0)
-      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (machines_walk (aof c))
       (if (== ($ c got) 0) (return 0))
       (set (cof out_row) ($ c row))
       (return 1)))
@@ -581,7 +643,7 @@
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
       (emit_open s "ordinal, body")
-      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (clauses_walk (aof c))
       (emit_result s CE_CLOSE)
       (emit_result s CE_DONE)))
 
@@ -595,7 +657,7 @@
       (set ($ c collect) 0)
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
-      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (clauses_walk (aof c))
       (emit_result s CE_RETURN)
       (emit_num s CE_TDB_LONG ($ c count))
       (emit_result s CE_DONE)))
@@ -611,7 +673,7 @@
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
       (emit_open s "name, arity, ordinal")
-      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (clauses_walk (aof c))
       (emit_result s CE_CLOSE)
       (emit_result s CE_DONE)))
 
@@ -625,7 +687,7 @@
       (set ($ c collect) 0)
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
-      (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof c)) props_cb)
+      (props_walk (aof c))
       (if (> ($ c count) 0)
           (block
             (emit_result s CE_RETURN)
@@ -655,7 +717,7 @@
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
       (emit_open s "name, arity, dynamic")
-      (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof c)) props_cb)
+      (props_walk (aof c))
       (emit_result s CE_CLOSE)
       (emit_result s CE_DONE)))
 
@@ -672,7 +734,7 @@
       (set ($ c collect) 1)
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
-      (COCOLOG_CLAUSES_cursor (aof ce_mem) (cast (void *) (aof c)) clauses_cb)
+      (clauses_walk (aof c))
       (clauses_delete_ids (aof ($ c ids)))
       (ce_ids_free (aof ($ c ids)))
       (if (== with_props 1)
@@ -685,7 +747,7 @@
             (set ($ p collect) 1)
             (set ($ p count) 0)
             (set ($ ($ p ids) v) nil) (set ($ ($ p ids) n) 0) (set ($ ($ p ids) cap) 0)
-            (COCOLOG_PROPS_cursor (aof ce_mem) (cast (void *) (aof p)) props_cb)
+            (props_walk (aof p))
             (props_delete_ids (aof ($ p ids)))
             (ce_ids_free (aof ($ p ids)))))
       ;; forget_all also empties the kb's tensors, as the Parsi body does
@@ -700,7 +762,7 @@
             (set ($ t collect) 1)
             (set ($ t count) 0)
             (set ($ ($ t ids) v) nil) (set ($ ($ t ids) n) 0) (set ($ ($ t ids) cap) 0)
-            (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) (aof t)) tensors_cb)
+            (tensors_walk (aof t))
             (tensors_delete_ids (aof ($ t ids)))
             (ce_ids_free (aof ($ t ids)))))
       (emit_result s CE_RETURN)
@@ -780,7 +842,7 @@
       (set ($ c first_only) 0)
       (set ($ c got) 0)
       (emit_open s "id, kb, status, chunks")
-      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (machines_walk (aof c))
       (emit_result s CE_CLOSE)
       (emit_result s CE_DONE)))
 
@@ -806,7 +868,7 @@
       (set ($ c first_only) 0)
       (set ($ c got) 0)
       (emit_open s "id, name, status, chunks")
-      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (machines_walk (aof c))
       (emit_result s CE_CLOSE)
       (emit_result s CE_DONE)))
 
@@ -834,7 +896,7 @@
       (set ($ c emit) 0)
       (set ($ c first_only) 1)
       (set ($ c got) 0)
-      (COCOLOG_MACHINES_cursor (aof ce_mem) (cast (void *) (aof c)) machines_cb)
+      (machines_walk (aof c))
       (if (== ($ c got) 0)
           (block
             (set_isolation_level (txn) READ_COMMITTED)
@@ -897,7 +959,7 @@
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
       (emit_open s "vec")
-      (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) (aof c)) tensors_cb)
+      (tensors_walk (aof c))
       (emit_result s CE_CLOSE)
       (emit_result s CE_DONE)))
 
@@ -912,7 +974,7 @@
       (set ($ c collect) 1)
       (set ($ c count) 0)
       (set ($ ($ c ids) v) nil) (set ($ ($ c ids) n) 0) (set ($ ($ c ids) cap) 0)
-      (COCOLOG_TENSORS_cursor (aof ce_mem) (cast (void *) (aof c)) tensors_cb)
+      (tensors_walk (aof c))
       (tensors_delete_ids (aof ($ c ids)))
       (ce_ids_free (aof ($ c ids)))
       (emit_result s CE_RETURN)
@@ -1121,13 +1183,50 @@
               (IDX_COCOLOG_MACHINE_STATE_ID_attach (aof ce_mem))
               (IDX_COCOLOG_MACHINE_STATE_MACHINE_ID_attach (aof ce_mem))
               (IDX_COCOLOG_TENSORS_ID_attach (aof ce_mem))
+              ;; the string-keyed indexes. An attach that answers 1 is an
+              ;; index this store meets for the first time -- a store
+              ;; written before the indexes existed -- and its tree is
+              ;; built from the rows already there, inside the open
+              ;; transaction the commit below settles. None of these can
+              ;; refuse a row: they are not unique.
+              (if (== 1 (IDX_COCOLOG_CLAUSES_KB_NAME_attach (aof ce_mem)))
+                  (IDX_COCOLOG_CLAUSES_KB_NAME_rebuild (aof ce_mem)))
+              (if (== 1 (IDX_COCOLOG_PROPS_KB_NAME_attach (aof ce_mem)))
+                  (IDX_COCOLOG_PROPS_KB_NAME_rebuild (aof ce_mem)))
+              (if (== 1 (IDX_COCOLOG_TENSORS_KB_NAME_attach (aof ce_mem)))
+                  (IDX_COCOLOG_TENSORS_KB_NAME_rebuild (aof ce_mem)))
+              (if (== 1 (IDX_COCOLOG_MACHINES_KB_attach (aof ce_mem)))
+                  (IDX_COCOLOG_MACHINES_KB_rebuild (aof ce_mem)))
+              ;; the machines' name index is UNIQUE, and the one rebuild
+              ;; that can refuse rows: a store holding two machines under
+              ;; one name -- which only a store from before the twin fix
+              ;; can. The store still opens; its by-name lookups scan (as
+              ;; they did before the index existed), a marker beside the
+              ;; store asks for the rebuild again at the next open, and
+              ;; stderr says what to do. Drop one twin (machine_drop),
+              ;; reopen, and the index builds.
+              (snprintf ce_name_marker 600 "%s/machines-name.rebuild" dir)
+              (let ((int want . #'(IDX_COCOLOG_MACHINES_NAME_attach (aof ce_mem))))
+                (if (== 0 (access ce_name_marker F_OK)) (set want 1))
+                (set ce_names_scan 0)
+                (if (== want 1)
+                    (let ((int64_t refused . #'(IDX_COCOLOG_MACHINES_NAME_rebuild (aof ce_mem))))
+                      (if (== refused 0)
+                          (unlink ce_name_marker)
+                        (block
+                          (set ce_names_scan 1)
+                          (let ((FILE * mk . #'(fopen ce_name_marker "w")))
+                            (if (!= mk nil) (fclose mk)))
+                          (fprintf stderr "cocolog: the store in %s holds %lld machine(s) whose name another machine already carries, so its UNIQUE name index cannot be built; by-name lookups scan until one twin of each is dropped (machine_drop) and the store is reopened\n"
+                                   dir (cast llong refused)))))))
               (COCOLOG_CLAUSES_SEQ_attach (aof ce_mem))
               (COCOLOG_PROPS_SEQ_attach (aof ce_mem))
               (COCOLOG_MACHINES_SEQ_attach (aof ce_mem))
               (COCOLOG_MACHINE_STATE_SEQ_attach (aof ce_mem))
               (COCOLOG_TENSORS_SEQ_attach (aof ce_mem))
               ;; the open transaction the first session inherits is not
-              ;; wanted -- sessions begin their own
+              ;; wanted -- sessions begin their own; a rebuild above
+              ;; lands with it
               (commit_transaction (aof ce_mem)))
             (catch ((const ZiguratException & e))
               (if (and (!= err nil) (> errcap 0))
