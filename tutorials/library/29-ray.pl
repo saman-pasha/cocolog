@@ -1,4 +1,4 @@
-%% LIBRARY 29 -- library(ray): a game window, 2D and 3D, from clauses
+%% LIBRARY 29 -- library(ray): a game window, 2D, 3D and textures, from clauses
 %%
 %%     ./cocolog run tutorials/library/29-ray.pl main
 %%
@@ -40,7 +40,26 @@
 %%     ray_key_down(+Key)  ray_key_pressed(+Key)
 %%     ray_mouse(-X, -Y)   ray_mouse_down(+Button)
 %%     ray_frame_time(-Seconds)  ray_time(-Seconds)
-%%     ray_screenshot(+Path)     ray_log_level(+Level)
+%%     ray_screenshot(+Path)     ray_screen_pixel(+X, +Y, -R, -G, -B, -A)
+%%     ray_log_level(+Level)
+%%     ray_texture_load(+Path, -Tex)   ray_texture_unload(+Tex)   ray_texture_size(+Tex, -W, -H)
+%%     ray_texture(+Tex, +X, +Y)       ray_texture(+Tex, +X, +Y, +Tint)
+%%     ray_texture_ex(+Tex, +X, +Y, +Rotation, +Scale, +Tint)
+%%     ray_sprite(+Tex, +Source, +X, +Y)          Source is rect(X, Y, W, H):
+%%     ray_sprite(+Tex, +Source, +X, +Y, +Tint)   one cell of an atlas
+%%     ray_sprite_ex(+Tex, +Source, +Dest, +OX, +OY, +Rotation, +Tint)
+%%     ray_texture_filter(+Tex, +Filter)   ray_texture_wrap(+Tex, +Wrap)
+%%     ray_canvas(+W, +H, -Tex)   ray_canvas_begin(+Tex)   ray_canvas_end
+%%
+%% A TEXTURE is a handle -- an index into the library's own table, the
+%% way a socket is in library(tcp) -- and a SPRITE is a rectangle of one,
+%% which is what an atlas is: one PNG of tiles, and one fact per tile
+%% naming its cell. A CANVAS is a texture you draw INTO, between
+%% ray_canvas_begin and ray_canvas_end, and then draw like any other:
+%% a map of a thousand hexes drawn once, and blitted every frame. raylib
+%% hands such a texture back upside down (a framebuffer's first row is
+%% its bottom); the library knows which of its handles is a canvas and
+%% turns it the right way up, so a program never writes the flip.
 %%
 %% A COLOR is a name from raylib's own palette (`maroon', `raywhite'),
 %% or `rgb(R,G,B)', or `rgba(R,G,B,A)'. A KEY is a name (`space', `up')
@@ -51,8 +70,8 @@
 %% display any more than the curl lesson can assume a network -- and the
 %% half of the library that needs no window is exactly the half that is
 %% clauses, which a lesson can hold to `must/3'. The windowed half is
-%% proved, to the PIXEL, by test/ray.pl under Xvfb: it draws frames and
-%% compares the PNGs. Run this file's loop yourself where there is
+%% proved, to the PIXEL, by test/ray.pl under Xvfb: it draws frames,
+%% compares the PNGs and reads pixels back. Run this file's loop where there is
 %% glass; the header above is the whole program.
 
 :- use_module(library(ray)).
@@ -92,6 +111,18 @@ main :-
     ray_level(none, NL),
     must('log level none', NL, 7),
 
+    format("~n-- texture filters and wraps: raylib.h's enums as rows~n"),
+    ray_filter(point, FP),
+    must('point is raylib''s default filter, 0', FP, 0),
+    ray_filter(bilinear, FB),
+    must('bilinear', FB, 1),
+    findall(F, ray_filter(F, _), Filters),
+    show('filters', Filters),
+    ray_wrap(clamp, WC),
+    must('clamp', WC, 1),
+    findall(W, ray_wrap(W, _), Wraps),
+    show('wraps', Wraps),
+
     format("~n-- what a window session looks like (not run here):~n"),
     format("     ?- ray_open(640, 360, 'coco'), ray_fps(60).~n"),
     format("     ?- ray_begin, ray_clear(raywhite),~n"),
@@ -99,6 +130,16 @@ main :-
     format("        ray_text('the world is clauses', 10, 100, 20, darkgray),~n"),
     format("        ray_end.~n"),
     format("     ?- ray_screenshot('frame.png'), ray_close.~n"),
+    format("~n-- and with an atlas of tiles, and a canvas (not run here):~n"),
+    format("     ?- ray_texture_load('tiles.png', Atlas),~n"),
+    format("        assertz(tile(grass, rect(0, 0, 32, 32))),~n"),
+    format("        assertz(tile(water, rect(32, 0, 32, 32))).~n"),
+    format("     ?- ray_canvas(640, 360, Map),                 % drawn ONCE ...~n"),
+    format("        ray_canvas_begin(Map),~n"),
+    format("        forall(( hex(Q, R, Kind), tile(Kind, Cell), hex_pixel(Q, R, X, Y) ),~n"),
+    format("               ray_sprite(Atlas, Cell, X, Y)),~n"),
+    format("        ray_canvas_end.~n"),
+    format("     ?- ray_begin, ray_texture(Map, 0, 0), ray_end.   % ... and blitted every frame~n"),
 
     format("~ndone~n").
 

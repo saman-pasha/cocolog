@@ -36,14 +36,32 @@
 ;;;;
 ;;;; HEADLESS IS A FIRST-CLASS ARRANGEMENT, because the suite runs where
 ;;;; there is no screen: `ray_screenshot/1' writes the framebuffer to a
-;;;; PNG, so under Xvfb a test can draw a frame and then LOOK AT IT --
-;;;; test/ray.sh checks pixels, not exit codes.
+;;;; PNG, and `ray_screen_pixel/6' reads one pixel of it back as numbers,
+;;;; so under Xvfb a test can draw a frame and then LOOK AT IT --
+;;;; test/ray.pl checks pixels, not exit codes.
 ;;;;
-;;;; WHAT IS NOT HERE YET, honestly: textures and models from files,
-;;;; sound, gamepads, shaders, text measuring. The surface below is the
-;;;; loop, 2D shapes and text, a 3D camera with primitives, keyboard and
-;;;; mouse -- enough to write a real game as clauses, and each absence is
-;;;; a predicate away rather than a redesign.
+;;;; A TEXTURE IS A HANDLE, the shape library(tcp) gives a socket: an
+;;;; index into a table this module owns, never raylib's GL name. The
+;;;; table remembers what KIND each slot is -- a texture loaded from a
+;;;; file, or a CANVAS (raylib's RenderTexture: a texture you draw INTO,
+;;;; between `ray_canvas_begin' and `ray_canvas_end') -- because a canvas
+;;;; is a framebuffer and a framebuffer's row 0 is the BOTTOM of what was
+;;;; drawn, so read through a texture it is upside down. That is raylib's
+;;;; best-known FAQ, and the answer everywhere else is a negative source
+;;;; height at every draw; here the kind decides, in `ray_source', and a
+;;;; canvas draws like any texture. A SPRITE is a rectangle of a texture
+;;;; -- `rect(X, Y, W, H)', top-down like everything 2D -- which is what an
+;;;; atlas is: one PNG of tiles, one fact per tile naming its cell. An
+;;;; integer this module did not hand out is not a texture and the call
+;;;; FAILS, which is the difference between a failed goal and a draw from
+;;;; a stale GL name. `ray_close/0' forgets every slot, because the GL
+;;;; context that owned them goes with the window.
+;;;;
+;;;; WHAT IS NOT HERE YET, honestly: models from files, sound, gamepads,
+;;;; shaders, text measuring. The surface below is the loop, 2D shapes
+;;;; and text, textures and a canvas, a 3D camera with primitives,
+;;;; keyboard and mouse -- enough to write a real game as clauses, and
+;;;; each absence is a predicate away rather than a redesign.
 ;;;;
 ;;;; ---- the surface -------------------------------------------------------
 ;;;;
@@ -80,6 +98,21 @@
 ;;;;   ray_frame_time(-Seconds)                           the last frame's
 ;;;;   ray_time(-Seconds)                                 since the window opened
 ;;;;   ray_screenshot(+Path)                              the framebuffer as a PNG, at that path
+;;;;   ray_screen_pixel(+X, +Y, -R, -G, -B, -A)            one pixel of the framebuffer, read back
+;;;;   ray_texture_load(+Path, -Tex)                      LoadTexture: a handle; existence_error for no such file, fails if it would not decode
+;;;;   ray_texture_unload(+Tex)                           the GPU memory and the slot; a canvas too
+;;;;   ray_texture_size(+Tex, -W, -H)
+;;;;   ray_texture(+Tex, +X, +Y)                          DrawTexture, untinted
+;;;;   ray_texture(+Tex, +X, +Y, +Tint)                   ... tinted: white is as loaded
+;;;;   ray_texture_ex(+Tex, +X, +Y, +Rotation, +Scale, +Tint)     DrawTextureEx: degrees, and a factor
+;;;;   ray_sprite(+Tex, +Source, +X, +Y)                  DrawTextureRec: Source is rect(SX, SY, SW, SH), a cell of an atlas
+;;;;   ray_sprite(+Tex, +Source, +X, +Y, +Tint)
+;;;;   ray_sprite_ex(+Tex, +Source, +Dest, +OX, +OY, +Rotation, +Tint)  DrawTexturePro: into a rect/4, rotated about the origin
+;;;;   ray_texture_filter(+Tex, +Filter)                  point bilinear trilinear anisotropic_4x anisotropic_8x anisotropic_16x
+;;;;   ray_texture_wrap(+Tex, +Wrap)                      repeat clamp mirror_repeat mirror_clamp
+;;;;   ray_canvas(+W, +H, -Tex)                           LoadRenderTexture: a texture you draw INTO ...
+;;;;   ray_canvas_begin(+Tex)                             ... between these two, and then draw like any texture
+;;;;   ray_canvas_end/0
 ;;;;   ray_log_level(+Level)                              all trace debug info warning error fatal none
 ;;;;   ray_color(?Name, ?R, ?G, ?B)                       the palette, as facts a program can query
 ;;;;   ray_rgba(+Color, -R, -G, -B, -A)                   a color spec resolved
@@ -87,6 +120,8 @@
 ;;;;   ray_keycode(+Key, -Code)                           a name, a letter, or a code as itself
 ;;;;   ray_button(?Name, ?Code)
 ;;;;   ray_level(?Name, ?Code)
+;;;;   ray_filter(?Name, ?Code)                           the texture filter table
+;;;;   ray_wrap(?Name, ?Code)                             and the wrap table
 
 (DEFPARAMETER *ray-predicates*
   '(("ray_open"        3 ray_p_open)
@@ -118,6 +153,19 @@
     ("ray_frame_time"  1 ray_p_frame_time)
     ("ray_time"        1 ray_p_time)
     ("ray_screenshot"  1 ray_p_screenshot)
+    ("ray_screen_pixel" 6 ray_p_screen_pixel)
+    ("ray_texture_load"   2 ray_p_texture_load)
+    ("ray_texture_unload" 1 ray_p_texture_unload)
+    ("ray_texture_size"   3 ray_p_texture_size)
+    ("$ray_texture"       7 ray_p_texture)
+    ("$ray_texture_ex"    9 ray_p_texture_ex)
+    ("$ray_sprite"       11 ray_p_sprite)
+    ("$ray_sprite_ex"    16 ray_p_sprite_ex)
+    ("$ray_texture_filter" 2 ray_p_texture_filter)
+    ("$ray_texture_wrap"   2 ray_p_texture_wrap)
+    ("ray_canvas"         3 ray_p_canvas)
+    ("ray_canvas_begin"   1 ray_p_canvas_begin)
+    ("ray_canvas_end"     0 ray_p_canvas_end)
     ("$ray_log_level"  1 ray_p_log_level)))
 
 ;;;; ------------------------------------------------------------------
@@ -181,6 +229,22 @@
            "ray_cube_wires(X, Y, Z, W, H, L, C) :- ray_rgba(C, R, G, B, A), '$ray_cube_wires'(X, Y, Z, W, H, L, R, G, B, A)."
            "ray_sphere(X, Y, Z, Rad, C) :- ray_rgba(C, R, G, B, A), '$ray_sphere'(X, Y, Z, Rad, R, G, B, A)."
 
+           ;; ---- textures: a tint is a color spec, a sprite is a rect/4 ----
+           ;; Untinted means WHITE, which is raylib's own idiom: the tint
+           ;; multiplies, and white leaves the pixels as loaded.
+           "ray_texture(T, X, Y) :- ray_texture(T, X, Y, white)."
+           "ray_texture(T, X, Y, C) :- ray_rgba(C, R, G, B, A), '$ray_texture'(T, X, Y, R, G, B, A)."
+           "ray_texture_ex(T, X, Y, Rot, Scale, C) :- ray_rgba(C, R, G, B, A), '$ray_texture_ex'(T, X, Y, Rot, Scale, R, G, B, A)."
+           "ray_sprite(T, Src, X, Y) :- ray_sprite(T, Src, X, Y, white)."
+           "ray_sprite(T, rect(SX, SY, SW, SH), X, Y, C) :- ray_rgba(C, R, G, B, A), '$ray_sprite'(T, SX, SY, SW, SH, X, Y, R, G, B, A)."
+           "ray_sprite_ex(T, rect(SX, SY, SW, SH), rect(DX, DY, DW, DH), OX, OY, Rot, C) :- ray_rgba(C, R, G, B, A), '$ray_sprite_ex'(T, SX, SY, SW, SH, DX, DY, DW, DH, OX, OY, Rot, R, G, B, A)."
+           ;; raylib.h's TextureFilter and TextureWrap enums, in order
+           "ray_filter(point, 0). ray_filter(bilinear, 1). ray_filter(trilinear, 2)."
+           "ray_filter(anisotropic_4x, 3). ray_filter(anisotropic_8x, 4). ray_filter(anisotropic_16x, 5)."
+           "ray_texture_filter(T, F) :- ray_filter(F, N), '$ray_texture_filter'(T, N)."
+           "ray_wrap(repeat, 0). ray_wrap(clamp, 1). ray_wrap(mirror_repeat, 2). ray_wrap(mirror_clamp, 3)."
+           "ray_texture_wrap(T, W) :- ray_wrap(W, N), '$ray_texture_wrap'(T, N)."
+
            ;; ---- keys are names; raylib's codes stay in one table ----
            "ray_key(space, 32).  ray_key(apostrophe, 39). ray_key(comma, 44)."
            "ray_key(minus, 45).  ray_key(period, 46).     ray_key(slash, 47)."
@@ -216,13 +280,18 @@
   (import "./sdk.cicili")
   (coco-sdk)
 
-  ;;; THE FIRE ESCAPE, used for what it is for. raylib passes Color and
-  ;;; Camera3D BY VALUE; describing them to Cicili would emit a second
-  ;;; struct definition beside raylib.h's. One wrapper per by-value call,
-  ;;; one line each, scalars in, no logic -- and the bool-returning
-  ;;; queries beside them, because C's _Bool in a prototype is a type
-  ;;; Cicili does not spell. Everything else is declared to Cicili below
-  ;;; and called from Cicili.
+  ;;; THE FIRE ESCAPE, used for what it is for. raylib passes Color,
+  ;;; Camera3D, Texture2D, Rectangle and Image BY VALUE; describing them
+  ;;; to Cicili would emit a second struct definition beside raylib.h's.
+  ;;; One wrapper per by-value call, one line each, scalars in, no logic
+  ;;; -- and the bool-returning queries beside them, because C's _Bool in
+  ;;; a prototype is a type Cicili does not spell. Everything else is
+  ;;; declared to Cicili below and called from Cicili.
+  ;;;
+  ;;; THE TEXTURE TABLE LIVES HERE TOO, because its rows are by-value
+  ;;; structs -- but only the rows. Which slot is free, what kind it
+  ;;; holds and whether a draw needs the flip are decided in Cicili, in
+  ;;; `ray_tex_kind' and the helpers under it; the C below indexes.
   (code "static inline Color rw_c(long r, long g, long b, long a) { Color c = { (unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a }; return c; }")
   (code "void rw_clear(long r, long g, long b, long a) { ClearBackground(rw_c(r,g,b,a)); }")
   (code "void rw_rect(long x, long y, long w, long h, long r, long g, long b, long a) { DrawRectangle((int)x,(int)y,(int)w,(int)h, rw_c(r,g,b,a)); }")
@@ -242,6 +311,26 @@
   (code "int rw_key_pressed(long k) { return IsKeyPressed((int)k); }")
   (code "int rw_mouse_down(long b) { return IsMouseButtonDown((int)b); }")
   (code "int rw_screenshot(const char * path) { Image img = LoadImageFromScreen(); int ok = ExportImage(img, path); UnloadImage(img); return ok; }")
+  (code "int rw_file_exists(const char * path) { return FileExists(path); }")
+  (code "static Texture2D rw_tex[256]; static RenderTexture2D rw_rt[256]; static Image rw_shot;")
+  (code "int rw_tex_load(long s, const char * path) { Texture2D t = LoadTexture(path); rw_tex[s] = t; return t.id > 0 && t.width > 0 && t.height > 0; }")
+  (code "void rw_tex_unload(long s) { UnloadTexture(rw_tex[s]); }")
+  (code "int rw_canvas_load(long s, long w, long h) { RenderTexture2D r = LoadRenderTexture((int)w, (int)h); rw_rt[s] = r; rw_tex[s] = r.texture; return r.id > 0 && r.texture.id > 0; }")
+  (code "void rw_canvas_unload(long s) { UnloadRenderTexture(rw_rt[s]); }")
+  (code "void rw_canvas_begin(long s) { BeginTextureMode(rw_rt[s]); }")
+  (code "long rw_tex_width(long s) { return rw_tex[s].width; }")
+  (code "long rw_tex_height(long s) { return rw_tex[s].height; }")
+  (code "void rw_tex_filter(long s, long f) { SetTextureFilter(rw_tex[s], (int)f); }")
+  (code "void rw_tex_wrap(long s, long w) { SetTextureWrap(rw_tex[s], (int)w); }")
+  (code "void rw_texture(long s, long x, long y, long r, long g, long b, long a) { DrawTexture(rw_tex[s], (int)x, (int)y, rw_c(r,g,b,a)); }")
+  (code "void rw_texture_ex(long s, double x, double y, double rot, double scale, long r, long g, long b, long a) { Vector2 p = { (float)x, (float)y }; DrawTextureEx(rw_tex[s], p, (float)rot, (float)scale, rw_c(r,g,b,a)); }")
+  (code "void rw_sprite(long s, double sx, double sy, double sw, double sh, double x, double y, long r, long g, long b, long a) { Rectangle src = { (float)sx, (float)sy, (float)sw, (float)sh }; Vector2 p = { (float)x, (float)y }; DrawTextureRec(rw_tex[s], src, p, rw_c(r,g,b,a)); }")
+  (code "void rw_sprite_ex(long s, double sx, double sy, double sw, double sh, double dx, double dy, double dw, double dh, double ox, double oy, double rot, long r, long g, long b, long a) { Rectangle src = { (float)sx, (float)sy, (float)sw, (float)sh }; Rectangle dst = { (float)dx, (float)dy, (float)dw, (float)dh }; Vector2 o = { (float)ox, (float)oy }; DrawTexturePro(rw_tex[s], src, dst, o, (float)rot, rw_c(r,g,b,a)); }")
+  (code "void rw_shot_take(void) { rw_shot = LoadImageFromScreen(); }")
+  (code "void rw_shot_drop(void) { UnloadImage(rw_shot); }")
+  (code "long rw_shot_width(void) { return rw_shot.width; }")
+  (code "long rw_shot_height(void) { return rw_shot.height; }")
+  (code "void rw_shot_color(long x, long y, long * out) { Color c = GetImageColor(rw_shot, (int)x, (int)y); out[0] = c.r; out[1] = c.g; out[2] = c.b; out[3] = c.a; }")
 
   ;;; The shims, declared to Cicili so it can emit calls to them.
   (decl) (func rw_clear ((long r) (long g) (long b) (long a)))
@@ -262,6 +351,25 @@
   (decl) (func rw_key_pressed ((long k)) (out int))
   (decl) (func rw_mouse_down ((long b)) (out int))
   (decl) (func rw_screenshot ((const char * path)) (out int))
+  (decl) (func rw_file_exists ((const char * path)) (out int))
+  (decl) (func rw_tex_load ((long s) (const char * path)) (out int))
+  (decl) (func rw_tex_unload ((long s)))
+  (decl) (func rw_canvas_load ((long s) (long w) (long h)) (out int))
+  (decl) (func rw_canvas_unload ((long s)))
+  (decl) (func rw_canvas_begin ((long s)))
+  (decl) (func rw_tex_width ((long s)) (out long))
+  (decl) (func rw_tex_height ((long s)) (out long))
+  (decl) (func rw_tex_filter ((long s) (long f)))
+  (decl) (func rw_tex_wrap ((long s) (long w)))
+  (decl) (func rw_texture ((long s) (long x) (long y) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_texture_ex ((long s) (double x) (double y) (double rot) (double scale) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_sprite ((long s) (double sx) (double sy) (double sw) (double sh) (double x) (double y) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_sprite_ex ((long s) (double sx) (double sy) (double sw) (double sh) (double dx) (double dy) (double dw) (double dh) (double ox) (double oy) (double rot) (long r) (long g) (long b) (long a)))
+  (decl) (func rw_shot_take ())
+  (decl) (func rw_shot_drop ())
+  (decl) (func rw_shot_width () (out long))
+  (decl) (func rw_shot_height () (out long))
+  (decl) (func rw_shot_color ((long x) (long y) (long * out)))
 
   ;;; raylib's scalar surface, declared to Cicili and called directly --
   ;;; the prototypes match raylib.h exactly, which the compiler checks.
@@ -270,6 +378,9 @@
   (decl) (func BeginDrawing ())
   (decl) (func EndDrawing ())
   (decl) (func EndMode3D ())
+  (decl) (func EndTextureMode ())
+  (decl) (func GetScreenWidth () (out int))
+  (decl) (func GetScreenHeight () (out int))
   (decl) (func SetTargetFPS ((int fps)))
   (decl) (func SetTraceLogLevel ((int level)))
   (decl) (func DrawFPS ((int x) (int y)))
@@ -295,6 +406,53 @@
           (if (coco_m_float e (coco_m_arg e g (cast size_t i)) v) (return 1))
           (return (coco_m_type_error e "number" (coco_m_arg e g (cast size_t i))))))
 
+  ;;; ---- the texture table: a handle is a slot, and the slot knows its kind ----
+  ;;; 0 is free, 1 a texture from a file, 2 a canvas. Zero as "free" is
+  ;;; right here where tcp's table needed -1: a slot is not a descriptor,
+  ;;; and a static array of zeros is a table with nothing in it.
+  (static) (var int ray_tex_kind [256])
+
+  (static)
+  (func ray_slot_new () (out int)
+        (for ((int i . 0)) (< i 256) ((++ i))
+             (if (== (nth i ray_tex_kind) 0) (return i)))
+        (return -1))
+
+  ;;; Free a slot whatever it holds; a free one is left alone.
+  (static)
+  (func ray_slot_free ((int s)) (out void)
+        (if (== (nth s ray_tex_kind) 1) (rw_tex_unload (cast long s)))
+        (if (== (nth s ray_tex_kind) 2) (rw_canvas_unload (cast long s)))
+        (set (nth s ray_tex_kind) 0))
+
+  ;;; The lookup every texture predicate goes through: argument I as a
+  ;;; handle THIS MODULE handed out, or 0. An out-of-range integer and a
+  ;;; free slot both fail the call rather than reaching a GL name.
+  (static)
+  (func ray_tex_arg ((coco_engine * e) (size_t g) (int i) (int * slot)) (out int)
+        (let ((i64 v . 0))
+          (if (not (ray_iarg e g i (aof v))) (return 0))
+          (if (< v 0) (return 0))
+          (if (>= v 256) (return 0))
+          (if (== (nth v ray_tex_kind) 0) (return 0))
+          (set (cof slot) (cast int v))
+          (return 1)))
+
+  ;;; A CANVAS IS A FRAMEBUFFER, AND A FRAMEBUFFER'S ROW 0 IS THE BOTTOM of
+  ;;; what was drawn into it -- so read through a texture it is upside
+  ;;; down. raylib's spelling of the flip is a NEGATIVE source height,
+  ;;; with the source's y moved to where the region's top row sits counted
+  ;;; from the bottom. This turns a caller's top-down rect into that when
+  ;;; the slot is a canvas, and leaves a texture's alone; the caller never
+  ;;; sees the difference, which is the point of the kind being in the
+  ;;; table rather than in every draw call a program writes.
+  (static)
+  (func ray_source ((int s) (double * sy) (double * sh)) (out void)
+        (if (== (nth s ray_tex_kind) 2)
+            (block
+              (set (cof sy) (- (- (cast double (rw_tex_height (cast long s))) (cof sy)) (cof sh)))
+              (set (cof sh) (- 0.0 (cof sh))))))
+
   ;;; ---- the window and the frame ----
   (func ray_p_open ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 w . 0) (i64 h . 0) (char title [512]))
@@ -305,7 +463,11 @@
           (InitWindow (cast int w) (cast int h) title)
           (return (rw_ready))))
 
+  ;;; The GL context goes with the window, and every texture with it: the
+  ;;; slots are freed FIRST, while unloading is still a thing that can be
+  ;;; done, and a handle from a closed window is not a handle any more.
   (func ray_p_close ((coco_engine * e) (size_t g)) (out int)
+        (for ((int i . 0)) (< i 256) ((++ i)) (ray_slot_free i))
         (CloseWindow) (return 1))
 
   (func ray_p_closing ((coco_engine * e) (size_t g)) (out int)
@@ -518,6 +680,184 @@
           (if (not (coco_m_text e (coco_m_arg e g 0) path (sizeof path)))
               (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
           (return (rw_screenshot path))))
+
+  ;;; One pixel of the framebuffer, as four numbers. The image raylib
+  ;;; reads back is the RENDER size, which a HiDPI window makes larger than
+  ;;; the screen a program draws in; the coordinates here are the screen's,
+  ;;; the ones `ray_rect' took, scaled to the image. Out of the window
+  ;;; FAILS -- raylib would answer a blank pixel and log about it, and a
+  ;;; test that asks about a pixel that is not there should hear no.
+  (func ray_p_screen_pixel ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 x . 0) (i64 y . 0) (i64 sw . 0) (i64 sh . 0)
+              (i64 rx . 0) (i64 ry . 0) (long c [4]))
+          (if (not (ray_iarg e g 0 (aof x))) (return 0))
+          (if (not (ray_iarg e g 1 (aof y))) (return 0))
+          (set sw (cast i64 (GetScreenWidth)))
+          (set sh (cast i64 (GetScreenHeight)))
+          (if (< x 0) (return 0))
+          (if (< y 0) (return 0))
+          (if (>= x sw) (return 0))
+          (if (>= y sh) (return 0))
+          (rw_shot_take)
+          (set rx (/ (* x (cast i64 (rw_shot_width))) sw))
+          (set ry (/ (* y (cast i64 (rw_shot_height))) sh))
+          (rw_shot_color (cast long rx) (cast long ry) c)
+          (rw_shot_drop)
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (coco_m_unify_int e (coco_m_arg e g (+ j 2)) (cast i64 (nth j c))))
+                   (return 0)))
+          (return 1)))
+
+  ;;; ---- textures ----
+  ;;; No such file is an existence_error, the ISO shape and the common
+  ;;; mistake; a file that IS there and would not decode FAILS, and raylib
+  ;;; has said why on its log at whatever level the caller left it.
+  (func ray_p_texture_load ((coco_engine * e) (size_t g)) (out int)
+        (let ((char path [4096]) (int s . -1))
+          (if (not (coco_m_text e (coco_m_arg e g 0) path (sizeof path)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (if (not (rw_file_exists path))
+              (return (coco_m_existence_error e "file" (coco_m_arg e g 0))))
+          (set s (ray_slot_new))
+          (if (< s 0) (return 0))
+          (if (not (rw_tex_load (cast long s) path)) (return 0))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 s)))
+              (block (rw_tex_unload (cast long s)) (return 0)))
+          (set (nth s ray_tex_kind) 1)
+          (return 1)))
+
+  (func ray_p_texture_unload ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (ray_slot_free s)
+          (return 1)))
+
+  (func ray_p_texture_size ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (rw_tex_width (cast long s)))))
+              (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 (rw_tex_height (cast long s)))))))
+
+  ;;; The whole texture at X, Y. A canvas goes through the sprite shim
+  ;;; with its whole extent as the source, flipped by `ray_source'.
+  (func ray_p_texture ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 v [6]) (double sy . 0.0) (double sh . 0.0))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (for ((int j . 0)) (< j 6) ((++ j))
+               (if (not (ray_iarg e g (+ j 1) (+ v j))) (return 0)))
+          (if (== (nth s ray_tex_kind) 1)
+              (block
+                (rw_texture (cast long s) (cast long (nth 0 v)) (cast long (nth 1 v))
+                            (cast long (nth 2 v)) (cast long (nth 3 v))
+                            (cast long (nth 4 v)) (cast long (nth 5 v)))
+                (return 1)))
+          (set sh (cast double (rw_tex_height (cast long s))))
+          (ray_source s (aof sy) (aof sh))
+          (rw_sprite (cast long s) 0.0 sy (cast double (rw_tex_width (cast long s))) sh
+                     (cast double (nth 0 v)) (cast double (nth 1 v))
+                     (cast long (nth 2 v)) (cast long (nth 3 v))
+                     (cast long (nth 4 v)) (cast long (nth 5 v)))
+          (return 1)))
+
+  ;;; Rotated and scaled. DrawTextureEx has no source rectangle to flip,
+  ;;; so a canvas is drawn as raylib draws it inside: DrawTexturePro over
+  ;;; the whole source, into a destination scaled by the factor.
+  (func ray_p_texture_ex ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (double p [4]) (i64 c [4])
+              (double w . 0.0) (double h . 0.0) (double sy . 0.0) (double sh . 0.0))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_farg e g (+ j 1) (+ p j))) (return 0)))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 5) (+ c j))) (return 0)))
+          (if (== (nth s ray_tex_kind) 1)
+              (block
+                (rw_texture_ex (cast long s) (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p)
+                               (cast long (nth 0 c)) (cast long (nth 1 c))
+                               (cast long (nth 2 c)) (cast long (nth 3 c)))
+                (return 1)))
+          (set w (cast double (rw_tex_width (cast long s))))
+          (set h (cast double (rw_tex_height (cast long s))))
+          (set sh h)
+          (ray_source s (aof sy) (aof sh))
+          (rw_sprite_ex (cast long s) 0.0 sy w sh
+                        (nth 0 p) (nth 1 p) (* w (nth 3 p)) (* h (nth 3 p))
+                        0.0 0.0 (nth 2 p)
+                        (cast long (nth 0 c)) (cast long (nth 1 c))
+                        (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  ;;; A cell of the texture at X, Y: Src is SX SY SW SH, top-down.
+  (func ray_p_sprite ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (double p [6]) (i64 c [4]))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (for ((int j . 0)) (< j 6) ((++ j))
+               (if (not (ray_farg e g (+ j 1) (+ p j))) (return 0)))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 7) (+ c j))) (return 0)))
+          (ray_source s (+ p 1) (+ p 3))
+          (rw_sprite (cast long s) (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p) (nth 4 p) (nth 5 p)
+                     (cast long (nth 0 c)) (cast long (nth 1 c))
+                     (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  ;;; A cell into a destination rect, rotated about an origin: the eleven
+  ;;; numbers are SX SY SW SH, DX DY DW DH, OX OY, Rotation.
+  (func ray_p_sprite_ex ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (double p [11]) (i64 c [4]))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (for ((int j . 0)) (< j 11) ((++ j))
+               (if (not (ray_farg e g (+ j 1) (+ p j))) (return 0)))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (if (not (ray_iarg e g (+ j 12) (+ c j))) (return 0)))
+          (ray_source s (+ p 1) (+ p 3))
+          (rw_sprite_ex (cast long s) (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p)
+                        (nth 4 p) (nth 5 p) (nth 6 p) (nth 7 p)
+                        (nth 8 p) (nth 9 p) (nth 10 p)
+                        (cast long (nth 0 c)) (cast long (nth 1 c))
+                        (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (return 1)))
+
+  (func ray_p_texture_filter ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 n . 0))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (if (not (ray_iarg e g 1 (aof n))) (return 0))
+          (rw_tex_filter (cast long s) (cast long n))
+          (return 1)))
+
+  (func ray_p_texture_wrap ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 n . 0))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (if (not (ray_iarg e g 1 (aof n))) (return 0))
+          (rw_tex_wrap (cast long s) (cast long n))
+          (return 1)))
+
+  ;;; ---- a canvas: a texture drawn INTO, then drawn like any other ----
+  (func ray_p_canvas ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 w . 0) (i64 h . 0) (int s . -1))
+          (if (not (ray_iarg e g 0 (aof w))) (return 0))
+          (if (not (ray_iarg e g 1 (aof h))) (return 0))
+          (if (<= w 0) (return 0))
+          (if (<= h 0) (return 0))
+          (set s (ray_slot_new))
+          (if (< s 0) (return 0))
+          (if (not (rw_canvas_load (cast long s) (cast long w) (cast long h))) (return 0))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 s)))
+              (block (rw_canvas_unload (cast long s)) (return 0)))
+          (set (nth s ray_tex_kind) 2)
+          (return 1)))
+
+  ;;; Only a canvas can be drawn into; a texture from a file fails here.
+  (func ray_p_canvas_begin ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (if (not (ray_tex_arg e g 0 (aof s))) (return 0))
+          (if (!= (nth s ray_tex_kind) 2) (return 0))
+          (rw_canvas_begin (cast long s))
+          (return 1)))
+
+  (func ray_p_canvas_end ((coco_engine * e) (size_t g)) (out int)
+        (EndTextureMode) (return 1))
 
   (func ray_p_log_level ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0))

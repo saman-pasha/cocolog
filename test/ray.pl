@@ -31,17 +31,29 @@ main :-
     ( exists_file('library/ray.so') -> true ; skip('(no library/ray.so -- sh modules/ray/build.sh)') ),
     ( catch(use_module(library(ray)), _, fail) -> true ; skip('(library(ray) will not load)') ),
     the_coco_half,
+    %% THE WINDOWED HALF IS A SECTION, so no glass SKIPS IT and the case
+    %% stays what the clauses-only checks made it: the two guards below
+    %% say why and FAIL, and main falls through to checks_done. (They used
+    %% to `halt(0)' after saying so, and a halt under -s exits 1 whatever
+    %% its code -- cocolog.cicili's session code, not the case's -- so a
+    %% Mac with its screen asleep read as a RED ray, five checks at once.)
+    (   display_runner(Run), the_glass(Run)
+    ->  scratch(D),
+        a_frame(Run, D), the_third_dimension(Run, D), the_loop(Run), the_textures(Run, D),
+        shl(['rm -rf ', D])
+    ;   true
+    ),
+    checks_done.
+
+%% a real DISPLAY, or xvfb-run to make one; neither says so and fails
+display_runner(Run) :-
     (   getenv('DISPLAY', Dpy), Dpy \== ''
     ->  Run = ''
     ;   sh_exit('command -v xvfb-run >/dev/null 2>&1', 0)
     ->  Run = 'xvfb-run -a '
     ;   format("     (skipped: the window -- no DISPLAY and no xvfb-run; apt-get install xvfb)~n", []),
-        checks_done, halt(0)
-    ),
-    scratch(D),
-    a_frame(Run, D), the_third_dimension(Run, D), the_loop(Run),
-    shl(['rm -rf ', D]),
-    checks_done.
+        fail
+    ).
 
 the_coco_half :-
     section('the Coco half: clauses, no window'),
@@ -58,7 +70,33 @@ the_coco_half :-
     written(( ray_keycode(space, C6), ray_keycode(escape, E6) ), C6-E6, X6),
     check('a named key is its table row', X6, '32-256'),
     written(ray_keycode(300, C7), C7, X7),
-    check('a bare integer passes through', X7, '300').
+    check('a bare integer passes through', X7, '300'),
+    written(( ray_filter(bilinear, F8), ray_wrap(clamp, W8) ), F8-W8, X8),
+    check('a texture filter and a wrap are table rows, raylib.h''s enums', X8, '1-1'),
+    written(( findall(F9, ray_filter(F9, _), L9), length(L9, N9) ), N9, X9),
+    check('and the filter table is the whole enum', X9, '6').
+
+%% NO GLASS IS A SKIP, NOT A RED. A DISPLAY variable is not a display: on
+%% a Mac whose screen has gone to sleep raylib's InitWindow fails at once
+%% (`GLFW: Failed to determine Monitor', `SYSTEM: Failed to initialize
+%% platform') and every windowed check below would go red in a second,
+%% naming the module for what the room did -- which is exactly the
+%% finding this suite keeps apart from a broken backend when the server
+%% is missing. One probe child opens an 8x8 window; if none comes, the
+%% windowed half is skipped with raylib's own reason. (`caffeinate -u'
+%% wakes the screen, and on this Mac it went back to sleep 32 s later
+%% even under that assertion, mid-run -- so a run you mean to believe
+%% wants the screen actually awake.)
+the_glass(Run) :-
+    cocolog(C),
+    sh_join([Run, C, ' query "use_module(library(ray)), ray_log_level(warning), ray_open(8, 8, probe), ( ray_ready -> write(answer(glass)) ; write(answer(none)) ), nl, ray_close" 2>&1'], Cmd),
+    proc_run(Cmd, 60000, Out, _),
+    (   re_first_atom('answer\\(glass\\)', Out, _)
+    ->  true
+    ;   ( re_first_atom('(WARNING|ERROR|FATAL): [^\n]*', Out, Why) -> true ; Why = 'no window came, and raylib said nothing' ),
+        format("     (skipped: no glass -- ~w)~n", [Why]),
+        fail
+    ).
 
 %% a windowed goal in a child of its own, under the display runner, its
 %% `answer(...)' read back
@@ -116,3 +154,75 @@ the_loop(Run) :-
     check('the mouse has coordinates, even a virtual one', R3, ints),
     wq(Run, 'ray_open(64, 64, coco), ray_begin, ray_clear(black), ray_end, ( ray_key_down(space) -> X = down ; X = up ), ray_close, write(answer(X)), nl', R4),
     check('an unpressed key is not down', R4, up).
+
+%% A TEXTURE IS HELD TO THE PIXEL, LITERALLY: `ray_screen_pixel/6' reads
+%% the framebuffer back as four numbers, so what a clause drew is a check
+%% with no image decoder in the suite. The tile is made by the module
+%% itself -- a screenshot of a frame that is maroon on the left and blue
+%% on the right -- because the suite ships no art, and a PNG the module
+%% wrote and then read back through LoadTexture is the round trip anyway.
+%%
+%% EVERY FRAME IS DRAWN TWICE before a pixel is read or a tile is shot.
+%% A raylib photograph is ONE FRAME BEHIND on macOS (CLAUDE.md): a single
+%% frame photographs as BLACK, which is exactly what the first run of this
+%% section got -- a black tile, and every texture check reading [0,0,0].
+twice(Frame, Text) :- sh_join([Frame, ', ', Frame], Text).
+
+the_textures(Run, D) :-
+    section('textures: a PNG loaded, drawn, and read back by the pixel'),
+    atom_concat(D, '/tile.png', Tile),
+    twice('ray_begin, ray_clear(maroon), ray_rect(16, 0, 16, 32, blue), ray_end', Tile2),
+    sh_join(['ray_open(32, 32, coco), ', Tile2, ', ( ray_screenshot(''', Tile, ''') -> S = made ; S = not_made ), ray_close, write(answer(S)), nl'], G0),
+    wq(Run, G0, R0),
+    check('the tile is a screenshot the module took: maroon left, blue right', R0, made),
+    %% loaded and drawn whole at 40,20: each half lands where the clause said, and
+    %% a pixel off the texture is still the clear
+    twice('ray_begin, ray_clear(raywhite), ray_texture(T, 40, 20), ray_end', F1),
+    sh_join(['ray_open(96, 64, coco), ray_texture_load(''', Tile, ''', T), ray_texture_size(T, W, H), ', F1, ', ray_screen_pixel(45, 25, R1, G1, B1, A1), ray_screen_pixel(66, 25, R2, G2, B2, _), ray_screen_pixel(5, 5, R3, G3, B3, _), ray_close, write(answer(W-H-[R1,G1,B1,A1]-[R2,G2,B2]-[R3,G3,B3])), nl'], G1),
+    wq(Run, G1, X1),
+    check('a texture loads with its size and draws where it was put, pixel for pixel', X1, '32-32-[190,33,55,255]-[0,121,241]-[245,245,245]'),
+    %% a sprite is a cell of the texture: the right half alone, at the origin
+    twice('ray_begin, ray_clear(raywhite), ray_sprite(T, rect(16, 0, 16, 32), 0, 0), ray_end', F2),
+    sh_join(['ray_open(64, 64, coco), ray_texture_load(''', Tile, ''', T), ', F2, ', ray_screen_pixel(5, 5, R1, G1, B1, _), ray_screen_pixel(20, 5, R2, G2, B2, _), ray_close, write(answer([R1,G1,B1]-[R2,G2,B2])), nl'], G2),
+    wq(Run, G2, X2),
+    check('a sprite is one cell of an atlas, and only that cell', X2, '[0,121,241]-[245,245,245]'),
+    %% the left half stretched over the whole window
+    twice('ray_begin, ray_clear(raywhite), ray_sprite_ex(T, rect(0, 0, 16, 32), rect(0, 0, 64, 64), 0, 0, 0.0, white), ray_end', F3),
+    sh_join(['ray_open(64, 64, coco), ray_texture_load(''', Tile, ''', T), ', F3, ', ray_screen_pixel(60, 60, R1, G1, B1, _), ray_close, write(answer([R1,G1,B1])), nl'], G3),
+    wq(Run, G3, X3),
+    check('ray_sprite_ex fits a cell into a destination rect', X3, '[190,33,55]'),
+    %% scaled by two the halves are 32 wide; rotated 90 about its corner the
+    %% texture hangs down from x=32 with its left half on top
+    twice('ray_begin, ray_clear(raywhite), ray_texture_ex(T, 0, 0, 0.0, 2.0, white), ray_end', F4),
+    sh_join(['ray_open(64, 64, coco), ray_texture_load(''', Tile, ''', T), ', F4, ', ray_screen_pixel(10, 10, R1, G1, B1, _), ray_screen_pixel(40, 10, R2, G2, B2, _), ray_close, write(answer([R1,G1,B1]-[R2,G2,B2])), nl'], G4),
+    wq(Run, G4, X4),
+    check('ray_texture_ex scales', X4, '[190,33,55]-[0,121,241]'),
+    twice('ray_begin, ray_clear(raywhite), ray_texture_ex(T, 32, 0, 90.0, 1.0, white), ray_end', F5),
+    sh_join(['ray_open(64, 64, coco), ray_texture_load(''', Tile, ''', T), ', F5, ', ray_screen_pixel(10, 5, R1, G1, B1, _), ray_screen_pixel(10, 25, R2, G2, B2, _), ray_close, write(answer([R1,G1,B1]-[R2,G2,B2])), nl'], G5),
+    wq(Run, G5, X5),
+    check('and rotates, in degrees, about the origin', X5, '[190,33,55]-[0,121,241]'),
+    %% a tint multiplies: black blackens, a transparent white draws nothing
+    twice('ray_begin, ray_clear(raywhite), ray_texture(T, 0, 0, black), ray_texture(T, 32, 0, rgba(255, 255, 255, 0)), ray_end', F6),
+    sh_join(['ray_open(64, 64, coco), ray_texture_load(''', Tile, ''', T), ', F6, ', ray_screen_pixel(5, 5, R1, G1, B1, _), ray_screen_pixel(40, 5, R2, G2, B2, _), ray_close, write(answer([R1,G1,B1]-[R2,G2,B2])), nl'], G6),
+    wq(Run, G6, X6),
+    check('a tint is a color spec, and alpha 0 is invisible', X6, '[0,0,0]-[245,245,245]'),
+    %% A CANVAS DRAWS THE RIGHT WAY UP. Green on top, red below, drawn into
+    %% it; whole at the origin, and its two halves as sprites at x=40 --
+    %% the bottom half above the top half, so a wrong flip of the sub-rect
+    %% would swap them
+    twice('ray_begin, ray_clear(raywhite), ray_texture(C, 0, 0), ray_sprite(C, rect(0, 16, 32, 16), 40, 0), ray_sprite(C, rect(0, 0, 32, 16), 40, 20), ray_end', F7),
+    sh_join(['ray_open(96, 64, coco), ray_canvas(32, 32, C), ray_canvas_begin(C), ray_clear(red), ray_rect(0, 0, 32, 16, green), ray_canvas_end, ', F7, ', ray_screen_pixel(5, 5, R1, G1, B1, _), ray_screen_pixel(5, 25, R2, G2, B2, _), ray_screen_pixel(45, 5, R3, G3, B3, _), ray_screen_pixel(45, 25, R4, G4, B4, _), ray_texture_size(C, W, H), ray_close, write(answer(W-H-[R1,G1,B1]-[R2,G2,B2]-[R3,G3,B3]-[R4,G4,B4])), nl'], G7),
+    wq(Run, G7, X7),
+    check('a canvas drawn into is a texture, and it comes out the right way up, sprites too', X7, '32-32-[0,228,48]-[230,41,55]-[230,41,55]-[0,228,48]'),
+    twice('ray_begin, ray_clear(raywhite), ray_texture_ex(C, 0, 0, 0.0, 2.0, white), ray_end', F8),
+    sh_join(['ray_open(64, 64, coco), ray_canvas(32, 32, C), ray_canvas_begin(C), ray_clear(red), ray_rect(0, 0, 32, 16, green), ray_canvas_end, ', F8, ', ray_screen_pixel(5, 5, R1, G1, B1, _), ray_screen_pixel(5, 50, R2, G2, B2, _), ray_close, write(answer([R1,G1,B1]-[R2,G2,B2])), nl'], G8),
+    wq(Run, G8, X8),
+    check('and scaled, still the right way up', X8, '[0,228,48]-[230,41,55]'),
+    %% the refusals, each by name: no such file, a file that is not an
+    %% image, an integer nobody was given, a handle after unload, a texture
+    %% that is not a canvas, a pixel outside the window
+    atom_concat(D, '/text.txt', Txt),
+    fixture(Txt, ['not a png']),
+    sh_join(['ray_open(64, 64, coco), catch(ray_texture_load(''/nonexistent/x.png'', _), error(E, _), true), ( ray_texture_load(''', Txt, ''', _) -> Dc = decoded ; Dc = refused ), ( ray_texture(999, 0, 0) -> N = drew ; N = refused ), ray_texture_load(''', Tile, ''', T), ray_texture_unload(T), ( ray_texture_size(T, _, _) -> U = still ; U = gone ), ray_texture_load(''', Tile, ''', T2), ( ray_canvas_begin(T2) -> B = began ; B = refused ), ( ray_screen_pixel(64, 0, _, _, _, _) -> P = answered ; P = refused ), ray_texture_filter(T2, bilinear), ray_texture_wrap(T2, clamp), ray_close, write(answer(E-Dc-N-U-B-P)), nl'], G9),
+    wq(Run, G9, X9),
+    check('the refusals: existence_error for no file, failure for the rest', X9, 'existence_error(file,/nonexistent/x.png)-refused-refused-gone-refused-refused').

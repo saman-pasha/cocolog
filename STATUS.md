@@ -1637,7 +1637,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.3` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.4` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -2948,9 +2948,10 @@ commit.
 
 ### library(ray): a game window from clauses, held to pixels
 
-raylib as a loadable module -- `modules/ray`, twenty-eight predicates
-of window, 2D, 3D camera and primitives, polled keyboard and mouse,
-frame time and a screenshot. raylib over every other engine for the one
+raylib as a loadable module -- `modules/ray`, fifty-odd predicates
+of window, 2D, textures and a canvas, 3D camera and primitives, polled
+keyboard and mouse, frame time, a screenshot and a pixel read back.
+raylib over every other engine for the one
 property the module seam cannot fake: **the caller owns the loop.**
 Input is polled, a frame is whatever happens between `ray_begin` and
 `ray_end`, and nothing ever calls back -- so a game is a Prolog
@@ -2980,7 +2981,8 @@ PNG by its magic bytes, and two frames the clauses drew differently are
 different files byte for byte, which is what catches a context that
 silently rendered nothing. A 2D frame drawn by a `forall` over asserted
 facts, a 3D scene over a camera, and the loop's questions (closing,
-frame time, mouse, an unpressed key) -- 17 checks.
+frame time, mouse, an unpressed key), and the texture section below
+-- 29 checks.
 
 One raylib behaviour was worth routing around: `TakeScreenshot` strips
 the directory off the path it is given and writes the basename into its
@@ -2989,13 +2991,64 @@ own storage dir, so `ray_screenshot/1` goes through `LoadImageFromScreen`
 goal that FAILS rather than a warning on a log level the caller turned
 off.
 
+**TEXTURES (1.2.4), the need CivV named first** -- "today ray draws
+shapes and text, and a tile wants an image". A texture is a HANDLE, the
+shape `library(tcp)` gives a socket: an index into a table the module
+owns, never raylib's GL name, and an integer the module did not hand
+out fails the call. `ray_texture_load/2` (existence_error for no such
+file, failure for a file that will not decode), `ray_texture/3,4`,
+`ray_texture_ex/6` (rotation and scale), `ray_sprite/4,5` -- one
+`rect(X,Y,W,H)` cell of an atlas, which is what an atlas is: one PNG of
+tiles and one fact per tile naming its cell -- `ray_sprite_ex/7` into a
+destination rect about an origin, `ray_texture_size/3`, filter and wrap
+by name from tables, `ray_texture_unload/1`. And a CANVAS:
+`ray_canvas/3` is raylib's RenderTexture, a texture drawn INTO between
+`ray_canvas_begin/1` and `ray_canvas_end/0` and then drawn like any
+other -- a map of a thousand hexes drawn once and blitted every frame,
+which is the rendering-distance question CivV's ladder asked. raylib
+hands a canvas back UPSIDE DOWN (a framebuffer's row 0 is its bottom,
+raylib's best-known FAQ, answered everywhere else with a negative
+source height at every draw); here the table knows which slot is a
+canvas and `ray_source` turns the caller's top-down rect into raylib's
+flipped one, so a program never writes the flip and a sub-rectangle of
+a canvas comes out where it was asked for. The by-value structs
+(`Texture2D`, `Rectangle`, `Image`) stay behind one-line shims in the
+same fire escape; the table's rows live in C because they are those
+structs, and everything decided about them -- which slot is free, what
+kind it holds, whether a draw needs the flip -- is Cicili.
+
+**AND THE TEST IS HELD TO THE PIXEL, LITERALLY.** `ray_screen_pixel/6`
+reads one framebuffer pixel back as four numbers (in the screen's
+coordinates, scaled to the render size a HiDPI window makes larger), so
+a texture check is "the maroon half landed at 45,25 and the blue at
+66,25 and 5,5 is still the clear", with no image decoder in the suite.
+The tile is a screenshot the module took of a frame it drew, because
+the suite ships no art and a PNG written and then read back through
+`LoadTexture` is the round trip anyway. Every frame in that section is
+drawn TWICE before a pixel is read: a raylib photograph is one frame
+behind on macOS, and the first run pinned a black tile. NO GLASS IS A
+SKIP, NOT A RED: a `DISPLAY` variable is not a display, and a Mac whose
+screen has gone to sleep opens no raylib window at all (`GLFW: Failed to
+determine Monitor`, `SYSTEM: Failed to initialize platform`), which
+turned every windowed check red in a second and named the module for
+what the room did -- the second full suite of the day, run after the
+screen slept at 16:28. The case now opens one 8x8 probe window first
+and, if none comes, skips the windowed half with raylib's own reason and
+falls through to `checks_done`, the way every other case skips a
+section. (`caffeinate -u` woke the screen, and it slept again 32 seconds
+later under that assertion, mid-run; a run you mean to believe wants the
+screen actually awake.) Ten windowed checks -- the tile, load and size, a sprite cell, fitted, scaled,
+rotated, tinted and transparent, a canvas the right way up with its
+halves as sprites, a canvas scaled, and the refusals each by name -- and
+two on the filter and wrap tables, in the clauses-only half.
+
 `tutorials/library/29-ray.pl` is the lesson, in the same commit as the
 rule demands; like the curl lesson it assumes no display, holds the
-clauses-only half to `must/3` and shows the loop. What is NOT there
-yet, honestly: textures and models from files, sound, gamepads,
-shaders, text measuring -- each a predicate away rather than a
-redesign. `modules/ray/build.sh` says where a raylib comes from and why
-the archive must be PIC.
+clauses-only half to `must/3` and shows the loop and an atlas over a
+canvas. What is NOT there yet, honestly: models from files, sound,
+gamepads, shaders, text measuring -- each a predicate away rather than
+a redesign. `modules/ray/build.sh` says where a raylib comes from and
+why the archive must be PIC.
 
 ### retract/1 minds the body now, which a rule standing over facts paid for
 
@@ -3274,6 +3327,19 @@ is 14000), which is how it has always read and is worth a look.
   the CLI prints `ERROR: -g main: …`. The exit status is SWI's too: 0 proved, 1
   failed **silently**, 2 threw. `test/directives.pl` runs the same files under
   both and diffs what the programs printed.
+* **`halt(N)` exits N (1.2.4)** -- from `-s`, `run FILE GOAL` and `query`
+  alike, a bare `halt` as 0, what ran before it printed and what was
+  asserted committed as a proved goal's is. Until then every halt exited 1
+  whatever N: the engine reports a halted goal as "no more solutions"
+  (`coco_engine_next` answers 0 with `halted` set) and the three commands
+  read that as `main` failing, so a script's `halt(0)` was a red exit to
+  whoever ran it. It surfaced through `test/ray.pl`, which skipped its
+  windowed half with `halt(0)` after every clauses-only check had passed
+  and came out RED in the runner -- and that case's original no-DISPLAY
+  branch, written the same way, had carried the bug unseen. The fix reads
+  `halt_code` at the one seam each command already has; `query`'s own
+  contract is untouched -- `false.` is an answer and exits 0, a throw
+  exits 1 -- and `test/argv.pl` pins the halts and that beside them.
 * **`format/2` has no column directives.** `~t`, `~|` and `~+` measure what has
   been written since the last column stop, which is a second pass over the
   buffer this does not make. They raise an error naming themselves rather than

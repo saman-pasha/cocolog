@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.2.3"))
+  (func coco_version_text () (out const char *) (return "1.2.4"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -773,7 +773,8 @@
 
   (func cmd_script ((const char * file)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char goal [4200]) (int n . 0) (int rc . 1) (int batched . 0))
+              (char goal [4200]) (int n . 0) (int rc . 1) (int batched . 0)
+              (int halted . 0) (int halt_code . 0))
           (if (> (strlen file) 4096)
               (block (fprintf stderr "cocolog: -s: the path is too long\n") (return 1)))
           ;; A FILE THAT IS NOT THERE IS NOT A PROLOG ERROR, and should not
@@ -798,6 +799,11 @@
           (set rc (coco_engine_next (aof e)))
           (if (== rc 1) (set n 1))
           (if (== rc -1) (say_goal_error (aof e) "-s main"))
+          ;; A HALT IS AN ANSWER, NOT A FAILURE. The engine reports a halted
+          ;; goal as "no more solutions", which read here as `main' failing
+          ;; -- exit 1 -- whatever the program said in `halt(N)'. The code is
+          ;; the program's; what it wrote is committed as a proved goal's is.
+          (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))
           (if (!= db nil)
               (if (== rc -1)
                   (block (batch_drop (aof z) batched) (zg_rollback db))
@@ -807,11 +813,13 @@
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
+          (if (and halted (!= rc -1)) (return halt_code))
           (return (goal_status (? (== n 1) 1 rc)))))
 
   (func cmd_query ((const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (int n . 0) (int rc . 1) (int batched . 0))
+              (int n . 0) (int rc . 1) (int batched . 0)
+              (int halted . 0) (int halt_code . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
@@ -828,6 +836,9 @@
             (show_answer (aof e) n nil)
             (if (and (!= ($ opts answers) 0) (>= n ($ opts answers))) break))
           (if (== rc -1) (say_goal_error (aof e) "?-"))
+          ;; a `halt(N)' in the goal is the program's exit status, and not
+          ;; a `false.' -- the same rule as cmd_script's
+          (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))
 
           ;; A QUERY CAN WRITE. `assert', `retract' and `dynamic' reach the
           ;; database through the store's hooks, and until this commit was here
@@ -842,10 +853,12 @@
                     (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
                            (set rc -1)))))
 
-          (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n))
+          (if (not halted)
+              (if (== n 0) (printf "false.\n") (printf "%d answer(s).\n" n)))
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
+          (if (and halted (!= rc -1)) (return halt_code))
           (return (? (== rc -1) 1 0))))
 
   ;;; ---- the line editor ----------------------------------------------------
@@ -2234,7 +2247,7 @@
   ;;; the program itself writes, success is 0 and failure is 1.
   (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char err [256]) (int rc . 0) (int batched . 0))
+              (char err [256]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
@@ -2270,8 +2283,11 @@
                      (coco_machine_free (aof m)) (return 1)))
           (set rc (coco_engine_next (aof e)))
           (if (== rc -1) (say_goal_error (aof e) "-g main"))
+          ;; a halted goal ends as a proved one does -- its writes kept, its
+          ;; `halt(N)' the exit status -- the rule cmd_script states
+          (if ($ e halted) (block (set halted 1) (set halt_code ($ e halt_code))))
           (if (!= db nil)
-              (if (== rc 1)
+              (if (or (== rc 1) halted)
                   ;; the turn's writes go out FIRST and the commit only if
                   ;; they did: a commit over a failed sync would report
                   ;; success for a knowledge base missing clauses the goal
@@ -2287,6 +2303,7 @@
           (coco_engine_free (aof e))
           (coco_store_free (aof st))
           (coco_machine_free (aof m))
+          (if (and halted (!= rc -1)) (return halt_code))
           (return (goal_status rc))))
 
   (func main ((int argc) (char ** argv))

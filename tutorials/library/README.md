@@ -54,7 +54,7 @@ written anywhere in this repository.
 | 26-x509 | `library/x509.so` | certificates, and the CA that issues them | a built ZiguratIP |
 | 27-ca | `library/ca.pl` | a certificate authority, as rules | `x509` |
 | 28-tls | `library/tls.so` | a connection that knows who is on it | a built ZiguratIP |
-| 29-ray | `library/ray.so` | a game window, 2D and 3D, from clauses | raylib |
+| 29-ray | `library/ray.so` | a game window, 2D, 3D and textures, from clauses | raylib |
 | 30-hex | `library/hex.pl` | hexagonal-grid arithmetic | nothing |
 | 31-astar | `library/astar.pl` | shortest paths over a graph of goals | nothing |
 | 32-process | `library/process.so` | run, capture, spawn, wait, kill | `sh modules/process/build.sh` |

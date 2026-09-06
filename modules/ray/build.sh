@@ -22,7 +22,7 @@
 #
 #   sh modules/ray/build.sh
 #
-# and test/ray.sh SKIPs, loudly, when the .so is not there.
+# and test/ray.pl SKIPs, loudly, when the .so is not there.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)

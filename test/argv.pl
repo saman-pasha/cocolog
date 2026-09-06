@@ -21,7 +21,7 @@
 
 main :-
     scratch(D),
-    the_flag(D), unguided(D), main0(D), a_tool(D), dash_s(D), the_version,
+    the_flag(D), unguided(D), main0(D), a_tool(D), dash_s(D), the_halt(D), the_version,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -128,6 +128,41 @@ stored(KB, S) :-
     sh_join(['--embed ', KB, ' query "tool_private_fact(_)" >/dev/null 2>&1'], A),
     cocolog_run(A, _, Rc),
     ( Rc =:= 0 -> S = stored ; S = absent ).
+
+%% ---- halt/0,1 is the exit status --------------------------------------------
+%%
+%% `halt(N)' EXITS N, from `-s', `run' and `query' alike, and `halt' is
+%% `halt(0)'. Until 1.2.4 every one of them exited 1 whatever N: the engine
+%% reports a halted goal as "no more solutions" and the three commands read
+%% that as `main' failing. Found by test/ray.pl skipping its windowed half
+%% with `halt(0)' after every check had passed, and the runner counting the
+%% case RED -- a wrong exit status is the one lie a script cannot catch.
+the_halt(D) :-
+    section('halt/0,1 is the exit status, and what came before it is printed'),
+    atom_concat(D, '/halt3.pl', H3),
+    fixture(H3, ['main :- write(before), nl, halt(3), write(after), nl.']),
+    sh_join(['-s ', H3, ' 2>&1'], A1), cocolog_run(A1, T1, X1),
+    check('-s: halt(3) exits 3', X1, 3),
+    check('and what ran before it was printed, and nothing after', T1, before),
+    atom_concat(D, '/halt0.pl', H0),
+    fixture(H0, ['main :- halt(0).']),
+    sh_join(['-s ', H0, ' 2>&1'], A2), cocolog_run(A2, _, X2),
+    check('halt(0) exits 0', X2, 0),
+    atom_concat(D, '/haltbare.pl', HB),
+    fixture(HB, ['main :- halt.']),
+    sh_join(['-s ', HB, ' 2>&1'], A3), cocolog_run(A3, _, X3),
+    check('and a bare halt is halt(0)', X3, 0),
+    sh_join(['--local run ', H3, ' main 2>&1'], A4), cocolog_run(A4, T4, X4),
+    check('run FILE main: halt(3) exits 3 too', X4, 3),
+    check('printing what came before', T4, before),
+    cocolog_run('--local query "write(q), nl, halt(4)" 2>&1', T5, X5),
+    check('query: halt(4) exits 4', X5, 4),
+    check('and does not call the halt `false.''', T5, q),
+    %% query's own contract, unchanged: `false.' is an ANSWER and exits 0,
+    %% and only a goal that threw exits 1 -- which is how stored/2 above
+    %% tells absent from present, through the existence error
+    cocolog_run('--local query "fail" >/dev/null 2>&1', _, X6),
+    check('while a query that merely answers false. still exits 0, as it always has', X6, 0).
 
 %% ---- --version -----------------------------------------------------------
 %%

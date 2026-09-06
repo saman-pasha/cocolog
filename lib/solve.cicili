@@ -1125,6 +1125,9 @@
         (set (-> e steps) 0)
         (set (-> e resume) 0)
         (set (-> e halted) 0)
+        ;; `halt' is `halt(0)': halt/0 sets only the flag, so the code it
+        ;; leaves behind must be zero rather than the last query's
+        (set (-> e halt_code) 0)
         ;; and no ball in hand: `has_ball' outlives the query that set it
         ;; otherwise, and the next error that is NOT a ball -- an inference
         ;; limit, a goal that is not callable -- would be reported with the

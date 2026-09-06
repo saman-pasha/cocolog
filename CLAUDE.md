@@ -836,7 +836,12 @@ per clause (`test/ruler.pl` did) now writes one file per clause.
 main/0`, ``Arithmetic: `foo/0' is not a function``, `Unknown message:
 my_ball` for a ball that is not an `error/2` — and the CLI prints `ERROR:
 -g main: …`. **The exit status is SWI's: 0 proved, 1 failed silently, 2
-threw.** A test that expected 1 for a thrown ball wants 2 now.
+threw -- and `halt(N)` is N, from `-s`, `run` and `query` alike, with a
+bare `halt` as 0.** Until 1.2.4 a halt exited 1 whatever N, because the
+engine reports a halted goal as "no more solutions" and the three
+commands read that as `main` failing; `test/ray.pl` found it by skipping
+its windowed half with `halt(0)` after every check had passed and
+coming out RED. `test/argv.pl` pins all three. A test that expected 1 for a thrown ball wants 2 now.
 
 `test/directives.pl` is the case, and its last section runs the same files
 under `swipl` and diffs what the programs printed.
@@ -1654,7 +1659,19 @@ and every one has cost a session at least an hour:
   frame, then a blue one, photographed, comes back red. After a single
   frame it is black. A program that screenshots draws the same frame
   twice first -- CivV's two renderers do -- and an overlay drawn twice
-  had better be idempotent.
+  had better be idempotent. `ray_screen_pixel/6` reads the same
+  photograph, so a pixel read wants the two frames too: the texture
+  section of `test/ray.pl` pinned a BLACK tile before it did.
+* **A Mac whose screen has gone to sleep opens NO raylib window**, and a
+  set `DISPLAY` says nothing about it: `InitWindow` fails at once with
+  `GLFW: Failed to determine Monitor to center Window` and `SYSTEM:
+  Failed to initialize platform`, and every windowed check of `test/ray.pl`
+  went red in a second, naming the module for what the room did. The case
+  probes with one 8x8 window first and SKIPs its windowed half with
+  raylib's reason when none comes. `caffeinate -u -t N` turns the screen
+  on, and on this box it slept again 32 s later under that assertion, so
+  a ray run you mean to believe wants the screen awake -- `pmset -g log |
+  grep -i 'display is turned'` says when it last went.
 * **Ask `library(os)`, not a shell.** `os_is(darwin)`, `os_has(Tool)`,
   `os_lib_path_var(V)`, `os_tmp(T)`, `os_cpus(N)` are the questions the
   suites used to put to `uname`, `command -v`, `$TMPDIR` and `nproc` --
