@@ -23,7 +23,7 @@ main :-
     ( exists_file('library/torch.so') -> true ; skip('(no library/torch.so -- sh modules/torch/build.sh)') ),
     answer_text('query "use_module(library(torch)), tensor_zeros([1], Z), tensor_parameter(Z, _), write(answer(ok)), nl"', Probe),
     ( Probe == ok -> true ; skip('(library(torch) has no tensor_parameter/2)') ),
-    the_number, a_step, refusals, thirty_steps, the_device, exec_frees, lent_operators,
+    the_number, a_step, refusals, thirty_steps, the_device, exec_frees, lent_operators, csv_shapes,
     checks_done.
 
 q(Goal, Got) :- sh_join(['query "use_module(library(torch)), ', Goal, '"'], Args), answer_text(Args, Got).
@@ -201,3 +201,32 @@ lent_operators :-
     answer_text(A, G),
     shl(['rm -rf ', D]),
     check('a file with no op/3 of its own reads := and matmul after use_module', G, '[[11.0]]').
+
+%% ---- a CSV that is not there answers in SWI's shapes ----------------------
+%%
+%% tensor_load_csv/2 used to raise a domain_error(readable_file) of the
+%% module's own for ANY failure to open, which nothing written against
+%% SWI's open/3 would catch. Since 1.2.5 it raises what open/3 raises: no
+%% such file is existence_error(source_sink, Path), a file that is there
+%% and cannot be read permission_error(open, source_sink, Path). The
+%% tensorflow backend answers the same two (test/tensorflow.pl).
+csv_shapes :-
+    section('a CSV that will not open answers in open/3''s shapes'),
+    scratch(D),
+    q('catch(tensor_load_csv(''/nonexistent/deep/er/x.csv'', _), error(E, _), true), write(answer(E)), nl', G1),
+    check('no such file, nested: existence_error(source_sink, Path)', G1, 'existence_error(source_sink,/nonexistent/deep/er/x.csv)'),
+    atom_concat(D, '/locked.csv', Locked),
+    fixture(Locked, ['1,2']),
+    (   sh_exit('[ "$(id -u)" -ne 0 ]', 0)
+    ->  sh_join(['chmod 000 ', Locked], Chmod), sh_exit(Chmod, 0),
+        sh_join(['catch(tensor_load_csv(''', Locked, ''', _), error(E, _), true), write(answer(E)), nl'], Goal2), q(Goal2, G2),
+        sh_join(['permission_error(open,source_sink,', Locked, ')'], Want2),
+        check('there but unreadable: permission_error(open, source_sink, Path)', G2, Want2)
+    ;   format("     (skipped: the unreadable file -- root reads anything)~n", [])
+    ),
+    atom_concat(D, '/d1/d2/ok.csv', Deep),
+    atom_concat(D, '/d1/d2', DeepDir), make_directory_path(DeepDir),
+    fixture(Deep, ['1,2,3', '4,5,6']),
+    sh_join(['tensor_load_csv(''', Deep, ''', T), tensor_shape(T, S), write(answer(S)), nl'], Goal3), q(Goal3, G3),
+    check('and a nested path that is there loads', G3, '[2,3]'),
+    shl(['rm -rf ', D]).

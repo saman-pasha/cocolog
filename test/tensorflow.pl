@@ -27,7 +27,7 @@ main :-
     q('tensorflow_version(V), write(answer(V)), nl', Version),
     tf(TF), sh_join([TF, ', tensor_execution(B, M), write(answer(B-M)), nl'], GS), q(GS, Switch),
     sh_join([Version, ' is the TensorFlow; the switch answers ', Switch], S), section(S),
-    every_producer, under_graph, under_eager, tutorial31,
+    every_producer, under_graph, under_eager, tutorial31, csv_shapes,
     checks_done.
 
 u('use_module(library(torch)), use_module(library(tensorflow))').
@@ -165,3 +165,22 @@ tutorial31 :-
         shl(['rm -rf ', D1, ' ', D2])
     ;   true
     ).
+
+%% ---- a CSV that will not open: the same two shapes as the torch backend ----
+%% (test/torch-grad.pl says why: they are open/3's, since 1.2.5)
+csv_shapes :-
+    section('under (tensorflow, eager): a CSV that will not open answers in open/3''s shapes'),
+    tf(TF),
+    sh_join([TF, ', catch(tensor_load_csv(''/nonexistent/deep/er/x.csv'', _), error(E, _), true), write(answer(E)), nl'], G1), q(G1, R1),
+    check('no such file, nested: existence_error(source_sink, Path)', R1, 'existence_error(source_sink,/nonexistent/deep/er/x.csv)'),
+    scratch(D),
+    atom_concat(D, '/locked.csv', Locked),
+    fixture(Locked, ['1,2']),
+    (   sh_exit('[ "$(id -u)" -ne 0 ]', 0)
+    ->  sh_join(['chmod 000 ', Locked], Chmod), sh_exit(Chmod, 0),
+        sh_join([TF, ', catch(tensor_load_csv(''', Locked, ''', _), error(E, _), true), write(answer(E)), nl'], G2), q(G2, R2),
+        sh_join(['permission_error(open,source_sink,', Locked, ')'], Want2),
+        check('there but unreadable: permission_error(open, source_sink, Path)', R2, Want2)
+    ;   format("     (skipped: the unreadable file -- root reads anything)~n", [])
+    ),
+    shl(['rm -rf ', D]).

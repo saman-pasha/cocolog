@@ -102,7 +102,7 @@ catch(msort(notalist, _), error(type_error(T, V), _), true).
 ```
 
 `coco_m_type_error`, `coco_m_instantiation_error`, `coco_m_domain_error`,
-`coco_m_existence_error` and `coco_m_error` all **throw**. Each answers what its
+`coco_m_existence_error`, `coco_m_permission_error` (`permission_error(Action, Type, Culprit)`, SWI's shape for a file that is there and cannot be opened) and `coco_m_error` all **throw**. Each answers what its
 caller should return: **2** when a `catch/3` took the ball — the engine is by
 then pointed at the recovery goal and 2 is how a builtin says *leave my
 continuation alone* — and −1 when nothing caught it. A predicate writes

@@ -62,6 +62,7 @@
 (source "coco-tensorflow.c"
   (make :compile #f)
   (include <stdio.h>)
+  (include <errno.h>)
   (include <stdint.h>)
   (include <string.h>)
   (include <stdlib.h>)
@@ -90,6 +91,8 @@
   (decl) (func coco_m_list_array ((coco_engine * e) (size_t t) (size_t ** cells) (size_t * n)) (out int))
   (decl) (func coco_m_type_error ((coco_engine * e) (const char * what) (size_t t)) (out int))
   (decl) (func coco_m_domain_error ((coco_engine * e) (const char * what) (size_t t)) (out int))
+  (decl) (func coco_m_existence_error ((coco_engine * e) (const char * kind) (size_t what)) (out int))
+  (decl) (func coco_m_permission_error ((coco_engine * e) (const char * action) (const char * type) (size_t culprit)) (out int))
   (decl) (func coco_deref ((coco_machine * m) (size_t t)) (out size_t))
   (decl) (func coco_new_float ((coco_machine * m) (double v)) (out size_t))
   (decl) (func coco_new_int ((coco_machine * m) (int64_t v)) (out size_t))
@@ -440,6 +443,17 @@
   (func p_load_csv ((coco_engine * e) (size_t g)) (out int)
     (let ((char path [4096]))
       (if (not (coco_m_text e (coco_m_arg e g 0) path 4096)) (return (coco_m_type_error e "text" (coco_m_arg e g 0))))
+      ;; the path is tried HERE, before the backend, so a missing CSV is
+      ;; SWI's existence_error(source_sink, Path) and an unreadable one its
+      ;; permission_error -- the same two shapes the torch backend raises,
+      ;; rather than the backend's own "cannot open" as a domain_error
+      (let ((FILE * probe . #'(fopen path "r")))
+        (if (== probe nil)
+            (block
+              (if (== errno ENOENT)
+                  (return (coco_m_existence_error e "source_sink" (coco_m_arg e g 0))))
+              (return (coco_m_permission_error e "open" "source_sink" (coco_m_arg e g 0)))))
+        (fclose probe))
       (return (answer e g 1 (tfb_load_csv path)))))
 
   (func p_seed ((coco_engine * e) (size_t g)) (out int)

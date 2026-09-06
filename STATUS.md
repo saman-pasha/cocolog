@@ -1637,7 +1637,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.4` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.5` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3340,6 +3340,17 @@ is 14000), which is how it has always read and is worth a look.
   `halt_code` at the one seam each command already has; `query`'s own
   contract is untouched -- `false.` is an answer and exits 0, a throw
   exits 1 -- and `test/argv.pl` pins the halts and that beside them.
+* **A CSV that will not open answers in `open/3`'s shapes (1.2.5).**
+  `tensor_load_csv/2` raised a `domain_error(readable_file, Path)` of the
+  torch module's own for ANY failure to open, and the tensorflow backend
+  a `domain_error` carrying its "cannot open" -- neither of which a
+  clause written for SWI's `open/3` would catch. Both now raise what
+  `open/3` raises: `existence_error(source_sink, Path)` for no such
+  file, `permission_error(open, source_sink, Path)` for one that is
+  there and cannot be read. The SDK gained `coco_m_permission_error` for
+  the second, beside the existence one (MODULES.md), and both are pinned
+  under each backend (`test/torch-grad.pl`, `test/tensorflow.pl`), a
+  nested path that IS there loading beside them.
 * **`format/2` has no column directives.** `~t`, `~|` and `~+` measure what has
   been written since the last column stop, which is a second pass over the
   buffer this does not make. They raise an error naming themselves rather than

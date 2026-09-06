@@ -150,6 +150,7 @@
 
   (include <torch/torch.h>)
   (include <cstdio>)
+  (include <cerrno>)
   (include <cstdint>)
   (include <cstring>)
   (include <cstdlib>)
@@ -188,6 +189,7 @@
   (code "size_t coco_m_list(struct coco_engine*, const size_t*, size_t);")
   (code "int coco_m_list_array(struct coco_engine*, size_t, size_t**, size_t*);")
   (code "int coco_m_type_error(struct coco_engine*, const char*, size_t); int coco_m_domain_error(struct coco_engine*, const char*, size_t);")
+  (code "int coco_m_existence_error(struct coco_engine*, const char*, size_t); int coco_m_permission_error(struct coco_engine*, const char*, const char*, size_t);")
   (code "size_t coco_deref(struct coco_machine*, size_t); int coco_is_callable(struct coco_machine*, size_t);")
   (code "int coco_m_tensor_put(struct coco_engine*, const char*, int64_t, const double*, uint32_t);")
   (code "int coco_m_tensor_row(struct coco_engine*, const char*, int64_t, double*, uint32_t, uint32_t*);")
@@ -228,6 +230,8 @@
                                   (size_t culprit)) (out int))
   (decl) (func coco_m_domain_error ((coco_engine * e) (const char * domain)
                                     (size_t culprit)) (out int))
+  (decl) (func coco_m_existence_error ((coco_engine * e) (const char * kind) (size_t what)) (out int))
+  (decl) (func coco_m_permission_error ((coco_engine * e) (const char * action) (const char * type) (size_t culprit)) (out int))
   (decl) (func coco_deref ((coco_machine * m) (size_t t)) (out size_t))
   (decl) (func coco_is_callable ((coco_machine * m) (size_t t)) (out int))
   (decl) (func coco_arity ((coco_machine * m) (size_t t)) (out uint32_t))
@@ -1349,7 +1353,16 @@
       (if (not (coco_m_text e (coco_m_arg e g 0) path (sizeof path)))
           (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
       (let ((FILE * f . #'(fopen path "r")))
-        (if (== f nil) (return (coco_m_domain_error e "readable_file" (coco_m_arg e g 0))))
+        ;; SWI's open/3 shapes, so the clause a caller wrote for open/3
+        ;; catches this too: no such file is an existence_error on the
+        ;; source_sink, a file that is there and will not open a
+        ;; permission_error. (It was a domain_error(readable_file) of this
+        ;; module's own, which nothing written for SWI would match.)
+        (if (== f nil)
+            (block
+              (if (== errno ENOENT)
+                  (return (coco_m_existence_error e "source_sink" (coco_m_arg e g 0))))
+              (return (coco_m_permission_error e "open" "source_sink" (coco_m_arg e g 0)))))
         (let ((double * data . nil) (int64_t ndata . 0) (int64_t cap . 0)
               (int64_t rows . 0) (int64_t cols . 0) (int64_t line_cols . 0)
               (char line [65536]) (int bad . 0))

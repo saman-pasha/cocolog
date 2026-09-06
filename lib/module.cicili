@@ -397,6 +397,11 @@
                                   (size_t culprit)) (out int))
   (decl) (func coco_m_existence_error ((coco_engine * e) (const char * kind)
                                      (size_t what)) (out int))
+  ;;; permission_error(Action, Type, Culprit): SWI's open/3 on a file that
+  ;;; is there and cannot be read is `permission_error(open, source_sink,
+  ;;; Path)', and a module reading a file should say exactly that
+  (decl) (func coco_m_permission_error ((coco_engine * e) (const char * action)
+                                      (const char * type) (size_t culprit)) (out int))
 
   ;;; For what SWI has no error for and cocolog does: a condition of this
   ;;; implementation's own. It throws `error(cocolog_error(Atom), _)', so it is
@@ -868,6 +873,15 @@
         (let ((coco_machine * m . #'(-> e m)))
           (return (coco_m_raise e (coco_make2 m "existence_error"
                                           (coco_new_atom m kind) what)))))
+
+  (func coco_m_permission_error ((coco_engine * e) (const char * action) (const char * type)
+                                 (size_t culprit))
+        (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t args [3]))
+          (set (nth 0 args) (coco_new_atom m action))
+          (set (nth 1 args) (coco_new_atom m type))
+          (set (nth 2 args) culprit)
+          (return (coco_m_raise e (coco_make m "permission_error" 3 args)))))
 
   (func coco_m_error ((coco_engine * e) (const char * what) (const char * detail)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (char msg [192]))
