@@ -27,7 +27,7 @@ happily as over a real one.
 | `client/probe.c` | the C client against a real server, including a clause made of nothing but the five HTML-escapable characters, asserted over the binary protocol and read back through a page unchanged |
 | `test/engine.pl` | the engine's COMPLEXITY, which nothing else here checks: 100 000 solutions from `between/3`, a `findall` over the same range, ten times the work in far less than a hundred times the time, and a 500 000-deep deterministic recursion — with the answers still right, because a representation change that made everything fast and one thing wrong would pass every timing check |
 | `test/meter.pl` | `call_metered/4`, a goal under a ceiling and WHAT IT COST — the engine's own inference count, which it has always kept and never handed to a program. Checked as a PRICE rather than as a number: it measures rather than echoing the ceiling (a tiny goal under a huge one costs a tiny number; ten times the work costs strictly more), it answers for a goal that FAILED because a search is work, and two processes sharing nothing but the goal report the same number — 14 checks |
-| `test/thread.pl` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time — 20 checks |
+| `test/thread.pl` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time. Then the locks: exclusion proved without a stopwatch, `with_mutex/2` releasing on all three ways out, and one broadcast waking four waiters — 34 checks |
 | `test/httpd.pl` | the server: the grammar, routing, path safety, keep-alive and pipelining, the inference fence, the worker pool, pages that reach the KNOWLEDGE BASE from a worker thread with the count taken by a separate process, and the four cases that hold the pool's one rule — a worker serves a page loaded as a MODULE and not one that only reached the parent's store — 63 checks |
 | `test/crypto.pl` | ZiguratIP's cryptography and its CA as cocolog predicates, held to FIPS 180, RFC 4231, NIST SP 800-38A and DER's own worked examples where there are vectors, and to a round trip where there are not. The CA is exercised for real -- a key generated, a request made, a certificate issued against the sample authority, validated, signed with and checked -- 74 checks |
 | `test/tutorials.pl` | **the documentation, run as a suite**: **118** tutorial files in four categories — eleven `basics/`, forty-two `library/` and twenty-three `opencv/` proving their own claims through `must/3`, and forty-two `tensor/` networks as three processes each against a store of their own. A lesson that stops being true FAILS and names both answers |
@@ -41,7 +41,7 @@ happily as over a real one.
 | `test/errors.pl` | what cocolog RAISES, and what it used to lose on the way. Four defects of one family — the interpreter knew and the program could not find out: a `catch/3` whose goal had EXITED went on catching, so a later `throw/1` ran its recovery and the outer catch never heard; a `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` escaped the catch around it, because those run on a sub-engine with a choice stack of its own; `atomic_list_concat/2,3` FAILED with no error term once its 8 KB buffer overflowed, and built its error ball from an array it had already freed; and a clause too long for a ROW took every other clause of the transaction with it, at commit, silently. The last is checked ACROSS PROCESSES, which is the only place it was ever visible — 39 checks. The row budget is checked at its BOUNDARY in both variables: a clause at `page - 190 - len(kb) - len(name)` stores and one character more raises |
 | `test/files.pl` | the Files module held to SWI: every case is ONE Prolog file run TWICE — once by `swipl`, once by cocolog, in a freshly made empty directory at the same absolute path both times — and the two outputs compared byte for byte. A library that claims to be SWI's is checked against SWI and not against its own opinion. SKIPs without `swipl` |
 | `test/trace.pl` | the four-port tracer held to SWI the same way: both are asked the same queries over `test/trace-program.pl` with the tracer on, and the port lines compared one for one — Call, Exit, Redo and Fail, in order, at the same relative depths, over the same goals. SKIPs without `swipl` |
-| `test/vacuum.pl` | the store's two hygiene verbs — `forget` and the vacuum — in BOTH arrangements, plus the gate on `vacuum_kb/0`: the hook is installed only when the operator said `--vacuum`, and a run that did not raises `permission_error` rather than quietly spending the store's point-in-time reads. Forget's contract is pinned as count, emptiness with declarations, and idempotence |
+| `test/vacuum.pl` | the store's two hygiene verbs — `forget` and the vacuum — in BOTH arrangements, plus the gate on `vacuum_kb/0`: the hook is installed only when the operator said `--vacuum`, and a run that did not raises `permission_error` rather than quietly spending the store's point-in-time reads. Forget's contract is pinned as count, emptiness with declarations, and idempotence. The three vacuum steps of the wire half get 180s where the rest keep 10s, because the pass rewrites the WHOLE store's live rows and not this base's — 16s measured against a server also holding CivV's 92 bases |
 | `test/repl.pl` | the toplevel, piped: answers under the QUERY's own variable names in SWI's shapes down to the aliases, `;` for another solution, punctuation that is honest about whether a choice point was left, one session one world, and a session's writes read back by a second process |
 | `test/script.pl` | `-s SCRIPT`: load a script as a module, prove `main`, and SAY SO IN THE EXIT CODE — 0 exactly when `main` proved. `query` answers 0 for "the engine ran", which is why the flag exists |
 | `test/tunnel.pl` | the Zeytun READ path through a hostname-routing edge — the local rehearsal of the Cloudflare tunnel in `colab/COLAB.md` — with a TLS-terminating stand-in, `--insecure` going through loudly, and a second edge presenting a certificate for a name nobody asked for, refused with `hostname mismatch` |
@@ -1637,7 +1637,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.5` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.6` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3351,6 +3351,36 @@ is 14000), which is how it has always read and is worth a look.
   the second, beside the existence one (MODULES.md), and both are pinned
   under each backend (`test/torch-grad.pl`, `test/tensorflow.pl`), a
   nested path that IS there loading beside them.
+* **`library(thread)` has mutexes and condition variables (1.2.6).**
+  `mutex_create/1`, `mutex_destroy/1`, `mutex_lock/1`, `mutex_trylock/1`,
+  `mutex_unlock/1` and `with_mutex/2` are SWI's, name for name and
+  recursive as SWI's are; `cond_create/1`, `cond_destroy/1`,
+  `cond_wait/2,3`, `cond_wait_until/3`, `cond_signal/1` and
+  `cond_broadcast/1` are this module's, because SWI has message queues
+  there instead. **A lock is for what the threads DO share**, and in a
+  share-nothing interpreter that is never Prolog state: two machines
+  share no cell and a channel carries its own lock, so what is left is
+  everything OUTSIDE — a file two threads append to, a `library(tcp)`
+  handle (an index into a table the whole process shares), the terminal
+  two `format/2` calls interleave on. **An atom names one**, made on
+  first use and shared process-wide, which is the only way a thread
+  handed no term can share a lock: an httpd worker proves its page on a
+  machine with nothing of the parent's in it, so `with_mutex(log, Goal)`
+  in each worker is one lock where a handle reaches nobody.
+
+  Two things are decided rather than inherited. **`with_mutex/2` unlocks
+  on all three ways out** — proved, failed, and thrown — because a bare
+  `mutex_lock` with a raising goal after it holds the lock for the life
+  of the process, and the deadlock names whatever ran next. And the
+  mutexes being recursive makes `cond_wait` on one held TWICE undefined
+  in POSIX (the wait releases it once, so at depth two it would release
+  nothing and sleep holding it); it is `permission_error(wait,
+  recursive_mutex, M)` here, refused by name. 15 checks in
+  `test/thread.pl`, and one of them exists to prove the other three are
+  not vacuous: a recursive mutex says yes to a `trylock` from the thread
+  that already holds it, so "is it free?" is asked from ANOTHER thread,
+  and a lock deliberately leaked past its unlock is seen as held.
+  Tutorial 18 is the lesson.
 * **`format/2` has no column directives.** `~t`, `~|` and `~+` measure what has
   been written since the last column stop, which is a second pass over the
   buffer this does not make. They raise an error naming themselves rather than

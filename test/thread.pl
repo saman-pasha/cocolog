@@ -53,9 +53,35 @@ main :-
               '    channel_recv(Ch, 5000, _), !,',
               '    A is Acc + 1, K1 is K - 1,',
               '    th_drain_n(Ch, K1, A, N).',
-              'th_drain_n(_, _, N, N).' ]),
+              'th_drain_n(_, _, N, N).',
+              '',
+              '%% ---- what the lock section spawns ----',
+              '%% Takes the lock, SAYS SO, and holds it until it is told to let go --',
+              '%% which is what makes the exclusion check deterministic: the parent',
+              '%% knows the child is inside before it tries.',
+              'holder(M, Ready, Rel) :- mutex_lock(M), channel_send(Ready, in), channel_recv(Rel, _), mutex_unlock(M).',
+              'named_holder(Ready, Rel) :- with_mutex(shared_name, ( channel_send(Ready, in), channel_recv(Rel, _) )).',
+              '',
+              '%% READY IS SENT WHILE THE MUTEX IS HELD, which is the whole of the',
+              '%% lost-wakeup problem: the parent cannot take M to signal until this',
+              '%% thread is inside cond_wait, because that is where M is released.',
+              'waiter(C, M, Ready, Out) :- mutex_lock(M), channel_send(Ready, r), cond_wait(C, M), mutex_unlock(M), channel_send(Out, woke).',
+              'nested(M, Out) :- with_mutex(M, with_mutex(M, true)), channel_send(Out, nested_ok).',
+              '',
+              '%% IS IT FREE? ONLY ANOTHER THREAD CAN SAY. A recursive mutex says yes to',
+              '%% a trylock from the thread that already holds it -- that is what',
+              '%% recursive MEANS -- so asking in the thread under test proves nothing.',
+              'try_take(M, Out) :- ( mutex_trylock(M) -> mutex_unlock(M), channel_send(Out, free) ; channel_send(Out, still_held) ).',
+              'leak(M, Out) :- catch(( mutex_lock(M), throw(x) ), _, true), channel_send(Out, leaked).',
+              '',
+              '%% Count up to K arrivals, or stop at the timeout -- a lost wakeup is a',
+              '%% short count here rather than a suite that hangs.',
+              'nrecv(_, 0, N, N) :- !.',
+              'nrecv(Ch, K, A, N) :- channel_recv(Ch, 5000, _), !, A1 is A + 1, K1 is K - 1, nrecv(Ch, K1, A1, N).',
+              'nrecv(_, _, N, N).' ]),
     use_module(Work),
     a_thread, what_it_sees, a_channel, closed, backpressure, helpers, contention, parallel,
+    locks, conditions,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -175,3 +201,136 @@ parallel :-
     %% and this is not a benchmark.
     ( One > 0, Four < One * 3 -> R = parallel ; R = serial ),
     check('four times the work in well under four times the time', R, parallel).
+
+%% ---- mutexes -------------------------------------------------------------
+%%
+%% THE CLAIM IS THAT IT EXCLUDES, and a lock that does not is indis-
+%% tinguishable from one that does until the day it matters. It is checked
+%% without a stopwatch: a child takes the lock and SAYS SO down a channel
+%% before it lets go, so the parent knows it is inside, and `mutex_trylock'
+%% either fails (right) or does not (wrong). No sleeps, no ratios.
+%%
+%% AND THAT IT ALWAYS RELEASES. Three ways out of `with_mutex/2' -- the goal
+%% proves, fails, or throws -- and after each one another thread must be
+%% able to take the lock. The throw is the one worth having: a bare
+%% mutex_lock with a raising goal after it holds the lock for the life of
+%% the process, and the deadlock that follows names whatever ran next.
+locks :-
+    section('mutexes: it excludes, and with_mutex always lets go'),
+    written(( mutex_create(M1), channel_new(Rd1), channel_new(Rl1),
+              thread_create(holder(M1, Rd1, Rl1), I1),
+              channel_recv(Rd1, 5000, _),
+              ( mutex_trylock(M1) -> R1 = taken ; R1 = blocked ),
+              channel_send(Rl1, go), thread_join(I1, _) ), R1, G1),
+    check('a lock another thread holds cannot be taken', G1, blocked),
+    written(( mutex_create(M2), channel_new(Rd2), channel_new(Rl2),
+              thread_create(holder(M2, Rd2, Rl2), I2),
+              channel_recv(Rd2, 5000, _), channel_send(Rl2, go), thread_join(I2, _),
+              ( mutex_trylock(M2) -> R2 = free ; R2 = still_held ) ), R2, G2),
+    check('and once it lets go, it can', G2, free),
+    %% ASKED FROM ANOTHER THREAD, ALWAYS. A recursive mutex says yes to a
+    %% trylock from the thread that already holds it -- that is what recursive
+    %% MEANS -- so `is it free?' asked here would answer yes either way, and
+    %% these three checks would pass over a with_mutex that never unlocked at
+    %% all. The last check in this section is the one that proves they bite.
+    written(( mutex_create(M3), with_mutex(M3, true), channel_new(O3),
+              thread_create(try_take(M3, O3), I3),
+              ( channel_recv(O3, 5000, R3) -> true ; R3 = no_answer ),
+              thread_join(I3, _) ), R3, G3),
+    check('with_mutex unlocks after a goal that PROVED', G3, free),
+    written(( mutex_create(M4), \+ with_mutex(M4, fail), channel_new(O4),
+              thread_create(try_take(M4, O4), I4),
+              ( channel_recv(O4, 5000, R4) -> true ; R4 = no_answer ),
+              thread_join(I4, _) ), R4, G4),
+    check('and after one that FAILED', G4, free),
+    %% THE ONE THAT PAYS FOR THE PREDICATE. `mutex_lock(M), G, mutex_unlock(M)'
+    %% with a raising G is a lock held until the process exits.
+    written(( mutex_create(M5), catch(with_mutex(M5, throw(boom)), B5, true),
+              channel_new(O5), thread_create(try_take(M5, O5), I5),
+              ( channel_recv(O5, 5000, R5) -> true ; R5 = no_answer ),
+              thread_join(I5, _),
+              atomic_list_concat([B5, R5], '-', X5) ), X5, G5),
+    check('and after one that THREW, with the ball still thrown', G5, 'boom-free'),
+    written(( mutex_create(M6), findall(X6, with_mutex(M6, member(X6, [a,b,c])), L6) ), L6, G6),
+    check('with_mutex is once/1, as SWI''s is', G6, '[a]'),
+    %% A RECURSIVE MUTEX OR A DEADLOCK, and this check is the difference. It
+    %% runs in a CHILD with a timeout on the answer, so a regression is a red
+    %% line rather than a suite that has to be killed.
+    written(( mutex_create(M7), channel_new(Out7),
+              thread_create(nested(M7, Out7), I7),
+              ( channel_recv(Out7, 5000, R7) -> true ; R7 = deadlocked ),
+              thread_detach(I7) ), R7, G7),
+    check('the mutexes are recursive: with_mutex nests', G7, nested_ok),
+    %% THE SHAPE AND THE CULPRIT, NOT THE SLOT NUMBER. Which slot a mutex
+    %% gets depends on how many the checks above made, so a pin on the number
+    %% is a pin on the order of this case.
+    written(( mutex_create(M8), catch(mutex_unlock(M8), error(E8, _), true),
+              E8 = permission_error(A8, T8, C8),
+              ( C8 == M8 -> S8 = the_one_we_passed ; S8 = somebody_else ),
+              atomic_list_concat([A8, T8, S8], '-', X8) ), X8, G8),
+    check('unlocking one you do not hold is a permission_error', G8,
+          'unlock-mutex-the_one_we_passed'),
+    %% A NAME IS A LOCK, and this is why it exists: nothing was handed to the
+    %% child. An httpd page is proved on a machine given no handle at all.
+    written(( channel_new(Rd9), channel_new(Rl9),
+              thread_create(named_holder(Rd9, Rl9), I9),
+              channel_recv(Rd9, 5000, _),
+              ( mutex_trylock(shared_name) -> R9 = taken ; R9 = blocked ),
+              channel_send(Rl9, go), thread_join(I9, _) ), R9, G9),
+    check('an ATOM is a lock the whole process shares, no handle passed', G9, blocked),
+    %% AND THE CHECK THAT THE THREE RELEASE CHECKS ARE NOT VACUOUS: the same
+    %% question, asked the same way, of a thread that took the lock and let a
+    %% throw carry it past the unlock. That is exactly what `with_mutex'
+    %% exists to prevent, so this must answer the other way.
+    written(( mutex_create(M10), channel_new(O10), channel_new(L10),
+              thread_create(leak(M10, L10), I10),
+              channel_recv(L10, 5000, _), thread_join(I10, _),
+              thread_create(try_take(M10, O10), J10),
+              ( channel_recv(O10, 5000, R10) -> true ; R10 = no_answer ),
+              thread_join(J10, _) ), R10, G10),
+    check('and a lock a throw carried past its unlock IS seen as held', G10, still_held).
+
+%% ---- condition variables -------------------------------------------------
+%%
+%% WHAT A CHANNEL CANNOT SAY IS `EVERYBODY'. One message goes to one
+%% receiver; a start gate wakes all of them, and that is `cond_broadcast/1'.
+%% Both checks below spawn waiters that send READY while holding the mutex,
+%% so the signaller cannot take it until they are genuinely inside the wait
+%% -- a lost wakeup would otherwise be a test that passes most mornings.
+conditions :-
+    section('condition variables: one waiter woken, then all of them'),
+    written(( cond_create(C1), mutex_create(M1), channel_new(Rd1), channel_new(Out1),
+              thread_create(waiter(C1, M1, Rd1, Out1), I1),
+              channel_recv(Rd1, 5000, _),
+              mutex_lock(M1), cond_signal(C1), mutex_unlock(M1),
+              ( channel_recv(Out1, 5000, R1) -> true ; R1 = never_woke ),
+              thread_join(I1, _) ), R1, G1),
+    check('a signal wakes a waiter, which takes the mutex back', G1, woke),
+    written(( cond_create(C2), mutex_create(M2), channel_new(Rd2), channel_new(Out2),
+              thread_pool(4, waiter(C2, M2, Rd2, Out2), Ids2),
+              nrecv(Rd2, 4, 0, Ready2),
+              mutex_lock(M2), cond_broadcast(C2), mutex_unlock(M2),
+              nrecv(Out2, 4, 0, Woke2), thread_join_all(Ids2),
+              atomic_list_concat([Ready2, Woke2], '-', X2) ), X2, G2),
+    check('and ONE broadcast wakes all four of them', G2, '4-4'),
+    written(( cond_create(C3), mutex_create(M3), mutex_lock(M3),
+              ( cond_wait(C3, M3, 300) -> R3 = woke ; R3 = timed_out ),
+              mutex_unlock(M3) ), R3, G3),
+    check('a timed wait fails rather than hanging', G3, timed_out),
+    written(( cond_create(C4), mutex_create(M4),
+              catch(cond_wait(C4, M4), error(E4, _), true),
+              E4 = permission_error(A4, T4, C4b),
+              ( C4b == M4 -> S4 = the_mutex ; S4 = something_else ),
+              atomic_list_concat([A4, T4, S4], '-', X4) ), X4, G4),
+    check('waiting without the mutex is a permission_error', G4,
+          'wait-mutex-the_mutex'),
+    %% THE UNDEFINED BEHAVIOUR, REFUSED BY NAME. cond_wait releases the mutex
+    %% ONCE; at depth two it would release nothing and sleep holding it.
+    written(( cond_create(C5), mutex_create(M5), mutex_lock(M5), mutex_lock(M5),
+              catch(cond_wait(C5, M5), error(E5, _), true),
+              mutex_unlock(M5), mutex_unlock(M5),
+              E5 = permission_error(A5, T5, C5b),
+              ( C5b == M5 -> S5 = the_mutex ; S5 = something_else ),
+              atomic_list_concat([A5, T5, S5], '-', X5) ), X5, G5),
+    check('and waiting on one held TWICE is refused, not undefined', G5,
+          'wait-recursive_mutex-the_mutex').

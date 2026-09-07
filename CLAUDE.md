@@ -1397,6 +1397,22 @@ is file-scope in tcp's `.so`, so a handle is an index into a table the whole
 *process* shares. Only the accepting thread allocates; a worker uses one and
 closes it.
 
+**AND THAT IS WHAT THE MUTEXES ARE FOR (1.2.6).** `mutex_create/1`,
+`mutex_lock/1`, `mutex_trylock/1`, `mutex_unlock/1`, `mutex_destroy/1` and
+`with_mutex/2` are SWI's names and SWI's recursive semantics; `cond_create/1`,
+`cond_wait/2,3`, `cond_wait_until/3`, `cond_signal/1`, `cond_broadcast/1` and
+`cond_destroy/1` are ours. **They protect nothing in the knowledge base** —
+two machines share no cell and a channel carries its own lock — they serialise
+access to the WORLD: a file, one of those tcp handles, the terminal. **An atom
+names a lock** the whole process shares, made on first use, which is the only
+way a thread handed no term can share one (an httpd page is proved on a machine
+with nothing of yours in it). **`with_mutex/2` is the form to use**: it unlocks
+on success, on failure and on the way out of a throw, where a bare `mutex_lock`
+and a raising goal hold the lock for the life of the process. `cond_wait` on a
+mutex held TWICE is refused by name — the wait releases it once, so POSIX calls
+depth two undefined and this calls it
+`permission_error(wait, recursive_mutex, M)`.
+
 **Measured**: one slow page 372 ms; four of them at once, one connection at
 a time, **1 365 ms**; the same four through four workers, **419 ms**. The
 pool is not faster at one request — it is what stops one slow request

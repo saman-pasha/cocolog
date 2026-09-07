@@ -49,7 +49,18 @@ count(Pat, Text, N) :- atom_codes(Text, Cs), re_lines(Pat, Cs, Ls), length(Ls, N
 
 %% One arrangement's whole story, parameterised on how to reach the store:
 %% Label names it, Prefix is the cocolog command up to but excluding the verb.
-exercise(Label, Prefix, Facts) :-
+%% THE VACUUM'S COST IS THE WHOLE STORE, NOT THIS BASE, which is why the
+%% slow steps below get a prefix of their own. The verb TRUNCATEs and
+%% rewrites every live row there is, so on a server shared with anything
+%% real it takes as long as that server's contents: measured here at 16s
+%% against a store holding CivV's 92 knowledge bases (~550 000 live rows,
+%% and CivV's own prelude quotes `kb_vacuum 15s' as its normal cost),
+%% while every other verb in this case stays under a second. A 10s client
+%% timeout is right for those and simply wrong for these three -- the
+%% failure it produced was `read failed: Resource temporarily unavailable'
+%% from a pass that then completed correctly, which reads as a broken
+%% backend and is a stopwatch.
+exercise(Label, Prefix, Slow, Facts) :-
     %% FORGET'S CONTRACT FIRST. The contract that must survive whatever shape
     %% the deleting takes: the count is the clause count, everything goes --
     %% a declared-but-empty dynamic included, the half only the declarations
@@ -70,8 +81,8 @@ exercise(Label, Prefix, Facts) :-
     lbl(Label, 'and a second forget finds nothing', L4), check(L4, N4, 1),
     cocolog_run(Consult, _, _),
     verb(Prefix, 'forget >/dev/null', _),
-    verb(Prefix, vacuum, First),
-    verb(Prefix, vacuum, Second),
+    verb(Slow, vacuum, First),
+    verb(Slow, vacuum, Second),
     count('^vacuumed; ', First, N5),
     lbl(Label, 'the vacuum verb reclaims', L5), check(L5, N5, 1),
     ( First == Second -> Same = same ; Same = First-Second ),
@@ -79,11 +90,11 @@ exercise(Label, Prefix, Facts) :-
     verb(Prefix, 'query "catch(vacuum_kb, error(permission_error(vacuum, knowledge_base, _), _), (write(refused), nl))"', Refused),
     count('^refused$', Refused, N7),
     lbl(Label, 'vacuum_kb without --vacuum is refused', L7), check(L7, N7, 1),
-    verb(Prefix, '--vacuum query "vacuum_kb(Live), integer(Live), write(allowed), nl"', Allowed),
+    verb(Slow, '--vacuum query "vacuum_kb(Live), integer(Live), write(allowed), nl"', Allowed),
     count('^allowed$', Allowed, N8),
     lbl(Label, 'and with --vacuum it answers the live count', L8), check(L8, N8, 1),
     cocolog_run(Consult, _, _),
-    verb(Prefix, '--vacuum query "vacuum_kb, findall(X, p(X), L), write(L), nl"', After),
+    verb(Slow, '--vacuum query "vacuum_kb, findall(X, p(X), L), write(L), nl"', After),
     count('^\\[1,2,3\\]$', After, N9),
     lbl(Label, 'live clauses survive the pass', L9), check(L9, N9, 1),
     verb(Prefix, 'forget >/dev/null', _).
@@ -93,7 +104,8 @@ lbl(Label, Text, L) :- sh_join([Label, ': ', Text], L).
 embedded(D, Facts) :-
     section('the embedded arrangement'),
     sh_join(['--kb vacuum_test --embed ', D, '/store'], Prefix),
-    exercise(embed, Prefix, Facts).
+    %% In process, with no client timeout to give: the two prefixes are one.
+    exercise(embed, Prefix, Prefix, Facts).
 
 wire(Facts) :-
     section('the wire arrangement'),
@@ -103,6 +115,7 @@ wire(Facts) :-
     sh_join(['timeout 20 ', C, ' --kb vacuum_test --host ', Host, ' --tcp ', Port, ' --timeout 10 list >/dev/null 2>&1'], Probe),
     (   sh_exit(Probe, 0)
     ->  sh_join(['--kb vacuum_test --host ', Host, ' --tcp ', Port, ' --timeout 10'], Prefix),
-        exercise(wire, Prefix, Facts)
+        sh_join(['--kb vacuum_test --host ', Host, ' --tcp ', Port, ' --timeout 180'], Slow),
+        exercise(wire, Prefix, Slow, Facts)
     ;   format("     (skipped: no Zigurat server at ~w:~w)~n", [Host, Port])
     ).

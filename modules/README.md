@@ -12,7 +12,7 @@ still builds and still runs.
 | | is | needs |
 |---|---|---|
 | `tcp` | the socket seam: a handle is an index into this module's own table, never a descriptor | nothing |
-| `thread` | threads and channels, sharing nothing | nothing |
+| `thread` | threads and channels, sharing nothing -- plus mutexes and condition variables for what they DO share, which is everything outside the interpreter | nothing |
 | `process` | run, capture, spawn, wait, kill -- the test-suite vocabulary (`timeout ... \| grep`, check/3, the sleep-poll loop) as predicates, so a suite can be a .pl file | nothing |
 | `text` | grep, sed and the line tools as clauses over libc's own POSIX regex (`re_match`, `re_first`, `re_replace` with & and \1..\9; lines, head, tail, chomp in the Prolog half) | nothing |
 | `os` | which operating system, who am I, how many cores, what is in the environment, where is a tool -- the questions a suite used to put to `uname`, `command -v`, `nproc` and `$TMPDIR`, answered by libc | nothing |

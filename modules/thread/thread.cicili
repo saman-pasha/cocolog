@@ -58,6 +58,29 @@
 ;;;;   channel_close(Ch)             wakes everybody waiting
 ;;;;   channel_size(Ch, N)           how many are queued
 ;;;;
+;;;;   mutex_create(M)               a handle; RECURSIVE, as SWI's are
+;;;;   mutex_destroy(M)              refused while anybody holds it
+;;;;   mutex_lock(M)                 blocks until it is yours
+;;;;   mutex_trylock(M)              FAILS rather than blocking
+;;;;   mutex_unlock(M)               permission_error if it is not yours
+;;;;   with_mutex(M, Goal)           once(Goal) under it, released whatever happens
+;;;;
+;;;;   cond_create(C)                a handle
+;;;;   cond_destroy(C)
+;;;;   cond_wait(C, M)               releases M, waits, takes M back
+;;;;   cond_wait(C, M, Timeout)      milliseconds; FAILS on timeout
+;;;;   cond_wait_until(C, M, Goal)   ... and the loop a bare wait needs
+;;;;   cond_signal(C)                wake one waiter
+;;;;   cond_broadcast(C)             wake all of them
+;;;;
+;;;; A MUTEX OR A COND IS A HANDLE OR AN ATOM. Everywhere one is expected,
+;;;; an atom NAMES one -- made on first use, shared by the whole process,
+;;;; never collected. That is not sugar: it is the only way two threads that
+;;;; share no term can share a lock. A handle can travel in the goal term
+;;;; `thread_create' copies, but an httpd worker proves its page on a
+;;;; machine that was handed nothing at all, and `with_mutex(log, Goal)' in
+;;;; every worker is one lock without a handle reaching anybody.
+;;;;
 ;;;; A BOUNDED CHANNEL IS BACKPRESSURE, which is the reason to want one. An
 ;;;; unbounded queue between a fast producer and a slow consumer is not a
 ;;;; queue, it is a memory leak with a scheduler attached.
@@ -66,6 +89,49 @@
 ;;;; does not raise: "there will be no more" is an ordinary answer, and it
 ;;;; is what lets a consumer be written as a failure-driven loop rather than
 ;;;; around a sentinel value the producer has to remember to send.
+;;;;
+;;;;
+;;;; A LOCK IS FOR WHAT THE THREADS DO SHARE, WHICH IS NOT PROLOG STATE.
+;;;; Nothing above this line needs one: two machines share no cell, a
+;;;; channel carries its own lock, and a thread's store is its own. What
+;;;; threads DO share is everything outside the interpreter -- a file two of
+;;;; them append to, a socket handle from library(tcp) (an index into a
+;;;; table the whole PROCESS shares), the terminal that two `format/2' calls
+;;;; interleave on, a directory being rewritten under a reader. That is the
+;;;; honest scope of `mutex_lock': it serialises access to the WORLD, and
+;;;; there is nothing in the knowledge base for it to protect.
+;;;;
+;;;; `with_mutex/2' IS THE FORM TO USE, and the other four are for the
+;;;; arrangements it cannot express. It is `once(Goal)' under the lock, and
+;;;; it unlocks on success, on failure, and on the way out of a throw.
+;;;; A bare `mutex_lock' with a goal that raises between it and the unlock
+;;;; leaves the lock held for the life of the process, by a thread that is
+;;;; no longer anywhere near that part of the program -- and the next
+;;;; `mutex_lock' waits for ever, naming the wrong thing when it is finally
+;;;; investigated.
+;;;;
+;;;; THE MUTEXES ARE RECURSIVE, which is SWI's choice and the safe one:
+;;;; `with_mutex' nests the moment one guarded goal calls another, and a
+;;;; default pthread mutex relocked by its own owner DEADLOCKS. `cond_wait'
+;;;; therefore insists the mutex be held exactly ONCE, because the wait
+;;;; releases it exactly once: at depth two it would release nothing and
+;;;; every waiter would sleep holding the lock. POSIX calls that undefined;
+;;;; here it is `permission_error(wait, recursive_mutex, M)', refused by
+;;;; name rather than discovered at three in the morning.
+;;;;
+;;;; A CONDITION VARIABLE IS FOR WHAT A CHANNEL CANNOT SAY, and there is
+;;;; essentially one such thing: WAKE EVERYBODY. A channel already is a
+;;;; condition variable with the state attached, and each message goes to
+;;;; one receiver -- but a start gate, a shutdown flag and a barrier need
+;;;; every waiter woken at once, which is `cond_broadcast/1', and a channel
+;;;; can only imitate it by sending N messages to a producer that has to
+;;;; know N.
+;;;;
+;;;; AND A BARE `cond_wait/2' RETURNS SPURIOUSLY. POSIX allows it and real
+;;;; hardware obliges, so a wait that is not inside a loop testing the thing
+;;;; you are waiting FOR is a bug that reproduces once a week.
+;;;; `cond_wait_until/3' is that loop, with the goal tested under the mutex
+;;;; where the answer cannot go stale between the test and the wait.
 
 ;;; NO `DEFPACKAGE' HERE. A file compiled on its own is the whole
 ;;; compilation unit, and a DEFPACKAGE at its top expands to an EVAL-WHEN
@@ -85,7 +151,20 @@
     ("channel_recv"   2 th_chan_recv2)
     ("channel_recv"   3 th_chan_recv3)
     ("channel_close"  1 th_chan_close)
-    ("channel_size"   2 th_chan_size)))
+    ("channel_size"   2 th_chan_size)
+
+    ("mutex_create"   1 th_mutex_create)
+    ("mutex_destroy"  1 th_mutex_drop)
+    ("mutex_lock"     1 th_mutex_lock)
+    ("mutex_trylock"  1 th_mutex_trylock)
+    ("mutex_unlock"   1 th_mutex_unlock)
+
+    ("cond_create"    1 th_cond_create)
+    ("cond_destroy"   1 th_cond_drop)
+    ("cond_wait"      2 th_cond_wait2)
+    ("cond_wait"      3 th_cond_wait3)
+    ("cond_signal"    1 th_cond_signal)
+    ("cond_broadcast" 1 th_cond_broadcast)))
 
 ;;; The Coco half. Joined with SPACES because a Cicili string literal
 ;;; cannot carry a newline, and a clause ends at its `.' anyway.
@@ -125,6 +204,21 @@
            "thread_pool(N, Goal, [Id|Ids]) :- N > 0, thread_create(Goal, Id), M is N - 1, thread_pool(M, Goal, Ids)."
            "thread_join_all([])."
            "thread_join_all([Id|Ids]) :- thread_join(Id, _), thread_join_all(Ids)."
+
+           ;; THE ONE THAT ALWAYS UNLOCKS, and the reason it is written here
+           ;; rather than in C: `once(Goal)' with a cleanup on all three ways
+           ;; out is three lines of Prolog and a control construct in C.
+           ;; `catch(G, E, true)' makes a throw SUCCEED with E bound, so the
+           ;; if-then-else sees "the goal is finished with" either way and the
+           ;; unlock happens before the ball is thrown on. The `->' is what
+           ;; makes it once/1, which is SWI's documented behaviour.
+           "with_mutex(M, G) :- mutex_lock(M), ( catch(G, E, true) -> mutex_unlock(M), ( nonvar(E) -> throw(E) ; true ) ; mutex_unlock(M), fail )."
+
+           ;; THE LOOP A BARE WAIT NEEDS. A condition variable says "something
+           ;; changed", never "what you wanted is true", and it may say it for
+           ;; no reason at all -- so the goal is tested first, under the mutex
+           ;; the caller already holds, and again after every wake.
+           "cond_wait_until(C, M, Goal) :- ( call(Goal) -> true ; cond_wait(C, M), cond_wait_until(C, M, Goal) )."
            )))
 
 
@@ -384,6 +478,295 @@
           (set n (cast i64 (-> c n)))
           (pthread_mutex_unlock (aof (-> c lock)))
           (return (coco_m_unify_int e (coco_m_arg e g 1) n))))
+
+  ;;; ---- mutexes and condition variables ----------------------------------
+  ;;;
+  ;;; RECURSIVE, because `with_mutex' nests as soon as one guarded goal calls
+  ;;; another and a default pthread mutex relocked by its owner deadlocks.
+  ;;; The depth and the owner are kept HERE as well as inside the mutex,
+  ;;; because pthreads will not answer either question and `cond_wait' has to
+  ;;; know: it releases the mutex exactly once, so it is well defined at
+  ;;; depth one and nothing at all at depth two.
+  ;;;
+  ;;; BOTH FIELDS ARE WRITTEN ONLY BY THE OWNER AND ONLY UNDER THE LOCK. A
+  ;;; stranger reading them unsynchronised -- which `mutex_unlock' does, to
+  ;;; refuse an unlock that is not its to make -- can read a stale pair, and
+  ;;; both stale answers ("held by somebody else", "held by nobody") are the
+  ;;; same refusal. It cannot read ITSELF as the owner, because only the
+  ;;; owner ever writes its own id there.
+  (struct th_mutex
+    (member pthread_mutex_t m)
+    (member pthread_t       owner)    ; meaningful only while depth > 0
+    (member int             depth)
+    (member int             live)
+    (member int             named)
+    (member char            name [64]))
+
+  (struct th_cond
+    (member pthread_cond_t  c)
+    (member int             live)
+    (member int             named)
+    (member char            name [64]))
+
+  (static) (var th_mutex th_mutexes [256])
+  (static) (var th_cond  th_conds   [256])
+
+  ;;; ---- slots -------------------------------------------------------------
+  ;;; CALLED WITH th_table_lock HELD, both of these, so that a named lookup
+  ;;; and the creation it may need are one atomic step: two threads asking
+  ;;; for `with_mutex(log, ...)' at the same moment must come away with the
+  ;;; same lock, and a find-then-make written as two locked steps hands them
+  ;;; two.
+  (static)
+  (func th_mutex_alloc ((const char * name)) (out i64)
+        (let ((i64 id . -1))
+          (for ((size_t i . 0)) (< i 256) ((++ i))
+               (if (not ($ (nth i th_mutexes) live))
+                   (block (set id (cast i64 i)) break)))
+          (if (< id 0) (return -1))
+          (let ((th_mutex * mx . #'(aof (nth (cast size_t id) th_mutexes)))
+                (pthread_mutexattr_t at))
+            (pthread_mutexattr_init (aof at))
+            (pthread_mutexattr_settype (aof at) PTHREAD_MUTEX_RECURSIVE)
+            (pthread_mutex_init (aof (-> mx m)) (aof at))
+            (pthread_mutexattr_destroy (aof at))
+            (set (-> mx depth) 0)
+            (set (-> mx live) 1)
+            (set (-> mx named) 0)
+            (set (nth 0 (-> mx name)) (cast char 0))
+            (if (!= name nil)
+                (block (set (-> mx named) 1) (snprintf (-> mx name) 64 "%s" name))))
+          (return id)))
+
+  (static)
+  (func th_cond_alloc ((const char * name)) (out i64)
+        (let ((i64 id . -1))
+          (for ((size_t i . 0)) (< i 256) ((++ i))
+               (if (not ($ (nth i th_conds) live))
+                   (block (set id (cast i64 i)) break)))
+          (if (< id 0) (return -1))
+          (let ((th_cond * c . #'(aof (nth (cast size_t id) th_conds))))
+            (pthread_cond_init (aof (-> c c)) nil)
+            (set (-> c live) 1)
+            (set (-> c named) 0)
+            (set (nth 0 (-> c name)) (cast char 0))
+            (if (!= name nil)
+                (block (set (-> c named) 1) (snprintf (-> c name) 64 "%s" name))))
+          (return id)))
+
+  ;;; A NAME IS THE SAME LOCK EVERYWHERE, found or made under one hold.
+  (static)
+  (func th_mutex_named ((const char * name)) (out i64)
+        (let ((i64 id . -1))
+          (pthread_mutex_lock (aof th_table_lock))
+          (for ((size_t i . 0)) (< i 256) ((++ i))
+               (if (and ($ (nth i th_mutexes) live)
+                        (and ($ (nth i th_mutexes) named)
+                             (== 0 (strcmp ($ (nth i th_mutexes) name) name))))
+                   (block (set id (cast i64 i)) break)))
+          (if (< id 0) (set id (th_mutex_alloc name)))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (return id)))
+
+  (static)
+  (func th_cond_named ((const char * name)) (out i64)
+        (let ((i64 id . -1))
+          (pthread_mutex_lock (aof th_table_lock))
+          (for ((size_t i . 0)) (< i 256) ((++ i))
+               (if (and ($ (nth i th_conds) live)
+                        (and ($ (nth i th_conds) named)
+                             (== 0 (strcmp ($ (nth i th_conds) name) name))))
+                   (block (set id (cast i64 i)) break)))
+          (if (< id 0) (set id (th_cond_alloc name)))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (return id)))
+
+  ;;; ---- resolving an argument ---------------------------------------------
+  ;;; A handle this module handed out, or an atom naming one. -1 with *rc 0
+  ;;; means "not one of mine" and the caller FAILS, which is the rule every
+  ;;; handle in this family follows; -1 with *rc set means a ball is in hand.
+  (static)
+  (func th_mutex_arg ((coco_engine * e) (size_t t) (int * rc)) (out int)
+        (let ((i64 id . 0) (char nm [64]))
+          (set (cof rc) 0)
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return -1)))
+          (if (coco_m_int e t (aof id))
+              (block
+                (if (or (< id 0) (>= id 256)) (return -1))
+                (if (not ($ (nth (cast size_t id) th_mutexes) live)) (return -1))
+                (return (cast int id))))
+          (if (not (coco_m_is_atom e t))
+              (block (set (cof rc) (coco_m_type_error e "mutex" t)) (return -1)))
+          (if (not (coco_m_text e t nm 64))
+              (block (set (cof rc) (coco_m_type_error e "mutex" t)) (return -1)))
+          (if (== (nth 0 nm) (cast char 0))
+              (block (set (cof rc) (coco_m_domain_error e "mutex_name" t)) (return -1)))
+          (set id (th_mutex_named nm))
+          (if (< id 0)
+              (block (set (cof rc) (coco_m_error e "mutex" "no mutex slots left")) (return -1)))
+          (return (cast int id))))
+
+  (static)
+  (func th_cond_arg ((coco_engine * e) (size_t t) (int * rc)) (out int)
+        (let ((i64 id . 0) (char nm [64]))
+          (set (cof rc) 0)
+          (if (coco_m_is_var e t)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return -1)))
+          (if (coco_m_int e t (aof id))
+              (block
+                (if (or (< id 0) (>= id 256)) (return -1))
+                (if (not ($ (nth (cast size_t id) th_conds) live)) (return -1))
+                (return (cast int id))))
+          (if (not (coco_m_is_atom e t))
+              (block (set (cof rc) (coco_m_type_error e "cond" t)) (return -1)))
+          (if (not (coco_m_text e t nm 64))
+              (block (set (cof rc) (coco_m_type_error e "cond" t)) (return -1)))
+          (if (== (nth 0 nm) (cast char 0))
+              (block (set (cof rc) (coco_m_domain_error e "cond_name" t)) (return -1)))
+          (set id (th_cond_named nm))
+          (if (< id 0)
+              (block (set (cof rc) (coco_m_error e "cond" "no condition slots left")) (return -1)))
+          (return (cast int id))))
+
+  ;;; ---- the mutex predicates ----------------------------------------------
+
+  (func th_mutex_create ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 id . -1))
+          (pthread_mutex_lock (aof th_table_lock))
+          (set id (th_mutex_alloc nil))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (if (< id 0)
+              (return (coco_m_error e "mutex_create" "no mutex slots left")))
+          (return (coco_m_unify_int e (coco_m_arg e g 0) id))))
+
+  (func th_mutex_lock ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int s . #'(th_mutex_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< s 0) (return rc))
+          (let ((th_mutex * mx . #'(aof (nth (cast size_t s) th_mutexes))))
+            (pthread_mutex_lock (aof (-> mx m)))
+            (set (-> mx owner) (pthread_self))
+            (set (-> mx depth) (+ (-> mx depth) 1))
+            (return 1))))
+
+  ;;; FAILS when somebody else has it, which is the whole point of it: a
+  ;;; refusal is an answer here, not an error.
+  (func th_mutex_trylock ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int s . #'(th_mutex_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< s 0) (return rc))
+          (let ((th_mutex * mx . #'(aof (nth (cast size_t s) th_mutexes))))
+            (if (!= 0 (pthread_mutex_trylock (aof (-> mx m)))) (return 0))
+            (set (-> mx owner) (pthread_self))
+            (set (-> mx depth) (+ (-> mx depth) 1))
+            (return 1))))
+
+  (func th_mutex_unlock ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int s . #'(th_mutex_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< s 0) (return rc))
+          (let ((th_mutex * mx . #'(aof (nth (cast size_t s) th_mutexes))))
+            (if (or (== (-> mx depth) 0)
+                    (not (pthread_equal (-> mx owner) (pthread_self))))
+                (return (coco_m_permission_error e "unlock" "mutex" (coco_m_arg e g 0))))
+            (set (-> mx depth) (- (-> mx depth) 1))
+            (pthread_mutex_unlock (aof (-> mx m)))
+            (return 1))))
+
+  ;;; A HELD MUTEX IS NOT DESTROYED, it is refused: freeing the slot under a
+  ;;; waiter would leave that thread blocked on memory this table is about to
+  ;;; hand to somebody else.
+  (func th_mutex_drop ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int s . #'(th_mutex_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< s 0) (return rc))
+          (let ((th_mutex * mx . #'(aof (nth (cast size_t s) th_mutexes))))
+            (if (!= (-> mx depth) 0)
+                (return (coco_m_permission_error e "destroy" "mutex" (coco_m_arg e g 0))))
+            (pthread_mutex_lock (aof th_table_lock))
+            (pthread_mutex_destroy (aof (-> mx m)))
+            (set (-> mx live) 0)
+            (set (-> mx named) 0)
+            (pthread_mutex_unlock (aof th_table_lock))
+            (return 1))))
+
+  ;;; ---- the condition predicates ------------------------------------------
+
+  (func th_cond_create ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 id . -1))
+          (pthread_mutex_lock (aof th_table_lock))
+          (set id (th_cond_alloc nil))
+          (pthread_mutex_unlock (aof th_table_lock))
+          (if (< id 0)
+              (return (coco_m_error e "cond_create" "no condition slots left")))
+          (return (coco_m_unify_int e (coco_m_arg e g 0) id))))
+
+  (func th_cond_drop ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int s . #'(th_cond_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< s 0) (return rc))
+          (let ((th_cond * c . #'(aof (nth (cast size_t s) th_conds))))
+            (pthread_mutex_lock (aof th_table_lock))
+            (pthread_cond_destroy (aof (-> c c)))
+            (set (-> c live) 0)
+            (set (-> c named) 0)
+            (pthread_mutex_unlock (aof th_table_lock))
+            (return 1))))
+
+  ;;; THE WAIT, both arities. The mutex must be held by this thread and held
+  ;;; exactly ONCE -- see the header: the wait releases it once, so depth two
+  ;;; would release nothing and sleep holding the lock.
+  ;;;
+  ;;; The depth is cleared BEFORE the wait and restored after, timeout or
+  ;;; not, because between those two lines the mutex genuinely belongs to
+  ;;; whoever takes it next and this table must not claim otherwise.
+  (static)
+  (func th_wait ((coco_engine * e) (size_t g) (int timed)) (out int)
+        (let ((int rc . 0) (int cs . #'(th_cond_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< cs 0) (return rc))
+          (let ((int s . #'(th_mutex_arg e (coco_m_arg e g 1) (aof rc))))
+            (if (< s 0) (return rc))
+            (let ((th_cond * c . #'(aof (nth (cast size_t cs) th_conds)))
+                  (th_mutex * mx . #'(aof (nth (cast size_t s) th_mutexes)))
+                  (i64 ms . 0) (timespec ts) (int wrc . 0))
+              (if (or (== (-> mx depth) 0)
+                      (not (pthread_equal (-> mx owner) (pthread_self))))
+                  (return (coco_m_permission_error e "wait" "mutex" (coco_m_arg e g 1))))
+              (if (> (-> mx depth) 1)
+                  (return (coco_m_permission_error e "wait" "recursive_mutex" (coco_m_arg e g 1))))
+              (if timed
+                  (block
+                    (if (not (coco_m_int e (coco_m_arg e g 2) (aof ms)))
+                        (return (coco_m_type_error e "integer" (coco_m_arg e g 2))))
+                    (if (< ms 0)
+                        (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 2))))
+                    (th_deadline (aof ts) ms)))
+              (set (-> mx depth) 0)
+              (if timed
+                  (set wrc (pthread_cond_timedwait (aof (-> c c)) (aof (-> mx m)) (aof ts)))
+                (set wrc (pthread_cond_wait (aof (-> c c)) (aof (-> mx m)))))
+              (set (-> mx owner) (pthread_self))
+              (set (-> mx depth) 1)
+              ;; a timeout is an ANSWER: the mutex is back and the goal fails
+              (if (!= wrc 0) (return 0))
+              (return 1)))))
+
+  (func th_cond_wait2 ((coco_engine * e) (size_t g)) (out int)
+        (return (th_wait e g 0)))
+
+  (func th_cond_wait3 ((coco_engine * e) (size_t g)) (out int)
+        (return (th_wait e g 1)))
+
+  ;;; SIGNAL AND BROADCAST SUCCEED WITH NOBODY WAITING, which is POSIX's rule
+  ;;; and the right one: a signal is not a message and nothing is queued, so
+  ;;; "I told anyone who was listening" is the whole of what happened.
+  (func th_cond_signal ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int s . #'(th_cond_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< s 0) (return rc))
+          (pthread_cond_signal (aof ($ (nth (cast size_t s) th_conds) c)))
+          (return 1)))
+
+  (func th_cond_broadcast ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (int s . #'(th_cond_arg e (coco_m_arg e g 0) (aof rc))))
+          (if (< s 0) (return rc))
+          (pthread_cond_broadcast (aof ($ (nth (cast size_t s) th_conds) c)))
+          (return 1)))
 
   ;;; ---- threads ----------------------------------------------------------
 

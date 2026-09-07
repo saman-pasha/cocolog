@@ -43,7 +43,7 @@ written anywhere in this repository.
 | 15-http | `library/http.pl` | HTTP/1.1 as a grammar | — |
 | 16-httpd | `library/httpd.pl` | a server whose pages are clauses | `tcp`, `thread` |
 | 17-tcp | `library/tcp.so` | the socket seam | `sh modules/tcp/build.sh` |
-| 18-thread | `library/thread.so` | threads and channels, sharing nothing | `sh modules/thread/build.sh` |
+| 18-thread | `library/thread.so` | threads and channels sharing nothing, and locks for what they do | `sh modules/thread/build.sh` |
 | 19-zigurat | `zigurat` | the database connection, steered from Prolog | a running server |
 | 20-curl | `library/curl.so` | an HTTP client | libcurl |
 | 21-bigint | `library/bigint.so` | integers that do not wrap | a built ZiguratIP |

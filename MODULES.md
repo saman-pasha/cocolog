@@ -883,9 +883,14 @@ one-directional: the writer can still emit a NUL that arrived some other way.
 here and it is worth saying which rather than leaving a reader to find out:
 everything stream-shaped (there is no `open/3`, so nothing to answer with),
 everything module-shaped, tabling, SWI's own `prolog_*` introspection, and
-SWI's `thread_*` family — cocolog HAS threads, in `library(thread)`, but a
-thread here gets its own machine, store and engine and a channel copies the
-term, so a predicate written for one shared database is not one it can offer.
+most of SWI's `thread_*` family — cocolog HAS threads, in `library(thread)`,
+but a thread here gets its own machine, store and engine and a channel copies
+the term, so a predicate written for one shared database is not one it can
+offer. The exception is the locking half, which needs no shared database to
+mean what SWI means by it: `mutex_create/1`, `mutex_destroy/1`,
+`mutex_lock/1`, `mutex_trylock/1`, `mutex_unlock/1` and `with_mutex/2` are in
+`library(thread)`, recursive as SWI's are, with condition variables beside
+them.
 SWI's foreign interface is absent for the same kind of reason: cocolog has one
 of its own, written against `lib/sdk.cicili`, which is what this file is about.
 
