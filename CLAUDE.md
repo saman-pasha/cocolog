@@ -365,9 +365,23 @@ term walks of 2026-09-04 and the row limit above.
 
 ## Four hazards, each of which has already cost a day
 
-**A slow suite is the store ageing, not your change.** Deleted rows are kept
-under MVCC and nothing reclaims them, so every run leaves more behind and every
-later read walks past it. Twelve workers went from 14s to 32s over five identical
+**A SLOW SUITE IS OFTEN THE SERVER'S UPTIME, AND THAT IS NOT THE SAME AS
+THE STORE.** Measured 2026-09-08, and it cost most of a session because the
+paragraph below sent the diagnosis the wrong way. A server up for 2 days 16
+hours had `groups` RED at 65s and `ruler` at 38s; the store was emptied to
+**140 live rows** (74 knowledge bases forgotten, ~550 000 clauses) and
+vacuumed until a pass took under a second, and the cases were **exactly as
+slow**. One `kill` and a restart on the same 358 MB file with the same rows:
+`groups` GREEN in **12s**, `ruler` 16s, `vacuum` 6s. So the rows were never
+the problem -- the PROCESS was -- and the tell is that emptying the store
+changes nothing while a restart changes everything. Restart first, it costs
+two seconds; the store is what you look at when a restart did not help.
+(Check `pgrep -fl 'test/run.sh|cocolog -s test/'` before you do: a restart
+mid-run breaks whoever is using it.)
+
+**A slow suite can also be the store ageing, and that is the other half.**
+Deleted rows are kept under MVCC and nothing reclaims them, so every run
+leaves more behind and every later read walks past it. Twelve workers went from 14s to 32s over five identical
 runs. `test/groups.pl` allows 60s per worker, so a long-lived store will
 eventually push it over — and that reads as a hang. Restart from a fresh
 `$ZIGURATIP_HOME/data` if the numbers stop making sense. `cocolog vacuum` is
