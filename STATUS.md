@@ -1638,7 +1638,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.8` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.9` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3352,6 +3352,23 @@ is 14000), which is how it has always read and is worth a look.
   the second, beside the existence one (MODULES.md), and both are pinned
   under each backend (`test/torch-grad.pl`, `test/tensorflow.pl`), a
   nested path that IS there loading beside them.
+* **THE SORT COMPARATORS ARE THREAD-LOCAL (1.2.9), and had to be.** C's
+  `qsort` comparator takes no context, so the machine was parked in a
+  file-scope static — `coco_l_sort_machine` for `sort/2` and `msort/2`,
+  `coco_b_sort_machine` for the aggregation's set sort. The array `qsort` is
+  handed holds HEAP INDICES, not pointers, and that variable is the only
+  thing saying which machine they index: one slot for the whole process, so
+  two threads sorting at once had the second overwrite the first's machine
+  and the first's comparator then walk a foreign heap. **SIGSEGV**, and the
+  crash report names it exactly — `coco_compare` under `qsort` under
+  `coco_l_sort_common` under `run_isolated` under a thread body. Found from
+  CivV through `library(cowork)`: 2 000 sorting jobs on a four-worker crew
+  against 1 500 main-thread sorts, three runs of three, where a thin overlap
+  comes back clean every time. `(thread-local)` emits `__thread`, which a
+  bare pointer takes. It is the same shape as the globals defect below —
+  per-machine data in a process-wide slot — and it is why CivV's rung 186
+  removed its worker threads.
+
 * **`nb_setval/2`'s globals belong to the STORE (1.2.8).** An entry holds an
   index into one store's cells, so a table shared between stores hands one
   store's index to another — garbage when it lands in range, SIGSEGV when it

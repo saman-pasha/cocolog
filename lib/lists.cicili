@@ -265,7 +265,25 @@
   ;;; indistinguishable, so stability is unobservable. `sort/4' is another
   ;;; matter -- there the KEY is compared and the rest of the term is not --
   ;;; and that one is sorted with an insertion pass instead.
-  (static) (var coco_machine * coco_l_sort_machine)
+  ;;; RUNG 191.14 (from CivV): THREAD-LOCAL, and it has to be. The array
+  ;;; qsort is handed holds HEAP INDICES, not pointers, and this variable is
+  ;;; the only thing that says which machine those indices belong to. As a
+  ;;; file-scope static it was one slot for the whole process, so two threads
+  ;;; sorting at once had the second overwrite the first's machine and the
+  ;;; first's comparator then indexed a foreign heap.
+  ;;;
+  ;;; Reproduced through library(cowork) itself: 2000 sorting jobs on a
+  ;;; four-worker crew while the main thread sorted 1500 times -- SIGSEGV,
+  ;;; three runs of three. With a thin overlap it comes back clean every
+  ;;; time, which is why a light test does not find it. CivV sorts three
+  ;;; times a frame in its renderer and about twenty times an AI turn, so a
+  ;;; crew doing game work overlaps the drawing thread by construction.
+  ;;;
+  ;;; `(thread-local)' emits `__thread', which takes a trivially destroyed
+  ;;; type -- a bare pointer qualifies, as x509's and tls's buffers do. It
+  ;;; replaces `(static)' rather than joining it because no attribute in this
+  ;;; tree is stacked and the emitter has never been asked to.
+  (thread-local) (var coco_machine * coco_l_sort_machine)
 
   (static)
   (func coco_l_cmp ((const void * a) (const void * b)) (out int)

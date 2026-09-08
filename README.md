@@ -233,7 +233,7 @@ make test       # the suite; the database tests skip without a server
 And it runs — the first three need nothing else on the machine at all:
 
 ```sh
-./cocolog --version                           # `cocolog 1.2.8', on stdout
+./cocolog --version                           # `cocolog 1.2.9', on stdout
 ./cocolog                                     # the toplevel: ?- awaits
 ./cocolog query "X is 2 + 2"                  # local: memory, the default
 ./cocolog -s myscript.pl                      # load it, prove main; the
