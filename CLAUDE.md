@@ -263,8 +263,11 @@ three MVCCS-cicili targets carry them.
 
 All four were reported from cicili-lang, which had worked around three of
 them. They are one family: the interpreter knew something had gone wrong
-and the program could not find out. `test/errors.pl` is the case, 39
-checks, and each section names what it is guarding.
+and the program could not find out. `test/errors.pl` is the case, 42
+checks, and each section names what it is guarding. A FIFTH section joined
+them in 1.2.8 and it is the one that did not raise at all: `nb_setval/2`'s
+globals read against the wrong store, which answered a value that was not
+true, or a signal.
 
 **A `catch/3` WHOSE GOAL SUCCEEDED WENT ON CATCHING.** The frame was pushed
 and never taken down, so

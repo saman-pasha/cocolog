@@ -31,6 +31,16 @@
 %%   overflow' at COMMIT, by which time the process had already asserted
 %%   everything else and answered about it. It is refused on the way in
 %%   now, one clause at a time and named.
+%%
+%% * A GLOBAL READ AGAINST THE WRONG STORE, which is the fifth and the one
+%%   that did not raise at all. `nb_setval/2' keeps a name and a store CELL,
+%%   and the table was file-scope -- shared by every engine in the process --
+%%   so a cell written under one store was read against another.
+%%   `run_isolated/2' builds a fresh store, so a global set outside it and
+%%   read inside indexed a store that had never heard of that cell: garbage
+%%   when the index landed in range, SIGSEGV when it did not. Reported from a
+%%   running game as an intermittent crash. The table is three members of
+%%   `coco_store' now (1.2.8), so a global belongs to the store its cell does.
 
 :- use_module('test/prelude.pl').
 
@@ -39,6 +49,7 @@ main :-
     all_solutions_throw,
     join_and_split,
     clause_too_long,
+    globals_belong_to_a_store,
     checks_done.
 
 %% ---- a catch that has finished catching ---------------------------------
@@ -254,3 +265,81 @@ one_clause(D, KB, Name, N, Got) :-
     ->  Got = Last
     ;   Got = Text
     ).
+
+%% ---- a global belongs to the store its cell does ------------------------
+%%
+%% THE ONE THAT DID NOT RAISE. Every other defect in this file ends in an
+%% error the program could not see; this one ended in an ANSWER that was not
+%% true, or in a signal. What is pinned is the boundary: a fresh store does
+%% not see the globals of the store around it, the store around it keeps its
+%% own, and a sub-engine -- which SHARES its parent's store -- does.
+%%
+%% The last of those is why the table hangs off the store and not the engine.
+%% `forall/2' runs its goal on a sub-engine, so globals keyed by engine would
+%% be lost by every `nb_setval/2' written inside one, which is a working
+%% program broken to fix a crash.
+globals_belong_to_a_store :-
+    section('a global belongs to the store its cell does'),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  the_isolated_boundary, the_concurrent_table
+    ;   format("     (skipped: no library/thread.so -- sh modules/thread/build.sh)~n", [])
+    ),
+    the_sub_engine.
+
+%% A sub-engine SHARES the store, so a global set inside `forall/2' is still
+%% there afterwards. Needs no thread module -- negation is the engine's own.
+the_sub_engine :-
+    written(( nb_setval(sub, 0),
+              forall(member(N1, [1, 2, 3]), nb_setval(sub, N1)),
+              nb_getval(sub, G1) ), G1, X1),
+    check('a global set inside forall/2 survives it', X1, '3').
+
+the_isolated_boundary :-
+    %% THE REPRODUCTION, and before 1.2.8 the inner read answered whatever
+    %% the fresh store held at that index -- a clause term where an integer
+    %% had been stored, or a signal.
+    written(( nb_setval(iso, 111),
+              run_isolated(( catch(nb_getval(iso, V2), error(E2, _), V2 = E2),
+                             nb_setval(iso, inner_only) ), S2),
+              nb_getval(iso, O2) ), S2-O2, X2),
+    check('a fresh store neither reads nor overwrites the outer global', X2,
+          'true-111'),
+    %% AND THE INNER PROOF HEARS THE HONEST ANSWER, which is the half a
+    %% boundary check can get wrong: "did not leak" must mean the read was
+    %% REFUSED by name, not that it quietly failed. The inner goal throws
+    %% unless the ball is the existence_error, so the status carries the
+    %% verdict out of a proof that can only answer true/false/error.
+    written(( nb_setval(iso2, 7),
+              run_isolated(( catch(nb_getval(iso2, _), error(E3, _), true),
+                             ( E3 = existence_error(variable, iso2) -> true
+                             ; throw(wrong_ball(E3)) ) ), S3) ), S3, X3),
+    check('and the inner read is refused by name, not silently', X3, true),
+    %% NESTED, which is how it was first reproduced: two stores deep, each
+    %% fresh, and neither may see the one outside it
+    written(( nb_setval(deep, outer),
+              run_isolated(( nb_setval(deep, middle),
+                             run_isolated(( catch(nb_getval(deep, V4), _, V4 = none),
+                                            ( V4 == middle -> throw(leaked) ; true ) ), S4),
+                             nb_getval(deep, M4),
+                             ( S4 == true, M4 == middle -> true ; throw(wrong(S4, M4)) ) ), S5),
+              nb_getval(deep, O5) ), S5-O5, X5),
+    check('nested isolated proofs each keep their own', X5, 'true-outer').
+
+%% EIGHT THREADS APPENDING AT ONCE, which is the check the first shape of
+%% this fix would have failed: it kept the table file-scope and keyed the
+%% entries per store, so eight threads made 6 400 appends to one unguarded
+%% `realloc' instead of eight, and the process ABORTED -- three runs of
+%% three. A store per thread is what makes this quiet.
+the_concurrent_table :-
+    scratch(D),
+    atom_concat(D, '/globals_worker.pl', W),
+    fixture(W,
+            [ ':- use_module(library(thread)).',
+              'many(0) :- !.',
+              'many(N) :- atom_concat(gk_, N, K), nb_setval(K, N), nb_getval(K, N),',
+              '           M is N - 1, many(M).' ]),
+    use_module(W),
+    written(( thread_pool(8, many(400), Ids), thread_join_all(Ids),
+              length(Ids, N6) ), N6, X6),
+    check('eight threads writing 400 globals each do not corrupt the table', X6, '8'),
+    shl(['rm -rf ', D]).
