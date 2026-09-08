@@ -1926,46 +1926,52 @@
   ;;; to survive the query's heap being wound back, and the store is the only
   ;;; thing here that does not shrink.
 
-  (struct coco_b_global
-    (member u64    name)
-    (member size_t cell))
-
-  (static) (var coco_b_global * coco_b_globals)
-  (static) (var size_t coco_b_nglobals)
-  (static) (var size_t coco_b_gcap)
+  ;;; AND THE TABLE IS THE STORE'S, which is `coco_global' and the three
+  ;;; members beside `cells' in lib/kb.cicili -- that header carries the
+  ;;; whole argument. In one line: an entry holds an index into ONE store's
+  ;;; cells, so a table shared between stores hands one store's index to
+  ;;; another, and `run_isolated/2' -- a fresh store -- read garbage or
+  ;;; segfaulted. Globals are therefore per-store, which is the semantics a
+  ;;; fresh machine should have anyway.
+  ;;;
+  ;;; NOTHING HERE IS FILE-SCOPE ANY MORE, and that is the point: a static
+  ;;; table is appended to by every thread at once, and eight of them
+  ;;; writing 800 globals each aborted the process on its `realloc'.
 
   (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
-          (let ((u64 name . #'(coco_name_of m k))
+          (let ((coco_store * st . #'(-> e st))
+                (u64 name . #'(coco_name_of m k))
                 (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1))))
-            (for ((size_t i . 0)) (< i coco_b_nglobals) ((++ i))
-              (if (== ($ (nth i coco_b_globals) name) name)
-                  (block (set ($ (nth i coco_b_globals) cell) cell) (return 1))))
-            (if (>= coco_b_nglobals coco_b_gcap)
-                (let ((size_t ncap . #'(? (== coco_b_gcap 0) 8 (* coco_b_gcap 2)))
-                      (coco_b_global * nb))
-                  (set nb (cast (coco_b_global *)
-                                (realloc coco_b_globals (* ncap (sizeof coco_b_global)))))
+            (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
+              (if (== ($ (nth i (-> st globals)) name) name)
+                  (block (set ($ (nth i (-> st globals)) cell) cell) (return 1))))
+            (if (>= (-> st nglobals) (-> st gcap))
+                (let ((size_t ncap . #'(? (== (-> st gcap) 0) 8 (* (-> st gcap) 2)))
+                      (coco_global * nb))
+                  (set nb (cast (coco_global *)
+                                (realloc (-> st globals) (* ncap (sizeof coco_global)))))
                   (if (== nb nil) (return 0))
-                  (set coco_b_globals nb)
-                  (set coco_b_gcap ncap)))
-            (set ($ (nth coco_b_nglobals coco_b_globals) name) name)
-            (set ($ (nth coco_b_nglobals coco_b_globals) cell) cell)
-            (set coco_b_nglobals (+ coco_b_nglobals 1))
+                  (set (-> st globals) nb)
+                  (set (-> st gcap) ncap)))
+            (set ($ (nth (-> st nglobals) (-> st globals)) name) name)
+            (set ($ (nth (-> st nglobals) (-> st globals)) cell) cell)
+            (set (-> st nglobals) (+ (-> st nglobals) 1))
             (return 1))))
 
   (func coco_b_getval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
-          (let ((u64 name . #'(coco_name_of m k)))
-            (for ((size_t i . 0)) (< i coco_b_nglobals) ((++ i))
-              (if (== ($ (nth i coco_b_globals) name) name)
+          (let ((coco_store * st . #'(-> e st))
+                (u64 name . #'(coco_name_of m k)))
+            (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
+              (if (== ($ (nth i (-> st globals)) name) name)
                   (return (coco_m_unify e (coco_m_arg e g 1)
-                                      (coco_store_get m (-> e st)
-                                                    ($ (nth i coco_b_globals) cell))))))
+                                      (coco_store_get m st
+                                                    ($ (nth i (-> st globals)) cell))))))
             (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
 
   ;;; ---- operators --------------------------------------------------------

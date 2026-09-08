@@ -1637,7 +1637,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.7` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.8` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3351,6 +3351,23 @@ is 14000), which is how it has always read and is worth a look.
   the second, beside the existence one (MODULES.md), and both are pinned
   under each backend (`test/torch-grad.pl`, `test/tensorflow.pl`), a
   nested path that IS there loading beside them.
+* **`nb_setval/2`'s globals belong to the STORE (1.2.8).** An entry holds an
+  index into one store's cells, so a table shared between stores hands one
+  store's index to another — garbage when it lands in range, SIGSEGV when it
+  does not. It surfaced from a running game as an intermittent crash, with
+  `coco_store_get_node` under `coco_b_getval` on the faulting stack, and
+  reproduces as a nested `run_isolated/2` answering a clause term where an
+  integer had been stored. The table is now three members of `coco_store`
+  beside `cells`, freed by `coco_store_free`, and **three other things fall
+  out of putting it there.** It cannot be raced: every store belongs to one
+  thread, where a file-scope table is appended to by all of them at once —
+  eight threads writing 800 globals each ABORTED the process on an unguarded
+  `realloc`, three runs of three, and survive three of three now. It cannot
+  leak: 20 000 lookups that miss cost 63 ms at no dead stores and 139 ms at
+  8 000 with a shared table, and 60 ms at either now. And globals are
+  per-store rather than per-engine, which is what a negation needs — a
+  sub-engine shares its parent's store, so hanging them off the engine would
+  lose every `nb_setval/2` made inside a `forall/2`.
 * **`library(thread)` has mutexes and condition variables (1.2.6).**
   `mutex_create/1`, `mutex_destroy/1`, `mutex_lock/1`, `mutex_trylock/1`,
   `mutex_unlock/1` and `with_mutex/2` are SWI's, name for name and

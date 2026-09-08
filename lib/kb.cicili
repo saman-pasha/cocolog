@@ -127,6 +127,13 @@
   ;;; that carries them is written out.
   (decl) (struct coco_store)
 
+  ;;; ONE GLOBAL VARIABLE, as `nb_setval/2' keeps it: a name and the store
+  ;;; CELL holding its value. It lives here rather than in the builtins
+  ;;; because the table below belongs to the store -- see `globals'.
+  (struct coco_global
+    (member u64    name)
+    (member size_t cell))
+
   ;;; The clause store. `cells' is a second flat term array with the same
   ;;; encoding as the heap -- it shares the machine's atom and functor tables,
   ;;; so an atom id means the same thing in both.
@@ -134,6 +141,31 @@
     (member u64 *     cells)
     (member size_t    len)
     (member size_t    cap)
+
+    ;; `nb_setval/2's GLOBALS, AND THEY LIVE HERE BECAUSE A CELL DOES. An
+    ;; entry holds an index into `cells' above, which means nothing to any
+    ;; other store -- so a table shared between stores hands one store's
+    ;; index to another: garbage when it lands in range, SIGSEGV when it
+    ;; does not. That was the bug, reported from a running game as an
+    ;; intermittent crash with `coco_store_get_node' under `coco_b_getval'
+    ;; on the faulting stack, and reproduced as a nested `run_isolated/2'
+    ;; answering a clause term where an integer had been stored.
+    ;;
+    ;; PUTTING THE TABLE IN THE STORE IS WHAT FIXES IT, and three other
+    ;; things fall out. It cannot be raced: every store belongs to one
+    ;; thread, where a file-scope table is appended to by all of them at
+    ;; once -- eight threads writing 800 globals each ABORTED the process
+    ;; on an unguarded `realloc', measured. It cannot leak: the entries go
+    ;; with `coco_store_free', where a shared table kept a row per store
+    ;; that ever set a global, for ever. And the scan stays short: it walks
+    ;; this store's names, not every name every store ever used.
+    ;;
+    ;; THE STORE AND NOT THE ENGINE, deliberately: a negation runs its goal
+    ;; in a sub-engine that SHARES this store, so hanging them off the
+    ;; engine would lose every `nb_setval/2' made inside a `forall/2'.
+    (member coco_global * globals)
+    (member size_t    nglobals)
+    (member size_t    gcap)
 
     (member coco_pred * preds)
     (member size_t    npreds)
@@ -599,6 +631,9 @@
           (free (cast (void *) ($ (nth i (-> st preds)) slots))))
         (free (-> st preds))
         (free (-> st cells))
+        ;; the globals go with the cells they index -- nothing outside this
+        ;; store could read them once `cells' is gone
+        (free (-> st globals))
         (memset st 0 (sizeof coco_store)))
 
   (func coco_store_mute ((coco_store * st))   (set (-> st muted) (+ (-> st muted) 1)))
