@@ -16,6 +16,13 @@ sentence. The one extrapolation in the document is labelled as one.
 > caller who wants absence to be an ordinary no gets one. `cowork_post/2`
 > and `cowork_poll/2` are still stage 4, as §4 says.
 
+> **STAGE 4 HAS SINCE SHIPPED TOO** — `cowork_post/2`, `cowork_poll/2` and
+> `cowork_poll/3`, with 5 more checks. §6 carries the measurement and the one
+> thing building it taught: a pipeline has to be PACED, and posting every
+> frame regardless is a queue that grows. Posted answers come back on a
+> channel of their own, so a `poll` can never take a `map`'s result nor a
+> `map` a posted one — which is a check, not a hope.
+
 The occasion is CivV: one process, a `library(ray)` loop that owns its own frames, a
 turn that already runs inside `run_isolated/2`, and two rungs that name where the time
 goes — rung 180, "the yields were costing four fifths of every frame", and rung 188,
@@ -172,12 +179,83 @@ copying. Once a turn, that is affordable. Every frame, it is the whole frame.
 
 ---
 
+### 5a. Stage 2, measured — the shape pays, and the target moved
+
+**The shape pays.** A per-unit visibility walk over `library(hex)` — the disk within
+sight range, each candidate tested by walking the line to it and stopping at the first
+blocker, which is `side_visible/2`'s shape — against the sequential path, and the
+answers compared term for term:
+
+| | sequential | crew | |
+|---|---|---|---|
+| 60 units, 4 workers | 101 ms | 35 ms | 2.9× |
+| 200 units, 4 workers | 309 ms | 112 ms | 2.8× |
+| 200 units, 8 workers | 314 ms | 66 ms | 4.8× |
+
+**identical answers in every run**, which is the check that matters more than the ratio.
+
+**And the break-even is ~11 µs of dispatch per job.** The same 200 jobs on four workers,
+with the work per job shrunk by reducing the sight range:
+
+| per job, sequential | sequential total | crew | |
+|---|---|---|---|
+| 0.026 ms | 5.1 ms | 3.5 ms | 1.5× |
+| 0.203 ms | 40.6 ms | 22.7 ms | 1.8× |
+| 0.715 ms | 143.0 ms | 51.1 ms | 2.8× |
+| 1.896 ms | 379.3 ms | 120.5 ms | 3.1× |
+
+So a job pays from about **0.05 ms of compute** upward on four workers, and the speedup
+approaches the worker count around 1 ms a job. Below ~15 µs the dispatch is the work.
+That is the arithmetic §1 promised, now with a number in it.
+
+**THE TARGET MOVED, AND THAT IS THE REAL STAGE-2 FINDING.** §5 put fog first on rung
+188's title, "the fog was walked once per unit". Reading `game/fog.pl` shows rung 188 is
+the rung that FIXED it: `side_visible_now/2` caches the visible set against a signature
+of where every unit and city stands, and rung 188 moved that cache out of a store row
+into a global. Fog is therefore no longer walked per unit per frame — only when
+something moves. What is left to parallelise is one `side_visible/2` on a cache MISS
+(43 ms when last measured, at rung 157, before the cache), plus `vis_signature/2`, which
+runs on every call including the hits.
+
+So stage 2 should be re-pointed before any CivV code is touched, and stage 0 — measure
+one real turn — is now the blocking step rather than a formality. Rung 180's yields are
+the better first candidate on today's evidence, and this document should not choose
+between them from a commit title again.
+
+---
+
 ## 6. The latency model: one frame behind
 
 A 16 ms frame cannot be helped by moving work off the main thread and waiting for it —
 the wait is the frame. Work moves off the loop only if its result is wanted **next**
 frame: compute frame N+1's derived state while frame N draws, and read it with
 `cowork_poll/2`, which fails rather than blocks when the answer is not ready.
+
+**Measured, forty frames, four workers, each frame's derived state being every unit's
+visibility:**
+
+| | per frame | worst frame |
+|---|---|---|
+| the frame computes it itself | 35.4 ms | 46.3 ms |
+| the frame posts it and polls | 3.7 ms | 5.2 ms |
+
+Ten times cheaper, and the worst frame — the one a player feels — goes from 46 ms to 5.
+
+**AND A PIPELINE HAS TO BE PACED.** That measurement hides a trap, and it was measured
+falling into it. Posting every frame regardless is a queue that GROWS: the same forty
+frames posted forty jobs, collected **twelve**, and left **twenty-eight** queued, each
+stale by dozens of frames before anyone could look at it. The frame was cheap and the
+work was pointless.
+
+| | per frame | posted | collected | left queued |
+|---|---|---|---|---|
+| post every frame | 3.6 ms | 40 | 12 | **28** |
+| one in flight | 3.3 ms | 4 | 3 | 1 |
+
+**One in flight is the pattern** — post only when the last answer has come back. The
+frame costs the same and nothing piles up. The library does not enforce it, because a
+caller may legitimately want several outstanding; `cowork_poll/2` answering is what tells
+you whether to post.
 
 So the honest description of what this buys is not "the game runs faster". It is:
 

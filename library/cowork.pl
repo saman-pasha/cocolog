@@ -30,6 +30,9 @@
 %%   cowork_ask(+Crew, ?Goal)            one job, UNIFIED back into the caller's
 %%   cowork_ask(+Crew, +Goal, -Answer)   ... or as a copy, leaving Goal alone
 %%   cowork_map(+Crew, +Goals, -Results) many jobs; ok(G) | failed | error(B)
+%%   cowork_post(+Crew, +Goal)           fire and forget -- nothing waits
+%%   cowork_poll(+Crew, -Result)         a posted answer if one is ready, else FAILS
+%%   cowork_poll(+Crew, +Timeout, -Result)   ... or wait that many milliseconds
 %%
 %% TWO CONTRACTS, AND BOTH ARE LOAD-BEARING.
 %%
@@ -60,10 +63,37 @@
 %% crew's result channel, so two of them at once would read each other's
 %% messages. Drive a crew from the thread that started it.
 %%
-%% NOT HERE YET, and named so the absence is visible: `cowork_post/2' and
-%% `cowork_poll/2' -- fire-and-forget and the pipelined collect -- are stage
-%% 4 of the design, which is where the "one frame behind" arrangement is
-%% measured. Everything above is stage 1.
+%% PIPELINING IS WHAT `post' AND `poll' ARE FOR, and it is the only way work
+%% leaves a frame that has a deadline. A 16ms frame cannot MOVE work and then
+%% wait for it -- the wait is the frame -- so the answer has to be wanted
+%% next frame instead: post the job while frame N draws, poll for it at the
+%% top of frame N+1. `cowork_poll/2' FAILS rather than blocking when the
+%% answer is not ready yet, which is what lets a loop ask every frame and
+%% carry on drawing when the answer has not come.
+%%
+%% POSTED ANSWERS COME BACK ON A CHANNEL OF THEIR OWN, so a poll can never
+%% take a result belonging to a `map' and a map can never swallow a posted
+%% one. That is why a job carries the channel to answer on rather than the
+%% crew having a single outbox.
+%%
+%% AND A PIPELINE HAS TO BE PACED, which is the part that is easy to get
+%% wrong and was measured getting it wrong. Posting every frame regardless
+%% is a queue that GROWS: forty frames posting a 35ms job to four workers
+%% collected twelve answers and left TWENTY-EIGHT queued, every one of them
+%% stale by dozens of frames by the time anybody could look at it. The frame
+%% was cheap (3.6ms) and the work was pointless.
+%%
+%% ONE IN FLIGHT IS THE PATTERN: post only when the last answer has come
+%% back. The same forty frames then posted four jobs, collected three, and
+%% cost 3.3ms a frame -- the same frame, none of the backlog. The library
+%% does not enforce it because a caller may legitimately want several in
+%% flight; it is `cowork_poll/2' answering that tells you whether to post.
+%%
+%% A POSTED JOB GOES TO THE SHORTEST QUEUE. There is no dispatcher watching
+%% -- nothing is waiting for the answer, by definition -- so the choice is
+%% made by asking each inbox how many messages it is holding, which is
+%% `channel_size/2'. It is not perfect balance and does not need to be: a
+%% background job is one nobody is timing.
 
 :- use_module(library(thread)).
 
@@ -73,11 +103,14 @@
 %% channel shared, and the thread ids to join at the end. Handles are
 %% integers into library(thread)'s own tables, so the term copies to a
 %% worker as it stands.
-cowork_start(N, Options, crew(N, Ins, Out, Tids)) :-
+cowork_start(N, Options, crew(N, Ins, Out, Post, Tids)) :-
     integer(N), N > 0,
     length(Ins, N),
     cowork_channels(Ins),
     channel_new(Out),
+    %% posted answers land here and nowhere else, so `poll' and `map' cannot
+    %% take each other's
+    channel_new(Post),
     (   memberchk(on_start(Start), Options)
     ->  true
     ;   Start = true
@@ -93,11 +126,11 @@ cowork_channels([C|Cs]) :- channel_new(C), cowork_channels(Cs).
 %% Every inbox is told to stop and every thread is joined, so a crew that
 %% has been stopped has left nothing running. A worker inside a long job
 %% finishes it first: `stop' is a message in the queue, not a signal.
-cowork_stop(crew(_, Ins, _, Tids)) :-
+cowork_stop(crew(_, Ins, _, _, Tids)) :-
     forall(member(In, Ins), channel_send(In, stop)),
     forall(member(T, Tids), thread_join(T, _)).
 
-cowork_size(crew(N, _, _, _), N).
+cowork_size(crew(N, _, _, _, _), N).
 
 %% ---- the worker ---------------------------------------------------------
 
@@ -127,12 +160,14 @@ cowork_do(Id, forget(Heads), Out) :- !,
 %% `thread_join/2' makes: a goal that did not prove is not a goal that
 %% raised, and neither is a job that never ran. The `->' is what makes a job
 %% once/1 -- the first answer is the answer.
-cowork_do(Id, job(I, G), Out) :- !,
+%% THE JOB CARRIES THE CHANNEL IT ANSWERS ON -- `Out' for a map, the crew's
+%% post channel for a posted one -- which is what keeps the two apart.
+cowork_do(Id, job(I, G, ReplyTo), _) :- !,
     (   catch(G, Ball, true)
     ->  ( var(Ball) -> R = ok(G) ; R = error(Ball) )
     ;   R = failed
     ),
-    channel_send(Out, res(Id, I, R)).
+    channel_send(ReplyTo, res(Id, I, R)).
 cowork_do(Id, Other, Out) :-
     channel_send(Out, res(Id, 0, error(domain_error(cowork_message, Other)))).
 
@@ -141,11 +176,11 @@ cowork_do(Id, Other, Out) :-
 %% Broadcast, and WAIT for every worker to have it. Without the acks a
 %% `tell' followed by a `map' would race: a job could reach a worker that
 %% had not yet asserted the snapshot the job asks about.
-cowork_tell(crew(N, Ins, Out, _), Clauses) :-
+cowork_tell(crew(N, Ins, Out, _, _), Clauses) :-
     forall(member(In, Ins), channel_send(In, tell(Clauses))),
     cowork_acks(Out, N).
 
-cowork_forget(crew(N, Ins, Out, _), Heads) :-
+cowork_forget(crew(N, Ins, Out, _, _), Heads) :-
     forall(member(In, Ins), channel_send(In, forget(Heads))),
     cowork_acks(Out, N).
 
@@ -184,18 +219,18 @@ cowork_ask(Crew, Goal, Answer) :-
 %% ANSWER arrives, so a worker with a slow job is not handed more while the
 %% others idle. The results carry their index and are keysorted at the end,
 %% which is what makes the answer independent of who finished first.
-cowork_map(crew(_, Ins, Out, _), Goals, Results) :-
-    cowork_seed(Ins, Goals, 1, Rest, NextI, Outstanding),
+cowork_map(crew(_, Ins, Out, _, _), Goals, Results) :-
+    cowork_seed(Ins, Goals, Out, 1, Rest, NextI, Outstanding),
     cowork_gather(Out, Ins, Rest, NextI, Outstanding, [], Pairs),
     keysort(Pairs, Sorted),
     cowork_values(Sorted, Results).
 
-cowork_seed([], Rest, I, Rest, I, 0) :- !.
-cowork_seed(_, [], I, [], I, 0) :- !.
-cowork_seed([In|Ins], [G|Gs], I, Rest, NextI, Outstanding) :-
-    channel_send(In, job(I, G)),
+cowork_seed([], Rest, _, I, Rest, I, 0) :- !.
+cowork_seed(_, [], _, I, [], I, 0) :- !.
+cowork_seed([In|Ins], [G|Gs], Out, I, Rest, NextI, Outstanding) :-
+    channel_send(In, job(I, G, Out)),
     I1 is I + 1,
-    cowork_seed(Ins, Gs, I1, Rest, NextI, N0),
+    cowork_seed(Ins, Gs, Out, I1, Rest, NextI, N0),
     Outstanding is N0 + 1.
 
 cowork_gather(_, _, _, _, 0, Acc, Acc) :- !.
@@ -203,7 +238,7 @@ cowork_gather(Out, Ins, Rest, NextI, Outstanding, Acc, Pairs) :-
     channel_recv(Out, res(Id, I, R)),
     (   Rest = [G|Rest1]
     ->  nth1(Id, Ins, In),
-        channel_send(In, job(NextI, G)),
+        channel_send(In, job(NextI, G, Out)),
         NextI1 is NextI + 1,
         Out1 = Outstanding
     ;   Rest1 = [],
@@ -214,3 +249,36 @@ cowork_gather(Out, Ins, Rest, NextI, Outstanding, Acc, Pairs) :-
 
 cowork_values([], []).
 cowork_values([_-R|Ps], [R|Rs]) :- cowork_values(Ps, Rs).
+
+%% ---- posting, and collecting later --------------------------------------
+%%
+%% THE ONLY WAY WORK LEAVES A FRAME WITH A DEADLINE. `map' waits, so a frame
+%% that calls it has not moved the work anywhere -- it has moved where the
+%% time is spent. `post' does not wait: the answer is wanted NEXT frame, and
+%% `poll' asks for it without blocking.
+cowork_post(crew(_, Ins, _, Post, _), Goal) :-
+    cowork_shortest(Ins, In),
+    channel_send(In, job(0, Goal, Post)).
+
+%% The shortest inbox, by asking each one how much it is holding. Nothing is
+%% waiting for a posted answer, so this is the whole of the scheduling: it
+%% keeps a background job off a worker that is already three deep.
+cowork_shortest([In|Ins], Best) :-
+    channel_size(In, N),
+    cowork_shortest(Ins, In, N, Best).
+
+cowork_shortest([], Best, _, Best).
+cowork_shortest([In|Ins], Sofar, N, Best) :-
+    channel_size(In, M),
+    (   M < N
+    ->  cowork_shortest(Ins, In, M, Best)
+    ;   cowork_shortest(Ins, Sofar, N, Best)
+    ).
+
+%% FAILS WHEN THERE IS NOTHING YET, which is the whole point: a loop asks
+%% every frame and carries on drawing when the answer has not come. A zero
+%% timeout on a channel takes only what is already queued.
+cowork_poll(Crew, Result) :- cowork_poll(Crew, 0, Result).
+
+cowork_poll(crew(_, _, _, Post, _), Timeout, Result) :-
+    channel_recv(Post, Timeout, res(_, _, Result)).

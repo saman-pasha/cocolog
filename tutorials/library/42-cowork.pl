@@ -37,6 +37,9 @@
 %%     cowork_ask(+Crew, ?Goal)              one job, unified back
 %%     cowork_ask(+Crew, +Goal, -Answer)     ... or as a copy
 %%     cowork_map(+Crew, +Goals, -Results)   ok(G) | failed | error(Ball)
+%%     cowork_post(+Crew, +Goal)             fire and forget -- nothing waits
+%%     cowork_poll(+Crew, -Result)           an answer if one is ready, else FAILS
+%%     cowork_poll(+Crew, +Timeout, -Result) ... or wait that long
 
 :- use_module(library(cowork)).
 
@@ -110,6 +113,23 @@ main :-
     must('and forgetting takes it out of all of them', Gone, [failed]),
     format("   `tell' waits for every worker to acknowledge, so the job you~n"),
     format("   send next cannot arrive before the snapshot it asks about.~n"),
+
+    format("~n-- and work can leave a frame that has a deadline~n"),
+    format("   `cowork_map/3' WAITS, so a frame that calls it has not moved~n"),
+    format("   the work -- only where the time is spent. `cowork_post/2'~n"),
+    format("   does not wait, and `cowork_poll/2' asks without blocking:~n"),
+    ( cowork_poll(Crew, _) -> Empty = something ; Empty = nothing_yet ),
+    must('a poll with nothing posted fails', Empty, nothing_yet),
+    cowork_post(Crew, atom_length(pipelined, _)),
+    cowork_poll(Crew, 5000, Posted),
+    must('and a posted job comes back later', Posted, ok(atom_length(pipelined, 9))),
+    format("   Measured on forty frames: a loop computing its own derived~n"),
+    format("   state cost 35.4ms a frame, and the same loop posting it cost~n"),
+    format("   3.7ms -- with the worst frame down from 46ms to 5.~n"),
+    format("   BUT PACE IT. Posting every frame regardless is a queue that~n"),
+    format("   grows: forty frames posted forty jobs, collected twelve, and~n"),
+    format("   left twenty-eight stale ones waiting. Post when the last~n"),
+    format("   answer has come back, which is what poll/2 tells you.~n"),
 
     format("~n-- and the crew is stopped when the program is done~n"),
     cowork_stop(Crew),

@@ -53,6 +53,7 @@ main :-
               'yield(Tile, Y) :- tile(Tile, F, P), Y is F + P.' ]),
     use_module(Jobs),
     answers_and_order, outcomes, telling, the_discipline, many_turns, parallel,
+    pipelining,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -197,3 +198,43 @@ parallel :-
     format("     one worker ~wms, four workers ~wms~n", [One, Four]),
     ( One > 0, Four < One * 3 // 4 -> R = parallel ; R = serial ),
     check('the same four jobs are faster on four workers than on one', R, parallel).
+
+%% ---- posting, and collecting a frame later ------------------------------
+%%
+%% THE ONLY WAY WORK LEAVES A FRAME THAT HAS A DEADLINE. `cowork_map/3'
+%% waits, so a frame calling it has not moved the work -- it has moved where
+%% the time is spent. `cowork_post/2' does not wait and `cowork_poll/2' asks
+%% without blocking, which is the "one frame behind" arrangement: measured,
+%% a loop doing its own derived state cost 35.4ms a frame and the same loop
+%% posting it cost 3.7ms.
+%%
+%% THE CHECK THAT MATTERS IS THE ISOLATION. A posted answer must not be
+%% taken by a `map', and a map's answers must not be taken by a `poll' --
+%% they are different channels for exactly that reason, and a crew that
+%% shared one would hand a renderer somebody else's answer.
+pipelining :-
+    section('post and poll: work that leaves the frame'),
+    cowork_start(3, [], C1),
+    yes_no(cowork_poll(C1, _), G1),
+    check('a poll with nothing posted FAILS rather than blocking', G1, no),
+    written(( cowork_post(C1, double(4, _)),
+              ( cowork_poll(C1, 5000, R2) -> true ; R2 = never ) ), R2, G2),
+    check('a posted job comes back through poll/3', G2, 'ok(double(4,8))'),
+    %% THE ISOLATION, in both directions and in one goal: a posted answer is
+    %% outstanding while a whole map runs, and neither takes the other's.
+    written(( cowork_post(C1, slow(1, _)),
+              cowork_map(C1, [double(1,_), double(2,_), double(3,_)], R3),
+              ( cowork_poll(C1, 5000, P3) -> true ; P3 = eaten_by_the_map ),
+              length(R3, N3) ), N3-P3, G3),
+    check('a map cannot take a posted answer, nor a poll a map''s', G3,
+          '3-ok(slow(1,2))'),
+    yes_no(cowork_poll(C1, _), G4),
+    check('and nothing is left over afterwards', G4, no),
+    %% several in flight is allowed -- the pacing is the caller's choice, and
+    %% the library's job is only to keep them apart and give them all back
+    written(( cowork_post(C1, double(5, _)), cowork_post(C1, double(6, _)),
+              cowork_post(C1, double(7, _)),
+              findall(V4, ( between(1, 3, _), cowork_poll(C1, 5000, ok(double(_, V4))) ), Vs4),
+              msort(Vs4, S4) ), S4, G5),
+    check('three posted, three collected', G5, '[10,12,14]'),
+    cowork_stop(C1).
