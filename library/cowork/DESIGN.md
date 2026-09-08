@@ -373,6 +373,24 @@ coming back `ok(slow(1,2))`. Results carry an index within their own map and ind
 start again at one, so they cannot be told apart by name — only cleared at the one moment
 nothing legitimate can be there.
 
+**AND THE HANG WAS THE SMALL HALF.** Under `--embed` the workers were not merely
+blocking each other — `cowork_tell/2` asserted without muting the store, so **every
+worker wrote its copy of the snapshot through to the knowledge base**: four clauses told
+to two workers put eight rows in the database. The deadlock was the write-through
+contending for the embedded store while the caller waited for acknowledgements, so the
+hang was a symptom of the corruption rather than a separate fault.
+`with_local_clauses/1` (1.2.11) is the fix, and it settles a third thing: a snapshot
+fact no longer has to fit a database ROW, because it never reaches one.
+
+> **THE HAZARD, STATED GENERALLY, because it is not about this library.** A library that
+> writes a caller's TRANSIENT state through to the knowledge base corrupts a
+> single-writer base owned by another process — and the symptom is a store that fills
+> with duplicates while the blame falls on whatever changed most recently. Anything that
+> asserts on a caller's behalf, for the caller's own machine, belongs inside
+> `with_local_clauses/1`. The rule already existed for a module's own clauses — they
+> belong to the build and not to the knowledge base — and a worker's snapshot is the
+> same kind of thing seen from a different angle.
+
 **And the residual risk is fixed too, from the other end.** A worker CAN die before it
 reads its first message — a store fill that raises — and the catch inside the loop cannot
 help, because the loop was never reached. That is not fixable in the worker; it is
