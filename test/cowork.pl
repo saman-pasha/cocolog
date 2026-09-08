@@ -53,7 +53,7 @@ main :-
               'yield(Tile, Y) :- tile(Tile, F, P), Y is F + P.' ]),
     use_module(Jobs),
     answers_and_order, outcomes, telling, the_discipline, many_turns, parallel,
-    pipelining,
+    pipelining, a_worker_always_answers(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -238,3 +238,47 @@ pipelining :-
               msort(Vs4, S4) ), S4, G5),
     check('three posted, three collected', G5, '[10,12,14]'),
     cowork_stop(C1).
+
+%% ---- a worker that cannot do it says so, and does not vanish ------------
+%%
+%% REPORTED FROM CivV AS A HANG, and it was one: `cowork_tell/2' asserted in
+%% each worker and waited for an acknowledgement, and the worker sent one
+%% only if the assert had WORKED. A clause too long for a row raises
+%% `resource_error(clause_length)' the moment a worker has a database under
+%% it -- which is every worker under `--embed' -- so the worker fell out of
+%% its loop, nobody acked, and the caller waited for ever on a channel
+%% nothing would ever be sent to. CivV met it with `chronicle_snap/2', whose
+%% rows each hold a whole sorted LIST of another predicate's facts, so the
+%% terms are far bigger than the fact count suggests.
+%%
+%% A HANG IS THE WORST WAY TO REPORT THAT. It names nothing, it happens on
+%% another thread, and it reads as the crew being slow. The ack carries the
+%% outcome now and is always sent.
+%%
+%% IN A CHILD, WITH A TIMEOUT, because the thing being checked is that a
+%% goal RETURNS: a regression here would hang this case rather than fail it,
+%% and a suite that has to be killed says nothing about what broke.
+a_worker_always_answers(D) :-
+    section('a worker that cannot assert says so, and the caller is not left waiting'),
+    atom_concat(D, '/toolong.pl', Prog),
+    fixture(Prog,
+            [ ':- use_module(library(cowork)).',
+              'main :-',
+              '    cowork_start(2, [], C),',
+              '    length(L, 9000), maplist(=(0''x), L), atom_codes(A, L),',
+              '    (   catch(cowork_tell(C, [big(A)]), error(E, _), true)',
+              '    ->  ( var(E) -> R = told ; R = E )',
+              '    ;   R = failed',
+              '    ),',
+              '    cowork_tell(C, [small(1)]),',
+              '    cowork_map(C, [small(_)], M),',
+              '    cowork_stop(C),',
+              '    write(answer(R-M)), nl.' ]),
+    atom_concat(D, '/kb', KB),
+    cocolog(C1),
+    sh_join(['timeout 60 ', C1, ' --embed ', KB, ' -s ', Prog, ' 2>&1'], Cmd),
+    proc_run(Cmd, 90000, Out, Rc),
+    check('the child returned at all -- a hang here is the defect itself', Rc, 0),
+    ( re_first_atom('answer\\([^\n]*\\)', Out, A1) -> sub_atom(A1, 7, _, 1, G1) ; G1 = no_answer ),
+    check('a clause too long for a row RAISES, and the crew still answers', G1,
+          'resource_error(clause_length)-[ok(small(1))]').

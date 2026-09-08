@@ -142,20 +142,40 @@ cowork_run(Id, In, Out, Start) :-
     ( catch(Start, _, true) -> true ; true ),
     cowork_loop(Id, In, Out).
 
+%% A WORKER MUST NOT DIE QUIETLY, and this catch is why. Every message a
+%% worker takes has somebody waiting for its reply, so a worker that fell out
+%% of this loop turned into a caller blocked for ever on a channel nobody
+%% would ever send to -- a HANG where the truth was an error. `cowork_do'
+%% answers before it can fail; this is the belt around that brace, so an
+%% unexpected ball costs one message rather than the crew.
 cowork_loop(Id, In, Out) :-
     channel_recv(In, Msg),
     (   Msg == stop
     ->  true
-    ;   cowork_do(Id, Msg, Out),
+    ;   ( catch(cowork_do(Id, Msg, Out), _, true) -> true ; true ),
         cowork_loop(Id, In, Out)
     ).
 
+%% THE ACK CARRIES THE OUTCOME, and it is always sent. A clause that will
+%% not assert is an ordinary thing -- one too long for a row raises
+%% `resource_error(clause_length)' the moment a worker has a database under
+%% it, and a term that is not callable raises a type_error -- and the first
+%% shape of this predicate simply asserted, so a worker that raised never
+%% acked and every caller of `cowork_tell/2' waited for ever. A hang is the
+%% worst possible way to report a fact that would not fit: it names nothing,
+%% it happens in another thread, and it looks like the crew being slow.
 cowork_do(Id, tell(Clauses), Out) :- !,
-    forall(member(C, Clauses), assertz(C)),
-    channel_send(Out, ack(Id)).
+    (   catch(forall(member(C, Clauses), assertz(C)), Ball, true)
+    ->  ( var(Ball) -> S = true ; S = error(Ball) )
+    ;   S = failed
+    ),
+    channel_send(Out, ack(Id, S)).
 cowork_do(Id, forget(Heads), Out) :- !,
-    forall(member(H, Heads), ( catch(retractall(H), _, true) )),
-    channel_send(Out, ack(Id)).
+    (   catch(forall(member(H, Heads), ( catch(retractall(H), _, true) )), Ball, true)
+    ->  ( var(Ball) -> S = true ; S = error(Ball) )
+    ;   S = failed
+    ),
+    channel_send(Out, ack(Id, S)).
 %% THE THREE OUTCOMES ARE KEPT APART, which is the same decision
 %% `thread_join/2' makes: a goal that did not prove is not a goal that
 %% raised, and neither is a job that never ran. The `->' is what makes a job
@@ -169,7 +189,7 @@ cowork_do(Id, job(I, G, ReplyTo), _) :- !,
     ),
     channel_send(ReplyTo, res(Id, I, R)).
 cowork_do(Id, Other, Out) :-
-    channel_send(Out, res(Id, 0, error(domain_error(cowork_message, Other)))).
+    channel_send(Out, ack(Id, error(domain_error(cowork_message, Other)))).
 
 %% ---- telling the crew ---------------------------------------------------
 
@@ -178,17 +198,32 @@ cowork_do(Id, Other, Out) :-
 %% had not yet asserted the snapshot the job asks about.
 cowork_tell(crew(N, Ins, Out, _, _), Clauses) :-
     forall(member(In, Ins), channel_send(In, tell(Clauses))),
-    cowork_acks(Out, N).
+    cowork_acks(Out, N, Bad),
+    cowork_report(Bad).
 
 cowork_forget(crew(N, Ins, Out, _, _), Heads) :-
     forall(member(In, Ins), channel_send(In, forget(Heads))),
-    cowork_acks(Out, N).
+    cowork_acks(Out, N, Bad),
+    cowork_report(Bad).
 
-cowork_acks(_, 0) :- !.
-cowork_acks(Out, N) :-
-    channel_recv(Out, ack(_)),
+cowork_acks(_, 0, []) :- !.
+cowork_acks(Out, N, Bad) :-
+    channel_recv(Out, ack(_, S)),
     M is N - 1,
-    cowork_acks(Out, M).
+    cowork_acks(Out, M, Bad0),
+    ( S == true -> Bad = Bad0 ; Bad = [S|Bad0] ).
+
+%% WHAT ONE WORKER COULD NOT DO IS TRUE OF THE CREW, because the crew is only
+%% useful while its workers are interchangeable. A ball is thrown on -- the
+%% caller asked for a snapshot and has not got one -- and a plain failure
+%% fails.
+cowork_report(Bad) :-
+    (   member(error(Ball), Bad)
+    ->  throw(Ball)
+    ;   Bad == []
+    ->  true
+    ;   fail
+    ).
 
 %% ---- asking -------------------------------------------------------------
 

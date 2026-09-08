@@ -307,6 +307,60 @@ turn that is one long dependent chain any shorter.
 
 ---
 
+## 8a. What CivV measured, which answers most of §9
+
+Reported by the CivV session against cocolog 1.2.8 with CivV's whole program
+registered, and it corrects this document in two places:
+
+| | this document said | CivV measured |
+|---|---|---|
+| thread create + join, bare | 3.134 ms | 3.12 ms |
+| … with CivV's whole program registered | ~50 ms (extrapolated) | **14.0 ms** |
+| CivV's entire mutable turn state | ~5,000 facts guessed | **471 facts** |
+| a full snapshot to one worker | ~5.4 ms | **~0.5 ms** |
+
+**§9's items 1 and 2 are answered, and the extrapolation was wrong the safe way.** CivV
+has MORE clauses than the 3,000-clause module and starts in under two thirds the time,
+so the store fill is **not linear in clauses**. Item 2 guessed predicates rather than
+clauses; whatever the unit is, it is not the one §1 assumed. Item 4 is answered too: a
+real turn's state is 471 facts, so a snapshot to eight workers is about 4 ms, not 43.
+
+**AND THE COST IS PAID LAZILY, WHICH THIS DOCUMENT DID NOT KNOW.**
+`cowork_start(4, [], _)` returns in **0.18 ms** — the threads exist, but a worker's store
+is filled on its FIRST GOAL, so the 14 ms lands on whatever message the worker handles
+first. Starting a crew at load is therefore still right and is no longer sufficient:
+**warm it**, with `on_start(Goal)` or one throwaway `cowork_map/3`, or the first real
+turn pays for four workers' store fills inside itself. That is also why the hang in §8b
+appeared at a `cowork_tell/2` rather than at `cowork_start/3`.
+
+None of this changes the thesis — workers are still long-lived, because 14 ms is still
+most of a frame and a crew still answers thousands of jobs after paying it once — but
+§1's arithmetic should be read with 14 ms in it rather than 50.
+
+## 8b. The hang, found and fixed
+
+`cowork_tell/2` asserted in every worker and waited for an acknowledgement, and a worker
+sent one only if the assert had WORKED. A clause too long for a row raises
+`resource_error(clause_length)` the moment a worker has a database under it — which is
+every worker under `--embed` — so the worker fell out of its loop, nobody acked, and the
+caller waited for ever on a channel nothing would ever be sent to.
+
+Reproduced in three lines with no game in it (`cowork_tell(C, [3])`, exit 124), and in
+the shape CivV met it: a 9,000-character clause under `--embed`. CivV's trigger was
+`chronicle_snap/2`, whose rows each hold a whole sorted LIST of another predicate's
+facts, so the terms are far larger than the fact count suggests — which is why a
+same-sized trimmed set did not reproduce it.
+
+**The ack carries the outcome now and is always sent**, and the worker loop catches so an
+unexpected ball costs one message rather than the crew. A tell that could not be done
+raises to its caller and names the reason. `test/cowork.pl` holds it in a CHILD with a
+timeout, because a regression would hang the case rather than fail it.
+
+**One residual risk, stated rather than fixed:** a worker that dies before it reads its
+first message — a store fill that raises, say — still leaves the crew short and a caller
+waiting, because the catch is inside the loop. Nothing has been seen doing that, and the
+honest fix is a liveness check that has not been designed.
+
 ## 9. What to check before building on this
 
 1. **The extrapolation.** 23.8 ms was measured at 3,000 clauses; ~50 ms for CivV's
