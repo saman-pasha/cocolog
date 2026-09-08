@@ -1637,7 +1637,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.6` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.7` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -2981,8 +2981,8 @@ PNG by its magic bytes, and two frames the clauses drew differently are
 different files byte for byte, which is what catches a context that
 silently rendered nothing. A 2D frame drawn by a `forall` over asserted
 facts, a 3D scene over a camera, and the loop's questions (closing,
-frame time, mouse, an unpressed key), and the texture section below
--- 29 checks.
+frame time, mouse, an unpressed key, and the mouse's EDGE read beside
+its level one), and the texture section below -- 31 checks.
 
 One raylib behaviour was worth routing around: `TakeScreenshot` strips
 the directory off the path it is given and writes the basename into its

@@ -94,7 +94,8 @@
 ;;;;   ray_key_down(+Key)                                 held, polled
 ;;;;   ray_key_pressed(+Key)                              this frame only
 ;;;;   ray_mouse(-X, -Y)
-;;;;   ray_mouse_down(+Button)                            left, right, middle
+;;;;   ray_mouse_down(+Button)                            left, right, middle -- HELD, level
+;;;;   ray_mouse_pressed(+Button)                         went down THIS frame -- edge
 ;;;;   ray_frame_time(-Seconds)                           the last frame's
 ;;;;   ray_time(-Seconds)                                 since the window opened
 ;;;;   ray_screenshot(+Path)                              the framebuffer as a PNG, at that path
@@ -150,6 +151,7 @@
     ("$ray_key_pressed" 1 ray_p_key_pressed)
     ("ray_mouse"       2 ray_p_mouse)
     ("$ray_mouse_down" 1 ray_p_mouse_down)
+    ("$ray_mouse_pressed" 1 ray_p_mouse_pressed)
     ("ray_frame_time"  1 ray_p_frame_time)
     ("ray_time"        1 ray_p_time)
     ("ray_screenshot"  1 ray_p_screenshot)
@@ -265,6 +267,7 @@
            ;; ---- mouse buttons and log levels, same shape ----
            "ray_button(left, 0). ray_button(right, 1). ray_button(middle, 2)."
            "ray_mouse_down(B) :- ray_button(B, C), '$ray_mouse_down'(C)."
+           "ray_mouse_pressed(B) :- ray_button(B, C), '$ray_mouse_pressed'(C)."
            "ray_level(all, 0). ray_level(trace, 1). ray_level(debug, 2). ray_level(info, 3)."
            "ray_level(warning, 4). ray_level(error, 5). ray_level(fatal, 6). ray_level(none, 7)."
            "ray_log_level(L) :- ray_level(L, N), '$ray_log_level'(N).")))
@@ -310,6 +313,7 @@
   (code "int rw_key_down(long k) { return IsKeyDown((int)k); }")
   (code "int rw_key_pressed(long k) { return IsKeyPressed((int)k); }")
   (code "int rw_mouse_down(long b) { return IsMouseButtonDown((int)b); }")
+  (code "int rw_mouse_pressed(long b) { return IsMouseButtonPressed((int)b); }")
   (code "int rw_screenshot(const char * path) { Image img = LoadImageFromScreen(); int ok = ExportImage(img, path); UnloadImage(img); return ok; }")
   (code "int rw_file_exists(const char * path) { return FileExists(path); }")
   (code "static Texture2D rw_tex[256]; static RenderTexture2D rw_rt[256]; static Image rw_shot;")
@@ -350,6 +354,7 @@
   (decl) (func rw_key_down ((long k)) (out int))
   (decl) (func rw_key_pressed ((long k)) (out int))
   (decl) (func rw_mouse_down ((long b)) (out int))
+  (decl) (func rw_mouse_pressed ((long b)) (out int))
   (decl) (func rw_screenshot ((const char * path)) (out int))
   (decl) (func rw_file_exists ((const char * path)) (out int))
   (decl) (func rw_tex_load ((long s) (const char * path)) (out int))
@@ -660,6 +665,24 @@
         (let ((i64 b . 0))
           (if (not (ray_iarg e g 0 (aof b))) (return 0))
           (return (rw_mouse_down (cast long b)))))
+
+  ;;; THE EDGE, WHICH THE LEVEL READ CANNOT GIVE. `IsMouseButtonDown' is
+  ;;; the button's state at the moment it is asked, and raylib refreshes
+  ;;; that state once a frame inside EndDrawing -- so a click whose press
+  ;;; AND release both land between two frames was never down as far as a
+  ;;; program can tell. raylib keeps the previous frame's state for
+  ;;; exactly this, and `IsMouseButtonPressed' is true on the one frame
+  ;;; the button went down, whatever it did afterwards.
+  ;;;
+  ;;; It is `ray_key_pressed/1' for the mouse, and it is here for the same
+  ;;; reason that one is: a tap is shorter than a frame. A macOS trackpad
+  ;;; two-finger tap measures under ten milliseconds of synthetic
+  ;;; button-down, which a sixty- or even a hundred-and-twenty-frame loop
+  ;;; misses most times it is tried.
+  (func ray_p_mouse_pressed ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 b . 0))
+          (if (not (ray_iarg e g 0 (aof b))) (return 0))
+          (return (rw_mouse_pressed (cast long b)))))
 
   ;;; ---- time ----
   (func ray_p_frame_time ((coco_engine * e) (size_t g)) (out int)

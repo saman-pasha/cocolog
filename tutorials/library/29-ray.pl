@@ -38,7 +38,16 @@
 %%     ray_cube(+X, +Y, +Z, +W, +H, +L, +Color)  ray_cube_wires(...same...)
 %%     ray_sphere(+X, +Y, +Z, +Rad, +Color)      ray_grid(+Slices, +Spacing)
 %%     ray_key_down(+Key)  ray_key_pressed(+Key)
-%%     ray_mouse(-X, -Y)   ray_mouse_down(+Button)
+%%
+%% LEVEL AND EDGE, AND WHY BOTH. `ray_key_down/1' and `ray_mouse_down/1'
+%% answer "is it down NOW"; `ray_key_pressed/1' and `ray_mouse_pressed/1'
+%% answer "did it go down THIS FRAME". raylib refreshes both from the
+%% same poll, once a frame, inside `ray_end' -- so a press whose down and
+%% up land between two frames is invisible to the level read and caught
+%% by the edge one. A key tap is tens of milliseconds and survives
+%% either; a trackpad's two-finger tap can be under ten, and needs the
+%% edge.
+%%     ray_mouse(-X, -Y)   ray_mouse_down(+Button)   ray_mouse_pressed(+Button)
 %%     ray_frame_time(-Seconds)  ray_time(-Seconds)
 %%     ray_screenshot(+Path)     ray_screen_pixel(+X, +Y, -R, -G, -B, -A)
 %%     ray_log_level(+Level)

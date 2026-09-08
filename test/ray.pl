@@ -153,7 +153,24 @@ the_loop(Run) :-
     wq(Run, 'ray_open(64, 64, coco), ray_mouse(X, Y), ( integer(X), integer(Y) -> R = ints ; R = odd ), ray_close, write(answer(R)), nl', R3),
     check('the mouse has coordinates, even a virtual one', R3, ints),
     wq(Run, 'ray_open(64, 64, coco), ray_begin, ray_clear(black), ray_end, ( ray_key_down(space) -> X = down ; X = up ), ray_close, write(answer(X)), nl', R4),
-    check('an unpressed key is not down', R4, up).
+    check('an unpressed key is not down', R4, up),
+    %% THE EDGE READ ANSWERS THE SAME WAY WHEN NOTHING IS TOUCHED, which
+    %% is all a headless suite can hold it to: no hand is here to press a
+    %% button, so what is checked is that the predicate EXISTS, takes
+    %% raylib's three button names, and is false with nothing pressed --
+    %% the same shape `ray_key_down/1' is checked in the line above.
+    %% Whether it catches a tap the level read misses is a claim about a
+    %% trackpad and belongs to the hand that owns one.
+    %%
+    %% `ray_button(B, _)' IS IN THE SECOND GOAL ON PURPOSE, and without it
+    %% that check cannot fail: `\\+' succeeds whenever its goal does not,
+    %% and `ray_mouse_pressed/1' fails SILENTLY on a name it does not know,
+    %% so `nonsense_button' passed it exactly as `middle' did (measured).
+    %% Naming the table is what makes a missing row red.
+    wq(Run, 'ray_open(64, 64, coco), ray_begin, ray_clear(black), ray_end, ( ray_mouse_pressed(left) -> X = pressed ; X = quiet ), ray_close, write(answer(X)), nl', R5),
+    check('an untouched button did not go down this frame', R5, quiet),
+    wq(Run, 'ray_open(64, 64, coco), ray_begin, ray_clear(black), ray_end, findall(B, ( member(B, [left, right, middle]), ray_button(B, _), \\+ ray_mouse_pressed(B) ), Bs), ray_close, write(answer(Bs)), nl', R6),
+    check('and it knows all three buttons by name', R6, '[left,right,middle]').
 
 %% A TEXTURE IS HELD TO THE PIXEL, LITERALLY: `ray_screen_pixel/6' reads
 %% the framebuffer back as four numbers, so what a clause drew is a check
