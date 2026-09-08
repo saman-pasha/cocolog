@@ -41,7 +41,9 @@ selftest_main :-
     ( retract(selftest_item(_)), fail ; true ),
 
     %% ---- C1: a nested engine drops the ball ---------------------------
-    catch(findall(X, selftest_g(X), _L), _E, true),
+    %% with_output_to/2 ONLY, since 1.1.0: findall/forall/aggregate_all/
+    %% bagof/setof re-throw in the outer engine now and their catch fires.
+    catch(with_output_to(atom(_A), selftest_g(_X)), _E, true),
 
     %% ---- C2: the second argument is not context(_,_) ------------------
     catch(selftest_g(_), error(_T, context(_, _)), true),
