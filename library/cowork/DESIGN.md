@@ -390,12 +390,15 @@ never mistaken for a slow crew. **No wait in this library is unbounded.**
 2. **Whether the fill is linear in clauses or in predicates.** The plan assumes clauses.
    If it is predicates, a program with few large predicates starts far cheaper than this
    document says, and per-job workers come back onto the table.
-3. ~~**Whether a worker needs a database connection.**~~ **ANSWERED, by the hang in
-   §8b.** A worker HAS one under `--embed`: `resource_error(clause_length)` fired inside
-   a worker, and that error exists only when the store has a backend behind it to
-   measure a row against. What is still unwalked is whether a job can usefully READ the
-   store, and whether the embedded engine's serialising of calls makes that a bottleneck
-   under a crew.
+3. ~~**Whether a worker needs a database connection.**~~ **ANSWERED TWICE.** A worker
+   HAS one under `--embed` — `resource_error(clause_length)` fired inside one, and that
+   error exists only when the store has a backend to measure a row against. Which turned
+   out to be the bug rather than the answer: `cowork_tell/2` was WRITING each worker's
+   snapshot through to the knowledge base, four clauses to two workers putting eight rows
+   in the database, and deadlocking past a handful because both workers wanted the
+   embedded store while the caller waited. `with_local_clauses/1` (1.2.11) mutes it, and
+   a snapshot fact no longer has to fit a row either. What is still unwalked is whether a
+   job can usefully READ the store under a crew.
 4. **The real snapshot size.** 5,000 five-argument facts is a guess at a map; measure
    CivV's actual turn state before believing the 43 ms figure.
 5. ~~**Whether `cowork_map/3` should bound its in-flight jobs.**~~ **ANSWERED, and the

@@ -75,6 +75,8 @@
 
     ("nb_setval"               2 coco_b_setval)
     ("nb_getval"               2 coco_b_getval)
+    ("$store_mute"             0 coco_b_store_mute)
+    ("$store_unmute"           0 coco_b_store_unmute)
     ("b_setval"                2 coco_b_setval)
     ("b_getval"                2 coco_b_getval)
 
@@ -100,6 +102,23 @@
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; ---- with_local_clauses/1 -----------------------------------
+           ;;
+           ;; What a module's clauses already get, asked for by a program:
+           ;; inside Goal an `assertz' lands in THIS machine's store and is
+           ;; not written through to the knowledge base. A worker holding a
+           ;; turn's snapshot wants exactly that -- the state is transient,
+           ;; it belongs to the machine proving with it, and writing it to
+           ;; the database is both wrong and, under `--embed' with more than
+           ;; one worker, a deadlock.
+           ;;
+           ;; IT UNMUTES ON ALL THREE WAYS OUT, which is the whole reason it
+           ;; exists rather than the raw pair: a mute left on silently drops
+           ;; every later write, and the program that finds out is the one
+           ;; whose database is empty an hour later. The shape is
+           ;; `with_mutex/2's, for the same reason.
+           "with_local_clauses(G) :- '$store_mute', ( catch(G, E, true) -> '$store_unmute', ( nonvar(E) -> throw(E) ; true ) ; '$store_unmute', fail )."
+
            ;; ---- string/1 IS NOT HERE ------------------------------------
            ;;
            ;; It was `string(_) :- fail.', with a comment saying cocolog has
@@ -1937,6 +1956,34 @@
   ;;; NOTHING HERE IS FILE-SCOPE ANY MORE, and that is the point: a static
   ;;; table is appended to by every thread at once, and eight of them
   ;;; writing 800 globals each aborted the process on its `realloc'.
+
+  ;;; ---- clauses that stay in this machine ---------------------------------
+  ;;;
+  ;;; MUTING IS WHAT A MODULE'S CLAUSES ALREADY GET, and there was no way to
+  ;;; ask for it from Prolog. `coco_store_mute' stops the write-through hooks
+  ;;; firing, so an `assertz' lands in this machine's store and nowhere else
+  ;;; -- which is exactly what a module's clauses need, "they belong to the
+  ;;; BUILD and not to the knowledge base", and exactly what a WORKER's
+  ;;; snapshot needs for the same reason.
+  ;;;
+  ;;; Reported from CivV: `library(cowork)' told a two-worker crew four
+  ;;; clauses under `--embed' and EIGHT rows landed in the knowledge base,
+  ;;; one copy per worker. Transient turn state, written to the user's
+  ;;; database, once per worker. And it deadlocked past a handful of clauses,
+  ;;; because both workers wanted the embedded store while the caller sat
+  ;;; waiting for them.
+  ;;;
+  ;;; THE RAW PAIR IS `$'-PREFIXED ON PURPOSE. A mute that somebody forgets
+  ;;; to undo silently drops every later write, so the public form is
+  ;;; `with_local_clauses/1', which unmutes on success, on failure and on the
+  ;;; way out of a throw. It is a COUNTER underneath, so it nests.
+  (func coco_b_store_mute ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_mute (-> e st))
+        (return 1))
+
+  (func coco_b_store_unmute ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_unmute (-> e st))
+        (return 1))
 
   (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))

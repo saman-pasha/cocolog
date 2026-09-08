@@ -1638,7 +1638,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.10` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.11` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3352,6 +3352,31 @@ is 14000), which is how it has always read and is worth a look.
   the second, beside the existence one (MODULES.md), and both are pinned
   under each backend (`test/torch-grad.pl`, `test/tensorflow.pl`), a
   nested path that IS there loading beside them.
+* **`with_local_clauses/1` (1.2.11), which a program could not ask for
+  before.** Muting the store is what a module's clauses already get — "they
+  belong to the BUILD and not to the knowledge base" — and `coco_store_mute`
+  had no Prolog surface. Inside the goal an `assertz` lands in this machine's
+  store and is not written through. It unmutes on success, on failure and on
+  the way out of a throw, which is why the public form is the scoped one and
+  the raw `'$store_mute'` pair is `$`-prefixed: a mute left on silently drops
+  every later write, and the program that finds out is the one whose database
+  is empty an hour later.
+
+  **Reported from CivV as two bugs that were one.** `library(cowork)`'s
+  `cowork_tell/2` asserted in every worker without muting, so each worker
+  WROTE ITS COPY THROUGH: four clauses told to two workers under `--embed`
+  put **eight rows in the knowledge base** — transient turn state, persisted,
+  once per worker. And past a handful of clauses it DEADLOCKED, both workers
+  wanting the embedded store while the caller waited for their
+  acknowledgements: a tell of eight never returned where four had, and the
+  crew could not even be stopped afterwards. Bisected by CivV to "between 4
+  and 8 clauses, and only under `--embed`", which is exactly the shape of a
+  store contended by two writers and one waiter. It settles a third thing for
+  free: a snapshot fact no longer has to fit a database ROW, because it never
+  reaches one — a 9 000-character clause raised `resource_error(clause_length)`
+  from inside a worker and is simply told now, which is what CivV's
+  `chronicle_snap/2` rows need.
+
 * **FIVE LIST WALKS MOVED FROM PROLOG TO C (1.2.10), and the wrapper was
   already there.** `sum_list/2`, `max_list/2`, `min_list/2`, `numlist/3` and
   `last/2` each delegated to a `$`-prefixed helper — `'$sum'/3` and the rest

@@ -209,14 +209,21 @@ cowork_loop(Id, In, Out) :-
 %% acked and every caller of `cowork_tell/2' waited for ever. A hang is the
 %% worst possible way to report a fact that would not fit: it names nothing,
 %% it happens in another thread, and it looks like the crew being slow.
+%% THE SNAPSHOT STAYS IN THE WORKER, which `with_local_clauses/1' is for.
+%% Without it every worker WROTE ITS COPY THROUGH to the knowledge base:
+%% reported from CivV, four clauses told to two workers under `--embed' put
+%% EIGHT rows in the database. Transient turn state, persisted, once per
+%% worker -- and past a handful of clauses it deadlocked, because both
+%% workers wanted the embedded store while the caller sat waiting for their
+%% acknowledgements.
 cowork_do(Id, tell(Clauses), Out) :- !,
-    (   catch(forall(member(C, Clauses), assertz(C)), Ball, true)
+    (   catch(with_local_clauses(forall(member(C, Clauses), assertz(C))), Ball, true)
     ->  ( var(Ball) -> S = true ; S = error(Ball) )
     ;   S = failed
     ),
     channel_send(Out, ack(Id, S)).
 cowork_do(Id, forget(Heads), Out) :- !,
-    (   catch(forall(member(H, Heads), ( catch(retractall(H), _, true) )), Ball, true)
+    (   catch(with_local_clauses(forall(member(H, Heads), ( catch(retractall(H), _, true) ))), Ball, true)
     ->  ( var(Ball) -> S = true ; S = error(Ball) )
     ;   S = failed
     ),

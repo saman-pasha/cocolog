@@ -239,38 +239,37 @@ pipelining :-
     check('three posted, three collected', G5, '[10,12,14]'),
     cowork_stop(C1).
 
-%% ---- a worker that cannot do it says so, and does not vanish ------------
+%% ---- the snapshot stays in the worker, and a refusal is still reported ---
 %%
-%% REPORTED FROM CivV AS A HANG, and it was one: `cowork_tell/2' asserted in
-%% each worker and waited for an acknowledgement, and the worker sent one
-%% only if the assert had WORKED. A clause too long for a row raises
-%% `resource_error(clause_length)' the moment a worker has a database under
-%% it -- which is every worker under `--embed' -- so the worker fell out of
-%% its loop, nobody acked, and the caller waited for ever on a channel
-%% nothing would ever be sent to. CivV met it with `chronicle_snap/2', whose
-%% rows each hold a whole sorted LIST of another predicate's facts, so the
-%% terms are far bigger than the fact count suggests.
+%% REPORTED FROM CivV, TWO BUGS IN ONE. `cowork_tell/2' asserted in each
+%% worker WITHOUT muting the store, so every worker wrote its copy through to
+%% the knowledge base: four clauses told to two workers under `--embed' put
+%% EIGHT rows in the database. Transient turn state, persisted, once per
+%% worker. And past a handful of clauses it DEADLOCKED -- both workers wanted
+%% the embedded store while the caller sat waiting for their acknowledgements
+%% -- so a tell of eight clauses never came back where four had.
 %%
-%% A HANG IS THE WORST WAY TO REPORT THAT. It names nothing, it happens on
-%% another thread, and it reads as the crew being slow. The ack carries the
-%% outcome now and is always sent.
+%% `with_local_clauses/1' is the fix and it settles a third thing for free: a
+%% snapshot fact no longer has to fit a database ROW, because it never
+%% reaches one. A clause of 9 000 characters used to raise
+%% `resource_error(clause_length)' from inside a worker; it is simply told
+%% now, which is what CivV needs for `chronicle_snap/2', whose rows each hold
+%% a whole sorted list.
 %%
-%% IN A CHILD, WITH A TIMEOUT, because the thing being checked is that a
-%% goal RETURNS: a regression here would hang this case rather than fail it,
-%% and a suite that has to be killed says nothing about what broke.
+%% IN A CHILD, WITH A TIMEOUT, because the thing being checked is that a goal
+%% RETURNS: a regression here would hang this case rather than fail it.
 a_worker_always_answers(D) :-
-    section('a worker that cannot assert says so, and the caller is not left waiting'),
+    section('a told snapshot stays in the worker, and is not written to the store'),
     atom_concat(D, '/toolong.pl', Prog),
     fixture(Prog,
             [ ':- use_module(library(cowork)).',
               'main :-',
               '    cowork_start(2, [], C),',
               '    length(L, 9000), maplist(=(0''x), L), atom_codes(A, L),',
-              '    (   catch(cowork_tell(C, [big(A)]), error(E, _), true)',
+              '    (   catch(cowork_tell(C, [big(A), small(1)]), error(E, _), true)',
               '    ->  ( var(E) -> R = told ; R = E )',
               '    ;   R = failed',
               '    ),',
-              '    cowork_tell(C, [small(1)]),',
               '    cowork_map(C, [small(_)], M),',
               '    cowork_stop(C),',
               '    write(answer(R-M)), nl.' ]),
@@ -280,8 +279,14 @@ a_worker_always_answers(D) :-
     proc_run(Cmd, 90000, Out, Rc),
     check('the child returned at all -- a hang here is the defect itself', Rc, 0),
     ( re_first_atom('answer\\([^\n]*\\)', Out, A1) -> sub_atom(A1, 7, _, 1, G1) ; G1 = no_answer ),
-    check('a clause too long for a row RAISES, and the crew still answers', G1,
-          'resource_error(clause_length)-[ok(small(1))]').
+    check('a clause too long for a ROW is told anyway, because it never reaches one', G1,
+          'told-[ok(small(1))]'),
+    %% THE HALF THAT IS ABOUT THE DATABASE, and the one the deadlock was
+    %% hiding: a second process must find NOTHING of the snapshot.
+    sh_join([C1, ' --embed ', KB, ' query "catch(small(_), error(existence_error(procedure, _), _), (write(clean), nl))" 2>&1'], Probe),
+    proc_run(Probe, 60000, POut, _),
+    ( re_first_atom('clean', POut, _) -> G2 = clean ; G2 = leaked ),
+    check('and a second process finds none of it in the store', G2, clean).
 
 %% ---- no wait here is unbounded ------------------------------------------
 %%
