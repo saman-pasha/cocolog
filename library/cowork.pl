@@ -105,7 +105,7 @@
 %% channel shared, and the thread ids to join at the end. Handles are
 %% integers into library(thread)'s own tables, so the term copies to a
 %% worker as it stands.
-cowork_start(N, Options, crew(N, Ins, Out, Post, Tids, Timeout)) :-
+cowork_start(N, Options, crew(N, Ins, Out, Post, Ack, Tids, Timeout)) :-
     integer(N), N > 0,
     %% NO BLOCKING WAIT IS UNBOUNDED, and this is the number that makes that
     %% true. A worker can die before it ever reads a message -- a store fill
@@ -122,13 +122,24 @@ cowork_start(N, Options, crew(N, Ins, Out, Post, Tids, Timeout)) :-
     %% posted answers land here and nowhere else, so `poll' and `map' cannot
     %% take each other's
     channel_new(Post),
+    %% AND ACKNOWLEDGEMENTS LAND ON A THIRD, for a reason that cost a
+    %% silent failure in CivV before it was found. A channel receive with a
+    %% pattern CONSUMES whatever it dequeues and then fails if it does not
+    %% unify -- measured -- so one stale `res(...)' left on the ack channel
+    %% by a map that timed out made the next `cowork_tell/2' eat it, fail to
+    %% match `ack(_, _)', and FAIL. Silently: a caller cannot tell a refusal
+    %% from an empty answer. The same lost message then cost a later wait its
+    %% whole timeout, waiting for an acknowledgement that had already come
+    %% and been thrown away. Three channels, three kinds of message, and no
+    %% receive can ever see somebody else's.
+    channel_new(Ack),
     (   memberchk(on_start(Start), Options)
     ->  true
     ;   Start = true
     ),
     findall(T,
             ( nth1(Id, Ins, In),
-              thread_create(cowork_run(Id, In, Out, Start), T) ),
+              thread_create(cowork_run(Id, In, Ack, Start), T) ),
             Tids).
 
 cowork_channels([]).
@@ -137,11 +148,11 @@ cowork_channels([C|Cs]) :- channel_new(C), cowork_channels(Cs).
 %% Every inbox is told to stop and every thread is joined, so a crew that
 %% has been stopped has left nothing running. A worker inside a long job
 %% finishes it first: `stop' is a message in the queue, not a signal.
-cowork_stop(crew(_, Ins, _, _, Tids, _)) :-
+cowork_stop(crew(_, Ins, _, _, _, Tids, _)) :-
     forall(member(In, Ins), channel_send(In, stop)),
     forall(member(T, Tids), thread_join(T, _)).
 
-cowork_size(crew(N, _, _, _, _, _), N).
+cowork_size(crew(N, _, _, _, _, _, _), N).
 
 %% THE FILL IS PAID ON A WORKER'S FIRST GOAL, not when its thread starts --
 %% `cowork_start/3' returns in a fifth of a millisecond and the store fill
@@ -158,7 +169,7 @@ cowork_warm(Crew) :-
 %% a job a worker has already taken is inside that worker and nothing can see
 %% it. So this answers "have I posted faster than the crew is taking them",
 %% which is the question a pipeline asks -- see the pacing note above.
-cowork_pending(crew(_, Ins, _, _, _, _), N) :- cowork_queued(Ins, 0, N).
+cowork_pending(crew(_, Ins, _, _, _, _, _), N) :- cowork_queued(Ins, 0, N).
 
 cowork_queued([], N, N).
 cowork_queued([In|Ins], A, N) :-
@@ -230,15 +241,31 @@ cowork_do(Id, Other, Out) :-
 %% Broadcast, and WAIT for every worker to have it. Without the acks a
 %% `tell' followed by a `map' would race: a job could reach a worker that
 %% had not yet asserted the snapshot the job asks about.
-cowork_tell(crew(N, Ins, Out, _, _, T), Clauses) :-
+cowork_tell(crew(N, Ins, _, _, Ack, _, T), Clauses) :-
+    cowork_drain(Ack),
     forall(member(In, Ins), channel_send(In, tell(Clauses))),
-    cowork_acks(Out, T, N, Bad),
+    cowork_acks(Ack, T, N, Bad),
     cowork_report(Bad).
 
-cowork_forget(crew(N, Ins, Out, _, _, T), Heads) :-
+cowork_forget(crew(N, Ins, _, _, Ack, _, T), Heads) :-
+    cowork_drain(Ack),
     forall(member(In, Ins), channel_send(In, forget(Heads))),
-    cowork_acks(Out, T, N, Bad),
+    cowork_acks(Ack, T, N, Bad),
     cowork_report(Bad).
+
+%% WHAT IS ALREADY ON THE CHANNEL BELONGS TO SOMETHING DEAD. A wait that
+%% gave up leaves its workers still working, and their answers arrive
+%% afterwards addressed to nobody -- so the next map inherited them and
+%% answered a question it had not been asked (measured: a map for `after(_)'
+%% came back `ok(slow(1,2))', the previous map's job). Results carry an index
+%% within their own map and indices start again at one, so they cannot be
+%% told apart by name; they can only be cleared before a new wait begins,
+%% which is the one moment nothing legitimate can be there.
+cowork_drain(Ch) :-
+    (   channel_recv(Ch, 0, _)
+    ->  cowork_drain(Ch)
+    ;   true
+    ).
 
 cowork_acks(_, _, 0, []) :- !.
 cowork_acks(Out, T, N, Bad) :-
@@ -290,7 +317,8 @@ cowork_ask(Crew, Goal, Answer) :-
 %% ANSWER arrives, so a worker with a slow job is not handed more while the
 %% others idle. The results carry their index and are keysorted at the end,
 %% which is what makes the answer independent of who finished first.
-cowork_map(crew(_, Ins, Out, _, _, T), Goals, Results) :-
+cowork_map(crew(_, Ins, Out, _, _, _, T), Goals, Results) :-
+    cowork_drain(Out),
     cowork_seed(Ins, Goals, Out, 1, Rest, NextI, Outstanding),
     cowork_gather(Out, T, Ins, Rest, NextI, Outstanding, [], Pairs),
     keysort(Pairs, Sorted),
@@ -330,7 +358,7 @@ cowork_values([_-R|Ps], [R|Rs]) :- cowork_values(Ps, Rs).
 %% that calls it has not moved the work anywhere -- it has moved where the
 %% time is spent. `post' does not wait: the answer is wanted NEXT frame, and
 %% `poll' asks for it without blocking.
-cowork_post(crew(_, Ins, _, Post, _, _), Goal) :-
+cowork_post(crew(_, Ins, _, Post, _, _, _), Goal) :-
     cowork_shortest(Ins, In),
     channel_send(In, job(0, Goal, Post)).
 
@@ -354,5 +382,5 @@ cowork_shortest([In|Ins], Sofar, N, Best) :-
 %% timeout on a channel takes only what is already queued.
 cowork_poll(Crew, Result) :- cowork_poll(Crew, 0, Result).
 
-cowork_poll(crew(_, _, _, Post, _, _), Timeout, Result) :-
+cowork_poll(crew(_, _, _, Post, _, _, _), Timeout, Result) :-
     channel_recv(Post, Timeout, res(_, _, Result)).

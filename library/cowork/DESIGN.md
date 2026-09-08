@@ -356,6 +356,23 @@ unexpected ball costs one message rather than the crew. A tell that could not be
 raises to its caller and names the reason. `test/cowork.pl` holds it in a CHILD with a
 timeout, because a regression would hang the case rather than fail it.
 
+**AND THE BOUND WAS NOT ENOUGH ON ITS OWN**, which CivV found next: a tell that
+neither returned nor raised. A channel receive with a pattern CONSUMES what it dequeues
+and only then unifies, so one stale `res(...)` left by a wait that gave up made the next
+`cowork_tell/2` eat it, fail to match `ack(_, _)`, and FAIL — silently, where a caller
+cannot tell a refusal from an empty answer. The same lost message then cost a later wait
+its whole timeout, waiting for an acknowledgement that had already arrived and been
+discarded. Both of their symptoms, one cause, and both in code written here.
+
+Two things fix it. **Acknowledgements have a channel of their own** — three channels now,
+three kinds of message, and no receive can see somebody else's. And **every wait drains
+its channel first**, because a wait that gave up leaves workers still working and their
+answers arrive afterwards addressed to nobody; without the drain the next map inherited
+them and answered a question it had not been asked, measured as a map for `after(_)`
+coming back `ok(slow(1,2))`. Results carry an index within their own map and indices
+start again at one, so they cannot be told apart by name — only cleared at the one moment
+nothing legitimate can be there.
+
 **And the residual risk is fixed too, from the other end.** A worker CAN die before it
 reads its first message — a store fill that raises — and the catch inside the loop cannot
 help, because the loop was never reached. That is not fixable in the worker; it is

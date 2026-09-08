@@ -53,7 +53,7 @@ main :-
               'yield(Tile, Y) :- tile(Tile, F, P), Y is F + P.' ]),
     use_module(Jobs),
     answers_and_order, outcomes, telling, the_discipline, many_turns, parallel,
-    pipelining, a_worker_always_answers(D), bounded_waits,
+    pipelining, a_worker_always_answers(D), bounded_waits, nothing_inherits_the_dead,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -314,3 +314,39 @@ bounded_waits :-
     check('and the bound does not disturb an ordinary tell and map', G3,
           '[ok(warm_fact(1))]'),
     cowork_stop(C2).
+
+%% ---- a dead wait leaves nothing behind ----------------------------------
+%%
+%% REPORTED FROM CivV as a tell that neither returned nor raised. A channel
+%% receive with a pattern CONSUMES whatever it dequeues and only then tries
+%% to unify, so one stale `res(...)' left by a wait that gave up made the
+%% next `cowork_tell/2' eat it, fail to match `ack(_, _)', and FAIL --
+%% silently, where a caller cannot tell a refusal from an empty answer. The
+%% same lost message then cost a later wait its whole timeout, waiting for an
+%% acknowledgement that had already arrived and been thrown away. Both of
+%% CivV's symptoms, one cause.
+%%
+%% TWO THINGS FIX IT AND BOTH ARE HERE. Acknowledgements have a channel of
+%% their own, so a tell can never see a map's result; and every wait DRAINS
+%% its channel first, because a wait that gave up leaves workers still
+%% working and their answers arrive afterwards addressed to nobody. Without
+%% the drain the next map inherited them and answered a question it had not
+%% been asked -- measured, a map for `after(_)' came back `ok(slow(1,2))'.
+nothing_inherits_the_dead :-
+    section('a wait that gave up leaves nothing for the next one to inherit'),
+    cowork_start(2, [timeout(60)], C1),
+    %% the job outlives the wait, so its answer lands on the channel after
+    %% the map that asked for it has already raised
+    written(( catch(cowork_map(C1, [slow(1, _)], _), error(E1, _), true) ), E1, G1),
+    check('the map gives up and says so', G1, 'timeout_error(cowork,1)'),
+    pause_ms(1500),
+    written(( catch(cowork_tell(C1, [after(1)]), B2, true),
+              ( var(B2) -> R2 = told ; R2 = B2 ) ), R2, G2),
+    check('a tell over that stale result is told, not silently failed', G2, told),
+    written(( cowork_map(C1, [after(_)], R3) ), R3, G3),
+    check('and the next map answers ITS question, not the dead one''s', G3,
+          '[ok(after(1))]'),
+    cowork_stop(C1).
+
+%% There is no sleep in this house; an empty channel with a timeout is one.
+pause_ms(Ms) :- channel_new(Z), ( channel_recv(Z, Ms, _) -> true ; true ).
