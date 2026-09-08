@@ -53,7 +53,7 @@ main :-
               'yield(Tile, Y) :- tile(Tile, F, P), Y is F + P.' ]),
     use_module(Jobs),
     answers_and_order, outcomes, telling, the_discipline, many_turns, parallel,
-    pipelining, a_worker_always_answers(D),
+    pipelining, a_worker_always_answers(D), bounded_waits,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -282,3 +282,35 @@ a_worker_always_answers(D) :-
     ( re_first_atom('answer\\([^\n]*\\)', Out, A1) -> sub_atom(A1, 7, _, 1, G1) ; G1 = no_answer ),
     check('a clause too long for a row RAISES, and the crew still answers', G1,
           'resource_error(clause_length)-[ok(small(1))]').
+
+%% ---- no wait here is unbounded ------------------------------------------
+%%
+%% THE CATCH IN THE WORKER LOOP CANNOT COVER EVERYTHING. A worker can die
+%% before it reads its first message -- a store fill that raises, say -- and
+%% then the loop that would have answered was never reached, so a caller
+%% waiting for an acknowledgement waits for ever. That is not fixable in the
+%% worker; it is fixable by refusing to wait without a bound.
+%%
+%% Every wait takes the crew's timeout (60s by default, `timeout(Ms)' at
+%% start) and a missing answer is `timeout_error(cowork, Missing)' naming how
+%% many never came. Generous enough that a cold worker paying its store fill
+%% is never mistaken for a dead one, finite so a dead one is never mistaken
+%% for a slow crew.
+bounded_waits :-
+    section('a wait that cannot be answered ends, and says so'),
+    %% A one-worker crew given 60ms and a job that takes far longer is the
+    %% same shape as a worker that will never answer, and it is deterministic
+    %% where killing a thread is not.
+    cowork_start(1, [timeout(60)], C1),
+    written(( catch(cowork_map(C1, [slow(9, _)], _), error(E1, _), true) ), E1, G1),
+    check('a gather that cannot finish raises rather than hanging', G1,
+          'timeout_error(cowork,1)'),
+    cowork_stop(C1),
+    cowork_start(2, [], C2),
+    written(( cowork_warm(C2), cowork_pending(C2, P2) ), P2, G2),
+    check('a warmed crew has nothing queued behind it', G2, '0'),
+    %% and the ordinary path is unaffected by the bound
+    written(( cowork_tell(C2, [warm_fact(1)]), cowork_map(C2, [warm_fact(_)], R3) ), R3, G3),
+    check('and the bound does not disturb an ordinary tell and map', G3,
+          '[ok(warm_fact(1))]'),
+    cowork_stop(C2).

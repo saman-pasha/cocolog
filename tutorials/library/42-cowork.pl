@@ -30,7 +30,9 @@
 %%
 %% THE SURFACE:
 %%
-%%     cowork_start(+N, +Options, -Crew)     Options: on_start(Goal)
+%%     cowork_start(+N, +Options, -Crew)     Options: on_start(Goal), timeout(Ms)
+%%     cowork_warm(+Crew)                    pay the store fill now
+%%     cowork_pending(+Crew, -N)             jobs queued, not yet taken
 %%     cowork_stop(+Crew)    cowork_size(+Crew, -N)
 %%     cowork_tell(+Crew, +Clauses)          every worker asserts its own copy
 %%     cowork_forget(+Crew, +Heads)          and drops it again

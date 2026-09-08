@@ -356,10 +356,14 @@ unexpected ball costs one message rather than the crew. A tell that could not be
 raises to its caller and names the reason. `test/cowork.pl` holds it in a CHILD with a
 timeout, because a regression would hang the case rather than fail it.
 
-**One residual risk, stated rather than fixed:** a worker that dies before it reads its
-first message — a store fill that raises, say — still leaves the crew short and a caller
-waiting, because the catch is inside the loop. Nothing has been seen doing that, and the
-honest fix is a liveness check that has not been designed.
+**And the residual risk is fixed too, from the other end.** A worker CAN die before it
+reads its first message — a store fill that raises — and the catch inside the loop cannot
+help, because the loop was never reached. That is not fixable in the worker; it is
+fixable by refusing to wait without a bound. Every wait now takes the crew's timeout
+(60 s by default, `timeout(Ms)` at start) and a missing answer raises
+`timeout_error(cowork, Missing)` naming how many never came. Generous enough that a cold
+worker paying its store fill is never mistaken for a dead one, finite so a dead one is
+never mistaken for a slow crew. **No wait in this library is unbounded.**
 
 ## 9. What to check before building on this
 
@@ -369,11 +373,21 @@ honest fix is a liveness check that has not been designed.
 2. **Whether the fill is linear in clauses or in predicates.** The plan assumes clauses.
    If it is predicates, a program with few large predicates starts far cheaper than this
    document says, and per-job workers come back onto the table.
-3. **Whether a worker needs a database connection.** `coco_m_kb_install` gives an
-   isolated proof one; a plain thread has none. If a job must read the store, that path
-   has to be walked before stage 2, and the embedded engine serialises calls anyway.
+3. ~~**Whether a worker needs a database connection.**~~ **ANSWERED, by the hang in
+   §8b.** A worker HAS one under `--embed`: `resource_error(clause_length)` fired inside
+   a worker, and that error exists only when the store has a backend behind it to
+   measure a row against. What is still unwalked is whether a job can usefully READ the
+   store, and whether the embedded engine's serialising of calls makes that a bottleneck
+   under a crew.
 4. **The real snapshot size.** 5,000 five-argument facts is a guess at a map; measure
    CivV's actual turn state before believing the 43 ms figure.
-5. **Whether `cowork_map/3` should bound its in-flight jobs.** An unbounded scatter into
-   a bounded channel is backpressure; into an unbounded one it is a memory leak with a
-   scheduler attached.
+5. ~~**Whether `cowork_map/3` should bound its in-flight jobs.**~~ **ANSWERED, and the
+   question was pointed at the wrong predicate.** `cowork_map/3` is already bounded by
+   construction — one job per worker, and a worker gets its next only when its last
+   answer arrives. It is `cowork_post/2` that is unbounded, which §6 measured leaving 28
+   stale jobs queued. `cowork_pending/2` reports what is queued and not yet taken, which
+   is the number a pipeline paces against.
+
+6. **Whether a job can read the store, and what the embedded engine's one-call-at-a-time
+   does to a crew.** The half of item 3 that is still open, and the first thing to walk
+   before stage 3.

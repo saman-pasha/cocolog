@@ -22,9 +22,11 @@
 %%
 %% THE SURFACE (stage 1 of the design; see the note at the end)
 %%
-%%   cowork_start(+N, +Options, -Crew)   Options: on_start(Goal)
+%%   cowork_start(+N, +Options, -Crew)   Options: on_start(Goal), timeout(Ms)
 %%   cowork_stop(+Crew)
 %%   cowork_size(+Crew, -N)
+%%   cowork_warm(+Crew)                  pay the store fill now, not in the first turn
+%%   cowork_pending(+Crew, -N)           jobs QUEUED and not yet taken
 %%   cowork_tell(+Crew, +Clauses)        every worker asserts its own copy
 %%   cowork_forget(+Crew, +Heads)        every worker retracts them again
 %%   cowork_ask(+Crew, ?Goal)            one job, UNIFIED back into the caller's
@@ -103,8 +105,17 @@
 %% channel shared, and the thread ids to join at the end. Handles are
 %% integers into library(thread)'s own tables, so the term copies to a
 %% worker as it stands.
-cowork_start(N, Options, crew(N, Ins, Out, Post, Tids)) :-
+cowork_start(N, Options, crew(N, Ins, Out, Post, Tids, Timeout)) :-
     integer(N), N > 0,
+    %% NO BLOCKING WAIT IS UNBOUNDED, and this is the number that makes that
+    %% true. A worker can die before it ever reads a message -- a store fill
+    %% that raises, say -- and then nothing it was going to answer will ever
+    %% be answered. The catch inside the loop cannot help there, because the
+    %% loop was never reached. So every wait below is bounded and a missing
+    %% answer becomes `timeout_error(cowork, Missing)': generous enough that
+    %% a cold worker paying its fill is never mistaken for a dead one, and
+    %% finite so a dead one is never mistaken for a slow crew.
+    ( memberchk(timeout(Timeout), Options) -> true ; Timeout = 60000 ),
     length(Ins, N),
     cowork_channels(Ins),
     channel_new(Out),
@@ -126,11 +137,34 @@ cowork_channels([C|Cs]) :- channel_new(C), cowork_channels(Cs).
 %% Every inbox is told to stop and every thread is joined, so a crew that
 %% has been stopped has left nothing running. A worker inside a long job
 %% finishes it first: `stop' is a message in the queue, not a signal.
-cowork_stop(crew(_, Ins, _, _, Tids)) :-
+cowork_stop(crew(_, Ins, _, _, Tids, _)) :-
     forall(member(In, Ins), channel_send(In, stop)),
     forall(member(T, Tids), thread_join(T, _)).
 
-cowork_size(crew(N, _, _, _, _), N).
+cowork_size(crew(N, _, _, _, _, _), N).
+
+%% THE FILL IS PAID ON A WORKER'S FIRST GOAL, not when its thread starts --
+%% `cowork_start/3' returns in a fifth of a millisecond and the store fill
+%% lands on whatever message the worker handles first. Measured from CivV: a
+%% thread with its whole program registered costs 14ms, and a crew that is
+%% merely started hands that bill to the first real turn. One trivial job to
+%% EACH worker pays it up front, which is what a crew started at load is for.
+cowork_warm(Crew) :-
+    cowork_size(Crew, N),
+    findall(true, between(1, N, _), Goals),
+    cowork_map(Crew, Goals, _).
+
+%% QUEUED, AND NOT WHAT IS BEING WORKED ON, which is the honest limit of it:
+%% a job a worker has already taken is inside that worker and nothing can see
+%% it. So this answers "have I posted faster than the crew is taking them",
+%% which is the question a pipeline asks -- see the pacing note above.
+cowork_pending(crew(_, Ins, _, _, _, _), N) :- cowork_queued(Ins, 0, N).
+
+cowork_queued([], N, N).
+cowork_queued([In|Ins], A, N) :-
+    channel_size(In, K),
+    A1 is A + K,
+    cowork_queued(Ins, A1, N).
 
 %% ---- the worker ---------------------------------------------------------
 
@@ -196,22 +230,24 @@ cowork_do(Id, Other, Out) :-
 %% Broadcast, and WAIT for every worker to have it. Without the acks a
 %% `tell' followed by a `map' would race: a job could reach a worker that
 %% had not yet asserted the snapshot the job asks about.
-cowork_tell(crew(N, Ins, Out, _, _), Clauses) :-
+cowork_tell(crew(N, Ins, Out, _, _, T), Clauses) :-
     forall(member(In, Ins), channel_send(In, tell(Clauses))),
-    cowork_acks(Out, N, Bad),
+    cowork_acks(Out, T, N, Bad),
     cowork_report(Bad).
 
-cowork_forget(crew(N, Ins, Out, _, _), Heads) :-
+cowork_forget(crew(N, Ins, Out, _, _, T), Heads) :-
     forall(member(In, Ins), channel_send(In, forget(Heads))),
-    cowork_acks(Out, N, Bad),
+    cowork_acks(Out, T, N, Bad),
     cowork_report(Bad).
 
-cowork_acks(_, 0, []) :- !.
-cowork_acks(Out, N, Bad) :-
-    channel_recv(Out, ack(_, S)),
-    M is N - 1,
-    cowork_acks(Out, M, Bad0),
-    ( S == true -> Bad = Bad0 ; Bad = [S|Bad0] ).
+cowork_acks(_, _, 0, []) :- !.
+cowork_acks(Out, T, N, Bad) :-
+    (   channel_recv(Out, T, ack(_, S))
+    ->  M is N - 1,
+        cowork_acks(Out, T, M, Bad0),
+        ( S == true -> Bad = Bad0 ; Bad = [S|Bad0] )
+    ;   throw(error(timeout_error(cowork, N), _))
+    ).
 
 %% WHAT ONE WORKER COULD NOT DO IS TRUE OF THE CREW, because the crew is only
 %% useful while its workers are interchangeable. A ball is thrown on -- the
@@ -254,9 +290,9 @@ cowork_ask(Crew, Goal, Answer) :-
 %% ANSWER arrives, so a worker with a slow job is not handed more while the
 %% others idle. The results carry their index and are keysorted at the end,
 %% which is what makes the answer independent of who finished first.
-cowork_map(crew(_, Ins, Out, _, _), Goals, Results) :-
+cowork_map(crew(_, Ins, Out, _, _, T), Goals, Results) :-
     cowork_seed(Ins, Goals, Out, 1, Rest, NextI, Outstanding),
-    cowork_gather(Out, Ins, Rest, NextI, Outstanding, [], Pairs),
+    cowork_gather(Out, T, Ins, Rest, NextI, Outstanding, [], Pairs),
     keysort(Pairs, Sorted),
     cowork_values(Sorted, Results).
 
@@ -268,9 +304,12 @@ cowork_seed([In|Ins], [G|Gs], Out, I, Rest, NextI, Outstanding) :-
     cowork_seed(Ins, Gs, Out, I1, Rest, NextI, N0),
     Outstanding is N0 + 1.
 
-cowork_gather(_, _, _, _, 0, Acc, Acc) :- !.
-cowork_gather(Out, Ins, Rest, NextI, Outstanding, Acc, Pairs) :-
-    channel_recv(Out, res(Id, I, R)),
+cowork_gather(_, _, _, _, _, 0, Acc, Acc) :- !.
+cowork_gather(Out, T, Ins, Rest, NextI, Outstanding, Acc, Pairs) :-
+    (   channel_recv(Out, T, res(Id, I, R))
+    ->  true
+    ;   throw(error(timeout_error(cowork, Outstanding), _))
+    ),
     (   Rest = [G|Rest1]
     ->  nth1(Id, Ins, In),
         channel_send(In, job(NextI, G, Out)),
@@ -280,7 +319,7 @@ cowork_gather(Out, Ins, Rest, NextI, Outstanding, Acc, Pairs) :-
         NextI1 = NextI,
         Out1 is Outstanding - 1
     ),
-    cowork_gather(Out, Ins, Rest1, NextI1, Out1, [I-R|Acc], Pairs).
+    cowork_gather(Out, T, Ins, Rest1, NextI1, Out1, [I-R|Acc], Pairs).
 
 cowork_values([], []).
 cowork_values([_-R|Ps], [R|Rs]) :- cowork_values(Ps, Rs).
@@ -291,7 +330,7 @@ cowork_values([_-R|Ps], [R|Rs]) :- cowork_values(Ps, Rs).
 %% that calls it has not moved the work anywhere -- it has moved where the
 %% time is spent. `post' does not wait: the answer is wanted NEXT frame, and
 %% `poll' asks for it without blocking.
-cowork_post(crew(_, Ins, _, Post, _), Goal) :-
+cowork_post(crew(_, Ins, _, Post, _, _), Goal) :-
     cowork_shortest(Ins, In),
     channel_send(In, job(0, Goal, Post)).
 
@@ -315,5 +354,5 @@ cowork_shortest([In|Ins], Sofar, N, Best) :-
 %% timeout on a channel takes only what is already queued.
 cowork_poll(Crew, Result) :- cowork_poll(Crew, 0, Result).
 
-cowork_poll(crew(_, _, _, Post, _), Timeout, Result) :-
+cowork_poll(crew(_, _, _, Post, _, _), Timeout, Result) :-
     channel_recv(Post, Timeout, res(_, _, Result)).
