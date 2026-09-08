@@ -40,10 +40,12 @@ selftest_main :-
     %% ---- R1: the failure-driven loop removes exactly ONE clause -------
     ( retract(selftest_item(_)), fail ; true ),
 
-    %% ---- C1: a nested engine drops the ball ---------------------------
-    %% with_output_to/2 ONLY, since 1.1.0: findall/forall/aggregate_all/
-    %% bagof/setof re-throw in the outer engine now and their catch fires.
-    catch(with_output_to(atom(_A), selftest_g(_X)), _E, true),
+    %% ---- C1 IS GONE, and this is where it was -------------------------
+    %% A nested engine dropped the ball and an outer catch never fired.
+    %% findall/3,4, forall/2, aggregate_all/3, bagof/3 and setof/3 were
+    %% fixed in 1.1.0 and with_output_to/2 in 1.2.12 -- all seven catch
+    %% now, so there is no trap left to warn about and the row is retired
+    %% rather than narrowed to nothing.
 
     %% ---- C2: the second argument is not context(_,_) ------------------
     catch(selftest_g(_), error(_T, context(_, _)), true),

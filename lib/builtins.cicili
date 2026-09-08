@@ -1306,6 +1306,7 @@
               (size_t goal . #'(coco_m_arg e g 1))
               (coco_engine sub)
               (FILE * tmp . nil) (int saved . -1) (int rc . 0)
+              (int threw . 0) (size_t ball_cell . 0)
               (char * text . nil) (long len . 0))
 
           (if (coco_m_is_var e goal) (return (coco_m_instantiation_error e)))
@@ -1331,7 +1332,24 @@
           (coco_engine_ask (aof sub) goal)
           (set rc (coco_engine_next (aof sub)))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
-          (if (== rc -1) (snprintf (-> e err) 192 "%s" ($ sub err)))
+          ;; AND THE BALL WITH IT, which this did not do until 1.2.12 and the
+          ;; other six nested-engine builtins have done since 1.1.0. A
+          ;; sub-engine has a choice stack of its own, so a `throw' inside the
+          ;; goal finds no catch frame THERE and comes back as an error --
+          ;; and copying the message out while dropping the term made
+          ;;
+          ;;     catch(with_output_to(atom(A), G), E, true)
+          ;;
+          ;; catch nothing: the query simply ended. findall/3,4, forall/2,
+          ;; aggregate_all/3, bagof/3 and setof/3 are `coco_engine_findall'
+          ;; and were all fixed together; this one is its own sub-engine in
+          ;; this file and was missed. The cell is read HERE, before
+          ;; `coco_engine_free' memsets the sub-engine, and thrown again below
+          ;; once stdout is back where it belongs.
+          (if (== rc -1)
+              (block (snprintf (-> e err) 192 "%s" ($ sub err))
+                     (if ($ sub has_ball)
+                         (block (set threw 1) (set ball_cell ($ sub ball_cell))))))
           (coco_engine_free (aof sub))
 
           ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened. An early
@@ -1343,6 +1361,15 @@
 
           (if (!= rc 1)
               (block (fclose tmp)
+                     ;; THROWN AGAIN, IN THE OUTER ENGINE, where the catch
+                     ;; frames are -- and stdout is already restored above, so
+                     ;; a recovery goal that prints prints to the terminal
+                     ;; rather than into a temporary file nobody will read. 2
+                     ;; is the builtin protocol's "the continuation is already
+                     ;; set"; -1 when nothing caught it, which is the uncaught
+                     ;; path this had always taken.
+                     (if threw
+                         (return (? (coco_m_thrown e (coco_store_get m st ball_cell)) 2 -1)))
                      (if (== rc -1) (return -1))
                      (return 0)))
 

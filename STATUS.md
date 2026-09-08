@@ -1638,7 +1638,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.11` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.12` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3352,6 +3352,27 @@ is 14000), which is how it has always read and is worth a look.
   the second, beside the existence one (MODULES.md), and both are pinned
   under each backend (`test/torch-grad.pl`, `test/tensorflow.pl`), a
   nested path that IS there loading beside them.
+* **`with_output_to/2` RE-THROWS NOW (1.2.12), the seventh and last of the
+  nested-engine builtins to do it.** 1.1.0 fixed six — `findall/3,4`,
+  `forall/2`, `aggregate_all/3`, `bagof/3` and `setof/3`, which are all
+  `coco_engine_findall` — and missed this one, because it runs a sub-engine of
+  its own in `lib/builtins.cicili`. A sub-engine has a choice stack of its own,
+  so a `throw` inside the goal found no catch frame there and came back as an
+  error; the message was copied out and the ball dropped, so
+  `catch(with_output_to(atom(A), G), E, true)` caught nothing and the query
+  simply ended. The cell is read before `coco_engine_free` memsets the
+  sub-engine and thrown again after stdout is restored — so a recovery goal
+  that prints reaches the terminal rather than the temporary file. Measured,
+  all seven catch now, and `with_output_to/2` still captures (`captured(hello
+  world, 11)`) and still fails on a failing goal.
+
+  **It was found by the linter's own card being wrong.** cocolint's C1 trap
+  warned about all seven; six had been fixed for versions and nothing had
+  re-checked the claim, because `test/lint.pl` checks the card's CITATIONS and
+  not its truth. Testing all seven before editing the row is what turned "the
+  trap is stale" into "the trap is half true, and here is the half". **C1 is
+  retired now** — 33 rows, and no trap left to warn about.
+
 * **`with_local_clauses/1` (1.2.11), which a program could not ask for
   before.** Muting the store is what a module's clauses already get — "they
   belong to the BUILD and not to the knowledge base" — and `coco_store_mute`
