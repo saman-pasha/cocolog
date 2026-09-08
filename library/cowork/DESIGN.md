@@ -144,6 +144,13 @@ cowork_stop(+Crew)
 
 Two contracts carry it, and both are load-bearing.
 
+**A JOB READS ITS WORKER, NEVER THE STORE.** Measured by CivV: a worker's store read
+costs ~10.5 ms against the caller's ~35 µs, and eight of them across four workers
+serialise into 84 ms rather than overlapping — the embedded engine takes one call at a
+time, so a crew reading the store is a queue with four ends. It does not deadlock and it
+does not fail; it just costs three hundred times what the same read costs the caller,
+which is why this is a contract and not a performance note.
+
 **A JOB IS A QUERY, NEVER A MUTATION.** The only way state enters a worker is
 `cowork_tell/2`. A job that asserts leaves a worker holding something no other worker
 has, and the crew stops being interchangeable the moment one of them does it. A worker
@@ -426,6 +433,27 @@ never mistaken for a slow crew. **No wait in this library is unbounded.**
    stale jobs queued. `cowork_pending/2` reports what is queued and not yet taken, which
    is the number a pipeline paces against.
 
-6. **Whether a job can read the store, and what the embedded engine's one-call-at-a-time
-   does to a crew.** The half of item 3 that is still open, and the first thing to walk
-   before stage 3.
+6. ~~**Whether a job can read the store.**~~ **ANSWERED BY CivV, and it contradicts both
+   guesses.** We both expected a deadlock, by analogy with the writes. There is none —
+   four workers read the store under `--embed` perfectly well. **The price is the
+   serialisation, and it is severe:**
+
+   | | per read |
+   |---|---|
+   | the main thread | ~35 µs |
+   | a worker | **~10.5 ms** |
+
+   Three hundred times. Eight jobs across four workers took 84 ms of wall clock, which is
+   8 × 10.5 ms serialised — **the reads do not overlap at all**, exactly as one call at a
+   time predicts. The crew is doing the queueing and none of the parallelism.
+
+   **So the rule is: a job that reads the store is not parallel. It is a queue with four
+   ends.** State crosses by `cowork_tell/2`, and a job that reaches for the store is a
+   design error rather than a slow path — which §4's contract already implied, for a
+   different reason. This is worse than a deadlock in one respect: it works, and at eight
+   jobs it looks fine.
+
+   Measured against a predicate that CANNOT be answered from a told copy — CivV's
+   `map_tile/3`, consulted into the base and never part of a snapshot. Their first
+   attempt used a predicate that *was* told and came back in 1.10 ms from the workers'
+   own copies, which would have been the wrong answer confidently reported.

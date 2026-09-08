@@ -38,6 +38,15 @@
 %%
 %% TWO CONTRACTS, AND BOTH ARE LOAD-BEARING.
 %%
+%% AND A JOB READS ITS WORKER, NEVER THE STORE. Measured from CivV: a
+%% worker's store read costs about 10.5ms where the same read costs the
+%% caller 35us, and eight of them across four workers serialise into 84ms
+%% instead of overlapping -- the embedded engine takes one call at a time, so
+%% a crew reading the store is a queue with four ends. It does not deadlock
+%% and it does not fail, which is what makes it worth saying: at eight jobs
+%% it looks fine. Everything a job needs comes through `cowork_tell/2' or in
+%% the goal itself.
+%%
 %% A JOB IS A QUERY, NEVER A MUTATION. The only way state enters a worker is
 %% `cowork_tell/2'. A job that asserts leaves one worker holding what the
 %% others do not, and the crew stops being interchangeable the moment it
