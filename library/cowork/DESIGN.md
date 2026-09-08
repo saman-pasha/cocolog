@@ -4,6 +4,18 @@
 command for each.** Nothing here is estimated except where it says so in the same
 sentence. The one extrapolation in the document is labelled as one.
 
+> **STAGE 1 HAS SINCE SHIPPED.** `library/cowork.pl` and `test/cowork.pl`
+> exist: start, stop, size, tell, forget, ask and map, 19 checks, and the
+> tutorial is `tutorials/library/42-cowork.pl`. Two things came out of
+> building it that this document did not predict. `cowork_ask/3` hands back
+> the proven COPY and cannot bind the caller's variables — a goal crosses as
+> text — so `cowork_ask/2` was added to unify the copy back, and it is the
+> form to reach for. And a job calling a predicate the worker has no clauses
+> for RAISES `existence_error` rather than failing, which is ordinary Prolog
+> and worth knowing before it is met: `on_start(dynamic(F/A))` is how a
+> caller who wants absence to be an ordinary no gets one. `cowork_post/2`
+> and `cowork_poll/2` are still stage 4, as §4 says.
+
 The occasion is CivV: one process, a `library(ray)` loop that owns its own frames, a
 turn that already runs inside `run_isolated/2`, and two rungs that name where the time
 goes — rung 180, "the yields were costing four fifths of every frame", and rung 188,
