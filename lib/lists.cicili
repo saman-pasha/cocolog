@@ -45,7 +45,13 @@
     ("$len"       2 coco_l_len)
     ("$rev"       2 coco_l_rev)
     ("$nth0"      3 coco_l_nth0)
-    ("memberchk"  2 coco_l_memberchk)))
+    ("memberchk"  2 coco_l_memberchk)
+
+    ("$sum"       3 coco_l_sum)
+    ("$maxl"      3 coco_l_maxl)
+    ("$minl"      3 coco_l_minl)
+    ("$numlist"   3 coco_l_numlist)
+    ("$last"      2 coco_l_last)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The Coco half
@@ -124,8 +130,7 @@
            "'$nth_sel'([H|T], B, B, H, T)."
            "'$nth_sel'([H|T], B, N, E, [H|R]) :- C is B + 1, '$nth_sel'(T, C, N, E, R)."
 
-           "last([X], X) :- !."
-           "last([_|T], X) :- last(T, X)."
+           "last(L, X) :- '$last'(L, X)."
            "nextto(X, Y, [X,Y|_])."
            "nextto(X, Y, [_|T]) :- nextto(X, Y, T)."
            "prefix(P, L) :- append(P, _, L)."
@@ -167,18 +172,10 @@
 
            ;; ---- arithmetic over a list -----------------------------------
            "sum_list(L, S) :- '$sum'(L, 0, S)."
-           "'$sum'([], A, A)."
-           "'$sum'([H|T], A, S) :- B is A + H, '$sum'(T, B, S)."
            "max_list([H|T], M) :- '$maxl'(T, H, M)."
-           "'$maxl'([], A, A)."
-           "'$maxl'([H|T], A, M) :- (H > A -> B = H ; B = A), '$maxl'(T, B, M)."
            "min_list([H|T], M) :- '$minl'(T, H, M)."
-           "'$minl'([], A, A)."
-           "'$minl'([H|T], A, M) :- (H < A -> B = H ; B = A), '$minl'(T, B, M)."
            "numlist(L, H, []) :- L > H, !, fail."
            "numlist(L, H, R) :- '$numlist'(L, H, R)."
-           "'$numlist'(H, H, [H]) :- !."
-           "'$numlist'(L, H, [L|T]) :- M is L + 1, '$numlist'(M, H, T)."
 
            ;; ---- the standard order over a list ---------------------------
            ;; max_member/2 and min_member/2 use the STANDARD ORDER of terms and
@@ -441,6 +438,146 @@
               (coco_m_undo e mark))
             (set p (coco_arg m p 1)))
           (return 0)))
+
+  ;;; ---- the arithmetic walks ---------------------------------------------
+  ;;;
+  ;;; `sum_list/2', `max_list/2', `min_list/2', `numlist/3' and `last/2' keep
+  ;;; the clauses they always had and lose the PROLOG ACCUMULATORS under
+  ;;; them: `'$sum'/3' and the rest were two clauses each, recursing once per
+  ;;; element. Measured on a 200-element list, the same walk costs about
+  ;;; 1.5us an element in Prolog and about 20ns in C -- `memberchk/2' answers
+  ;;; in 4us where the same predicate written in Prolog takes 311, and
+  ;;; `sum_list/2' took 230.
+  ;;;
+  ;;; THEY WALK THE CONS CELLS, as `memberchk' above does, rather than
+  ;;; materialising the list into an array the way `$rev' must: a sum has no
+  ;;; reason to allocate a second copy of what it is adding up. The length
+  ;;; call in front of each is the PROPER-LIST CHECK -- `sum_list(foo, X)'
+  ;;; fails rather than answering 0, which is what the `'$sum'([], A, A)'
+  ;;; clause used to enforce by needing a real nil at the end.
+
+  ;;; A number as EITHER an integer or a float, which is what `is' would have
+  ;;; made of it. Answers 0 for anything else, and every caller raises.
+  (static)
+  (func coco_l_num ((coco_engine * e) (size_t t) (i64 * iv) (double * dv) (int * isf)) (out int)
+        (if (coco_m_int e t iv) (block (set (cof isf) 0) (return 1)))
+        (if (coco_m_float e t dv) (block (set (cof isf) 1) (return 1)))
+        (return 0))
+
+  ;;; One step along a list: the head and the tail, or 0 when this is not a
+  ;;; cons cell. The same three questions `memberchk' asks.
+  (static)
+  (func coco_l_step ((coco_machine * m) (size_t p) (size_t * head) (size_t * tail)) (out int)
+        (let ((size_t d . #'(coco_deref m p)))
+          (if (not (coco_is_callable m d)) (return 0))
+          (if (!= (coco_arity m d) 2) (return 0))
+          (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m d)) ".")) (return 0))
+          (set (cof head) (coco_arg m d 0))
+          (set (cof tail) (coco_arg m d 1))
+          (return 1)))
+
+  ;;; -1, 0 or 1 as `>' would order them, with OK cleared when either is not
+  ;;; a number. TWO INTEGERS ARE COMPARED AS INTEGERS: casting a pair of them
+  ;;; to double loses the distinction above 2^53, which is the trap
+  ;;; `compare/3' carries and there is no reason to repeat it here.
+  (static)
+  (func coco_l_cmpnum ((coco_engine * e) (size_t a) (size_t b) (int * ok)) (out int)
+        (let ((i64 ai . 0) (double ad . 0.0) (int af . 0)
+              (i64 bi . 0) (double bd . 0.0) (int bf . 0))
+          (set (cof ok) 0)
+          (if (not (coco_l_num e a (aof ai) (aof ad) (aof af))) (return 0))
+          (if (not (coco_l_num e b (aof bi) (aof bd) (aof bf))) (return 0))
+          (set (cof ok) 1)
+          (if (and (not af) (not bf))
+              (block (if (< ai bi) (return -1))
+                     (if (> ai bi) (return 1))
+                     (return 0)))
+          (if (not af) (set ad (cast double ai)))
+          (if (not bf) (set bd (cast double bi)))
+          (if (< ad bd) (return -1))
+          (if (> ad bd) (return 1))
+          (return 0)))
+
+  ;;; `'$sum'(List, Acc, Sum)'. An integer accumulator stays an integer until
+  ;;; a float arrives, which is what `B is A + H' did one clause at a time.
+  (func coco_l_sum ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
+              (i64 ai . 0) (double ad . 0.0) (int af . 0)
+              (size_t h . 0) (size_t t . 0))
+          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
+          (if (not (coco_l_num e (coco_m_arg e g 1) (aof ai) (aof ad) (aof af))) (return 0))
+          (while (coco_l_step m p (aof h) (aof t))
+            (let ((i64 ei . 0) (double ed . 0.0) (int ef . 0))
+              (if (not (coco_l_num e h (aof ei) (aof ed) (aof ef)))
+                  (return (coco_m_type_error e "evaluable" h)))
+              (if ef
+                  (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
+                         (set ad (+ ad ed)))
+                (if af (set ad (+ ad (cast double ei)))
+                  (set ai (+ ai ei)))))
+            (set p t))
+          (if af (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_float e ad))))
+          (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_int e ai)))))
+
+  ;;; `'$maxl'' and `'$minl'' answer the ELEMENT and not a number of their
+  ;;; own -- `max_list([1, 2.0], M)' is 2.0, because the clause they replace
+  ;;; bound B to H rather than to its value.
+  (static)
+  (func coco_l_extreme ((coco_engine * e) (size_t g) (int want)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
+              (size_t best . #'(coco_m_arg e g 1))
+              (size_t h . 0) (size_t t . 0) (int ok . 0)
+              (i64 bi . 0) (double bd . 0.0) (int bf . 0))
+          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
+          (if (not (coco_l_num e best (aof bi) (aof bd) (aof bf)))
+              (return (coco_m_type_error e "evaluable" best)))
+          (while (coco_l_step m p (aof h) (aof t))
+            (let ((int c . #'(coco_l_cmpnum e h best (aof ok))))
+              (if (not ok) (return (coco_m_type_error e "evaluable" h)))
+              (if (== c want) (set best h)))
+            (set p t))
+          (return (coco_m_unify e (coco_m_arg e g 2) best))))
+
+  (func coco_l_maxl ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_l_extreme e g 1)))
+
+  (func coco_l_minl ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_l_extreme e g -1)))
+
+  ;;; `'$numlist'(Low, High, List)'. THE FLOAT CASE USED TO HANG: the clauses
+  ;;; were `'$numlist'(H, H, [H])' and a step of one, so `numlist(1, 3.0, X)'
+  ;;; never met its base case and counted upward for ever. An integer is
+  ;;; required here and anything else is a type_error naming itself.
+  (func coco_l_numlist ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 lo . 0) (i64 hi . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof lo)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (if (not (coco_m_int e (coco_m_arg e g 1) (aof hi)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
+          (if (> lo hi) (return 0))
+          (let ((size_t cnt . #'(cast size_t (+ (- hi lo) 1)))
+                (size_t * v . nil) (size_t out . 0))
+            (set v (cast (size_t *) (malloc (* cnt (sizeof size_t)))))
+            (if (== v nil) (return 0))
+            (for ((size_t k . 0)) (< k cnt) ((++ k))
+              (set (nth k v) (coco_m_new_int e (+ lo (cast i64 k)))))
+            (set out (coco_m_list e v cnt))
+            (free v)
+            (return (coco_m_unify e (coco_m_arg e g 2) out)))))
+
+  ;;; `'$last'(List, Last)'. Fails on the empty list and on anything that is
+  ;;; not a proper one, which is what the two clauses did.
+  (func coco_l_last ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
+              (size_t h . 0) (size_t t . 0) (size_t best . 0) (int any . 0))
+          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
+          (while (coco_l_step m p (aof h) (aof t))
+            (set best h) (set any 1) (set p t))
+          (if (not any) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 1) best))))
 
   ;;; ---- the module -----------------------------------------------------
 

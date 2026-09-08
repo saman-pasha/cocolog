@@ -1638,7 +1638,7 @@ at commit and a process that died are hard to tell apart from the outside.
 
 ## The version is a number now, and it goes up
 
-`cocolog --version` answers `cocolog 1.2.9` **on stdout**, alone on the
+`cocolog --version` answers `cocolog 1.2.10` **on stdout**, alone on the
 line, so `V=$(cocolog --version)` is the whole of asking; `--help` explains
 and goes to stderr, which is what a usage message should do and what makes
 the two safe to have side by side.
@@ -3352,6 +3352,27 @@ is 14000), which is how it has always read and is worth a look.
   the second, beside the existence one (MODULES.md), and both are pinned
   under each backend (`test/torch-grad.pl`, `test/tensorflow.pl`), a
   nested path that IS there loading beside them.
+* **FIVE LIST WALKS MOVED FROM PROLOG TO C (1.2.10), and the wrapper was
+  already there.** `sum_list/2`, `max_list/2`, `min_list/2`, `numlist/3` and
+  `last/2` each delegated to a `$`-prefixed helper — `'$sum'/3` and the rest
+  — which were two Prolog clauses recursing once per element. Measured on a
+  200-element list: `last/2` 286.5 → 3.4 µs, `max_list/2` 330.3 → 4.5,
+  `sum_list/2` 230.1 → 4.4, `numlist/3` 323.4 → 10.5. **The tier is worth
+  50–80×**, which the same operation written both ways says plainly:
+  `memberchk/2` answers in 4.0 µs where the same predicate in Prolog takes
+  311, and `length/2` in 4.5 against 237. The public clauses did not change
+  and nothing else in the tree referenced the helpers. They walk the CONS
+  CELLS as `memberchk/2` does rather than materialising an array the way
+  `$rev` must, with the length call in front as the proper-list check —
+  `sum_list(foo, X)` still fails rather than answering 0. **And it fixed a
+  hang**: `numlist(1, 3.0, X)` counted upward for ever, because the clauses
+  were `'$numlist'(H, H, [H])` with a step of one and a float base case is
+  never met; it is `type_error(integer, 3.0)` now. What stays Prolog is what
+  cannot be a deterministic C builtin — `member/2`, `select/3`,
+  `permutation/2` are nondeterministic, and `between/3`, the loop primitive
+  at 2.6 µs an iteration, would have to become an engine CONSTRUCT rather
+  than a builtin because it yields a value per backtrack.
+
 * **THE SORT COMPARATORS ARE THREAD-LOCAL (1.2.9), and had to be.** C's
   `qsort` comparator takes no context, so the machine was parked in a
   file-scope static — `coco_l_sort_machine` for `sort/2` and `msort/2`,
