@@ -765,6 +765,24 @@ entry -- a back end that is somebody else's, kept whole so it stays
 byte-exact.) `doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the
 language, and `modules/README.md` lists what bites when writing one.
 
+**A HANDLE IS AN INTEGER, SO LOSING ONE LEAKS WHAT IT NAMES, SILENTLY.**
+Every handle-table module -- `tcp`, `tls`, `ray`, and anything else that
+hands out a slot -- gives Prolog an INDEX and keeps the real thing in its
+own table, which is what lets a socket or a render texture cross a channel
+and survive a term copy. The cost is that a handle has no lifetime of its
+own: nothing in the engine knows the integer means anything, so
+`nb_setval(Key, none)` over one, or a `retract` that drops the fact holding
+it, frees NOTHING and warns about NOTHING. Found in CivV, which dropped a
+canvas handle out of a cache at the top of every half and took a fresh slot
+from ray's 256 each time; the table is bounded, so the symptom is eventually
+a `ray_canvas/3` that simply fails, arriving long after the cause.
+
+**The probe is to exhaust the table on purpose**: call the allocating goal
+in a loop until it fails, count the successes, and do it again after the
+code you suspect. 255 before and 255 after is the shape of a clean one --
+CivV's read 255 either side once the drop unloaded first. Free before you
+forget, and where two caches hold the SAME handle only one may free it.
+
 **WHAT A `build.sh` MAKES IS NEVER COMMITTED**, and every module
 directory here is the same shape: a `.cicili`, a `build.sh`, and output.
 Output is the `.o`, the `.so`, the C or C++ Cicili generates, *and the
@@ -1464,6 +1482,44 @@ is still the item in STATUS.md's "Not started", and `\+ \+` around a phase
 whose results go to the store is still the way a long deterministic program
 gives the heap back.
 
+
+**WHAT A COMPACTION COSTS WHILE IT RUNS, and it is not what it leaves (1.2.14).**
+The new array used to be filled by `coco_store_grow` as the copy went in --
+doubling from 64 cells, so compacting a large store was a LADDER of large
+reallocs (16, 32, 64, 128, 256 MB), each a fresh region taken while the old
+store was still held, and the last rung overshooting past what was needed.
+It allocates the live size exactly once now -- `len` is an upper bound on
+what is live and is known before the walk starts -- and trims the slack with
+a shrinking realloc, which for a large block trims pages rather than copying.
+Measured: peak footprint on a churn probe **573 -> 345 MB**, on thirty forced
+compactions over a 64 MB store **205 -> 137 MB**, and large-block traffic from
+86 blocks to a handful. The store's cap now equals what it holds after a
+compaction, which is what the number `garbage_collect/0` moves ought to mean.
+
+**A SEMISPACE WAS TRIED HERE AND REVERTED, and the measurement is the reason
+to record it.** Keeping the old array to copy into next time removes a large
+malloc and a large free per compaction -- and those are free on Darwin: 100
+alloc/free cycles of 128 MB leave `phys_footprint` at **zero**, so a freed
+large region goes straight back rather than sitting dirty in the allocator's
+cache. The spare's footprint was real and its benefit was not. It is in
+`coco_store_compact`'s comment so nobody pays for it twice.
+
+**`statistics/2` ANSWERS THE CAPS NOW, AND THE CAPS ARE THE POINT**:
+`store_cap`, `globalcap` and `trailcap` beside the three `used` keys, plus
+`choicepoints`, `strings` and `compactions`. A length is what the program put
+there and a cap is what the process is HOLDING, and an array that doubles sits
+at up to twice its contents. CivV read `store_used` at 28 MB inside a window
+whose footprint was 13.2 GB; the length was true and was not the question.
+
+**AND EVERY ONE OF THEM IS ABOUT THE CALLING THREAD.** A machine, a store and
+an engine belong to the thread proving on them, so a `library(thread)` worker,
+a cowork crew member and every `run_isolated/2` proof have their own and NONE
+of them appears in what the main thread's `statistics/2` reports. That is not
+a gap to be closed -- a process-wide total would need a lock on the one
+unguarded thing there -- it is a fact to know when a footprint and a reading
+disagree: count the threads first (`ps -M`), because 122 worker machines at
+128 MB each is 15 GB that no `statistics/2` call in the main thread can see.
+
 ## Concurrency: share nothing, copy the term
 
 `library(thread)` is threads and channels, and the shape is the one the
@@ -1835,7 +1891,10 @@ and every one has cost a session at least an hour:
   address space after it is free and otherwise moves it by copy-on-write
   remap (a 512 MB move took 4.6 ms; there is no memcpy and no transient
   doubling), and the moved pages leave BOTH counters until they are touched
-  again -- probed: 1 024 MB written, 808 MB reported, all 1 024 back the
+  again. **A FREED large block, by contrast, goes back AT ONCE** -- 100
+  alloc/free cycles of 128 MB leave `phys_footprint` at zero, measured -- so
+  large regions a process is still holding are ones something still points
+  at, and "allocator debris" is never the explanation for a footprint -- probed: 1 024 MB written, 808 MB reported, all 1 024 back the
   moment every page was read, with the machine's free memory unchanged
   throughout. Whether a block moves depends on what landed after it, which
   is why one cocolog run reported 933 MB and the identical next one

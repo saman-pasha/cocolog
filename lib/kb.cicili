@@ -154,6 +154,8 @@
     ;; the root arrays other callers hold at the moment, a stack. See
     ;; `coco_store_compact'.
     (member size_t    mark)
+    ;; how many compactions this store has run, for `statistics/2'
+    (member size_t    ncompacts)
     ;; cells known to be orphans since then, counted where a death is cheap
     ;; to see; a heuristic, so it may overcount and never has to be exact
     (member size_t    dead)
@@ -905,6 +907,35 @@
             (set nroots (+ nroots (cof ($ (nth i (-> st roots)) len)))))
           (set roots (cast (size_t *) (malloc (* (+ nroots 1) (sizeof size_t)))))
           (if (== roots nil) (return 0))
+          ;; ONE ALLOCATION, EXACTLY SIZED, AND THE REASON IS A FROZEN MACHINE.
+          ;; The new array used to be grown by `coco_store_grow' as the copy
+          ;; filled it -- doubling from 64 cells, which for a large store is a
+          ;; LADDER of large reallocs (16, 32, 64, 128, 256 MB), each one a
+          ;; fresh region while the old store is still held, and the last rung
+          ;; overshooting past what was needed. Reported from CivV as a window
+          ;; that took a 16 GB machine down with 122 MALLOC_REALLOC regions of
+          ;; 128 MB while `store_used' read 28 MB: the peak is not the store,
+          ;; it is what compacting the store transiently costs. Measured here,
+          ;; 64 MB live: 86 large blocks and a 580 MB peak.
+          ;;
+          ;; What is live cannot exceed what is there, so `len' is an upper
+          ;; bound known before the walk starts: size the array to exactly
+          ;; that and `coco_store_grow' never fires, because the cap is
+          ;; already enough.
+          ;;
+          ;; A SEMISPACE WAS TRIED HERE AND REVERTED, because the thing it
+          ;; bought was already free. Keeping the old array to copy into next
+          ;; time removes a large malloc and a large free per compaction --
+          ;; and those cost nothing on Darwin: 100 alloc/free cycles of 128 MB
+          ;; leave `phys_footprint' at ZERO, measured, so a freed large region
+          ;; goes back at once rather than sitting dirty in the allocator's
+          ;; cache. The spare's footprint was real and its benefit was not.
+          ;; (Which also says what CivV's 122 live MALLOC_REALLOC regions of
+          ;; 128 MB were NOT: not allocator debris, so something held them.)
+          (let ((size_t want . #'(? (> (-> st len) 0) (-> st len) 1)))
+            (set ($ tmp cells) (cast (u64 *) (malloc (* want (sizeof u64)))))
+            (if (== ($ tmp cells) nil) (block (free roots) (return 0)))
+            (set ($ tmp cap) want))
           ;; pass one: every live term through the heap into the fresh array,
           ;; in a fixed order -- the predicates' clauses, then the globals
           (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
@@ -928,6 +959,7 @@
                   (set k (+ k 1))
                   (set (-> m heap_len) hmark)))))
           ;; an allocation that failed leaves the old store exactly as it was
+          ;; an allocation that failed leaves the old store exactly as it was
           (if (or ($ tmp oom) (-> m oom))
               (block (free ($ tmp cells)) (free roots) (return 0)))
           ;; pass two: the roots move, and nothing else does
@@ -945,12 +977,24 @@
               (for ((size_t j . 0)) (< j (cof (-> rs len))) ((++ j))
                 (set (nth j (cof (-> rs cells))) (nth k roots))
                 (set k (+ k 1)))))
+          ;; and the slack the upper bound left over goes back: a SHRINKING
+          ;; realloc trims the tail rather than copying, so the store really
+          ;; does come down to what it holds, which is what the number
+          ;; `garbage_collect/0' moves ought to mean.
+          (if (< ($ tmp len) ($ tmp cap))
+              (let ((size_t keep . #'(? (> ($ tmp len) 0) ($ tmp len) 1))
+                    (void * trimmed))
+                (set trimmed (realloc (cast (void *) ($ tmp cells)) (* keep (sizeof u64))))
+                (if (!= trimmed nil)
+                    (block (set ($ tmp cells) (cast (u64 *) trimmed))
+                           (set ($ tmp cap) keep)))))
           (free (-> st cells))
           (set (-> st cells) ($ tmp cells))
           (set (-> st len) ($ tmp len))
           (set (-> st cap) ($ tmp cap))
           (set (-> st mark) ($ tmp len))
           (set (-> st dead) 0)
+          (set (-> st ncompacts) (+ (-> st ncompacts) 1))
           (free roots)
           (return 1)))
 

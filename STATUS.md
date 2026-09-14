@@ -3904,6 +3904,29 @@ same bytes out, and `statistics/2` at the end says heap 1 616 MB, store
 2.9 GB, and a resident-size counter that said 694, 737 and 1 701 MB across
 three runs of the one binary.
 
+## The compaction's own peak, and the caps (1.2.14)
+
+What a compaction LEAVES was 1.2.13's story; what it costs while it runs was
+not. The new array was filled by the ordinary doubling grower, so compacting
+a large store climbed a ladder of large reallocs -- 16, 32, 64, 128, 256 MB --
+every rung a fresh region taken while the old store was still held, the last
+one overshooting. `len` bounds what can be live and is known before the walk
+starts, so the array is now allocated exactly once at that size and the slack
+trimmed. Peak footprint fell from 573 to 345 MB on a churn probe and from 205
+to 137 MB on thirty forced compactions over a 64 MB store.
+
+A semispace -- keeping the old array to copy into next time, so a compaction
+allocates nothing -- was written, measured and reverted: on Darwin 100
+alloc/free cycles of 128 MB leave the footprint at zero, so the traffic it
+removed was already free and the spare's footprint was not.
+
+`statistics/2` gained `store_cap`, `globalcap`, `trailcap`, `choicepoints`,
+`strings` and `compactions`. The three `used` keys say what the program put
+there; the caps say what the process holds, and a doubling array sits at up
+to twice its contents. All of them are about the CALLING THREAD -- a worker,
+a crew member and every `run_isolated/2` proof have a machine and a store of
+their own -- which is how a window can report 28 MB while holding 13.2 GB.
+
 ## Not started
 
 * A garbage collector for the HEAP. The heap is reclaimed by backtracking

@@ -183,6 +183,22 @@ keys :-
     answer(( statistics(globalused, G0), numlist(1, 5000, _), statistics(globalused, G1),
              ( G1 > G0 -> Grew = grew ; Grew = did_not(G0, G1) ) ), Grew, X3),
     check('globalused grows with the heap', X3, grew),
+    %% THE CAPS, which are the keys the lengths could not stand in for: CivV
+    %% read store_used at 28 MB inside a window holding 13.2 GB, and the
+    %% length was telling the truth about the wrong thing. A cap is never
+    %% below its length, and a compaction brings the store's cap down to
+    %% exactly what it holds.
+    answer(( numlist(1, 4000, LC), forall(between(1, 400, _), nb_setval(gc_k, LC)),
+             statistics(compactions, K0), garbage_collect, statistics(compactions, K1),
+             statistics(store_used, U), statistics(store_cap, C),
+             statistics(globalused, GU), statistics(globalcap, GC),
+             statistics(trailused, TU), statistics(trailcap, TC),
+             statistics(choicepoints, CP), statistics(strings, St),
+             (   C >= U, GC >= GU, TC >= TU, integer(CP), integer(St), K1 > K0, C =:= U
+             ->  Shape = sound
+             ;   Shape = wrong(U, C, GU, GC, TU, TC, CP, St, K0, K1) ) ), Shape, X0),
+    check('every cap is at or above its length, and a compaction trims the store to fit',
+          X0, sound),
     answer(catch(statistics(nosuch, _), error(E4, _), true), E4, X4),
     check('an unknown key is a domain_error naming it', X4, domain_error(statistics_key, nosuch)),
     answer(( catch(statistics(_, _), error(E5, _), true),

@@ -2075,6 +2075,14 @@
   ;;; store's cell array holds, live and orphaned alike, which is the number
   ;;; that `garbage_collect/0' brings down. Any other key is a
   ;;; `domain_error(statistics_key, K)'.
+  ;;;
+  ;;; AND THE CAPS BESIDE THE LENGTHS (1.2.14): `store_cap', `globalcap' and
+  ;;; `trailcap' are what the process HOLDS where the three `used' keys are
+  ;;; what the program put there, plus `choicepoints', `strings' and
+  ;;; `compactions'. A length answers what you asked and can still leave you
+  ;;; looking at the wrong number: CivV read `store_used' at 28 MB inside a
+  ;;; window whose footprint was 13.2 GB. An array that doubles sits at up to
+  ;;; twice its contents, and only the cap says so.
   (func coco_b_statistics ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
@@ -2095,6 +2103,18 @@
               ((== 0 (strcmp key "atoms"))      (set v (cast i64 (-> m atoms_len))))
               ((== 0 (strcmp key "functors"))   (set v (cast i64 (-> m functors_len))))
               ((== 0 (strcmp key "store_used")) (set v (cast i64 (* (-> st len) 8))))
+              ;; THE CAPS, NOT ONLY THE LENGTHS, because the length is what a
+              ;; program put there and the CAP is what the process is holding
+              ;; -- and an array that doubles sits at up to twice its contents
+              ;; between one compaction and the next. CivV read `store_used' at
+              ;; 28 MB inside a window whose footprint was 13.2 GB; the length
+              ;; was telling the truth and was not the question.
+              ((== 0 (strcmp key "store_cap"))  (set v (cast i64 (* (-> st cap) 8))))
+              ((== 0 (strcmp key "globalcap"))  (set v (cast i64 (* (-> m heap_cap) 8))))
+              ((== 0 (strcmp key "trailcap"))   (set v (cast i64 (* (-> m trail_cap) 8))))
+              ((== 0 (strcmp key "choicepoints")) (set v (cast i64 (-> e nchoices))))
+              ((== 0 (strcmp key "compactions")) (set v (cast i64 (-> st ncompacts))))
+              ((== 0 (strcmp key "strings"))    (set v (cast i64 (-> m strings_len))))
               (#t (return (coco_m_domain_error e "statistics_key" k))))
             (return (coco_m_unify e out (coco_m_new_int e v))))))
 
