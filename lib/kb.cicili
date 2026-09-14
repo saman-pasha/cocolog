@@ -132,7 +132,15 @@
   ;;; because the table below belongs to the store -- see `globals'.
   (struct coco_global
     (member u64    name)
-    (member size_t cell))
+    (member size_t cell)
+    (member size_t size))              ; cells the value occupies, for the count of the dead
+
+  ;;; A ROOT ARRAY SOMEBODY ELSE OWNS, registered with the store for as long
+  ;;; as it holds cell indices: where the array pointer lives, because its
+  ;;; owner may grow it, and where its length lives. See `coco_store_compact'.
+  (struct coco_rootset
+    (member size_t ** cells)
+    (member size_t *  len))
 
   ;;; The clause store. `cells' is a second flat term array with the same
   ;;; encoding as the heap -- it shares the machine's atom and functor tables,
@@ -141,6 +149,17 @@
     (member u64 *     cells)
     (member size_t    len)
     (member size_t    cap)
+    ;; `len' at the last compaction, when every cell was live -- the
+    ;; growth since is what `coco_store_maybe_compact' measures -- and
+    ;; the root arrays other callers hold at the moment, a stack. See
+    ;; `coco_store_compact'.
+    (member size_t    mark)
+    ;; cells known to be orphans since then, counted where a death is cheap
+    ;; to see; a heuristic, so it may overcount and never has to be exact
+    (member size_t    dead)
+    (member coco_rootset * roots)
+    (member size_t    nroots)
+    (member size_t    root_cap)
 
     ;; `nb_setval/2's GLOBALS, AND THEY LIVE HERE BECAUSE A CELL DOES. An
     ;; entry holds an index into `cells' above, which means nothing to any
@@ -317,6 +336,16 @@
   ;;; rename variables consistently -- see coco_varmap in term.cicili.
   (decl) (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t))
   (decl) (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
+  ;;; Copies every live term into a fresh cell array and drops the old one;
+  ;;; the second asks only when the store has grown enough to be worth it.
+  (decl) (func coco_store_compact ((coco_store * st) (coco_machine * m)) (out int))
+  (decl) (func coco_store_maybe_compact ((coco_store * st) (coco_machine * m)) (out int))
+  ;;; A caller that keeps cell indices in an array of its own says so for as
+  ;;; long as it does; a compaction in between rewrites them like any root.
+  (decl) (func coco_store_root_push ((coco_store * st) (size_t ** cells) (size_t * len)) (out int))
+  (decl) (func coco_store_root_pop ((coco_store * st)))
+  ;;; Counts a term the store can no longer reach as dead, by measuring it.
+  (decl) (func coco_store_orphan ((coco_store * st) (coco_machine * m) (size_t cell)))
 
   ;;; The predicate a callable term belongs to, made if it is not there yet.
   ;;; Answers the index, or the store's predicate count if the term is not
@@ -357,7 +386,7 @@
 
   ;;; Drops every clause of predicate PI that came from ORIGIN, telling the
   ;;; backend once if anything went. Answers how many went.
-  (decl) (func coco_pred_forget_from ((coco_store * st) (size_t pi) (u64 origin)) (out int))
+  (decl) (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int))
 
   ;;; ---- first-argument indexing, the two the engine calls -----------------
 
@@ -631,6 +660,7 @@
           (free (cast (void *) ($ (nth i (-> st preds)) slots))))
         (free (-> st preds))
         (free (-> st cells))
+        (free (-> st roots))
         ;; the globals go with the cells they index -- nothing outside this
         ;; store could read them once `cells' is gone
         (free (-> st globals))
@@ -801,6 +831,159 @@
           (free fs)
           (coco_varmap_free (aof vm))
           (return r)))
+
+  ;;; ---- reclaiming the store ---------------------------------------------
+  ;;;
+  ;;; THE STORE NEVER SHRANK, and `nb_setval/2' was the bill. Every write
+  ;;; copies a whole term into `cells' -- a clause, a global's new value, a
+  ;;; ball, each solution a `findall/3' keeps -- and nothing ever took one
+  ;;; out: a retract dropped the clause from its predicate and orphaned the
+  ;;; cells, and a global written again simply pointed elsewhere. Measured
+  ;;; on cicili-lang's driver, which keeps its symbol tables in globals and
+  ;;; writes them back after every step: 105 049 `nb_setval' calls, 103 192
+  ;;; of them overwrites, put 1 073 MB into a store whose LIVE contents --
+  ;;; every clause of every predicate and the current value of every global
+  ;;; -- came to 20 MB. Ninety-eight per cent garbage, and it was the
+  ;;; larger half of a process that needed 3.4 GB to compile 12 lines of
+  ;;; C++.
+  ;;;
+  ;;; COMPACTION COPIES WHAT IS REACHABLE AND DROPS THE ARRAY. Everything
+  ;;; the store can still reach is a root the store itself holds -- a
+  ;;; `clauses[]' entry of some predicate, or a global's `cell' -- and a
+  ;;; term is copied out to the heap and back into a fresh array by the two
+  ;;; walkers that put it there, so a compacted term is exactly what an
+  ;;; `assertz' of its copy would have stored. The heap is wound back after
+  ;;; every term. Nothing else moves: `keys' hold cell VALUES, `chain' and
+  ;;; `slots' hold positions, `origins' hold atoms, so the first-argument
+  ;;; index stays valid across a compaction and `clause_ix' goes on meaning
+  ;;; what it meant.
+  ;;;
+  ;;; WHEN: at a SAFE POINT, once at least four million cells (32 MB) are
+  ;;; known dead and they outnumber the live ones -- or, as the net under
+  ;;; that, once the store has grown by as much again as it held at the
+  ;;; last compaction and by those 32 MB. The dead are counted where a
+  ;;; death is cheap to see: a global's old value (its size is kept beside
+  ;;; its cell), a retracted or reconsulted clause and an initialization
+  ;;; goal that has run (each was just copied to the heap, and the copy's
+  ;;; length is the span), a findall's solutions (their puts are its own),
+  ;;; a ball once caught. The growth net is for whatever a site forgets to
+  ;;; count, because the one it forgets is the one that grows without
+  ;;; bound; its price is a compaction of a store that is all live once per
+  ;;; doubling, the amortised cost of the `realloc' it already pays. The
+  ;;; first draft counted growth alone, and 3 000 `asserta' calls followed
+  ;;; by 2 999 retracts kept 192 MB for 16 KB of clauses: the mark had been
+  ;;; set while everything was live, and a retract never lowered it.
+  ;;; `garbage_collect/0' forces one.
+  ;;;
+  ;;; A SAFE POINT IS ONE WHERE EVERY CELL INDEX ANYBODY HOLDS IS ONE THE
+  ;;; STORE KNOWS ABOUT. Two callers keep indices of their own for a
+  ;;; while: `coco_engine_findall' keeps each solution's root in an array
+  ;;; until the search is over, and a consult keeps its `initialization/1'
+  ;;; goals until they have run. Both REGISTER the array (`coco_store_root_push',
+  ;;; a stack, popped on the way out) and a compaction rewrites its entries
+  ;;; like any other root. Registered rather than declined, because a
+  ;;; `forall/2' IS a findall and a script's whole life runs inside its
+  ;;; `initialization(main)' -- a compaction declined under either would
+  ;;; never have happened at all. A ball is put and read back by the frame
+  ;;; that catches it with no goal run between; a clause is registered
+  ;;; before its assert returns. Everything else that reads a cell reads
+  ;;; it at once.
+  ;;;
+  ;;; THE CHECK SITES: `nb_setval/2', the assert and retract builtins,
+  ;;; `abolish/1', the end of a `findall/3', a caught throw, and the end of
+  ;;; a consult. Each one asks; the policy lives here.
+
+  (func coco_store_compact ((coco_store * st) (coco_machine * m)) (out int)
+        (let ((coco_store tmp)
+              (size_t nroots . 0) (size_t * roots . nil) (size_t k . 0)
+              (size_t hmark . #'(-> m heap_len)))
+          (memset (aof tmp) 0 (sizeof coco_store))
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (set nroots (+ nroots ($ (nth i (-> st preds)) nclauses))))
+          (set nroots (+ nroots (-> st nglobals)))
+          (for ((size_t i . 0)) (< i (-> st nroots)) ((++ i))
+            (set nroots (+ nroots (cof ($ (nth i (-> st roots)) len)))))
+          (set roots (cast (size_t *) (malloc (* (+ nroots 1) (sizeof size_t)))))
+          (if (== roots nil) (return 0))
+          ;; pass one: every live term through the heap into the fresh array,
+          ;; in a fixed order -- the predicates' clauses, then the globals
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+              (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
+                (let ((size_t h . #'(coco_store_get m st (nth j (-> p clauses)))))
+                  (set (nth k roots) (coco_store_put (aof tmp) m h))
+                  (set k (+ k 1))
+                  (set (-> m heap_len) hmark)))))
+          (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
+            (let ((size_t h . #'(coco_store_get m st ($ (nth i (-> st globals)) cell))))
+              (set (nth k roots) (coco_store_put (aof tmp) m h))
+              (set ($ (nth i (-> st globals)) size) (- ($ tmp len) (nth k roots)))
+              (set k (+ k 1))
+              (set (-> m heap_len) hmark)))
+          (for ((size_t i . 0)) (< i (-> st nroots)) ((++ i))
+            (let ((coco_rootset * rs . #'(aof (nth i (-> st roots)))))
+              (for ((size_t j . 0)) (< j (cof (-> rs len))) ((++ j))
+                (let ((size_t h . #'(coco_store_get m st (nth j (cof (-> rs cells))))))
+                  (set (nth k roots) (coco_store_put (aof tmp) m h))
+                  (set k (+ k 1))
+                  (set (-> m heap_len) hmark)))))
+          ;; an allocation that failed leaves the old store exactly as it was
+          (if (or ($ tmp oom) (-> m oom))
+              (block (free ($ tmp cells)) (free roots) (return 0)))
+          ;; pass two: the roots move, and nothing else does
+          (set k 0)
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+              (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
+                (set (nth j (-> p clauses)) (nth k roots))
+                (set k (+ k 1)))))
+          (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
+            (set ($ (nth i (-> st globals)) cell) (nth k roots))
+            (set k (+ k 1)))
+          (for ((size_t i . 0)) (< i (-> st nroots)) ((++ i))
+            (let ((coco_rootset * rs . #'(aof (nth i (-> st roots)))))
+              (for ((size_t j . 0)) (< j (cof (-> rs len))) ((++ j))
+                (set (nth j (cof (-> rs cells))) (nth k roots))
+                (set k (+ k 1)))))
+          (free (-> st cells))
+          (set (-> st cells) ($ tmp cells))
+          (set (-> st len) ($ tmp len))
+          (set (-> st cap) ($ tmp cap))
+          (set (-> st mark) ($ tmp len))
+          (set (-> st dead) 0)
+          (free roots)
+          (return 1)))
+
+  (func coco_store_maybe_compact ((coco_store * st) (coco_machine * m)) (out int)
+        (let ((size_t growth . #'(- (-> st len) (-> st mark)))
+              (size_t dead . #'(-> st dead))
+              (size_t live . #'(? (> (-> st len) (-> st dead)) (- (-> st len) (-> st dead)) 0)))
+          ;; enough known dead, and more of them than live
+          (if (and (>= dead 4194304) (>= dead live)) (return (coco_store_compact st m)))
+          ;; or, whatever was counted, grown by as much again as was live
+          (if (and (>= growth 4194304) (>= growth (-> st mark))) (return (coco_store_compact st m)))
+          (return 0)))
+
+  (func coco_store_root_push ((coco_store * st) (size_t ** cells) (size_t * len)) (out int)
+        (if (not (coco_store_grow st (cast (void **) (aof (-> st roots)))
+                                (aof (-> st root_cap)) (+ (-> st nroots) 1)
+                                (sizeof coco_rootset)))
+            (return 0))
+        (set ($ (nth (-> st nroots) (-> st roots)) cells) cells)
+        (set ($ (nth (-> st nroots) (-> st roots)) len) len)
+        (set (-> st nroots) (+ (-> st nroots) 1))
+        (return 1))
+
+  (func coco_store_root_pop ((coco_store * st))
+        (if (> (-> st nroots) 0) (set (-> st nroots) (- (-> st nroots) 1))))
+
+  ;;; The term is copied to the heap and the copy's length is its span --
+  ;;; the two walkers push one cell for the other's one -- then wound back.
+  (func coco_store_orphan ((coco_store * st) (coco_machine * m) (size_t cell))
+        (let ((size_t mark . #'(-> m heap_len)))
+          (coco_store_get m st cell)
+          (set (-> st dead) (+ (-> st dead) (- (-> m heap_len) mark)))
+          (set (-> m heap_len) mark)))
 
   ;;; ---- predicates -------------------------------------------------------
 
@@ -1328,13 +1511,14 @@
   ;;; cells stay in the store, orphaned, as a retract leaves them; the
   ;;; positions have shifted, so the index is dropped; and the backend hears
   ;;; once, through the retract hook, which rewrites the predicate whole.
-  (func coco_pred_forget_from ((coco_store * st) (size_t pi) (u64 origin)) (out int)
+  (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int)
         (if (or (>= pi (-> st npreds)) (== origin 0)) (return 0))
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
               (size_t kept . 0) (int gone . 0))
           (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
             (if (== (nth i (-> p origins)) origin)
-                (set gone (+ gone 1))
+                (block (set gone (+ gone 1))
+                       (coco_store_orphan st m (nth i (-> p clauses))))
               (block
                 (if (!= kept i)
                     (block (set (nth kept (-> p clauses)) (nth i (-> p clauses)))
@@ -1502,7 +1686,7 @@
                 (if (not (coco_origin_seen_has seen pi))
                     (block
                       (if (not (coco_origin_seen_add st seen pi)) (return 0))
-                      (coco_pred_forget_from st pi origin))))
+                      (coco_pred_forget_from st m pi origin))))
             (set stored (coco_store_put st m clause))
             ;; THE KEY IS TAKEN FROM THE HEAP HEAD, before the clause is a
             ;; store term: the accessors here read the machine's heap, the
@@ -1594,8 +1778,15 @@
                 (if (!= 0 (code "(realpath(origin, full) != NULL)"))
                     (set oid (+ (coco_intern m full) 1))
                   (set oid (+ (coco_intern m origin) 1)))))
-          (set n (coco_consult_owned st m text origin oid (aof seen) err errlen))
+          ;; the loop registers its `initialization/1' goals as roots and
+          ;; leaves on several paths, so the registration is dropped HERE,
+          ;; whichever way it came out
+          (let ((size_t depth . #'(-> st nroots)))
+            (set n (coco_consult_owned st m text origin oid (aof seen) err errlen))
+            (set (-> st nroots) depth))
           (free (cast (void *) ($ seen pis)))
+          ;; a reconsult has just orphaned the file's previous clauses
+          (coco_store_maybe_compact st m)
           (return n)))
 
   (static)
@@ -1619,6 +1810,9 @@
               (size_t scanned . 0) (int line . 1) (int at . 1)
               (coco_initgoals inits))
           (memset (aof inits) 0 (sizeof coco_initgoals))
+          ;; the goals put off to the end are cell indices; a compaction
+          ;; before they run must move them too. `coco_consult' unregisters.
+          (coco_store_root_push st (aof ($ inits cells)) (aof ($ inits len)))
           (coco_reader_init (aof r) m text)
           (while (== rc 1)
             ;; each clause is read on to the heap, copied into the store, and
@@ -1760,6 +1954,8 @@
                            (set code 2))
                   (let ((size_t goal . #'(coco_store_get m st (nth i ($ inits cells))))
                         (int gr . 0) (int main . #'(? (== (nth i ($ inits modes)) 1) 1 0)))
+                    ;; fetched, the goal's cells are orphans
+                    (set (-> st dead) (+ (-> st dead) (- (-> m heap_len) back)))
                     (set gr (coco_goal_hook st m goal err errlen))
                     ;; SWI'S TWO VOICES, measured: an `after_load' goal that
                     ;; fails is a Warning and the program carries on, while a
@@ -1818,11 +2014,25 @@
                                                (coco_arity m head))))
             (if (>= pi (-> st npreds)) (return 0))
             (coco_pred_ensure st pi)
-            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+            (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+                  ;; the head's first-argument key, the same cell the index keeps
+                  ;; per clause: two different non-zero keys cannot unify, so a
+                  ;; candidate with the wrong one is skipped BEFORE it is copied
+                  (u64 hkey . #'(coco_arg_key m head)))
               (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+                ;; WITHOUT THIS, RETRACT WAS QUADRATIC WITH A LARGE CONSTANT: every
+                ;; candidate was copied whole on to the heap and then unified, so
+                ;; 2 999 retracts by key over 3 000 clauses of 16 KB copied some
+                ;; thirty-six billion cells -- 153 s, measured -- for work the
+                ;; key decides in one comparison
+                (if (and (!= hkey 0) (!= (nth i (-> p keys)) 0)
+                         (!= hkey (nth i (-> p keys))))
+                    continue)
                 (let ((size_t mark . #'(-> m heap_len))
                       (size_t tmark . #'(-> m trail_len))
                       (size_t cand . #'(coco_store_get m st (nth i (-> p clauses))))
+                      ;; the copy's length is the clause's span in the store
+                      (size_t span . #'(- (-> m heap_len) mark))
                       (size_t chead . 0) (size_t cbody . 0) (int ok . 0))
                   ;; the candidate arrives as a fresh copy, so unifying against
                   ;; it cannot bind anything in the store
@@ -1852,8 +2062,9 @@
                        (set ok (coco_unify m body cbody))))
                   (if ok
                       (block
-                       ;; drop it from the predicate; the cells stay in the
-                       ;; store, which never shrinks, and are simply orphaned.
+                       ;; drop it from the predicate; the cells are orphaned
+                       ;; until the next compaction (`coco_store_compact').
+                       (set (-> st dead) (+ (-> st dead) span))
                        ;; The index keys shift with them, and the chains --
                        ;; which hold POSITIONS -- are dropped: everything
                        ;; after this clause has just been renumbered.

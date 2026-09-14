@@ -3866,11 +3866,52 @@ and objects. One finding on the way, fixed where it bit: `doc/try.md` had the
 `CATCH` clause backwards; it is `CATCH ex AS Exception`, as `System/*.parsi`
 always wrote it.
 
+## The store compacts itself (1.2.13)
+
+The store's cell array never shrank: every `assertz`, every `nb_setval/2`,
+every thrown ball and every solution a `findall/3` kept was copied in and
+nothing was ever taken out. cicili-lang reported a resident size that
+doubled between identical runs, and a one-off counting build on their
+smaller fixture put the number on it: **103 192 global overwrites had put
+1 073 MB into a store whose live contents came to 20 MB** -- 98 per cent
+garbage -- beside a 1.5 GB heap of the program's own terms, reclaimed by
+backtracking as it always was. (The doubling itself was Darwin's counters:
+`maximum resident set size` and `peak memory footprint` both drop the
+pages a copy-on-write `realloc` move has just moved, until they are
+touched again, so the LOW readings were the wrong ones. CLAUDE.md's Mac
+section has the probe.)
+
+`coco_store_compact` copies every term the store can still reach -- each
+predicate's clauses, each global's value, and the root arrays a findall or
+a consult has registered with it for the while they hold cell indices of
+their own -- into a fresh array through the heap, the two walkers that put
+it there doing the copying, and drops the old one. The index survives
+untouched, because its keys are cell values and its chains are positions.
+It runs unasked once 32 MB of cells are known dead and outnumber the live
+ones -- a global's old value, a retracted clause, a findall's solutions, a
+caught ball -- or, failing a count, once the store has grown by as much
+again as it held at the last compaction; checked at `nb_setval/2`, the
+assert and retract builtins, `abolish/1`, the end of a findall, a caught
+throw and the end of a consult; `garbage_collect/0` runs it now, and `statistics/2`
+(`cputime`, `inferences`, `globalused`, `trailused`, `atoms`, `functors`,
+`store_used`) is how a program watches. `test/gc.pl` is the case, in all
+three arrangements -- and it found that `retract/1` copied every candidate
+clause before looking at its head: 2 999 retracts by key over 3 000
+clauses of 16 KB took 153 s, and skip-by-first-argument-key, the same cell
+the index keeps, makes it 1.1 s. On the fixture that reported it: the same 37 s, the
+same bytes out, and `statistics/2` at the end says heap 1 616 MB, store
+53 MB (from 1 323 MB), trail 29 MB -- about 1.7 GB where it had been about
+2.9 GB, and a resident-size counter that said 694, 737 and 1 701 MB across
+three runs of the one binary.
+
 ## Not started
 
-* A garbage collector. The heap is reclaimed by backtracking and by nothing
-  else, which is the binding constraint on how long a deterministic program
-  can run. Measured and argued in `DESIGN-compiling.md` §1 and §8.
+* A garbage collector for the HEAP. The heap is reclaimed by backtracking
+  and by nothing else, which is the binding constraint on how long a
+  deterministic program can run. Measured and argued in `DESIGN-compiling.md`
+  §1 and §8. The STORE has had its collector since 1.2.13 (the section
+  above), and it was the larger half of the one process measured -- but not
+  the half this bullet is about.
 * Compiling a program to an object file. Studied, not begun:
   `DESIGN-compiling.md` is the feasibility report and its §8 says what to do
   first, which is the collector above rather than a code generator.

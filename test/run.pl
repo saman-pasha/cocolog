@@ -159,7 +159,7 @@ fail_lines(Text) :-
 %%   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
 pl_names([files, trace, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
-          'zigurat-lib', tcp, engine, errors, meter, thread, process, text, os, kbs, http,
+          'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, os, kbs, http,
           curl, ray, numpy, opencv, hex, astar, serialize, httpd, 'httpd-tls', crypto,
           cowork,
           tls, 'zigurat-tls', tutorials, colab, lint, argv, string, directives,

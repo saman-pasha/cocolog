@@ -1367,6 +1367,103 @@ and `coco_backtrack` sets `heap_len` back to the mark — so anything that
 could see the stale value has already been dropped. It is the invariant the
 WAM builds on, and the reason it dereferences into a structure too.
 
+## The store reclaims what it no longer reaches (1.2.13)
+
+**THE STORE NEVER SHRANK, AND `nb_setval/2` WAS THE BILL.** Every write
+copies a whole term into the store's cell array -- a clause, a global's
+new value, a thrown ball, each solution a `findall/3` keeps until its
+search is over -- and until 1.2.13 nothing took one out: a retract dropped
+the clause from its predicate and orphaned the cells, a global written
+again pointed elsewhere. Reported from cicili-lang as a resident size that
+doubled between identical runs, and measured with a one-off counting
+build on their smaller fixture (a 12-line `std::map<std::string,int>`
+program against libc++): **105 049 `nb_setval` calls, 103 192 of them
+overwrites, put 1 073 MB into a store whose LIVE contents -- every clause
+of every predicate and the current value of every global -- came to
+20 MB.** Ninety-eight per cent garbage, plus 236 MB of findall solutions
+nobody could reach either. The other 1.5 GB of that process was the heap,
+which held the program's own terms (`./2` 452 MB, its type terms after
+that, `$k/3` continuations 84 MB) and is reclaimed by backtracking exactly
+as before -- the store was the half that had no story at all.
+
+**COMPACTION COPIES WHAT IS REACHABLE AND DROPS THE ARRAY.** Every root the
+store can still reach is one the store itself holds -- a predicate's
+`clauses[]` entry or a global's cell -- and each term is copied out to the
+heap and back into a fresh array by the two walkers that put it there
+(`coco_store_get`, `coco_store_put`), the heap wound back after every one,
+so a compacted term is exactly what an `assertz` of its copy would have
+stored. Nothing else moves: `keys` hold cell VALUES, `chain` and `slots`
+hold positions, `origins` hold atoms, so the first-argument index stays
+valid across a compaction and `clause_ix` goes on meaning what it meant.
+`coco_store_compact` in `lib/kb.cicili` is the whole of it.
+
+**WHEN: at a safe point, once at least four million cells (32 MB) are
+known dead and they outnumber the live ones -- or, as the net under that,
+once the store has grown by as much again as it held at the last
+compaction and by those 32 MB.** The dead are counted where a death is
+cheap to see: a global's old value (its size is kept beside its cell), a
+retracted or reconsulted clause and an initialization goal that has run
+(each was just copied to the heap, and the copy's length is the span), a
+findall's solutions (their puts are its own), a ball once caught. The
+growth net is for whatever a site forgets to count, because the one it
+forgets is the one that grows without bound; its price is a compaction of
+a store that is all live once per doubling, the amortised cost of the
+`realloc` it already pays, and the 32 MB floor means a small program never
+compacts at all. The first draft counted growth alone, and 3 000 `asserta`
+calls followed by 2 999 retracts kept 192 MB for 16 KB of clauses: the mark
+had been set while everything was live, and a retract never lowered it. The check sites
+are `nb_setval/2`, the assert and retract builtins, `abolish/1`, the end
+of a findall, a caught throw and the end of a consult; the policy lives in
+`coco_store_maybe_compact`. **`garbage_collect/0` forces one**, SWI's name.
+
+**A SAFE POINT IS ONE WHERE EVERY CELL INDEX ANYBODY HOLDS IS ONE THE STORE
+KNOWS ABOUT**, and two callers keep indices of their own for a while:
+`coco_engine_findall` keeps each solution's root until the search is over,
+and a consult keeps its `initialization/1` goals until they have run. Both
+REGISTER their array with the store (`coco_store_root_push`, a stack popped
+on the way out) and a compaction rewrites its entries like any other root.
+Registered rather than declined -- the first draft declined under a hold --
+because `forall/2` IS a findall and a script's whole life runs inside its
+`initialization(main)`: a compaction declined under either would never
+have happened. A ball is put and read back by the frame that catches it
+with no goal run between; a clause is registered before its assert
+returns; everything else that reads a cell reads it at once.
+
+**`statistics/2` IS HOW A PROGRAM SEES IT**: `cputime` (seconds, a float),
+`inferences`, `globalused` and `trailused` (bytes), `atoms`, `functors`,
+and `store_used` -- the bytes the store's cell array holds, live and
+orphaned alike, which is the number `garbage_collect/0` brings down. Any
+other key is `domain_error(statistics_key, K)`. `test/gc.pl` is the case:
+2 000 overwrites of a 128 KB global hold the store under 64 MB where 256 MB
+would have accumulated and `garbage_collect/0` takes it under 8; clauses,
+the index, a shared variable, a float, a string and a retract survive a
+compaction; a findall whose goal compacts three times answers whole; a
+consult whose directive compacts still runs the goals it put off; and
+under `--embed` and on the wire what one process wrote reads back from the
+next after a compaction on either side of a retract.
+
+**MEASURED ON THE FIXTURE THAT REPORTED IT**: 37 s before and after, the
+output byte for byte the same, and `statistics/2` at the end of the run
+says heap 1 616 MB, store **53 MB** (from 1 323), trail 29 MB -- about
+1.7 GB honest where it had been about 2.9 GB. (`maximum resident set size`
+said 694, 737 and 1 701 MB across three runs of that one binary, which is
+the Mac hazard below and not the engine; ask `statistics/2` instead.)
+
+**AND `retract/1` SKIPS BY KEY NOW, which the new case found the expensive
+way**: it copied every candidate clause whole on to the heap and unified
+afterwards, no first-argument skip, so `test/gc.pl`'s 3 000 `asserta`
+calls followed by 2 999 retracts of 16 KB clauses copied some thirty-six
+billion cells and took **153 s**; one comparison against the key the index
+already keeps per clause -- sound by the argument call resolution makes,
+two different non-zero keys cannot unify -- makes it **1.1 s**. A float or
+unbound first argument keys as 0 and skips nothing, and a rule asked for
+as a fact is still refused by its body.
+
+The heap is now the whole of what remains, and it is the program's: a heap collector
+is still the item in STATUS.md's "Not started", and `\+ \+` around a phase
+whose results go to the store is still the way a long deterministic program
+gives the heap back.
+
 ## Concurrency: share nothing, copy the term
 
 `library(thread)` is threads and channels, and the shape is the one the
@@ -1472,7 +1569,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 |---|---|
 | `lib/term.cicili` | cells, unification, the trail, copying |
 | `lib/syntax.cicili` | the reader and the writer, from one operator table, plus the run-time one `op/3` adds |
-| `lib/kb.cicili` | the clause store and its five backend hooks |
+| `lib/kb.cicili` | the clause store, its five backend hooks, and since 1.2.13 its compaction |
 | `lib/solve.cicili` | the engine and the builtin table |
 | `lib/module.cicili` | the module seam and the API a module is written against |
 | `lib/files.cicili` | SWI's Files library, as a module — mostly C. Also `get_time/1`, the wall clock, which was simply not there: nothing in cocolog could ask what time it is, so a certificate's validity window had nowhere to come from |
@@ -1581,10 +1678,10 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **53** case lines (counted
+Run `make test` with a server up, and read all **54** case lines (counted
 from a run, not remembered; this said 39, then 42, then 43, then 48, then
-51, then 52, and the suite keeps moving -- seven `.cicili` binaries and forty-six
-`.pl` cases, each line with its seconds). A change to
+51, then 52, then 53, and the suite keeps moving -- seven `.cicili` binaries and
+forty-seven `.pl` cases, each line with its seconds). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make
@@ -1731,6 +1828,22 @@ and every one has cost a session at least an hour:
   -sTCP:LISTEN`, never with a probe connection: `httpd`'s accept loop
   ENDS on a failed accept, and a bare TCP connect to a TLS listener is
   exactly that.
+
+* **`maximum resident set size` AND `peak memory footprint` BOTH UNDERCOUNT
+  AFTER A LARGE `realloc` MOVES A BLOCK, and which runs move is a coin
+  toss.** Darwin's allocator extends a large block in place when the
+  address space after it is free and otherwise moves it by copy-on-write
+  remap (a 512 MB move took 4.6 ms; there is no memcpy and no transient
+  doubling), and the moved pages leave BOTH counters until they are touched
+  again -- probed: 1 024 MB written, 808 MB reported, all 1 024 back the
+  moment every page was read, with the machine's free memory unchanged
+  throughout. Whether a block moves depends on what landed after it, which
+  is why one cocolog run reported 933 MB and the identical next one
+  1 404 MB. **The low number is the wrong one**; a watchdog reading `ps`
+  is fooled the same way, and a two-valued spread across identical runs is
+  this before it is anything in the engine. glibc `mremap`s and Linux does
+  not have it. (cicili-lang's report of 2026-09-14, which read the spread
+  as realloc doubling; the real cost underneath was the store, above.)
 
 **THE SUITE IS GREEN ON A MAC NOW -- 51 of 52, the one SKIP being
 `torch-replay` for want of a CUDA toolkit -- and the twelve that used to

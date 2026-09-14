@@ -359,6 +359,7 @@
     ;; term is. Zero when nothing was thrown; `coco_engine_init' memsets.
     (member int         has_ball)
     (member size_t      ball_cell)
+    (member size_t      ball_size)    ; cells it occupies, for the store's count of the dead
 
     (member char        err [192]))
 
@@ -893,9 +894,10 @@
   ;;; THE BALL GOES INTO THE STORE FIRST, and that is the whole difficulty.
   ;;; Unwinding truncates the heap to the frame's mark, and the ball was built
   ;;; above that mark -- by the time there is somewhere to put it, it is gone.
-  ;;; The store does not shrink, which is the property `assert' and `findall'
-  ;;; already rely on, so the ball is put there and read back out on to the
-  ;;; heap once the machine has been wound back.
+  ;;; The store does not shrink under a caller -- a compaction runs only at
+  ;;; the safe points `coco_store_compact' names -- which is the property
+  ;;; `assert' and `findall' already rely on, so the ball is put there and
+  ;;; read back out on to the heap once the machine has been wound back.
   ;;;
   ;;; A CATCHER THAT DOES NOT MATCH MUST LEAVE NOTHING BEHIND. Trying it is a
   ;;; unification, so it is done between a mark and an undo -- otherwise a
@@ -904,7 +906,8 @@
   (func coco_throw ((coco_engine * e) (size_t ball)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
-              (size_t cell . #'(coco_store_put (-> e st) (-> e m) ball)))
+              (size_t cell . #'(coco_store_put (-> e st) (-> e m) ball))
+              (size_t size . #'(- ($ (cof (-> e st)) len) cell)))
 
           (while (> (-> e nchoices) 0)
             (let ((size_t ci . #'(- (-> e nchoices) 1))
@@ -934,6 +937,9 @@
                                 (set (-> e trace_depth) ($ (nth ci (-> e tchoices)) depth))))
                      (set (-> e nchoices) ci)
                      (set (-> e goals) (coco_k_push e recovery barrier goals))
+                     ;; the ball is on the heap and its cell an orphan
+                     (set (-> st dead) (+ (-> st dead) size))
+                     (coco_store_maybe_compact st m)
                      (return 1)))
                 (coco_undo_to m mark))
               (set (-> e nchoices) ci)))
@@ -945,6 +951,7 @@
           ;; `an error occurred'.
           (set (-> e has_ball) 1)
           (set (-> e ball_cell) cell)
+          (set (-> e ball_size) size)
           (let ((coco_strbuf b))
             (coco_sb_init (aof b))
             (coco_write_term m (aof b) (coco_store_get m st cell) 1 0)
@@ -1132,6 +1139,12 @@
         ;; otherwise, and the next error that is NOT a ball -- an inference
         ;; limit, a goal that is not callable -- would be reported with the
         ;; last one's term
+        ;; and the last one's cell, kept for an outer engine to throw again,
+        ;; is an orphan by now: counted, never touched, since a compaction in
+        ;; between may already have taken it
+        (if (-> e has_ball)
+            (let ((coco_store * bst . #'(-> e st)))
+              (set (-> bst dead) (+ (-> bst dead) (-> e ball_size)))))
         (set (-> e has_ball) 0)
         (set (nth 0 (-> e err)) (cast char 0))
         (set (-> e query) goal)
@@ -1145,7 +1158,8 @@
               (coco_store * st . #'(-> e st))
               (coco_engine sub)
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
-              (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0))
+              (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0)
+              (size_t ball_size . 0) (size_t kept_cells . 0))
 
           ;; WHERE THE MACHINE STOOD BEFORE THE SEARCH. The sub-engine's last
           ;; solution leaves its bindings on the trail: the final clause of a
@@ -1157,6 +1171,10 @@
           (let ((size_t tmark . #'($ (cof m) trail_len))
                 (size_t hmark . #'($ (cof m) heap_len)))
 
+          ;; `kept' holds cell indices of its own until they are read back
+          ;; below, so the store is told where they are: a compaction during
+          ;; the search -- a `forall/2' IS one -- moves them with the rest
+          (coco_store_root_push st (aof kept) (aof n))
           (coco_engine_init (aof sub) m st)
           ;; the inner search spends the outer one's remaining budget, so a
           ;; `cocolog step' with a step limit cannot be overrun by a findall
@@ -1185,7 +1203,8 @@
                        ;; memsets the sub-engine; the ball is thrown again
                        ;; below, once the machine is back where it was.
                        (if ($ sub has_ball)
-                           (block (set threw 1) (set ball_cell ($ sub ball_cell))))
+                           (block (set threw 1) (set ball_cell ($ sub ball_cell))
+                                  (set ball_size ($ sub ball_size))))
                        (set ok 0) break))
             (if (== rc 0) break)
             (if (>= n cap)
@@ -1200,6 +1219,7 @@
             ;; into the STORE, because the heap under us is about to be wound
             ;; back past this point
             (set (nth n kept) (coco_store_put st m template))
+            (set kept_cells (+ kept_cells (- (-> st len) (nth n kept))))
             (set n (+ n 1)))
 
           ;; the outer engine's step count includes the inner search: a goal
@@ -1222,12 +1242,16 @@
           (if threw
               (block (coco_undo_to m tmark)
                      (set ($ (cof m) heap_len) hmark)
+                     (coco_store_root_pop st)
                      (free kept)
+                     (set (-> st dead) (+ (-> st dead) (+ kept_cells ball_size)))
                      (return (? (== 1 (coco_throw e (coco_store_get m st ball_cell))) 2 0))))
 
           (if (not ok) (block (coco_undo_to m tmark)
                               (set ($ (cof m) heap_len) hmark)
+                              (coco_store_root_pop st)
                               (free kept)
+                              (set (-> st dead) (+ (-> st dead) kept_cells))
                               (return 0)))
 
           ;; put the machine back as it was, THEN build the answer. The
@@ -1240,8 +1264,13 @@
           (let ((size_t lst . #'(coco_new_atom m "[]")))
             (for ((size_t i . n)) (> i 0) ((-- i))
               (set lst (coco_cons m (coco_store_get m st (nth (- i 1) kept)) lst)))
+            (coco_store_root_pop st)
             (free kept)
             (set (cof out) lst))
+          ;; the solutions are on the heap now and their store copies are
+          ;; orphans: a safe point, and one that produces garbage
+          (set (-> st dead) (+ (-> st dead) kept_cells))
+          (coco_store_maybe_compact st m)
           (return 1))))
 
   (func coco_engine_call_limited ((coco_engine * e) (size_t goal)
@@ -1269,7 +1298,7 @@
           ;; not count a fenced goal's inferences would be a hole big enough
           ;; to drive the whole loop through.
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
-          (let ((int threw . 0) (size_t cell . 0))
+          (let ((int threw . 0) (size_t cell . 0) (size_t bsize . 0))
             (if (== rc 1) (set out 1))
             (if (== rc 0) (set out 0))
             (if (== rc -1)
@@ -1278,7 +1307,8 @@
                   (block
                    ;; read the ball's cell BEFORE the free, which memsets it
                    (if ($ sub has_ball)
-                       (block (set threw 1) (set cell ($ sub ball_cell))))
+                       (block (set threw 1) (set cell ($ sub ball_cell))
+                              (set bsize ($ sub ball_size))))
                    (snprintf (-> e err) 192 "%s" ($ sub err))
                    (set out -1))))
             (coco_engine_free (aof sub))
@@ -1293,8 +1323,9 @@
             ;; is back where it was -- `coco_throw' unwinds from here to
             ;; whatever catch frame matches, which is at or below this mark
             (if threw
-                (set out (? (== 1 (coco_throw e (coco_store_get m st cell)))
-                            3 -1))))
+                (block (set (-> st dead) (+ (-> st dead) bsize))
+                       (set out (? (== 1 (coco_throw e (coco_store_get m st cell)))
+                                   3 -1)))))
           (return out)))
 
   (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int)
@@ -2762,6 +2793,7 @@
                (return 0)))
           (if (coco_is_callable m head)
               (coco_pred_dynamic (-> e st) (coco_name_of m head) (coco_arity m head)))
+          (coco_store_maybe_compact (-> e st) m)
           (return 1)))
 
   (func coco_bi_asserta ((coco_engine * e) (size_t g)) (out int)
@@ -2771,7 +2803,9 @@
         (return (coco_assert_goal e g 1)))
 
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
-        (return (? (coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0)) 1 0)))
+        (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
+          (coco_store_maybe_compact (-> e st) (-> e m))
+          (return (? ok 1 0))))
 
   ;;; `dynamic(Spec)' as a goal, which is the same thing `:- dynamic Spec.'
   ;;; does when a file is consulted -- one implementation, reached two ways.

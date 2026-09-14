@@ -35,7 +35,7 @@ cocolog -s test/lint.pl                            # the suite case
 | `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.pl` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 34 rows, 42 checked citations |
+| `traps.jsonl` | the dialect card as data: 33 rows, 43 checked citations |
 | `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
@@ -269,7 +269,7 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 34 rows of
+`traps.jsonl` is section 4 of the design doc as 33 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
 inside it. `card --check` verifies all 42, and when one has moved it says

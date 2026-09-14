@@ -245,14 +245,14 @@ collision.
 
 ### `card` — the dialect card
 
-`traps.jsonl` is the card as data: thirty-four rows of `{id, severity, rule,
+`traps.jsonl` is the card as data: thirty-three rows of `{id, severity, rule,
 swi, cocolog, why, cite, fix, pattern}`. Each `cite` is a `path:A-B` line
 range with an `anchor`, a literal substring that must appear inside it.
 
 `--check` verifies every anchor and answers one of three ways:
 
 ```
-traps: 34 rows, 42 cites all anchored, 14 S1 pattern terms
+traps: 33 rows, 43 cites all anchored, 13 S1 pattern terms
 traps: T1: lib/library.cicili:537-537 moved to lib/library.cicili:585 (unique anchor, accepted)
 traps: N1: anchor is not in lib/library.cicili:500-509 and appears 2 times (lines 63, 548) -- the range is what picks the site, so which one this row means is yours to say
 ```

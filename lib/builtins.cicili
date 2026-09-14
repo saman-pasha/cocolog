@@ -75,6 +75,8 @@
 
     ("nb_setval"               2 coco_b_setval)
     ("nb_getval"               2 coco_b_getval)
+    ("garbage_collect"         0 coco_b_garbage_collect)
+    ("statistics"              2 coco_b_statistics)
     ("$store_mute"             0 coco_b_store_mute)
     ("$store_unmute"           0 coco_b_store_unmute)
     ("b_setval"                2 coco_b_setval)
@@ -1306,7 +1308,7 @@
               (size_t goal . #'(coco_m_arg e g 1))
               (coco_engine sub)
               (FILE * tmp . nil) (int saved . -1) (int rc . 0)
-              (int threw . 0) (size_t ball_cell . 0)
+              (int threw . 0) (size_t ball_cell . 0) (size_t ball_size . 0)
               (char * text . nil) (long len . 0))
 
           (if (coco_m_is_var e goal) (return (coco_m_instantiation_error e)))
@@ -1349,7 +1351,8 @@
           (if (== rc -1)
               (block (snprintf (-> e err) 192 "%s" ($ sub err))
                      (if ($ sub has_ball)
-                         (block (set threw 1) (set ball_cell ($ sub ball_cell))))))
+                         (block (set threw 1) (set ball_cell ($ sub ball_cell))
+                                (set ball_size ($ sub ball_size))))))
           (coco_engine_free (aof sub))
 
           ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened. An early
@@ -1369,6 +1372,7 @@
                      ;; set"; -1 when nothing caught it, which is the uncaught
                      ;; path this had always taken.
                      (if threw
+                         (set (-> st dead) (+ (-> st dead) ball_size))
                          (return (? (coco_m_thrown e (coco_store_get m st ball_cell)) 2 -1)))
                      (if (== rc -1) (return -1))
                      (return 0)))
@@ -1959,6 +1963,7 @@
                                                   (nth 0 ($ (nth pi ($ (cof st) preds)) clauses)))))
                   (coco_retract st m t)
                   (set (-> m heap_len) mark)))
+              (coco_store_maybe_compact st m)
               (return 1)))))
 
   ;;; ---- global variables -------------------------------------------------
@@ -2021,7 +2026,12 @@
                 (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1))))
             (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
               (if (== ($ (nth i (-> st globals)) name) name)
-                  (block (set ($ (nth i (-> st globals)) cell) cell) (return 1))))
+                  (block ;; the old value is an orphan now, and its size was kept
+                         (set (-> st dead) (+ (-> st dead) ($ (nth i (-> st globals)) size)))
+                         (set ($ (nth i (-> st globals)) cell) cell)
+                         (set ($ (nth i (-> st globals)) size) (- (-> st len) cell))
+                         (coco_store_maybe_compact st m)
+                         (return 1))))
             (if (>= (-> st nglobals) (-> st gcap))
                 (let ((size_t ncap . #'(? (== (-> st gcap) 0) 8 (* (-> st gcap) 2)))
                       (coco_global * nb))
@@ -2032,7 +2042,9 @@
                   (set (-> st gcap) ncap)))
             (set ($ (nth (-> st nglobals) (-> st globals)) name) name)
             (set ($ (nth (-> st nglobals) (-> st globals)) cell) cell)
+            (set ($ (nth (-> st nglobals) (-> st globals)) size) (- (-> st len) cell))
             (set (-> st nglobals) (+ (-> st nglobals) 1))
+            (coco_store_maybe_compact st m)
             (return 1))))
 
   (func coco_b_getval ((coco_engine * e) (size_t g)) (out int)
@@ -2047,6 +2059,44 @@
                                       (coco_store_get m st
                                                     ($ (nth i (-> st globals)) cell))))))
             (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
+
+  ;;; `garbage_collect/0' compacts the store -- see `coco_store_compact' in
+  ;;; lib/kb.cicili for what that reclaims and when it happens unasked. It
+  ;;; always succeeds, and it is allowed anywhere a goal is: inside a
+  ;;; findall's goal or a directive the roots those hold move with the rest.
+  (func coco_b_garbage_collect ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_compact (-> e st) (coco_m_machine e))
+        (return 1))
+
+  ;;; `statistics/2', the keys a program can act on. SWI's names where SWI
+  ;;; has the number -- `cputime' in seconds as a float, `inferences',
+  ;;; `globalused' and `trailused' in bytes, `atoms' and `functors' as
+  ;;; counts -- and `store_used' for what SWI has no word for: the bytes the
+  ;;; store's cell array holds, live and orphaned alike, which is the number
+  ;;; that `garbage_collect/0' brings down. Any other key is a
+  ;;; `domain_error(statistics_key, K)'.
+  (func coco_b_statistics ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t k . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0)))
+              (size_t out . #'(coco_m_arg e g 1))
+              (i64 v . 0))
+          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (let ((const char * key . #'(coco_atom_name m (coco_name_of m k))))
+            (cond
+              ((== 0 (strcmp key "cputime"))
+               ;; CLOCKS_PER_SEC is a macro Cicili cannot see; POSIX fixes it
+               ;; at one million, on this platform and the other one
+               (return (coco_m_unify e out (coco_m_new_float
+                                             e (/ (cast double (clock)) 1000000.0)))))
+              ((== 0 (strcmp key "inferences")) (set v (cast i64 (-> e steps))))
+              ((== 0 (strcmp key "globalused")) (set v (cast i64 (* (-> m heap_len) 8))))
+              ((== 0 (strcmp key "trailused"))  (set v (cast i64 (* (-> m trail_len) 8))))
+              ((== 0 (strcmp key "atoms"))      (set v (cast i64 (-> m atoms_len))))
+              ((== 0 (strcmp key "functors"))   (set v (cast i64 (-> m functors_len))))
+              ((== 0 (strcmp key "store_used")) (set v (cast i64 (* (-> st len) 8))))
+              (#t (return (coco_m_domain_error e "statistics_key" k))))
+            (return (coco_m_unify e out (coco_m_new_int e v))))))
 
   ;;; ---- operators --------------------------------------------------------
 

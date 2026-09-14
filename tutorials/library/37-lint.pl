@@ -239,11 +239,11 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 34),
+    must('rows in the card', NRows, 33),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 34),
+    must('every id distinct', NIds, 33),
     %% FIFTEEN OF THE THIRTY-FIVE CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `A1' can be matched --
@@ -263,7 +263,7 @@ t37_card :-
     %% being a divergence.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 14),
+    must('rows carrying an S1 pattern term', NPats, 13),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 
