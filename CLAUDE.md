@@ -765,6 +765,40 @@ entry -- a back end that is somebody else's, kept whole so it stays
 byte-exact.) `doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the
 language, and `modules/README.md` lists what bites when writing one.
 
+**WHAT A `coco_m_*_error` RETURNS IS THE PREDICATE'S ANSWER, NOT A STATUS,
+and a helper that raises must hand it back rather than swallow it.** The
+raise answers **2** -- the builtin protocol's "the continuation is already
+set", because the recovery goal is on it -- so a caller that writes the
+ordinary guard
+
+```lisp
+(if (not (ray_iarg e g 0 (aof x))) (return 0))        ; WRONG
+```
+
+tests `not 2`, which is FALSE, and the guard never fires: the predicate
+carries on with an uninitialised value and then answers 1, success, with a
+ball in flight and the engine about to put the caller's continuation back
+over the recovery. It is not a failed call and not a raised one; it is
+neither, and the process usually ends. **All sixty-six guards in
+`modules/ray` were this**, and CivV found it the expensive way -- an icon's
+centre computed as `X + Size * 0.64`, and `ray_circle(20.5, 20.5, 5.5,
+white)` killing the window with nothing `catch/3` could hold. Two shapes are
+right, and the module directories hold one of each:
+
+```lisp
+(let ((int rc . #'(ray_iarg e g 0 (aof x)))) (if (!= rc 1) (return rc)))
+(let ((int rc . 0) (int s . #'(th_mutex_arg e t (aof rc)))) (if (< s 0) (return rc)))
+```
+
+-- pass the raise straight through, or have the helper answer 0 and carry
+the raise out in a parameter (`modules/thread`, `modules/numpy`).
+`modules/tensorflow` takes the third road and raises at the call site,
+`(return (coco_m_type_error ...))`, which is the same rule seen from the
+other end. **The tell is a helper that both RAISES and returns int**: every
+one of its callers is a place to check. cicili-lang reached the identical
+rule from its own segfault -- a helper of theirs raised, returned its own
+answer, and the caller walked on into LLVM with a null module.
+
 **A HANDLE IS AN INTEGER, SO LOSING ONE LEAKS WHAT IT NAMES, SILENTLY.**
 Every handle-table module -- `tcp`, `tls`, `ray`, and anything else that
 hands out a slot -- gives Prolog an INDEX and keeps the real thing in its
