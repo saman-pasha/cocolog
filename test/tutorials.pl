@@ -44,6 +44,18 @@ main :-
     %% file: the module may be compiled in, beside the binary, or on the
     %% path.
     loadable('use_module(library(torch)), torch_cuda_available(_)', Torch),
+    %% AND WHETHER THERE IS A GPU TO TRAIN ON, which is a different question
+    %% from whether the module loads -- the probe above binds the answer to
+    %% `_' and always succeeded. The forty-two tensor lessons TRAIN, and on a
+    %% CPU they are enormous in both directions: measured on a two-core Linux
+    %% box with no GPU, the category took 29 minutes and five lessons peaked
+    %% over 2.4 GB resident, the largest three between 4.7 and 5.1 GB. A run
+    %% under any other load died there -- the cgroup's OOM killer took a
+    %% cocolog at 9.7 GB, which takes the output with it and leaves a case
+    %% that names nothing. So the owner's rule: the tensor tutorials do not
+    %% run on a machine with no CUDA. `torch_cuda_available(true)' FAILS when
+    %% there is none, which is what makes this one line.
+    cuda_there(Cuda),
     %% The same question for ZiguratIP's cryptography: four modules that
     %% need a BUILT ZiguratIP, and a sample authority to read. 26 and 27
     %% also want the certificate directory, which only exists in a built
@@ -62,13 +74,21 @@ main :-
     loadable('use_module(library(opencv)), cv_new(1, 1, ''8u'', I), cv_free(I)', Opencv),
     basics_and_library(Torch, Crypto, Ray, Numpy),
     opencv(Opencv),
-    tensor(D, Torch),
+    tensor(D, Torch, Cuda),
     shl(['rm -rf ', D]),
     findall(x, skipped(_), Ss), length(Ss, NSkipped),
     format("~w lesson(s) skipped~n", [NSkipped]),
     checks_done.
 
 %% does a goal prove in a child? `query' exits 0 when it did
+%% IS THERE A CARD? Read the ANSWER, never the exit status: `cocolog query'
+%% exits 0 for a goal that failed -- measured, `query fail' is 0 -- so
+%% `loadable/2' above can say "did this load", which raises when it did not,
+%% and cannot say "did this prove".
+cuda_there(YesNo) :-
+    cocolog_run('query "use_module(library(torch)), torch_cuda_available(B), write(cuda(B)), nl" 2>/dev/null', Text, _),
+    ( sub_atom(Text, _, _, _, 'cuda(true)') -> YesNo = yes ; YesNo = no ).
+
 loadable(Goal, YesNo) :-
     sh_join(['query "', Goal, '" >/dev/null 2>&1'], Args),
     ( cocolog_run(Args, _, 0) -> YesNo = yes ; YesNo = no ).
@@ -135,10 +155,13 @@ opencv(Opencv) :-
         forall(member(Path, Ps), ( lesson_name('tutorials/opencv', Path, Name), one_lesson(Name, Path, 600000) ))
     ).
 
-tensor(D, Torch) :-
+tensor(D, Torch, Cuda) :-
     section('tensor: three processes and a store each'),
     (   Torch == no
     ->  skip_lesson('tutorials/tensor/ (42 tutorials)', 'no torch module')
+    ;   Cuda == no
+    ->  skip_lesson('tutorials/tensor/ (42 tutorials)',
+                    'no CUDA -- they TRAIN, and on a CPU that is 29 minutes and several GB a lesson')
     ;   lessons('tutorials/tensor', Ps),
         forall(member(Path, Ps), tensor_lesson(D, Path))
     ).

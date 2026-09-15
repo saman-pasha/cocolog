@@ -21,6 +21,7 @@
 
 main :-
     ( exists_file('library/torch.so') -> true ; skip('(no library/torch.so -- sh modules/torch/build.sh)') ),
+    needs_cuda,
     answer_text('query "use_module(library(torch)), tensor_zeros([1], Z), tensor_parameter(Z, _), write(answer(ok)), nl"', Probe),
     ( Probe == ok -> true ; skip('(library(torch) has no tensor_parameter/2)') ),
     the_number, a_step, refusals, thirty_steps, the_device, exec_frees, lent_operators, csv_shapes,

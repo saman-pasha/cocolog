@@ -53,6 +53,7 @@ main :-
     ->  true
     ;   skip('(no library/torch.so -- sh modules/torch/build.sh against libtorch)')
     ),
+    needs_cuda,
     ( getenv('ZIGURAT_HOST', Host) -> true ; Host = '127.0.0.1' ),
     ( getenv('ZIGURAT_PORT', Port) -> true ; Port = 2160 ),
     ( getenv('ZEYTUN_PORT', Zeytun) -> true ; Zeytun = 2190 ),

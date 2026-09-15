@@ -23,6 +23,7 @@
 
 main :-
     ( exists_file('library/torch.so') -> true ; skip('(no library/torch.so -- sh modules/torch/build.sh)') ),
+    needs_cuda,
     answer_text('query "use_module(library(torch)), tensor_execution(M), write(answer(M)), nl"', Mode),
     ( Mode == eager -> true ; skip('(library(torch) will not load, or has no graph path)') ),
     the_switch, every_producer, without_executing, the_tutorials,

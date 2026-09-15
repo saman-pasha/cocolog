@@ -82,6 +82,30 @@ section(Title) :- format("-- ~w~n", [Title]).
 
 skip(Why) :- format("SKIP ~w~n", [Why]), halt(0).
 
+%% NO CUDA, NO TENSOR CASE -- the owner's rule, and it is about what these
+%% cases DO rather than what they can load. They TRAIN. On a CPU that is
+%% minutes and gigabytes a lesson: measured on a two-core Linux box with no
+%% GPU, the forty-two tensor tutorials took 29 minutes and five of them
+%% peaked over 2.4 GB resident, the largest three between 4.7 and 5.1 GB.
+%% The same run under any other load was killed by the cgroup's OOM killer
+%% -- a cocolog at 9.7 GB -- and a SIGKILL takes the output buffer with it,
+%% so the case named nothing at all. A machine with no card cannot run these
+%% honestly, so it says so instead.
+%%
+%% `torch_cuda_available(true)' FAILS where there is no card, which is what
+%% makes this one question. A case calls it AFTER checking its module is
+%% there, so a missing torch.so still reports as a missing module.
+%% AND IT READS THE ANSWER, NOT THE EXIT STATUS. `cocolog query' exits 0
+%% for a goal that FAILED -- measured: `query fail' is 0 and only an error
+%% is 1 -- so an exit-status probe answers yes to everything. This is
+%% `test/torch-replay.pl''s shape, which had it right first.
+needs_cuda :-
+    answer_text('query "use_module(library(torch)), torch_cuda_available(B), write(answer(B)), nl"', Cuda),
+    (   Cuda == true
+    ->  true
+    ;   skip('(no CUDA -- the tensor cases train, and on a CPU that is minutes and gigabytes each)')
+    ).
+
 %% ONE SLASH: macOS's TMPDIR ends in one, so tmp_file/2 answers `.../T//coco...'
 %% -- a path that works and that no other program prints back that way
 %% (swipl names files by their real path, and a check that strips the

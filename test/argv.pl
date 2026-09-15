@@ -123,7 +123,18 @@ dash_s(D) :-
     stored(KB, S3),
     check('and run CONSULTS, so the same clauses land in it', S3, stored).
 
-%% whether the private fact is in the store: `query' exits 0 when it proved
+%% WHETHER THE PRIVATE FACT IS IN THE STORE, AND IT IS THE EXISTENCE ERROR
+%% THAT TELLS US, not a failure. `query' answers `false.' and exits 0 for a
+%% goal that merely fails -- its own contract, pinned at the end of this
+%% file -- so a zero here does NOT mean "it proved". It means the predicate
+%% was there to ask. A non-zero means there was no such procedure at all,
+%% which is what an empty store answers.
+%%
+%% The distinction is not pedantry: read as "exits 0 when it proved", this
+%% check looks like it would call a predicate DECLARED and empty `absent',
+%% and it would call it `stored'. The fixture never declares one -- it
+%% writes a bare `tool_private_fact(1).' -- so the case is sound, and the
+%% reason it is sound is this paragraph rather than the exit code.
 stored(KB, S) :-
     sh_join(['--embed ', KB, ' query "tool_private_fact(_)" >/dev/null 2>&1'], A),
     cocolog_run(A, _, Rc),

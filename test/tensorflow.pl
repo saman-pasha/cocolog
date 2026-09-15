@@ -24,6 +24,7 @@
 main :-
     ( exists_file('library/torch.so') -> true ; skip('(no library/torch.so)') ),
     ( exists_file('library/tensorflow.so') -> true ; skip('(no library/tensorflow.so -- sh modules/tensorflow/build.sh)') ),
+    needs_cuda,
     q('tensorflow_version(V), write(answer(V)), nl', Version),
     tf(TF), sh_join([TF, ', tensor_execution(B, M), write(answer(B-M)), nl'], GS), q(GS, Switch),
     sh_join([Version, ' is the TensorFlow; the switch answers ', Switch], S), section(S),
