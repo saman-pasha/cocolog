@@ -101,8 +101,10 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
 modules/               the LOADABLE modules, one directory each -- tcp,
                        thread, curl, bigint, torch, tensorflow, and ZiguratIP's
                        cryptography: sha, aes, der, x509, tls. None is part of
-                       `make': a cocolog with no libtorch, no ZiguratIP
-                       headers and no libcurl still builds and still runs
+                       `make': a cocolog with no libtorch, no libcurl and no
+                       OpenCV still builds and still runs. `make' DOES need a
+                       built ZiguratIP, because the embedded store is part of
+                       the binary -- `make EMBED=0' is the build that does not
 tools/cc/              the toolchain, in four small files: clang, plus the
                        one flag Ubuntu makes necessary and two shims for
                        the one build step that names gcc outright
@@ -229,6 +231,19 @@ make            # the C client and the ONE cocolog binary
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make test       # the suite; the database tests skip without a server
 ```
+
+**`make` NEEDS A BUILT ZiguratIP and `make EMBED=0` DOES NOT.** The embedded
+store is genuinely part of the binary -- it is transpiled from ZiguratIP's
+own engine source and links its `libCore` and `libStreamIO` -- so a plain
+`make` on a machine where ZiguratIP will not build produces nothing at all.
+`make EMBED=0` leaves the store out and gives up `--embed` and nothing else:
+`--local`, the server over `--kb`/`--tcp`/`--tls`, `--http`/`--https`, every
+tier-1 and tier-2 library and every loadable module all work, and `--embed`
+refuses by name rather than failing strangely. Measured on this Mac: 381 KB
+against 632 KB. It is the build for a machine that only ever proves goals
+locally or against a server somebody else runs -- reported by cicili-lang,
+whose C++ gates use no store at all and which could not get a binary from a
+fresh Ubuntu clone because ZiguratIP's MVCCS would not compile.
 
 And it runs — the first three need nothing else on the machine at all:
 

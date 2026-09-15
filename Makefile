@@ -158,15 +158,37 @@ CICILI_RUN = PATH="$(CURDIR)/tools/cc:$$PATH" \
 # business now, and $LIBTORCH, $TORCH_INCLUDE and $TORCH_LIB are all read
 # there. What is left of the C++ dependency is the EMBEDDED STORE, which
 # genuinely is part of the binary and genuinely needs libCore.
+# AND `make EMBED=0' BUILDS WITHOUT IT, which is the one way to get a cocolog
+# on a machine where ZiguratIP will not build. The embedded engine's entry
+# points are declared WEAK (CE_WEAK in client/zigurat.c), so leaving the object
+# and libCore out of the link leaves them null rather than undefined, and
+# `zg_open_embed' already refuses by name when `ce_engine_open' is null --
+# "this build carries no embedded engine". So `--local', `--kb'/`--tcp' and
+# `--http' all work and only `--embed' is gone. Reported from cicili-lang,
+# whose C++ gates use no store at all and which could not get a binary from a
+# fresh Ubuntu clone because ZiguratIP's MVCCS would not compile.
+#
+# THE DEFAULT IS STILL 1, and the full binary is what every suite line, every
+# tutorial and every --embed claim in this repository is measured against.
+EMBED ?= 1
+ifeq ($(EMBED),0)
+EMBED_STEP := @echo "   EMBED=0: no embedded store -- --embed will refuse by name"
+EMBED_OBJ  :=
+EMBED_LIBS :=
+else
+EMBED_STEP := CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
+EMBED_OBJ  := embed/.libs/embed.o
+EMBED_LIBS := -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO -Wl,-rpath,"$(ZIGURATIP)/home/lib"
+endif
+
 cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 	$(CICILI_RUN) "$(CURDIR)/cocolog.cicili"
-	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh embed/build.sh
-	$(CXX) -O3 .libs/cocolog.o embed/.libs/embed.o \
+	$(EMBED_STEP)
+	$(CXX) -O3 .libs/cocolog.o $(EMBED_OBJ) \
 	  -o cocolog \
 	  -rdynamic -ldl \
 	  $(BUILD)/tls.o -Lbuild -lcocologc $(ZT_TLS_LIBS) -lm -lpthread \
-	  -L"$(ZIGURATIP)/home/lib" -lCore -lStreamIO \
-	  -Wl,-rpath,"$(ZIGURATIP)/home/lib"
+	  $(EMBED_LIBS)
 
 # ---- the loadable modules ---------------------------------------------------
 # EVERY ONE OF THESE USED TO BE IN THE BINARY, or on its critical path.

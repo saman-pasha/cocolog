@@ -21,6 +21,35 @@ step() { printf '== %s\n' "$*"; }
 say()  { printf '   %s\n' "$*"; }
 die()  { printf 'INSTALL RED: %s\n' "$*" >&2; exit 1; }
 
+# AND THE TWO MUST NAME THE SAME TREE, because ZiguratIP's MVCCS includes
+# `../home/include/zexception.hpp' by a path relative to the CHECKOUT while
+# every project stages its headers into $(ZIGURATIP_HOME)/include. If those
+# disagree the headers land where MVCCS will not look and the build dies in
+# mvccs.cpp naming a header that is plainly in the checkout.
+#
+# THE DEFAULT ABOVE IS WHY IT HAPPENS: `${ZIGURATIP_HOME:-$ZIGURATIP/home}'
+# lets a value INHERITED FROM THE ENVIRONMENT beat a ZIGURATIP= passed on the
+# command line, so the two silently name different trees. Reported from
+# cicili-lang on a Colab runtime that exports ZIGURATIP_HOME from earlier
+# work: the build staged into one tree, MVCCS looked in the other, and the
+# completeness check -- which also reads $ZIGURATIP_HOME/lib -- found the
+# STALE tree's thirteen libraries and reported "only libMVCCS.so missing"
+# about a checkout that had built nothing at all. An afternoon, for want of
+# this. Refused rather than overridden: an inherited home may be somebody's
+# deliberate arrangement, and quietly ignoring it would be its own surprise.
+zig_real=$(cd "$ZIGURATIP" 2>/dev/null && pwd -P); [ -n "$zig_real" ] || zig_real=$ZIGURATIP
+home_real=$(cd "$ZIGURATIP_HOME" 2>/dev/null && pwd -P); [ -n "$home_real" ] || home_real=$ZIGURATIP_HOME
+if [ "$home_real" != "$zig_real/home" ]; then
+  printf 'INSTALL RED: ZIGURATIP and ZIGURATIP_HOME name different trees\n' >&2
+  printf '   ZIGURATIP      = %s\n' "$ZIGURATIP" >&2
+  printf '   ZIGURATIP_HOME = %s   (expected %s)\n' "$ZIGURATIP_HOME" "$zig_real/home" >&2
+  printf '   ZiguratIP stages its headers into ZIGURATIP_HOME and its MVCCS\n' >&2
+  printf '   includes them by a path relative to the CHECKOUT, so the two must\n' >&2
+  printf '   be the same tree. An inherited ZIGURATIP_HOME is the usual cause:\n' >&2
+  printf '   run with  env -u ZIGURATIP_HOME ...  or set both to match.\n' >&2
+  exit 1
+fi
+
 cxx_ok() {   # see ZiguratIP/install/common.sh: 16 on Linux, 10 on macOS, g++ 7+
   cxx=${CICILI_CXX:-clang++}
   case "$cxx" in

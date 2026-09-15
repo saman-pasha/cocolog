@@ -37,8 +37,13 @@ export CICILI=/home/user/cicili                  # a Cicili checkout, for sbcl
 export ZIGURATIP=/home/user/ZiguratIP            # a BUILT ZiguratIP checkout
 export ZIGURATIP_HOME=/home/user/ZiguratIP/home  # and its home
 make            # the C client and the ONE cocolog binary (the embedded
-                # store is linked in; every module is tier 2 and separate,
-                # so this needs no libtorch and no libcurl)
+                # store is linked in, so this NEEDS A BUILT ZiguratIP;
+                # every module is tier 2 and separate, so it needs no
+                # libtorch and no libcurl)
+make EMBED=0    # the same binary without the embedded store: no ZiguratIP
+                # needed, and `--embed' refuses by name. Everything else --
+                # --local, the server, --http, every library and module --
+                # is unchanged
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
 make modules    # every loadable module buildable here; SKIPPED, by name,
                 # for the rest
@@ -710,8 +715,29 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 
 `make modules` builds every one that can be built here and says SKIPPED,
 by name, for the rest. **None of them is part of `make`** — which is the
-point: a cocolog with no libtorch, no ZiguratIP headers and no libcurl
-still builds and still runs.
+point: a cocolog with no libtorch, no libcurl and no OpenCV still builds
+and still runs.
+
+**BUT `make` NEEDS A BUILT ZiguratIP, and this file and README both used to
+say otherwise.** The sentence above once read "no libtorch, no ZiguratIP
+headers and no libcurl", which is true of the MODULES and reads as a claim
+about `make` — and that is how it was read: a cicili-lang session spent an
+afternoon on a fresh Ubuntu clone before finding that `make` dies in Cicili
+with `FILE-DOES-NOT-EXIST … embed/mvccs-lib.cicili`, a symlink
+`embed/build.sh` makes into ZiguratIP's checkout. The embedded store IS part
+of the binary and links `libCore` and `libStreamIO`; there was no flag.
+
+**`make EMBED=0` is that flag now.** It skips `embed/build.sh`, drops
+`embed/.libs/embed.o` and ZiguratIP's two libraries from the link, and
+relies on the machinery that was already there: the engine's entry points
+are declared weak (`CE_WEAK` in `client/zigurat.c`), so they bind to null
+rather than failing the link, and `zg_open_embed` already refused by name
+when `ce_engine_open` is null — *this build carries no embedded engine*.
+So `--embed` is the only thing given up. Measured here: **381 KB against
+632 KB**, `--local` and the wire arrangements both fine, tier-2 `.pl`
+libraries and dlopen'd `.so` modules both loading. The default is still 1,
+and the full binary is what every suite line and every `--embed` claim in
+this file is measured against.
 
 **A thing belongs in tier 2 when its dependency should not be
 everybody's**, and that argument ate three modules that used to be tier 1.

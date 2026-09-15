@@ -122,3 +122,90 @@ ZiguratIP's, and both dangle in anyone else's clone.
 
 The test is to delete everything a `build.sh` makes and run it. What
 comes back was output; what does not was source.
+
+## A proposal, not applied: naming the no-window crash
+
+**A ray drawing call with no window open segfaults**, and nothing catches
+it — no ball, no message, no exit status a caller can read. Confirmed on
+this binary and on the module as it stood before 1.2.15, so it is raylib's
+rather than ours and it predates the guard work:
+
+```sh
+cocolog query 'use_module(library(ray)), catch(ray_circle(1,2,3,white), E, true)'
+# exit 139
+```
+
+This is written down rather than done because it touches how every ray
+predicate is entered, and that is the owner's call. **CivV makes the case
+better than "it is cheap"**: a segfault with no ball is indistinguishable
+from a memory death, and a session there went a day down that road before
+the cause turned out to be elsewhere. A crash that names itself is worth
+more than the crash it replaces. CivV also checked and is **not exposed
+today** — three independent reasons, not an absence of reports: nothing in
+that program polls the close flag, its six `ray_open` sites each pair with
+their own close or a deliberate `halt/1`, and nothing draws off the main
+thread.
+
+**THE SHAPE IS THE TABLE'S, not twenty-eight edits.** `*ray-predicates*`
+already drives the dispatcher through `coco-emit-module-dispatch`, which
+reads a row's first three elements and ignores the rest — so a **fourth
+element** marks the rows that need a window and a second small emitter
+turns those into a name test:
+
+```lisp
+("$ray_circle"     7 ray_p_circle       t)     ; needs a window
+("ray_open"        3 ray_p_open)               ; makes one
+("ray_ready"       0 ray_p_ready)              ; asks about one
+("$ray_log_level"  1 ray_p_log_level)          ; neither
+
+(DEFMACRO ray-emit-needs-window (fname table)
+  (LET ((rows (REMOVE-IF-NOT #'FOURTH (SYMBOL-VALUE table))))
+    `(func ,fname ((const char * name)) (out int)
+       (cond ,@(MAPCAR (LAMBDA (r) `((== 0 (strcmp name ,(FIRST r))) (return 1)))
+                       rows)
+             (#t (return 0))))))
+```
+
+and one wrapper in front of the generated dispatcher:
+
+```lisp
+(static) (coco-emit-module-dispatch ray_dispatch_open *ray-predicates*)
+(static) (ray-emit-needs-window ray_needs_window *ray-predicates*)
+
+(static)
+(func ray_dispatch ((coco_engine * e) (const char * name) (u32 arity)
+                    (size_t g) (int * found)) (out int)
+      ;; THE READY TEST COMES FIRST AND IS THE WHOLE COST. A window is open
+      ;; on every call but the broken one, so the name chain below is walked
+      ;; only when there is no window at all -- never on the hot path.
+      (if (not (rw_ready))
+          (if (ray_needs_window name)
+              (return (coco_m_existence_error e "ray_window"
+                                              (coco_m_new_atom e name)))))
+      (return (ray_dispatch_open e name arity g found)))
+```
+
+**What it costs**: one `IsWindowReady()` per ray call, which is a field
+read behind a function call. A frame loop makes thousands of those a
+second, so it is not free and it is not measurable either; if it ever
+were, the answer is a cached flag set by `ray_open`/`ray_close` rather
+than a call. `lib/sdk.cicili` is untouched — the guard is ray's business
+and every other module keeps the dispatcher it has.
+
+**What it does not fix**, and the reason to hold the claim narrow: a
+window that raylib tore down on its own (the platform layer failing, the
+display going away) leaves `IsWindowReady()` answering what it last knew,
+so this catches the ordered mistake — drawing before `ray_open`, or after
+`ray_close`, or in a teardown path that drew one frame too many — and not
+a context lost underneath a running program. That is the case worth
+catching, because it is the one a program can be written wrong into.
+
+**The error to raise is the open question.** `existence_error(ray_window,
+Name)` reads as "the thing you are drawing on is not there", which is
+true and is ISO's shape for it. `permission_error(draw, ray_window, Name)`
+says it is an ordering mistake, which is nearer the cause. The module's
+own rule is that a refusal FAILS and only a genuine error raises
+(`test/ray.pl`: "existence_error for no file, failure for the rest"), and
+this is a genuine error — a program that draws with no window is wrong,
+where a program handed a closed texture handle may simply be finished with
+it. So it raises, and the name is the thing left to choose.
