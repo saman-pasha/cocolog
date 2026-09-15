@@ -550,7 +550,10 @@ the_pool(D, Root) :-
         ( One > 0, Serial > One * 2 -> Q = queued ; Q = overlapped ),
         check('queued, four slow requests take about four times one', Q, queued),
         ( One > 0, Pooled < One * 3 -> P = overlapped ; P = queued ),
-        check('pooled, the same four take about one', P, overlapped),
+        %% `overlapped' where `parallel' is the word elsewhere, so the
+        %% shared verdict is handed the word it tests for.
+        ( P == overlapped -> PC = parallel ; PC = serial ),
+        parallel_check('pooled, the same four take about one', PC),
         %% A PAGE THAT THROWS MUST NOT TAKE ITS WORKER WITH IT. The pool answers
         %% 500 and the same worker takes the next connection.
         pool_server(Pool, 'pool(18914, 2, 2)', 18914, Pid5),

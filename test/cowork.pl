@@ -197,7 +197,7 @@ parallel :-
     Four is round((T3 - T2) * 1000),
     format("     one worker ~wms, four workers ~wms~n", [One, Four]),
     ( One > 0, Four < One * 3 // 4 -> R = parallel ; R = serial ),
-    check('the same four jobs are faster on four workers than on one', R, parallel).
+    parallel_check('the same four jobs are faster on four workers than on one', R).
 
 %% ---- posting, and collecting a frame later ------------------------------
 %%

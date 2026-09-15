@@ -200,7 +200,7 @@ parallel :-
     %% under depends on the machine, the allocator and what else is running,
     %% and this is not a benchmark.
     ( One > 0, Four < One * 3 -> R = parallel ; R = serial ),
-    check('four times the work in well under four times the time', R, parallel).
+    parallel_check('four times the work in well under four times the time', R).
 
 %% ---- mutexes -------------------------------------------------------------
 %%

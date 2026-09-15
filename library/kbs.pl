@@ -59,9 +59,26 @@
 %% `read_link('/proc/self/exe', ...)' silently failed on every machine
 %% without a /proc -- and a kb_binary that fails makes every kb_* goal
 %% fail with nothing printed, which cost a session on a Mac.
+%% AND A $COCOLOG THAT NAMES NOTHING IS SAID OUT LOUD, never fallen back
+%% from. The variable is an override and overriding is its point, but an
+%% INHERITED one is the common case and it is usually stale: measured on a
+%% Colab runtime that exports COCOLOG=/content/cocolog from earlier work,
+%% every kb_* goal shelled out to a binary that was not there and the case
+%% reported four failures whose only clue was an `sh: not found' among the
+%% output. Falling back to the running binary would have made that box work
+%% and hidden the misconfiguration; raising names the path that is wrong.
+%% (The same shape cost an afternoon in the installer, where an inherited
+%% ZIGURATIP_HOME beat a ZIGURATIP passed on the command line -- see
+%% install/common.sh. An inherited variable beating the truth a process
+%% knows about itself is worth refusing wherever it appears.)
 kb_binary(Bin) :-
     (   getenv('COCOLOG', D)
-    ->  atom_concat(D, '/cocolog', Bin)
+    ->  atom_concat(D, '/cocolog', Bin),
+        (   exists_file(Bin)
+        ->  true
+        ;   throw(error(existence_error(cocolog_binary, Bin),
+                        'the COCOLOG environment variable names no cocolog -- unset it to use the running one'))
+        )
     ;   current_prolog_flag(executable, Bin)
     ).
 

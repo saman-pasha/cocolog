@@ -99,6 +99,62 @@ skip(Why) :- format("SKIP ~w~n", [Why]), halt(0).
 %% for a goal that FAILED -- measured: `query fail' is 0 and only an error
 %% is 1 -- so an exit-status probe answers yes to everything. This is
 %% `test/torch-replay.pl''s shape, which had it right first.
+%% A PARALLELISM CLAIM CANNOT BE TESTED ON A MACHINE THAT WILL NOT OVERLAP,
+%% and `nproc' is not the question. Measured on a Colab runtime: nproc says
+%% 2 and the cgroup's cpu.max says unlimited, while two identical spinners
+%% take 1.77x as long as one and four take 2.64x -- about 1.1 to 1.5 usable
+%% cores. Three cases assert that four workers do four times the work in
+%% under three times the time, which on one usable core is arithmetically
+%% impossible, so they went RED for the room rather than for the code.
+%%
+%% So ASK THE MACHINE, with two OS processes rather than two threads -- the
+%% probe must not be the thing under test. Perfect overlap answers about
+%% 1.0, no overlap about 2.0, and anything past 1.5 means a parallelism
+%% check here would be measuring the box. The answer is kept for the life
+%% of the case: it costs three cocolog runs and nothing changes it.
+%%
+%% `COCOLOG_ASSUME_PARALLEL=1' forces the checks to run anyway, for a box
+%% whose slowness you want to see reported rather than excused.
+machine_overlaps :-
+    (   getenv('COCOLOG_ASSUME_PARALLEL', _)
+    ->  true
+    ;   catch(nb_getval(overlap_ratio, R0), _, fail)
+    ->  R0 < 1.5
+    ;   overlap_ratio(R), nb_setval(overlap_ratio, R), R < 1.5
+    ).
+
+%% THE WORST OF THREE, because a shared machine's answer MOVES. The same
+%% Colab runtime measured 1.93 one minute and 1.10 the next, and a single
+%% sample let a check run that then failed on a box that could not overlap
+%% when it mattered. What is wanted is not "can it ever" but "can it be
+%% relied on", so the worst sample decides: a machine that sometimes cannot
+%% overlap produces flaky reds, and a flaky red is worse than a skip.
+overlap_ratio(R) :-
+    findall(S, (between(1, 3, _), overlap_sample(S)), Rs),
+    max_list(Rs, R),
+    format("     (this machine overlaps two processes at ~2f worst of ~w -- 1.0 is perfect, 2.0 is none)~n",
+           [R, Rs]).
+
+overlap_sample(R) :-
+    cocolog(C),
+    sh_join([C, ' --local query "between(1, 400000, _), fail" >/dev/null 2>&1'], One),
+    sh_join([One, ' & ', One, ' & wait'], Two),
+    get_time(A0), shell(One, _, _), get_time(A1),
+    get_time(B0), shell(Two, _, _), get_time(B1),
+    Solo is A1 - A0, Pair is B1 - B0,
+    ( Solo > 0.0 -> R is Pair / Solo ; R = 99.0 ).
+
+%% A parallelism verdict, or a SKIP when the machine cannot show one. The
+%% check still runs wherever the box can overlap, so a real regression is
+%% still RED; only a machine that cannot answer the question is excused.
+parallel_check(Label, Got) :-
+    (   Got == parallel
+    ->  check(Label, Got, parallel)
+    ;   machine_overlaps
+    ->  check(Label, Got, parallel)
+    ;   format("     (skipped: ~w -- this machine does not overlap two processes)~n", [Label])
+    ).
+
 needs_cuda :-
     answer_text('query "use_module(library(torch)), torch_cuda_available(B), write(answer(B)), nl"', Cuda),
     (   Cuda == true
