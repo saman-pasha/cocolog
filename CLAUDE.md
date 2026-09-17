@@ -484,10 +484,12 @@ cause, and a decoded field cannot tell you what the row image can.**
 nothing between them. Both cursors, `cursor_walk` and the B-tree's output
 callback, release the streams guard around the callback UNCONDITIONALLY and
 redirect the window's reads to the thread's private stream only when
-`reader_eligible`, which answers 0 for a store with no reader paths AND 0 at
-REPEATABLE READ or SERIALIZABLE. `find_then_update` is both at once, so its
-callback reads rode the canonical stream with nothing held while seven other
-threads sought that same stream. A position moved between the seek and a
+`reader_eligible` (`mvccs-lib.cicili:793`), which answers 0 for a store with no
+reader paths OR at REPEATABLE READ or SERIALIZABLE -- **either one, not both**.
+`contention_test` sets reader paths like everybody else (`memory_reader_paths`,
+`contention-test.cpp:1118`), so what made `find_then_update` ineligible was its
+SERIALIZABLE claim ALONE; its callback reads rode the canonical stream with
+nothing held while seven other threads sought that same stream. A position moved between the seek and a
 string's length byte reads the tag and then whatever byte is now under the
 cursor, and `00` is what an empty length looks like -- which is the row image
 in the table above, put there by a WRITE whose `current` had unpacked empty.
@@ -497,12 +499,16 @@ parallel-read design as concurrent as it was, and exclusive only where there
 is no private stream to use, which is the case that raced. The guard is
 re-entrant per thread, so a caller already holding it pays nothing.
 
-**AND THAT IS WHY NO COCOLOG CASE EVER SAW IT.** cocolog and the server both
-call `memory_reader_paths`, and neither claims at SERIALIZABLE -- so
-`reader_eligible` answers 1 for them and every callback read already went to a
-private stream. The fault needs BOTH halves, and only `contention_test` has
-them. A scenario that reproduces nowhere else is not thereby a test-only
-defect; it is one whose two conditions nothing else happens to meet.
+**AND THAT IS WHY NO COCOLOG CASE EVER SAW IT: THE CONDITION IS THE ISOLATION
+LEVEL, AND NOTHING HERE CLAIMS AT ONE.** cocolog and the server read at READ
+COMMITTED, so `reader_eligible` answers 1 for them and every callback read
+already went to a private stream. (This file first said the fault needed BOTH
+halves -- no reader paths AND the level -- which is what `e8ada3f`'s commit
+message says and is wrong: `contention_test` calls `memory_reader_paths` in
+its own `main`. Taken on trust, checked later, corrected here; the fix and its
+mechanism are untouched, and the claim is NARROWER than the wrong one was.) A
+scenario that reproduces nowhere else is not thereby a test-only defect; it is
+one whose condition nothing else happens to meet.
 
 **MEASURED HERE, 80 RUNS A SIDE**, alternating, both arms built whole --
 library and test binary -- `2794635` against `e8ada3f`:
