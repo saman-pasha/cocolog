@@ -1707,14 +1707,81 @@ the first attempt made the extending write a `pwrite` (0.1.1). It was
 faster and kept the file's length exact at every instant, but it put
 CONTENT through a second path -- `write(2)` past the end, the mapping
 everywhere else -- and on Linux/ext4 a store written that way was
-**intermittently incomplete to the next process that opened it**: about
-30 % of first reads could not find `gc_w/3` though every row was there, and
-the open that failed repaired it. `test/gc.pl`'s "a second process reads
-every one of them back" is the case that caught it, and an interleaved
-20-run A/B swapping one `.so` is what pinned it (ZiguratIP#32). The
-mechanism was never established; the mixing was, and the rule that replaced
-it is narrower: one path writes the bytes, and the kernel is only ever asked
-to move the end.
+**intermittently unreadable to the next process that opened it**: about
+30 % of first reads could not find `gc_w/3` though every row was there.
+`test/gc.pl`'s "a second process reads every one of them back" is the case
+that caught it, and an interleaved 20-run A/B swapping one `.so` is what
+pinned it (ZiguratIP#32). The rule that replaced it is narrower and is a
+good rule -- one path writes the bytes, and the kernel is only ever asked
+to move the end. **It is not what was wrong**, and this file said it was.
+
+**THE MIXING WAS INNOCENT. IT IS THE VERSION CLOCK, AND THE TWO FASTER
+WRITES ONLY EXPOSED IT.** The chunked grow puts every byte back through the
+mapping and the fault SURVIVED it at the same rate -- nine of thirty first
+reads failed on a freshly built stack with nothing swapped -- which is what
+sent the diagnosis past StreamIO altogether. What decays is not on disk.
+Over 40 fresh stores, failing and passing alike, `data.bin` and
+`hexmap.bin` are the same length to the byte before and after the first
+read; two independent writes of one program differ only in 82 622 bytes at
+8 bytes every 64, which are the row STAMPS, with the hexmap identical; an
+unrelated older store read in the same wake of a writer is 25/25; and the
+first open writes to the store in EVERY run, the passing ones included, so
+it was never a repair. The store is whole and the reader cannot see it.
+
+**THE COMMIT STAMP IS IN THE FUTURE.** `version_time`
+(`MVCCS-cicili/mvccs-lib.cicili:231`) answers the wall clock, or
+`clock_last + 1` when two calls land in one microsecond -- and `clock_last`
+is PER-PROCESS and only ratchets, so a flush making more calls than it has
+microseconds pushes it past the wall clock, where nothing outside that
+process can see where it got to. `commit_transaction` takes ONE
+`version_time` for the whole transaction (`:1657`) and writes it into every
+committed row's `create_time` (`:1429`). **So the writer exits before the
+clock it stamped its own rows with.** A reader is a new process, its
+`clock_last` is 0, its snapshot is therefore the true wall clock, and
+`alive_at` (`:1753`) applies its own rule -- *born after this read began*
+-- to every row of that commit, the CATALOGUE row included. Which is why
+the symptom is `Unknown procedure: gc_w/3` rather than an empty answer, why
+a second process a few milliseconds later reads all of it, and why nothing
+is lost: the wall clock catches up.
+
+Measured against the wall clock read the instant the writer exited, on
+fresh `--embed` stores, beside the first read at three delays (8 stores a
+cell):
+
+| rows | commit stamp | d=0 | 5 ms | 20 ms |
+|---|---|---|---|---|
+| 500 | **-3.0 ms** | 8/8 | 8/8 | 8/8 |
+| 2 000 | +1.9 ms | 8/8 | 8/8 | 8/8 |
+| 8 000 | +10.4 ms | 7/8 | 8/8 | 8/8 |
+| 32 000 | **+25.6 ms** | **0/8** | 3/8 | 8/8 |
+
+-- the delay a store needs is the lead its own stamp carries. And the same
+binary, same engine, same clock code, only `libStreamIO.so` swapped, at
+32 000 rows:
+
+| libStreamIO | commit stamp |
+|---|---|
+| `3b50f88` ftruncate per write | **-16.5 ms** |
+| `c4a7e19` pwrite | +9.6 ms |
+| `f0ac1e2` chunked grow | +26.3 ms |
+
+The lead crosses zero exactly at the two commits that were suspected, in
+the order their failure rates ran (20/20, 15/20, 12/20). **Neither put a
+defect in.** Both made the flush fast enough for the same number of
+`version_time` calls to outrun the microseconds available to them -- which
+is also why slowing the CALLER changes nothing: 32 000 rows with a burn
+loop between the asserts takes 0.54 s to 8.33 s, sixteen times as long, and
+the lead does not move. The backend flushes a dirty predicate WHOLESALE, so
+the calls land in one burst whatever the program above is doing.
+
+**THE SHAPE TO WATCH FOR IS ONE PROCESS WRITING TENS OF THOUSANDS OF ROWS
+AND ANOTHER READING AT ONCE.** In the whole suite that is `test/gc.pl`'s
+"a second process reads every one of them back" and nothing else -- 46
+GREEN, 7 SKIP and that one RED on `f0ac1e2`. Any delay hides it, and so
+does any real work between the two, which is why it is invisible everywhere
+a person is driving and why a 500-row store never meets it at all. It is
+ZiguratIP#32 and the engine's to fix; three roads are proposed there, and
+seeding a process's clock from the store at open is the cheapest.
 
 The vacuum finding above is untouched by either fix; a writing process still
 rewrites the whole predicate, and `cocolog vacuum` is still what bounds it.
