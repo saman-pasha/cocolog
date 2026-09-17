@@ -1672,7 +1672,8 @@ function, under `seq_next`.
 
 Every page now also sits in the chain of the pages under ITS key. Measured
 again from cocolog 1.2.16 over a fresh `--embed`, one process, on macOS (the
-table above is Linux, so compare columns and not rows):
+table above is Linux, so compare columns and not rows). This is that fix
+alone; the paragraph after the table takes the same write further:
 
 | rows one process writes | before | after | µs a row after |
 |---|---|---|---|
@@ -1689,10 +1690,20 @@ into `--embed`. The engine guards it with a counter rather than a stopwatch
 (`mvccs_cursor_steps`): a draw may not step over more page entries than the
 store has pages.
 
-What is left is linear and by design: on macOS about two thirds of the
-remaining write is `ftruncate`, because the mapped store grows the file by
-exactly the bytes written -- the engine finds its end by the file's length.
-The vacuum finding above is untouched by any of this; a writing process still
+**AND THEN WHAT WAS LEFT, which was `ftruncate`** (ZiguratIP `c4a7e19`,
+0.1.1). Two thirds of the write that remained: a mapped page may not be
+touched past the file's end, so the store moved the end before every
+extending write, and on APFS that is a metadata transaction of ~115 µs --
+six of them for every fresh 8 KB page. The extending write is one `pwrite`
+now, which appends and extends in the same call, and the file is still
+exactly as long as what was written. 128 000 rows, three runs each on one
+machine: **9.22 s → 3.64 s**, so the whole journey for that write is 15 s to
+under four. It costs a little disk: a hexmap block appended by `pwrite` and
+later rewritten through the mapping is written by both paths and APFS keeps
+the first copy, which is bounded by the hexmap's own size (~6 % of a store)
+and comes back on any copy of the file.
+
+The vacuum finding above is untouched by either fix; a writing process still
 rewrites the whole predicate, and `cocolog vacuum` is still what bounds it.
 
 ## Concurrency: share nothing, copy the term

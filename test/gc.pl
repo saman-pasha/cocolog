@@ -30,9 +30,10 @@
 %%   and not the store on disk, which is the distinction that cost
 %%   cicili-lang a cache;
 %% * the write itself WAS quadratic in the rows one process writes, and is
-%%   linear since ZiguratIP f5d6dd2, so the two timed checks are CEILINGS:
-%%   only a regression past quadratic fails them, and the fix only made the
-%%   numbers smaller -- which is exactly what they were written for;
+%%   linear since ZiguratIP f5d6dd2 (and faster again since c4a7e19), so the
+%%   two timed checks are CEILINGS: only a regression past quadratic fails
+%%   them, and the fixes only made the numbers smaller -- which is exactly
+%%   what they were written for;
 %% * `statistics/2' answers the keys a program can act on and refuses the
 %%   rest by name.
 
@@ -193,13 +194,15 @@ wire :-
 %% can fail them, and they go on passing the day the quadratic is fixed,
 %% because a fix only makes the number smaller.
 %%
-%% THAT DAY CAME: ZiguratIP f5d6dd2. It was the store's page list, walked
-%% WHOLE on every sequence draw -- and every row written draws one -- so a
-%% draw cost O(pages) and the pages grow with the rows. A page sits in a
-%% chain of its own key's pages now, 128 000 rows went 15.0 s to 7.45 s
-%% here, and the cost a row is flat. THESE CEILINGS STAY EXACTLY AS THEY
-%% ARE: that is what a ceiling is for, and a case edited to accept an
-%% improvement is a case that argues against the next one.
+%% THAT DAY CAME, TWICE. ZiguratIP f5d6dd2: it was the store's page list,
+%% walked WHOLE on every sequence draw -- and every row written draws one --
+%% so a draw cost O(pages) and the pages grow with the rows; a page sits in
+%% a chain of its own key's pages now, and 128 000 rows went 15.0 s to
+%% 7.45 s here. Then c4a7e19 took the file's own growing with it: six
+%% ftruncates a page became one pwrite a write, 9.22 s to 3.64 s over three
+%% runs each. THESE CEILINGS STAY EXACTLY AS THEY ARE: that is what a
+%% ceiling is for, and a case edited to accept an improvement is a case that
+%% argues against the next one.
 
 %% a program that asserts N rows of gc_w/3
 rows_fixture(Dir, Name, N, File) :-
@@ -249,9 +252,9 @@ write_budget(D, Counter) :-
     has('and a second process reads every one of them back', 'n(32000)', Out2).
 
 %% THE SHAPE. Twice the rows cost 2.4 times the time when this was written,
-%% and 1.75 since f5d6dd2 made the write linear -- 8 000 rows 602 ms and
-%% 16 000 1 055 ms on the Mac, under the 2 a linear write would cost because
-%% a process's own startup is in both numbers. The bound at eight catches a
+%% and 1.6 since ZiguratIP f5d6dd2 and c4a7e19 -- 8 000 rows 404 ms and
+%% 16 000 641 ms on the Mac, under the 2 a linear write would cost because a
+%% process's own startup is in both numbers. The bound at eight catches a
 %% cost going past quadratic and nothing else.
 write_shape(D) :-
     atom_concat(D, '/s8', S8), atom_concat(D, '/s16', S16),
