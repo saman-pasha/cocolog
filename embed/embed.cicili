@@ -1154,6 +1154,21 @@
         (snprintf hexpath 512 "%s/hexmap.bin" dir)
         (snprintf datapath 512 "%s/data.bin" dir)
         (if (!= 0 (access datapath F_OK)) (set fresh 1))
+        ;; AND THE STORE'S BYTE ORDER IS THIS MACHINE'S, before a byte of it
+        ;; is parsed. A store is written in host order -- only the protocol
+        ;; is normalised -- so one carried from a machine of the other kind
+        ;; would open on its byte-array page keys and then read every int64
+        ;; reversed: stamps, ids, addresses. The engine marks a store on its
+        ;; first open and refuses a foreign one by name (ZiguratIP,
+        ;; store_order_check).
+        (let ((char order_err [512]))
+          (set (nth 0 order_err) (cast char 0))
+          (if (== 0 (store_order_check dir order_err 512))
+              (block
+                (if (and (!= err nil) (> errcap 0))
+                    (snprintf err errcap "%s" order_err))
+                (pthread_mutex_unlock (aof ce_open_access))
+                (return 0))))
         (let ((int ok . 1))
           (try
             (block
