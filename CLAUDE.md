@@ -437,16 +437,26 @@ that settles the attribution is 40 runs a side, alternating, both arms built
 whole — library *and* test binary — and it is **10 anomalies at `f0ac1e2`
 against 9 at `9712da6`**, which is no difference at all. So it PREDATES the
 page-list, the growth change and both clock commits, and none of them caused
-it. **The `claims` half is SOLVED since ZiguratIP `55896d9`**, and the cause
-and the fix are recorded below. On a build that carries the fix, a red
-contention run is the harness shape named in the next paragraph.
+it. **BOTH HALVES ARE SOLVED NOW** -- the `claims` shapes since ZiguratIP
+`55896d9` and the harness shape since `90b717a` (0.1.9) -- and the cause of
+each is recorded below. On a build that carries both, a red contention run is
+a finding again.
 
 Three shapes, and they are not one fault. `writer under readers: readers made
-progress` is **11 of the 19** and is almost certainly the HARNESS: the check is
-`reads > 0`, the readers loop `while (writing)`, and nothing stops the writer
-finishing its 120 commits before six reader threads are scheduled on four
-cores. A SIGSEGV or SIGABRT turns up 6 times in 144. **Re-run before you
-believe a red one**, and do not go looking in your own change first.
+progress` was **11 of the 19** and WAS the harness, proved and then fixed
+(ZiguratIP#36, latched in `4081120` and `90b717a`). The check is `reads > 0`,
+the readers looped `while (writing)`, and nothing made them start first:
+timestamped here, every reader thread reached the top of its body inside
+68-353 µs while the writer ran 65-147 ms, and on a red run all six finished
+`session()` AFTER the writer had set `writing = false` -- the earliest at
+94 799 µs against a writer done at 94 691. Green runs shaded into it
+continuously, `reads` of 2, 3, 4 and 5 being common, so it was a coin toss
+with a fat tail rather than a property. The fix counts readers ready AFTER
+`session()` and holds the writer until all of them are, with a `do`/`while`
+so "every reader reads at least once" is structural; FOUR scenarios had the
+shape, not the two this file first found. A SIGSEGV or SIGABRT turns up 6
+times in 144 and is not covered by any of it. **Re-run before you believe a
+red one**, and do not go looking in your own change first.
 
 **AND `claims: not one increment lost` IS A STRING COMING BACK EMPTY.** This
 file said it was "a value DECODE on the read path", which was the third of four
@@ -533,6 +543,85 @@ A fourth firing on the old arm retires the `0xFFFF` reading for good: the sum
 came back **`0xc57fa1440000020d`** where 535 was wanted, with 25 rounds lost
 as well. Arbitrary high bytes, not a fill -- which is what a read whose
 position moved produces, and what no decode of a well-formed value could.
+
+**AND THE SAME THREAD ASKED WHAT THAT GUARD COSTS. OPENING A TRANSACTION
+TAKES IT EXCLUSIVELY, AND UNDER CONTENTION IT IS FULL** (ZiguratIP#37,
+measured here on 0.1.10). `session()` is `begin_transaction` plus
+`engine_isolate`, and the second is free -- 1 µs at its worst over 120
+entries. The first is not, and timestamping its four regions says where:
+
+| region of `begin_transaction` | median | p90 | max | share |
+|---|---|---|---|---|
+| id generation + `transaction_register` | 4 µs | 11 µs | 169 µs | 0.0 % |
+| `transaction_reset` | 0 µs | 1 µs | 2 µs | 0.0 % |
+| **taking the `Streams` guard** | 2 117 µs | 67 543 µs | **90 655 µs** | **99.9 %** |
+| the writes under it | 13 µs | 19 µs | 41 µs | 0.1 % |
+
+It is `pthread_rwlock_wrlock` on `streams_rw`, and it is EXCLUSIVE whatever
+the caller's isolation: `begin_transaction` never sets `tl_want_shared`,
+correctly, because it writes a row. So a thread that only wants to READ must
+take a writer's lock to start.
+
+**THE GUARD IS ~95 % OCCUPIED EITHER WAY, AND ONLY THE FILLER INVERTS.**
+Four readers against one writer, 20 runs an arm:
+
+| | filebuf | mapped |
+|---|---|---|
+| writer held | 6.7 % | **87.3 %** |
+| four readers held | **91.0 %** | 6.1 % |
+| **exclusive occupancy** | **97.4 %** | **93.9 %** |
+| a reader's hold | 112.8 µs | 6.4 µs |
+| a writer's hold | 147.7 µs | 116.8 µs |
+
+Exclusive holds cannot overlap, so 100 % is a hard ceiling and both arms
+sitting under it is the arithmetic working. Mapped, the writer's wall
+improved **16.5x** while its own holds improved 1.26x -- what it stopped
+doing is WAITING, behind 32 264 reader acquisitions.
+
+**AND A READER'S SHARE IS THE INDEX LOOKUP, NOT THE TRANSACTION.** Splitting
+a reader's exclusive time three ways, and the parts sum to the thread total
+to the microsecond:
+
+| | filebuf | mapped |
+|---|---|---|
+| `begin_transaction` | 3.2 µs a call, **0.7 %** | 1.2 µs, 5.5 % |
+| **the `cursor_equal` window** | **223.2 µs an acquisition, TWO a lookup, 98.0 %** | 9.1 µs, 86.6 % |
+| `commit_transaction` | 5.7 µs a call, **1.3 %** | 1.7 µs, 7.9 % |
+
+So the 91 % above is the B-tree lookup taking the exclusive guard twice per
+`cursor_equal`. **The SHARED path costs 0.7-1.2 µs a hold**, three orders
+less -- which is also the measurement that says `e8ada3f`'s `read_row` guard
+cost nothing.
+
+**THREE HAZARDS FELL OUT, and the first is the one that will bite a
+measurement here:**
+
+* **`contention_test` OPENS ITS STORE AS A FILEBUF and the arrangements
+  cocolog runs are MAPPED.** `STORE_MAP=1` in the environment switches it
+  (`contention-test.cpp`'s `open_store`); the server opens mapped by
+  default and so does `embed/embed.cicili`. A number taken from the
+  gauntlet's default stream is not a number about `--embed` or the server,
+  and the two differ by more than an order of magnitude per hold.
+* **GUARD-HELD TIME IS NOT CALL DURATION**, and reading one as the other is
+  how this file nearly recorded the wrong cause. An empty `commit_transaction`
+  RUNS for 642 µs at a 4 KB page and 1 318 µs at 8 KB -- scaling 4x per 4x,
+  which is a hexmap walk and not a flush -- while HOLDING the guard for 5.7 µs.
+  Both are true. Ask which one a claim is about.
+* **`MVCCS_DEBUG=info|warn|debug sh MVCCS-cicili/build.sh` compiles the
+  engine's trace points in**, guard waits and holds among them, and an
+  ordinary build emits none of them. At `debug` it writes two lines per
+  acquisition, so a distribution taken there is of a build busy writing to
+  stderr; `warn` carries only what passed a millisecond. A thread-local
+  counter the harness reads back is what an unperturbed figure still needs.
+
+**THREE READINGS DIED HERE TOO**, and the pattern is the one worth keeping:
+that the 256 µs hold was `Streams::unlock`'s double flush (it scales with
+PAGE SIZE, so it is a walk, and the owner's series settled it); that mapping
+would dissolve the saturation (it raises it); and that a seventeenfold drop
+in begins counted was a throughput difference (it was the window -- the rate
+is 2 157 against 2 165 a second, within 0.4 %). Each died to a measurement
+that had been named as missing and then taken. **The count is what is
+suspicious: a raw total over an interval nobody recorded is not a rate.**
 
 **An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live
 SERVER store, and the old trees stay as orphan pages.** The server attaches
