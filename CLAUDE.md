@@ -501,11 +501,11 @@ contending writer, or a server old enough to predate the patch.
 `test/vacuum.pl` pins forget's contract: count, emptiness with
 declarations, idempotence.
 
-### Two findings about ZiguratIP, diagnosed and then APPLIED
+### Three findings about ZiguratIP, diagnosed and then APPLIED
 
-Both were first recorded here as proposals while ZiguratIP was frozen; the
+The first two were recorded here as proposals while ZiguratIP was frozen; the
 owner unfroze it and both landed (MVCCS-cicili/mvccs-lib.cicili and
-ziguratip/loadzigurat.cpp):
+ziguratip/loadzigurat.cpp). The third was measured here and diagnosed there:
 
 * **A vanished client's transaction rolls back with its connection.**
   `ConnectionScope`'s destructor — the one place stack unwinding guarantees
@@ -529,6 +529,15 @@ ziguratip/loadzigurat.cpp):
   against TRUNCATE. Measured: the same 3 227-clause whole-base forget went
   from 31s to **1.59s**. The engine's own gauntlet (consumer, contention,
   carryover, ageing) stays green.
+* **A writing process was quadratic in its own rows, and it was the PAGE
+  LIST.** Every row written draws a sequence value, a draw is a cursor over
+  the sequence's own key, and `cursor_walk` snapshotted a page list that was
+  one chain for the whole store — so a draw cost O(pages) and the pages grow
+  with the rows. A page now also sits in the chain of the pages under its own
+  key. 128 000 rows in one process: 15.0 s to **7.45 s** here, and the cost a
+  row is flat where it climbed. The measurement and the rest of the diagnosis
+  are in the store section below; the guard is a counter in `mvccs_test`, not
+  a stopwatch.
 
 ## Cicili, as it is actually written
 
@@ -1579,6 +1588,123 @@ a gap to be closed -- a process-wide total would need a lock on the one
 unguarded thing there -- it is a fact to know when a footprint and a reading
 disagree: count the threads first (`ps -M`), because 122 worker machines at
 128 MB each is 15 GB that no `statistics/2` call in the main thread can see.
+
+**THE COMPACTION IS THIS PROCESS'S ARRAY, AND NOT THE STORE ON DISK.** Worth
+saying outright, because a reader of the section above can take the two for
+one thing and cicili-lang's notes did: `garbage_collect/0` moves `store_used`
+and `store_cap`, which are the cell array THIS PROCESS holds, and it moves
+nothing an `--embed` directory or a server holds. Measured on 1.2.16, one
+writing process over a 20 000-row predicate, run with a forced compaction in
+it and without: the compaction ran (`compactions=1`) and trimmed the cap from
+2 097 152 to 1 288 752, and `data.bin` grew by **7 151 616 bytes either way,
+to the byte**. Two numbers, two questions, and only one of them is the disk.
+
+**A WRITING PROCESS REWRITES THE WHOLE PREDICATE, AND `cocolog vacuum` IS
+WHAT BOUNDS IT.** The Zigurat backend flushes a dirty predicate WHOLESALE, so
+one `assertz` costs a copy of every row that predicate already held -- 358 to
+369 bytes of new store per EXISTING row, measured at three sizes on a fresh
+`--embed`, while a read-only process costs **0**:
+
+| predicate rows | after the seed | one `assertz` adds | per existing row |
+|---|---|---|---|
+| 200 | 114 688 | 73 728 | 369 |
+| 2 000 | 753 664 | 720 896 | 360 |
+| 20 000 | 7 192 576 | 7 151 616 | 358 |
+
+The old rows stay dead, so every process pays it again and the store carries
+every generation. **A vacuum after the write takes all of that away, and the
+TIME with it** -- ten successive writing processes over that 20 000-row
+predicate:
+
+| build | no vacuum, s | no vacuum | vacuumed, s | vacuumed |
+|---|---|---|---|---|
+| 1 | 1.05 | 13 MB | 1.06 | 13 MB |
+| 5 | 1.82 | 40 MB | 0.89 | 13 MB |
+| 10 | **2.78** | **75 MB** | **0.87** | **13 MB** |
+
+-- the vacuum itself 0.36 s, every row kept. Without it each build is slower
+than the one before, which is the shape a slow suite has and is worth knowing
+before the engine is blamed. The file does not SHRINK below its high-water
+mark and does not need to: the space is reused, which is why the vacuumed
+column is flat rather than falling. (Reported from cicili-lang, which
+abandoned its C++ header cache over this -- `cicili++` runs `--local` and
+re-reads its headers every run -- having read the reclamation as impossible
+rather than as one command. The probe that made them stamp and restart the
+store is gone as 1.2.2 said: 300 distinct predicates, first call each, 0.096 s
+over an 11.5 MB store.)
+
+**AND ONE PROCESS'S WRITE WAS QUADRATIC IN THE ROWS IT WROTE, the wall no
+vacuum moved -- diagnosed and fixed in ZiguratIP since; what was measured
+first, and then what it was.** The assert loop is linear -- a flat 3.8 µs a
+clause from 1 000 to 16 000, 3.0 µs under `--local`. The commit was not:
+
+| rows one process writes | total | µs a row |
+|---|---|---|
+| 16 000 | 0.53 s | 33 |
+| 32 000 | 1.42 s | 44 |
+| 64 000 | 5.77 s | 90 |
+| 128 000 | **26.9 s** | 210 |
+
+Doubling the rows roughly quadruples the time, and **splitting them over more
+predicates does not help**: 128 predicates of 1 000 rows took 29.0 s against
+24.9 s for one predicate of 128 000, the cost merely moving out of the commit
+and into the loop. That made a process comfortable to about 30 000 rows --
+~1.3 s, and flat however the rows are split -- and expensive past 32 000, and
+it is almost certainly what a cicili-lang read of one C++ file over a fresh
+store was when it ran past five minutes.
+
+**IT WAS THE PAGE LIST, AND THE TWO FACTS ABOVE ARE WHAT FOUND IT**
+(ZiguratIP `f5d6dd2`, `MVCCS-cicili/mvccs-lib.cicili`). The obvious guess --
+that every row of a predicate shares the index key `(kb, name, arity)` and so
+one value chain -- is the one the split argued against, and the answer was a
+level below the index. **Every row written draws a SEQUENCE value, and a draw
+is a CURSOR**: over the sequence's own key, which owns one page holding one
+row. `cursor_walk` snapshots the page list under the lock, and that list was
+ONE chain for the whole store -- walk every entry to count them, allocate two
+arrays of that size, walk every entry again to filter, and all of it twice,
+because a second round is what proves no page appeared during the first. So a
+draw cost O(pages in the store), the store's pages grow with the rows, and the
+write came out quadratic in its own rows. Which is exactly why splitting over
+predicates did not help -- pages are one store's however the rows are named --
+and why no vacuum moved it: the pages a walk steps over are LIVE. A sampling
+profile of a 128 000-row write put 57 % of the process inside that one
+function, under `seq_next`.
+
+Every page now also sits in the chain of the pages under ITS key. Measured
+again from cocolog 1.2.16 over a fresh `--embed`, one process, on macOS (the
+table above is Linux, so compare columns and not rows). This is that fix
+alone; the paragraph after the table takes the same write further:
+
+| rows one process writes | before | after | µs a row after |
+|---|---|---|---|
+| 16 000 | 1.13 s | 0.97 s | 61 |
+| 32 000 | 2.15 s | 1.82 s | 57 |
+| 64 000 | 5.14 s | **3.69 s** | 58 |
+| 128 000 | 15.0 s | **7.45 s** | 58 |
+
+-- a doubling costs twice now where it cost nearly three times, the cost a row
+is flat, and the ceiling at ~30 000 rows is gone. **A build gets it by
+rebuilding against an updated ZiguratIP checkout**: the engine is compiled
+into `cocolog` itself, so `make` with `ZIGURATIP` set is what carries the fix
+into `--embed`. The engine guards it with a counter rather than a stopwatch
+(`mvccs_cursor_steps`): a draw may not step over more page entries than the
+store has pages.
+
+**AND THEN WHAT WAS LEFT, which was `ftruncate`** (ZiguratIP `c4a7e19`,
+0.1.1). Two thirds of the write that remained: a mapped page may not be
+touched past the file's end, so the store moved the end before every
+extending write, and on APFS that is a metadata transaction of ~115 µs --
+six of them for every fresh 8 KB page. The extending write is one `pwrite`
+now, which appends and extends in the same call, and the file is still
+exactly as long as what was written. 128 000 rows, three runs each on one
+machine: **9.22 s → 3.64 s**, so the whole journey for that write is 15 s to
+under four. It costs a little disk: a hexmap block appended by `pwrite` and
+later rewritten through the mapping is written by both paths and APFS keeps
+the first copy, which is bounded by the hexmap's own size (~6 % of a store)
+and comes back on any copy of the file.
+
+The vacuum finding above is untouched by either fix; a writing process still
+rewrites the whole predicate, and `cocolog vacuum` is still what bounds it.
 
 ## Concurrency: share nothing, copy the term
 

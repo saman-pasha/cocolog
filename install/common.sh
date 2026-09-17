@@ -37,8 +37,17 @@ die()  { printf 'INSTALL RED: %s\n' "$*" >&2; exit 1; }
 # about a checkout that had built nothing at all. An afternoon, for want of
 # this. Refused rather than overridden: an inherited home may be somebody's
 # deliberate arrangement, and quietly ignoring it would be its own surprise.
-zig_real=$(cd "$ZIGURATIP" 2>/dev/null && pwd -P); [ -n "$zig_real" ] || zig_real=$ZIGURATIP
-home_real=$(cd "$ZIGURATIP_HOME" 2>/dev/null && pwd -P); [ -n "$home_real" ] || home_real=$ZIGURATIP_HOME
+#
+# `|| :' ON BOTH, because a plain assignment takes the exit status of its
+# command substitution, and `set -e' then kills the script before the
+# fallback on the same line can run. Where $ZIGURATIP is not cloned yet --
+# the fresh box this installer exists for, since `checkouts' below is what
+# clones it -- the `cd' failed and dash exited 2 WITH NO OUTPUT AT ALL: no
+# step line, no INSTALL RED, nothing for a reader to go on. The fallback was
+# written for exactly that case and never ran, because the assignment IS the
+# failing command.
+zig_real=$(cd "$ZIGURATIP" 2>/dev/null && pwd -P) || :; [ -n "$zig_real" ] || zig_real=$ZIGURATIP
+home_real=$(cd "$ZIGURATIP_HOME" 2>/dev/null && pwd -P) || :; [ -n "$home_real" ] || home_real=$ZIGURATIP_HOME
 if [ "$home_real" != "$zig_real/home" ]; then
   printf 'INSTALL RED: ZIGURATIP and ZIGURATIP_HOME name different trees\n' >&2
   printf '   ZIGURATIP      = %s\n' "$ZIGURATIP" >&2
