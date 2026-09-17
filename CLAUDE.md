@@ -443,13 +443,38 @@ Three shapes, and they are not one fault. `writer under readers: readers made
 progress` is **11 of the 19** and is almost certainly the HARNESS: the check is
 `reads > 0`, the readers loop `while (writing)`, and nothing stops the writer
 finishing its 120 commits before six reader threads are scheduled on four
-cores. A SIGSEGV or SIGABRT turns up 6 times in 144. And `claims: not one
-increment lost` is the real one — it printed `got -281474976710106` twice and
-identically, which is **`0xFFFF000000000226`**: low 48 bits 550, top 16 bits
-all ones. A row's `WEIGHT` came out of a cursor carrying a tag or a pointer in
-its high bits, so that is a value DECODE on the read path and not a lost write.
-ZiguratIP#33 has the tables. **Re-run before you believe a red one**, and do
-not go looking in your own change first.
+cores. A SIGSEGV or SIGABRT turns up 6 times in 144. **Re-run before you
+believe a red one**, and do not go looking in your own change first.
+
+**AND `claims: not one increment lost` IS A STRING COMING BACK EMPTY.** This
+file said it was "a value DECODE on the read path", which was the third of four
+wrong readings and is corrected here. The symptom is a sum short by ten or
+twenty, sometimes with an `0xFFFF` fill in the top bytes. Dumping the 80-byte
+row image straight off the store's data file settles it, and both firings were
+byte for byte the same:
+
+| | a good row | the bad one |
+|---|---|---|
+| id | `0c` + `02…` = 2 | `0c` + `01…` = **1, intact** |
+| kind | `29` + len `06` + `washer` | `29` + len **`00`** + nothing |
+| weight | `0c` + `2d…` = 45 | `0c` + `19…` = 25 |
+
+`id 1`'s kind should be `nut`, three characters, and the length byte on disk is
+ZERO -- so the row image is three bytes SHORT and every field after the string
+sits three bytes early. The "lost increment" is a weight read out of a shifted
+slot. It never heals because the scenario's update copies the kind from the row
+it just read, so one empty read makes every later write empty too.
+
+**FOUR READINGS DIED ON THE WAY AND EACH COST A PROBE**, which is the part
+worth keeping: that it was a regression (the A/B says no -- 10 anomalies at
+`f0ac1e2` against 9 at `9712da6`, every shape on both arms); that the scan
+missed a newer version (`row_latest` walks 0 hops and the unique index returns
+the same bytes); that the row was an earlier generation of itself (the value is
+25 whichever row is bad, and two rows cannot reach one number by different
+arithmetic); and that `0xFFFF` was the fingerprint (present in one firing,
+absent from the next with the payload otherwise identical -- stale content past
+the shortened image). ZiguratIP#33 carries the dumps. **A fingerprint is not a
+cause, and a decoded field cannot tell you what the row image can.**
 
 **An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live
 SERVER store, and the old trees stay as orphan pages.** The server attaches
@@ -480,6 +505,38 @@ over `(kb, name)` a name at two arities walked the other arity's rows:
 `shared/2` beside 20 000 `shared/1` cost 21.3 ms on its first call and costs
 0.027 ms, and a store from before the change rebuilt the three-level tree at
 its first open.
+
+**A STORE IS IN THE WRITING MACHINE'S BYTE ORDER, AND IT DOES NOT TRAVEL**
+(ZiguratIP 0.1.6, cocolog `36fde5e`). The store's streams are `hbostream` --
+HOST order, a raw eight-byte read with no swap -- while the PROTOCOL is
+`nbostream` and normalised. So the wire crosses an endian boundary and the
+file does not, and the reason it needed saying is that a foreign store
+**opens**: the page list is built from twenty-byte hash keys, which are byte
+arrays and read the same everywhere. It is every `int64` after that -- stamps,
+ids, addresses -- which comes back reversed, and the first thing the process
+does is write more of it. That is not an error, it is nonsense.
+
+A store therefore keeps a mark beside it, `byteorder.bin`, eight bytes holding
+`0x0123456789ABCDEF` written in host order; `ce_engine_open` reads it through
+`store_order_check` BEFORE `memory_open`, and a refusal arrives on the path a
+missing store already used. A fresh store marks itself, and an existing
+unmarked one is stamped at its next open with the opening machine's order --
+a guess, and the engine's README says so, because nothing can know where bytes
+written before the mark came from. Exercised here on all four paths:
+
+| the mark | what happens |
+|---|---|
+| absent | written, store opens |
+| this machine's | opens |
+| the magic **reversed** | refused: *written on a machine of the OTHER byte order* |
+| neither, e.g. `0xAA…` | refused: *the file is damaged* |
+| shorter than 8 bytes | refused: *the store cannot be judged either way* |
+
+-- and restoring the mark opens the same store again with every row in it, so
+the check reads and does not repair. **A refusal EXITS 1 with an empty stdout
+and the reason on stderr**, exactly as a store directory that does not exist
+does, which is the property a script needs -- and the same one the silent Zeytun
+fetch in the `--https` section below failed to have.
 
 **`make schema` COPIES THE EMITTED TABLES INTO `$ZIGURATIP/MVCCS-cicili/generated/`**,
 which used to be a step done by hand and then forgotten: parsi writes each
