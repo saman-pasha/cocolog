@@ -27,8 +27,11 @@ ln -sfn "$ZIGURATIP/home/lib"                      "$HERE/ziglib"
 # and MVCCS-cicili/README.md says which level answers which question.
 #
 #   MVCCS_DEBUG=info  make        every store open and commit, on stderr
-#   MVCCS_DEBUG=warn  make        and the rare paths
-#   MVCCS_DEBUG=debug make        and every read, window and clock value
+#   MVCCS_DEBUG=warn  make        and the rare paths, and any streams guard
+#                                 waited for or held over a millisecond
+#   MVCCS_DEBUG=debug make        and every read, window, clock value and
+#                                 guard acquisition -- loud enough that the
+#                                 times it reports are its own build's
 #
 # stderr, not stdout: cocolog's answers are on stdout and the suite parses
 # them, so a trace that shared the channel would break what it came to debug.
