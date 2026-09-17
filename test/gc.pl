@@ -30,7 +30,7 @@
 %%   and not the store on disk, which is the distinction that cost
 %%   cicili-lang a cache;
 %% * the write itself WAS quadratic in the rows one process writes, and is
-%%   linear since ZiguratIP f5d6dd2 (and faster again since c4a7e19), so the
+%%   linear since ZiguratIP f5d6dd2 (and faster again since 0.1.2), so the
 %%   two timed checks are CEILINGS: only a regression past quadratic fails
 %%   them, and the fixes only made the numbers smaller -- which is exactly
 %%   what they were written for;
@@ -198,11 +198,20 @@ wire :-
 %% walked WHOLE on every sequence draw -- and every row written draws one --
 %% so a draw cost O(pages) and the pages grow with the rows; a page sits in
 %% a chain of its own key's pages now, and 128 000 rows went 15.0 s to
-%% 7.45 s here. Then c4a7e19 took the file's own growing with it: six
-%% ftruncates a page became one pwrite a write, 9.22 s to 3.64 s over three
-%% runs each. THESE CEILINGS STAY EXACTLY AS THEY ARE: that is what a
-%% ceiling is for, and a case edited to accept an improvement is a case that
-%% argues against the next one.
+%% 7.45 s here. Then the file's own growing went with it: six ftruncates a
+%% page became one a megabyte, 9.22 s to 3.26 s over three runs each.
+%% THESE CEILINGS STAY EXACTLY AS THEY ARE: that is what a ceiling is for,
+%% and a case edited to accept an improvement is a case that argues against
+%% the next one.
+%%
+%% AND THE OTHER CHECK IN THIS SECTION EARNED ITS KEEP over the same work.
+%% The first shape of that second fix (ZiguratIP 0.1.1) made the extending
+%% write a pwrite, which put content through a second path -- and a store
+%% written that way was intermittently incomplete to the NEXT PROCESS on
+%% Linux/ext4: ~30% of first reads could not find gc_w/3 though every row
+%% was there. "a second process reads every one of them back" is what went
+%% red, and it is red for the right reason: a write that finished and cannot
+%% be read back by somebody else has not finished. ZiguratIP#32.
 
 %% a program that asserts N rows of gc_w/3
 rows_fixture(Dir, Name, N, File) :-
@@ -252,7 +261,7 @@ write_budget(D, Counter) :-
     has('and a second process reads every one of them back', 'n(32000)', Out2).
 
 %% THE SHAPE. Twice the rows cost 2.4 times the time when this was written,
-%% and 1.6 since ZiguratIP f5d6dd2 and c4a7e19 -- 8 000 rows 404 ms and
+%% and 1.6 since ZiguratIP f5d6dd2 and 0.1.2 -- 8 000 rows 404 ms and
 %% 16 000 641 ms on the Mac, under the 2 a linear write would cost because a
 %% process's own startup is in both numbers. The bound at eight catches a
 %% cost going past quadratic and nothing else.

@@ -1691,17 +1691,30 @@ into `--embed`. The engine guards it with a counter rather than a stopwatch
 store has pages.
 
 **AND THEN WHAT WAS LEFT, which was `ftruncate`** (ZiguratIP `c4a7e19`,
-0.1.1). Two thirds of the write that remained: a mapped page may not be
+then 0.1.2). Two thirds of the write that remained: a mapped page may not be
 touched past the file's end, so the store moved the end before every
-extending write, and on APFS that is a metadata transaction of ~115 µs --
-six of them for every fresh 8 KB page. The extending write is one `pwrite`
-now, which appends and extends in the same call, and the file is still
-exactly as long as what was written. 128 000 rows, three runs each on one
-machine: **9.22 s → 3.64 s**, so the whole journey for that write is 15 s to
-under four. It costs a little disk: a hexmap block appended by `pwrite` and
-later rewritten through the mapping is written by both paths and APFS keeps
-the first copy, which is bounded by the hexmap's own size (~6 % of a store)
-and comes back on any copy of the file.
+extending write, and that is a metadata transaction -- ~115 µs on APFS, 23
+on ext4 -- six of them for every fresh 8 KB page. The store grows a
+**megabyte at a time** now and cuts the file back to what was written at
+every sync and at close, so the length anybody can observe is still the
+exact one. 128 000 rows, three runs each: **9.22 s → 3.26 s** here, and
+26.9 s → 2.2 s on the Linux box with the page-list fix above -- 12× for that
+write, and ~17 µs a row where it was 210.
+
+**AND ONE THING THIS COST BEFORE IT SETTLED**, which is worth knowing
+because it is the shape of a bug a suite can catch and a benchmark cannot:
+the first attempt made the extending write a `pwrite` (0.1.1). It was
+faster and kept the file's length exact at every instant, but it put
+CONTENT through a second path -- `write(2)` past the end, the mapping
+everywhere else -- and on Linux/ext4 a store written that way was
+**intermittently incomplete to the next process that opened it**: about
+30 % of first reads could not find `gc_w/3` though every row was there, and
+the open that failed repaired it. `test/gc.pl`'s "a second process reads
+every one of them back" is the case that caught it, and an interleaved
+20-run A/B swapping one `.so` is what pinned it (ZiguratIP#32). The
+mechanism was never established; the mixing was, and the rule that replaced
+it is narrower: one path writes the bytes, and the kernel is only ever asked
+to move the end.
 
 The vacuum finding above is untouched by either fix; a writing process still
 rewrites the whole predicate, and `cocolog vacuum` is still what bounds it.
