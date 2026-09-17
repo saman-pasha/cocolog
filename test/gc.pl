@@ -24,6 +24,14 @@
 %% * under `--embed' what was written through reads back from a second
 %%   process after one, and so does a retract; the same on the wire, when
 %%   there is a server;
+%% * a writing process REWRITES the whole predicate it touches, so an
+%%   unvacuumed store grows with every one of them and a vacuumed one does
+%%   not grow at all -- and the compaction above is this process's array
+%%   and not the store on disk, which is the distinction that cost
+%%   cicili-lang a cache;
+%% * the write itself is quadratic in the rows one process writes, so the
+%%   two timed checks are CEILINGS: only a regression past quadratic fails
+%%   them, and a fix only makes the number smaller;
 %% * `statistics/2' answers the keys a program can act on and refuses the
 %%   rest by name.
 
@@ -37,6 +45,7 @@ main :-
     holders,
     embedded,
     wire,
+    writes,
     keys,
     checks_done.
 
@@ -164,6 +173,140 @@ wire :-
         cocolog_run(Forget, _, _)
     ;   format("     (skipped: no Zigurat server at ~w:~w)~n", [Host, Port])
     ).
+
+%% ---- what a writing process costs, and what a vacuum takes back --------
+
+%% THE COMPACTION EVERYWHERE ABOVE IS THIS PROCESS'S CELL ARRAY, NOT THE
+%% STORE ON DISK -- a distinction cicili-lang lost, and gave up a C++ header
+%% cache over what one command takes back. The Zigurat backend flushes a
+%% dirty predicate WHOLESALE, so one assertz copies every row that predicate
+%% already held (~360 bytes of new store per EXISTING row) and the old rows
+%% stay dead: every process pays it again, an unvacuumed store grows without
+%% bound, and each build is slower than the one before.
+%%
+%% What no vacuum takes back is the write ITSELF, which is quadratic in the
+%% rows one process writes -- 16 000 rows 0.53 s and 128 000 26.9 s on the
+%% Linux box, and splitting them over more predicates does not help
+%% (CLAUDE.md has the tables). So the two timed checks are CEILINGS and not
+%% targets, test/engine.pl's shape: loose enough that only a real regression
+%% can fail them, and they go on passing the day the quadratic is fixed,
+%% because a fix only makes the number smaller.
+
+%% a program that asserts N rows of gc_w/3
+rows_fixture(Dir, Name, N, File) :-
+    atom_concat(Dir, Name, File),
+    format(atom(Body),
+           'main :- forall(between(1, ~w, I), assertz(gc_w(I, I, payload))), write(wrote), nl.',
+           [N]),
+    fixture(File, [':- dynamic gc_w/3.', Body]).
+
+%% the bytes an --embed store is holding, 0 before it exists
+store_bytes(Store, Bytes) :-
+    atom_concat(Store, '/data.bin', F),
+    ( catch(size_file(F, B), _, fail) -> Bytes = B ; Bytes = 0 ).
+
+%% a child writing into Store, and the milliseconds the whole process took
+write_run(Store, File, Ms, Last) :-
+    sh_join(['--embed ', Store, ' -s ', File, ' 2>/dev/null'], Args),
+    get_time(T0), cocolog_run(Args, Last, _, 180000), get_time(T1),
+    Ms is round((T1 - T0) * 1000).
+
+vacuum_store(Store) :-
+    sh_join(['--embed ', Store, ' vacuum >/dev/null 2>&1'], Args),
+    cocolog_run(Args, _, _, 180000).
+
+writes :-
+    section('what a writing process costs, and what a vacuum takes back'),
+    scratch(Dw),
+    atom_concat(Dw, '/count.pl', Counter),
+    fixture(Counter, ['main :- findall(X, gc_w(X, _, _), L), length(L, N), write(n(N)), nl.']),
+    write_budget(Dw, Counter),
+    write_shape(Dw),
+    vacuum_bounds(Dw, Counter),
+    compaction_is_not_the_disk(Dw),
+    atom_concat('rm -rf ', Dw, Rm), shell(Rm, _, _).
+
+%% THE BUDGET. 32 000 rows took 1.4 s measured; three minutes is a margin
+%% only a regression of a different order can spend. The second process is
+%% the other half: a write that finished and lost rows passes a stopwatch.
+write_budget(D, Counter) :-
+    atom_concat(D, '/big', Store),
+    rows_fixture(D, '/rows32k.pl', 32000, F1),
+    write_run(Store, F1, Ms1, Last1),
+    format("     32 000 rows written in ~wms~n", [Ms1]),
+    has('32 000 rows write at all, inside three minutes', wrote, Last1),
+    sh_join(['--embed ', Store, ' -s ', Counter, ' 2>/dev/null'], A2),
+    cocolog_run(A2, Out2, _, 180000),
+    has('and a second process reads every one of them back', 'n(32000)', Out2).
+
+%% THE SHAPE. Twice the rows cost 2.4 times the time when this was written,
+%% and linear would be 2: the bound at eight catches a cost going past
+%% quadratic and nothing else.
+write_shape(D) :-
+    atom_concat(D, '/s8', S8), atom_concat(D, '/s16', S16),
+    rows_fixture(D, '/rows8k.pl', 8000, F8),
+    rows_fixture(D, '/rows16k.pl', 16000, F16),
+    write_run(S8, F8, Ms8, _), write_run(S16, F16, Ms16, _),
+    format("     8 000 rows in ~wms, 16 000 in ~wms~n", [Ms8, Ms16]),
+    (   Ms8 > 0, Ms16 < Ms8 * 8
+    ->  Shape3 = 'inside the ceiling'
+    ;   Shape3 = past_quadratic(Ms8, Ms16) ),
+    check('twice the rows costs well under eight times the time', Shape3,
+          'inside the ceiling').
+
+%% THE VACUUM, which is the whole of the growth. Two stores seeded alike and
+%% written by the same processes, one vacuumed after each: the unvacuumed one
+%% grows every time and the vacuumed one does not grow at all. Its file does
+%% not SHRINK below its high-water mark and does not need to -- the space is
+%% reused, which is what `does not grow' is measuring.
+vacuum_bounds(D, Counter) :-
+    atom_concat(D, '/plain', SP), atom_concat(D, '/vac', SV),
+    rows_fixture(D, '/rows2k.pl', 2000, FS),
+    atom_concat(D, '/one.pl', F1),
+    fixture(F1, [':- dynamic gc_w/3.',
+                 'main :- assertz(gc_w(999999, 1, payload)), write(wrote), nl.']),
+    write_run(SP, FS, _, _), write_run(SV, FS, _, _),
+    write_run(SP, F1, _, _),
+    write_run(SV, F1, _, _), vacuum_store(SV),
+    store_bytes(SP, P4), store_bytes(SV, V4),
+    forall(between(1, 2, _), write_run(SP, F1, _, _)),
+    forall(between(1, 2, _), ( write_run(SV, F1, _, _), vacuum_store(SV) )),
+    store_bytes(SP, P5), store_bytes(SV, V5),
+    format("     two more writers: unvacuumed ~w -> ~w bytes, vacuumed ~w -> ~w~n",
+           [P4, P5, V4, V5]),
+    ( P5 > P4 -> Grew5 = grew ; Grew5 = did_not(P4, P5) ),
+    check('an unvacuumed store grows with every writing process', Grew5, grew),
+    ( V5 =< V4 -> Flat5 = flat ; Flat5 = grew_to(V4, V5) ),
+    check('and a vacuumed one does not grow at all', Flat5, flat),
+    sh_join(['--embed ', SV, ' -s ', Counter, ' 2>/dev/null'], A6),
+    cocolog_run(A6, Out6, _, 180000),
+    has('with every row still in it', 'n(2003)', Out6).
+
+%% AND THE DISTINCTION ITSELF. garbage_collect/0 moves store_used and
+%% store_cap, which this process holds; it moves nothing the disk holds.
+%% Pinned as `no more', never as equality: a later compaction that DID
+%% reclaim on disk would be an improvement, and a case that failed on it
+%% would be wrong.
+compaction_is_not_the_disk(D) :-
+    atom_concat(D, '/nogc', SN), atom_concat(D, '/withgc', SG),
+    rows_fixture(D, '/rows2kb.pl', 2000, FS),
+    atom_concat(D, '/plainone.pl', FP),
+    fixture(FP, [':- dynamic gc_w/3.',
+                 'main :- assertz(gc_w(42, 1, payload)), write(wrote), nl.']),
+    atom_concat(D, '/gcone.pl', FG),
+    fixture(FG, [':- dynamic gc_w/3.',
+                 'main :- assertz(gc_w(42, 1, payload)), garbage_collect, statistics(compactions, K), write(k(K)), nl.']),
+    write_run(SN, FS, _, _), write_run(SG, FS, _, _),
+    store_bytes(SN, N7), store_bytes(SG, G7),
+    write_run(SN, FP, _, _), write_run(SG, FG, _, Last7),
+    store_bytes(SN, N8), store_bytes(SG, G8),
+    DN is N8 - N7, DG is G8 - G7,
+    format("     one writer adds ~w bytes, the same writer with a compaction in it ~w~n",
+           [DN, DG]),
+    has('the compaction really ran', 'k(1)', Last7),
+    ( DN > 0, DG =< DN -> Disk7 = 'no more than without it' ; Disk7 = wrote(DN, DG) ),
+    check('a forced compaction adds nothing to what the store on disk holds',
+          Disk7, 'no more than without it').
 
 %% ---- statistics/2 --------------------------------------------------------
 
