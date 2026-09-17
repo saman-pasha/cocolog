@@ -602,11 +602,21 @@ measurement here:**
   default and so does `embed/embed.cicili`. A number taken from the
   gauntlet's default stream is not a number about `--embed` or the server,
   and the two differ by more than an order of magnitude per hold.
-* **GUARD-HELD TIME IS NOT CALL DURATION**, and reading one as the other is
-  how this file nearly recorded the wrong cause. An empty `commit_transaction`
-  RUNS for 642 µs at a 4 KB page and 1 318 µs at 8 KB -- scaling 4x per 4x,
-  which is a hexmap walk and not a flush -- while HOLDING the guard for 5.7 µs.
-  Both are true. Ask which one a claim is about.
+* **GUARD-HELD TIME IS NOT CALL DURATION** -- but that was the WRONG reading
+  of the numbers this file first put here, and the right one matters more.
+  An empty `commit_transaction` holds the guard for **5.7 µs on ext4** and
+  **1 332 µs on APFS**, and the second is 99.4 % of a 1 340 µs call: the
+  coalescing walk is INSIDE the guard on both, `free_pointer` being the first
+  statement in the `letin*`. The gap is the PLATFORM. It is the same 512-byte
+  hexmap walk at an 8 KB page either side, and one `seekg` + `read_std_ubyte`
+  costs **~2.6 µs a byte on APFS**, where the filebuf reloads its get area on
+  the seek, against **~0.011 µs on ext4**, where it never leaves the process
+  -- the same asymmetry an `ftruncate` showed at ~700 µs against 23. So a
+  claim about the free's cost is a claim about a FILESYSTEM: making it
+  cheaper buys almost nothing here and almost everything on a Mac, and this
+  project is developed on both. (What is left of the original lesson: a call
+  duration and a guard-held time answer different questions, so ask which one
+  a number is -- just do not reach for it to explain a gap that is a box.)
 * **`MVCCS_DEBUG=info|warn|debug sh MVCCS-cicili/build.sh` compiles the
   engine's trace points in**, guard waits and holds among them, and an
   ordinary build emits none of them. At `debug` it writes two lines per
