@@ -501,11 +501,11 @@ contending writer, or a server old enough to predate the patch.
 `test/vacuum.pl` pins forget's contract: count, emptiness with
 declarations, idempotence.
 
-### Two findings about ZiguratIP, diagnosed and then APPLIED
+### Three findings about ZiguratIP, diagnosed and then APPLIED
 
-Both were first recorded here as proposals while ZiguratIP was frozen; the
+The first two were recorded here as proposals while ZiguratIP was frozen; the
 owner unfroze it and both landed (MVCCS-cicili/mvccs-lib.cicili and
-ziguratip/loadzigurat.cpp):
+ziguratip/loadzigurat.cpp). The third was measured here and diagnosed there:
 
 * **A vanished client's transaction rolls back with its connection.**
   `ConnectionScope`'s destructor — the one place stack unwinding guarantees
@@ -529,6 +529,15 @@ ziguratip/loadzigurat.cpp):
   against TRUNCATE. Measured: the same 3 227-clause whole-base forget went
   from 31s to **1.59s**. The engine's own gauntlet (consumer, contention,
   carryover, ageing) stays green.
+* **A writing process was quadratic in its own rows, and it was the PAGE
+  LIST.** Every row written draws a sequence value, a draw is a cursor over
+  the sequence's own key, and `cursor_walk` snapshotted a page list that was
+  one chain for the whole store — so a draw cost O(pages) and the pages grow
+  with the rows. A page now also sits in the chain of the pages under its own
+  key. 128 000 rows in one process: 15.0 s to **7.45 s** here, and the cost a
+  row is flat where it climbed. The measurement and the rest of the diagnosis
+  are in the store section below; the guard is a counter in `mvccs_test`, not
+  a stopwatch.
 
 ## Cicili, as it is actually written
 
@@ -1624,9 +1633,10 @@ rather than as one command. The probe that made them stamp and restart the
 store is gone as 1.2.2 said: 300 distinct predicates, first call each, 0.096 s
 over an 11.5 MB store.)
 
-**AND ONE PROCESS'S WRITE IS QUADRATIC IN THE ROWS IT WRITES, which is the
-wall a vacuum does NOT move.** The assert loop is linear -- a flat 3.8 µs a
-clause from 1 000 to 16 000, 3.0 µs under `--local`. The commit is not:
+**AND ONE PROCESS'S WRITE WAS QUADRATIC IN THE ROWS IT WROTE, the wall no
+vacuum moved -- diagnosed and fixed in ZiguratIP since; what was measured
+first, and then what it was.** The assert loop is linear -- a flat 3.8 µs a
+clause from 1 000 to 16 000, 3.0 µs under `--local`. The commit was not:
 
 | rows one process writes | total | µs a row |
 |---|---|---|
@@ -1638,14 +1648,52 @@ clause from 1 000 to 16 000, 3.0 µs under `--local`. The commit is not:
 Doubling the rows roughly quadruples the time, and **splitting them over more
 predicates does not help**: 128 predicates of 1 000 rows took 29.0 s against
 24.9 s for one predicate of 128 000, the cost merely moving out of the commit
-and into the loop. So a process is comfortable to about 30 000 rows -- ~1.3 s,
-and flat however the rows are split -- and expensive past 32 000. This is
-almost certainly what a cicili-lang read of one C++ file over a fresh store
-was when it ran past five minutes, and it is the one of their two walls still
-standing. NOT DIAGNOSED FURTHER, and the obvious guess is the one the split
-argues against: every row of a predicate shares the index key `(kb, name,
-arity)` and so one value chain, but separate predicates are separate keys and
-cost the same.
+and into the loop. That made a process comfortable to about 30 000 rows --
+~1.3 s, and flat however the rows are split -- and expensive past 32 000, and
+it is almost certainly what a cicili-lang read of one C++ file over a fresh
+store was when it ran past five minutes.
+
+**IT WAS THE PAGE LIST, AND THE TWO FACTS ABOVE ARE WHAT FOUND IT**
+(ZiguratIP `f5d6dd2`, `MVCCS-cicili/mvccs-lib.cicili`). The obvious guess --
+that every row of a predicate shares the index key `(kb, name, arity)` and so
+one value chain -- is the one the split argued against, and the answer was a
+level below the index. **Every row written draws a SEQUENCE value, and a draw
+is a CURSOR**: over the sequence's own key, which owns one page holding one
+row. `cursor_walk` snapshots the page list under the lock, and that list was
+ONE chain for the whole store -- walk every entry to count them, allocate two
+arrays of that size, walk every entry again to filter, and all of it twice,
+because a second round is what proves no page appeared during the first. So a
+draw cost O(pages in the store), the store's pages grow with the rows, and the
+write came out quadratic in its own rows. Which is exactly why splitting over
+predicates did not help -- pages are one store's however the rows are named --
+and why no vacuum moved it: the pages a walk steps over are LIVE. A sampling
+profile of a 128 000-row write put 57 % of the process inside that one
+function, under `seq_next`.
+
+Every page now also sits in the chain of the pages under ITS key. Measured
+again from cocolog 1.2.16 over a fresh `--embed`, one process, on macOS (the
+table above is Linux, so compare columns and not rows):
+
+| rows one process writes | before | after | µs a row after |
+|---|---|---|---|
+| 16 000 | 1.13 s | 0.97 s | 61 |
+| 32 000 | 2.15 s | 1.82 s | 57 |
+| 64 000 | 5.14 s | **3.69 s** | 58 |
+| 128 000 | 15.0 s | **7.45 s** | 58 |
+
+-- a doubling costs twice now where it cost nearly three times, the cost a row
+is flat, and the ceiling at ~30 000 rows is gone. **A build gets it by
+rebuilding against an updated ZiguratIP checkout**: the engine is compiled
+into `cocolog` itself, so `make` with `ZIGURATIP` set is what carries the fix
+into `--embed`. The engine guards it with a counter rather than a stopwatch
+(`mvccs_cursor_steps`): a draw may not step over more page entries than the
+store has pages.
+
+What is left is linear and by design: on macOS about two thirds of the
+remaining write is `ftruncate`, because the mapped store grows the file by
+exactly the bytes written -- the engine finds its end by the file's length.
+The vacuum finding above is untouched by any of this; a writing process still
+rewrites the whole predicate, and `cocolog vacuum` is still what bounds it.
 
 ## Concurrency: share nothing, copy the term
 

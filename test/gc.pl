@@ -29,9 +29,10 @@
 %%   not grow at all -- and the compaction above is this process's array
 %%   and not the store on disk, which is the distinction that cost
 %%   cicili-lang a cache;
-%% * the write itself is quadratic in the rows one process writes, so the
-%%   two timed checks are CEILINGS: only a regression past quadratic fails
-%%   them, and a fix only makes the number smaller;
+%% * the write itself WAS quadratic in the rows one process writes, and is
+%%   linear since ZiguratIP f5d6dd2, so the two timed checks are CEILINGS:
+%%   only a regression past quadratic fails them, and the fix only made the
+%%   numbers smaller -- which is exactly what they were written for;
 %% * `statistics/2' answers the keys a program can act on and refuses the
 %%   rest by name.
 
@@ -184,13 +185,21 @@ wire :-
 %% stay dead: every process pays it again, an unvacuumed store grows without
 %% bound, and each build is slower than the one before.
 %%
-%% What no vacuum takes back is the write ITSELF, which is quadratic in the
+%% What no vacuum took back was the write ITSELF, which was quadratic in the
 %% rows one process writes -- 16 000 rows 0.53 s and 128 000 26.9 s on the
-%% Linux box, and splitting them over more predicates does not help
+%% Linux box, and splitting them over more predicates did not help
 %% (CLAUDE.md has the tables). So the two timed checks are CEILINGS and not
 %% targets, test/engine.pl's shape: loose enough that only a real regression
 %% can fail them, and they go on passing the day the quadratic is fixed,
 %% because a fix only makes the number smaller.
+%%
+%% THAT DAY CAME: ZiguratIP f5d6dd2. It was the store's page list, walked
+%% WHOLE on every sequence draw -- and every row written draws one -- so a
+%% draw cost O(pages) and the pages grow with the rows. A page sits in a
+%% chain of its own key's pages now, 128 000 rows went 15.0 s to 7.45 s
+%% here, and the cost a row is flat. THESE CEILINGS STAY EXACTLY AS THEY
+%% ARE: that is what a ceiling is for, and a case edited to accept an
+%% improvement is a case that argues against the next one.
 
 %% a program that asserts N rows of gc_w/3
 rows_fixture(Dir, Name, N, File) :-
@@ -240,8 +249,10 @@ write_budget(D, Counter) :-
     has('and a second process reads every one of them back', 'n(32000)', Out2).
 
 %% THE SHAPE. Twice the rows cost 2.4 times the time when this was written,
-%% and linear would be 2: the bound at eight catches a cost going past
-%% quadratic and nothing else.
+%% and 1.75 since f5d6dd2 made the write linear -- 8 000 rows 602 ms and
+%% 16 000 1 055 ms on the Mac, under the 2 a linear write would cost because
+%% a process's own startup is in both numbers. The bound at eight catches a
+%% cost going past quadratic and nothing else.
 write_shape(D) :-
     atom_concat(D, '/s8', S8), atom_concat(D, '/s16', S16),
     rows_fixture(D, '/rows8k.pl', 8000, F8),
