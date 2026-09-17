@@ -437,7 +437,9 @@ that settles the attribution is 40 runs a side, alternating, both arms built
 whole — library *and* test binary — and it is **10 anomalies at `f0ac1e2`
 against 9 at `9712da6`**, which is no difference at all. So it PREDATES the
 page-list, the growth change and both clock commits, and none of them caused
-it.
+it. **The `claims` half is SOLVED since ZiguratIP `55896d9`**, and the cause
+and the fix are recorded below. On a build that carries the fix, a red
+contention run is the harness shape named in the next paragraph.
 
 Three shapes, and they are not one fault. `writer under readers: readers made
 progress` is **11 of the 19** and is almost certainly the HARNESS: the check is
@@ -475,6 +477,56 @@ arithmetic); and that `0xFFFF` was the fingerprint (present in one firing,
 absent from the next with the payload otherwise identical -- stale content past
 the shortened image). ZiguratIP#33 carries the dumps. **A fingerprint is not a
 cause, and a decoded field cannot tell you what the row image can.**
+
+**IT IS A READ WITH NOTHING HELD, AND THE FIX IS ONE GUARD** (ZiguratIP
+`e8ada3f`, in master as `55896d9`). `read_row` does a `seekg` and then an
+`unpack` -- two operations on ONE stream with one position -- and it held
+nothing between them. Both cursors, `cursor_walk` and the B-tree's output
+callback, release the streams guard around the callback UNCONDITIONALLY and
+redirect the window's reads to the thread's private stream only when
+`reader_eligible`, which answers 0 for a store with no reader paths AND 0 at
+REPEATABLE READ or SERIALIZABLE. `find_then_update` is both at once, so its
+callback reads rode the canonical stream with nothing held while seven other
+threads sought that same stream. A position moved between the seek and a
+string's length byte reads the tag and then whatever byte is now under the
+cursor, and `00` is what an empty length looks like -- which is the row image
+in the table above, put there by a WRITE whose `current` had unpacked empty.
+`read_row` now takes the guard for itself: SHARED wherever a shared one is
+possible, which routes the read to the thread's private stream and leaves the
+parallel-read design as concurrent as it was, and exclusive only where there
+is no private stream to use, which is the case that raced. The guard is
+re-entrant per thread, so a caller already holding it pays nothing.
+
+**AND THAT IS WHY NO COCOLOG CASE EVER SAW IT.** cocolog and the server both
+call `memory_reader_paths`, and neither claims at SERIALIZABLE -- so
+`reader_eligible` answers 1 for them and every callback read already went to a
+private stream. The fault needs BOTH halves, and only `contention_test` has
+them. A scenario that reproduces nowhere else is not thereby a test-only
+defect; it is one whose two conditions nothing else happens to meet.
+
+**MEASURED HERE, 80 RUNS A SIDE**, alternating, both arms built whole --
+library and test binary -- `2794635` against `e8ada3f`:
+
+| runs showing | before | with the guard |
+|---|---|---|
+| `claims: no thread met trouble` | 10 | **0** |
+| `claims: every round claimed` | 10 | **0** |
+| `claims: not one increment lost` | 4 | **0** |
+| any `claims` shape | **13** | **0** |
+| `writer under readers` | 7 | 9 |
+| a crash | 1 | 0 |
+| anomalous runs in all | 20/80 | 9/80 |
+
+Fisher one-sided on 13/80 against 0/80 is **p = 7.2e-5**. `writer under
+readers` standing still is the CONTROL and is the useful half of the table:
+the runs were detecting, that shape is engine-indifferent, and it is the
+harness exactly as this file said above. **These runs were not timed** -- the
+cost is the owner's measurement, 10.3-10.5 s against master's 10.4 s.
+
+A fourth firing on the old arm retires the `0xFFFF` reading for good: the sum
+came back **`0xc57fa1440000020d`** where 535 was wanted, with 25 rounds lost
+as well. Arbitrary high bytes, not a fill -- which is what a read whose
+position moved produces, and what no decode of a well-formed value could.
 
 **An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live
 SERVER store, and the old trees stay as orphan pages.** The server attaches
