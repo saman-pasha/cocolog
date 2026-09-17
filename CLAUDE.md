@@ -506,6 +506,38 @@ over `(kb, name)` a name at two arities walked the other arity's rows:
 0.027 ms, and a store from before the change rebuilt the three-level tree at
 its first open.
 
+**A STORE IS IN THE WRITING MACHINE'S BYTE ORDER, AND IT DOES NOT TRAVEL**
+(ZiguratIP 0.1.6, cocolog `36fde5e`). The store's streams are `hbostream` --
+HOST order, a raw eight-byte read with no swap -- while the PROTOCOL is
+`nbostream` and normalised. So the wire crosses an endian boundary and the
+file does not, and the reason it needed saying is that a foreign store
+**opens**: the page list is built from twenty-byte hash keys, which are byte
+arrays and read the same everywhere. It is every `int64` after that -- stamps,
+ids, addresses -- which comes back reversed, and the first thing the process
+does is write more of it. That is not an error, it is nonsense.
+
+A store therefore keeps a mark beside it, `byteorder.bin`, eight bytes holding
+`0x0123456789ABCDEF` written in host order; `ce_engine_open` reads it through
+`store_order_check` BEFORE `memory_open`, and a refusal arrives on the path a
+missing store already used. A fresh store marks itself, and an existing
+unmarked one is stamped at its next open with the opening machine's order --
+a guess, and the engine's README says so, because nothing can know where bytes
+written before the mark came from. Exercised here on all four paths:
+
+| the mark | what happens |
+|---|---|
+| absent | written, store opens |
+| this machine's | opens |
+| the magic **reversed** | refused: *written on a machine of the OTHER byte order* |
+| neither, e.g. `0xAA…` | refused: *the file is damaged* |
+| shorter than 8 bytes | refused: *the store cannot be judged either way* |
+
+-- and restoring the mark opens the same store again with every row in it, so
+the check reads and does not repair. **A refusal EXITS 1 with an empty stdout
+and the reason on stderr**, exactly as a store directory that does not exist
+does, which is the property a script needs -- and the same one the silent Zeytun
+fetch in the `--https` section below failed to have.
+
 **`make schema` COPIES THE EMITTED TABLES INTO `$ZIGURATIP/MVCCS-cicili/generated/`**,
 which used to be a step done by hand and then forgotten: parsi writes each
 table as `_COCOLOG::CLAUSES_.cicili` into `$ZIGURATIP_HOME/ld`, the embedded
