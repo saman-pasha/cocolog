@@ -1779,9 +1779,21 @@ AND ANOTHER READING AT ONCE.** In the whole suite that is `test/gc.pl`'s
 "a second process reads every one of them back" and nothing else -- 46
 GREEN, 7 SKIP and that one RED on `f0ac1e2`. Any delay hides it, and so
 does any real work between the two, which is why it is invisible everywhere
-a person is driving and why a 500-row store never meets it at all. It is
-ZiguratIP#32 and the engine's to fix; three roads are proposed there, and
-seeding a process's clock from the store at open is the cheapest.
+a person is driving and why a 500-row store never meets it at all.
+
+**FIXED IN THE ENGINE (ZiguratIP 0.1.4): a commit does not RETURN until real
+time has reached the stamp it wrote.** Of the roads proposed on #32 this is
+the one that needed nothing persisted — seeding a process's clock at open
+had no cheap source, because the transaction row carrying the stamp is
+zeroed when the commit retires its intention. The wait is the lead and
+nothing else: an ordinary commit leads by microseconds and spins them out,
+a flush that outran the clock sleeps the difference in one call, and it is
+paid after the rows are durable and the streams guard is back, so a
+committer waiting holds nothing. `clock_settle` in
+`MVCCS-cicili/mvccs-lib.cicili` carries the reasoning and the numbers above;
+`mvccs_test` pins the invariant without needing two processes or a fast
+machine — it runs the clock milliseconds ahead on purpose, commits, and
+requires the lead back at zero with the stamped row readable.
 
 The vacuum finding above is untouched by either fix; a writing process still
 rewrites the whole predicate, and `cocolog vacuum` is still what bounds it.
