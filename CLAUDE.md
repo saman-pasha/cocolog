@@ -426,6 +426,31 @@ in `$ZIGURATIP_HOME/ld` compiled against old engine headers does not fail to
 load politely; it takes the server down with `symbol lookup error`. `make schema`
 after every engine build, always.
 
+**A RED `contention_test` ABORTS ZiguratIP'S `make`, AND ON LINUX IT IS
+PROBABLY NOT YOURS.** The engine's gauntlet runs inside `make` and a red
+contention run ends it with `Error 1` *after* the artefacts are already built
+— which reads as "whatever I just changed broke the engine" and usually is
+not. Measured here over **144 runs**: intermittently red at **12.5 %**
+standalone (8 of 64) and **~24 %** interleaved with the box busy (19 of 80),
+so the absolute rate is load-sensitive and neither number is THE rate. The A/B
+that settles the attribution is 40 runs a side, alternating, both arms built
+whole — library *and* test binary — and it is **10 anomalies at `f0ac1e2`
+against 9 at `9712da6`**, which is no difference at all. So it PREDATES the
+page-list, the growth change and both clock commits, and none of them caused
+it.
+
+Three shapes, and they are not one fault. `writer under readers: readers made
+progress` is **11 of the 19** and is almost certainly the HARNESS: the check is
+`reads > 0`, the readers loop `while (writing)`, and nothing stops the writer
+finishing its 120 commits before six reader threads are scheduled on four
+cores. A SIGSEGV or SIGABRT turns up 6 times in 144. And `claims: not one
+increment lost` is the real one — it printed `got -281474976710106` twice and
+identically, which is **`0xFFFF000000000226`**: low 48 bits 550, top 16 bits
+all ones. A row's `WEIGHT` came out of a cursor carrying a tag or a pointer in
+its high bits, so that is a value DECODE on the read path and not a lost write.
+ZiguratIP#33 has the tables. **Re-run before you believe a red one**, and do
+not go looking in your own change first.
+
 **An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live
 SERVER store, and the old trees stay as orphan pages.** The server attaches
 an index it has no catalogue record for with an empty root and maps nothing
@@ -1781,19 +1806,31 @@ GREEN, 7 SKIP and that one RED on `f0ac1e2`. Any delay hides it, and so
 does any real work between the two, which is why it is invisible everywhere
 a person is driving and why a 500-row store never meets it at all.
 
-**FIXED IN THE ENGINE (ZiguratIP 0.1.4): a commit does not RETURN until real
-time has reached the stamp it wrote.** Of the roads proposed on #32 this is
-the one that needed nothing persisted — seeding a process's clock at open
-had no cheap source, because the transaction row carrying the stamp is
-zeroed when the commit retires its intention. The wait is the lead and
-nothing else: an ordinary commit leads by microseconds and spins them out,
-a flush that outran the clock sleeps the difference in one call, and it is
-paid after the rows are durable and the streams guard is back, so a
-committer waiting holds nothing. `clock_settle` in
-`MVCCS-cicili/mvccs-lib.cicili` carries the reasoning and the numbers above;
-`mvccs_test` pins the invariant without needing two processes or a fast
-machine — it runs the clock milliseconds ahead on purpose, commits, and
-requires the lead back at zero with the stamped row readable.
+**FIXED IN THE ENGINE, AND IT TOOK TWO GOES (ZiguratIP 0.1.4, then 0.1.5):
+a commit does not RETURN until real time has reached the stamp it wrote.** Of
+the roads proposed on #32 this is the one that needed nothing persisted —
+seeding a process's clock at open had no cheap source, because the transaction
+row carrying the stamp is zeroed when the commit retires its intention. The
+wait is the lead and nothing else: an ordinary commit leads by microseconds
+and spins them out, a flush that outran the clock sleeps the difference in one
+call. `clock_settle` in `MVCCS-cicili/mvccs-lib.cicili` carries the reasoning
+and the numbers above; `mvccs_test` pins the invariant without needing two
+processes or a fast machine — it runs the clock milliseconds ahead on purpose,
+commits, and requires the lead back at zero with the stamped row readable.
+
+**AND THE PLACEMENT WAS WRONG IN 0.1.4, WHICH THIS FILE REPEATED.** What stood
+here said the wait "is paid after the rows are durable and the streams guard is
+back, so a committer waiting holds nothing". The streams, yes — but it sat
+BEFORE `transaction_retire` and `transaction_reset`, and it is
+`transaction_reset` that hands back the SERIALIZABLE slot, a semaphore of ONE
+whose waiters poll at ten milliseconds. So a committing SERIALIZABLE
+transaction slept its whole lead holding the one thing every other writer
+needed, and each such wait was rounded up to a 10 ms poll for all of them.
+0.1.5 puts the wait LAST, after the streams, the live id and the slot have all
+gone back: a wait that holds anything is a wait somebody else pays for.
+`test/gc.pl` is still green on 0.1.5 — 34 ok, exit 0 — so moving it past the
+retire did not put the stamp back in the future, which is the one thing that
+had to be re-proved.
 
 The vacuum finding above is untouched by either fix; a writing process still
 rewrites the whole predicate, and `cocolog vacuum` is still what bounds it.
