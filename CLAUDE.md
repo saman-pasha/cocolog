@@ -1580,6 +1580,73 @@ unguarded thing there -- it is a fact to know when a footprint and a reading
 disagree: count the threads first (`ps -M`), because 122 worker machines at
 128 MB each is 15 GB that no `statistics/2` call in the main thread can see.
 
+**THE COMPACTION IS THIS PROCESS'S ARRAY, AND NOT THE STORE ON DISK.** Worth
+saying outright, because a reader of the section above can take the two for
+one thing and cicili-lang's notes did: `garbage_collect/0` moves `store_used`
+and `store_cap`, which are the cell array THIS PROCESS holds, and it moves
+nothing an `--embed` directory or a server holds. Measured on 1.2.16, one
+writing process over a 20 000-row predicate, run with a forced compaction in
+it and without: the compaction ran (`compactions=1`) and trimmed the cap from
+2 097 152 to 1 288 752, and `data.bin` grew by **7 151 616 bytes either way,
+to the byte**. Two numbers, two questions, and only one of them is the disk.
+
+**A WRITING PROCESS REWRITES THE WHOLE PREDICATE, AND `cocolog vacuum` IS
+WHAT BOUNDS IT.** The Zigurat backend flushes a dirty predicate WHOLESALE, so
+one `assertz` costs a copy of every row that predicate already held -- 358 to
+369 bytes of new store per EXISTING row, measured at three sizes on a fresh
+`--embed`, while a read-only process costs **0**:
+
+| predicate rows | after the seed | one `assertz` adds | per existing row |
+|---|---|---|---|
+| 200 | 114 688 | 73 728 | 369 |
+| 2 000 | 753 664 | 720 896 | 360 |
+| 20 000 | 7 192 576 | 7 151 616 | 358 |
+
+The old rows stay dead, so every process pays it again and the store carries
+every generation. **A vacuum after the write takes all of that away, and the
+TIME with it** -- ten successive writing processes over that 20 000-row
+predicate:
+
+| build | no vacuum, s | no vacuum | vacuumed, s | vacuumed |
+|---|---|---|---|---|
+| 1 | 1.05 | 13 MB | 1.06 | 13 MB |
+| 5 | 1.82 | 40 MB | 0.89 | 13 MB |
+| 10 | **2.78** | **75 MB** | **0.87** | **13 MB** |
+
+-- the vacuum itself 0.36 s, every row kept. Without it each build is slower
+than the one before, which is the shape a slow suite has and is worth knowing
+before the engine is blamed. The file does not SHRINK below its high-water
+mark and does not need to: the space is reused, which is why the vacuumed
+column is flat rather than falling. (Reported from cicili-lang, which
+abandoned its C++ header cache over this -- `cicili++` runs `--local` and
+re-reads its headers every run -- having read the reclamation as impossible
+rather than as one command. The probe that made them stamp and restart the
+store is gone as 1.2.2 said: 300 distinct predicates, first call each, 0.096 s
+over an 11.5 MB store.)
+
+**AND ONE PROCESS'S WRITE IS QUADRATIC IN THE ROWS IT WRITES, which is the
+wall a vacuum does NOT move.** The assert loop is linear -- a flat 3.8 µs a
+clause from 1 000 to 16 000, 3.0 µs under `--local`. The commit is not:
+
+| rows one process writes | total | µs a row |
+|---|---|---|
+| 16 000 | 0.53 s | 33 |
+| 32 000 | 1.42 s | 44 |
+| 64 000 | 5.77 s | 90 |
+| 128 000 | **26.9 s** | 210 |
+
+Doubling the rows roughly quadruples the time, and **splitting them over more
+predicates does not help**: 128 predicates of 1 000 rows took 29.0 s against
+24.9 s for one predicate of 128 000, the cost merely moving out of the commit
+and into the loop. So a process is comfortable to about 30 000 rows -- ~1.3 s,
+and flat however the rows are split -- and expensive past 32 000. This is
+almost certainly what a cicili-lang read of one C++ file over a fresh store
+was when it ran past five minutes, and it is the one of their two walls still
+standing. NOT DIAGNOSED FURTHER, and the obvious guess is the one the split
+argues against: every row of a predicate shares the index key `(kb, name,
+arity)` and so one value chain, but separate predicates are separate keys and
+cost the same.
+
 ## Concurrency: share nothing, copy the term
 
 `library(thread)` is threads and channels, and the shape is the one the
