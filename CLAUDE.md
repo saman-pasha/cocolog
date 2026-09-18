@@ -9,12 +9,20 @@ work in here and what will bite you.
 
 | repo | role | frozen at |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; used at BUILD time | `00ca101` |
+| `../cicili` | the language cocolog is written in; used at BUILD time | `b5fafd0` |
 | `../ZiguratIP` | the database; used at RUN time and by `make schema` | **unfrozen** |
 
 **cicili stays frozen**: no edits, commits, pushes, branch changes or `git add`
 in it. A cocolog problem that traces to the transpiler gets a diagnosis and a
 proposed patch, not an applied one.
+
+**THE SHA IN THAT ROW IS AN OBSERVATION, NOT A PIN, AND IT HAD GONE STALE.** It
+read `00ca101` while the checkout sat eighteen commits ahead of it on `master`
+at `b5fafd0` -- the OWNER moves cicili, and the freeze says only that nothing on
+this side does. So read the row as "what a session here last saw", check it with
+`git -C ../cicili log --oneline -1` when a build behaves oddly, and correct it
+rather than trusting it: a stale SHA in a freeze table reads as a pin somebody
+broke, which is the wrong alarm.
 
 **ZiguratIP was unfrozen** to fix the twelve-worker slowdown, and carries the
 `TCP_NODELAY` change described in STATUS.md — and, since the forget wedge,
@@ -907,30 +915,177 @@ lands on master's profile exactly -- 57 exclusive, 1.78 ms of store CPU against
 master's 1.84, 4376 requests against master's 4308-4349. **So the whole 3.3 ms
 is the shared read path**, on the same binary and the same library.
 
-**THE MECHANISM IS TWELVE MAPPINGS, NOT TWELVE ACQUISITIONS.** A shared hold
-routes a read to the thread's private pair (`hex_in`/`data_in`), which
-`reader_ensure` opens ONCE per thread as read-only `mapstream`s -- no per-call
-check, and `mapbuf::underflow` refreshes only at the end of what is mapped,
-which a static knowledge base never reaches. Minor faults in the store are
-0.026 against 0.012 a request, flat and near zero either way, so nothing is
-re-mapping. Both mappings are `MAP_SHARED`, so twelve workers share one set of
-page-cache pages and NOT their page tables: twelve VMAs of one file mean twelve
-sets of translations where master's exclusive lookups walked one. That is a
-per-read cost scaling with the number of mappings actually reading, which is W
--- and it predicts the **inversion at W=2**, where two mappings are cheaper than
-serialising fifty-six exclusive holds and the shared arm is 4 % FASTER.
+**IT IS NOT THE MAPPINGS, AND WHAT KILLED THAT READING IS THE CLEANEST A/B IN
+THIS FILE.** What stood here -- twelve `MAP_SHARED` VMAs of one file mean twelve
+sets of translations where master's exclusive lookups walked one, so the cost is
+per read and scales with the mappings actually reading -- was the only mechanism
+nameable from source with the right shape, and it is REFUTED. ZiguratIP's
+`reader-pool` branch (`b8f70ec`, 0.1.25) caps the private pairs with
+`ZIGURATIP_READER_POOL=P`, so six arms run on ONE binary and ONE library
+differing only in an environment variable: **no rebuild anywhere**, which retires
+the stale-library hazard outright. W=12, eight clients, fifteen seconds, three
+repeats, pre-warm off:
+
+| arm | mappings | requests | range | store CPU/req | vs OFF |
+|---|---|---|---|---|---|
+| `PARALLEL_READS=0` | 0 | **4252** | 4111-4347 | 2.079 ms | 1.000 |
+| pool unset | ~12 | 3853 | 3823-3882 | 2.653 ms | 0.906 |
+| `POOL=12` | <=12 | 3898 | 3815-4015 | 2.642 ms | 0.917 |
+| `POOL=4` | <=4 | 3904 | 3867-3933 | 2.616 ms | 0.918 |
+| `POOL=2` | <=2 | 3835 | 3809-3880 | 2.701 ms | 0.902 |
+| `POOL=1` | **1** | 3856 | 3835-3867 | 2.663 ms | 0.907 |
+
+The ON/OFF separation reproduces -- every pool arm's MAXIMUM is below the OFF
+arm's MINIMUM -- so the rig is detecting, and the ladder does not move: every cap
+in 0.902-0.918, all five ranges overlapping, no ordering in P at all.
+
+**P=1 MAKES IT A REFUTATION AND NOT A NULL RESULT.** `rpool_made` can only reach
+the cap, so at P=1 exactly ONE pair exists for the whole process -- and the waits
+prove the cap BOUND rather than being read and ignored: 37 waits at P=1 against
+~35 000 checkouts, and zero at every larger cap. Twelve mappings 3853, one
+mapping 3856. **And it bounds the fix that was proposed here.** "One mapping,
+many positions" and P=1 have the same mapping count and differ only in
+serialising the position, which costs 0.11 % of checkouts -- so the view would
+land on 3856, not 4252, and `mapbuf::reserve`'s moving base need not be solved
+at all.
+
+**THE COST IS CONTENTION, AND THE EVIDENCE WAS IN THIS FILE'S OWN TABLE.** The
+`618bb8f` ratio in the section above runs **0.954 / 1.002 / 1.139 / 1.485** at
+W=2/4/8/12, and a fixed cost per read through a different streambuf is FLAT IN W
+by construction -- so that column refuted "per read" before the ladder ran. What
+was done with it instead was a DIVISION: +0.58 ms a request over ~54 lookups,
+"~10.7 us a lookup", which looks like a rate and carries none of the evidence
+that would make it one. Same family as the per-acquisition rate read against the
+per-request total, wearing the count as a new coat. **Ask what a number would
+look like if the hypothesis were FALSE, and check that against the columns you
+already have.**
+
+**THE CANDIDATE IS `BTCache.access`, and it is the owner's** (ZiguratIP#39): ONE
+mutex for 4 096 node slots and 16 384 key slots, taken on every `bt_node_read`
+and `bt_key_read` (`mvccs-lib.cicili:3566-3613`), two a descent level and ~312 a
+request. Under the exclusive path the write lock serialised the readers before
+they ever reached it; under a read lock there are eleven other threads on it. A
+contended `pthread_mutex` costs a microsecond or two once it falls into the
+futex, and 312 of them is the 0.58 ms -- an operation COUNT, not a division.
+`cache-stripes` is the branch and **nothing here measures it yet**.
+
+**AND THE INVERSION AT W=2 IS THE OTHER HYPOTHESIS'S PREDICTION NOW.** This file
+has already offered two explanations for that one point -- the mapping count,
+then saturation -- which is the tell that neither was load-bearing. Contention
+gives it for free: two readers collide rarely, so the shared path pays almost
+nothing and keeps what it saves on not serialising fifty-six exclusive holds.
+**It is the point that discriminates, it costs one arm, and every future run of
+this probe should take it.**
 
 **SO THE SHARED LOOKUP IS A LOSS ON THIS ARRANGEMENT AT THIS WIDTH, AND THE
 OWNER MEASURED IT A WIN ON SIXTEEN THREADS.** Both are measured, on different
 boxes; this one has FOUR cores. The lever left on #18 was the 51 fetches a
 request that find nothing -- and it was TAKEN, in the section below: `prewarm/1`
-halves a pooled request and, in doing so, confirms the mapping reading from a
-second direction and leaves nothing on this workload for the engine to recover.
-Making readers share ONE mapping with
-private positions is the fix for the mechanism, and it is blocked on
-`mapbuf.cpp:95-117`: `reserve` unmaps and remaps when a store outgrows its
-reservation and the base MOVES, which is safe under a writer's exclusive guard
-and is not safe for a callback-window reader holding nothing.
+halves a pooled request and leaves nothing on this workload for the engine to
+recover. What keeps #39 open is a workload whose lookups the pre-warm CANNOT
+remove, which is exactly the program's own predicates.
+
+### Three mechanisms dead, and the surprise is the CACHE (2026-09-18)
+
+**WHAT SURVIVES HAS TO SCALE WITH TWO THINGS AT ONCE, and nothing named so far
+does.** Three readings of the shared read path's 10 % are dead, each to a
+different instrument, and the LIST is worth more than any one of them:
+
+| the reading | what killed it |
+|---|---|
+| twelve mappings, one per reader thread | the `reader-pool` ladder: flat in P, and P=1 is ONE VMA |
+| a fixed cost per read through a different streambuf | the W column, 0.954/1.002/1.139/1.485 -- flat in W by construction |
+| the `BTCache` mutex twelve readers collide on | striping it 64 ways is flat, and REMOVING the cache WIDENS the gap |
+
+So the cost scales with STREAM READS -- the no-cache arm below more than doubles
+the deficit by multiplying them -- and with CONCURRENT READERS, which is the W
+column. The one candidate that did both was the mapping count, and P=1 refuted
+it. **The arm nobody has run is the only per-read variable left**: reader paths
+set and the shared side granted exactly as now, with `hex_in`/`data_in` handing
+back a private `filestream` instead of a `mapstream`. (`reader_ensure`'s own
+comment says why that is not a DESIGN -- a private filebuf caches a get area and
+answered zeros once against a fresh page's zero-fill -- but it is a measurement
+arm, and it is the one variable neither `PARALLEL_READS` nor the pool nor the
+stripes has moved.)
+
+**THE SIX ARMS.** A = `8948241` with the ladder's pool at cap 0 (inert), B =
+`fd4be7c` 0.1.26, `BTCache`'s one mutex made 64 stripes by slot. W=12, eight
+clients, fifteen seconds, three alternating repeats, pre-warm off. The stripe
+build was checked in the ARTEFACT first -- `engine.cpp` naming the stripes
+fourteen times and no single-mutex `->access)` left:
+
+| W=12 | requests | range | mean ms | sh/req | ex/req |
+|---|---|---|---|---|---|
+| one mutex, cache, reads ON | 3828 | 3774-3864 | 19.66 | 54.0 | 3.0 |
+| one mutex, cache, reads OFF | **4293** | 4210-4417 | 16.98 | 0.0 | 57.0 |
+| **64 stripes**, cache, ON | 3860 | 3748-4008 | 19.65 | 54.0 | 3.0 |
+| 64 stripes, cache, OFF | 4332 | 4317-4346 | 16.79 | 0.0 | 57.0 |
+| **no cache at all**, ON | 4000 | 3990-4011 | 18.70 | 54.0 | 3.0 |
+| no cache at all, OFF | **5142** | 5072-5237 | 13.57 | 0.0 | 57.0 |
+
+-- ON/OFF **0.8910** striped against **0.8915** on one mutex, four figures and
+the ranges overlapping entirely, with the acquisition counts unchanged (54.0 and
+3.0 either side, which is the check that striping changed only the lock). And
+`MVCCS_NO_CACHE` -- one environment variable, `bt_cache_new` answering nil
+(`mvccs-lib.cicili:3601-3605`) -- gives **0.7780**, the gap WIDER where it was
+predicted to collapse, with the absolute deficit **466 requests a point with the
+cache and 1142 without**. At W=2 it is 1.0250 and 1.0123, ON faster, ranges
+overlapping: flat under striping as predicted, and not a confirmed inversion.
+
+**AND THE B-TREE CACHE IS A NET LOSS ON A MAPPED STORE**, which neither side
+predicted and which is the largest number in the run. Same library, same binary,
+one environment variable:
+
+| | with cache | no cache | |
+|---|---|---|---|
+| exclusive arm | 4293 | **5142** | **1.198x** |
+| shared arm | 3828 | 4000 | 1.045x |
+
+Ranges SEPARATED on both -- the no-cache exclusive minimum, 5072, is above the
+cached maximum of 4417. Twenty per cent on the path cocolog actually runs, for
+removing a cache whose hit rate cocolog#16 measured at **100 % over 72 000
+reads**. The reading, marked as one: on a MAPPED store the miss path is a memory
+read from the page cache, so the cache pays a lookup and a lock for something
+that was nearly free. **Do not generalise it past this shape** -- a filebuf
+store, cold pages or larger nodes are where it must earn its keep, and none of
+those was measured.
+
+**`triple-window` IS INERT HERE, AND IT IS MEASURED NOW RATHER THAN ARGUED.**
+`c23a521` has `bt_emit_key` recognise the engine's own chain callback and open no
+window for it. Rebasing it onto master is EMPTY by construction -- its whole diff
+rewrites the window block `6298244` added, master has no such block, and the one
+conflict hunk has master's side as the single line `(set cont ((-> em dcb) (-> em
+user) (aof dep))))))`, so the only resolutions are "no-op" and "put `6298244`
+back". And on the branch it was written for, a counter on the branch point says
+it never fires: over 200 requests, **`probe_eqchain_yes` 0.00 a request,
+`probe_eqchain_no` 53.00, shared 160.00, exclusive 3.00** -- `dependent-window`'s
+profile to the unit, and that arm is already 0.92x. The cause is at the CALLER:
+`engine-compat.hpp:279` passes `&DepShim<F>::call`, so `(-> em dcb)` is a C++
+template static and never `bt_eqchain_dcb`. The 53.00 is the 52-plus-one
+arithmetic confirming itself a second time.
+
+**THREE THINGS BIT WHILE MEASURING THIS, and the first cost nothing only because
+the number beside it was printed:**
+
+* **A PATCH SCRIPT TOUCHES MORE THAN ONE FILE, AND REVERTING ONE OF THEM MAKES
+  `git checkout` ABORT.** `patch4.py` edits `mvccs-lib.cicili` AND
+  `contention-test.cpp`; only the first was reverted, the branch switch refused,
+  and the rebuild that followed produced the WRONG ARM while reporting exit 0.
+  What caught it is that the runner prints the library's md5 beside the expected
+  one -- `a6f22cc9` where master is `865d490a`. **Print the md5 next to the one
+  you expect, every time**, and `git checkout -- .` rather than naming files.
+* **`pgrep -f 'make'` MATCHES THE SHELL THAT IS RUNNING IT.** A waiter written
+  `until ! pgrep -f 'make'; do sleep 20; done` has "make" in its own command
+  line, finds itself, and never exits -- it sat for nineteen minutes after the
+  build it watched had finished. Match a pattern that cannot name the matcher
+  (`stripes\.sh`, not a bare word), and break the loop when the thing you are
+  watching is gone. Same family as `ps -eo args | grep -F 'serve(PORT,'` finding
+  nothing.
+* **A COLUMN ADDED TO THE LOG AND NOT TO THE PARSER READS EVERY ARM AS ZERO.**
+  The runner gained a `W12` field and the awk kept `$4` for the request count,
+  so it parsed the REP as a number and every mean came out 0 with `-nan` beside
+  it. It is loud rather than silent, which is the only good thing about it: a
+  parser that shifts quietly is the one to fear.
 
 ### And the lever WAS the fetches: `prewarm/1` (1.2.17)
 
@@ -995,20 +1150,25 @@ REQUEST asks again every time -- so the ~51 ms the call costs is repaid in about
 nine requests. **THE RULE IS THE FETCHES RECURRING, NOT THE THREADS EXISTING**,
 and this file's first draft of it said the opposite.
 
-**AND IT RETIRED ZiguratIP#39's URGENCY BY CONFIRMING ITS MECHANISM.** Re-running
-the `PARALLEL_READS` A/B on 1.2.17, same engine (`618bb8f`) on every arm, W=12:
+**AND IT RETIRED ZiguratIP#39's URGENCY -- BUT NOT BY CONFIRMING ITS MECHANISM,
+which this file claimed and the ladder above refutes.** Re-running the
+`PARALLEL_READS` A/B on 1.2.17, same engine (`618bb8f`) on every arm, W=12:
 
 | pre-warm | shared a request | store CPU a request | the shared read path costs |
 |---|---|---|---|
 | off | 54.0 | 2.73 ms | **1.115x**, ranges SEPARATED |
 | on | **3.0** | **0.35 ms** | **1.009x**, ranges overlapping |
 
-Cutting the lookups EIGHTEENFOLD cut the penalty about THIRTEENFOLD, which is
-the dose-response a per-read cost predicts and the acquisition count never gave
--- 160 against 54 moved nothing. So the twelve-mapping reading is confirmed from
-a second direction, and there is nothing left to recover on this workload: the
-12 % is reproducible only with the pre-warm off, which is now a configuration
-nobody runs.
+Cutting the lookups EIGHTEENFOLD cut the penalty about THIRTEENFOLD, where the
+acquisition count never gave one -- 160 against 54 moved nothing. **What that
+dose-response proves is that the cost lives IN THE LOOKUPS, and it cannot choose
+between a per-read cost and a per-lookup contention**: `BTCache.access` is taken
+per node read and per key read, so cutting the lookups cuts the collisions by
+the same factor. A dose-response separates the two hypotheses it was built
+against and nothing else, and the one it was not built against is the one that
+survived. There is still nothing left to recover on this workload: the 12 % is
+reproducible only with the pre-warm off, which is now a configuration nobody
+runs.
 
 **ONE DEFECT WAS FOUND ON THE WAY, AND IS FIXED IN 1.2.18.** `assertz` into a
 predicate a MODULE defines wrote the MODULE's own clauses into the knowledge
