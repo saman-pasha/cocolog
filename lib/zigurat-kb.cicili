@@ -449,6 +449,23 @@
                   (size_t window . #'(? (zg_embedded (-> z db)) 1 128)))
               (while (< tail (-> p nclauses))
                 (if (and (< head (-> p nclauses)) (< (- head tail) window))
+                    ;; A MODULE'S CLAUSE IS NOT OURS TO WRITE. The predicate is
+                    ;; rewritten WHOLESALE -- every row forgotten above and every
+                    ;; clause the store holds sent below -- and the store holds
+                    ;; the library's clauses beside the program's once anything
+                    ;; asserts into a name a library defines. Writing them put
+                    ;; library(lists)'s own `member/2' into the knowledge base
+                    ;; after one `assertz(member(foo,[a]))', and the next process
+                    ;; fetched them ON TOP of the copy its own modules had
+                    ;; already given it: five clauses where there should be
+                    ;; three, and `member(X,[p,q])' answering [p,q,q,p,q,q].
+                    ;;
+                    ;; Skipped on BOTH sides of the window, because a clause
+                    ;; that was never sent has no answer to wait for and the
+                    ;; two counters would drift apart by exactly the muted
+                    ;; clauses between them.
+                    (if (nth head (-> p muted))
+                        (set head (+ head 1))
                     (let ((size_t mark . #'(-> m heap_len))
                           (size_t t . #'(coco_store_get m st (nth head (-> p clauses))))
                           (u64 from . #'(nth head (-> p origins)))
@@ -478,13 +495,15 @@
                                (return (coco_zg_fail z "writing a clause"))))
                       (coco_sb_free (aof b))
                       (set (-> m heap_len) mark)
-                      (set head (+ head 1)))
-                  (block
-                    (if (not (zg_call_wait (-> z db) "cocolog::assert_clause"))
-                        (return (coco_zg_fail z "assert_clause")))
-                    (if (not (coco_zg_finish z (aof ignored)))
-                        (return (coco_zg_fail z "assert_clause")))
-                    (set tail (+ tail 1))))))
+                      (set head (+ head 1))))
+                  (if (nth tail (-> p muted))
+                      (set tail (+ tail 1))
+                    (block
+                      (if (not (zg_call_wait (-> z db) "cocolog::assert_clause"))
+                          (return (coco_zg_fail z "assert_clause")))
+                      (if (not (coco_zg_finish z (aof ignored)))
+                          (return (coco_zg_fail z "assert_clause")))
+                      (set tail (+ tail 1)))))))
             (return 1))))
 
   (func coco_zg_on_assert ((coco_store * st) (void * ctx) (size_t clause)) (out int)

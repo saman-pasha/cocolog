@@ -36,7 +36,8 @@
 main :-
     scratch(D),
     atom_concat(D, '/prog.pl', F),
-    twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F), over_the_wire(F),
+    twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F),
+    a_librarys_clauses(D), over_the_wire(F),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -84,6 +85,49 @@ two_spellings(D, _) :-
     proc_run(Cmd, 60000, Out, _),
     ( re_first_atom('answer\\([^\n]*\\)', Out, A) -> term_to_atom(G, A) ; G = none ),
     check('consulted as ./prog.pl from its own directory, nothing doubles', G, answer(4)).
+
+%% A MODULE'S CLAUSES ARE NOT THE PROGRAM'S, AND THE STORE MUST NOT WRITE THEM.
+%%
+%% The backend rewrites a dirty predicate WHOLESALE -- every row of it
+%% forgotten and every clause the store holds sent back -- and the store holds
+%% a library's clauses beside the program's the moment anything asserts into a
+%% name a library defines. So one `assertz(member(foo,[a]))' used to put THREE
+%% rows in the knowledge base: the program's clause and both of
+%% library(lists)'s own. The next process then fetched those two ON TOP of the
+%% copy its own modules had already given it, and `member(X,[p,q])' answered
+%% [p,q,q,p,q,q] -- five clauses where there should be three.
+%%
+%% THE SYMPTOM IS THE CHECK, not the row count, because the row count is only
+%% visible from inside. A second process asking `member(X,[p,q])' is what any
+%% program would do, and it is wrong by exactly the duplication.
+a_librarys_clauses(D) :-
+    section('a library''s own clauses never reach the knowledge base'),
+    atom_concat(D, '/libstore', S),
+    cocolog(C),
+    %% tier 1, compiled into the binary: library(lists) defines member/2, and
+    %% its clauses carry origin 0 exactly as a runtime assertz does -- so
+    %% nothing but the MUTE that put them there can tell them apart.
+    sh_join(['--kb libclauses --embed ', S,
+             ' query "assertz(member(foo,[a]))"'], W1),
+    cocolog_out(W1, _),
+    sh_join(['--kb libclauses --embed ', S,
+             ' query "findall(X, member(X,[p,q]), L), write(answer(L)), nl"'], R1),
+    cocolog_answer(R1, G1),
+    check('member/2 answers two solutions, not six', G1, answer([p,q])),
+    sh_join(['--kb libclauses --embed ', S,
+             ' query "( member(foo,[a]) -> R = yes ; R = no ), write(answer(R)), nl"'], R2),
+    cocolog_answer(R2, G2),
+    check('and what the program asserted IS in the store', G2, answer(yes)),
+    %% tier 2, a .pl file on the library path: its clauses carry a REAL origin,
+    %% the file's own path, so `origins' cannot be the discriminator either.
+    atom_concat(D, '/libstore2', S2),
+    sh_join(['--kb libclauses2 --embed ', S2,
+             ' query "use_module(library(http)), assertz(http_header(mine,a,b))"'], W3),
+    cocolog_out(W3, _),
+    sh_join(['--kb libclauses2 --embed ', S2,
+             ' query "findall(A-B-Cc, clause(http_header(A,B,Cc), _), L), length(L, N), write(answer(N)), nl"'], R3),
+    cocolog_answer(R3, G3),
+    check('a tier-2 library''s clause is not written either', G3, answer(1)).
 
 over_the_wire(F) :-
     section('and the same three claims over the wire, when a server answers'),
