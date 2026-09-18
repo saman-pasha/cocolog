@@ -751,6 +751,59 @@ whose patch had silently failed, gave 547 / 1 850 / 881 lookups at six readers.
 A ratio under ~3x taken from medians alone means nothing here; separate the
 RANGES or do not claim it.
 
+**AND THE HOLD THAT WAS LEFT IS THE SCHEDULER, NOT THE STORE** (cocolog#16,
+ZiguratIP 0.1.19). About **one predicate fetch in 166** over the binary
+protocol holds the exclusive streams guard for **9-22 ms** where the other 165
+take 3-5 µs. It survived every fix in ZiguratIP#37 and predates all of them.
+It is not code at all:
+
+```
+mvccs[te6c0] guard HELD   22779 us, on cpu 103 us
+mvccs[te6c0] draw STALLED 22729 us, on cpu  56 us
+```
+
+**The thread is off CPU for 99.5 % of the hold** -- 22 676 µs of 22 779 -- and
+the entropy draw inside `Statement`'s constructor is **99.8 % of that wall and
+100 % of the off-CPU time**, with 47 µs of CPU spent anywhere else. So a thread
+is PREEMPTED AT THE `read()` inside `Utility::random_bytes` while holding the
+guard, and nothing runs for those milliseconds. `bt_cursor_equal_dep` takes the
+guard and THEN builds a `Statement` in the same `letin*`, so the syscall is
+inside the hold.
+
+**SIX CANDIDATES DIED FIRST AND THE LIST IS THE USEFUL PART**, because every
+one of them was a thing a counter could have confirmed and did not: an fsync
+landing on ext4's journal (the backtrace says cursor, not sync); the mapped
+store crossing a growth chunk (same stack); the DEPENDENT CALLBACK (**92 µs
+across three holds**, which retired the `bt_emit_key` window before anybody
+built it); COLD KEY READS (**zero misses in 72 000 reads, a 100 % hit rate**);
+a long key walk (**one key**, and the "99 keys" that preceded it was a
+cumulative counter read as a delta); and the draw BLOCKING, which the owner
+killed by reading the source -- `/dev/urandom` holds a thread-local fd and does
+not block after boot.
+
+**A STOPWATCH CANNOT TELL A BLOCKING CALL FROM A DESCHEDULED ONE**, and that is
+the hazard to carry away. `mvccs_wall_micros` is `CLOCK_REALTIME`, so a thread
+preempted inside `read()` measures EXACTLY like a `read()` that blocked -- the
+first timing said "the draw takes 12 603 µs" and would have been reported as a
+blocking draw. It is the same shape as the note above about a call duration
+against a guard-held time, wearing wall-against-CPU as a new coat. **Ask which
+clock a number came from before believing what it says happened.**
+
+**THE INSTRUMENT IS A BUILD FLAG, NOT A PATCH.** Since ZiguratIP 0.1.19
+`MVCCS_DEBUG=warn` emits `guard HELD N us, on cpu N us` past a millisecond and
+`draw STALLED N us, on cpu N us` for the draw, with `debug` carrying both per
+acquisition; the CPU clock is `CLOCK_THREAD_CPUTIME_ID`. Nothing at the default
+level. Both are suffixes, so a `grep -o 'guard HELD [0-9]* us'` written before
+them still matches.
+
+**WHAT IS ACTIONABLE HERE IS THE COUNT, NOT THE TAIL: cocolog makes 105
+dependent-cursor lookups PER REQUEST** -- 41 600 over 400 requests, beside 57
+exclusive guard acquisitions a request. A typical lookup is tiny (1.73 keys,
+and only 1.9 % reach a dependent callback at all), so the cost is the number of
+them. The way to survive a scheduler tail is to take the guard fewer times
+rather than hold it for less, which makes this a question about
+`parsi/02-procedures.parsi` and `COCOLOG::CLAUSES_OF`, not about the engine.
+
 **An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live
 SERVER store, and the old trees stay as orphan pages.** The server attaches
 an index it has no catalogue record for with an empty root and maps nothing
