@@ -1087,6 +1087,103 @@ the number beside it was printed:**
   it. It is loud rather than silent, which is the only good thing about it: a
   parser that shifts quietly is the one to fear.
 
+### Two more mechanisms dead, and the cost is COUNTED now (2026-09-18, later)
+
+**FIVE READINGS OF THE SHARED READ PATH AND THE CACHE ARE DEAD, AND THE TABLE IS
+THE POINT.** Each died to its own instrument, three of them on branches the owner
+built and this box ran:
+
+| the reading | what killed it |
+|---|---|
+| twelve mappings, one a reader thread | the `reader-pool` ladder: flat in P, P=1 is ONE VMA |
+| a fixed cost per read through a different streambuf | the W column, flat in W by construction |
+| the `BTCache` mutex twelve readers collide on | 64 stripes flat, and REMOVING the cache widens the gap |
+| the private `mapstream` ITSELF | `reader-file`: a private `filestream` recovers 12 % |
+| the mutex falling into the kernel | `strace -c -f`: **3.67 futex a request cached, 4.81 uncached** |
+| the cache table's 460 pages, under nested paging | `cache-hugepage`: one 2 MB page recovers **6.5 %** |
+
+**`reader-file` (`1b662ad`, 0.1.27), W=12, pre-warm off, three repeats:**
+`PARALLEL_READS=0` **4464** (4403-4547), private `mapstream` 3974 (3950-3996),
+private `filestream` **4026** (3960-4077) -- FILE/MAP **1.0133** with the ranges
+overlapping, both separated from OFF, and the acquisition counts identical at
+54.0 shared and 3.0 exclusive. In store CPU the MAP->OFF gap is 0.743 ms a
+request and FILE recovers 0.091 of it.
+
+**`cache-hugepage` (`26bd2e7`, 0.1.28):** `cache` 4230 at 2.053 ms, **huge** 4259
+at 2.001 ms with `AnonHugePages` at exactly **2048 kB**, `nocache` **4964** at
+1.240 ms with the ranges separated. The advice TOOK and nothing moved: 6.5 % of
+the gap.
+
+**AND THE DENOMINATOR EVERY PER-PROBE FIGURE DIVIDED BY IS COUNTED NOW.**
+Counters at the top of `bt_node_read` and `bt_key_read` and in each hit branch,
+master, three repeats:
+
+| arm | node reads/req | key reads/req | total | hit rate |
+|---|---|---|---|---|
+| cache | 105.0 | **558.0** | **663.0** | **100.00 %** |
+| `MVCCS_NO_CACHE` | 105.0 | 558.0 | 663.0 | 0.00 % |
+| pre-warm ON | 3.0 | 12.0 | **15.0** | 100.00 % |
+
+-- **663, where the estimates were ~312 and ~600**, so the reads a lookup is
+**6.4 and not 3**, and the shape nobody guessed is that **KEY reads are 558 of
+the 663**: a three-level descent reads one node and five keys. Both cross-checks
+hold -- the no-cache arm does the IDENTICAL 663 at a 0 % hit rate, so the count
+is the WORKLOAD's and not the cache's, and the pre-warm arm does 15, which is
+44x fewer for 52x fewer fetches.
+
+**THE COST IS 1.15 us A PROBE AND IT IS INSIDE ONE FUNCTION.** 1.838 ms against
+1.075 over 663 probes; at a 100 % hit rate `bt_node_read` IS `bt_cache_node_get`
+and nothing else runs, so the whole of it sits in that one function -- a mutex
+pair, a slot index, an address compare and a 56- or 88-byte copy. None of those
+accounts for ~2 400 cycles, by about an order of magnitude, and **no sixth
+mechanism is proposed here**: that register is 0 for 3 today.
+
+**AND THIS BOX DRIFTS ~20 %, WHICH RETIRES AN ERROR BAR THIS FILE PUBLISHED.**
+Cached store CPU a request, same box, same protocol, three builds in one day:
+**2.252, 2.053, 1.838 ms**, with `nocache/cache` at **1.238, 1.173, 1.148**. The
+counter build should be the SLOWEST of the three and is the fastest, so it is not
+instrumentation. The honest form of the cache claim is **1.15-1.24x, measured
+three times**, and the rule that follows is **a within-run pair or nothing**: an
+arm that does not carry its own control beside it cannot be compared to a figure
+from three hours ago.
+
+**AND THE OWNER'S BOX WANTS THE OPPOSITE, WHICH IS THE REAL DISPOSITION.** On a
+16-thread Mac the cache WINS -- 7.2x at one reader over a filebuf store, and
+**2.6x mapped**, where it loses 1.24x here. So it is per-MACHINE, not per store
+kind, "skip the cache when mapped" is withdrawn, and `MVCCS_NO_CACHE` staying a
+knob is the right shape. ZiguratIP#40 carries it.
+
+**FOUR THINGS BIT, AND THE FIRST IS THE ONE THAT NEARLY PUBLISHED A FALSE
+RESULT:**
+
+* **A CHECK YOU READ AFTERWARDS IS NOT A CHECK THAT STOPS YOU.** The first
+  `cache-hugepage` build measured the WRONG ENGINE and reported exit 0: two files
+  were still patched from the previous arm, `git checkout` aborted, `make`
+  rebuilt the old engine, and nine points ran against a binary with no hugepage
+  knob in it -- which would have read as a clean refutation of the hypothesis it
+  was testing. The md5 and `grep -c KNOB engine.cpp` were both printed and both
+  wrong, and they only caught it because somebody read them. **The re-run makes
+  them a GATE**: the arms print `REFUSING TO RUN` and exit unless the md5 differs
+  from the previous library and every symbol is in the emitted C++. And the rule
+  this file already carried -- `git checkout -- .` rather than naming files -- is
+  the rule that was broken, by the session that wrote it down that afternoon.
+* **A KNOB THAT TESTS `!= nil` IS ON WHEN IT IS EMPTY.** `MVCCS_NO_CACHE` and
+  `MVCCS_CACHE_HUGEPAGE` both do, so `env MVCCS_NO_CACHE= …` turns the thing ON
+  while reading as off -- the owner lost twelve arms to it. `${VAR:+NAME=1}`
+  omits the assignment entirely and is the form to use.
+* **EVERY STREAMBUF OR ALLOCATION ARM NEEDS A POSITIVE CHECK, because "near the
+  other arm" and "the knob did nothing" are the same picture.** `/proc/PID/maps`
+  is it for the reader (**40 read-only store mappings under `mapstream`, ZERO
+  under `filestream`**, the canonical pair left in both) and `AnonHugePages` in
+  `smaps_rollup` for the huge page (**2048 kB against 0**). The first attempt at
+  the mapping check grepped `data.bin|hexmap.bin` and returned 0 on EVERY arm,
+  because **the store's files are named `data` and `hexmap`** -- which this file
+  also had wrong, in two places, now corrected.
+* **AND THE PARSER SHIFTED TWICE, in both directions.** A `W12` column added to
+  the log and not to the awk read the REP as the request count; the next runner
+  dropped that column and the awk still skipped it. Every arm came out 0 with
+  `-nan` beside it both times, which is the only good thing about it.
+
 ### And the lever WAS the fetches: `prewarm/1` (1.2.17)
 
 **FIFTY-TWO PREDICATES A REQUEST, AND FIFTY-ONE OF THEM CANNOT BE IN THE
@@ -2440,7 +2537,7 @@ and `store_cap`, which are the cell array THIS PROCESS holds, and it moves
 nothing an `--embed` directory or a server holds. Measured on 1.2.16, one
 writing process over a 20 000-row predicate, run with a forced compaction in
 it and without: the compaction ran (`compactions=1`) and trimmed the cap from
-2 097 152 to 1 288 752, and `data.bin` grew by **7 151 616 bytes either way,
+2 097 152 to 1 288 752, and `data` grew by **7 151 616 bytes either way,
 to the byte**. Two numbers, two questions, and only one of them is the disk.
 
 **A WRITING PROCESS REWRITES THE WHOLE PREDICATE, AND `cocolog vacuum` IS
@@ -2564,8 +2661,8 @@ WRITES ONLY EXPOSED IT.** The chunked grow puts every byte back through the
 mapping and the fault SURVIVED it at the same rate -- nine of thirty first
 reads failed on a freshly built stack with nothing swapped -- which is what
 sent the diagnosis past StreamIO altogether. What decays is not on disk.
-Over 40 fresh stores, failing and passing alike, `data.bin` and
-`hexmap.bin` are the same length to the byte before and after the first
+Over 40 fresh stores, failing and passing alike, `data` and
+`hexmap` are the same length to the byte before and after the first
 read; two independent writes of one program differ only in 82 622 bytes at
 8 bytes every 64, which are the row STAMPS, with the hexmap identical; an
 unrelated older store read in the same wake of a writer is 25/25; and the
