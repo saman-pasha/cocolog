@@ -987,6 +987,13 @@ remove, which is exactly the program's own predicates.
 
 ### Three mechanisms dead, and the surprise is the CACHE (2026-09-18)
 
+> **READ THE SECTION AFTER NEXT FIRST.** Everything refuted in these two
+> sections was innocent, and the answer is not in the engine at all: on this
+> box a cross-vCPU wakeup is a VM exit costing ~18 us, and every suspect here
+> was only a way of making more threads runnable at once. The refutations are
+> kept because the ORDER they died in is the useful part, and because each
+> instrument is one to reuse -- but the cost was never any of them.
+
 **WHAT SURVIVES HAS TO SCALE WITH TWO THINGS AT ONCE, and nothing named so far
 does.** Three readings of the shared read path's 10 % are dead, each to a
 different instrument, and the LIST is worth more than any one of them:
@@ -1225,6 +1232,81 @@ RESULT:**
   the log and not to the awk read the REP as the request count; the next runner
   dropped that column and the awk still skipped it. Every arm came out 0 with
   `-nan` beside it both times, which is the only good thing about it.
+
+### AND IT WAS THE BOX: a cross-vCPU wakeup costs ~18 us here (2026-09-18, last)
+
+**`/proc/interrupts` NAMED IT IN ONE READ, AFTER SIX MECHANISMS DIED.** The
+question stopped being "what does the cache cost" the moment the W=1 arm showed
+it costing nothing, and became "what does adding threads cost". Interrupts
+summed over all four vCPUs and differenced across a point answer it. Three
+pairs, two issues, two engines:
+
+| pair | d utime | d stime | d (RES+CAL) a request | **us an extra IPI** |
+|---|---|---|---|---|
+| cache vs `MVCCS_NO_CACHE` | **+0.003 ms** | **+0.790 ms** | 45.7 | **17.3** |
+| the same, longer window | -0.005 ms | **+1.046 ms** | 58.9 | **17.8** |
+| **shared vs exclusive lookups** | **-0.002 ms** | **+0.272 ms** | 14.1 | **19.3** |
+
+**User time is identical in all three -- to three decimals, and TWICE WITH THE
+WRONG SIGN.** Every difference is system time, and in each pair it divides by
+the extra interrupts to the same number. That number is a VM exit on a
+Firecracker guest.
+
+**AND THE SELECTIVITY IS WHAT MAKES IT A FINDING RATHER THAN A CORRELATION.**
+`RES` 44.39 a request against 5.23 -- **8.5x** -- and `CAL` 7.94 against 1.37;
+but `TLB` 0.62 against 0.54 and the local timer 3.61 against 3.03. Only the two
+classes that mean *a wakeup landed on another vCPU* move at all.
+
+**SO ZiguratIP#39 AND #40 ARE ONE PHENOMENON, AND NEITHER SUSPECT WAS A CAUSE.**
+The shared read path's cost is 101 % system time at the same price an IPI. The
+cache's is 100 %. Mappings, streams, acquisitions, the cache mutex, the cache
+table's pages and the futex path were all innocent because **none of them was
+ever the thing being paid for** -- each is only a way of making more threads
+runnable at once. It also explains the W=1 result with no new assumption: one
+worker, no other vCPU to wake, no exit, and the cache is a cache again.
+
+**WHICH MEANS A CONCURRENCY NUMBER TAKEN ON THIS BOX IS A NUMBER ABOUT A
+MICROVM.** The kernel is `6.18.44-fc-v33`, the hypervisor flag is set, there are
+four vCPUs. The owner's sixteen-thread Mac measures the cache a **2.6x WIN**
+mapped and the shared lookup a win too -- the same code, the opposite sign, and
+now a reason rather than a shrug. **Before reporting any pooled or threaded
+figure from here as a property of the engine, take the `utime`/`stime` split and
+the `RES` row**; if the difference is system time and tracks IPIs, it is this
+box. The suite runs here too.
+
+**ONE NUMBER DOES NOT FIT AND IT IS LEFT STANDING.** Voluntary context switches
+are EQUAL -- 140.7 a request cached against 143.0, measured with no ptrace --
+while the reschedule IPIs are 8.5x. Same amount of blocking, far more of it
+crossing a vCPU boundary. That is a PLACEMENT question, nothing measured says
+why the cache changes it, and no mechanism is offered.
+
+**THE INSTRUMENTS, IN THE ORDER THEY EARNED THEIR PLACE:**
+
+* **`/proc/interrupts`, differenced across a point.** Free, needs nothing
+  installed, and it is the only one that named a cause. `RES`, `CAL`, `TLB` and
+  `LOC` summed per vCPU; the ratio between two arms is the reading.
+* **`utime` beside `stime`, never summed.** Asked for twice on the issue before
+  it was taken, free, and it overturned a published conclusion the moment it
+  was. **Fields 14 and 15 -- do not add them together.**
+* **Context switches from `/proc/PID/task/*/status`**, summed over every thread.
+  Unperturbed, where `strace -c -f` halves throughput and serialises threads --
+  which suppresses contention in exactly the direction a blocking hypothesis
+  needs.
+* **`/proc/<tid>/stack` for threads in state `R`** is the right way to see
+  kernel time, and MY USE OF IT WAS WRONG TWICE: the loop was never redirected
+  to its file, and reading `stat` then `stack` is RACY -- a thread marked `R`
+  has usually blocked by the time its stack is read, so the dump fills with
+  `sk_wait_data` and `futex_do_wait` and says nothing. A gdb histogram of ALL
+  threads is worse still: twelve workers on four cores are nearly all blocked at
+  any instant, so 2 377 of 2 940 frames were futex waits on BOTH arms.
+
+**AND ONE CONFIGURATION CAVEAT ON THE #39 PAIR.** It ran the `reader-file`
+library against a schema built for a different engine. It loaded, smoke-tested
+and served four thousand requests an arm, so the WITHIN-PAIR comparison is sound
+-- one library, one schema, one environment variable -- but its absolute numbers
+are not comparable to the ladder in the section above (1.797 ms here against
+1.826 there on the exclusive arm, 2.068 against 2.569 on the shared). A swap
+without `make schema` is a valid pair and an invalid level.
 
 ### And the lever WAS the fetches: `prewarm/1` (1.2.17)
 
