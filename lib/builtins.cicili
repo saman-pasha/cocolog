@@ -2071,7 +2071,23 @@
   ;;; same contract `use_module' has and for the same reason: a lock here would
   ;;; sit under the first call of every predicate of every proof in the
   ;;; process. `library(httpd)' calls it in `httpd_serve/3' before the pool
-  ;;; starts; a program building its own crew should do the same.
+  ;;; starts.
+  ;;;
+  ;;; AND IT PAYS ONLY WHERE THE FETCHES RECUR, which is narrower than it
+  ;;; sounds and was measured the hard way. The call itself asks about every
+  ;;; library predicate the process has -- 437 of them with the tier-1
+  ;;; libraries loaded -- so it costs ~51 ms up front and earns it back at 51
+  ;;; fetches a request. An httpd pool repays that in about nine requests,
+  ;;; because a fresh store per REQUEST asks again every time.
+  ;;;
+  ;;; `library(cowork)' IS NOT THAT SHAPE AND DELIBERATELY DOES NOT CALL IT. A
+  ;;; crew worker's store lives as long as the worker and is filled lazily, so
+  ;;; it asks only about the predicates its own jobs call, once -- about
+  ;;; fifteen a worker, measured. Pre-warming a crew therefore buys 437 fetches
+  ;;; to save perhaps 180, and it measured 4-6x WORSE at every crew size
+  ;;; tried: a crew of four went 13 ms to 51, a crew of twelve 21 ms to 65,
+  ;;; with one real job each. The rule is the fetches RECURRING, not the
+  ;;; threads existing.
   ;;;
   ;;; WHAT IT COSTS IF YOU ARE WRONG is in `coco_store_prewarm' in lib/kb.cicili:
   ;;; a predicate a MODULE defines, written into the knowledge base by another
