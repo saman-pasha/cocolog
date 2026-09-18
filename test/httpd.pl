@@ -41,7 +41,7 @@ main :-
     a_file(Root), every_byte(Root), path_rules(Root), never_served(Root), methods(Root),
     the_builtin, the_fence, outer_budget(D), head(Root), no_root,
     pages(D, Root), over_a_socket(D, Root), keep_alive(D, Root), the_pool(D, Root),
-    module_registry(D), knowledge_base(D, Root),
+    module_registry(D), knowledge_base(D, Root), the_prewarm(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -700,6 +700,57 @@ knowledge_base(D, Root) :-
         kb_count(KB, N4),
         check('workers(0) settles per request as well', N4, answer(1)),
         reap(Pid4),
+        sh_exit(Forget, _)
+    ).
+
+%% THE PRE-WARM, which is what `httpd_serve/3' calls before it starts a pool.
+%%
+%% WHAT IT IS FOR is a number: every request through the pool is a
+%% `run_isolated/2' proof on a FRESH store, and a fresh store asks the backend
+%% once per predicate the proof calls. Measured over the binary protocol on a
+%% page reading one row -- 52 predicates asked A REQUEST and 6.06 ms of a
+%% 10.47 ms request inside the fetch hook -- and 51 of the 52 are predicates a
+%% MODULE defines, which the knowledge base has no rows for and will not get
+%% any while the process runs. `prewarm/1' asks once, remembers the absences,
+%% and a later store answers them without the wire. One binary, the call in or
+%% out of `library(httpd)', three alternating repeats: 10.34 ms to 5.02 ms at
+%% one worker and 10.42 to 5.19 at four, ranges not touching.
+%%
+%% WHAT IS CHECKED HERE IS THE CONTRACT, NOT THE SPEED. A stopwatch in a suite
+%% fails on a loaded machine; what must not drift is which predicates are
+%% allowed into the table -- the module's, and only when the backend had
+%% nothing for them.
+the_prewarm(D) :-
+    section('prewarm/1: the absences a module''s predicates leave in the store'),
+    cocolog(C),
+    %% WITH NO BACKEND THERE IS NOTHING TO REMEMBER, and it still succeeds --
+    %% a program that calls it is not writing two versions of itself.
+    LocalArgs = 'query "prewarm(N), write(answer(N)), nl"',
+    cocolog_answer(LocalArgs, L1),
+    check('--local remembers nothing and says so', L1, answer(0)),
+    ( getenv('ZIGURAT_HOST', Host) -> true ; Host = '127.0.0.1' ),
+    ( getenv('ZIGURAT_PORT', Port) -> true ; Port = 2160 ),
+    sh_join(['--kb httpd_prewarm_case --host ', Host, ' --tcp ', Port, ' --timeout 30'], KB),
+    sh_join(['timeout 20 ', C, ' ', KB, ' list >/dev/null 2>&1'], Probe),
+    (   \+ sh_exit(Probe, 0)
+    ->  format("     (skipped: no Zigurat server at ~w:~w)~n", [Host, Port])
+    ;   sh_join(['timeout 60 ', C, ' ', KB, ' forget >/dev/null 2>&1'], Forget),
+        sh_exit(Forget, _),
+        %% ASKED ONCE. The second call has nothing left to add, which is the
+        %% property that makes it safe to call from anything that starts a pool.
+        sh_join([KB, ' query "prewarm(A), prewarm(B), (A > 0, B =:= 0 -> R = yes ; R = no(A,B)), write(answer(R)), nl"'], TwiceArgs),
+        cocolog_answer(TwiceArgs, T1),
+        check('the first call remembers, the second has nothing to add', T1, answer(yes)),
+        %% AND THE ONE THAT MATTERS: a predicate a MODULE defines, which the
+        %% knowledge base DOES have rows for, must stay out of the table and go
+        %% on being fetched. The row is written by a process that does not load
+        %% library(http) at all, so the module's own clauses are not dragged
+        %% into the knowledge base with it.
+        sh_join(['timeout 60 ', C, ' ', KB, ' query "assertz(http_header(from_the_kb, x, y))" >/dev/null 2>&1'], Seed),
+        sh_exit(Seed, _),
+        sh_join([KB, ' query "use_module(library(http)), prewarm(_), ( http_header(from_the_kb, x, y) -> R = yes ; R = no ), write(answer(R)), nl"'], KeepArgs),
+        cocolog_answer(KeepArgs, K1),
+        check('a module''s predicate WITH rows is still fetched', K1, answer(yes)),
         sh_exit(Forget, _)
     ).
 

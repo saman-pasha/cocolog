@@ -76,6 +76,7 @@
     ("nb_setval"               2 coco_b_setval)
     ("nb_getval"               2 coco_b_getval)
     ("garbage_collect"         0 coco_b_garbage_collect)
+    ("prewarm"                 1 coco_b_prewarm)
     ("statistics"              2 coco_b_statistics)
     ("$store_mute"             0 coco_b_store_mute)
     ("$store_unmute"           0 coco_b_store_unmute)
@@ -2059,6 +2060,43 @@
                                       (coco_store_get m st
                                                     ($ (nth i (-> st globals)) cell))))))
             (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
+
+  ;;; `prewarm(-Count)' asks the backend, once, about every predicate a MODULE
+  ;;; owns and remembers the ones it has no rows for, so that the fresh store
+  ;;; every `run_isolated/2' proof gets need not ask again. Count is how many
+  ;;; joined the table on this call -- 0 on a second call, and 0 under
+  ;;; `--local', where there is no backend to ask.
+  ;;;
+  ;;; CALL IT BEFORE YOU SPAWN. The table is process-wide and unguarded, the
+  ;;; same contract `use_module' has and for the same reason: a lock here would
+  ;;; sit under the first call of every predicate of every proof in the
+  ;;; process. `library(httpd)' calls it in `httpd_serve/3' before the pool
+  ;;; starts.
+  ;;;
+  ;;; AND IT PAYS ONLY WHERE THE FETCHES RECUR, which is narrower than it
+  ;;; sounds and was measured the hard way. The call itself asks about every
+  ;;; library predicate the process has -- 437 of them with the tier-1
+  ;;; libraries loaded -- so it costs ~51 ms up front and earns it back at 51
+  ;;; fetches a request. An httpd pool repays that in about nine requests,
+  ;;; because a fresh store per REQUEST asks again every time.
+  ;;;
+  ;;; `library(cowork)' IS NOT THAT SHAPE AND DELIBERATELY DOES NOT CALL IT. A
+  ;;; crew worker's store lives as long as the worker and is filled lazily, so
+  ;;; it asks only about the predicates its own jobs call, once -- about
+  ;;; fifteen a worker, measured. Pre-warming a crew therefore buys 437 fetches
+  ;;; to save perhaps 180, and it measured 4-6x WORSE at every crew size
+  ;;; tried: a crew of four went 13 ms to 51, a crew of twelve 21 ms to 65,
+  ;;; with one real job each. The rule is the fetches RECURRING, not the
+  ;;; threads existing.
+  ;;;
+  ;;; WHAT IT COSTS IF YOU ARE WRONG is in `coco_store_prewarm' in lib/kb.cicili:
+  ;;; a predicate a MODULE defines, written into the knowledge base by another
+  ;;; process after this call, is not seen by this one. The program's own
+  ;;; predicates are untouched and are fetched per request as they always were.
+  (func coco_b_prewarm ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t n . #'(coco_store_prewarm (-> e st) (coco_m_machine e))))
+          (return (coco_m_unify e (coco_m_arg e g 0)
+                                  (coco_m_new_int e (cast i64 n))))))
 
   ;;; `garbage_collect/0' compacts the store -- see `coco_store_compact' in
   ;;; lib/kb.cicili for what that reclaims and when it happens unasked. It
