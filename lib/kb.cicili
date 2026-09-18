@@ -70,6 +70,11 @@
     (member size_t   origin_cap)
     (member int      dynamic)
     (member int      loaded)
+    ;; The backend was asked about this predicate and added NOTHING. Kept per
+    ;; predicate rather than re-derived, because the only moment it can be seen
+    ;; is the fetch itself -- afterwards a predicate with the module's own
+    ;; clauses in it looks the same either way. `coco_store_prewarm' reads it.
+    (member int      empty_fetch)
     ;; Came from a MODULE's Coco half rather than from the program. `listing'
     ;; with no argument skips these -- a person listing what they wrote does
     ;; not want the library back -- while `listing(Name)' still shows them,
@@ -1070,9 +1075,112 @@
         (if ($ (nth pi (-> st preds)) loaded) (return 1))
         (set ($ (nth pi (-> st preds)) loaded) 1)
         (if (== (-> st fetch) nil) (return 1))
-        (return ((-> st fetch) st (-> st ctx)
-                                 ($ (nth pi (-> st preds)) name)
-                                 ($ (nth pi (-> st preds)) arity))))
+        ;; WHETHER THE BACKEND HAD ANYTHING, recorded where it can be seen:
+        ;; the fetch is the only moment the difference shows, because a module's
+        ;; predicate has its own clauses either way. `coco_store_prewarm' reads it.
+        (let ((size_t before . #'($ (nth pi (-> st preds)) nclauses))
+              (int rc . #'((-> st fetch) st (-> st ctx)
+                                            ($ (nth pi (-> st preds)) name)
+                                            ($ (nth pi (-> st preds)) arity))))
+          (if (== ($ (nth pi (-> st preds)) nclauses) before)
+              (set ($ (nth pi (-> st preds)) empty_fetch) 1))
+          (return rc)))
+
+  ;;; ------------------------------------------------------------------
+  ;;; PRE-WARM: the predicates a MODULE owns that the knowledge base has no
+  ;;; rows for, remembered once for the whole process.
+  ;;;
+  ;;; WHY IT EXISTS. `run_isolated/2' gives every httpd request a fresh store,
+  ;;; and a fresh store asks the backend once per predicate -- `coco_pred_ensure'
+  ;;; above. Measured on a page that reads one row over the binary protocol:
+  ;;; 52 predicates asked A REQUEST, 6.06 ms of a 10.47 ms request spent inside
+  ;;; the hook, 117 us a fetch, against 0.99 ms for the same page on a store
+  ;;; that persists. FIFTY-ONE of the 52 are a module's own -- 27 of
+  ;;; library(http), 18 of library(httpd), six of the tier-1 libraries -- and
+  ;;; every one is a question whose answer cannot change while the process
+  ;;; runs, because the module registry is fixed once the modules are loaded.
+  ;;;
+  ;;; ONLY THE ABSENCE IS REMEMBERED. A predicate joins this table when a real
+  ;;; fetch was made for it and the backend added NOTHING, so a later store may
+  ;;; mark it loaded without asking. If the backend DID have rows the predicate
+  ;;; is not in the table and every store fetches it exactly as before. The
+  ;;; program's own predicates are never in it, because only a MUTED assert
+  ;;; sets `library' -- which is the same flag `listing' uses to tell the
+  ;;; library from the program.
+  ;;;
+  ;;; THE STALENESS CONTRACT IS NARROW AND IS THE WHOLE COST. Another process
+  ;;; asserting into a predicate a MODULE defines -- `member/2',
+  ;;; `httpd_route/3' -- after the pre-warm will not be seen here. Nothing else
+  ;;; changes: the program's own predicates are fetched on every request with
+  ;;; the freshness they always had. It is the module registry's own contract,
+  ;;; and it carries the module registry's own rule -- PRE-WARM BEFORE YOU
+  ;;; SPAWN. The table is written once and then read by every worker thread
+  ;;; with no lock, exactly as `use_module' is.
+  (struct coco_prewarm_ent
+    (member char * name)
+    (member u32    arity))
+
+  (static) (var coco_prewarm_ent * coco_prewarm_tab . nil)
+  (static) (var size_t coco_prewarm_n . 0)
+  (static) (var size_t coco_prewarm_cap . 0)
+
+  (func coco_prewarm_has ((const char * name) (u32 arity)) (out int)
+        (if (== coco_prewarm_tab nil) (return 0))
+        (for ((size_t i . 0)) (< i coco_prewarm_n) ((++ i))
+          (if (and (== arity ($ (nth i coco_prewarm_tab) arity))
+                   (== 0 (strcmp name ($ (nth i coco_prewarm_tab) name))))
+              (return 1)))
+        (return 0))
+
+  (static)
+  (func coco_prewarm_add ((const char * name) (u32 arity)) (out int)
+        (if (coco_prewarm_has name arity) (return 0))
+        (if (>= coco_prewarm_n coco_prewarm_cap)
+            (let ((size_t ncap . #'(? (== coco_prewarm_cap 0) 64 (* coco_prewarm_cap 2)))
+                  (void * nb))
+              (set nb (realloc (cast (void *) coco_prewarm_tab)
+                               (* ncap (sizeof coco_prewarm_ent))))
+              (if (== nb nil) (return 0))
+              (set coco_prewarm_tab (cast (coco_prewarm_ent *) nb))
+              (set coco_prewarm_cap ncap)))
+        (let ((size_t len . #'(+ (strlen name) 1))
+              (char * copy))
+          (set copy (cast (char *) (malloc len)))
+          (if (== copy nil) (return 0))
+          (memcpy (cast (void *) copy) (cast (const void *) name) len)
+          (set ($ (nth coco_prewarm_n coco_prewarm_tab) name) copy)
+          (set ($ (nth coco_prewarm_n coco_prewarm_tab) arity) arity)
+          (set coco_prewarm_n (+ coco_prewarm_n 1))
+          (return 1)))
+
+  ;;; Fetch every library predicate this store has not asked about yet, and
+  ;;; remember the ones the backend had nothing for. The clause count before
+  ;;; and after is what says so: a module's predicate already HAS clauses --
+  ;;; its own -- so an empty predicate is not the test, an unchanged one is.
+  ;;;
+  ;;; `preds' is re-read through the store on every line rather than held in a
+  ;;; pointer: a fetch may intern predicates of its own and grow the array,
+  ;;; which is also why the loop re-reads `npreds'.
+  (func coco_store_prewarm ((coco_store * st) (coco_machine * m)) (out size_t)
+        (let ((size_t added . 0))
+          (if (== (-> st fetch) nil) (return 0))
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (if ($ (nth i (-> st preds)) library)
+                (block
+                  ;; A LIBRARY PREDICATE THIS STORE HAS NOT ASKED ABOUT IS
+                  ;; ASKED NOW; one already asked carries its own answer in
+                  ;; `empty_fetch', so the pass does not depend on whether
+                  ;; the program called something before it got here. It was
+                  ;; ordering alone that left `httpd_option/3' out, because
+                  ;; `httpd_serve/3' reads its own options before it starts
+                  ;; the pool -- one fetch a request, for a predicate the
+                  ;; pass was written to cover.
+                  (if (not ($ (nth i (-> st preds)) loaded)) (coco_pred_ensure st i))
+                  (if ($ (nth i (-> st preds)) empty_fetch)
+                      (if (coco_prewarm_add (coco_atom_name m ($ (nth i (-> st preds)) name))
+                                            ($ (nth i (-> st preds)) arity))
+                          (set added (+ added 1)))))))
+          (return added)))
 
   (func coco_store_warm ((coco_store * st)) (out int)
         (if (== (-> st warm) nil) (return 1))
@@ -1740,8 +1848,21 @@
             ;; work out what they are keyed on.
             (if (not (coco_pred_add_clause st pi stored at_end (coco_arg_key m head) origin))
                 (return 0))
-            ;; muted means this is a module's clause, not the program's
-            (if (coco_store_is_muted st) (set ($ (nth pi (-> st preds)) library) 1))
+            ;; muted means this is a module's clause, not the program's.
+            ;; ON THE FIRST CLAUSE ONLY, because that is where the pre-warm
+            ;; table is consulted and a table lookup per clause would be a
+            ;; string compare per clause of every module in the process.
+            (if (and (coco_store_is_muted st) (not ($ (nth pi (-> st preds)) library)))
+                (block
+                  (set ($ (nth pi (-> st preds)) library) 1)
+                  ;; AND THE PRE-WARM ANSWERS FOR IT. `loaded' stays 0 here
+                  ;; otherwise -- the comment above says why -- but when the
+                  ;; process has already asked the backend about this exact
+                  ;; name and arity and been given nothing, asking again is a
+                  ;; round trip for an answer that is in hand.
+                  (if (coco_prewarm_has (coco_atom_name m ($ (nth pi (-> st preds)) name))
+                                        ($ (nth pi (-> st preds)) arity))
+                      (set ($ (nth pi (-> st preds)) loaded) 1))))
             (if (and (not (coco_store_is_muted st)) (!= (-> st on_assert) nil))
                 ((-> st on_assert) st (-> st ctx) stored))
             (return 1))))

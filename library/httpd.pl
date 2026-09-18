@@ -322,9 +322,24 @@ httpd_serve(Port, Options) :- httpd_serve(Port, Options, -1).
 httpd_serve(Port, Options, Count) :-
     httpd_option(workers(W), Options, 0),
     (   W > 0
-    ->  httpd_pool(Port, Options, Count, W)
+    ->  prewarm(_),
+        httpd_pool(Port, Options, Count, W)
     ;   httpd_alone(Port, Options, Count)
     ).
+
+%% PRE-WARMED BEFORE THE POOL STARTS, AND ONLY FOR THE POOL. Every request
+%% through `httpd_pool/4' is a `run_isolated/2' proof on a FRESH store, and a
+%% fresh store asks the backend once per predicate the proof calls. Measured
+%% over the binary protocol on a page that reads one row: 52 predicates asked
+%% a request and 6.06 ms of a 10.47 ms request spent inside the fetch hook --
+%% and 51 of the 52 are predicates a MODULE defines, which the knowledge base
+%% has no rows for and never will while the process runs.
+%%
+%% `prewarm/1' asks about those once, here, in the parent, and remembers the
+%% ones the backend had nothing for; lib/kb.cicili carries what it costs if
+%% the assumption is wrong. `httpd_alone/3' does not need it -- its store is
+%% the process's own and lives for the life of the server, so it asks once in
+%% any case.
 
 httpd_alone(Port, Options, Count) :-
     httpd_transport(Options, T),
