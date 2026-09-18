@@ -698,8 +698,32 @@ isolation level are **0, 0, 0 and 0**, so `run_isolated/2` really does read at
 READ COMMITTED with reader paths set. A cocolog request is 57 exclusive
 acquisitions to one shared, so by the gate's reckoning nearly everything the
 pool does IS a writer, and a writer-preferring guard has almost nothing to
-defer. **If the shared lookup is ever to PAY here rather than merely cost
-nothing, the enclosing write hold is where to look.**
+defer.
+
+**AND THE ENCLOSING HOLD HAS TWO NAMES, BOTH DELIBERATE** -- the owner's
+answer, and only the second is in the process these numbers came from.
+`ce_dispatch` wraps any procedure whose `ce_write_intent` is 1 in ONE
+exclusive `Streams` for its whole run (`embed/embed.cicili`), so every lookup
+inside an `assertz`, a `forget` or a `machine_*` rides that hold -- and the
+CLAIMS are excluded from the wrapper on purpose, because a claim's
+`check_lock` must release the streams while it waits and a nested guard
+cannot, measured once as a full-swarm deadlock. **That is the EMBEDDED
+engine, and the pool figures above are the SERVER**: `nm` finds no
+`ce_dispatch` in `ziguratip` at all, so it cannot be the nesting they
+counted. What is in that process is the engine's own -- `online_insert` and
+`online_update` take the exclusive guard and call `map` INSIDE it, one
+`bt_map` walk per index per row, so every index-maintenance lookup during a
+write nests under that write's hold. A nested no-op riding a write hold is
+the guard working, not an ask refused, and a write must hold across its own
+index updates or the index and the row disagree across a crash.
+
+**WHICH MAKES "no gain" THE EXPECTED RESULT AND NOT A DISAPPOINTMENT: the
+shared cursor pays where lookups happen OUTSIDE a write, and cocolog's
+request path is not that shape.** The probe's page writes nothing and a
+request is still 57 exclusive acquisitions to one shared, so that is a
+property of `run_isolated/2`'s turn rather than of the page -- and WHICH
+writes those are, on a read-only page, is not measured here. A read-mostly
+workload is the lead if the shared lookup is ever to pay downstream.
 
 **THE STAND-DOWN CLIMBS WITH THE POOL AND PLATEAUS AT A QUARTER OF THE CAP** --
 0.05 stand-downs a request at two workers, 0.25 at four, 0.47 at eight and
