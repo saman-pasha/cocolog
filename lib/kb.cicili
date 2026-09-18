@@ -68,6 +68,23 @@
     ;; copy of the program, not two, and what the program asserted stays.
     (member u64 *    origins)
     (member size_t   origin_cap)
+    ;; WHETHER A MODULE PUT THIS CLAUSE HERE, parallel to CLAUSES, and the
+    ;; only thing that tells a library's clause from the program's once both
+    ;; are in one predicate. `origins' cannot: a tier-2 library is consulted
+    ;; from a real file and its clauses carry that file's path exactly as a
+    ;; program's do, while a compiled-in module's carry 0 exactly as an
+    ;; `assertz' does. What is common to every library clause and to no
+    ;; program clause is that the store was MUTED when it arrived.
+    ;;
+    ;; The backend reads it. `coco_zg_sync_pred' rewrites a dirty predicate
+    ;; WHOLESALE, and without this it wrote the module's own clauses into the
+    ;; knowledge base beside the program's: one `assertz(member(foo,[a]))'
+    ;; left THREE rows, and every later process fetched library(lists)'s two
+    ;; on top of the copy it already had -- `member(X,[p,q])' answering
+    ;; [p,q,q,p,q,q]. Muted clauses never write through, so they must never
+    ;; be written back either.
+    (member int *    muted)
+    (member size_t   muted_cap)
     (member int      dynamic)
     (member int      loaded)
     ;; The backend was asked about this predicate and added NOTHING. Kept per
@@ -661,6 +678,7 @@
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
           (free ($ (nth i (-> st preds)) clauses))
           (free ($ (nth i (-> st preds)) origins))
+          (free ($ (nth i (-> st preds)) muted))
           ;; the index's three arrays go with the clause list they describe
           (free ($ (nth i (-> st preds)) keys))
           (free ($ (nth i (-> st preds)) chain))
@@ -1591,7 +1609,7 @@
 
   (static)
   (func coco_pred_add_clause ((coco_store * st) (size_t pi) (size_t clause)
-                            (int at_end) (u64 key) (u64 origin)) (out int)
+                            (int at_end) (u64 key) (u64 origin) (int muted)) (out int)
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p origins)))
                                   (aof (-> p origin_cap)) (+ (-> p nclauses) 1)
@@ -1612,10 +1630,15 @@
                                   (aof (-> p chain_cap)) (+ (-> p nclauses) 1)
                                   (sizeof size_t)))
               (return 0))
+          (if (not (coco_store_grow st (cast (void **) (aof (-> p muted)))
+                                  (aof (-> p muted_cap)) (+ (-> p nclauses) 1)
+                                  (sizeof int)))
+              (return 0))
           (if at_end
               (block (set (nth (-> p nclauses) (-> p clauses)) clause)
                      (set (nth (-> p nclauses) (-> p keys)) key)
-                     (set (nth (-> p nclauses) (-> p origins)) origin))
+                     (set (nth (-> p nclauses) (-> p origins)) origin)
+                     (set (nth (-> p nclauses) (-> p muted)) muted))
             ;; asserta: shift the rest up by one and put this first. Every
             ;; clause after it is renumbered, and the chains hold POSITIONS,
             ;; so the index is dropped rather than patched.
@@ -1624,10 +1647,12 @@
                        (set (nth i (-> p clauses)) (nth (- i 1) (-> p clauses)))
                        (set (nth i (-> p keys)) (nth (- i 1) (-> p keys)))
                        (set (nth i (-> p origins)) (nth (- i 1) (-> p origins)))
+                       (set (nth i (-> p muted)) (nth (- i 1) (-> p muted)))
                        (set i (- i 1))))
                    (set (nth 0 (-> p clauses)) clause)
                    (set (nth 0 (-> p keys)) key)
                    (set (nth 0 (-> p origins)) origin)
+                   (set (nth 0 (-> p muted)) muted)
                    (set (-> p indexed) 0)))
           (set (-> p nclauses) (+ (-> p nclauses) 1))
           ;; ASSERTZ KEEPS THE INDEX, and that is the case worth keeping: the
@@ -1675,7 +1700,8 @@
                 (if (!= kept i)
                     (block (set (nth kept (-> p clauses)) (nth i (-> p clauses)))
                            (set (nth kept (-> p keys)) (nth i (-> p keys)))
-                           (set (nth kept (-> p origins)) (nth i (-> p origins)))))
+                           (set (nth kept (-> p origins)) (nth i (-> p origins)))
+                           (set (nth kept (-> p muted)) (nth i (-> p muted)))))
                 (set kept (+ kept 1)))))
           (if (== gone 0) (return 0))
           (set (-> p nclauses) kept)
@@ -1846,7 +1872,8 @@
             ;; is a copy of exactly this term. Doing it on the way in is what
             ;; keeps the index free -- nothing ever walks the clauses to
             ;; work out what they are keyed on.
-            (if (not (coco_pred_add_clause st pi stored at_end (coco_arg_key m head) origin))
+            (if (not (coco_pred_add_clause st pi stored at_end (coco_arg_key m head) origin
+                                           (? (coco_store_is_muted st) 1 0)))
                 (return 0))
             ;; muted means this is a module's clause, not the program's.
             ;; ON THE FIRST CLAUSE ONLY, because that is where the pre-warm
@@ -2236,7 +2263,8 @@
                        (for ((size_t j . i)) (< (+ j 1) (-> p nclauses)) ((++ j))
                          (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
                          (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
-                         (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins))))
+                         (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
+                         (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted))))
                        (set (-> p nclauses) (- (-> p nclauses) 1))
                        (set (-> p indexed) 0)
                        ;; anything retractable is dynamic by definition, whether

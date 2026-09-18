@@ -1010,14 +1010,43 @@ a second direction, and there is nothing left to recover on this workload: the
 12 % is reproducible only with the pre-warm off, which is now a configuration
 nobody runs.
 
-**ONE DEFECT WAS FOUND ON THE WAY AND IS NOT FIXED.** `assertz` into a predicate
-a MODULE defines writes the MODULE's own clauses into the knowledge base, because
-the backend flushes a dirty predicate WHOLESALE: after
-`assertz(member(foo,[a]))` the kb holds `member/2`'s library clauses as rows, and
-every later process fetches them ON TOP of its own copy --
-`findall(X, member(X,[p,q]), L)` answers `[p,q,q,p,q,q]`. It reproduces with the
-pre-warm removed, so it is older than it, and it is the same wholesale flush the
-store section above describes. Recorded here rather than fixed.
+**ONE DEFECT WAS FOUND ON THE WAY, AND IS FIXED IN 1.2.18.** `assertz` into a
+predicate a MODULE defines wrote the MODULE's own clauses into the knowledge
+base, because the backend rewrites a dirty predicate WHOLESALE and the store
+holds the library's clauses beside the program's: after
+`assertz(member(foo,[a]))` the kb held THREE rows -- the program's clause and
+both of `library(lists)`'s -- and every later process fetched those two ON TOP
+of the copy its own modules had already given it, so
+`findall(X, member(X,[p,q]), L)` answered `[p,q,q,p,q,q]`. It reproduced with
+the pre-warm removed, so it was older than it.
+
+**THE MARK HAD TO BE PER CLAUSE, AND NEITHER FIELD THAT LOOKED RIGHT WOULD DO.**
+`coco_pred`'s `library` flag is per PREDICATE, and the moment a program asserts
+into `member/2` the predicate holds both kinds. `origins` is per clause and
+still cannot tell them apart -- measured, not assumed: a tier-2 library is
+consulted from a real file and its clauses carry that file's path exactly as a
+program's do (`library(http)`'s own `http_header/3` leaked the same way), while
+a compiled-in module's carry 0 exactly as a runtime `assertz` does. What is
+common to every library clause and to no program clause is that the store was
+MUTED when it arrived, so `coco_pred` gained a `muted` array parallel to
+`clauses`, `keys`, `origins` and `chain`, and `coco_zg_sync_pred` skips those.
+
+**SKIPPED ON BOTH SIDES OF THE WINDOW.** The flush is a pipeline -- up to 128
+calls sent before the first is answered -- so a clause that is not sent has no
+answer to wait for, and skipping on the send side alone drifts the two counters
+apart by exactly the muted clauses between them.
+
+**IT IS FORWARD-ONLY, AND THAT IS NOT LAZINESS.** A base written by an older
+binary keeps its duplicates and does NOT heal on the next write: the fetch
+brings those rows into the store as ordinary clauses, and by then nothing can
+tell them from rows a program meant to write. `cocolog forget NAME ARITY`
+cleans one predicate -- measured, `forgot 4 clause(s) of member/2`, and the
+next assert stays clean -- and a whole-base `forget` cleans the lot.
+`test/reconsult.pl` is the case, in the arrangement where it bites (`--embed`,
+so it never SKIPs), and it checks the SYMPTOM a program would meet rather than
+the row count: `member(X,[p,q])` answering two solutions, the program's own
+clause still in the store, and one row for the tier-2 predicate. Both halves go
+RED on a binary without the fix.
 
 **FIVE THINGS THAT BIT WHILE MEASURING THIS, and the first is the one to carry
 away:**
