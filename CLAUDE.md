@@ -1087,7 +1087,7 @@ the number beside it was printed:**
   it. It is loud rather than silent, which is the only good thing about it: a
   parser that shifts quietly is the one to fear.
 
-### Two more mechanisms dead, and the cost is COUNTED now (2026-09-18, later)
+### Two more mechanisms dead, the cost is COUNTED, and then it turned out not to be per probe (2026-09-18, later)
 
 **FIVE READINGS OF THE SHARED READ PATH AND THE CACHE ARE DEAD, AND THE TABLE IS
 THE POINT.** Each died to its own instrument, three of them on branches the owner
@@ -1131,12 +1131,54 @@ hold -- the no-cache arm does the IDENTICAL 663 at a 0 % hit rate, so the count
 is the WORKLOAD's and not the cache's, and the pre-warm arm does 15, which is
 44x fewer for 52x fewer fetches.
 
-**THE COST IS 1.15 us A PROBE AND IT IS INSIDE ONE FUNCTION.** 1.838 ms against
-1.075 over 663 probes; at a 100 % hit rate `bt_node_read` IS `bt_cache_node_get`
-and nothing else runs, so the whole of it sits in that one function -- a mutex
-pair, a slot index, an address compare and a 56- or 88-byte copy. None of those
-accounts for ~2 400 cycles, by about an order of magnitude, and **no sixth
-mechanism is proposed here**: that register is 0 for 3 today.
+**AND THE PER-PROBE FRAMING IS WRONG, WHICH THREE FREE CHECKS SETTLED AN HOUR
+LATER.** It looked like 1.15 us a probe -- 1.838 ms against 1.075 over 663
+probes, and at a 100 % hit rate `bt_node_read` IS `bt_cache_node_get`, so the
+whole of it seemed to sit in one function whose visible work is ~50 ns. **It is
+not per probe at all.** None of the three checks needed a build:
+
+| the check | what it said |
+|---|---|
+| `utime` beside `stime` at W=12 | **+0.050 ms user, +0.962 ms SYSTEM** -- 95 % kernel |
+| the same pair at **`workers(1)`** | cache **0.24 ms a request CHEAPER**, 4 % faster |
+| 30 stack samples an arm | 2377 futex-wait frames against 2391 -- no difference |
+
+**AT ONE WORKER THE CACHE COSTS NOTHING.** The whole ~1 ms appears only under
+concurrency, so there is no per-probe cost to explain: the probe is free when one
+thread makes it. Every per-probe figure this file and ZiguratIP#40 carried --
+3.6 us, then 1.8, then 1.15 -- was **a per-request total divided by a count that
+has nothing to do with where the time goes**, which is the same error in a fourth
+coat. The count was worth taking anyway; what it could not do was locate
+anything.
+
+**"NOT REACHING FUTEX" IS NOT "NOT IN THE KERNEL", AND THIS FILE PUBLISHED THE
+SECOND FROM THE FIRST.** The strace arm showed the mutex staying in user space
+and the conclusion drawn was "the cost is user-space CPU" -- and it is 95 %
+system time. A refutation of one mechanism is not a positive claim about where
+the cost is; it only removes a candidate.
+
+**THE FUTEX REFUTATION ITSELF SURVIVES, on an instrument that cannot be accused
+of suppressing contention.** `strace -c -f` halves throughput and serialises
+threads, so its counts were suspect in exactly the direction that mattered.
+Context switches summed over every thread in `/proc/PID/task/*/status`, with no
+ptrace: **140.7 voluntary a request cached against 143.0 uncached**, marginally
+LOWER with the cache, minor faults 0.014 against 0.012 and negligible either way.
+So: kernel time, only under concurrency, with no more syscalls, no more blocking
+and no more faults than the arm without it. **No sixth mechanism is proposed
+here** -- that register is 0 for 3.
+
+**TWO THINGS ABOUT THE INSTRUMENTS, both of which cost a run:**
+
+* **A TOP-FRAME HISTOGRAM OF A POOL MEASURES WAITING.** Twelve workers on four
+  cores are nearly all blocked at any instant, so 2 377 of 2 940 frames are
+  `__futex_abstimed_wait_common64` on BOTH arms and exactly ONE sample an arm
+  landed in engine code. Sample running threads only, or take hundreds.
+* **`utime`/`stime` FROM `/proc` IS TICK-SAMPLED, NOT MEASURED.** The kernel
+  charges a whole tick to whichever mode it catches the CPU in. At 0.5 CPU-seconds
+  a second over fifteen seconds the sample is large and the arms differ by 2.5x,
+  so the split is almost certainly real -- but it is a SAMPLE, and a number
+  carrying a conclusion should be named as one. Same family as asking which clock
+  a figure came from.
 
 **AND THIS BOX DRIFTS ~20 %, WHICH RETIRES AN ERROR BAR THIS FILE PUBLISHED.**
 Cached store CPU a request, same box, same protocol, three builds in one day:
