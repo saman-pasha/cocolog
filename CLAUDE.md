@@ -804,6 +804,155 @@ them. The way to survive a scheduler tail is to take the guard fewer times
 rather than hold it for less, which makes this a question about
 `parsi/02-procedures.parsi` and `COCOLOG::CLAUSES_OF`, not about the engine.
 
+### cocolog#18: the 104 lookups, two engine branches refused, and what the cost is
+
+**THE 104 IS 52 PREDICATES TIMES TWO DEPENDENT LEVELS, AND 51 OF THE 52 HAVE
+NO ROWS.** The fetch hook is asked once per predicate (`coco_pred_ensure`), so
+one request through `library(httpd)`'s pool asks for 52 distinct predicates --
+51 of them machinery, one the page's own data. `cocolog::clauses` is indexed
+`(kb, name, arity)` and `_COCOLOG::CLAUSES_OF_.cpp` -- what the Parsi compiler
+emits, in `$ZIGURATIP_HOME/tmp` -- is **three nested `cursor_equal` lambdas**,
+one per level. `engine-compat.hpp:273-282` sends the outer two through
+`bt_cursor_equal_dep` with a `DepShim` and the innermost through
+`bt_cursor_equal_multi` with ONE key, so 52 x 2 = **104 `bt_cursor_equal_dep`
+calls a request** and one `bt_cursor_equal`.
+
+**`bt_emit_key` RUNS PER KEY EMITTED, NOT PER CALL**, which is why the same
+request opens only **53** dependent callbacks: the `kb` level finds its key on
+all 52 fetches, the `name` level on the one predicate that has rows, and the
+`arity` level is INNER and hands rows. 52 + 1 = 53, measured to the unit at
+`MVCCS_DEBUG=debug`. The arithmetic of a fetch follows from it -- 51 fetches at
+3 shared acquisitions and 1 at 5 -- and it is the number to re-derive before
+reading any per-request figure here.
+
+**AND `bt_eqchain_dcb` HAS A CALLER, JUST NOT ONE COCOLOG USES.** The engine's
+own chain -- the multi-level descent that `bt_cursor_equal_multi` drives with a
+full `ks[8]` -- is reached from `mvccs-lib.cicili:6074`, the generated table
+macro's whole-tuple equality. Nothing the Parsi PROCEDURE compiler emits calls
+it: every `_COCOLOG::*.cpp` reaches its index through `engine-compat.hpp`, and
+outside `mvccs-lib.cicili` the only caller of `bt_cursor_equal_multi` in
+ZiguratIP is `engine-compat.hpp:278`, always with one key, which short-circuits
+at `bt_cursor_equal_multi:5119` before the chain. A branch that recognised the
+chain pointer was therefore correct about a callback nobody sends.
+
+**TWO ENGINE BRANCHES WERE BUILT TO CUT THE COST AND BOTH ARE REFUSED BY
+MEASUREMENT.** Twelve workers, eight clients, fifteen seconds a point, three
+alternating repeats, arms built whole and differing only in the engine commit:
+
+| arm | exclusive a request | shared a request | W=12 |
+|---|---|---|---|
+| `0.1.20` (9326417) | 56 | 1 | 1.00 |
+| `6298244` a window at every dependent callback | 3 | 160 | 0.92 |
+| `618bb8f` the window only when a write arrives | 3 | **54** | **0.88** |
+
+**CUTTING THE SHARED ACQUISITIONS BY TWO THIRDS MADE IT WORSE**, which is the
+whole finding: the acquisitions were never the cost. By width, `618bb8f`
+against `0.1.20`: **1.040, 0.997, 0.955, 0.879** at W=2/4/8/12, with the ranges
+touching at 2 and 4 and SEPARATED at 8 (3408-3446 against 3533-3624) and 12
+(3897-4012 against 4476-4538).
+
+**THE GUARD WAIT IS 0.06 % OF A REQUEST AND ITS SIGN IS WRONG.** `probe_x_wait_us`
+and `probe_s_wait_us`, three arms at W=12:
+
+| arm | `x_wait` an acquisition | ALL guard wait a request |
+|---|---|---|
+| `0.1.20` | 0.88 us (0.75-1.00) | **49.7 us** -- the most, and the fastest |
+| `6298244` | 2.30 us (1.41-3.57) | 24.0 us |
+| `618bb8f` | 2.57 us (1.64-4.09) | 19.1 us |
+
+It RISES per acquisition and master separates from both branches, so a writer
+really does drain behind shared holders -- but the branches do not separate
+from EACH OTHER, and the TOTAL falls as throughput falls. The deficits are
++2.55 and +3.27 ms a request against guard-wait changes of -25.7 and -30.7 us:
+**a factor of about a hundred, with the sign inverted.** So the drain is real,
+measurable, and cannot be the cost -- and removing all three of a request's
+exclusive acquisitions (the read-only begin ZiguratIP#37 proposed) could
+recover at most 7.7 us of 3 270.
+
+**IT IS CPU, AND ON A SATURATED BOX THROUGHPUT IS ITS RECIPROCAL.** utime+stime
+from `/proc/<pid>/stat` for the store and the cocolog server, and non-idle from
+`/proc/stat`, per request, `618bb8f` against `0.1.20`:
+
+| W | store CPU/req | machine CPU/req | throughput | 1 / machine CPU | machine busy |
+|---|---|---|---|---|---|
+| 2 | 0.954 | 0.976 | **1.053** | 1.025 | 59 % |
+| 4 | 1.002 | 1.003 | **0.999** | 0.997 | 82 % |
+| 8 | 1.139 | 1.050 | **0.944** | 0.952 | 91 % |
+| 12 | **1.485** | **1.125** | **0.868** | 0.889 | 94 % |
+
+Throughput is the reciprocal of machine CPU a request at every width, to within
+two points, and the box is saturated from W=8 on -- so at the widths where this
+shows, throughput is CPU efficiency and nothing else. The store carries the
+larger PROPORTION (+48.5 % at W=12) and the cocolog server the rest; in absolute
+milliseconds at W=12 it is +0.89 ms store and +0.75 ms server of +1.63 ms.
+
+**AND ONE ENVIRONMENT VARIABLE SETTLES THE CAUSE, WITH NO BUILD.**
+`ZIGURATIP_PARALLEL_READS=0` (`ziguratip/loadmemory.cpp:152-160`) withholds
+`memory_reader_paths`, so `reader_eligible` answers 0 and every shared ask falls
+back to the exclusive side. One library -- `618bb8f` -- both modes, W=12, three
+alternating repeats:
+
+| | parallel reads ON | OFF |
+|---|---|---|
+| requests / 15 s | 3775 (3722-3827) | **4376 (4369-4384)** |
+| mean latency | 20.10 ms | **16.45 ms** |
+| p95 | 36.80 ms | 31.75 ms |
+| store CPU a request | 2.70 ms | **1.78 ms** |
+| shared a request | 54.0 | **0.0** |
+| exclusive a request | 3.0 | 57.0 |
+| store minor faults a request | 0.026 | 0.012 |
+
+`0.0` shared is the check that the variable did what it says, and the OFF arm
+lands on master's profile exactly -- 57 exclusive, 1.78 ms of store CPU against
+master's 1.84, 4376 requests against master's 4308-4349. **So the whole 3.3 ms
+is the shared read path**, on the same binary and the same library.
+
+**THE MECHANISM IS TWELVE MAPPINGS, NOT TWELVE ACQUISITIONS.** A shared hold
+routes a read to the thread's private pair (`hex_in`/`data_in`), which
+`reader_ensure` opens ONCE per thread as read-only `mapstream`s -- no per-call
+check, and `mapbuf::underflow` refreshes only at the end of what is mapped,
+which a static knowledge base never reaches. Minor faults in the store are
+0.026 against 0.012 a request, flat and near zero either way, so nothing is
+re-mapping. Both mappings are `MAP_SHARED`, so twelve workers share one set of
+page-cache pages and NOT their page tables: twelve VMAs of one file mean twelve
+sets of translations where master's exclusive lookups walked one. That is a
+per-read cost scaling with the number of mappings actually reading, which is W
+-- and it predicts the **inversion at W=2**, where two mappings are cheaper than
+serialising fifty-six exclusive holds and the shared arm is 4 % FASTER.
+
+**SO THE SHARED LOOKUP IS A LOSS ON THIS ARRANGEMENT AT THIS WIDTH, AND THE
+OWNER MEASURED IT A WIN ON SIXTEEN THREADS.** Both are measured, on different
+boxes; this one has FOUR cores. The lever left on #18 is the 51 fetches a
+request that find nothing -- pre-warming the machinery predicates before the
+pool starts -- and not the engine. Making readers share ONE mapping with
+private positions is the fix for the mechanism, and it is blocked on
+`mapbuf.cpp:95-117`: `reserve` unmaps and remaps when a store outgrows its
+reservation and the base MOVES, which is safe under a writer's exclusive guard
+and is not safe for a callback-window reader holding nothing.
+
+**FIVE THINGS THAT BIT WHILE MEASURING THIS, and the first is the one to carry
+away:**
+
+* **A PER-ACQUISITION RATE AND A PER-REQUEST TOTAL ANSWER DIFFERENT QUESTIONS.**
+  `probe_x_wait_us` rose per acquisition and FELL per request, and only the
+  second bears on throughput. A hypothesis confirmed in its ordering and refuted
+  in its quantity is refuted. This is the same hazard as guard-held time against
+  call duration, and as the cumulative counter read as a delta in cocolog#16.
+* **THE BOX HAS FOUR CORES AND W=12 OVERSUBSCRIBES IT.** Store CPU a request
+  FALLS at W=12 on both arms (3.1 ms to 1.8-2.7) -- that is the store being
+  served less CPU, not asking for less, and reading it as efficiency inverts the
+  finding. Take the per-width RATIO, which both arms pay equally.
+* **`ps -eo args | grep -F 'serve(PORT,'` FINDS NOTHING.** A whole CPU run came
+  back with a zero column for the server process. `lsof -iTCP:PORT -sTCP:LISTEN -t`
+  is the exact answer and is what the probes use now.
+* **A DERIVED FIGURE IS NOT A MEASUREMENT.** Worker-wall a request taken as
+  clients x seconds / requests is a division, not a clock; the probes time each
+  request with curl's `%{time_total}` and report mean and p95.
+* **`perf` IS NOT INSTALLED HERE** and the kernel is a custom one, so
+  `dTLB-load-misses` cannot be taken on this box. `minflt` from `/proc` is the
+  proxy that was available, and it answered the question it could: the mappings
+  are stable.
+
 **An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live
 SERVER store, and the old trees stay as orphan pages.** The server attaches
 an index it has no catalogue record for with an empty root and maps nothing
