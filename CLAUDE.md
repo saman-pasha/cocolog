@@ -987,6 +987,13 @@ remove, which is exactly the program's own predicates.
 
 ### Three mechanisms dead, and the surprise is the CACHE (2026-09-18)
 
+> **READ THE SECTION AFTER NEXT FIRST.** Everything refuted in these two
+> sections was innocent, and the answer is not in the engine at all: on this
+> box a cross-vCPU wakeup is a VM exit costing ~18 us, and every suspect here
+> was only a way of making more threads runnable at once. The refutations are
+> kept because the ORDER they died in is the useful part, and because each
+> instrument is one to reuse -- but the cost was never any of them.
+
 **WHAT SURVIVES HAS TO SCALE WITH TWO THINGS AT ONCE, and nothing named so far
 does.** Three readings of the shared read path's 10 % are dead, each to a
 different instrument, and the LIST is worth more than any one of them:
@@ -1086,6 +1093,220 @@ the number beside it was printed:**
   so it parsed the REP as a number and every mean came out 0 with `-nan` beside
   it. It is loud rather than silent, which is the only good thing about it: a
   parser that shifts quietly is the one to fear.
+
+### Two more mechanisms dead, the cost is COUNTED, and then it turned out not to be per probe (2026-09-18, later)
+
+**FIVE READINGS OF THE SHARED READ PATH AND THE CACHE ARE DEAD, AND THE TABLE IS
+THE POINT.** Each died to its own instrument, three of them on branches the owner
+built and this box ran:
+
+| the reading | what killed it |
+|---|---|
+| twelve mappings, one a reader thread | the `reader-pool` ladder: flat in P, P=1 is ONE VMA |
+| a fixed cost per read through a different streambuf | the W column, flat in W by construction |
+| the `BTCache` mutex twelve readers collide on | 64 stripes flat, and REMOVING the cache widens the gap |
+| the private `mapstream` ITSELF | `reader-file`: a private `filestream` recovers 12 % |
+| the mutex falling into the kernel | `strace -c -f`: **3.67 futex a request cached, 4.81 uncached** |
+| the cache table's 460 pages, under nested paging | `cache-hugepage`: one 2 MB page recovers **6.5 %** |
+
+**`reader-file` (`1b662ad`, 0.1.27), W=12, pre-warm off, three repeats:**
+`PARALLEL_READS=0` **4464** (4403-4547), private `mapstream` 3974 (3950-3996),
+private `filestream` **4026** (3960-4077) -- FILE/MAP **1.0133** with the ranges
+overlapping, both separated from OFF, and the acquisition counts identical at
+54.0 shared and 3.0 exclusive. In store CPU the MAP->OFF gap is 0.743 ms a
+request and FILE recovers 0.091 of it.
+
+**`cache-hugepage` (`26bd2e7`, 0.1.28):** `cache` 4230 at 2.053 ms, **huge** 4259
+at 2.001 ms with `AnonHugePages` at exactly **2048 kB**, `nocache` **4964** at
+1.240 ms with the ranges separated. The advice TOOK and nothing moved: 6.5 % of
+the gap.
+
+**AND THE DENOMINATOR EVERY PER-PROBE FIGURE DIVIDED BY IS COUNTED NOW.**
+Counters at the top of `bt_node_read` and `bt_key_read` and in each hit branch,
+master, three repeats:
+
+| arm | node reads/req | key reads/req | total | hit rate |
+|---|---|---|---|---|
+| cache | 105.0 | **558.0** | **663.0** | **100.00 %** |
+| `MVCCS_NO_CACHE` | 105.0 | 558.0 | 663.0 | 0.00 % |
+| pre-warm ON | 3.0 | 12.0 | **15.0** | 100.00 % |
+
+-- **663, where the estimates were ~312 and ~600**, so the reads a lookup is
+**6.4 and not 3**, and the shape nobody guessed is that **KEY reads are 558 of
+the 663**: a three-level descent reads one node and five keys. Both cross-checks
+hold -- the no-cache arm does the IDENTICAL 663 at a 0 % hit rate, so the count
+is the WORKLOAD's and not the cache's, and the pre-warm arm does 15, which is
+44x fewer for 52x fewer fetches.
+
+**AND THE PER-PROBE FRAMING IS WRONG, WHICH THREE FREE CHECKS SETTLED AN HOUR
+LATER.** It looked like 1.15 us a probe -- 1.838 ms against 1.075 over 663
+probes, and at a 100 % hit rate `bt_node_read` IS `bt_cache_node_get`, so the
+whole of it seemed to sit in one function whose visible work is ~50 ns. **It is
+not per probe at all.** None of the three checks needed a build:
+
+| the check | what it said |
+|---|---|
+| `utime` beside `stime` at W=12 | **+0.050 ms user, +0.962 ms SYSTEM** -- 95 % kernel |
+| the same pair at **`workers(1)`** | cache **0.24 ms a request CHEAPER**, 4 % faster |
+| 30 stack samples an arm | 2377 futex-wait frames against 2391 -- no difference |
+
+**AT ONE WORKER THE CACHE COSTS NOTHING.** The whole ~1 ms appears only under
+concurrency, so there is no per-probe cost to explain: the probe is free when one
+thread makes it. Every per-probe figure this file and ZiguratIP#40 carried --
+3.6 us, then 1.8, then 1.15 -- was **a per-request total divided by a count that
+has nothing to do with where the time goes**, which is the same error in a fourth
+coat. The count was worth taking anyway; what it could not do was locate
+anything.
+
+**"NOT REACHING FUTEX" IS NOT "NOT IN THE KERNEL", AND THIS FILE PUBLISHED THE
+SECOND FROM THE FIRST.** The strace arm showed the mutex staying in user space
+and the conclusion drawn was "the cost is user-space CPU" -- and it is 95 %
+system time. A refutation of one mechanism is not a positive claim about where
+the cost is; it only removes a candidate.
+
+**THE FUTEX REFUTATION ITSELF SURVIVES, on an instrument that cannot be accused
+of suppressing contention.** `strace -c -f` halves throughput and serialises
+threads, so its counts were suspect in exactly the direction that mattered.
+Context switches summed over every thread in `/proc/PID/task/*/status`, with no
+ptrace: **140.7 voluntary a request cached against 143.0 uncached**, marginally
+LOWER with the cache, minor faults 0.014 against 0.012 and negligible either way.
+So: kernel time, only under concurrency, with no more syscalls, no more blocking
+and no more faults than the arm without it. **No sixth mechanism is proposed
+here** -- that register is 0 for 3.
+
+**TWO THINGS ABOUT THE INSTRUMENTS, both of which cost a run:**
+
+* **A TOP-FRAME HISTOGRAM OF A POOL MEASURES WAITING.** Twelve workers on four
+  cores are nearly all blocked at any instant, so 2 377 of 2 940 frames are
+  `__futex_abstimed_wait_common64` on BOTH arms and exactly ONE sample an arm
+  landed in engine code. Sample running threads only, or take hundreds.
+* **`utime`/`stime` FROM `/proc` IS TICK-SAMPLED, NOT MEASURED.** The kernel
+  charges a whole tick to whichever mode it catches the CPU in. At 0.5 CPU-seconds
+  a second over fifteen seconds the sample is large and the arms differ by 2.5x,
+  so the split is almost certainly real -- but it is a SAMPLE, and a number
+  carrying a conclusion should be named as one. Same family as asking which clock
+  a figure came from.
+
+**AND THIS BOX DRIFTS ~20 %, WHICH RETIRES AN ERROR BAR THIS FILE PUBLISHED.**
+Cached store CPU a request, same box, same protocol, three builds in one day:
+**2.252, 2.053, 1.838 ms**, with `nocache/cache` at **1.238, 1.173, 1.148**. The
+counter build should be the SLOWEST of the three and is the fastest, so it is not
+instrumentation. The honest form of the cache claim is **1.15-1.24x, measured
+three times**, and the rule that follows is **a within-run pair or nothing**: an
+arm that does not carry its own control beside it cannot be compared to a figure
+from three hours ago.
+
+**AND THE OWNER'S BOX WANTS THE OPPOSITE, WHICH IS THE REAL DISPOSITION.** On a
+16-thread Mac the cache WINS -- 7.2x at one reader over a filebuf store, and
+**2.6x mapped**, where it loses 1.24x here. So it is per-MACHINE, not per store
+kind, "skip the cache when mapped" is withdrawn, and `MVCCS_NO_CACHE` staying a
+knob is the right shape. ZiguratIP#40 carries it.
+
+**FOUR THINGS BIT, AND THE FIRST IS THE ONE THAT NEARLY PUBLISHED A FALSE
+RESULT:**
+
+* **A CHECK YOU READ AFTERWARDS IS NOT A CHECK THAT STOPS YOU.** The first
+  `cache-hugepage` build measured the WRONG ENGINE and reported exit 0: two files
+  were still patched from the previous arm, `git checkout` aborted, `make`
+  rebuilt the old engine, and nine points ran against a binary with no hugepage
+  knob in it -- which would have read as a clean refutation of the hypothesis it
+  was testing. The md5 and `grep -c KNOB engine.cpp` were both printed and both
+  wrong, and they only caught it because somebody read them. **The re-run makes
+  them a GATE**: the arms print `REFUSING TO RUN` and exit unless the md5 differs
+  from the previous library and every symbol is in the emitted C++. And the rule
+  this file already carried -- `git checkout -- .` rather than naming files -- is
+  the rule that was broken, by the session that wrote it down that afternoon.
+* **A KNOB THAT TESTS `!= nil` IS ON WHEN IT IS EMPTY.** `MVCCS_NO_CACHE` and
+  `MVCCS_CACHE_HUGEPAGE` both do, so `env MVCCS_NO_CACHE= …` turns the thing ON
+  while reading as off -- the owner lost twelve arms to it. `${VAR:+NAME=1}`
+  omits the assignment entirely and is the form to use.
+* **EVERY STREAMBUF OR ALLOCATION ARM NEEDS A POSITIVE CHECK, because "near the
+  other arm" and "the knob did nothing" are the same picture.** `/proc/PID/maps`
+  is it for the reader (**40 read-only store mappings under `mapstream`, ZERO
+  under `filestream`**, the canonical pair left in both) and `AnonHugePages` in
+  `smaps_rollup` for the huge page (**2048 kB against 0**). The first attempt at
+  the mapping check grepped `data.bin|hexmap.bin` and returned 0 on EVERY arm,
+  because **the store's files are named `data` and `hexmap`** -- which this file
+  also had wrong, in two places, now corrected.
+* **AND THE PARSER SHIFTED TWICE, in both directions.** A `W12` column added to
+  the log and not to the awk read the REP as the request count; the next runner
+  dropped that column and the awk still skipped it. Every arm came out 0 with
+  `-nan` beside it both times, which is the only good thing about it.
+
+### AND IT WAS THE BOX: a cross-vCPU wakeup costs ~18 us here (2026-09-18, last)
+
+**`/proc/interrupts` NAMED IT IN ONE READ, AFTER SIX MECHANISMS DIED.** The
+question stopped being "what does the cache cost" the moment the W=1 arm showed
+it costing nothing, and became "what does adding threads cost". Interrupts
+summed over all four vCPUs and differenced across a point answer it. Three
+pairs, two issues, two engines:
+
+| pair | d utime | d stime | d (RES+CAL) a request | **us an extra IPI** |
+|---|---|---|---|---|
+| cache vs `MVCCS_NO_CACHE` | **+0.003 ms** | **+0.790 ms** | 45.7 | **17.3** |
+| the same, longer window | -0.005 ms | **+1.046 ms** | 58.9 | **17.8** |
+| **shared vs exclusive lookups** | **-0.002 ms** | **+0.272 ms** | 14.1 | **19.3** |
+
+**User time is identical in all three -- to three decimals, and TWICE WITH THE
+WRONG SIGN.** Every difference is system time, and in each pair it divides by
+the extra interrupts to the same number. That number is a VM exit on a
+Firecracker guest.
+
+**AND THE SELECTIVITY IS WHAT MAKES IT A FINDING RATHER THAN A CORRELATION.**
+`RES` 44.39 a request against 5.23 -- **8.5x** -- and `CAL` 7.94 against 1.37;
+but `TLB` 0.62 against 0.54 and the local timer 3.61 against 3.03. Only the two
+classes that mean *a wakeup landed on another vCPU* move at all.
+
+**SO ZiguratIP#39 AND #40 ARE ONE PHENOMENON, AND NEITHER SUSPECT WAS A CAUSE.**
+The shared read path's cost is 101 % system time at the same price an IPI. The
+cache's is 100 %. Mappings, streams, acquisitions, the cache mutex, the cache
+table's pages and the futex path were all innocent because **none of them was
+ever the thing being paid for** -- each is only a way of making more threads
+runnable at once. It also explains the W=1 result with no new assumption: one
+worker, no other vCPU to wake, no exit, and the cache is a cache again.
+
+**WHICH MEANS A CONCURRENCY NUMBER TAKEN ON THIS BOX IS A NUMBER ABOUT A
+MICROVM.** The kernel is `6.18.44-fc-v33`, the hypervisor flag is set, there are
+four vCPUs. The owner's sixteen-thread Mac measures the cache a **2.6x WIN**
+mapped and the shared lookup a win too -- the same code, the opposite sign, and
+now a reason rather than a shrug. **Before reporting any pooled or threaded
+figure from here as a property of the engine, take the `utime`/`stime` split and
+the `RES` row**; if the difference is system time and tracks IPIs, it is this
+box. The suite runs here too.
+
+**ONE NUMBER DOES NOT FIT AND IT IS LEFT STANDING.** Voluntary context switches
+are EQUAL -- 140.7 a request cached against 143.0, measured with no ptrace --
+while the reschedule IPIs are 8.5x. Same amount of blocking, far more of it
+crossing a vCPU boundary. That is a PLACEMENT question, nothing measured says
+why the cache changes it, and no mechanism is offered.
+
+**THE INSTRUMENTS, IN THE ORDER THEY EARNED THEIR PLACE:**
+
+* **`/proc/interrupts`, differenced across a point.** Free, needs nothing
+  installed, and it is the only one that named a cause. `RES`, `CAL`, `TLB` and
+  `LOC` summed per vCPU; the ratio between two arms is the reading.
+* **`utime` beside `stime`, never summed.** Asked for twice on the issue before
+  it was taken, free, and it overturned a published conclusion the moment it
+  was. **Fields 14 and 15 -- do not add them together.**
+* **Context switches from `/proc/PID/task/*/status`**, summed over every thread.
+  Unperturbed, where `strace -c -f` halves throughput and serialises threads --
+  which suppresses contention in exactly the direction a blocking hypothesis
+  needs.
+* **`/proc/<tid>/stack` for threads in state `R`** is the right way to see
+  kernel time, and MY USE OF IT WAS WRONG TWICE: the loop was never redirected
+  to its file, and reading `stat` then `stack` is RACY -- a thread marked `R`
+  has usually blocked by the time its stack is read, so the dump fills with
+  `sk_wait_data` and `futex_do_wait` and says nothing. A gdb histogram of ALL
+  threads is worse still: twelve workers on four cores are nearly all blocked at
+  any instant, so 2 377 of 2 940 frames were futex waits on BOTH arms.
+
+**AND ONE CONFIGURATION CAVEAT ON THE #39 PAIR.** It ran the `reader-file`
+library against a schema built for a different engine. It loaded, smoke-tested
+and served four thousand requests an arm, so the WITHIN-PAIR comparison is sound
+-- one library, one schema, one environment variable -- but its absolute numbers
+are not comparable to the ladder in the section above (1.797 ms here against
+1.826 there on the exclusive arm, 2.068 against 2.569 on the shared). A swap
+without `make schema` is a valid pair and an invalid level.
 
 ### And the lever WAS the fetches: `prewarm/1` (1.2.17)
 
@@ -2440,7 +2661,7 @@ and `store_cap`, which are the cell array THIS PROCESS holds, and it moves
 nothing an `--embed` directory or a server holds. Measured on 1.2.16, one
 writing process over a 20 000-row predicate, run with a forced compaction in
 it and without: the compaction ran (`compactions=1`) and trimmed the cap from
-2 097 152 to 1 288 752, and `data.bin` grew by **7 151 616 bytes either way,
+2 097 152 to 1 288 752, and `data` grew by **7 151 616 bytes either way,
 to the byte**. Two numbers, two questions, and only one of them is the disk.
 
 **A WRITING PROCESS REWRITES THE WHOLE PREDICATE, AND `cocolog vacuum` IS
@@ -2564,8 +2785,8 @@ WRITES ONLY EXPOSED IT.** The chunked grow puts every byte back through the
 mapping and the fault SURVIVED it at the same rate -- nine of thirty first
 reads failed on a freshly built stack with nothing swapped -- which is what
 sent the diagnosis past StreamIO altogether. What decays is not on disk.
-Over 40 fresh stores, failing and passing alike, `data.bin` and
-`hexmap.bin` are the same length to the byte before and after the first
+Over 40 fresh stores, failing and passing alike, `data` and
+`hexmap` are the same length to the byte before and after the first
 read; two independent writes of one program differ only in 82 622 bytes at
 8 bytes every 64, which are the row STAMPS, with the hexmap identical; an
 unrelated older store read in the same wake of a writer is 25/25; and the
