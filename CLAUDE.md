@@ -985,6 +985,108 @@ halves a pooled request and leaves nothing on this workload for the engine to
 recover. What keeps #39 open is a workload whose lookups the pre-warm CANNOT
 remove, which is exactly the program's own predicates.
 
+### Three mechanisms dead, and the surprise is the CACHE (2026-09-18)
+
+**WHAT SURVIVES HAS TO SCALE WITH TWO THINGS AT ONCE, and nothing named so far
+does.** Three readings of the shared read path's 10 % are dead, each to a
+different instrument, and the LIST is worth more than any one of them:
+
+| the reading | what killed it |
+|---|---|
+| twelve mappings, one per reader thread | the `reader-pool` ladder: flat in P, and P=1 is ONE VMA |
+| a fixed cost per read through a different streambuf | the W column, 0.954/1.002/1.139/1.485 -- flat in W by construction |
+| the `BTCache` mutex twelve readers collide on | striping it 64 ways is flat, and REMOVING the cache WIDENS the gap |
+
+So the cost scales with STREAM READS -- the no-cache arm below more than doubles
+the deficit by multiplying them -- and with CONCURRENT READERS, which is the W
+column. The one candidate that did both was the mapping count, and P=1 refuted
+it. **The arm nobody has run is the only per-read variable left**: reader paths
+set and the shared side granted exactly as now, with `hex_in`/`data_in` handing
+back a private `filestream` instead of a `mapstream`. (`reader_ensure`'s own
+comment says why that is not a DESIGN -- a private filebuf caches a get area and
+answered zeros once against a fresh page's zero-fill -- but it is a measurement
+arm, and it is the one variable neither `PARALLEL_READS` nor the pool nor the
+stripes has moved.)
+
+**THE SIX ARMS.** A = `8948241` with the ladder's pool at cap 0 (inert), B =
+`fd4be7c` 0.1.26, `BTCache`'s one mutex made 64 stripes by slot. W=12, eight
+clients, fifteen seconds, three alternating repeats, pre-warm off. The stripe
+build was checked in the ARTEFACT first -- `engine.cpp` naming the stripes
+fourteen times and no single-mutex `->access)` left:
+
+| W=12 | requests | range | mean ms | sh/req | ex/req |
+|---|---|---|---|---|---|
+| one mutex, cache, reads ON | 3828 | 3774-3864 | 19.66 | 54.0 | 3.0 |
+| one mutex, cache, reads OFF | **4293** | 4210-4417 | 16.98 | 0.0 | 57.0 |
+| **64 stripes**, cache, ON | 3860 | 3748-4008 | 19.65 | 54.0 | 3.0 |
+| 64 stripes, cache, OFF | 4332 | 4317-4346 | 16.79 | 0.0 | 57.0 |
+| **no cache at all**, ON | 4000 | 3990-4011 | 18.70 | 54.0 | 3.0 |
+| no cache at all, OFF | **5142** | 5072-5237 | 13.57 | 0.0 | 57.0 |
+
+-- ON/OFF **0.8910** striped against **0.8915** on one mutex, four figures and
+the ranges overlapping entirely, with the acquisition counts unchanged (54.0 and
+3.0 either side, which is the check that striping changed only the lock). And
+`MVCCS_NO_CACHE` -- one environment variable, `bt_cache_new` answering nil
+(`mvccs-lib.cicili:3601-3605`) -- gives **0.7780**, the gap WIDER where it was
+predicted to collapse, with the absolute deficit **466 requests a point with the
+cache and 1142 without**. At W=2 it is 1.0250 and 1.0123, ON faster, ranges
+overlapping: flat under striping as predicted, and not a confirmed inversion.
+
+**AND THE B-TREE CACHE IS A NET LOSS ON A MAPPED STORE**, which neither side
+predicted and which is the largest number in the run. Same library, same binary,
+one environment variable:
+
+| | with cache | no cache | |
+|---|---|---|---|
+| exclusive arm | 4293 | **5142** | **1.198x** |
+| shared arm | 3828 | 4000 | 1.045x |
+
+Ranges SEPARATED on both -- the no-cache exclusive minimum, 5072, is above the
+cached maximum of 4417. Twenty per cent on the path cocolog actually runs, for
+removing a cache whose hit rate cocolog#16 measured at **100 % over 72 000
+reads**. The reading, marked as one: on a MAPPED store the miss path is a memory
+read from the page cache, so the cache pays a lookup and a lock for something
+that was nearly free. **Do not generalise it past this shape** -- a filebuf
+store, cold pages or larger nodes are where it must earn its keep, and none of
+those was measured.
+
+**`triple-window` IS INERT HERE, AND IT IS MEASURED NOW RATHER THAN ARGUED.**
+`c23a521` has `bt_emit_key` recognise the engine's own chain callback and open no
+window for it. Rebasing it onto master is EMPTY by construction -- its whole diff
+rewrites the window block `6298244` added, master has no such block, and the one
+conflict hunk has master's side as the single line `(set cont ((-> em dcb) (-> em
+user) (aof dep))))))`, so the only resolutions are "no-op" and "put `6298244`
+back". And on the branch it was written for, a counter on the branch point says
+it never fires: over 200 requests, **`probe_eqchain_yes` 0.00 a request,
+`probe_eqchain_no` 53.00, shared 160.00, exclusive 3.00** -- `dependent-window`'s
+profile to the unit, and that arm is already 0.92x. The cause is at the CALLER:
+`engine-compat.hpp:279` passes `&DepShim<F>::call`, so `(-> em dcb)` is a C++
+template static and never `bt_eqchain_dcb`. The 53.00 is the 52-plus-one
+arithmetic confirming itself a second time.
+
+**THREE THINGS BIT WHILE MEASURING THIS, and the first cost nothing only because
+the number beside it was printed:**
+
+* **A PATCH SCRIPT TOUCHES MORE THAN ONE FILE, AND REVERTING ONE OF THEM MAKES
+  `git checkout` ABORT.** `patch4.py` edits `mvccs-lib.cicili` AND
+  `contention-test.cpp`; only the first was reverted, the branch switch refused,
+  and the rebuild that followed produced the WRONG ARM while reporting exit 0.
+  What caught it is that the runner prints the library's md5 beside the expected
+  one -- `a6f22cc9` where master is `865d490a`. **Print the md5 next to the one
+  you expect, every time**, and `git checkout -- .` rather than naming files.
+* **`pgrep -f 'make'` MATCHES THE SHELL THAT IS RUNNING IT.** A waiter written
+  `until ! pgrep -f 'make'; do sleep 20; done` has "make" in its own command
+  line, finds itself, and never exits -- it sat for nineteen minutes after the
+  build it watched had finished. Match a pattern that cannot name the matcher
+  (`stripes\.sh`, not a bare word), and break the loop when the thing you are
+  watching is gone. Same family as `ps -eo args | grep -F 'serve(PORT,'` finding
+  nothing.
+* **A COLUMN ADDED TO THE LOG AND NOT TO THE PARSER READS EVERY ARM AS ZERO.**
+  The runner gained a `W12` field and the awk kept `$4` for the request count,
+  so it parsed the REP as a number and every mean came out 0 with `-nan` beside
+  it. It is loud rather than silent, which is the only good thing about it: a
+  parser that shifts quietly is the one to fear.
+
 ### And the lever WAS the fetches: `prewarm/1` (1.2.17)
 
 **FIFTY-TWO PREDICATES A REQUEST, AND FIFTY-ONE OF THEM CANNOT BE IN THE
