@@ -922,13 +922,102 @@ serialising fifty-six exclusive holds and the shared arm is 4 % FASTER.
 
 **SO THE SHARED LOOKUP IS A LOSS ON THIS ARRANGEMENT AT THIS WIDTH, AND THE
 OWNER MEASURED IT A WIN ON SIXTEEN THREADS.** Both are measured, on different
-boxes; this one has FOUR cores. The lever left on #18 is the 51 fetches a
-request that find nothing -- pre-warming the machinery predicates before the
-pool starts -- and not the engine. Making readers share ONE mapping with
+boxes; this one has FOUR cores. The lever left on #18 was the 51 fetches a
+request that find nothing -- and it was TAKEN, in the section below: `prewarm/1`
+halves a pooled request and, in doing so, confirms the mapping reading from a
+second direction and leaves nothing on this workload for the engine to recover.
+Making readers share ONE mapping with
 private positions is the fix for the mechanism, and it is blocked on
 `mapbuf.cpp:95-117`: `reserve` unmaps and remaps when a store outgrows its
 reservation and the base MOVES, which is safe under a writer's exclusive guard
 and is not safe for a callback-window reader holding nothing.
+
+### And the lever WAS the fetches: `prewarm/1` (1.2.17)
+
+**FIFTY-TWO PREDICATES A REQUEST, AND FIFTY-ONE OF THEM CANNOT BE IN THE
+DATABASE.** Traced over the binary protocol on a page that reads one row: 27 of
+`library(http)`, 18 of `library(httpd)`, six tier-1 (`append/3`,
+`atomic_list_concat/2`, `length/2`, `member/2`, `phrase/3`, `'$dcg_list'/1`) and
+`pp_stock/2`, the page's own. Every one of the 51 is a MODULE's, so its clauses
+are muted and never write through -- and the store asks anyway, because
+`coco_assert` leaves `loaded` at 0 on a muted assert on purpose, so that a first
+REAL call still fetches "as it would have without the module". **That is the
+line that cost 51 round trips a request**, and it is right in a `--local`
+process and wrong in a pool.
+
+**WHAT IT COST, MEASURED BEFORE ANYTHING WAS BUILT**: 6.06 ms of a 10.47 ms
+request inside the fetch hook, 117 us a fetch -- against **0.99 ms** for the
+same page on a store that persists (`workers(0)`). So a pooled request was
+**twelve times** the same page's cost on a warm store, and 58 % of it was the
+hook.
+
+**`prewarm/1` ASKS ONCE AND REMEMBERS THE ABSENCE.** It walks the store's
+library predicates, fetches each, and records the (name, arity) of every one the
+backend added NOTHING to -- keyed on the name TEXT, because an atom id belongs
+to one machine and every `run_isolated/2` proof has its own. A later store's
+muted assert consults that table and sets `loaded` itself. `coco_pred_ensure`
+records the "nothing came back" in a per-predicate `empty_fetch`, which is the
+only moment the difference can be seen: afterwards a module's predicate has its
+own clauses either way. `library(httpd)`'s `httpd_serve/3` calls it before the
+pool starts.
+
+**ONLY THE ABSENCE, AND ONLY A MODULE'S.** A predicate the backend DID have rows
+for stays out of the table and goes on being fetched by every store -- proved
+with a `http_header/3` row written by a process that does not load
+`library(http)` at all. The program's own predicates are never in it, because
+only a muted assert sets `library`. **The staleness contract is therefore
+exactly one sentence**: another process writing into a predicate a MODULE
+defines will not be seen here. And it carries the module registry's own rule --
+**PRE-WARM BEFORE YOU SPAWN**, because the table is written once and then read
+by every worker thread with no lock, the same as `use_module`'s registry.
+
+**MEASURED WITH ONE BINARY AND THE CALL IN OR OUT OF `library(httpd)`**, three
+alternating repeats, ranges not touching:
+
+| workers | prewarm off | prewarm on | |
+|---|---|---|---|
+| 1 | 10.35 10.02 10.66 | **5.14 4.96 4.97** | **2.06x** |
+| 4 | 10.76 10.08 10.43 | **5.04 5.16 5.37** | **2.01x** |
+
+-- and fetches a request go **52 to 1**, the one left being the page's own data.
+Under load at twelve workers and eight clients it is **4282 to 5551 requests a
+fifteen-second point, 1.30x**: the single-client figure is latency, the
+saturated one is what a CPU-bound box can do with the work removed.
+
+**`library(cowork)` DELIBERATELY DOES NOT CALL IT, and the measurement is why.**
+Added to `cowork_start/3` it made a crew **4-6x SLOWER** -- a crew of four 13 ms
+to 51, a crew of twelve 21 ms to 65, start plus one real job each -- and was
+reverted before it shipped. A crew worker's store lives as long as the WORKER
+and is filled lazily, so it asks only about the predicates its own jobs call,
+once: about fifteen a worker, so a crew of twelve makes ~180 fetches where the
+pre-warm buys 437. An httpd pool is the other shape -- a fresh store per
+REQUEST asks again every time -- so the ~51 ms the call costs is repaid in about
+nine requests. **THE RULE IS THE FETCHES RECURRING, NOT THE THREADS EXISTING**,
+and this file's first draft of it said the opposite.
+
+**AND IT RETIRED ZiguratIP#39's URGENCY BY CONFIRMING ITS MECHANISM.** Re-running
+the `PARALLEL_READS` A/B on 1.2.17, same engine (`618bb8f`) on every arm, W=12:
+
+| pre-warm | shared a request | store CPU a request | the shared read path costs |
+|---|---|---|---|
+| off | 54.0 | 2.73 ms | **1.115x**, ranges SEPARATED |
+| on | **3.0** | **0.35 ms** | **1.009x**, ranges overlapping |
+
+Cutting the lookups EIGHTEENFOLD cut the penalty about THIRTEENFOLD, which is
+the dose-response a per-read cost predicts and the acquisition count never gave
+-- 160 against 54 moved nothing. So the twelve-mapping reading is confirmed from
+a second direction, and there is nothing left to recover on this workload: the
+12 % is reproducible only with the pre-warm off, which is now a configuration
+nobody runs.
+
+**ONE DEFECT WAS FOUND ON THE WAY AND IS NOT FIXED.** `assertz` into a predicate
+a MODULE defines writes the MODULE's own clauses into the knowledge base, because
+the backend flushes a dirty predicate WHOLESALE: after
+`assertz(member(foo,[a]))` the kb holds `member/2`'s library clauses as rows, and
+every later process fetches them ON TOP of its own copy --
+`findall(X, member(X,[p,q]), L)` answers `[p,q,q,p,q,q]`. It reproduces with the
+pre-warm removed, so it is older than it, and it is the same wholesale flush the
+store section above describes. Recorded here rather than fixed.
 
 **FIVE THINGS THAT BIT WHILE MEASURING THIS, and the first is the one to carry
 away:**
