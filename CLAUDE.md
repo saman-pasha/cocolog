@@ -20,7 +20,9 @@ proposed patch, not an applied one.
 `TCP_NODELAY` change described in STATUS.md — and, since the forget wedge,
 two more: the unmap resume mark in the MVCCS engine and the
 rollback-on-disconnect in the server's connection scope (the "APPLIED"
-section below). Rebuild it and then `make schema` after touching it — see
+section below) — and, since ZiguratIP#37, the streams guard's own writer
+preference and the shared row cursors, which landed together as `f1ff4d5`,
+0.1.16. Rebuild it and then `make schema` after touching it — see
 the hazard below; a change to `MVCCS-cicili/mvccs-lib.cicili` also rebuilds
 cocolog's EMBEDDED engine, which is transpiled from the same file through
 the `embed/mvccs-lib.cicili` symlink.
@@ -633,6 +635,98 @@ is 2 157 against 2 165 a second, within 0.4 %). Each died to a measurement
 that had been named as missing and then taken. **The count is what is
 suspicious: a raw total over an interval nobody recorded is not a rate.**
 
+**AND IT IS FIXED: THE GUARD PREFERS WRITERS ITSELF NOW, BECAUSE GLIBC DOES
+NOT** (ZiguratIP `f1ff4d5`, 0.1.16, and it is ONE commit on purpose). A shared
+acquirer stands down while a writer is queued -- asleep on a condition
+variable the writer broadcasts on every grant, and **at most twice**, after
+which it takes the shared side regardless. The row cursors ask for the shared
+side again in the same commit. Four measurement rounds on the four-core box
+settled the shape, and every one of them killed a design that looked right:
+
+* **The rwlock was never deferring anything.** `PREFER_WRITER_NONRECURSIVE_NP`
+  is set and **36 729 941 of 36 731 243 shared grants were made with a writer
+  already queued** -- 99.996 % -- with the writer granted the guard **zero**
+  times in 120 rounds. `read_row`'s grants had barged the same way since
+  `e8ada3f`; the shared cursor did not introduce it, it took the volume from
+  7 109 acquisitions to 36.7 million and made it load-bearing.
+* **A POLLING gate fixed the writer and destroyed the readers.** `usleep 20`
+  while the count is above zero: the writer finished 120/120 at every reader
+  count, and lookups served fell **14x to 57x**, ten range separations out of
+  ten. The cost was not the gate's DECISION but its GRANULARITY -- 110 sleeps
+  a lookup, and a nominal 20 µs measuring **~137 µs** among thirteen runnable
+  threads on four cores, to let through a `begin` that holds the guard 3.2 µs.
+* **THE BOUND IS WHAT FIXED IT, not the condition variable.** A `pthread_cond_wait`
+  costs 56-88 µs here against `usleep 20`'s 86-99 -- the same order. Capping
+  the stand-down at two removes **98 %** of it either way. Strict preference is
+  unbounded BY CONSTRUCTION, and a stream of short exclusive acquisitions is a
+  workload where "defer while any writer is queued" means "never run": that is
+  this fault mirrored, and a mirror of a livelock is still a livelock.
+* **AND THE READERS WERE THEIR OWN WRITERS.** `writers_enqueue` sits on the
+  exclusive path and cannot know who called it, so with exclusive cursors
+  **about 90 % of the queued "writers" were readers**, gating each other. The
+  proof is the fix seen from the other side: with the shared cursor the
+  probe's exclusive acquisitions go **FLAT IN N** -- 364 at two readers, 384 at
+  twelve, and the difference of 20 is exactly the extra `begin`/`commit` calls
+  ten more readers make.
+
+**NEITHER HALF IS AN IMPROVEMENT ALONE, WHICH IS WHY IT IS ONE COMMIT.** The
+gate by itself serves **0.02-0.18x** of ungated lookups on a tree whose lookups
+are all exclusive, and the shared lookup by itself livelocks. Two commits would
+be two bisectable regressions of two different kinds.
+
+**FOR COCOLOG IT IS NEITHER A COST NOR A GAIN, AND THE REASON IS NESTING.**
+Measured with `library(httpd)`'s pool over the wire -- `httpd_serve` with
+`workers(N)`, a page whose body reads a row another process wrote, eight
+concurrent clients, the engine's counters read out of the LIVE server with
+`gdb -p`:
+
+| | 0.1.12 | 0.1.16 |
+|---|---|---|
+| requests at 2/4/8/12 workers | 2 142 / 3 511 / 4 213 / 4 214 | 2 146 / 3 468 / 4 271 / 4 219 |
+| exclusive acquisitions a request | 57.0 | 57.0 |
+| shared acquisitions a request | 1.000 | 1.000 |
+
+-- within 1 % at every width, and the profile identical to three figures, which
+it should not be once the cursor asks for the shared side. Instrumenting
+`reader_eligible`'s four refusals and the `Streams` constructor's four outcomes
+over 13 894 requests says why: the shared side is asked for **2.01 times a
+request**, **half of those asks arrive while this thread already holds an
+exclusive guard** (13 920 of 27 869) and are made `mine_ = false`, and every
+one of the 13 949 that reaches the outermost is granted. **`reader_eligible`
+never refuses** -- not initialised, no reader paths, no transaction and the
+isolation level are **0, 0, 0 and 0**, so `run_isolated/2` really does read at
+READ COMMITTED with reader paths set. A cocolog request is 57 exclusive
+acquisitions to one shared, so by the gate's reckoning nearly everything the
+pool does IS a writer, and a writer-preferring guard has almost nothing to
+defer. **If the shared lookup is ever to PAY here rather than merely cost
+nothing, the enclosing write hold is where to look.**
+
+**THE STAND-DOWN CLIMBS WITH THE POOL AND PLATEAUS AT A QUARTER OF THE CAP** --
+0.05 stand-downs a request at two workers, 0.25 at four, 0.47 at eight and
+twelve, reproduced on two independently built engines. There is exactly one
+shared acquisition a request, so that number compares directly with
+`GATE_STANDDOWNS = 2`. The preference still grants three quarters of shared
+acquisitions immediately, so **the bound is not doing all the work and the cap
+should stay at 2** -- but the margin narrows as the pool widens, and on a box
+with more cores it is the number to re-take.
+
+**MAPPED WIDENS THE MARGIN RATHER THAN INVERTING IT.** Every figure above is a
+filebuf; `STORE_MAP=1` is the path `--embed` and the server actually use, and
+there the combination serves **2.6-4.6x** the ungated arm where on a filebuf it
+was 0.9-4.9x. The gate ALONE stays a regression mapped too, at 0.1-0.5x.
+
+**TWO THINGS ABOUT MEASURING THIS, both learned the expensive way.** The
+suite's own `groups` and `httpd` cannot answer a question about the guard:
+`groups` finishes twelve workers and 177 turns in **1.5 s** against a small
+store, and `httpd` makes **82 shared acquisitions and zero stand-downs** in a
+ten-second run, because most of it proves `httpd_answer/3` with no port open.
+Both are green on 0.1.16 and identical to 0.1.12 across eighteen runs, and that
+is a correctness result, not a load one. And **the noise floor of this rig is
+3.4x on a median of five**: three byte-identical libraries, built by a runner
+whose patch had silently failed, gave 547 / 1 850 / 881 lookups at six readers.
+A ratio under ~3x taken from medians alone means nothing here; separate the
+RANGES or do not claim it.
+
 **An index changed in `parsi/01-schema.parsi` comes up EMPTY on a live
 SERVER store, and the old trees stay as orphan pages.** The server attaches
 an index it has no catalogue record for with an empty root and maps nothing
@@ -740,7 +834,7 @@ contending writer, or a server old enough to predate the patch.
 `test/vacuum.pl` pins forget's contract: count, emptiness with
 declarations, idempotence.
 
-### Three findings about ZiguratIP, diagnosed and then APPLIED
+### Four findings about ZiguratIP, diagnosed and then APPLIED
 
 The first two were recorded here as proposals while ZiguratIP was frozen; the
 owner unfroze it and both landed (MVCCS-cicili/mvccs-lib.cicili and
@@ -768,6 +862,13 @@ ziguratip/loadzigurat.cpp). The third was measured here and diagnosed there:
   against TRUNCATE. Measured: the same 3 227-clause whole-base forget went
   from 31s to **1.59s**. The engine's own gauntlet (consumer, contention,
   carryover, ageing) stays green.
+* **The streams guard was not writer-preferring, whatever the rwlock was
+  told.** Measured here: 99.996 % of shared grants made with a writer already
+  queued, and a writer granted the guard zero times in 120 rounds. The gate,
+  its bound of two, and the reading that the readers were their own writers
+  are all from this box; the condition variable and the commit are the
+  owner's. It is `f1ff4d5`, 0.1.16, one commit, and the whole story is in the
+  guard section above.
 * **A writing process was quadratic in its own rows, and it was the PAGE
   LIST.** Every row written draws a sequence value, a draw is a cursor over
   the sequence's own key, and `cursor_walk` snapshotted a page list that was
