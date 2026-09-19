@@ -1233,7 +1233,7 @@ RESULT:**
   dropped that column and the awk still skipped it. Every arm came out 0 with
   `-nan` beside it both times, which is the only good thing about it.
 
-### AND IT WAS THE BOX: a cross-vCPU wakeup costs ~18 us here (2026-09-18, last)
+### AND IT WAS THE BOX: a cross-vCPU wakeup costs ~18 us here, CONFIRMED by pinning (2026-09-18/19, last)
 
 **`/proc/interrupts` NAMED IT IN ONE READ, AFTER SIX MECHANISMS DIED.** The
 question stopped being "what does the cache cost" the moment the W=1 arm showed
@@ -1274,11 +1274,75 @@ figure from here as a property of the engine, take the `utime`/`stime` split and
 the `RES` row**; if the difference is system time and tracks IPIs, it is this
 box. The suite runs here too.
 
-**ONE NUMBER DOES NOT FIT AND IT IS LEFT STANDING.** Voluntary context switches
-are EQUAL -- 140.7 a request cached against 143.0, measured with no ptrace --
-while the reschedule IPIs are 8.5x. Same amount of blocking, far more of it
-crossing a vCPU boundary. That is a PLACEMENT question, nothing measured says
-why the cache changes it, and no mechanism is offered.
+**THE NUMBER THAT DID NOT FIT FITS NOW, AND THE ANSWER IS THE GUEST'S IDLE
+PATH.** Voluntary context switches are EQUAL -- 140.7 a request cached against
+143.0, measured with no ptrace -- while the reschedule IPIs are 8.5x. Same
+blocking, far more of it crossing a vCPU boundary. **A wakeup costs an IPI in
+two cases: the target vCPU is running something else and must be told to
+reschedule, or it is IDLE AND MUST BE BROUGHT OUT OF `HLT`** -- and on a guest
+the second is a VM exit. A Linux guest normally polls before it halts
+(`cpuidle-haltpoll`), and a wakeup landing inside that window needs no IPI at
+all. **This box has no such window:**
+
+| | |
+|---|---|
+| `/sys/devices/system/cpu/cpuidle/current_driver` | **`none`** |
+| `cpu0/cpuidle/state*` | **no states at all** |
+| `current_governor` | `menu` |
+| `haltpoll` governor module | loaded, `guest_halt_poll_ns` 200000, UNUSED |
+| `/proc/cmdline` | nothing about idle |
+
+No driver, so no idle states, so nothing polls: every idle vCPU is halted and
+every wakeup to one is an exit. **So the arm whose threads finish FASTER leaves
+vCPUs idle longer, halts them, and pays to wake them** -- which is why the cache,
+a win on one thread, is a loss on twelve. (The mechanism is the owner's;
+the reads are from here. The knob he proposed cannot be turned: `guest_halt_poll_ns`
+is inert with no driver, and `idle=poll` is a kernel command line needing a reboot.)
+
+**AND PINNING THE STORE TO ONE vCPU PROVES IT, WITH NO REBOOT.** If the cost is
+cross-vCPU wakeups, removing them by construction removes the cost. Four arms,
+`cache`/`nocache` x free/pinned, W=12, pre-warm off, two repeats, one library
+behind an md5 gate, `taskset -cp` read off the live pid:
+
+| arm | affinity | requests | utime/req | stime/req | RES/req |
+|---|---|---|---|---|---|
+| cache, free | 0-3 | 4624 | 0.421 ms | **1.440 ms** | **49.0** |
+| nocache, free | 0-3 | **5510** | 0.467 ms | **0.632 ms** | **5.5** |
+| cache, **pinned** | **0** | **3682** | **0.361 ms** | 2.109 ms | 70.7 |
+| nocache, pinned | **0** | 3598 | 0.585 ms | 2.103 ms | 68.1 |
+
+-- free, the cache costs **+0.809 ms of system time and +43.5 IPIs a request**,
+the control reproducing to the figure with the ranges not touching. **Pinned it
+costs +0.006 ms and +2.6: the penalty falls 99.3 %.** And with the wakeups gone
+the cache is visibly a cache -- pinned it SAVES 0.224 ms of user time a request
+and runs 2.3 % faster, ranges separated, which is the W=1 result reproduced at
+twelve workers by removing only the cross-vCPU path.
+
+**TWO THINGS THAT TABLE DOES NOT LICENSE.** `RES` is SYSTEM-WIDE, not per
+process, so the pinned arms' higher absolute levels are the cocolog server and
+the clients still running on the other three vCPUs -- only the within-arm
+DIFFERENCE is a measurement, and that is the column that collapses. And pinning
+costs a fifth of the throughput, so nothing compares across the free/pinned
+boundary.
+
+**AND THE RUN BEFORE IT WAS VOID, WHICH IS THE THIRD TIME THIS EXACT HAZARD HAS
+BITTEN IN ONE DAY.** The first attempt ran against `9afee649` -- the
+`reader-file` library left installed by an earlier arm, whose dependent lookups
+take the shared side -- and its free arms showed **NO cache/nocache gap at all**
+(4225/4067 against 4083/4051). That is what a failed control looks like, and
+eight arms were thrown away rather than read. The runner had PRINTED that md5 in
+its own header. **Printing the md5 is not the check; comparing it is** -- the
+gate now reads the installed library, compares it to the expected one, and exits
+with `REFUSING TO RUN` otherwise. First time in the day's chain that this class
+of failure was caught before a number left the box, and the only reason it was
+caught is that the FREE arms exist to reproduce a known result.
+
+**AND A CONTAINER RESTART MOVED THE KERNEL UNDER THE EXPERIMENT**, `6.18.44-fc-v33`
+to `-v37`, between the idle reads and the pinning run. The reads were TAKEN AGAIN
+before the earlier finding was trusted -- driver `none`, no states, governor
+`menu`, four vCPUs, identical. **A box that can change under a measurement is one
+whose environment reads have a shelf life**, and the cheap ones are worth
+re-taking rather than assuming.
 
 **THE INSTRUMENTS, IN THE ORDER THEY EARNED THEIR PLACE:**
 
