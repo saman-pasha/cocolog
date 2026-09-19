@@ -2,7 +2,7 @@
 %%
 %%   basics/   eleven files, one process each, goal `main'. No library, no
 %%             database, no build flag.
-%%   library/  forty-four files, one process each, goal `main'. Tier 2
+%%   library/  forty-five files, one process each, goal `main'. Tier 2
 %%             needs $COCOLOG_LIBRARY, which the runner sets.
 %%   opencv/   twenty-three files, one process each, goal `main', from the
 %%             repo root; the dnn two end early without their models.

@@ -87,15 +87,21 @@ ix_surface(Rows) :-
     append(PlRows, ModRows, Rows).
 
 %% Sorted by name within a directory, which is what os.listdir + sorted gave.
+%% ONE LEVEL OF SUBDIRECTORY TOO: library/reasoning/reason.pl ships, and a
+%% program loads it as library(reasoning/reason), so its module is named
+%% `reasoning/reason' -- the path under the tier directory with .pl off --
+%% which is what ix_module_of/3 answers for the flat case as well.
 ix_pl_files(Dir, Files) :-
     ix_path(Dir, Full),
     (   exists_directory(Full)
-    ->  atomic_list_concat([Full, '/*.pl'], Pattern),
-        expand_file_name(Pattern, Abs0),
-        sort(Abs0, Abs),
+    ->  atomic_list_concat([Full, '/*.pl'], Flat),
+        atomic_list_concat([Full, '/*/*.pl'], Nested),
+        expand_file_name(Flat, Abs1), expand_file_name(Nested, Abs2),
+        append(Abs1, Abs2, Abs0), sort(Abs0, Abs),
+        atom_concat(Full, '/', Prefix),
         findall(R-A,
-                ( member(A, Abs), ix_basename(A, B),
-                  atomic_list_concat([Dir, '/', B], R) ),
+                ( member(A, Abs), exists_file(A), atom_concat(Prefix, Tail, A),
+                  atomic_list_concat([Dir, '/', Tail], R) ),
                 Files)
     ;   Files = []
     ).
@@ -107,15 +113,16 @@ ix_basename(Path, Base) :-
     ;   Base = Path
     ).
 
-ix_module_of(Rel, Mod) :-
-    ix_basename(Rel, B),
-    atom_codes(B, Cs),
+ix_module_of(Dir, Rel, Mod) :-
+    atom_concat(Dir, '/', Prefix),
+    atom_concat(Prefix, Tail, Rel),
+    atom_codes(Tail, Cs),
     append(M, ".pl", Cs),
     !,
     atom_codes(Mod, M).
 
-ix_surface_row(Tier, _Dir, Rel, Abs, json(Row)) :-
-    ix_module_of(Rel, Mod),
+ix_surface_row(Tier, Dir, Rel, Abs, json(Row)) :-
+    ix_module_of(Dir, Rel, Mod),
     read_file_to_codes(Abs, Src),
     ix_header_block(Src, Header),
     length(Header, HB),
@@ -538,7 +545,11 @@ ix_capability('search or pathfinding', ['shortest path', 'a*', astar, route, sea
 ix_capability('text to predicates',
               ['natural language', text, sentence, paragraph, 'controlled english',
                'plain english', predicates, 'knowledge from text', extract, 'read a paragraph'],
-              [reason], ['tier-2 library'], local).
+              ['reasoning/reason'], ['tier-2 library'], local).
+ix_capability('training data for a text normaliser',
+              [normalise, normalize, normaliser, tagger, 'training data', corpus, 'noisy text',
+               'gold tags', 'sequence labelling', 'data generator'],
+              ['reasoning/normalise'], ['tier-2 library'], local).
 ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
 ix_capability('big integers', [bignum, 'big integer', 'arbitrary precision', rsa],

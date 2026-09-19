@@ -142,8 +142,8 @@ the_reader(Agent) :-
 %% ---- 5. the findings themselves, 4. every rule fires, and the probe -------
 the_findings(Agent) :-
     section('the findings over the corpus'),
-    findall(P, ( member(Dir, ['tutorials/basics', 'tutorials/library', library]), directory_files(Dir, Fs),
-                 member(F, Fs), re_match('\\.pl$', F), ( Dir == library -> true ; re_match('^[0-9]', F) ),
+    findall(P, ( member(Dir, ['tutorials/basics', 'tutorials/library', library, 'library/reasoning']), directory_files(Dir, Fs),
+                 member(F, Fs), re_match('\\.pl$', F), ( memberchk(Dir, [library, 'library/reasoning']) -> true ; re_match('^[0-9]', F) ),
                  sh_join([Dir, '/', F], P) ), Corpus0),
     msort(Corpus0, Corpus), length(Corpus, NFiles),
     atomic_list_concat(Corpus, ' ', CorpusText),

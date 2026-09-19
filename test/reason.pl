@@ -1,4 +1,4 @@
-%% library(reason) -- a paragraph in, predicates out: every sentence shape
+%% library(reasoning/reason) -- a paragraph in, predicates out: every sentence shape
 %% the header promises, pinned; the four decisions, pinned; and the one
 %% claim that matters, that what comes out ASSERTS and then PROVES.
 %%
@@ -8,7 +8,7 @@
 %% the library is clauses over a DCG, so this case runs everywhere.
 
 :- use_module('test/prelude.pl').
-:- use_module(library(reason)).
+:- use_module(library(reasoning/reason)).
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
@@ -53,6 +53,14 @@ facts :-
     check('-es comes off after ch', F7, [watch(alice, bob)]),
     reason_sentence('Alice passes Bob.', F8),
     check('-es comes off after ss', F8, [pass(alice, bob)]),
+    reason_sentence('Alice uses Bob.', F8b),
+    check('but `uses'' is use+s, not us+es', F8b, [use(alice, bob)]),
+    reason_sentence('Alice closes Bob.', F8c),
+    check('and `closes'' is close', F8c, [close(alice, bob)]),
+    reason_sentence('Alice bathes Bob.', F8d),
+    check('and `bathes'' is bathe: a single h is not sh or ch', F8d, [bathe(alice, bob)]),
+    reason_sentence('Alice fixes Bob.', F8e),
+    check('-es comes off after x', F8e, [fix(alice, bob)]),
     findall(T, reason_sentence('Alice owns a red car.', T), Rs),
     length(Rs, NR),
     check('the grammar is deterministic: one reading', NR, 1).

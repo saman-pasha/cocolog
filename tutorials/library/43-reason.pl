@@ -1,6 +1,6 @@
-%% cocolog tutorial 43 -- library(reason): a paragraph in, predicates out.
+%% cocolog tutorial 43 -- library(reasoning/reason): a paragraph in, predicates out.
 %%
-%% TIER 2: `use_module(library(reason))', from library/reason.pl. Clauses only.
+%% TIER 2: `use_module(library(reasoning/reason))', from library/reason.pl. Clauses only.
 %%
 %%     cocolog -s tutorials/library/43-reason.pl
 %%
@@ -29,7 +29,7 @@
 %% negative sentence is neg/1, a term you can store and query, never \+,
 %% which is a question about provability and not a claim the text made.
 
-:- use_module(library(reason)).
+:- use_module(library(reasoning/reason)).
 
 main :-
     format("~n1. One sentence, one fact -- and the individual it introduces~n", []),

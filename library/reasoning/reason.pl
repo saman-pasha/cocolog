@@ -1,6 +1,6 @@
-%% cocolog -- library(reason): a paragraph in, predicates out.
+%% cocolog -- library(reasoning/reason): a paragraph in, predicates out.
 %%
-%%     :- use_module(library(reason)).
+%%     :- use_module(library(reasoning/reason)).
 %%
 %%     ?- reason_text("Alice owns a red car. Every employee that is
 %%                     authorized may access the server.", Terms).
@@ -469,9 +469,15 @@ rs_base(W, B) :-                                   % owns, likes, uses
     atom_codes(B, Pre).
 rs_base(W, W).
 
-%% a stem that takes -es rather than -s: it ends in s, sh, ch, x or z
-rl_es_stem(Pre) :- append(_, [0's], Pre), !.
-rl_es_stem(Pre) :- append(_, [0'h], Pre), !.
+%% a stem that takes -es rather than -s: it ends in ss, sh, ch, x or z.
+%% A SINGLE s OR h IS NOT ENOUGH: `uses' is use+s, not us+es, and the first
+%% draft answered `us' -- and `clos', `rais', `bath'. Found by writing
+%% library(reasoning/normalise)'s inflector, which this must invert exactly; the
+%% one stem this still gets wrong is a bare -s noun turned verb (`buses'
+%% -> buse), and reason_verb/2 is there for it.
+rl_es_stem(Pre) :- append(_, [0's, 0's], Pre), !.
+rl_es_stem(Pre) :- append(_, [0's, 0'h], Pre), !.
+rl_es_stem(Pre) :- append(_, [0'c, 0'h], Pre), !.
 rl_es_stem(Pre) :- append(_, [0'x], Pre), !.
 rl_es_stem(Pre) :- append(_, [0'z], Pre).
 
