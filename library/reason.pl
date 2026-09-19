@@ -46,6 +46,21 @@
 %%         The tokeniser, exposed. A token is word(Lower, upper|lower),
 %%         `.' or `,'.
 %%
+%%     reason_refused(+Text, -Sentence)
+%%         The first sentence reason_text/2 would refuse, as its words
+%%         joined by spaces -- and every later one on backtracking. FAILS
+%%         when the whole text parses. reason_text/2 refuses a paragraph
+%%         whole and says nothing; this is how a caller finds out which
+%%         sentence to rewrite.
+%%
+%%     truth(+Goal, -Truth)
+%%         true, false, unknown or conflict, for a GROUND goal against the
+%%         knowledge base as it stands: what a text said, what it denied,
+%%         what it never mentioned, and what it contradicted. The whole
+%%         argument is below, under FIVE DECISIONS.
+%%
+%%     reason_closed(?Name/Arity)          dynamic; see truth/2
+%%
 %%     reason_name(+Terms, -Named)
 %%         What reason_text/2 does last: every variable is named after the
 %%         noun that introduced it, numbered from 1 in order of appearance.
@@ -79,7 +94,7 @@
 %% relative clause per condition. What it does not read it REFUSES, by
 %% failing -- reason_text/2 fails on the first sentence that does not
 %% parse rather than skipping it, because a paragraph half understood is
-%% worse than one refused.
+%% worse than one refused; reason_refused/2 then names the sentence.
 %%
 %% ---- FIVE DECISIONS, EACH WITH ITS REASON -----------------------------
 %%
@@ -117,10 +132,54 @@
 %% \+ appears is the BODY of a rule from `that is not', where "not
 %% provable" is exactly what a rule condition means.
 %%
+%% A RULE DECLARES WHAT ITS BODY NAMES, because otherwise it throws.
+%% `\+ exempt(X)' over a knowledge base with no exempt/1 in it is an
+%% existence_error, not a failure -- SWI's rule too -- so `every tenant that
+%% is not exempt must pay the rent' would throw at the first tenant unless
+%% somebody had also been declared exempt. reason_text/2 therefore calls
+%% dynamic/1 for every predicate a rule's body mentions, at the moment it
+%% hands the rule back: the promise that every term is one assertz/1 takes
+%% is only worth keeping if the rule then RUNS. Found by the lesson, whose
+%% twelfth section named nobody exempt.
+%%
 %% A MODAL JOINS ITS VERB. `may access' is may_access/2 and `must submit'
 %% is must_submit/2, because a modality is part of what is claimed and a
 %% predicate name is where a claim's shape lives. `may' and `must' as
 %% separate wrapper terms would be a deontic logic, which this is not.
+%%
+%% truth/2 IS FOUR-VALUED, AND THAT IS ONE MORE THAN WAS ASKED FOR. Prolog
+%% answers yes or no, and no means "not provable", which is not "false":
+%% a knowledge base that never mentioned cats cannot deny that Tom is one.
+%% So truth(G, T) asks two questions -- does G prove, does neg(G) prove --
+%% and reads the pair:
+%%
+%%     G proves, neg(G) does not      true      the text said it
+%%     neg(G) proves, G does not      false     the text denied it
+%%     neither proves                 unknown   the text never said
+%%     BOTH prove                     conflict  the text contradicted itself
+%%
+%% The fourth is the one a three-valued answer would hide: a paragraph that
+%% says `Alice is happy' and `Alice is not happy' has told you something,
+%% and answering `true' about it because the positive fact was found first
+%% is not reading the text, it is reading the clause order. A predicate that
+%% does not exist proves nothing and is `unknown', not an error: the whole
+%% point of the value is that silence is an answer.
+%%
+%% AND A PROGRAM MAY CLOSE A PREDICATE. Sometimes the text IS the whole
+%% truth -- a roster, a list of who is exempt -- and then not-provable
+%% really is false. assertz(reason_closed(exempt/1)) says so, and truth/2
+%% answers `false' for exempt(X) it cannot prove. It is opt-in, per
+%% predicate, and the default is open, because the text that gives you
+%% every fact about a predicate is rarer than the one that gives you some.
+%%
+%% THE GOAL MUST BE GROUND. truth(own(bob, X), T) is not a question with a
+%% truth value, it is a search -- and `true' for "some X proves" beside
+%% `false' for "some other X is denied" would be two quantifiers wearing
+%% one word. A variable raises instantiation_error; findall/3 is the tool
+%% for the question that was meant. And the class-atom decision above
+%% reaches here: neg(own(bob, car)) makes truth(own(bob, car), T) false and
+%% leaves truth(own(bob, car_1), T) unknown, because the projection kept
+%% the class and lost the individual. That is the cost, stated.
 %%
 %% ---- WHAT IT IS NOT ---------------------------------------------------
 %%
@@ -139,6 +198,7 @@
 :- dynamic reason_adj/1.
 :- dynamic reason_verb/2.
 :- dynamic reason_proper/2.
+:- dynamic reason_closed/1.
 
 %% ---- text ------------------------------------------------------------
 
@@ -148,6 +208,7 @@ reason_text(Text, Options, Terms) :-
     reason_tokens(Text, Tokens),
     rs_sentences(Tokens, Sentences),
     rs_each(Sentences, Raw),
+    rs_declare(Raw),
     (   memberchk(variables(true), Options)
     ->  Terms = Raw
     ;   reason_name(Raw, Terms)
@@ -165,10 +226,32 @@ reason_sentence(Text, Options, Terms) :-
     reason_tokens(Text, Tokens),
     rs_sentences(Tokens, [S|_]),
     phrase(rs_sentence(Raw), S),
+    rs_declare(Raw),
     (   memberchk(variables(true), Options)
     ->  Terms = Raw
     ;   reason_name(Raw, Terms)
     ).
+
+%% A RULE DECLARES WHAT ITS BODY NAMES. `\+ exempt(X)' THROWS an
+%% existence_error when no exempt/1 was ever asserted -- and so does a
+%% plain tenant(X) -- so a rule handed back from `every tenant that is not
+%% exempt ...' would throw for every caller in a knowledge base that
+%% mentions no exemption, which is the ordinary case. dynamic/1 as a goal
+%% is the cure (measured: after it, \+ over the empty predicate fails, as
+%% it should), and it is done HERE, at the boundary, once per call, over
+%% the finished terms -- never inside the grammar, so reason_refused/2's
+%% checks declare nothing. A predicate that already exists is unchanged;
+%% one that cannot be declared (a builtin's name) is left as it was.
+rs_declare([]).
+rs_declare([T|Ts]) :-
+    ( nonvar(T), T = (_ :- Body) -> rs_declare_body(Body) ; true ),
+    rs_declare(Ts).
+
+rs_declare_body((A, B)) :- !, rs_declare_body(A), rs_declare_body(B).
+rs_declare_body(\+ G)   :- !, rs_declare_body(G).
+rs_declare_body(G) :-
+    callable(G), functor(G, N, A),
+    catch(dynamic(N/A), _, true).
 
 %% Split the token stream at `.', dropping empty sentences. THE CUT IS
 %% LOAD-BEARING: without it rs_sentences([], _) has two applicable clauses
@@ -184,6 +267,44 @@ rs_sentences(Tokens, Sentences) :-
 rs_upto([], [], []).
 rs_upto(['.'|Rest], [], Rest) :- !.
 rs_upto([T|Ts], [T|S], Rest) :- rs_upto(Ts, S, Rest).
+
+%% ---- what was refused -------------------------------------------------
+
+reason_refused(Text, Sentence) :-
+    reason_tokens(Text, Tokens),
+    rs_sentences(Tokens, Sentences),
+    member(S, Sentences),
+    \+ phrase(rs_sentence(_), S),
+    rs_words(S, Sentence).
+
+rs_words(Tokens, Atom) :-
+    findall(W, member(word(W, _), Tokens), Ws),
+    atomic_list_concat(Ws, ' ', Atom).
+
+%% ---- truth -------------------------------------------------------------
+%%
+%% Two questions, and the pair read as one of four answers. A predicate
+%% that does not exist is caught here and counts as not proving: silence
+%% is `unknown', never an error. Any other ball is the program's and
+%% travels.
+
+truth(Goal, Truth) :-
+    (   ground(Goal) -> true
+    ;   throw(error(instantiation_error, truth/2))
+    ),
+    ( rt_proves(Goal)      -> Pos = yes ; Pos = no ),
+    ( rt_proves(neg(Goal)) -> Neg = yes ; Neg = no ),
+    rt_verdict(Pos, Neg, Goal, Truth).
+
+rt_verdict(yes, yes, _, conflict) :- !.
+rt_verdict(yes, no,  _, true)     :- !.
+rt_verdict(no,  yes, _, false)    :- !.
+rt_verdict(no,  no,  Goal, Truth) :-
+    functor(Goal, N, A),
+    ( reason_closed(N/A) -> Truth = false ; Truth = unknown ).
+
+rt_proves(Goal) :-
+    catch(Goal, error(existence_error(procedure, _), _), fail), !.
 
 %% ---- tokens ----------------------------------------------------------
 
@@ -364,6 +485,15 @@ rl_closed(not).
 rl_closed(that).
 rl_closed(if).
 rl_closed(then).
+%% pronouns: closed, so a capitalised `It' at the head of a sentence is
+%% not a proper noun named `it' -- `It rains' answered rain(it) until the
+%% suite asked for it to be refused. Nothing here resolves one; a sentence
+%% built on one is refused whole, as the header says.
+rl_closed(W) :- rl_pronoun(W).
+rl_pronoun(it).   rl_pronoun(he).   rl_pronoun(she).  rl_pronoun(they).
+rl_pronoun(we).   rl_pronoun(i).    rl_pronoun(you).  rl_pronoun(him).
+rl_pronoun(her).  rl_pronoun(them). rl_pronoun(us).   rl_pronoun(me).
+rl_pronoun(his).  rl_pronoun(its).  rl_pronoun(their). rl_pronoun(our).
 
 %% ---- naming the individuals ------------------------------------------
 %%

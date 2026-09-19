@@ -12,7 +12,7 @@
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
-    round_trip, refusals, errors,
+    round_trip, refusals, declares, refused, truth, errors,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -194,6 +194,64 @@ refusals :-
     check('a transitive frame with nothing after the verb is... a unary claim: own(alice)', F5, yes),
     yes_no(reason_sentence('Alice a car.', _), F6),
     check('no verb', F6, no).
+
+%% ---- a rule declares what its body names ------------------------------------------------
+
+declares :-
+    section('declares'),
+    reason_text('Every member that is not banned may post the message. Zed is a member.', D1),
+    forall(member(T, D1), assertz(T)),
+    catch(( may_post(zed, message) -> R1 = proves ; R1 = fails ), E1, R1 = threw(E1)),
+    check('`that is not banned'' with nobody banned: the rule PROVES, no existence_error', R1, proves),
+    reason_text('Every widget that is blue is nice.', D2),
+    forall(member(T, D2), assertz(T)),
+    catch(( nice(w9) -> R2 = proves ; R2 = fails ), E2, R2 = threw(E2)),
+    check('a body predicate nothing asserted: the rule FAILS, no existence_error', R2, fails),
+    yes_no(reason_refused('Every gadget that is not broken works. She fixes it.', _), R3),
+    check('reason_refused/2 declares nothing (still a pure check)', R3, yes),
+    catch(( broken(g1) -> R4 = proves ; R4 = fails ), E4, R4 = threw(E4)),
+    R4 = threw(error(existence_error(procedure, PI4), _)),
+    check('  -- so broken/1 is still absent afterwards', PI4, broken/1).
+
+%% ---- reason_refused/2 names the sentence ----------------------------------------------
+
+refused :-
+    section('refused'),
+    reason_refused('Alice owns a car. Every tenant must_pay rent. Bob is a tenant.', R1),
+    check('the first refused sentence, as its words', R1, 'every tenant must_pay rent'),
+    findall(R, reason_refused('Alice owns a car. She uses it. Bob sleeps. It rains.', R), Rs2),
+    check('every refused sentence on backtracking, in order', Rs2, ['she uses it', 'it rains']),
+    yes_no(reason_refused('Alice owns a car. Bob sleeps.', _), R3),
+    check('fails when the whole text parses', R3, no),
+    yes_no(reason_refused('', _), R4),
+    check('and on empty text', R4, no),
+    reason_refused('Hello, World, again!', R5),
+    check('punctuation is not in the words', R5, 'hello world again').
+
+%% ---- truth/2: four answers ---------------------------------------------------------------
+
+truth :-
+    section('truth'),
+    reason_text('Alice is happy. Bob is not happy. Carol is a tenant. Every tenant that is not exempt must pay the rent. Dave is a tenant. Dave is exempt.', Ts),
+    forall(member(T, Ts), assertz(T)),
+    truth(happy(alice), T1),          check('said: true', T1, true),
+    truth(happy(bob), T2),            check('denied: false', T2, false),
+    truth(happy(carol), T3),          check('never mentioned: unknown', T3, unknown),
+    truth(sad(alice), T4),            check('a predicate that does not exist: unknown, not an error', T4, unknown),
+    truth(must_pay(carol, rent), T5), check('proved through a rule: true', T5, true),
+    truth(must_pay(dave, rent), T6),  check('the rule does not fire and nothing denies it: unknown', T6, unknown),
+    assertz(reason_closed(must_pay/2)),
+    truth(must_pay(dave, rent), T7),  check('the same goal once the predicate is closed: false', T7, false),
+    truth(must_pay(carol, rent), T7b), check('closing changes nothing that proves', T7b, true),
+    retract(reason_closed(must_pay/2)),
+    assertz(neg(happy(alice))),
+    truth(happy(alice), T8),          check('said AND denied: conflict', T8, conflict),
+    retract(neg(happy(alice))),
+    truth(neg(happy(bob)), T9),       check('a neg/1 goal is a goal like any other', T9, true),
+    catch(( truth(happy(_), _), E10 = none ), error(E10, _), true),
+    check('a variable is not a question with a truth value', E10, instantiation_error),
+    catch(( truth(f(a), _), E11 = none ), error(E11, _), true),
+    check('an absent predicate does not throw', E11, none).
 
 %% ---- errors --------------------------------------------------------------------------
 

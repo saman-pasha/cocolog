@@ -118,6 +118,28 @@ main :-
     must('word(Lower, Case), comma, stop', Tk,
          [word(hello, upper), ',', word(world, upper), '.', word(alice_1, upper), '.']),
 
+    format("~n11. Which sentence was refused: reason_refused/2~n", []),
+    ( reason_text('Alice owns a car. Every tenant must_pay rent.', _) -> W11 = parsed ; W11 = refused ),
+    must('a bare noun object is not a shape it reads, so the text is refused', W11, refused),
+    reason_refused('Alice owns a car. Every tenant must_pay rent.', R11),
+    must('and this names the sentence to rewrite', R11, 'every tenant must_pay rent'),
+    reason_text('Alice owns a car. Every tenant must pay the rent.', T11),
+    length(T11, N11), must('written as `the rent'' it parses', N11, 3),
+
+    format("~n12. truth/2: said, denied, never mentioned, contradicted~n", []),
+    reason_text('Eve is a tenant. Eve is not exempt. Every tenant that is not exempt must pay the rent.', T12),
+    forall(member(X12, T12), assertz(X12)),
+    truth(must_pay(eve, rent), V12a),  must('proved through the rule', V12a, true),
+    truth(exempt(eve), V12b),          must('the text denied it', V12b, false),
+    truth(landlord(eve), V12c),        must('the text never said', V12c, unknown),
+    truth(may_access(eve, server), V12d), must('nor did anything: no rule fires', V12d, unknown),
+    assertz(reason_closed(may_access/2)),
+    truth(may_access(eve, server), V12e), must('closed, the same silence is false', V12e, false),
+    retract(reason_closed(may_access/2)),
+    assertz(neg(tenant(eve))),
+    truth(tenant(eve), V12f),          must('said and denied both: conflict', V12f, conflict),
+    retract(neg(tenant(eve))),
+
     format("~nDone.~n", []).
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
