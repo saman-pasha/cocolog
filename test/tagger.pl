@@ -1,7 +1,7 @@
 %% library(reasoning/tagger) -- the network that labels typed text for the
 %% grammar, held to what the grammar then reads: the pure half (vocabulary,
 %% encoding, tag ids, the padding plan) on any box, and where library(torch)
-%% is built a training, its accuracy on sentences it never saw, FORTY-THREE
+%% is built a training, its accuracy on sentences it never saw, SIXTY-FOUR
 %% HAND-WRITTEN SENTENCES whose names, nouns, adjectives and verbs are
 %% outside the lexicon, a paragraph of such prose put to truth/2, and a
 %% model one process trains and the next loads.
@@ -65,7 +65,10 @@ encoding :-
     check('Zed, never seen, is <unk>', Z, 1),
     tagger_encode(V, [word(alice, lower)], [A2], [S2]),
     check('the case is the shape, not the word: alice lower has the same id', A2, A1),
-    check('and shape 1', S2, 1).
+    check('and shape 1', S2, 1),
+    tagger_encode(V, [num(500), word(five, lower)], [N3, _], S3),
+    check('a number is one word, <num>, and sorts right after the comma: 3', N3, 3),
+    check('its shape is 15, and a number word is a lower-case word like any other', S3, [15, 1]).
 
 %% ---- the padding plan ---------------------------------------------------------------------
 
@@ -150,12 +153,13 @@ refusals(M) :-
 pretrained :-
     section('the shipped model'),
     (   catch(tagger_pretrained(M), error(existence_error(tagger, pretrained), _), fail)
-    ->  (   tagger_normalise(M, 'Well, Zed really owns a red car, obviously. Dana rents a flat in Bristol and is registered.', C, T)
+    ->  (   tagger_normalise(M, 'Well, Zed really owns a red car, obviously. Dana rents a flat in Bristol and is registered. The rent is 700 euros.', C, T)
         ->  true
         ;   C = refused, T = refused
         ),
-        check('the shipped model normalises prose', C, 'Zed owns a red car. Dana rents a flat in Bristol. Dana is registered.'),
-        check('and reads it', T, [car(car_1), red(car_1), own(zed, car_1), flat(flat_1), rent_in(dana, flat_1, bristol), registered(dana)]),
+        check('the shipped model normalises prose', C, 'Zed owns a red car. Dana rents a flat in Bristol. Dana is registered. The rent is 700 euros.'),
+        check('and reads it', T, [car(car_1), red(car_1), own(zed, car_1), flat(flat_1), rent_in(dana, flat_1, bristol), registered(dana),
+                                  amount(rent, quantity(700, euros))]),
         tagger_pretrained(M2), check('loaded once a process', M2, M),
         yes_no('$tg_vocab'(tagger, 0, _), Rows), check('its rows are in the store, a module''s', Rows, yes),
         tagger_free(M),
@@ -171,7 +175,7 @@ pretrained :-
 %% and verbs, are outside the lexicon, in every shape the grammar reads and
 %% with the noise typed prose carries. Each should give the terms a careful
 %% reader would write, up to the names of a rule's variables; every miss is
-%% printed by name, and the floor is all but two of the fifty-four, because
+%% printed by name, and the floor is all but two of the sixty-four, because
 %% over a lexicon of thousands two trainings do not miss the same sentence
 %% -- measured, one missed `works hard' and the next `may enter the ward' --
 %% and a pin on all of them would be a pin on the coin.
@@ -230,6 +234,16 @@ prose('Well, does Priya sell the bread?', [question(sell(priya, bread))]).
 prose('Is Marco really a tenant?', [question(tenant(marco))]).
 prose('Who rents a flat in Bristol?', [question(X, (flat(F), rent_in(X, F, bristol)))]).
 prose('What does Priya sell, honestly?', [question(X, sell(priya, X))]).
+prose('Nadia pays 500 euros.', [pay(nadia, quantity(500, euros))]).
+prose('Tariq owns three vineyards.', [own(tariq, quantity(3, vineyards))]).
+prose('The rent is 500 euros.', [amount(rent, quantity(500, euros))]).
+prose('Every tenant must pay 500 euros.', [(must_pay(X, quantity(500, euros)) :- tenant(X))]).
+prose('Well, Nadia clearly does not pay 500 euros.', [neg(pay(nadia, quantity(500, euros)))]).
+prose('Noor buys two litres of milk.', [buy(noor, quantity(2, litres, milk))]).
+prose('Frankly, the price is 5.5 percent.', [amount(price, quantity(5.5, percent))]).
+prose('Does Nadia pay 500 euros?', [question(pay(nadia, quantity(500, euros)))]).
+prose('How much does Nadia pay?', [question(Q, (pay(nadia, O), reason_amount(O, Q)))]).
+prose('How many vineyards does Tariq own, honestly?', [question(N, (own(tariq, O), reason_count(O, vineyards, N)))]).
 
 prose_checks(M) :-
     findall(T-W, prose(T, W), Ps), length(Ps, N),
@@ -242,7 +256,7 @@ prose_checks(M) :-
     length(Bad, NB), Ok is N - NB,
     format("     ~w of ~w hand-written sentences give their terms~n", [Ok, N]),
     Floor is N - 2, yes_no(Ok >= Floor, Enough),
-    check('at least forty-one of the forty-three hand-written sentences give their terms', Enough, yes).
+    check('all but two of the hand-written sentences give their terms', Enough, yes).
 
 %% variants: the same term up to the names of its variables
 variant(A, B) :-
@@ -260,11 +274,11 @@ number_vars(['$v'(N)|Vs], N) :- N1 is N + 1, number_vars(Vs, N1).
 %% and its floor, and this section pins the reading exactly.
 
 paragraph(M) :-
-    Prose = 'Zed owns a bicycle. Mia is a nurse and is careful. Every nurse that is careful may enter the ward. Omar does not like Zed. Ola lives in Lagos. Dana rents a flat in Bristol. She is registered.',
+    Prose = 'Zed owns a bicycle. Mia is a nurse and is careful. Every nurse that is careful may enter the ward. Omar does not like Zed. Ola lives in Lagos. The rent is 500 euros. Mia pays the rent. Dana rents a flat in Bristol. She is registered.',
     ( tagger_normalise(M, Prose, C, Terms) -> true ; C = refused, Terms = [] ),
-    check('a paragraph of seven sentences, controlled -- the subject Mia left out supplied, the pronoun kept', C,
-          'Zed owns a bicycle. Mia is a nurse. Mia is careful. Every nurse that is careful may_enter the ward. Omar does not like Zed. Ola lives_in Lagos. Dana rents a flat in Bristol. She is registered.'),
-    length(Terms, NT), check('ten terms', NT, 10),
+    check('a paragraph of nine sentences, controlled -- the subject Mia left out supplied, the pronoun kept, the amount kept', C,
+          'Zed owns a bicycle. Mia is a nurse. Mia is careful. Every nurse that is careful may_enter the ward. Omar does not like Zed. Ola lives_in Lagos. The rent is 500 euros. Mia pays the rent. Dana rents a flat in Bristol. She is registered.'),
+    length(Terms, NT), check('twelve terms', NT, 12),
     forall(member(T, Terms), assertz(T)),
     truth(own(zed, bicycle_1), V1), check('truth: Zed owns the bicycle', V1, true),
     truth(may_enter(mia, ward), V2), check('truth: Mia may enter the ward -- a rule over two facts, all from the prose', V2, true),
@@ -281,7 +295,10 @@ paragraph(M) :-
     check('asked: may Mia enter the ward -- yes, by the rule and the two facts it rests on', R3, yes),
     tagger_ask(M, 'Does Omar like Zed?', A4), check('asked: does Omar like Zed -- no, the text denied it', A4, [no(denied(neg(like(omar, zed))))]),
     tagger_ask(M, 'Is Zed a nurse?', A5), check('asked: never said -- unknown', A5, [unknown]),
-    tagger_ask(M, 'Is she registered?', A6), check('asked with a pronoun: the subject the paragraph left, Dana -- yes', A6, [yes(fact)]).
+    tagger_ask(M, 'Is she registered?', A6), check('asked with a pronoun: the subject the paragraph left, Dana -- yes', A6, [yes(fact)]),
+    tagger_ask(M, 'How much does Mia pay?', A7),
+    check('asked how much: through the amount the paragraph gave the rent', A7, [[quantity(500, euros)-fact]]),
+    tagger_ask(M, 'Well, how much is the rent?', A8), check('asked how much the rent is', A8, [[quantity(500, euros)-fact]]).
 
 %% one process trains into a store and asserts what it tagged; the next loads
 %% the model from the store and tags the same sentence -- the knowledge base

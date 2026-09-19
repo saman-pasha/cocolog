@@ -18,7 +18,7 @@
 %%
 %% THE CORPUS IS THE CAPABILITY. The generator is unbounded in seeds and
 %% bounded in variety, and variety is what carries a tagger to words it
-%% never saw: thirty-three shapes, eleven kinds of noise, and a lexicon that is
+%% never saw: forty-one shapes, eleven kinds of noise, and a lexicon that is
 %% files beside the library -- 2500 census names and some seventeen
 %% thousand WordNet words, library/reasoning/lexicon/ -- and 16384 pairs
 %% of them by default. Over that lexicon 8192 pairs read 0.96 of the
@@ -77,6 +77,12 @@ main :-
     tagger_ask(M, 'Does Dana rent a flat in Bristol?', [A9a]), must('asked, once the facts are in: yes, and the reason is the fact', A9a, yes(fact)),
     tagger_ask(M, 'Who is a tenant?', [A9b]), must('who is a tenant', A9b, [dana-fact]),
     tagger_ask(M, 'Is Dana late?', [A9c]), must('is Dana late -- no, the text denied it', A9c, no(denied(neg(late(dana))))),
+    tagger_normalise(M, 'Obviously, Kim pays 500 euros. The deposit is 800 euros, I think.', C4q, T4q),
+    show('an amount, controlled', C4q),
+    must('a number is a value: quantity(N, Noun), and the amount sentence', T4q, [pay(kim, quantity(500, euros)), amount(deposit, quantity(800, euros))]),
+    forall(member(T, T4q), assertz(T)),
+    tagger_ask(M, 'Well, how much does Kim pay?', [A9d]), must('how much, typed', A9d, [quantity(500, euros)-fact]),
+    tagger_ask(M, 'How much is the deposit?', [A9e]), must('how much the deposit is', A9e, [quantity(800, euros)-fact]),
     assertz(clerk(ann)),
     truth(like(mia, zed), V1), must('truth(like(mia, zed))', V1, true),
     truth(like(zed, mia), V2), must('truth(like(zed, mia)) -- nothing said so', V2, unknown),
@@ -111,9 +117,9 @@ main :-
 
     format("~n7. And without training: the shipped model, library/reasoning/model.rows~n", []),
     (   catch(tagger_pretrained(Pre), error(existence_error(tagger, pretrained), _), fail)
-    ->  ( tagger_normalise(Pre, 'Honestly, Kim rents a small flat in Oslo.', C70, T70) -> true ; C70 = refused, T70 = refused ),
+    ->  ( tagger_normalise(Pre, 'Honestly, Kim rents a small flat in Oslo. The rent is 700 euros.', C70, T70) -> true ; C70 = refused, T70 = refused ),
         show('controlled', C70),
-        must('read by a model nobody here trained', T70, [flat(flat_1), small(flat_1), rent_in(kim, flat_1, oslo)]),
+        must('read by a model nobody here trained', T70, [flat(flat_1), small(flat_1), rent_in(kim, flat_1, oslo), amount(rent, quantity(700, euros))]),
         tagger_free(Pre)
     ;   format("   (no shipped model: sh tools/tagger/train.sh writes it)~n", [])
     ),

@@ -45,7 +45,8 @@
 %%
 %%     reason_tokens(+Text, -Tokens)
 %%         The tokeniser, exposed. A token is word(Lower, upper|lower),
-%%         `.' or `,'.
+%%         num(N) for digits (500, 5.5, 1,000; `5%' is 5 and the word
+%%         percent), `.' or `,'.
 %%
 %%     reason_refused(+Text, -Sentence)
 %%         The first sentence reason_text/2 would refuse, as its words
@@ -86,6 +87,18 @@
 %%         it (one level), denied when its negation was said; fails when
 %%         nothing holds it up.
 %%
+%%     reason_amount(+Object, -Quantity)
+%%         What `how much' asks for: the quantity the object IS -- a
+%%         quantity/2,3 term or a bare number -- or, for a class atom, the
+%%         amount the text gave it: after `Nadia pays the rent. The rent is
+%%         500 euros.' the object `rent' answers quantity(500, euros). The
+%%         goal a how-much question reads to calls it last.
+%%
+%%     reason_count(+Object, +Noun, -N)
+%%         What `how many NOUN' asks for: N when the object is
+%%         quantity(N, Noun) or quantity(N, Noun, Of). The goal a how-many
+%%         question reads to calls it last.
+%%
 %%     truth(+Goal, -Truth)
 %%         true, false, unknown or conflict, for a GROUND goal against the
 %%         knowledge base as it stands: what a text said, what it denied,
@@ -115,8 +128,14 @@
 %%   Alice lives_in Rome.                live_in(alice, rome)
 %%   Alice rents a flat in Rome.         flat(V), rent_in(alice, V, rome)
 %%   Alice is a baker. She is licensed.  baker(alice), licensed(alice)
+%%   Alice pays 500 euros.               pay(alice, quantity(500, euros))
+%%   Alice owns three vineyards.         own(alice, quantity(3, vineyards))
+%%   Alice buys two litres of milk.      buy(alice, quantity(2, litres, milk))
+%%   The rent is 500 euros.              amount(rent, quantity(500, euros))
 %%   Does Alice own a car?               question((car(V), own(alice, V)))
 %%   Who is licensed?                    question(X, licensed(X))
+%%   How much does Alice pay?            question(Q, (pay(alice, O), reason_amount(O, Q)))
+%%   How many vineyards does Alice own?  question(N, (own(alice, O), reason_count(O, vineyards, N)))
 %%   Every employee is a person.         person(X) :- employee(X)
 %%   Every employee has a badge.         have(X, badge) :- employee(X)
 %%   Every employee that is authorized   may_access(X, server) :-
@@ -144,7 +163,22 @@
 %% statement would have asserted with a variable where the question word
 %% stood, and reason_ask/2 answers it against the knowledge base with the
 %% REASON beside the answer: the fact that was said, the rule and the
-%% body that proved it, or the denial. The relative clause `that is [not]
+%% body that proved it, or the denial. A QUANTITY IS A VALUE, NOT AN
+%% INDIVIDUAL: a number and the noun it counts -- `500 euros', `three
+%% vineyards', `5.5 percent', `two litres of milk' -- reads as
+%% quantity(N, Noun) or quantity(N, Unit, Noun), the noun AS WRITTEN
+%% (euros, not euro, by the rule below), the number as digits or as the
+%% number words (`twenty five', `two hundred', `a hundred'), and a bare
+%% number as the number. No car_1 is introduced for `three cars', because
+%% three of them is not one, so the object of the claim is the quantity
+%% term itself, in a fact, a rule and a denial alike -- must_pay(X,
+%% quantity(500, euros)) :- tenant(X); neg(pay(bob, quantity(500,
+%% euros))). `The rent is 500 euros' is the one sentence with a definite
+%% SUBJECT, and it is amount(rent, quantity(500, euros)): what a definite
+%% object costs, said once and asked for by `how much'. A quantity
+%% carries no adjective (`three red cars' is refused, not read with `red'
+%% dropped) and no comparison (`more than 500 euros' is refused). The
+%% relative clause `that is [not]
 %% ADJ' is how a condition is written, and it is deliberately the ONLY
 %% way: `if ... then ...' with a pronoun would need the pronoun bound
 %% inside a rule, and a rule with two conditions is two sentences or one
@@ -345,7 +379,17 @@ rq_denial(Goal, neg(ClassP)) :-
     copy_term(V-P, N-ClassP).
 rq_denial(Goal, neg(Goal)).
 
-rq_why(Goal, Why) :- rq_split(Goal, _, P), ( reason_why(P, Why0) -> Why = Why0 ; Why = proved ).
+rq_why(Goal, Why) :- rq_claim(Goal, P), ( reason_why(P, Why0) -> Why = Why0 ; Why = proved ).
+
+%% the claim a goal makes: its last conjunct, or the one before a trailing
+%% reason_amount/2 or reason_count/3, which a how-much or how-many
+%% question puts after the claim
+rq_claim(Goal, P) :-
+    rq_split(Goal, Pre, Last),
+    (   ( Last = reason_amount(_, _) ; Last = reason_count(_, _, _) ), append(_, [P0], Pre)
+    ->  P = P0
+    ;   P = Last
+    ).
 
 %% reason_why(+Goal, -Why): fact when the goal was said; rule(Head :- Body)
 %% with the body as it proved when a rule gave it, one level; denied when
@@ -354,6 +398,19 @@ reason_why(P, fact) :- catch(clause(P, true), _, fail), !.
 reason_why(P, rule((P :- Body))) :-
     catch(clause(P, Body), _, fail), Body \== true, rq_solve(Body), !.
 reason_why(P, denied) :- catch(clause(neg(P), true), _, fail), !.
+
+%% reason_amount(+Object, -Quantity): what `how much' asks for. The object
+%% IS a quantity -- quantity/2, quantity/3 or a bare number -- or it is a
+%% class atom the text gave an amount: `Nadia pays the rent. The rent is
+%% 500 euros.' answers quantity(500, euros) for the object `rent'. A
+%% knowledge base with no amount/2 in it answers nothing, not an error.
+reason_amount(Q, Q) :- nonvar(Q), ( number(Q) ; Q = quantity(_, _) ; Q = quantity(_, _, _) ), !.
+reason_amount(O, Q) :- atom(O), catch(amount(O, Q), error(existence_error(procedure, _), _), fail).
+
+%% reason_count(+Object, +Noun, -N): what `how many NOUN' asks for -- the
+%% number in a quantity of that noun, with or without an `of' part
+reason_count(quantity(N, U), U, N).
+reason_count(quantity(N, U, _), U, N).
 
 %% the sentences in order, and the STATE between them: the subject of the
 %% last fact, which a subject pronoun in the next sentence stands for
@@ -435,8 +492,11 @@ rr_refused([S|Ss], R) :-
     ).
 
 rs_words(Tokens, Atom) :-
-    findall(W, member(word(W, _), Tokens), Ws),
+    findall(W, ( member(T, Tokens), rs_token_text(T, W) ), Ws),
     atomic_list_concat(Ws, ' ', Atom).
+
+rs_token_text(word(W, _), W).
+rs_token_text(num(N), A) :- format(atom(A), "~w", [N]).
 
 %% ---- truth -------------------------------------------------------------
 %%
@@ -477,6 +537,20 @@ rt_codes(T, _)  :- throw(error(type_error(text, T), reason_tokens/2)).
 rt_tokens([], []).
 rt_tokens([C|Cs], ['.'|Ts]) :- rt_stop(C), !, rt_tokens(Cs, Ts).
 rt_tokens([44|Cs], [','|Ts]) :- !, rt_tokens(Cs, Ts).          % 44 is `,'
+%% a number: digits, a comma between digits passed over (1,000), a point
+%% between digits kept (5.5), and `%' right after it the word `percent'
+rt_tokens([C|Cs], [num(N)|Ts]) :-
+    rt_digit(C), !,
+    rt_digits(Cs, More, Rest0),
+    (   Rest0 = [46, D|Rest1], rt_digit(D)                      % 46 is `.'
+    ->  rt_digits([D|Rest1], Frac, Rest2), append([C|More], [46|Frac], NCs)
+    ;   NCs = [C|More], Rest2 = Rest0
+    ),
+    atom_codes(NA, NCs), atom_number(NA, N),
+    (   Rest2 = [37|Rest] -> Ts = [word(percent, lower)|Ts1]    % 37 is `%'
+    ;   Rest = Rest2, Ts = Ts1
+    ),
+    rt_tokens(Rest, Ts1).
 rt_tokens([C|Cs], [word(W, Case)|Ts]) :-
     rt_alpha(C), !,
     rt_run(Cs, More, Rest),
@@ -490,6 +564,10 @@ rt_stop(46). rt_stop(33). rt_stop(63).                          % . ! ?
 
 rt_run([C|Cs], [C|More], Rest) :- ( rt_alpha(C) ; rt_digit(C) ; C == 95 ), !, rt_run(Cs, More, Rest).
 rt_run(Cs, [], Cs).
+
+rt_digits([C|Cs], [C|More], Rest) :- rt_digit(C), !, rt_digits(Cs, More, Rest).
+rt_digits([44, C|Cs], More, Rest) :- rt_digit(C), !, rt_digits([C|Cs], More, Rest).   % 1,000: the comma is a separator
+rt_digits(Cs, [], Cs).
 
 rt_alpha(C) :- C >= 97, C =< 122, !.
 rt_alpha(C) :- C >= 65, C =< 90.
@@ -510,6 +588,7 @@ rt_lowers([C|Cs], [L|Ls]) :- rt_lower(C, L), rt_lowers(Cs, Ls).
 
 rs_sentence(Terms) --> rs_sentence(Terms, _).
 rs_sentence([Q], none) --> rs_question(Q), !.
+rs_sentence([Claim], none) --> rs_amount(Claim), !.
 rs_sentence(Terms, State) -->
     rs_subject(S, Guard, Ctx),
     rs_predication(S, Ctx, Claim, Extra),
@@ -530,8 +609,20 @@ rs_sentence(Terms, State) -->
 %%   What does Priya sell?             question(X, sell(priya, X))
 %%   What does Priya keep in Leeds?    question(X, keep_in(priya, X, leeds))   -- or `keep_in Leeds', joined
 %%   Where does Priya sleep?           question(X, sleep_in(priya, X))     -- `in' assumed
+%%   Does Priya pay 500 euros?         question(pay(priya, quantity(500, euros)))
+%%   Is the rent 500 euros?            question(amount(rent, quantity(500, euros)))
+%%   How much does Priya pay?          question(Q, (pay(priya, O), reason_amount(O, Q)))
+%%   How much must Priya pay?          question(Q, (must_pay(priya, O), reason_amount(O, Q)))
+%%   How much does Priya pay to Omar?  question(Q, (pay_to(priya, O, omar), reason_amount(O, Q)))   -- or `pay_to Omar'
+%%   How many vineyards does Priya own?  question(N, (own(priya, O), reason_count(O, vineyards, N)))
+%%   How much is the rent?             question(Q, amount(rent, Q))
 %%
-%% The subject may be a pronoun, resolved as a statement's is.
+%% The subject may be a pronoun, resolved as a statement's is. `How much'
+%% asks for the object THROUGH reason_amount/2, so that `Priya pays the
+%% rent' beside `The rent is 500 euros' answers the 500 euros and not the
+%% word `rent'; `how many' asks, through reason_count/3, for the number
+%% in a quantity of the noun it names -- quantity(2, litres) and
+%% quantity(2, litres, milk) both answer 2 litres.
 
 rs_question(question(Goal)) -->
     rs_aux, rs_qsubject(S), rs_verb(V), rs_object_opt(fact, O, Extra), rs_place_opt(O, Pl),
@@ -548,11 +639,17 @@ rs_question(question(X, Goal)) -->
     [word(who, _)], rs_modal_verb(V), rs_object_opt(fact, O, Extra), rs_place_opt(O, Pl),
     { rs_claim(V, X, O, Pl, P), rs_goal(Extra, P, Goal) }.
 rs_question(question(X, Goal)) -->
-    [word(Wh, _)], { Wh == what ; Wh == whom }, rs_aux, rs_qsubject(S), rs_verb(V0),
-    (   rs_proper(Place), { rs_unjoin(V0, V, Prep) } -> { Pl = Prep-Place }   % `keep_in Leeds', as the assembler writes it
-    ;   { V = V0 }, rs_place_opt(X, Pl)
-    ),
+    [word(Wh, _)], { Wh == what ; Wh == whom }, rs_aux, rs_qsubject(S), rs_verb_place(V, X, Pl),
     { rs_claim(V, S, X, Pl, Goal) }.
+
+%% the verb and a place after it: `keep in Leeds' as it is written, or
+%% `keep_in Leeds' as the assembler writes it, taken apart again
+rs_verb_place(V, O, Pl) --> rs_verb_word_place(W, O, Pl), { rs_base(W, V) }.
+rs_verb_word_place(W, O, Pl) -->
+    rs_verb_word(W0),
+    (   rs_proper(Place), { rs_unjoin(W0, W, Prep) } -> { Pl = Prep-Place }
+    ;   { W = W0 }, rs_place_opt(O, Pl)
+    ).
 
 %% keep_in -> keep, in: a relation the assembler joined, taken apart when
 %% the object it asks for stood in front
@@ -562,6 +659,26 @@ rs_unjoin(V0, V, Prep) :-
 rs_question(question(X, Goal)) -->
     [word(where, _)], rs_aux, rs_qsubject(S), rs_verb(V), rs_object_opt(fact, O, Extra),
     { rs_claim(V, S, O, in-X, P), rs_goal(Extra, P, Goal) }.
+rs_question(question(Q, (P, reason_amount(O, Q)))) -->
+    [word(how, _)], [word(much, _)], rs_aux, rs_qsubject(S), rs_verb_place(V, O, Pl),
+    { rs_claim(V, S, O, Pl, P) }.
+rs_question(question(Q, (P, reason_amount(O, Q)))) -->
+    [word(how, _)], [word(much, _)], [word(M, _)], { rl_modal(M) }, rs_qsubject(S), rs_verb_word_place(W, O, Pl),
+    { atomic_list_concat([M, '_', W], V), rs_claim(V, S, O, Pl, P) }.
+rs_question(question(Q, amount(N, Q))) -->
+    [word(how, _)], [word(much, _)], rs_copula, rs_det(def), rs_noun(N).
+rs_question(question(N, (P, reason_count(O, U, N)))) -->
+    [word(how, _)], [word(many, _)], rs_noun(U), rs_aux, rs_qsubject(S), rs_verb_place(V, O, Pl),
+    { rs_claim(V, S, O, Pl, P) }.
+rs_question(question(amount(N, Q))) -->
+    rs_copula, rs_det(def), rs_noun(N), rs_quantity(Q).
+
+%% `The rent is [not] 500 euros': the one sentence with a definite subject,
+%% and the amount a definite object has -- what `how much' reads back
+rs_amount(Claim) -->
+    rs_det(def), rs_noun(N), rs_copula,
+    (   [word(not, _)] -> { Claim = neg(amount(N, Q)) } ; { Claim = amount(N, Q) } ),
+    rs_quantity(Q).
 
 rs_qsubject(S) --> rs_subject(S, _, fact).
 
@@ -627,14 +744,39 @@ rs_object_opt(Ctx, O) --> rs_object_opt(Ctx, O, _).
 rs_place_opt(O, Prep-Place) --> { O \== none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_proper(Place), !.
 rs_place_opt(_, none) --> [].
 
-%% a proper noun; `the N' as the class atom; `a N' as an individual in a
-%% fact and the class atom otherwise
+%% a quantity, a proper noun; `the N' as the class atom; `a N' as an
+%% individual in a fact and the class atom otherwise
+rs_object(_, Q, []) --> rs_quantity(Q).
 rs_object(_, O, []) --> rs_proper(O).
 rs_object(_, N, []) --> rs_det(def), rs_adjs(_), rs_noun(N).
 rs_object(fact, V, [Noun|Adjs]) -->
     rs_det(indef), rs_adjs(As), rs_noun(N),
     { Noun =.. [N, V], rs_adj_terms(As, V, Adjs) }.
 rs_object(Ctx, N, []) --> { Ctx \== fact }, rs_det(indef), rs_adjs(_), rs_noun(N).
+
+%% a quantity: a number and the noun it counts, as written -- `500 euros'
+%% quantity(500, euros), `three vineyards' quantity(3, vineyards), `5.5
+%% percent' quantity(5.5, percent); `two litres of milk' quantity(2,
+%% litres, milk), and `a litre of milk' the same with 1; a bare number the
+%% number itself. A VALUE, never an individual: nothing is introduced, and
+%% no adjective is read inside one (`three red cars' is refused).
+rs_quantity(quantity(N, U, Of)) --> rs_number_or_one(N), rs_noun(U), [word(of, _)], !, rs_noun(Of).
+rs_quantity(quantity(N, U)) --> rs_number(N), rs_noun(U), !.
+rs_quantity(N) --> rs_number(N).
+
+rs_number_or_one(N) --> rs_number(N).
+rs_number_or_one(1) --> rs_det(indef).
+
+%% digits as the tokeniser read them, or the number words: `five', `twenty
+%% five', `two hundred', `two hundred fifty', `a hundred', `three thousand'
+rs_number(N) --> [num(N)].
+rs_number(N) --> [word(a, _)], [word(S, _)], { rl_scale(S, N) }.
+rs_number(N) --> [word(W, _)], { rl_number(W, N0) }, rs_number_rest(N0, N).
+
+rs_number_rest(N0, N) --> [word(S, _)], { rl_scale(S, M) }, !, { N1 is N0 * M }, rs_number_rest(N1, N).
+rs_number_rest(N0, N) --> { N0 >= 20, N0 mod 10 =:= 0 }, [word(U, _)], { rl_number(U, D), D > 0, D < 10 }, !, { N is N0 + D }.
+rs_number_rest(N0, N) --> { N0 >= 100 }, [word(W, _)], { rl_number(W, D0), D0 < 100 }, rs_number_rest(D0, D), { D < 100 }, !, { N is N0 + D }.
+rs_number_rest(N, N) --> [].
 
 %% O == none, never a unification: an indefinite object is still a fresh
 %% VARIABLE here, and a variable unifies with `none' happily
@@ -740,6 +882,13 @@ rl_closed(not).
 rl_closed(that).
 rl_closed(if).
 rl_closed(then).
+%% number words and scales: closed, so `five' is never an adjective and
+%% `Six' never a name; `much' and `many' with them, the words of a how-much
+%% question
+rl_closed(W) :- rl_number(W, _), !.
+rl_closed(W) :- rl_scale(W, _), !.
+rl_closed(much).
+rl_closed(many).
 %% pronouns: closed, so a capitalised `It' at the head of a sentence is
 %% not a proper noun named `it' -- `It rains' answered rain(it) until the
 %% suite asked for it to be refused. Nothing here resolves one; a sentence
@@ -781,6 +930,15 @@ rl_preposition(as).      rl_preposition(than).
 %% the contract' was refused only because what followed did not fit. A
 %% refusal by luck is a misreading waiting for the sentence that fits.
 rl_conjunction(and). rl_conjunction(or). rl_conjunction(but).
+%% the number words, and the scales a number word multiplies by
+rl_number(zero, 0).      rl_number(one, 1).       rl_number(two, 2).       rl_number(three, 3).
+rl_number(four, 4).      rl_number(five, 5).      rl_number(six, 6).       rl_number(seven, 7).
+rl_number(eight, 8).     rl_number(nine, 9).      rl_number(ten, 10).      rl_number(eleven, 11).
+rl_number(twelve, 12).   rl_number(thirteen, 13). rl_number(fourteen, 14). rl_number(fifteen, 15).
+rl_number(sixteen, 16).  rl_number(seventeen, 17). rl_number(eighteen, 18). rl_number(nineteen, 19).
+rl_number(twenty, 20).   rl_number(thirty, 30).   rl_number(forty, 40).    rl_number(fifty, 50).
+rl_number(sixty, 60).    rl_number(seventy, 70).  rl_number(eighty, 80).   rl_number(ninety, 90).
+rl_scale(hundred, 100).  rl_scale(thousand, 1000). rl_scale(million, 1000000). rl_scale(billion, 1000000000).
 
 %% ---- naming the individuals ------------------------------------------
 %%

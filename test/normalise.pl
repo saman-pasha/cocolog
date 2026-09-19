@@ -33,7 +33,7 @@ alphabet :-
     check('eleven transforms', NTr, 11),
     normalise_lexicon_dir(Dir), yes_no(sub_atom(Dir, _, _, 0, 'reasoning/lexicon'), Found),
     check('the lexicon is the files under reasoning/lexicon', Found, yes),
-    forall(member(Class-Least, [proper-1000, noun-3000, class-1000, adj-2000, vt-1500, vi-800, adverb-300, place-500]),
+    forall(member(Class-Least, [proper-1000, noun-3000, class-1000, adj-2000, vt-1500, vi-800, adverb-300, place-500, unit-300]),
            ( normalise_lexicon(Class, Ws), length(Ws, NW), yes_no(NW >= Least, Big),
              atomic_list_concat(['at least ', Least, ' words of ', Class, ' loaded'], Label), check(Label, Big, yes) )),
     forall(member(Class-Least, [known_noun-8000, known_verb-3000, known_adj-4000, known_adverb-1000]),
@@ -41,7 +41,7 @@ alphabet :-
              atomic_list_concat(['at least ', Least, ' words of ', Class, ' known to the judge'], Label), check(Label, Big, yes) )),
     normalise_lexicon(known_noun, KN), yes_no(memberchk(death, KN), Death),
     check('death is a noun the judge knows, though no thing to own', Death, yes),
-    findall(W, ( member(C, [proper, noun, class, adj, vt, vi, vpp, adverb, place, known_noun, known_verb, known_adj, known_adverb]),
+    findall(W, ( member(C, [proper, noun, class, adj, vt, vi, vpp, adverb, place, unit, known_noun, known_verb, known_adj, known_adverb]),
                  normalise_lexicon(C, Ws), member(W, Ws),
                  downcase_atom(W, L), rl_closed(L) ), Closed),
     check('and no closed word of the grammar in any class', Closed, []),
@@ -78,6 +78,10 @@ clean :-
     section('clean'),
     normalise_corpus(200, [transforms([])], Pairs),
     findall(C, ( member(pair(_, _, _, C, _), Pairs), \+ reason_text(C, _) ), Bad),
+    findall(C, ( member(pair(_, Toks, _, C, _), Pairs), member(num(_), Toks) ), Numbered), length(Numbered, NNum),
+    yes_no(NNum >= 10, SomeNum), check('a number in some of 200 clean sentences', SomeNum, yes),
+    findall(C, ( member(pair(_, _, _, C, _), Pairs), sub_atom(C, 0, _, _, 'How m') ), Hows),
+    yes_no(Hows \== [], SomeHow), check('and a how-much or how-many question among them', SomeHow, yes),
     check('every clean sentence parses, 200 of them', Bad, []),
     findall(N, ( member(pair(N, _, _, C, _), Pairs), N \== C ), Diff),
     check('with no transforms the noisy text IS the clean text', Diff, []),
@@ -187,7 +191,16 @@ assemble :-
                        ['D', 'D', 'K', 'S', 'D', 'R', 'T', 'O'], T11),
     check('a question, and it ends in ?', T11, 'Does Alice own a car?'),
     normalise_assemble([word(who, upper), word(is, lower), word(licensed, lower)], ['S', 'R', 'A'], T12),
-    check('who as the subject, copied where it stands', T12, 'Who is licensed?').
+    check('who as the subject, copied where it stands', T12, 'Who is licensed?'),
+    normalise_assemble([word(nadia, upper), word(really, lower), word(pays, lower), num(500), word(euros, lower)],
+                       ['S', 'D', 'R', 'T', 'O'], T13),
+    check('a number is written as its digits', T13, 'Nadia pays 500 euros.'),
+    normalise_assemble([word(the, upper), word(rent, lower), word(is, lower), num(5.5), word(percent, lower)],
+                       ['T', 'S', 'R', 'T', 'O'], T14),
+    check('a decimal too', T14, 'The rent is 5.5 percent.'),
+    normalise_assemble([word(how, upper), word(much, lower), word(does, lower), word(nadia, upper), word(pay, lower)],
+                       ['O', 'O', 'K', 'S', 'R'], T15),
+    check('how much, copied where it stands, and a question', T15, 'How much does Nadia pay?').
 
 %% ---- the contract: gold tags assemble into the clean text's terms ---------------------------
 

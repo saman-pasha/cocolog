@@ -1,5 +1,5 @@
 #!/bin/sh
-# Writes library/reasoning/lexicon/{noun,class,adj,vt,vi,vpp,adverb,place}.txt
+# Writes library/reasoning/lexicon/{noun,class,adj,vt,vi,vpp,adverb,place,unit,prose,known_*}.txt
 # from WordNet 3.0, with the cocolog beside this script -- tools/lexicon/build.pl
 # is the program, this only sets the library path. proper.txt is not touched.
 #

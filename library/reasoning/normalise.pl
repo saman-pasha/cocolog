@@ -52,12 +52,25 @@
 %% capitalised word after a preposition after an object is a place the
 %% grammar reads.
 %%
-%% AND QUESTIONS ARE SHAPES TOO, six of the thirty-three: `Does Alice own a
+%% AND QUESTIONS ARE SHAPES TOO, ten of the forty-one: `Does Alice own a
 %% car?', `Is Alice happy?', `May Alice use the server?', `Who owns a car?',
-%% `What does Alice own?', `Where does Alice sleep?'. The tags are the
-%% statements' -- `who' is the subject asked for, `what' and `where' the
-%% object -- so the assembler copies them where they stand, the text ends
-%% in `?', and the grammar reads a goal with a variable there.
+%% `What does Alice own?', `Where does Alice sleep?', `Does Alice pay 500
+%% euros?', `How much does Alice pay?', `How many euros does Alice pay?',
+%% `How much is the rent?'. The tags are the statements' -- `who' is the
+%% subject asked for, `what', `where' and `how much' the object -- so the
+%% assembler copies them where they stand, the text ends in `?', and the
+%% grammar reads a goal with a variable there.
+%%
+%% AND QUANTITIES ARE EIGHT SHAPES: `Alice pays 500 euros', `Alice buys
+%% two litres of milk', `Every tenant must pay 500 euros', `The rent is 500
+%% euros' (the one definite subject the grammar reads), `Alice does not pay
+%% 500 euros', and the three questions above. A number is a determiner to
+%% the tagger -- T before the noun it counts, digits or the number words
+%% (`twenty five', `a hundred'), the `of' of `two litres of milk' a K --
+%% and the assembler copies it where it stands, so the grammar reads
+%% quantity(500, euros). The nouns are units (lexicon/unit.txt, WordNet's
+%% units of measurement and of time) and things, pluralised by the
+%% inflector, because a plural is the form a number takes.
 %%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
@@ -97,9 +110,9 @@
 %%     normalise_tags(-Tags)                           the alphabet, closed
 %%     normalise_transforms(-Names)                    the transforms, by name
 %%     normalise_lexicon(+Class, -Words)               proper, noun, class, adj, vt, vi, vpp,
-%%                                                     adverb, place -- the files beside this
-%%                                                     one, filtered by the grammar; and modal,
-%%                                                     the grammar's own
+%%                                                     adverb, place, unit -- the files beside
+%%                                                     this one, filtered by the grammar; and
+%%                                                     modal, the grammar's own
 %%     normalise_lexicon_dir(-Dir)                     where the files were found
 %%
 %% ---- THE TAGS ---------------------------------------------------------
@@ -166,8 +179,8 @@ normalise_transforms([split_relation, emphatic_do, conjoin, conjoin_shared, fill
 %%
 %% library/reasoning/lexicon/<class>.txt, one word a line, commonest first:
 %% `proper' is the US Census's first names; noun, class, adj, vt, vi, vpp,
-%% adverb and place are WordNet 3.0 ranked by its SemCor tag counts, and
-%% prose is WordNet's example sentences, real English, for
+%% adverb, place and unit are WordNet 3.0 ranked by its SemCor tag counts,
+%% and prose is WordNet's example sentences, real English, for
 %% normalise_negatives/3 --
 %% written by tools/lexicon/build.pl (cocolog, not Python: the parse of
 %% WordNet's files is a DCG's job). SOURCES.md beside them says where each
@@ -204,7 +217,7 @@ ng_library_dirs(Ds) :-
     findall(D, ( member(D, Ds1), D \== '' ), Ds).
 
 ng_class(proper). ng_class(noun). ng_class(class). ng_class(adj). ng_class(vt).
-ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place). ng_class(prose).
+ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place). ng_class(unit). ng_class(prose).
 ng_class(known_noun). ng_class(known_verb). ng_class(known_adj). ng_class(known_adverb).   % the judge's, not the generator's
 
 normalise_lexicon(modal, Ms) :- !, findall(M, rl_modal(M), Ms).
@@ -265,12 +278,18 @@ ng_nth(Class, K, W) :-
 %% ---- the inflector ---------------------------------------------------------
 %% Third person singular, and library(reasoning/reason)'s rs_base/2 must give the
 %% base back: -es after ss, sh, ch, x, z, o; -ies for a consonant and y; -s
-%% otherwise; `has' by name. The two are one pair, changed together.
+%% otherwise; `has' by name. The two are one pair, changed together. A
+%% regular PLURAL is the same three rules (euro -> euros, inch -> inches,
+%% penny -> pennies), so ng_plural/2 is this inflector; an irregular one
+%% (foot, child) comes out wrong and does no harm, since the grammar takes
+%% a noun as written and the tagger learns the shape, not the word.
 
 normalise_third(have, has) :- !.
 normalise_third(B, T) :- ng_es_stem(B), !, atom_concat(B, es, T).
 normalise_third(B, T) :- ng_y_stem(B, Stem), !, atom_concat(Stem, ies, T).
 normalise_third(B, T) :- atom_concat(B, s, T).
+
+ng_plural(N, P) :- normalise_third(N, P).
 
 ng_es_stem(B) :- sub_atom(B, _, 2, 0, ss), !.
 ng_es_stem(B) :- sub_atom(B, _, 2, 0, sh), !.
@@ -310,7 +329,7 @@ ng_art(_, a).
 %% Proper nouns are emitted capitalised, everything else lower; the text
 %% builder capitalises a sentence's first word.
 
-ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 33, K), ng_shape(K, Seed, Pairs), !.
+ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 41, K), ng_shape(K, Seed, Pairs), !.
 
 ng_known(known_noun). ng_known(known_verb). ng_known(known_adj). ng_known(known_adverb).
 
@@ -445,6 +464,76 @@ ng_shape(31, Seed, [what-'O', does-'K', P-'S', V-'R'|Pl]) :-                 % W
     ( ng_coin(Seed, 4, 40) -> ng_place(Seed, 5, Pl) ; Pl = [] ).
 ng_shape(32, Seed, [where-'O', does-'K', P-'S', V-'R']) :-                   % Where does Alice sleep?
     ng_word(proper, Seed, 2, P), ng_word(vi, Seed, 3, V).
+
+%% quantities, eight shapes: a number tagged T before the noun it counts,
+%% the `of' between a unit and its noun a K, the noun O -- the grammar
+%% reads quantity(500, euros) and quantity(2, litres, milk) where the
+%% assembler copies them; `the N is NUM UNIT' the amount sentence, the one
+%% definite subject the grammar reads, and its yes-or-no question; and the
+%% `how much' and `how many' questions, their question words O like `what'
+%% and the noun of a `how many' with them
+ng_shape(33, Seed, [P-'S', V3-'R'|Q]) :-                                   % Alice pays 500 euros / buys two litres of milk
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3), ng_quantity(Seed, 40, Q).
+ng_shape(34, Seed, [every-'Q', C-'S', M-'R', V-'R'|Q]) :-                   % Every tenant must pay 500 euros
+    ng_word(class, Seed, 2, C), ng_word(modal, Seed, 3, M), ng_word(vt, Seed, 4, V), ng_quantity(Seed, 40, Q).
+ng_shape(35, Seed, Pairs) :-                                                % The rent is 500 euros / is 500 / Is the rent 500 euros?
+    ng_word(noun, Seed, 2, N),
+    (   ng_coin(Seed, 3, 25)
+    ->  ng_number(Seed, 4, Num), findall(W-'O', member(W-_, Num), Q)       % a bare number is the object
+    ;   ng_quantity(Seed, 40, Q)
+    ),
+    (   ng_coin(Seed, 8, 20) -> Pairs = [is-'R', the-'T', N-'S'|Q] ; Pairs = [the-'T', N-'S', is-'R'|Q] ).
+ng_shape(36, Seed, [P-'S', does-'K', not-'N', V-'R'|Q]) :-                 % Alice does not pay 500 euros
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_quantity(Seed, 40, Q).
+ng_shape(37, Seed, [does-'K', P-'S', V-'R'|Q]) :-                          % Does Alice pay 500 euros?
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_quantity(Seed, 40, Q).
+ng_shape(38, Seed, [how-'O', much-'O'|Rest]) :-                            % How much does Alice pay? How much must Alice pay?
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V),
+    (   ng_coin(Seed, 4, 30)
+    ->  ng_word(modal, Seed, 5, M), Rest = [M-'R', P-'S', V-'R']
+    ;   Rest = [does-'K', P-'S', V-'R']
+    ).
+ng_shape(39, Seed, [how-'O', many-'O', Us-'O', does-'K', P-'S', V-'R']) :- % How many euros does Alice pay?
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V),
+    ( ng_coin(Seed, 4, 70) -> ng_word(unit, Seed, 5, U) ; ng_word(noun, Seed, 5, U) ), ng_plural(U, Us).
+ng_shape(40, Seed, [how-'O', much-'O', is-'R', the-'T', N-'S']) :-         % How much is the rent?
+    ng_word(noun, Seed, 2, N).
+
+%% a quantity as an object: a number and its noun -- a unit pluralised
+%% (`500 euros') or a thing pluralised (`three vineyards') -- and one time
+%% in four with an `of' part, `two litres of milk' or `a litre of milk'
+ng_quantity(Seed, Salt, Pairs) :-
+    Salt1 is Salt + 1, Salt2 is Salt + 2, Salt3 is Salt + 3, Salt4 is Salt + 4,
+    (   ng_coin(Seed, Salt, 25)
+    ->  ng_word(unit, Seed, Salt1, U), ng_word(noun, Seed, Salt2, N),
+        (   ng_coin(Seed, Salt3, 40)
+        ->  ng_art(U, Art), Pairs = [Art-'T', U-'O', of-'K', N-'O']
+        ;   ng_number(Seed, Salt4, Num), ng_plural(U, Us), append(Num, [Us-'O', of-'K', N-'O'], Pairs)
+        )
+    ;   ( ng_coin(Seed, Salt1, 70) -> ng_word(unit, Seed, Salt2, W) ; ng_word(noun, Seed, Salt2, W) ),
+        ng_number(Seed, Salt4, Num), ng_plural(W, Ws), append(Num, [Ws-'O'], Pairs)
+    ).
+
+%% a number, each word of it tagged T: digits mostly (2 to 999, a decimal, a
+%% round thousand), and the number words the grammar reads -- `five', `twenty
+%% five', `two hundred', `a hundred', `three thousand'. Digits are an ATOM
+%% here, because the text is joined with atomic_list_concat/3 and read back
+%% by reason_tokens/2 as num(N); the pair's tokens carry the num.
+ng_number(Seed, Salt, Pairs) :-
+    Salt1 is Salt + 5, Salt2 is Salt + 6,
+    ng_pick(Seed, Salt, 10, K),
+    (   K < 5   -> ng_pick(Seed, Salt1, 998, N0), N is N0 + 2, format(atom(A), "~w", [N]), Pairs = [A-'T']
+    ;   K =:= 5 -> ng_pick(Seed, Salt1, 99, N0), N is N0 + 1, ng_pick(Seed, Salt2, 9, D0), D is D0 + 1,
+                   format(atom(A), "~w.~w", [N, D]), Pairs = [A-'T']
+    ;   K =:= 6 -> ng_pick(Seed, Salt1, 20, N0), N is (N0 + 1) * 1000, format(atom(A), "~w", [N]), Pairs = [A-'T']
+    ;   K =:= 7 -> findall(W, ( rl_number(W, V), V >= 2, V =< 19 ), Ws), ng_choose(Seed, Salt1, Ws, W1), Pairs = [W1-'T']
+    ;   K =:= 8 -> findall(W, ( rl_number(W, V), V >= 20 ), Tens), ng_choose(Seed, Salt1, Tens, T1),
+                   findall(W, ( rl_number(W, V), V >= 1, V =< 9 ), Units), ng_choose(Seed, Salt2, Units, U1),
+                   Pairs = [T1-'T', U1-'T']
+    ;   findall(W, ( rl_number(W, V), V >= 2, V =< 9 ), Small), ng_choose(Seed, Salt1, Small, S1),
+        ng_choose(Seed, Salt2, [hundred, thousand, a], Scale),
+        ( Scale == a -> Pairs = [a-'T', hundred-'T'] ; Pairs = [S1-'T', Scale-'T'] )
+    ).
 
 %% none, one or two adjectives -- the grammar takes every word between the
 %% determiner and the noun as one, and a network shown only one dropped the
@@ -656,8 +745,8 @@ ng_cap(W, C) :-
 
 %% ---- the assembler -------------------------------------------------------------------------
 %% D dropped, an R run joined with `_', B a break, X refused outright; a
-%% word keeps the case its token carries, so a proper noun stays one. A
-%% comma is never emitted.
+%% word keeps the case its token carries, so a proper noun stays one, and
+%% a number is written as its digits. A comma is never emitted.
 
 normalise_assemble(_, Tags, _) :- memberchk('X', Tags), !, fail.      % outside: refused
 normalise_assemble(Tokens, Tags, Text) :-
@@ -712,6 +801,7 @@ na_through_c([], []).
 na_words([], []).
 na_words([_-'D'|Zs], Ws) :- !, na_words(Zs, Ws).
 na_words([','-_|Zs], Ws) :- !, na_words(Zs, Ws).
+na_words([num(N)-_|Zs], [A|Ws]) :- !, format(atom(A), "~w", [N]), na_words(Zs, Ws).   % a number as its digits
 na_words([word(W, _)-'R'|Zs], [J|Ws]) :- !,
     na_run(Zs, Rs, Rest), atomic_list_concat([W|Rs], '_', J), na_words(Rest, Ws).
 na_words([word(W, upper)-_|Zs], [C|Ws]) :- !, ng_cap(W, C), na_words(Zs, Ws).

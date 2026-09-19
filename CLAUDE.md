@@ -1955,6 +1955,41 @@ measured, `Is she insured?` typed after a paragraph about Lena came back
 refused that way. `test/reason.pl`'s `questions` section pins the forms
 and the answers, and the tagger case pins the pronoun question.
 
+**A QUANTITY IS A VALUE, NOT AN INDIVIDUAL, AND `how much` READS THROUGH
+THE AMOUNT.** The tokeniser dropped a token that began with a digit, so
+`Nadia pays 500 euros` read as `pay(nadia, euros)` -- a claim the text
+never made. Digits are `num(N)` now (`5.5`, `1,000`, and `5%` as 5 and
+the word `percent`), the number words are closed (`five` is never an
+adjective and `Six` never a name; `twenty five`, `two hundred fifty`, `a
+hundred` compose), and a number and the noun it counts are ONE object,
+`quantity(500, euros)` -- the noun as written, no `euro_1` introduced,
+because three of a thing is not one -- in a fact, a rule's head and a
+denial alike, with `quantity(2, litres, milk)` for `two litres of milk`
+and a bare number as itself. `The rent is 500 euros` is the one sentence
+with a definite subject and reads as `amount(rent, quantity(500,
+euros))`. `How much does Omar pay?` is `question(Q, (pay(omar, O),
+reason_amount(O, Q)))`: the object itself when it is a quantity, or the
+amount the text gave a class atom, so `Omar pays the rent` beside the
+amount answers 600 euros and not the word `rent`; `how many NOUN` goes
+through `reason_count/3`, which reads the number out of a quantity of
+that noun with or without an `of` part; and `rq_claim` takes the reason
+from the claim before either helper, or the reason would have been
+`rule(reason_amount(...) :- ...)`. What is refused: an adjective inside a
+quantity (`three red cars`), a comparison (`more than 500 euros`) and a
+definite phrase after the quantity (`for the flat`, because `pp_extra`'s
+`at the moment` must stay noise). The generator has eight shapes for it
+(33 to 40: a quantified object, the rule, the amount sentence and its
+question, the denial, `does S V N UNIT`, `how much`, `how many`, `how
+much is`), a number tagged T before its noun and `of` a K, over
+`lexicon/unit.txt` -- WordNet's hyponyms of `unit_of_measurement` and
+`time_unit`, which `tools/lexicon/build.pl` now walks by the `~`
+pointers, because noun.quantity alone offers `nothing`, `much` and
+`half`; the tagger gives a number one word, `<num>`, and shape 15, and
+the judge lets a number or a number word be T or O only and `much` or
+`many` an O. `test/reason.pl`'s `quantities` section pins the forms and
+the answers, `test/tagger.pl` ten typed sentences and two `how much`
+questions over a paragraph.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

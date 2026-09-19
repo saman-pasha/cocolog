@@ -20,9 +20,13 @@
 %%                 it is a worker.
 %%   index.noun    every noun, with the synset of its FIRST sense -- WordNet
 %%                 orders a word's senses by how often each is meant.
-%%   data.noun     every noun synset, with its lexicographer file and whether
+%%   data.noun     every noun synset, with its lexicographer file, whether
 %%                 it is an INSTANCE (`@i' among its pointers): a named place
-%%                 rather than a kind of place.
+%%                 rather than a kind of place -- and its HYPONYMS (`~'),
+%%                 which is how a unit is found: a noun whose first sense
+%%                 descends from unit_of_measurement or time_unit (euro,
+%%                 gram, mile, hour), where the file noun.quantity alone
+%%                 would give `nothing', `much' and `half'.
 %%   data.verb     the SENTENCE FRAMES each synset takes, which is what says a
 %%                 verb takes an object (frames 8-11), none (1, 2) or a phrase
 %%                 (22, 4).
@@ -36,7 +40,8 @@
 %% noun.location and an instance, capitalised -- every noun WordNet has,
 %% the SemCor-counted ones first and the rest in a fixed hash order, never
 %% alphabetical, so a cap is a sample and not the letter A; adj = adj.all
-%% or adj.pert; adverb = adv.all; vt, vi, vpp by frame; and known_noun,
+%% or adj.pert; adverb = adv.all; vt, vi, vpp by frame; unit = a hyponym
+%% of unit_of_measurement or time_unit, first sense; and known_noun,
 %% known_verb, known_adj, known_adverb = EVERY counted lemma of that part of
 %% speech whatever its sense, for the tagger's judge rather than the
 %% generator (`death' is no thing to own, and still a noun). Only single, alphabetic,
@@ -58,9 +63,10 @@ main :-
     ),
     format("lexicon: reading WordNet at ~w~n", [WN]),
     lx_senses(WN, Groups),
-    lx_noun_kinds(WN, Kinds),
+    lx_noun_kinds(WN, Kinds, Synsets),
+    lx_units(Synsets, Units),
     lx_verb_frames(WN, Frames),
-    lx_classes(Groups, Kinds, Frames, Classes0),
+    lx_classes(Groups, Kinds, Units, Frames, Classes0),
     lx_prose(WN, Prose),
     append(Classes0, [prose-Prose], Classes),
     forall(member(Class-Words, Classes),
@@ -68,7 +74,7 @@ main :-
              lx_write(Out, Class, Kept),
              length(Kept, N), lx_take(6, Kept, First),
              format("   ~w ~w  ~w~n", [Class, N, First]) )),
-    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place,prose,known_noun,known_verb,known_adj,known_adverb}.txt~n", [Out]).
+    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place,unit,prose,known_noun,known_verb,known_adj,known_adverb}.txt~n", [Out]).
 
 %% ---- options ----------------------------------------------------------------
 
@@ -90,6 +96,7 @@ lx_cap(vi, _, 1200).
 lx_cap(vpp, _, 1000).
 lx_cap(adverb, _, 500).
 lx_cap(place, _, 800).
+lx_cap(unit, _, 400).
 lx_cap(prose, _, 8000).
 lx_cap(known_noun, _, 20000).
 lx_cap(known_verb, _, 8000).
@@ -135,11 +142,13 @@ lx_same(L, T, [k(L, T, NC, LF)|R], [k(L, T, NC, LF)|S], O) :- !, lx_same(L, T, R
 lx_same(_, _, R, [], R).
 
 %% ---- index.noun and data.noun: every noun's first sense, its file and instance-hood ----
+%% Kinds: lemma -> k(LexFile, Instance, FirstOffset); Synsets: offset ->
+%% s(LexFile, Instance, Words, Hyponyms), the tree lx_units/2 walks.
 
-lx_noun_kinds(WN, Kinds) :-
+lx_noun_kinds(WN, Kinds, ByOffset) :-
     lx_lines(WN, 'data.noun', DLines),
-    findall(Offset-k(LF, Inst),
-            ( member(L, DLines), \+ sub_string(L, 0, 1, _, " "), lx_noun_synset(L, Offset, LF, Inst) ),
+    findall(Offset-s(LF, Inst, Words, Hypos),
+            ( member(L, DLines), \+ sub_string(L, 0, 1, _, " "), lx_noun_synset(L, Offset, LF, Inst, Words, Hypos) ),
             Synsets),
     list_to_assoc(Synsets, ByOffset),
     lx_lines(WN, 'index.noun', ILines),
@@ -149,22 +158,47 @@ lx_noun_kinds(WN, Kinds) :-
               catch(number_string(P, PS), _, fail),
               length(Syms, P), append(Syms, [_, _, FirstS|_], Rest),
               atom_string(Lemma, LemS), lx_word(Lemma),
-              atom_string(First, FirstS), get_assoc(First, ByOffset, K) ),
+              atom_string(First, FirstS), get_assoc(First, ByOffset, s(LF, Inst, _, _)), K = k(LF, Inst, First) ),
             Pairs),
     list_to_assoc(Pairs, Kinds).
 
 %% a data.noun line: offset lexfile n w_cnt(hex) word lexid ... p_cnt (sym offset pos st)... | gloss
-lx_noun_synset(L, Offset, LF, Inst) :-
+lx_noun_synset(L, Offset, LF, Inst, Words, Hypos) :-
     split_string(L, [124], [], [BodyS|_]),
     split_string(BodyS, [32], [32], [OffS, LFS, _, WcntS|R1]),
     atom_string(Offset, OffS), catch(number_string(LF, LFS), _, fail),
     lx_hex(WcntS, Wcnt),
-    lx_take_words(Wcnt, R1, _, [PcntS|R3]),
+    lx_take_words(Wcnt, R1, Words, [PcntS|R3]),
     catch(number_string(Pcnt, PcntS), _, fail),
-    ( lx_instance_pointer(Pcnt, R3) -> Inst = yes ; Inst = no ).
+    lx_pointers(Pcnt, R3, Ptrs),
+    ( memberchk('@i'-_, Ptrs) -> Inst = yes ; Inst = no ),
+    findall(H, member('~'-H, Ptrs), Hypos).
 
-lx_instance_pointer(N, [S|_]) :- N > 0, atom_string('@i', S), !.
-lx_instance_pointer(N, [_, _, _, _|R]) :- N > 1, N1 is N - 1, lx_instance_pointer(N1, R).
+lx_pointers(0, _, []) :- !.
+lx_pointers(N, [SymS, OffS, _, _|R], [Sym-Off|Ps]) :-
+    atom_string(Sym, SymS), atom_string(Off, OffS), N1 is N - 1, lx_pointers(N1, R, Ps).
+
+%% ---- the units: everything under unit_of_measurement and time_unit ---------------------------
+%% The synsets that carry those names are the roots, and every hyponym
+%% below them (`~', never an instance) is a unit: euro under monetary_unit,
+%% gram under metric_weight_unit, hour under time_unit. An assoc of the
+%% offsets, so a lemma's first sense is looked up in it.
+
+lx_units(Synsets, Units) :-
+    assoc_to_list(Synsets, Pairs),
+    findall(Off, ( member(Off-s(_, _, Ws, _), Pairs), ( memberchk(unit_of_measurement, Ws) ; memberchk(time_unit, Ws) ) ), Roots),
+    empty_assoc(Seen0),
+    lx_descend(Roots, Synsets, Seen0, Units).
+
+lx_descend([], _, Seen, Seen).
+lx_descend([Off|Offs], Synsets, Seen0, Seen) :-
+    (   get_assoc(Off, Seen0, _)
+    ->  lx_descend(Offs, Synsets, Seen0, Seen)
+    ;   put_assoc(Off, Seen0, yes, Seen1),
+        ( get_assoc(Off, Synsets, s(_, _, _, Hypos)) -> true ; Hypos = [] ),
+        append(Hypos, Offs, Queue),
+        lx_descend(Queue, Synsets, Seen1, Seen)
+    ).
 
 %% ---- data.verb: the frames each verb takes, over all its synsets -------------------------
 
@@ -216,12 +250,13 @@ lx_hex_codes([C|Cs], Acc, N) :-
 
 %% ---- the classes, ranked --------------------------------------------------------------------
 
-lx_classes(Groups, Kinds, Frames, Classes) :-
+lx_classes(Groups, Kinds, Units, Frames, Classes) :-
     findall(W-C, member(g(W, 1, _, C), Groups), NounCounts0), list_to_assoc(NounCounts0, NounCounts),
     lx_ranked(Kinds, NounCounts, [5, 6, 13, 17, 20, 21], no, Nouns),
     lx_ranked(Kinds, NounCounts, [18], no, Kinds1),
     lx_ranked(Kinds, NounCounts, [15], yes, Places0),
     findall(P, ( member(W, Places0), lx_capitalised(W, P) ), Places),
+    lx_ranked_under(Kinds, NounCounts, Units, UnitWords),
     findall(NC-W, ( member(g(W, T, LF, C), Groups), memberchk(T, [3, 5]), memberchk(LF, [0, 1]), NC is -C ), Adj0),
     lx_rank(Adj0, Adjs),
     findall(NC-W, ( member(g(W, 4, _, C), Groups), NC is -C ), Adv0),
@@ -238,7 +273,7 @@ lx_classes(Groups, Kinds, Frames, Classes) :-
     findall(NC-W, ( member(g(W, 2, _, C), Groups), NC is -C ), KV0), lx_rank_unique(KV0, KnownVerbs),
     findall(NC-W, ( member(g(W, T, _, C), Groups), memberchk(T, [3, 5]), NC is -C ), KA0), lx_rank_unique(KA0, KnownAdjs),
     findall(NC-W, ( member(g(W, 4, _, C), Groups), NC is -C ), KR0), lx_rank_unique(KR0, KnownAdvs),
-    Classes = [noun-Nouns, class-Kinds1, adj-Adjs, vt-VT, vi-VI, vpp-VPP, adverb-Advs, place-Places,
+    Classes = [noun-Nouns, class-Kinds1, adj-Adjs, vt-VT, vi-VI, vpp-VPP, adverb-Advs, place-Places, unit-UnitWords,
                known_noun-KnownNouns, known_verb-KnownVerbs, known_adj-KnownAdjs, known_adverb-KnownAdvs].
 
 %% the known_* classes: every SemCor-counted lemma of a part of speech,
@@ -260,7 +295,18 @@ lx_best_same(_, R, NC, NC, R).
 lx_ranked(Kinds, Counts, Files, WantInstance, Words) :-
     assoc_to_list(Kinds, Pairs),
     findall(Key-W,
-            ( member(W-k(LF, Inst), Pairs), memberchk(LF, Files), Inst == WantInstance,
+            ( member(W-k(LF, Inst, _), Pairs), memberchk(LF, Files), Inst == WantInstance,
+              ( get_assoc(W, Counts, C) -> true ; C = 0 ),
+              NC is -C, lx_hash(W, H), Key = NC-H ),
+            Keyed),
+    lx_rank(Keyed, Words).
+
+%% the nouns whose first sense is one of the synsets given, no instance,
+%% ranked the same way
+lx_ranked_under(Kinds, Counts, Synsets, Words) :-
+    assoc_to_list(Kinds, Pairs),
+    findall(Key-W,
+            ( member(W-k(_, no, First), Pairs), get_assoc(First, Synsets, _),
               ( get_assoc(W, Counts, C) -> true ; C = 0 ),
               NC is -C, lx_hash(W, H), Key = NC-H ),
             Keyed),

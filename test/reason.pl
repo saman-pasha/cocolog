@@ -12,7 +12,7 @@
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
-    round_trip, refusals, places, state, questions, prose, declares, refused, truth, errors,
+    round_trip, refusals, places, state, questions, quantities, prose, declares, refused, truth, errors,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -29,7 +29,12 @@ tokens :-
     reason_tokens('(semi;colons) -- dashes', T4),
     check('other punctuation is dropped', T4, [word(semi, lower), word(colons, lower), word(dashes, lower)]),
     reason_tokens('', T5),
-    check('empty text, no tokens', T5, []).
+    check('empty text, no tokens', T5, []),
+    reason_tokens('Nadia pays 500 euros.', T6),
+    check('digits are a num token', T6, [word(nadia, upper), word(pays, lower), num(500), word(euros, lower), '.']),
+    reason_tokens('5.5% of 1,000', T7),
+    check('a decimal kept, a percent sign the word, a thousands comma passed over', T7,
+          [num(5.5), word(percent, lower), word(of, lower), num(1000)]).
 
 %% ---- a proper subject and a verb ----------------------------------------
 
@@ -344,6 +349,66 @@ questions :-
     reason_why(may_sell(priya, bread), W14),
     check('reason_why/2 on its own', W14, rule((may_sell(priya, bread) :- baker(priya), licensed(priya)))),
     yes_no(reason_why(licensed(marco), _), W15), check('and fails for what nothing holds up', W15, no).
+
+%% ---- amounts and quantities: a value, never an individual ------------------
+
+quantities :-
+    section('quantities'),
+    reason_sentence('Nadia pays 500 euros.', Q1),
+    check('a number and its noun: quantity(N, Noun), the noun as written', Q1, [pay(nadia, quantity(500, euros))]),
+    reason_sentence('Tariq owns three vineyards.', Q2), check('a number word', Q2, [own(tariq, quantity(3, vineyards))]),
+    reason_sentence('Tariq owns twenty five vineyards.', Q3), check('tens and units', Q3, [own(tariq, quantity(25, vineyards))]),
+    reason_sentence('Nadia pays two hundred fifty euros.', Q4), check('hundreds', Q4, [pay(nadia, quantity(250, euros))]),
+    reason_sentence('Nadia pays a hundred euros.', Q5), check('`a hundred''', Q5, [pay(nadia, quantity(100, euros))]),
+    reason_sentence('Nadia pays three thousand euros.', Q6), check('thousands', Q6, [pay(nadia, quantity(3000, euros))]),
+    reason_sentence('Nadia pays 5.5 percent.', Q7), check('a decimal', Q7, [pay(nadia, quantity(5.5, percent))]),
+    reason_sentence('Nadia buys two litres of milk.', Q8), check('N UNIT of NOUN: quantity/3', Q8, [buy(nadia, quantity(2, litres, milk))]),
+    reason_sentence('Nadia buys a litre of milk.', Q9), check('`a UNIT of'' is one', Q9, [buy(nadia, quantity(1, litre, milk))]),
+    reason_sentence('Nadia pays 500 euros to Tariq.', Q10),
+    check('a proper noun after the quantity joins the relation, as a place does', Q10, [pay_to(nadia, quantity(500, euros), tariq)]),
+    reason_sentence('The rent is 500 euros.', Q11), check('the amount sentence: the one definite subject', Q11, [amount(rent, quantity(500, euros))]),
+    reason_sentence('The rent is not 500 euros.', Q12), check('and its denial', Q12, [neg(amount(rent, quantity(500, euros)))]),
+    reason_sentence('The price is 500.', Q13), check('a bare number is the number', Q13, [amount(price, 500)]),
+    reason_sentence('Every tenant must pay 500 euros.', [Q14]),
+    yes_no(( Q14 = (must_pay(X14, quantity(500, euros)) :- tenant(Y14)), X14 == Y14 ), V14),
+    check('a rule: the quantity in the head', V14, yes),
+    reason_sentence('Nadia does not pay 500 euros.', Q15), check('a denial keeps the quantity', Q15, [neg(pay(nadia, quantity(500, euros)))]),
+    yes_no(reason_sentence('Nadia owns three red cars.', _), R16), check('an adjective inside a quantity is refused, not dropped', R16, no),
+    yes_no(reason_sentence('Five is a number.', _), R17), check('a number word is closed: never a name', R17, no),
+    reason_sentence('Alice owns one car.', Q18), check('`one car'' is a quantity of one, not an individual', Q18, [own(alice, quantity(1, car))]),
+    reason_question('Does Nadia pay 500 euros?', Q19), check('does S V N UNIT', Q19, question(pay(nadia, quantity(500, euros)))),
+    reason_question('Is the rent 500 euros?', Q20), check('is the N N UNIT', Q20, question(amount(rent, quantity(500, euros)))),
+    reason_question('How much does Nadia pay?', Q21),
+    yes_no(( Q21 = question(A21, (pay(nadia, O21), reason_amount(O21b, A21b))), A21 == A21b, O21 == O21b, var(A21) ), V21),
+    check('how much: the object, through reason_amount/2', V21, yes),
+    reason_question('How much must Nadia pay?', Q22),
+    yes_no(( Q22 = question(A22, (must_pay(nadia, O22), reason_amount(O22b, A22b))), A22 == A22b, O22 == O22b ), V22),
+    check('how much, with a modal', V22, yes),
+    reason_question('How many vineyards does Tariq own?', Q23),
+    yes_no(( Q23 = question(N23, (own(tariq, O23), reason_count(O23b, vineyards, N23b))), N23 == N23b, O23 == O23b ), V23),
+    check('how many NOUN: the count, through reason_count/3', V23, yes),
+    reason_question('How much is the rent?', Q24),
+    yes_no(( Q24 = question(A24, amount(rent, A24b)), A24 == A24b ), V24), check('how much is the N', V24, yes),
+    reason_text('Nadia pays 500 euros. Tariq owns three vineyards. Omar pays the rent. The rent is 600 euros. Every grower must pay 500 euros. Omar is a grower. Nadia does not pay 700 euros. Nadia buys two litres of milk.', KBQ),
+    forall(member(T, KBQ), assertz(T)),
+    reason_ask('Does Nadia pay 500 euros?', A1), check('asked: yes, a fact', A1, [yes(fact)]),
+    reason_ask('Does Nadia pay 700 euros?', A2), check('asked: denied', A2, [no(denied(neg(pay(nadia, quantity(700, euros)))))]),
+    reason_ask('Does Nadia pay 900 euros?', A3), check('asked: never said', A3, [unknown]),
+    reason_ask('How much does Nadia pay?', A4), check('how much: the quantity, and the fact', A4, [[quantity(500, euros)-fact]]),
+    reason_ask('How much does Omar pay?', A5),
+    check('how much, through the amount of a definite object: 600 euros, not `rent''', A5, [[quantity(600, euros)-fact]]),
+    reason_ask('How much must Omar pay?', [[Q6a-W6]]),
+    yes_no(( Q6a == quantity(500, euros), W6 = rule(_) ), V6), check('how much, by a rule', V6, yes),
+    reason_ask('How many vineyards does Tariq own?', A7), check('how many', A7, [[3-fact]]),
+    reason_ask('How many litres does Nadia buy?', A8), check('how many, over a quantity with an `of'' part', A8, [[2-fact]]),
+    reason_ask('How much is the rent?', A9), check('how much is', A9, [[quantity(600, euros)-fact]]),
+    reason_ask('How much does Tariq pay?', A10), check('how much, when nobody said: nothing', A10, [[]]),
+    reason_ask('Is the rent 600 euros?', A11), check('is the N N UNIT: yes', A11, [yes(fact)]),
+    reason_ask('Who pays 500 euros?', A12), check('who, with a quantity', A12, [[nadia-fact]]),
+    truth(pay(nadia, quantity(500, euros)), V13), check('truth/2 over a quantity', V13, true),
+    reason_amount(quantity(2, litres, milk), AM1), check('reason_amount/2: a quantity is its own amount', AM1, quantity(2, litres, milk)),
+    reason_amount(rent, AM2), check('and a definite object answers the amount the text gave it', AM2, quantity(600, euros)),
+    reason_count(quantity(2, litres, milk), litres, C1), check('reason_count/3 over quantity/3', C1, 2).
 
 %% ---- prose, through the shipped tagger: optional --------------------------------------------
 %% reason_prose/2 loads library(reasoning/tagger) and the model shipped

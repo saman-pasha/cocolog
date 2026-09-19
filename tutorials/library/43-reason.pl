@@ -153,6 +153,7 @@ main :-
     retract(neg(tenant(eve))),
 
     questions,
+    quantities,
     prose,
     format("~nDone.~n", []).
 
@@ -172,10 +173,35 @@ questions :-
     reason_ask('Is Marco licensed?', [A13e]), must('never said: unknown', A13e, unknown),
     reason_ask('Where does Priya rent a flat?', [A13f]), must('where: the place is the answer', A13f, [bristol-fact]).
 
-%% section 14: OPTIONAL -- the shipped tagger reads typed prose, where
+%% section 14: a quantity is a VALUE -- a number and the noun it counts,
+%% quantity(N, Noun) -- never an individual, and `how much' asks for it
+quantities :-
+    format("~n14. Amounts and quantities: a number and its noun are one value, and `how much' asks for it~n", []),
+    reason_text('Nadia pays 500 euros. Tariq owns three vineyards. Nadia buys two litres of milk. Omar pays the rent. The rent is 600 euros. Every grower must pay 500 euros. Omar is a grower.', T14),
+    show('the paragraph, read', T14),
+    T14 = [F14a, F14b, F14c, F14d, F14e|_],
+    must('digits and a noun: quantity(N, Noun), the noun as written', F14a, pay(nadia, quantity(500, euros))),
+    must('a number word: three vineyards, and no vineyard_1 -- three of them is not one', F14b, own(tariq, quantity(3, vineyards))),
+    must('N UNIT of NOUN: quantity/3', F14c, buy(nadia, quantity(2, litres, milk))),
+    must('`the rent'' as an object is the class atom', F14d, pay(omar, rent)),
+    must('and `The rent is 600 euros'' is what that object costs: amount/2, the one definite subject the grammar reads', F14e, amount(rent, quantity(600, euros))),
+    forall(member(T, T14), assertz(T)),
+    reason_question('How much does Omar pay?', Q14), show('how much, read: the object through reason_amount/2', Q14),
+    reason_ask('How much does Nadia pay?', [A14a]), must('how much Nadia pays: the quantity, and the fact', A14a, [quantity(500, euros)-fact]),
+    reason_ask('How much does Omar pay?', [A14b]), must('how much Omar pays: 600 euros through the amount of the rent, not the word `rent''', A14b, [quantity(600, euros)-fact]),
+    reason_ask('How much must Omar pay?', [[A14c-W14c]]),
+    ( W14c = rule(_) -> Y14c = by_a_rule ; Y14c = W14c ), must('how much Omar must pay: by the rule over growers', A14c-Y14c, quantity(500, euros)-by_a_rule),
+    reason_ask('How many vineyards does Tariq own?', [A14d]), must('how many: the number', A14d, [3-fact]),
+    reason_ask('How many litres does Nadia buy?', [A14e]), must('how many, over a quantity with an `of'' part', A14e, [2-fact]),
+    reason_ask('Does Nadia pay 500 euros?', [A14f]), must('a yes-or-no question over a quantity', A14f, yes(fact)),
+    reason_ask('Is the rent 600 euros?', [A14g]), must('and over an amount', A14g, yes(fact)),
+    ( reason_sentence('Nadia owns three red cars.', _) -> R14 = read ; R14 = refused ),
+    must('an adjective inside a quantity is refused, not dropped', R14, refused).
+
+%% section 15: OPTIONAL -- the shipped tagger reads typed prose, where
 %% library(torch) and library/reasoning/model.rows are there
 prose :-
-    format("~n14. Typed prose, through the shipped tagger -- optional, and loaded on first use~n", []),
+    format("~n15. Typed prose, through the shipped tagger -- optional, and loaded on first use~n", []),
     (   catch(reason_prose('Well, Rex really owns a red truck, obviously. Kim rents a flat in Oslo and is insured.', T14),
               error(existence_error(tagger, pretrained), _), fail)
     ->  show('the prose, read', T14),

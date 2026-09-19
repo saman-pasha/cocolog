@@ -21,7 +21,7 @@
 %% as mass(boston), a heading as business(small) -- because every sentence
 %% it had ever seen had a reading, and the grammar's defaults are
 %% positional. So a tagging is put to the lexicon before the assembler
-%% sees it (tagger_sane/2, seven rules, each a clause), and one the lexicon
+%% sees it (tagger_sane/2, nine rules, each a clause), and one the lexicon
 %% contradicts comes back X throughout, the twelfth tag, which the
 %% assembler refuses. Three ways of teaching the network itself to refuse
 %% were tried and each took a tenth of the hand-written sentences it should
@@ -35,7 +35,8 @@
 %% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (the case
 %% it was written in and, for a lower-case word, the ending it carries: -s,
 %% -ly, -ing, -ed or none; a capitalised word is a name whatever it ends
-%% in), 4 wide -- concatenated into 28; a GRU over the sentence in each
+%% in; a number is one word, <num>, with a shape of its own), 4 wide --
+%% concatenated into 28; a GRU over the sentence in each
 %% direction, 96 wide each, so a token's label sees what came before it and
 %% what follows; a linear head from the two states to the eleven tags inside
 %% the grammar. X, the twelfth, is never the network's to answer: it is the
@@ -128,7 +129,7 @@
 %%
 %%     tagger_sane(+Tokens, +Tags)
 %%         The lexicon's judgement of a tagging: fails where the lexicon
-%%         contradicts it, seven rules. Applied by tagger_tag/3 and
+%%         contradicts it, nine rules. Applied by tagger_tag/3 and
 %%         tagger_tag_all/3, whose refused sentence comes back X throughout.
 %%
 %%     tagger_evaluate(+Model, +From, +N, -Report)
@@ -161,7 +162,7 @@
 %% after `lives', because the only place it had seen after a verb was an
 %% adjunct to be thrown away. Every such miss was a SHAPE the generator did
 %% not make, never the network, and every one was fixed in
-%% library(reasoning/normalise): thirty-three shapes, eleven transforms, and a
+%% library(reasoning/normalise): forty-one shapes, eleven transforms, and a
 %% lexicon no longer written by hand at all -- files beside the library,
 %% 2500 census names and some seventeen thousand WordNet words ranked by
 %% use, read as they are needed (library/reasoning/lexicon/SOURCES.md). A
@@ -246,8 +247,10 @@ tagger_size(vocab(Words, _), V) :- length(Words, N), V is N + 2.
 %% pairs had worn, where `Bob' and `Mia' were kept every time. 0 is
 %% padding; a comma is 3.
 tg_word(word(W, _), W) :- !.
+tg_word(num(_), '<num>') :- !.             % every number is one word: its value is not its tag
 tg_word(T, T).
 tg_shape(',', 3) :- !.
+tg_shape(num(_), 15) :- !.                 % a number, its own shape
 tg_shape(word(_, upper), 2) :- !.          % a name, whatever it ends in
 tg_shape(word(W, lower), S) :- !,
     tg_ending(W, E),
@@ -587,6 +590,12 @@ tg_sane_token(I, word(W, Case), 'R', Lex) :- !,
         \+ tg_only(W, Lex, [noun, class, adj, adverb]),
         ( rs_base(W, Base), Base \== W -> \+ tg_only(Base, Lex, [noun, class, adj, adverb]) ; true )
     ).
+tg_sane_token(_, num(_), Tag, _) :- !,
+    memberchk(Tag, ['T', 'O', 'D']).                                     % a number counts a noun, is an object, or is noise
+tg_sane_token(_, word(W, _), Tag, _) :-
+    ( rl_number(W, _) ; rl_scale(W, _) ), !, memberchk(Tag, ['T', 'O', 'D']).   % and so is a number word
+tg_sane_token(_, word(W, _), Tag, _) :-
+    ( W == much ; W == many ), !, memberchk(Tag, ['O', 'D']).            % `how much', `how many': the object asked for
 tg_sane_token(_, word(W, _), Tag, _) :-
     rl_question(W), !, memberchk(Tag, ['S', 'O']).                       % `who' a subject, `what' or `where' an object
 tg_sane_token(_, word(W, _), 'S', _) :-
@@ -616,9 +625,10 @@ tg_only(W, Lex, Only) :- tg_classes(W, Lex, Cs), Cs \== [], forall(member(C, Cs)
 tg_lexicon_classes(Lex) :-
     (   catch(nb_getval('$tg_lexicon_classes', Lex), _, fail)
     ->  true
-    ;   findall(W-C, ( member(File-C, [noun-noun, class-class, adj-adj, adverb-adverb,
+    ;   findall(W-C, ( member(File-C, [noun-noun, class-class, adj-adj, adverb-adverb, unit-noun,
                                        known_noun-noun, known_adj-adj, known_adverb-adverb]),
-                       normalise_lexicon(File, Ws), member(W, Ws) ), Cs1),
+                       normalise_lexicon(File, Ws), member(W0, Ws),
+                       ( W = W0 ; C == noun, normalise_third(W0, W) ) ), Cs1),        % a noun and its plural: `500 pounds'
         findall(W-name, ( normalise_lexicon(proper, Ws), member(X, Ws), downcase_atom(X, W) ), Cs2),
         findall(W-verb, ( member(C, [vt, vi, vpp, known_verb]), normalise_lexicon(C, Vs), member(V0, Vs),
                           ( V0 = V-_ -> true ; V = V0 ), ( W = V ; normalise_third(V, W) ) ), Cs3),
