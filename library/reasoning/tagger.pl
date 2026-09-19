@@ -16,17 +16,30 @@
 %% wrong term the grammar still reads -- so tag accuracy is the correctness
 %% number, and tagger_evaluate/4 answers it on sentences training never saw.
 %%
+%% AND THE LEXICON JUDGES WHAT IT LABELS. Shown 875 sentences of real
+%% government prose, the tagger "read" a tenth of them -- `Boston, Mass.'
+%% as mass(boston), a heading as business(small) -- because every sentence
+%% it had ever seen had a reading, and the grammar's defaults are
+%% positional. So a tagging is put to the lexicon before the assembler
+%% sees it (tagger_sane/2, six rules, each a clause), and one the lexicon
+%% contradicts comes back X throughout, the twelfth tag, which the
+%% assembler refuses. Three ways of teaching the network itself to refuse
+%% were tried and each took a tenth of the hand-written sentences it should
+%% read; the rules take none. tagger_refused/4 measures the refusals over
+%% prose.txt, WordNet's example sentences, which nothing here trains on.
+%%
 %% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (the case
 %% it was written in and the ending it carries: -s, -ly, -ing, -ed or none),
-%% 4 wide -- concatenated into 28; a GRU over the
-%% sentence in each direction, 96 wide each, so a token's label sees what
-%% came before it and what follows; and a linear head from the two states
-%% to the eleven tags. Sequences are padded to the longest in the batch and
-%% batched position-major, as tutorials/tensor/41 batches its sequences; a
-%% MASK holds a sequence's state still past its end, so the backward pass
-%% starts at the real last word and not at padding. The forward is a
-%% tensor_expr PROCEDURE, tg_forward//5, and exec/1 frees every state and
-%% gate it made but the logits.
+%% 4 wide -- concatenated into 28; a GRU over the sentence in each
+%% direction, 96 wide each, so a token's label sees what came before it and
+%% what follows; a linear head from the two states to the eleven tags inside
+%% the grammar. X, the twelfth, is never the network's to answer: it is the
+%% lexicon's verdict on a tagging, below. Sequences are padded to the
+%% longest in the batch and batched position-major, as tutorials/tensor/41
+%% batches its sequences; a MASK holds a sequence's state still past its
+%% end, so the backward pass starts at the real last word and not at
+%% padding. The forward is a tensor_expr PROCEDURE, tg_forward//5, and
+%% exec/1 frees every state and gate it made but the logits.
 %%
 %% AN UNSEEN WORD IS THE POINT. A word outside the vocabulary is `<unk>',
 %% and a capitalised one keeps the shape `upper'. Training replaces an
@@ -56,7 +69,8 @@
 %%         seed(S) the tensor seed (45); min_count(C) the times a word must
 %%         be seen to have an embedding row of its own (2); hidden(H) the
 %%         width of each GRU (96) -- a saved model carries its own, in the
-%%         shapes of its parameters; verbose(true) prints the loss.
+%%         shapes of its parameters;
+%%         verbose(true) prints the loss.
 %%
 %%     tagger_load(+Name, -Model)        the parameters back as parameters, and the vocabulary
 %%     tagger_free(+Model)               frees them
@@ -71,6 +85,18 @@
 %%         normalise_assemble/3, and the whole read by reason_text/2. FAILS
 %%         when the grammar refuses what came out, and reason_refused/2 over
 %%         Controlled then names the sentence.
+%%
+%%     tagger_refused(+Model, +From, +N, -Rate)
+%%         Over N real sentences of prose.txt from the From-th, the
+%%         fraction tagger_normalise/4 refuses. The other half of
+%%         correctness: a tagger that reads `Boston, Mass.' as a fact is
+%%         wrong even when every tag of every sentence it should read is
+%%         right.
+%%
+%%     tagger_sane(+Tokens, +Tags)
+%%         The lexicon's judgement of a tagging: fails where the lexicon
+%%         contradicts it, six rules. Applied by tagger_tag/3 and
+%%         tagger_tag_all/3, whose refused sentence comes back X throughout.
 %%
 %%     tagger_evaluate(+Model, +From, +N, -Report)
 %%         Over the pairs of seeds From..From+N-1 -- sentences a training
@@ -114,7 +140,12 @@
 %% sentences are right; and of forty-three hand-written sentences whose
 %% names, nouns, adjectives and verbs are outside the lexicon, forty-two
 %% give their terms, a different one missed from one training to the next
-%% -- test/tagger.pl holds both. Over the WordNet lexicon the corpus is the
+%% -- test/tagger.pl holds both. And the other half: of 300 WordNet example
+%% sentences from prose.txt, 0.93 to 0.94 come back refused where the
+%% network alone refused 0.85, and of 757 sentences of real government
+%% prose 0.96 where it was 0.87 -- with the hand-written forty-three read
+%% exactly as before, which is what the learned refusers could not do.
+%% Over the WordNet lexicon the corpus is the
 %% lever twice over: 8192 pairs read 0.96 of the unseen sentences whatever
 %% the step count (the loss fell to 0.001 while the evaluation stood still,
 %% which is memorising), 16384 read 0.987 and 32768 read 0.993 in 140
@@ -227,7 +258,7 @@ tg_batch_tensors(plan(_, _, IdRows, ShapeRows, MaskRows, Flat), Gold, batch(Ins,
     findall(T, ( member(R, ShapeRows), T := R ), Shs),
     findall(T, ( member(R, MaskRows), T := R ), Mks),
     (   Gold == yes
-    ->  normalise_tags(Tags), length(Tags, K), one_hot(Flat, K, Y)
+    ->  tg_inside_tags(K), one_hot(Flat, K, Y)
     ;   Y = none
     ).
 
@@ -241,7 +272,7 @@ tg_parameters(V, Ps) :- tg_hidden(H), tg_parameters(V, H, Ps).
 tg_parameters(V, H, Ps) :-
     tg_word_dim(Dw), tg_shape_dim(Ds), tg_shapes(NS),
     In is Dw + Ds, H2 is 2 * H,
-    normalise_tags(Tags), length(Tags, K),
+    tg_inside_tags(K),
     Ew := parameter(randn([V, Dw]) * 0.5),
     Es := parameter(randn([NS, Ds]) * 0.5),
     tg_gru_params(In, H, F), tg_gru_params(In, H, B),
@@ -252,6 +283,11 @@ tg_gru_params(In, H, [Wz, Uz, Bz, Wr, Ur, Br, Wn, Un, Bn]) :-
     Wz := parameter(glorot(In, H)), Uz := parameter(glorot(H, H)), Bz := parameter(zeros([1, H])),
     Wr := parameter(glorot(In, H)), Ur := parameter(glorot(H, H)), Br := parameter(zeros([1, H])),
     Wn := parameter(glorot(In, H)), Un := parameter(glorot(H, H)), Bn := parameter(zeros([1, H])), !.
+
+%% the head answers the eleven tags inside the grammar; X, outside, is
+%% never predicted -- it is what a tagging the lexicon contradicts comes
+%% back as, tagger_sane/2 below
+tg_inside_tags(K) :- normalise_tags(Tags), length(Tags, K12), K is K12 - 1.
 
 tg_unpack(Ps, Ew, Es, F, B, Wo, Bo) :-
     length(F, 9), length(B, 9), append([[Ew, Es], F, B, [Wo, Bo]], Ps), !.
@@ -313,10 +349,9 @@ tagger_train(Name, Options) :-
     normalise_corpus(NP, Pairs),
     tagger_vocabulary(Pairs, MinCount, Vocab), Vocab = vocab(Words, _),
     tg_drop_table(Table),
-    tg_training_sequences(Vocab, Table, Pairs, 1, Seqs),
-    tg_by_length(Seqs, Sorted),
-    tg_chunks(Sorted, B, Groups),
-    findall(Plan, ( member(G, Groups), tagger_pad(G, Plan) ), Plans),
+    tg_training_sequences(Vocab, Table, Pairs, 1, PosSeqs),
+    tg_by_length(PosSeqs, PosSorted), tg_chunks(PosSorted, B, PosGroups),
+    findall(Plan, ( member(G, PosGroups), tagger_pad(G, Plan) ), Plans),
     seed(S),
     tagger_size(Vocab, V),
     tg_parameters(V, H, Ps0), adam_init(Ps0, St0),
@@ -449,7 +484,8 @@ tagger_tag_all(model(Ps, Vocab), TokenLists, TagLists) :-
     Got := list(argmax(Logits, 1)),
     tensor_free(Logits), tg_batch_free(Batch),
     length(Seqs, N),
-    tg_decode(Seqs, 0, N, Got, TagLists).
+    tg_decode(Seqs, 0, N, Got, TagLists0),
+    tg_judged(TokenLists, TagLists0, TagLists).
 
 tg_decode([], _, _, _, []).
 tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-
@@ -458,15 +494,107 @@ tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-
     I1 is I + 1,
     tg_decode(Ss, I1, N, Got, Ts).
 
+%% ---- the lexicon's judgement of a tagging -------------------------------------------------
+%% A tagging the LEXICON contradicts is refused -- the sentence comes back
+%% X throughout -- before the assembler sees it. These are the fragments the
+%% grammar would read, because its defaults are positional: `Boston, Mass.'
+%% tagged S D O is mass(boston), `Loan policies' is policies(loan), `This
+%% should be played' is should_played(this). Six rules, each a clause:
+%%
+%%   * a sentence has a relation word, and no token is outside;
+%%   * a relation word is a closed word of the grammar (is, may, will), or
+%%     lower case and not the first token and not a word the lexicon knows
+%%     only as a noun, an adjective or an adverb: `Mass', `policies';
+%%   * a subject at the head of the sentence, capitalised only by its
+%%     position, is not a common word of the lexicon unless it is a known
+%%     first name: `Loan', `Small' -- and Rose or Bill, who are both;
+%%   * a subject, an object or an adjective is not a closed word: `This',
+%%     `It', `up';
+%%   * an adjective is not a word the lexicon knows only as an adverb:
+%%     `often' after `is';
+%%   * and a sentence assembled to nothing -- every token dropped -- is
+%%     refused, not read as nothing (tg_assemble_all/3).
+%%
+%% An unknown word passes every rule, so `Priya snores' and `Zed owns a
+%% bicycle' read as before. (A second network trained to tell generated
+%% sentences from real ones was tried instead and refused a sixth of the
+%% hand-written sentences: it learned the two sources apart, not what the
+%% grammar reads.)
+
+tg_judged([], [], []).
+tg_judged([Toks|TLs], [Tags|Tgs], [Out|Outs]) :-
+    (   tagger_sane(Toks, Tags)
+    ->  Out = Tags
+    ;   length(Tags, L), findall('X', between(1, L, _), Out)
+    ),
+    tg_judged(TLs, Tgs, Outs).
+
+tagger_sane(Toks, Tags) :-
+    \+ memberchk('X', Tags),
+    memberchk('R', Tags),
+    tg_lexicon_classes(Lex),
+    forall(( nth0(I, Toks, Tok), nth0(I, Tags, Tag) ), tg_sane_token(I, Tok, Tag, Lex)).
+
+tg_sane_token(I, word(W, Case), 'R', Lex) :- !,
+    (   rl_closed(W)
+    ->  true
+    ;   I > 0, Case == lower,
+        \+ tg_only(W, Lex, [noun, class, adj, adverb]),
+        ( rs_base(W, Base), Base \== W -> \+ tg_only(Base, Lex, [noun, class, adj, adverb]) ; true )
+    ).
+tg_sane_token(I, word(W, Case), Tag, Lex) :-
+    memberchk(Tag, ['S', 'O', 'A', 'C']), !,
+    \+ rl_closed(W),
+    (   I =:= 0, Tag == 'S', Case == upper, tg_classes(W, Lex, Cs), Cs \== []
+    ->  memberchk(name, Cs)
+    ;   true
+    ),
+    (   memberchk(Tag, ['A', 'C'])
+    ->  \+ tg_only(W, Lex, [adverb])
+    ;   true
+    ).
+tg_sane_token(_, _, _, _).
+
+tg_classes(W, Lex, Cs) :- ( get_assoc(W, Lex, Cs0) -> Cs = Cs0 ; Cs = [] ).
+%% known, and known as nothing outside the classes given
+tg_only(W, Lex, Only) :- tg_classes(W, Lex, Cs), Cs \== [], forall(member(C, Cs), memberchk(C, Only)).
+
+%% the lexicon as one assoc, word -> its classes, made once a machine
+tg_lexicon_classes(Lex) :-
+    (   catch(nb_getval('$tg_lexicon_classes', Lex), _, fail)
+    ->  true
+    ;   findall(W-C, ( member(C, [noun, class, adj, adverb]), normalise_lexicon(C, Ws), member(W, Ws) ), Cs1),
+        findall(W-name, ( normalise_lexicon(proper, Ws), member(X, Ws), downcase_atom(X, W) ), Cs2),
+        findall(W-verb, ( member(C, [vt, vi, vpp]), normalise_lexicon(C, Vs), member(V0, Vs),
+                          ( V0 = V-_ -> true ; V = V0 ), ( W = V ; normalise_third(V, W) ) ), Cs3),
+        append([Cs1, Cs2, Cs3], All), keysort(All, Sorted),
+        tg_group_classes(Sorted, Pairs), list_to_assoc(Pairs, Lex),
+        nb_setval('$tg_lexicon_classes', Lex)
+    ).
+tg_group_classes([], []).
+tg_group_classes([W-C|Rest], [W-[C|Cs]|Pairs]) :- tg_same_word(W, Rest, Cs, Others), tg_group_classes(Others, Pairs).
+tg_same_word(W, [W-C|R], [C|Cs], O) :- !, tg_same_word(W, R, Cs, O).
+tg_same_word(_, R, [], R).
+
 %% ---- prose to predicates -----------------------------------------------------------------
 
 tagger_normalise(Model, Text, Controlled, Terms) :-
     reason_tokens(Text, Toks),
     tg_sentences(Toks, Sents),
+    Sents \== [],
     tagger_tag_all(Model, Sents, TagLists),
-    findall(T, ( nth0(I, Sents, S), nth0(I, TagLists, Tg), normalise_assemble(S, Tg, T), T \== '' ), Texts),
+    tg_assemble_all(Sents, TagLists, Texts),           % FAILS on a refused sentence
     atomic_list_concat(Texts, ' ', Controlled),
     reason_text(Controlled, Terms).
+
+%% every sentence assembled, or the paragraph refused: a sentence the
+%% tagger marks outside must not vanish into an empty reading (it did once,
+%% and 319 sentences of government prose "read" as nothing at all)
+tg_assemble_all([], [], []).
+tg_assemble_all([S|Ss], [Tg|Tgs], [T|Texts]) :-
+    normalise_assemble(S, Tg, T),
+    T \== '',                                          % every token dropped is a refusal too
+    tg_assemble_all(Ss, Tgs, Texts).
 
 %% the token list cut at every stop, empty sentences dropped
 tg_sentences([], []) :- !.
@@ -479,6 +607,18 @@ tg_upto_stop(['.'|Ts], [], Ts) :- !.
 tg_upto_stop([T|Ts], [T|S], Rest) :- tg_upto_stop(Ts, S, Rest).
 
 %% ---- evaluation ---------------------------------------------------------------------------
+
+tagger_refused(Model, From, N, Rate) :-
+    normalise_negatives(From, N, Pairs),
+    tg_chunks(Pairs, 64, Groups),
+    findall(x, ( member(G, Groups),
+                 findall(Toks, member(pair(_, Toks, _, _, _), G), TLs),
+                 tagger_tag_all(Model, TLs, Gots),
+                 nth0(I, TLs, Toks), nth0(I, Gots, Got),
+                 \+ ( normalise_assemble(Toks, Got, Asm), catch(reason_text(Asm, _), _, fail) ) ),
+            Refused),
+    length(Refused, NR), length(Pairs, NP),
+    ( NP > 0 -> Rate is NR / NP ; Rate = 0.0 ).
 
 tagger_evaluate(Model, From, N, report(TokenAcc, SentenceAcc, Accepted, N)) :-
     To is From + N - 1,

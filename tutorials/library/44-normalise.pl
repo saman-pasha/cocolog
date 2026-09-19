@@ -70,7 +70,7 @@ main :-
 
     format("~n6. What a tag cannot do, and so what is not in the set~n", []),
     normalise_tags(Tags6),
-    must('the alphabet is closed', Tags6, ['S','Q','C','N','R','K','T','A','O','D','B']),
+    must('the alphabet is closed', Tags6, ['S','Q','C','N','R','K','T','A','O','D','B','X']),
     show('a tag drops, joins or splits; it never changes a word', '"All tenants have badges" is not generated'),
     show('so a plural, a passive, a pronoun are not noise here', 'they are the next transforms, once a tag can carry them'),
 

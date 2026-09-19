@@ -21,7 +21,7 @@ main :-
 alphabet :-
     section('alphabet'),
     normalise_tags(Tags), length(Tags, NT),
-    check('eleven tags', NT, 11),
+    check('twelve tags', NT, 12),
     normalise_corpus(200, Pairs),
     findall(N, ( member(pair(N, Toks, Tgs, _, _), Pairs), length(Toks, A), length(Tgs, B), A =\= B ), Mis),
     check('one tag a token, over 200 pairs', Mis, []),
@@ -38,7 +38,19 @@ alphabet :-
              atomic_list_concat(['at least ', Least, ' words of ', Class, ' loaded'], Label), check(Label, Big, yes) )),
     findall(W, ( member(C, [proper, noun, class, adj, vt, vi, vpp, adverb, place]), normalise_lexicon(C, Ws), member(W, Ws),
                  downcase_atom(W, L), rl_closed(L) ), Closed),
-    check('and no closed word of the grammar in any class', Closed, []).
+    check('and no closed word of the grammar in any class', Closed, []),
+    yes_no(normalise_assemble([word(boston, upper), ',', word(mass, upper)], ['X', 'X', 'X'], _), Xa),
+    check('X, outside, is refused by the assembler', Xa, no),
+    normalise_negatives(1, 200, Negs), length(Negs, NNeg),
+    check('200 negatives from prose.txt', NNeg, 200),
+    findall(T, ( member(pair(_, _, Tgs, C, _), Negs), ( C \== none ; member(T, Tgs), T \== 'X' ) ), NotX),
+    check('every negative is X throughout and has no clean text', NotX, []),
+    findall(T, ( member(pair(T, _, _, _, _), Negs), catch(reason_text(T, _), _, fail) ), RawRead),
+    length(RawRead, NRaw), yes_no(NRaw =< 40, FewRaw),
+    check('the grammar reads fewer than a fifth of the two hundred as they are (measured 31)', FewRaw, yes),
+    findall(T, ( member(T, RawRead), reason_tokens(T, Toks), length(Toks, L), L > 3 ), LongRaw),
+    length(LongRaw, NLong), yes_no(NLong =< 5, FewLong),
+    check('and all but a few of those are two words, `Vulpine cunning.'' read as a Name-verb fact (measured one longer)', FewLong, yes).
 
 %% ---- the same seed, the same pair ----------------------------------------------
 

@@ -55,6 +55,16 @@
 %%     normalise_corpus(+N, -Pairs)
 %%     normalise_corpus(+N, +Options, -Pairs)          seeds 1..N
 %%
+%%     normalise_negatives(+From, +N, -Pairs)
+%%         N real sentences from prose.txt beside the lexicon -- WordNet's own
+%%         example sentences, in a fixed hash order -- from the From-th, as
+%%         pairs whose every tag is X and whose Clean is `none': what a
+%%         tagger must REFUSE, and what tagger_refused/4 measures it
+%%         against. A seventh of them the grammar reads as they are, nearly
+%%         all two words -- `Vulpine cunning.' as the Name-verb fact
+%%         cunning(vulpine) -- which is why a tagging is judged by the
+%%         lexicon and not by the grammar alone.
+%%
 %%     normalise_assemble(+Tokens, +Tags, -Text)
 %%         The inverse: D dropped, a run of R joined with `_', B a sentence
 %%         break, everything else copied in its case; each sentence
@@ -78,8 +88,17 @@
 %%                                 the copula inside a relative clause
 %%     N  not                   T  a determiner               A  an adjective
 %%     O  the object head       D  drop                       B  a sentence boundary
+%%     X  OUTSIDE: not a sentence of the grammar's at all -- the tag a tagger
+%%        gives real prose it cannot normalise, and the assembler refuses
 %%
-%% Only D, R and B change what the assembler emits; the rest are copied.
+%% Only D, R and B change what the assembler emits; the rest are copied,
+%% and X is refused. The generator never emits X: a tagging comes back X
+%% throughout when library(reasoning/tagger)'s lexicon rules contradict it,
+%% and normalise_negatives/3 hands out real sentences tagged X throughout to
+%% measure that against. Without a no the first tagger labelled `Boston,
+%% Mass.' S R and the grammar read mass(boston); taught to the network as a
+%% twelfth label it cost a tenth of what the tagger should read, so the no
+%% is the lexicon's.
 %% They are still worth teaching: a network told WHAT each kept word is
 %% learns the sentence's shape, not only which words to lose, and an
 %% assembler that one day reorders (a passive) will need them.
@@ -111,7 +130,7 @@
 
 %% ---- the alphabet, the transforms, the lexicon ---------------------------
 
-normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B']).
+normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B', 'X']).
 
 %% in the order they are applied: the split before the emphatic (so a
 %% split relation is not also a candidate for `does'), the join before the
@@ -124,8 +143,10 @@ normalise_transforms([split_relation, emphatic_do, conjoin, adverb, hedge_start,
 %% ---- the lexicon: files beside this one, read when first asked for ---------
 %%
 %% library/reasoning/lexicon/<class>.txt, one word a line, commonest first:
-%% `proper' is the US Census's first names, and noun, class, adj, vt, vi,
-%% vpp, adverb and place are WordNet 3.0 ranked by its SemCor tag counts,
+%% `proper' is the US Census's first names; noun, class, adj, vt, vi, vpp,
+%% adverb and place are WordNet 3.0 ranked by its SemCor tag counts, and
+%% prose is WordNet's example sentences, real English, for
+%% normalise_negatives/3 --
 %% written by tools/lexicon/build.pl (cocolog, not Python: the parse of
 %% WordNet's files is a DCG's job). SOURCES.md beside them says where each
 %% came from and under what licence. NO WORD LIVES IN THIS FILE.
@@ -161,7 +182,7 @@ ng_library_dirs(Ds) :-
     findall(D, ( member(D, Ds1), D \== '' ), Ds).
 
 ng_class(proper). ng_class(noun). ng_class(class). ng_class(adj). ng_class(vt).
-ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place).
+ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place). ng_class(prose).
 
 normalise_lexicon(modal, Ms) :- !, findall(M, rl_modal(M), Ms).
 normalise_lexicon(Class, Words) :-
@@ -192,7 +213,9 @@ ng_load_class(Dir, Class) :-
     ng_key(list, Class, KL), nb_setval(KL, Words),
     ng_blocks(Words, Class, 0).
 
-%% what the grammar will not read as an open word is not generated
+%% what the grammar will not read as an open word is not generated; a line
+%% of prose is kept as it is
+ng_keep(prose, _) :- !.
 ng_keep(Class, W) :-
     downcase_atom(W, Lower), \+ rl_closed(Lower),
     (   memberchk(Class, [vt, vi, vpp])
@@ -465,6 +488,16 @@ ng_run([T|Ts], Cands, Always, Seed, Salt, S0, S, Applied) :-
     Salt1 is Salt + 1,
     ng_run(Ts, Cands, Always, Seed, Salt1, S1, S, More).
 
+%% real sentences, every tag X: a tagger's negatives
+normalise_negatives(From, N, Pairs) :-
+    To is From + N - 1, ng_size(prose, Size), To =< Size,
+    findall(pair(Text, Toks, Tags, none, [outside]),
+            ( between(From, To, I), K is I - 1, ng_nth(prose, K, Text),
+              reason_tokens(Text, Toks0), ( append(Toks1, ['.'], Toks0) -> true ; Toks1 = Toks0 ),
+              Toks1 \== [], Toks = Toks1,
+              length(Toks, L), findall('X', between(1, L, _), Tags) ),
+            Pairs).
+
 normalise_corpus(N, Pairs) :- normalise_corpus(N, [], Pairs).
 normalise_corpus(N, Options, Pairs) :-
     findall(P, ( between(1, N, I), normalise_pair(I, Options, P) ), Pairs).
@@ -490,9 +523,11 @@ ng_cap(W, C) :-
     atom_codes(C, [F1|R]).
 
 %% ---- the assembler -------------------------------------------------------------------------
-%% D dropped, an R run joined with `_', B a break; a word keeps the case
-%% its token carries, so a proper noun stays one. A comma is never emitted.
+%% D dropped, an R run joined with `_', B a break, X refused outright; a
+%% word keeps the case its token carries, so a proper noun stays one. A
+%% comma is never emitted.
 
+normalise_assemble(_, Tags, _) :- memberchk('X', Tags), !, fail.      % outside: refused
 normalise_assemble(Tokens, Tags, Text) :-
     na_zip(Tokens, Tags, Zs),
     na_split(Zs, Sents),

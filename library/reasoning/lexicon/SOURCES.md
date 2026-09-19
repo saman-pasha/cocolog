@@ -17,6 +17,7 @@ is a name) and a verb whose third person does not stem back to it.
 | `vt.txt` | verbs that take an object | WordNet 3.0, any sense with the frame "Somebody ----s something", "... somebody", "Something ----s something" or "... somebody" |
 | `vi.txt` | verbs that take none | WordNet 3.0, a sense with "Something ----s" or "Somebody ----s" |
 | `vpp.txt` | verbs before a phrase | WordNet 3.0, a sense with "Somebody ----s PP" or "Something is ----ing PP" |
+| `prose.txt` | real sentences, the grammar's opposite | WordNet 3.0's example sentences, quoted in its glosses: 8000 of two to twenty words, capitalised and stopped, in a fixed hash order -- the negatives a tagger learns to refuse (`normalise_negatives/3`) |
 
 The WordNet files are ranked by the tag counts of SemCor, the sense-tagged
 corpus WordNet ships as `cntlist.rev`, so a cap keeps the words English

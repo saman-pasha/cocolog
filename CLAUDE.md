@@ -1840,6 +1840,36 @@ the numbers moved: over this lexicon 8192 pairs read 0.96 of unseen
 sentences whatever the step count, which is memorising, so the tagger's
 defaults are 16384 pairs and 400 steps (0.997), about eighty seconds here.
 
+**A TAGGER THAT CANNOT SAY NO READS `Boston, Mass.` AS mass(boston), AND
+THE NO DOES NOT LIVE IN THE NETWORK.** The Brown corpus's government
+documents were the lawsuit corpus this box could reach -- every legal site
+is off the egress list -- and of 875 sentences the tagger "read" a tenth,
+nearly all wrongly, because every sentence it had ever seen had a reading
+and the grammar's defaults are positional. Three learned refusers were
+built and measured, and each cost recall where it counted: X as a twelfth
+tag trained on every token of `prose.txt` (eight thousand of WordNet's own
+example sentences, which nothing else trains on) took the generated
+unseen sentences from 0.997 to 0.907; a sentence head over the shared GRU
+states, and a separate refuser network, each refused seven to ten of the
+forty-three hand-written sentences at any threshold. Confidence gating is
+weak too: fragments come out at 0.87 to 0.98. What stayed is deterministic
+-- six lexicon rules, `tagger_sane/2`: a sentence has a relation; a
+relation is a closed word, or a lower-case word past the first that the
+lexicon does not know ONLY as a noun, adjective or adverb, its stem
+included; a subject, object or adjective is not a closed word; a
+capitalised first word tagged subject that the lexicon knows is a name;
+an adjective is not a word known only as an adverb -- and an empty
+assembly is a refusal, where `Terms = []` had been what 319 Brown
+sentences "read" as. A tagging the rules contradict comes back X
+throughout and the assembler refuses it. Measured on one model: WordNet
+example sentences read 15.3 % -> 6.3 %, Brown prose 13.5 % -> 3.6 %,
+generated unseen sentences 0.997 either way, the hand-written forty-three
+as before. `tagger_refused/4` is the instrument and `test/tagger.pl`'s
+`refusals` section pins 0.90 over a slice of prose.txt. What still slips
+is a real sentence in the grammar's shape -- `Every person is mortal.` is
+read, and it is true -- and a fragment the lexicon cannot fault, `Feeling
+amorous.` as amorou(feeling).
+
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
 REPLACING IT.** `test/run.pl`'s `environment/1` is the one place that sets
 it — for every case it runs — and it puts this checkout's `library/` at

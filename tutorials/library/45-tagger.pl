@@ -11,9 +11,10 @@
 %% library(reasoning/reason) refuses, and tutorial 44 makes the data that
 %% could teach a network to label every token -- subject, relation, object,
 %% noise -- so that the assembler can rebuild a sentence in the grammar's
-%% shapes. This lesson trains that network, in about half a minute on four
+%% shapes. This lesson trains that network, in about eighty seconds on four
 %% cores with no GPU, and closes the loop: typed prose in, the grammar's
-%% terms out, and truth/2 answering questions about them.
+%% terms out, and truth/2 answering questions about them -- and shows the
+%% other half, real prose it must not read, refused.
 %%
 %% THE CORPUS IS THE CAPABILITY. The generator is unbounded in seeds and
 %% bounded in variety, and variety is what carries a tagger to words it
@@ -87,11 +88,18 @@ main :-
     must('a definite subject is no shape the generator makes: refused', R6, refused),
     ( tagger_normalise(M, 'The badge is held by Zed.', _, _) -> R7 = read ; R7 = refused ),
     must('a passive is no shape either: refused', R7, refused),
+    ( tagger_normalise(M, 'Boston, Mass.', _, _) -> R8 = read ; R8 = refused ),
+    must('real prose the lexicon contradicts -- Boston tagged subject, Mass. a relation: refused', R8, refused),
+    tagger_refused(M, 6001, 100, Rate),
+    show('of 100 real sentences from prose.txt, WordNet''s own examples, refused', Rate),
     format("   -- a shape the generator does not make is a shape the grammar does not read,~n", []),
     format("   and the tagger cannot reach past the grammar: what it gets wrong is REFUSED,~n", []),
-    format("   never quietly rewritten. The fix is data -- a shape in library(reasoning/normalise)~n", []),
-    format("   and a rule in library(reasoning/reason) -- and test/tagger.pl's forty-three~n", []),
-    format("   hand-written sentences are how the next one is measured before it ships.~n", []),
+    format("   never quietly rewritten. And what the grammar WOULD read -- `Vulpine cunning.'~n", []),
+    format("   as cunning(vulpine) -- the lexicon refuses first: a tagging it contradicts~n", []),
+    format("   comes back X throughout. The fix for a miss is data -- a shape in~n", []),
+    format("   library(reasoning/normalise), a rule in library(reasoning/reason) -- and~n", []),
+    format("   test/tagger.pl's forty-three hand-written sentences are how the next one is~n", []),
+    format("   measured before it ships.~n", []),
     tagger_free(M),
     nl, write(done), nl.
 

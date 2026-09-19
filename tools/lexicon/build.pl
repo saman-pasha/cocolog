@@ -26,6 +26,10 @@
 %%   data.verb     the SENTENCE FRAMES each synset takes, which is what says a
 %%                 verb takes an object (frames 8-11), none (1, 2) or a phrase
 %%                 (22, 4).
+%%   the glosses   every data.* gloss quotes EXAMPLE SENTENCES -- "She froze
+%%                 when she saw her ex-husband" -- which are real English and
+%%                 not the grammar's: prose.txt, the NEGATIVES a tagger learns
+%%                 to refuse, in a fixed hash order so a slice is a sample.
 %%
 %% Then: noun = a word whose first sense is a thing (animal, artifact, food,
 %% object, plant, possession) and no instance; class = noun.person; place =
@@ -53,13 +57,15 @@ main :-
     lx_senses(WN, Groups),
     lx_noun_kinds(WN, Kinds),
     lx_verb_frames(WN, Frames),
-    lx_classes(Groups, Kinds, Frames, Classes),
+    lx_classes(Groups, Kinds, Frames, Classes0),
+    lx_prose(WN, Prose),
+    append(Classes0, [prose-Prose], Classes),
     forall(member(Class-Words, Classes),
            ( lx_cap(Class, Caps, Cap), lx_take(Cap, Words, Kept),
              lx_write(Out, Class, Kept),
              length(Kept, N), lx_take(6, Kept, First),
              format("   ~w ~w  ~w~n", [Class, N, First]) )),
-    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place}.txt~n", [Out]).
+    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place,prose}.txt~n", [Out]).
 
 %% ---- options ----------------------------------------------------------------
 
@@ -81,6 +87,7 @@ lx_cap(vi, _, 1200).
 lx_cap(vpp, _, 1000).
 lx_cap(adverb, _, 500).
 lx_cap(place, _, 800).
+lx_cap(prose, _, 8000).
 
 %% ---- the files, as lines --------------------------------------------------------
 
@@ -246,6 +253,37 @@ lx_meets(Fs, Wanted) :- member(F, Fs), memberchk(F, Wanted), !.
 lx_capitalised(W, P) :- atom_codes(W, [C|Cs]), U is C - 32, atom_codes(P, [U|Cs]).
 
 lx_take(N, Xs, Taken) :- ( length(Taken, N), append(Taken, _, Xs) -> true ; Taken = Xs ).
+
+%% ---- the example sentences: real prose, the grammar's opposite --------------------------------
+%% Two to twenty words of letters, spaces, commas, apostrophes and hyphens,
+%% capitalised and stopped, in hash order -- two, because a tagger never shown
+%% a fragment reads `Boston, Mass.' as a fact.
+
+lx_prose(WN, Prose) :-
+    findall(S,
+            ( member(F, ['data.noun', 'data.verb', 'data.adj', 'data.adv']),
+              lx_lines(WN, F, Lines), member(L, Lines), \+ sub_string(L, 0, 1, _, " "),
+              split_string(L, [124], [], [_, GlossS|_]),
+              split_string(GlossS, [34], [], Parts), lx_odd(Parts, Quoted),
+              member(Q, Quoted), lx_sentence(Q, S) ),
+            Prose0),
+    sort(Prose0, Unique),
+    findall(H-S, ( member(S, Unique), lx_hash(S, H) ), Keyed),
+    keysort(Keyed, Sorted),
+    findall(S, member(_-S, Sorted), Prose).
+
+lx_odd([], []).
+lx_odd([_], []) :- !.
+lx_odd([_, Q|Rest], [Q|Qs]) :- lx_odd(Rest, Qs).
+
+lx_sentence(QS, Sentence) :-
+    split_string(QS, "", " ", [TS]), string_codes(TS, Cs),
+    Cs = [C0|_], C0 >= 0'a, C0 =< 0'z,
+    forall(member(C, Cs), ( C >= 0'a, C =< 0'z ; C >= 0'A, C =< 0'Z ; memberchk(C, [32, 44, 39, 45]) )),
+    last(Cs, Last), Last >= 0'a, Last =< 0'z,
+    findall(x, member(32, Cs), Spaces), length(Spaces, NSp), NSp >= 1, NSp =< 19,
+    U0 is C0 - 32, Cs = [_|Rest], append([U0|Rest], [0'.], SCs),
+    atom_codes(Sentence, SCs).
 
 %% ---- the files ----------------------------------------------------------------------------------
 

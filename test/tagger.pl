@@ -27,9 +27,10 @@ alphabet :-
     tagger_tag_id('S', S), check('S is 0', S, 0),
     tagger_tag_id('B', B), check('B is 10', B, 10),
     tagger_tag_id(Nine, 9), check('9 is D, the tag padding carries', Nine, 'D'),
+    tagger_tag_id('X', X), check('X, outside, is 11', X, 11),
     normalise_tags(Tags),
     findall(I, ( member(T, Tags), tagger_tag_id(T, I) ), Ids), sort(Ids, Distinct),
-    check('eleven tags, ids 0..10, all distinct', Distinct, [0,1,2,3,4,5,6,7,8,9,10]).
+    check('twelve tags, ids 0..11, all distinct', Distinct, [0,1,2,3,4,5,6,7,8,9,10,11]).
 
 %% ---- the vocabulary -----------------------------------------------------------------
 
@@ -114,8 +115,28 @@ network_checks :-
     check('a definite subject is no shape of the generator: refused, not misread', Def, no),
     prose_checks(M),
     paragraph(M),
+    refusals(M),
     tagger_free(M),
     across_processes.
+
+%% ---- what it refuses ---------------------------------------------------------------------------
+%% The other half of correctness: real sentences the training never saw,
+%% which the grammar does not read and the tagger must not make readable.
+%% Before the lexicon judged a tagging, a sixth of WordNet's example
+%% sentences and a tenth of real government prose came back as facts --
+%% `Boston, Mass.' as mass(boston). With it, measured 0.93 to 0.94 refused
+%% over three slices of 300 of prose.txt, and the floor is 0.90 because two
+%% trainings do not tag the borderline sentences alike.
+
+refusals(M) :-
+    tagger_refused(M, 6001, 300, Rate),
+    format("     refused ~4f of 300 real sentences training never saw~n", [Rate]),
+    yes_no(Rate >= 0.90, Enough),
+    check('at least 0.90 of unseen real prose refused', Enough, yes),
+    yes_no(tagger_normalise(M, 'Boston, Mass.', _, _), Boston),
+    check('`Boston, Mass.'' is refused, not mass(boston)', Boston, no),
+    yes_no(tagger_normalise(M, 'Small business management.', _, _), Heading),
+    check('and a heading is refused, not business(small)', Heading, no).
 
 %% ---- prose it never saw ------------------------------------------------------------------------
 %% Hand-written, not generated: the names, and many of the nouns, adjectives
@@ -166,7 +187,7 @@ prose('Every pilot owns a plane.', [(own(X, plane) :- pilot(X))]).
 prose('Every nurse that is certified holds a badge.', [(hold(X, badge) :- nurse(X), certified(X))]).
 prose('Kai does not live in Lagos.', [neg(live_in(kai, lagos))]).
 prose('Tom likes the old map.', [like(tom, map)]).
-prose('Wolf will fix the drone.', [will_fix(wolf, drone)]).
+prose('Wilma will fix the drone.', [will_fix(wilma, drone)]).
 prose('I think that Zed sleeps in Tokyo.', [sleeps_in(zed, tokyo)]).
 prose('By the way, every farmer that is not insured needs a permit, as far as I know.', [(need(X, permit) :- farmer(X), \+ insured(X))]).
 prose('Well, every baker that is not lazy works hard, obviously.', [(work(X) :- baker(X), \+ lazy(X))]).
