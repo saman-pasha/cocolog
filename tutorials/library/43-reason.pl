@@ -114,6 +114,8 @@ main :-
     must('if-then with a pronoun (write `that is'' instead)', P9c, refused),
     ( reason_sentence('Alice owns a house in Rome.', _) -> P9d = parsed ; P9d = refused ),
     must('a prepositional phrase -- refused, never misread as rome(rome_1)', P9d, refused),
+    ( reason_sentence('Alice and Bob.', _) -> P9e = parsed ; P9e = refused ),
+    must('a conjunction -- refused, never misread as and(alice, bob)', P9e, refused),
 
     format("~n10. The tokens, for a grammar of your own~n", []),
     reason_tokens('Hello, World. Alice_1!', Tk),

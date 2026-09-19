@@ -194,6 +194,10 @@
 %% position rule taking the last word for the noun -- and that is worse
 %% than a refusal. Prepositions are closed now, so `in Rome' is left over
 %% and the sentence fails, and reason_refused/2 names it.
+%% It does not read a conjunction, and refuses one BY RULE: `Alice and
+%% Bob' parsed as and(alice, bob) while `and' was an open word, and a
+%% sentence refused only because its tail did not fit is one misreading
+%% away from being accepted. `and', `or' and `but' are closed.
 %% It does not read compound nouns: `an identification number' is a
 %% `number' that is `identification', by the position rule, and a program
 %% that means one word writes identification_number. And it decides nothing
@@ -497,6 +501,7 @@ rl_closed(then).
 %% built on one is refused whole, as the header says.
 rl_closed(W) :- rl_pronoun(W).
 rl_closed(W) :- rl_preposition(W).
+rl_closed(W) :- rl_conjunction(W).
 rl_pronoun(it).   rl_pronoun(he).   rl_pronoun(she).  rl_pronoun(they).
 rl_pronoun(we).   rl_pronoun(i).    rl_pronoun(you).  rl_pronoun(him).
 rl_pronoun(her).  rl_pronoun(them). rl_pronoun(us).   rl_pronoun(me).
@@ -520,6 +525,11 @@ rl_preposition(near).    rl_preposition(off).     rl_preposition(out).
 rl_preposition(since).   rl_preposition(until).   rl_preposition(upon).
 rl_preposition(toward).  rl_preposition(towards). rl_preposition(via).
 rl_preposition(as).      rl_preposition(than).
+%% conjunctions: closed, because `Alice and Bob' PARSED as and(alice, bob)
+%% -- the conjunction fell through as the verb -- and `Alice and Bob signed
+%% the contract' was refused only because what followed did not fit. A
+%% refusal by luck is a misreading waiting for the sentence that fits.
+rl_conjunction(and). rl_conjunction(or). rl_conjunction(but).
 
 %% ---- naming the individuals ------------------------------------------
 %%

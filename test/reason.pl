@@ -203,7 +203,15 @@ refusals :-
     yes_no(reason_sentence('Alice is in.', _), F9),
     check('a preposition is not an adjective', F9, no),
     yes_no(reason_sentence('Every tenant that is not exempt must pay the rent to Alice.', _), F10),
-    check('a preposition after a rule''s object', F10, no).
+    check('a preposition after a rule''s object', F10, no),
+    yes_no(reason_sentence('Alice and Bob.', _), F11),
+    check('a conjunction: REFUSED, where it once parsed as and(alice, bob)', F11, no),
+    yes_no(reason_sentence('Alice or Bob.', _), F12),
+    check('or: refused, was or(alice, bob)', F12, no),
+    yes_no(reason_sentence('Alice but Bob.', _), F13),
+    check('but: refused, was but(alice, bob)', F13, no),
+    yes_no(reason_sentence('Alice and Bob signed the contract.', _), F14),
+    check('a conjoined subject: refused by rule now, not by its tail', F14, no).
 
 %% ---- a rule declares what its body names ------------------------------------------------
 
