@@ -69,6 +69,17 @@
 %%         nobody. Neither this nor reason_question/2 resets the state, so
 %%         `Is she licensed?' may follow the paragraph that introduced her.
 %%
+%%     reason_prose(+Text, -Terms)
+%%     reason_ask_prose(+Text, -Answers)
+%%         TYPED prose, not the controlled English: the shipped tagger
+%%         normalises it first, then reason_text/2 or reason_ask/2 reads
+%%         what came out. OPTIONAL, and loaded on first use --
+%%         library(reasoning/tagger) and the model beside the library
+%%         (tagger_pretrained/1 there), which need library(torch) and the
+%%         embedded engine. Without them the call raises
+%%         existence_error(tagger, pretrained), and nothing else here
+%%         changes.
+%%
 %%     reason_why(+Goal, -Why)
 %%         The REASON a ground goal holds: fact when it was said,
 %%         rule(Head :- Body) with the body as it proved when a rule gave
@@ -288,6 +299,22 @@ reason_ask(Text, Answers) :-
     rs_sentences(Tokens, Sentences),
     rs_read(Sentences, [variables(true)], Terms),
     findall(A, ( member(Q, Terms), rq_answer(Q, A) ), Answers).
+
+%% ---- prose, through the shipped tagger: optional ----------------------
+
+reason_prose(Text, Terms) :- rp_model(M), tagger_normalise(M, Text, _, Terms).
+reason_ask_prose(Text, Answers) :- rp_model(M), tagger_ask(M, Text, Answers).
+
+rp_model(M) :-
+    (   catch(nb_getval('$rp_model', Cached), _, Cached = none), Cached \== none
+    ->  M = Cached
+    ;   catch(use_module(library(reasoning/tagger)), _,
+              throw(error(existence_error(tagger, pretrained),
+                          context(reason_prose/2, 'library(reasoning/tagger) would not load: is library(torch) built?')))),
+        tagger_pretrained(M0),
+        nb_setval('$rp_model', M0),
+        M = M0
+    ).
 
 rq_answer(question(Goal), A) :- !, rq_yes_no(Goal, A).
 rq_answer(question(X, Goal), As) :- !,

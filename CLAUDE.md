@@ -63,6 +63,8 @@ make lint FILES=myprogram.pl    # cocolint, over a file you name
 sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0
                                 # (apt install wordnet-base); a cocolog
                                 # program, and its output IS committed
+sh tools/tagger/train.sh        # the shipped tagger, library/reasoning/model.rows:
+                                # two minutes with libtorch, and committed too
 ```
 
 **`cocolog --version` ANSWERS ON STDOUT, AND THE NUMBER GOES UP WITH
@@ -1946,8 +1948,34 @@ that introduced her. The question words joined the closed classes, or
 six question shapes with the statements' tags -- `who` an S, `what` and
 `where` an O -- so the tagger drops the noise around a typed question and
 `tagger_ask/3` answers it; the transforms that would join or hedge a
-question stand down for one, and the text ends in `?`. `test/reason.pl`'s
-`questions` section pins the forms and the answers.
+question stand down for one, and the text ends in `?`. `tagger_ask/3`
+goes to the controlled text and then `reason_ask/2`, NOT through
+`tagger_normalise/4`, whose `reason_text/2` resets the subject state:
+measured, `Is she insured?` typed after a paragraph about Lena came back
+refused that way. `test/reason.pl`'s `questions` section pins the forms
+and the answers, and the tagger case pins the pronoun question.
+
+**THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
+OWN.** `tagger_pretrained/1` answers a model without training: the one
+named `tagger` in the knowledge base this process proves against when
+there is one -- a program over its own `--embed` store runs
+`tools/tagger/train.pl` there once and every later run finds it -- and
+otherwise `library/reasoning/model.rows` beside the library, the rows
+`tagger_export/2` writes, consulted as a MODULE so they are muted and
+never written into the program's base. `reason_prose/2` and
+`reason_ask_prose/2` in `library(reasoning/reason)` load the tagger and
+that model on first use, so a grammar-only program stays grammar-only and
+a program that wants prose gets it with no training. A store was tried as
+the shipped form and refused by measurement: sixteen megabytes for 3661
+live rows, because a consult rewrites the predicate wholesale and a store
+never shrinks below its high-water mark, and in one machine's byte order
+besides; the text file is four megabytes at six decimals, which a weight
+near one cannot feel. It is `model.rows`, not `.pl`, because cocolint's
+retrieval index walks `library/*/*.pl` and was KILLED for want of memory
+reading four megabytes of numbers as clauses. `sh tools/tagger/train.sh`
+writes it, training into a scratch store and exporting; `test/tagger.pl`'s `pretrained` section
+and `test/reason.pl`'s `prose` section load it, and SKIP by name where
+torch or the file is missing.
 
 **THE JUDGE'S LEXICON IS NOT THE GENERATOR'S.** `Death put a period to
 his endeavors.` was read as `put(death, period_1)` because `death` is in

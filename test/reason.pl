@@ -12,7 +12,7 @@
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
-    round_trip, refusals, places, state, questions, declares, refused, truth, errors,
+    round_trip, refusals, places, state, questions, prose, declares, refused, truth, errors,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -344,6 +344,23 @@ questions :-
     reason_why(may_sell(priya, bread), W14),
     check('reason_why/2 on its own', W14, rule((may_sell(priya, bread) :- baker(priya), licensed(priya)))),
     yes_no(reason_why(licensed(marco), _), W15), check('and fails for what nothing holds up', W15, no).
+
+%% ---- prose, through the shipped tagger: optional --------------------------------------------
+%% reason_prose/2 loads library(reasoning/tagger) and the model shipped
+%% beside the library on first use; where either is missing it raises, and
+%% this section says so rather than failing.
+
+prose :-
+    section('prose'),
+    (   catch(reason_prose('Well, Rex really owns a red truck, obviously. Kim rents a flat in Oslo and is insured.', T1),
+              error(existence_error(tagger, pretrained), _), fail)
+    ->  check('typed prose, read through the shipped tagger', T1,
+              [truck(truck_1), red(truck_1), own(rex, truck_1), flat(flat_1), rent_in(kim, flat_1, oslo), insured(kim)]),
+        forall(member(T, T1), assertz(T)),
+        reason_ask_prose('Honestly, who rents a flat in Oslo?', A2), check('and a typed question, answered', A2, [[kim-fact]]),
+        reason_ask_prose('Is she insured?', A3), check('a pronoun in the question: the subject the prose left', A3, [yes(fact)])
+    ;   format("     (skipped: no shipped tagger here -- library(torch) and library/reasoning/model.rows)~n", [])
+    ).
 
 %% ---- a rule declares what its body names ------------------------------------------------
 

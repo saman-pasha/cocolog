@@ -153,6 +153,7 @@ main :-
     retract(neg(tenant(eve))),
 
     questions,
+    prose,
     format("~nDone.~n", []).
 
 %% section 13 is a clause of its own: a lesson's main/0 must still fit a
@@ -170,6 +171,19 @@ questions :-
     reason_ask('Is Priya licensed?', [A13d]), must('a fact: yes, and the fact is the reason', A13d, yes(fact)),
     reason_ask('Is Marco licensed?', [A13e]), must('never said: unknown', A13e, unknown),
     reason_ask('Where does Priya rent a flat?', [A13f]), must('where: the place is the answer', A13f, [bristol-fact]).
+
+%% section 14: OPTIONAL -- the shipped tagger reads typed prose, where
+%% library(torch) and library/reasoning/model.rows are there
+prose :-
+    format("~n14. Typed prose, through the shipped tagger -- optional, and loaded on first use~n", []),
+    (   catch(reason_prose('Well, Rex really owns a red truck, obviously. Kim rents a flat in Oslo and is insured.', T14),
+              error(existence_error(tagger, pretrained), _), fail)
+    ->  show('the prose, read', T14),
+        forall(member(T, T14), assertz(T)),
+        reason_ask_prose('Is she insured?', [A14]),
+        must('and a typed question, `she'' being Kim', A14, yes(fact))
+    ;   format("   (no shipped tagger here: library(torch) and library/reasoning/model.rows -- the grammar above needs neither)~n", [])
+    ).
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

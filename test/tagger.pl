@@ -117,6 +117,7 @@ network_checks :-
     paragraph(M),
     refusals(M),
     tagger_free(M),
+    pretrained,
     across_processes.
 
 %% ---- what it refuses ---------------------------------------------------------------------------
@@ -139,6 +140,31 @@ refusals(M) :-
     check('`Boston, Mass.'' is refused, not mass(boston)', Boston, no),
     yes_no(tagger_normalise(M, 'Small business management.', _, _), Heading),
     check('and a heading is refused, not business(small)', Heading, no).
+
+%% ---- the shipped model ------------------------------------------------------------------------
+%% library/reasoning/model.rows, written by tools/tagger/train.sh: a trained
+%% tagger without training, loaded as a module so the base is not written,
+%% and the model a --local program gets from tagger_pretrained/1 and from
+%% library(reasoning/reason)'s reason_prose/2.
+
+pretrained :-
+    section('the shipped model'),
+    (   catch(tagger_pretrained(M), error(existence_error(tagger, pretrained), _), fail)
+    ->  (   tagger_normalise(M, 'Well, Zed really owns a red car, obviously. Dana rents a flat in Bristol and is registered.', C, T)
+        ->  true
+        ;   C = refused, T = refused
+        ),
+        check('the shipped model normalises prose', C, 'Zed owns a red car. Dana rents a flat in Bristol. Dana is registered.'),
+        check('and reads it', T, [car(car_1), red(car_1), own(zed, car_1), flat(flat_1), rent_in(dana, flat_1, bristol), registered(dana)]),
+        tagger_pretrained(M2), check('loaded once a process', M2, M),
+        yes_no('$tg_vocab'(tagger, 0, _), Rows), check('its rows are in the store, a module''s', Rows, yes),
+        tagger_free(M),
+        tagger_pretrained(M3),
+        ( tagger_normalise(M3, 'Zed owns a car.', _, T3) -> true ; T3 = refused ),
+        check('freed, it loads again', T3, [car(car_1), own(zed, car_1)]),
+        tagger_free(M3)
+    ;   format("     (skipped: no shipped model -- sh tools/tagger/train.sh writes library/reasoning/model.rows)~n", [])
+    ).
 
 %% ---- prose it never saw ------------------------------------------------------------------------
 %% Hand-written, not generated: the names, and many of the nouns, adjectives
@@ -254,7 +280,8 @@ paragraph(M) :-
     yes_no(A3 = yes(rule((may_enter(mia, ward) :- nurse(mia), careful(mia)))), R3),
     check('asked: may Mia enter the ward -- yes, by the rule and the two facts it rests on', R3, yes),
     tagger_ask(M, 'Does Omar like Zed?', A4), check('asked: does Omar like Zed -- no, the text denied it', A4, [no(denied(neg(like(omar, zed))))]),
-    tagger_ask(M, 'Is Zed a nurse?', A5), check('asked: never said -- unknown', A5, [unknown]).
+    tagger_ask(M, 'Is Zed a nurse?', A5), check('asked: never said -- unknown', A5, [unknown]),
+    tagger_ask(M, 'Is she registered?', A6), check('asked with a pronoun: the subject the paragraph left, Dana -- yes', A6, [yes(fact)]).
 
 %% one process trains into a store and asserts what it tagged; the next loads
 %% the model from the store and tags the same sentence -- the knowledge base

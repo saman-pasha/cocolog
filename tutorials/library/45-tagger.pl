@@ -108,6 +108,15 @@ main :-
     format("   test/tagger.pl's forty-three hand-written sentences are how the next one is~n", []),
     format("   measured before it ships.~n", []),
     tagger_free(M),
+
+    format("~n7. And without training: the shipped model, library/reasoning/model.rows~n", []),
+    (   catch(tagger_pretrained(Pre), error(existence_error(tagger, pretrained), _), fail)
+    ->  ( tagger_normalise(Pre, 'Honestly, Kim rents a small flat in Oslo.', C70, T70) -> true ; C70 = refused, T70 = refused ),
+        show('controlled', C70),
+        must('read by a model nobody here trained', T70, [flat(flat_1), small(flat_1), rent_in(kim, flat_1, oslo)]),
+        tagger_free(Pre)
+    ;   format("   (no shipped model: sh tools/tagger/train.sh writes it)~n", [])
+    ),
     nl, write(done), nl.
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy

@@ -92,10 +92,32 @@
 %%         Controlled then names the sentence.
 %%
 %%     tagger_ask(+Model, +Text, -Answers)
-%%         Prose in, questions answered: tagger_normalise/4 and then
-%%         reason_ask/2 over the controlled text, so `Well, does Dana
-%%         really rent a flat in Bristol?' answers yes(fact) against the
-%%         knowledge base. Fails as tagger_normalise/4 fails.
+%%         Prose in, questions answered: the controlled text as
+%%         tagger_normalise/4 makes it, then reason_ask/2 over it, so
+%%         `Well, does Dana rent a flat in Bristol?' answers yes(fact)
+%%         against the knowledge base. The subject state is NOT reset, and
+%%         a subject pronoun in a question's first two words is replaced by
+%%         that subject BEFORE tagging, so `Is she registered?' asks about
+%%         the subject the last paragraph left and the controlled text
+%%         names her. Fails as tagger_normalise/4 fails.
+%%
+%%     tagger_pretrained(-Model)
+%%         A trained model without training: the one named `tagger' in the
+%%         knowledge base this process proves against, when there is one --
+%%         what a program over its own --embed store keeps after running
+%%         tools/tagger/train.pl there once -- and otherwise the model
+%%         shipped beside the library, library/reasoning/model.rows, the
+%%         rows tagger_export/2 wrote, consulted as a module (muted, so
+%%         nothing is written through) and loaded as tagger_load/2 loads.
+%%         Once a process, and tagger_free/1 on it forgets that.
+%%         $COCOLOG_TAGGER_MODEL names another such file. Raises
+%%         existence_error(tagger, pretrained) when there is neither.
+%%
+%%     tagger_export(+Name, +File)
+%%         The model's rows -- '$tg_vocab'/3, '$te_param'/3, '$te_chunk'/4
+%%         -- written to File, one canonical term a line: the shipped
+%%         model's form, which tools/tagger/train.sh writes and a fresh
+%%         store consults (cocolog --embed DIR run File true).
 %%
 %%     tagger_refused(+Model, +From, +N, -Rate)
 %%         Over N real sentences of prose.txt from the From-th, the
@@ -491,7 +513,9 @@ tagger_load(Name, model(Ps, Vocab)) :-
     params_load(Name, Ps),
     tg_vocab(Words, Vocab).
 
-tagger_free(model(Ps, _)) :- free_all(Ps).
+tagger_free(model(Ps, V)) :-
+    (   catch(nb_getval('$tg_pretrained', model(Ps, V)), _, fail) -> nb_setval('$tg_pretrained', none) ; true ),
+    free_all(Ps).
 
 %% ---- tagging ---------------------------------------------------------------------------------
 
@@ -609,19 +633,105 @@ tg_same_word(_, R, [], R).
 
 %% ---- prose to predicates -----------------------------------------------------------------
 
-%% prose in, its questions answered against the knowledge base
+%% prose in, its questions answered against the knowledge base. Not through
+%% tagger_normalise/4, whose reason_text/2 resets the subject state: a
+%% question is asked AFTER the paragraph, and `Is she insured?' asks about
+%% the subject that paragraph left.
 tagger_ask(Model, Text, Answers) :-
-    tagger_normalise(Model, Text, Controlled, _),
+    tg_controlled(Model, Text, resolve, Controlled),
     reason_ask(Controlled, Answers).
 
+%% ---- the trained model, kept -----------------------------------------------------------
+%% THE KNOWLEDGE BASE IS THE MODEL FILE. A program over its own --embed
+%% store trains once (tools/tagger/train.pl, or tagger_train/2 under the
+%% name `tagger') and every later run over that store finds the model there.
+%% A program with no such store -- --local, or a base nobody trained in --
+%% gets the model shipped beside the library, library/reasoning/model.rows:
+%% the rows as tagger_export/2 writes them, consulted as a module, so they
+%% are muted and never written into the program's own base. A store was
+%% tried for the shipped copy and a text file shipped instead: the store
+%% came to sixteen megabytes for three of live rows, never shrinks below
+%% its high-water mark, and travels in one machine's byte order.
+
+tagger_pretrained(Model) :-
+    (   catch(nb_getval('$tg_pretrained', Cached), _, Cached = none), Cached \== none
+    ->  Model = Cached
+    ;   (   catch(tagger_load(tagger, Model0), error(existence_error(tagger, _), _), fail)
+        ->  true
+        ;   tg_model_file(File), tg_forget_model(tagger), use_module(File), tagger_load(tagger, Model0)
+        ),
+        nb_setval('$tg_pretrained', Model0),
+        Model = Model0
+    ).
+
+tg_model_file(File) :-
+    getenv('COCOLOG_TAGGER_MODEL', File), File \== '', exists_file(File), !.
+tg_model_file(File) :-
+    ng_library_dirs(Ds), member(D, Ds),
+    atom_concat(D, '/reasoning/model.rows', File), exists_file(File), !.
+tg_model_file(_) :-
+    throw(error(existence_error(tagger, pretrained),
+                context(tagger_pretrained/1, 'no model named tagger here and no library/reasoning/model.rows: sh tools/tagger/train.sh writes it'))).
+
+%% the rows of an earlier load under the same name, or two copies would
+%% answer every chunk twice
+tg_forget_model(Name) :-
+    retractall('$tg_vocab'(Name, _, _)),
+    retractall('$te_param'(Name, _, _)),
+    retractall('$te_chunk'(Name, _, _, _)).
+
+%% a parameter is written to six decimals: a weight near one carries no
+%% seventh the tagging could feel, and the shipped file is half the size
+tagger_export(Name, File) :-
+    findall(R, tg_model_row(Name, R), Rows),
+    (   Rows == [] -> throw(error(existence_error(tagger, Name), tagger_export/2)) ; true ),
+    with_output_to(string(S), forall(member(R, Rows), tg_write_row(R))),
+    string_codes(S, Cs),
+    write_file_from_codes(File, Cs).
+
+tg_write_row('$te_chunk'(Name, I, Seq, Chunk)) :- !,
+    format("'$te_chunk'(~q,~w,~w,[", [Name, I, Seq]), tg_write_numbers(Chunk), format("]).~n", []).
+tg_write_row(R) :- writeq(R), write('.'), nl.
+
+tg_write_numbers([]).
+tg_write_numbers([X]) :- !, format("~6f", [X]).
+tg_write_numbers([X|Xs]) :- format("~6f,", [X]), tg_write_numbers(Xs).
+
+tg_model_row(Name, '$tg_vocab'(Name, Seq, Chunk)) :- '$tg_vocab'(Name, Seq, Chunk).
+tg_model_row(Name, '$te_param'(Name, I, Shape)) :- '$te_param'(Name, I, Shape).
+tg_model_row(Name, '$te_chunk'(Name, I, Seq, Chunk)) :- '$te_chunk'(Name, I, Seq, Chunk).
+
 tagger_normalise(Model, Text, Controlled, Terms) :-
-    reason_tokens(Text, Toks),
-    tg_sentences(Toks, Sents),
-    Sents \== [],
-    tagger_tag_all(Model, Sents, TagLists),
-    tg_assemble_all(Sents, TagLists, Texts),           % FAILS on a refused sentence
-    atomic_list_concat(Texts, ' ', Controlled),
+    tg_controlled(Model, Text, keep, Controlled),
     reason_text(Controlled, Terms).
+
+%% prose to the controlled text alone: every sentence tagged, judged and
+%% assembled -- FAILS on a refused sentence. With `resolve', a subject
+%% pronoun in a sentence's first two words is replaced by the subject the
+%% grammar's state holds BEFORE tagging: the network has seen `she' after
+%% `and' and at the head of a statement, never after `Is' or `Does', and a
+%% question is asked after the paragraph whose subject it means.
+tg_controlled(Model, Text, Resolve, Controlled) :-
+    reason_tokens(Text, Toks),
+    tg_sentences(Toks, Sents0),
+    Sents0 \== [],
+    ( Resolve == resolve -> tg_resolved(Sents0, Sents) ; Sents = Sents0 ),
+    tagger_tag_all(Model, Sents, TagLists),
+    tg_assemble_all(Sents, TagLists, Texts),
+    atomic_list_concat(Texts, ' ', Controlled).
+
+tg_resolved(Sents, Out) :-
+    (   catch(nb_getval('$rs_subject', S), _, S = none), S \== none, atom(S)
+    ->  tg_resolved(Sents, S, Out)
+    ;   Out = Sents
+    ).
+tg_resolved([], _, []).
+tg_resolved([Toks|Ts], S, [Toks1|Ts1]) :-
+    (   Toks = [word(P, _)|Rest], rl_subject_pronoun(P) -> Toks1 = [word(S, upper)|Rest]
+    ;   Toks = [W1, word(P, _)|Rest], rl_subject_pronoun(P) -> Toks1 = [W1, word(S, upper)|Rest]
+    ;   Toks1 = Toks
+    ),
+    tg_resolved(Ts, S, Ts1).
 
 %% every sentence assembled, or the paragraph refused: a sentence the
 %% tagger marks outside must not vanish into an empty reading (it did once,
