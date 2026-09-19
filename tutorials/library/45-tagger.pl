@@ -18,7 +18,7 @@
 %%
 %% THE CORPUS IS THE CAPABILITY. The generator is unbounded in seeds and
 %% bounded in variety, and variety is what carries a tagger to words it
-%% never saw: twenty-seven shapes, nine kinds of noise, and a lexicon that is
+%% never saw: thirty-three shapes, eleven kinds of noise, and a lexicon that is
 %% files beside the library -- 2500 census names and some seventeen
 %% thousand WordNet words, library/reasoning/lexicon/ -- and 16384 pairs
 %% of them by default. Over that lexicon 8192 pairs read 0.96 of the
@@ -63,14 +63,20 @@ main :-
     must('assembled', Asm3, 'Zed owns a red car.'),
 
     format("~n4. Prose to predicates, and then questions -- the loop closed~n", []),
-    Prose = 'Actually, Mia really likes Zed, obviously. Bob needs a ladder. In fact, every clerk that is not exempt must sign the form. Dana rents a flat in Bristol.',
+    Prose = 'Actually, Mia really likes Zed, obviously. Bob needs a ladder. In fact, every clerk that is not exempt must sign the form. Dana rents a flat in Bristol. Dana is a tenant and, as far as I know, is not late. Well, does Dana rent a flat in Bristol?',
     tagger_normalise(M, Prose, Controlled, Terms),
     show('controlled', Controlled),
-    Terms = [T1, T2, T3, Rule, T5, T6],
+    Terms = [T1, T2, T3, Rule, T5, T6, T7, T8, Q9],
     must('three facts, with Mia, Zed and the ladder copied', [T1, T2, T3], [like(mia, zed), ladder(ladder_1), need(bob, ladder_1)]),
     show('and a rule', Rule),
     must('and a place after an object kept: rent_in/3', [T5, T6], [flat(flat_1), rent_in(dana, flat_1, bristol)]),
-    forall(member(T, Terms), assertz(T)),
+    must('and a filler after the conjunction dropped, the subject the second clause left out supplied', [T7, T8], [tenant(dana), neg(late(dana))]),
+    ( Q9 = question((flat(F9), rent_in(dana, F9b, bristol))), F9 == F9b, var(F9) -> G9 = a_goal_with_a_variable ; G9 = Q9 ),
+    must('and a question is a GOAL, the flat it asks about a variable', G9, a_goal_with_a_variable),
+    forall(( member(T, Terms), \+ functor(T, question, _) ), assertz(T)),
+    tagger_ask(M, 'Does Dana rent a flat in Bristol?', [A9a]), must('asked, once the facts are in: yes, and the reason is the fact', A9a, yes(fact)),
+    tagger_ask(M, 'Who is a tenant?', [A9b]), must('who is a tenant', A9b, [dana-fact]),
+    tagger_ask(M, 'Is Dana late?', [A9c]), must('is Dana late -- no, the text denied it', A9c, no(denied(neg(late(dana))))),
     assertz(clerk(ann)),
     truth(like(mia, zed), V1), must('truth(like(mia, zed))', V1, true),
     truth(like(zed, mia), V2), must('truth(like(zed, mia)) -- nothing said so', V2, unknown),

@@ -35,7 +35,8 @@
 %%
 %%     reason_sentence(+Text, -Terms)
 %%     reason_sentence(+Text, +Options, -Terms)
-%%         One sentence. The grammar is DETERMINISTIC by construction --
+%%         One sentence, with no state: a subject pronoun in it is refused.
+%%         The grammar is DETERMINISTIC by construction --
 %%         the noun is the last word of its phrase and the closed classes
 %%         are fixed -- so there is one reading or none; a program that
 %%         adds grammar clauses of its own gets its readings on
@@ -52,6 +53,27 @@
 %%         when the whole text parses. reason_text/2 refuses a paragraph
 %%         whole and says nothing; this is how a caller finds out which
 %%         sentence to rewrite.
+%%
+%%     reason_question(+Text, -Question)
+%%         One sentence read as a question: question(Goal) for yes or no,
+%%         question(X, Goal) with X for what `who', `what' or `where' asks.
+%%         The forms are under THE QUESTIONS IT READS, below.
+%%
+%%     reason_ask(+Text, -Answers)
+%%         Every question in Text answered against the knowledge base as it
+%%         stands, one answer each in order; the statements in Text are
+%%         read for their state and asserted by nobody. A yes-or-no
+%%         question answers yes(Why), no(Why), unknown or conflict --
+%%         truth/2's verdict, with the fact or the rule it rests on -- and a
+%%         who, what or where question a list of Value-Why, empty when
+%%         nobody. Neither this nor reason_question/2 resets the state, so
+%%         `Is she licensed?' may follow the paragraph that introduced her.
+%%
+%%     reason_why(+Goal, -Why)
+%%         The REASON a ground goal holds: fact when it was said,
+%%         rule(Head :- Body) with the body as it proved when a rule gave
+%%         it (one level), denied when its negation was said; fails when
+%%         nothing holds it up.
 %%
 %%     truth(+Goal, -Truth)
 %%         true, false, unknown or conflict, for a GROUND goal against the
@@ -81,6 +103,9 @@
 %%   Alice may access the server.        may_access(alice, server)
 %%   Alice lives_in Rome.                live_in(alice, rome)
 %%   Alice rents a flat in Rome.         flat(V), rent_in(alice, V, rome)
+%%   Alice is a baker. She is licensed.  baker(alice), licensed(alice)
+%%   Does Alice own a car?               question((car(V), own(alice, V)))
+%%   Who is licensed?                    question(X, licensed(X))
 %%   Every employee is a person.         person(X) :- employee(X)
 %%   Every employee has a badge.         have(X, badge) :- employee(X)
 %%   Every employee that is authorized   may_access(X, server) :-
@@ -98,10 +123,20 @@
 %% library(reasoning/normalise)'s assembler that joins them. Which is also
 %% why `Alice owns a house in Rome' is a fact about a house in Rome and
 %% `Alice sleeps in Rome' is not a fact at all: only after an object can the
-%% preposition belong to nothing else. The relative clause `that is [not] ADJ'
-%% is how a condition is written, and it is deliberately the ONLY way:
-%% `if ... then ...' with a pronoun needs coreference, which this library
-%% does not do, and a rule with two conditions is two sentences or one
+%% preposition belong to nothing else. A paragraph carries ONE piece of
+%% state from sentence to sentence, the subject of the last fact, and
+%% `she', `he' or `they' as a subject stands for it -- so `Alice is a
+%% baker. She is licensed.' is two facts about Alice, and `She is licensed'
+%% with no fact before it is refused. That is the one coreference this
+%% reader does: `it' is left alone (`It rains' is not about anybody), and
+%% a pronoun as an object is refused. A QUESTION IS A GOAL, the term the
+%% statement would have asserted with a variable where the question word
+%% stood, and reason_ask/2 answers it against the knowledge base with the
+%% REASON beside the answer: the fact that was said, the rule and the
+%% body that proved it, or the denial. The relative clause `that is [not]
+%% ADJ' is how a condition is written, and it is deliberately the ONLY
+%% way: `if ... then ...' with a pronoun would need the pronoun bound
+%% inside a rule, and a rule with two conditions is two sentences or one
 %% relative clause per condition. What it does not read it REFUSES, by
 %% failing -- reason_text/2 fails on the first sentence that does not
 %% parse rather than skipping it, because a paragraph half understood is
@@ -228,6 +263,10 @@ reason_text(Text, Terms) :- reason_text(Text, [], Terms).
 reason_text(Text, Options, Terms) :-
     reason_tokens(Text, Tokens),
     rs_sentences(Tokens, Sentences),
+    nb_setval('$rs_subject', none),
+    rs_read(Sentences, Options, Terms).
+
+rs_read(Sentences, Options, Terms) :-
     rs_each(Sentences, Raw),
     rs_declare(Raw),
     (   memberchk(variables(true), Options)
@@ -235,18 +274,79 @@ reason_text(Text, Options, Terms) :-
     ;   reason_name(Raw, Terms)
     ).
 
+%% ---- questions: a goal, and the reason with the answer ----------------
+%% The state is NOT reset here: a question may follow the paragraph the
+%% last reason_text/2 read, and `Is she licensed?' asks about its subject.
+
+reason_question(Text, Question) :-
+    reason_tokens(Text, Tokens),
+    rs_sentences(Tokens, [S|_]),
+    phrase(rs_question(Question), S).
+
+reason_ask(Text, Answers) :-
+    reason_tokens(Text, Tokens),
+    rs_sentences(Tokens, Sentences),
+    rs_read(Sentences, [variables(true)], Terms),
+    findall(A, ( member(Q, Terms), rq_answer(Q, A) ), Answers).
+
+rq_answer(question(Goal), A) :- !, rq_yes_no(Goal, A).
+rq_answer(question(X, Goal), As) :- !,
+    findall(X-Why, ( rq_solve(Goal), rq_why(Goal, Why) ), As0),
+    list_to_set(As0, As).
+
+%% yes or no: truth/2's verdict over a goal that may carry an existential
+%% (`a flat' is some flat), with the denial in the class form a negative
+%% sentence gives -- neg(rent_in(priya, flat, bristol)) -- and the reason
+rq_yes_no(Goal, A) :-
+    rq_denial(Goal, Denial),
+    ( rq_solve(Goal) -> Pos = yes ; Pos = no ),
+    ( rq_solve(Denial) -> Neg = yes ; Neg = no ),
+    (   Pos == yes, Neg == yes -> A = conflict
+    ;   Pos == yes -> rq_why(Goal, Why), A = yes(Why)
+    ;   Neg == yes -> A = no(denied(Denial))
+    ;   rq_split(Goal, _, P), functor(P, F, Ar), reason_closed(F/Ar) -> A = no(closed)
+    ;   A = unknown
+    ).
+
+rq_solve(Goal) :- catch(Goal, error(existence_error(procedure, _), _), fail).
+
+rq_split((A, B), [A|As], P) :- !, rq_split(B, As, P).
+rq_split(P, [], P).
+
+rq_denial(Goal, neg(ClassP)) :-
+    rq_split(Goal, [First|_], P), First =.. [N, V], var(V), !,
+    copy_term(V-P, N-ClassP).
+rq_denial(Goal, neg(Goal)).
+
+rq_why(Goal, Why) :- rq_split(Goal, _, P), ( reason_why(P, Why0) -> Why = Why0 ; Why = proved ).
+
+%% reason_why(+Goal, -Why): fact when the goal was said; rule(Head :- Body)
+%% with the body as it proved when a rule gave it, one level; denied when
+%% its negation was said. Fails when nothing holds it up.
+reason_why(P, fact) :- catch(clause(P, true), _, fail), !.
+reason_why(P, rule((P :- Body))) :-
+    catch(clause(P, Body), _, fail), Body \== true, rq_solve(Body), !.
+reason_why(P, denied) :- catch(clause(neg(P), true), _, fail), !.
+
+%% the sentences in order, and the STATE between them: the subject of the
+%% last fact, which a subject pronoun in the next sentence stands for
 rs_each([], []).
 rs_each([S|Ss], Terms) :-
-    once(phrase(rs_sentence(T), S)),
+    once(phrase(rs_sentence(T, State), S)),
+    rs_remember(State),
     append(T, Rest, Terms),
     rs_each(Ss, Rest).
+
+rs_remember(subject(S)) :- !, nb_setval('$rs_subject', S).
+rs_remember(_).
 
 reason_sentence(Text, Terms) :- reason_sentence(Text, [], Terms).
 
 reason_sentence(Text, Options, Terms) :-
     reason_tokens(Text, Tokens),
     rs_sentences(Tokens, [S|_]),
-    phrase(rs_sentence(Raw), S),
+    nb_setval('$rs_subject', none),
+    phrase(rs_sentence(Raw, _), S),
     rs_declare(Raw),
     (   memberchk(variables(true), Options)
     ->  Terms = Raw
@@ -294,9 +394,18 @@ rs_upto([T|Ts], [T|S], Rest) :- rs_upto(Ts, S, Rest).
 reason_refused(Text, Sentence) :-
     reason_tokens(Text, Tokens),
     rs_sentences(Tokens, Sentences),
-    member(S, Sentences),
-    \+ phrase(rs_sentence(_), S),
+    nb_setval('$rs_subject', none),
+    rr_refused(Sentences, S),
     rs_words(S, Sentence).
+
+%% the sentences in order with the state carried exactly as reason_text/2
+%% carries it, so a pronoun after its antecedent is not reported refused;
+%% each refused sentence in turn on backtracking
+rr_refused([S|Ss], R) :-
+    (   phrase(rs_sentence(_, State), S)
+    ->  rs_remember(State), rr_refused(Ss, R)
+    ;   ( R = S ; rr_refused(Ss, R) )
+    ).
 
 rs_words(Tokens, Atom) :-
     findall(W, member(word(W, _), Tokens), Ws),
@@ -372,18 +481,79 @@ rt_lowers([C|Cs], [L|Ls]) :- rt_lower(C, L), rt_lowers(Cs, Ls).
 %% `rule' or under negation is a class atom; under `fact' an indefinite
 %% object is a fresh variable with its noun and adjectives as terms.
 
-rs_sentence(Terms) -->
+rs_sentence(Terms) --> rs_sentence(Terms, _).
+rs_sentence([Q], none) --> rs_question(Q), !.
+rs_sentence(Terms, State) -->
     rs_subject(S, Guard, Ctx),
     rs_predication(S, Ctx, Claim, Extra),
-    { rs_assemble(Ctx, Guard, Claim, Extra, Terms) }.
+    { rs_assemble(Ctx, Guard, Claim, Extra, Terms),
+      ( Ctx == fact -> State = subject(S) ; State = none ) }.
 
-%% a proper noun, or `every NOUN [that is [not] ADJ]'
+%% ---- questions ---------------------------------------------------------
+%% `?' is a stop like `.', so a question is known by its first word. It
+%% reads to the GOAL the statement would have asserted, with a variable
+%% where `who', `what' or `where' stood:
+%%
+%%   Does Priya sell the bread?        question(sell(priya, bread))
+%%   Does Priya rent a flat in Rome?   question((flat(V), rent_in(priya, V, rome)))
+%%   Is Priya licensed?  Is Priya a baker?   question(licensed(priya)), question(baker(priya))
+%%   May Priya sell the bread?         question(may_sell(priya, bread))
+%%   Who rents a flat in Rome?         question(X, (flat(V), rent_in(X, V, rome)))
+%%   Who is licensed?  Who is a baker?  question(X, licensed(X)), question(X, baker(X))
+%%   What does Priya sell?             question(X, sell(priya, X))
+%%   What does Priya keep in Leeds?    question(X, keep_in(priya, X, leeds))   -- or `keep_in Leeds', joined
+%%   Where does Priya sleep?           question(X, sleep_in(priya, X))     -- `in' assumed
+%%
+%% The subject may be a pronoun, resolved as a statement's is.
+
+rs_question(question(Goal)) -->
+    rs_aux, rs_qsubject(S), rs_verb(V), rs_object_opt(fact, O, Extra), rs_place_opt(O, Pl),
+    { rs_claim(V, S, O, Pl, P), rs_goal(Extra, P, Goal) }.
+rs_question(question(Goal)) -->
+    rs_copula, rs_qsubject(S), rs_property(S, Goal).
+rs_question(question(Goal)) -->
+    [word(M, _)], { rl_modal(M) }, rs_qsubject(S), rs_verb_word(W), { atomic_list_concat([M, '_', W], V) },
+    rs_object_opt(fact, O, Extra), rs_place_opt(O, Pl),
+    { rs_claim(V, S, O, Pl, P), rs_goal(Extra, P, Goal) }.
+rs_question(question(X, Goal)) -->
+    [word(who, _)], rs_copula, !, rs_property(X, Goal).
+rs_question(question(X, Goal)) -->
+    [word(who, _)], rs_modal_verb(V), rs_object_opt(fact, O, Extra), rs_place_opt(O, Pl),
+    { rs_claim(V, X, O, Pl, P), rs_goal(Extra, P, Goal) }.
+rs_question(question(X, Goal)) -->
+    [word(Wh, _)], { Wh == what ; Wh == whom }, rs_aux, rs_qsubject(S), rs_verb(V0),
+    (   rs_proper(Place), { rs_unjoin(V0, V, Prep) } -> { Pl = Prep-Place }   % `keep_in Leeds', as the assembler writes it
+    ;   { V = V0 }, rs_place_opt(X, Pl)
+    ),
+    { rs_claim(V, S, X, Pl, Goal) }.
+
+%% keep_in -> keep, in: a relation the assembler joined, taken apart when
+%% the object it asks for stood in front
+rs_unjoin(V0, V, Prep) :-
+    atomic_list_concat(Parts, '_', V0), append(Front, [Prep], Parts), Front \== [], rl_preposition(Prep), !,
+    atomic_list_concat(Front, '_', V).
+rs_question(question(X, Goal)) -->
+    [word(where, _)], rs_aux, rs_qsubject(S), rs_verb(V), rs_object_opt(fact, O, Extra),
+    { rs_claim(V, S, O, in-X, P), rs_goal(Extra, P, Goal) }.
+
+rs_qsubject(S) --> rs_subject(S, _, fact).
+
+rs_goal([], P, P).
+rs_goal([E|Es], P, (E, G)) :- rs_goal(Es, P, G).
+
+%% a proper noun, `every NOUN [that is [not] ADJ]', or a subject pronoun
 rs_subject(S, [], fact) --> rs_proper(S).
 rs_subject(X, Guard, rule) -->
     [word(Q, _)], { rl_quant(Q) },
     rs_noun(N), { G1 =.. [N, X] },
     rs_relative(X, Rel),
     { Guard = [G1|Rel] }.
+%% `she', `he' or `they': the subject of the last FACT read, carried from
+%% sentence to sentence by reason_text/2 and reason_refused/2 -- the one
+%% coreference this reader does. With no fact before it the sentence is
+%% refused, and reason_sentence/2 reads one sentence with no state at all.
+rs_subject(S, [], fact) -->
+    [word(P, _)], { rl_subject_pronoun(P), catch(nb_getval('$rs_subject', S0), _, S0 = none), S0 \== none, S = S0 }.
 
 rs_relative(X, Rel) -->
     [word(that, _)], rs_copula,
@@ -445,6 +615,7 @@ rs_claim(V, S, O, P) :- O == none, !, P =.. [V, S].
 rs_claim(V, S, O, P) :- P =.. [V, S, O].
 
 rs_claim(V, S, O, none, P) :- !, rs_claim(V, S, O, P).
+rs_claim(V, S, O, Prep-Place, P) :- O == none, !, atomic_list_concat([V, '_', Prep], VP), P =.. [VP, S, Place].
 rs_claim(V, S, O, Prep-Place, P) :- atomic_list_concat([V, '_', Prep], VP), P =.. [VP, S, O, Place].
 
 rs_adj_terms([], _, []).
@@ -547,9 +718,15 @@ rl_closed(then).
 %% suite asked for it to be refused. Nothing here resolves one; a sentence
 %% built on one is refused whole, as the header says.
 rl_closed(W) :- rl_pronoun(W).
+rl_closed(W) :- rl_question(W).
 rl_closed(W) :- rl_preposition(W).
 rl_closed(W) :- rl_conjunction(W).
 rl_pronoun(it).   rl_pronoun(he).   rl_pronoun(she).  rl_pronoun(they).
+rl_subject_pronoun(she). rl_subject_pronoun(he). rl_subject_pronoun(they).   % the ones that stand for a subject; not `it'
+%% question words: closed, so that `Who' at the head of a sentence is never
+%% read as somebody's name
+rl_question(who).   rl_question(whom).  rl_question(what).  rl_question(which).
+rl_question(where). rl_question(when).  rl_question(why).   rl_question(how).
 rl_pronoun(we).   rl_pronoun(i).    rl_pronoun(you).  rl_pronoun(him).
 rl_pronoun(her).  rl_pronoun(them). rl_pronoun(us).   rl_pronoun(me).
 rl_pronoun(his).  rl_pronoun(its).  rl_pronoun(their). rl_pronoun(our).
@@ -595,9 +772,11 @@ reason_name(Terms, Terms) :-
     term_variables(Facts, Vs),
     rn_each(Vs, Facts, []).
 
+%% rules and questions keep their variables: a question's variable is
+%% what it asks
 rn_facts([], []).
 rn_facts([T|Ts], Fs) :-
-    ( nonvar(T), T = (_ :- _) -> Fs = Fs1 ; Fs = [T|Fs1] ),
+    ( nonvar(T), ( T = (_ :- _) ; T = question(_) ; T = question(_, _) ) -> Fs = Fs1 ; Fs = [T|Fs1] ),
     rn_facts(Ts, Fs1).
 
 rn_each([], _, _).

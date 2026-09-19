@@ -1897,6 +1897,73 @@ corpus, so it is `<unk>' too: the pattern was two unknowns and a rare
 shape.) A capitalised word is shape 2 now whatever it ends in; the lower
 case keeps its endings, which is where `flies' and `wholly' are read.
 
+**A POSITION THE GENERATOR NEVER MAKES IS ONE THE TAGGER GUESSES AT.**
+`Priya is a baker and, as far as I know, Priya is licensed.` tagged the
+`and` as an object and `baker` as noise, and the lexicon refused it -- the
+right outcome for a guess, and still a sentence a person types. Every
+filler the generator made sat at the start or the end of the WHOLE text,
+so a filler after a conjunction had never been seen. `filler_join` is the
+tenth transform: a filler between commas, or a hedge, right after the
+`and`, conjoining a second sentence itself when nothing has so that it
+stands alone under `test/normalise.pl`'s per-transform check. The rule it
+is an instance of: when the tagger fails a hand-written sentence, read the
+TAGS before the network, and ask which shape or which position the
+generator does not make.
+
+**EVERY SENTENCE CARRIES STATE, AND THE STATE IS THE LAST SUBJECT.** `She
+is a baker and is licensed` has to give two facts about the person the
+paragraph was talking about, and until 1.2.28 the grammar did no
+coreference at all and the assembler wrote a subjectless sentence after
+the break. Two things carry it now. `reason_text/2` keeps the subject of
+the last FACT it read (`'$rs_subject'`, reset at every entry) and `she`,
+`he` or `they` as a subject stands for it; a rule between leaves it, a
+paragraph that opens with a pronoun is refused, `it` is left alone (`It
+rains` is about nobody), an object pronoun is still refused, and
+`reason_refused/2` walks with the same state so a resolved pronoun is not
+reported. And `normalise_assemble/3` gives a sentence a break left without
+an S the subject phrase of the one before it -- everything before the
+first R, D and commas aside, so a rule's `every baker that is licensed`
+travels whole. The generator's eleventh transform, `conjoin_shared`, makes
+both forms so the tagger sees them; the lexicon rule that refuses a closed
+word as a subject lets a subject pronoun through. `test/reason.pl`'s
+`state` section pins eleven cases, the refusals included.
+
+**A QUESTION IS A GOAL, AND THE ANSWER CARRIES ITS REASON.** `?` was
+already a stop, so a question is known by its first word -- `does`, `is`,
+a modal, `who`, `what`, `where` -- and reads to the term the statement
+would have asserted with a variable where the question word stood:
+`question(sell(priya, bread))`, `question(X, (flat(F), rent_in(X, F,
+bristol)))`. `reason_ask/2` proves it against the knowledge base and
+answers `yes(Why)`, `no(Why)`, `unknown` or `conflict` for a yes-or-no
+question and a list of `Value-Why` for the rest, where Why is `fact`,
+`rule(Head :- Body)` with the body as it proved (one level, from
+`clause/2`), or `denied(neg(...))`; an indefinite object is an
+existential in the goal and the class atom in the denial, which is what
+a negative sentence gives. Neither `reason_question/2` nor `reason_ask/2`
+resets the subject state, so `Is she licensed?` may follow the paragraph
+that introduced her. The question words joined the closed classes, or
+`Who` at the head of a sentence was somebody's name. The generator makes
+six question shapes with the statements' tags -- `who` an S, `what` and
+`where` an O -- so the tagger drops the noise around a typed question and
+`tagger_ask/3` answers it; the transforms that would join or hedge a
+question stand down for one, and the text ends in `?`. `test/reason.pl`'s
+`questions` section pins the forms and the answers.
+
+**THE JUDGE'S LEXICON IS NOT THE GENERATOR'S.** `Death put a period to
+his endeavors.` was read as `put(death, period_1)` because `death` is in
+no lexicon file: the generator's nouns are things to own (WordNet's
+artifact, food, object, plant, possession files), and the judge had been
+reading the generator's lists. `tools/lexicon/build.pl` now also writes
+`known_noun`, `known_verb`, `known_adj` and `known_adverb` -- every
+SemCor-counted lemma of that part of speech whatever its sense, 18 782
+words -- and `tagger_sane/2` reads those beside the generator's; the same
+model went from 28 of 300 real sentences read to 11, and `test/tagger.pl`
+pins 0.93 refused where it pinned 0.90. A seventh rule joined the six: a
+lower-case subject or object known only as a verb is refused (`Discuss
+values`), unless it is a third person whose stem is also a noun (`keys`,
+which the table holds as the verb form of `key`) -- an exception found by
+the scratch paragraph's `Priya keeps the keys in Leeds` coming back X.
+
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
 REPLACING IT.** `test/run.pl`'s `environment/1` is the one place that sets
 it — for every case it runs — and it puts this checkout's `library/` at

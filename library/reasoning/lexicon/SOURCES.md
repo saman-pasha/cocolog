@@ -18,6 +18,7 @@ is a name) and a verb whose third person does not stem back to it.
 | `vi.txt` | verbs that take none | WordNet 3.0, a sense with "Something ----s" or "Somebody ----s" |
 | `vpp.txt` | verbs before a phrase | WordNet 3.0, a sense with "Somebody ----s PP" or "Something is ----ing PP" |
 | `prose.txt` | real sentences, the grammar's opposite | WordNet 3.0's example sentences, quoted in its glosses: 8000 of two to twenty words, capitalised and stopped, in a fixed hash order -- the negatives a tagger learns to refuse (`normalise_negatives/3`) |
+| `known_noun.txt`, `known_verb.txt`, `known_adj.txt`, `known_adverb.txt` | every word the judge knows | every SemCor-counted lemma of that part of speech, whatever its sense, commonest first, each once: not the generator's words but the tagger's -- `tagger_sane/2` refuses a tagging they contradict, and `death` as a subject slipped through while only the generator's concrete nouns were known |
 
 The WordNet files are ranked by the tag counts of SemCor, the sense-tagged
 corpus WordNet ships as `cntlist.rev`, so a cap keeps the words English

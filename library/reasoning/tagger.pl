@@ -21,11 +21,15 @@
 %% as mass(boston), a heading as business(small) -- because every sentence
 %% it had ever seen had a reading, and the grammar's defaults are
 %% positional. So a tagging is put to the lexicon before the assembler
-%% sees it (tagger_sane/2, six rules, each a clause), and one the lexicon
+%% sees it (tagger_sane/2, seven rules, each a clause), and one the lexicon
 %% contradicts comes back X throughout, the twelfth tag, which the
 %% assembler refuses. Three ways of teaching the network itself to refuse
 %% were tried and each took a tenth of the hand-written sentences it should
-%% read; the rules take none. tagger_refused/4 measures the refusals over
+%% read; the rules take none. What the lexicon knows is the known_*.txt
+%% files beside the generator's -- every SemCor-counted noun, verb,
+%% adjective and adverb, whatever its sense -- because the generator's
+%% nouns are things to own and `Death put a period' walked past a judge that
+%% had never heard of death. tagger_refused/4 measures the refusals over
 %% prose.txt, WordNet's example sentences, which nothing here trains on.
 %%
 %% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (the case
@@ -87,6 +91,12 @@
 %%         when the grammar refuses what came out, and reason_refused/2 over
 %%         Controlled then names the sentence.
 %%
+%%     tagger_ask(+Model, +Text, -Answers)
+%%         Prose in, questions answered: tagger_normalise/4 and then
+%%         reason_ask/2 over the controlled text, so `Well, does Dana
+%%         really rent a flat in Bristol?' answers yes(fact) against the
+%%         knowledge base. Fails as tagger_normalise/4 fails.
+%%
 %%     tagger_refused(+Model, +From, +N, -Rate)
 %%         Over N real sentences of prose.txt from the From-th, the
 %%         fraction tagger_normalise/4 refuses. The other half of
@@ -96,7 +106,7 @@
 %%
 %%     tagger_sane(+Tokens, +Tags)
 %%         The lexicon's judgement of a tagging: fails where the lexicon
-%%         contradicts it, six rules. Applied by tagger_tag/3 and
+%%         contradicts it, seven rules. Applied by tagger_tag/3 and
 %%         tagger_tag_all/3, whose refused sentence comes back X throughout.
 %%
 %%     tagger_evaluate(+Model, +From, +N, -Report)
@@ -129,7 +139,7 @@
 %% after `lives', because the only place it had seen after a verb was an
 %% adjunct to be thrown away. Every such miss was a SHAPE the generator did
 %% not make, never the network, and every one was fixed in
-%% library(reasoning/normalise): twenty-seven shapes, nine transforms, and a
+%% library(reasoning/normalise): thirty-three shapes, eleven transforms, and a
 %% lexicon no longer written by hand at all -- files beside the library,
 %% 2500 census names and some seventeen thousand WordNet words ranked by
 %% use, read as they are needed (library/reasoning/lexicon/SOURCES.md). A
@@ -139,15 +149,18 @@
 %% MEASURED, on a four-core box with no GPU, the defaults: 400 steps over
 %% 16384 pairs train in about eighty seconds; over 300 pairs training never
 %% saw (seeds past the corpus) 0.9997 of the tags and 0.997 of the
-%% sentences are right; and of forty-five hand-written sentences whose
-%% names, nouns, adjectives and verbs are outside the lexicon, forty-three
-%% or more give their terms (42 of 43 twice, then 44 and 45 of 45), a
+%% sentences are right; and of fifty-four hand-written sentences whose
+%% names, nouns, adjectives and verbs are outside the lexicon -- questions
+%% and shared subjects among them -- fifty-two or more give their terms, a
 %% different one missed from one training to the next -- test/tagger.pl
-%% holds both. And the other half: of 300 WordNet example
-%% sentences from prose.txt, 0.93 to 0.94 come back refused where the
-%% network alone refused 0.85, and of 757 sentences of real government
-%% prose 0.96 where it was 0.87 -- with the hand-written forty-three read
-%% exactly as before, which is what the learned refusers could not do.
+%% holds both. And the other half: of 300 WordNet example sentences from
+%% prose.txt, 0.93 to 0.94 came back refused where the network alone
+%% refused 0.85, and of 757 sentences of real government prose 0.96 where
+%% it was 0.87 -- with the hand-written sentences read exactly as before,
+%% which is what the learned refusers could not do. With the judge reading
+%% the known_*.txt files rather than the generator's concrete nouns alone
+%% it is 0.95 to 0.96 of prose.txt, the same model going from 28 sentences
+%% read to 11.
 %% Over the WordNet lexicon the corpus is the
 %% lever twice over: 8192 pairs read 0.96 of the unseen sentences whatever
 %% the step count (the loss fell to 0.001 while the evaluation stood still,
@@ -550,9 +563,17 @@ tg_sane_token(I, word(W, Case), 'R', Lex) :- !,
         \+ tg_only(W, Lex, [noun, class, adj, adverb]),
         ( rs_base(W, Base), Base \== W -> \+ tg_only(Base, Lex, [noun, class, adj, adverb]) ; true )
     ).
+tg_sane_token(_, word(W, _), Tag, _) :-
+    rl_question(W), !, memberchk(Tag, ['S', 'O']).                       % `who' a subject, `what' or `where' an object
+tg_sane_token(_, word(W, _), 'S', _) :-
+    rl_subject_pronoun(W), !.                                            % `she' may be a subject: the grammar resolves it
 tg_sane_token(I, word(W, Case), Tag, Lex) :-
     memberchk(Tag, ['S', 'O', 'A', 'C']), !,
     \+ rl_closed(W),
+    (   memberchk(Tag, ['S', 'O']), Case == lower, tg_only(W, Lex, [verb])                 % `Discuss values': no subject --
+    ->  rs_base(W, B), B \== W, tg_classes(B, Lex, Cs), Cs \== [], \+ tg_only(B, Lex, [verb])   % unless `keys' is the noun `key'
+    ;   true
+    ),
     (   I =:= 0, Tag == 'S', Case == upper, tg_classes(W, Lex, Cs), Cs \== []
     ->  memberchk(name, Cs)
     ;   true
@@ -571,9 +592,11 @@ tg_only(W, Lex, Only) :- tg_classes(W, Lex, Cs), Cs \== [], forall(member(C, Cs)
 tg_lexicon_classes(Lex) :-
     (   catch(nb_getval('$tg_lexicon_classes', Lex), _, fail)
     ->  true
-    ;   findall(W-C, ( member(C, [noun, class, adj, adverb]), normalise_lexicon(C, Ws), member(W, Ws) ), Cs1),
+    ;   findall(W-C, ( member(File-C, [noun-noun, class-class, adj-adj, adverb-adverb,
+                                       known_noun-noun, known_adj-adj, known_adverb-adverb]),
+                       normalise_lexicon(File, Ws), member(W, Ws) ), Cs1),
         findall(W-name, ( normalise_lexicon(proper, Ws), member(X, Ws), downcase_atom(X, W) ), Cs2),
-        findall(W-verb, ( member(C, [vt, vi, vpp]), normalise_lexicon(C, Vs), member(V0, Vs),
+        findall(W-verb, ( member(C, [vt, vi, vpp, known_verb]), normalise_lexicon(C, Vs), member(V0, Vs),
                           ( V0 = V-_ -> true ; V = V0 ), ( W = V ; normalise_third(V, W) ) ), Cs3),
         append([Cs1, Cs2, Cs3], All), keysort(All, Sorted),
         tg_group_classes(Sorted, Pairs), list_to_assoc(Pairs, Lex),
@@ -585,6 +608,11 @@ tg_same_word(W, [W-C|R], [C|Cs], O) :- !, tg_same_word(W, R, Cs, O).
 tg_same_word(_, R, [], R).
 
 %% ---- prose to predicates -----------------------------------------------------------------
+
+%% prose in, its questions answered against the knowledge base
+tagger_ask(Model, Text, Answers) :-
+    tagger_normalise(Model, Text, Controlled, _),
+    reason_ask(Controlled, Answers).
 
 tagger_normalise(Model, Text, Controlled, Terms) :-
     reason_tokens(Text, Toks),

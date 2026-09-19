@@ -124,15 +124,17 @@ network_checks :-
 %% which the grammar does not read and the tagger must not make readable.
 %% Before the lexicon judged a tagging, a sixth of WordNet's example
 %% sentences and a tenth of real government prose came back as facts --
-%% `Boston, Mass.' as mass(boston). With it, measured 0.93 to 0.94 refused
-%% over three slices of 300 of prose.txt, and the floor is 0.90 because two
-%% trainings do not tag the borderline sentences alike.
+%% `Boston, Mass.' as mass(boston). With it, measured 0.91 to 0.94 refused
+%% over slices of 300 of prose.txt while the judge knew only the
+%% generator's words, and 0.96 once it knew every counted word of WordNet
+%% (the known_*.txt files); the floor is 0.93 because two trainings do not
+%% tag the borderline sentences alike.
 
 refusals(M) :-
     tagger_refused(M, 6001, 300, Rate),
     format("     refused ~4f of 300 real sentences training never saw~n", [Rate]),
-    yes_no(Rate >= 0.90, Enough),
-    check('at least 0.90 of unseen real prose refused', Enough, yes),
+    yes_no(Rate >= 0.93, Enough),
+    check('at least 0.93 of unseen real prose refused', Enough, yes),
     yes_no(tagger_normalise(M, 'Boston, Mass.', _, _), Boston),
     check('`Boston, Mass.'' is refused, not mass(boston)', Boston, no),
     yes_no(tagger_normalise(M, 'Small business management.', _, _), Heading),
@@ -143,7 +145,7 @@ refusals(M) :-
 %% and verbs, are outside the lexicon, in every shape the grammar reads and
 %% with the noise typed prose carries. Each should give the terms a careful
 %% reader would write, up to the names of a rule's variables; every miss is
-%% printed by name, and the floor is all but two of the forty-five, because
+%% printed by name, and the floor is all but two of the fifty-four, because
 %% over a lexicon of thousands two trainings do not miss the same sentence
 %% -- measured, one missed `works hard' and the next `may enter the ward' --
 %% and a pin on all of them would be a pin on the coin.
@@ -193,6 +195,15 @@ prose('By the way, every farmer that is not insured needs a permit, as far as I 
 prose('Well, every baker that is not lazy works hard, obviously.', [(work(X) :- baker(X), \+ lazy(X))]).
 prose('Dana rents a flat in Bristol.', [flat(flat_1), rent_in(dana, flat_1, bristol)]).
 prose('Frankly, Ravi keeps the deposit in Bristol.', [keep_in(ravi, deposit, bristol)]).
+prose('Priya is a baker and, as far as I know, Priya is licensed.', [baker(priya), licensed(priya)]).
+prose('Rex sleeps and I think that Rex is not hungry.', [sleep(rex), neg(hungry(rex))]).
+prose('Priya is a baker and is licensed.', [baker(priya), licensed(priya)]).
+prose('Priya is a baker and she is licensed.', [baker(priya), licensed(priya)]).
+prose('Marco is a tenant. He does not pay the rent.', [tenant(marco), neg(pay(marco, rent))]).
+prose('Well, does Priya sell the bread?', [question(sell(priya, bread))]).
+prose('Is Marco really a tenant?', [question(tenant(marco))]).
+prose('Who rents a flat in Bristol?', [question(X, (flat(F), rent_in(X, F, bristol)))]).
+prose('What does Priya sell, honestly?', [question(X, sell(priya, X))]).
 
 prose_checks(M) :-
     findall(T-W, prose(T, W), Ps), length(Ps, N),
@@ -223,18 +234,27 @@ number_vars(['$v'(N)|Vs], N) :- N1 is N + 1, number_vars(Vs, N1).
 %% and its floor, and this section pins the reading exactly.
 
 paragraph(M) :-
-    Prose = 'Zed owns a bicycle. Mia is a nurse and Mia is careful. Every nurse that is careful may enter the ward. Omar does not like Zed. Ola lives in Lagos. Dana rents a flat in Bristol.',
+    Prose = 'Zed owns a bicycle. Mia is a nurse and is careful. Every nurse that is careful may enter the ward. Omar does not like Zed. Ola lives in Lagos. Dana rents a flat in Bristol. She is registered.',
     ( tagger_normalise(M, Prose, C, Terms) -> true ; C = refused, Terms = [] ),
-    check('a paragraph of six sentences, controlled', C,
-          'Zed owns a bicycle. Mia is a nurse. Mia is careful. Every nurse that is careful may_enter the ward. Omar does not like Zed. Ola lives_in Lagos. Dana rents a flat in Bristol.'),
-    length(Terms, NT), check('nine terms', NT, 9),
+    check('a paragraph of seven sentences, controlled -- the subject Mia left out supplied, the pronoun kept', C,
+          'Zed owns a bicycle. Mia is a nurse. Mia is careful. Every nurse that is careful may_enter the ward. Omar does not like Zed. Ola lives_in Lagos. Dana rents a flat in Bristol. She is registered.'),
+    length(Terms, NT), check('ten terms', NT, 10),
     forall(member(T, Terms), assertz(T)),
     truth(own(zed, bicycle_1), V1), check('truth: Zed owns the bicycle', V1, true),
     truth(may_enter(mia, ward), V2), check('truth: Mia may enter the ward -- a rule over two facts, all from the prose', V2, true),
     truth(like(omar, zed), V3), check('truth: Omar likes Zed -- denied', V3, false),
     truth(like(zed, omar), V4), check('truth: Zed likes Omar -- never said', V4, unknown),
     truth(live_in(ola, lagos), V5), check('truth: Ola lives in Lagos', V5, true),
-    truth(rent_in(dana, flat_1, bristol), V6), check('truth: Dana rents a flat in Bristol -- the place kept', V6, true).
+    truth(rent_in(dana, flat_1, bristol), V6), check('truth: Dana rents a flat in Bristol -- the place kept', V6, true),
+    truth(registered(dana), V7), check('truth: Dana is registered -- `she'' resolved to the last subject', V7, true),
+    tagger_ask(M, 'Well, does Dana rent a flat in Bristol?', A1),
+    check('asked in prose: yes, and the reason is the fact', A1, [yes(fact)]),
+    tagger_ask(M, 'Who is registered?', A2), check('asked: who is registered', A2, [[dana-fact]]),
+    tagger_ask(M, 'May Mia enter the ward?', [A3]),
+    yes_no(A3 = yes(rule((may_enter(mia, ward) :- nurse(mia), careful(mia)))), R3),
+    check('asked: may Mia enter the ward -- yes, by the rule and the two facts it rests on', R3, yes),
+    tagger_ask(M, 'Does Omar like Zed?', A4), check('asked: does Omar like Zed -- no, the text denied it', A4, [no(denied(neg(like(omar, zed))))]),
+    tagger_ask(M, 'Is Zed a nurse?', A5), check('asked: never said -- unknown', A5, [unknown]).
 
 %% one process trains into a store and asserts what it tagged; the next loads
 %% the model from the store and tags the same sentence -- the knowledge base

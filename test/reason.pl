@@ -12,7 +12,7 @@
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
-    round_trip, refusals, places, declares, refused, truth, errors,
+    round_trip, refusals, places, state, questions, declares, refused, truth, errors,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -256,6 +256,94 @@ places :-
     check('after a bare verb the two words are written as one: `lives in Bristol'' is refused', P11, no),
     yes_no(reason_sentence('Alice owns a house in rome.', _), P12),
     check('and a lower-case word after the preposition is no place', P12, no).
+
+%% ---- state between sentences: a subject pronoun ------------------------------------------
+%% The subject of the last fact is carried from sentence to sentence, and
+%% `she', `he' or `they' as a subject stands for it. One sentence alone has
+%% no state; `it' is left alone; an object pronoun is still refused.
+
+state :-
+    section('state between sentences'),
+    reason_text('Priya is a baker. She is licensed.', S1),
+    check('`she'' is the last fact''s subject', S1, [baker(priya), licensed(priya)]),
+    reason_text('Marco is a tenant. He does not pay the rent. He sleeps.', S2),
+    check('`he'', through two sentences', S2, [tenant(marco), neg(pay(marco, rent)), sleep(marco)]),
+    reason_text('Priya is a baker. Every baker may sell the bread. She is licensed.', S3),
+    yes_no(S3 = [baker(priya), (may_sell(X3, bread) :- baker(X3)), licensed(priya)], Rule3),
+    check('a rule between keeps the state', Rule3, yes),
+    reason_text('Priya is a baker. Marco is a tenant. She is licensed.', S4),
+    check('the LAST fact''s subject, so this `she'' is Marco -- the reader has one pronoun', S4, [baker(priya), tenant(marco), licensed(marco)]),
+    reason_text('Priya is a baker. They are licensed.', S5),
+    check('`they'' too, with `are''', S5, [baker(priya), licensed(priya)]),
+    reason_text('Priya rents a flat in Bristol. She keeps the keys in Bristol.', S6),
+    check('with a place after the object', S6, [flat(flat_1), rent_in(priya, flat_1, bristol), keep_in(priya, keys, bristol)]),
+    yes_no(reason_sentence('She is licensed.', _), S7),
+    check('one sentence alone has no state: refused', S7, no),
+    yes_no(reason_text('She is licensed.', _), S8),
+    check('and a paragraph that opens with a pronoun is refused', S8, no),
+    yes_no(reason_text('Priya is a baker. It rains.', _), S9),
+    check('`it'' is not a subject pronoun here: still refused', S9, no),
+    yes_no(reason_text('Priya is a baker. She likes him.', _), S10),
+    check('an object pronoun is still refused', S10, no),
+    reason_refused('Priya is a baker. She is licensed. She uses it.', R11),
+    check('reason_refused/2 carries the state too, and names the third sentence', R11, 'she uses it').
+
+%% ---- questions: a goal, and the reason with the answer -----------------------------------
+
+questions :-
+    section('questions'),
+    reason_question('Does Priya sell the bread?', Q1),
+    check('does S V the N: the goal a statement would assert', Q1, question(sell(priya, bread))),
+    reason_question('Is Priya licensed?', Q2),   check('is S ADJ', Q2, question(licensed(priya))),
+    reason_question('Is Marco a tenant?', Q3),   check('is S a N', Q3, question(tenant(marco))),
+    reason_question('May Priya sell the bread?', Q4), check('a modal joins its verb', Q4, question(may_sell(priya, bread))),
+    reason_question('Does Priya rent a flat in Bristol?', Q5),
+    yes_no(( Q5 = question((flat(F5), rent_in(priya, F5b, bristol))), F5 == F5b, var(F5) ), V5),
+    check('an indefinite object: an existential, the flat a variable', V5, yes),
+    reason_question('Who rents a flat in Bristol?', Q6),
+    yes_no(( Q6 = question(X6, (flat(F6), rent_in(X6b, F6b, bristol))), X6 == X6b, F6 == F6b, var(X6), X6 \== F6 ), V6),
+    check('who: the subject is the variable asked for', V6, yes),
+    reason_question('Who is licensed?', Q7),
+    yes_no(( Q7 = question(X7, licensed(X7b)), X7 == X7b ), V7), check('who is ADJ', V7, yes),
+    reason_question('Who is a baker?', Q8),
+    yes_no(( Q8 = question(X8, baker(X8b)), X8 == X8b ), V8), check('who is a N', V8, yes),
+    reason_question('What does Priya sell?', Q9),
+    yes_no(( Q9 = question(X9, sell(priya, X9b)), X9 == X9b ), V9), check('what: the object is the variable', V9, yes),
+    reason_question('Where does Marco sleep?', Q10),
+    yes_no(( Q10 = question(X10, sleep_in(marco, X10b)), X10 == X10b ), V10), check('where: the place, `in'' assumed', V10, yes),
+    reason_question('What does Priya keep in Leeds?', Q10c),
+    yes_no(( Q10c = question(X10c, keep_in(priya, X10d, leeds)), X10c == X10d ), V10c), check('what, with a place', V10c, yes),
+    reason_question('What does Priya keep_in Leeds?', Q10e),
+    yes_no(( Q10e = question(X10e, keep_in(priya, X10f, leeds)), X10e == X10f ), V10e),
+    check('and with the place joined to the verb, as the assembler writes it', V10e, yes),
+    reason_text('Priya is a baker.', _),
+    reason_question('Does she sell the bread?', Q11),
+    check('a pronoun subject, from the state the last text left', Q11, question(sell(priya, bread))),
+    yes_no(reason_question('Priya sells the bread.', _), Q12), check('a statement is not a question', Q12, no),
+    reason_text('Who owns a car. Priya sleeps.', T13),
+    yes_no(( T13 = [question(_, _), sleep(priya)] ), V13),
+    check('in a paragraph a question is a question/2 term among the facts, its variable kept', V13, yes),
+    reason_text('Priya is a baker. Priya is licensed. Every baker that is licensed may sell the bread. Marco does not pay the rent. Priya rents a flat in Bristol. Marco sleeps_in Lisbon.', KB),
+    forall(member(T, KB), assertz(T)),
+    reason_ask('Is Priya a baker?', A1), check('asked: a fact -- yes, and the reason is the fact', A1, [yes(fact)]),
+    reason_ask('May Priya sell the bread?', [A2]),
+    yes_no(A2 = yes(rule((may_sell(priya, bread) :- baker(priya), licensed(priya)))), V2),
+    check('asked: by a rule -- yes, and the reason is the rule with the body that proved', V2, yes),
+    reason_ask('Does Marco pay the rent?', A3), check('asked: denied -- no, and the reason is the denial', A3, [no(denied(neg(pay(marco, rent))))]),
+    reason_ask('Is Marco licensed?', A4), check('asked: never said -- unknown', A4, [unknown]),
+    reason_ask('Does Priya rent a flat in Bristol?', A5), check('asked with an existential: some flat -- yes', A5, [yes(fact)]),
+    reason_ask('Does Marco rent a flat in Bristol?', A6), check('and nobody said Marco does: unknown', A6, [unknown]),
+    reason_ask('Who rents a flat in Bristol?', A7), check('who: the bindings, each with its reason', A7, [[priya-fact]]),
+    reason_ask('Who may sell the bread?', [[Who8-Why8]]),
+    yes_no(( Who8 == priya, Why8 = rule(_) ), V8b), check('who, by a rule', V8b, yes),
+    reason_ask('Who is a tenant?', A9), check('who, when nobody: an empty list', A9, [[]]),
+    reason_ask('Where does Marco sleep?', A10), check('where', A10, [[lisbon-fact]]),
+    reason_ask('What does Priya rent in Bristol?', A11), check('what, with a place', A11, [[flat_1-fact]]),
+    reason_ask('Priya is a baker. Is she licensed?', A12), check('a statement read for its state, not asserted; the pronoun asks about Priya', A12, [yes(fact)]),
+    reason_ask('Is Priya a baker? Does Marco pay the rent?', A13), check('two questions, two answers, in order', A13, [yes(fact), no(denied(neg(pay(marco, rent))))]),
+    reason_why(may_sell(priya, bread), W14),
+    check('reason_why/2 on its own', W14, rule((may_sell(priya, bread) :- baker(priya), licensed(priya)))),
+    yes_no(reason_why(licensed(marco), _), W15), check('and fails for what nothing holds up', W15, no).
 
 %% ---- a rule declares what its body names ------------------------------------------------
 

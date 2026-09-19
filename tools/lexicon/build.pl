@@ -36,7 +36,10 @@
 %% noun.location and an instance, capitalised -- every noun WordNet has,
 %% the SemCor-counted ones first and the rest in a fixed hash order, never
 %% alphabetical, so a cap is a sample and not the letter A; adj = adj.all
-%% or adj.pert; adverb = adv.all; vt, vi, vpp by frame. Only single, alphabetic,
+%% or adj.pert; adverb = adv.all; vt, vi, vpp by frame; and known_noun,
+%% known_verb, known_adj, known_adverb = EVERY counted lemma of that part of
+%% speech whatever its sense, for the tagger's judge rather than the
+%% generator (`death' is no thing to own, and still a noun). Only single, alphabetic,
 %% three-to-twelve-letter words; the grammar's own filters -- a closed word,
 %% a verb the stemmer cannot invert -- are applied where the files are READ,
 %% in normalise.pl, not here, so this tool knows nothing of the grammar.
@@ -65,7 +68,7 @@ main :-
              lx_write(Out, Class, Kept),
              length(Kept, N), lx_take(6, Kept, First),
              format("   ~w ~w  ~w~n", [Class, N, First]) )),
-    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place,prose}.txt~n", [Out]).
+    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place,prose,known_noun,known_verb,known_adj,known_adverb}.txt~n", [Out]).
 
 %% ---- options ----------------------------------------------------------------
 
@@ -88,6 +91,10 @@ lx_cap(vpp, _, 1000).
 lx_cap(adverb, _, 500).
 lx_cap(place, _, 800).
 lx_cap(prose, _, 8000).
+lx_cap(known_noun, _, 20000).
+lx_cap(known_verb, _, 8000).
+lx_cap(known_adj, _, 10000).
+lx_cap(known_adverb, _, 3000).
 
 %% ---- the files, as lines --------------------------------------------------------
 
@@ -227,7 +234,26 @@ lx_classes(Groups, Kinds, Frames, Classes) :-
     findall(V, ( member(V, Verbs), lx_frames(V, Frames, Fs), lx_meets(Fs, [8, 9, 10, 11]) ), VT),
     findall(V, ( member(V, Verbs), lx_frames(V, Frames, Fs), lx_meets(Fs, [1, 2]) ), VI),
     findall(V, ( member(V, Verbs), lx_frames(V, Frames, Fs), lx_meets(Fs, [22, 4]) ), VPP),
-    Classes = [noun-Nouns, class-Kinds1, adj-Adjs, vt-VT, vi-VI, vpp-VPP, adverb-Advs, place-Places].
+    findall(NC-W, ( member(g(W, 1, _, C), Groups), NC is -C ), KN0), lx_rank_unique(KN0, KnownNouns),
+    findall(NC-W, ( member(g(W, 2, _, C), Groups), NC is -C ), KV0), lx_rank_unique(KV0, KnownVerbs),
+    findall(NC-W, ( member(g(W, T, _, C), Groups), memberchk(T, [3, 5]), NC is -C ), KA0), lx_rank_unique(KA0, KnownAdjs),
+    findall(NC-W, ( member(g(W, 4, _, C), Groups), NC is -C ), KR0), lx_rank_unique(KR0, KnownAdvs),
+    Classes = [noun-Nouns, class-Kinds1, adj-Adjs, vt-VT, vi-VI, vpp-VPP, adverb-Advs, place-Places,
+               known_noun-KnownNouns, known_verb-KnownVerbs, known_adj-KnownAdjs, known_adverb-KnownAdvs].
+
+%% the known_* classes: every SemCor-counted lemma of a part of speech,
+%% whatever its sense or file, commonest first and each word once. Not the
+%% generator's words -- the JUDGE's: library(reasoning/tagger) refuses a
+%% tagging these contradict, and `death' put as a subject slipped through
+%% while only the generator's concrete nouns were known.
+lx_rank_unique(NCWs, Words) :-
+    findall(W-NC, member(NC-W, NCWs), WNCs), keysort(WNCs, ByWord),
+    lx_best(ByWord, Best), keysort(Best, Ranked),
+    findall(W, member(_-W, Ranked), Words).
+lx_best([], []).
+lx_best([W-NC|Rest], [NCb-W|Out]) :- lx_best_same(W, Rest, NC, NCb, Others), lx_best(Others, Out).
+lx_best_same(W, [W-NC2|R], NC, NCb, O) :- !, ( NC2 < NC -> NC1 = NC2 ; NC1 = NC ), lx_best_same(W, R, NC1, NCb, O).
+lx_best_same(_, R, NC, NC, R).
 
 %% the nouns whose first sense sits in one of the files, instances wanted or
 %% not: the SemCor-counted ones first, then the rest in hash order

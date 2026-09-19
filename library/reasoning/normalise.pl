@@ -24,7 +24,14 @@
 %% a hedge (`I think that', D), an adverb after the subject (D) or after an
 %% intransitive verb (D), a prepositional adjunct (D), a relation written
 %% as two words (R R, to be joined), an
-%% emphatic `does' (D), two sentences joined by `and' (B, a boundary).
+%% emphatic `does' (D), two sentences joined by `and' (B, a boundary), and
+%% a filler or a hedge right after that `and' (D) -- the position typed
+%% prose puts them in and the generator did not, until `Priya is a baker
+%% and, as far as I know, Priya is licensed' tagged the `and' as an object;
+%% and a second fact about the SAME subject joined by `and', its subject
+%% left out (`Priya is a baker and is licensed') or a pronoun (`and she is
+%% licensed'). The assembler supplies the subject a break left out, and the
+%% grammar resolves the pronoun: state carried from sentence to sentence.
 %% Every transform is one the assembler can undo by dropping, joining or
 %% splitting -- and none changes a word's FORM, because a tag cannot: a
 %% plural, a passive, a pronoun are not in this set, and this header says
@@ -44,6 +51,13 @@
 %% lower-case throughout (`at home', never `on Monday'), because a
 %% capitalised word after a preposition after an object is a place the
 %% grammar reads.
+%%
+%% AND QUESTIONS ARE SHAPES TOO, six of the thirty-three: `Does Alice own a
+%% car?', `Is Alice happy?', `May Alice use the server?', `Who owns a car?',
+%% `What does Alice own?', `Where does Alice sleep?'. The tags are the
+%% statements' -- `who' is the subject asked for, `what' and `where' the
+%% object -- so the assembler copies them where they stand, the text ends
+%% in `?', and the grammar reads a goal with a variable there.
 %%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
@@ -72,7 +86,9 @@
 %%
 %%     normalise_assemble(+Tokens, +Tags, -Text)
 %%         The inverse: D dropped, a run of R joined with `_', B a sentence
-%%         break, everything else copied in its case; each sentence
+%%         break -- and a sentence the break leaves with no S takes the
+%%         subject phrase of the one before it -- everything else copied in
+%%         its case; each sentence
 %%         capitalised and stopped. What the tagger's output is handed to,
 %%         and what the round trip below holds the tags to.
 %%
@@ -139,10 +155,12 @@ normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B', 'X']).
 
 %% in the order they are applied: the split before the emphatic (so a
 %% split relation is not also a candidate for `does'), the join before the
-%% fillers (so a filler or a hedge wraps the whole), the tails last -- an
-%% adverb after an intransitive verb, a prepositional adjunct after anything
-normalise_transforms([split_relation, emphatic_do, conjoin, adverb, hedge_start, filler_start, filler_end,
-                      adverb_end, pp_extra]).
+%% fillers (so a filler or a hedge wraps the whole; filler_join conjoins
+%% itself when nothing has, and puts its filler after the `and'), the tails
+%% last -- an adverb after an intransitive verb, a prepositional adjunct
+%% after anything
+normalise_transforms([split_relation, emphatic_do, conjoin, conjoin_shared, filler_join, adverb, hedge_start, filler_start,
+                      filler_end, adverb_end, pp_extra]).
 
 %% ---- the lexicon: files beside this one, read when first asked for ---------
 %%
@@ -187,6 +205,7 @@ ng_library_dirs(Ds) :-
 
 ng_class(proper). ng_class(noun). ng_class(class). ng_class(adj). ng_class(vt).
 ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place). ng_class(prose).
+ng_class(known_noun). ng_class(known_verb). ng_class(known_adj). ng_class(known_adverb).   % the judge's, not the generator's
 
 normalise_lexicon(modal, Ms) :- !, findall(M, rl_modal(M), Ms).
 normalise_lexicon(Class, Words) :-
@@ -220,6 +239,7 @@ ng_load_class(Dir, Class) :-
 %% what the grammar will not read as an open word is not generated; a line
 %% of prose is kept as it is
 ng_keep(prose, _) :- !.
+ng_keep(Class, W) :- ng_known(Class), !, downcase_atom(W, Lower), \+ rl_closed(Lower).   % known to the judge: no round trip asked
 ng_keep(Class, W) :-
     downcase_atom(W, Lower), \+ rl_closed(Lower),
     (   memberchk(Class, [vt, vi, vpp])
@@ -290,7 +310,20 @@ ng_art(_, a).
 %% Proper nouns are emitted capitalised, everything else lower; the text
 %% builder capitalises a sentence's first word.
 
-ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 27, K), ng_shape(K, Seed, Pairs), !.
+ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 33, K), ng_shape(K, Seed, Pairs), !.
+
+ng_known(known_noun). ng_known(known_verb). ng_known(known_adj). ng_known(known_adverb).
+
+%% a statement: a question when the seed gives one is passed over, for the
+%% second half of a conjunction
+ng_statement(Seed, Qs) :- ng_statement(Seed, 0, Qs).
+ng_statement(Seed, K, Qs) :-
+    K < 8, S2 is Seed + K, ng_sentence(S2, Qs0),
+    ( ng_question(Qs0) -> K1 is K + 1, ng_statement(Seed, K1, Qs) ; Qs = Qs0 ), !.
+ng_statement(Seed, _, Qs) :- S2 is Seed + 8, ng_shape(5, S2, Qs).
+
+%% a question is known by its first word, as the grammar knows it
+ng_question([W-_|_]) :- ( W == does ; W == is ; rl_question(W) ; rl_modal(W) ), !.
 
 ng_shape(0, Seed, [P-'S', V3-'R'|Obj]) :-                                  % Alice owns a red car
     ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
@@ -388,6 +421,31 @@ ng_shape(26, Seed, [P-'S', does-'K', not-'N', V-'R', Art-'T', N-'O'|Pl]) :- % Al
 ng_place(Seed, Salt, [Prep-'R', Q-'O']) :-
     ng_choose(Seed, Salt, [in, at, near], Prep), Salt1 is Salt + 1, ng_word(place, Seed, Salt1, Q).
 
+%% questions, six shapes: the first word says so and the text ends in `?',
+%% which the tokeniser makes a stop; `who' is the subject it asks for and
+%% `what' or `where' the object, so the assembler copies them where they
+%% stand and the grammar reads a goal with a variable there
+ng_shape(27, Seed, [does-'K', P-'S', V-'R'|Obj]) :-                        % Does Alice own a red car?
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_object(Seed, 4, Obj).
+ng_shape(28, Seed, [is-'R', P-'S'|Rest]) :-                                 % Is Alice happy? Is Alice a tenant?
+    ng_word(proper, Seed, 2, P),
+    (   ng_coin(Seed, 3, 50)
+    ->  ng_word(adj, Seed, 4, A), Rest = [A-'A']
+    ;   ng_word(class, Seed, 4, N), ng_art(N, Art), Rest = [Art-'T', N-'O']
+    ).
+ng_shape(29, Seed, [M-'R', P-'S', V-'R', the-'T', N-'O']) :-                % May Alice use the server?
+    ng_word(modal, Seed, 2, M), ng_word(proper, Seed, 3, P), ng_word(vt, Seed, 4, V), ng_word(noun, Seed, 5, N).
+ng_shape(30, Seed, [who-'S'|Rest]) :-                                        % Who owns a car? Who is happy?
+    (   ng_coin(Seed, 2, 50)
+    ->  ng_word(vt, Seed, 3, V), normalise_third(V, V3), ng_object(Seed, 4, Obj), Rest = [V3-'R'|Obj]
+    ;   ng_word(adj, Seed, 3, A), Rest = [is-'R', A-'A']
+    ).
+ng_shape(31, Seed, [what-'O', does-'K', P-'S', V-'R'|Pl]) :-                 % What does Alice own? What does Alice keep in Rome?
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V),
+    ( ng_coin(Seed, 4, 40) -> ng_place(Seed, 5, Pl) ; Pl = [] ).
+ng_shape(32, Seed, [where-'O', does-'K', P-'S', V-'R']) :-                   % Where does Alice sleep?
+    ng_word(proper, Seed, 2, P), ng_word(vi, Seed, 3, V).
+
 %% none, one or two adjectives -- the grammar takes every word between the
 %% determiner and the noun as one, and a network shown only one dropped the
 %% noun after two
@@ -409,11 +467,13 @@ ng_object(Seed, Salt, [Art-'T'|Obj]) :-
 %% `conjoin' extends.
 
 ng_applicable(split_relation, Ps) :- member(W-'R', Ps), sub_atom(W, _, _, _, '_'), !.
-ng_applicable(emphatic_do, [_-'S', V3-'R'|Rest]) :-
-    ng_base_of(V3, _), ( Rest = [] ; Rest = [_-'T'|_] ; Rest = [_-'O'|_] ), !.
-ng_applicable(conjoin, Ps) :- \+ member(_-'B', Ps).
+ng_applicable(emphatic_do, [S-'S', V3-'R'|Rest]) :-
+    \+ rl_question(S), ng_base_of(V3, _), ( Rest = [] ; Rest = [_-'T'|_] ; Rest = [_-'O'|_] ), !.
+ng_applicable(conjoin, Ps) :- \+ member(_-'B', Ps), \+ ng_question(Ps).
+ng_applicable(conjoin_shared, [S-'S'|Ps]) :- \+ rl_question(S), \+ member(_-'B', Ps).   % a fact, not yet joined
+ng_applicable(filler_join, Ps) :- \+ ng_question(Ps).
 ng_applicable(adverb, Ps) :- member(_-'S', Ps), !.
-ng_applicable(hedge_start, _).
+ng_applicable(hedge_start, Ps) :- \+ ng_question(Ps).                  % `I think that does Alice...' is nobody's prose
 ng_applicable(filler_start, _).
 ng_applicable(filler_end, _).
 ng_applicable(adverb_end, Ps) :- last(Ps, _-'R').           % only after an intransitive verb: a bare
@@ -433,9 +493,49 @@ ng_base_of(V3, V) :- \+ rl_closed(V3), rs_base(V3, V), V \== V3.
 ng_apply(split_relation, _, st(Ps, Cs), st(Qs, Cs)) :- ng_split_rel(Ps, Qs).
 ng_apply(emphatic_do, _, st([S-'S', V3-'R'|Rest], Cs), st([S-'S', does-'D', V-'R'|Rest], Cs)) :- ng_base_of(V3, V).
 ng_apply(conjoin, Seed, st(Ps, Cs), st(Out, Cs2)) :-
-    S2 is Seed * 31 + 7, ng_sentence(S2, Qs),
+    S2 is Seed * 31 + 7, ng_statement(S2, Qs),
     ( ng_coin(Seed, 25, 40) -> Join = [','-'D', and-'B'] ; Join = [and-'B'] ),
     append([Ps, Join, Qs], Out), append(Cs, [Qs], Cs2).
+%% a second fact about the same subject, joined by `and' with its subject
+%% left out (`Alice is a baker and is licensed') or as a pronoun (`and she
+%% is licensed'); the clean text has both sentences whole
+ng_apply(conjoin_shared, Seed, st([P-'S'|Ps], Cs), st(Out, Cs2)) :-
+    ng_fact_rest(Seed, 0, Rest),
+    ( ng_coin(Seed, 42, 40) -> Join = [','-'D', and-'B'] ; Join = [and-'B'] ),
+    (   ng_coin(Seed, 43, 50)
+    ->  Second = Rest
+    ;   ng_choose(Seed, 44, [she, he], Pro), Second = [Pro-'S'|Rest]
+    ),
+    append([[P-'S'|Ps], Join, Second], Out), append(Cs, [[P-'S'|Rest]], Cs2).
+
+%% a fact shape for it, its own subject taken off: a few seeds tried, and
+%% `sleeps' when none of them is a fact
+ng_fact_rest(Seed, K, Rest) :-
+    K < 8, S2 is Seed * 41 + K,
+    ng_sentence(S2, Qs),
+    (   Qs = [_-'S'|Rest0], \+ ng_question(Qs) -> Rest = Rest0
+    ;   K1 is K + 1, ng_fact_rest(Seed, K1, Rest)
+    ), !.
+ng_fact_rest(Seed, _, Rest) :- S2 is Seed * 41 + 8, ng_shape(5, S2, [_-'S'|Rest]).
+
+%% a filler or a hedge after the `and': joins a second sentence itself when
+%% none has been joined, so the transform stands alone in a test
+ng_apply(filler_join, Seed, st(Ps, Cs), st(Out, Cs2)) :-
+    (   append(Before, [and-'B'|After], Ps)
+    ->  Cs2 = Cs, Join = [and-'B']
+    ;   S2 is Seed * 37 + 11, ng_statement(S2, After), Before = Ps, append(Cs, [After], Cs2),
+        ( ng_coin(Seed, 33, 40) -> Join = [','-'D', and-'B'] ; Join = [and-'B'] )
+    ),
+    (   ng_coin(Seed, 30, 50)
+    ->  ng_choose(Seed, 31, [[in, fact], [well], [actually], [of, course], [to, be, honest], [as, far, as, 'I', know],
+                             [by, the, way], [anyway], [honestly], [frankly], [as, 'I', said], [after, all], [for, example],
+                             [in, any, case], [as, usual], [no, doubt]], F),
+        ng_dropped(F, Fs), append([','-'D'|Fs], [','-'D'], Filler)
+    ;   ng_choose(Seed, 32, [['I', think, that], ['I', believe, that], [it, seems, that], [you, said, that],
+                             ['I', heard, that], [we, know, that], [it, is, clear, that]], H),
+        ng_dropped(H, Filler)
+    ),
+    append([Before, Join, Filler, After], Out).
 ng_apply(adverb, Seed, st(Ps, Cs), st(Out, Cs)) :-
     ng_word(adverb, Seed, 21, Adv),
     ng_after_subject(Ps, Adv-'D', Out).
@@ -528,11 +628,21 @@ normalise_corpus(N, Options, Pairs) :-
 %% The first word capitalised, a comma attached to the word before it, a
 %% stop at the end.
 
-ng_text_of(Pairs, Text) :- findall(W, member(W-_, Pairs), Ws), ng_text(Ws, Text).
+ng_text_of(Pairs, Text) :- findall(W, member(W-_, Pairs), Ws), ng_stop(Pairs, Stop), ng_text(Ws, Stop, Text).
 
-ng_text(Words, Text) :-
+%% `?' after a question, `.' after anything else: the first word that is
+%% not noise says which, in the generator's pairs and the assembler's alike
+ng_stop(Pairs, Stop) :-
+    (   member(P-T, Pairs), T \== 'D', P \== ',',
+        ( P = word(W, _) -> true ; W = P )
+    ->  ( ng_question([W-T]) -> Stop = '?' ; Stop = '.' )
+    ;   Stop = '.'
+    ).
+
+ng_text(Words, Text) :- ng_text(Words, '.', Text).
+ng_text(Words, Stop, Text) :-
     ng_text_(Words, first, Parts),
-    atomic_list_concat(Parts, Body), atom_concat(Body, '.', Text).
+    atomic_list_concat(Parts, Body), atom_concat(Body, Stop, Text).
 
 ng_text_([], _, []).
 ng_text_([','|Ws], _, [','|Ps]) :- !, ng_text_(Ws, rest, Ps).
@@ -553,7 +663,7 @@ normalise_assemble(_, Tags, _) :- memberchk('X', Tags), !, fail.      % outside:
 normalise_assemble(Tokens, Tags, Text) :-
     na_zip(Tokens, Tags, Zs),
     na_split(Zs, Sents),
-    na_texts(Sents, Texts),
+    na_texts(Sents, [], Texts),
     atomic_list_concat(Texts, ' ', Text).
 
 na_zip([], [], []).
@@ -566,11 +676,38 @@ na_upto_b([], [], []).
 na_upto_b([_-'B'|Zs], [], Zs) :- !.
 na_upto_b([Z|Zs], [Z|S], Rest) :- na_upto_b(Zs, S, Rest).
 
-na_texts([], []).
-na_texts([S|Ss], Ts) :-
+%% a sentence a break left with no subject -- `Priya is a baker and is
+%% licensed' -- takes the subject phrase of the sentence before it: the
+%% state the assembler carries, as the grammar carries the last subject
+na_texts([], _, []).
+na_texts([S0|Ss], Last, Ts) :-
+    (   \+ memberchk(_-'S', S0), Last \== [] -> append(Last, S0, S) ; S = S0 ),
     na_words(S, Ws),
-    ( Ws == [] -> Ts = Ts1 ; ng_text(Ws, T), Ts = [T|Ts1] ),
-    na_texts(Ss, Ts1).
+    ( Ws == [] -> Ts = Ts1 ; ng_stop(S, Stop), ng_text(Ws, Stop, T), Ts = [T|Ts1] ),
+    na_subject(S, Last, Last1),
+    na_texts(Ss, Last1, Ts1).
+
+%% the subject phrase: what stands before the S (a quantifier), the S, and
+%% a relative clause `that is [not] ADJ' when one follows -- D and commas
+%% aside, and never the `does not' before a verb: `Priya', or `every baker
+%% that is licensed'
+na_subject(S, Last, Sub) :-
+    (   append(Pre, [Subj-'S'|After], S)
+    ->  findall(Z, ( member(Z, Pre), Z \= _-'D', Z \= ','-_ ), Pre1),
+        na_relative(After, Rel),
+        append(Pre1, [Subj-'S'|Rel], Sub)
+    ;   Sub = Last
+    ).
+na_relative(After, [word(that, lower)-'K'|Rel]) :-
+    na_skip_d(After, [word(that, _)-'K'|Rest]), !,
+    na_through_c(Rest, Rel).
+na_relative(_, []).
+na_skip_d([_-'D'|Zs], Out) :- !, na_skip_d(Zs, Out).
+na_skip_d([','-_|Zs], Out) :- !, na_skip_d(Zs, Out).
+na_skip_d(Zs, Zs).
+na_through_c([Z-'C'|_], [Z-'C']) :- !.
+na_through_c([Z|Zs], [Z|Rest]) :- na_through_c(Zs, Rest).
+na_through_c([], []).
 
 na_words([], []).
 na_words([_-'D'|Zs], Ws) :- !, na_words(Zs, Ws).

@@ -93,7 +93,9 @@ main :-
     must('reason_proper/2 names the constant', T7c, [employ(acme_corp, dave)]),
     retract(reason_proper(acme, acme_corp)),
 
-    format("~n8. Across a paragraph the individuals are numbered in order~n", []),
+    format("~n8. Across a paragraph the individuals are numbered in order -- and the subject is carried~n", []),
+    reason_text('Priya is a baker. She is licensed.', P8s),
+    must('`she'' is the subject of the last fact: the one coreference the reader does', P8s, [baker(priya), licensed(priya)]),
     reason_text('Alice owns a red car. Bob owns a car. Carol owns a dog.', T8),
     must('car_1, car_2, dog_1', T8,
          [car(car_1), red(car_1), own(alice, car_1),
@@ -150,7 +152,24 @@ main :-
     truth(tenant(eve), V12f),          must('said and denied both: conflict', V12f, conflict),
     retract(neg(tenant(eve))),
 
+    questions,
     format("~nDone.~n", []).
+
+%% section 13 is a clause of its own: a lesson's main/0 must still fit a
+%% row of the knowledge base when it is consulted into one
+questions :-
+    format("~n13. A question is a GOAL -- a variable where `who' stood -- and the answer comes with its reason~n", []),
+    reason_text('Priya is a baker. Priya is licensed. Every baker that is licensed may sell the bread. Priya rents a flat in Bristol. Marco does not pay the rent.', T13),
+    forall(member(T, T13), assertz(T)),
+    reason_question('Who may sell the bread?', Q13), show('the question, read', Q13),
+    reason_ask('Who may sell the bread?', [A13a]), show('answered, each answer with the reason it rests on', A13a),
+    reason_ask('May Priya sell the bread?', [A13b]),
+    ( A13b = yes(rule(_)) -> Y13b = yes_by_a_rule ; Y13b = A13b ), must('yes, by a rule', Y13b, yes_by_a_rule),
+    reason_ask('Does he pay the rent?', [A13c]),
+    must('`he'' is Marco, the subject of the last fact the paragraph left; no, and the denial is the reason', A13c, no(denied(neg(pay(marco, rent))))),
+    reason_ask('Is Priya licensed?', [A13d]), must('a fact: yes, and the fact is the reason', A13d, yes(fact)),
+    reason_ask('Is Marco licensed?', [A13e]), must('never said: unknown', A13e, unknown),
+    reason_ask('Where does Priya rent a flat?', [A13f]), must('where: the place is the answer', A13f, [bristol-fact]).
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
