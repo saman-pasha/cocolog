@@ -535,6 +535,10 @@ ix_capability('a grammar or parser', [parse, grammar, dcg, tokenize, lexer],
               [], [grammar, 'parser: dispatch'], local).
 ix_capability('search or pathfinding', ['shortest path', 'a*', astar, route, search, graph],
               [astar], ['tier-2 library'], local).
+ix_capability('text to predicates',
+              ['natural language', text, sentence, paragraph, 'controlled english',
+               'plain english', predicates, 'knowledge from text', extract, 'read a paragraph'],
+              [reason], ['tier-2 library'], local).
 ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
 ix_capability('big integers', [bignum, 'big integer', 'arbitrary precision', rsa],
