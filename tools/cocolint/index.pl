@@ -550,6 +550,10 @@ ix_capability('training data for a text normaliser',
               [normalise, normalize, normaliser, tagger, 'training data', corpus, 'noisy text',
                'gold tags', 'sequence labelling', 'data generator'],
               ['reasoning/normalise'], ['tier-2 library'], local).
+ix_capability('a text normaliser, the network',
+              ['label tokens', 'sequence tagger', 'prose to predicates', 'typed text', 'unseen word',
+               'train a tagger', 'bigru', 'tag accuracy'],
+              ['reasoning/tagger'], ['tier-2 library'], local).
 ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
 ix_capability('big integers', [bignum, 'big integer', 'arbitrary precision', rsa],

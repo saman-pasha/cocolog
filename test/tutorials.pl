@@ -2,7 +2,7 @@
 %%
 %%   basics/   eleven files, one process each, goal `main'. No library, no
 %%             database, no build flag.
-%%   library/  forty-five files, one process each, goal `main'. Tier 2
+%%   library/  forty-six files, one process each, goal `main'. Tier 2
 %%             needs $COCOLOG_LIBRARY, which the runner sets.
 %%   opencv/   twenty-three files, one process each, goal `main', from the
 %%             repo root; the dnn two end early without their models.
@@ -129,7 +129,7 @@ basics_and_library(Torch, Crypto, Ray, Numpy) :-
     forall(member(Path, All),
            ( ( sub_atom(Path, _, _, _, 'tutorials/basics/') -> lesson_name('tutorials/basics', Path, Name)
              ; lesson_name('tutorials/library', Path, Name) ),
-             (   member(Name, ['tutorials/library/22-torch', 'tutorials/library/39-tensor-expr']), Torch == no
+             (   member(Name, ['tutorials/library/22-torch', 'tutorials/library/39-tensor-expr', 'tutorials/library/45-tagger']), Torch == no
              ->  skip_lesson(Name, 'no torch module')
              ;   member(Name, ['tutorials/library/23-sha', 'tutorials/library/24-aes', 'tutorials/library/25-der',
                                'tutorials/library/26-x509', 'tutorials/library/27-ca', 'tutorials/library/28-tls']), Crypto == no

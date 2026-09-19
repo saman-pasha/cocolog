@@ -21,12 +21,24 @@
 %% builds a clean sentence WITH its gold tags -- the generator knows which
 %% word is the subject as it puts it there -- and then applies NOISE
 %% TRANSFORMS that carry the tags along: a filler phrase (tagged D, drop),
-%% an adverb (D), a prepositional phrase (D), a relation written as two
-%% words (R R, to be joined), an emphatic `does' (D), two sentences joined
-%% by `and' (B, a boundary). Every transform is one the assembler can undo
-%% by dropping, joining or splitting -- and none changes a word's FORM,
-%% because a tag cannot: a plural, a passive, a pronoun are not in this
-%% set, and this header says so rather than leaving it to be found.
+%% a hedge (`I think that', D), an adverb after the subject (D) or after an
+%% intransitive verb (D), a prepositional adjunct (D), a place after a noun
+%% phrase (D), a relation written as two words (R R, to be joined), an
+%% emphatic `does' (D), two sentences joined by `and' (B, a boundary).
+%% Every transform is one the assembler can undo by dropping, joining or
+%% splitting -- and none changes a word's FORM, because a tag cannot: a
+%% plural, a passive, a pronoun are not in this set, and this header says
+%% so rather than leaving it to be found.
+%%
+%% TWO KINDS OF NOISE ARE KEPT OUT ON PURPOSE, measured against the
+%% grammar. A bare word after an indefinite object -- `owns a car too',
+%% `owns a car now' -- is not refused but MISREAD, as the noun of the
+%% phrase, so an adverb goes at the end only after an intransitive verb.
+%% And a place after an intransitive verb -- `works in Rome' -- is not
+%% noise: it is the relation work_in, shape 9 with a phrasal verb, and
+%% dropping it once taught the network to drop `lives in Lagos' too. A
+%% place is dropped only after a noun phrase, where the grammar has no
+%% shape that could keep it.
 %%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
@@ -99,18 +111,48 @@ normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B']).
 
 %% in the order they are applied: the split before the emphatic (so a
 %% split relation is not also a candidate for `does'), the join before the
-%% fillers (so a filler wraps the whole), the tail last
-normalise_transforms([split_relation, emphatic_do, conjoin, adverb, filler_start, filler_end, pp_extra]).
+%% fillers (so a filler or a hedge wraps the whole), the tails last -- an
+%% adverb after an intransitive verb, a place after an object, a
+%% prepositional adjunct after anything
+normalise_transforms([split_relation, emphatic_do, conjoin, adverb, hedge_start, filler_start, filler_end,
+                      adverb_end, pp_place, pp_extra]).
 
-normalise_lexicon(proper, ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Heidi', 'Ivan', 'Judy']).
-normalise_lexicon(noun,   [car, house, dog, badge, contract, server, flat, book, key, ticket, robot, garden]).
-normalise_lexicon(class,  [tenant, employee, landlord, person, member, student, driver, customer]).
-normalise_lexicon(adj,    [red, big, old, new, happy, exempt, authorized, suspended, blue, nice, banned, broken, late, active]).
-normalise_lexicon(vt,     [own, like, rent, watch, employ, sign, hold, want, need, use, close, raise]).
-normalise_lexicon(vi,     [sleep, work, wait, vote, resign, pay, smile]).
-normalise_lexicon(vpp,    [live-in, work-at, come-from, belong-to, deal-with, look-after]).
-normalise_lexicon(modal,  [may, must, can, should]).
-normalise_lexicon(place,  ['Rome', 'Paris', 'Oslo', 'Cairo']).
+normalise_lexicon(proper, ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Heidi', 'Ivan', 'Judy',
+                           'Karl', 'Lena', 'Mark', 'Nina', 'Omar', 'Paul', 'Quinn', 'Rosa', 'Sam', 'Tina',
+                           'Uma', 'Victor', 'Wendy', 'Xavier', 'Yara', 'Zoe', 'Adam', 'Bella', 'Chris', 'Dina',
+                           'Emil', 'Fiona', 'Gus', 'Hana', 'Igor', 'Jana', 'Kim', 'Leo', 'Mona', 'Nils',
+                           'Otto', 'Pia', 'Rudi', 'Sara', 'Theo', 'Ulla', 'Vic', 'Wolf', 'Yuri', 'Zara']).
+normalise_lexicon(noun,   [car, house, dog, badge, contract, server, flat, book, key, ticket, robot, garden,
+                           boat, bike, phone, laptop, desk, chair, lamp, coat, hat, map, cup, plate,
+                           knife, drone, camera, printer, guitar, piano, violin, tent, rope, ladder, bucket,
+                           shovel, hammer, wallet, card, letter, parcel, bottle, jacket, scarf, clock,
+                           mirror, pillow, blanket]).
+normalise_lexicon(class,  [tenant, employee, landlord, person, member, student, driver, customer,
+                           teacher, doctor, nurse, pilot, guard, clerk, farmer, baker, lawyer, judge,
+                           officer, citizen, visitor, guest, owner, worker, manager, engineer, resident,
+                           voter, patient, passenger]).
+normalise_lexicon(adj,    [red, big, old, new, happy, exempt, authorized, suspended, blue, nice, banned,
+                           broken, late, active, small, green, tall, short, young, rich, poor, tired,
+                           busy, ready, safe, certified, insured, registered, licensed, retired, absent,
+                           present, sick, healthy, careful, brave, calm, angry, clean, dirty]).
+normalise_lexicon(vt,     [own, like, rent, watch, employ, sign, hold, want, need, use, close, raise,
+                           have, buy, sell, read, write, drive, open, lock, paint, fix, move, love,
+                           hate, keep, send, wash, build, admire, trust, visit, teach, guard, wear, hire]).
+normalise_lexicon(vi,     [sleep, work, wait, vote, resign, pay, smile, run, swim, sing, dance, laugh,
+                           rest, win, lose, cook, knock, jump, snore, drive]).
+normalise_lexicon(vpp,    [live-in, work-at, come-from, belong-to, deal-with, look-after, work-in,
+                           stay-in, move-to, travel-to, return-to, arrive-at, walk-to, drive-to,
+                           sit-in, wait-for, talk-to, listen-to]).
+normalise_lexicon(modal,  [may, must, can, should, will]).
+normalise_lexicon(place,  ['Rome', 'Paris', 'Oslo', 'Cairo', 'Lima', 'Tokyo', 'Berlin', 'Madrid', 'Lagos',
+                           'Delhi', 'Boston', 'Dublin', 'Vienna', 'Athens', 'Prague', 'Sydney']).
+
+%% THE VERBS ARE CHOSEN TO SURVIVE THE STEMMER: library(reasoning/reason)
+%% takes a third person back to its base by cutting -s, or -es after ss,
+%% sh, ch, x and z, and nothing else -- so no verb here ends in a consonant
+%% and y (cry, fly), in o (go, do) or in a single s (focus), whose third
+%% person would come back as another word. test/normalise.pl's inflection
+%% section holds every verb of every class to the round trip.
 
 %% ---- the inflector ---------------------------------------------------------
 %% Third person singular, and library(reasoning/reason)'s rs_base/2 must give the
@@ -145,7 +187,7 @@ ng_art(_, a).
 %% Proper nouns are emitted capitalised, everything else lower; the text
 %% builder capitalises a sentence's first word.
 
-ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 11, K), ng_shape(K, Seed, Pairs), !.
+ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 20, K), ng_shape(K, Seed, Pairs), !.
 
 ng_shape(0, Seed, [P-'S', V3-'R'|Obj]) :-                                  % Alice owns a red car
     ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
@@ -177,13 +219,54 @@ ng_shape(9, Seed, [P-'S', VJ-'R', Q-'O']) :-                               % Ali
     ( ng_coin(Seed, 4, 50) -> ng_word(place, Seed, 5, Q) ; ng_word(proper, Seed, 5, Q) ).
 ng_shape(10, Seed, [P-'S', V3-'R', Q-'O']) :-                              % Alice likes Bob
     ng_word2(proper, Seed, 2, P, Q), ng_word(vt, Seed, 3, V), normalise_third(V, V3).
-
-ng_object(Seed, Salt, Obj) :-
-    ng_word(noun, Seed, Salt, N), Salt1 is Salt + 1, Salt2 is Salt + 2,
-    (   ng_coin(Seed, Salt1, 50)
-    ->  ng_word(adj, Seed, Salt2, A), ng_art(A, Art), Obj = [Art-'T', A-'A', N-'O']
-    ;   ng_art(N, Art), Obj = [Art-'T', N-'O']
+ng_shape(11, Seed, [every-'Q', C-'S', is-'R', A-'A']) :-                   % Every tenant is exempt
+    ng_word(class, Seed, 2, C), ng_word(adj, Seed, 3, A).
+ng_shape(12, Seed, [P-'S', is-'R', not-'N', Art-'T', N-'O']) :-            % Alice is not a tenant
+    ng_word(proper, Seed, 2, P), ng_word(class, Seed, 3, N), ng_art(N, Art).
+ng_shape(13, Seed, [P-'S', does-'K', not-'N', V-'R']) :-                   % Alice does not sleep
+    ng_word(proper, Seed, 2, P), ng_word(vi, Seed, 3, V).
+ng_shape(14, Seed, [every-'Q', C-'S', V3-'R', Art-'T', N-'O']) :-          % Every employee has a badge
+    ng_word(class, Seed, 2, C), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
+    ng_word(noun, Seed, 4, N), ng_art(N, Art).
+ng_shape(15, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Every tenant that is insured owns a car
+    ng_word(class, Seed, 2, C), ng_word(adj, Seed, 3, A), ng_word(vt, Seed, 4, V), normalise_third(V, V3),
+    ng_word(noun, Seed, 5, N), ng_art(N, Art),
+    (   ng_coin(Seed, 6, 50)
+    ->  Rest = [not-'N', A-'C', V3-'R', Art-'T', N-'O']
+    ;   Rest = [A-'C', V3-'R', Art-'T', N-'O']
     ).
+ng_shape(16, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Every tenant that is not banned is a member
+    ng_word2(class, Seed, 2, C, N), ng_word(adj, Seed, 3, A), ng_art(N, Art),
+    (   ng_coin(Seed, 4, 50)
+    ->  Rest = [not-'N', A-'C', is-'R', Art-'T', N-'O']
+    ;   Rest = [A-'C', is-'R', Art-'T', N-'O']
+    ).
+ng_shape(17, Seed, [P-'S', does-'K', not-'N', VJ-'R', Q-'O']) :-           % Alice does not live_in Rome
+    ng_word(proper, Seed, 2, P), ng_word(vpp, Seed, 3, V-Prep),
+    atomic_list_concat([V, '_', Prep], VJ),
+    ( ng_coin(Seed, 4, 50) -> ng_word(place, Seed, 5, Q) ; ng_word(proper, Seed, 5, Q) ).
+ng_shape(18, Seed, [P-'S', V3-'R', the-'T'|Obj]) :-                        % Alice owns the old car
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
+    ng_adjectives(Seed, 4, As), ng_word(noun, Seed, 7, N), append(As, [N-'O'], Obj).
+ng_shape(19, Seed, [P-'S', VJ-'R', Q-'O']) :-                              % Alice sleeps_in Rome
+    ng_word(proper, Seed, 2, P), ng_word(vi, Seed, 3, V), normalise_third(V, V3),
+    ng_choose(Seed, 4, [in, at, near], Prep), atomic_list_concat([V3, '_', Prep], VJ),
+    ng_word(place, Seed, 5, Q).
+
+%% none, one or two adjectives -- the grammar takes every word between the
+%% determiner and the noun as one, and a network shown only one dropped the
+%% noun after two
+ng_adjectives(Seed, Salt, As) :-
+    ng_pick(Seed, Salt, 3, K), Salt1 is Salt + 1, Salt2 is Salt + 2,
+    (   K =:= 0 -> As = []
+    ;   K =:= 1 -> ng_word(adj, Seed, Salt1, A), As = [A-'A']
+    ;   ng_word2(adj, Seed, Salt1, A, B), As = [A-'A', B-'A'], Salt2 > 0
+    ).
+
+ng_object(Seed, Salt, [Art-'T'|Obj]) :-
+    ng_word(noun, Seed, Salt, N), Salt1 is Salt + 1,
+    ng_adjectives(Seed, Salt1, As), append(As, [N-'O'], Obj),
+    ( As = [A-_|_] -> ng_art(A, Art) ; ng_art(N, Art) ).
 
 %% ---- the transforms -----------------------------------------------------------------
 %% Each takes and gives st(Pairs, CleanSentences): the pairs with their
@@ -195,8 +278,12 @@ ng_applicable(emphatic_do, [_-'S', V3-'R'|Rest]) :-
     ng_base_of(V3, _), ( Rest = [] ; Rest = [_-'T'|_] ; Rest = [_-'O'|_] ), !.
 ng_applicable(conjoin, Ps) :- \+ member(_-'B', Ps).
 ng_applicable(adverb, Ps) :- member(_-'S', Ps), !.
+ng_applicable(hedge_start, _).
 ng_applicable(filler_start, _).
 ng_applicable(filler_end, _).
+ng_applicable(adverb_end, Ps) :- last(Ps, _-'R').           % only after an intransitive verb: a bare
+                                                            % word after an object reads as its noun
+ng_applicable(pp_place, Ps) :- last(Ps, _-'O'), member(_-'T', Ps), !.   % a place after a noun phrase
 ng_applicable(pp_extra, _).
 
 %% the base of an inflected lexicon verb, transitive or not
@@ -207,18 +294,37 @@ ng_apply(split_relation, _, st(Ps, Cs), st(Qs, Cs)) :- ng_split_rel(Ps, Qs).
 ng_apply(emphatic_do, _, st([S-'S', V3-'R'|Rest], Cs), st([S-'S', does-'D', V-'R'|Rest], Cs)) :- ng_base_of(V3, V).
 ng_apply(conjoin, Seed, st(Ps, Cs), st(Out, Cs2)) :-
     S2 is Seed * 31 + 7, ng_sentence(S2, Qs),
-    append(Ps, [and-'B'|Qs], Out), append(Cs, [Qs], Cs2).
+    ( ng_coin(Seed, 25, 40) -> Join = [','-'D', and-'B'] ; Join = [and-'B'] ),
+    append([Ps, Join, Qs], Out), append(Cs, [Qs], Cs2).
 ng_apply(adverb, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 21, [really, always, clearly, still, often], Adv),
+    ng_choose(Seed, 21, [really, always, clearly, still, often, also, just, probably, usually, now,
+                         definitely, certainly, actually, simply, already], Adv),
     ng_after_subject(Ps, Adv-'D', Out).
+ng_apply(hedge_start, Seed, st(Ps, Cs), st(Out, Cs)) :-
+    ng_choose(Seed, 26, [['I', think, that], ['I', believe, that], ['I', know, that], [it, seems, that],
+                         [we, know, that], [you, said, that], [it, is, clear, that], ['I', heard, that]], F),
+    ng_dropped(F, Fs), append(Fs, Ps, Out).
 ng_apply(filler_start, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 22, [[in, fact], [well], [actually], [in, short], [of, course]], F),
+    ng_choose(Seed, 22, [[in, fact], [well], [actually], [in, short], [of, course], [to, be, honest],
+                         [as, far, as, 'I', know], [by, the, way], [anyway], [so], [also], [then],
+                         [honestly], [frankly], [as, 'I', said], [after, all], [for, example], [in, any, case]], F),
     ng_dropped(F, Fs), append(Fs, [','-'D'|Ps], Out).
 ng_apply(filler_end, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 23, [[obviously], [of, course], ['I', think], [apparently]], F),
+    ng_choose(Seed, 23, [[obviously], [of, course], ['I', think], [apparently], [for, sure],
+                         [as, far, as, 'I', know], [to, be, honest], ['I', believe], [no, doubt],
+                         [as, usual], ['I', guess], [you, know], [it, seems], ['I', suppose], [clearly]], F),
     ng_dropped(F, Fs), append(Ps, [','-'D'|Fs], Out).
+ng_apply(adverb_end, Seed, st(Ps, Cs), st(Out, Cs)) :-
+    ng_choose(Seed, 27, [now, today, often, again, too, here, there, later, well, early], Adv),
+    append(Ps, [Adv-'D'], Out).
+ng_apply(pp_place, Seed, st(Ps, Cs), st(Out, Cs)) :-
+    ng_choose(Seed, 28, [in, at, near], Prep), ng_word(place, Seed, 29, Place),
+    append(Ps, [Prep-'D', Place-'D'], Out).
 ng_apply(pp_extra, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 24, [[in, 'Rome'], [at, home], [on, 'Monday'], [in, the, morning], [for, now]], F),
+    ng_choose(Seed, 24, [[at, home], [on, 'Monday'], [in, the, morning], [for, now], [at, night],
+                         [on, 'Friday'], [in, the, evening], [at, work], [at, the, moment], [for, a, while],
+                         [as, usual], [for, sure], [in, general], [at, first], [on, time], [by, now],
+                         [in, the, end], [at, last], [on, the, whole], [in, practice]], F),
     ng_dropped(F, Fs), append(Ps, Fs, Out).
 
 ng_dropped([], []).
@@ -251,11 +357,17 @@ normalise_pair(Seed, Options, pair(Noisy, Tokens, Tags, Clean, Applied)) :-
     atomic_list_concat(CTs, ' ', Clean),
     reason_tokens(Noisy, Toks0), append(Tokens, ['.'], Toks0).
 
+%% a transform's chance, per pair: a coin at 35 for noise, and the split
+%% ALWAYS, because `lives_in' is the grammar's spelling and nobody types
+%% it -- the two-word form is the only one a tagger will meet
+ng_rate(split_relation, 100) :- !.
+ng_rate(_, 35).
+
 ng_run([], _, _, _, _, S, S, []).
 ng_run([T|Ts], Cands, Always, Seed, Salt, S0, S, Applied) :-
     S0 = st(Ps0, _),
     (   memberchk(T, Cands), ng_applicable(T, Ps0),
-        ( Always == yes -> true ; ng_coin(Seed, Salt, 35) )
+        ( Always == yes -> true ; ng_rate(T, Rate), ng_coin(Seed, Salt, Rate) )
     ->  ng_apply(T, Seed, S0, S1), Applied = [T|More]
     ;   S1 = S0, Applied = More
     ),

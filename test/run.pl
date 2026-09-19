@@ -161,7 +161,7 @@ pl_names([files, trace, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, os, kbs, http,
           curl, ray, numpy, opencv, hex, astar, serialize, httpd, 'httpd-tls', crypto,
-          cowork, reason, normalise,
+          cowork, reason, normalise, tagger,
           tls, 'zigurat-tls', tutorials, colab, lint, argv, string, directives,
           groups, ruler]).
 

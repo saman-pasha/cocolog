@@ -30,7 +30,7 @@ alphabet :-
     findall(N, ( member(pair(N, Toks, _, _, _), Pairs), reason_tokens(N, All), \+ append(Toks, ['.'], All) ), Tk),
     check('the tokens are reason_tokens/2''s, the stop dropped', Tk, []),
     normalise_transforms(Ts), length(Ts, NTr),
-    check('seven transforms', NTr, 7).
+    check('ten transforms', NTr, 10).
 
 %% ---- the same seed, the same pair ----------------------------------------------
 
