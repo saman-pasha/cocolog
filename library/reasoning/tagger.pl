@@ -16,9 +16,10 @@
 %% wrong term the grammar still reads -- so tag accuracy is the correctness
 %% number, and tagger_evaluate/4 answers it on sentences training never saw.
 %%
-%% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (lower,
-%% upper, a comma, padding), 4 wide -- concatenated into 28; a GRU over the
-%% sentence in each direction, 48 wide each, so a token's label sees what
+%% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (the case
+%% it was written in and the ending it carries: -s, -ly, -ing, -ed or none),
+%% 4 wide -- concatenated into 28; a GRU over the
+%% sentence in each direction, 96 wide each, so a token's label sees what
 %% came before it and what follows; and a linear head from the two states
 %% to the eleven tags. Sequences are padded to the longest in the batch and
 %% batched position-major, as tutorials/tensor/41 batches its sequences; a
@@ -47,10 +48,15 @@
 %% ---- THE SURFACE ------------------------------------------------------
 %%
 %%     tagger_train(+Name, +Options)
-%%         Trains on normalise_corpus/2 and saves under Name. Options:
-%%         pairs(N) the corpus, seeds 1..N (8192); steps(K) optimiser steps
-%%         (300); batch(B) sequences a step (128); lr(R) Adam's rate (0.005);
-%%         seed(S) the tensor seed (45); verbose(true) prints the loss.
+%%         Trains on normalise_corpus/2 and saves under Name -- the parameters
+%%         through params_save/2, the vocabulary as '$tg_vocab'/3 rows of
+%%         two hundred words. Options:
+%%         pairs(N) the corpus, seeds 1..N (16384); steps(K) optimiser steps
+%%         (400); batch(B) sequences a step (128); lr(R) Adam's rate (0.005);
+%%         seed(S) the tensor seed (45); min_count(C) the times a word must
+%%         be seen to have an embedding row of its own (2); hidden(H) the
+%%         width of each GRU (96) -- a saved model carries its own, in the
+%%         shapes of its parameters; verbose(true) prints the loss.
 %%
 %%     tagger_load(+Name, -Model)        the parameters back as parameters, and the vocabulary
 %%     tagger_free(+Model)               frees them
@@ -77,9 +83,11 @@
 %%   pure, and proved without torch:
 %%
 %%     tagger_vocabulary(+Pairs, -Vocab)    every word of the pairs, sorted; `<pad>' 0, `<unk>' 1, the words from 2
+%%     tagger_vocabulary(+Pairs, +MinCount, -Vocab)   only the words seen MinCount times
 %%     tagger_word_id(+Vocab, +Word, -Id)   1 for a word not in it
 %%     tagger_size(+Vocab, -V)              the rows of the word embedding
-%%     tagger_encode(+Vocab, +Tokens, -Ids, -Shapes)     shapes: 1 lower, 2 upper, 3 comma; 0 is padding
+%%     tagger_encode(+Vocab, +Tokens, -Ids, -Shapes)     a shape is the case and the ending: 1 lower, 2 upper,
+%%                                          3 comma, then +3 for -s, +6 for -ly, +9 for -ing, +12 for -ed; 0 is padding
 %%     tagger_tag_id(?Tag, ?Id)             normalise_tags/1's order, S 0 .. B 10
 %%     tagger_pad(+Seqs, -Plan)             seq(Ids, Shapes, TagIds|none) each, to
 %%                                          plan(N, M, IdRows, ShapeRows, MaskRows, Flat):
@@ -93,41 +101,63 @@
 %% after `lives', because the only place it had seen after a verb was an
 %% adjunct to be thrown away. Every such miss was a SHAPE the generator did
 %% not make, never the network, and every one was fixed in
-%% library(reasoning/normalise): fifty names, forty-eight nouns, twenty
-%% shapes, ten transforms. A tagger generalises to the words it never saw
-%% exactly as far as the shapes it did.
+%% library(reasoning/normalise): twenty-three shapes, ten transforms, and a
+%% lexicon no longer written by hand at all -- files beside the library,
+%% 2500 census names and some seventeen thousand WordNet words ranked by
+%% use, read as they are needed (library/reasoning/lexicon/SOURCES.md). A
+%% tagger generalises to the words it never saw exactly as far as the
+%% shapes it did.
 %%
-%% MEASURED, on a four-core box with no GPU, the defaults: 300 steps over
-%% 8192 pairs train in about thirty-five seconds; over 300 pairs training
-%% never saw (seeds past the corpus) every tag is right; and forty-two
-%% hand-written sentences whose names, nouns, adjectives and verbs are
-%% outside the lexicon all give their terms -- test/tagger.pl holds both.
-%% At 2048 pairs the same network read forty of the forty-two, losing
-%% `lives in Lagos' and `waits at Oslo' to the adjunct reading, and at 4096
-%% all of them: the corpus is the lever, and it is cheap, since the steps
-%% and not the pairs are what a training costs. The lesson is
-%% tutorials/library/45-tagger.pl.
+%% MEASURED, on a four-core box with no GPU, the defaults: 400 steps over
+%% 16384 pairs train in about eighty seconds; over 300 pairs training never
+%% saw (seeds past the corpus) 0.9997 of the tags and 0.997 of the
+%% sentences are right; and of forty-three hand-written sentences whose
+%% names, nouns, adjectives and verbs are outside the lexicon, forty-two
+%% give their terms, a different one missed from one training to the next
+%% -- test/tagger.pl holds both. Over the WordNet lexicon the corpus is the
+%% lever twice over: 8192 pairs read 0.96 of the unseen sentences whatever
+%% the step count (the loss fell to 0.001 while the evaluation stood still,
+%% which is memorising), 16384 read 0.987 and 32768 read 0.993 in 140
+%% seconds. A corpus too large to memorise is what makes a tagger
+%% generalise, and the steps and not the pairs are what a training costs.
+%% The lesson is tutorials/library/45-tagger.pl.
 
 :- use_module(library(torch)).
 :- use_module(library(tensor_expr)).
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/normalise)).
 
-:- dynamic '$tg_vocab'/2.
+:- dynamic '$tg_vocab'/3.
 
 %% ---- the shape of the network ---------------------------------------------
 
-tg_hidden(48).
+tg_hidden(96).
 tg_word_dim(24).
 tg_shape_dim(4).
-tg_shapes(4).                      % padding, lower, upper, comma
+tg_shapes(16).                     % padding, then case x ending, below
 
 %% ---- the vocabulary ---------------------------------------------------------
 
-tagger_vocabulary(Pairs, Vocab) :-
+tagger_vocabulary(Pairs, Vocab) :- tagger_vocabulary(Pairs, 1, Vocab).
+
+%% tagger_vocabulary(+Pairs, +MinCount, -Vocab): the words seen at least
+%% MinCount times, sorted. A word seen once cannot be learned and is `<unk>'
+%% in all but name, and over a lexicon of thousands most words are seen
+%% once -- so tagger_train/2 keeps those at two by default, which bounds the
+%% embedding and is exactly the dropout the rare words would have had.
+tagger_vocabulary(Pairs, MinCount, Vocab) :-
     findall(W, ( member(pair(_, Toks, _, _, _), Pairs), member(T, Toks), tg_word(T, W) ), Ws0),
-    sort(Ws0, Words),
+    msort(Ws0, Sorted),
+    tg_counted(Sorted, MinCount, Words),
     tg_vocab(Words, Vocab).
+
+tg_counted([], _, []).
+tg_counted([W|Ws], Min, Out) :-
+    tg_run(W, Ws, 1, N, Rest),
+    ( N >= Min -> Out = [W|Out1] ; Out = Out1 ),
+    tg_counted(Rest, Min, Out1).
+tg_run(W, [W|Ws], N0, N, Rest) :- !, N1 is N0 + 1, tg_run(W, Ws, N1, N, Rest).
+tg_run(_, Ws, N, N, Ws).
 
 tg_vocab(Words, vocab(Words, Assoc)) :-
     findall(W-Id, ( nth0(I, Words, W), Id is I + 2 ), Ps),
@@ -137,13 +167,24 @@ tagger_word_id(vocab(_, Assoc), W, Id) :- ( get_assoc(W, Assoc, Id0) -> Id = Id0
 
 tagger_size(vocab(Words, _), V) :- length(Words, N), V is N + 2.
 
-%% the word a token carries, and its shape
+%% the word a token carries, and its SHAPE: the case it was written in and
+%% the ending it carries -- lower, upper or a comma, times none, -s, -ly,
+%% -ing or -ed, so `flies' and `curses' look like verbs and `wholly' like
+%% an adverb before any word is known. 0 is padding; a comma is 3.
 tg_word(word(W, _), W) :- !.
 tg_word(T, T).
-tg_shape(word(_, lower), 1) :- !.
-tg_shape(word(_, upper), 2) :- !.
 tg_shape(',', 3) :- !.
+tg_shape(word(W, Case), S) :- !,
+    ( Case == upper -> C = 1 ; C = 0 ),
+    tg_ending(W, E),
+    S is 1 + C + 3 * E.
 tg_shape(_, 1).
+
+tg_ending(W, 2) :- sub_atom(W, _, 2, 0, ly), !.
+tg_ending(W, 3) :- sub_atom(W, _, 3, 0, ing), !.
+tg_ending(W, 4) :- sub_atom(W, _, 2, 0, ed), !.
+tg_ending(W, 1) :- sub_atom(W, _, 1, 0, s), !.
+tg_ending(_, 0).
 
 tagger_encode(_, [], [], []).
 tagger_encode(V, [T|Ts], [Id|Ids], [S|Ss]) :-
@@ -174,9 +215,14 @@ tg_max([X], X) :- !.
 tg_max([X|Xs], M) :- tg_max(Xs, M0), ( X > M0 -> M = X ; M = M0 ).
 
 %% ---- a batch: the plan as tensors -------------------------------------------------
+%% Made when a step needs it and freed after: the plans of a whole corpus
+%% are lists and cost nothing, where the tensors of 128 batches at once ran
+%% the module's handle table out (a handle came back 0, and the next step
+%% died with `tensor expected, found 0').
 
-tg_batch(Seqs, Gold, batch(Ins, Shs, Mks, Flat, Y)) :-
-    tagger_pad(Seqs, plan(_, _, IdRows, ShapeRows, MaskRows, Flat)),
+tg_batch(Seqs, Gold, Batch) :- tagger_pad(Seqs, Plan), tg_batch_tensors(Plan, Gold, Batch).
+
+tg_batch_tensors(plan(_, _, IdRows, ShapeRows, MaskRows, Flat), Gold, batch(Ins, Shs, Mks, Flat, Y)) :-
     findall(T, ( member(R, IdRows), T := R ), Ins),
     findall(T, ( member(R, ShapeRows), T := R ), Shs),
     findall(T, ( member(R, MaskRows), T := R ), Mks),
@@ -191,8 +237,9 @@ tg_batch_free(batch(Ins, Shs, Mks, _, Y)) :-
 
 %% ---- the parameters ---------------------------------------------------------------
 
-tg_parameters(V, Ps) :-
-    tg_word_dim(Dw), tg_shape_dim(Ds), tg_shapes(NS), tg_hidden(H),
+tg_parameters(V, Ps) :- tg_hidden(H), tg_parameters(V, H, Ps).
+tg_parameters(V, H, Ps) :-
+    tg_word_dim(Dw), tg_shape_dim(Ds), tg_shapes(NS),
     In is Dw + Ds, H2 is 2 * H,
     normalise_tags(Tags), length(Tags, K),
     Ew := parameter(randn([V, Dw]) * 0.5),
@@ -240,7 +287,8 @@ tg_heads(Wo, Bo, [Hf|Hfs], [Hb|Hbs], [L|Ls]) -->
 
 %% tg_forward(+Ps, +Ins, +Shapes, +Masks, -Logits): [M*N, 11], position-major
 tg_forward(Ps, Ins, Shs, Mks, Logits) -->
-    { tg_unpack(Ps, Ew, Es, F, B, Wo, Bo), Ins = [In0|_], tg_hidden(Hd) },
+    { tg_unpack(Ps, Ew, Es, F, B, Wo, Bo), Ins = [In0|_],
+      F = [_, Uz|_], tensor_shape(Uz, [Hd, _]) },              % the width is the model's own
     [N] = shape(In0),
     H0 = zeros([N, Hd]),
     tg_embeds(Ew, Es, Ins, Shs, Xs),
@@ -254,28 +302,42 @@ tg_forward(Ps, Ins, Shs, Mks, Logits) -->
 %% ---- training -------------------------------------------------------------------------
 
 tagger_train(Name, Options) :-
-    tg_option(pairs(NP), Options, 8192),
-    tg_option(steps(K), Options, 300),
+    tg_option(pairs(NP), Options, 16384),
+    tg_option(steps(K), Options, 400),
     tg_option(batch(B), Options, 128),
     tg_option(lr(LR), Options, 0.005),
     tg_option(seed(S), Options, 45),
+    tg_option(min_count(MinCount), Options, 2),
+    tg_option(hidden(H), Options, 96),
     ( memberchk(verbose(true), Options) -> Verbose = yes ; Verbose = no ),
     normalise_corpus(NP, Pairs),
-    tagger_vocabulary(Pairs, Vocab), Vocab = vocab(Words, _),
+    tagger_vocabulary(Pairs, MinCount, Vocab), Vocab = vocab(Words, _),
     tg_drop_table(Table),
     tg_training_sequences(Vocab, Table, Pairs, 1, Seqs),
     tg_by_length(Seqs, Sorted),
     tg_chunks(Sorted, B, Groups),
-    findall(Bt, ( member(G, Groups), tg_batch(G, yes, Bt) ), Batches),
+    findall(Plan, ( member(G, Groups), tagger_pad(G, Plan) ), Plans),
     seed(S),
     tagger_size(Vocab, V),
-    tg_parameters(V, Ps0), adam_init(Ps0, St0),
-    tg_fit(K, Ps0, St0, Batches, LR, Verbose, Ps),
-    forall(member(Bt, Batches), tg_batch_free(Bt)),
+    tg_parameters(V, H, Ps0), adam_init(Ps0, St0),
+    tg_fit(K, Ps0, St0, Plans, LR, Verbose, Ps),
     params_save(Name, Ps),
-    retractall('$tg_vocab'(Name, _)),
-    assertz('$tg_vocab'(Name, Words)),
+    tg_vocab_save(Name, Words),
     free_all(Ps).
+
+%% the vocabulary in the store, 200 words a clause: a row must fit in a
+%% page, and one clause holding thousands of words would not
+tg_vocab_save(Name, Words) :-
+    retractall('$tg_vocab'(Name, _, _)),
+    tg_vocab_chunks(Words, Name, 0).
+tg_vocab_chunks([], _, _) :- !.
+tg_vocab_chunks(Words, Name, Seq) :-
+    ( length(Chunk, 200), append(Chunk, Rest, Words) -> true ; Chunk = Words, Rest = [] ),
+    assertz('$tg_vocab'(Name, Seq, Chunk)),
+    Seq1 is Seq + 1, tg_vocab_chunks(Rest, Name, Seq1).
+tg_vocab_load(Name, Words) :-
+    findall(Seq-Chunk, '$tg_vocab'(Name, Seq, Chunk), Cs0), Cs0 \== [],
+    msort(Cs0, Cs), findall(W, ( member(_-Chunk, Cs), member(W, Chunk) ), Words).
 
 tg_option(Term, Options, Default) :-
     ( memberchk(Term, Options) -> true ; arg(1, Term, Default) ).
@@ -304,25 +366,31 @@ tg_dropout([T|Ts], [Id|Ids], Table, I, P, [Id2|Ids2]) :-
     tg_dropout(Ts, Ids, Table, I, P1, Ids2).
 
 %% the rate a word is dropped at, as ONE table built before the pairs are
-%% walked: a name at a quarter of its positions, a noun or an adjective at
-%% a fifth, a verb -- base or third person, the verb half of a phrasal one
-%% -- at about a seventh. (Looked up per token instead, with the lexicon
+%% walked: a name at a quarter of its positions, a noun, an adjective or an
+%% adverb at a fifth, a verb -- base or third person, the verb half of a
+%% phrasal one -- at about a seventh. (Three in ten and a quarter were
+%% tried over the WordNet lexicon and read fewer sentences, not more: what
+%% a rare word's embedding still carries is worth keeping.) (Adverbs joined when `works hard' was
+%% read as works_hard over the WordNet lexicon: an unknown word after a verb
+%% at the end had never been seen, because no adverb had ever been dropped.) (Looked up per token instead, with the lexicon
 %% scanned through downcase_atom/2 and the inflector each time, this cost
 %% 25 ms a pair: 207 of the 235 seconds an 8192-pair training took.)
 tg_drop_table(Table) :-
     findall(W-0.25, ( member(C, [proper, place]), normalise_lexicon(C, Ws), member(X, Ws), downcase_atom(X, W) ), Names),
-    findall(W-0.20, ( member(C, [noun, class, adj]), normalise_lexicon(C, Ws), member(W, Ws) ), Nouns),
-    findall(W-0.15, ( member(C, [vt, vi]), normalise_lexicon(C, Vs), member(V, Vs), ( W = V ; normalise_third(V, W) ) ), Verbs),
-    findall(W-0.15, ( normalise_lexicon(vpp, Vs), member(V-_, Vs), ( W = V ; normalise_third(V, W) ) ), Phrasal),
-    append([Names, Nouns, Verbs, Phrasal], All),
-    tg_first_rates(All, [], Pairs),
+    findall(W-0.20, ( member(C, [noun, class, adj, adverb]), normalise_lexicon(C, Ws), member(W, Ws) ), Nouns),
+    findall(W-0.15, ( member(C, [vt, vi, vpp]), normalise_lexicon(C, Vs), member(V0, Vs),
+                      ( V0 = V-_ -> true ; V = V0 ), ( W = V ; normalise_third(V, W) ) ), Verbs),
+    append([Names, Nouns, Verbs], All),
+    keysort(All, Sorted),
+    tg_first_rates(Sorted, Pairs),
     list_to_assoc(Pairs, Table).
 
-%% one entry a word, the first rate given winning
-tg_first_rates([], Acc, Pairs) :- reverse(Acc, Pairs).
-tg_first_rates([W-R|Ws], Acc, Pairs) :-
-    ( memberchk(W-_, Acc) -> Acc1 = Acc ; Acc1 = [W-R|Acc] ),
-    tg_first_rates(Ws, Acc1, Pairs).
+%% one entry a word, the first rate given winning: keysort is stable, so of
+%% two rates for one word the earlier list's comes first
+tg_first_rates([], []).
+tg_first_rates([W-R|Ws], [W-R|Pairs]) :- tg_drop_same(W, Ws, Rest), tg_first_rates(Rest, Pairs).
+tg_drop_same(W, [W-_|Ws], Rest) :- !, tg_drop_same(W, Ws, Rest).
+tg_drop_same(_, Ws, Ws).
 
 tg_hash(I, R) :- S is sin(I * 78.233) * 43758.5453, R is abs(S - truncate(S)).
 
@@ -342,8 +410,9 @@ tg_chunks(Xs, _, [Xs]).
 %% the fit loop: the batches in turn, an Adam step each, the old parameters
 %% and the gradients freed by the step itself
 tg_fit(0, Ps, _, _, _, _, Ps) :- !.
-tg_fit(K, Ps, St, Batches, LR, Verbose, PsF) :-
-    length(Batches, NB), B is K mod NB, nth0(B, Batches, batch(Ins, Shs, Mks, _, Y)),
+tg_fit(K, Ps, St, Plans, LR, Verbose, PsF) :-
+    length(Plans, NB), B is K mod NB, nth0(B, Plans, Plan),
+    tg_batch_tensors(Plan, yes, Batch), Batch = batch(Ins, Shs, Mks, _, Y),
     exec(tg_forward(Ps, Ins, Shs, Mks, Logits)),
     L := cross_entropy(Logits, Y),
     Gs := grad(L, Ps),
@@ -352,14 +421,14 @@ tg_fit(K, Ps, St, Batches, LR, Verbose, PsF) :-
     ;   true
     ),
     adam_step(Ps, Gs, St, LR, Ps2, St2),
-    free_all([Logits, L]),
+    free_all([Logits, L]), tg_batch_free(Batch),
     K1 is K - 1,
-    tg_fit(K1, Ps2, St2, Batches, LR, Verbose, PsF).
+    tg_fit(K1, Ps2, St2, Plans, LR, Verbose, PsF).
 
 %% ---- loading ------------------------------------------------------------------------------
 
 tagger_load(Name, model(Ps, Vocab)) :-
-    (   catch('$tg_vocab'(Name, Words), _, fail)
+    (   catch(tg_vocab_load(Name, Words), _, fail)
     ->  true
     ;   throw(error(existence_error(tagger, Name), tagger_load/2))
     ),

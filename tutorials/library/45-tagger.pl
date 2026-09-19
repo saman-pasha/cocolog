@@ -2,7 +2,8 @@
 %%
 %% TIER 2: `use_module(library(reasoning/tagger))', from library/reasoning/tagger.pl.
 %% Clauses only, over library(tensor_expr) and library(torch) -- and this
-%% lesson TRAINS, so it needs library/torch.so built (sh modules/torch/build.sh).
+%% lesson TRAINS, so it needs library/torch.so built (sh modules/torch/build.sh),
+%% and about two minutes on four cores.
 %%
 %%     cocolog -s tutorials/library/45-tagger.pl
 %%
@@ -16,12 +17,14 @@
 %%
 %% THE CORPUS IS THE CAPABILITY. The generator is unbounded in seeds and
 %% bounded in variety, and variety is what carries a tagger to words it
-%% never saw: fifty names, forty-eight nouns, twenty shapes, ten kinds of
-%% noise, and 8192 pairs of them by default. Trained on 2048 the same
-%% network lost `lives in Lagos' to the adjunct reading; on 8192 it reads
-%% forty-two hand-written sentences out of forty-two (test/tagger.pl), and
-%% the extra pairs cost seconds, because a training is priced by its
-%% optimiser steps and not by its corpus.
+%% never saw: twenty-three shapes, ten kinds of noise, and a lexicon that is
+%% files beside the library -- 2500 census names and some seventeen
+%% thousand WordNet words, library/reasoning/lexicon/ -- and 16384 pairs
+%% of them by default. Over that lexicon 8192 pairs read 0.96 of the
+%% sentences training never saw whatever the step count, which is
+%% memorising; 16384 read 0.987 and 32768 read 0.993: a corpus too large
+%% to memorise is what makes a tagger generalise, and the extra pairs cost
+%% seconds, because a training is priced by its optimiser steps.
 %%
 %% NOTHING IS GENERATED. The network never writes a word: it labels the
 %% words it was given, the assembler copies them, and the grammar reads the
@@ -42,9 +45,9 @@ main :-
     tagger_word_id(V, zed, IdZed),
     must('a word never seen is 1, <unk>', IdZed, 1),
     tagger_encode(V, [word(alice, upper), word(owns, lower), ',', word(zed, upper)], _, Shapes),
-    must('and the SHAPE travels beside the word: upper, lower, comma, upper', Shapes, [2, 1, 3, 2]),
+    must('and the SHAPE travels beside the word: upper, lower with -s, comma, upper with -ed', Shapes, [2, 4, 3, 14]),
 
-    format("~n2. Training: 300 Adam steps over 8192 pairs, the loss printed every 40~n", []),
+    format("~n2. Training: 400 Adam steps over 16384 pairs, the loss printed every 40~n", []),
     tagger_train(lesson, [verbose(true)]),
     tagger_load(lesson, M),
     format("   saved under `lesson', loaded back~n", []),
@@ -87,7 +90,7 @@ main :-
     format("   -- a shape the generator does not make is a shape the grammar does not read,~n", []),
     format("   and the tagger cannot reach past the grammar: what it gets wrong is REFUSED,~n", []),
     format("   never quietly rewritten. The fix is data -- a shape in library(reasoning/normalise)~n", []),
-    format("   and a rule in library(reasoning/reason) -- and test/tagger.pl's forty-two~n", []),
+    format("   and a rule in library(reasoning/reason) -- and test/tagger.pl's forty-three~n", []),
     format("   hand-written sentences are how the next one is measured before it ships.~n", []),
     tagger_free(M),
     nl, write(done), nl.

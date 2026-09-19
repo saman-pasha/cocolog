@@ -65,7 +65,11 @@
 %%                                                     library(reasoning/reason)'s stemmer must invert
 %%     normalise_tags(-Tags)                           the alphabet, closed
 %%     normalise_transforms(-Names)                    the transforms, by name
-%%     normalise_lexicon(?Class, -Words)               proper, noun, class, adj, vt, vi, vpp, modal, place
+%%     normalise_lexicon(+Class, -Words)               proper, noun, class, adj, vt, vi, vpp,
+%%                                                     adverb, place -- the files beside this
+%%                                                     one, filtered by the grammar; and modal,
+%%                                                     the grammar's own
+%%     normalise_lexicon_dir(-Dir)                     where the files were found
 %%
 %% ---- THE TAGS ---------------------------------------------------------
 %%
@@ -117,56 +121,121 @@ normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B']).
 normalise_transforms([split_relation, emphatic_do, conjoin, adverb, hedge_start, filler_start, filler_end,
                       adverb_end, pp_place, pp_extra]).
 
-normalise_lexicon(proper, ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Heidi', 'Ivan', 'Judy',
-                           'Karl', 'Lena', 'Mark', 'Nina', 'Omar', 'Paul', 'Quinn', 'Rosa', 'Sam', 'Tina',
-                           'Uma', 'Victor', 'Wendy', 'Xavier', 'Yara', 'Zoe', 'Adam', 'Bella', 'Chris', 'Dina',
-                           'Emil', 'Fiona', 'Gus', 'Hana', 'Igor', 'Jana', 'Kim', 'Leo', 'Mona', 'Nils',
-                           'Otto', 'Pia', 'Rudi', 'Sara', 'Theo', 'Ulla', 'Vic', 'Wolf', 'Yuri', 'Zara']).
-normalise_lexicon(noun,   [car, house, dog, badge, contract, server, flat, book, key, ticket, robot, garden,
-                           boat, bike, phone, laptop, desk, chair, lamp, coat, hat, map, cup, plate,
-                           knife, drone, camera, printer, guitar, piano, violin, tent, rope, ladder, bucket,
-                           shovel, hammer, wallet, card, letter, parcel, bottle, jacket, scarf, clock,
-                           mirror, pillow, blanket]).
-normalise_lexicon(class,  [tenant, employee, landlord, person, member, student, driver, customer,
-                           teacher, doctor, nurse, pilot, guard, clerk, farmer, baker, lawyer, judge,
-                           officer, citizen, visitor, guest, owner, worker, manager, engineer, resident,
-                           voter, patient, passenger]).
-normalise_lexicon(adj,    [red, big, old, new, happy, exempt, authorized, suspended, blue, nice, banned,
-                           broken, late, active, small, green, tall, short, young, rich, poor, tired,
-                           busy, ready, safe, certified, insured, registered, licensed, retired, absent,
-                           present, sick, healthy, careful, brave, calm, angry, clean, dirty]).
-normalise_lexicon(vt,     [own, like, rent, watch, employ, sign, hold, want, need, use, close, raise,
-                           have, buy, sell, read, write, drive, open, lock, paint, fix, move, love,
-                           hate, keep, send, wash, build, admire, trust, visit, teach, guard, wear, hire]).
-normalise_lexicon(vi,     [sleep, work, wait, vote, resign, pay, smile, run, swim, sing, dance, laugh,
-                           rest, win, lose, cook, knock, jump, snore, drive]).
-normalise_lexicon(vpp,    [live-in, work-at, come-from, belong-to, deal-with, look-after, work-in,
-                           stay-in, move-to, travel-to, return-to, arrive-at, walk-to, drive-to,
-                           sit-in, wait-for, talk-to, listen-to]).
-normalise_lexicon(modal,  [may, must, can, should, will]).
-normalise_lexicon(place,  ['Rome', 'Paris', 'Oslo', 'Cairo', 'Lima', 'Tokyo', 'Berlin', 'Madrid', 'Lagos',
-                           'Delhi', 'Boston', 'Dublin', 'Vienna', 'Athens', 'Prague', 'Sydney']).
+%% ---- the lexicon: files beside this one, read when first asked for ---------
+%%
+%% library/reasoning/lexicon/<class>.txt, one word a line, commonest first:
+%% `proper' is the US Census's first names, and noun, class, adj, vt, vi,
+%% vpp, adverb and place are WordNet 3.0 ranked by its SemCor tag counts,
+%% written by tools/lexicon/build.pl (cocolog, not Python: the parse of
+%% WordNet's files is a DCG's job). SOURCES.md beside them says where each
+%% came from and under what licence. NO WORD LIVES IN THIS FILE.
+%%
+%% The files are read the first time a word is asked for, held as globals
+%% of this machine -- never asserted, so a knowledge base is never written
+%% -- and FILTERED BY THE GRAMMAR as they load: a word library(reasoning/reason)
+%% treats as closed is dropped (`will' is a modal before it is a name), and
+%% a verb whose third person does not come back to it through the stemmer
+%% is dropped, so the inflection round trip holds by construction. Modals
+%% are the grammar's own, asked of rl_modal/1. $COCOLOG_LEXICON names
+%% another directory; otherwise it is `reasoning/lexicon' under the first
+%% library directory that has one -- $COCOLOG_LIBRARY, ./library, the
+%% binary's own.
 
-%% THE VERBS ARE CHOSEN TO SURVIVE THE STEMMER: library(reasoning/reason)
-%% takes a third person back to its base by cutting -s, or -es after ss,
-%% sh, ch, x and z, and nothing else -- so no verb here ends in a consonant
-%% and y (cry, fly), in o (go, do) or in a single s (focus), whose third
-%% person would come back as another word. test/normalise.pl's inflection
-%% section holds every verb of every class to the round trip.
+normalise_lexicon_dir(Dir) :-
+    getenv('COCOLOG_LEXICON', Dir), Dir \== '', exists_directory(Dir), !.
+normalise_lexicon_dir(Dir) :-
+    ng_library_dirs(Ds), member(D, Ds),
+    atom_concat(D, '/reasoning/lexicon', Dir), exists_directory(Dir), !.
+
+ng_library_dirs(Ds) :-
+    (   getenv('COCOLOG_LIBRARY', Env), Env \== ''
+    ->  atomic_list_concat(Env0, ':', Env)
+    ;   Env0 = []
+    ),
+    (   current_prolog_flag(executable, Exe),
+        atomic_list_concat(Parts, '/', Exe), append(DirParts, [_], Parts), DirParts \== []
+    ->  atomic_list_concat(DirParts, '/', ExeDir), atom_concat(ExeDir, '/library', ExeLib), Extra = [ExeLib]
+    ;   Extra = []
+    ),
+    append(Env0, [library|Extra], Ds1),
+    findall(D, ( member(D, Ds1), D \== '' ), Ds).
+
+ng_class(proper). ng_class(noun). ng_class(class). ng_class(adj). ng_class(vt).
+ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place).
+
+normalise_lexicon(modal, Ms) :- !, findall(M, rl_modal(M), Ms).
+normalise_lexicon(Class, Words) :-
+    ng_class(Class), ng_ensure_lexicon, ng_key(list, Class, K), nb_getval(K, Words).
+
+ng_ensure_lexicon :- catch(nb_getval('$lx_ready', yes), _, fail), !.
+ng_ensure_lexicon :-
+    (   normalise_lexicon_dir(Dir)
+    ->  true
+    ;   throw(error(existence_error(directory, 'reasoning/lexicon'), normalise_lexicon/2))
+    ),
+    forall(ng_class(Class), ng_load_class(Dir, Class)),
+    nb_setval('$lx_ready', yes).
+
+ng_load_class(Dir, Class) :-
+    atomic_list_concat([Dir, '/', Class, '.txt'], Path),
+    (   exists_file(Path)
+    ->  true
+    ;   throw(error(existence_error(source_sink, Path), normalise_lexicon/2))
+    ),
+    read_file_to_codes(Path, Codes),
+    split_string(Codes, [10], [32, 13, 9], Lines),
+    findall(W, ( member(L, Lines), string_length(L, Len), Len > 0,
+                 \+ sub_string(L, 0, 1, _, "#"),
+                 atom_string(W, L), ng_keep(Class, W) ), Words),
+    length(Words, N),
+    ng_key(size, Class, KS), nb_setval(KS, N),
+    ng_key(list, Class, KL), nb_setval(KL, Words),
+    ng_blocks(Words, Class, 0).
+
+%% what the grammar will not read as an open word is not generated
+ng_keep(Class, W) :-
+    downcase_atom(W, Lower), \+ rl_closed(Lower),
+    (   memberchk(Class, [vt, vi, vpp])
+    ->  normalise_third(W, Third), rs_base(Third, W)
+    ;   true
+    ).
+
+%% blocks of a hundred, one global each, so a pick copies a hundred cells
+%% and not the class
+ng_blocks([], _, _) :- !.
+ng_blocks(Words, Class, B) :-
+    (   length(Chunk, 100), append(Chunk, Rest, Words) -> true ; Chunk = Words, Rest = [] ),
+    T =.. [w|Chunk], ng_key(B, Class, K), nb_setval(K, T),
+    B1 is B + 1, ng_blocks(Rest, Class, B1).
+
+ng_key(Tag, Class, Key) :- atomic_list_concat(['$lx_', Tag, '_', Class], Key).
+
+ng_size(Class, N) :- ng_ensure_lexicon, ng_key(size, Class, K), nb_getval(K, N).
+ng_nth(Class, K, W) :-
+    B is K // 100, I is K mod 100 + 1,
+    ng_key(B, Class, Key), nb_getval(Key, T), arg(I, T, W).
 
 %% ---- the inflector ---------------------------------------------------------
 %% Third person singular, and library(reasoning/reason)'s rs_base/2 must give the
-%% base back: -es after ss, sh, ch, x, z; -s otherwise; `has' by name.
+%% base back: -es after ss, sh, ch, x, z, o; -ies for a consonant and y; -s
+%% otherwise; `has' by name. The two are one pair, changed together.
 
 normalise_third(have, has) :- !.
 normalise_third(B, T) :- ng_es_stem(B), !, atom_concat(B, es, T).
+normalise_third(B, T) :- ng_y_stem(B, Stem), !, atom_concat(Stem, ies, T).
 normalise_third(B, T) :- atom_concat(B, s, T).
 
 ng_es_stem(B) :- sub_atom(B, _, 2, 0, ss), !.
 ng_es_stem(B) :- sub_atom(B, _, 2, 0, sh), !.
 ng_es_stem(B) :- sub_atom(B, _, 2, 0, ch), !.
 ng_es_stem(B) :- sub_atom(B, _, 1, 0, x), !.
-ng_es_stem(B) :- sub_atom(B, _, 1, 0, z).
+ng_es_stem(B) :- sub_atom(B, _, 1, 0, z), !.
+ng_es_stem(B) :- sub_atom(B, _, 1, 0, o).
+
+%% a consonant and y: carry -> carries; a vowel and y (play) takes -s
+ng_y_stem(B, Stem) :-
+    sub_atom(B, _, 1, 0, y), sub_atom(B, 0, _, 1, Stem),
+    sub_atom(Stem, _, 1, 0, C), \+ memberchk(C, [a, e, i, o, u]).
 
 %% ---- deterministic noise -----------------------------------------------------
 
@@ -175,10 +244,17 @@ ng_pick(Seed, Salt, N, K) :- J is Seed * 7 + Salt, ng_noise(J, R), K is truncate
 ng_choose(Seed, Salt, List, X) :- length(List, N), ng_pick(Seed, Salt, N, K), nth0(K, List, X).
 ng_coin(Seed, Salt, PercentYes) :- ng_pick(Seed, Salt, 100, K), K < PercentYes.
 
-ng_word(Class, Seed, Salt, W) :- normalise_lexicon(Class, L), ng_choose(Seed, Salt, L, W).
+ng_word(vpp, Seed, Salt, V-Prep) :- !,
+    ng_size(vpp, N), ng_pick(Seed, Salt, N, K), ng_nth(vpp, K, V),
+    Salt2 is Salt + 70, ng_choose(Seed, Salt2, [in, at, to, with, for, from, on], Prep).
+ng_word(modal, Seed, Salt, M) :- !, normalise_lexicon(modal, Ms), ng_choose(Seed, Salt, Ms, M).
+ng_word(Class, Seed, Salt, W) :-
+    ng_size(Class, N), ng_pick(Seed, Salt, N, K), ng_nth(Class, K, W).
 ng_word2(Class, Seed, Salt, W1, W2) :-
-    normalise_lexicon(Class, L), ng_choose(Seed, Salt, L, W1),
-    select(W1, L, L2), Salt2 is Salt + 50, ng_choose(Seed, Salt2, L2, W2).
+    ng_size(Class, N), ng_pick(Seed, Salt, N, K1),
+    Salt2 is Salt + 50, ng_pick(Seed, Salt2, N, K2a),
+    ( K2a =:= K1 -> K2 is (K1 + 1) mod N ; K2 = K2a ),
+    ng_nth(Class, K1, W1), ng_nth(Class, K2, W2).
 
 ng_art(W, an) :- atom_codes(W, [C|_]), memberchk(C, [0'a, 0'e, 0'i, 0'o, 0'u]), !.
 ng_art(_, a).
@@ -187,7 +263,7 @@ ng_art(_, a).
 %% Proper nouns are emitted capitalised, everything else lower; the text
 %% builder capitalises a sentence's first word.
 
-ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 20, K), ng_shape(K, Seed, Pairs), !.
+ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 23, K), ng_shape(K, Seed, Pairs), !.
 
 ng_shape(0, Seed, [P-'S', V3-'R'|Obj]) :-                                  % Alice owns a red car
     ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
@@ -253,6 +329,18 @@ ng_shape(19, Seed, [P-'S', VJ-'R', Q-'O']) :-                              % Ali
     ng_choose(Seed, 4, [in, at, near], Prep), atomic_list_concat([V3, '_', Prep], VJ),
     ng_word(place, Seed, 5, Q).
 
+ng_shape(20, Seed, [every-'Q', C-'S', V3-'R']) :-                          % Every baker works
+    ng_word(class, Seed, 2, C), ng_word(vi, Seed, 3, V), normalise_third(V, V3).
+ng_shape(21, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Every baker that is not lazy works
+    ng_word(class, Seed, 2, C), ng_word(adj, Seed, 3, A), ng_word(vi, Seed, 4, V), normalise_third(V, V3),
+    (   ng_coin(Seed, 5, 50)
+    ->  Rest = [not-'N', A-'C', V3-'R']
+    ;   Rest = [A-'C', V3-'R']
+    ).
+
+ng_shape(22, Seed, [P-'S', does-'K', not-'N', V-'R', Q-'O']) :-           % Alice does not like Bob
+    ng_word2(proper, Seed, 2, P, Q), ng_word(vt, Seed, 3, V).
+
 %% none, one or two adjectives -- the grammar takes every word between the
 %% determiner and the noun as one, and a network shown only one dropped the
 %% noun after two
@@ -286,9 +374,13 @@ ng_applicable(adverb_end, Ps) :- last(Ps, _-'R').           % only after an intr
 ng_applicable(pp_place, Ps) :- last(Ps, _-'O'), member(_-'T', Ps), !.   % a place after a noun phrase
 ng_applicable(pp_extra, _).
 
-%% the base of an inflected lexicon verb, transitive or not
-ng_base_of(V3, V) :- normalise_lexicon(vt, L), member(V, L), normalise_third(V, V3), !.
-ng_base_of(V3, V) :- normalise_lexicon(vi, L), member(V, L), normalise_third(V, V3), !.
+%% the base of an inflected verb, by the grammar's own stemmer -- which every
+%% loaded verb round-trips through -- and only of a real inflection: `is'
+%% and a joined `lives_in' stem to themselves and take no `does'. (The first
+%% draft walked the whole vt and vi lists with the inflector for every pair,
+%% which was nothing over twenty verbs and eighty milliseconds a pair over
+%% four thousand.)
+ng_base_of(V3, V) :- \+ rl_closed(V3), rs_base(V3, V), V \== V3.
 
 ng_apply(split_relation, _, st(Ps, Cs), st(Qs, Cs)) :- ng_split_rel(Ps, Qs).
 ng_apply(emphatic_do, _, st([S-'S', V3-'R'|Rest], Cs), st([S-'S', does-'D', V-'R'|Rest], Cs)) :- ng_base_of(V3, V).
@@ -297,8 +389,7 @@ ng_apply(conjoin, Seed, st(Ps, Cs), st(Out, Cs2)) :-
     ( ng_coin(Seed, 25, 40) -> Join = [','-'D', and-'B'] ; Join = [and-'B'] ),
     append([Ps, Join, Qs], Out), append(Cs, [Qs], Cs2).
 ng_apply(adverb, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 21, [really, always, clearly, still, often, also, just, probably, usually, now,
-                         definitely, certainly, actually, simply, already], Adv),
+    ng_word(adverb, Seed, 21, Adv),
     ng_after_subject(Ps, Adv-'D', Out).
 ng_apply(hedge_start, Seed, st(Ps, Cs), st(Out, Cs)) :-
     ng_choose(Seed, 26, [['I', think, that], ['I', believe, that], ['I', know, that], [it, seems, that],
@@ -315,7 +406,7 @@ ng_apply(filler_end, Seed, st(Ps, Cs), st(Out, Cs)) :-
                          [as, usual], ['I', guess], [you, know], [it, seems], ['I', suppose], [clearly]], F),
     ng_dropped(F, Fs), append(Ps, [','-'D'|Fs], Out).
 ng_apply(adverb_end, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 27, [now, today, often, again, too, here, there, later, well, early], Adv),
+    ng_word(adverb, Seed, 27, Adv),
     append(Ps, [Adv-'D'], Out).
 ng_apply(pp_place, Seed, st(Ps, Cs), st(Out, Cs)) :-
     ng_choose(Seed, 28, [in, at, near], Prep), ng_word(place, Seed, 29, Place),

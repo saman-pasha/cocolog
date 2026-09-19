@@ -1,0 +1,46 @@
+# library/reasoning/lexicon
+
+The words `library(reasoning/normalise)` generates from, one class a file,
+one word a line, the commonest first. The library reads them the first
+time a word is asked for and drops, as it loads, whatever the grammar
+would not read as an open word: a closed word (`will` is a modal before it
+is a name) and a verb whose third person does not stem back to it.
+
+| file | class | source |
+|---|---|---|
+| `proper.txt` | first names | the United States Census Bureau's 1990 frequency lists, public domain: the 1500 commonest female and 1000 commonest male names, capitalised |
+| `noun.txt` | things | WordNet 3.0, a word whose first sense is in `noun.animal`, `noun.artifact`, `noun.food`, `noun.object`, `noun.plant` or `noun.possession` |
+| `class.txt` | kinds of person | WordNet 3.0, first sense in `noun.person` |
+| `place.txt` | named places | WordNet 3.0, first sense in `noun.location` and an instance (a city, a country, a river), capitalised |
+| `adj.txt` | adjectives | WordNet 3.0, `adj.all` and `adj.pert` |
+| `adverb.txt` | adverbs | WordNet 3.0, `adv.all` |
+| `vt.txt` | verbs that take an object | WordNet 3.0, any sense with the frame "Somebody ----s something", "... somebody", "Something ----s something" or "... somebody" |
+| `vi.txt` | verbs that take none | WordNet 3.0, a sense with "Something ----s" or "Somebody ----s" |
+| `vpp.txt` | verbs before a phrase | WordNet 3.0, a sense with "Somebody ----s PP" or "Something is ----ing PP" |
+
+The WordNet files are ranked by the tag counts of SemCor, the sense-tagged
+corpus WordNet ships as `cntlist.rev`, so a cap keeps the words English
+uses and leaves the obscure ones out. `tools/lexicon/build.pl`, a cocolog
+program, writes every file but `proper.txt` from a WordNet 3.0 `dict`
+directory (`apt install wordnet-base`; `sh tools/lexicon/build.sh`), and
+`proper.txt` is the census list as it is.
+
+WordNet 3.0 is Copyright 2006 by Princeton University, used under its
+licence: "Permission to use, copy, modify and distribute this software and
+database and its documentation for any purpose and without fee or royalty
+is hereby granted, provided that you agree to comply with the following
+copyright notice and statements, including the disclaimer, and that the
+same appear on ALL copies of the software, database and documentation,
+including modifications that you make for internal use or for
+distribution. WordNet 3.0 Copyright 2006 by Princeton University. All
+rights reserved. THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS" AND
+PRINCETON UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+IMPLIED. BY WAY OF EXAMPLE, BUT NOT LIMITATION, PRINCETON UNIVERSITY MAKES
+NO REPRESENTATIONS OR WARRANTIES OF MERCHANTABILITY OR FITNESS FOR ANY
+PARTICULAR PURPOSE OR THAT THE USE OF THE LICENSED SOFTWARE, DATABASE OR
+DOCUMENTATION WILL NOT INFRINGE ANY THIRD PARTY PATENTS, COPYRIGHTS,
+TRADEMARKS OR OTHER RIGHTS. The name of Princeton University or Princeton
+may not be used in advertising or publicity pertaining to distribution of
+the software and/or database. Title to copyright in this software,
+database and any associated documentation shall at all times remain with
+Princeton University and LICENSEE agrees to preserve same."

@@ -60,6 +60,9 @@ make modules    # every loadable module buildable here; SKIPPED, by name,
 make test       # the suite
 cocolog -s test/run.pl -- solve            # one case
 make lint FILES=myprogram.pl    # cocolint, over a file you name
+sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0
+                                # (apt install wordnet-base); a cocolog
+                                # program, and its output IS committed
 ```
 
 **`cocolog --version` ANSWERS ON STDOUT, AND THE NUMBER GOES UP WITH
@@ -1812,8 +1815,30 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to; `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`tools/lexicon/build.pl` regenerates them from a WordNet 3.0 dict); `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
+
+**THE REASONING LEXICON IS FILES, NOT SOURCE, AND THE GRAMMAR FILTERS
+THEM AS THEY LOAD.** `library/reasoning/lexicon/<class>.txt` -- one word a
+line, commonest first -- is what `library(reasoning/normalise)` generates
+from: `proper.txt` is the US Census's first names, the rest are WordNet
+3.0 ranked by its SemCor tag counts, written by `tools/lexicon/build.pl`
+(cocolog: `read_file_to_codes` takes data.noun's fifteen megabytes in
+half a second and `split_string/4` cuts a megabyte into lines in ten
+milliseconds). The library reads them on the first pick, keeps them as
+globals of the machine -- never asserted, so no store is written -- and
+drops what the grammar would not read as an open word: a closed word
+(`will` is a modal before it is a name) and a verb whose third person the
+stemmer cannot invert, so `test/normalise.pl`'s inflection round trip
+holds by construction. Two things bit: `ng_base_of` walked the whole verb
+list with the inflector for every pair, nothing over twenty verbs and
+eighty milliseconds a pair over four thousand -- it stems with the grammar
+now; and the tagger's batches were built as tensors all at once, which at
+128 batches ran torch's handle table out and died a step later with
+`tensor expected, found 0` -- a batch's tensors are made per step now. And
+the numbers moved: over this lexicon 8192 pairs read 0.96 of unseen
+sentences whatever the step count, which is memorising, so the tagger's
+defaults are 16384 pairs and 400 steps (0.997), about eighty seconds here.
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
 REPLACING IT.** `test/run.pl`'s `environment/1` is the one place that sets

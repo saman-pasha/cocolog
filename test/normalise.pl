@@ -30,7 +30,15 @@ alphabet :-
     findall(N, ( member(pair(N, Toks, _, _, _), Pairs), reason_tokens(N, All), \+ append(Toks, ['.'], All) ), Tk),
     check('the tokens are reason_tokens/2''s, the stop dropped', Tk, []),
     normalise_transforms(Ts), length(Ts, NTr),
-    check('ten transforms', NTr, 10).
+    check('ten transforms', NTr, 10),
+    normalise_lexicon_dir(Dir), yes_no(sub_atom(Dir, _, _, 0, 'reasoning/lexicon'), Found),
+    check('the lexicon is the files under reasoning/lexicon', Found, yes),
+    forall(member(Class-Least, [proper-1000, noun-3000, class-1000, adj-2000, vt-1500, vi-800, adverb-300, place-500]),
+           ( normalise_lexicon(Class, Ws), length(Ws, NW), yes_no(NW >= Least, Big),
+             atomic_list_concat(['at least ', Least, ' words of ', Class, ' loaded'], Label), check(Label, Big, yes) )),
+    findall(W, ( member(C, [proper, noun, class, adj, vt, vi, vpp, adverb, place]), normalise_lexicon(C, Ws), member(W, Ws),
+                 downcase_atom(W, L), rl_closed(L) ), Closed),
+    check('and no closed word of the grammar in any class', Closed, []).
 
 %% ---- the same seed, the same pair ----------------------------------------------
 
