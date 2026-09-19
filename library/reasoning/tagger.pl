@@ -29,8 +29,9 @@
 %% prose.txt, WordNet's example sentences, which nothing here trains on.
 %%
 %% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (the case
-%% it was written in and the ending it carries: -s, -ly, -ing, -ed or none),
-%% 4 wide -- concatenated into 28; a GRU over the sentence in each
+%% it was written in and, for a lower-case word, the ending it carries: -s,
+%% -ly, -ing, -ed or none; a capitalised word is a name whatever it ends
+%% in), 4 wide -- concatenated into 28; a GRU over the sentence in each
 %% direction, 96 wide each, so a token's label sees what came before it and
 %% what follows; a linear head from the two states to the eleven tags inside
 %% the grammar. X, the twelfth, is never the network's to answer: it is the
@@ -112,8 +113,9 @@
 %%     tagger_vocabulary(+Pairs, +MinCount, -Vocab)   only the words seen MinCount times
 %%     tagger_word_id(+Vocab, +Word, -Id)   1 for a word not in it
 %%     tagger_size(+Vocab, -V)              the rows of the word embedding
-%%     tagger_encode(+Vocab, +Tokens, -Ids, -Shapes)     a shape is the case and the ending: 1 lower, 2 upper,
-%%                                          3 comma, then +3 for -s, +6 for -ly, +9 for -ing, +12 for -ed; 0 is padding
+%%     tagger_encode(+Vocab, +Tokens, -Ids, -Shapes)     a shape is the case, and a lower-case word's ending: 1 lower,
+%%                                          2 upper, 3 comma, then +3 for -s, +6 for -ly, +9 for -ing, +12 for -ed
+%%                                          on a lower-case word only; 0 is padding
 %%     tagger_tag_id(?Tag, ?Id)             normalise_tags/1's order, S 0 .. B 10
 %%     tagger_pad(+Seqs, -Plan)             seq(Ids, Shapes, TagIds|none) each, to
 %%                                          plan(N, M, IdRows, ShapeRows, MaskRows, Flat):
@@ -127,7 +129,7 @@
 %% after `lives', because the only place it had seen after a verb was an
 %% adjunct to be thrown away. Every such miss was a SHAPE the generator did
 %% not make, never the network, and every one was fixed in
-%% library(reasoning/normalise): twenty-three shapes, ten transforms, and a
+%% library(reasoning/normalise): twenty-seven shapes, nine transforms, and a
 %% lexicon no longer written by hand at all -- files beside the library,
 %% 2500 census names and some seventeen thousand WordNet words ranked by
 %% use, read as they are needed (library/reasoning/lexicon/SOURCES.md). A
@@ -137,10 +139,11 @@
 %% MEASURED, on a four-core box with no GPU, the defaults: 400 steps over
 %% 16384 pairs train in about eighty seconds; over 300 pairs training never
 %% saw (seeds past the corpus) 0.9997 of the tags and 0.997 of the
-%% sentences are right; and of forty-three hand-written sentences whose
-%% names, nouns, adjectives and verbs are outside the lexicon, forty-two
-%% give their terms, a different one missed from one training to the next
-%% -- test/tagger.pl holds both. And the other half: of 300 WordNet example
+%% sentences are right; and of forty-five hand-written sentences whose
+%% names, nouns, adjectives and verbs are outside the lexicon, forty-three
+%% or more give their terms (42 of 43 twice, then 44 and 45 of 45), a
+%% different one missed from one training to the next -- test/tagger.pl
+%% holds both. And the other half: of 300 WordNet example
 %% sentences from prose.txt, 0.93 to 0.94 come back refused where the
 %% network alone refused 0.85, and of 757 sentences of real government
 %% prose 0.96 where it was 0.87 -- with the hand-written forty-three read
@@ -198,17 +201,22 @@ tagger_word_id(vocab(_, Assoc), W, Id) :- ( get_assoc(W, Assoc, Id0) -> Id = Id0
 
 tagger_size(vocab(Words, _), V) :- length(Words, N), V is N + 2.
 
-%% the word a token carries, and its SHAPE: the case it was written in and
-%% the ending it carries -- lower, upper or a comma, times none, -s, -ly,
-%% -ing or -ed, so `flies' and `curses' look like verbs and `wholly' like
-%% an adverb before any word is known. 0 is padding; a comma is 3.
+%% the word a token carries, and its SHAPE: the case it was written in and,
+%% for a lower-case word, the ending it carries -- none, -s, -ly, -ing or
+%% -ed, so `flies' and `curses' look like verbs and `wholly' like an adverb
+%% before any word is known. A capitalised word carries NO ending: it is a
+%% name whatever it ends in. Measured before that was so: `Zed' and `Ted'
+%% after `does not like' were dropped by three trainings in a row, because
+%% their -ed made them a shape that twenty-three objects in sixteen thousand
+%% pairs had worn, where `Bob' and `Mia' were kept every time. 0 is
+%% padding; a comma is 3.
 tg_word(word(W, _), W) :- !.
 tg_word(T, T).
 tg_shape(',', 3) :- !.
-tg_shape(word(W, Case), S) :- !,
-    ( Case == upper -> C = 1 ; C = 0 ),
+tg_shape(word(_, upper), 2) :- !.          % a name, whatever it ends in
+tg_shape(word(W, lower), S) :- !,
     tg_ending(W, E),
-    S is 1 + C + 3 * E.
+    S is 1 + 3 * E.
 tg_shape(_, 1).
 
 tg_ending(W, 2) :- sub_atom(W, _, 2, 0, ly), !.

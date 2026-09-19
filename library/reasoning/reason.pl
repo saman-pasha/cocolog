@@ -79,6 +79,8 @@
 %%   Bob does not own a car.             neg(own(bob, car))
 %%   Alice sleeps.                       sleep(alice)
 %%   Alice may access the server.        may_access(alice, server)
+%%   Alice lives_in Rome.                live_in(alice, rome)
+%%   Alice rents a flat in Rome.         flat(V), rent_in(alice, V, rome)
 %%   Every employee is a person.         person(X) :- employee(X)
 %%   Every employee has a badge.         have(X, badge) :- employee(X)
 %%   Every employee that is authorized   may_access(X, server) :-
@@ -87,7 +89,16 @@
 %%       suspended may access the server.    employee(X), \+ suspended(X)
 %%
 %% A subject is a proper noun or a quantified class; an object is a proper
-%% noun or a determined noun phrase. The relative clause `that is [not] ADJ'
+%% noun or a determined noun phrase. A place after an object joins the
+%% relation -- `rents a flat in Rome' is rent_in/3, the place its last
+%% argument -- exactly as a preposition written joined to a bare verb does
+%% (`lives_in Rome' is live_in/2, the verb inside it stemmed): after a bare
+%% verb the two words are ONE relation and are written as one, so `sleeps
+%% in Rome' is refused where `sleeps_in Rome' is read, and it is
+%% library(reasoning/normalise)'s assembler that joins them. Which is also
+%% why `Alice owns a house in Rome' is a fact about a house in Rome and
+%% `Alice sleeps in Rome' is not a fact at all: only after an object can the
+%% preposition belong to nothing else. The relative clause `that is [not] ADJ'
 %% is how a condition is written, and it is deliberately the ONLY way:
 %% `if ... then ...' with a pronoun needs coreference, which this library
 %% does not do, and a rule with two conditions is two sentences or one
@@ -389,11 +400,13 @@ rs_predication(S, _, Claim, []) -->
 rs_predication(S, _, Claim, []) -->
     rs_aux, [word(not, _)], rs_verb(V),
     rs_object_opt(class, O),
-    { rs_claim(V, S, O, P), Claim = neg(P) }.
+    rs_place_opt(O, Pl),
+    { rs_claim(V, S, O, Pl, P), Claim = neg(P) }.
 rs_predication(S, Ctx, Claim, Extra) -->
     rs_modal_verb(V),
     rs_object_opt(Ctx, O, Extra),
-    { rs_claim(V, S, O, Claim) }.
+    rs_place_opt(O, Pl),
+    { rs_claim(V, S, O, Pl, Claim) }.
 
 %% `is ADJ' or `is a NOUN' -- both a unary property of the subject
 rs_property(S, P) --> rs_det(_), !, rs_noun(N), { P =.. [N, S] }.
@@ -408,6 +421,15 @@ rs_object_opt(Ctx, O, Extra) --> rs_object(Ctx, O, Extra).
 rs_object_opt(_, none, []) --> [].
 rs_object_opt(Ctx, O) --> rs_object_opt(Ctx, O, _).
 
+%% `in Rome' AFTER AN OBJECT: the preposition joins the relation, as it does
+%% when it is written joined to a bare verb (`lives_in Rome'), and the place
+%% is a third argument -- rent_in(alice, V, rome). Only after an object:
+%% after a bare verb the two words are ONE relation and are written as one,
+%% so `Alice sleeps in Rome' is still refused where `Alice sleeps_in Rome'
+%% is read, and library(reasoning/normalise)'s assembler is what joins them.
+rs_place_opt(O, Prep-Place) --> { O \== none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_proper(Place), !.
+rs_place_opt(_, none) --> [].
+
 %% a proper noun; `the N' as the class atom; `a N' as an individual in a
 %% fact and the class atom otherwise
 rs_object(_, O, []) --> rs_proper(O).
@@ -421,6 +443,9 @@ rs_object(Ctx, N, []) --> { Ctx \== fact }, rs_det(indef), rs_adjs(_), rs_noun(N
 %% VARIABLE here, and a variable unifies with `none' happily
 rs_claim(V, S, O, P) :- O == none, !, P =.. [V, S].
 rs_claim(V, S, O, P) :- P =.. [V, S, O].
+
+rs_claim(V, S, O, none, P) :- !, rs_claim(V, S, O, P).
+rs_claim(V, S, O, Prep-Place, P) :- atomic_list_concat([V, '_', Prep], VP), P =.. [VP, S, O, Place].
 
 rs_adj_terms([], _, []).
 rs_adj_terms([A|As], V, [T|Ts]) :- T =.. [A, V], rs_adj_terms(As, V, Ts).
@@ -458,6 +483,11 @@ rs_verb(V) --> rs_verb_word(W), { rs_base(W, V) }.
 rs_verb_word(W) --> [word(W, _)], { \+ rl_closed(W) }.
 
 rs_base(W, B) :- reason_verb(W, B), !.
+rs_base(W, B) :-                                   % a joined relation, lives_in: the verb stems, the rest stays
+    atomic_list_concat([Head|Tails], '_', W), Tails \== [], !,
+    (   rl_modal(Head) -> B = W                    % may_use: a modal and a base form, as written
+    ;   rs_base(Head, HB), atomic_list_concat([HB|Tails], '_', B)
+    ).
 rs_base(W, B) :- rl_irregular(W, B), !.
 rs_base(W, B) :-                                   % carries, tries -- but dies, lies: die, lie
     atom_codes(W, Cs), append(Pre, [0'i, 0'e, 0's], Cs),

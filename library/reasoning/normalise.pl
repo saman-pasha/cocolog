@@ -22,8 +22,8 @@
 %% word is the subject as it puts it there -- and then applies NOISE
 %% TRANSFORMS that carry the tags along: a filler phrase (tagged D, drop),
 %% a hedge (`I think that', D), an adverb after the subject (D) or after an
-%% intransitive verb (D), a prepositional adjunct (D), a place after a noun
-%% phrase (D), a relation written as two words (R R, to be joined), an
+%% intransitive verb (D), a prepositional adjunct (D), a relation written
+%% as two words (R R, to be joined), an
 %% emphatic `does' (D), two sentences joined by `and' (B, a boundary).
 %% Every transform is one the assembler can undo by dropping, joining or
 %% splitting -- and none changes a word's FORM, because a tag cannot: a
@@ -34,11 +34,16 @@
 %% grammar. A bare word after an indefinite object -- `owns a car too',
 %% `owns a car now' -- is not refused but MISREAD, as the noun of the
 %% phrase, so an adverb goes at the end only after an intransitive verb.
-%% And a place after an intransitive verb -- `works in Rome' -- is not
-%% noise: it is the relation work_in, shape 9 with a phrasal verb, and
-%% dropping it once taught the network to drop `lives in Lagos' too. A
-%% place is dropped only after a noun phrase, where the grammar has no
-%% shape that could keep it.
+%% And a place is NEVER noise. After an intransitive verb -- `works in
+%% Rome' -- it is the relation work_in, shape 9 with a phrasal verb, and
+%% dropping it once taught the network to drop `lives in Lagos' too. After
+%% an object -- `rents a flat in Rome' -- it is the third argument of
+%% rent_in, shapes 23 to 26; while a transform dropped it there the network
+%% dropped `rents a flat in Bristol' to `rents a flat'. So no transform
+%% appends a preposition and a proper noun, and pp_extra's adjuncts are
+%% lower-case throughout (`at home', never `on Monday'), because a
+%% capitalised word after a preposition after an object is a place the
+%% grammar reads.
 %%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
@@ -135,10 +140,9 @@ normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B', 'X']).
 %% in the order they are applied: the split before the emphatic (so a
 %% split relation is not also a candidate for `does'), the join before the
 %% fillers (so a filler or a hedge wraps the whole), the tails last -- an
-%% adverb after an intransitive verb, a place after an object, a
-%% prepositional adjunct after anything
+%% adverb after an intransitive verb, a prepositional adjunct after anything
 normalise_transforms([split_relation, emphatic_do, conjoin, adverb, hedge_start, filler_start, filler_end,
-                      adverb_end, pp_place, pp_extra]).
+                      adverb_end, pp_extra]).
 
 %% ---- the lexicon: files beside this one, read when first asked for ---------
 %%
@@ -286,7 +290,7 @@ ng_art(_, a).
 %% Proper nouns are emitted capitalised, everything else lower; the text
 %% builder capitalises a sentence's first word.
 
-ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 23, K), ng_shape(K, Seed, Pairs), !.
+ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 27, K), ng_shape(K, Seed, Pairs), !.
 
 ng_shape(0, Seed, [P-'S', V3-'R'|Obj]) :-                                  % Alice owns a red car
     ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
@@ -364,6 +368,26 @@ ng_shape(21, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Eve
 ng_shape(22, Seed, [P-'S', does-'K', not-'N', V-'R', Q-'O']) :-           % Alice does not like Bob
     ng_word2(proper, Seed, 2, P, Q), ng_word(vt, Seed, 3, V).
 
+%% a place after an object: the preposition is a relation word of its own
+%% (a run of one, copied as it is) and the place an object, so the grammar
+%% reads rent_in(alice, V, rome) -- the shape the network dropped `in
+%% Bristol' for want of
+ng_shape(23, Seed, [P-'S', V3-'R'|Rest]) :-                                % Alice rents a small flat in Rome
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
+    ng_object(Seed, 4, Obj), ng_place(Seed, 8, Pl), append(Obj, Pl, Rest).
+ng_shape(24, Seed, [P-'S', V3-'R', the-'T', N-'O'|Pl]) :-                  % Alice keeps the key at Rome
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
+    ng_word(noun, Seed, 4, N), ng_place(Seed, 5, Pl).
+ng_shape(25, Seed, [every-'Q', C-'S', V3-'R', Art-'T', N-'O'|Pl]) :-       % Every tenant rents a flat in Rome
+    ng_word(class, Seed, 2, C), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
+    ng_word(noun, Seed, 4, N), ng_art(N, Art), ng_place(Seed, 5, Pl).
+ng_shape(26, Seed, [P-'S', does-'K', not-'N', V-'R', Art-'T', N-'O'|Pl]) :- % Alice does not rent a flat in Rome
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_word(noun, Seed, 4, N), ng_art(N, Art),
+    ng_place(Seed, 5, Pl).
+
+ng_place(Seed, Salt, [Prep-'R', Q-'O']) :-
+    ng_choose(Seed, Salt, [in, at, near], Prep), Salt1 is Salt + 1, ng_word(place, Seed, Salt1, Q).
+
 %% none, one or two adjectives -- the grammar takes every word between the
 %% determiner and the noun as one, and a network shown only one dropped the
 %% noun after two
@@ -394,12 +418,13 @@ ng_applicable(filler_start, _).
 ng_applicable(filler_end, _).
 ng_applicable(adverb_end, Ps) :- last(Ps, _-'R').           % only after an intransitive verb: a bare
                                                             % word after an object reads as its noun
-ng_applicable(pp_place, Ps) :- last(Ps, _-'O'), member(_-'T', Ps), !.   % a place after a noun phrase
 ng_applicable(pp_extra, _).
 
 %% the base of an inflected verb, by the grammar's own stemmer -- which every
 %% loaded verb round-trips through -- and only of a real inflection: `is'
-%% and a joined `lives_in' stem to themselves and take no `does'. (The first
+%% stems to itself and takes no `does'; a joined `lives_in' stems to live_in
+%% and would take one, but split_relation, first and always, has split it
+%% by then. (The first
 %% draft walked the whole vt and vi lists with the inflector for every pair,
 %% which was nothing over twenty verbs and eighty milliseconds a pair over
 %% four thousand.)
@@ -431,12 +456,9 @@ ng_apply(filler_end, Seed, st(Ps, Cs), st(Out, Cs)) :-
 ng_apply(adverb_end, Seed, st(Ps, Cs), st(Out, Cs)) :-
     ng_word(adverb, Seed, 27, Adv),
     append(Ps, [Adv-'D'], Out).
-ng_apply(pp_place, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 28, [in, at, near], Prep), ng_word(place, Seed, 29, Place),
-    append(Ps, [Prep-'D', Place-'D'], Out).
 ng_apply(pp_extra, Seed, st(Ps, Cs), st(Out, Cs)) :-
-    ng_choose(Seed, 24, [[at, home], [on, 'Monday'], [in, the, morning], [for, now], [at, night],
-                         [on, 'Friday'], [in, the, evening], [at, work], [at, the, moment], [for, a, while],
+    ng_choose(Seed, 24, [[at, home], [on, weekdays], [in, the, morning], [for, now], [at, night],
+                         [on, holiday], [in, the, evening], [at, work], [at, the, moment], [for, a, while],
                          [as, usual], [for, sure], [in, general], [at, first], [on, time], [by, now],
                          [in, the, end], [at, last], [on, the, whole], [in, practice]], F),
     ng_dropped(F, Fs), append(Ps, Fs, Out).

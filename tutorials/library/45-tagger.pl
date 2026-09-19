@@ -18,7 +18,7 @@
 %%
 %% THE CORPUS IS THE CAPABILITY. The generator is unbounded in seeds and
 %% bounded in variety, and variety is what carries a tagger to words it
-%% never saw: twenty-three shapes, ten kinds of noise, and a lexicon that is
+%% never saw: twenty-seven shapes, nine kinds of noise, and a lexicon that is
 %% files beside the library -- 2500 census names and some seventeen
 %% thousand WordNet words, library/reasoning/lexicon/ -- and 16384 pairs
 %% of them by default. Over that lexicon 8192 pairs read 0.96 of the
@@ -46,7 +46,7 @@ main :-
     tagger_word_id(V, zed, IdZed),
     must('a word never seen is 1, <unk>', IdZed, 1),
     tagger_encode(V, [word(alice, upper), word(owns, lower), ',', word(zed, upper)], _, Shapes),
-    must('and the SHAPE travels beside the word: upper, lower with -s, comma, upper with -ed', Shapes, [2, 4, 3, 14]),
+    must('and the SHAPE travels beside the word: upper, lower with -s, comma, upper again (a name whatever it ends in)', Shapes, [2, 4, 3, 2]),
 
     format("~n2. Training: 400 Adam steps over 16384 pairs, the loss printed every 40~n", []),
     tagger_train(lesson, [verbose(true)]),
@@ -63,12 +63,13 @@ main :-
     must('assembled', Asm3, 'Zed owns a red car.'),
 
     format("~n4. Prose to predicates, and then questions -- the loop closed~n", []),
-    Prose = 'Actually, Mia really likes Zed, obviously. Bob needs a ladder. In fact, every clerk that is not exempt must sign the form.',
+    Prose = 'Actually, Mia really likes Zed, obviously. Bob needs a ladder. In fact, every clerk that is not exempt must sign the form. Dana rents a flat in Bristol.',
     tagger_normalise(M, Prose, Controlled, Terms),
     show('controlled', Controlled),
-    Terms = [T1, T2, T3, Rule],
+    Terms = [T1, T2, T3, Rule, T5, T6],
     must('three facts, with Mia, Zed and the ladder copied', [T1, T2, T3], [like(mia, zed), ladder(ladder_1), need(bob, ladder_1)]),
     show('and a rule', Rule),
+    must('and a place after an object kept: rent_in/3', [T5, T6], [flat(flat_1), rent_in(dana, flat_1, bristol)]),
     forall(member(T, Terms), assertz(T)),
     assertz(clerk(ann)),
     truth(like(mia, zed), V1), must('truth(like(mia, zed))', V1, true),

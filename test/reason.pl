@@ -12,7 +12,7 @@
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
-    round_trip, refusals, declares, refused, truth, errors,
+    round_trip, refusals, places, declares, refused, truth, errors,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -202,16 +202,16 @@ refusals :-
     check('a transitive frame with nothing after the verb is... a unary claim: own(alice)', F5, yes),
     yes_no(reason_sentence('Alice a car.', _), F6),
     check('no verb', F6, no),
-    yes_no(reason_sentence('Alice owns a house in Rome.', _), F7),
-    check('a prepositional phrase: REFUSED, where it once parsed as rome(rome_1)', F7, no),
-    reason_refused('Alice owns a house in Rome.', F7r),
-    check('  -- and reason_refused/2 names it', F7r, 'alice owns a house in rome'),
+    yes_no(reason_sentence('Alice owns a house near the river.', _), F7),
+    check('a prepositional phrase that names no place: REFUSED, where `in Rome'' once parsed as rome(rome_1)', F7, no),
+    reason_refused('Alice owns a house near the river.', F7r),
+    check('  -- and reason_refused/2 names it', F7r, 'alice owns a house near the river'),
     yes_no(reason_sentence('Alice sleeps at the house.', _), F8),
     check('a preposition after an intransitive verb', F8, no),
     yes_no(reason_sentence('Alice is in.', _), F9),
     check('a preposition is not an adjective', F9, no),
-    yes_no(reason_sentence('Every tenant that is not exempt must pay the rent to Alice.', _), F10),
-    check('a preposition after a rule''s object', F10, no),
+    yes_no(reason_sentence('Every tenant that is not exempt must pay the rent to nobody.', _), F10),
+    check('a preposition after a rule''s object with no place behind it', F10, no),
     yes_no(reason_sentence('Alice and Bob.', _), F11),
     check('a conjunction: REFUSED, where it once parsed as and(alice, bob)', F11, no),
     yes_no(reason_sentence('Alice or Bob.', _), F12),
@@ -220,6 +220,42 @@ refusals :-
     check('but: refused, was but(alice, bob)', F13, no),
     yes_no(reason_sentence('Alice and Bob signed the contract.', _), F14),
     check('a conjoined subject: refused by rule now, not by its tail', F14, no).
+
+%% ---- a place after an object -----------------------------------------------------------------
+%% `rents a flat in Bristol': the preposition joins the relation and the
+%% place is its last argument, exactly as a preposition written joined to a
+%% bare verb does -- and the verb inside a joined relation stems, so a fact
+%% and its denial name ONE predicate. After a bare verb the two words are
+%% one relation and are written as one; `sleeps in Rome' stays refused.
+
+places :-
+    section('a place after an object'),
+    reason_sentence('Dana rents a flat in Bristol.', P1),
+    check('a fact: the individual, and rent_in/3 with the place last', P1, [flat(flat_1), rent_in(dana, flat_1, bristol)]),
+    reason_sentence('Dana rents a small flat in Bristol.', P2),
+    check('with an adjective', P2, [flat(flat_1), small(flat_1), rent_in(dana, flat_1, bristol)]),
+    reason_sentence('Dana keeps the key at Bristol.', P3),
+    check('a definite object: the class atom, and the preposition as written', P3, [keep_at(dana, key, bristol)]),
+    reason_sentence('Dana meets Ravi in Bristol.', P4),
+    check('a proper object', P4, [meet_in(dana, ravi, bristol)]),
+    reason_sentence('Every tenant rents a flat in Bristol.', [(H5 :- B5)]),
+    yes_no(( H5 = rent_in(X5, flat, bristol), B5 == tenant(X5) ), Rule5),
+    check('a rule: the class atom as object, the place a constant, one variable through', Rule5, yes),
+    reason_sentence('Dana does not rent a flat in Bristol.', P6),
+    check('a denial names the same predicate', P6, [neg(rent_in(dana, flat, bristol))]),
+    reason_sentence('Every tenant that is not exempt must pay the rent to Alice.', [(H7 :- _)]),
+    yes_no(H7 = must_pay_to(_, rent, alice), Rule7),
+    check('a modal, a definite object and a place: must_pay_to/3', Rule7, yes),
+    reason_sentence('Ola lives_in Lagos.', P8),
+    check('a joined relation stems its verb: lives_in is live_in', P8, [live_in(ola, lagos)]),
+    reason_sentence('Kai does not live_in Lagos.', P9),
+    check('so the fact and its denial name one predicate', P9, [neg(live_in(kai, lagos))]),
+    reason_sentence('Alice may_use the server.', P10),
+    check('but a modal joined to its verb is left as written', P10, [may_use(alice, server)]),
+    yes_no(reason_sentence('Dana lives in Bristol.', _), P11),
+    check('after a bare verb the two words are written as one: `lives in Bristol'' is refused', P11, no),
+    yes_no(reason_sentence('Alice owns a house in rome.', _), P12),
+    check('and a lower-case word after the preposition is no place', P12, no).
 
 %% ---- a rule declares what its body names ------------------------------------------------
 

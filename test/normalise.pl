@@ -30,7 +30,7 @@ alphabet :-
     findall(N, ( member(pair(N, Toks, _, _, _), Pairs), reason_tokens(N, All), \+ append(Toks, ['.'], All) ), Tk),
     check('the tokens are reason_tokens/2''s, the stop dropped', Tk, []),
     normalise_transforms(Ts), length(Ts, NTr),
-    check('ten transforms', NTr, 10),
+    check('nine transforms', NTr, 9),
     normalise_lexicon_dir(Dir), yes_no(sub_atom(Dir, _, _, 0, 'reasoning/lexicon'), Found),
     check('the lexicon is the files under reasoning/lexicon', Found, yes),
     forall(member(Class-Least, [proper-1000, noun-3000, class-1000, adj-2000, vt-1500, vi-800, adverb-300, place-500]),

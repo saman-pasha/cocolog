@@ -112,8 +112,14 @@ main :-
     ( reason_sentence('If an employee is authorized then it may access the server.', _)
     -> P9c = parsed ; P9c = refused ),
     must('if-then with a pronoun (write `that is'' instead)', P9c, refused),
-    ( reason_sentence('Alice owns a house in Rome.', _) -> P9d = parsed ; P9d = refused ),
-    must('a prepositional phrase -- refused, never misread as rome(rome_1)', P9d, refused),
+    ( reason_sentence('Alice sleeps in Rome.', _) -> P9d = parsed ; P9d = refused ),
+    must('a preposition after a bare verb -- refused: the two words are one relation, written sleeps_in', P9d, refused),
+    ( reason_sentence('Alice owns a house near the river.', _) -> P9d2 = parsed ; P9d2 = refused ),
+    must('a prepositional phrase that names no place -- refused, never misread as river(river_1)', P9d2, refused),
+    reason_sentence('Alice owns a house in Rome.', P9d3),
+    must('but a PLACE after an object joins the relation: own_in/3, the place last', P9d3, [house(house_1), own_in(alice, house_1, rome)]),
+    reason_sentence('Alice lives_in Rome.', P9d4),
+    must('and a relation written joined stems its verb, so a fact and its denial agree', P9d4, [live_in(alice, rome)]),
     ( reason_sentence('Alice and Bob.', _) -> P9e = parsed ; P9e = refused ),
     must('a conjunction -- refused, never misread as and(alice, bob)', P9e, refused),
 

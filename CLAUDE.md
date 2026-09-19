@@ -1870,6 +1870,33 @@ is a real sentence in the grammar's shape -- `Every person is mortal.` is
 read, and it is true -- and a fragment the lexicon cannot fault, `Feeling
 amorous.` as amorou(feeling).
 
+**AND THE PLACE THE TAGGER DROPPED WAS THE GENERATOR'S TEACHING.** `Dana
+rents a flat in Bristol.` came back as `rent(dana, flat_1)` because the
+`pp_place` transform appended `in Rome` after every noun-phrase object as
+NOISE, tagged D -- the grammar had no reading for a place after an object,
+so the generator taught the network to drop one. The grammar reads it now:
+the preposition joins the relation exactly as it does when written joined
+to a bare verb, and the place is a third argument, `rent_in(dana, flat_1,
+bristol)`; only after an object, so `sleeps in Rome` stays refused and
+`sleeps_in Rome` is the written form. Four shapes replaced the transform
+(23 to 26: an indefinite, a definite, a rule's and a denied object, each
+with a place), `pp_extra` lost `on Monday` and `on Friday` because a
+capitalised word after a preposition after an object IS a place now, and a
+joined relation stems its verb -- `lives_in` reads as `live_in`, the same
+predicate its denial `does not live_in` always gave, which `truth/2` had
+never been able to connect. `test/reason.pl` pins the shape, the
+stemming and the refusals that stay.
+
+**AND A CAPITALISED WORD CARRIES NO ENDING SHAPE, because `Zed' is not a
+participle.** The tagger's shape embedding gave a capitalised word the same
+-s/-ly/-ing/-ed ending a lower-case one gets, so `Zed' and `Ted' after
+`does not like' wore a shape that twenty-three objects in sixteen thousand
+pairs had worn -- and three trainings in a row dropped them where `Bob' and
+`Mia' were kept every time. (`like' itself is picked once in the whole
+corpus, so it is `<unk>' too: the pattern was two unknowns and a rare
+shape.) A capitalised word is shape 2 now whatever it ends in; the lower
+case keeps its endings, which is where `flies' and `wholly' are read.
+
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
 REPLACING IT.** `test/run.pl`'s `environment/1` is the one place that sets
 it — for every case it runs — and it puts this checkout's `library/` at

@@ -55,9 +55,9 @@ encoding :-
     section('encoding'),
     normalise_corpus(64, Pairs), tagger_vocabulary(Pairs, V),
     tagger_encode(V, [word(alice, upper), word(owns, lower), ',', word(zed, upper)], Ids, Shapes),
-    check('shapes: upper 2, lower with -s 4, comma 3, upper with -ed 14 (Zed ends in ed)', Shapes, [2, 4, 3, 14]),
+    check('shapes: upper 2, lower with -s 4, comma 3, upper with -ed still 2: a capitalised word is a name whatever it ends in', Shapes, [2, 4, 3, 2]),
     tagger_encode(V, [word(wholly, lower), word(walking, lower), word(walked, lower), word(cars, upper)], _, Shapes2),
-    check('the ending in the shape: -ly 7, -ing 10, -ed 13, and upper with -s 5', Shapes2, [7, 10, 13, 5]),
+    check('the ending in the shape: -ly 7, -ing 10, -ed 13, and upper with -s 2', Shapes2, [7, 10, 13, 2]),
     Ids = [A, O, C, Z],
     tagger_word_id(V, alice, A1), check('alice by its id', A, A1),
     tagger_word_id(V, owns, O1), check('owns by its id', O, O1),
@@ -143,7 +143,7 @@ refusals(M) :-
 %% and verbs, are outside the lexicon, in every shape the grammar reads and
 %% with the noise typed prose carries. Each should give the terms a careful
 %% reader would write, up to the names of a rule's variables; every miss is
-%% printed by name, and the floor is forty-one of the forty-three, because
+%% printed by name, and the floor is all but two of the forty-five, because
 %% over a lexicon of thousands two trainings do not miss the same sentence
 %% -- measured, one missed `works hard' and the next `may enter the ward' --
 %% and a pin on all of them would be a pin on the coin.
@@ -158,7 +158,7 @@ prose('Kai may drive the truck.', [may_drive(kai, truck)]).
 prose('Every pilot is a person.', [(person(X) :- pilot(X))]).
 prose('Every nurse that is not banned may enter the ward.', [(may_enter(X, ward) :- nurse(X), \+ banned(X))]).
 prose('Every guard that is armed must guard the gate.', [(must_guard(X, gate) :- guard(X), armed(X))]).
-prose('Ola lives in Lagos.', [lives_in(ola, lagos)]).
+prose('Ola lives in Lagos.', [live_in(ola, lagos)]).
 prose('Tom likes Ana.', [like(tom, ana)]).
 prose('Yuki admires Tom.', [admire(yuki, tom)]).
 prose('Well, Zed really owns a bicycle, obviously.', [bicycle(bicycle_1), own(zed, bicycle_1)]).
@@ -169,12 +169,12 @@ prose('Actually, every pilot that is careful may fly the plane in the morning.',
 prose('Priya works at home.', [work(priya)]).
 prose('Kai clearly does not like Tom.', [neg(like(kai, tom))]).
 prose('Of course, Ana should sell the boat.', [should_sell(ana, boat)]).
-prose('Hugo rents an old flat in Rome.', [flat(flat_1), old(flat_1), rent(hugo, flat_1)]).
+prose('Hugo rents an old flat in Rome.', [flat(flat_1), old(flat_1), rent_in(hugo, flat_1, rome)]).
 prose('Every diver that is not certified must wear the vest, of course.', [(must_wear(X, vest) :- diver(X), \+ certified(X))]).
 prose('Ida is a nurse and Ida is careful.', [nurse(ida), careful(ida)]).
 prose('Noor buys a small blue lamp.', [lamp(lamp_1), small(lamp_1), blue(lamp_1), buy(noor, lamp_1)]).
 prose('Rex drives the big red truck.', [drive(rex, truck)]).
-prose('Mila waits at Oslo.', [waits_at(mila, oslo)]).
+prose('Mila waits at Oslo.', [wait_at(mila, oslo)]).
 prose('Every teacher has a badge.', [(have(X, badge) :- teacher(X))]).
 prose('Rex sleeps and Rex is not hungry.', [sleep(rex), neg(hungry(rex))]).
 prose('Apparently, Bo does not drive.', [neg(drive(bo))]).
@@ -188,9 +188,11 @@ prose('Every nurse that is certified holds a badge.', [(hold(X, badge) :- nurse(
 prose('Kai does not live in Lagos.', [neg(live_in(kai, lagos))]).
 prose('Tom likes the old map.', [like(tom, map)]).
 prose('Wilma will fix the drone.', [will_fix(wilma, drone)]).
-prose('I think that Zed sleeps in Tokyo.', [sleeps_in(zed, tokyo)]).
+prose('I think that Zed sleeps in Tokyo.', [sleep_in(zed, tokyo)]).
 prose('By the way, every farmer that is not insured needs a permit, as far as I know.', [(need(X, permit) :- farmer(X), \+ insured(X))]).
 prose('Well, every baker that is not lazy works hard, obviously.', [(work(X) :- baker(X), \+ lazy(X))]).
+prose('Dana rents a flat in Bristol.', [flat(flat_1), rent_in(dana, flat_1, bristol)]).
+prose('Frankly, Ravi keeps the deposit in Bristol.', [keep_in(ravi, deposit, bristol)]).
 
 prose_checks(M) :-
     findall(T-W, prose(T, W), Ps), length(Ps, N),
@@ -221,17 +223,18 @@ number_vars(['$v'(N)|Vs], N) :- N1 is N + 1, number_vars(Vs, N1).
 %% and its floor, and this section pins the reading exactly.
 
 paragraph(M) :-
-    Prose = 'Zed owns a bicycle. Mia is a nurse and Mia is careful. Every nurse that is careful may enter the ward. Omar does not like Zed. Ola lives in Lagos.',
+    Prose = 'Zed owns a bicycle. Mia is a nurse and Mia is careful. Every nurse that is careful may enter the ward. Omar does not like Zed. Ola lives in Lagos. Dana rents a flat in Bristol.',
     ( tagger_normalise(M, Prose, C, Terms) -> true ; C = refused, Terms = [] ),
-    check('a paragraph of five sentences, controlled', C,
-          'Zed owns a bicycle. Mia is a nurse. Mia is careful. Every nurse that is careful may_enter the ward. Omar does not like Zed. Ola lives_in Lagos.'),
-    length(Terms, NT), check('seven terms', NT, 7),
+    check('a paragraph of six sentences, controlled', C,
+          'Zed owns a bicycle. Mia is a nurse. Mia is careful. Every nurse that is careful may_enter the ward. Omar does not like Zed. Ola lives_in Lagos. Dana rents a flat in Bristol.'),
+    length(Terms, NT), check('nine terms', NT, 9),
     forall(member(T, Terms), assertz(T)),
     truth(own(zed, bicycle_1), V1), check('truth: Zed owns the bicycle', V1, true),
     truth(may_enter(mia, ward), V2), check('truth: Mia may enter the ward -- a rule over two facts, all from the prose', V2, true),
     truth(like(omar, zed), V3), check('truth: Omar likes Zed -- denied', V3, false),
     truth(like(zed, omar), V4), check('truth: Zed likes Omar -- never said', V4, unknown),
-    truth(lives_in(ola, lagos), V5), check('truth: Ola lives in Lagos', V5, true).
+    truth(live_in(ola, lagos), V5), check('truth: Ola lives in Lagos', V5, true),
+    truth(rent_in(dana, flat_1, bristol), V6), check('truth: Dana rents a flat in Bristol -- the place kept', V6, true).
 
 %% one process trains into a store and asserts what it tagged; the next loads
 %% the model from the store and tags the same sentence -- the knowledge base
