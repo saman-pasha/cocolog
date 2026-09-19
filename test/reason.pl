@@ -193,7 +193,17 @@ refusals :-
     yes_no(reason_sentence('Alice owns.', _), F5),
     check('a transitive frame with nothing after the verb is... a unary claim: own(alice)', F5, yes),
     yes_no(reason_sentence('Alice a car.', _), F6),
-    check('no verb', F6, no).
+    check('no verb', F6, no),
+    yes_no(reason_sentence('Alice owns a house in Rome.', _), F7),
+    check('a prepositional phrase: REFUSED, where it once parsed as rome(rome_1)', F7, no),
+    reason_refused('Alice owns a house in Rome.', F7r),
+    check('  -- and reason_refused/2 names it', F7r, 'alice owns a house in rome'),
+    yes_no(reason_sentence('Alice sleeps at the house.', _), F8),
+    check('a preposition after an intransitive verb', F8, no),
+    yes_no(reason_sentence('Alice is in.', _), F9),
+    check('a preposition is not an adjective', F9, no),
+    yes_no(reason_sentence('Every tenant that is not exempt must pay the rent to Alice.', _), F10),
+    check('a preposition after a rule''s object', F10, no).
 
 %% ---- a rule declares what its body names ------------------------------------------------
 

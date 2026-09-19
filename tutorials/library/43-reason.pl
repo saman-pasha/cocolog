@@ -112,6 +112,8 @@ main :-
     ( reason_sentence('If an employee is authorized then it may access the server.', _)
     -> P9c = parsed ; P9c = refused ),
     must('if-then with a pronoun (write `that is'' instead)', P9c, refused),
+    ( reason_sentence('Alice owns a house in Rome.', _) -> P9d = parsed ; P9d = refused ),
+    must('a prepositional phrase -- refused, never misread as rome(rome_1)', P9d, refused),
 
     format("~n10. The tokens, for a grammar of your own~n", []),
     reason_tokens('Hello, World. Alice_1!', Tk),

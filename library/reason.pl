@@ -188,6 +188,12 @@
 %% grammar clauses of its own beside these, the way a library(httpd) page
 %% is written beside the server. It does not resolve pronouns, so `Alice
 %% bought a car. She uses it.' is two sentences of which the second fails.
+%% It does not read a prepositional phrase, and it REFUSES one rather than
+%% misreading it: `Alice owns a house in Rome' once came back as
+%% rome(rome_1), house(rome_1), in(rome_1), own(alice, rome_1) -- the
+%% position rule taking the last word for the noun -- and that is worse
+%% than a refusal. Prepositions are closed now, so `in Rome' is left over
+%% and the sentence fails, and reason_refused/2 names it.
 %% It does not read compound nouns: `an identification number' is a
 %% `number' that is `identification', by the position rule, and a program
 %% that means one word writes identification_number. And it decides nothing
@@ -490,10 +496,30 @@ rl_closed(then).
 %% suite asked for it to be refused. Nothing here resolves one; a sentence
 %% built on one is refused whole, as the header says.
 rl_closed(W) :- rl_pronoun(W).
+rl_closed(W) :- rl_preposition(W).
 rl_pronoun(it).   rl_pronoun(he).   rl_pronoun(she).  rl_pronoun(they).
 rl_pronoun(we).   rl_pronoun(i).    rl_pronoun(you).  rl_pronoun(him).
 rl_pronoun(her).  rl_pronoun(them). rl_pronoun(us).   rl_pronoun(me).
 rl_pronoun(his).  rl_pronoun(its).  rl_pronoun(their). rl_pronoun(our).
+%% prepositions: closed, so a phrase after the object is LEFT OVER and the
+%% sentence fails. Without this the position rule -- the noun is the last
+%% word -- read `Alice owns a house in Rome' as a `rome' that is `house'
+%% and `in', and accepted it. A wrong reading accepted is worse than a
+%% refusal, and this library refuses.
+rl_preposition(in).      rl_preposition(on).      rl_preposition(at).
+rl_preposition(to).      rl_preposition(from).    rl_preposition(with).
+rl_preposition(by).      rl_preposition(for).     rl_preposition(of).
+rl_preposition(after).   rl_preposition(before).  rl_preposition(under).
+rl_preposition(over).    rl_preposition(into).    rl_preposition(onto).
+rl_preposition(about).   rl_preposition(between). rl_preposition(through).
+rl_preposition(during).  rl_preposition(without). rl_preposition(within).
+rl_preposition(across).  rl_preposition(against). rl_preposition(among).
+rl_preposition(around).  rl_preposition(behind).  rl_preposition(below).
+rl_preposition(beneath). rl_preposition(beside).  rl_preposition(beyond).
+rl_preposition(near).    rl_preposition(off).     rl_preposition(out).
+rl_preposition(since).   rl_preposition(until).   rl_preposition(upon).
+rl_preposition(toward).  rl_preposition(towards). rl_preposition(via).
+rl_preposition(as).      rl_preposition(than).
 
 %% ---- naming the individuals ------------------------------------------
 %%
