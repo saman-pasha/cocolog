@@ -27,9 +27,9 @@
 ;;;   convenience for the common case.
 ;;;
 ;;;   A SPAWNED CHILD GETS ITS OWN SESSION. `proc_spawn/2' is for the
-;;;   server a suite raises and kills at the end; `setsid()' is what
-;;;   lets it outlive the turn that started it -- the lesson this
-;;;   repository's own CLAUDE.md records about `nohup &'. The pid
+;;;   server a suite raises and kills at the end; a session of its own
+;;;   is what lets it outlive the turn that started it -- the lesson
+;;;   this repository's own CLAUDE.md records about `nohup &'. The pid
 ;;;   crosses into Prolog as a plain integer because a pid IS an
 ;;;   integer everywhere -- `proc_kill/2' refuses nothing on its
 ;;;   behalf; unlike a file descriptor, killing a wrong pid is a
@@ -145,16 +145,27 @@
   ;;; A cast takes ONE type token; the byte buffer needs a name.
   (@define (code "ubyte_t unsigned char"))
 
-  ;;; std/c/posix declares fork, execl, pipe, dup2, read, close, usleep,
-  ;;; waitpid, WNOHANG, WIFEXITED, WEXITSTATUS, and poll's struct --
-  ;;; members and all. What it does NOT declare is the signal family and
-  ;;; the session call; declared here the way sys-wait.cicili declares
-  ;;; its macros: a prototype, no body, the real one in <signal.h> and
-  ;;; <unistd.h> at compile time.
+  ;;; std/c/posix declares pipe, read, close, usleep, waitpid, WNOHANG,
+  ;;; WIFEXITED, WEXITSTATUS, and poll's struct -- members and all. What
+  ;;; it does NOT declare is the signal family; declared here the way
+  ;;; sys-wait.cicili declares its macros: a prototype, no body, the real
+  ;;; one in <signal.h> at compile time.
   (@define (code "pollfd struct pollfd"))
   (decl) (func kill ((pid_t pid) (int sig)) (out int))
-  (decl) (func setsid () (out pid_t))
-  (decl) (func setpgid ((pid_t pid) (pid_t pgid)) (out int))
+
+  ;;; posix_spawn(3) and its two objects are not in std/c/posix either, and
+  ;;; go through the raw-C escape the way files.cicili reaches glob and
+  ;;; realpath. `environ' is the other thing named raw: a shared library
+  ;;; on Darwin may not refer to the variable at all -- the loader owns it
+  ;;; and `_NSGetEnviron()' hands back its address -- where glibc simply
+  ;;; declares it.
+  (@ifdef (code "__APPLE__"))
+  (code "#include <crt_externs.h>")
+  (@define (code "coco_p_environ (*_NSGetEnviron())"))
+  (@else)
+  (code "extern char **environ")
+  (@define (code "coco_p_environ environ"))
+  (@endif)
 
   ) ; decl-process
 
@@ -188,33 +199,75 @@
               (block (set (cof rc) (coco_m_type_error e "atom" t)) (return 0)))
           (return 1)))
 
-  ;;; ---- the fork, shared by run and spawn -------------------------------
+  ;;; ---- the spawn, shared by run and spawn ------------------------------
   ;;;
   ;;; The child: its own process group (run) or session (spawn), stdout
-  ;;; onto the pipe when one is given, then /bin/sh -c CMD. _exit(127)
-  ;;; on a failed exec, sh's own number for "no such command".
+  ;;; onto the pipe when one is given, then /bin/sh -c CMD; sh's own 127
+  ;;; for "no such command".
+  ;;;
+  ;;; IT IS posix_spawn(3), NOT fork(2), AND THE REASON IS MEASURED. A
+  ;;; fork duplicates the parent's address space, and under Linux's
+  ;;; default overcommit (vm.overcommit_memory = 0, the heuristic) that
+  ;;; copy is charged one mapping at a time against the machine: a
+  ;;; single private mapping larger than physical memory is refused
+  ;;; with ENOMEM, whether or not a byte of it is resident. Adjacent
+  ;;; anonymous mappings with the same flags MERGE into one, so a
+  ;;; process that maps a lot -- a torch training, whose allocator
+  ;;; mmaps block after block -- ends up with one mapping the size of
+  ;;; its arena. test/tagger.pl found it: at 19.2 GB of address space
+  ;;; (10.4 GB resident) on a 16 GB box, every proc_run/4 in the process
+  ;;; came back `Cannot allocate memory', and a probe that maps 17
+  ;;; untouched gigabytes fails its fork the same way where 12 succeed.
+  ;;; posix_spawn shares the parent's memory until the exec (glibc:
+  ;;; clone with CLONE_VM | CLONE_VFORK; Darwin: the kernel's own), so
+  ;;; nothing is copied, nothing is charged, and a child costs the same
+  ;;; from a 19 GB process as from a 1 MB one. The probe spawns at
+  ;;; every size.
+  ;;;
+  ;;; A refused spawn is an ERROR, never a plain failure: the errno is
+  ;;; kept for the caller's error term, because a test section that
+  ;;; failed with no red check and no reason cost a diagnosis.
+  (static) (var int coco_p_spawn_errno . 0)
+
   (static)
-  (func coco_p_fork ((char * cmd) (int * outfd) (int session)) (out pid_t)
-        (let ((int fds [2]) (pid_t pid . 0))
+  (func coco_p_start ((char * cmd) (int * outfd) (int session)) (out pid_t)
+        (let ((int fds [2]) (pid_t pid . 0) (int err . 0) (char * argv [4]))
           (if outfd
-              (if (< (pipe fds) 0) (return -1)))
-          (set pid (fork))
-          (if (< pid 0)
+              (if (< (pipe fds) 0) (block (set coco_p_spawn_errno errno) (return -1))))
+          (set (nth 0 argv) "sh")
+          (set (nth 1 argv) "-c")
+          (set (nth 2 argv) cmd)
+          (set (nth 3 argv) (cast (char *) nil))
+          ;; a `code' statement gets its `;' from the emitter, so none is
+          ;; written here -- a second one is an empty statement, and an
+          ;; empty statement between an if and its else is a C error
+          (code "posix_spawnattr_t at")
+          (code "posix_spawn_file_actions_t fa")
+          (code "posix_spawnattr_init(&at)")
+          (code "posix_spawn_file_actions_init(&fa)")
+          ;; the group is what lets a timeout kill a pipeline whole; the
+          ;; session is what lets a server outlive us. SETSID is POSIX
+          ;; since 2024 and glibc's since 2.26, shown under _GNU_SOURCE,
+          ;; which build.sh defines; Darwin has it in the open.
+          (if session
               (block
+                (code "posix_spawnattr_setflags(&at, POSIX_SPAWN_SETSID)"))
+              (block
+                (code "posix_spawnattr_setflags(&at, POSIX_SPAWN_SETPGROUP)")
+                (code "posix_spawnattr_setpgroup(&at, 0)")))
+          (if outfd
+              (block
+                (code "posix_spawn_file_actions_addclose(&fa, fds[0])")
+                (code "posix_spawn_file_actions_adddup2(&fa, fds[1], 1)")
+                (code "posix_spawn_file_actions_addclose(&fa, fds[1])")))
+          (set err (code "posix_spawn(&pid, \"/bin/sh\", &fa, &at, argv, coco_p_environ)"))
+          (code "posix_spawn_file_actions_destroy(&fa)")
+          (code "posix_spawnattr_destroy(&at)")
+          (if (!= err 0)
+              (block
+                (set coco_p_spawn_errno err)   ; the error IS the return, not errno
                 (if outfd (block (close (nth 0 fds)) (close (nth 1 fds))))
                 (return -1)))
-          (if (== pid 0)
-              (block
-                ;; the group is what lets a timeout kill a pipeline
-                ;; whole; the session is what lets a server outlive us
-                (if session (setsid) (setpgid 0 0))
-                (if outfd
-                    (block
-                      (close (nth 0 fds))
-                      (dup2 (nth 1 fds) 1)
-                      (close (nth 1 fds))))
-                (execl "/bin/sh" "sh" "-c" cmd (cast (char *) nil))
-                (_exit 127)))
           (if outfd
               (block
                 (close (nth 1 fds))
@@ -237,8 +290,8 @@
               (int timed_out . 0))
           (if (not (coco_p_cmd e g 0 cmd (sizeof cmd) (aof rc))) (return rc))
           (if (not (coco_p_int e g 1 (aof tmo) (aof rc))) (return rc))
-          (set pid (coco_p_fork cmd (aof fd) 0))
-          (if (< pid 0) (return 0))
+          (set pid (coco_p_start cmd (aof fd) 0))
+          (if (< pid 0) (return (coco_m_error e "proc_run: could not spawn a child" (strerror coco_p_spawn_errno))))
           (set buf (cast (ubyte_t *) (malloc cap)))
           (if (not buf) (block (close fd) (return 0)))
           (while 1
@@ -294,8 +347,8 @@
   (func coco_p_spawn ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char cmd [16384]) (pid_t pid . 0))
           (if (not (coco_p_cmd e g 0 cmd (sizeof cmd) (aof rc))) (return rc))
-          (set pid (coco_p_fork cmd (cast (int *) nil) 1))
-          (if (< pid 0) (return 0))
+          (set pid (coco_p_start cmd (cast (int *) nil) 1))
+          (if (< pid 0) (return (coco_m_error e "proc_spawn: could not spawn a child" (strerror coco_p_spawn_errno))))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 pid)))))
 
   ;;; ---- proc_wait(+Pid, +TimeoutMs, -Exit) ------------------------------
@@ -356,6 +409,7 @@
   (include <unistd.h>)
   (include <signal.h>)
   (include <sys/wait.h>)
+  (include <spawn.h>)
   (include <poll.h>)
   (include <errno.h>)
   (include <stdlib.h>)

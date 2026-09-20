@@ -3146,6 +3146,82 @@ and timing the children by hand said 66 s and 40 s for work worth five.
 A section that fails without a check line is a goal that failed, and
 `proc_run/4` failing on its timeout is the first thing to suspect.
 
+## `fork` refuses a process bigger than the machine, and `library(process)` spawns with `posix_spawn` now (1.2.41)
+
+**THE SECTION ABOVE SAID `test/tagger.pl`'S CHILDREN RAN PAST THE 120 s
+TIMEOUT. THEY NEVER STARTED.** The merge sort made each child worth ten
+seconds where it had been worth sixty, and the across-processes section
+went on failing exactly as before: `main` failing with no red check, exit
+1, no verdict line. Traced from inside the case, `proc_run('true', 5000,
+_, E)` FAILED there -- any command, `echo hi` included -- while the same
+section standalone is green. What made it loud was one change to the
+module: a spawn that cannot happen RAISES now, with the errno's own words,
+where `coco_p_fork` answered -1 and `proc_run/4` turned that into a plain
+failure. The next run said it in one line:
+
+```
+ERROR: -s main: proc_run: could not spawn a child: Cannot allocate memory
+```
+
+**IT IS `fork(2)` BEING REFUSED, AND THE PROCESS'S SIZE IS THE REASON.**
+Read out of `/proc` while the case ran its torch training: **VmSize
+19.2 GB, VmRSS 10.4 GB, four threads, on a 16 GB box with no swap.** Under
+Linux's default `vm.overcommit_memory = 0` (the heuristic), a fork's copy of
+the address space is charged one mapping at a time, and the heuristic
+refuses any single request larger than physical memory plus swap
+(`__vm_enough_memory`, OVERCOMMIT_GUESS: `pages > totalram_pages() +
+total_swap_pages`) -- whether or not a byte of it is resident. Adjacent
+anonymous mappings with the same flags MERGE into one, and a torch
+allocator mmaps block after block, so the arena is ONE mapping the size of
+everything it ever asked for. Confirmed with a probe that maps N untouched
+gigabytes a gigabyte at a time and then forks and spawns:
+
+| mapped | VMAs | largest | `fork` | `posix_spawn` |
+|---|---|---|---|---|
+| 4 GB | 25 | 4 096 MB | ok | ok |
+| 12 GB | 25 | 12 288 MB | ok | ok |
+| **17 GB** | 25 | **17 408 MB** | **Cannot allocate memory** | ok |
+| 20 GB | 25 | 20 480 MB | Cannot allocate memory | ok |
+
+-- the gigabytes land in one VMA (25 mappings whatever N is), the refusal
+starts exactly where that VMA passes the machine's 16 GB, and nothing was
+ever touched: VmRSS read **1 684 kB** with the 17 GB mapped. So a process
+that has trained a network cannot fork, and the size of the CHILD --
+`/bin/sh -c true` -- has nothing to do with it.
+
+**`posix_spawn(3)` COPIES NOTHING, AND IT IS WHAT `coco_p_start` IS NOW.**
+glibc implements it as `clone(CLONE_VM | CLONE_VFORK)` and Darwin in the
+kernel: the child shares the parent's memory until its exec, so no mapping
+is duplicated, none is charged, and a child costs the same from a 19 GB
+process as from a one-megabyte one. The two things the fork child used to
+do by hand are attributes: `POSIX_SPAWN_SETPGROUP` with group 0 for
+`proc_run/4` (the group is what a timeout kills whole -- still measured:
+`sleep 20 | sleep 20` under a 300 ms budget answers 124 and both sleeps are
+dead) and `POSIX_SPAWN_SETSID` for `proc_spawn/2` (a session of its own,
+checked against `/proc/PID/stat`'s sixth field); the pipe is three file
+actions. **`POSIX_SPAWN_SETSID` IS SHOWN BY glibc ONLY UNDER `_GNU_SOURCE`**,
+which `modules/process/build.sh` now defines on the compile line (Darwin
+has the flag in the open and ignores the macro), and **`environ` IS A
+VARIABLE A SHARED LIBRARY ON DARWIN MAY NOT NAME** -- the loader owns it and
+`_NSGetEnviron()` hands back its address -- so the module reaches it
+through `coco_p_environ`, defined either way under `@ifdef __APPLE__`.
+`test/process.pl` is green on the new module, `test/tagger.pl` is green
+end to end for the first time since its lexicon grew, and the version is
+1.2.41 because a spawn that fails raises where it failed.
+
+**TWO THINGS TO CARRY AWAY, and the first is a correction to this file.**
+The 1.2.40 section's last sentence -- suspect the timeout first -- was an
+inference from two standalone timings and not a measurement of the case,
+and it was wrong: a section that fails with no red check and no error
+term is a builtin ANSWERING 0 WHERE IT SHOULD RAISE, and the place to look
+is the C, for a `(return 0)` on a syscall's failure. That shape is the
+same one the module README records for an error call tested as a boolean,
+seen from the other side. And **a `(code "...")` statement gets its
+semicolon from the emitter**: a `;` written inside the string makes an
+empty statement, and an empty statement between an `if` and its `else` is
+`error: expected expression` at the `else` -- which is how the first build
+of this died, naming a line that had nothing wrong on it.
+
 ## The engine was quadratic, and the fix is one call
 
 **`coco_make` now dereferences every argument as it stores it**, in
