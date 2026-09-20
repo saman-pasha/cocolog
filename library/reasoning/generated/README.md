@@ -9,7 +9,7 @@ Clean, Applied)` term a line, `normalise_save/2`'s form, read back by
 
 | file | what |
 |---|---|
-| `training.txt` | seeds 1 to 16384 of the generator: the pairs `tagger_train/2` fitted the shipped `model.rows` to |
+| `training.txt` | seeds 1 to 32768 of the generator: the pairs `tagger_train/2` fitted the shipped `model.rows` to |
 | `evaluation.txt` | seeds 30001 to 30300: the pairs `tagger_evaluate/4` measures a model on, which no training saw |
 
 The generator is deterministic in its seed, so these files can be made

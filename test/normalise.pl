@@ -286,7 +286,7 @@ saved :-
     yes_no(exists_file(Training), HasTraining),
     check('training.txt is committed there: what the shipped model was fitted to', HasTraining, yes),
     normalise_load(Training, TPs), length(TPs, NT),
-    check('16384 pairs in it', NT, 16384),
+    check('32768 pairs in it', NT, 32768),
     ( length(First, 60), append(First, _, TPs) -> true ; First = TPs ),
     normalise_corpus(60, Gen60),
     check('and the first sixty are the generator''s own pairs, seed for seed', First, Gen60),

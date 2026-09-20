@@ -2,7 +2,7 @@
 %% tagger learns from, as files in the tree.
 %%
 %%     cocolog -s library/reasoning/generate.pl                  # the defaults
-%%     cocolog -s library/reasoning/generate.pl -- 16384 300     # pairs, evaluation pairs
+%%     cocolog -s library/reasoning/generate.pl -- 32768 300     # pairs, evaluation pairs
 %%     sh tools/tagger/train.sh                                  # runs this, then train.pl
 %%
 %% library(reasoning/normalise) makes a pair from a seed and nothing else,
@@ -30,7 +30,7 @@
 
 main :-
     current_prolog_flag(argv, [_|Args]),
-    ( Args = [NA|_], atom_number(NA, N) -> true ; N = 16384 ),
+    ( Args = [NA|_], atom_number(NA, N) -> true ; N = 32768 ),
     ( Args = [_, MA|_], atom_number(MA, M) -> true ; M = 300 ),
     normalise_generated_dir(Dir),
     atom_concat(Dir, '/training.txt', Training),

@@ -167,6 +167,14 @@
 %%         the head of a sentence that could not stand as a subject: a
 %%         closed word, or a word the lexicon knows as a common word.
 %%
+%%     normalise_head_bare(+Word)
+%%         Whether a bare word can stand at the head of a sentence as its
+%%         subject: one word, not closed, and a name or a word the lexicon
+%%         does not know as a common word. The unquote transform writes a
+%%         head mention bare and tagged S exactly when this holds, and
+%%         library(reasoning/tagger) applies the same rule to what the
+%%         network answers, so a head is never a coin.
+%%
 %%     normalise_lessons(-Lines)
 %%         Every line of every .txt file in the corpus directory, in file
 %%         and line order, comments and blank lines dropped: the lessons the
@@ -1021,6 +1029,7 @@ ng_bare_words(W, Ws) :-
 
 %% one word, not closed, and either a name or a word the lexicon does not
 %% know: what stands bare at the head as a subject
+normalise_head_bare(W) :- ng_head_bare(W).
 ng_head_bare(W) :-
     ng_bare_words(W, [W]),
     \+ rl_closed(W),

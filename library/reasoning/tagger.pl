@@ -76,8 +76,8 @@
 %%         pairs_file(F) train on the pairs normalise_load/2 reads from F
 %%         (library/reasoning/generated/training.txt, what generate.pl
 %%         wrote) instead of generating them, the first pairs(N) of them;
-%%         pairs(N) the corpus, seeds 1..N (16384); steps(K) optimiser steps
-%%         (400); batch(B) sequences a step (128); lr(R) Adam's rate (0.005);
+%%         pairs(N) the corpus, seeds 1..N (32768); steps(K) optimiser steps
+%%         (500); batch(B) sequences a step (128); lr(R) Adam's rate (0.005);
 %%         seed(S) the tensor seed (45); min_count(C) the times a word must
 %%         be seen to have an embedding row of its own (2); hidden(H) the
 %%         width of each GRU (96) -- a saved model carries its own, in the
@@ -186,12 +186,12 @@
 %% tagger generalises to the words it never saw exactly as far as the
 %% shapes it did.
 %%
-%% MEASURED, on a four-core box with no GPU, the defaults: 400 steps over
-%% 16384 pairs train in about two minutes; over 300 pairs training never
-%% saw (seeds past the corpus) 0.988 of the tags and 0.963 of the
-%% sentences are right and 0.973 assemble and parse to the clean terms
-%% (0.9997 and 0.997 before the ten lesson shapes joined, whose bare
-%% mentions are the hard part); of eighty-two hand-written sentences whose
+%% MEASURED, on a four-core box with no GPU, the defaults: 500 steps over
+%% 32768 pairs train in about four minutes; over 300 pairs training never
+%% saw (seeds past the corpus) 0.988 of the tags and 0.93 to 0.96 of the
+%% sentences are right and 0.95 to 0.97 assemble and parse to the clean
+%% terms, a training apart (0.9997 and 0.997 before the ten lesson shapes
+%% joined, whose bare mentions are the hard part); of eighty-two hand-written sentences whose
 %% names, nouns, adjectives and verbs are outside the lexicon -- questions,
 %% shared subjects and seventeen lines of a lesson typed bare among them
 %% -- seventy-eight or more give their terms, a different one missed from
@@ -414,8 +414,8 @@ tg_forward(Ps, Ins, Shs, Mks, Logits) -->
 %% ---- training -------------------------------------------------------------------------
 
 tagger_train(Name, Options) :-
-    tg_option(pairs(NP), Options, 16384),
-    tg_option(steps(K), Options, 400),
+    tg_option(pairs(NP), Options, 32768),
+    tg_option(steps(K), Options, 500),
     tg_option(batch(B), Options, 128),
     tg_option(lr(LR), Options, 0.005),
     tg_option(seed(S), Options, 45),
@@ -572,7 +572,33 @@ tagger_tag_all(model(Ps, Vocab), TokenLists, TagLists) :-
     tensor_free(Logits), tg_batch_free(Batch),
     length(Seqs, N),
     tg_decode(Seqs, 0, N, Got, TagLists0),
-    tg_judged(TokenLists, TagLists0, TagLists).
+    tg_heads(TokenLists, TagLists0, TagLists1),
+    tg_judged(TokenLists, TagLists1, TagLists).
+
+%% ONE THING THE LEXICON REWRITES RATHER THAN REFUSES, because the term is
+%% the same either way: a capitalised word at the head of a sentence, or
+%% right after a fronted `is', `does' or a modal, that the network calls M
+%% is S when it could stand as a subject (normalise_head_bare/1: not
+%% closed, and a name or a word the lexicon does not know) -- the rule the
+%% generator wrote the training data by, applied to the answer, so that
+%% `Los is the plural of el' after `In Spanish,' is Los and not "los",
+%% and `Is Dana late?' asks about Dana. Sentence by sentence, at the B
+%% breaks, the noise before the head passed over.
+tg_heads([], [], []).
+tg_heads([Toks|TLs], [Tags|Tgs], [Out|Outs]) :-
+    tg_head_rule(Toks, Tags, head, Out),
+    tg_heads(TLs, Tgs, Outs).
+
+tg_head_rule([], [], _, []).
+tg_head_rule([T|Ts], [G|Gs], Pos, [G1|Out]) :-
+    (   G == 'B' -> G1 = G, Pos1 = head
+    ;   G == 'D' -> G1 = G, Pos1 = Pos
+    ;   T == ',' -> G1 = G, Pos1 = Pos
+    ;   Pos == head, T = word(W, upper), G == 'M', normalise_head_bare(W) -> G1 = 'S', Pos1 = rest
+    ;   Pos == head, T = word(F, _), ( rl_copula(F) ; rl_aux(F) ; rl_modal(F) ) -> G1 = G, Pos1 = head   % the subject follows a fronted verb
+    ;   G1 = G, Pos1 = rest
+    ),
+    tg_head_rule(Ts, Gs, Pos1, Out).
 
 tg_decode([], _, _, _, []).
 tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-

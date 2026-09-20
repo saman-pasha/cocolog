@@ -8,8 +8,8 @@
 %%
 %% It trains on library/reasoning/generated/training.txt -- the pairs as
 %% a FILE in the tree, so the data the shipped model learned from is
-%% committed beside it -- with tagger_train/2's other defaults, 400 steps;
-%% about three minutes on four cores. Errors are thrown, not printed: a
+%% committed beside it -- with tagger_train/2's other defaults, 500 steps
+%% over 32768 pairs; about four minutes on four cores. Errors are thrown, not printed: a
 %% training that did not finish leaves no model to ship. The numbers it
 %% prints are the model measured on sentences the training never saw, on
 %% real prose it must refuse, and on the corpus's own lesson lines typed

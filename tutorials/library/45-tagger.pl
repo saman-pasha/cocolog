@@ -20,8 +20,8 @@
 %% bounded in variety, and variety is what carries a tagger to words it
 %% never saw: fifty-five shapes, thirteen kinds of noise, and a lexicon that is
 %% files beside the library -- 2500 census names and some seventeen
-%% thousand WordNet words, library/reasoning/lexicon/ -- and 16384 pairs
-%% of them by default. Over that lexicon 8192 pairs read 0.96 of the
+%% thousand WordNet words, library/reasoning/lexicon/ -- and 32768 pairs
+%% of them by default, over 500 steps. Over that lexicon 8192 pairs read 0.96 of the
 %% sentences training never saw whatever the step count, which is
 %% memorising; 16384 read 0.987 and 32768 read 0.993: a corpus too large
 %% to memorise is what makes a tagger generalise, and the extra pairs cost
@@ -51,7 +51,7 @@ main :-
     tagger_encode(V, [word(alice, upper), word(owns, lower), ',', word(zed, upper)], _, Shapes),
     must('and the SHAPE travels beside the word: upper, lower with -s, comma, upper again (a name whatever it ends in)', Shapes, [2, 4, 3, 2]),
 
-    format("~n2. Training: 400 Adam steps over 16384 pairs, the loss printed every 40~n", []),
+    format("~n2. Training: 500 Adam steps over 32768 pairs, the loss printed every 40~n", []),
     tagger_train(lesson, [verbose(true)]),
     tagger_load(lesson, M),
     format("   saved under `lesson', loaded back~n", []),

@@ -1844,7 +1844,7 @@ now; and the tagger's batches were built as tensors all at once, which at
 `tensor expected, found 0` -- a batch's tensors are made per step now. And
 the numbers moved: over this lexicon 8192 pairs read 0.96 of unseen
 sentences whatever the step count, which is memorising, so the tagger's
-defaults are 16384 pairs and 400 steps (0.997), about eighty seconds here.
+defaults were 16384 pairs and 400 steps (0.997), about eighty seconds here -- and are 32768 pairs and 500 steps since the ten lesson shapes of 1.2.39, whose bare mentions are the hard part.
 
 **A TAGGER THAT CANNOT SAY NO READS `Boston, Mass.` AS mass(boston), AND
 THE NO DOES NOT LIVE IN THE NETWORK.** The Brown corpus's government
@@ -2334,14 +2334,19 @@ subject, as it refuses `Small business management`) or it is closed;
 `normalise_bare/2` types a lesson the same way. A lesson typed bare
 therefore reads back to its terms with its head words as names, and a
 name typed after a lesson stays a name. Measured on the shipped model,
-trained on `generated/training.txt`: over 300 unseen pairs 0.988 of the
-tags, 0.963 of the sentences, 0.973 assembled and parsed to the clean
-terms (0.9997 and 0.997 before the lesson shapes, whose bare mentions are
-the hard part); real prose refused 0.953; the corpus's 194 lines typed
-bare read back at 0.876. **AND THE DATA A MODEL TRAINED ON IS IN THE
+trained on `generated/training.txt` (32768 pairs, 500 steps): over 300
+unseen pairs 0.988 of the tags, 0.933 of the sentences, 0.953 assembled
+and parsed to the clean terms -- and 0.963 and 0.973 from the 16384-pair,
+400-step training before it, so a training moves the sentence figure by
+three points either way and the pins sit at 0.90 (0.9997 and 0.997
+before the lesson shapes, whose bare mentions are the hard part); real
+prose refused 0.950; the corpus's 194 lines typed bare read back at
+0.876. That 16384-pair model dropped `late` in `Is Dana late?` to D and
+lesson 45 went red on it, which is what moved the defaults: more pairs
+per shape, once fifty-five shapes shared them. **AND THE DATA A MODEL TRAINED ON IS IN THE
 TREE, WHICH IS THE OWNER'S SECOND RULE**: `library/reasoning/generate.pl`
 writes the generator's pairs to `library/reasoning/generated/`
-(`training.txt`, seeds 1..16384; `evaluation.txt`, 30001..30300; one
+(`training.txt`, seeds 1..32768; `evaluation.txt`, 30001..30300; one
 `pair(...)` term a line, `normalise_save/2` and `normalise_load/2`),
 `train.pl` trains on that file through `tagger_train/2`'s `pairs_file(F)`,
 `tools/tagger/train.sh` runs the two in turn, and the files are committed

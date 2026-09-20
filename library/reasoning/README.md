@@ -13,7 +13,7 @@ directory in the name:
 | `translate.pl` | a language lesson as a knowledge base and a translation as a proof over it: `reason_translate/2,3` takes a simple sentence -- a subject, a verb and what follows it; singular or plural, in any person, denied or not, present, past, future or perfect, with a pronoun, a possessive, a number, a prepositional phrase, an adverb or two phrases joined; a statement or a question (yes or no, what, who, whom, where, when, which) -- between English and the language a lesson teaches, asking the knowledge base what a word means, what it is, its gender, its plural, its past, its future, its participle and its persons (stated, or by an ending rule), the word for `not`, whether an adjective follows its noun, whether a pronoun precedes the verb, the word that stands before a person as the object (`The word "a" precedes the person`) and the contractions it states (`"al" is the contraction of "a el"`) -- and knowing no word of the language itself; `reason_learn/3` learns a lesson under its own name so that several languages sit in one knowledge base, and `reason_untranslated/2` names the words a lesson left out |
 | `normalise.pl` | the training data for the network: the grammar's fifty-five shapes as a generator with gold tags, thirteen noise transforms that carry the tags, and the assembler the round trip holds them to -- over the lexicon files in `lexicon/` and the lessons in `corpus/`, read as needed and never written into the code. Ten of the shapes are a LESSON's, about mentioned words (`The noun "casa" means "house"`, `Every noun that ends in "a" is feminine`), and their tag M is the one the assembler writes something for: the quotation marks, so that `The noun casa means house` typed bare comes back as the lesson's own line (`normalise_bare/2` is the typing) |
 | `lexicon/` | the words, one class a file: 2500 census first names and some seventeen thousand WordNet words ranked by use for the generator (`unit.txt` the four hundred a number counts, WordNet's units of measurement and of time; `language.txt` a hundred and fifty languages, for `Spanish is a language` and the `in Spanish` the normaliser drops), and in `known_*.txt` every SemCor-counted noun, verb, adjective and adverb for the tagger's judge; `SOURCES.md` says where each came from, and `lexicon/build.pl` writes every file but the names from a WordNet 3.0 `dict` directory; `prose.txt` is eight thousand of WordNet's own example sentences, which nothing trains on and `tagger_refused/4` measures against |
-| `generated/` | the training data, as DATA: `training.txt`, the 16384 pairs the shipped model was fitted to, and `evaluation.txt`, the 300 it is measured on -- one `pair(...)` term a line, written by `generate.pl` and read back by `normalise_load/2`; committed, because a seed is not data once a shape or a lexicon line moves under it |
+| `generated/` | the training data, as DATA: `training.txt`, the 32768 pairs the shipped model was fitted to, and `evaluation.txt`, the 300 it is measured on -- one `pair(...)` term a line, written by `generate.pl` and read back by `normalise_load/2`; committed, because a seed is not data once a shape or a lexicon line moves under it |
 | `generate.pl` | the program that writes `generated/`: `cocolog -s library/reasoning/generate.pl`, which `tools/tagger/train.sh` runs first |
 | `train.pl` | the program that trains the shipped tagger on `generated/training.txt` into the knowledge base and measures it -- unseen pairs, real prose refused, the lessons typed bare -- which `tools/tagger/train.sh` runs over a scratch store and exports from |
 | `corpus/` | the lessons, as DATA: `spanish.txt` and `italian.txt`, the two lessons `test/translate.pl` learns, one sentence a line in the controlled English. The lesson shapes' words -- the mentioned words, the classes said of them, the adjectives, the forms, the relations and the class atoms -- are read out of these lines by pattern, so that no word of a lesson lives in the code, and `tagger_lessons/4` measures the shipped tagger on the lines typed bare. Its README says what to add and where |
@@ -29,8 +29,8 @@ stay where the runners look -- `test/run.pl` takes `test/*.pl` and
 
 The loop is closed: `tagger.pl` trains in about two minutes on four
 cores, over 300 sentences training never saw (seeds past the corpus)
-0.988 of the tags and 0.963 of the sentences are right (0.9997 and 0.997
-before the lesson shapes joined), of eighty-two hand-written sentences
+0.988 of the tags and 0.93 to 0.96 of the sentences are right, a training
+apart (0.9997 and 0.997 before the lesson shapes joined), of eighty-two hand-written sentences
 whose names, nouns, adjectives and verbs are outside the lexicon
 seventy-eight or more give their terms, and 0.88 of the corpus's own
 lesson lines typed bare -- `The noun casa means house.` -- read back to
@@ -92,6 +92,8 @@ a lexicon written by hand is a lexicon nobody grows, so it is files now,
 `lexicon/`, census names and WordNet, and over those the corpus is the
 lever twice over -- 8192 pairs read 0.96 of the sentences training never
 saw whatever the step count, which is memorising; 16384 read 0.987 and
-32768 read 0.993. What it still cannot know is a shape the grammar does
+32768 read 0.993 before the lesson shapes joined, and with them 16384
+read 0.963 of the sentences, which is why the defaults are 32768 pairs
+and 500 steps now. What it still cannot know is a shape the grammar does
 not read -- a definite subject, a passive -- and that is refused, never
 quietly rewritten; the lesson's last section shows both.
