@@ -74,7 +74,7 @@ main :-
     show('a tag drops, joins or splits; it never changes a word', '"All tenants have badges" is not generated'),
     show('so a plural, a passive, a pronoun are not noise here', 'they are the next transforms, once a tag can carry them'),
 
-    format("~nDone.~n", []).
+    format("~ndone~n", []).
 
 %% variants: the same term up to the names of its variables
 rt_variant(A, B) :-

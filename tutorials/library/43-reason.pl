@@ -160,7 +160,7 @@ main :-
     explanation,
     topics,
     prose,
-    format("~nDone.~n", []).
+    format("~ndone~n", []).
 
 %% section 13 is a clause of its own: a lesson's main/0 must still fit a
 %% row of the knowledge base when it is consulted into one

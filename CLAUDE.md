@@ -2251,6 +2251,29 @@ word that English knows only by inflecting it is the lesson's now, and a
 participle is a known word. `test/translate.pl` pins it in its `persons`
 section, and lesson 46 in its fifteenth.
 
+**A TIME PHRASE IS NOT A PLACE, AND A LESSON ENDS IN `done` (1.2.38) --
+two things the full suite found that six standalone case runs had not.**
+The 1.2.33 shapes -- a definite phrase after an object is a place, a
+determined noun after a bare verb's preposition its class atom -- let
+the generator's noise through: `Maryann does not redistribute an
+enceliopsis in the morning` read as `redistribute_in(..., morning)` and
+`Young decays for a while` as `decay_for(young, while)`, so
+`test/normalise.pl`'s `every noisy text is refused` went RED, and with
+it the tagger's teaching that such a phrase is noise. `rl_time_noun/1`
+is a closed list -- moment, morning, evening, night, day, week, year,
+while, end and the rest -- and `rs_place` and the bare-verb mention
+refuse one, so `keeps the tractor in the barn` and `ends in a vowel`
+read as before and `at the moment` stays noise. And `test/tutorials.pl`
+requires a lesson's LAST LINE to be exactly `done` (`one_lesson/3`,
+300 s a lesson, from the repo root), which lessons 43, 44 and 46 broke
+with `Done.` -- each passed under `-s` and under `run FILE main` by hand,
+because nothing by hand reads the last line. The rule to carry: **a
+case that passes alone proves the case, and the suite proves the
+contract between cases**; run `make test` before the claim, with a
+server up, and read the 58 lines. Measured on this box after the fix:
+58 lines, 7 SKIPs (tensors, the three torch cases, tensorflow, ray,
+numpy -- every one a missing library, none a missing server), `red: 0`.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

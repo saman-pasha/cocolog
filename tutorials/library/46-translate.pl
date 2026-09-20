@@ -231,7 +231,7 @@ The conjunction "y" means "and".').
 main :-
     section_1, section_2, section_3, section_4, section_5, section_6, section_7, section_8, section_9, section_10,
     section_11, section_12, section_13, section_14, section_15,
-    format("~nDone. A lesson is a knowledge base; a translation is a proof over it.~n", []).
+    format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
 %% Each section its own clause: one clause holding the whole lesson ran over the
 %% page a stored clause must fit in, which cocolint flags.

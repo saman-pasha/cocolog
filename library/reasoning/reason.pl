@@ -1514,11 +1514,14 @@ rs_place_opt(O, Prep-Place) --> { O \== none }, [word(Prep, _)], { rl_prepositio
 %% `ends in a vowel' end_in(X, vowel), where `sleeps in Rome' stays
 %% refused. A mention can belong to nothing but the verb, and a place
 %% could be a phrase left over.
-rs_place_opt(O, Prep-W) --> { O == none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_mention(W), !.
+rs_place_opt(O, Prep-W) --> { O == none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_mention(W), { \+ rl_time_noun(W) }, !.
 rs_place_opt(_, none) --> [].
 
+%% a place is never a TIME: `in the morning', `at the moment', `for a
+%% while' are adjuncts this grammar does not read, and the generator's
+%% noise (normalise.pl's pp_extra) must stay refused
 rs_place(P) --> rs_proper(P).
-rs_place(N) --> rs_det(def), rs_noun(N), { rs_note('$rs_nouns', N) }.
+rs_place(N) --> rs_det(def), rs_noun(N), { \+ rl_time_noun(N), rs_note('$rs_nouns', N) }.
 
 rs_mention(W) --> rs_quoted(W).
 rs_mention(N) --> rs_det(_), rs_noun(N), { rs_note('$rs_nouns', N) }.
@@ -1710,6 +1713,15 @@ rl_pronoun(his).  rl_pronoun(its).  rl_pronoun(their). rl_pronoun(our).
 %% word -- read `Alice owns a house in Rome' as a `rome' that is `house'
 %% and `in', and accepted it. A wrong reading accepted is worse than a
 %% refusal, and this library refuses.
+%% the nouns of a time adjunct, which no place or class atom is made of --
+%% not `past', `present' or `future', which a lesson names as TENSES
+%% (`takes "ba" in the past' is take_in(V, ba, past))
+rl_time_noun(moment).    rl_time_noun(morning).   rl_time_noun(afternoon). rl_time_noun(evening).
+rl_time_noun(night).     rl_time_noun(day).       rl_time_noun(week).      rl_time_noun(weekend).
+rl_time_noun(month).     rl_time_noun(year).      rl_time_noun(hour).      rl_time_noun(minute).
+rl_time_noun(time).      rl_time_noun(while).     rl_time_noun(end).       rl_time_noun(beginning).
+rl_time_noun(meantime).
+
 rl_preposition(in).      rl_preposition(on).      rl_preposition(at).
 rl_preposition(to).      rl_preposition(from).    rl_preposition(with).
 rl_preposition(by).      rl_preposition(for).     rl_preposition(of).
