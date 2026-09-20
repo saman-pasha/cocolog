@@ -64,7 +64,8 @@ facts :-
     reason_sentence('Alice uses Bob.', F8b),
     check('but `uses'' is use+s, not us+es', F8b, [use(alice, bob)]),
     reason_sentence('Alice closes Bob.', F8c),
-    check('and `closes'' is close', F8c, [close(alice, bob)]),
+    F8cw =.. [close, alice, bob],                      % built, not written: cocolint's X2 reads `close(' as the stream builtin
+    check('and `closes'' is close', F8c, [F8cw]),
     reason_sentence('Alice bathes Bob.', F8d),
     check('and `bathes'' is bathe: a single h is not sh or ch', F8d, [bathe(alice, bob)]),
     reason_sentence('Alice fixes Bob.', F8e),
