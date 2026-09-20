@@ -5,8 +5,9 @@
 %% and then simple sentences translated both ways: singular and plural,
 %% denied and not, in every person, present, past, future and perfect,
 %% with a pronoun, a possessive, a number, a prepositional phrase, an
-%% adverb or two subjects joined, statements and questions (yes or no,
-%% what, who, where, when, which); a second lesson learned under its own
+%% adverb or two subjects joined, a person as the object with the word
+%% the lesson puts before one, statements and questions (yes or no, what,
+%% who, whom, where, when, which); a second lesson learned under its own
 %% name beside it; the lesson questioned; and what it refuses.
 %%
 %%     cocolog -s test/translate.pl        from the checkout root
@@ -32,7 +33,8 @@ main :-
 %% verb in both numbers and the English pasts the -ed rule cannot make;
 %% the future, by a rule and stated; the auxiliary and the participles;
 %% the first and second persons; the pronouns, possessives, prepositions,
-%% adverbs, numbers and the conjunction
+%% the word before a person and two contractions, adverbs, numbers and
+%% the conjunction
 lesson_text(Text) :- lesson_part(1, A), lesson_part(2, B), lesson_part(3, C), atomic_list_concat([A, ' ', B, ' ', C], Text).
 
 lesson_part(1, 'Spanish is a language.
@@ -200,6 +202,11 @@ The preposition "en" means "in".
 The preposition "con" means "with".
 The preposition "a" means "to".
 The preposition "de" means "of".
+The word "a" precedes the person.
+"amigo" is a person.
+"amiga" is a person.
+"al" is the contraction of "a el".
+"del" is the contraction of "de el".
 The adverb "rápidamente" means "quickly".
 The adverb "bien" means "well".
 The adverb "hoy" means "today".
@@ -210,14 +217,14 @@ The conjunction "y" means "and".').
 %% ---- the lesson, learned ------------------------------------------------------
 
 lesson :-
-    section('the lesson: one hundred and seventy-one lines, two hundred and eighty-three terms'),
+    section('the lesson: one hundred and seventy-six lines, two hundred and eighty-nine terms'),
     lesson_text(Text),
     reason_tokens(Text, Tokens),
     findall(S, member('.', Tokens), Stops), length(Stops, NS),
-    check('one hundred and seventy-one sentences', NS, 171),
+    check('one hundred and seventy-six sentences', NS, 176),
     reason_learn(Text, Terms),
     length(Terms, NT),
-    check('two hundred and eighty-three terms out of them', NT, 283),
+    check('two hundred and eighty-nine terms out of them', NT, 289),
     yes_no(memberchk(mean(casa, house), Terms), L1),
     check('a mentioned word means a mentioned word', L1, yes),
     yes_no(memberchk(noun(casa), Terms), L2),
@@ -258,6 +265,8 @@ lesson :-
     check('pronouns, possessives, prepositions, adverbs, numbers and the conjunction are classes too', L10w, yes),
     yes_no(memberchk(neg(precede('él', verb)), Terms), L10d),
     check('`the pronoun "él" does not precede the verb'' is a denial', L10d, yes),
+    yes_no(( memberchk(precede(a, person), Terms), memberchk(person(amigo), Terms), memberchk(contraction_of(al, 'a el'), Terms) ), L10a),
+    check('the word before a person, a person, and a contraction with its two words', L10a, yes),
     truth(feminine(mesa), T11),   check('and the rules RUN: mesa ends in a', T11, true),
     truth(masculine(perro), T12), check('perro does not', T12, true),
     truth(feminine(perro), T13), check('so it is not feminine: unknown, the text never said', T13, unknown),
@@ -566,7 +575,47 @@ persons :-
     reason_translate('Where did she live?', Q7),
     check('where, to her', Q7, '¿Dónde vivió ella?'),
     reason_translate('She sees him.', S18), reason_translate(S18, E18),
-    check('the round trip', E18, 'She sees him.').
+    check('the round trip', E18, 'She sees him.'),
+    reason_translate('Maria sees Omar.', A1),
+    check('a name as the object: the word the lesson puts before a person', A1, 'Maria ve a Omar.'),
+    reason_translate('Maria sees her friend.', A2),
+    check('a phrase whose noun the lesson calls a person', A2, 'Maria ve a su amigo.'),
+    reason_translate('Maria sees the dog.', A3),
+    check('and not before a dog', A3, 'Maria ve el perro.'),
+    reason_translate('Maria sees Omar and Pablo.', A4),
+    check('two persons joined, one word', A4, 'Maria ve a Omar y Pablo.'),
+    reason_translate('Maria sees him.', A5),
+    check('a pronoun before the verb takes none', A5, 'Maria lo ve.'),
+    reason_translate('Maria does not see Omar.', A6),
+    check('denied', A6, 'Maria no ve a Omar.'),
+    reason_translate('Maria has seen Omar.', A7),
+    check('in the perfect', A7, 'Maria ha visto a Omar.'),
+    reason_translate('Maria sees the friend.', A8),
+    check('a contraction the lesson states: a el is al', A8, 'Maria ve al amigo.'),
+    reason_translate('The dogs of the friend eat.', A9),
+    check('de el is del', A9, 'Los perros del amigo comen.'),
+    reason_translate('Maria gives the book to Omar.', A10),
+    check('after an object the word is the preposition it is', A10, 'Maria da el libro a Omar.'),
+    reason_translate('Maria ve a Omar.', B1),
+    check('back: the word with a person after it and no object before it is the object', B1, 'Maria sees Omar.'),
+    reason_translate('Maria ve a su amiga.', B2),
+    check('a person noun', B2, 'Maria sees his friend.'),
+    reason_translate('Maria ve el perro.', B3),
+    check('no word before a dog', B3, 'Maria sees the dog.'),
+    reason_translate('Maria ve a Omar y Pablo.', B4),
+    check('two joined', B4, 'Maria sees Omar and Pablo.'),
+    reason_translate('Maria ha visto a Omar.', B5),
+    check('in the perfect: the participle is a word of the lesson''s, and ha is the lesson''s whatever the inflector makes of it', B5, 'Maria has seen Omar.'),
+    reason_translate('Maria ve al amigo.', B6),
+    check('al is read as a el', B6, 'Maria sees the friend.'),
+    reason_translate('Los perros del amigo comen.', B7),
+    check('del is de el', B7, 'The dogs of the friend eat.'),
+    reason_translate('Maria da el libro a Omar.', B8),
+    check('after an object: to Omar', B8, 'Maria gives the book to Omar.'),
+    reason_translate('Maria ve a Omar hoy.', B9),
+    check('the object, then an adverb', B9, 'Maria sees Omar today.'),
+    reason_translate('Maria sees Omar.', S19), reason_translate(S19, E19),
+    check('the round trip', E19, 'Maria sees Omar.').
 
 %% ---- the future ------------------------------------------------------------------------
 
@@ -773,10 +822,24 @@ wh :-
     check('which did', E7, 'Which dog did Maria see?'),
     reason_translate('¿Vive Maria en Madrid?', E8),
     check('the verb first, the name, the phrase', E8, 'Does Maria live in Madrid?'),
-    yes_no(reason_translate('Whom does Maria see?', _), R9),
-    check('whom: no word of the lesson means it, and who is not it', R9, no),
+    reason_translate('Whom does Maria see?', W10),
+    check('whom is who asked for as the object, and a person: the word before it', W10, '¿A quién ve Maria?'),
+    reason_translate('Who sees Maria?', W11),
+    check('who asks for the subject, and Maria is the object', W11, '¿Quién ve a Maria?'),
+    reason_translate('Which friend does Maria see?', W12),
+    check('which, with a person noun, asked for as the object', W12, '¿A qué amigo ve Maria?'),
+    reason_translate('Whom has Maria seen?', W13),
+    check('whom has', W13, '¿A quién ha visto Maria?'),
+    reason_translate('¿A quién ve Maria?', E9),
+    check('back: the word, then the question word: whom', E9, 'Whom does Maria see?'),
+    reason_translate('¿Quién ve a Maria?', E10w),
+    check('the question word alone: who', E10w, 'Who sees Maria?'),
+    reason_translate('¿A qué amigo ve Maria?', E11),
+    check('which friend', E11, 'Which friend does Maria see?'),
+    reason_translate('¿A quién ha visto Maria?', E12),
+    check('whom has', E12, 'Whom has Maria seen?'),
     reason_untranslated('Whom does Maria see?', U9),
-    check('reported', U9, [whom]),
+    check('whom needs no word of the lesson''s: nothing is untranslated', U9, []),
     reason_translate('Which book does Maria read?', S10), reason_translate(S10, E10),
     check('the round trip', E10, 'Which book does Maria read?').
 
@@ -911,7 +974,19 @@ rules :-
     retract(person_of(como, come)),
     reason_translate('I eat the bread.', S12),
     check('a person the lesson gives no form for is the third''s form', S12, 'Yo come el pan.'),
-    assertz(person_of(como, come)).
+    assertz(person_of(como, come)),
+    retract(precede(a, person)),
+    reason_translate('Maria sees Omar.', S13),
+    check('without `the word "a" precedes the person'', nothing before Omar', S13, 'Maria ve Omar.'),
+    reason_translate('Whom does Maria see?', S14),
+    check('and whom is bare quién, which reads as who: the lesson said nothing to tell them apart', S14, '¿Quién ve Maria?'),
+    reason_translate('Maria ve a Omar.', E13),
+    check('and a before Omar is the preposition it is', E13, 'Maria sees to Omar.'),
+    assertz(precede(a, person)),
+    retract(contraction_of(al, 'a el')),
+    reason_translate('Maria sees the friend.', S15),
+    check('without the contraction, its two words', S15, 'Maria ve a el amigo.'),
+    assertz(contraction_of(al, 'a el')).
 
 %% ---- what it refuses, whole ----------------------------------------------------------
 

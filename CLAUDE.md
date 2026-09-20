@@ -2224,6 +2224,33 @@ capital in the Latin-1 block (U+00C0..U+00DE, the UTF-8 bytes 195 and
 128..158) is a capital now and lower-cases to its small letter, on the
 reader's side and the writer's.
 
+**`whom`, AND THE WORD A LESSON PUTS BEFORE A PERSON (1.2.37).** Spanish
+marks a person as the object with `a` -- `Maria ve a Omar` -- and the
+translator had read that `a` as the preposition `to`. The lesson says it
+now: `The word "a" precedes the person.` is `precede(a, person)`, `"amigo"
+is a person.` says which nouns are persons, and a name is one. Written
+into the lesson's language, the word goes before an object that is a
+person -- a name, a phrase whose noun the lesson calls one, two such
+joined, `whom` -- and never before a pronoun that stands before the verb
+(`Maria lo ve`); read on the lesson's side, that word with a person after
+it and NO OBJECT BEFORE IT is the object (`tr_complements/4` carries
+whether one has been read), and after an object it is the preposition it
+is (`da el libro a Omar` is `to Omar`). The cost is stated in the header:
+`Maria canta a Omar` reads as `sings Omar`, because nothing in the
+sentence says otherwise. `whom` is `who` asked for as the object and needs
+no word of the lesson's: `Whom does Maria see?` is `¿A quién ve Maria?`
+and comes back as itself, where `¿Quién ve a Maria?` is `Who sees Maria?`;
+`¿A qué amigo ve Maria?` is `Which friend does Maria see?`. And a
+contraction is the lesson's too -- `"al" is the contraction of "a el"` --
+read as its words and written back as itself, so `Maria ve al amigo` and
+`los perros del amigo` go both ways. What bit: the words VOTE for the
+language a sentence is in, and `Maria ha visto a Omar` tied, because the
+English inflector reads `ha` as the base of `has` and `a` is the article
+too, while the participle `visto` counted as no word at all; a lesson's
+word that English knows only by inflecting it is the lesson's now, and a
+participle is a known word. `test/translate.pl` pins it in its `persons`
+section, and lesson 46 in its fifteenth.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

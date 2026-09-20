@@ -42,6 +42,10 @@
 %%     person_of(P, F)  first(P)  second(P)   the first and the second person of the form F
 %%                                     (`"como" is the first person of "come"'); the third is the form
 %%     mean(N, not)  follow(N, verb)   the word that denies, and whether it stands after the verb
+%%     precede(W, person)  person(N)   the word that stands before a person as the object
+%%                                     (`The word "a" precedes the person'), and which nouns
+%%                                     are persons (`"amigo" is a person'); a name is one
+%%     contraction_of(C, W)            a contraction and its words (`"al" is the contraction of "a el"')
 %%     mean(Q, what)  mean(Q, who)  mean(Q, where)  mean(Q, when)  mean(Q, which)   the question words
 %%     begin(M, question)              the mark a question begins with (`The mark "¿" begins the question')
 %%     language(L)                     the language, `Spanish is a language'
@@ -69,9 +73,10 @@
 %%         is in the present, the past or the future, simple or perfect
 %%         (`has eaten', `had eaten'), denied or not, in any person. A
 %%         statement, or a QUESTION when the sentence ends in `?': yes or
-%%         no, `what' asking for the object, `who' for the subject, `where'
-%%         and `when' for a place or a time, `which' with its noun for
-%%         either. From English into the language a lesson teaches, or
+%%         no, `what' asking for the object, `who' for the subject, `whom'
+%%         for a person as the object, `where' and `when' for a place or a
+%%         time, `which' with its noun for either. From English into the
+%%         language a lesson teaches, or
 %%         from it into English: which way, and which language when several
 %%         lessons are loaded, the words say. Translation is an atom, a
 %%         sentence capitalised and ending as it ended. FAILS for a
@@ -139,7 +144,15 @@
 %% gender next, the first otherwise -- and put in the number; an
 %% adjective goes after its noun when follow(A, noun) proves; an object
 %% pronoun goes before the verb when precede(P, verb) proves, English's
-%% own object pronouns after it. A sentence of the lesson's language
+%% own object pronouns after it. The word the lesson puts before a person
+%% (`The word "a" precedes the person') goes before an object that is one
+%% -- a name, a phrase whose noun the lesson calls a person, `whom' --
+%% and read on the lesson's side, that word with a person after it and no
+%% object before it IS the object (`Maria ve a Omar'), after an object
+%% the preposition it is (`da el libro a Omar'); `whom' is `who' asked for
+%% as the object, and a lesson need give no word for it. A contraction
+%% the lesson states (`"al" is the contraction of "a el"') is read as its
+%% words and written back as itself. A sentence of the lesson's language
 %% with no subject takes the pronoun its verb says -- I, you, we, they --
 %% and the denial's word goes before the verb, or after it when
 %% follow(N, verb) proves. A capitalised word no lesson knows is a name
@@ -204,9 +217,27 @@ tr_each([], _, []).
 tr_each([Piece-Stop|Ps], Way, [Out|Outs]) :-
     reason_tokens(Piece, Tokens), tr_words(Tokens, Words0), Words0 \== [],
     tr_way(Way, Words0, From, To),
-    tr_head_lower(From, Words0, Words),
+    tr_head_lower(From, Words0, Words1),
+    tr_expand(From, Words1, Words),
     tr_translate(Words, From, To, Stop, Out),
     tr_each(Ps, Way, Outs).
+
+%% a contraction the lesson states -- `"al" is the contraction of "a el"' --
+%% is read as its words, and written back as itself (tr_contract/3)
+tr_expand(english, Ws, Ws) :- !.
+tr_expand(foreign, [], []).
+tr_expand(foreign, [w(W, C)|Ws], Out) :-
+    tr_solve(contraction_of(W, J)), atomic_list_concat([P1|Ps], ' ', J), Ps \== [], !,
+    findall(w(P, lower), member(P, Ps), Rest), tr_expand(foreign, Ws, Out1),
+    append([w(P1, C)|Rest], Out1, Out).
+tr_expand(foreign, [W|Ws], [W|Out]) :- tr_expand(foreign, Ws, Out).
+
+tr_contract(english, Os, Os) :- !.
+tr_contract(foreign, [o(W1, C), o(W2, _)|Os], Out) :-
+    atomic_list_concat([W1, W2], ' ', J), tr_solve(contraction_of(K, J)), !,
+    tr_contract(foreign, [o(K, C)|Os], Out).
+tr_contract(foreign, [O|Os], [O|Out]) :- tr_contract(foreign, Os, Out).
+tr_contract(foreign, [], []).
 
 %% the first word's capital is the sentence's, not the word's: a known
 %% word at the head goes lower, so that when a question moves it it is
@@ -276,8 +307,15 @@ tr_votes([], F, E, F, E).
 tr_votes([w(W, _)|Ws], F0, E0, F, E) :-
     ( tr_known_word(foreign, W) -> Kf = 1 ; Kf = 0 ),
     ( tr_known_word(english, W) -> Ke = 1 ; Ke = 0 ),
-    ( Kf =:= Ke -> F1 = F0, E1 = E0 ; F1 is F0 + Kf, E1 is E0 + Ke ),
+    (   Kf =:= 1, Ke =:= 1
+    ->  ( tr_lessons_own(W) -> F1 is F0 + 1, E1 = E0 ; F1 = F0, E1 = E0 )
+    ;   F1 is F0 + Kf, E1 is E0 + Ke
+    ),
     tr_votes(Ws, F1, E1, F, E).
+
+%% a word the lesson gives that English knows only by inflecting it --
+%% `ha', which the inflector reads as the base of `has' -- is the lesson's
+tr_lessons_own(W) :- tr_lexeme(foreign, W, _, _), \+ tr_lexeme(english, W, _, _), \+ en_function(W), \+ en_own(W).
 
 %% one clear winner among the languages, or none
 tr_winner(Vs, Which, L) :-
@@ -358,6 +396,16 @@ en_np_pps(Ws, [], Ws).
 %% the lesson's question word, by its meaning; `which' takes the noun phrase
 %% after it, and asks for the object when a name or a pronoun stands alone
 %% after the verb (`¿Qué libro lee Maria?'), for the subject otherwise
+%% the word the lesson puts before a person, then the question word: a
+%% person asked for as the OBJECT -- `¿A quién ve Maria?' is whom, `¿A qué
+%% amigo ve Maria?' which friend
+fo_question_word([w(P, _), w(Q, C)|Ws], Words, Asked) :-
+    tr_marker_word(P),
+    tr_solve(mean(Q, E0)), en_question(E0, _), !,
+    (   tr_solve(mean(Q, which)), Ws = [W1|_], fo_phrase_word(W1)
+    ->  fo_np_words(Ws, NP, Words), Asked = object(which(NP, C))
+    ;   Asked = object(w(Q, C)), Words = Ws
+    ).
 fo_question_word([w(Q, C)|Ws], Words, Asked) :-
     tr_solve(mean(Q, E0)), en_question(E0, _), !,
     (   tr_solve(mean(Q, which)), Ws = [W1|_], fo_phrase_word(W1)
@@ -497,7 +545,7 @@ tr_group_at(english, [w(C, _)|R], g(is, T, simple, P, N), R) :- en_copula(C, P, 
 tr_group_at(english, [w(V, _)|R], g(L, T, simple, third, singular), R) :- en_verb_form(V, L, T), !.
 %% the lesson's language: an auxiliary's form and a participle; a verb's form
 tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
-    tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(participle_of(P, L)), !.
+    tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
 tr_group_at(foreign, [w(V, _)|R], g(L, T, simple, Person, N), R) :-
     tr_form(V, L, N, T, Person), tr_class_of(L, verb), !.
 
@@ -568,25 +616,69 @@ tr_noun_by_position(Words, foreign, Noun) :- ( tr_holds(follow(_, noun)) -> Word
 %% the complements after the verb: a preposition and its phrase, an object
 %% pronoun, an adverb, and otherwise a phrase (or two joined, or bare
 %% adjectives) up to the next of those
-tr_complements(_, [], []) :- !.
-tr_complements(Side, [P|Ws], [pp(P, NP)|Cs]) :-
+tr_complements(Side, Words, Comps) :- tr_complements(Side, Words, no, Comps).
+
+%% ... with whether an object has been read: the word the lesson puts
+%% before a person, with no object yet and a person after it, is the
+%% OBJECT's (`Maria ve a Omar' is Omar); after an object it is the
+%% preposition it is (`Maria da el libro a Omar' is to Omar)
+tr_complements(_, [], _, []) :- !.
+tr_complements(foreign, [w(P, _)|Ws], no, [obj(NP)|Cs]) :-
+    tr_marker_word(P, Class),
+    tr_phrase_words(foreign, Ws, PW, Rest), PW \== [],
+    tr_phrase_np(foreign, PW, NP), tr_of_class(NP, Class), !,
+    tr_complements(foreign, Rest, yes, Cs).
+tr_complements(Side, [P|Ws], Seen, [pp(P, NP)|Cs]) :-
     tr_is(Side, P, preposition), !,
     (   Ws = [w(O, OC)|Rest], tr_object_pronoun_here(Side, Ws)
     ->  NP = pronoun(w(O, OC))
-    ;   tr_phrase_words(Side, Ws, PW, Rest), PW \== [], tr_object_phrase(Side, PW, NP)
+    ;   tr_phrase_words(Side, Ws, PW, Rest), PW \== [], tr_phrase_np(Side, PW, NP)
     ),
-    tr_complements(Side, Rest, Cs).
-tr_complements(Side, [w(W, C)|Ws], [opron(w(W, C))|Cs]) :-
+    tr_complements(Side, Rest, Seen, Cs).
+tr_complements(Side, [w(W, C)|Ws], Seen, [opron(w(W, C))|Cs]) :-
     tr_object_pronoun_here(Side, [w(W, C)|Ws]), !,
-    tr_complements(Side, Ws, Cs).
-tr_complements(Side, [A|Ws], [adv(A)|Cs]) :- tr_is(Side, A, adverb), !, tr_complements(Side, Ws, Cs).
-tr_complements(Side, Ws, [C|Cs]) :-
+    tr_complements(Side, Ws, Seen, Cs).
+tr_complements(Side, [A|Ws], Seen, [adv(A)|Cs]) :- tr_is(Side, A, adverb), !, tr_complements(Side, Ws, Seen, Cs).
+tr_complements(Side, Ws, _, [C|Cs]) :-
     tr_phrase_words(Side, Ws, PW, Rest), PW \== [],
-    (   tr_conjunction_split(Side, PW, W1, W2) -> tr_object_phrase(Side, W1, N1), tr_object_phrase(Side, W2, N2), C = obj(and(N1, N2))
-    ;   tr_all_adjectives(Side, PW) -> C = adj(PW)
-    ;   tr_object_phrase(Side, PW, NP), C = obj(NP)
+    (   tr_all_adjectives(Side, PW) -> C = adj(PW)
+    ;   tr_phrase_np(Side, PW, NP), C = obj(NP)
     ),
-    tr_complements(Side, Rest, Cs).
+    tr_complements(Side, Rest, yes, Cs).
+
+%% a phrase, or two joined
+tr_phrase_np(Side, PW, and(N1, N2)) :-
+    tr_conjunction_split(Side, PW, W1, W2), !, tr_object_phrase(Side, W1, N1), tr_object_phrase(Side, W2, N2).
+tr_phrase_np(Side, PW, NP) :- tr_object_phrase(Side, PW, NP).
+
+%% the word the lesson puts before an object of a class -- `The word "a"
+%% precedes the person' -- and whether a phrase is of that class: a name
+%% is a person (and a name), a phrase is what the lesson calls its noun,
+%% two joined are when both are, and `whom' asks for a person. The rule
+%% over pronouns and the verb is not a marker.
+tr_marker_word(P) :- tr_marker_word(P, _).
+tr_marker_word(P, Class) :- tr_solve(precede(P, Class)), Class \== verb, !.
+
+tr_of_class(person, person) :- !.
+tr_of_class(name(_), Class) :- !, ( Class == name ; Class == person ), !.
+tr_of_class(and(A, B), Class) :- !, tr_of_class(A, Class), tr_of_class(B, Class).
+tr_of_class(np(_, _, _, W, _), Class) :- tr_noun_of_lesson(W, Noun), G =.. [Class, Noun], tr_holds(G).
+
+%% a phrase's noun as the lesson's word: read on the lesson's side it is
+%% the lexeme, read in English it is the lexeme's first meaning
+tr_noun_of_lesson(w(NW, _), Noun) :-
+    tr_side_here(Side),
+    (   Side == foreign -> tr_lexeme(foreign, NW, Noun, _)
+    ;   tr_lexeme(english, NW, L, _), tr_meanings_of(L, foreign, noun, [Noun|_])
+    ), !.
+
+%% the marker before an object out, in the lesson's language: `a Omar' --
+%% never after the copula, whose complement is no object (`son nuestros
+%% amigos')
+tr_marker(foreign, What, [o(P, lower)]) :-
+    \+ ( catch(nb_getval('$tr_verb', V), _, fail), V == is ),
+    tr_marker_word(P, Class), tr_of_class(What, Class), !.
+tr_marker(_, _, []).
 
 %% the words of one phrase: up to the next preposition, adverb or object pronoun
 tr_phrase_words(Side, Words, PW, Rest) :-
@@ -612,6 +704,7 @@ tr_all_adjectives(Side, Words) :-
 %% ---- writing ------------------------------------------------------------------
 
 tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg), Comps), Outs) :-
+    nb_setval('$tr_verb', L),
     tr_subject_out(To, Subject, SubjectOut, Person, Number, Noun),
     tr_asked_out(To, Asked, AskedOut),
     tr_lexeme_across(L, To, LT),
@@ -651,14 +744,22 @@ tr_subject_out(To, with(NP, PPs), Outs, third, Number, Noun) :-
 %% what a question word asks for, out: the word itself, or `which' with its phrase
 tr_asked_out(_, none, []) :- !.
 tr_asked_out(_, subject(_), []) :- !.                                    % the subject out already carries it
-tr_asked_out(To, object(which(NPWords, C)), [o(QT, C)|NPOut]) :- !,
-    tr_which_word(To, QT), tr_side_here(Side), tr_np(Side, NPWords, NP), tr_np_out(To, NP, NPOut, _, _).
+tr_asked_out(To, object(which(NPWords, C)), Outs) :- !,
+    tr_which_word(To, QT), tr_side_here(Side), tr_np(Side, NPWords, NP), tr_np_out(To, NP, NPOut, _, _),
+    tr_marker(To, NP, M), append(M, [o(QT, C)|NPOut], Outs).
+tr_asked_out(To, object(w(Q, C)), Outs) :- tr_asks_person(Q), !,
+    tr_question_across(To, object, Q, QT), tr_marker(To, person, M), append(M, [o(QT, C)], Outs).
 tr_asked_out(To, Asked, [o(QT, C)]) :- Asked =.. [Kind, w(Q, C)], tr_question_across(To, Kind, Q, QT).
+
+%% `whom', or a word of the lesson's that means `who' or `whom', asks for a person
+tr_asks_person(Q) :- ( Q == whom ; tr_solve(mean(Q, whom)) ; tr_solve(mean(Q, who)) ), !.
 
 %% a question word across, by what it asks for: `qué' may mean `what' and
 %% `which', and the object asked is `what'
 tr_question_across(english, Kind, Q, E) :- tr_solve(mean(Q, E)), en_question(E, Kind), !.
+tr_question_across(english, object, Q, whom) :- tr_solve(mean(Q, who)), !.       % who, asked for as the object
 tr_question_across(foreign, _, E, Q) :- tr_solve(mean(Q, E)), !.
+tr_question_across(foreign, object, whom, Q) :- tr_solve(mean(Q, who)), !.       % whom is who as an object
 
 tr_which_word(english, which).
 tr_which_word(foreign, W) :- once(tr_solve(mean(W, which))).
@@ -768,7 +869,7 @@ tr_comps_out(To, [C|Cs], Noun, Number, Clitics, Outs, Advs) :-
     tr_comps_out(To, Cs, Noun, Number, Clitics1, Outs1, Advs1),
     append(Clitic, Clitics1, Clitics), append(Out, Outs1, Outs), append(Adv, Advs1, Advs).
 
-tr_comp_out(To, obj(NP), _, _, [], Outs, []) :- tr_np_out(To, NP, Outs, _, _).
+tr_comp_out(To, obj(NP), _, _, [], Outs, []) :- tr_np_out(To, NP, O1, _, _), tr_marker(To, NP, M), append(M, O1, Outs).
 tr_comp_out(To, adj(Ws), Noun, Number, [], Outs, []) :- tr_adjectives_out(To, Ws, Noun, Number, As), tr_adj_words(As, Outs).
 tr_comp_out(To, pp(w(P, C), NP), _, _, [], [o(PT, C)|NPOut], []) :- tr_word_across(w(P, lower), To, preposition, PT), tr_np_out(To, NP, NPOut, _, _).
 tr_comp_out(To, adv(w(A, C)), _, _, [], [], [o(AT, C)]) :- tr_word_across(w(A, lower), To, adverb, AT).
@@ -927,9 +1028,12 @@ tr_known(english, E) :- tr_solve(mean(_, E)), !.
 %% plural, a verb's form, or one of English's own
 tr_known_word(Side, W) :- tr_lexeme(Side, W, _, _), !.
 tr_known_word(foreign, W) :- tr_form(W, _, _, _, _), !.
+tr_known_word(foreign, W) :- tr_solve(participle_of(W, F)), tr_known(foreign, F), !.       % of a verb of the lesson's
 tr_known_word(english, W) :- en_verb_form(W, _, _), !.
 tr_known_word(english, W) :- en_participle(W, _), !.
 tr_known_word(english, W) :- ( en_subject(W, _, _) ; en_object(W) ; en_possessive(W) ; en_copula(W, _, _, _) ), !.
+tr_known_word(english, whom) :- tr_known(english, who), !.
+tr_known_word(foreign, W) :- tr_solve(contraction_of(W, _)), !.
 
 %% a verb form of the lesson's language, taken apart: the lexeme, the
 %% number, the tense, the person. A person form the lesson stated first
@@ -1099,7 +1203,8 @@ en_function(W) :- memberchk(W, [not, does, do, did, will, has, have, had, am, ar
 
 %% ---- the sentence back as text ---------------------------------------------------
 
-tr_join(To, Kind, Outs, Stop, Out) :-
+tr_join(To, Kind, Outs0, Stop, Out) :-
+    tr_contract(To, Outs0, Outs),
     findall(A, ( member(o(T, C), Outs), tr_word_text(To, T, C, A) ), As),
     atomic_list_concat(As, ' ', S0),
     tr_cap(S0, S1),

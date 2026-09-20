@@ -205,6 +205,8 @@ mentions :-
     reason_question('What is the first person of "come"?', Q92),
     yes_no(( Q92 = question(X92, (person_of(Y92, come), first(Z92))), X92 == Y92, Y92 == Z92 ), S92),
     check('and asked for: the relation, then the adjective as a condition on what is asked', S92, yes),
+    reason_sentence('"al" is the contraction of "a el".', M93),
+    check('a mention may hold a space: the text between the marks, whatever it is', M93, [contraction_of(al, 'a el')]),
     reason_sentence('Every noun that ends in a vowel takes "s" in the plural.', [R21]),
     R21 = (take_in(X21, s, plural) :- noun(Y21), end_in(Z21, vowel)),
     yes_no((X21 == Y21, Y21 == Z21), S21),

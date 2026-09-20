@@ -8,12 +8,13 @@
 %%
 %% THE PROBLEM THIS SOLVES. Tutorial 43 reads a paragraph into facts and
 %% rules and proves things over them. This lesson reads a paragraph that
-%% TEACHES: one hundred and seventy-one lines of Spanish in the same
+%% TEACHES: one hundred and seventy-six lines of Spanish in the same
 %% controlled English, and what comes out is a vocabulary as facts, a
 %% grammar as rules -- gender, the order of an adjective, the plural, the
 %% word that denies, the question words and the mark a question begins
 %% with, the past, the future and the perfect of each verb, its first and
-%% second persons, the pronouns and where they stand -- and a translator
+%% second persons, the pronouns and where they stand, the word that goes
+%% before a person, two contractions -- and a translator
 %% that asks the knowledge base and knows no word of Spanish itself.
 %% Nothing was trained and nothing was written into the library for it:
 %% the lesson is the whole of what the translator knows.
@@ -215,6 +216,11 @@ The preposition "en" means "in".
 The preposition "con" means "with".
 The preposition "a" means "to".
 The preposition "de" means "of".
+The word "a" precedes the person.
+"amigo" is a person.
+"amiga" is a person.
+"al" is the contraction of "a el".
+"del" is the contraction of "de el".
 The adverb "rápidamente" means "quickly".
 The adverb "bien" means "well".
 The adverb "hoy" means "today".
@@ -224,18 +230,18 @@ The conjunction "y" means "and".').
 
 main :-
     section_1, section_2, section_3, section_4, section_5, section_6, section_7, section_8, section_9, section_10,
-    section_11, section_12, section_13, section_14,
+    section_11, section_12, section_13, section_14, section_15,
     format("~nDone. A lesson is a knowledge base; a translation is a proof over it.~n", []).
 
 %% Each section its own clause: one clause holding the whole lesson ran over the
 %% page a stored clause must fit in, which cocolint flags.
 
 section_1 :-
-    format("~n1. The lesson: one hundred and seventy-one lines of controlled English, and what they say~n", []),
+    format("~n1. The lesson: one hundred and seventy-six lines of controlled English, and what they say~n", []),
     lesson(Text),
     reason_learn(Text, Terms),
     length(Terms, N),
-    must('terms learned', N, 283),
+    must('terms learned', N, 289),
     Terms = [T1, T2, T3|_],
     must('the language', T1, language(spanish)),
     must('a class fact about the word, then what it means', T2-T3, noun(casa)-mean(casa, house)),
@@ -456,6 +462,29 @@ section_14 :-
     reason_translate('The houses are big.', italian, IT6),
     must('le case', IT6, 'Le case sono grandi.'),
     retractall(lesson(italian, _)).
+
+section_15 :-
+    format("~n15. A person as the object: the word the lesson puts before one, `whom', and a contraction~n", []),
+    reason_translate('Maria sees Omar.', PA1),
+    must('`the word "a" precedes the person'': a name is a person', PA1, 'Maria ve a Omar.'),
+    reason_translate('Maria sees her friend.', PA2),
+    must('`"amigo" is a person'': a phrase whose noun is one', PA2, 'Maria ve a su amigo.'),
+    reason_translate('Maria sees the dog.', PA3),
+    must('a dog is not', PA3, 'Maria ve el perro.'),
+    reason_translate('Maria ve a Omar.', PA4),
+    must('back: the word with a person after it and no object before it is the object', PA4, 'Maria sees Omar.'),
+    reason_translate('Maria da el libro a Omar.', PA5),
+    must('after an object it is the preposition it is', PA5, 'Maria gives the book to Omar.'),
+    reason_translate('Whom does Maria see?', PA6),
+    must('whom is who asked for as the object, and a person', PA6, '¿A quién ve Maria?'),
+    reason_translate('¿A quién ve Maria?', PA7),
+    must('and back', PA7, 'Whom does Maria see?'),
+    reason_translate('¿Quién ve a Maria?', PA8),
+    must('where the question word alone asks for the subject', PA8, 'Who sees Maria?'),
+    reason_translate('Maria sees the friend.', PA9),
+    must('`"al" is the contraction of "a el"'': written back as itself', PA9, 'Maria ve al amigo.'),
+    reason_translate('Los perros del amigo comen.', PA10),
+    must('and read as its words', PA10, 'The dogs of the friend eat.').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
