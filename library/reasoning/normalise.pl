@@ -98,7 +98,9 @@
 %% besides, because any English word can be mentioned. Two transforms
 %% are theirs: `unquote', the marks taken off (at seven pairs in ten,
 %% because that is how prose writes a word about a word, and the tagger
-%% must read the quoted form too), and `in_language' -- `in Spanish' at
+%% must read the quoted form too; at the HEAD of a sentence a bare word
+%% is a name to the tagger and tagged S, because `Leche is feminine' and
+%% `Mia is a nurse' are one shape and one term), and `in_language' -- `in Spanish' at
 %% the end of a fact about a mention, or `In Spanish,' at the head, tagged
 %% D, the grammar refusing the first because a sentence that mentions a
 %% word names no place. Inside the apposition a language is an ADJECTIVE
@@ -161,7 +163,9 @@
 %%         "house".' as `The noun casa means house.' -- the way prose writes
 %%         a word about a word, and what tagger_lessons/4 puts to the
 %%         tagger; a mention that would not survive as words (`"¿"', a
-%%         sign the tokeniser drops) keeps its marks.
+%%         sign the tokeniser drops) keeps its marks, and so does one at
+%%         the head of a sentence that could not stand as a subject: a
+%%         closed word, or a word the lexicon knows as a common word.
 %%
 %%     normalise_lessons(-Lines)
 %%         Every line of every .txt file in the corpus directory, in file
@@ -982,18 +986,60 @@ ng_apply(in_language, Seed, st(Ps, Cs), st(Out, Cs)) :-
     ).
 %% the quotation marks taken off every mention that survives as words:
 %% q('a el')-M becomes a-M el-M, and the assembler's M run puts the marks
-%% back around both; a mention the tokeniser would drop bare (`¿') keeps them
-ng_apply(unquote, _, st(Ps, Cs), st(Qs, Cs)) :- ng_unquote(Ps, Qs).
+%% back around both; a mention the tokeniser would drop bare (`¿') keeps
+%% them. AT THE HEAD OF A SENTENCE a bare word cannot be told from a
+%% name -- `Leche is feminine' and `Mia is a nurse' are one shape -- and
+%% the name reading gives the SAME TERM (feminine(leche) either way, and
+%% mean(casa, house) for `Casa means house'), so a head mention is
+%% written bare and tagged S, the name reading: the network then never
+%% has to guess, and a name typed after the lessons stays a name.
+%% Measured before this rule: `Mia is a nurse and is careful' came back
+%% as `"mia" is a nurse', the same facts about a word instead of a person.
+%% A head word the lexicon knows as a COMMON word keeps its marks
+%% (`"house" is feminine'), because the judge refuses a known common
+%% word as a capitalised subject, as it refuses `Small business
+%% management'; so does a closed word (`"the" is an article').
+ng_apply(unquote, _, st(Ps, Cs), st(Qs, Cs)) :- ng_unquote(Ps, head, Qs).
 
-ng_unquote([], []).
-ng_unquote([q(W)-'M'|Ps], Out) :-
+ng_unquote([], _, []).
+ng_unquote([q(W)-'M'|Ps], head, [W-'S'|Qs]) :- ng_head_bare(W), !, ng_unquote(Ps, rest, Qs).
+ng_unquote([q(W)-'M'|Ps], head, [q(W)-'M'|Qs]) :- !, ng_unquote(Ps, rest, Qs).
+ng_unquote([q(W)-'M'|Ps], rest, Out) :-
     ng_bare_words(W, Ws), !,
-    findall(X-'M', member(X, Ws), Ms), append(Ms, Qs, Out), ng_unquote(Ps, Qs).
-ng_unquote([P|Ps], [P|Qs]) :- ng_unquote(Ps, Qs).
+    findall(X-'M', member(X, Ws), Ms), append(Ms, Qs, Out), ng_unquote(Ps, rest, Qs).
+ng_unquote([P|Ps], Pos, [P|Qs]) :-
+    (   P = _-'B' -> Pos1 = head                       % the next sentence has a head of its own
+    ;   P = _-'D' -> Pos1 = Pos                        % noise before the head is not the head
+    ;   P = ','-_ -> Pos1 = Pos
+    ;   Pos1 = rest
+    ),
+    ng_unquote(Ps, Pos1, Qs).
 
 ng_bare_words(W, Ws) :-
     atomic_list_concat(Ws, ' ', W), Ws \== [],
     forall(member(X, Ws), ( X \== '', reason_tokens(X, [word(X, _)]) )).
+
+%% one word, not closed, and either a name or a word the lexicon does not
+%% know: what stands bare at the head as a subject
+ng_head_bare(W) :-
+    ng_bare_words(W, [W]),
+    \+ rl_closed(W),
+    ( ng_name_word(W) -> true ; \+ ng_known_word(W) ).
+
+%% the lexicon's common words and its names, as two assocs made once a machine
+ng_known_word(W) :- ng_word_table('$lx_known', [noun, class, adj, adverb, unit, vt, vi, vpp, known_noun, known_verb, known_adj, known_adverb], T), get_assoc(W, T, _).
+ng_name_word(W) :- ng_word_table('$lx_names', [proper, place, language], T), get_assoc(W, T, _).
+ng_word_table(Key, Classes, T) :-
+    (   catch(nb_getval(Key, T0), _, fail)
+    ->  T = T0
+    ;   findall(W-yes, ( member(C, Classes), normalise_lexicon(C, Ws), member(W0, Ws),
+                         ( W0 = V-_ -> true ; V = W0 ), downcase_atom(V, W) ), Ps0),
+        keysort(Ps0, Ps1), ng_first_keys(Ps1, Ps), list_to_assoc(Ps, T0), nb_setval(Key, T0), T = T0
+    ).
+ng_first_keys([], []).
+ng_first_keys([K-V|Rest], [K-V|Out]) :- ng_drop_key(K, Rest, Rest1), ng_first_keys(Rest1, Out).
+ng_drop_key(K, [K-_|R], O) :- !, ng_drop_key(K, R, O).
+ng_drop_key(_, R, R).
 
 ng_dropped([], []).
 ng_dropped([W|Ws], [W-'D'|Ds]) :- ng_dropped(Ws, Ds).
@@ -1134,7 +1180,7 @@ nb_upto(['.'|Ts], [], Ts) :- !.
 nb_upto([T|Ts], [T|S], Rest) :- nb_upto(Ts, S, Rest).
 
 nb_text(S, T) :-
-    findall(Ws, ( member(Tok, S), nb_words(Tok, Ws) ), Wss), append(Wss, Ws),
+    nb_words(S, head, Ws),
     findall(W-x, ( member(Tok, S), nb_plain(Tok, W) ), Pairs), ng_stop(Pairs, Stop),   % the stop from the lower-case words: `Is' asks
     ng_text(Ws, Stop, T).
 
@@ -1143,12 +1189,17 @@ nb_plain(quoted(W), q(W)).
 nb_plain(num(N), N).
 nb_plain(',', ',').
 
-nb_words(quoted(W), Ws) :- ng_bare_words(W, Ws), !.
-nb_words(quoted(W), [q(W)]) :- !.
-nb_words(word(W, upper), [C]) :- !, ng_cap(W, C).
-nb_words(word(W, _), [W]) :- !.
-nb_words(num(N), [A]) :- !, format(atom(A), "~w", [N]).
-nb_words(T, [T]).
+%% as the unquote transform writes them: bare, and at the head only a
+%% word that can stand as a subject
+nb_words([], _, []).
+nb_words([quoted(W)|Ts], head, [W|Ws]) :- ng_head_bare(W), !, nb_words(Ts, rest, Ws).
+nb_words([quoted(W)|Ts], head, [q(W)|Ws]) :- !, nb_words(Ts, rest, Ws).
+nb_words([quoted(W)|Ts], rest, Out) :- ng_bare_words(W, Bare), !, append(Bare, Ws, Out), nb_words(Ts, rest, Ws).
+nb_words([quoted(W)|Ts], rest, [q(W)|Ws]) :- !, nb_words(Ts, rest, Ws).
+nb_words([word(W, upper)|Ts], _, [C|Ws]) :- !, ng_cap(W, C), nb_words(Ts, rest, Ws).
+nb_words([word(W, _)|Ts], _, [W|Ws]) :- !, nb_words(Ts, rest, Ws).
+nb_words([num(N)|Ts], _, [A|Ws]) :- !, format(atom(A), "~w", [N]), nb_words(Ts, rest, Ws).
+nb_words([T|Ts], Pos, [T|Ws]) :- nb_words(Ts, Pos, Ws).
 
 ng_cap(W, C) :-
     atom_codes(W, [F|R]),

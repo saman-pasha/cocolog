@@ -70,8 +70,10 @@ encoding :-
     tagger_encode(V, [num(500), word(five, lower)], [N3, _], S3),
     check('a number is one word, <num>, and sorts right after the comma: 3', N3, 3),
     check('its shape is 15, and a number word is a lower-case word like any other', S3, [15, 1]),
-    tagger_encode(V, [quoted(casa), word(casa, lower), quoted(a)], [Q1, Q2, Q3], Sq),
-    check('a quoted word keeps its word: the same id bare, and <unk> either way here', [Q1, Q2, Q3], [1, 1, 1]),
+    tagger_encode(V, [quoted(casa), word(casa, lower), quoted(zed)], [Q1, Q2, Q3], Sq),
+    yes_no(Q1 == Q2, SameId),
+    check('a quoted word keeps its word: the same id quoted and bare', SameId, yes),
+    check('and Zed quoted is <unk> as Zed bare is', Q3, 1),
     check('and its shape is 14, whatever is inside the marks', Sq, [14, 1, 14]),
     normalise_corpus(64, Pairs64), tagger_vocabulary(Pairs64, V64),
     tagger_word_id(V64, means, IdMeans), yes_no(IdMeans > 1, Means64),
@@ -173,8 +175,8 @@ pretrained :-
         ->  true
         ;   CL = refused, TL = refused
         ),
-        check('a lesson typed bare: the mentioned words back between quotation marks, the language dropped', CL,
-              'The noun "casa" means "house". "leche" is feminine. "los" is the plural of "el". Every noun that ends_in "a" is feminine.'),
+        check('a lesson typed bare: the mentioned words back between quotation marks, a bare head word the name reading, the language dropped', CL,
+              'The noun "casa" means "house". Leche is feminine. Los is the plural of "el". Every noun that ends_in "a" is feminine.'),
         ( TL = [noun(casa), mean(casa, house), feminine(leche), plural_of(los, el), (feminine(XL) :- noun(YL), end_in(ZL, a))], XL == YL, YL == ZL -> RL = a_lesson ; RL = TL ),
         check('and read as a lesson: facts about words, a rule over their letters', RL, a_lesson),
         ( tagger_normalise(M, 'The word "no" precedes the verb. "amigo" is a person.', _, TQ) -> true ; TQ = refused ),
@@ -196,10 +198,13 @@ pretrained :-
 %% and verbs, are outside the lexicon, in every shape the grammar reads and
 %% with the noise typed prose carries. Each should give the terms a careful
 %% reader would write, up to the names of a rule's variables; every miss is
-%% printed by name, and the floor is all but two of the sixty-six, because
+%% printed by name, and the floor is all but four of the eighty-two, because
 %% over a lexicon of thousands two trainings do not miss the same sentence
 %% -- measured, one missed `works hard' and the next `may enter the ward' --
-%% and a pin on all of them would be a pin on the coin.
+%% and a pin on all of them would be a pin on the coin. Two of the lesson
+%% sentences mention CLOSED words bare (`no means not', `the contraction of
+%% a el'), which the corpus gives the generator a line each of, and those
+%% are a coin too.
 
 prose('Zed owns a bicycle.', [bicycle(bicycle_1), own(zed, bicycle_1)]).
 prose('Mia is clever.', [clever(mia)]).
@@ -295,8 +300,8 @@ prose_checks(M) :-
            )),
     length(Bad, NB), Ok is N - NB,
     format("     ~w of ~w hand-written sentences give their terms~n", [Ok, N]),
-    Floor is N - 2, yes_no(Ok >= Floor, Enough),
-    check('all but two of the hand-written sentences give their terms', Enough, yes).
+    Floor is N - 4, yes_no(Ok >= Floor, Enough),
+    check('all but four of the hand-written sentences give their terms', Enough, yes).
 
 %% variants: the same term up to the names of its variables
 variant(A, B) :-

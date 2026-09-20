@@ -2322,7 +2322,23 @@ CLASS`, never from what a relation ends in. And `unquote` is the one
 transform whose noisy text the grammar may READ -- `Leche is feminine`
 is a fact about a name -- with the same term either way, so
 `test/normalise.pl` now holds every noisy text to the clean text's terms
-rather than to a refusal. **AND THE DATA A MODEL TRAINED ON IS IN THE
+rather than to a refusal. **WHICH IS ALSO WHY A BARE MENTION AT THE HEAD
+IS TAGGED S, THE NAME READING**: the first model trained with head
+mentions tagged M read `Mia is a nurse and is careful` as `"mia" is a
+nurse` -- a bare word at the head of a copula sentence cannot be told
+from a name, and the network had been taught to guess. The term is the
+same either way (`feminine(leche)`, `mean(casa, house)`), so `unquote`
+writes a head mention bare and tagged S, and keeps the marks when the
+lexicon knows the word as a common word (the judge refuses `House` as a
+subject, as it refuses `Small business management`) or it is closed;
+`normalise_bare/2` types a lesson the same way. A lesson typed bare
+therefore reads back to its terms with its head words as names, and a
+name typed after a lesson stays a name. Measured on the shipped model,
+trained on `generated/training.txt`: over 300 unseen pairs 0.988 of the
+tags, 0.963 of the sentences, 0.973 assembled and parsed to the clean
+terms (0.9997 and 0.997 before the lesson shapes, whose bare mentions are
+the hard part); real prose refused 0.953; the corpus's 194 lines typed
+bare read back at 0.876. **AND THE DATA A MODEL TRAINED ON IS IN THE
 TREE, WHICH IS THE OWNER'S SECOND RULE**: `library/reasoning/generate.pl`
 writes the generator's pairs to `library/reasoning/generated/`
 (`training.txt`, seeds 1..16384; `evaluation.txt`, 30001..30300; one

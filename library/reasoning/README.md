@@ -27,13 +27,15 @@ stay where the runners look -- `test/run.pl` takes `test/*.pl` and
 `test/tutorials.pl` takes `tutorials/*/*.pl` -- because a case under
 `library/` is a case nobody runs.
 
-The loop is closed: `tagger.pl` trains in about eighty seconds on four
+The loop is closed: `tagger.pl` trains in about two minutes on four
 cores, over 300 sentences training never saw (seeds past the corpus)
-0.9997 of the tags and 0.997 of the sentences are right, and of
-sixty-six hand-written sentences whose names, nouns, adjectives and
-verbs are outside the lexicon sixty-four or more give their terms --
-`test/tagger.pl` holds both, and puts a paragraph of such prose, a place
-after an object included, to `truth/2`.
+0.988 of the tags and 0.963 of the sentences are right (0.9997 and 0.997
+before the lesson shapes joined), of eighty-two hand-written sentences
+whose names, nouns, adjectives and verbs are outside the lexicon
+seventy-eight or more give their terms, and 0.88 of the corpus's own
+lesson lines typed bare -- `The noun casa means house.` -- read back to
+their terms; `test/tagger.pl` holds all three, and puts a paragraph of
+such prose, a place after an object included, to `truth/2`.
 
 The other half is what it refuses. Shown 875 sentences of real government
 prose the first tagger "read" a tenth of them -- `Boston, Mass.` as

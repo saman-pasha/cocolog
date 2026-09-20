@@ -91,8 +91,12 @@ main :-
     show('a lesson pair, seed 43', N7),
     show('its tags', Tags7),
     show('what was applied', A7),
+    show('the clean text it was made from', C7),
     normalise_assemble(Toks7, Tags7, Asm7b),
-    must('and the gold tags put the marks back', Asm7b, C7),
+    show('assembled with the gold tags', Asm7b),
+    reason_text(Asm7b, T7b), reason_text(C7, T7c),
+    ( rt_variant(T7b, T7c) -> R7b = the_same_terms ; R7b = T7b ),
+    must('and the two give the same terms: a bare head word is the name reading, and the marks are back on the rest', R7b, the_same_terms),
 
     format("~ndone~n", []).
 

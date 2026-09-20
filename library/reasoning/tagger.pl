@@ -187,13 +187,17 @@
 %% shapes it did.
 %%
 %% MEASURED, on a four-core box with no GPU, the defaults: 400 steps over
-%% 16384 pairs train in about eighty seconds; over 300 pairs training never
-%% saw (seeds past the corpus) 0.9997 of the tags and 0.997 of the
-%% sentences are right; and of fifty-four hand-written sentences whose
-%% names, nouns, adjectives and verbs are outside the lexicon -- questions
-%% and shared subjects among them -- fifty-two or more give their terms, a
-%% different one missed from one training to the next -- test/tagger.pl
-%% holds both. And the other half: of 300 WordNet example sentences from
+%% 16384 pairs train in about two minutes; over 300 pairs training never
+%% saw (seeds past the corpus) 0.988 of the tags and 0.963 of the
+%% sentences are right and 0.973 assemble and parse to the clean terms
+%% (0.9997 and 0.997 before the ten lesson shapes joined, whose bare
+%% mentions are the hard part); of eighty-two hand-written sentences whose
+%% names, nouns, adjectives and verbs are outside the lexicon -- questions,
+%% shared subjects and seventeen lines of a lesson typed bare among them
+%% -- seventy-eight or more give their terms, a different one missed from
+%% one training to the next; and of the corpus's 194 lesson lines typed
+%% bare, 0.88 read back to their own terms (tagger_lessons/4) --
+%% test/tagger.pl holds all three. And the other half: of 300 WordNet example sentences from
 %% prose.txt, 0.93 to 0.94 came back refused where the network alone
 %% refused 0.85, and of 757 sentences of real government prose 0.96 where
 %% it was 0.87 -- with the hand-written sentences read exactly as before,
