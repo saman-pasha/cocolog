@@ -18,7 +18,7 @@
 %%
 %% THE CORPUS IS THE CAPABILITY. The generator is unbounded in seeds and
 %% bounded in variety, and variety is what carries a tagger to words it
-%% never saw: forty-one shapes, eleven kinds of noise, and a lexicon that is
+%% never saw: forty-five shapes, eleven kinds of noise, and a lexicon that is
 %% files beside the library -- 2500 census names and some seventeen
 %% thousand WordNet words, library/reasoning/lexicon/ -- and 16384 pairs
 %% of them by default. Over that lexicon 8192 pairs read 0.96 of the
@@ -87,6 +87,9 @@ main :-
     truth(like(mia, zed), V1), must('truth(like(mia, zed))', V1, true),
     truth(like(zed, mia), V2), must('truth(like(zed, mia)) -- nothing said so', V2, unknown),
     truth(must_sign(ann, form), V3), must('truth(must_sign(ann, form)) -- Ann is a clerk and not exempt', V3, true),
+    tagger_ask(M, 'Why must Ann sign the form?', [A9g], [E9g]),
+    ( A9g = because(_) -> B9g = because ; B9g = A9g ), must('a typed `why'': the answer is because(Text)', B9g, because),
+    must('and the text is the whole proof, the rule and what it rests on', E9g, 'Ann must sign the form because Ann is a clerk and nothing shows that Ann is exempt.'),
 
     format("~n5. Measured on 200 sentences training never saw -- seeds past the corpus~n", []),
     tagger_evaluate(M, 30001, 200, report(Tok, Sent, Acc, _)),

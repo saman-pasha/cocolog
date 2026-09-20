@@ -1990,6 +1990,58 @@ the judge lets a number or a number word be T or O only and `much` or
 the answers, `test/tagger.pl` ten typed sentences and two `how much`
 questions over a paragraph.
 
+**THE EXPLANATION IS THE WHOLE PROOF, IN SENTENCES, AND A CHESS MATE IS THE
+CASE.** `reason_why/2` answered one level, and `Why is Kh8 checkmated?`
+wants all of them: `reason_explain/2` is a meta-interpreter that proves the
+goal as Prolog would -- first proof, clause order, the body left to right --
+and keeps what it proved by: `fact(G)`, `rule(G, Whys)`, `absent(G)` for a
+`\+ G` that held, `denied(G)` when `neg(G)` was said besides, `holds(G)`
+for a builtin, and `forall(A, B, Instances)` for `\+ (A, \+ B)`, the one
+shape that needs its own record, because a universal's explanation IS its
+instances. `reason_explanation/2` says it depth first, one sentence per
+rule -- `Kh8 is checkmated because Kh8 is a captive and nothing shows that
+Kh8 is defended. Kh8 is a captive because ... Kh8 is immobile because Kh8
+is a king and whenever Kh8 may move to X, X is unsafe (X: G8, G7 and H7).
+G8 is unsafe because ...` -- and the words are the knowledge base's own:
+the verb in the third person through `reason_third/2` (the inflector MOVED
+here from normalise.pl, beside the stemmer it inverts, so the pair is
+changed together), a proper noun the reader met capitalised and a class
+noun it met after `a`, `the` or `every` with its article (two globals the
+reader fills as it goes, `'$rs_names'` and `'$rs_nouns'`, never asserted),
+any other atom as `the ...`, an individual `flat_1` as `the flat`. `Why
+...?` before any yes-or-no form is `question(why(Goal))`, answered
+`because(Text)` or `unknown`; `reason_ask/3` puts the explanation beside
+every answer, a denial as `..., as said.` and an unknown as `Nothing shows
+that ...` with an existential written `a flat`. The scenario is the
+back-rank mate -- Kh8 behind Pg7 and Ph7, Re8 arrived -- in twenty-nine
+terms of the controlled English (check and mate are three `every` rules
+chained through class nouns, target and captive, because a relative clause
+carries ONE condition) plus four Prolog clauses for what the English cannot
+say, a rule over two variables and the universal `immobile`; the
+explanation walks both alike. The generator has two `why` shapes (41, 42),
+`why` an O like `what`, and `tagger_ask/4` carries the text for typed
+prose. And the typed scenario found a shape nobody had made: `Every
+square that is attacked is unsafe`, a rule whose head is an ADJECTIVE
+after a relative clause -- shapes 8, 15, 16 and 21 put a class, a verb or
+a modal there, never `is ADJ` -- so the tagger dropped `unsafe` on every
+such definition; shape 43 makes it, with and without `not`. And a second
+one the same afternoon: `Kh8 may move to G8`, a MODAL before a phrasal
+verb, read with `move` as the object -- shape 6 has a modal before a verb
+and a noun, shape 9 a phrasal verb with no modal, and nothing had put the
+two together; shape 44 does (`may live_in Rome`, split and joined back to
+may_live_in, which the grammar reads as a modal and a base form). The
+typed scenario found both, one training apart, and the rule stands: read
+the tags, ask which shape the generator does not make. Two things bit: the universal's phrase copied the instance bindings
+BEFORE collecting the pattern's variables, so a `member/2` ran over an
+unbound list inside a `findall/3` and never came back -- a hang that
+looked, for an hour, like the engine looping on `checkmated(kh8)`, until
+the plain goal was run without the explainer and answered in a
+millisecond. Bisect the CALL before the engine. And `flush_output/0` did
+not put a line into a FILE before a `timeout` killed the process -- five
+lines arrived and the sixth, written and flushed the same way, did not --
+so a marker missing from a redirected log is not proof the goal before it
+hung; a pipe behaved.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

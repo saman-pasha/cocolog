@@ -12,7 +12,7 @@
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
-    round_trip, refusals, places, state, questions, quantities, prose, declares, refused, truth, errors,
+    round_trip, refusals, places, state, questions, quantities, explains, prose, declares, refused, truth, errors,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -409,6 +409,69 @@ quantities :-
     reason_amount(quantity(2, litres, milk), AM1), check('reason_amount/2: a quantity is its own amount', AM1, quantity(2, litres, milk)),
     reason_amount(rent, AM2), check('and a definite object answers the amount the text gave it', AM2, quantity(600, euros)),
     reason_count(quantity(2, litres, milk), litres, C1), check('reason_count/3 over quantity/3', C1, 2).
+
+%% ---- the explanation: the whole proof, in sentences ----------------------------
+%% A chess position: the black king on h8 behind its own pawns on g7 and
+%% h7, a white rook arrived on e8. Check and mate are three rules of the
+%% controlled English; what it cannot say -- a rule over two variables, a
+%% universal -- is four Prolog clauses beside it, and the explanation walks
+%% both alike. The Priya and Omar facts are the ones the sections above
+%% asserted.
+
+explains :-
+    section('explanation'),
+    reason_text('Kh8 is a king. Kh8 is black. Kh8 occupies H8. Re8 is a rook. Re8 is white. Re8 occupies E8. Re8 attacks F8. Re8 attacks G8. Re8 attacks H8. Pg7 is a pawn. Pg7 is black. Pg7 occupies G7. Pg7 attacks F6. Pg7 attacks H6. Ph7 is a pawn. Ph7 is black. Ph7 occupies H7. Ph7 attacks G6. G8 is a square. G7 is a square. H7 is a square. Kh8 may move_to G8. Kh8 may move_to G7. Kh8 may move_to H7. Every square that is attacked is unsafe. Every square that is occupied is unsafe. Every king that is attacked is a target. Every target that is immobile is a captive. Every captive that is not defended is checkmated.', Chess),
+    length(Chess, NC), check('the position and the definitions: twenty-nine terms', NC, 29),
+    forall(member(T, Chess), assertz(T)),
+    assertz(( attacked(X) :- attack(_, X) )),
+    assertz(( attacked(P) :- occupy(P, S), attack(_, S) )),
+    assertz(( occupied(S) :- occupy(_, S) )),
+    assertz(( immobile(K) :- king(K), \+ ( may_move_to(K, S), \+ unsafe(S) ) )),
+    assertz(( defended(K) :- occupy(K, S), attack(A, S), occupy(A, T), attack(D, T), black(D) )),
+    reason_explain(unsafe(g8), W1),
+    check('a rule, and the facts and the rule under it', W1, rule(unsafe(g8), [fact(square(g8)), rule(attacked(g8), [fact(attack(re8, g8))])])),
+    reason_explain(immobile(kh8), W2),
+    yes_no(( W2 = rule(immobile(kh8), [fact(king(kh8)), forall(may_move_to(kh8, S2), unsafe(S2b), Insts2)]), S2 == S2b,
+             Insts2 = [may_move_to(kh8, g8)-rule(unsafe(g8), _), may_move_to(kh8, g7)-rule(unsafe(g7), _), may_move_to(kh8, h7)-rule(unsafe(h7), _)] ), V2),
+    check('a universal, \\+ (A, \\+ B): every instance of A with the why of B', V2, yes),
+    reason_explain(checkmated(kh8), W3),
+    yes_no(W3 = rule(checkmated(kh8), [rule(captive(kh8), [rule(target(kh8), [fact(king(kh8)), rule(attacked(kh8), [fact(occupy(kh8, h8)), fact(attack(re8, h8))])]),
+                                                             rule(immobile(kh8), _)]),
+                                          absent(defended(kh8))]), V3),
+    check('the whole proof of the mate, absent(defended) for the negation nothing proves', V3, yes),
+    reason_explanation(checkmated(kh8), E3),
+    check('and in sentences, every level of it, depth first', E3,
+          'Kh8 is checkmated because Kh8 is a captive and nothing shows that Kh8 is defended. Kh8 is a captive because Kh8 is a target and Kh8 is immobile. Kh8 is a target because Kh8 is a king and Kh8 is attacked. Kh8 is attacked because Kh8 occupies H8 and Re8 attacks H8. Kh8 is immobile because Kh8 is a king and whenever Kh8 may move to X, X is unsafe (X: G8, G7 and H7). G8 is unsafe because G8 is a square and G8 is attacked. G8 is attacked because Re8 attacks G8. G7 is unsafe because G7 is a square and G7 is occupied. G7 is occupied because Pg7 occupies G7. H7 is unsafe because H7 is a square and H7 is occupied. H7 is occupied because Ph7 occupies H7.'),
+    reason_question('Why is Kh8 checkmated?', Q4), check('why: the question is question(why(Goal))', Q4, question(why(checkmated(kh8)))),
+    reason_ask('Why is Kh8 checkmated?', [because(E4)]), check('asked: because(Text), the same sentences', E4, E3),
+    reason_ask('Why is Kh8 checkmated?', A5, X5), check('reason_ask/3: the answer', A5, [because(E3)]), check('and the explanation beside it', X5, [E3]),
+    reason_ask('Is Kh8 checkmated?', A6, X6),
+    yes_no(A6 = [yes(rule(_))], V6), check('a yes carries its one-level reason', V6, yes), check('and reason_ask/3 the whole proof', X6, [E3]),
+    reason_ask('Why is G7 unsafe?', [because(E7)]), check('why, two levels', E7, 'G7 is unsafe because G7 is a square and G7 is occupied. G7 is occupied because Pg7 occupies G7.'),
+    reason_ask('Why is Re8 white?', [because(E8)]), check('why, a fact: as said', E8, 'Re8 is white, as said.'),
+    reason_ask('Why does Re8 attack H8?', [because(E9)]), check('a binary fact, the verb in the third person, the names capitalised', E9, 'Re8 attacks H8, as said.'),
+    reason_ask('Why is Kh8 happy?', A10, X10), check('why, when nothing shows it: unknown', A10, [unknown]), check('and the explanation says so', X10, ['Nothing shows that Kh8 is happy.']),
+    reason_ask('Is Kh8 defended?', A11, X11), check('a yes-or-no nothing shows: unknown', A11, [unknown]), check('with the same sentence', X11, ['Nothing shows that Kh8 is defended.']),
+    reason_ask('Who is a captive?', A12, X12),
+    atom_concat('Kh8 is checkmated because Kh8 is a captive and nothing shows that Kh8 is defended. ', Rest12, E3),
+    yes_no(( A12 = [[kh8-rule(_)]], X12 == [[kh8-Rest12]] ), V12), check('who: each value with its whole proof', V12, yes),
+    reason_ask('Why may Priya sell the bread?', [because(E13)]), check('why, by a rule with two facts', E13, 'Priya may sell the bread because Priya is a baker and Priya is licensed.'),
+    reason_ask('Does Priya rent a flat in Bristol?', _, X14), check('a yes over an existential: the fact, the individual as `the flat''', X14, ['Priya rents the flat in Bristol, as said.']),
+    reason_ask('Does Marco pay the rent?', _, X15), check('a no: the denial, as said', X15, ['Marco does not pay the rent, as said.']),
+    reason_ask('Does Marco rent a flat in Bristol?', _, X16), check('unknown over an existential: `a flat''', X16, ['Nothing shows that Marco rents a flat in Bristol.']),
+    reason_ask('How much does Omar pay?', _, X17), check('how much: the fact and the amount it went through', X17, [[quantity(600, euros)-'Omar pays the rent, as said. The rent is 600 euros, as said.']]),
+    reason_ask('Why must Omar pay 500 euros?', [because(E18)]), check('why, a rule with a quantity in its head', E18, 'Omar must pay 500 euros because Omar is a grower.'),
+    reason_ask('Why does Marco pay the rent?', [because(E19)]), check('why, when the text denied it: the denial', E19, 'Marco does not pay the rent, as said.'),
+    reason_explanation(neg(pay(marco, rent)), E20), check('reason_explanation/2 over a denial', E20, 'Marco does not pay the rent, as said.'),
+    yes_no(reason_explanation(happy(marco), _), V21), check('and fails for what nothing holds up', V21, no),
+    yes_no(catch(reason_explain(_, _), error(instantiation_error, _), fail), V22), check('reason_explain/2 wants a goal', V22, no),
+    assertz(size(box, 5)), assertz(( big(X) :- size(X, N), N > 3 )), assertz(( heavy(X) :- big(X) ; size(X, 9) )),
+    reason_explanation(big(box), E27), check('a builtin comparison in a body, said in words', E27, 'The box is big because the box sizes 5 and 5 is more than 3.'),
+    reason_explanation(heavy(box), E28), check('a disjunction in a body: the branch that proved', E28, 'The box is heavy because the box is big. The box is big because the box sizes 5 and 5 is more than 3.'),
+    reason_third(attack, T23), check('reason_third/2, the inflector: attack -> attacks', T23, attacks),
+    reason_third(occupy, T24), check('occupy -> occupies', T24, occupies),
+    reason_third(watch, T25), check('watch -> watches', T25, watches),
+    reason_third(have, T26), check('have -> has', T26, has).
 
 %% ---- prose, through the shipped tagger: optional --------------------------------------------
 %% reason_prose/2 loads library(reasoning/tagger) and the model shipped

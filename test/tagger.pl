@@ -1,7 +1,7 @@
 %% library(reasoning/tagger) -- the network that labels typed text for the
 %% grammar, held to what the grammar then reads: the pure half (vocabulary,
 %% encoding, tag ids, the padding plan) on any box, and where library(torch)
-%% is built a training, its accuracy on sentences it never saw, SIXTY-FOUR
+%% is built a training, its accuracy on sentences it never saw, SIXTY-SIX
 %% HAND-WRITTEN SENTENCES whose names, nouns, adjectives and verbs are
 %% outside the lexicon, a paragraph of such prose put to truth/2, and a
 %% model one process trains and the next loads.
@@ -175,7 +175,7 @@ pretrained :-
 %% and verbs, are outside the lexicon, in every shape the grammar reads and
 %% with the noise typed prose carries. Each should give the terms a careful
 %% reader would write, up to the names of a rule's variables; every miss is
-%% printed by name, and the floor is all but two of the sixty-four, because
+%% printed by name, and the floor is all but two of the sixty-six, because
 %% over a lexicon of thousands two trainings do not miss the same sentence
 %% -- measured, one missed `works hard' and the next `may enter the ward' --
 %% and a pin on all of them would be a pin on the coin.
@@ -244,6 +244,8 @@ prose('Frankly, the price is 5.5 percent.', [amount(price, quantity(5.5, percent
 prose('Does Nadia pay 500 euros?', [question(pay(nadia, quantity(500, euros)))]).
 prose('How much does Nadia pay?', [question(Q, (pay(nadia, O), reason_amount(O, Q)))]).
 prose('How many vineyards does Tariq own, honestly?', [question(N, (own(tariq, O), reason_count(O, vineyards, N)))]).
+prose('Why does Nadia pay 500 euros?', [question(why(pay(nadia, quantity(500, euros))))]).
+prose('Well, why is Mia a nurse?', [question(why(nurse(mia)))]).
 
 prose_checks(M) :-
     findall(T-W, prose(T, W), Ps), length(Ps, N),
@@ -298,7 +300,11 @@ paragraph(M) :-
     tagger_ask(M, 'Is she registered?', A6), check('asked with a pronoun: the subject the paragraph left, Dana -- yes', A6, [yes(fact)]),
     tagger_ask(M, 'How much does Mia pay?', A7),
     check('asked how much: through the amount the paragraph gave the rent', A7, [[quantity(500, euros)-fact]]),
-    tagger_ask(M, 'Well, how much is the rent?', A8), check('asked how much the rent is', A8, [[quantity(500, euros)-fact]]).
+    tagger_ask(M, 'Well, how much is the rent?', A8), check('asked how much the rent is', A8, [[quantity(500, euros)-fact]]),
+    tagger_ask(M, 'Why may Mia enter the ward?', A9, E9),
+    yes_no(A9 = [because(_)], V9), check('asked why: the answer is because(Text)', V9, yes),
+    check('and the text is the whole proof in sentences', E9, ['Mia may enter the ward because Mia is a nurse and Mia is careful.']),
+    tagger_ask(M, 'Does Omar like Zed?', _, E10), check('tagger_ask/4: the denial, as said', E10, ['Omar does not like Zed, as said.']).
 
 %% one process trains into a store and asserts what it tagged; the next loads
 %% the model from the store and tags the same sentence -- the knowledge base

@@ -154,6 +154,7 @@ main :-
 
     questions,
     quantities,
+    explanation,
     prose,
     format("~nDone.~n", []).
 
@@ -198,10 +199,36 @@ quantities :-
     ( reason_sentence('Nadia owns three red cars.', _) -> R14 = read ; R14 = refused ),
     must('an adjective inside a quantity is refused, not dropped', R14, refused).
 
-%% section 15: OPTIONAL -- the shipped tagger reads typed prose, where
+%% section 15: an EXPLANATION is the whole proof, in sentences. A chess
+%% position: the black king on h8 behind its own pawns on g7 and h7, and a
+%% white rook has arrived on e8. Check and mate are three rules of the
+%% controlled English; what the English cannot say -- a rule over two
+%% variables, a universal (`no square the king may move to is safe') -- is
+%% four Prolog clauses asserted beside it, and the explanation walks both
+%% alike
+explanation :-
+    format("~n15. Why is the king checkmated? The explanation is the proof, every level of it, in sentences~n", []),
+    reason_text('Kh8 is a king. Kh8 is black. Kh8 occupies H8. Re8 is a rook. Re8 is white. Re8 occupies E8. Re8 attacks F8. Re8 attacks G8. Re8 attacks H8. Pg7 is a pawn. Pg7 is black. Pg7 occupies G7. Pg7 attacks F6. Pg7 attacks H6. Ph7 is a pawn. Ph7 is black. Ph7 occupies H7. Ph7 attacks G6. G8 is a square. G7 is a square. H7 is a square. Kh8 may move_to G8. Kh8 may move_to G7. Kh8 may move_to H7. Every square that is attacked is unsafe. Every square that is occupied is unsafe. Every king that is attacked is a target. Every target that is immobile is a captive. Every captive that is not defended is checkmated.', T15),
+    forall(member(T, T15), assertz(T)),
+    assertz(( attacked(X) :- attack(_, X) )),                                          % a square somebody attacks
+    assertz(( attacked(P) :- occupy(P, S), attack(_, S) )),                            % a piece on such a square
+    assertz(( occupied(S) :- occupy(_, S) )),
+    assertz(( immobile(K) :- king(K), \+ ( may_move_to(K, S), \+ unsafe(S) ) )),       % every square it may move to is unsafe
+    assertz(( defended(K) :- occupy(K, S), attack(A, S), occupy(A, T), attack(D, T), black(D) )),   % a black piece attacks the attacker
+    reason_ask('Is Kh8 checkmated?', [A15a]), show('asked, one level', A15a),
+    reason_ask('Why is Kh8 checkmated?', [because(E15)]),
+    format("   why = ~w~n", [E15]),
+    must('every level of the proof, in sentences', E15,
+         'Kh8 is checkmated because Kh8 is a captive and nothing shows that Kh8 is defended. Kh8 is a captive because Kh8 is a target and Kh8 is immobile. Kh8 is a target because Kh8 is a king and Kh8 is attacked. Kh8 is attacked because Kh8 occupies H8 and Re8 attacks H8. Kh8 is immobile because Kh8 is a king and whenever Kh8 may move to X, X is unsafe (X: G8, G7 and H7). G8 is unsafe because G8 is a square and G8 is attacked. G8 is attacked because Re8 attacks G8. G7 is unsafe because G7 is a square and G7 is occupied. G7 is occupied because Pg7 occupies G7. H7 is unsafe because H7 is a square and H7 is occupied. H7 is occupied because Ph7 occupies H7.'),
+    reason_ask('Why is G7 unsafe?', [because(E15b)]), must('why, two levels down', E15b, 'G7 is unsafe because G7 is a square and G7 is occupied. G7 is occupied because Pg7 occupies G7.'),
+    reason_ask('Is Kh8 defended?', [A15c], [X15c]), must('nothing shows it', A15c, unknown), must('and the explanation says so', X15c, 'Nothing shows that Kh8 is defended.'),
+    reason_explain(unsafe(g8), W15), show('the proof as a term, reason_explain/2', W15),
+    reason_ask('Why does Omar pay the rent?', [because(E15d)]), must('a fact: as said', E15d, 'Omar pays the rent, as said.').
+
+%% section 16: OPTIONAL -- the shipped tagger reads typed prose, where
 %% library(torch) and library/reasoning/model.rows are there
 prose :-
-    format("~n15. Typed prose, through the shipped tagger -- optional, and loaded on first use~n", []),
+    format("~n16. Typed prose, through the shipped tagger -- optional, and loaded on first use~n", []),
     (   catch(reason_prose('Well, Rex really owns a red truck, obviously. Kim rents a flat in Oslo and is insured.', T14),
               error(existence_error(tagger, pretrained), _), fail)
     ->  show('the prose, read', T14),

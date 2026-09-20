@@ -52,12 +52,13 @@
 %% capitalised word after a preposition after an object is a place the
 %% grammar reads.
 %%
-%% AND QUESTIONS ARE SHAPES TOO, ten of the forty-one: `Does Alice own a
-%% car?', `Is Alice happy?', `May Alice use the server?', `Who owns a car?',
-%% `What does Alice own?', `Where does Alice sleep?', `Does Alice pay 500
-%% euros?', `How much does Alice pay?', `How many euros does Alice pay?',
-%% `How much is the rent?'. The tags are the statements' -- `who' is the
-%% subject asked for, `what', `where' and `how much' the object -- so the
+%% AND QUESTIONS ARE SHAPES TOO, twelve of the forty-five: `Does Alice own
+%% a car?', `Is Alice happy?', `May Alice use the server?', `Who owns a
+%% car?', `What does Alice own?', `Where does Alice sleep?', `Does Alice pay
+%% 500 euros?', `How much does Alice pay?', `How many euros does Alice
+%% pay?', `How much is the rent?', `Why is Alice happy?', `Why does Alice
+%% own a car?'. The tags are the statements' -- `who' is the
+%% subject asked for, `what', `where', `how much' and `why' the object -- so the
 %% assembler copies them where they stand, the text ends in `?', and the
 %% grammar reads a goal with a variable there.
 %%
@@ -276,32 +277,18 @@ ng_nth(Class, K, W) :-
     ng_key(B, Class, Key), nb_getval(Key, T), arg(I, T, W).
 
 %% ---- the inflector ---------------------------------------------------------
-%% Third person singular, and library(reasoning/reason)'s rs_base/2 must give the
-%% base back: -es after ss, sh, ch, x, z, o; -ies for a consonant and y; -s
-%% otherwise; `has' by name. The two are one pair, changed together. A
+%% Third person singular, library(reasoning/reason)'s reason_third/2: it
+%% lives beside the stemmer it inverts, rs_base/2, and the two are changed
+%% together -- -es after ss, sh, ch, x, z, o; -ies for a consonant and y;
+%% -s otherwise; `has' by name. A
 %% regular PLURAL is the same three rules (euro -> euros, inch -> inches,
 %% penny -> pennies), so ng_plural/2 is this inflector; an irregular one
 %% (foot, child) comes out wrong and does no harm, since the grammar takes
 %% a noun as written and the tagger learns the shape, not the word.
 
-normalise_third(have, has) :- !.
-normalise_third(B, T) :- ng_es_stem(B), !, atom_concat(B, es, T).
-normalise_third(B, T) :- ng_y_stem(B, Stem), !, atom_concat(Stem, ies, T).
-normalise_third(B, T) :- atom_concat(B, s, T).
+normalise_third(B, T) :- reason_third(B, T).
 
 ng_plural(N, P) :- normalise_third(N, P).
-
-ng_es_stem(B) :- sub_atom(B, _, 2, 0, ss), !.
-ng_es_stem(B) :- sub_atom(B, _, 2, 0, sh), !.
-ng_es_stem(B) :- sub_atom(B, _, 2, 0, ch), !.
-ng_es_stem(B) :- sub_atom(B, _, 1, 0, x), !.
-ng_es_stem(B) :- sub_atom(B, _, 1, 0, z), !.
-ng_es_stem(B) :- sub_atom(B, _, 1, 0, o).
-
-%% a consonant and y: carry -> carries; a vowel and y (play) takes -s
-ng_y_stem(B, Stem) :-
-    sub_atom(B, _, 1, 0, y), sub_atom(B, 0, _, 1, Stem),
-    sub_atom(Stem, _, 1, 0, C), \+ memberchk(C, [a, e, i, o, u]).
 
 %% ---- deterministic noise -----------------------------------------------------
 
@@ -329,7 +316,7 @@ ng_art(_, a).
 %% Proper nouns are emitted capitalised, everything else lower; the text
 %% builder capitalises a sentence's first word.
 
-ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 41, K), ng_shape(K, Seed, Pairs), !.
+ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 45, K), ng_shape(K, Seed, Pairs), !.
 
 ng_known(known_noun). ng_known(known_verb). ng_known(known_adj). ng_known(known_adverb).
 
@@ -498,6 +485,34 @@ ng_shape(39, Seed, [how-'O', many-'O', Us-'O', does-'K', P-'S', V-'R']) :- % How
     ( ng_coin(Seed, 4, 70) -> ng_word(unit, Seed, 5, U) ; ng_word(noun, Seed, 5, U) ), ng_plural(U, Us).
 ng_shape(40, Seed, [how-'O', much-'O', is-'R', the-'T', N-'S']) :-         % How much is the rent?
     ng_word(noun, Seed, 2, N).
+
+%% `why' before a yes-or-no question, an O like `what': the grammar reads
+%% question(why(Goal)) and answers with the whole proof
+ng_shape(41, Seed, [why-'O'|Rest]) :- ng_shape(28, Seed, Rest).             % Why is Alice happy? Why is Alice a tenant?
+ng_shape(42, Seed, [why-'O'|Rest]) :-                                        % Why does Alice own a car? Why may Alice use the server?
+    ( ng_coin(Seed, 9, 50) -> ng_shape(27, Seed, Rest) ; ng_shape(29, Seed, Rest) ).
+
+%% a rule whose head is an ADJECTIVE after a relative clause -- `Every
+%% square that is attacked is unsafe' -- the shape the chess position was
+%% written in and the tagger dropped the adjective of, having seen a head
+%% after `that is' only as a class, a verb or a modal (shapes 8, 15, 16, 21)
+ng_shape(43, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Every square that is attacked is unsafe
+    ng_word(class, Seed, 2, C), ng_word2(adj, Seed, 3, A, B),
+    (   ng_coin(Seed, 6, 50)
+    ->  Rest = [not-'N', A-'C', is-'R', B-'A']
+    ;   Rest = [A-'C', is-'R', B-'A']
+    ).
+
+%% a modal before a phrasal verb -- `Kh8 may move to G8', which the chess
+%% position wrote and the tagger read with `move' as the object: shape 6
+%% puts a modal before a verb and a determined noun, shape 9 a phrasal
+%% verb with no modal, and nothing put the two together. The clean text is
+%% `may move_to G8'; split, tagged R R R, the assembler joins the run to
+%% may_move_to, which the grammar reads as a modal and a base form
+ng_shape(44, Seed, [P-'S', M-'R', VJ-'R', Q-'O']) :-                        % Alice may live_in Rome
+    ng_word(proper, Seed, 2, P), ng_word(modal, Seed, 3, M), ng_word(vpp, Seed, 4, V-Prep),
+    atomic_list_concat([V, '_', Prep], VJ),
+    ( ng_coin(Seed, 5, 50) -> ng_word(place, Seed, 6, Q) ; ng_word(proper, Seed, 6, Q) ).
 
 %% a quantity as an object: a number and its noun -- a unit pluralised
 %% (`500 euros') or a thing pluralised (`three vineyards') -- and one time

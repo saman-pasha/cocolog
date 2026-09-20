@@ -93,6 +93,7 @@
 %%         Controlled then names the sentence.
 %%
 %%     tagger_ask(+Model, +Text, -Answers)
+%%     tagger_ask(+Model, +Text, -Answers, -Explanations)
 %%         Prose in, questions answered: the controlled text as
 %%         tagger_normalise/4 makes it, then reason_ask/2 over it, so
 %%         `Well, does Dana rent a flat in Bristol?' answers yes(fact)
@@ -100,7 +101,9 @@
 %%         a subject pronoun in a question's first two words is replaced by
 %%         that subject BEFORE tagging, so `Is she registered?' asks about
 %%         the subject the last paragraph left and the controlled text
-%%         names her. Fails as tagger_normalise/4 fails.
+%%         names her. Fails as tagger_normalise/4 fails. With a fourth
+%%         argument, reason_ask/3: the explanation in sentences beside each
+%%         answer, and `Why ...?' typed answers because(Text).
 %%
 %%     tagger_pretrained(-Model)
 %%         A trained model without training: the one named `tagger' in the
@@ -162,7 +165,7 @@
 %% after `lives', because the only place it had seen after a verb was an
 %% adjunct to be thrown away. Every such miss was a SHAPE the generator did
 %% not make, never the network, and every one was fixed in
-%% library(reasoning/normalise): forty-one shapes, eleven transforms, and a
+%% library(reasoning/normalise): forty-five shapes, eleven transforms, and a
 %% lexicon no longer written by hand at all -- files beside the library,
 %% 2500 census names and some seventeen thousand WordNet words ranked by
 %% use, read as they are needed (library/reasoning/lexicon/SOURCES.md). A
@@ -650,6 +653,9 @@ tg_same_word(_, R, [], R).
 tagger_ask(Model, Text, Answers) :-
     tg_controlled(Model, Text, resolve, Controlled),
     reason_ask(Controlled, Answers).
+tagger_ask(Model, Text, Answers, Explanations) :-
+    tg_controlled(Model, Text, resolve, Controlled),
+    reason_ask(Controlled, Answers, Explanations).
 
 %% ---- the trained model, kept -----------------------------------------------------------
 %% THE KNOWLEDGE BASE IS THE MODEL FILE. A program over its own --embed

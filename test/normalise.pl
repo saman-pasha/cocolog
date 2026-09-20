@@ -82,6 +82,8 @@ clean :-
     yes_no(NNum >= 10, SomeNum), check('a number in some of 200 clean sentences', SomeNum, yes),
     findall(C, ( member(pair(_, _, _, C, _), Pairs), sub_atom(C, 0, _, _, 'How m') ), Hows),
     yes_no(Hows \== [], SomeHow), check('and a how-much or how-many question among them', SomeHow, yes),
+    findall(C, ( member(pair(_, _, _, C, _), Pairs), sub_atom(C, 0, _, _, 'Why ') ), Whys),
+    yes_no(Whys \== [], SomeWhy), check('and a why question', SomeWhy, yes),
     check('every clean sentence parses, 200 of them', Bad, []),
     findall(N, ( member(pair(N, _, _, C, _), Pairs), N \== C ), Diff),
     check('with no transforms the noisy text IS the clean text', Diff, []),

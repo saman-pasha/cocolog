@@ -69,9 +69,47 @@
 %%         who, what or where question a list of Value-Why, empty when
 %%         nobody. Neither this nor reason_question/2 resets the state, so
 %%         `Is she licensed?' may follow the paragraph that introduced her.
+%%         A `Why ...?' question answers because(Text), the explanation
+%%         below, or unknown.
+%%
+%%     reason_ask(+Text, -Answers, -Explanations)
+%%         The same, with the EXPLANATION beside each answer: the proof in
+%%         sentences (reason_explanation/2) for a yes, the denial as said
+%%         for a no, `Nothing shows that ...' for unknown, and for a who,
+%%         what or where question a list of Value-Text.
+%%
+%%     reason_explain(+Goal, -Why)
+%%         The whole proof of a goal, every level of it: fact(G) when G was
+%%         said; rule(G, Whys) when a rule gave it, with the why of every
+%%         goal of its body; absent(G) for a \+ G that held because nothing
+%%         proves G, denied(G) when neg(G) was said besides; forall(A, B,
+%%         Instances) for \+ (A, \+ B), a universal -- every square the
+%%         king may move to is unsafe -- with each instance's own why;
+%%         holds(G) for a builtin; conj(Whys) for a conjunction asked.
+%%         Fails when nothing proves the goal; reason_why/2 is one level of
+%%         this.
+%%
+%%     reason_explanation(+Goal, -Text)
+%%         That proof in sentences, depth first: `Kh8 is checkmated because
+%%         Kh8 is a captive and nothing shows that Kh8 is defended. Kh8 is
+%%         a captive because ...', one sentence per rule, `as said' for a
+%%         fact at the top, and `whenever Kh8 may move to X, X is unsafe
+%%         (X: G8, G7 and H7)' for a universal, each instance explained
+%%         after it. A goal nothing proves is tried as its denial, so a
+%%         denied goal explains as `..., as said.'; fails otherwise. The
+%%         words are the knowledge base's own: a verb in the third person
+%%         (reason_third/2), a proper noun the reader met capitalised, a
+%%         class noun it met after `a', `the' or `every' with its article,
+%%         any other atom as `the ...', an individual car_1 as `the car'.
+%%
+%%     reason_third(+Base, -ThirdPerson)
+%%         The inflector, rs_base/2's inverse: own -> owns, watch ->
+%%         watches, carry -> carries, have -> has. library(reasoning/normalise)'s
+%%         normalise_third/2 is this.
 %%
 %%     reason_prose(+Text, -Terms)
 %%     reason_ask_prose(+Text, -Answers)
+%%     reason_ask_prose(+Text, -Answers, -Explanations)
 %%         TYPED prose, not the controlled English: the shipped tagger
 %%         normalises it first, then reason_text/2 or reason_ask/2 reads
 %%         what came out. OPTIONAL, and loaded on first use --
@@ -134,6 +172,7 @@
 %%   The rent is 500 euros.              amount(rent, quantity(500, euros))
 %%   Does Alice own a car?               question((car(V), own(alice, V)))
 %%   Who is licensed?                    question(X, licensed(X))
+%%   Why is Alice licensed?              question(why(licensed(alice)))
 %%   How much does Alice pay?            question(Q, (pay(alice, O), reason_amount(O, Q)))
 %%   How many vineyards does Alice own?  question(N, (own(alice, O), reason_count(O, vineyards, N)))
 %%   Every employee is a person.         person(X) :- employee(X)
@@ -163,7 +202,12 @@
 %% statement would have asserted with a variable where the question word
 %% stood, and reason_ask/2 answers it against the knowledge base with the
 %% REASON beside the answer: the fact that was said, the rule and the
-%% body that proved it, or the denial. A QUANTITY IS A VALUE, NOT AN
+%% body that proved it, or the denial. AND `WHY' ASKS FOR THE WHOLE
+%% PROOF: `Why is Kh8 checkmated?' answers because(Text), where Text is
+%% every level of the proof in sentences (reason_explanation/2) -- the
+%% rule that gave the claim, each goal of its body, and what gave each of
+%% those, down to what was said; a universal in a body, \+ (A, \+ B),
+%% is `whenever A, B' with every instance explained. A QUANTITY IS A VALUE, NOT AN
 %% INDIVIDUAL: a number and the noun it counts -- `500 euros', `three
 %% vineyards', `5.5 percent', `two litres of milk' -- reads as
 %% quantity(N, Noun) or quantity(N, Unit, Noun), the noun AS WRITTEN
@@ -334,10 +378,34 @@ reason_ask(Text, Answers) :-
     rs_read(Sentences, [variables(true)], Terms),
     findall(A, ( member(Q, Terms), rq_answer(Q, A) ), Answers).
 
+%% the same, and beside each answer its explanation in sentences
+reason_ask(Text, Answers, Explanations) :-
+    reason_tokens(Text, Tokens),
+    rs_sentences(Tokens, Sentences),
+    rs_read(Sentences, [variables(true)], Terms),
+    findall(A-E, ( member(Q, Terms), rq_answer(Q, A), rq_explain(Q, A, E) ), Pairs),
+    rq_unzip(Pairs, Answers, Explanations).
+
+rq_unzip([], [], []).
+rq_unzip([A-E|Ps], [A|As], [E|Es]) :- rq_unzip(Ps, As, Es).
+
+rq_explain(question(why(_)), because(T), T) :- !.
+rq_explain(question(why(G)), _, T) :- !, re_unknown(G, T).
+rq_explain(question(Goal), yes(_), T) :- !, ( reason_explanation(Goal, T0) -> T = T0 ; T = '' ).
+rq_explain(question(_), no(denied(D)), T) :- !, ( reason_explanation(D, T0) -> T = T0 ; T = '' ).
+rq_explain(question(Goal), no(closed), T) :- !,
+    re_unknown(Goal, T0), atom_concat(T0, ' It is closed: what nothing shows is false.', T).
+rq_explain(question(Goal), conflict, T) :- !,
+    reason_explanation(Goal, T1), reason_explanation(neg(Goal), T2), atomic_list_concat([T1, ' And yet: ', T2], T).
+rq_explain(question(Goal), _, T) :- !, re_unknown(Goal, T).
+rq_explain(question(X, Goal), As, Es) :-
+    findall(V-T, ( member(V-_, As), copy_term(X-Goal, V-G1), ( reason_explanation(G1, T0) -> T = T0 ; T = '' ) ), Es).
+
 %% ---- prose, through the shipped tagger: optional ----------------------
 
 reason_prose(Text, Terms) :- rp_model(M), tagger_normalise(M, Text, _, Terms).
 reason_ask_prose(Text, Answers) :- rp_model(M), tagger_ask(M, Text, Answers).
+reason_ask_prose(Text, Answers, Explanations) :- rp_model(M), tagger_ask(M, Text, Answers, Explanations).
 
 rp_model(M) :-
     (   catch(nb_getval('$rp_model', Cached), _, Cached = none), Cached \== none
@@ -350,6 +418,9 @@ rp_model(M) :-
         M = M0
     ).
 
+%% `Why ...?': the whole proof, in sentences, or unknown
+rq_answer(question(why(Goal)), A) :- !,
+    ( reason_explanation(Goal, T) -> A = because(T) ; A = unknown ).
 rq_answer(question(Goal), A) :- !, rq_yes_no(Goal, A).
 rq_answer(question(X, Goal), As) :- !,
     findall(X-Why, ( rq_solve(Goal), rq_why(Goal, Why) ), As0),
@@ -411,6 +482,227 @@ reason_amount(O, Q) :- atom(O), catch(amount(O, Q), error(existence_error(proced
 %% number in a quantity of that noun, with or without an `of' part
 reason_count(quantity(N, U), U, N).
 reason_count(quantity(N, U, _), U, N).
+
+%% ---- explanation: the proof, every level of it, in sentences ---------------
+%%
+%% reason_why/2 answers ONE level, and a chess position wants the whole
+%% proof: the king is checkmated because it is attacked, cannot move and
+%% nothing rescues it; it cannot move because every square it may move to
+%% is unsafe; and each square is unsafe for a reason of its own. So this is
+%% a meta-interpreter that proves the goal as Prolog would -- the first
+%% proof, clause order, the body left to right -- and keeps what it proved
+%% by. A universal is the one shape that needs its own record: \+ (A, \+ B)
+%% says every solution of A satisfies B, and the instances are the
+%% explanation. reason_amount/2 and reason_count/3 in a how-much goal are
+%% the library's own and explain as the amount fact they read, or as
+%% nothing.
+
+reason_explain(Goal, Why) :-
+    ( var(Goal) -> throw(error(instantiation_error, reason_explain/2)) ; true ),
+    re_goal(Goal, Why).
+
+re_goal((A, B), conj(Ws)) :- !, re_conj((A, B), Ws).
+re_goal(\+ G, W) :- !, re_not(G, W).
+re_goal(G, fact(G)) :- catch(clause(G, true), _, fail).
+re_goal(G, rule(G, Ws)) :- catch(clause(G, Body), _, fail), Body \== true, re_conj(Body, Ws).
+re_goal(G, holds(G)) :-
+    \+ catch(clause(G, _), _, fail),
+    catch(G, error(existence_error(procedure, _), _), fail).
+
+re_conj((A, B), Ws) :- !, re_conj(A, W1), re_conj(B, W2), append(W1, W2, Ws).
+re_conj((C -> T ; E), Ws) :- !, ( rq_solve(C) -> re_conj(C, W1), re_conj(T, W2), append(W1, W2, Ws) ; re_conj(E, Ws) ).
+re_conj((A ; B), Ws) :- !, ( re_conj(A, Ws) ; re_conj(B, Ws) ).          % the branch that proved
+re_conj(true, []) :- !.
+re_conj(reason_amount(O, Q), Ws) :- !,
+    reason_amount(O, Q),
+    ( atom(O), Q \== O -> re_goal(amount(O, Q), W), Ws = [W] ; Ws = [] ).
+re_conj(reason_count(O, U, N), []) :- !, reason_count(O, U, N).
+re_conj(\+ G, [W]) :- !, re_not(G, W).
+re_conj(G, [W]) :- re_goal(G, W).
+
+%% \+ (A, \+ B): nothing satisfies A without B -- every instance of A, with
+%% the why of B for it; otherwise \+ G holds because nothing proves G, and
+%% denied when its negation was said as well
+re_not((A, \+ B), forall(A, B, Insts)) :- !,
+    \+ rq_solve((A, \+ B)),
+    findall(A-W, ( rq_solve(A), once(re_goal(B, W)) ), Insts).
+re_not(G, W) :-
+    \+ rq_solve(G),
+    ( rq_solve(neg(G)) -> W = denied(G) ; W = absent(G) ).
+
+%% ---- the proof in sentences ------------------------------------------------
+
+reason_explanation(Goal, Text) :-
+    (   once(re_goal(Goal, W)) -> true
+    ;   once(re_goal(neg(Goal), W))
+    ),
+    re_text(W, Text).
+
+re_text(W, Text) :- re_top(W, Ss), atomic_list_concat(Ss, ' ', Text).
+
+%% the sentences, depth first: a rule gives `Head because B1, B2 and B3.'
+%% and then the sentences of every goal of its body that is a rule or a
+%% universal itself; a fact at the top is `Fact, as said.'; an existence
+%% fact of an individual, flat(flat_1), says nothing on its own
+re_top(fact(G), Ss) :- ( re_existence(G) -> Ss = [] ; re_sentence(G, S), re_stop([S, ', as said'], T), Ss = [T] ).
+re_top(holds(G), [T]) :- re_sentence(G, S), re_stop([S], T).
+re_top(absent(G), [T]) :- re_open(G, S), re_stop(['nothing shows that ', S], T).
+re_top(denied(G), [T]) :- re_sentence(neg(G), S), re_stop([S, ', as said'], T).
+re_top(conj(Ws), Ss) :- re_children(Ws, top, Ss).
+re_top(forall(A, B, Insts), [T|Ss]) :- re_phrase(forall(A, B, Insts), P), re_stop([P], T), re_children_of(Insts, Ss).
+re_top(rule(G, Ws), [T|Ss]) :-
+    re_sentence(G, S), re_phrases(Ws, Ps), re_join(Ps, Body),
+    re_stop([S, ' because ', Body], T),
+    re_children(Ws, body, Ss).
+
+%% the goals of a body that have sentences of their own: a rule, a
+%% universal's instances; at the top of a conjunction every part speaks
+re_children([], _, []).
+re_children([W|Ws], Where, Ss) :- re_child(W, Where, S1), re_children(Ws, Where, S2), append(S1, S2, Ss).
+re_child(rule(G, Ws), _, Ss) :- !, re_top(rule(G, Ws), Ss).
+re_child(forall(_, _, Insts), _, Ss) :- !, re_children_of(Insts, Ss).
+re_child(W, top, Ss) :- !, re_top(W, Ss).
+re_child(_, _, []).
+re_children_of([], []).
+re_children_of([_-W|Is], Ss) :- re_child(W, body, S1), re_children_of(Is, S2), append(S1, S2, Ss).
+
+%% a body goal as a phrase of the `because' sentence
+re_phrases([], []).
+re_phrases([W|Ws], Ps) :- re_phrase(W, P), re_phrases(Ws, Ps1), ( P == '' -> Ps = Ps1 ; Ps = [P|Ps1] ).
+re_phrase(fact(G), P) :- !, ( re_existence(G) -> P = '' ; re_sentence(G, P) ).
+re_phrase(holds(G), P) :- !, re_sentence(G, P).
+re_phrase(rule(G, _), P) :- !, re_sentence(G, P).
+re_phrase(absent(G), P) :- !, re_open(G, S), atom_concat('nothing shows that ', S, P).
+re_phrase(denied(G), P) :- !, re_sentence(neg(G), P).
+re_phrase(conj(Ws), P) :- !, re_phrases(Ws, Ps), re_join(Ps, P).
+re_phrase(forall(A, B, Insts), P) :-
+    copy_term(A-B, A1-B1), term_variables(A1-B1, Vs), re_letters(Vs, 0),
+    re_sentence(A1, SA), re_sentence(B1, SB), re_letter_list(Vs, Ls),
+    (   Insts == []
+    ->  atomic_list_concat(['there is no ', Ls, ' with ', SA], P)
+    ;   term_variables(A, Vs0),
+        findall(G, ( member(I-_, Insts), copy_term(A-Vs0, I1-Vals), I1 = I, re_args(Vals, G) ), Groups),
+        re_join(Groups, GL),
+        atomic_list_concat(['whenever ', SA, ', ', SB, ' (', Ls, ': ', GL, ')'], P)
+    ).
+
+re_letters([], _).
+re_letters(['$re_var'(L)|Vs], N) :- nth0(N, ['X', 'Y', 'Z', 'U', 'V', 'W'], L), N1 is N + 1, re_letters(Vs, N1).
+re_letter_list(Vs, Ls) :- findall(L, member('$re_var'(L), Vs), L0), re_join(L0, Ls).
+re_args(Vals, G) :- findall(A, ( member(V, Vals), re_arg(V, A) ), As), re_join(As, G).
+
+%% a goal nothing proves, with its existential read as `a flat'
+re_unknown(Goal, T) :- re_open(Goal, S), re_stop(['nothing shows that ', S], T).
+re_open(Goal, S) :-
+    copy_term(Goal, G1), re_indefinites(G1), term_variables(G1, Vs), re_letters(Vs, 0),
+    re_claims(G1, Ss), re_join(Ss, S).
+re_indefinites((A, B)) :- !, re_indefinites(A), re_indefinites(B).
+re_indefinites(G) :- ( compound(G), functor(G, N, 1), arg(1, G, V), var(V) -> V = '$re_indef'(N) ; true ).
+re_claims((A, B), Ss) :- !, re_claims(A, S1), re_claims(B, S2), append(S1, S2, Ss).
+re_claims(G, []) :- compound(G), functor(G, _, 1), arg(1, G, '$re_indef'(_)), !.
+re_claims(G, [S]) :- re_sentence(G, S).
+
+%% an individual's own noun: flat(flat_1)
+re_existence(G) :-
+    compound(G), functor(G, N, 1), arg(1, G, A), atom(A),
+    atom_concat(N, '_', Pre), atom_concat(Pre, Rest, A), atom_number(Rest, _).
+
+re_join([], '').
+re_join([P], P) :- !.
+re_join([P, Q], S) :- !, atomic_list_concat([P, ' and ', Q], S).
+re_join([P|Ps], S) :- re_join(Ps, Rest), atomic_list_concat([P, ', ', Rest], S).
+
+re_stop(Parts, T) :-
+    atomic_list_concat(Parts, S0), atom_codes(S0, [C|Cs]),
+    ( C >= 97, C =< 122 -> C1 is C - 32 ; C1 = C ),
+    append([C1|Cs], [46], Codes), atom_codes(T, Codes).                        % 46 is `.'
+
+%% ---- a term as a sentence ------------------------------------------------
+%% A unary term is `X is [a] P' -- with the article when P is a class noun
+%% the reader met, an adjective otherwise; a binary one `X VERB Y', the
+%% verb in the third person unless a modal leads it (may_move_to: `may
+%% move to'); a ternary one puts the last part of the name, the
+%% preposition, before the third argument (rent_in: `rents ... in ...');
+%% a comparison is said in words (`5 is more than 3'), and a body's
+%% if-then-else or disjunction explains the branch that proved.
+re_sentence(neg(G), S) :- !, re_negative(G, S).
+re_sentence(amount(N, Q), S) :- !, re_arg(N, NA), re_arg(Q, QA), atomic_list_concat([NA, ' is ', QA], S).
+re_sentence(A > B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is more than ', Y], S).
+re_sentence(A < B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is less than ', Y], S).
+re_sentence(A >= B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is at least ', Y], S).
+re_sentence(A =< B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is at most ', Y], S).
+re_sentence(A =:= B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' equals ', Y], S).
+re_sentence(A =\= B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is not ', Y], S).
+re_sentence(A is B, S) :- !, re_arg(A, X), format(atom(Y), "~w", [B]), atomic_list_concat([X, ' is ', Y], S).
+re_sentence(A \== B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is not ', Y], S).
+re_sentence(A \= B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is not ', Y], S).
+re_sentence(A == B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is ', Y], S).
+re_sentence(A = B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is ', Y], S).
+re_sentence(G, S) :- compound(G), G =.. [P, X], !, re_arg(X, XA), re_predicate(P, is, PA), atomic_list_concat([XA, ' is ', PA], S).
+re_sentence(G, S) :- compound(G), G =.. [V, X, Y], !, re_arg(X, XA), re_arg(Y, YA), re_verb(V, third, VP), atomic_list_concat([XA, ' ', VP, ' ', YA], S).
+re_sentence(G, S) :-
+    compound(G), G =.. [V, X, Y, Z], atomic_list_concat(Parts, '_', V), append(Front, [Prep], Parts), Front \== [], !,
+    atomic_list_concat(Front, '_', V2), re_verb(V2, third, VP),
+    re_arg(X, XA), re_arg(Y, YA), re_arg(Z, ZA), atomic_list_concat([XA, ' ', VP, ' ', YA, ' ', Prep, ' ', ZA], S).
+re_sentence(G, S) :- format(atom(S), "~w", [G]).
+
+re_negative(amount(N, Q), S) :- !, re_arg(N, NA), re_arg(Q, QA), atomic_list_concat([NA, ' is not ', QA], S).
+re_negative(G, S) :- compound(G), G =.. [P, X], !, re_arg(X, XA), re_predicate(P, is, PA), atomic_list_concat([XA, ' is not ', PA], S).
+re_negative(G, S) :- compound(G), G =.. [V, X, Y], !, re_arg(X, XA), re_arg(Y, YA), re_verb(V, not, VP), atomic_list_concat([XA, ' ', VP, ' ', YA], S).
+re_negative(G, S) :-
+    compound(G), G =.. [V, X, Y, Z], atomic_list_concat(Parts, '_', V), append(Front, [Prep], Parts), Front \== [], !,
+    atomic_list_concat(Front, '_', V2), re_verb(V2, not, VP),
+    re_arg(X, XA), re_arg(Y, YA), re_arg(Z, ZA), atomic_list_concat([XA, ' ', VP, ' ', YA, ' ', Prep, ' ', ZA], S).
+re_negative(G, S) :- format(atom(S), "not ~w", [G]).
+
+%% `a king' for a class noun the reader met, `attacked' for anything else
+re_predicate(P, is, PA) :-
+    (   re_noun(P) -> re_article(P, Art), atomic_list_concat([Art, ' ', P], PA)
+    ;   PA = P
+    ).
+
+%% the verb phrase: may_move_to -> `may move to' (a modal leads, base forms);
+%% live_in -> `lives in' / `does not live in'
+re_verb(V, Form, VP) :-
+    atomic_list_concat([First|Rest], '_', V),
+    (   rl_modal(First)
+    ->  ( Form == not -> Words = [First, not|Rest] ; Words = [First|Rest] )
+    ;   Form == not
+    ->  Words = [does, not, First|Rest]
+    ;   reason_third(First, Third), Words = [Third|Rest]
+    ),
+    atomic_list_concat(Words, ' ', VP).
+
+%% an argument: a proper noun the reader met capitalised, an individual
+%% car_1 as `the car', a number as itself, a quantity as `500 euros', a
+%% variable as its letter, `a flat' for an existential, any other atom as
+%% `the ...'
+re_arg('$re_var'(L), L) :- !.
+re_arg('$re_indef'(N), A) :- !, re_article(N, Art), atomic_list_concat([Art, ' ', N], A).
+re_arg(V, 'something') :- var(V), !.
+re_arg(N, A) :- number(N), !, format(atom(A), "~w", [N]).
+re_arg(quantity(N, U), A) :- !, re_arg(N, NA), atomic_list_concat([NA, ' ', U], A).
+re_arg(quantity(N, U, Of), A) :- !, re_arg(N, NA), atomic_list_concat([NA, ' ', U, ' of ', Of], A).
+re_arg(X, A) :- atom(X), re_name(X), !, re_cap(X, A).
+re_arg(X, A) :- atom(X), atom_codes(X, Cs), append(Pre, [95|Digits], Cs), Digits \== [], catch(number_codes(_, Digits), _, fail), !,   % 95 is `_'
+    atom_codes(N, Pre), atom_concat('the ', N, A).
+re_arg(X, A) :- atom(X), !, atom_concat('the ', X, A).
+re_arg(X, A) :- format(atom(A), "~w", [X]).
+
+re_article(W, an) :- atom_codes(W, [C|_]), memberchk(C, [0'a, 0'e, 0'i, 0'o, 0'u]), !.
+re_article(_, a).
+
+re_cap(W, C) :- atom_codes(W, [F|R]), ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 = F ), atom_codes(C, [F1|R]).
+
+%% what the reader met: the proper nouns, and the class nouns after `a',
+%% `the' or `every' -- globals of this machine, never asserted, so the
+%% explanation can write `Kh8' and `a king' where the terms hold kh8 and
+%% king(kh8)
+re_name(X) :- catch(nb_getval('$rs_names', L), _, fail), memberchk(X, L).
+re_noun(P) :- catch(nb_getval('$rs_nouns', L), _, fail), memberchk(P, L).
+rs_note(Key, X) :-
+    catch(nb_getval(Key, L), _, L = []),
+    ( memberchk(X, L) -> true ; nb_setval(Key, [X|L]) ).
 
 %% the sentences in order, and the STATE between them: the subject of the
 %% last fact, which a subject pronoun in the next sentence stands for
@@ -616,6 +908,7 @@ rs_sentence(Terms, State) -->
 %%   How much does Priya pay to Omar?  question(Q, (pay_to(priya, O, omar), reason_amount(O, Q)))   -- or `pay_to Omar'
 %%   How many vineyards does Priya own?  question(N, (own(priya, O), reason_count(O, vineyards, N)))
 %%   How much is the rent?             question(Q, amount(rent, Q))
+%%   Why is Priya licensed?            question(why(licensed(priya)))   -- `why' before any yes-or-no form
 %%
 %% The subject may be a pronoun, resolved as a statement's is. `How much'
 %% asks for the object THROUGH reason_amount/2, so that `Priya pays the
@@ -624,6 +917,7 @@ rs_sentence(Terms, State) -->
 %% in a quantity of the noun it names -- quantity(2, litres) and
 %% quantity(2, litres, milk) both answer 2 litres.
 
+rs_question(question(why(Goal))) --> [word(why, _)], !, rs_question(question(Goal)).
 rs_question(question(Goal)) -->
     rs_aux, rs_qsubject(S), rs_verb(V), rs_object_opt(fact, O, Extra), rs_place_opt(O, Pl),
     { rs_claim(V, S, O, Pl, P), rs_goal(Extra, P, Goal) }.
@@ -689,7 +983,7 @@ rs_goal([E|Es], P, (E, G)) :- rs_goal(Es, P, G).
 rs_subject(S, [], fact) --> rs_proper(S).
 rs_subject(X, Guard, rule) -->
     [word(Q, _)], { rl_quant(Q) },
-    rs_noun(N), { G1 =.. [N, X] },
+    rs_noun(N), { rs_note('$rs_nouns', N), G1 =.. [N, X] },
     rs_relative(X, Rel),
     { Guard = [G1|Rel] }.
 %% `she', `he' or `they': the subject of the last FACT read, carried from
@@ -723,7 +1017,7 @@ rs_predication(S, Ctx, Claim, Extra) -->
     { rs_claim(V, S, O, Pl, Claim) }.
 
 %% `is ADJ' or `is a NOUN' -- both a unary property of the subject
-rs_property(S, P) --> rs_det(_), !, rs_noun(N), { P =.. [N, S] }.
+rs_property(S, P) --> rs_det(_), !, rs_noun(N), { rs_note('$rs_nouns', N), P =.. [N, S] }.
 rs_property(S, P) --> rs_adj(A), { P =.. [A, S] }.
 
 %% a modal in front of the verb joins it: may_access
@@ -748,11 +1042,11 @@ rs_place_opt(_, none) --> [].
 %% individual in a fact and the class atom otherwise
 rs_object(_, Q, []) --> rs_quantity(Q).
 rs_object(_, O, []) --> rs_proper(O).
-rs_object(_, N, []) --> rs_det(def), rs_adjs(_), rs_noun(N).
+rs_object(_, N, []) --> rs_det(def), rs_adjs(_), rs_noun(N), { rs_note('$rs_nouns', N) }.
 rs_object(fact, V, [Noun|Adjs]) -->
     rs_det(indef), rs_adjs(As), rs_noun(N),
-    { Noun =.. [N, V], rs_adj_terms(As, V, Adjs) }.
-rs_object(Ctx, N, []) --> { Ctx \== fact }, rs_det(indef), rs_adjs(_), rs_noun(N).
+    { rs_note('$rs_nouns', N), Noun =.. [N, V], rs_adj_terms(As, V, Adjs) }.
+rs_object(Ctx, N, []) --> { Ctx \== fact }, rs_det(indef), rs_adjs(_), rs_noun(N), { rs_note('$rs_nouns', N) }.
 
 %% a quantity: a number and the noun it counts, as written -- `500 euros'
 %% quantity(500, euros), `three vineyards' quantity(3, vineyards), `5.5
@@ -800,8 +1094,8 @@ rs_conj([G|Gs], (G, B)) :- rs_conj(Gs, B).
 
 %% a capitalised word that is not one of the grammar's own, or a lexicon
 %% entry whatever its case
-rs_proper(C) --> [word(W, _)], { reason_proper(W, C) }, !.
-rs_proper(W) --> [word(W, upper)], { \+ rl_closed(W) }.
+rs_proper(C) --> [word(W, _)], { reason_proper(W, C) }, !, { rs_note('$rs_names', C) }.
+rs_proper(W) --> [word(W, upper)], { \+ rl_closed(W), rs_note('$rs_names', W) }.
 
 rs_det(Kind) --> [word(D, _)], { rl_det(D, Kind) }.
 rs_copula   --> [word(C, _)], { rl_copula(C) }.
@@ -855,6 +1149,22 @@ rs_base(W, W).
 %% DROPS from its lexicon as it loads: a verb whose third person does not
 %% come back to it here is never generated, so the round trip holds by
 %% construction.
+%% ---- the inflector: the stemmer's inverse, in the same file ---------------
+%% Third person singular: -es after ss, sh, ch, x, z, o; -ies for a
+%% consonant and y; -s otherwise; `has' by name. rs_base/2 must give the
+%% base back, so the pair lives here and is changed together;
+%% library(reasoning/normalise)'s normalise_third/2 is this, and the
+%% explanation writes `Re8 attacks H8' with it.
+reason_third(have, has) :- !.
+reason_third(B, T) :- atom_codes(B, Cs), rl_es_stem(Cs), !, atom_concat(B, es, T).
+reason_third(B, T) :- rl_y_stem(B, Stem), !, atom_concat(Stem, ies, T).
+reason_third(B, T) :- atom_concat(B, s, T).
+
+%% a consonant and y: carry -> carries; a vowel and y (play) takes -s
+rl_y_stem(B, Stem) :-
+    sub_atom(B, _, 1, 0, y), sub_atom(B, 0, _, 1, Stem),
+    sub_atom(Stem, _, 1, 0, C), \+ memberchk(C, [a, e, i, o, u]).
+
 rl_es_stem(Pre) :- append(_, [0's, 0's], Pre), !.
 rl_es_stem(Pre) :- append(_, [0's, 0'h], Pre), !.
 rl_es_stem(Pre) :- append(_, [0'c, 0'h], Pre), !.
