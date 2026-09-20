@@ -2181,6 +2181,49 @@ bit: a stated past of a plural form the RULES make (`comen` is no
 lexeme) was refused until the past lookup went through the lexeme
 machinery rather than `plural_of/2` facts.
 
+**A FULL TRANSLATION, AND A SENTENCE IS ONE SHAPE READ FROM EITHER SIDE
+AND WRITTEN TO THE OTHER (1.2.36).** `library(reasoning/translate)` was
+rewritten around one shape -- a subject, a verb group (the lexeme, its
+tense, simple or perfect, denied or not) and the complements after it --
+a question first put into the statement's order and its question word
+kept aside with what it asks for. What a lesson may say now, and the
+translator asks for: the first and second PERSONS of a form (`"como" is
+the first person of "come"`, read by the grammar's new `is the ADJ NOUN
+of X` shape as `first(como), person_of(como, come)`; the third is the
+form); the FUTURE by an ending rule (`takes "rá" in the future`) or
+stated; the PERFECT as the auxiliary the lesson names (`The auxiliary
+"ha" means "has"`) in the subject's person and number, with a stated
+participle; pronouns, possessives, prepositions, adverbs, numbers and the
+conjunction as classes, and whether a pronoun precedes the verb -- a
+DENIAL overriding the rule for one word (`Every pronoun precedes the
+verb. The pronoun "él" does not precede the verb.`, through
+`tr_holds/1`); the words for `where`, `when` and `which`, and one word
+meaning two (`qué` is `what` and `which`, chosen by what the question
+asks for). A sentence of the lesson's language with no subject takes the
+pronoun its verb says (`Comemos el pan` is `We eat the bread`; a third
+person singular is refused, because it could be anybody), and English's
+`it` as a subject becomes no subject at all. A lesson learned under a
+NAME (`reason_learn/3`, asserted as `lesson(L, Term)`) shares nothing
+with another; the words vote for the language a text is in or goes
+into, and two that fit equally refuse it until `reason_translate/3`
+names one. `test/translate.pl` is the case, 329 checks over 171 lines of
+Spanish and 18 of Italian, and lesson 46 gained four sections. Four
+things bit, and each is a fact about ENGLISH rather than Spanish: `lo`
+means `him` and `it`, and `it` is a subject in English, so `Ella lo ve`
+read `lo` as the subject until a word that also means an object's-only
+pronoun was ruled out as a subject (`tr_subject_pronoun/4`, and its
+mirror for objects); `la` is the article and the pronoun `her`, so `en
+la ciudad` read as `in her` until an object pronoun before a noun was
+ruled an article; `I` went through the inflector to `is` and became the
+verb of `I eat the bread`, so the group finder guards English's own
+words (`en_own/1`); and `Every pronoun precedes the verb` made
+`nosotros` a clitic too, so `with us` came out `con nos` until a pronoun
+that may be a subject was preferred after a preposition. And the
+tokeniser's case was ASCII-only -- `Él` was `word('Él', lower)` -- so a
+capital in the Latin-1 block (U+00C0..U+00DE, the UTF-8 bytes 195 and
+128..158) is a capital now and lower-cases to its small letter, on the
+reader's side and the writer's.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

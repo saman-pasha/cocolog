@@ -1221,7 +1221,7 @@ rt_tokens([], []).
 rt_tokens([C|Cs], ['.'|Ts]) :- rt_stop(C), !, rt_tokens(Cs, Ts).
 rt_tokens([44|Cs], [','|Ts]) :- !, rt_tokens(Cs, Ts).          % 44 is `,'
 %% a word between quotation marks is MENTIONED, not used: quoted(Word), the
-%% text between them as written (ASCII letters lower-cased), whatever it is
+%% text between them as written (its letters lower-cased), whatever it is
 %% -- `"a"' is the letter and not the article, `"is"' a word and not the
 %% copula. The plain `"' and the typographic pair (UTF-8 E2 80 9C and 9D)
 %% both open and close one; an unclosed one runs to the end of the text.
@@ -1253,10 +1253,17 @@ rt_tokens([C|Cs], [num(N)|Ts]) :-
 rt_tokens([C|Cs], [word(W, Case)|Ts]) :-
     rt_alpha(C), !,
     rt_run(Cs, More, Rest),
-    ( rt_upper(C) -> Case = upper ; Case = lower ),
-    rt_lower(C, L), rt_lowers(More, Ls),
-    atom_codes(W, [L|Ls]),
+    rt_word_case([C|More], Case),
+    rt_lowers([C|More], Ls),
+    atom_codes(W, Ls),
     rt_tokens(Rest, Ts).
+
+%% a word is capitalised by its first letter: an ASCII capital, or one of
+%% U+00C0..U+00DE -- the bytes 195 and 128..158 in UTF-8, the
+%% multiplication sign left out -- so `Él' is the word `él' capitalised
+rt_word_case([C|_], upper) :- rt_upper(C), !.
+rt_word_case([195, B|_], upper) :- rt_upper2(B), !.
+rt_word_case(_, lower).
 rt_tokens([_|Cs], Ts) :- rt_tokens(Cs, Ts).
 
 rt_stop(46). rt_stop(33). rt_stop(63).                          % . ! ?
@@ -1283,8 +1290,10 @@ rt_alpha(C) :- C >= 65, C =< 90, !.
 rt_alpha(C) :- C >= 128.                                         % a byte of a UTF-8 letter: `pequeño' is one word
 rt_upper(C) :- C >= 65, C =< 90.
 rt_digit(C) :- C >= 48, C =< 57.
+rt_upper2(B) :- B >= 128, B =< 158, B =\= 151.
 rt_lower(C, L) :- ( rt_upper(C) -> L is C + 32 ; L = C ).
 rt_lowers([], []).
+rt_lowers([195, B|Cs], [195, L|Ls]) :- rt_upper2(B), !, L is B + 32, rt_lowers(Cs, Ls).
 rt_lowers([C|Cs], [L|Ls]) :- rt_lower(C, L), rt_lowers(Cs, Ls).
 
 %% ---- the grammar -----------------------------------------------------
@@ -1353,8 +1362,8 @@ rs_question(question(X, Goal)) -->
 %% `What is the plural of "el"?': the relation the noun names, with the
 %% variable where what is asked stood
 rs_question(question(X, Goal)) -->
-    [word(what, _)], rs_copula, rs_det(def), rs_noun(N), [word(of, _)], rs_of_object(O),
-    { rs_note('$rs_nouns', N), atom_concat(N, '_of', NO), Goal =.. [NO, X, O] }.
+    [word(what, _)], rs_copula, rs_det(def), rs_adjs(As), rs_noun(N), [word(of, _)], rs_of_object(O),
+    { rs_note('$rs_nouns', N), atom_concat(N, '_of', NO), G =.. [NO, X, O], rs_adj_terms(As, X, Extra), rs_conj([G|Extra], Goal) }.
 rs_question(question(X, Goal)) -->
     [word(Wh, _)], { Wh == what ; Wh == whom }, rs_aux, rs_qsubject(S), rs_verb_place(V, X, Pl),
     { rs_claim(V, S, X, Pl, Goal) }.
@@ -1446,8 +1455,8 @@ rs_negate(no, G, [G]).
 %% existence terms (only ever non-empty for an indefinite object in a fact)
 rs_predication(S, _, Claim, []) -->
     rs_copula, [word(not, _)], !, rs_property(S, P), { Claim = neg(P) }.
-rs_predication(S, _, Claim, []) -->
-    rs_copula, rs_property(S, Claim).
+rs_predication(S, _, Claim, Extra) -->
+    rs_copula, rs_property(S, Claim, Extra).
 rs_predication(S, _, Claim, []) -->
     rs_aux, [word(not, _)], rs_verb(V),
     rs_object_opt(class, O),
@@ -1460,15 +1469,23 @@ rs_predication(S, Ctx, Claim, Extra) -->
     { rs_claim(V, S, O, Pl, Claim) }.
 
 %% `is ADJ', `is a NOUN' -- a unary property of the subject -- or `is the
-%% NOUN of X', a relation the noun names: mother_of(alice, bob),
-%% plural_of(los, el)
-rs_property(S, P) -->
-    rs_det(Kind), !, rs_noun(N), { rs_note('$rs_nouns', N) },
-    (   { Kind == def }, [word(of, _)], rs_of_object(O)
-    ->  { atom_concat(N, '_of', NO), P =.. [NO, S, O] }
-    ;   { P =.. [N, S] }
+%% [ADJ..] NOUN of X', a relation the noun names: mother_of(alice, bob),
+%% plural_of(los, el). An adjective before that noun is a fact about the
+%% subject besides, handed back before the claim: `"como" is the first
+%% person of "come"' is first(como), person_of(como, come). Only the `of'
+%% form takes them, and the noun is the word before `of', so nothing is
+%% noted until the shape is sure.
+rs_property(S, P, Extra) -->
+    rs_det(Kind), !,
+    (   { Kind == def }, rs_adjs(As), rs_noun(N), [word(of, _)], rs_of_object(O)
+    ->  { rs_note('$rs_nouns', N), atom_concat(N, '_of', NO), P =.. [NO, S, O], rs_adj_terms(As, S, Extra) }
+    ;   rs_noun(N), { rs_note('$rs_nouns', N), P =.. [N, S], Extra = [] }
     ).
-rs_property(S, P) --> rs_adj(A), { P =.. [A, S] }.
+rs_property(S, P, []) --> rs_adj(A), { P =.. [A, S] }.
+
+%% the same as one goal, for a question, a relative clause and a denial:
+%% the relation first, the adjectives after it
+rs_property(S, P) --> rs_property(S, P0, Extra), { rs_conj([P0|Extra], P) }.
 
 %% after `of': a mention, or a proper noun
 rs_of_object(W) --> rs_mention(W).

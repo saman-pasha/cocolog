@@ -34,7 +34,10 @@ tokens :-
     check('digits are a num token', T6, [word(nadia, upper), word(pays, lower), num(500), word(euros, lower), '.']),
     reason_tokens('5.5% of 1,000', T7),
     check('a decimal kept, a percent sign the word, a thousands comma passed over', T7,
-          [num(5.5), word(percent, lower), word(of, lower), num(1000)]).
+          [num(5.5), word(percent, lower), word(of, lower), num(1000)]),
+    reason_tokens('Él come. ÁNGEL', T8),
+    check('a capital in the Latin-1 block is a capital, and goes lower like any other', T8,
+          [word('él', upper), word(come, lower), '.', word('ángel', upper)]).
 
 %% ---- a proper subject and a verb ----------------------------------------
 
@@ -197,6 +200,11 @@ mentions :-
     check('`is the NOUN of X'' is the relation the noun names', M19, [plural_of(los, el)]),
     reason_sentence('Alice is the mother of Bob.', M20),
     check('with a proper noun after `of''', M20, [mother_of(alice, bob)]),
+    reason_sentence('"como" is the first person of "come".', M91),
+    check('an adjective before that noun is a fact about the subject, before the claim', M91, [first(como), person_of(como, come)]),
+    reason_question('What is the first person of "come"?', Q92),
+    yes_no(( Q92 = question(X92, (person_of(Y92, come), first(Z92))), X92 == Y92, Y92 == Z92 ), S92),
+    check('and asked for: the relation, then the adjective as a condition on what is asked', S92, yes),
     reason_sentence('Every noun that ends in a vowel takes "s" in the plural.', [R21]),
     R21 = (take_in(X21, s, plural) :- noun(Y21), end_in(Z21, vowel)),
     yes_no((X21 == Y21, Y21 == Z21), S21),

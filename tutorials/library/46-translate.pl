@@ -8,14 +8,15 @@
 %%
 %% THE PROBLEM THIS SOLVES. Tutorial 43 reads a paragraph into facts and
 %% rules and proves things over them. This lesson reads a paragraph that
-%% TEACHES: forty-five lines of Spanish in the same controlled English, and
-%% what comes out is a vocabulary as facts, a grammar as rules -- gender,
-%% the order of an adjective, the plural, the word that denies, the
-%% question words and the mark a question begins with, the past of each
-%% verb -- and a
-%% translator that asks the knowledge base and knows no word of Spanish
-%% itself. Nothing was trained and nothing was written into the library
-%% for it: the lesson is the whole of what the translator knows.
+%% TEACHES: one hundred and seventy-one lines of Spanish in the same
+%% controlled English, and what comes out is a vocabulary as facts, a
+%% grammar as rules -- gender, the order of an adjective, the plural, the
+%% word that denies, the question words and the mark a question begins
+%% with, the past, the future and the perfect of each verb, its first and
+%% second persons, the pronouns and where they stand -- and a translator
+%% that asks the knowledge base and knows no word of Spanish itself.
+%% Nothing was trained and nothing was written into the library for it:
+%% the lesson is the whole of what the translator knows.
 %%
 %% A WORD IN QUOTATION MARKS IS MENTIONED, NOT USED. `"casa" means "house"'
 %% is not about a house, it is about the word: mean(casa, house). `The noun
@@ -31,79 +32,210 @@
 %% follows its noun, follow(A, noun); its plural, plural_of/2 when the
 %% lesson stated one (`"los" is the plural of "el"') and take_in(W, E,
 %% plural) when a rule gives the ending (`Every noun that ends in a vowel
-%% takes "s" in the plural'); and the word for `not'. The lesson answers
-%% in its own words, and a lesson in Italian, or one whose rule is that
-%% every adjective PRECEDES the noun, is read by the same clauses. Section
-%% 6 proves it by taking the order rule away. What the translator knows on
-%% its own is ENGLISH: `is' and `are', `does not' and `do not', a plural by
-%% -s, `an' before a vowel -- the library's own language, and the one the
-%% lesson is written in.
+%% takes "s" in the plural'); its past and its future the same way; its
+%% participle and the auxiliary of the perfect; its first and second
+%% persons (`"como" is the first person of "come"'); the word for `not';
+%% and whether a pronoun precedes the verb. The lesson answers in its own
+%% words, and a lesson in Italian, or one whose rule is that every
+%% adjective PRECEDES the noun, is read by the same clauses. Section 6
+%% proves it by taking the order rule away, and section 14 by learning a
+%% second lesson under its own name. What the translator knows on its own
+%% is ENGLISH: `is' and `are', `does not' and `do not', `will', `has' and
+%% `had', its pronouns, a plural by -s, `an' before a vowel -- the
+%% library's own language, and the one the lesson is written in.
 
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/translate)).
 
-%% in two halves, because a clause over a page (8 KB) cannot be stored
-lesson(Text) :- lesson_half(1, A), lesson_half(2, B), atomic_list_concat([A, ' ', B], Text).
+%% in three parts, because a clause over a page (8 KB) cannot be stored
+lesson(Text) :- lesson_part(1, A), lesson_part(2, B), lesson_part(3, C), atomic_list_concat([A, ' ', B, ' ', C], Text).
 
-lesson_half(1, 'Spanish is a language.
+lesson_part(1, 'Spanish is a language.
 The noun "casa" means "house".
 The noun "perro" means "dog".
 The noun "gato" means "cat".
 The noun "mesa" means "table".
 The noun "libro" means "book".
 The noun "pan" means "bread".
+The noun "huevo" means "egg".
+The noun "leche" means "milk".
+"leche" is feminine.
+The noun "ciudad" means "city".
+"ciudad" is feminine.
+The noun "amigo" means "friend".
+The noun "amiga" means "friend".
 The adjective "grande" means "big".
 The masculine adjective "rojo" means "red".
 The feminine adjective "roja" means "red".
+The masculine adjective "pequeño" means "small".
+The feminine adjective "pequeña" means "small".
 The verb "es" means "is".
 The verb "come" means "eats".
 The verb "lee" means "reads".
 The verb "tiene" means "has".
+The verb "vive" means "lives".
+The verb "ve" means "sees".
+The verb "da" means "gives".
+The verb "canta" means "sings".
 The masculine article "el" means "the".
 The feminine article "la" means "the".
 The masculine article "un" means "a".
 The feminine article "una" means "a".
 Every noun that ends in "a" is feminine.
 Every noun that does not end in "a" is masculine.
-Every adjective follows the noun.').
-lesson_half(2, 'Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+Every noun that ends in a vowel takes "s" in the plural.
 Every noun that ends in a consonant takes "es" in the plural.
 Every adjective that ends in a vowel takes "s" in the plural.
 Every article that ends in a vowel takes "s" in the plural.
+Every possessive that ends in a vowel takes "s" in the plural.
 "los" is the plural of "el".
 "unos" is the plural of "un".
 Every verb that ends in "e" takes "n" in the plural.
 "son" is the plural of "es".
+"viven" is the plural of "vive".
+"ven" is the plural of "ve".
+"dan" is the plural of "da".
+"cantan" is the plural of "canta".
 The word "no" means "not".
 The word "no" precedes the verb.
-The noun "huevo" means "egg".
 The word "qué" means "what".
+The word "qué" means "which".
 The word "quién" means "who".
+The word "dónde" means "where".
+The word "cuándo" means "when".
 The mark "¿" begins the question.
 "comió" is the past of "come".
-"comieron" is the past of "comen".
-"leyó" is the past of "lee".
+"comieron" is the past of "comen".').
+lesson_part(2, '"leyó" is the past of "lee".
 "leyeron" is the past of "leen".
 "tenía" is the past of "tiene".
 "tenían" is the past of "tienen".
 "era" is the past of "es".
 "eran" is the past of "son".
+"vivió" is the past of "vive".
+"vivieron" is the past of "viven".
+"vio" is the past of "ve".
+"vieron" is the past of "ven".
+"dio" is the past of "da".
+"dieron" is the past of "dan".
+"cantó" is the past of "canta".
+"cantaron" is the past of "cantan".
 "ate" is the past of "eats".
-"read" is the past of "reads".').
+"read" is the past of "reads".
+"saw" is the past of "sees".
+"gave" is the past of "gives".
+"sang" is the past of "sings".
+Every verb that ends in "e" takes "rá" in the future.
+Every verb that ends in "a" takes "rá" in the future.
+"será" is the future of "es".
+"tendrá" is the future of "tiene".
+"vivirá" is the future of "vive".
+"comerán" is the plural of "comerá".
+"leerán" is the plural of "leerá".
+"serán" is the plural of "será".
+"tendrán" is the plural of "tendrá".
+"vivirán" is the plural of "vivirá".
+"verán" is the plural of "verá".
+"darán" is the plural of "dará".
+"cantarán" is the plural of "cantará".
+The auxiliary "ha" means "has".
+"han" is the plural of "ha".
+"he" is the first person of "ha".
+"has" is the second person of "ha".
+"hemos" is the first person of "han".
+"había" is the past of "ha".
+"habían" is the past of "han".
+"comido" is the participle of "come".
+"leído" is the participle of "lee".
+"tenido" is the participle of "tiene".
+"sido" is the participle of "es".
+"vivido" is the participle of "vive".
+"visto" is the participle of "ve".
+"dado" is the participle of "da".
+"cantado" is the participle of "canta".
+"eaten" is the participle of "eats".
+"seen" is the participle of "sees".
+"given" is the participle of "gives".
+"sung" is the participle of "sings".
+"como" is the first person of "come".
+"comes" is the second person of "come".
+"comemos" is the first person of "comen".
+"soy" is the first person of "es".
+"eres" is the second person of "es".
+"somos" is the first person of "son".').
+lesson_part(3, '"tengo" is the first person of "tiene".
+"tienes" is the second person of "tiene".
+"tenemos" is the first person of "tienen".
+"vivo" is the first person of "vive".
+"vives" is the second person of "vive".
+"vivimos" is the first person of "viven".
+"veo" is the first person of "ve".
+"ves" is the second person of "ve".
+"vemos" is the first person of "ven".
+"leo" is the first person of "lee".
+"canto" is the first person of "canta".
+"doy" is the first person of "da".
+"comí" is the first person of "comió".
+"comiste" is the second person of "comió".
+"comimos" is the first person of "comieron".
+"comeré" is the first person of "comerá".
+"comerás" is the second person of "comerá".
+"comeremos" is the first person of "comerán".
+"fui" is the first person of "era".
+"fuimos" is the first person of "eran".
+"seré" is the first person of "será".
+The pronoun "yo" means "I".
+The pronoun "tú" means "you".
+The pronoun "él" means "he".
+The pronoun "ella" means "she".
+The pronoun "nosotros" means "we".
+The pronoun "ellos" means "they".
+The pronoun "me" means "me".
+The pronoun "te" means "you".
+The pronoun "lo" means "him".
+The pronoun "la" means "her".
+The pronoun "lo" means "it".
+The pronoun "nos" means "us".
+The pronoun "los" means "them".
+The pronoun "le" means "him".
+The pronoun "él" means "him".
+The pronoun "ella" means "her".
+The pronoun "nosotros" means "us".
+The pronoun "ellos" means "them".
+Every pronoun precedes the verb.
+The pronoun "él" does not precede the verb.
+The possessive "mi" means "my".
+The possessive "tu" means "your".
+The possessive "su" means "his".
+The possessive "su" means "her".
+The masculine possessive "nuestro" means "our".
+The feminine possessive "nuestra" means "our".
+The preposition "en" means "in".
+The preposition "con" means "with".
+The preposition "a" means "to".
+The preposition "de" means "of".
+The adverb "rápidamente" means "quickly".
+The adverb "bien" means "well".
+The adverb "hoy" means "today".
+The number "dos" means "two".
+The number "tres" means "three".
+The conjunction "y" means "and".').
 
 main :-
     section_1, section_2, section_3, section_4, section_5, section_6, section_7, section_8, section_9, section_10,
+    section_11, section_12, section_13, section_14,
     format("~nDone. A lesson is a knowledge base; a translation is a proof over it.~n", []).
 
 %% Each section its own clause: one clause holding the whole lesson ran over the
 %% page a stored clause must fit in, which cocolint flags.
 
 section_1 :-
-    format("~n1. The lesson: forty-five lines of controlled English, and what they say~n", []),
+    format("~n1. The lesson: one hundred and seventy-one lines of controlled English, and what they say~n", []),
     lesson(Text),
     reason_learn(Text, Terms),
     length(Terms, N),
-    must('terms learned', N, 74),
+    must('terms learned', N, 283),
     Terms = [T1, T2, T3|_],
     must('the language', T1, language(spanish)),
     must('a class fact about the word, then what it means', T2-T3, noun(casa)-mean(casa, house)),
@@ -114,6 +246,8 @@ section_1 :-
     member((take_in(X6, es, plural) :- B6), Terms), copy_term(X6-B6, x-B6c),
     must('a rule of the plural, over a letter class', B6c, (noun(x), end_in(x, consonant))),
     must('and a plural said outright', [plural_of(los, el), plural_of(son, es)], [plural_of(los, el), plural_of(son, es)]),
+    ( memberchk(person_of(como, come), Terms), memberchk(first(como), Terms) -> P7 = yes ; P7 = no ),
+    must('`"como" is the first person of "come"'': the relation, and the adjective as a fact about the word', P7, yes),
     show('la, as the lesson put it', [article(la), feminine(la), mean(la, the)]).
 
 section_2 :-
@@ -153,12 +287,12 @@ section_4 :-
 
 section_5 :-
     format("~n5. What it refuses -- whole, never half -- and reason_untranslated/2~n", []),
-    ( reason_translate('The house is small.', _) -> R1 = translated ; R1 = refused ),
+    ( reason_translate('The house is old.', _) -> R1 = translated ; R1 = refused ),
     must('a word the lesson has no meaning for', R1, refused),
-    reason_untranslated('The house is small.', U1),
-    must('and which word to teach', U1, [small]),
-    reason_untranslated('Maria sleeps in the house.', U2),
-    must('a name is not reported; every other unknown word is', U2, [sleeps, in]),
+    reason_untranslated('The house is old.', U1),
+    must('and which word to teach', U1, [old]),
+    reason_untranslated('Maria sleeps under the house.', U2),
+    must('a name is not reported; every other unknown word is', U2, [sleeps, under]),
     catch(( reason_translate('La casa es grande.', french, _), E7 = none ), error(E7, _), true),
     must('a language the lesson did not name', E7, domain_error(language, french)).
 
@@ -180,9 +314,10 @@ section_7 :-
     reason_outline(Text, Lines),
     Lines = [L1, L2|_],
     must('the class most is said about, with its members and its four rules', L1,
-         'Noun ("casa", "perro", "gato", "mesa", "libro", "pan" and "huevo"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine; every noun that ends in a vowel takes "s" in the plural; every noun that ends in a consonant takes "es" in the plural.'),
-    must('then the verbs, which the word for not is said of', L2,
-         'The verb: "es", "come", "lee" and "tiene"; every verb that ends in "e" takes "n" in the plural; "no" precedes it.'),
+         'Noun ("casa", "perro", "gato", "mesa", "libro", "pan", "huevo", "leche", "ciudad", "amigo" and "amiga"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine; every noun that ends in a vowel takes "s" in the plural; every noun that ends in a consonant takes "es" in the plural.'),
+    must('then the pronouns, with the one rule over them', L2,
+         'Pronoun ("yo", "tú", "él", "ella", "nosotros", "ellos", "me", "te", "lo", "la", "nos", "los" and "le"): every pronoun precedes the verb.'),
+    memberchk('The verb: "es", "come", "lee", "tiene", "vive", "ve", "da" and "canta"; every verb that ends in "e" takes "n" in the plural; every verb that ends in "e" takes "rá" in the future; every verb that ends in "a" takes "rá" in the future; "no" precedes it.', Lines),
     memberchk('"el", an article: masculine; means "the"; "los" is the plural of it.', Lines),
     memberchk('Feminine: a noun that ends in "a".', Lines),
     show('a word''s own line, and a definition''s', ['"el", an article: masculine; means "the"; "los" is the plural of it.', 'Feminine: a noun that ends in "a".']).
@@ -235,6 +370,92 @@ section_10 :-
     must('were', PT5, 'The houses were big.'),
     reason_translate('Maria tenía una mesa roja.', PT6),
     must('had', PT6, 'Maria had a red table.').
+
+section_11 :-
+    format("~n11. Persons and pronouns: the lesson's first and second persons, its pronouns, and a subject the verb says~n", []),
+    reason_translate('I eat the bread.', PP1),
+    must('yo, and como: `"como" is the first person of "come"''', PP1, 'Yo como el pan.'),
+    reason_translate('We were big.', PP2),
+    must('the first person of the plural past', PP2, 'Nosotros fuimos grandes.'),
+    reason_translate('She sees him.', PP3),
+    must('him is lo, and every pronoun precedes the verb', PP3, 'Ella lo ve.'),
+    reason_translate('Maria eats with him.', PP4),
+    must('after a preposition, the pronoun the lesson says does not: `the pronoun "él" does not precede the verb''', PP4, 'Maria come con él.'),
+    reason_translate('Comemos el pan.', PP5),
+    must('no subject: comemos says we', PP5, 'We eat the bread.'),
+    ( reason_translate('Come el pan.', _) -> PP6 = translated ; PP6 = refused ),
+    must('come says he, she or it: refused rather than guessed', PP6, refused),
+    reason_translate('Él no la ve.', PP7),
+    must('a capital É is a capital; la before the verb is her', PP7, 'He does not see her.'),
+    reason_translate('Te veo.', PP8),
+    must('te could be you the subject, but veo says I: the object', PP8, 'I see you.'),
+    reason_translate('Sus perros la ven.', PP9),
+    must('su before a noun is a possessive; la after the noun is the object', PP9, 'His dogs see her.'),
+    reason_translate('¿Comes el pan?', PP10),
+    must('a question with no subject: comes says you', PP10, 'Do you eat the bread?').
+
+section_12 :-
+    format("~n12. The future and the perfect: an ending rule or a stated form, and the auxiliary the lesson names~n", []),
+    reason_translate('The dog will eat the bread.', PF1),
+    must('comerá: `every verb that ends in "e" takes "rá" in the future''', PF1, 'El perro comerá el pan.'),
+    reason_translate('The house will not be big.', PF2),
+    must('será, stated, and denied', PF2, 'La casa no será grande.'),
+    reason_translate('I will eat the bread.', PF3),
+    must('the first person of the future form', PF3, 'Yo comeré el pan.'),
+    reason_translate('¿Qué comerá el perro?', PF4),
+    must('what will', PF4, 'What will the dog eat?'),
+    reason_translate('The dog has eaten the bread.', PF5),
+    must('`the auxiliary "ha" means "has"'', and the participle stated', PF5, 'El perro ha comido el pan.'),
+    reason_translate('I have not eaten.', PF6),
+    must('the first person of the auxiliary, denied', PF6, 'Yo no he comido.'),
+    reason_translate('The dogs had eaten the bread.', PF7),
+    must('had: the past of the plural auxiliary', PF7, 'Los perros habían comido el pan.'),
+    reason_translate('¿Ha comido el perro el pan?', PF8),
+    must('the auxiliary first, the subject after the participle', PF8, 'Has the dog eaten the bread?'),
+    reason_translate('Hemos comido.', PF9),
+    must('hemos says we', PF9, 'We have eaten.').
+
+section_13 :-
+    format("~n13. Phrases, adverbs, numbers, two joined -- and where, when, which~n", []),
+    reason_translate('Maria eats the bread with Omar in the house.', PH1),
+    must('two prepositional phrases, in order', PH1, 'Maria come el pan con Omar en la casa.'),
+    reason_translate('Maria has three dogs.', PH2),
+    must('a number, the noun in the plural', PH2, 'Maria tiene tres perros.'),
+    reason_translate('Maria and Omar eat the bread quickly.', PH3),
+    must('two subjects joined are plural; the adverb last', PH3, 'Maria y Omar comen el pan rápidamente.'),
+    reason_translate('The house is big and red.', PH4),
+    must('two adjectives joined, agreeing', PH4, 'La casa es grande y roja.'),
+    reason_translate('The dogs of Maria eat.', PH5),
+    must('a phrase inside the subject', PH5, 'Los perros de Maria comen.'),
+    reason_translate('Maria vive en la ciudad.', PH6),
+    must('la before a noun is the article, not her', PH6, 'Maria lives in the city.'),
+    reason_translate('Where does Maria live?', PH7),
+    must('where: the lesson''s word, then the verb, then the subject', PH7, '¿Dónde vive Maria?'),
+    reason_translate('¿Cuándo comerá Maria?', PH8),
+    must('when will', PH8, 'When will Maria eat?'),
+    reason_translate('Which dog eats the bread?', PH9),
+    must('which takes its noun; qué means which as well as what', PH9, '¿Qué perro come el pan?'),
+    reason_translate('¿Qué libro lee Maria?', PH10),
+    must('a name alone after the verb: the object was asked', PH10, 'Which book does Maria read?').
+
+section_14 :-
+    format("~n14. A second lesson under its own name: reason_learn/3, and the words vote~n", []),
+    reason_learn('Italian is a language. The noun "casa" means "house". The noun "cane" means "dog". The noun "pane" means "bread". The adjective "grande" means "big". The verb "è" means "is". The verb "mangia" means "eats". The feminine article "la" means "the". The masculine article "il" means "the". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine. Every adjective follows the noun. "case" is the plural of "casa". "grandi" is the plural of "grande". "sono" is the plural of "è". "le" is the plural of "la". The word "non" means "not".', italian, Ts),
+    length(Ts, N14),
+    must('seventeen lines, twenty-eight terms, asserted as lesson(italian, Term)', N14, 28),
+    reason_translate('Le case non sono grandi.', IT1),
+    must('è, sono, non and le are Italian''s alone: from Italian', IT1, 'The houses are not big.'),
+    reason_translate('Los perros no comen el pan.', IT2),
+    must('and Spanish is still Spanish', IT2, 'The dogs do not eat the bread.'),
+    ( reason_translate('The house is big.', _) -> IT3 = translated ; IT3 = refused ),
+    must('English into which? both lessons fit equally: refused', IT3, refused),
+    reason_translate('The house is big.', italian, IT4),
+    must('so name it', IT4, 'La casa è grande.'),
+    reason_translate('The houses are big.', spanish, IT5),
+    must('casa is plural by a rule in one lesson and by a stated form in the other, and the lessons share nothing', IT5, 'Las casas son grandes.'),
+    reason_translate('The houses are big.', italian, IT6),
+    must('le case', IT6, 'Le case sono grandi.'),
+    retractall(lesson(italian, _)).
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

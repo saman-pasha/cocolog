@@ -1,10 +1,13 @@
 %% library(reasoning/translate) -- a language lesson as a knowledge base, and
-%% a translation as a proof over it. FORTY-FIVE LINES OF SPANISH, read by
-%% reason_learn/1 into facts and rules -- no lexicon, no corpus, no model,
-%% nothing in the library that knows a word of Spanish -- and then simple
-%% sentences translated both ways, singular and plural, denied and not,
-%% present and past, statements and questions; the lesson questioned; and
-%% what it refuses.
+%% a translation as a proof over it. ONE HUNDRED AND SEVENTY-ONE LINES OF
+%% SPANISH, read by reason_learn/1 into facts and rules -- no lexicon, no
+%% corpus, no model, nothing in the library that knows a word of Spanish --
+%% and then simple sentences translated both ways: singular and plural,
+%% denied and not, in every person, present, past, future and perfect,
+%% with a pronoun, a possessive, a number, a prepositional phrase, an
+%% adverb or two subjects joined, statements and questions (yes or no,
+%% what, who, where, when, which); a second lesson learned under its own
+%% name beside it; the lesson questioned; and what it refuses.
 %%
 %%     cocolog -s test/translate.pl        from the checkout root
 %%
@@ -16,75 +19,205 @@
 :- use_module(library(reasoning/translate)).
 
 main :-
-    lesson, into_spanish, into_english, plurals, negation, asks, past, questions, rules, refusals, outline,
+    lesson, into_spanish, into_english, plurals, negation, asks, past,
+    persons, future, perfect, phrases, wh, languages,
+    questions, rules, refusals, outline,
     checks_done.
 
-%% the lesson, one sentence a line: the language, six nouns, three
-%% adjectives, four verbs, four articles, two rules of gender and one of
-%% order; then the plural -- four ending rules, three stated plurals -- the
-%% word for `not', where it stands, and one more noun; then the question
-%% words and the mark a question begins with; then the past of each verb
-%% in both numbers, and the two English pasts the -ed rule cannot make
-%% in two halves, because a clause over a page (8 KB) cannot be stored
-lesson_text(Text) :- lesson_half(1, A), lesson_half(2, B), atomic_list_concat([A, ' ', B], Text).
+%% the lesson, one sentence a line, in three parts because a clause over a
+%% page (8 KB) cannot be stored: the language, the nouns, adjectives, verbs
+%% and articles, the rules of gender and order; the plural -- ending rules
+%% and stated plurals -- the word for `not' and where it stands, the
+%% question words and the mark a question begins with; the past of each
+%% verb in both numbers and the English pasts the -ed rule cannot make;
+%% the future, by a rule and stated; the auxiliary and the participles;
+%% the first and second persons; the pronouns, possessives, prepositions,
+%% adverbs, numbers and the conjunction
+lesson_text(Text) :- lesson_part(1, A), lesson_part(2, B), lesson_part(3, C), atomic_list_concat([A, ' ', B, ' ', C], Text).
 
-lesson_half(1, 'Spanish is a language.
+lesson_part(1, 'Spanish is a language.
 The noun "casa" means "house".
 The noun "perro" means "dog".
 The noun "gato" means "cat".
 The noun "mesa" means "table".
 The noun "libro" means "book".
 The noun "pan" means "bread".
+The noun "huevo" means "egg".
+The noun "leche" means "milk".
+"leche" is feminine.
+The noun "ciudad" means "city".
+"ciudad" is feminine.
+The noun "amigo" means "friend".
+The noun "amiga" means "friend".
 The adjective "grande" means "big".
 The masculine adjective "rojo" means "red".
 The feminine adjective "roja" means "red".
+The masculine adjective "pequeño" means "small".
+The feminine adjective "pequeña" means "small".
 The verb "es" means "is".
 The verb "come" means "eats".
 The verb "lee" means "reads".
 The verb "tiene" means "has".
+The verb "vive" means "lives".
+The verb "ve" means "sees".
+The verb "da" means "gives".
+The verb "canta" means "sings".
 The masculine article "el" means "the".
 The feminine article "la" means "the".
 The masculine article "un" means "a".
 The feminine article "una" means "a".
 Every noun that ends in "a" is feminine.
 Every noun that does not end in "a" is masculine.
-Every adjective follows the noun.').
-lesson_half(2, 'Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+Every noun that ends in a vowel takes "s" in the plural.
 Every noun that ends in a consonant takes "es" in the plural.
 Every adjective that ends in a vowel takes "s" in the plural.
 Every article that ends in a vowel takes "s" in the plural.
+Every possessive that ends in a vowel takes "s" in the plural.
 "los" is the plural of "el".
 "unos" is the plural of "un".
 Every verb that ends in "e" takes "n" in the plural.
 "son" is the plural of "es".
+"viven" is the plural of "vive".
+"ven" is the plural of "ve".
+"dan" is the plural of "da".
+"cantan" is the plural of "canta".
 The word "no" means "not".
 The word "no" precedes the verb.
-The noun "huevo" means "egg".
 The word "qué" means "what".
+The word "qué" means "which".
 The word "quién" means "who".
+The word "dónde" means "where".
+The word "cuándo" means "when".
 The mark "¿" begins the question.
 "comió" is the past of "come".
-"comieron" is the past of "comen".
-"leyó" is the past of "lee".
+"comieron" is the past of "comen".').
+lesson_part(2, '"leyó" is the past of "lee".
 "leyeron" is the past of "leen".
 "tenía" is the past of "tiene".
 "tenían" is the past of "tienen".
 "era" is the past of "es".
 "eran" is the past of "son".
+"vivió" is the past of "vive".
+"vivieron" is the past of "viven".
+"vio" is the past of "ve".
+"vieron" is the past of "ven".
+"dio" is the past of "da".
+"dieron" is the past of "dan".
+"cantó" is the past of "canta".
+"cantaron" is the past of "cantan".
 "ate" is the past of "eats".
-"read" is the past of "reads".').
+"read" is the past of "reads".
+"saw" is the past of "sees".
+"gave" is the past of "gives".
+"sang" is the past of "sings".
+Every verb that ends in "e" takes "rá" in the future.
+Every verb that ends in "a" takes "rá" in the future.
+"será" is the future of "es".
+"tendrá" is the future of "tiene".
+"vivirá" is the future of "vive".
+"comerán" is the plural of "comerá".
+"leerán" is the plural of "leerá".
+"serán" is the plural of "será".
+"tendrán" is the plural of "tendrá".
+"vivirán" is the plural of "vivirá".
+"verán" is the plural of "verá".
+"darán" is the plural of "dará".
+"cantarán" is the plural of "cantará".
+The auxiliary "ha" means "has".
+"han" is the plural of "ha".
+"he" is the first person of "ha".
+"has" is the second person of "ha".
+"hemos" is the first person of "han".
+"había" is the past of "ha".
+"habían" is the past of "han".
+"comido" is the participle of "come".
+"leído" is the participle of "lee".
+"tenido" is the participle of "tiene".
+"sido" is the participle of "es".
+"vivido" is the participle of "vive".
+"visto" is the participle of "ve".
+"dado" is the participle of "da".
+"cantado" is the participle of "canta".
+"eaten" is the participle of "eats".
+"seen" is the participle of "sees".
+"given" is the participle of "gives".
+"sung" is the participle of "sings".
+"como" is the first person of "come".
+"comes" is the second person of "come".
+"comemos" is the first person of "comen".
+"soy" is the first person of "es".
+"eres" is the second person of "es".
+"somos" is the first person of "son".').
+lesson_part(3, '"tengo" is the first person of "tiene".
+"tienes" is the second person of "tiene".
+"tenemos" is the first person of "tienen".
+"vivo" is the first person of "vive".
+"vives" is the second person of "vive".
+"vivimos" is the first person of "viven".
+"veo" is the first person of "ve".
+"ves" is the second person of "ve".
+"vemos" is the first person of "ven".
+"leo" is the first person of "lee".
+"canto" is the first person of "canta".
+"doy" is the first person of "da".
+"comí" is the first person of "comió".
+"comiste" is the second person of "comió".
+"comimos" is the first person of "comieron".
+"comeré" is the first person of "comerá".
+"comerás" is the second person of "comerá".
+"comeremos" is the first person of "comerán".
+"fui" is the first person of "era".
+"fuimos" is the first person of "eran".
+"seré" is the first person of "será".
+The pronoun "yo" means "I".
+The pronoun "tú" means "you".
+The pronoun "él" means "he".
+The pronoun "ella" means "she".
+The pronoun "nosotros" means "we".
+The pronoun "ellos" means "they".
+The pronoun "me" means "me".
+The pronoun "te" means "you".
+The pronoun "lo" means "him".
+The pronoun "la" means "her".
+The pronoun "lo" means "it".
+The pronoun "nos" means "us".
+The pronoun "los" means "them".
+The pronoun "le" means "him".
+The pronoun "él" means "him".
+The pronoun "ella" means "her".
+The pronoun "nosotros" means "us".
+The pronoun "ellos" means "them".
+Every pronoun precedes the verb.
+The pronoun "él" does not precede the verb.
+The possessive "mi" means "my".
+The possessive "tu" means "your".
+The possessive "su" means "his".
+The possessive "su" means "her".
+The masculine possessive "nuestro" means "our".
+The feminine possessive "nuestra" means "our".
+The preposition "en" means "in".
+The preposition "con" means "with".
+The preposition "a" means "to".
+The preposition "de" means "of".
+The adverb "rápidamente" means "quickly".
+The adverb "bien" means "well".
+The adverb "hoy" means "today".
+The number "dos" means "two".
+The number "tres" means "three".
+The conjunction "y" means "and".').
 
 %% ---- the lesson, learned ------------------------------------------------------
 
 lesson :-
-    section('the lesson: forty-five lines, seventy-four terms'),
+    section('the lesson: one hundred and seventy-one lines, two hundred and eighty-three terms'),
     lesson_text(Text),
     reason_tokens(Text, Tokens),
     findall(S, member('.', Tokens), Stops), length(Stops, NS),
-    check('forty-five sentences', NS, 45),
+    check('one hundred and seventy-one sentences', NS, 171),
     reason_learn(Text, Terms),
     length(Terms, NT),
-    check('seventy-four terms out of them', NT, 74),
+    check('two hundred and eighty-three terms out of them', NT, 283),
     yes_no(memberchk(mean(casa, house), Terms), L1),
     check('a mentioned word means a mentioned word', L1, yes),
     yes_no(memberchk(noun(casa), Terms), L2),
@@ -109,12 +242,22 @@ lesson :-
     check('`"los" is the plural of "el"'' is plural_of/2', L9, yes),
     yes_no(( memberchk(mean(no, not), Terms), memberchk(precede(no, verb), Terms) ), L10),
     check('the word for not, and where it stands', L10, yes),
-    yes_no(( memberchk(mean('qué', what), Terms), memberchk(mean('quién', who), Terms) ), L10q),
-    check('the question words are vocabulary', L10q, yes),
+    yes_no(( memberchk(mean('qué', what), Terms), memberchk(mean('quién', who), Terms), memberchk(mean('dónde', where), Terms), memberchk(mean('cuándo', when), Terms), memberchk(mean('qué', which), Terms) ), L10q),
+    check('the question words are vocabulary, and one word may mean two', L10q, yes),
     yes_no(( memberchk(mark('¿'), Terms), memberchk(begin('¿', question), Terms) ), L10m),
     check('`the mark "¿" begins the question'': the class atom, and not the reader''s question/1', L10m, yes),
     yes_no(( memberchk(past_of('comió', come), Terms), memberchk(past_of(comieron, comen), Terms), memberchk(past_of(ate, eats), Terms) ), L10p),
     check('a past is stated of a form, singular or plural, on either side', L10p, yes),
+    yes_no(( memberchk(future_of('será', es), Terms), member((take_in(F10, 'rá', future) :- verb(G10), end_in(H10, e)), Terms), F10 == G10, G10 == H10 ), L10f),
+    check('a future stated, and a future by a rule', L10f, yes),
+    yes_no(( memberchk(auxiliary(ha), Terms), memberchk(mean(ha, has), Terms), memberchk(participle_of(comido, come), Terms), memberchk(participle_of(eaten, eats), Terms) ), L10h),
+    check('the auxiliary, and a participle on either side', L10h, yes),
+    yes_no(( memberchk(person_of(como, come), Terms), memberchk(first(como), Terms), memberchk(second(comes), Terms) ), L10n),
+    check('`"como" is the first person of "come"'': person_of/2 and the adjective as a fact', L10n, yes),
+    yes_no(( memberchk(pronoun(yo), Terms), memberchk(mean(yo, i), Terms), memberchk(mean(lo, him), Terms), memberchk(mean(lo, it), Terms), memberchk(possessive(mi), Terms), memberchk(preposition(en), Terms), memberchk(adverb(hoy), Terms), memberchk(number(dos), Terms), memberchk(conjunction(y), Terms) ), L10w),
+    check('pronouns, possessives, prepositions, adverbs, numbers and the conjunction are classes too', L10w, yes),
+    yes_no(memberchk(neg(precede('él', verb)), Terms), L10d),
+    check('`the pronoun "él" does not precede the verb'' is a denial', L10d, yes),
     truth(feminine(mesa), T11),   check('and the rules RUN: mesa ends in a', T11, true),
     truth(masculine(perro), T12), check('perro does not', T12, true),
     truth(feminine(perro), T13), check('so it is not feminine: unknown, the text never said', T13, unknown),
@@ -122,7 +265,9 @@ lesson :-
     truth(follow(roja, noun), T15), check('roja follows its noun', T15, true),
     truth(take_in(casa, s, plural), T16), check('casa takes s: it ends in a vowel', T16, true),
     truth(take_in(pan, es, plural), T17), check('pan takes es: a consonant', T17, true),
-    truth(take_in(pan, s, plural), T18), check('and not s', T18, unknown).
+    truth(take_in(pan, s, plural), T18), check('and not s', T18, unknown),
+    truth(take_in(come, 'rá', future), T19), check('come takes rá in the future: it ends in e', T19, true),
+    truth(feminine(leche), T20), check('a gender the lesson states of a word that breaks its rule', T20, true).
 
 %% ---- into Spanish ------------------------------------------------------------------
 
@@ -187,7 +332,7 @@ plurals :-
     reason_translate('Maria tiene mesas rojas.', E3),
     check('adjectives do not inflect in English', E3, 'Maria has red tables.'),
     reason_translate('Los gatos leen los libros.', E4),
-    check('the is the either way', E4, 'The cats read the books.'),
+    check('the is the either way, and los before a noun is the article, not them', E4, 'The cats read the books.'),
     reason_translate('Maria tiene unos libros.', E5),
     check('unos is the plural of un, and English has no plural a', E5, 'Maria has books.'),
     reason_translate('Maria tiene un huevo.', E6),
@@ -334,6 +479,348 @@ past :-
     reason_translate('The dog ate the bread.', S13), reason_translate(S13, E13),
     check('the round trip', E13, 'The dog ate the bread.').
 
+%% ---- persons and pronouns ------------------------------------------------------------
+
+persons :-
+    section('persons and pronouns: the lesson''s first and second persons, its pronouns, a subject the verb says'),
+    reason_translate('I eat the bread.', P1),
+    check('I: yo, and the first person the lesson stated', P1, 'Yo como el pan.'),
+    reason_translate('You are big.', P2),
+    check('you: tú, and eres', P2, 'Tú eres grande.'),
+    reason_translate('We are big.', P3),
+    check('we: nosotros, and somos, the first person of the plural form', P3, 'Nosotros somos grandes.'),
+    reason_translate('They eat the bread.', P4),
+    check('they: ellos, and the plural', P4, 'Ellos comen el pan.'),
+    reason_translate('I ate the bread.', P5),
+    check('the first person of a past form', P5, 'Yo comí el pan.'),
+    reason_translate('I was big.', P6),
+    check('the first person of the copula''s past', P6, 'Yo fui grande.'),
+    reason_translate('You see me.', P7),
+    check('the second person of the verb, and me before it: every pronoun precedes the verb', P7, 'Tú me ves.'),
+    reason_translate('She sees him.', P8),
+    check('him is lo, before the verb', P8, 'Ella lo ve.'),
+    reason_translate('He does not see her.', P9),
+    check('él with its capital, no, la, ve', P9, 'Él no la ve.'),
+    reason_translate('We see them.', P10),
+    check('los before the verb, and the first person of the plural', P10, 'Nosotros los vemos.'),
+    reason_translate('Maria eats it.', P11),
+    check('it as an object is lo', P11, 'Maria lo come.'),
+    reason_translate('It is big.', P12),
+    check('it as a subject: no word of the lesson may be one, and the verb says who', P12, 'Es grande.'),
+    reason_translate('Maria eats with him.', P13),
+    check('after a preposition, the pronoun that does not precede the verb: `the pronoun "él" does not precede the verb''', P13, 'Maria come con él.'),
+    reason_translate('Maria will eat the bread with us.', P14),
+    check('and one that serves as a subject too', P14, 'Maria comerá el pan con nosotros.'),
+    reason_translate('My house is big.', P15),
+    check('a possessive, agreeing', P15, 'Mi casa es grande.'),
+    reason_translate('Our houses are big.', P16),
+    check('nuestras: feminine and plural', P16, 'Nuestras casas son grandes.'),
+    reason_translate('Her dogs see her.', P17),
+    check('her before a noun is the possessive, her after the verb the pronoun', P17, 'Sus perros la ven.'),
+    reason_translate('Como el pan.', E1),
+    check('back: no subject, and como says I', E1, 'I eat the bread.'),
+    reason_translate('Comemos el pan.', E2),
+    check('comemos says we', E2, 'We eat the bread.'),
+    reason_translate('Comen el pan.', E3),
+    check('comen says they', E3, 'They eat the bread.'),
+    yes_no(reason_translate('Come el pan.', _), E4),
+    check('come says he, she or it: refused, never guessed', E4, no),
+    reason_translate('Yo como el pan.', E5),
+    check('with the pronoun', E5, 'I eat the bread.'),
+    reason_translate('Ella lo ve.', E6),
+    check('lo before the verb is the object: him, after it', E6, 'She sees him.'),
+    reason_translate('Él no la ve.', E7),
+    check('a capital É is a capital', E7, 'He does not see her.'),
+    reason_translate('Te veo.', E8),
+    check('te could be you the subject; veo says I, so it is the object', E8, 'I see you.'),
+    reason_translate('Nos ven.', E9),
+    check('nos is never a subject', E9, 'They see us.'),
+    reason_translate('La ven.', E10),
+    check('la alone is the pronoun, not the article', E10, 'They see her.'),
+    reason_translate('Ellos la ven.', E11),
+    check('they, and her: the longest subject that is one', E11, 'They see her.'),
+    reason_translate('Tú lo ves.', E12),
+    check('you, and him', E12, 'You see him.'),
+    reason_translate('Sus perros la ven.', E13),
+    check('su is his: the first meaning; la after the noun is the object', E13, 'His dogs see her.'),
+    reason_translate('Maria come con él.', E14),
+    check('with him', E14, 'Maria eats with him.'),
+    reason_translate('Maria comerá el pan con nosotros.', E15),
+    check('with us: the object form of a pronoun that means we', E15, 'Maria will eat the bread with us.'),
+    reason_translate('Fui grande.', E16),
+    check('fui says I, in the past', E16, 'I was big.'),
+    reason_translate('Nuestras casas son grandes.', E17),
+    check('our', E17, 'Our houses are big.'),
+    reason_translate('Do you eat the bread?', Q1),
+    check('a question to you', Q1, '¿Tú comes el pan?'),
+    reason_translate('¿Comes el pan?', Q2),
+    check('the verb first, and nothing after it agrees with comes: you', Q2, 'Do you eat the bread?'),
+    reason_translate('¿Ella come el pan?', Q3),
+    check('a subject pronoun before the verb is the subject, in the statement''s order', Q3, 'Does she eat the bread?'),
+    reason_translate('¿Come ella el pan?', Q4),
+    check('or after the verb', Q4, 'Does she eat the bread?'),
+    reason_translate('What do you eat?', Q5),
+    check('what, to you', Q5, '¿Qué comes tú?'),
+    reason_translate('¿Qué comes?', Q6),
+    check('and with no pronoun at all', Q6, 'What do you eat?'),
+    reason_translate('Where did she live?', Q7),
+    check('where, to her', Q7, '¿Dónde vivió ella?'),
+    reason_translate('She sees him.', S18), reason_translate(S18, E18),
+    check('the round trip', E18, 'She sees him.').
+
+%% ---- the future ------------------------------------------------------------------------
+
+future :-
+    section('the future: by the lesson''s ending rule, or stated; English''s will'),
+    reason_translate('The dog will eat the bread.', F1),
+    check('comerá by the rule: come ends in e and takes rá', F1, 'El perro comerá el pan.'),
+    reason_translate('The dogs will not eat the bread.', F2),
+    check('the plural of the future, stated, and denied', F2, 'Los perros no comerán el pan.'),
+    reason_translate('The house will be big.', F3),
+    check('will be: será, stated', F3, 'La casa será grande.'),
+    reason_translate('The house will not be big.', F4),
+    check('will not be', F4, 'La casa no será grande.'),
+    reason_translate('I will eat the bread.', F5),
+    check('the first person of the future form', F5, 'Yo comeré el pan.'),
+    reason_translate('You will eat the bread.', F6),
+    check('the second', F6, 'Tú comerás el pan.'),
+    reason_translate('We will not eat.', F7),
+    check('the first person of the plural future, denied', F7, 'Nosotros no comeremos.'),
+    reason_translate('Will the dog eat the bread?', F8),
+    check('will fronted', F8, '¿El perro comerá el pan?'),
+    reason_translate('Will the house be big?', F9),
+    check('will the house be', F9, '¿La casa será grande?'),
+    reason_translate('What will the dog eat?', F10),
+    check('what will', F10, '¿Qué comerá el perro?'),
+    reason_translate('Who will eat the bread?', F11),
+    check('who will', F11, '¿Quién comerá el pan?'),
+    reason_translate('When will Maria eat?', F12),
+    check('when will', F12, '¿Cuándo comerá Maria?'),
+    reason_translate('El perro comerá el pan.', E1),
+    check('back: a form the rule makes, read through the rule', E1, 'The dog will eat the bread.'),
+    reason_translate('Los perros no comerán el pan.', E2),
+    check('will not', E2, 'The dogs will not eat the bread.'),
+    reason_translate('La casa será grande.', E3),
+    check('will be', E3, 'The house will be big.'),
+    reason_translate('Comeré el pan.', E4),
+    check('comeré says I, in the future', E4, 'I will eat the bread.'),
+    reason_translate('No comeremos.', E5),
+    check('we will not', E5, 'We will not eat.'),
+    reason_translate('¿Qué comerá el perro?', E6),
+    check('what will', E6, 'What will the dog eat?'),
+    reason_translate('¿Quién comerá el pan?', E7),
+    check('who will', E7, 'Who will eat the bread?'),
+    reason_translate('¿Cuándo comerá Maria?', E8),
+    check('when will', E8, 'When will Maria eat?'),
+    reason_translate('The house will be big.', S9), reason_translate(S9, E9),
+    check('the round trip', E9, 'The house will be big.').
+
+%% ---- the perfect --------------------------------------------------------------------------
+
+perfect :-
+    section('the perfect: the auxiliary the lesson names, in the subject''s person, and the participle'),
+    reason_translate('The dog has eaten the bread.', H1),
+    check('has eaten: ha, and the participle stated', H1, 'El perro ha comido el pan.'),
+    reason_translate('The dogs have not eaten the bread.', H2),
+    check('have not: the plural of the auxiliary', H2, 'Los perros no han comido el pan.'),
+    reason_translate('I have eaten the bread.', H3),
+    check('I have: the first person of the auxiliary', H3, 'Yo he comido el pan.'),
+    reason_translate('We have eaten.', H4),
+    check('we have', H4, 'Nosotros hemos comido.'),
+    reason_translate('The dog had eaten the bread.', H5),
+    check('had: the past of the auxiliary', H5, 'El perro había comido el pan.'),
+    reason_translate('The house has not been big.', H6),
+    check('has been: the participle of the copula', H6, 'La casa no ha sido grande.'),
+    reason_translate('Has the dog eaten the bread?', H7),
+    check('has fronted', H7, '¿El perro ha comido el pan?'),
+    reason_translate('Has the house been big?', H8),
+    check('has the house been', H8, '¿La casa ha sido grande?'),
+    reason_translate('What has the dog eaten?', H9),
+    check('what has', H9, '¿Qué ha comido el perro?'),
+    reason_translate('Who has eaten the bread?', H10),
+    check('who has', H10, '¿Quién ha comido el pan?'),
+    reason_translate('Maria has eaten two eggs today.', H11),
+    check('with a number and an adverb', H11, 'Maria ha comido dos huevos hoy.'),
+    reason_translate('El perro ha comido el pan.', E1),
+    check('back: has eaten, the participle stated for English', E1, 'The dog has eaten the bread.'),
+    reason_translate('Los perros no han comido el pan.', E2),
+    check('have not eaten', E2, 'The dogs have not eaten the bread.'),
+    reason_translate('Yo he comido el pan.', E3),
+    check('I have eaten', E3, 'I have eaten the bread.'),
+    reason_translate('Hemos comido.', E4),
+    check('hemos says we', E4, 'We have eaten.'),
+    reason_translate('El perro había comido el pan.', E5),
+    check('had eaten', E5, 'The dog had eaten the bread.'),
+    reason_translate('Los perros no habían comido.', E6),
+    check('had not eaten', E6, 'The dogs had not eaten.'),
+    reason_translate('¿Ha comido el perro el pan?', E7),
+    check('the auxiliary first, the subject after the participle', E7, 'Has the dog eaten the bread?'),
+    reason_translate('¿Has comido el pan?', E8),
+    check('has is the second person of ha: you', E8, 'Have you eaten the bread?'),
+    reason_translate('¿Qué ha comido el perro?', E9),
+    check('what has', E9, 'What has the dog eaten?'),
+    reason_translate('¿Quién ha comido el pan?', E10),
+    check('who has', E10, 'Who has eaten the bread?'),
+    reason_translate('Maria has eaten two eggs today.', S11), reason_translate(S11, E11),
+    check('the round trip', E11, 'Maria has eaten two eggs today.').
+
+%% ---- phrases: prepositions, adverbs, numbers, two joined ----------------------------------
+
+phrases :-
+    section('prepositional phrases, adverbs, numbers, adjectives and two phrases joined'),
+    reason_translate('Maria lives in Madrid.', R1),
+    check('a preposition and a name', R1, 'Maria vive en Madrid.'),
+    reason_translate('Maria gives the book to Omar.', R2),
+    check('an object and then a phrase', R2, 'Maria da el libro a Omar.'),
+    reason_translate('Maria eats the bread with Omar in the house.', R3),
+    check('two phrases, in order', R3, 'Maria come el pan con Omar en la casa.'),
+    reason_translate('Maria lives in a big city.', R4),
+    check('a phrase with an article and an adjective, agreeing: ciudad is feminine, stated', R4, 'Maria vive en una ciudad grande.'),
+    reason_translate('Maria eats the bread quickly.', R5),
+    check('an adverb, last', R5, 'Maria come el pan rápidamente.'),
+    reason_translate('Maria sings well.', R6),
+    check('an adverb alone', R6, 'Maria canta bien.'),
+    reason_translate('Maria has three dogs.', R7),
+    check('a number, and the noun in the plural', R7, 'Maria tiene tres perros.'),
+    reason_translate('The two dogs eat.', R8),
+    check('an article and a number', R8, 'Los dos perros comen.'),
+    reason_translate('Maria and Omar eat the bread.', R9),
+    check('two subjects joined: plural', R9, 'Maria y Omar comen el pan.'),
+    reason_translate('Maria eats the bread and the egg.', R10),
+    check('two objects joined', R10, 'Maria come el pan y el huevo.'),
+    reason_translate('Maria eats the bread and the milk.', R11),
+    check('leche is feminine as stated, whatever the rule says', R11, 'Maria come el pan y la leche.'),
+    reason_translate('The house is big and red.', R12),
+    check('two adjectives joined, agreeing', R12, 'La casa es grande y roja.'),
+    reason_translate('The red dog and the big cat eat.', R13),
+    check('two phrases with adjectives, each after its noun', R13, 'El perro rojo y el gato grande comen.'),
+    reason_translate('The big red house is small.', R14),
+    check('two adjectives on one noun, both after it', R14, 'La casa grande roja es pequeña.'),
+    reason_translate('The dogs of Maria eat.', R15),
+    check('a phrase inside the subject', R15, 'Los perros de Maria comen.'),
+    reason_translate('Maria eats bread.', R16),
+    check('no article either side', R16, 'Maria come pan.'),
+    reason_translate('They are our friends.', R17),
+    check('a plural possessive, agreeing', R17, 'Ellos son nuestros amigos.'),
+    reason_translate('Maria vive en Madrid.', E1),
+    check('back: in Madrid', E1, 'Maria lives in Madrid.'),
+    reason_translate('Maria da el libro a Omar.', E2),
+    check('to Omar', E2, 'Maria gives the book to Omar.'),
+    reason_translate('Maria come el pan con Omar en la casa.', E3),
+    check('two phrases; la before casa is the article, not her', E3, 'Maria eats the bread with Omar in the house.'),
+    reason_translate('Maria vive en la ciudad.', E4),
+    check('in the city', E4, 'Maria lives in the city.'),
+    reason_translate('Maria come el pan rápidamente.', E5),
+    check('quickly', E5, 'Maria eats the bread quickly.'),
+    reason_translate('Maria come el pan hoy.', E6),
+    check('today', E6, 'Maria eats the bread today.'),
+    reason_translate('Maria tiene tres perros.', E7),
+    check('three dogs', E7, 'Maria has three dogs.'),
+    reason_translate('Los dos perros comen.', E8),
+    check('the two dogs', E8, 'The two dogs eat.'),
+    reason_translate('Maria y Omar comen el pan.', E9),
+    check('and', E9, 'Maria and Omar eat the bread.'),
+    reason_translate('Maria come pan y huevos.', E10),
+    check('two bare objects', E10, 'Maria eats bread and eggs.'),
+    reason_translate('El perro rojo y el gato grande comen.', E11),
+    check('each adjective back before its noun', E11, 'The red dog and the big cat eat.'),
+    reason_translate('La casa grande roja es pequeña.', E12),
+    check('two adjectives, in order', E12, 'The big red house is small.'),
+    reason_translate('Los perros de Maria comen.', E13),
+    check('of Maria', E13, 'The dogs of Maria eat.'),
+    reason_translate('Maria le da el libro.', E14),
+    check('a pronoun before the verb, then the object: him, then the book', E14, 'Maria gives him the book.'),
+    reason_translate('Ellos son nuestros amigos.', E15),
+    check('our friends', E15, 'They are our friends.'),
+    reason_translate('Maria eats the bread with Omar in the house.', S16), reason_translate(S16, E16),
+    check('the round trip', E16, 'Maria eats the bread with Omar in the house.').
+
+%% ---- where, when, which ----------------------------------------------------------------
+
+wh :-
+    section('where, when and which: the lesson''s words for them'),
+    reason_translate('Where does Maria live?', W1),
+    check('where: dónde, the verb, the subject', W1, '¿Dónde vive Maria?'),
+    reason_translate('When does Maria eat?', W2),
+    check('when: cuándo', W2, '¿Cuándo come Maria?'),
+    reason_translate('Where has Maria lived?', W3),
+    check('where has', W3, '¿Dónde ha vivido Maria?'),
+    reason_translate('Which dog eats the bread?', W4),
+    check('which with its noun, asking for the subject', W4, '¿Qué perro come el pan?'),
+    reason_translate('Which houses are big?', W5),
+    check('the subject, plural', W5, '¿Qué casas son grandes?'),
+    reason_translate('Which dog will eat the bread?', W6),
+    check('the subject, with will', W6, '¿Qué perro comerá el pan?'),
+    reason_translate('Which book does Maria read?', W7),
+    check('which asking for the object: does, and the subject after it', W7, '¿Qué libro lee Maria?'),
+    reason_translate('Which dog did Maria see?', W8),
+    check('the object, in the past', W8, '¿Qué perro vio Maria?'),
+    reason_translate('Does Maria live in Madrid?', W9),
+    check('yes or no, with a phrase', W9, '¿Maria vive en Madrid?'),
+    reason_translate('¿Dónde vive Maria?', E1),
+    check('back: where does', E1, 'Where does Maria live?'),
+    reason_translate('¿Cuándo come Maria?', E2),
+    check('when does', E2, 'When does Maria eat?'),
+    reason_translate('¿Dónde ha vivido Maria?', E3),
+    check('where has', E3, 'Where has Maria lived?'),
+    reason_translate('¿Qué perro come el pan?', E4),
+    check('qué with a noun is which; the verb follows: the subject', E4, 'Which dog eats the bread?'),
+    reason_translate('¿Qué perros comen el pan?', E5),
+    check('which dogs', E5, 'Which dogs eat the bread?'),
+    reason_translate('¿Qué libro lee Maria?', E6),
+    check('a name alone after the verb: the object was asked', E6, 'Which book does Maria read?'),
+    reason_translate('¿Qué perro vio Maria?', E7),
+    check('which did', E7, 'Which dog did Maria see?'),
+    reason_translate('¿Vive Maria en Madrid?', E8),
+    check('the verb first, the name, the phrase', E8, 'Does Maria live in Madrid?'),
+    yes_no(reason_translate('Whom does Maria see?', _), R9),
+    check('whom: no word of the lesson means it, and who is not it', R9, no),
+    reason_untranslated('Whom does Maria see?', U9),
+    check('reported', U9, [whom]),
+    reason_translate('Which book does Maria read?', S10), reason_translate(S10, E10),
+    check('the round trip', E10, 'Which book does Maria read?').
+
+%% ---- a second lesson, under its own name ---------------------------------------------------
+
+languages :-
+    section('two lessons: one learned under a name shares nothing with the plain one, and the words say which'),
+    reason_learn('Italian is a language. The noun "casa" means "house". The noun "cane" means "dog". The noun "pane" means "bread". The adjective "grande" means "big". The verb "è" means "is". The verb "mangia" means "eats". The feminine article "la" means "the". The masculine article "il" means "the". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine. Every adjective follows the noun. "case" is the plural of "casa". "grandi" is the plural of "grande". "sono" is the plural of "è". "le" is the plural of "la". The word "non" means "not". The word "cosa" means "what".', italian, Ts),
+    length(Ts, N1),
+    check('eighteen lines, thirty terms', N1, 30),
+    yes_no(lesson(italian, mean(casa, house)), L2),
+    check('asserted as lesson(italian, Term)', L2, yes),
+    truth(plural_of(case, casa), T3),
+    check('and not as a plain fact: the plain lesson knows no Italian', T3, unknown),
+    reason_translate('La casa è grande.', E4),
+    check('è is Italian''s alone: from Italian', E4, 'The house is big.'),
+    reason_translate('Il cane mangia il pane.', E5),
+    check('il, cane, mangia, pane', E5, 'The dog eats the bread.'),
+    reason_translate('Le case non sono grandi.', E6),
+    check('the Italian plurals, stated, and non', E6, 'The houses are not big.'),
+    reason_translate('Cosa mangia il cane?', E7),
+    check('a question in Italian', E7, 'What does the dog eat?'),
+    reason_translate('El perro come el pan.', E8),
+    check('and Spanish is still Spanish', E8, 'The dog eats the bread.'),
+    yes_no(reason_translate('The house is big.', _), R9),
+    check('English into which? both lessons fit equally: refused', R9, no),
+    reason_untranslated('The house is big.', U9),
+    check('and no word is untranslated', U9, []),
+    reason_translate('The house is big.', italian, I10),
+    check('reason_translate/3 names Italian', I10, 'La casa è grande.'),
+    reason_translate('The house is big.', spanish, S10),
+    check('or Spanish', S10, 'La casa es grande.'),
+    reason_translate('The houses are big.', italian, I11),
+    check('casa has a stated plural in one lesson and a ruled one in the other', I11, 'Le case sono grandi.'),
+    reason_translate('The houses are big.', spanish, S11),
+    check('the same word, the other lesson', S11, 'Las casas son grandes.'),
+    reason_translate('The dog eats the bread.', italian, I12),
+    check('il cane mangia il pane', I12, 'Il cane mangia il pane.'),
+    reason_translate('The dog eats the bread and the milk.', S12),
+    check('milk is Spanish''s alone: the words decide', S12, 'El perro come el pan y la leche.'),
+    retractall(lesson(italian, _)),
+    reason_translate('The house is big.', S13),
+    check('the Italian lesson forgotten: Spanish again', S13, 'La casa es grande.').
+
 %% ---- the lesson questioned ---------------------------------------------------------
 
 questions :-
@@ -356,7 +843,12 @@ questions :-
     check('why: a letter class said with its article', B4,
           because('"pan" takes "es" in the plural because "pan" is a noun and "pan" ends in a consonant.')),
     check('why a stated plural: as said, with the noun', B5, because('"los" is the plural of "el", as said.')),
-    check('the word for not', B6, [not-fact]).
+    check('the word for not', B6, [not-fact]),
+    reason_ask('What is the first person of "come"? Is "comes" the second person of "come"? What is the past of "come"?', Cs),
+    Cs = [C1, C2, C3],
+    check('the first person of: the relation, and the adjective as a condition', C1, [como-fact]),
+    check('is the second person of: yes', C2, yes(fact)),
+    check('the past of', C3, ['comió'-fact]).
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 
@@ -395,48 +887,66 @@ rules :-
     check('English''s regular -ed read back to its base, and the lesson''s stated past', S7, 'El perro caminó.'),
     reason_translate('El perro caminó.', E7),
     check('and -ed made, from the third person the lesson gave', E7, 'The dog walked.'),
-    assertz(mean(canta, sings)), assertz(verb(canta)), assertz(past_of(sang, sings)),
+    assertz(mean(nada, swims)), assertz(verb(nada)), assertz(past_of(swam, swims)),
     assertz((take_in(V8, ba, past) :- verb(V8), end_in(V8, a))),
-    reason_translate('Maria sang.', S8),
-    check('a past by RULE: `takes "ba" in the past''', S8, 'Maria cantaba.'),
-    reason_translate('Maria cantaba.', E8),
-    check('and read through the rule; English''s past as stated', E8, 'Maria sang.'),
+    reason_translate('Maria swam.', S8),
+    check('a past by RULE: `takes "ba" in the past''', S8, 'Maria nadaba.'),
+    reason_translate('Maria nadaba.', E8),
+    check('and read through the rule; English''s past as stated', E8, 'Maria swam.'),
     retract((take_in(_, ba, past) :- verb(_), end_in(_, a))),
-    retract(past_of(sang, sings)), retract(verb(canta)), retract(mean(canta, sings)),
+    retract(past_of(swam, swims)), retract(verb(nada)), retract(mean(nada, swims)),
     retract(past_of('caminó', camina)), retract(verb(camina)), retract(mean(camina, walks)),
     retract(past_of('comió', come)),
     yes_no(reason_translate('The dog ate the bread.', _), R9),
     check('a past the lesson gives no form for: refused whole', R9, no),
-    assertz(past_of('comió', come)).
+    assertz(past_of('comió', come)),
+    retract(neg(precede('él', verb))),
+    reason_translate('Maria eats with him.', S10),
+    check('without the denial él precedes the verb like every pronoun, but serves as a subject and still stands after a preposition', S10, 'Maria come con él.'),
+    assertz(neg(precede('él', verb))),
+    assertz(neg(follow(grande, noun))),
+    reason_translate('The cat reads a big book.', S11),
+    check('a denial of the order rule for one word: `"grande" does not follow the noun''', S11, 'El gato lee un grande libro.'),
+    retract(neg(follow(grande, noun))),
+    retract(person_of(como, come)),
+    reason_translate('I eat the bread.', S12),
+    check('a person the lesson gives no form for is the third''s form', S12, 'Yo come el pan.'),
+    assertz(person_of(como, come)).
 
 %% ---- what it refuses, whole ----------------------------------------------------------
 
 refusals :-
     section('refused whole, and reason_untranslated/2 says which word'),
-    yes_no(reason_translate('The house is small.', _), R1),
+    yes_no(reason_translate('The house is old.', _), R1),
     check('a word the lesson has no meaning for', R1, no),
-    reason_untranslated('The house is small.', U1),
-    check('named', U1, [small]),
+    reason_untranslated('The house is old.', U1),
+    check('named', U1, [old]),
     yes_no(reason_translate('Maria sleeps.', _), R2),
     check('no known word at all: which way is not even settled', R2, no),
     reason_untranslated('Maria sleeps.', U2),
     check('the name is not reported, the verb is', U2, [sleeps]),
+    reason_untranslated('Maria sleeps under the house.', U2b),
+    check('a preposition the lesson has no word for is reported too', U2b, [sleeps, under]),
     yes_no(reason_translate('The house.', _), R3),
     check('no verb', R3, no),
     reason_untranslated('The house.', U3),
     check('and nothing untranslated: the words are known, the shape is not', U3, []),
     yes_no(reason_translate('Maria has 3 dogs.', _), R4),
-    check('a number is not a sentence this translates', R4, no),
-    yes_no(reason_translate('The house is big. The house is small.', _), R5),
+    check('a number in digits is not a sentence this translates', R4, no),
+    yes_no(reason_translate('The house is big. The house is old.', _), R5),
     check('two sentences, one refused: both refused', R5, no),
     yes_no(reason_translate('Maria does not sleep.', _), R6),
     check('a denied verb the lesson does not know', R6, no),
     reason_untranslated('Maria does not sleep.', U6),
     check('reported as its base form, the word as typed', U6, [sleep]),
-    catch(( reason_translate('La casa es grande.', french, _), E7 = none ), error(E7, _), true),
-    check('a language the lesson did not name', E7, domain_error(language, french)),
-    catch(( reason_translate(42, _), E8 = none ), error(E8, _), true),
-    check('not text', E8, type_error(text, 42)).
+    yes_no(reason_translate('The dog sees the cat and the dog eats the bread.', _), R7),
+    check('two clauses: one verb a sentence', R7, no),
+    yes_no(reason_translate('Maria eats "bread".', _), R8),
+    check('a word in quotation marks', R8, no),
+    catch(( reason_translate('La casa es grande.', french, _), E9 = none ), error(E9, _), true),
+    check('a language the lesson did not name', E9, domain_error(language, french)),
+    catch(( reason_translate(42, _), E10 = none ), error(E10, _), true),
+    check('not text', E10, type_error(text, 42)).
 
 %% ---- the lesson outlined -------------------------------------------------------------
 
@@ -446,16 +956,20 @@ outline :-
     reason_outline(Text, Lines),
     Lines = [L1|_],
     check('the class with the most said about it first: its members and its four rules', L1,
-          'Noun ("casa", "perro", "gato", "mesa", "libro", "pan" and "huevo"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine; every noun that ends in a vowel takes "s" in the plural; every noun that ends in a consonant takes "es" in the plural.'),
-    yes_no(memberchk('Adjective ("grande", "rojo" and "roja"): every adjective follows the noun; every adjective that ends in a vowel takes "s" in the plural.', Lines), O2),
+          'Noun ("casa", "perro", "gato", "mesa", "libro", "pan", "huevo", "leche", "ciudad", "amigo" and "amiga"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine; every noun that ends in a vowel takes "s" in the plural; every noun that ends in a consonant takes "es" in the plural.'),
+    yes_no(memberchk('Adjective ("grande", "rojo", "roja", "pequeño" and "pequeña"): every adjective follows the noun; every adjective that ends in a vowel takes "s" in the plural.', Lines), O2),
     check('the adjectives, with both their rules', O2, yes),
     yes_no(memberchk('"casa", a noun: means "house".', Lines), O3),
     check('a word with its class and its meaning', O3, yes),
     yes_no(memberchk('"el", an article: masculine; means "the"; "los" is the plural of it.', Lines), O4),
     check('an article with its gender and its stated plural', O4, yes),
-    yes_no(memberchk('"son": is the plural of "es"; "eran" is the past of it.', Lines), O5),
-    check('a stated plural and a stated past, from the other side', O5, yes),
-    yes_no(memberchk('Feminine: a noun that ends in "a".', Lines), O6),
-    check('a definition: the condition with its object', O6, yes),
-    yes_no(memberchk('Masculine: a noun that does not end in "a".', Lines), O7),
-    check('and negated', O7, yes).
+    yes_no(memberchk('"son": is the plural of "es"; "eran" is the past of it; "somos" is the person of it.', Lines), O5),
+    check('a stated plural, a stated past and a stated person, from the other side', O5, yes),
+    yes_no(memberchk('"él", a pronoun: means "he" and "him"; does not precede the verb.', Lines), O6),
+    check('a pronoun with two meanings and its denial', O6, yes),
+    yes_no(memberchk('"ha", an auxiliary: means "has"; "han" is the plural of it; "he" is the person of it; "has" is the person of it; "había" is the past of it.', Lines), O7),
+    check('the auxiliary with its forms', O7, yes),
+    yes_no(memberchk('Feminine: a noun that ends in "a".', Lines), O8),
+    check('a definition: the condition with its object', O8, yes),
+    yes_no(memberchk('Masculine: a noun that does not end in "a".', Lines), O9),
+    check('and negated', O9, yes).
