@@ -33,6 +33,11 @@
 %%         Indefinite individuals are NAMED, car_1 then car_2 across the
 %%         whole text, unless Options carries variables(true).
 %%
+%%     reason_learn(+Text)
+%%     reason_learn(+Text, -Terms)
+%%         reason_text/2, and every term asserted: the text is knowledge
+%%         now, its rules run, and reason_ask/2 answers about it.
+%%
 %%     reason_sentence(+Text, -Terms)
 %%     reason_sentence(+Text, +Options, -Terms)
 %%         One sentence, with no state: a subject pronoun in it is refused.
@@ -46,7 +51,8 @@
 %%     reason_tokens(+Text, -Tokens)
 %%         The tokeniser, exposed. A token is word(Lower, upper|lower),
 %%         num(N) for digits (500, 5.5, 1,000; `5%' is 5 and the word
-%%         percent), `.' or `,'.
+%%         percent), quoted(Word) for a word between quotation marks, `.'
+%%         or `,'. A byte past 127 is part of a word, so `pequeño' is one.
 %%
 %%     reason_refused(+Text, -Sentence)
 %%         The first sentence reason_text/2 would refuse, as its words
@@ -85,7 +91,8 @@
 %%         proves G, denied(G) when neg(G) was said besides; forall(A, B,
 %%         Instances) for \+ (A, \+ B), a universal -- every square the
 %%         king may move to is unsafe -- with each instance's own why;
-%%         holds(G) for a builtin; conj(Whys) for a conjunction asked.
+%%         holds(G) for a builtin, holds(\+ G) for one that fails (`"perro"
+%%         does not end in "a"'); conj(Whys) for a conjunction asked.
 %%         Fails when nothing proves the goal; reason_why/2 is one level of
 %%         this.
 %%
@@ -170,6 +177,11 @@
 %%         quantity(N, Noun) or quantity(N, Noun, Of). The goal a how-many
 %%         question reads to calls it last.
 %%
+%%     end_in(+Word, +Suffix)         end_with/2, begin_with/2, start_with/2
+%%         What a rule over WORDS asks: `Every noun that ends in "a" is
+%%         feminine' is feminine(X) :- noun(X), end_in(X, a), and these
+%%         four are the library's so that the rule RUNS. Both atoms.
+%%
 %%     truth(+Goal, -Truth)
 %%         true, false, unknown or conflict, for a GROUND goal against the
 %%         knowledge base as it stands: what a text said, what it denied,
@@ -203,9 +215,15 @@
 %%   Alice owns three vineyards.         own(alice, quantity(3, vineyards))
 %%   Alice buys two litres of milk.      buy(alice, quantity(2, litres, milk))
 %%   The rent is 500 euros.              amount(rent, quantity(500, euros))
+%%   "casa" means "house".               mean(casa, house)
+%%   The noun "casa" means "house".      noun(casa), mean(casa, house)
+%%   The feminine article "la" means "the".   article(la), feminine(la), mean(la, the)
+%%   "casa" ends in "a".                 end_in(casa, a)
 %%   Does Alice own a car?               question((car(V), own(alice, V)))
 %%   Who is licensed?                    question(X, licensed(X))
 %%   Why is Alice licensed?              question(why(licensed(alice)))
+%%   Is "mesa" feminine?                 question(feminine(mesa))
+%%   What does "perro" mean?             question(X, mean(perro, X))
 %%
 %% And what a text is ABOUT: reason_concepts/2 ranks what it mentions,
 %% reason_topics/2 turns it into an outline by subject with the sub-topics
@@ -218,6 +236,14 @@
 %%       may access the server.              employee(X), authorized(X)
 %%   Every employee that is not          may_access(X, server) :-
 %%       suspended may access the server.    employee(X), \+ suspended(X)
+%%   Every person that is a baker        sell(X, bread) :- person(X), baker(X)
+%%       sells the bread.
+%%   Every employee that owns a car      may_park(X) :- employee(X), own(X, car)
+%%       may park.
+%%   Every noun that ends in "a"         feminine(X) :- noun(X), end_in(X, a)
+%%       is feminine.
+%%   Every noun that does not end in     masculine(X) :- noun(X), \+ end_in(X, a)
+%%       "a" is masculine.
 %%
 %% A subject is a proper noun or a quantified class; an object is a proper
 %% noun or a determined noun phrase. A place after an object joins the
@@ -258,12 +284,24 @@
 %% SUBJECT, and it is amount(rent, quantity(500, euros)): what a definite
 %% object costs, said once and asked for by `how much'. A quantity
 %% carries no adjective (`three red cars' is refused, not read with `red'
-%% dropped) and no comparison (`more than 500 euros' is refused). The
-%% relative clause `that is [not]
-%% ADJ' is how a condition is written, and it is deliberately the ONLY
-%% way: `if ... then ...' with a pronoun would need the pronoun bound
+%% dropped) and no comparison (`more than 500 euros' is refused). A
+%% CONDITION IS A RELATIVE CLAUSE -- `that is [not] ADJ', `that is [not]
+%% a NOUN', or `that [does not] VERB [OBJECT]' -- and it is deliberately
+%% the ONLY way: `if ... then ...' with a pronoun would need the pronoun bound
 %% inside a rule, and a rule with two conditions is two sentences or one
-%% relative clause per condition. What it does not read it REFUSES, by
+%% relative clause per condition. A WORD IN QUOTATION MARKS IS MENTIONED,
+%% NOT USED, and stands for itself: `"casa" means "house"' is mean(casa,
+%% house) whatever the words are -- `"a"' is the letter and not the
+%% article, `"is"' a word and not the copula -- and `the noun "casa"',
+%% `the feminine article "la"' say what the word is besides: noun(casa);
+%% article(la), feminine(la). A quoted word stands as a subject, as an
+%% object, and after a preposition after a BARE verb, where a place is
+%% refused: `ends in "a"' is end_in(X, a), because a mention can belong
+%% to nothing but the verb. That is how a LANGUAGE LESSON reads --
+%% vocabulary as facts, grammar as rules over the classes and end_in/2 --
+%% and library(reasoning/translate) is the translator over it, asking the
+%% knowledge base and knowing no word of the language itself. What it
+%% does not read it REFUSES, by
 %% failing -- reason_text/2 fails on the first sentence that does not
 %% parse rather than skipping it, because a paragraph half understood is
 %% worse than one refused; reason_refused/2 then names the sentence.
@@ -399,6 +437,25 @@ rs_read(Sentences, Options, Terms) :-
     ->  Terms = Raw
     ;   reason_name(Raw, Terms)
     ).
+
+%% ---- learn: read, and assert ------------------------------------------
+
+reason_learn(Text) :- reason_learn(Text, _).
+reason_learn(Text, Terms) :- reason_text(Text, Terms), forall(member(T, Terms), assertz(T)).
+
+%% ---- what a rule over WORDS asks ---------------------------------------
+%% `Every noun that ends in "a" is feminine' is feminine(X) :- noun(X),
+%% end_in(X, a), and end_in/2 has to hold of the word for the rule to run:
+%% these four are the library's. A suffix or a prefix, both atoms, and a
+%% whole word is its own suffix. The explanation says one as it is
+%% (`"mesa" ends in "a"'), never through its clause.
+end_in(W, S)     :- atom(W), atom(S), sub_atom(W, _, _, 0, S).
+end_with(W, S)   :- end_in(W, S).
+begin_with(W, P) :- atom(W), atom(P), sub_atom(W, 0, _, _, P).
+start_with(W, P) :- begin_with(W, P).
+
+re_helper(end_in(_, _)).    re_helper(end_with(_, _)).
+re_helper(begin_with(_, _)). re_helper(start_with(_, _)).
 
 %% ---- questions: a goal, and the reason with the answer ----------------
 %% The state is NOT reset here: a question may follow the paragraph the
@@ -540,6 +597,7 @@ reason_explain(Goal, Why) :-
 
 re_goal((A, B), conj(Ws)) :- !, re_conj((A, B), Ws).
 re_goal(\+ G, W) :- !, re_not(G, W).
+re_goal(G, holds(G)) :- re_helper(G), !, rq_solve(G).
 re_goal(G, fact(G)) :- catch(clause(G, true), _, fail).
 re_goal(G, rule(G, Ws)) :- catch(clause(G, Body), _, fail), Body \== true, re_conj(Body, Ws).
 re_goal(G, holds(G)) :-
@@ -560,6 +618,7 @@ re_conj(G, [W]) :- re_goal(G, W).
 %% \+ (A, \+ B): nothing satisfies A without B -- every instance of A, with
 %% the why of B for it; otherwise \+ G holds because nothing proves G, and
 %% denied when its negation was said as well
+re_not(G, holds(\+ G)) :- re_helper(G), !, \+ rq_solve(G).                  % `"perro" does not end in "a"'
 re_not((A, \+ B), forall(A, B, Insts)) :- !,
     \+ rq_solve((A, \+ B)),
     findall(A-W, ( rq_solve(A), once(re_goal(B, W)) ), Insts).
@@ -698,6 +757,7 @@ rc_args([A|As], Ms) :- rc_arg(A, M1), rc_args(As, M2), append(M1, M2, Ms).
 rc_arg(A, [A-K]) :- atom(A), !, rc_atom_kind(A, K).
 rc_arg(_, []).
 
+rc_atom_kind(A, word) :- re_quoted(A), !.
 rc_atom_kind(A, name) :- re_name(A), !.
 rc_atom_kind(A, individual) :- re_individual(A), !.
 rc_atom_kind(_, class).
@@ -793,7 +853,7 @@ rt_line(S, K, Groups, Line) :-
 %% the head: a name or an individual with its classes -- but not an
 %% individual's own noun, `the flat, a flat' -- and a class with its members
 rt_head(S, K, Groups, Head, Rest) :-
-    ( K == name ; K == individual ), !,
+    ( K == name ; K == individual ; K == word ), !,
     re_arg(S, SA),
     (   select(class-Cs0, Groups, Rest0)
     ->  findall(C, ( member(C, Cs0), \+ ( K == individual, atom_concat(C, '_', Pre), atom_concat(Pre, _, S) ) ), Cs),
@@ -855,8 +915,16 @@ rt_goals((A, B), [A|Gs]) :- !, rt_goals(B, Gs).
 rt_goals(G, [G]).
 
 rt_conds([], '').
-rt_conds([\+ G|Gs], P) :- !, G =.. [A|_], re_predicate(A, is, AP), rt_conds(Gs, P1), atomic_list_concat([' that is not ', AP, P1], P).
-rt_conds([G|Gs], P) :- G =.. [A|_], re_predicate(A, is, AP), rt_conds(Gs, P1), atomic_list_concat([' that is ', AP, P1], P).
+rt_conds([\+ G|Gs], P) :- !, rt_cond(G, not, CP), rt_conds(Gs, P1), atomic_list_concat([' that ', CP, P1], P).
+rt_conds([G|Gs], P) :- rt_cond(G, yes, CP), rt_conds(Gs, P1), atomic_list_concat([' that ', CP, P1], P).
+
+%% `is [not] attacked', `is a noun'; a condition with an object as its
+%% sentence with the subject taken off, `ends in "a"', `does not end in "a"'
+rt_cond(G, Neg, CP) :-
+    G =.. [A, _], !, re_predicate(A, is, AP),
+    ( Neg == not -> atom_concat('is not ', AP, CP) ; atom_concat('is ', AP, CP) ).
+rt_cond(G, Neg, CP) :-
+    G =.. [_, S|_], ( Neg == not -> re_negative(G, Sent) ; re_sentence(G, Sent) ), rt_strip(S, Sent, CP).
 
 %% ---- a term as a sentence ------------------------------------------------
 %% A unary term is `X is [a] P' -- with the article when P is a class noun
@@ -867,6 +935,7 @@ rt_conds([G|Gs], P) :- G =.. [A|_], re_predicate(A, is, AP), rt_conds(Gs, P1), a
 %% a comparison is said in words (`5 is more than 3'), and a body's
 %% if-then-else or disjunction explains the branch that proved.
 re_sentence(neg(G), S) :- !, re_negative(G, S).
+re_sentence(\+ G, S) :- !, re_negative(G, S).
 re_sentence(amount(N, Q), S) :- !, re_arg(N, NA), re_arg(Q, QA), atomic_list_concat([NA, ' is ', QA], S).
 re_sentence(A > B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is more than ', Y], S).
 re_sentence(A < B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is less than ', Y], S).
@@ -914,10 +983,10 @@ re_verb(V, Form, VP) :-
     ),
     atomic_list_concat(Words, ' ', VP).
 
-%% an argument: a proper noun the reader met capitalised, an individual
-%% car_1 as `the car', a number as itself, a quantity as `500 euros', a
-%% variable as its letter, `a flat' for an existential, any other atom as
-%% `the ...'
+%% an argument: a word the reader met in quotation marks, in them; a
+%% proper noun it met capitalised; an individual car_1 as `the car'; a
+%% number as itself, a quantity as `500 euros', a variable as its letter,
+%% `a flat' for an existential, any other atom as `the ...'
 re_arg('$re_var'(L), L) :- !.
 re_arg('$re_indef'(N), A) :- !, re_article(N, Art), atomic_list_concat([Art, ' ', N], A).
 re_arg('$re_it', it) :- !.
@@ -925,6 +994,7 @@ re_arg(V, 'something') :- var(V), !.
 re_arg(N, A) :- number(N), !, format(atom(A), "~w", [N]).
 re_arg(quantity(N, U), A) :- !, re_arg(N, NA), atomic_list_concat([NA, ' ', U], A).
 re_arg(quantity(N, U, Of), A) :- !, re_arg(N, NA), atomic_list_concat([NA, ' ', U, ' of ', Of], A).
+re_arg(X, A) :- atom(X), re_quoted(X), !, atomic_list_concat(['"', X, '"'], A).
 re_arg(X, A) :- atom(X), re_name(X), !, re_cap(X, A).
 re_arg(X, A) :- atom(X), atom_codes(X, Cs), append(Pre, [95|Digits], Cs), Digits \== [], catch(number_codes(_, Digits), _, fail), !,   % 95 is `_'
     atom_codes(N, Pre), atom_concat('the ', N, A).
@@ -942,6 +1012,7 @@ re_cap(W, C) :- atom_codes(W, [F|R]), ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 =
 %% king(kh8)
 re_name(X) :- catch(nb_getval('$rs_names', L), _, fail), memberchk(X, L).
 re_noun(P) :- catch(nb_getval('$rs_nouns', L), _, fail), memberchk(P, L).
+re_quoted(W) :- catch(nb_getval('$rs_quoted', L), _, fail), memberchk(W, L).
 rs_note(Key, X) :-
     catch(nb_getval(Key, L), _, L = []),
     ( memberchk(X, L) -> true ; nb_setval(Key, [X|L]) ).
@@ -1031,6 +1102,7 @@ rs_words(Tokens, Atom) :-
 
 rs_token_text(word(W, _), W).
 rs_token_text(num(N), A) :- format(atom(A), "~w", [N]).
+rs_token_text(quoted(W), A) :- atomic_list_concat(['"', W, '"'], A).
 
 %% ---- truth -------------------------------------------------------------
 %%
@@ -1071,6 +1143,16 @@ rt_codes(T, _)  :- throw(error(type_error(text, T), reason_tokens/2)).
 rt_tokens([], []).
 rt_tokens([C|Cs], ['.'|Ts]) :- rt_stop(C), !, rt_tokens(Cs, Ts).
 rt_tokens([44|Cs], [','|Ts]) :- !, rt_tokens(Cs, Ts).          % 44 is `,'
+%% a word between quotation marks is MENTIONED, not used: quoted(Word), the
+%% text between them as written (ASCII letters lower-cased), whatever it is
+%% -- `"a"' is the letter and not the article, `"is"' a word and not the
+%% copula. The plain `"' and the typographic pair (UTF-8 E2 80 9C and 9D)
+%% both open and close one; an unclosed one runs to the end of the text.
+rt_tokens(Cs, [quoted(W)|Ts]) :-
+    rt_quote_open(Cs, Cs1), !,
+    rt_quoted(Cs1, Word, Rest),
+    rt_lowers(Word, Ls), atom_codes(W, Ls),
+    rt_tokens(Rest, Ts).
 %% a number: digits, a comma between digits passed over (1,000), a point
 %% between digits kept (5.5), and `%' right after it the word `percent'
 rt_tokens([C|Cs], [num(N)|Ts]) :-
@@ -1096,6 +1178,14 @@ rt_tokens([_|Cs], Ts) :- rt_tokens(Cs, Ts).
 
 rt_stop(46). rt_stop(33). rt_stop(63).                          % . ! ?
 
+rt_quote_open([34|Cs], Cs).                                      % "
+rt_quote_open([226, 128, 156|Cs], Cs).                           % the typographic open quote
+rt_quote_close([34|Cs], Cs).
+rt_quote_close([226, 128, 157|Cs], Cs).
+rt_quoted(Cs, [], Rest) :- rt_quote_close(Cs, Rest), !.
+rt_quoted([], [], []).
+rt_quoted([C|Cs], [C|Ws], Rest) :- rt_quoted(Cs, Ws, Rest).
+
 rt_run([C|Cs], [C|More], Rest) :- ( rt_alpha(C) ; rt_digit(C) ; C == 95 ), !, rt_run(Cs, More, Rest).
 rt_run(Cs, [], Cs).
 
@@ -1104,7 +1194,8 @@ rt_digits([44, C|Cs], More, Rest) :- rt_digit(C), !, rt_digits([C|Cs], More, Res
 rt_digits(Cs, [], Cs).
 
 rt_alpha(C) :- C >= 97, C =< 122, !.
-rt_alpha(C) :- C >= 65, C =< 90.
+rt_alpha(C) :- C >= 65, C =< 90, !.
+rt_alpha(C) :- C >= 128.                                         % a byte of a UTF-8 letter: `pequeño' is one word
 rt_upper(C) :- C >= 65, C =< 90.
 rt_digit(C) :- C >= 48, C =< 57.
 rt_lower(C, L) :- ( rt_upper(C) -> L is C + 32 ; L = C ).
@@ -1221,8 +1312,17 @@ rs_qsubject(S) --> rs_subject(S, _, fact).
 rs_goal([], P, P).
 rs_goal([E|Es], P, (E, G)) :- rs_goal(Es, P, G).
 
-%% a proper noun, `every NOUN [that is [not] ADJ]', or a subject pronoun
+%% a proper noun, a quoted word, `the [ADJ..] CLASS "word"', `every NOUN
+%% [that ...]', or a subject pronoun. A word in quotation marks stands for
+%% itself, and with a class noun before it -- `the noun "casa"', `the
+%% feminine article "la"' -- the class and the adjectives are facts about
+%% the word besides, handed back before the claim: noun(casa); article(la),
+%% feminine(la)
 rs_subject(S, [], fact) --> rs_proper(S).
+rs_subject(W, [], fact) --> rs_quoted(W).
+rs_subject(W, [Class|Adjs], fact) -->
+    rs_det(def), rs_adjs(As), rs_noun(C), rs_quoted(W),
+    { rs_note('$rs_nouns', C), Class =.. [C, W], rs_adj_terms(As, W, Adjs) }.
 rs_subject(X, Guard, rule) -->
     [word(Q, _)], { rl_quant(Q) },
     rs_noun(N), { rs_note('$rs_nouns', N), G1 =.. [N, X] },
@@ -1235,11 +1335,22 @@ rs_subject(X, Guard, rule) -->
 rs_subject(S, [], fact) -->
     [word(P, _)], { rl_subject_pronoun(P), catch(nb_getval('$rs_subject', S0), _, S0 = none), S0 \== none, S = S0 }.
 
+%% one condition: `that is [not] ADJ', `that is [not] a NOUN', or `that
+%% [does not] VERB [OBJECT] [in PLACE]' -- the object read as a rule's is,
+%% a class atom, and `ends in "a"' the joined relation end_in(X, a)
 rs_relative(X, Rel) -->
-    [word(that, _)], rs_copula,
+    [word(that, _)], rs_copula, !,
     (   [word(not, _)] -> { Neg = yes } ; { Neg = no } ),
-    rs_adj(A), { G =.. [A, X], ( Neg == yes -> Rel = [\+ G] ; Rel = [G] ) }.
+    rs_property(X, G), { rs_negate(Neg, G, Rel) }.
+rs_relative(X, Rel) -->
+    [word(that, _)], !,
+    (   rs_aux, [word(not, _)] -> { Neg = yes }, rs_verb(V) ; { Neg = no }, rs_modal_verb(V) ),
+    rs_object_opt(rule, O, _), rs_place_opt(O, Pl),
+    { rs_claim(V, X, O, Pl, G), rs_negate(Neg, G, Rel) }.
 rs_relative(_, []) --> [].
+
+rs_negate(yes, G, [\+ G]).
+rs_negate(no, G, [G]).
 
 %% what is said of the subject: Claim is the head term, Extra the object's
 %% existence terms (only ever non-empty for an indefinite object in a fact)
@@ -1278,10 +1389,15 @@ rs_object_opt(Ctx, O) --> rs_object_opt(Ctx, O, _).
 %% so `Alice sleeps in Rome' is still refused where `Alice sleeps_in Rome'
 %% is read, and library(reasoning/normalise)'s assembler is what joins them.
 rs_place_opt(O, Prep-Place) --> { O \== none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_proper(Place), !.
+%% and after a BARE verb a preposition and a QUOTED word: `ends in "a"' is
+%% end_in(X, a), where `sleeps in Rome' stays refused -- a mention can
+%% belong to nothing but the verb, and a place could be a phrase left over
+rs_place_opt(O, Prep-W) --> { O == none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_quoted(W), !.
 rs_place_opt(_, none) --> [].
 
-%% a quantity, a proper noun; `the N' as the class atom; `a N' as an
-%% individual in a fact and the class atom otherwise
+%% a quoted word, a quantity, a proper noun; `the N' as the class atom;
+%% `a N' as an individual in a fact and the class atom otherwise
+rs_object(_, W, []) --> rs_quoted(W).
 rs_object(_, Q, []) --> rs_quantity(Q).
 rs_object(_, O, []) --> rs_proper(O).
 rs_object(_, N, []) --> rs_det(def), rs_adjs(_), rs_noun(N), { rs_note('$rs_nouns', N) }.
@@ -1326,7 +1442,9 @@ rs_claim(V, S, O, Prep-Place, P) :- atomic_list_concat([V, '_', Prep], VP), P =.
 rs_adj_terms([], _, []).
 rs_adj_terms([A|As], V, [T|Ts]) :- T =.. [A, V], rs_adj_terms(As, V, Ts).
 
-rs_assemble(fact, _, Claim, Extra, Terms) :- append(Extra, [Claim], Terms).
+%% a fact's Guard is what an apposition said of a quoted subject, and it
+%% comes first: noun(casa), mean(casa, house)
+rs_assemble(fact, Facts, Claim, Extra, Terms) :- append(Facts, Extra, Ts0), append(Ts0, [Claim], Terms).
 rs_assemble(rule, Guard, Claim, _, [(Claim :- Body)]) :- rs_conj(Guard, Body).
 
 rs_conj([G], G) :- !.
@@ -1340,6 +1458,7 @@ rs_proper(C) --> [word(W, _)], { reason_proper(W, C) }, !, { rs_note('$rs_names'
 rs_proper(W) --> [word(W, upper)], { \+ rl_closed(W), rs_note('$rs_names', W) }.
 
 rs_det(Kind) --> [word(D, _)], { rl_det(D, Kind) }.
+rs_quoted(W) --> [quoted(W)], { rs_note('$rs_quoted', W) }.
 rs_copula   --> [word(C, _)], { rl_copula(C) }.
 rs_aux      --> [word(A, _)], { rl_aux(A) }.
 

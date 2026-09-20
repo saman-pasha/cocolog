@@ -11,7 +11,7 @@
 :- use_module(library(reasoning/reason)).
 
 main :-
-    tokens, facts, copula, negation, rules, relative, lexicon, naming,
+    tokens, facts, copula, negation, rules, relative, mentions, lexicon, naming,
     round_trip, refusals, places, state, questions, quantities, explains, topics, prose, declares, refused, truth, errors,
     checks_done.
 
@@ -134,6 +134,59 @@ relative :-
     L3 = (sleep(X3) :- person(Y3), happy(Z3)),
     yes_no((X3 == Y3, Y3 == Z3), S3),
     check('a relative clause before an intransitive verb', S3, yes).
+
+%% ---- a word in quotation marks is mentioned ------------------------------------
+
+mentions :-
+    section('mentioned words'),
+    reason_tokens('The noun "casa" means "house".', T1),
+    check('a word between quotation marks is quoted(Word)', T1,
+          [word(the, upper), word(noun, lower), quoted(casa), word(means, lower), quoted(house), '.']),
+    reason_tokens('“pequeño” es', T2),
+    check('the typographic pair opens and closes one; a UTF-8 word is one word', T2, [quoted('pequeño'), word(es, lower)]),
+    reason_sentence('"casa" means "house".', M1),
+    check('a quoted subject and a quoted object stand for themselves', M1, [mean(casa, house)]),
+    reason_sentence('The noun "casa" means "house".', M2),
+    check('`the noun "casa"'': the class is a fact about the word, first', M2, [noun(casa), mean(casa, house)]),
+    reason_sentence('The feminine article "la" means "the".', M3),
+    check('and its adjectives; `"the"'' is a word, not the determiner', M3, [article(la), feminine(la), mean(la, the)]),
+    reason_sentence('"casa" ends in "a".', M4),
+    check('a preposition and a quoted word after a bare verb join the verb', M4, [end_in(casa, a)]),
+    yes_no(reason_sentence('Alice sleeps in Rome.', _), M5),
+    check('a PLACE after a bare verb is still refused', M5, no),
+    reason_sentence('Every noun that ends in "a" is feminine.', [R6]),
+    R6 = (feminine(X6) :- noun(Y6), end_in(Z6, a)),
+    yes_no((X6 == Y6, Y6 == Z6), S6),
+    check('a verb in the relative clause: one condition, same variable', S6, yes),
+    reason_sentence('Every noun that does not end in "a" is masculine.', [R7]),
+    R7 = (masculine(X7) :- noun(Y7), \+ end_in(Z7, a)),
+    yes_no((X7 == Y7, Y7 == Z7), S7),
+    check('`that does not VERB'' is \\+ in the body', S7, yes),
+    reason_sentence('Every employee that owns a car may park.', [R8]),
+    R8 = (may_park(X8) :- employee(Y8), own(Z8, car)),
+    yes_no((X8 == Y8, Y8 == Z8), S8),
+    check('an object in the relative clause is the class atom', S8, yes),
+    reason_sentence('Every person that is a baker sells the bread.', [R9]),
+    R9 = (sell(X9, bread) :- person(Y9), baker(Z9)),
+    yes_no((X9 == Y9, Y9 == Z9), S9),
+    check('`that is a NOUN'' is a condition too', S9, yes),
+    reason_question('Is "mesa" feminine?', Q10),
+    check('a quoted word in a question', Q10, question(feminine(mesa))),
+    reason_question('What does "perro" mean?', Q11),
+    Q11 = question(V11, mean(perro, W11)),
+    yes_no(V11 == W11, S11),
+    check('what does it mean: the variable is the meaning', S11, yes),
+    yes_no(( end_in(casa, a), \+ end_in(casa, o), end_with(casa, sa), begin_with(casa, ca), start_with(casa, casa) ), H12),
+    check('the four helpers a rule over words may use', H12, yes),
+    reason_refused('"casa" and "mesa".', F13),
+    check('a refused sentence keeps its quotation marks', F13, '"casa" and "mesa"'),
+    reason_learn('The noun "mesa" means "table". The noun "perro" means "dog". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.'),
+    reason_explanation(feminine(mesa), X14),
+    check('the explanation writes the word in its quotation marks and the helper as it is', X14,
+          '"mesa" is feminine because "mesa" is a noun and "mesa" ends in "a".'),
+    reason_explanation(masculine(perro), X15),
+    check('a helper that fails is `does not'', not `nothing shows''', X15,
+          '"perro" is masculine because "perro" is a noun and "perro" does not end in "a".').
 
 %% ---- the lexicon overrides position ------------------------------------------
 

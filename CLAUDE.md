@@ -2066,6 +2066,42 @@ and no `the flat, a flat`. `reason_outline/2` reads a text and outlines it,
 `topics` section pins thirty concepts, twenty-one topics and the lines
 over the chess position, and lesson 43's section 16 shows it.
 
+**A WORD IN QUOTATION MARKS IS MENTIONED, AND A LANGUAGE LESSON IS A
+KNOWLEDGE BASE (1.2.32).** `"casa" means "house"` is not about a house:
+the tokeniser reads a word between quotation marks (the plain `"` or the
+typographic pair) as `quoted(Word)`, the grammar lets it stand as a
+subject, as an object, and after a preposition after a BARE verb -- `ends
+in "a"` is `end_in(X, a)`, where `sleeps in Rome` stays refused, because
+a mention can belong to nothing but the verb -- and `the noun "casa"`,
+`the feminine article "la"` are appositions that hand back the class and
+the adjectives as facts about the word, before the claim: `noun(casa),
+mean(casa, house)`; `article(la), feminine(la), mean(la, the)`. A
+relative clause takes a VERB now, `that [does not] VERB [OBJECT]`, and
+`that is a NOUN`, still one condition each; `end_in/2`, `end_with/2`,
+`begin_with/2` and `start_with/2` are the library's so that `Every noun
+that ends in "a" is feminine` RUNS, and the explainer says one as it is
+(`"perro" does not end in "a"`, never `nothing shows that`). `reason_learn/1`
+reads and asserts. `library(reasoning/translate)` is the consumer:
+`reason_translate/2,3` takes a simple sentence -- a subject, a verb, then
+an object or a bare adjective, each phrase an article, adjectives and a
+noun, or a name -- between English and the language the lesson teaches,
+asking the knowledge base five things (`mean/2`, the four classes,
+`feminine/1` and `masculine/1`, `follow(A, noun)`, `language/1`) and
+knowing no word of Spanish itself: an article and an adjective are chosen
+among the words the lesson gives for the English one by the NOUN's
+gender, a bare adjective after the verb agrees with the subject, and an
+adjective goes after its noun exactly when the rule says so; a sentence
+with a word the lesson left out is refused whole and
+`reason_untranslated/2` names the word. `test/translate.pl` is the case
+-- twenty lines of Spanish, forty-four terms, both directions, the
+lesson questioned, and the order rule retracted to show the order was
+the rule -- and lesson 46 the tutorial. Two things bit: `atom_codes/2`
+answers BYTES, so the tokeniser dropped every byte past 127 and
+`pequeño` read as `peque` and `o` until such a byte counted as a letter;
+and `clause/2` SEES a module's clauses (probed: `clause(reason_third(have,
+X), B)` answers), so a helper would have explained itself by its own
+body until `re_goal` asked `re_helper/1` first.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when
@@ -3362,13 +3398,13 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has four categories and `test/tutorials.pl` runs all
-**122** files as one suite case (counted from the tree, not remembered; this said 121,
-this said 120, before that 118, ninety-three, and sixty-eight):
+**123** files as one suite case (counted from the tree, not remembered; this said 122,
+this said 121, this said 120, before that 118, ninety-three, and sixty-eight):
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | forty-six lessons, numbered 00 to 45: one per library that ships, one for cocolint, one for the library path | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | forty-seven lessons, numbered 00 to 46: one per library that ships, one for cocolint, one for the library path | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/opencv/` | twenty-three lessons of image processing | `library/opencv.so` |
 | `tutorials/tensor/` | forty-two networks, each running on either tensor library | libtorch |
 
@@ -3441,10 +3477,10 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **57** case lines (counted
+Run `make test` with a server up, and read all **58** case lines (counted
 from `test/run.pl`'s list, not remembered; this said 39, then 42, then 43, then 48, then
-51, then 52, then 53, then 54, and the suite keeps moving -- seven `.cicili` binaries and
-fifty `.pl` cases, each line with its seconds). A change to
+51, then 52, then 53, then 54, then 57, and the suite keeps moving -- seven `.cicili` binaries and
+fifty-one `.pl` cases, each line with its seconds). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make
