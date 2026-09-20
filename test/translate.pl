@@ -1,9 +1,9 @@
 %% library(reasoning/translate) -- a language lesson as a knowledge base, and
-%% a translation as a proof over it. THIRTY-TWO LINES OF SPANISH, read by
+%% a translation as a proof over it. THIRTY-FIVE LINES OF SPANISH, read by
 %% reason_learn/1 into facts and rules -- no lexicon, no corpus, no model,
 %% nothing in the library that knows a word of Spanish -- and then simple
-%% sentences translated both ways, singular and plural, denied and not; the
-%% lesson questioned; and what it refuses.
+%% sentences translated both ways, singular and plural, denied and not,
+%% statements and questions; the lesson questioned; and what it refuses.
 %%
 %%     cocolog -s test/translate.pl        from the checkout root
 %%
@@ -15,13 +15,14 @@
 :- use_module(library(reasoning/translate)).
 
 main :-
-    lesson, into_spanish, into_english, plurals, negation, questions, rules, refusals, outline,
+    lesson, into_spanish, into_english, plurals, negation, asks, questions, rules, refusals, outline,
     checks_done.
 
 %% the lesson, one sentence a line: the language, six nouns, three
 %% adjectives, four verbs, four articles, two rules of gender and one of
 %% order; then the plural -- four ending rules, three stated plurals -- the
-%% word for `not', where it stands, and one more noun
+%% word for `not', where it stands, and one more noun; then the question
+%% words and the mark a question begins with
 lesson_text('Spanish is a language.
 The noun "casa" means "house".
 The noun "perro" means "dog".
@@ -53,19 +54,22 @@ Every verb that ends in "e" takes "n" in the plural.
 "son" is the plural of "es".
 The word "no" means "not".
 The word "no" precedes the verb.
-The noun "huevo" means "egg".').
+The noun "huevo" means "egg".
+The word "qué" means "what".
+The word "quién" means "who".
+The mark "¿" begins the question.').
 
 %% ---- the lesson, learned ------------------------------------------------------
 
 lesson :-
-    section('the lesson: thirty-two lines, fifty-eight terms'),
+    section('the lesson: thirty-five lines, sixty-four terms'),
     lesson_text(Text),
     reason_tokens(Text, Tokens),
     findall(S, member('.', Tokens), Stops), length(Stops, NS),
-    check('thirty-two sentences', NS, 32),
+    check('thirty-five sentences', NS, 35),
     reason_learn(Text, Terms),
     length(Terms, NT),
-    check('fifty-eight terms out of them', NT, 58),
+    check('sixty-four terms out of them', NT, 64),
     yes_no(memberchk(mean(casa, house), Terms), L1),
     check('a mentioned word means a mentioned word', L1, yes),
     yes_no(memberchk(noun(casa), Terms), L2),
@@ -90,6 +94,10 @@ lesson :-
     check('`"los" is the plural of "el"'' is plural_of/2', L9, yes),
     yes_no(( memberchk(mean(no, not), Terms), memberchk(precede(no, verb), Terms) ), L10),
     check('the word for not, and where it stands', L10, yes),
+    yes_no(( memberchk(mean('qué', what), Terms), memberchk(mean('quién', who), Terms) ), L10q),
+    check('the question words are vocabulary', L10q, yes),
+    yes_no(( memberchk(mark('¿'), Terms), memberchk(begin('¿', question), Terms) ), L10m),
+    check('`the mark "¿" begins the question'': the class atom, and not the reader''s question/1', L10m, yes),
     truth(feminine(mesa), T11),   check('and the rules RUN: mesa ends in a', T11, true),
     truth(masculine(perro), T12), check('perro does not', T12, true),
     truth(feminine(perro), T13), check('so it is not feminine: unknown, the text never said', T13, unknown),
@@ -196,6 +204,63 @@ negation :-
     check('are not', E5, 'The houses are not big.'),
     reason_translate('The dogs are not red houses.', N6),
     check('a plural denied predicate phrase', N6, 'Los perros no son casas rojas.').
+
+%% ---- questions translated -------------------------------------------------------------
+
+asks :-
+    section('questions: yes or no, what for the object, who for the subject'),
+    reason_translate('Is the house big?', Q1),
+    check('the copula fronted in English; the statement''s order and the lesson''s mark in Spanish', Q1, '¿La casa es grande?'),
+    reason_translate('Does the dog eat the bread?', Q2),
+    check('does, and the base form', Q2, '¿El perro come el pan?'),
+    reason_translate('Do the dogs eat the bread?', Q3),
+    check('do, plural', Q3, '¿Los perros comen el pan?'),
+    reason_translate('Is the house not big?', Q4),
+    check('denied', Q4, '¿La casa no es grande?'),
+    reason_translate('What does the dog eat?', Q5),
+    check('what: the object asked, and the verb before the subject', Q5, '¿Qué come el perro?'),
+    reason_translate('Who eats the bread?', Q6),
+    check('who: the subject asked', Q6, '¿Quién come el pan?'),
+    reason_translate('Who is big?', Q7),
+    check('who, with the copula', Q7, '¿Quién es grande?'),
+    reason_translate('Who does not eat the bread?', Q8),
+    check('who, denied', Q8, '¿Quién no come el pan?'),
+    reason_translate('Is the big house red?', Q9),
+    check('the subject phrase ends at its noun', Q9, '¿La casa grande es roja?'),
+    reason_translate('What is the house?', Q10),
+    check('what, with the copula', Q10, '¿Qué es la casa?'),
+    reason_translate('¿La casa es grande?', E1),
+    check('back: the copula fronted', E1, 'Is the house big?'),
+    reason_translate('¿Es grande la casa?', E2),
+    check('the verb first and the adjective before the subject: read as well', E2, 'Is the house big?'),
+    reason_translate('¿Come el perro el pan?', E3),
+    check('the verb first, then the subject up to the next article', E3, 'Does the dog eat the bread?'),
+    reason_translate('¿El perro no come el pan?', E4),
+    check('denied: not after the subject', E4, 'Does the dog not eat the bread?'),
+    reason_translate('¿Qué come el perro?', E5),
+    check('what does', E5, 'What does the dog eat?'),
+    reason_translate('¿Quién come el pan?', E6),
+    check('who eats', E6, 'Who eats the bread?'),
+    reason_translate('¿Quién es grande?', E7),
+    check('who is', E7, 'Who is big?'),
+    reason_translate('¿Los perros comen el pan?', E8),
+    check('do the dogs', E8, 'Do the dogs eat the bread?'),
+    reason_translate('¿Come Maria el pan?', E9),
+    check('a name after the verb', E9, 'Does Maria eat the bread?'),
+    reason_translate('The house is big. Is the house big?', M1),
+    check('a statement and a question, each its own', M1, 'La casa es grande. ¿La casa es grande?'),
+    reason_translate('What does the dog eat?', S2), reason_translate(S2, E10),
+    check('the round trip', E10, 'What does the dog eat?'),
+    retract(begin('¿', question)),
+    reason_translate('Is the house big?', Q12),
+    check('without the mark the lesson gave, none', Q12, 'La casa es grande?'),
+    assertz(begin('¿', question)),
+    retract(mean('qué', what)),
+    yes_no(reason_translate('What does the dog eat?', _), R13),
+    check('a question word the lesson did not give: refused, never passed through as a name', R13, no),
+    reason_untranslated('What does the dog eat?', U13),
+    check('and reported', U13, [what]),
+    assertz(mean('qué', what)).
 
 %% ---- the lesson questioned ---------------------------------------------------------
 

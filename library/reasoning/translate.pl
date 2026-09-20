@@ -34,6 +34,8 @@
 %%     take_in(W, E, plural)           or ruled: W takes the ending E in the plural
 %%                                     (`Every noun that ends in a vowel takes "s" in the plural')
 %%     mean(N, not)  follow(N, verb)   the word that denies, and whether it stands after the verb
+%%     mean(Q, what)  mean(Q, who)    the question words (`The word "qué" means "what"')
+%%     begin(M, question)              the mark a question begins with (`The mark "¿" begins the question')
 %%     language(L)                     the language, `Spanish is a language'
 %%
 %% So a lesson in Italian, or one whose rule is `Every adjective precedes
@@ -41,10 +43,11 @@
 %% facts in those shapes works with no sentence of English at all. What
 %% the translator knows on its own is ENGLISH, the library's language: the
 %% copula is `is' and `are', `not' stands after it and `does not' or `do
-%% not' before any other verb with its base form, a plural noun ends in
-%% -s, -es or -ies unless the lesson says otherwise (`"children" is the
-%% plural of "child"'), `a' is `an' before a vowel and nothing in the
-%% plural, and `the' is `the' either way.
+%% not' before any other verb with its base form, a question fronts the
+%% copula or `does' and `do', `what' asks for the object and `who' for the
+%% subject, a plural noun ends in -s, -es or -ies unless the lesson says
+%% otherwise (`"children" is the plural of "child"'), `a' is `an' before
+%% a vowel and nothing in the plural, and `the' is `the' either way.
 %%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
@@ -52,7 +55,9 @@
 %%         SIMPLE sentences, each a subject, a verb, and after it an object,
 %%         an adjective or nothing; a subject or an object a name or a
 %%         phrase -- an article or none, adjectives, a noun -- singular or
-%%         plural; the verb denied or not. From English into the language
+%%         plural; the verb denied or not; a statement, or a QUESTION when
+%%         the sentence ends in `?': yes or no, `what' asking for the
+%%         object, `who' for the subject. From English into the language
 %%         the lesson teaches, or from it into English: which way, the
 %%         words say, a word the lesson gave a meaning being the lesson's
 %%         and the meaning English. Translation is an atom, a sentence
@@ -60,8 +65,9 @@
 %%         cannot translate, whole and never half: a word the lesson gives
 %%         no meaning (a capitalised one is a name and passes through), no
 %%         verb, two nouns in one phrase, a plural the lesson gives no rule
-%%         for, a denial with no word for `not', a number, a word in
-%%         quotation marks; reason_untranslated/2 names the words.
+%%         for, a denial with no word for `not', a question word the
+%%         lesson gives no word for, a number, a word in quotation marks;
+%%         reason_untranslated/2 names the words.
 %%
 %%     reason_translate(+Text, +Into, -Translation)
 %%         The same, Into naming the language: english, or the name the
@@ -99,13 +105,23 @@
 %% noun in both. An adjective goes after the noun when follow(A, noun)
 %% proves and before it otherwise, which is English's order and the
 %% default. A capitalised word the lesson does not know is a name and
-%% passes through as written; the case of every word travels with it.
+%% passes through as written; the case of every word travels with it,
+%% except that the head of a sentence goes lower when the lesson knows the
+%% word, since a question moves it. A QUESTION is the sentence that ended
+%% in `?': the question word first if there is one (the lesson's
+%% vocabulary, `what' for the object and `who' for the subject), then
+%% English's `does', `do' or the copula fronted, and the rest in the
+%% statement's order; the lesson's language asks in the statement's order
+%% too, except that after a question word asking for the object the verb
+%% comes before the subject (`¿Qué come el perro?'), and it is read in
+%% either order (`¿Es grande la casa?' as well). The mark the lesson says
+%% begins the question goes before the first word.
 %%
 %% ---- WHAT IT IS NOT ---------------------------------------------------
 %%
 %% It is not a translator of prose. One clause, present tense, third
-%% person: no pronoun, no question, no tense, no idiom -- a word means a
-%% word. ONE LANGUAGE BESIDE ENGLISH per knowledge base: mean/2 carries no
+%% person: no pronoun, no tense, no `where', `when' or `which', no idiom
+%% -- a word means a word. ONE LANGUAGE BESIDE ENGLISH per knowledge base: mean/2 carries no
 %% language, so two lessons loaded together are one vocabulary. And it
 %% decides nothing about a word the lesson left out: a sentence with one
 %% is refused whole, never half translated, and reason_untranslated/2
@@ -130,7 +146,7 @@ reason_untranslated(Text, Words) :-
     tr_pieces(Text, Pieces),
     findall(W, ( member(Piece-_, Pieces), reason_tokens(Piece, Tokens), tr_words(Tokens, Ws),
                  ( tr_direction(Ws, From, _) -> true ; From = either ),
-                 member(w(W, Case), Ws), Case \== upper,
+                 member(w(W, Case), Ws), ( Case \== upper ; tr_asked_by(W, _) ),
                  \+ tr_lexeme(From, W, _, _), \+ tr_function_word(From, W) ),
             Ws0),
     list_to_set(Ws0, Words).
@@ -147,10 +163,17 @@ tr_into(L, _, _) :- throw(error(domain_error(language, L), reason_translate/3)).
 %% each sentence its own way when none was given: the words decide
 tr_each([], _, []).
 tr_each([Piece-Stop|Ps], Way, [Out|Outs]) :-
-    reason_tokens(Piece, Tokens), tr_words(Tokens, Words), Words \== [],
-    ( Way == any -> tr_direction(Words, From, To) ; Way = From-To ),
+    reason_tokens(Piece, Tokens), tr_words(Tokens, Words0), Words0 \== [],
+    ( Way == any -> tr_direction(Words0, From, To) ; Way = From-To ),
+    tr_head_lower(From, Words0, Words),
     tr_translate(Words, From, To, Stop, Out),
     tr_each(Ps, Way, Outs).
+
+%% the first word's capital is the sentence's, not the word's: a known word
+%% at the head goes lower, so that when a question moves it (`Is the house
+%% big?' to `¿La casa es grande?') it is not `Es'; a name keeps its case
+tr_head_lower(From, [w(W, upper)|Ws], [w(W, lower)|Ws]) :- ( tr_lexeme(From, W, _, _) ; tr_function_word(From, W) ), !.
+tr_head_lower(_, Ws, Ws).
 
 %% ---- the sentences, and their words ------------------------------------------
 
@@ -199,9 +222,13 @@ tr_votes([w(W, _)|Ws], F0, E0, F, E) :-
 
 %% ---- one sentence ------------------------------------------------------------
 
+%% a statement, or a question when the sentence ended in `?'
+tr_translate(Words, From, To, 63, Out) :- !, tr_question(Words, From, To, Out).      % 63 is `?'
+tr_translate(Words, From, To, Stop, Out) :- tr_statement(Words, From, To, Stop, Out).
+
 %% the denial off, then split at the verb: the subject before it, and after
 %% it an object phrase, a bare adjective agreeing with the subject, or nothing
-tr_translate(Words0, From, To, Stop, Out) :-
+tr_statement(Words0, From, To, Stop, Out) :-
     tr_negation(From, Words0, Words, Neg),
     append(Subject, [Verb|Rest], Words), Subject \== [], tr_verb(From, Verb, Lexeme), !,
     tr_phrase(Subject, From, To, SubjectOut, Noun, Number),
@@ -209,6 +236,117 @@ tr_translate(Words0, From, To, Stop, Out) :-
     tr_after(Rest, From, To, Noun, Number, RestOut),
     append(SubjectOut, VerbOuts, Front), append(Front, RestOut, Outs),
     tr_join(Outs, Stop, Out).
+
+%% ---- a question -----------------------------------------------------------------
+%%
+%% Three forms. A yes-or-no question; `what' asking for the object; `who'
+%% asking for the subject. The question word stands first in both
+%% languages and is the lesson's vocabulary (`The word "qué" means "what"');
+%% what it asks for is missing from its place. English fronts `does' or
+%% `do' before the subject and the base form after it, or the copula
+%% itself, and that is the translator's own; the lesson's language asks in
+%% the statement's order, except that after a question word asking for
+%% the object the verb comes before the subject (`¿Qué come el perro?'),
+%% and it is read in either order (`¿Es grande la casa?' too). A mark the
+%% lesson says begins the question (`The mark "¿" begins the question') is
+%% put before the first word, and the sentence ends in `?'.
+
+tr_question(Words0, From, To, Out) :-
+    tr_asked(From, Words0, Words1, Asked, QW),
+    tr_fronted(From, Words1, Words2, Front),
+    tr_negation(From, Words2, Words, Neg),
+    tr_question_parts(From, Asked, Front, Words, Subject, Verb, Lexeme, Rest), !,
+    (   Asked == subject -> SubjectOut = [], Noun = none, Number = singular
+    ;   Subject \== [], tr_phrase(Subject, From, To, SubjectOut, Noun, Number)
+    ),
+    tr_after(Rest, From, To, Noun, Number, RestOut),
+    tr_meanings(From, Lexeme, verb, To, [V|_]),
+    (   QW == none -> QWOut = []
+    ;   QW = w(Q, QC), tr_lexeme(From, Q, QL, _), tr_meanings(From, QL, word, To, [QT|_]), QWOut = [o(QT, QC)]   % never a name
+    ),
+    Verb = w(_, Case),
+    tr_question_words(To, Asked, V, Number, Neg, SubjectOut, RestOut, QWOut, Case, Outs),
+    tr_join_question(To, Outs, Out).
+
+%% the question word first, if any: what it asks for, by its English word
+tr_asked(english, [w(Q, C)|Ws], Ws, Asked, w(Q, C)) :- tr_asked_by(Q, Asked), !.
+tr_asked(foreign, [w(Q, C)|Ws], Ws, Asked, w(Q, C)) :- tr_solve(mean(Q, E)), tr_asked_by(E, Asked), !.
+tr_asked(_, Ws, Ws, none, none).
+
+tr_asked_by(what, object).
+tr_asked_by(whom, object).
+tr_asked_by(who, subject).
+
+%% English fronts `does' or `do', or the copula itself
+tr_fronted(english, [w(A, _)|Ws], Ws, aux) :- memberchk(A, [does, do]), !.
+tr_fronted(english, [w(C, Case)|Ws], Ws, copula(w(C, Case))) :- memberchk(C, [is, are]), !.
+tr_fronted(_, Ws, Ws, none).
+
+%% the subject, the verb and the rest: with the subject asked, the verb
+%% comes first; with the copula fronted it is the verb, and the subject is
+%% the noun phrase after it (all of it when the object is asked); with
+%% `does' fronted the verb is the base form after the subject; otherwise
+%% the statement's order -- or the verb first, and then the subject after
+%% it, the whole rest when the object is asked
+tr_question_parts(From, subject, Front, Words, [], Verb, Lexeme, Rest) :- !,
+    ( Front = copula(Verb) -> Rest = Words ; Words = [Verb|Rest] ),
+    tr_verb(From, Verb, Lexeme).
+tr_question_parts(From, Asked, copula(Verb), Words, Subject, Verb, Lexeme, Rest) :- !,
+    tr_verb(From, Verb, Lexeme),
+    ( Asked == object -> Subject = Words, Rest = [] ; tr_np_split(From, Words, Subject, Rest) ).
+tr_question_parts(From, _, aux, Words, Subject, Verb, Lexeme, Rest) :- !,
+    append(Subject, [Verb|Rest], Words), Subject \== [], tr_verb(From, Verb, Lexeme), !.
+tr_question_parts(From, Asked, none, Words, Subject, Verb, Lexeme, Rest) :-
+    append(Before, [Verb|After], Words), tr_verb(From, Verb, Lexeme), !,
+    (   Before \== [] -> Subject = Before, Rest = After
+    ;   Asked == object -> Subject = After, Rest = []
+    ;   tr_inverted_split(From, After, Subject, Rest)
+    ).
+
+%% English's noun phrase at the head of the words: a name, or up to and
+%% including the first word the lesson calls a noun
+tr_np_split(From, [w(W, upper)|Rest], [w(W, upper)], Rest) :- \+ tr_lexeme(From, W, _, _), !.
+tr_np_split(From, Words, NP, Rest) :- append(NP, Rest, Words), last(NP, N), tr_is(From, N, noun), !.
+tr_np_split(_, Words, Words, []).
+
+%% the verb came first: the subject is the name or the phrase after it, up
+%% to the next article or name; or, when a bare adjective follows the verb
+%% (`¿Es grande la casa?'), that adjective is the rest and the subject is
+%% what follows it
+tr_inverted_split(From, [w(W, upper)|Rest], [w(W, upper)], Rest) :- \+ tr_lexeme(From, W, _, _), !.
+tr_inverted_split(From, [A|After], [A|Content], Rest) :-
+    tr_is(From, A, article), !,
+    append(Content, Rest, After), Content \== [],
+    ( Rest == [] -> true ; Rest = [R|_], ( tr_is(From, R, article) ; R = w(_, upper) ) ), !.
+tr_inverted_split(From, [A|Subject], Subject, [A]) :- tr_is(From, A, adjective), Subject \== [].
+
+%% the words of the question in the target's order
+tr_question_words(english, Asked, V, Number, Neg, Subject, Rest, QW, Case, Outs) :-
+    ( Neg == yes -> Not = [o(not, Case)] ; Not = [] ),
+    (   Asked == subject
+    ->  tr_english_verb(V, singular, Neg, VW), tr_os(VW, Case, VO), tr_concat([QW, VO, Rest], Outs)
+    ;   V == is
+    ->  ( Number == plural -> C = are ; C = is ),
+        tr_concat([QW, [o(C, Case)], Subject, Not, Rest], Outs)
+    ;   tr_english_base(V, B),
+        ( Number == plural -> A = do ; A = does ),
+        tr_concat([QW, [o(A, Case)], Subject, Not, [o(B, Case)], Rest], Outs)
+    ).
+tr_question_words(foreign, Asked, V, Number, Neg, Subject, Rest, QW, Case, Outs) :-
+    tr_inflect(foreign, verb, V, Number, VF),
+    (   Neg == yes
+    ->  once(tr_solve(mean(N, not))), ( tr_solve(follow(N, verb)) -> VW = [VF, N] ; VW = [N, VF] )
+    ;   VW = [VF]
+    ),
+    tr_os(VW, Case, VO),
+    (   Asked == subject -> tr_concat([QW, VO, Rest], Outs)
+    ;   Asked == object -> tr_concat([QW, VO, Subject], Outs)
+    ;   tr_concat([Subject, VO, Rest], Outs)
+    ).
+
+tr_os(Words, Case, Os) :- findall(o(W, Case), member(W, Words), Os).
+tr_concat([], []).
+tr_concat([L|Ls], Outs) :- tr_concat(Ls, Rest), append(L, Rest, Outs).
 
 %% English's `not', and the `does' or `do' before it; the lesson's word for
 %% `not' wherever it stands
@@ -441,5 +579,16 @@ tr_join(Outs, Stop, Out) :-
     atomic_list_concat(As, ' ', S0),
     tr_cap(S0, S1),
     atom_codes(S1, Cs), append(Cs, [Stop], Cs1), atom_codes(Out, Cs1).
+
+%% a question ends in `?', and in the lesson's language begins with the
+%% mark the lesson says begins one, begin(M, question) -- `the question',
+%% definite: `a question' would introduce an individual whose class is the
+%% reader's own question/1 wrapper, and `begin', not `open', which is a
+%% stream builtin's name
+tr_join_question(To, Outs, Out) :-
+    tr_join(Outs, 63, Out0),                                                % 63 is `?'
+    (   To == foreign, once(tr_solve(begin(M, question))) -> atom_concat(M, Out0, Out)
+    ;   Out = Out0
+    ).
 
 tr_cap(W, C) :- atom_codes(W, [F|R]), ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 = F ), atom_codes(C, [F1|R]).

@@ -2137,6 +2137,29 @@ dropped when it does not. Two refusal pins moved with the shapes:
 sleeps at the house` as `sleep_at/2`; `near a river` and `in Rome` after
 a bare verb stay refused.
 
+**QUESTIONS TOO, AND THE QUESTION WORDS ARE VOCABULARY (1.2.34).** A
+sentence that ends in `?` is a question in either direction. The lesson
+says `The word "qué" means "what"`, `The word "quién" means "who"` and
+`The mark "¿" begins the question` -- `begin(M, question)`, and both
+words in it are chosen: `a question` would introduce an individual whose
+class is the reader's own `question/1` wrapper, which `reason_name/2`
+skips as a question and leaves a variable in, and `opens` is `open`,
+which cocolint reads as the stream builtin and flags. What the translator knows is
+English's: the copula or `does`/`do` fronted, `what` asking for the
+object and `who` for the subject. The lesson's language asks in the
+statement's order (`¿La casa es grande?`, which needs no rule), except
+that after a question word asking for the object the verb comes before
+the subject (`¿Qué come el perro?`), and it is READ in either order --
+`¿Es grande la casa?` puts the adjective before the subject and is read
+too. Two things bit: `¿` is two bytes past 127 and the tokeniser had
+made every such byte a letter, so `¿Qué` was one word `¿qué` -- U+0080
+to U+00BF and the general punctuation block are signs now, dropped like
+any other; and a word's case travelled with it, so `Is the house big?`
+came out `¿La casa Es grande?` -- the head of a sentence goes lower when
+the lesson knows the word, and only a name keeps its capital. And a
+question word the lesson has no word for was passed through as a NAME,
+by the capitalised-and-unknown rule; a question word is never one.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

@@ -8,9 +8,10 @@
 %%
 %% THE PROBLEM THIS SOLVES. Tutorial 43 reads a paragraph into facts and
 %% rules and proves things over them. This lesson reads a paragraph that
-%% TEACHES: thirty-two lines of Spanish in the same controlled English, and
+%% TEACHES: thirty-five lines of Spanish in the same controlled English, and
 %% what comes out is a vocabulary as facts, a grammar as rules -- gender,
-%% the order of an adjective, the plural, the word that denies -- and a
+%% the order of an adjective, the plural, the word that denies, the
+%% question words and the mark a question begins with -- and a
 %% translator that asks the knowledge base and knows no word of Spanish
 %% itself. Nothing was trained and nothing was written into the library
 %% for it: the lesson is the whole of what the translator knows.
@@ -71,14 +72,17 @@ Every verb that ends in "e" takes "n" in the plural.
 "son" is the plural of "es".
 The word "no" means "not".
 The word "no" precedes the verb.
-The noun "huevo" means "egg".').
+The noun "huevo" means "egg".
+The word "qué" means "what".
+The word "quién" means "who".
+The mark "¿" begins the question.').
 
 main :-
-    format("~n1. The lesson: thirty-two lines of controlled English, and what they say~n", []),
+    format("~n1. The lesson: thirty-five lines of controlled English, and what they say~n", []),
     lesson(Text),
     reason_learn(Text, Terms),
     length(Terms, N),
-    must('terms learned', N, 58),
+    must('terms learned', N, 64),
     Terms = [T1, T2, T3|_],
     must('the language', T1, language(spanish)),
     must('a class fact about the word, then what it means', T2-T3, noun(casa)-mean(casa, house)),
@@ -172,6 +176,20 @@ main :-
     A8 = [A81, A82],
     must('a stated plural, asked for', A81, [los-fact]),
     must('a ruled one, explained', A82, because('"pan" takes "es" in the plural because "pan" is a noun and "pan" ends in a consonant.')),
+
+    format("~n9. Questions: yes or no, `what' for the object, `who' for the subject~n", []),
+    reason_translate('Is the house big?', Q1),
+    must('English fronts the copula; the lesson''s language keeps the statement''s order and opens with its mark', Q1, '¿La casa es grande?'),
+    reason_translate('What does the dog eat?', Q2),
+    must('what asks for the object, and the verb comes before the subject', Q2, '¿Qué come el perro?'),
+    reason_translate('Who does not eat the bread?', Q3),
+    must('who asks for the subject; a denial stays on the verb', Q3, '¿Quién no come el pan?'),
+    reason_translate('¿Es grande la casa?', Q4),
+    must('back, from the order Spanish prefers', Q4, 'Is the house big?'),
+    reason_translate('¿Qué come Maria?', Q5),
+    must('what does Maria eat', Q5, 'What does Maria eat?'),
+    reason_translate('¿Los perros comen el pan?', Q6),
+    must('do the dogs', Q6, 'Do the dogs eat the bread?'),
 
     format("~nDone. A lesson is a knowledge base; a translation is a proof over it.~n", []).
 

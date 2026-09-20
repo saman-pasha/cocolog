@@ -216,7 +216,10 @@ mentions :-
     reason_explanation(take_in(pan, es, plural), X26),
     check('a letter class is said with its article', X26, '"pan" takes "es" in the plural because "pan" is a noun and "pan" ends in a consonant.'),
     reason_explanation(plural_of(los, el), X27),
-    check('a relation a noun names is said with the noun', X27, '"los" is the plural of "el", as said.').
+    check('a relation a noun names is said with the noun', X27, '"los" is the plural of "el", as said.'),
+    reason_tokens('¿Qué come? ¡Hola! — sí', T28),
+    check('the Spanish marks and a typographic dash are punctuation, not letters', T28,
+          [word('qué', upper), word(come, lower), '.', word(hola, upper), '.', word('sí', lower)]).
 
 %% ---- the lexicon overrides position ------------------------------------------
 

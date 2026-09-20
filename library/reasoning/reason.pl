@@ -52,7 +52,8 @@
 %%         The tokeniser, exposed. A token is word(Lower, upper|lower),
 %%         num(N) for digits (500, 5.5, 1,000; `5%' is 5 and the word
 %%         percent), quoted(Word) for a word between quotation marks, `.'
-%%         or `,'. A byte past 127 is part of a word, so `pequeño' is one.
+%%         or `,'. A byte past 127 is part of a word, so `pequeño' is one;
+%%         `¿', `¡' and the typographic dashes are punctuation.
 %%
 %%     reason_refused(+Text, -Sentence)
 %%         The first sentence reason_text/2 would refuse, as its words
@@ -1231,6 +1232,12 @@ rt_tokens(Cs, [quoted(W)|Ts]) :-
     rt_tokens(Rest, Ts).
 %% a number: digits, a comma between digits passed over (1,000), a point
 %% between digits kept (5.5), and `%' right after it the word `percent'
+%% a sign past 127 is not a letter: `¿' and `¡' (U+00BF, U+00A1, with the
+%% rest of U+0080..U+00BF) and the general punctuation (U+2000..U+207F:
+%% dashes, the ellipsis) are dropped like any other punctuation, so
+%% `¿Qué' is the word `qué'
+rt_tokens([194, _|Cs], Ts) :- !, rt_tokens(Cs, Ts).
+rt_tokens([226, B, _|Cs], Ts) :- ( B == 128 ; B == 129 ), !, rt_tokens(Cs, Ts).
 rt_tokens([C|Cs], [num(N)|Ts]) :-
     rt_digit(C), !,
     rt_digits(Cs, More, Rest0),
@@ -1262,6 +1269,8 @@ rt_quoted(Cs, [], Rest) :- rt_quote_close(Cs, Rest), !.
 rt_quoted([], [], []).
 rt_quoted([C|Cs], [C|Ws], Rest) :- rt_quoted(Cs, Ws, Rest).
 
+rt_run([194, B|Cs], [], [194, B|Cs]) :- !.                              % a sign ends the word
+rt_run([226, B, C|Cs], [], [226, B, C|Cs]) :- ( B == 128 ; B == 129 ), !.
 rt_run([C|Cs], [C|More], Rest) :- ( rt_alpha(C) ; rt_digit(C) ; C == 95 ), !, rt_run(Cs, More, Rest).
 rt_run(Cs, [], Cs).
 

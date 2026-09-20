@@ -556,7 +556,7 @@ ix_capability('a text normaliser, the network',
               ['reasoning/tagger'], ['tier-2 library'], local).
 ix_capability('a language lesson as a knowledge base, and translation over it',
               [translate, translation, spanish, 'language lesson', vocabulary, 'grammar rules',
-               gender, article, 'adjective agreement', 'word order', plural, negation, 'learn a language', 'mentioned word'],
+               gender, article, 'adjective agreement', 'word order', plural, negation, question, 'learn a language', 'mentioned word'],
               ['reasoning/translate'], ['tier-2 library'], local).
 ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
