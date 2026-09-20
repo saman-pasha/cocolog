@@ -1,9 +1,10 @@
 %% library(reasoning/translate) -- a language lesson as a knowledge base, and
-%% a translation as a proof over it. THIRTY-FIVE LINES OF SPANISH, read by
+%% a translation as a proof over it. FORTY-FIVE LINES OF SPANISH, read by
 %% reason_learn/1 into facts and rules -- no lexicon, no corpus, no model,
 %% nothing in the library that knows a word of Spanish -- and then simple
 %% sentences translated both ways, singular and plural, denied and not,
-%% statements and questions; the lesson questioned; and what it refuses.
+%% present and past, statements and questions; the lesson questioned; and
+%% what it refuses.
 %%
 %%     cocolog -s test/translate.pl        from the checkout root
 %%
@@ -15,15 +16,19 @@
 :- use_module(library(reasoning/translate)).
 
 main :-
-    lesson, into_spanish, into_english, plurals, negation, asks, questions, rules, refusals, outline,
+    lesson, into_spanish, into_english, plurals, negation, asks, past, questions, rules, refusals, outline,
     checks_done.
 
 %% the lesson, one sentence a line: the language, six nouns, three
 %% adjectives, four verbs, four articles, two rules of gender and one of
 %% order; then the plural -- four ending rules, three stated plurals -- the
 %% word for `not', where it stands, and one more noun; then the question
-%% words and the mark a question begins with
-lesson_text('Spanish is a language.
+%% words and the mark a question begins with; then the past of each verb
+%% in both numbers, and the two English pasts the -ed rule cannot make
+%% in two halves, because a clause over a page (8 KB) cannot be stored
+lesson_text(Text) :- lesson_half(1, A), lesson_half(2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_half(1, 'Spanish is a language.
 The noun "casa" means "house".
 The noun "perro" means "dog".
 The noun "gato" means "cat".
@@ -43,8 +48,8 @@ The masculine article "un" means "a".
 The feminine article "una" means "a".
 Every noun that ends in "a" is feminine.
 Every noun that does not end in "a" is masculine.
-Every adjective follows the noun.
-Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.').
+lesson_half(2, 'Every noun that ends in a vowel takes "s" in the plural.
 Every noun that ends in a consonant takes "es" in the plural.
 Every adjective that ends in a vowel takes "s" in the plural.
 Every article that ends in a vowel takes "s" in the plural.
@@ -57,19 +62,29 @@ The word "no" precedes the verb.
 The noun "huevo" means "egg".
 The word "qué" means "what".
 The word "quién" means "who".
-The mark "¿" begins the question.').
+The mark "¿" begins the question.
+"comió" is the past of "come".
+"comieron" is the past of "comen".
+"leyó" is the past of "lee".
+"leyeron" is the past of "leen".
+"tenía" is the past of "tiene".
+"tenían" is the past of "tienen".
+"era" is the past of "es".
+"eran" is the past of "son".
+"ate" is the past of "eats".
+"read" is the past of "reads".').
 
 %% ---- the lesson, learned ------------------------------------------------------
 
 lesson :-
-    section('the lesson: thirty-five lines, sixty-four terms'),
+    section('the lesson: forty-five lines, seventy-four terms'),
     lesson_text(Text),
     reason_tokens(Text, Tokens),
     findall(S, member('.', Tokens), Stops), length(Stops, NS),
-    check('thirty-five sentences', NS, 35),
+    check('forty-five sentences', NS, 45),
     reason_learn(Text, Terms),
     length(Terms, NT),
-    check('sixty-four terms out of them', NT, 64),
+    check('seventy-four terms out of them', NT, 74),
     yes_no(memberchk(mean(casa, house), Terms), L1),
     check('a mentioned word means a mentioned word', L1, yes),
     yes_no(memberchk(noun(casa), Terms), L2),
@@ -98,6 +113,8 @@ lesson :-
     check('the question words are vocabulary', L10q, yes),
     yes_no(( memberchk(mark('¿'), Terms), memberchk(begin('¿', question), Terms) ), L10m),
     check('`the mark "¿" begins the question'': the class atom, and not the reader''s question/1', L10m, yes),
+    yes_no(( memberchk(past_of('comió', come), Terms), memberchk(past_of(comieron, comen), Terms), memberchk(past_of(ate, eats), Terms) ), L10p),
+    check('a past is stated of a form, singular or plural, on either side', L10p, yes),
     truth(feminine(mesa), T11),   check('and the rules RUN: mesa ends in a', T11, true),
     truth(masculine(perro), T12), check('perro does not', T12, true),
     truth(feminine(perro), T13), check('so it is not feminine: unknown, the text never said', T13, unknown),
@@ -262,6 +279,61 @@ asks :-
     check('and reported', U13, [what]),
     assertz(mean('qué', what)).
 
+%% ---- the past ---------------------------------------------------------------------------
+
+past :-
+    section('the past: a form the lesson stated or ruled; English''s own -ed, was, were, had, did'),
+    reason_translate('The dog ate the bread.', P1),
+    check('a past the lesson stated, of the singular form', P1, 'El perro comió el pan.'),
+    reason_translate('The dogs ate the bread.', P2),
+    check('and of the plural form: `"comieron" is the past of "comen"''', P2, 'Los perros comieron el pan.'),
+    reason_translate('The house was big.', P3),
+    check('was: the past of the copula', P3, 'La casa era grande.'),
+    reason_translate('The houses were big.', P4),
+    check('were', P4, 'Las casas eran grandes.'),
+    reason_translate('Maria had a red table.', P5),
+    check('had', P5, 'Maria tenía una mesa roja.'),
+    reason_translate('The dog did not eat the bread.', P6),
+    check('did not: the past, which the base form after it cannot say', P6, 'El perro no comió el pan.'),
+    reason_translate('The house was not big.', P7),
+    check('was not', P7, 'La casa no era grande.'),
+    reason_translate('Did the dog eat the bread?', P8),
+    check('did fronted', P8, '¿El perro comió el pan?'),
+    reason_translate('Was the house big?', P9),
+    check('was fronted', P9, '¿La casa era grande?'),
+    reason_translate('What did the dog eat?', P10),
+    check('what did', P10, '¿Qué comió el perro?'),
+    reason_translate('Who ate the bread?', P11),
+    check('who ate', P11, '¿Quién comió el pan?'),
+    reason_translate('Who did not eat the bread?', P12),
+    check('who did not', P12, '¿Quién no comió el pan?'),
+    reason_translate('El perro comió el pan.', E1),
+    check('back: a past the lesson stated for English, `"ate" is the past of "eats"''', E1, 'The dog ate the bread.'),
+    reason_translate('Los perros comieron el pan.', E2),
+    check('a plural past, its form read through the plural rule', E2, 'The dogs ate the bread.'),
+    reason_translate('La casa era grande.', E3),
+    check('was', E3, 'The house was big.'),
+    reason_translate('Las casas eran grandes.', E4),
+    check('were', E4, 'The houses were big.'),
+    reason_translate('Maria tenía una mesa roja.', E5),
+    check('had', E5, 'Maria had a red table.'),
+    reason_translate('El perro no comió el pan.', E6),
+    check('did not, with the base', E6, 'The dog did not eat the bread.'),
+    reason_translate('Los gatos leyeron los libros.', E7),
+    check('a past that spells like the base: `"read" is the past of "reads"''', E7, 'The cats read the books.'),
+    reason_translate('¿Comió el perro el pan?', E8),
+    check('did the dog', E8, 'Did the dog eat the bread?'),
+    reason_translate('¿Era grande la casa?', E9),
+    check('was the house', E9, 'Was the house big?'),
+    reason_translate('¿Qué comió el perro?', E10),
+    check('what did', E10, 'What did the dog eat?'),
+    reason_translate('¿Quién comió el pan?', E11),
+    check('who ate', E11, 'Who ate the bread?'),
+    reason_translate('The cats read the books.', E12),
+    check('and `read'' typed spells the present too, and the present wins', E12, 'Los gatos leen los libros.'),
+    reason_translate('The dog ate the bread.', S13), reason_translate(S13, E13),
+    check('the round trip', E13, 'The dog ate the bread.').
+
 %% ---- the lesson questioned ---------------------------------------------------------
 
 questions :-
@@ -317,7 +389,25 @@ rules :-
     check('a lesson whose denial follows the verb', S6, 'El perro come no el pan.'),
     reason_translate('El perro come no el pan.', E6),
     check('and read from there', E6, 'The dog does not eat the bread.'),
-    retract((follow(_, verb) :- mean(_, not))).
+    retract((follow(_, verb) :- mean(_, not))),
+    assertz(mean(camina, walks)), assertz(verb(camina)), assertz(past_of('caminó', camina)),
+    reason_translate('The dog walked.', S7),
+    check('English''s regular -ed read back to its base, and the lesson''s stated past', S7, 'El perro caminó.'),
+    reason_translate('El perro caminó.', E7),
+    check('and -ed made, from the third person the lesson gave', E7, 'The dog walked.'),
+    assertz(mean(canta, sings)), assertz(verb(canta)), assertz(past_of(sang, sings)),
+    assertz((take_in(V8, ba, past) :- verb(V8), end_in(V8, a))),
+    reason_translate('Maria sang.', S8),
+    check('a past by RULE: `takes "ba" in the past''', S8, 'Maria cantaba.'),
+    reason_translate('Maria cantaba.', E8),
+    check('and read through the rule; English''s past as stated', E8, 'Maria sang.'),
+    retract((take_in(_, ba, past) :- verb(_), end_in(_, a))),
+    retract(past_of(sang, sings)), retract(verb(canta)), retract(mean(canta, sings)),
+    retract(past_of('caminó', camina)), retract(verb(camina)), retract(mean(camina, walks)),
+    retract(past_of('comió', come)),
+    yes_no(reason_translate('The dog ate the bread.', _), R9),
+    check('a past the lesson gives no form for: refused whole', R9, no),
+    assertz(past_of('comió', come)).
 
 %% ---- what it refuses, whole ----------------------------------------------------------
 
@@ -363,8 +453,8 @@ outline :-
     check('a word with its class and its meaning', O3, yes),
     yes_no(memberchk('"el", an article: masculine; means "the"; "los" is the plural of it.', Lines), O4),
     check('an article with its gender and its stated plural', O4, yes),
-    yes_no(memberchk('"son": is the plural of "es".', Lines), O5),
-    check('a stated plural from the other side', O5, yes),
+    yes_no(memberchk('"son": is the plural of "es"; "eran" is the past of it.', Lines), O5),
+    check('a stated plural and a stated past, from the other side', O5, yes),
     yes_no(memberchk('Feminine: a noun that ends in "a".', Lines), O6),
     check('a definition: the condition with its object', O6, yes),
     yes_no(memberchk('Masculine: a noun that does not end in "a".', Lines), O7),

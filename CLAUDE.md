@@ -2160,6 +2160,27 @@ the lesson knows the word, and only a name keeps its capital. And a
 question word the lesson has no word for was passed through as a NAME,
 by the capitalised-and-unknown rule; a question word is never one.
 
+**THE PAST, TOO, AND A PAST IS STATED OF A FORM (1.2.35).** `"comió" is
+the past of "come"` and `"comieron" is the past of "comen"`: the lesson
+states a past of the singular form and of the plural form, because a
+Spanish preterite is no suffix of its present, and a rule
+(`take_in(F, E, past)`, `takes "ba" in the past`) serves where it is
+one. The verb's LEXEME comes with a TENSE now: a present form the lesson
+gave, or a past the lesson stated or its rule makes, and in English
+`was`, `were`, `had`, a regular `-ed` taken back to a base whose third
+person the lesson gave, or `did` fronted or before `not` -- which the
+base form after it cannot say, so the negation and the fronting report
+the tense they saw and the sentence takes the past if any sign says so.
+English's own is the copula in `was`/`were`, `did not` and `did` with the
+base, `had`, `-ed` with `-d` and `-ied` (`"ate" is the past of "eats"`
+for the rest), and the translator generates a Spanish past of the
+NUMBER's form, so `comieron` is asked for as the past of `comen`. A past
+that spells like a present form (`read`) is read as the present: `The
+cats read the books` is `leen`, and `leyeron` comes back as `read`. What
+bit: a stated past of a plural form the RULES make (`comen` is no
+lexeme) was refused until the past lookup went through the lexeme
+machinery rather than `plural_of/2` facts.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

@@ -34,6 +34,9 @@
 %%     take_in(W, E, plural)           or ruled: W takes the ending E in the plural
 %%                                     (`Every noun that ends in a vowel takes "s" in the plural')
 %%     mean(N, not)  follow(N, verb)   the word that denies, and whether it stands after the verb
+%%     past_of(P, F)                   P is the past of the form F, said (`"comió" is the past of
+%%                                     "come"', `"comieron" is the past of "comen"')
+%%     take_in(F, E, past)             or ruled: F takes the ending E in the past
 %%     mean(Q, what)  mean(Q, who)    the question words (`The word "qué" means "what"')
 %%     begin(M, question)              the mark a question begins with (`The mark "¿" begins the question')
 %%     language(L)                     the language, `Spanish is a language'
@@ -46,8 +49,10 @@
 %% not' before any other verb with its base form, a question fronts the
 %% copula or `does' and `do', `what' asks for the object and `who' for the
 %% subject, a plural noun ends in -s, -es or -ies unless the lesson says
-%% otherwise (`"children" is the plural of "child"'), `a' is `an' before
-%% a vowel and nothing in the plural, and `the' is `the' either way.
+%% otherwise (`"children" is the plural of "child"'), a past ends in -ed
+%% unless the lesson says otherwise (`"ate" is the past of "eats"'), with
+%% `was', `were', `had' and `did not', `a' is `an' before a vowel and
+%% nothing in the plural, and `the' is `the' either way.
 %%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
@@ -55,9 +60,9 @@
 %%         SIMPLE sentences, each a subject, a verb, and after it an object,
 %%         an adjective or nothing; a subject or an object a name or a
 %%         phrase -- an article or none, adjectives, a noun -- singular or
-%%         plural; the verb denied or not; a statement, or a QUESTION when
-%%         the sentence ends in `?': yes or no, `what' asking for the
-%%         object, `who' for the subject. From English into the language
+%%         plural; the verb denied or not, present or PAST; a statement,
+%%         or a QUESTION when the sentence ends in `?': yes or no, `what'
+%%         asking for the object, `who' for the subject. From English into the language
 %%         the lesson teaches, or from it into English: which way, the
 %%         words say, a word the lesson gave a meaning being the lesson's
 %%         and the meaning English. Translation is an atom, a sentence
@@ -66,8 +71,9 @@
 %%         no meaning (a capitalised one is a name and passes through), no
 %%         verb, two nouns in one phrase, a plural the lesson gives no rule
 %%         for, a denial with no word for `not', a question word the
-%%         lesson gives no word for, a number, a word in quotation marks;
-%%         reason_untranslated/2 names the words.
+%%         lesson gives no word for, a past the lesson gives no form for,
+%%         a number, a word in quotation marks; reason_untranslated/2
+%%         names the words.
 %%
 %%     reason_translate(+Text, +Into, -Translation)
 %%         The same, Into naming the language: english, or the name the
@@ -115,13 +121,19 @@
 %% too, except that after a question word asking for the object the verb
 %% comes before the subject (`¿Qué come el perro?'), and it is read in
 %% either order (`¿Es grande la casa?' as well). The mark the lesson says
-%% begins the question goes before the first word.
+%% begins the question goes before the first word. The TENSE is the
+%% verb's form: a past form the lesson stated or its rule makes, in the
+%% lesson's language of the number's form (`comieron' is the past of
+%% `comen'); in English a stated past, `was', `were', `had', a regular
+%% -ed, or `did' fronted or before `not'. A past that spells like a
+%% present form (`read') is read as the present.
 %%
 %% ---- WHAT IT IS NOT ---------------------------------------------------
 %%
-%% It is not a translator of prose. One clause, present tense, third
-%% person: no pronoun, no tense, no `where', `when' or `which', no idiom
-%% -- a word means a word. ONE LANGUAGE BESIDE ENGLISH per knowledge base: mean/2 carries no
+%% It is not a translator of prose. One clause, the present or the past,
+%% third person: no pronoun, no future and no perfect, no `where', `when'
+%% or `which', no idiom -- a word means a word. ONE LANGUAGE BESIDE
+%% ENGLISH per knowledge base: mean/2 carries no
 %% language, so two lessons loaded together are one vocabulary. And it
 %% decides nothing about a word the lesson left out: a sentence with one
 %% is refused whole, never half translated, and reason_untranslated/2
@@ -147,12 +159,12 @@ reason_untranslated(Text, Words) :-
     findall(W, ( member(Piece-_, Pieces), reason_tokens(Piece, Tokens), tr_words(Tokens, Ws),
                  ( tr_direction(Ws, From, _) -> true ; From = either ),
                  member(w(W, Case), Ws), ( Case \== upper ; tr_asked_by(W, _) ),
-                 \+ tr_lexeme(From, W, _, _), \+ tr_function_word(From, W) ),
+                 \+ tr_known_word(From, W), \+ tr_function_word(From, W) ),
             Ws0),
     list_to_set(Ws0, Words).
 
 %% English's own words the translator knows, which no lesson gives
-tr_function_word(Side, W) :- Side \== foreign, memberchk(W, [not, does, do, an]).
+tr_function_word(Side, W) :- Side \== foreign, memberchk(W, [not, does, do, did, an]).
 
 %% into English from the lesson's language, or into the language the lesson
 %% named -- `Spanish is a language' is language(spanish)
@@ -172,7 +184,7 @@ tr_each([Piece-Stop|Ps], Way, [Out|Outs]) :-
 %% the first word's capital is the sentence's, not the word's: a known word
 %% at the head goes lower, so that when a question moves it (`Is the house
 %% big?' to `¿La casa es grande?') it is not `Es'; a name keeps its case
-tr_head_lower(From, [w(W, upper)|Ws], [w(W, lower)|Ws]) :- ( tr_lexeme(From, W, _, _) ; tr_function_word(From, W) ), !.
+tr_head_lower(From, [w(W, upper)|Ws], [w(W, lower)|Ws]) :- ( tr_known_word(From, W) ; tr_function_word(From, W) ), !.
 tr_head_lower(_, Ws, Ws).
 
 %% ---- the sentences, and their words ------------------------------------------
@@ -215,8 +227,8 @@ tr_direction(Words, From, To) :-
 
 tr_votes([], F, E, F, E).
 tr_votes([w(W, _)|Ws], F0, E0, F, E) :-
-    ( tr_lexeme(foreign, W, _, _) -> Kf = 1 ; Kf = 0 ),
-    ( tr_lexeme(english, W, _, _) -> Ke = 1 ; Ke = 0 ),
+    ( tr_known_word(foreign, W) -> Kf = 1 ; Kf = 0 ),
+    ( tr_known_word(english, W) -> Ke = 1 ; Ke = 0 ),
     ( Kf =:= Ke -> F1 = F0, E1 = E0 ; F1 is F0 + Kf, E1 is E0 + Ke ),
     tr_votes(Ws, F1, E1, F, E).
 
@@ -229,10 +241,11 @@ tr_translate(Words, From, To, Stop, Out) :- tr_statement(Words, From, To, Stop, 
 %% the denial off, then split at the verb: the subject before it, and after
 %% it an object phrase, a bare adjective agreeing with the subject, or nothing
 tr_statement(Words0, From, To, Stop, Out) :-
-    tr_negation(From, Words0, Words, Neg),
-    append(Subject, [Verb|Rest], Words), Subject \== [], tr_verb(From, Verb, Lexeme), !,
+    tr_negation(From, Words0, Words, Neg, T0),
+    append(Subject, [Verb|Rest], Words), Subject \== [], tr_verb(From, Verb, Lexeme, T1), !,
+    tr_tense(T0, T1, Tense),
     tr_phrase(Subject, From, To, SubjectOut, Noun, Number),
-    tr_verb_out(From, To, Lexeme, Number, Neg, Verb, VerbOuts),
+    tr_verb_out(From, To, Lexeme, Number, Tense, Neg, Verb, VerbOuts),
     tr_after(Rest, From, To, Noun, Number, RestOut),
     append(SubjectOut, VerbOuts, Front), append(Front, RestOut, Outs),
     tr_join(Outs, Stop, Out).
@@ -254,8 +267,10 @@ tr_statement(Words0, From, To, Stop, Out) :-
 tr_question(Words0, From, To, Out) :-
     tr_asked(From, Words0, Words1, Asked, QW),
     tr_fronted(From, Words1, Words2, Front),
-    tr_negation(From, Words2, Words, Neg),
-    tr_question_parts(From, Asked, Front, Words, Subject, Verb, Lexeme, Rest), !,
+    tr_negation(From, Words2, Words, Neg, T0),
+    tr_question_parts(From, Asked, Front, Words, Subject, Verb, Lexeme, T1, Rest), !,
+    ( Front = aux(T2) -> true ; T2 = present ),
+    tr_tense(T0, T1, T3), tr_tense(T2, T3, Tense),
     (   Asked == subject -> SubjectOut = [], Noun = none, Number = singular
     ;   Subject \== [], tr_phrase(Subject, From, To, SubjectOut, Noun, Number)
     ),
@@ -265,7 +280,7 @@ tr_question(Words0, From, To, Out) :-
     ;   QW = w(Q, QC), tr_lexeme(From, Q, QL, _), tr_meanings(From, QL, word, To, [QT|_]), QWOut = [o(QT, QC)]   % never a name
     ),
     Verb = w(_, Case),
-    tr_question_words(To, Asked, V, Number, Neg, SubjectOut, RestOut, QWOut, Case, Outs),
+    tr_question_words(To, Asked, V, Number, Tense, Neg, SubjectOut, RestOut, QWOut, Case, Outs),
     tr_join_question(To, Outs, Out).
 
 %% the question word first, if any: what it asks for, by its English word
@@ -277,9 +292,10 @@ tr_asked_by(what, object).
 tr_asked_by(whom, object).
 tr_asked_by(who, subject).
 
-%% English fronts `does' or `do', or the copula itself
-tr_fronted(english, [w(A, _)|Ws], Ws, aux) :- memberchk(A, [does, do]), !.
-tr_fronted(english, [w(C, Case)|Ws], Ws, copula(w(C, Case))) :- memberchk(C, [is, are]), !.
+%% English fronts `does', `do' or `did', or the copula itself
+tr_fronted(english, [w(A, _)|Ws], Ws, aux(T)) :- memberchk(A, [does, do]), !, T = present.
+tr_fronted(english, [w(did, _)|Ws], Ws, aux(past)) :- !.
+tr_fronted(english, [w(C, Case)|Ws], Ws, copula(w(C, Case))) :- memberchk(C, [is, are, was, were]), !.
 tr_fronted(_, Ws, Ws, none).
 
 %% the subject, the verb and the rest: with the subject asked, the verb
@@ -288,16 +304,16 @@ tr_fronted(_, Ws, Ws, none).
 %% `does' fronted the verb is the base form after the subject; otherwise
 %% the statement's order -- or the verb first, and then the subject after
 %% it, the whole rest when the object is asked
-tr_question_parts(From, subject, Front, Words, [], Verb, Lexeme, Rest) :- !,
+tr_question_parts(From, subject, Front, Words, [], Verb, Lexeme, Tense, Rest) :- !,
     ( Front = copula(Verb) -> Rest = Words ; Words = [Verb|Rest] ),
-    tr_verb(From, Verb, Lexeme).
-tr_question_parts(From, Asked, copula(Verb), Words, Subject, Verb, Lexeme, Rest) :- !,
-    tr_verb(From, Verb, Lexeme),
+    tr_verb(From, Verb, Lexeme, Tense).
+tr_question_parts(From, Asked, copula(Verb), Words, Subject, Verb, Lexeme, Tense, Rest) :- !,
+    tr_verb(From, Verb, Lexeme, Tense),
     ( Asked == object -> Subject = Words, Rest = [] ; tr_np_split(From, Words, Subject, Rest) ).
-tr_question_parts(From, _, aux, Words, Subject, Verb, Lexeme, Rest) :- !,
-    append(Subject, [Verb|Rest], Words), Subject \== [], tr_verb(From, Verb, Lexeme), !.
-tr_question_parts(From, Asked, none, Words, Subject, Verb, Lexeme, Rest) :-
-    append(Before, [Verb|After], Words), tr_verb(From, Verb, Lexeme), !,
+tr_question_parts(From, _, aux(_), Words, Subject, Verb, Lexeme, Tense, Rest) :- !,
+    append(Subject, [Verb|Rest], Words), Subject \== [], tr_verb(From, Verb, Lexeme, Tense), !.
+tr_question_parts(From, Asked, none, Words, Subject, Verb, Lexeme, Tense, Rest) :-
+    append(Before, [Verb|After], Words), tr_verb(From, Verb, Lexeme, Tense), !,
     (   Before \== [] -> Subject = Before, Rest = After
     ;   Asked == object -> Subject = After, Rest = []
     ;   tr_inverted_split(From, After, Subject, Rest)
@@ -321,23 +337,18 @@ tr_inverted_split(From, [A|After], [A|Content], Rest) :-
 tr_inverted_split(From, [A|Subject], Subject, [A]) :- tr_is(From, A, adjective), Subject \== [].
 
 %% the words of the question in the target's order
-tr_question_words(english, Asked, V, Number, Neg, Subject, Rest, QW, Case, Outs) :-
+tr_question_words(english, Asked, V, Number, Tense, Neg, Subject, Rest, QW, Case, Outs) :-
     ( Neg == yes -> Not = [o(not, Case)] ; Not = [] ),
     (   Asked == subject
-    ->  tr_english_verb(V, singular, Neg, VW), tr_os(VW, Case, VO), tr_concat([QW, VO, Rest], Outs)
+    ->  tr_english_verb(V, singular, Tense, Neg, VW), tr_os(VW, Case, VO), tr_concat([QW, VO, Rest], Outs)
     ;   V == is
-    ->  ( Number == plural -> C = are ; C = is ),
+    ->  tr_english_copula(Number, Tense, C),
         tr_concat([QW, [o(C, Case)], Subject, Not, Rest], Outs)
-    ;   tr_english_base(V, B),
-        ( Number == plural -> A = do ; A = does ),
+    ;   tr_english_base(V, B), tr_english_aux(Number, Tense, A),
         tr_concat([QW, [o(A, Case)], Subject, Not, [o(B, Case)], Rest], Outs)
     ).
-tr_question_words(foreign, Asked, V, Number, Neg, Subject, Rest, QW, Case, Outs) :-
-    tr_inflect(foreign, verb, V, Number, VF),
-    (   Neg == yes
-    ->  once(tr_solve(mean(N, not))), ( tr_solve(follow(N, verb)) -> VW = [VF, N] ; VW = [N, VF] )
-    ;   VW = [VF]
-    ),
+tr_question_words(foreign, Asked, V, Number, Tense, Neg, Subject, Rest, QW, Case, Outs) :-
+    tr_foreign_verb(V, Number, Tense, Neg, VW),
     tr_os(VW, Case, VO),
     (   Asked == subject -> tr_concat([QW, VO, Rest], Outs)
     ;   Asked == object -> tr_concat([QW, VO, Subject], Outs)
@@ -348,19 +359,54 @@ tr_os(Words, Case, Os) :- findall(o(W, Case), member(W, Words), Os).
 tr_concat([], []).
 tr_concat([L|Ls], Outs) :- tr_concat(Ls, Rest), append(L, Rest, Outs).
 
-%% English's `not', and the `does' or `do' before it; the lesson's word for
+%% English's `not', and the `does', `do' or `did' before it -- `did' says
+%% the past, which the base form after it cannot; the lesson's word for
 %% `not' wherever it stands
-tr_negation(english, Words, Rest, yes) :-
+tr_negation(english, Words, Rest, yes, Tense) :-
     append(A, [w(not, _)|B], Words), !,
-    ( append(A0, [w(D, _)], A), memberchk(D, [does, do]) -> A1 = A0 ; A1 = A ),
+    (   append(A0, [w(D, _)], A), memberchk(D, [does, do, did])
+    ->  A1 = A0, ( D == did -> Tense = past ; Tense = present )
+    ;   A1 = A, Tense = present
+    ),
     append(A1, B, Rest).
-tr_negation(foreign, Words, Rest, yes) :-
+tr_negation(foreign, Words, Rest, yes, present) :-
     append(A, [w(N, _)|B], Words), tr_solve(mean(N, not)), !,
     append(A, B, Rest).
-tr_negation(_, Words, Words, no).
+tr_negation(_, Words, Words, no, present).
+
+%% the tense two signs agree on: past when either says so
+tr_tense(past, _, past) :- !.
+tr_tense(_, T, T).
 
 %% the verb: the first word whose lexeme the lesson calls one
-tr_verb(From, w(W, _), Lexeme) :- tr_lexeme(From, W, Lexeme, _), tr_class(From, Lexeme, verb), !.
+tr_verb(From, w(W, _), Lexeme, Tense) :- tr_verb_form(From, W, Lexeme, Tense), tr_class(From, Lexeme, verb), !.
+
+%% a verb's lexeme and its tense: a present form the lesson gave, or a
+%% PAST -- one the lesson stated (`"comió" is the past of "come"', `"ate"
+%% is the past of "eats"'), one its rule makes (take_in(F, E, past)), or
+%% in English `was', `were', `had' and the regular -ed. A past that
+%% spells like a present form (`read') is read as the present.
+tr_verb_form(From, W, L, present) :- tr_lexeme(From, W, L, _).
+tr_verb_form(From, W, L, past) :- tr_past_form(From, W, F), tr_lexeme(From, F, L, _).
+
+tr_past_form(Side, W, F) :- tr_solve(past_of(W, F)), tr_lexeme(Side, F, _, _).       % of a singular or a plural form
+tr_past_form(foreign, W, F) :- tr_present_form(F), tr_rule_past(F, W).
+tr_past_form(english, W, F) :- tr_english_past_form(W, F).
+
+%% the lesson's verbs in either number, for a rule to make a past of
+tr_present_form(F) :- tr_solve(mean(S, _)), tr_class_of(S, verb), ( F = S ; tr_inflect(foreign, verb, S, plural, F) ).
+
+tr_english_past_form(was, is).
+tr_english_past_form(were, is).
+tr_english_past_form(had, has).
+tr_english_past_form(W, F) :- tr_english_ed_base(W, B), reason_third(B, F).
+
+%% walked -> walk, lived -> live, carried -> carry: the bases an -ed form may have
+tr_english_ed_base(W, B) :- atom_concat(Stem, ied, W), atom_concat(Stem, y, B).
+tr_english_ed_base(W, B) :- atom_concat(Stem, ed, W), ( B = Stem ; atom_concat(Stem, e, B) ).
+
+%% a word the lesson knows on a side, in any of its forms
+tr_known_word(Side, W) :- ( tr_lexeme(Side, W, _, _) -> true ; tr_past_form(Side, W, _) -> true ).
 
 tr_after([], _, _, _, _, []) :- !.
 tr_after([A], From, To, Noun, Number, [Out]) :-
@@ -448,34 +494,69 @@ tr_article(A, From, foreign, Noun, Number, _, [Out]) :-
 %% the verb in the target, in the subject's number, denied or not: the
 %% lesson's language puts its word for `not' before the verb, or after it
 %% when follow(N, verb) proves; English is the translator's own
-tr_verb_out(From, To, Lexeme, Number, Neg, w(_, Case), Outs) :-
+tr_verb_out(From, To, Lexeme, Number, Tense, Neg, w(_, Case), Outs) :-
     tr_meanings(From, Lexeme, verb, To, [V|_]),
     (   To == english
-    ->  tr_english_verb(V, Number, Neg, Words)
-    ;   tr_inflect(foreign, verb, V, Number, VF),
-        (   Neg == yes
-        ->  once(tr_solve(mean(N, not))),
-            ( tr_solve(follow(N, verb)) -> Words = [VF, N] ; Words = [N, VF] )
-        ;   Words = [VF]
-        )
+    ->  tr_english_verb(V, Number, Tense, Neg, Words)
+    ;   tr_foreign_verb(V, Number, Tense, Neg, Words)
     ),
     findall(o(W, Case), member(W, Words), Outs).
 
-%% English's verb: the copula is `is' or `are' and takes `not' after it;
-%% any other verb is the third person the lesson gave in the singular, its
-%% base in the plural, and `does not' or `do not' with the base when denied
-tr_english_verb(is, Number, Neg, Words) :- !,
-    ( Number == plural -> C = are ; C = is ),
+%% the lesson's verb in the number, then in the tense -- the past of the
+%% plural form, `"comieron" is the past of "comen"' -- with its word for
+%% `not' before it, or after it when follow(N, verb) proves
+tr_foreign_verb(V, Number, Tense, Neg, Words) :-
+    tr_inflect(foreign, verb, V, Number, VF0),
+    ( Tense == past -> tr_past(VF0, VF) ; VF = VF0 ),
+    (   Neg == yes
+    ->  once(tr_solve(mean(N, not))),
+        ( tr_solve(follow(N, verb)) -> Words = [VF, N] ; Words = [N, VF] )
+    ;   Words = [VF]
+    ).
+
+%% a past the lesson stated first, then the ending its rule gives; no
+%% rule, no past: the sentence is refused
+tr_past(F, P) :- tr_solve(past_of(P0, F)), !, P = P0.
+tr_past(F, P) :- tr_rule_past(F, P).
+tr_rule_past(F, P) :- tr_solve(take_in(F, E, past)), atom(E), atom_concat(F, E, P).
+
+%% English's verb: the copula is `is', `are', `was' or `were' and takes
+%% `not' after it; any other verb is the third person the lesson gave in
+%% the singular, its base in the plural, its past in the past, and `does
+%% not', `do not' or `did not' with the base when denied
+tr_english_verb(is, Number, Tense, Neg, Words) :- !,
+    tr_english_copula(Number, Tense, C),
     ( Neg == yes -> Words = [C, not] ; Words = [C] ).
-tr_english_verb(V, Number, Neg, Words) :-
+tr_english_verb(V, Number, Tense, Neg, Words) :-
     tr_english_base(V, B),
-    (   Neg == yes -> ( Number == plural -> Words = [do, not, B] ; Words = [does, not, B] )
+    (   Neg == yes -> tr_english_aux(Number, Tense, A), Words = [A, not, B]
+    ;   Tense == past -> tr_english_past(V, P), Words = [P]
     ;   Number == plural -> Words = [B]
     ;   Words = [V]
     ).
 
+tr_english_copula(Number, Tense, C) :-
+    (   Tense == past -> ( Number == plural -> C = were ; C = was )
+    ;   Number == plural -> C = are
+    ;   C = is
+    ).
+tr_english_aux(_, past, did) :- !.
+tr_english_aux(plural, _, do) :- !.
+tr_english_aux(_, _, does).
+
 tr_english_base(has, have) :- !.
 tr_english_base(V, B) :- reason_base(V, B).
+
+%% the past of a verb the lesson gave in the third person: one the lesson
+%% stated (`"ate" is the past of "eats"'), `had', or the regular -ed --
+%% lived, carried, walked
+tr_english_past(V, P) :- tr_solve(past_of(P0, V)), !, P = P0.
+tr_english_past(has, had) :- !.
+tr_english_past(V, P) :- reason_base(V, B), tr_english_ed(B, P).
+
+tr_english_ed(B, P) :- sub_atom(B, _, 1, 0, e), !, atom_concat(B, d, P).
+tr_english_ed(B, P) :- reason_third(B, T), atom_concat(Stem, ies, T), !, atom_concat(Stem, ied, P).
+tr_english_ed(B, P) :- atom_concat(B, ed, P).
 
 %% ---- one word --------------------------------------------------------------------
 
