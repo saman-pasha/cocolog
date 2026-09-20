@@ -2042,6 +2042,30 @@ lines arrived and the sixth, written and flushed the same way, did not --
 so a marker missing from a redirected log is not proof the goal before it
 hung; a pipe behaved.
 
+**AND WHAT A TEXT IS ABOUT: CONCEPTS RANKED, AND AN OUTLINE BY TOPIC.**
+`reason_concepts/2` counts every mention in the terms -- a name, an
+individual, a class, a property, a relation, one count per occurrence in a
+fact, a denial, an amount or a rule -- and ranks them, ties in order of
+first mention, so the chess position is about Kh8 (6), Re8 (6) and
+`attack` (6) before anything else. `reason_topics/2` is the outline: one
+topic per SUBJECT with its sub-topics grouped in order of first mention --
+`class-[king]`, `property-[black]`, `relation(occupy)-[[h8]]`,
+`relation(may_move_to)-[[g8], [g7], [h7]]`, `denied`, `amount`; a class
+with its `members` and the `rules` quantified over it; a class or property
+with the `definition` rules whose head names it (`unsafe: a square that is
+attacked; a square that is occupied`); and an OBJECT with what is said of
+it from the other side, `by(attack)-[attack(re8, h8)]`, which is how a
+square becomes a topic. `reason_topic_lines/2` writes it with the
+explanation's renderer, the subject taken off the front of each claim:
+`Kh8, a king: black; occupies H8; may move to G8, G7 and H7.`; a class as
+a class heads its line bare with its members, `King (Kh8)`, and a class
+atom something is said OF heads it as the reader wrote it, `The rent: 600
+euros.`; an individual's own noun, `flat(flat_1)`, makes no class of flats
+and no `the flat, a flat`. `reason_outline/2` reads a text and outlines it,
+`reason_outline_prose/2` the same over typed prose. `test/reason.pl`'s
+`topics` section pins thirty concepts, twenty-one topics and the lines
+over the chess position, and lesson 43's section 16 shows it.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

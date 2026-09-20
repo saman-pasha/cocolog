@@ -102,6 +102,39 @@
 %%         class noun it met after `a', `the' or `every' with its article,
 %%         any other atom as `the ...', an individual car_1 as `the car'.
 %%
+%%     reason_concepts(+Terms, -Concepts)
+%%         What the terms MENTION: concept(Name, Kind, Mentions), the most
+%%         mentioned first, ties in order of first mention. Kind is name (a
+%%         proper noun the reader met), individual (flat_1), class (a noun:
+%%         king in king(kh8), `the rent' as an object), property (attacked),
+%%         or relation (attack, may_move_to); a mention is one occurrence in
+%%         a fact, a denial, an amount, or a rule's head or body.
+%%
+%%     reason_topics(+Terms, -Topics)
+%%         The terms as an OUTLINE: topic(Subject, Kind, Subtopics), one per
+%%         subject something is said about -- a name, an individual, a class
+%%         atom, and the class or property a rule defines -- the most said
+%%         about first, ties in order of first mention. Subtopics is a list
+%%         of Group-Items in order of first mention: class-[king],
+%%         property-[black], relation(occupy)-[[h8]], relation(rent_in)-
+%%         [[flat_1, bristol]], denied-[pay(marco, rent)], amount-
+%%         [quantity(600, euros)]; members-[kh8] under a class, rules-[Rule]
+%%         under the class a rule quantifies over, definition-[Rule] under
+%%         the class or property its head names; and by(attack)-[Claim]
+%%         under the object of a claim, what is said of it from the other
+%%         side.
+%%
+%%     reason_topic_lines(+Topics, -Lines)
+%%         Topics as lines, one atom each: `Kh8, a king: black; occupies H8;
+%%         may move to G8, G7 and H7.', `Square (G8, G7 and H7): every
+%%         square that is attacked is unsafe; ...', `Unsafe: a square that
+%%         is attacked; ...', `H8: Kh8 occupies it; Re8 attacks it.'
+%%
+%%     reason_outline(+Text, -Lines)
+%%     reason_outline_prose(+Text, -Lines)
+%%         reason_text/2, or the shipped tagger over typed prose, and then
+%%         the topics as lines.
+%%
 %%     reason_third(+Base, -ThirdPerson)
 %%         The inflector, rs_base/2's inverse: own -> owns, watch ->
 %%         watches, carry -> carries, have -> has. library(reasoning/normalise)'s
@@ -173,6 +206,10 @@
 %%   Does Alice own a car?               question((car(V), own(alice, V)))
 %%   Who is licensed?                    question(X, licensed(X))
 %%   Why is Alice licensed?              question(why(licensed(alice)))
+%%
+%% And what a text is ABOUT: reason_concepts/2 ranks what it mentions,
+%% reason_topics/2 turns it into an outline by subject with the sub-topics
+%% under each, and reason_outline/2 writes that outline as lines.
 %%   How much does Alice pay?            question(Q, (pay(alice, O), reason_amount(O, Q)))
 %%   How many vineyards does Alice own?  question(N, (own(alice, O), reason_count(O, vineyards, N)))
 %%   Every employee is a person.         person(X) :- employee(X)
@@ -617,6 +654,210 @@ re_stop(Parts, T) :-
     ( C >= 97, C =< 122 -> C1 is C - 32 ; C1 = C ),
     append([C1|Cs], [46], Codes), atom_codes(T, Codes).                        % 46 is `.'
 
+%% ---- concepts and topics: what a text is about -------------------------------
+%%
+%% A concept is anything the claims mention -- a name, an individual, a
+%% class, a property, a relation -- counted, so the most mentioned is what
+%% the text is about. A topic is a SUBJECT with what is said of it grouped:
+%% its classes, its properties, each relation with its objects, what it
+%% denies, its amount; a class with its members and the rules over it; a
+%% class or property with the rules that define it; and an object with what
+%% is said of it from the other side (by(attack)-[re8] under h8). The
+%% terms are what reason_text/2 gives, so a knowledge base dumped as terms
+%% outlines the same way.
+
+reason_concepts(Terms, Concepts) :-
+    rc_mentions(Terms, Ms),
+    rc_count(Ms, 0, [], Counted),
+    findall(K-concept(N, Kind, C), ( member(c(N, Kind, C, F), Counted), NC is -C, K = NC-F ), Keyed),
+    keysort(Keyed, Sorted),
+    findall(X, member(_-X, Sorted), Concepts).
+
+rc_mentions([], []).
+rc_mentions([T|Ts], Ms) :- rc_term(T, M1), rc_mentions(Ts, M2), append(M1, M2, Ms).
+
+rc_term(V, []) :- var(V), !.
+rc_term((H :- B), Ms) :- !, rc_claim(H, M1), rc_body(B, M2), append(M1, M2, Ms).
+rc_term(question(_), []) :- !.
+rc_term(question(_, _), []) :- !.
+rc_term(neg(C), Ms) :- !, rc_claim(C, Ms).
+rc_term(amount(N, Q), Ms) :- !, rc_arg(N, M1), rc_arg(Q, M2), append(M1, M2, Ms).
+rc_term(C, Ms) :- rc_claim(C, Ms).
+
+rc_body((A, B), Ms) :- !, rc_body(A, M1), rc_body(B, M2), append(M1, M2, Ms).
+rc_body(\+ G, Ms) :- !, rc_body(G, Ms).
+rc_body(G, Ms) :- rc_claim(G, Ms).
+
+rc_claim(C, [P-K|Ms]) :-
+    compound(C), C =.. [P|Args], !,
+    ( Args = [_] -> ( re_noun(P) -> K = class ; K = property ) ; K = relation ),
+    rc_args(Args, Ms).
+rc_claim(_, []).
+rc_args([], []).
+rc_args([A|As], Ms) :- rc_arg(A, M1), rc_args(As, M2), append(M1, M2, Ms).
+rc_arg(A, [A-K]) :- atom(A), !, rc_atom_kind(A, K).
+rc_arg(_, []).
+
+rc_atom_kind(A, name) :- re_name(A), !.
+rc_atom_kind(A, individual) :- re_individual(A), !.
+rc_atom_kind(_, class).
+
+%% count, keeping the order of first mention
+rc_count([], _, Acc, Counted) :- reverse(Acc, Counted).
+rc_count([N-K|Ms], I, Acc, Counted) :-
+    I1 is I + 1,
+    (   select(c(N, K, C, F), Acc, Rest) -> C1 is C + 1, rc_count(Ms, I1, [c(N, K, C1, F)|Rest], Counted)
+    ;   rc_count(Ms, I1, [c(N, K, 1, I)|Acc], Counted)
+    ).
+
+%% an individual the naming gave: flat_1
+re_individual(A) :-
+    atom(A), atom_codes(A, Cs), append(Pre, [95|Digits], Cs), Pre \== [], Digits \== [],   % 95 is `_'
+    catch(number_codes(_, Digits), _, fail).
+
+%% ---- topics ------------------------------------------------------------------
+
+reason_topics(Terms, Topics) :-
+    rt_claims(Terms, Cs),
+    rt_group(Cs, [], Grouped),
+    findall(K-topic(S, Kind, Groups), ( member(t(S, Kind, F, Groups), Grouped), rt_weight(Groups, W), NW is -W, K = NW-F ), Keyed),
+    keysort(Keyed, Sorted),
+    findall(X, member(_-X, Sorted), Topics).
+
+%% every claim as t(Subject, Group, Item), in order
+rt_claims([], []).
+rt_claims([T|Ts], Cs) :- rt_term(T, C1), rt_claims(Ts, C2), append(C1, C2, Cs).
+
+rt_term(V, []) :- var(V), !.
+rt_term(question(_), []) :- !.
+rt_term(question(_, _), []) :- !.
+rt_term((H :- Body), Cs) :- !,
+    ( rt_guard(Body, G) -> Cs1 = [t(G, rules, (H :- Body))] ; Cs1 = [] ),
+    ( compound(H), H =.. [P, _] -> Cs = [t(P, definition, (H :- Body))|Cs1] ; Cs = Cs1 ).
+rt_term(neg(C), [t(S, denied, C)]) :- compound(C), arg(1, C, S), atom(S), !.
+rt_term(amount(N, Q), [t(N, amount, Q)]) :- atom(N), !.
+rt_term(C, Cs) :-
+    compound(C), C =.. [P, S|Args], atom(S), !,
+    (   Args == []
+    ->  (   re_existence(C) -> Cs = [t(S, class, P)]                       % flat(flat_1): its own noun, no class of flats
+        ;   re_noun(P) -> Cs = [t(S, class, P), t(P, members, S)]
+        ;   Cs = [t(S, property, P)]
+        )
+    ;   Args = [O|_], ( atom(O) -> Cs = [t(S, relation(P), Args), t(O, by(P), C)] ; Cs = [t(S, relation(P), Args)] )
+    ).
+rt_term(_, []).
+
+rt_guard(Body, G) :- ( Body = (First, _) -> true ; First = Body ), compound(First), First =.. [G, X], var(X).
+
+%% the groups of each subject, and the items of each group, in order of
+%% first mention, an item once
+rt_group([], Acc, Grouped) :- reverse(Acc, Grouped).
+rt_group([t(S, G, I)|Cs], Acc, Grouped) :-
+    length(Acc, F),
+    (   select(t(S, K, F0, Groups), Acc, Rest)
+    ->  rt_add(Groups, G, I, Groups1), rt_group(Cs, [t(S, K, F0, Groups1)|Rest], Grouped)
+    ;   rt_kind(S, G, K), rt_group(Cs, [t(S, K, F, [G-[I]])|Acc], Grouped)
+    ).
+rt_add([], G, I, [G-[I]]).
+rt_add([G-Is|Gs], G, I, [G-Is1|Gs]) :- !, ( memberchk(I, Is) -> Is1 = Is ; append(Is, [I], Is1) ).
+rt_add([X|Gs], G, I, [X|Gs1]) :- rt_add(Gs, G, I, Gs1).
+
+rt_kind(S, G, K) :-
+    (   ( G == members ; G == rules ; G == definition )
+    ->  ( re_noun(S) -> K = class ; G == definition -> K = property ; K = class )
+    ;   rc_atom_kind(S, K)
+    ).
+
+rt_weight(Groups, W) :- findall(N, ( member(_-Is, Groups), length(Is, N) ), Ns), sum_list(Ns, W).
+
+%% ---- the outline as lines ------------------------------------------------------
+%% `Kh8, a king: black; occupies H8; may move to G8, G7 and H7.' -- the
+%% head is the subject with its classes (a class with its members), the
+%% rest is one phrase a group, the explanation's renderer writing each
+%% claim and the subject taken off the front.
+
+reason_outline(Text, Lines) :- reason_text(Text, Terms), reason_topics(Terms, Topics), reason_topic_lines(Topics, Lines).
+reason_outline_prose(Text, Lines) :- reason_prose(Text, Terms), reason_topics(Terms, Topics), reason_topic_lines(Topics, Lines).
+
+reason_topic_lines([], []).
+reason_topic_lines([topic(S, K, Groups)|Ts], [L|Ls]) :- rt_line(S, K, Groups, L), reason_topic_lines(Ts, Ls).
+
+rt_line(S, K, Groups, Line) :-
+    rt_head(S, K, Groups, Head, Rest),
+    rt_phrases(S, Rest, Ps),
+    (   Ps == [] -> atom_concat(Head, '.', L0)
+    ;   atomic_list_concat(Ps, '; ', Body), atomic_list_concat([Head, ': ', Body, '.'], L0)
+    ),
+    re_cap(L0, Line).
+
+%% the head: a name or an individual with its classes -- but not an
+%% individual's own noun, `the flat, a flat' -- and a class with its members
+rt_head(S, K, Groups, Head, Rest) :-
+    ( K == name ; K == individual ), !,
+    re_arg(S, SA),
+    (   select(class-Cs0, Groups, Rest0)
+    ->  findall(C, ( member(C, Cs0), \+ ( K == individual, atom_concat(C, '_', Pre), atom_concat(Pre, _, S) ) ), Cs),
+        (   Cs == [] -> Head = SA, Rest = Rest0
+        ;   findall(A, ( member(C, Cs), re_predicate(C, is, A) ), As), re_join(As, AJ),
+            atomic_list_concat([SA, ', ', AJ], Head), Rest = Rest0
+        )
+    ;   Head = SA, Rest = Groups
+    ).
+%% a class as a class -- members, rules, a definition -- heads its line
+%% bare, `King (Kh8)'; a class atom something is said OF, `the rent' with
+%% its amount, heads it as the reader wrote it
+rt_head(S, _, Groups, Head, Rest) :-
+    (   \+ ( member(G-_, Groups), \+ memberchk(G, [members, rules, definition]) )
+    ->  (   select(members-Ms, Groups, Rest)
+        ->  findall(A, ( member(M, Ms), re_arg(M, A) ), As), re_join(As, AJ), atomic_list_concat([S, ' (', AJ, ')'], Head)
+        ;   Head = S, Rest = Groups
+        )
+    ;   re_arg(S, Head), Rest = Groups
+    ).
+
+rt_phrases(_, [], []).
+rt_phrases(S, [G-Is|Gs], Ps) :- rt_phrase(S, G, Is, P1), rt_phrases(S, Gs, P2), append(P1, P2, Ps).
+
+rt_phrase(_, class, Cs, [P]) :- findall(A, ( member(C, Cs), re_predicate(C, is, A) ), As), re_join(As, P).
+rt_phrase(_, property, As, [P]) :- re_join(As, P).
+rt_phrase(S, relation(R), Items, Ps) :-
+    (   forall(member(I, Items), I = [_])                                  % binary: one verb phrase, the objects joined
+    ->  Items = [[O1]|_], T1 =.. [R, S, O1], rt_after_subject(S, T1, Sent1),
+        re_arg(O1, OA1), atom_concat(VP, OA1, Sent1),
+        findall(OA, ( member([O], Items), re_arg(O, OA) ), OAs), re_join(OAs, OJ),
+        atom_concat(VP, OJ, P), Ps = [P]
+    ;   findall(P, ( member(I, Items), T =.. [R, S|I], rt_after_subject(S, T, P) ), Ps)
+    ).
+rt_phrase(S, denied, Cs, Ps) :- findall(P, ( member(C, Cs), re_negative(C, Sent), rt_strip(S, Sent, P) ), Ps).
+rt_phrase(_, amount, Qs, [P]) :- findall(A, ( member(Q, Qs), re_arg(Q, A) ), As), re_join(As, P).
+rt_phrase(_, members, Ms, [P]) :- findall(A, ( member(M, Ms), re_arg(M, A) ), As), re_join(As, P).
+rt_phrase(_, rules, Rs, Ps) :- findall(P, ( member(R, Rs), rt_rule(R, P) ), Ps).
+rt_phrase(_, definition, Rs, Ps) :- findall(P, ( member(R, Rs), rt_guard_phrase(R, P) ), Ps).
+rt_phrase(_, by(_), Claims, Ps) :-                                        % the claim with its object as `it'
+    findall(P, ( member(C, Claims), C =.. [R, S2, _|Rest], T =.. [R, S2, '$re_it'|Rest], re_sentence(T, P) ), Ps).
+
+rt_after_subject(S, T, P) :- re_sentence(T, Sent), rt_strip(S, Sent, P).
+rt_strip(S, Sent, P) :- re_arg(S, SA), atom_concat(SA, ' ', Pre), ( atom_concat(Pre, P0, Sent) -> P = P0 ; P = Sent ).
+
+%% a rule as `every king that is attacked is a target', its guard as `a king
+%% that is attacked'
+rt_rule((H :- Body), P) :-
+    copy_term((H :- Body), (H1 :- B1)),
+    rt_goals(B1, [G1|Conds]), G1 =.. [C, X], X = '$re_indef'(C),
+    rt_conds(Conds, CP), re_sentence(H1, Sent), rt_strip(X, Sent, Rest),
+    atomic_list_concat(['every ', C, CP, ' ', Rest], P).
+rt_guard_phrase((H :- Body), P) :-
+    copy_term((H :- Body), (_ :- B1)),
+    rt_goals(B1, [G1|Conds]), G1 =.. [C, X], X = '$re_indef'(C),
+    rt_conds(Conds, CP), re_article(C, Art), atomic_list_concat([Art, ' ', C, CP], P).
+
+rt_goals((A, B), [A|Gs]) :- !, rt_goals(B, Gs).
+rt_goals(G, [G]).
+
+rt_conds([], '').
+rt_conds([\+ G|Gs], P) :- !, G =.. [A|_], re_predicate(A, is, AP), rt_conds(Gs, P1), atomic_list_concat([' that is not ', AP, P1], P).
+rt_conds([G|Gs], P) :- G =.. [A|_], re_predicate(A, is, AP), rt_conds(Gs, P1), atomic_list_concat([' that is ', AP, P1], P).
+
 %% ---- a term as a sentence ------------------------------------------------
 %% A unary term is `X is [a] P' -- with the article when P is a class noun
 %% the reader met, an adjective otherwise; a binary one `X VERB Y', the
@@ -679,6 +920,7 @@ re_verb(V, Form, VP) :-
 %% `the ...'
 re_arg('$re_var'(L), L) :- !.
 re_arg('$re_indef'(N), A) :- !, re_article(N, Art), atomic_list_concat([Art, ' ', N], A).
+re_arg('$re_it', it) :- !.
 re_arg(V, 'something') :- var(V), !.
 re_arg(N, A) :- number(N), !, format(atom(A), "~w", [N]).
 re_arg(quantity(N, U), A) :- !, re_arg(N, NA), atomic_list_concat([NA, ' ', U], A).

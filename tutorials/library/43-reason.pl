@@ -155,6 +155,7 @@ main :-
     questions,
     quantities,
     explanation,
+    topics,
     prose,
     format("~nDone.~n", []).
 
@@ -225,10 +226,33 @@ explanation :-
     reason_explain(unsafe(g8), W15), show('the proof as a term, reason_explain/2', W15),
     reason_ask('Why does Omar pay the rent?', [because(E15d)]), must('a fact: as said', E15d, 'Omar pays the rent, as said.').
 
-%% section 16: OPTIONAL -- the shipped tagger reads typed prose, where
+%% section 16: what a text is ABOUT -- the concepts it mentions, ranked,
+%% and an outline by topic with the sub-topics under each; the chess
+%% position of section 15 is what the knowledge base holds now
+topics :-
+    format("~n16. Concepts and topics: what the text is about, and an outline of it~n", []),
+    findall(T, ( member(P/A, [king/1, black/1, occupy/2, rook/1, white/1, attack/2, pawn/1, square/1, may_move_to/2]),
+                 functor(T, P, A), clause(T, true) ), Facts),
+    findall((H :- B), ( member(P, [unsafe, target, captive, checkmated]), functor(H, P, 1), clause(H, B), B \== true ), Rules),
+    append(Facts, Rules, Terms),
+    reason_concepts(Terms, Cs), Cs = [C1, C2, C3|_],
+    show('the three most mentioned concepts', [C1, C2, C3]),
+    must('the text is about Kh8 first: six mentions, a name', C1, concept(kh8, name, 6)),
+    reason_topics(Terms, Topics), Topics = [T1|_],
+    show('the first topic, with its sub-topics', T1),
+    reason_topic_lines(Topics, Lines),
+    forall(member(L, Lines), format("   | ~w~n", [L])),
+    Lines = [L1|_],
+    must('the outline begins with the king', L1, 'Kh8, a king: black; occupies H8; may move to G8, G7 and H7.'),
+    ( memberchk('Unsafe: a square that is attacked; a square that is occupied.', Lines) -> D16 = yes ; D16 = no ),
+    must('and a property a rule defines is a topic with its definitions', D16, yes),
+    reason_outline('Nadia is a grower. Nadia owns three vineyards. Nadia pays 500 euros to Omar. Every grower that is registered may export the wine.', L16),
+    show('a paragraph outlined', L16).
+
+%% section 17: OPTIONAL -- the shipped tagger reads typed prose, where
 %% library(torch) and library/reasoning/model.rows are there
 prose :-
-    format("~n16. Typed prose, through the shipped tagger -- optional, and loaded on first use~n", []),
+    format("~n17. Typed prose, through the shipped tagger -- optional, and loaded on first use~n", []),
     (   catch(reason_prose('Well, Rex really owns a red truck, obviously. Kim rents a flat in Oslo and is insured.', T14),
               error(existence_error(tagger, pretrained), _), fail)
     ->  show('the prose, read', T14),

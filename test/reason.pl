@@ -12,7 +12,7 @@
 
 main :-
     tokens, facts, copula, negation, rules, relative, lexicon, naming,
-    round_trip, refusals, places, state, questions, quantities, explains, prose, declares, refused, truth, errors,
+    round_trip, refusals, places, state, questions, quantities, explains, topics, prose, declares, refused, truth, errors,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -472,6 +472,55 @@ explains :-
     reason_third(occupy, T24), check('occupy -> occupies', T24, occupies),
     reason_third(watch, T25), check('watch -> watches', T25, watches),
     reason_third(have, T26), check('have -> has', T26, has).
+
+%% ---- concepts and topics: what a text is about ------------------------------------
+
+topics :-
+    section('topics'),
+    Chess = 'Kh8 is a king. Kh8 is black. Kh8 occupies H8. Re8 is a rook. Re8 is white. Re8 occupies E8. Re8 attacks F8. Re8 attacks G8. Re8 attacks H8. Pg7 is a pawn. Pg7 is black. Pg7 occupies G7. Pg7 attacks F6. Pg7 attacks H6. Ph7 is a pawn. Ph7 is black. Ph7 occupies H7. Ph7 attacks G6. G8 is a square. G7 is a square. H7 is a square. Kh8 may move_to G8. Kh8 may move_to G7. Kh8 may move_to H7. Every square that is attacked is unsafe. Every square that is occupied is unsafe. Every king that is attacked is a target. Every target that is immobile is a captive. Every captive that is not defended is checkmated.',
+    reason_text(Chess, Terms),
+    reason_concepts(Terms, Cs),
+    yes_no(Cs = [concept(kh8, name, 6), concept(re8, name, 6), concept(attack, relation, 6)|_], V1),
+    check('concepts, the most mentioned first, ties in order of first mention: Kh8, Re8, attack', V1, yes),
+    yes_no(memberchk(concept(square, class, 5), Cs), V2), check('a class: three facts and two rule guards', V2, yes),
+    yes_no(memberchk(concept(unsafe, property, 2), Cs), V3), check('a property: two rule heads', V3, yes),
+    yes_no(memberchk(concept(may_move_to, relation, 3), Cs), V4), check('a relation', V4, yes),
+    yes_no(memberchk(concept(h8, name, 2), Cs), V5), check('a name mentioned as an object', V5, yes),
+    length(Cs, NC), check('thirty concepts in all', NC, 30),
+    reason_topics(Terms, Ts),
+    Ts = [T1|_],
+    check('the first topic is what the text is most about, with its sub-topics in order of first mention', T1,
+          topic(kh8, name, [class-[king], property-[black], relation(occupy)-[[h8]], relation(may_move_to)-[[g8], [g7], [h7]]])),
+    yes_no(memberchk(topic(re8, name, [class-[rook], property-[white], relation(occupy)-[[e8]], relation(attack)-[[f8], [g8], [h8]]]), Ts), V6),
+    check('a relation groups its objects', V6, yes),
+    yes_no(( memberchk(topic(square, class, [members-[g8, g7, h7], rules-[R1, R2]]), Ts),
+             R1 = (unsafe(X1) :- square(X1b), attacked(X1c)), X1 == X1b, X1b == X1c, R2 = (unsafe(_) :- square(_), occupied(_)) ), V7),
+    check('a class: its members, and the rules over it', V7, yes),
+    yes_no(memberchk(topic(unsafe, property, [definition-[_, _]]), Ts), V8), check('a property a rule defines: its definitions', V8, yes),
+    yes_no(memberchk(topic(target, class, [definition-[_], rules-[_]]), Ts), V9), check('a class defined and quantified over', V9, yes),
+    yes_no(memberchk(topic(h8, name, [by(occupy)-[occupy(kh8, h8)], by(attack)-[attack(re8, h8)]]), Ts), V10),
+    check('an object: what is said of it from the other side', V10, yes),
+    yes_no(memberchk(topic(g8, name, [by(attack)-[attack(re8, g8)], class-[square], by(may_move_to)-[may_move_to(kh8, g8)]]), Ts), V11),
+    check('a square: attacked, a square, a move', V11, yes),
+    length(Ts, NT), check('twenty-one topics', NT, 21),
+    reason_outline(Chess, Lines),
+    Lines = [L1, L2|_],
+    check('the outline as lines: the king', L1, 'Kh8, a king: black; occupies H8; may move to G8, G7 and H7.'),
+    check('the rook', L2, 'Re8, a rook: white; occupies E8; attacks F8, G8 and H8.'),
+    yes_no(memberchk('Square (G8, G7 and H7): every square that is attacked is unsafe; every square that is occupied is unsafe.', Lines), V12),
+    check('a class with its members and its rules', V12, yes),
+    yes_no(memberchk('Unsafe: a square that is attacked; a square that is occupied.', Lines), V13), check('a property by its definitions', V13, yes),
+    yes_no(memberchk('Captive: a target that is immobile; every captive that is not defended is checkmated.', Lines), V14),
+    check('a class defined and quantified over', V14, yes),
+    yes_no(memberchk('H8: Kh8 occupies it; Re8 attacks it.', Lines), V15), check('an object, from the other side', V15, yes),
+    yes_no(memberchk('G8, a square: Re8 attacks it; Kh8 may move to it.', Lines), V16), check('a square', V16, yes),
+    reason_outline('Priya is a baker. Priya is licensed. Every baker that is licensed may sell the bread. Priya rents a flat in Bristol. Marco does not pay the rent. The rent is 600 euros. Nadia pays 500 euros to Omar. Every employee is a person. Every tenant that is not exempt must pay the rent.', L2s),
+    check('and a paragraph of the earlier kind', L2s,
+          ['Priya, a baker: licensed; rents the flat in Bristol.', 'Baker (Priya): every baker that is licensed may sell the bread.',
+           'The flat: Priya rents it in Bristol.', 'Marco: does not pay the rent.', 'The rent: 600 euros.', 'Nadia: pays 500 euros to Omar.',
+           'Person: an employee.', 'Employee: every employee is a person.', 'Tenant: every tenant that is not exempt must pay the rent.']),
+    reason_topics([], T0), check('nothing in, nothing out', T0, []),
+    reason_concepts([question(happy(x))], C0), check('a question mentions nothing', C0, []).
 
 %% ---- prose, through the shipped tagger: optional --------------------------------------------
 %% reason_prose/2 loads library(reasoning/tagger) and the model shipped
