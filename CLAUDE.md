@@ -2102,6 +2102,41 @@ and `clause/2` SEES a module's clauses (probed: `clause(reason_third(have,
 X), B)` answers), so a helper would have explained itself by its own
 body until `re_goal` asked `re_helper/1` first.
 
+**PLURALS AND NEGATION ARE THE LESSON'S TOO (1.2.33).** Three more shapes
+read: a definite phrase after an object is a place, `keeps the tractor
+in the barn` being `keep_in(omar, tractor, barn)`; a determined noun
+after a bare verb's preposition is its class atom, `ends in a vowel`
+being `end_in(X, vowel)`, and `end_in/2` knows the two letter classes
+(the five vowels and their accented UTF-8 forms); and `is the NOUN of X`
+is the relation the noun names, `plural_of(los, el)`, `mother_of(alice,
+bob)`, asked as `What is the plural of "el"?`. `reason_base/2` is the
+stemmer made public, because a noun's plural comes off the way a verb's
+-s does. So a lesson says `Every noun that ends in a vowel takes "s" in
+the plural`, `"los" is the plural of "el"`, `Every verb that ends in
+"e" takes "n" in the plural`, `"son" is the plural of "es"` and `The
+word "no" means "not"`, and the translator asks `plural_of/2`,
+`take_in(W, E, plural)`, `mean(N, not)` and `follow(N, verb)`. A word's
+LEXEME is the form the lesson gave -- the word, or the singular a stated
+or ruled plural is made from, and in English a noun the stemmer takes
+back or a verb by its third person -- the noun's number is the phrase's,
+the subject's is the verb's, and a denial comes off before the split and
+goes back on the verb: `no come`, or `does not eat`, `do not eat`, `is
+not`, `are not`, which is English and the translator's own, as `an`
+before a vowel and no `a` in the plural are. Measured over the lesson
+grown to thirty-two lines: `The dogs do not eat the bread` is `Los perros
+no comen el pan` and back, `The houses are not big` is `Las casas no son
+grandes` and back, and `Maria tiene unos libros` is `Maria has books`.
+What bit: the order rule must be asked about the adjective's SINGULAR
+(`follow(rojas, noun)` proves nothing), so an adjective travels with its
+lexeme beside its form. And a REFUSED sentence used to leave its word
+notes behind: `the big barn` in one made `big` a class noun for the rest
+of the process, and an explanation three sections later said `the box is
+a big`. The reader's notes are pending until the sentence parses and
+dropped when it does not. Two refusal pins moved with the shapes:
+`Alice owns a house near the river` reads as `own_near/3` now and `Alice
+sleeps at the house` as `sleep_at/2`; `near a river` and `in Rome` after
+a bare verb stay refused.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

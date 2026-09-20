@@ -8,8 +8,9 @@
 %%
 %% THE PROBLEM THIS SOLVES. Tutorial 43 reads a paragraph into facts and
 %% rules and proves things over them. This lesson reads a paragraph that
-%% TEACHES: twenty lines of Spanish in the same controlled English, and
-%% what comes out is a vocabulary as facts, a grammar as rules, and a
+%% TEACHES: thirty-two lines of Spanish in the same controlled English, and
+%% what comes out is a vocabulary as facts, a grammar as rules -- gender,
+%% the order of an adjective, the plural, the word that denies -- and a
 %% translator that asks the knowledge base and knows no word of Spanish
 %% itself. Nothing was trained and nothing was written into the library
 %% for it: the lesson is the whole of what the translator knows.
@@ -25,10 +26,16 @@
 %% THE TRANSLATOR KNOWS WHAT TO ASK, AND NOTHING ELSE. What a word means,
 %% mean/2; what it is, noun/1, adjective/1, verb/1, article/1; its gender,
 %% feminine/1 and masculine/1, said of it or ruled; whether an adjective
-%% follows its noun, follow(A, noun). The lesson answers in its own words,
-%% and a lesson in Italian, or one whose rule is that every adjective
-%% PRECEDES the noun, is read by the same clauses. Section 6 proves it by
-%% taking the order rule away.
+%% follows its noun, follow(A, noun); its plural, plural_of/2 when the
+%% lesson stated one (`"los" is the plural of "el"') and take_in(W, E,
+%% plural) when a rule gives the ending (`Every noun that ends in a vowel
+%% takes "s" in the plural'); and the word for `not'. The lesson answers
+%% in its own words, and a lesson in Italian, or one whose rule is that
+%% every adjective PRECEDES the noun, is read by the same clauses. Section
+%% 6 proves it by taking the order rule away. What the translator knows on
+%% its own is ENGLISH: `is' and `are', `does not' and `do not', a plural by
+%% -s, `an' before a vowel -- the library's own language, and the one the
+%% lesson is written in.
 
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/translate)).
@@ -53,14 +60,25 @@ The masculine article "un" means "a".
 The feminine article "una" means "a".
 Every noun that ends in "a" is feminine.
 Every noun that does not end in "a" is masculine.
-Every adjective follows the noun.').
+Every adjective follows the noun.
+Every noun that ends in a vowel takes "s" in the plural.
+Every noun that ends in a consonant takes "es" in the plural.
+Every adjective that ends in a vowel takes "s" in the plural.
+Every article that ends in a vowel takes "s" in the plural.
+"los" is the plural of "el".
+"unos" is the plural of "un".
+Every verb that ends in "e" takes "n" in the plural.
+"son" is the plural of "es".
+The word "no" means "not".
+The word "no" precedes the verb.
+The noun "huevo" means "egg".').
 
 main :-
-    format("~n1. The lesson: twenty lines of controlled English, and what they say~n", []),
+    format("~n1. The lesson: thirty-two lines of controlled English, and what they say~n", []),
     lesson(Text),
     reason_learn(Text, Terms),
     length(Terms, N),
-    must('terms learned', N, 44),
+    must('terms learned', N, 58),
     Terms = [T1, T2, T3|_],
     must('the language', T1, language(spanish)),
     must('a class fact about the word, then what it means', T2-T3, noun(casa)-mean(casa, house)),
@@ -68,6 +86,9 @@ main :-
     must('a rule over the letters of a word', B4c, (noun(x), end_in(x, a))),
     member((follow(X5, noun) :- B5), Terms), copy_term(X5-B5, x-B5c),
     must('and the rule of order', B5c, adjective(x)),
+    member((take_in(X6, es, plural) :- B6), Terms), copy_term(X6-B6, x-B6c),
+    must('a rule of the plural, over a letter class', B6c, (noun(x), end_in(x, consonant))),
+    must('and a plural said outright', [plural_of(los, el), plural_of(son, es)], [plural_of(los, el), plural_of(son, es)]),
     show('la, as the lesson put it', [article(la), feminine(la), mean(la, the)]),
 
     format("~n2. The lesson questioned -- reason_ask/2 over the same knowledge base~n", []),
@@ -126,12 +147,31 @@ main :-
     format("~n7. The lesson outlined -- reason_outline/2 over the same text~n", []),
     reason_outline(Text, Lines),
     Lines = [L1, L2|_],
-    must('the class most is said about, with its members and its rules', L1,
-         'Noun ("casa", "perro", "gato", "mesa", "libro" and "pan"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine.'),
-    must('then the adjectives', L2, 'Adjective ("grande", "rojo" and "roja"): every adjective follows the noun.'),
-    memberchk('"la", an article: feminine; means "the".', Lines),
+    must('the class most is said about, with its members and its four rules', L1,
+         'Noun ("casa", "perro", "gato", "mesa", "libro", "pan" and "huevo"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine; every noun that ends in a vowel takes "s" in the plural; every noun that ends in a consonant takes "es" in the plural.'),
+    must('then the verbs, which the word for not is said of', L2,
+         'The verb: "es", "come", "lee" and "tiene"; every verb that ends in "e" takes "n" in the plural; "no" precedes it.'),
+    memberchk('"el", an article: masculine; means "the"; "los" is the plural of it.', Lines),
     memberchk('Feminine: a noun that ends in "a".', Lines),
-    show('a word''s own line, and a definition''s', ['"la", an article: feminine; means "the".', 'Feminine: a noun that ends in "a".']),
+    show('a word''s own line, and a definition''s', ['"el", an article: masculine; means "the"; "los" is the plural of it.', 'Feminine: a noun that ends in "a".']),
+
+    format("~n8. The plural and the denial: the lesson's endings, its stated plurals, its word for not~n", []),
+    reason_translate('The houses are big.', P1),
+    must('las and casas by the ending rules, son as stated, grandes by the rule', P1, 'Las casas son grandes.'),
+    reason_translate('The dogs do not eat the bread.', P2),
+    must('a denial: the lesson''s word before the verb, and comen by the verb rule', P2, 'Los perros no comen el pan.'),
+    reason_translate('Maria has an egg.', P3),
+    must('an, which is English''s own, is a', P3, 'Maria tiene un huevo.'),
+    reason_translate('Las casas no son grandes.', P4),
+    must('back: are not', P4, 'The houses are not big.'),
+    reason_translate('Maria no tiene una mesa roja.', P5),
+    must('does not, with the base form', P5, 'Maria does not have a red table.'),
+    reason_translate('Maria tiene unos libros.', P6),
+    must('unos is the plural of un, and English has no plural a', P6, 'Maria has books.'),
+    reason_ask('What is the plural of "el"? Why does "pan" take "es" in the plural?', A8),
+    A8 = [A81, A82],
+    must('a stated plural, asked for', A81, [los-fact]),
+    must('a ruled one, explained', A82, because('"pan" takes "es" in the plural because "pan" is a noun and "pan" ends in a consonant.')),
 
     format("~nDone. A lesson is a knowledge base; a translation is a proof over it.~n", []).
 

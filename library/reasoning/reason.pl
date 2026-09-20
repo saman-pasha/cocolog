@@ -180,7 +180,15 @@
 %%     end_in(+Word, +Suffix)         end_with/2, begin_with/2, start_with/2
 %%         What a rule over WORDS asks: `Every noun that ends in "a" is
 %%         feminine' is feminine(X) :- noun(X), end_in(X, a), and these
-%%         four are the library's so that the rule RUNS. Both atoms.
+%%         four are the library's so that the rule RUNS. Both atoms; and
+%%         `a vowel' or `a consonant' in place of the letters -- `ends in
+%%         a vowel' is end_in(X, vowel) -- the five vowels and their
+%%         accented forms being the vowels.
+%%
+%%     reason_base(+Word, -Base)
+%%         The stemmer, reason_third/2's inverse: owns -> own, has -> have,
+%%         carries -> carry -- and houses -> house, boxes -> box, since a
+%%         noun's plural is made the same way.
 %%
 %%     truth(+Goal, -Truth)
 %%         true, false, unknown or conflict, for a GROUND goal against the
@@ -219,11 +227,17 @@
 %%   The noun "casa" means "house".      noun(casa), mean(casa, house)
 %%   The feminine article "la" means "the".   article(la), feminine(la), mean(la, the)
 %%   "casa" ends in "a".                 end_in(casa, a)
+%%   "casa" ends in a vowel.             end_in(casa, vowel)
+%%   "los" is the plural of "el".        plural_of(los, el)
+%%   Alice is the mother of Bob.         mother_of(alice, bob)
+%%   Omar keeps the tractor in the barn. keep_in(omar, tractor, barn)
 %%   Does Alice own a car?               question((car(V), own(alice, V)))
 %%   Who is licensed?                    question(X, licensed(X))
 %%   Why is Alice licensed?              question(why(licensed(alice)))
 %%   Is "mesa" feminine?                 question(feminine(mesa))
 %%   What does "perro" mean?             question(X, mean(perro, X))
+%%   What is the plural of "el"?         question(X, plural_of(X, el))
+%%   Is "los" the plural of "el"?        question(plural_of(los, el))
 %%
 %% And what a text is ABOUT: reason_concepts/2 ranks what it mentions,
 %% reason_topics/2 turns it into an outline by subject with the sub-topics
@@ -244,6 +258,8 @@
 %%       is feminine.
 %%   Every noun that does not end in     masculine(X) :- noun(X), \+ end_in(X, a)
 %%       "a" is masculine.
+%%   Every noun that ends in a vowel     take_in(X, s, plural) :- noun(X), end_in(X, vowel)
+%%       takes "s" in the plural.
 %%
 %% A subject is a proper noun or a quantified class; an object is a proper
 %% noun or a determined noun phrase. A place after an object joins the
@@ -295,9 +311,14 @@
 %% article, `"is"' a word and not the copula -- and `the noun "casa"',
 %% `the feminine article "la"' say what the word is besides: noun(casa);
 %% article(la), feminine(la). A quoted word stands as a subject, as an
-%% object, and after a preposition after a BARE verb, where a place is
-%% refused: `ends in "a"' is end_in(X, a), because a mention can belong
-%% to nothing but the verb. That is how a LANGUAGE LESSON reads --
+%% object, and -- with a determined noun, as its class atom -- after a
+%% preposition after a BARE verb, where a place is refused: `ends in "a"'
+%% is end_in(X, a) and `ends in a vowel' end_in(X, vowel), because
+%% neither can belong to anything but the verb, and end_in/2 knows the
+%% two letter classes. `is the NOUN of X' is a relation the noun names,
+%% plural_of(los, el), mother_of(alice, bob); and a place after an object
+%% may be a definite phrase, `keeps the tractor in the barn' being
+%% keep_in(omar, tractor, barn). That is how a LANGUAGE LESSON reads --
 %% vocabulary as facts, grammar as rules over the classes and end_in/2 --
 %% and library(reasoning/translate) is the translator over it, asking the
 %% knowledge base and knowing no word of the language itself. What it
@@ -398,12 +419,17 @@
 %% grammar clauses of its own beside these, the way a library(httpd) page
 %% is written beside the server. It does not resolve pronouns, so `Alice
 %% bought a car. She uses it.' is two sentences of which the second fails.
-%% It does not read a prepositional phrase, and it REFUSES one rather than
-%% misreading it: `Alice owns a house in Rome' once came back as
-%% rome(rome_1), house(rome_1), in(rome_1), own(alice, rome_1) -- the
-%% position rule taking the last word for the noun -- and that is worse
-%% than a refusal. Prepositions are closed now, so `in Rome' is left over
-%% and the sentence fails, and reason_refused/2 names it.
+%% It reads a prepositional phrase only where it can belong to one thing:
+%% a place after an object (`rents a flat in Rome', `keeps the tractor in
+%% the barn'), and a mention or a determined noun after a bare verb's
+%% preposition (`ends in a vowel', `sleeps at the house'); a proper noun
+%% after a bare verb is refused, because `sleeps_in Rome' is that
+%% relation's written form. What it cannot place it REFUSES rather than
+%% misreads: `Alice owns a house in Rome' once came back as rome(rome_1),
+%% house(rome_1), in(rome_1), own(alice, rome_1) -- the position rule
+%% taking the last word for the noun -- and that is worse than a refusal.
+%% Prepositions are closed, so a phrase that fits nowhere is left over,
+%% the sentence fails, and reason_refused/2 names it.
 %% It does not read a conjunction, and refuses one BY RULE: `Alice and
 %% Bob' parsed as and(alice, bob) while `and' was an open word, and a
 %% sentence refused only because its tail did not fit is one misreading
@@ -449,10 +475,34 @@ reason_learn(Text, Terms) :- reason_text(Text, Terms), forall(member(T, Terms), 
 %% these four are the library's. A suffix or a prefix, both atoms, and a
 %% whole word is its own suffix. The explanation says one as it is
 %% (`"mesa" ends in "a"'), never through its clause.
+end_in(W, C)     :- atom(C), rl_letter_class(C), !, atom(W), rl_last_letter(W, L), rl_letter_is(L, C).
 end_in(W, S)     :- atom(W), atom(S), sub_atom(W, _, _, 0, S).
 end_with(W, S)   :- end_in(W, S).
+begin_with(W, C) :- atom(C), rl_letter_class(C), !, atom(W), rl_first_letter(W, L), rl_letter_is(L, C).
 begin_with(W, P) :- atom(W), atom(P), sub_atom(W, 0, _, _, P).
 start_with(W, P) :- begin_with(W, P).
+
+%% `ends in a vowel', `begins with a consonant': the class atom a determined
+%% noun reads to, and a letter is a byte or, past 127, the two bytes of an
+%% accented one; the vowels are the five and their accented forms
+rl_letter_class(vowel).
+rl_letter_class(consonant).
+rl_letter_is(L, vowel) :- rl_vowel(L).
+rl_letter_is(L, consonant) :- rl_letter(L), \+ rl_vowel(L).
+rl_last_letter(W, L) :-
+    atom_codes(W, Cs), Cs \== [],
+    ( append(_, [B1, B2], Cs), B1 >= 192, B2 >= 128 -> L = [B1, B2] ; last(Cs, C), L = [C] ).
+rl_first_letter(W, L) :-
+    atom_codes(W, [C|Cs]),
+    ( C >= 192, Cs = [C2|_], C2 >= 128 -> L = [C, C2] ; L = [C] ).
+rl_vowel([C]) :- memberchk(C, [0'a, 0'e, 0'i, 0'o, 0'u, 0'A, 0'E, 0'I, 0'O, 0'U]).
+rl_vowel([195, C]) :- memberchk(C, [161, 169, 173, 179, 186, 129, 137, 141, 147, 154]).   % á é í ó ú Á É Í Ó Ú
+rl_letter([C]) :- ( C >= 0'a, C =< 0'z -> true ; C >= 0'A, C =< 0'Z ).
+rl_letter([_, _]).
+
+%% the stemmer, reason_third/2's inverse, for a program: owns -> own, and
+%% houses -> house, since a plural is made the same way
+reason_base(W, B) :- rs_base(W, B).
 
 re_helper(end_in(_, _)).    re_helper(end_with(_, _)).
 re_helper(begin_with(_, _)). re_helper(start_with(_, _)).
@@ -464,7 +514,9 @@ re_helper(begin_with(_, _)). re_helper(start_with(_, _)).
 reason_question(Text, Question) :-
     reason_tokens(Text, Tokens),
     rs_sentences(Tokens, [S|_]),
-    phrase(rs_question(Question), S).
+    rs_notes_reset,
+    phrase(rs_question(Question), S),
+    rs_notes_commit.
 
 reason_ask(Text, Answers) :-
     reason_tokens(Text, Tokens),
@@ -949,6 +1001,8 @@ re_sentence(A \= B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, 
 re_sentence(A == B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is ', Y], S).
 re_sentence(A = B, S) :- !, re_arg(A, X), re_arg(B, Y), atomic_list_concat([X, ' is ', Y], S).
 re_sentence(G, S) :- compound(G), G =.. [P, X], !, re_arg(X, XA), re_predicate(P, is, PA), atomic_list_concat([XA, ' is ', PA], S).
+re_sentence(G, S) :- re_helper(G), G =.. [V, X, C], atom(C), rl_letter_class(C), !, re_arg(X, XA), re_verb(V, third, VP), atomic_list_concat([XA, ' ', VP, ' a ', C], S).
+re_sentence(G, S) :- compound(G), G =.. [V, X, Y], re_of_noun(V, N), !, re_arg(X, XA), re_arg(Y, YA), atomic_list_concat([XA, ' is the ', N, ' of ', YA], S).
 re_sentence(G, S) :- compound(G), G =.. [V, X, Y], !, re_arg(X, XA), re_arg(Y, YA), re_verb(V, third, VP), atomic_list_concat([XA, ' ', VP, ' ', YA], S).
 re_sentence(G, S) :-
     compound(G), G =.. [V, X, Y, Z], atomic_list_concat(Parts, '_', V), append(Front, [Prep], Parts), Front \== [], !,
@@ -958,7 +1012,12 @@ re_sentence(G, S) :- format(atom(S), "~w", [G]).
 
 re_negative(amount(N, Q), S) :- !, re_arg(N, NA), re_arg(Q, QA), atomic_list_concat([NA, ' is not ', QA], S).
 re_negative(G, S) :- compound(G), G =.. [P, X], !, re_arg(X, XA), re_predicate(P, is, PA), atomic_list_concat([XA, ' is not ', PA], S).
+re_negative(G, S) :- re_helper(G), G =.. [V, X, C], atom(C), rl_letter_class(C), !, re_arg(X, XA), re_verb(V, not, VP), atomic_list_concat([XA, ' ', VP, ' a ', C], S).
+re_negative(G, S) :- compound(G), G =.. [V, X, Y], re_of_noun(V, N), !, re_arg(X, XA), re_arg(Y, YA), atomic_list_concat([XA, ' is not the ', N, ' of ', YA], S).
 re_negative(G, S) :- compound(G), G =.. [V, X, Y], !, re_arg(X, XA), re_arg(Y, YA), re_verb(V, not, VP), atomic_list_concat([XA, ' ', VP, ' ', YA], S).
+
+%% mother_of, plural_of: a relation a noun the reader met names
+re_of_noun(V, N) :- atom(V), atom_concat(N, '_of', V), N \== '', re_noun(N).
 re_negative(G, S) :-
     compound(G), G =.. [V, X, Y, Z], atomic_list_concat(Parts, '_', V), append(Front, [Prep], Parts), Front \== [], !,
     atomic_list_concat(Front, '_', V2), re_verb(V2, not, VP),
@@ -1006,14 +1065,26 @@ re_article(_, a).
 
 re_cap(W, C) :- atom_codes(W, [F|R]), ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 = F ), atom_codes(C, [F1|R]).
 
-%% what the reader met: the proper nouns, and the class nouns after `a',
-%% `the' or `every' -- globals of this machine, never asserted, so the
-%% explanation can write `Kh8' and `a king' where the terms hold kh8 and
-%% king(kh8)
+%% what the reader met: the proper nouns, the class nouns after `a', `the'
+%% or `every', and the words in quotation marks -- globals of this machine,
+%% never asserted, so the explanation can write `Kh8', `a king' and
+%% `"casa"' where the terms hold kh8, king(kh8) and casa. A note is PENDING
+%% until its sentence parses and is dropped when it does not: `the big
+%% barn' in a refused sentence once made `big' a noun for the rest of the
+%% process, and an explanation said `the box is a big'.
 re_name(X) :- catch(nb_getval('$rs_names', L), _, fail), memberchk(X, L).
 re_noun(P) :- catch(nb_getval('$rs_nouns', L), _, fail), memberchk(P, L).
 re_quoted(W) :- catch(nb_getval('$rs_quoted', L), _, fail), memberchk(W, L).
 rs_note(Key, X) :-
+    catch(nb_getval('$rs_pending', L), _, L = []),
+    nb_setval('$rs_pending', [Key-X|L]).
+rs_notes_reset :- nb_setval('$rs_pending', []).
+rs_notes_commit :-
+    catch(nb_getval('$rs_pending', L), _, L = []),
+    reverse(L, Notes),
+    forall(member(Key-X, Notes), rs_register(Key, X)),
+    nb_setval('$rs_pending', []).
+rs_register(Key, X) :-
     catch(nb_getval(Key, L), _, L = []),
     ( memberchk(X, L) -> true ; nb_setval(Key, [X|L]) ).
 
@@ -1021,7 +1092,9 @@ rs_note(Key, X) :-
 %% last fact, which a subject pronoun in the next sentence stands for
 rs_each([], []).
 rs_each([S|Ss], Terms) :-
+    rs_notes_reset,
     once(phrase(rs_sentence(T, State), S)),
+    rs_notes_commit,
     rs_remember(State),
     append(T, Rest, Terms),
     rs_each(Ss, Rest).
@@ -1035,7 +1108,9 @@ reason_sentence(Text, Options, Terms) :-
     reason_tokens(Text, Tokens),
     rs_sentences(Tokens, [S|_]),
     nb_setval('$rs_subject', none),
+    rs_notes_reset,
     phrase(rs_sentence(Raw, _), S),
+    rs_notes_commit,
     rs_declare(Raw),
     (   memberchk(variables(true), Options)
     ->  Terms = Raw
@@ -1091,8 +1166,9 @@ reason_refused(Text, Sentence) :-
 %% carries it, so a pronoun after its antecedent is not reported refused;
 %% each refused sentence in turn on backtracking
 rr_refused([S|Ss], R) :-
+    rs_notes_reset,
     (   phrase(rs_sentence(_, State), S)
-    ->  rs_remember(State), rr_refused(Ss, R)
+    ->  rs_notes_commit, rs_remember(State), rr_refused(Ss, R)
     ;   ( R = S ; rr_refused(Ss, R) )
     ).
 
@@ -1265,6 +1341,11 @@ rs_question(question(X, Goal)) -->
 rs_question(question(X, Goal)) -->
     [word(who, _)], rs_modal_verb(V), rs_object_opt(fact, O, Extra), rs_place_opt(O, Pl),
     { rs_claim(V, X, O, Pl, P), rs_goal(Extra, P, Goal) }.
+%% `What is the plural of "el"?': the relation the noun names, with the
+%% variable where what is asked stood
+rs_question(question(X, Goal)) -->
+    [word(what, _)], rs_copula, rs_det(def), rs_noun(N), [word(of, _)], rs_of_object(O),
+    { rs_note('$rs_nouns', N), atom_concat(N, '_of', NO), Goal =.. [NO, X, O] }.
 rs_question(question(X, Goal)) -->
     [word(Wh, _)], { Wh == what ; Wh == whom }, rs_aux, rs_qsubject(S), rs_verb_place(V, X, Pl),
     { rs_claim(V, S, X, Pl, Goal) }.
@@ -1369,9 +1450,20 @@ rs_predication(S, Ctx, Claim, Extra) -->
     rs_place_opt(O, Pl),
     { rs_claim(V, S, O, Pl, Claim) }.
 
-%% `is ADJ' or `is a NOUN' -- both a unary property of the subject
-rs_property(S, P) --> rs_det(_), !, rs_noun(N), { rs_note('$rs_nouns', N), P =.. [N, S] }.
+%% `is ADJ', `is a NOUN' -- a unary property of the subject -- or `is the
+%% NOUN of X', a relation the noun names: mother_of(alice, bob),
+%% plural_of(los, el)
+rs_property(S, P) -->
+    rs_det(Kind), !, rs_noun(N), { rs_note('$rs_nouns', N) },
+    (   { Kind == def }, [word(of, _)], rs_of_object(O)
+    ->  { atom_concat(N, '_of', NO), P =.. [NO, S, O] }
+    ;   { P =.. [N, S] }
+    ).
 rs_property(S, P) --> rs_adj(A), { P =.. [A, S] }.
+
+%% after `of': a mention, or a proper noun
+rs_of_object(W) --> rs_mention(W).
+rs_of_object(P) --> rs_proper(P).
 
 %% a modal in front of the verb joins it: may_access
 rs_modal_verb(V) --> [word(M, _)], { rl_modal(M) }, !, rs_verb_word(W), { atomic_list_concat([M, '_', W], V) }.
@@ -1382,18 +1474,28 @@ rs_object_opt(Ctx, O, Extra) --> rs_object(Ctx, O, Extra).
 rs_object_opt(_, none, []) --> [].
 rs_object_opt(Ctx, O) --> rs_object_opt(Ctx, O, _).
 
-%% `in Rome' AFTER AN OBJECT: the preposition joins the relation, as it does
-%% when it is written joined to a bare verb (`lives_in Rome'), and the place
-%% is a third argument -- rent_in(alice, V, rome). Only after an object:
-%% after a bare verb the two words are ONE relation and are written as one,
-%% so `Alice sleeps in Rome' is still refused where `Alice sleeps_in Rome'
-%% is read, and library(reasoning/normalise)'s assembler is what joins them.
-rs_place_opt(O, Prep-Place) --> { O \== none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_proper(Place), !.
-%% and after a BARE verb a preposition and a QUOTED word: `ends in "a"' is
-%% end_in(X, a), where `sleeps in Rome' stays refused -- a mention can
-%% belong to nothing but the verb, and a place could be a phrase left over
-rs_place_opt(O, Prep-W) --> { O == none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_quoted(W), !.
+%% `in Rome' or `in the barn' AFTER AN OBJECT: the preposition joins the
+%% relation, as it does when it is written joined to a bare verb (`lives_in
+%% Rome'), and the place is a third argument -- rent_in(alice, V, rome),
+%% keep_in(omar, tractor, barn), a definite phrase being its class atom.
+%% Only after an object: after a bare verb the two words are ONE relation
+%% and are written as one, so `Alice sleeps in Rome' is still refused
+%% where `Alice sleeps_in Rome' is read, and library(reasoning/normalise)'s
+%% assembler is what joins them.
+rs_place_opt(O, Prep-Place) --> { O \== none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_place(Place), !.
+%% and after a BARE verb a preposition and a MENTION -- a quoted word, or a
+%% determined noun as its class atom: `ends in "a"' is end_in(X, a) and
+%% `ends in a vowel' end_in(X, vowel), where `sleeps in Rome' stays
+%% refused. A mention can belong to nothing but the verb, and a place
+%% could be a phrase left over.
+rs_place_opt(O, Prep-W) --> { O == none }, [word(Prep, _)], { rl_preposition(Prep) }, rs_mention(W), !.
 rs_place_opt(_, none) --> [].
+
+rs_place(P) --> rs_proper(P).
+rs_place(N) --> rs_det(def), rs_noun(N), { rs_note('$rs_nouns', N) }.
+
+rs_mention(W) --> rs_quoted(W).
+rs_mention(N) --> rs_det(_), rs_noun(N), { rs_note('$rs_nouns', N) }.
 
 %% a quoted word, a quantity, a proper noun; `the N' as the class atom;
 %% `a N' as an individual in a fact and the class atom otherwise
