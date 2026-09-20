@@ -3124,6 +3124,28 @@ which is exactly a four-byte `30 82 01 21` header. `der_wrap(48, K, S)`
 puts it back. Documented in `modules/x509/x509.cicili` and in
 `tutorials/library/26-x509.pl`; ZiguratIP is not patched for it.
 
+## `sort/4` was an insertion sort, and `keysort/2` is `sort/4` (1.2.40)
+
+**A TABLE OF THIRTY-FIVE THOUSAND WORDS TOOK TEN SECONDS TO KEYSORT, AND A
+PROCESS THAT TAGGED ONE SENTENCE PAID FORTY-TWO SECONDS BEFORE ITS FIRST
+ANSWER.** `coco_l_sort4` in `lib/lists.cicili` was an insertion sort --
+"stable, and n is small in every use this has" -- and `keysort/2` is
+`sort(1, @=<, L, S)`, so every keysort was quadratic: measured, 20 000
+pairs in 1.03 s where `msort/2` took 0.009, and 35 081 in 10.6 s where
+`msort` took 0.022. Nobody saw it because nothing keysorted more than a
+few hundred things until the reasoning tagger's judge built its lexicon
+(`tg_lexicon_classes`, ~55 000 pairs, 42 s) and the head rule its
+known-word table (~35 000, 11 s), once a process -- and
+`test/tagger.pl`'s across-processes section, whose children each pay
+both, ran past `cocolog_out/2`'s 120 s and FAILED SILENTLY, `main`
+failing with no red check, exit 1 and no verdict line. It is a bottom-up
+merge sort now, stable by construction (the left run wins a tie, which
+`bagof/3` needs), 20 000 pairs in 4 ms. **The tell was a probe, not the
+suite**: the case's log ended after a green line with no RED or GREEN,
+and timing the children by hand said 66 s and 40 s for work worth five.
+A section that fails without a check line is a goal that failed, and
+`proc_run/4` failing on its timeout is the first thing to suspect.
+
 ## The engine was quadratic, and the fix is one call
 
 **`coco_make` now dereferences every argument as it stores it**, in
