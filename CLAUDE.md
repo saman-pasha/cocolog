@@ -62,9 +62,13 @@ cocolog -s test/run.pl -- solve            # one case
 make lint FILES=myprogram.pl    # cocolint, over a file you name
 sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0
                                 # (apt install wordnet-base); a cocolog
-                                # program, and its output IS committed
+                                # program, library/reasoning/lexicon/build.pl,
+                                # and its output IS committed
 sh tools/tagger/train.sh        # the shipped tagger, library/reasoning/model.rows:
-                                # two minutes with libtorch, and committed too
+                                # generate.pl writes the training data to
+                                # library/reasoning/generated/ (committed),
+                                # train.pl trains on it; three minutes with
+                                # libtorch, and the model is committed too
 ```
 
 **`cocolog --version` ANSWERS ON STDOUT, AND THE NUMBER GOES UP WITH
@@ -1817,14 +1821,14 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`tools/lexicon/build.pl` regenerates them from a WordNet 3.0 dict); `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`library/reasoning/lexicon/build.pl` regenerates them from a WordNet 3.0 dict), over `library/reasoning/corpus/`, the lessons whose words the lesson shapes draw, one sentence a line, and written out to `library/reasoning/generated/` by `generate.pl` so the pairs a model trained on are in the tree; `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **THE REASONING LEXICON IS FILES, NOT SOURCE, AND THE GRAMMAR FILTERS
 THEM AS THEY LOAD.** `library/reasoning/lexicon/<class>.txt` -- one word a
 line, commonest first -- is what `library(reasoning/normalise)` generates
 from: `proper.txt` is the US Census's first names, the rest are WordNet
-3.0 ranked by its SemCor tag counts, written by `tools/lexicon/build.pl`
+3.0 ranked by its SemCor tag counts, written by `library/reasoning/lexicon/build.pl`
 (cocolog: `read_file_to_codes` takes data.noun's fifteen megabytes in
 half a second and `split_string/4` cuts a megabyte into lines in ten
 milliseconds). The library reads them on the first pick, keeps them as
@@ -1982,7 +1986,7 @@ definite phrase after the quantity (`for the flat`, because `pp_extra`'s
 question, the denial, `does S V N UNIT`, `how much`, `how many`, `how
 much is`), a number tagged T before its noun and `of` a K, over
 `lexicon/unit.txt` -- WordNet's hyponyms of `unit_of_measurement` and
-`time_unit`, which `tools/lexicon/build.pl` now walks by the `~`
+`time_unit`, which `lexicon/build.pl` now walks by the `~`
 pointers, because noun.quantity alone offers `nothing`, `much` and
 `half`; the tagger gives a number one word, `<num>`, and shape 15, and
 the judge lets a number or a number word be T or O only and `much` or
@@ -2274,11 +2278,68 @@ server up, and read the 58 lines. Measured on this box after the fix:
 58 lines, 7 SKIPs (tensors, the three torch cases, tensorflow, ray,
 numpy -- every one a missing library, none a missing server), `red: 0`.
 
+**A LESSON TYPED AS PROSE, AND THE TAG THAT WRITES THE QUOTATION MARKS
+(1.2.39).** A language lesson is written about WORDS -- `The noun "casa"
+means "house"`, `"los" is the plural of "el"`, `Every noun that ends in
+"a" is feminine` -- and prose writes them bare: `The noun casa means
+house`. A token tagger labels and never emits, so the marks had nowhere to
+come from until a thirteenth tag, `M`, a MENTIONED word, which is the one
+tag `normalise_assemble/3` writes something for: an M token goes between
+quotation marks and a run of them is one mention (`al is the contraction
+of a el` gives `"a el"`), a `quoted(W)` token is M and nothing else, and a
+sentence with a mention before its relation has a subject of its own, so
+`and is feminine` after `casa means house` takes `"casa"` as the assembler
+already took `Priya`. Ten shapes make the lessons (45-54) and two
+transforms undo the prose: `unquote` (the marks off, at seven pairs in
+ten) and `in_language` (`In Spanish,` at the head, `in Spanish` after a
+fact about a mention, both D). **NO WORD OF A LESSON LIVES IN THE CODE,
+which is the owner's rule for training data**: the shapes draw their
+mentioned words, the classes said of them, the adjectives, the forms, the
+relations and the class atoms out of `library/reasoning/corpus/*.txt` --
+the Spanish and Italian lessons of `test/translate.pl`, one sentence a
+line, the same controlled English -- by pattern over the tokens
+(`ng_corpus_word/3`), so a lesson that needs a word or a shape the corpus
+lacks gets a LINE there, and `tagger_lessons/4` measures the shipped
+tagger on those lines typed bare (`normalise_bare/2`). `lexicon/language.txt`
+joined the WordNet files for `Spanish is a language` and the noise:
+a word under `natural_language` in its first sense, or its second when
+the first is a person (Italian, German), never a thing (tongue, chin).
+Three things the grammar had to learn, each found by the round trip:
+`"casa" is a feminine noun` is `feminine(casa), noun(casa)` (the
+indefinite property takes adjectives, as the apposition does); a
+sentence that MENTIONS a word names no place, so `"casa" means "house" in
+Spanish` and `The word "no" precedes the verb in Spanish` are refused
+rather than read as mean_in/3 -- where `takes "s" in the plural`, a
+definite phrase, is still the form; and `on the whole` is an adjunct
+noun like `in the morning`. And the judge gained two rules: a quoted
+token is M whatever the network says, and a sentence with a mention is
+related only by `is` or a verb some lesson uses, which is what keeps
+`Boston, Mass.` from becoming a fact about the word `boston`. Two
+things bit. A class word taken from `begins the question` made
+`question(lo)` a fact, and `question/1` is the reader's own wrapper: the
+classes said of a word come only from `the CLASS "w"` and `"w" is a
+CLASS`, never from what a relation ends in. And `unquote` is the one
+transform whose noisy text the grammar may READ -- `Leche is feminine`
+is a fact about a name -- with the same term either way, so
+`test/normalise.pl` now holds every noisy text to the clean text's terms
+rather than to a refusal. **AND THE DATA A MODEL TRAINED ON IS IN THE
+TREE, WHICH IS THE OWNER'S SECOND RULE**: `library/reasoning/generate.pl`
+writes the generator's pairs to `library/reasoning/generated/`
+(`training.txt`, seeds 1..16384; `evaluation.txt`, 30001..30300; one
+`pair(...)` term a line, `normalise_save/2` and `normalise_load/2`),
+`train.pl` trains on that file through `tagger_train/2`'s `pairs_file(F)`,
+`tools/tagger/train.sh` runs the two in turn, and the files are committed
+beside `model.rows` -- a seed is reproducible only while nothing under it
+moves. The generator programs are `.pl` files in the reasoning library
+now, `library/reasoning/lexicon/build.pl` and `library/reasoning/train.pl`
+(the `tools/` scripts stay as launchers), which is the rule's other half:
+a generator is a cocolog program beside the data it writes.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when
 there is one -- a program over its own `--embed` store runs
-`tools/tagger/train.pl` there once and every later run finds it -- and
+`library/reasoning/train.pl` there once and every later run finds it -- and
 otherwise `library/reasoning/model.rows` beside the library, the rows
 `tagger_export/2` writes, consulted as a MODULE so they are muted and
 never written into the program's base. `reason_prose/2` and
@@ -2300,7 +2361,7 @@ torch or the file is missing.
 his endeavors.` was read as `put(death, period_1)` because `death` is in
 no lexicon file: the generator's nouns are things to own (WordNet's
 artifact, food, object, plant, possession files), and the judge had been
-reading the generator's lists. `tools/lexicon/build.pl` now also writes
+reading the generator's lists. `lexicon/build.pl` now also writes
 `known_noun`, `known_verb`, `known_adj` and `known_adverb` -- every
 SemCor-counted lemma of that part of speech whatever its sense, 18 782
 words -- and `tagger_sane/2` reads those beside the generator's; the same

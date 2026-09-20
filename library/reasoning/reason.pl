@@ -1080,6 +1080,8 @@ rs_note(Key, X) :-
     catch(nb_getval('$rs_pending', L), _, L = []),
     nb_setval('$rs_pending', [Key-X|L]).
 rs_notes_reset :- nb_setval('$rs_pending', []).
+%% noted in THIS sentence so far: the quoted words, to keep a place off a mention
+rs_pending(Key, X) :- catch(nb_getval('$rs_pending', L), _, L = []), memberchk(Key-X, L).
 rs_notes_commit :-
     catch(nb_getval('$rs_pending', L), _, L = []),
     reverse(L, Notes),
@@ -1468,18 +1470,20 @@ rs_predication(S, Ctx, Claim, Extra) -->
     rs_place_opt(O, Pl),
     { rs_claim(V, S, O, Pl, Claim) }.
 
-%% `is ADJ', `is a NOUN' -- a unary property of the subject -- or `is the
-%% [ADJ..] NOUN of X', a relation the noun names: mother_of(alice, bob),
-%% plural_of(los, el). An adjective before that noun is a fact about the
-%% subject besides, handed back before the claim: `"como" is the first
-%% person of "come"' is first(como), person_of(como, come). Only the `of'
-%% form takes them, and the noun is the word before `of', so nothing is
-%% noted until the shape is sure.
+%% `is ADJ', `is a [ADJ..] NOUN' -- a unary property of the subject -- or
+%% `is the [ADJ..] NOUN of X', a relation the noun names: mother_of(alice,
+%% bob), plural_of(los, el). An adjective before the noun is a fact about
+%% the subject besides, handed back before the claim: `"como" is the first
+%% person of "come"' is first(como), person_of(como, come), and `"casa" is
+%% a feminine noun' is noun(casa), feminine(casa) -- the same reading `the
+%% feminine article "la"' gets as a subject, and what a lesson typed as
+%% prose says most often. The noun is the LAST word before `of' or the
+%% stop, so nothing is noted until the shape is sure.
 rs_property(S, P, Extra) -->
     rs_det(Kind), !,
     (   { Kind == def }, rs_adjs(As), rs_noun(N), [word(of, _)], rs_of_object(O)
     ->  { rs_note('$rs_nouns', N), atom_concat(N, '_of', NO), P =.. [NO, S, O], rs_adj_terms(As, S, Extra) }
-    ;   rs_noun(N), { rs_note('$rs_nouns', N), P =.. [N, S], Extra = [] }
+    ;   rs_adjs(As), rs_noun(N), { rs_note('$rs_nouns', N), P =.. [N, S], rs_adj_terms(As, S, Extra) }
     ).
 rs_property(S, P, []) --> rs_adj(A), { P =.. [A, S] }.
 
@@ -1519,8 +1523,13 @@ rs_place_opt(_, none) --> [].
 
 %% a place is never a TIME: `in the morning', `at the moment', `for a
 %% while' are adjuncts this grammar does not read, and the generator's
-%% noise (normalise.pl's pp_extra) must stay refused
-rs_place(P) --> rs_proper(P).
+%% noise (normalise.pl's pp_extra) must stay refused. And a sentence that
+%% MENTIONS a word names no place: `"casa" means "house" in Spanish' and
+%% `The word "no" precedes the verb in Spanish' are refused rather than
+%% read as mean_in/3 and precede_in/3, because the proper noun after a
+%% word said of a word is the language, which the normaliser drops --
+%% where `takes "s" in the plural', a definite phrase, is still the form
+rs_place(P) --> { \+ rs_pending('$rs_quoted', _) }, rs_proper(P).
 rs_place(N) --> rs_det(def), rs_noun(N), { \+ rl_time_noun(N), rs_note('$rs_nouns', N) }.
 
 rs_mention(W) --> rs_quoted(W).
@@ -1721,6 +1730,7 @@ rl_time_noun(night).     rl_time_noun(day).       rl_time_noun(week).      rl_ti
 rl_time_noun(month).     rl_time_noun(year).      rl_time_noun(hour).      rl_time_noun(minute).
 rl_time_noun(time).      rl_time_noun(while).     rl_time_noun(end).       rl_time_noun(beginning).
 rl_time_noun(meantime).
+rl_time_noun(whole).       % `on the whole', an adjunct of the same kind: never a place
 
 rl_preposition(in).      rl_preposition(on).      rl_preposition(at).
 rl_preposition(to).      rl_preposition(from).    rl_preposition(with).

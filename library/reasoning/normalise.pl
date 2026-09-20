@@ -52,7 +52,7 @@
 %% capitalised word after a preposition after an object is a place the
 %% grammar reads.
 %%
-%% AND QUESTIONS ARE SHAPES TOO, twelve of the forty-five: `Does Alice own
+%% AND QUESTIONS ARE SHAPES TOO, twelve of the fifty-five: `Does Alice own
 %% a car?', `Is Alice happy?', `May Alice use the server?', `Who owns a
 %% car?', `What does Alice own?', `Where does Alice sleep?', `Does Alice pay
 %% 500 euros?', `How much does Alice pay?', `How many euros does Alice
@@ -73,6 +73,40 @@
 %% units of measurement and of time) and things, pluralised by the
 %% inflector, because a plural is the form a number takes.
 %%
+%% AND A LESSON IS TEN SHAPES, WHOSE WORDS ARE A CORPUS. A language lesson
+%% is written about WORDS -- `The feminine noun "casa" means "house"',
+%% `"leche" is feminine', `"amigo" is a person', `"los" is the plural of
+%% "el"', `Every noun that ends in "a" is feminine', `Every verb that ends
+%% in "e" takes "n" in the plural', `The word "no" precedes the verb',
+%% `Spanish is a language' -- and a word in quotation marks is MENTIONED:
+%% it stands for itself, whatever it is. The tag for one is M, the
+%% thirteenth, and it is the one tag that ADDS something when the
+%% assembler undoes it: a token tagged M is written between quotation
+%% marks, a run of them as one mention (`a el'), so `The noun casa means
+%% house', typed as prose is typed, comes back as the lesson's own line.
+%% No word of a lesson lives in this file: the mentioned words, the
+%% classes said of them (noun, article, pronoun), the adjectives
+%% (feminine), the forms (`the plural of', `the first person of'), the
+%% relations (means, precedes, `takes ... in the plural') and the class
+%% atoms (`the verb', `in the plural', `a vowel') are read out of the
+%% lessons in library/reasoning/corpus/ -- one sentence a line, in the
+%% controlled English itself -- by the shapes' own patterns
+%% (normalise_lexicon/2 with mention, wclass, wadj, form, vq, vqin, vin,
+%% vthe, wobj, wplace, wkind, wlang, ending, letter), and a lesson that
+%% needs a word or a shape the corpus lacks gets a line there, not a word
+%% here. The meanings and half the mentions are ordinary lexicon words
+%% besides, because any English word can be mentioned. Two transforms
+%% are theirs: `unquote', the marks taken off (at seven pairs in ten,
+%% because that is how prose writes a word about a word, and the tagger
+%% must read the quoted form too), and `in_language' -- `in Spanish' at
+%% the end of a fact about a mention, or `In Spanish,' at the head, tagged
+%% D, the grammar refusing the first because a sentence that mentions a
+%% word names no place. Inside the apposition a language is an ADJECTIVE
+%% kept (`The Spanish noun "casa"' is spanish(casa) besides, which is
+%% true), because dropping it would have taught the network to drop an
+%% adjective. What a tag still cannot do holds here too: `Nouns that end
+%% in -a are feminine' changes three forms, and is not made.
+%%
 %% ---- THE SURFACE ------------------------------------------------------
 %%
 %%     normalise_pair(+Seed, -Pair)
@@ -88,6 +122,20 @@
 %%     normalise_corpus(+N, -Pairs)
 %%     normalise_corpus(+N, +Options, -Pairs)          seeds 1..N
 %%
+%%     normalise_save(+Pairs, +File)
+%%     normalise_load(+File, -Pairs)
+%%         The pairs as DATA: one canonical pair(...) term a line, written
+%%         with writeq/1 and read back with term_to_atom/2, so what a
+%%         tagger trained on is a file in the tree and not a seed somebody
+%%         has to re-run the generator for. library/reasoning/generate.pl
+%%         writes the shipped model's corpus to
+%%         library/reasoning/generated/, and tagger_train/2's pairs_file(F)
+%%         trains on it; the pair is the same term normalise_pair/2 gives.
+%%     normalise_generated_dir(-Dir)
+%%         Where generate.pl writes: $COCOLOG_GENERATED, or
+%%         `reasoning/generated' under the first library directory that has
+%%         a `reasoning', made when it is missing.
+%%
 %%     normalise_negatives(+From, +N, -Pairs)
 %%         N real sentences from prose.txt beside the lexicon -- WordNet's own
 %%         example sentences, in a fixed hash order -- from the From-th, as
@@ -100,20 +148,38 @@
 %%
 %%     normalise_assemble(+Tokens, +Tags, -Text)
 %%         The inverse: D dropped, a run of R joined with `_', B a sentence
-%%         break -- and a sentence the break leaves with no S takes the
-%%         subject phrase of the one before it -- everything else copied in
-%%         its case; each sentence
-%%         capitalised and stopped. What the tagger's output is handed to,
-%%         and what the round trip below holds the tags to.
+%%         break -- and a sentence the break leaves with no subject (no S,
+%%         and no M before its relation) takes the subject phrase of the
+%%         one before it -- a run of M written as ONE mention between
+%%         quotation marks, a quoted token as itself, everything else
+%%         copied in its case; each sentence capitalised and stopped. What
+%%         the tagger's output is handed to, and what the round trip below
+%%         holds the tags to.
+%%
+%%     normalise_bare(+Text, -Bare)
+%%         The text with its mentions written bare -- `The noun "casa" means
+%%         "house".' as `The noun casa means house.' -- the way prose writes
+%%         a word about a word, and what tagger_lessons/4 puts to the
+%%         tagger; a mention that would not survive as words (`"¿"', a
+%%         sign the tokeniser drops) keeps its marks.
+%%
+%%     normalise_lessons(-Lines)
+%%         Every line of every .txt file in the corpus directory, in file
+%%         and line order, comments and blank lines dropped: the lessons the
+%%         shapes' words come from.
+%%     normalise_corpus_dir(-Dir)                      where they were found
 %%
 %%     normalise_third(+Base, -ThirdPerson)             the inflector, which
 %%                                                     library(reasoning/reason)'s stemmer must invert
 %%     normalise_tags(-Tags)                           the alphabet, closed
 %%     normalise_transforms(-Names)                    the transforms, by name
 %%     normalise_lexicon(+Class, -Words)               proper, noun, class, adj, vt, vi, vpp,
-%%                                                     adverb, place, unit -- the files beside
-%%                                                     this one, filtered by the grammar; and
-%%                                                     modal, the grammar's own
+%%                                                     adverb, place, unit, language -- the files
+%%                                                     beside this one, filtered by the grammar;
+%%                                                     modal, the grammar's own; and the corpus
+%%                                                     classes read out of the lessons: mention,
+%%                                                     wclass, wadj, form, vq, vqin, vin, vthe,
+%%                                                     wobj, wplace, wkind, wlang, ending, letter
 %%     normalise_lexicon_dir(-Dir)                     where the files were found
 %%
 %% ---- THE TAGS ---------------------------------------------------------
@@ -121,12 +187,15 @@
 %%     S  the subject head      Q  a quantifier (every)      C  the condition's adjective
 %%     R  a relation word       K  a structural word kept as it is: `that', `does',
 %%                                 the copula inside a relative clause
-%%     N  not                   T  a determiner               A  an adjective
+%%     N  not                   T  a determiner               A  an adjective -- and the class
+%%                                                              noun of an apposition, `the NOUN "casa"'
 %%     O  the object head       D  drop                       B  a sentence boundary
+%%     M  a MENTIONED word, written between quotation marks: the subject or
+%%        the object of a lesson's sentence, the letter a rule is over
 %%     X  OUTSIDE: not a sentence of the grammar's at all -- the tag a tagger
 %%        gives real prose it cannot normalise, and the assembler refuses
 %%
-%% Only D, R and B change what the assembler emits; the rest are copied,
+%% Only D, R, B and M change what the assembler emits; the rest are copied,
 %% and X is refused. The generator never emits X: a tagging comes back X
 %% throughout when library(reasoning/tagger)'s lexicon rules contradict it,
 %% and normalise_negatives/3 hands out real sentences tagged X throughout to
@@ -165,16 +234,18 @@
 
 %% ---- the alphabet, the transforms, the lexicon ---------------------------
 
-normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B', 'X']).
+normalise_tags(['S', 'Q', 'C', 'N', 'R', 'K', 'T', 'A', 'O', 'D', 'B', 'X', 'M']).
 
 %% in the order they are applied: the split before the emphatic (so a
 %% split relation is not also a candidate for `does'), the join before the
 %% fillers (so a filler or a hedge wraps the whole; filler_join conjoins
 %% itself when nothing has, and puts its filler after the `and'), the tails
 %% last -- an adverb after an intransitive verb, a prepositional adjunct
-%% after anything
+%% after anything, a language after a fact about a word -- and the
+%% quotation marks taken off a mention after everything else, so a
+%% conjoined lesson sentence loses its marks too
 normalise_transforms([split_relation, emphatic_do, conjoin, conjoin_shared, filler_join, adverb, hedge_start, filler_start,
-                      filler_end, adverb_end, pp_extra]).
+                      filler_end, adverb_end, pp_extra, in_language, unquote]).
 
 %% ---- the lexicon: files beside this one, read when first asked for ---------
 %%
@@ -183,8 +254,8 @@ normalise_transforms([split_relation, emphatic_do, conjoin, conjoin_shared, fill
 %% adverb, place and unit are WordNet 3.0 ranked by its SemCor tag counts,
 %% and prose is WordNet's example sentences, real English, for
 %% normalise_negatives/3 --
-%% written by tools/lexicon/build.pl (cocolog, not Python: the parse of
-%% WordNet's files is a DCG's job). SOURCES.md beside them says where each
+%% written by library/reasoning/lexicon/build.pl (cocolog, not Python:
+%% the parse of WordNet's files is a DCG's job). SOURCES.md beside them says where each
 %% came from and under what licence. NO WORD LIVES IN THIS FILE.
 %%
 %% The files are read the first time a word is asked for, held as globals
@@ -218,10 +289,12 @@ ng_library_dirs(Ds) :-
     findall(D, ( member(D, Ds1), D \== '' ), Ds).
 
 ng_class(proper). ng_class(noun). ng_class(class). ng_class(adj). ng_class(vt).
-ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place). ng_class(unit). ng_class(prose).
+ng_class(vi). ng_class(vpp). ng_class(adverb). ng_class(place). ng_class(unit). ng_class(language). ng_class(prose).
 ng_class(known_noun). ng_class(known_verb). ng_class(known_adj). ng_class(known_adverb).   % the judge's, not the generator's
 
 normalise_lexicon(modal, Ms) :- !, findall(M, rl_modal(M), Ms).
+normalise_lexicon(Class, Words) :-
+    ng_corpus_class(Class), !, ng_ensure_corpus, ng_key(list, Class, K), nb_getval(K, Words).
 normalise_lexicon(Class, Words) :-
     ng_class(Class), ng_ensure_lexicon, ng_key(list, Class, K), nb_getval(K, Words).
 
@@ -245,6 +318,9 @@ ng_load_class(Dir, Class) :-
     findall(W, ( member(L, Lines), string_length(L, Len), Len > 0,
                  \+ sub_string(L, 0, 1, _, "#"),
                  atom_string(W, L), ng_keep(Class, W) ), Words),
+    ng_store_class(Class, Words).
+
+ng_store_class(Class, Words) :-
     length(Words, N),
     ng_key(size, Class, KS), nb_setval(KS, N),
     ng_key(list, Class, KL), nb_setval(KL, Words),
@@ -271,7 +347,107 @@ ng_blocks(Words, Class, B) :-
 
 ng_key(Tag, Class, Key) :- atomic_list_concat(['$lx_', Tag, '_', Class], Key).
 
-ng_size(Class, N) :- ng_ensure_lexicon, ng_key(size, Class, K), nb_getval(K, N).
+ng_size(Class, N) :-
+    ( ng_corpus_class(Class) -> ng_ensure_corpus ; ng_ensure_lexicon ),
+    ng_key(size, Class, K), nb_getval(K, N).
+
+%% ---- the corpus: the lessons beside the lexicon, read when first asked for ---
+%%
+%% library/reasoning/corpus/*.txt, one sentence a line in the controlled
+%% English, a line beginning # a comment (its README says what is there).
+%% Read once a machine, like the lexicon, and held the same way; and the
+%% words a lesson shape needs are taken out of the lines by PATTERN, over
+%% the tokens: a quoted word is a mention; `the [ADJ..] CLASS "w"' and
+%% `"w" is a [ADJ..] CLASS' give the classes and the adjectives said of a
+%% word; `"w" is ADJ' an adjective; `the [ADJ..] FORM of "v"' a form (a
+%% list, `[first, person]'); a third-person verb is a relation, kept by
+%% what follows it -- a mention (means), a mention then `in the' (takes),
+%% a preposition (ends), `the' (precedes) -- and the words after those
+%% are the class atoms: `precedes the VERB', `in the PLURAL', `in a VOWEL',
+%% `Spanish is a LANGUAGE'; the mention after `takes' is an ending and
+%% the one after `in' a letter. $COCOLOG_CORPUS names another directory;
+%% otherwise it is `reasoning/corpus' under the first library directory
+%% that has one, as the lexicon is found.
+
+normalise_corpus_dir(Dir) :-
+    getenv('COCOLOG_CORPUS', Dir), Dir \== '', exists_directory(Dir), !.
+normalise_corpus_dir(Dir) :-
+    ng_library_dirs(Ds), member(D, Ds),
+    atom_concat(D, '/reasoning/corpus', Dir), exists_directory(Dir), !.
+
+normalise_lessons(Lines) :- ng_ensure_corpus, nb_getval('$lx_lessons', Lines).
+
+ng_corpus_class(mention). ng_corpus_class(wclass). ng_corpus_class(wadj).  ng_corpus_class(form).
+ng_corpus_class(vq).      ng_corpus_class(vqin).   ng_corpus_class(vin).   ng_corpus_class(vthe).
+ng_corpus_class(wobj).    ng_corpus_class(wplace). ng_corpus_class(wkind). ng_corpus_class(wlang).
+ng_corpus_class(ending).  ng_corpus_class(letter). ng_corpus_class(wverb).
+
+ng_ensure_corpus :- catch(nb_getval('$lx_corpus', yes), _, fail), !.
+ng_ensure_corpus :-
+    (   normalise_corpus_dir(Dir)
+    ->  true
+    ;   throw(error(existence_error(directory, 'reasoning/corpus'), normalise_lessons/1))
+    ),
+    directory_files(Dir, Fs0), msort(Fs0, Fs),
+    findall(Line, ( member(F, Fs), sub_atom(F, _, 4, 0, '.txt'),
+                    atomic_list_concat([Dir, '/', F], Path),
+                    read_file_to_codes(Path, Codes),
+                    split_string(Codes, [10], [32, 13, 9], Ls),
+                    member(L, Ls), string_length(L, Len), Len > 0,
+                    \+ sub_string(L, 0, 1, _, "#"),
+                    atom_string(Line, L) ),
+            Lines),
+    nb_setval('$lx_lessons', Lines),
+    findall(Toks, ( member(L, Lines), reason_tokens(L, Toks0),
+                    ( append(Toks, ['.'], Toks0) -> true ; Toks = Toks0 ) ),
+            Sents),
+    forall(ng_corpus_class(Class),
+           ( findall(W, ( member(Ts, Sents), ng_corpus_word(Class, Ts, W) ), Ws0),
+             ng_unique(Ws0, Ws), ng_store_class(Class, Ws) )),
+    nb_setval('$lx_corpus', yes).
+
+ng_unique([], []).
+ng_unique([W|Ws], [W|Us]) :- \+ memberchk(W, Ws), !, ng_unique(Ws, Us).
+ng_unique([_|Ws], Us) :- ng_unique(Ws, Us).
+
+%% one word of a class, by pattern, from one sentence's tokens
+ng_corpus_word(mention, Ts, W) :- member(quoted(W), Ts).
+ng_corpus_word(wclass, Ts, C) :- ng_class_run(Ts, Run), last(Run, C).
+ng_corpus_word(wadj, Ts, A) :- ng_class_run(Ts, Run), append(Adjs, [_], Run), member(A, Adjs).
+ng_corpus_word(wadj, Ts, A) :- append(_, [quoted(_), word(C, _), word(A, _)], Ts), rl_copula(C), \+ rl_closed(A).
+ng_corpus_word(form, Ts, Run) :- ng_det_run(Ts, def, Run, [word(of, _), quoted(_)|_]).
+ng_corpus_word(vq, Ts, V) :- append(_, [word(V, _), quoted(_)], Ts), ng_third(V).
+ng_corpus_word(vqin, Ts, V) :- append(_, [word(V, _), quoted(_), word(P, _), word(the, _)|_], Ts), rl_preposition(P), ng_third(V).
+ng_corpus_word(vin, Ts, V-P) :- append(_, [word(V, _), word(P, _)|_], Ts), rl_preposition(P), ng_third(V).
+ng_corpus_word(vthe, Ts, V) :- append(_, [word(V, _), word(the, _)|_], Ts), ng_third(V).
+ng_corpus_word(wobj, Ts, N) :- append(_, [word(V, _), word(the, _), word(N, _)], Ts), ng_third(V), \+ rl_closed(N).
+ng_corpus_word(wplace, Ts, P-N) :- append(_, [word(P, _), word(the, _), word(N, _)], Ts), rl_preposition(P), \+ rl_closed(N).
+ng_corpus_word(wkind, Ts, N) :- append(_, [word(P, _), word(A, _), word(N, _)|_], Ts), rl_preposition(P), rl_det(A, indef), \+ rl_closed(N).
+ng_corpus_word(wlang, Ts, N) :- Ts = [word(_, upper), word(C, _), word(A, _), word(N, _)], rl_copula(C), rl_det(A, indef), \+ rl_closed(N).
+ng_corpus_word(ending, Ts, E) :- append(_, [quoted(E), word(P, _), word(the, _)|_], Ts), rl_preposition(P).
+ng_corpus_word(letter, Ts, L) :-                                             % after a verb's preposition: `ends in "a"', not `of "el"'
+    append(Pre, [word(P, _), quoted(L)|_], Ts), rl_preposition(P),
+    ( append(_, [word(V, _)], Pre), ng_third(V) ; append(_, [word(not, _), word(_, _)], Pre) ).
+ng_corpus_word(wverb, Ts, W) :- member(word(V, _), Ts), ng_third(V), ( W = V ; rs_base(V, W) ).   % the judge's: both forms
+
+%% the words said OF a mention: `the [ADJ..] CLASS "w"', or `"w" is a
+%% [ADJ..] CLASS' -- and not the class atom a relation ends in (`begins
+%% the question'), because question/1 is the reader's own wrapper and a
+%% class named `question' would read as one
+ng_class_run(Ts, Run) :- ng_det_run(Ts, _, Run, [quoted(_)|_]).
+ng_class_run([quoted(_), word(C, _), word(D, _)|Rest], Run) :- rl_copula(C), rl_det(D, indef), ng_open_run(Rest, Run, []), Run \== [].
+
+%% `the [ADJ..] NOUN' not after a preposition: the run of open words after
+%% the determiner, and what follows the run
+ng_det_run(Ts, Kind, Run, After) :-
+    append(Pre, [word(D, _)|Rest], Ts), rl_det(D, Kind),
+    \+ ( last(Pre, word(P, _)), rl_preposition(P) ),
+    ng_open_run(Rest, Run, After), Run \== [].
+ng_open_run([word(W, _)|Ts], [W|Ws], After) :- \+ rl_closed(W), !, ng_open_run(Ts, Ws, After).
+ng_open_run(Ts, [], Ts).
+
+%% a third-person verb: not closed, and the stemmer takes it somewhere
+ng_third(V) :- \+ rl_closed(V), rs_base(V, B), B \== V.
 ng_nth(Class, K, W) :-
     B is K // 100, I is K mod 100 + 1,
     ng_key(B, Class, Key), nb_getval(Key, T), arg(I, T, W).
@@ -302,7 +478,11 @@ ng_word(vpp, Seed, Salt, V-Prep) :- !,
     Salt2 is Salt + 70, ng_choose(Seed, Salt2, [in, at, to, with, for, from, on], Prep).
 ng_word(modal, Seed, Salt, M) :- !, normalise_lexicon(modal, Ms), ng_choose(Seed, Salt, Ms, M).
 ng_word(Class, Seed, Salt, W) :-
-    ng_size(Class, N), ng_pick(Seed, Salt, N, K), ng_nth(Class, K, W).
+    ng_size(Class, N),
+    (   N > 0 -> true
+    ;   throw(error(existence_error(words, Class), context(normalise_pair/2, 'no line of the corpus gives one: see library/reasoning/corpus/README.md')))
+    ),
+    ng_pick(Seed, Salt, N, K), ng_nth(Class, K, W).
 ng_word2(Class, Seed, Salt, W1, W2) :-
     ng_size(Class, N), ng_pick(Seed, Salt, N, K1),
     Salt2 is Salt + 50, ng_pick(Seed, Salt2, N, K2a),
@@ -312,11 +492,51 @@ ng_word2(Class, Seed, Salt, W1, W2) :-
 ng_art(W, an) :- atom_codes(W, [C|_]), memberchk(C, [0'a, 0'e, 0'i, 0'o, 0'u]), !.
 ng_art(_, a).
 
+%% the words of a lesson shape: a MENTION is a word of the corpus two
+%% times in three and any lexicon word otherwise (a name lower-cased),
+%% because any word can be mentioned; a MEANING is a lexicon word three
+%% times in five; an adjective said of a word is the corpus's (feminine)
+%% three times in five and the lexicon's otherwise; and the letter a rule
+%% is over is a class atom (`a vowel') a third of the time, else one of
+%% the corpus's letters or any of the alphabet
+ng_mention(Seed, Salt, W) :-
+    S1 is Salt + 60, S2 is Salt + 61,
+    (   ng_coin(Seed, Salt, 65)
+    ->  ng_word(mention, Seed, S1, W)
+    ;   ng_choose(Seed, S1, [noun, adj, vt, proper], Class), ng_word(Class, Seed, S2, W0), downcase_atom(W0, W)
+    ).
+ng_mention2(Seed, Salt, W1, W2) :- ng_word2(mention, Seed, Salt, W1, W2).
+ng_meaning(Seed, Salt, E) :-
+    S1 is Salt + 62, S2 is Salt + 63,
+    (   ng_coin(Seed, Salt, 60)
+    ->  ng_choose(Seed, S1, [noun, adj, vt, vi, adverb], Class), ng_word(Class, Seed, S2, E0), downcase_atom(E0, E)
+    ;   ng_word(mention, Seed, S1, E)
+    ).
+ng_wadj(Seed, Salt, A) :-
+    S1 is Salt + 64,
+    ( ng_coin(Seed, Salt, 60) -> ng_word(wadj, Seed, S1, A) ; ng_word(adj, Seed, S1, A) ).
+ng_ending_phrase(Seed, Salt, End) :-
+    S1 is Salt + 1, S2 is Salt + 2,
+    (   ng_coin(Seed, Salt, 35) -> ng_word(wkind, Seed, S1, K), ng_art(K, Art), End = [Art-'T', K-'O']
+    ;   ng_coin(Seed, S1, 50) -> ng_word(letter, Seed, S2, L), End = [q(L)-'M']
+    ;   ng_pick(Seed, S2, 26, K0), C is 97 + K0, atom_codes(L, [C]), End = [q(L)-'M']
+    ).
+%% `the [LANGUAGE] [ADJ] CLASS "w"': the apposition, the language an
+%% adjective one time in four and an adjective of the word's one in three
+ng_apposition(Seed, Salt, [the-'T'|Rest]) :-
+    S1 is Salt + 1, S2 is Salt + 2, S3 is Salt + 3, S4 is Salt + 4, S5 is Salt + 5,
+    ng_word(wclass, Seed, Salt, C), ng_mention(Seed, S1, W),
+    ( ng_coin(Seed, S2, 25) -> ng_word(language, Seed, S3, L), Lang = [L-'A'] ; Lang = [] ),
+    ( ng_coin(Seed, S4, 30) -> ng_wadj(Seed, S5, A), Adj = [A-'A'] ; Adj = [] ),
+    append([Lang, Adj, [C-'A', q(W)-'M']], Rest).
+%% a form as pairs: `[first, person]' is first-A person-O
+ng_form_pairs(Run, Pairs) :- append(Adjs, [N], Run), findall(A-'A', member(A, Adjs), As), append(As, [N-'O'], Pairs).
+
 %% ---- the shapes: a clean sentence as Word-Tag pairs ----------------------------
 %% Proper nouns are emitted capitalised, everything else lower; the text
 %% builder capitalises a sentence's first word.
 
-ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 45, K), ng_shape(K, Seed, Pairs), !.
+ng_sentence(Seed, Pairs) :- ng_pick(Seed, 1, 55, K), ng_shape(K, Seed, Pairs), !.
 
 ng_known(known_noun). ng_known(known_verb). ng_known(known_adj). ng_known(known_adverb).
 
@@ -514,6 +734,61 @@ ng_shape(44, Seed, [P-'S', M-'R', VJ-'R', Q-'O']) :-                        % Al
     atomic_list_concat([V, '_', Prep], VJ),
     ( ng_coin(Seed, 5, 50) -> ng_word(place, Seed, 6, Q) ; ng_word(proper, Seed, 6, Q) ).
 
+%% ---- lessons, ten shapes: a word said of a WORD ----------------------------
+%% A mention is q(W) in the pairs and `"W"' in the text, tagged M; the
+%% apposition's class is A (a fact about the word, as its adjectives are);
+%% the relations, the class atoms, the forms and the adjectives are the
+%% corpus's, so that no word of any lesson lives here
+ng_shape(45, Seed, Pairs) :-                                                % The feminine noun "casa" means "house"
+    ng_apposition(Seed, 2, Head), ng_word(vq, Seed, 8, V), ng_meaning(Seed, 9, E),
+    append(Head, [V-'R', q(E)-'M'], Pairs).
+ng_shape(46, Seed, [q(W)-'M', V-'R', q(E)-'M']) :-                         % "casa" means "house"
+    ng_mention(Seed, 2, W), ng_word(vq, Seed, 3, V), ng_meaning(Seed, 4, E).
+ng_shape(47, Seed, [q(W)-'M', is-'R'|Rest]) :-                              % "leche" is feminine / is not feminine
+    ng_mention(Seed, 2, W), ng_wadj(Seed, 3, A),
+    ( ng_coin(Seed, 4, 20) -> Rest = [not-'N', A-'A'] ; Rest = [A-'A'] ).
+ng_shape(48, Seed, [q(W)-'M', is-'R', Art-'T'|Rest]) :-                     % "amigo" is a person / "casa" is a feminine noun
+    ng_mention(Seed, 2, W), ng_word(wclass, Seed, 3, C),
+    (   ng_coin(Seed, 4, 40) -> ng_wadj(Seed, 5, A), ng_art(A, Art), Rest = [A-'A', C-'O']
+    ;   ng_art(C, Art), Rest = [C-'O']
+    ).
+ng_shape(49, Seed, [q(W)-'M', is-'R', the-'T'|Rest]) :-                     % "los" is the plural of "el" / "como" is the first person of "come"
+    ng_mention2(Seed, 2, W, V), ng_word(form, Seed, 3, Form), ng_form_pairs(Form, FP),
+    append(FP, [of-'K', q(V)-'M'], Rest).
+ng_shape(50, Seed, [every-'Q', C-'S', that-'K'|Rest]) :-                    % Every noun that ends in "a" is feminine / that does not end in a vowel is masculine
+    ng_word(wclass, Seed, 2, C), ng_wadj(Seed, 3, A), ng_word(vin, Seed, 4, V3-P), ng_ending_phrase(Seed, 5, End),
+    (   ng_coin(Seed, 8, 30) -> rs_base(V3, V), Verb = [does-'K', not-'N', V-'R', P-'R']
+    ;   Verb = [V3-'R', P-'R']
+    ),
+    append([Verb, End, [is-'R', A-'A']], Rest).
+ng_shape(51, Seed, [every-'Q', C-'S'|Rest]) :-                              % Every verb that ends in "e" takes "n" in the plural / Every noun takes "s" in the plural
+    ng_word(wclass, Seed, 2, C), ng_word(vqin, Seed, 3, V), ng_word(ending, Seed, 4, E), ng_word(wplace, Seed, 5, P-N),
+    Tail = [V-'R', q(E)-'M', P-'R', the-'T', N-'O'],
+    (   ng_coin(Seed, 6, 70)
+    ->  ng_word(vin, Seed, 7, V3-P3), ng_ending_phrase(Seed, 8, End), append([[that-'K', V3-'R', P3-'R'], End, Tail], Rest)
+    ;   Rest = Tail
+    ).
+ng_shape(52, Seed, Pairs) :-                                                % The word "no" precedes the verb / does not precede / Every adjective follows the noun / "y" precedes the verb
+    ng_word(vthe, Seed, 2, V3), ng_word(wobj, Seed, 3, N), ng_pick(Seed, 4, 3, K),
+    (   K =:= 0 -> ng_apposition(Seed, 5, Head)
+    ;   K =:= 1 -> ng_mention(Seed, 5, W), Head = [q(W)-'M']
+    ;   ng_word(wclass, Seed, 5, C), Head = [every-'Q', C-'S']
+    ),
+    (   K < 2, ng_coin(Seed, 12, 25) -> rs_base(V3, V), Tail = [does-'K', not-'N', V-'R', the-'T', N-'O']
+    ;   Tail = [V3-'R', the-'T', N-'O']
+    ),
+    append(Head, Tail, Pairs).
+ng_shape(53, Seed, [L-'S', is-'R', Art-'T', N-'O']) :-                      % Spanish is a language
+    ng_word(language, Seed, 2, L), ng_word(wlang, Seed, 3, N), ng_art(N, Art).
+ng_shape(54, Seed, Pairs) :-                                                % The noun "leche" is feminine / The noun "amigo" is a person / The article "los" is the plural of "el"
+    ng_apposition(Seed, 2, Head), ng_pick(Seed, 9, 3, K),
+    (   K =:= 0 -> ng_wadj(Seed, 10, A), Tail = [is-'R', A-'A']
+    ;   K =:= 1 -> ng_word(wclass, Seed, 10, C), ng_art(C, Art), Tail = [is-'R', Art-'T', C-'O']
+    ;   ng_mention(Seed, 10, V), ng_word(form, Seed, 11, Form), ng_form_pairs(Form, FP),
+        append([[is-'R', the-'T'], FP, [of-'K', q(V)-'M']], Tail)
+    ),
+    append(Head, Tail, Pairs).
+
 %% a quantity as an object: a number and its noun -- a unit pluralised
 %% (`500 euros') or a thing pluralised (`three vineyards') -- and one time
 %% in four with an `of' part, `two litres of milk' or `a litre of milk'
@@ -575,6 +850,7 @@ ng_applicable(emphatic_do, [S-'S', V3-'R'|Rest]) :-
     \+ rl_question(S), ng_base_of(V3, _), ( Rest = [] ; Rest = [_-'T'|_] ; Rest = [_-'O'|_] ), !.
 ng_applicable(conjoin, Ps) :- \+ member(_-'B', Ps), \+ ng_question(Ps).
 ng_applicable(conjoin_shared, [S-'S'|Ps]) :- \+ rl_question(S), \+ member(_-'B', Ps).   % a fact, not yet joined
+ng_applicable(conjoin_shared, Ps) :- ng_mention_head(Ps, _, _), \+ member(_-'B', Ps).     % or a fact about a mention
 ng_applicable(filler_join, Ps) :- \+ ng_question(Ps).
 ng_applicable(adverb, Ps) :- member(_-'S', Ps), !.
 ng_applicable(hedge_start, Ps) :- \+ ng_question(Ps).                  % `I think that does Alice...' is nobody's prose
@@ -583,6 +859,8 @@ ng_applicable(filler_end, _).
 ng_applicable(adverb_end, Ps) :- last(Ps, _-'R').           % only after an intransitive verb: a bare
                                                             % word after an object reads as its noun
 ng_applicable(pp_extra, _).
+ng_applicable(in_language, Ps) :- member(_-'M', Ps), !.
+ng_applicable(unquote, Ps) :- member(q(_)-'M', Ps), !.
 
 %% the base of an inflected verb, by the grammar's own stemmer -- which every
 %% loaded verb round-trips through -- and only of a real inflection: `is'
@@ -611,6 +889,31 @@ ng_apply(conjoin_shared, Seed, st([P-'S'|Ps], Cs), st(Out, Cs2)) :-
     ;   ng_choose(Seed, 44, [she, he], Pro), Second = [Pro-'S'|Rest]
     ),
     append([[P-'S'|Ps], Join, Second], Out), append(Cs, [[P-'S'|Rest]], Cs2).
+
+%% the same about a MENTION: `"casa" means "house" and is feminine', `The
+%% noun "casa" means "house" and is a person' -- the subject phrase is
+%% everything before the relation (the apposition whole), never a pronoun,
+%% because `it' is about nobody to the grammar
+ng_apply(conjoin_shared, Seed, st(Ps, Cs), st(Out, Cs2)) :-
+    ng_mention_head(Ps, Head, _),
+    ng_lesson_rest(Seed, Rest),
+    ( ng_coin(Seed, 42, 40) -> Join = [','-'D', and-'B'] ; Join = [and-'B'] ),
+    findall(P, ( member(P, Head), P \= _-'D', P \= _-'K', P \= _-'N' ), CleanHead),   % the phrase, never its `does not'
+    append([Ps, Join, Rest], Out), append(CleanHead, Rest, Second), append(Cs, [Second], Cs2).
+
+%% a mention before the first relation and no S there: the head is the
+%% subject phrase, `"casa"' or `the noun "casa"'
+ng_mention_head(Ps, Head, Rest) :-
+    append(Head, [R-'R'|Rest0], Ps), memberchk(_-'M', Head), \+ memberchk(_-'S', Head), !,
+    Rest = [R-'R'|Rest0].
+
+%% what else is said of a word: an adjective, a class, a meaning
+ng_lesson_rest(Seed, Rest) :-
+    ng_pick(Seed, 45, 3, K),
+    (   K =:= 0 -> ng_wadj(Seed, 46, A), Rest = [is-'R', A-'A']
+    ;   K =:= 1 -> ng_word(wclass, Seed, 46, C), ng_art(C, Art), Rest = [is-'R', Art-'T', C-'O']
+    ;   ng_word(vq, Seed, 46, V), ng_meaning(Seed, 47, E), Rest = [V-'R', q(E)-'M']
+    ).
 
 %% a fact shape for it, its own subject taken off: a few seeds tried, and
 %% `sleeps' when none of them is a fact
@@ -667,6 +970,31 @@ ng_apply(pp_extra, Seed, st(Ps, Cs), st(Out, Cs)) :-
                          [in, the, end], [at, last], [on, the, whole], [in, practice]], F),
     ng_dropped(F, Fs), append(Ps, Fs, Out).
 
+%% the language a lesson is about, as prose puts it: after a fact about a
+%% mention when the fact ends in the mention or an adjective (where the
+%% grammar refuses it: a sentence about a word names no place), and at the
+%% head otherwise (`In Spanish, ...', refused by the closed word at the head)
+ng_apply(in_language, Seed, st(Ps, Cs), st(Out, Cs)) :-
+    ng_word(language, Seed, 28, L),
+    (   ( last(Ps, q(_)-'M') ; last(Ps, _-'A') ), ng_coin(Seed, 29, 50)
+    ->  append(Ps, [in-'D', L-'D'], Out)
+    ;   Out = [in-'D', L-'D', ','-'D'|Ps]
+    ).
+%% the quotation marks taken off every mention that survives as words:
+%% q('a el')-M becomes a-M el-M, and the assembler's M run puts the marks
+%% back around both; a mention the tokeniser would drop bare (`¿') keeps them
+ng_apply(unquote, _, st(Ps, Cs), st(Qs, Cs)) :- ng_unquote(Ps, Qs).
+
+ng_unquote([], []).
+ng_unquote([q(W)-'M'|Ps], Out) :-
+    ng_bare_words(W, Ws), !,
+    findall(X-'M', member(X, Ws), Ms), append(Ms, Qs, Out), ng_unquote(Ps, Qs).
+ng_unquote([P|Ps], [P|Qs]) :- ng_unquote(Ps, Qs).
+
+ng_bare_words(W, Ws) :-
+    atomic_list_concat(Ws, ' ', W), Ws \== [],
+    forall(member(X, Ws), ( X \== '', reason_tokens(X, [word(X, _)]) )).
+
 ng_dropped([], []).
 ng_dropped([W|Ws], [W-'D'|Ds]) :- ng_dropped(Ws, Ds).
 
@@ -701,6 +1029,7 @@ normalise_pair(Seed, Options, pair(Noisy, Tokens, Tags, Clean, Applied)) :-
 %% ALWAYS, because `lives_in' is the grammar's spelling and nobody types
 %% it -- the two-word form is the only one a tagger will meet
 ng_rate(split_relation, 100) :- !.
+ng_rate(unquote, 70) :- !.           % prose writes a word about a word bare, mostly; the marks must be read too
 ng_rate(_, 35).
 
 ng_run([], _, _, _, _, S, S, []).
@@ -728,6 +1057,36 @@ normalise_corpus(N, Pairs) :- normalise_corpus(N, [], Pairs).
 normalise_corpus(N, Options, Pairs) :-
     findall(P, ( between(1, N, I), normalise_pair(I, Options, P) ), Pairs).
 
+%% ---- the pairs as a file ---------------------------------------------------------------
+%% One term a line, quoted, so a text with `"' and a UTF-8 word in it
+%% comes back as it was; a line beginning % is a comment and a blank line
+%% is skipped. Written whole through a string, as tagger_export/2 writes
+%% the model: no stream is opened.
+
+normalise_save(Pairs, File) :-
+    with_output_to(string(S), forall(member(P, Pairs), ( writeq(P), write('.'), nl ))),
+    string_codes(S, Cs),
+    write_file_from_codes(File, Cs).
+
+normalise_load(File, Pairs) :-
+    (   exists_file(File) -> true
+    ;   throw(error(existence_error(source_sink, File), normalise_load/2))
+    ),
+    read_file_to_codes(File, Codes),
+    split_string(Codes, [10], [32, 13, 9], Lines),
+    findall(P, ( member(L, Lines), string_length(L, Len), Len > 0,
+                 \+ sub_string(L, 0, 1, _, "%"),
+                 atom_string(A, L), term_to_atom(P, A), P = pair(_, _, _, _, _) ),
+            Pairs).
+
+normalise_generated_dir(Dir) :-
+    getenv('COCOLOG_GENERATED', Dir), Dir \== '', !,
+    make_directory_path(Dir).
+normalise_generated_dir(Dir) :-
+    ng_library_dirs(Ds), member(D, Ds),
+    atom_concat(D, '/reasoning', R), exists_directory(R), !,
+    atom_concat(R, '/generated', Dir), make_directory_path(Dir).
+
 %% ---- text from words ---------------------------------------------------------------------
 %% The first word capitalised, a comma attached to the word before it, a
 %% stop at the end.
@@ -750,8 +1109,46 @@ ng_text(Words, Stop, Text) :-
 
 ng_text_([], _, []).
 ng_text_([','|Ws], _, [','|Ps]) :- !, ng_text_(Ws, rest, Ps).
-ng_text_([W|Ws], first, [C|Ps]) :- !, ng_cap(W, C), ng_text_(Ws, rest, Ps).
-ng_text_([W|Ws], rest, [' ', W|Ps]) :- ng_text_(Ws, rest, Ps).
+ng_text_([W|Ws], first, [C|Ps]) :- !, ng_spell(W, A), ( W = q(_) -> C = A ; ng_cap(A, C) ), ng_text_(Ws, rest, Ps).
+ng_text_([W|Ws], rest, [' ', A|Ps]) :- ng_spell(W, A), ng_text_(Ws, rest, Ps).
+
+%% a mention q(W) is written between quotation marks, and never capitalised
+ng_spell(q(W), A) :- !, atomic_list_concat(['"', W, '"'], A).
+ng_spell(W, W).
+
+%% ---- a text with its mentions bare ----------------------------------------------------------
+
+normalise_bare(Text, Bare) :-
+    reason_tokens(Text, Toks),
+    nb_sentences(Toks, Sents),
+    findall(T, ( member(S, Sents), nb_text(S, T) ), Ts),
+    atomic_list_concat(Ts, ' ', Bare).
+
+nb_sentences([], []) :- !.
+nb_sentences(Toks, Sents) :-
+    nb_upto(Toks, S, Rest),
+    ( S == [] -> Sents = Sents1 ; Sents = [S|Sents1] ),
+    nb_sentences(Rest, Sents1).
+nb_upto([], [], []).
+nb_upto(['.'|Ts], [], Ts) :- !.
+nb_upto([T|Ts], [T|S], Rest) :- nb_upto(Ts, S, Rest).
+
+nb_text(S, T) :-
+    findall(Ws, ( member(Tok, S), nb_words(Tok, Ws) ), Wss), append(Wss, Ws),
+    findall(W-x, ( member(Tok, S), nb_plain(Tok, W) ), Pairs), ng_stop(Pairs, Stop),   % the stop from the lower-case words: `Is' asks
+    ng_text(Ws, Stop, T).
+
+nb_plain(word(W, _), W).
+nb_plain(quoted(W), q(W)).
+nb_plain(num(N), N).
+nb_plain(',', ',').
+
+nb_words(quoted(W), Ws) :- ng_bare_words(W, Ws), !.
+nb_words(quoted(W), [q(W)]) :- !.
+nb_words(word(W, upper), [C]) :- !, ng_cap(W, C).
+nb_words(word(W, _), [W]) :- !.
+nb_words(num(N), [A]) :- !, format(atom(A), "~w", [N]).
+nb_words(T, [T]).
 
 ng_cap(W, C) :-
     atom_codes(W, [F|R]),
@@ -761,7 +1158,9 @@ ng_cap(W, C) :-
 %% ---- the assembler -------------------------------------------------------------------------
 %% D dropped, an R run joined with `_', B a break, X refused outright; a
 %% word keeps the case its token carries, so a proper noun stays one, and
-%% a number is written as its digits. A comma is never emitted.
+%% a number is written as its digits; an M run is ONE mention between
+%% quotation marks and a quoted token is written as it was. A comma is
+%% never emitted.
 
 normalise_assemble(_, Tags, _) :- memberchk('X', Tags), !, fail.      % outside: refused
 normalise_assemble(Tokens, Tags, Text) :-
@@ -785,21 +1184,29 @@ na_upto_b([Z|Zs], [Z|S], Rest) :- na_upto_b(Zs, S, Rest).
 %% state the assembler carries, as the grammar carries the last subject
 na_texts([], _, []).
 na_texts([S0|Ss], Last, Ts) :-
-    (   \+ memberchk(_-'S', S0), Last \== [] -> append(Last, S0, S) ; S = S0 ),
+    (   \+ na_has_subject(S0), Last \== [] -> append(Last, S0, S) ; S = S0 ),
     na_words(S, Ws),
     ( Ws == [] -> Ts = Ts1 ; ng_stop(S, Stop), ng_text(Ws, Stop, T), Ts = [T|Ts1] ),
     na_subject(S, Last, Last1),
     na_texts(Ss, Last1, Ts1).
 
+%% a sentence has a subject when it has an S, or a mention before its
+%% first relation: `"casa" means "house"' is about the word
+na_has_subject(S) :- memberchk(_-'S', S), !.
+na_has_subject(S) :- append(Pre, [_-'R'|_], S), memberchk(_-'M', Pre), !.
+
 %% the subject phrase: what stands before the S (a quantifier), the S, and
 %% a relative clause `that is [not] ADJ' when one follows -- D and commas
 %% aside, and never the `does not' before a verb: `Priya', or `every baker
-%% that is licensed'
+%% that is licensed'; for a mention, everything before the relation but
+%% the noise and a `does not': `"casa"', or `the noun "casa"'
 na_subject(S, Last, Sub) :-
     (   append(Pre, [Subj-'S'|After], S)
     ->  findall(Z, ( member(Z, Pre), Z \= _-'D', Z \= ','-_ ), Pre1),
         na_relative(After, Rel),
         append(Pre1, [Subj-'S'|Rel], Sub)
+    ;   append(Pre, [_-'R'|_], S), memberchk(_-'M', Pre)
+    ->  findall(Z, ( member(Z, Pre), Z \= _-'D', Z \= ','-_, Z \= _-'K', Z \= _-'N' ), Sub)
     ;   Sub = Last
     ).
 na_relative(After, [word(that, lower)-'K'|Rel]) :-
@@ -817,6 +1224,9 @@ na_words([], []).
 na_words([_-'D'|Zs], Ws) :- !, na_words(Zs, Ws).
 na_words([','-_|Zs], Ws) :- !, na_words(Zs, Ws).
 na_words([num(N)-_|Zs], [A|Ws]) :- !, format(atom(A), "~w", [N]), na_words(Zs, Ws).   % a number as its digits
+na_words([quoted(W)-_|Zs], [Q|Ws]) :- !, na_quote([W], Q), na_words(Zs, Ws).            % a mention as it was
+na_words([word(W, _)-'M'|Zs], [Q|Ws]) :- !,                                            % an M run: one mention
+    na_mrun(Zs, Ms, Rest), na_quote([W|Ms], Q), na_words(Rest, Ws).
 na_words([word(W, _)-'R'|Zs], [J|Ws]) :- !,
     na_run(Zs, Rs, Rest), atomic_list_concat([W|Rs], '_', J), na_words(Rest, Ws).
 na_words([word(W, upper)-_|Zs], [C|Ws]) :- !, ng_cap(W, C), na_words(Zs, Ws).
@@ -824,3 +1234,7 @@ na_words([word(W, lower)-_|Zs], [W|Ws]) :- na_words(Zs, Ws).
 
 na_run([word(W, _)-'R'|Zs], [W|Rs], Rest) :- !, na_run(Zs, Rs, Rest).
 na_run(Zs, [], Zs).
+
+na_mrun([word(W, _)-'M'|Zs], [W|Ms], Rest) :- !, na_mrun(Zs, Ms, Rest).
+na_mrun(Zs, [], Zs).
+na_quote(Ws, Q) :- atomic_list_concat(Ws, ' ', J), atomic_list_concat(['"', J, '"'], Q).

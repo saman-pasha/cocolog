@@ -28,9 +28,10 @@ alphabet :-
     tagger_tag_id('B', B), check('B is 10', B, 10),
     tagger_tag_id(Nine, 9), check('9 is D, the tag padding carries', Nine, 'D'),
     tagger_tag_id('X', X), check('X, outside, is 11', X, 11),
+    tagger_tag_id('M', Mn), check('M, a mentioned word, is 12: the last, so every id before it stands', Mn, 12),
     normalise_tags(Tags),
     findall(I, ( member(T, Tags), tagger_tag_id(T, I) ), Ids), sort(Ids, Distinct),
-    check('twelve tags, ids 0..11, all distinct', Distinct, [0,1,2,3,4,5,6,7,8,9,10,11]).
+    check('thirteen tags, ids 0..12, all distinct', Distinct, [0,1,2,3,4,5,6,7,8,9,10,11,12]).
 
 %% ---- the vocabulary -----------------------------------------------------------------
 
@@ -68,7 +69,13 @@ encoding :-
     check('and shape 1', S2, 1),
     tagger_encode(V, [num(500), word(five, lower)], [N3, _], S3),
     check('a number is one word, <num>, and sorts right after the comma: 3', N3, 3),
-    check('its shape is 15, and a number word is a lower-case word like any other', S3, [15, 1]).
+    check('its shape is 15, and a number word is a lower-case word like any other', S3, [15, 1]),
+    tagger_encode(V, [quoted(casa), word(casa, lower), quoted(a)], [Q1, Q2, Q3], Sq),
+    check('a quoted word keeps its word: the same id bare, and <unk> either way here', [Q1, Q2, Q3], [1, 1, 1]),
+    check('and its shape is 14, whatever is inside the marks', Sq, [14, 1, 14]),
+    normalise_corpus(64, Pairs64), tagger_vocabulary(Pairs64, V64),
+    tagger_word_id(V64, means, IdMeans), yes_no(IdMeans > 1, Means64),
+    check('the lesson shapes are in 64 pairs: `means'' has an id', Means64, yes).
 
 %% ---- the padding plan ---------------------------------------------------------------------
 
@@ -162,6 +169,20 @@ pretrained :-
                                   amount(rent, quantity(700, euros))]),
         tagger_pretrained(M2), check('loaded once a process', M2, M),
         yes_no('$tg_vocab'(tagger, 0, _), Rows), check('its rows are in the store, a module''s', Rows, yes),
+        ( tagger_normalise(M, 'The noun casa means house. Leche is feminine, of course. In Spanish, los is the plural of el. Every noun that ends in a is feminine.', CL, TL)
+        ->  true
+        ;   CL = refused, TL = refused
+        ),
+        check('a lesson typed bare: the mentioned words back between quotation marks, the language dropped', CL,
+              'The noun "casa" means "house". "leche" is feminine. "los" is the plural of "el". Every noun that ends_in "a" is feminine.'),
+        ( TL = [noun(casa), mean(casa, house), feminine(leche), plural_of(los, el), (feminine(XL) :- noun(YL), end_in(ZL, a))], XL == YL, YL == ZL -> RL = a_lesson ; RL = TL ),
+        check('and read as a lesson: facts about words, a rule over their letters', RL, a_lesson),
+        ( tagger_normalise(M, 'The word "no" precedes the verb. "amigo" is a person.', _, TQ) -> true ; TQ = refused ),
+        check('and written with its marks, read the same', TQ, [word(no), precede(no, verb), person(amigo)]),
+        tagger_lessons(M, 1, 400, LessonRate),
+        format("     the shipped model reads ~4f of the corpus lines typed bare~n", [LessonRate]),
+        yes_no(LessonRate >= 0.85, LessonsOk),
+        check('at least 0.85 of the corpus lines, typed bare, come back as their own terms', LessonsOk, yes),
         tagger_free(M),
         tagger_pretrained(M3),
         ( tagger_normalise(M3, 'Zed owns a car.', _, T3) -> true ; T3 = refused ),
@@ -246,6 +267,23 @@ prose('How much does Nadia pay?', [question(Q, (pay(nadia, O), reason_amount(O, 
 prose('How many vineyards does Tariq own, honestly?', [question(N, (own(tariq, O), reason_count(O, vineyards, N)))]).
 prose('Why does Nadia pay 500 euros?', [question(why(pay(nadia, quantity(500, euros))))]).
 prose('Well, why is Mia a nurse?', [question(why(nurse(mia)))]).
+%% a lesson typed as prose: the mentioned words bare, and the tagger puts the marks back
+prose('Casa means house.', [mean(casa, house)]).
+prose('The noun perro means dog.', [noun(perro), mean(perro, dog)]).
+prose('In Spanish, the word gato means cat.', [word(gato), mean(gato, cat)]).
+prose('Well, mesa means table, of course.', [mean(mesa, table)]).
+prose('The Spanish word no means not.', [word(no), spanish(no), mean(no, not)]).
+prose('Leche is feminine.', [feminine(leche)]).
+prose('Los is the plural of el.', [plural_of(los, el)]).
+prose('Comió is the past of come, I think.', [past_of('comió', come)]).
+prose('Al is the contraction of a el.', [contraction_of(al, 'a el')]).
+prose('Amigo is a person and means friend.', [person(amigo), mean(amigo, friend)]).
+prose('Every noun that ends in a is feminine.', [(feminine(X) :- noun(X), end_in(X, a))]).
+prose('Every verb that ends in e takes n in the plural.', [(take_in(X, n, plural) :- verb(X), end_in(X, e))]).
+prose('Every adjective follows the noun.', [(follow(X, noun) :- adjective(X))]).
+prose('The word no precedes the verb.', [word(no), precede(no, verb)]).
+prose('The word "a" precedes the person.', [word(a), precede(a, person)]).
+prose('Spanish is a language.', [language(spanish)]).
 
 prose_checks(M) :-
     findall(T-W, prose(T, W), Ps), length(Ps, N),

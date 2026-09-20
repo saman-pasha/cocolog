@@ -1,6 +1,6 @@
-%% tools/lexicon/build.pl -- WordNet 3.0 to library/reasoning/lexicon/*.txt.
+%% library/reasoning/lexicon/build.pl -- WordNet 3.0 to library/reasoning/lexicon/*.txt.
 %%
-%%     ./cocolog -s tools/lexicon/build.pl -- --wordnet DIR [--out DIR] [--cap CLASS=N]...
+%%     ./cocolog -s library/reasoning/lexicon/build.pl -- --wordnet DIR [--out DIR] [--cap CLASS=N]...
 %%     sh tools/lexicon/build.sh                         the same, from the checkout root
 %%
 %% THE LEXICON IS DATA, NOT SOURCE. library(reasoning/normalise) generates
@@ -26,7 +26,10 @@
 %%                 which is how a unit is found: a noun whose first sense
 %%                 descends from unit_of_measurement or time_unit (euro,
 %%                 gram, mile, hour), where the file noun.quantity alone
-%%                 would give `nothing', `much' and `half'.
+%%                 would give `nothing', `much' and `half' -- and how a
+%%                 LANGUAGE is: a noun whose first or second sense descends
+%%                 from natural_language (English first, Italian second,
+%%                 because WordNet names the people before the tongue).
 %%   data.verb     the SENTENCE FRAMES each synset takes, which is what says a
 %%                 verb takes an object (frames 8-11), none (1, 2) or a phrase
 %%                 (22, 4).
@@ -41,7 +44,9 @@
 %% the SemCor-counted ones first and the rest in a fixed hash order, never
 %% alphabetical, so a cap is a sample and not the letter A; adj = adj.all
 %% or adj.pert; adverb = adv.all; vt, vi, vpp by frame; unit = a hyponym
-%% of unit_of_measurement or time_unit, first sense; and known_noun,
+%% of unit_of_measurement or time_unit, first sense; language = a hyponym of
+%% natural_language in a word's first or second sense, capitalised, for the
+%% lesson shapes (`Spanish is a language', `The Spanish word "casa"'); and known_noun,
 %% known_verb, known_adj, known_adverb = EVERY counted lemma of that part of
 %% speech whatever its sense, for the tagger's judge rather than the
 %% generator (`death' is no thing to own, and still a noun). Only single, alphabetic,
@@ -65,8 +70,9 @@ main :-
     lx_senses(WN, Groups),
     lx_noun_kinds(WN, Kinds, Synsets),
     lx_units(Synsets, Units),
+    lx_languages(Synsets, Languages),
     lx_verb_frames(WN, Frames),
-    lx_classes(Groups, Kinds, Units, Frames, Classes0),
+    lx_classes(Groups, Kinds, Units, Languages, Frames, Classes0),
     lx_prose(WN, Prose),
     append(Classes0, [prose-Prose], Classes),
     forall(member(Class-Words, Classes),
@@ -74,7 +80,7 @@ main :-
              lx_write(Out, Class, Kept),
              length(Kept, N), lx_take(6, Kept, First),
              format("   ~w ~w  ~w~n", [Class, N, First]) )),
-    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place,unit,prose,known_noun,known_verb,known_adj,known_adverb}.txt~n", [Out]).
+    format("wrote ~w/{noun,class,adj,vt,vi,vpp,adverb,place,unit,language,prose,known_noun,known_verb,known_adj,known_adverb}.txt~n", [Out]).
 
 %% ---- options ----------------------------------------------------------------
 
@@ -97,6 +103,7 @@ lx_cap(vpp, _, 1000).
 lx_cap(adverb, _, 500).
 lx_cap(place, _, 800).
 lx_cap(unit, _, 400).
+lx_cap(language, _, 150).
 lx_cap(prose, _, 8000).
 lx_cap(known_noun, _, 20000).
 lx_cap(known_verb, _, 8000).
@@ -142,8 +149,9 @@ lx_same(L, T, [k(L, T, NC, LF)|R], [k(L, T, NC, LF)|S], O) :- !, lx_same(L, T, R
 lx_same(_, _, R, [], R).
 
 %% ---- index.noun and data.noun: every noun's first sense, its file and instance-hood ----
-%% Kinds: lemma -> k(LexFile, Instance, FirstOffset); Synsets: offset ->
-%% s(LexFile, Instance, Words, Hyponyms), the tree lx_units/2 walks.
+%% Kinds: lemma -> k(LexFile, Instance, FirstOffset, SecondOffset) -- the
+%% second `none' for a word of one sense; Synsets: offset -> s(LexFile,
+%% Instance, Words, Hyponyms), the tree lx_units/2 and lx_languages/2 walk.
 
 lx_noun_kinds(WN, Kinds, ByOffset) :-
     lx_lines(WN, 'data.noun', DLines),
@@ -156,9 +164,11 @@ lx_noun_kinds(WN, Kinds, ByOffset) :-
             ( member(L, ILines), \+ sub_string(L, 0, 1, _, " "),
               split_string(L, [32], [32], [LemS, _, _, PS|Rest]),
               catch(number_string(P, PS), _, fail),
-              length(Syms, P), append(Syms, [_, _, FirstS|_], Rest),
+              length(Syms, P), append(Syms, [_, _, FirstS|More], Rest),
               atom_string(Lemma, LemS), lx_word(Lemma),
-              atom_string(First, FirstS), get_assoc(First, ByOffset, s(LF, Inst, _, _)), K = k(LF, Inst, First) ),
+              atom_string(First, FirstS), get_assoc(First, ByOffset, s(LF, Inst, _, _)),
+              ( More = [SecondS|_] -> atom_string(Second, SecondS) ; Second = none ),
+              K = k(LF, Inst, First, Second) ),
             Pairs),
     list_to_assoc(Pairs, Kinds).
 
@@ -199,6 +209,21 @@ lx_descend([Off|Offs], Synsets, Seen0, Seen) :-
         append(Hypos, Offs, Queue),
         lx_descend(Queue, Synsets, Seen1, Seen)
     ).
+
+%% ---- the languages: everything under natural_language --------------------------------------
+%% The synset named natural_language is the root and every hyponym below it
+%% is a language or a family of them: English, Spanish, Romance, Germanic.
+%% An assoc of the offsets, so a lemma's first TWO senses are looked up in
+%% it -- Italian, German and Japanese name the people first and the
+%% language second, English and Spanish the language first; a word whose
+%% language sense is third (creole) is not a language's name, nor one
+%% whose first sense is a thing (tongue, chin).
+
+lx_languages(Synsets, Languages) :-
+    assoc_to_list(Synsets, Pairs),
+    findall(Off, ( member(Off-s(_, _, Ws, _), Pairs), memberchk(natural_language, Ws) ), Roots),
+    empty_assoc(Seen0),
+    lx_descend(Roots, Synsets, Seen0, Languages).
 
 %% ---- data.verb: the frames each verb takes, over all its synsets -------------------------
 
@@ -250,13 +275,15 @@ lx_hex_codes([C|Cs], Acc, N) :-
 
 %% ---- the classes, ranked --------------------------------------------------------------------
 
-lx_classes(Groups, Kinds, Units, Frames, Classes) :-
+lx_classes(Groups, Kinds, Units, Languages, Frames, Classes) :-
     findall(W-C, member(g(W, 1, _, C), Groups), NounCounts0), list_to_assoc(NounCounts0, NounCounts),
     lx_ranked(Kinds, NounCounts, [5, 6, 13, 17, 20, 21], no, Nouns),
     lx_ranked(Kinds, NounCounts, [18], no, Kinds1),
     lx_ranked(Kinds, NounCounts, [15], yes, Places0),
     findall(P, ( member(W, Places0), lx_capitalised(W, P) ), Places),
     lx_ranked_under(Kinds, NounCounts, Units, UnitWords),
+    lx_ranked_under2(Kinds, NounCounts, Languages, Languages0),
+    findall(P, ( member(W, Languages0), lx_capitalised(W, P) ), LanguageWords),
     findall(NC-W, ( member(g(W, T, LF, C), Groups), memberchk(T, [3, 5]), memberchk(LF, [0, 1]), NC is -C ), Adj0),
     lx_rank(Adj0, Adjs),
     findall(NC-W, ( member(g(W, 4, _, C), Groups), NC is -C ), Adv0),
@@ -274,6 +301,7 @@ lx_classes(Groups, Kinds, Units, Frames, Classes) :-
     findall(NC-W, ( member(g(W, T, _, C), Groups), memberchk(T, [3, 5]), NC is -C ), KA0), lx_rank_unique(KA0, KnownAdjs),
     findall(NC-W, ( member(g(W, 4, _, C), Groups), NC is -C ), KR0), lx_rank_unique(KR0, KnownAdvs),
     Classes = [noun-Nouns, class-Kinds1, adj-Adjs, vt-VT, vi-VI, vpp-VPP, adverb-Advs, place-Places, unit-UnitWords,
+               language-LanguageWords,
                known_noun-KnownNouns, known_verb-KnownVerbs, known_adj-KnownAdjs, known_adverb-KnownAdvs].
 
 %% the known_* classes: every SemCor-counted lemma of a part of speech,
@@ -295,7 +323,7 @@ lx_best_same(_, R, NC, NC, R).
 lx_ranked(Kinds, Counts, Files, WantInstance, Words) :-
     assoc_to_list(Kinds, Pairs),
     findall(Key-W,
-            ( member(W-k(LF, Inst, _), Pairs), memberchk(LF, Files), Inst == WantInstance,
+            ( member(W-k(LF, Inst, _, _), Pairs), memberchk(LF, Files), Inst == WantInstance,
               ( get_assoc(W, Counts, C) -> true ; C = 0 ),
               NC is -C, lx_hash(W, H), Key = NC-H ),
             Keyed),
@@ -306,7 +334,24 @@ lx_ranked(Kinds, Counts, Files, WantInstance, Words) :-
 lx_ranked_under(Kinds, Counts, Synsets, Words) :-
     assoc_to_list(Kinds, Pairs),
     findall(Key-W,
-            ( member(W-k(_, no, First), Pairs), get_assoc(First, Synsets, _),
+            ( member(W-k(_, no, First, _), Pairs), get_assoc(First, Synsets, _),
+              ( get_assoc(W, Counts, C) -> true ; C = 0 ),
+              NC is -C, lx_hash(W, H), Key = NC-H ),
+            Keyed),
+    lx_rank(Keyed, Words).
+
+%% the same over a word's first OR second sense, instance or not: the
+%% languages, whose names WordNet often gives to the people first -- so a
+%% second sense counts only when the first is a person or a group
+%% (noun.person 18, noun.group 14), which keeps Italian and German and
+%% drops `tongue' and `chin', whose second senses are languages too
+lx_ranked_under2(Kinds, Counts, Synsets, Words) :-
+    assoc_to_list(Kinds, Pairs),
+    findall(Key-W,
+            ( member(W-k(LF, _, First, Second), Pairs),
+              (   get_assoc(First, Synsets, _) -> true
+              ;   get_assoc(Second, Synsets, _), memberchk(LF, [14, 18])      % the people first: not a chin, not a tongue
+              ),
               ( get_assoc(W, Counts, C) -> true ; C = 0 ),
               NC is -C, lx_hash(W, H), Key = NC-H ),
             Keyed),

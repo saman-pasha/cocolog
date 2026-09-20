@@ -548,12 +548,17 @@ ix_capability('text to predicates',
               ['reasoning/reason'], ['tier-2 library'], local).
 ix_capability('training data for a text normaliser',
               [normalise, normalize, normaliser, tagger, 'training data', corpus, 'noisy text',
-               'gold tags', 'sequence labelling', 'data generator'],
+               'gold tags', 'sequence labelling', 'data generator', 'quoted word', 'mentioned word',
+               'quotation marks', 'lesson corpus', 'lesson typed bare'],
               ['reasoning/normalise'], ['tier-2 library'], local).
 ix_capability('a text normaliser, the network',
               ['label tokens', 'sequence tagger', 'prose to predicates', 'typed text', 'unseen word',
-               'train a tagger', 'bigru', 'tag accuracy'],
+               'train a tagger', 'bigru', 'tag accuracy', 'quote a word', 'lesson as prose', 'add quotation marks'],
               ['reasoning/tagger'], ['tier-2 library'], local).
+ix_capability('the shipped tagger''s data and training, as programs',
+              ['training data files', 'generate training data', 'regenerate the corpus', 'retrain the shipped model',
+               'model.rows', 'generated pairs', 'reproducible training'],
+              ['reasoning/generate', 'reasoning/train'], ['tier-2 library'], local).
 ix_capability('a language lesson as a knowledge base, and translation over it',
               [translate, translation, spanish, italian, 'language lesson', vocabulary, 'grammar rules',
                gender, article, 'adjective agreement', 'word order', plural, negation, question, 'past tense', 'future tense',

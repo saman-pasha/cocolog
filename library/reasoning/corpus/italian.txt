@@ -1,0 +1,21 @@
+# library/reasoning/corpus/italian.txt -- the Italian lesson of test/translate.pl, in
+# the same controlled English as spanish.txt beside it: a second language, learned
+# under its own name there, and a second source of mentioned words here.
+Italian is a language.
+The noun "casa" means "house".
+The noun "cane" means "dog".
+The noun "pane" means "bread".
+The adjective "grande" means "big".
+The verb "è" means "is".
+The verb "mangia" means "eats".
+The feminine article "la" means "the".
+The masculine article "il" means "the".
+Every noun that ends in "a" is feminine.
+Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+"case" is the plural of "casa".
+"grandi" is the plural of "grande".
+"sono" is the plural of "è".
+"le" is the plural of "la".
+The word "non" means "not".
+The word "cosa" means "what".

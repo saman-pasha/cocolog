@@ -21,7 +21,7 @@
 %% as mass(boston), a heading as business(small) -- because every sentence
 %% it had ever seen had a reading, and the grammar's defaults are
 %% positional. So a tagging is put to the lexicon before the assembler
-%% sees it (tagger_sane/2, nine rules, each a clause), and one the lexicon
+%% sees it (tagger_sane/2, eleven rules, each a clause), and one the lexicon
 %% contradicts comes back X throughout, the twelfth tag, which the
 %% assembler refuses. Three ways of teaching the network itself to refuse
 %% were tried and each took a tenth of the hand-written sentences it should
@@ -35,11 +35,14 @@
 %% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (the case
 %% it was written in and, for a lower-case word, the ending it carries: -s,
 %% -ly, -ing, -ed or none; a capitalised word is a name whatever it ends
-%% in; a number is one word, <num>, with a shape of its own), 4 wide --
+%% in; a number is one word, <num>, with a shape of its own; a word between
+%% quotation marks keeps its word and takes the shape `quoted'), 4 wide --
 %% concatenated into 28; a GRU over the sentence in each
 %% direction, 96 wide each, so a token's label sees what came before it and
-%% what follows; a linear head from the two states to the eleven tags inside
-%% the grammar. X, the twelfth, is never the network's to answer: it is the
+%% what follows; a linear head from the two states to the twelve tags inside
+%% the grammar, M among them -- a MENTIONED word, which the assembler writes
+%% between quotation marks, so `The noun casa means house' comes back as
+%% the lesson's line. X is never the network's to answer: it is the
 %% lexicon's verdict on a tagging, below. Sequences are padded to the
 %% longest in the batch and batched position-major, as tutorials/tensor/41
 %% batches its sequences; a MASK holds a sequence's state still past its
@@ -70,6 +73,9 @@
 %%         Trains on normalise_corpus/2 and saves under Name -- the parameters
 %%         through params_save/2, the vocabulary as '$tg_vocab'/3 rows of
 %%         two hundred words. Options:
+%%         pairs_file(F) train on the pairs normalise_load/2 reads from F
+%%         (library/reasoning/generated/training.txt, what generate.pl
+%%         wrote) instead of generating them, the first pairs(N) of them;
 %%         pairs(N) the corpus, seeds 1..N (16384); steps(K) optimiser steps
 %%         (400); batch(B) sequences a step (128); lr(R) Adam's rate (0.005);
 %%         seed(S) the tensor seed (45); min_count(C) the times a word must
@@ -109,7 +115,7 @@
 %%         A trained model without training: the one named `tagger' in the
 %%         knowledge base this process proves against, when there is one --
 %%         what a program over its own --embed store keeps after running
-%%         tools/tagger/train.pl there once -- and otherwise the model
+%%         library/reasoning/train.pl there once -- and otherwise the model
 %%         shipped beside the library, library/reasoning/model.rows, the
 %%         rows tagger_export/2 wrote, consulted as a module (muted, so
 %%         nothing is written through) and loaded as tagger_load/2 loads.
@@ -132,8 +138,16 @@
 %%
 %%     tagger_sane(+Tokens, +Tags)
 %%         The lexicon's judgement of a tagging: fails where the lexicon
-%%         contradicts it, nine rules. Applied by tagger_tag/3 and
+%%         contradicts it, eleven rules. Applied by tagger_tag/3 and
 %%         tagger_tag_all/3, whose refused sentence comes back X throughout.
+%%
+%%     tagger_lessons(+Model, +From, +N, -Rate)
+%%         Over N lines of the corpus (library/reasoning/corpus/*.txt, as
+%%         normalise_lessons/1 lists them) from the From-th, each with its
+%%         quotation marks taken off by normalise_bare/2 -- `The noun casa
+%%         means house.' -- the fraction tagger_normalise/4 reads back to
+%%         the terms the line itself gives: a lesson typed as prose, put
+%%         to the tagger that was trained on the corpus's words.
 %%
 %%     tagger_evaluate(+Model, +From, +N, -Report)
 %%         Over the pairs of seeds From..From+N-1 -- sentences a training
@@ -151,7 +165,7 @@
 %%     tagger_size(+Vocab, -V)              the rows of the word embedding
 %%     tagger_encode(+Vocab, +Tokens, -Ids, -Shapes)     a shape is the case, and a lower-case word's ending: 1 lower,
 %%                                          2 upper, 3 comma, then +3 for -s, +6 for -ly, +9 for -ing, +12 for -ed
-%%                                          on a lower-case word only; 0 is padding
+%%                                          on a lower-case word only; 14 a quoted word, 15 a number; 0 is padding
 %%     tagger_tag_id(?Tag, ?Id)             normalise_tags/1's order, S 0 .. B 10
 %%     tagger_pad(+Seqs, -Plan)             seq(Ids, Shapes, TagIds|none) each, to
 %%                                          plan(N, M, IdRows, ShapeRows, MaskRows, Flat):
@@ -165,7 +179,7 @@
 %% after `lives', because the only place it had seen after a verb was an
 %% adjunct to be thrown away. Every such miss was a SHAPE the generator did
 %% not make, never the network, and every one was fixed in
-%% library(reasoning/normalise): forty-five shapes, eleven transforms, and a
+%% library(reasoning/normalise): fifty-five shapes, thirteen transforms, and a
 %% lexicon no longer written by hand at all -- files beside the library,
 %% 2500 census names and some seventeen thousand WordNet words ranked by
 %% use, read as they are needed (library/reasoning/lexicon/SOURCES.md). A
@@ -248,11 +262,16 @@ tagger_size(vocab(Words, _), V) :- length(Words, N), V is N + 2.
 %% after `does not like' were dropped by three trainings in a row, because
 %% their -ed made them a shape that twenty-three objects in sixteen thousand
 %% pairs had worn, where `Bob' and `Mia' were kept every time. 0 is
-%% padding; a comma is 3.
+%% padding; a comma is 3. A word between quotation marks keeps its word --
+%% `"house"' and `house' share an embedding, and only the shape says it
+%% was mentioned -- so the bare mentions the unquote transform makes are
+%% read by the same row.
 tg_word(word(W, _), W) :- !.
+tg_word(quoted(W), W) :- !.                % a mention keeps its word: the shape carries the marks
 tg_word(num(_), '<num>') :- !.             % every number is one word: its value is not its tag
 tg_word(T, T).
 tg_shape(',', 3) :- !.
+tg_shape(quoted(_), 14) :- !.              % a mention, its own shape
 tg_shape(num(_), 15) :- !.                 % a number, its own shape
 tg_shape(word(_, upper), 2) :- !.          % a name, whatever it ends in
 tg_shape(word(W, lower), S) :- !,
@@ -333,10 +352,14 @@ tg_gru_params(In, H, [Wz, Uz, Bz, Wr, Ur, Br, Wn, Un, Bn]) :-
     Wr := parameter(glorot(In, H)), Ur := parameter(glorot(H, H)), Br := parameter(zeros([1, H])),
     Wn := parameter(glorot(In, H)), Un := parameter(glorot(H, H)), Bn := parameter(zeros([1, H])), !.
 
-%% the head answers the eleven tags inside the grammar; X, outside, is
-%% never predicted -- it is what a tagging the lexicon contradicts comes
-%% back as, tagger_sane/2 below
-tg_inside_tags(K) :- normalise_tags(Tags), length(Tags, K12), K is K12 - 1.
+%% the head answers the whole alphabet, one output a tag id, so that the
+%% argmax IS the id; X, outside, is never a gold target and so never
+%% learned -- it is what a tagging the lexicon contradicts comes back as,
+%% tagger_sane/2 below. (It was the alphabet less one, on the assumption
+%% that X was the last tag; when M joined after it the head lost M, the
+%% network could never answer a mention, and the shipped model read a
+%% lesson typed bare at 0.05.)
+tg_inside_tags(K) :- normalise_tags(Tags), length(Tags, K).
 
 tg_unpack(Ps, Ew, Es, F, B, Wo, Bo) :-
     length(F, 9), length(B, 9), append([[Ew, Es], F, B, [Wo, Bo]], Ps), !.
@@ -395,7 +418,11 @@ tagger_train(Name, Options) :-
     tg_option(min_count(MinCount), Options, 2),
     tg_option(hidden(H), Options, 96),
     ( memberchk(verbose(true), Options) -> Verbose = yes ; Verbose = no ),
-    normalise_corpus(NP, Pairs),
+    (   memberchk(pairs_file(File), Options)
+    ->  normalise_load(File, All),
+        ( length(Pairs, NP), append(Pairs, _, All) -> true ; Pairs = All )
+    ;   normalise_corpus(NP, Pairs)
+    ),
     tagger_vocabulary(Pairs, MinCount, Vocab), Vocab = vocab(Words, _),
     tg_drop_table(Table),
     tg_training_sequences(Vocab, Table, Pairs, 1, PosSeqs),
@@ -459,12 +486,17 @@ tg_dropout([T|Ts], [Id|Ids], Table, I, P, [Id2|Ids2]) :-
 %% at the end had never been seen, because no adverb had ever been dropped.) (Looked up per token instead, with the lexicon
 %% scanned through downcase_atom/2 and the inflector each time, this cost
 %% 25 ms a pair: 207 of the 235 seconds an 8192-pair training took.)
+%% A language is dropped as a name is, and a MENTIONED word of the corpus
+%% at a third of its positions -- last in the table, so an English word
+%% the lessons mention keeps its own rate, and never a closed word: the
+%% lessons mention `the' and `not', and those are the shape.
 tg_drop_table(Table) :-
-    findall(W-0.25, ( member(C, [proper, place]), normalise_lexicon(C, Ws), member(X, Ws), downcase_atom(X, W) ), Names),
+    findall(W-0.25, ( member(C, [proper, place, language]), normalise_lexicon(C, Ws), member(X, Ws), downcase_atom(X, W) ), Names),
     findall(W-0.20, ( member(C, [noun, class, adj, adverb]), normalise_lexicon(C, Ws), member(W, Ws) ), Nouns),
     findall(W-0.15, ( member(C, [vt, vi, vpp]), normalise_lexicon(C, Vs), member(V0, Vs),
                       ( V0 = V-_ -> true ; V = V0 ), ( W = V ; normalise_third(V, W) ) ), Verbs),
-    append([Names, Nouns, Verbs], All),
+    findall(W-0.33, ( normalise_lexicon(mention, Ws), member(W, Ws), \+ rl_closed(W) ), Mentions),
+    append([Names, Nouns, Verbs, Mentions], All),
     keysort(All, Sorted),
     tg_first_rates(Sorted, Pairs),
     list_to_assoc(Pairs, Table).
@@ -563,8 +595,18 @@ tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-
 %%     `It', `up';
 %%   * an adjective is not a word the lexicon knows only as an adverb:
 %%     `often' after `is';
+%%   * a word between quotation marks is M and nothing else: the marks
+%%     are the reader's own signal, and a tagger that dropped one would
+%%     lose what the text said most plainly;
+%%   * a sentence with a mention in it is related by `is', or by a verb
+%%     some lesson of the corpus uses -- means, precedes, ends in, takes
+%%     -- because `Boston, Mass.' tagged M R would otherwise be a fact
+%%     about the word `boston', and because the verbs a lesson may use
+%%     are the corpus's to give, not the network's to guess;
 %%   * and a sentence assembled to nothing -- every token dropped -- is
 %%     refused, not read as nothing (tg_assemble_all/3).
+%% A language's name may head a sentence as a subject (`Spanish is a
+%% language'): it joins the first names in the judge's lexicon.
 %%
 %% An unknown word passes every rule, so `Priya snores' and `Zed owns a
 %% bicycle' read as before. (A second network trained to tell generated
@@ -584,8 +626,32 @@ tagger_sane(Toks, Tags) :-
     \+ memberchk('X', Tags),
     memberchk('R', Tags),
     tg_lexicon_classes(Lex),
-    forall(( nth0(I, Toks, Tok), nth0(I, Tags, Tag) ), tg_sane_token(I, Tok, Tag, Lex)).
+    forall(( nth0(I, Toks, Tok), nth0(I, Tags, Tag) ), tg_sane_token(I, Tok, Tag, Lex)),
+    tg_sane_mentions(Toks, Tags).
 
+%% a sentence about a word is related by the copula or by a verb of the
+%% lessons -- both forms, `precedes' and `precede' -- or by a preposition
+%% joined to one (`ends in')
+%% -- sentence by sentence, at the B breaks: `"casa" means "house" and
+%% Alice owns a car' has a mention in its first sentence only
+tg_sane_mentions(Toks, Tags) :-
+    tg_segments(Toks, Tags, Segs),
+    normalise_lexicon(wverb, Vs),
+    forall(member(seg(STs, SGs), Segs),
+           (   \+ memberchk('M', SGs)
+           ->  true
+           ;   forall(( nth0(I, SGs, 'R'), nth0(I, STs, word(W, _)) ), ( rl_closed(W) ; memberchk(W, Vs) ))
+           )).
+
+tg_segments([], [], []) :- !.
+tg_segments(Toks, Tags, [seg(STs, SGs)|Segs]) :-
+    tg_upto_b(Toks, Tags, STs, SGs, RT, RG),
+    tg_segments(RT, RG, Segs).
+tg_upto_b([], [], [], [], [], []).
+tg_upto_b([_|Ts], ['B'|Gs], [], [], Ts, Gs) :- !.
+tg_upto_b([T|Ts], [G|Gs], [T|STs], [G|SGs], RT, RG) :- tg_upto_b(Ts, Gs, STs, SGs, RT, RG).
+
+tg_sane_token(_, quoted(_), Tag, _) :- !, Tag == 'M'.                  % a word in quotation marks is mentioned, whatever else
 tg_sane_token(I, word(W, Case), 'R', Lex) :- !,
     (   rl_closed(W)
     ->  true
@@ -632,7 +698,7 @@ tg_lexicon_classes(Lex) :-
                                        known_noun-noun, known_adj-adj, known_adverb-adverb]),
                        normalise_lexicon(File, Ws), member(W0, Ws),
                        ( W = W0 ; C == noun, normalise_third(W0, W) ) ), Cs1),        % a noun and its plural: `500 pounds'
-        findall(W-name, ( normalise_lexicon(proper, Ws), member(X, Ws), downcase_atom(X, W) ), Cs2),
+        findall(W-name, ( member(File, [proper, language]), normalise_lexicon(File, Ws), member(X, Ws), downcase_atom(X, W) ), Cs2),   % a language heads a sentence as a name does
         findall(W-verb, ( member(C, [vt, vi, vpp, known_verb]), normalise_lexicon(C, Vs), member(V0, Vs),
                           ( V0 = V-_ -> true ; V = V0 ), ( W = V ; normalise_third(V, W) ) ), Cs3),
         append([Cs1, Cs2, Cs3], All), keysort(All, Sorted),
@@ -659,7 +725,7 @@ tagger_ask(Model, Text, Answers, Explanations) :-
 
 %% ---- the trained model, kept -----------------------------------------------------------
 %% THE KNOWLEDGE BASE IS THE MODEL FILE. A program over its own --embed
-%% store trains once (tools/tagger/train.pl, or tagger_train/2 under the
+%% store trains once (library/reasoning/train.pl, or tagger_train/2 under the
 %% name `tagger') and every later run over that store finds the model there.
 %% A program with no such store -- --local, or a base nobody trained in --
 %% gets the model shipped beside the library, library/reasoning/model.rows:
@@ -803,6 +869,24 @@ tagger_evaluate(Model, From, N, report(TokenAcc, SentenceAcc, Accepted, N)) :-
 tg_hits([], _, 0).
 tg_hits([G|Gs], [T|Ts], H) :- !, tg_hits(Gs, Ts, H0), ( G == T -> H is H0 + 1 ; H = H0 ).
 tg_hits([_|Gs], [], H) :- tg_hits(Gs, [], H).
+
+%% the lessons typed as prose: each corpus line bare, tagged in one batch,
+%% assembled and read, against what the line itself gives
+tagger_lessons(Model, From, N, Rate) :-
+    normalise_lessons(Lines), length(Lines, NL),
+    To0 is From + N - 1, ( To0 > NL -> To = NL ; To = To0 ),
+    findall(l(Toks, Line), ( between(From, To, I), nth1(I, Lines, Line), normalise_bare(Line, Bare),
+                             reason_tokens(Bare, Toks0), ( append(Toks, ['.'], Toks0) -> true ; Toks = Toks0 ), Toks \== [] ),
+            Ls),
+    tg_chunks(Ls, 64, Groups),
+    findall(x, ( member(G, Groups),
+                 findall(Toks, member(l(Toks, _), G), TLs),
+                 tagger_tag_all(Model, TLs, Gots),
+                 nth0(I, G, l(Toks, Line)), nth0(I, Gots, Got),
+                 tg_accepted(Toks, Got, Line) ),
+            Ok),
+    length(Ok, NOk), length(Ls, NLs),
+    ( NLs > 0 -> Rate is NOk / NLs ; Rate = 0.0 ).
 
 %% the assembled sentence parses, to the clean text's terms up to variable names
 tg_accepted(Toks, Got, Clean) :-

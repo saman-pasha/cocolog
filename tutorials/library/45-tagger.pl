@@ -18,7 +18,7 @@
 %%
 %% THE CORPUS IS THE CAPABILITY. The generator is unbounded in seeds and
 %% bounded in variety, and variety is what carries a tagger to words it
-%% never saw: forty-five shapes, eleven kinds of noise, and a lexicon that is
+%% never saw: fifty-five shapes, thirteen kinds of noise, and a lexicon that is
 %% files beside the library -- 2500 census names and some seventeen
 %% thousand WordNet words, library/reasoning/lexicon/ -- and 16384 pairs
 %% of them by default. Over that lexicon 8192 pairs read 0.96 of the
@@ -31,7 +31,10 @@
 %% words it was given, the assembler copies them, and the grammar reads the
 %% result or refuses it. So a name or a noun the network has never seen is
 %% copied into the term, and a wrong label costs a refusal the program can
-%% see -- never a sentence that was quietly rewritten.
+%% see -- never a sentence that was quietly rewritten. The one thing a tag
+%% ADDS is a pair of quotation marks: a word tagged M is a MENTIONED word,
+%% and `The noun casa means house', a lesson typed as prose, comes back as
+%% the lesson's own line -- section 7 shows it on the shipped model.
 
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/normalise)).
@@ -123,6 +126,15 @@ main :-
     ->  ( tagger_normalise(Pre, 'Honestly, Kim rents a small flat in Oslo. The rent is 700 euros.', C70, T70) -> true ; C70 = refused, T70 = refused ),
         show('controlled', C70),
         must('read by a model nobody here trained', T70, [flat(flat_1), small(flat_1), rent_in(kim, flat_1, oslo), amount(rent, quantity(700, euros))]),
+        format("~n   -- and a LESSON typed as prose: the mentioned words bare, and M puts the marks back~n", []),
+        ( tagger_normalise(Pre, 'The noun casa means house. Leche is feminine, of course. Los is the plural of el. Every noun that ends in a is feminine.', C71, T71) -> true ; C71 = refused, T71 = refused ),
+        show('controlled', C71),
+        must('the words in quotation marks, and the grammar reads a lesson', C71,
+             'The noun "casa" means "house". "leche" is feminine. "los" is the plural of "el". Every noun that ends_in "a" is feminine.'),
+        ( T71 = [noun(casa), mean(casa, house), feminine(leche), plural_of(los, el), (feminine(X71) :- noun(Y71), end_in(Z71, a))], X71 == Y71, Y71 == Z71 -> L71 = a_lesson ; L71 = T71 ),
+        must('vocabulary as facts about words, a rule over their letters', L71, a_lesson),
+        tagger_lessons(Pre, 1, 200, R71),
+        show('of the corpus''s own lines typed bare, read back to their terms', R71),
         tagger_free(Pre)
     ;   format("   (no shipped model: sh tools/tagger/train.sh writes it)~n", [])
     ),

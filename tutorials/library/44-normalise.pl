@@ -70,9 +70,29 @@ main :-
 
     format("~n6. What a tag cannot do, and so what is not in the set~n", []),
     normalise_tags(Tags6),
-    must('the alphabet is closed', Tags6, ['S','Q','C','N','R','K','T','A','O','D','B','X']),
+    must('the alphabet is closed', Tags6, ['S','Q','C','N','R','K','T','A','O','D','B','X','M']),
     show('a tag drops, joins or splits; it never changes a word', '"All tenants have badges" is not generated'),
     show('so a plural, a passive, a pronoun are not noise here', 'they are the next transforms, once a tag can carry them'),
+
+    format("~n7. And M, the one tag that ADDS something: the quotation marks a lesson writes~n", []),
+    normalise_assemble([word(the, upper), word(noun, lower), word(casa, lower), word(means, lower), word(house, lower)],
+                       ['T', 'A', 'M', 'R', 'M'], Asm7),
+    must('a word tagged M is written between quotation marks', Asm7, 'The noun "casa" means "house".'),
+    reason_text(Asm7, Terms7),
+    must('which the grammar reads as facts about the WORD', Terms7, [noun(casa), mean(casa, house)]),
+    normalise_lessons(Lessons7), length(Lessons7, NL7),
+    show('lesson lines in library/reasoning/corpus, the words the lesson shapes draw from', NL7),
+    normalise_lexicon(wclass, Classes7), show('the classes a lesson says of a word, read out of those lines', Classes7),
+    normalise_bare('Every noun that ends in "a" is feminine.', Bare7),
+    must('normalise_bare/2 types a line as prose types it', Bare7, 'Every noun that ends in a is feminine.'),
+    ( reason_text(Bare7, _) -> R7 = parsed ; R7 = refused ),
+    must('which the grammar refuses: `a'' is the article to it', R7, refused),
+    normalise_pair(43, pair(N7, Toks7, Tags7, C7, A7)),
+    show('a lesson pair, seed 43', N7),
+    show('its tags', Tags7),
+    show('what was applied', A7),
+    normalise_assemble(Toks7, Tags7, Asm7b),
+    must('and the gold tags put the marks back', Asm7b, C7),
 
     format("~ndone~n", []).
 
