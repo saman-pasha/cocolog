@@ -3139,9 +3139,56 @@ was a per-request total divided by an unrelated count.
 **WHY THE COPY IS WORSE IS ITSELF UNANSWERED**, and no mechanism is offered:
 there are twice as many predicates to FETCH, the store is 69 % bigger for the
 fetch to walk, and the registry consult adds a lookup per call, and nothing
-here separates them. **The per-sentence cost at 25.8 s remains unlocated.**
-What is known about it is only what the page arithmetic gave: it is per
-SENTENCE and not per fetch, and it is ~100 % user CPU.
+here separates them.
+
+### And it was ONE unbound call, in tr_endings/2 (1.5.1)
+
+**THE MECHANISM WAS RIGHT FROM THE FIRST PROBE AND BOTH FIXES BUILT ON IT WERE
+WRONG.** The answer was to stop asking the unbound question, not to index it.
+`tr_endings/2` reads the endings a lesson's rules give, and it did so by
+CALLING `take_in(_, E, T)` -- first argument free, which keys 0 and skips
+nothing, so it walked the whole predicate. It is asked on nearly every
+inflection, so over a vocabulary that one call was the entire cost of a
+sentence. `clause/2` enumerates the heads instead:
+
+| | before | after |
+|---|---|---|
+| one sentence, two languages, 331 MB | **25.8 s** | **0.258 s** |
+| one sentence, one language, 148 MB | 11.30 s | 0.210 s |
+| a page of six sentences, Italian into Spanish | **3 min 02 s** | **2.6 s** |
+| the plain single-language control | 0.279 s | -- |
+
+A named lesson at vocabulary scale now reads FASTER than a plain one, with no
+change to the teach or the store.
+
+**THE BISECTION IS WHAT FOUND IT**, after the counters had run out of things to
+say: `reason_ir/3` 25.6 s against `reason_ir_text/3` 0.000 s, so the whole cost
+was the READ; then one language named (11.3 s) against one language plain
+(0.279 s) on the same corpus and binary, which said it was the NAMESPACE and
+not the row count.
+
+**AND THE READING THAT FOLLOWED WAS WRONG, WHICH IS THE PART WORTH KEEPING.**
+A plain lesson's rules are real clauses the engine resolves; a named lesson's
+sat in `lesson(L, (H :- B))` and were META-INTERPRETED by `tr_body/2`, on rules
+(gender, the plural) that fire on nearly every word. Namespacing the rule
+BODIES as well as the heads made them real clauses and the sentence went 11.3 s
+to 0.271 s -- which looked like proof. **It was not.** The number that killed it
+was one nobody asked for: the OLD store, whose rules still go through
+`tr_body/2`, read in **0.234 s** on the same build. One arm settled it -- put
+the old `tr_endings` line back on the NEW store and it returns to **11.522 s**.
+So the rules change was reverted too: it buys nothing measurable and would have
+changed the store's shape for it.
+
+**THE RULE THAT COMES OUT OF THIS PAIR**: a fix that lands in the same edit as
+another fix has not been measured. Both of these were one `git checkout` and one
+arm away from being told apart, and the arm cost ninety seconds where believing
+the first reading would have shipped a store-shape change for nothing.
+
+**AND A CALL AND AN ENUMERATION ARE DIFFERENT QUESTIONS.** `tr_endings/2` wants
+the HEADS of a predicate's clauses, which `clause/2` gives directly; calling the
+goal asks the engine to prove it, which over a vocabulary means walking every
+row to find each answer. Anywhere a lesson's rows are enumerated rather than
+proved, `clause/2` is the predicate to reach for.
 
 **AND THE PAGE FOUND A DEFECT IN THE ITALIAN LESSON, not in the IR**:
 `Che cosa mangia il cane?` came back `¿Qué come qué el perro?`, with the

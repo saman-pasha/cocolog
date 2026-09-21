@@ -1765,12 +1765,30 @@ tr_lexeme(english, W, S, plural) :- reason_base(W, S), S \== W, tr_known(english
 tr_rule_stem(W, T, S) :- tr_endings(T, Es), member(E, Es), atom_concat(S, E, W), S \== ''.
 
 %% the endings the lesson's rules give for a tense or the plural: the
-%% heads of its take_in/3 rules, plain or under the language
+%% heads of its take_in/3 rules, plain or under the language.
+%%
+%% THE HEADS ARE ENUMERATED WITH clause/2 AND NOT CALLED, because calling
+%% take_in(_, E, T) leaves the FIRST argument unbound -- and an unbound
+%% first argument keys 0 and skips nothing, so the call walked the whole
+%% predicate. tr_endings/2 is asked on nearly every inflection, so over a
+%% vocabulary that one line was the entire cost of a sentence: measured
+%% on one language taught under a name, 11.522 s with the call and
+%% 0.264 s with clause/2 -- 43x, against a plain lesson's 0.279 s.
+%%
+%% TWO READINGS DIED GETTING HERE. A blanket reverse index (1.4.1) gave
+%% every arity-2 relation a copy keyed the other way and was WORSE on
+%% every axis; and the meta-interpreted rules of a named lesson, which
+%% looked like the answer because a plain lesson's rules are real
+%% clauses, are innocent -- a store whose rules still go through
+%% tr_body/2 reads in 0.234 s once this line is fixed. The mechanism was
+%% right from the first probe and both fixes built on it were wrong: the
+%% answer was to stop asking the unbound question, not to index it.
 tr_endings(T, Es) :-
     tr_language(L),
     (   L == none
     ->  findall(E, catch(clause(take_in(_, E, T), _), error(_, _), fail), Es0)
-    ;   findall(E, ( tr_solve_plain(lesson(L, (take_in(_, E, T) :- _))) ; tr_lesson(L, take_in(_, E, T)) ), Es0)
+    ;   findall(E, ( tr_solve_plain(lesson(L, (take_in(_, E, T) :- _)))
+                     ; tr_namespaced(L, take_in(_, E, T), F), catch(clause(F, _), error(_, _), fail) ), Es0)
     ),
     findall(E, ( member(E, Es0), atom(E) ), Es1), sort(Es1, Es).
 
