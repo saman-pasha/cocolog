@@ -3066,6 +3066,63 @@ _))`. A registry carries what unlearning needs -- `lesson_language/1` and
 `lesson_predicate(Name, Language, Arity)`, the latter keyed on the NAME so
 that its own lookup is indexed too.
 
+**AND THE NAMESPACE IS A TENFOLD WIN THAT DOES NOT CLOSE THE GAP, which
+is the whole of what the measurement says.** Both vocabularies taught into
+one store under their own names, then read, on 1.4.0:
+
+| | old `lesson(L, T)` | namespaced | the plain control |
+|---|---|---|---|
+| teach spanish, named | 8 min 24 s | 8 min 11 s | 5 min 43 s |
+| teach italian, named | 6 min 26 s | **5 min 03 s** | 3 min 14 s |
+| the store after both | 233 MB | **331 MB** | ~48 MB one language |
+| ONE sentence, Italian into English | **over 4 min**, killed | **25.8 s** | **0.348 s** |
+| six sentences, Italian into Spanish | 7 min 35 s, **none printed** | **3 min 02 s, 6 of 6** | -- |
+
+**THE TEACH IS NOT A WIN AND THE STORE IS BIGGER**, and both follow from the
+same thing: a few dozen dirty predicates are each flushed WHOLESALE as the
+teach goes, where one `lesson/2` was written once at the end, so the
+namespaced store carries far more dead rows. `cocolog vacuum` is what bounds
+that, as this file already says for every writing process.
+
+**AND THE PAGE PROVED IT IS NOT THE STORE, BY ARITHMETIC AND WITH NO NEW
+RUN.** A store fetch is paid ONCE per predicate per process, so if the fetch
+(or the dead rows it walks) were the cost, sentences two to six would be
+nearly free: one sentence 26.1 s would make six about 30 s. Six cost
+**181.7 s, about 30 s EACH**. So the cost is PER SENTENCE, the vacuum
+hypothesis this file was about to test is refuted before it was run, and
+`stime` says the same as it did before: **utime 3 min 01.5 s against stime
+0.13 s** over the page, and 26.03 s against 0.11 s over the single sentence.
+Still all user CPU, still a walk.
+
+**THE CANDIDATE LEFT IS A LOOKUP WHOSE FIRST ARGUMENT IS UNBOUND, and this
+file already names the mechanism**: an unbound first argument keys as 0 and
+skips nothing. A lesson says `mean(Word, EnglishWord)`, so the index keys on
+the LESSON's word -- and every question asked in the English direction
+(`tr_known(english, E)` is `mean(_, E)`, `tr_meaning(english, E, W)` is
+`mean(W, E)` with W free) leaves it free. The language VOTE asks it for every
+word of every sentence and for every language loaded, which is exactly a
+per-sentence walk over a hundred thousand rows. **It is not measured yet**,
+and the shape of the fix it implies -- a second namespaced predicate keyed
+the other way, `'spanish:mean_of'(house, casa)`, at the cost of doubling the
+rows -- is proposed here and not taken.
+
+**AND THE PAGE FOUND A DEFECT IN THE ITALIAN LESSON, not in the IR**:
+`Che cosa mangia il cane?` came back `¿Qué come qué el perro?`, with the
+question word written twice. `che` and `cosa` BOTH mean `what` in the
+vocabulary, and Italian's ordinary `che cosa` is the two of them together, so
+the reader takes one as the question word and the other as an object. The IR
+carried what it was given; the lesson has no way to say that two words are
+one question word. Every other sentence of the page round-tripped
+(`Il gatto nero dorme.` -> `El gato negro duerme.`, `I cani mangiano il
+pane.` -> `Los perros comen el pan.`, `Le case non sono grandi.` -> `Las
+casas no son grandes.`).
+
+**AND `/usr/bin/time` IS NOT INSTALLED ON THIS BOX.** The first runner used
+it and failed four times in seconds with exit 127, measuring nothing -- which
+is the good kind of instrument failure, and the opposite of the arm that
+measured the wrong engine and reported exit 0. bash's `time` keyword is what
+the probes use now; `sh` on this box is dash and has none.
+
 **AND A CASE THAT TRAINS MUST GIVE THE HEAP BACK, or it dies in whatever
 runs last.** `test/tagger.pl` was killed by this box's 16 GB three times
 running -- at 206, 195 and 232 s, with the training itself finishing at
