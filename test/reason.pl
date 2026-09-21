@@ -642,12 +642,25 @@ topics :-
 %% beside the library on first use; where either is missing it raises, and
 %% this section says so rather than failing.
 
+%% THE OBJECT IS A CAR AND NOT A TRUCK, and the reason is measured rather
+%% than tidy: an adjective inside an object with a comma filler after it is
+%% the shape test/tagger.pl keeps a grid for, and the grid splits by the
+%% NOUN. On the model this ships with, `car' -- which the lexicon knows
+%% only as a noun -- keeps the adjective in 192 of 192, where `house' and
+%% `truck', which are verbs too, keep it in 189 and 186 and `flat', which
+%% is also an adjective, in 96. It was a truck here until 1.2.43 and it
+%% passed on a model that read trucks in 75 of 192: a coin toss that came
+%% up heads, and a pin that would have said nothing had it come up tails.
+%% This case is about reason_prose/2 reading typed prose end to end, so it
+%% pins the sentence the tagger is CERTAIN of and test/tagger.pl's grid
+%% pins the shape -- which is the division to keep whatever the numbers
+%% are on the next training.
 prose :-
     section('prose'),
-    (   catch(reason_prose('Well, Rex really owns a red truck, obviously. Kim rents a flat in Oslo and is insured.', T1),
+    (   catch(reason_prose('Well, Rex really owns a red car, obviously. Kim rents a flat in Oslo and is insured.', T1),
               error(existence_error(tagger, pretrained), _), fail)
     ->  check('typed prose, read through the shipped tagger', T1,
-              [truck(truck_1), red(truck_1), own(rex, truck_1), flat(flat_1), rent_in(kim, flat_1, oslo), insured(kim)]),
+              [car(car_1), red(car_1), own(rex, car_1), flat(flat_1), rent_in(kim, flat_1, oslo), insured(kim)]),
         forall(member(T, T1), assertz(T)),
         reason_ask_prose('Honestly, who rents a flat in Oslo?', A2), check('and a typed question, answered', A2, [[kim-fact]]),
         reason_ask_prose('Is she insured?', A3), check('a pronoun in the question: the subject the prose left', A3, [yes(fact)])

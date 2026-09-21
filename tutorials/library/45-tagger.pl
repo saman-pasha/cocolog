@@ -49,7 +49,7 @@ main :-
     tagger_word_id(V, zed, IdZed),
     must('a word never seen is 1, <unk>', IdZed, 1),
     tagger_encode(V, [word(alice, upper), word(owns, lower), ',', word(zed, upper)], _, Shapes),
-    must('and the SHAPE travels beside the word: upper, lower with -s, comma, upper again (a name whatever it ends in)', Shapes, [2, 4, 3, 2]),
+    must('and the SHAPE travels beside the word: upper 2, lower with -s 4, comma 3, upper again (a name whatever it ends in, and no class)', Shapes, [2, 4, 3, 2]),
 
     format("~n2. Training: 500 Adam steps over 32768 pairs, the loss printed every 40~n", []),
     tagger_train(lesson, [verbose(true)]),

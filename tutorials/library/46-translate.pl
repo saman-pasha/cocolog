@@ -8,7 +8,7 @@
 %%
 %% THE PROBLEM THIS SOLVES. Tutorial 43 reads a paragraph into facts and
 %% rules and proves things over them. This lesson reads a paragraph that
-%% TEACHES: one hundred and seventy-six lines of Spanish in the same
+%% TEACHES: one hundred and eighty-three lines of Spanish in the same
 %% controlled English, and what comes out is a vocabulary as facts, a
 %% grammar as rules -- gender, the order of an adjective, the plural, the
 %% word that denies, the question words and the mark a question begins
@@ -148,6 +148,13 @@ The auxiliary "ha" means "has".
 "hemos" is the first person of "han".
 "había" is the past of "ha".
 "habían" is the past of "han".
+The auxiliary "está" means "is".
+"están" is the plural of "está".
+"estoy" is the first person of "está".
+"estás" is the second person of "está".
+"estamos" is the first person of "están".
+"estaba" is the past of "está".
+"estaban" is the past of "están".
 "comido" is the participle of "come".
 "leído" is the participle of "lee".
 "tenido" is the participle of "tiene".
@@ -250,17 +257,48 @@ main :-
     show('to teach the whole of it once', 'cocolog --embed KB -s library/reasoning/teach.pl -- spanish'),
     show('and translate a page over the store', 'cocolog --embed KB -s library/reasoning/page.pl -- page.txt'),
 
+    format("~n17. The shapes a vocabulary brings: an infinitive, a modal, the progressive, the conditional, this and that, there is~n", []),
+    findall(VL, ( member(VL, VLines), mentions(VL, [come, 'comería', quiere, duerme, puede, esto, nadie, otro, cada, hay, cuatro, este, esta, aquel]) ), Some17),
+    length(Some17, NS17), show('the lines that mention fourteen more words, anywhere in the line', NS17),
+    atomic_list_concat(Some17, ' ', VText17), reason_learn(VText17, _),
+    reason_translate('Maria wants to eat the bread.', S17a),
+    must('`"comer" is the infinitive of "come"'': to and the base form', S17a, 'Maria quiere comer el pan.'),
+    reason_translate('Maria puede comer el pan.', S17b),
+    must('`The modal "puede" means "can"'': a modal, and the base bare after it', S17b, 'Maria can eat the bread.'),
+    reason_translate('Maria cannot eat.', S17c),
+    must('cannot', S17c, 'Maria no puede comer.'),
+    reason_translate('Maria is eating the bread.', S17d),
+    must('`The auxiliary "está" means "is"'' and `"comiendo" is the gerund of "come"'': the progressive', S17d, 'Maria está comiendo el pan.'),
+    reason_translate('Los perros estaban comiendo.', S17e),
+    must('and back, in the past', S17e, 'The dogs were eating.'),
+    reason_translate('Maria comería el pan.', S17f),
+    must('`"comería" is the conditional of "come"'': would', S17f, 'Maria would eat the bread.'),
+    reason_translate('These houses are big.', S17g),
+    must('`The feminine demonstrative "esta" means "this"'': agreeing like an article, these as its plural', S17g, 'Estas casas son grandes.'),
+    reason_translate('Cada perro come.', S17h),
+    must('`The determiner "cada" means "each"''', S17h, 'Each dog eats.'),
+    reason_translate('Nadie come el pan.', S17i),
+    must('`The pronoun "nadie" means "nobody"'': a pronoun that stands alone', S17i, 'Nobody eats the bread.'),
+    reason_translate('Maria sees this.', S17j),
+    must('and after the verb, since it does not precede it', S17j, 'Maria ve esto.'),
+    reason_translate('There is a dog in the house.', S17k),
+    must('`The verb "hay" means "there is"'': no subject, the phrase after it', S17k, 'Hay un perro en la casa.'),
+    reason_translate('No hay perros.', S17l),
+    must('and denied: there are no', S17l, 'There are no dogs.'),
+    reason_translate('Maria tiene cuatro perros.', S17m),
+    must('`The number "cuatro" means "four"''', S17m, 'Maria has four dogs.'),
+
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
 %% Each section its own clause: one clause holding the whole lesson ran over the
 %% page a stored clause must fit in, which cocolint flags.
 
 section_1 :-
-    format("~n1. The lesson: one hundred and seventy-six lines of controlled English, and what they say~n", []),
+    format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),
     lesson(Text),
     reason_learn(Text, Terms),
     length(Terms, N),
-    must('terms learned', N, 289),
+    must('terms learned', N, 300),
     Terms = [T1, T2, T3|_],
     must('the language', T1, language(spanish)),
     must('a class fact about the word, then what it means', T2-T3, noun(casa)-mean(casa, house)),
@@ -510,6 +548,14 @@ section_15 :-
 %% file beside it stops working the moment it moves.
 
 show(Label, Value) :- format("   ~w = ~q~n", [Label, Value]).
+
+%% a line mentions one of the words: a mention is between quotation marks,
+%% and the odd parts of the line cut at them are the mentions
+mentions(Line, Words) :-
+    split_string(Line, "\"", "", Parts), mentioned(Parts, Ms),
+    member(M, Ms), atom_string(A, M), memberchk(A, Words), !.
+mentioned([_, M|Rest], [M|Ms]) :- !, mentioned(Rest, Ms).
+mentioned(_, []).
 
 must(Label, Got, Want) :-
     (   Got == Want

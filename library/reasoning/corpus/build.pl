@@ -36,8 +36,15 @@
 %%     The verb "come" means "eats".                "comen" is the plural of "come".
 %%     "como" is the first person of "come".        "comió" is the past of "come".
 %%     "comerá" is the future of "come".            "comido" is the participle of "come".
+%%     "comería" is the conditional of "come".      "comerían" is the plural of "comería".
+%%     "comer" is the infinitive of "come".         "comiendo" is the gerund of "come".
 %%     "ate" is the past of "eats".                 "eaten" is the participle of "eats".
-%%     The adverb "rápidamente" means "quickly".
+%%     "running" is the gerund of "runs".           The adverb "rápidamente" means "quickly".
+%%     The modal "puede" means "can".               "podría" is the conditional of "puede".
+%%     The verb "hay" means "there is".             The number "cuatro" means "four".
+%%     The masculine demonstrative "este" means "this".   "estos" is the plural of "este".
+%%     The masculine determiner "otro" means "another".   The determiner "cada" means "each".
+%%     The pronoun "esto" means "this".             The pronoun "esto" does not precede the verb.
 %%
 %% A gender is stated of every noun and a plural of every noun, adjective and
 %% verb, so that no rule of the grammar lesson is relied on for a word whose
@@ -47,8 +54,13 @@
 %% the first meaning the translator finds is the canonical one: the
 %% entries read both ways first, then those read only from the lesson's
 %% language, then those read only from English. Multi-word entries, proper
-%% nouns, English's own function words and the modals are left out; a word
-%% is one lower-case word of letters.
+%% nouns and English's own function words are left out -- a word is one
+%% lower-case word of letters -- except for the closed words the translator
+%% has a slot for: a modal (`can', `may', `must', `should'), a demonstrative
+%% or another determiner (`this', `another', `each', `much'), a pronoun that
+%% stands alone (`this', `somebody', `nobody', `everything'), and `there is',
+%% the one entry of more than a word, which is the verb `hay'. A pronoun the
+%% dictionary gives that way is a tonic one, so it never precedes the verb.
 %%
 %% THE FILES ARE DATA AND THE PROGRAM IS THIS ONE FILE, the rule every
 %% generator in the reasoning library follows: nothing of a lesson lives in
@@ -57,12 +69,13 @@
 
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/normalise)).
+:- use_module(library(reasoning/translate)).     % tr_english_ing/2: the gerund rule the line must not repeat
 
 %% split_string/4 answers STRINGS, and a "..." literal is codes unless the flag
 %% says otherwise: a token compared with a literal never matched until it did
 :- set_prolog_flag(double_quotes, string).
 
-:- dynamic cb_par/3, cb_lemma/3, cb_en_verb/3, cb_person/1, cb_seen_f/2, cb_seen_e/2, cb_formed/2, cb_en_done/1.
+:- dynamic cb_par/3, cb_lemma/3, cb_en_verb/4, cb_person/1, cb_seen_f/2, cb_seen_e/2, cb_seen_pair/3, cb_formed/2, cb_en_done/1.
 
 %% EVERY TEST OF A LINE IS A C BUILTIN. sub_string/5 is clauses here, and a
 %% search with it walks the line a position at a time converting it to codes
@@ -137,8 +150,11 @@ cb_par_line(P, L) :-
     !, assertz(cb_par(P, Suffix, Tags)).
 cb_par_line(_, _).
 
-%% the text between <l> and </l>: <l>s</l>, <l></l>, <l />
+%% the text between <l> and </l>: <l>s</l>, <l></l>, <l />, and <l><a/>questo</l>
+%% -- the Italian demonstratives' generated forms carry an <a/> before the
+%% word, and without it `questo' has no singular
 cb_l_text(Toks, Suf) :- append(_, ["l", S, "/l"|_], Toks), !, atom_string(Suf, S).
+cb_l_text(Toks, Suf) :- append(_, ["l", "", "a/", S, "/l"|_], Toks), !, atom_string(Suf, S).
 cb_l_text(Toks, '') :- memberchk("l /", Toks), !.
 cb_l_text(Toks, '') :- memberchk("l/", Toks), !.
 
@@ -190,9 +206,10 @@ cb_sg(Forms, Tags, F) :- ( append(Tags, [sg], T1), cb_form(Forms, T1, F) -> true
 
 cb_form(Forms, Tags, F) :- member(F-Ts, Forms), cb_has_tags(Tags, Ts), !.
 
-%% a verb's form: Apertium tags `ser' and `essere' vbser, and `haber' and
-%% `avere' vbhaver, where every other verb is vblex
-cb_verb_form(Forms, Tags, F) :- member(V, [vblex, vbser, vbhaver]), cb_form(Forms, [V|Tags], F), !.
+%% a verb's form: Apertium tags `ser' and `essere' vbser, `haber' and
+%% `avere' vbhaver and the modals (`poder', `dovere') vbmod, where every
+%% other verb is vblex
+cb_verb_form(Forms, Tags, F) :- member(V, [vblex, vbser, vbhaver, vbmod]), cb_form(Forms, [V|Tags], F), !.
 cb_has_tags([], _).
 cb_has_tags([T|Ts], Have) :- memberchk(T, Have), cb_has_tags(Ts, Have).
 
@@ -204,9 +221,10 @@ cb_read_en_verbs(Path) :-
     forall(( member(L, Lines), L \== "", \+ cb_prefix(';', L) ), cb_en_verb_line(L)).
 cb_en_verb_line(L) :-
     split_string(L, ",", "", Fs),
-    (   Fs = [B, _, _, _, _, _, _, _, _, _, Past, Pp|_], B \== "", Past \== ""
+    (   Fs = [B, _, _, _, _, Ger, _, _, _, _, Past, Pp|_], B \== "", Past \== ""
     ->  atom_string(Base, B), atom_string(PastA, Past), ( Pp == "" -> PpA = PastA ; atom_string(PpA, Pp) ),
-        assertz(cb_en_verb(Base, PastA, PpA))
+        ( Ger == "" -> GerA = none ; atom_string(GerA, Ger) ),
+        assertz(cb_en_verb(Base, PastA, PpA, GerA))
     ;   true
     ).
 
@@ -227,20 +245,41 @@ cb_read_bilingual(Path, Entries) :-
     read_file_to_codes(Path, Codes), split_string(Codes, "\n", " \t\r", Lines),
     findall(E, ( member(L, Lines), cb_bi_line(L, E) ), Entries).
 
-%% e(Direction, Pos, English, Foreign, ForeignTags): one line, one word a side, no <par>
-cb_bi_line(L, e(Dir, Pos, En, Fo, RTags)) :-
+%% e(Direction, Pos, English, Foreign, ForeignTags): one line, one word a side
+cb_bi_line(L, E) :-
     cb_prefix('<e', L),
     split_string(L, "<>", "", Toks),
-    \+ ( member(T, Toks), cb_prefix('par ', T) ), \+ memberchk("g", Toks),
+    \+ memberchk("g", Toks),
     Toks = [_, ETok|_],
     (   cb_lr(ETok) -> Dir = lr
     ;   cb_rl(ETok) -> Dir = rl
     ;   Dir = both
     ),
+    cb_bi_entry(Toks, Dir, E), !.
+
+%% the ordinary entry: no <par>, the class from the English side's tags, the
+%% word admitted by its class
+cb_bi_entry(Toks, Dir, e(Dir, Pos, En, Fo, RTags)) :-
+    \+ ( member(T, Toks), cb_prefix('par ', T) ),
     cb_side(Toks, "l", "/l", EnS, LTags), cb_side(Toks, "r", "/r", FoS, RTags),
-    LTags = [PosA|_], cb_pos(PosA, Pos),
+    cb_pos(LTags, Pos),
+    atom_string(En, EnS), atom_string(Fo, FoS),
+    cb_admits(Pos, En), cb_foreign_word(Fo).
+%% a number: the dictionary writes the cardinals as a bare pair with the
+%% paradigm named beside it -- <l>four</l><r>cuatro</r><par n="three__num"/>
+%% -- and the two paradigms that add nothing to the word are the numbers
+cb_bi_entry(Toks, Dir, e(Dir, number, En, Fo, [])) :-
+    member(T, Toks), cb_prefix('par n="', T), split_string(T, "\"", "", [_, P|_]), memberchk(P, ["three__num", "twenty__num"]),
+    cb_side(Toks, "l", "/l", EnS, []), cb_side(Toks, "r", "/r", FoS, []),
     atom_string(En, EnS), atom_string(Fo, FoS),
     cb_english_word(En), cb_foreign_word(Fo).
+%% `there is': the one entry of more than a word a lesson states, because
+%% its word is a verb of its own -- <l>there<b/>is<s n="vblex"/></l><r>hay...
+%% (the cut at `<' and `>' leaves an empty field between `/>' and `</l>')
+cb_bi_entry(Toks, Dir, e(Dir, existential, 'there is', Fo, RTags)) :-
+    \+ ( member(T, Toks), cb_prefix('par ', T) ),
+    append(_, ["l", "there", B, "is", VT, "", "/l"|_], Toks), memberchk(B, ["b/", "b /"]), cb_prefix('s n="vblex"', VT),
+    cb_side(Toks, "r", "/r", FoS, RTags), atom_string(Fo, FoS), cb_foreign_word(Fo).
 
 %% the word and the tags between an opening and a closing token; a <b/>
 %% between them is a blank, so the entry is more than one word
@@ -250,15 +289,33 @@ cb_side(Toks, Open, Close, Word, Tags) :-
     Inside = [Word|Rest], \+ cb_prefix('s n=', Word),              % the word comes first, or the side is bare
     cb_tags(Rest, Tags).
 
-cb_pos(n, noun).       cb_pos(adj, adjective). cb_pos(vblex, verb).  cb_pos(vbser, verb).
-cb_pos(adv, adverb).   cb_pos(preadv, adverb). cb_pos(pr, preposition). cb_pos(num, number).
-cb_pos(cnjcoo, conjunction).
+%% the class, from the English side's tags: the first tag for an open
+%% class; a determiner's kind (dem, ind, qnt) is settled by its forms, and
+%% a pronoun is one of the English words that stand alone (`nobody', `this'),
+%% which the dictionary tags tn (tonic) on most entries and not on all
+%% (`nobody<prn>'), so the English word decides and a clitic never passes
+cb_pos([n|_], noun).       cb_pos([adj|_], adjective). cb_pos([vblex|_], verb).  cb_pos([vbser|_], verb).
+cb_pos([vaux|_], modal).   cb_pos([det|_], det).       cb_pos([prn|_], pronoun).
+cb_pos([adv|_], adverb).   cb_pos([preadv|_], adverb). cb_pos([pr|_], preposition). cb_pos([num|_], number).
+cb_pos([cnjcoo|_], conjunction).
+
+%% what a class admits: an open class any word of letters that is not one
+%% of English's own, and a closed class exactly the words the translator
+%% has a slot for -- a modal it writes in the past and the conditional
+%% (`could', `might'), a determiner it puts in the number of its noun
+%% (`this' and `these', `much' and `many', `another' and `other'), a
+%% pronoun it takes for a subject or an object of the third person
+cb_admits(modal, W) :- !, cb_letters(W), memberchk(W, [can, may, might, must, should, could]).
+cb_admits(det, W) :- !, cb_letters(W), memberchk(W, [this, that, another, other, each, every, much, many, several, both, some, such, few, little]).
+cb_admits(pronoun, W) :- !, cb_letters(W),
+    memberchk(W, [this, that, something, anything, everything, nothing, somebody, anybody, nobody, everybody,
+                  someone, anyone, everyone, all, another, both, many, few, several, none, others]).
+cb_admits(_, W) :- cb_english_word(W).
 
 %% an English word: lower-case letters, and not one of the words the
 %% translator knows on its own, nor a modal it cannot conjugate
-cb_english_word(W) :-
-    atom_codes(W, Cs), Cs \== [], forall(member(C, Cs), ( C >= 0'a, C =< 0'z )),
-    \+ cb_english_own(W).
+cb_english_word(W) :- cb_letters(W), \+ cb_english_own(W).
+cb_letters(W) :- atom_codes(W, Cs), Cs \== [], forall(member(C, Cs), ( C >= 0'a, C =< 0'z )).
 %% `be' and `have' are kept: the lesson gives them as `is' and `has', which is
 %% what the translator's English knows them as, and `ser', `estar' and
 %% `tener' hang on them. `do' is not: `does' is the word that fronts a question
@@ -298,9 +355,23 @@ cb_order(Entries, Ordered) :-
     forall(member(e(_, P, En, Fo, _), Rl0), cb_note(P, En, Fo)),
     findall(E, ( member(E, Entries), E = e(lr, P, En, Fo, _), ( \+ cb_seen_e(En, P) ; \+ cb_seen_f(Fo, P) ) ), Lr0),
     append([Both, Rl0, Lr0], ByDirection),
-    findall(E, ( member(Class, [noun, verb, adjective, adverb, preposition, number, conjunction]),
+    findall(E, ( member(Class, [noun, verb, modal, existential, adjective, adverb, preposition, number, det, pronoun, conjunction]),
                  member(E, ByDirection), E = e(_, Class, _, _, _) ),
-            Ordered).
+            Ordered0),
+    cb_dedupe(Ordered0, Ordered).
+
+%% one entry per class, English word and lesson word: the dictionary gives
+%% `another' and `otro' three times, once a direction and gender, and the
+%% lines say the same each time. Keyed on the WORD, as cb_note/3 is: a
+%% first draft keyed it on the class and took five minutes over what the
+%% word makes an indexed lookup
+cb_dedupe([], []).
+cb_dedupe([E|Es], Out) :-
+    E = e(_, Class, En, Fo, _),
+    (   cb_seen_pair(Fo, Class, En) -> Out = Out1
+    ;   assertz(cb_seen_pair(Fo, Class, En)), Out = [E|Out1]
+    ),
+    cb_dedupe(Es, Out1).
 cb_note(P, En, Fo) :-                                            % indexed on the WORD, the selective argument
     ( cb_seen_f(Fo, P) -> true ; assertz(cb_seen_f(Fo, P)) ),
     ( cb_seen_e(En, P) -> true ; assertz(cb_seen_e(En, P)) ).
@@ -343,6 +414,24 @@ cb_entry(e(_, verb, En, Fo, _)) :- !,
         cb_verb_forms(L, Forms), cb_english_verb(En, En3)
     ;   true                                                        % no paradigm: no lexeme to state
     ).
+%% a modal: its third person as the lexeme and every form a verb has; its
+%% English past and conditional are the translator's own (`could', `might')
+cb_entry(e(_, modal, En, Fo, _)) :- !,
+    cb_forms(Fo, Forms),
+    (   cb_verb_form(Forms, [pri, p3, sg], L)
+    ->  cb_line('The modal "~w" means "~w".', [L, En]), cb_verb_forms(L, Forms)
+    ;   true
+    ).
+cb_entry(e(_, existential, En, Fo, _)) :- !, cb_line('The verb "~w" means "~w".', [Fo, En]).
+%% a determiner: a demonstrative when the dictionary tags it so on either
+%% side, in its genders with their plurals; a pronoun the same way, and
+%% since it is one that stands alone it never precedes the verb
+cb_entry(e(_, det, En, Fo, RTags)) :- !,
+    cb_forms(Fo, Forms),
+    ( ( memberchk(dem, RTags) ; cb_form(Forms, [det, dem], _) ) -> Kind = demonstrative ; Kind = determiner ),
+    cb_closed(Kind, det, En, Fo, Forms).
+cb_entry(e(_, pronoun, En, Fo, _)) :- !,
+    cb_forms(Fo, Forms), cb_closed(pronoun, prn, En, Fo, Forms).
 cb_entry(e(_, adverb, En, Fo, _)) :- !, cb_line('The adverb "~w" means "~w".', [Fo, En]).
 cb_entry(e(_, preposition, En, Fo, _)) :- !, cb_line('The preposition "~w" means "~w".', [Fo, En]).
 cb_entry(e(_, number, En, Fo, _)) :- !, cb_line('The number "~w" means "~w".', [Fo, En]).
@@ -350,6 +439,34 @@ cb_entry(e(_, conjunction, En, Fo, _)) :- !, cb_line('The conjunction "~w" means
 cb_entry(_).
 
 cb_line(Fmt, Args) :- format(Fmt, Args), nl.
+
+%% a closed word in its genders: the masculine and the feminine singular
+%% when the paradigm has both, the one form for both genders, or the word
+%% as the dictionary wrote it when it has no paradigm of that class
+cb_closed(Kind, Tag, En, Fo, Forms) :-
+    (   cb_sg(Forms, [Tag, m], M), cb_sg(Forms, [Tag, f], F), M \== F
+    ->  cb_closed_word(Kind, Tag, M, masculine, En, Forms, m), cb_closed_word(Kind, Tag, F, feminine, En, Forms, f)
+    ;   cb_sg(Forms, [Tag, mf], W) -> cb_closed_word(Kind, Tag, W, none, En, Forms, mf)
+    ;   cb_sg(Forms, [Tag, m], M) -> cb_closed_word(Kind, Tag, M, masculine, En, Forms, m)
+    ;   cb_sg(Forms, [Tag, f], F) -> cb_closed_word(Kind, Tag, F, feminine, En, Forms, f)
+    ;   cb_closed_word(Kind, Tag, Fo, none, En, [], none)
+    ).
+
+%% its line, its plural once whatever classes the word has (`estos' is the
+%% plural of the demonstrative and of the pronoun alike), and for a pronoun
+%% that it stands after the verb
+cb_closed_word(Kind, Tag, W, G, En, Forms, GT) :-
+    (   G == none -> cb_line('The ~w "~w" means "~w".', [Kind, W, En])
+    ;   cb_line('The ~w ~w "~w" means "~w".', [G, Kind, W, En])
+    ),
+    (   cb_formed(W, Kind) -> true
+    ;   assertz(cb_formed(W, Kind)),
+        (   GT \== none, cb_form(Forms, [Tag, GT, pl], P), P \== W, \+ cb_formed(W, plural)
+        ->  assertz(cb_formed(W, plural)), cb_line('"~w" is the plural of "~w".', [P, W])
+        ;   true
+        ),
+        ( Kind == pronoun -> cb_line('The pronoun "~w" does not precede the verb.', [W]) ; true )
+    ).
 
 %% a noun: its gender stated, a denial where the grammar's rule would say
 %% otherwise, its plural, and whether it is a person
@@ -381,8 +498,9 @@ cb_adjective(W, G, En, Forms, Tag) :-
         )
     ).
 
-%% a verb's forms, once per lexeme: the plural, the persons, the past and
-%% the future with theirs, the participle
+%% a verb's forms, once per lexeme: the plural, the persons, the past, the
+%% future and the conditional with theirs, the participle, the infinitive
+%% and the gerund
 cb_verb_forms(L, _) :- cb_formed(L, verb), !.
 cb_verb_forms(L, Forms) :-
     assertz(cb_formed(L, verb)),
@@ -392,7 +510,10 @@ cb_verb_forms(L, Forms) :-
     %% the preterite, so a page is read in either and written in the first
     ( cb_verb_form(Forms, [pii, p3, sg], Imp), Imp \== Past -> cb_line('"~w" is the past of "~w".', [Imp, L]), cb_tense(Forms, pii, Imp, past_of) ; true ),
     ( cb_verb_form(Forms, [fti, p3, sg], Fut) -> cb_line('"~w" is the future of "~w".', [Fut, L]), cb_tense(Forms, fti, Fut, plural_of) ; true ),
-    ( cb_verb_form(Forms, [pp, m, sg], Pp) -> cb_line('"~w" is the participle of "~w".', [Pp, L]) ; true ).
+    ( cb_verb_form(Forms, [cni, p3, sg], Cond) -> cb_line('"~w" is the conditional of "~w".', [Cond, L]), cb_tense(Forms, cni, Cond, plural_of) ; true ),
+    ( cb_verb_form(Forms, [pp, m, sg], Pp) -> cb_line('"~w" is the participle of "~w".', [Pp, L]) ; true ),
+    ( cb_verb_form(Forms, [inf], Inf) -> cb_line('"~w" is the infinitive of "~w".', [Inf, L]) ; true ),
+    ( cb_verb_form(Forms, [ger], Ger) -> cb_line('"~w" is the gerund of "~w".', [Ger, L]) ; true ).
 
 %% the plural and the persons of one tense's third person singular. The
 %% plural of a past is stated as the past of the plural (`"comieron" is the
@@ -415,12 +536,14 @@ cb_third(be, is) :- !.
 cb_third(have, has) :- !.
 cb_third(En, En3) :- reason_third(En, En3).
 
-%% the English verb's past and participle, when -ed does not make them
+%% the English verb's past and participle, when -ed does not make them,
+%% and its gerund when the translator's -ing rule does not (`running')
 cb_english_verb(En, _) :- cb_en_done(En), !.
 cb_english_verb(En, En3) :-
     assertz(cb_en_done(En)),
-    (   cb_en_verb(En, Past, Pp)
+    (   cb_en_verb(En, Past, Pp, Ger)
     ->  ( cb_en_regular_past(En, Past) -> true ; cb_line('"~w" is the past of "~w".', [Past, En3]) ),
-        ( Pp == Past -> true ; cb_line('"~w" is the participle of "~w".', [Pp, En3]) )
+        ( Pp == Past -> true ; cb_line('"~w" is the participle of "~w".', [Pp, En3]) ),
+        ( ( Ger == none ; tr_english_ing(En, Ger) ) -> true ; cb_line('"~w" is the gerund of "~w".', [Ger, En3]) )
     ;   true
     ).

@@ -1,5 +1,5 @@
 %% library(reasoning/translate) -- a language lesson as a knowledge base, and
-%% a translation as a proof over it. ONE HUNDRED AND SEVENTY-ONE LINES OF
+%% a translation as a proof over it. ONE HUNDRED AND EIGHTY-THREE LINES OF
 %% SPANISH, read by reason_learn/1 into facts and rules -- no lexicon, no
 %% corpus, no model, nothing in the library that knows a word of Spanish --
 %% and then simple sentences translated both ways: singular and plural,
@@ -23,7 +23,7 @@
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages,
-    questions, rules, refusals, outline, vocabulary, build,
+    questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -134,6 +134,13 @@ The auxiliary "ha" means "has".
 "hemos" is the first person of "han".
 "había" is the past of "ha".
 "habían" is the past of "han".
+The auxiliary "está" means "is".
+"están" is the plural of "está".
+"estoy" is the first person of "está".
+"estás" is the second person of "está".
+"estamos" is the first person of "están".
+"estaba" is the past of "está".
+"estaban" is the past of "están".
 "comido" is the participle of "come".
 "leído" is the participle of "lee".
 "tenido" is the participle of "tiene".
@@ -218,14 +225,14 @@ The conjunction "y" means "and".').
 %% ---- the lesson, learned ------------------------------------------------------
 
 lesson :-
-    section('the lesson: one hundred and seventy-six lines, two hundred and eighty-nine terms'),
+    section('the lesson: one hundred and eighty-three lines, three hundred terms'),
     lesson_text(Text),
     reason_tokens(Text, Tokens),
     findall(S, member('.', Tokens), Stops), length(Stops, NS),
-    check('one hundred and seventy-six sentences', NS, 176),
+    check('one hundred and eighty-three sentences', NS, 183),
     reason_learn(Text, Terms),
     length(Terms, NT),
-    check('two hundred and eighty-nine terms out of them', NT, 289),
+    check('three hundred terms out of them', NT, 300),
     yes_no(memberchk(mean(casa, house), Terms), L1),
     check('a mentioned word means a mentioned word', L1, yes),
     yes_no(memberchk(noun(casa), Terms), L2),
@@ -1071,10 +1078,11 @@ vocabulary :-
     vocabulary_lines(ItFile, ItLines), length(ItLines, NIt), yes_no(NIt >= 45000, BigIt),
     check('the Italian one at least forty-five thousand', BigIt, yes),
     Words = [profesor, 'periódico', gato, negro, duerme, hermano, coche, nuevo, rey, visita, ama,
-             hijo, hija, problema, 'está', hace, makes, muy, casa, perro],
+             hijo, hija, problema, 'está', hace, makes, muy, casa, perro,
+             come, 'comería', quiere, necesita, puede, esto, nadie, alguien, otro, cada, mucho, este, esta, aquel, hay, cuatro, corre, runs, ve],
     findall(L, ( member(L, EsLines), vocabulary_mentions(L, Words) ), Picked),
-    length(Picked, NP), yes_no(NP >= 80, Enough),
-    check('the lines that mention twenty words of it: at least eighty, the verbs carrying sixteen each', Enough, yes),
+    length(Picked, NP), yes_no(NP >= 150, Enough),
+    check('the lines that mention thirty-nine words of it: at least a hundred and fifty, the verbs carrying twenty each', Enough, yes),
     atomic_list_concat(Picked, ' ', Text), reason_learn(Text, Terms), length(Terms, NT),
     yes_no(NT >= NP, Learned), check('every one of them read by the reader', Learned, yes),
     yes_no(( memberchk(noun(hermano), Terms), memberchk(masculine(hermano), Terms), memberchk(plural_of(hermanos, hermano), Terms), memberchk(person(hermano), Terms) ), V1),
@@ -1119,6 +1127,128 @@ vocabulary_mentions(Line, Words) :-
     member(M, Mentions), atom_string(A, M), memberchk(A, Words), !.
 vocabulary_odd([_, M|Rest], [M|Ms]) :- !, vocabulary_odd(Rest, Ms).
 vocabulary_odd(_, []).
+
+%% ---- the shapes a vocabulary brings ---------------------------------------------------
+%%
+%% Over the vocabulary lines the section above learned -- `"comer" is the
+%% infinitive of "come"', `"comiendo" is the gerund of "come"', `"comería" is
+%% the conditional of "come"', `The modal "puede" means "can"', `The
+%% masculine demonstrative "este" means "this"', `The determiner "cada"
+%% means "each"', `The pronoun "esto" means "this"' with `The pronoun "esto"
+%% does not precede the verb', `The verb "hay" means "there is"', `The
+%% number "cuatro" means "four"' -- and the auxiliary the grammar lesson
+%% gives for the progressive, `The auxiliary "está" means "is"'. Every
+%% sentence goes both ways, and `there was' is refused: no past of `hay' is
+%% stated anywhere.
+
+shapes :-
+    section('the shapes a vocabulary brings: an infinitive, a modal, the progressive, the conditional, this and that, there is'),
+    reason_translate('Maria wants to eat the bread.', S1),
+    check('`to'' and a base form is the lesson''s infinitive', S1, 'Maria quiere comer el pan.'),
+    reason_translate('Maria necesita comer el pan.', S2),
+    check('and back (querer means loves before wants, so another verb)', S2, 'Maria needs to eat the bread.'),
+    reason_translate('Necesito dormir.', S3),
+    check('a first person the vocabulary states, and its verb''s infinitive', S3, 'I need to sleep.'),
+    reason_translate('Maria can eat the bread.', S4),
+    check('a modal: the base form bare after it', S4, 'Maria puede comer el pan.'),
+    reason_translate('Maria puede comer el pan.', S5),
+    check('and back: can, never does', S5, 'Maria can eat the bread.'),
+    reason_translate('Maria cannot eat.', S6),
+    check('cannot is can denied', S6, 'Maria no puede comer.'),
+    reason_translate('Maria no puede comer.', S7),
+    check('and back', S7, 'Maria cannot eat.'),
+    reason_translate('¿Puede Maria comer el pan?', S8),
+    check('the modal fronts a question', S8, 'Can Maria eat the bread?'),
+    reason_translate('Maria podría comer.', S9),
+    check('the conditional of a modal is could', S9, 'Maria could eat.'),
+    reason_translate('Maria could eat.', S10),
+    check('and could is the past of can', S10, 'Maria pudo comer.'),
+    reason_translate('Maria is eating the bread.', S11),
+    check('the progressive: the auxiliary that means is, and the gerund', S11, 'Maria está comiendo el pan.'),
+    reason_translate('Maria está comiendo el pan.', S12),
+    check('and back', S12, 'Maria is eating the bread.'),
+    reason_translate('The dogs were eating.', S13),
+    check('in the past and the plural', S13, 'Los perros estaban comiendo.'),
+    reason_translate('Estoy comiendo.', S14),
+    check('in the first person, with no subject', S14, 'I am eating.'),
+    reason_translate('¿Está comiendo Maria?', S15),
+    check('a question, the subject after the group', S15, 'Is Maria eating?'),
+    reason_translate('Maria would eat the bread.', S16),
+    check('the conditional: would and the base form', S16, 'Maria comería el pan.'),
+    reason_translate('Los perros comerían.', S17),
+    check('and back, the plural the vocabulary states', S17, 'The dogs would eat.'),
+    reason_translate('This dog eats.', S18),
+    check('a demonstrative agrees like an article', S18, 'Este perro come.'),
+    reason_translate('Estas casas son grandes.', S19),
+    check('these is this in the plural', S19, 'These houses are big.'),
+    reason_translate('These houses are big.', S20),
+    check('and back, estas by the noun''s gender', S20, 'Estas casas son grandes.'),
+    reason_translate('Maria sees that dog.', S21),
+    check('that is aquel', S21, 'Maria ve aquel perro.'),
+    reason_translate('Each dog eats.', S22),
+    check('a determiner the vocabulary gives', S22, 'Cada perro come.'),
+    reason_translate('Maria tiene otros perros.', S23),
+    check('other is another in the plural', S23, 'Maria has other dogs.'),
+    reason_translate('Many dogs eat.', S24),
+    check('many is much in the plural', S24, 'Muchos perros comen.'),
+    reason_translate('Esto es grande.', S25),
+    check('a pronoun that stands alone, as the subject', S25, 'This is big.'),
+    reason_translate('Maria sees this.', S26),
+    check('and as the object, after the verb', S26, 'Maria ve esto.'),
+    reason_translate('Nadie come el pan.', S27),
+    check('nobody', S27, 'Nobody eats the bread.'),
+    reason_translate('Is this big?', S28),
+    check('this alone in a question is the subject, not a phrase', S28, '¿Esto es grande?'),
+    reason_translate('There is a dog in the house.', S29),
+    check('there is: the lesson''s verb, no subject', S29, 'Hay un perro en la casa.'),
+    reason_translate('Hay un perro en la casa.', S30),
+    check('and back', S30, 'There is a dog in the house.'),
+    reason_translate('Hay perros.', S31),
+    check('the copula in the number of what there is', S31, 'There are dogs.'),
+    reason_translate('No hay perros.', S32),
+    check('denied: there are no', S32, 'There are no dogs.'),
+    reason_translate('There is no dog.', S33),
+    check('and back, the article dropped', S33, 'No hay perro.'),
+    reason_translate('¿Hay un perro?', S34),
+    check('a question', S34, 'Is there a dog?'),
+    reason_translate('Is there a dog?', S35),
+    check('and back', S35, '¿Hay un perro?'),
+    reason_translate('Maria tiene cuatro perros.', S36),
+    check('a number the vocabulary gives', S36, 'Maria has four dogs.'),
+    ( reason_translate('Había un perro.', _) -> S37 = translated ; S37 = refused ),
+    check('there was: no past of hay is stated, so refused', S37, refused),
+    reason_translate('The cat is sleeping.', S38),
+    check('a gerund by the -ing rule: sleep, sleeping', S38, 'El gato está durmiendo.'),
+    reason_translate('The cat is running.', S39),
+    check('and one the vocabulary states, run, running', S39, 'El gato está corriendo.'),
+    reason_translate('El gato está corriendo.', S40),
+    check('and back', S40, 'The cat is running.'),
+    reason_translate('These are big.', S41),
+    check('these alone: the first word for this that has a plural, so estos and not esto', S41, 'Estos son grandes.'),
+    reason_translate('Estos son grandes.', S42),
+    check('and back', S42, 'These are big.'),
+    reason_translate('Maria sees these.', S43),
+    check('and as the object', S43, 'Maria ve estos.'),
+    reason_translate('¿Necesita comer Maria?', S44),
+    check('an infinitive between the verb and its subject in a question', S44, 'Does Maria need to eat?'),
+    reason_translate('Maria needs to see Omar.', S45),
+    check('an infinitive and then a person as the object, marked', S45, 'Maria necesita ver a Omar.'),
+    reason_translate('Maria may eat.', S46),
+    check('may: the same word as can, which the dictionary says', S46, 'Maria puede comer.'),
+    reason_translate('Maria might eat.', S47),
+    check('might is may in the conditional', S47, 'Maria podría comer.'),
+    reason_translate('Somebody is eating.', S48),
+    check('somebody, standing alone', S48, 'Alguien está comiendo.'),
+    reason_translate('Alguien está comiendo.', S49),
+    check('and back as anybody: the dictionary''s first meaning, kept as it is', S49, 'Anybody is eating.'),
+    reason_translate('Maria estará comiendo.', S50),
+    check('the future progressive, by the auxiliary''s stated future', S50, 'Maria will be eating.'),
+    reason_translate('Which dog can sleep?', S51),
+    check('which, with a modal', S51, '¿Qué perro puede dormir?'),
+    reason_translate('Where is Maria eating?', S52),
+    check('where, with the progressive', S52, '¿Dónde está comiendo Maria?'),
+    reason_translate('¿No hay perro?', S53),
+    check('there is, denied and asked', S53, 'Is there no dog?').
 
 %% ---- the build, when the raw dictionaries are here --------------------------------
 %%

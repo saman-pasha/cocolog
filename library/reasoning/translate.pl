@@ -46,6 +46,24 @@
 %%                                     (`The word "a" precedes the person'), and which nouns
 %%                                     are persons (`"amigo" is a person'); a name is one
 %%     contraction_of(C, W)            a contraction and its words (`"al" is the contraction of "a el"')
+%%     conditional_of(C, F)            the conditional of the form F (`"comería" is the conditional of "come"');
+%%                                     English's is `would' and the base, `could', `might'
+%%     infinitive_of(I, F)  gerund_of(G, F)   the infinitive and the gerund of F (`"comer" is the
+%%                                     infinitive of "come"', `"comiendo" is the gerund of "come"');
+%%                                     English's are `to' and the base, and the base and -ing
+%%     modal(M)  mean(M, can)          a modal and the English one it means (`The modal "puede"
+%%                                     means "can"'): a base form follows it bare
+%%     auxiliary(A)  mean(A, is)       the auxiliary of the progressive (`The auxiliary "está"
+%%                                     means "is"'), with a gerund after it; the one that means
+%%                                     `has' is the perfect's
+%%     demonstrative(D)  determiner(D)  `The masculine demonstrative "este" means "this"', `The
+%%                                     determiner "cada" means "each"': a word in the article's
+%%                                     place, agreeing like one; English's own are this and these,
+%%                                     that and those, another and other, much and many
+%%     pronoun(P)  mean(P, this)       a pronoun that stands alone (`The pronoun "esto" means
+%%                                     "this"', `... "nadie" means "nobody"'): a subject or an
+%%                                     object of the third person, after the verb
+%%     mean(H, 'there is')             the verb of `there is' (`The verb "hay" means "there is"')
 %%     mean(Q, what)  mean(Q, who)  mean(Q, where)  mean(Q, when)  mean(Q, which)   the question words
 %%     begin(M, question)              the mark a question begins with (`The mark "¿" begins the question')
 %%     language(L)                     the language, `Spanish is a language'
@@ -67,11 +85,17 @@
 %%     reason_translate(+Text, -Translation)
 %%         SIMPLE sentences, each a subject, a verb, and after it an object,
 %%         an adjective, a place or a time (`in the house', `with Omar'),
-%%         an adverb, or nothing. A subject or an object is a name, a
-%%         pronoun, a phrase -- an article, a possessive or a number,
-%%         adjectives, a noun -- or two of those joined by `and'. The verb
-%%         is in the present, the past or the future, simple or perfect
-%%         (`has eaten', `had eaten'), denied or not, in any person. A
+%%         an adverb, an infinitive (`wants to sleep', `can sleep'), or
+%%         nothing. A subject or an object is a name, a pronoun, a phrase
+%%         -- an article, a possessive, a demonstrative or a determiner,
+%%         a number, adjectives, a noun -- or two of those joined by
+%%         `and'. The verb is in the present, the past, the future or the
+%%         conditional (`would eat'), simple, perfect (`has eaten', `had
+%%         eaten') or progressive (`is eating', `was eating'), a modal
+%%         (`can', `could', `may', `must', `should') with its verb after
+%%         it, denied or not, in any person; and `there is' and `there
+%%         are' with what there is (`There is a dog in the house', `There
+%%         are no dogs'). A
 %%         statement, or a QUESTION when the sentence ends in `?': yes or
 %%         no, `what' asking for the object, `who' for the subject, `whom'
 %%         for a person as the object, `where' and `when' for a place or a
@@ -168,10 +192,13 @@
 %%
 %% ---- WHAT IT IS NOT ---------------------------------------------------
 %%
-%% It is not a translator of prose. One clause with one verb: no relative
-%% clause, no `because', no passive, no imperative, no `why' or `how', no
-%% idiom -- a word means a word, and `is' is whichever word the lesson
-%% gave for it first (a lesson with `es' and `está' for `is' gets `es').
+%% It is not a translator of prose. One clause with one verb and at most
+%% an infinitive after it: no relative clause, no `because', no passive,
+%% no imperative, no subjunctive, no `why' or `how', no idiom -- a word
+%% means a word, and `is' is whichever word the lesson gave for it first
+%% (a lesson with `es' and `está' for `is' gets `es', and the progressive
+%% takes the AUXILIARY that means `is'). `There is' is the present only:
+%% a lesson states no past of `hay'.
 %% A past that spells like a present form (`read') is read as the present.
 %% And it decides nothing about a word a lesson left out: a sentence with
 %% one is refused whole, never half translated, and reason_untranslated/2
@@ -402,23 +429,30 @@ en_question(where, place).   en_question(when, time).     en_question(which, whi
 %% a fronted `does', `do', `did', `will', `has', `have', `had' or copula goes
 %% back behind the subject phrase; not when the subject is what is asked
 en_unfront(subject(_), Ws, Ws) :- !.
+en_unfront(_, [w(A, AC), w(there, TC)|Ws], [w(there, TC), w(A, AC)|Ws]) :- en_fronts(A), !.      % `Is there a dog?'
 en_unfront(_, [w(A, C)|Ws], Words) :-
     en_fronts(A), !,
     en_np_words(Ws, NP, Rest),
     append(NP, [w(A, C)|Rest], Words).
 en_unfront(_, Ws, Ws).
 
-en_fronts(A) :- memberchk(A, [does, do, did, will, has, have, had, am, is, are, was, were]).
+en_fronts(A) :- memberchk(A, [does, do, did, will, would, has, have, had, am, is, are, was, were, can, could, may, might, must, should]).
 
 %% the subject phrase at the head of the words: a pronoun, a name, or up to
 %% and including the first word the lesson calls a noun -- failing that up
 %% to the first verbal word
 en_np_words([w(P, C)|Rest], [w(P, C)], Rest) :- en_subject(P, _, _), !.
+en_np_words([w(P, C)|Rest], [w(P, C)], Rest) :- en_tonic(P, _), \+ en_phrase_follows(Rest), !.   % `Is this big?', not `Is this dog big?'
 en_np_words([w(W, upper)|Rest], [w(W, upper)], Rest) :- \+ tr_known_word(english, W), !.
 en_np_words(Words, NP, Rest) :-
     append(NP0, Rest0, Words), NP0 \== [], last(NP0, N), tr_is(english, N, noun), !,
     en_np_more(Rest0, More, Rest1), append(NP0, More, NP1),
     en_np_pps(Rest1, PPs, Rest), append(NP1, PPs, NP).
+
+%% a noun, a number, or adjectives and then one: what makes `this' a
+%% determiner rather than the pronoun standing alone
+en_phrase_follows([W|_]) :- ( tr_is(english, W, noun) ; tr_is(english, W, number) ), !.
+en_phrase_follows([W|Ws]) :- tr_is(english, W, adjective), en_phrase_follows(Ws).
 
 %% ... and on over the NOUNS after that noun that are no verb's form, while
 %% a verb still follows: `the black cat sleeps', where `black' is a noun
@@ -507,6 +541,10 @@ fo_unfront(_, Ws, Ws).
 %% `¿Comes ...?' nothing does, and the verb says who
 fo_subject_after([A|After], P, N, Subject, [A]) :-
     tr_is(foreign, A, adjective), After \== [], fo_agreeing(After, P, N), !, Subject = After.
+%% an infinitive between the verb and its subject stays where it is
+%% (`¿Quiere comer Maria?'): it is no subject
+fo_subject_after([w(V, C)|After], P, N, Subject, [w(V, C)|Rest]) :-
+    tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !, fo_subject_after(After, P, N, Subject, Rest).
 fo_subject_after(After, P, N, Subject, Rest) :-
     fo_np_words_after(After, Subject0, Rest0), Subject0 \== [], fo_agreeing(Subject0, P, N), !,
     Subject = Subject0, Rest = Rest0.
@@ -534,19 +572,48 @@ fo_phrase_starts(R) :- ( tr_determiner(foreign, R, _, _) ; tr_is(foreign, R, pre
 %% s(Asked, Subject, Group, Complements): the denial off, the verb group
 %% found, the subject before it (with the object pronouns that stand
 %% before the verb taken out), the complements after it
-tr_read_statement(Side, Words0, Asked, s(Asked, Subject, g(L, T, A, Neg), Comps)) :-
+%% `there is': no subject of its own, and what there is as its first object
+%% -- English's `there' and the copula, or `there will be'; the lesson's
+%% verb that means `there is' (`hay'), which the question form may have
+%% put after its phrase (`¿Hay un perro?' reads as `un perro hay')
+tr_read_statement(Side, Words0, none, S) :-
+    tr_negation(Side, Words0, Words, Neg0),
+    tr_existential(Side, Words, L, T, After, Neg0, Neg),
+    nb_setval('$tr_read_group', L),
+    tr_complements(Side, After, Comps), Comps = [obj(_)|_], !,
+    S = s(none, there, g(L, T, simple, Neg), Comps).
+tr_read_statement(Side, Words0, Asked, S) :-
     tr_negation(Side, Words0, Words, Neg),
     tr_group_from(Side, Words, Before, g(L, T, A, FP, FN), After),
+    nb_setval('$tr_read_group', L),                           % for the complements: a bare base after a modal
     tr_split_clitics(Side, Before, Asked, FP, FN, SubjectWords, Clitics),
     tr_subject(Side, Asked, SubjectWords, FP, FN, Subject),
     tr_complements(Side, After, Comps0), !,                   % the cut once the WHOLE statement read: `house'
                                                               % is a verb's form, and `The house is big' must
                                                               % go on to the group at `is' when `is big' is no complement
     findall(opron(W), member(W, Clitics), Cs),
-    append(Cs, Comps0, Comps).
+    append(Cs, Comps0, Comps),
+    tr_existential_fix(Side, s(Asked, Subject, g(L, T, A, Neg), Comps), S).
 
-%% English's `not' wherever it stands; the lesson's word for `not' wherever
-%% it stands
+tr_existential(english, [w(there, _), w(C, _)|After0], 'there is', T, After, Neg0, Neg) :-
+    en_copula(C, third, _, T), tr_existential_no(After0, After, Neg0, Neg).
+tr_existential(english, [w(there, _), w(will, _), w(be, _)|After0], 'there is', future, After, Neg0, Neg) :-
+    tr_existential_no(After0, After, Neg0, Neg).
+tr_existential(foreign, [w(V, _)|After], L, T, After, Neg, Neg) :-
+    tr_form(V, L, _, T, third), tr_solve(mean(L, 'there is')).
+
+%% `there is no dog': the denial as a determiner
+tr_existential_no([w(no, _)|After], After, _, yes) :- !.
+tr_existential_no(After, After, Neg, Neg).
+
+%% the phrase a fronted `hay' took for its subject is what there is
+tr_existential_fix(foreign, s(Asked, Subject, g(L, T, simple, Neg), Comps), s(Asked, there, g(L, T, simple, Neg), [obj(Subject)|Comps])) :-
+    Subject = np(_, _, _, _, _), tr_solve(mean(L, 'there is')), !.
+tr_existential_fix(_, S, S).
+
+%% English's `not' wherever it stands, and `cannot' as `can' denied; the
+%% lesson's word for `not' wherever it stands
+tr_negation(english, Words, Rest, yes) :- append(A, [w(cannot, C)|B], Words), !, append(A, [w(can, C)|B], Rest).
 tr_negation(english, Words, Rest, yes) :- append(A, [w(not, _)|B], Words), !, append(A, B, Rest).
 tr_negation(foreign, Words, Rest, yes) :- append(A, [w(N, _)|B], Words), tr_solve(mean(N, not)), !, append(A, B, Rest).
 tr_negation(_, Words, Words, no).
@@ -563,10 +630,14 @@ tr_split_clitics(foreign, Before, Asked, P, N, Subject, Clitics) :-
     forall(member(w(C, _), Clitics), tr_clitic(Asked, C)),
     tr_subject_shape(Asked, Subject, P, N), !.
 
-%% an object pronoun; before a fronted verb, one that could not be the
-%% subject standing in its place (`¿Ella come el pan?' is she, in order)
-tr_clitic(fronted, C) :- !, tr_object_pronoun(foreign, C, _), \+ tr_subject_pronoun(foreign, C, _, _).
-tr_clitic(_, C) :- tr_object_pronoun(foreign, C, _).
+%% an object pronoun that is no tonic one (`esto', `estas' stand after the
+%% verb, never before it); before a fronted verb, one that could not be
+%% the subject standing in its place (`¿Ella come el pan?' is she, in order)
+tr_clitic(fronted, C) :- !, tr_object_pronoun(foreign, C, _), \+ tr_tonic_word(C), \+ tr_subject_pronoun(foreign, C, _, _).
+tr_clitic(_, C) :- tr_object_pronoun(foreign, C, _), \+ tr_tonic_word(C).
+
+%% a word of the lesson's that means one of English's pronouns standing alone
+tr_tonic_word(C) :- tr_lexeme(foreign, C, L, _), tr_solve(mean(L, E)), en_tonic(E, _), !.
 
 %% what may stand as the subject: nothing when the subject is asked for or
 %% comes after a fronted verb, or when the verb says who (I, you, we,
@@ -607,23 +678,37 @@ tr_group(Side, Words, Before, Group, GroupWords, After) :-
     tr_group_at(Side, Rest, Group, After), !,
     append(GroupWords, After, Rest).
 
-%% English: `will' and a base form; `has', `have' or `had' and a
-%% participle; `does', `do' or `did' and a base form; a copula; a verb form
+%% English: `will' and a base form, or `be' and a gerund; `would' and a
+%% base form; `has', `have' or `had' and a participle; `does', `do' or
+%% `did' and a base form; a modal the lesson gives a word for, in its
+%% tense; a copula and a gerund; a copula; a verb form
+tr_group_at(english, [w(will, _), w(be, _), w(G, _)|R], g(L, future, progressive, third, singular), R) :- en_gerund(G, L), !.
 tr_group_at(english, [w(will, _), w(B, _)|R], g(L, future, simple, third, singular), R) :- en_verb_form(B, L, present), !.
+tr_group_at(english, [w(would, _), w(B, _)|R], g(L, conditional, simple, third, singular), R) :- en_verb_form(B, L, present), !.
 tr_group_at(english, [w(H, _), w(P, _)|R], g(L, T, perfect, third, singular), R) :-
     memberchk(H, [has, have, had]), en_participle(P, L), !, ( H == had -> T = past ; T = present ).
 tr_group_at(english, [w(D, _), w(B, _)|R], g(L, T, simple, third, singular), R) :-
     memberchk(D, [does, do, did]), en_verb_form(B, L, present), !, ( D == did -> T = past ; T = present ).
+tr_group_at(english, [w(M, _)|R], g(L, T, simple, third, singular), R) :-
+    en_modal_form(M, L, T), tr_known(english, L), tr_class(english, L, modal), !.
+tr_group_at(english, [w(C, _), w(G, _)|R], g(L, T, progressive, P, N), R) :- en_copula(C, P, N, T), en_gerund(G, L), !.
 tr_group_at(english, [w(C, _)|R], g(is, T, simple, P, N), R) :- en_copula(C, P, N, T), !.
 tr_group_at(english, [w(V, _)|R], g(L, T, simple, third, singular), R) :- en_verb_form(V, L, T), !.
-%% the lesson's language: an auxiliary's form and a participle; a verb's form
+%% the lesson's language: the auxiliary that means `is' and a gerund, the
+%% progressive; an auxiliary's form and a participle, the perfect; a
+%% verb's or a modal's form
+tr_group_at(foreign, [w(A, _), w(G, _)|R], g(L, T, progressive, Person, N), R) :-
+    tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(mean(AL, is)), tr_solve(gerund_of(G, L)), tr_known(foreign, L), !.
 tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
     tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
 %% -- and NOT cut on the first reading: `sono' is the first person of `è'
 %% and the plural of it, and which one it is in `Le case sono grandi' the
 %% subject decides, so the statement reader backtracks into the next
 tr_group_at(foreign, [w(V, _)|R], g(L, T, simple, Person, N), R) :-
-    tr_form(V, L, N, T, Person), tr_class_of(L, verb).
+    tr_form(V, L, N, T, Person), tr_verb_lexeme(L).
+
+%% a verb of the lesson's, or a modal
+tr_verb_lexeme(L) :- ( tr_class_of(L, verb) -> true ; tr_class_of(L, modal) ).
 
 %% the subject: what was asked, a pronoun, a name, two joined, a phrase --
 %% or, in the lesson's language, nobody, and then the pronoun the verb's
@@ -660,6 +745,7 @@ tr_np(Side, Words0, np(Det, Num, Adjs, Noun, Number)) :-
     Words2 \== [],
     tr_noun(Words2, Side, Noun, Adjs),
     \+ tr_determiner(Side, Noun, _, _),                  % `The' alone is no phrase, whatever `el' means
+    \+ ( \+ tr_is(Side, Noun, noun), tr_is(Side, Noun, verb) ),   % nor is a verb's form the lesson calls no noun (`son grandes')
     forall(member(A, Adjs), tr_adj_word(Side, A)),
     Noun = w(NW, _),
     %% the noun's number by the reading of it that IS a noun: `houses' is a
@@ -673,14 +759,19 @@ tr_adj_word(Side, w(W, C)) :-
     tr_lexeme(Side, W, _, _),
     \+ tr_is(Side, w(W, C), preposition), \+ tr_is(Side, w(W, C), verb), \+ tr_object_pronoun(Side, W, _), \+ tr_subject_pronoun(Side, W, _, _).
 
-%% a determiner: English's articles and possessives; the lesson's, in
-%% either number -- det(Kind, Lexeme, Word)
+%% a determiner: English's articles, possessives, demonstratives and the
+%% determiners a lesson may give a word for (`each', `another', `many');
+%% the lesson's, in either number -- det(Kind, Lexeme, Word)
 tr_determiner(english, w(the, _), the, article).
 tr_determiner(english, w(a, _), a, article).
 tr_determiner(english, w(an, _), a, article).
 tr_determiner(english, w(P, _), P, possessive) :- en_possessive(P).
+tr_determiner(english, w(W, _), L, demonstrative) :- en_det(W, L, _), en_demonstrative(L).
+tr_determiner(english, w(W, _), L, determiner) :- en_det(W, L, _), \+ en_demonstrative(L).
 tr_determiner(foreign, w(W, _), L, article) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, article).
 tr_determiner(foreign, w(W, _), L, possessive) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, possessive).
+tr_determiner(foreign, w(W, _), L, demonstrative) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, demonstrative).
+tr_determiner(foreign, w(W, _), L, determiner) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, determiner).
 
 %% the noun of a phrase's content: the one word the lesson calls a noun;
 %% none, or SEVERAL -- `el gato negro', where a vocabulary of any size calls
@@ -712,6 +803,17 @@ tr_complements(foreign, [w(P, _)|Ws], no, [obj(NP)|Cs]) :-
     tr_phrase_words(foreign, Ws, PW, Rest), PW \== [],
     tr_phrase_np(foreign, PW, NP), tr_of_class(NP, Class), !,
     tr_complements(foreign, Rest, yes, Cs).
+%% an infinitive: the lesson's (`"comer" is the infinitive of "come"'), or
+%% English's `to' and a base form, and a bare base form after a modal
+tr_complements(foreign, [w(V, _)|Ws], Seen, [inf(F)|Cs]) :-
+    tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
+    tr_complements(foreign, Ws, Seen, Cs).
+tr_complements(english, [w(to, _), w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
+    en_infinitive(B, L), !,
+    tr_complements(english, Ws, Seen, Cs).
+tr_complements(english, [w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
+    tr_read_modal, en_infinitive(B, L), !,
+    tr_complements(english, Ws, Seen, Cs).
 tr_complements(Side, [P|Ws], Seen, [pp(P, NP)|Cs]) :-
     tr_is(Side, P, preposition), !,
     (   Ws = [w(O, OC)|Rest], tr_object_pronoun_here(Side, Ws)
@@ -779,6 +881,15 @@ tr_content_word(Side, N) :- ( tr_is(Side, N, noun) ; tr_is(Side, N, adjective) ;
 tr_object_phrase(Side, [w(W, C)], pronoun(w(W, C))) :- tr_object_pronoun(Side, W, _), !.
 tr_object_phrase(Side, Words, NP) :- tr_np(Side, Words, NP).
 
+%% the group being read is a modal, so a bare base form after it is its verb
+tr_read_modal :- catch(nb_getval('$tr_read_group', L), _, fail), en_modal_out(L, _, _).
+
+%% English's base form of a verb the lesson gives (`sleep' for `sleeps'),
+%% never one of English's own words
+en_infinitive(be, is) :- !.
+en_infinitive(have, has) :- !.
+en_infinitive(B, L) :- \+ en_own(B), reason_third(B, L), L \== B, tr_known(english, L), tr_class(english, L, verb).
+
 %% bare adjectives, an `and' among them allowed: the predicate of a copula
 tr_all_adjectives(Side, Words) :-
     Words \== [],
@@ -787,6 +898,27 @@ tr_all_adjectives(Side, Words) :-
 
 %% ---- writing ------------------------------------------------------------------
 
+%% `there is': English's `there', the copula in the number of what there is
+%% (`There are dogs') and `no' for the denial with the article dropped
+%% (`There is no dog'); the lesson's verb and the phrase, no subject
+tr_write(To, Kind, s(none, there, g(L, T, simple, Neg), [obj(NP)|More]), Outs) :- !,
+    nb_setval('$tr_verb', L),
+    tr_lexeme_across(L, To, LT),
+    tr_np_out(To, NP, NPOut0, _, Number),
+    tr_comps_out(To, More, none, Number, _, RestOuts, Advs), append(RestOuts, Advs, Rest),
+    (   To == english
+    ->  (   Neg == yes
+        ->  ( NP = np(det(article, _, _), _, _, _, _) -> NPOut0 = [_|NPOut] ; NPOut = NPOut0 ), Tail0 = [o(no, lower)|NPOut]
+        ;   Tail0 = NPOut0
+        ),
+        (   T == future -> Front = o(will, lower), Tail = [o(be, lower)|Tail0]
+        ;   en_copula_form(third, Number, T, C), Front = o(C, lower), Tail = Tail0
+        ),
+        en_assemble(Kind, none, [], [o(there, lower)], [Front|Tail], Front, Tail, Rest, Outs)
+    ;   fo_group(LT, third, singular, T, simple, Neg, [], Group),
+        append(NPOut0, Rest, After),
+        fo_assemble(none, [], [], Group, After, Outs)
+    ).
 tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg), Comps), Outs) :-
     nb_setval('$tr_verb', L),
     tr_subject_out(To, Subject, SubjectOut, Person, Number, Noun),
@@ -855,17 +987,41 @@ tr_and_word(foreign, W) :- once(( tr_solve(mean(W, and)) )).
 %% -- as the subject one that may be a subject, as the object one the
 %% lesson puts before the verb, after a preposition one it does not, or
 %% one that serves as a subject too (`con nosotros', `con él')
-tr_pronoun_across(english, subject, w(W, _), P, N, T) :- ( tr_solve(mean(W, E)), en_subject(E, P, N) -> T = E ; en_subject(T, P, N) ), !.
+tr_pronoun_across(english, subject, w(W, _), P, N, T) :- tr_solve(mean(W, E)), en_subject(E, P, N), !, T = E.
+tr_pronoun_across(english, _, w(W, _), _, _, T) :- tr_tonic_across(W, T), !.
+tr_pronoun_across(english, subject, w(W, _), P, N, T) :- tr_solve(mean(W, _)), en_subject(T, P, N), !.
 tr_pronoun_across(english, _, w(W, _), _, _, T) :- tr_solve(mean(W, E)), en_object(E), !, T = E.
 tr_pronoun_across(english, _, w(W, _), _, _, T) :- tr_solve(mean(W, E)), en_object_of(E, T), !.
 tr_pronoun_across(foreign, Role, w(W, _), _, _, T) :-
-    findall(T0, ( tr_solve(mean(T0, W)), tr_class_of(T0, pronoun) ), Ts), Ts \== [],
+    findall(T0, ( tr_solve(mean(T0, W)), tr_class_of(T0, pronoun) ), Ts0), Ts0 \== [],
+    tr_pronouns_first(Ts0, Ts),
     (   Role == subject -> member(T, Ts), tr_subject_pronoun(foreign, T, _, _)
     ;   Role == object, member(T, Ts), tr_holds(precede(T, verb)) -> true
     ;   Role == oblique, member(T, Ts), ( tr_subject_pronoun(foreign, T, _, _) ; \+ tr_holds(precede(T, verb)) ) -> true
     ;   Ts = [T|_]
     ), !.
+%% `these', `those': the first word for the singular that HAS a plural --
+%% `esto' stands alone and has none, `este' has `estos'
+tr_pronoun_across(foreign, Role, w(W, _), _, _, T) :-
+    en_tonic_plural(S, W),
+    findall(T0, ( tr_solve(mean(T0, S)), tr_class_of(T0, pronoun) ), Ts0), tr_pronouns_first(Ts0, Ts),
+    member(T1, Ts), ( Role == subject -> tr_subject_pronoun(foreign, T1, _, _) ; true ),
+    tr_inflect(foreign, pronoun, T1, plural, T), !.
 tr_pronoun_across(foreign, Role, w(W, _), _, _, T) :- Role \== subject, tr_solve(mean(T, W)), !.
+
+%% the words that are pronouns and nothing else first: `esto' stands alone
+%% where `este' is the demonstrative too, and a vocabulary gives the
+%% demonstrative's line before the pronoun's
+tr_pronouns_first(Ts, Out) :-
+    findall(T, ( member(T, Ts), \+ tr_class_of(T, demonstrative), \+ tr_class_of(T, determiner) ), Pure),
+    findall(T, ( member(T, Ts), \+ memberchk(T, Pure) ), Rest),
+    append(Pure, Rest, Out).
+
+%% a pronoun of the lesson's that stands alone (`esto', `nadie'), in
+%% English: what it means, and `these' for `this' in the plural
+tr_tonic_across(W, T) :-
+    tr_lexeme(foreign, W, L, N), tr_solve(mean(L, E)), en_tonic(E, _), !,
+    ( N == plural, en_tonic_plural(E, P) -> T = P ; T = E ).
 
 %% English's object form of a subject pronoun, for a lesson that gave
 %% `él' as `he' only
@@ -945,6 +1101,7 @@ tr_det_out(_, none, _, _, _, []) :- !.
 tr_det_out(english, det(Kind, DL, w(_, C)), _, Number, Content, Outs) :- !,
     tr_word_across(w(DL, lower), english, Kind, T),
     (   Kind == possessive -> Outs = [o(T, C)]
+    ;   memberchk(Kind, [demonstrative, determiner]) -> en_det_number(T, Number, T1), Outs = [o(T1, C)]
     ;   T == the -> Outs = [o(the, C)]
     ;   Number == plural -> Outs = []
     ;   Content = [o(First, _)|_], begin_with(First, vowel) -> Outs = [o(an, C)]
@@ -967,20 +1124,35 @@ tr_comp_out(To, obj(NP), _, _, [], Outs, []) :- tr_np_out(To, NP, O1, _, _), tr_
 tr_comp_out(To, adj(Ws), Noun, Number, [], Outs, []) :- tr_adjectives_out(To, Ws, Noun, Number, As), tr_adj_words(As, Outs).
 tr_comp_out(To, pp(w(P, C), NP), _, _, [], [o(PT, C)|NPOut], []) :- tr_word_across(w(P, lower), To, preposition, PT), tr_np_out(To, NP, NPOut, _, _).
 tr_comp_out(To, adv(w(A, C)), _, _, [], [], [o(AT, C)]) :- tr_word_across(w(A, lower), To, adverb, AT).
+%% an infinitive: English's `to' and the base form, the base alone after a
+%% modal; the lesson's infinitive of its verb
+tr_comp_out(To, inf(L), _, _, [], Outs, []) :-
+    tr_lexeme_across(L, To, LT),
+    (   To == english
+    ->  en_base(LT, B), ( tr_modal_verb -> Outs = [o(B, lower)] ; Outs = [o(to, lower), o(B, lower)] )
+    ;   once(tr_solve(infinitive_of(Inf, LT))), Outs = [o(Inf, lower)]
+    ).
 tr_comp_out(english, opron(w(W, C)), _, _, [], [o(T, C)], []) :- tr_pronoun_across(english, object, w(W, C), _, _, T).
 tr_comp_out(foreign, opron(w(W, C)), _, _, Clitics, Outs, []) :-
     tr_pronoun_across(foreign, object, w(W, C), _, _, T),
     ( tr_holds(precede(T, verb)) -> Clitics = [o(T, C)], Outs = [] ; Clitics = [], Outs = [o(T, C)] ).
 
+%% the verb group being written is a modal
+tr_modal_verb :-
+    catch(nb_getval('$tr_verb', V), _, fail), tr_side_here(Side),
+    ( Side == english -> en_modal_out(V, _, _) ; tr_class_of(V, modal) ).
+
 %% ---- the verb group out ---------------------------------------------------------
 
 %% the lesson's verb in the subject's number, tense and person, the denial
-%% and the object pronouns before it; the perfect as the auxiliary in that
-%% form and the participle
+%% and the object pronouns before it; the perfect as the auxiliary that
+%% means `has' in that form and the participle, the progressive as the one
+%% that means `is' and the gerund
 fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
     (   A == perfect
-    ->  once(( tr_solve(auxiliary(Aux)), tr_solve(mean(Aux, _)) )),
-        tr_make(Aux, N, T, P, AuxForm), once(tr_solve(participle_of(PP, L))), VW = [o(AuxForm, lower), o(PP, lower)]
+    ->  tr_auxiliary(has, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(participle_of(PP, L))), VW = [o(AuxForm, lower), o(PP, lower)]
+    ;   A == progressive
+    ->  tr_auxiliary(is, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(gerund_of(G, L))), VW = [o(AuxForm, lower), o(G, lower)]
     ;   tr_make(L, N, T, P, Form), VW = [o(Form, lower)]
     ),
     (   Neg == yes
@@ -990,14 +1162,34 @@ fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
     ;   append(Clitics, VW, Group)
     ).
 
+%% the auxiliary that means `has' (the perfect) or `is' (the progressive):
+%% the one so meant, and for the perfect the first the lesson names at
+%% all, as before a lesson said what its auxiliary meant
+tr_auxiliary(has, Aux) :- tr_solve(auxiliary(Aux)), tr_solve(mean(Aux, has)), !.
+tr_auxiliary(has, Aux) :- tr_solve(auxiliary(Aux)), tr_solve(mean(Aux, _)), !.
+tr_auxiliary(is, Aux) :- tr_solve(auxiliary(Aux)), tr_solve(mean(Aux, is)), !.
+
 %% English's verb group: the statement's words, and for a question the word
-%% that fronts and the words that stay behind the subject
+%% that fronts and the words that stay behind the subject. A modal is its
+%% own word in the tense (`can', `could'), never `does', and `cannot' denied
+en_group(L, _, _, T, simple, Neg, Statement, Front, Tail) :- en_modal_out(L, _, _), !,
+    en_modal_out(L, T, M),
+    (   Neg == yes -> ( M == can -> Front = o(cannot, lower), Tail = [] ; Front = o(M, lower), Tail = [o(not, lower)] )
+    ;   Front = o(M, lower), Tail = []
+    ),
+    Statement = [Front|Tail].
+%% -- and `is' with a gerund after it (`is being careful') is CUT AND THEN
+%% REFUSED on purpose: the copula has no progressive this writes, and
+%% falling through to the clause below would put the stemmer on `is'
 en_group(is, P, N, T, A, Neg, Statement, Front, Tail) :- !,
+    A \== progressive,
     ( Neg == yes -> Not = [o(not, lower)] ; Not = [] ),
     (   A == perfect
     ->  en_have(P, N, T, H), Front = o(H, lower), append(Not, [o(been, lower)], Tail)
     ;   T == future
     ->  Front = o(will, lower), append(Not, [o(be, lower)], Tail)
+    ;   T == conditional
+    ->  Front = o(would, lower), append(Not, [o(be, lower)], Tail)
     ;   en_copula_form(P, N, T, C), Front = o(C, lower), Tail = Not
     ),
     Statement = [Front|Tail].
@@ -1006,8 +1198,17 @@ en_group(L, P, N, T, A, Neg, Statement, Front, Tail) :-
     ( Neg == yes -> Not = [o(not, lower)] ; Not = [] ),
     (   A == perfect
     ->  en_have(P, N, T, H), en_participle_of(L, PP), Front = o(H, lower), append(Not, [o(PP, lower)], Tail), Statement = [Front|Tail]
+    ;   A == progressive
+    ->  en_gerund_of(L, G),
+        (   T == future -> Front = o(will, lower), append(Not, [o(be, lower), o(G, lower)], Tail)
+        ;   T == conditional -> Front = o(would, lower), append(Not, [o(be, lower), o(G, lower)], Tail)
+        ;   en_copula_form(P, N, T, C), Front = o(C, lower), append(Not, [o(G, lower)], Tail)
+        ),
+        Statement = [Front|Tail]
     ;   T == future
     ->  Front = o(will, lower), append(Not, [o(B, lower)], Tail), Statement = [Front|Tail]
+    ;   T == conditional
+    ->  Front = o(would, lower), append(Not, [o(B, lower)], Tail), Statement = [Front|Tail]
     ;   en_do(P, N, T, D), Front = o(D, lower), append(Not, [o(B, lower)], Tail),
         (   Neg == yes -> Statement = [Front|Tail]
         ;   T == past -> en_past_of(L, Past), Statement = [o(Past, lower)]
@@ -1047,6 +1248,24 @@ en_participle_of(V, PP) :- en_past_of(V, PP).
 tr_english_ed(B, P) :- sub_atom(B, _, 1, 0, e), !, atom_concat(B, d, P).
 tr_english_ed(B, P) :- reason_third(B, T), atom_concat(Stem, ies, T), !, atom_concat(Stem, ied, P).
 tr_english_ed(B, P) :- atom_concat(B, ed, P).
+
+%% the gerund of a verb the lesson gave in the third person: one the lesson
+%% stated (`"running" is the gerund of "runs"'), `being', `having', or the
+%% base and -ing by the rule below
+en_gerund_of(V, G) :- tr_solve(gerund_of(G0, V)), !, G = G0.
+en_gerund_of(is, being) :- !.
+en_gerund_of(has, having) :- !.
+en_gerund_of(V, G) :- en_base(V, B), tr_english_ing(B, G).
+
+%% -ing on a base: ie becomes y (lying), a final e goes unless another e, a
+%% y or an o precedes it (making, seeing, dyeing, hoeing); `being' is its
+%% own. A doubled consonant (running) is no rule of this, and is a line of
+%% the lesson's -- corpus/build.pl writes one for every verb this rule
+%% gets wrong, which is why the rule is the translator's and not copied
+tr_english_ing(be, being) :- !.
+tr_english_ing(B, G) :- atom_concat(S, ie, B), !, atom_concat(S, ying, G).
+tr_english_ing(B, G) :- atom_concat(S, e, B), \+ sub_atom(S, _, 1, 0, e), \+ sub_atom(S, _, 1, 0, y), \+ sub_atom(S, _, 1, 0, o), !, atom_concat(S, ing, G).
+tr_english_ing(B, G) :- atom_concat(B, ing, G).
 
 %% ---- assembling the sentence -----------------------------------------------------
 
@@ -1161,9 +1380,12 @@ tr_known_word(foreign, W) :- tr_form(W, _, _, _, _), !.
 tr_known_word(foreign, W) :- tr_solve(participle_of(W, F)), tr_known(foreign, F), !.       % of a verb of the lesson's
 tr_known_word(english, W) :- en_verb_form(W, _, _), !.
 tr_known_word(english, W) :- en_participle(W, _), !.
+tr_known_word(english, W) :- en_gerund(W, _), !.
 tr_known_word(english, W) :- ( en_subject(W, _, _) ; en_object(W) ; en_possessive(W) ; en_copula(W, _, _, _) ), !.
+tr_known_word(english, W) :- ( en_det(W, _, _) ; en_tonic(W, _) ; en_modal_form(W, _, _) ), !.
 tr_known_word(english, whom) :- tr_known(english, who), !.
 tr_known_word(foreign, W) :- tr_solve(contraction_of(W, _)), !.
+tr_known_word(foreign, W) :- ( tr_solve(infinitive_of(W, F)) ; tr_solve(gerund_of(W, F)) ), tr_known(foreign, F), !.
 
 %% a verb form of the lesson's language, taken apart: the lexeme, the
 %% number, the tense, the person. A person form the lesson stated first
@@ -1183,12 +1405,13 @@ tr_form_nt(W, L, plural, T) :- tr_solve(plural_of(W, F)), tr_tensed(F, T, F0), t
 %% a tense form of a present form: stated, or made by an ending rule
 tr_tensed(W, past, F) :- tr_solve(past_of(W, F)).
 tr_tensed(W, future, F) :- tr_solve(future_of(W, F)).
-tr_tensed(W, T, F) :- ( T = past ; T = future ), tr_rule_stem(W, T, F), tr_present_form(F), tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, W).
+tr_tensed(W, conditional, F) :- tr_solve(conditional_of(W, F)).
+tr_tensed(W, T, F) :- ( T = past ; T = future ; T = conditional ), tr_rule_stem(W, T, F), tr_present_form(F), tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, W).
 
 %% a present form of one of the lesson's verbs, in either number, for a
 %% rule to have made a tense of: the lexeme, or a plural of one
-tr_present_form(F) :- tr_known(foreign, F), tr_class_of(F, verb), !.
-tr_present_form(F) :- tr_lexeme(foreign, F, S, plural), tr_class_of(S, verb), !.
+tr_present_form(F) :- tr_known(foreign, F), tr_verb_lexeme(F), !.
+tr_present_form(F) :- tr_lexeme(foreign, F, S, plural), tr_verb_lexeme(S), !.
 
 tr_rule_plural(S, P) :- tr_solve(take_in(S, E, plural)), atom(E), atom_concat(S, E, P).
 
@@ -1209,6 +1432,7 @@ tr_number_form(F, plural, P) :- tr_rule_plural(F, P).
 tr_tense_form(F, present, F) :- !.
 tr_tense_form(F, past, P) :- tr_solve(past_of(P, F)), !.
 tr_tense_form(F, future, P) :- tr_solve(future_of(P, F)), !.
+tr_tense_form(F, conditional, P) :- tr_solve(conditional_of(P, F)), !.
 tr_tense_form(F, T, P) :- tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, P), !.
 
 tr_person_form(F, third, F) :- !.
@@ -1244,7 +1468,8 @@ en_verb_form(W, L, past) :- \+ en_own(W), en_past_form(W, L).
 %% not here: they are the bases and the past of verbs a lesson may give
 en_own(W) :-
     (   en_subject(W, _, _) ; en_object(W) ; en_possessive(W) ; en_preposition(W) ; en_question(W, _)
-    ;   memberchk(W, [and, not, will, am, are, was, were, be, been, a, an, the])
+    ;   en_det(W, _, _) ; en_tonic(W, _) ; en_modal_form(W, _, _)
+    ;   memberchk(W, [and, not, will, would, am, are, was, were, be, been, being, a, an, the, there, cannot])
     ), !.
 
 en_past_form(had, has).
@@ -1254,6 +1479,59 @@ en_past_form(W, L) :- tr_english_ed_base(W, B), reason_third(B, L), tr_known(eng
 en_participle(been, is).
 en_participle(W, L) :- tr_solve(participle_of(W, L)), tr_known(english, L).
 en_participle(W, L) :- W \== had, en_past_form(W, L), \+ en_copula(W, _, _, _).
+
+%% a gerund: one the lesson stated (`"running" is the gerund of "runs"'),
+%% `being', `having', or -ing taken off -- with the e put back (making),
+%% a doubled consonant undoubled (running) or ie for y (lying) -- and the
+%% base's third person a verb the lesson gives
+en_gerund(W, L) :- tr_solve(gerund_of(W, L0)), tr_known(english, L0), !, L = L0.
+en_gerund(being, is) :- !.
+en_gerund(having, has) :- !.
+en_gerund(W, L) :- \+ en_own(W), tr_english_ing_base(W, B), \+ en_own(B), reason_third(B, L), tr_known(english, L), tr_class(english, L, verb), !.
+
+tr_english_ing_base(W, B) :- atom_concat(B0, ing, W), B0 \== '', tr_english_ing_bases(B0, B).
+tr_english_ing_bases(B0, B0).
+tr_english_ing_bases(B0, B) :- atom_concat(B0, e, B).
+tr_english_ing_bases(B0, B) :- sub_atom(B0, _, 1, 0, C), atom_concat(B, C, B0), sub_atom(B, _, 1, 0, C).   % runn -> run
+tr_english_ing_bases(B0, B) :- atom_concat(S, y, B0), atom_concat(S, ie, B).                          % ly -> lie
+
+%% English's modals: the word a lesson gives (`can', `may', `must',
+%% `should') and its tenses -- `could' is the past and the conditional of
+%% `can', `might' of `may'; `must' and `should' have no other form
+en_modal_form(can, can, present).      en_modal_form(could, can, past).
+en_modal_form(may, may, present).      en_modal_form(might, may, conditional).
+en_modal_form(must, must, present).    en_modal_form(should, should, present).
+en_modal_out(can, present, can).       en_modal_out(can, past, could).      en_modal_out(can, conditional, could).
+en_modal_out(may, present, may).       en_modal_out(may, past, might).      en_modal_out(may, conditional, might).
+en_modal_out(must, present, must).     en_modal_out(should, present, should).
+
+%% English's demonstratives and the determiners a lesson may give a word
+%% for, each with its lexeme and its number: `these' is `this' in the
+%% plural, `many' is `much', `other' is `another'; `some' is either
+en_det(this, this, singular).       en_det(these, this, plural).
+en_det(that, that, singular).       en_det(those, that, plural).
+en_det(another, another, singular). en_det(other, another, plural).
+en_det(much, much, singular).       en_det(many, much, plural).
+en_det(each, each, singular).       en_det(every, every, singular).   en_det(little, little, singular).
+en_det(several, several, plural).   en_det(both, both, plural).       en_det(few, few, plural).
+en_det(some, some, any).            en_det(such, such, any).
+en_demonstrative(this). en_demonstrative(that).
+
+%% a determiner in the number of its noun: the word of that number with
+%% the same lexeme, the one for either, or the word as it is
+en_det_number(T, Number, T1) :-
+    (   en_det(T, L, _) -> ( en_det(T1, L, Number) -> true ; en_det(T1, L, any) -> true ; T1 = T )
+    ;   T1 = T
+    ).
+
+%% the pronouns that stand alone, third person, with their number
+en_tonic(this, singular).      en_tonic(that, singular).      en_tonic(these, plural).      en_tonic(those, plural).
+en_tonic(something, singular). en_tonic(anything, singular).  en_tonic(everything, singular). en_tonic(nothing, singular).
+en_tonic(somebody, singular).  en_tonic(anybody, singular).   en_tonic(nobody, singular).   en_tonic(everybody, singular).
+en_tonic(someone, singular).   en_tonic(anyone, singular).    en_tonic(everyone, singular).
+en_tonic(all, plural).         en_tonic(another, singular).   en_tonic(both, plural).       en_tonic(many, plural).
+en_tonic(few, plural).         en_tonic(several, plural).     en_tonic(none, singular).     en_tonic(others, plural).
+en_tonic_plural(this, these).  en_tonic_plural(that, those).
 
 %% walked -> walk, lived -> live, carried -> carry: the bases an -ed form may have
 tr_english_ed_base(W, B) :- atom_concat(Stem, ied, W), atom_concat(Stem, y, B).
@@ -1275,7 +1553,8 @@ tr_is(Side, w(W, _), Class) :- tr_lexeme(Side, W, L, _), tr_class(Side, L, Class
 tr_class(foreign, W, C) :- tr_class_of(W, C).
 tr_class(english, E, C) :- tr_solve(mean(W, E)), tr_class_of(W, C).
 tr_class_of(W, C) :-
-    member(C, [article, possessive, verb, noun, adjective, pronoun, preposition, adverb, number, conjunction, auxiliary]),
+    member(C, [article, possessive, verb, noun, adjective, pronoun, preposition, adverb, number, conjunction, auxiliary,
+               modal, demonstrative, determiner]),
     G =.. [C, W], tr_solve(G).
 
 %% a subject pronoun, with its person and number: English's own, or the
@@ -1286,13 +1565,19 @@ tr_class_of(W, C) :-
 %% means `you' and may be either) -- and an object only when no other
 %% meaning is a subject's alone (`ella' means `she' and `her', and is both)
 tr_subject_pronoun(english, W, P, N) :- en_subject(W, P, N).
+tr_subject_pronoun(english, W, third, N) :- en_tonic(W, N).
 tr_subject_pronoun(foreign, W, P, N) :-
     tr_class_of(W, pronoun), tr_solve(mean(W, E)), en_subject(E, P, N),
     \+ ( en_object(E), tr_solve(mean(W, O)), en_object(O), \+ en_subject(O, _, _) ).
+%% a pronoun that stands alone (`esto', `nadie', `estos'): the third person,
+%% in the number of its form
+tr_subject_pronoun(foreign, W, third, N) :- tr_lexeme(foreign, W, L, N), tr_class_of(L, pronoun), tr_solve(mean(L, E)), en_tonic(E, _).
 tr_object_pronoun(english, W, W) :- en_object(W).
+tr_object_pronoun(english, W, W) :- en_tonic(W, _).
 tr_object_pronoun(foreign, W, E) :-
     tr_class_of(W, pronoun), tr_solve(mean(W, E)), en_object(E),
     \+ ( en_subject(E, _, _), tr_solve(mean(W, S)), en_subject(S, _, _), \+ en_object(S) ).
+tr_object_pronoun(foreign, W, E) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, pronoun), tr_solve(mean(L, E)), en_tonic(E, _).
 
 %% the lesson proved: plain, or under the language it was learned in --
 %% its facts, its rules with their bodies, and the library's helpers
@@ -1332,9 +1617,11 @@ en_preposition(in).  en_preposition(on).  en_preposition(at).   en_preposition(w
 en_preposition(from). en_preposition(of). en_preposition(for).  en_preposition(by).    en_preposition(under).
 en_preposition(over). en_preposition(near). en_preposition(behind). en_preposition(before). en_preposition(after).
 en_preposition(into). en_preposition(about). en_preposition(between). en_preposition(without).
-en_number(W) :- memberchk(W, [one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, twenty, thirty, forty, fifty, hundred, thousand]).
+en_number(W) :- memberchk(W, [one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve, thirteen, fourteen, fifteen,
+                              sixteen, seventeen, eighteen, nineteen, twenty, thirty, forty, fifty, sixty, seventy, eighty, ninety,
+                              hundred, thousand, million]).
 %% the words no lesson gives and none needs to: they carry a form, not a meaning
-en_function(W) :- memberchk(W, [not, does, do, did, will, has, have, had, am, are, was, were, be, been, an]).
+en_function(W) :- memberchk(W, [not, does, do, did, will, would, has, have, had, am, are, was, were, be, been, an, there, cannot]).
 
 %% ---- the sentence back as text ---------------------------------------------------
 

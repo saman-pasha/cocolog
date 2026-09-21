@@ -8,10 +8,10 @@ between quotation marks is MENTIONED and stands for itself, so `The noun
 
 | file | what |
 |---|---|
-| `spanish.txt` | the Spanish lesson of `test/translate.pl` and `tutorials/library/46-translate.pl`: 176 lines, the vocabulary as facts about words, the grammar as rules over the classes |
-| `italian.txt` | the Italian lesson learned beside it under its own name: 123 lines -- the articles, the copula and the auxiliary in their forms, the negation, the question words, the pronouns, the possessives, the prepositions and their contractions |
-| `vocabulary/spanish.txt` | the VOCABULARY, written by `build.pl` and never by hand: some eighty thousand lesson lines in the same shapes -- 22 000 words with their genders, plurals, persons and every verb's sixteen forms -- out of Apertium's dictionaries |
-| `vocabulary/italian.txt` | the same for Italian, some sixty thousand lines |
+| `spanish.txt` | the Spanish lesson of `test/translate.pl` and `tutorials/library/46-translate.pl`: 183 lines, the vocabulary as facts about words, the grammar as rules over the classes -- the auxiliary of the progressive (`The auxiliary "está" means "is"`) among them, because a vocabulary cannot say which `is` it is |
+| `italian.txt` | the Italian lesson learned beside it under its own name: 130 lines -- the articles, the copula and the two auxiliaries in their forms, the negation, the question words, the pronouns, the possessives, the prepositions and their contractions |
+| `vocabulary/spanish.txt` | the VOCABULARY, written by `build.pl` and never by hand: some ninety thousand lesson lines in the same shapes -- 22 000 words with their genders, plurals, persons and every verb's twenty forms (the conditional, the infinitive and the gerund since 1.2.43), the modals, the demonstratives, the determiners and the pronouns that stand alone, the numbers, and `hay` as `there is` -- out of Apertium's dictionaries |
+| `vocabulary/italian.txt` | the same for Italian, some seventy thousand lines |
 | `build.pl` | the program that writes `vocabulary/`: `cocolog -s library/reasoning/corpus/build.pl -- spanish` |
 | `raw/` | Apertium's dictionaries and pattern's English verb table, which `tools/corpus/fetch.sh` downloads (pinned to their commits) and which are NOT committed: 30 MB, and what `build.pl` writes from them is |
 
@@ -20,9 +20,10 @@ between quotation marks is MENTIONED and stands for itself, so `The noun
 endings, where an adjective stands, the word that denies, the question
 words -- and gives a few words to say them with; `vocabulary/spanish.txt`
 gives twenty-two thousand more in the same sentences, `The feminine noun
-"casa" means "house".`, `"comió" is the past of "come".`, `"amigo" is a
-person.`, and a gender denied of the word whose ending would mislead the
-rule (`"problema" is not feminine.`). A program learns the grammar first
+"casa" means "house".`, `"comió" is the past of "come".`, `"comer" is the
+infinitive of "come".`, `The modal "puede" means "can".`, `The pronoun "esto"
+means "this".`, `"amigo" is a person.`, and a gender denied of the word whose
+ending would mislead the rule (`"problema" is not feminine.`). A program learns the grammar first
 and then the words -- `library/reasoning/teach.pl` does both, into whatever
 knowledge base the process proves against, which under `--embed` is a
 store every later process finds taught in a second where the learning

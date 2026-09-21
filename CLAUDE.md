@@ -2631,6 +2631,303 @@ fix -- a batch's intermediates freed as a training step's are. A training
 sits near 10 GB at 500 steps and an 800-step arm died at 14 GB, so a
 training or the case still runs ALONE on this box.
 
+**THE FORMS THE DICTIONARY ALREADY HAD, AND THE SHAPES FOR THEM (1.2.43).**
+The table above said the dictionary was short for one refusal in seven and
+the rest was on this side, and this is the rest, in the three places it
+belonged. **The builder writes what Apertium carries and the reader
+already read**: `"comer" is the infinitive of "come"`, `"comiendo" is the
+gerund of "come"`, `"comería" is the conditional of "come"` with its
+plural and persons (`inf`, `ger`, `cni` -- the `is the NOUN of X` shape,
+so `reason.pl` did not move); the `vbmod` verbs as `The modal "puede"
+means "can"` with every form a verb has; the cardinals, which the
+dictionary writes as a bare pair with a paradigm beside it
+(`<l>four</l><r>cuatro</r><par n="three__num"/>`); a `det` entry as a
+demonstrative or a determiner by its kind, in its genders with their
+plurals (`The feminine demonstrative "esta" means "this"`, `"estas" is the
+plural of "esta"`, `The determiner "cada" means "each"`); a `prn` entry
+as a pronoun that stands alone, with `The pronoun "esto" does not precede
+the verb` beside it, so the hand lesson's `Every pronoun precedes the
+verb` leaves it after; `there is`, the one entry of more than a word,
+as `The verb "hay" means "there is"`; and `"running" is the gerund of
+"runs"` for every English verb the translator's -ing rule gets wrong,
+which the builder asks the translator (`tr_english_ing/2`) rather than
+copying the rule. The Spanish file went from 79 713 lines to 92 087 and
+the Italian from 59 952 to 70 576. **The translator got the shapes**: an
+infinitive after a verb (`inf(L)`, English's `to` and the base, the base
+bare after a modal, the lesson's `infinitive_of`); a modal as its own
+word in the tense (`can`, `could`, `cannot`, never `does`); the
+progressive as the auxiliary that MEANS `is` and `gerund_of` (`está
+comiendo`, and `is eating` by the copula and -ing); the conditional
+(`comería`, `would eat`, `could`, `might`); a demonstrative or a
+determiner in the article's slot, agreeing like one, with English's own
+`this`/`these`, `that`/`those`, `much`/`many`, `another`/`other`; a
+pronoun standing alone as a subject or an object of the third person
+(`Esto es grande`, `Maria ve esto`, `Nadie come`); and `there is` with no
+subject and the phrase as its first object, the copula in the phrase's
+number and `no` for the denial (`Hay perros` / `There are dogs`, `No hay
+perro` / `There is no dog`), the present only because no lesson states a
+past of `hay`. **And the hand lessons got the auxiliary of the
+progressive** -- `The auxiliary "está" means "is"` with its forms, `sta`
+in Italian -- because a vocabulary gives `es` and `está` as `is` alike
+and cannot say which one takes a gerund. `test/translate.pl`'s `shapes`
+section pins forty of them both ways over the vocabulary's lines, lesson
+46's section 17 shows them, and the inline lesson is 183 lines and 300
+terms in both.
+
+**NINE THINGS BIT, and six of them only over the VOCABULARY, where the
+hand-lesson probe had passed every sentence first time:**
+
+* **The cut at `<` and `>` leaves an EMPTY field between `/>` and `</l>`**,
+  so the pattern for `there<b/>is<s n="vblex"/></l>` matched nothing and
+  `hay` was silently absent from a build that exited 0. Print the line's
+  tokens before writing a pattern over them.
+* **`nobody` is tagged `prn` and not `prn tn`**, so admitting the tonic
+  tag alone made `nadie` mean `anybody` (the `RL` entry for negative
+  sentences); the English WORD decides now, from a list the translator
+  has a slot for, and a clitic never passes because `me` and `him` are
+  not on it. `alguien` still comes out `anybody` before `somebody`: the
+  dictionary's order, and this file says so rather than reorders it.
+* **A dedupe keyed on the CLASS took five minutes** over 21 700 entries
+  where the same memo keyed on the word is free -- `cb_note/3`'s rule,
+  broken in the clause below it -- and **a killed step in a `&&` chain
+  does not stop it when `| tail` swallows the exit**: the chain went on,
+  rebuilt `italian.txt` with the slow builder six minutes later and
+  overwrote the fixed one. Check the timestamps before trusting a file a
+  background job may still be writing.
+* **`Estas casas son grandes` came back as `These marry big iss`.** A
+  vocabulary makes `casa` the verb `marries` too, `casas` its plural, and
+  `estas` a pronoun (`these`) that agrees with it, so the earliest group
+  whose subject read was the wrong one and `son grandes` went through as
+  a phrase whose noun was `son`. Three rules closed it, each right on
+  its own: a tonic pronoun is never a clitic (`tr_clitic/2`); a phrase's
+  noun by position is refused when the lesson calls the word a verb and
+  no noun (`tr_np/3`); and among the words meaning `this` the one that
+  is a pronoun and nothing else comes first (`esto` before `este`, which
+  the vocabulary writes as a demonstrative first).
+* **The case's word filter picks a line by its MENTIONS**, and `"estas" is
+  the plural of "esta"` mentions no listed word, so in the case `estas`
+  was unknown, capitalised at the head, and therefore a NAME -- which is
+  the design -- and `Estas casas` read as somebody called Estas. Every
+  form a check needs is a word on the list now (`esta`, `comería`,
+  `runs`), and lesson 46 matches any mention where it matched the first.
+* **`atom_concat/3` has no (-,-,+) mode** (this file said so under the
+  builder and the gerund rule forgot it): `sub_atom/5` takes the last
+  letter first.
+* **`querer` means `loves` before it means `wants`**, in the dictionary's
+  order, so the reverse of `Maria wants to eat` is checked with
+  `necesita`; a pin that had wanted `wants` back would have pinned an
+  order nobody chose.
+* **`These are big` wrote `Esto son grandes`**: the plural of a pronoun
+  that stands alone was taken as the singular's word inflected, and
+  `esto` HAS no plural -- `estos` is the plural of `este`, the
+  demonstrative. The plural asks for the first word for the singular
+  that has one.
+* **An infinitive between a fronted verb and its subject read as the
+  subject.** `¿Necesita comer Maria?` put `comer` where `Maria` belongs,
+  because `fo_subject_after/5` takes what follows the verb; it steps over
+  an infinitive now, which is no subject in any sentence.
+
+**MEASURED AGAIN ON THE SAME FOUR HUNDRED TATOEBA SENTENCES**, the store
+re-taught from the rebuilt vocabulary:
+
+| | 1.2.42 | **1.2.43** |
+|---|---|---|
+| translated | 140 of 400 | **196 of 400** |
+| exactly the reference (case and punctuation aside) | 27 | **47** |
+| refused | 260 | **204** |
+| -- of those, with every word known | 88 | **127** |
+
+**AND THE RISE IN THE LAST ROW IS THE POINT, NOT A REGRESSION.** A sentence
+refused for a WORD becomes a sentence refused for a SHAPE the moment the
+builder writes that word's form, so the 88 becoming 127 is 39 sentences
+moving from the first column of the refusal table to the second while 56
+others left the table altogether. The forms are 12 374 lines of Spanish and
+10 624 of Italian; what is left refusing is SHAPES the translator does not
+have, and reading the 127 says which -- about half are imperatives
+(`¡Lárgate!`, `Dame eso.`, `No te rías.`), then a subjectless first or third
+person (`Estaba cansado.`, `Me sentía solo.`, `Tenemos que correr.`), then a
+passive (`Él fue humillado.`). That is the next lever, and every one of them
+names itself in the refusal.
+
+**AND THE SEVEN LESSON LINES COLLAPSED THE TAGGER, WHICH IS WHAT FORCED THE
+DURABLE FIX THE SECTION ABOVE PROPOSED.** The generator draws its lesson
+shapes from `corpus/*.txt`, so `The auxiliary "está" means "is"` and its six
+forms changed the WORDS of the lesson pairs -- and the adjective-before-a-
+comma-filler shape went with them. Measured on the same grid of 384, one
+model a row:
+
+| the shipped model of | the grid keeps the A |
+|---|---|
+| 1.2.42 (committed) | 207 of 384 |
+| 1.2.43 retrained on the seven new lines | **0 of 384** |
+| 1.2.43 with the lexicon's classes as a feature | **381 of 384** |
+
+So a SEVEN-LINE data change, with every tag n-gram count unmoved, took a
+minority shape from a model to nothing -- which is the fourth firing of the
+same coin toss and the argument the 1.2.42 table was making. **The word's
+class is an input now**: `tg_shape/3` adds sixteen for each class the judge's
+own lexicon knows the word by, so `red` is 61 where it was 13 and `car` 33
+where it was 1, and every adjective of the grid wears one bit whatever word
+it is. The shape table goes 16 rows to 64 and **its embedding stays 4 wide**:
+widened to 8 it takes the input of every GRU from 28 to 32, and that is 14 %
+on every activation the autograd graph holds -- the training went from
+finishing in 205 s to sitting at **14.0 GB resident on a 16 GB box,
+thrashing**, with stime climbing faster than utime and 45 000 major faults. A
+feature that costs rows costs nothing; a feature that costs WIDTH costs the
+whole graph.
+
+**AND IT IS TWO BITS, NOT FOUR, WHICH ONE ARM SETTLED.** The first build gave
+the word four bits -- adjective 1, noun 2, verb 4, adverb 8 -- and `map`,
+`house`, `truck` and `book`, nouns the lexicon ALSO knows as verbs, wore a bit
+every verb of the corpus wore too: the model dropped the object of `Tom likes
+the old map` and `Vera can read the map`, both of which 1.2.42 read. Adjective
+and noun alone, `tg_shapes(64)`, reads both and moves the grid 303 to 381.
+**A tagger needs to know that a word can be an adjective and that it can be a
+thing; what ELSE the word can be is what the sentence says**, and a bit that
+answers a question the sentence already answers is a bit the network can
+follow instead of reading.
+
+**THE TABLE'S HOME WAS MEASURED TWICE BEFORE IT WAS RIGHT**, and both wrong
+answers are the same mistake -- a lookup that is cheap once and is asked four
+hundred thousand times:
+
+| where the classes lived | what it cost |
+|---|---|
+| `tg_lexicon_classes/1` per token | **2.44 ms a read** (the assoc copied out of the store); the box's memory limit killed the training at 110 s |
+| one global a word | a global is found by a SCAN: 4.7 us among 20 000, **31.5 us among 55 000**, and the encoding had not finished in two minutes |
+| **an assoc in the vocab term** | a heap lookup, 41 us a token encoded against ~20 before, ~16 s over a training |
+
+And the table is the LEXICON's, never the pairs': a word below `min_count`
+has no embedding row and must still encode to the same shape at tagging as
+it did at training, which a table built from the training pairs could not
+promise. The cost is that a model now depends on `lexicon/*.txt` -- the
+files the judge already needed -- and the header says so.
+
+**AND IT IS BETTER EVERYWHERE THE PINS LOOK**, the same training on the same
+pairs, the measurement line `tools/tagger/train.sh` prints:
+
+| | 1.2.42 | retrained, no classes | **1.2.43 shipped** |
+|---|---|---|---|
+| tags of 300 unseen pairs | 0.9884 | 0.9783 | **0.9891** |
+| sentences wholly right | 0.8867 | 0.8500 | **0.9700** |
+| assembled and parsed | 0.9533 | 0.9167 | **0.9733** |
+| lessons typed bare | 0.8495 | 0.8115 | **0.9073** |
+| real prose refused | 0.9600 | 0.9633 | **0.9700** |
+
+-- the middle column is the collapse, and it is the column that says the
+feature is not merely an improvement on 1.2.42: without it the corpus change
+costs three points of tokens and four of sentences as well as the grid.
+
+**THE GRID SPLITS BY THE NOUN, AND THAT IS THE SHAPE OF WHAT THE FEATURE
+BUYS.** 192 sentences a noun, the same four names, four adjectives and three
+fillers:
+
+| the object's noun | the lexicon knows it as | 1.2.42 | four bits | **two bits** |
+|---|---|---|---|---|
+| `car` | a noun | 101 of 192 | 192 | **192** |
+| `house` | a noun and a verb | 106 | 111 | **189** |
+| `truck` | a noun and a verb | 75 | 115 | **186** |
+| `book` | a noun and a verb | 96 | 138 | **176** |
+| `flat` | a noun, an ADJECTIVE and an adverb | 163 | 49 | **96** |
+
+-- so a word the lexicon is sure about became certain, the words that are
+verbs too recovered once the verb bit went, and `flat` is the one that stays
+halved, which is the feature telling the truth rather than failing: `a red
+flat` IS two adjectives to anything reading a word's classes. **A PIN ON ONE
+SENTENCE OF THAT SHAPE WAS A COIN TOSS ALL ALONG**: `test/reason.pl` pinned
+`a red truck` and passed on a model that read trucks 75 times in 192. It pins
+a car now, with the table above in the case, and the grid is where the shape
+is pinned -- at 0.60, which tells a collapse (0.00) from a model (0.99) with
+room for a training to land anywhere between.
+
+**WHAT THE FEATURE COST WAS AN ADJECTIVE THE LEXICON HAD NEVER HEARD OF, AND
+THE ANSWER WAS IN THE LEXICON AND NOT IN THE NETWORK.** The first model with
+the classes refused a whole paragraph of `test/tagger.pl` for one word: `She
+is registered` tagged `registered` D, because `registered` was in no class
+file, reached the network at mask 0, and **mask 0 is also what a word the
+lexicon knows is NEITHER an adjective nor a thing wears** -- so the network
+had learned, correctly for every word it ever saw, that an adjective carries
+the adjective bit. Four arms of the obvious fix -- withholding the class bits
+at the word's own rates on a second hash, which is what the word ids already
+do -- **were killed by this box's 16 GB at 192, 208, 212 and 226 s**, where
+the same training without them finishes at 192; the fourth was rewritten as
+ONE pass building two lists a pair where the others built four, to test
+whether the intermediates were the cost, and it died at the same place. So
+that cost is real, unlocated, and recorded in `tg_dropout/6` rather than
+shipped half-done.
+
+**AND THE REAL DEFECT WAS THAT `registered` WAS NOT IN THE TABLE.** It has
+three adjective senses in WordNet and no SemCor count, and
+`lexicon/build.pl` built every `known_*` file from `cntlist.rev` alone --
+**counts say how OFTEN a corpus used a word, and the judge's question is
+whether the dictionary knows it at all.** `known_adj.txt` is every lemma
+`index.adj` names now, 5 102 to **16 706**, the counted ones keeping their
+order at the front so nothing a cap used to hold has moved. Measured on the
+SHIPPED model with no retraining, because every word the generator draws is
+counted and so already carried its bit -- only words outside the training
+change:
+
+| | counted only | **every adjective** |
+|---|---|---|
+| the paragraph of nine sentences | **refused** | read, twelve terms |
+| `Who is registered?` | refused | `[[dana-fact]]` |
+| the grid of 384 | 381 | 381 |
+| sentences wholly right | 0.9667 | **0.9700** |
+| real prose refused | 0.9500 | **0.9700** |
+
+-- and the refusal rate rising is the judge knowing more adjectives, which is
+the safe direction for that pin. **THE SAME GAP IS OPEN IN `known_noun` AND
+`known_verb`** -- the indexes hold 50 436 nouns and 8 293 verbs past the word
+filter against 8 915 and 3 616 counted -- and neither is widened here,
+because the judge's rules are written in terms of what a word is known ONLY
+as, so each table moves what it refuses and each wants its own measurement.
+**A FEATURE A TRAINING NEVER WITHHOLDS IS A FEATURE THE NETWORK IS ENTITLED
+TO REQUIRE**, and when it requires something, the thing to check first is
+whether what it requires is TRUE of the table it reads.
+
+**TWO THINGS BIT WHILE GETTING `test/tagger.pl` GREEN ON THIS, and both are
+about a PROCESS rather than a model:**
+
+* **A TRAINING UNDER `--local` AND ONE UNDER `--embed` GIVE DIFFERENT
+  MODELS, and it is not diagnosed.** `tools/tagger/train.sh` runs
+  `cocolog --embed TMP -s library/reasoning/train.pl`; the case runs
+  `--local`. Same pairs file, same seed, same options: `--local` reads
+  tokens 0.9854, sentences 0.9333 and the adjective grid **271 of 384**
+  where the shipped model reads 0.9891, 0.9700 and **381**. It is not the
+  case's other sections -- a BARE `--local` process training from the same
+  file gives 271 to the unit -- and it is not the data, which was
+  regenerated and diffed byte for byte. A model trained `--embed` and
+  loaded `--local` grids 381, so the TRAINING differs and not the loading.
+  The pins sit where both pass, the case trains from the file in the tree
+  so at least the DATA is the shipped data, and the section that pins prose
+  word for word runs on `tagger_pretrained/1`'s model rather than its own.
+* **A FIXTURE NAME THAT SOME LESSON MENTIONS IS WRITTEN BACK IN QUOTATION
+  MARKS.** The case's paragraph had a nurse called Mia, every answer about
+  her was right, and the explanation came back as `"mia" may enter the ward
+  because "mia" is a nurse`. `mia` is the Italian lesson's own word --
+  `The feminine possessive "mia" means "my"` -- and the 300 generated
+  sentences `tagger_evaluate/4` reads three checks earlier carry the lesson
+  shapes that mention it. The reader keeps what it has MET for the life of
+  the process, a word met between quotation marks among them, and
+  `re_arg/2` puts the marks back before it asks whether the word is a name.
+  So it is the design working, and invisible until one process reads a
+  lesson and a paragraph both. The nurse is Priya now;
+  `grep -i '"name"' library/reasoning/corpus/*.txt` is the check, and of
+  the paragraph's five names `mia` was the only one. **Two other readings
+  died first** -- the model (the shipped one does it too) and the 82
+  hand-written sentences read before it (reading the paragraph first fails
+  the same way) -- and each cost a four-minute training to refute.
+
+**AND A CASE THAT TRAINS MUST GIVE THE HEAP BACK, or it dies in whatever
+runs last.** `test/tagger.pl` was killed by this box's 16 GB three times
+running -- at 206, 195 and 232 s, with the training itself finishing at
+158 -- after the last section's checks had printed, which reads as a hang
+in the thing that ran last and is the training's leavings: cocolog reclaims
+on backtracking and a training walks 32 768 pairs deterministically, so
+every sequence and batch stays live. `\+ \+ tagger_train(...)` and then
+`tagger_load/2` is the whole fix, because the model goes to the STORE --
+which is what `library/reasoning/train.pl` does anyway.
+
 **THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
 OWN.** `tagger_pretrained/1` answers a model without training: the one
 named `tagger` in the knowledge base this process proves against when

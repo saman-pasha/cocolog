@@ -102,6 +102,13 @@ The auxiliary "ha" means "has".
 "hemos" is the first person of "han".
 "había" is the past of "ha".
 "habían" is the past of "han".
+The auxiliary "está" means "is".
+"están" is the plural of "está".
+"estoy" is the first person of "está".
+"estás" is the second person of "está".
+"estamos" is the first person of "están".
+"estaba" is the past of "está".
+"estaban" is the past of "están".
 "comido" is the participle of "come".
 "leído" is the participle of "lee".
 "tenido" is the participle of "tiene".

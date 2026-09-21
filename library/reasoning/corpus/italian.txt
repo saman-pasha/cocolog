@@ -41,6 +41,13 @@ The auxiliary "ha" means "has".
 "abbiamo" is the first person of "hanno".
 "aveva" is the past of "ha".
 "avevano" is the past of "hanno".
+The auxiliary "sta" means "is".
+"stanno" is the plural of "sta".
+"sto" is the first person of "sta".
+"stai" is the second person of "sta".
+"stiamo" is the first person of "stanno".
+"stava" is the past of "sta".
+"stavano" is the past of "stanno".
 The word "non" precedes the verb.
 The word "che" means "what".
 The word "chi" means "who".

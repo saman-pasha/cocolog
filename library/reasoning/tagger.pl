@@ -34,10 +34,16 @@
 %%
 %% THE NETWORK. Two embeddings -- the word, 24 wide, and its SHAPE (the case
 %% it was written in and, for a lower-case word, the ending it carries: -s,
-%% -ly, -ing, -ed or none; a capitalised word is a name whatever it ends
-%% in; a number is one word, <num>, with a shape of its own; a word between
-%% quotation marks keeps its word and takes the shape `quoted'), 4 wide --
-%% concatenated into 28; a GRU over the sentence in each
+%% -ly, -ing, -ed or none, WITH the classes the lexicon knows the word by,
+%% adjective and noun, as two bits; a capitalised word is a
+%% name whatever it ends in and carries no class; a number is one word,
+%% <num>, with a shape of its own; a word between quotation marks keeps its
+%% word and takes the shape `quoted'), 4 wide --
+%% concatenated into 28; a GRU over the sentence in each -- and the width
+%% stayed 4 when the classes joined it, because widening it to 8 widened
+%% every activation the autograd graph keeps: the training went from
+%% finishing in 205 s to thrashing against the box's 16 GB at 14.0 GB
+%% resident, with more kernel time than user time and 45 000 major faults
 %% direction, 96 wide each, so a token's label sees what came before it and
 %% what follows; a linear head from the two states to the twelve tags inside
 %% the grammar, M among them -- a MENTIONED word, which the assembler writes
@@ -59,7 +65,17 @@
 %% stands. Then `Zed owns a bicycle' tags as `Alice owns a car' does, and
 %% the assembler writes Zed and bicycle. (Without the nouns in that set,
 %% measured, `must pay the rent' lost its object: `rent' was tagged D, the
-%% only label an unknown lower-case word had ever carried.)
+%% only label an unknown lower-case word had ever carried.) THE CLASS BITS
+%% ARE NOT WITHHELD WITH IT, so the network is entitled to require them:
+%% a lower-case word at mask 0 is one the lexicon knows is neither an
+%% adjective nor a thing, and an adjective the lexicon has never heard of
+%% wears the same code. That is a claim about the LEXICON and it is
+%% answered there -- known_adj.txt carries every adjective index.adj names
+%% rather than only the SemCor-counted ones, 16 706 where it held 5 102,
+%% because `registered' has three adjective senses and no count. Withholding
+%% the bits at training, as the word ids are withheld, is the answer for a
+%% word WordNet does not know at all, and it does not fit on the box this
+%% was trained on -- tg_dropout/6 below carries what it costs.
 %%
 %% THE KNOWLEDGE BASE IS THE MODEL FILE. tagger_train/2 saves the parameters
 %% through params_save/2 and the vocabulary as one fact, '$tg_vocab'/2, so a
@@ -163,9 +179,11 @@
 %%     tagger_vocabulary(+Pairs, +MinCount, -Vocab)   only the words seen MinCount times
 %%     tagger_word_id(+Vocab, +Word, -Id)   1 for a word not in it
 %%     tagger_size(+Vocab, -V)              the rows of the word embedding
-%%     tagger_encode(+Vocab, +Tokens, -Ids, -Shapes)     a shape is the case, and a lower-case word's ending: 1 lower,
+%%     tagger_encode(+Vocab, +Tokens, -Ids, -Shapes)     a shape is the case, the ending and the classes; 1 lower,
 %%                                          2 upper, 3 comma, then +3 for -s, +6 for -ly, +9 for -ing, +12 for -ed
-%%                                          on a lower-case word only; 14 a quoted word, 15 a number; 0 is padding
+%%                                          on a lower-case word only, and +16 for each class the lexicon knows
+%%                                          it by (adjective 1, noun 2), so `red' is 61 and `car' 33;
+%%                                          14 a quoted word, 15 a number; 0 is padding
 %%     tagger_tag_id(?Tag, ?Id)             normalise_tags/1's order, S 0 .. B 10
 %%     tagger_pad(+Seqs, -Plan)             seq(Ids, Shapes, TagIds|none) each, to
 %%                                          plan(N, M, IdRows, ShapeRows, MaskRows, Flat):
@@ -225,7 +243,7 @@
 tg_hidden(96).
 tg_word_dim(24).
 tg_shape_dim(4).
-tg_shapes(16).                     % padding, then case x ending, below
+tg_shapes(64).                     % padding, then case x ending x the lexicon's classes, below
 
 %% ---- the vocabulary ---------------------------------------------------------
 
@@ -250,13 +268,14 @@ tg_counted([W|Ws], Min, Out) :-
 tg_run(W, [W|Ws], N0, N, Rest) :- !, N1 is N0 + 1, tg_run(W, Ws, N1, N, Rest).
 tg_run(_, Ws, N, N, Ws).
 
-tg_vocab(Words, vocab(Words, Assoc)) :-
+tg_vocab(Words, vocab(Words, Assoc, Classes)) :-
     findall(W-Id, ( nth0(I, Words, W), Id is I + 2 ), Ps),
-    list_to_assoc(Ps, Assoc).
+    list_to_assoc(Ps, Assoc),
+    tg_class_assoc(Classes).
 
-tagger_word_id(vocab(_, Assoc), W, Id) :- ( get_assoc(W, Assoc, Id0) -> Id = Id0 ; Id = 1 ).
+tagger_word_id(vocab(_, Assoc, _), W, Id) :- ( get_assoc(W, Assoc, Id0) -> Id = Id0 ; Id = 1 ).
 
-tagger_size(vocab(Words, _), V) :- length(Words, N), V is N + 2.
+tagger_size(vocab(Words, _, _), V) :- length(Words, N), V is N + 2.
 
 %% the word a token carries, and its SHAPE: the case it was written in and,
 %% for a lower-case word, the ending it carries -- none, -s, -ly, -ing or
@@ -274,14 +293,14 @@ tg_word(word(W, _), W) :- !.
 tg_word(quoted(W), W) :- !.                % a mention keeps its word: the shape carries the marks
 tg_word(num(_), '<num>') :- !.             % every number is one word: its value is not its tag
 tg_word(T, T).
-tg_shape(',', 3) :- !.
-tg_shape(quoted(_), 14) :- !.              % a mention, its own shape
-tg_shape(num(_), 15) :- !.                 % a number, its own shape
-tg_shape(word(_, upper), 2) :- !.          % a name, whatever it ends in
-tg_shape(word(W, lower), S) :- !,
-    tg_ending(W, E),
-    S is 1 + 3 * E.
-tg_shape(_, 1).
+tg_shape(_, ',', 3) :- !.
+tg_shape(_, quoted(_), 14) :- !.           % a mention, its own shape
+tg_shape(_, num(_), 15) :- !.              % a number, its own shape
+tg_shape(_, word(_, upper), 2) :- !.       % a name, whatever it ends in
+tg_shape(C, word(W, lower), S) :- !,
+    tg_ending(W, E), tg_class_mask(C, W, M),
+    S is 1 + 3 * E + 16 * M.
+tg_shape(_, _, 1).
 
 tg_ending(W, 2) :- sub_atom(W, _, 2, 0, ly), !.
 tg_ending(W, 3) :- sub_atom(W, _, 3, 0, ing), !.
@@ -289,9 +308,77 @@ tg_ending(W, 4) :- sub_atom(W, _, 2, 0, ed), !.
 tg_ending(W, 1) :- sub_atom(W, _, 1, 0, s), !.
 tg_ending(_, 0).
 
+%% AND THE CLASSES THE LEXICON KNOWS THE WORD BY, two bits beside the
+%% ending: adjective 1 and noun 2, from the same table the judge reads
+%% (tg_lexicon_classes/1, a class noun counted as a noun and a name left
+%% out). ONLY A LOWER-CASE WORD carries them -- a name is a name whatever a
+%% lexicon says of it, and a mention stands for itself.
+%%
+%% THE VERB AND ADVERB BITS WERE IN IT AND ARE OUT, by measurement: with
+%% them, `map' and `house' -- nouns the lexicon also knows as verbs -- wore
+%% a bit the corpus's verbs wore too, and the model dropped the object of
+%% `Tom likes the old map' and `Vera can read the map' where it had read
+%% both. A tagger needs to know that a word can be an adjective and that it
+%% can be a thing; what else the word can be is what the SENTENCE says.
+%%
+%% It is here because the network could not learn an ADJECTIVE from
+%% anything else. `red', `big' and `small' are picked rarely enough to be
+%% <unk>, and an adjective before an object with a comma filler after it is
+%% a fifth of a per cent of the tokens: measured over four generators
+%% differing only in how often they make the shape, the same training read
+%% it 0, 20 and 207 times out of 384, by the luck of its minimum, and a
+%% SEVEN-LINE change to the corpus took a model from 207 to 0 with every
+%% tag n-gram count unmoved. A class the lexicon states is a feature the
+%% network cannot lose that way: every adjective of the grid wears the
+%% same bit whatever word it is.
+%%
+%% IT TIES A MODEL TO THE LEXICON FILES, which is the cost and is worth
+%% saying: the shape a word is encoded with depends on lexicon/*.txt, so a
+%% tree without them encodes every word at mask 0 and a model trained with
+%% them reads the wrong rows. The judge needs the same files, so nothing
+%% that can read prose was ever without them.
+tg_class_mask(Classes, W, M) :- ( get_assoc(W, Classes, M0) -> M = M0 ; M = 0 ).
+
+%% THE TABLE TRAVELS IN THE VOCABULARY, and both other roads were measured
+%% and are why. A read of tg_lexicon_classes/1 copies the whole assoc out
+%% of the store -- 2.44 ms -- so asking per TOKEN, four hundred thousand
+%% times over a training, was killed by the box's memory limit at 110 s.
+%% One global a word is worse still: a global is found by a SCAN, 4.7 us
+%% among twenty thousand and 31.5 us among the lexicon's fifty-five, and
+%% the encoding of 32 768 pairs had not finished in two minutes. An assoc
+%% built once and carried in the vocab term is a heap lookup at every
+%% token and costs nothing -- and the vocabulary is where a word's class
+%% belongs anyway. It is the LEXICON's table and not the pairs', so the
+%% shape a word is encoded with is the same at training and at tagging
+%% whether or not the word was frequent enough to have an embedding.
+tg_class_assoc(Classes) :-
+    ( catch(nb_getval('$tg_classes', _), _, fail) -> true ; \+ \+ tg_class_build ),
+    nb_getval('$tg_classes', Classes).
+
+%% BUILT UNDER `\+ \+', because what it builds it on is far larger than
+%% what it keeps: the judge's table is a word to a LIST of classes, over
+%% two hundred thousand pairs sorted and grouped, and cocolog gives the
+%% heap back on backtracking and not otherwise. The answer goes to the
+%% store as a global, which a failed branch does not undo, so the caller
+%% reads it back with the transients gone.
+tg_class_build :-
+    (   catch(tg_lexicon_classes(Lex), _, fail)
+    ->  assoc_to_list(Lex, Pairs),
+        findall(W-M, ( member(W-Cs, Pairs), tg_bits([adj-1, noun-2, class-2], Cs, 0, M), M > 0 ), Ms),
+        list_to_assoc(Ms, Classes)
+    ;   empty_assoc(Classes)
+    ),
+    nb_setval('$tg_classes', Classes).
+
+tg_bits([], _, M, M).
+tg_bits([C-B|Rest], Cs, M0, M) :-
+    ( memberchk(C, Cs), 0 =:= M0 /\ B -> M1 is M0 + B ; M1 = M0 ),
+    tg_bits(Rest, Cs, M1, M).
+
 tagger_encode(_, [], [], []).
 tagger_encode(V, [T|Ts], [Id|Ids], [S|Ss]) :-
-    tg_word(T, W), tagger_word_id(V, W, Id), tg_shape(T, S),
+    V = vocab(_, _, Classes),
+    tg_word(T, W), tagger_word_id(V, W, Id), tg_shape(Classes, T, S),
     tagger_encode(V, Ts, Ids, Ss).
 
 tagger_tag_id(Tag, Id) :- normalise_tags(Tags), nth0(Id, Tags, Tag).
@@ -427,7 +514,7 @@ tagger_train(Name, Options) :-
         ( length(Pairs, NP), append(Pairs, _, All) -> true ; Pairs = All )
     ;   normalise_corpus(NP, Pairs)
     ),
-    tagger_vocabulary(Pairs, MinCount, Vocab), Vocab = vocab(Words, _),
+    tagger_vocabulary(Pairs, MinCount, Vocab), Vocab = vocab(Words, _, _),
     tg_drop_table(Table),
     tg_training_sequences(Vocab, Table, Pairs, 1, PosSeqs),
     tg_by_length(PosSeqs, PosSorted), tg_chunks(PosSorted, B, PosGroups),
@@ -479,6 +566,20 @@ tg_dropout([T|Ts], [Id|Ids], Table, I, P, [Id2|Ids2]) :-
     ),
     P1 is P + 1,
     tg_dropout(Ts, Ids, Table, I, P1, Ids2).
+
+%% THE SHAPE IS NOT DROPPED WITH IT, AND THE ARM THAT WOULD WAS RUN FOUR
+%% TIMES. `Sh mod 16' is exactly the shape without its classes -- the case
+%% and the ending are 1 to 15 and the classes are what sixteen multiplies --
+%% so a second hash at the same rates would hand a fifth of the adjectives
+%% to the network wearing nothing but `-ed' or `-ly', and a word no lexicon
+%% knows would be read from where it stands. FOUR TRAININGS WITH IT WERE
+%% KILLED by this box's 16 GB at 192, 208, 212 and 226 s, where the same
+%% training without it finishes at 192; the fourth was written as one pass
+%% -- the encoding and both drops in a single walk, building two lists a
+%% pair where the first three built four -- to test whether the cost was the
+%% intermediates, and it died at the same place. So the cost is not the
+%% lists and is not yet located, and the sentence that wanted it,
+%% `She is registered', was answered in the lexicon instead.
 
 %% the rate a word is dropped at, as ONE table built before the pairs are
 %% walked: a name at a quarter of its positions, a noun, an adjective or an

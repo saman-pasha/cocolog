@@ -47,9 +47,11 @@
 %% of unit_of_measurement or time_unit, first sense; language = a hyponym of
 %% natural_language in a word's first or second sense, capitalised, for the
 %% lesson shapes (`Spanish is a language', `The Spanish word "casa"'); and known_noun,
-%% known_verb, known_adj, known_adverb = EVERY counted lemma of that part of
+%% known_verb, known_adverb = EVERY counted lemma of that part of
 %% speech whatever its sense, for the tagger's judge rather than the
-%% generator (`death' is no thing to own, and still a noun). Only single, alphabetic,
+%% generator (`death' is no thing to own, and still a noun); known_adj =
+%% every adjective index.adj names, counted or not, because `registered'
+%% is one and SemCor never tagged it. Only single, alphabetic,
 %% three-to-twelve-letter words; the grammar's own filters -- a closed word,
 %% a verb the stemmer cannot invert -- are applied where the files are READ,
 %% in normalise.pl, not here, so this tool knows nothing of the grammar.
@@ -72,7 +74,8 @@ main :-
     lx_units(Synsets, Units),
     lx_languages(Synsets, Languages),
     lx_verb_frames(WN, Frames),
-    lx_classes(Groups, Kinds, Units, Languages, Frames, Classes0),
+    lx_index_lemmas(WN, 'index.adj', AdjLemmas),
+    lx_classes(Groups, Kinds, Units, Languages, Frames, AdjLemmas, Classes0),
     lx_prose(WN, Prose),
     append(Classes0, [prose-Prose], Classes),
     forall(member(Class-Words, Classes),
@@ -107,7 +110,7 @@ lx_cap(language, _, 150).
 lx_cap(prose, _, 8000).
 lx_cap(known_noun, _, 20000).
 lx_cap(known_verb, _, 8000).
-lx_cap(known_adj, _, 10000).
+lx_cap(known_adj, _, 20000).
 lx_cap(known_adverb, _, 3000).
 
 %% ---- the files, as lines --------------------------------------------------------
@@ -275,7 +278,7 @@ lx_hex_codes([C|Cs], Acc, N) :-
 
 %% ---- the classes, ranked --------------------------------------------------------------------
 
-lx_classes(Groups, Kinds, Units, Languages, Frames, Classes) :-
+lx_classes(Groups, Kinds, Units, Languages, Frames, AdjLemmas, Classes) :-
     findall(W-C, member(g(W, 1, _, C), Groups), NounCounts0), list_to_assoc(NounCounts0, NounCounts),
     lx_ranked(Kinds, NounCounts, [5, 6, 13, 17, 20, 21], no, Nouns),
     lx_ranked(Kinds, NounCounts, [18], no, Kinds1),
@@ -298,7 +301,8 @@ lx_classes(Groups, Kinds, Units, Languages, Frames, Classes) :-
     findall(V, ( member(V, Verbs), lx_frames(V, Frames, Fs), lx_meets(Fs, [22, 4]) ), VPP),
     findall(NC-W, ( member(g(W, 1, _, C), Groups), NC is -C ), KN0), lx_rank_unique(KN0, KnownNouns),
     findall(NC-W, ( member(g(W, 2, _, C), Groups), NC is -C ), KV0), lx_rank_unique(KV0, KnownVerbs),
-    findall(NC-W, ( member(g(W, T, _, C), Groups), memberchk(T, [3, 5]), NC is -C ), KA0), lx_rank_unique(KA0, KnownAdjs),
+    findall(NC-W, ( member(g(W, T, _, C), Groups), memberchk(T, [3, 5]), NC is -C ), KA0), lx_rank_unique(KA0, KA1),
+    lx_uncounted(AdjLemmas, KA1, KA2), append(KA1, KA2, KnownAdjs),
     findall(NC-W, ( member(g(W, 4, _, C), Groups), NC is -C ), KR0), lx_rank_unique(KR0, KnownAdvs),
     Classes = [noun-Nouns, class-Kinds1, adj-Adjs, vt-VT, vi-VI, vpp-VPP, adverb-Advs, place-Places, unit-UnitWords,
                language-LanguageWords,
@@ -309,6 +313,23 @@ lx_classes(Groups, Kinds, Units, Languages, Frames, Classes) :-
 %% generator's words -- the JUDGE's: library(reasoning/tagger) refuses a
 %% tagging these contradict, and `death' put as a subject slipped through
 %% while only the generator's concrete nouns were known.
+%%
+%% AND known_adj CARRIES EVERY ADJECTIVE THE DICTIONARY KNOWS, not only the
+%% counted ones, which is lx_uncounted/3 below. cntlist.rev says how OFTEN a
+%% corpus used a word; index.adj says whether WordNet knows it at all, and
+%% for a table whose question is `is this word an adjective' the second is
+%% the question. It cost a sentence: `registered' has three adjective senses
+%% and no SemCor count, so it reached library(reasoning/tagger) at class
+%% mask 0 -- the same code a word that is NOT an adjective gets -- and `She
+%% is registered' came back tagged D and refused. 5 102 counted adjectives
+%% become 16 352. The counted ones keep their order at the front, so nothing
+%% a cap used to keep has moved.
+%%
+%% THE SAME GAP IS IN known_noun AND known_verb and is NOT closed here: the
+%% indexes hold 50 436 nouns and 8 293 verbs past this file's word filter,
+%% against 8 915 and 3 616 counted, and widening either moves what the JUDGE
+%% refuses -- its rules are written in terms of what a word is known ONLY as.
+%% One table at a time, each measured.
 lx_rank_unique(NCWs, Words) :-
     findall(W-NC, member(NC-W, NCWs), WNCs), keysort(WNCs, ByWord),
     lx_best(ByWord, Best), keysort(Best, Ranked),
@@ -317,6 +338,26 @@ lx_best([], []).
 lx_best([W-NC|Rest], [NCb-W|Out]) :- lx_best_same(W, Rest, NC, NCb, Others), lx_best(Others, Out).
 lx_best_same(W, [W-NC2|R], NC, NCb, O) :- !, ( NC2 < NC -> NC1 = NC2 ; NC1 = NC ), lx_best_same(W, R, NC1, NCb, O).
 lx_best_same(_, R, NC, NC, R).
+
+%% every lemma an index file names, under this file's word filter: the
+%% first field of every line that does not begin with a space (the licence
+%% header does).
+lx_index_lemmas(WN, File, Lemmas) :-
+    lx_lines(WN, File, Lines),
+    findall(W, ( member(L, Lines), \+ sub_string(L, 0, 1, _, " "),
+                 split_string(L, [32], [32], [LemS|_]),
+                 atom_string(W, LemS), lx_word(W) ), Ws),
+    sort(Ws, Lemmas).
+
+%% the lemmas of a list that the counted ranking does not already hold, in
+%% hash order -- the order lx_ranked/5 puts uncounted nouns in, so a cap
+%% takes a stable sample rather than an alphabetical one.
+lx_uncounted(Lemmas, Counted, Rest) :-
+    list_to_assoc([], E), lx_seen(Counted, E, Seen),
+    findall(H-W, ( member(W, Lemmas), \+ get_assoc(W, Seen, _), lx_hash(W, H) ), Keyed),
+    lx_rank(Keyed, Rest).
+lx_seen([], A, A).
+lx_seen([W|Ws], A0, A) :- ( get_assoc(W, A0, _) -> A1 = A0 ; put_assoc(W, A0, 1, A1) ), lx_seen(Ws, A1, A).
 
 %% the nouns whose first sense sits in one of the files, instances wanted or
 %% not: the SemCor-counted ones first, then the rest in hash order
