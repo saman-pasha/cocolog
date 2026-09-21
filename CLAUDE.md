@@ -2427,6 +2427,31 @@ humillado.`), a demonstrative. A page of simple sentences is another
 matter: eleven of eleven in Spanish, ten of eleven in Italian (the eleventh
 is `l'autore', which the tokeniser cuts at the apostrophe).
 
+**AND THE 172 REFUSED FOR A WORD ARE MOSTLY NOT THE DICTIONARY'S GAPS.**
+Every unknown word of the 400, sorted by what it is (a sentence counts
+once per kind):
+
+| the unknown word is | sentences | e.g. |
+|---|---|---|
+| a closed word the hand lesson lacks: demonstratives, quantifiers, `se', `nadie', `todos' | 52 | otro, ese, esto |
+| an INFINITIVE, the form the builder never writes, after a verb that takes one | 42 | dormir, saberlo |
+| a subjunctive, a conditional or a second person -- forms Apertium HAS and the builder skips | 39 | llueva, podría, besaste |
+| a lemma Apertium's bilingual dictionary lacks, or a form of one (`hay', `sos') | 38 | calvo, delgaducho |
+| a GERUND | 19 | esperando |
+| a participle used as an adjective, a diminutive, an imperative, a number word | 15 | acostumbrada, perrito |
+
+So the dictionary is short for about one refusal in seven, and a
+second source would move roughly a tenth of the 400. What moves the rest
+is on this side: the builder writing the forms Apertium already carries
+(the infinitive, the gerund, the subjunctive, the conditional, the second
+persons, the imperative) as lesson lines the reader can already read
+(`"dormir" is the infinitive of "duerme"` is the `is the NOUN of X` shape),
+thirty lines of closed words in the hand lesson, and the translator's
+shapes for what those forms do -- a verb before an infinitive, `estar'
+before a gerund, `hay', an imperative, a participle after `ser' or
+`estar', `gustar', a demonstrative before a noun. Each refusal names its
+line or its shape, which is what the refusal contract is for.
+
 **THE TRANSLATOR HAD TO SCALE FIRST, AND ITS COST WAS QUADRATIC IN THE
 LESSON.** A rule-made form -- `casas' by `takes "s" in the plural',
 `comerá' by `takes "rá" in the future' -- was found by walking EVERY
