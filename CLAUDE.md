@@ -3094,17 +3094,54 @@ hypothesis this file was about to test is refuted before it was run, and
 0.13 s** over the page, and 26.03 s against 0.11 s over the single sentence.
 Still all user CPU, still a walk.
 
-**THE CANDIDATE LEFT IS A LOOKUP WHOSE FIRST ARGUMENT IS UNBOUND, and this
-file already names the mechanism**: an unbound first argument keys as 0 and
-skips nothing. A lesson says `mean(Word, EnglishWord)`, so the index keys on
-the LESSON's word -- and every question asked in the English direction
-(`tr_known(english, E)` is `mean(_, E)`, `tr_meaning(english, E, W)` is
-`mean(W, E)` with W free) leaves it free. The language VOTE asks it for every
-word of every sentence and for every language loaded, which is exactly a
-per-sentence walk over a hundred thousand rows. **It is not measured yet**,
-and the shape of the fix it implies -- a second namespaced predicate keyed
-the other way, `'spanish:mean_of'(house, casa)`, at the cost of doubling the
-rows -- is proposed here and not taken.
+**THE UNBOUND LOOKUP IS 340x PER CALL AND IS NOT THE COST, and the second
+half of that sentence was bought with a build, a re-teach and an hour.** The
+mechanism is real and this file already named it: an unbound first argument
+keys as 0 and skips nothing, and a lesson says `mean(Word, EnglishWord)`, so
+every question asked in the English direction leaves the first argument free.
+Measured over 17 406 rows of one language's `mean/2`:
+
+| | bound first argument | unbound |
+|---|---|---|
+| a HIT | 0.0026 ms | 0.0021 ms |
+| a MISS | 0.0020 ms | **0.900 ms** |
+| a findall, all solutions | 0.0027 ms | **0.913 ms** |
+
+**A HIT HIDES IT**, because it stops at the first match; only a miss or a
+findall walks, and `tr_meanings_of/4` IS a findall. Every arity-2 relation a
+lesson states -- `mean`, `plural_of`, `person_of`, `past_of`, `future_of`,
+`participle_of`, `infinitive_of`, `gerund_of`, `conditional_of` -- is asked
+in BOTH directions somewhere in the file.
+
+**SO A COPY KEYED THE OTHER WAY WAS BUILT (1.4.1) AND IT MADE EVERYTHING
+WORSE.** One arm, same box, same corpus, the store re-taught from empty:
+
+| | 1.4.0 namespaced | 1.4.1 with the reverse copy |
+|---|---|---|
+| teach spanish | 8 min 11 s | 9 min 44 s (+19 %) |
+| teach italian | 5 min 03 s | 5 min 56 s (+17 %) |
+| the store after both | 331 MB | **560 MB (+69 %)** |
+| ONE sentence, Italian into English | 25.8 s | **40.2 s (+56 %)** |
+| six sentences, Italian into Spanish | 3 min 02 s | **4 min 38 s (+52 %)** |
+
+Worse on every axis, and the two read figures agree with each other to four
+points, so it is not noise. **1.4.1 is reverted in 1.4.2.**
+
+**THE ERROR IS THE ONE THIS FILE WARNS ABOUT TWICE: a per-call rate was
+measured and the VOLUME was assumed.** The probe is sound -- 0.913 ms against
+0.0027 ms is 340x -- but 26 s a sentence would need about 29 000 such calls,
+and that count was never taken. *A count is not a cause until the outcome
+moves with it*, and here the outcome moved the wrong way, which is the
+cleanest refutation available. The same shape as the per-acquisition wait
+read against the per-request total, and as the per-probe cache figure that
+was a per-request total divided by an unrelated count.
+
+**WHY THE COPY IS WORSE IS ITSELF UNANSWERED**, and no mechanism is offered:
+there are twice as many predicates to FETCH, the store is 69 % bigger for the
+fetch to walk, and the registry consult adds a lookup per call, and nothing
+here separates them. **The per-sentence cost at 25.8 s remains unlocated.**
+What is known about it is only what the page arithmetic gave: it is per
+SENTENCE and not per fetch, and it is ~100 % user CPU.
 
 **AND THE PAGE FOUND A DEFECT IN THE ITALIAN LESSON, not in the IR**:
 `Che cosa mangia il cane?` came back `¿Qué come qué el perro?`, with the

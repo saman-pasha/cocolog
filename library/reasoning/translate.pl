@@ -292,7 +292,6 @@
 :- dynamic lesson/2.
 :- dynamic lesson_language/1.
 :- dynamic lesson_predicate/3.
-:- dynamic lesson_reverse/2.
 
 %% ---- the surface -----------------------------------------------------------
 
@@ -453,43 +452,7 @@ tr_learn_term(L, (H :- B)) :- !, assertz(lesson(L, (H :- B))).
 tr_learn_term(L, T) :-
     tr_namespaced(L, T, F),
     functor(F, N, A), assert_once(lesson_predicate(N, L, A)),
-    assertz(F),
-    tr_learn_reverse(L, T).
-
-%% AND EVERY ARITY-2 RELATION A LESSON STATES IS ASKED BOTH WAYS, so it
-%% gets a copy keyed the other way. `mean(casa, house)' answers `what
-%% does casa mean' from the index and `what is the word for house' by
-%% WALKING, because an unbound first argument keys 0 and skips nothing --
-%% and a walk hides in a HIT, which stops at the first match, so only a
-%% miss or a findall shows it. Measured over 17 406 rows of one
-%% language's mean/2:
-%%
-%%     a hit       bound 0.0026 ms   unbound 0.0021 ms
-%%     a MISS      bound 0.0020 ms   unbound 0.900 ms      450x
-%%     a findall   bound 0.0027 ms   unbound 0.913 ms      340x
-%%
-%% and tr_meanings_of/4 IS a findall, so it always walks. Every one of
-%% mean, plural_of, person_of, past_of, future_of, participle_of,
-%% infinitive_of, gerund_of and conditional_of is asked in both
-%% directions somewhere in this file, so the copy is made for every
-%% arity-2 fact rather than for a list somebody has to keep right.
-%%
-%% THE ORDER IS PRESERVED, which matters because the FIRST meaning is
-%% what tr_meanings_of/4 hands back and the dictionary's order is a
-%% decision this library defers to (`querer' means loves before wants).
-%% Walking everything and keeping what matches gives the matching rows in
-%% insertion order; so does an index chain over one key filled by
-%% assertz. The two sequences are the same.
-tr_learn_reverse(L, T) :-
-    T =.. [Name, A, B], !,
-    tr_reverse_name(L, Name, N),
-    assert_once(lesson_reverse(N, L)),
-    R =.. [N, B, A],
-    assertz(R).
-tr_learn_reverse(_, _).
-
-tr_reverse_name(L, Name, N) :-
-    tr_prefix(L, P), atom_concat(P, Name, N0), atom_concat(N0, '$r', N).
+    assertz(F).
 
 %% a goal of a named lesson, under the language's own name -- the same
 %% arguments, so the index sees what it saw when the lesson was plain
@@ -522,10 +485,7 @@ tr_plain_term(L, F, T) :-
 reason_unlearn(L) :-
     forall(tr_solve_plain(lesson_predicate(N, L, A)),
            ( functor(F, N, A), retractall(F) )),
-    forall(tr_solve_plain(lesson_reverse(N, L)),
-           ( functor(F, N, 2), retractall(F) )),
     retractall(lesson_predicate(_, L, _)),
-    retractall(lesson_reverse(_, L)),
     retractall(lesson(L, _)),
     retractall(lesson_language(L)).
 
@@ -2001,20 +1961,8 @@ tr_prove(none, G) :- !, tr_solve_plain(G).
 tr_prove(L, G) :- tr_lesson(L, G).
 
 tr_lesson(_, G) :- tr_helper(G), !, tr_solve_plain(G).
-%% a relation asked backwards goes to the copy keyed that way, when there
-%% is one: the registry is consulted rather than the copy assumed, so a
-%% store a previous binary wrote still answers through the forward rows
-tr_lesson(L, G) :-
-    tr_reverse_goal(L, G, R), functor(R, N, 2),
-    tr_solve_plain(lesson_reverse(N, L)), !,
-    tr_solve_plain(R).
 tr_lesson(L, G) :- tr_namespaced(L, G, F), tr_solve_plain(F).
 tr_lesson(L, G) :- tr_solve_plain(lesson(L, (G :- B))), tr_body(L, B).
-
-tr_reverse_goal(L, G, R) :-
-    G =.. [Name, A, B], var(A), nonvar(B),
-    tr_reverse_name(L, Name, N),
-    R =.. [N, B, A].
 
 tr_body(L, (A, B)) :- !, tr_body(L, A), tr_body(L, B).
 tr_body(L, \+ G) :- !, \+ tr_body(L, G).
