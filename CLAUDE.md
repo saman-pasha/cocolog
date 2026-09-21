@@ -2943,6 +2943,69 @@ about a PROCESS rather than a model:**
   hand-written sentences read before it (reading the paragraph first fails
   the same way) -- and each cost a four-minute training to refute.
 
+### The translator pivots on an IR now, and English IS the IR (1.3.0)
+
+**EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
+paired English with the lesson's language, so three languages would have been
+six paths and a fourth would have been twelve. A sentence is read INTO an
+intermediate representation on its own language's side and written FROM it
+into whichever language is asked for:
+
+```
+ir(s(Asked, Subject, g(Lexeme, Tense, Aspect, Denied), Complements), Stop)
+```
+
+-- which is **the reader's own shape, with the words in it ENGLISH**. `Il cane
+non mangia il pane.` reads to one term and that term writes as
+`Il cane non mangia il pane.`, `The dog does not eat the bread.` and
+`El perro no come el pan.`, measured in `test/translate.pl`'s `ir` section and
+in lesson 46's eighteenth. The surface is `reason_ir/2,3`, `reason_ir_text/3`,
+`reason_translate/4`, `reason_translate_page/4` and `reason_languages/1`, and
+**adding a language is adding its lesson** -- nothing is written per pair.
+
+**WHAT TRAVELS EXACTLY IS THE SHAPE; THE VOCABULARY TRAVELS THROUGH ENGLISH,
+AND IT CAN DO NOTHING ELSE.** A lesson says what a word means only as
+`mean(Word, EnglishWord)`, so English is the one language every lesson is
+written against and a sense English does not separate is a sense the IR
+cannot separate. That is a property of the DATA and not of the design, and
+the header says so rather than implying a stronger IR than the lessons
+support. What the pivot does buy, and what a round trip through English text
+would lose, is the tense, the aspect, the denial, the person, the number,
+what a question asks for and every complement in its place -- no English
+sentence is assembled and none is re-parsed.
+
+**ENGLISH IS THEREFORE ALREADY THE IR, which is what made the change small.**
+A sentence read on the English side needs NO crossing, so
+`tr_into_ir(english, ...)` is `tr_read/4` and `tr_from_ir(foreign, ...)` is
+the old writer unchanged -- the English-into-a-lesson path is the same code
+it was, which is why 435 existing checks were green on the first run. The one
+new piece is `tr_cross/3`, a walk that makes over the TERM exactly the lookups
+the writer into English used to make over the words coming out of it. Its
+words are the lexemes their meanings gave (`house`, with the number beside it)
+where an English-read sentence keeps the text's own form (`houses`); both are
+English words and both write out the same, because every consumer takes the
+lexeme first.
+
+**THREE CROSSINGS NEEDED AN IDENTITY, and that is the whole of what writing
+the IR back into English required.** `tr_meanings_of/4`, `tr_pronoun_across/6`
+and `tr_question_across/4` each look a word up from the side it was read on
+into the side it is written to; asked for English from English they would have
+gone the OTHER way -- `mean/2` is the lesson's word to English's, so
+`tr_meaning(english, the, M)` answers `el`, `la` and every other word for it.
+A clause at the head of each answering the word itself when
+`tr_side_here(From), From == To` is the fix, and it is one line each.
+
+**AND READING ENGLISH NEEDS A LESSON NAMED, which is the one thing that is
+not obvious.** The English words the reader KNOWS are the ones some lesson
+gives a meaning for (`tr_known(english, E) :- tr_solve(mean(_, E))`), so an
+English source is read against a lesson like any other text. `reason_translate/4`
+sets the TARGET's lesson before it reads, which is exact -- when the source is
+English the only lesson that matters is the target's -- and a bare
+`reason_ir(Text, english, IRs)` lets the words vote and keeps whichever
+language is already set on a tie. The target's lesson is re-set before EVERY
+sentence is written, because reading the one before it may have set the
+source's.
+
 **AND A CASE THAT TRAINS MUST GIVE THE HEAP BACK, or it dies in whatever
 runs last.** `test/tagger.pl` was killed by this box's 16 GB three times
 running -- at 206, 195 and 232 s, with the training itself finishing at

@@ -22,7 +22,7 @@
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
-    persons, future, perfect, phrases, wh, languages,
+    persons, future, perfect, phrases, wh, languages, ir,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -891,6 +891,77 @@ languages :-
     retractall(lesson(italian, _)),
     reason_translate('The house is big.', S13),
     check('the Italian lesson forgotten: Spanish again', S13, 'La casa es grande.').
+
+%% ---- the intermediate representation ---------------------------------------------------
+%%
+%% The Italian lesson again, beside the Spanish one this file opened
+%% with: two languages in one process, each learned under its own name
+%% (Spanish names itself, `Spanish is a language'). So Italian and
+%% Spanish translate BETWEEN THEMSELVES here, through the IR, with no
+%% English sentence written and none read -- which is the claim the IR
+%% exists to make. The words are the ones both hand lessons happen to
+%% give: casa, cane/perro, pane/pan, grande, è/es, mangia/come, the
+%% articles, non/no and cosa/qué.
+
+ir :-
+    section('the IR: every language into it and out of it, and no pair with a path of its own'),
+    reason_learn('Italian is a language. The noun "casa" means "house". The noun "cane" means "dog". The noun "pane" means "bread". The adjective "grande" means "big". The verb "è" means "is". The verb "mangia" means "eats". The feminine article "la" means "the". The masculine article "il" means "the". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine. Every adjective follows the noun. "case" is the plural of "casa". "grandi" is the plural of "grande". "sono" is the plural of "è". "le" is the plural of "la". The word "non" means "not". The word "cosa" means "what".', italian, _),
+
+    reason_languages(L1),
+    check('english, the pivot, and each lesson: the plain one names itself', L1, [english, none, italian]),
+
+    reason_ir('Il cane non mangia il pane.', italian, IR2),
+    check('a sentence into the IR: the reader''s own shape, with English words in it', IR2,
+          [ir(s(none,
+                np(det(article, the, w(the, lower)), none, [], w(dog, lower), singular),
+                g(eats, present, simple, yes),
+                [obj(np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular))]),
+             46)]),
+
+    reason_ir('Il cane non mangia il pane.', italian, IR3),
+    findall(O3, ( member(N3, [italian, english, spanish]), reason_ir_text(IR3, N3, O3) ), Os3),
+    check('ONE IR, written into all three', Os3,
+          ['Il cane non mangia il pane.', 'The dog does not eat the bread.', 'El perro no come el pan.']),
+
+    reason_translate('Il cane mangia il pane.', italian, spanish, S4),
+    check('Italian into Spanish', S4, 'El perro come el pan.'),
+    reason_translate('La casa è grande.', italian, spanish, S5),
+    check('the copula, and the gender rule of the other lesson', S5, 'La casa es grande.'),
+    reason_translate('Le case non sono grandi.', italian, spanish, S6),
+    check('a stated plural one side, a ruled one the other', S6, 'Las casas no son grandes.'),
+    reason_translate('Cosa mangia il cane?', italian, spanish, S7),
+    check('a question, with the mark the other lesson begins one with', S7, '¿Qué come el perro?'),
+
+    reason_translate('El perro come el pan.', spanish, italian, I8),
+    check('and the other way, which is the same two halves', I8, 'Il cane mangia il pane.'),
+    reason_translate('Las casas no son grandes.', spanish, italian, I9),
+    check('the plurals back', I9, 'Le case non sono grandi.'),
+    reason_translate('¿Qué come el perro?', spanish, italian, I10),
+    check('the question back, and Italian begins one with nothing', I10, 'Cosa mangia il cane?'),
+
+    reason_translate('The dog eats the bread.', english, italian, I11),
+    check('english is a language like any other into the IR', I11, 'Il cane mangia il pane.'),
+    reason_translate('Il cane mangia il pane.', italian, english, E12),
+    check('and out of it', E12, 'The dog eats the bread.'),
+    reason_translate('The dog eats the bread.', english, english, E13),
+    check('english to english: the IR is already English, so this is a round trip', E13, 'The dog eats the bread.'),
+
+    reason_translate_page('Il cane mangia il pane. Il cane mangia la xyzzy.', italian, spanish, P14),
+    check('a page between two languages: one refused names its word', P14,
+          ['Il cane mangia il pane.'-'El perro come el pan.',
+           'Il cane mangia la xyzzy.'-refused([xyzzy])]),
+
+    yes_no(reason_translate('Il cane mangia il pane.', italian, klingon, _), R15),
+    check('a language no lesson teaches is a domain_error, not a failure', R15,
+          error(error(domain_error(language, klingon), reason_translate/3))),
+
+    reason_ir('Il cane mangia il pane. Le case sono grandi.', italian, IR16),
+    length(IR16, N16),
+    check('a text is read once, sentence by sentence', N16, 2),
+    reason_ir_text(IR16, spanish, S16),
+    check('and written as many times as there are languages', S16, 'El perro come el pan. Las casas son grandes.'),
+
+    retractall(lesson(italian, _)).
 
 %% ---- the lesson questioned ---------------------------------------------------------
 

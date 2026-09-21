@@ -40,7 +40,19 @@
 %% words, and a lesson in Italian, or one whose rule is that every
 %% adjective PRECEDES the noun, is read by the same clauses. Section 6
 %% proves it by taking the order rule away, and section 14 by learning a
-%% second lesson under its own name. What the translator knows on its own
+%% second lesson under its own name.
+%%
+%% AND EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY. A sentence is
+%% read INTO an intermediate representation -- the reader's own shape
+%% with English words in it -- and written FROM it into whichever
+%% language is asked for, so Italian goes into Spanish with no English
+%% sentence written and none read. Section 18 shows one term written into
+%% all three. Three languages are three lessons and not six paths, and a
+%% fourth is a fourth lesson: what travels exactly is the SHAPE, and what
+%% travels through English is the vocabulary, because a lesson says what
+%% a word means only as mean(Word, EnglishWord).
+%%
+%% What the translator knows on its own
 %% is ENGLISH: `is' and `are', `does not' and `do not', `will', `has' and
 %% `had', its pronouns, a plural by -s, `an' before a vowel -- the
 %% library's own language, and the one the lesson is written in.
@@ -287,6 +299,23 @@ main :-
     must('and denied: there are no', S17l, 'There are no dogs.'),
     reason_translate('Maria tiene cuatro perros.', S17m),
     must('`The number "cuatro" means "four"''', S17m, 'Maria has four dogs.'),
+
+    format("~n18. The intermediate representation: Italian into Spanish, and no pair with a path of its own~n", []),
+    reason_learn('Italian is a language. The noun "casa" means "house". The noun "cane" means "dog". The noun "pane" means "bread". The adjective "grande" means "big". The verb "è" means "is". The verb "mangia" means "eats". The feminine article "la" means "the". The masculine article "il" means "the". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine. Every adjective follows the noun. "case" is the plural of "casa". "grandi" is the plural of "grande". "sono" is the plural of "è". "le" is the plural of "la". The word "non" means "not". The word "cosa" means "what".', italian, T18),
+    length(T18, N18), show('a second lesson, eighteen lines, under its own name', N18),
+    reason_languages(L18), show('and the languages this process now has', L18),
+    reason_ir('Il cane non mangia il pane.', italian, IR18),
+    show('one Italian sentence into the IR', IR18),
+    findall(O18, ( member(W18, [italian, english, spanish]), reason_ir_text(IR18, W18, O18) ), Os18),
+    must('THAT ONE TERM, written into all three', Os18,
+         ['Il cane non mangia il pane.', 'The dog does not eat the bread.', 'El perro no come el pan.']),
+    reason_translate('Cosa mangia il cane?', italian, spanish, S18a),
+    must('a question, Italian into Spanish, with no English written', S18a, '¿Qué come el perro?'),
+    reason_translate('¿Qué come el perro?', spanish, italian, S18b),
+    must('and back, which is the same two halves the other way', S18b, 'Cosa mangia il cane?'),
+    reason_translate('Le case non sono grandi.', italian, spanish, S18c),
+    must('a stated plural one side and a ruled one the other', S18c, 'Las casas no son grandes.'),
+    show('so a language is added by adding its lesson', 'reason_learn(Text, Language, Terms)'),
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 

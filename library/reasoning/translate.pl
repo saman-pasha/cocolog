@@ -117,6 +117,36 @@
 %%         so `spanish') or was learned under (reason_learn/3). Any other
 %%         name is a domain_error.
 %%
+%%     reason_translate(+Text, +From, +Into, -Translation)
+%%         BETWEEN TWO LANGUAGES, through the intermediate representation:
+%%         Italian into Spanish with no English sentence written and none
+%%         read. From and Into are languages as Into is above, `english'
+%%         among them, and From may be `any' to let the words vote for
+%%         one. Both lessons must be in the knowledge base this proves
+%%         against, each learned under its own name.
+%%
+%%     reason_languages(-Languages)
+%%         Every language this process can read or write: `english', the
+%%         pivot, and each lesson learned under a name -- with `none' for
+%%         a lesson learned plain. ADDING A LANGUAGE IS ADDING ITS LESSON;
+%%         nothing here is written per pair.
+%%
+%%     reason_ir(+Text, -IRs)
+%%     reason_ir(+Text, +From, -IRs)
+%%         The text into the intermediate representation, sentence by
+%%         sentence: a list of ir(Sentence, Stop) where Sentence is the
+%%         term below and Stop the code the sentence ended on. Fails on a
+%%         sentence it cannot read.
+%%
+%%     reason_ir_text(+IRs, +Into, -Text)
+%%         And back out of it, into any language. So one reading serves
+%%         every target, and a page read once is written as many times as
+%%         there are languages.
+%%
+%%     reason_translate_page(+Text, +From, +Into, -Lines)
+%%         A page between two languages, each sentence its own as
+%%         reason_translate_page/2,3 gives it.
+%%
 %%     reason_untranslated(+Text, -Words)
 %%         The words of the text no lesson gives a meaning, names and
 %%         English's own function words left out; [] when every word is
@@ -137,6 +167,46 @@
 %%         lesson learned plain (reason_learn/1) is the language with no
 %%         name, and reason_ask/2 can question it; a lesson learned under a
 %%         name is the translator's alone.
+%%
+%% ---- THE INTERMEDIATE REPRESENTATION -------------------------------------
+%%
+%% EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY: a sentence is read
+%% INTO the IR on its own language's side and written FROM the IR into
+%% whichever language is asked for, so three languages are three lessons
+%% and not six paths, and a fourth is a fourth lesson.
+%%
+%%     ir(s(Asked, Subject, g(Lexeme, Tense, Aspect, Denied), Complements), Stop)
+%%
+%% is the whole of it -- the same term the reader builds, with the words
+%% in it ENGLISH. `Il cane non mangia il pane.' reads as
+%%
+%%     s(none, np(det(article, the, w(the, lower)), none, [], w(dog, lower), singular),
+%%       g(eats, present, simple, yes),
+%%       [obj(np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular))])
+%%
+%% and that one term writes as `Il cane non mangia il pane.', `The dog
+%% does not eat the bread.' and `El perro no come el pan.'
+%%
+%% WHAT TRAVELS EXACTLY IS THE SHAPE: the tense, the aspect, the denial,
+%% the person, the number, what a question asks for, and every complement
+%% in its place. What travels THROUGH ENGLISH is the vocabulary, and it
+%% can be nothing else -- a lesson says what a word means only as
+%% mean(Word, EnglishWord), so English is the one language every lesson
+%% is written against. A sense English does not separate is a sense the
+%% IR cannot separate, and a word one lesson gives that the other does
+%% not refuses the sentence with that word named, as ever.
+%%
+%% ENGLISH IS THEREFORE ALREADY THE IR, which is what a pivot means: a
+%% sentence read on the English side needs no crossing at all, and its
+%% words stay as the text wrote them (`houses') where a crossed word is
+%% the lexeme its meaning gave (`house', with the number beside it).
+%% Both are English words and both write out the same, because every
+%% consumer takes the lexeme first.
+%%
+%% The two halves are tr_into_ir/4 and tr_from_ir/5, and the crossing
+%% walk tr_cross/3 between them makes exactly the lookups the writer
+%% into English makes -- over the term, once, rather than over the words
+%% coming out of it.
 %%
 %% ---- HOW A SENTENCE IS TRANSLATED ----------------------------------------
 %%
@@ -245,6 +315,103 @@ reason_translate(Text, Into, Out) :-
     tr_pieces(Text, Pieces), Pieces \== [],
     tr_each(Pieces, Way, Outs),
     atomic_list_concat(Outs, ' ', Out).
+
+%% ---- the IR, as a program reaches it -------------------------------------------
+
+%% THE LANGUAGES: `english', the pivot, and every lesson learned under a
+%% name -- plus `none' where a lesson was learned plain. Adding one is
+%% adding its lesson: nothing here is written per pair.
+reason_languages([english|Ls]) :- tr_languages(Ls).
+
+%% a text into the IR, sentence by sentence: IRs is a list of ir(S, Stop)
+%% where S is the sentence term with English words in it and Stop the
+%% code the sentence ended on. From is a language, or `any' to let the
+%% words vote for one. It FAILS on a sentence it cannot read -- use
+%% reason_translate_page/4 for a page.
+reason_ir(Text, IRs) :- reason_ir(Text, any, IRs).
+reason_ir(Text, From, IRs) :-
+    tr_pieces(Text, Pieces), Pieces \== [],
+    tr_each_ir(Pieces, From, IRs).
+
+%% and back out of it, into any language
+reason_ir_text(IRs, Into, Text) :-
+    tr_side_of(Into, _),
+    tr_each_out(IRs, Into, Outs),
+    atomic_list_concat(Outs, ' ', Text).
+
+%% a text from one language into another, through the IR: no English
+%% sentence is written and none is read, so `Il cane mangia il pane' goes
+%% to `El perro come el pan' and the two lessons never meet.
+%% THE TARGET'S LESSON IS SET BEFORE THE TEXT IS READ, because an English
+%% source is read against a lesson -- what English words the reader knows
+%% is what some lesson gives a meaning for -- and when the source is
+%% English the only lesson that matters is the target's.
+reason_translate(Text, From, Into, Out) :-
+    tr_side_of(Into, _),
+    reason_ir(Text, From, IRs),
+    reason_ir_text(IRs, Into, Out).
+
+%% ... a page of it: what translates is translated and what does not is
+%% named, as reason_translate_page/2,3 does
+reason_translate_page(Text, From, Into, Lines) :-
+    tr_side_of(Into, _),
+    tr_pieces(Text, Pieces),
+    findall(Sentence-Out, ( member(Piece-Stop, Pieces), atom_codes(P0, Piece), tr_trim(P0, P1),
+                            atom_codes(StopA, [Stop]), atom_concat(P1, StopA, Sentence),
+                            tr_ir_page_one(Piece, Stop, From, Into, Out) ),
+            Lines).
+
+tr_ir_page_one(Piece, Stop, From, Into, Out) :-
+    (   catch(( tr_read_ir(Piece, Stop, From, S), tr_write_ir(Into, S, Stop, Out0) ), _, fail) -> Out = Out0
+    ;   atom_codes(A, Piece), reason_untranslated(A, Words), Out = refused(Words)
+    ).
+
+tr_each_ir([], _, []).
+tr_each_ir([Piece-Stop|Ps], From, [ir(S, Stop)|Ss]) :-
+    tr_read_ir(Piece, Stop, From, S),
+    tr_each_ir(Ps, From, Ss).
+
+tr_read_ir(Piece, Stop, From, S) :-
+    reason_tokens(Piece, Tokens), tr_words(Tokens, Words0), Words0 \== [],
+    tr_from_side(From, Words0, Side),
+    tr_head_lower(Side, Words0, Words1),
+    tr_expand(Side, Words1, Words),
+    tr_kind(Stop, Kind),
+    tr_into_ir(Side, Kind, Words, S).
+
+tr_each_out([], _, []).
+tr_each_out([ir(S, Stop)|Ss], Into, [Out|Outs]) :-
+    tr_write_ir(Into, S, Stop, Out),
+    tr_each_out(Ss, Into, Outs).
+
+%% the target's lesson is set for EVERY sentence, because reading the one
+%% before it may have set the source's
+tr_write_ir(Into, S, Stop, Out) :-
+    tr_side_of(Into, Side),
+    tr_kind(Stop, Kind),
+    tr_from_ir(Side, Kind, S, Stop, Out).
+
+%% the side a language is read and written on: English is the IR's own,
+%% and a lesson's language is the foreign side with that lesson set
+tr_side_of(english, english) :- !.
+tr_side_of(L, foreign) :- tr_into(L, from_english(L1)), tr_set_language(L1).
+
+%% ... and the side a text is read on when the language was not named:
+%% the words vote, as they do for reason_translate/2
+tr_from_side(any, Words, Side) :- !, tr_way(any, Words, Side, _).
+tr_from_side(english, Words, english) :- !, tr_english_language(Words).
+tr_from_side(L, _, Side) :- tr_side_of(L, Side).
+
+%% READING ENGLISH NEEDS A LESSON NAMED, because the English words the
+%% reader knows are the ones some lesson gives a meaning for. The words
+%% choose it, as they do for reason_translate/2; a text that fits two
+%% lessons equally keeps whichever language is already set, which is what
+%% makes reason_translate/4 exact -- it sets the target's first.
+tr_english_language(Words) :-
+    tr_language(L0),
+    tr_languages(Ls),
+    findall(v(L, F, E), ( member(L, Ls), tr_votes_in(L, Words, F, E) ), Vs),
+    ( tr_winner(Vs, into, L1) -> tr_set_language(L1) ; tr_set_language(L0) ).
 
 reason_learn(Text, Language, Terms) :-
     reason_text(Text, Terms),
@@ -389,11 +556,132 @@ tr_language(L) :- ( catch(nb_getval('$tr_language', L0), _, fail) -> L = L0 ; L 
 %% ---- the whole sentence -----------------------------------------------------------
 
 tr_translate(Words, From, To, Stop, Out) :-
-    nb_setval('$tr_from', From),
-    ( Stop == 63 -> Kind = question ; Kind = statement ),                 % 63 is `?'
-    tr_read(From, Kind, Words, S),
+    tr_kind(Stop, Kind),
+    tr_into_ir(From, Kind, Words, S),
+    tr_from_ir(To, Kind, S, Stop, Out).
+
+tr_kind(63, question) :- !.                                               % 63 is `?'
+tr_kind(_, statement).
+
+%% ---- the intermediate representation ---------------------------------------------
+%%
+%% THE IR IS THE SENTENCE TERM WITH ENGLISH WORDS IN IT, and every
+%% language has the two halves over it: tr_into_ir/4 reads a sentence on
+%% that language's own side and crosses its words, tr_from_ir/5 writes
+%% one out. So a language is added by giving its lesson, not by giving a
+%% pair of languages a path of their own, and any two of them translate:
+%% Italian into the IR, the IR into Spanish, with no English sentence
+%% assembled and none re-parsed.
+%%
+%% What travels exactly is the SHAPE -- s(Asked, Subject, Group,
+%% Complements): the tense, the aspect, the denial, the person, the
+%% number, what a question asks for, and every complement in its place.
+%% What travels through English is the VOCABULARY, and it can be nothing
+%% else: a lesson says what a word means only as mean(Word, EnglishWord),
+%% so English is the one language every lesson is written against. A
+%% sense English does not separate is a sense the IR cannot separate.
+%%
+%% ENGLISH IS THEREFORE ALREADY THE IR, which is what a pivot means: a
+%% sentence read on the English side needs no crossing, and its words
+%% stay as the text wrote them (`houses'), where a crossed word is the
+%% lexeme its meaning gave (`house' with the number beside it). Both are
+%% English words and both write out the same, because every consumer
+%% takes the lexeme first -- tr_noun_lexeme/5 reads either.
+
+%% into the IR: read on this side, then cross every word into English
+tr_into_ir(Side, Kind, Words, S) :-
+    nb_setval('$tr_from', Side),
+    tr_read(Side, Kind, Words, S0),
+    tr_cross(Side, S0, S).
+
+%% out of the IR: the IR's side IS English, so the writer crosses from it
+%% -- into the lesson's language as it always did, and into English by
+%% the identity above
+tr_from_ir(To, Kind, S, Stop, Out) :-
+    nb_setval('$tr_from', english),
     tr_write(To, Kind, S, Outs),
     tr_join(To, Kind, Outs, Stop, Out).
+
+%% ---- into the IR: the crossing walk ----------------------------------------------
+
+%% the same lookups the writer into English makes, made once over the
+%% term rather than over the words coming out of it -- so a sentence read
+%% on the lesson's side becomes the same term an English sentence reads
+%% as, and anything that can write one can write the other
+tr_cross(english, S0, S) :- !, tr_cross_which(S0, S).
+tr_cross(foreign, s(Asked0, Subject0, g(L0, T, A, Neg), Comps0), s(Asked, Subject, g(L, T, A, Neg), Comps)) :-
+    tr_lexeme_across(L0, english, L),
+    tr_cross_asked(Asked0, Asked),
+    tr_cross_subject(Asked, Subject0, Subject),
+    tr_cross_comps(Comps0, Comps).
+
+%% the English side crosses nothing, and normalises one thing: a `which'
+%% question carries the words of its phrase, and the IR carries the phrase
+tr_cross_which(s(Asked0, Subject0, G, Comps), s(Asked, Subject, G, Comps)) :-
+    tr_cross_which_asked(Asked0, Asked),
+    (   Subject0 = asked(_), Asked = subject(Q) -> Subject = asked(Q)
+    ;   Subject = Subject0
+    ).
+
+tr_cross_which_asked(none, none) :- !.
+tr_cross_which_asked(A0, A) :- A0 =.. [Kind, which(Ws, C)], !, tr_np(english, Ws, NP), A =.. [Kind, which_np(NP, C)].
+tr_cross_which_asked(A, A).
+
+%% what is asked, across: the question word by what it asks for, or the
+%% phrase of a `which' read and crossed
+tr_cross_asked(none, none) :- !.
+tr_cross_asked(A0, A) :- A0 =.. [Kind, Q0], tr_cross_q(Kind, Q0, Q), A =.. [Kind, Q].
+
+tr_cross_q(_, which(Ws, C), which_np(NP, C)) :- !, tr_side_here(Side), tr_np(Side, Ws, NP0), tr_cross_np(NP0, NP).
+tr_cross_q(Kind, w(Q, C), w(QT, C)) :- tr_question_across(english, Kind, Q, QT).
+
+%% the subject, across: the question word when the subject is what is
+%% asked (already crossed), `there' as itself, a name as itself, and the
+%% person and number of a pronoun or of nobody kept as they were read
+tr_cross_subject(subject(Q), asked(_), asked(Q)) :- !.
+tr_cross_subject(_, none, none) :- !.
+tr_cross_subject(_, there, there) :- !.
+tr_cross_subject(_, name(W), name(W)) :- !.
+tr_cross_subject(_, null(P, N), null(P, N)) :- !.
+tr_cross_subject(_, pronoun(P, N, w(W, C)), pronoun(P, N, w(T, C))) :- !, tr_pronoun_across(english, subject, w(W, C), P, N, T).
+tr_cross_subject(A, and(S1, S2), and(T1, T2)) :- !, tr_cross_subject(A, S1, T1), tr_cross_subject(A, S2, T2).
+tr_cross_subject(_, with(NP0, PPs0), with(NP, PPs)) :- !, tr_cross_np(NP0, NP), tr_cross_comps(PPs0, PPs).
+tr_cross_subject(_, NP0, NP) :- tr_cross_np(NP0, NP).
+
+%% a phrase, across: the noun's lexeme in English, the determiner as the
+%% word of its kind (never the form -- the number inflects it on the way
+%% out), a number word, and each adjective's first meaning
+tr_cross_np(name(W), name(W)) :- !.
+tr_cross_np(pronoun(w(W, C)), pronoun(w(T, C))) :- !, tr_pronoun_across(english, oblique, w(W, C), _, _, T).
+tr_cross_np(and(N1, N2), and(T1, T2)) :- !, tr_cross_np(N1, T1), tr_cross_np(N2, T2).
+tr_cross_np(np(Det0, Num0, Adjs0, w(NW, NC), Number), np(Det, Num, Adjs, w(Noun, NC), Number)) :-
+    tr_noun_lexeme(english, NW, Number, _, Noun),
+    tr_cross_det(Det0, Det),
+    tr_cross_num(Num0, Num),
+    tr_cross_adjectives(Adjs0, Adjs).
+
+tr_cross_det(none, none) :- !.
+tr_cross_det(det(Kind, DL, w(_, C)), det(Kind, T, w(T, C))) :- tr_word_across(w(DL, lower), english, Kind, T).
+
+tr_cross_num(none, none) :- !.
+tr_cross_num(w(MW, MC), w(MT, MC)) :- tr_word_across(w(MW, MC), english, number, MT).
+
+tr_cross_adjectives([], []).
+tr_cross_adjectives([A0|As0], [A|As]) :- tr_cross_adjective(A0, A), tr_cross_adjectives(As0, As).
+
+tr_cross_adjective(w(W, C), w(and, C)) :- tr_side_here(Side), tr_is(Side, w(W, C), conjunction), !.
+tr_cross_adjective(w(W, C), w(T, C)) :- tr_lexeme_here(W, WL), tr_meanings_of(WL, english, adjective, [T|_]).
+
+%% the complements, across, each in its place
+tr_cross_comps([], []).
+tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_cross_comp(C0, C), tr_cross_comps(Cs0, Cs).
+
+tr_cross_comp(obj(NP0), obj(NP)) :- !, tr_cross_np(NP0, NP).
+tr_cross_comp(adj(Ws0), adj(Ws)) :- !, tr_cross_adjectives(Ws0, Ws).
+tr_cross_comp(pp(w(P, C), NP0), pp(w(PT, C), NP)) :- !, tr_word_across(w(P, lower), english, preposition, PT), tr_cross_np(NP0, NP).
+tr_cross_comp(adv(w(A, C)), adv(w(AT, C))) :- !, tr_word_across(w(A, lower), english, adverb, AT).
+tr_cross_comp(inf(L), inf(LT)) :- !, tr_lexeme_across(L, english, LT).
+tr_cross_comp(opron(w(W, C)), opron(w(T, C))) :- tr_pronoun_across(english, object, w(W, C), _, _, T).
 
 %% ---- reading: a question into the statement's order -------------------------------
 
@@ -942,14 +1230,17 @@ tr_lexeme_across(L, To, LT) :- tr_meanings_of(L, To, verb, [LT|_]).
 %% the subject out, with its person and number for the verb and its noun
 %% for the agreement of what is said of it
 tr_subject_out(To, asked(w(Q, C)), [o(QT, C)], third, singular, none) :- !, tr_question_across(To, subject, Q, QT).
-tr_subject_out(To, asked(which(NPWords, C)), [o(QT, C)|NPOut], third, Number, Noun) :- !,
-    tr_which_word(To, QT), tr_side_here(Side), tr_np(Side, NPWords, NP), tr_np_out(To, NP, NPOut, Noun, Number).
+tr_subject_out(To, asked(which_np(NP, C)), [o(QT, C)|NPOut], third, Number, Noun) :- !,
+    tr_which_word(To, QT), tr_np_out(To, NP, NPOut, Noun, Number).
 tr_subject_out(_, name(W), [o(W, upper)], third, singular, none) :- !.
 tr_subject_out(To, pronoun(P, N, w(W, C)), Outs, P, N, none) :- !,
     (   tr_pronoun_across(To, subject, w(W, C), P, N, T) -> Outs = [o(T, C)]
     ;   To == foreign, W == it -> Outs = []                                % `It rains': the verb says who
     ).
 tr_subject_out(english, null(P, N), [o(T, lower)], P, N, none) :- !, en_subject(T, P, N), !.
+%% a language whose verb says who needs no subject written: what the IR
+%% carries is the person and the number, and the verb group takes them
+tr_subject_out(foreign, null(P, N), [], P, N, none) :- !.
 tr_subject_out(To, and(S1, S2), Outs, third, plural, none) :- !,
     tr_subject_out(To, S1, O1, _, _, _), tr_subject_out(To, S2, O2, _, _, _),
     tr_and_word(To, And), append(O1, [o(And, lower)|O2], Outs).
@@ -960,8 +1251,8 @@ tr_subject_out(To, with(NP, PPs), Outs, third, Number, Noun) :-
 %% what a question word asks for, out: the word itself, or `which' with its phrase
 tr_asked_out(_, none, []) :- !.
 tr_asked_out(_, subject(_), []) :- !.                                    % the subject out already carries it
-tr_asked_out(To, object(which(NPWords, C)), Outs) :- !,
-    tr_which_word(To, QT), tr_side_here(Side), tr_np(Side, NPWords, NP), tr_np_out(To, NP, NPOut, _, _),
+tr_asked_out(To, object(which_np(NP, C)), Outs) :- !,
+    tr_which_word(To, QT), tr_np_out(To, NP, NPOut, _, _),
     tr_marker(To, NP, M), append(M, [o(QT, C)|NPOut], Outs).
 tr_asked_out(To, object(w(Q, C)), Outs) :- tr_asks_person(Q), !,
     tr_question_across(To, object, Q, QT), tr_marker(To, person, M), append(M, [o(QT, C)], Outs).
@@ -972,6 +1263,7 @@ tr_asks_person(Q) :- ( Q == whom ; tr_solve(mean(Q, whom)) ; tr_solve(mean(Q, wh
 
 %% a question word across, by what it asks for: `qué' may mean `what' and
 %% `which', and the object asked is `what'
+tr_question_across(To, _, Q, Q) :- tr_side_here(From), From == To, !.
 tr_question_across(english, Kind, Q, E) :- tr_solve(mean(Q, E)), en_question(E, Kind), !.
 tr_question_across(english, object, Q, whom) :- tr_solve(mean(Q, who)), !.       % who, asked for as the object
 tr_question_across(foreign, _, E, Q) :- tr_solve(mean(Q, E)), !.
@@ -987,6 +1279,7 @@ tr_and_word(foreign, W) :- once(( tr_solve(mean(W, and)) )).
 %% -- as the subject one that may be a subject, as the object one the
 %% lesson puts before the verb, after a preposition one it does not, or
 %% one that serves as a subject too (`con nosotros', `con él')
+tr_pronoun_across(To, _, w(W, _), _, _, W) :- tr_side_here(From), From == To, !.
 tr_pronoun_across(english, subject, w(W, _), P, N, T) :- tr_solve(mean(W, E)), en_subject(E, P, N), !, T = E.
 tr_pronoun_across(english, _, w(W, _), _, _, T) :- tr_tonic_across(W, T), !.
 tr_pronoun_across(english, subject, w(W, _), P, N, T) :- tr_solve(mean(W, _)), en_subject(T, P, N), !.
@@ -1292,6 +1585,16 @@ tr_word_across(w(W, _), To, Class, T) :-
     tr_lexeme(Side, W, L, _), !,
     tr_meanings_of(L, To, Class, [T|_]).
 tr_word_across(w(W, upper), _, _, W).
+
+%% THE SAME SIDE ON BOTH ENDS IS THE WORD ITSELF. Every crossing is a
+%% lookup from the side a sentence was READ on into the side it is
+%% WRITTEN to, and the IR's side is English -- so writing an IR back
+%% into English asks a word for its meaning on its own side, and the
+%% answer is the word. Without this the lookup would go the other way
+%% (mean/2 is the lesson's word to English's) and answer the lesson's
+%% word for it. The three across predicates each get the rule, because
+%% each is a crossing: a meaning, a pronoun and a question word.
+tr_meanings_of(L, To, _, [L]) :- tr_side_here(From), From == To, !.
 
 %% the meanings of a lexeme on the other side -- of the class asked for,
 %% when the lesson classes any of them (the lesson's language has classes;
