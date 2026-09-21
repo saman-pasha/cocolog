@@ -148,6 +148,7 @@
 %%         reason_translate_page/2,3 gives it.
 %%
 %%     reason_untranslated(+Text, -Words)
+%%     reason_untranslated(+Text, +From, -Words)
 %%         The words of the text no lesson gives a meaning, names and
 %%         English's own function words left out; [] when every word is
 %%         known.
@@ -379,7 +380,7 @@ reason_translate_page(Text, From, Into, Lines) :-
 
 tr_ir_page_one(Piece, Stop, From, Into, Out) :-
     (   catch(( tr_read_ir(Piece, Stop, From, S), tr_write_ir(Into, S, Stop, Out0) ), _, fail) -> Out = Out0
-    ;   atom_codes(A, Piece), reason_untranslated(A, Words), Out = refused(Words)
+    ;   atom_codes(A, Piece), reason_untranslated(A, From, Words), Out = refused(Words)
     ).
 
 tr_each_ir([], _, []).
@@ -489,20 +490,48 @@ reason_unlearn(L) :-
     retractall(lesson(L, _)),
     retractall(lesson_language(L)).
 
-reason_untranslated(Text, Words) :-
+reason_untranslated(Text, Words) :- reason_untranslated(Text, any, Words).
+
+%% AND NAMING THE LANGUAGE SKIPS THE VOTE AND THE ENGLISH SIDE WITH IT.
+%% With `any' the words must settle a language, and settling one asks
+%% tr_known_word(english, W) -- which is mean(_, W), the UNBOUND
+%% direction, where the index keys 0 and skips nothing. Named, every
+%% question is asked with the lesson's word bound, and the walk is gone.
+%% The page path knows the language it was given, so it says so.
+reason_untranslated(Text, From, Words) :-
     tr_pieces(Text, Pieces),
     findall(W, ( member(Piece-_, Pieces), reason_tokens(Piece, Tokens), tr_words(Tokens, Ws),
-                 member(w(W, Case), Ws), ( Case \== upper ; en_question(W, _) ),
-                 \+ tr_known_anywhere(Ws, W) ),
+                 tr_unknown_in(From, Ws, W) ),
             Ws0),
     list_to_set(Ws0, Words).
 
+%% THE SIDE THE WORDS SETTLE IS WORKED OUT ONCE FOR THE PIECE, not once
+%% per word. tr_way/4 runs the VOTE -- every language against every word,
+%% both sides -- and asking it inside the per-word loop made this
+%% quadratic in the words with the languages on top: measured over a
+%% vocabulary of two languages, ONE four-word sentence cost 84 383 344
+%% inferences and 64 SECONDS. The vote is one pass now, and the language
+%% it settled is put back before each word is tested, because the
+%% fallback below sets its own while it walks the languages.
+tr_unknown_in(From, Ws, W) :-
+    (   From \== any, catch(tr_side_of(From, S0), _, fail)
+    ->  Side = S0, tr_language(Voted)
+    ;   tr_way(any, Ws, F0, _)
+    ->  Side = F0, tr_language(Voted)
+    ;   Side = none, Voted = none
+    ),
+    tr_languages(Ls),
+    member(w(W, Case), Ws),
+    ( Case \== upper ; en_question(W, _) ),
+    tr_set_language(Voted),
+    \+ tr_known_anywhere(Side, Ls, W).
+
 %% known on the side the words settle, or, when they settle nothing, on
 %% any side of any lesson; English's own function words are known
-tr_known_anywhere(Ws, W) :- en_function(W), !.
-tr_known_anywhere(Ws, W) :- tr_way(any, Ws, From, _), !, tr_known_word(From, W).
-tr_known_anywhere(_, W) :-
-    tr_languages(Ls), member(L, Ls), tr_set_language(L),
+tr_known_anywhere(_, _, W) :- en_function(W), !.
+tr_known_anywhere(Side, _, W) :- Side \== none, !, tr_known_word(Side, W).
+tr_known_anywhere(_, Ls, W) :-
+    member(L, Ls), tr_set_language(L),
     ( tr_known_word(foreign, W) ; tr_known_word(english, W) ), !.
 
 %% into English, or into a language: one learned under that name, or the
