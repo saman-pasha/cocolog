@@ -9,7 +9,33 @@ between quotation marks is MENTIONED and stands for itself, so `The noun
 | file | what |
 |---|---|
 | `spanish.txt` | the Spanish lesson of `test/translate.pl` and `tutorials/library/46-translate.pl`: 176 lines, the vocabulary as facts about words, the grammar as rules over the classes |
-| `italian.txt` | the Italian lesson learned beside it under its own name: 18 lines |
+| `italian.txt` | the Italian lesson learned beside it under its own name: 123 lines -- the articles, the copula and the auxiliary in their forms, the negation, the question words, the pronouns, the possessives, the prepositions and their contractions |
+| `vocabulary/spanish.txt` | the VOCABULARY, written by `build.pl` and never by hand: some eighty thousand lesson lines in the same shapes -- 22 000 words with their genders, plurals, persons and every verb's sixteen forms -- out of Apertium's dictionaries |
+| `vocabulary/italian.txt` | the same for Italian, some sixty thousand lines |
+| `build.pl` | the program that writes `vocabulary/`: `cocolog -s library/reasoning/corpus/build.pl -- spanish` |
+| `raw/` | Apertium's dictionaries and pattern's English verb table, which `tools/corpus/fetch.sh` downloads (pinned to their commits) and which are NOT committed: 30 MB, and what `build.pl` writes from them is |
+
+**THE HAND-WRITTEN FILE IS THE GRAMMAR AND THE WRITTEN ONE IS THE WORDS.**
+`spanish.txt` says what the rules are -- gender by ending, the plural's
+endings, where an adjective stands, the word that denies, the question
+words -- and gives a few words to say them with; `vocabulary/spanish.txt`
+gives twenty-two thousand more in the same sentences, `The feminine noun
+"casa" means "house".`, `"comió" is the past of "come".`, `"amigo" is a
+person.`, and a gender denied of the word whose ending would mislead the
+rule (`"problema" is not feminine.`). A program learns the grammar first
+and then the words -- `library/reasoning/teach.pl` does both, into whatever
+knowledge base the process proves against, which under `--embed` is a
+store every later process finds taught in a second where the learning
+takes six minutes for Spanish and three for Italian -- and `library/reasoning/page.pl` translates a file
+sentence by sentence over it. The vocabulary directory is NOT read by the
+generator: the tagger's lesson shapes draw from the lessons beside it,
+not from eighty thousand lines of dictionary.
+
+The sources, and their licences: `apertium/apertium-eng-spa`,
+`apertium-spa`, `apertium-eng-ita` and `apertium-ita` (GPL-2), the
+bilingual and monolingual dictionaries; `clips/pattern`'s `en-verbs.txt`
+(BSD-3), for the English pasts and participles -ed cannot make; WordNet's
+noun.person by way of `lexicon/class.txt`, for which nouns are persons.
 
 Three things read this directory, and none of them holds a word of it:
 

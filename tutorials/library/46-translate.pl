@@ -47,6 +47,7 @@
 
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/translate)).
+:- use_module(library(reasoning/normalise)).     % normalise_corpus_dir/1, section 16
 
 %% in three parts, because a clause over a page (8 KB) cannot be stored
 lesson(Text) :- lesson_part(1, A), lesson_part(2, B), lesson_part(3, C), atomic_list_concat([A, ' ', B, ' ', C], Text).
@@ -231,6 +232,24 @@ The conjunction "y" means "and".').
 main :-
     section_1, section_2, section_3, section_4, section_5, section_6, section_7, section_8, section_9, section_10,
     section_11, section_12, section_13, section_14, section_15,
+    format("~n16. The vocabulary: eighty thousand lesson lines build.pl wrote from a dictionary, learned the same way~n", []),
+    normalise_corpus_dir(CDir), atom_concat(CDir, '/vocabulary/spanish.txt', VFile),
+    read_file_to_codes(VFile, VCodes), split_string(VCodes, "\n", " \t\r", VLines0),
+    findall(VL, ( member(VS, VLines0), VS \== "", \+ sub_string(VS, 0, 1, _, "#"), atom_string(VL, VS) ), VLines),
+    length(VLines, NV), show('lines in corpus/vocabulary/spanish.txt', NV),
+    findall(VL, ( member(VL, VLines), split_string(VL, "\"", "", Parts), Parts = [_, W16|_], atom_string(WA16, W16), memberchk(WA16, [profesor, 'periódico', hermano, coche, nuevo, hace, hizo, makes, made]) ), Some),
+    length(Some, NS16), show('the lines that mention a few of its words', NS16),
+    forall(( member(VL, Some), sub_atom(VL, 0, _, _, 'The ') ), format("      ~w~n", [VL])),
+    atomic_list_concat(Some, ' ', VText), reason_learn(VText, _),
+    reason_translate('Mi hermano tiene un coche nuevo.', S16a),
+    must('a page''s sentence over the vocabulary', S16a, 'My brother has a new car.'),
+    reason_translate('El profesor lee el periódico.', S16b),
+    must('a noun that is an adjective too is the noun where the sentence puts it', S16b, 'The professor reads the newspaper.'),
+    reason_translate('Tom hizo el pan.', S16c),
+    must('an English past the -ed rule cannot make, stated', S16c, 'Tom made the bread.'),
+    show('to teach the whole of it once', 'cocolog --embed KB -s library/reasoning/teach.pl -- spanish'),
+    show('and translate a page over the store', 'cocolog --embed KB -s library/reasoning/page.pl -- page.txt'),
+
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
 %% Each section its own clause: one clause holding the whole lesson ran over the

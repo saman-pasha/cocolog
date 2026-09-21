@@ -564,6 +564,10 @@ ix_capability('a language lesson as a knowledge base, and translation over it',
                gender, article, 'adjective agreement', 'word order', plural, negation, question, 'past tense', 'future tense',
                'perfect tense', pronoun, possessive, 'prepositional phrase', adverb, 'second language', whom, 'personal a', contraction, 'learn a language', 'mentioned word'],
               ['reasoning/translate'], ['tier-2 library'], local).
+ix_capability('a vocabulary as lesson lines, and a page translated over a taught store',
+              ['vocabulary file', 'dictionary as lesson', apertium, 'teach a language', 'learn the vocabulary',
+               'translate a page', 'translate a file', 'sentence by sentence', 'taught store', 'build the vocabulary'],
+              ['reasoning/teach', 'reasoning/page'], ['tier-2 library'], local).
 ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
 ix_capability('big integers', [bignum, 'big integer', 'arbitrary precision', rsa],

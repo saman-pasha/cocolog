@@ -18,11 +18,12 @@
 :- use_module('test/prelude.pl').
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/translate)).
+:- use_module(library(reasoning/normalise)).     % normalise_corpus_dir/1, for the vocabulary files
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages,
-    questions, rules, refusals, outline,
+    questions, rules, refusals, outline, vocabulary, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -1048,3 +1049,99 @@ outline :-
     check('a definition: the condition with its object', O8, yes),
     yes_no(memberchk('Masculine: a noun that does not end in "a".', Lines), O9),
     check('and negated', O9, yes).
+
+%% ---- the vocabulary build.pl wrote ------------------------------------------------
+%%
+%% corpus/vocabulary/<language>.txt: tens of thousands of lesson lines, in
+%% the shapes above, written by library/reasoning/corpus/build.pl out of
+%% Apertium's dictionaries. A page needs a store teach.pl has taught (a
+%% minute or two); this case learns the lines that mention a handful of
+%% words, which is a second and enough to hold the SHAPES to the reader
+%% and the translator: a noun with its gender and plural, a noun that is
+%% also a verb's form, a verb's sixteen forms, an English past the -ed rule
+%% cannot make, a person, a gender denied of a word its rule would get
+%% wrong, an adverb.
+
+vocabulary :-
+    section('the vocabulary: corpus/vocabulary/<language>.txt, the lesson lines build.pl writes'),
+    normalise_corpus_dir(Dir),
+    atom_concat(Dir, '/vocabulary/spanish.txt', EsFile), atom_concat(Dir, '/vocabulary/italian.txt', ItFile),
+    vocabulary_lines(EsFile, EsLines), length(EsLines, NEs), yes_no(NEs >= 60000, BigEs),
+    check('the Spanish vocabulary is at least sixty thousand lines', BigEs, yes),
+    vocabulary_lines(ItFile, ItLines), length(ItLines, NIt), yes_no(NIt >= 45000, BigIt),
+    check('the Italian one at least forty-five thousand', BigIt, yes),
+    Words = [profesor, 'periódico', gato, negro, duerme, hermano, coche, nuevo, rey, visita, ama,
+             hijo, hija, problema, 'está', hace, makes, muy, casa, perro],
+    findall(L, ( member(L, EsLines), vocabulary_mentions(L, Words) ), Picked),
+    length(Picked, NP), yes_no(NP >= 80, Enough),
+    check('the lines that mention twenty words of it: at least eighty, the verbs carrying sixteen each', Enough, yes),
+    atomic_list_concat(Picked, ' ', Text), reason_learn(Text, Terms), length(Terms, NT),
+    yes_no(NT >= NP, Learned), check('every one of them read by the reader', Learned, yes),
+    yes_no(( memberchk(noun(hermano), Terms), memberchk(masculine(hermano), Terms), memberchk(plural_of(hermanos, hermano), Terms), memberchk(person(hermano), Terms) ), V1),
+    check('a noun: its gender, its plural, a person', V1, yes),
+    yes_no(( memberchk(masculine(problema), Terms), memberchk(neg(feminine(problema)), Terms) ), V2),
+    check('a masculine noun in -a: the gender the rule would get wrong, denied', V2, yes),
+    yes_no(( memberchk(past_of(hizo, hace), Terms), memberchk(past_of(made, makes), Terms), memberchk(participle_of(hecho, hace), Terms) ), V3),
+    check('a verb''s past on both sides, and its participle', V3, yes),
+    reason_translate('El profesor lee el periódico en la casa.', T4),
+    check('a noun that is an adjective too is the noun where the sentence puts it', T4, 'The professor reads the newspaper in the house.'),
+    reason_translate('El gato negro duerme.', T5),
+    check('two words the lesson calls nouns: the first, where adjectives follow the noun', T5, 'The black cat sleeps.'),
+    reason_translate('Mi hermano tiene un coche nuevo.', T6),
+    check('a noun that is a verb''s form too (hermano, to twin) reads as the subject', T6, 'My brother has a new car.'),
+    reason_translate('El rey visitó la ciudad.', T7),
+    check('a preterite the vocabulary states', T7, 'The king visited the city.'),
+    reason_translate('Tom estaba en la casa.', T8),
+    check('and an imperfect, stated as a past as well', T8, 'Tom was in the house.'),
+    reason_translate('Tom hizo el pan.', T9),
+    check('an English past the -ed rule cannot make', T9, 'Tom made the bread.'),
+    reason_translate('Maria ama a tu hija.', T10),
+    check('a person as the object, marked, of a verb the vocabulary gives', T10, 'Maria loves your daughter.'),
+    reason_translate('El problema es grande.', T11),
+    check('the denied gender read', T11, 'The problem is big.'),
+    reason_translate('The problem is big.', T12),
+    check('and written: el, by the masculine fact the denial lets through', T12, 'El problema es grande.'),
+    reason_translate('My brother has a car.', T13),
+    check('into Spanish over the vocabulary', T13, 'Mi hermano tiene un coche.'),
+    reason_untranslated('El rey visitó la ciudad.', U14),
+    check('every word known', U14, []),
+    reason_translate_page('El gato negro duerme. El xyzzy come el pan.', Page),
+    check('a page: each sentence its own, and one refused names its word', Page,
+          ['El gato negro duerme.'-'The black cat sleeps.', 'El xyzzy come el pan.'-refused([xyzzy])]).
+
+vocabulary_lines(File, Lines) :-
+    read_file_to_codes(File, Codes), split_string(Codes, "\n", " \t\r", Ss),
+    findall(L, ( member(S, Ss), S \== "", \+ sub_string(S, 0, 1, _, "#"), atom_string(L, S) ), Lines).
+
+%% a line mentions one of the words: a mention is between quotation marks
+vocabulary_mentions(Line, Words) :-
+    split_string(Line, "\"", "", Parts), vocabulary_odd(Parts, Mentions),
+    member(M, Mentions), atom_string(A, M), memberchk(A, Words), !.
+vocabulary_odd([_, M|Rest], [M|Ms]) :- !, vocabulary_odd(Rest, Ms).
+vocabulary_odd(_, []).
+
+%% ---- the build, when the raw dictionaries are here --------------------------------
+%%
+%% tools/corpus/fetch.sh puts Apertium's dictionaries under corpus/raw/, which
+%% is not committed; where they are, the Spanish vocabulary is built again
+%% into a scratch directory and must come out byte for byte the committed
+%% file -- the build is a function of its inputs, and a rebuild that
+%% differed would be a change nobody made.
+
+build :-
+    section('the build: build.pl over corpus/raw reproduces the committed file'),
+    normalise_corpus_dir(Dir), atom_concat(Dir, '/raw/apertium-spa.spa.dix', Spa),
+    (   exists_file(Spa)
+    ->  scratch(S), atom_concat(S, '/corpus', C), make_directory(C),
+        atom_concat(C, '/vocabulary', CV), make_directory(CV),
+        atom_concat(Dir, '/raw', Raw), atom_concat(C, '/raw', CRaw),
+        shl(['ln -s ', Raw, ' ', CRaw]),
+        cocolog(Exe), sh_join(['COCOLOG_CORPUS=', C, ' ', Exe, ' -s library/reasoning/corpus/build.pl -- spanish 2>&1'], Cmd),
+        proc_run(Cmd, 600000, _, Exit),
+        check('build.pl -- spanish exits 0 over the raw dictionaries', Exit, 0),
+        atom_concat(CV, '/spanish.txt', Built), atom_concat(Dir, '/vocabulary/spanish.txt', Committed),
+        sh_join(['cmp -s ', Built, ' ', Committed], Cmp), sh_exit(Cmp, Same),
+        check('and writes the committed file byte for byte', Same, 0),
+        shl(['rm -rf ', S])
+    ;   format("     (skipped: no corpus/raw/apertium-spa.spa.dix -- sh tools/corpus/fetch.sh)~n", [])
+    ).

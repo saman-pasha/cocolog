@@ -572,20 +572,21 @@ ng_shape(2, Seed, [P-'S', is-'R', Art-'T', N-'O']) :-                      % Ali
     ng_word(proper, Seed, 2, P), ng_word(class, Seed, 3, N), ng_art(N, Art).
 ng_shape(3, Seed, [P-'S', is-'R', not-'N', A-'A']) :-                      % Alice is not happy
     ng_word(proper, Seed, 2, P), ng_word(adj, Seed, 3, A).
-ng_shape(4, Seed, [P-'S', does-'K', not-'N', V-'R', Art-'T', N-'O']) :-    % Alice does not own a car
-    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_word(noun, Seed, 4, N), ng_art(N, Art).
+ng_shape(4, Seed, [P-'S', does-'K', not-'N', V-'R'|Obj]) :-                % Alice does not own a red car
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_word(noun, Seed, 4, N), ng_np(Seed, 12, N, Obj).
 ng_shape(5, Seed, [P-'S', V3-'R']) :-                                      % Alice sleeps
     ng_word(proper, Seed, 2, P), ng_word(vi, Seed, 3, V), normalise_third(V, V3).
-ng_shape(6, Seed, [P-'S', M-'R', V-'R', the-'T', N-'O']) :-                % Alice may use the server
-    ng_word(proper, Seed, 2, P), ng_word(modal, Seed, 3, M), ng_word(vt, Seed, 4, V), ng_word(noun, Seed, 5, N).
+ng_shape(6, Seed, [P-'S', M-'R', V-'R'|Obj]) :-                            % Alice may use the old server
+    ng_word(proper, Seed, 2, P), ng_word(modal, Seed, 3, M), ng_word(vt, Seed, 4, V), ng_word(noun, Seed, 5, N),
+    ng_np_the(Seed, 12, N, Obj).
 ng_shape(7, Seed, [every-'Q', C-'S', is-'R', Art-'T', N-'O']) :-           % Every tenant is a person
     ng_word2(class, Seed, 2, C, N), ng_art(N, Art).
-ng_shape(8, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-            % Every tenant that is not exempt must pay the rent
+ng_shape(8, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-            % Every tenant that is not exempt must pay the full rent
     ng_word(class, Seed, 2, C), ng_word(adj, Seed, 3, A), ng_word(modal, Seed, 4, M),
-    ng_word(vt, Seed, 5, V), ng_word(noun, Seed, 6, N),
+    ng_word(vt, Seed, 5, V), ng_word(noun, Seed, 6, N), ng_np_the(Seed, 12, N, Obj),
     (   ng_coin(Seed, 7, 50)
-    ->  Rest = [not-'N', A-'C', M-'R', V-'R', the-'T', N-'O']
-    ;   Rest = [A-'C', M-'R', V-'R', the-'T', N-'O']
+    ->  Rest = [not-'N', A-'C', M-'R', V-'R'|Obj]
+    ;   Rest = [A-'C', M-'R', V-'R'|Obj]
     ).
 ng_shape(9, Seed, [P-'S', VJ-'R', Q-'O']) :-                               % Alice lives_in Rome
     ng_word(proper, Seed, 2, P), ng_word(vpp, Seed, 3, V-Prep), normalise_third(V, V3),
@@ -599,15 +600,15 @@ ng_shape(12, Seed, [P-'S', is-'R', not-'N', Art-'T', N-'O']) :-            % Ali
     ng_word(proper, Seed, 2, P), ng_word(class, Seed, 3, N), ng_art(N, Art).
 ng_shape(13, Seed, [P-'S', does-'K', not-'N', V-'R']) :-                   % Alice does not sleep
     ng_word(proper, Seed, 2, P), ng_word(vi, Seed, 3, V).
-ng_shape(14, Seed, [every-'Q', C-'S', V3-'R', Art-'T', N-'O']) :-          % Every employee has a badge
+ng_shape(14, Seed, [every-'Q', C-'S', V3-'R'|Obj]) :-                      % Every employee has a blue badge
     ng_word(class, Seed, 2, C), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
-    ng_word(noun, Seed, 4, N), ng_art(N, Art).
-ng_shape(15, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Every tenant that is insured owns a car
+    ng_word(noun, Seed, 4, N), ng_np(Seed, 12, N, Obj).
+ng_shape(15, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Every tenant that is insured owns a red car
     ng_word(class, Seed, 2, C), ng_word(adj, Seed, 3, A), ng_word(vt, Seed, 4, V), normalise_third(V, V3),
-    ng_word(noun, Seed, 5, N), ng_art(N, Art),
+    ng_word(noun, Seed, 5, N), ng_np(Seed, 12, N, Obj),
     (   ng_coin(Seed, 6, 50)
-    ->  Rest = [not-'N', A-'C', V3-'R', Art-'T', N-'O']
-    ;   Rest = [A-'C', V3-'R', Art-'T', N-'O']
+    ->  Rest = [not-'N', A-'C', V3-'R'|Obj]
+    ;   Rest = [A-'C', V3-'R'|Obj]
     ).
 ng_shape(16, Seed, [every-'Q', C-'S', that-'K', is-'K'|Rest]) :-           % Every tenant that is not banned is a member
     ng_word2(class, Seed, 2, C, N), ng_word(adj, Seed, 3, A), ng_art(N, Art),
@@ -646,15 +647,15 @@ ng_shape(22, Seed, [P-'S', does-'K', not-'N', V-'R', Q-'O']) :-           % Alic
 ng_shape(23, Seed, [P-'S', V3-'R'|Rest]) :-                                % Alice rents a small flat in Rome
     ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
     ng_object(Seed, 4, Obj), ng_place(Seed, 8, Pl), append(Obj, Pl, Rest).
-ng_shape(24, Seed, [P-'S', V3-'R', the-'T', N-'O'|Pl]) :-                  % Alice keeps the key at Rome
+ng_shape(24, Seed, [P-'S', V3-'R'|Rest]) :-                                % Alice keeps the old key at Rome
     ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
-    ng_word(noun, Seed, 4, N), ng_place(Seed, 5, Pl).
-ng_shape(25, Seed, [every-'Q', C-'S', V3-'R', Art-'T', N-'O'|Pl]) :-       % Every tenant rents a flat in Rome
+    ng_word(noun, Seed, 4, N), ng_np_the(Seed, 12, N, Obj), ng_place(Seed, 5, Pl), append(Obj, Pl, Rest).
+ng_shape(25, Seed, [every-'Q', C-'S', V3-'R'|Rest]) :-                     % Every tenant rents a small flat in Rome
     ng_word(class, Seed, 2, C), ng_word(vt, Seed, 3, V), normalise_third(V, V3),
-    ng_word(noun, Seed, 4, N), ng_art(N, Art), ng_place(Seed, 5, Pl).
-ng_shape(26, Seed, [P-'S', does-'K', not-'N', V-'R', Art-'T', N-'O'|Pl]) :- % Alice does not rent a flat in Rome
-    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_word(noun, Seed, 4, N), ng_art(N, Art),
-    ng_place(Seed, 5, Pl).
+    ng_word(noun, Seed, 4, N), ng_np(Seed, 12, N, Obj), ng_place(Seed, 5, Pl), append(Obj, Pl, Rest).
+ng_shape(26, Seed, [P-'S', does-'K', not-'N', V-'R'|Rest]) :-              % Alice does not rent a small flat in Rome
+    ng_word(proper, Seed, 2, P), ng_word(vt, Seed, 3, V), ng_word(noun, Seed, 4, N), ng_np(Seed, 12, N, Obj),
+    ng_place(Seed, 5, Pl), append(Obj, Pl, Rest).
 
 ng_place(Seed, Salt, [Prep-'R', Q-'O']) :-
     ng_choose(Seed, Salt, [in, at, near], Prep), Salt1 is Salt + 1, ng_word(place, Seed, Salt1, Q).
@@ -671,8 +672,9 @@ ng_shape(28, Seed, [is-'R', P-'S'|Rest]) :-                                 % Is
     ->  ng_word(adj, Seed, 4, A), Rest = [A-'A']
     ;   ng_word(class, Seed, 4, N), ng_art(N, Art), Rest = [Art-'T', N-'O']
     ).
-ng_shape(29, Seed, [M-'R', P-'S', V-'R', the-'T', N-'O']) :-                % May Alice use the server?
-    ng_word(modal, Seed, 2, M), ng_word(proper, Seed, 3, P), ng_word(vt, Seed, 4, V), ng_word(noun, Seed, 5, N).
+ng_shape(29, Seed, [M-'R', P-'S', V-'R'|Obj]) :-                            % May Alice use the old server?
+    ng_word(modal, Seed, 2, M), ng_word(proper, Seed, 3, P), ng_word(vt, Seed, 4, V), ng_word(noun, Seed, 5, N),
+    ng_np_the(Seed, 12, N, Obj).
 ng_shape(30, Seed, [who-'S'|Rest]) :-                                        % Who owns a car? Who is happy?
     (   ng_coin(Seed, 2, 50)
     ->  ng_word(vt, Seed, 3, V), normalise_third(V, V3), ng_object(Seed, 4, Obj), Rest = [V3-'R'|Obj]
@@ -851,6 +853,44 @@ ng_object(Seed, Salt, [Art-'T'|Obj]) :-
     ng_word(noun, Seed, Salt, N), Salt1 is Salt + 1,
     ng_adjectives(Seed, Salt1, As), append(As, [N-'O'], Obj),
     ( As = [A-_|_] -> ng_art(A, Art) ; ng_art(N, Art) ).
+
+%% the noun phrase of an object in the nine verb-object shapes that used
+%% to write `Art-'T', N-'O' themselves: the determiner, the adjectives,
+%% the noun -- on a salt of the shape's own, so a shape that gains it
+%% keeps every other word it drew. Until 1.2.42 only the four shapes that
+%% call ng_object carried an adjective, so an adjective object followed
+%% by a comma filler was made 352 times in 32768 pairs against 4120 bare
+%% ones -- and the tagger read `Zed owns a red car, obviously' with `red'
+%% as D: in 20 to 69 of 128 such sentences on 1.2.41's model, in 128 of
+%% 128 on the first model trained after the Italian lesson grew. The
+%% share the widened shapes give was MEASURED, 500 steps, over a grid of
+%% 384 such sentences and the 300 evaluation pairs (CLAUDE.md, 1.2.42):
+%%
+%%   none / one / two          A-tokens   `T A O , D'   grid    sentences
+%%   thirds, as ng_object      24 643     774           20      0.8300
+%%   1/2 / 1/3 / 1/6           ~21 000    780           207     0.8867
+%%   2/3 / 1/3 / never         18 619     791           0, 11   0.8600, 0.8567 (two seeds)
+%%
+%% -- the count of the shape is the same in all three and the outcome is
+%% not, so the network learns it by the luck of the minimum and the share
+%% that gave it is kept. A word's class as an input feature is the durable
+%% fix, and it is proposed there, not done here.
+ng_np(Seed, Salt, N, [Art-'T'|Obj]) :-
+    ng_adjectives_some(Seed, Salt, As), append(As, [N-'O'], Obj),
+    ( As = [A-_|_] -> ng_art(A, Art) ; ng_art(N, Art) ).
+ng_np_the(Seed, Salt, N, [the-'T'|Obj]) :-
+    ng_adjectives_some(Seed, Salt, As), append(As, [N-'O'], Obj).
+
+%% the widened shapes' share: none in one object of two, one in one of
+%% three, two in one of six -- lighter than shape 0's thirds, and the one
+%% share of three measured that a training learns the shape from (the
+%% table in ng_np's comment)
+ng_adjectives_some(Seed, Salt, As) :-
+    ng_pick(Seed, Salt, 6, K), Salt1 is Salt + 1,
+    (   K < 3 -> As = []
+    ;   K < 5 -> ng_word(adj, Seed, Salt1, A), As = [A-'A']
+    ;   ng_word2(adj, Seed, Salt1, A, B), As = [A-'A', B-'A']
+    ).
 
 %% ---- the transforms -----------------------------------------------------------------
 %% Each takes and gives st(Pairs, CleanSentences): the pairs with their

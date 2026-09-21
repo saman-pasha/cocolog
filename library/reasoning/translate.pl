@@ -98,6 +98,13 @@
 %%         English's own function words left out; [] when every word is
 %%         known.
 %%
+%%     reason_translate_page(+Text, -Lines)
+%%     reason_translate_page(+Text, +Into, -Lines)
+%%         A page: every sentence of the text on its own, as a list of
+%%         Sentence-Translation, or Sentence-refused(Words) for one this
+%%         does not translate, Words as reason_untranslated/2 names them.
+%%         The page is never refused whole for one sentence in it.
+%%
 %%     reason_learn(+Text, +Language, -Terms)
 %%         reason_text/2, and every term asserted UNDER THE LANGUAGE, as
 %%         lesson(Language, Term): the translator proves them as if they
@@ -174,6 +181,32 @@
 :- dynamic lesson/2.
 
 %% ---- the surface -----------------------------------------------------------
+
+%% A PAGE, sentence by sentence: what translates is translated and what
+%% does not is named with the words no lesson knows, so a page is never
+%% refused whole for one sentence in it. Lines is a list of Sentence-Out
+%% where Out is the translation, or refused(Words) -- Words as
+%% reason_untranslated/2 gives them, [] when every word was known and the
+%% shape was not one this translates. Into is as in reason_translate/3,
+%% or `any'.
+reason_translate_page(Text, Lines) :- reason_translate_page(Text, any, Lines).
+reason_translate_page(Text, Into, Lines) :-
+    ( Into == any -> Way = any ; tr_into(Into, Way) ),
+    tr_pieces(Text, Pieces),
+    findall(Sentence-Out, ( member(Piece-Stop, Pieces), atom_codes(P0, Piece), tr_trim(P0, P1),
+                            atom_codes(StopA, [Stop]), atom_concat(P1, StopA, Sentence),
+                            tr_page_one(Piece, Stop, Way, Out) ),
+            Lines).
+
+tr_page_one(Piece, Stop, Way, Out) :-
+    (   catch(tr_each([Piece-Stop], Way, [Out0]), _, fail) -> Out = Out0
+    ;   atom_codes(A, Piece), reason_untranslated(A, Words), Out = refused(Words)
+    ).
+
+tr_trim(A, T) :- atom_codes(A, Cs), tr_trim_codes(Cs, Ds), atom_codes(T, Ds).
+tr_trim_codes(Cs, Ds) :- append(Sp, Rest, Cs), \+ ( Sp = [C|_], C > 32 ), Rest = [C0|_], C0 > 32, !, tr_trim_end(Rest, Ds).
+tr_trim_codes(Cs, Cs).
+tr_trim_end(Cs, Ds) :- append(Ds, Sp, Cs), \+ ( member(C, Sp), C > 32 ), ( Ds = [] ; last(Ds, L), L > 32 ), !.
 
 reason_translate(Text, Out) :-
     tr_pieces(Text, Pieces), Pieces \== [],
@@ -384,7 +417,19 @@ en_np_words([w(P, C)|Rest], [w(P, C)], Rest) :- en_subject(P, _, _), !.
 en_np_words([w(W, upper)|Rest], [w(W, upper)], Rest) :- \+ tr_known_word(english, W), !.
 en_np_words(Words, NP, Rest) :-
     append(NP0, Rest0, Words), NP0 \== [], last(NP0, N), tr_is(english, N, noun), !,
-    en_np_pps(Rest0, PPs, Rest), append(NP0, PPs, NP).
+    en_np_more(Rest0, More, Rest1), append(NP0, More, NP1),
+    en_np_pps(Rest1, PPs, Rest), append(NP1, PPs, NP).
+
+%% ... and on over the NOUNS after that noun that are no verb's form, while
+%% a verb still follows: `the black cat sleeps', where `black' is a noun
+%% too by its translation and `cat' would have been left to the verb; not
+%% `the cat black' of a fronted `Is the cat black?', which has no verb
+%% left after it
+en_np_more([W|Ws], [W|More], Rest) :-
+    tr_is(english, W, noun), W = w(V, _), \+ en_verb_form(V, _, _), \+ en_fronts(V),
+    member(w(V2, _), Ws), ( en_fronts(V2) ; en_verb_form(V2, _, _) ), !,
+    en_np_more(Ws, More, Rest).
+en_np_more(Ws, [], Ws).
 en_np_words(Words, NP, Rest) :- append(NP, Rest, Words), NP \== [], Rest = [w(V, _)|_], ( en_fronts(V) ; en_verb_form(V, _, _) ), !.
 en_np_words(Words, Words, []).
 
@@ -424,11 +469,26 @@ fo_lone_subject([w(W, upper)]) :- \+ tr_known_word(foreign, W), !.
 fo_lone_subject([w(W, _)]) :- tr_subject_pronoun(foreign, W, _, _).
 
 %% the noun phrase at the head: a name, a pronoun, or a determiner and its
-%% content up to the verb group
+%% content up to the verb group. THE SHAPE IS TRIED BEFORE THE CUT: a
+%% determiner, adjectives, a noun and adjectives with the verb group right
+%% after, and only then the shortest head the verb group follows -- because
+%% with a vocabulary of thousands of verbs a noun is often a verb's form too
+%% (`hermano' is the first person of `hermana', to twin), and the shortest
+%% cut put the verb at `hermano' and left `Mi' as the subject.
 fo_np_words([w(W, upper)|Rest], [w(W, upper)], Rest) :- \+ tr_known_word(foreign, W), !.
 fo_np_words([w(P, C)|Rest], [w(P, C)], Rest) :- tr_subject_pronoun(foreign, P, _, _), !.
+fo_np_words(Words, NP, Rest) :-
+    Words = [w(D, _)|_], tr_determiner(foreign, w(D, lower), _, _),
+    append(NP, Rest, Words), NP = [_|Content], Content \== [],
+    tr_np_shape(foreign, Content), tr_group(foreign, Rest, [], _, _, _), !.
 fo_np_words(Words, NP, Rest) :- append(NP, Rest, Words), NP \== [], tr_group(foreign, Rest, [], _, _, _), !.
 fo_np_words(Words, Words, []).
+
+%% adjectives, one noun, adjectives: the content of a phrase
+tr_np_shape(Side, Content) :-
+    append(Before, [N|After], Content), tr_is(Side, N, noun),
+    forall(member(A, Before), tr_is(Side, A, adjective)),
+    forall(member(A, After), tr_is(Side, A, adjective)), !.
 
 %% a verb that came first takes its subject from after it: a bare adjective
 %% right after the verb is the complement and the subject follows it
@@ -476,10 +536,12 @@ fo_phrase_starts(R) :- ( tr_determiner(foreign, R, _, _) ; tr_is(foreign, R, pre
 %% before the verb taken out), the complements after it
 tr_read_statement(Side, Words0, Asked, s(Asked, Subject, g(L, T, A, Neg), Comps)) :-
     tr_negation(Side, Words0, Words, Neg),
-    tr_group(Side, Words, Before, g(L, T, A, FP, FN), _, After), !,
+    tr_group_from(Side, Words, Before, g(L, T, A, FP, FN), After),
     tr_split_clitics(Side, Before, Asked, FP, FN, SubjectWords, Clitics),
     tr_subject(Side, Asked, SubjectWords, FP, FN, Subject),
-    tr_complements(Side, After, Comps0),
+    tr_complements(Side, After, Comps0), !,                   % the cut once the WHOLE statement read: `house'
+                                                              % is a verb's form, and `The house is big' must
+                                                              % go on to the group at `is' when `is big' is no complement
     findall(opron(W), member(W, Clitics), Cs),
     append(Cs, Comps0, Comps).
 
@@ -528,6 +590,17 @@ tr_subject_shape(_, Words, _, _) :-
     ;   Words = [D, _|_], ( tr_determiner(foreign, D, _, _) ; tr_is(foreign, D, number) )
     ).
 
+%% the verb group at the first place one starts WHOSE SUBJECT READS, for a
+%% statement: with a vocabulary of thousands of verbs a noun is often a
+%% verb's form too -- `hermano' is the first person of `hermana', to twin
+%% -- and the first place a group starts in `Mi hermano tiene un coche' is
+%% `hermano', which leaves `Mi' as the subject. The place is tried in
+%% order and the reader goes on to the next when nothing before it is a
+%% subject
+tr_group_from(Side, Words, Before, Group, After) :-
+    append(Before, Rest, Words),
+    tr_group_at(Side, Rest, Group, After).
+
 %% the verb group: at the first place one starts, the words before it and after it
 tr_group(Side, Words, Before, Group, GroupWords, After) :-
     append(Before, Rest, Words),
@@ -546,8 +619,11 @@ tr_group_at(english, [w(V, _)|R], g(L, T, simple, third, singular), R) :- en_ver
 %% the lesson's language: an auxiliary's form and a participle; a verb's form
 tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
     tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
+%% -- and NOT cut on the first reading: `sono' is the first person of `è'
+%% and the plural of it, and which one it is in `Le case sono grandi' the
+%% subject decides, so the statement reader backtracks into the next
 tr_group_at(foreign, [w(V, _)|R], g(L, T, simple, Person, N), R) :-
-    tr_form(V, L, N, T, Person), tr_class_of(L, verb), !.
+    tr_form(V, L, N, T, Person), tr_class_of(L, verb).
 
 %% the subject: what was asked, a pronoun, a name, two joined, a phrase --
 %% or, in the lesson's language, nobody, and then the pronoun the verb's
@@ -583,8 +659,12 @@ tr_np(Side, Words0, np(Det, Num, Adjs, Noun, Number)) :-
     ( Words1 = [M|Ws2], tr_is(Side, M, number), Ws2 \== [] -> Num = M, Words2 = Ws2 ; Num = none, Words2 = Words1 ),
     Words2 \== [],
     tr_noun(Words2, Side, Noun, Adjs),
+    \+ tr_determiner(Side, Noun, _, _),                  % `The' alone is no phrase, whatever `el' means
     forall(member(A, Adjs), tr_adj_word(Side, A)),
-    Noun = w(NW, _), tr_lexeme(Side, NW, _, Number), !.
+    Noun = w(NW, _),
+    %% the noun's number by the reading of it that IS a noun: `houses' is a
+    %% verb's form too (to house), and known so before it is a plural
+    ( tr_lexeme(Side, NW, NL, Number), tr_class(Side, NL, noun) -> true ; tr_lexeme(Side, NW, _, Number) ), !.
 
 %% a word that may be an adjective in a phrase: known, and no preposition,
 %% pronoun or verb -- or the `and' between two
@@ -602,11 +682,15 @@ tr_determiner(english, w(P, _), P, possessive) :- en_possessive(P).
 tr_determiner(foreign, w(W, _), L, article) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, article).
 tr_determiner(foreign, w(W, _), L, possessive) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, possessive).
 
-%% the noun of a phrase's content
+%% the noun of a phrase's content: the one word the lesson calls a noun;
+%% none, or SEVERAL -- `el gato negro', where a vocabulary of any size calls
+%% `negro' a noun as well as an adjective -- by position among them, the
+%% first where adjectives follow the noun and the last otherwise
 tr_noun(Words, Side, Noun, Adjs) :-
     findall(W, ( member(W, Words), tr_is(Side, W, noun) ), Nouns),
     (   Nouns = [Noun] -> true
     ;   Nouns == [] -> tr_noun_by_position(Words, Side, Noun)
+    ;   tr_noun_by_position(Nouns, Side, Noun)
     ),
     select(Noun, Words, Adjs).
 
@@ -796,8 +880,7 @@ tr_np_out(To, pronoun(w(W, C)), [o(T, C)], none, singular) :- !, tr_pronoun_acro
 tr_np_out(To, and(N1, N2), Outs, none, plural) :- !,
     tr_np_out(To, N1, O1, _, _), tr_np_out(To, N2, O2, _, _), tr_and_word(To, And), append(O1, [o(And, lower)|O2], Outs).
 tr_np_out(To, np(Det, Num, Adjs, w(NW, NC), Number), Outs, Noun, Number) :-
-    tr_lexeme_here(NW, L),
-    tr_meanings_of(L, To, noun, [Noun|_]),
+    tr_noun_lexeme(To, NW, Number, L, Noun),
     tr_inflect(To, noun, Noun, Number, NounForm),
     tr_adjectives_out(To, Adjs, Noun, Number, AdjOuts),
     tr_order(To, o(NounForm, NC), AdjOuts, Content),
@@ -806,6 +889,17 @@ tr_np_out(To, np(Det, Num, Adjs, w(NW, NC), Number), Outs, Noun, Number) :-
     append(DetOut, NumOut, Front), append(Front, Content, Outs).
 
 tr_lexeme_here(W, L) :- tr_side_here(Side), tr_lexeme(Side, W, L, _), !.
+
+%% the phrase's noun as a lexeme, and its noun on the other side: the
+%% reading of the word that is a noun in the phrase's number, with a
+%% meaning the lesson calls a noun -- `houses' is a verb's form too (to
+%% house, `aloja'), and a word known as one is known as itself first
+tr_noun_lexeme(To, NW, Number, L, Noun) :-
+    tr_side_here(Side),
+    (   tr_lexeme(Side, NW, L0, Number), tr_meanings_of(L0, To, noun, [N0|_]), ( To == foreign -> tr_class_of(N0, noun) ; true )
+    ->  L = L0, Noun = N0
+    ;   tr_lexeme_here(NW, L), tr_meanings_of(L, To, noun, [Noun|_])
+    ).
 tr_side_here(Side) :- ( catch(nb_getval('$tr_from', S0), _, fail) -> Side = S0 ; Side = english ).
 
 %% each adjective as a(Lexeme, Out); an `and' among them as the conjunction
@@ -988,8 +1082,20 @@ tr_meanings_of(L, To, Class, Ms) :-
     findall(M, tr_meaning(From, L, M), Ms0), Ms0 \== [],
     (   To == foreign, findall(M, ( member(M, Ms0), tr_class_of(M, Class) ), Ms1), Ms1 \== []
     ->  Ms = Ms1
+    ;   To == english, tr_english_shaped(Class, Ms0, Ms1), Ms1 \== []
+    ->  Ms = Ms1
     ;   Ms = Ms0
     ).
+
+%% English words are what their translations are, but their shape says
+%% something too: a verb a lesson gives is a third person (`eats',
+%% `visits'), so in a verb's place a meaning shaped like one comes first,
+%% and in a noun's or an adjective's place one that is not -- `visita' means
+%% visit and visits, and which one is where the word stands
+tr_english_shaped(verb, Ms0, Ms) :- !, findall(M, ( member(M, Ms0), tr_third_shaped(M) ), Ms).
+tr_english_shaped(Class, Ms0, Ms) :- memberchk(Class, [noun, adjective]), !, findall(M, ( member(M, Ms0), \+ tr_third_shaped(M) ), Ms).
+tr_english_shaped(_, _, []).
+tr_third_shaped(M) :- ( M == is ; M == has ; reason_base(M, B), B \== M ), !.
 
 %% the noun's gender first, none next, the first candidate last
 tr_agree(english, [M|_], _, M) :- !.
@@ -1001,11 +1107,14 @@ tr_agree(foreign, Ms, Noun, T) :-
     ).
 
 %% feminine, masculine or none -- feminine asked first, so a word the
-%% lesson said was feminine is, whatever a rule adds
+%% lesson said was feminine is, whatever a rule adds; and a denial wins
+%% over a rule, so `"problema" is not feminine' beside `Every noun that
+%% ends in "a" is feminine' makes the word what the lesson's masculine
+%% says of it, the way `The pronoun "él" does not precede the verb' does
 tr_gender(W, G) :-
     (   W == none -> G = none
-    ;   tr_solve(feminine(W)) -> G = feminine
-    ;   tr_solve(masculine(W)) -> G = masculine
+    ;   tr_holds(feminine(W)) -> G = feminine
+    ;   tr_holds(masculine(W)) -> G = masculine
     ;   G = none
     ).
 
@@ -1018,8 +1127,29 @@ tr_gender(W, G) :-
 tr_lexeme(Side, W, W, singular) :- tr_known(Side, W).
 tr_lexeme(english, an, a, singular) :- tr_known(english, a).
 tr_lexeme(Side, W, S, plural) :- tr_solve(plural_of(W, S)), tr_known(Side, S).
-tr_lexeme(foreign, W, S, plural) :- tr_solve(mean(S, _)), tr_rule_plural(S, W).
+tr_lexeme(foreign, W, S, plural) :- tr_rule_stem(W, plural, S), tr_known(foreign, S), tr_rule_plural(S, W).
 tr_lexeme(english, W, S, plural) :- reason_base(W, S), S \== W, tr_known(english, S).
+
+%% THE FORM IS TAKEN APART, NEVER MATCHED AGAINST EVERY WORD. A rule-made
+%% form -- `casas' by `takes "s" in the plural', `comerá' by `takes "rá" in
+%% the future' -- used to be found by walking every lexeme of the lesson
+%% and inflecting each to see whether it came out as the form: 3 000
+%% words of vocabulary made one sentence cost 2.8 s, and the cost grew
+%% with the lesson. The endings a rule can add are the few the rules
+%% name, so the form loses each of them in turn and the stem left is
+%% looked up, which is an indexed call whatever the lesson's size; the
+%% rule is then checked of that stem as before.
+tr_rule_stem(W, T, S) :- tr_endings(T, Es), member(E, Es), atom_concat(S, E, W), S \== ''.
+
+%% the endings the lesson's rules give for a tense or the plural: the
+%% heads of its take_in/3 rules, plain or under the language
+tr_endings(T, Es) :-
+    tr_language(L),
+    (   L == none
+    ->  findall(E, catch(clause(take_in(_, E, T), _), error(_, _), fail), Es0)
+    ;   findall(E, ( tr_solve_plain(lesson(L, (take_in(_, E, T) :- _))) ; tr_solve_plain(lesson(L, take_in(_, E, T))) ), Es0)
+    ),
+    findall(E, ( member(E, Es0), atom(E) ), Es1), sort(Es1, Es).
 
 tr_known(foreign, W) :- tr_solve(mean(W, _)), !.
 tr_known(english, E) :- tr_solve(mean(_, E)), !.
@@ -1053,10 +1183,12 @@ tr_form_nt(W, L, plural, T) :- tr_solve(plural_of(W, F)), tr_tensed(F, T, F0), t
 %% a tense form of a present form: stated, or made by an ending rule
 tr_tensed(W, past, F) :- tr_solve(past_of(W, F)).
 tr_tensed(W, future, F) :- tr_solve(future_of(W, F)).
-tr_tensed(W, T, F) :- ( T = past ; T = future ), tr_present_form(F), tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, W).
+tr_tensed(W, T, F) :- ( T = past ; T = future ), tr_rule_stem(W, T, F), tr_present_form(F), tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, W).
 
-%% the lesson's verbs in either number, for a rule to make a tense of
-tr_present_form(F) :- tr_solve(mean(S, _)), tr_class_of(S, verb), ( F = S ; tr_number_form(S, plural, F) ).
+%% a present form of one of the lesson's verbs, in either number, for a
+%% rule to have made a tense of: the lexeme, or a plural of one
+tr_present_form(F) :- tr_known(foreign, F), tr_class_of(F, verb), !.
+tr_present_form(F) :- tr_lexeme(foreign, F, S, plural), tr_class_of(S, verb), !.
 
 tr_rule_plural(S, P) :- tr_solve(take_in(S, E, plural)), atom(E), atom_concat(S, E, P).
 
@@ -1088,7 +1220,10 @@ tr_person_form(F, _, F).
 %% rule gives, and in English a noun by -s, -es or -ies and anything else
 %% unchanged. No rule, no plural: the sentence is refused.
 tr_inflect(_, _, S, singular, S) :- !.
-tr_inflect(To, _, S, plural, P) :- tr_solve(plural_of(P0, S)), !, P = P0.
+%% a plural the lesson stated -- but not, in English, of a word that is the
+%% LESSON's too: `"redes" is the plural of "red"' is about the Spanish net,
+%% and English's red is red in the plural
+tr_inflect(To, _, S, plural, P) :- tr_solve(plural_of(P0, S)), \+ ( To == english, tr_known(foreign, S) ), !, P = P0.
 tr_inflect(foreign, _, S, plural, P) :- !, tr_rule_plural(S, P).
 tr_inflect(english, noun, S, plural, P) :- !, reason_third(S, P).
 tr_inflect(english, _, S, plural, S).
