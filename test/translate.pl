@@ -858,8 +858,10 @@ languages :-
     reason_learn('Italian is a language. The noun "casa" means "house". The noun "cane" means "dog". The noun "pane" means "bread". The adjective "grande" means "big". The verb "è" means "is". The verb "mangia" means "eats". The feminine article "la" means "the". The masculine article "il" means "the". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine. Every adjective follows the noun. "case" is the plural of "casa". "grandi" is the plural of "grande". "sono" is the plural of "è". "le" is the plural of "la". The word "non" means "not". The word "cosa" means "what".', italian, Ts),
     length(Ts, N1),
     check('eighteen lines, thirty terms', N1, 30),
-    yes_no(lesson(italian, mean(casa, house)), L2),
-    check('asserted as lesson(italian, Term)', L2, yes),
+    yes_no(reason_lesson(italian, mean(casa, house)), L2),
+    check('held under the language: reason_lesson/2 answers for it', L2, yes),
+    yes_no(reason_lesson(spanish, mean(casa, house)), L2b),
+    check('and the plain lesson is not a named one', L2b, no),
     truth(plural_of(case, casa), T3),
     check('and not as a plain fact: the plain lesson knows no Italian', T3, unknown),
     reason_translate('La casa è grande.', E4),
@@ -888,7 +890,9 @@ languages :-
     check('il cane mangia il pane', I12, 'Il cane mangia il pane.'),
     reason_translate('The dog eats the bread and the milk.', S12),
     check('milk is Spanish''s alone: the words decide', S12, 'El perro come el pan y la leche.'),
-    retractall(lesson(italian, _)),
+    reason_unlearn(italian),
+    yes_no(reason_lesson(italian, mean(casa, house)), L13a),
+    check('reason_unlearn/1 takes the whole lesson out', L13a, no),
     reason_translate('The house is big.', S13),
     check('the Italian lesson forgotten: Spanish again', S13, 'La casa es grande.').
 
@@ -961,7 +965,7 @@ ir :-
     reason_ir_text(IR16, spanish, S16),
     check('and written as many times as there are languages', S16, 'El perro come el pan. Las casas son grandes.'),
 
-    retractall(lesson(italian, _)).
+    reason_unlearn(italian).
 
 %% ---- the lesson questioned ---------------------------------------------------------
 

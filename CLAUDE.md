@@ -3006,6 +3006,66 @@ language is already set on a tie. The target's lesson is re-set before EVERY
 sentence is written, because reading the one before it may have set the
 source's.
 
+### And a named lesson had no index, which only a vocabulary could show
+
+**THE IR MADE TWO LANGUAGES IN ONE STORE WORTH HAVING, AND THAT IS WHAT
+FOUND IT.** `reason_learn/3` asserted `lesson(Language, Term)`, so the
+FIRST ARGUMENT of every row was the atom `spanish` or `italian` -- and
+cocolog's first-argument index keys on exactly that, which among a
+language's own rows discriminates nothing. A plain lesson asserts
+`mean(casa, house)` itself, where the index keys on `casa`. Nobody saw it
+for eleven versions because a hand lesson is three hundred terms and a
+walk over three hundred is free.
+
+**MEASURED, ONE SENTENCE, SAME BOX AND SAME VOCABULARY:**
+
+| the store | one sentence |
+|---|---|
+| plain, one language (`reason_learn/2`) | **0.348 s** |
+| named, two languages, 280 933 terms | **over 4 minutes**, killed |
+
+-- and six sentences through `page.pl` over the named store ran **7 min 35 s
+of which 7 min 34 s was utime and 0.17 s was stime**, `state R` throughout
+with RSS flat at 494 MB from the second minute on. All user CPU, nothing in
+the kernel, no growth: not I/O, not fetching, just the walk. **The
+`utime`/`stime` split named it again**, which is the third time in this file
+that free pair has settled a question somebody was about to answer with a
+rebuild.
+
+**A FACT NOW GOES IN THE LANGUAGE'S OWN NAMESPACE AND A RULE STAYS WHERE IT
+WAS.** `'spanish:mean'(casa, house)` is what a named lesson asserts, so the
+index sees `casa` exactly as a plain lesson's does; `tr_lesson/2` puts the
+prefix on before it calls and `tr_namespaced/3` is the whole of it.
+**The rules must NOT become real clauses**, which is the one thing that had
+to be got right: a rule stored as `'spanish:feminine'(X) :- noun(X),
+end_in(X, a)` would have its BODY resolved by the engine against the plain
+knowledge base, where `noun/1` means something else -- so rules stay in
+`lesson(L, (H :- B))` and `tr_body/2` goes on proving each body goal through
+the lesson. A lesson has a few dozen rules against a hundred thousand facts,
+so `lesson/2` is now a short walk and nothing else.
+
+**AND IT BUYS A SECOND THING THE INDEX WAS NOT THE POINT OF: the STORE fetch
+is per predicate.** `cocolog::clauses` is indexed `(kb, name, arity)` and the
+fetch hook is asked once per predicate, so one `lesson/2` holding 280 933
+rows was ONE fetch of everything before the first sentence could be read.
+Namespaced, a sentence fetches the handful of predicates it actually asks
+for.
+
+**`atomic_list_concat/2` CANNOT SPLIT, and the prefix has to come off.**
+The first draft wrote `atomic_list_concat([L, ':', Name], N)` with `N` bound
+and `Name` free, reading this file's own note about a partial list splitting
+-- which is about `atomic_list_concat/3`, where the SEPARATOR is what makes a
+split well defined. `atom_concat/3`'s `(+,-,+)` mode is the one that takes a
+known prefix off, and `tr_prefix/2` is where it lives.
+
+**NOTHING OUTSIDE THE FILE NAMES A ROW SHAPE NOW**, which is what let the
+shape change at all: `reason_lesson(?Language, ?Term)` reads a named lesson
+and `reason_unlearn(+Language)` forgets one, where `test/translate.pl` and
+lesson 46 used to write `lesson(italian, ...)` and `retractall(lesson(italian,
+_))`. A registry carries what unlearning needs -- `lesson_language/1` and
+`lesson_predicate(Name, Language, Arity)`, the latter keyed on the NAME so
+that its own lookup is indexed too.
+
 **AND A CASE THAT TRAINS MUST GIVE THE HEAP BACK, or it dies in whatever
 runs last.** `test/tagger.pl` was killed by this box's 16 GB three times
 running -- at 206, 195 and 232 s, with the training itself finishing at

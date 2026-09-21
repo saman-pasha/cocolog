@@ -534,7 +534,9 @@ section_14 :-
     format("~n14. A second lesson under its own name: reason_learn/3, and the words vote~n", []),
     reason_learn('Italian is a language. The noun "casa" means "house". The noun "cane" means "dog". The noun "pane" means "bread". The adjective "grande" means "big". The verb "è" means "is". The verb "mangia" means "eats". The feminine article "la" means "the". The masculine article "il" means "the". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine. Every adjective follows the noun. "case" is the plural of "casa". "grandi" is the plural of "grande". "sono" is the plural of "è". "le" is the plural of "la". The word "non" means "not".', italian, Ts),
     length(Ts, N14),
-    must('seventeen lines, twenty-eight terms, asserted as lesson(italian, Term)', N14, 28),
+    must('seventeen lines, twenty-eight terms, held under the language''s own name', N14, 28),
+    ( reason_lesson(italian, mean(casa, house)) -> IT0 = yes ; IT0 = no ),
+    must('reason_lesson/2 answers for what it holds', IT0, yes),
     reason_translate('Le case non sono grandi.', IT1),
     must('è, sono, non and le are Italian''s alone: from Italian', IT1, 'The houses are not big.'),
     reason_translate('Los perros no comen el pan.', IT2),
@@ -547,7 +549,9 @@ section_14 :-
     must('casa is plural by a rule in one lesson and by a stated form in the other, and the lessons share nothing', IT5, 'Las casas son grandes.'),
     reason_translate('The houses are big.', italian, IT6),
     must('le case', IT6, 'Le case sono grandi.'),
-    retractall(lesson(italian, _)).
+    reason_unlearn(italian),
+    ( reason_lesson(italian, mean(casa, house)) -> IT7 = yes ; IT7 = no ),
+    must('and reason_unlearn/1 takes the whole lesson out again', IT7, no).
 
 section_15 :-
     format("~n15. A person as the object: the word the lesson puts before one, `whom', and a contraction~n", []),

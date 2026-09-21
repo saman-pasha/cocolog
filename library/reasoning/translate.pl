@@ -160,13 +160,27 @@
 %%         The page is never refused whole for one sentence in it.
 %%
 %%     reason_learn(+Text, +Language, -Terms)
-%%         reason_text/2, and every term asserted UNDER THE LANGUAGE, as
-%%         lesson(Language, Term): the translator proves them as if they
-%%         were plain, and two lessons so learned share nothing -- `casa'
-%%         may be feminine in one and its plural `case' in the other. A
-%%         lesson learned plain (reason_learn/1) is the language with no
-%%         name, and reason_ask/2 can question it; a lesson learned under a
-%%         name is the translator's alone.
+%%         reason_text/2, and every term asserted UNDER THE LANGUAGE: the
+%%         translator proves them as if they were plain, and two lessons
+%%         so learned share nothing -- `casa' may be feminine in one and
+%%         its plural `case' in the other. A lesson learned plain
+%%         (reason_learn/1) is the language with no name, and
+%%         reason_ask/2 can question it; a lesson learned under a name is
+%%         the translator's alone.
+%%
+%%         A FACT IS HELD IN THE LANGUAGE'S OWN NAMESPACE --
+%%         'spanish:mean'(casa, house) -- and a rule in lesson/2, because
+%%         a rule's body must be proved through the lesson rather than by
+%%         the engine. Nothing outside this file should name either
+%%         shape: reason_lesson/2 reads and reason_unlearn/1 forgets.
+%%
+%%     reason_lesson(?Language, ?Term)
+%%         What a named lesson holds, term by term, as reason_learn/3 was
+%%         given them. Nondeterministic in both arguments.
+%%
+%%     reason_unlearn(+Language)
+%%         Take a named lesson out again, whole. A lesson learned plain is
+%%         not one, and is untouched.
 %%
 %% ---- THE INTERMEDIATE REPRESENTATION -------------------------------------
 %%
@@ -276,6 +290,8 @@
 
 :- use_module(library(reasoning/reason)).
 :- dynamic lesson/2.
+:- dynamic lesson_language/1.
+:- dynamic lesson_predicate/3.
 
 %% ---- the surface -----------------------------------------------------------
 
@@ -415,7 +431,63 @@ tr_english_language(Words) :-
 
 reason_learn(Text, Language, Terms) :-
     reason_text(Text, Terms),
-    forall(member(T, Terms), assertz(lesson(Language, T))).
+    assert_once(lesson_language(Language)),
+    forall(member(T, Terms), tr_learn_term(Language, T)).
+
+%% A FACT GOES IN THE LANGUAGE'S OWN NAMESPACE, AND A RULE STAYS IN
+%% lesson/2. `lesson(Language, Term)' put the language atom in the first
+%% argument of every row, and cocolog's first-argument index keys on that
+%% -- so with a vocabulary in the store every mean(casa, X) lookup walked
+%% the whole language. Measured on 280 933 terms, Italian and Spanish in
+%% one store: one sentence took over FOUR MINUTES of user CPU against
+%% 0.348 s on a plain single-language store of the same vocabulary. A
+%% fact is asserted as 'spanish:mean'(casa, house) instead, so the index
+%% keys on `casa' exactly as a plain lesson's does. The rules are few --
+%% a few dozen a lesson against a hundred thousand facts -- and they must
+%% NOT become real clauses, because the engine would then resolve their
+%% BODIES against the plain knowledge base rather than through
+%% tr_body/2; so they stay as they were, and lesson/2 now holds nothing
+%% else.
+tr_learn_term(L, (H :- B)) :- !, assertz(lesson(L, (H :- B))).
+tr_learn_term(L, T) :-
+    tr_namespaced(L, T, F),
+    functor(F, N, A), assert_once(lesson_predicate(N, L, A)),
+    assertz(F).
+
+%% a goal of a named lesson, under the language's own name -- the same
+%% arguments, so the index sees what it saw when the lesson was plain
+tr_namespaced(L, G, F) :-
+    G =.. [Name|Args],
+    tr_prefix(L, P), atom_concat(P, Name, N),
+    F =.. [N|Args].
+
+%% the prefix on and off: atom_concat/3 has the (+,-,+) mode that takes
+%% it off, where atomic_list_concat/2 cannot split at all
+tr_prefix(L, P) :- atom_concat(L, ':', P).
+
+assert_once(G) :- ( tr_solve_plain(G) -> true ; assertz(G) ).
+
+%% what a named lesson holds, and how to forget one: nothing outside this
+%% file names a row's shape, which is what let the shape change
+reason_lesson(L, T) :- tr_solve_plain(lesson_language(L)), tr_lesson_term(L, T).
+
+tr_lesson_term(L, (H :- B)) :- tr_solve_plain(lesson(L, (H :- B))).
+tr_lesson_term(L, T) :-
+    tr_solve_plain(lesson_predicate(N, L, A)),
+    functor(F, N, A), tr_solve_plain(F),
+    tr_plain_term(L, F, T).
+
+tr_plain_term(L, F, T) :-
+    F =.. [N|Args],
+    tr_prefix(L, P), atom_concat(P, Name, N), !,
+    T =.. [Name|Args].
+
+reason_unlearn(L) :-
+    forall(tr_solve_plain(lesson_predicate(N, L, A)),
+           ( functor(F, N, A), retractall(F) )),
+    retractall(lesson_predicate(_, L, _)),
+    retractall(lesson(L, _)),
+    retractall(lesson_language(L)).
 
 reason_untranslated(Text, Words) :-
     tr_pieces(Text, Pieces),
@@ -436,7 +508,7 @@ tr_known_anywhere(_, W) :-
 %% into English, or into a language: one learned under that name, or the
 %% plain lesson when it named itself so (`Spanish is a language')
 tr_into(english, to_english) :- !.
-tr_into(L, from_english(L)) :- atom(L), tr_solve_plain(lesson(L, mean(_, _))), !.
+tr_into(L, from_english(L)) :- atom(L), tr_solve_plain(lesson_language(L)), !.
 tr_into(L, from_english(none)) :- atom(L), tr_solve_plain(language(L)), !.
 tr_into(L, _) :- throw(error(domain_error(language, L), reason_translate/3)).
 
@@ -525,7 +597,7 @@ tr_way(to_english, Words, foreign, english) :-
 tr_way(from_english(L), _, english, foreign) :- tr_set_language(L).
 
 tr_languages(Ls) :-
-    findall(L, tr_solve_plain(lesson(L, mean(_, _))), L0), list_to_set(L0, L1),
+    findall(L, tr_solve_plain(lesson_language(L)), L0), list_to_set(L0, L1),
     ( tr_solve_plain(mean(_, _)) -> Ls = [none|L1] ; Ls = L1 ).
 
 tr_votes_in(L, Words, F, E) :- tr_set_language(L), tr_votes(Words, 0, 0, F, E).
@@ -1669,7 +1741,7 @@ tr_endings(T, Es) :-
     tr_language(L),
     (   L == none
     ->  findall(E, catch(clause(take_in(_, E, T), _), error(_, _), fail), Es0)
-    ;   findall(E, ( tr_solve_plain(lesson(L, (take_in(_, E, T) :- _))) ; tr_solve_plain(lesson(L, take_in(_, E, T))) ), Es0)
+    ;   findall(E, ( tr_solve_plain(lesson(L, (take_in(_, E, T) :- _))) ; tr_lesson(L, take_in(_, E, T)) ), Es0)
     ),
     findall(E, ( member(E, Es0), atom(E) ), Es1), sort(Es1, Es).
 
@@ -1889,7 +1961,7 @@ tr_prove(none, G) :- !, tr_solve_plain(G).
 tr_prove(L, G) :- tr_lesson(L, G).
 
 tr_lesson(_, G) :- tr_helper(G), !, tr_solve_plain(G).
-tr_lesson(L, G) :- tr_solve_plain(lesson(L, G)).
+tr_lesson(L, G) :- tr_namespaced(L, G, F), tr_solve_plain(F).
 tr_lesson(L, G) :- tr_solve_plain(lesson(L, (G :- B))), tr_body(L, B).
 
 tr_body(L, (A, B)) :- !, tr_body(L, A), tr_body(L, B).
