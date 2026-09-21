@@ -50,6 +50,7 @@ main :-
     join_and_split,
     clause_too_long,
     globals_belong_to_a_store,
+    with_output_to_fails,
     checks_done.
 
 %% ---- a catch that has finished catching ---------------------------------
@@ -343,3 +344,49 @@ the_concurrent_table :-
               length(Ids, N6) ), N6, X6),
     check('eight threads writing 400 globals each do not corrupt the table', X6, '8'),
     shl(['rm -rf ', D]).
+
+%% ---- a goal that failed inside with_output_to/2 --------------------------
+%%
+%% THE SIXTH, AND IT IS THE FIFTH INVERTED: every other defect here ended in
+%% an error the program could not see, and this one ended in an ERROR THE
+%% PROGRAM COULD SEE AND NOTHING HAD CAUSED. `coco_b_with_output_to' wrote
+%% its two arms the wrong way round -- `(if C A B)' runs A when C holds -- so
+%% a ball coming back from the nested engine was counted dead and never
+%% rethrown, and a goal that merely FAILED fell into the else and threw the
+%% term at cell ZERO of the store: whatever had been put there first, which
+%% on this build is the first clause of library(files)'s Prolog half.
+%% Measured before the fix, on every sink and with the library loaded or not:
+%%
+%%     ?- with_output_to(codes(C), fail).
+%%     ERROR: Unknown message: file_base_name(A,B):-'$path_split'(A,C,B)
+%%
+%% It is catchable, so a caller that wrapped the call saw a ball naming a
+%% library it had never called; a caller that did not lost its query. SWI's
+%% with_output_to/2 fails when its goal fails, and so does this one now.
+with_output_to_fails :-
+    section('a goal that fails inside with_output_to/2 fails'),
+    answer(with_output_to(codes(_C1), fail), got, R1),
+    check('codes: it fails rather than throwing', R1, failed),
+    answer(with_output_to(string(_S2), fail), got, R2),
+    check('string: the same', R2, failed),
+    answer(with_output_to(atom(_A3), fail), got, R3),
+    check('atom: the same', R3, failed),
+    %% the arm that was never reached: a ball still reaches the catch outside
+    answer(with_output_to(atom(_A4), throw(my_ball)), got, R4),
+    check('a throw inside still arrives outside, as itself', R4, error(my_ball)),
+    %% yes_no/2 and not check/3 for this one: check/3 compares with `==' and
+    %% the ball's second argument is a FRESH VARIABLE, so two variants read
+    %% as a red check naming the same term twice with different `_G' numbers
+    answer(with_output_to(atom(_A5), nosuch_goal_here), got, R5),
+    yes_no(R5 = error(error(existence_error(procedure, nosuch_goal_here/0), _)), V5),
+    check('and so does an error the goal itself raised', V5, yes),
+    %% and the success path is untouched
+    with_output_to(codes(C6), write(hello)),
+    atom_codes(A6, C6),
+    check('a goal that succeeds still gives what it printed', A6, hello),
+    %% a failure inside must not leave stdout pointed at the temporary file:
+    %% the check after it is what would go missing
+    ( with_output_to(codes(_C7), fail) -> true ; true ),
+    with_output_to(codes(C8), write(back)),
+    atom_codes(A8, C8),
+    check('and stdout is back afterwards, which a lost line would hide', A8, back).

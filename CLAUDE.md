@@ -293,6 +293,31 @@ them in 1.2.8 and it is the one that did not raise at all: `nb_setval/2`'s
 globals read against the wrong store, which answered a value that was not
 true, or a signal.
 
+**AND A SIXTH IN 1.2.44, WHICH IS THE FIFTH INVERTED: AN ERROR NOTHING HAD
+CAUSED.** `with_output_to(codes(C), fail)` THREW, and the ball was
+`file_base_name(A,B):-'$path_split'(A,C,B)` -- the first clause of
+`library(files)`'s Prolog half, a library the program need never have
+called. `coco_b_with_output_to` wrote its two arms the wrong way round:
+`(if C A B)` runs A when C holds, so a ball coming back from the nested
+engine was counted dead and never rethrown, and a plain FAILURE fell into
+the else and threw `coco_store_get(st, 0)` -- cell zero, whatever the store
+put there first. Every sink, with the library loaded or not; catchable, so
+a caller that wrapped the call saw a ball naming a stranger and one that
+did not lost its query. SWI's `with_output_to/2` fails when its goal fails.
+
+**THE TELL WAS A PROBE OF SIX LINES, AND THE ARM THAT WORKED HID IT.** The
+success path is the one everything uses -- `format(atom(A), ...)`, the
+string builtins, `dcg/basics` rendering a float -- so the whole suite was
+green over a builtin that could not fail correctly. What found it was a
+program of mine whose `forall` failed inside one, and the error named a
+library it had never used, which is the shape this whole section is about:
+**an error that names something innocent is an error to bisect rather than
+to read.** Six lines reproduce it, and `test/errors.pl`'s sixth section
+pins all of it -- the three sinks failing, a `throw` inside still arriving
+outside as itself, an `existence_error` the goal raised still arriving as
+that, the capture still working, and stdout still restored afterwards,
+which is what a lost line would otherwise hide.
+
 **A `catch/3` WHOSE GOAL SUCCEEDED WENT ON CATCHING.** The frame was pushed
 and never taken down, so
 

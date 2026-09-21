@@ -1372,9 +1372,21 @@
                      ;; is the builtin protocol's "the continuation is already
                      ;; set"; -1 when nothing caught it, which is the uncaught
                      ;; path this had always taken.
+                     ;;
+                     ;; AND THE TWO ARMS WERE THE WRONG WAY ROUND, which made
+                     ;; a goal that merely FAILED throw. `(if C A B)' runs A
+                     ;; when C holds, so a ball was counted dead and never
+                     ;; rethrown, while a plain failure fell into the else and
+                     ;; threw `coco_store_get(st, 0)' -- cell zero, whatever
+                     ;; the store happened to put there first. Measured:
+                     ;; `with_output_to(codes(C), fail)' threw
+                     ;; `file_base_name(A,B):-'$path_split'(A,C,B)', the first
+                     ;; clause of library(files)'s Prolog half, on every sink
+                     ;; and whether or not the program loaded that library.
+                     ;; SWI's with_output_to/2 fails when its goal fails.
                      (if threw
-                         (set (-> st dead) (+ (-> st dead) ball_size))
-                         (return (? (coco_m_thrown e (coco_store_get m st ball_cell)) 2 -1)))
+                         (block (set (-> st dead) (+ (-> st dead) ball_size))
+                                (return (? (coco_m_thrown e (coco_store_get m st ball_cell)) 2 -1))))
                      (if (== rc -1) (return -1))
                      (return 0)))
 
