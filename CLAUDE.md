@@ -4382,6 +4382,20 @@ That last one is the pattern to watch for anywhere in `lib/`: a
 failure-driven loop written from habit against another Prolog is not
 slow here, it is wrong, and it is wrong quietly.
 
+**AND A LESSON THAT TRAINS A NETWORK GETS ITS OWN BUDGET, which is the
+1.2.38 rule firing a second time.** `one_lesson/3` gives every library
+lesson 300 s, and `tutorials/library/45-tagger` fits the shipped tagger
+with the shipped defaults -- 32 768 pairs generated in the process, 500
+Adam steps -- which measures **308 s** here: run by hand it is GREEN and
+says nothing about a budget, and in the suite it came back exit 124 with
+no `done` line and nothing else, because a killed process never flushes.
+It had been inside 300 s until 1.2.39 doubled the pairs and took the
+steps from 400 to 500, and no full suite ran between then and 1.2.43 --
+so the suite caught what six standalone runs could not, exactly as the
+lesson-ends-in-`done` finding did. `lesson_budget/2` in
+`test/tutorials.pl` gives that one lesson 900 s, with room for this box's
+~20 % drift; the opencv category already took 600 s for the same reason.
+
 **A NEW LIBRARY GETS A TUTORIAL IN THE SAME COMMIT.** `tutorials/library/`
 is numbered one per library, so a gap is visible — and a library with no
 `NN-name.pl` beside it is one nobody has demonstrated end to end. Each of
