@@ -2,6 +2,7 @@
 build/
 cocolog
 *.o
+*.o.tmp
 *.lo
 *.a
 .libs/
