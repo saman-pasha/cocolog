@@ -2800,10 +2800,24 @@ tr_form(W, L, N, T, P) :-
     tr_form_nt(F, L, N, T).
 tr_form(W, L, N, T, third) :- tr_form_nt(W, L, N, T).
 
-tr_form_nt(W, W, singular, present) :- tr_known(foreign, W).
-tr_form_nt(W, L, plural, present) :- tr_lexeme(foreign, W, L, plural).
-tr_form_nt(W, L, N, T) :- tr_tensed(W, T, F), tr_form_nt(F, L, N, present).
-tr_form_nt(W, L, plural, T) :- tr_solve(plural_of(W, F)), tr_tensed(F, T, F0), tr_form_nt(F0, L, singular, present).
+%% A TENSE STEP CAN COME BACK TO WHERE IT STARTED, so the forms already
+%% stepped through are carried and never stepped through twice. `parar' has
+%% the indicative `para' and the subjunctive `pare'; `parir' has the
+%% indicative `pare' and the subjunctive `para'. BOTH ROWS ARE TRUE and
+%% together they are a two-cycle, which tr_tensed(W, present, F) -- the
+%% subjunctive step of 1.6.8 -- walked for ever: `Mira para otro lado.' never
+%% finished where its four neighbours cost 0.1 to 0.3 s. The FIRST solution
+%% was always instant, so only a caller that asks for all of them saw it.
+tr_form_nt(W, L, N, T) :- tr_form_nt(W, L, N, T, [W]).
+
+tr_form_nt(W, W, singular, present, _) :- tr_known(foreign, W).
+tr_form_nt(W, L, plural, present, _) :- tr_lexeme(foreign, W, L, plural).
+tr_form_nt(W, L, N, T, Seen) :-
+    tr_tensed(W, T, F), \+ memberchk(F, Seen),
+    tr_form_nt(F, L, N, present, [F|Seen]).
+tr_form_nt(W, L, plural, T, Seen) :-
+    tr_solve(plural_of(W, F)), tr_tensed(F, T, F0), \+ memberchk(F0, Seen),
+    tr_form_nt(F0, L, singular, present, [F0|Seen]).
 
 %% a tense form of a present form: stated, or made by an ending rule
 tr_tensed(W, past, F) :- tr_solve(past_of(W, F)).

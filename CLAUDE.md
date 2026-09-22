@@ -3919,6 +3919,97 @@ budget and not a forecast**: the cost here is not per sentence but per SHAPE,
 and three sentences cannot see a shape they do not contain. The timeout is what
 turns a wrong prediction into a measurement instead of an hour.
 
+### A two-cycle in the DATA, and both rows are true (1.6.12)
+
+**`Mira para otro lado.` NEVER FINISHED, AND IT WAS FOUR WORDS.** Its four
+neighbours in the Tatoeba sample cost 0.1 to 0.3 s each; this one ran past
+120 s. One probe named the trigger: take `para` out and the sentence reads in
+0.7 s, put it back beside any other words and nothing comes back.
+
+**IT IS NOT THE PURPOSE CLAUSE, WHICH WAS THE OBVIOUS SUSPECT.** `para` is the
+word 1.6.5 gives the purpose, so `tr_purpose_word/1` was made to fail in a copy
+of the library -- and the sentence still hung. A suspect with a motive is not a
+cause.
+
+**IT IS `tr_form_nt/4`, AND THE FIRST SOLUTION WAS ALWAYS INSTANT.** `once` on
+it answers `para-singular-present` at once; the `findall` never returns. That
+is the shape to remember: **a predicate can be fast to satisfy and impossible to
+exhaust**, and every caller that asks for all the solutions pays the second one.
+
+**THE CYCLE IS IN THE VOCABULARY, AND NEITHER ROW IS WRONG:**
+
+| | |
+|---|---|
+| `parar`, to stop | indicative `para`, subjunctive `pare` |
+| `parir`, to give birth | indicative `pare`, subjunctive `para` |
+
+so the store holds `subjunctive_of(para, pare)` AND `subjunctive_of(pare,
+para)` -- measured, four words asked and two answered. 1.6.8 added
+`tr_tensed(W, present, F)` for the subjunctive, and `tr_form_nt(W, L, N, T) :-
+tr_tensed(W, T, F), tr_form_nt(F, L, N, present).` walks it: para to pare to
+para, for ever. **Nothing in the builder is at fault and no line of data is
+wrong** -- Spanish really does spell those two verbs into each other.
+
+**SO THE FIX IS THE ONE A CYCLE IN DATA ALWAYS WANTS: carry what has been
+stepped through.** `tr_form_nt/5` takes the forms already visited and refuses
+to visit one twice; `tr_form_nt/4` is the wrapper that starts it with the word
+itself. It cannot change a reading that terminated before, because it only
+stops a second visit to a form already tried.
+
+| | before | after |
+|---|---|---|
+| `Mira para otro lado.` | **over 120 s** | **1.0 s** |
+| its four neighbours | 0.1-0.3 s | unchanged |
+| `test/translate.pl` | 579 checks GREEN | 579 checks GREEN |
+| `test/reason.pl` | GREEN | GREEN |
+
+**AND THE PROBE THAT DRIVES THIS WORK IS FASTER THAN THE CONTROL IT IS
+MEASURED AGAINST**, which it has not been since 1.6.0. The same 400 Tatoeba
+sentences, the same store:
+
+| | 1.2.43 | **1.6.12** |
+|---|---|---|
+| wall | 16.1 s | **14.0 s** |
+| translated | 196 | **223** |
+| exactly the reference | 47 | **48** |
+| refused | 204 | **177** |
+| -- of those, every word known | 127 | **115** |
+
+-- so 1.6.1 to 1.6.11's eleven structures show up as 27 more sentences read,
+and the instrument is usable again. What it reads `Mira para otro lado.` AS is
+another matter: `Mira stops another side.`, because Apertium gives the Spanish
+`para` only the verb `stops` and no preposition at all. That is a vocabulary
+line and not a shape.
+
+**THE FULL SUITE, SERVER UP: 58 case lines, 7 SKIPs, red: 2** -- and the two
+reds are worth separating, because only one of them was mine:
+
+* **`lint` was MINE, and it is fixed here.** The dialect card's citations are
+  checked rather than trusted, and 1.6.11 inserted 12 lines into
+  `lib/kb.cicili` and 13 into `lib/solve.cicili`. Five citations have unique
+  anchors and the tool accepted them as moved; THREE have anchors that appear
+  three or four times in their file, so the line RANGE is the only thing that
+  says which site a row means, and those three now pointed at nothing.
+  `tools/cocolint/traps.jsonl` carries the shifted ranges and the card reports
+  `43 cites all anchored`. **A citation with a non-unique anchor is a citation
+  that an edit anywhere above it can break**, and it breaks in the one place a
+  reader would not look.
+* **`tutorials/library/45-tagger` was NOT.** It was re-run ALONE -- the box
+  free, nothing else on it -- and failed the same way in 292 s of a 900 s
+  budget, so the earlier suspicion that a probe beside it starved it is wrong.
+  And it is not 1.6.11's either: the failing check was cut down to a 20-second
+  probe and run on a rebuilt 1.6.10 binary, which drops the same word. `Kim
+  rents a small flat in Oslo.` comes back without `small(flat_1)`, which is the
+  adjective-inside-an-object shape this file has recorded losing a coin toss
+  four times. It is a SHIPPED-MODEL failure, not a code one, and the durable
+  fix is the generator's, so it is left open here rather than retrained into a
+  different lottery ticket.
+
+**THE 7 SKIPs ARE ALL MISSING LIBRARIES AND NOT A MISSING SERVER** -- tensors,
+the three torch cases, tensorflow, ray, numpy -- with `ziguratip` up and
+answering a sentence before the run, which is what makes the database lines
+mean anything.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
