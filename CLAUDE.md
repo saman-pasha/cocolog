@@ -4073,6 +4073,18 @@ measures moved and no lottery was re-rolled, which is the whole argument for
 fixing this in the judge rather than in the data. A retrain is deterministic on
 unchanged data, so it could not have fixed it at all.
 
+**AND THE FULL SUITE IS GREEN ON IT: 58 case lines, 7 SKIPs, `red: 0`** --
+the server up and answering a sentence before the run, `groups` 1s and `ruler`
+13s, so the database was really touched; `tutorials` 320s, `tagger` 194s and
+`lint` 138s all GREEN. **The 7 SKIPs are all a missing library and not a
+missing server** -- tensors, the three torch cases, tensorflow, ray, numpy --
+and the nine cases that SKIP without a server are green but for `tensors`,
+which wants libtorch. The two reds of the 1.6.11 run are both closed: the
+citations in 1.6.12 and this. **NOTHING WAS RUN BESIDE IT THIS TIME**, which
+is what the earlier run got wrong -- probes alongside `test/tagger.pl` made
+its lesson's failure look like starvation, and it took a re-run alone to find
+that the failure was real.
+
 **WHAT IT COSTS IS AN INSTRUMENT, AND THE COST IS STATED.** `tg_judged/3` sits
 inside `tagger_tag_all/3`, so `test/tagger.pl`'s adjective grid now measures the
 network AND the repair, and a future model that collapses on `T _ O` will not
