@@ -232,9 +232,14 @@
 %% ---- HOW A SENTENCE IS TRANSLATED ----------------------------------------
 %%
 %% A sentence is READ to one shape and WRITTEN from it: a subject, a verb
-%% group (the lexeme, its tense, simple or perfect, denied or not), and
-%% the complements in order -- an object, a predicative adjective, a
-%% prepositional phrase, an object pronoun, an adverb. A question is first
+%% group (the lexeme, its tense, simple or perfect or progressive, passive
+%% or not, denied or not), and the complements in order -- an object, a
+%% predicative adjective, what the verb predicates OF its object
+%% (`definire illegale la decisione', which the lesson's language writes
+%% before the object and English after it), a prepositional phrase, the
+%% agent of a passive, an infinitive, an infinitive of purpose, an object
+%% pronoun, an adverb. Several clauses in one sentence are a join, a
+%% comma or a connecting word between two of these. A question is first
 %% put in the statement's order: English's fronted `does', `did', `will',
 %% `has' or copula goes back behind the subject, and in the lesson's
 %% language a verb that came first takes the subject after it (`¿Come el
@@ -283,9 +288,13 @@
 %%
 %% ---- WHAT IT IS NOT ---------------------------------------------------
 %%
-%% It is not a translator of prose. One clause with one verb and at most
-%% an infinitive after it: no relative clause, no `because', no passive,
-%% no imperative, no subjunctive, no `why' or `how', no idiom -- a word
+%% It is not a translator of prose. What it has is one clause with one
+%% verb and its complements, several such joined by a comma or a
+%% connecting word, a passive with its agent, a reduced relative (a
+%% participle after a noun) and an infinitive of purpose. What it has NOT
+%% is a relative clause with its own pronoun, an imperative, a
+%% subjunctive, a gerund as a clause, a superlative, a `why' or a `how',
+%% a fragment with no verb, and any idiom -- a word
 %% means a word, and `is' is whichever word the lesson gave for it first
 %% (a lesson with `es' and `está' for `is' gets `es', and the progressive
 %% takes the AUXILIARY that means `is'). `There is' is the present only:
@@ -854,6 +863,7 @@ tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_cross_comp(C0, C), tr_cross_comps(Cs0, Cs
 
 tr_cross_comp(obj(NP0), obj(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(adj(Ws0), adj(Ws)) :- !, tr_cross_adjectives(Ws0, Ws).
+tr_cross_comp(oc(NP0, Ws0), oc(NP, Ws)) :- !, tr_cross_np(NP0, NP), tr_cross_adjectives(Ws0, Ws).
 tr_cross_comp(pp(w(P, C), NP0), pp(w(PT, C), NP)) :- !, tr_word_across(w(P, lower), english, preposition, PT), tr_cross_np(NP0, NP).
 tr_cross_comp(adv(w(A, C)), adv(w(AT, C))) :- !, tr_word_across(w(A, lower), english, adverb, AT).
 tr_cross_comp(purpose(L), purpose(LT)) :- !, tr_lexeme_across(L, english, LT).
@@ -1463,6 +1473,47 @@ tr_complements(Side, [w(W, C)|Ws], Seen, [opron(w(W, C))|Cs]) :-
     tr_object_pronoun_here(Side, [w(W, C)|Ws]), !,
     tr_complements(Side, Ws, Seen, Cs).
 tr_complements(Side, [A|Ws], Seen, [adv(A)|Cs]) :- tr_is(Side, A, adverb), !, tr_complements(Side, Ws, Seen, Cs).
+%% AN OBJECT COMPLEMENT IS WHAT THE VERB PREDICATES OF ITS OBJECT --
+%% `definire illegale la decisione', `declarar ilegal la decision', `define
+%% the decision illegal'. The two sides put it in OPPOSITE places, the
+%% lesson's language before the object and English after it, so it travels
+%% as oc(Object, Adjectives) and each writer puts it where its own language
+%% wants it. The adjectives agree with the OBJECT and not with the subject.
+%%
+%% WHAT TELLS IT FROM AN ORDINARY OBJECT IS NOT THE SAME THING IN THE TWO
+%% LANGUAGES, which is why there are two clauses rather than one. In English
+%% it is the POSITION: an attributive adjective goes before its noun, so a
+%% phrase-final one can only be predicative. In the lesson's language an
+%% adjective before its noun is ordinary (`buono pane'), and what marks the
+%% complement is the DETERMINER after the adjectives -- `illegale la
+%% decisione' has one and `buono pane' has none. Both are read before the
+%% ordinary phrase, because the ordinary reading takes either shape
+%% otherwise: `the decision illegal' as `the illegal decision', and
+%% `illegale la decisione' as one phrase with the article among its
+%% adjectives.
+%%
+%% AND THE OBJECT MUST BE AN OBJECT, which is what `\+ tr_all_adjectives'
+%% says: a bare adjective reads as a phrase of its own, so `is big and red'
+%% offered `big' as the object and `and red' as the complement of it, and
+%% the copula's own predicate came out as one.
+%%
+%% AND NEITHER IS GUARDED BY WHETHER AN OBJECT HAS BEEN READ, because the
+%% sample's own sentence has one already: `manda un fax per definire
+%% illegale la decisione' gives the main verb its object and the purpose
+%% infinitive a complement of its own. The shape is the guard, and the
+%% `Seen' flag belongs to the word the lesson puts before a person.
+tr_complements(english, Ws, _, [oc(NP, As)|Cs]) :-
+    tr_phrase_words(english, Ws, PW, Rest), PW \== [],
+    append(PW0, As, PW), PW0 \== [], As \== [],
+    tr_all_adjectives(english, As), \+ tr_all_adjectives(english, PW0),
+    tr_phrase_np(english, PW0, NP), !,
+    tr_complements(english, Rest, yes, Cs).
+tr_complements(foreign, Ws, _, [oc(NP, As)|Cs]) :-
+    append(As, Rest0, Ws), As \== [], tr_all_adjectives(foreign, As),
+    Rest0 = [D|_], tr_determiner(foreign, D, _, _),
+    tr_phrase_words(foreign, Rest0, PW, Rest), PW \== [],
+    tr_phrase_np(foreign, PW, NP), !,
+    tr_complements(foreign, Rest, yes, Cs).
 tr_complements(Side, Ws, _, [C|Cs]) :-
     tr_phrase_words(Side, Ws, PW, Rest), PW \== [],
     (   tr_all_adjectives(Side, PW) -> C = adj(PW)
@@ -1824,6 +1875,13 @@ tr_comps_out(To, [C|Cs], Noun, Number, Clitics, Outs, Advs) :-
 
 tr_comp_out(To, obj(NP), _, _, [], Outs, []) :- tr_np_out(To, NP, O1, _, _), tr_marker(To, NP, M), append(M, O1, Outs).
 tr_comp_out(To, adj(Ws), Noun, Number, [], Outs, []) :- tr_adjectives_out(To, Ws, Noun, Number, As), tr_adj_words(As, Outs).
+%% an object complement: the adjectives agree with the OBJECT, whose noun
+%% and number tr_np_out/5 answers, and they go before the object in the
+%% lesson's language and after it in English
+tr_comp_out(To, oc(NP, Ws), _, _, [], Outs, []) :-
+    tr_np_out(To, NP, O1, Noun, Number), tr_marker(To, NP, M), append(M, O1, Obj),
+    tr_adjectives_out(To, Ws, Noun, Number, As), tr_adj_words(As, AOut),
+    ( To == english -> append(Obj, AOut, Outs) ; append(AOut, Obj, Outs) ).
 tr_comp_out(To, pp(w(P, C), NP), _, _, [], [o(PT, C)|NPOut], []) :- tr_word_across(w(P, lower), To, preposition, PT), tr_np_out(To, NP, NPOut, _, _).
 tr_comp_out(To, by(NP), _, _, [], [o(By, lower)|NPOut], []) :-
     tr_by_word(To, By), tr_np_out(To, NP, NPOut, _, _).

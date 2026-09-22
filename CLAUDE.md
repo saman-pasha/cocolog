@@ -3059,19 +3059,19 @@ store, and between them they need ELEVEN structures the translator does not
 have. The table is the plan, in the order the work goes, because a structure
 that unlocks six sentences is worth more than one that unlocks one:
 
-| what it needs | the twelve that need it | why it is where it is |
-|---|---|---|
-| **several clauses in one sentence** | 6, 8, 9, 10, 11, 12 | half the sample, and nothing else can be reached past it |
-| **passive**: `essere` + participle, with a `da` agent | 4, 7, 11, 12 | the verb group, and it is the commonest shape in news |
-| **reflexive `si`**, which is NOT the impersonal one | 3, 6 | the same word, a different reading |
-| a **PP inside a noun phrase** (`la connivenza delle autorità`) | 2, 3, 5, 9, 10, 12 | may already write correctly between two Romance languages -- MEASURE before building |
-| **reduced relative**: a participle after a noun (`il coprifuoco imposto dai soldati`) | 7, 12 | needs the passive first |
-| **purpose clause**: `per` + an infinitive | 10 | |
-| **object complement**: `definire illegale la decisione` | 10 | |
-| **superlative**: `uno dei Paesi più ricchi del mondo` | 12 | |
-| **verb before subject** (inversion) | 7 | |
-| **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | a fragment, and the grammar has no fragment |
-| **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last |
+| what it needs | the twelve that need it | why it is where it is | done |
+|---|---|---|---|
+| **several clauses in one sentence** | 6, 8, 9, 10, 11, 12 | half the sample, and nothing else can be reached past it | **1.6.1** |
+| **passive**: `essere` + participle, with a `da` agent | 4, 7, 11, 12 | the verb group, and it is the commonest shape in news | **1.6.2** |
+| **reflexive `si`**, which is NOT the impersonal one | 3, 6 | the same word, a different reading | **1.6.3** |
+| a **PP inside a noun phrase** (`la connivenza delle autorità`) | 2, 3, 5, 9, 10, 12 | may already write correctly between two Romance languages -- MEASURE before building | **measured 1.6.6**: the IR is wrong, the output is right, nothing in the sample needs it |
+| **reduced relative**: a participle after a noun (`il coprifuoco imposto dai soldati`) | 7, 12 | needs the passive first | **1.6.4** |
+| **purpose clause**: `per` + an infinitive | 10 | | **1.6.5** |
+| **object complement**: `definire illegale la decisione` | 10 | | **1.6.6** |
+| **superlative**: `uno dei Paesi più ricchi del mondo` | 12 | | |
+| **verb before subject** (inversion) | 7 | | |
+| **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | a fragment, and the grammar has no fragment | |
+| **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last | |
 
 -- plus four words Apertium's dictionary lacks (`coprifuoco`, `connivenza`,
 `stigliatura` among them), which is the 1.2.42 refusal table's first row again
@@ -3276,6 +3276,95 @@ both languages make it; Italian into English and back loses it. The IR tells
 them apart -- `purpose(eats)' against `inf(eats)' -- and only the WRITER for
 English throws the difference away, which is the right place for a loss that
 belongs to a language rather than to a design.
+
+**THE OBJECT COMPLEMENT IS DONE (1.6.6), AND THE TWO LANGUAGES PUT IT IN
+OPPOSITE PLACES.** `definire "illegale" la decisione' is what the verb
+predicates OF its object, and Italian and Spanish write it BEFORE the object
+where English writes it after (`define the decision illegal'). So it travels
+as `oc(Object, Adjectives)' -- the object a phrase of its own -- and each
+writer puts it where its own language wants it.
+
+**AND THE ADJECTIVES AGREE WITH THE OBJECT, WHICH THE WRITER HAD TO BE HANDED
+RATHER THAN ASSUMED.** `tr_comp_out/7` is given the SUBJECT's noun and number
+by `tr_write`, and every other complement wants that; this one does not.
+`tr_np_out/5` answers the object's own noun and number, so the clause writes
+the object first, whichever end it then puts it at, and agrees the adjectives
+against what came back: `Il pane definisce rossa la casa' is ROSSA with a
+masculine subject, and `La casa definisce rosso il pane' is ROJO in Spanish
+with a feminine one.
+
+**WHAT TELLS IT FROM AN ORDINARY OBJECT IS NOT THE SAME THING EITHER SIDE,
+WHICH IS WHY IT IS TWO CLAUSES AND NOT ONE.** In English an attributive
+adjective goes BEFORE its noun, so a phrase-final one can only be predicative
+and the complement is read first -- otherwise `the decision illegal' is taken
+as `the illegal decision', measured before the clause existed. In the lesson's
+language an adjective before its noun is ordinary (`buono pane'), so the tell
+is the DETERMINER after the adjectives: `illegale la decisione' has one and
+`buono pane' has none. Both clauses sit before the ordinary phrase reading,
+because that reading takes either shape otherwise -- and the foreign one does
+not merely lose, it MISREADS: `tr_phrase_np' read `illegale la decisione' as
+one phrase with the article among its adjectives (`np(none, none, [illegal,
+the], decision)'), which is worse than a refusal.
+
+**AND THE OBJECT HAS TO BE AN OBJECT, which one red check in `test/translate.pl`
+was the whole of the evidence for.** A bare adjective reads as a phrase of its
+own, so `is big and red' offered `big' as the object and `and red' as the
+complement of it, and `La casa es grande y roja' came out `La casa es y rojo
+grande' -- the copula's own predicate written as an object complement.
+`\+ tr_all_adjectives(english, PW0)` is the guard, and the case caught it on
+the first run: **a pin that existed for another reason is the cheapest
+regression test there is.**
+
+**AND THE FIRST DRAFT GUARDED IT ON THE `Seen` FLAG, WHICH THE SAMPLE'S OWN
+SENTENCE REFUTED IN ONE PROBE.** Both clauses were written to fire only where
+no object had been read, on the reasoning that a verb has one object -- and
+sentence 10 is `manda un fax per definire illegale la decisione', where the
+main verb takes its object and the PURPOSE infinitive takes a complement of
+its own. The toy lesson never showed it, because a toy lesson has one verb a
+sentence; the real vocabulary refused the sentence with **no unknown word**,
+which is the tell that a refusal is a shape and not a gap. The flag belongs to
+the word the lesson puts before a person, and the SHAPE is the guard here.
+
+**AND THE LIBRARY'S OWN HEADER WAS THREE VERSIONS STALE, which is a defect of
+the kind this file keeps warning about.** `WHAT IT IS NOT` still read *no
+relative clause, no `because', no passive* after 1.6.1 added the clause join,
+1.6.2 the passive and 1.6.4 the reduced relative -- a comment telling a reader
+the opposite of what the code does, the same shape as the dead `string/1'
+clause in `lib/builtins.cicili'. Both lists are corrected: what the translator
+HAS is one clause with its complements, several joined, a passive with its
+agent, a reduced relative and an infinitive of purpose; what it has NOT is a
+relative clause with its own pronoun, an imperative, a subjunctive, a gerund
+as a clause, a superlative, a fragment with no verb and any idiom -- which is
+the remainder of the eleven-structure table, said from the library's side.
+
+**MEASURED OVER THE REAL VOCABULARY, BOTH WAYS, ON A STORE WITH BOTH
+LANGUAGES IN IT** (Italian into a fresh store in **5 min 26 s**, then Spanish
+into the same one; 373 MB, 132 806 and 172 636 terms. The Spanish teach was
+not timed -- only its end was recorded, which is not a duration):
+
+| | |
+|---|---|
+| `Il generale definisce illegale la decisione.` | `El general define ilegal la decisión.` |
+| `Il generale definisce "illegale" la decisione del presidente.` | `El general define "ilegal" la decisión del presidente.` |
+| `Il generale definisce rossa la casa.` | `El general define roja la casa.` |
+| the same, into English | `The general defines the decision illegal of the president.` |
+
+-- **and the second row is the PP measurement the table above asks for.** `del
+presidente` attaches to the VERB and not to `la decisione`, which is the wrong
+IR, and both targets write it in the right place anyway, because a PP follows
+the object in all three languages. The row stays `MEASURE FIRST` and now has
+its measurement: nothing in the sample needs the attachment fixed.
+
+**AND A SENTENCE THE TARGET HAS NO WORD FOR IS REFUSED WITH `unknown: []`,
+WHICH WILL COST SOMEBODY A SESSION.** `Il generale manda un fax.` is every
+word known in Italian and refuses into Spanish, because Apertium gives the
+Spanish side no word for `mandates` or for `fax`; `reason_untranslated/3` asks
+about the SOURCE side, so it names nothing and the refusal reads exactly like
+a missing SHAPE. Both are `[]`. The way to tell them apart today is to
+translate into ENGLISH first -- English is the IR, so a sentence that reads
+into English and refuses into the other language is a TARGET gap -- and the
+proper fix is for the writer to report the word it could not cross. It is
+recorded and not done.
 
 **AND THE PP ROW IS MARKED `MEASURE FIRST` ON PURPOSE.** `tr_phrase_words/4`
 ends a phrase at a preposition, so `la connivenza delle autorità` reads as a

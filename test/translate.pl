@@ -23,6 +23,7 @@
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
+    complement,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1263,6 +1264,100 @@ The word "para" begins the purpose.', spanish, _),
     check('where a complement infinitive is inf/1', U5,
           [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
                 g(wants, present, simple, no), [inf(eats)]), 46)]),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+%% ---- the object complement ---------------------------------------------------------
+%% `definire illegale la decisione' is what the verb predicates OF its
+%% object, and the two sides put it in opposite places: the lesson's
+%% language before the object, English after it. It travels as
+%% oc(Object, Adjectives) and the adjectives agree with the OBJECT.
+%%
+%% WHAT TELLS IT FROM AN ORDINARY OBJECT IS NOT THE SAME THING EITHER SIDE.
+%% In English it is the position, because an attributive adjective goes
+%% before its noun. In the lesson's language an adjective before its noun is
+%% ordinary (`buono pane'), so the tell is the DETERMINER after the
+%% adjectives.
+
+complement :-
+    section('the object complement: what the verb predicates of its object'),
+    reason_learn('Italian is a language.
+The noun "casa" means "house". The noun "pane" means "bread".
+The masculine article "il" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The masculine adjective "rosso" means "red". The feminine adjective "rossa" means "red".
+The adjective "illegale" means "illegal". The adjective "buono" means "good". The adjective "grande" means "big".
+The verb "definisce" means "defines". The verb "mangia" means "eats". The verb "è" means "is".
+"definire" is the infinitive of "definisce". The word "per" begins the purpose. The preposition "per" means "for".
+The conjunction "e" means "and".
+Every adjective follows the noun.', italian, _),
+    reason_learn('Spanish is a language.
+The noun "casa" means "house". The noun "pan" means "bread".
+The masculine article "el" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The masculine adjective "rojo" means "red". The feminine adjective "roja" means "red".
+The adjective "ilegal" means "illegal". The adjective "bueno" means "good". The adjective "grande" means "big".
+The verb "define" means "defines". The verb "come" means "eats". The verb "es" means "is".
+"definir" is the infinitive of "define". The word "para" begins the purpose. The preposition "para" means "for".
+The conjunction "y" means "and".
+Every adjective follows the noun.', spanish, _),
+
+    reason_translate('Il pane definisce rossa la casa.', italian, english, C1),
+    check('the complement goes AFTER the object in English', C1, 'The bread defines the house red.'),
+
+    reason_translate('Il pane definisce rossa la casa.', italian, spanish, C2),
+    check('and before it in a language that puts it there', C2, 'El pan define roja la casa.'),
+
+    reason_translate('The bread defines the house red.', english, italian, C3),
+    check('and English read back the other way', C3, 'Il pane definisce rossa la casa.'),
+
+    reason_translate('La casa definisce rosso il pane.', italian, spanish, C3b),
+    check('the mirror: ROJO with a feminine subject, because it agrees with the OBJECT', C3b,
+          'La casa define rojo el pan.'),
+
+    reason_ir('Il pane definisce rossa la casa.', italian, C4),
+    check('the IR is oc(Object, Adjectives), the object a phrase of its own', C4,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular),
+                g(defines, present, simple, no),
+                [oc(np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                    [w(red, lower)])]), 46)]),
+
+    reason_translate('Il pane mangia buono pane.', italian, english, C5),
+    check('an adjective before a BARE noun is the phrase''s own, not a complement', C5,
+          'The bread eats good bread.'),
+
+    reason_ir('Il pane mangia buono pane.', italian, C6),
+    check('and the IR says so: obj/1 with the adjective inside the phrase', C6,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular),
+                g(eats, present, simple, no),
+                [obj(np(none, none, [w(good, lower)], w(bread, lower), singular))]), 46)]),
+
+    reason_ir('La casa è rossa.', italian, C7),
+    check('a copula''s own predicate is adj/1 still: the object must be an object', C7,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                g(is, present, simple, no), [adj([w(red, lower)])]), 46)]),
+
+    reason_translate('La casa mangia il pane rosso.', italian, spanish, C8),
+    check('an adjective after its noun inside the phrase is untouched', C8, 'La casa come el pan rojo.'),
+
+    reason_translate('La casa definisce "illegale" il pane.', italian, spanish, C9),
+    check('a quoted adjective, as the sample writes it: the marks travel with the word', C9,
+          'La casa define "ilegal" el pan.'),
+
+    reason_translate('Il pane definisce rossa e grande la casa.', italian, english, C10),
+    check('two adjectives joined, both agreeing with the object', C10,
+          'The bread defines the house red and big.'),
+
+    reason_translate('Il pane definisce rossa e grande la casa.', italian, spanish, C11),
+    check('and into Spanish with its own word for and', C11, 'El pan define roja y grande la casa.'),
+
+    reason_translate('La casa mangia il pane per definire rossa la casa.', italian, english, C12),
+    check('THE SAMPLE''S OWN SHAPE: an object already read, and the purpose infinitive with a complement of its own',
+          C12, 'The house eats the bread to define the house red.'),
+
+    reason_translate('La casa mangia il pane per definire rossa la casa.', italian, spanish, C13),
+    check('and into Spanish, where the complement stays before its object', C13,
+          'La casa come el pan para definir roja la casa.'),
 
     reason_unlearn(italian), reason_unlearn(spanish).
 
