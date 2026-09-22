@@ -3195,6 +3195,43 @@ on exactly the check that exists for it. It symlinks `extra/` too now.
 byte-for-byte check is what turns that from a thing to remember into a thing
 that cannot be forgotten.
 
+**THE REFLEXIVE IS DONE (1.6.3), AND IT BELONGS TO THE VERB.** `si è
+adeguata', `si sono appellati': the `si' is part of what the verb means, not
+a thing the subject did it to -- so it comes OFF the clitics and the IR wraps
+the lexeme, `g(reflexive(L), T, A, Neg)'. It travels that way because the
+reflexive is the VERB's property: a language with a reflexive pronoun writes
+it back, and English, which has none there, drops it.
+
+**AND `si' IS THE IMPERSONAL WORD TOO, WHICH NEEDS NO RULE TO SEPARATE.** The
+impersonal has NOTHING before the verb but itself and is read as the subject;
+the reflexive has a subject of its own. `Si adegua.' is `One adapts.' and `La
+casa si adegua.' is `The house adapts.', with no line of code deciding
+between them -- the shapes do it.
+
+**THE COST IS A TRUE REFLEXIVE AND IT IS STATED.** `si lava' is `washes
+himself' and comes out `washes'. Italian spells a lexical reflexive and a
+true one the same way and nothing in a lesson tells them apart; the lexical
+one is what newspaper prose is made of (`appellarsi', `adeguarsi',
+`riferirsi'), so that is the reading taken, and the other is wrong.
+
+**ONE THING BIT, AND IT IS THE SHAPE OF EVERY CLITIC BUG HERE:** the
+reflexive was swallowed into the SUBJECT PHRASE as an adjective -- `The
+itself house adapts' -- because `tr_subject_shape/4`'s guard refused an
+OBJECT pronoun and knew nothing of a reflexive one. A word that must be a
+clitic has to be refused everywhere a phrase could take it, which is two
+places (`tr_subject_shape/4` and `tr_adj_word/2`) and not one.
+
+**AND A WAITER WHOSE CONDITION CANNOT BE MET SITS FOR EVER, which is the
+`pgrep -f 'make'` hazard in a new coat.** Two background shells spun for
+thirty minutes on `grep -c 'terms$' LOG -ge 4` over a log that only ever had
+TWO such lines. Worse, they were invisible to the check made for them:
+**`pgrep -x cocolog` finds cocolog PROCESSES, not the shell waiters**, so
+"no background tasks running" was reported while two were. The harness's own
+task list is the instrument; a process check is not. Count what the condition
+will actually see before writing it, and prefer a condition that cannot
+outlive its work (the process gone) to one that counts lines somebody may
+reword.
+
 **AND THE PP ROW IS MARKED `MEASURE FIRST` ON PURPOSE.** `tr_phrase_words/4`
 ends a phrase at a preposition, so `la connivenza delle autorità` reads as a
 phrase and a SEPARATE `pp/2` hung on the verb -- the wrong attachment, and

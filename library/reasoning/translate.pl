@@ -1098,14 +1098,15 @@ tr_read_statement(Side, Words0, Asked, S) :-
     tr_group_from(Side, Words, Before, g(L, T, A, FP, FN), After),
     nb_setval('$tr_read_group', L),                           % for the complements: a bare base after a modal
     nb_setval('$tr_read_aspect', A),                          % and: a `by' phrase after a passive is its agent
-    tr_split_clitics(Side, Before, Asked, FP, FN, SubjectWords, Clitics),
+    tr_split_clitics(Side, Before, Asked, FP, FN, SubjectWords, Clitics0),
+    tr_reflexive_off(Side, Clitics0, Clitics, L, LV),
     tr_subject(Side, Asked, SubjectWords, FP, FN, Subject),
     tr_complements(Side, After, Comps0), !,                   % the cut once the WHOLE statement read: `house'
                                                               % is a verb's form, and `The house is big' must
                                                               % go on to the group at `is' when `is big' is no complement
     findall(opron(W), member(W, Clitics), Cs),
     append(Cs, Comps0, Comps),
-    tr_existential_fix(Side, s(Asked, Subject, g(L, T, A, Neg), Comps), S).
+    tr_existential_fix(Side, s(Asked, Subject, g(LV, T, A, Neg), Comps), S).
 
 tr_existential(english, [w(there, _), w(C, _)|After0], 'there is', T, After, Neg0, Neg) :-
     en_copula(C, third, _, T), tr_existential_no(After0, After, Neg0, Neg).
@@ -1142,10 +1143,34 @@ tr_split_clitics(foreign, Before, Asked, P, N, Subject, Clitics) :-
     forall(member(w(C, _), Clitics), tr_clitic(Asked, C)),
     tr_subject_shape(Asked, Subject, P, N), !.
 
+%% A REFLEXIVE PRONOUN BELONGS TO THE VERB, NOT TO THE SENTENCE. `si e
+%% adeguata', `si sono appellati': the `si' is part of what the verb means,
+%% not a thing the subject did it to -- so it comes OFF the clitics and the
+%% lexeme is wrapped, `g(reflexive(L), T, A, Neg)'. It travels that way
+%% because the reflexive is the VERB's property: a language with a reflexive
+%% pronoun writes it back, and English, which has none there, drops it.
+%%
+%% THE COST IS A TRUE REFLEXIVE, AND IT IS STATED. `si lava' is `washes
+%% himself' and comes out `washes'. Italian spells a lexical reflexive and a
+%% true one the same way and nothing in a lesson tells them apart; the
+%% lexical one is what newspaper prose is made of (`appellarsi', `adeguarsi',
+%% `riferirsi'), so that is the reading taken, and the other is wrong.
+%%
+%% AND `si' IS THE IMPERSONAL WORD TOO, which needs no rule to separate: the
+%% impersonal has NOTHING before the verb but itself and is read as the
+%% subject, the reflexive has a subject of its own and is read here.
+tr_reflexive_off(foreign, Cs0, Cs, L, reflexive(L)) :-
+    select(w(R, _), Cs0, Cs), tr_reflexive_word(R), !.
+tr_reflexive_off(_, Cs, Cs, L, L).
+
+%% a pronoun the lesson calls reflexive
+tr_reflexive_word(R) :- tr_lexeme(foreign, R, RL, _), tr_class_of(RL, pronoun), tr_solve(reflexive(RL)), !.
+
 %% an object pronoun that is no tonic one (`esto', `estas' stand after the
 %% verb, never before it); before a fronted verb, one that could not be
 %% the subject standing in its place (`¿Ella come el pan?' is she, in order)
 tr_clitic(fronted, C) :- !, tr_object_pronoun(foreign, C, _), \+ tr_tonic_word(C), \+ tr_subject_pronoun(foreign, C, _, _).
+tr_clitic(_, C) :- tr_reflexive_word(C), !.
 tr_clitic(_, C) :- tr_object_pronoun(foreign, C, _), \+ tr_tonic_word(C).
 
 %% a word of the lesson's that means one of English's pronouns standing alone
@@ -1170,6 +1195,9 @@ tr_subject_shape(_, Words, _, _) :-
 tr_subject_shape(_, Words, _, _) :-
     \+ ( member(w(X, _), Words), tr_object_pronoun(foreign, X, _), \+ tr_determiner(foreign, w(X, lower), _, _) ),
     \+ ( last(Words, w(X, _)), tr_object_pronoun(foreign, X, _) ),
+    %% nor a REFLEXIVE pronoun anywhere in it: `la casa si' is the phrase and
+    %% the clitic, never a phrase with `si' for an adjective
+    \+ ( member(w(X, _), Words), tr_reflexive_word(X) ),
     (   member(W, Words), tr_is(foreign, W, noun) -> true
     ;   Words = [D, _|_], ( tr_determiner(foreign, D, _, _) ; tr_is(foreign, D, number) )
     ).
@@ -1311,7 +1339,8 @@ tr_np(Side, Words0, np(Det, Num, Adjs, Noun, Number)) :-
 tr_adj_word(Side, A) :- tr_is(Side, A, conjunction), !.
 tr_adj_word(Side, w(W, C)) :-
     tr_lexeme(Side, W, _, _),
-    \+ tr_is(Side, w(W, C), preposition), \+ tr_is(Side, w(W, C), verb), \+ tr_object_pronoun(Side, W, _), \+ tr_subject_pronoun(Side, W, _, _).
+    \+ tr_is(Side, w(W, C), preposition), \+ tr_is(Side, w(W, C), verb), \+ tr_object_pronoun(Side, W, _), \+ tr_subject_pronoun(Side, W, _, _),
+    \+ ( Side == foreign, tr_reflexive_word(W) ).
 
 %% a determiner: English's articles, possessives, demonstratives and the
 %% determiners a lesson may give a word for (`each', `another', `many');
@@ -1498,7 +1527,7 @@ tr_write(To, Kind, s(none, there, g(L, T, simple, Neg), [obj(NP)|More]), Outs) :
         fo_assemble(none, [], [], Group, After, Outs)
     ).
 tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg), Comps), Outs) :-
-    nb_setval('$tr_verb', L),
+    ( L = reflexive(L0) -> true ; L0 = L ), nb_setval('$tr_verb', L0),
     tr_subject_out(To, Subject, SubjectOut, Person, Number, Noun),
     %% the subject's gender, for a passive participle to agree with
     ( Noun == none -> SG = masculine ; tr_gender(Noun, SG0), ( SG0 == none -> SG = masculine ; SG = SG0 ) ),
@@ -1518,6 +1547,7 @@ tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg), Comps), Outs) :-
 %% the verb's lexeme across: the English third person for the lesson's
 %% verb, the lesson's verb for the English one -- `is' is `is' either way
 %% as the copula, and the lesson's word for it
+tr_lexeme_across(reflexive(L0), To, reflexive(LT)) :- !, tr_lexeme_across(L0, To, LT).
 tr_lexeme_across(L, To, LT) :- tr_meanings_of(L, To, verb, [LT|_]).
 
 %% the subject out, with its person and number for the verb and its noun
@@ -1751,6 +1781,11 @@ tr_modal_verb :-
 %% and the object pronouns before it; the perfect as the auxiliary that
 %% means `has' in that form and the participle, the progressive as the one
 %% that means `is' and the gerund
+%% the lesson's language puts its reflexive pronoun back, before the verb
+%% with the other clitics
+fo_group(reflexive(L), P, N, T, A, Neg, Clitics, Group) :- !,
+    ( tr_reflexive_out(R) -> Cs = [o(R, lower)|Clitics] ; Cs = Clitics ),
+    fo_group(L, P, N, T, A, Neg, Cs, Group).
 fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
     (   A == passive
     ->  tr_copula_lexeme(CL), tr_make(CL, N, T, P, CForm),
@@ -1801,6 +1836,9 @@ tr_participle_is(P, Ps, G, N) :-
 %% the gender of the subject the writer is putting out, set by tr_write/4
 tr_subject_gender(G) :- ( catch(nb_getval('$tr_subject_gender', G0), _, fail) -> G = G0 ; G = masculine ).
 
+%% the word this lesson uses for a reflexive, if it has one
+tr_reflexive_out(R) :- tr_solve(reflexive(R)), tr_class_of(R, pronoun), !.
+
 %% the auxiliary that means `has' (the perfect) or `is' (the progressive):
 %% the one so meant, and for the perfect the first the lesson names at
 %% all, as before a lesson said what its auxiliary meant
@@ -1817,6 +1855,11 @@ en_group(L, _, _, T, simple, Neg, Statement, Front, Tail) :- en_modal_out(L, _, 
     ;   Front = o(M, lower), Tail = []
     ),
     Statement = [Front|Tail].
+%% ENGLISH DROPS IT: there is no reflexive pronoun in `the generals appealed',
+%% and writing one would say something the Italian does not.
+en_group(reflexive(L), P, N, T, A, Neg, Statement, Front, Tail) :- !,
+    en_group(L, P, N, T, A, Neg, Statement, Front, Tail).
+
 %% English's passive: the copula in the subject's person and number and the
 %% participle; the perfect passive `has been' and the participle. English
 %% has no agreement to make, so the participle is simply the one the lesson

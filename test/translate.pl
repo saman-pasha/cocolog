@@ -22,7 +22,7 @@
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
-    persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive,
+    persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1119,6 +1119,55 @@ The word "non" means "not". The word "non" precedes the verb.', italian, _),
     check('what the IR carries is the ASPECT, passive_perfect, and no word of any language', V7,
           [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
                 g(throws, present, passive_perfect, no), []), 46)]),
+
+    reason_unlearn(italian).
+
+%% ---- the reflexive -------------------------------------------------------------------
+%% A REFLEXIVE PRONOUN BELONGS TO THE VERB, so the IR wraps the lexeme --
+%% g(reflexive(L), T, A, Neg) -- and a language with a reflexive pronoun
+%% writes it back where English, which has none there, drops it.
+%%
+%% THE COST IS A TRUE REFLEXIVE: `si lava' is `washes himself' and comes out
+%% `washes'. Italian spells a lexical reflexive and a true one the same way
+%% and nothing in a lesson tells them apart; the lexical one is what
+%% newspaper prose is made of, so that is the reading taken.
+
+reflexive :-
+    section('the reflexive: it belongs to the verb, and `si'' is the impersonal word too'),
+    reason_learn('Italian is a language.
+The noun "casa" means "house". The masculine article "il" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "è" means "is". "stata" is the participle of "è". "stata" is feminine.
+The verb "adegua" means "adapts". "adeguato" is the participle of "adegua". "adeguata" is the participle of "adegua". "adeguata" is feminine.
+The reflexive pronoun "si" means "itself".
+The impersonal pronoun "si" means "one".
+The word "non" means "not". The word "non" precedes the verb.
+Every pronoun precedes the verb.', italian, _),
+
+    reason_translate('La casa si adegua.', italian, english, X1),
+    check('the reflexive comes off the clitics and English drops it', X1, 'The house adapts.'),
+
+    reason_translate('La casa non si adegua.', italian, english, X2),
+    check('denied', X2, 'The house does not adapt.'),
+
+    reason_translate('La casa si è adeguata.', italian, english, X3),
+    check('and with the copula and a participle after it', X3, 'The house is adapted.'),
+
+    reason_translate('Si adegua.', italian, english, X4),
+    check('THE SAME WORD, the IMPERSONAL reading: nothing before the verb but itself', X4,
+          'One adapts.'),
+
+    reason_ir('La casa si adegua.', italian, X5),
+    check('what the IR carries is the LEXEME wrapped, not a pronoun among the complements', X5,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                g(reflexive(adapts), present, simple, no), []), 46)]),
+
+    reason_ir('Si adegua.', italian, X6),
+    check('where the impersonal is a SUBJECT and the verb is bare', X6,
+          [ir(s(none, impersonal, g(adapts, present, simple, no), []), 46)]),
+
+    reason_translate('La casa si adegua.', italian, italian, X7),
+    check('and the pronoun is written back into a language that has one', X7, 'La casa si adegua.'),
 
     reason_unlearn(italian).
 
