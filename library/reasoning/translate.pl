@@ -506,8 +506,8 @@ reason_untranslated(Text, Words) :- reason_untranslated(Text, any, Words).
 %% The page path knows the language it was given, so it says so.
 reason_untranslated(Text, From, Words) :-
     tr_pieces(Text, Pieces),
-    findall(W, ( member(Piece-_, Pieces), reason_tokens(Piece, Tokens), tr_words(Tokens, Ws),
-                 tr_unknown_in(From, Ws, W) ),
+    findall(W, ( member(Piece-_, Pieces), reason_tokens(Piece, Tokens), tr_words(Tokens, Ws0c),
+                 tr_uncomma(Ws0c, Ws), tr_unknown_in(From, Ws, W) ),
             Ws0),
     list_to_set(Ws0, Words).
 
@@ -560,6 +560,9 @@ tr_each([Piece-Stop|Ps], Way, [Out|Outs]) :-
 %% is read as its words, and written back as itself (tr_contract/3)
 tr_expand(english, Ws, Ws) :- !.
 tr_expand(foreign, [], []).
+%% a comma is carried through untouched: it is no word and has nothing to
+%% expand, and the clause splitter still needs to see it
+tr_expand(foreign, [comma|Ws], [comma|Out]) :- !, tr_expand(foreign, Ws, Out).
 %% AN ELIDED CONTRACTION IS UN-ELIDED FIRST: `dell'' is `della', which is
 %% then read as its two words. Which of the forms an elision stands for is
 %% taken as the first stated -- `dell'' elides `dello' and `della' alike --
@@ -621,9 +624,46 @@ tr_blank(Cs) :- \+ ( member(C, Cs), C > 32 ).
 
 %% the words with their case, w(Word, upper|lower); a comma is nothing, and
 %% a number in digits or a quoted word is not a sentence this translates
+%% A COMMA IS KEPT, because it is where a sentence's clauses divide and it
+%% was dropped here before anything could see it. It travels as the atom
+%% `comma' among the w/2 terms, and `tr_uncomma/2' takes them out again --
+%% everything below the clause splitter expects a list of w/2 and nothing
+%% else, so the commas are stripped the moment the split has read them.
+%% A NUMBER IN DIGITS AND A WORD IN QUOTATION MARKS ARE WORDS HERE, and
+%% neither was: tr_words/2 had a clause for word/2 and a comma and nothing
+%% else, so a token of any other kind made it FAIL and the sentence produced
+%% no words at all -- which is why `il premio da 200 milioni' and every
+%% sentence carrying scare quotes refused before a word of grammar ran.
+%%
+%% They are the two tokens that pass through UNTRANSLATED. A number is the
+%% same in every language and writes back as its digits; a word in quotation
+%% marks is quoted in the text rather than mentioned -- newspaper prose puts
+%% scare quotes round an ordinary word -- so it is read as the word it is
+%% and the marks are written back round it. The case field carries them:
+%% `qboth' for a single word, `qopen' and `qclose' round a run, which
+%% tr_word_text/4 turns back into the marks and nothing else looks at.
 tr_words([], []).
 tr_words([word(W, C)|Ts], [w(W, C)|Ws]) :- !, tr_words(Ts, Ws).
-tr_words([','|Ts], Ws) :- !, tr_words(Ts, Ws).
+tr_words([','|Ts], [comma|Ws]) :- !, tr_words(Ts, Ws).
+tr_words([num(N)|Ts], [w(A, lower)|Ws]) :- !, format(atom(A), "~w", [N]), tr_words(Ts, Ws).
+tr_words([quoted(Q)|Ts], Out) :- !,
+    tr_quoted_words(Q, Qs), append(Qs, Ws, Out), tr_words(Ts, Ws).
+
+%% a quoted token as its words, the marks kept on the run's edges
+tr_quoted_words(Q, Qs) :-
+    atom_string(Q, S), split_string(S, " ", " ", Parts0),
+    findall(A, ( member(P, Parts0), P \== "", atom_string(A, P) ), As),
+    tr_quoted_mark(As, Qs).
+tr_quoted_mark([A], [w(A, qboth)]) :- !.
+tr_quoted_mark(As, Qs) :-
+    append([First|Mid0], [Last], As), !,
+    findall(w(M, lower), member(M, Mid0), Mid),
+    append([w(First, qopen)|Mid], [w(Last, qclose)], Qs).
+tr_quoted_mark([], []).
+
+tr_uncomma([], []).
+tr_uncomma([comma|Ws], Out) :- !, tr_uncomma(Ws, Out).
+tr_uncomma([W|Ws], [W|Out]) :- tr_uncomma(Ws, Out).
 
 %% ---- the languages, and which way --------------------------------------------
 %%
@@ -732,12 +772,21 @@ tr_from_ir(To, Kind, S, Stop, Out) :-
 %% term rather than over the words coming out of it -- so a sentence read
 %% on the lesson's side becomes the same term an English sentence reads
 %% as, and anything that can write one can write the other
+%% two clauses joined: the connector crosses to English as the word it is,
+%% and each side crosses as the sentence it is
+tr_cross(Side, join(C0, A0, B0), join(C, A, B)) :- !,
+    tr_cross_connector(Side, C0, C), tr_cross(Side, A0, A), tr_cross(Side, B0, B).
 tr_cross(english, S0, S) :- !, tr_cross_which(S0, S).
 tr_cross(foreign, s(Asked0, Subject0, g(L0, T, A, Neg), Comps0), s(Asked, Subject, g(L, T, A, Neg), Comps)) :-
     tr_lexeme_across(L0, english, L),
     tr_cross_asked(Asked0, Asked),
     tr_cross_subject(Asked, Subject0, Subject),
     tr_cross_comps(Comps0, Comps).
+
+%% the connector of a join, across: a comma as itself, a word by its meaning
+tr_cross_connector(_, comma, comma) :- !.
+tr_cross_connector(Side, w(W, C), w(T, C)) :-
+    ( Side == english -> T = W ; tr_lexeme(foreign, W, L, _), tr_meanings_of(L, english, conjunction, [T|_]) ), !.
 
 %% the English side crosses nothing, and normalises one thing: a `which'
 %% question carries the words of its phrase, and the IR carries the phrase
@@ -810,9 +859,57 @@ tr_cross_comp(opron(w(W, C)), opron(w(T, C))) :- tr_pronoun_across(english, obje
 
 %% ---- reading: a question into the statement's order -------------------------------
 
+%% A SENTENCE MAY HOLD SEVERAL CLAUSES, and where they divide is a comma or
+%% a connecting word -- `Il blitz e riuscito, l'operazione e considerata
+%% conclusa', `La sinistra l'ha attaccata perche Pivetti non si e adeguata'.
+%% Half the newspaper sample needs it and none of it could be reached before,
+%% because the comma was dropped in tr_words/2 and tr_split/2 divides on `.',
+%% `!' and `?' alone.
+%%
+%% THE WHOLE PIECE IS TRIED AS ONE STATEMENT FIRST, which is what makes this
+%% a strict addition: every sentence that read before reads the same way and
+%% by the same clauses. Only when that fails is a division looked for, and a
+%% division is taken only when BOTH sides read as clauses of their own --
+%% which is what keeps `la sua identita e la sua nazionalita' one subject
+%% rather than two sentences, with no rule about phrases needed.
 tr_read(Side, Kind, Words0, S) :-
-    tr_normalise(Side, Kind, Words0, Words, Asked),
-    tr_read_statement(Side, Words, Asked, S).
+    tr_uncomma(Words0, Plain),
+    tr_normalise(Side, Kind, Plain, Words, Asked),
+    tr_read_statement(Side, Words, Asked, S), !.
+tr_read(Side, Kind, Words0, S) :-
+    tr_clause_split(Side, Words0, Left, Conn, Right),
+    tr_read(Side, Kind, Left, S1),
+    tr_read(Side, statement, Right, S2), !,
+    S = join(Conn, S1, S2).
+
+%% the first division whose two sides both read: a connecting word the
+%% lesson gives (`e', `ma', `perche'), or a bare comma. The connector
+%% travels as the word it was written with and crosses through mean/2 like
+%% every other word; a comma has no word and travels as the atom.
+tr_clause_split(Side, Words, Left, w(C, CC), Right) :-
+    append(Left0, [w(C, CC)|Right0], Words),
+    tr_connector(Side, C),
+    tr_clause_words(Left0, Left), tr_clause_words(Right0, Right).
+tr_clause_split(_, Words, Left, comma, Right) :-
+    append(Left0, [comma|Right0], Words),
+    tr_clause_words(Left0, Left), tr_clause_words(Right0, Right).
+
+%% a side of a division: at least one word, and a comma of its own at the
+%% edge is punctuation rather than another clause (`, perche ...')
+tr_clause_words(Ws0, Ws) :-
+    ( append([comma], W1, Ws0) -> true ; W1 = Ws0 ),
+    ( append(Ws, [comma], W1) -> true ; Ws = W1 ),
+    Ws \== [], \+ memberchk(Ws, [[comma]]).
+
+%% a word that joins two clauses: one the lesson calls a conjunction whose
+%% meaning is one of English's connectors, or one of English's own
+tr_connector(english, W) :- !, en_connector(W).
+tr_connector(foreign, W) :-
+    tr_lexeme(foreign, W, L, _), tr_class_of(L, conjunction),
+    tr_solve(mean(L, E)), en_connector(E), !.
+
+en_connector(and).  en_connector(but).  en_connector(or).
+en_connector(because).  en_connector(so).  en_connector(while).
 
 tr_normalise(_, statement, Words, Words, none) :- !.
 tr_normalise(english, question, Words0, Words, Asked) :-
@@ -1319,6 +1416,14 @@ tr_all_adjectives(Side, Words) :-
 %% `there is': English's `there', the copula in the number of what there is
 %% (`There are dogs') and `no' for the denial with the article dropped
 %% (`There is no dog'); the lesson's verb and the phrase, no subject
+%% two clauses joined: the first, the connector, the second. Only the
+%% first carries the sentence's KIND -- a question mark belongs to the whole
+%% -- and a comma is written with no space before it (tr_join/5).
+tr_write(To, Kind, join(C, S1, S2), Outs) :- !,
+    tr_write(To, Kind, S1, O1),
+    tr_connector_out(To, C, CO),
+    tr_write(To, statement, S2, O2),
+    append(O1, CO, Front), append(Front, O2, Outs).
 tr_write(To, Kind, s(none, there, g(L, T, simple, Neg), [obj(NP)|More]), Outs) :- !,
     nb_setval('$tr_verb', L),
     tr_lexeme_across(L, To, LT),
@@ -1384,6 +1489,10 @@ tr_subject_out(To, and(S1, S2), Outs, third, plural, none) :- !,
 tr_subject_out(To, np(D, M, As, N, Number), Outs, third, Number, Noun) :- !, tr_np_out(To, np(D, M, As, N, Number), Outs, Noun, Number).
 tr_subject_out(To, with(NP, PPs), Outs, third, Number, Noun) :-
     tr_np_out(To, NP, O1, Noun, Number), tr_comps_out(To, PPs, Noun, Number, _, O2, _), append(O1, O2, Outs).
+
+%% the connector out: a comma as itself, a word through the lesson
+tr_connector_out(_, comma, [o(',', comma)]) :- !.
+tr_connector_out(To, w(W, C), [o(T, C)]) :- tr_word_across(w(W, lower), To, conjunction, T).
 
 %% what a question word asks for, out: the word itself, or `which' with its phrase
 tr_asked_out(_, none, []) :- !.
@@ -1783,6 +1892,10 @@ tr_gender(W, G) :-
 %% the word itself when the lesson gave it; the singular of a plural the
 %% lesson stated; in the lesson's language the singular whose ending rule
 %% makes the word; in English a noun the stemmer takes back
+%% A NUMBER IN DIGITS IS ITS OWN LEXEME ON EVERY SIDE. It is the one word
+%% no lesson gives and none needs to: `200' is 200 in every language, so it
+%% is known, it is a number, and it crosses as itself.
+tr_lexeme(_, W, W, singular) :- tr_digits(W), !.
 tr_lexeme(Side, W, W, singular) :- tr_known(Side, W).
 tr_lexeme(english, an, a, singular) :- tr_known(english, a).
 tr_lexeme(Side, W, S, plural) :- tr_solve(plural_of(W, S)), tr_known(Side, S).
@@ -1833,6 +1946,9 @@ tr_endings(T, Es) :-
     ),
     findall(E, ( member(E, Es0), atom(E) ), Es1), sort(Es1, Es).
 
+tr_digits(W) :- atom(W), atom_codes(W, Cs), Cs \== [], forall(member(C, Cs), ( C >= 0'0, C =< 0'9 )).
+
+tr_known(_, W) :- tr_digits(W), !.
 tr_known(foreign, W) :- tr_solve(mean(W, _)), !.
 tr_known(english, E) :- tr_solve(mean(_, E)), !.
 
@@ -2014,6 +2130,7 @@ tr_is(english, w(W, _), preposition) :- en_preposition(W), !.
 tr_is(english, w(W, _), conjunction) :- W == and, !.
 tr_is(english, w(W, _), number) :- en_number(W), !.
 tr_is(Side, w(W, _), Class) :- tr_lexeme(Side, W, L, _), tr_class(Side, L, Class), !.
+tr_class(_, W, number) :- tr_digits(W), !.
 tr_class(foreign, W, C) :- tr_class_of(W, C).
 tr_class(english, E, C) :- tr_solve(mean(W, E)), tr_class_of(W, C).
 tr_class_of(W, C) :-
@@ -2104,13 +2221,25 @@ en_function(W) :- memberchk(W, [not, does, do, did, will, would, has, have, had,
 
 tr_join(To, Kind, Outs0, Stop, Out) :-
     tr_contract(To, Outs0, Outs),
-    findall(A, ( member(o(T, C), Outs), tr_word_text(To, T, C, A) ), As),
+    findall(A, ( member(o(T, C), Outs), tr_word_text(To, T, C, A) ), As0),
+    tr_glue(As0, As),
     atomic_list_concat(As, ' ', S0),
     tr_cap(S0, S1),
     atom_codes(S1, Cs), append(Cs, [Stop], Cs1), atom_codes(Out0, Cs1),
     (   To == foreign, Kind == question, once(tr_solve(begin(M, question))) -> atom_concat(M, Out0, Out)
     ;   Out = Out0
     ).
+
+%% a comma joins the word before it with no space between
+tr_glue([A, ','|Rest], Out) :- !, atom_concat(A, ',', A1), tr_glue([A1|Rest], Out).
+tr_glue([A|As], [A|Out]) :- !, tr_glue(As, Out).
+tr_glue([], []).
+
+%% a quoted word gets its marks back: both for one word, the opening one on
+%% the head of a run and the closing one on its last word
+tr_word_text(_, T, qboth, A) :- !, atomic_list_concat(['"', T, '"'], A).
+tr_word_text(_, T, qopen, A) :- !, atomic_list_concat(['"', T], A).
+tr_word_text(_, T, qclose, A) :- !, atomic_list_concat([T, '"'], A).
 
 tr_word_text(english, i, _, 'I') :- !.
 tr_word_text(_, T, upper, A) :- !, tr_cap(T, A).

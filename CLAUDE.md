@@ -3050,6 +3050,86 @@ holding by 0.007, which is one line of 329, so the next corpus change of any
 kind flips it red for a reason nobody will connect to the change. **A pin with
 one line of margin is a pin that has stopped measuring anything.**
 
+### What real newspaper prose needs, and the order it is being built in
+
+**THE TWELVE SENTENCES OF THE 1.6.0 SAMPLE ARE THE SPECIFICATION NOW**, and the
+work is to translate all of them. They are verbatim Italian Universal
+Dependencies newspaper prose, into Spanish over the two-language vocabulary
+store, and between them they need ELEVEN structures the translator does not
+have. The table is the plan, in the order the work goes, because a structure
+that unlocks six sentences is worth more than one that unlocks one:
+
+| what it needs | the twelve that need it | why it is where it is |
+|---|---|---|
+| **several clauses in one sentence** | 6, 8, 9, 10, 11, 12 | half the sample, and nothing else can be reached past it |
+| **passive**: `essere` + participle, with a `da` agent | 4, 7, 11, 12 | the verb group, and it is the commonest shape in news |
+| **reflexive `si`**, which is NOT the impersonal one | 3, 6 | the same word, a different reading |
+| a **PP inside a noun phrase** (`la connivenza delle autorità`) | 2, 3, 5, 9, 10, 12 | may already write correctly between two Romance languages -- MEASURE before building |
+| **reduced relative**: a participle after a noun (`il coprifuoco imposto dai soldati`) | 7, 12 | needs the passive first |
+| **purpose clause**: `per` + an infinitive | 10 | |
+| **object complement**: `definire illegale la decisione` | 10 | |
+| **superlative**: `uno dei Paesi più ricchi del mondo` | 12 | |
+| **verb before subject** (inversion) | 7 | |
+| **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | a fragment, and the grammar has no fragment |
+| **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last |
+
+-- plus four words Apertium's dictionary lacks (`coprifuoco`, `connivenza`,
+`stigliatura` among them), which is the 1.2.42 refusal table's first row again
+and is a SOURCE problem rather than a shape one.
+
+**THE COMMA IS WHY SIX OF THEM CANNOT EVEN BEGIN.** `tr_words/2` DROPS a comma
+(`tr_words([','|Ts], Ws) :- !, tr_words(Ts, Ws).`), so a sentence's clause
+boundaries are invisible to the reader before any grammar sees them --
+`tr_split/2` splits on `.`, `!` and `?` and nothing else, and one piece is one
+clause by construction. That is the first thing to change and it is why clause
+splitting leads the table.
+
+**THE CLAUSE SPLIT IS DONE (1.6.1), AND IT IS ONE IR NODE.** `tr_words/2`
+keeps the comma as the atom `comma`, `tr_uncomma/2` takes them out again, and
+the IR gained `ir(join(Connector, S1, S2), Stop)` -- the connector an ENGLISH
+word, crossing through `mean/2` like every other, or the atom `comma`. THE
+WHOLE PIECE IS TRIED AS ONE STATEMENT FIRST, which is what makes it a strict
+addition: every sentence that read before reads by the same clauses. A
+division is taken only when BOTH sides read as clauses of their own, which is
+what keeps `Il cane e il gatto mangiano il pane' one subject with no rule
+about phrases needed. `test/translate.pl`'s `clauses` section pins seven, and
+one old pin that recorded the refusal moved.
+
+**AND TWO BLOCKERS FELL OUT THAT WERE BIGGER THAN THE COMMA.**
+
+**`tr_words/2` HAD NO CLAUSE FOR A NUMBER OR A QUOTED WORD, so the sentence
+produced NO WORDS AT ALL.** It matched `word/2` and a comma and nothing else,
+and a token of any other kind made it FAIL -- so `il premio da 200 milioni'
+and every sentence carrying scare quotes refused before a word of grammar
+ran. Both are now the tokens that pass through UNTRANSLATED: a number is its
+own lexeme on every side (`200' is 200 in every language, and `tr_digits/1'
+makes it known, a number, and its own meaning), and a word in quotation marks
+is read as the word it is with the marks carried in the CASE field (`qboth',
+`qopen', `qclose'), which `tr_word_text/4' turns back into marks and nothing
+else looks at. **Newspaper prose puts scare quotes round an ordinary word**,
+which is not the mention `reason.pl` reads, and two pins that recorded the
+old refusal moved.
+
+**AND THE BUILDER WROTE ONLY THE MASCULINE SINGULAR PARTICIPLE.**
+`considerata', `conclusa', `attaccata', `appellati', `accertate',
+`costituite' and `evacuata' were all unknown words although EVERY ONE of
+their verbs was already in the vocabulary -- seven refusals over six
+sentences of the sample, for a form Apertium carries and the builder asked
+for at `[pp, m, sg]` alone. `cb_participles/2` writes all four now, the
+masculine singular FIRST so a writer taking the first meaning writes what it
+wrote before: Italian 70 576 -> **75 145** lines, Spanish 92 087 ->
+**98 231**. Agreement on the way OUT is a different question and is NOT
+answered there -- a participle after `ser' agrees with its subject, and
+writing the masculine form of a feminine subject is wrong.
+
+**AND THE PP ROW IS MARKED `MEASURE FIRST` ON PURPOSE.** `tr_phrase_words/4`
+ends a phrase at a preposition, so `la connivenza delle autorità` reads as a
+phrase and a SEPARATE `pp/2` hung on the verb -- the wrong attachment, and
+between two Romance languages the word order is the same either way, so it may
+write out correctly regardless. **A structure that is wrong in the IR and right
+in the output is not a structure to build until a measurement says it is**,
+which is this file's own rule about counting before believing a mechanism.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

@@ -511,9 +511,26 @@ cb_verb_forms(L, Forms) :-
     ( cb_verb_form(Forms, [pii, p3, sg], Imp), Imp \== Past -> cb_line('"~w" is the past of "~w".', [Imp, L]), cb_tense(Forms, pii, Imp, past_of) ; true ),
     ( cb_verb_form(Forms, [fti, p3, sg], Fut) -> cb_line('"~w" is the future of "~w".', [Fut, L]), cb_tense(Forms, fti, Fut, plural_of) ; true ),
     ( cb_verb_form(Forms, [cni, p3, sg], Cond) -> cb_line('"~w" is the conditional of "~w".', [Cond, L]), cb_tense(Forms, cni, Cond, plural_of) ; true ),
-    ( cb_verb_form(Forms, [pp, m, sg], Pp) -> cb_line('"~w" is the participle of "~w".', [Pp, L]) ; true ),
+    cb_participles(Forms, L),
     ( cb_verb_form(Forms, [inf], Inf) -> cb_line('"~w" is the infinitive of "~w".', [Inf, L]) ; true ),
     ( cb_verb_form(Forms, [ger], Ger) -> cb_line('"~w" is the gerund of "~w".', [Ger, L]) ; true ).
+
+%% A PARTICIPLE AGREES, AND ALL FOUR FORMS ARE THE PARTICIPLE. Only the
+%% masculine singular was written, so `considerata', `conclusa', `attaccata',
+%% `appellati', `accertate' and `costituite' were unknown words although
+%% their verbs were all in the vocabulary -- seven of the refusals in the
+%% newspaper sample, over six sentences, for a form the dictionary already
+%% carries. The masculine singular is stated FIRST so that a writer taking
+%% the first meaning writes what it wrote before; the other three are read.
+%%
+%% Agreement on the way OUT is a different question and is not answered
+%% here: a participle after `ser' agrees with its subject, and writing the
+%% masculine form of a feminine subject is wrong. Reading is what the
+%% sample needs and what this gives.
+cb_participles(Forms, L) :-
+    forall( ( member(G-N, [m-sg, f-sg, m-pl, f-pl]),
+              cb_verb_form(Forms, [pp, G, N], Pp) ),
+            cb_line('"~w" is the participle of "~w".', [Pp, L]) ).
 
 %% the plural and the persons of one tense's third person singular. The
 %% plural of a past is stated as the past of the plural (`"comieron" is the

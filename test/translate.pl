@@ -22,7 +22,7 @@
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
-    persons, future, perfect, phrases, wh, languages, ir, elision,
+    persons, future, perfect, phrases, wh, languages, ir, elision, clauses,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1026,6 +1026,54 @@ elision :-
 
     reason_unlearn(italian).
 
+%% ---- several clauses in one sentence ------------------------------------------------
+%% The comma was DROPPED in tr_words/2 before anything could see it, and
+%% tr_split/2 divides a text on `.', `!' and `?' alone -- so one piece was
+%% one clause by construction, and half the newspaper sample could not begin
+%% to parse. The whole piece is still tried as one statement first, so every
+%% sentence that read before reads by the same clauses.
+
+clauses :-
+    section('several clauses in one sentence: a comma or a connecting word divides them'),
+    reason_learn('Italian is a language. The noun "cane" means "dog". The noun "gatto" means "cat". The noun "pane" means "bread". The verb "vede" means "sees". The verb "mangia" means "eats". The masculine article "il" means "the". Every noun that does not end in "a" is masculine. The conjunction "e" means "and". The word "non" means "not". The word "non" precedes the verb. "mangiano" is the plural of "mangia". "vedono" is the plural of "vede".', italian, _),
+
+    reason_translate('Il cane vede il gatto e il cane mangia il pane.', italian, english, C1),
+    check('two clauses joined by a connecting word, into English', C1,
+          'The dog sees the cat and the dog eats the bread.'),
+
+    reason_translate('Il cane vede il gatto e il cane mangia il pane.', italian, spanish, C2),
+    check('and into a third language, with no English written', C2,
+          'El perro ve el gato y el perro come el pan.'),
+
+    reason_translate('The dog sees the cat and the dog eats the bread.', english, italian, C3),
+    check('and back, which is the same two halves the other way', C3,
+          'Il cane vede il gatto e il cane mangia il pane.'),
+
+    reason_translate('Il cane mangia il pane, il gatto mangia il pane.', italian, english, C4),
+    check('a bare COMMA divides two clauses, and is written with no space before it', C4,
+          'The dog eats the bread, the cat eats the bread.'),
+
+    reason_ir('Il cane vede il gatto e il cane mangia il pane.', italian, C5),
+    check('what the IR carries is join(Connector, S1, S2), the connector an ENGLISH word', C5,
+          [ir(join(w(and, lower),
+                   s(none, np(det(article, the, w(the, lower)), none, [], w(dog, lower), singular),
+                     g(sees, present, simple, no),
+                     [obj(np(det(article, the, w(the, lower)), none, [], w(cat, lower), singular))]),
+                   s(none, np(det(article, the, w(the, lower)), none, [], w(dog, lower), singular),
+                     g(eats, present, simple, no),
+                     [obj(np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular))])),
+              46)]),
+
+    reason_translate('Il cane non mangia il pane e il gatto mangia il pane.', italian, english, C6),
+    check('each clause carries its own denial', C6,
+          'The dog does not eat the bread and the cat eats the bread.'),
+
+    reason_translate('Il cane e il gatto mangiano il pane.', italian, english, C7),
+    check('A CONJUNCTION INSIDE A SUBJECT IS NOT A DIVISION: neither side is a clause', C7,
+          'The dog and the cat eat the bread.'),
+
+    reason_unlearn(italian).
+
 %% ---- the lesson questioned ---------------------------------------------------------
 
 questions :-
@@ -1149,17 +1197,21 @@ refusals :-
     reason_untranslated('The house.', U3),
     check('and nothing untranslated: the words are known, the shape is not', U3, []),
     yes_no(reason_translate('Maria has 3 dogs.', _), R4),
-    check('a number in digits is not a sentence this translates', R4, no),
+    check('a number in DIGITS is a word now -- its own lexeme on every side -- but a bare one before a plural noun is still no shape this reads', R4, no),
     yes_no(reason_translate('The house is big. The house is old.', _), R5),
     check('two sentences, one refused: both refused', R5, no),
     yes_no(reason_translate('Maria does not sleep.', _), R6),
     check('a denied verb the lesson does not know', R6, no),
     reason_untranslated('Maria does not sleep.', U6),
     check('reported as its base form, the word as typed', U6, [sleep]),
-    yes_no(reason_translate('The dog sees the cat and the dog eats the bread.', _), R7),
-    check('two clauses: one verb a sentence', R7, no),
-    yes_no(reason_translate('Maria eats "bread".', _), R8),
-    check('a word in quotation marks', R8, no),
+    reason_translate('The dog sees the cat and the dog eats the bread.', R7),
+    check('two clauses joined READ now, where this pinned the refusal before 1.6.1', R7,
+          'El perro ve el gato y el perro come el pan.'),
+    reason_translate('Maria eats "bread".', R8),
+    check('A WORD IN QUOTATION MARKS TRANSLATES NOW, marks and all: newspaper prose puts scare quotes round an ordinary word, and tr_words/2 used to FAIL on the token', R8,
+          'Maria come "pan".'),
+    reason_translate('Maria come "pan".', R8b),
+    check('and back, the marks kept round the word the other language uses', R8b, 'Maria eats "bread".'),
     catch(( reason_translate('La casa es grande.', french, _), E9 = none ), error(E9, _), true),
     check('a language the lesson did not name', E9, domain_error(language, french)),
     catch(( reason_translate(42, _), E10 = none ), error(E10, _), true),
