@@ -189,3 +189,4 @@ The adverb "hoy" means "today".
 The number "dos" means "two".
 The number "tres" means "three".
 The conjunction "y" means "and".
+The impersonal pronoun "se" means "one".

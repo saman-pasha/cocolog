@@ -22,7 +22,7 @@
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
-    persons, future, perfect, phrases, wh, languages, ir,
+    persons, future, perfect, phrases, wh, languages, ir, elision,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -964,6 +964,65 @@ ir :-
     check('a text is read once, sentence by sentence', N16, 2),
     reason_ir_text(IR16, spanish, S16),
     check('and written as many times as there are languages', S16, 'El perro come el pan. Las casas son grandes.'),
+
+    reason_unlearn(italian).
+
+%% ---- the elision and the impersonal ------------------------------------------------
+%% Both are lesson shapes that were already there: `"l'" is the elision of
+%% "lo"' is `is the NOUN of X' and `The impersonal pronoun "si" means "one"'
+%% is the apposition. What had to move was the TOKENISER, which cut
+%% `l'amico' at the apostrophe and left an `l' no lesson could give a
+%% meaning, and the subject reader, which refused a third person singular
+%% with nobody in front of it -- rightly, until the impersonal word IS the
+%% something that says who.
+
+elision :-
+    section('the elision and the impersonal pronoun: an apostrophe is part of the word before it'),
+    reason_learn('Italian is a language. The noun "amico" means "friend". The noun "cane" means "dog". The verb "è" means "is". The adjective "grande" means "big". Every adjective follows the noun. The noun "pane" means "bread". The verb "mangia" means "eats". The feminine article "la" means "the". The masculine article "il" means "the". The masculine article "lo" means "the". Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine. The word "non" means "not". The word "non" precedes the verb. The preposition "di" means "of". "del" is the contraction of "di il". "l''" is the elision of "il". "l''" is the elision of "lo". "l''" is the elision of "la". "dell''" is the elision of "del". The impersonal pronoun "si" means "one".', italian, _),
+
+    reason_tokens('l''incolumita del presidente.', T1),
+    check('the apostrophe ENDS the word and stays with it: two words, not `l'' and a noun', T1,
+          [word('l''', lower), word(incolumita, lower), word(del, lower), word(presidente, lower), '.']),
+
+    reason_tokens('a b’c', T2),
+    check('the typographic apostrophe is written as the plain one, so a lesson spells the form once', T2,
+          [word(a, lower), word('b''', lower), word(c, lower)]),
+
+    reason_tokens('un po'' di pane', T3),
+    check('and an apostrophe with no letter after it is punctuation as before', T3,
+          [word(un, lower), word(po, lower), word(di, lower), word(pane, lower)]),
+
+    reason_translate('L''amico mangia il pane.', italian, english, S4),
+    check('an elided article READS as what it elides', S4, 'The friend eats the bread.'),
+
+    reason_translate('The friend eats the bread.', english, italian, S5),
+    check('and is WRITTEN before a vowel, joined to the word after it', S5, 'L''amico mangia il pane.'),
+
+    reason_translate('The dog eats the bread.', english, italian, S6),
+    check('a consonant still takes the plain form', S6, 'Il cane mangia il pane.'),
+
+    reason_translate('Il pane dell''amico è grande.', italian, english, S7),
+    check('an elided CONTRACTION is un-elided and then read as its two words', S7,
+          'The bread of the friend is big.'),
+
+    reason_translate('Si mangia il pane.', italian, english, S8),
+    check('the impersonal pronoun is a subject naming nobody: English says `one''', S8,
+          'One eats the bread.'),
+
+    reason_translate('One eats the bread.', english, italian, S9),
+    check('and English''s `one'' comes back as the lesson''s own word', S9, 'Si mangia il pane.'),
+
+    reason_translate('Non si mangia il pane.', italian, english, S10),
+    check('denied, and the verb stays third person singular', S10, 'One does not eat the bread.'),
+
+    reason_ir('Si mangia il pane.', italian, IR11),
+    check('what the IR carries is the subject `impersonal'', not a word of any language', IR11,
+          [ir(s(none, impersonal, g(eats, present, simple, no),
+                [obj(np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular))]),
+              46)]),
+
+    yes_no(reason_translate('Mangia il pane.', italian, english, _), R12),
+    check('a third person singular with NOBODY in front of it is still refused: it could be anybody', R12, no),
 
     reason_unlearn(italian).
 

@@ -317,6 +317,25 @@ main :-
     must('a stated plural one side and a ruled one the other', S18c, 'Las casas no son grandes.'),
     show('so a language is added by adding its lesson', 'reason_learn(Text, Language, Terms)'),
 
+    format("~n19. The elision and the impersonal pronoun: two shapes the lesson already had~n", []),
+    reason_learn('The noun "amico" means "friend". "l\'" is the elision of "il". "l\'" is the elision of "lo". "l\'" is the elision of "la". The impersonal pronoun "si" means "one".', italian, T19),
+    length(T19, N19), show('five more lines of the Italian lesson', N19),
+    reason_learn('The impersonal pronoun "se" means "one".', _),
+    reason_tokens('L\'amico mangia il pane.', Tok19),
+    show('the apostrophe ends the word and stays with it', Tok19),
+    reason_translate('L\'amico mangia il pane.', italian, english, S19a),
+    must('an elided article reads as what it elides', S19a, 'The friend eats the bread.'),
+    reason_translate('The friend eats the bread.', english, italian, S19b),
+    must('and is written back before a vowel, joined to the word after it', S19b, 'L\'amico mangia il pane.'),
+    reason_translate('The dog eats the bread.', english, italian, S19c),
+    must('a consonant takes the plain article', S19c, 'Il cane mangia il pane.'),
+    reason_translate('Si mangia il pane.', italian, english, S19d),
+    must('`The impersonal pronoun "si" means "one"'': a subject that names nobody', S19d, 'One eats the bread.'),
+    reason_translate('Si mangia il pane.', italian, spanish, S19e),
+    must('and into a language with a word of its own for it', S19e, 'Se come el pan.'),
+    reason_ir('Si mangia il pane.', italian, IR19),
+    show('what the IR carries is the subject, not a word of any language', IR19),
+
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
 %% Each section its own clause: one clause holding the whole lesson ran over the

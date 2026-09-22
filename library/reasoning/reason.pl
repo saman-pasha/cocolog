@@ -53,7 +53,12 @@
 %%         num(N) for digits (500, 5.5, 1,000; `5%' is 5 and the word
 %%         percent), quoted(Word) for a word between quotation marks, `.'
 %%         or `,'. A byte past 127 is part of a word, so `pequeño' is one;
-%%         `¿', `¡' and the typographic dashes are punctuation.
+%%         `¿', `¡' and the typographic dashes are punctuation. An
+%%         APOSTROPHE between letters ends the word and stays with it, so
+%%         `l'incolumità' is `l'' and the noun -- two words, which a lesson
+%%         can then give meanings; with no letter after it (`un po'') it is
+%%         punctuation like any other. The typographic apostrophe is
+%%         written as the plain one.
 %%
 %%     reason_refused(+Text, -Sentence)
 %%         The first sentence reason_text/2 would refuse, as its words
@@ -1278,10 +1283,28 @@ rt_quoted(Cs, [], Rest) :- rt_quote_close(Cs, Rest), !.
 rt_quoted([], [], []).
 rt_quoted([C|Cs], [C|Ws], Rest) :- rt_quoted(Cs, Ws, Rest).
 
+%% AN APOSTROPHE BETWEEN LETTERS ENDS THE WORD AND STAYS WITH IT.
+%% `l'incolumita' is the elided article and the noun -- two words -- and it
+%% was read as `l' and the noun, because an apostrophe is no letter and the
+%% run simply stopped there. The `l' left behind is a word no lesson can
+%% give a meaning, so every sentence carrying an elision was refused for a
+%% word that is not missing: measured over Italian newspaper prose, `l' and
+%% `dell' were two of the six words that refused four sentences in twelve.
+%% The typographic apostrophe (U+2019) is written as the plain one, so a
+%% lesson spells the form once.
+rt_run([39|Cs], [39], Cs) :- rt_letter_next(Cs), !.
+rt_run([226, 128, 153|Cs], [39], Cs) :- rt_letter_next(Cs), !.
 rt_run([194, B|Cs], [], [194, B|Cs]) :- !.                              % a sign ends the word
 rt_run([226, B, C|Cs], [], [226, B, C|Cs]) :- ( B == 128 ; B == 129 ), !.
 rt_run([C|Cs], [C|More], Rest) :- ( rt_alpha(C) ; rt_digit(C) ; C == 95 ), !, rt_run(Cs, More, Rest).
 rt_run(Cs, [], Cs).
+
+%% a letter follows, and not the first byte of a sign this reader drops:
+%% rt_alpha answers YES for any byte past 127, so an em dash after an
+%% apostrophe would otherwise read as a letter
+rt_letter_next([194, _|_]) :- !, fail.
+rt_letter_next([226, B, _|_]) :- ( B == 128 ; B == 129 ), !, fail.
+rt_letter_next([C|_]) :- rt_alpha(C).
 
 rt_digits([C|Cs], [C|More], Rest) :- rt_digit(C), !, rt_digits(Cs, More, Rest).
 rt_digits([44, C|Cs], More, Rest) :- rt_digit(C), !, rt_digits([C|Cs], More, Rest).   % 1,000: the comma is a separator

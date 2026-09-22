@@ -66,6 +66,12 @@
 %%     mean(H, 'there is')             the verb of `there is' (`The verb "hay" means "there is"')
 %%     mean(Q, what)  mean(Q, who)  mean(Q, where)  mean(Q, when)  mean(Q, which)   the question words
 %%     begin(M, question)              the mark a question begins with (`The mark "¿" begins the question')
+%%     elision_of(E, W)                the form W wears before a vowel (`"l'" is the elision of
+%%                                     "lo"'): read as W wherever it stands, and written in
+%%                                     W's place, joined to the word after it
+%%     impersonal(P)  pronoun(P)  mean(P, one)     the pronoun of a sentence that names nobody
+%%                                     (`The impersonal pronoun "si" means "one"'): a subject
+%%                                     of the third person singular, which English writes `one'
 %%     language(L)                     the language, `Spanish is a language'
 %%
 %% So a lesson in Italian, or one whose rule is `Every adjective precedes
@@ -554,6 +560,14 @@ tr_each([Piece-Stop|Ps], Way, [Out|Outs]) :-
 %% is read as its words, and written back as itself (tr_contract/3)
 tr_expand(english, Ws, Ws) :- !.
 tr_expand(foreign, [], []).
+%% AN ELIDED CONTRACTION IS UN-ELIDED FIRST: `dell'' is `della', which is
+%% then read as its two words. Which of the forms an elision stands for is
+%% taken as the first stated -- `dell'' elides `dello' and `della' alike --
+%% because the two expand to the same preposition and the NOUN decides the
+%% gender on the way out.
+tr_expand(foreign, [w(W, C)|Ws], Out) :-
+    tr_solve(elision_of(W, F)), tr_solve(contraction_of(F, _)), !,
+    tr_expand(foreign, [w(F, C)|Ws], Out).
 tr_expand(foreign, [w(W, C)|Ws], Out) :-
     tr_solve(contraction_of(W, J)), atomic_list_concat([P1|Ps], ' ', J), Ps \== [], !,
     findall(w(P, lower), member(P, Ps), Rest), tr_expand(foreign, Ws, Out1),
@@ -564,6 +578,15 @@ tr_contract(english, Os, Os) :- !.
 tr_contract(foreign, [o(W1, C), o(W2, _)|Os], Out) :-
     atomic_list_concat([W1, W2], ' ', J), tr_solve(contraction_of(K, J)), !,
     tr_contract(foreign, [o(K, C)|Os], Out).
+%% AND AN ELIDED FORM IS WRITTEN WHEN A VOWEL FOLLOWS, joined to the word
+%% after it: `la incolumita' is `l'incolumita'. It comes AFTER the
+%% contraction above, so `di la' is `della' first and `dell'' second --
+%% which is why the lesson states the elision of the contracted forms
+%% (`"dell'" is the elision of "della"') and not of their parts.
+tr_contract(foreign, [o(W1, C), o(W2, _)|Os], Out) :-
+    tr_solve(elision_of(E, W1)), begin_with(W2, vowel), !,
+    atom_concat(E, W2, J),
+    tr_contract(foreign, [o(J, C)|Os], Out).
 tr_contract(foreign, [O|Os], [O|Out]) :- tr_contract(foreign, Os, Out).
 tr_contract(foreign, [], []).
 
@@ -744,6 +767,7 @@ tr_cross_subject(_, none, none) :- !.
 tr_cross_subject(_, there, there) :- !.
 tr_cross_subject(_, name(W), name(W)) :- !.
 tr_cross_subject(_, null(P, N), null(P, N)) :- !.
+tr_cross_subject(_, impersonal, impersonal) :- !.
 tr_cross_subject(_, pronoun(P, N, w(W, C)), pronoun(P, N, w(T, C))) :- !, tr_pronoun_across(english, subject, w(W, C), P, N, T).
 tr_cross_subject(A, and(S1, S2), and(T1, T2)) :- !, tr_cross_subject(A, S1, T1), tr_cross_subject(A, S2, T2).
 tr_cross_subject(_, with(NP0, PPs0), with(NP, PPs)) :- !, tr_cross_np(NP0, NP), tr_cross_comps(PPs0, PPs).
@@ -1039,6 +1063,7 @@ tr_subject_shape(subject(_), Words, _, _) :- !, Words == [].
 tr_subject_shape(fronted, Words, _, _) :- !, Words == [].
 tr_subject_shape(_, [], P, N) :- !, ( P \== third ; N == plural ).
 tr_subject_shape(_, [w(W, _)], P, N) :- tr_subject_pronoun(foreign, W, P1, N1), !, P1 == P, N1 == N.
+tr_subject_shape(_, [w(W, _)], P, N) :- tr_impersonal(foreign, W), !, P == third, N == singular.
 tr_subject_shape(_, [w(W, upper)], _, _) :- \+ tr_known_word(foreign, W), !.
 tr_subject_shape(_, Words, _, _) :-
     tr_conjunction_split(foreign, Words, W1, W2), !,
@@ -1105,6 +1130,10 @@ tr_verb_lexeme(L) :- ( tr_class_of(L, verb) -> true ; tr_class_of(L, modal) ).
 tr_subject(_, subject(Q), [], _, _, asked(Q)) :- !.
 tr_subject(foreign, _, [], P, N, null(P, N)) :- !, ( P \== third ; N == plural ).
 tr_subject(Side, _, [w(P, C)], _, _, pronoun(Person, Number, w(P, C))) :- tr_subject_pronoun(Side, P, Person, Number), !.
+%% BEFORE the phrase below, on both sides: English's `one' is a number word
+%% as well, and the lesson's word is a pronoun the phrase reader would take
+%% for one
+tr_subject(Side, _, [w(W, _)], _, _, impersonal) :- tr_impersonal(Side, W), !.
 tr_subject(Side, _, Words, _, _, and(S1, S2)) :-
     tr_conjunction_split(Side, Words, W1, W2), !,
     tr_subject(Side, none, W1, third, singular, S1), tr_subject(Side, none, W2, third, singular, S2).
@@ -1342,6 +1371,13 @@ tr_subject_out(english, null(P, N), [o(T, lower)], P, N, none) :- !, en_subject(
 %% a language whose verb says who needs no subject written: what the IR
 %% carries is the person and the number, and the verb group takes them
 tr_subject_out(foreign, null(P, N), [], P, N, none) :- !.
+%% the impersonal subject out: the lesson's own word, which stands before
+%% the verb as the pronoun it is; English says `one'. The word is asked for
+%% with its first argument unbound, which keys 0 and walks the predicate --
+%% impersonal/1 is one row a language, so the walk is one row.
+tr_subject_out(english, impersonal, [o(one, lower)], third, singular, none) :- !.
+tr_subject_out(foreign, impersonal, [o(W, lower)], third, singular, none) :- !,
+    tr_solve(impersonal(W)), tr_class_of(W, pronoun), !.
 tr_subject_out(To, and(S1, S2), Outs, third, plural, none) :- !,
     tr_subject_out(To, S1, O1, _, _, _), tr_subject_out(To, S2, O2, _, _, _),
     tr_and_word(To, And), append(O1, [o(And, lower)|O2], Outs).
@@ -1752,6 +1788,11 @@ tr_lexeme(english, an, a, singular) :- tr_known(english, a).
 tr_lexeme(Side, W, S, plural) :- tr_solve(plural_of(W, S)), tr_known(Side, S).
 tr_lexeme(foreign, W, S, plural) :- tr_rule_stem(W, plural, S), tr_known(foreign, S), tr_rule_plural(S, W).
 tr_lexeme(english, W, S, plural) :- reason_base(W, S), S \== W, tr_known(english, S).
+%% AN ELIDED FORM IS ITS OWN WORD: `l'' is `lo' or `la' with the vowel gone,
+%% and everything the lesson says of what it elides is true of it. The
+%% lesson names the pair (`"l'" is the elision of "lo"'), so a language
+%% that elides nothing has no row here and this clause never fires.
+tr_lexeme(foreign, W, S, N) :- tr_solve(elision_of(W, F)), tr_lexeme(foreign, F, S, N).
 
 %% THE FORM IS TAKEN APART, NEVER MATCHED AGAINST EVERY WORD. A rule-made
 %% form -- `casas' by `takes "s" in the plural', `comerá' by `takes "rá" in
@@ -1807,6 +1848,7 @@ tr_known_word(english, W) :- ( en_subject(W, _, _) ; en_object(W) ; en_possessiv
 tr_known_word(english, W) :- ( en_det(W, _, _) ; en_tonic(W, _) ; en_modal_form(W, _, _) ), !.
 tr_known_word(english, whom) :- tr_known(english, who), !.
 tr_known_word(foreign, W) :- tr_solve(contraction_of(W, _)), !.
+tr_known_word(foreign, W) :- tr_solve(elision_of(W, F)), tr_known_word(foreign, F), !.
 tr_known_word(foreign, W) :- ( tr_solve(infinitive_of(W, F)) ; tr_solve(gerund_of(W, F)) ), tr_known(foreign, F), !.
 
 %% a verb form of the lesson's language, taken apart: the lexeme, the
@@ -1994,6 +2036,19 @@ tr_subject_pronoun(foreign, W, P, N) :-
 %% a pronoun that stands alone (`esto', `nadie', `estos'): the third person,
 %% in the number of its form
 tr_subject_pronoun(foreign, W, third, N) :- tr_lexeme(foreign, W, L, N), tr_class_of(L, pronoun), tr_solve(mean(L, E)), en_tonic(E, _).
+%% AN IMPERSONAL PRONOUN IS A SUBJECT THAT NAMES NOBODY: `si parla di
+%% epurazioni', `se habla de purgas' -- the sentence says that purges are
+%% spoken of and never who speaks. The lesson says which word it is (`The
+%% impersonal pronoun "si" means "one"'), so the construction travels as
+%% data; English has no clitic and writes `one'.
+%%
+%% A THIRD PERSON SINGULAR WITH NO SUBJECT IS STILL REFUSED, which is the
+%% rule this sits beside rather than against: `Estaba cansado' could be
+%% anybody, and nothing in it says otherwise. The impersonal word IS that
+%% something, which is why the shape reads only with it there.
+tr_impersonal(foreign, W) :- tr_lexeme(foreign, W, L, _), tr_class_of(L, pronoun), tr_solve(impersonal(L)), !.
+tr_impersonal(english, one).
+
 tr_object_pronoun(english, W, W) :- en_object(W).
 tr_object_pronoun(english, W, W) :- en_tonic(W, _).
 tr_object_pronoun(foreign, W, E) :-

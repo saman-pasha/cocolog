@@ -2943,6 +2943,113 @@ about a PROCESS rather than a model:**
   hand-written sentences read before it (reading the paragraph first fails
   the same way) -- and each cost a four-minute training to refute.
 
+### The apostrophe was cutting words in half, and the impersonal had nowhere to go (1.6.0)
+
+**A SAMPLE OF REAL ITALIAN NEWSPAPER PROSE TRANSLATED NOTHING, AND TWO OF THE
+SIX WORDS THAT REFUSED IT WERE NOT MISSING.** Twelve verbatim sentences of the
+Italian Universal Dependencies corpus, into Spanish over the two-language
+store: **0 of 12**, and of twenty-eight short real sentences **3**, of which
+one was correct Spanish. Reading the refusals is what this section is:
+
+| the refusal | sentences | what it was |
+|---|---|---|
+| a shape: a participle or verb at the head, a passive, a gerund, a subordinate clause | 5 of 12 | every word known -- and still out of scope |
+| the impersonal `si' | 4 | no lesson could say what it is |
+| the apostrophe: `l'' and `dell'' | 2 | **the tokeniser, not the dictionary** |
+| a word the dictionary lacks | 4 | `coprifuoco', `connivenza', `stigliatura' |
+
+**`rt_run` STOPPED AT THE APOSTROPHE AND LEFT AN `l' BEHIND.** An apostrophe is
+no letter, so `l'incolumità' read as the two words `l' and `incolumità' -- and
+`l' is a word no lesson can give a meaning, so the sentence was refused for a
+word that is not missing. The apostrophe now ENDS the run and stays with the
+word before it when a letter follows, and the typographic one (U+2019) is
+written as the plain one so a lesson spells the form once. `un po'' keeps its
+apostrophe as punctuation, because no letter follows.
+
+**AND BOTH FIXES ARE LESSON SHAPES THAT WERE ALREADY THERE, which is the
+finding worth keeping.** Neither needed a line of grammar:
+
+* `"l'" is the elision of "lo".` is `is the NOUN of X`, the same shape as
+  `"los" is the plural of "el"`, and gives `elision_of/2`.
+* `The impersonal pronoun "si" means "one".` is the apposition, the same
+  shape as `The feminine article "la" means "the"`, and gives
+  `impersonal(si), pronoun(si), mean(si, one)`.
+
+So the whole of it is fourteen lines of `corpus/italian.txt`, one of
+`corpus/spanish.txt`, and clauses in the translator that read what they say.
+**A construction that needs new grammar is worth a second look: the shapes a
+lesson already has are more general than the sentences anybody has written in
+them.**
+
+**THE ELISION IS READ AND WRITTEN, and the write is the half that is easy to
+forget.** `tr_lexeme` reads an elided form as what it elides, so everything the
+lesson says of `lo' is true of `l''; `tr_contract` writes the elision in the
+plain form's place before a vowel, joined to the word after it, AFTER the
+contraction clause -- which is why the lesson states the elision of the
+contracted forms (`"dell'" is the elision of "della"') and not of their parts.
+And `tr_expand` un-elides a contraction before expanding it, so `dell'amico' is
+`di la amico' and reads. Measured both ways: `L'amico mangia il pane.` is `The
+friend eats the bread.` and `El amigo come el pan.`; `The friend eats the
+bread.` is `L'amico mangia il pane.`; `Il cane` keeps its plain article.
+
+**THE IMPERSONAL IS A SUBJECT THAT NAMES NOBODY, AND IT SITS BESIDE THE RULE
+THAT REFUSES ONE.** A third person singular with nothing in front of it is
+still refused -- `Estaba cansado' could be anybody, and nothing in it says
+otherwise -- and the impersonal word IS that something, which is why the shape
+reads only with it there. The IR carries the atom `impersonal`, not a word of
+any language, so `Si mangia il pane.` is `One eats the bread.` and `Se come el
+pan.` and comes back as itself; `Mangia il pane.` is refused exactly as before.
+
+**AND THE CORPUS CHANGE SURFACED A DEFECT IN `ng_cap` THAT WAS OLDER THAN ANY
+OF IT -- a real defect, and NOT the cause of anything below.** `normalise_bare` writes a head mention bare and capitalised (`"casa"
+means "house"' is typed `Casa means house'), and `ng_cap` was ASCII only -- so a
+mentioned word beginning with an accented letter came out lower-case, which is
+neither a name (capitalised) nor a mention (marked), and the sentence was
+refused. `è is the past of "tenemos"' is the shape. **Nothing was wrong with the
+sixteen lines added; they moved which word a seed draws, and the seed that now
+draws `è' into the head of a lesson sentence is the first one ever to do it.**
+The same Latin-1 rule the reader's tokeniser lower-cases by, and the translator
+writes by, is what `ng_cap` uses now.
+
+**WHICH IS THE THIRD FIRING OF A RULE THIS FILE ALREADY CARRIES:** the generator
+draws its lesson shapes from `corpus/*.txt`, so a corpus change is a data
+change, `generated/` and `model.rows` must be regenerated with it, and what the
+change breaks is never where the lines were added.
+
+**AND THE RETRAIN COST TWELVE POINTS ON ONE MEASURE, WHICH IS THE LOTTERY AND
+NOT ANY OF THIS.** `lessons typed bare` fell from 0.9073 to **0.7872** against a
+pin of 0.78 -- one line of margin. Three arms took it apart, and the first two
+were the ones worth taking:
+
+| arm | corpus lines read bare |
+|---|---|
+| the SHIPPED 1.2.43 model, the NEW corpus | **0.9058** |
+| the retrained model, the same corpus | **0.7872** |
+| the retrained model with `ng_cap` REVERTED, its own corpus | **0.7872** |
+
+-- so the sixteen lines cost **0.15 points** and the retraining cost twelve, on
+the same corpus and the same code; and `ng_cap` is innocent, the third arm
+giving a DIFFERENT model (its md5 moves, so the data really did change) and the
+identical measurement line to four figures on all five measures.
+
+**THE TWELVE POINTS ARE 42 LINES OF ONE SHAPE**, which is what makes it the
+1.2.42 coin toss again rather than a mystery: every line the new model loses and
+the old one read is `"X" is the [ADJ] NOUN of "Y"` with a bare head mention --
+27 of them `is the first person of`, the rest the contraction, the plural, the
+past and the participle. Of the sixteen lines ADDED, fourteen read; of the 313
+that were there before, 68 fail where 31 did. **A minority shape is learned by
+the luck of the minimum, a corpus change re-rolls it, and the loss curve says
+nothing about it** -- the training's loss ended at 0.0051 with a spike to 0.4553
+at 280 steps, and the model that came out of it is better on tokens (0.9891 ->
+0.9954) and on refusing real prose (0.9700 -> 0.9833).
+
+**WHAT IS NOT DONE, AND IS THE LEVER:** the durable fix is the 1.2.42 one --
+make the generator carry the shape in enough pairs that the network cannot miss
+it -- and the count it is made at was not measured here. The pin at 0.78 is
+holding by 0.007, which is one line of 329, so the next corpus change of any
+kind flips it red for a reason nobody will connect to the change. **A pin with
+one line of margin is a pin that has stopped measuring anything.**
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

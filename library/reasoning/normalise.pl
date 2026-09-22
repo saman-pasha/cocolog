@@ -1250,6 +1250,18 @@ nb_words([word(W, _)|Ts], _, [W|Ws]) :- !, nb_words(Ts, rest, Ws).
 nb_words([num(N)|Ts], _, [A|Ws]) :- !, format(atom(A), "~w", [N]), nb_words(Ts, rest, Ws).
 nb_words([T|Ts], Pos, [T|Ws]) :- nb_words(Ts, Pos, Ws).
 
+%% AN ACCENTED FIRST LETTER IS A LETTER: the two bytes 195 and 160..190 in
+%% UTF-8 (U+00E0..U+00FE), the division sign left out -- the same rule the
+%% reader's tokeniser lower-cases by and the translator writes by.
+%%
+%% It was ASCII only, and a head MENTION is written bare (`"casa" means
+%% "house"' is typed `Casa means house'), so a mentioned word beginning
+%% with an accented letter came out lower-case -- neither a name, which is
+%% capitalised, nor a mention, which carries its marks -- and the sentence
+%% was refused. `è is the past of "tenemos"' is the shape, and it went
+%% unseen because a seed has to draw such a word into the head of a lesson
+%% sentence before anything types it.
+ng_cap(W, C) :- atom_codes(W, [195, B|R]), B >= 160, B =< 190, B =\= 183, !, B1 is B - 32, atom_codes(C, [195, B1|R]).
 ng_cap(W, C) :-
     atom_codes(W, [F|R]),
     ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 = F ),
