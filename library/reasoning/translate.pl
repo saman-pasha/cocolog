@@ -856,6 +856,7 @@ tr_cross_comp(obj(NP0), obj(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(adj(Ws0), adj(Ws)) :- !, tr_cross_adjectives(Ws0, Ws).
 tr_cross_comp(pp(w(P, C), NP0), pp(w(PT, C), NP)) :- !, tr_word_across(w(P, lower), english, preposition, PT), tr_cross_np(NP0, NP).
 tr_cross_comp(adv(w(A, C)), adv(w(AT, C))) :- !, tr_word_across(w(A, lower), english, adverb, AT).
+tr_cross_comp(purpose(L), purpose(LT)) :- !, tr_lexeme_across(L, english, LT).
 tr_cross_comp(inf(L), inf(LT)) :- !, tr_lexeme_across(L, english, LT).
 tr_cross_comp(by(NP0), by(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(opron(w(W, C)), opron(w(T, C))) :- tr_pronoun_across(english, object, w(W, C), _, _, T).
@@ -1420,6 +1421,19 @@ tr_complements(foreign, [w(P, _)|Ws], no, [obj(NP)|Cs]) :-
     tr_complements(foreign, Rest, yes, Cs).
 %% an infinitive: the lesson's (`"comer" is the infinitive of "come"'), or
 %% English's `to' and a base form, and a bare base form after a modal
+%% A PURPOSE IS AN INFINITIVE WITH A WORD IN FRONT OF IT: `per definire' is
+%% `to define', `para definir'. The lesson names the word -- `The word "per"
+%% begins the purpose.' -- which is the shape `The mark "¿" begins the
+%% question' already uses, so no grammar moved for it.
+%%
+%% ENGLISH LOSES THE DISTINCTION AND THAT IS ENGLISH'S DOING, not a gap here.
+%% `wants to eat' and `came to eat' are the same three words, so English
+%% writes a purpose exactly as it writes a plain infinitive, and an English
+%% source is read as the plain one. Italian into Spanish keeps the mark
+%% because both languages make it; Italian into English and back loses it.
+tr_complements(foreign, [w(P, _), w(V, _)|Ws], Seen, [purpose(F)|Cs]) :-
+    tr_purpose_word(P), tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
+    tr_complements(foreign, Ws, Seen, Cs).
 tr_complements(foreign, [w(V, _)|Ws], Seen, [inf(F)|Cs]) :-
     tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
     tr_complements(foreign, Ws, Seen, Cs).
@@ -1513,6 +1527,9 @@ tr_content_word(Side, N) :- ( tr_is(Side, N, noun) ; tr_is(Side, N, adjective) ;
 
 tr_object_phrase(Side, [w(W, C)], pronoun(w(W, C))) :- tr_object_pronoun(Side, W, _), !.
 tr_object_phrase(Side, Words, NP) :- tr_np(Side, Words, NP).
+
+%% the word this lesson puts before an infinitive of purpose
+tr_purpose_word(P) :- tr_lexeme(foreign, P, L, _), tr_solve(begin(L, purpose)), !.
 
 %% the group being read is a modal, so a bare base form after it is its verb
 tr_read_modal :- catch(nb_getval('$tr_read_group', L), _, fail), en_modal_out(L, _, _).
@@ -1813,6 +1830,13 @@ tr_comp_out(To, by(NP), _, _, [], [o(By, lower)|NPOut], []) :-
 tr_comp_out(To, adv(w(A, C)), _, _, [], [], [o(AT, C)]) :- tr_word_across(w(A, lower), To, adverb, AT).
 %% an infinitive: English's `to' and the base form, the base alone after a
 %% modal; the lesson's infinitive of its verb
+%% the purpose out: English's `to' and the base, which is what it writes for
+%% a plain infinitive too; the lesson's own word and its infinitive
+tr_comp_out(english, purpose(L), _, _, [], [o(to, lower), o(B, lower)], []) :- !,
+    tr_lexeme_across(L, english, LT), en_base(LT, B).
+tr_comp_out(foreign, purpose(L), _, _, [], [o(P, lower), o(Inf, lower)], []) :- !,
+    tr_lexeme_across(L, foreign, LT), once(tr_solve(infinitive_of(Inf, LT))),
+    once(( tr_solve(begin(P0, purpose)), P = P0 )).
 tr_comp_out(To, inf(L), _, _, [], Outs, []) :-
     tr_lexeme_across(L, To, LT),
     (   To == english

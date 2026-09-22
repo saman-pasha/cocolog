@@ -2,3 +2,4 @@
 # the translator cannot use. See README beside this file.
 The conjunction "porque" means "because".
 The preposition "por" means "by".
+The word "para" begins the purpose.

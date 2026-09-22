@@ -2,3 +2,4 @@
 # the translator cannot use. See README beside this file.
 The conjunction "perché" means "because".
 The preposition "da" means "by".
+The word "per" begins the purpose.

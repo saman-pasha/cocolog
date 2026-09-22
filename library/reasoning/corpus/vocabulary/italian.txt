@@ -81237,3 +81237,4 @@ The conjunction "o" means "either".
 The conjunction "né" means "nor".
 The conjunction "perché" means "because".
 The preposition "da" means "by".
+The word "per" begins the purpose.

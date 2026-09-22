@@ -22,7 +22,7 @@
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
-    persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced,
+    persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1218,6 +1218,53 @@ Every adjective follows the noun.', italian, _),
                 g(dominates, present, simple, no), []), 46)]),
 
     reason_unlearn(italian).
+
+%% ---- the purpose clause ---------------------------------------------------------------
+%% `per definire' is `to define', `para definir'. The lesson names the word
+%% -- `The word "per" begins the purpose.' -- which is the shape `The mark
+%% "¿" begins the question' already uses, so no grammar moved for it.
+%%
+%% ENGLISH LOSES THE DISTINCTION AND THAT IS ENGLISH'S DOING: `wants to eat'
+%% and `came to eat' are the same three words. So English writes a purpose
+%% exactly as it writes a plain infinitive, and Italian into English and back
+%% loses the mark where Italian into Spanish keeps it.
+
+purpose :-
+    section('the purpose clause: an infinitive with a word in front of it'),
+    reason_learn('Italian is a language.
+The noun "casa" means "house". The masculine article "il" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "arriva" means "arrives". The verb "mangia" means "eats". The verb "vuole" means "wants".
+"mangiare" is the infinitive of "mangia".
+The word "per" begins the purpose. The preposition "per" means "for".', italian, _),
+    reason_learn('Spanish is a language.
+The noun "casa" means "house". The masculine article "el" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "llega" means "arrives". The verb "come" means "eats".
+"comer" is the infinitive of "come".
+The word "para" begins the purpose.', spanish, _),
+
+    reason_translate('La casa arriva per mangiare.', italian, english, U1),
+    check('a purpose into English, which spells it as any infinitive', U1, 'The house arrives to eat.'),
+
+    reason_translate('La casa arriva per mangiare.', italian, spanish, U2),
+    check('and into a language that MARKS it, with its own word written back', U2,
+          'La casa llega para comer.'),
+
+    reason_translate('La casa vuole mangiare.', italian, english, U3),
+    check('a plain infinitive is still a plain infinitive', U3, 'The house wants to eat.'),
+
+    reason_ir('La casa arriva per mangiare.', italian, U4),
+    check('the IR tells them apart: purpose/1', U4,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                g(arrives, present, simple, no), [purpose(eats)]), 46)]),
+
+    reason_ir('La casa vuole mangiare.', italian, U5),
+    check('where a complement infinitive is inf/1', U5,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                g(wants, present, simple, no), [inf(eats)]), 46)]),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
 
 %% ---- the lesson questioned ---------------------------------------------------------
 

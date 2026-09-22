@@ -3261,6 +3261,22 @@ a phrase is taken apart by its functor**, which here is `tr_np_out/5`,
 `tr_cross_np/2` AND `tr_subject_out/6`, and the third is the one with no
 catch-all to fall into.
 
+**THE PURPOSE CLAUSE IS DONE (1.6.5), AND IT NEEDED NO NEW GRAMMAR.** `per
+definire' is `to define', `para definir'. The lesson names the word -- `The
+word "per" begins the purpose.' -- which is the `The mark "¿" begins the
+question' shape already there, so `reason.pl' did not move; the lines live in
+`corpus/extra/', which is the vocabulary path, so the tagger never sees them
+and no retrain is owed.
+
+**ENGLISH LOSES THE DISTINCTION AND THAT IS ENGLISH'S DOING, not a gap
+here.** `wants to eat' and `came to eat' are the same three words, so English
+writes a purpose exactly as it writes a plain infinitive and an English
+source is read as the plain one. Italian into Spanish keeps the mark because
+both languages make it; Italian into English and back loses it. The IR tells
+them apart -- `purpose(eats)' against `inf(eats)' -- and only the WRITER for
+English throws the difference away, which is the right place for a loss that
+belongs to a language rather than to a design.
+
 **AND THE PP ROW IS MARKED `MEASURE FIRST` ON PURPOSE.** `tr_phrase_words/4`
 ends a phrase at a preposition, so `la connivenza delle autorità` reads as a
 phrase and a SEPARATE `pp/2` hung on the verb -- the wrong attachment, and

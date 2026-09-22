@@ -106423,3 +106423,4 @@ The conjunction "ni" means "nor".
 The conjunction "tanto" means "both".
 The conjunction "porque" means "because".
 The preposition "por" means "by".
+The word "para" begins the purpose.
