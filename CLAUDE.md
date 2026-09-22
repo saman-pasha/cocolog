@@ -4010,6 +4010,78 @@ the three torch cases, tensorflow, ray, numpy -- with `ziguratip` up and
 answering a sentence before the run, which is what makes the database lines
 mean anything.
 
+### The judge could only say no, and the tagging it should have said A to (1.6.13)
+
+**`tutorials/library/45-tagger` WAS RED AND THE MODEL WAS NOT RETRAINED TO FIX
+IT.** `Honestly, Kim rents a small flat in Oslo. The rent is 700 euros.` came
+back without `small(flat_1)`. Reading the TAGS before the network -- this
+file's own rule -- says which position, in four probes of twenty seconds:
+
+| the sentence | what `small` is tagged |
+|---|---|
+| `Kim rents a small flat.` | A |
+| `Honestly, Kim rents a small flat.` | A |
+| `Kim rents a small flat in Oslo.` | A |
+| **`Honestly, Kim rents a small flat in Oslo.`** | **D** |
+
+-- so it needs a head filler AND a place in the same sentence, and neither
+alone does it.
+
+**THE COUNT IS NOT THE LEVER, AND THE COUNT WAS TAKEN BEFORE ANYTHING WAS
+BUILT.** Over the 32 768 pairs of `generated/training.txt`: `T A O` 4 837, of
+which 1 318 carry a place, 2 775 a head filler and **787 BOTH** -- against 1 057
+of the same shape with no adjective. 787 is squarely in the band where 1.2.42
+measured outcomes of 20, 207 and 0 out of 384 from counts of 774 to 791, so
+making more of them is the thing that file already proved does not decide it.
+
+**WHAT DECIDED IT IS A COUNT OF SOMETHING ELSE: what may sit between a
+determiner and the noun it counts.**
+
+| | |
+|---|---|
+| `T A O` | 5 001 |
+| `T T O` | 762 -- a number counting a noun |
+| `T S O` | 25 |
+| **`T D O`** | **0** |
+
+**Never, in 32 768 pairs.** So a D there is not a weak reading, it is a
+tagging the training data says cannot happen -- and that is decidable without
+the network.
+
+**THE JUDGE COULD ONLY REFUSE, WHICH IS WHY THIS NEEDED A NEW LINE RATHER THAN
+A NEW RULE.** `tagger_sane/2` answers yes or no and `tg_judged/3` turns a no
+into X throughout; every rule it has -- a quoted token is M, a number is T, O
+or D, `who' is S or O -- REJECTS a tagging. Rejecting this one would refuse the
+sentence, and the lesson wants its terms. `tg_repair/3` runs before the judge
+and CORRECTS: a lower-case word the judge's own lexicon knows as an adjective,
+tagged D between a T and an O, is an A.
+
+**AND THE FAILURE IT REPLACES IS THE WORSE KIND.** Without it the sentence is
+not refused -- it is READ, with the adjective silently gone, which is a claim
+the text did not make. That is the same shape as this file's own rule about an
+empty assembly being a refusal rather than `Terms = []'.
+
+| | before | after |
+|---|---|---|
+| the lesson's check | `[flat(flat_1), rent_in(...), amount(...)]` | **`[flat(flat_1), small(flat_1), rent_in(...), amount(...)]`** |
+| `tutorials/library/45-tagger`, alone | FAIL at 292 s | **exit 0, `done`, 285 s** |
+| `test/tagger.pl`, alone | GREEN | GREEN, both grids ok |
+| `test/reason.pl`, `normalise`, `lint` | GREEN | GREEN |
+
+**NO RETRAIN, NO NEW `model.rows`, NO CORPUS CHANGE** -- so none of the five
+measures moved and no lottery was re-rolled, which is the whole argument for
+fixing this in the judge rather than in the data. A retrain is deterministic on
+unchanged data, so it could not have fixed it at all.
+
+**WHAT IT COSTS IS AN INSTRUMENT, AND THE COST IS STATED.** `tg_judged/3` sits
+inside `tagger_tag_all/3`, so `test/tagger.pl`'s adjective grid now measures the
+network AND the repair, and a future model that collapses on `T _ O` will not
+show there. The pins that still see the raw network are the other four --
+tokens, sentences wholly right, lessons typed bare and real prose refused -- and
+a collapse anywhere off that one position is still visible. **A repair that
+fires where an instrument looks is an instrument that has stopped looking**, and
+the honest form of the grid pin now is "the model and the repair together".
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

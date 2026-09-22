@@ -746,12 +746,37 @@ tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-
 %% grammar reads.)
 
 tg_judged([], [], []).
-tg_judged([Toks|TLs], [Tags|Tgs], [Out|Outs]) :-
+tg_judged([Toks|TLs], [Tags0|Tgs], [Out|Outs]) :-
+    tg_repair(Toks, Tags0, Tags),
     (   tagger_sane(Toks, Tags)
     ->  Out = Tags
     ;   length(Tags, L), findall('X', between(1, L, _), Out)
     ),
     tg_judged(TLs, Tgs, Outs).
+
+%% A TAGGING THE TRAINING DATA CALLS IMPOSSIBLE IS CORRECTED, NOT REFUSED,
+%% which is the one place the judge does more than say no. Counted over the
+%% 32 768 pairs of generated/training.txt, what sits between a determiner
+%% and the noun it counts is A 5 001 times, T 762 and S 25 -- and D NEVER.
+%% So a lower-case word the judge's own lexicon knows as an adjective,
+%% tagged D between a T and an O, is an A.
+%%
+%% IT TAKES A REFUSAL'S PLACE AND NOT A READING'S: without it the sentence
+%% is not refused, it is READ WITH THE ADJECTIVE SILENTLY GONE, which is the
+%% worse of the two. `Kim rents a small flat in Oslo.' keeps `small' and so
+%% does `Honestly, Kim rents a small flat.'; put the head filler and the
+%% place in the same sentence and the shipped model drops it -- neither
+%% alone does, and 787 of the training pairs carry exactly that combination,
+%% so the count is not the lever and 1.2.42 already measured that it is not.
+tg_repair(Toks, Tags0, Tags) :-
+    (   append(Pre, ['T', 'D', 'O'|Post], Tags0),
+        length(Pre, N), Ix is N + 1,
+        nth0(Ix, Toks, word(W, lower)),
+        tg_lexicon_classes(Lex), tg_classes(W, Lex, Cs), memberchk(adj, Cs)
+    ->  append(Pre, ['T', 'A', 'O'|Post], Tags1),
+        tg_repair(Toks, Tags1, Tags)
+    ;   Tags = Tags0
+    ).
 
 tagger_sane(Toks, Tags) :-
     \+ memberchk('X', Tags),
