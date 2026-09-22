@@ -22,7 +22,7 @@
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
-    persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive,
+    persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1168,6 +1168,54 @@ Every pronoun precedes the verb.', italian, _),
 
     reason_translate('La casa si adegua.', italian, italian, X7),
     check('and the pronoun is written back into a language that has one', X7, 'La casa si adegua.'),
+
+    reason_unlearn(italian).
+
+%% ---- the reduced relative -------------------------------------------------------------
+%% `il coprifuoco imposto dai soldati' is the curfew THAT WAS imposed by the
+%% soldiers: a passive relative clause with the copula and the pronoun left
+%% out. Both the lesson's languages and English put it after the noun, which
+%% is why ONE shape -- rel(NP, Lexeme, Comps) -- writes into all three.
+
+reduced :-
+    section('the reduced relative: a participle after the noun, and its agent'),
+    reason_learn('Italian is a language.
+The noun "casa" means "house". The noun "pane" means "bread". The noun "soldato" means "soldier". "soldati" is the plural of "soldato".
+The masculine article "il" means "the". The feminine article "la" means "the". The masculine article "i" means "the". "i" is the plural of "il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "impone" means "imposes".
+"imposto" is the participle of "impone". "imposta" is the participle of "impone". "imposta" is feminine.
+The verb "domina" means "dominates".
+The adjective "grande" means "big".
+The preposition "da" means "by".
+Every adjective follows the noun.', italian, _),
+
+    reason_translate('La casa imposta domina.', italian, english, D1),
+    check('a participle after the noun is a reduced relative', D1, 'The house imposed dominates.'),
+
+    reason_translate('The house imposed dominates.', english, italian, D2),
+    check('and back, THE PARTICIPLE AGREEING with its own noun', D2, 'La casa imposta domina.'),
+
+    reason_translate('Il pane imposto domina.', italian, english, D3),
+    check('a masculine noun takes the other form', D3, 'The bread imposed dominates.'),
+
+    reason_translate('La casa imposta da i soldati domina.', italian, english, D4),
+    check('with its AGENT, which stays inside the phrase rather than hanging on the sentence''s verb', D4,
+          'The house imposed by the soldiers dominates.'),
+
+    reason_translate('The house imposed by the soldiers dominates.', english, italian, D5),
+    check('and back whole', D5, 'La casa imposta da i soldati domina.'),
+
+    reason_translate('La casa grande domina.', italian, english, D6),
+    check('a plain phrase with an adjective is untouched', D6, 'The big house dominates.'),
+
+    reason_ir('La casa imposta da i soldati domina.', italian, D7),
+    check('what the IR carries is rel(Phrase, Lexeme, Comps), the lexeme ENGLISH and the form not in it', D7,
+          [ir(s(none,
+                rel(np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                    imposes,
+                    [by(np(det(article, the, w(the, lower)), none, [], w(soldier, lower), plural))]),
+                g(dominates, present, simple, no), []), 46)]),
 
     reason_unlearn(italian).
 

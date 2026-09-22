@@ -3232,6 +3232,35 @@ will actually see before writing it, and prefer a condition that cannot
 outlive its work (the process gone) to one that counts lines somebody may
 reword.
 
+**THE REDUCED RELATIVE IS DONE (1.6.4), AND ONE SHAPE WRITES INTO ALL
+THREE.** `il coprifuoco imposto dai soldati' is the curfew THAT WAS imposed
+by the soldiers -- a passive relative clause with the copula and the pronoun
+left out -- and Italian, Spanish and English all put it in the SAME PLACE,
+after the noun. So it is `rel(NP, Lexeme, Comps)': the phrase, the verb's
+lexeme (English in the IR like every other word) and what belongs to the
+participle, which is the agent when there is one.
+
+**THE LEXEME AND NOT THE FORM, because the form must agree with ITS OWN
+NOUN.** `la casa imposta' against `il pane imposto', and a reduced relative
+agrees with the noun it sits on rather than with the subject of the sentence
+around it -- so `tr_with_gender/2' sets the gender, runs the pick and puts
+back whatever the enclosing sentence had, which is the one place a global
+had to be saved rather than simply written.
+
+**AND THE AGENT STAYS INSIDE THE PHRASE.** `tr_phrase_words/4' ends a phrase
+at a preposition, so `da i soldati' would have hung on the SENTENCE's verb
+and the IR would have said the soldiers dominated rather than imposed. One
+clause reaches over a trailing participle and its `by' phrase; everything
+else about the boundary is unchanged.
+
+**ONE THING BIT AND IT IS WORTH THE LINE: `tr_subject_out/6` DISPATCHES ON
+`np/5` BY NAME.** The read was right and the IR was right and nothing wrote,
+because a `rel/3` subject matched no clause of the writer at all -- it fell
+off the end and failed silently. **A new phrase term needs a clause wherever
+a phrase is taken apart by its functor**, which here is `tr_np_out/5`,
+`tr_cross_np/2` AND `tr_subject_out/6`, and the third is the one with no
+catch-all to fall into.
+
 **AND THE PP ROW IS MARKED `MEASURE FIRST` ON PURPOSE.** `tr_phrase_words/4`
 ends a phrase at a preposition, so `la connivenza delle autorità` reads as a
 phrase and a SEPARATE `pp/2` hung on the verb -- the wrong attachment, and

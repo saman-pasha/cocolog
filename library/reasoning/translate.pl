@@ -825,6 +825,8 @@ tr_cross_subject(_, NP0, NP) :- tr_cross_np(NP0, NP).
 %% a phrase, across: the noun's lexeme in English, the determiner as the
 %% word of its kind (never the form -- the number inflects it on the way
 %% out), a number word, and each adjective's first meaning
+tr_cross_np(rel(NP0, L0, Cs0), rel(NP, L, Cs)) :- !,
+    tr_cross_np(NP0, NP), tr_lexeme_across(L0, english, L), tr_cross_comps(Cs0, Cs).
 tr_cross_np(name(W), name(W)) :- !.
 tr_cross_np(pronoun(w(W, C)), pronoun(w(T, C))) :- !, tr_pronoun_across(english, oblique, w(W, C), _, _, T).
 tr_cross_np(and(N1, N2), and(T1, T2)) :- !, tr_cross_np(N1, T1), tr_cross_np(N2, T2).
@@ -1320,6 +1322,26 @@ tr_is_name(Side, W) :- \+ tr_known_word(Side, W), \+ en_function(W), \+ en_subje
 %% content -- one noun (the word the lesson calls one, failing that the last
 %% word in English and, where adjectives follow the noun, the first) and
 %% the rest adjectives, an `and' among them kept
+%% A PARTICIPLE AFTER THE NOUN IS A REDUCED RELATIVE: `il coprifuoco imposto
+%% dai soldati' is the curfew THAT WAS imposed by the soldiers, and `le
+%% autorita costituite' the authorities that were constituted. It is a
+%% passive relative clause with the copula and the pronoun left out, and both
+%% languages and English put it in the same place -- after the noun -- which
+%% is why one shape writes into all three.
+%%
+%% `rel(NP, Lexeme, Comps)' is the term: the phrase, the verb's lexeme
+%% (English in the IR like every other), and what belongs to the participle,
+%% which is the agent when there is one. The lexeme rather than the FORM,
+%% because the form must agree with the noun on the way out and the writer
+%% picks it exactly as a passive does.
+tr_np(Side, Words, rel(NP, L, Comps)) :-
+    append(Core, [w(P, _)|Rest], Words), Core \== [],
+    tr_participle_here(Side, P, L),
+    tr_np(Side, Core, NP), NP \= rel(_, _, _),
+    (   Rest == []
+    ->  Comps = []
+    ;   tr_reduced_agent(Side, Rest, Comps)
+    ), !.
 tr_np(Side, [w(W, upper)], name(W)) :- \+ tr_known_word(Side, W), !.
 tr_np(Side, Words0, np(Det, Num, Adjs, Noun, Number)) :-
     ( Words0 = [D|Ws1], tr_determiner(Side, D, DL, DK), Ws1 \== [] -> Det = det(DK, DL, D), Words1 = Ws1 ; Det = none, Words1 = Words0 ),
@@ -1333,6 +1355,16 @@ tr_np(Side, Words0, np(Det, Num, Adjs, Noun, Number)) :-
     %% the noun's number by the reading of it that IS a noun: `houses' is a
     %% verb's form too (to house), and known so before it is a plural
     ( tr_lexeme(Side, NW, NL, Number), tr_class(Side, NL, noun) -> true ; tr_lexeme(Side, NW, _, Number) ), !.
+
+%% a participle of a verb the lesson gives, on either side
+tr_participle_here(foreign, P, L) :- tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
+tr_participle_here(english, P, L) :- en_passive_participle(P, L), !.
+
+%% what may follow a reduced relative and belong to it: its agent, and
+%% nothing else -- a phrase after it is the sentence's, not the participle's
+tr_reduced_agent(Side, Ws, [by(NP)]) :-
+    Ws = [P|Rest], tr_is(Side, P, preposition), tr_means_by(Side, P),
+    tr_phrase_words(Side, Rest, PW, []), PW \== [], tr_phrase_np(Side, PW, NP).
 
 %% a word that may be an adjective in a phrase: known, and no preposition,
 %% pronoun or verb -- or the `and' between two
@@ -1459,6 +1491,15 @@ tr_marker(foreign, What, [o(P, lower)]) :-
 tr_marker(_, _, []).
 
 %% the words of one phrase: up to the next preposition, adverb or object pronoun
+%% A REDUCED RELATIVE AND ITS AGENT STAY INSIDE THE PHRASE, or the phrase
+%% would end at the preposition and the agent would hang on the sentence's
+%% verb instead of on the participle it belongs to.
+tr_phrase_words(Side, Words, PW, Rest) :-
+    append(PW0, Rest0, Words), PW0 \== [],
+    last(PW0, w(P, _)), tr_participle_here(Side, P, _),
+    Rest0 = [B|_], tr_is(Side, B, preposition), tr_means_by(Side, B),
+    tr_reduced_agent(Side, Rest0, _), !,
+    append(PW0, Rest0, PW), Rest = [].
 tr_phrase_words(Side, Words, PW, Rest) :-
     append(PW, Rest, Words),
     ( Rest == [] -> true ; Rest = [R|_], ( tr_is(Side, R, preposition) ; tr_is(Side, R, adverb) ; tr_object_pronoun_here(Side, Rest) ) ), !.
@@ -1575,6 +1616,9 @@ tr_subject_out(To, and(S1, S2), Outs, third, plural, none) :- !,
     tr_subject_out(To, S1, O1, _, _, _), tr_subject_out(To, S2, O2, _, _, _),
     tr_and_word(To, And), append(O1, [o(And, lower)|O2], Outs).
 tr_subject_out(To, np(D, M, As, N, Number), Outs, third, Number, Noun) :- !, tr_np_out(To, np(D, M, As, N, Number), Outs, Noun, Number).
+%% a phrase with a reduced relative on it is still a phrase: the person and
+%% number are its noun's, and tr_np_out/5 writes the participle and the agent
+tr_subject_out(To, rel(NP, L, Cs), Outs, third, Number, Noun) :- !, tr_np_out(To, rel(NP, L, Cs), Outs, Noun, Number).
 tr_subject_out(To, with(NP, PPs), Outs, third, Number, Noun) :-
     tr_np_out(To, NP, O1, Noun, Number), tr_comps_out(To, PPs, Noun, Number, _, O2, _), append(O1, O2, Outs).
 
@@ -1658,6 +1702,20 @@ en_object_of(it, it). en_object_of(we, us). en_object_of(they, them).
 %% a phrase out: the determiner and each adjective agreeing with the noun
 %% in gender and number, a number word as it is, the adjectives before or
 %% after the noun as the rule says; Noun is the target noun's lexeme
+%% the phrase, then the participle AGREEING with its noun, then the agent.
+%% English agrees with nothing and takes the participle as it is; the
+%% lesson's language picks the form the way a passive does, so the gender it
+%% reads is the phrase's own and not the sentence's subject.
+tr_np_out(To, rel(NP, L, Comps), Outs, Noun, Number) :- !,
+    tr_np_out(To, NP, NPOut, Noun, Number),
+    (   To == english
+    ->  tr_lexeme_across(L, english, LT), en_participle_of(LT, PP)
+    ;   tr_lexeme_across(L, foreign, LT),
+        ( tr_gender(Noun, G0), G0 \== none -> G = G0 ; G = masculine ),
+        tr_with_gender(G, tr_participle_agreeing(LT, Number, PP))
+    ),
+    tr_comps_out(To, Comps, Noun, Number, _, CompOuts, _),
+    append(NPOut, [o(PP, lower)|CompOuts], Outs).
 tr_np_out(_, name(W), [o(W, upper)], none, singular) :- !.
 tr_np_out(To, pronoun(w(W, C)), [o(T, C)], none, singular) :- !, tr_pronoun_across(To, oblique, w(W, C), _, _, T).
 tr_np_out(To, and(N1, N2), Outs, none, plural) :- !,
@@ -1832,6 +1890,16 @@ tr_participle_is(P, Ps, G, N) :-
     ->  member(S, Ps), S \== P, tr_solve(plural_of(P, S))
     ;   \+ ( member(S, Ps), S \== P, tr_solve(plural_of(P, S)) )
     ).
+
+%% run a goal with the gender a participle must agree with, and put back
+%% whatever the enclosing sentence had set -- a reduced relative agrees with
+%% its OWN noun, not with the subject of the sentence it sits in
+tr_with_gender(G, Goal) :-
+    ( catch(nb_getval('$tr_subject_gender', Old), _, fail) -> true ; Old = masculine ),
+    nb_setval('$tr_subject_gender', G),
+    ( call(Goal) -> R = yes ; R = no ),
+    nb_setval('$tr_subject_gender', Old),
+    R == yes.
 
 %% the gender of the subject the writer is putting out, set by tr_write/4
 tr_subject_gender(G) :- ( catch(nb_getval('$tr_subject_gender', G0), _, fail) -> G = G0 ; G = masculine ).
