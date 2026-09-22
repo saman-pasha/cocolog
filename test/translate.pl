@@ -23,7 +23,7 @@
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
-    complement, superlative,
+    complement, superlative, inversion, headline, subordinate,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1094,6 +1094,17 @@ The verb "getta" means "throws". "gettato" is the participle of "getta". "gettat
 The verb "considera" means "considers". "considerato" is the participle of "considera". "considerata" is the participle of "considera". "considerata" is feminine.
 The preposition "da" means "by". The preposition "in" means "in".
 The word "non" means "not". The word "non" precedes the verb.', italian, _),
+    reason_learn('Spanish is a language.
+The noun "casa" means "house". The feminine article "la" means "the". "las" is the plural of "la".
+"casas" is the plural of "casa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "es" means "is". "son" is the plural of "es".
+The auxiliary "ha" means "has". "han" is the plural of "ha".
+"ha" is the auxiliary of "es".
+"sido" is the participle of "es".
+The verb "arroja" means "throws".
+"arrojado" is the participle of "arroja". "arrojada" is the participle of "arroja". "arrojada" is feminine.
+"arrojadas" is the participle of "arroja". "arrojadas" is feminine. "arrojadas" is the plural of "arrojada".', spanish, _),
 
     reason_translate('La casa è considerata.', italian, english, V1),
     check('the copula and a participle is a passive', V1, 'The house is considered.'),
@@ -1121,7 +1132,32 @@ The word "non" means "not". The word "non" precedes the verb.', italian, _),
           [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
                 g(throws, present, passive_perfect, no), []), 46)]),
 
-    reason_unlearn(italian).
+    %% WHICH WORD CARRIES THE TENSE IN A PASSIVE PERFECT IS THE LESSON'S.
+    %% Italian builds the copula's perfect with the copula and Spanish with
+    %% the auxiliary, so the Spanish lesson says `"ha" is the auxiliary of
+    %% "es"' and the Italian one says nothing, the copula being the default.
+    %% Before 1.6.8 both sides took the copula: Spanish WROTE `es sido
+    %% evacuada' and REFUSED `ha sido evacuada', which is the worse half.
+    reason_translate('La casa è stata gettata.', italian, spanish, V8),
+    check('the Spanish passive perfect is the AUXILIARY, never the copula', V8,
+          'La casa ha sido arrojada.'),
+
+    reason_translate('La casa ha sido arrojada.', spanish, italian, V9),
+    check('and it reads back, where a perfect reading would leave the participle over', V9,
+          'La casa è stata gettata.'),
+
+    reason_translate('Las casas han sido arrojadas.', spanish, english, V10),
+    check('the plural, the auxiliary agreeing and the participle after it not', V10,
+          'The houses have been throwed.'),
+
+    reason_translate('Las casas han sido arrojadas.', spanish, spanish, V11),
+    check('and back as itself', V11, 'Las casas han sido arrojadas.'),
+
+    reason_translate('La casa è stata gettata.', italian, italian, V12),
+    check('ITALIAN IS UNTOUCHED: no lesson line, so the copula carries it', V12,
+          'La casa è stata gettata.'),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
 
 %% ---- the reflexive -------------------------------------------------------------------
 %% A REFLEXIVE PRONOUN BELONGS TO THE VERB, so the IR wraps the lexeme --
@@ -1458,7 +1494,178 @@ Every adjective follows the noun.', spanish, _),
 
     reason_unlearn(italian), reason_unlearn(spanish).
 
-%% ---- the lesson questioned ---------------------------------------------------------
+% ---- inversion ----------------------------------------------------------------------
+% `Qui dominava il generale' is the general dominating, with the subject
+% AFTER the verb, and what says so is the adjunct fronted before it. A
+% fronted adjunct makes inversion possible and never certain -- `Ieri
+% mangiava il pane' is pro-drop with an object -- so the lesson says which
+% verbs take no object: `"domina" is intransitive.'
+
+inversion :-
+    section('inversion: a fronted adjunct puts the subject after the verb'),
+    reason_learn('Italian is a language.
+The noun "paese" means "country". The noun "generale" means "general". The noun "pane" means "bread". The noun "casa" means "house".
+The masculine article "il" means "the". The feminine article "la" means "the".
+"le" is the plural of "la". "case" is the plural of "casa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "domina" means "dominates". The verb "mangia" means "eats". The verb "è" means "is".
+"dominava" is the past of "domina". "mangiava" is the past of "mangia".
+"sono" is the plural of "è".
+"domina" is intransitive.
+The adverb "qui" means "here". The adverb "ieri" means "yesterday".
+The preposition "in" means "in".
+Every adjective follows the noun.', italian, _),
+    reason_learn('Spanish is a language.
+The noun "pais" means "country". The noun "general" means "general". The noun "pan" means "bread". The noun "casa" means "house".
+The masculine article "el" means "the". The feminine article "la" means "the".
+"las" is the plural of "la". "casas" is the plural of "casa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "domina" means "dominates". The verb "come" means "eats". The verb "es" means "is".
+"dominaba" is the past of "domina". "comia" is the past of "come".
+"son" is the plural of "es".
+"domina" is intransitive.
+The adverb "aqui" means "here". The adverb "ayer" means "yesterday".
+The preposition "en" means "in".
+Every adjective follows the noun.', spanish, _),
+
+    reason_translate('Qui dominava il generale.', italian, english, V1),
+    check('the adverb is fronted and the subject follows the verb', V1,
+          'The general dominated here.'),
+
+    reason_translate('Qui dominava il generale.', italian, spanish, V2),
+    check('and into Spanish', V2, 'El general dominaba aqui.'),
+
+    reason_ir('Qui dominava il generale.', italian, V3),
+    check('the IR is an ordinary statement: the adjunct is a complement', V3,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(general, lower), singular),
+                g(dominates, past, simple, no), [adv(w(here, lower))]), 46)]),
+
+    reason_translate('Qui dominava il generale.', italian, italian, V4),
+    check('THE FRONTING IS NOT WRITTEN BACK: the statement''s own order', V4,
+          'Il generale dominava qui.'),
+
+    yes_no(reason_ir('Dominava il generale.', italian, _), V5),
+    check('nothing fronted, so nothing says the phrase is the subject: refused', V5, no),
+
+    yes_no(reason_ir('Ieri mangiava il pane.', italian, _), V6),
+    check('and a verb no lesson calls intransitive keeps its refusal', V6, no),
+
+    reason_translate('In la casa dominava il generale.', italian, english, V7),
+    check('a prepositional phrase fronts it too', V7, 'The general dominated in the house.'),
+
+    reason_translate('Il generale dominava.', italian, english, V8),
+    check('a subject before the verb is untouched', V8, 'The general dominated.'),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+% ---- the headline participle --------------------------------------------------------
+% `Evacuata la Tate Gallery.' is `La Tate Gallery e stata evacuata' with
+% the copula dropped, so it reads as the PASSIVE it is and the IR carries
+% an ordinary statement. There is no fragment in the grammar and this
+% shape needed none.
+
+headline :-
+    section('the headline participle: the copula dropped, and it is not a fragment'),
+    reason_learn('Italian is a language.
+The noun "casa" means "house".
+The feminine article "la" means "the". "le" is the plural of "la". "case" is the plural of "casa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "evacua" means "evacuates". The verb "è" means "is". "sono" is the plural of "è".
+"evacuato" is the participle of "evacua". "evacuata" is the participle of "evacua". "evacuata" is feminine.
+"evacuate" is the participle of "evacua". "evacuate" is feminine. "evacuati" is the participle of "evacua".
+"evacuate" is the plural of "evacuata". "evacuati" is the plural of "evacuato".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine.
+"state" is the participle of "è". "state" is feminine. "stati" is the participle of "è".
+"state" is the plural of "stata". "stati" is the plural of "stato".
+Every adjective follows the noun.', italian, _),
+
+    reason_translate('Evacuata la casa.', italian, english, H1),
+    check('a participle at the head is a passive whose copula the headline dropped', H1,
+          'The house has been evacuated.'),
+
+    reason_translate('Evacuata la casa.', italian, italian, H2),
+    check('THE COPULA IS WRITTEN BACK: a headline read is a sentence written', H2,
+          'La casa è stata evacuata.'),
+
+    reason_ir('Evacuata la casa.', italian, H3),
+    check('the IR is the passive perfect, with no shape of its own', H3,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                g(evacuates, present, passive_perfect, no), []), 46)]),
+
+    reason_ir('La casa è stata evacuata.', italian, H4),
+    check('and the full sentence reads to exactly that IR', H4, H3),
+
+    reason_translate('Evacuate le case.', italian, english, H5),
+    check('the plural, where the participle agrees and the number is read off it', H5,
+          'The houses have been evacuated.'),
+
+    reason_translate('Evacuate le case.', italian, italian, H6),
+    check('and back, both participles agreeing', H6, 'Le case sono state evacuate.'),
+
+    reason_unlearn(italian).
+
+% ---- the gerund clause and the `that' complement ------------------------------------
+% `..., escludendo che il generale dominasse' is a clause with a verb, no
+% subject and no auxiliary, hung off the one before it by the join of
+% 1.6.1, with a `that' clause of its own as its complement. The
+% subjunctive is read as the tense it stands for and written back as the
+% indicative, because English marks none there.
+
+subordinate :-
+    section('the gerund clause, the `that'' complement and the subjunctive'),
+    reason_learn('Italian is a language.
+The noun "paese" means "country". The noun "generale" means "general". The noun "casa" means "house".
+The masculine article "il" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "domina" means "dominates". The verb "definisce" means "defines". The verb "esclude" means "excludes".
+"dominava" is the past of "domina".
+"escludendo" is the gerund of "esclude".
+"dominasse" is the past subjunctive of "domina".
+The conjunction "che" means "that".
+Every adjective follows the noun.', italian, _),
+    reason_learn('Spanish is a language.
+The noun "pais" means "country". The noun "general" means "general". The noun "casa" means "house".
+The masculine article "el" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "domina" means "dominates". The verb "define" means "defines". The verb "excluye" means "excludes".
+"dominaba" is the past of "domina".
+"excluyendo" is the gerund of "excluye".
+The conjunction "que" means "that".
+Every adjective follows the noun.', spanish, _),
+
+    reason_translate('Escludendo che il generale domina.', italian, english, B1),
+    check('a gerund heads a clause of its own, with a `that'' clause in it', B1,
+          'Excluding that the general dominates.'),
+
+    reason_translate('Escludendo che il generale domina.', italian, spanish, B2),
+    check('and into Spanish, both words the lesson''s own', B2,
+          'Excluyendo que el general domina.'),
+
+    reason_ir('Escludendo che il generale domina.', italian, B3),
+    check('the IR: the aspect is gerund, the subject is none, the clause is that/1', B3,
+          [ir(s(none, none, g(excludes, present, gerund, no),
+                [that(s(none, np(det(article, the, w(the, lower)), none, [], w(general, lower), singular),
+                        g(dominates, present, simple, no), []))]), 46)]),
+
+    reason_translate('Il generale definisce la casa, escludendo che il paese domina.', italian, english, B4),
+    check('THE SAMPLE''S OWN SHAPE: a comma join, a gerund clause and a `that'' clause', B4,
+          'The general defines the house, excluding that the country dominates.'),
+
+    reason_translate('Escludendo che il generale dominasse.', italian, english, B5),
+    check('a subjunctive is read as the tense it stands for', B5,
+          'Excluding that the general dominated.'),
+
+    reason_translate('Escludendo che il generale dominasse.', italian, italian, B6),
+    check('and written back as the INDICATIVE, which is the cost', B6,
+          'Escludendo che il generale dominava.'),
+
+    reason_translate('Excluding that the general dominates.', english, italian, B7),
+    check('English reads a gerund clause back the other way', B7,
+          'Escludendo che il generale domina.'),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+% ---- the lesson questioned ---------------------------------------------------------
 
 questions :-
     section('the lesson questioned: a quoted word in a question'),

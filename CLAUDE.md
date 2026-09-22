@@ -3069,9 +3069,10 @@ that unlocks six sentences is worth more than one that unlocks one:
 | **purpose clause**: `per` + an infinitive | 10 | | **1.6.5** |
 | **object complement**: `definire illegale la decisione` | 10 | | **1.6.6** |
 | **superlative**: `uno dei Paesi più ricchi del mondo` | 12 | | **1.6.7** |
-| **verb before subject** (inversion) | 7 | | |
-| **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | a fragment, and the grammar has no fragment | |
-| **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last | |
+| **verb before subject** (inversion) | 7 | needs one word of lesson: which verbs take no object | **1.6.8** |
+| **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | it is a PASSIVE with the copula left out, not a fragment | **1.6.8** |
+| **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last | **1.6.8** |
+| **an article before a NAME** (`la Tate Gallery`) | 1 | not in the sample's first reading -- MEASURED on 1.6.8, and it is what refuses the SHORTEST of the twelve, whose structure was built in 1.6.8 and works | |
 
 -- plus four words Apertium's dictionary lacks (`coprifuoco`, `connivenza`,
 `stigliatura` among them), which is the 1.2.42 refusal table's first row again
@@ -3455,6 +3456,176 @@ between two Romance languages the word order is the same either way, so it may
 write out correctly regardless. **A structure that is wrong in the IR and right
 in the output is not a structure to build until a measurement says it is**,
 which is this file's own rule about counting before believing a mechanism.
+
+### The last three structures, and not one of them was a fragment (1.6.8)
+
+**THE THREE ROWS LEFT IN THE TABLE ABOVE ARE DONE, AND THE PATTERN OF 1.6.0
+HELD FOR EVERY ONE OF THEM**: the shape a lesson already has is more general
+than the sentences anybody has written in it. Inversion needed one PROPERTY of
+a verb (`"domina" is intransitive.`, the bare shape `"leche" is feminine.`
+already had), the headline needed no grammar at all, and the subordinate
+clause needed one CLASS word (`The conjunction "che" means "that".`).
+`reason.pl` did not move for any of the three, which is the fourth version
+running.
+
+**INVERSION IS THE FRONTED ADJUNCT AND THE VERB TAKING NO OBJECT, AND THE
+SECOND HALF WAS BOUGHT WITH A PROBE.** `Qui solo due anni fa dominava il
+coprifuoco` is the curfew dominating, not somebody dominating the curfew, and
+what says so is the material BEFORE the verb: an adverb or a prepositional
+phrase, never a subject. The first draft read the fronting alone and wrote
+**`Ieri mangiava il pane` as `The bread ate yesterday`** -- because a fronted
+adjunct makes inversion POSSIBLE and never certain, and Italian reads that one
+as pro-drop with an object. What tells them apart is whether the verb takes an
+object at all, which nothing in a lesson said, so the lesson says it now. A
+verb no lesson calls intransitive KEEPS ITS REFUSAL, which is the honest half
+of the trade: a wrong reading is worse than none.
+
+The agreement is checked for free -- `fo_subject_after/5` is the QUESTION
+form's own subject finder, and a question already required the verb and the
+phrase to agree in person and number before taking the phrase for the subject.
+
+**AND THE FRONTING IS NOT WRITTEN BACK.** The adjuncts become ordinary
+complements and every writer puts them after the verb, so `Qui dominava il
+generale` comes back as `Il generale dominava qui` -- the same sentence in the
+statement's own order. What is lost is an emphasis, not a claim.
+
+**A HEADLINE IS A PASSIVE WITH THE COPULA LEFT OUT, WHICH IS WHY THE GRAMMAR
+NEEDED NO FRAGMENT.** The table above had said `Evacuata la Tate Gallery.`
+needed "a fragment, and the grammar has no fragment"; it needs neither. A
+participle at the head with a phrase after it is `La Tate Gallery e stata
+evacuata` with two words dropped, so it reads to an ORDINARY statement --
+`g(L, present, passive_perfect, Neg)` -- and `reason_ir/3` answers the same
+term for the headline and for the full sentence, which is the check that says
+the shape carries no typography. **The copula is written back**: a headline
+read is a sentence written, in every language. Only the participle's NUMBER is
+asked for, because the gender says what the subject's noun already says.
+
+**A GERUND HEADS A CLAUSE WITH NO SUBJECT, AND 1.6.1's JOIN ALREADY KNEW WHERE
+TO HANG IT.** `..., escludendo che il militare voleva ...` is a verb, no
+subject and no auxiliary -- so the aspect carries it (`gerund`, beside
+`simple`, `perfect`, `progressive`, `passive` and `passive_perfect`) and the
+subject is `none`, the one subject term the writers had no clause for. That
+was the 1.6.4 lesson firing again: **`tr_subject_out/6` dispatches on the
+subject's functor BY NAME and has no catch-all**, so a new subject term is a
+clause there or a silent failure.
+
+**AND `that` IS A COMPLEMENT LIKE ANY OTHER**, `that(S)` holding a whole
+sentence of the IR, read and written through the word a lesson gives for it.
+The clause is tried FIRST in `tr_complements/4`, immediately after the empty
+list, because everything after `che` belongs to it.
+
+**A SUBJUNCTIVE IS READ AS THE TENSE IT STANDS FOR AND WRITTEN BACK AS THE
+INDICATIVE, and that cost is stated rather than hidden.** English marks no
+subjunctive where `che il militare volesse` wants one, and nothing a lesson
+says tells which verbs take one -- so `dominasse` reads as the past and comes
+back `dominava`. The alternative was refusing the clause.
+
+**THE BUILDER WRITES THE FORMS, because the reader can only read what the
+lesson states.** Apertium carries `prs` and `pis`, so `cb_verb_forms/2` writes
+`"domini" is the subjunctive of "domina".` and `"dominasse" is the past
+subjunctive of "domina".` -- the second in the `is the ADJ NOUN of X` shape, so
+the reader knows which tense each stands for, and a plural takes its tense from
+the singular it is the plural of, which `cb_tense/4` already did. **1 523 verbs
+in Italian and 2 049 in Spanish get both**, and the vocabularies went from
+81 243 and 106 429 lines to **93 407 and 122 814**.
+
+**FOUR LINES OF LESSON, AND THEY GO IN `corpus/extra/` WHERE THE TAGGER CANNOT
+SEE THEM.** `The conjunction "che" means "that".` and `"domina" is
+intransitive.` a language, plus the passive-perfect line below -- vocabulary
+rather than a shape, so `corpus/*.txt`, `generated/` and `model.rows` are
+untouched and NO RETRAIN IS OWED. That line between the two directories is the
+1.6.2 finding, and this is the first version to have been written with it in
+mind rather than after being bitten by it.
+
+**AND THE PASSIVE PERFECT WAS WRONG INTO SPANISH SINCE 1.6.2, WHICH THE
+HEADLINE PROBE FOUND.** `Evacuata la casa.` wrote **`La casa es sido
+evacuada.`** and `La casa ha sido evacuada.` was **REFUSED**, on the same
+binary -- the worse half being the first, because wrong Spanish is worse than
+no Spanish. Both halves are the same cause: the writer built the copula's own
+perfect with the COPULA and the reader tried the two-word perfect before the
+three-word passive, so `ha sido evacuada` read as `has been` with `evacuada`
+left over.
+
+**WHICH WORD CARRIES THE TENSE IS THE LESSON'S, AND IT IS THE `plural_of`
+SHAPE.** Italian builds the copula's perfect with the copula (`e stata
+evacuata`) and Spanish with the auxiliary (`ha sido evacuada`), and nothing
+else in a lesson tells them apart -- so `"ha" is the auxiliary of "es".` says
+it, read by `reason.pl` with no change as `auxiliary_of(ha, es)`, and the
+copula is the DEFAULT, so Italian says nothing and writes what it wrote before.
+Measured, both ways, the plural included:
+
+| | |
+|---|---|
+| `Evacuata la casa.` into Spanish | `La casa ha sido evacuada.` |
+| `La casa ha sido evacuada.` into Italian | `La casa e stata evacuata.` |
+| `Las casas han sido evacuadas.` into English | `The houses have been throwed.` |
+| `La casa e stata gettata.` into Italian | unchanged |
+
+-- and **the agreement comes out of the data rather than out of a rule**: the
+participle after the perfect word agrees with whatever forms the lesson gives
+it, which is four in Italian (`stata`, `stato`, `state`, `stati`) and in
+Spanish the ONE invariable `sido`, which is the language saying the same thing
+through its dictionary.
+
+**THE THREE-WORD READING HAD TO MOVE ABOVE THE PERFECT**, and that is safe by
+what it requires: its middle word must be a participle of the COPULA, so `ha
+mangiato il pane` matches nothing there and falls through exactly as before.
+
+**`test/translate.pl` IS 554 CHECKS AND GREEN**, with `inversion`, `headline`
+and `subordinate` as sections of their own and five more in `passive`. Each
+pins the shape, the IR, the cost and the refusal that stays -- `Dominava il
+generale.` and `Ieri mangiava il pane.` both refused, the subjunctive written
+back as the indicative, Italian's passive perfect untouched.
+
+**AND LESSON 46 GAINED A SECTION 20**, which is where the eleven-structure
+table closes for a reader: one thirty-line Italian lesson and ten sentences
+showing the passive with its agent, the reduced relative, the purpose, the
+object complement, the superlative, the inversion, the headline and the gerund
+clause, each said as what a lesson had to add for it. 1.6.1 to 1.6.7 added
+none, and this is the one place all eight are shown together.
+
+**MEASURED OVER THE REAL VOCABULARY, BOTH LANGUAGES IN ONE STORE** -- Italian
+152 572 terms and Spanish 199 265 taught into a fresh `--embed` store, 436 MB,
+the three new shapes and the passive perfect beside them:
+
+| | |
+|---|---|
+| `Qui dominava il generale.` | `The general dominated here.` / `El general dominó aquí.` |
+| `Evacuata la casa.` | `The house has been evacuated.` / `La casa ha sido evacuada.` |
+| `Evacuate le case.` | `The houses have been evacuated.` / `Las casas han sido evacuadas.` |
+| `Escludendo che il generale domina.` | `Excluding that the general dominates.` / `Excluyendo que el general domina.` |
+| `Il generale definisce la casa, escludendo che il paese domina.` | `The general defines the house, excluding that the country dominates.` |
+| `La casa è stata evacuata.` | `La casa ha sido evacuada.`, and back to itself |
+
+-- **a sentence costs 2.3 to 7.5 s on that store and a REFUSED one costs about
+28**, because a refusal is every reading tried and backtracked through. A probe
+over the twelve took six minutes for that reason alone, and a probe that
+expects refusals should be budgeted as if each one were ten sentences.
+
+**THE TWELVE ARE STILL 0 OF 12, AND THE REFUSALS HAVE MOVED WHERE THE 1.2.43
+TABLE SAID THEY WOULD.** Seven of them now refuse with **every word known** --
+`unknown: []` -- where 1.6.0 had five; the other five name a word Apertium
+lacks (`coprifuoco`, `blitz`, `connivenza`, `avviene`, `spedito`, `quartier`,
+`leggerezza`, `incolumità`, and `ad`, which is `a` before a vowel and is the
+elision shape from the other end). So the sample is a SHAPE problem now and
+was a vocabulary problem before, which is the direction the work has been
+moving it in.
+
+**AND THE SIMPLEST SENTENCE IN THE SAMPLE IS BLOCKED BY SOMETHING THE TABLE
+NEVER NAMED: AN ARTICLE BEFORE A NAME.** `Evacuata la Tate Gallery.` refuses,
+and it is NOT the headline -- `Evacuata la casa.` reads, and so does the full
+`La casa è stata evacuata.`, while `La Tate Gallery è stata evacuata.` refuses
+too. The tell is one probe: **`Evacuata la Gallery.` refuses as well**, so it
+is not the two words either. `tr_np/3` takes a bare capitalised word no lesson
+knows as a name (`tr_np(Side, [w(W, upper)], name(W))`) and a determiner in
+front of it sends the phrase reader looking for a noun it does not have.
+Italian puts the article before a proper noun far more often than English does
+(`la Tate Gallery`, `la Sidoti`), so this is a row of its own and it is added
+to the table above -- against sentence 1 alone, because that is the one it was
+measured on and the other names in the sample stand bare. **It is recorded and not done**: the phrase has to keep
+its article and carry the name as its noun, or `The Tate Gallery` comes back
+`Tate Gallery`, and the gender the article then has to agree with is a
+question a name cannot answer.
 
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 

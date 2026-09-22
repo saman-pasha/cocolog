@@ -52,6 +52,15 @@
 %% travels through English is the vocabulary, because a lesson says what
 %% a word means only as mean(Word, EnglishWord).
 %%
+%% AND SECTION 20 IS THE SHAPES NEWSPAPER PROSE IS MADE OF: a passive with
+%% its agent, a reduced relative, an infinitive of purpose, an object
+%% complement, a superlative, a subject after its verb, a headline with the
+%% copula left out, and a gerund clause with a `that' clause inside it.
+%% Twelve verbatim sentences of an Italian newspaper needed eleven such
+%% structures, and every one of them turned out to be a SHAPE rather than a
+%% vocabulary -- three of them wanting one line of lesson each and no new
+%% grammar at all.
+%%
 %% What the translator knows on its own
 %% is ENGLISH: `is' and `are', `does not' and `do not', `will', `has' and
 %% `had', its pronouns, a plural by -s, `an' before a vowel -- the
@@ -336,10 +345,76 @@ main :-
     reason_ir('Si mangia il pane.', italian, IR19),
     show('what the IR carries is the subject, not a word of any language', IR19),
 
+    section_20,
+
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
 %% Each section its own clause: one clause holding the whole lesson ran over the
 %% page a stored clause must fit in, which cocolint flags.
+
+%% THE SHAPES NEWSPAPER PROSE IS MADE OF, which is what 1.6.1 to 1.6.8 were
+%% for: twelve verbatim sentences of an Italian newspaper needed eleven
+%% structures this had none of, and each one of them is a shape rather than a
+%% vocabulary. The lesson below is thirty lines and says nothing new about
+%% Italian -- the classes, the participles, the infinitive and the gerund are
+%% all shapes the lesson already had.
+lesson_20('Italian is a language.
+The noun "casa" means "house". The noun "generale" means "general". The noun "paese" means "country".
+The noun "soldati" means "soldiers". The noun "decisione" means "decision". "decisione" is feminine.
+The masculine article "il" means "the". The feminine article "la" means "the".
+The masculine article "i" means "the". The feminine article "le" means "the".
+"i" is the plural of "il". "le" is the plural of "la". "case" is the plural of "casa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "è" means "is". "sono" is the plural of "è".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine.
+The verb "domina" means "dominates". "dominava" is the past of "domina". "domina" is intransitive.
+The verb "definisce" means "defines". The verb "impone" means "imposes".
+The verb "evacua" means "evacuates". The verb "esclude" means "excludes".
+"imposto" is the participle of "impone". "imposta" is the participle of "impone". "imposta" is feminine.
+"evacuato" is the participle of "evacua". "evacuata" is the participle of "evacua". "evacuata" is feminine.
+"definire" is the infinitive of "definisce". "escludendo" is the gerund of "esclude".
+The adjective "illegale" means "illegal". The adjective "ricco" means "rich".
+The adverb "qui" means "here". The adverb "più" means "more".
+The preposition "da" means "by". The preposition "di" means "of". The preposition "per" means "for".
+The word "per" begins the purpose. The word "più" begins the comparative.
+The conjunction "che" means "that".
+Every adjective follows the noun.').
+
+section_20 :-
+    format("~n20. The shapes a newspaper is made of: a passive, a reduced relative, a purpose, a complement, a superlative, an inversion, a headline, a gerund clause~n", []),
+    lesson_20(L20), reason_learn(L20, italian, T20),
+    length(T20, N20), show('a third lesson, thirty lines, under its own name', N20),
+    reason_translate('La casa è evacuata da i soldati.', italian, english, S20a),
+    must('the PASSIVE, and `da'' is the agent rather than the preposition it is', S20a,
+         'The house is evacuated by the soldiers.'),
+    reason_translate('Il paese imposto da i soldati domina.', italian, english, S20b),
+    must('a REDUCED RELATIVE: a participle after the noun, with its agent inside the phrase', S20b,
+         'The country imposed by the soldiers dominates.'),
+    reason_translate('Il generale impone la decisione per definire il paese.', italian, english, S20c),
+    must('`The word "per" begins the purpose'': an infinitive of PURPOSE', S20c,
+         'The general imposes the decision to define the country.'),
+    reason_translate('Il generale definisce illegale la decisione.', italian, english, S20d),
+    must('an OBJECT COMPLEMENT, which Italian writes before its object and English after', S20d,
+         'The general defines the decision illegal.'),
+    reason_translate('Il generale definisce il paese più ricco.', italian, english, S20e),
+    must('`The word "più" begins the comparative'': the article makes it the SUPERLATIVE', S20e,
+         'The general defines the richest country.'),
+    reason_translate('Qui dominava il generale.', italian, english, S20f),
+    must('an INVERSION: a fronted adjunct and `"domina" is intransitive'' put the subject after the verb', S20f,
+         'The general dominated here.'),
+    reason_translate('Qui dominava il generale.', italian, italian, S20g),
+    must('and the fronting is NOT written back: the statement''s own order', S20g,
+         'Il generale dominava qui.'),
+    reason_translate('Evacuata la casa.', italian, english, S20h),
+    must('a HEADLINE is a passive with the copula left out, not a fragment', S20h,
+         'The house has been evacuated.'),
+    reason_translate('Evacuata la casa.', italian, italian, S20i),
+    must('and the copula is written back, so a headline read is a sentence written', S20i,
+         'La casa è stata evacuata.'),
+    reason_translate('Il generale definisce la casa, escludendo che il paese domina.', italian, english, S20j),
+    must('a COMMA JOIN, a GERUND clause with no subject, and a `that'' clause inside it', S20j,
+         'The general defines the house, excluding that the country dominates.'),
+    show('and every one of them is a shape, so the words are the dictionary''s', 'corpus/vocabulary/italian.txt').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

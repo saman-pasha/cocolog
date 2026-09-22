@@ -6,3 +6,6 @@ The word "para" begins the purpose.
 The word "más" begins the comparative.
 The pronoun "uno" means "one".
 The pronoun "uno" does not precede the verb.
+The conjunction "que" means "that".
+"domina" is intransitive.
+"ha" is the auxiliary of "es".

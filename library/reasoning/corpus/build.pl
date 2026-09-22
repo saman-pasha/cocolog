@@ -37,6 +37,7 @@
 %%     "como" is the first person of "come".        "comió" is the past of "come".
 %%     "comerá" is the future of "come".            "comido" is the participle of "come".
 %%     "comería" is the conditional of "come".      "comerían" is the plural of "comería".
+%%     "coma" is the subjunctive of "come".         "comiera" is the past subjunctive of "come".
 %%     "comer" is the infinitive of "come".         "comiendo" is the gerund of "come".
 %%     "ate" is the past of "eats".                 "eaten" is the participle of "eats".
 %%     "running" is the gerund of "runs".           The adverb "rápidamente" means "quickly".
@@ -534,6 +535,16 @@ cb_verb_forms(L, Forms) :-
     ( cb_verb_form(Forms, [pii, p3, sg], Imp), Imp \== Past -> cb_line('"~w" is the past of "~w".', [Imp, L]), cb_tense(Forms, pii, Imp, past_of) ; true ),
     ( cb_verb_form(Forms, [fti, p3, sg], Fut) -> cb_line('"~w" is the future of "~w".', [Fut, L]), cb_tense(Forms, fti, Fut, plural_of) ; true ),
     ( cb_verb_form(Forms, [cni, p3, sg], Cond) -> cb_line('"~w" is the conditional of "~w".', [Cond, L]), cb_tense(Forms, cni, Cond, plural_of) ; true ),
+    %% THE SUBJUNCTIVE IS A FORM THE READER NEEDS AND ENGLISH DOES NOT MARK.
+    %% `che il militare volesse' wants one where `that the soldier wanted'
+    %% has none, so the translator reads a subjunctive as the TENSE it
+    %% stands for and writes the indicative back -- which it can only do if
+    %% the forms are stated. The present one is stated bare and the past one
+    %% as `the past subjunctive', the `is the ADJ NOUN of X' shape, so the
+    %% reader knows which tense each stands for; a plural takes its tense
+    %% from the singular it is the plural of, so cb_tense/4 needs nothing new.
+    ( cb_verb_form(Forms, [prs, p3, sg], Subj) -> cb_line('"~w" is the subjunctive of "~w".', [Subj, L]), cb_tense(Forms, prs, Subj, plural_of) ; true ),
+    ( cb_verb_form(Forms, [pis, p3, sg], PSubj) -> cb_line('"~w" is the past subjunctive of "~w".', [PSubj, L]), cb_tense(Forms, pis, PSubj, plural_of) ; true ),
     cb_participles(Forms, L),
     ( cb_verb_form(Forms, [inf], Inf) -> cb_line('"~w" is the infinitive of "~w".', [Inf, L]) ; true ),
     ( cb_verb_form(Forms, [ger], Ger) -> cb_line('"~w" is the gerund of "~w".', [Ger, L]) ; true ).

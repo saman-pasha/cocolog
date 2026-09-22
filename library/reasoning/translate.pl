@@ -72,6 +72,17 @@
 %%     impersonal(P)  pronoun(P)  mean(P, one)     the pronoun of a sentence that names nobody
 %%                                     (`The impersonal pronoun "si" means "one"'): a subject
 %%                                     of the third person singular, which English writes `one'
+%%     subjunctive_of(S, F)  past(S)  the subjunctive of the form F (`"domini" is the
+%%                                     subjunctive of "domina"'), the past one said with
+%%                                     the adjective (`"dominasse" is the past subjunctive
+%%                                     of "domina"', which is subjunctive_of and past both):
+%%                                     read as the tense it stands for, and written back
+%%                                     as the indicative
+%%     intransitive(W)                 the verb takes no object (`"domina" is intransitive'),
+%%                                     which is what lets a fronted adjunct put the subject
+%%                                     after the verb (`Qui dominava il coprifuoco')
+%%     conjunction(C)  mean(C, that)   the word that opens a subordinate clause
+%%                                     (`The conjunction "che" means "that"')
 %%     language(L)                     the language, `Spanish is a language'
 %%
 %% So a lesson in Italian, or one whose rule is `Every adjective precedes
@@ -233,13 +244,26 @@
 %%
 %% A sentence is READ to one shape and WRITTEN from it: a subject, a verb
 %% group (the lexeme, its tense, simple or perfect or progressive, passive
-%% or not, denied or not), and the complements in order -- an object, a
+%% or a gerund, denied or not), and the complements in order -- an object, a
 %% predicative adjective, what the verb predicates OF its object
 %% (`definire illegale la decisione', which the lesson's language writes
 %% before the object and English after it), a prepositional phrase, the
-%% agent of a passive, an infinitive, an infinitive of purpose, an object
+%% agent of a passive, an infinitive, an infinitive of purpose, a
+%% subordinate clause after the word that means `that', an object
 %% pronoun, an adverb. Several clauses in one sentence are a join, a
-%% comma or a connecting word between two of these. A question is first
+%% comma or a connecting word between two of these.
+%%
+%% THREE SHAPES PUT THE SUBJECT SOMEWHERE ELSE, or leave it out. A verb
+%% the lesson calls INTRANSITIVE, with an adverb or a prepositional
+%% phrase before it and nothing else, takes the phrase after it as its
+%% SUBJECT (`Qui dominava il coprifuoco'); a PARTICIPLE at the head with
+%% a phrase after it is a headline, read as the passive it leaves the
+%% copula out of (`Evacuata la Tate Gallery.'); and a GERUND at the head
+%% is a clause with no subject of its own, hung off the clause before it
+%% by the comma join (`..., escludendo che il militare voleva ...').
+%% Every one of them is written back in the statement's own order, with
+%% the copula put back: what is lost is an emphasis or a typography, and
+%% never a claim. A question is first
 %% put in the statement's order: English's fronted `does', `did', `will',
 %% `has' or copula goes back behind the subject, and in the lesson's
 %% language a verb that came first takes the subject after it (`¿Come el
@@ -291,17 +315,22 @@
 %% It is not a translator of prose. What it has is one clause with one
 %% verb and its complements, several such joined by a comma or a
 %% connecting word, a passive with its agent, a reduced relative (a
-%% participle after a noun), an infinitive of purpose and an adjective in
-%% the comparative or the superlative. What it has NOT
+%% participle after a noun), an infinitive of purpose, an adjective in
+%% the comparative or the superlative, a subordinate clause after `that',
+%% a subject after its verb, a headline with the copula left out and a
+%% gerund clause. What it has NOT
 %% is a relative clause with its own pronoun, an imperative, a
-%% subjunctive, a gerund as a clause, a comparison of two things
+%% comparison of two things
 %% (`richer THAN Rome'), a `why' or a `how',
-%% a fragment with no verb, and any idiom -- a word
+%% a fragment with no verb at all, and any idiom -- a word
 %% means a word, and `is' is whichever word the lesson gave for it first
 %% (a lesson with `es' and `está' for `is' gets `es', and the progressive
 %% takes the AUXILIARY that means `is'). `There is' is the present only:
 %% a lesson states no past of `hay'.
 %% A past that spells like a present form (`read') is read as the present.
+%% A SUBJUNCTIVE IS READ AND NOT WRITTEN: English marks none where `che
+%% il militare volesse' wants one and no lesson says which verbs take
+%% one, so the mood is dropped and the form comes back as the indicative.
 %% And it decides nothing about a word a lesson left out: a sentence with
 %% one is refused whole, never half translated, and reason_untranslated/2
 %% says which word to teach.
@@ -867,6 +896,7 @@ tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_cross_comp(C0, C), tr_cross_comps(Cs0, Cs
 tr_cross_comp(obj(NP0), obj(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(adj(Ws0), adj(Ws)) :- !, tr_cross_adjectives(Ws0, Ws).
 tr_cross_comp(oc(NP0, Ws0), oc(NP, Ws)) :- !, tr_cross_np(NP0, NP), tr_cross_adjectives(Ws0, Ws).
+tr_cross_comp(that(S0), that(S)) :- !, tr_side_here(Side), tr_cross(Side, S0, S).
 tr_cross_comp(pp(w(P, C), NP0), pp(w(PT, C), NP)) :- !, tr_word_across(w(P, lower), english, preposition, PT), tr_cross_np(NP0, NP).
 tr_cross_comp(adv(w(A, C)), adv(w(AT, C))) :- !, tr_word_across(w(A, lower), english, adverb, AT).
 tr_cross_comp(purpose(L), purpose(LT)) :- !, tr_lexeme_across(L, english, LT).
@@ -1123,6 +1153,109 @@ tr_read_statement(Side, Words0, Asked, S) :-
     findall(opron(W), member(W, Clitics), Cs),
     append(Cs, Comps0, Comps),
     tr_existential_fix(Side, s(Asked, Subject, g(LV, T, A, Neg), Comps), S).
+%% INVERSION: A FRONTED ADJUNCT PUTS THE SUBJECT AFTER THE VERB.
+%% `Qui solo due anni fa dominava il coprifuoco' is the curfew dominating
+%% and not somebody dominating the curfew -- and what says so is the
+%% material BEFORE the verb: an adverb or a prepositional phrase, never a
+%% subject. That is the condition the languages themselves use, and it is
+%% why `Mangia il pane' STAYS REFUSED: nothing is fronted there, so nothing
+%% says the phrase after the verb is anything but the object, and a third
+%% person with no subject could be anybody.
+%%
+%% AND THE FRONTING IS NOT ENOUGH, which one probe settled: `Ieri mangiava
+%% il pane' came out `The bread ate yesterday', because a fronted adjunct
+%% makes inversion POSSIBLE and never certain -- Italian reads that one as
+%% pro-drop with an object, and what tells the two apart is whether the
+%% verb takes an object at all. Nothing in a lesson said so, so the lesson
+%% says it now: `"domina" is intransitive.', the bare-property shape
+%% `"leche" is feminine.' already has, and reason.pl did not move. A verb
+%% no lesson calls intransitive keeps its refusal, which is the honest
+%% half of the trade: a wrong reading is worse than none.
+%%
+%% The agreement is checked, because fo_subject_after/5 is the question
+%% form's own finder: the verb and the phrase must agree in person and
+%% number before the phrase is taken for the subject.
+%%
+%% THE FRONTING IS READ AND NOT WRITTEN BACK. The adjuncts become ordinary
+%% complements, in their own order, and every writer puts them after the
+%% verb -- so `Qui dominava il generale' comes back as `Il generale dominava
+%% qui', which is the same sentence in the statement's own order. What is
+%% lost is an emphasis, not a claim.
+tr_read_statement(foreign, Words0, Asked, S) :-
+    tr_negation(foreign, Words0, Words, Neg),
+    tr_group_from(foreign, Words, Before, g(L, T, A, FP, FN), After),
+    Before \== [],
+    nb_setval('$tr_read_group', L),
+    nb_setval('$tr_read_aspect', A),
+    tr_solve(intransitive(L)),
+    tr_complements(foreign, Before, Front),
+    Front \== [], forall(member(X, Front), tr_adjunct(X)),
+    fo_subject_after(After, FP, FN, SubjWords, Rest), SubjWords \== [],
+    tr_subject(foreign, Asked, SubjWords, FP, FN, Subject),
+    tr_complements(foreign, Rest, Back), !,
+    append(Front, Back, Comps),
+    S = s(Asked, Subject, g(L, T, A, Neg), Comps).
+
+%% A HEADLINE LEAVES THE COPULA OUT, AND IT IS NOT A FRAGMENT.
+%% `Evacuata la Tate Gallery.' is `La Tate Gallery e stata evacuata' with
+%% the copula dropped, which is what a headline does -- so it reads as the
+%% PASSIVE it is, a participle at the head with the subject after it, and
+%% the IR carries an ordinary statement. There is no fragment in the
+%% grammar and this shape needed none.
+%%
+%% The participle agrees with the subject, and only its NUMBER is asked
+%% for here: the gender says the same thing the subject's noun already
+%% says, and fo_subject_after/5 checks the number as it checks a
+%% question's.
+%%
+%% THE COPULA IS WRITTEN BACK. A headline read this way comes out as the
+%% full sentence in every language -- `La casa e stata evacuata', `The
+%% house has been evacuated' -- because the IR carries the claim and not
+%% the typography. What is lost is a headline's shape, not its meaning.
+tr_read_statement(foreign, Words0, none, S) :-
+    tr_negation(foreign, Words0, Words, Neg),
+    Words = [w(P, _)|After], After \== [],
+    tr_participle_here(foreign, P, L),
+    member(N, [singular, plural]),
+    fo_subject_after(After, third, N, SubjWords, Rest), SubjWords \== [],
+    tr_subject(foreign, none, SubjWords, third, N, Subject),
+    nb_setval('$tr_read_group', L),
+    nb_setval('$tr_read_aspect', passive_perfect),
+    tr_complements(foreign, Rest, Comps), !,
+    S = s(none, Subject, g(L, present, passive_perfect, Neg), Comps).
+
+%% A GERUND HEADS A CLAUSE OF ITS OWN, AND ITS SUBJECT IS THE ONE BEFORE
+%% IT. `..., escludendo che il militare voleva ...' is `..., excluding that
+%% the soldier wanted ...': a clause with a verb, no subject and no
+%% auxiliary, which the join of 1.6.1 already knows how to hang off the
+%% clause before it. The aspect carries it -- g(L, present, gerund, Neg) --
+%% and the subject is `none', the one subject term the writers had no
+%% clause for until now.
+tr_read_statement(Side, Words0, none, S) :-
+    tr_negation(Side, Words0, Words, Neg),
+    Words = [w(G, _)|Rest], Rest \== [],
+    tr_gerund_here(Side, G, L),
+    nb_setval('$tr_read_group', L),
+    nb_setval('$tr_read_aspect', gerund),
+    tr_complements(Side, Rest, Comps), !,
+    S = s(none, none, g(L, present, gerund, Neg), Comps).
+
+%% a gerund of a verb the lesson gives, on either side
+tr_gerund_here(foreign, G, L) :- tr_solve(gerund_of(G, L)), tr_known(foreign, L), !.
+tr_gerund_here(english, G, L) :- en_gerund(G, L), !.
+
+%% the word a lesson gives for `that' before a clause: English's own, and
+%% a conjunction of the lesson's that means it
+tr_that_here(english, w(that, _)) :- !.
+tr_that_here(foreign, w(W, _)) :-
+    tr_lexeme(foreign, W, L, _), tr_class_of(L, conjunction), tr_solve(mean(L, that)), !.
+
+tr_that_word(english, that) :- !.
+tr_that_word(foreign, W) :- once(( tr_solve(mean(L, that)), tr_class_of(L, conjunction), W = L )).
+
+%% what may stand before an inverted verb: an adjunct, never an object
+tr_adjunct(adv(_)).
+tr_adjunct(pp(_, _)).
 
 tr_existential(english, [w(there, _), w(C, _)|After0], 'there is', T, After, Neg0, Neg) :-
     en_copula(C, third, _, T), tr_existential_no(After0, After, Neg0, Neg).
@@ -1265,13 +1398,27 @@ tr_group_at(english, [w(V, _)|R], g(L, T, simple, third, singular), R) :- en_ver
 %% verb's or a modal's form
 tr_group_at(foreign, [w(A, _), w(G, _)|R], g(L, T, progressive, Person, N), R) :-
     tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(mean(AL, is)), tr_solve(gerund_of(G, L)), tr_known(foreign, L), !.
-tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
-    tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
 %% THE PASSIVE: the copula and a participle (`e considerata'), and the
 %% PERFECT passive with the copula's own participle between them (`e stato
-%% gettato'). The three-word reading is tried first, or its middle word
-%% would be taken for the verb.
+%% gettato', `ha sido evacuada'). The three-word reading is tried FIRST --
+%% before the perfect just below and before the two-word passive -- or its
+%% middle word would be taken for the verb: `ha sido evacuada' read as a
+%% perfect is `has been' with `evacuada' left over, which is how Spanish's
+%% own passive perfect was refused outright until 1.6.8.
 %%
+%% AND WHICH WORD CARRIES THE TENSE IS THE LESSON'S, NOT THIS CODE'S.
+%% Italian builds the copula's perfect with the copula (`e stata evacuata')
+%% and Spanish with the auxiliary (`ha sido evacuada'), and nothing else in
+%% a lesson tells them apart -- so the lesson says it, in the shape
+%% `"los" is the plural of "el"' already has: `"ha" is the auxiliary of
+%% "es".' The copula itself is the default, so a lesson that says nothing
+%% writes what it wrote before.
+tr_group_at(foreign, [w(C, _), w(B, _), w(P, _)|R], g(L, T, passive_perfect, Person, N), R) :-
+    tr_form(C, CL, N, T, Person),
+    tr_solve(participle_of(B, BL)), tr_copula_lexeme(BL), tr_perfect_auxiliary(BL, CL),
+    tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
+tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
+    tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
 %% WHAT TELLS A PASSIVE FROM A PERFECT IS THE LESSON, not this code. Italian
 %% builds the perfect of some verbs with `essere' too -- `e riuscito' is `has
 %% succeeded', not `is succeeded' -- and nothing in a lesson says which verbs
@@ -1280,10 +1427,6 @@ tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
 %% lesson that called its copula an auxiliary would get the other reading.
 %% The cost is stated rather than hidden: an intransitive perfect built with
 %% the copula reads as a passive.
-tr_group_at(foreign, [w(C, _), w(B, _), w(P, _)|R], g(L, T, passive_perfect, Person, N), R) :-
-    tr_form(C, CL, N, T, Person), tr_copula_lexeme(CL),
-    tr_solve(participle_of(B, BL)), tr_copula_lexeme(BL),
-    tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
 tr_group_at(foreign, [w(C, _), w(P, _)|R], g(L, T, passive, Person, N), R) :-
     tr_form(C, CL, N, T, Person), tr_copula_lexeme(CL),
     tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
@@ -1299,6 +1442,15 @@ tr_verb_lexeme(L) :- ( tr_class_of(L, verb) -> true ; tr_class_of(L, modal) ).
 %% the copula's lexeme: the verb the lesson gives for `is', never an
 %% auxiliary it named for the perfect or the progressive
 tr_copula_lexeme(L) :- tr_solve(mean(L, is)), tr_class_of(L, verb), \+ tr_solve(auxiliary(L)), !.
+
+%% the word that builds the COPULA's own perfect: the one a lesson names
+%% (`"ha" is the auxiliary of "es"'), and the copula itself where no lesson
+%% says otherwise, which is Italian's `e stata'. The participle after it
+%% agrees with whatever forms the lesson gives it to agree with -- four in
+%% Italian, and in Spanish the one invariable `sido', which is the language
+%% saying the same thing through its data.
+tr_perfect_auxiliary(CL, Aux) :- tr_solve(auxiliary_of(A, CL)), !, Aux = A.
+tr_perfect_auxiliary(CL, CL).
 
 %% a participle that may head a passive: one of a verb the lesson gives, and
 %% NOT a word it also calls an adjective
@@ -1478,6 +1630,15 @@ tr_complements(Side, Words0, Comps) :-
 %% OBJECT's (`Maria ve a Omar' is Omar); after an object it is the
 %% preposition it is (`Maria da el libro a Omar' is to Omar)
 tr_complements(_, [], _, []) :- !.
+%% A `che' CLAUSE IS A COMPLEMENT, AND IT RUNS TO THE END OF ITS PIECE.
+%% `escludendo che il militare voleva ...' -- the word the lesson gives for
+%% `that' before a clause, and everything after it read as a statement of
+%% its own. Taking the WHOLE rest rather than the shortest readable piece
+%% is deliberate: a shortest-first append would stop at the first clause
+%% that happens to read, which is never what `that' introduces.
+tr_complements(Side, [W|Ws], _, [that(S)]) :-
+    tr_that_here(Side, W), Ws \== [],
+    tr_read_statement(Side, Ws, none, S), !.
 tr_complements(foreign, [w(P, _)|Ws], no, [obj(NP)|Cs]) :-
     tr_marker_word(P, Class),
     tr_phrase_words(foreign, Ws, PW, Rest), PW \== [],
@@ -1802,6 +1963,7 @@ tr_lexeme_across(L, To, LT) :- tr_meanings_of(L, To, verb, [LT|_]).
 tr_subject_out(To, asked(w(Q, C)), [o(QT, C)], third, singular, none) :- !, tr_question_across(To, subject, Q, QT).
 tr_subject_out(To, asked(which_np(NP, C)), [o(QT, C)|NPOut], third, Number, Noun) :- !,
     tr_which_word(To, QT), tr_np_out(To, NP, NPOut, Noun, Number).
+tr_subject_out(_, none, [], third, singular, none) :- !.
 tr_subject_out(_, name(W), [o(W, upper)], third, singular, none) :- !.
 tr_subject_out(To, pronoun(P, N, w(W, C)), Outs, P, N, none) :- !,
     (   tr_pronoun_across(To, subject, w(W, C), P, N, T) -> Outs = [o(T, C)]
@@ -2029,6 +2191,9 @@ tr_comp_out(To, oc(NP, Ws), _, _, [], Outs, []) :-
     tr_np_out(To, NP, O1, Noun, Number), tr_marker(To, NP, M), append(M, O1, Obj),
     tr_adjectives_out(To, Ws, Noun, Number, As), tr_adj_words(As, AOut),
     ( To == english -> append(Obj, AOut, Outs) ; append(AOut, Obj, Outs) ).
+%% a `that' clause: the word, and the clause written as a statement
+tr_comp_out(To, that(S), _, _, [], [o(W, lower)|SOut], []) :- !,
+    tr_that_word(To, W), tr_write(To, statement, S, SOut).
 tr_comp_out(To, pp(w(P, C), NP), _, _, [], [o(PT, C)|NPOut], []) :- tr_word_across(w(P, lower), To, preposition, PT), tr_np_out(To, NP, NPOut, _, _).
 tr_comp_out(To, by(NP), _, _, [], [o(By, lower)|NPOut], []) :-
     tr_by_word(To, By), tr_np_out(To, NP, NPOut, _, _).
@@ -2078,11 +2243,13 @@ fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
     ->  tr_copula_lexeme(CL), tr_make(CL, N, T, P, CForm),
         tr_participle_agreeing(L, N, PP), VW = [o(CForm, lower), o(PP, lower)]
     ;   A == passive_perfect
-    ->  tr_copula_lexeme(CL), tr_make(CL, N, T, P, CForm),
+    ->  tr_copula_lexeme(CL), tr_perfect_auxiliary(CL, Aux), tr_make(Aux, N, T, P, CForm),
         tr_participle_agreeing(CL, N, Been), tr_participle_agreeing(L, N, PP),
         VW = [o(CForm, lower), o(Been, lower), o(PP, lower)]
     ;   A == perfect
     ->  tr_auxiliary(has, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(participle_of(PP, L))), VW = [o(AuxForm, lower), o(PP, lower)]
+    ;   A == gerund
+    ->  once(tr_solve(gerund_of(G, L))), VW = [o(G, lower)]
     ;   A == progressive
     ->  tr_auxiliary(is, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(gerund_of(G, L))), VW = [o(AuxForm, lower), o(G, lower)]
     ;   tr_make(L, N, T, P, Form), VW = [o(Form, lower)]
@@ -2188,6 +2355,9 @@ en_group(is, P, N, T, A, Neg, Statement, Front, Tail) :- !,
     ;   en_copula_form(P, N, T, C), Front = o(C, lower), Tail = Not
     ),
     Statement = [Front|Tail].
+en_group(L, _, _, _, gerund, Neg, Statement, Front, []) :- !,
+    en_gerund_of(L, G), Front = o(G, lower),
+    ( Neg == yes -> Statement = [o(not, lower), Front] ; Statement = [Front] ).
 en_group(L, P, N, T, A, Neg, Statement, Front, Tail) :-
     en_base(L, B),
     ( Neg == yes -> Not = [o(not, lower)] ; Not = [] ),
@@ -2457,6 +2627,13 @@ tr_form_nt(W, L, plural, T) :- tr_solve(plural_of(W, F)), tr_tensed(F, T, F0), t
 tr_tensed(W, past, F) :- tr_solve(past_of(W, F)).
 tr_tensed(W, future, F) :- tr_solve(future_of(W, F)).
 tr_tensed(W, conditional, F) :- tr_solve(conditional_of(W, F)).
+%% A SUBJUNCTIVE IS READ AS THE TENSE IT STANDS FOR AND WRITTEN BACK AS
+%% THE INDICATIVE. English marks no subjunctive where `che il militare
+%% volesse' wants one, and nothing a lesson says tells which verbs take one
+%% -- so the mood is read and dropped, and `volesse' comes back `voleva'.
+%% The cost is stated in the header; the alternative is refusing the clause.
+tr_tensed(W, present, F) :- tr_solve(subjunctive_of(W, F)), \+ tr_holds(past(W)).
+tr_tensed(W, past, F) :- tr_solve(subjunctive_of(W, F)), tr_holds(past(W)).
 tr_tensed(W, T, F) :- ( T = past ; T = future ; T = conditional ), tr_rule_stem(W, T, F), tr_present_form(F), tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, W).
 
 %% a present form of one of the lesson's verbs, in either number, for a
