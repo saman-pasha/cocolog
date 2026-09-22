@@ -22,7 +22,7 @@
 
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
-    persons, future, perfect, phrases, wh, languages, ir, elision, clauses,
+    persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1074,6 +1074,54 @@ clauses :-
 
     reason_unlearn(italian).
 
+%% ---- the passive ---------------------------------------------------------------------
+%% The copula and a participle. WHAT TELLS A PASSIVE FROM A PERFECT IS THE
+%% LESSON: Italian builds the perfect of some verbs with the copula too (`e
+%% riuscito' is `has succeeded'), and nothing a lesson says tells which verbs
+%% those are -- so the perfect reading fires only for a word the lesson calls
+%% an AUXILIARY, and the copula falls through to the passive.
+
+passive :-
+    section('the passive: the copula and a participle, and the participle agrees'),
+    reason_learn('Italian is a language.
+The noun "casa" means "house". The noun "pane" means "bread". The noun "soldati" means "soldiers".
+The masculine article "il" means "the". The feminine article "la" means "the". The masculine article "i" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "è" means "is". "sono" is the plural of "è".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine.
+The verb "getta" means "throws". "gettato" is the participle of "getta". "gettata" is the participle of "getta". "gettata" is feminine.
+The verb "considera" means "considers". "considerato" is the participle of "considera". "considerata" is the participle of "considera". "considerata" is feminine.
+The preposition "da" means "by". The preposition "in" means "in".
+The word "non" means "not". The word "non" precedes the verb.', italian, _),
+
+    reason_translate('La casa è considerata.', italian, english, V1),
+    check('the copula and a participle is a passive', V1, 'The house is considered.'),
+
+    reason_translate('The house is considered.', english, italian, V2),
+    check('and back, THE PARTICIPLE AGREEING with a feminine subject', V2, 'La casa è considerata.'),
+
+    reason_translate('Il pane è considerato.', italian, english, V3),
+    check('a masculine subject takes the other form, which is what the four participle rows are for', V3,
+          'The bread is considered.'),
+
+    reason_translate('La casa è stata gettata.', italian, english, V4),
+    check('the PERFECT passive: the copula, its own participle, and the verb''s', V4,
+          'The house has been throwed.'),
+
+    reason_translate('Il pane è considerato da i soldati.', italian, english, V5),
+    check('THE AGENT IS NOT AN ADJUNCT: it travels as by/1 and writes with the target''s word for `by''', V5,
+          'The bread is considered by the soldiers.'),
+
+    reason_translate('La casa non è considerata.', italian, english, V6),
+    check('denied', V6, 'The house is not considered.'),
+
+    reason_ir('La casa è stata gettata.', italian, V7),
+    check('what the IR carries is the ASPECT, passive_perfect, and no word of any language', V7,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(house, lower), singular),
+                g(throws, present, passive_perfect, no), []), 46)]),
+
+    reason_unlearn(italian).
+
 %% ---- the lesson questioned ---------------------------------------------------------
 
 questions :-
@@ -1452,6 +1500,11 @@ build :-
         atom_concat(C, '/vocabulary', CV), make_directory(CV),
         atom_concat(Dir, '/raw', Raw), atom_concat(C, '/raw', CRaw),
         shl(['ln -s ', Raw, ' ', CRaw]),
+        %% `extra/' is an INPUT to the build exactly as `raw/' is -- the lines
+        %% Apertium does not carry, appended by cb_extra/1 -- so the scratch
+        %% corpus needs it or the built file is short by those lines
+        atom_concat(Dir, '/extra', Extra), atom_concat(C, '/extra', CExtra),
+        shl(['ln -s ', Extra, ' ', CExtra]),
         cocolog(Exe), sh_join(['COCOLOG_CORPUS=', C, ' ', Exe, ' -s library/reasoning/corpus/build.pl -- spanish 2>&1'], Cmd),
         proc_run(Cmd, 600000, _, Exit),
         check('build.pl -- spanish exits 0 over the raw dictionaries', Exit, 0),

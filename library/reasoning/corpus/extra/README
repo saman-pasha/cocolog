@@ -1,0 +1,15 @@
+Lesson lines for words Apertium's bilingual dictionary does not carry, or
+carries with a meaning the translator cannot use.
+
+WHY THEY ARE NOT IN ../italian.txt AND ../spanish.txt, which is the whole
+point of this directory: those two files are the TAGGER's corpus. The
+generator draws its lesson shapes from them, so a line added there changes
+the training pairs, and `generated/' and `model.rows' must be regenerated
+with it -- which re-rolls every minority shape the network learned by luck.
+Four lines cost the adjective grid 0.60 -> 0.25 and a red test/tagger.pl.
+
+The vocabulary directory is NOT read by the generator. These lines are
+appended to `../vocabulary/<language>.txt' by `../build.pl', so the
+translator gets the words and the tagger sees nothing at all.
+
+One sentence a line, the same controlled English the reader already reads.

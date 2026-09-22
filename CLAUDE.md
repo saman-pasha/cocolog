@@ -3122,6 +3122,79 @@ wrote before: Italian 70 576 -> **75 145** lines, Spanish 92 087 ->
 answered there -- a participle after `ser' agrees with its subject, and
 writing the masculine form of a feminine subject is wrong.
 
+**THE PASSIVE IS DONE (1.6.2), AND THE ASPECT FIELD CARRIES IT.**
+`g(Lexeme, Tense, Aspect, Denied)` gained `passive` and `passive_perfect`
+beside `simple`, `perfect` and `progressive` -- flat atoms, so every existing
+pin is untouched. Read: the copula and a participle (`è considerata'), or the
+copula, its OWN participle and the verb's (`è stato gettato'), the three-word
+reading tried first or its middle word is taken for the verb.
+
+**WHAT TELLS A PASSIVE FROM A PERFECT IS THE LESSON, NOT THE CODE, and the
+cost is stated rather than hidden.** Italian builds the perfect of some verbs
+with the copula too -- `è riuscito' is `has succeeded', not `is succeeded' --
+and nothing a lesson says tells which verbs those are. The perfect rule fires
+only for a word the lesson calls an AUXILIARY, so `ha' takes the perfect and
+`è' falls through to the passive; an intransitive perfect built with the
+copula therefore reads as a passive, and a lesson that called its copula an
+auxiliary would get the other reading. It is the data deciding, which is the
+only place this project lets such a thing be decided.
+
+**AND THE PARTICIPLE AGREES, which is the half that is easy to skip.** `la
+casa è considerata' against `il pane è considerato': the writer reads the
+SUBJECT PHRASE's gender out of a global and picks among the four
+`participle_of' rows by asking what the lesson says of the word itself
+(`"considerata" is feminine.'), exactly as an adjective is chosen among the
+words a meaning gives. The masculine singular is the fallback and the builder
+states it FIRST, so a lesson giving one form writes what it wrote before.
+
+**THE BUILDER HAD TO SAY WHAT EACH FORM IS**, or nothing could pick among
+them: `cb_participle/5` writes the gender of the feminine ones and states a
+plural as the plural of its own singular -- the relations a noun and an
+adjective already use, so `reason.pl` did not move. **The gender RULE gets it
+wrong and that is why the line is explicit**: `considerate' does not end in
+`a' and is feminine plural. Italian 75 145 -> **81 237** lines, Spanish
+98 231 -> **106 423**.
+
+**AND THE AGENT IS NOT AN ADJUNCT.** `dai soldati' is who did it, so it
+travels as `by/1' and writes with the TARGET's word for `by'. Read as an
+ordinary `pp/2' it would cross by the first meaning of `da', which the
+vocabulary gives as `since' and the hand lesson as `from' -- and `imposed
+from the soldiers' is not what the sentence says. `tr_read_passive/0' is how
+`tr_complements/4' knows the group it is completing was a passive.
+
+**AND FOUR WORDS IN THE HAND LESSON COST THE TAGGER 0.60 -> 0.25, WHICH IS
+THE FIFTH FIRING OF THAT COIN TOSS AND THE REASON `corpus/extra/' EXISTS.**
+The passive needed `perché' and a preposition meaning `by', neither of which
+Apertium's bilingual dictionary carries, so they went into
+`corpus/italian.txt' and `corpus/spanish.txt' -- **which is the TAGGER's
+corpus**. The generator draws its lesson shapes from those files, so
+`generated/' and `model.rows' had to be regenerated, and the retrain re-rolled
+the adjective-before-a-comma-filler shape: **97 of 384 against a pin of 0.60**,
+`test/tagger.pl` RED, on a four-line data change.
+
+| | before | after the four lines | restored |
+|---|---|---|---|
+| the adjective grid | 281 of 384 | **97** | **281** |
+| lessons typed bare | 0.7872 | 0.8168 | 0.7872 |
+
+**THE FIX IS THE LINE BETWEEN THE TWO DIRECTORIES, NOT A RE-ROLL.**
+`corpus/vocabulary/` is NOT read by the generator -- this file has said so
+since 1.2.42 -- so a word that is vocabulary rather than a shape belongs
+there. `corpus/extra/<language>.txt` holds the lines Apertium lacks,
+`cb_extra/1` appends them to the vocabulary the builder writes, and the two
+hand lessons, `generated/` and `model.rows` went back to HEAD byte for byte
+(the model's md5 checked against `git show HEAD:`). The translator gets the
+words and the tagger sees nothing at all.
+
+**AND `extra/` IS AN INPUT TO THE BUILD, WHICH THE CASE FOUND.**
+`test/translate.pl`'s `build` section rebuilds the Spanish vocabulary in a
+scratch corpus and requires it byte for byte; the scratch symlinked `raw/`
+alone, so the rebuilt file was short by those two lines and the case went RED
+on exactly the check that exists for it. It symlinks `extra/` too now.
+**A directory the builder READS is one the scratch build needs**, and the
+byte-for-byte check is what turns that from a thing to remember into a thing
+that cannot be forgotten.
+
 **AND THE PP ROW IS MARKED `MEASURE FIRST` ON PURPOSE.** `tr_phrase_words/4`
 ends a phrase at a preposition, so `la connivenza delle autorità` reads as a
 phrase and a SEPARATE `pp/2` hung on the verb -- the wrong attachment, and

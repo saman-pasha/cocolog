@@ -385,7 +385,30 @@ cb_write(Lang, Credit, Entries) :-
     format("# ~w, the English pasts from clips/pattern (BSD),~n", [Credit]),
     format("# the persons from WordNet's noun.person. Learn it after corpus/~w.txt, which holds the~n", [Lang]),
     format("# grammar: cocolog -s library/reasoning/teach.pl -- ~w. A line beginning # is a comment.~n", [Lang]),
-    forall(member(E, Entries), cb_entry(E)).
+    forall(member(E, Entries), cb_entry(E)),
+    cb_extra(Lang).
+
+%% THE WORDS APERTIUM DOES NOT CARRY GO HERE AND NOT IN THE HAND LESSON, and
+%% the reason is the TAGGER. `corpus/<language>.txt' is the generator's
+%% corpus -- it draws its lesson shapes from those lines -- so a word added
+%% there changes the training pairs, and `generated/' and `model.rows' must
+%% be regenerated with it, which re-rolls every minority shape the network
+%% learned by the luck of its minimum. Measured: FOUR lines (`perche',
+%% `porque' and the two prepositions meaning `by') took the adjective grid
+%% from 0.60 to 0.25 and put test/tagger.pl RED -- the fifth firing of that
+%% coin toss.
+%%
+%% The VOCABULARY directory is not read by the generator, so a line appended
+%% here reaches the translator and the tagger never sees it.
+cb_extra(Lang) :-
+    normalise_corpus_dir(Dir),
+    atomic_list_concat([Dir, '/extra/', Lang, '.txt'], File),
+    (   catch(read_file_to_codes(File, Codes), _, fail)
+    ->  atom_codes(A, Codes), split_string(A, "\n", " \t\r", Lines),
+        forall( ( member(L, Lines), L \== "", \+ sub_string(L, 0, 1, _, "#") ),
+                format("~w~n", [L]) )
+    ;   true
+    ).
 
 cb_entry(e(_, noun, En, Fo, RTags)) :- !,
     cb_forms(Fo, Forms),
@@ -530,7 +553,20 @@ cb_verb_forms(L, Forms) :-
 cb_participles(Forms, L) :-
     forall( ( member(G-N, [m-sg, f-sg, m-pl, f-pl]),
               cb_verb_form(Forms, [pp, G, N], Pp) ),
-            cb_line('"~w" is the participle of "~w".', [Pp, L]) ).
+            cb_participle(Forms, L, G, N, Pp) ).
+
+%% EACH FORM SAYS WHAT IT IS, or nothing could pick among the four. The
+%% gender is stated of the feminine ones (the rule of gender would get
+%% `considerate' wrong -- it does not end in `a' and is feminine plural),
+%% and the number by stating a plural as the plural of its own singular,
+%% which is the relation a noun and an adjective already use.
+cb_participle(Forms, L, G, N, Pp) :-
+    cb_line('"~w" is the participle of "~w".', [Pp, L]),
+    ( G == f -> cb_line('"~w" is feminine.', [Pp]) ; true ),
+    (   N == pl, cb_verb_form(Forms, [pp, G, sg], Sg), Sg \== Pp
+    ->  cb_line('"~w" is the plural of "~w".', [Pp, Sg])
+    ;   true
+    ).
 
 %% the plural and the persons of one tense's third person singular. The
 %% plural of a past is stated as the past of the plural (`"comieron" is the

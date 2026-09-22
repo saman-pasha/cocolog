@@ -855,6 +855,7 @@ tr_cross_comp(adj(Ws0), adj(Ws)) :- !, tr_cross_adjectives(Ws0, Ws).
 tr_cross_comp(pp(w(P, C), NP0), pp(w(PT, C), NP)) :- !, tr_word_across(w(P, lower), english, preposition, PT), tr_cross_np(NP0, NP).
 tr_cross_comp(adv(w(A, C)), adv(w(AT, C))) :- !, tr_word_across(w(A, lower), english, adverb, AT).
 tr_cross_comp(inf(L), inf(LT)) :- !, tr_lexeme_across(L, english, LT).
+tr_cross_comp(by(NP0), by(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(opron(w(W, C)), opron(w(T, C))) :- tr_pronoun_across(english, object, w(W, C), _, _, T).
 
 %% ---- reading: a question into the statement's order -------------------------------
@@ -1096,6 +1097,7 @@ tr_read_statement(Side, Words0, Asked, S) :-
     tr_negation(Side, Words0, Words, Neg),
     tr_group_from(Side, Words, Before, g(L, T, A, FP, FN), After),
     nb_setval('$tr_read_group', L),                           % for the complements: a bare base after a modal
+    nb_setval('$tr_read_aspect', A),                          % and: a `by' phrase after a passive is its agent
     tr_split_clitics(Side, Before, Asked, FP, FN, SubjectWords, Clitics),
     tr_subject(Side, Asked, SubjectWords, FP, FN, Subject),
     tr_complements(Side, After, Comps0), !,                   % the cut once the WHOLE statement read: `house'
@@ -1203,6 +1205,15 @@ tr_group_at(english, [w(D, _), w(B, _)|R], g(L, T, simple, third, singular), R) 
 tr_group_at(english, [w(M, _)|R], g(L, T, simple, third, singular), R) :-
     en_modal_form(M, L, T), tr_known(english, L), tr_class(english, L, modal), !.
 tr_group_at(english, [w(C, _), w(G, _)|R], g(L, T, progressive, P, N), R) :- en_copula(C, P, N, T), en_gerund(G, L), !.
+%% English's passive: `has been thrown', `is considered', `was thrown'. It
+%% is tried BEFORE the plain copula, or `is considered' would read as the
+%% copula with an adjective after it -- and it is refused for a word the
+%% lesson also calls an ADJECTIVE, which is what keeps `She is licensed' the
+%% adjective sentence it was.
+tr_group_at(english, [w(H, _), w(been, _), w(P, _)|R], g(L, T, passive_perfect, third, singular), R) :-
+    memberchk(H, [has, have, had]), en_passive_participle(P, L), !, ( H == had -> T = past ; T = present ).
+tr_group_at(english, [w(C, _), w(P, _)|R], g(L, T, passive, Per, N), R) :-
+    en_copula(C, Per, N, T), en_passive_participle(P, L), !.
 tr_group_at(english, [w(C, _)|R], g(is, T, simple, P, N), R) :- en_copula(C, P, N, T), !.
 tr_group_at(english, [w(V, _)|R], g(L, T, simple, third, singular), R) :- en_verb_form(V, L, T), !.
 %% the lesson's language: the auxiliary that means `is' and a gerund, the
@@ -1212,6 +1223,26 @@ tr_group_at(foreign, [w(A, _), w(G, _)|R], g(L, T, progressive, Person, N), R) :
     tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(mean(AL, is)), tr_solve(gerund_of(G, L)), tr_known(foreign, L), !.
 tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
     tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
+%% THE PASSIVE: the copula and a participle (`e considerata'), and the
+%% PERFECT passive with the copula's own participle between them (`e stato
+%% gettato'). The three-word reading is tried first, or its middle word
+%% would be taken for the verb.
+%%
+%% WHAT TELLS A PASSIVE FROM A PERFECT IS THE LESSON, not this code. Italian
+%% builds the perfect of some verbs with `essere' too -- `e riuscito' is `has
+%% succeeded', not `is succeeded' -- and nothing in a lesson says which verbs
+%% those are. The rule above fires only for a word the lesson calls an
+%% auxiliary, so `ha' takes the perfect and `e' falls through to here; a
+%% lesson that called its copula an auxiliary would get the other reading.
+%% The cost is stated rather than hidden: an intransitive perfect built with
+%% the copula reads as a passive.
+tr_group_at(foreign, [w(C, _), w(B, _), w(P, _)|R], g(L, T, passive_perfect, Person, N), R) :-
+    tr_form(C, CL, N, T, Person), tr_copula_lexeme(CL),
+    tr_solve(participle_of(B, BL)), tr_copula_lexeme(BL),
+    tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
+tr_group_at(foreign, [w(C, _), w(P, _)|R], g(L, T, passive, Person, N), R) :-
+    tr_form(C, CL, N, T, Person), tr_copula_lexeme(CL),
+    tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
 %% -- and NOT cut on the first reading: `sono' is the first person of `è'
 %% and the plural of it, and which one it is in `Le case sono grandi' the
 %% subject decides, so the statement reader backtracks into the next
@@ -1220,6 +1251,14 @@ tr_group_at(foreign, [w(V, _)|R], g(L, T, simple, Person, N), R) :-
 
 %% a verb of the lesson's, or a modal
 tr_verb_lexeme(L) :- ( tr_class_of(L, verb) -> true ; tr_class_of(L, modal) ).
+
+%% the copula's lexeme: the verb the lesson gives for `is', never an
+%% auxiliary it named for the perfect or the progressive
+tr_copula_lexeme(L) :- tr_solve(mean(L, is)), tr_class_of(L, verb), \+ tr_solve(auxiliary(L)), !.
+
+%% a participle that may head a passive: one of a verb the lesson gives, and
+%% NOT a word it also calls an adjective
+en_passive_participle(P, L) :- en_participle(P, L), \+ tr_class(english, P, adjective).
 
 %% the subject: what was asked, a pronoun, a name, two joined, a phrase --
 %% or, in the lesson's language, nobody, and then the pronoun the verb's
@@ -1329,6 +1368,15 @@ tr_complements(english, [w(to, _), w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
 tr_complements(english, [w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
     tr_read_modal, en_infinitive(B, L), !,
     tr_complements(english, Ws, Seen, Cs).
+%% THE AGENT OF A PASSIVE IS NOT AN ADJUNCT: `dai soldati' is who did it,
+%% and it travels as by/1 so that it writes with the TARGET's word for `by'.
+%% Read as an ordinary pp/2 it would cross by the first meaning of `da',
+%% which the lesson gives as `from' -- and `imposed from the soldiers' is
+%% not what the sentence says.
+tr_complements(Side, [P|Ws], Seen, [by(NP)|Cs]) :-
+    tr_read_passive, tr_is(Side, P, preposition), tr_means_by(Side, P), !,
+    tr_phrase_words(Side, Ws, PW, Rest), PW \== [], tr_phrase_np(Side, PW, NP),
+    tr_complements(Side, Rest, Seen, Cs).
 tr_complements(Side, [P|Ws], Seen, [pp(P, NP)|Cs]) :-
     tr_is(Side, P, preposition), !,
     (   Ws = [w(O, OC)|Rest], tr_object_pronoun_here(Side, Ws)
@@ -1399,6 +1447,13 @@ tr_object_phrase(Side, Words, NP) :- tr_np(Side, Words, NP).
 %% the group being read is a modal, so a bare base form after it is its verb
 tr_read_modal :- catch(nb_getval('$tr_read_group', L), _, fail), en_modal_out(L, _, _).
 
+%% the group being read is a passive, so a `by' phrase after it is the agent
+tr_read_passive :- catch(nb_getval('$tr_read_aspect', A), _, fail), memberchk(A, [passive, passive_perfect]).
+
+%% a word that means `by': English's own, or one the lesson gives for it
+tr_means_by(english, w(by, _)) :- !.
+tr_means_by(foreign, w(W, _)) :- tr_lexeme(foreign, W, L, _), tr_solve(mean(L, by)), !.
+
 %% English's base form of a verb the lesson gives (`sleep' for `sleeps'),
 %% never one of English's own words
 en_infinitive(be, is) :- !.
@@ -1445,6 +1500,9 @@ tr_write(To, Kind, s(none, there, g(L, T, simple, Neg), [obj(NP)|More]), Outs) :
 tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg), Comps), Outs) :-
     nb_setval('$tr_verb', L),
     tr_subject_out(To, Subject, SubjectOut, Person, Number, Noun),
+    %% the subject's gender, for a passive participle to agree with
+    ( Noun == none -> SG = masculine ; tr_gender(Noun, SG0), ( SG0 == none -> SG = masculine ; SG = SG0 ) ),
+    nb_setval('$tr_subject_gender', SG),
     tr_asked_out(To, Asked, AskedOut),
     tr_lexeme_across(L, To, LT),
     tr_comps_out(To, Comps, Noun, Number, Clitics, CompOuts, Advs),
@@ -1662,6 +1720,8 @@ tr_comps_out(To, [C|Cs], Noun, Number, Clitics, Outs, Advs) :-
 tr_comp_out(To, obj(NP), _, _, [], Outs, []) :- tr_np_out(To, NP, O1, _, _), tr_marker(To, NP, M), append(M, O1, Outs).
 tr_comp_out(To, adj(Ws), Noun, Number, [], Outs, []) :- tr_adjectives_out(To, Ws, Noun, Number, As), tr_adj_words(As, Outs).
 tr_comp_out(To, pp(w(P, C), NP), _, _, [], [o(PT, C)|NPOut], []) :- tr_word_across(w(P, lower), To, preposition, PT), tr_np_out(To, NP, NPOut, _, _).
+tr_comp_out(To, by(NP), _, _, [], [o(By, lower)|NPOut], []) :-
+    tr_by_word(To, By), tr_np_out(To, NP, NPOut, _, _).
 tr_comp_out(To, adv(w(A, C)), _, _, [], [], [o(AT, C)]) :- tr_word_across(w(A, lower), To, adverb, AT).
 %% an infinitive: English's `to' and the base form, the base alone after a
 %% modal; the lesson's infinitive of its verb
@@ -1676,6 +1736,10 @@ tr_comp_out(foreign, opron(w(W, C)), _, _, Clitics, Outs, []) :-
     tr_pronoun_across(foreign, object, w(W, C), _, _, T),
     ( tr_holds(precede(T, verb)) -> Clitics = [o(T, C)], Outs = [] ; Clitics = [], Outs = [o(T, C)] ).
 
+%% the target's word for `by': English's own, or the one its lesson gives
+tr_by_word(english, by) :- !.
+tr_by_word(foreign, By) :- once(tr_solve(mean(By, by))).
+
 %% the verb group being written is a modal
 tr_modal_verb :-
     catch(nb_getval('$tr_verb', V), _, fail), tr_side_here(Side),
@@ -1688,7 +1752,14 @@ tr_modal_verb :-
 %% means `has' in that form and the participle, the progressive as the one
 %% that means `is' and the gerund
 fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
-    (   A == perfect
+    (   A == passive
+    ->  tr_copula_lexeme(CL), tr_make(CL, N, T, P, CForm),
+        tr_participle_agreeing(L, N, PP), VW = [o(CForm, lower), o(PP, lower)]
+    ;   A == passive_perfect
+    ->  tr_copula_lexeme(CL), tr_make(CL, N, T, P, CForm),
+        tr_participle_agreeing(CL, N, Been), tr_participle_agreeing(L, N, PP),
+        VW = [o(CForm, lower), o(Been, lower), o(PP, lower)]
+    ;   A == perfect
     ->  tr_auxiliary(has, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(participle_of(PP, L))), VW = [o(AuxForm, lower), o(PP, lower)]
     ;   A == progressive
     ->  tr_auxiliary(is, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(gerund_of(G, L))), VW = [o(AuxForm, lower), o(G, lower)]
@@ -1700,6 +1771,35 @@ fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
         ; append([o(No, lower)|Clitics], VW, Group) )
     ;   append(Clitics, VW, Group)
     ).
+
+%% A PARTICIPLE IN A PASSIVE AGREES WITH ITS SUBJECT, and picking the form
+%% is what the four `participle_of' rows are for. The gender is the SUBJECT
+%% PHRASE's, read out of the global the writer set, and the number comes
+%% with it; a form is chosen by asking what the lesson says of the word
+%% itself -- `"considerata" is feminine.' -- exactly as an adjective is
+%% chosen among the words a meaning gives.
+%%
+%% THE MASCULINE SINGULAR IS THE FALLBACK and it is stated first by the
+%% builder, so a lesson that gives one form writes what it wrote before.
+tr_participle_agreeing(L, N, PP) :-
+    tr_subject_gender(G),
+    findall(P, tr_solve(participle_of(P, L)), Ps0), Ps0 \== [],
+    (   member(P, Ps0), tr_participle_is(P, Ps0, G, N) -> PP = P
+    ;   Ps0 = [PP|_]
+    ), !.
+tr_participle_agreeing(L, _, PP) :- once(tr_solve(participle_of(PP, L))).
+
+%% a participle form's own gender and number: the gender the lesson states
+%% of the word, and the number by whether it is another form's plural
+tr_participle_is(P, Ps, G, N) :-
+    ( G == feminine -> tr_holds(feminine(P)) ; \+ tr_holds(feminine(P)) ),
+    (   N == plural
+    ->  member(S, Ps), S \== P, tr_solve(plural_of(P, S))
+    ;   \+ ( member(S, Ps), S \== P, tr_solve(plural_of(P, S)) )
+    ).
+
+%% the gender of the subject the writer is putting out, set by tr_write/4
+tr_subject_gender(G) :- ( catch(nb_getval('$tr_subject_gender', G0), _, fail) -> G = G0 ; G = masculine ).
 
 %% the auxiliary that means `has' (the perfect) or `is' (the progressive):
 %% the one so meant, and for the perfect the first the lesson names at
@@ -1717,6 +1817,22 @@ en_group(L, _, _, T, simple, Neg, Statement, Front, Tail) :- en_modal_out(L, _, 
     ;   Front = o(M, lower), Tail = []
     ),
     Statement = [Front|Tail].
+%% English's passive: the copula in the subject's person and number and the
+%% participle; the perfect passive `has been' and the participle. English
+%% has no agreement to make, so the participle is simply the one the lesson
+%% gave or -ed makes.
+en_group(L, P, N, T, passive, Neg, Statement, Front, Tail) :- !,
+    en_copula_form(P, N, T, C), en_participle_of(L, PP),
+    Front = o(C, lower),
+    ( Neg == yes -> Tail = [o(not, lower), o(PP, lower)] ; Tail = [o(PP, lower)] ),
+    Statement = [Front|Tail].
+en_group(L, P, N, T, passive_perfect, Neg, Statement, Front, Tail) :- !,
+    ( T == past -> H = had ; ( P == third, N == singular ) -> H = has ; H = have ),
+    en_participle_of(L, PP),
+    Front = o(H, lower),
+    ( Neg == yes -> Tail = [o(not, lower), o(been, lower), o(PP, lower)] ; Tail = [o(been, lower), o(PP, lower)] ),
+    Statement = [Front|Tail].
+
 %% -- and `is' with a gerund after it (`is being careful') is CUT AND THEN
 %% REFUSED on purpose: the copula has no progressive this writes, and
 %% falling through to the clause below would put the stemmer on `is'
