@@ -397,8 +397,8 @@ cb_write(Lang, Credit, Entries) :-
     format("# ~w, the English pasts from clips/pattern (BSD),~n", [Credit]),
     format("# the persons from WordNet's noun.person. Learn it after corpus/~w.txt, which holds the~n", [Lang]),
     format("# grammar: cocolog -s library/reasoning/teach.pl -- ~w. A line beginning # is a comment.~n", [Lang]),
-    forall(member(E, Entries), cb_entry(E)),
-    cb_extra(Lang).
+    cb_extra(Lang),
+    forall(member(E, Entries), cb_entry(E)).
 
 %% THE WORDS APERTIUM DOES NOT CARRY GO HERE AND NOT IN THE HAND LESSON, and
 %% the reason is the TAGGER. `corpus/<language>.txt' is the generator's
@@ -410,8 +410,17 @@ cb_write(Lang, Credit, Entries) :-
 %% from 0.60 to 0.25 and put test/tagger.pl RED -- the fifth firing of that
 %% coin toss.
 %%
-%% The VOCABULARY directory is not read by the generator, so a line appended
-%% here reaches the translator and the tagger never sees it.
+%% The VOCABULARY directory is not read by the generator, so a line put here
+%% reaches the translator and the tagger never sees it.
+%%
+%% AND IT IS WRITTEN FIRST, because a lesson says what a word MEANS and what
+%% classes it has and never which meaning belongs to which class, so the
+%% FIRST meaning wins wherever one has to be chosen. Every line here is here
+%% because the dictionary's meaning is wrong or missing, so the hand-written
+%% one belongs in front of it -- and the layering that gives is the one the
+%% project already has: corpus/<language>.txt, then these, then Apertium.
+%% Appended, `The masculine noun "sabato" means "saturday".' lost to the
+%% dictionary's `sabbath' and could not be corrected at all.
 cb_extra(Lang) :-
     normalise_corpus_dir(Dir),
     atomic_list_concat([Dir, '/extra/', Lang, '.txt'], File),

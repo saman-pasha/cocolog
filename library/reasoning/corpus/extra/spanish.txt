@@ -9,3 +9,27 @@ The pronoun "uno" does not precede the verb.
 The conjunction "que" means "that".
 "domina" is intransitive.
 "ha" is the auxiliary of "es".
+The reflexive pronoun "se" means "itself".
+The preposition "desde" means "from".
+The feminine noun "depuración" means "cleanup".
+The masculine noun "toque de queda" means "curfew".
+"toque de queda" is not feminine.
+The masculine noun "sábado" means "saturday".
+"sábado" is a time.
+"domingo" is a time.
+"lunes" is a time.
+"martes" is a time.
+"miércoles" is a time.
+"jueves" is a time.
+"viernes" is a time.
+The preposition "para" means "for".
+The masculine noun "fax" means "fax".
+The masculine noun "táctico" means "tactician".
+"año" is a time.
+"día" is a time.
+"semana" is a time.
+"mes" is a time.
+"hora" is a time.
+"minuto" is a time.
+"momento" is a time.
+"siglo" is a time.

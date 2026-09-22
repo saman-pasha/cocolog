@@ -24,7 +24,7 @@ main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
-    questions, rules, refusals, outline, vocabulary, shapes, build,
+    adjuncts, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -219,6 +219,12 @@ The word "a" precedes the person.
 The adverb "rápidamente" means "quickly".
 The adverb "bien" means "well".
 The adverb "hoy" means "today".
+The adverb "siempre" means "always".
+The preposition "para" means "for".
+The noun "sábado" means "saturday".
+"sábado" is a time.
+The pronoun "todo" means "everything".
+The pronoun "todo" does not precede the verb.
 The number "dos" means "two".
 The number "tres" means "three".
 The conjunction "y" means "and".').
@@ -226,14 +232,14 @@ The conjunction "y" means "and".').
 %% ---- the lesson, learned ------------------------------------------------------
 
 lesson :-
-    section('the lesson: one hundred and eighty-three lines, three hundred terms'),
+    section('the lesson: one hundred and eighty-nine lines, three hundred and eleven terms'),
     lesson_text(Text),
     reason_tokens(Text, Tokens),
     findall(S, member('.', Tokens), Stops), length(Stops, NS),
-    check('one hundred and eighty-three sentences', NS, 183),
+    check('one hundred and eighty-nine sentences', NS, 189),
     reason_learn(Text, Terms),
     length(Terms, NT),
-    check('three hundred terms out of them', NT, 300),
+    check('three hundred and eleven terms out of them', NT, 311),
     yes_no(memberchk(mean(casa, house), Terms), L1),
     check('a mentioned word means a mentioned word', L1, yes),
     yes_no(memberchk(noun(casa), Terms), L2),
@@ -1845,6 +1851,33 @@ The word "non" means "not".', italian, _),
 
     reason_unlearn(italian), reason_unlearn(spanish).
 
+%% ---- what stands beside the sentence ------------------------------------------------
+%%
+%% Newspaper prose puts an adverb inside the verb group, a connector at the
+%% head and an adjunct before the subject, and none of the three was read
+%% before 1.6.14. Every one of them is tried only after the plain reading
+%% failed, so nothing above this line changed.
+
+adjuncts :-
+    section('adjuncts: an adverb inside the group, a connector at the head, a phrase before the subject'),
+    reason_translate('El perro ha siempre comido el pan.', A1),
+    check('an adverb INSIDE the verb group, which no reader was looking for', A1, 'The dog has eaten the bread always.'),
+    reason_translate('Siempre el perro come el pan.', A2),
+    check('and one at the head, before the subject -- and the fronting is not written back, which is 1.6.8''s rule', A2, 'The dog eats the bread always.'),
+    reason_translate('Y el perro come el pan.', A3),
+    check('a connector at the head, with no left clause in the sentence at all', A3, 'And the dog eats the bread.'),
+    reason_translate('En la casa el perro come el pan.', A4),
+    check('a fronted adjunct before the subject', A4, 'The dog eats the bread in the house.'),
+    reason_translate('Sábado el perro come el pan.', A5),
+    check('a bare time phrase, which the lesson says is one', A5, 'The dog eats the bread saturday.'),
+    reason_translate('El perro come el pan para siempre.', A6),
+    check('a preposition whose object is an adverb', A6, 'The dog eats the bread for always.'),
+    reason_translate('El todo es grande.', A7),
+    check('a determiner and a pronoun: the pronoun is the head', A7, 'The everything is big.'),
+    %% and the refusals that stay
+    yes_no(reason_translate('Come el pan rápidamente y.', _), A8),
+    check('a connector with nothing after it is still refused', A8, no).
+
 % ---- the lesson questioned ---------------------------------------------------------
 
 questions :-
@@ -1967,8 +2000,8 @@ refusals :-
     check('no verb', R3, no),
     reason_untranslated('The house.', U3),
     check('and nothing untranslated: the words are known, the shape is not', U3, []),
-    yes_no(reason_translate('Maria has 3 dogs.', _), R4),
-    check('a number in DIGITS is a word now -- its own lexeme on every side -- but a bare one before a plural noun is still no shape this reads', R4, no),
+    reason_translate('Maria has 3 dogs.', R4),
+    check('A NUMBER IN DIGITS CROSSES AS ITSELF: it has no mean/2 row and needs none, where before 1.6.14 the lookup found nothing and the phrase was refused', R4, 'Maria tiene 3 perros.'),
     yes_no(reason_translate('The house is big. The house is old.', _), R5),
     check('two sentences, one refused: both refused', R5, no),
     yes_no(reason_translate('Maria does not sleep.', _), R6),
@@ -1996,7 +2029,7 @@ outline :-
     reason_outline(Text, Lines),
     Lines = [L1|_],
     check('the class with the most said about it first: its members and its four rules', L1,
-          'Noun ("casa", "perro", "gato", "mesa", "libro", "pan", "huevo", "leche", "ciudad", "amigo" and "amiga"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine; every noun that ends in a vowel takes "s" in the plural; every noun that ends in a consonant takes "es" in the plural.'),
+          'Noun ("casa", "perro", "gato", "mesa", "libro", "pan", "huevo", "leche", "ciudad", "amigo", "amiga" and "sábado"): every noun that ends in "a" is feminine; every noun that does not end in "a" is masculine; every noun that ends in a vowel takes "s" in the plural; every noun that ends in a consonant takes "es" in the plural.'),
     yes_no(memberchk('Adjective ("grande", "rojo", "roja", "pequeño" and "pequeña"): every adjective follows the noun; every adjective that ends in a vowel takes "s" in the plural.', Lines), O2),
     check('the adjectives, with both their rules', O2, yes),
     yes_no(memberchk('"casa", a noun: means "house".', Lines), O3),
@@ -2036,10 +2069,11 @@ vocabulary :-
     check('the Italian one at least forty-five thousand', BigIt, yes),
     Words = [profesor, 'periódico', gato, negro, duerme, hermano, coche, nuevo, rey, visita, ama,
              hijo, hija, problema, 'está', hace, makes, muy, casa, perro,
-             come, 'comería', quiere, necesita, puede, esto, nadie, alguien, otro, cada, mucho, este, esta, aquel, hay, cuatro, corre, runs, ve],
+             come, 'comería', quiere, necesita, puede, esto, nadie, alguien, otro, cada, mucho, este, esta, aquel, hay, cuatro, corre, runs, ve,
+             comienza, considera, considerada, concluye, concluida, pone, peligro],
     findall(L, ( member(L, EsLines), vocabulary_mentions(L, Words) ), Picked),
     length(Picked, NP), yes_no(NP >= 150, Enough),
-    check('the lines that mention thirty-nine words of it: at least a hundred and fifty, the verbs carrying twenty each', Enough, yes),
+    check('the lines that mention forty-six words of it: at least a hundred and fifty, the verbs carrying twenty each', Enough, yes),
     atomic_list_concat(Picked, ' ', Text), reason_learn(Text, Terms), length(Terms, NT),
     yes_no(NT >= NP, Learned), check('every one of them read by the reader', Learned, yes),
     yes_no(( memberchk(noun(hermano), Terms), memberchk(masculine(hermano), Terms), memberchk(plural_of(hermanos, hermano), Terms), memberchk(person(hermano), Terms) ), V1),
@@ -2100,6 +2134,17 @@ vocabulary_odd(_, []).
 
 shapes :-
     section('the shapes a vocabulary brings: an infinitive, a modal, the progressive, the conditional, this and that, there is'),
+    %% ---- 1.6.14: the shapes newspaper prose wants, over the real vocabulary
+    reason_translate('Maria comienza a comer el pan.', N1),
+    check('A PREPOSITION MEANING `to'' BEFORE AN INFINITIVE IS THE INFINITIVE, where the pp clause took the word and refused the sentence', N1, 'Maria begins to eat the bread.'),
+    reason_translate('Maria quiere comer el pan y ver el gato.', N2),
+    check('a conjunction between two complements, not inside a phrase (querer means loves before wants, which is the dictionary''s order)', N2, 'Maria loves to eat the bread and to see the cat.'),
+    reason_translate('Maria quiere poner en peligro la casa.', N3),
+    check('a phrase ends at a determiner once it has its noun: `en peligro'' and then the object', N3, 'Maria loves to put in danger the house.'),
+    reason_translate('La casa es considerada concluida.', N4),
+    check('a participle predicated of the subject, after a passive that spent the copula', N4, 'The house is considered concluded.'),
+    reason_translate('The house is considered concluded.', N5),
+    check('and back, the participle agreeing with the subject', N5, 'La casa es considerada concluida.'),
     reason_translate('Maria wants to eat the bread.', S1),
     check('`to'' and a base form is the lesson''s infinitive', S1, 'Maria quiere comer el pan.'),
     reason_translate('Maria necesita comer el pan.', S2),

@@ -8,3 +8,33 @@ The pronoun "uno" means "one".
 The pronoun "uno" does not precede the verb.
 The conjunction "che" means "that".
 "domina" is intransitive.
+The reflexive pronoun "si" means "itself".
+The adverb "subito" means "immediately".
+The preposition "ad" means "to".
+The masculine noun "coprifuoco" means "curfew".
+The feminine noun "leggerezza" means "negligence".
+The feminine noun "incolumità" means "safety".
+The masculine noun "quartier" means "headquarters".
+The masculine noun "blitz" means "raid".
+The feminine noun "connivenza" means "collusion".
+The verb "avviene" means "happens".
+The verb "spedisce" means "sends".
+"spedito" is the participle of "spedisce".
+The masculine noun "vinto" means "loser".
+"vinti" is the plural of "vinto".
+The masculine noun "sabato" means "saturday".
+"sabato" is a time.
+"domenica" is a time.
+"lunedì" is a time.
+"martedì" is a time.
+"mercoledì" is a time.
+"giovedì" is a time.
+"venerdì" is a time.
+"anno" is a time.
+"giorno" is a time.
+"settimana" is a time.
+"mese" is a time.
+"ora" is a time.
+"minuto" is a time.
+"momento" is a time.
+"secolo" is a time.

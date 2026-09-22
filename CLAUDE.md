@@ -3053,7 +3053,10 @@ one line of margin is a pin that has stopped measuring anything.**
 ### What real newspaper prose needs, and the order it is being built in
 
 **THE TWELVE SENTENCES OF THE 1.6.0 SAMPLE ARE THE SPECIFICATION NOW**, and the
-work is to translate all of them. They are verbatim Italian Universal
+work is to translate all of them. (**ALL TWELVE TRANSLATE SINCE 1.6.14** --
+the section *What stands beside the sentence* below has the result and the
+nine shapes the table never named. The table stands as the record of how the
+first eleven were built.) They are verbatim Italian Universal
 Dependencies newspaper prose, into Spanish over the two-language vocabulary
 store, and between them they need ELEVEN structures the translator does not
 have. The table is the plan, in the order the work goes, because a structure
@@ -4093,6 +4096,225 @@ tokens, sentences wholly right, lessons typed bare and real prose refused -- and
 a collapse anywhere off that one position is still visible. **A repair that
 fires where an instrument looks is an instrument that has stopped looking**, and
 the honest form of the grid pin now is "the model and the repair together".
+
+### What stands beside the sentence, and nine shapes for it (1.6.14)
+
+**THE TWELVE NEWSPAPER SENTENCES WERE 1 OF 12 AND THE ELEVEN-STRUCTURE TABLE
+WAS DONE, so what was left was not in the table at all.** Reading the
+refusals one cut-down sentence at a time -- the method 1.6.0 records -- the
+blockers were all the same KIND of thing: material that stands BESIDE the
+clause rather than inside it, which no reader was looking for.
+
+| what it is | the sentences it blocked |
+|---|---|
+| an adverb INSIDE the verb group (`si sono anche appellati`, `non sono state ancora accertate`) | 3, 4, 11 |
+| an adverb at the head (`Gia si parla`, `Velocemente il generale ...`) | 5 |
+| a CONNECTOR at the head, with no left clause in the sentence (`Ma gia si parla`) | 5 |
+| a fronted ADJUNCT before the subject (`Negli ambienti giudiziari si tende ...`) | 9 |
+| a bare TIME phrase (`Sabato Mladic aveva spedito ...`) | 10 |
+| a preposition whose object is an ADVERB (`per sempre`) | 8 |
+| a preposition meaning `to` before an INFINITIVE (`tende ad accreditare`) | 9 |
+| a CONJUNCTION between two complements (`per definire ... e invocare ...`) | 10 |
+| a participle PREDICATED of the subject (`e considerata gia conclusa`) | 11 |
+| a determiner and a PRONOUN as a phrase (`Il tutto avviene`) | 12 |
+
+**EVERY ONE OF THEM IS TRIED ONLY AFTER THE PLAIN READING FAILED**, which is
+1.6.1's argument for the clause join reused nine times: a sentence that read
+before reads by the same clauses, and what changes is only what used to
+refuse. `test/translate.pl` went from 579 checks to 592 with TWO pins moved,
+and both are improvements rather than losses: `Maria has 3 dogs.` was
+pinned as REFUSED and is `Maria tiene 3 perros.` now, and `Siempre el
+perro come el pan.` was pinned as `Always the dog eats the bread.` --
+where `siempre` was an ADJECTIVE of the subject and the answer was wrong
+-- and is `The dog eats the bread always.`
+
+**THE ADVERB LIFT IS THE ONE THAT NEEDED A SEARCH.** `tr_adverbs_off/4`
+enumerates the selections of the adverb words, KEEPING each before it lifts
+it, so the first solution lifts nothing (the caller rejects it) and the ones
+after lift as few as the reading needs; the lifted words come back as the
+`adv/1` complements they would have been after the verb. It is the only
+clause of the nine that searches, and it is bounded by 2^k in the adverbs of
+one piece, which in newspaper prose is one or two.
+
+**AND THE FRONTED ADJUNCT TAKES THE LONGEST FRONT, WHICH ONE OUTPUT SETTLED.**
+Shortest-first cut `Negli ambienti si tende` after two words, read `gli` as an
+object pronoun standing alone -- nothing followed it to say it was the article
+it is -- and answered **`Environments tend in hims`**. Longest-first cannot
+swallow the subject either, because the front must read as ADJUNCTS and an
+`obj/1` is not one. **A wrong reading is the expensive kind of failure**: the
+refusal before it was honest.
+
+**THREE OF THE NINE ARE LESSON SHAPES THAT WERE ALREADY THERE**, which is the
+1.6.0 rule firing for the sixth version running. A time phrase is
+`"sabato" is a time.` -- the bare-class shape `"amigo" is a person.` has had
+since 1.2.32 -- and `reason.pl` did not move; the reflexive `si` needed one
+line of lesson, not a line of code; and a word Apertium lacks is a line in
+`corpus/extra/`.
+
+**AND THE REFLEXIVE WAS THE FIRST THING MEASURED, because 1.6.3 shipped it
+and nothing exercised it over the real vocabulary.** `tr_reflexive_word/1`
+asks the lesson `reflexive(W)`, and **no corpus file said it of any word** --
+only `test/translate.pl`'s own inline lesson did. So over the vocabulary
+every reflexive sentence read the clitic as part of the subject phrase:
+`La donna si e adeguata` came back **`The one woman is adapted`**. One line
+in `corpus/extra/<language>.txt` -- `The reflexive pronoun "si" means
+"itself".` -- fixes all of it, and the impersonal still reads, because the
+two are told apart by the shape and not by the word. **A feature proved only
+by a case's own lesson is a feature nobody has run.**
+
+**FOUR DEFECTS IN THE CROSSING CAME OUT WITH THEM, and three are one shape:
+a lesson says what a word MEANS and what classes it has and never which
+meaning belongs to which class.** 1.6.7 found it for the determiner and
+predicted the mirror; here it is three more times.
+
+* **A NUMBER IN DIGITS CROSSED TO NOTHING.** `200` has no `mean/2` row and
+  needs none -- it is 200 in every language -- so `tr_meanings_of/4` found
+  no meaning at all and refused the phrase. `il premio da 200 milioni` came
+  back `unknown: []`, a shape refusal with no shape missing, where `da due
+  milioni` read. One clause: a digit is its own meaning.
+* **AN ADVERB'S PLACE TOOK A NOUN.** `ancora` is an adverb, a noun and a
+  verb in the vocabulary, so `non sono state ancora accertate` came out
+  `have not been evacuated ANCHOR`. **The test needs no English word list**,
+  which is what makes it a rule rather than a table: an English word is an
+  adverb when some word the lesson calls an adverb AND NOTHING ELSE means
+  it. `even` is meant by `perfino` and `persino`, which are adverbs and
+  nothing else; `anchor` is meant by `ancora` alone, which is three things.
+* **AN ARTICLE WAS AN ADJECTIVE.** `Sabato el perro come el pan` read
+  `Sabado el perro` as ONE phrase with `saturday` and `the` for adjectives
+  of `dog`, so the fronted clause never saw it. A phrase has at most one
+  article and it is at the head; a POSSESSIVE is still an adjective there,
+  because `il suo quartier generale` is one phrase.
+* **AND A PHRASE RAN ON THROUGH THE NEXT ONE'S DETERMINER.** `mettere in
+  pericolo LA casa` was one phrase with an article among its adjectives.
+  A determiner ends the phrase before it -- but only once that phrase has
+  its NOUN, and not after a conjunction: a plain `PW \== []` cut `dal suo
+  quartier generale` after `il` and broke a sentence that read, and cutting
+  after `y` wrote `el pan y el huevo` as **`el y pan el huevo`**. The case
+  caught the second on its first run. **A pin that exists for another
+  reason is the cheapest regression test there is**, which this file already
+  said in 1.6.6 and is now true twice.
+
+**`corpus/extra/` IS WRITTEN FIRST NOW, AND THAT IS A LAYERING RATHER THAN A
+PREFERENCE.** Every line in it is there because Apertium's meaning is wrong
+or missing, so the hand-written one belongs in front of it; appended, `The
+masculine noun "sabato" means "saturday".` lost to the dictionary's `sabbath`
+and could not be corrected at all. The order is now the one the project
+already had everywhere else: `corpus/<language>.txt`, then `corpus/extra/`,
+then the dictionary. `test/translate.pl`'s byte-for-byte build check is what
+makes that safe to change -- both sides move together or the case goes red.
+
+**AND A MULTI-WORD TARGET WORD WORKS, WHICH WAS NOT OBVIOUS.** Spanish has no
+one word for `curfew`, and `The masculine noun "toque de queda" means
+"curfew".` writes `La casa ... toque de queda` correctly: a quoted mention of
+several words is ONE atom to the reader, exactly as `The verb "hay" means
+"there is".` is on the English side. It is write-only -- read back, the three
+words are three tokens -- and the header says so.
+
+**THE COSTS, STATED.** A verb's own preposition is not in the IR, so `si
+tende ad accreditare` comes back `se tiende acreditar`: nothing a lesson says
+pairs a verb with the preposition its infinitive takes. A fronting is not
+written back, which 1.6.8 already said of the other one: `Gia si parla`
+comes back `Si parla gia`, the same claim in the statement's own order.
+
+
+**AND THE SECOND HALF WAS FIVE MORE REFUSALS, EVERY ONE OF THEM A READING
+THAT WORKED IN PIECES AND FAILED WHOLE.** The nine shapes above took the
+sample from 1 of 12 to 8; what was left refused for reasons the cut-down
+probes found one at a time, and four of the five are the SAME DEFECT SEEN
+FROM FOUR SIDES -- a word or a term that one half of the file handles and
+another half does not.
+
+* **AN ELIDED CLITIC WAS NO PRONOUN.** `La sinistra L'ha attaccata` split
+  correctly and then had nothing to cross by: `tr_object_pronoun/3` and
+  `tr_pronoun_across/6` both ask `tr_class_of/2` or `mean/2` of the WORD,
+  and an elision has neither -- only `tr_lexeme/4` reads one. Two clauses,
+  one in each, both saying `an elided form is the word it elides`.
+* **A NAME APPOSED TO A NOUN NEEDED THREE CLAUSES, one per half.**
+  `il presidente Scalfaro` read as a phrase (the reader), crossed to nothing
+  (`tr_cross_adjective/2`) and then wrote nothing (`tr_adjective_out/5`) --
+  and each was found only after the one before it was fixed. **That is
+  1.6.4's rule in a third coat**: a new kind of thing in a phrase needs a
+  clause wherever a phrase is taken apart, and the halves fail one at a
+  time.
+* **THE COMPLEMENT READER ASKS TWO GLOBALS THE GROUP SETS, AND THE FRONTED
+  CLAUSE READS COMPLEMENTS BEFORE ANY GROUP.** Left over from the sentence
+  before, `dal punto di vista tattico` was taken for a PASSIVE'S AGENT and
+  the front refused. The clause sets them inert first.
+* **A BARE TIME PHRASE WAS A SUBJECT, which is a WRONG READING and the worse
+  kind.** `Qui solo due anni fa dominava il coprifuoco` came out as the
+  YEARS dominating. A determiner makes it a subject again (`L'anno era
+  lungo`), so the rule is as narrow as the shape that needs it.
+* **AND THE COUNT WAS NOT AT THE HEAD.** `tr_np/3` took a number only as the
+  first word after the determiner, so `solo due anni` left `due` among the
+  ADJECTIVES and the writer asked the lesson for an adjective meaning
+  `two`. It takes the first number before the noun now, with everything
+  before it required to be an adjective.
+* **AND AN INVERTED SUBJECT COULD NOT CARRY A REDUCED RELATIVE.**
+  `fo_agreeing/3` matched `np/5` by name and a `rel/3` is not one, and
+  `fo_np_words_after/3` ended the phrase at the agent's preposition. Both
+  are `tr_phrase_words/4`'s own rules, which the question form's finder did
+  not have.
+
+**AND ONE MORE CLASS-CONFUSION, WHICH IS THE FOURTH FIRING OF 1.6.7's
+FINDING.** `Qui solo due anni` read as ONE phrase with `here` for an
+adjective of `years`, because `tr_adj_word/2` refused prepositions, verbs
+and pronouns and said nothing about adverbs. A word the lesson knows ONLY
+as an adverb is no adjective; one that is an adjective too (`solo`,
+`molto`) still is. **That is the tagger's judge's own rule** -- *an
+adjective is not a word known only as an adverb* -- arrived at
+independently on the other side of the library.
+
+**MEASURED: THE TWELVE SENTENCES OF THE SAMPLE ARE 12 OF 12 READ AND 12 OF
+12 WRITTEN INTO SPANISH**, over a two-language store taught from the
+rebuilt vocabularies:
+
+| | 1.6.0 | 1.6.9 | 1.6.13 | **1.6.14** |
+|---|---|---|---|---|
+| translated into Spanish | 0 | 1 | 1 | **12** |
+| read into English | 0 | -- | 6 | **12** |
+| refused for a SHAPE | 5 | 6 | 6 | **0** |
+| refused for a WORD | 4 | 5 | 5 | **0** |
+
+**WHAT THE LAST FOUR NEEDED WAS THE TARGET'S VOCABULARY AND NOT A SHAPE**,
+which is the refusal contract working: once a sentence reads into English
+-- English IS the IR -- a refusal into Spanish is a word Spanish has no
+entry for, and `corpus/extra/spanish.txt` is where it goes. `fax`,
+`tactician`, `for` (Spanish's `para`, which the lesson gave only as the
+purpose word), `curfew` (`toque de queda`, and A MULTI-WORD TARGET WORD
+WRITES) and eight time nouns were the whole of it.
+
+
+**THE TWELVE, AS THEY COME OUT** (Italian 157 188 terms and Spanish 205 444
+taught into one `--embed` store, 445 MB, 19 min 53 s; the twelve cost
+**13.6 s** together):
+
+| | |
+|---|---|
+| `Evacuata la Tate Gallery.` | `La Tate Gallery ha sido evacuada.` |
+| `Parma conquista il premio da 200 milioni.` | `Parma conquista el galardón desde 200 millones.` |
+| `I generali si sono anche appellati al "parlamento" di Pale.` | `Los generales se son llamados al "parlamento" de Retablos también.` |
+| `La sua identità e la sua nazionalità non sono state ancora accertate.` | `La su identidad y la su nacionalidad no son sido verificados incluso.` |
+| `Ma già si parla di epurazioni e di processi contro i vinti.` | `Pero se habla de depuraciones ya y di procesos contra los perdedores.` |
+| `La sinistra l'ha attaccata perché Pivetti non si è adeguata.` | `La izquierda lo ha adosado porque Pivetti no se es adaptado.` |
+| `Qui solo due anni fa dominava il coprifuoco imposto dai soldati israeliani.` | `El toque de queda aplicado por los soldados israelíes dominó dos años aquí solo hace.` |
+| `La sperimentazione dell'atomica ha cambiato il mondo per sempre, si disse subito dopo Hiroshima.` | `La experimentación del atómico ha cambiado el mundo para siempre, se dijo tras Hiroshima inmediatamente.` |
+| `Negli ambienti giudiziari si tende ad accreditare la tesi di una leggerezza, escludendo che ...` | `Se tiende abonar el tendido de una negligencia en los entornos judiciales, excluyendo que ...` |
+| `Sabato Mladic aveva spedito un fax dal suo quartier generale per definire "illegale" ...` | `Mladic había enviado un fax desde la su sede general para definir "ilegal" ...` |
+| `Il blitz è riuscito, "dal punto di vista tattico" l'operazione è considerata già conclusa.` | `La redada es lograda, el funcionamiento es considerado concluido "desde el punto de vista táctico" ya.` |
+| `Il tutto avviene con la connivenza delle autorità costituite e così uno dei Paesi più ricchi ...` | `El todo pasa con la connivencia de la autoridad constituida y uno de los Países más ricos ...` |
+
+**AND TRANSLATED IS NOT THE SAME AS RIGHT, which the rows say for
+themselves.** Every one of the twelve is read as a STRUCTURE the translator
+has -- the shapes are the finding -- and what is left wrong is words and
+agreement, in five shapes worth naming because each is a lever of its own:
+a capitalised word the vocabulary happens to know is not a name (`Pale`
+comes back `Retablos`); a possessive after an article keeps the article
+(`la su identidad`); the passive perfect of the copula is not built
+(`no son sido`); a preposition inside a conjoined pair is not crossed (`y
+di procesos`); and English's adjective order puts an apposed name before
+its noun (`del Scalfaro presidente`). **None of them is a refusal, so none
+of them is visible in the count** -- which is the honest reading of 12 of
+12, and the reason the next row of work is quality and not shapes.
 
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 

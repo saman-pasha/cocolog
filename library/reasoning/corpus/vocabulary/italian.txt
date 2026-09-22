@@ -3,6 +3,44 @@
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
+The conjunction "perché" means "because".
+The preposition "da" means "by".
+The word "per" begins the purpose.
+The word "più" begins the comparative.
+The pronoun "uno" means "one".
+The pronoun "uno" does not precede the verb.
+The conjunction "che" means "that".
+"domina" is intransitive.
+The reflexive pronoun "si" means "itself".
+The adverb "subito" means "immediately".
+The preposition "ad" means "to".
+The masculine noun "coprifuoco" means "curfew".
+The feminine noun "leggerezza" means "negligence".
+The feminine noun "incolumità" means "safety".
+The masculine noun "quartier" means "headquarters".
+The masculine noun "blitz" means "raid".
+The feminine noun "connivenza" means "collusion".
+The verb "avviene" means "happens".
+The verb "spedisce" means "sends".
+"spedito" is the participle of "spedisce".
+The masculine noun "vinto" means "loser".
+"vinti" is the plural of "vinto".
+The masculine noun "sabato" means "saturday".
+"sabato" is a time.
+"domenica" is a time.
+"lunedì" is a time.
+"martedì" is a time.
+"mercoledì" is a time.
+"giovedì" is a time.
+"venerdì" is a time.
+"anno" is a time.
+"giorno" is a time.
+"settimana" is a time.
+"mese" is a time.
+"ora" is a time.
+"minuto" is a time.
+"momento" is a time.
+"secolo" is a time.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -96438,11 +96476,3 @@ The conjunction "ma" means "but".
 The conjunction "né" means "neither".
 The conjunction "o" means "either".
 The conjunction "né" means "nor".
-The conjunction "perché" means "because".
-The preposition "da" means "by".
-The word "per" begins the purpose.
-The word "più" begins the comparative.
-The pronoun "uno" means "one".
-The pronoun "uno" does not precede the verb.
-The conjunction "che" means "that".
-"domina" is intransitive.

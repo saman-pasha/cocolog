@@ -346,6 +346,7 @@ main :-
     show('what the IR carries is the subject, not a word of any language', IR19),
 
     section_20,
+    section_21,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -378,7 +379,16 @@ The adjective "illegale" means "illegal". The adjective "ricco" means "rich".
 The adverb "qui" means "here". The adverb "più" means "more".
 The preposition "da" means "by". The preposition "di" means "of". The preposition "per" means "for".
 The word "per" begins the purpose. The word "più" begins the comparative.
-The conjunction "che" means "that".
+The conjunction "che" means "that". The conjunction "e" means "and".
+The adverb "sempre" means "always". The adverb "anche" means "also".
+The noun "sabato" means "saturday". "sabato" is a time.
+The pronoun "tutto" means "everything". The pronoun "tutto" does not precede the verb.
+The preposition "a" means "to".
+The verb "comincia" means "begins". "cominciare" is the infinitive of "comincia".
+The verb "conclude" means "concludes".
+"concluso" is the participle of "conclude". "conclusa" is the participle of "conclude". "conclusa" is feminine.
+"definito" is the participle of "definisce". "definita" is the participle of "definisce". "definita" is feminine.
+"evacuare" is the infinitive of "evacua".
 Every adjective follows the noun.').
 
 section_20 :-
@@ -427,6 +437,42 @@ section_20 :-
     reason_ir('Evacuata la Tate Gallery.', italian, IR20),
     show('the name where the noun goes, with the gender the article lends it', IR20),
     show('and every one of them is a shape, so the words are the dictionary''s', 'corpus/vocabulary/italian.txt').
+
+%% 1.6.14: what stands BESIDE the sentence. Newspaper prose puts an adverb
+%% inside the verb group, a connector at the head and an adjunct before the
+%% subject, and none of the three was read until this version. Every one is
+%% tried only after the plain reading failed, so nothing in section 20
+%% changed for them.
+section_21 :-
+    format("~n21. What stands beside the sentence: an adverb inside the group, a connector at the head, an adjunct before the subject~n", []),
+    reason_translate('La casa è anche evacuata da i soldati.', italian, english, S21a),
+    must('an adverb INSIDE the verb group, between the copula and the participle', S21a,
+         'The house is evacuated by the soldiers also.'),
+    reason_translate('Sempre il generale domina.', italian, english, S21b),
+    must('and one at the head, before the subject -- written back after the verb, as a fronting always is', S21b,
+         'The general dominates always.'),
+    reason_translate('E il generale domina.', italian, english, S21c),
+    must('a CONNECTOR at the head, joining this sentence to the one before it', S21c,
+         'And the general dominates.'),
+    reason_translate('Sabato il generale domina.', italian, english, S21d),
+    must('a bare TIME phrase: `"sabato" is a time'', in the shape `"amigo" is a person'' already had', S21d,
+         'The general dominates saturday.'),
+    reason_translate('Il generale domina per sempre.', italian, english, S21e),
+    must('a preposition whose object is an ADVERB', S21e,
+         'The general dominates for always.'),
+    reason_translate('Il generale comincia a definire il paese.', italian, english, S21f),
+    must('a preposition meaning `to'' before an INFINITIVE is the infinitive', S21f,
+         'The general begins to define the country.'),
+    reason_translate('Il generale impone la decisione per definire il paese e evacuare la casa.', italian, english, S21g),
+    must('a CONJUNCTION between two complements, not inside a phrase', S21g,
+         'The general imposes the decision to define the country and to evacuate the house.'),
+    reason_translate('La casa è definita conclusa.', italian, english, S21h),
+    must('a PARTICIPLE predicated of the subject, after a passive that spent the copula', S21h,
+         'The house is defined concluded.'),
+    reason_translate('Il tutto domina.', italian, english, S21i),
+    must('a determiner and a PRONOUN: the pronoun is the phrase''s head', S21i,
+         'The everything dominates.'),
+    reason_unlearn(italian).
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),
