@@ -23,7 +23,7 @@
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
-    complement, superlative, inversion, headline, subordinate,
+    complement, superlative, inversion, headline, subordinate, names,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1662,6 +1662,98 @@ Every adjective follows the noun.', spanish, _),
     reason_translate('Excluding that the general dominates.', english, italian, B7),
     check('English reads a gerund clause back the other way', B7,
           'Escludendo che il generale domina.'),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+% ---- an article before a name -------------------------------------------------------
+% `Evacuata la Tate Gallery.' refused with every word known, and it was not
+% the headline: `Evacuata la casa.' reads. `tr_np/3' took a BARE capitalised
+% word no lesson knows as a name and a determiner in front of it sent the
+% phrase reader looking for a noun it does not have. It is an ordinary phrase
+% now with `named(Gender, Words)' where the noun goes, and the gender is the
+% source article's, because a name has none of its own.
+
+names :-
+    section('an article before a name, and the gender the article lends it'),
+    reason_learn('Italian is a language.
+The noun "casa" means "house".
+The feminine article "la" means "the". The masculine article "il" means "the".
+"le" is the plural of "la". "i" is the plural of "il". "case" is the plural of "casa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "evacua" means "evacuates". The verb "è" means "is". "sono" is the plural of "è".
+The verb "domina" means "dominates". "domina" is intransitive. "dominano" is the plural of "domina".
+"evacuata" is the participle of "evacua". "evacuata" is feminine.
+"evacuato" is the participle of "evacua".
+"evacuate" is the participle of "evacua". "evacuate" is feminine. "evacuate" is the plural of "evacuata".
+"stata" is the participle of "è". "stata" is feminine. "stato" is the participle of "è".
+"state" is the participle of "è". "state" is feminine. "state" is the plural of "stata".
+Every adjective follows the noun.', italian, _),
+    reason_learn('Spanish is a language.
+The noun "casa" means "house".
+The feminine article "la" means "the". The masculine article "el" means "the".
+"las" is the plural of "la". "casas" is the plural of "casa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "evacua" means "evacuates". The verb "es" means "is".
+The verb "domina" means "dominates". "domina" is intransitive.
+The auxiliary "ha" means "has". "ha" is the auxiliary of "es".
+"sido" is the participle of "es".
+"evacuada" is the participle of "evacua". "evacuada" is feminine.
+"evacuado" is the participle of "evacua".
+Every adjective follows the noun.', spanish, _),
+
+    reason_translate('La Gallery domina.', italian, english, N1),
+    check('an article and a name the lesson cannot know is a phrase', N1,
+          'The Gallery dominates.'),
+
+    reason_translate('Evacuata la Tate Gallery.', italian, english, N2),
+    check('THE SAMPLE''S SHORTEST SENTENCE, which refused with every word known', N2,
+          'The Tate Gallery has been evacuated.'),
+
+    reason_translate('Evacuata la Tate Gallery.', italian, spanish, N3),
+    check('and into Spanish, the name crossing as itself', N3,
+          'La Tate Gallery ha sido evacuada.'),
+
+    reason_ir('Evacuata la Tate Gallery.', italian, N4),
+    check('the IR: an ordinary phrase, the name where the noun goes, the gender the article gave', N4,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [],
+                         named(feminine, [w(tate, upper), w(gallery, upper)]), singular),
+                g(evacuates, present, passive_perfect, no), []), 46)]),
+
+    reason_translate('Il Tate domina.', italian, italian, N5),
+    check('a masculine article keeps its own', N5, 'Il Tate domina.'),
+
+    reason_translate('Le Gallery dominano.', italian, english, N6),
+    check('the article says the NUMBER too, which a name cannot', N6,
+          'The Gallery dominate.'),
+
+    %% Read on the ENGLISH side there is no gender to read, so the IR carries
+    %% `none' and the article the lesson's order chooses supplies one -- which
+    %% everything after it must then agree with, or the sentence disagrees with
+    %% itself (measured: `La Tate Gallery e stato evacuato').
+    reason_translate('The Tate Gallery has been evacuated.', english, italian, N7),
+    check('ENGLISH GIVES NO GENDER, so the written article lends one and the participles follow', N7,
+          'La Tate Gallery è stata evacuata.'),
+
+    reason_ir('The Tate Gallery dominates.', english, N8),
+    check('and the IR says so: none, where Italian said feminine', N8,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [],
+                         named(none, [w(tate, upper), w(gallery, upper)]), singular),
+                g(dominates, present, simple, no), []), 46)]),
+
+    %% ENGLISH'S PASSIVE PERFECT WAS REFUSED BY ITS OWN READER since 1.6.2 --
+    %% `been' is the participle of `is', so the two-word perfect matched first
+    %% and left the verb over. The writer produced exactly these words, so a
+    %% passive perfect could not round-trip through English at all.
+    reason_translate('The house has been evacuated.', english, italian, N9),
+    check('ENGLISH READS ITS OWN PASSIVE PERFECT now', N9, 'La casa è stata evacuata.'),
+
+    reason_translate('The house had been evacuated.', english, english, N10),
+    check('and in the past, round-tripping through English alone', N10,
+          'The house had been evacuated.'),
+
+    reason_translate('Maria domina.', italian, english, N11),
+    check('a BARE name is untouched: one word, and no article to lend it anything', N11,
+          'Maria dominates.'),
 
     reason_unlearn(italian), reason_unlearn(spanish).
 

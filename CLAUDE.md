@@ -3072,7 +3072,7 @@ that unlocks six sentences is worth more than one that unlocks one:
 | **verb before subject** (inversion) | 7 | needs one word of lesson: which verbs take no object | **1.6.8** |
 | **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | it is a PASSIVE with the copula left out, not a fragment | **1.6.8** |
 | **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last | **1.6.8** |
-| **an article before a NAME** (`la Tate Gallery`) | 1 | not in the sample's first reading -- MEASURED on 1.6.8, and it is what refuses the SHORTEST of the twelve, whose structure was built in 1.6.8 and works | |
+| **an article before a NAME** (`la Tate Gallery`) | 1 | not in the sample's first reading -- MEASURED on 1.6.8, and it is what refused the SHORTEST of the twelve, whose structure 1.6.8 had already built | **1.6.9**, and sentence 1 translates |
 
 -- plus four words Apertium's dictionary lacks (`coprifuoco`, `connivenza`,
 `stigliatura` among them), which is the 1.2.42 refusal table's first row again
@@ -3626,6 +3626,79 @@ measured on and the other names in the sample stand bare. **It is recorded and n
 its article and carry the name as its noun, or `The Tate Gallery` comes back
 `Tate Gallery`, and the gender the article then has to agree with is a
 question a name cannot answer.
+
+### An article before a name, and the first of the twelve (1.6.9)
+
+**THE SHORTEST SENTENCE OF THE SAMPLE TRANSLATES, WHICH MAKES IT 1 OF 12 --
+the first time any of them has.** `Evacuata la Tate Gallery.` is `La Tate
+Gallery ha sido evacuada.` and `The Tate Gallery has been evacuated.`, measured
+over the two-language vocabulary store. Its STRUCTURE was built in 1.6.8; what
+refused it was a phrase shape nobody had named, and 1.6.8's own probe found it:
+**`Evacuata la Gallery.` refused too**, so it was neither the headline nor the
+two words.
+
+**A NAME IS THE ONE WORD NO LESSON CAN KNOW, AND `tr_np/3` LOOKED FOR A NOUN.**
+A bare capitalised word no lesson knows was already a name; a determiner in
+front of it sent the phrase reader looking for a noun that is not there, and
+the whole phrase was refused. It is the ORDINARY phrase now with
+`named(Gender, Words)` where the noun goes -- so `np/5` keeps its shape, and
+every writer, the number, the determiner and `fo_agreeing/3` are untouched.
+Three clauses were added and nothing was moved: one reader, one crossing (the
+name crosses as ITSELF, which is what being a name means) and one writer.
+
+**THE GENDER IS THE SOURCE ARTICLE'S, BECAUSE A NAME HAS NONE OF ITS OWN.**
+`la Tate Gallery` is feminine because the lesson calls `la` feminine, and that
+gender travels in the IR, so Spanish writes `la` and a passive's participle
+agrees. The NUMBER comes from the same place -- `le Gallery` is plural and the
+name does not inflect, so it is `The Gallery` and never `The Galleries`.
+
+**AND WHERE THE IR CARRIES NO GENDER THE WRITTEN ARTICLE LENDS ONE, which is
+the reading rule seen from the other side.** English has no gender to read, so
+`The Tate Gallery` crosses as `none` -- and the first draft then chose the
+article by the lesson's own order and the participles by a masculine fallback,
+which disagreed with itself: **`La Tate Gallery e stato evacuato`**. The writer
+now reads the gender back off the article it actually wrote, and the sentence
+agrees: `La Tate Gallery è stata evacuata.`
+
+**SEVERAL CAPITALISED WORDS ARE ONE NAME ONLY AFTER A DETERMINER**, and the
+asymmetry has a reason: after one, where the phrase starts is not in doubt;
+bare, `Sabato Mladic` is a day and a surname and nothing says where one ends.
+
+**ONE THING BIT, AND IT IS THE PHRASE FINDER RATHER THAN THE PHRASE.**
+`fo_np_words_after/3` ends a phrase at the next capitalised unknown word --
+right for `Maria`, wrong inside a name -- so the subject came back `la Tate`
+with `Gallery` left over **as the object**, and the sentence wrote out as `The
+Tate has been evacuated Gallery.` A determiner followed by a name word now
+takes the whole RUN of them. The tell was the output rather than a refusal,
+which is the worse kind: it read, and it read wrongly.
+
+**AND ENGLISH COULD NOT READ ITS OWN PASSIVE PERFECT, WHICH IS 1.6.8's FINDING
+MIRRORED.** `The house has been evacuated.` was REFUSED on the English side
+while the writer produced exactly those words, so a passive perfect could not
+round-trip through English at all. The cause is the same one: **`been` is the
+participle of `is`**, so the two-word perfect clause matched `has been` first,
+cut, and left `evacuated` over -- exactly as `ha sido evacuada` read as `has
+been` with `evacuada` over. The three-word clause moved above the perfect, and
+it is safe by what it requires: the middle word must be `been`.
+
+**MEASURED AS A CONTROL BEFORE IT WAS TOUCHED**, `git stash` on one file and
+the same probe twice: `The house has been evacuated.` and `The house had been
+evacuated.` refused on HEAD and on the working copy alike, `The house is
+evacuated.` and `The house was evacuated.` reading on both. So it was
+pre-existing, it is nothing to do with names, and the probe that found it was
+looking for something else -- which is the second time in two versions that a
+name probe has turned up a passive-perfect defect.
+
+**`test/translate.pl` IS 565 CHECKS AND GREEN**, with eleven in a `names`
+section of its own -- the shape, the IR both ways, the gender an English source
+does not give, the plural, the bare name left alone, and the two English
+passive perfects. Lesson 46's section 20 gained the sentence, which needs no
+line of lesson at all.
+
+**THE OTHER ELEVEN ARE WHERE 1.6.8 LEFT THEM**: six refuse with every word
+known and five name a word Apertium lacks. Nothing about this row moved any of
+them, which is the table working as written -- each sentence needs several
+rows, and this one needed its last.
 
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 

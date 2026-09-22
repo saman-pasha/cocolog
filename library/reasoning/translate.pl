@@ -288,7 +288,11 @@
 %% article, a possessive or a number, then its content: the noun is the
 %% word the lesson calls one (failing that the last word in English and,
 %% where adjectives follow the noun, the first), and every other word is
-%% an adjective; the noun's number is the phrase's. Where the target is
+%% an adjective; the noun's number is the phrase's. A phrase whose content
+%% is CAPITALISED WORDS NO LESSON KNOWS is a name -- `la Tate Gallery', `la
+%% Sidoti', which Italian writes far more often than English does -- and
+%% there the ARTICLE says what the name cannot: its number, and its gender,
+%% which travels in the IR so the other language agrees with it. Where the target is
 %% the lesson's language the article, the possessive and each adjective
 %% are chosen among the words the lesson gives for the English one by the
 %% gender of the noun -- one of the noun's gender first, one with no
@@ -317,8 +321,8 @@
 %% connecting word, a passive with its agent, a reduced relative (a
 %% participle after a noun), an infinitive of purpose, an adjective in
 %% the comparative or the superlative, a subordinate clause after `that',
-%% a subject after its verb, a headline with the copula left out and a
-%% gerund clause. What it has NOT
+%% a subject after its verb, a headline with the copula left out, a gerund
+%% clause and an article before a name. What it has NOT
 %% is a relative clause with its own pronoun, an imperative, a
 %% comparison of two things
 %% (`richer THAN Rome'), a `why' or a `how',
@@ -331,6 +335,11 @@
 %% A SUBJUNCTIVE IS READ AND NOT WRITTEN: English marks none where `che
 %% il militare volesse' wants one and no lesson says which verbs take
 %% one, so the mood is dropped and the form comes back as the indicative.
+%% A NAME DOES NOT INFLECT and nothing crosses it, so a plural article
+%% before one writes the article's plural and the name as it stands (`Le
+%% Gallery' is `The Gallery', never `The Galleries'); and several
+%% capitalised words are ONE name only after a determiner, because bare
+%% there is nothing to say where one name ends and the next begins.
 %% And it decides nothing about a word a lesson left out: a sentence with
 %% one is refused whole, never half translated, and reason_untranslated/2
 %% says which word to teach.
@@ -870,6 +879,10 @@ tr_cross_np(rel(NP0, L0, Cs0), rel(NP, L, Cs)) :- !,
 tr_cross_np(name(W), name(W)) :- !.
 tr_cross_np(pronoun(w(W, C)), pronoun(w(T, C))) :- !, tr_pronoun_across(english, oblique, w(W, C), _, _, T).
 tr_cross_np(and(N1, N2), and(T1, T2)) :- !, tr_cross_np(N1, T1), tr_cross_np(N2, T2).
+%% a name crosses as itself, gender and all: nothing in it is a word of any
+%% language, so there is nothing to look up
+tr_cross_np(np(Det0, Num0, Adjs0, named(G, Ws), Number), np(Det, Num, Adjs, named(G, Ws), Number)) :- !,
+    tr_cross_det(Det0, Det), tr_cross_num(Num0, Num), tr_cross_adjectives(Adjs0, Adjs).
 tr_cross_np(np(Det0, Num0, Adjs0, w(NW, NC), Number), np(Det, Num, Adjs, w(Noun, NC), Number)) :-
     tr_noun_lexeme(english, NW, Number, _, Noun),
     tr_cross_det(Det0, Det),
@@ -1115,6 +1128,13 @@ fo_agreeing(Words, third, N) :- tr_np(foreign, Words, np(_, _, _, _, N1)), !, N1
 %% determiner, name, pronoun or preposition
 fo_np_words_after([w(W, upper)|Rest], [w(W, upper)], Rest) :- \+ tr_known_word(foreign, W), !.
 fo_np_words_after([w(P, C)|Rest], [w(P, C)], Rest) :- tr_subject_pronoun(foreign, P, _, _), !.
+%% A DETERMINER AND A RUN OF NAME WORDS IS ONE PHRASE, whole. The clause
+%% below ends a phrase at the next capitalised unknown word, which is right
+%% for `Maria' and wrong inside `la Tate Gallery' -- measured, the subject
+%% came back `la Tate' with `Gallery' left over as the object.
+fo_np_words_after([D|After], [D|Content], Rest) :-
+    tr_determiner(foreign, D, _, _), After = [W|_], tr_name_word(foreign, W), !,
+    tr_name_run(After, Content, Rest).
 fo_np_words_after([D|After], [D|Content], Rest) :-
     tr_determiner(foreign, D, _, _), !,
     append(Content, Rest, After), Content \== [],
@@ -1375,6 +1395,18 @@ tr_group(Side, Words, Before, Group, GroupWords, After) :-
 tr_group_at(english, [w(will, _), w(be, _), w(G, _)|R], g(L, future, progressive, third, singular), R) :- en_gerund(G, L), !.
 tr_group_at(english, [w(will, _), w(B, _)|R], g(L, future, simple, third, singular), R) :- en_verb_form(B, L, present), !.
 tr_group_at(english, [w(would, _), w(B, _)|R], g(L, conditional, simple, third, singular), R) :- en_verb_form(B, L, present), !.
+%% ENGLISH'S PASSIVE PERFECT GOES ABOVE ITS PERFECT, for the reason the
+%% lesson's own does: `been' is the participle of `is', so `has been
+%% evacuated' read as a perfect is `has been' with `evacuated' left over and
+%% the sentence refused. Measured before this clause moved -- `The house has
+%% been evacuated.' and `The house had been evacuated.' were both refused on
+%% the English side while the WRITER produced exactly those words, so a
+%% passive perfect could not round-trip through English at all.
+%%
+%% It is safe by what it requires: the middle word must be `been', so `has
+%% eaten the bread' matches nothing here and falls through as before.
+tr_group_at(english, [w(H, _), w(been, _), w(P, _)|R], g(L, T, passive_perfect, third, singular), R) :-
+    memberchk(H, [has, have, had]), en_passive_participle(P, L), !, ( H == had -> T = past ; T = present ).
 tr_group_at(english, [w(H, _), w(P, _)|R], g(L, T, perfect, third, singular), R) :-
     memberchk(H, [has, have, had]), en_participle(P, L), !, ( H == had -> T = past ; T = present ).
 tr_group_at(english, [w(D, _), w(B, _)|R], g(L, T, simple, third, singular), R) :-
@@ -1382,13 +1414,12 @@ tr_group_at(english, [w(D, _), w(B, _)|R], g(L, T, simple, third, singular), R) 
 tr_group_at(english, [w(M, _)|R], g(L, T, simple, third, singular), R) :-
     en_modal_form(M, L, T), tr_known(english, L), tr_class(english, L, modal), !.
 tr_group_at(english, [w(C, _), w(G, _)|R], g(L, T, progressive, P, N), R) :- en_copula(C, P, N, T), en_gerund(G, L), !.
-%% English's passive: `has been thrown', `is considered', `was thrown'. It
+%% English's passive: `is considered', `was thrown'. It
 %% is tried BEFORE the plain copula, or `is considered' would read as the
 %% copula with an adjective after it -- and it is refused for a word the
 %% lesson also calls an ADJECTIVE, which is what keeps `She is licensed' the
-%% adjective sentence it was.
-tr_group_at(english, [w(H, _), w(been, _), w(P, _)|R], g(L, T, passive_perfect, third, singular), R) :-
-    memberchk(H, [has, have, had]), en_passive_participle(P, L), !, ( H == had -> T = past ; T = present ).
+%% adjective sentence it was. The PERFECT passive, `has been thrown', is
+%% above with the perfect it has to beat.
 tr_group_at(english, [w(C, _), w(P, _)|R], g(L, T, passive, Per, N), R) :-
     en_copula(C, Per, N, T), en_passive_participle(P, L), !.
 tr_group_at(english, [w(C, _)|R], g(is, T, simple, P, N), R) :- en_copula(C, P, N, T), !.
@@ -1525,6 +1556,51 @@ tr_np(Side, Words0, np(Det, Num, Adjs, Noun, Number)) :-
     %% the noun's number by the reading of it that IS a noun: `houses' is a
     %% verb's form too (to house), and known so before it is a plural
     ( tr_lexeme(Side, NW, NL, Number), tr_class(Side, NL, noun) -> true ; tr_lexeme(Side, NW, _, Number) ), !.
+%% AN ARTICLE BEFORE A NAME IS A PHRASE WHOSE NOUN IS THE NAME, and Italian
+%% puts one there far more often than English does -- `la Tate Gallery', `la
+%% Sidoti'. The clause above looks for a noun the lesson knows and a name is
+%% the one word no lesson can know, so before this the whole phrase was
+%% refused: `Evacuata la Gallery.' came back `unknown: []', a SHAPE refusal
+%% with no shape missing.
+%%
+%% It is the ordinary phrase with `named(Gender, Words)' where the noun goes,
+%% so the number, the determiner and every writer that takes a phrase apart
+%% by np/5 are untouched -- and the NAME IS NOT CROSSED, which is the whole
+%% point of it being a name.
+%%
+%% THE GENDER IS THE SOURCE ARTICLE'S, because a name has none of its own.
+%% `la Tate Gallery' is feminine because the lesson calls `la' feminine, and
+%% that gender travels in the IR so Spanish writes `la' and the participle of
+%% a passive agrees (`La Tate Gallery e stata evacuata'). Read on the ENGLISH
+%% side there is no gender to read, so the IR carries `none' and the lesson's
+%% writer falls back to the masculine: `The Tate Gallery' into Italian is `Il
+%% Tate Gallery', which is the cost and is stated rather than guessed at.
+%%
+%% Several capitalised words after the determiner are ONE name. Bare, they are
+%% not -- `tr_np/3' above takes a lone capitalised word and two of them stay
+%% two, because after a determiner the phrase's start is not in doubt and
+%% bare it is: `Sabato Mladic' is a day and a surname.
+tr_np(Side, [D|Ws], np(det(DK, DL, D), none, [], named(G, Ws), Number)) :-
+    Ws \== [], tr_determiner(Side, D, DL, DK),
+    forall(member(W, Ws), tr_name_word(Side, W)),
+    tr_det_gender(Side, D, DL, G, Number), !.
+
+%% a word of a name: capitalised, and no lesson knows it
+tr_name_word(Side, w(W, upper)) :- \+ tr_known_word(Side, W).
+
+%% the gender of the determiner a writer chose, where the phrase carried none
+tr_written_gender(foreign, [o(DW, _)|_], G) :- tr_lexeme(foreign, DW, DL, _), tr_gender(DL, G), G \== none, !.
+tr_written_gender(_, _, none).
+
+%% the run of them at the head of a list, and what is left after it
+tr_name_run([W|Ws], [W|Cs], Rest) :- tr_name_word(foreign, W), !, tr_name_run(Ws, Cs, Rest).
+tr_name_run(Ws, [], Ws).
+
+%% what a determiner says about a phrase whose noun cannot say it itself
+tr_det_gender(english, _, _, none, singular) :- !.
+tr_det_gender(foreign, w(DW, _), DL, G, Number) :-
+    ( tr_lexeme(foreign, DW, DL, N0) -> Number = N0 ; Number = singular ),
+    tr_gender(DL, G).
 
 %% a participle of a verb the lesson gives, on either side
 tr_participle_here(foreign, P, L) :- tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
@@ -2088,6 +2164,19 @@ tr_np_out(_, name(W), [o(W, upper)], none, singular) :- !.
 tr_np_out(To, pronoun(w(W, C)), [o(T, C)], none, singular) :- !, tr_pronoun_across(To, oblique, w(W, C), _, _, T).
 tr_np_out(To, and(N1, N2), Outs, none, plural) :- !,
     tr_np_out(To, N1, O1, _, _), tr_np_out(To, N2, O2, _, _), tr_and_word(To, And), append(O1, [o(And, lower)|O2], Outs).
+%% a name goes out as the words it is, with the determiner agreeing against
+%% the gender the phrase carries rather than against a noun there is none of
+tr_np_out(To, np(Det, none, [], named(G0, Ws), Number), Outs, named(G, Ws), Number) :- !,
+    findall(o(W, upper), member(w(W, upper), Ws), Content),
+    tr_det_out(To, Det, named(G0, Ws), Number, Content, DetOut),
+    %% AND WHERE THE IR CARRIES NO GENDER THE WRITTEN ARTICLE SUPPLIES ONE,
+    %% which is the reading rule seen from the other side. An English source
+    %% gives `none', the article is then chosen by the lesson's own order,
+    %% and everything after it -- a participle agreeing, an adjective --
+    %% must agree with the word actually written or the sentence disagrees
+    %% with itself: measured, `La Tate Gallery e stato evacuato'.
+    ( G0 \== none -> G = G0 ; tr_written_gender(To, DetOut, G) ),
+    append(DetOut, Content, Outs).
 tr_np_out(To, np(Det, Num, Adjs, w(NW, NC), Number), Outs, Noun, Number) :-
     tr_noun_lexeme(To, NW, Number, L, Noun),
     tr_inflect(To, noun, Noun, Number, NounForm),
@@ -2520,6 +2609,9 @@ tr_agree(foreign, Ms, Noun, T) :-
 %% over a rule, so `"problema" is not feminine' beside `Every noun that
 %% ends in "a" is feminine' makes the word what the lesson's masculine
 %% says of it, the way `The pronoun "él" does not precede the verb' does
+%% a phrase whose noun is a NAME carries its gender, because no lesson can be
+%% asked what a name is
+tr_gender(named(G0, _), G) :- !, G = G0.
 tr_gender(W, G) :-
     (   W == none -> G = none
     ;   tr_holds(feminine(W)) -> G = feminine

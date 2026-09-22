@@ -414,6 +414,11 @@ section_20 :-
     reason_translate('Il generale definisce la casa, escludendo che il paese domina.', italian, english, S20j),
     must('a COMMA JOIN, a GERUND clause with no subject, and a `that'' clause inside it', S20j,
          'The general defines the house, excluding that the country dominates.'),
+    reason_translate('Evacuata la Tate Gallery.', italian, english, S20k),
+    must('AN ARTICLE BEFORE A NAME, which needs no line of lesson at all', S20k,
+         'The Tate Gallery has been evacuated.'),
+    reason_ir('Evacuata la Tate Gallery.', italian, IR20),
+    show('the name where the noun goes, with the gender the article lends it', IR20),
     show('and every one of them is a shape, so the words are the dictionary''s', 'corpus/vocabulary/italian.txt').
 
 section_1 :-
