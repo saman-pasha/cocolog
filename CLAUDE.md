@@ -3700,6 +3700,114 @@ known and five name a word Apertium lacks. Nothing about this row moved any of
 them, which is the table working as written -- each sentence needs several
 rows, and this one needed its last.
 
+### The imperative, and the denial no two languages spell alike (1.6.10)
+
+**ABOUT HALF OF THE TATOEBA SENTENCES REFUSED WITH EVERY WORD KNOWN ARE
+IMPERATIVES**, which 1.2.43's refusal table measured and named as the next
+lever -- `!Largate!`, `Dame eso.`, `No te rias.` -- so this is the largest
+single row of that table and the first piece of work driven by it rather
+than by the newspaper sample.
+
+**IT IS THE `is the [ADJ] NOUN of X` SHAPE AGAIN, AND `reason.pl` DID NOT
+MOVE -- the fifth version running.** `"come" is the imperative of "come".`
+gives `imperative_of(come, come)` and `"comas" is the negative imperative of
+"come".` gives `negative(comas), imperative_of(comas, come)`, which is
+exactly what 1.6.8 used for the past subjunctive. The whole of the grammar's
+part was checking that those two sentences read.
+
+**THE ASPECT CARRIES IT AND THE SUBJECT IS `none`**, beside the gerund of
+1.6.8: `g(L, present, imperative, Neg)`. An imperative has no subject and
+names one anyway -- the person spoken to -- so nothing in the IR had to
+grow, and every pin is untouched.
+
+**IT IS TRIED LAST, WHICH IS WHAT MAKES IT A STRICT ADDITION.** A bare third
+person with nothing in front of it was REFUSED -- 1.6.0's rule, `Estaba
+cansado' could be anybody -- so every sentence that read before reads by the
+same clauses and what changes is only what used to refuse. That is 1.6.1's
+argument for the clause join, reused.
+
+**AND ONLY A FORM THE LESSON CALLS AN IMPERATIVE READS AS ONE, which is what
+keeps the two refusals apart.** `come' is the imperative of `come' and its
+third person besides, so `Come el pan.' is read; `comia' is neither, so
+`Comia el pan.' keeps its refusal exactly as before. **The cost is the other
+half of that rule**: where a language spells the imperative like its third
+person the sentence is genuinely ambiguous, and the imperative is the reading
+taken, because it is the one that names its subject.
+
+**THE DENIAL IS A DIFFERENT FORM IN EVERY LANGUAGE THAT HAS BOTH, AND THE
+TRANSLATOR KNOWS NEITHER.** Spanish builds it on the second person of the
+present subjunctive (`no comas') and Italian on the infinitive (`non
+mangiare') -- so the translator asks the lesson for `the negative
+imperative' by name and writes back whatever the lesson called one:
+
+| | |
+|---|---|
+| `No comas el pan.` into Italian | `Non mangiare il pane.` |
+| `Non mangiare il pane.` into Spanish | `No comas el pan.` |
+| `Do not eat the bread.` into either | both of the above |
+
+**WHICH FORM A LANGUAGE BUILDS IT ON IS THE BUILDER'S, AND THAT IS WHERE IT
+BELONGS.** `cb_negative_imperative(spanish, [prs, p2, sg])` and
+`cb_negative_imperative(italian, [inf])` are two facts in
+`corpus/build.pl`, because the builder is the program that reads a
+LANGUAGE's dictionary and the tags are that dictionary's. Nothing in
+`translate.pl` learns which is which.
+
+**THE FORMS ARE APERTIUM'S `imp p2 sg`**, and the vocabularies went from
+122 814 and 93 407 lines to **126 908 and 96 448** -- 2 047 imperatives and
+2 047 negatives in Spanish, **1 518 and 1 523** in Italian, where the five
+that differ are verbs whose dictionary carries an infinitive and no
+imperative at all.
+
+**ENGLISH'S IS THE BASE FORM AND ITS DENIAL IS `do not`**, never `does not`:
+an imperative has no person to agree with. `tr_negation/4` takes the `not'
+out wherever it stands, so the reader steps over the `do' it leaves behind.
+
+**THREE COSTS, STATED RATHER THAN HIDDEN.** A clitic must stand BEFORE the
+verb, which is where a denied imperative puts it (`No lo comas.' reads);
+Spanish joins the pronoun to an AFFIRMATIVE one and accents the stem
+(`Comelo.', `Dame eso.'), and no lesson can say either, so such a sentence
+is refused. Only the singular is stated, so `Comed el pan.' is refused too.
+And the ambiguity above.
+
+**NO LESSON LINE WAS ADDED TO `corpus/*.txt` OR `corpus/extra/`**, so the
+tagger's corpus, `generated/` and `model.rows` are untouched and NO RETRAIN
+IS OWED. Only `corpus/vocabulary/` moved, which the generator has not read
+since 1.2.42.
+
+**`test/translate.pl` IS 579 CHECKS AND GREEN**, with fourteen in an
+`imperatives` section of its own -- the shape both ways, the IR, the two
+languages' different denials crossing each other, the clitic, the bare
+`Come.', and the three refusals that stay. Lesson 46's section 20 shows the
+imperative and its denial beside the other newspaper shapes.
+
+**AND THE STRICT-ADDITION CLAIM IS MEASURED ON REAL DATA RATHER THAN
+ARGUED.** The twelve newspaper sentences, re-taught from the rebuilt
+vocabularies and re-run on the two-language store, come back **BYTE FOR BYTE
+what 1.6.9 answered** -- 1 of 12, the same translation of sentence 1, the
+same six shape refusals and the same five word refusals. An imperative needs
+its verb at the head with nothing before it but clitics, so a sentence with a
+subject never reaches the clause, and the diff is the proof.
+
+**AND THE TATOEBA PROBE IS ~130x SLOWER THAN 1.2.43 MEASURED IT, WHICH IS
+NOT THIS CHANGE.** 1.2.43 translated 400 sentences in **16.1 s**; the same
+probe on the same arrangement now costs **5.5 s A SENTENCE**. One file
+swapped -- `git stash` on `translate.pl` alone, the same five sentences, the
+same store -- settles the attribution:
+
+| arm | five sentences | translated |
+|---|---|---|
+| 1.6.9, no imperative | 28.0 s | 2 |
+| **1.6.10, the imperative** | **27.5 s** | **3** |
+
+-- so the imperative costs NOTHING and reads one more of the five. **What the
+slowdown IS is not attributed here**: 1.6.1 to 1.6.9 added nine reader shapes
+that a refused sentence now backtracks through, and the Spanish vocabulary
+went from 92 087 lines to 126 908 in the same window, and this arm separates
+neither. It is the measurement to take before the next row of the refusal
+table, because at 5.5 s a sentence the probe that drives this work costs
+forty minutes where it used to cost sixteen seconds.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

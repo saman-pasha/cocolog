@@ -72,6 +72,13 @@
 %%     impersonal(P)  pronoun(P)  mean(P, one)     the pronoun of a sentence that names nobody
 %%                                     (`The impersonal pronoun "si" means "one"'): a subject
 %%                                     of the third person singular, which English writes `one'
+%%     imperative_of(I, F)  negative(I)   the imperative of the form F (`"come" is the
+%%                                     imperative of "come"'), and the NEGATIVE one said
+%%                                     with the adjective (`"comas" is the negative
+%%                                     imperative of "come"'): every language that has
+%%                                     both builds the second on a different form --
+%%                                     Spanish on its subjunctive, Italian on its
+%%                                     infinitive -- and this asks for it by name
 %%     subjunctive_of(S, F)  past(S)  the subjunctive of the form F (`"domini" is the
 %%                                     subjunctive of "domina"'), the past one said with
 %%                                     the adjective (`"dominasse" is the past subjunctive
@@ -243,8 +250,8 @@
 %% ---- HOW A SENTENCE IS TRANSLATED ----------------------------------------
 %%
 %% A sentence is READ to one shape and WRITTEN from it: a subject, a verb
-%% group (the lexeme, its tense, simple or perfect or progressive, passive
-%% or a gerund, denied or not), and the complements in order -- an object, a
+%% group (the lexeme, its tense, simple or perfect or progressive, passive,
+%% a gerund or an imperative, denied or not), and the complements in order -- an object, a
 %% predicative adjective, what the verb predicates OF its object
 %% (`definire illegale la decisione', which the lesson's language writes
 %% before the object and English after it), a prepositional phrase, the
@@ -252,6 +259,15 @@
 %% subordinate clause after the word that means `that', an object
 %% pronoun, an adverb. Several clauses in one sentence are a join, a
 %% comma or a connecting word between two of these.
+%%
+%% AN IMPERATIVE HAS NO SUBJECT AND NAMES ONE ANYWAY -- the person spoken
+%% to. It is read LAST, so a bare third person that was refused before is
+%% all that changes, and only a form the lesson CALLS an imperative reads
+%% as one: `Come el pan.' is `Eat the bread.' where `Comia el pan.' keeps
+%% its refusal. The cost of that is the other half of the same rule --
+%% where a language spells the imperative like its third person the
+%% sentence is genuinely ambiguous, and the imperative is the reading
+%% taken, because it is the one that names its subject.
 %%
 %% THREE SHAPES PUT THE SUBJECT SOMEWHERE ELSE, or leave it out. A verb
 %% the lesson calls INTRANSITIVE, with an adverb or a prepositional
@@ -322,8 +338,8 @@
 %% participle after a noun), an infinitive of purpose, an adjective in
 %% the comparative or the superlative, a subordinate clause after `that',
 %% a subject after its verb, a headline with the copula left out, a gerund
-%% clause and an article before a name. What it has NOT
-%% is a relative clause with its own pronoun, an imperative, a
+%% clause, an article before a name and an imperative. What it has NOT
+%% is a relative clause with its own pronoun, a
 %% comparison of two things
 %% (`richer THAN Rome'), a `why' or a `how',
 %% a fragment with no verb at all, and any idiom -- a word
@@ -335,6 +351,12 @@
 %% A SUBJUNCTIVE IS READ AND NOT WRITTEN: English marks none where `che
 %% il militare volesse' wants one and no lesson says which verbs take
 %% one, so the mood is dropped and the form comes back as the indicative.
+%% AN IMPERATIVE'S CLITIC MUST STAND BEFORE THE VERB, which is where a
+%% DENIED one puts it (`No lo comas.'): Spanish joins the pronoun to an
+%% affirmative imperative and accents the stem (`Comelo.', `Dame eso.'),
+%% and no lesson can say either, so such a sentence is refused. Only the
+%% singular is stated, so a plural imperative (`Comed el pan.') is one too.
+%%
 %% A NAME DOES NOT INFLECT and nothing crosses it, so a plural article
 %% before one writes the article's plural and the name as it stands (`Le
 %% Gallery' is `The Gallery', never `The Galleries'); and several
@@ -1259,6 +1281,64 @@ tr_read_statement(Side, Words0, none, S) :-
     nb_setval('$tr_read_aspect', gerund),
     tr_complements(Side, Rest, Comps), !,
     S = s(none, none, g(L, present, gerund, Neg), Comps).
+
+%% AN IMPERATIVE HAS NO SUBJECT AND NAMES ONE ANYWAY -- the person spoken
+%% to -- so the aspect carries it and the subject is `none', beside the
+%% gerund above. `Come el pan.', `No comas el pan.', `Mangia il pane.',
+%% `Eat the bread.', `Do not eat the bread.'
+%%
+%% IT IS TRIED LAST, WHICH IS WHAT MAKES IT A STRICT ADDITION. A bare
+%% third person with nothing in front of it was REFUSED -- 1.6.0's rule,
+%% `Estaba cansado' could be anybody -- so every sentence that read before
+%% reads by the same clauses, and what changes is only what used to refuse.
+%%
+%% AND ONLY A FORM THE LESSON CALLS AN IMPERATIVE READS AS ONE, which is
+%% what keeps the two refusals apart. `come' is the imperative of `come'
+%% and the third person of it besides, so `Come el pan.' is read; `comia'
+%% is neither, so `Comia el pan.' keeps its refusal exactly as before. The
+%% cost is the other half of that: where the two forms are spelled the
+%% same the sentence is genuinely ambiguous and the imperative is the
+%% reading taken, because it is the one that names its subject.
+tr_read_statement(foreign, Words0, none, S) :-
+    tr_negation(foreign, Words0, Words, Neg),
+    append(Clitics0, [w(V, _)|Rest], Words),
+    tr_imperative_here(foreign, Neg, V, L),
+    forall(member(w(C, _), Clitics0), tr_clitic(none, C)),
+    nb_setval('$tr_read_group', L),
+    nb_setval('$tr_read_aspect', imperative),
+    tr_reflexive_off(foreign, Clitics0, Clitics, L, LV),
+    tr_complements(foreign, Rest, Comps0), !,
+    findall(opron(W), member(W, Clitics), Cs),
+    append(Cs, Comps0, Comps),
+    S = s(none, none, g(LV, present, imperative, Neg), Comps).
+%% English's is the BASE FORM, and its denial keeps the `do' the negation
+%% took the `not' out of: `Do not eat the bread.'
+tr_read_statement(english, Words0, none, S) :-
+    tr_negation(english, Words0, W1, Neg),
+    ( Neg == yes, W1 = [w(do, _)|W2] -> true ; W2 = W1 ),
+    W2 = [w(V, _)|Rest],
+    tr_imperative_here(english, Neg, V, L),
+    nb_setval('$tr_read_group', L),
+    nb_setval('$tr_read_aspect', imperative),
+    tr_complements(english, Rest, Comps), !,
+    S = s(none, none, g(L, present, imperative, Neg), Comps).
+
+%% the imperative of a verb the lesson gives: the form it states, and a
+%% DENIED sentence wants the form it states for one -- Spanish's negative
+%% imperative is not its affirmative (`come' against `no comas') and
+%% Italian's is the infinitive (`non mangiare'), neither of which this
+%% knows or needs to: the lesson says which form is which.
+tr_imperative_here(foreign, no, V, L) :-
+    tr_solve(imperative_of(V, L)), \+ tr_holds(negative(V)), tr_known(foreign, L), !.
+tr_imperative_here(foreign, yes, V, L) :-
+    tr_solve(imperative_of(V, L)), tr_holds(negative(V)), tr_known(foreign, L), !.
+tr_imperative_here(english, _, V, L) :- en_verb_form(V, L, present), !.
+
+%% and the form out, for either
+tr_imperative_form(L, no, F) :-
+    once(( tr_solve(imperative_of(F0, L)), \+ tr_holds(negative(F0)) )), F = F0.
+tr_imperative_form(L, yes, F) :-
+    once(( tr_solve(imperative_of(F0, L)), tr_holds(negative(F0)) )), F = F0.
 
 %% a gerund of a verb the lesson gives, on either side
 tr_gerund_here(foreign, G, L) :- tr_solve(gerund_of(G, L)), tr_known(foreign, L), !.
@@ -2339,6 +2419,8 @@ fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
     ->  tr_auxiliary(has, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(participle_of(PP, L))), VW = [o(AuxForm, lower), o(PP, lower)]
     ;   A == gerund
     ->  once(tr_solve(gerund_of(G, L))), VW = [o(G, lower)]
+    ;   A == imperative
+    ->  tr_imperative_form(L, Neg, IF), VW = [o(IF, lower)]
     ;   A == progressive
     ->  tr_auxiliary(is, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(gerund_of(G, L))), VW = [o(AuxForm, lower), o(G, lower)]
     ;   tr_make(L, N, T, P, Form), VW = [o(Form, lower)]
@@ -2444,6 +2526,14 @@ en_group(is, P, N, T, A, Neg, Statement, Front, Tail) :- !,
     ;   en_copula_form(P, N, T, C), Front = o(C, lower), Tail = Not
     ),
     Statement = [Front|Tail].
+%% ENGLISH'S IMPERATIVE IS THE BASE FORM, and its denial is `do not' --
+%% never `does not', because an imperative has no person to agree with.
+en_group(L, _, _, _, imperative, Neg, Statement, Front, Tail) :- !,
+    en_base(L, B),
+    (   Neg == yes
+    ->  Front = o(do, lower), Tail = [o(not, lower), o(B, lower)], Statement = [Front|Tail]
+    ;   Front = o(B, lower), Tail = [], Statement = [Front]
+    ).
 en_group(L, _, _, _, gerund, Neg, Statement, Front, []) :- !,
     en_gerund_of(L, G), Front = o(G, lower),
     ( Neg == yes -> Statement = [o(not, lower), Front] ; Statement = [Front] ).

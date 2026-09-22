@@ -39,6 +39,7 @@
 %%     "comería" is the conditional of "come".      "comerían" is the plural of "comería".
 %%     "coma" is the subjunctive of "come".         "comiera" is the past subjunctive of "come".
 %%     "comer" is the infinitive of "come".         "comiendo" is the gerund of "come".
+%%     "come" is the imperative of "come".          "comas" is the negative imperative of "come".
 %%     "ate" is the past of "eats".                 "eaten" is the participle of "eats".
 %%     "running" is the gerund of "runs".           The adverb "rápidamente" means "quickly".
 %%     The modal "puede" means "can".               "podría" is the conditional of "puede".
@@ -76,7 +77,7 @@
 %% says otherwise: a token compared with a literal never matched until it did
 :- set_prolog_flag(double_quotes, string).
 
-:- dynamic cb_par/3, cb_lemma/3, cb_en_verb/4, cb_person/1, cb_seen_f/2, cb_seen_e/2, cb_seen_pair/3, cb_formed/2, cb_en_done/1.
+:- dynamic cb_par/3, cb_lemma/3, cb_en_verb/4, cb_person/1, cb_seen_f/2, cb_seen_e/2, cb_seen_pair/3, cb_formed/2, cb_en_done/1, cb_lang/1.
 
 %% EVERY TEST OF A LINE IS A C BUILTIN. sub_string/5 is clauses here, and a
 %% search with it walks the line a position at a time converting it to codes
@@ -99,6 +100,7 @@ cb_source(italian, 'apertium-eng-ita.eng-ita.dix', 'apertium-ita.ita.dix', 'aper
 
 build(Lang) :-
     cb_source(Lang, BiFile, MonoFile, Credit),
+    assertz(cb_lang(Lang)),
     normalise_corpus_dir(Dir),
     atomic_list_concat([Dir, '/raw/', BiFile], Bi),
     atomic_list_concat([Dir, '/raw/', MonoFile], Mono),
@@ -211,6 +213,15 @@ cb_form(Forms, Tags, F) :- member(F-Ts, Forms), cb_has_tags(Tags, Ts), !.
 %% `avere' vbhaver and the modals (`poder', `dovere') vbmod, where every
 %% other verb is vblex
 cb_verb_form(Forms, Tags, F) :- member(V, [vblex, vbser, vbhaver, vbmod]), cb_form(Forms, [V|Tags], F), !.
+
+%% WHAT A LANGUAGE BUILDS ITS NEGATIVE IMPERATIVE ON: Spanish takes the
+%% second person of the present subjunctive (`no comas'), Italian the
+%% infinitive (`non mangiare'). It is a fact about the LANGUAGE and about
+%% the tags its own dictionary uses, and this file is what reads a
+%% language's dictionary, so it belongs here -- the translator asks the
+%% lesson for `the negative imperative' and never learns which is which.
+cb_negative_imperative(spanish, [prs, p2, sg]).
+cb_negative_imperative(italian, [inf]).
 cb_has_tags([], _).
 cb_has_tags([T|Ts], Have) :- memberchk(T, Have), cb_has_tags(Ts, Have).
 
@@ -545,6 +556,15 @@ cb_verb_forms(L, Forms) :-
     %% from the singular it is the plural of, so cb_tense/4 needs nothing new.
     ( cb_verb_form(Forms, [prs, p3, sg], Subj) -> cb_line('"~w" is the subjunctive of "~w".', [Subj, L]), cb_tense(Forms, prs, Subj, plural_of) ; true ),
     ( cb_verb_form(Forms, [pis, p3, sg], PSubj) -> cb_line('"~w" is the past subjunctive of "~w".', [PSubj, L]), cb_tense(Forms, pis, PSubj, plural_of) ; true ),
+    %% THE IMPERATIVE IS THE FORM APERTIUM TAGS `imp', and the NEGATIVE one
+    %% is a different form in every language that has both -- which is why
+    %% the translator asks for it by name rather than making it. About half
+    %% of the Tatoeba sentences refused with every word known are
+    %% imperatives (`Dame eso.', `No te rias.'), so this is the largest
+    %% single row of that table.
+    ( cb_verb_form(Forms, [imp, p2, sg], Imper) -> cb_line('"~w" is the imperative of "~w".', [Imper, L]) ; true ),
+    ( cb_lang(Lg), cb_negative_imperative(Lg, NTags), cb_verb_form(Forms, NTags, NImper)
+    ->  cb_line('"~w" is the negative imperative of "~w".', [NImper, L]) ; true ),
     cb_participles(Forms, L),
     ( cb_verb_form(Forms, [inf], Inf) -> cb_line('"~w" is the infinitive of "~w".', [Inf, L]) ; true ),
     ( cb_verb_form(Forms, [ger], Ger) -> cb_line('"~w" is the gerund of "~w".', [Ger, L]) ; true ).

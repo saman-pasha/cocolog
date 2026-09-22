@@ -23,7 +23,7 @@
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
-    complement, superlative, inversion, headline, subordinate, names,
+    complement, superlative, inversion, headline, subordinate, names, imperatives,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1754,6 +1754,94 @@ Every adjective follows the noun.', spanish, _),
     reason_translate('Maria domina.', italian, english, N11),
     check('a BARE name is untouched: one word, and no article to lend it anything', N11,
           'Maria dominates.'),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+% ---- the imperative ------------------------------------------------------------------
+% An imperative has no subject and names one anyway -- the person spoken to --
+% so the aspect carries it and the subject is `none'. It is tried LAST, so a
+% bare third person that was refused before is what changes and nothing else;
+% and only a form the lesson CALLS an imperative reads as one, which is what
+% keeps `Comia el pan.' refused where `Come el pan.' is read.
+%
+% THE NEGATIVE IMPERATIVE IS A DIFFERENT FORM IN EVERY LANGUAGE THAT HAS ONE
+% -- Spanish takes the second-person subjunctive and Italian the infinitive --
+% and the translator knows neither: it asks the lesson for `the negative
+% imperative' and writes back whatever the lesson called one.
+
+imperatives :-
+    section('the imperative, and the negative one the lesson names'),
+    reason_learn('Spanish is a language.
+The noun "pan" means "bread". The noun "casa" means "house".
+The masculine article "el" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "come" means "eats". The verb "es" means "is".
+"comia" is the past of "come".
+"come" is the imperative of "come". "comas" is the negative imperative of "come".
+The pronoun "lo" means "it". Every pronoun precedes the verb.
+The word "no" means "not".', spanish, _),
+    reason_learn('Italian is a language.
+The noun "pane" means "bread". The noun "casa" means "house".
+The masculine article "il" means "the". The feminine article "la" means "the".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The verb "mangia" means "eats". The verb "è" means "is".
+"mangiava" is the past of "mangia".
+"mangia" is the imperative of "mangia". "mangiare" is the negative imperative of "mangia".
+The pronoun "lo" means "it". Every pronoun precedes the verb.
+The word "non" means "not".', italian, _),
+
+    reason_translate('Come el pan.', spanish, english, I1),
+    check('a form the lesson calls an imperative, with no subject', I1, 'Eat the bread.'),
+
+    reason_translate('Eat the bread.', english, spanish, I2),
+    check('and back: English''s imperative is the BASE form', I2, 'Come el pan.'),
+
+    reason_translate('Come el pan.', spanish, italian, I3),
+    check('Spanish into Italian, with no English written', I3, 'Mangia il pane.'),
+
+    reason_ir('Come el pan.', spanish, I4),
+    check('the IR: the aspect carries it and the subject is none', I4,
+          [ir(s(none, none, g(eats, present, imperative, no),
+                [obj(np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular))]), 46)]),
+
+    %% THE FINDING: the two languages build the denial on different forms,
+    %% and the translator knows neither of them.
+    reason_translate('No comas el pan.', spanish, italian, I5),
+    check('the NEGATIVE: Spanish''s subjunctive in, Italian''s infinitive out', I5,
+          'Non mangiare il pane.'),
+
+    reason_translate('Non mangiare il pane.', italian, spanish, I6),
+    check('and the other way round', I6, 'No comas el pan.'),
+
+    reason_translate('Do not eat the bread.', english, spanish, I7),
+    check('English denies with `do not'', never `does not'': an imperative has no person', I7,
+          'No comas el pan.'),
+
+    reason_translate('No comas el pan.', spanish, english, I8),
+    check('and back', I8, 'Do not eat the bread.'),
+
+    reason_translate('No lo comas.', spanish, english, I9),
+    check('a clitic before the verb belongs to the imperative like any other', I9,
+          'Do not eat it.'),
+
+    reason_translate('Come.', spanish, english, I10),
+    check('an imperative with nothing after it', I10, 'Eat.'),
+
+    yes_no(reason_ir('Comia el pan.', spanish, _), I11),
+    check('A FORM NO LESSON CALLS AN IMPERATIVE KEEPS ITS REFUSAL', I11, no),
+
+    reason_translate('La casa come el pan.', spanish, english, I12),
+    check('and a sentence WITH a subject is untouched: the imperative is tried last', I12,
+          'The house eats the bread.'),
+
+    yes_no(reason_ir('Mangiare il pane.', italian, _), I13),
+    check('the infinitive alone is no imperative: the lesson calls that form the NEGATIVE one', I13, no),
+
+    %% THE COST, STATED: Spanish ATTACHES the pronoun to an affirmative
+    %% imperative and accents the stem (`Comelo.', `Dame eso.'), and nothing
+    %% in a lesson says either, so such a sentence is refused.
+    yes_no(reason_ir('Comelo.', spanish, _), I14),
+    check('an ATTACHED clitic is not read, and the header says so', I14, no),
 
     reason_unlearn(italian), reason_unlearn(spanish).
 

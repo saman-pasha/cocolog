@@ -373,6 +373,7 @@ The verb "evacua" means "evacuates". The verb "esclude" means "excludes".
 "imposto" is the participle of "impone". "imposta" is the participle of "impone". "imposta" is feminine.
 "evacuato" is the participle of "evacua". "evacuata" is the participle of "evacua". "evacuata" is feminine.
 "definire" is the infinitive of "definisce". "escludendo" is the gerund of "esclude".
+"evacua" is the imperative of "evacua". "evacuare" is the negative imperative of "evacua".
 The adjective "illegale" means "illegal". The adjective "ricco" means "rich".
 The adverb "qui" means "here". The adverb "più" means "more".
 The preposition "da" means "by". The preposition "di" means "of". The preposition "per" means "for".
@@ -381,7 +382,7 @@ The conjunction "che" means "that".
 Every adjective follows the noun.').
 
 section_20 :-
-    format("~n20. The shapes a newspaper is made of: a passive, a reduced relative, a purpose, a complement, a superlative, an inversion, a headline, a gerund clause~n", []),
+    format("~n20. The shapes a newspaper is made of: a passive, a reduced relative, a purpose, a complement, a superlative, an inversion, a headline, a gerund clause, an imperative~n", []),
     lesson_20(L20), reason_learn(L20, italian, T20),
     length(T20, N20), show('a third lesson, thirty lines, under its own name', N20),
     reason_translate('La casa è evacuata da i soldati.', italian, english, S20a),
@@ -414,6 +415,12 @@ section_20 :-
     reason_translate('Il generale definisce la casa, escludendo che il paese domina.', italian, english, S20j),
     must('a COMMA JOIN, a GERUND clause with no subject, and a `that'' clause inside it', S20j,
          'The general defines the house, excluding that the country dominates.'),
+    reason_translate('Evacua la casa.', italian, english, S20l),
+    must('an IMPERATIVE: no subject, and the form the lesson calls one', S20l,
+         'Evacuate the house.'),
+    reason_translate('Non evacuare la casa.', italian, english, S20m),
+    must('and its DENIAL, which Italian builds on the infinitive and the lesson says so', S20m,
+         'Do not evacuate the house.'),
     reason_translate('Evacuata la Tate Gallery.', italian, english, S20k),
     must('AN ARTICLE BEFORE A NAME, which needs no line of lesson at all', S20k,
          'The Tate Gallery has been evacuated.'),
