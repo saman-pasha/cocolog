@@ -1755,7 +1755,19 @@
                             ;; should; if it does not, the error is the same
                             ;; error as before.
                             (#t
-                             (coco_store_warm st)
+                             ;; ONCE PER PREDICATE. The comment above says this
+                             ;; path "is not a path anything runs in a loop",
+                             ;; and that is exactly what a caller which catches
+                             ;; the error does: `library(reasoning/translate)'
+                             ;; asks a lesson for a relation the language does
+                             ;; not state -- `elision_of/2' in Spanish -- on
+                             ;; nearly every word, and paid a whole warm for
+                             ;; each. Measured, ten raises on a 400 MB store:
+                             ;; 2.57 s before, 0.000 s after.
+                             (if (not ($ (nth pi ($ (cof st) preds)) warmed))
+                                 (block
+                                  (set ($ (nth pi ($ (cof st) preds)) warmed) 1)
+                                  (coco_store_warm st)))
                              (if ($ (nth pi ($ (cof st) preds)) dynamic)
                                  (block (if tport (coco_trace_port e "Fail" tD g))
                                         (set ok 0))

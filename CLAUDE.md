@@ -3837,6 +3837,88 @@ end -- so a probe that expects to be killed writes one line a sentence and
 flushes, which `eval2.pl` beside it does. **A probe whose output is one line at
 the end pays its whole cost or nothing.**
 
+### A raise cost a quarter of a second, and it WAS in a loop (1.6.11)
+
+**ONE `existence_error` COST 257 ms, AND `library(reasoning/translate)` RAISED
+ONE ON NEARLY EVERY WORD.** That is the whole of the 1.6.10 slowdown above, and
+the bisection is the part worth keeping, because every step was cheap and each
+one halved the search:
+
+| the question | the answer |
+|---|---|
+| read or write? | `reason_ir_text` **0.002 s**, `reason_ir` **11.2 s** |
+| which read? | `from=none` **0.000 s**, `from=any` **11.9 s** -- the language VOTE |
+| what does a word cost in the vote? | **0.86 s**, linear, even a nonsense word |
+| which goal? | `tr_lexeme(foreign, W, _, _)` on a miss, **288 ms** |
+| which line of it? | `tr_solve(elision_of(W, F))`, **272 ms** |
+| why? | `elision_of/2` has **no clauses** in Spanish -- elision is Italian's |
+| is it the store fetch? | **no**: a `:- dynamic` predicate with no clauses is 0.000 s |
+| what then? | the RAISE: ten `existence_error`s cost **2.574 s** |
+
+**AND THE CODE SAID WHY, IN A COMMENT THAT WAS WRONG.** `lib/solve.cicili`'s
+about-to-throw branch calls `coco_store_warm` -- correctly, so that a predicate
+another process DECLARED and never wrote to is found rather than refused -- and
+its comment reads *"costs a round trip only on the path that was going to throw,
+which is not a path anything runs in a loop"*. A caller that CATCHES the error
+and asks again is exactly that loop, and `tr_solve/1` catches. The warm fetches
+every `:- dynamic` row in the knowledge base, which on a 400 MB store is 257 ms,
+and it was paid per raise.
+
+**THE FIX IS ONE FLAG, PER PREDICATE AND NOT PER STORE.** `coco_pred` gained
+`warmed`; the throw path warms the first time it cannot resolve a given name and
+never again for that name. Per predicate is what keeps the original property
+alive: a declaration another process makes is still found for every name this
+process has not yet asked about. A per-STORE flag would have been faster still
+and would lose that.
+
+**MEASURED, SAME STORE, SAME LIBRARY, ONE BINARY EITHER SIDE:**
+
+| | 1.6.10 | **1.6.11** |
+|---|---|---|
+| ten raises of one unknown predicate | 2.574 s | **0.0001 s** |
+| ten raises of a SECOND unknown predicate | 2.540 s | 0.282 s -- one warm, then free |
+| three Tatoeba sentences | **20.0 s** | **0.8 s** |
+| the three answers | -- | **byte for byte the same** |
+
+-- **25x**, and 0.72 s of that 0.8 s is start-up, so a short sentence went from
+about 6.5 s to about 0.03 s. `errors`, `reconsult`, `gc`, `library`,
+`directives`, `translate`, `reason` and `normalise` are all GREEN on it.
+
+**AND THE LOCAL FIX WAS BUILT, MEASURED AND THROWN AWAY.** Guarding the elision
+clause with `tr_elides` -- ask the lesson ONCE whether it states an elision at
+all, the `tr_endings/2` shape -- is the obvious repair and it buys NOTHING once
+the engine stops re-warming. 100 warm translations, three alternating repeats,
+two copies of the library differing only in that clause:
+
+| | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| plain | 1.871 s | 1.913 s | 1.903 s |
+| the guard | 1.981 s | 1.919 s | **1.544 s** |
+
+-- the guard's own spread is wider than any effect and the ranges overlap, so it
+is reverted, beside 1.4.1's reverse index and the semispace. **A local fix for a
+general defect is worth building only to find out that the general one covers
+it**, and the way to find out is to measure it AFTER the general fix rather than
+instead of it.
+
+**WHAT IS LEFT IS NOT THE SAME DEFECT.** The 400-sentence probe still does not
+finish, and it is now ONE sentence rather than all of them: `Mirá para otro
+lado.` runs past **120 s** on its own where its four neighbours cost 0.1 to
+0.3 s each. Thirteen sentences go through in 300 s and the fourteenth is that
+one. `para` is the word 1.6.5 gave the purpose clause, and a purpose wants an
+infinitive that this sentence does not have, so the reading to suspect first is
+combinatorial backtracking in the reader and not anything in the store. It is
+recorded and NOT fixed here, because a fix that lands in the same edit as
+another fix has not been measured.
+
+**AND THE BUDGET RULE CAUGHT IT, WHICH IS THE ONE PROCESS RESULT.** Three
+sentences cost 0.8 s and predicted about 13 s for 400, against 1.2.43's control
+of 16.1 s -- so the run was started with a 300 s timeout, and it came back
+`exit 124` having printed thirteen lines. **A prediction from three samples is a
+budget and not a forecast**: the cost here is not per sentence but per SHAPE,
+and three sentences cannot see a shape they do not contain. The timeout is what
+turns a wrong prediction into a measurement instead of an hour.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
