@@ -3808,6 +3808,35 @@ neither. It is the measurement to take before the next row of the refusal
 table, because at 5.5 s a sentence the probe that drives this work costs
 forty minutes where it used to cost sixteen seconds.
 
+**AND THE COST IS THE SUCCESS PATH, NOT THE REFUSAL, WHICH ONE 40-SECOND ARM
+SETTLED AFTER A 63-MINUTE RUN HAD SETTLED NOTHING.** Differences of N=0, 1, 2
+and 3 over the same sample and the same store, so each row is ONE sentence and
+the start-up is paid once:
+
+| | |
+|---|---|
+| start-up, store open and lesson load (N=0) | **0.72 s** |
+| `Tengo diecinueve.` translated | **10.6 s** |
+| the imperative refused | **4.6 s** |
+| `Soy viejo.` translated | **7.3 s** |
+
+**A REFUSAL IS THE CHEAP HALF HERE**, which inverts what this file says of the
+newspaper sample above -- 2.3 to 7.5 s a sentence against about 28 for a
+refusal. Those are twelve long sentences and these are five words each, so the
+two are not one measurement and neither generalises. What does generalise is
+that a translated SHORT sentence costs 7-11 s where 1.2.43 measured the whole
+400 in 16.1 s, so **the slowdown is on the path that SUCCEEDS** and the nine
+reader shapes a refusal backtracks through are not where to look first.
+
+**AND THE BUDGET RULE THAT WOULD HAVE SAVED THE HOUR.** Time THREE sentences,
+multiply, and refuse to start the long run when the product passes what the
+last measurement said: three cost 23 s and predicted 50 minutes for 400, where
+1.2.43's control is 16 seconds. The run was killed at 63 minutes with an EMPTY
+log, because `eval.pl` collects every result in a `findall` and prints at the
+end -- so a probe that expects to be killed writes one line a sentence and
+flushes, which `eval2.pl` beside it does. **A probe whose output is one line at
+the end pays its whole cost or nothing.**
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
