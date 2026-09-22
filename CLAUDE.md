@@ -3068,7 +3068,7 @@ that unlocks six sentences is worth more than one that unlocks one:
 | **reduced relative**: a participle after a noun (`il coprifuoco imposto dai soldati`) | 7, 12 | needs the passive first | **1.6.4** |
 | **purpose clause**: `per` + an infinitive | 10 | | **1.6.5** |
 | **object complement**: `definire illegale la decisione` | 10 | | **1.6.6** |
-| **superlative**: `uno dei Paesi più ricchi del mondo` | 12 | | |
+| **superlative**: `uno dei Paesi più ricchi del mondo` | 12 | | **1.6.7** |
 | **verb before subject** (inversion) | 7 | | |
 | **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | a fragment, and the grammar has no fragment | |
 | **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last | |
@@ -3337,6 +3337,72 @@ relative clause with its own pronoun, an imperative, a subjunctive, a gerund
 as a clause, a superlative, a fragment with no verb and any idiom -- which is
 the remainder of the eleven-structure table, said from the library's side.
 
+**THE SUPERLATIVE IS DONE (1.6.7), AND THE TWO DEGREES ARE ONE WORD IN THE
+LESSON'S LANGUAGE.** `il paese più ricco` is the RICHEST country and `un
+paese più ricco` a RICHER one -- the same three words, and what tells them
+apart is the ARTICLE. English marks the degree on the adjective instead, so
+the IR carries `deg(Degree, Word)` among a phrase's adjectives and **the
+degree is what ENGLISH needs**: the lesson's writer spells both the same and
+lets its own article say which.
+
+**THE LESSON NAMES THE WORD AND NO GRAMMAR MOVED.** `The word "più" begins
+the comparative.` is the `The word "per" begins the purpose.` shape, which is
+the `The mark "¿" begins the question.` shape before it, so `reason.pl` is
+untouched for the third structure running. The lines live in
+`corpus/extra/`, the vocabulary path, so the tagger never sees them and no
+retrain is owed.
+
+**AND THE PHRASE DECIDES LAST, WHICH IS ONE CLAUSE AND WAS A REAL DEFECT FOR
+AN HOUR.** The complements are folded before the phrases inside them are --
+`tr_complements/3` folds once, at the COMPARATIVE, because a bare predicate
+(`è più ricco`, *is richer*) has no article to read -- so an OBJECT's own
+article must be allowed to make it a superlative after all. Without the
+re-deciding clause `definisce il paese più ricco` came out *defines the
+richer country*. Only on the lesson's side: English took the degree off the
+word and there is nothing to re-decide.
+
+**ENGLISH'S OWN ENDING IS ONE SYLLABLE, OR TWO ENDING IN `y`, and the cost is
+stated rather than hidden.** `richer`, `happier`, `bigger` (the consonant
+doubles), `larger` (the `e` goes); everything else takes `more`/`most`, so
+`most expensive` and -- the cost -- `more narrow` where a grammar allows
+`narrower`. **BOTH FORMS ARE READ whatever the rule would write**, so
+`A more rich country` comes back as `A richer country`: a round trip through
+English normalises the spelling, which is the better English of the two.
+Seven irregulars are a table (`good/better/best` and the rest).
+
+**AND THE PARTITIVE THE SAMPLE NEEDS WAS ONE VOCABULARY LINE.**
+`uno dei Paesi più ricchi del mondo` refused because `uno` is only the
+masculine ARTICLE in the hand lesson, and `The' alone is no phrase.
+`The pronoun "uno" means "one".` -- with `The pronoun "uno" does not precede
+the verb.` beside it, or `Every pronoun precedes the verb` would make it a
+clitic -- is the whole of it, and `one of the richest countries of the world`
+reads and writes both ways with no grammar at all. **Which is the 1.6.0 rule
+firing again: a construction that seems to need new grammar is worth a second
+look at what the lesson can already say.**
+
+**AND THE PARTITIVE COST TWO FILTERS, BECAUSE A LESSON SAYS WHAT A WORD
+MEANS AND WHAT CLASSES IT HAS AND NEVER WHICH MEANING BELONGS TO WHICH
+CLASS.** `uno` is the masculine ARTICLE meaning `a` and a PRONOUN meaning
+`one`, in two facts that do not name each other, so a phrase whose head is
+`uno` takes whichever meaning the store answers first. It worked on a toy
+lesson and wrote **`a of the countries`** on the real one -- the same data,
+a different order, which is the tell that an order is deciding something a
+class should. Three narrowings, each a rule about what a HEAD is, and each
+falling back to the unfiltered list rather than losing the sentence:
+
+| where | the rule |
+|---|---|
+| `tr_np/3` | a determiner alone is no phrase **unless the lesson also calls the word a noun or a pronoun** |
+| `tr_english_shaped/3` | an English meaning that is one of English's own determiners is no noun and no adjective |
+| `tr_meanings_of/4`, foreign | nor is a word that names NOBODY, nor one the lesson calls a determiner |
+
+The second and third are mirrors of each other, and the third was found the
+same way the second was: with the English side right, Spanish wrote **`se de
+los paises`** (the impersonal pronoun, which also means `one`) and then
+**`un de los paises`** (the article). **A filter that fixes one side is a
+filter the other side wants too** -- and the probe that shows it is the same
+sentence written into every language rather than into one.
+
 **MEASURED OVER THE REAL VOCABULARY, BOTH WAYS, ON A STORE WITH BOTH
 LANGUAGES IN IT** (Italian into a fresh store in **5 min 26 s**, then Spanish
 into the same one; 373 MB, 132 806 and 172 636 terms. The Spanish teach was
@@ -3348,6 +3414,22 @@ not timed -- only its end was recorded, which is not a duration):
 | `Il generale definisce "illegale" la decisione del presidente.` | `El general define "ilegal" la decisión del presidente.` |
 | `Il generale definisce rossa la casa.` | `El general define roja la casa.` |
 | the same, into English | `The general defines the decision illegal of the president.` |
+
+**AND THE SAME STORE, RE-TAUGHT ON 1.6.7** (the three `corpus/extra/` lines
+a language, so 132 812 and 172 642 terms, 380 MB):
+
+| | |
+|---|---|
+| `Uno dei paesi più ricchi del mondo domina.` | `One of the richest countries of the world dominates.` |
+| the same, into Spanish | `Uno de los países más ricos del mundo domina.` |
+| `Il paese è più ricco.` | `The country is richer.` / `El país es más rico.` |
+| `Il generale definisce il paese più costoso.` | `The general defines the costliest country.` |
+
+-- the last row being the `-est` rule reaching a word the hand lesson never
+had. **The twelve sentences are still 0 of 12**, which is the table above
+working as written: each of them needs several rows and some need words the
+dictionary lacks, so the count moves at the END and the PHRASE is what each
+row buys.
 
 -- **and the second row is the PP measurement the table above asks for.** `del
 presidente` attaches to the VERB and not to `la decisione`, which is the wrong

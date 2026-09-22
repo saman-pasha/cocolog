@@ -291,9 +291,11 @@
 %% It is not a translator of prose. What it has is one clause with one
 %% verb and its complements, several such joined by a comma or a
 %% connecting word, a passive with its agent, a reduced relative (a
-%% participle after a noun) and an infinitive of purpose. What it has NOT
+%% participle after a noun), an infinitive of purpose and an adjective in
+%% the comparative or the superlative. What it has NOT
 %% is a relative clause with its own pronoun, an imperative, a
-%% subjunctive, a gerund as a clause, a superlative, a `why' or a `how',
+%% subjunctive, a gerund as a clause, a comparison of two things
+%% (`richer THAN Rome'), a `why' or a `how',
 %% a fragment with no verb, and any idiom -- a word
 %% means a word, and `is' is whichever word the lesson gave for it first
 %% (a lesson with `es' and `está' for `is' gets `es', and the progressive
@@ -854,6 +856,7 @@ tr_cross_num(w(MW, MC), w(MT, MC)) :- tr_word_across(w(MW, MC), english, number,
 tr_cross_adjectives([], []).
 tr_cross_adjectives([A0|As0], [A|As]) :- tr_cross_adjective(A0, A), tr_cross_adjectives(As0, As).
 
+tr_cross_adjective(deg(D, A0), deg(D, A)) :- !, tr_cross_adjective(A0, A).
 tr_cross_adjective(w(W, C), w(and, C)) :- tr_side_here(Side), tr_is(Side, w(W, C), conjunction), !.
 tr_cross_adjective(w(W, C), w(T, C)) :- tr_lexeme_here(W, WL), tr_meanings_of(WL, english, adjective, [T|_]).
 
@@ -1358,8 +1361,12 @@ tr_np(Side, Words0, np(Det, Num, Adjs, Noun, Number)) :-
     ( Words0 = [D|Ws1], tr_determiner(Side, D, DL, DK), Ws1 \== [] -> Det = det(DK, DL, D), Words1 = Ws1 ; Det = none, Words1 = Words0 ),
     ( Words1 = [M|Ws2], tr_is(Side, M, number), Ws2 \== [] -> Num = M, Words2 = Ws2 ; Num = none, Words2 = Words1 ),
     Words2 \== [],
-    tr_noun(Words2, Side, Noun, Adjs),
-    \+ tr_determiner(Side, Noun, _, _),                  % `The' alone is no phrase, whatever `el' means
+    tr_noun(Words2, Side, Noun0, Adjs0),
+    tr_degree_of(Side, Det, Degree), tr_degrees(Side, Degree, [Noun0|Adjs0], [Noun|Adjs]),
+    %% `The' alone is no phrase, whatever `el' means -- UNLESS the lesson
+    %% also calls the word a noun or a pronoun, which is what `uno' is in
+    %% `uno dei paesi': the masculine article and the word for `one'
+    \+ ( tr_determiner(Side, Noun, _, _), \+ tr_is(Side, Noun, noun), \+ tr_is(Side, Noun, pronoun) ),
     \+ ( \+ tr_is(Side, Noun, noun), tr_is(Side, Noun, verb) ),   % nor is a verb's form the lesson calls no noun (`son grandes')
     forall(member(A, Adjs), tr_adj_word(Side, A)),
     Noun = w(NW, _),
@@ -1377,8 +1384,53 @@ tr_reduced_agent(Side, Ws, [by(NP)]) :-
     Ws = [P|Rest], tr_is(Side, P, preposition), tr_means_by(Side, P),
     tr_phrase_words(Side, Rest, PW, []), PW \== [], tr_phrase_np(Side, PW, NP).
 
+%% A DEGREE IS A DEGREE OF AN ADJECTIVE, and the two sides mark it in
+%% different places. The lesson's language puts a WORD in front -- `piu
+%% ricco', `mas rico' -- which the lesson names (`The word "piu" begins the
+%% comparative.', the shape `The word "per" begins the purpose' already
+%% has), and that one word spells the comparative and the superlative
+%% alike: what tells them apart is the ARTICLE, `il paese piu ricco' being
+%% the richest country and `un paese piu ricco' a richer one. English marks
+%% it on the adjective itself, richer and richest, with `more' and `most'
+%% for the words its endings will not take.
+%%
+%% So it travels as deg(Degree, w(Word, Case)) among the adjectives, and
+%% the DEGREE is what English needs: the foreign writer spells both the
+%% same and lets its own article say which.
+tr_degrees(_, _, [], []).
+tr_degrees(english, D, [w(M, _), w(W, C)|Ws], [deg(D1, w(W, C))|Os]) :-
+    en_degree_marker(M, D1), tr_is(english, w(W, C), adjective), !,
+    tr_degrees(english, D, Ws, Os).
+%% ... and `more'/`most' alone is NOT one, or `more bread' would read as
+%% the comparative of `much' and cross as a word. The pair above is the
+%% only reading they have here.
+tr_degrees(english, D, [w(W, C)|Ws], [deg(D1, w(L, C))|Os]) :-
+    \+ en_degree_marker(W, _), en_degree_word(W, D1, L), !,
+    tr_degrees(english, D, Ws, Os).
+tr_degrees(foreign, D, [w(M, _), w(W, C)|Ws], [deg(D, w(W, C))|Os]) :-
+    tr_degree_word(M), tr_is(foreign, w(W, C), adjective), !,
+    tr_degrees(foreign, D, Ws, Os).
+%% AND THE PHRASE DECIDES LAST, which is why this clause exists: the
+%% complements are folded before the phrase inside them is, at the
+%% comparative, because a bare predicate has no article to read -- so an
+%% object's own article must be allowed to make it a superlative after all.
+%% Only on the lesson's side: English took the degree off the WORD.
+tr_degrees(foreign, D, [deg(_, A)|Ws], [deg(D, A)|Os]) :- !, tr_degrees(foreign, D, Ws, Os).
+tr_degrees(Side, D, [W|Ws], [W|Os]) :- tr_degrees(Side, D, Ws, Os).
+
+%% the word this lesson puts in front of a comparative
+tr_degree_word(M) :- tr_lexeme(foreign, M, L, _), tr_solve(begin(L, comparative)), !.
+tr_degree_out(W) :- once(( tr_solve(begin(W0, comparative)), W = W0 )).
+
+%% a phrase whose determiner is the definite article makes a superlative of
+%% the degree inside it, and every other determiner a comparative
+tr_degree_of(english, _, comparative).
+tr_degree_of(foreign, det(article, DL, _), superlative) :- tr_solve(mean(DL, the)), !.
+tr_degree_of(foreign, _, comparative).
+
 %% a word that may be an adjective in a phrase: known, and no preposition,
 %% pronoun or verb -- or the `and' between two
+tr_adj_word(_, deg(_, _)) :- !.
 tr_adj_word(Side, A) :- tr_is(Side, A, conjunction), !.
 tr_adj_word(Side, w(W, C)) :-
     tr_lexeme(Side, W, _, _),
@@ -1417,7 +1469,9 @@ tr_noun_by_position(Words, foreign, Noun) :- ( tr_holds(follow(_, noun)) -> Word
 %% the complements after the verb: a preposition and its phrase, an object
 %% pronoun, an adverb, and otherwise a phrase (or two joined, or bare
 %% adjectives) up to the next of those
-tr_complements(Side, Words, Comps) :- tr_complements(Side, Words, no, Comps).
+tr_complements(Side, Words0, Comps) :-
+    tr_degrees(Side, comparative, Words0, Words),      % `e piu ricco' is richer: no article, no superlative
+    tr_complements(Side, Words, no, Comps).
 
 %% ... with whether an object has been read: the word the lesson puts
 %% before a person, with no object yet and a person after it, is the
@@ -1598,11 +1652,95 @@ en_infinitive(be, is) :- !.
 en_infinitive(have, has) :- !.
 en_infinitive(B, L) :- \+ en_own(B), reason_third(B, L), L \== B, tr_known(english, L), tr_class(english, L, verb).
 
+%% ---- English's degrees --------------------------------------------------------
+%% richer and richest, more careful and most careful, and the handful that
+%% are neither. BOTH FORMS ARE READ whatever the rule would write, so `more
+%% rich' comes back as the comparative and is written `richer' -- a round
+%% trip through English normalises the spelling, which is the better
+%% English of the two.
+
+en_irregular_degree(good, better, best).
+en_irregular_degree(well, better, best).
+en_irregular_degree(bad, worse, worst).
+en_irregular_degree(far, further, furthest).
+en_irregular_degree(little, less, least).
+en_irregular_degree(much, more, most).
+en_irregular_degree(many, more, most).
+
+en_degree_marker(more, comparative).
+en_degree_marker(most, superlative).
+
+en_degree_suffix(comparative, er).
+en_degree_suffix(superlative, est).
+
+%% reading a form: an irregular, or an ending taken off a word the lesson
+%% knows as an adjective
+en_degree_word(F, comparative, L) :- en_irregular_degree(L0, F, _), !, L = L0.
+en_degree_word(F, superlative, L) :- en_irregular_degree(L0, _, F), !, L = L0.
+en_degree_word(F, D, L) :-
+    en_degree_suffix(D, Suf), atom_concat(Stem, Suf, F),
+    en_degree_stem(Stem, L), tr_known(english, L), tr_class(english, L, adjective).
+
+%% what an ending may have done to the word: nothing, an `e' dropped
+%% (larger), a letter doubled (bigger), a `y' made `i' (happier)
+en_degree_stem(Stem, Stem).
+en_degree_stem(Stem, L) :- atom_concat(Stem, e, L).
+en_degree_stem(Stem, L) :-
+    atom_length(Stem, N), N > 2, M is N - 1,
+    sub_atom(Stem, M, 1, 0, C), sub_atom(Stem, 0, M, _, L), sub_atom(L, _, 1, 0, C).
+en_degree_stem(Stem, L) :- atom_concat(S1, i, Stem), atom_concat(S1, y, L).
+
+%% writing one: the irregular, the ending where English gives one, and
+%% `more'/`most' otherwise
+en_degree_out(D, L, C, [o(F, C)]) :-
+    en_irregular_degree(L, Cm, Sp), !, ( D == comparative -> F = Cm ; F = Sp ).
+en_degree_out(D, L, C, [o(F, C)]) :-
+    en_short_adjective(L), !,
+    en_degree_suffix(D, Suf), en_degree_base(L, Stem), atom_concat(Stem, Suf, F).
+en_degree_out(D, L, C, [o(M, lower), o(L, C)]) :- en_degree_marker(M, D), !.
+
+%% the stem an ending is added to
+en_degree_base(L, Stem) :- atom_concat(Stem, e, L), !.
+en_degree_base(L, Stem) :- atom_concat(S1, y, L), !, atom_concat(S1, i, Stem).
+en_degree_base(L, Stem) :- en_doubles(L), !, sub_atom(L, _, 1, 0, C), atom_concat(L, C, Stem).
+en_degree_base(L, L).
+
+%% a word of one syllable ending consonant-vowel-consonant doubles it
+en_doubles(L) :-
+    atom_length(L, N), N >= 3, en_syllables(L, 1),
+    A is N - 3, sub_atom(L, A, 3, 0, Last3), atom_chars(Last3, [C1, V, C2]),
+    \+ en_vowel(C1), en_vowel(V), \+ en_vowel(C2), \+ memberchk(C2, [w, x, y]).
+
+en_vowel(V) :- memberchk(V, [a, e, i, o, u, y]).
+
+%% ONE SYLLABLE, OR TWO ENDING IN `y', is what English gives an ending to.
+%% The cost is stated: `narrow' and `simple' take `more' here where a
+%% grammar allows narrower and simpler, and both are still READ.
+en_short_adjective(L) :-
+    en_syllables(L, N), ( N =< 1 -> true ; N =:= 2, atom_concat(_, y, L) ).
+
+%% vowel groups, with a silent final `e' not counted
+en_syllables(W, N) :-
+    atom_chars(W, Cs0),
+    ( append(Cs1, [e], Cs0), Cs1 \== [] -> Cs = Cs1 ; Cs = Cs0 ),
+    en_groups(Cs, no, 0, N0), ( N0 < 1 -> N = 1 ; N = N0 ).
+
+en_groups([], _, N, N).
+en_groups([C|Cs], Prev, N0, N) :-
+    (   en_vowel(C) -> ( Prev == yes -> N1 = N0 ; N1 is N0 + 1 ), P = yes
+    ;   N1 = N0, P = no
+    ),
+    en_groups(Cs, P, N1, N).
+
 %% bare adjectives, an `and' among them allowed: the predicate of a copula
 tr_all_adjectives(Side, Words) :-
     Words \== [],
-    forall(member(W, Words), ( tr_is(Side, W, adjective) ; tr_is(Side, W, conjunction) )),
+    forall(member(W, Words), tr_predicate_word(Side, W)),
     \+ forall(member(W, Words), tr_is(Side, W, conjunction)).
+
+tr_predicate_word(_, deg(_, _)) :- !.
+tr_predicate_word(Side, W) :- tr_is(Side, W, adjective), !.
+tr_predicate_word(Side, W) :- tr_is(Side, W, conjunction).
 
 %% ---- writing ------------------------------------------------------------------
 
@@ -1820,7 +1958,16 @@ tr_adjectives_out(To, [A|As], Noun, Number, [O|Os]) :-
     ),
     tr_adjectives_out(To, As, Noun, Number, Os).
 
-tr_adjective_out(To, w(W, C), Noun, Number, a(L, o(T, C))) :-
+tr_adjective_out(To, w(W, C), Noun, Number, a(L, [o(T, C)])) :-
+    tr_adjective_form(To, W, Noun, Number, L, T).
+%% a degree: English's own ending, or the word the lesson puts in front
+tr_adjective_out(To, deg(D, w(W, C)), Noun, Number, a(L, Outs)) :-
+    tr_adjective_form(To, W, Noun, Number, L, T),
+    (   To == english -> en_degree_out(D, T, C, Outs)
+    ;   tr_degree_out(M), Outs = [o(M, lower), o(T, C)]
+    ).
+
+tr_adjective_form(To, W, Noun, Number, L, T) :-
     tr_lexeme_here(W, WL),
     tr_meanings_of(WL, To, adjective, Ms),
     tr_agree(To, Ms, Noun, L),
@@ -1834,17 +1981,17 @@ tr_order(foreign, Noun, Adjs, Outs) :-
     append(Before, [Noun|After], Outs).
 
 tr_adj_words([], []).
-tr_adj_words([a(_, O)|As], [O|Os]) :- tr_adj_words(As, Os).
+tr_adj_words([a(_, Os0)|As], Os) :- tr_adj_words(As, Os1), append(Os0, Os1, Os).
 tr_adj_words([c(O)|As], [O|Os]) :- tr_adj_words(As, Os).
 
 tr_sides([], [], []).
 tr_sides([c(O)|As], Before, After) :- !,
     tr_sides(As, Before1, After1),
     ( After1 == [] -> Before = [O|Before1], After = After1 ; Before = Before1, After = [O|After1] ).
-tr_sides([a(L, O)|As], Before, After) :-
+tr_sides([a(L, Os)|As], Before, After) :-
     tr_sides(As, Before1, After1),
-    (   tr_holds(follow(L, noun)) -> Before = Before1, After = [O|After1]
-    ;   Before = [O|Before1], After = After1
+    (   tr_holds(follow(L, noun)) -> Before = Before1, append(Os, After1, After)
+    ;   append(Os, Before1, Before), After = After1
     ).
 
 %% the determiner out: English's `the' either way, `a' in the singular --
@@ -2161,6 +2308,14 @@ tr_meanings_of(L, To, Class, Ms) :-
     ->  Ms = Ms1
     ;   To == english, tr_english_shaped(Class, Ms0, Ms1), Ms1 \== []
     ->  Ms = Ms1
+    %% and the mirror of the determiner rule, for the other side: a word
+    %% that names NOBODY is no head of a phrase either. Spanish gives `one'
+    %% to the impersonal `se' and to `uno', and with no meaning classed a
+    %% noun the first won -- `uno de los paises' came out `se de los ...'
+    ;   To == foreign, memberchk(Class, [noun, adjective]),
+        findall(M, ( member(M, Ms0), \+ tr_solve(impersonal(M)),
+                     \+ tr_determiner(foreign, w(M, lower), _, _) ), Ms2), Ms2 \== []
+    ->  Ms = Ms2
     ;   Ms = Ms0
     ).
 
@@ -2170,7 +2325,14 @@ tr_meanings_of(L, To, Class, Ms) :-
 %% and in a noun's or an adjective's place one that is not -- `visita' means
 %% visit and visits, and which one is where the word stands
 tr_english_shaped(verb, Ms0, Ms) :- !, findall(M, ( member(M, Ms0), tr_third_shaped(M) ), Ms).
-tr_english_shaped(Class, Ms0, Ms) :- memberchk(Class, [noun, adjective]), !, findall(M, ( member(M, Ms0), \+ tr_third_shaped(M) ), Ms).
+%% ... and a phrase's head is never a DETERMINER, which is what `uno' needs:
+%% the lesson says it is an article meaning `a' and a pronoun meaning
+%% `one', and nothing in a lesson says which meaning belongs to which
+%% class -- so `uno dei paesi' wrote `a of the countries' by taking the
+%% first. A meaning that is one of English's own determiners is not a noun
+%% and not an adjective; if that leaves nothing, the unfiltered list stands.
+tr_english_shaped(Class, Ms0, Ms) :- memberchk(Class, [noun, adjective]), !,
+    findall(M, ( member(M, Ms0), \+ tr_third_shaped(M), \+ tr_determiner(english, w(M, lower), _, _) ), Ms).
 tr_english_shaped(_, _, []).
 tr_third_shaped(M) :- ( M == is ; M == has ; reason_base(M, B), B \== M ), !.
 

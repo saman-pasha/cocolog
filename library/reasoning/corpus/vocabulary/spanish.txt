@@ -106424,3 +106424,6 @@ The conjunction "tanto" means "both".
 The conjunction "porque" means "because".
 The preposition "por" means "by".
 The word "para" begins the purpose.
+The word "más" begins the comparative.
+The pronoun "uno" means "one".
+The pronoun "uno" does not precede the verb.

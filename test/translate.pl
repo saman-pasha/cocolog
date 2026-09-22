@@ -23,7 +23,7 @@
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
-    complement,
+    complement, superlative,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -1358,6 +1358,103 @@ Every adjective follows the noun.', spanish, _),
     reason_translate('La casa mangia il pane per definire rossa la casa.', italian, spanish, C13),
     check('and into Spanish, where the complement stays before its object', C13,
           'La casa come el pan para definir roja la casa.'),
+
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+%% ---- the superlative ---------------------------------------------------------------
+%% `il paese più ricco' is the richest country and `un paese più ricco' a
+%% richer one: the lesson's language spells the two degrees with ONE word,
+%% which it names (`The word "più" begins the comparative.'), and what
+%% tells them apart is the ARTICLE. English marks the degree on the
+%% adjective, so the IR carries deg(Degree, Word) and the degree is what
+%% English needs; the foreign writer spells both the same.
+
+superlative :-
+    section('the superlative: one word in the lesson''s language, an ending in English'),
+    reason_learn('Italian is a language.
+The noun "paese" means "country". The noun "mondo" means "world". The noun "generale" means "general".
+"paesi" is the plural of "paese".
+The masculine article "il" means "the". The feminine article "la" means "the". The masculine article "un" means "a".
+"i" is the plural of "il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The masculine adjective "ricco" means "rich". "ricchi" is the plural of "ricco".
+The adjective "felice" means "happy".
+The masculine adjective "costoso" means "expensive".
+The verb "domina" means "dominates". The verb "definisce" means "defines". The verb "è" means "is".
+"dominano" is the plural of "domina".
+The preposition "di" means "of". "del" is the contraction of "di il". "dei" is the contraction of "di i".
+The word "più" begins the comparative. The adverb "più" means "more".
+The pronoun "uno" means "one".
+Every adjective follows the noun.', italian, _),
+    reason_learn('Spanish is a language.
+The noun "pais" means "country". The noun "mundo" means "world". The noun "general" means "general".
+"paises" is the plural of "pais".
+The masculine article "el" means "the". The feminine article "la" means "the". The masculine article "un" means "a".
+"los" is the plural of "el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+The masculine adjective "rico" means "rich". "ricos" is the plural of "rico".
+The adjective "feliz" means "happy".
+The masculine adjective "costoso" means "expensive".
+The verb "domina" means "dominates". The verb "define" means "defines". The verb "es" means "is".
+"dominan" is the plural of "domina".
+The preposition "de" means "of". "del" is the contraction of "de el".
+The word "más" begins the comparative. The adverb "más" means "more".
+The pronoun "uno" means "one".
+Every adjective follows the noun.', spanish, _),
+
+    reason_translate('Il paese più ricco domina.', italian, english, G1),
+    check('the definite article makes it the SUPERLATIVE, and English spells it', G1,
+          'The richest country dominates.'),
+
+    reason_translate('Il paese più ricco domina.', italian, spanish, G2),
+    check('and a language that marks it with a word writes its own', G2, 'El pais más rico domina.'),
+
+    reason_translate('Un paese più ricco domina.', italian, english, G3),
+    check('the INDEFINITE article makes the same word a comparative', G3, 'A richer country dominates.'),
+
+    reason_ir('Il paese più ricco domina.', italian, G4),
+    check('the IR carries deg(Degree, Word) among the adjectives', G4,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [deg(superlative, w(rich, lower))],
+                         w(country, lower), singular),
+                g(dominates, present, simple, no), []), 46)]),
+
+    reason_translate('Il paese è più ricco.', italian, english, G5),
+    check('a bare predicate has no article, so it is the comparative', G5, 'The country is richer.'),
+
+    reason_ir('Il paese è più ricco.', italian, G6),
+    check('and the IR says so', G6,
+          [ir(s(none, np(det(article, the, w(the, lower)), none, [], w(country, lower), singular),
+                g(is, present, simple, no), [adj([deg(comparative, w(rich, lower))])]), 46)]),
+
+    reason_translate('The richest country dominates.', english, italian, G7),
+    check('English read back the other way: the ending becomes the word', G7,
+          'Il paese più ricco domina.'),
+
+    reason_translate('A more rich country dominates.', english, english, G8),
+    check('`more rich'' is READ and written as `richer'': both forms in, one out', G8,
+          'A richer country dominates.'),
+
+    reason_translate('Il paese più costoso domina.', italian, english, G9),
+    check('a word English gives no ending to takes `most''', G9,
+          'The most expensive country dominates.'),
+
+    reason_translate('Il paese è più felice.', italian, english, G10),
+    check('and a two-syllable word ending in `y'' takes the ending', G10, 'The country is happier.'),
+
+    reason_translate('Il paese ricco domina.', italian, english, G11),
+    check('an adjective with no degree word is untouched', G11, 'The rich country dominates.'),
+
+    reason_translate('I paesi più ricchi dominano.', italian, english, G12),
+    check('the plural, where the adjective agrees and the degree does not', G12,
+          'The richest countries dominate.'),
+
+    reason_translate('Il generale definisce uno dei paesi più ricchi del mondo.', italian, english, G13),
+    check('THE SAMPLE''S OWN PHRASE: one of the richest countries of the world', G13,
+          'The general defines one of the richest countries of the world.'),
+
+    reason_translate('Il generale definisce uno dei paesi più ricchi del mondo.', italian, spanish, G14),
+    check('and into Spanish, where the partitive is the same shape', G14,
+          'El general define uno de los paises más ricos del mundo.'),
 
     reason_unlearn(italian), reason_unlearn(spanish).
 

@@ -81238,3 +81238,6 @@ The conjunction "né" means "nor".
 The conjunction "perché" means "because".
 The preposition "da" means "by".
 The word "per" begins the purpose.
+The word "più" begins the comparative.
+The pronoun "uno" means "one".
+The pronoun "uno" does not precede the verb.
