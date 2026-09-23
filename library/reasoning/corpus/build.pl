@@ -314,9 +314,12 @@ cb_bi_line(L, E) :-
     cb_bi_entry(Toks, Dir, E), !.
 
 %% the ordinary entry: no <par>, the class from the English side's tags, the
-%% word admitted by its class
+%% word admitted by its class -- or the one paradigm that adds nothing to the
+%% word, SP: the Italian noun is the same in both numbers (`serenità',
+%% `durabilità'), 428 nouns of eng-ita that this rule dropped whole, and
+%% their forms come from the monolingual paradigm as every noun's do
 cb_bi_entry(Toks, Dir, e(Dir, Pos, En, Fo, RTags)) :-
-    \+ ( member(T, Toks), cb_prefix('par ', T) ),
+    \+ ( member(T, Toks), cb_prefix('par ', T), \+ cb_prefix('par n="SP"', T) ),
     cb_side(Toks, "l", "/l", EnS, LTags), cb_side(Toks, "r", "/r", FoS, RTags),
     cb_pos(LTags, Pos),
     atom_string(En0, EnS), atom_string(Fo, FoS),

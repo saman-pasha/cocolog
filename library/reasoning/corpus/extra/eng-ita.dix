@@ -183,3 +183,6 @@
 <e><p><l>offer<s n="vblex"/></l><r>offrire<s n="vblex"/></r></p></e>
 <e><p><l>among<s n="pr"/></l><r>tra<s n="pr"/></r></p></e>
 <e><p><l>prized<s n="adj"/></l><r>pregiato<s n="adj"/></r></p></e>
+# `anche con misure coercitive': the monolingual dictionary has `coercitivo'
+# and the bilingual one no English for it
+<e><p><l>coercive<s n="adj"/></l><r>coercitivo<s n="adj"/></r></p></e>

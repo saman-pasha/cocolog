@@ -351,6 +351,7 @@ main :-
     section_23,
     section_24,
     section_25,
+    section_26,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -891,6 +892,104 @@ Every pronoun precedes the verb.
 The conjunction "che" means "that".
 The preposition "di" means "of". The preposition "in" means "in".
 The preposition "come" means "as". The conjunction "e" means "and".
+The word "non" means "not".').
+
+%% 1.7.2: AN ITALIAN REPORT INTO SPANISH, on the national bioethics
+%% committee -- the Italian UD VIT test document of fifteen sentences. It
+%% opens with a headline colon and a dateline, says what is excluded and what
+%% must be done with `venire' and `andare' before a participle, and puts a
+%% relative clause after a comma. `venire' and `andare' are lines of lesson
+%% (`The verb "viene" marks the passive.', `The verb "va" marks the duty.'),
+%% the shape `The auxiliary "está" marks the state.' already had; the rest
+%% are shapes, shown here on a few words.
+section_26 :-
+    format("~n26. An Italian report into Spanish: a dateline, a relative after a comma, the passive of venire and andare~n", []),
+    lesson_26(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_26(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Il comitato: no all''eutanasia.', italian, spanish, S26a),
+    must('a HEADLINE COLON: who speaks and what they say, and no verb on either side', S26a, 'El comité: no a la eutanasia.'),
+    reason_translate('Roma - lo stato ha il diritto di favorire la famiglia.', italian, spanish, S26b),
+    must('a DATELINE: the place and a dash, written back where they stood',
+         S26b, 'Roma – el estado tiene el derecho de favorecer la familia.'),
+    reason_translate('Un capitolo riassume la sperimentazione, che protegge la famiglia.', italian, english, S26c),
+    must('a RELATIVE CLAUSE AFTER A COMMA is the phrase''s, which English says with `which''',
+         S26c, 'A chapter summarises the experimentation, which protects the family.'),
+    reason_translate('Viene esclusa ogni forma di eutanasia.', italian, spanish, S26d),
+    must('`venire'' and a participle is the PASSIVE, and the phrase after it its subject',
+         S26d, 'Es excluida cada forma de eutanasia.'),
+    reason_translate('Viene esclusa ogni forma di eutanasia.', italian, english, S26e),
+    must('which English writes first', S26e, 'Each form of euthanasia is excluded.'),
+    reason_translate('Vanno attivate la terapia e la cura.', italian, spanish, S26f),
+    must('`andare'' and a participle is what MUST be done, and two feminine subjects agree as feminine',
+         S26f, 'Tienen que ser activadas la terapia y la cura.'),
+    reason_translate('La forma viene esclusa, neanche se vi sia l''assenso.', italian, spanish, S26g),
+    must('`if'' joins two clauses, `neanche'' is not even and `vi sia'' there is',
+         S26g, 'La forma es excluida, ni siquiera si hay el asentimiento.'),
+    reason_translate('La terapia va attivata, in modo che il malato dorme.', italian, spanish, S26h),
+    must('a COMMA before a subordinating word is the source''s, and so that is three words',
+         S26h, 'La terapia tiene que ser activada, de modo que el paciente duerme.'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_26(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "comité" means "committee". The noun "estado" means "state". The noun "derecho" means "right".
+The noun "terapia" means "therapy". The noun "cura" means "cure". The noun "forma" means "form".
+The noun "eutanasia" means "euthanasia". The noun "capítulo" means "chapter".
+The noun "experimentación" means "experimentation". "experimentación" is feminine.
+The noun "familia" means "family". The noun "paciente" means "patient". The noun "asentimiento" means "assent".
+The determiner "cada" means "each".
+The verb "resume" means "summarises". The verb "protege" means "protects".
+The verb "favorece" means "favours". "favorecer" is the infinitive of "favorece".
+The verb "excluye" means "excludes". "excluido" is the participle of "excluye". "excluida" is the participle of "excluye".
+"excluida" is feminine.
+The verb "activa" means "activates". "activado" is the participle of "activa". "activada" is the participle of "activa".
+"activadas" is the participle of "activa". "activada" is feminine. "activadas" is feminine.
+"activadas" is the plural of "activada".
+The verb "duerme" means "sleeps". The verb "tiene" means "has".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es".
+The modal "tiene que" means "must". "tienen que" is the plural of "tiene que".
+The verb "hay" means "there is".
+The conjunction "y" means "and". The conjunction "si" means "if". The conjunction "de modo que" means "so that".
+The adverb "ni siquiera" means "not even". The adverb "no" means "no".
+"que" is a relative. The conjunction "que" means "that".
+The preposition "a" means "to". The preposition "de" means "of".
+The word "no" means "not".').
+lesson_26(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a". The masculine article "lo" means "the".
+"l''" is the elision of "il". "all''" is the elision of "alla". "alla" is the contraction of "a la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "comitato" means "committee". The noun "stato" means "state". The noun "diritto" means "right".
+The noun "terapia" means "therapy". The noun "cura" means "cure". The noun "forma" means "form".
+The noun "eutanasia" means "euthanasia". The noun "capitolo" means "chapter".
+The noun "sperimentazione" means "experimentation". "sperimentazione" is feminine.
+The noun "famiglia" means "family". The noun "malato" means "patient". The noun "assenso" means "assent".
+The determiner "ogni" means "each".
+The verb "riassume" means "summarises". The verb "protegge" means "protects".
+The verb "favorisce" means "favours". "favorire" is the infinitive of "favorisce".
+The verb "esclude" means "excludes". "esclusa" is the participle of "esclude". "esclusa" is feminine.
+The verb "attiva" means "activates". "attivata" is the participle of "attiva". "attivate" is the participle of "attiva".
+"attivata" is feminine. "attivate" is feminine. "attivate" is the plural of "attivata".
+The verb "dorme" means "sleeps". The verb "ha" means "has".
+The verb "è" means "is". "essere" is the infinitive of "è".
+The verb "viene" means "comes". The verb "viene" marks the passive.
+The verb "va" means "goes". "vanno" is the plural of "va". The verb "va" marks the duty.
+The modal "deve" means "must".
+The verb "vi è" means "there is". "vi sia" is the subjunctive of "vi è".
+The conjunction "e" means "and". The conjunction "se" means "if". The conjunction "in modo che" means "so that".
+The adverb "neanche" means "not even". The adverb "no" means "no".
+"che" is a relative. The conjunction "che" means "that".
+The preposition "a" means "to". The preposition "di" means "of".
 The word "non" means "not".').
 
 section_1 :-

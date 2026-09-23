@@ -24,7 +24,7 @@ main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
-    adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, questions, rules, refusals, outline, vocabulary, shapes, build,
+    adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -2729,6 +2729,144 @@ questions :-
     check('the first person of: the relation, and the adjective as a condition', C1, [como-fact]),
     check('is the second person of: yes', C2, yes(fact)),
     check('the past of', C3, ['comió'-fact]).
+
+newspaper_bio :-
+    section('an Italian report into Spanish: a dateline, a relative after a comma, a headline colon, the passive of venire and andare'),
+    newspaper_bio_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_bio_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_bio_checks,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+newspaper_bio_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "comité" means "committee". The noun "estado" means "state". The noun "derecho" means "right".
+The noun "terapia" means "therapy". The noun "cura" means "cure". The noun "forma" means "form".
+The noun "eutanasia" means "euthanasia". The noun "capítulo" means "chapter".
+The noun "experimentación" means "experimentation". "experimentación" is feminine.
+The noun "familia" means "family". The noun "paciente" means "patient". The noun "asentimiento" means "assent".
+The noun "tiempo" means "time". The noun "modo" means "way".
+The adjective "ético" means "ethical". The determiner "cada" means "each".
+The verb "resume" means "summarises". The verb "protege" means "protects".
+The verb "favorece" means "favours". "favorecer" is the infinitive of "favorece".
+The verb "excluye" means "excludes". "excluido" is the participle of "excluye". "excluida" is the participle of "excluye".
+"excluida" is feminine.
+The verb "activa" means "activates". "activado" is the participle of "activa". "activada" is the participle of "activa".
+"activadas" is the participle of "activa". "activados" is the participle of "activa".
+"activada" is feminine. "activadas" is feminine. "activadas" is the plural of "activada". "activados" is the plural of "activado".
+The verb "duerme" means "sleeps". The verb "lleva" means "brings". The verb "tiene" means "has".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The auxiliary "ha" means "has". "ha" is the auxiliary of "es".
+The modal "tiene que" means "must". "tienen que" is the plural of "tiene que".
+The verb "hay" means "there is".
+The conjunction "y" means "and". The conjunction "si" means "if". The conjunction "porque" means "because".
+The conjunction "de modo que" means "so that".
+The adverb "ni siquiera" means "not even". The adverb "no" means "no".
+"que" is a relative. The conjunction "que" means "that".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "con" means "with".
+The word "no" means "not".').
+newspaper_bio_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a". The masculine article "lo" means "the".
+"l''" is the elision of "il". "l''" is the elision of "la". "all''" is the elision of "alla".
+"alla" is the contraction of "a la". "al" is the contraction of "a il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "comitato" means "committee". The noun "stato" means "state". The noun "diritto" means "right".
+The noun "terapia" means "therapy". The noun "cura" means "cure". The noun "forma" means "form".
+The noun "eutanasia" means "euthanasia". The noun "capitolo" means "chapter".
+The noun "sperimentazione" means "experimentation". "sperimentazione" is feminine.
+The noun "famiglia" means "family". The noun "malato" means "patient". The noun "assenso" means "assent".
+The noun "tempo" means "time". "tempi" is the plural of "tempo". The noun "modo" means "way". "modi" is the plural of "modo".
+The adjective "etico" means "ethical". The determiner "ogni" means "each".
+The verb "riassume" means "summarises". The verb "protegge" means "protects".
+The verb "favorisce" means "favours". "favorire" is the infinitive of "favorisce".
+The verb "esclude" means "excludes". "esclusa" is the participle of "esclude". "esclusa" is feminine.
+The verb "attiva" means "activates". "attivata" is the participle of "attiva". "attivata" is feminine.
+"attivate" is the participle of "attiva". "attivate" is feminine. "attivate" is the plural of "attivata".
+The verb "dorme" means "sleeps". The verb "porta" means "brings". The verb "ha" means "has".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è".
+The verb "viene" means "comes". The verb "viene" marks the passive.
+The verb "va" means "goes". "vanno" is the plural of "va". The verb "va" marks the duty.
+The modal "deve" means "must". The verb "deve" means "owes".
+The verb "vi è" means "there is". "vi sia" is the subjunctive of "vi è".
+The conjunction "e" means "and". The conjunction "se" means "if". The conjunction "perché" means "because".
+The conjunction "in modo che" means "so that".
+The adverb "neanche" means "not even". The adverb "no" means "no".
+"che" is a relative. The conjunction "che" means "that".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "con" means "with".
+The word "non" means "not".').
+
+newspaper_bio_checks :-
+    %% a dateline: the place a report was filed from and a dash, then the
+    %% sentence, which read as a reporting clause had a lone name for a clause
+    nf_tr('Roma - lo stato ha il diritto di favorire la famiglia.', italian, spanish, B1),
+    check('a dateline: a place and a dash before the sentence, written back where it stood', B1,
+          'Roma – el estado tiene el derecho de favorecer la familia.'),
+    %% a relative clause after a comma is the phrase's, never a `that' clause
+    %% (a GUARD in Spanish: read as the verb's `that' clause with nobody for
+    %% its subject, the words came out the same; English and the IR did not)
+    nf_tr('Un capitolo riassume la sperimentazione, che protegge la famiglia.', italian, spanish, B2),
+    check('a relative clause after a comma says more of the phrase before it', B2,
+          'Un capítulo resume la experimentación, que protege la familia.'),
+    nf_tr('Un capitolo riassume la sperimentazione, che protegge la famiglia.', italian, english, B3),
+    check('... and English says it with `which''', B3, 'A chapter summarises the experimentation, which protects the family.'),
+    ( reason_ir('Un capitolo riassume la sperimentazione, che protegge la famiglia.', italian, [ir(s(_, _, _, [obj(nrc(_, R4, _))]), _)]) -> B4 = R4 ; B4 = none ),
+    check('... the relative word the clause''s subject', B4, subject),
+    %% a headline colon: neither side has a verb
+    nf_tr('Il comitato: no all''eutanasia.', italian, spanish, B5),
+    check('a headline colon: who speaks, and what they say, and no verb on either side', B5,
+          'El comité: no a la eutanasia.'),
+    %% the passive of `venire', and its subject after it
+    nf_tr('Viene esclusa ogni forma di eutanasia.', italian, spanish, B6),
+    check('the verb the lesson says marks the passive builds one, its subject after it', B6,
+          'Es excluida cada forma de eutanasia.'),
+    nf_tr('Viene esclusa ogni forma di eutanasia.', italian, english, B7),
+    check('... which English writes first', B7, 'Each form of euthanasia is excluded.'),
+    %% the passive of `andare' is what must be done
+    nf_tr('La terapia va attivata.', italian, spanish, B8),
+    check('the verb the lesson says marks the duty: must be, and the participle', B8, 'La terapia tiene que ser activada.'),
+    nf_tr('Vanno attivate la terapia e la cura.', italian, spanish, B9),
+    check('... its subject after it, two feminine phrases agreeing as feminine', B9,
+          'Tienen que ser activadas la terapia y la cura.'),
+    nf_tr('Vanno attivate la terapia e la cura.', italian, english, B10),
+    check('... and English''s `must be''', B10, 'The therapy and the cure must be activated.'),
+    %% a verb the lesson also calls a modal is the modal before an infinitive
+    nf_tr('La terapia deve essere attivata.', italian, english, B11),
+    check('a verb that is a modal too is the modal before an infinitive', B11, 'The therapy must be activated.'),
+    %% two feminine phrases joined agree as feminine
+    nf_tr('La terapia e la cura sono attivate.', italian, spanish, B12),
+    check('two feminine subjects joined: the participle feminine', B12, 'La terapia y la cura son activadas.'),
+    %% `neanche se vi sia': not even, if, there is
+    nf_tr('La forma viene esclusa, neanche se vi sia l''assenso.', italian, spanish, B13),
+    check('`if'' joins two clauses, and `vi sia'' is there is', B13,
+          'La forma es excluida, ni siquiera si hay el asentimiento.'),
+    %% a comma before a subordinating word is the source's
+    nf_tr('Il malato dorme, perché la terapia protegge il malato.', italian, spanish, B14),
+    check('a comma before a subordinating word is written back', B14,
+          'El paciente duerme, porque la terapia protege el paciente.'),
+    nf_tr('La terapia va attivata, in modo che il malato dorme.', italian, spanish, B15),
+    check('... and a connecting word of three words, so that', B15,
+          'La terapia tiene que ser activada, de modo que el paciente duerme.'),
+    %% a noun in the other number begins the next phrase
+    nf_tr('Il comitato porta al comitato etico tempi e modi.', italian, spanish, B16),
+    check('a noun in the other number after a phrase with its noun begins the next phrase', B16,
+          'El comité lleva al comité ético tiempos y modos.'),
+    %% two the controls found: a front goes before the phrase that carries a
+    %% relative clause after a comma, or it reads as the clause's own
+    nf_tr('Con la terapia il comitato protegge la famiglia, che dorme.', italian, spanish, B17),
+    check('a front goes before the phrase a relative clause after a comma is on', B17,
+          'El comité protege con la terapia la familia, que duerme.'),
+    %% ... and a clause after a subordinating word is no question of its own
+    nf_tr('¿Y si el paciente duerme?', spanish, english, B18),
+    check('a clause after `if'' keeps the statement''s order in a question', B18, 'And if the patient sleeps?').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

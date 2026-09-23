@@ -5133,6 +5133,176 @@ the byte on all six.
 every check but the two marked as guards fails on 1.6.21's translator, and
 the pair above -- `pasa` -- on 1.7.0's as well. Lesson 46 gained section 25.
 
+### An Italian report into Spanish: a headline, a dateline, and `venire` and `andare` (1.7.2)
+
+**THE NATIONAL BIOETHICS COMMITTEE ON VACCINES, ELECTROSHOCK AND EUTHANASIA,
+INTO SPANISH.** Fifteen sentences of the Italian UD VIT test set, VIT-9450 to
+VIT-9464 -- a headline with a colon, a subtitle, a dateline, what the state may
+impose, what is excluded and what must be done -- Italian into Spanish over the
+two-language vocabulary store. The middle column is 1.7.1's translator over
+THIS store, so it has the new vocabulary lines and none of the new shapes:
+
+| | 1.7.1, its store | 1.7.1, this store | **1.7.2** |
+|---|---|---|---|
+| translated | 4 of 15 | 11 | **15** |
+| refused for a word | 11 | 0 | **0** |
+| refused with every word known | 0 | 4 | **0** |
+| the article, one process | 14.5 s | 12.3 and 12.1 s | **10.4 and 10.3 s** |
+
+-- the store Italian 161 547 terms and Spanish 208 384, taught into one
+`--embed` store from the rebuilt vocabularies in 478 s and 845 s, 305 MB. The
+one line written after it, `conflitto` below, is a word no sentence measured
+here has.
+
+**WHAT IT NEEDED IS WHAT A REPORT PUTS AROUND ITS CLAIMS.** The twelve
+sentences were verbs, the Spanish column phrases that carry things, Livata the
+way a report speaks, Fiat figures and Valencia a thing on show; this one is a
+headline and a committee's rulings:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| a headline colon, no verb on either side | `Il comitato di bioetica: no all'eutanasia.` | each side read as a heading is; `The adverb "no" means "no".` |
+| a dateline | `Roma - lo stato ha il diritto dovere di favorire ...` | a place and a dash before the sentence, written back where they stood |
+| a relative clause after a comma | `la sperimentazione sul vaccino contro la pertosse, che ha fatto passare la protezione ...` | `nrc(Phrase, Role, Clause)`, on the last phrase before the comma; English writes `which` |
+| the passive of `venire`, its subject after it | `Viene esclusa ogni forma di eutanasia diretta ...` | `The verb "viene" marks the passive.`; the subject's place kept as `subj_here` |
+| what must be done, `andare` and a participle | `Vanno invece attivate la terapia palliativa e la terapia del dolore` | `The verb "va" marks the duty.`, read as `must be` and the participle |
+| a verb that is a modal too, before an infinitive | `lo stato deve imporre i vaccini` | crosses by its modal meaning: `deve` is `owes` and `must` |
+| two feminine subjects joined | `la terapia palliativa e la terapia del dolore` ... `attivate` | the participle feminine, where it was `activados` |
+| `if`, `so that`, `provided that` joining clauses | `neanche se vi sia l'assenso`, `in modo che il malato possa ...`, `purché praticata ...` | three English connectors, and a comma before one kept |
+| a noun in the other number after a phrase | `di un comitato etico tempi e modi della terapia` | begins the next phrase, where it was an adjective of `comitato` |
+| words of several words | `per la prima volta`, `in merito alle vaccinazioni`, `a rischio` | lesson lines, and invariable ones stated as their own plurals |
+
+-- and the words, in `corpus/extra/` as always: 36 lines of Italian and 19 of Spanish, one entry in `eng-ita.dix` and three in `eng-spa.dix` (`summarise` had no Spanish at all, `approach` only the pronominal `acercarse`, and `coercive` a second word first); the vocabularies went from 98 309 and 128 466 lines to 98 985 and 128 571. `reason.pl` did not
+move, which is the eleventh version running.
+
+**AND THE BUILDER DROPPED A NOUN THAT IS THE SAME IN BOTH NUMBERS.** Italian's
+`serenità`, `scarsità`, `overdose` carry the paradigm `SP` in the bilingual
+dictionary, and the rule that admits an ordinary entry refused any entry with a
+`<par>` in it -- so 428 nouns of eng-ita had no line at all, and `accostarsi
+con serenità` was refused for a word every dictionary has. `SP` adds nothing to
+the word, so it is admitted, and the forms come from the monolingual paradigm
+as every noun's do: 405 meaning lines. **AND ADMITTING THEM MOVED FOUR
+OTHERS**, because the builder keeps a one-way entry only when neither of its
+words has a meaning yet: `conflittualità`, a one-way `SP` noun, gave English
+`conflict` a noun, and the one-way entry that made `conflitto` mean `conflict`
+went with it, leaving `altercation`. A diff of every line the rebuilt file no
+longer has found the four: `conflitto` is a line in `corpus/extra/` again;
+`velleità` reads `velleity` where it read `aspirations` and `diagnosi`
+`diagnosis` where it read `diagnostic`; and `telaio` keeps `loom` and loses
+`chassis`. **A rebuilt vocabulary is a diff to read for what it LOST**, not
+only for what it gained.
+
+**`venire` AND `andare` ARE LESSON LINES, IN A SHAPE THAT WAS ALREADY THERE.**
+`The verb "viene" marks the passive.` and `The verb "va" marks the duty.` are
+the shape `The auxiliary "está" marks the state.` has had since 1.6.17, so
+the grammar did not move. The passive of `venire` is the passive the copula
+builds; the duty of `andare` is read as English reads `must be activated` --
+the modal the lesson gives for `must`, the copula's infinitive and the
+participle -- so every writer already had it, and Italian writes back `deve
+essere attivata`. Neither word could be an AUXILIARY: a lesson's auxiliary
+builds the perfect, and `viene esclusa` would have read as `has excluded`.
+
+**A PASSIVE PUTS ITS SUBJECT AFTER ITSELF, AND THE SOURCE'S ORDER IS KEPT.**
+A passive has no object, so a phrase after it that agrees with it in number is
+its subject, with every phrase that says which one, up to the clause's first
+comma. Read by the pro-drop readings it was the object of a verb that has none,
+and the participle agreed with nothing. The subject's place travels as
+`subj_here`, the reporting clause's own device, so Spanish keeps `Es excluida
+cada forma de eutanasia ...` and English writes `Each form of euthanasia ...
+is excluded`.
+
+**A VERB THAT IS A MODAL TOO IS THE MODAL BEFORE AN INFINITIVE.** `deve` is
+`owes` and `must` in the vocabulary, and in a verb's place a meaning shaped
+like a third person comes first, so `La terapia deve essere attivata` owed. It
+crosses by its modal meaning when an infinitive follows, and by its verb
+meaning otherwise. **THE CONTROL CAUGHT WHAT THAT COST SPANISH**: `must` had
+only `tiene que` there, and Livata's `debe ser todavía completamente aclarada`
+came out `tiene que ser`; `The modal "debe" means "must".`, before `tiene
+que`, puts it back.
+
+**A RELATIVE CLAUSE AFTER A COMMA IS THE PHRASE'S.** The phrase ended at the
+comma and the relative word was read as the verb's `that` -- a clause with
+nobody for its subject, which Spanish could write only because the words came
+out the same, and English not at all. It hangs on the LAST phrase before the
+comma, which is where every language here writes it, whichever phrase the
+clause is about. **AND THE CONTROL CAUGHT WHERE A FRONT THEN WENT**: a fronted
+phrase with no comma is written after the clause's complements, and after a
+relative clause it read as the clause's own -- Valencia's `Por él suspiró
+Yehudi Menuhin, que elogió su sonoridad` came out `... che lodò la sua sonorità
+da lui`. The front goes before the phrase that carries such a clause:
+`Sospirò da lui Yehudi Menuhin, che lodò la sua sonorità.`
+
+**A FAILURE KEPT PER WORD LIST DECIDED WHERE THE HEADLINE COLON GOES.** A
+statement that failed to read is remembered by its words (1.6.17), and the
+heading is a global the verbless reading asks. Read by the colon's clause
+first, a verbless side is remembered as unreadable and the heading's clause
+after it never gets to read it; so the heading's clause goes FIRST, which is
+safe the other way round -- a failure with the heading set is one without it.
+
+**THE CASE CAUGHT A RULE TOO WIDE ON ITS FIRST RUN.** The number boundary cut
+`pan y huevos` before `huevos` -- a plural after a phrase whose noun is
+singular -- and `Maria come pan y huevos.` failed with no check line at all, a
+goal that fails being what a case reports as nothing. A coordinator in the
+phrase stops the rule now.
+
+**AND A QUESTION AFTER `if` IS NO QUESTION OF ITS OWN.** Tatoeba's `¿Y si soy
+pobre?`, refused by 1.7.1, read with `if` a connector as `And if am I poor?`:
+the clause after a connector at the head took the sentence's kind. A clause after a subordinating
+word is written as a statement, and the mark stays the sentence's: `And if I am
+poor?`.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, agreement and senses no lesson separates:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `Comparo en el electrochoque.` | `Debate sobre el electrochoque.` | a headline noun spelled like a first person is read as the verb, and nothing in the three words says which |
+| `el documento en "el fin de la vida humana"`, `la experimentación en la vacuna` | `sobre` | `su` is `on`, and Spanish writes `en` for a place and `sobre` for a topic; Livata's places want `en` |
+| `el derecho deber` | `el derecho-deber` | two nouns side by side are one phrase with an adjective |
+| `desde el 30 al 90%` | `del 30 al 90%` | `da` is `from`, 1.6.17's cost |
+| `la terapia médica psiquiátrica` | `médico-psiquiátrica` | a compound adjective is two adjectives agreeing |
+| `lo ha tomado por primera vez en examen` | `lo ha examinado` | `prendere in esame` is an idiom, and a lesson gives words |
+| `trayendo a conocimiento de` | `poniendo en conocimiento de` | the same |
+| `siempre que practicada con rigurosos controles` | `siempre que sea practicada` | a clause with its verb left out after a conjunction |
+| `tiempos y Modi de la terapia` | `tiempos y modos` | the source capitalises `Modi`, and a capital inside a sentence is a name |
+| `ni siquiera si hay el asentimiento` | `si hay asentimiento` | the article the source put before the noun is kept |
+| `de modo que el paciente puede acercarse` | `pueda` | a subjunctive is written as the indicative, 1.6.8's cost |
+| `Es excluida cada forma` | `Se excluye toda forma` | `ogni` is `each` first, and a passive stays a passive |
+| `Ha sido aprobado además el documento ... ayer.` | `Ayer se aprobó además ...` | a front with no comma is written after the clause, 1.6.8's cost |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.7.1's, RUN BACK TO
+BACK TWICE:**
+
+| control | 1.7.1, this store | **1.7.2** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.7 and 12.8 s | **12 of 12, 13.0 and 12.6 s** |
+| the Spanish article | 11 of 11, 12.7 and 12.9 s | **11 of 11, 12.7 and 12.9 s** |
+| Livata, 29 sentences | 29 of 29, 58.2 and 57.4 s | **29 of 29, 57.7 and 58.1 s** |
+| Fiat, 20 sentences | 20 of 20, 19.7 and 19.5 s | **20 of 20, 19.8 and 19.7 s** |
+| Valencia, 16 sentences | 16 of 16, 39.1 and 38.6 s | **16 of 16, 39.5 and 39.2 s** |
+| Tatoeba's 400, exact / translated / refused | 54 / 265 / 135, 13.3 and 13.5 s | **54 / 266 / 134, 13.7 and 13.8 s** |
+| the bioethics article, 15 sentences | 11 of 15, 12.3 and 12.1 s | **15 of 15, 10.4 and 10.3 s** |
+
+-- the ranges overlapping on five and apart on Tatoeba alone, where the new
+readings cost about 3 %. Each translator gave the same texts to the byte both
+times. Against 1.7.1 on this store the texts are the same but for five lines,
+and every one moved on purpose: Fiat's `desde el primer momento, desde que
+hemos sido escogidos` keeps the source's comma; the twelve's `Su identidad y su
+nacionalidad no han sido verificadas` agrees as feminine where it said
+`verificados`; Valencia's `Sospirò da lui Yehudi Menuhin, che lodò la sua
+sonorità` keeps the relative clause beside its phrase, where 1.7.1 wrote `...
+Menuhin da lui, che ...`; and on Tatoeba `¿Y si soy pobre?`, refused, is `And
+if I am poor?`, and `Debes ser un tonto.` is `You must be a silly one.` where
+it was `You owe to be a silly one.`
+
+**`test/translate.pl` IS 722 CHECKS AND GREEN**, eighteen in a new
+`newspaper_bio` section with an Italian and a Spanish lesson of its own; every
+check but the one marked as a guard fails on 1.7.1's translator. Lesson 46
+gained section 26. **The minor is proposed**: `marks the passive` and `marks
+the duty` are new lines a lesson can say, and a dateline, a headline colon and
+a relative clause after a comma are new shapes a program reaches; the owner
+decides.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

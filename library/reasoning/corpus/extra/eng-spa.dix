@@ -82,3 +82,11 @@
 <e r="RL"><p><l>praise<s n="vblex"/></l><r>elogiar<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>scrape<s n="vblex"/></l><r>rasgar<s n="vblex"/></r></p></e>
 <e><p><l>instinctive<s n="adj"/></l><r>instintivo<s n="adj"/></r></p></e>
+# `medidas coercitivas', where the dictionary puts `coactivo' first
+<e><p><l>coercive<s n="adj"/></l><r>coercitivo<s n="adj"/></r></p></e>
+# `Un capitolo riassume la sperimentazione': the dictionary has no English
+# for `resumir', and `summarise' had no Spanish at all
+<e><p><l>summarise<s n="vblex"/></l><r>resumir<s n="vblex"/></r></p></e>
+# `accostarsi con serenità': the dictionary gives `approach' as the
+# pronominal `acercarse' only, which the builder does not write
+<e><p><l>approach<s n="vblex"/></l><r>acercar<s n="vblex"/></r></p></e>

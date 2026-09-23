@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20201 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20203 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -43,6 +43,7 @@ The masculine pronoun "ese" means "that".
 The pronoun "eso" means "that".
 "que" is a relative.
 The preposition "junto a" means "along with".
+The modal "debe" means "must".
 The modal "tiene que" means "must".
 "tienen que" is the plural of "tiene que".
 The masculine noun "lavado de cerebro" means "brainwashing".
@@ -196,6 +197,24 @@ The feminine noun "vía" means "way".
 The verb "apunta" means "notes".
 "mejor" is the comparative of "bueno".
 "peor" is the comparative of "malo".
+The feminine noun "bioética" means "bioethics".
+"bioéticas" is the plural of "bioética".
+The masculine noun "bioético" means "bioethicist".
+"bioéticos" is the plural of "bioético".
+The masculine noun "electrochoque" means "electroshock".
+"electrochoques" is the plural of "electrochoque".
+The feminine noun "tos ferina" means "whooping cough".
+The conjunction "siempre que" means "provided that".
+The adverb "por primera vez" means "for the first time".
+The preposition "respecto a" means "regarding".
+The conjunction "de modo que" means "so that".
+The conjunction "si" means "if".
+The adverb "ni siquiera" means "not even".
+The verb "toma" means "takes".
+The adverb "no" means "no".
+The adverb "en cambio" means "instead".
+The adjective "de riesgo" means "at risk".
+"de riesgo" is the plural of "de riesgo".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -25497,6 +25516,92 @@ The verb "rinde" means "renders".
 "rendidas" is the plural of "rendida".
 "rendir" is the infinitive of "rinde".
 "rindiendo" is the gerund of "rinde".
+The verb "resume" means "summarises".
+"resumen" is the plural of "resume".
+"resumimos" is the first person of "resumen".
+"resumo" is the first person of "resume".
+"resumes" is the second person of "resume".
+"resumió" is the past of "resume".
+"resumieron" is the past of "resumen".
+"resumimos" is the first person of "resumieron".
+"resumí" is the first person of "resumió".
+"resumiste" is the second person of "resumió".
+"resumía" is the past of "resume".
+"resumían" is the past of "resumen".
+"resumíamos" is the first person of "resumían".
+"resumías" is the second person of "resumía".
+"resumirá" is the future of "resume".
+"resumirán" is the plural of "resumirá".
+"resumiremos" is the first person of "resumirán".
+"resumiré" is the first person of "resumirá".
+"resumirás" is the second person of "resumirá".
+"resumiría" is the conditional of "resume".
+"resumirían" is the plural of "resumiría".
+"resumiríamos" is the first person of "resumirían".
+"resumirías" is the second person of "resumiría".
+"resuma" is the subjunctive of "resume".
+"resuman" is the plural of "resuma".
+"resumamos" is the first person of "resuman".
+"resumas" is the second person of "resuma".
+"resumiera" is the past subjunctive of "resume".
+"resumieran" is the plural of "resumiera".
+"resumiéramos" is the first person of "resumieran".
+"resumieras" is the second person of "resumiera".
+"resume" is the imperative of "resume".
+"resumas" is the negative imperative of "resume".
+"resumido" is the participle of "resume".
+"resumida" is the participle of "resume".
+"resumida" is feminine.
+"resumidos" is the participle of "resume".
+"resumidos" is the plural of "resumido".
+"resumidas" is the participle of "resume".
+"resumidas" is feminine.
+"resumidas" is the plural of "resumida".
+"resumir" is the infinitive of "resume".
+"resumiendo" is the gerund of "resume".
+The verb "acerca" means "approaches".
+"acercan" is the plural of "acerca".
+"acercamos" is the first person of "acercan".
+"acerco" is the first person of "acerca".
+"acercas" is the second person of "acerca".
+"acercó" is the past of "acerca".
+"acercaron" is the past of "acercan".
+"acercamos" is the first person of "acercaron".
+"acerqué" is the first person of "acercó".
+"acercaste" is the second person of "acercó".
+"acercaba" is the past of "acerca".
+"acercaban" is the past of "acercan".
+"acercábamos" is the first person of "acercaban".
+"acercabas" is the second person of "acercaba".
+"acercará" is the future of "acerca".
+"acercarán" is the plural of "acercará".
+"acercaremos" is the first person of "acercarán".
+"acercaré" is the first person of "acercará".
+"acercarás" is the second person of "acercará".
+"acercaría" is the conditional of "acerca".
+"acercarían" is the plural of "acercaría".
+"acercaríamos" is the first person of "acercarían".
+"acercarías" is the second person of "acercaría".
+"acerque" is the subjunctive of "acerca".
+"acerquen" is the plural of "acerque".
+"acerquemos" is the first person of "acerquen".
+"acerques" is the second person of "acerque".
+"acercara" is the past subjunctive of "acerca".
+"acercaran" is the plural of "acercara".
+"acercáramos" is the first person of "acercaran".
+"acercaras" is the second person of "acercara".
+"acerca" is the imperative of "acerca".
+"acerques" is the negative imperative of "acerca".
+"acercado" is the participle of "acerca".
+"acercada" is the participle of "acerca".
+"acercada" is feminine.
+"acercados" is the participle of "acerca".
+"acercados" is the plural of "acercado".
+"acercadas" is the participle of "acerca".
+"acercadas" is feminine.
+"acercadas" is the plural of "acercada".
+"acercar" is the infinitive of "acerca".
+"acercando" is the gerund of "acerca".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -114363,6 +114468,10 @@ The masculine adjective "instintivo" means "instinctive".
 "instintivos" is the plural of "instintivo".
 The feminine adjective "instintiva" means "instinctive".
 "instintivas" is the plural of "instintiva".
+The masculine adjective "coercitivo" means "coercive".
+"coercitivos" is the plural of "coercitivo".
+The feminine adjective "coercitiva" means "coercive".
+"coercitivas" is the plural of "coercitiva".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -126501,10 +126610,6 @@ The feminine adjective "tenebrosa" means "dark".
 "tenebrosas" is the plural of "tenebrosa".
 The adjective "azimutal" means "azimuthal".
 "azimutales" is the plural of "azimutal".
-The masculine adjective "coercitivo" means "coercive".
-"coercitivos" is the plural of "coercitivo".
-The feminine adjective "coercitiva" means "coercive".
-"coercitivas" is the plural of "coercitiva".
 The masculine adjective "controvertido" means "controversial".
 "controvertidos" is the plural of "controvertido".
 The feminine adjective "controvertida" means "controversial".

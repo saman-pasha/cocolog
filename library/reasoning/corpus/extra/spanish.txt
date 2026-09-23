@@ -43,6 +43,9 @@ The pronoun "eso" means "that".
 # and the dictionary lacks or gives first in another sense; a word of
 # several words is one word to the reader when the lesson states it so
 The preposition "junto a" means "along with".
+# `must' is `debe' before it is `tiene que' -- Italian's `deve essere
+# chiarita' is `debe ser aclarada' -- and `tiene que' is kept for reading
+The modal "debe" means "must".
 The modal "tiene que" means "must".
 "tienen que" is the plural of "tiene que".
 The masculine noun "lavado de cerebro" means "brainwashing".
@@ -248,3 +251,30 @@ The verb "apunta" means "notes".
 # dictionary gives as the plain adjective
 "mejor" is the comparative of "bueno".
 "peor" is the comparative of "malo".
+# the bioethics committee, into Spanish: the discipline, the people in it,
+# electroshock and whooping cough, none of which the dictionary has
+The feminine noun "bioética" means "bioethics".
+"bioéticas" is the plural of "bioética".
+The masculine noun "bioético" means "bioethicist".
+"bioéticos" is the plural of "bioético".
+The masculine noun "electrochoque" means "electroshock".
+"electrochoques" is the plural of "electrochoque".
+The feminine noun "tos ferina" means "whooping cough".
+# `purché', provided that
+The conjunction "siempre que" means "provided that".
+# the words of several words the Italian lesson gives, and `ni siquiera'
+The adverb "por primera vez" means "for the first time".
+The preposition "respecto a" means "regarding".
+The conjunction "de modo que" means "so that".
+The conjunction "si" means "if".
+The adverb "ni siquiera" means "not even".
+# `lo ha preso' is `tomado': the dictionary puts `coge' first, which is
+# the wrong word in half the Spanish-speaking world
+The verb "toma" means "takes".
+# `no a la eutanasia': the answer is the same word as the denial
+The adverb "no" means "no".
+# `Vanno invece attivate': `instead' is two words in Spanish
+The adverb "en cambio" means "instead".
+# `las categorías de riesgo', which is how Spanish says at risk of a group
+The adjective "de riesgo" means "at risk".
+"de riesgo" is the plural of "de riesgo".

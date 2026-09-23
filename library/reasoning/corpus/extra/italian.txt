@@ -318,3 +318,67 @@ The feminine noun "via" means "way".
 # interpreti', never `il più buono'
 "migliore" is the comparative of "buono".
 "peggiore" is the comparative of "cattivo".
+# the bioethics committee (VIT-9450..9464): the discipline and the people in
+# it, which the dictionary has only as an adjective and without English
+The feminine noun "bioetica" means "bioethics".
+"bioetiche" is the plural of "bioetica".
+The masculine noun "bioetico" means "bioethicist".
+"bioetici" is the plural of "bioetico".
+# electroshock and whooping cough, which neither dictionary has in English
+The masculine noun "elettroshock" means "electroshock".
+"elettroshock" is the plural of "elettroshock".
+The feminine noun "pertosse" means "whooping cough".
+"pertossi" is the plural of "pertosse".
+# `la terapia palliativa': the dictionary gives `palliativo' as a noun only,
+# so the adjective had its meaning and none of its forms
+The masculine adjective "palliativo" means "palliative".
+The feminine adjective "palliativa" means "palliative".
+"palliativi" is the plural of "palliativo".
+"palliative" is the plural of "palliativa".
+# `purché praticata con rigorosi controlli': a conjunction the dictionary
+# tags cnjadv, which the builder does not read
+The conjunction "purché" means "provided that".
+# `Viene esclusa ogni forma di eutanasia': `venire' and a participle is the
+# passive; and `andare' and a participle is what must be done, `Vanno invece
+# attivate la terapia palliativa e la terapia del dolore'
+The verb "viene" marks the passive.
+The verb "va" marks the duty.
+# `contro la pertosse': the dictionary's first meaning is the noun `con'
+The preposition "contro" means "against".
+# `è ritornato nella terapia': has returned, as `è tornato' does
+"è" is the auxiliary of "ritorna".
+# senses the dictionary puts second: a right (`il diritto di favorire'), a
+# moment, substance (`In sostanza'), to impose, to orient
+The masculine noun "diritto" means "right".
+The masculine noun "momento" means "moment".
+The feminine noun "sostanza" means "substance".
+The verb "impone" means "imposes".
+The verb "orienta" means "orients".
+# words of several words: `per la prima volta', `in merito alle
+# vaccinazioni', `in modo che il malato possa ...'; and `neanche se' is
+# `not even' and `if'
+The adverb "per la prima volta" means "for the first time".
+The preposition "in merito a" means "regarding".
+The conjunction "in modo che" means "so that".
+The conjunction "se" means "if".
+The adverb "neanche" means "not even".
+# `neanche se vi sia l'assenso del paziente': `vi è' is `c'è', there is
+The verb "vi è" means "there is".
+"vi sono" is the plural of "vi è".
+"vi sia" is the subjunctive of "vi è".
+"vi siano" is the plural of "vi sia".
+# `Il comitato di bioetica: no all'eutanasia.': the answer `no', which is
+# not `non'
+The adverb "no" means "no".
+# `tempi e modi della terapia': times, where the dictionary states the
+# plural of `tempio', a temple, first
+"tempi" is the plural of "tempo".
+# `le categorie a rischio': at risk, one word of two, where the phrase read
+# `a' as `to' and wrote `a riesgo'
+The adjective "a rischio" means "at risk".
+"a rischio" is the plural of "a rischio".
+# admitting `SP' let `conflittualità' give English `conflict' a noun of its
+# own, and the one-way entry that gave the same meaning to `conflitto' was
+# dropped with it: the builder keeps a one-way entry only when neither word
+# has one yet
+The masculine noun "conflitto" means "conflict".
