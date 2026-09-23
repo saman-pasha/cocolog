@@ -4676,6 +4676,41 @@ the shapes above, the two regressions, the passive perfect's number and the
 word alone with no verb, each of the last four red on the code before its
 fix -- and lesson 46 gained section 23.
 
+### The complements of a word list, read once a sentence (1.6.19)
+
+**THE SAME REST OF A SENTENCE IS READ UNDER EVERY READING OF WHAT COMES
+BEFORE IT**, so `tr_complements/4` keeps what it read -- every solution, for
+the sentence only, the way a word's lexemes are kept (`tr_memo/4`). Over the
+three longest sentences of Monte Livata it was asked 583 times for 409
+distinct readings.
+
+**THE KEY IS EVERYTHING THE READER ASKS, and that was read rather than
+assumed**: the side, the words, whether an object was read, and three globals
+-- the group and the aspect being read (a modal, the copula, a passive, no
+verb at all) and the side the text is on. Every statement reader that SETS
+the first two is reached from inside the complement reader only through
+`tr_read_nested/4`, which puts both back, so nothing leaks out either. The
+reader is all but deterministic -- the 409 readings gave 96 solutions between
+them and none gave more than one -- so keeping every solution explores little
+that a caller cutting after the first would have skipped, and the pair below
+is the net of both. Only a ground word list is kept.
+
+**MEASURED on one store and one binary, the library the only difference, and
+every translation byte for byte the same:**
+
+| | before | kept |
+|---|---|---|
+| the three longest Livata sentences, twice each, alternating | 32.63, 32.55 s | **29.31, 29.15 s** |
+| Livata, 29 sentences | 76.4 s | **66.1 s** |
+| the twelve Italian sentences | 15.1 s | 13.9 s |
+| the Spanish article | 13.8 s | 13.2 s |
+| Tatoeba's 400 | 13.5 s | 13.1 s |
+| `test/translate.pl`, 645 checks | 48 s | 39 s |
+
+-- the gain grows with the sentence, because the repeats do. No Livata
+sentence is slower with it by more than 0.02 s, where two runs of the same
+code differ by up to 0.47 s on one sentence.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

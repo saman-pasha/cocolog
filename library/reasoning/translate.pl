@@ -3242,20 +3242,46 @@ tr_relative_wh1([], []).
 tr_relative_wh1([wh(Q, S)|Cs0], [rwh(Q, S)|Cs]) :- !, tr_relative_wh1(Cs0, Cs).
 tr_relative_wh1([C|Cs0], [C|Cs]) :- tr_relative_wh1(Cs0, Cs).
 
+%% THE COMPLEMENTS OF A WORD LIST ARE READ ONCE A SENTENCE, UNDER WHAT THE
+%% READING DEPENDS ON. Every reading of a statement reads the complements of
+%% what follows its verb, and the same rest of a sentence comes back under
+%% the next reading: over the three longest sentences of Monte Livata, 583
+%% readings of 409 distinct ones. The reader asks three things besides the
+%% words and whether an object was read -- the group and the aspect being
+%% read (a modal, the copula, a passive, no verb at all) and the side -- so
+%% the key carries all five; and a clause read inside it puts the group and
+%% the aspect back (tr_read_nested/4), so nothing leaks in or out. The reader
+%% is all but deterministic -- those 409 readings gave 96 solutions between
+%% them and none gave more than one -- so every solution is kept, as a
+%% word's lexemes are (tr_memo/4), and a caller that cuts sees the same
+%% first one. Only a ground word list is kept: a key with a variable in it
+%% is not one a later call could find.
+tr_complements(Side, Ws, Seen, Cs) :-
+    Ws = [T|_], ground(Ws-Seen), tr_token_atom(T, W0), !,
+    tr_global('$tr_read_group', G), tr_global('$tr_read_aspect', A), tr_side_here(F),
+    atom_concat('c|', W0, W),
+    tr_memo(cm(Side, Seen, G, A, F, Ws, W), Cs0, tr_complements0(Side, Ws, Seen, Cs0), Sols),
+    member(Cs, Sols).
+tr_complements(Side, Ws, Seen, Cs) :- tr_complements0(Side, Ws, Seen, Cs).
+
+%% the atom a token's table is named after
+tr_token_atom(w(W, _), W) :- atomic(W), !.
+tr_token_atom(T, T) :- atom(T).
+
 %% ... with whether an object has been read: the word the lesson puts
 %% before a person, with no object yet and a person after it, is the
 %% OBJECT's (`Maria ve a Omar' is Omar); after an object it is the
 %% preposition it is (`Maria da el libro a Omar' is to Omar)
-tr_complements(_, [], _, []) :- !.
-tr_complements(Side, [comma|Ws], Seen, [sep|Cs]) :- !, tr_complements(Side, Ws, Seen, Cs).
-tr_complements(Side, [w(K, paren)|Ws], Seen, [paren(K)|Cs]) :- !, tr_complements(Side, Ws, Seen, Cs).
+tr_complements0(_, [], _, []) :- !.
+tr_complements0(Side, [comma|Ws], Seen, [sep|Cs]) :- !, tr_complements(Side, Ws, Seen, Cs).
+tr_complements0(Side, [w(K, paren)|Ws], Seen, [paren(K)|Cs]) :- !, tr_complements(Side, Ws, Seen, Cs).
 %% A `che' CLAUSE IS A COMPLEMENT, AND IT RUNS TO THE END OF ITS PIECE.
 %% `escludendo che il militare voleva ...' -- the word the lesson gives for
 %% `that' before a clause, and everything after it read as a statement of
 %% its own. Taking the WHOLE rest rather than the shortest readable piece
 %% is deliberate: a shortest-first append would stop at the first clause
 %% that happens to read, which is never what `that' introduces.
-tr_complements(Side, [W|Ws], _, [that(S)]) :-
+tr_complements0(Side, [W|Ws], _, [that(S)]) :-
     tr_that_here(Side, W), Ws \== [],
     tr_read_nested(Side, Ws, none, S), !.
 %% A QUESTION WORD AFTER THE VERB OPENS AN INDIRECT QUESTION, and it runs to
@@ -3264,7 +3290,7 @@ tr_complements(Side, [W|Ws], _, [that(S)]) :-
 %% DOVE i medici stanno valutando'. wh(Word, Clause) is the term, the English
 %% question word and the clause read as a statement; each writer puts the
 %% target's word for it in front, as a question's is.
-tr_complements(Side, [w(W, _)|Ws], _, [wh(Q, S)]) :-
+tr_complements0(Side, [w(W, _)|Ws], _, [wh(Q, S)]) :-
     Ws \== [], tr_indirect_word(Side, W, Q),
     tr_read_nested(Side, Ws, none, S), !.
 %% A GERUND AFTER A CLAUSE'S COMPLEMENTS IS HOW THE CLAUSE WAS DONE:
@@ -3272,7 +3298,7 @@ tr_complements(Side, [w(W, _)|Ws], _, [wh(Q, S)]) :-
 %% takes the rest of the words as its own complements, the way a `che'
 %% clause does, and travels as ger(Lexeme, Complements); every language
 %% here writes it as its own gerund in the same place.
-tr_complements(Side, [w(G, _)|Ws], _, [ger(L, Cs)]) :-
+tr_complements0(Side, [w(G, _)|Ws], _, [ger(L, Cs)]) :-
     Ws \== [], tr_gerund_here(Side, G, L), \+ tr_is(Side, w(G, lower), noun),
     tr_complements(Side, Ws, Cs), !.
 %% `AL' AND AN INFINITIVE IS THE MOMENT SOMETHING WAS DONE: `ha provocado el
@@ -3283,14 +3309,14 @@ tr_complements(Side, [w(G, _)|Ws], _, [ger(L, Cs)]) :-
 %% rest of the words are the infinitive's complements. upon(Lexeme,
 %% Complements) is the term; English writes `on' and the -ing form, and a
 %% lesson that names no such word writes its gerund.
-tr_complements(foreign, Ws0, _, [upon(F, Cs)]) :-
+tr_complements0(foreign, Ws0, _, [upon(F, Cs)]) :-
     Ws0 = [w(P, _), w(D, _), w(V, _)|Ws],
     tr_solve(begin(M, moment)), tr_solve(contraction_of(M, J)), atomic_list_concat([P, D], ' ', J),
     tr_solve(infinitive_of(V, F)), tr_known(foreign, F),
     tr_complements(foreign, Ws, Cs), !.
-tr_complements(english, [w(on, _), w(G, _)|Ws], _, [upon(L, Cs)]) :-
+tr_complements0(english, [w(on, _), w(G, _)|Ws], _, [upon(L, Cs)]) :-
     en_gerund(G, L), tr_complements(english, Ws, Cs), !.
-tr_complements(foreign, [w(P, _)|Ws], no, [obj(NP)|Cs]) :-
+tr_complements0(foreign, [w(P, _)|Ws], no, [obj(NP)|Cs]) :-
     tr_marker_word(P, Class),
     tr_phrase_words(foreign, Ws, PW, Rest), PW \== [],
     tr_phrase_np(foreign, PW, NP), tr_of_class(NP, Class), !,
@@ -3309,20 +3335,20 @@ tr_complements(foreign, [w(P, _)|Ws], no, [obj(NP)|Cs]) :-
 %% raccontato DI aver avuto un problema' -- the complementiser Italian puts
 %% before an infinitive after a verb of saying -- and the IR carries the
 %% infinitive alone, the stated cost of tr_means_to/1 below.
-tr_complements(foreign, Ws0, Seen, [infx(F, Asp, Cls)|Cs]) :-
+tr_complements0(foreign, Ws0, Seen, [infx(F, Asp, Cls)|Cs]) :-
     ( Ws0 = [w(P, _)|Ws1], ( tr_means_to(P) ; tr_means_of(P) ) -> true ; Ws1 = Ws0 ),
     tr_infinitive_group(Ws1, F, Asp, Cls, Ws), !,
     tr_complements(foreign, Ws, Seen, Cs).
 %% A DENIED INFINITIVE, the denial its own (tr_negation/4 leaves it where
 %% it stands): `è facile non ritrovarsi più' -- not to find oneself.
-tr_complements(foreign, [w(N, _)|Ws0], Seen, [neg(C)|Cs]) :-
+tr_complements0(foreign, [w(N, _)|Ws0], Seen, [neg(C)|Cs]) :-
     tr_solve(mean(N, not)), tr_starts_infinitive(foreign, Ws0),
     tr_complements(foreign, Ws0, Seen, [C|Cs]), ( C = inf(_) ; C = infx(_, _, _) ), !.
 %% A PREPOSITION BEFORE AN INFINITIVE: `invece di andare da una parte' --
 %% instead of going, en vez de ir. The lesson's languages put the infinitive
 %% after a preposition where English puts the -ing form; pinf(Preposition,
 %% Lexeme) is the term, and the infinitive's own complements follow it.
-tr_complements(foreign, [w(P, C), w(V, _)|Ws], Seen, [pinf(w(P, C), F)|Cs]) :-
+tr_complements0(foreign, [w(P, C), w(V, _)|Ws], Seen, [pinf(w(P, C), F)|Cs]) :-
     tr_is(foreign, w(P, C), preposition), \+ tr_means_to(P), \+ tr_means_of(P), \+ tr_purpose_word(P),
     tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
     tr_complements(foreign, Ws, Seen, Cs).
@@ -3338,7 +3364,7 @@ tr_complements(foreign, [w(P, C), w(V, _)|Ws], Seen, [pinf(w(P, C), F)|Cs]) :-
 %% writes a purpose exactly as it writes a plain infinitive, and an English
 %% source is read as the plain one. Italian into Spanish keeps the mark
 %% because both languages make it; Italian into English and back loses it.
-tr_complements(foreign, [w(P, _), w(V, _)|Ws], Seen, [purpose(F)|Cs]) :-
+tr_complements0(foreign, [w(P, _), w(V, _)|Ws], Seen, [purpose(F)|Cs]) :-
     tr_purpose_word(P), tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
     tr_complements(foreign, Ws, Seen, Cs).
 %% A PREPOSITION MEANING `to' BEFORE AN INFINITIVE IS THE INFINITIVE.
@@ -3358,16 +3384,16 @@ tr_complements(foreign, [w(P, _), w(V, _)|Ws], Seen, [purpose(F)|Cs]) :-
 %% English writes its own `to' either way; the lesson's writer puts its word
 %% for `to' back, which is right after the verbs of going and beginning that
 %% take one, and wrong after the few that take none (`riuscire a', `lograr')
-tr_complements(foreign, [w(P, PC), w(V, _)|Ws], Seen, [ainf(w(P, PC), F)|Cs]) :-
+tr_complements0(foreign, [w(P, PC), w(V, _)|Ws], Seen, [ainf(w(P, PC), F)|Cs]) :-
     tr_means_to(P), tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
     tr_complements(foreign, Ws, Seen, Cs).
-tr_complements(foreign, [w(V, _)|Ws], Seen, [inf(F)|Cs]) :-
+tr_complements0(foreign, [w(V, _)|Ws], Seen, [inf(F)|Cs]) :-
     tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
     tr_complements(foreign, Ws, Seen, Cs).
-tr_complements(english, [w(to, _), w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
+tr_complements0(english, [w(to, _), w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
     en_infinitive(B, L), !,
     tr_complements(english, Ws, Seen, Cs).
-tr_complements(english, [w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
+tr_complements0(english, [w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
     tr_read_modal, en_infinitive(B, L), !,
     tr_complements(english, Ws, Seen, Cs).
 %% TWO INFINITIVES UNDER ONE PURPOSE: `per definire "illegale" la decisione
@@ -3376,7 +3402,7 @@ tr_complements(english, [w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
 %% clauses either, because the second half has no subject and no finite
 %% verb. It is between two COMPLEMENTS, so it travels as one and writes
 %% with the target's word for it.
-tr_complements(Side, [C|Ws], Seen, [cnj(C)|Cs]) :-
+tr_complements0(Side, [C|Ws], Seen, [cnj(C)|Cs]) :-
     tr_coord(Side, C), tr_after_coord(Side, Ws), !,
     tr_complements(Side, Ws, Seen, Cs).
 %% OF WHICH, WITH NO VERB: `si sono adoperate 37 associazioni di protezione
@@ -3386,7 +3412,7 @@ tr_complements(Side, [C|Ws], Seen, [cnj(C)|Cs]) :-
 %% travels as rpp/2, and each writer puts its own relative after the
 %% preposition: English's `of which', Spanish's `de las que' with the
 %% article agreeing with the OBJECT before it, which is what the which is.
-tr_complements(Side, [P, w(R, _)|Ws], Seen, [rpp(P, NP)|Cs]) :-
+tr_complements0(Side, [P, w(R, _)|Ws], Seen, [rpp(P, NP)|Cs]) :-
     tr_rel_after_prep(Side, R), tr_is(Side, P, preposition),
     tr_phrase_words(Side, Ws, PW, Rest), PW \== [], tr_phrase_np(Side, PW, NP), !,
     tr_complements(Side, Rest, Seen, Cs).
@@ -3395,7 +3421,7 @@ tr_complements(Side, [P, w(R, _)|Ws], Seen, [rpp(P, NP)|Cs]) :-
 %% Read as an ordinary pp/2 it would cross by the first meaning of `da',
 %% which the lesson gives as `from' -- and `imposed from the soldiers' is
 %% not what the sentence says.
-tr_complements(Side, [P|Ws], Seen, [by(NP)|Cs]) :-
+tr_complements0(Side, [P|Ws], Seen, [by(NP)|Cs]) :-
     tr_read_passive, tr_is(Side, P, preposition), tr_means_by(Side, P), !,
     tr_phrase_words(Side, Ws, PW, Rest), PW \== [], tr_phrase_np(Side, PW, NP),
     tr_complements(Side, Rest, Seen, Cs).
@@ -3407,7 +3433,7 @@ tr_complements(Side, [P|Ws], Seen, [by(NP)|Cs]) :-
 %% FOLLOWS IT: `130 circa tra uomini e donne' -- about a hundred and thirty,
 %% and `circa' is `concerning' too. The preposition is committed to only
 %% once its phrase has read.
-tr_complements(Side, [P|Ws], Seen, [pp(P, NP)|Cs]) :-
+tr_complements0(Side, [P|Ws], Seen, [pp(P, NP)|Cs]) :-
     tr_is(Side, P, preposition),
     (   Ws = [w(O, OC)|Rest], tr_object_pronoun_here(Side, Ws), \+ tr_relative_start(Side, Rest), \+ tr_ellipsis_start(Side, Ws)
     ->  NP = pronoun(w(O, OC))
@@ -3419,10 +3445,10 @@ tr_complements(Side, [P|Ws], Seen, [pp(P, NP)|Cs]) :-
     ->  fail
     ), !,
     tr_complements(Side, Rest, Seen, Cs).
-tr_complements(Side, [w(W, C)|Ws], Seen, [opron(w(W, C))|Cs]) :-
+tr_complements0(Side, [w(W, C)|Ws], Seen, [opron(w(W, C))|Cs]) :-
     tr_object_pronoun_here(Side, [w(W, C)|Ws]), \+ tr_relative_start(Side, Ws), \+ tr_ellipsis_start(Side, [w(W, C)|Ws]), !,
     tr_complements(Side, Ws, Seen, Cs).
-tr_complements(Side, [A|Ws], Seen, [adv(A)|Cs]) :- tr_is(Side, A, adverb), !, tr_complements(Side, Ws, Seen, Cs).
+tr_complements0(Side, [A|Ws], Seen, [adv(A)|Cs]) :- tr_is(Side, A, adverb), !, tr_complements(Side, Ws, Seen, Cs).
 %% A PARTICIPLE STANDING ALONE AFTER THE VERB IS PREDICATED OF THE SUBJECT.
 %% `l'operazione e considerata gia CONCLUSA' -- the passive says what was
 %% done to it and the participle says what it now is, which is the copula's
@@ -3434,7 +3460,7 @@ tr_complements(Side, [A|Ws], Seen, [adv(A)|Cs]) :- tr_is(Side, A, adverb), !, tr
 %% relative does, because the form has to agree on the way out -- with the
 %% SUBJECT here, which is the gender the writer already holds, so
 %% tr_participle_agreeing/3 needs nothing wrapped round it.
-tr_complements(Side, [w(P, _)|Ws], Seen, [pred(L)|Cs]) :-
+tr_complements0(Side, [w(P, _)|Ws], Seen, [pred(L)|Cs]) :-
     tr_participle_here(Side, P, L), !,
     tr_complements(Side, Ws, Seen, Cs).
 %% AN OBJECT COMPLEMENT IS WHAT THE VERB PREDICATES OF ITS OBJECT --
@@ -3466,13 +3492,13 @@ tr_complements(Side, [w(P, _)|Ws], Seen, [pred(L)|Cs]) :-
 %% illegale la decisione' gives the main verb its object and the purpose
 %% infinitive a complement of its own. The shape is the guard, and the
 %% `Seen' flag belongs to the word the lesson puts before a person.
-tr_complements(english, Ws, _, [oc(NP, As)|Cs]) :-
+tr_complements0(english, Ws, _, [oc(NP, As)|Cs]) :-
     tr_phrase_words(english, Ws, PW, Rest), PW \== [],
     append(PW0, As, PW), PW0 \== [], As \== [],
     tr_all_adjectives(english, As), \+ tr_all_adjectives(english, PW0),
     tr_phrase_np(english, PW0, NP), !,
     tr_complements(english, Rest, yes, Cs).
-tr_complements(foreign, Ws, _, [oc(NP, As)|Cs]) :-
+tr_complements0(foreign, Ws, _, [oc(NP, As)|Cs]) :-
     \+ tr_read_copula,                                  % the copula's adjective is its own predicate
     append(As, Rest0, Ws), As \== [], tr_all_adjectives(foreign, As),
     Rest0 = [D|_], tr_determiner(foreign, D, _, _),
@@ -3487,11 +3513,11 @@ tr_complements(foreign, Ws, _, [oc(NP, As)|Cs]) :-
 %% LESSON'S, in the bare-class shape `"amigo" is a person.' already has, so
 %% reason.pl did not move -- and being an adjunct is what lets the fronted
 %% clause above take it.
-tr_complements(Side, Ws, Seen, [at_time(NP)|Cs]) :-
+tr_complements0(Side, Ws, Seen, [at_time(NP)|Cs]) :-
     tr_phrase_words(Side, Ws, PW, Rest), PW \== [],
     tr_phrase_np(Side, PW, NP), tr_time_phrase(NP), !,
     tr_complements(Side, Rest, Seen, Cs).
-tr_complements(Side, Ws, _, [C|Cs]) :-
+tr_complements0(Side, Ws, _, [C|Cs]) :-
     tr_phrase_words(Side, Ws, PW, Rest), PW \== [],
     (   tr_all_adjectives(Side, PW), \+ tr_verbless_thing(Side, PW) -> C = adj(PW)
     ;   tr_phrase_np(Side, PW, NP), C = obj(NP)
