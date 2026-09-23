@@ -407,9 +407,11 @@
       ;; ---- grammar rules become ordinary clauses -------------------------
       ;;
       ;; test/files/dcg.pl holds the BEHAVIOUR against SWI. What is checked here
-      ;; is the SHAPE cocolog's own translator produces, which SWI is free to
-      ;; differ on -- its compiler lifts a leading unification into the head and
-      ;; this one does not, so `clause/2' shows something different there.
+      ;; is the SHAPE cocolog's own translator produces. Since 1.6.18 a leading
+      ;; terminal goes into the head, which is what SWI's compiler does to the
+      ;; same clause, so `clause/2' shows the shape SWI's shows --
+      ;; test/files/dcg_shapes.pl pins that against SWI, because `clause/2' is
+      ;; the builtins module's and this target does not link it.
       (let ((char err [256]))
        (coco_consult (aof st) (aof m)
                      "g1 --> [a], g2. g2 --> [b]. g3 --> []. g4 --> [x], !. g5, [p] --> [q]."

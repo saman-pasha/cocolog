@@ -49,4 +49,11 @@ main :-
     ( phrase(b4(q), [q,q]) -> write(y) ; write(n) ), nl,
     findall(N, (between(0,3,N), phrase(r(N), Xs), length(Xs, N)), Ns), write(Ns), nl,
     ( phrase(r(3), Cs) -> write(Cs) ; write(no) ), nl,
+    %  WHERE A TERMINAL IS STORED: a leading one is in the head, which is
+    %  where SWI's compiler puts it; `[]' keeps its unification as a goal
+    ( clause(b1(L1, _), _), nonvar(L1) -> write(y) ; write(n) ),
+    ( clause(b4(q, L2, _), _), nonvar(L2) -> write(y) ; write(n) ),
+    ( clause(r(0, X3, Y3), B3), var(X3), B3 = (P3 = Q3), P3 == X3, Q3 == Y3
+    -> write(y) ; write(n) ),
+    nl,
     true.

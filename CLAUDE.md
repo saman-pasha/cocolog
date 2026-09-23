@@ -5873,6 +5873,35 @@ and `coco_backtrack` sets `heap_len` back to the mark — so anything that
 could see the stale value has already been dropped. It is the invariant the
 WAM builds on, and the reason it dereferences into a structure too.
 
+## A grammar rule's leading terminal is in its head, where SWI puts it (1.6.18)
+
+**`a --> [x], b.` IS STORED AS `a([x|S1], S) :- b(S1, S).`**, where the
+rewriting in `lib/dcg.cicili` gives `a(S0, S) :- S0 = [x|S1], b(S1, S).`
+The two are one clause -- nothing runs between a head's unification and the
+first goal of its body -- and SWI's compiler makes the same move
+(`optimise_unify`, on by default), so its `clause/2` and `listing/1` show the
+lifted head and cocolog's show it now too. Only the FIRST goal is lifted, and
+only `S0 = T` with T bound: the `S0 = S` of `[]` stays a goal, as it does in
+SWI, and a terminal after a `!` or a `{G}` is not lifted over it.
+`test/files/dcg_shapes.pl` pins where each is stored against SWI -- `yyy` on
+both, `nny` on 1.6.17.
+
+**AN INFERENCE IS NOT A UNIT OF TIME, which is the finding.** One binary each
+side, alternating, the same programs:
+
+| | inferences | time |
+|---|---|---|
+| a DCG over 20 000 phrases, `phrase/2` | 580 032 -> **420 030** | 77-80 ms -> 69-84 ms, ranges overlap |
+| `json_parse/2`, 280 000 codes | 5 205 650 -> **3 895 358** | 1 042-1 120 ms -> **879-940 ms**, separated |
+| `reason_text/2`, 3 000 vocabulary lines | 3 943 881 -> 3 738 715 | 1 827-2 020 ms either side, overlap |
+
+A quarter of the inferences gone buys 15 % where a grammar is mostly
+terminals, which is JSON, and nothing a stopwatch can see elsewhere: a goal
+`S0 = [x|S1]` costs about what the head unification that replaces it costs.
+The translator has no grammar rules at all, and its four controls -- Livata,
+the twelve, the Spanish article, Tatoeba's 400 -- come back byte for byte
+the same at the same times.
+
 ## The store reclaims what it no longer reaches (1.2.13)
 
 **THE STORE NEVER SHRANK, AND `nb_setval/2` WAS THE BILL.** Every write
