@@ -347,6 +347,7 @@ main :-
 
     section_20,
     section_21,
+    section_22,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -473,6 +474,156 @@ section_21 :-
     must('a determiner and a PRONOUN: the pronoun is the phrase''s head', S21i,
          'The everything dominates.'),
     reason_unlearn(italian).
+
+%% 1.6.15: A REAL SPANISH ARTICLE INTO ITALIAN. El Periódico, 2 February
+%% 1999 -- the AnCora document CESS-CAST-P-19990202-16, eleven sentences --
+%% needed what the Italian sample did not: a relative clause with its own
+%% pronoun, a list, a word of several words, when and how a thing was done,
+%% a phrase whose noun was left out, what has no verb, and the forms Italian
+%% chooses by the word after them. The two lessons below are the article's
+%% shapes on a few words each; the article itself goes over the vocabulary
+%% store, through page.pl.
+section_22 :-
+    format("~n22. A Spanish article into Italian: relatives, lists, words of several words, a noun left out, no verb, and the forms Italian chooses~n", []),
+    lesson_22(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the article''s shapes, under its own name', NS),
+    lesson_22(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('El perro come el caldo que el chico come.', spanish, italian, S22a),
+    must('a RELATIVE CLAUSE with its own pronoun: `"que" is a relative''', S22a,
+         'Il cane mangia il brodo che il ragazzo mangia.'),
+    reason_translate('Es el grupo al que pertenece.', spanish, italian, S22b),
+    must('for a preposition''s object: `The word "cui" follows the preposition''', S22b,
+         'È il gruppo a cui appartiene.'),
+    ( reason_translate('Es el grupo al que pertenece.', spanish, english, _) -> R22 = translated ; R22 = refused ),
+    must('and English refuses a subject nobody named: he, she and it are three claims', R22, refused),
+    reason_translate('El perro come pan, caldo y sopa.', spanish, italian, S22c),
+    must('a LIST, with the commas the list''s own', S22c, 'Il cane mangia pane, brodo e minestra.'),
+    reason_translate('Hay lavados de cerebro.', spanish, italian, S22d),
+    must('a WORD OF SEVERAL WORDS, which a lesson states as one', S22d, 'Ci sono lavaggi del cervello.'),
+    reason_translate('El ministro ha provocado el escándalo al acusar a la institución.', spanish, italian, S22e),
+    must('`The word "al" begins the moment'': Italian''s gerund; lo before sc, l'' before a vowel', S22e,
+         'Il ministro ha causato lo scandalo accusando l''istituzione.'),
+    reason_translate('El perro come el pan de los gatos y el de los chicos.', spanish, italian, S22f),
+    must('a NOUN LEFT OUT: `The word "el" replaces the noun'', and Italian''s pronoun where no article does', S22f,
+         'Il cane mangia il pane dei gatti e quello dei ragazzi.'),
+    reason_translate('¡El pan del perro!', spanish, italian, S22g),
+    must('an EXCLAMATION with no verb', S22g, 'Il pane del cane!'),
+    reason_translate('El perro come el pan; el gato, la sopa.', spanish, italian, S22h),
+    must('after a semicolon, a clause that LEAVES OUT the verb of the one before it', S22h,
+         'Il cane mangia il pane; il gatto, la minestra.'),
+    reason_translate('El ministro se ha equivocado.', spanish, italian, S22i),
+    must('the perfect of a reflexive: `"è" is the auxiliary of the reflexive''', S22i, 'Il ministro si è sbagliato.'),
+    reason_translate('Se les llamará chicos.', spanish, italian, S22j),
+    must('`The word "si" follows the pronoun''', S22j, 'Li si chiamerà ragazzi.'),
+    reason_translate('La sacrosanta institución es grande.', spanish, italian, S22k),
+    must('an adjective the source set BEFORE its noun stays there', S22k, 'La sacrosanta istituzione è grande.'),
+    show('the article itself, over a store teach.pl taught both lessons',
+         'cocolog --embed KB -s library/reasoning/page.pl -- article.txt italian spanish'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_22(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread".
+"panes" is the plural of "pan". The noun "caldo" means "broth". The noun "sopa" means "soup".
+The noun "chico" means "boy". "chico" is a person.
+The noun "grupo" means "group". "grupo" is a person.
+The noun "padre" means "father". "padre" is a person.
+The noun "ministro" means "minister". "ministro" is a person.
+The noun "escándalo" means "scandal".
+The noun "institución" means "institution". "institución" is feminine. "institución" is a person.
+The noun "familia" means "family".
+The noun "ciudad" means "city". "ciudad" is feminine. "ciudades" is the plural of "ciudad".
+The masculine noun "lavado de cerebro" means "brainwashing". "lavados de cerebro" is the plural of "lavado de cerebro".
+The preposition "junto a" means "along with".
+The modal "tiene que" means "must".
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+The adjective "débil" means "weak". "débiles" is the plural of "débil".
+The masculine adjective "pacífico" means "peaceful". The feminine adjective "pacífica" means "peaceful".
+The masculine adjective "sacrosanto" means "sacrosanct". The feminine adjective "sacrosanta" means "sacrosanct".
+The noun "culpable" means "culprit". The adjective "culpable" means "guilty". "culpables" is the plural of "culpable".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+"comiendo" is the gerund of "come". "comido" is the participle of "come". "comía" is the past of "come".
+The verb "es" means "is". "son" is the plural of "es".
+The verb "llama" means "calls". "llamará" is the future of "llama".
+The verb "pertenece" means "belongs". "pertenece" is the imperative of "pertenece".
+The verb "acusa" means "accuses". "acusar" is the infinitive of "acusa".
+The verb "provoca" means "causes". "provocado" is the participle of "provoca".
+The verb "equivoca" means "errs". "equivocado" is the participle of "equivoca". "equivoca" is reflexive.
+The verb "golpea" means "hits".
+The auxiliary "ha" means "has".
+The verb "hay" means "there is".
+The adverb "después" means "afterwards". The adverb "tan" means "so".
+The word "cómo" means "how".
+The conjunction "y" means "and". The conjunction "o" means "or". The conjunction "que" means "that".
+"que" is a relative.
+The masculine pronoun "ese" means "that". "esos" is the plural of "ese". The pronoun "ese" does not precede the verb.
+The pronoun "les" means "them". Every pronoun precedes the verb.
+The impersonal pronoun "se" means "one". The reflexive pronoun "se" means "itself".
+The possessive "su" means "his". "sus" is the plural of "su".
+The word "a" precedes the person.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The word "al" begins the moment. The word "más" begins the comparative. The adverb "más" means "more". The word "el" replaces the noun.
+The mark "¿" begins the question.
+The word "no" means "not". The word "no" precedes the verb.').
+lesson_22(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The masculine article "uno" means "a". The feminine article "una" means "a".
+"l''" is the elision of "lo". "l''" is the elision of "la". "un''" is the elision of "una".
+The article "lo" comes before a vowel. The article "lo" comes before "sc". The article "uno" comes before "sc".
+"del" is the contraction of "di il". "dello" is the contraction of "di lo". "della" is the contraction of "di la".
+"dei" is the contraction of "di i". "degli" is the contraction of "di gli". "delle" is the contraction of "di le".
+"dell''" is the elision of "dello". "dell''" is the elision of "della". "al" is the contraction of "a il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane".
+The noun "brodo" means "broth". The noun "minestra" means "soup".
+The noun "ragazzo" means "boy". "ragazzi" is the plural of "ragazzo".
+The noun "gruppo" means "group". The noun "padre" means "father". "padri" is the plural of "padre".
+The noun "ministro" means "minister".
+The noun "scandalo" means "scandal". "scandali" is the plural of "scandalo".
+The noun "istituzione" means "institution". "istituzione" is feminine.
+The noun "famiglia" means "family".
+The noun "città" means "city". "città" is feminine. "città" is the plural of "città".
+The masculine noun "lavaggio del cervello" means "brainwashing". "lavaggi del cervello" is the plural of "lavaggio del cervello".
+The preposition "insieme a" means "along with".
+The modal "deve" means "must".
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+The adjective "debole" means "weak".
+The masculine adjective "pacifico" means "peaceful". The feminine adjective "pacifica" means "peaceful".
+The masculine adjective "sacrosanto" means "sacrosanct". The feminine adjective "sacrosanta" means "sacrosanct".
+The adjective "colpevole" means "guilty". "colpevoli" is the plural of "colpevole".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+"mangiando" is the gerund of "mangia". "mangiato" is the participle of "mangia".
+The verb "è" means "is". "sono" is the plural of "è".
+The verb "chiama" means "calls". "chiamerà" is the future of "chiama".
+The verb "appartiene" means "belongs". "appartieni" is the imperative of "appartiene".
+The verb "accusa" means "accuses". "accusando" is the gerund of "accusa".
+The verb "causa" means "causes". "causato" is the participle of "causa".
+The verb "sbaglia" means "errs". "sbagliato" is the participle of "sbaglia".
+The verb "colpisce" means "hits".
+The auxiliary "ha" means "has". "è" is the auxiliary of the reflexive.
+The verb "c''è" means "there is". "ci sono" is the plural of "c''è".
+The adverb "dopo" means "afterwards". The adverb "così" means "so".
+The word "come" means "how".
+The conjunction "e" means "and". The conjunction "o" means "or". The conjunction "che" means "that".
+"che" is a relative. "cui" is a relative. The word "cui" follows the preposition.
+The masculine pronoun "quello" means "that". "quelli" is the plural of "quello". The pronoun "quello" does not precede the verb.
+The pronoun "li" means "them". Every pronoun precedes the verb.
+The impersonal pronoun "si" means "one". The reflexive pronoun "si" means "itself". The word "si" follows the pronoun.
+The possessive "suo" means "his". "suoi" is the plural of "suo". The article "il" takes the possessive.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The word "più" begins the comparative. The adverb "più" means "more".
+The word "non" means "not". The word "non" precedes the verb.').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

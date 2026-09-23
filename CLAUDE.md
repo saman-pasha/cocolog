@@ -4316,6 +4316,166 @@ its noun (`del Scalfaro presidente`). **None of them is a refusal, so none
 of them is visible in the count** -- which is the honest reading of 12 of
 12, and the reason the next row of work is quality and not shapes.
 
+### A real Spanish article into Italian, and what the Italian sample never asked for (1.6.15)
+
+**ANOTHER REAL ARTICLE, THE OTHER WAY, AND 1 OF 11 BECAME 11 OF 11.** El
+Periódico of 2 February 1999 -- AnCora's `CESS-CAST-P-19990202-16`, eleven
+sentences of a column on the family and young people's violence -- Spanish
+into Italian over the two-language vocabulary store. On 1.6.14 one sentence
+translated and it was WRONG (`tiene que buscar` came out `ha che cercare`).
+The middle column is the 1.6.14 translator over THIS store, whose new lesson
+lines it cannot use (a word of several words is two words to it):
+
+| | 1.6.14, its store | 1.6.14, this store | **1.6.15** |
+|---|---|---|---|
+| translated into Italian | 1, and wrong | 1, the same | **11** |
+| refused for a word | 7 | 3 | **0** |
+| refused with every word known | 3 | 7 | **0** |
+| the eleven, one process | 82 s | 119.5 s | **22.8 s** |
+
+**WHAT IT NEEDED IS NOT WHAT THE ITALIAN SAMPLE NEEDED, which is the argument
+for a second article.** The twelve Italian sentences were verbs and what they
+take; this column is PHRASES THAT CARRY THINGS:
+
+| shape | the article's words | what the lesson says |
+|---|---|---|
+| a relative clause with its own pronoun | `contra "esos", que son culpables`, `el grupo social al que pertenece` | `"que" is a relative`, `The word "cui" follows the preposition` |
+| a subject nobody named | `se les llamará`, `Se ha equivocado`, `Es golpear` | nothing: a third person singular reads as `null(third, singular)` |
+| a list with commas | `compañeros y vecinos, emigrantes y minorías` | nothing |
+| a word of several words | `junto a`, `tiene que`, `lavado de cerebro`, `bate de béisbol` | `The preposition "junto a" means "along with"` |
+| how and when a thing was done | `utilizando un esnob bate`, `al acusar` | `The word "al" begins the moment` |
+| a phrase whose noun was left out | `en los de clase media`, `el más débil` | `The word "el" replaces the noun` |
+| no verb at all | `¡Atención al veneno ...!`, `; en los de clase media, chicos difíciles` | nothing |
+| a question in quotation marks, and `how` | `"¿Cómo ha podido salir así ...?".` | `The word "cómo" means "how"` |
+| a name between commas, an adverb on an adjective | `El ministro ..., Jean-Pierre Chevènement,`, `tan pacífica` | nothing |
+| the forms Italian chooses by the next word | `lo scandalo`, `l'istituzione`, `il suo`, `si è sbagliato`, `li si chiamerà` | `The article "lo" comes before "sc"`, `"è" is the auxiliary of the reflexive`, `The word "si" follows the pronoun`, `The article "il" takes the possessive` |
+
+-- and `The adjective "culpable" means "guilty"` beside `The noun "culpable"
+means "culprit"` needed a meaning KEPT WITH ITS CLASS, `mean_as(Word,
+English, Class)`, derived as the lesson is learned: `culpables` in an
+adjective's place came out `culprit`. **The whole vocabulary side is 54
+Spanish and 107 Italian lines in `corpus/extra/`** and one builder fix (a
+noun Apertium tags `sp`, `città`, is its own plural); `reason.pl` did not
+move, which is the seventh version running.
+
+**THE ELEVEN, AS THEY COME OUT** (Italian 157 797 terms and Spanish 205 670
+taught into one `--embed` store, 337 MB, 21 min 43 s; the eleven cost
+**22.8 s** together, 14.9 of them the fifth):
+
+| | |
+|---|---|
+| `Cucharada a cucharada, el chaval asimila el consomé o sopicaldo del ...` | `Cucchiaio dopo cucchiaio, il giovane assimila il consommé o brodo del ...` |
+| `El pater familias se está desahogando contra compañeros y vecinos, ...` | `Il padre di famiglia si sta sfogando contro compagni e vicini, ...` |
+| `Es la hora del caldo de frustraciones y odios que el pequeño aprende ...` | `È l'ora del brodo di frustrazioni e odi che il piccolo apprende in ...` |
+| `Hay lavados de cerebro con humildes sopas de sobre y otros servidos ...` | `Ci sono lavaggi del cervello con umili minestre in busta e altri ...` |
+| `Después, en los barrios marginales se les llamará muchachos ...` | `Dopo, nei quartieri marginali, li si chiamerà ragazzi conflittuali; ...` |
+| `"¿Cómo ha podido salir así en una familia tan pacífica?".` | `"Come ha potuto uscire così in una famiglia così pacifica?".` |
+| `El ministro del Interior francés, Jean-Pierre Chevènement, ha ...` | `Il ministro dell'interno francese, Jean-Pierre Chevènement, ha ...` |
+| `Se ha equivocado al proponer castigar a los padres con la pérdida de ...` | `Si è sbagliato proponendo punire i padri con la perdita degli ausili ...` |
+| `Es golpear sólo a un grupo y el más débil.` | `È colpire solamente un gruppo e il più debole.` |
+| `Pero la democracia tiene que buscar una causa a la violencia gratuita ...` | `Ma la democrazia deve cercare una causa alla violenza gratuita ...` |
+| `¡Atención al veneno mental de la hora de la sopa!.` | `Attenzione al veleno mentale dell'ora della minestra!` |
+
+**A THIRD PERSON NOBODY NAMED READS NOW, AND ENGLISH STILL REFUSES IT** -- the
+one rule of 1.6.0 that changed. `Estaba cansado` could be anybody and English
+must choose he, she or it; Italian and Spanish need not choose, so the IR
+carries `null(third, singular)` and only the English writer refuses. Three
+pins moved with it (`Dominava il generale.`, `Ieri mangiava il pane.`,
+`Comía el pan.`: each reads into the IR now, and each is still refused into
+English).
+
+**THE STORE CAUGHT WHAT THE CASE DID NOT, AND THAT IS THE FINDING TO KEEP.**
+With `test/translate.pl` GREEN and the article at 11 of 11, the twelve Italian
+sentences of 1.6.14 -- re-run on the same store as a CONTROL, nothing more --
+still all translated, and four of them were WORSE than on 1.6.14, measured by
+running the committed translator over the same store beside the new one:
+
+| the regression | the cause | the fix |
+|---|---|---|
+| `la suya identidad` for `la sua identità` | a possessive after an article read as an ADJECTIVE, and the class-aware meaning made `sua` the adjective `hers` | a possessive after an article is the determiner: `su identidad`, and Italian's writer puts the article back |
+| `y se de los Países` for `uno dei Paesi` | the new ellipsis read `uno` as an article with its noun left out, and the class branch crossed `one` to the impersonal `se` | an article the lesson says STANDS ALONE (`The pronoun "uno" does not precede the verb`) heads its own phrase; the class branch keeps out a word that names nobody |
+| `abonar ella tendido` for `accreditare la tesi` | a reduced relative read on the clitic `la` | a clitic heads nothing |
+| `no son aguantados incluso verificados` | `ancora` between `sono state` and `accertate` sent the sentence to the two-word passive, and `stata` is the participle of `stare` before the copula in the store | the passive perfect takes adverbs before its participle |
+
+-- **and all four now read BETTER than on 1.6.14** (`Su identidad y su
+nacionalidad no han sido verificados`, `desde su sede general`, `la tesis`),
+every row of the twelve equal or better. Four checks in the new section pin
+them on small lessons. **A case GREEN on small lessons is a claim about those
+lessons**: the vocabulary is where a reading meets a word with six classes.
+
+**THE CLASS-AWARE MEANING IS FOR A NOUN AND AN ADJECTIVE ONLY**, which Tatoeba
+settled. Asked for every class it wrote `We need plus food` (`más` is a
+preposition meaning `plus`), `too largo` (`largo` an adverb), `whither`,
+`non`: the dictionary's links for the other classes are noise to this. And
+toward English it acts only when the FIRST meaning is linked to another
+class, so a meaning a lesson gave with no class (`The word "dónde" means
+"where"`) is never passed over. Tatoeba's four hundred on the same store:
+
+| | 1.6.14 | **1.6.15** |
+|---|---|---|
+| exactly the reference | 42 | **42** |
+| translated | 260 | **263** |
+| refused | 140 | **137** |
+| wall | 16.6 s | **23.1 s** |
+
+**THE READING COSTS ABOUT 39 % MORE A SENTENCE, AND THE COUNT SAYS WHERE.**
+Timed by stage, the reading is 14.2 s against 21.5 s and crossing and writing
+do not move; counted, the lesson lookups went from 466 052 to 610 324. Two
+cuts came out of the count, each measured alone: the multi-word join asked
+`tr_known_word/2`, which walks every ending rule for a join that is no word
+(`tr_stated_word/1` asks the thirteen relations a form is STATED in: 1.8 s to
+0.7), and the coordinator test derived a lexeme for a word that does not
+inflect, ten thousand times (`tr_coord_word/1` asks the word: 0.6 s, with the
+phrase boundary asking for a degree word only where a boundary was found).
+What is left is spread thin -- the joins, the intensifier on every phrase
+word, more verb-group attempts from the new statement shapes -- and no single
+item in it is worth a design change.
+
+**THE COSTS, STATED:** `al proponer castigar` comes out `proponendo punire` --
+the preposition a verb puts before its infinitive is not in the IR; the
+imperfect and the preterite are both `past`; an ellipsis in a `de` phrase
+joins INSIDE it (the IR hangs `el de los chicos` on the cats), and every
+language writes the same words either way, which is 1.6.6's PP finding;
+`tengo que` is refused because a multi-word modal is stated in the third
+person only; and `Tom es mecánico` is `mechanical`, the adjective's meaning
+in an adjective's place, where Spanish meant the noun.
+
+**FOUR THINGS BIT, AND THE FIRST ONE WILL BITE AGAIN:**
+
+* **A RED RUN OF `test/translate.pl` PRINTS TWO REPORTS, AND ONLY THE FIRST IS
+  TRUE.** `checks_done` fails, so `main` fails, and the engine backtracks into
+  the last choice point a section left -- `reason_translate('Her dogs see
+  her.', P)` answers the same sentence twice, in 1.6.14 too -- and runs every
+  section after it again over lessons the first pass already changed. The
+  second report had a dozen failures where the first had one. Read up to the
+  first `RED`.
+* **`:- consult(F).` IN A PROGRAM RUN WITH `-s` CRASHES, AND SO DOES ANY
+  DIRECTIVE THAT FAILS OR THROWS THERE.** `consult/1` does not exist -- under
+  `run` the directive says `Unknown procedure: consult/1` and the load goes
+  on -- but under `-s` even `:- fail.` segfaults, the stack 7 500 frames of
+  `coco_directive` → `lb_goal_hook` → `coco_engine_next` → `coco_module_load`
+  → `coco_consult` → `coco_directive`. The reading, not proved: the
+  directive's engine backtracks into the `-s` command's own `use_module(FILE)`
+  and loads the file again. It is in the 1.6.14 binary and it is NOT fixed
+  here. `cocolog run test/translate.pl GOAL` is how a probe reaches a case's
+  predicates.
+* **A LINE AT THE FRONT OF A 400 MB STORE COSTS SECONDS TO A MINUTE**, because
+  the backend rewrites the predicate wholesale. A 9 MB store of only the lines
+  that mention the article's words answered a probe in seconds; the full
+  store was re-taught (22 min, 337 MB, 9.4 GB resident at its peak) for the
+  numbers above.
+* **A CLAUSE HAS ONE SCOPE**, again: a guard that named its variable `R0` in a
+  clause that tests `R0` two lines below turned the test into one about that
+  one word. The results did not change, which is why only reading the clause
+  found it.
+
+**`test/translate.pl` IS 626 CHECKS AND GREEN**, 34 in a new `newspaper_es`
+section with a Spanish and an Italian lesson of its own; one IR pin moved to
+carry `pre(...)`. Lesson 46 gained section 22. **The minor is proposed**: a
+relative clause, a list, a word of several words, a gerund and `al`, a noun
+left out and a clause with no verb are new things a program reaches; the
+owner decides.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

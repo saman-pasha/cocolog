@@ -41,6 +41,113 @@ The masculine noun "sabato" means "saturday".
 "minuto" is a time.
 "momento" is a time.
 "secolo" is a time.
+The conjunction "o" means "or".
+The masculine adjective "piccolo" means "small".
+"che" is a relative.
+"cui" is a relative.
+The word "cui" follows the preposition.
+The preposition "insieme a" means "along with".
+The masculine noun "lavaggio del cervello" means "brainwashing".
+"lavaggi del cervello" is the plural of "lavaggio del cervello".
+The feminine noun "minestra in busta" means "packet soup".
+"minestre in busta" is the plural of "minestra in busta".
+The masculine noun "padre di famiglia" means "paterfamilias".
+"padre di famiglia" is not feminine.
+The feminine noun "mazza da baseball" means "baseball bat".
+"mazze da baseball" is the plural of "mazza da baseball".
+The adverb "però" means "mind you".
+The adjective "coerente" means "consistent".
+The adverb "cucchiaio dopo cucchiaio" means "spoonful by spoonful".
+The masculine noun "consommé" means "consomme".
+The masculine noun "pollo con galets" means "chicken with galets".
+The masculine noun "danno" means "damage".
+The masculine adjective "sacrosanto" means "sacrosanct".
+"sacrosanti" is the plural of "sacrosanto".
+The feminine adjective "sacrosanta" means "sacrosanct".
+"sacrosante" is the plural of "sacrosanta".
+The verb "sfoga" means "vents".
+"sfogano" is the plural of "sfoga".
+"sfogando" is the gerund of "sfoga".
+"sfogare" is the infinitive of "sfoga".
+The verb "sbaglia" means "errs".
+"sbagliano" is the plural of "sbaglia".
+"sbagliato" is the participle of "sbaglia".
+"sbagliare" is the infinitive of "sbaglia".
+The verb "spacca" means "shatters".
+"spaccano" is the plural of "spacca".
+"spaccare" is the infinitive of "spacca".
+"spaccando" is the gerund of "spacca".
+The verb "c'è" means "there is".
+"ci sono" is the plural of "c'è".
+The masculine noun "interno" means "interior".
+The masculine noun "mendicante" means "beggar".
+The adjective "snob" means "snobbish".
+The word "come" means "how".
+The modal "deve" means "must".
+The feminine noun "classe media" means "middle class".
+The article "lo" comes before a vowel.
+The article "lo" comes before "sb".
+The article "lo" comes before "sc".
+The article "lo" comes before "sd".
+The article "lo" comes before "sf".
+The article "lo" comes before "sg".
+The article "lo" comes before "sl".
+The article "lo" comes before "sm".
+The article "lo" comes before "sn".
+The article "lo" comes before "sp".
+The article "lo" comes before "sq".
+The article "lo" comes before "st".
+The article "lo" comes before "sv".
+The article "lo" comes before "z".
+The article "lo" comes before "gn".
+The article "lo" comes before "ps".
+The article "lo" comes before "pn".
+The article "lo" comes before "x".
+The article "lo" comes before "y".
+The article "uno" comes before "sb".
+The article "uno" comes before "sc".
+The article "uno" comes before "sd".
+The article "uno" comes before "sf".
+The article "uno" comes before "sg".
+The article "uno" comes before "sl".
+The article "uno" comes before "sm".
+The article "uno" comes before "sn".
+The article "uno" comes before "sp".
+The article "uno" comes before "sq".
+The article "uno" comes before "st".
+The article "uno" comes before "sv".
+The article "uno" comes before "z".
+The article "uno" comes before "gn".
+The article "uno" comes before "ps".
+The article "uno" comes before "pn".
+The article "uno" comes before "x".
+The article "uno" comes before "y".
+"dallo" is the contraction of "da lo".
+"dagli" is the contraction of "da gli".
+"sullo" is the contraction of "su lo".
+"sugli" is the contraction of "su gli".
+"è" is the auxiliary of the reflexive.
+"è" is the auxiliary of "esce".
+"è" is the auxiliary of "arriva".
+"è" is the auxiliary of "va".
+"è" is the auxiliary of "viene".
+"è" is the auxiliary of "parte".
+"è" is the auxiliary of "torna".
+"è" is the auxiliary of "entra".
+"è" is the auxiliary of "cade".
+"è" is the auxiliary of "nasce".
+"è" is the auxiliary of "muore".
+"è" is the auxiliary of "diventa".
+"è" is the auxiliary of "resta".
+"è" is the auxiliary of "rimane".
+"è" is the auxiliary of "riesce".
+The word "si" follows the pronoun.
+The article "il" takes the possessive.
+"odi" is the plural of "odio".
+The masculine noun "quartiere" means "neighbourhood".
+"sbaglia" is reflexive.
+"sfoga" is reflexive.
+"quartieri" is the plural of "quartiere".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -186,6 +293,7 @@ The masculine noun "disertore" means "deserter".
 The noun "sincronizzatore" means "synchroniser".
 The noun "magnesite" means "magnesite".
 The feminine noun "silhouette" means "silhouette".
+"silhouette" is the plural of "silhouette".
 The feminine noun "vedetta" means "lookout".
 "vedette" is the plural of "vedetta".
 The noun "collage" means "collage".
@@ -516,6 +624,7 @@ The masculine noun "arrangiatore" means "arranger".
 The masculine noun "artificiere" means "artificer".
 "artificieri" is the plural of "artificiere".
 The feminine noun "artificialità" means "artificiality".
+"artificialità" is the plural of "artificialità".
 The masculine noun "artigliere" means "artilleryman".
 "artiglieri" is the plural of "artigliere".
 "artigliere" is a person.
@@ -534,6 +643,7 @@ The masculine noun "assemblaggio" means "assembly".
 The masculine noun "asserto" means "assertion".
 "asserti" is the plural of "asserto".
 The feminine noun "assiduità" means "assiduity".
+"assiduità" is the plural of "assiduità".
 The masculine noun "astrologo" means "astrologer".
 "astrologi" is the plural of "astrologo".
 The masculine noun "astrofisico" means "astrophysicist".
@@ -619,6 +729,7 @@ The masculine noun "beduino" means "bedouin".
 The masculine noun "apicoltore" means "beekeeper".
 "apicoltori" is the plural of "apicoltore".
 The masculine noun "benzene" means "benzene".
+"benzene" is the plural of "benzene".
 The masculine noun "berrettino" means "beret".
 "berrettini" is the plural of "berrettino".
 The masculine noun "acino" means "berry".
@@ -1061,6 +1172,7 @@ The masculine noun "anticonformismo" means "nonconformism".
 The feminine noun "anticonformista" means "nonconformist".
 "anticonformiste" is the plural of "anticonformista".
 The feminine noun "agibilità" means "occupancy".
+"agibilità" is the plural of "agibilità".
 The masculine noun "arancio" means "orange".
 "aranci" is the plural of "arancio".
 The masculine noun "allestitore" means "organizer".
@@ -1723,6 +1835,7 @@ The masculine noun "dilettantismo" means "amateurism".
 The masculine noun "stupore" means "amazement".
 "stupori" is the plural of "stupore".
 The feminine noun "anidride" means "anhydride".
+"anidride" is the plural of "anidride".
 The feminine noun "ambra" means "amber".
 "ambre" is the plural of "ambra".
 The masculine noun "equivoco" means "ambiguity".
@@ -1739,6 +1852,7 @@ The feminine noun "ambulanza" means "ambulance".
 The feminine noun "imboscata" means "ambush".
 "imboscate" is the plural of "imboscata".
 The masculine noun "amen" means "amen".
+"amen" is the plural of "amen".
 The masculine noun "emendamento" means "amendment".
 "emendamenti" is the plural of "emendamento".
 The noun "amenorrea" means "amenorrhoea".
@@ -1812,6 +1926,7 @@ The masculine noun "ascendente" means "ancestor".
 "ascendenti" is the plural of "ascendente".
 "ascendente" is a person.
 The feminine noun "ancora" means "anchor".
+"ancora" is the plural of "ancora".
 The feminine noun "acciuga" means "anchovy".
 "acciughe" is the plural of "acciuga".
 The masculine noun "antico" means "ancient".
@@ -1907,6 +2022,7 @@ The masculine noun "antipode" means "antipode".
 The masculine noun "antisemitismo" means "antisemitism".
 "antisemitismi" is the plural of "antisemitismo".
 The feminine noun "antitesi" means "antithesis".
+"antitesi" is the plural of "antitesi".
 The feminine noun "antonomasia" means "antonomasia".
 "antonomasie" is the plural of "antonomasia".
 The masculine noun "antonimo" means "antonym".
@@ -3061,6 +3177,7 @@ The masculine noun "cambiamento" means "change".
 The masculine noun "canale" means "channel".
 "canali" is the plural of "canale".
 The masculine noun "caos" means "chaos".
+"caos" is the plural of "caos".
 The feminine noun "cappella" means "chapel".
 "cappelle" is the plural of "cappella".
 The masculine noun "capitolo" means "chapter".
@@ -3143,6 +3260,7 @@ The masculine noun "coro" means "choir".
 "cori" is the plural of "coro".
 The masculine noun "colera" means "cholera".
 "colera" is not feminine.
+"colera" is the plural of "colera".
 The masculine noun "colesterolo" means "cholesterol".
 "colesteroli" is the plural of "colesterolo".
 The noun "colina" means "choline".
@@ -3176,6 +3294,7 @@ The feminine noun "cronaca" means "chronicle".
 The feminine noun "cronologia" means "chronology".
 "cronologie" is the plural of "cronologia".
 The feminine noun "cronometro" means "chronometer".
+"cronometro" is the plural of "cronometro".
 The noun "crisantemo" means "chrysanthemum".
 The noun "olivina" means "chrysolite".
 The feminine noun "chiesa" means "church".
@@ -3445,6 +3564,7 @@ The masculine noun "compressore" means "compressor".
 The feminine noun "computazione" means "computation".
 "computazioni" is the plural of "computazione".
 The masculine noun "computer" means "computer".
+"computer" is the plural of "computer".
 The feminine noun "informatizzazione" means "computerisation".
 "informatizzazioni" is the plural of "informatizzazione".
 The feminine noun "concatenazione" means "concatenation".
@@ -3559,6 +3679,7 @@ The masculine noun "concistoro" means "consistory".
 The feminine noun "consolazione" means "consolation".
 "consolazioni" is the plural of "consolazione".
 The feminine noun "console" means "console".
+"console" is the plural of "console".
 The masculine noun "consolidamento" means "consolidation".
 "consolidamenti" is the plural of "consolidamento".
 The noun "consonanza" means "consonance".
@@ -3869,6 +3990,7 @@ The masculine noun "cinismo" means "cynicism".
 The masculine noun "cipresso" means "cypress".
 "cipressi" is the plural of "cipresso".
 The feminine noun "cisti" means "cyst".
+"cisti" is the plural of "cisti".
 The feminine noun "cisteina" means "cysteine".
 "cisteine" is the plural of "cisteina".
 The noun "cistoscopia" means "cystoscopy".
@@ -4243,6 +4365,7 @@ The feminine noun "cena" means "dinner".
 The masculine noun "dinosauro" means "dinosaur".
 "dinosauri" is the plural of "dinosauro".
 The feminine noun "diocesi" means "diocese".
+"diocesi" is the plural of "diocesi".
 The noun "diodo" means "diode".
 The noun "diottria" means "dioptre".
 The noun "difterite" means "diphtheria".
@@ -4866,6 +4989,7 @@ The noun "esterificazione" means "esterification".
 The feminine noun "stima" means "estimate".
 "stime" is the plural of "stima".
 The masculine noun "budget" means "estimate".
+"budget" is the plural of "budget".
 The masculine noun "etanolo" means "ethanol".
 "etanoli" is the plural of "etanolo".
 The feminine noun "etnia" means "ethnicity".
@@ -5240,6 +5364,7 @@ The masculine noun "fuoco" means "fire".
 The masculine noun "camino" means "fireplace".
 "camini" is the plural of "camino".
 The masculine noun "firewall" means "firewall".
+"firewall" is the plural of "firewall".
 The feminine noun "legna" means "firewood".
 "legne" is the plural of "legna".
 The masculine noun "firmamento" means "firmament".
@@ -5394,6 +5519,7 @@ The feminine noun "frammentazione" means "fragmentation".
 The feminine noun "struttura" means "frame".
 "strutture" is the plural of "struttura".
 The masculine noun "franchising" means "franchise".
+"franchising" is the plural of "franchising".
 The feminine noun "fratellanza" means "fraternity".
 "fratellanze" is the plural of "fratellanza".
 The feminine noun "frode" means "fraud".
@@ -6286,6 +6412,7 @@ The masculine noun "eroe" means "hero".
 "eroi" is the plural of "eroe".
 "eroe" is a person.
 The feminine noun "eroina" means "heroine".
+"eroina" is the plural of "eroina".
 "eroina" is a person.
 The masculine noun "eroismo" means "heroism".
 "eroismi" is the plural of "eroismo".
@@ -6992,6 +7119,7 @@ The masculine noun "chilogrammo" means "kilogram".
 The masculine noun "chilometro" means "kilometre".
 "chilometri" is the plural of "chilometro".
 The masculine noun "kimono" means "kimono".
+"kimono" is the plural of "kimono".
 The masculine noun "cinescopio" means "kinescope".
 "cinescopi" is the plural of "cinescopio".
 The noun "cinestesia" means "kinesthesia".
@@ -7095,6 +7223,7 @@ The masculine noun "strato" means "layer".
 The feminine noun "impaginazione" means "layout".
 "impaginazioni" is the plural of "impaginazione".
 The masculine noun "single" means "single".
+"single" is the plural of "single".
 The noun "balaustro" means "baluster".
 The masculine noun "piombo" means "lead".
 "piombi" is the plural of "piombo".
@@ -7593,6 +7722,7 @@ The masculine noun "metamorfismo" means "metamorphism".
 The feminine noun "metafora" means "metaphor".
 "metafore" is the plural of "metafora".
 The feminine noun "metastasi" means "metastasis".
+"metastasi" is the plural of "metastasi".
 The masculine noun "meteorite" means "meteorite".
 "meteoriti" is the plural of "meteorite".
 The feminine noun "meteorologia" means "meteorology".
@@ -8059,6 +8189,7 @@ The feminine noun "quercia" means "oak".
 The masculine noun "remo" means "oar".
 "remi" is the plural of "remo".
 The feminine noun "oasi" means "oasis".
+"oasi" is the plural of "oasi".
 The feminine noun "obbedienza" means "obedience".
 "obbedienze" is the plural of "obbedienza".
 The masculine noun "oggetto" means "object".
@@ -8314,6 +8445,7 @@ The feminine noun "palpazione" means "palpation".
 The masculine noun "opuscolo" means "pamphlet".
 "opuscoli" is the plural of "opuscolo".
 The masculine noun "pancreas" means "pancreas".
+"pancreas" is the plural of "pancreas".
 The masculine noun "panico" means "panic".
 "panici" is the plural of "panico".
 The noun "pannocchia" means "panicle".
@@ -8356,6 +8488,7 @@ The masculine noun "parallelepipedo" means "parallelepiped".
 The masculine noun "parallelismo" means "parallelism".
 "parallelismi" is the plural of "parallelismo".
 The feminine noun "paralisi" means "paralysis".
+"paralisi" is the plural of "paralisi".
 The noun "paramagnetismo" means "paramagnetism".
 The masculine noun "parametro" means "parameter".
 "parametri" is the plural of "parametro".
@@ -9446,6 +9579,7 @@ The masculine noun "rilascio" means "release".
 "rilasci" is the plural of "rilascio".
 The feminine noun "liberazione" means "release".
 The feminine noun "affidabilità" means "reliability".
+"affidabilità" is the plural of "affidabilità".
 The feminine noun "reliquia" means "relic".
 "reliquie" is the plural of "reliquia".
 The masculine noun "rilievo" means "relief".
@@ -9761,6 +9895,7 @@ The masculine noun "cuoio" means "scalp".
 The masculine noun "scandalo" means "scandal".
 "scandali" is the plural of "scandalo".
 The masculine noun "scanner" means "scanner".
+"scanner" is the plural of "scanner".
 The feminine noun "cicatrice" means "scar".
 "cicatrici" is the plural of "cicatrice".
 The feminine noun "sciarpa" means "scarf".
@@ -9925,6 +10060,7 @@ The masculine noun "imbarazzo" means "shame".
 "imbarazzi" is the plural of "imbarazzo".
 The feminine noun "vergogna" means "shame".
 The masculine noun "sciampo" means "shampoo".
+"sciampo" is the plural of "sciampo".
 The masculine noun "metodo" means "shape".
 The feminine noun "azionista" means "shareholder".
 "azioniste" is the plural of "azionista".
@@ -10728,6 +10864,7 @@ The feminine noun "macchia" means "stain".
 The feminine noun "scala" means "stair".
 The feminine noun "scala" means "staircase".
 The masculine noun "standard" means "standard".
+"standard" is the plural of "standard".
 The feminine noun "standardizzazione" means "standardisation".
 "standardizzazioni" is the plural of "standardizzazione".
 The feminine noun "stella" means "star".
@@ -10837,6 +10974,7 @@ The noun "stratigrafia" means "stratigraphy".
 The feminine noun "paglia" means "straw".
 "paglie" is the plural of "paglia".
 The masculine noun "stress" means "stress".
+"stress" is the plural of "stress".
 The masculine noun "sciopero" means "strike".
 "scioperi" is the plural of "sciopero".
 The masculine noun "colpo" means "stroke".
@@ -11305,6 +11443,7 @@ The feminine noun "asciugamano" means "towel".
 The feminine noun "torre" means "tower".
 "torri" is the plural of "torre".
 The feminine noun "località" means "town".
+"località" is the plural of "località".
 The feminine noun "tossicologia" means "toxicology".
 "tossicologie" is the plural of "tossicologia".
 The feminine noun "tossina" means "toxin".
@@ -11420,6 +11559,7 @@ The noun "tripla" means "triple".
 The noun "trisezione" means "trisection".
 The noun "trisomia" means "trisomy".
 The feminine noun "troika" means "troika".
+"troika" is the plural of "troika".
 The feminine noun "truppa" means "troop".
 "truppe" is the plural of "truppa".
 The masculine noun "trofeo" means "trophy".
@@ -11436,6 +11576,7 @@ The feminine noun "vasca" means "tub".
 The feminine noun "tuba" means "tuba".
 "tube" is the plural of "tuba".
 The feminine noun "tubercolosi" means "tuberculosis".
+"tubercolosi" is the plural of "tubercolosi".
 The noun "tubulina" means "tubulin".
 The masculine noun "tulipano" means "tulip".
 "tulipani" is the plural of "tulipano".
@@ -11565,6 +11706,7 @@ The noun "alleluia" means "hallelujah".
 The noun "cavezza" means "halter".
 The masculine noun "boia" means "hangman".
 "boia" is not feminine.
+"boia" is the plural of "boia".
 The feminine noun "foschia" means "haze".
 "foschie" is the plural of "foschia".
 The noun "brughiera" means "heath".
@@ -11632,6 +11774,7 @@ The feminine noun "muffa" means "mildew".
 The noun "mungitura" means "milking".
 The masculine noun "mitra" means "mitre".
 "mitra" is not feminine.
+"mitra" is the plural of "mitra".
 The feminine noun "morfema" means "morpheme".
 "morfeme" is the plural of "morfema".
 The noun "morfina" means "morphine".
@@ -11940,6 +12083,7 @@ The feminine noun "vergine" means "virgin".
 The feminine noun "virologia" means "virology".
 "virologie" is the plural of "virologia".
 The feminine noun "virulenza" means "virulence".
+"virulenza" is the plural of "virulenza".
 The feminine noun "visione" means "vision".
 "visioni" is the plural of "visione".
 The masculine noun "visitatore" means "visitor".
@@ -11964,6 +12108,7 @@ The noun "vocalizzazione" means "vocalisation".
 The feminine noun "vocazione" means "vocation".
 "vocazioni" is the plural of "vocazione".
 The feminine noun "vodka" means "vodka".
+"vodka" is the plural of "vodka".
 The feminine noun "voce" means "voice".
 "voci" is the plural of "voce".
 The noun "volatilizzazione" means "volatilisation".
@@ -12232,6 +12377,7 @@ The masculine noun "deragliamento" means "derailment".
 The masculine noun "distaccamento" means "detachment".
 "distaccamenti" is the plural of "distaccamento".
 The feminine noun "zarzuela" means "zarzuela".
+"zarzuela" is the plural of "zarzuela".
 The feminine noun "zebra" means "zebra".
 "zebre" is the plural of "zebra".
 The masculine noun "zero" means "zero".
@@ -12418,6 +12564,7 @@ The masculine noun "cantore" means "cantor".
 The masculine noun "cappero" means "caper".
 "capperi" is the plural of "cappero".
 The feminine noun "capillarità" means "capillarity".
+"capillarità" is the plural of "capillarità".
 The masculine noun "capitello" means "capital".
 "capitelli" is the plural of "capitello".
 The masculine noun "capoluogo" means "capital".
@@ -12595,6 +12742,7 @@ The masculine noun "comma" means "comma".
 The masculine noun "comandamento" means "commandment".
 "comandamenti" is the plural of "comandamento".
 The feminine noun "comunicabilità" means "communicability".
+"comunicabilità" is the plural of "comunicabilità".
 The masculine noun "corrispettivo" means "compensation".
 "corrispettivi" is the plural of "corrispettivo".
 The masculine noun "competitore" means "competitor".
@@ -12613,6 +12761,7 @@ The masculine noun "composito" means "composite".
 The masculine noun "componimento" means "composition".
 "componimenti" is the plural of "componimento".
 The feminine noun "comprensibilità" means "comprehensibility".
+"comprensibilità" is the plural of "comprensibilità".
 The feminine noun "coazione" means "compulsion".
 "coazioni" is the plural of "coazione".
 The feminine noun "computerizzazione" means "computerization".
@@ -13208,6 +13357,7 @@ The masculine noun "capitombolo" means "tumble".
 The masculine noun "cunicolo" means "tunnel".
 "cunicoli" is the plural of "cunicolo".
 The feminine noun "coralità" means "unanimity".
+"coralità" is the plural of "coralità".
 The masculine noun "carneade" means "unknown".
 "carneadi" is the plural of "carneade".
 The masculine noun "cravattaro" means "usurer".
@@ -13399,6 +13549,7 @@ The feminine noun "somma" means "sum".
 The masculine noun "iodio" means "iodine".
 "iodii" is the plural of "iodio".
 The masculine noun "marine" means "marine".
+"marine" is the plural of "marine".
 "marine" is a person.
 The masculine noun "califfo" means "caliph".
 "califfi" is the plural of "califfo".
@@ -13507,6 +13658,7 @@ The masculine noun "tungsteno" means "tungsten".
 The noun "attuatore" means "actuator".
 The noun "andesite" means "andesite".
 The masculine noun "ampere" means "ampere".
+"ampere" is the plural of "ampere".
 The noun "analgesia" means "analgesia".
 The noun "antalgico" means "analgesic".
 The noun "anemone" means "anemone".
@@ -13563,6 +13715,7 @@ The masculine noun "voltmetro" means "voltmeter".
 "voltmetri" is the plural of "voltmetro".
 The noun "psicrometro" means "psychrometer".
 The masculine noun "km" means "km".
+"km" is the plural of "km".
 The noun "bavarese" means "bavarian".
 "bavaresi" is the plural of "bavarese".
 The noun "camerunese" means "cameroonian".
@@ -14156,6 +14309,7 @@ The feminine noun "assunzione" means "acceptance".
 "assunzioni" is the plural of "assunzione".
 The noun "accettore" means "acceptor".
 The feminine noun "accessibilità" means "accessibility".
+"accessibilità" is the plural of "accessibilità".
 The feminine noun "accomodazione" means "accommodation".
 "accomodazioni" is the plural of "accomodazione".
 The feminine noun "fisarmonicista" means "accordionist".
@@ -14163,6 +14317,7 @@ The feminine noun "fisarmonicista" means "accordionist".
 The masculine noun "cumulo" means "accumulation".
 "cumuli" is the plural of "cumulo".
 The feminine noun "acidità" means "acidity".
+"acidità" is the plural of "acidità".
 The feminine noun "acrobata" means "acrobat".
 "acrobate" is the plural of "acrobata".
 The feminine noun "sigla" means "acronym".
@@ -14174,7 +14329,9 @@ The noun "combattente" means "activist".
 "combattenti" is the plural of "combattente".
 "combattente" is a person.
 The feminine noun "attività" means "activity".
+"attività" is the plural of "attività".
 The feminine noun "attualità" means "actuality".
+"attualità" is the plural of "attualità".
 The masculine noun "adeguamento" means "adaptation".
 "adeguamenti" is the plural of "adeguamento".
 The masculine noun "destinatario" means "addressee".
@@ -14194,12 +14351,17 @@ The feminine noun "adulta" means "adult".
 "adulte" is the plural of "adulta".
 "adulta" is a person.
 The feminine noun "pubblicità" means "advertising".
+"pubblicità" is the plural of "pubblicità".
 The feminine noun "affabilità" means "affability".
+"affabilità" is the plural of "affabilità".
 The masculine noun "affetto" means "affection".
 "affetti" is the plural of "affetto".
 The feminine noun "affinità" means "affinity".
+"affinità" is the plural of "affinità".
 The feminine noun "età" means "age".
+"età" is the plural of "età".
 The feminine noun "aggressività" means "aggressiveness".
+"aggressività" is the plural of "aggressività".
 The masculine noun "aggressore" means "aggressor".
 "aggressori" is the plural of "aggressore".
 "aggressore" is a person.
@@ -14207,6 +14369,7 @@ The feminine noun "aggreditrice" means "aggressor".
 "aggreditrici" is the plural of "aggreditrice".
 "aggreditrice" is a person.
 The feminine noun "agilità" means "agility".
+"agilità" is the plural of "agilità".
 The masculine noun "fomentatore" means "agitator".
 "fomentatori" is the plural of "fomentatore".
 The feminine noun "fomentatrice" means "agitator".
@@ -14239,18 +14402,24 @@ The masculine noun "aeroporto" means "airport".
 The masculine noun "ciberspazio" means "cyberspace".
 "ciberspazi" is the plural of "ciberspazio".
 The masculine noun "albatros" means "albatross".
+"albatros" is the plural of "albatros".
 The noun "albino" means "albino".
 The masculine noun "album" means "album".
+"album" is the plural of "album".
 The feminine noun "alchimista" means "alchemist".
 "alchimiste" is the plural of "alchimista".
 The masculine noun "alcool" means "alcohol".
+"alcool" is the plural of "alcool".
 The masculine noun "alcol" means "alcohol".
+"alcol" is the plural of "alcol".
 The feminine noun "allerta" means "alert".
+"allerta" is the plural of "allerta".
 The masculine noun "alicantino" means "alicantean".
 "alicantini" is the plural of "alicantino".
 The feminine noun "alicantina" means "alicantean".
 "alicantine" is the plural of "alicantina".
 The feminine noun "alcalinità" means "alkalinity".
+"alcalinità" is the plural of "alcalinità".
 The feminine noun "allocazione" means "allocation".
 "allocazioni" is the plural of "allocazione".
 The masculine noun "alleato" means "ally".
@@ -14274,6 +14443,7 @@ The feminine noun "ambasciatrice" means "ambassador".
 "ambasciatrici" is the plural of "ambasciatrice".
 "ambasciatrice" is a person.
 The feminine noun "ambiguità" means "ambiguity".
+"ambiguità" is the plural of "ambiguità".
 The masculine noun "ambizioso" means "ambitious".
 "ambiziosi" is the plural of "ambizioso".
 The feminine noun "ambiziosa" means "ambitious".
@@ -14283,6 +14453,7 @@ The masculine noun "anemico" means "anaemic".
 The feminine noun "anestesista" means "anaesthetist".
 "anestesiste" is the plural of "anestesista".
 The feminine noun "analisi" means "analysis".
+"analisi" is the plural of "analisi".
 The feminine noun "analista" means "analyst".
 "analiste" is the plural of "analista".
 "analista" is a person.
@@ -14292,6 +14463,7 @@ The masculine noun "anonimo" means "anonymous".
 The feminine noun "anonima" means "anonymous".
 "anonime" is the plural of "anonima".
 The masculine noun "anorak" means "anorak".
+"anorak" is the plural of "anorak".
 The feminine noun "antagonista" means "antagonist".
 "antagoniste" is the plural of "antagonista".
 "antagonista" is a person.
@@ -14342,6 +14514,7 @@ The masculine noun "arrestato" means "arrested".
 The feminine noun "arte" means "art".
 "arti" is the plural of "arte".
 The feminine noun "artrosi" means "arthrosis".
+"artrosi" is the plural of "artrosi".
 The feminine noun "articolazione" means "articulation".
 "articolazioni" is the plural of "articolazione".
 The masculine noun "artigiano" means "artisan".
@@ -14356,6 +14529,7 @@ The feminine noun "artista" means "artist".
 The masculine noun "amianto" means "asbestos".
 "amianti" is the plural of "amianto".
 The feminine noun "velleità" means "aspirations".
+"velleità" is the plural of "velleità".
 The noun "assistente" means "assistant".
 "assistenti" is the plural of "assistente".
 "assistente" is a person.
@@ -14375,6 +14549,7 @@ The feminine noun "atleta" means "athlete".
 "atlete" is the plural of "atleta".
 "atleta" is a person.
 The feminine noun "atrocità" means "atrocity".
+"atrocità" is the plural of "atrocità".
 The masculine noun "tentativo" means "attempt".
 "tentativi" is the plural of "tentativo".
 The masculine noun "incaricato" means "attendant".
@@ -14390,9 +14565,13 @@ The feminine noun "preposta" means "attendant".
 "preposte" is the plural of "preposta".
 "preposta" is a person.
 The feminine noun "audience" means "audience".
+"audience" is the plural of "audience".
 The feminine noun "audit" means "audit".
+"audit" is the plural of "audit".
 The masculine noun "auditorium" means "auditorium".
+"auditorium" is the plural of "auditorium".
 The feminine noun "autenticità" means "authenticity".
+"autenticità" is the plural of "autenticità".
 The masculine noun "autore" means "author".
 "autori" is the plural of "autore".
 "autore" is a person.
@@ -14400,12 +14579,16 @@ The feminine noun "autrice" means "author".
 "autrici" is the plural of "autrice".
 "autrice" is a person.
 The feminine noun "autorità" means "authority".
+"autorità" is the plural of "autorità".
 The feminine noun "autotrazione" means "propulsion".
 "autotrazioni" is the plural of "autotrazione".
 The feminine noun "disponibilità" means "availability".
+"disponibilità" is the plural of "disponibilità".
 The masculine noun "avatar" means "avatar".
+"avatar" is the plural of "avatar".
 "avatar" is a person.
 The masculine noun "azimut" means "azimuth".
+"azimut" is the plural of "azimut".
 The masculine noun "sostegno" means "backrest".
 "sostegni" is the plural of "sostegno".
 The feminine noun "sacca" means "bag".
@@ -14417,6 +14600,7 @@ The feminine noun "panettiera" means "baker".
 The feminine noun "palla" means "ball".
 "palle" is the plural of "palla".
 The masculine noun "bambù" means "bamboo".
+"bambù" is the plural of "bambù".
 The masculine noun "bandito" means "bandit".
 "banditi" is the plural of "bandito".
 "bandito" is a person.
@@ -14424,11 +14608,13 @@ The masculine noun "banchiere" means "banker".
 "banchieri" is the plural of "banchiere".
 "banchiere" is a person.
 The masculine noun "bar" means "bar".
+"bar" is the plural of "bar".
 The feminine noun "sbarra" means "bar".
 "sbarre" is the plural of "sbarra".
 The masculine noun "bancone" means "bar".
 "banconi" is the plural of "bancone".
 The feminine noun "barbarie" means "barbarism".
+"barbarie" is the plural of "barbarie".
 The masculine noun "barone" means "baron".
 "baroni" is the plural of "barone".
 The feminine noun "baronessa" means "baron".
@@ -14467,10 +14653,13 @@ The feminine noun "beneficiaria" means "beneficiary".
 "beneficiarie" is the plural of "beneficiaria".
 "beneficiaria" is a person.
 The feminine noun "faziosità" means "bias".
+"faziosità" is the plural of "faziosità".
 The masculine noun "bidet" means "bidet".
+"bidet" is the plural of "bidet".
 The feminine noun "bolletta" means "bill".
 "bollette" is the plural of "bolletta".
 The feminine noun "biodiversità" means "biodiversity".
+"biodiversità" is the plural of "biodiversità".
 The masculine noun "biologo" means "biologist".
 "biologi" is the plural of "biologo".
 "biologo" is a person.
@@ -14480,6 +14669,7 @@ The feminine noun "biologa" means "biologist".
 The masculine noun "volatile" means "bird".
 "volatili" is the plural of "volatile".
 The feminine noun "natalità" means "birth".
+"natalità" is the plural of "natalità".
 The masculine noun "nero" means "black".
 "neri" is the plural of "nero".
 The feminine noun "nera" means "black".
@@ -14491,9 +14681,13 @@ The masculine noun "cieco" means "blind".
 The feminine noun "cieca" means "blind".
 "cieche" is the plural of "cieca".
 The feminine noun "cecità" means "blindness".
+"cecità" is the plural of "cecità".
 The masculine noun "bloc" means "bloc".
+"bloc" is the plural of "bloc".
 The masculine noun "blog" means "blog".
+"blog" is the plural of "blog".
 The masculine noun "bluff" means "bluff".
+"bluff" is the plural of "bluff".
 The masculine noun "boliviano" means "bolivian".
 "boliviani" is the plural of "boliviano".
 The feminine noun "boliviana" means "bolivian".
@@ -14524,6 +14718,7 @@ The feminine noun "paletta" means "bricklayer".
 The masculine noun "pennello" means "brush".
 "pennelli" is the plural of "pennello".
 The feminine noun "brutalità" means "brutality".
+"brutalità" is the plural of "brutalità".
 The masculine noun "edificio" means "building".
 "edifici" is the plural of "edificio".
 The feminine noun "edificazione" means "building".
@@ -14531,8 +14726,11 @@ The feminine noun "edificazione" means "building".
 The masculine noun "bernoccolo" means "bump".
 "bernoccoli" is the plural of "bernoccolo".
 The masculine noun "bunker" means "bunker".
+"bunker" is the plural of "bunker".
 The masculine noun "autobus" means "bus".
+"autobus" is the plural of "autobus".
 The masculine noun "pullman" means "bus".
+"pullman" is the plural of "pullman".
 The feminine noun "natica" means "buttock".
 "natiche" is the plural of "natica".
 The feminine noun "chiappa" means "buttock".
@@ -14552,9 +14750,11 @@ The feminine noun "compratrice" means "buyer".
 "compratrici" is the plural of "compratrice".
 "compratrice" is a person.
 The feminine noun "calamità" means "calamity".
+"calamità" is the plural of "calamità".
 The masculine noun "calcolatore" means "calculator".
 "calcolatori" is the plural of "calcolatore".
 The masculine noun "cameraman" means "cameraman".
+"cameraman" is the plural of "cameraman".
 The feminine noun "cancellazione" means "cancellation".
 "cancellazioni" is the plural of "cancellazione".
 The masculine noun "candidato" means "candidate".
@@ -14584,6 +14784,7 @@ The feminine noun "autovettura" means "car".
 The masculine noun "autoveicolo" means "car".
 "autoveicoli" is the plural of "autoveicolo".
 The feminine noun "cardinalità" means "cardinality".
+"cardinalità" is the plural of "cardinalità".
 The masculine noun "cardiologo" means "cardiologist".
 "cardiologi" is the plural of "cardiologo".
 The feminine noun "cardiologa" means "cardiologist".
@@ -14613,12 +14814,16 @@ The masculine noun "gatto" means "cat".
 The feminine noun "gatta" means "cat".
 "gatte" is the plural of "gatta".
 The feminine noun "causalità" means "causality".
+"causalità" is the plural of "causalità".
 The feminine noun "caverna" means "cave".
 "caverne" is the plural of "caverna".
 The feminine noun "cavità" means "cavity".
+"cavità" is the plural of "cavità".
 The feminine noun "celebrità" means "celebrity".
+"celebrità" is the plural of "celebrità".
 "celebrità" is a person.
 The masculine noun "cellofan" means "cellophane".
+"cellofan" is the plural of "cellofan".
 The masculine noun "celtico" means "celt".
 "celtici" is the plural of "celtico".
 The feminine noun "celtica" means "celt".
@@ -14626,6 +14831,7 @@ The feminine noun "celtica" means "celt".
 The masculine noun "censimento" means "census".
 "censimenti" is the plural of "censimento".
 The feminine noun "centralità" means "centrality".
+"centralità" is the plural of "centralità".
 The masculine noun "attestato" means "certificate".
 "attestati" is the plural of "attestato".
 The feminine noun "presidenza" means "chair".
@@ -14635,6 +14841,7 @@ The feminine noun "sedia" means "chair".
 The feminine noun "contestazione" means "challenge".
 "contestazioni" is the plural of "contestazione".
 The masculine noun "champagne" means "champagne".
+"champagne" is the plural of "champagne".
 The masculine noun "cambio" means "change".
 "cambi" is the plural of "cambio".
 The masculine noun "personaggio" means "character".
@@ -14644,9 +14851,11 @@ The feminine noun "carica" means "charge".
 "cariche" is the plural of "carica".
 The feminine noun "carica" means "position".
 The feminine noun "castità" means "chastity".
+"castità" is the plural of "castità".
 The feminine noun "chat" means "chat".
 "chats" is the plural of "chat".
 The masculine noun "chef" means "chef".
+"chef" is the plural of "chef".
 The masculine noun "chimico" means "chemical".
 "chimici" is the plural of "chimico".
 The feminine noun "chimica" means "chemical".
@@ -14665,12 +14874,14 @@ The feminine noun "mutuataria" means "borrower".
 "mutuatarie" is the plural of "mutuataria".
 "mutuataria" is a person.
 The masculine noun "chip" means "chip".
+"chip" is the plural of "chip".
 The masculine noun "cioccolatino" means "chocolate".
 "cioccolatini" is the plural of "cioccolatino".
 The masculine noun "periodo" means "chronology".
 "periodi" is the plural of "periodo".
 The masculine noun "cinema" means "cinema".
 "cinema" is not feminine.
+"cinema" is the plural of "cinema".
 The masculine noun "cittadino" means "citizen".
 "cittadini" is the plural of "cittadino".
 "cittadino" is a person.
@@ -14680,10 +14891,13 @@ The feminine noun "cittadina" means "citizen".
 The masculine noun "citrico" means "citrus".
 "citrici" is the plural of "citrico".
 The feminine noun "città" means "city".
+"città" is the plural of "città".
 The feminine noun "civiltà" means "civilisation".
+"civiltà" is the plural of "civiltà".
 The masculine noun "reclamo" means "claim".
 "reclami" is the plural of "reclamo".
 The masculine noun "clan" means "clan".
+"clan" is the plural of "clan".
 The masculine noun "ecclesiastico" means "clergyman".
 "ecclesiastici" is the plural of "ecclesiastico".
 "ecclesiastico" is a person.
@@ -14697,9 +14911,13 @@ The masculine noun "pagliaccio" means "clown".
 "pagliacci" is the plural of "pagliaccio".
 "pagliaccio" is a person.
 The masculine noun "pavé" means "cobblestone".
+"pavé" is the plural of "pavé".
 The masculine noun "cocktail" means "cocktail".
+"cocktail" is the plural of "cocktail".
 The masculine noun "baccalà" means "cod".
+"baccalà" is the plural of "baccalà".
 The masculine noun "cognac" means "cognac".
+"cognac" is the plural of "cognac".
 The feminine noun "convivenza" means "cohabitation".
 "convivenze" is the plural of "convivenza".
 The feminine noun "bobina" means "coil".
@@ -14721,11 +14939,13 @@ The feminine noun "editorialista" means "columnist".
 "editorialiste" is the plural of "editorialista".
 "editorialista" is a person.
 The feminine noun "comodità" means "comfort".
+"comodità" is the plural of "comodità".
 The masculine noun "comico" means "comic".
 "comici" is the plural of "comico".
 The feminine noun "comica" means "comic".
 "comiche" is the plural of "comica".
 The feminine noun "comicità" means "comicality".
+"comicità" is the plural of "comicità".
 The masculine noun "commentatore" means "commentator".
 "commentatori" is the plural of "commentatore".
 "commentatore" is a person.
@@ -14739,6 +14959,7 @@ The feminine noun "comunista" means "communist".
 "comuniste" is the plural of "comunista".
 "comunista" is a person.
 The feminine noun "comunità" means "community".
+"comunità" is the plural of "comunità".
 The feminine noun "compagnia" means "company".
 "compagnie" is the plural of "compagnia".
 The feminine noun "azienda" means "company".
@@ -14750,14 +14971,19 @@ The masculine noun "raffronto" means "comparison".
 The feminine noun "bussola" means "compass".
 "bussole" is the plural of "bussola".
 The feminine noun "compatibilità" means "compatibility".
+"compatibilità" is the plural of "compatibilità".
 The feminine noun "competenza" means "competition".
 "competenze" is the plural of "competenza".
 The feminine noun "concorrenza" means "competition".
 "concorrenze" is the plural of "concorrenza".
 The feminine noun "competitività" means "competitiveness".
+"competitività" is the plural of "competitività".
 The feminine noun "complessità" means "complexity".
+"complessità" is the plural of "complessità".
 The feminine noun "conformità" means "compliance".
+"conformità" is the plural of "conformità".
 The feminine noun "complicità" means "complicity".
+"complicità" is the plural of "complicità".
 The masculine noun "compositore" means "composer".
 "compositori" is the plural of "compositore".
 "compositore" is a person.
@@ -14768,6 +14994,7 @@ The feminine noun "camerata" means "comrade".
 "camerate" is the plural of "camerata".
 "camerata" is a person.
 The feminine noun "conducibilità" means "conductivity".
+"conducibilità" is the plural of "conducibilità".
 The feminine noun "fiducia" means "confidence".
 "fiduce" is the plural of "fiducia".
 The masculine noun "conservatore" means "conservative".
@@ -14777,6 +15004,7 @@ The feminine noun "conservatrice" means "conservative".
 "conservatrici" is the plural of "conservatrice".
 "conservatrice" is a person.
 The feminine noun "consolle" means "console".
+"consolle" is the plural of "consolle".
 The masculine noun "consumatore" means "consumer".
 "consumatori" is the plural of "consumatore".
 "consumatore" is a person.
@@ -14790,10 +15018,12 @@ The masculine noun "proseguimento" means "continuation".
 The masculine noun "prosieguo" means "continuation".
 "prosiegui" is the plural of "prosieguo".
 The feminine noun "continuità" means "continuity".
+"continuità" is the plural of "continuità".
 The noun "contorsionista" means "contortionist".
 The masculine noun "appalto" means "contract".
 "appalti" is the plural of "appalto".
 The feminine noun "convertibilità" means "convertibility".
+"convertibilità" is the plural of "convertibilità".
 The masculine noun "cuoco" means "cook".
 "cuochi" is the plural of "cuoco".
 "cuoco" is a person.
@@ -14805,7 +15035,9 @@ The feminine noun "coordinazione" means "coordination".
 The masculine noun "esemplare" means "copy".
 "esemplari" is the plural of "esemplare".
 The masculine noun "copyright" means "copyright".
+"copyright" is the plural of "copyright".
 The masculine noun "mais" means "corn".
+"mais" is the plural of "mais".
 The feminine noun "incoronazione" means "coronation".
 "incoronazioni" is the plural of "incoronazione".
 The feminine noun "cosmonauta" means "cosmonaut".
@@ -14814,10 +15046,13 @@ The masculine noun "bancone" means "counter".
 The feminine noun "copertina" means "cover".
 "copertine" is the plural of "copertina".
 The feminine noun "gru" means "crane".
+"gru" is the plural of "gru".
 The masculine noun "avviamento" means "creation".
 "avviamenti" is the plural of "avviamento".
 The feminine noun "creatività" means "creativity".
+"creatività" is the plural of "creatività".
 The feminine noun "credibilità" means "credibility".
+"credibilità" is the plural of "credibilità".
 The masculine noun "cretino" means "cretin".
 "cretini" is the plural of "cretino".
 The feminine noun "cretina" means "cretin".
@@ -14835,10 +15070,13 @@ The masculine noun "critico" means "critic".
 "critico" is a person.
 The feminine noun "critica" means "critic".
 The masculine noun "cross" means "cross".
+"cross" is the plural of "cross".
 The feminine noun "crudeltà" means "cruelty".
+"crudeltà" is the plural of "crudeltà".
 The feminine noun "coppa" means "cup".
 "coppe" is the plural of "coppa".
 The feminine noun "curiosità" means "curiosity".
+"curiosità" is the plural of "curiosità".
 The masculine noun "tamponamento" means "curtain".
 "tamponamenti" is the plural of "tamponamento".
 The feminine noun "ciclista" means "cyclist".
@@ -14847,6 +15085,7 @@ The feminine noun "ciclista" means "cyclist".
 The feminine noun "ciste" means "cyst".
 "cisti" is the plural of "ciste".
 The masculine noun "papà" means "dad".
+"papà" is the plural of "papà".
 "papà" is a person.
 The masculine noun "ballo" means "dance".
 "balli" is the plural of "ballo".
@@ -14863,7 +15102,9 @@ The feminine noun "danzatrice" means "dancer".
 "danzatrici" is the plural of "danzatrice".
 "danzatrice" is a person.
 The feminine noun "pericolosità" means "danger".
+"pericolosità" is the plural of "pericolosità".
 The feminine noun "oscurità" means "darkness".
+"oscurità" is the plural of "oscurità".
 The masculine noun "dattero" means "date".
 "datteri" is the plural of "dattero".
 The feminine noun "giornata" means "day".
@@ -14877,6 +15118,7 @@ The feminine noun "defunta" means "deceased".
 The feminine noun "decentralizzazione" means "decentralisation".
 "decentralizzazioni" is the plural of "decentralizzazione".
 The masculine noun "decibel" means "decibel".
+"decibel" is the plural of "decibel".
 The feminine noun "scomposizione" means "decomposition".
 "scomposizioni" is the plural of "scomposizione".
 The masculine noun "addobbo" means "decoration".
@@ -14888,12 +15130,15 @@ The feminine noun "erogazione" means "delivery".
 "erogazioni" is the plural of "erogazione".
 The masculine noun "delta" means "delta".
 "delta" is not feminine.
+"delta" is the plural of "delta".
 The masculine noun "decesso" means "demise".
 "decessi" is the plural of "decesso".
 The feminine noun "densità" means "density".
+"densità" is the plural of "densità".
 The feminine noun "delazione" means "denunciation".
 "delazioni" is the plural of "delazione".
 The feminine noun "profondità" means "depth".
+"profondità" is the plural of "profondità".
 The masculine noun "deputato" means "deputy".
 "deputati" is the plural of "deputato".
 "deputato" is a person.
@@ -14905,7 +15150,9 @@ The feminine noun "discendenza" means "descent".
 The feminine noun "disseccazione" means "desiccation".
 "disseccazioni" is the plural of "disseccazione".
 The masculine noun "design" means "design".
+"design" is the plural of "design".
 The masculine noun "dessert" means "dessert".
+"dessert" is the plural of "dessert".
 The feminine noun "destinazione" means "destination".
 "destinazioni" is the plural of "destinazione".
 The feminine noun "individuazione" means "detection".
@@ -14915,6 +15162,7 @@ The masculine noun "rivelatore" means "detector".
 The masculine noun "diavolo" means "devil".
 "diavoli" is the plural of "diavolo".
 The feminine noun "diagnosi" means "diagnostic".
+"diagnosi" is the plural of "diagnosi".
 The masculine noun "dittatore" means "dictator".
 "dittatori" is the plural of "dittatore".
 The feminine noun "dittatrice" means "dictator".
@@ -14922,7 +15170,9 @@ The feminine noun "dittatrice" means "dictator".
 The masculine noun "regime" means "diet".
 "regimi" is the plural of "regime".
 The feminine noun "difficoltà" means "difficulty".
+"difficoltà" is the plural of "difficoltà".
 The feminine noun "dignità" means "dignity".
+"dignità" is the plural of "dignità".
 The masculine noun "diplomatico" means "diplomat".
 "diplomatici" is the plural of "diplomatico".
 "diplomatico" is a person.
@@ -14930,7 +15180,9 @@ The feminine noun "diplomatica" means "diplomat".
 "diplomatiche" is the plural of "diplomatica".
 "diplomatica" is a person.
 The feminine noun "directory" means "directory".
+"directory" is the plural of "directory".
 The feminine noun "disabilità" means "disability".
+"disabilità" is the plural of "disabilità".
 The masculine noun "discepolo" means "disciple".
 "discepoli" is the plural of "discepolo".
 "discepolo" is a person.
@@ -14938,6 +15190,7 @@ The feminine noun "discepola" means "disciple".
 "discepole" is the plural of "discepola".
 "discepola" is a person.
 The feminine noun "discontinuità" means "discontinuity".
+"discontinuità" is the plural of "discontinuità".
 The feminine noun "disgregazione" means "disintegration".
 "disgregazioni" is the plural of "disgregazione".
 The feminine noun "destituzione" means "dismissal".
@@ -14945,6 +15198,7 @@ The feminine noun "destituzione" means "dismissal".
 The masculine noun "trastorno" means "disorder".
 "trastorni" is the plural of "trastorno".
 The feminine noun "disparità" means "disparity".
+"disparità" is the plural of "disparità".
 The feminine noun "percorrenza" means "distance".
 "percorrenze" is the plural of "percorrenza".
 The masculine noun "distributore" means "distributor".
@@ -14956,7 +15210,9 @@ The feminine noun "distributrice" means "distributor".
 The feminine noun "circoscrizione" means "district".
 "circoscrizioni" is the plural of "circoscrizione".
 The feminine noun "diversità" means "diversity".
+"diversità" is the plural of "diversità".
 The feminine noun "divinità" means "divinity".
+"divinità" is the plural of "divinità".
 "divinità" is a person.
 The masculine noun "dottore" means "doctor".
 "dottori" is the plural of "dottore".
@@ -14973,6 +15229,7 @@ The masculine noun "cane" means "dog".
 The feminine noun "cangna" means "dog".
 "cangne" is the plural of "cangna".
 The feminine noun "domotica" means "domotics".
+"domotica" is the plural of "domotica".
 The masculine noun "donatore" means "donor".
 "donatori" is the plural of "donatore".
 "donatore" is a person.
@@ -14980,6 +15237,7 @@ The feminine noun "donatrice" means "donor".
 "donatrici" is the plural of "donatrice".
 "donatrice" is a person.
 The masculine noun "dossier" means "dossier".
+"dossier" is the plural of "dossier".
 The masculine noun "conduttore" means "driver".
 "conduttori" is the plural of "conduttore".
 "conduttore" is a person.
@@ -14987,6 +15245,7 @@ The feminine noun "conduttrice" means "driver".
 "conduttrici" is the plural of "conduttrice".
 "conduttrice" is a person.
 The feminine noun "siccità" means "drought".
+"siccità" is the plural of "siccità".
 The masculine noun "ubriaco" means "drunkard".
 "ubriachi" is the plural of "ubriaco".
 "ubriaco" is a person.
@@ -15005,21 +15264,25 @@ The masculine noun "sisma" means "earthquake".
 "sisma" is not feminine.
 "sismi" is the plural of "sisma".
 The feminine noun "facilità" means "ease".
+"facilità" is the plural of "facilità".
 The masculine noun "est" means "east".
 The masculine noun "guardone" means "eavesdropper".
 "guardoni" is the plural of "guardone".
 The feminine noun "guardona" means "eavesdropper".
 "guardone" is the plural of "guardona".
 The feminine noun "eccentricità" means "eccentricity".
+"eccentricità" is the plural of "eccentricità".
 The feminine noun "economista" means "economist".
 "economiste" is the plural of "economista".
 "economista" is a person.
 The feminine noun "economicità" means "economy".
+"economicità" is the plural of "economicità".
 The masculine noun "ecuadoriano" means "ecuadorian".
 "ecuadoriani" is the plural of "ecuadoriano".
 The feminine noun "ecuadoriana" means "ecuadorian".
 "ecuadoriane" is the plural of "ecuadoriana".
 The masculine noun "ego" means "ego".
+"ego" is the plural of "ego".
 The feminine noun "egoista" means "egoist".
 "egoiste" is the plural of "egoista".
 The masculine noun "egiziano" means "egyptian".
@@ -15031,11 +15294,13 @@ The masculine noun "egizio" means "egyptian".
 The feminine noun "egizia" means "egyptian".
 "egizie" is the plural of "egizia".
 The feminine noun "elasticità" means "elasticity".
+"elasticità" is the plural of "elasticità".
 The masculine noun "anziano" means "elderly".
 "anziani" is the plural of "anziano".
 The feminine noun "anziana" means "elderly".
 "anziane" is the plural of "anziana".
 The feminine noun "elettricità" means "electricity".
+"elettricità" is the plural of "elettricità".
 The masculine noun "elefante" means "elephant".
 "elefanti" is the plural of "elefante".
 The masculine noun "ascensore" means "elevator".
@@ -15051,6 +15316,7 @@ The feminine noun "imprenditrice" means "employer".
 "imprenditrici" is the plural of "imprenditrice".
 "imprenditrice" is a person.
 The feminine noun "vacuità" means "emptiness".
+"vacuità" is the plural of "vacuità".
 The masculine noun "incantatore" means "enchanter".
 "incantatori" is the plural of "incantatore".
 The feminine noun "incantatrice" means "enchanter".
@@ -15064,6 +15330,7 @@ The feminine noun "nemica" means "enemy".
 The masculine noun "divertimento" means "enjoyment".
 "divertimenti" is the plural of "divertimento".
 The feminine noun "entità" means "entity".
+"entità" is the plural of "entità".
 The feminine noun "ambientalista" means "environmentalist".
 "ambientaliste" is the plural of "ambientalista".
 The masculine noun "traditore" means "traitor".
@@ -15077,6 +15344,7 @@ The feminine noun "equilibrista" means "equilibrist".
 The feminine noun "apparecchiatura" means "equipment".
 "apparecchiature" is the plural of "apparecchiatura".
 The masculine noun "esperanto" means "esperanto".
+"esperanto" is the plural of "esperanto".
 The masculine noun "spionaggio" means "espionage".
 "spionaggi" is the plural of "spionaggio".
 The feminine noun "saggista" means "essayist".
@@ -15085,11 +15353,14 @@ The feminine noun "saggista" means "essayist".
 The feminine noun "instaurazione" means "establishment".
 "instaurazioni" is the plural of "instaurazione".
 The feminine noun "eternità" means "eternity".
+"eternità" is the plural of "eternità".
 The masculine noun "euro" means "euro".
+"euro" is the plural of "euro".
 The feminine noun "evangelista" means "evangelist".
 "evangeliste" is the plural of "evangelista".
 "evangelista" is a person.
 The feminine noun "eventualità" means "eventuality".
+"eventualità" is the plural of "eventualità".
 The feminine noun "rievocazione" means "evocation".
 "rievocazioni" is the plural of "rievocazione".
 The feminine noun "escavazione" means "excavation".
@@ -15117,6 +15388,7 @@ The feminine noun "esperta" means "expert".
 The feminine noun "locuzione" means "expression".
 "locuzioni" is the plural of "locuzione".
 The feminine noun "estremità" means "extremity".
+"estremità" is the plural of "estremità".
 The masculine noun "viso" means "face".
 "visi" is the plural of "viso".
 The masculine noun "volto" means "face".
@@ -15126,16 +15398,20 @@ The feminine noun "agevolazione" means "facilitation".
 The masculine noun "fattore" means "factor".
 "fattori" is the plural of "fattore".
 The feminine noun "facoltà" means "faculty".
+"facoltà" is the plural of "facoltà".
 The masculine noun "ventaglio" means "fan".
 "ventagli" is the plural of "ventaglio".
 The noun "labrador" means "farmer".
+"labrador" is the plural of "labrador".
 "labrador" is a person.
 The feminine noun "fascista" means "fascist".
 "fasciste" is the plural of "fascista".
 The feminine noun "mancanza" means "fault".
 "mancanze" is the plural of "mancanza".
 The masculine noun "fax" means "fax".
+"fax" is the plural of "fax".
 The feminine noun "fattibilità" means "feasibility".
+"fattibilità" is the plural of "fattibilità".
 The feminine noun "femminista" means "feminist".
 "femministe" is the plural of "femminista".
 "femminista" is a person.
@@ -15146,17 +15422,25 @@ The feminine noun "concimazione" means "fertilisation".
 The feminine noun "fecondazione" means "fertilisation".
 "fecondazioni" is the plural of "fecondazione".
 The feminine noun "fertilità" means "fertility".
+"fertilità" is the plural of "fertilità".
 The masculine noun "festival" means "festival".
+"festival" is the plural of "festival".
 The feminine noun "festività" means "festivity".
+"festività" is the plural of "festività".
 The feminine noun "feudalità" means "feudality".
+"feudalità" is the plural of "feudalità".
 The masculine noun "ficus" means "ficus".
+"ficus" is the plural of "ficus".
 The feminine noun "lotta" means "fight".
 "lotte" is the plural of "lotta".
 The masculine noun "file" means "file".
+"file" is the plural of "file".
 The masculine noun "film" means "film".
+"film" is the plural of "film".
 The feminine noun "finalista" means "finalist".
 "finaliste" is the plural of "finalista".
 The feminine noun "finalità" means "finality".
+"finalità" is the plural of "finalità".
 The masculine noun "incendio" means "fire".
 "incendi" is the plural of "incendio".
 The masculine noun "adulatore" means "flatterer".
@@ -15168,6 +15452,7 @@ The feminine noun "flautista" means "flautist".
 "flautiste" is the plural of "flautista".
 "flautista" is a person.
 The feminine noun "flessibilità" means "flexibility".
+"flessibilità" is the plural of "flessibilità".
 The masculine noun "suolo" means "floor".
 "suoli" is the plural of "suolo".
 The feminine noun "fioreria" means "florist".
@@ -15177,6 +15462,7 @@ The feminine noun "fiorista" means "florist".
 "fioriste" is the plural of "fiorista".
 "fiorista" is a person.
 The feminine noun "fluidità" means "fluidity".
+"fluidità" is the plural of "fluidità".
 The masculine noun "aviatore" means "flyer".
 "aviatori" is the plural of "aviatore".
 The feminine noun "aviatrice" means "flyer".
@@ -15204,9 +15490,11 @@ The masculine noun "fondatore" means "founder".
 The feminine noun "fondatrice" means "founder".
 "fondatrici" is the plural of "fondatrice".
 The feminine noun "fragilità" means "fragility".
+"fragilità" is the plural of "fragilità".
 The masculine noun "marco" means "frame".
 "marchi" is the plural of "marco".
 The feminine noun "libertà" means "freedom".
+"libertà" is the plural of "libertà".
 The masculine noun "amico" means "friend".
 "amici" is the plural of "amico".
 "amico" is a person.
@@ -15214,9 +15502,11 @@ The feminine noun "amica" means "friend".
 "amiche" is the plural of "amica".
 "amica" is a person.
 The feminine noun "amabilità" means "friendliness".
+"amabilità" is the plural of "amabilità".
 The masculine noun "frutto" means "fruit".
 "frutti" is the plural of "frutto".
 The feminine noun "funzionalità" means "functionality".
+"funzionalità" is the plural of "funzionalità".
 The feminine noun "fondamentalista" means "fundamentalist".
 "fondamentaliste" is the plural of "fondamentalista".
 The noun "eremita" means "hermit".
@@ -15268,6 +15558,7 @@ The masculine noun "arredamento" means "furniture".
 The masculine noun "vuoto" means "gap".
 "vuoti" is the plural of "vuoto".
 The masculine noun "garage" means "garage".
+"garage" is the plural of "garage".
 The masculine noun "giardiniere" means "gardener".
 "giardinieri" is the plural of "giardiniere".
 "giardiniere" is a person.
@@ -15275,13 +15566,17 @@ The feminine noun "giardiniera" means "gardener".
 "giardiniere" is the plural of "giardiniera".
 "giardiniera" is a person.
 The masculine noun "gas" means "gas".
+"gas" is the plural of "gas".
 The noun "gay" means "gay".
+"gay" is the plural of "gay".
 The feminine noun "generalità" means "generality".
+"generalità" is the plural of "generalità".
 The noun "gigante" means "giant".
 "giganti" is the plural of "gigante".
 The masculine noun "regalo" means "gift".
 "regali" is the plural of "regalo".
 The masculine noun "gin" means "gin".
+"gin" is the plural of "gin".
 The feminine noun "bambina" means "girl".
 "bambine" is the plural of "bambina".
 "bambina" is a person.
@@ -15289,6 +15584,7 @@ The masculine noun "bicchiere" means "glass".
 "bicchieri" is the plural of "bicchiere".
 The noun "goal" means "goal".
 The masculine noun "golf" means "golf".
+"golf" is the plural of "golf".
 The masculine noun "governatore" means "governor".
 "governatori" is the plural of "governatore".
 "governatore" is a person.
@@ -15296,7 +15592,9 @@ The feminine noun "governatrice" means "governor".
 "governatrici" is the plural of "governatrice".
 "governatrice" is a person.
 The masculine noun "gprs" means "gprs".
+"gprs" is the plural of "gprs".
 The masculine noun "gps" means "gps".
+"gps" is the plural of "gps".
 The feminine noun "nota" means "grade".
 "note" is the plural of "nota".
 The masculine noun "laureato" means "graduate".
@@ -15306,9 +15604,11 @@ The feminine noun "laureata" means "graduate".
 "laureate" is the plural of "laureata".
 "laureata" is a person.
 The feminine noun "gratuità" means "gratuity".
+"gratuità" is the plural of "gratuità".
 The masculine noun "allevamento" means "grazier".
 "allevamenti" is the plural of "allevamento".
 The feminine noun "avidità" means "greed".
+"avidità" is the plural of "avidità".
 The masculine noun "guerrigliero" means "guerrilla".
 "guerriglier" is the plural of "guerrigliero".
 "guerrigliero" is a person.
@@ -15327,7 +15627,9 @@ The masculine noun "gitano" means "gypsy".
 The feminine noun "gitana" means "gypsy".
 "gitane" is the plural of "gitana".
 The feminine noun "abitabilità" means "habitability".
+"abitabilità" is the plural of "abitabilità".
 The masculine noun "habitat" means "habitat".
+"habitat" is the plural of "habitat".
 The masculine noun "pelo" means "hair".
 "peli" is the plural of "pelo".
 The masculine noun "parrucchiere" means "hairdresser".
@@ -15335,19 +15637,29 @@ The masculine noun "parrucchiere" means "hairdresser".
 The feminine noun "parrucchiera" means "hairdresser".
 "parrucchiere" is the plural of "parrucchiera".
 The feminine noun "metà" means "half".
+"metà" is the plural of "metà".
 The masculine noun "handicap" means "handicap".
+"handicap" is the plural of "handicap".
 The masculine noun "hangar" means "hangar".
+"hangar" is the plural of "hangar".
 The feminine noun "felicità" means "happiness".
+"felicità" is the plural of "felicità".
 The feminine noun "trance" means "hardship".
+"trance" is the plural of "trance".
 The masculine noun "hascisc" means "hashish".
+"hascisc" is the plural of "hascisc".
 The masculine noun "header" means "header".
+"header" is the plural of "header".
 The feminine noun "sanità" means "health".
+"sanità" is the plural of "sanità".
 The masculine noun "riscaldatore" means "heater".
 "riscaldatori" is the plural of "riscaldatore".
 The masculine noun "erbivoro" means "herbivore".
 "erbivori" is the plural of "erbivoro".
 The masculine noun "herpes" means "herpes".
+"herpes" is the plural of "herpes".
 The feminine noun "ilarità" means "hilarity".
+"ilarità" is the plural of "ilarità".
 The masculine noun "storico" means "historian".
 "storici" is the plural of "storico".
 "storico" is a person.
@@ -15360,24 +15672,32 @@ The feminine noun "calaverna" means "hoarfrost".
 "calaverne" is the plural of "calaverna".
 The masculine noun "hockey" means "hockey".
 The feminine noun "santità" means "holiness".
+"santità" is the plural of "santità".
 The feminine noun "omogeneità" means "homogeneity".
+"omogeneità" is the plural of "omogeneità".
 The feminine noun "omosessualità" means "homosexuality".
+"omosessualità" is the plural of "omosessualità".
 The feminine noun "onorificenza" means "honour".
 "onorificenze" is the plural of "onorificenza".
 The masculine noun "onorario" means "honourary".
 "onorarii" is the plural of "onorario".
 The feminine noun "ospitalità" means "hospitality".
+"ospitalità" is the plural of "ospitalità".
 The masculine noun "anfitrione" means "host".
 "anfitrioni" is the plural of "anfitrione".
 "anfitrione" is a person.
 The feminine noun "ostilità" means "hostility".
+"ostilità" is the plural of "ostilità".
 The masculine noun "hotel" means "hotel".
+"hotel" is the plural of "hotel".
 The noun "aeroscivolante" means "hovercraft".
 The feminine noun "umanista" means "humanist".
 "umaniste" is the plural of "umanista".
 "umanista" is a person.
 The feminine noun "umidità" means "humidity".
+"umidità" is the plural of "umidità".
 The feminine noun "umiltà" means "humility".
+"umiltà" is the plural of "umiltà".
 The masculine noun "compagno" means "partner".
 "compagni" is the plural of "compagno".
 "compagno" is a person.
@@ -15387,16 +15707,21 @@ The feminine noun "compagna" means "partner".
 The feminine noun "ibridazione" means "hybridisation".
 "ibridazioni" is the plural of "ibridazione".
 The feminine noun "idrolisi" means "hydrolysis".
+"idrolisi" is the plural of "idrolisi".
 The feminine noun "iperattività" means "hyperactivity".
+"iperattività" is the plural of "iperattività".
 The feminine noun "ipnosi" means "hypnosis".
+"ipnosi" is the plural of "ipnosi".
 The feminine noun "ipocrita" means "hypocrite".
 "ipocrite" is the plural of "ipocrita".
 "ipocrita" is a person.
 The masculine noun "iceberg" means "iceberg".
+"iceberg" is the plural of "iceberg".
 The feminine noun "idealista" means "idealist".
 "idealiste" is the plural of "idealista".
 "idealista" is a person.
 The feminine noun "identità" means "identity".
+"identità" is the plural of "identità".
 The masculine noun "ideologo" means "ideologist".
 "ideologi" is the plural of "ideologo".
 "ideologo" is a person.
@@ -15411,19 +15736,27 @@ The masculine noun "immigrato" means "immigrant".
 "immigrati" is the plural of "immigrato".
 "immigrato" is a person.
 The feminine noun "immunità" means "immunity".
+"immunità" is the plural of "immunità".
 The feminine noun "imparzialità" means "impartiality".
+"imparzialità" is the plural of "imparzialità".
 The feminine noun "attuazione" means "implementation".
 "attuazioni" is the plural of "attuazione".
 The feminine noun "impossibilità" means "impossibility".
+"impossibilità" is the plural of "impossibilità".
 The feminine noun "impressionista" means "impressionist".
 "impressioniste" is the plural of "impressionista".
 The feminine noun "impunità" means "impunity".
+"impunità" is the plural of "impunità".
 The feminine noun "impurità" means "impurity".
+"impurità" is the plural of "impurità".
 The feminine noun "incapacità" means "inability".
+"incapacità" is the plural of "incapacità".
 The feminine noun "incompatibilità" means "incompatibility".
+"incompatibilità" is the plural of "incompatibilità".
 The masculine noun "incremento" means "increase".
 "incrementi" is the plural of "incremento".
 The feminine noun "individualità" means "individuality".
+"individualità" is the plural of "individualità".
 The masculine noun "afflusso" means "influx".
 "afflussi" is the plural of "afflusso".
 The masculine noun "abitatore" means "inhabitant".
@@ -15433,6 +15766,7 @@ The feminine noun "abitatrice" means "inhabitant".
 "abitatrici" is the plural of "abitatrice".
 "abitatrice" is a person.
 The feminine noun "eredità" means "inheritance".
+"eredità" is the plural of "eredità".
 The masculine noun "ferito" means "injured".
 "feriti" is the plural of "ferito".
 The feminine noun "ferita" means "injured".
@@ -15444,12 +15778,15 @@ The masculine noun "inserimento" means "insertion".
 The feminine noun "inspirazione" means "inspiration".
 "inspirazioni" is the plural of "inspirazione".
 The feminine noun "instabilità" means "instability".
+"instabilità" is the plural of "instabilità".
 The feminine noun "istanza" means "instance".
 "istanze" is the plural of "istanza".
 The feminine noun "strumentista" means "instrumentalist".
 "strumentiste" is the plural of "strumentista".
 The feminine noun "integrità" means "integrity".
+"integrità" is the plural of "integrità".
 The feminine noun "intensità" means "intensity".
+"intensità" is the plural of "intensità".
 The feminine noun "ingerenza" means "interference".
 "ingerenze" is the plural of "ingerenza".
 The masculine noun "intermediario" means "intermediary".
@@ -15459,9 +15796,11 @@ The feminine noun "intermediaria" means "intermediary".
 "intermediarie" is the plural of "intermediaria".
 "intermediaria" is a person.
 The masculine noun "internet" means "internet".
+"internet" is the plural of "internet".
 The masculine noun "intermedio" means "interval".
 "intermedi" is the plural of "intermedio".
 The feminine noun "intimità" means "intimacy".
+"intimità" is the plural of "intimità".
 The masculine noun "inventore" means "inventor".
 "inventori" is the plural of "inventore".
 "inventore" is a person.
@@ -15481,6 +15820,7 @@ The masculine noun "iracheno" means "iraqi".
 The feminine noun "irachena" means "iraqi".
 "irachene" is the plural of "irachena".
 The feminine noun "irregolarità" means "irregularity".
+"irregolarità" is the plural of "irregolarità".
 The feminine noun "islamista" means "islamist".
 "islamiste" is the plural of "islamista".
 The feminine noun "gioielleria" means "jewellery".
@@ -15492,6 +15832,7 @@ The feminine noun "giurista" means "jurist".
 "giuriste" is the plural of "giurista".
 "giurista" is a person.
 The masculine noun "kebab" means "kebab".
+"kebab" is the plural of "kebab".
 The masculine noun "rapitore" means "kidnapper".
 "rapitori" is the plural of "rapitore".
 "rapitore" is a person.
@@ -15501,7 +15842,9 @@ The feminine noun "rapitrice" means "kidnapper".
 The masculine noun "abbattimento" means "killing".
 "abbattimenti" is the plural of "abbattimento".
 The masculine noun "kilovolt" means "kilovolt".
+"kilovolt" is the plural of "kilovolt".
 The masculine noun "kilowatt" means "kilowatt".
+"kilowatt" is the plural of "kilowatt".
 The masculine noun "bacetto" means "kiss".
 "bacetti" is the plural of "bacetto".
 The masculine noun "sapere" means "knowledge".
@@ -15516,19 +15859,26 @@ The feminine noun "dama" means "lady".
 "dame" is the plural of "dama".
 "dama" is a person.
 The feminine noun "laicità" means "laicism".
+"laicità" is the plural of "laicità".
 The masculine noun "linguaggio" means "language".
 "linguaggi" is the plural of "linguaggio".
 The masculine noun "lapsus" means "lapsus".
+"lapsus" is the plural of "lapsus".
 The masculine noun "laser" means "laser".
+"laser" is the plural of "laser".
 The masculine noun "pigro" means "lazy".
 "pigri" is the plural of "pigro".
 The feminine noun "pigra" means "lazy".
 "pigre" is the plural of "pigra".
 The noun "leader" means "leader".
+"leader" is the plural of "leader".
 "leader" is a person.
 The feminine noun "legalità" means "legality".
+"legalità" is the plural of "legalità".
 The feminine noun "legittimità" means "legitimacy".
+"legittimità" is the plural of "legittimità".
 The masculine noun "leitmotiv" means "leitmotif".
+"leitmotiv" is the plural of "leitmotiv".
 The masculine noun "lemma" means "lemma".
 "lemma" is not feminine.
 "lemmi" is the plural of "lemma".
@@ -15552,6 +15902,7 @@ The feminine noun "bibliotecaria" means "librarian".
 The feminine noun "palpebra" means "lid".
 "palpebre" is the plural of "palpebra".
 The feminine noun "lingerie" means "lingerie".
+"lingerie" is the plural of "lingerie".
 The feminine noun "linguista" means "linguist".
 "linguiste" is the plural of "linguista".
 "linguista" is a person.
@@ -15570,7 +15921,9 @@ The masculine noun "biografo" means "biographer".
 The feminine noun "biografa" means "biographer".
 "biografe" is the plural of "biografa".
 The feminine noun "lucidità" means "lucidity".
+"lucidità" is the plural of "lucidità".
 The feminine noun "luminosità" means "luminosity".
+"luminosità" is the plural of "luminosità".
 The masculine noun "chiaro" means "luminosity".
 "chiar" is the plural of "chiaro".
 The masculine noun "madrileno" means "madridian".
@@ -15591,6 +15944,7 @@ The masculine noun "magistrato" means "magistrate".
 "magistrati" is the plural of "magistrato".
 "magistrato" is a person.
 The feminine noun "mail" means "mail".
+"mail" is the plural of "mail".
 The feminine noun "messaggeria" means "mail".
 "messaggerie" is the plural of "messaggeria".
 The masculine noun "maggiordomo" means "majordomo".
@@ -15606,6 +15960,7 @@ The noun "humanità" means "mankind".
 The feminine noun "cartina" means "map".
 "cartine" is the plural of "cartina".
 The masculine noun "marketing" means "marketing".
+"marketing" is the plural of "marketing".
 The masculine noun "marziano" means "martian".
 "marziani" is the plural of "marziano".
 The feminine noun "marziana" means "martian".
@@ -15619,6 +15974,7 @@ The feminine noun "padrona" means "master".
 "padrone" is the plural of "padrona".
 "padrona" is a person.
 The feminine noun "maturità" means "maturity".
+"maturità" is the plural of "maturità".
 The feminine noun "massimalista" means "maximalist".
 "massimaliste" is the plural of "massimalista".
 The masculine noun "sindaco" means "mayor".
@@ -15631,7 +15987,9 @@ The noun "appartenente" means "member".
 The masculine noun "ricordo" means "memory".
 "ricordi" is the plural of "ricordo".
 The feminine noun "mentalità" means "mentality".
+"mentalità" is the plural of "mentalità".
 The masculine noun "menu" means "menu".
+"menu" is the plural of "menu".
 The masculine noun "mercenario" means "mercenary".
 "mercenari" is the plural of "mercenario".
 "mercenario" is a person.
@@ -15639,6 +15997,7 @@ The feminine noun "mercenaria" means "mercenary".
 "mercenarie" is the plural of "mercenaria".
 "mercenaria" is a person.
 The feminine noun "pietà" means "mercy".
+"pietà" is the plural of "pietà".
 The masculine noun "messaggero" means "messenger".
 "messaggeri" is the plural of "messaggero".
 "messaggero" is a person.
@@ -15646,11 +16005,13 @@ The feminine noun "messaggera" means "messenger".
 "messaggere" is the plural of "messaggera".
 "messaggera" is a person.
 The feminine noun "metamorfosi" means "metamorphosis".
+"metamorfosi" is the plural of "metamorfosi".
 The masculine noun "meteorologo" means "meteorologist".
 "meteorologi" is the plural of "meteorologo".
 The feminine noun "meteorologa" means "meteorologist".
 "meteorologhe" is the plural of "meteorologa".
 The feminine noun "metropoli" means "metropolis".
+"metropoli" is the plural of "metropoli".
 The feminine noun "centrocampista" means "midfielder".
 "centrocampiste" is the plural of "centrocampista".
 The masculine noun "mugnaio" means "miller".
@@ -15677,11 +16038,15 @@ The feminine noun "missionaria" means "missionary".
 The feminine noun "miscela" means "mix".
 "miscele" is the plural of "miscela".
 The feminine noun "mobilità" means "mobility".
+"mobilità" is the plural of "mobilità".
 The feminine noun "modalità" means "modality".
+"modalità" is the plural of "modalità".
 The masculine noun "modem" means "modem".
+"modem" is the plural of "modem".
 The masculine noun "ammodernamento" means "modernisation".
 "ammodernamenti" is the plural of "ammodernamento".
 The feminine noun "modernità" means "modernity".
+"modernità" is the plural of "modernità".
 The feminine noun "modificazione" means "modification".
 "modificazioni" is the plural of "modificazione".
 The masculine noun "moldavo" means "moldavian".
@@ -15695,9 +16060,13 @@ The feminine noun "monaca" means "monk".
 "monache" is the plural of "monaca".
 "monaca" is a person.
 The feminine noun "moralità" means "morality".
+"moralità" is the plural of "moralità".
 The feminine noun "mortalità" means "mortality".
+"mortalità" is the plural of "mortalità".
 The masculine noun "motel" means "motel".
+"motel" is the plural of "motel".
 The feminine noun "maternità" means "motherhood".
+"maternità" is the plural of "maternità".
 The feminine noun "mozione" means "motion".
 "mozioni" is the plural of "mozione".
 The feminine noun "automobilista" means "motorist".
@@ -15713,9 +16082,11 @@ The masculine noun "mulatto" means "mulatto".
 The feminine noun "mulatta" means "mulatto".
 "mulatte" is the plural of "mulatta".
 The feminine noun "molteplicità" means "multiplicity".
+"molteplicità" is the plural of "molteplicità".
 The masculine noun "municipio" means "municipality".
 "municipii" is the plural of "municipio".
 The feminine noun "municipalità" means "municipality".
+"municipalità" is the plural of "municipalità".
 The masculine noun "assassino" means "murderer".
 "assassini" is the plural of "assassino".
 "assassino" is a person.
@@ -15738,6 +16109,7 @@ The feminine noun "narratrice" means "narrator".
 The feminine noun "nazionalista" means "nationalist".
 "nazionaliste" is the plural of "nazionalista".
 The feminine noun "nazionalità" means "nationality".
+"nazionalità" is the plural of "nazionalità".
 The masculine noun "indigeno" means "native".
 "indigeni" is the plural of "indigeno".
 "indigeno" is a person.
@@ -15745,17 +16117,25 @@ The feminine noun "indigena" means "native".
 "indigene" is the plural of "indigena".
 "indigena" is a person.
 The feminine noun "nebulosità" means "nebulosity".
+"nebulosità" is the plural of "nebulosità".
 The feminine noun "necropoli" means "necropolis".
+"necropoli" is the plural of "necropoli".
 The feminine noun "necrosi" means "necrosis".
+"necrosi" is the plural of "necrosi".
 The feminine noun "necessità" means "need".
+"necessità" is the plural of "necessità".
 The feminine noun "negoziazione" means "negotiation".
 "negoziazioni" is the plural of "negoziazione".
 The feminine noun "neutralità" means "neutrality".
+"neutralità" is the plural of "neutralità".
 The masculine noun "quotidiano" means "newspaper".
 "quotidiani" is the plural of "quotidiano".
 The feminine noun "nobiltà" means "nobility".
+"nobiltà" is the plural of "nobiltà".
 The feminine noun "nomination" means "nomination".
+"nomination" is the plural of "nomination".
 The feminine noun "normalità" means "normality".
+"normalità" is the plural of "normalità".
 The masculine noun "notaio" means "notary".
 "notaii" is the plural of "notaio".
 The masculine noun "romanziere" means "novelist".
@@ -15776,6 +16156,7 @@ The feminine noun "infermiera" means "nurse".
 "infermiere" is the plural of "infermiera".
 "infermiera" is a person.
 The feminine noun "obesità" means "obesity".
+"obesità" is the plural of "obesità".
 The feminine noun "obbligazione" means "obligation".
 "obbligazioni" is the plural of "obbligazione".
 The masculine noun "obbligato" means "obliged".
@@ -15789,6 +16170,7 @@ The feminine noun "osservatrice" means "observer".
 "osservatrici" is the plural of "osservatrice".
 "osservatrice" is a person.
 The feminine noun "ostetricia" means "obstetrics".
+"ostetricia" is the plural of "ostetricia".
 The feminine noun "odontoiatria" means "odontology".
 "odontoiatrie" is the plural of "odontoiatria".
 The masculine noun "amministrativo" means "official".
@@ -15806,6 +16188,7 @@ The feminine noun "onnivora" means "omnivore".
 The feminine noun "operazione" means "operation".
 "operazioni" is the plural of "operazione".
 The feminine noun "operatività" means "operation".
+"operatività" is the plural of "operatività".
 The masculine noun "operatore" means "operator".
 "operatori" is the plural of "operatore".
 The feminine noun "operatrice" means "operator".
@@ -15822,6 +16205,7 @@ The noun "opponente" means "opponent".
 "opponenti" is the plural of "opponente".
 "opponente" is a person.
 The feminine noun "opportunità" means "opportunity".
+"opportunità" is the plural of "opportunità".
 The feminine noun "ottimista" means "optimist".
 "ottimiste" is the plural of "ottimista".
 The noun "optometrista" means "optometrist".
@@ -15839,6 +16223,7 @@ The feminine noun "organista" means "organist".
 The feminine noun "orientazione" means "orientation".
 "orientazioni" is the plural of "orientazione".
 The feminine noun "originalità" means "originality".
+"originalità" is the plural of "originalità".
 The masculine noun "abbellimento" means "ornament".
 "abbellimenti" is the plural of "abbellimento".
 The masculine noun "orfano" means "orphan".
@@ -15849,6 +16234,7 @@ The feminine noun "orfana" means "orphan".
 "orfana" is a person.
 The noun "ortopedico" means "orthopedist".
 The feminine noun "osmosi" means "osmosis".
+"osmosi" is the plural of "osmosi".
 The masculine noun "cancelliere" means "chancellor".
 "cancellieri" is the plural of "cancelliere".
 The feminine noun "cancelliera" means "chancellor".
@@ -15873,6 +16259,7 @@ The feminine noun "pacifista" means "pacifist".
 The feminine noun "confezione" means "package".
 "confezioni" is the plural of "confezione".
 The feminine noun "paella" means "paella".
+"paella" is the plural of "paella".
 The masculine noun "pagano" means "pagan".
 "pagani" is the plural of "pagano".
 "pagano" is a person.
@@ -15900,15 +16287,20 @@ The feminine noun "paracadutista" means "parachutist".
 "paracadutiste" is the plural of "paracadutista".
 "paracadutista" is a person.
 The feminine noun "parentesi" means "parenthesis".
+"parentesi" is the plural of "parentesi".
 The feminine noun "parità" means "parity".
+"parità" is the plural of "parità".
 The feminine noun "particolarità" means "particularity".
+"particolarità" is the plural of "particolarità".
 The feminine noun "spartizione" means "partition".
 "spartizioni" is the plural of "spartizione".
 The feminine noun "password" means "password".
+"password" is the plural of "password".
 The noun "pastasciutta" means "pasta".
 The masculine noun "pasto" means "pasture".
 "pasti" is the plural of "pasto".
 The feminine noun "paternità" means "paternity".
+"paternità" is the plural of "paternità".
 The feminine noun "traiettoria" means "path".
 "traiettorie" is the plural of "traiettoria".
 The masculine noun "malato" means "patient".
@@ -15930,7 +16322,9 @@ The feminine noun "patrona" means "patron".
 "patrone" is the plural of "patrona".
 "patrona" is a person.
 The masculine noun "pc" means "pc".
+"pc" is the plural of "pc".
 The feminine noun "peculiarità" means "peculiarity".
+"peculiarità" is the plural of "peculiarità".
 The feminine noun "pediatra" means "pediatrician".
 "pediatre" is the plural of "pediatra".
 The masculine noun "pene" means "penis".
@@ -15942,8 +16336,11 @@ The feminine noun "perfezionista" means "perfectionist".
 The feminine noun "epoca" means "period".
 "epoche" is the plural of "epoca".
 The feminine noun "periodicità" means "periodicity".
+"periodicità" is the plural of "periodicità".
 The feminine noun "permeabilità" means "permeability".
+"permeabilità" is the plural of "permeabilità".
 The feminine noun "perplessità" means "perplexity".
+"perplessità" is the plural of "perplessità".
 The masculine noun "persiano" means "persian".
 "persiani" is the plural of "persiano".
 "persiano" is a person.
@@ -15951,6 +16348,7 @@ The feminine noun "persiana" means "persian".
 "persiane" is the plural of "persiana".
 "persiana" is a person.
 The feminine noun "personalità" means "personality".
+"personalità" is the plural of "personalità".
 The feminine noun "pessimista" means "pessimist".
 "pessimiste" is the plural of "pessimista".
 "pessimista" is a person.
@@ -15997,7 +16395,9 @@ The masculine noun "posto" means "place".
 The feminine noun "tessera" means "card".
 "tessere" is the plural of "tessera".
 The masculine noun "plancton" means "plankton".
+"plancton" is the plural of "plancton".
 The masculine noun "planning" means "planning".
+"planning" is the plural of "planning".
 The masculine noun "giocatore" means "player".
 "giocatori" is the plural of "giocatore".
 "giocatore" is a person.
@@ -16010,6 +16410,7 @@ The feminine noun "plebea" means "plebeian".
 "plebee" is the plural of "plebea".
 The noun "pluralista" means "pluralist".
 The feminine noun "pluralità" means "plurality".
+"pluralità" is the plural of "pluralità".
 The feminine noun "sacca" means "pocket".
 The masculine noun "poeta" means "poet".
 "poeta" is not feminine.
@@ -16019,6 +16420,7 @@ The feminine noun "poetessa" means "poet".
 "poetesse" is the plural of "poetessa".
 "poetessa" is a person.
 The feminine noun "polarità" means "polarity".
+"polarità" is the plural of "polarità".
 The masculine noun "polo" means "pole".
 "poli" is the plural of "polo".
 The masculine noun "politico" means "politician".
@@ -16034,9 +16436,12 @@ The feminine noun "poligama" means "polygamist".
 The feminine noun "piscina" means "pool".
 "piscine" is the plural of "piscina".
 The masculine noun "pop" means "pop".
+"pop" is the plural of "pop".
 "pop" is a person.
 The feminine noun "popolarità" means "popularity".
+"popolarità" is the plural of "popolarità".
 The masculine noun "porno" means "porno".
+"porno" is the plural of "porno".
 The masculine noun "portiere" means "porter".
 "portieri" is the plural of "portiere".
 "portiere" is a person.
@@ -16044,13 +16449,19 @@ The feminine noun "portiera" means "porter".
 "portiere" is the plural of "portiera".
 "portiera" is a person.
 The feminine noun "possibilità" means "possibility".
+"possibilità" is the plural of "possibilità".
 The masculine noun "poster" means "poster".
+"poster" is the plural of "poster".
 The feminine noun "posterità" means "posterity".
+"posterità" is the plural of "posterità".
 The masculine noun "postino" means "postman".
 "postini" is the plural of "postino".
 The feminine noun "potenzialità" means "potential".
+"potenzialità" is the plural of "potenzialità".
 The feminine noun "povertà" means "poverty".
+"povertà" is the plural of "povertà".
 The feminine noun "praticità" means "practicality".
+"praticità" is the plural of "praticità".
 The masculine noun "presidente" means "president".
 "presidenti" is the plural of "presidente".
 "presidente" is a person.
@@ -16068,6 +16479,7 @@ The feminine noun "sacerdotessa" means "priest".
 "sacerdotesse" is the plural of "sacerdotessa".
 "sacerdotessa" is a person.
 The feminine noun "priorità" means "priority".
+"priorità" is the plural of "priorità".
 The masculine noun "prigioniero" means "prisoner".
 "prigionieri" is the plural of "prigioniero".
 "prigioniero" is a person.
@@ -16081,7 +16493,9 @@ The feminine noun "reclusa" means "prisoner".
 "recluse" is the plural of "reclusa".
 "reclusa" is a person.
 The feminine noun "privacy" means "privacy".
+"privacy" is the plural of "privacy".
 The feminine noun "probabilità" means "probability".
+"probabilità" is the plural of "probabilità".
 The feminine noun "elaborazione" means "processing".
 "elaborazioni" is the plural of "elaborazione".
 The masculine noun "produttore" means "producer".
@@ -16091,6 +16505,7 @@ The feminine noun "produttrice" means "producer".
 "produttrici" is the plural of "produttrice".
 "produttrice" is a person.
 The feminine noun "produttività" means "productivity".
+"produttività" is the plural of "produttività".
 The feminine noun "professionista" means "professional".
 "professioniste" is the plural of "professionista".
 "professionista" is a person.
@@ -16114,13 +16529,18 @@ The feminine noun "propagandista" means "propagandist".
 "propagandiste" is the plural of "propagandista".
 "propagandista" is a person.
 The feminine noun "proprietà" means "property".
+"proprietà" is the plural of "proprietà".
 The feminine noun "proporzionalità" means "proportionality".
+"proporzionalità" is the plural of "proporzionalità".
 The feminine noun "prosperità" means "prosperity".
+"prosperità" is the plural of "prosperità".
 The feminine noun "protesi" means "prosthesis".
+"protesi" is the plural of "protesi".
 The feminine noun "protagonista" means "protagonist".
 "protagoniste" is the plural of "protagonista".
 "protagonista" is a person.
 The feminine noun "prossimità" means "proximity".
+"prossimità" is the plural of "prossimità".
 The noun "pseudopodio" means "pseudopodium".
 The feminine noun "psichiatra" means "psychiatrist".
 "psichiatre" is the plural of "psichiatra".
@@ -16132,10 +16552,12 @@ The feminine noun "psicologa" means "psychologist".
 "psicologhe" is the plural of "psicologa".
 "psicologa" is a person.
 The feminine noun "psicosi" means "psychosis".
+"psicosi" is the plural of "psicosi".
 The feminine noun "pubblicista" means "publicist".
 "pubbliciste" is the plural of "pubblicista".
 "pubblicista" is a person.
 The masculine noun "pudding" means "pudding".
+"pudding" is the plural of "pudding".
 The masculine noun "castigo" means "punishment".
 "castighi" is the plural of "castigo".
 The masculine noun "cucciolo" means "puppy".
@@ -16147,19 +16569,26 @@ The feminine noun "depurazione" means "purification".
 The feminine noun "purista" means "purist".
 "puriste" is the plural of "purista".
 The masculine noun "pus" means "pus".
+"pus" is the plural of "pus".
 The feminine noun "qualità" means "quality".
+"qualità" is the plural of "qualità".
 The feminine noun "quantità" means "quantity".
+"quantità" is the plural of "quantità".
 The masculine noun "coniglio" means "rabbit".
 "conigli" is the plural of "coniglio".
 The masculine noun "radar" means "radar".
+"radar" is the plural of "radar".
 The feminine noun "radioattività" means "radioactivity".
+"radioattività" is the plural of "radioattività".
 The feminine noun "piovosità" means "rainfall".
+"piovosità" is the plural of "piovosità".
 The masculine noun "rango" means "rank".
 "ranghi" is the plural of "rango".
 The masculine noun "stupratore" means "rapist".
 "stupratori" is the plural of "stupratore".
 "stupratore" is a person.
 The feminine noun "reattività" means "reactivity".
+"reattività" is the plural of "reattività".
 The masculine noun "lettore" means "reader".
 "lettori" is the plural of "lettore".
 "lettore" is a person.
@@ -16167,14 +16596,17 @@ The feminine noun "lettrice" means "reader".
 "lettrici" is the plural of "lettrice".
 "lettrice" is a person.
 The feminine noun "realtà" means "reality".
+"realtà" is the plural of "realtà".
 The feminine noun "ragione" means "reason".
 "ragioni" is the plural of "ragione".
 The feminine noun "accoglienza" means "reception".
 "accoglienze" is the plural of "accoglienza".
 The feminine noun "ricettività" means "receptivity".
+"ricettività" is the plural of "ricettività".
 The feminine noun "ricognizione" means "recognition".
 "ricognizioni" is the plural of "ricognizione".
 The masculine noun "record" means "record".
+"record" is the plural of "record".
 The masculine noun "ripristino" means "recovery".
 "ripristini" is the plural of "ripristino".
 The masculine noun "rosso" means "red".
@@ -16188,13 +16620,17 @@ The noun "arbitro" means "referee".
 "arbitri" is the plural of "arbitro".
 "arbitro" is a person.
 The masculine noun "referendum" means "referendum".
+"referendum" is the plural of "referendum".
 The feminine noun "immatricolazione" means "registration".
 "immatricolazioni" is the plural of "immatricolazione".
 The feminine noun "regolarità" means "regularity".
+"regolarità" is the plural of "regolarità".
 The masculine noun "regolamento" means "regulation".
 "regolamenti" is the plural of "regolamento".
 The feminine noun "relatività" means "relativity".
+"relatività" is the plural of "relatività".
 The feminine noun "attendibilità" means "reliability".
+"attendibilità" is the plural of "attendibilità".
 The feminine noun "attenuazione" means "relief".
 "attenuazioni" is the plural of "attenuazione".
 The masculine noun "religioso" means "religious".
@@ -16214,6 +16650,7 @@ The feminine noun "raffigurazione" means "representation".
 The feminine noun "richiesta" means "request".
 "richieste" is the plural of "richiesta".
 The masculine noun "requiem" means "requiem".
+"requiem" is the plural of "requiem".
 The feminine noun "esigenza" means "requirement".
 "esigenze" is the plural of "esigenza".
 The masculine noun "ricercatore" means "researcher".
@@ -16223,6 +16660,7 @@ The feminine noun "ricercatrice" means "researcher".
 "ricercatrici" is the plural of "ricercatrice".
 "ricercatrice" is a person.
 The feminine noun "responsabilità" means "responsibility".
+"responsabilità" is the plural of "responsabilità".
 The masculine noun "riposo" means "rest".
 "riposi" is the plural of "riposo".
 The feminine noun "restaurazione" means "restoration".
@@ -16234,16 +16672,21 @@ The feminine noun "rivitalizzazione" means "revitalisation".
 The masculine noun "rapsodo" means "rhapsodist".
 "rapsodi" is the plural of "rapsodo".
 The feminine noun "rigidità" means "rigidity".
+"rigidità" is the plural of "rigidità".
 The masculine noun "cerchio" means "ring".
 "cerchi" is the plural of "cerchio".
 The feminine noun "rivalità" means "rivalry".
+"rivalità" is the plural of "rivalità".
 The feminine noun "via" means "road".
 "vie" is the plural of "via".
 The masculine noun "robot" means "robot".
+"robot" is the plural of "robot".
 The masculine noun "ruolo" means "role".
 "ruoli" is the plural of "ruolo".
 The feminine noun "roulette" means "roulette".
+"roulette" is the plural of "roulette".
 The masculine noun "rpm" means "rpm".
+"rpm" is the plural of "rpm".
 The feminine noun "gomma" means "rubber".
 "gomme" is the plural of "gomma".
 The masculine noun "corridore" means "runner".
@@ -16264,7 +16707,9 @@ The feminine noun "santa" means "saint".
 The masculine noun "stipendio" means "salary".
 "stipendi" is the plural of "stipendio".
 The feminine noun "salinità" means "salinity".
+"salinità" is the plural of "salinità".
 The masculine noun "sandwich" means "sandwich".
+"sandwich" is the plural of "sandwich".
 The masculine noun "salvatore" means "saviour".
 "salvatori" is the plural of "salvatore".
 The feminine noun "salvatrice" means "saviour".
@@ -16319,15 +16764,21 @@ The feminine noun "senatrice" means "senator".
 "senatrici" is the plural of "senatrice".
 "senatrice" is a person.
 The feminine noun "sensibilità" means "sensitivity".
+"sensibilità" is the plural of "sensibilità".
 The feminine noun "sensualità" means "sensuality".
+"sensualità" is the plural of "sensualità".
 The feminine noun "serie" means "series".
+"serie" is the plural of "serie".
 The feminine noun "servitù" means "servitude".
+"servitù" is the plural of "servitù".
 The feminine noun "impostazione" means "setting".
 "impostazioni" is the plural of "impostazione".
 The masculine noun "insediamento" means "settlement".
 "insediamenti" is the plural of "insediamento".
 The feminine noun "sessualità" means "sexuality".
+"sessualità" is the plural of "sessualità".
 The masculine noun "shampoo" means "shampoo".
+"shampoo" is the plural of "shampoo".
 The masculine noun "lenzuolo" means "sheet".
 "lenzuoli" is the plural of "lenzuolo".
 The masculine noun "pastore" means "shepherd".
@@ -16340,16 +16791,19 @@ The masculine noun "brillio" means "shine".
 The masculine noun "luccichio" means "shine".
 "luccichi" is the plural of "luccichio".
 The masculine noun "show" means "show".
+"show" is the plural of "show".
 The masculine noun "segno" means "sign".
 "segni" is the plural of "segno".
 The masculine noun "distintivo" means "sign".
 "distintivi" is the plural of "distintivo".
 The feminine noun "semplicità" means "simplicity".
+"semplicità" is the plural of "semplicità".
 The masculine noun "simulatore" means "simulator".
 "simulatori" is the plural of "simulatore".
 The feminine noun "simulatrice" means "simulator".
 "simulatrici" is the plural of "simulatrice".
 The masculine noun "sci" means "ski".
+"sci" is the plural of "sci".
 The masculine noun "sciatore" means "skier".
 "sciatori" is the plural of "sciatore".
 The feminine noun "sciatrice" means "skier".
@@ -16364,9 +16818,11 @@ The feminine noun "schiava" means "slave".
 "schiave" is the plural of "schiava".
 "schiava" is a person.
 The feminine noun "esiguità" means "slenderness".
+"esiguità" is the plural of "esiguità".
 The masculine noun "fabbro" means "smith".
 "fabbri" is the plural of "fabbro".
 The masculine noun "smog" means "smog".
+"smog" is the plural of "smog".
 The masculine noun "fumatore" means "smoker".
 "fumatori" is the plural of "fumatore".
 The feminine noun "fumatrice" means "smoker".
@@ -16377,6 +16833,7 @@ The feminine noun "socialista" means "socialist".
 "socialiste" is the plural of "socialista".
 "socialista" is a person.
 The feminine noun "società" means "society".
+"società" is the plural of "società".
 The masculine noun "sociologo" means "sociologist".
 "sociologi" is the plural of "sociologo".
 "sociologo" is a person.
@@ -16384,11 +16841,14 @@ The feminine noun "sociologa" means "sociologist".
 "sociologhe" is the plural of "sociologa".
 "sociologa" is a person.
 The masculine noun "sofà" means "sofa".
+"sofà" is the plural of "sofà".
 The masculine noun "software" means "software".
+"software" is the plural of "software".
 The masculine noun "militare" means "soldier".
 "militari" is the plural of "militare".
 "militare" is a person.
 The feminine noun "solennità" means "solemnity".
+"solennità" is the plural of "solennità".
 The feminine noun "solista" means "soloist".
 "soliste" is the plural of "solista".
 "solista" is a person.
@@ -16518,7 +16978,9 @@ The masculine noun "suggeritore" means "prompter".
 The feminine noun "suggeritrice" means "prompter".
 "suggeritrici" is the plural of "suggeritrice".
 The feminine noun "sonorità" means "sonority".
+"sonorità" is the plural of "sonorità".
 The masculine noun "sud" means "south".
+"sud" is the plural of "sud".
 The masculine noun "sovrano" means "sovereign".
 "sovrani" is the plural of "sovrano".
 "sovrano" is a person.
@@ -16526,6 +16988,7 @@ The feminine noun "sovrana" means "sovereign".
 "sovrane" is the plural of "sovrana".
 "sovrana" is a person.
 The feminine noun "sovranità" means "sovereignty".
+"sovranità" is the plural of "sovranità".
 The noun "spaziatore" means "spacer".
 The masculine noun "interlocutore" means "speaker".
 "interlocutori" is the plural of "interlocutore".
@@ -16537,11 +17000,17 @@ The feminine noun "specialista" means "specialist".
 "specialiste" is the plural of "specialista".
 "specialista" is a person.
 The feminine noun "specie" means "species".
+"specie" is the plural of "specie".
 The feminine noun "specificità" means "specificity".
+"specificità" is the plural of "specificità".
 The feminine noun "spettacolarità" means "spectacular".
+"spettacolarità" is the plural of "spettacolarità".
 The feminine noun "velocità" means "speed".
+"velocità" is the plural of "velocità".
 The feminine noun "rapidità" means "speed".
+"rapidità" is the plural of "rapidità".
 The masculine noun "sport" means "sport".
+"sport" is the plural of "sport".
 The masculine noun "sposo" means "spouse".
 "sposi" is the plural of "sposo".
 "sposo" is a person.
@@ -16549,6 +17018,7 @@ The feminine noun "sposa" means "spouse".
 "spose" is the plural of "sposa".
 "sposa" is a person.
 The feminine noun "stabilità" means "stability".
+"stabilità" is the plural of "stabilità".
 The masculine noun "palco" means "stage".
 "palchi" is the plural of "palco".
 The masculine noun "lagunaggio" means "stagnation".
@@ -16558,8 +17028,11 @@ The masculine noun "astro" means "star".
 The feminine noun "dichiarazione" means "statement".
 "dichiarazioni" is the plural of "dichiarazione".
 The feminine noun "sterilità" means "sterility".
+"sterilità" is the plural of "sterilità".
 The masculine noun "stock" means "stock".
+"stock" is the plural of "stock".
 The masculine noun "stop" means "stop".
+"stop" is the plural of "stop".
 The masculine noun "immagazzinamento" means "storage".
 "immagazzinamenti" is the plural of "immagazzinamento".
 The feminine noun "tormenta" means "storm".
@@ -16595,6 +17068,7 @@ The feminine noun "stilista" means "stylist".
 "stiliste" is the plural of "stilista".
 "stilista" is a person.
 The feminine noun "soggettività" means "subjectivity".
+"soggettività" is the plural of "soggettività".
 The masculine noun "abbonato" means "subscriber".
 "abbonati" is the plural of "abbonato".
 "abbonato" is a person.
@@ -16611,7 +17085,9 @@ The masculine noun "successore" means "successor".
 The feminine noun "sommatoria" means "summation".
 "sommatorie" is the plural of "sommatoria".
 The feminine noun "sommità" means "summit".
+"sommità" is the plural of "sommità".
 The feminine noun "superiorità" means "superiority".
+"superiorità" is the plural of "superiorità".
 The masculine noun "rifornimento" means "supply".
 "rifornimenti" is the plural of "rifornimento".
 The masculine noun "chirurgo" means "surgeon".
@@ -16621,6 +17097,7 @@ The feminine noun "chirurga" means "surgeon".
 "chirurghe" is the plural of "chirurga".
 "chirurga" is a person.
 The masculine noun "surplus" means "surplus".
+"surplus" is the plural of "surplus".
 The masculine noun "innamorato" means "sweetheart".
 "innamorati" is the plural of "innamorato".
 "innamorato" is a person.
@@ -16628,9 +17105,11 @@ The feminine noun "innamorata" means "sweetheart".
 "innamorate" is the plural of "innamorata".
 "innamorata" is a person.
 The feminine noun "simbiosi" means "symbiosis".
+"simbiosi" is the plural of "simbiosi".
 The feminine noun "sindacalista" means "syndicalist".
 "sindacaliste" is the plural of "sindacalista".
 The feminine noun "sintassi" means "syntax".
+"sintassi" is the plural of "sintassi".
 The noun "ginnasta" means "gymnast".
 "ginnasti" is the plural of "ginnasta".
 "ginnasta" is a person.
@@ -16639,6 +17118,7 @@ The masculine noun "incarico" means "task".
 The feminine noun "tavola" means "table".
 "tavole" is the plural of "tavola".
 The masculine noun "tabù" means "taboo".
+"tabù" is the plural of "tabù".
 The masculine noun "tattico" means "tactician".
 "tattici" is the plural of "tattico".
 The feminine noun "tattica" means "tactician".
@@ -16652,6 +17132,7 @@ The masculine noun "domatore" means "tamer".
 The feminine noun "domatrice" means "tamer".
 "domatrici" is the plural of "domatrice".
 The masculine noun "tandem" means "tandem".
+"tandem" is the plural of "tandem".
 The noun "integrante" means "integral".
 "integranti" is the plural of "integrante".
 The feminine noun "mansione" means "task".
@@ -16661,14 +17142,18 @@ The feminine noun "imposta" means "tax".
 The feminine noun "imposizione" means "taxation".
 "imposizioni" is the plural of "imposizione".
 The masculine noun "taxi" means "taxi".
+"taxi" is the plural of "taxi".
 The masculine noun "tè" means "tea".
+"tè" is the plural of "tè".
 The masculine noun "tecnico" means "technician".
 "tecnici" is the plural of "tecnico".
 "tecnico" is a person.
 The masculine noun "televideo" means "teletext".
+"televideo" is the plural of "televideo".
 The masculine noun "televisore" means "television".
 "televisori" is the plural of "televisore".
 The feminine noun "tenacità" means "tenacity".
+"tenacità" is the plural of "tenacità".
 The feminine noun "terrorista" means "terrorist".
 "terroriste" is the plural of "terrorista".
 "terrorista" is a person.
@@ -16676,6 +17161,7 @@ The masculine noun "coito" means "coitus".
 "coiti" is the plural of "coito".
 The noun "ananasso" means "pineapple".
 The feminine noun "tesi" means "thesis".
+"tesi" is the plural of "tesi".
 The masculine noun "ladro" means "thief".
 "ladri" is the plural of "ladro".
 "ladro" is a person.
@@ -16695,10 +17181,12 @@ The feminine noun "titolata" means "titled".
 The masculine noun "lavabo" means "toilet".
 "lavabi" is the plural of "lavabo".
 The feminine noun "tonalità" means "tonality".
+"tonalità" is the plural of "tonalità".
 The noun "arnese" means "tool".
 "arnesi" is the plural of "arnese".
 The feminine noun "autovettura" means "tourism".
 The feminine noun "tossicità" means "toxicity".
+"tossicità" is the plural of "tossicità".
 The masculine noun "allenatore" means "trainer".
 The feminine noun "allenatrice" means "trainer".
 The masculine noun "tirocinio" means "training".
@@ -16706,7 +17194,9 @@ The masculine noun "tirocinio" means "training".
 The feminine noun "formazione" means "training".
 "formazioni" is the plural of "formazione".
 The masculine noun "tram" means "tram".
+"tram" is the plural of "tram".
 The feminine noun "tranquillità" means "tranquillity".
+"tranquillità" is the plural of "tranquillità".
 The masculine noun "storno" means "transfer".
 "storni" is the plural of "storno".
 The feminine noun "traslazione" means "translation".
@@ -16729,9 +17219,13 @@ The feminine noun "viaggiatrice" means "traveller".
 The feminine noun "trattazione" means "treatment".
 "trattazioni" is the plural of "trattazione".
 The feminine noun "tribù" means "tribe".
+"tribù" is the plural of "tribù".
 The masculine noun "camion" means "truck".
+"camion" is the plural of "camion".
 The feminine noun "verità" means "truth".
+"verità" is the plural of "verità".
 The masculine noun "tunnel" means "tunnel".
+"tunnel" is the plural of "tunnel".
 The masculine noun "traforo" means "tunnel".
 "trafori" is the plural of "traforo".
 The masculine noun "turco" means "turkish".
@@ -16745,6 +17239,7 @@ The feminine noun "tutrice" means "tutor".
 "tutrici" is the plural of "tutrice".
 "tutrice" is a person.
 The masculine noun "smoking" means "tuxedo".
+"smoking" is the plural of "smoking".
 The masculine noun "dattilografo" means "typist".
 "dattilografi" is the plural of "dattilografo".
 The feminine noun "dattilografa" means "typist".
@@ -16756,8 +17251,11 @@ The feminine noun "nordica" means "northerner".
 "nordiche" is the plural of "nordica".
 "nordica" is a person.
 The masculine noun "ufo" means "ufo".
+"ufo" is the plural of "ufo".
 The masculine noun "ultimatum" means "ultimatum".
+"ultimatum" is the plural of "ultimatum".
 The feminine noun "unanimità" means "unanimity".
+"unanimità" is the plural of "unanimità".
 The masculine noun "intendimento" means "understanding".
 "intendimenti" is the plural of "intendimento".
 The masculine noun "disoccupato" means "unemployed".
@@ -16765,11 +17263,15 @@ The masculine noun "disoccupato" means "unemployed".
 The feminine noun "divisa" means "uniform".
 "divise" is the plural of "divisa".
 The feminine noun "uniformità" means "uniformity".
+"uniformità" is the plural of "uniformità".
 The feminine noun "unione" means "union".
 "unioni" is the plural of "unione".
 The feminine noun "unicità" means "uniqueness".
+"unicità" is the plural of "unicità".
 The feminine noun "unità" means "unit".
+"unità" is the plural of "unità".
 The feminine noun "università" means "university".
+"università" is the plural of "università".
 The feminine noun "urina" means "urine".
 "urine" is the plural of "urina".
 The feminine noun "utenza" means "use".
@@ -16781,16 +17283,22 @@ The feminine noun "usurpatrice" means "usurper".
 The feminine noun "internauta" means "internaut".
 "internaute" is the plural of "internauta".
 The feminine noun "utilità" means "utility".
+"utilità" is the plural of "utilità".
 The masculine noun "vagabondo" means "vagabond".
 "vagabondi" is the plural of "vagabondo".
 The feminine noun "vagabonda" means "vagabond".
 "vagabonde" is the plural of "vagabonda".
 The feminine noun "validità" means "validity".
+"validità" is the plural of "validità".
 The feminine noun "vanità" means "vanity".
+"vanità" is the plural of "vanità".
 The feminine noun "variabilità" means "variability".
+"variabilità" is the plural of "variabilità".
 The noun "variatore" means "variator".
 The feminine noun "varietà" means "variety".
+"varietà" is the plural of "varietà".
 The feminine noun "vastità" means "vastness".
+"vastità" is the plural of "vastità".
 The feminine noun "verdura" means "vegetable".
 "verdure" is the plural of "verdura".
 The masculine noun "ortaggio" means "vegetable".
@@ -16806,14 +17314,19 @@ The masculine noun "venezuelano" means "venezuelan".
 The feminine noun "venezuelana" means "venezuelan".
 "venezuelane" is the plural of "venezuelana".
 The feminine noun "veridicità" means "veracity".
+"veridicità" is the plural of "veridicità".
 The feminine noun "versatilità" means "versatility".
+"versatilità" is the plural of "versatilità".
 The masculine noun "veterinario" means "veterinarian".
 "veterinari" is the plural of "veterinario".
 The feminine noun "veterinaria" means "veterinarian".
 "veterinarie" is the plural of "veterinaria".
 The feminine noun "viabilità" means "viability".
+"viabilità" is the plural of "viabilità".
 The masculine noun "video" means "video".
+"video" is the plural of "video".
 The feminine noun "videoconsole" means "videoconsole".
+"videoconsole" is the plural of "videoconsole".
 The masculine noun "spettatore" means "viewer".
 "spettatori" is the plural of "spettatore".
 "spettatore" is a person.
@@ -16826,11 +17339,17 @@ The feminine noun "violinista" means "violinist".
 "violiniste" is the plural of "violinista".
 "violinista" is a person.
 The feminine noun "verginità" means "virginity".
+"verginità" is the plural of "verginità".
 The feminine noun "virtù" means "virtue".
+"virtù" is the plural of "virtù".
 The feminine noun "viscosità" means "viscosity".
+"viscosità" is the plural of "viscosità".
 The feminine noun "visibilità" means "visibility".
+"visibilità" is the plural of "visibilità".
 The feminine noun "vitalità" means "vitality".
+"vitalità" is the plural of "vitalità".
 The feminine noun "vivacità" means "vivacity".
+"vivacità" is the plural of "vivacità".
 The masculine noun "vocabolario" means "vocabulary".
 "vocabolari" is the plural of "vocabolario".
 The feminine noun "vocalista" means "vocalist".
@@ -16845,10 +17364,12 @@ The feminine noun "sconosciuta" means "stranger".
 "sconosciute" is the plural of "sconosciuta".
 "sconosciuta" is a person.
 The feminine noun "vulnerabilità" means "vulnerability".
+"vulnerabilità" is the plural of "vulnerabilità".
 The masculine noun "muro" means "wall".
 "muri" is the plural of "muro".
 The masculine noun "guardaroba" means "wardrobe".
 "guardaroba" is not feminine.
+"guardaroba" is the plural of "guardaroba".
 The masculine noun "guerriero" means "warrior".
 "guerrieri" is the plural of "guerriero".
 "guerriero" is a person.
@@ -16884,6 +17405,7 @@ The feminine noun "operaia" means "worker".
 "operaie" is the plural of "operaia".
 "operaia" is a person.
 The feminine noun "mondanità" means "worldliness".
+"mondanità" is the plural of "mondanità".
 The masculine noun "scrittore" means "writer".
 "scrittori" is the plural of "scrittore".
 "scrittore" is a person.
@@ -16895,6 +17417,7 @@ The masculine noun "scritto" means "writing".
 The feminine noun "imbarcazione" means "yacht".
 "imbarcazioni" is the plural of "imbarcazione".
 The masculine noun "yacht" means "yacht".
+"yacht" is the plural of "yacht".
 The masculine noun "iugoslavo" means "yugoslavian".
 "iugoslavi" is the plural of "iugoslavo".
 The feminine noun "iugoslava" means "yugoslavian".
@@ -17184,6 +17707,7 @@ The masculine noun "affare" means "business".
 The masculine noun "telegrafo" means "cablegram".
 The feminine noun "camera" means "camera".
 The feminine noun "capacità" means "capability".
+"capacità" is the plural of "capacità".
 The masculine noun "capo" means "cape".
 The masculine noun "presidente" means "chairman".
 The feminine noun "presidentessa" means "chairman".
@@ -17604,6 +18128,7 @@ The masculine noun "antirazzismo" means "antiracialism".
 The feminine noun "radicazione" means "radication".
 "radicazioni" is the plural of "radicazione".
 The feminine noun "radio" means "radium".
+"radio" is the plural of "radio".
 The feminine noun "ferrovia" means "railroad".
 The masculine noun "indice" means "rating".
 The feminine noun "proporzione" means "ratio".
@@ -17622,6 +18147,7 @@ The masculine noun "saggio" means "rehearsal".
 The feminine noun "relazione" means "relation".
 The feminine noun "relazione" means "relationship".
 The feminine noun "religiosità" means "religiosity".
+"religiosità" is the plural of "religiosità".
 The masculine noun "resto" means "remains".
 The feminine noun "osservazione" means "remark".
 The masculine noun "rinnovo" means "renovation".
@@ -17677,6 +18203,7 @@ The feminine noun "spedizione" means "shipment".
 The feminine noun "spedizione" means "shipping".
 The feminine noun "scossa" means "shock".
 The feminine noun "scarsità" means "shortage".
+"scarsità" is the plural of "scarsità".
 The masculine noun "grido" means "shout".
 The feminine noun "contrazione" means "shrinking".
 The masculine noun "lato" means "side".
@@ -17687,6 +18214,7 @@ The feminine noun "signora" means "sir".
 The masculine noun "posto" means "site".
 The feminine noun "misura" means "size".
 The feminine noun "abilità" means "skill".
+"abilità" is the plural of "abilità".
 The masculine noun "cielo" means "sky".
 The feminine noun "insonnia" means "sleeplessness".
 The masculine noun "slogan" means "catchword".
@@ -17722,6 +18250,7 @@ The masculine noun "velivolo" means "spacecraft".
 The masculine noun "velivolo" means "spaceship".
 The masculine noun "periodo" means "spell".
 The noun "portavoce" means "spokesman".
+"portavoce" is the plural of "portavoce".
 "portavoce" is a person.
 The noun "portavoce" means "spokeswoman".
 The masculine noun "impulso" means "spurt".

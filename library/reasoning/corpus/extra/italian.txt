@@ -38,3 +38,115 @@ The masculine noun "sabato" means "saturday".
 "minuto" is a time.
 "momento" is a time.
 "secolo" is a time.
+The conjunction "o" means "or".
+The masculine adjective "piccolo" means "small".
+"che" is a relative.
+"cui" is a relative.
+The word "cui" follows the preposition.
+# the words an Italian translation of the El Periódico article (AnCora
+# CESS-CAST-P-19990202-16) needs and the dictionary lacks or gives first in
+# another sense
+The preposition "insieme a" means "along with".
+The masculine noun "lavaggio del cervello" means "brainwashing".
+"lavaggi del cervello" is the plural of "lavaggio del cervello".
+The feminine noun "minestra in busta" means "packet soup".
+"minestre in busta" is the plural of "minestra in busta".
+The masculine noun "padre di famiglia" means "paterfamilias".
+"padre di famiglia" is not feminine.
+The feminine noun "mazza da baseball" means "baseball bat".
+"mazze da baseball" is the plural of "mazza da baseball".
+The adverb "però" means "mind you".
+The adjective "coerente" means "consistent".
+The adverb "cucchiaio dopo cucchiaio" means "spoonful by spoonful".
+The masculine noun "consommé" means "consomme".
+The masculine noun "pollo con galets" means "chicken with galets".
+The masculine noun "danno" means "damage".
+The masculine adjective "sacrosanto" means "sacrosanct".
+"sacrosanti" is the plural of "sacrosanto".
+The feminine adjective "sacrosanta" means "sacrosanct".
+"sacrosante" is the plural of "sacrosanta".
+The verb "sfoga" means "vents".
+"sfogano" is the plural of "sfoga".
+"sfogando" is the gerund of "sfoga".
+"sfogare" is the infinitive of "sfoga".
+The verb "sbaglia" means "errs".
+"sbagliano" is the plural of "sbaglia".
+"sbagliato" is the participle of "sbaglia".
+"sbagliare" is the infinitive of "sbaglia".
+The verb "spacca" means "shatters".
+"spaccano" is the plural of "spacca".
+"spaccare" is the infinitive of "spacca".
+"spaccando" is the gerund of "spacca".
+The verb "c'è" means "there is".
+"ci sono" is the plural of "c'è".
+The masculine noun "interno" means "interior".
+The masculine noun "mendicante" means "beggar".
+The adjective "snob" means "snobbish".
+The word "come" means "how".
+The modal "deve" means "must".
+The feminine noun "classe media" means "middle class".
+# the forms Italian chooses by the word after them, the perfect's auxiliary,
+# the impersonal word's place, and the article a possessive takes
+The article "lo" comes before a vowel.
+The article "lo" comes before "sb".
+The article "lo" comes before "sc".
+The article "lo" comes before "sd".
+The article "lo" comes before "sf".
+The article "lo" comes before "sg".
+The article "lo" comes before "sl".
+The article "lo" comes before "sm".
+The article "lo" comes before "sn".
+The article "lo" comes before "sp".
+The article "lo" comes before "sq".
+The article "lo" comes before "st".
+The article "lo" comes before "sv".
+The article "lo" comes before "z".
+The article "lo" comes before "gn".
+The article "lo" comes before "ps".
+The article "lo" comes before "pn".
+The article "lo" comes before "x".
+The article "lo" comes before "y".
+The article "uno" comes before "sb".
+The article "uno" comes before "sc".
+The article "uno" comes before "sd".
+The article "uno" comes before "sf".
+The article "uno" comes before "sg".
+The article "uno" comes before "sl".
+The article "uno" comes before "sm".
+The article "uno" comes before "sn".
+The article "uno" comes before "sp".
+The article "uno" comes before "sq".
+The article "uno" comes before "st".
+The article "uno" comes before "sv".
+The article "uno" comes before "z".
+The article "uno" comes before "gn".
+The article "uno" comes before "ps".
+The article "uno" comes before "pn".
+The article "uno" comes before "x".
+The article "uno" comes before "y".
+"dallo" is the contraction of "da lo".
+"dagli" is the contraction of "da gli".
+"sullo" is the contraction of "su lo".
+"sugli" is the contraction of "su gli".
+"è" is the auxiliary of the reflexive.
+"è" is the auxiliary of "esce".
+"è" is the auxiliary of "arriva".
+"è" is the auxiliary of "va".
+"è" is the auxiliary of "viene".
+"è" is the auxiliary of "parte".
+"è" is the auxiliary of "torna".
+"è" is the auxiliary of "entra".
+"è" is the auxiliary of "cade".
+"è" is the auxiliary of "nasce".
+"è" is the auxiliary of "muore".
+"è" is the auxiliary of "diventa".
+"è" is the auxiliary of "resta".
+"è" is the auxiliary of "rimane".
+"è" is the auxiliary of "riesce".
+The word "si" follows the pronoun.
+The article "il" takes the possessive.
+"odi" is the plural of "odio".
+The masculine noun "quartiere" means "neighbourhood".
+"sbaglia" is reflexive.
+"sfoga" is reflexive.
+"quartieri" is the plural of "quartiere".

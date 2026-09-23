@@ -36,6 +36,60 @@ The masculine noun "táctico" means "tactician".
 "minuto" is a time.
 "momento" is a time.
 "siglo" is a time.
+The conjunction "o" means "or".
+The masculine demonstrative "ese" means "that".
+The feminine demonstrative "esa" means "that".
+The masculine pronoun "ese" means "that".
+The pronoun "eso" means "that".
+"que" is a relative.
+The preposition "junto a" means "along with".
+The modal "tiene que" means "must".
+"tienen que" is the plural of "tiene que".
+The masculine noun "lavado de cerebro" means "brainwashing".
+"lavados de cerebro" is the plural of "lavado de cerebro".
+The feminine noun "sopa de sobre" means "packet soup".
+"sopas de sobre" is the plural of "sopa de sobre".
+The masculine noun "pater familias" means "paterfamilias".
+The masculine noun "bate de béisbol" means "baseball bat".
+"bates de béisbol" is the plural of "bate de béisbol".
+The adverb "eso sí" means "mind you".
+The adjective "acorde" means "consistent".
+"acordes" is the plural of "acorde".
+The adverb "cucharada a cucharada" means "spoonful by spoonful".
+The masculine noun "sopicaldo" means "broth".
+The masculine noun "consomé" means "consomme".
+The masculine noun "pollastre amb galets" means "chicken with galets".
+The adjective "marginal" means "marginal".
+"marginales" is the plural of "marginal".
+The masculine noun "destrozo" means "damage".
+"destrozos" is the plural of "destrozo".
+The masculine adjective "sacrosanto" means "sacrosanct".
+"sacrosantos" is the plural of "sacrosanto".
+The feminine adjective "sacrosanta" means "sacrosanct".
+"sacrosantas" is the plural of "sacrosanta".
+The verb "desahoga" means "vents".
+"desahogan" is the plural of "desahoga".
+"desahogando" is the gerund of "desahoga".
+"desahogar" is the infinitive of "desahoga".
+The verb "equivoca" means "errs".
+"equivocan" is the plural of "equivoca".
+"equivocado" is the participle of "equivoca".
+"equivocar" is the infinitive of "equivoca".
+The pronoun "les" means "them".
+The adjective "débil" means "weak".
+The adjective "esnob" means "snobbish".
+The masculine adjective "ciudadano" means "civic".
+"ciudadanos" is the plural of "ciudadano".
+The feminine adjective "ciudadana" means "civic".
+"ciudadanas" is the plural of "ciudadana".
+The word "cómo" means "how".
+The word "al" begins the moment.
+"institución" is a person.
+"grupo" is a person.
+The word "el" replaces the noun.
+The feminine noun "clase media" means "middle class".
+"equivoca" is reflexive.
+"desahoga" is reflexive.
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -414,6 +468,7 @@ The feminine noun "alarma" means "alarm".
 The masculine noun "alarmismo" means "alarmism".
 "alarmismos" is the plural of "alarmismo".
 The masculine noun "albatros" means "albatross".
+"albatros" is the plural of "albatros".
 The masculine noun "álbum" means "album".
 "álbumes" is the plural of "álbum".
 The masculine noun "alcohol" means "alcohol".
@@ -2139,6 +2194,7 @@ The feminine noun "corrupción" means "corruption".
 The masculine noun "cosmopolitismo" means "cosmopolitism".
 "cosmopolitismos" is the plural of "cosmopolitismo".
 The masculine noun "cosmos" means "cosmos".
+"cosmos" is the plural of "cosmos".
 The masculine noun "coste" means "cost".
 "costes" is the plural of "coste".
 The masculine noun "precio" means "cost".
@@ -3831,6 +3887,7 @@ The feminine noun "glucosa" means "glucose".
 The masculine noun "pegamento" means "glue".
 "pegamentos" is the plural of "pegamento".
 The masculine noun "gluten" means "gluten".
+"gluten" is the plural of "gluten".
 The masculine noun "gol" means "goal".
 "goles" is the plural of "gol".
 The feminine noun "cabra" means "goat".
@@ -3982,6 +4039,7 @@ The feminine noun "felicidad" means "happiness".
 The masculine noun "trance" means "hardship".
 "trances" is the plural of "trance".
 The masculine noun "hardware" means "hardware".
+"hardware" is the plural of "hardware".
 The feminine noun "liebre" means "hare".
 "liebres" is the plural of "liebre".
 The masculine noun "daño" means "harm".
@@ -4090,6 +4148,7 @@ The masculine noun "alquiler" means "hire".
 The feminine noun "historia" means "history".
 "historias" is the plural of "historia".
 The masculine noun "hockey" means "hockey".
+"hockey" is the plural of "hockey".
 The noun "titular" means "headline".
 "titulares" is the plural of "titular".
 The masculine noun "holding" means "holding".
@@ -4655,6 +4714,7 @@ The feminine noun "ictericia" means "jaundice".
 The feminine noun "jabalina" means "javelin".
 "jabalinas" is the plural of "jabalina".
 The masculine noun "jazz" means "jazz".
+"jazz" is the plural of "jazz".
 The feminine noun "joya" means "jewel".
 "joyas" is the plural of "joya".
 The masculine noun "trabajo" means "job".
@@ -7647,6 +7707,7 @@ The masculine noun "sofá" means "sofa".
 The feminine noun "suavidad" means "softness".
 "suavidades" is the plural of "suavidad".
 The masculine noun "software" means "software".
+"software" is the plural of "software".
 The noun "soldado" means "soldier".
 "soldados" is the plural of "soldado".
 "soldado" is a person.
@@ -10609,6 +10670,7 @@ The feminine noun "cremación" means "cremation".
 The masculine noun "tamiz" means "sieve".
 "tamices" is the plural of "tamiz".
 The masculine noun "cricoides" means "cricoid".
+"cricoides" is the plural of "cricoides".
 The feminine noun "criminología" means "criminology".
 "criminologías" is the plural of "criminología".
 The feminine noun "cripta" means "crypt".
@@ -10931,6 +10993,7 @@ The feminine noun "diacronía" means "diachrony".
 The feminine noun "diadema" means "diadem".
 "diademas" is the plural of "diadema".
 The feminine noun "diagnosis" means "diagnosis".
+"diagnosis" is the plural of "diagnosis".
 The masculine noun "dialectalismo" means "dialectalism".
 "dialectalismos" is the plural of "dialectalismo".
 The feminine noun "dialectología" means "dialectology".
@@ -11347,6 +11410,7 @@ The feminine noun "escápula" means "scapula".
 The feminine noun "esfalerita" means "sphalerite".
 "esfaleritas" is the plural of "esfalerita".
 The masculine noun "esfenoides" means "sphenoid".
+"esfenoides" is the plural of "esfenoides".
 The masculine noun "esferoide" means "spheroid".
 "esferoides" is the plural of "esferoide".
 The masculine noun "esfínter" means "sphincter".
@@ -13586,6 +13650,7 @@ The feminine noun "parapsicología" means "parapsychology".
 The masculine noun "parasitismo" means "parasitism".
 "parasitismos" is the plural of "parasitismo".
 The feminine noun "paratiroides" means "parathyroid".
+"paratiroides" is the plural of "paratiroides".
 The feminine noun "parcelación" means "parcelling".
 "parcelaciones" is the plural of "parcelación".
 The feminine noun "paremiología" means "paroemiology".
@@ -15764,7 +15829,9 @@ The masculine noun "convoy" means "convoy".
 The noun "fonetista" means "phonetician".
 "fonetistas" is the plural of "fonetista".
 The masculine noun "bíceps" means "biceps".
+"bíceps" is the plural of "bíceps".
 The masculine noun "fórceps" means "forceps".
+"fórceps" is the plural of "fórceps".
 The masculine noun "sermón" means "sermon".
 "sermones" is the plural of "sermón".
 The masculine noun "puño" means "fist".
@@ -15864,6 +15931,7 @@ The feminine noun "escama" means "flake".
 "escamas" is the plural of "escama".
 The noun "carpelo" means "carpel".
 The masculine noun "msnm" means "masl".
+"msnm" is the plural of "msnm".
 The noun "vigía" means "lookout".
 "vigías" is the plural of "vigía".
 The masculine noun "reencuentro" means "reunion".
@@ -15877,6 +15945,7 @@ The feminine noun "interrelación" means "interrelationship".
 The masculine noun "aislamiento" means "isolation".
 "aislamientos" is the plural of "aislamiento".
 The masculine noun "km" means "km".
+"km" is the plural of "km".
 The masculine noun "tramo" means "stretch".
 "tramos" is the plural of "tramo".
 The masculine noun "poncho" means "poncho".
@@ -15997,6 +16066,7 @@ The feminine noun "cometa" means "comet".
 The feminine noun "abolladura" means "dent".
 "abolladuras" is the plural of "abolladura".
 The masculine noun "cm" means "cm".
+"cm" is the plural of "cm".
 The noun "fotoionización" means "photoionisation".
 The masculine noun "estrato" means "stratum".
 "estratos" is the plural of "estrato".
@@ -16008,6 +16078,7 @@ The feminine noun "compresibilidad" means "compressibility".
 The masculine noun "predicado" means "predicate".
 "predicados" is the plural of "predicado".
 The masculine noun "alias" means "alias".
+"alias" is the plural of "alias".
 The feminine noun "recursión" means "recursion".
 "recursiones" is the plural of "recursión".
 The feminine noun "optimización" means "optimisation".
@@ -16024,6 +16095,7 @@ The masculine noun "plantón" means "sapling".
 The feminine noun "secuoya" means "sequoia".
 "secuoyas" is the plural of "secuoya".
 The masculine noun "kg" means "kg".
+"kg" is the plural of "kg".
 The feminine noun "delgadez" means "thinness".
 "delgadeces" is the plural of "delgadez".
 The feminine noun "infertilidad" means "infertility".
@@ -16300,6 +16372,7 @@ The feminine noun "molaridad" means "molarity".
 The feminine noun "molalidad" means "molality".
 "molalidades" is the plural of "molalidad".
 The masculine noun "ppm" means "ppm".
+"ppm" is the plural of "ppm".
 The feminine noun "espontaneidad" means "spontaneity".
 "espontaneidades" is the plural of "espontaneidad".
 The feminine noun "mena" means "ore".
@@ -16912,6 +16985,7 @@ The feminine noun "antesala" means "anteroom".
 The feminine noun "antracita" means "anthracite".
 "antracitas" is the plural of "antracita".
 The masculine noun "ántrax" means "anthrax".
+"ántrax" is the plural of "ántrax".
 The masculine noun "anticiclón" means "anticyclone".
 "anticiclones" is the plural of "anticiclón".
 The noun "antípodas" means "antipodes".
@@ -17019,6 +17093,7 @@ The masculine noun "hurto" means "theft".
 "hurtos" is the plural of "hurto".
 The noun "fotodegradación" means "photodegradation".
 The feminine noun "hidrólisis" means "hydrolysis".
+"hidrólisis" is the plural of "hidrólisis".
 The feminine noun "ventilación" means "vent".
 The feminine noun "inmersión" means "dip".
 The feminine noun "hondonada" means "hollow".
@@ -17758,6 +17833,7 @@ The masculine noun "faro" means "lighthouse".
 The feminine noun "estatuilla" means "statuette".
 "estatuillas" is the plural of "estatuilla".
 The masculine noun "lavavajillas" means "dishwasher".
+"lavavajillas" is the plural of "lavavajillas".
 The feminine noun "trenza" means "braid".
 "trenzas" is the plural of "trenza".
 The feminine noun "ligereza" means "lightness".
@@ -17782,6 +17858,7 @@ The noun "tangerina" means "tangerine".
 The feminine noun "mandarina" means "mandarin".
 "mandarinas" is the plural of "mandarina".
 The masculine noun "entretiempo" means "halftime".
+"entretiempo" is the plural of "entretiempo".
 The feminine noun "deportividad" means "sportsmanship".
 "deportividades" is the plural of "deportividad".
 The feminine noun "sindicación" means "syndication".
@@ -17977,6 +18054,7 @@ The feminine noun "redención" means "redemption".
 The feminine noun "tesitura" means "tessitura".
 "tesituras" is the plural of "tesitura".
 The masculine noun "látex" means "latex".
+"látex" is the plural of "látex".
 The masculine noun "empeine" means "instep".
 "empeines" is the plural of "empeine".
 The masculine noun "eneldo" means "dill".
@@ -18038,11 +18116,13 @@ The noun "banqueta" means "sidewalk".
 The masculine noun "consumismo" means "consumerism".
 "consumismos" is the plural of "consumismo".
 The feminine noun "simbiosis" means "symbiosis".
+"simbiosis" is the plural of "simbiosis".
 The masculine noun "acordeón" means "accordion".
 "acordeones" is the plural of "acordeón".
 The masculine noun "pedaleo" means "pedaling".
 "pedaleos" is the plural of "pedaleo".
 The masculine noun "portapapeles" means "clipboard".
+"portapapeles" is the plural of "portapapeles".
 The masculine noun "fajín" means "sash".
 "fajines" is the plural of "fajín".
 The feminine noun "polea" means "pulley".
@@ -18129,6 +18209,7 @@ The feminine noun "teta" means "tit".
 The feminine noun "gamuza" means "suede".
 "gamuzas" is the plural of "gamuza".
 The masculine noun "psicoanálisis" means "psychoanalysis".
+"psicoanálisis" is the plural of "psicoanálisis".
 The feminine noun "quintaesencia" means "quintessence".
 The feminine noun "teca" means "teak".
 "tecas" is the plural of "teca".
@@ -18147,6 +18228,7 @@ The feminine noun "opulencia" means "opulence".
 The feminine noun "guirnalda" means "garland".
 "guirnaldas" is the plural of "guirnalda".
 The feminine noun "psicosis" means "psychosis".
+"psicosis" is the plural of "psicosis".
 The masculine noun "medallón" means "medallion".
 "medallones" is the plural of "medallón".
 The feminine noun "ortodoxia" means "orthodoxy".
@@ -18235,6 +18317,7 @@ The masculine noun "mercader" means "merchant".
 "mercaderes" is the plural of "mercader".
 "mercader" is a person.
 The feminine noun "catarsis" means "catharsis".
+"catarsis" is the plural of "catarsis".
 The feminine noun "inexperiencia" means "inexperience".
 "inexperiencias" is the plural of "inexperiencia".
 The masculine noun "arce" means "maple".
@@ -18286,6 +18369,7 @@ The masculine noun "estragón" means "tarragon".
 The feminine noun "irreverencia" means "irreverence".
 "irreverencias" is the plural of "irreverencia".
 The masculine noun "reposapiés" means "footrest".
+"reposapiés" is the plural of "reposapiés".
 The feminine noun "logia" means "lodge".
 "logias" is the plural of "logia".
 The masculine noun "tobogán" means "toboggan".
@@ -18348,6 +18432,7 @@ The masculine noun "bulbo" means "bulb".
 The masculine noun "mantón" means "shawl".
 "mantones" is the plural of "mantón".
 The feminine noun "rinitis" means "rhinitis".
+"rinitis" is the plural of "rinitis".
 The feminine noun "telemetría" means "telemetry".
 "telemetrías" is the plural of "telemetría".
 The masculine noun "emparejamiento" means "pairing".
@@ -18443,6 +18528,7 @@ The feminine noun "muesca" means "notch".
 The masculine noun "índigo" means "indigo".
 "índigos" is the plural of "índigo".
 The feminine noun "conjuntivitis" means "conjunctivitis".
+"conjuntivitis" is the plural of "conjuntivitis".
 The noun "chuleta" means "chop".
 The noun "ragú" means "ragout".
 The masculine noun "ecologismo" means "environmentalism".
@@ -18495,7 +18581,9 @@ The feminine noun "aireación" means "aeration".
 The feminine noun "calibración" means "calibration".
 "calibraciones" is the plural of "calibración".
 The masculine noun "croquis" means "sketch".
+"croquis" is the plural of "croquis".
 The masculine noun "lanzallamas" means "flamethrower".
+"lanzallamas" is the plural of "lanzallamas".
 The feminine noun "balda" means "shelf".
 "baldas" is the plural of "balda".
 The masculine noun "calzoncillo" means "underpants".
@@ -18664,6 +18752,7 @@ The feminine noun "daga" means "dagger".
 "dagas" is the plural of "daga".
 The noun "plumín" means "nib".
 The feminine noun "hipnosis" means "hypnosis".
+"hipnosis" is the plural of "hipnosis".
 The masculine noun "alquitrán" means "tar".
 "alquitranes" is the plural of "alquitrán".
 The feminine noun "peineta" means "comb".
@@ -18686,6 +18775,7 @@ The masculine noun "confesor" means "confessor".
 "confesores" is the plural of "confesor".
 "confesor" is a person.
 The feminine noun "exégesis" means "exegesis".
+"exégesis" is the plural of "exégesis".
 The noun "absenta" means "absinthe".
 The masculine noun "montañismo" means "mountaineering".
 "montañismos" is the plural of "montañismo".
@@ -18769,6 +18859,7 @@ The masculine noun "rubí" means "ruby".
 "rubíes" is the plural of "rubí".
 The noun "tirantes" means "braces".
 The masculine noun "ónix" means "onyx".
+"ónix" is the plural of "ónix".
 The noun "voyeur" means "voyeur".
 The noun "pantuflas" means "slippers".
 The masculine noun "sauce" means "willow".
@@ -19027,6 +19118,7 @@ The masculine noun "anémico" means "anaemic".
 The feminine noun "anémica" means "anaemic".
 "anémicas" is the plural of "anémica".
 The masculine noun "análisis" means "analysis".
+"análisis" is the plural of "análisis".
 The feminine noun "convocatoria" means "announcement".
 "convocatorias" is the plural of "convocatoria".
 The masculine noun "hervidero" means "anteater".
@@ -19036,6 +19128,7 @@ The masculine noun "antropólogo" means "anthropologist".
 The feminine noun "antropóloga" means "anthropologist".
 "antropólogas" is the plural of "antropóloga".
 The feminine noun "antítesis" means "antithesis".
+"antítesis" is the plural of "antítesis".
 The masculine noun "ano" means "anus".
 "anos" is the plural of "ano".
 The masculine noun "viso" means "appearance".
@@ -19173,6 +19266,7 @@ The feminine noun "bióloga" means "biologist".
 "biólogas" is the plural of "bióloga".
 "bióloga" is a person.
 The masculine noun "cumpleaños" means "birthday".
+"cumpleaños" is the plural of "cumpleaños".
 The feminine noun "mordedura" means "bite".
 "mordeduras" is the plural of "mordedura".
 The masculine noun "negro" means "black".
@@ -19182,6 +19276,7 @@ The feminine noun "negra" means "black".
 The feminine noun "cuchilla" means "blade".
 "cuchillas" is the plural of "cuchilla".
 The noun "guardaespaldas" means "bodyguard".
+"guardaespaldas" is the plural of "guardaespaldas".
 "guardaespaldas" is a person.
 The masculine noun "bombardero" means "bomber".
 "bombarderos" is the plural of "bombardero".
@@ -19245,6 +19340,7 @@ The feminine noun "tarta" means "cake".
 The masculine noun "llamamiento" means "call".
 "llamamientos" is the plural of "llamamiento".
 The masculine noun "campus" means "campus".
+"campus" is the plural of "campus".
 The masculine noun "vals" means "waltz".
 "valses" is the plural of "vals".
 The masculine noun "encauzamiento" means "canalisation".
@@ -19308,9 +19404,11 @@ The masculine noun "canciller" means "chancellor".
 The feminine noun "cancillera" means "chancellor".
 "cancilleras" is the plural of "cancillera".
 The masculine noun "caos" means "chaos".
+"caos" is the plural of "caos".
 The feminine noun "simpatía" means "charm".
 "simpatías" is the plural of "simpatía".
 The masculine noun "chasis" means "chassis".
+"chasis" is the plural of "chasis".
 The masculine noun "farmacéutico" means "chemist".
 "farmacéuticos" is the plural of "farmacéutico".
 "farmacéutico" is a person.
@@ -19502,6 +19600,7 @@ The feminine noun "acreedora" means "creditor".
 The masculine noun "crimen" means "crime".
 "crímenes" is the plural of "crimen".
 The feminine noun "crisis" means "crisis".
+"crisis" is the plural of "crisis".
 The masculine noun "crítico" means "critic".
 "críticos" is the plural of "crítico".
 "crítico" is a person.
@@ -19529,6 +19628,7 @@ The masculine noun "filo" means "cut".
 The feminine noun "tajada" means "cut".
 "tajadas" is the plural of "tajada".
 The masculine noun "cutis" means "cutis".
+"cutis" is the plural of "cutis".
 The feminine noun "danza" means "dance".
 "danzas" is the plural of "danza".
 The masculine noun "bailaor" means "dancer".
@@ -19560,6 +19660,7 @@ The masculine noun "depurador" means "debugger".
 The feminine noun "depuradora" means "debugger".
 "depuradoras" is the plural of "depuradora".
 The feminine noun "caries" means "decay".
+"caries" is the plural of "caries".
 The masculine noun "descodificador" means "decoder".
 "descodificadores" is the plural of "descodificador".
 The feminine noun "descodificadora" means "decoder".
@@ -19607,6 +19708,7 @@ The feminine noun "dictadora" means "dictator".
 The masculine noun "apuro" means "difficulty".
 "apuros" is the plural of "apuro".
 The feminine noun "diócesis" means "diocese".
+"diócesis" is the plural of "diócesis".
 The masculine noun "director" means "director".
 The feminine noun "directora" means "director".
 The masculine noun "inspector" means "inspector".
@@ -19618,6 +19720,7 @@ The feminine noun "inspectora" means "inspector".
 The feminine noun "debacle" means "disaster".
 "debacles" is the plural of "debacle".
 The feminine noun "pelvis" means "pelvis".
+"pelvis" is the plural of "pelvis".
 The feminine noun "rebaja" means "discount".
 "rebajas" is the plural of "rebaja".
 The masculine noun "descontento" means "dissatisfaction".
@@ -19674,6 +19777,7 @@ The feminine noun "diablesa" means "devil".
 The masculine noun "doping" means "doping".
 "dopings" is the plural of "doping".
 The feminine noun "dosis" means "dose".
+"dosis" is the plural of "dosis".
 The masculine noun "borrador" means "draft".
 "borradores" is the plural of "borrador".
 The masculine noun "trago" means "drink".
@@ -19689,6 +19793,7 @@ The feminine noun "conductora" means "driver".
 The masculine noun "badén" means "driveway".
 "badenes" is the plural of "badén".
 The masculine noun "cuentagotas" means "dropper".
+"cuentagotas" is the plural of "cuentagotas".
 The masculine noun "borracho" means "drunkard".
 "borrachos" is the plural of "borracho".
 "borracho" is a person.
@@ -19716,6 +19821,7 @@ The masculine noun "mirón" means "eavesdropper".
 The feminine noun "mirona" means "eavesdropper".
 "mironas" is the plural of "mirona".
 The masculine noun "éxtasis" means "ecstasy".
+"éxtasis" is the plural of "éxtasis".
 The masculine noun "torbellino" means "eddy".
 "torbellinos" is the plural of "torbellino".
 The feminine noun "arista" means "edge".
@@ -19745,6 +19851,7 @@ The feminine noun "elefanta" means "elephant".
 The masculine noun "desconcierto" means "embarrassment".
 "desconciertos" is the plural of "desconcierto".
 The masculine noun "énfasis" means "emphasis".
+"énfasis" is the plural of "énfasis".
 The masculine noun "asalariado" means "employee".
 "asalariados" is the plural of "asalariado".
 "asalariado" is a person.
@@ -19981,7 +20088,9 @@ The feminine noun "tropelía" means "haste".
 The masculine noun "auxilio" means "help".
 "auxilios" is the plural of "auxilio".
 The feminine noun "hepatitis" means "hepatitis".
+"hepatitis" is the plural of "hepatitis".
 The masculine noun "herpes" means "herpes".
+"herpes" is the plural of "herpes".
 The masculine noun "escondite" means "hide".
 "escondites" is the plural of "escondite".
 The masculine noun "historiador" means "historian".
@@ -20007,7 +20116,9 @@ The feminine noun "cazadora" means "hunter".
 The feminine noun "cacería" means "hunting".
 "cacerías" is the plural of "cacería".
 The feminine noun "hipófisis" means "hypophysis".
+"hipófisis" is the plural of "hipófisis".
 The feminine noun "hipótesis" means "hypothesis".
+"hipótesis" is the plural of "hipótesis".
 The masculine noun "ideólogo" means "ideologist".
 "ideólogos" is the plural of "ideólogo".
 "ideólogo" is a person.
@@ -20254,6 +20365,7 @@ The feminine noun "mensajera" means "messenger".
 "mensajeras" is the plural of "mensajera".
 "mensajera" is a person.
 The feminine noun "metástasis" means "metastasis".
+"metástasis" is the plural of "metástasis".
 The masculine noun "meteorólogo" means "meteorologist".
 "meteorólogos" is the plural of "meteorólogo".
 The feminine noun "meteoróloga" means "meteorologist".
@@ -20339,6 +20451,7 @@ The feminine noun "enfermera" means "nurse".
 "enfermeras" is the plural of "enfermera".
 "enfermera" is a person.
 The masculine noun "oasis" means "oasis".
+"oasis" is the plural of "oasis".
 The masculine noun "reparo" means "objection".
 "reparos" is the plural of "reparo".
 The masculine noun "objetor" means "objector".
@@ -20394,6 +20507,7 @@ The masculine noun "boceto" means "outline".
 "bocetos" is the plural of "boceto".
 The noun "bosquejo" means "outline".
 The feminine noun "sobredosis" means "overdose".
+"sobredosis" is the plural of "sobredosis".
 The masculine noun "casero" means "owner".
 "caseros" is the plural of "casero".
 "casero" is a person.
@@ -20425,7 +20539,9 @@ The masculine noun "paleontólogo" means "palaeontologist".
 The feminine noun "paleontóloga" means "palaeontologist".
 "paleontólogas" is the plural of "paleontóloga".
 The masculine noun "páncreas" means "pancreas".
+"páncreas" is the plural of "páncreas".
 The feminine noun "parálisis" means "paralysis".
+"parálisis" is the plural of "parálisis".
 The masculine noun "padre" means "parent".
 "padres" is the plural of "padre".
 "padre" is a person.
@@ -20448,6 +20564,7 @@ The feminine noun "campesina" means "peasant".
 "campesina" is a person.
 The noun "viandante" means "pedestrian".
 The feminine noun "pediculosis" means "pediculosis".
+"pediculosis" is the plural of "pediculosis".
 The feminine noun "pena" means "penalty".
 "penas" is the plural of "pena".
 The feminine noun "pena" means "pity".
@@ -20595,7 +20712,9 @@ The feminine noun "promotora" means "promoter".
 "promotoras" is the plural of "promotora".
 "promotora" is a person.
 The feminine noun "profilaxis" means "prophylaxis".
+"profilaxis" is the plural of "profilaxis".
 The feminine noun "prótesis" means "prosthesis".
+"prótesis" is the plural of "prótesis".
 The masculine noun "proveedor" means "provider".
 "proveedores" is the plural of "proveedor".
 The feminine noun "proveedora" means "provider".
@@ -20769,7 +20888,9 @@ The feminine noun "científica" means "scientist".
 "científicas" is the plural of "científica".
 "científica" is a person.
 The feminine noun "esclerosis" means "sclerosis".
+"esclerosis" is the plural of "esclerosis".
 The feminine noun "escoliosis" means "scoliosis".
+"escoliosis" is the plural of "escoliosis".
 The feminine noun "partitura" means "score".
 "partituras" is the plural of "partitura".
 The masculine noun "anotador" means "scorer".
@@ -20874,6 +20995,7 @@ The masculine noun "esquiador" means "skier".
 The feminine noun "esquiadora" means "skier".
 "esquiadoras" is the plural of "esquiadora".
 The masculine noun "rascacielos" means "skyscraper".
+"rascacielos" is the plural of "rascacielos".
 The feminine noun "jerga" means "slang".
 "jergas" is the plural of "jerga".
 The masculine noun "esclavo" means "slave".
@@ -20932,6 +21054,7 @@ The feminine noun "cuadra" means "stable".
 The masculine noun "arranque" means "start".
 "arranques" is the plural of "arranque".
 The masculine noun "estatus" means "status".
+"estatus" is the plural of "estatus".
 The masculine noun "poste" means "stick".
 "postes" is the plural of "poste".
 The masculine noun "pudor" means "modesty".
@@ -21000,6 +21123,7 @@ The noun "chuchería" means "sweet".
 The feminine noun "hinchazón" means "swell".
 "hinchazones" is the plural of "hinchazón".
 The feminine noun "síntesis" means "synthesis".
+"síntesis" is the plural of "síntesis".
 The feminine noun "jeringa" means "syringe".
 "jeringas" is the plural of "jeringa".
 The masculine noun "rabo" means "tail".
@@ -21033,6 +21157,7 @@ The feminine noun "inquilina" means "tenant".
 "inquilinas" is the plural of "inquilina".
 "inquilina" is a person.
 The masculine noun "tenis" means "tennis".
+"tenis" is the plural of "tenis".
 The masculine noun "test" means "test".
 "tests" is the plural of "test".
 The masculine noun "teólogo" means "theologian".
@@ -21042,6 +21167,7 @@ The feminine noun "teóloga" means "theologian".
 "teólogas" is the plural of "teóloga".
 "teóloga" is a person.
 The feminine noun "tesis" means "thesis".
+"tesis" is the plural of "tesis".
 The masculine noun "espesor" means "thickness".
 "espesores" is the plural of "espesor".
 The feminine noun "espesura" means "thickness".
@@ -21052,6 +21178,7 @@ The feminine noun "ladrona" means "thief".
 The masculine noun "millar" means "thousand".
 "millares" is the plural of "millar".
 The feminine noun "trombosis" means "thrombosis".
+"trombosis" is the plural of "trombosis".
 The noun "tique" means "ticket".
 The noun "tiquete" means "ticket".
 The masculine noun "tigre" means "tiger".
@@ -21069,9 +21196,11 @@ The masculine noun "temporizador" means "timer".
 The feminine noun "temporizadora" means "timer".
 "temporizadoras" is the plural of "temporizadora".
 The masculine noun "brindis" means "toast".
+"brindis" is the plural of "brindis".
 The noun "inodoro" means "toilet".
 The noun "wáter" means "toilet".
 The masculine noun "mondadientes" means "toothpick".
+"mondadientes" is the plural of "mondadientes".
 The feminine noun "localidad" means "town".
 The masculine noun "tránsito" means "traffic".
 "tránsitos" is the plural of "tránsito".
@@ -21106,6 +21235,7 @@ The feminine noun "tesorera" means "treasurer".
 "tesoreras" is the plural of "tesorera".
 "tesorera" is a person.
 The feminine noun "tuberculosis" means "tuberculosis".
+"tuberculosis" is the plural of "tuberculosis".
 The masculine noun "gemelo" means "twin".
 "gemelos" is the plural of "gemelo".
 "gemelo" is a person.
@@ -21119,6 +21249,7 @@ The feminine noun "tirana" means "tyrant".
 "tiranas" is the plural of "tirana".
 "tirana" is a person.
 The masculine noun "paraguas" means "umbrella".
+"paraguas" is the plural of "paraguas".
 The masculine noun "desempleo" means "unemployment".
 "desempleos" is the plural of "desempleo".
 The feminine noun "desocupación" means "unemployment".
@@ -21166,6 +21297,7 @@ The feminine noun "espectadora" means "viewer".
 The feminine noun "vid" means "vineyard".
 "vides" is the plural of "vid".
 The masculine noun "virus" means "virus".
+"virus" is the plural of "virus".
 The masculine noun "balonvolea" means "volleyball".
 "balonvolea" is not feminine.
 The masculine noun "tomo" means "volume".
@@ -21196,6 +21328,7 @@ The feminine noun "viuda" means "widower".
 The feminine noun "anchura" means "width".
 "anchuras" is the plural of "anchura".
 The masculine noun "parabrisas" means "windscreen".
+"parabrisas" is the plural of "parabrisas".
 The masculine noun "ganador" means "winner".
 "ganadores" is the plural of "ganador".
 "ganador" is a person.
@@ -21382,6 +21515,7 @@ The feminine noun "lavanda" means "lavender".
 The masculine noun "amotinamiento" means "riot".
 "amotinamientos" is the plural of "amotinamiento".
 The feminine noun "anafilaxis" means "anaphylaxis".
+"anafilaxis" is the plural of "anafilaxis".
 The masculine noun "apuntador" means "prompter".
 "apuntadores" is the plural of "apuntador".
 The feminine noun "apuntadora" means "prompter".
@@ -21395,6 +21529,7 @@ The feminine noun "atea" means "atheist".
 "ateas" is the plural of "atea".
 "atea" is a person.
 The masculine noun "atlas" means "atlas".
+"atlas" is the plural of "atlas".
 The feminine noun "autorización" means "permission".
 "autorizaciones" is the plural of "autorización".
 The masculine noun "cauce" means "course".
@@ -21416,6 +21551,7 @@ The feminine noun "chicoria" means "chicory".
 "chicorias" is the plural of "chicoria".
 The noun "mocoso" means "brat".
 The masculine noun "clímax" means "climax".
+"clímax" is the plural of "clímax".
 The feminine noun "conciencia" means "consciousness".
 "conciencias" is the plural of "conciencia".
 The feminine noun "chapa" means "sheet".
@@ -21486,6 +21622,7 @@ The masculine noun "herbazal" means "grassland".
 The feminine noun "pradera" means "meadow".
 "praderas" is the plural of "pradera".
 The masculine noun "hioides" means "hyoid".
+"hioides" is the plural of "hioides".
 The masculine noun "hospedaje" means "accommodation".
 "hospedajes" is the plural of "hospedaje".
 The masculine noun "interlineado" means "leading".
@@ -21549,6 +21686,7 @@ The masculine noun "ruptor" means "breaker".
 The feminine noun "seo" means "cathedral".
 "seos" is the plural of "seo".
 The feminine noun "sepsis" means "sepsis".
+"sepsis" is the plural of "sepsis".
 The masculine noun "somnambulismo" means "somnambulism".
 "somnambulismos" is the plural of "somnambulismo".
 The masculine noun "pulverizador" means "atomiser".
@@ -21843,6 +21981,7 @@ The masculine noun "inconveniente" means "problem".
 "inconvenientes" is the plural of "inconveniente".
 The noun "cookie" means "cookie".
 The masculine noun "tórax" means "thorax".
+"tórax" is the plural of "tórax".
 The feminine noun "bajada" means "descent".
 "bajadas" is the plural of "bajada".
 The masculine noun "seso" means "brain".
@@ -21910,6 +22049,7 @@ The feminine noun "renta" means "income".
 The feminine noun "gobernación" means "government".
 "gobernaciones" is the plural of "gobernación".
 The feminine noun "narcosis" means "narcosis".
+"narcosis" is the plural of "narcosis".
 The masculine noun "linaje" means "lineage".
 "linajes" is the plural of "linaje".
 The feminine noun "rosquilla" means "doughnut".
@@ -22079,6 +22219,7 @@ The masculine noun "aplazamiento" means "postponement".
 The masculine noun "escarpe" means "escarpment".
 "escarpes" is the plural of "escarpe".
 The masculine noun "cascanueces" means "nutcracker".
+"cascanueces" is the plural of "cascanueces".
 The feminine noun "designación" means "designation".
 "designaciones" is the plural of "designación".
 The masculine noun "grueso" means "thickness".
@@ -22090,6 +22231,7 @@ The noun "desperdicios" means "scrap".
 The feminine noun "reposición" means "replacement".
 "reposiciones" is the plural of "reposición".
 The masculine noun "rompecabezas" means "puzzle".
+"rompecabezas" is the plural of "rompecabezas".
 The masculine noun "impreso" means "form".
 "impresos" is the plural of "impreso".
 The masculine noun "gestor" means "agent".
@@ -22099,6 +22241,7 @@ The feminine noun "gestora" means "agent".
 The masculine noun "añadido" means "addition".
 "añadidos" is the plural of "añadido".
 The feminine noun "sintaxis" means "syntax".
+"sintaxis" is the plural of "sintaxis".
 The noun "disparador" means "trigger".
 The noun "desencadenante" means "trigger".
 The feminine noun "contraposición" means "comparison".
@@ -22106,6 +22249,7 @@ The feminine noun "contraposición" means "comparison".
 The feminine noun "sencillez" means "simplicity".
 "sencilleces" is the plural of "sencillez".
 The masculine noun "status" means "status".
+"status" is the plural of "status".
 The noun "reset" means "reset".
 The masculine noun "químico" means "chemist".
 "químicos" is the plural of "químico".
@@ -22117,6 +22261,7 @@ The noun "constituyente" means "constituent".
 The feminine noun "similitud" means "similarity".
 "similitudes" is the plural of "similitud".
 The feminine noun "glucólisis" means "glycolysis".
+"glucólisis" is the plural of "glucólisis".
 The feminine noun "ingesta" means "consumption".
 "ingestas" is the plural of "ingesta".
 The masculine noun "alimento" means "food".
@@ -22126,9 +22271,11 @@ The masculine noun "desecho" means "waste".
 "desechos" is the plural of "desecho".
 The noun "pernera" means "leg".
 The masculine noun "paracaídas" means "parachute".
+"paracaídas" is the plural of "paracaídas".
 The masculine noun "cóccix" means "coccyx".
 "cóccixes" is the plural of "cóccix".
 The masculine noun "coxis" means "coccyx".
+"coxis" is the plural of "coxis".
 The masculine noun "acondicionamiento" means "conditioning".
 "acondicionamientos" is the plural of "acondicionamiento".
 The feminine noun "vasija" means "vessel".
@@ -22162,8 +22309,10 @@ The feminine noun "oblicuidad" means "inclination".
 The masculine noun "aeroplano" means "aeroplane".
 "aeroplanos" is the plural of "aeroplano".
 The noun "génesis" means "origin".
+"génesis" is the plural of "génesis".
 The noun "abiogénesis" means "abiogenesis".
 The feminine noun "homeostasis" means "homeostasis".
+"homeostasis" is the plural of "homeostasis".
 The masculine noun "reposo" means "rest".
 "reposos" is the plural of "reposo".
 The feminine noun "estirpe" means "lineage".
@@ -22176,6 +22325,7 @@ The feminine noun "noción" means "notion".
 The feminine noun "apreciación" means "assessment".
 "apreciaciones" is the plural of "apreciación".
 The feminine noun "morfogénesis" means "morphogenesis".
+"morfogénesis" is the plural of "morfogénesis".
 The masculine noun "etólogo" means "ethologist".
 "etólogos" is the plural of "etólogo".
 The feminine noun "etóloga" means "ethologist".
@@ -22208,7 +22358,9 @@ The noun "nucleosíntesis" means "nucleosynthesis".
 The noun "cosmólogo" means "cosmologist".
 "cosmólogo" is a person.
 The feminine noun "biogénesis" means "biogenesis".
+"biogénesis" is the plural of "biogénesis".
 The feminine noun "fotosíntesis" means "photosynthesis".
+"fotosíntesis" is the plural of "fotosíntesis".
 The masculine noun "calibrador" means "callipers".
 "calibradores" is the plural of "calibrador".
 The masculine noun "desdoblamiento" means "splitting".
@@ -22247,6 +22399,7 @@ The masculine noun "principado" means "principality".
 "principados" is the plural of "principado".
 The masculine noun "alzheimer" means "alzheimer".
 The masculine noun "apocalipsis" means "apocalypse".
+"apocalipsis" is the plural of "apocalipsis".
 The noun "minorista" means "retailer".
 "minoristas" is the plural of "minorista".
 "minorista" is a person.
@@ -22261,6 +22414,7 @@ The feminine noun "titulación" means "degree".
 The noun "posibilitador" means "enabler".
 The noun "habilitador" means "enabler".
 The masculine noun "paréntesis" means "parenthesis".
+"paréntesis" is the plural of "paréntesis".
 The masculine noun "paréntesis" means "bracket".
 The noun "marcapáginas" means "bookmark".
 The masculine noun "portero" means "porter".
@@ -22291,6 +22445,7 @@ The masculine noun "negociador" means "negotiator".
 The feminine noun "negociadora" means "negotiator".
 "negociadoras" is the plural of "negociadora".
 The feminine noun "meningitis" means "meningitis".
+"meningitis" is the plural of "meningitis".
 The noun "escéptico" means "sceptic".
 The masculine noun "villano" means "villain".
 "villanos" is the plural of "villano".
@@ -22340,6 +22495,7 @@ The noun "aerostato" means "aerostat".
 The noun "agrónomo" means "agronomist".
 The masculine noun "aeróbic" means "aerobics".
 The noun "trotamundos" means "wanderer".
+"trotamundos" is the plural of "trotamundos".
 "trotamundos" is a person.
 The masculine noun "rugby" means "rugby".
 The noun "anestesiólogo" means "anesthesiologist".
@@ -22348,11 +22504,15 @@ The masculine noun "apicultor" means "beekeeper".
 The feminine noun "apicultora" means "beekeeper".
 "apicultoras" is the plural of "apicultora".
 The feminine noun "apoteosis" means "apotheosis".
+"apoteosis" is the plural of "apoteosis".
 The masculine noun "árbitro" means "arbitrator".
 The feminine noun "árbitra" means "arbitrator".
 The feminine noun "archidiócesis" means "archdiocese".
+"archidiócesis" is the plural of "archidiócesis".
 The feminine noun "necrópolis" means "necropolis".
+"necrópolis" is the plural of "necrópolis".
 The feminine noun "artritis" means "arthritis".
+"artritis" is the plural of "artritis".
 The masculine noun "agresor" means "assailant".
 The feminine noun "agresora" means "assailant".
 The noun "ayatollah" means "ayatollah".
@@ -22383,11 +22543,13 @@ The feminine noun "subdelegada" means "subdelegate".
 The masculine noun "espectador" means "onlooker".
 The feminine noun "espectadora" means "onlooker".
 The feminine noun "bilis" means "bile".
+"bilis" is the plural of "bilis".
 The feminine noun "localidad" means "place".
 The masculine noun "posparto" means "puerperium".
 "pospartos" is the plural of "posparto".
 The noun "peristalsis" means "peristalsis".
 The feminine noun "epiglotis" means "epiglottis".
+"epiglotis" is the plural of "epiglotis".
 The masculine noun "mediador" means "fixer".
 "mediadores" is the plural of "mediador".
 "mediador" is a person.
@@ -22575,6 +22737,7 @@ The masculine noun "sintonizador" means "tuner".
 The masculine noun "almíbar" means "syrup".
 "almíbares" is the plural of "almíbar".
 The feminine noun "sinopsis" means "synopsis".
+"sinopsis" is the plural of "sinopsis".
 The feminine noun "carátula" means "cover".
 "carátulas" is the plural of "carátula".
 The feminine noun "lona" means "canvas".
@@ -22638,6 +22801,7 @@ The feminine noun "índole" means "type".
 "índoles" is the plural of "índole".
 The noun "dueto" means "duet".
 The masculine noun "reposacabezas" means "headrest".
+"reposacabezas" is the plural of "reposacabezas".
 The noun "rimmel" means "mascara".
 The masculine noun "sobrenombre" means "nickname".
 "sobrenombres" is the plural of "sobrenombre".
@@ -22646,6 +22810,7 @@ The masculine noun "estribillo" means "chorus".
 The masculine noun "lienzo" means "canvas".
 "lienzos" is the plural of "lienzo".
 The masculine noun "pintalabios" means "lipstick".
+"pintalabios" is the plural of "pintalabios".
 The noun "satín" means "satin".
 The feminine noun "valentía" means "courage".
 "valentías" is the plural of "valentía".
@@ -22686,6 +22851,7 @@ The feminine noun "nadadora" means "swimmer".
 The feminine noun "reaparición" means "comeback".
 "reapariciones" is the plural of "reaparición".
 The masculine noun "tríceps" means "triceps".
+"tríceps" is the plural of "tríceps".
 The feminine noun "compilación" means "compilation".
 "compilaciones" is the plural of "compilación".
 The feminine noun "repisa" means "shelf".
@@ -22697,6 +22863,7 @@ The feminine noun "demora" means "delay".
 The feminine noun "ventanilla" means "window".
 "ventanillas" is the plural of "ventanilla".
 The masculine noun "sacacorchos" means "corkscrew".
+"sacacorchos" is the plural of "sacacorchos".
 The feminine noun "antorcha" means "torch".
 "antorchas" is the plural of "antorcha".
 The masculine noun "antifaz" means "mask".
@@ -22708,6 +22875,7 @@ The masculine noun "florero" means "vase".
 The feminine noun "peregrinación" means "pilgrimage".
 "peregrinaciones" is the plural of "peregrinación".
 The masculine noun "fénix" means "phoenix".
+"fénix" is the plural of "fénix".
 The feminine noun "ganga" means "bargain".
 "gangas" is the plural of "ganga".
 The masculine noun "collado" means "hill".
@@ -22752,6 +22920,7 @@ The feminine noun "pomada" means "ointment".
 "pomadas" is the plural of "pomada".
 The noun "zenit" means "zenith".
 The feminine noun "metamorfosis" means "metamorphosis".
+"metamorfosis" is the plural of "metamorfosis".
 The masculine noun "historial" means "record".
 "historiales" is the plural of "historial".
 The feminine noun "brocha" means "paintbrush".
@@ -22775,6 +22944,7 @@ The masculine noun "mazazo" means "blow".
 "mazazos" is the plural of "mazazo".
 The noun "esterilla" means "mat".
 The masculine noun "parachoques" means "bumper".
+"parachoques" is the plural of "parachoques".
 The masculine noun "repollo" means "cabbage".
 "repollos" is the plural of "repollo".
 The feminine noun "confitura" means "jam".
@@ -22924,6 +23094,7 @@ The feminine noun "catadora" means "taster".
 The feminine noun "manija" means "handle".
 "manijas" is the plural of "manija".
 The masculine noun "pisapapeles" means "paperweight".
+"pisapapeles" is the plural of "pisapapeles".
 The masculine noun "tormento" means "torment".
 "tormentos" is the plural of "tormento".
 The masculine noun "carruaje" means "carriage".
@@ -22936,6 +23107,7 @@ The feminine noun "tapia" means "wall".
 The feminine noun "demolición" means "demolition".
 "demoliciones" is the plural of "demolición".
 The masculine noun "apoyabrazos" means "armrest".
+"apoyabrazos" is the plural of "apoyabrazos".
 The noun "calefactor" means "heater".
 The masculine noun "rozamiento" means "friction".
 "rozamientos" is the plural of "rozamiento".
@@ -23035,6 +23207,7 @@ The feminine noun "brazada" means "stroke".
 The masculine noun "mejoramiento" means "improvement".
 "mejoramientos" is the plural of "mejoramiento".
 The masculine noun "cuentakilómetros" means "odometer".
+"cuentakilómetros" is the plural of "cuentakilómetros".
 The noun "alcazaba" means "citadel".
 The noun "amarillismo" means "sensationalism".
 The masculine noun "pregón" means "proclamation".
@@ -23044,6 +23217,7 @@ The feminine noun "repartición" means "distribution".
 The feminine noun "cuadrícula" means "grid".
 "cuadrículas" is the plural of "cuadrícula".
 The masculine noun "espantapájaros" means "scarecrow".
+"espantapájaros" is the plural of "espantapájaros".
 The feminine noun "pócima" means "potion".
 "pócimas" is the plural of "pócima".
 The masculine noun "gentilhombre" means "gentleman".
@@ -23068,6 +23242,7 @@ The feminine noun "legua" means "league".
 The feminine noun "secadora" means "dryer".
 "secadoras" is the plural of "secadora".
 The masculine noun "tirachinas" means "slingshot".
+"tirachinas" is the plural of "tirachinas".
 The feminine noun "estrechez" means "narrowness".
 "estrecheces" is the plural of "estrechez".
 The feminine noun "botica" means "pharmacy".
@@ -23137,6 +23312,7 @@ The masculine noun "egresado" means "graduate".
 The masculine noun "decenio" means "decade".
 "decenios" is the plural of "decenio".
 The masculine noun "marcapasos" means "pacemaker".
+"marcapasos" is the plural of "marcapasos".
 The noun "subte" means "subway".
 The feminine noun "premura" means "haste".
 "premuras" is the plural of "premura".
@@ -23166,6 +23342,7 @@ The masculine noun "grillo" means "cricket".
 The feminine noun "fundamentación" means "foundation".
 "fundamentaciones" is the plural of "fundamentación".
 The masculine noun "matamoscas" means "flyswatter".
+"matamoscas" is the plural of "matamoscas".
 The masculine noun "extravío" means "loss".
 "extravíos" is the plural of "extravío".
 The noun "ajonjolí" means "sesame".
@@ -23839,6 +24016,7 @@ The feminine noun "vicesecretaria" means "vicesecretary".
 "vicesecretarias" is the plural of "vicesecretaria".
 The masculine noun "marcador" means "marker".
 The masculine noun "lavamanos" means "washbasin".
+"lavamanos" is the plural of "lavamanos".
 The masculine noun "arado" means "plow".
 The feminine noun "caja" means "till".
 The feminine noun "consecuencia" means "aftermath".

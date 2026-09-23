@@ -524,6 +524,12 @@ cb_noun(W, G, En, Forms, Tag) :-
     ;   assertz(cb_formed(W, noun)),
         (   Tag \== none, cb_form(Forms, [n, Tag, pl], P), P \== W
         ->  cb_line('"~w" is the plural of "~w".', [P, W])
+        %% ONE FORM FOR BOTH NUMBERS IS ITS OWN PLURAL: `città', `crisis'.
+        %% Italian states no plural rule, so a noun with no plural line
+        %% could not be written in the plural at all -- `de las ciudades'
+        %% refused into Italian for want of `delle città'
+        ;   Tag \== none, cb_form(Forms, [n, Tag, sp], W)
+        ->  cb_line('"~w" is the plural of "~w".', [W, W])
         ;   true
         ),
         ( cb_person(En) -> cb_line('"~w" is a person.', [W]) ; true )

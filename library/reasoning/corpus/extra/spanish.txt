@@ -33,3 +33,60 @@ The masculine noun "táctico" means "tactician".
 "minuto" is a time.
 "momento" is a time.
 "siglo" is a time.
+The conjunction "o" means "or".
+The masculine demonstrative "ese" means "that".
+The feminine demonstrative "esa" means "that".
+The masculine pronoun "ese" means "that".
+The pronoun "eso" means "that".
+"que" is a relative.
+# the words the El Periódico article (AnCora CESS-CAST-P-19990202-16) needs
+# and the dictionary lacks or gives first in another sense; a word of
+# several words is one word to the reader when the lesson states it so
+The preposition "junto a" means "along with".
+The modal "tiene que" means "must".
+"tienen que" is the plural of "tiene que".
+The masculine noun "lavado de cerebro" means "brainwashing".
+"lavados de cerebro" is the plural of "lavado de cerebro".
+The feminine noun "sopa de sobre" means "packet soup".
+"sopas de sobre" is the plural of "sopa de sobre".
+The masculine noun "pater familias" means "paterfamilias".
+The masculine noun "bate de béisbol" means "baseball bat".
+"bates de béisbol" is the plural of "bate de béisbol".
+The adverb "eso sí" means "mind you".
+The adjective "acorde" means "consistent".
+"acordes" is the plural of "acorde".
+The adverb "cucharada a cucharada" means "spoonful by spoonful".
+The masculine noun "sopicaldo" means "broth".
+The masculine noun "consomé" means "consomme".
+The masculine noun "pollastre amb galets" means "chicken with galets".
+The adjective "marginal" means "marginal".
+"marginales" is the plural of "marginal".
+The masculine noun "destrozo" means "damage".
+"destrozos" is the plural of "destrozo".
+The masculine adjective "sacrosanto" means "sacrosanct".
+"sacrosantos" is the plural of "sacrosanto".
+The feminine adjective "sacrosanta" means "sacrosanct".
+"sacrosantas" is the plural of "sacrosanta".
+The verb "desahoga" means "vents".
+"desahogan" is the plural of "desahoga".
+"desahogando" is the gerund of "desahoga".
+"desahogar" is the infinitive of "desahoga".
+The verb "equivoca" means "errs".
+"equivocan" is the plural of "equivoca".
+"equivocado" is the participle of "equivoca".
+"equivocar" is the infinitive of "equivoca".
+The pronoun "les" means "them".
+The adjective "débil" means "weak".
+The adjective "esnob" means "snobbish".
+The masculine adjective "ciudadano" means "civic".
+"ciudadanos" is the plural of "ciudadano".
+The feminine adjective "ciudadana" means "civic".
+"ciudadanas" is the plural of "ciudadana".
+The word "cómo" means "how".
+The word "al" begins the moment.
+"institución" is a person.
+"grupo" is a person.
+The word "el" replaces the noun.
+The feminine noun "clase media" means "middle class".
+"equivoca" is reflexive.
+"desahoga" is reflexive.
