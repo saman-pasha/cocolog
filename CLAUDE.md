@@ -4476,6 +4476,15 @@ relative clause, a list, a word of several words, a gerund and `al`, a noun
 left out and a clause with no verb are new things a program reaches; the
 owner decides.
 
+**AND THE FULL SUITE IS GREEN ON 1.6.15: 58 case lines, 7 SKIPs, `red: 0`**,
+in 18 min 9 s, with a fresh server up and answering a sentence before the run
+-- `zigurat`, `shared`, `zigurat-lib`, `kbs`, `zigurat-tls`, `tunnel`,
+`groups` (2 s) and `ruler` (13 s) all GREEN, so the database was touched. The
+seven SKIPs are the machine, each read from its own case: no CUDA for
+`tensors`, `torch-graph`, `torch-grad` and `torch-replay`, and no
+`tensorflow.so`, `ray.so` or `numpy.so` built. The long lines: `tutorials`
+360 s, `tagger` 211 s, `lint` 161 s, `tunnel` 62 s, `translate` 41 s.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
