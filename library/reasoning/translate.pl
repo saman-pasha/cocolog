@@ -5121,19 +5121,34 @@ tr_lexeme(Side, W, L, N) :-
 %% empty: a list of the tables a sentence touched missed every table that
 %% already existed, and a lesson changed between two calls read stale
 %% answers -- the case caught it, `what' still known after its line went.
+%%
+%% THE LIST IS KEPT BEFORE IT IS MATCHED AGAINST SOLS. A caller may pass a
+%% pattern -- tr_is/3 asks for `[_|_]', whether there is any solution at
+%% all -- and findall/3 straight into the pattern FAILED for a word with no
+%% solution, before the list was kept: a class test that answered no was
+%% never kept, and most class tests answer no. Over the three longest
+%% sentences of Monte Livata, 127 006 of 151 166 class tests were asked
+%% again from the lesson.
+%%
+%% AND A WORD'S TABLE IS A LIST, searched by memberchk/2. get_assoc/3 is
+%% clauses -- 23 inferences to find one key among seventeen -- where
+%% memberchk/2 is one call into C. Every key is ground (an atom from a
+%% global, or the words a caller checked with ground/1), so unifying a key
+%% finds exactly what comparing it found.
 tr_memo(Key, Template, Goal, Sols) :-
     functor(Key, _, A), arg(A, Key, W),
     atom_concat('$tr_w|', W, G),
     tr_memo_generation(Gen),
     (   catch(nb_getval(G, g(Gen0, M1)), _, fail), Gen0 == Gen -> M0 = M1
-    ;   empty_assoc(M0)
+    ;   M0 = []
     ),
-    (   get_assoc(Key, M0, Sols0) -> Sols = Sols0
-    ;   findall(Template, Goal, Sols),
+    (   memberchk(Key-Sols0, M0) -> Sols = Sols0
+    ;   findall(Template, Goal, Sols0),
         (   catch(nb_getval(G, g(Gen1, M2)), _, fail), Gen1 == Gen -> M3 = M2
-        ;   empty_assoc(M3)
+        ;   M3 = []
         ),
-        put_assoc(Key, M3, Sols, M4), nb_setval(G, g(Gen, M4))
+        nb_setval(G, g(Gen, [Key-Sols0|M3])),
+        Sols = Sols0
     ).
 
 tr_memo_generation(G) :- ( catch(nb_getval('$tr_gen', G0), _, fail) -> G = G0 ; G = 0 ).

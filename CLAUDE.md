@@ -4711,6 +4711,60 @@ every translation byte for byte the same:**
 sentence is slower with it by more than 0.02 s, where two runs of the same
 code differ by up to 0.47 s on one sentence.
 
+### A memo that never kept a no, found by counting before building (1.6.20)
+
+**THE LEXICAL PASS THAT WAS PROPOSED WAS NOT BUILT, BECAUSE THE COUNT SAID
+WHAT IT WOULD HAVE BOUGHT.** The idea was to look every word up once before
+the parse, so that a class test (`is this a noun?`) became cheap. Counting the
+memo's lookups table by table first, over the three longest Livata sentences:
+
+| table | lookups | asked again from the lesson |
+|---|---|---|
+| a word's lexemes | 304 750 | 374 |
+| **a word's classes** | 151 166 | **127 006** |
+| a word's verb forms | 34 426 | 117 |
+| the complements of a word list | 583 | 409 |
+
+**THE CLASS TABLE KEPT ONLY A YES.** `tr_is/3` asks `tr_memo/4` for the
+pattern `[_|_]` -- is there any solution at all -- and on a miss `findall/3`
+went straight into that pattern, so a word with NO solution failed the
+findall BEFORE `put_assoc/4` ran: a class test that answered no was asked of
+the lesson again every time, and most class tests answer no. The list is kept
+first now and matched against the pattern afterwards, which answers exactly
+what it answered before; the class misses fell from 127 006 to 693, and all
+misses from 127 931 to 1 618. A class test costs about 13 us where it cost
+29-45 us, asked of the same five words 20 000 times with the probe's own loop
+(3.7 us) taken off.
+
+**AND A WORD'S TABLE IS A LIST.** Timed part by part, `get_assoc/3` finds one
+key among seventeen in 23 inferences, all of them clauses, where `memberchk/2`
+is one call into C. Every memo key is ground -- an atom from a global, or
+words a caller checked with `ground/1` -- so unifying a key finds exactly what
+comparing it found.
+
+**MEASURED ON ONE STORE, ONE BINARY, THE LIBRARY THE ONLY DIFFERENCE, every
+translation byte for byte the same:**
+
+| the three longest Livata sentences, alternating pairs | runs |
+|---|---|
+| 1.6.19, the memo as it was | 30.37, 29.75 s |
+| the no kept | **24.49, 24.49 s** |
+| the no kept, then the list, in its own pair | 24.61, 24.95 s -> **23.68, 23.22 s** |
+
+| the four controls | 1.6.17 | 1.6.19 | **1.6.20** |
+|---|---|---|---|
+| Livata, 29 sentences | 77.0 s | 66.1 s | **52.4 s** |
+| the twelve Italian sentences | 14.9 s | 13.9 s | **12.0 s** |
+| the Spanish article | 14.1 s | 13.2 s | **12.1 s** |
+| Tatoeba's 400 | 13.4 s | 13.1 s | **12.4 s** |
+
+**A LOOKUP THAT HITS IS STILL THE COST, AND A PASS BEFORE THE PARSE WOULD NOT
+MOVE IT.** About 366 000 lookups over those three sentences at about 13 us
+each is some five seconds of twenty-three, and a word looked up before the
+parse is still looked up by every reading after it. What would move it is fewer
+lookups -- a reading that asks once and passes the answer down -- which is a
+change to how the reader is written, not to the memo.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
