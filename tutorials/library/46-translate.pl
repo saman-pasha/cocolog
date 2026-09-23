@@ -350,6 +350,7 @@ main :-
     section_22,
     section_23,
     section_24,
+    section_25,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -791,6 +792,106 @@ The preposition "di" means "of". The preposition "in" means "in".
 The preposition "entro" means "before". The conjunction "e" means "and".
 The noun "gennaio" means "january". "gennaio" is a month.
 The word "non" means "not". The word "di" begins the infinitive.').
+
+%% 1.7.0: A SPANISH ARTICLE INTO ITALIAN, the other way from the three before
+%% it. El Periódico of 2 February 2001 on old violins shown in Valencia --
+%% AnCora's CESS-CAST-P-20010202-169, sixteen sentences -- quoted over two
+%% sentences in the plain mark, used one verb in two senses, and said what
+%% was proof of what. A verb's sense by its object is a line of lesson (`The
+%% intransitive verb "destaca" means "stands out".'), and so are a comparative
+%% that is a word of its own, the article Italian puts before a year and the
+%% word Spanish puts before a noun's own clause; the rest are shapes, shown
+%% here on a few words.
+section_25 :-
+    format("~n25. A Spanish article into Italian: plain quotation marks, a verb's sense by its object, a noun's own clause~n", []),
+    lesson_25(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the article''s shapes, under its own name', NS),
+    lesson_25(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('El constructor come el pan ", dice la familia.', spanish, italian, S25a),
+    must('a PLAIN quotation mark with no word after it closes, and its reporting clause follows',
+         S25a, 'Il costruttore mangia il pane", dice la famiglia.'),
+    reason_translate('En la colección, destaca un violín.', spanish, italian, S25b),
+    must('with no object `destaca'' is to STAND OUT, and the phrase after it is its subject',
+         S25b, 'Nella collezione, un violino spicca.'),
+    reason_translate('El constructor destaca las diferencias.', spanish, italian, S25c),
+    must('and with one it is to highlight', S25c, 'Il costruttore evidenzia le differenze.'),
+    reason_translate('Un violín llamado Ex VieuxTemps, de 1736, duerme.', spanish, italian, S25d),
+    must('a NAME after a participle, spelled as the source spelled it, and a YEAR aside with Italian''s article',
+         S25d, 'Un violino chiamato Ex VieuxTemps, del 1736, dorme.'),
+    reason_translate('El constructor está considerado.', spanish, italian, S25e),
+    must('the copula of a STATE and a participle is a passive', S25e, 'Il costruttore è considerato.'),
+    reason_translate('Como prueba de que los violines duermen, los constructores comen el pan.', spanish, italian, S25f),
+    must('a noun''s OWN CLAUSE after `de que'', ending at the comma',
+         S25f, 'Come prova che i violini dormono, i costruttori mangiano il pane.'),
+    reason_translate('El mejor de los constructores come algunas de las diferencias.', spanish, italian, S25g),
+    must('a COMPARATIVE that is a word of its own, and a PARTITIVE that agrees with its noun',
+         S25g, 'Il migliore dei costruttori mangia alcune delle differenze.'),
+    reason_translate('Los constructores comen el pan, el próximo día 14.', spanish, italian, S25h),
+    must('a number after its noun is its LABEL', S25h, 'I costruttori mangiano il pane, il prossimo giorno 14.'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_25(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "violín" means "violin". "violines" is the plural of "violín".
+The noun "constructor" means "builder". "constructores" is the plural of "constructor".
+The noun "pan" means "bread". The noun "familia" means "family".
+The noun "diferencia" means "difference". The noun "prueba" means "proof".
+The noun "colección" means "collection". "colección" is feminine.
+The noun "día" means "day". "día" is not feminine. "día" is a time.
+The adjective "próximo" means "next". The adjective "ex" means "former".
+The adjective "bueno" means "good". The adjective "mejor" means "good". "mejor" is the comparative of "bueno".
+The intransitive verb "destaca" means "stands out". The verb "destaca" means "highlights".
+The verb "come" means "eats". "comen" is the plural of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "dice" means "says".
+The verb "llama" means "calls". "llamado" is the participle of "llama".
+The verb "considera" means "considers". "considerado" is the participle of "considera".
+The verb "es" means "is". The auxiliary "está" means "is".
+The feminine pronoun "alguna" means "some". "algunas" is the plural of "alguna".
+The pronoun "alguna" does not precede the verb. Every pronoun precedes the verb.
+The conjunction "que" means "that". The word "de" begins the clause.
+The preposition "de" means "of". The preposition "en" means "in".
+The preposition "como" means "as". The conjunction "y" means "and".
+The word "no" means "not".').
+lesson_25(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "dei" is the contraction of "di i". "delle" is the contraction of "di le".
+"nella" is the contraction of "in la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The article "il" takes the year.
+The noun "violino" means "violin". "violini" is the plural of "violino".
+The noun "costruttore" means "builder". "costruttori" is the plural of "costruttore".
+The noun "pane" means "bread". The noun "famiglia" means "family".
+The noun "differenza" means "difference". "differenze" is the plural of "differenza".
+The noun "prova" means "proof". The noun "collezione" means "collection". "collezione" is feminine.
+The noun "giorno" means "day". "giorno" is a time.
+The adjective "prossimo" means "next". The adjective "ex" means "former".
+The adjective "buono" means "good". The adjective "migliore" means "good". "migliore" is the comparative of "buono".
+The intransitive verb "spicca" means "stands out". The verb "evidenzia" means "highlights".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "dice" means "says".
+The verb "chiama" means "calls". "chiamato" is the participle of "chiama".
+The verb "considera" means "considers". "considerato" is the participle of "considera".
+The verb "è" means "is".
+The masculine pronoun "alcuno" means "some". "alcuni" is the plural of "alcuno".
+The feminine pronoun "alcuna" means "some". "alcune" is the plural of "alcuna".
+The pronoun "alcuno" does not precede the verb. The pronoun "alcuna" does not precede the verb.
+Every pronoun precedes the verb.
+The conjunction "che" means "that".
+The preposition "di" means "of". The preposition "in" means "in".
+The preposition "come" means "as". The conjunction "e" means "and".
+The word "non" means "not".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

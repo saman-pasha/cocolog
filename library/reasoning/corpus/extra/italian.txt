@@ -146,6 +146,8 @@ The article "uno" comes before "y".
 "è" is the auxiliary of "riesce".
 The word "si" follows the pronoun.
 The article "il" takes the possessive.
+# a year takes the article: `un violino del 1736', `nel 2009'
+The article "il" takes the year.
 "odi" is the plural of "odio".
 The masculine noun "quartiere" means "neighbourhood".
 "sbaglia" is reflexive.
@@ -179,6 +181,10 @@ The verb "pattuglia" means "patrols".
 "sparite" is the plural of "sparita".
 "è" is the auxiliary of "risulta".
 "è" is the auxiliary of "succede".
+"è" is the auxiliary of "avviene".
+# and the copula's own perfect: `ha sido capaz' is `è stato capace', where a
+# lesson that names no auxiliary for it is written with the one meaning `has'
+"è" is the auxiliary of "è".
 The adjective "a lieto fine" means "with a happy ending".
 The adverb "a sua volta" means "in turn".
 The adverb "di certo" means "certainly".
@@ -253,3 +259,62 @@ The adverb "in tempi brevi" means "shortly".
 The adverb "come annunciato" means "as announced".
 The conjunction "sin da quando" means "ever since".
 The preposition "ad integrazione di" means "as a supplement to".
+# the violin exhibition in Valencia (AnCora CESS-CAST-P-20010202-169), into
+# Italian: the words its translation needs that no dictionary here has
+The masculine noun "liutaio" means "luthier".
+"liutai" is the plural of "liutaio".
+The feminine noun "liuteria" means "lutherie".
+The masculine noun "stradivari" means "stradivarius".
+"stradivari" is the plural of "stradivari".
+The feminine noun "pochette" means "pochette".
+"pochette" is the plural of "pochette".
+The preposition "attraverso" means "through".
+The masculine determiner "nessuno" means "no".
+The feminine determiner "nessuna" means "no".
+# `sin que un experto lo note' is `senza che': a clause after `without'
+The conjunction "senza che" means "without".
+# a copy of a painting; the dictionary has `replica' only as the verb
+The feminine noun "replica" means "replica".
+"repliche" is the plural of "replica".
+# `alcune delle differenze': the pronoun that stands alone
+The masculine pronoun "alcuno" means "some".
+"alcuni" is the plural of "alcuno".
+The feminine pronoun "alcuna" means "some".
+"alcune" is the plural of "alcuna".
+The pronoun "alcuno" does not precede the verb.
+The pronoun "alcuna" does not precede the verb.
+# `spiccare', to stand out, which the dictionary does not have
+The intransitive verb "spicca" means "stands out".
+"spiccano" is the plural of "spicca".
+"spicco" is the first person of "spicca".
+"spicchi" is the second person of "spicca".
+"spicchiamo" is the first person of "spiccano".
+"spiccò" is the past of "spicca".
+"spiccarono" is the past of "spiccano".
+"spiccava" is the past of "spicca".
+"spiccavano" is the past of "spiccano".
+"spiccherà" is the future of "spicca".
+"spiccheranno" is the plural of "spiccherà".
+"spiccherebbe" is the conditional of "spicca".
+"spiccherebbero" is the plural of "spiccherebbe".
+"spiccato" is the participle of "spicca".
+"spiccare" is the infinitive of "spicca".
+"spiccando" is the gerund of "spicca".
+# an exhibition is `mostra', which the dictionary has only as the verb
+The feminine noun "mostra" means "exhibition".
+"mostre" is the plural of "mostra".
+# the instrument, where the dictionary has the flower and a violoncello not
+# at all
+The feminine noun "viola" means "viola".
+"viole" is the plural of "viola".
+The masculine noun "violoncello" means "violoncello".
+"violoncelli" is the plural of "violoncello".
+# a technique, which the dictionary does not have, and a way as `via'
+The feminine noun "tecnica" means "technique".
+"tecniche" is the plural of "tecnica".
+The feminine noun "via" means "way".
+"vie" is the plural of "via".
+# the comparatives that are words of their own: `il migliore degli
+# interpreti', never `il più buono'
+"migliore" is the comparative of "buono".
+"peggiore" is the comparative of "cattivo".

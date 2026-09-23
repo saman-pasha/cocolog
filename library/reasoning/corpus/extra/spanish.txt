@@ -173,3 +173,78 @@ The preposition "como complemento de" means "as a supplement to".
 "mal" is the apocope of "malo".
 "gran" is the apocope of "grande".
 "cualquier" is the apocope of "cualquiera".
+# the violin exhibition in Valencia (AnCora CESS-CAST-P-20010202-169): words
+# no dictionary here has. `luthiere' is the article's own spelling of the
+# craft, French where Spanish writes `lutería'.
+The masculine noun "luthier" means "luthier".
+"luthiers" is the plural of "luthier".
+The feminine noun "luthiere" means "lutherie".
+The masculine noun "stradivarius" means "stradivarius".
+"stradivarius" is the plural of "stradivarius".
+The feminine noun "pochette" means "pochette".
+"pochettes" is the plural of "pochette".
+The masculine noun "virtuoso" means "virtuoso".
+"virtuosos" is the plural of "virtuoso".
+The preposition "a través de" means "through".
+The masculine determiner "ninguno" means "no".
+The feminine determiner "ninguna" means "no".
+# `los más destacados luthiers': the dictionary has `destacado' only as the
+# participle of `destacar', to highlight, and a participle stands after its
+# noun. Before one it is the adjective, prominent in the sense of renowned.
+The masculine adjective "destacado" means "illustrious".
+The feminine adjective "destacada" means "illustrious".
+# `sin que un experto lo note': a clause, not a relative after `sin'
+The conjunction "sin que" means "without".
+# `una réplica de un cuadro' is a copy; the dictionary has only the answer
+The feminine noun "réplica" means "replica".
+"réplicas" is the plural of "réplica".
+# `algunas de las diferencias': some of them, a pronoun standing alone where
+# the dictionary has only the determiner before a noun
+The masculine pronoun "alguno" means "some".
+"algunos" is the plural of "alguno".
+The feminine pronoun "alguna" means "some".
+"algunas" is the plural of "alguna".
+The pronoun "alguno" does not precede the verb.
+The pronoun "alguna" does not precede the verb.
+# `distinguen a los principales fabricantes': the word before a person
+# marks the object, and a maker is a person
+"fabricante" is a person.
+"constructor" is a person.
+"intérprete" is a person.
+"solista" is a person.
+"experto" is a person.
+# `..., destaca un violín llamado ...': with no object `destacar' is to
+# stand out, and the phrase after it is its subject; with one it is to
+# highlight (`destacó algunas de las diferencias'), the dictionary's sense
+The intransitive verb "destaca" means "stands out".
+# `A pesar del avance tecnológico': despite, which no dictionary here gives
+The preposition "a pesar de" means "despite".
+# `los violines, las violas y los violonchelos': the dictionary has `viola'
+# only as the verb, to violate
+The feminine noun "viola" means "viola".
+"violas" is the plural of "viola".
+# `como prueba de que los violines ... han mejorado': a noun's own clause
+# opens with `de que', where Italian writes `che' and English `that'
+The word "de" begins the clause.
+# `las cotizadas piezas', `las piezas más cotizadas': prized, where the
+# dictionary has only the participle of `cotizar', to quote
+The masculine adjective "cotizado" means "prized".
+The feminine adjective "cotizada" means "prized".
+# `el avance tecnológico' is progress, where the dictionary gives the advance
+# that is paid; and `la muestra' in a newspaper is the show, where it gives
+# the sample
+The masculine noun "avance" means "progress".
+The feminine noun "muestra" means "exhibition".
+# the senses a report on a craft means, where the dictionary put another
+# first: `el resto de las familias' is the remainder, not a rest; `su técnica'
+# a technique, not a technician; `a través de la investigación' research;
+# `una vía más instintiva' a way; `apuntó Claude Lebet' he noted, not aimed
+The masculine noun "resto" means "remainder".
+The feminine noun "técnica" means "technique".
+The feminine noun "investigación" means "research".
+The feminine noun "vía" means "way".
+The verb "apunta" means "notes".
+# `el mejor de los intérpretes': a comparative by itself, which the
+# dictionary gives as the plain adjective
+"mejor" is the comparative of "bueno".
+"peor" is the comparative of "malo".

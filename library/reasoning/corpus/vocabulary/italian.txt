@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 15750 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 15757 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -144,6 +144,7 @@ The article "uno" comes before "y".
 "è" is the auxiliary of "riesce".
 The word "si" follows the pronoun.
 The article "il" takes the possessive.
+The article "il" takes the year.
 "odi" is the plural of "odio".
 The masculine noun "quartiere" means "neighbourhood".
 "sbaglia" is reflexive.
@@ -175,6 +176,8 @@ The verb "pattuglia" means "patrols".
 "sparite" is the plural of "sparita".
 "è" is the auxiliary of "risulta".
 "è" is the auxiliary of "succede".
+"è" is the auxiliary of "avviene".
+"è" is the auxiliary of "è".
 The adjective "a lieto fine" means "with a happy ending".
 The adverb "a sua volta" means "in turn".
 The adverb "di certo" means "certainly".
@@ -240,6 +243,53 @@ The adverb "in tempi brevi" means "shortly".
 The adverb "come annunciato" means "as announced".
 The conjunction "sin da quando" means "ever since".
 The preposition "ad integrazione di" means "as a supplement to".
+The masculine noun "liutaio" means "luthier".
+"liutai" is the plural of "liutaio".
+The feminine noun "liuteria" means "lutherie".
+The masculine noun "stradivari" means "stradivarius".
+"stradivari" is the plural of "stradivari".
+The feminine noun "pochette" means "pochette".
+"pochette" is the plural of "pochette".
+The preposition "attraverso" means "through".
+The masculine determiner "nessuno" means "no".
+The feminine determiner "nessuna" means "no".
+The conjunction "senza che" means "without".
+The feminine noun "replica" means "replica".
+"repliche" is the plural of "replica".
+The masculine pronoun "alcuno" means "some".
+"alcuni" is the plural of "alcuno".
+The feminine pronoun "alcuna" means "some".
+"alcune" is the plural of "alcuna".
+The pronoun "alcuno" does not precede the verb.
+The pronoun "alcuna" does not precede the verb.
+The intransitive verb "spicca" means "stands out".
+"spiccano" is the plural of "spicca".
+"spicco" is the first person of "spicca".
+"spicchi" is the second person of "spicca".
+"spicchiamo" is the first person of "spiccano".
+"spiccò" is the past of "spicca".
+"spiccarono" is the past of "spiccano".
+"spiccava" is the past of "spicca".
+"spiccavano" is the past of "spiccano".
+"spiccherà" is the future of "spicca".
+"spiccheranno" is the plural of "spiccherà".
+"spiccherebbe" is the conditional of "spicca".
+"spiccherebbero" is the plural of "spiccherebbe".
+"spiccato" is the participle of "spicca".
+"spiccare" is the infinitive of "spicca".
+"spiccando" is the gerund of "spicca".
+The feminine noun "mostra" means "exhibition".
+"mostre" is the plural of "mostra".
+The feminine noun "viola" means "viola".
+"viole" is the plural of "viola".
+The masculine noun "violoncello" means "violoncello".
+"violoncelli" is the plural of "violoncello".
+The feminine noun "tecnica" means "technique".
+"tecniche" is the plural of "tecnica".
+The feminine noun "via" means "way".
+"vie" is the plural of "via".
+"migliore" is the comparative of "buono".
+"peggiore" is the comparative of "cattivo".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -268,6 +318,15 @@ The feminine noun "struttura" means "structure".
 "strutture" is the plural of "struttura".
 The feminine noun "scelta" means "choice".
 "scelte" is the plural of "scelta".
+The masculine noun "virtuoso" means "virtuoso".
+"virtuosi" is the plural of "virtuoso".
+"virtuoso" is a person.
+The feminine noun "collezione" means "collection".
+"collezioni" is the plural of "collezione".
+The masculine noun "pezzo" means "piece".
+"pezzi" is the plural of "pezzo".
+The feminine noun "gamma" means "range".
+"gamme" is the plural of "gamma".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -9026,8 +9085,6 @@ The masculine noun "pianoforte" means "piano".
 The masculine noun "quadro" means "picture".
 "quadri" is the plural of "quadro".
 The feminine noun "fotografia" means "picture".
-The masculine noun "pezzo" means "piece".
-"pezzi" is the plural of "pezzo".
 The masculine noun "porco" means "pig".
 "porci" is the plural of "porco".
 The noun "piccionaia" means "pigeonhole".
@@ -9618,8 +9675,6 @@ The feminine noun "randomizzazione" means "randomisation".
 The masculine noun "raggio" means "range".
 The feminine noun "portata" means "range".
 "portate" is the plural of "portata".
-The feminine noun "gamma" means "range".
-"gamme" is the plural of "gamma".
 The masculine noun "stupro" means "rape".
 "stupri" is the plural of "stupro".
 The masculine noun "lampone" means "raspberry".
@@ -15391,8 +15446,6 @@ The feminine noun "convivenza" means "cohabitation".
 "convivenze" is the plural of "convivenza".
 The feminine noun "bobina" means "coil".
 "bobine" is the plural of "bobina".
-The feminine noun "collezione" means "collection".
-"collezioni" is the plural of "collezione".
 The masculine noun "ricavo" means "revenue".
 "ricavi" is the plural of "ricavo".
 The feminine noun "raccolta" means "collection".
@@ -19374,6 +19427,141 @@ The verb "permette" means "allows".
 "permesse" is the plural of "permessa".
 "permettere" is the infinitive of "permette".
 "permettendo" is the gerund of "permette".
+The verb "rende" means "renders".
+"rendono" is the plural of "rende".
+"rendiamo" is the first person of "rendono".
+"rendo" is the first person of "rende".
+"rendi" is the second person of "rende".
+"rese" is the past of "rende".
+"resero" is the past of "rendono".
+"rendemmo" is the first person of "resero".
+"resi" is the first person of "rese".
+"rendesti" is the second person of "rese".
+"rendeva" is the past of "rende".
+"rendevano" is the past of "rendono".
+"rendevamo" is the first person of "rendevano".
+"rendevo" is the first person of "rendeva".
+"rendevi" is the second person of "rendeva".
+"renderà" is the future of "rende".
+"renderanno" is the plural of "renderà".
+"renderemo" is the first person of "renderanno".
+"renderò" is the first person of "renderà".
+"renderai" is the second person of "renderà".
+"renderebbe" is the conditional of "rende".
+"renderebbero" is the plural of "renderebbe".
+"renderemmo" is the first person of "renderebbero".
+"renderei" is the first person of "renderebbe".
+"renderesti" is the second person of "renderebbe".
+"renda" is the subjunctive of "rende".
+"rendano" is the plural of "renda".
+"rendiamo" is the first person of "rendano".
+"rendesse" is the past subjunctive of "rende".
+"rendessero" is the plural of "rendesse".
+"rendessimo" is the first person of "rendessero".
+"rendessi" is the first person of "rendesse".
+"rendessi" is the second person of "rendesse".
+"rendi" is the imperative of "rende".
+"rendere" is the negative imperative of "rende".
+"reso" is the participle of "rende".
+"resa" is the participle of "rende".
+"resa" is feminine.
+"resi" is the participle of "rende".
+"resi" is the plural of "reso".
+"rese" is the participle of "rende".
+"rese" is feminine.
+"rese" is the plural of "resa".
+"rendere" is the infinitive of "rende".
+"rendendo" is the gerund of "rende".
+The verb "evidenzia" means "highlights".
+"evidenziano" is the plural of "evidenzia".
+"evidenziamo" is the first person of "evidenziano".
+"evidenzio" is the first person of "evidenzia".
+"evidenzi" is the second person of "evidenzia".
+"evidenziò" is the past of "evidenzia".
+"evidenziarono" is the past of "evidenziano".
+"evidenziammo" is the first person of "evidenziarono".
+"evidenziai" is the first person of "evidenziò".
+"evidenziasti" is the second person of "evidenziò".
+"evidenziava" is the past of "evidenzia".
+"evidenziavano" is the past of "evidenziano".
+"evidenziavamo" is the first person of "evidenziavano".
+"evidenziavo" is the first person of "evidenziava".
+"evidenziavi" is the second person of "evidenziava".
+"evidenzierà" is the future of "evidenzia".
+"evidenzieranno" is the plural of "evidenzierà".
+"evidenzieremo" is the first person of "evidenzieranno".
+"evidenzierò" is the first person of "evidenzierà".
+"evidenzierai" is the second person of "evidenzierà".
+"evidenzierebbe" is the conditional of "evidenzia".
+"evidenzierebbero" is the plural of "evidenzierebbe".
+"evidenzieremmo" is the first person of "evidenzierebbero".
+"evidenzierei" is the first person of "evidenzierebbe".
+"evidenzieresti" is the second person of "evidenzierebbe".
+"evidenzi" is the subjunctive of "evidenzia".
+"evidenzino" is the plural of "evidenzi".
+"evidenziamo" is the first person of "evidenzino".
+"evidenziasse" is the past subjunctive of "evidenzia".
+"evidenziassero" is the plural of "evidenziasse".
+"evidenziassimo" is the first person of "evidenziassero".
+"evidenziassi" is the first person of "evidenziasse".
+"evidenziassi" is the second person of "evidenziasse".
+"evidenzia" is the imperative of "evidenzia".
+"evidenziare" is the negative imperative of "evidenzia".
+"evidenziato" is the participle of "evidenzia".
+"evidenziata" is the participle of "evidenzia".
+"evidenziata" is feminine.
+"evidenziati" is the participle of "evidenzia".
+"evidenziati" is the plural of "evidenziato".
+"evidenziate" is the participle of "evidenzia".
+"evidenziate" is feminine.
+"evidenziate" is the plural of "evidenziata".
+"evidenziare" is the infinitive of "evidenzia".
+"evidenziando" is the gerund of "evidenzia".
+The verb "offre" means "offers".
+"offrono" is the plural of "offre".
+"offriamo" is the first person of "offrono".
+"offro" is the first person of "offre".
+"offri" is the second person of "offre".
+"offrì" is the past of "offre".
+"offrirono" is the past of "offrono".
+"offrimmo" is the first person of "offrirono".
+"offrii" is the first person of "offrì".
+"offristi" is the second person of "offrì".
+"offriva" is the past of "offre".
+"offrivano" is the past of "offrono".
+"offrivamo" is the first person of "offrivano".
+"offrivo" is the first person of "offriva".
+"offrivi" is the second person of "offriva".
+"offrirà" is the future of "offre".
+"offriranno" is the plural of "offrirà".
+"offriremo" is the first person of "offriranno".
+"offrirò" is the first person of "offrirà".
+"offrirai" is the second person of "offrirà".
+"offrirebbe" is the conditional of "offre".
+"offrirebbero" is the plural of "offrirebbe".
+"offriremmo" is the first person of "offrirebbero".
+"offrirei" is the first person of "offrirebbe".
+"offriresti" is the second person of "offrirebbe".
+"offra" is the subjunctive of "offre".
+"offrano" is the plural of "offra".
+"offriamo" is the first person of "offrano".
+"offrisse" is the past subjunctive of "offre".
+"offrissero" is the plural of "offrisse".
+"offrissimo" is the first person of "offrissero".
+"offrissi" is the first person of "offrisse".
+"offrissi" is the second person of "offrisse".
+"offri" is the imperative of "offre".
+"offrire" is the negative imperative of "offre".
+"offerto" is the participle of "offre".
+"offerta" is the participle of "offre".
+"offerta" is feminine.
+"offerti" is the participle of "offre".
+"offerti" is the plural of "offerto".
+"offerte" is the participle of "offre".
+"offerte" is feminine.
+"offerte" is the plural of "offerta".
+"offrire" is the infinitive of "offre".
+"offrendo" is the gerund of "offre".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -28637,50 +28825,6 @@ The verb "tradisce" means "betrays".
 "tradire" is the infinitive of "tradisce".
 "tradendo" is the gerund of "tradisce".
 The verb "offre" means "bids".
-"offrono" is the plural of "offre".
-"offriamo" is the first person of "offrono".
-"offro" is the first person of "offre".
-"offri" is the second person of "offre".
-"offrì" is the past of "offre".
-"offrirono" is the past of "offrono".
-"offrimmo" is the first person of "offrirono".
-"offrii" is the first person of "offrì".
-"offristi" is the second person of "offrì".
-"offriva" is the past of "offre".
-"offrivano" is the past of "offrono".
-"offrivamo" is the first person of "offrivano".
-"offrivo" is the first person of "offriva".
-"offrivi" is the second person of "offriva".
-"offrirà" is the future of "offre".
-"offriranno" is the plural of "offrirà".
-"offriremo" is the first person of "offriranno".
-"offrirò" is the first person of "offrirà".
-"offrirai" is the second person of "offrirà".
-"offrirebbe" is the conditional of "offre".
-"offrirebbero" is the plural of "offrirebbe".
-"offriremmo" is the first person of "offrirebbero".
-"offrirei" is the first person of "offrirebbe".
-"offriresti" is the second person of "offrirebbe".
-"offra" is the subjunctive of "offre".
-"offrano" is the plural of "offra".
-"offriamo" is the first person of "offrano".
-"offrisse" is the past subjunctive of "offre".
-"offrissero" is the plural of "offrisse".
-"offrissimo" is the first person of "offrissero".
-"offrissi" is the first person of "offrisse".
-"offrissi" is the second person of "offrisse".
-"offri" is the imperative of "offre".
-"offrire" is the negative imperative of "offre".
-"offerto" is the participle of "offre".
-"offerta" is the participle of "offre".
-"offerta" is feminine.
-"offerti" is the participle of "offre".
-"offerti" is the plural of "offerto".
-"offerte" is the participle of "offre".
-"offerte" is feminine.
-"offerte" is the plural of "offerta".
-"offrire" is the infinitive of "offre".
-"offrendo" is the gerund of "offre".
 "bid" is the past of "bids".
 "bidden" is the participle of "bids".
 "bidding" is the gerund of "bids".
@@ -85950,51 +86094,6 @@ The verb "sopravviene" means "happens".
 "sopravvenute" is the plural of "sopravvenuta".
 "sopravvenire" is the infinitive of "sopravviene".
 "sopravvenendo" is the gerund of "sopravviene".
-The verb "evidenzia" means "highlights".
-"evidenziano" is the plural of "evidenzia".
-"evidenziamo" is the first person of "evidenziano".
-"evidenzio" is the first person of "evidenzia".
-"evidenzi" is the second person of "evidenzia".
-"evidenziò" is the past of "evidenzia".
-"evidenziarono" is the past of "evidenziano".
-"evidenziammo" is the first person of "evidenziarono".
-"evidenziai" is the first person of "evidenziò".
-"evidenziasti" is the second person of "evidenziò".
-"evidenziava" is the past of "evidenzia".
-"evidenziavano" is the past of "evidenziano".
-"evidenziavamo" is the first person of "evidenziavano".
-"evidenziavo" is the first person of "evidenziava".
-"evidenziavi" is the second person of "evidenziava".
-"evidenzierà" is the future of "evidenzia".
-"evidenzieranno" is the plural of "evidenzierà".
-"evidenzieremo" is the first person of "evidenzieranno".
-"evidenzierò" is the first person of "evidenzierà".
-"evidenzierai" is the second person of "evidenzierà".
-"evidenzierebbe" is the conditional of "evidenzia".
-"evidenzierebbero" is the plural of "evidenzierebbe".
-"evidenzieremmo" is the first person of "evidenzierebbero".
-"evidenzierei" is the first person of "evidenzierebbe".
-"evidenzieresti" is the second person of "evidenzierebbe".
-"evidenzi" is the subjunctive of "evidenzia".
-"evidenzino" is the plural of "evidenzi".
-"evidenziamo" is the first person of "evidenzino".
-"evidenziasse" is the past subjunctive of "evidenzia".
-"evidenziassero" is the plural of "evidenziasse".
-"evidenziassimo" is the first person of "evidenziassero".
-"evidenziassi" is the first person of "evidenziasse".
-"evidenziassi" is the second person of "evidenziasse".
-"evidenzia" is the imperative of "evidenzia".
-"evidenziare" is the negative imperative of "evidenzia".
-"evidenziato" is the participle of "evidenzia".
-"evidenziata" is the participle of "evidenzia".
-"evidenziata" is feminine.
-"evidenziati" is the participle of "evidenzia".
-"evidenziati" is the plural of "evidenziato".
-"evidenziate" is the participle of "evidenzia".
-"evidenziate" is feminine.
-"evidenziate" is the plural of "evidenziata".
-"evidenziare" is the infinitive of "evidenzia".
-"evidenziando" is the gerund of "evidenzia".
 The verb "auspica" means "hopes".
 "auspicano" is the plural of "auspica".
 "auspichiamo" is the first person of "auspicano".
@@ -88638,6 +88737,22 @@ The feminine adjective "grata" means "grateful".
 "grate" is the plural of "grata".
 The adjective "ulteriore" means "additional".
 "ulteriori" is the plural of "ulteriore".
+The masculine adjective "istintivo" means "instinctive".
+"istintivi" is the plural of "istintivo".
+The feminine adjective "istintiva" means "instinctive".
+"istintive" is the plural of "istintiva".
+The masculine adjective "inedito" means "unpublished".
+"inediti" is the plural of "inedito".
+The feminine adjective "inedita" means "unpublished".
+"inedite" is the plural of "inedita".
+The masculine adjective "sofisticato" means "sophisticated".
+"sofisticati" is the plural of "sofisticato".
+The feminine adjective "sofisticata" means "sophisticated".
+"sofisticate" is the plural of "sofisticata".
+The masculine adjective "pregiato" means "prized".
+"pregiati" is the plural of "pregiato".
+The feminine adjective "pregiata" means "prized".
+"pregiate" is the plural of "pregiata".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -98004,6 +98119,7 @@ The adverb "tanto" means "as".
 The adverb "abbastanza" means "pretty".
 The adverb "troppo" means "overly".
 The adverb "grandemente" means "largely".
+The preposition "tra" means "among".
 The preposition "dopo" means "after".
 The preposition "contro" means "against".
 The preposition "lungo" means "along".
@@ -98018,7 +98134,6 @@ The preposition "come" means "like".
 The preposition "fuori" means "out".
 The preposition "fino" means "until".
 The preposition "senza" means "without".
-The preposition "tra" means "among".
 The preposition "fra" means "among".
 The preposition "circa" means "around".
 The preposition "nonostante" means "around".

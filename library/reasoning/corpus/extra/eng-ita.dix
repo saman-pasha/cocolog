@@ -156,3 +156,30 @@
 <e r="RL"><p><l>commitment<s n="n"/></l><r>impegno<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>amount<s n="n"/></l><r>importo<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>allow<s n="vblex"/></l><r>permettere<s n="vblex"/></r></p></e>
+#
+# the violin exhibition in Valencia, into Italian: `rendere tributo',
+# `istintivo', and `virtuoso' is a noun too -- a player, where the
+# dictionary gives only the adjective `virtuous'
+<e><p><l>render<s n="vblex"/></l><r>rendere<s n="vblex"/></r></p></e>
+<e><p><l>instinctive<s n="adj"/></l><r>istintivo<s n="adj"/></r></p></e>
+<e><p><l>virtuoso<s n="n"/></l><r>virtuoso<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>unpublished<s n="adj"/></l><r>inedito<s n="adj"/></r></p></e>
+# `destacó algunas de las diferencias': to highlight is `evidenziare'; the
+# dictionary put `distaccare', to detach, first
+<e><p><l>highlight<s n="vblex"/></l><r>evidenziare<s n="vblex"/></r></p></e>
+# a collection of instruments is `collezione', where the dictionary put the
+# tax collector's `riscossione' first; a piece is `pezzo' before the music's
+# `brano'; a range of goods is `gamma' before the radius, `raggio'
+<e><p><l>collection<s n="n"/></l><r>collezione<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>piece<s n="n"/></l><r>pezzo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>range<s n="n"/></l><r>gamma<s n="n"/><s n="f"/></r></p></e>
+# `ninguna sofisticada máquina': the Italian dictionary has `sofisticato'
+# and no English for it
+<e><p><l>sophisticated<s n="adj"/></l><r>sofisticato<s n="adj"/></r></p></e>
+# `ofrecerán un concierto' is `offriranno', where the dictionary gives
+# `offrire' one way only and `brindare', to toast, the other; `entre sus
+# manos' is `tra', where it put the dictionary's odd `entri' first; and
+# `las cotizadas piezas' are prized, `pregiato'
+<e><p><l>offer<s n="vblex"/></l><r>offrire<s n="vblex"/></r></p></e>
+<e><p><l>among<s n="pr"/></l><r>tra<s n="pr"/></r></p></e>
+<e><p><l>prized<s n="adj"/></l><r>pregiato<s n="adj"/></r></p></e>

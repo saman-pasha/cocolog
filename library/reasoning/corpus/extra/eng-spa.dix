@@ -72,3 +72,13 @@
 <e><p><l>closing<s n="n"/></l><r>cierre<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>understanding<s n="n"/></l><r>entendimiento<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>payable<s n="adj"/></l><r>pagadero<s n="adj"/></r></p></e>
+#
+# the violin exhibition in Valencia (AnCora CESS-CAST-P-20010202-169), into
+# Italian. `rendir', `elogiar', `rasgar' and `instintivo' have their
+# paradigms in apertium-spa and no English here: `rendir tributo' renders
+# tribute, `elogió su sonoridad' praised it, and a bow scrapes the strings
+# (`rasgar' is to tear first, so the entry is read only from Spanish)
+<e><p><l>render<s n="vblex"/></l><r>rendir<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>praise<s n="vblex"/></l><r>elogiar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>scrape<s n="vblex"/></l><r>rasgar<s n="vblex"/></r></p></e>
+<e><p><l>instinctive<s n="adj"/></l><r>instintivo<s n="adj"/></r></p></e>

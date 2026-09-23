@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20197 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20201 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -152,6 +152,50 @@ The preposition "como complemento de" means "as a supplement to".
 "mal" is the apocope of "malo".
 "gran" is the apocope of "grande".
 "cualquier" is the apocope of "cualquiera".
+The masculine noun "luthier" means "luthier".
+"luthiers" is the plural of "luthier".
+The feminine noun "luthiere" means "lutherie".
+The masculine noun "stradivarius" means "stradivarius".
+"stradivarius" is the plural of "stradivarius".
+The feminine noun "pochette" means "pochette".
+"pochettes" is the plural of "pochette".
+The masculine noun "virtuoso" means "virtuoso".
+"virtuosos" is the plural of "virtuoso".
+The preposition "a través de" means "through".
+The masculine determiner "ninguno" means "no".
+The feminine determiner "ninguna" means "no".
+The masculine adjective "destacado" means "illustrious".
+The feminine adjective "destacada" means "illustrious".
+The conjunction "sin que" means "without".
+The feminine noun "réplica" means "replica".
+"réplicas" is the plural of "réplica".
+The masculine pronoun "alguno" means "some".
+"algunos" is the plural of "alguno".
+The feminine pronoun "alguna" means "some".
+"algunas" is the plural of "alguna".
+The pronoun "alguno" does not precede the verb.
+The pronoun "alguna" does not precede the verb.
+"fabricante" is a person.
+"constructor" is a person.
+"intérprete" is a person.
+"solista" is a person.
+"experto" is a person.
+The intransitive verb "destaca" means "stands out".
+The preposition "a pesar de" means "despite".
+The feminine noun "viola" means "viola".
+"violas" is the plural of "viola".
+The word "de" begins the clause.
+The masculine adjective "cotizado" means "prized".
+The feminine adjective "cotizada" means "prized".
+The masculine noun "avance" means "progress".
+The feminine noun "muestra" means "exhibition".
+The masculine noun "resto" means "remainder".
+The feminine noun "técnica" means "technique".
+The feminine noun "investigación" means "research".
+The feminine noun "vía" means "way".
+The verb "apunta" means "notes".
+"mejor" is the comparative of "bueno".
+"peor" is the comparative of "malo".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -25410,6 +25454,49 @@ The verb "aleja" means "distances".
 "alejadas" is the plural of "alejada".
 "alejar" is the infinitive of "aleja".
 "alejando" is the gerund of "aleja".
+The verb "rinde" means "renders".
+"rinden" is the plural of "rinde".
+"rendimos" is the first person of "rinden".
+"rindo" is the first person of "rinde".
+"rindes" is the second person of "rinde".
+"rindió" is the past of "rinde".
+"rindieron" is the past of "rinden".
+"rendimos" is the first person of "rindieron".
+"rendí" is the first person of "rindió".
+"rendiste" is the second person of "rindió".
+"rendía" is the past of "rinde".
+"rendían" is the past of "rinden".
+"rendíamos" is the first person of "rendían".
+"rendías" is the second person of "rendía".
+"rendirá" is the future of "rinde".
+"rendirán" is the plural of "rendirá".
+"rendiremos" is the first person of "rendirán".
+"rendiré" is the first person of "rendirá".
+"rendirás" is the second person of "rendirá".
+"rendiría" is the conditional of "rinde".
+"rendirían" is the plural of "rendiría".
+"rendiríamos" is the first person of "rendirían".
+"rendirías" is the second person of "rendiría".
+"rinda" is the subjunctive of "rinde".
+"rindan" is the plural of "rinda".
+"rindamos" is the first person of "rindan".
+"rindas" is the second person of "rinda".
+"rindiera" is the past subjunctive of "rinde".
+"rindieran" is the plural of "rindiera".
+"rindiéramos" is the first person of "rindieran".
+"rindieras" is the second person of "rindiera".
+"rinde" is the imperative of "rinde".
+"rindas" is the negative imperative of "rinde".
+"rendido" is the participle of "rinde".
+"rendida" is the participle of "rinde".
+"rendida" is feminine.
+"rendidos" is the participle of "rinde".
+"rendidos" is the plural of "rendido".
+"rendidas" is the participle of "rinde".
+"rendidas" is feminine.
+"rendidas" is the plural of "rendida".
+"rendir" is the infinitive of "rinde".
+"rindiendo" is the gerund of "rinde".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -100502,6 +100589,92 @@ The verb "desentierra" means "unearths".
 "desenterradas" is the plural of "desenterrada".
 "desenterrar" is the infinitive of "desentierra".
 "desenterrando" is the gerund of "desentierra".
+The verb "elogia" means "praises".
+"elogian" is the plural of "elogia".
+"elogiamos" is the first person of "elogian".
+"elogio" is the first person of "elogia".
+"elogias" is the second person of "elogia".
+"elogió" is the past of "elogia".
+"elogiaron" is the past of "elogian".
+"elogiamos" is the first person of "elogiaron".
+"elogié" is the first person of "elogió".
+"elogiaste" is the second person of "elogió".
+"elogiaba" is the past of "elogia".
+"elogiaban" is the past of "elogian".
+"elogiábamos" is the first person of "elogiaban".
+"elogiabas" is the second person of "elogiaba".
+"elogiará" is the future of "elogia".
+"elogiarán" is the plural of "elogiará".
+"elogiaremos" is the first person of "elogiarán".
+"elogiaré" is the first person of "elogiará".
+"elogiarás" is the second person of "elogiará".
+"elogiaría" is the conditional of "elogia".
+"elogiarían" is the plural of "elogiaría".
+"elogiaríamos" is the first person of "elogiarían".
+"elogiarías" is the second person of "elogiaría".
+"elogie" is the subjunctive of "elogia".
+"elogien" is the plural of "elogie".
+"elogiemos" is the first person of "elogien".
+"elogies" is the second person of "elogie".
+"elogiara" is the past subjunctive of "elogia".
+"elogiaran" is the plural of "elogiara".
+"elogiáramos" is the first person of "elogiaran".
+"elogiaras" is the second person of "elogiara".
+"elogia" is the imperative of "elogia".
+"elogies" is the negative imperative of "elogia".
+"elogiado" is the participle of "elogia".
+"elogiada" is the participle of "elogia".
+"elogiada" is feminine.
+"elogiados" is the participle of "elogia".
+"elogiados" is the plural of "elogiado".
+"elogiadas" is the participle of "elogia".
+"elogiadas" is feminine.
+"elogiadas" is the plural of "elogiada".
+"elogiar" is the infinitive of "elogia".
+"elogiando" is the gerund of "elogia".
+The verb "rasga" means "scrapes".
+"rasgan" is the plural of "rasga".
+"rasgamos" is the first person of "rasgan".
+"rasgo" is the first person of "rasga".
+"rasgas" is the second person of "rasga".
+"rasgó" is the past of "rasga".
+"rasgaron" is the past of "rasgan".
+"rasgamos" is the first person of "rasgaron".
+"rasgué" is the first person of "rasgó".
+"rasgaste" is the second person of "rasgó".
+"rasgaba" is the past of "rasga".
+"rasgaban" is the past of "rasgan".
+"rasgábamos" is the first person of "rasgaban".
+"rasgabas" is the second person of "rasgaba".
+"rasgará" is the future of "rasga".
+"rasgarán" is the plural of "rasgará".
+"rasgaremos" is the first person of "rasgarán".
+"rasgaré" is the first person of "rasgará".
+"rasgarás" is the second person of "rasgará".
+"rasgaría" is the conditional of "rasga".
+"rasgarían" is the plural of "rasgaría".
+"rasgaríamos" is the first person of "rasgarían".
+"rasgarías" is the second person of "rasgaría".
+"rasgue" is the subjunctive of "rasga".
+"rasguen" is the plural of "rasgue".
+"rasguemos" is the first person of "rasguen".
+"rasgues" is the second person of "rasgue".
+"rasgara" is the past subjunctive of "rasga".
+"rasgaran" is the plural of "rasgara".
+"rasgáramos" is the first person of "rasgaran".
+"rasgaras" is the second person of "rasgara".
+"rasga" is the imperative of "rasga".
+"rasgues" is the negative imperative of "rasga".
+"rasgado" is the participle of "rasga".
+"rasgada" is the participle of "rasga".
+"rasgada" is feminine.
+"rasgados" is the participle of "rasga".
+"rasgados" is the plural of "rasgado".
+"rasgadas" is the participle of "rasga".
+"rasgadas" is feminine.
+"rasgadas" is the plural of "rasgada".
+"rasgar" is the infinitive of "rasga".
+"rasgando" is the gerund of "rasga".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -114186,6 +114359,10 @@ The masculine adjective "pagadero" means "payable".
 "pagaderos" is the plural of "pagadero".
 The feminine adjective "pagadera" means "payable".
 "pagaderas" is the plural of "pagadera".
+The masculine adjective "instintivo" means "instinctive".
+"instintivos" is the plural of "instintivo".
+The feminine adjective "instintiva" means "instinctive".
+"instintivas" is the plural of "instintiva".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

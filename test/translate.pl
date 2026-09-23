@@ -24,7 +24,7 @@ main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
-    adjuncts, newspaper_es, newspaper_it, newspaper_fiat, questions, rules, refusals, outline, vocabulary, shapes, build,
+    adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -2498,6 +2498,195 @@ newspaper_fiat_checks :-
     nf_tr('Il cane dorme dalle prime ore.', italian, spanish, F34),
     check('a plural is never an adverb, a preposition or a conjunction', F34,
           'El perro duerme desde las primeras horas.').
+
+% ---- a Spanish article into Italian ------------------------------------------------------
+%%
+%% A real Spanish article into Italian for the first time the other way from
+%% the three before it -- El Periódico of 2 February 2001 on the exhibition
+%% of old violins in Valencia, AnCora's CESS-CAST-P-20010202-169, sixteen
+%% sentences -- and what it needed is what a report on a show says: a
+%% quotation over two sentences in the plain mark a keyboard has, a verb
+%% whose sense turns on whether it has an object, a name after `llamado', a
+%% year aside, the state copula with a participle, a noun's own clause after
+%% `de que', a list of subjects with a relative clause on the last, a number
+%% after the noun that is its label, and a partitive's head agreeing with
+%% the phrase it is taken from. Each shape is pinned on two small lessons of
+%% their own, and every check but the one marked as a guard fails on the
+%% translator before this.
+
+newspaper_valencia :-
+    section('a Spanish article into Italian: plain quotation marks, a verb''s sense by its object, a name after a participle, a noun''s own clause'),
+    newspaper_valencia_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_valencia_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_valencia_checks,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+newspaper_valencia_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "violín" means "violin". "violines" is the plural of "violín".
+The noun "constructor" means "builder". "constructores" is the plural of "constructor".
+The noun "experto" means "expert". The noun "pan" means "bread".
+The noun "diferencia" means "difference". The noun "familia" means "family".
+The noun "colección" means "collection". "colección" is feminine.
+The noun "máquina" means "machine". The noun "prueba" means "proof".
+The noun "día" means "day". "día" is not feminine. "día" is a time.
+The noun "vía" means "way". The preposition "vía" means "via".
+The adjective "capaz" means "able". The adjective "próximo" means "next". The adjective "ex" means "former".
+The adjective "bueno" means "good". The adjective "mejor" means "good". "mejor" is the comparative of "bueno".
+The adverb "más" means "more". The word "más" begins the comparative.
+The intransitive verb "destaca" means "stands out". The verb "destaca" means "highlights".
+"destacó" is the past of "destaca".
+The verb "come" means "eats". "comen" is the plural of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "duerma" is the subjunctive of "duerme".
+The verb "dice" means "says".
+The verb "llama" means "calls". "llamado" is the participle of "llama".
+The verb "considera" means "considers". "considerado" is the participle of "considera".
+The verb "expone" means "exposes". "exponen" is the plural of "expone".
+The verb "mejora" means "improves". "mejorado" is the participle of "mejora".
+The verb "va" means "goes". "van" is the plural of "va".
+The verb "es" means "is". "son" is the plural of "es". "sido" is the participle of "es".
+"eres" is the second person of "es".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "ha" is the auxiliary of "es".
+The auxiliary "está" means "is". "están" is the plural of "está".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The feminine pronoun "alguna" means "some". "algunas" is the plural of "alguna".
+The pronoun "alguna" does not precede the verb.
+The reflexive pronoun "se" means "itself". The pronoun "la" means "her". Every pronoun precedes the verb.
+"que" is a relative. The conjunction "que" means "that". The word "de" begins the clause.
+The conjunction "sin que" means "without".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "como" means "as". The conjunction "y" means "and".
+The word "no" means "not".').
+newspaper_valencia_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a". The masculine article "uno" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i".
+"delle" is the contraction of "di le". "nella" is the contraction of "in la". "nel" is the contraction of "in il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The article "il" takes the year.
+The noun "violino" means "violin". "violini" is the plural of "violino".
+The noun "costruttore" means "builder". "costruttori" is the plural of "costruttore".
+The noun "esperto" means "expert". The noun "pane" means "bread".
+The noun "differenza" means "difference". "differenze" is the plural of "differenza".
+The noun "famiglia" means "family". The noun "collezione" means "collection". "collezione" is feminine.
+The noun "macchina" means "machine". The noun "prova" means "proof".
+The noun "giorno" means "day". "giorno" is a time. The noun "via" means "way".
+The adjective "capace" means "able". The adjective "prossimo" means "next". The adjective "ex" means "former".
+The adjective "buono" means "good". The adjective "migliore" means "good". "migliore" is the comparative of "buono".
+The adverb "più" means "more". The word "più" begins the comparative.
+The intransitive verb "spicca" means "stands out". The verb "evidenzia" means "highlights".
+"evidenziò" is the past of "evidenzia".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "dice" means "says".
+The verb "chiama" means "calls". "chiamato" is the participle of "chiama".
+The verb "considera" means "considers". "considerato" is the participle of "considera".
+The verb "espone" means "exposes". "espongono" is the plural of "espone".
+The verb "migliora" means "improves". "migliorato" is the participle of "migliora".
+The verb "è" means "is". "sono" is the plural of "è". "sei" is the second person of "è".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine.
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "è" is the auxiliary of "è".
+The impersonal pronoun "si" means "one".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The masculine pronoun "alcuno" means "some". "alcuni" is the plural of "alcuno".
+The feminine determiner "alcuna" means "some". The feminine pronoun "alcuna" means "some".
+"alcune" is the plural of "alcuna".
+The pronoun "alcuno" does not precede the verb. The pronoun "alcuna" does not precede the verb.
+The reflexive pronoun "si" means "itself". Every pronoun precedes the verb.
+"che" is a relative. The conjunction "che" means "that".
+The conjunction "senza che" means "without".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "come" means "as". The conjunction "e" means "and".
+The word "non" means "not".').
+
+newspaper_valencia_checks :-
+    %% the plain quotation mark: where it stands says which it is
+    nf_tr('"El constructor come el pan.', spanish, italian, V1),
+    check('a plain mark that no mark closes goes in front of its sentence', V1, '"Il costruttore mangia il pane.'),
+    nf_tr('El constructor come el pan ", dice la familia.', spanish, italian, V2),
+    check('... and one that closes nothing divides the quotation from its reporting clause, its comma kept', V2,
+          'Il costruttore mangia il pane", dice la famiglia.'),
+    %% `sin que' is a conjunction, never a relative after a preposition
+    nf_tr('El constructor come el pan sin que la familia duerma.', spanish, italian, V3),
+    check('a connecting word of two words: without a clause', V3,
+          'Il costruttore mangia il pane senza che la famiglia dorme.'),
+    %% a verb's sense by whether its clause has an object
+    nf_tr('En la colección, destaca un violín.', spanish, italian, V4),
+    check('with no object the verb takes its intransitive meaning, and the phrase after it is its subject', V4,
+          'Nella collezione, un violino spicca.'),
+    %% (a GUARD: the translator before this took the same meaning, because
+    %% the intransitive one is not shaped like a third person)
+    nf_tr('El constructor destaca las diferencias.', spanish, italian, V5),
+    check('... and with one the first meaning that is not it', V5, 'Il costruttore evidenzia le differenze.'),
+    nf_tr('En la colección, destaca un violín.', spanish, english, V6),
+    check('... which English says as the lesson gave it', V6, 'In the collection, a violin stands out.'),
+    %% a partitive's head agrees with the noun it is taken from
+    nf_tr('El constructor destacó algunas de las diferencias.', spanish, italian, V7),
+    check('a partitive: the head agrees with the noun of its phrase', V7, 'Il costruttore evidenziò alcune delle differenze.'),
+    nf_tr('Uno de los violines duerme.', spanish, italian, V8),
+    check('... and `uno'' is the pronoun, never the impersonal `si''', V8, 'Uno dei violini dorme.'),
+    %% a noun that is a preposition too, after its article
+    nf_tr('El constructor duerme en la vía.', spanish, italian, V9),
+    check('a noun that is a preposition too does not end the phrase after its article', V9,
+          'Il costruttore dorme nella via.'),
+    %% a name after `llamado', whole, spelled as the source spelled it
+    nf_tr('Un violín llamado Ex VieuxTemps duerme.', spanish, italian, V10),
+    check('a name after a participle is its object, a word the lesson knows among its words', V10,
+          'Un violino chiamato Ex VieuxTemps dorme.'),
+    %% a year after a comma is the thing's, and Italian gives it the article
+    nf_tr('Un violín, de 1736, duerme.', spanish, italian, V11),
+    check('a year between a comma and a comma stands aside, and takes the article the lesson names', V11,
+          'Un violino, del 1736, dorme.'),
+    nf_tr('Un violino del 1736 dorme.', italian, spanish, V12),
+    check('... and read back the article comes off', V12, 'Un violín de 1736 duerme.'),
+    %% the state copula with a participle is a passive, not a perfect
+    nf_tr('El constructor está considerado.', spanish, italian, V13),
+    check('the copula of a state and a participle is a passive', V13, 'Il costruttore è considerato.'),
+    %% an article before a capitalised run whose last word no lesson knows
+    nf_tr('El constructor es el Van Gogh de la familia.', spanish, italian, V14),
+    check('a capitalised run after an article is a name though the lesson knows a word of it', V14,
+          'Il costruttore è il Van Gogh della famiglia.'),
+    %% the copula's own perfect is built with the copula in Italian
+    nf_tr('La máquina ha sido capaz.', spanish, italian, V15),
+    check('the copula''s perfect is built as its passive perfect is', V15, 'La macchina è stata capace.'),
+    %% a relative clause with its reflexive, inside a subject -- and an
+    %% auxiliary is no phrase's noun, so `han mejorado' after the clause is
+    %% the sentence's own verb (the text alone could not tell: read with
+    %% `han' for a noun the words came out the same)
+    nf_tr('Los violines que se exponen duermen.', spanish, italian, V16),
+    check('a reflexive inside a subject''s relative clause is the clause''s', V16,
+          'I violini che si espongono dormono.'),
+    ( reason_ir('Los violines que se exponen han mejorado.', spanish, [ir(s(_, _, g(L17, _, A17, _), _), _)]) -> V17 = L17-A17 ; V17 = none ),
+    check('... and the auxiliary after it is the sentence''s perfect, never a noun', V17, improves-perfect),
+    %% a noun's own clause, and the clause after the comma is the next one
+    nf_tr('Como prueba de que los violines duermen, los constructores comen el pan.', spanish, italian, V18),
+    check('a noun''s own clause after `de que'', ending at the comma', V18,
+          'Come prova che i violini dormono, i costruttori mangiano il pane.'),
+    %% a number after a noun is its label, and a time phrase after a comma
+    nf_tr('Los constructores comen el pan, el próximo día 14.', spanish, italian, V19),
+    check('a number after its noun is the noun''s label, and the phrase a time', V19,
+          'I costruttori mangiano il pane, il prossimo giorno 14.'),
+    %% a comparative that is a word of its own, read and written as one: the
+    %% dictionary gives `mejor' and `migliore' only as `good'
+    nf_tr('El mejor de los constructores come el pan.', spanish, italian, V20),
+    check('a comparative that is a word of its own, with the article the superlative', V20,
+          'Il migliore dei costruttori mangia il pane.'),
+    nf_tr('El mejor de los constructores come el pan.', spanish, english, V21),
+    check('... which English writes with its own ending', V21, 'The best of the builders eats the bread.'),
+    nf_tr('La máquina es la mejor.', spanish, italian, V22),
+    check('... and after an article that is a pronoun too, the article''s and no pronoun', V22,
+          'La macchina è la migliore.'),
+    nf_tr('Eres la más capaz.', spanish, italian, V23),
+    check('... as it is before `más'' and an adjective', V23, 'Sei la più capace.').
 
 % ---- the lesson questioned ---------------------------------------------------------
 
