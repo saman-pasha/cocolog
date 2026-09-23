@@ -32,7 +32,7 @@
 main :-
     scratch(D),
     a_goal(D), does_not_prove(D), syntax_error(D), initialization(D), init_main(D),
-    exit_status(D), reader_level(D), the_program(D), under_swipl(D),
+    in_a_module(D), exit_status(D), reader_level(D), the_program(D), under_swipl(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -144,6 +144,55 @@ init_main(D) :-
     fixture(F3, [':- initialization(true, restore_state).']),
     ran(F3, true, Out3),
     has('a when cocolog has not is refused BY NAME', restore_state, Out3).
+
+in_a_module(D) :-
+    section('a goal directive in a MODULE: the -s file, and a library .pl'),
+    %% UNTIL 1.6.16 EVERY ONE OF THESE WAS A SEGFAULT, `:- true.' included.
+    %% `-s FILE' is `use_module(FILE)', so the file is a MODULE, and a module
+    %% was counted as loaded only AFTER its consult: the engine a goal
+    %% directive runs in found it unloaded and consulted it again, whose
+    %% directive opened another engine, until the C stack ran out. Every
+    %% section above runs its file with `run', which consults the file
+    %% itself, and so none of them could see it -- while a library .pl with
+    %% a goal directive died under `run' as well, loaded by a goal or by a
+    %% directive. `coco_module_load' claims a module before its consult now.
+    atom_concat(D, '/s1.pl', F1),
+    fixture(F1, [ ':- true.', ':- assert(seen(one)).', ':- fail.', ':- nosuch_goal.',
+                  'main :- seen(X), format("~w~n", [X]).' ]),
+    sh_join(['--local -s ', F1, ' 2>/dev/null'], A1), cocolog_run(A1, G1, Rc1),
+    check('-s: a file with goal directives runs its main', G1, one),
+    check('...and exits 0', Rc1, 0),
+    sh_join(['--local -s ', F1, ' 2>&1'], A1e), cocolog_run(A1e, Out1, _),
+    sh_join(['Warning: ', F1, ':3:'], W3), has('...a failing one is a Warning, as under run', W3, Out1),
+    sh_join(['ERROR: ', F1, ':4:'], E4), has('...an unknown one an ERROR', E4, Out1),
+    atom_concat(D, '/s2.pl', F2),
+    fixture(F2, [':- initialization(main, main).', 'main :- format("main ran~n").']),
+    sh_join(['--local -s ', F2, ' 2>&1'], A2), cocolog_run(A2, G2, Rc2),
+    check('-s: initialization(main, main) runs main ONCE and halts', G2-Rc2, 'main ran'-0),
+    atom_concat(D, '/lib1.pl', L1),
+    fixture(L1, [':- assert(lib_seen(yes)).', 'lib_p(1).']),
+    atom_concat(D, '/g3.pl', F3),
+    format(atom(M3), 'main :- use_module(''~w''), lib_p(X), findall(Y, lib_seen(Y), Ys), format("~~w ~~w~~n", [X, Ys]).', [L1]),
+    fixture(F3, [M3]),
+    ran(F3, main, G3),
+    check('a library .pl with a goal directive, loaded by a GOAL: its directive ran once', G3, '1 [yes]'),
+    atom_concat(D, '/g4.pl', F4),
+    format(atom(U4), ':- use_module(''~w'').', [L1]),
+    fixture(F4, [U4, 'main :- lib_p(X), findall(Y, lib_seen(Y), Ys), format("~w ~w~n", [X, Ys]).']),
+    ran(F4, main, G4),
+    check('...and loaded by a DIRECTIVE', G4, '1 [yes]'),
+    %% A MODULE REGISTERED ABOVE THE DIRECTIVE IS LOADED BY THE DIRECTIVE'S OWN
+    %% ENGINE, and must not be consulted a second time when the -s file's
+    %% load goes on: a walk on a local index would, and every answer the
+    %% library gives would come back twice.
+    atom_concat(D, '/lib2.pl', L2),
+    fixture(L2, ['lib2_p(1).', 'lib2_p(2).']),
+    atom_concat(D, '/s5.pl', F5),
+    format(atom(U5), ':- use_module(''~w'').', [L2]),
+    fixture(F5, [ U5, ':- findall(X, lib2_p(X), L), assert(during(L)).',
+                  'main :- during(A), findall(X, lib2_p(X), B), format("~w ~w~n", [A, B]).' ]),
+    sh_join(['--local -s ', F5, ' 2>&1'], A5), cocolog_run(A5, G5, _),
+    check('-s: a library the directive''s engine loaded is loaded ONCE', G5, '[1,2] [1,2]').
 
 exit_status(D) :-
     section('the exit status of a goal, and what is said about it'),

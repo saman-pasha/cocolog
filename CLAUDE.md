@@ -4449,16 +4449,17 @@ in an adjective's place, where Spanish meant the noun.
   section after it again over lessons the first pass already changed. The
   second report had a dozen failures where the first had one. Read up to the
   first `RED`.
-* **`:- consult(F).` IN A PROGRAM RUN WITH `-s` CRASHES, AND SO DOES ANY
-  DIRECTIVE THAT FAILS OR THROWS THERE.** `consult/1` does not exist -- under
-  `run` the directive says `Unknown procedure: consult/1` and the load goes
-  on -- but under `-s` even `:- fail.` segfaults, the stack 7 500 frames of
-  `coco_directive` → `lb_goal_hook` → `coco_engine_next` → `coco_module_load`
-  → `coco_consult` → `coco_directive`. The reading, not proved: the
-  directive's engine backtracks into the `-s` command's own `use_module(FILE)`
-  and loads the file again. It is in the 1.6.14 binary and it is NOT fixed
-  here. `cocolog run test/translate.pl GOAL` is how a probe reaches a case's
-  predicates.
+* **`:- consult(F).` IN A PROGRAM RUN WITH `-s` CRASHED, AND SO DID EVERY
+  GOAL DIRECTIVE THERE -- FIXED IN 1.6.16, AND THE READING THAT STOOD HERE
+  WAS WRONG.** `consult/1` does not exist -- under `run` the directive says
+  `Unknown procedure: consult/1` and the load goes on -- but under `-s` even
+  `:- true.` segfaulted, not only a directive that failed or threw, the stack
+  7 500 frames of `coco_directive` → `lb_goal_hook` → `coco_engine_next` →
+  `coco_module_load` → `coco_consult` → `coco_directive`. This bullet said the
+  directive's engine backtracked into the `-s` command's own
+  `use_module(FILE)`; nothing backtracked -- the module was not yet COUNTED as
+  loaded while its own directive ran, and the section on directives below has
+  the cause, the fix and the checks.
 * **A LINE AT THE FRONT OF A 400 MB STORE COSTS SECONDS TO A MINUTE**, because
   the backend rewrites the predicate wholesale. A 9 MB store of only the lines
   that mention the article's words answered a probe in seconds; the full
@@ -5056,6 +5057,26 @@ engine reports a halted goal as "no more solutions" and the three
 commands read that as `main` failing; `test/ray.pl` found it by skipping
 its windowed half with `halt(0)` after every check had passed and
 coming out RED. `test/argv.pl` pins all three. A test that expected 1 for a thrown ball wants 2 now.
+
+**A GOAL DIRECTIVE IN A MODULE WAS A SEGFAULT UNTIL 1.6.16, AND `-s` MAKES
+EVERY PROGRAM A MODULE.** `-s FILE` is `use_module(FILE), main`, so the file
+is registered as a module and consulted by `coco_module_load` -- which moved
+the store's count of loaded modules, `libs`, only AFTER the consult. A goal
+directive runs in an engine of its own over the same store, every engine's
+first step is `coco_module_load`, and that engine found the module still
+unloaded and consulted it again: `:- true.` was enough, and the C stack ran
+out at 7 500 frames. The same held for any library `.pl` with a goal
+directive, loaded by a goal or by a directive and under `run` as well --
+and nothing in the tree carries one, which is how the suite stayed green
+over it and why every section of the case, all `run`, could not see it.
+**The module is claimed BEFORE its consult now, and the loop reads the count
+again each time round**, because a directive's engine may load a module
+registered after this one -- a `:- use_module` above the directive in the
+same file registers one -- and a walk on a local index would then consult
+that module a second time. Measured on a build of each: 1.6.15 fails all
+eight checks of the case's new section with a segfault, and a variant that
+claims first but keeps the local index fails exactly one, with `[1,2]
+[1,2,1,2]` -- every clause of the library twice.
 
 `test/directives.pl` is the case, and its last section runs the same files
 under `swipl` and diffs what the programs printed.
