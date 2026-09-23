@@ -4908,6 +4908,231 @@ Lesson 46 gained section 24. **The minor is proposed**: a percentage, a date,
 a heading, a reporting clause inside a sentence and `begin(W, infinitive)` are
 new things a program reaches; the owner decides.
 
+### A Spanish article into Italian, and the minor the owner took (1.7.0, 1.7.1)
+
+**THE OWNER TOOK THE MINOR.** 1.6.21 proposed one -- a percentage, a date, a
+heading, a reporting clause inside a sentence and `begin(W, infinitive)` were
+new things a program reaches -- and the owner's answer was "use minor
+version", so the work below is 1.7.0 and the patch counts on from zero. The
+rule at the top of this file stands as written: a minor is proposed and TAKEN
+by the owner, never by a session. What writing this section found in 1.7.0 is
+1.7.1, a patch like any other.
+
+**EL PERIÓDICO ON OLD VIOLINS SHOWN IN VALENCIA, INTO ITALIAN: THE FIRST
+ARTICLE THIS WAY ROUND SINCE THE SPANISH COLUMN OF 1.6.15.** AnCora's
+CESS-CAST-P-20010202-169 of 2 February 2001, sixteen sentences -- luthiers in
+town, what a Guarneri and a stradivarius are worth, and two quotations from
+one of them -- Spanish into Italian over the two-language vocabulary store.
+The middle column is 1.6.21's translator over THIS store, so it has the new
+vocabulary lines and none of the new shapes:
+
+| | 1.6.21, its store | 1.6.21, this store | **1.7.1** |
+|---|---|---|---|
+| translated | 1 of 16 | 8 | **16** |
+| refused for a word | 11 | 4 | **0** |
+| refused with every word known | 4 | 4 | **0** |
+| the article, one process | 44.8 s | 45.1 and 45.8 s | **39.5 and 38.9 s** |
+
+-- the store Italian 160 179 terms and Spanish 208 220, taught into one
+`--embed` store from the rebuilt vocabularies in 489 s and 860 s, 305 MB, and
+the one line written after the Italian teach had read its file learned into it
+afterwards. (1.6.21's figures, 159 983 and 207 927, are the grammar's terms and
+the vocabulary's together, as these are: a teach prints the two apart.)
+
+**WHAT IT NEEDED IS WHAT A REPORT ON A SHOW SAYS.** The twelve sentences were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks and Fiat figures; this one is a thing on show and what is said of it:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| the plain quotation mark, over two sentences | `"No es posible hacer una réplica ... sin que un experto lo note.` / `son únicos ", dijo Claude Lebet` | the mark's direction by the character after it; a closing one divides the quotation from the clause that reports it, and the comma after it is kept |
+| a verb's sense by whether its clause has an object | `..., destaca un violín llamado ...` / `destacó algunas de las diferencias` | `The intransitive verb "destaca" means "stands out".` |
+| the front of an inversion set off by a comma | `De la amplia gama de instrumentos ..., destaca un violín` | written back in front, as a statement's front is |
+| a conjunction of two words | `sin que un experto lo note` | `The conjunction "sin que" means "without".`, and `without` joins a clause in English |
+| a name after a participle | `un violín llamado Ex Von Szerdahely VieuxTemps` | the participle's object, every capitalised word of it; a capital inside a word is kept |
+| a year aside | `..., de 1736.`, `Golden Bell, de 1686.` | an aside of the thing before it; `The article "il" takes the year.` |
+| the copula of a state and a participle | `está considerado como el Van Gogh de la luthiere` | a passive, where it read as `has considered` |
+| an article before a capitalised run | `el Van Gogh` | a name, though the lesson knows `van` as a verb's form |
+| a noun that is a preposition too | `optó por una vía más instintiva` | no end to the phrase after its article |
+| a partitive | `algunas de las diferencias`, `uno de los luthiers` | the head agrees with the noun it is taken from; Italian's `uno` a pronoun and never the impersonal `si` |
+| a reflexive in a subject's relative clause | `los violines ... que se exponen han mejorado` | the subject's guards read the phrase's own words; an auxiliary is no noun |
+| a noun's own clause | `Como prueba de que ..., los solistas ... ofrecerán` | `ncl(Phrase, Clause)`; `The word "de" begins the clause.` |
+| a number after its noun | `el próximo día 14` | `app(Phrase, label, N)` |
+| a comparative that is a word of its own | `el mejor de los intérpretes` | `"mejor" is the comparative of "bueno".` |
+
+-- and the words, in `corpus/extra/` as always: 12 entries in `eng-ita.dix`
+and 4 in `eng-spa.dix`, 50 lines of Italian and 44 of Spanish; the
+vocabularies went from 98 194 and 128 289 lines to 98 309 and 128 466.
+`reason.pl` did not move, which is the tenth version running.
+
+**A VERB'S SENSE BY ITS OBJECT IS A LINK, AS A NOUN'S AND AN ADJECTIVE'S
+ARE.** 1.6.15 kept a meaning with its class (`mean_as/3`), and this keeps a
+verb's meaning with its valency the same way: `The intransitive verb "destaca"
+means "stands out".` reads as `verb(destaca)`, `intransitive(destaca)`,
+`mean(destaca, 'stands out')` -- the class, its adjective, the claim -- and
+the link is taken from that sentence. A clause with no object takes it; a
+clause with one -- an object, a clitic, an object complement, a `that` clause,
+a relative word that is the object, or a passive, which has one by what it is
+-- takes the first meaning that is not it; every other crossing of the verb
+passes it over. The same line licenses the inversion 1.6.8 reads, so `...,
+destaca un violín` after a fronted phrase is a violin standing out, and the
+front goes back in front: `Della larga gamma di strumenti ..., un violino ...
+spicca.`
+
+**AND 1.7.0 TOOK THE ADJECTIVE FROM THE TEXT, NOT FROM THE SENTENCE, WHICH
+WRITING THIS PARAGRAPH FOUND (1.7.1).** Its links were every verb meaning of a
+word that SOME sentence of the same learned text called intransitive -- so
+`The verb "destaca" means "highlights".` beside the line above was
+intransitive too, and a store's links depended on which 400 lines a teach had
+read together. The full stores never met it -- the vocabulary's own meaning
+of `destaca` sits 113 000 lines after the extra one -- and the case's lesson
+passed only because `highlights` came first by its shape. `The intransitive
+verb "pasa" means "happens". The verb "pasa" means "passes".` is the pair
+where neither shape helps: 1.7.0 wrote `El constructor pasa el pan.` as `The
+builder happens the bread.` The adjective is kept with its class now and spent
+on the one meaning after it.
+
+**THE PLAIN QUOTATION MARK OPENS AND CLOSES ALIKE, SO WHERE IT STANDS SAYS
+WHICH.** The newspaper writes `"No es posible hacer una réplica ... sin que un
+experto lo note.` and a sentence later `son únicos ", dijo Claude Lebet` -- a
+quotation over two sentences in the keyboard's mark, with a blank before the
+closing one. Livata's typographic pair was read this way already; the plain
+mark is read by the character after it now -- a word opens, a blank, a stop, a
+comma or nothing closes -- and the blank before it says nothing, because this
+source puts one on both sides. A pair inside one piece is left as it was, and
+the comma after a closing mark is written back after it.
+
+**FIVE THINGS THE ARTICLE FOUND WERE OLDER THAN IT**, and each was one line of
+a rule that looked at too much or too little:
+
+* **A reflexive inside a subject's relative clause refused the subject.** The
+  guard that keeps `la casa si` from being a phrase with an adjective `si`
+  looked at every word, the relative clause's included, so `Los violines que
+  se exponen han mejorado` read with no verb at all. It reads the phrase's own
+  words now, up to its relative word -- and so does the guard against an
+  object pronoun, so `Los hombres que lo ven duermen.` reads, where 1.6.21
+  refused it.
+* **An auxiliary the lesson calls no noun was a phrase's noun.** `han mejorado`
+  after that clause read as `the has improved`, a phrase with a participle on
+  it, and the clause ran on past its own verb; the same reading made `Como
+  prueba de que ...` a sentence whose verb was `Como`, I eat.
+* **A noun that is a preposition too ended its phrase after the article.**
+  `optó por una vía más instintiva` stopped at `una`, because the vocabulary
+  also has `vía` as the preposition `via`.
+* **Italian's `uno` was dropped as a determiner.** It is the article before
+  `sc` and the pronoun `one`, and the filter that keeps a determiner from
+  heading a phrase kept the impersonal `si` instead: `uno de los violines`
+  came out `Si dei violini`. A determiner the lesson says stands alone is
+  kept.
+* **A degree was folded before the object-pronoun test looked past `la`.** So
+  `Eres la más capaz` read `la` as her, and with the comparative above so did
+  `Eres la mejor`; a folded degree is a content word now.
+
+**A RESULT THAT MOVES WHEN ONLY THE ORDER OF THE DATA MOVES WAS NEVER
+COMPUTED.** The partitive's `alcune delle differenze` was right in one probe
+store and `alcuni` in the next, on the same code: the gender came from which
+word for `some` the store held first, and a line added with `more` goes after
+every line a store already has. The head of a partitive takes the gender of
+the noun it is taken from now (`tr_partitive_gender/3`), through a relative
+clause on that noun too. The same appending hid sense lines until the probe
+store was rebuilt -- `réplica` came out `risposta` there after its line was
+learned -- which is the probe store's hazard and not the translator's.
+
+**AND ONE CHANGE WAS TAKEN BACK BECAUSE THE CASE WENT RED.** `ha sido capaz`
+came out `ha stato capace`, because the copula's own perfect takes the
+auxiliary meaning `has` when the lesson names none. Making the copula the
+default fixed the Italian and broke the case's Spanish lesson, which names
+none either and wants `ha sido`. The Italian fact is data now -- `"è" is the
+auxiliary of "è".` in `corpus/extra/italian.txt` -- and the default is what it
+was. Which is why that check is a GUARD: with the line in its lesson it passes
+on 1.6.21 too, the fix being a line of lesson and not of code.
+
+**THE CONTROLS FOUND ONE REGRESSION, AND IT STAYS, STATED.** Fiat's
+`Memorandum d'Intesa` came out `Memorándum de Entendimiento` on 1.6.21 and
+`Memorándum de Intesa` on 1.7.0. The rule is the one that reads a capitalised
+noun standing alone as a name -- `en Valencia` is the city, where the
+vocabulary's `valencia` is the chemist's valency and came out `Valenzia`, and
+`di Pale` is the town the twelve wrote `Retablos` since 1.6.14 -- and nothing
+tells a title from a city: `intesa`, `valencia` and `pale` are each only a noun
+in the vocabulary, and `Orquesta de Valencia` has exactly the title shape
+`Memorandum d'Intesa` has, so a rule by the capital on the word before would
+read the article's own last sentence as a title too. Three places mended
+against one broken.
+
+**AND ONE COST, WHICH 1.7.1 TAKES BACK.** Livata ran 10 % slower, two fifths of
+it in one sentence, the sixth -- `I piccoli sono stati raggiunti dagli uomini
+... che li hanno trovati vigili e in buone condizioni nonostante le
+temperature ... abbiano raggiunto anche i -10 gradi` -- whose inferences went
+from 8.26 million to 13.60. Four arms on one store, each one change:
+
+| arm | sentence 6, inferences | |
+|---|---|---|
+| 1.6.21 | 8 262 083 | |
+| 1.7.0 | 13 601 185 | |
+| the noun's own clause turned off | 13 458 728 | not it |
+| the clause-opener test turned off everywhere | 13 471 377 | not it |
+| the phrase's own words before its relative clause | 13 701 722 | not it |
+| the object-pronoun guard back on every word | 8 917 828 | **it** |
+
+The sentence reads only as two clauses divided at `nonostante`, and the
+one-statement reading goes first: with the guard on the phrase's own words,
+the twenty-seven words before `abbiano raggiunto` -- their `li` after `che` --
+were a subject candidate, and every reading of them was tried and failed
+before the division. Putting the guard back on every word would refuse `Los
+hombres que lo ven duermen.` again, so 1.7.1 keeps the own words for a
+relative clause that opens NO FURTHER CLAUSE: a subject's relative clause runs
+to the subject's verb, and one that opens another on the way is two clauses.
+8 940 872 inferences, and `test/translate.pl` pins the sentence that must
+still read.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, agreement and senses no lesson separates:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `da cui`, `optò da una via`, `dalle mani`, `Sospirò ... da lui` | `per cui`, `per una via`, `per le mani`, `Per lui` | `por` is `by` as well as `for`, and `by` is the agent's `da` |
+| `sono avvenuti`, `saputo come`, `prezzato`, `annotò` | `sono passati`, `noto come`, `valutato`, `osservò` | a sense through English: the dictionary's `pasa` is `happens` or `spends` and never `passes`, `conoce` is `knows` and Italian's `knows` is `sa` first, `notes` is `annota` |
+| `hanno migliorato` | `sono migliorati` | the auxiliary is the lesson's for the verb, and `migliorare` takes `essere` only without an object |
+| `le soliste` | `i solisti` | Italian's dictionary calls `solista` feminine, and the IR carries no gender for the source's `los` |
+| `le sue mani` | `le loro mani` | the hand lesson's `su` is `his` first, and the hands are the soloists' |
+| `gli strumenti d'arco più piccolo` | `più piccoli` | the degree agrees with the noun after `de` |
+| `in Valencia` | `a Valencia` | `en` is `in`, and Italian puts `a` before a city |
+| `d'un buono stradivari` | `di un buon stradivari` | the lesson elides `di` before every vowel, and states no apocope of `buono` |
+| `lo nota` | `lo noti` | a subjunctive is written as the indicative, 1.6.8's cost |
+| `solamente` at the end, `... un violino ..., spicca.` | in front, `spicca un violino` | an adverb and an inverted subject are written in the statement's order |
+| a comma lost before `il prossimo giorno 14` and before `d'un Guadagnini` | kept | a comma before a closing adjunct or inside a list is not in the IR |
+| `Con questo motivo`, `L'età d'oro della Corda` | `Per l'occasione`, the title kept | word for word |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.6.21's, RUN BACK TO
+BACK TWICE** (the column before them is 1.6.21 on its own store, from its
+section above):
+
+| control | 1.6.21, its store | 1.6.21, this store | **1.7.1** |
+|---|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.5 and 12.3 s | 12 of 12, 12.4 and 12.4 s | **12 of 12, 13.0 and 13.0 s** |
+| the Spanish article | 11 of 11, 12.6 and 12.6 s | 11 of 11, 12.4 and 12.9 s | **11 of 11, 12.9 and 12.8 s** |
+| Livata, 29 sentences | 29 of 29, 54.6 and 55.0 s | 29 of 29, 55.1 and 54.8 s | **29 of 29, 58.6 and 58.0 s** |
+| Fiat, 20 sentences | 20 of 20, 18.8 s | 20 of 20, 18.9 and 19.3 s | **20 of 20, 19.8 and 19.4 s** |
+| Tatoeba's 400, exact / translated / refused | 53 / 264 / 136, 13.5 and 13.5 s | 53 / 265 / 135, 13.3 and 13.2 s | **54 / 265 / 135, 13.5 and 13.4 s** |
+
+-- the ranges apart on Livata, the twelve and Tatoeba, touching on Fiat and
+overlapping on the Spanish article, so the new shapes cost up to 7 % where
+they cost anything; Livata's 6 % is 1.7.1's, and 1.7.0's was 10 %, its sixth
+sentence taken back above. The texts are the same to the byte but for eight
+lines, seven of them mended: the twelve's `de Pale` for `de Retablos`; Fiat's
+`en 2009` for `en el 2009`, Spanish writing no article before a year where
+Italian does, which is Italian's line now; and on Tatoeba `Estoy mejor.` EXACT
+as `I am better.`, and `Estoy agotado.`, `Estoy acostumbrada.`, `Esto está
+estropeado.` and `Estás herida.` read with the state copula -- `I am
+exhausted.` where it was `I have exhausted.`. The eighth is Fiat's
+`Memorándum de Intesa`, the regression above. 1.7.1's texts are 1.7.0's to
+the byte on all six.
+
+**`test/translate.pl` IS 704 CHECKS AND GREEN**, twenty-five in a new
+`newspaper_valencia` section with a Spanish and an Italian lesson of its own:
+every check but the two marked as guards fails on 1.6.21's translator, and
+the pair above -- `pasa` -- on 1.7.0's as well. Lesson 46 gained section 25.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

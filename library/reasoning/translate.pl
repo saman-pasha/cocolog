@@ -408,7 +408,16 @@
 %% two commas or after a quotation that closes inside its sentence -- the
 %% last three written AFTER the sentence, whatever place the source gave
 %% them. A QUOTATION THAT OPENS ON ITS VERB LOSES ITS OPENING MARK: the
-%% mark travels on the word, and a verb is written from its lexeme.
+%% mark travels on the word, and a verb is written from its lexeme. Since
+%% 1.7.0 it has the plain quotation mark over two sentences, read by the
+%% character after it; a verb's meaning by whether its clause has an object
+%% (`The intransitive verb "destaca" means "stands out".'); a name after a
+%% participle; a year aside, and the article a lesson says a year takes; the
+%% copula of a state with a participle, as a passive; a noun's own clause
+%% (`prueba de que ...', `The word "de" begins the clause.'); a number after
+%% its noun as its label; a comparative that is a word of its own (`"mejor"
+%% is the comparative of "bueno".'); and a partitive whose head agrees with
+%% the noun it is taken from.
 %% What it has NOT is a comparison of two things (`richer THAN
 %% Rome'), a `why', any other fragment with no verb, the preposition a verb
 %% puts before its infinitive (`propone di punire' comes out `propone
@@ -599,18 +608,26 @@ reason_learn(Text, Language, Terms) :-
 %% order with the class before the meaning, so the class fact nearest before
 %% a mean/2 of the same word is the class of that meaning, and it is kept
 %% as mean_as(Word, Meaning, Class). tr_meanings_of/4 asks it first.
-tr_mean_links(Terms, Links) :-
-    tr_mean_links(Terms, none, Links0),
-    %% ... and a verb's meaning the lesson gave it as INTRANSITIVE, linked
-    %% under that name too: `The intransitive verb "destaca" means "stands
-    %% out".' is what the verb means when its clause has no object
-    findall(mean_as(W, E, intransitive),
-            ( member(mean_as(W, E, verb), Links0), memberchk(intransitive(W), Terms) ), Is),
-    append(Links0, Is, Links).
+%%
+%% AND A VERB'S MEANING THE SENTENCE CALLS INTRANSITIVE IS LINKED UNDER THAT
+%% NAME TOO: `The intransitive verb "destaca" means "stands out".' is what the
+%% verb means when its clause has no object. The adjective is the SENTENCE's,
+%% as the class is -- the reader gives verb(destaca), intransitive(destaca),
+%% mean(destaca, 'stands out'), the class, its adjectives, the claim -- so it
+%% is kept with the class and spent on the one meaning after it. 1.7.0 linked
+%% every verb meaning of a word some sentence of the same text called
+%% intransitive, so `The verb "destaca" means "highlights".' beside it was
+%% intransitive too, and what a store held depended on which 400 lines a
+%% teach had read together.
+tr_mean_links(Terms, Links) :- tr_mean_links(Terms, none, Links).
 tr_mean_links([], _, []).
-tr_mean_links([mean(W, E)|Ts], W0-C, [mean_as(W, E, C)|Ls]) :- W == W0, !, tr_mean_links(Ts, W0-C, Ls).
+tr_mean_links([mean(W, E)|Ts], W0-C-As, [mean_as(W, E, C)|Ls0]) :- W == W0, !,
+    ( C == verb, memberchk(intransitive, As) -> Ls0 = [mean_as(W, E, intransitive)|Ls] ; Ls0 = Ls ),
+    tr_mean_links(Ts, W0-C-[], Ls).
 tr_mean_links([T|Ts], _, Ls) :-
-    T =.. [C, W], atom(W), tr_link_class(C), !, tr_mean_links(Ts, W-C, Ls).
+    T =.. [C, W], atom(W), tr_link_class(C), !, tr_mean_links(Ts, W-C-[], Ls).
+tr_mean_links([T|Ts], W0-C-As, Ls) :-
+    T =.. [A, W], W == W0, !, tr_mean_links(Ts, W0-C-[A|As], Ls).
 tr_mean_links([_|Ts], Last, Ls) :- tr_mean_links(Ts, Last, Ls).
 
 tr_link_class(C) :- memberchk(C, [noun, adjective, verb, adverb, preposition, pronoun, conjunction, article,
@@ -2942,8 +2959,20 @@ tr_subject_shape(_, Words, _, _) :-
     %% -- in the phrase's OWN words, which end at a relative word: `Los
     %% violines que se exponen han mejorado' has its reflexive inside the
     %% relative clause, where it is the clause's and no adjective of the
-    %% phrase, and refused there the sentence read with no verb at all
-    ( append(Own, [w(RW, _)|_], Words), tr_relative_word(foreign, RW) -> true ; Own = Words ),
+    %% phrase, and refused there the sentence read with no verb at all.
+    %% ONLY A RELATIVE CLAUSE THAT OPENS NO FURTHER CLAUSE: Livata's `... che
+    %% li hanno trovati vigili e in buone condizioni nonostante le
+    %% temperature ... abbiano raggiunto' offered twenty-seven words before
+    %% `abbiano' as a subject, their `li' after `che', and the one-statement
+    %% reading parsed all of them before the division at `nonostante' read
+    %% the sentence: 8.3 million inferences became 13.6. A subject's relative
+    %% clause runs to the subject's verb; one that opens another clause on
+    %% the way is two clauses, and the pronoun in it is the old refusal.
+    (   append(Own, [w(RW, _)|RelWs], Words), tr_relative_word(foreign, RW),
+        \+ ( member(X, RelWs), tr_opens_clause(X) )
+    ->  true
+    ;   Own = Words
+    ),
     \+ ( member(w(X, _), Own), tr_object_pronoun(foreign, X, _), \+ tr_determiner(foreign, w(X, lower), _, _) ),
     \+ ( last(Words, w(X, _)), tr_object_pronoun(foreign, X, _) ),
     %% nor a REFLEXIVE pronoun anywhere in it: `la casa si' is the phrase and

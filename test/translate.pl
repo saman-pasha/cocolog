@@ -2511,7 +2511,7 @@ newspaper_fiat_checks :-
 %% `de que', a list of subjects with a relative clause on the last, a number
 %% after the noun that is its label, and a partitive's head agreeing with
 %% the phrase it is taken from. Each shape is pinned on two small lessons of
-%% their own, and every check but the one marked as a guard fails on the
+%% their own, and every check but the two marked as guards fails on the
 %% translator before this.
 
 newspaper_valencia :-
@@ -2543,6 +2543,7 @@ The adjective "bueno" means "good". The adjective "mejor" means "good". "mejor" 
 The adverb "más" means "more". The word "más" begins the comparative.
 The intransitive verb "destaca" means "stands out". The verb "destaca" means "highlights".
 "destacó" is the past of "destaca".
+The intransitive verb "pasa" means "happens". The verb "pasa" means "passes".
 The verb "come" means "eats". "comen" is the plural of "come".
 The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "duerma" is the subjunctive of "duerme".
 The verb "dice" means "says".
@@ -2558,8 +2559,8 @@ The auxiliary "está" means "is". "están" is the plural of "está".
 The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
 The feminine pronoun "alguna" means "some". "algunas" is the plural of "alguna".
 The pronoun "alguna" does not precede the verb.
-The reflexive pronoun "se" means "itself". The pronoun "la" means "her". Every pronoun precedes the verb.
-"que" is a relative. The conjunction "que" means "that". The word "de" begins the clause.
+The reflexive pronoun "se" means "itself". The pronoun "la" means "her". The pronoun "lo" means "him".
+Every pronoun precedes the verb. "que" is a relative. The conjunction "que" means "that". The word "de" begins the clause.
 The conjunction "sin que" means "without".
 The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
 The preposition "como" means "as". The conjunction "y" means "and".
@@ -2629,6 +2630,10 @@ newspaper_valencia_checks :-
     check('... and with one the first meaning that is not it', V5, 'Il costruttore evidenzia le differenze.'),
     nf_tr('En la colección, destaca un violín.', spanish, english, V6),
     check('... which English says as the lesson gave it', V6, 'In the collection, a violin stands out.'),
+    %% the adjective is its sentence's: a second meaning in the same lesson is
+    %% not intransitive because the first was, or `happens' took the object
+    nf_tr('El constructor pasa el pan.', spanish, english, V24),
+    check('... and only the meaning its own sentence calls intransitive is', V24, 'The builder passes the bread.'),
     %% a partitive's head agrees with the noun it is taken from
     nf_tr('El constructor destacó algunas de las diferencias.', spanish, italian, V7),
     check('a partitive: the head agrees with the noun of its phrase', V7, 'Il costruttore evidenziò alcune delle differenze.'),
@@ -2655,7 +2660,9 @@ newspaper_valencia_checks :-
     nf_tr('El constructor es el Van Gogh de la familia.', spanish, italian, V14),
     check('a capitalised run after an article is a name though the lesson knows a word of it', V14,
           'Il costruttore è il Van Gogh della famiglia.'),
-    %% the copula's own perfect is built with the copula in Italian
+    %% the copula's own perfect is built with the copula in Italian -- a
+    %% guard as well: it is the lesson's line, `"è" is the auxiliary of
+    %% "è".', and no code moved for it
     nf_tr('La máquina ha sido capaz.', spanish, italian, V15),
     check('the copula''s perfect is built as its passive perfect is', V15, 'La macchina è stata capace.'),
     %% a relative clause with its reflexive, inside a subject -- and an
@@ -2667,6 +2674,12 @@ newspaper_valencia_checks :-
           'I violini che si espongono dormono.'),
     ( reason_ir('Los violines que se exponen han mejorado.', spanish, [ir(s(_, _, g(L17, _, A17, _), _), _)]) -> V17 = L17-A17 ; V17 = none ),
     check('... and the auxiliary after it is the sentence''s perfect, never a noun', V17, improves-perfect),
+    %% ... and an OBJECT pronoun there is the clause's too, where it refused
+    %% the subject -- so long as the clause opens no further clause, which
+    %% is what kept Livata's twenty-seven words from being a subject
+    nf_tr('Los constructores que lo exponen duermen.', spanish, english, V25),
+    check('an object pronoun inside a subject''s relative clause is the clause''s too', V25,
+          'The builders that expose him sleep.'),
     %% a noun's own clause, and the clause after the comma is the next one
     nf_tr('Como prueba de que los violines duermen, los constructores comen el pan.', spanish, italian, V18),
     check('a noun''s own clause after `de que'', ending at the comma', V18,
