@@ -4,6 +4,7 @@ The conjunction "perché" means "because".
 The preposition "da" means "by".
 The word "per" begins the purpose.
 The word "più" begins the comparative.
+The word "di" begins the infinitive.
 The pronoun "uno" means "one".
 The pronoun "uno" does not precede the verb.
 The conjunction "che" means "that".
@@ -208,3 +209,47 @@ The adverb "oltre" means "more than".
 # `130 circa' is about a hundred and thirty: after a number `circa' is
 # approximate, which Spanish says as `aproximadamente'
 The adverb "circa" means "approximately".
+# the words the Fiat-Chrysler article needs that no dictionary carries:
+# English words the press borrows, the elision of `di', `sin da' beside
+# `fin da', and the regular future of `provvedere' beside the dictionary's
+# `provvedrà'
+The masculine noun "closing" means "closing".
+"closing" is the plural of "closing".
+The masculine noun "player" means "player".
+"player" is the plural of "player".
+"d'" is the elision of "di".
+The preposition "sin da" means "since".
+"provvederà" is the future of "provvede".
+The preposition "entro" means "before".
+"gennaio" is a month.
+"febbraio" is a month.
+"marzo" is a month.
+"aprile" is a month.
+"maggio" is a month.
+"giugno" is a month.
+"luglio" is a month.
+"agosto" is a month.
+"settembre" is a month.
+"ottobre" is a month.
+"novembre" is a month.
+"dicembre" is a month.
+The preposition "alla luce di" means "in the light of".
+The preposition "da parte di" means "on the part of".
+The preposition "pari a" means "equal to".
+The preposition "tramite" means "through".
+The preposition "in concomitanza con" means "at the same time as".
+The preposition "a partire da" means "starting from".
+"quale" is a relative.
+"quali" is a relative.
+The masculine noun "punto di vista" means "point of view".
+"punti di vista" is the plural of "punto di vista".
+"punto di vista" is not feminine.
+The masculine adjective "e mezzo" means "and a half".
+"e mezzo" is the plural of "e mezzo".
+The feminine adjective "e mezza" means "and a half".
+"e mezza" is the plural of "e mezza".
+The masculine noun "ad" means "chief executive".
+The adverb "in tempi brevi" means "shortly".
+The adverb "come annunciato" means "as announced".
+The conjunction "sin da quando" means "ever since".
+The preposition "ad integrazione di" means "as a supplement to".

@@ -101,3 +101,58 @@
 # thanks -- read as the adjective `voluntary' and was written `voluntario',
 # singular
 <e><p><l>volunteer<s n="n"/></l><r>volontario<s n="n"/><s n="GD"/></r></p></e>
+#
+# the Fiat-Chrysler article (Italian UD, ISDT test-261..281: the Veba
+# agreement of January 2014), into Spanish. `restante', `rimanente', `miliardo',
+# `intesa', `complessivo', `paritetico', `pagabile', `annuo' and `grato' have
+# their paradigms and no English: `il restante 41,46% di Chrysler', `per
+# 3,6 miliardi', `un Memorandum d'Intesa', `un importo complessivo',
+# `quattro quote paritetiche pagabili su base annua', `Sarò per sempre grato'
+<e><p><l>remaining<s n="adj"/></l><r>restante<s n="adj"/></r></p></e>
+<e r="RL"><p><l>remaining<s n="adj"/></l><r>rimanente<s n="adj"/></r></p></e>
+<e><p><l>billion<s n="n"/></l><r>miliardo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>understanding<s n="n"/></l><r>intesa<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>total<s n="adj"/></l><r>complessivo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>equal<s n="adj"/></l><r>paritetico<s n="adj"/></r></p></e>
+<e><p><l>payable<s n="adj"/></l><r>pagabile<s n="adj"/></r></p></e>
+<e r="RL"><p><l>annual<s n="adj"/></l><r>annuo<s n="adj"/></r></p></e>
+<e><p><l>grateful<s n="adj"/></l><r>grato<s n="adj"/></r></p></e>
+# `memorandum' and `liquidità' are in the dictionary with a paradigm named
+# beside the pair, which the builder reads as no word's own entry
+<e r="RL"><p><l>memorandum<s n="n"/></l><r>memorandum<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>liquidity<s n="n"/></l><r>liquidità<s n="n"/><s n="f"/></r></p></e>
+# the English words Italian business prose borrows, with their invariant
+# paradigms: `al team di leadership'
+<e r="RL"><p><l>team<s n="n"/></l><r>team<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>leadership<s n="n"/></l><r>leadership<s n="n"/><s n="f"/></r></p></e>
+# `procedere' has no entry, and the dictionary's first Italian for `proceed'
+# is `provenire', to come from: `procedere ad investire'
+<e><p><l>proceed<s n="vblex"/></l><r>procedere<s n="vblex"/></r></p></e>
+# `attendere' has no entry: `da cui ci attendiamo positive conseguenze' is
+# expected; and `avvenire' has only `take place', more than a word: `il
+# pagamento della prima quota avverrà'
+<e r="RL"><p><l>expect<s n="vblex"/></l><r>attendere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>happen<s n="vblex"/></l><r>avvenire<s n="vblex"/></r></p></e>
+# `ulteriore' is `ulterior' first, which in English is a hidden motive:
+# `ulteriori contribuzioni' are additional ones
+<e><p><l>additional<s n="adj"/></l><r>ulteriore<s n="adj"/></r></p></e>
+# `versare' is `pour' first, and a sum paid out is disbursed: `Fiat verserà
+# a Veba 3,65 miliardi di dollari', `le tre rimanenti quote saranno versate'
+<e><p><l>disburse<s n="vblex"/></l><r>versare<s n="vblex"/></r></p></e>
+# `struttura' is `frame' first, and `alla luce della struttura di
+# finanziamento' is the deal's structure; the adverb `ora' has its paradigm
+# and no English -- the dictionary gives `now' to `or' -- and `Ora è
+# indispensabile procedere' is now
+<e><p><l>structure<s n="n"/></l><r>struttura<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>now<s n="adv"/></l><r>ora<s n="adv"/></r></p></e>
+# the noun `scelta' has its paradigm and no English, and read as the
+# participle of `scegliere' it was chosen: `Una scelta strategica da cui ci
+# attendiamo positive conseguenze'
+<e><p><l>choice<s n="n"/></l><r>scelta<s n="n"/><s n="f"/></r></p></e>
+# the nouns `impegno' and `importo' have their paradigms and no English, and
+# each was read as the verb's first person: `il loro incessante impegno',
+# `per un importo complessivo'; and `permettere' is `afford' first, where
+# `ci permetterà di realizzare' allows
+<e r="RL"><p><l>commitment<s n="n"/></l><r>impegno<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>amount<s n="n"/></l><r>importo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>allow<s n="vblex"/></l><r>permettere<s n="vblex"/></r></p></e>

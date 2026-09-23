@@ -57,7 +57,9 @@
 %% entries read both ways first, then those read only from the lesson's
 %% language, then those read only from English. Multi-word entries, proper
 %% nouns and English's own function words are left out -- a word is one
-%% lower-case word of letters -- except for the closed words the translator
+%% lower-case word of letters, and an English noun or adjective the
+%% dictionary capitalises is lowered where the lesson's word is lower case
+%% (a month, a day, a nationality: cb_common_words/2) -- except for the closed words the translator
 %% has a slot for: a modal (`can', `may', `must', `should'), a demonstrative
 %% or another determiner (`this', `another', `each', `much'), a pronoun that
 %% stands alone (`this', `somebody', `nobody', `everything'), and `there is',
@@ -77,7 +79,8 @@
 %% says otherwise: a token compared with a literal never matched until it did
 :- set_prolog_flag(double_quotes, string).
 
-:- dynamic cb_par/3, cb_lemma/3, cb_en_verb/4, cb_person/1, cb_seen_f/2, cb_seen_e/2, cb_seen_pair/3, cb_formed/2, cb_en_done/1, cb_lang/1.
+:- dynamic cb_par/3, cb_lemma/3, cb_en_verb/4, cb_person/1, cb_seen_f/2, cb_seen_e/2, cb_seen_pair/3, cb_formed/2, cb_en_done/1, cb_lang/1,
+           cb_plain/2.
 
 %% EVERY TEST OF A LINE IS A C BUILTIN. sub_string/5 is clauses here, and a
 %% search with it walks the line a position at a time converting it to codes
@@ -271,7 +274,27 @@ cb_read_bilingual(Path, Entries) :-
     findall(E, ( member(L, SLines), cb_bi_line(L, E) ), E1),
     findall(E, ( member(L, Lines), cb_bi_line(L, E) ), E2),
     length(E1, N1), format("   ~d supplement entries from ~w~n", [N1, Supp]),
-    append(E1, E2, Entries).
+    append(E1, E2, Entries0),
+    cb_common_words(Entries0, Entries).
+
+%% A MONTH, A DAY AND A NATIONALITY ARE COMMON WORDS IN ITALIAN AND SPANISH
+%% and capitalised ones in English, so the dictionary writes `January'
+%% against `gennaio' -- and an English word of lower-case letters was the
+%% test, so none of them had a meaning: `il 20 gennaio 2014' was refused for
+%% a word every dictionary has. A noun or an adjective whose English is
+%% capitalised, and whose own word is not, is read with the English
+%% lowered, which is how every English word of a lesson is written; a proper
+%% noun is tagged np and never reaches cb_pos/2. BUT ONLY WHERE THE ENGLISH
+%% WORD HAS NO LOWER-CASE ENTRY OF ITS OWN IN THAT CLASS: `March' is `marzo'
+%% and `march' is `marcia', and the IR carries the English word and not its
+%% capital, so a march read as a month would be a wrong translation where
+%% no month at all is only a refusal.
+cb_common_words(Es0, Es) :-
+    retractall(cb_plain(_, _)),
+    forall(( member(e(_, P, En, _, _), Es0), atom(En) ), ( cb_plain(En, P) -> true ; assertz(cb_plain(En, P)) )),
+    findall(E, ( member(E0, Es0), cb_common_word(E0, E) ), Es).
+cb_common_word(e(D, P, lowered(En), Fo, T), e(D, P, En, Fo, T)) :- !, \+ cb_plain(En, P).
+cb_common_word(E, E).
 
 %% corpus/raw/apertium-eng-ita.eng-ita.dix -> corpus/extra/eng-ita.dix
 cb_supplement(Path, Supp) :-
@@ -296,8 +319,17 @@ cb_bi_entry(Toks, Dir, e(Dir, Pos, En, Fo, RTags)) :-
     \+ ( member(T, Toks), cb_prefix('par ', T) ),
     cb_side(Toks, "l", "/l", EnS, LTags), cb_side(Toks, "r", "/r", FoS, RTags),
     cb_pos(LTags, Pos),
-    atom_string(En, EnS), atom_string(Fo, FoS),
-    cb_admits(Pos, En), cb_foreign_word(Fo).
+    atom_string(En0, EnS), atom_string(Fo, FoS),
+    cb_english_side(Pos, En0, En, W),
+    cb_admits(Pos, W), cb_foreign_word(Fo).
+
+%% a capitalised noun or adjective as lowered(Word), which cb_common_words/2
+%% keeps or drops once every entry has been read; any other word as itself
+cb_english_side(Pos, En0, lowered(W), W) :-
+    memberchk(Pos, [noun, adjective]),
+    atom_codes(En0, [C|Cs]), C >= 0'A, C =< 0'Z, !,
+    L is C + 32, atom_codes(W, [L|Cs]).
+cb_english_side(_, En, En, En).
 %% a number: the dictionary writes the cardinals as a bare pair with the
 %% paradigm named beside it -- <l>four</l><r>cuatro</r><par n="three__num"/>
 %% -- and the two paradigms that add nothing to the word are the numbers

@@ -4765,6 +4765,149 @@ parse is still looked up by every reading after it. What would move it is fewer
 lookups -- a reading that asks once and passes the answer down -- which is a
 change to how the reader is written, not to the memo.
 
+### A third Italian article: figures, dates and a sentence inside a quotation (1.6.21)
+
+**THE FIAT-CHRYSLER AGREEMENT WITH VEBA INTO SPANISH, TWENTY SENTENCES OF
+FIGURES, DATES AND QUOTATIONS.** The Italian UD ISDT document test-261..281 --
+Fiat buying the rest of Chrysler from the union's health fund, the terms, and
+three people quoted at length -- into Spanish over the two-language vocabulary
+store. The middle column is 1.6.20's translator over THIS store, so it has the
+new vocabulary lines and none of the new shapes:
+
+| | 1.6.20, its store | 1.6.20, this store | **1.6.21** |
+|---|---|---|---|
+| translated | 2 of 20, one wrong in structure | 7 | **20** |
+| refused for a word | 13 | 3 | **0** |
+| refused with every word known | 5 | 10 | **0** |
+| the article, one process | 54.7 s | 32.2 s | **18.8 s** |
+
+-- the store Italian 159 983 terms and Spanish 207 927, taught into one
+`--embed` store from the rebuilt vocabularies in 501 s and 873 s, 343 MB, and
+the three lines the controls added below learned into it afterwards.
+
+**WHAT IT NEEDED IS NOT WHAT THE THREE ARTICLES BEFORE IT NEEDED.** The twelve
+sentences were verbs, the Spanish column phrases that carry things, Livata the
+way a report speaks; a business page is FIGURES, and the prose round them:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| a percentage | `il restante 41,46% di Chrysler`, `del 100%` | the tokeniser; a percentage is a number AND a noun an adjective may describe |
+| a date | `entro il 20 gennaio 2014` | `"gennaio" is a month.`, `The word "de" joins the date.`; English writes `January 20, 2014` |
+| a quotation inside a sentence | `“ci permetterà di realizzare ... unico al mondo” aggiunge l'ad Sergio Marchionne` | the tokeniser; the piece divides after the quoted run |
+| a reporting clause between dashes, between commas | `Sarò per sempre grato – aggiunge Marchionne – al team`, `..., sottolinea il Lingotto in una nota, ...` | two readers; written after the sentence |
+| a heading | `Soddisfazione dalla Fim Cisl:`, `Dello stesso tenore il commento del sindaco ...:` | a colon at the end; no verb, and no full stop after it |
+| a sentence that is one phrase | `Una scelta strategica da cui ci attendiamo ...` | the phrase with its relative clause |
+| a list that is the subject | `Il lavoro, l'impegno e i risultati ... sono qualcosa di eccezionale` | the list comma at the head |
+| a short phrase before the object | `acquisirà da Veba la partecipazione`, `verserà a Veba 3,65 miliardi` | a name is a phrase's noun |
+| `di` and `nel` before an infinitive | `ci permetterà di realizzare`, `nel realizzare il progetto` | two readers, and `The word "di" begins the infinitive.` |
+| a word of several words whose last word came contracted | `alla luce della struttura`, `da parte di Fiat` | the join |
+| a participle that agrees further back | `la partecipazione del 41,5% detenuta dal fondo` | `agr(Gender)` among the relative's complements |
+| Spanish's apocope | `dal primo momento`, `ogni grande organizzazione` | `"primer" is the apocope of "primero".` |
+
+-- and the words, in `corpus/extra/` as always: 24 entries in `eng-ita.dix`,
+5 in `eng-spa.dix` (`billion' is `billón' in the dictionary, which in Spanish
+is a million millions), 41 lines of Italian and 39 of Spanish; the
+vocabularies went from 97 621 and 127 549 lines to 98 194 and 128 289. `reason.pl` did
+not move, which is the ninth version running.
+
+**A MONTH, A DAY AND A NATIONALITY HAD NO MEANING AT ALL, AND THE BUILDER WAS
+WHY.** Italian and Spanish write them lower case and English capitalises them,
+so Apertium pairs `gennaio` with `January` -- and the builder admitted an
+English word only as lower-case letters, so `il 20 gennaio 2014` was refused
+for a word every dictionary has. A noun or an adjective whose English is
+capitalised is read with the English lowered now (`cb_common_words/2`), BUT
+ONLY WHERE THE ENGLISH WORD HAS NO LOWER-CASE ENTRY OF ITS OWN IN THAT CLASS:
+`March` is `marzo` and `march` is `marcia`, the IR carries the word and not its
+capital, and a march read as a month is a wrong translation where no month is
+only a refusal.
+
+**THE CONTROLS FOUND FIVE REGRESSIONS THE CASE DID NOT, AND THREE WERE A RULE
+THIS VERSION WROTE TOO WIDE.** With `test/translate.pl` GREEN and the article at
+20 of 20, the four controls were run by this translator and by 1.6.20's on the
+same store, and again against 1.6.20 on its own store -- which is the only pair
+that shows what a new LINE of data did:
+
+| what came out | the rule | narrowed to |
+|---|---|---|
+| `Speak plus slowly.` for `Habla más despacio.`, EXACT before | a preposition crosses by the meaning the lesson gave it as one (`come dividendo`, as a dividend) | only over a first meaning with NO class: the dictionary put `más` the adverb first, and a degree word stands where a preposition does |
+| `He finishes me to send a message of text.` for `Él me acaba de enviar un mensaje de texto.`, refused before | `di` or `de` and an infinitive after a verb is the verb's infinitive (`ci permetterà di realizzare`) | only where the lesson says the word begins an infinitive -- `The word "di" begins the infinitive.`, the purpose word's shape -- and Spanish says nothing, because `acabar de` is `has just` |
+| Livata's `ha equivocado carretera` moved to the end of its sentence | a clause between two commas that reads as a reporting clause reports the rest (`, sottolinea il Lingotto in una nota,`) | a speaker after the verb is a name or opens on a determiner: `strada` is the object of `ha sbagliato`, not a road speaking |
+| Livata's `desde las primeras ahora` for `sin dalle prime ore` | a word has every class of the word it is a form of -- older than this, reached by the new line `The adverb "ora" means "now"` | an adverb, a preposition and a conjunction have no plural |
+| the twelve's `desde la punto de vista táctico` | `Every noun that ends in "a" is feminine`, over the new word `punto de vista` | a line of data: `"punto de vista" is not feminine.`, and the Italian one |
+
+**A PIN THAT CAME FROM A CONTROL IS NOT A PIN AGAINST THE LAST VERSION.** The
+first three pass on 1.6.20's translator too -- they are behaviour this
+version's first cut broke -- so each is checked red with its own rule put back
+as that cut wrote it, and green without. The fourth fails on both.
+
+**AND A SIXTH WAS TIME: A RULE THAT READS THE REST OF THE SENTENCE IS ASKED
+ONCE FOR EVERY PLACE A REGION CAN END.** The agent of a reduced relative may
+take adjuncts now (`raggiunti da Chrysler negli ultimi quattro anni e mezzo`),
+so the reader reads what follows the agent as complements -- and Livata's
+sixth sentence, which has no reduced relative at all, went from **8.5 million
+inferences to 16.2**. Counting the complement reads by the length of what they
+read said why: one for every region the sentence reader offers the phrase
+reader, each the words before a place a verb could start, and every
+one beginning `I piccoli sono stati raggiunti dagli uomini ...` -- 56 reads
+over 28 regions. Two cuts that looked right -- trying the agent that ends the
+words first, and only the agent's first phrase end -- did not lower the count
+at all (16.6 million) and were taken out.
+What moved it is the phrase's own shape: **no verb before the participle**,
+beside the rule that already refused a preposition there, and it is 8.0
+million, below 1.6.20's 8.2.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, agreement and senses no lesson separates:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `para 3,6 millardos`, `para el respaldo` | `por` | `per` is `for`, and `por` is Spanish's for a price or a cause |
+| `es previsto`, `Somos satisfechos`, `Seré ... agradecido` | `está`, `Estamos`, `Estaré` | Italian's `essere` is both, 1.6.17's cost |
+| `desde Veba`, `Satisfacción desde la Fim Cisl` | `de Veba`, `de la` | `da` is `from`, 1.6.17's cost |
+| `en efectivos` | `en efectivo` | `in contanti` is plural, and the number travels |
+| `la capital Chrysler` | `el capital` | English has one `capital` for the money and the city |
+| `para Chrysler justo` | `recién alcanzado` | `appena raggiunto`: the adverb read as the clause's, and written last |
+| `para el Italia` | `para Italia` | the name keeps the article Italian puts before a country |
+| `nos esperamos` | `esperamos` | `ci attendiamo` is reflexive in Italian and not in Spanish |
+| `competencias únicas al mundo` | `único en el mundo` | the adjective agrees with the list's last noun, where Italian's agrees with the `bagaglio` the list belongs to; and the preposition word for word |
+| `adicionales contribuciones`, `positivas consecuencias` | after the noun | an adjective the source puts before its noun stays there |
+| `el Lingote`, `Torino` | `el Lingotto`, `Turín` | a name the dictionary knows as a word is the word |
+| `algo de excepcional`, `equipaje de experiencias` | `algo excepcional`, `bagaje` | word for word |
+| a reporting clause from the middle is written after the sentence | either | the shape is written one way |
+
+-- and on Tatoeba, two moved that the counts hide: `Mañana es domingo.` was
+refused for `domingo` and reads now, as `Morning is sunday.` (the head's bare
+noun taken for the subject, and English writing the day lower case, which the
+IR carries); `Te veré a las dos y media.` came out `I will see you to the two
+and mediate.` and is refused, `y media` being `and a half` now.
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.6.20's, RUN BACK TO
+BACK TWICE** (the column before them is 1.6.20 on its own store):
+
+| control | 1.6.20, its store | 1.6.20, this store | **1.6.21** |
+|---|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.0 s | 12 of 12, 11.6 and 11.5 s | **12 of 12, 12.5 and 12.3 s** |
+| the Spanish article | 11 of 11, 12.1 s | 11 of 11, 11.7 and 11.4 s | **11 of 11, 12.6 and 12.6 s** |
+| Livata, 29 sentences | 29 of 29, 52.4 s | 29 of 29, 52.2 and 52.3 s | **29 of 29, 54.6 and 55.0 s** |
+| Tatoeba's 400, exact / translated / refused | 53 / 264 / 136, 12.4 s | 53 / 264 / 136, 12.7 and 12.7 s | **53 / 264 / 136, 13.5 and 13.5 s** |
+
+-- the ranges apart on all four, so the new shapes cost **5 to 9 %**. Much of
+the twelve's and the article's is ONE sentence each -- the twelve's second
+carries 0.55 s of its 0.85, the article's first 0.7 s of its 1.05 -- and the
+twelve's, timed alone, costs 2.69 s cold against 2.13 s and 0.06 s warm against
+0.05 s: that part is paid once a process, where the new shapes first ask the
+store their questions. Against 1.6.20 on this store the texts are the same to
+the byte but for `sólo`, written for the adverb where the committed translator
+wrote `solo`, once in the twelve and once in Livata, and four Tatoeba sentences
+that were wrong and stay wrong with better words (`We go for up.`, `I am very
+high.`, `I will pay more late.`, `They see, Tom here near.`).
+
+**`test/translate.pl` IS 679 CHECKS AND GREEN**, thirty-four in a new
+`newspaper_fiat` section with an Italian and a Spanish lesson of its own.
+Lesson 46 gained section 24. **The minor is proposed**: a percentage, a date,
+a heading, a reporting clause inside a sentence and `begin(W, infinitive)` are
+new things a program reaches; the owner decides.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

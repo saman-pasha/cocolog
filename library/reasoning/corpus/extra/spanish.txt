@@ -127,3 +127,49 @@ The adverb "más de" means "more than".
 # feminine: `un dirupo abbastanza scosceso', a cliff that is quite steep
 The feminine adjective "empinada" means "steep".
 "empinadas" is the plural of "empinada".
+# the Fiat-Chrysler article: `entro il 20 gennaio 2014' is `antes del 20 de
+# enero de 2014', and Spanish joins a date's parts with `de'
+The preposition "antes de" means "before".
+The word "de" joins the date.
+"enero" is a month.
+"febrero" is a month.
+"marzo" is a month.
+"abril" is a month.
+"mayo" is a month.
+"junio" is a month.
+"julio" is a month.
+"agosto" is a month.
+"septiembre" is a month.
+"octubre" is a month.
+"noviembre" is a month.
+"diciembre" is a month.
+The preposition "a la luz de" means "in the light of".
+The preposition "por parte de" means "on the part of".
+The preposition "igual a" means "equal to".
+The preposition "al mismo tiempo que" means "at the same time as".
+The preposition "a partir de" means "starting from".
+The masculine noun "punto de vista" means "point of view".
+"puntos de vista" is the plural of "punto de vista".
+"punto de vista" is not feminine.
+The masculine adjective "y medio" means "and a half".
+"y medio" is the plural of "y medio".
+The feminine adjective "y media" means "and a half".
+"y media" is the plural of "y media".
+The masculine noun "consejero delegado" means "chief executive".
+"consejeros delegados" is the plural of "consejero delegado".
+# `hay' is one form for both numbers: `ci sono momenti importanti' is `hay
+# momentos importantes', and with no plural stated no plural was written
+"hay" is the plural of "hay".
+The adverb "en breve" means "shortly".
+The adverb "según lo anunciado" means "as announced".
+The conjunction "desde que" means "ever since".
+The preposition "como complemento de" means "as a supplement to".
+# an adjective before a singular noun loses its ending in Spanish:
+# `desde el primer momento', `cada gran organización'. The form the
+# translator chose is replaced by its apocope where one is stated.
+"primer" is the apocope of "primero".
+"tercer" is the apocope of "tercero".
+"buen" is the apocope of "bueno".
+"mal" is the apocope of "malo".
+"gran" is the apocope of "grande".
+"cualquier" is the apocope of "cualquiera".

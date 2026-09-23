@@ -349,6 +349,7 @@ main :-
     section_21,
     section_22,
     section_23,
+    section_24,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -710,6 +711,86 @@ The preposition "a" means "to". The preposition "di" means "of".
 The preposition "grazie a" means "thanks to".
 The adverb "oltre" means "more than". The number "tre" means "three".
 The conjunction "e" means "and". The word "non" means "not".').
+
+%% 1.6.21: A THIRD ITALIAN ARTICLE INTO SPANISH. The Fiat-Chrysler agreement
+%% with Veba -- the Italian UD ISDT document test-261..281, twenty sentences
+%% of figures, dates and quotations -- needed a percentage as one word, a
+%% date, a heading that ends in its colon, reporting clauses between dashes
+%% and between commas, a list that is the subject, `di' before an infinitive
+%% and Spanish's apocope. A date, an apocope and the word that begins an
+%% infinitive are lines of lesson (`The word "de" joins the date.',
+%% `"primer" is the apocope of "primero".', `The word "di" begins the
+%% infinitive.'); the rest are shapes, shown here on a few words.
+section_24 :-
+    format("~n24. An Italian business article into Spanish: percentages, a date, headings, reporting clauses~n", []),
+    lesson_24(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the article''s shapes, under its own name', NS),
+    lesson_24(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Il cane mangia il restante 41,46% del pane.', italian, spanish, S24a),
+    must('a PERCENTAGE is one word with its sign, and a noun an adjective may describe', S24a,
+         'El perro come el restante 41,46% del pan.'),
+    reason_translate('Il cane mangia entro il 20 gennaio 2014.', italian, spanish, S24b),
+    must('a DATE, joined by the word the lesson names', S24b, 'El perro come antes del 20 de enero de 2014.'),
+    reason_translate('Il cane mangia entro il 20 gennaio 2014.', italian, english, S24c),
+    must('and English puts the month first', S24c, 'The dog eats before January 20, 2014.'),
+    reason_translate('Soddisfazione del cane:', italian, spanish, S24d),
+    must('a HEADING: no verb, and no full stop after its colon', S24d, 'Satisfacción del perro:'),
+    reason_translate('Il cane – dice Maria – mangia il pane.', italian, spanish, S24e),
+    must('a reporting clause between two DASHES, written after the sentence', S24e, 'El perro come el pan – dice Maria –.'),
+    reason_translate('Nella casa, dice Maria, il cane dorme.', italian, spanish, S24f),
+    must('and one between two COMMAS, the front kept in front', S24f, 'En la casa, el perro duerme, dice Maria.'),
+    reason_translate('Il cane, il gatto e il segretario dormono.', italian, spanish, S24g),
+    must('a LIST at the head of the sentence is its subject', S24g, 'El perro, el gato y el secretario duermen.'),
+    reason_translate('Il cane ci permette di mangiare il pane.', italian, spanish, S24h),
+    must('DI and an infinitive after the verb, because `The word "di" begins the infinitive.'': Spanish writes it bare',
+         S24h, 'El perro nos permite comer el pan.'),
+    reason_translate('Il primo cane dorme nella grande casa.', italian, spanish, S24i),
+    must('`"primer" is the apocope of "primero".'': before a singular noun', S24i, 'El primer perro duerme en la gran casa.'),
+    reason_translate('La prima casa dorme.', italian, spanish, S24j),
+    must('and only the form the lesson states one for', S24j, 'La primera casa duerme.'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_24(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread".
+The noun "casa" means "house". The noun "secretario" means "secretary".
+The noun "satisfacción" means "satisfaction". "satisfacción" is feminine.
+The masculine adjective "primero" means "first". The feminine adjective "primera" means "first".
+The adjective "grande" means "big". The adjective "restante" means "remaining".
+"primer" is the apocope of "primero". "gran" is the apocope of "grande".
+The verb "come" means "eats". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "dice" means "says". The verb "permite" means "allows".
+The pronoun "nos" means "us". Every pronoun precedes the verb.
+The preposition "de" means "of". The preposition "en" means "in".
+The preposition "antes de" means "before". The conjunction "y" means "and".
+The noun "enero" means "january". "enero" is a month. The word "de" joins the date.
+The word "no" means "not".').
+lesson_24(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+"del" is the contraction of "di il". "nel" is the contraction of "in il". "nella" is the contraction of "in la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". The noun "gatto" means "cat". The noun "pane" means "bread".
+The noun "casa" means "house". The noun "segretario" means "secretary".
+The noun "soddisfazione" means "satisfaction". "soddisfazione" is feminine.
+The masculine adjective "primo" means "first". The feminine adjective "prima" means "first".
+The adjective "grande" means "big". The adjective "restante" means "remaining".
+The verb "mangia" means "eats". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "dice" means "says". The verb "permette" means "allows".
+The pronoun "ci" means "us". Every pronoun precedes the verb.
+The preposition "di" means "of". The preposition "in" means "in".
+The preposition "entro" means "before". The conjunction "e" means "and".
+The noun "gennaio" means "january". "gennaio" is a month.
+The word "non" means "not". The word "di" begins the infinitive.').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

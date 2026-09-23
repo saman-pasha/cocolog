@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 15597 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 15750 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -7,6 +7,7 @@ The conjunction "perché" means "because".
 The preposition "da" means "by".
 The word "per" begins the purpose.
 The word "più" begins the comparative.
+The word "di" begins the infinitive.
 The pronoun "uno" means "one".
 The pronoun "uno" does not precede the verb.
 The conjunction "che" means "that".
@@ -199,6 +200,46 @@ The word "da" begins the purpose.
 The adverb "ancora" means "still".
 The adverb "oltre" means "more than".
 The adverb "circa" means "approximately".
+The masculine noun "closing" means "closing".
+"closing" is the plural of "closing".
+The masculine noun "player" means "player".
+"player" is the plural of "player".
+"d'" is the elision of "di".
+The preposition "sin da" means "since".
+"provvederà" is the future of "provvede".
+The preposition "entro" means "before".
+"gennaio" is a month.
+"febbraio" is a month.
+"marzo" is a month.
+"aprile" is a month.
+"maggio" is a month.
+"giugno" is a month.
+"luglio" is a month.
+"agosto" is a month.
+"settembre" is a month.
+"ottobre" is a month.
+"novembre" is a month.
+"dicembre" is a month.
+The preposition "alla luce di" means "in the light of".
+The preposition "da parte di" means "on the part of".
+The preposition "pari a" means "equal to".
+The preposition "tramite" means "through".
+The preposition "in concomitanza con" means "at the same time as".
+The preposition "a partire da" means "starting from".
+"quale" is a relative.
+"quali" is a relative.
+The masculine noun "punto di vista" means "point of view".
+"punti di vista" is the plural of "punto di vista".
+"punto di vista" is not feminine.
+The masculine adjective "e mezzo" means "and a half".
+"e mezzo" is the plural of "e mezzo".
+The feminine adjective "e mezza" means "and a half".
+"e mezza" is the plural of "e mezza".
+The masculine noun "ad" means "chief executive".
+The adverb "in tempi brevi" means "shortly".
+The adverb "come annunciato" means "as announced".
+The conjunction "sin da quando" means "ever since".
+The preposition "ad integrazione di" means "as a supplement to".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -219,6 +260,14 @@ The masculine noun "volontario" means "volunteer".
 The feminine noun "volontaria" means "volunteer".
 "volontarie" is the plural of "volontaria".
 "volontaria" is a person.
+The masculine noun "miliardo" means "billion".
+"miliardi" is the plural of "miliardo".
+The feminine noun "liquidità" means "liquidity".
+"liquidità" is the plural of "liquidità".
+The feminine noun "struttura" means "structure".
+"strutture" is the plural of "struttura".
+The feminine noun "scelta" means "choice".
+"scelte" is the plural of "scelta".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -579,10 +628,14 @@ The feminine noun "avocazione" means "advocation".
 "avocazioni" is the plural of "avocazione".
 The feminine noun "affettazione" means "affectation".
 "affettazioni" is the plural of "affettazione".
+The masculine noun "afghano" means "afghan".
+"afghani" is the plural of "afghano".
 The feminine noun "agonista" means "agonist".
 "agoniste" is the plural of "agonista".
 The masculine noun "apparentamento" means "agreement".
 "apparentamenti" is the plural of "apparentamento".
+The masculine noun "agrigentino" means "agrigentine".
+"agrigentini" is the plural of "agrigentino".
 The masculine noun "agriturismo" means "agritourism".
 "agriturismi" is the plural of "agriturismo".
 The masculine noun "agronomo" means "agronomist".
@@ -641,6 +694,8 @@ The feminine noun "anglofobia" means "anglophobia".
 "anglofobie" is the plural of "anglofobia".
 The masculine noun "anglofono" means "anglophone".
 "anglofoni" is the plural of "anglofono".
+The masculine noun "angolano" means "angolan".
+"angolani" is the plural of "angolano".
 The masculine noun "annunciatore" means "announcer".
 "annunciatori" is the plural of "annunciatore".
 The masculine noun "anoressico" means "anorexic".
@@ -673,6 +728,10 @@ The masculine noun "apprendistato" means "apprenticeship".
 "apprendistati" is the plural of "apprendistato".
 The masculine noun "benestare" means "approval".
 "benestari" is the plural of "benestare".
+The feminine noun "arabista" means "arabist".
+"arabiste" is the plural of "arabista".
+The noun "aragonese" means "aragonese".
+"aragonesi" is the plural of "aragonese".
 The feminine noun "arcata" means "arcade".
 "arcate" is the plural of "arcata".
 The masculine noun "arcinemico" means "archenemy".
@@ -683,6 +742,8 @@ The masculine noun "archetipo" means "archetype".
 "archetipi" is the plural of "archetipo".
 The feminine noun "archivista" means "archivist".
 "archiviste" is the plural of "archivista".
+The masculine noun "armeno" means "armenian".
+"armeni" is the plural of "armeno".
 The masculine noun "armiere" means "armorer".
 "armieri" is the plural of "armiere".
 The masculine noun "bracciolo" means "armrest".
@@ -721,6 +782,8 @@ The masculine noun "astrofisico" means "astrophysicist".
 "astrofisici" is the plural of "astrofisico".
 The feminine noun "astrofisica" means "astrophysicist".
 "astrofisiche" is the plural of "astrofisica".
+The noun "ateniese" means "athenian".
+"ateniesi" is the plural of "ateniese".
 The masculine noun "atollo" means "atoll".
 "atolli" is the plural of "atollo".
 The feminine noun "atrazina" means "atrazine".
@@ -746,6 +809,10 @@ The masculine noun "avanguardismo" means "avantgardism".
 "avanguardismi" is the plural of "avanguardismo".
 The feminine noun "avanguardista" means "avantgardist".
 "avanguardiste" is the plural of "avanguardista".
+The masculine noun "azero" means "azerbaijani".
+"azeri" is the plural of "azero".
+The masculine noun "azerbaigiano" means "azerbaijani".
+"azerbaigiani" is the plural of "azerbaigiano".
 The masculine noun "bambinone" means "baby".
 "bambinoni" is the plural of "bambinone".
 "bambinone" is a person.
@@ -757,6 +824,8 @@ The masculine noun "bendaggio" means "bandage".
 "bendaggi" is the plural of "bendaggio".
 The masculine noun "banditismo" means "banditry".
 "banditismi" is the plural of "banditismo".
+The noun "bengalese" means "bangladeshi".
+"bengalesi" is the plural of "bengalese".
 The masculine noun "banjo" means "banjo".
 "banji" is the plural of "banjo".
 The masculine noun "argine" means "bank".
@@ -765,6 +834,9 @@ The masculine noun "bancarottiere" means "bankrupt".
 "bancarottieri" is the plural of "bancarottiere".
 The feminine noun "bancarotta" means "bankruptcy".
 "bancarotte" is the plural of "bancarotta".
+The feminine noun "battista" means "baptist".
+"battiste" is the plural of "battista".
+"battista" is a person.
 The masculine noun "barbarismo" means "barbarism".
 "barbarismi" is the plural of "barbarismo".
 The masculine noun "barbiturico" means "barbiturate".
@@ -779,6 +851,8 @@ The masculine noun "basamento" means "base".
 "basamenti" is the plural of "basamento".
 The feminine noun "bassista" means "bassist".
 "bassiste" is the plural of "bassista".
+The masculine noun "batavo" means "batavian".
+"batavi" is the plural of "batavo".
 The masculine noun "attendente" means "batman".
 "attendenti" is the plural of "attendente".
 The masculine noun "battitore" means "batsman".
@@ -799,10 +873,16 @@ The masculine noun "beduino" means "bedouin".
 "beduini" is the plural of "beduino".
 The masculine noun "apicoltore" means "beekeeper".
 "apicoltori" is the plural of "apicoltore".
+The masculine noun "benedettino" means "benedictine".
+"benedettini" is the plural of "benedettino".
 The masculine noun "benzene" means "benzene".
 "benzene" is the plural of "benzene".
+The masculine noun "berbero" means "berber".
+"berberi" is the plural of "berbero".
 The masculine noun "berrettino" means "beret".
 "berrettini" is the plural of "berrettino".
+The noun "berlinese" means "berliner".
+"berlinesi" is the plural of "berlinese".
 The masculine noun "acino" means "berry".
 "acini" is the plural of "acino".
 The masculine noun "bibliofilo" means "bibliophile".
@@ -834,6 +914,8 @@ The masculine noun "battello" means "boat".
 "battelli" is the plural of "battello".
 The masculine noun "barcaiolo" means "boatman".
 "barcaioli" is the plural of "barcaiolo".
+The masculine noun "boero" means "boer".
+"boeri" is the plural of "boero".
 The masculine noun "bollore" means "boil".
 "bollori" is the plural of "bollore".
 The masculine noun "bollitore" means "boiler".
@@ -856,6 +938,8 @@ The masculine noun "becero" means "boor".
 "beceri" is the plural of "becero".
 The masculine noun "baraccone" means "booth".
 "baracconi" is the plural of "baraccone".
+The masculine noun "bosniaco" means "bosnian".
+"bosniaci" is the plural of "bosniaco".
 The masculine noun "bosone" means "boson".
 "bosoni" is the plural of "bosone".
 The masculine noun "bovarismo" means "bovarysm".
@@ -870,22 +954,31 @@ The masculine noun "bracciale" means "bracelet".
 "bracciali" is the plural of "bracciale".
 The masculine noun "bradisismo" means "bradyseism".
 "bradisismi" is the plural of "bradisismo".
+The masculine noun "bramino" means "brahmin".
+"bramini" is the plural of "bramino".
+"bramino" is a person.
 The masculine noun "braciere" means "brazier".
 "bracieri" is the plural of "braciere".
 The masculine noun "afflato" means "breath".
 "afflati" is the plural of "afflato".
 The masculine noun "alito" means "breath".
 "aliti" is the plural of "alito".
+The noun "bretone" means "breton".
+"bretoni" is the plural of "bretone".
 The masculine noun "brigadiere" means "brigadier".
 "brigadieri" is the plural of "brigadiere".
 "brigadiere" is a person.
 The masculine noun "brigante" means "brigand".
 "briganti" is the plural of "brigante".
+The masculine noun "britanno" means "briton".
+"britanni" is the plural of "britanno".
 The masculine noun "bruto" means "brute".
 "bruti" is the plural of "bruto".
 "bruto" is a person.
 The masculine noun "bocciolo" means "bud".
 "boccioli" is the plural of "bocciolo".
+The masculine noun "buddismo" means "buddhism".
+"buddismi" is the plural of "buddismo".
 The masculine noun "bufalo" means "buffalo".
 "bufali" is the plural of "bufalo".
 The masculine noun "bullo" means "bully".
@@ -899,6 +992,8 @@ The feminine noun "bozza" means "bump".
 "bozze" is the plural of "bozza".
 The masculine noun "borgomastro" means "burgomaster".
 "borgomastri" is the plural of "borgomastro".
+The noun "borgognone" means "burgundian".
+"borgognoni" is the plural of "borgognone".
 The feminine noun "bruciatura" means "burn".
 "bruciature" is the plural of "bruciatura".
 The masculine noun "bruciore" means "burning".
@@ -907,6 +1002,8 @@ The masculine noun "bottoncino" means "button".
 "bottoncini" is the plural of "bottoncino".
 The masculine noun "astante" means "bystander".
 "astanti" is the plural of "astante".
+The masculine noun "bizantinismo" means "byzantism".
+"bizantinismi" is the plural of "bizantinismo".
 The masculine noun "addetto" means "cameraman".
 "addetti" is the plural of "addetto".
 The masculine noun "baldacchino" means "canopy".
@@ -1499,12 +1596,91 @@ The masculine noun "azzeramento" means "zeroing".
 The noun "pdf" means "pdf".
 The noun "http" means "http".
 The noun "https" means "https".
+The noun "albanese" means "albanian".
+"albanesi" is the plural of "albanese".
+The masculine noun "aprile" means "april".
+"aprili" is the plural of "aprile".
+The masculine noun "agosto" means "august".
+"agosti" is the plural of "agosto".
 The feminine noun "www" means "www".
+The masculine noun "bolscevismo" means "bolshevism".
+"bolscevismi" is the plural of "bolscevismo".
+The noun "bonapartismo" means "bonapartism".
+The masculine noun "buddhismo" means "buddhism".
+"buddhismi" is the plural of "buddhismo".
+The masculine noun "dicembre" means "december".
+"dicembri" is the plural of "dicembre".
+The noun "olandese" means "dutch".
+"olandesi" is the plural of "olandese".
+The feminine noun "pasqua" means "easter".
+"pasque" is the plural of "pasqua".
+The noun "inglese" means "english".
+"inglesi" is the plural of "inglese".
+The masculine noun "febbraio" means "february".
+"febbrai" is the plural of "febbraio".
+The noun "finlandese" means "finn".
+"finlandesi" is the plural of "finlandese".
+"finlandese" is a person.
+The noun "gallico" means "frechman".
+The noun "gallico" means "frechwoman".
+The noun "francese" means "french".
+"francesi" is the plural of "francese".
+The noun "irlandese" means "irish".
+"irlandesi" is the plural of "irlandese".
+"irlandese" is a person.
+The masculine noun "gennaio" means "january".
+"gennai" is the plural of "gennaio".
+The noun "giapponese" means "japanese".
+"giapponesi" is the plural of "giapponese".
+"giapponese" is a person.
+The masculine noun "ebraismo" means "judaism".
+"ebraismi" is the plural of "ebraismo".
+The masculine noun "luglio" means "july".
+"lugli" is the plural of "luglio".
+The masculine noun "giugno" means "june".
+"giugni" is the plural of "giugno".
+The noun "lamarckismo" means "lamarckism".
+The masculine noun "leninismo" means "leninism".
+"leninismi" is the plural of "leninismo".
+The feminine noun "quaresima" means "lent".
+"quaresime" is the plural of "quaresima".
+The masculine noun "maoismo" means "maoism".
+"maoismi" is the plural of "maoismo".
+The masculine noun "marxismo" means "marxism".
+"marxismi" is the plural of "marxismo".
+The masculine noun "nazionalsocialismo" means "nazism".
+"nazionalsocialismi" is the plural of "nazionalsocialismo".
 The masculine noun "neolitico" means "neolithic".
 "neolitici" is the plural of "neolitico".
+The noun "norvegese" means "norwegian".
+"norvegesi" is the plural of "norvegese".
+The masculine noun "novembre" means "november".
+"novembri" is the plural of "novembre".
+The masculine noun "ottobre" means "october".
+"ottobri" is the plural of "ottobre".
+The feminine noun "olimpiade" means "olympics".
+"olimpiadi" is the plural of "olimpiade".
+The noun "protestante" means "protestant".
+"protestanti" is the plural of "protestante".
+"protestante" is a person.
 The feminine noun "romanizzazione" means "romanisation".
 "romanizzazioni" is the plural of "romanizzazione".
 The noun "indottrinazione" means "indoctrination".
+The feminine noun "russificazione" means "russification".
+"russificazioni" is the plural of "russificazione".
+The masculine noun "sabato" means "saturday".
+"sabati" is the plural of "sabato".
+The masculine noun "settembre" means "september".
+"settembri" is the plural of "settembre".
+The feminine noun "domenica" means "sunday".
+"domeniche" is the plural of "domenica".
+The masculine noun "taoismo" means "taoism".
+"taoismi" is the plural of "taoismo".
+The noun "tailandese" means "thai".
+"tailandesi" is the plural of "tailandese".
+"tailandese" is a person.
+The masculine noun "sionismo" means "zionism".
+"sionismi" is the plural of "sionismo".
 The masculine noun "abaco" means "abacus".
 "abachi" is the plural of "abaco".
 The masculine noun "abbandono" means "abandonment".
@@ -3879,6 +4055,8 @@ The masculine noun "callo" means "corn".
 "calli" is the plural of "callo".
 The feminine noun "cornice" means "cornice".
 "cornici" is the plural of "cornice".
+The noun "signorina" means "miss".
+"signorina" is a person.
 The feminine noun "coronazione" means "coronation".
 "coronazioni" is the plural of "coronazione".
 The masculine noun "corporativismo" means "corporatism".
@@ -5587,7 +5765,6 @@ The masculine noun "frammento" means "fragment".
 The feminine noun "frammentazione" means "fragmentation".
 "frammentazioni" is the plural of "frammentazione".
 The feminine noun "struttura" means "frame".
-"strutture" is the plural of "struttura".
 The masculine noun "franchising" means "franchise".
 "franchising" is the plural of "franchising".
 The feminine noun "fratellanza" means "fraternity".
@@ -10340,6 +10517,9 @@ The masculine noun "figlio" means "son".
 The feminine noun "canzone" means "song".
 "canzoni" is the plural of "canzone".
 The noun "cacicchismo" means "caciquism".
+The noun "tomismo" means "thomism".
+The masculine noun "wagnerismo" means "wagnerism".
+"wagnerismi" is the plural of "wagnerismo".
 The noun "capside" means "capsid".
 The noun "poliedro" means "polyhedron".
 The noun "radionuclide" means "radionuclide".
@@ -12605,12 +12785,18 @@ The masculine noun "caimano" means "caiman".
 "caimani" is the plural of "caimano".
 The masculine noun "cassone" means "caisson".
 "cassoni" is the plural of "cassone".
+The noun "calabrese" means "calabrian".
+"calabresi" is the plural of "calabrese".
 The masculine noun "califfato" means "caliphate".
 "califfati" is the plural of "califfato".
 The masculine noun "calligrafo" means "calligraphist".
 "calligrafi" is the plural of "calligrafo".
+The feminine noun "calvinista" means "calvinist".
+"calviniste" is the plural of "calvinista".
 The masculine noun "calzone" means "calzone".
 "calzoni" is the plural of "calzone".
+The masculine noun "cambogiano" means "cambodian".
+"cambogiani" is the plural of "cambogiano".
 The masculine noun "cameo" means "cameo".
 "camei" is the plural of "cameo".
 The masculine noun "cammeo" means "cameo".
@@ -12650,6 +12836,8 @@ The feminine noun "carrierista" means "careerist".
 "carrieriste" is the plural of "carrierista".
 The feminine noun "carezza" means "caress".
 "carezze" is the plural of "carezza".
+The masculine noun "carmelitano" means "carmelite".
+"carmelitani" is the plural of "carmelitano".
 The masculine noun "carrubo" means "carob".
 "carrubi" is the plural of "carrubo".
 The masculine noun "carosello" means "carousel".
@@ -12664,10 +12852,14 @@ The masculine noun "cofanetto" means "casket".
 "cofanetti" is the plural of "cofanetto".
 The masculine noun "castellano" means "castellan".
 "castellani" is the plural of "castellano".
+The masculine noun "castrismo" means "castrism".
+"castrismi" is the plural of "castrismo".
 The masculine noun "catecumeno" means "catechumen".
 "catecumeni" is the plural of "catecumeno".
 The masculine noun "cingolo" means "caterpillar".
 "cingoli" is the plural of "cingolo".
+The masculine noun "cattolicesimo" means "catholicism".
+"cattolicesimi" is the plural of "cattolicesimo".
 The masculine noun "calderone" means "cauldron".
 "calderoni" is the plural of "calderone".
 The feminine noun "cavalleria" means "cavalry".
@@ -12719,12 +12911,18 @@ The masculine noun "certosino" means "chartreuse".
 "certosini" is the plural of "certosino".
 The masculine noun "cinguettio" means "chattering".
 "cinguettii" is the plural of "cinguettio".
+The masculine noun "ceceno" means "chechen".
+"ceceni" is the plural of "ceceno".
 The masculine noun "camicione" means "chemise".
 "camicioni" is the plural of "camicione".
 The masculine noun "cesello" means "chisel".
 "ceselli" is the plural of "cesello".
+The masculine noun "cristianesimo" means "christianity".
+"cristianesimi" is the plural of "cristianesimo".
 The masculine noun "cromatoforo" means "chromatophore".
 "cromatofori" is the plural of "cromatoforo".
+The masculine noun "ciuvascio" means "chuvash".
+"ciuvasci" is the plural of "ciuvascio".
 The masculine noun "cinematografo" means "cinema".
 "cinematografi" is the plural of "cinematografo".
 The masculine noun "cinefilo" means "cinephile".
@@ -12778,6 +12976,8 @@ The masculine noun "cofondatore" means "cofounder".
 "cofondatori" is the plural of "cofondatore".
 The noun "convivente" means "cohabitant".
 "conviventi" is the plural of "convivente".
+The masculine noun "coleottero" means "coleoptera".
+"coleotteri" is the plural of "coleottero".
 The masculine noun "collaborazionismo" means "collaborationism".
 "collaborazionismi" is the plural of "collaborazionismo".
 The feminine noun "collaborazionista" means "collaborator".
@@ -12929,6 +13129,8 @@ The masculine noun "coproduttore" means "coproducer".
 "coproduttori" is the plural of "coproduttore".
 The feminine noun "coproduzione" means "coproduction".
 "coproduzioni" is the plural of "coproduzione".
+The masculine noun "copto" means "copt".
+"copti" is the plural of "copto".
 The feminine noun "copista" means "copyist".
 "copiste" is the plural of "copista".
 The feminine noun "cordigliera" means "cordillera".
@@ -12974,16 +13176,24 @@ The masculine noun "crepitio" means "crackling".
 "crepitii" is the plural of "crepitio".
 The masculine noun "cozzo" means "crash".
 "cozzi" is the plural of "cozzo".
+The masculine noun "craxismo" means "craxism".
+"craxismi" is the plural of "craxismo".
 The masculine noun "cigolio" means "creaking".
 "cigoli" is the plural of "cigolio".
 The feminine noun "credenziale" means "credential".
 "credenziali" is the plural of "credenziale".
+The masculine noun "creolo" means "creole".
+"creoli" is the plural of "creolo".
 The feminine noun "cresta" means "crest".
 "creste" is the plural of "cresta".
+The noun "cretese" means "cretan".
+"cretesi" is the plural of "cretese".
 The masculine noun "crepaccio" means "crevasse".
 "crepacci" is the plural of "crepaccio".
 The feminine noun "criminalizzazione" means "criminalization".
 "criminalizzazioni" is the plural of "criminalizzazione".
+The masculine noun "croato" means "croat".
+"croati" is the plural of "croato".
 The masculine noun "campetto" means "croft".
 "campetti" is the plural of "campetto".
 The masculine noun "crogiolo" means "crucible".
@@ -13015,6 +13225,8 @@ The masculine noun "ciclamino" means "cyclamen".
 The masculine noun "cinico" means "cynic".
 "cinici" is the plural of "cinico".
 "cinico" is a person.
+The masculine noun "cireneo" means "cyrenian".
+"cirenei" is the plural of "cireneo".
 The masculine noun "cruscotto" means "dashboard".
 "cruscotti" is the plural of "cruscotto".
 The feminine noun "caparra" means "deposit".
@@ -13405,6 +13617,8 @@ The masculine noun "codazzo" means "throng".
 "codazzi" is the plural of "codazzo".
 The feminine noun "cronometrista" means "timekeeper".
 "cronometriste" is the plural of "cronometrista".
+The masculine noun "campanellino" means "tintinnabulum".
+"campanellini" is the plural of "campanellino".
 The masculine noun "casello" means "tollgate".
 "caselli" is the plural of "casello".
 The feminine noun "cima" means "top".
@@ -13456,6 +13670,10 @@ The masculine noun "cuscino" means "cushion".
 "cuscini" is the plural of "cuscino".
 The masculine noun "custode" means "keeper".
 "custodi" is the plural of "custode".
+The masculine noun "dadaismo" means "dada".
+"dadaismi" is the plural of "dadaismo".
+The feminine noun "dadaista" means "dadaist".
+"dadaiste" is the plural of "dadaista".
 The masculine noun "dagherrotipo" means "daguerreotype".
 "dagherrotipi" is the plural of "dagherrotipo".
 The masculine noun "damerino" means "gallant".
@@ -14288,6 +14506,18 @@ The feminine noun "passeggiata" means "walk".
 "passeggiate" is the plural of "passeggiata".
 The feminine noun "scomparsa" means "disappearance".
 "scomparse" is the plural of "scomparsa".
+The feminine noun "intesa" means "understanding".
+"intese" is the plural of "intesa".
+The masculine noun "memorandum" means "memorandum".
+"memorandum" is the plural of "memorandum".
+The masculine noun "team" means "team".
+"team" is the plural of "team".
+The feminine noun "leadership" means "leadership".
+"leadership" is the plural of "leadership".
+The masculine noun "impegno" means "commitment".
+"impegni" is the plural of "impegno".
+The masculine noun "importo" means "amount".
+"importi" is the plural of "importo".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -14362,19 +14592,173 @@ The feminine noun "gemella" means "twin".
 "gemella" is a person.
 The feminine noun "immondizia" means "rubbish".
 "immondizie" is the plural of "immondizia".
+The masculine noun "americano" means "american".
+"americani" is the plural of "americano".
+"americano" is a person.
+The feminine noun "americana" means "american".
+"americane" is the plural of "americana".
+"americana" is a person.
+The masculine noun "andaluso" means "andalusian".
+"andalusi" is the plural of "andaluso".
+The feminine noun "andalusa" means "andalusian".
+"andaluse" is the plural of "andalusa".
+The masculine noun "arabo" means "arab".
+"arabi" is the plural of "arabo".
+The feminine noun "araba" means "arab".
+"arabe" is the plural of "araba".
+The masculine noun "aramaico" means "aramaic".
+"aramaici" is the plural of "aramaico".
+The masculine noun "argentino" means "argentinian".
+"argentini" is the plural of "argentino".
+The feminine noun "argentina" means "argentinian".
+"argentine" is the plural of "argentina".
+The masculine noun "asturiano" means "asturian".
+"asturiani" is the plural of "asturiano".
+The feminine noun "asturiana" means "asturian".
+"asturiane" is the plural of "asturiana".
+The masculine noun "australiano" means "australian".
+"australiani" is the plural of "australiano".
+The feminine noun "australiana" means "australian".
+"australiane" is the plural of "australiana".
+The masculine noun "austriaco" means "austrian".
+"austriaci" is the plural of "austriaco".
+The feminine noun "austriaca" means "austrian".
+"austriache" is the plural of "austriaca".
+The masculine noun "basco" means "basque".
+"baschi" is the plural of "basco".
+The masculine noun "bielorusso" means "byelorussian".
+"bielorussi" is the plural of "bielorusso".
+The feminine noun "bielorussa" means "byelorussian".
+"bielorusse" is the plural of "bielorussa".
+The masculine noun "canarino" means "canarian".
+"canarini" is the plural of "canarino".
+The masculine noun "catalano" means "catalan".
+"catalani" is the plural of "catalano".
+The feminine noun "catalana" means "catalan".
+"catalane" is the plural of "catalana".
+The masculine noun "cileno" means "chilean".
+"cileni" is the plural of "cileno".
+"cileno" is a person.
+The feminine noun "cilena" means "chilean".
+"cilene" is the plural of "cilena".
+"cilena" is a person.
+The masculine noun "cristiano" means "christian".
+"cristiani" is the plural of "cristiano".
+"cristiano" is a person.
+The feminine noun "cristiana" means "christian".
+"cristiane" is the plural of "cristiana".
+"cristiana" is a person.
+The feminine noun "cristianità" means "christianity".
+"cristianità" is the plural of "cristianità".
+The masculine noun "egittologo" means "egyptologist".
+"egittologi" is the plural of "egittologo".
+The feminine noun "egittologa" means "egyptologist".
+"egittologhe" is the plural of "egittologa".
+The masculine noun "venerdì" means "friday".
+"venerdì" is the plural of "venerdì".
+The masculine noun "tedesco" means "german".
+"tedeschi" is the plural of "tedesco".
+"tedesco" is a person.
+The feminine noun "tedesca" means "german".
+"tedesche" is the plural of "tedesca".
+"tedesca" is a person.
+The masculine noun "indiano" means "indian".
+"indiani" is the plural of "indiano".
+"indiano" is a person.
+The feminine noun "indiana" means "indian".
+"indiane" is the plural of "indiana".
+"indiana" is a person.
+The masculine noun "italiano" means "italian".
+"italiani" is the plural of "italiano".
+"italiano" is a person.
+The feminine noun "italiana" means "italian".
+"italiane" is the plural of "italiana".
+"italiana" is a person.
 The masculine noun "algerino" means "algerian".
 "algerini" is the plural of "algerino".
 "algerino" is a person.
 The feminine noun "algerina" means "algerian".
 "algerine" is the plural of "algerina".
 "algerina" is a person.
+The masculine noun "giamaicano" means "jamaican".
+"giamaicani" is the plural of "giamaicano".
+"giamaicano" is a person.
+The feminine noun "giamaicana" means "jamaican".
+"giamaicane" is the plural of "giamaicana".
+"giamaicana" is a person.
+The masculine noun "coreano" means "korean".
+"coreani" is the plural of "coreano".
+"coreano" is a person.
+The feminine noun "coreana" means "korean".
+"coreane" is the plural of "coreana".
+"coreana" is a person.
+The masculine noun "latino" means "latin".
+"latini" is the plural of "latino".
+The feminine noun "latina" means "latin".
+"latine" is the plural of "latina".
+The masculine noun "lituano" means "lithuanian".
+"lituani" is the plural of "lituano".
+The feminine noun "lituana" means "lithuanian".
+"lituane" is the plural of "lituana".
+The feminine noun "marxista" means "marxist".
+"marxiste" is the plural of "marxista".
+The masculine noun "lunedì" means "monday".
+"lunedì" is the plural of "lunedì".
+The masculine noun "marocchino" means "moroccan".
+"marocchini" is the plural of "marocchino".
+The feminine noun "marocchina" means "moroccan".
+"marocchine" is the plural of "marocchina".
+The masculine noun "moro" means "muslim".
+"mori" is the plural of "moro".
+The feminine noun "mora" means "muslim".
+"more" is the plural of "mora".
+The masculine noun "musulmano" means "muslim".
+"musulmani" is the plural of "musulmano".
+The feminine noun "musulmana" means "muslim".
+"musulmane" is the plural of "musulmana".
+The masculine noun "mussulmano" means "muslim".
+"mussulmani" is the plural of "mussulmano".
+The feminine noun "mussulmana" means "muslim".
+"mussulmane" is the plural of "mussulmana".
 The feminine noun "nazista" means "nazi".
 "naziste" is the plural of "nazista".
 "nazista" is a person.
+The masculine noun "nigeriano" means "nigerian".
+"nigeriani" is the plural of "nigeriano".
+The feminine noun "nigeriana" means "nigerian".
+"nigeriane" is the plural of "nigeriana".
+The masculine noun "paraguaiano" means "paraguayan".
+"paraguaiani" is the plural of "paraguaiano".
+The feminine noun "paraguaiana" means "paraguayan".
+"paraguaiane" is the plural of "paraguaiana".
+The masculine noun "peruviano" means "peruvian".
+"peruviani" is the plural of "peruviano".
+"peruviano" is a person.
+The feminine noun "peruviana" means "peruvian".
+"peruviane" is the plural of "peruviana".
+"peruviana" is a person.
+The masculine noun "russo" means "russian".
+"russi" is the plural of "russo".
+"russo" is a person.
+The feminine noun "russa" means "russian".
+"russe" is the plural of "russa".
+"russa" is a person.
 The masculine noun "spagnolo" means "spanish".
 "spagnoli" is the plural of "spagnolo".
 The feminine noun "spagnola" means "spanish".
 "spagnole" is the plural of "spagnola".
+The masculine noun "svizzero" means "swiss".
+"svizzeri" is the plural of "svizzero".
+"svizzero" is a person.
+The feminine noun "svizzera" means "swiss".
+"svizzere" is the plural of "svizzera".
+"svizzera" is a person.
+The masculine noun "giovedì" means "thursday".
+"giovedì" is the plural of "giovedì".
+The masculine noun "martedì" means "tuesday".
+"martedì" is the plural of "martedì".
+The masculine noun "mercoledì" means "wednesday".
+"mercoledì" is the plural of "mercoledì".
 The masculine noun "abate" means "abbot".
 "abati" is the plural of "abate".
 "abate" is a person.
@@ -17522,6 +17906,26 @@ The feminine noun "mentrice" means "mentor".
 The feminine noun "autista" means "chauffeur".
 "autiste" is the plural of "autista".
 "autista" is a person.
+The masculine noun "asiatico" means "asian".
+"asiatici" is the plural of "asiatico".
+The feminine noun "asiatica" means "asian".
+"asiatiche" is the plural of "asiatica".
+The masculine noun "europeo" means "european".
+"europei" is the plural of "europeo".
+"europeo" is a person.
+The feminine noun "europea" means "european".
+"europee" is the plural of "europea".
+"europea" is a person.
+The masculine noun "siriano" means "syrian".
+"siriani" is the plural of "siriano".
+The feminine noun "siriana" means "syrian".
+"siriane" is the plural of "siriana".
+The masculine noun "sumero" means "sumerian".
+"sumeri" is the plural of "sumero".
+"sumero" is a person.
+The feminine noun "sumera" means "sumerian".
+"sumere" is the plural of "sumera".
+"sumera" is a person.
 The masculine noun "analgesico" means "analgesic".
 "analgesici" is the plural of "analgesico".
 The masculine noun "paleontologo" means "palaeontologist".
@@ -17722,8 +18126,12 @@ The feminine noun "candela" means "candela".
 The masculine noun "codice" means "codex".
 The masculine noun "scontro" means "clash".
 The feminine noun "desinenza" means "desinence".
+The noun "olandese" means "dutchman".
+The noun "olandese" means "dutchwoman".
 The noun "erede" means "heiress".
 The feminine noun "fusione" means "merger".
+The masculine noun "spagnolo" means "spaniard".
+The feminine noun "spagnola" means "spaniard".
 The masculine noun "aborigeno" means "aboriginal".
 The feminine noun "aborigena" means "aboriginal".
 The feminine noun "abrogazione" means "abrogation".
@@ -17956,7 +18364,6 @@ The masculine noun "intervallo" means "intermission".
 The masculine noun "vaso" means "jar".
 The masculine noun "reticolo" means "reticle".
 The masculine noun "sabato" means "sabbath".
-"sabati" is the plural of "sabato".
 The masculine noun "profumo" means "scent".
 The masculine noun "brivido" means "shudder".
 The masculine noun "spettacolo" means "spectacle".
@@ -18832,6 +19239,141 @@ The verb "raggiunge" means "reaches".
 "raggiunte" is the plural of "raggiunta".
 "raggiungere" is the infinitive of "raggiunge".
 "raggiungendo" is the gerund of "raggiunge".
+The verb "procede" means "proceeds".
+"procedono" is the plural of "procede".
+"procediamo" is the first person of "procedono".
+"procedo" is the first person of "procede".
+"procedi" is the second person of "procede".
+"procedette" is the past of "procede".
+"procedettero" is the past of "procedono".
+"procedemmo" is the first person of "procedettero".
+"procedetti" is the first person of "procedette".
+"procedesti" is the second person of "procedette".
+"procedeva" is the past of "procede".
+"procedevano" is the past of "procedono".
+"procedevamo" is the first person of "procedevano".
+"procedevo" is the first person of "procedeva".
+"procedevi" is the second person of "procedeva".
+"procederà" is the future of "procede".
+"procederanno" is the plural of "procederà".
+"procederemo" is the first person of "procederanno".
+"procederò" is the first person of "procederà".
+"procederai" is the second person of "procederà".
+"procederebbe" is the conditional of "procede".
+"procederebbero" is the plural of "procederebbe".
+"procederemmo" is the first person of "procederebbero".
+"procederei" is the first person of "procederebbe".
+"procederesti" is the second person of "procederebbe".
+"proceda" is the subjunctive of "procede".
+"procedano" is the plural of "proceda".
+"procediamo" is the first person of "procedano".
+"procedesse" is the past subjunctive of "procede".
+"procedessero" is the plural of "procedesse".
+"procedessimo" is the first person of "procedessero".
+"procedessi" is the first person of "procedesse".
+"procedessi" is the second person of "procedesse".
+"procedi" is the imperative of "procede".
+"procedere" is the negative imperative of "procede".
+"proceduto" is the participle of "procede".
+"proceduta" is the participle of "procede".
+"proceduta" is feminine.
+"proceduti" is the participle of "procede".
+"proceduti" is the plural of "proceduto".
+"procedute" is the participle of "procede".
+"procedute" is feminine.
+"procedute" is the plural of "proceduta".
+"procedere" is the infinitive of "procede".
+"procedendo" is the gerund of "procede".
+The verb "versa" means "disburses".
+"versano" is the plural of "versa".
+"versiamo" is the first person of "versano".
+"verso" is the first person of "versa".
+"versi" is the second person of "versa".
+"versò" is the past of "versa".
+"versarono" is the past of "versano".
+"versammo" is the first person of "versarono".
+"versai" is the first person of "versò".
+"versasti" is the second person of "versò".
+"versava" is the past of "versa".
+"versavano" is the past of "versano".
+"versavamo" is the first person of "versavano".
+"versavo" is the first person of "versava".
+"versavi" is the second person of "versava".
+"verserà" is the future of "versa".
+"verseranno" is the plural of "verserà".
+"verseremo" is the first person of "verseranno".
+"verserò" is the first person of "verserà".
+"verserai" is the second person of "verserà".
+"verserebbe" is the conditional of "versa".
+"verserebbero" is the plural of "verserebbe".
+"verseremmo" is the first person of "verserebbero".
+"verserei" is the first person of "verserebbe".
+"verseresti" is the second person of "verserebbe".
+"versi" is the subjunctive of "versa".
+"versino" is the plural of "versi".
+"versiamo" is the first person of "versino".
+"versasse" is the past subjunctive of "versa".
+"versassero" is the plural of "versasse".
+"versassimo" is the first person of "versassero".
+"versassi" is the first person of "versasse".
+"versassi" is the second person of "versasse".
+"versa" is the imperative of "versa".
+"versare" is the negative imperative of "versa".
+"versato" is the participle of "versa".
+"versata" is the participle of "versa".
+"versata" is feminine.
+"versati" is the participle of "versa".
+"versati" is the plural of "versato".
+"versate" is the participle of "versa".
+"versate" is feminine.
+"versate" is the plural of "versata".
+"versare" is the infinitive of "versa".
+"versando" is the gerund of "versa".
+The verb "permette" means "allows".
+"permettono" is the plural of "permette".
+"permettiamo" is the first person of "permettono".
+"permetto" is the first person of "permette".
+"permetti" is the second person of "permette".
+"permise" is the past of "permette".
+"permisero" is the past of "permettono".
+"permettemmo" is the first person of "permisero".
+"permisi" is the first person of "permise".
+"permettesti" is the second person of "permise".
+"permetteva" is the past of "permette".
+"permettevano" is the past of "permettono".
+"permettevamo" is the first person of "permettevano".
+"permettevo" is the first person of "permetteva".
+"permettevi" is the second person of "permetteva".
+"permetterà" is the future of "permette".
+"permetteranno" is the plural of "permetterà".
+"permetteremo" is the first person of "permetteranno".
+"permetterò" is the first person of "permetterà".
+"permetterai" is the second person of "permetterà".
+"permetterebbe" is the conditional of "permette".
+"permetterebbero" is the plural of "permetterebbe".
+"permetteremmo" is the first person of "permetterebbero".
+"permetterei" is the first person of "permetterebbe".
+"permetteresti" is the second person of "permetterebbe".
+"permetta" is the subjunctive of "permette".
+"permettano" is the plural of "permetta".
+"permettiamo" is the first person of "permettano".
+"permettesse" is the past subjunctive of "permette".
+"permettessero" is the plural of "permettesse".
+"permettessimo" is the first person of "permettessero".
+"permettessi" is the first person of "permettesse".
+"permettessi" is the second person of "permettesse".
+"permetti" is the imperative of "permette".
+"permettere" is the negative imperative of "permette".
+"permesso" is the participle of "permette".
+"permessa" is the participle of "permette".
+"permessa" is feminine.
+"permessi" is the participle of "permette".
+"permessi" is the plural of "permesso".
+"permesse" is the participle of "permette".
+"permesse" is feminine.
+"permesse" is the plural of "permessa".
+"permettere" is the infinitive of "permette".
+"permettendo" is the gerund of "permette".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -22357,50 +22899,6 @@ The verb "affligge" means "afflicts".
 "affliggere" is the infinitive of "affligge".
 "affliggendo" is the gerund of "affligge".
 The verb "permette" means "affords".
-"permettono" is the plural of "permette".
-"permettiamo" is the first person of "permettono".
-"permetto" is the first person of "permette".
-"permetti" is the second person of "permette".
-"permise" is the past of "permette".
-"permisero" is the past of "permettono".
-"permettemmo" is the first person of "permisero".
-"permisi" is the first person of "permise".
-"permettesti" is the second person of "permise".
-"permetteva" is the past of "permette".
-"permettevano" is the past of "permettono".
-"permettevamo" is the first person of "permettevano".
-"permettevo" is the first person of "permetteva".
-"permettevi" is the second person of "permetteva".
-"permetterà" is the future of "permette".
-"permetteranno" is the plural of "permetterà".
-"permetteremo" is the first person of "permetteranno".
-"permetterò" is the first person of "permetterà".
-"permetterai" is the second person of "permetterà".
-"permetterebbe" is the conditional of "permette".
-"permetterebbero" is the plural of "permetterebbe".
-"permetteremmo" is the first person of "permetterebbero".
-"permetterei" is the first person of "permetterebbe".
-"permetteresti" is the second person of "permetterebbe".
-"permetta" is the subjunctive of "permette".
-"permettano" is the plural of "permetta".
-"permettiamo" is the first person of "permettano".
-"permettesse" is the past subjunctive of "permette".
-"permettessero" is the plural of "permettesse".
-"permettessimo" is the first person of "permettessero".
-"permettessi" is the first person of "permettesse".
-"permettessi" is the second person of "permettesse".
-"permetti" is the imperative of "permette".
-"permettere" is the negative imperative of "permette".
-"permesso" is the participle of "permette".
-"permessa" is the participle of "permette".
-"permessa" is feminine.
-"permessi" is the participle of "permette".
-"permessi" is the plural of "permesso".
-"permesse" is the participle of "permette".
-"permesse" is feminine.
-"permesse" is the plural of "permessa".
-"permettere" is the infinitive of "permette".
-"permettendo" is the gerund of "permette".
 The verb "invecchia" means "ages".
 "invecchiano" is the plural of "invecchia".
 "invecchiamo" is the first person of "invecchiano".
@@ -62930,50 +63428,6 @@ The verb "pospne" means "postpones".
 "posprre" is the infinitive of "pospne".
 "pospnendo" is the gerund of "pospne".
 The verb "versa" means "pours".
-"versano" is the plural of "versa".
-"versiamo" is the first person of "versano".
-"verso" is the first person of "versa".
-"versi" is the second person of "versa".
-"versò" is the past of "versa".
-"versarono" is the past of "versano".
-"versammo" is the first person of "versarono".
-"versai" is the first person of "versò".
-"versasti" is the second person of "versò".
-"versava" is the past of "versa".
-"versavano" is the past of "versano".
-"versavamo" is the first person of "versavano".
-"versavo" is the first person of "versava".
-"versavi" is the second person of "versava".
-"verserà" is the future of "versa".
-"verseranno" is the plural of "verserà".
-"verseremo" is the first person of "verseranno".
-"verserò" is the first person of "verserà".
-"verserai" is the second person of "verserà".
-"verserebbe" is the conditional of "versa".
-"verserebbero" is the plural of "verserebbe".
-"verseremmo" is the first person of "verserebbero".
-"verserei" is the first person of "verserebbe".
-"verseresti" is the second person of "verserebbe".
-"versi" is the subjunctive of "versa".
-"versino" is the plural of "versi".
-"versiamo" is the first person of "versino".
-"versasse" is the past subjunctive of "versa".
-"versassero" is the plural of "versasse".
-"versassimo" is the first person of "versassero".
-"versassi" is the first person of "versasse".
-"versassi" is the second person of "versasse".
-"versa" is the imperative of "versa".
-"versare" is the negative imperative of "versa".
-"versato" is the participle of "versa".
-"versata" is the participle of "versa".
-"versata" is feminine.
-"versati" is the participle of "versa".
-"versati" is the plural of "versato".
-"versate" is the participle of "versa".
-"versate" is feminine.
-"versate" is the plural of "versata".
-"versare" is the infinitive of "versa".
-"versando" is the gerund of "versa".
 The verb "impolvera" means "powders".
 "impolverano" is the plural of "impolvera".
 "impolveriamo" is the first person of "impolverano".
@@ -83308,6 +83762,96 @@ The verb "entra" means "enters".
 "entrate" is the plural of "entrata".
 "entrare" is the infinitive of "entra".
 "entrando" is the gerund of "entra".
+The verb "attende" means "expects".
+"attendono" is the plural of "attende".
+"attendiamo" is the first person of "attendono".
+"attendo" is the first person of "attende".
+"attendi" is the second person of "attende".
+"attese" is the past of "attende".
+"attesero" is the past of "attendono".
+"attendemmo" is the first person of "attesero".
+"attesi" is the first person of "attese".
+"attendesti" is the second person of "attese".
+"attendeva" is the past of "attende".
+"attendevano" is the past of "attendono".
+"attendevamo" is the first person of "attendevano".
+"attendevo" is the first person of "attendeva".
+"attendevi" is the second person of "attendeva".
+"attenderà" is the future of "attende".
+"attenderanno" is the plural of "attenderà".
+"attenderemo" is the first person of "attenderanno".
+"attenderò" is the first person of "attenderà".
+"attenderai" is the second person of "attenderà".
+"attenderebbe" is the conditional of "attende".
+"attenderebbero" is the plural of "attenderebbe".
+"attenderemmo" is the first person of "attenderebbero".
+"attenderei" is the first person of "attenderebbe".
+"attenderesti" is the second person of "attenderebbe".
+"attenda" is the subjunctive of "attende".
+"attendano" is the plural of "attenda".
+"attendiamo" is the first person of "attendano".
+"attendesse" is the past subjunctive of "attende".
+"attendessero" is the plural of "attendesse".
+"attendessimo" is the first person of "attendessero".
+"attendessi" is the first person of "attendesse".
+"attendessi" is the second person of "attendesse".
+"attendi" is the imperative of "attende".
+"attendere" is the negative imperative of "attende".
+"atteso" is the participle of "attende".
+"attesa" is the participle of "attende".
+"attesa" is feminine.
+"attesi" is the participle of "attende".
+"attesi" is the plural of "atteso".
+"attese" is the participle of "attende".
+"attese" is feminine.
+"attese" is the plural of "attesa".
+"attendere" is the infinitive of "attende".
+"attendendo" is the gerund of "attende".
+The verb "avviene" means "happens".
+"avvengono" is the plural of "avviene".
+"avveniamo" is the first person of "avvengono".
+"avvengo" is the first person of "avviene".
+"avvieni" is the second person of "avviene".
+"avvenne" is the past of "avviene".
+"avvennero" is the past of "avvengono".
+"avvenimmo" is the first person of "avvennero".
+"avvenni" is the first person of "avvenne".
+"avvenisti" is the second person of "avvenne".
+"avveniva" is the past of "avviene".
+"avvenivano" is the past of "avvengono".
+"avvenivamo" is the first person of "avvenivano".
+"avvenivo" is the first person of "avveniva".
+"avvenivi" is the second person of "avveniva".
+"avverrà" is the future of "avviene".
+"avverranno" is the plural of "avverrà".
+"avverremo" is the first person of "avverranno".
+"avverrò" is the first person of "avverrà".
+"avverrai" is the second person of "avverrà".
+"avverrebbe" is the conditional of "avviene".
+"avverrebbero" is the plural of "avverrebbe".
+"avverremmo" is the first person of "avverrebbero".
+"avverrei" is the first person of "avverrebbe".
+"avverresti" is the second person of "avverrebbe".
+"avvenga" is the subjunctive of "avviene".
+"avvengano" is the plural of "avvenga".
+"avveniamo" is the first person of "avvengano".
+"avvenisse" is the past subjunctive of "avviene".
+"avvenissero" is the plural of "avvenisse".
+"avvenissimo" is the first person of "avvenissero".
+"avvenissi" is the first person of "avvenisse".
+"avvenissi" is the second person of "avvenisse".
+"avvieni" is the imperative of "avviene".
+"avvenire" is the negative imperative of "avviene".
+"avvenuto" is the participle of "avviene".
+"avvenuta" is the participle of "avviene".
+"avvenuta" is feminine.
+"avvenuti" is the participle of "avviene".
+"avvenuti" is the plural of "avvenuto".
+"avvenute" is the participle of "avviene".
+"avvenute" is feminine.
+"avvenute" is the plural of "avvenuta".
+"avvenire" is the infinitive of "avviene".
+"avvenendo" is the gerund of "avviene".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -87177,7 +87721,6 @@ The verb "sopporta" means "abides".
 "abode" is the past of "abides".
 The verb "accredita" means "accredits".
 The verb "punta" means "aims".
-The verb "permette" means "allows".
 The verb "modifica" means "amends".
 The verb "annuncia" means "announces".
 The verb "valuta" means "appraises".
@@ -87498,7 +88041,6 @@ The verb "esce" means "exits".
 "uscire" is the infinitive of "esce".
 "uscendo" is the gerund of "esce".
 The verb "amplia" means "expands".
-The verb "aspetta" means "expects".
 The verb "sfrutta" means "exploits".
 The verb "affronta" means "faces".
 The verb "falsifica" means "falsifies".
@@ -88086,6 +88628,16 @@ The masculine adjective "altro" means "other".
 "altri" is the plural of "altro".
 The feminine adjective "altra" means "other".
 "altre" is the plural of "altra".
+The adjective "restante" means "remaining".
+"restanti" is the plural of "restante".
+The adjective "pagabile" means "payable".
+"pagabili" is the plural of "pagabile".
+The masculine adjective "grato" means "grateful".
+"grati" is the plural of "grato".
+The feminine adjective "grata" means "grateful".
+"grate" is the plural of "grata".
+The adjective "ulteriore" means "additional".
+"ulteriori" is the plural of "ulteriore".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -88126,6 +88678,8 @@ The masculine adjective "kuwaitiano" means "kuwaiti".
 "kuwaitiani" is the plural of "kuwaitiano".
 The feminine adjective "kuwaitiana" means "kuwaiti".
 "kuwaitiane" is the plural of "kuwaitiana".
+The adjective "londinese" means "london".
+"londinesi" is the plural of "londinese".
 The masculine adjective "magrebino" means "maghrebian".
 "magrebini" is the plural of "magrebino".
 The feminine adjective "magrebina" means "maghrebian".
@@ -94001,6 +94555,10 @@ The feminine adjective "sovrana" means "sovereign".
 "sovrane" is the plural of "sovrana".
 The adjective "spaziale" means "space".
 "spaziali" is the plural of "spaziale".
+The masculine adjective "castigliano" means "castilian".
+"castigliani" is the plural of "castigliano".
+The feminine adjective "castigliana" means "castilian".
+"castigliane" is the plural of "castigliana".
 The masculine adjective "spagnolo" means "spanish".
 "spagnoli" is the plural of "spagnolo".
 The feminine adjective "spagnola" means "spanish".
@@ -94543,7 +95101,6 @@ The masculine adjective "ucraino" means "ukrainian".
 The feminine adjective "ucraina" means "ukrainian".
 "ucraine" is the plural of "ucraina".
 The adjective "ulteriore" means "ulterior".
-"ulteriori" is the plural of "ulteriore".
 The adjective "ultrasonico" means "ultrasonic".
 The adjective "ombelicale" means "umbilical".
 "ombelicali" is the plural of "ombelicale".
@@ -95864,6 +96421,22 @@ The masculine adjective "disperso" means "missing".
 "dispersi" is the plural of "disperso".
 The feminine adjective "dispersa" means "missing".
 "disperse" is the plural of "dispersa".
+The adjective "rimanente" means "remaining".
+"rimanenti" is the plural of "rimanente".
+The masculine adjective "complessivo" means "total".
+"complessivi" is the plural of "complessivo".
+The feminine adjective "complessiva" means "total".
+"complessive" is the plural of "complessiva".
+The masculine adjective "paritetico" means "equal".
+"paritetici" is the plural of "paritetico".
+The feminine adjective "paritetica" means "equal".
+"paritetiche" is the plural of "paritetica".
+The masculine adjective "annuo" means "annual".
+"annui" is the plural of "annuo".
+The feminine adjective "annua" means "annual".
+"annue" is the plural of "annua".
+The adjective "castiglionese" means "castilian".
+"castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
 "acclamanti" is the plural of "acclamante".
 The adjective "attraente" means "attractive".
@@ -96022,7 +96595,6 @@ The masculine adjective "grasso" means "greasy".
 The feminine adjective "grassa" means "greasy".
 The adjective "abissale" means "abyssal".
 The adjective "reale" means "actual".
-The adjective "supplementare" means "additional".
 The adjective "consigliabile" means "advisory".
 The masculine adjective "ricco" means "affluent".
 The feminine adjective "ricca" means "affluent".
@@ -97274,6 +97846,7 @@ The adverb "inaspettatamente" means "unexpectedly".
 The adverb "strettamente" means "narrowly".
 The adverb "distruttivamente" means "destructively".
 The adverb "conseguentemente" means "consequently".
+The adverb "ora" means "now".
 The adverb "attorno" means "around".
 The adverb "circa" means "around".
 The adverb "inoltre" means "besides".

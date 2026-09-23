@@ -58,3 +58,17 @@
 # `note' is `billete' first, a banknote: `fa sapere, in una nota' is a
 # statement the region issued, `una nota'
 <e><p><l>note<s n="n"/></l><r>nota<s n="n"/><s n="f"/></r></p></e>
+#
+# the Fiat-Chrysler article, into Spanish. `billion' is `billón' in the
+# dictionary, which in Spanish is a million millions -- a thousand times what
+# `3,6 miliardi di dollari' says; `millardo' is a thousand millions
+<e><p><l>billion<s n="n"/></l><r>millardo<s n="n"/><s n="m"/></r></p></e>
+# `cash' has no Spanish noun: `1,75 miliardi in contanti' is `en efectivo'
+<e><p><l>cash<s n="n"/></l><r>efectivo<s n="n"/><s n="m"/></r></p></e>
+# `closing' is `cerramiento' first, an enclosure: a deal's closing is its
+# `cierre'; `understanding' is `comprensión' first, and a memorandum of
+# understanding is `de entendimiento'; `payable' is `pagable', and a sum
+# falling due is `pagadero'
+<e><p><l>closing<s n="n"/></l><r>cierre<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>understanding<s n="n"/></l><r>entendimiento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>payable<s n="adj"/></l><r>pagadero<s n="adj"/></r></p></e>

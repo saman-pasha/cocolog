@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 19974 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20197 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -113,6 +113,45 @@ The adverb "más de" means "more than".
 "mamá" is a person.
 The feminine adjective "empinada" means "steep".
 "empinadas" is the plural of "empinada".
+The preposition "antes de" means "before".
+The word "de" joins the date.
+"enero" is a month.
+"febrero" is a month.
+"marzo" is a month.
+"abril" is a month.
+"mayo" is a month.
+"junio" is a month.
+"julio" is a month.
+"agosto" is a month.
+"septiembre" is a month.
+"octubre" is a month.
+"noviembre" is a month.
+"diciembre" is a month.
+The preposition "a la luz de" means "in the light of".
+The preposition "por parte de" means "on the part of".
+The preposition "igual a" means "equal to".
+The preposition "al mismo tiempo que" means "at the same time as".
+The preposition "a partir de" means "starting from".
+The masculine noun "punto de vista" means "point of view".
+"puntos de vista" is the plural of "punto de vista".
+"punto de vista" is not feminine.
+The masculine adjective "y medio" means "and a half".
+"y medio" is the plural of "y medio".
+The feminine adjective "y media" means "and a half".
+"y media" is the plural of "y media".
+The masculine noun "consejero delegado" means "chief executive".
+"consejeros delegados" is the plural of "consejero delegado".
+"hay" is the plural of "hay".
+The adverb "en breve" means "shortly".
+The adverb "según lo anunciado" means "as announced".
+The conjunction "desde que" means "ever since".
+The preposition "como complemento de" means "as a supplement to".
+"primer" is the apocope of "primero".
+"tercer" is the apocope of "tercero".
+"buen" is the apocope of "bueno".
+"mal" is the apocope of "malo".
+"gran" is the apocope of "grande".
+"cualquier" is the apocope of "cualquiera".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -151,6 +190,14 @@ The feminine noun "sala" means "hall".
 "salas" is the plural of "sala".
 The feminine noun "nota" means "note".
 "notas" is the plural of "nota".
+The masculine noun "millardo" means "billion".
+"millardos" is the plural of "millardo".
+The masculine noun "efectivo" means "cash".
+"efectivos" is the plural of "efectivo".
+The masculine noun "cierre" means "closing".
+"cierres" is the plural of "cierre".
+The masculine noun "entendimiento" means "understanding".
+"entendimientos" is the plural of "entendimiento".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -279,15 +326,59 @@ The feminine noun "retención" means "retention".
 The feminine noun "ikastola" means "ikastola".
 "ikastolas" is the plural of "ikastola".
 The noun "cegamiento" means "blinding".
+The noun "afrikáner" means "afrikaner".
 The noun "emparedado" means "sandwich".
 The feminine noun "hambre" means "hunger".
 "hambres" is the plural of "hambre".
+The masculine noun "abril" means "april".
+"abriles" is the plural of "abril".
+The masculine noun "agosto" means "august".
+"agostos" is the plural of "agosto".
+The masculine noun "budismo" means "buddhism".
+"budismos" is the plural of "budismo".
+The noun "budista" means "buddhist".
+"budista" is not feminine.
+"budistas" is the plural of "budista".
+"budista" is a person.
 The feminine noun "persona" means "person".
 "personas" is the plural of "persona".
+The masculine noun "cristianismo" means "christianity".
+"cristianismos" is the plural of "cristianismo".
 The feminine noun "antigüedad" means "antiquity".
 "antigüedades" is the plural of "antigüedad".
+The masculine noun "diciembre" means "december".
+"diciembres" is the plural of "diciembre".
+The masculine noun "febrero" means "february".
+"febreros" is the plural of "febrero".
+The masculine noun "viernes" means "friday".
+"viernes" is the plural of "viernes".
+The masculine noun "enero" means "january".
+"eneros" is the plural of "enero".
+The masculine noun "julio" means "july".
+"julios" is the plural of "julio".
+The masculine noun "junio" means "june".
+"junios" is the plural of "junio".
 The masculine noun "latín" means "latin".
 "latines" is the plural of "latín".
+The masculine noun "marxismo" means "marxism".
+"marxismos" is the plural of "marxismo".
+The masculine noun "nazismo" means "nazism".
+"nazismos" is the plural of "nazismo".
+The masculine noun "noviembre" means "november".
+"noviembres" is the plural of "noviembre".
+The masculine noun "octubre" means "october".
+"octubres" is the plural of "octubre".
+The noun "protestante" means "protestant".
+"protestantes" is the plural of "protestante".
+"protestante" is a person.
+The masculine noun "sábado" means "saturday".
+"sábados" is the plural of "sábado".
+The masculine noun "septiembre" means "september".
+"septiembres" is the plural of "septiembre".
+The masculine noun "domingo" means "sunday".
+"domingos" is the plural of "domingo".
+The masculine noun "martes" means "tuesday".
+"martes" is the plural of "martes".
 The masculine noun "abandono" means "abandonment".
 "abandonos" is the plural of "abandono".
 The feminine noun "abdicación" means "abdication".
@@ -9223,9 +9314,22 @@ The feminine noun "zona" means "zone".
 "zonas" is the plural of "zona".
 The feminine noun "zonificación" means "zoning".
 "zonificaciones" is the plural of "zonificación".
+The noun "canadiense" means "canadian".
+"canadienses" is the plural of "canadiense".
+The noun "israelí" means "israeli".
+"israelíes" is the plural of "israelí".
+"israelí" is a person.
+The noun "marxista" means "marxist".
+"marxista" is not feminine.
+"marxistas" is the plural of "marxista".
 The noun "chiita" means "shiite".
 "chiita" is not feminine.
 "chiitas" is the plural of "chiita".
+The noun "árabe" means "arab".
+"árabes" is the plural of "árabe".
+The noun "chipriota" means "cypriot".
+"chipriota" is not feminine.
+"chipriotas" is the plural of "chipriota".
 The feminine noun "disputa" means "dispute".
 "disputas" is the plural of "disputa".
 The feminine noun "coral" means "coral".
@@ -9235,6 +9339,9 @@ The masculine noun "crudo" means "crude".
 "crudos" is the plural of "crudo".
 The feminine noun "directiva" means "directive".
 "directivas" is the plural of "directiva".
+The noun "falangista" means "falangist".
+"falangista" is not feminine.
+"falangistas" is the plural of "falangista".
 The noun "fascista" means "fascist".
 "fascista" is not feminine.
 "fascistas" is the plural of "fascista".
@@ -9256,18 +9363,34 @@ The masculine noun "litoral" means "seaboard".
 "litorales" is the plural of "litoral".
 The masculine noun "manual" means "manual".
 "manuales" is the plural of "manual".
+The noun "marroquí" means "moroccan".
+"marroquíes" is the plural of "marroquí".
 The feminine noun "moral" means "moral".
 "morales" is the plural of "moral".
+The noun "nicaragüense" means "nicaraguan".
+"nicaragüenses" is the plural of "nicaragüense".
+The masculine noun "esperanto" means "esperanto".
+"esperantos" is the plural of "esperanto".
 The noun "optimista" means "optimist".
 "optimista" is not feminine.
 "optimistas" is the plural of "optimista".
 The masculine noun "parecido" means "resemblance".
 "parecidos" is the plural of "parecido".
+The noun "persa" means "persian".
+"persa" is not feminine.
+"persas" is the plural of "persa".
+"persa" is a person.
 The masculine noun "pleno" means "plenary".
 "plenos" is the plural of "pleno".
 The masculine noun "reverendo" means "reverend".
 "reverendos" is the plural of "reverendo".
 "reverendo" is a person.
+The noun "somalí" means "somali".
+"somalíes" is the plural of "somalí".
+The noun "vietnamita" means "vietnamese".
+"vietnamita" is not feminine.
+"vietnamitas" is the plural of "vietnamita".
+"vietnamita" is a person.
 The noun "mayor" means "elder".
 "mayor" is a person.
 The noun "híbrido" means "hybrid".
@@ -9301,6 +9424,8 @@ The masculine noun "revés" means "reverse".
 The masculine noun "singular" means "singular".
 "singulares" is the plural of "singular".
 The noun "sólido" means "solid".
+The noun "señorita" means "miss".
+"señorita" is a person.
 The masculine noun "veredicto" means "verdict".
 "veredictos" is the plural of "veredicto".
 The feminine noun "física" means "physics".
@@ -9321,6 +9446,7 @@ The masculine noun "parado" means "unemployed".
 "parados" is the plural of "parado".
 The feminine noun "audacia" means "audacity".
 "audacias" is the plural of "audacia".
+The noun "jacobita" means "jacobite".
 The feminine noun "estabilidad" means "stability".
 "estabilidades" is the plural of "estabilidad".
 The masculine noun "retroceso" means "shrinking".
@@ -9797,6 +9923,9 @@ The feminine noun "anémona" means "anemone".
 "anémonas" is the plural of "anémona".
 The feminine noun "aorta" means "aorta".
 "aortas" is the plural of "aorta".
+The masculine noun "apache" means "apache".
+"apaches" is the plural of "apache".
+"apache" is a person.
 The masculine noun "apartheid" means "apartheid".
 "apartheids" is the plural of "apartheid".
 The masculine noun "apatito" means "apatite".
@@ -9905,6 +10034,9 @@ The feminine noun "aserción" means "assertion".
 "aserciones" is the plural of "aserción".
 The feminine noun "asfixia" means "asphyxia".
 "asfixias" is the plural of "asfixia".
+The masculine noun "asirio" means "assyrian".
+"asirios" is the plural of "asirio".
+"asirio" is a person.
 The masculine noun "aspersor" means "sprinkler".
 "aspersores" is the plural of "aspersor".
 The feminine noun "aspirina" means "aspirin".
@@ -10177,8 +10309,12 @@ The masculine noun "bocio" means "goitre".
 "bocios" is the plural of "bocio".
 The feminine noun "boga" means "cattail".
 "bogas" is the plural of "boga".
+The masculine noun "bolchevismo" means "bolshevism".
+"bolchevismos" is the plural of "bolchevismo".
 The masculine noun "bolo" means "skittle".
 "bolos" is the plural of "bolo".
+The masculine noun "bonapartismo" means "bonapartism".
+"bonapartismos" is the plural of "bonapartismo".
 The masculine noun "bonsai" means "bonsai".
 "bonsais" is the plural of "bonsai".
 The masculine noun "boom" means "boom".
@@ -12826,6 +12962,8 @@ The feminine noun "jirafa" means "giraffe".
 "jirafas" is the plural of "jirafa".
 The masculine noun "joule" means "joule".
 "joules" is the plural of "joule".
+The masculine noun "judaísmo" means "judaism".
+"judaísmos" is the plural of "judaísmo".
 The masculine noun "jumbo" means "jumbo".
 "jumbos" is the plural of "jumbo".
 The noun "kamikaze" means "kamikaze".
@@ -12850,6 +12988,8 @@ The feminine noun "labialización" means "labialisation".
 "labializaciones" is the plural of "labialización".
 The feminine noun "lactosa" means "lactose".
 "lactosas" is the plural of "lactosa".
+The masculine noun "lamarckismo" means "lamarckism".
+"lamarckismos" is the plural of "lamarckismo".
 The feminine noun "lambda" means "lambda".
 "lambdas" is the plural of "lambda".
 The masculine noun "lamelibranquio" means "lamellibranch".
@@ -13078,6 +13218,8 @@ The masculine noun "maná" means "manna".
 "manás" is the plural of "maná".
 The masculine noun "manómetro" means "manometer".
 "manómetros" is the plural of "manómetro".
+The masculine noun "maoísmo" means "maoism".
+"maoísmos" is the plural of "maoísmo".
 The masculine noun "mapeo" means "mapping".
 "mapeos" is the plural of "mapeo".
 The feminine noun "marcasita" means "marcasite".
@@ -14827,6 +14969,8 @@ The feminine noun "sintomatología" means "symptomatology".
 "sintomatologías" is the plural of "sintomatología".
 The feminine noun "sinusoide" means "sinusoid".
 "sinusoides" is the plural of "sinusoide".
+The masculine noun "sionismo" means "zionism".
+"sionismos" is the plural of "sionismo".
 The masculine noun "siroco" means "sirocco".
 "sirocos" is the plural of "siroco".
 The masculine noun "sisal" means "sisal".
@@ -15050,6 +15194,8 @@ The masculine noun "talco" means "talc".
 "talcos" is the plural of "talco".
 The feminine noun "tangencia" means "tangency".
 "tangencias" is the plural of "tangencia".
+The masculine noun "taoísmo" means "taoism".
+"taoísmos" is the plural of "taoísmo".
 The feminine noun "taquifilaxia" means "tachyphylaxis".
 "taquifilaxias" is the plural of "taquifilaxia".
 The feminine noun "taquigrafía" means "shorthand".
@@ -15190,6 +15336,8 @@ The feminine noun "tolva" means "hopper".
 "tolvas" is the plural of "tolva".
 The masculine noun "tomillo" means "thyme".
 "tomillos" is the plural of "tomillo".
+The masculine noun "tomismo" means "thomism".
+"tomismos" is the plural of "tomismo".
 The feminine noun "tonada" means "tune".
 "tonadas" is the plural of "tonada".
 The feminine noun "tonelería" means "cooperage".
@@ -15493,6 +15641,8 @@ The masculine noun "vándalo" means "vandal".
 "vándalo" is a person.
 The feminine noun "vértebra" means "vertebra".
 "vértebras" is the plural of "vértebra".
+The masculine noun "wagnerismo" means "wagnerism".
+"wagnerismos" is the plural of "wagnerismo".
 The feminine noun "wulfenita" means "wulfenite".
 "wulfenitas" is the plural of "wulfenita".
 The feminine noun "xerografía" means "xerography".
@@ -15508,6 +15658,9 @@ The masculine noun "xilófono" means "xylophone".
 "xilófonos" is the plural of "xilófono".
 The masculine noun "yambo" means "iamb".
 "yambos" is the plural of "yambo".
+The noun "yanqui" means "yankee".
+"yanquis" is the plural of "yanqui".
+"yanqui" is a person.
 The feminine noun "yegua" means "mare".
 "yeguas" is the plural of "yegua".
 The masculine noun "yodo" means "iodine".
@@ -15526,6 +15679,8 @@ The masculine noun "zarismo" means "tsarism".
 "zarismos" is the plural of "zarismo".
 The feminine noun "zarza" means "bramble".
 "zarzas" is the plural of "zarza".
+The masculine noun "zen" means "zen".
+"zens" is the plural of "zen".
 The feminine noun "zeolita" means "zeolite".
 "zeolitas" is the plural of "zeolita".
 The masculine noun "zodíaco" means "zodiac".
@@ -15886,6 +16041,7 @@ The masculine noun "arancel" means "tariff".
 "aranceles" is the plural of "arancel".
 The feminine noun "contracción" means "contraction".
 "contracciones" is the plural of "contracción".
+The noun "arameo" means "aramaic".
 The noun "manualidades" means "handicrafts".
 The feminine noun "deformación" means "deformation".
 "deformaciones" is the plural of "deformación".
@@ -15985,6 +16141,9 @@ The feminine noun "tiza" means "chalk".
 "tizas" is the plural of "tiza".
 The masculine noun "azogue" means "quicksilver".
 "azogues" is the plural of "azogue".
+The masculine noun "galo" means "frenchman".
+"galos" is the plural of "galo".
+"galo" is a person.
 The feminine noun "gala" means "gala".
 "galas" is the plural of "gala".
 The feminine noun "ceniza" means "ash".
@@ -16170,6 +16329,8 @@ The masculine noun "girasol" means "sunflower".
 "girasoles" is the plural of "girasol".
 The masculine noun "cilindro" means "cylinder".
 "cilindros" is the plural of "cilindro".
+The masculine noun "español" means "spanish".
+"españoles" is the plural of "español".
 The masculine noun "censo" means "census".
 "censos" is the plural of "censo".
 The noun "concertino" means "concertmaster".
@@ -16354,6 +16515,7 @@ The feminine noun "validez" means "validity".
 The masculine noun "plasma" means "plasma".
 "plasma" is not feminine.
 "plasmas" is the plural of "plasma".
+The noun "lagrangiano" means "lagrangian".
 The feminine noun "irreversibilidad" means "irreversibility".
 "irreversibilidades" is the plural of "irreversibilidad".
 The noun "pseudociencia" means "pseudoscience".
@@ -16571,6 +16733,8 @@ The masculine noun "hidróxido" means "hydroxide".
 "hidróxidos" is the plural of "hidróxido".
 The feminine noun "basicidad" means "basicity".
 "basicidades" is the plural of "basicidad".
+The masculine noun "rumano" means "romanian".
+"rumanos" is the plural of "rumano".
 The feminine noun "robótica" means "robotics".
 "robóticas" is the plural of "robótica".
 The feminine noun "ingenuidad" means "naivety".
@@ -16804,6 +16968,8 @@ The masculine noun "barroco" means "baroque".
 "barrocos" is the plural of "barroco".
 The feminine noun "caracola" means "conch".
 "caracolas" is the plural of "caracola".
+The noun "cervantismo" means "cervantism".
+The noun "cervantista" means "cervantist".
 The feminine noun "destreza" means "skill".
 "destrezas" is the plural of "destreza".
 The feminine noun "docencia" means "teaching".
@@ -16816,12 +16982,16 @@ The noun "firmante" means "signer".
 The noun "quijotismo" means "quixotism".
 The feminine noun "sanidad" means "health".
 "sanidades" is the plural of "sanidad".
+The masculine noun "hispanismo" means "hispanism".
+"hispanismos" is the plural of "hispanismo".
 The noun "hispanista" means "hispanist".
 The feminine noun "procedencia" means "origin".
 "procedencias" is the plural of "procedencia".
 The feminine noun "reunión" means "gathering".
 The masculine noun "tamarindo" means "tamarind".
 "tamarindos" is the plural of "tamarindo".
+The masculine noun "sufismo" means "sufism".
+"sufismos" is the plural of "sufismo".
 The feminine noun "subdirección" means "subaddress".
 "subdirecciones" is the plural of "subdirección".
 The feminine noun "subdirección" means "subdepartment".
@@ -16909,6 +17079,9 @@ The feminine noun "hermandad" means "fraternity".
 "hermandades" is the plural of "hermandad".
 The feminine noun "hermandad" means "brotherhood".
 The feminine noun "hermandad" means "sisterhood".
+The noun "croata" means "croat".
+"croata" is not feminine.
+"croatas" is the plural of "croata".
 The feminine noun "morriña" means "homesickness".
 "morriñas" is the plural of "morriña".
 The feminine noun "morriña" means "nostalgia".
@@ -16932,6 +17105,8 @@ The masculine noun "concurso" means "quiz".
 The masculine noun "sudoku" means "sudoku".
 "sudokus" is the plural of "sudoku".
 The noun "podcast" means "podcast".
+The feminine noun "olimpiada" means "olympics".
+"olimpiadas" is the plural of "olimpiada".
 The masculine noun "crucigrama" means "crossword".
 "crucigrama" is not feminine.
 "crucigramas" is the plural of "crucigrama".
@@ -16985,6 +17160,7 @@ The noun "pensionista" means "pensioner".
 "pensionista" is a person.
 The feminine noun "nevada" means "snowfall".
 "nevadas" is the plural of "nevada".
+The masculine noun "hindi" means "hindi".
 The masculine noun "derroche" means "splurge".
 "derroches" is the plural of "derroche".
 The masculine noun "relleno" means "filler".
@@ -17131,6 +17307,8 @@ The feminine noun "autocracia" means "autocracy".
 "autocracias" is the plural of "autocracia".
 The masculine noun "retorno" means "comeback".
 "retornos" is the plural of "retorno".
+The noun "kosovar" means "kosovar".
+"kosovares" is the plural of "kosovar".
 The noun "rugbi" means "rugby".
 The feminine noun "estafa" means "scam".
 The feminine noun "cuchillada" means "stab".
@@ -17252,6 +17430,9 @@ The masculine noun "legado" means "legacy".
 The noun "cieno" means "ooze".
 The noun "cieno" means "silt".
 The masculine noun "tramo" means "tract".
+The noun "azteca" means "aztec".
+"azteca" is not feminine.
+"aztecas" is the plural of "azteca".
 The feminine noun "dramatización" means "dramatisation".
 "dramatizaciones" is the plural of "dramatización".
 The feminine noun "maravilla" means "marvel".
@@ -17520,11 +17701,14 @@ The feminine noun "iconografía" means "iconography".
 "iconografías" is the plural of "iconografía".
 The noun "objetivista" means "objectivist".
 The feminine noun "sensibilidad" means "sensibility".
+The noun "mozárabe" means "mozarab".
+"mozárabes" is the plural of "mozárabe".
 The feminine noun "evasiva" means "evasion".
 "evasivas" is the plural of "evasiva".
 The feminine noun "evasión" means "evasion".
 "evasiones" is the plural of "evasión".
 The feminine noun "evasión" means "escape".
+The noun "olmeca" means "olmec".
 The feminine noun "representación" means "depiction".
 The masculine noun "retrato" means "portrayal".
 The masculine noun "colorido" means "colour".
@@ -17613,6 +17797,9 @@ The noun "historicismo" means "historicism".
 The masculine noun "paladín" means "paladin".
 "paladines" is the plural of "paladín".
 "paladín" is a person.
+The noun "islamista" means "islamist".
+"islamista" is not feminine.
+"islamistas" is the plural of "islamista".
 The feminine noun "reescritura" means "redrafting".
 The feminine noun "candidatura" means "candidacy".
 The noun "culpable" means "culprit".
@@ -17622,9 +17809,13 @@ The feminine noun "repatriación" means "repatriating".
 The masculine noun "procesamiento" means "prosecution".
 The masculine noun "reajuste" means "reshuffling".
 The masculine noun "reajuste" means "reshuffle".
+The noun "gazatí" means "gazan".
 The feminine noun "concurrencia" means "turnout".
 "concurrencias" is the plural of "concurrencia".
 The feminine noun "concurrencia" means "concurrence".
+The noun "saudí" means "saudi".
+"saudíes" is the plural of "saudí".
+"saudí" is a person.
 The masculine noun "empate" means "equaliser".
 The feminine noun "investigación" means "inquest".
 The feminine noun "indagación" means "inquiry".
@@ -17729,7 +17920,6 @@ The feminine noun "pelea" means "quarrel".
 "peleas" is the plural of "pelea".
 The feminine noun "pelea" means "fight".
 The masculine noun "cierre" means "shutdown".
-"cierres" is the plural of "cierre".
 The noun "sacudida" means "jolt".
 The feminine noun "revisión" means "overhaul".
 The feminine noun "protesta" means "outcry".
@@ -19226,12 +19416,134 @@ The masculine noun "rincón" means "corner".
 "rincones" is the plural of "rincón".
 The masculine noun "tazón" means "bowl".
 "tazones" is the plural of "tazón".
+The masculine noun "americano" means "american".
+"americanos" is the plural of "americano".
+"americano" is a person.
+The feminine noun "americana" means "american".
+"americanas" is the plural of "americana".
+"americana" is a person.
+The masculine noun "aragonés" means "aragonese".
+"aragoneses" is the plural of "aragonés".
+The feminine noun "aragonesa" means "aragonese".
+"aragonesas" is the plural of "aragonesa".
+The masculine noun "mongol" means "mongolian".
+"mongoles" is the plural of "mongol".
+The feminine noun "mongola" means "mongolian".
+"mongolas" is the plural of "mongola".
+The masculine noun "asiático" means "asian".
+"asiáticos" is the plural of "asiático".
+The feminine noun "asiática" means "asian".
+"asiáticas" is the plural of "asiática".
 The feminine noun "gente" means "person".
 "gentes" is the plural of "gente".
+The masculine noun "catalán" means "catalan".
+"catalanes" is the plural of "catalán".
+The feminine noun "catalana" means "catalan".
+"catalanas" is the plural of "catalana".
+The masculine noun "católico" means "catholic".
+"católicos" is the plural of "católico".
+"católico" is a person.
+The feminine noun "católica" means "catholic".
+"católicas" is the plural of "católica".
+"católica" is a person.
+The masculine noun "cristiano" means "christian".
+"cristianos" is the plural of "cristiano".
+"cristiano" is a person.
+The feminine noun "cristiana" means "christian".
+"cristianas" is the plural of "cristiana".
+"cristiana" is a person.
+The masculine noun "inglés" means "english".
+"ingleses" is the plural of "inglés".
+The feminine noun "inglesa" means "english".
+"inglesas" is the plural of "inglesa".
+The masculine noun "europeo" means "european".
+"europeos" is the plural of "europeo".
+"europeo" is a person.
+The feminine noun "europea" means "european".
+"europeas" is the plural of "europea".
+"europea" is a person.
+The masculine noun "francés" means "french".
+"franceses" is the plural of "francés".
+The feminine noun "francesa" means "french".
+"francesas" is the plural of "francesa".
+The masculine noun "alemán" means "german".
+"alemanes" is the plural of "alemán".
+"alemán" is a person.
+The feminine noun "alemana" means "german".
+"alemanas" is the plural of "alemana".
+"alemana" is a person.
+The masculine noun "griego" means "greek".
+"griegos" is the plural of "griego".
+The feminine noun "griega" means "greek".
+"griegas" is the plural of "griega".
+The masculine noun "irlandés" means "irish".
+"irlandeses" is the plural of "irlandés".
+"irlandés" is a person.
+The feminine noun "irlandesa" means "irish".
+"irlandesas" is the plural of "irlandesa".
+"irlandesa" is a person.
+The masculine noun "italiano" means "italian".
+"italianos" is the plural of "italiano".
+"italiano" is a person.
+The feminine noun "italiana" means "italian".
+"italianas" is the plural of "italiana".
+"italiana" is a person.
+The masculine noun "japonés" means "japanese".
+"japoneses" is the plural of "japonés".
+"japonés" is a person.
+The feminine noun "japonesa" means "japanese".
+"japonesas" is the plural of "japonesa".
+"japonesa" is a person.
+The masculine noun "coreano" means "korean".
+"coreanos" is the plural of "coreano".
+"coreano" is a person.
+The feminine noun "coreana" means "korean".
+"coreanas" is the plural of "coreana".
+"coreana" is a person.
 The masculine noun "latino" means "latin".
 "latinos" is the plural of "latino".
 The feminine noun "latina" means "latin".
 "latinas" is the plural of "latina".
+The masculine noun "lunes" means "monday".
+"lunes" is the plural of "lunes".
+The masculine noun "moro" means "muslim".
+"moros" is the plural of "moro".
+The feminine noun "mora" means "muslim".
+The masculine noun "palestino" means "palestinian".
+"palestinos" is the plural of "palestino".
+The feminine noun "palestina" means "palestinian".
+"palestinas" is the plural of "palestina".
+The masculine noun "ruso" means "russian".
+"rusos" is the plural of "ruso".
+"ruso" is a person.
+The feminine noun "rusa" means "russian".
+"rusas" is the plural of "rusa".
+"rusa" is a person.
+The noun "setiembre" means "september".
+The masculine noun "sumerio" means "sumerian".
+"sumerios" is the plural of "sumerio".
+"sumerio" is a person.
+The feminine noun "sumeria" means "sumerian".
+"sumerias" is the plural of "sumeria".
+"sumeria" is a person.
+The masculine noun "suizo" means "swiss".
+"suizos" is the plural of "suizo".
+"suizo" is a person.
+The feminine noun "suiza" means "swiss".
+"suizas" is the plural of "suiza".
+"suiza" is a person.
+The masculine noun "jueves" means "thursday".
+"jueves" is the plural of "jueves".
+The masculine noun "turco" means "turkish".
+"turcos" is the plural of "turco".
+The feminine noun "turca" means "turkish".
+"turcas" is the plural of "turca".
+The masculine noun "valenciano" means "valencian".
+"valencianos" is the plural of "valenciano".
+The feminine noun "valenciana" means "valencian".
+"valencianas" is the plural of "valenciana".
+The masculine noun "miércoles" means "wednesday".
+"miércoles" is the plural of "miércoles".
 The masculine noun "abad" means "abbot".
 "abades" is the plural of "abad".
 "abad" is a person.
@@ -21556,14 +21868,87 @@ The masculine noun "escrito" means "writing".
 The feminine noun "redacción" means "writing".
 The feminine noun "yarda" means "yard".
 "yardas" is the plural of "yarda".
+The masculine noun "británico" means "british".
+"británicos" is the plural of "británico".
+"británico" is a person.
+The feminine noun "británica" means "british".
+"británicas" is the plural of "británica".
+"británica" is a person.
+The masculine noun "holandés" means "dutch".
+"holandeses" is the plural of "holandés".
+The feminine noun "holandesa" means "dutch".
+"holandesas" is the plural of "holandesa".
+The noun "escocés" means "scottish".
 The masculine noun "administrativo" means "official".
 "administrativos" is the plural of "administrativo".
 "administrativo" is a person.
 The feminine noun "administrativa" means "official".
 "administrativas" is the plural of "administrativa".
 "administrativa" is a person.
+The masculine noun "albanés" means "albanian".
+"albaneses" is the plural of "albanés".
+The feminine noun "albanesa" means "albanian".
+"albanesas" is the plural of "albanesa".
+The masculine noun "andaluz" means "andalusian".
+"andaluces" is the plural of "andaluz".
+The feminine noun "andaluza" means "andalusian".
+"andaluzas" is the plural of "andaluza".
+The masculine noun "andorrano" means "andorran".
+"andorranos" is the plural of "andorrano".
+"andorrano" is a person.
+The feminine noun "andorrana" means "andorran".
+"andorranas" is the plural of "andorrana".
+"andorrana" is a person.
+The masculine noun "argentino" means "argentinian".
+"argentinos" is the plural of "argentino".
+The feminine noun "argentina" means "argentinian".
+"argentinas" is the plural of "argentina".
+The masculine noun "australiano" means "australian".
+"australianos" is the plural of "australiano".
+The feminine noun "australiana" means "australian".
+"australianas" is the plural of "australiana".
+The masculine noun "austríaco" means "austrian".
+"austríacos" is the plural of "austríaco".
+The feminine noun "austríaca" means "austrian".
+"austríacas" is the plural of "austríaca".
+The noun "austriaco" means "austrian".
+The masculine noun "bielorruso" means "byelorussian".
+"bielorrusos" is the plural of "bielorruso".
+The feminine noun "bielorrusa" means "byelorussian".
+"bielorrusas" is the plural of "bielorrusa".
+The masculine noun "bávaro" means "bavarian".
+"bávaros" is the plural of "bávaro".
+The feminine noun "bávara" means "bavarian".
+"bávaras" is the plural of "bávara".
+The masculine noun "camerunés" means "cameroonian".
+"cameruneses" is the plural of "camerunés".
+The feminine noun "camerunesa" means "cameroonian".
+"camerunesas" is the plural of "camerunesa".
+The masculine noun "canario" means "canarian".
+"canarios" is the plural of "canario".
+The feminine noun "canaria" means "canarian".
+"canarias" is the plural of "canaria".
+The masculine noun "chileno" means "chilean".
+"chilenos" is the plural of "chileno".
+"chileno" is a person.
+The feminine noun "chilena" means "chilean".
+"chilenas" is the plural of "chilena".
+"chilena" is a person.
+The masculine noun "chino" means "chinese".
+"chinos" is the plural of "chino".
+The feminine noun "china" means "chinese".
+"chinas" is the plural of "china".
 The masculine noun "colectivo" means "community".
 "colectivos" is the plural of "colectivo".
+The masculine noun "colombiano" means "colombian".
+"colombianos" is the plural of "colombiano".
+The feminine noun "colombiana" means "colombian".
+"colombianas" is the plural of "colombiana".
+The noun "congolés" means "congolese".
+The masculine noun "congoleño" means "congolese".
+"congoleños" is the plural of "congoleño".
+The feminine noun "congoleña" means "congolese".
+"congoleñas" is the plural of "congoleña".
 The masculine noun "contencioso" means "dispute".
 "contenciosos" is the plural of "contencioso".
 The masculine noun "directivo" means "director".
@@ -21584,24 +21969,135 @@ The masculine noun "enfermo" means "patient".
 The feminine noun "enferma" means "patient".
 "enfermas" is the plural of "enferma".
 "enferma" is a person.
+The masculine noun "escandinavo" means "scandinavian".
+"escandinavos" is the plural of "escandinavo".
+The feminine noun "escandinava" means "scandinavian".
+"escandinavas" is the plural of "escandinava".
 The noun "escolar" means "pupil".
 "escolares" is the plural of "escolar".
 "escolar" is a person.
 The noun "fieles" means "congregation".
+The masculine noun "finlandés" means "finn".
+"finlandeses" is the plural of "finlandés".
+"finlandés" is a person.
+The feminine noun "finlandesa" means "finn".
+"finlandesas" is the plural of "finlandesa".
+"finlandesa" is a person.
+The masculine noun "gibraltareño" means "gibraltarian".
+"gibraltareños" is the plural of "gibraltareño".
+The feminine noun "gibraltareña" means "gibraltarian".
+"gibraltareñas" is the plural of "gibraltareña".
+The masculine noun "guatemalteco" means "guatemalan".
+"guatemaltecos" is the plural of "guatemalteco".
+The feminine noun "guatemalteca" means "guatemalan".
+"guatemaltecas" is the plural of "guatemalteca".
+The masculine noun "hondureño" means "honduran".
+"hondureños" is the plural of "hondureño".
+"hondureño" is a person.
+The feminine noun "hondureña" means "honduran".
+"hondureñas" is the plural of "hondureña".
+"hondureña" is a person.
+The masculine noun "indio" means "indian".
+"indios" is the plural of "indio".
+"indio" is a person.
+The feminine noun "india" means "indian".
+"indias" is the plural of "india".
+"india" is a person.
+The masculine noun "islandés" means "icelandic".
+"islandeses" is the plural of "islandés".
+The feminine noun "islandesa" means "icelandic".
+"islandesas" is the plural of "islandesa".
+The masculine noun "jamaicano" means "jamaican".
+"jamaicanos" is the plural of "jamaicano".
+"jamaicano" is a person.
+The feminine noun "jamaicana" means "jamaican".
+"jamaicanas" is the plural of "jamaicana".
+"jamaicana" is a person.
+The masculine noun "keniano" means "kenyan".
+"kenianos" is the plural of "keniano".
+The feminine noun "keniana" means "kenyan".
+"kenianas" is the plural of "keniana".
 The masculine noun "lateral" means "side".
 "laterales" is the plural of "lateral".
+The masculine noun "letón" means "latvian".
+"letones" is the plural of "letón".
+The feminine noun "letona" means "latvian".
+"letonas" is the plural of "letona".
+The masculine noun "libanés" means "lebanese".
+"libaneses" is the plural of "libanés".
+The feminine noun "libanesa" means "lebanese".
+"libanesas" is the plural of "libanesa".
+The masculine noun "lituano" means "lithuanian".
+"lituanos" is the plural of "lituano".
+The feminine noun "lituana" means "lithuanian".
+"lituanas" is the plural of "lituana".
+The masculine noun "mallorquín" means "majorcan".
+"mallorquines" is the plural of "mallorquín".
+The feminine noun "mallorquina" means "majorcan".
+"mallorquinas" is the plural of "mallorquina".
+The masculine noun "maltés" means "maltese".
+"malteses" is the plural of "maltés".
+The feminine noun "maltesa" means "maltese".
+"maltesas" is the plural of "maltesa".
+The masculine noun "mexicano" means "mexican".
+"mexicanos" is the plural of "mexicano".
+"mexicano" is a person.
+The feminine noun "mexicana" means "mexican".
+"mexicanas" is the plural of "mexicana".
+"mexicana" is a person.
 The noun "militar" means "soldier".
 "militares" is the plural of "militar".
 "militar" is a person.
 The noun "moraleja" means "moral".
+The masculine noun "musulmán" means "muslim".
+"musulmanes" is the plural of "musulmán".
+The feminine noun "musulmana" means "muslim".
+"musulmanas" is the plural of "musulmana".
+The masculine noun "nepalés" means "nepalese".
+"nepaleses" is the plural of "nepalés".
+The feminine noun "nepalesa" means "nepalese".
+"nepalesas" is the plural of "nepalesa".
+The noun "nepalí" means "nepalese".
+The masculine noun "nigeriano" means "nigerian".
+"nigerianos" is the plural of "nigeriano".
+The feminine noun "nigeriana" means "nigerian".
+"nigerianas" is the plural of "nigeriana".
+The masculine noun "noruego" means "norwegian".
+"noruegos" is the plural of "noruego".
+The feminine noun "noruega" means "norwegian".
+"noruegas" is the plural of "noruega".
+The masculine noun "checo" means "czech".
+"checos" is the plural of "checo".
+"checo" is a person.
+The feminine noun "checa" means "czech".
+"checas" is the plural of "checa".
+"checa" is a person.
 The masculine noun "obrero" means "worker".
 "obreros" is the plural of "obrero".
 "obrero" is a person.
 The feminine noun "obrera" means "worker".
 "obreras" is the plural of "obrera".
 "obrera" is a person.
+The masculine noun "ortodoxo" means "orthodox".
+"ortodoxos" is the plural of "ortodoxo".
+The feminine noun "ortodoxa" means "orthodox".
+"ortodoxas" is the plural of "ortodoxa".
+The masculine noun "panameño" means "panamanian".
+"panameños" is the plural of "panameño".
+The feminine noun "panameña" means "panamanian".
+"panameñas" is the plural of "panameña".
+The masculine noun "paraguayo" means "paraguayan".
+"paraguayos" is the plural of "paraguayo".
+The feminine noun "paraguaya" means "paraguayan".
+"paraguayas" is the plural of "paraguaya".
 The masculine noun "periódico" means "newspaper".
 "periódicos" is the plural of "periódico".
+The masculine noun "peruano" means "peruvian".
+"peruanos" is the plural of "peruano".
+"peruano" is a person.
+The feminine noun "peruana" means "peruvian".
+"peruanas" is the plural of "peruana".
+"peruana" is a person.
 The masculine noun "republicano" means "republican".
 "republicanos" is the plural of "republicano".
 "republicano" is a person.
@@ -21614,8 +22110,18 @@ The feminine noun "roja" means "red".
 "rojas" is the plural of "roja".
 The masculine noun "rotativo" means "newspaper".
 "rotativos" is the plural of "rotativo".
+The masculine noun "sirio" means "syrian".
+"sirios" is the plural of "sirio".
+The feminine noun "siria" means "syrian".
+"sirias" is the plural of "siria".
 The masculine noun "sobrante" means "surplus".
 "sobrantes" is the plural of "sobrante".
+The masculine noun "sudanés" means "sudanese".
+"sudaneses" is the plural of "sudanés".
+"sudanés" is a person.
+The feminine noun "sudanesa" means "sudanese".
+"sudanesas" is the plural of "sudanesa".
+"sudanesa" is a person.
 The masculine noun "suministrador" means "supplier".
 "suministradores" is the plural of "suministrador".
 "suministrador" is a person.
@@ -21630,6 +22136,34 @@ The masculine noun "norteño" means "northerner".
 The feminine noun "norteña" means "northerner".
 "norteñas" is the plural of "norteña".
 "norteña" is a person.
+The masculine noun "tailandés" means "thai".
+"tailandeses" is the plural of "tailandés".
+"tailandés" is a person.
+The feminine noun "tailandesa" means "thai".
+"tailandesas" is the plural of "tailandesa".
+"tailandesa" is a person.
+The masculine noun "taiwanés" means "taiwanese".
+"taiwaneses" is the plural of "taiwanés".
+"taiwanés" is a person.
+The feminine noun "taiwanesa" means "taiwanese".
+"taiwanesas" is the plural of "taiwanesa".
+"taiwanesa" is a person.
+The masculine noun "ucraniano" means "ukrainian".
+"ucranianos" is the plural of "ucraniano".
+The feminine noun "ucraniana" means "ukrainian".
+"ucranianas" is the plural of "ucraniana".
+The masculine noun "uruguayo" means "uruguayan".
+"uruguayos" is the plural of "uruguayo".
+The feminine noun "uruguaya" means "uruguayan".
+"uruguayas" is the plural of "uruguaya".
+The masculine noun "veneciano" means "venetian".
+"venecianos" is the plural of "veneciano".
+The feminine noun "veneciana" means "venetian".
+"venecianas" is the plural of "veneciana".
+The masculine noun "yugoslavo" means "yugoslav".
+"yugoslavos" is the plural of "yugoslavo".
+The feminine noun "yugoslava" means "yugoslav".
+"yugoslavas" is the plural of "yugoslava".
 The noun "analfabeto" means "illiterate".
 The noun "inválido" means "invalid".
 "inválido" is a person.
@@ -21723,6 +22257,8 @@ The masculine noun "atlas" means "atlas".
 "atlas" is the plural of "atlas".
 The feminine noun "autorización" means "permission".
 "autorizaciones" is the plural of "autorización".
+The masculine noun "bable" means "asturian".
+"bables" is the plural of "bable".
 The masculine noun "cauce" means "course".
 "cauces" is the plural of "cauce".
 The masculine noun "biocarburante" means "biofuel".
@@ -21781,6 +22317,10 @@ The masculine noun "donativo" means "donation".
 The masculine noun "eczema" means "eczema".
 "eczema" is not feminine.
 "eczemas" is the plural of "eczema".
+The masculine noun "egiptólogo" means "egyptologist".
+"egiptólogos" is the plural of "egiptólogo".
+The feminine noun "egiptóloga" means "egyptologist".
+"egiptólogas" is the plural of "egiptóloga".
 The feminine noun "endivia" means "endive".
 "endivias" is the plural of "endivia".
 The masculine noun "entroncamiento" means "junction".
@@ -21790,6 +22330,13 @@ The masculine noun "envasado" means "packaging".
 The masculine noun "mate" means "mate".
 "mates" is the plural of "mate".
 "mate" is a person.
+The noun "euskera" means "basque".
+"euskera" is not feminine.
+"euskeras" is the plural of "euskera".
+The masculine noun "vasco" means "basque".
+"vascos" is the plural of "vasco".
+The feminine noun "vasca" means "basque".
+"vascas" is the plural of "vasca".
 The masculine noun "examinando" means "examinee".
 "examinandos" is the plural of "examinando".
 The feminine noun "examinanda" means "examinee".
@@ -21806,6 +22353,10 @@ The masculine noun "fumador" means "smoker".
 "fumadores" is the plural of "fumador".
 The feminine noun "fumadora" means "smoker".
 "fumadoras" is the plural of "fumadora".
+The masculine noun "gallego" means "galician".
+"gallegos" is the plural of "gallego".
+The feminine noun "gallega" means "galician".
+"gallegas" is the plural of "gallega".
 The feminine noun "halconería" means "falconry".
 "halconerías" is the plural of "halconería".
 The masculine noun "herbazal" means "grassland".
@@ -21958,6 +22509,10 @@ The feminine noun "comisaria" means "commissioner".
 "comisaria" is a person.
 The masculine noun "bautizo" means "baptism".
 "bautizos" is the plural of "bautizo".
+The masculine noun "brasileño" means "brazilian".
+"brasileños" is the plural of "brasileño".
+The feminine noun "brasileña" means "brazilian".
+"brasileñas" is the plural of "brasileña".
 The masculine noun "romance" means "romance".
 "romances" is the plural of "romance".
 The masculine noun "desconocido" means "stranger".
@@ -22020,6 +22575,8 @@ The masculine noun "desplome" means "collapse".
 "desplomes" is the plural of "desplome".
 The masculine noun "tamaño" means "size".
 "tamaños" is the plural of "tamaño".
+The noun "hebreo" means "hebrew".
+The noun "fenicio" means "phoenician".
 The masculine noun "caudillo" means "leader".
 "caudillos" is the plural of "caudillo".
 "caudillo" is a person.
@@ -22035,6 +22592,16 @@ The feminine noun "pujanza" means "strength".
 "pujanzas" is the plural of "pujanza".
 The feminine noun "pugna" means "conflict".
 "pugnas" is the plural of "pugna".
+The masculine noun "visigodo" means "visigoth".
+"visigodos" is the plural of "visigodo".
+"visigodo" is a person.
+The feminine noun "visigoda" means "visigoth".
+"visigodas" is the plural of "visigoda".
+"visigoda" is a person.
+The masculine noun "godo" means "goth".
+"godos" is the plural of "godo".
+The feminine noun "goda" means "goth".
+"godas" is the plural of "goda".
 The feminine noun "particularidad" means "peculiarity".
 "particularidades" is the plural of "particularidad".
 The masculine noun "auge" means "peak".
@@ -22079,6 +22646,9 @@ The masculine noun "gigante" means "giant".
 "gigantes" is the plural of "gigante".
 The feminine noun "giganta" means "giant".
 "gigantas" is the plural of "giganta".
+The noun "estadounidense" means "american".
+"estadounidenses" is the plural of "estadounidense".
+"estadounidense" is a person.
 The feminine noun "acepción" means "meaning".
 "acepciones" is the plural of "acepción".
 The masculine noun "armazón" means "frame".
@@ -22179,6 +22749,7 @@ The masculine noun "seso" means "brain".
 "sesos" is the plural of "seso".
 The feminine noun "misa" means "mass".
 "misas" is the plural of "misa".
+The noun "sajón" means "saxon".
 The feminine noun "fuga" means "escape".
 "fugas" is the plural of "fuga".
 The feminine noun "apariencia" means "appearance".
@@ -22231,6 +22802,7 @@ The feminine noun "colza" means "rape".
 The noun "soya" means "soya".
 The feminine noun "aportación" means "contribution".
 "aportaciones" is the plural of "aportación".
+The noun "haitiano" means "haitian".
 The masculine noun "televisor" means "television".
 "televisores" is the plural of "televisor".
 The feminine noun "comarca" means "region".
@@ -22253,8 +22825,16 @@ The feminine noun "portadora" means "bearer".
 "portadora" is a person.
 The feminine noun "cerca" means "wall".
 "cercas" is the plural of "cerca".
+The masculine noun "boliviano" means "bolivian".
+"bolivianos" is the plural of "boliviano".
+The feminine noun "boliviana" means "bolivian".
+"bolivianas" is the plural of "boliviana".
 The noun "preceptor" means "tutor".
 "preceptor" is a person.
+The masculine noun "neerlandés" means "dutch".
+"neerlandeses" is the plural of "neerlandés".
+The feminine noun "neerlandesa" means "dutch".
+"neerlandesas" is the plural of "neerlandesa".
 The feminine noun "báscula" means "scale".
 "básculas" is the plural of "báscula".
 The masculine noun "esposo" means "husband".
@@ -22371,6 +22951,12 @@ The masculine noun "sondeo" means "poll".
 "sondeos" is the plural of "sondeo".
 The masculine noun "evento" means "event".
 "eventos" is the plural of "evento".
+The masculine noun "hispano" means "hispanic".
+"hispanos" is the plural of "hispano".
+"hispano" is a person.
+The feminine noun "hispana" means "hispanic".
+"hispanas" is the plural of "hispana".
+"hispana" is a person.
 The feminine noun "retransmisión" means "transmission".
 "retransmisiones" is the plural of "retransmisión".
 The masculine noun "encargo" means "commission".
@@ -22393,6 +22979,10 @@ The masculine noun "empaque" means "packaging".
 The masculine noun "almacenaje" means "storage".
 "almacenajes" is the plural of "almacenaje".
 The noun "fabulador" means "fabulist".
+The masculine noun "venezolano" means "venezuelan".
+"venezolanos" is the plural of "venezolano".
+The feminine noun "venezolana" means "venezuelan".
+"venezolanas" is the plural of "venezolana".
 The masculine noun "plomo" means "lead".
 "plomos" is the plural of "plomo".
 The feminine noun "meseta" means "plateau".
@@ -22406,6 +22996,12 @@ The noun "guardarropa" means "closet".
 The masculine noun "pelaje" means "fur".
 "pelajes" is the plural of "pelaje".
 The noun "venado" means "deer".
+The masculine noun "romano" means "roman".
+"romanos" is the plural of "romano".
+"romano" is a person.
+The feminine noun "romana" means "roman".
+"romanas" is the plural of "romana".
+"romana" is a person.
 The masculine noun "aplazamiento" means "postponement".
 "aplazamientos" is the plural of "aplazamiento".
 The masculine noun "escarpe" means "escarpment".
@@ -22500,6 +23096,8 @@ The feminine noun "oblicuidad" means "inclination".
 "oblicuidades" is the plural of "oblicuidad".
 The masculine noun "aeroplano" means "aeroplane".
 "aeroplanos" is the plural of "aeroplano".
+The noun "escorpio" means "scorpio".
+"escorpio" is the plural of "escorpio".
 The noun "génesis" means "origin".
 "génesis" is the plural of "génesis".
 The noun "abiogénesis" means "abiogenesis".
@@ -22538,6 +23136,16 @@ The feminine noun "asunción" means "assumption".
 "asunciones" is the plural of "asunción".
 The masculine noun "derivado" means "derivative".
 "derivados" is the plural of "derivado".
+The masculine noun "egipcio" means "egyptian".
+"egipcios" is the plural of "egipcio".
+The feminine noun "egipcia" means "egyptian".
+"egipcias" is the plural of "egipcia".
+The masculine noun "babilonio" means "babylonian".
+"babilonios" is the plural of "babilonio".
+"babilonio" is a person.
+The feminine noun "babilonia" means "babylonian".
+"babilonias" is the plural of "babilonia".
+"babilonia" is a person.
 The masculine noun "teórico" means "theorist".
 "teóricos" is the plural of "teórico".
 "teórico" is a person.
@@ -22557,8 +23165,6 @@ The masculine noun "calibrador" means "callipers".
 "calibradores" is the plural of "calibrador".
 The masculine noun "desdoblamiento" means "splitting".
 "desdoblamientos" is the plural of "desdoblamiento".
-The masculine noun "entendimiento" means "understanding".
-"entendimientos" is the plural of "entendimiento".
 The masculine noun "aporte" means "contribution".
 "aportes" is the plural of "aporte".
 The masculine noun "mol" means "mole".
@@ -22590,6 +23196,7 @@ The noun "conmunicabilidad" means "communicability".
 The masculine noun "principado" means "principality".
 "principados" is the plural of "principado".
 The masculine noun "alzheimer" means "alzheimer".
+The noun "andalusí" means "andalusian".
 The masculine noun "apocalipsis" means "apocalypse".
 "apocalipsis" is the plural of "apocalipsis".
 The noun "minorista" means "retailer".
@@ -22602,6 +23209,12 @@ The masculine noun "medioambiente" means "environment".
 "medioambientes" is the plural of "medioambiente".
 The noun "colegiado" means "referee".
 "colegiado" is a person.
+The masculine noun "asturiano" means "asturian".
+"asturianos" is the plural of "asturiano".
+The feminine noun "asturiana" means "asturian".
+"asturianas" is the plural of "asturiana".
+The noun "brasilero" means "brazilian".
+The noun "eslovaco" means "slovak".
 The feminine noun "titulación" means "degree".
 "titulaciones" is the plural of "titulación".
 The noun "posibilitador" means "enabler".
@@ -22610,6 +23223,10 @@ The masculine noun "paréntesis" means "parenthesis".
 "paréntesis" is the plural of "paréntesis".
 The masculine noun "paréntesis" means "bracket".
 The noun "marcapáginas" means "bookmark".
+The masculine noun "leonés" means "leonese".
+"leoneses" is the plural of "leonés".
+The feminine noun "leonesa" means "leonese".
+"leonesas" is the plural of "leonesa".
 The masculine noun "portero" means "porter".
 "porteros" is the plural of "portero".
 "portero" is a person.
@@ -22620,6 +23237,11 @@ The masculine noun "portero" means "goalkeeper".
 The feminine noun "portera" means "goalkeeper".
 The noun "comisionado" means "commissioner".
 "comisionado" is a person.
+The noun "andino" means "andean".
+The masculine noun "camboyano" means "cambodian".
+"camboyanos" is the plural of "camboyano".
+The feminine noun "camboyana" means "cambodian".
+"camboyanas" is the plural of "camboyana".
 The masculine noun "vagabundo" means "vagrant".
 "vagabundos" is the plural of "vagabundo".
 The feminine noun "vagabunda" means "vagrant".
@@ -22633,6 +23255,10 @@ The feminine noun "voluntaria" means "volunteer".
 "voluntarias" is the plural of "voluntaria".
 "voluntaria" is a person.
 The noun "impostor" means "impostor".
+The masculine noun "talibán" means "taliban".
+"talibanes" is the plural of "talibán".
+The feminine noun "talibana" means "taliban".
+"talibanas" is the plural of "talibana".
 The masculine noun "negociador" means "negotiator".
 "negociadores" is the plural of "negociador".
 The feminine noun "negociadora" means "negotiator".
@@ -22664,6 +23290,12 @@ The masculine noun "salvador" means "saviour".
 The feminine noun "salvadora" means "saviour".
 The masculine noun "meteorólogo" means "forecaster".
 The feminine noun "meteoróloga" means "forecaster".
+The masculine noun "anglicano" means "anglican".
+"anglicanos" is the plural of "anglicano".
+"anglicano" is a person.
+The feminine noun "anglicana" means "anglican".
+"anglicanas" is the plural of "anglicana".
+"anglicana" is a person.
 The masculine noun "grafólogo" means "graphologist".
 "grafólogos" is the plural of "grafólogo".
 "grafólogo" is a person.
@@ -22708,6 +23340,10 @@ The feminine noun "artritis" means "arthritis".
 "artritis" is the plural of "artritis".
 The masculine noun "agresor" means "assailant".
 The feminine noun "agresora" means "assailant".
+The masculine noun "agustino" means "augustinian".
+"agustinos" is the plural of "agustino".
+The feminine noun "agustina" means "augustinian".
+"agustinas" is the plural of "agustina".
 The noun "ayatollah" means "ayatollah".
 The masculine noun "dribbling" means "dribbling".
 "dribblings" is the plural of "dribbling".
@@ -22729,6 +23365,12 @@ The feminine noun "lugareña" means "local".
 "lugareñas" is the plural of "lugareña".
 The masculine noun "cruzado" means "crusader".
 "cruzados" is the plural of "cruzado".
+The noun "libio" means "libyan".
+"libio" is a person.
+The masculine noun "afgano" means "afghan".
+"afganos" is the plural of "afgano".
+The feminine noun "afgana" means "afghan".
+"afganas" is the plural of "afgana".
 The masculine noun "subdelegado" means "subdelegate".
 "subdelegados" is the plural of "subdelegado".
 The feminine noun "subdelegada" means "subdelegate".
@@ -22755,10 +23397,15 @@ The masculine noun "gasóleo" means "diesel".
 "gasóleos" is the plural of "gasóleo".
 The masculine noun "paradero" means "whereabouts".
 "paraderos" is the plural of "paradero".
+The masculine noun "ruandés" means "rwandan".
+"ruandeses" is the plural of "ruandés".
+The feminine noun "ruandesa" means "rwandan".
+"ruandesas" is the plural of "ruandesa".
 The noun "mímesis" means "mimesis".
 The noun "mimesis" means "mimesis".
 The masculine noun "postmodernismo" means "postmodernism".
 "postmodernismos" is the plural of "postmodernismo".
+The noun "peripatético" means "peripatetic".
 The noun "subversor" means "subversive".
 The noun "torturador" means "torturer".
 The masculine noun "bárbaro" means "barbarian".
@@ -22776,6 +23423,8 @@ The masculine noun "defensor" means "defender".
 The feminine noun "defensora" means "defender".
 The masculine noun "partidario" means "backer".
 The feminine noun "partidaria" means "backer".
+The noun "saudita" means "saudi".
+"saudita" is a person.
 The noun "gacetillero" means "hack".
 "gacetillero" is a person.
 The masculine noun "patólogo" means "pathologist".
@@ -22791,6 +23440,13 @@ The masculine noun "mitógrafo" means "mythographer".
 "mitógrafos" is the plural of "mitógrafo".
 The feminine noun "mitógrafa" means "mythographer".
 "mitógrafas" is the plural of "mitógrafa".
+The masculine noun "teutón" means "teutonic".
+"teutones" is the plural of "teutón".
+The feminine noun "teutona" means "teutonic".
+"teutonas" is the plural of "teutona".
+The noun "nórdico" means "norse".
+"nórdico" is a person.
+The noun "nórdico" means "nordic".
 The masculine noun "ladronzuelo" means "pilferer".
 "ladronzuelos" is the plural of "ladronzuelo".
 The feminine noun "ladronzuela" means "pilferer".
@@ -22832,6 +23488,10 @@ The noun "frutipan" means "breadfruit".
 The masculine noun "saúco" means "elder".
 "saúcos" is the plural of "saúco".
 "saúco" is a person.
+The masculine noun "malayo" means "malay".
+"malayos" is the plural of "malayo".
+The feminine noun "malaya" means "malay".
+"malayas" is the plural of "malaya".
 The noun "excavador" means "excavator".
 The masculine noun "neolítico" means "neolithic".
 "neolíticos" is the plural of "neolítico".
@@ -23561,6 +24221,9 @@ The masculine noun "féretro" means "coffin".
 The masculine noun "testamento" means "testament".
 "testamentos" is the plural of "testamento".
 The masculine noun "personaje" means "personage".
+The masculine noun "español" means "spaniard".
+The feminine noun "española" means "spaniard".
+"españolas" is the plural of "española".
 The feminine noun "habilidad" means "ability".
 The feminine noun "capacidad" means "ability".
 The masculine noun "frontón" means "fronton".
@@ -24033,6 +24696,8 @@ The masculine noun "volante" means "wheel".
 "volantes" is the plural of "volante".
 The masculine noun "valor" means "worth".
 The feminine noun "cosecha" means "yield".
+The masculine noun "yugoslavo" means "yugoslavian".
+The feminine noun "yugoslava" means "yugoslavian".
 The feminine noun "absorción" means "takeover".
 The feminine noun "aclaración" means "clarification".
 The feminine noun "restricción" means "curtailment".
@@ -24149,6 +24814,7 @@ The feminine noun "transparencia" means "openness".
 The masculine noun "azufre" means "brimstone".
 The masculine noun "yeso" means "gypsum".
 The feminine noun "lima" means "lime".
+The feminine noun "gala" means "frenchwoman".
 The noun "anteojos" means "goggles".
 The noun "portavoz" means "spokesperson".
 The masculine noun "seguidor" means "follower".
@@ -24170,6 +24836,8 @@ The feminine noun "mochila" means "backpack".
 The masculine noun "seto" means "hedge".
 The masculine noun "momento" means "momentum".
 The feminine noun "interrelación" means "interrelation".
+The masculine noun "holandés" means "dutchman".
+The feminine noun "holandesa" means "dutchwoman".
 The feminine noun "eficacia" means "efficacy".
 The feminine noun "queja" means "grievance".
 The feminine noun "esposa" means "manacles".
@@ -24205,6 +24873,7 @@ The feminine noun "conducción" means "conduction".
 The masculine noun "eje" means "axle".
 The feminine noun "herencia" means "heredity".
 The feminine noun "respiración" means "respiration".
+The noun "árabe" means "arabic".
 The noun "génesis" means "genesis".
 The feminine noun "vinculación" means "bonding".
 The feminine noun "mezcla" means "mixture".
@@ -24234,6 +24903,7 @@ The masculine noun "aviador" means "aviator".
 The feminine noun "aviadora" means "aviator".
 The noun "trotamundos" means "globetrotter".
 The feminine noun "tecnología" means "tech".
+The noun "kosovar" means "kosovan".
 The feminine noun "visita" means "caller".
 The masculine noun "llamador" means "caller".
 "llamadores" is the plural of "llamador".
@@ -24245,6 +24915,7 @@ The masculine noun "anexo" means "annexe".
 The masculine noun "apicultor" means "apiarist".
 The feminine noun "apicultora" means "apiarist".
 The masculine noun "aperitivo" means "aperitif".
+The noun "árabe" means "arabian".
 The feminine noun "asfixia" means "asphyxiation".
 The feminine noun "asiduidad" means "assiduousness".
 The masculine noun "funcionario" means "functionary".
@@ -24292,6 +24963,8 @@ The noun "centrocampista" means "midfielder".
 The noun "guionista" means "scriptwriter".
 "guionista" is not feminine.
 The noun "calabacín" means "zucchini".
+The masculine noun "malayo" means "malayan".
+The feminine noun "malaya" means "malayan".
 The masculine noun "kiwi" means "kiwifruit".
 The feminine noun "tripa" means "insides".
 The feminine noun "venganza" means "vengeance".
@@ -113509,6 +114182,10 @@ The masculine adjective "destrozado" means "shattered".
 "destrozados" is the plural of "destrozado".
 The feminine adjective "destrozada" means "shattered".
 "destrozadas" is the plural of "destrozada".
+The masculine adjective "pagadero" means "payable".
+"pagaderos" is the plural of "pagadero".
+The feminine adjective "pagadera" means "payable".
+"pagaderas" is the plural of "pagadera".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -113525,8 +114202,17 @@ The adjective "puntuable" means "scored".
 "puntuables" is the plural of "puntuable".
 The adjective "tendente" means "tending".
 "tendentes" is the plural of "tendente".
+The masculine adjective "pontevedrés" means "pontevedran".
+"pontevedreses" is the plural of "pontevedrés".
+The feminine adjective "pontevedresa" means "pontevedran".
+"pontevedresas" is the plural of "pontevedresa".
+The adjective "lasartearra" means "lasartean".
 The adjective "inalterable" means "unalterable".
 "inalterables" is the plural of "inalterable".
+The masculine adjective "cántabro" means "cantabrian".
+"cántabros" is the plural of "cántabro".
+The feminine adjective "cántabra" means "cantabrian".
+"cántabras" is the plural of "cántabra".
 The masculine adjective "pletórico" means "exultant".
 "pletóricos" is the plural of "pletórico".
 The feminine adjective "pletórica" means "exultant".
@@ -113544,6 +114230,9 @@ The masculine adjective "preciado" means "esteemed".
 The feminine adjective "preciada" means "esteemed".
 "preciadas" is the plural of "preciada".
 The adjective "dopante" means "doping".
+The adjective "riveirense" means "riveiran".
+The adjective "plentziarra" means "plentzian".
+The adjective "castreño" means "castroan".
 The masculine adjective "sustitutivo" means "substitutive".
 "sustitutivos" is the plural of "sustitutivo".
 The feminine adjective "sustitutiva" means "substitutive".
@@ -113571,6 +114260,10 @@ The masculine adjective "sancionador" means "penalizing".
 The feminine adjective "sancionadora" means "penalizing".
 "sancionadoras" is the plural of "sancionadora".
 The adjective "castrado" means "castrated".
+The masculine adjective "vizcaíno" means "biscayan".
+"vizcaínos" is the plural of "vizcaíno".
+The feminine adjective "vizcaína" means "biscayan".
+"vizcaínas" is the plural of "vizcaína".
 The adjective "inobjetable" means "unobjectionable".
 The masculine adjective "lanzador" means "launch".
 "lanzadores" is the plural of "lanzador".
@@ -113626,6 +114319,7 @@ The masculine adjective "cegador" means "blinding".
 "cegadores" is the plural of "cegador".
 The feminine adjective "cegadora" means "blinding".
 "cegadoras" is the plural of "cegadora".
+The adjective "afrikáner" means "afrikaner".
 The adjective "tricolor" means "tricolour".
 "tricolores" is the plural of "tricolor".
 The masculine adjective "cobrizo" means "copper".
@@ -116262,6 +116956,10 @@ The adjective "justificable" means "justifiable".
 "justificables" is the plural of "justificable".
 The adjective "juvenil" means "juvenile".
 "juveniles" is the plural of "juvenil".
+The masculine adjective "tinerfeño" means "tenerifean".
+"tinerfeños" is the plural of "tinerfeño".
+The feminine adjective "tinerfeña" means "tenerifean".
+"tinerfeñas" is the plural of "tinerfeña".
 The adjective "amable" means "kind".
 "amables" is the plural of "amable".
 The adjective "laboral" means "labour".
@@ -121958,6 +122656,8 @@ The masculine adjective "proteico" means "proteinaceous".
 "proteicos" is the plural of "proteico".
 The feminine adjective "proteica" means "proteinaceous".
 "proteicas" is the plural of "proteica".
+The adjective "joviano" means "jovian".
+The adjective "galileano" means "galilean".
 The adjective "orbital" means "orbital".
 "orbitales" is the plural of "orbital".
 The masculine adjective "síncrono" means "synchronous".
@@ -121965,6 +122665,7 @@ The masculine adjective "síncrono" means "synchronous".
 The feminine adjective "síncrona" means "synchronous".
 "síncronas" is the plural of "síncrona".
 The adjective "salpicado" means "dotted".
+The adjective "calistiano" means "callistoan".
 The adjective "rotacional" means "rotational".
 "rotacionales" is the plural of "rotacional".
 The adjective "apreciable" means "appreciable".
@@ -122174,6 +122875,14 @@ The adjective "apasionante" means "exciting".
 "apasionantes" is the plural of "apasionante".
 The adjective "adimensional" means "adimensional".
 "adimensionales" is the plural of "adimensional".
+The masculine adjective "lagrangiano" means "lagrangian".
+"lagrangianos" is the plural of "lagrangiano".
+The feminine adjective "lagrangiana" means "lagrangian".
+"lagrangianas" is the plural of "lagrangiana".
+The masculine adjective "euleriano" means "eulerian".
+"eulerianos" is the plural of "euleriano".
+The feminine adjective "euleriana" means "eulerian".
+"eulerianas" is the plural of "euleriana".
 The adjective "compresible" means "compressible".
 "compresibles" is the plural of "compresible".
 The masculine adjective "sónico" means "sonic".
@@ -122204,6 +122913,14 @@ The masculine adjective "meridiano" means "meridian".
 "meridianos" is the plural of "meridiano".
 The feminine adjective "meridiana" means "meridian".
 "meridianas" is the plural of "meridiana".
+The masculine adjective "juliano" means "julian".
+"julianos" is the plural of "juliano".
+The feminine adjective "juliana" means "julian".
+"julianas" is the plural of "juliana".
+The masculine adjective "gregoriano" means "gregorian".
+"gregorianos" is the plural of "gregoriano".
+The feminine adjective "gregoriana" means "gregorian".
+"gregorianas" is the plural of "gregoriana".
 The masculine adjective "heliocéntrico" means "heliocentric".
 "heliocéntricos" is the plural of "heliocéntrico".
 The feminine adjective "heliocéntrica" means "heliocentric".
@@ -122301,6 +123018,11 @@ The adjective "verificable" means "verifiable".
 "verificables" is the plural of "verificable".
 The adjective "impensable" means "unthinkable".
 "impensables" is the plural of "impensable".
+The masculine adjective "newtoniano" means "newtonian".
+"newtonianos" is the plural of "newtoniano".
+The feminine adjective "newtoniana" means "newtonian".
+"newtonianas" is the plural of "newtoniana".
+The adjective "hamiltoniano" means "hamiltonian".
 The masculine adjective "repulsivo" means "repulsive".
 "repulsivos" is the plural of "repulsivo".
 The feminine adjective "repulsiva" means "repulsive".
@@ -122343,6 +123065,10 @@ The masculine adjective "transfinito" means "transfinite".
 "transfinitos" is the plural of "transfinito".
 The feminine adjective "transfinita" means "transfinite".
 "transfinitas" is the plural of "transfinita".
+The masculine adjective "euclidiano" means "euclidean".
+"euclidianos" is the plural of "euclidiano".
+The feminine adjective "euclidiana" means "euclidean".
+"euclidianas" is the plural of "euclidiana".
 The masculine adjective "trigonométrico" means "trigonometric".
 "trigonométricos" is the plural of "trigonométrico".
 The feminine adjective "trigonométrica" means "trigonometric".
@@ -122350,6 +123076,14 @@ The feminine adjective "trigonométrica" means "trigonometric".
 The adjective "inviable" means "unfeasible".
 "inviables" is the plural of "inviable".
 The adjective "motorizado" means "motorised".
+The masculine adjective "tolemaico" means "ptolemaic".
+"tolemaicos" is the plural of "tolemaico".
+The feminine adjective "tolemaica" means "ptolemaic".
+"tolemaicas" is the plural of "tolemaica".
+The masculine adjective "bayesiano" means "bayesian".
+"bayesianos" is the plural of "bayesiano".
+The feminine adjective "bayesiana" means "bayesian".
+"bayesianas" is the plural of "bayesiana".
 The masculine adjective "desvergonzado" means "shameless".
 "desvergonzados" is the plural of "desvergonzado".
 The feminine adjective "desvergonzada" means "shameless".
@@ -125169,6 +125903,8 @@ The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".
 "abstemias" is the plural of "abstemia".
+The adjective "bizkaino" means "biscayan".
+The adjective "gipuzkoano" means "gipuzkoan".
 The masculine adjective "jugoso" means "substantial".
 "jugosos" is the plural of "jugoso".
 The feminine adjective "jugosa" means "substantial".
@@ -125184,6 +125920,10 @@ The feminine adjective "divulgativa" means "informative".
 The adjective "standard" means "standard".
 The adjective "feliz" means "happy".
 "felices" is the plural of "feliz".
+The masculine adjective "guipuzcoano" means "gipuzkoan".
+"guipuzcoanos" is the plural of "guipuzcoano".
+The feminine adjective "guipuzcoana" means "gipuzkoan".
+"guipuzcoanas" is the plural of "guipuzcoana".
 The masculine adjective "federativo" means "federative".
 "federativos" is the plural of "federativo".
 The feminine adjective "federativa" means "federative".
