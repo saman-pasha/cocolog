@@ -352,6 +352,7 @@ main :-
     section_24,
     section_25,
     section_26,
+    section_27,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -990,6 +991,166 @@ The conjunction "e" means "and". The conjunction "se" means "if". The conjunctio
 The adverb "neanche" means "not even". The adverb "no" means "no".
 "che" is a relative. The conjunction "che" means "that".
 The preposition "a" means "to". The preposition "di" means "of".
+The word "non" means "not".').
+
+%% 1.8.0: A SPANISH FOOTBALL REPORT INTO ITALIAN, on Barça before a cup tie
+%% at Ceuta -- the AnCora document CESS-CAST-P-20010103-120, twenty
+%% sentences. What it needed is what a sports page does with its people: a
+%% list of names that is the subject of the clause after a comma, a comma
+%% that parts two names, `ni ... ni' before the verb and after it, a denial
+%% kept in front of its verb, the impersonal `hay que', a verb's own
+%% preposition before its infinitive (`"confía" takes "en" before the
+%% infinitive.'), a subordinate clause at the head with an insertion after
+%% its word, and more than an adjective. The lesson lines are the shapes a
+%% lesson already had; the rest is shown here on a few words.
+section_27 :-
+    format("~n27. A Spanish football report into Italian: lists, names a comma parts, ni ... ni, hay que, more than~n", []),
+    lesson_27(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_27(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Han comido pan, Rivaldo y Overmars no duermen.', spanish, italian, S27a),
+    must('two NAMES and a verb after a comma are a clause of their own, never the end of a list',
+         S27a, 'Hanno mangiato pane, Rivaldo e Overmars non dormono.'),
+    reason_translate('Salvo la decisión de Rivaldo y Overmars, Serra Ferrer come pan y ha dormido.', spanish, italian, S27b),
+    must('a COMMA BETWEEN TWO NAMES parts them, and the front ends there',
+         S27b, 'Eccetto la decisione di Rivaldo e Overmars, Serra Ferrer mangia pane e ha dormito.'),
+    reason_translate('No duermen ni el perro ni el gato.', spanish, italian, S27c),
+    must('NI ... NI: a list that begins with its own connector, after a verb that takes no object',
+         S27c, 'Non dormono né il cane né il gatto.'),
+    reason_translate('El perro tampoco duerme.', spanish, italian, S27d),
+    must('a DENYING ADVERB before its verb is written in front', S27d, 'Neanche il cane dorme.'),
+    reason_translate('"Hay que comer pan", dijo.', spanish, italian, S27e),
+    must('the IMPERSONAL MODAL, in a quotation that closes at a comma', S27e, '"Bisogna mangiare pane", disse.'),
+    reason_translate('El perro confía en comer pan.', spanish, italian, S27f),
+    must('a VERB''S OWN PREPOSITION before its infinitive, which the lesson says', S27f, 'Il cane confida di mangiare pane.'),
+    reason_translate('Al margen de que, como todos, han comido pan, el perro duerme.', spanish, italian, S27g),
+    must('a SUBORDINATE CLAUSE AT THE HEAD, with an insertion after its word',
+         S27g, 'A parte il fatto che, come tutti, hanno mangiato pane, il cane dorme.'),
+    reason_translate('La elección resulta más que cuestionable.', spanish, english, S27h),
+    must('MORE THAN an adjective', S27h, 'The choice results more than questionable.'),
+    reason_translate('El gato es más grande que el perro.', spanish, italian, S27i),
+    must('and a comparison with a phrase, Italian''s `di'' before it', S27i, 'Il gatto è più grande del cane.'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_27(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a". "unos" is the plural of "un".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread".
+"panes" is the plural of "pan".
+The noun "casa" means "house". The noun "equipo" means "team". The noun "fútbol" means "football".
+The noun "entrenador" means "coach". "entrenador" is a person.
+The noun "decisión" means "decision". "decisión" is feminine. "decisiones" is the plural of "decisión".
+The noun "elección" means "choice". "elección" is feminine.
+The noun "ronda" means "round". The noun "plan" means "plan". "planes" is the plural of "plan".
+The adjective "bueno" means "good". "buen" is the apocope of "bueno".
+The adjective "grande" means "big". The adjective "cuestionable" means "questionable".
+The adjective "idéntico" means "identical".
+The adjective "anterior" means "previous". The adjective "anterior" means "anterior".
+The adjective "primero" means "first". "primeros" is the plural of "primero".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+"comido" is the participle of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormido" is the participle of "duerme".
+"duermo" is the first person of "duerme". "duerme" is intransitive. "como" is the first person of "come".
+The number "dos" means "two". The reflexive pronoun "se" means "itself".
+The verb "confía" means "trusts". "confía" takes "en" before the infinitive.
+The intransitive verb "gusta" means "pleases".
+The transitive verb "conoce" means "knows". "conozco" is the first person of "conoce".
+The verb "resulta" means "results".
+The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "queda" means "stays". "queda" is reflexive. "quedado" is the participle of "queda".
+The verb "optará" means "will opt". The verb "parece" means "seems".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "he" is the first person of "ha".
+The impersonal modal "hay que" means "must".
+The verb "dice" means "says". "dijo" is the past of "dice".
+The pronoun "le" means "him". The dative pronoun "le" means "him".
+The pronoun "todos" means "everyone". The pronoun "todos" does not precede the verb.
+The pronoun "esto" means "this". The pronoun "esto" does not precede the verb.
+The masculine demonstrative "este" means "this". The pronoun "este" means "this". The pronoun "este" does not precede the verb.
+Every pronoun precedes the verb.
+The determiner "cualquiera" means "any". "cualquier" is the apocope of "cualquiera".
+The conjunction "y" means "and". The conjunction "ni" means "neither". The conjunction "ni" means "nor".
+The conjunction "al margen de que" means "apart from the fact that".
+The conjunction "con lo que" means "so".
+"que" is a relative. The conjunction "que" means "that". The conjunction "que" means "than".
+The word "más" begins the comparative. The adverb "más" means "more". The verb "hay" means "there is".
+The word "el" replaces the noun.
+The adverb "tampoco" means "neither". The adverb "curiosamente" means "curiously". The adverb "probable" means "probable".
+The adjective "probable" means "probable".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "con" means "with". The preposition "por" means "by". The preposition "por" means "for". The preposition "salvo" means "except".
+The noun "jugador" means "player". "jugador" is a person. "jugadores" is the plural of "jugador".
+The verb "reclama" means "demands". "reclamado" is the participle of "reclama".
+The verb "da" means "gives". "dado" is the participle of "da". The dative pronoun "les" means "them".
+The noun "afán" means "eagerness". "afán" is masculine.
+The preposition "como" means "like". The word "como" means "as".
+The word "a" precedes the person.
+The word "no" means "not".').
+lesson_27(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a". "dei" is the plural of "un".
+"l''" is the elision of "il". "l''" is the elision of "la".
+"al" is the contraction of "a il". "del" is the contraction of "di il". "nel" is the contraction of "in il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". The noun "casa" means "house". The noun "squadra" means "team".
+The noun "calcio" means "football".
+The noun "allenatore" means "coach". "allenatore" is a person.
+The noun "decisione" means "decision". "decisione" is feminine.
+The noun "scelta" means "choice". The noun "turno" means "round". The noun "piano" means "plan". "piani" is the plural of "piano".
+The adjective "buono" means "good". "buon" is the apocope of "buono".
+The adjective "grande" means "big". The adjective "discutibile" means "questionable".
+The adjective "identico" means "identical". "identici" is the plural of "identico".
+The adjective "precedente" means "previous". The adjective "anteriore" means "anterior".
+The adjective "primo" means "first". "primi" is the plural of "primo".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+"mangiato" is the participle of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormito" is the participle of "dorme".
+"dorme" is intransitive. The number "due" means "two". The reflexive pronoun "si" means "itself".
+The verb "confida" means "trusts". "confida" takes "di" before the infinitive.
+The intransitive verb "piace" means "pleases".
+The verb "sa" means "knows". The transitive verb "conosce" means "knows". "conosco" is the first person of "conosce".
+The verb "risulta" means "results".
+The verb "ha" means "has". "hanno" is the plural of "ha".
+The verb "rimane" means "stays". "rimane" is not reflexive. "rimasto" is the participle of "rimane".
+"è" is the auxiliary of "rimane".
+The verb "opterà" means "will opt". The verb "sembra" means "seems".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è". "stato" is the participle of "è".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "ho" is the first person of "ha".
+The impersonal modal "bisogna" means "must".
+The verb "dice" means "says". "disse" is the past of "dice".
+The dative pronoun "gli" means "him".
+The pronoun "tutti" means "everyone". The pronoun "tutti" does not precede the verb.
+The pronoun "questo" means "this". The pronoun "questo" does not precede the verb.
+The masculine demonstrative "questo" means "this".
+The pronoun "codesto" means "this". The pronoun "codesto" does not precede the verb.
+Every pronoun precedes the verb.
+The determiner "qualsiasi" means "any". The masculine determiner "molto" means "any".
+The conjunction "e" means "and". The conjunction "né" means "neither". The conjunction "né" means "nor".
+The conjunction "a parte il fatto che" means "apart from the fact that".
+The conjunction "per cui" means "so".
+"che" is a relative. The conjunction "che" means "that". The conjunction "che" means "than".
+The word "di" means "than".
+The word "più" begins the comparative. The adverb "più" means "more".
+The masculine pronoun "quello" means "that". "quelli" is the plural of "quello".
+The adverb "neanche" means "neither". The adverb "curiosamente" means "curiously". The adjective "probabile" means "probable".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "con" means "with". The preposition "da" means "by". The preposition "per" means "for". The preposition "eccetto" means "except".
+The noun "giocatore" means "player". "giocatore" is a person. "giocatori" is the plural of "giocatore".
+The verb "reclama" means "demands". "reclamato" is the participle of "reclama".
+The verb "dà" means "gives". "dato" is the participle of "dà". The dative pronoun "gli" means "them".
+The noun "smania" means "eagerness".
+"ai" is the contraction of "a i". "dell''" is the elision of "del".
+The preposition "come" means "like". The word "come" means "as".
 The word "non" means "not".').
 
 section_1 :-

@@ -221,11 +221,17 @@ The adverb "circa" means "approximately".
 # `provvedrà'
 The masculine noun "closing" means "closing".
 "closing" is the plural of "closing".
+# ... and a football player is a `giocatore', which the borrowed word must
+# not come before when Italian is written (the football article)
+The masculine noun "giocatore" means "player".
 The masculine noun "player" means "player".
 "player" is the plural of "player".
 "d'" is the elision of "di".
 The preposition "sin da" means "since".
 "provvederà" is the future of "provvede".
+# `before' is `prima di' before it is a deadline's `entro', which comes
+# first so that Italian writes it (the football article)
+The preposition "prima di" means "before".
 The preposition "entro" means "before".
 "gennaio" is a month.
 "febbraio" is a month.
@@ -382,3 +388,136 @@ The adjective "a rischio" means "at risk".
 # dropped with it: the builder keeps a one-way entry only when neither word
 # has one yet
 The masculine noun "conflitto" means "conflict".
+# the football article, into Italian: `gli piace il buon calcio', the
+# football pleasing him, where the dictionary gives `likes'
+The intransitive verb "piace" means "pleases".
+# `Bisogna prendere precauzioni': one must, with no subject word -- written
+# for the impersonal subject only, and `deve' for every other
+The impersonal modal "bisogna" means "must".
+"bisognava" is the past of "bisogna".
+"bisognerà" is the future of "bisogna".
+"bisognerebbe" is the conditional of "bisogna".
+# `prendere precauzioni': the dictionary has no precaution, and gives
+# `porta', carries, as the first word for takes
+The feminine noun "precauzione" means "precaution".
+"precauzioni" is the plural of "precauzione".
+The verb "prende" means "takes".
+# senses the dictionary puts second: a cup, training, very, even, the
+# previous round, a rival, a commitment, an injury, talks, since
+The feminine noun "coppa" means "cup".
+The masculine noun "allenamento" means "training".
+The adverb "molto" means "very".
+The adverb "persino" means "even".
+The adjective "precedente" means "previous".
+"precedenti" is the plural of "precedente".
+The masculine noun "rivale" means "rival".
+"rivali" is the plural of "rivale".
+The masculine noun "turno" means "round".
+The masculine noun "impegno" means "commitment".
+The masculine noun "infortunio" means "injury".
+"infortuni" is the plural of "infortunio".
+The masculine noun "colloquio" means "talk".
+"colloqui" is the plural of "colloquio".
+The conjunction "dato che" means "since".
+# words the dictionary lacks: to dose, a squad (`la rosa'), the last
+# sixteen, `qualsiasi', and to appeal, which Italian says with a noun
+The verb "dosa" means "doses".
+"dosare" is the infinitive of "dosa".
+"dosano" is the plural of "dosa".
+The feminine noun "rosa" means "squad".
+The masculine noun "ottavo di finale" means "eighth-final".
+"ottavi di finale" is the plural of "ottavo di finale".
+The determiner "qualsiasi" means "any".
+"qualsiasi" is the plural of "qualsiasi".
+The verb "fa appello" means "appeals".
+"fanno appello" is the plural of "fa appello".
+"fece appello" is the past of "fa appello".
+"fecero appello" is the past of "fanno appello".
+"fatto appello" is the participle of "fa appello".
+"farà appello" is the future of "fa appello".
+"fare appello" is the infinitive of "fa appello".
+# `il buon calcio': `buono' loses its ending before a noun, as Spanish's
+# `bueno' does
+"buon" is the apocope of "buono".
+# `confida di ripetere': the dictionary has only `affida', entrusts, for
+# trusts; and the word the verb takes before an infinitive
+The verb "confida" means "trusts".
+"confidano" is the plural of "confida".
+"confidò" is the past of "confida".
+"confidarono" is the past of "confidano".
+"confidato" is the participle of "confida".
+"confiderà" is the future of "confida".
+"confidare" is the infinitive of "confida".
+"confida" takes "di" before the infinitive.
+# `Les he dado descanso': to them, which Italian says with `gli' as it
+# says to him; and explains, whose first word in the dictionary is `racconta'
+The dative pronoun "gli" means "them".
+The verb "spiega" means "explains".
+# `Conosco l'allenatore': knowing a person or a thing is `conoscere', and a
+# fact is `sapere', whose `sa' the dictionary gives first for knows
+The transitive verb "conosce" means "knows".
+# `per andare avanti', to go on: a verb of two words
+The verb "va avanti" means "goes ahead".
+"vanno avanti" is the plural of "va avanti".
+"andò avanti" is the past of "va avanti".
+"andato avanti" is the participle of "va avanti".
+"andare avanti" is the infinitive of "va avanti".
+# `non figurano né Rivaldo né Overmars': the dictionary's words for appears
+# are `appare' and `compare', and a name in a list figures
+The verb "figura" means "appears".
+"figurano" is the plural of "figura".
+"figurò" is the past of "figura".
+"figura" is intransitive.
+# `a doppia partita': a match is a `partita', where the dictionary gives
+# `abbinamento', a pairing, first
+The feminine noun "partita" means "match".
+# `este ingrato compromiso': a thankless task, where the dictionary's
+# `ingrato' is only ungrateful
+The adjective "ingrato" means "thankless".
+# `En su afán por esconder sus planes': eagerness, which the dictionary
+# gives as `ansia', anxiety
+The feminine noun "smania" means "eagerness".
+# `se han quedado en casa' is `sono rimasti': Spanish's verb is reflexive
+# and Italian's is not, and it builds its perfect with `essere'
+"rimane" is not reflexive.
+"è" is the auxiliary of "rimane".
+# `cualquier signo de relajación': the dictionary has no word for
+# relaxation
+The masculine noun "rilassamento" means "relaxation".
+"rilassamenti" is the plural of "rilassamento".
+# the football article's Italian: to think, this, a sign and confidence,
+# whose first words in the dictionary are `opina', `codesto', `segnale' and
+# `confidenza'; and `questo' stands alone, as `esto ya está ganado' does
+The verb "pensa" means "thinks".
+The pronoun "questo" means "this".
+The pronoun "questo" does not precede the verb.
+The masculine noun "segno" means "sign".
+The feminine noun "fiducia" means "confidence".
+# `oggi stesso', this very day
+The adverb "oggi stesso" means "this very day".
+# `idénticos condicionantes que la ronda anterior', `más grande que el
+# perro': a comparison with a phrase is `di' -- `del turno precedente',
+# `più grande del cane' -- which the dictionary does not say
+The word "di" means "than".
+# `la motivazione degli uni e degli altri': of both sides
+The adjective "degli uni e degli altri" means "of both sides".
+"degli uni e degli altri" is the plural of "degli uni e degli altri".
+# `a parte il fatto che' and `per cui': apart from the fact that, and so
+The conjunction "a parte il fatto che" means "apart from the fact that".
+The conjunction "per cui" means "so".
+# `come tutti': everyone
+The pronoun "tutti" means "everyone".
+The pronoun "tutti" does not precede the verb.
+# `hanno goduto di alcuni giorni di riposo': to enjoy, which the dictionary
+# does not have
+The verb "gode" means "enjoys".
+"godono" is the plural of "gode".
+"godette" is the past of "gode".
+"godettero" is the past of "godono".
+"goduto" is the participle of "gode".
+"godere" is the infinitive of "gode".
+# `curiosamente', curiously, which the dictionary gives only as interestingly
+The adverb "curiosamente" means "curiously".
+# `più che discutibile': before an adjective the word for than is `che',
+# before a phrase `di'
+The conjunction "che" means "than".

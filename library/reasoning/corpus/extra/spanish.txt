@@ -278,3 +278,88 @@ The adverb "en cambio" means "instead".
 # `las categorías de riesgo', which is how Spanish says at risk of a group
 The adjective "de riesgo" means "at risk".
 "de riesgo" is the plural of "de riesgo".
+# the football article, into Italian: `le gusta el buen fútbol' is the good
+# football pleasing him, and nothing is his object -- the dictionary gives
+# `likes', the sense with the two the other way round
+The intransitive verb "gusta" means "pleases".
+# `Hay que tomar precauciones': one must, and nobody named -- the modal
+# carries its own impersonal subject, so it is a word of two words
+The impersonal modal "hay que" means "must".
+"había que" is the past of "hay que".
+"habrá que" is the future of "hay que".
+"habría que" is the conditional of "hay que".
+# `Hay que tomar precauciones': precautions, where the dictionary's first
+# meaning is `caution' and Italian has no word for it
+The feminine noun "precaución" means "precaution".
+# senses the dictionary puts second, or gives in a way the other language
+# cannot use: the previous round, a coach (whose first Spanish word is a
+# bus), a disaster, a trap, a squad, a concession, since
+The adjective "anterior" means "previous".
+The masculine noun "entrenador" means "coach".
+The masculine noun "descalabro" means "disaster".
+The feminine noun "trampa" means "trap".
+The feminine noun "plantilla" means "squad".
+The feminine noun "concesión" means "concession".
+The conjunction "ya que" means "since".
+# `quiere' is `loves' first in the dictionary, and a program, a kiss and
+# an infinitive are wanted: `no quiere correr riesgos'
+The verb "quiere" means "wants".
+# the people the word before a person marks: `Conozco al entrenador',
+# `a los jugadores'
+"entrenador" is a person.
+"jugador" is a person.
+# words the dictionary lacks: to dose a squad's effort, the last sixteen,
+# and `cualquier', the short form of `cualquiera' as a determiner
+The verb "dosifica" means "doses".
+"dosificar" is the infinitive of "dosifica".
+"dosifican" is the plural of "dosifica".
+The masculine noun "octavo de final" means "eighth-final".
+"octavos de final" is the plural of "octavo de final".
+The determiner "cualquiera" means "any".
+# a verb's own word before an infinitive: `confía en repetir' trusts to
+# repeat, and Italian's verb takes `di' there
+"confía" takes "en" before the infinitive.
+# `por una lesión', out for an injury: the dictionary gives `por' no
+# `for', and a phrase that is no agent crossed as `through'
+The preposition "por" means "for".
+# `dosificar a la plantilla': a squad is people, and takes the word before
+# a person as its object
+"plantilla" is a person.
+# `conozco al entrenador' knows a person, `sé que' a fact: the verb that
+# takes a phrase for its object is written for one
+The transitive verb "conoce" means "knows".
+# `para seguir adelante', to go on: a verb of two words, whose second is
+# no complement of the first
+The verb "sigue adelante" means "goes ahead".
+"siguen adelante" is the plural of "sigue adelante".
+"siguió adelante" is the past of "sigue adelante".
+"seguir adelante" is the infinitive of "sigue adelante".
+# `no figuran ni Rivaldo ni Overmars': to be among, which takes no object,
+# so the phrase after it is its subject
+"figura" is intransitive.
+# `ya se disputarán a doble partido': a match is disputed, which Italian
+# says with the same verb, where the dictionary gives `contests' first
+The verb "disputa" means "disputes".
+# `por eliminar cualquier signo': to eliminate, where the dictionary puts
+# `deletes' first
+The verb "elimina" means "eliminates".
+# `esto ya está ganado': won, where the dictionary's first sense is earned
+The verb "gana" means "wins".
+# `como parece probable': seems, where the dictionary puts `looks' first;
+# and `hoy mismo', this very day, two words of one sense
+The verb "parece" means "seems".
+The adverb "hoy mismo" means "this very day".
+# `la motivación de unos y otros': of both sides, four words of one sense
+The adjective "de unos y otros" means "of both sides".
+"de unos y otros" is the plural of "de unos y otros".
+# `Al margen de que, como todos, han disfrutado de unos días de descanso':
+# apart from the fact that, four words of one conjunction; and `con lo que
+# esa elección resulta más que cuestionable', so, three
+The conjunction "al margen de que" means "apart from the fact that".
+The conjunction "con lo que" means "so".
+# `como todos': everyone, where the dictionary's `todos' is only the plural
+# of everything
+The pronoun "todos" means "everyone".
+The pronoun "todos" does not precede the verb.
+# `esa elección': a choice, where the dictionary puts an election first
+The feminine noun "elección" means "choice".

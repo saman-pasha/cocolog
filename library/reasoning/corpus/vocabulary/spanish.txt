@@ -215,6 +215,49 @@ The adverb "no" means "no".
 The adverb "en cambio" means "instead".
 The adjective "de riesgo" means "at risk".
 "de riesgo" is the plural of "de riesgo".
+The intransitive verb "gusta" means "pleases".
+The impersonal modal "hay que" means "must".
+"había que" is the past of "hay que".
+"habrá que" is the future of "hay que".
+"habría que" is the conditional of "hay que".
+The feminine noun "precaución" means "precaution".
+The adjective "anterior" means "previous".
+The masculine noun "entrenador" means "coach".
+The masculine noun "descalabro" means "disaster".
+The feminine noun "trampa" means "trap".
+The feminine noun "plantilla" means "squad".
+The feminine noun "concesión" means "concession".
+The conjunction "ya que" means "since".
+The verb "quiere" means "wants".
+"entrenador" is a person.
+"jugador" is a person.
+The verb "dosifica" means "doses".
+"dosificar" is the infinitive of "dosifica".
+"dosifican" is the plural of "dosifica".
+The masculine noun "octavo de final" means "eighth-final".
+"octavos de final" is the plural of "octavo de final".
+The determiner "cualquiera" means "any".
+"confía" takes "en" before the infinitive.
+The preposition "por" means "for".
+"plantilla" is a person.
+The transitive verb "conoce" means "knows".
+The verb "sigue adelante" means "goes ahead".
+"siguen adelante" is the plural of "sigue adelante".
+"siguió adelante" is the past of "sigue adelante".
+"seguir adelante" is the infinitive of "sigue adelante".
+"figura" is intransitive.
+The verb "disputa" means "disputes".
+The verb "elimina" means "eliminates".
+The verb "gana" means "wins".
+The verb "parece" means "seems".
+The adverb "hoy mismo" means "this very day".
+The adjective "de unos y otros" means "of both sides".
+"de unos y otros" is the plural of "de unos y otros".
+The conjunction "al margen de que" means "apart from the fact that".
+The conjunction "con lo que" means "so".
+The pronoun "todos" means "everyone".
+The pronoun "todos" does not precede the verb.
+The feminine noun "elección" means "choice".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

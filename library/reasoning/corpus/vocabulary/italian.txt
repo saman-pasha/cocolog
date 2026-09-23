@@ -205,11 +205,13 @@ The adverb "oltre" means "more than".
 The adverb "circa" means "approximately".
 The masculine noun "closing" means "closing".
 "closing" is the plural of "closing".
+The masculine noun "giocatore" means "player".
 The masculine noun "player" means "player".
 "player" is the plural of "player".
 "d'" is the elision of "di".
 The preposition "sin da" means "since".
 "provvederà" is the future of "provvede".
+The preposition "prima di" means "before".
 The preposition "entro" means "before".
 "gennaio" is a month.
 "febbraio" is a month.
@@ -326,6 +328,93 @@ The adverb "no" means "no".
 The adjective "a rischio" means "at risk".
 "a rischio" is the plural of "a rischio".
 The masculine noun "conflitto" means "conflict".
+The intransitive verb "piace" means "pleases".
+The impersonal modal "bisogna" means "must".
+"bisognava" is the past of "bisogna".
+"bisognerà" is the future of "bisogna".
+"bisognerebbe" is the conditional of "bisogna".
+The feminine noun "precauzione" means "precaution".
+"precauzioni" is the plural of "precauzione".
+The verb "prende" means "takes".
+The feminine noun "coppa" means "cup".
+The masculine noun "allenamento" means "training".
+The adverb "molto" means "very".
+The adverb "persino" means "even".
+The adjective "precedente" means "previous".
+"precedenti" is the plural of "precedente".
+The masculine noun "rivale" means "rival".
+"rivali" is the plural of "rivale".
+The masculine noun "turno" means "round".
+The masculine noun "impegno" means "commitment".
+The masculine noun "infortunio" means "injury".
+"infortuni" is the plural of "infortunio".
+The masculine noun "colloquio" means "talk".
+"colloqui" is the plural of "colloquio".
+The conjunction "dato che" means "since".
+The verb "dosa" means "doses".
+"dosare" is the infinitive of "dosa".
+"dosano" is the plural of "dosa".
+The feminine noun "rosa" means "squad".
+The masculine noun "ottavo di finale" means "eighth-final".
+"ottavi di finale" is the plural of "ottavo di finale".
+The determiner "qualsiasi" means "any".
+"qualsiasi" is the plural of "qualsiasi".
+The verb "fa appello" means "appeals".
+"fanno appello" is the plural of "fa appello".
+"fece appello" is the past of "fa appello".
+"fecero appello" is the past of "fanno appello".
+"fatto appello" is the participle of "fa appello".
+"farà appello" is the future of "fa appello".
+"fare appello" is the infinitive of "fa appello".
+"buon" is the apocope of "buono".
+The verb "confida" means "trusts".
+"confidano" is the plural of "confida".
+"confidò" is the past of "confida".
+"confidarono" is the past of "confidano".
+"confidato" is the participle of "confida".
+"confiderà" is the future of "confida".
+"confidare" is the infinitive of "confida".
+"confida" takes "di" before the infinitive.
+The dative pronoun "gli" means "them".
+The verb "spiega" means "explains".
+The transitive verb "conosce" means "knows".
+The verb "va avanti" means "goes ahead".
+"vanno avanti" is the plural of "va avanti".
+"andò avanti" is the past of "va avanti".
+"andato avanti" is the participle of "va avanti".
+"andare avanti" is the infinitive of "va avanti".
+The verb "figura" means "appears".
+"figurano" is the plural of "figura".
+"figurò" is the past of "figura".
+"figura" is intransitive.
+The feminine noun "partita" means "match".
+The adjective "ingrato" means "thankless".
+The feminine noun "smania" means "eagerness".
+"rimane" is not reflexive.
+"è" is the auxiliary of "rimane".
+The masculine noun "rilassamento" means "relaxation".
+"rilassamenti" is the plural of "rilassamento".
+The verb "pensa" means "thinks".
+The pronoun "questo" means "this".
+The pronoun "questo" does not precede the verb.
+The masculine noun "segno" means "sign".
+The feminine noun "fiducia" means "confidence".
+The adverb "oggi stesso" means "this very day".
+The word "di" means "than".
+The adjective "degli uni e degli altri" means "of both sides".
+"degli uni e degli altri" is the plural of "degli uni e degli altri".
+The conjunction "a parte il fatto che" means "apart from the fact that".
+The conjunction "per cui" means "so".
+The pronoun "tutti" means "everyone".
+The pronoun "tutti" does not precede the verb.
+The verb "gode" means "enjoys".
+"godono" is the plural of "gode".
+"godette" is the past of "gode".
+"godettero" is the past of "godono".
+"goduto" is the participle of "gode".
+"godere" is the infinitive of "gode".
+The adverb "curiosamente" means "curiously".
+The conjunction "che" means "than".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
