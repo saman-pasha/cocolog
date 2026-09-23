@@ -253,9 +253,30 @@ cb_read_persons :-
 
 %% ---- the bilingual dictionary ----------------------------------------------------
 
+%% THE BILINGUAL DICTIONARY IS THE SHORT ONE, and a word it lacks is a word
+%% with NO FORM AT ALL, though the monolingual has its every form: Italian's
+%% `muovere', `rendere', `spegnere', `sparire', `riprendere' are all there
+%% with their paradigms and none of them has an English entry. What a hand
+%% has to add is therefore only the MEANING, and it is added in the
+%% dictionary's own shape -- corpus/extra/eng-LANG.dix, one entry a line,
+%% read BEFORE the raw one so that its entries come first in their class,
+%% as corpus/extra/LANG.txt's lines do -- and every form then comes out of
+%% the paradigm exactly as a dictionary word's does. A line that is not an
+%% entry is a comment.
 cb_read_bilingual(Path, Entries) :-
+    cb_supplement(Path, Supp),
+    ( catch(read_file_to_codes(Supp, SCodes), _, fail) -> true ; SCodes = [] ),
     read_file_to_codes(Path, Codes), split_string(Codes, "\n", " \t\r", Lines),
-    findall(E, ( member(L, Lines), cb_bi_line(L, E) ), Entries).
+    split_string(SCodes, "\n", " \t\r", SLines),
+    findall(E, ( member(L, SLines), cb_bi_line(L, E) ), E1),
+    findall(E, ( member(L, Lines), cb_bi_line(L, E) ), E2),
+    length(E1, N1), format("   ~d supplement entries from ~w~n", [N1, Supp]),
+    append(E1, E2, Entries).
+
+%% corpus/raw/apertium-eng-ita.eng-ita.dix -> corpus/extra/eng-ita.dix
+cb_supplement(Path, Supp) :-
+    file_base_name(Path, Base), atom_concat('apertium-', Rest, Base), atomic_list_concat([Pair|_], '.', Rest),
+    normalise_corpus_dir(Dir), atomic_list_concat([Dir, '/extra/', Pair, '.dix'], Supp).
 
 %% e(Direction, Pos, English, Foreign, ForeignTags): one line, one word a side
 cb_bi_line(L, E) :-
@@ -439,6 +460,15 @@ cb_entry(e(_, noun, En, Fo, RTags)) :- !,
         ;   cb_noun(M, masculine, En, Forms, m), cb_noun(F, feminine, En, Forms, f)
         )
     ;   cb_sg(Forms, [n, f], F) -> cb_noun(F, feminine, En, Forms, f)
+    %% ONE FORM FOR BOTH GENDERS COMES BEFORE A DIFFERENT MASCULINE ONE: a
+    %% paradigm that has both names the masculine for an APOCOPE. `generale'
+    %% is `generali' in the plural for either gender and `general' only
+    %% before a name, and read masculine first the noun was stated as
+    %% `general', with no plural -- so `I generali' had no noun in it and read
+    %% as an article, an adjective and a noun left out. One paradigm in
+    %% either dictionary has the pair, general/e__n; where the two forms are
+    %% the same word (`presente', `custode') the masculine stays stated.
+    ;   cb_sg(Forms, [n, mf], W), cb_sg(Forms, [n, m], M0), M0 \== W -> cb_noun(W, none, En, Forms, mf)
     ;   cb_sg(Forms, [n, m], M) -> cb_noun(M, masculine, En, Forms, m)
     ;   cb_sg(Forms, [n, mf], W) -> cb_noun(W, none, En, Forms, mf)
     ;   cb_noun(Fo, none, En, [], none)
@@ -518,7 +548,12 @@ cb_noun(W, G, En, Forms, Tag) :-
     (   G == feminine -> cb_line('The feminine noun "~w" means "~w".', [W, En])
     ;   G == masculine -> cb_line('The masculine noun "~w" means "~w".', [W, En]),
         ( sub_atom(W, _, 1, 0, a) -> cb_line('"~w" is not feminine.', [W]) ; true )
-    ;   cb_line('The noun "~w" means "~w".', [W, En])
+    ;   cb_line('The noun "~w" means "~w".', [W, En]),
+        %% ONE FORM FOR BOTH GENDERS TAKES THE MASCULINE ARTICLE when nothing
+        %% says which: `un soccorritore' is `socorrista' in Spanish, and with
+        %% the grammar's rule that a noun ending in `a' is feminine it came
+        %% out `una socorrista'
+        ( G == none, Tag == mf, sub_atom(W, _, 1, 0, a) -> cb_line('"~w" is not feminine.', [W]) ; true )
     ),
     (   cb_formed(W, noun) -> true
     ;   assertz(cb_formed(W, noun)),

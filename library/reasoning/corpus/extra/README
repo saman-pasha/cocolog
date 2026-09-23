@@ -9,7 +9,20 @@ with it -- which re-rolls every minority shape the network learned by luck.
 Four lines cost the adjective grid 0.60 -> 0.25 and a red test/tagger.pl.
 
 The vocabulary directory is NOT read by the generator. These lines are
-appended to `../vocabulary/<language>.txt' by `../build.pl', so the
-translator gets the words and the tagger sees nothing at all.
+written at the HEAD of `../vocabulary/<language>.txt' by `../build.pl',
+before every dictionary line, so the translator gets the words, the first
+meaning of a word is the one written here, and the tagger sees nothing at
+all.
 
 One sentence a line, the same controlled English the reader already reads.
+
+eng-ita.dix and eng-spa.dix are the other half: ENTRIES in the bilingual
+dictionary's own shape, one a line, for a word the monolingual dictionary
+has with its paradigm and the bilingual one lacks -- `muovere', `sparire',
+`soccorritore' have every form in apertium-ita.ita.dix and no English. The
+builder reads them before the raw bilingual file, so every form comes out
+of the paradigm exactly as a dictionary word's does, where a line in
+italian.txt would have to state each form by hand. An entry marked r="RL"
+is read into English only and comes after every entry both ways; an entry
+both ways is the first meaning of its word and the first word for its
+meaning. Each file says which of its entries is which, and why.

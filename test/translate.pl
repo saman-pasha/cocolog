@@ -24,7 +24,7 @@ main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
-    adjuncts, newspaper_es, questions, rules, refusals, outline, vocabulary, shapes, build,
+    adjuncts, newspaper_es, newspaper_it, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -2119,6 +2119,173 @@ newspaper_es_checks :-
           'Se come el pan en familia, acusando al ministro.'),
 
     reason_unlearn(italian), reason_unlearn(spanish).
+
+% ---- an Italian article into Spanish ----------------------------------------------------
+%%
+%% A second real Italian article -- Monte Livata, the Italian UD ISDT
+%% document test-232..260, twenty-nine sentences of a rescue story told in
+%% quotations -- translated into Spanish needed what neither sample before
+%% it did: the copula of a STATE, a count with an adverb before it and a
+%% noun left out after it, `of which' with no verb, `all' before a phrase,
+%% a DATIVE pronoun, the `to' before an infinitive, a front that asks where,
+%% a sentence of thanks with no verb, and an elided article after a
+%% contraction. Each shape here is one of the article's, on two small
+%% lessons of its own.
+
+newspaper_it :-
+    section('an Italian article into Spanish: a state, counts, of which, all, datives, to, where, thanks'),
+    newspaper_it_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_it_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_it_checks,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+newspaper_it_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "noche" means "night". "noche" is feminine.
+The noun "unidad" means "unit". "unidad" is feminine. "unidades" is the plural of "unidad".
+The masculine adjective "canino" means "canine". The feminine adjective "canina" means "canine".
+The masculine adjective "cansado" means "tired". The feminine adjective "cansada" means "tired".
+The masculine determiner "otro" means "other". The feminine determiner "otra" means "other".
+The masculine pronoun "todo" means "all". The feminine pronoun "toda" means "all".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". The verb "va" means "goes".
+The verb "da" means "gives". "dado" is the participle of "da".
+The verb "es" means "is". "son" is the plural of "es". "somos" is the first person of "son".
+The auxiliary "está" means "is". "están" is the plural of "está". "estamos" is the first person of "están".
+The auxiliary "está" marks the state. The verb "está" means "stays".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "hemos" is the first person of "han".
+The pronoun "lo" means "him". The dative pronoun "le" means "him". Every pronoun precedes the verb.
+"que" is a relative. The conjunction "que" means "that".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "desde" means "from".
+The preposition "con" means "with". The preposition "en" means "in".
+The preposition "junto a" means "along with". The preposition "gracias a" means "thanks to".
+The adverb "más de" means "more than". The number "tres" means "three".
+The conjunction "y" means "and". The conjunction "donde" means "where". The word "dónde" means "where".
+The noun "sábado" means "saturday". "sábado" is a time.
+"ha" is the auxiliary of "es". "sido" is the participle of "es".
+The verb "verifica" means "verifies". "verificado" is the participle of "verifica".
+"verificados" is the participle of "verifica". "verificados" is the plural of "verificado".
+The adverb "todavía" means "still".
+The masculine adjective "voluntario" means "voluntary". "voluntarios" is the plural of "voluntario".
+The masculine noun "voluntario" means "volunteer".
+The word "no" means "not".').
+%% one lesson a clause: both in one ran over the page a stored clause must fit in
+newspaper_it_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+"al" is the contraction of "a il". "alla" is the contraction of "a la". "ai" is the contraction of "a i".
+"all''" is the elision of "alla". "dalla" is the contraction of "da la". "dall''" is the elision of "dalla".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat".
+The noun "pane" means "bread". "pani" is the plural of "pane".
+The noun "notte" means "night". "notte" is feminine.
+The noun "unità" means "unit". "unità" is feminine. "unità" is the plural of "unità".
+The masculine adjective "cinofilo" means "canine". The feminine adjective "cinofila" means "canine".
+"cinofile" is the plural of "cinofila".
+The masculine adjective "stanco" means "tired". "stanchi" is the plural of "stanco".
+The masculine adjective "altro" means "other". The feminine adjective "altra" means "other".
+The masculine pronoun "tutto" means "all". The feminine pronoun "tutta" means "all".
+The pronoun "tutta" does not precede the verb.
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". The verb "va" means "goes".
+The verb "dà" means "gives". "dato" is the participle of "dà".
+The verb "è" means "is". "sono" is the plural of "è". "siamo" is the first person of "sono".
+The auxiliary "sta" means "is". "stanno" is the plural of "sta". "stiamo" is the first person of "stanno".
+The verb "sta" means "stays".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "abbiamo" is the first person of "hanno".
+The dative pronoun "gli" means "him". Every pronoun precedes the verb.
+"che" is a relative. "cui" is a relative. The word "cui" follows the preposition.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "da" means "from".
+The preposition "con" means "with". The preposition "in" means "in".
+The preposition "insieme a" means "along with". The preposition "grazie a" means "thanks to".
+The adverb "oltre" means "more than". The number "tre" means "three".
+The conjunction "e" means "and". The word "dove" means "where".
+The noun "sabato" means "saturday". "sabato" is a time.
+"sono" is the first person of "è". "stato" is the participle of "è".
+"stati" is the participle of "è". "stati" is the plural of "stato".
+The verb "accerta" means "verifies". "accertato" is the participle of "accerta".
+"accertati" is the participle of "accerta". "accertati" is the plural of "accertato".
+The adverb "ancora" means "still".
+The masculine adjective "volontario" means "voluntary". "volontari" is the plural of "volontario".
+The masculine noun "volontario" means "volunteer".
+The word "non" means "not".').
+
+newspaper_it_checks :-
+    %% THE COPULA OF A STATE: the auxiliary that means `is', with no gerund
+    %% after it, is the state's, and the IR keeps it apart as state(is).
+    %% Spanish writes the word its lesson says marks the state; Italian,
+    %% whose lesson says nothing of the kind, writes its plain copula.
+    reason_ir('Stiamo stanchi.', italian, L1),
+    check('stare with no gerund is the copula of a state, state(is)', L1,
+          [ir(s(none, null(first, plural), g(state(is), present, simple, no), [adj([w(tired, lower)])]), 46)]),
+    reason_translate('Stiamo stanchi.', italian, spanish, L2),
+    check('Spanish writes estar, which its lesson says marks the state', L2, 'Estamos cansados.'),
+    reason_translate('Stiamo stanchi.', italian, english, L3),
+    check('English has one word for both', L3, 'We are tired.'),
+    reason_translate('Estamos cansados.', spanish, italian, L4),
+    check('and Italian, whose lesson says nothing of a state, the plain copula', L4, 'Siamo stanchi.'),
+    %% counts and what stands for the counted
+    reason_translate('Il cane mangia oltre 50 pani.', italian, spanish, L5),
+    check('an adverb before a number is the count''s: more than, and a preposition too', L5, 'El perro come más de 50 panes.'),
+    reason_translate('Il cane mangia 37 pani, di cui tre.', italian, spanish, L6),
+    check('OF WHICH with no verb: the relative after its preposition, agreeing with the object before it', L6,
+          'El perro come 37 panes, de los que tres.'),
+    reason_translate('Il cane mangia con unità cinofile.', italian, spanish, L7),
+    check('a noun that is its own plural takes the number of the adjective that has only one', L7,
+          'El perro come con unidades caninas.'),
+    reason_translate('Il cane dorme tutta la notte.', italian, spanish, L8),
+    check('ALL before a determiner is the phrase''s own, agreeing with its noun', L8, 'El perro duerme toda la noche.'),
+    %% a dative, the `to' before an infinitive, a front that asks where
+    reason_translate('Gli abbiamo dato il pane.', italian, spanish, L9),
+    check('a DATIVE pronoun stays one: le, never lo', L9, 'Le hemos dado el pan.'),
+    reason_translate('Il cane va a mangiare il pane.', italian, spanish, L10),
+    check('the to before an infinitive is kept, and written as the lesson''s own', L10, 'El perro va a comer el pan.'),
+    reason_translate('Il cane dorme e da dove il gatto mangia il pane.', italian, spanish, L11),
+    check('a front that asks where is written in front, with no comma', L11, 'El perro duerme y desde donde el gato come el pan.'),
+    %% thanks with no verb, a word of several words that contracts, an
+    %% elided article after a contraction
+    reason_translate('Grazie ai cani!', italian, spanish, L12),
+    check('thanks: a sentence with no verb', L12, 'Gracias a los perros!'),
+    reason_translate('Il cane mangia insieme al gatto.', italian, spanish, L13),
+    check('a word of several words contracts by its last word: junto al', L13, 'El perro come junto al gato.'),
+    reason_translate('Il cane va dall''altra.', italian, spanish, L14),
+    check('an elided article after a contraction stays elided, and the adjective says the gender', L14,
+          'El perro va desde la otra.'),
+    %% two regressions the control sentences found, each pinned where it bit:
+    %% the coordinator INSIDE a subject opens no clause, so the denial after
+    %% it is still the sentence's; and a time at the head keeps no capital,
+    %% so the name after it is the subject and not a name apposed to the day
+    reason_translate('Il cane e il gatto non mangiano il pane.', italian, spanish, L15),
+    check('a coordinator inside the subject opens no clause: the denial is the verb''s', L15,
+          'El perro y el gato no comen el pan.'),
+    reason_translate('Il cane e il gatto non mangiano il pane.', italian, english, L16),
+    check('and English denies the same verb', L16, 'The dog and the cat do not eat the bread.'),
+    reason_ir('Sabato Maria mangia il pane.', italian, L17),
+    check('a TIME at the head keeps no capital: Maria is the subject, not a name apposed to the day', L17,
+          [ir(s(none, name(maria), g(eats, present, simple, no),
+                [obj(np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular)),
+                 at_time(np(none, none, [], w(saturday, lower), singular))]), 46)]),
+    %% and an adverb inside the passive perfect leaves the participle to
+    %% choose the copula's number: `sono' is I am before it is they are
+    reason_translate('Non sono stati ancora accertati.', italian, spanish, L18),
+    check('the participle chooses the copula''s number with an adverb inside: they, not I', L18,
+          'No han sido verificados todavía.'),
+    %% and a word standing alone where no verb was read is a thing named: the
+    %% volunteers thanked, not something voluntary
+    reason_translate('Grazie ai cani, volontari!', italian, spanish, L19),
+    check('a noun and adjective alone in a clause with no verb is the noun', L19,
+          'Gracias a los perros, voluntarios!').
 
 % ---- the lesson questioned ---------------------------------------------------------
 

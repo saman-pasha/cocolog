@@ -1,0 +1,60 @@
+# library/reasoning/corpus/extra/eng-spa.dix -- entries Apertium's eng-spa
+# bilingual dictionary lacks, in its own shape, one a line. build.pl reads
+# them BEFORE the raw dictionary; an entry both ways is then the first
+# meaning of its word in its class, and the first word for its English
+# meaning, and an entry marked r="RL" comes after every entry both ways and
+# is kept only when the dictionary gave the Spanish word no meaning in that
+# class. Every word here has its paradigm in apertium-spa.spa.dix, so the
+# builder writes all its forms. A line that is not an entry is a comment.
+#
+# the Monte Livata article (Italian UD, ISDT test-232..260), into Spanish.
+# `niño' and `niña' are what a Spanish article calls a child of four; the
+# dictionary's first words for `child', `boy' and `girl' are `infante',
+# `chico' and `chica', and `compañero' is what `il compagno della donna' is
+# where the dictionary's first word for `partner' is the business `socio'.
+<e><p><l>child<s n="n"/></l><r>niño<s n="n"/><s n="GD"/></r></p></e>
+<e><p><l>girl<s n="n"/></l><r>niño<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>boy<s n="n"/></l><r>niño<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>partner<s n="n"/></l><r>compañero<s n="n"/><s n="GD"/></r></p></e>
+<e><p><l>rescuer<s n="n"/></l><r>socorrista<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>speleological<s n="adj"/></l><r>espeleológico<s n="adj"/></r></p></e>
+<e><p><l>ski<s n="vblex"/></l><r>esquiar<s n="vblex"/></r></p></e>
+<e><p><l>joke<s n="vblex"/></l><r>bromear<s n="vblex"/></r></p></e>
+<e><p><l>patrol<s n="vblex"/></l><r>patrullar<s n="vblex"/></r></p></e>
+<e><p><l>exhausted<s n="adj"/></l><r>agotado<s n="adj"/></r></p></e>
+<e><p><l>confused<s n="adj"/></l><r>confuso<s n="adj"/></r></p></e>
+<e><p><l>trapped<s n="adj"/></l><r>atrapado<s n="adj"/></r></p></e>
+<e><p><l>extinguish<s n="vblex"/></l><r>apagar<s n="vblex"/></r></p></e>
+<e><p><l>cleft<s n="n"/></l><r>hendidura<s n="n"/><s n="f"/></r></p></e>
+# the dictionary's first Spanish for `search' is `busca', for `report'
+# `denuncia' (to denounce), and it has no `shattered'
+<e><p><l>search<s n="n"/></l><r>búsqueda<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>report<s n="vblex"/></l><r>informar<s n="vblex"/></r></p></e>
+<e><p><l>shattered<s n="adj"/></l><r>destrozado<s n="adj"/></r></p></e>
+<e><p><l>carabineer<s n="n"/></l><r>carabinero<s n="n"/><s n="m"/></r></p></e>
+# `make' is `realizar' first in the dictionary, and `si sono fatti forza',
+# `si è fatta male' are made: `hacer'
+<e><p><l>make<s n="vblex"/></l><r>hacer<s n="vblex"/></r></p></e>
+# `mount' is `montura' (a saddle) first: `Monte Livata' is a mountain
+<e><p><l>mount<s n="n"/></l><r>monte<s n="n"/><s n="m"/></r></p></e>
+# `know' is `conocer' (to be acquainted with) first; `non si sa come' is
+# `no se sabe cómo'
+<e><p><l>know<s n="vblex"/></l><r>saber<s n="vblex"/></r></p></e>
+# `doctor' is the Spanish `doctor' first; a hospital's doctors are `médicos'
+<e><p><l>doctor<s n="n"/></l><r>médico<s n="n"/><s n="GD"/></r></p></e>
+# `enter' is `introducir' (to put in) and `entrar' has no entry at all:
+# `è entrata nel panico' is `ha entrado en pánico'
+<e><p><l>enter<s n="vblex"/></l><r>entrar<s n="vblex"/></r></p></e>
+# `arouse' is `excitar' first, which is the wrong sense for a worry:
+# `condizioni che non destano preoccupazione'
+<e><p><l>arouse<s n="vblex"/></l><r>suscitar<s n="vblex"/></r></p></e>
+# `alejar' has only `move away', more than a word
+<e><p><l>distance<s n="vblex"/></l><r>alejar<s n="vblex"/></r></p></e>
+# `operation' is `funcionamiento' first, how a machine runs: `alle
+# operazioni di ritrovamento' are the rescue's `operaciones'
+<e><p><l>operation<s n="n"/></l><r>operación<s n="n"/><s n="f"/></r></p></e>
+# `hall' is `vestíbulo' first, an entrance: `la sala operativa' is a room
+<e><p><l>hall<s n="n"/></l><r>sala<s n="n"/><s n="f"/></r></p></e>
+# `note' is `billete' first, a banknote: `fa sapere, in una nota' is a
+# statement the region issued, `una nota'
+<e><p><l>note<s n="n"/></l><r>nota<s n="n"/><s n="f"/></r></p></e>

@@ -4486,6 +4486,196 @@ seven SKIPs are the machine, each read from its own case: no CUDA for
 `tensorflow.so`, `ray.so` or `numpy.so` built. The long lines: `tutorials`
 360 s, `tagger` 211 s, `lint` 161 s, `tunnel` 62 s, `translate` 41 s.
 
+### A second Italian article, and the memo its longest sentences needed (1.6.17)
+
+**MONTE LIVATA INTO SPANISH, TWENTY-NINE SENTENCES OF A RESCUE TOLD IN
+QUOTATIONS.** The Italian UD ISDT document test-232..260 -- a woman and two
+children lost on a mountain, found, and the rescuers quoted at length --
+into Spanish over the two-language vocabulary store, each translator on the
+same store, a budget of 300 million inferences a sentence:
+
+| | 1.6.15, the committed translator | **1.6.17** |
+|---|---|---|
+| translated | 12 of 29, several wrong in structure (`se soy movido pero soy caído`, `de las y mantas`) | **29 of 29** |
+| refused | 14 -- 8 with every word known, 6 naming a word it read wrongly (`riprenderli`, a verb with its pronoun joined on; `anni,`, a word with its comma, inside a quotation still open) | **0** |
+| over the budget | 3, at about 110 s each | **0** |
+| the article, one process | 490 s | **77 s** |
+
+-- the store Italian 158 743 terms and Spanish 206 262, taught into one
+`--embed` store from the rebuilt vocabularies in 495 s and 873 s, 346 MB.
+Every sentence reads; what is still wrong in them is said below.
+
+**WHAT IT NEEDED IS NOT WHAT EITHER ARTICLE BEFORE IT NEEDED.** The twelve
+sentences of 1.6.14 were verbs and what they take; the Spanish column of
+1.6.15 was phrases that carry things; this one is the way a report SPEAKS --
+quotations over several sentences, a reporting clause after them, a state,
+a count, a thank-you with no verb:
+
+| shape | the article's words | what the lesson says |
+|---|---|---|
+| a quotation over several sentences, and the clause that reports it | `“Stiamo a pezzi ... ” ha spiegato un soccorritore` | nothing |
+| the copula of a STATE | `stiamo a pezzi`, `Estamos destrozados` | `The auxiliary "está" marks the state.` |
+| a count with an adverb before it | `con oltre 50 mezzi`, `a meno 5 gradi` | `The adverb "oltre" means "more than".` |
+| two counts, the noun left out of the second | `50 mezzi e 130 circa` | nothing |
+| `of which` with no verb | `37 associazioni ..., di cui tre di unità cinofile` | `"cui" follows the preposition`, already there |
+| `all` before a phrase | `tutta la notte`, `toda la noche` | nothing |
+| a DATIVE pronoun | `gli abbiamo dato`, `le hemos dado` | `The dative pronoun "gli" means "him".` |
+| the `to` before an infinitive | `andare a chiedere aiuto`, `ir a pedir ayuda` | nothing |
+| a front that asks where | `e da dove abbiamo poi ritrovato la mamma` | nothing |
+| thanks with no verb | `Grazie all'Arma dei carabinieri, ...` | nothing |
+| an elided article after a contraction | `è andata dall'altra`, `desde la otra` | nothing |
+| a number in any format | `-10 gradi`, `1.400 metri`, `4 e 5 anni`, `al 118` | nothing |
+| an aside | `una donna, 36 anni,`, `(Roma)` | nothing |
+| a word alone where no verb was read: a noun before an adjective | `..., Regione Lazio, volontari, ai cani` | `volunteer` in `extra/eng-ita.dix` |
+
+-- and the words the dictionaries lack or give a wrong first sense for,
+which is `corpus/extra/eng-ita.dix` and `eng-spa.dix`, the bilingual
+dictionary's own shape, one entry a line, each with a comment saying why
+(`child` is `niño` and not `infante`, `mount` is `monte` and not a saddle).
+`reason.pl` did not move, which is the eighth version running.
+
+**THE COPULA OF A STATE IS THE ONE PLACE THE IR GREW A WORD, AND IT IS
+`state(is)`.** Italian and Spanish both say `is` with two verbs and English
+with one, so the IR had thrown the difference away: `Stiamo a pezzi` came
+out `Somos destrozados`. The auxiliary a lesson says means `is` -- the
+progressive's `sta`, `está` -- is the state's when no gerund follows it, the
+IR carries it as `state(is)` beside `reflexive(L)`, English writes `is`, and
+a lesson writes the word it says MARKS the state or, saying nothing, its
+plain copula. So `Estamos cansados` into Italian is `Siamo stanchi`, which is
+right, and the line lives in `corpus/extra/spanish.txt` alone.
+
+**A PHRASE IS A THIRD PERSON, IN ITS OWN NUMBER.** The subject reader took
+the verb's person on trust, so `Monte Livata, ritrovati vivi donna` read
+`vivi` -- you live -- as the verb of `Monte Livata retrieved`, and a boy on a
+rock was the subject of `si sono fatti forza`, one boy for the two children
+the plural said. A phrase takes a verb in the third person and in the
+phrase's number now, on the LESSON's side only: English's `are` is you, we
+and they alike, and `The houses are big` would have been refused.
+
+**AND ITS LONGEST SENTENCES WERE A COST AND NOT A SHAPE.** On the probe
+store the sentence that begins `Di certo si sa solo che la famiglia era ...`
+-- thirty-five words, a subordinate clause, a name between commas -- asked
+for a statement reading 171 times, 35 of them distinct. Every count the
+profile named, and each memo was measured before it was built:
+
+| what was asked again | over that one sentence | kept as |
+|---|---|---|
+| a statement that failed to read | 171 readings, **35 distinct** | a failure, like a piece's (tr_read/4) |
+| a word's lexemes | **204 829 calls**, for about sixty distinct words | every solution, the first time |
+| a word's verb forms, a word's class | 23 915 and 47 806 calls | every solution, the first time |
+
+-- and the pair that says what they buy is this translator with the memos
+taken out and nothing else, on the full store, two alternating repeats,
+the translations identical to the byte in all four arms:
+
+| sentence | with the memos | without |
+|---|---|---|
+| `Un soccorritore parla di “miracolo” ...`, fifty words | 14.9, 14.2 s | 30.9, 33.6 s |
+| `Di certo si sa solo che la famiglia era ...` | 15.2, 15.0 s | 86.0, 90.1 s |
+| `“La sala operativa della Protezione civile ...`, ninety words | 3.5, 3.4 s | 7.8, 7.9 s |
+| the three | **33.6, 32.5 s** | **124.7, 131.5 s** |
+
+-- 3.8 times, the ranges nowhere near touching.
+
+**A GLOBAL IS COPIED EVERY TIME IT IS READ, AND THE FIRST MEMO WAS SLOWER
+FOR IT.** One assoc for the whole sentence cost **62 us a lookup** at five
+hundred entries against 2.8 us empty -- `nb_getval/2` and `b_getval/2`
+alike. Each WORD has a global of its own now (`'$tr_w|casa'`), a handful of
+entries, about two microseconds.
+
+**AND THE RESET WAS WRONG, WHICH ONLY THE CASE COULD SEE.** A reset listed
+the tables the sentence touched and emptied them -- and a table that already
+existed was never listed again, so a lesson changed between two calls read
+the old answer: `what` stayed known after `retract(mean('qué', what))`.
+A reset is a GENERATION now, and a table stamped with an older one is empty.
+
+**A CLAUSE HAS ONE SCOPE, AND IT BIT FOR THE FOURTH TIME.** The count slot
+of 1.6.14 named its adverb `A`, and the adjective check eight lines below
+walked `forall(member(A, Adjs), ...)`: with the adverb bound, `member/2`
+matched nothing and EVERY adjective after such a count passed unchecked --
+`oltre 50 mezzi e 130` was one phrase with `e 130` for adjectives. It is
+`NA` now, and the clause says why. The tell was a `forall/2` that succeeded
+in the clause and failed on the same terms at the top level: **when a goal
+answers differently in a clause than alone, look for a variable the clause
+already bound.**
+
+**THE CONTROLS FOUND TWO REGRESSIONS THE CASE DID NOT, AND BOTH WERE RULES
+WRITTEN FOR ONE SENTENCE AND TRUE OF A CLASS THEY DID NOT NAME.** With
+`test/translate.pl` GREEN and the article at 29 of 29, the twelve sentences
+of 1.6.14 were run on the same store by this translator and by the
+committed one, and two of the twelve had come out WORSE -- neither refused,
+both wrong:
+
+| sentence | came out | the rule | what it missed |
+|---|---|---|---|
+| `La sua identità e la sua nazionalità non sono state ancora accertate.` | `... han sido verificados todavía no.` -- the verb no longer denied | a connecting word before `non` opens a clause of its own (`perché Pivetti non si è adeguata`) | a COORDINATOR joins two phrases of one subject as often as two clauses |
+| `Sabato Mladic aveva spedito un fax ...` | `Había enviado un fax ... Sábado Mladic.` -- the subject gone | a capitalised noun at the head before an unknown capitalised word is a name's first word (`Monte Livata`) | a TIME at the head is capitalised by the sentence, and `Mladic` became a name apposed to the day |
+
+A coordinator opens no clause now -- a second clause after one is the
+division's to read, where each half reads its own denial -- and a noun the
+lesson calls a time loses the head's capital, because a day is lower case
+inside an Italian or a Spanish sentence. `newspaper_it` pins both, and both
+pins fail on the code before the fix.
+
+**AND A THIRD WAS OLDER THAN ANY OF THIS, IN THE DICTIONARY BUILDER.** `I
+generali` read as an article, an adjective and a noun left out, because the
+vocabulary had no NOUN `generale`: Apertium's paradigm `general/e__n` gives
+`generale` and `generali` for both genders and `general` for the masculine
+alone -- an apocope -- and the builder, asking for the masculine first,
+stated the noun as `general` with no plural. It had done so for as long as
+the builder has existed, and the adjective read by position had covered for
+it until this version's rule that an adjective after an article is no noun
+(`l'altra`, the other one). A form for both genders comes before a DIFFERENT
+masculine one now, and the diff of the rebuilt vocabulary is those three
+lines and nothing else: one paradigm in either dictionary has the pair. The
+same probe found the passive perfect with an adverb inside it (`sono stati
+ANCORA accertati`, 1.6.15) choosing among the copula's readings without the
+participle's number, which its three-word sibling asks: `sono` is `I am`
+before it is `they are`, so a phrase subject never agreed and the sentence
+read only once the adverb was lifted, and with nobody named it said one
+thing verified where the participle said several. `newspaper_it` pins that
+too.
+
+**TRANSLATED IS NOT RIGHT, AND WHAT IS LEFT IS SAID HERE RATHER THAN HIDDEN.**
+Every sentence reads as a structure the translator has; what is wrong is
+words, agreement and a few senses no lesson can separate:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `eran atrapados`, `eran a doce kilómetros` | `estaban` | Italian's `essere` is both, and only a sense says which; the state copula of this version is `stare`'s alone |
+| `le hemos dado` for `gli` meaning them | `les` | `gli` is to him and to them, and the lesson gives one meaning |
+| `de las mantas` | `unas mantas` | the partitive `delle` reads as `of the` |
+| `del Guardia de finanza` | `de la Guardia` | a common-gender noun is masculine unless its article is read -- and the IR carries no gender |
+| `a la Arma` | `al Arma` | Spanish's `el` before a stressed `a` is no rule a lesson states |
+| `desde la otra`, `ir desde una parte` | `a la otra`, `hacia un lado` | `da` after a verb of going is `to`; the lesson gives `from` |
+| `consideró`, `quiso` | `consideraba`, `quería` | the imperfect and the preterite are both `past`, 1.6.15's stated cost |
+| `para comer` | `de comer` | `da mangiare` is read as the purpose word |
+| `se ha hecho mal`, `ha equivocado carretera` | `se ha hecho daño`, `se ha equivocado de camino` | an idiom is a phrase, and a lesson gives words |
+| `explicando que se han aplicado`, no opening mark | `explicando que “se han ...` | a mark that opens a quotation mid-sentence and closes in the next sentence is dropped |
+
+-- none of them is a refusal, so none of them shows in the count, which is
+the honest reading of 29 of 29 and the reason the next work is quality.
+
+**THE CONTROLS, ON THE SAME STORE, THIS TRANSLATOR AGAINST 1.6.15's:**
+
+| control | 1.6.15 | 1.6.17 |
+|---|---|---|
+| the twelve Italian sentences of 1.6.14, into Spanish | 12 of 12, 20.3 s | 12 of 12, **14.9 s** -- seven better, five the same, none worse |
+| the Spanish article of 1.6.15, into Italian | 11 of 11, 23.3 s | 11 of 11, **14.1 s**, the same text to the byte |
+| Tatoeba, 400 Spanish sentences into English | 52 exact, 258 translated, 142 refused, 17.5 s | **53, 264, 136**, 13.4 s |
+
+-- the seven of the twelve that moved: `se han llamado` for `se son ...
+llamados`, `no se ha adaptado` for `no se es adaptado`, `de procesos` for an
+untranslated `di`, `de la atómica` for `del atómico`, `se tiende a abonar`,
+`la redada ha logrado` for `es lograda`, and `las autoridades constituidas
+... en un estado de pobreza` for `la autoridad ... en uno sido`.
+
+**`test/translate.pl` IS 645 CHECKS AND GREEN**, nineteen in a new
+`newspaper_it` section with an Italian and a Spanish lesson of its own --
+the shapes above, the two regressions, the passive perfect's number and the
+word alone with no verb, each of the last four red on the code before its
+fix -- and lesson 46 gained section 23.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

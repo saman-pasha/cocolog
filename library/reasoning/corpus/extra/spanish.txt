@@ -75,7 +75,9 @@ The verb "equivoca" means "errs".
 "equivocan" is the plural of "equivoca".
 "equivocado" is the participle of "equivoca".
 "equivocar" is the infinitive of "equivoca".
-The pronoun "les" means "them".
+# ... and the pronouns Spanish gives a dative, the one said to whom
+The dative pronoun "les" means "them".
+The dative pronoun "le" means "him".
 The adjective "débil" means "weak".
 The adjective "esnob" means "snobbish".
 The masculine adjective "ciudadano" means "civic".
@@ -90,3 +92,38 @@ The word "el" replaces the noun.
 The feminine noun "clase media" means "middle class".
 "equivoca" is reflexive.
 "desahoga" is reflexive.
+# the Monte Livata article, into Spanish: `on' is English's own word, so no
+# dictionary line gives it, and `su un albero' is `en un árbol'
+The preposition "en" means "on".
+The adjective "con final feliz" means "with a happy ending".
+The adverb "a su vez" means "in turn".
+The adverb "de noche" means "at night".
+The adverb "desde arriba" means "from above".
+The preposition "además de" means "besides".
+The preposition "gracias a" means "thanks to".
+The preposition "en vez de" means "instead of".
+The preposition "cerca de" means "near".
+The noun "lo peor" means "the worst".
+The conjunction "aunque" means "although".
+The conjunction "mientras" means "while".
+The verb "se da cuenta" means "realizes".
+# the perfect infinitive, `haber dejado': the dictionary gives `haber' no
+# English, so no line states its infinitive
+"haber" is the infinitive of "ha".
+# `su' is his and her in the lesson, and a page's `sus condiciones' is theirs
+The possessive "su" means "their".
+The possessive "su" means "its".
+# `donde' without its accent is the relative: `el hospital donde los médicos'
+The conjunction "donde" means "where".
+# `stiamo a pezzi' is a state, and Spanish says one with `estar': the
+# auxiliary that means `is' is also the copula of a state
+The auxiliary "está" marks the state.
+# ... and Spanish counts it `más de 50'
+The adverb "más de" means "more than".
+# `mamá' means `mum', which WordNet's short list of persons does not hold:
+# `abbiamo ritrovato la mamma' is `hemos encontrado a la mamá'
+"mamá" is a person.
+# `empinado' is a participle to the monolingual dictionary and comes with no
+# feminine: `un dirupo abbastanza scosceso', a cliff that is quite steep
+The feminine adjective "empinada" means "steep".
+"empinadas" is the plural of "empinada".

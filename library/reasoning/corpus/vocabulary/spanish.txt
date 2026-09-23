@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 19959 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 19974 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -75,7 +75,8 @@ The verb "equivoca" means "errs".
 "equivocan" is the plural of "equivoca".
 "equivocado" is the participle of "equivoca".
 "equivocar" is the infinitive of "equivoca".
-The pronoun "les" means "them".
+The dative pronoun "les" means "them".
+The dative pronoun "le" means "him".
 The adjective "débil" means "weak".
 The adjective "esnob" means "snobbish".
 The masculine adjective "ciudadano" means "civic".
@@ -90,6 +91,66 @@ The word "el" replaces the noun.
 The feminine noun "clase media" means "middle class".
 "equivoca" is reflexive.
 "desahoga" is reflexive.
+The preposition "en" means "on".
+The adjective "con final feliz" means "with a happy ending".
+The adverb "a su vez" means "in turn".
+The adverb "de noche" means "at night".
+The adverb "desde arriba" means "from above".
+The preposition "además de" means "besides".
+The preposition "gracias a" means "thanks to".
+The preposition "en vez de" means "instead of".
+The preposition "cerca de" means "near".
+The noun "lo peor" means "the worst".
+The conjunction "aunque" means "although".
+The conjunction "mientras" means "while".
+The verb "se da cuenta" means "realizes".
+"haber" is the infinitive of "ha".
+The possessive "su" means "their".
+The possessive "su" means "its".
+The conjunction "donde" means "where".
+The auxiliary "está" marks the state.
+The adverb "más de" means "more than".
+"mamá" is a person.
+The feminine adjective "empinada" means "steep".
+"empinadas" is the plural of "empinada".
+The masculine noun "niño" means "child".
+"niños" is the plural of "niño".
+"niño" is a person.
+The feminine noun "niña" means "child".
+"niñas" is the plural of "niña".
+"niña" is a person.
+The feminine noun "niña" means "girl".
+The masculine noun "niño" means "boy".
+The masculine noun "compañero" means "partner".
+"compañeros" is the plural of "compañero".
+"compañero" is a person.
+The feminine noun "compañera" means "partner".
+"compañeras" is the plural of "compañera".
+"compañera" is a person.
+The noun "socorrista" means "rescuer".
+"socorrista" is not feminine.
+"socorristas" is the plural of "socorrista".
+The feminine noun "hendidura" means "cleft".
+"hendiduras" is the plural of "hendidura".
+The feminine noun "búsqueda" means "search".
+"búsquedas" is the plural of "búsqueda".
+The masculine noun "carabinero" means "carabineer".
+"carabineros" is the plural of "carabinero".
+"carabinero" is a person.
+The masculine noun "monte" means "mount".
+"montes" is the plural of "monte".
+The masculine noun "médico" means "doctor".
+"médicos" is the plural of "médico".
+"médico" is a person.
+The feminine noun "médica" means "doctor".
+"médicas" is the plural of "médica".
+"médica" is a person.
+The feminine noun "operación" means "operation".
+"operaciones" is the plural of "operación".
+The feminine noun "sala" means "hall".
+"salas" is the plural of "sala".
+The feminine noun "nota" means "note".
+"notas" is the plural of "nota".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -267,6 +328,7 @@ The feminine noun "abstención" means "abstention".
 The masculine noun "abstencionismo" means "abstentionism".
 "abstencionismos" is the plural of "abstencionismo".
 The noun "abstencionista" means "abstentionist".
+"abstencionista" is not feminine.
 "abstencionistas" is the plural of "abstencionista".
 The feminine noun "abstinencia" means "abstinence".
 "abstinencias" is the plural of "abstinencia".
@@ -346,6 +408,7 @@ The feminine noun "acústica" means "acoustics".
 The feminine noun "adquisición" means "acquisition".
 "adquisiciones" is the plural of "adquisición".
 The noun "acróbata" means "acrobat".
+"acróbata" is not feminine.
 "acróbatas" is the plural of "acróbata".
 The masculine noun "acto" means "act".
 "actos" is the plural of "acto".
@@ -354,6 +417,7 @@ The feminine noun "acción" means "action".
 The masculine noun "activismo" means "activism".
 "activismos" is the plural of "activismo".
 The noun "activista" means "activist".
+"activista" is not feminine.
 "activistas" is the plural of "activista".
 "activista" is a person.
 The feminine noun "actividad" means "activity".
@@ -476,6 +540,7 @@ The masculine noun "alcohol" means "alcohol".
 The masculine noun "alcoholismo" means "alcoholism".
 "alcoholismos" is the plural of "alcoholismo".
 The noun "alienígena" means "alien".
+"alienígena" is not feminine.
 "alienígenas" is the plural of "alienígena".
 "alienígena" is a person.
 The feminine noun "alienación" means "alienation".
@@ -517,6 +582,7 @@ The feminine noun "alternativa" means "alternative".
 The feminine noun "altitud" means "altitude".
 "altitudes" is the plural of "altitud".
 The noun "altruista" means "altruist".
+"altruista" is not feminine.
 "altruistas" is the plural of "altruista".
 The masculine noun "aluminio" means "aluminium".
 "aluminios" is the plural of "aluminio".
@@ -547,13 +613,16 @@ The feminine noun "amputación" means "amputation".
 The masculine noun "anacronismo" means "anachronism".
 "anacronismos" is the plural of "anacronismo".
 The noun "anestesista" means "anaesthetist".
+"anestesista" is not feminine.
 "anestesistas" is the plural of "anestesista".
 The noun "analista" means "analyst".
+"analista" is not feminine.
 "analistas" is the plural of "analista".
 "analista" is a person.
 The masculine noun "anarquismo" means "anarchism".
 "anarquismos" is the plural of "anarquismo".
 The noun "anarquista" means "anarchist".
+"anarquista" is not feminine.
 "anarquistas" is the plural of "anarquista".
 "anarquista" is a person.
 The feminine noun "anarquía" means "anarchy".
@@ -586,6 +655,7 @@ The masculine noun "tobillo" means "ankle".
 The masculine noun "anexo" means "annex".
 "anexos" is the plural of "anexo".
 The noun "anexionista" means "annexationist".
+"anexionista" is not feminine.
 "anexionistas" is the plural of "anexionista".
 The feminine noun "aniquilación" means "annihilation".
 "aniquilaciones" is the plural of "aniquilación".
@@ -620,6 +690,7 @@ The masculine noun "antioxidante" means "antioxidant".
 The feminine noun "antipatía" means "antipathy".
 "antipatías" is the plural of "antipatía".
 The noun "antirracista" means "antiracialism".
+"antirracista" is not feminine.
 "antirracistas" is the plural of "antirracista".
 The masculine noun "antisemitismo" means "antisemitism".
 "antisemitismos" is the plural of "antisemitismo".
@@ -704,6 +775,7 @@ The feminine noun "argumentación" means "argumentation".
 The feminine noun "aristocracia" means "aristocracy".
 "aristocracias" is the plural of "aristocracia".
 The noun "aristócrata" means "aristocrat".
+"aristócrata" is not feminine.
 "aristócratas" is the plural of "aristócrata".
 The feminine noun "arca" means "ark".
 "arcas" is the plural of "arca".
@@ -745,6 +817,7 @@ The masculine noun "artefacto" means "artefact".
 The feminine noun "artillería" means "artillery".
 "artillerías" is the plural of "artillería".
 The noun "artista" means "artist".
+"artista" is not feminine.
 "artistas" is the plural of "artista".
 "artista" is a person.
 The masculine noun "ascendente" means "ascendant".
@@ -783,6 +856,7 @@ The masculine noun "asteroide" means "asteroid".
 The feminine noun "asma" means "asthma".
 "asmas" is the plural of "asma".
 The noun "astronauta" means "astronaut".
+"astronauta" is not feminine.
 "astronautas" is the plural of "astronauta".
 The feminine noun "astronomía" means "astronomy".
 "astronomías" is the plural of "astronomía".
@@ -791,6 +865,7 @@ The masculine noun "asilo" means "asylum".
 The feminine noun "asimetría" means "asymmetry".
 "asimetrías" is the plural of "asimetría".
 The noun "atleta" means "athlete".
+"atleta" is not feminine.
 "atletas" is the plural of "atleta".
 "atleta" is a person.
 The masculine noun "atletismo" means "athletics".
@@ -1015,6 +1090,7 @@ The noun "pretendiente" means "beau".
 "pretendientes" is the plural of "pretendiente".
 "pretendiente" is a person.
 The noun "esteticista" means "beautician".
+"esteticista" is not feminine.
 "esteticistas" is the plural of "esteticista".
 The feminine noun "belleza" means "beauty".
 "bellezas" is the plural of "belleza".
@@ -1105,6 +1181,7 @@ The feminine noun "pizarra" means "blackboard".
 The masculine noun "chantaje" means "blackmail".
 "chantajes" is the plural of "chantaje".
 The noun "chantajista" means "blackmailer".
+"chantajista" is not feminine.
 "chantajistas" is the plural of "chantajista".
 "chantajista" is a person.
 The masculine noun "apagón" means "blackout".
@@ -1349,6 +1426,7 @@ The masculine noun "canibalismo" means "cannibalism".
 The masculine noun "piragüismo" means "canoeing".
 "piragüismos" is the plural of "piragüismo".
 The noun "piragüista" means "canoeist".
+"piragüista" is not feminine.
 "piragüistas" is the plural of "piragüista".
 "piragüista" is a person.
 The masculine noun "canon" means "canon".
@@ -1368,6 +1446,7 @@ The feminine noun "capital" means "capital".
 The masculine noun "capitalismo" means "capitalism".
 "capitalismos" is the plural of "capitalismo".
 The noun "capitalista" means "capitalist".
+"capitalista" is not feminine.
 "capitalistas" is the plural of "capitalista".
 "capitalista" is a person.
 The feminine noun "capitalización" means "capitalisation".
@@ -1406,6 +1485,7 @@ The feminine noun "carrera" means "career".
 The feminine noun "caricatura" means "caricature".
 "caricaturas" is the plural of "caricatura".
 The noun "caricaturista" means "caricaturist".
+"caricaturista" is not feminine.
 "caricaturistas" is the plural of "caricaturista".
 The feminine noun "carpa" means "carp".
 "carpas" is the plural of "carpa".
@@ -1414,6 +1494,7 @@ The feminine noun "carpintería" means "carpentry".
 The feminine noun "alfombra" means "carpet".
 "alfombras" is the plural of "alfombra".
 The noun "transportista" means "carrier".
+"transportista" is not feminine.
 "transportistas" is the plural of "transportista".
 "transportista" is a person.
 The feminine noun "zanahoria" means "carrot".
@@ -1622,6 +1703,7 @@ The noun "acorde" means "chord".
 The feminine noun "coreografía" means "choreography".
 "coreografías" is the plural of "coreografía".
 The noun "corista" means "chorister".
+"corista" is not feminine.
 "coristas" is the plural of "corista".
 The masculine noun "coro" means "chorus".
 "coros" is the plural of "coro".
@@ -1631,6 +1713,7 @@ The masculine noun "cromosoma" means "chromosome".
 The feminine noun "crónica" means "chronicle".
 "crónicas" is the plural of "crónica".
 The noun "cronista" means "chronicler".
+"cronista" is not feminine.
 "cronistas" is the plural of "cronista".
 The feminine noun "cronología" means "chronology".
 "cronologías" is the plural of "cronología".
@@ -1799,6 +1882,7 @@ The feminine noun "colaboración" means "collaboration".
 The masculine noun "derrumbamiento" means "collapse".
 "derrumbamientos" is the plural of "derrumbamiento".
 The noun "colega" means "colleague".
+"colega" is not feminine.
 "colegas" is the plural of "colega".
 "colega" is a person.
 The masculine noun "cobro" means "collection".
@@ -1808,6 +1892,7 @@ The feminine noun "colección" means "collection".
 The feminine noun "colectividad" means "collectivity".
 "colectividades" is the plural of "colectividad".
 The noun "coleccionista" means "collector".
+"coleccionista" is not feminine.
 "coleccionistas" is the plural of "coleccionista".
 "coleccionista" is a person.
 The feminine noun "colisión" means "collision".
@@ -1820,6 +1905,7 @@ The noun "coronel" means "colonel".
 The masculine noun "colonialismo" means "colonialism".
 "colonialismos" is the plural of "colonialismo".
 The noun "colonialista" means "colonialist".
+"colonialista" is not feminine.
 "colonialistas" is the plural of "colonialista".
 The feminine noun "colonización" means "colonisation".
 "colonizaciones" is the plural of "colonización".
@@ -1832,6 +1918,7 @@ The masculine noun "color" means "colour".
 The feminine noun "columna" means "column".
 "columnas" is the plural of "columna".
 The noun "columnista" means "columnist".
+"columnista" is not feminine.
 "columnistas" is the plural of "columnista".
 "columnista" is a person.
 The feminine noun "combinación" means "combination".
@@ -1861,6 +1948,7 @@ The noun "comensal" means "commensal".
 The masculine noun "comentario" means "comment".
 "comentarios" is the plural of "comentario".
 The noun "comentarista" means "commentator".
+"comentarista" is not feminine.
 "comentaristas" is the plural of "comentarista".
 "comentarista" is a person.
 The masculine noun "anuncio" means "commercial".
@@ -1883,6 +1971,7 @@ The feminine noun "comunicación" means "communication".
 The masculine noun "comunismo" means "communism".
 "comunismos" is the plural of "comunismo".
 The noun "comunista" means "communist".
+"comunista" is not feminine.
 "comunistas" is the plural of "comunista".
 "comunista" is a person.
 The feminine noun "comunidad" means "community".
@@ -1900,6 +1989,7 @@ The feminine noun "compasión" means "compassion".
 The feminine noun "compatibilidad" means "compatibility".
 "compatibilidades" is the plural of "compatibilidad".
 The noun "compatriota" means "compatriot".
+"compatriota" is not feminine.
 "compatriotas" is the plural of "compatriota".
 "compatriota" is a person.
 The feminine noun "indemnización" means "compensation".
@@ -1941,6 +2031,7 @@ The masculine noun "ordenador" means "computer".
 The feminine noun "informatización" means "computerisation".
 "informatizaciones" is the plural of "informatización".
 The noun "camarada" means "comrade".
+"camarada" is not feminine.
 "camaradas" is the plural of "camarada".
 "camarada" is a person.
 The feminine noun "concatenación" means "concatenation".
@@ -2109,8 +2200,10 @@ The feminine noun "continuación" means "continuation".
 The feminine noun "continuidad" means "continuity".
 "continuidades" is the plural of "continuidad".
 The noun "contorsionista" means "contortionist".
+"contorsionista" is not feminine.
 "contorsionistas" is the plural of "contorsionista".
 The noun "contratista" means "contractor".
+"contratista" is not feminine.
 "contratistas" is the plural of "contratista".
 "contratista" is a person.
 The feminine noun "contractura" means "contracture".
@@ -2365,6 +2458,7 @@ The masculine noun "ciclo" means "cycle".
 The masculine noun "ciclismo" means "cycling".
 "ciclismos" is the plural of "ciclismo".
 The noun "ciclista" means "cyclist".
+"ciclista" is not feminine.
 "ciclistas" is the plural of "ciclista".
 "ciclista" is a person.
 The masculine noun "cinismo" means "cynicism".
@@ -2449,6 +2543,7 @@ The feminine noun "deducción" means "deduction".
 The feminine noun "derrota" means "defeat".
 "derrotas" is the plural of "derrota".
 The noun "derrotista" means "defeatist".
+"derrotista" is not feminine.
 "derrotistas" is the plural of "derrotista".
 "derrotista" is a person.
 The feminine noun "defensa" means "defence".
@@ -2502,6 +2597,7 @@ The feminine noun "defunción" means "demise".
 The feminine noun "democracia" means "democracy".
 "democracias" is the plural of "democracia".
 The noun "demócrata" means "democrat".
+"demócrata" is not feminine.
 "demócratas" is the plural of "demócrata".
 "demócrata" is a person.
 The feminine noun "democratización" means "democratisation".
@@ -2529,6 +2625,7 @@ The noun "denunciante" means "denouncer".
 The feminine noun "densidad" means "density".
 "densidades" is the plural of "densidad".
 The noun "dentista" means "dentist".
+"dentista" is not feminine.
 "dentistas" is the plural of "dentista".
 "dentista" is a person.
 The feminine noun "dentición" means "dentition".
@@ -2856,6 +2953,7 @@ The feminine noun "doctrina" means "doctrine".
 The masculine noun "documento" means "document".
 "documentos" is the plural of "documento".
 The noun "documentalista" means "documentalist".
+"documentalista" is not feminine.
 "documentalistas" is the plural of "documentalista".
 The masculine noun "documental" means "documentary".
 "documentales" is the plural of "documental".
@@ -3006,6 +3104,7 @@ The feminine noun "ecografía" means "echography".
 The feminine noun "ecología" means "ecology".
 "ecologías" is the plural of "ecología".
 The noun "economista" means "economist".
+"economista" is not feminine.
 "economistas" is the plural of "economista".
 "economista" is a person.
 The feminine noun "economía" means "economy".
@@ -3029,6 +3128,7 @@ The feminine noun "postedición" means "postedition".
 The feminine noun "editorial" means "editorial".
 "editoriales" is the plural of "editorial".
 The noun "editorialista" means "editorialist".
+"editorialista" is not feminine.
 "editorialistas" is the plural of "editorialista".
 "editorialista" is a person.
 The feminine noun "educación" means "education".
@@ -3064,6 +3164,7 @@ The masculine noun "electorado" means "electorate".
 The feminine noun "electricidad" means "electricity".
 "electricidades" is the plural of "electricidad".
 The noun "electricista" means "electrician".
+"electricista" is not feminine.
 "electricistas" is the plural of "electricista".
 The feminine noun "electrocución" means "electrocution".
 "electrocuciones" is the plural of "electrocución".
@@ -3151,6 +3252,7 @@ The feminine noun "entronización" means "enthronement".
 The masculine noun "entusiasmo" means "enthusiasm".
 "entusiasmos" is the plural of "entusiasmo".
 The noun "entusiasta" means "enthusiast".
+"entusiasta" is not feminine.
 "entusiastas" is the plural of "entusiasta".
 "entusiasta" is a person.
 The feminine noun "entidad" means "entity".
@@ -3163,6 +3265,7 @@ The feminine noun "enumeración" means "enumeration".
 The masculine noun "entorno" means "environment".
 "entornos" is the plural of "entorno".
 The noun "ecologista" means "environmentalist".
+"ecologista" is not feminine.
 "ecologistas" is the plural of "ecologista".
 The feminine noun "envidia" means "envy".
 "envidias" is the plural of "envidia".
@@ -3185,6 +3288,7 @@ The feminine noun "ecuación" means "equation".
 The masculine noun "ecuador" means "equator".
 "ecuadores" is the plural of "ecuador".
 The noun "equilibrista" means "equilibrist".
+"equilibrista" is not feminine.
 "equilibristas" is the plural of "equilibrista".
 The masculine noun "equipamiento" means "equipment".
 "equipamientos" is the plural of "equipamiento".
@@ -3217,6 +3321,7 @@ The masculine noun "espionaje" means "espionage".
 The masculine noun "ensayo" means "essay".
 "ensayos" is the plural of "ensayo".
 The noun "ensayista" means "essayist".
+"ensayista" is not feminine.
 "ensayistas" is the plural of "ensayista".
 "ensayista" is a person.
 The feminine noun "esencia" means "essence".
@@ -3249,6 +3354,7 @@ The feminine noun "evacuación" means "evacuation".
 The feminine noun "evaluación" means "evaluation".
 "evaluaciones" is the plural of "evaluación".
 The noun "evangelista" means "evangelist".
+"evangelista" is not feminine.
 "evangelistas" is the plural of "evangelista".
 "evangelista" is a person.
 The masculine noun "anochecer" means "evening".
@@ -3378,6 +3484,7 @@ The feminine noun "extirpación" means "extirpation".
 The feminine noun "extorsión" means "extortion".
 "extorsiones" is the plural of "extorsión".
 The noun "extra" means "extra".
+"extra" is not feminine.
 "extras" is the plural of "extra".
 The masculine noun "extracto" means "extract".
 "extractos" is the plural of "extracto".
@@ -3390,6 +3497,7 @@ The masculine noun "extremo" means "extreme".
 The masculine noun "extremismo" means "extremism".
 "extremismos" is the plural of "extremismo".
 The noun "extremista" means "extremist".
+"extremista" is not feminine.
 "extremistas" is the plural of "extremista".
 The feminine noun "extremidad" means "extremity".
 "extremidades" is the plural of "extremidad".
@@ -3507,6 +3615,7 @@ The masculine noun "sentimiento" means "feeling".
 The masculine noun "feminismo" means "feminism".
 "feminismos" is the plural of "feminismo".
 The noun "feminista" means "feminist".
+"feminista" is not feminine.
 "feministas" is the plural of "feminista".
 "feminista" is a person.
 The feminine noun "feminidad" means "femininity".
@@ -3552,6 +3661,7 @@ The masculine noun "filtro" means "filter".
 The feminine noun "final" means "final".
 "finales" is the plural of "final".
 The noun "finalista" means "finalist".
+"finalista" is not feminine.
 "finalistas" is the plural of "finalista".
 The feminine noun "finanza" means "finance".
 "finanzas" is the plural of "finanza".
@@ -3584,6 +3694,7 @@ The feminine noun "solapa" means "flap".
 The masculine noun "piso" means "flat".
 "pisos" is the plural of "piso".
 The noun "flautista" means "flautist".
+"flautista" is not feminine.
 "flautistas" is the plural of "flautista".
 "flautista" is a person.
 The masculine noun "sabor" means "flavour".
@@ -3606,6 +3717,7 @@ The masculine noun "piso" means "floor".
 The feminine noun "flora" means "flora".
 "floras" is the plural of "flora".
 The noun "florista" means "florist".
+"florista" is not feminine.
 "floristas" is the plural of "florista".
 "florista" is a person.
 The feminine noun "flotación" means "flotation".
@@ -3650,6 +3762,7 @@ The masculine noun "pie" means "foot".
 "pies" is the plural of "pie".
 The masculine noun "fútbol" means "football".
 The noun "futbolista" means "footballer".
+"futbolista" is not feminine.
 "futbolistas" is the plural of "futbolista".
 The noun "folketing" means "folketing".
 The feminine noun "huella" means "footprint".
@@ -3754,6 +3867,7 @@ The feminine noun "funcionalidad" means "functionality".
 The masculine noun "fundamentalismo" means "fundamentalism".
 "fundamentalismos" is the plural of "fundamentalismo".
 The noun "fundamentalista" means "fundamentalist".
+"fundamentalista" is not feminine.
 "fundamentalistas" is the plural of "fundamentalista".
 The feminine noun "financiación" means "finance".
 "financiaciones" is the plural of "financiación".
@@ -3842,6 +3956,7 @@ The feminine noun "geografía" means "geography".
 The feminine noun "geometría" means "geometry".
 "geometrías" is the plural of "geometría".
 The noun "geriatra" means "geriatrist".
+"geriatra" is not feminine.
 "geriatras" is the plural of "geriatra".
 The masculine noun "germen" means "germ".
 "gérmenes" is the plural of "germen".
@@ -3911,6 +4026,7 @@ The masculine noun "adiós" means "goodbye".
 The feminine noun "bondad" means "goodness".
 "bondades" is the plural of "bondad".
 The noun "gorila" means "gorilla".
+"gorila" is not feminine.
 "gorilas" is the plural of "gorila".
 The masculine noun "chisme" means "gossip".
 "chismes" is the plural of "chisme".
@@ -3982,6 +4098,7 @@ The masculine noun "crecimiento" means "growth".
 The feminine noun "garantía" means "guarantee".
 "garantías" is the plural of "garantía".
 The noun "guardia" means "guard".
+"guardia" is not feminine.
 "guardias" is the plural of "guardia".
 "guardia" is a person.
 The feminine noun "pensión" means "guesthouse".
@@ -3998,6 +4115,7 @@ The feminine noun "guillotina" means "guillotine".
 The feminine noun "guitarra" means "guitar".
 "guitarras" is the plural of "guitarra".
 The noun "guitarrista" means "guitarist".
+"guitarrista" is not feminine.
 "guitarristas" is the plural of "guitarrista".
 "guitarrista" is a person.
 The feminine noun "pistola" means "gun".
@@ -4220,6 +4338,7 @@ The feminine noun "casa" means "house".
 The masculine noun "humanismo" means "humanism".
 "humanismos" is the plural of "humanismo".
 The noun "humanista" means "humanist".
+"humanista" is not feminine.
 "humanistas" is the plural of "humanista".
 "humanista" is a person.
 The feminine noun "humedad" means "humidity".
@@ -4229,6 +4348,7 @@ The feminine noun "humillación" means "humiliation".
 The feminine noun "humildad" means "humility".
 "humildades" is the plural of "humildad".
 The noun "humorista" means "humorist".
+"humorista" is not feminine.
 "humoristas" is the plural of "humorista".
 "humorista" is a person.
 The masculine noun "humor" means "humour".
@@ -4277,6 +4397,7 @@ The feminine noun "idea" means "idea".
 The masculine noun "idealismo" means "idealism".
 "idealismos" is the plural of "idealismo".
 The noun "idealista" means "idealist".
+"idealista" is not feminine.
 "idealistas" is the plural of "idealista".
 "idealista" is a person.
 The feminine noun "identificación" means "identification".
@@ -4286,6 +4407,7 @@ The feminine noun "identidad" means "identity".
 The feminine noun "ideología" means "ideology".
 "ideologías" is the plural of "ideología".
 The noun "idiota" means "idiot".
+"idiota" is not feminine.
 "idiotas" is the plural of "idiota".
 "idiota" is a person.
 The masculine noun "ídolo" means "idol".
@@ -4552,6 +4674,7 @@ The feminine noun "instrucción" means "instruction".
 The masculine noun "instrumento" means "instrument".
 "instrumentos" is the plural of "instrumento".
 The noun "instrumentista" means "instrumentalist".
+"instrumentista" is not feminine.
 "instrumentistas" is the plural of "instrumentista".
 The feminine noun "instrumentación" means "instrumentation".
 "instrumentaciones" is the plural of "instrumentación".
@@ -4613,6 +4736,7 @@ The masculine noun "interior" means "interior".
 The feminine noun "internacionalización" means "internationalisation".
 "internacionalizaciones" is the plural of "internacionalización".
 The noun "internauta" means "internaut".
+"internauta" is not feminine.
 "internautas" is the plural of "internauta".
 The masculine noun "internet" means "internet".
 "internets" is the plural of "internet".
@@ -4725,6 +4849,7 @@ The masculine noun "chiste" means "joke".
 The masculine noun "periodismo" means "journalism".
 "periodismos" is the plural of "periodismo".
 The noun "periodista" means "journalist".
+"periodista" is not feminine.
 "periodistas" is the plural of "periodista".
 "periodista" is a person.
 The feminine noun "alegría" means "joy".
@@ -4737,6 +4862,7 @@ The masculine noun "juicio" means "judgement".
 The feminine noun "judicatura" means "judicature".
 "judicaturas" is the plural of "judicatura".
 The noun "malabarista" means "juggler".
+"malabarista" is not feminine.
 "malabaristas" is the plural of "malabarista".
 The masculine noun "jugo" means "juice".
 "jugos" is the plural of "jugo".
@@ -4757,6 +4883,7 @@ The feminine noun "jurisdicción" means "jurisdiction".
 The feminine noun "jurisprudencia" means "jurisprudence".
 "jurisprudencias" is the plural of "jurisprudencia".
 The noun "jurista" means "jurist".
+"jurista" is not feminine.
 "juristas" is the plural of "jurista".
 "jurista" is a person.
 The masculine noun "jurado" means "jury".
@@ -4966,7 +5093,7 @@ The masculine noun "júbilo" means "jubilation".
 The feminine noun "vida" means "life".
 "vidas" is the plural of "vida".
 The noun "socorrista" means "lifeguard".
-"socorristas" is the plural of "socorrista".
+"socorrista" is not feminine.
 The masculine noun "ligamento" means "ligament".
 "ligamentos" is the plural of "ligamento".
 The feminine noun "luz" means "light".
@@ -5200,6 +5327,7 @@ The feminine noun "madurez" means "maturity".
 The masculine noun "mausoleo" means "mausoleum".
 "mausoleos" is the plural of "mausoleo".
 The noun "maximalista" means "maximalist".
+"maximalista" is not feminine.
 "maximalistas" is the plural of "maximalista".
 The masculine noun "prado" means "meadow".
 "prados" is the plural of "prado".
@@ -5404,6 +5532,7 @@ The masculine noun "molusco" means "mollusc".
 The masculine noun "momento" means "moment".
 "momentos" is the plural of "momento".
 The noun "monarca" means "monarch".
+"monarca" is not feminine.
 "monarcas" is the plural of "monarca".
 "monarca" is a person.
 The masculine noun "monarquismo" means "monarchism".
@@ -5471,6 +5600,7 @@ The masculine noun "motociclismo" means "motorcycling".
 The masculine noun "automovilismo" means "motoring".
 "automovilismos" is the plural of "automovilismo".
 The noun "automovilista" means "motorist".
+"automovilista" is not feminine.
 "automovilistas" is the plural of "automovilista".
 The feminine noun "motorización" means "motorisation".
 "motorizaciones" is the plural of "motorización".
@@ -5481,6 +5611,7 @@ The feminine noun "montura" means "mount".
 The feminine noun "montaña" means "mountain".
 "montañas" is the plural of "montaña".
 The noun "alpinista" means "mountaineer".
+"alpinista" is not feminine.
 "alpinistas" is the plural of "alpinista".
 The masculine noun "ratón" means "mouse".
 "ratones" is the plural of "ratón".
@@ -5513,6 +5644,7 @@ The masculine noun "asesinato" means "murder".
 The masculine noun "músculo" means "muscle".
 "músculos" is the plural of "músculo".
 The noun "moscovita" means "muscovite".
+"moscovita" is not feminine.
 "moscovitas" is the plural of "moscovita".
 The feminine noun "musculatura" means "musculature".
 "musculaturas" is the plural of "musculatura".
@@ -5650,6 +5782,7 @@ The masculine noun "nodo" means "node".
 The masculine noun "ruido" means "noise".
 "ruidos" is the plural of "ruido".
 The noun "nómada" means "nomad".
+"nómada" is not feminine.
 "nómadas" is the plural of "nómada".
 The feminine noun "nomenclatura" means "nomenclature".
 "nomenclaturas" is the plural of "nomenclatura".
@@ -5677,8 +5810,6 @@ The feminine noun "nostalgia" means "nostalgia".
 The masculine noun "billete" means "note".
 "billetes" is the plural of "billete".
 The masculine noun "billete" means "banknote".
-The feminine noun "nota" means "note".
-"notas" is the plural of "nota".
 The feminine noun "libreta" means "notebook".
 "libretas" is the plural of "libreta".
 The masculine noun "aviso" means "notice".
@@ -5690,6 +5821,7 @@ The feminine noun "notoriedad" means "notoriety".
 The feminine noun "novela" means "novel".
 "novelas" is the plural of "novela".
 The noun "novelista" means "novelist".
+"novelista" is not feminine.
 "novelistas" is the plural of "novelista".
 "novelista" is a person.
 The feminine noun "novedad" means "novelty".
@@ -5806,8 +5938,6 @@ The feminine noun "ópera" means "opera".
 "óperas" is the plural of "ópera".
 The masculine noun "funcionamiento" means "operation".
 "funcionamientos" is the plural of "funcionamiento".
-The feminine noun "operación" means "operation".
-"operaciones" is the plural of "operación".
 The feminine noun "opinión" means "opinion".
 "opiniones" is the plural of "opinión".
 The feminine noun "esfinge" means "sphinx".
@@ -5843,6 +5973,7 @@ The masculine noun "órgano" means "organ".
 The masculine noun "organismo" means "organism".
 "organismos" is the plural of "organismo".
 The noun "organista" means "organist".
+"organista" is not feminine.
 "organistas" is the plural of "organista".
 "organista" is a person.
 The masculine noun "orgasmo" means "orgasm".
@@ -5866,6 +5997,7 @@ The masculine noun "orfanato" means "orphanage".
 The feminine noun "ortodoncia" means "orthodontics".
 "ortodoncias" is the plural of "ortodoncia".
 The noun "ortopedista" means "orthopedist".
+"ortopedista" is not feminine.
 "ortopedistas" is the plural of "ortopedista".
 The masculine noun "mimbre" means "osier".
 "mimbres" is the plural of "mimbre".
@@ -5920,6 +6052,7 @@ The feminine noun "pacificación" means "pacification".
 The masculine noun "pacifismo" means "pacifism".
 "pacifismos" is the plural of "pacifismo".
 The noun "pacifista" means "pacifist".
+"pacifista" is not feminine.
 "pacifistas" is the plural of "pacifista".
 The masculine noun "paquete" means "package".
 "paquetes" is the plural of "paquete".
@@ -5969,6 +6102,7 @@ The masculine noun "papel" means "paper".
 The masculine noun "papeleo" means "paperwork".
 "papeleos" is the plural of "papeleo".
 The noun "paracaidista" means "parachutist".
+"paracaidista" is not feminine.
 "paracaidistas" is the plural of "paracaidista".
 "paracaidista" is a person.
 The masculine noun "paradigma" means "paradigm".
@@ -6056,6 +6190,7 @@ The masculine noun "patriarca" means "patriarch".
 "patriarca" is not feminine.
 "patriarcas" is the plural of "patriarca".
 The noun "patriota" means "patriot".
+"patriota" is not feminine.
 "patriotas" is the plural of "patriota".
 "patriota" is a person.
 The masculine noun "patriotismo" means "patriotism".
@@ -6090,6 +6225,7 @@ The feminine noun "pederastia" means "pederasty".
 The noun "peatón" means "pedestrian".
 "peatones" is the plural of "peatón".
 The noun "pediatra" means "pediatrician".
+"pediatra" is not feminine.
 "pediatras" is the plural of "pediatra".
 The feminine noun "pediatría" means "pediatrics".
 "pediatrías" is the plural of "pediatría".
@@ -6130,6 +6266,7 @@ The feminine noun "perfección" means "perfection".
 The masculine noun "perfeccionismo" means "perfectionism".
 "perfeccionismos" is the plural of "perfeccionismo".
 The noun "perfeccionista" means "perfectionist".
+"perfeccionista" is not feminine.
 "perfeccionistas" is the plural of "perfeccionista".
 The feminine noun "actuación" means "performance".
 "actuaciones" is the plural of "actuación".
@@ -6175,6 +6312,7 @@ The feminine noun "peseta" means "peseta".
 The masculine noun "pesimismo" means "pessimism".
 "pesimismos" is the plural of "pesimismo".
 The noun "pesimista" means "pessimist".
+"pesimista" is not feminine.
 "pesimistas" is the plural of "pesimista".
 "pesimista" is a person.
 The masculine noun "pétalo" means "petal".
@@ -6216,6 +6354,7 @@ The masculine noun "piano" means "piano".
 The feminine noun "piqueta" means "pickaxe".
 "piquetas" is the plural of "piqueta".
 The noun "carterista" means "pickpocket".
+"carterista" is not feminine.
 "carteristas" is the plural of "carterista".
 The masculine noun "cuadro" means "picture".
 "cuadros" is the plural of "cuadro".
@@ -6243,6 +6382,7 @@ The feminine noun "rosa" means "pink".
 The feminine noun "pipa" means "pipe".
 "pipas" is the plural of "pipa".
 The noun "pirata" means "pirate".
+"pirata" is not feminine.
 "piratas" is the plural of "pirata".
 "pirata" is a person.
 The masculine noun "sitio" means "place".
@@ -6304,6 +6444,7 @@ The masculine noun "plural" means "plural".
 The masculine noun "pluralismo" means "pluralism".
 "pluralismos" is the plural of "pluralismo".
 The noun "pluralista" means "pluralist".
+"pluralista" is not feminine.
 "pluralistas" is the plural of "pluralista".
 The feminine noun "pluralidad" means "plurality".
 "pluralidades" is the plural of "pluralidad".
@@ -6315,6 +6456,7 @@ The masculine noun "poema" means "poem".
 "poema" is not feminine.
 "poemas" is the plural of "poema".
 The noun "poeta" means "poet".
+"poeta" is not feminine.
 "poetas" is the plural of "poeta".
 "poeta" is a person.
 The feminine noun "poesía" means "poetry".
@@ -6330,6 +6472,7 @@ The feminine noun "polarización" means "polarisation".
 The masculine noun "polo" means "pole".
 "polos" is the plural of "polo".
 The noun "policía" means "police".
+"policía" is not feminine.
 "policías" is the plural of "policía".
 The feminine noun "política" means "policy".
 "políticas" is the plural of "política".
@@ -6611,6 +6754,7 @@ The feminine noun "prueba" means "proof".
 The feminine noun "propaganda" means "propaganda".
 "propagandas" is the plural of "propaganda".
 The noun "propagandista" means "propagandist".
+"propagandista" is not feminine.
 "propagandistas" is the plural of "propagandista".
 "propagandista" is a person.
 The feminine noun "propensión" means "propensity".
@@ -6618,6 +6762,7 @@ The feminine noun "propensión" means "propensity".
 The feminine noun "propiedad" means "property".
 "propiedades" is the plural of "propiedad".
 The noun "profeta" means "prophet".
+"profeta" is not feminine.
 "profetas" is the plural of "profeta".
 "profeta" is a person.
 The feminine noun "proporción" means "proportion".
@@ -6641,6 +6786,7 @@ The feminine noun "prostituta" means "prostitute".
 The feminine noun "prostitución" means "prostitution".
 "prostituciones" is the plural of "prostitución".
 The noun "protagonista" means "protagonist".
+"protagonista" is not feminine.
 "protagonistas" is the plural of "protagonista".
 "protagonista" is a person.
 The feminine noun "protección" means "protection".
@@ -6710,6 +6856,7 @@ The feminine noun "purga" means "purge".
 The feminine noun "purificación" means "purification".
 "purificaciones" is the plural of "purificación".
 The noun "purista" means "purist".
+"purista" is not feminine.
 "puristas" is the plural of "purista".
 The feminine noun "pureza" means "purity".
 "purezas" is the plural of "pureza".
@@ -6858,6 +7005,7 @@ The masculine noun "recibo" means "receipt".
 The feminine noun "recepción" means "reception".
 "recepciones" is the plural of "recepción".
 The noun "recepcionista" means "receptionist".
+"recepcionista" is not feminine.
 "recepcionistas" is the plural of "recepcionista".
 "recepcionista" is a person.
 The masculine noun "receso" means "recess".
@@ -6889,6 +7037,7 @@ The feminine noun "recreación" means "recreation".
 The feminine noun "recriminación" means "recrimination".
 "recriminaciones" is the plural of "recriminación".
 The noun "recluta" means "recruit".
+"recluta" is not feminine.
 "reclutas" is the plural of "recluta".
 "recluta" is a person.
 The masculine noun "reclutamiento" means "recruitment".
@@ -6922,6 +7071,7 @@ The feminine noun "reflexión" means "reflection".
 The feminine noun "reforma" means "reform".
 "reformas" is the plural of "reforma".
 The noun "reformista" means "reformer".
+"reformista" is not feminine.
 "reformistas" is the plural of "reformista".
 "reformista" is a person.
 The masculine noun "reformismo" means "reformism".
@@ -7050,7 +7200,6 @@ The feminine noun "rescisión" means "rescission".
 The masculine noun "rescate" means "rescue".
 "rescates" is the plural of "rescate".
 The feminine noun "búsqueda" means "research".
-"búsquedas" is the plural of "búsqueda".
 The masculine noun "resentimiento" means "resentment".
 "resentimientos" is the plural of "resentimiento".
 The feminine noun "reserva" means "reservation".
@@ -7097,6 +7246,7 @@ The feminine noun "consecuencia" means "result".
 The feminine noun "reanudación" means "resumption".
 "reanudaciones" is the plural of "reanudación".
 The noun "detallista" means "retailer".
+"detallista" is not feminine.
 "detallistas" is the plural of "detallista".
 "detallista" is a person.
 The feminine noun "retina" means "retina".
@@ -7295,6 +7445,7 @@ The masculine noun "ahorro" means "saving".
 The feminine noun "sierra" means "saw".
 "sierras" is the plural of "sierra".
 The noun "saxofonista" means "saxophonist".
+"saxofonista" is not feminine.
 "saxofonistas" is the plural of "saxofonista".
 The masculine noun "refrán" means "saying".
 "refranes" is the plural of "refrán".
@@ -7336,6 +7487,7 @@ The masculine noun "patinete" means "scooter".
 The masculine noun "alcance" means "scope".
 The feminine noun "puntuación" means "score".
 The noun "sinvergüenza" means "scoundrel".
+"sinvergüenza" is not feminine.
 "sinvergüenzas" is the plural of "sinvergüenza".
 "sinvergüenza" is a person.
 The feminine noun "chatarra" means "scrap".
@@ -7436,11 +7588,13 @@ The masculine noun "semestre" means "semester".
 The masculine noun "semiconductor" means "semiconductor".
 "semiconductores" is the plural of "semiconductor".
 The noun "semifinalista" means "semifinalist".
+"semifinalista" is not feminine.
 "semifinalistas" is the plural of "semifinalista".
 "semifinalista" is a person.
 The masculine noun "seminario" means "seminar".
 "seminarios" is the plural of "seminario".
 The noun "seminarista" means "seminarist".
+"seminarista" is not feminine.
 "seminaristas" is the plural of "seminarista".
 The masculine noun "senado" means "senate".
 "senados" is the plural of "senado".
@@ -7505,6 +7659,7 @@ The feminine noun "vergüenza" means "shame".
 "vergüenzas" is the plural of "vergüenza".
 The feminine noun "participación" means "share".
 The noun "accionista" means "shareholder".
+"accionista" is not feminine.
 "accionistas" is the plural of "accionista".
 The masculine noun "tiburón" means "shark".
 "tiburones" is the plural of "tiburón".
@@ -7692,6 +7847,7 @@ The masculine noun "jabón" means "soap".
 The masculine noun "socialismo" means "socialism".
 "socialismos" is the plural of "socialismo".
 The noun "socialista" means "socialist".
+"socialista" is not feminine.
 "socialistas" is the plural of "socialista".
 "socialista" is a person.
 The feminine noun "socialización" means "socialisation".
@@ -7722,6 +7878,7 @@ The feminine noun "soledad" means "solitude".
 The masculine noun "solo" means "solo".
 "solos" is the plural of "solo".
 The noun "solista" means "soloist".
+"solista" is not feminine.
 "solistas" is the plural of "solista".
 "solista" is a person.
 The feminine noun "solución" means "solution".
@@ -7769,6 +7926,7 @@ The noun "ponente" means "speaker".
 "ponentes" is the plural of "ponente".
 "ponente" is a person.
 The noun "especialista" means "specialist".
+"especialista" is not feminine.
 "especialistas" is the plural of "especialista".
 "especialista" is a person.
 The feminine noun "especialidad" means "speciality".
@@ -7827,6 +7985,7 @@ The feminine noun "espora" means "spore".
 The masculine noun "deporte" means "sport".
 "deportes" is the plural of "deporte".
 The noun "deportista" means "sportsman".
+"deportista" is not feminine.
 "deportistas" is the plural of "deportista".
 "deportista" is a person.
 The masculine noun "secuestro" means "kidnapping".
@@ -7839,6 +7998,7 @@ The feminine noun "primavera" means "spring".
 The masculine noun "trampolín" means "springboard".
 "trampolines" is the plural of "trampolín".
 The noun "espía" means "spy".
+"espía" is not feminine.
 "espías" is the plural of "espía".
 "espía" is a person.
 The feminine noun "plaza" means "square".
@@ -7878,6 +8038,7 @@ The masculine noun "estado" means "state".
 The feminine noun "declaración" means "statement".
 "declaraciones" is the plural of "declaración".
 The noun "estadista" means "statesman".
+"estadista" is not feminine.
 "estadistas" is the plural of "estadista".
 "estadista" is a person.
 The feminine noun "estación" means "station".
@@ -7946,6 +8107,7 @@ The masculine noun "resbalón" means "slip".
 The masculine noun "polizón" means "stowaway".
 "polizones" is the plural of "polizón".
 The noun "estratega" means "strategist".
+"estratega" is not feminine.
 "estrategas" is the plural of "estratega".
 "estratega" is a person.
 The feminine noun "estrategia" means "strategy".
@@ -7989,11 +8151,13 @@ The feminine noun "estupidez" means "stupidity".
 The masculine noun "estilo" means "style".
 "estilos" is the plural of "estilo".
 The noun "estilista" means "stylist".
+"estilista" is not feminine.
 "estilistas" is the plural of "estilista".
 "estilista" is a person.
 The masculine noun "subcontrato" means "subcontract".
 "subcontratos" is the plural of "subcontrato".
 The noun "subcontratista" means "subcontractor".
+"subcontratista" is not feminine.
 "subcontratistas" is the plural of "subcontratista".
 The masculine noun "subgrupo" means "subgroup".
 "subgrupos" is the plural of "subgrupo".
@@ -8248,6 +8412,7 @@ The feminine noun "tendencia" means "tendency".
 The feminine noun "ternura" means "tenderness".
 "ternuras" is the plural of "ternura".
 The noun "tenista" means "tennist".
+"tenista" is not feminine.
 "tenistas" is the plural of "tenista".
 The masculine noun "tenor" means "tenor".
 "tenores" is the plural of "tenor".
@@ -8278,6 +8443,7 @@ The masculine noun "terror" means "terror".
 The masculine noun "terrorismo" means "terrorism".
 "terrorismos" is the plural of "terrorismo".
 The noun "terrorista" means "terrorist".
+"terrorista" is not feminine.
 "terroristas" is the plural of "terrorista".
 "terrorista" is a person.
 The feminine noun "prueba" means "test".
@@ -8404,6 +8570,7 @@ The masculine noun "tacto" means "touch".
 The masculine noun "turismo" means "tourism".
 "turismos" is the plural of "turismo".
 The noun "turista" means "tourist".
+"turista" is not feminine.
 "turistas" is the plural of "turista".
 "turista" is a person.
 The masculine noun "torneo" means "tournament".
@@ -8576,6 +8743,7 @@ The masculine noun "turno" means "turn".
 The feminine noun "vuelta" means "turn".
 "vueltas" is the plural of "vuelta".
 The noun "oportunista" means "turncoat".
+"oportunista" is not feminine.
 "oportunistas" is the plural of "oportunista".
 The feminine noun "facturación" means "turnover".
 "facturaciones" is the plural of "facturación".
@@ -8598,6 +8766,7 @@ The masculine noun "tifón" means "typhoon".
 The feminine noun "tipificación" means "typification".
 "tipificaciones" is the plural of "tipificación".
 The noun "teclista" means "typist".
+"teclista" is not feminine.
 "teclistas" is the plural of "teclista".
 The feminine noun "tipología" means "typology".
 "tipologías" is the plural of "tipología".
@@ -8781,6 +8950,7 @@ The feminine noun "violencia" means "violence".
 The masculine noun "violín" means "violin".
 "violines" is the plural of "violín".
 The noun "violinista" means "violinist".
+"violinista" is not feminine.
 "violinistas" is the plural of "violinista".
 "violinista" is a person.
 The feminine noun "virgen" means "virgin".
@@ -8814,6 +8984,7 @@ The feminine noun "vivacidad" means "liveliness".
 The masculine noun "vocabulario" means "vocabulary".
 "vocabularios" is the plural of "vocabulario".
 The noun "vocalista" means "vocalist".
+"vocalista" is not feminine.
 "vocalistas" is the plural of "vocalista".
 "vocalista" is a person.
 The feminine noun "vocación" means "vocation".
@@ -8958,6 +9129,7 @@ The masculine noun "blanco" means "white".
 The feminine noun "totalidad" means "whole".
 "totalidades" is the plural of "totalidad".
 The noun "mayorista" means "wholesaler".
+"mayorista" is not feminine.
 "mayoristas" is the plural of "mayorista".
 "mayorista" is a person.
 The noun "ancho" means "width".
@@ -9052,6 +9224,7 @@ The feminine noun "zona" means "zone".
 The feminine noun "zonificación" means "zoning".
 "zonificaciones" is the plural of "zonificación".
 The noun "chiita" means "shiite".
+"chiita" is not feminine.
 "chiitas" is the plural of "chiita".
 The feminine noun "disputa" means "dispute".
 "disputas" is the plural of "disputa".
@@ -9063,6 +9236,7 @@ The masculine noun "crudo" means "crude".
 The feminine noun "directiva" means "directive".
 "directivas" is the plural of "directiva".
 The noun "fascista" means "fascist".
+"fascista" is not feminine.
 "fascistas" is the plural of "fascista".
 The noun "homosexual" means "homosexual".
 "homosexuales" is the plural of "homosexual".
@@ -9072,8 +9246,10 @@ The masculine noun "humano" means "human".
 The masculine noun "impermeable" means "raincoat".
 "impermeables" is the plural of "impermeable".
 The noun "impresionista" means "impressionist".
+"impresionista" is not feminine.
 "impresionistas" is the plural of "impresionista".
 The noun "indígena" means "native".
+"indígena" is not feminine.
 "indígenas" is the plural of "indígena".
 "indígena" is a person.
 The masculine noun "litoral" means "seaboard".
@@ -9083,6 +9259,7 @@ The masculine noun "manual" means "manual".
 The feminine noun "moral" means "moral".
 "morales" is the plural of "moral".
 The noun "optimista" means "optimist".
+"optimista" is not feminine.
 "optimistas" is the plural of "optimista".
 The masculine noun "parecido" means "resemblance".
 "parecidos" is the plural of "parecido".
@@ -9104,6 +9281,7 @@ The masculine noun "mínimo" means "minimum".
 The masculine noun "móvil" means "mobile".
 "móviles" is the plural of "móvil".
 The noun "nacionalista" means "nationalist".
+"nacionalista" is not feminine.
 "nacionalistas" is the plural of "nacionalista".
 The feminine noun "ofensiva" means "offensive".
 "ofensivas" is the plural of "ofensiva".
@@ -9421,6 +9599,7 @@ The feminine noun "alegoría" means "allegory".
 The masculine noun "alelo" means "allele".
 "alelos" is the plural of "alelo".
 The noun "aleluya" means "hallelujah".
+"aleluya" is not feminine.
 "aleluyas" is the plural of "aleluya".
 The masculine noun "alerce" means "larch".
 "alerces" is the plural of "alerce".
@@ -13421,6 +13600,7 @@ The feminine noun "obsolescencia" means "obsolescence".
 The feminine noun "obstetricia" means "obstetrics".
 "obstetricias" is the plural of "obstetricia".
 The noun "obstetra" means "obstetrician".
+"obstetra" is not feminine.
 "obstetras" is the plural of "obstetra".
 "obstetra" is a person.
 The feminine noun "ocarina" means "ocarina".
@@ -14812,6 +14992,7 @@ The masculine noun "superíndice" means "superscript".
 The feminine noun "suplantación" means "supplantation".
 "suplantaciones" is the plural of "suplantación".
 The noun "surfista" means "surfer".
+"surfista" is not feminine.
 "surfistas" is the plural of "surfista".
 The feminine noun "susceptancia" means "susceptance".
 "susceptancias" is the plural of "susceptancia".
@@ -15554,6 +15735,7 @@ The feminine noun "fijación" means "fixation".
 The feminine noun "prefijación" means "prefixation".
 "prefijaciones" is the plural of "prefijación".
 The noun "lingüista" means "linguist".
+"lingüista" is not feminine.
 "lingüistas" is the plural of "lingüista".
 "lingüista" is a person.
 The feminine noun "lingüística" means "linguistics".
@@ -15566,6 +15748,7 @@ The masculine noun "camaleón" means "chameleon".
 "camaleones" is the plural of "camaleón".
 "camaleón" is a person.
 The noun "alquimista" means "alchemist".
+"alquimista" is not feminine.
 "alquimistas" is the plural of "alquimista".
 The masculine noun "entero" means "integer".
 "enteros" is the plural of "entero".
@@ -15771,6 +15954,7 @@ The masculine noun "paracetamol" means "paracetamol".
 "paracetamoles" is the plural of "paracetamol".
 The noun "ibuprofeno" means "ibuprofen".
 The noun "optometrista" means "optometrist".
+"optometrista" is not feminine.
 "optometristas" is the plural of "optometrista".
 The noun "bifocales" means "bifocals".
 The feminine noun "simultaneidad" means "simultaneity".
@@ -15827,6 +16011,7 @@ The masculine noun "virrey" means "viceroy".
 The masculine noun "convoy" means "convoy".
 "convoyes" is the plural of "convoy".
 The noun "fonetista" means "phonetician".
+"fonetista" is not feminine.
 "fonetistas" is the plural of "fonetista".
 The masculine noun "bíceps" means "biceps".
 "bíceps" is the plural of "bíceps".
@@ -15865,6 +16050,7 @@ The feminine noun "costilla" means "rib".
 The masculine noun "sable" means "sabre".
 "sables" is the plural of "sable".
 The noun "psicópata" means "psychopath".
+"psicópata" is not feminine.
 "psicópatas" is the plural of "psicópata".
 "psicópata" is a person.
 The feminine noun "armadura" means "armour".
@@ -15879,6 +16065,7 @@ The masculine noun "maletín" means "briefcase".
 The masculine noun "encantamiento" means "enchantment".
 "encantamientos" is the plural of "encantamiento".
 The noun "psiquiatra" means "psychiatrist".
+"psiquiatra" is not feminine.
 "psiquiatras" is the plural of "psiquiatra".
 "psiquiatra" is a person.
 The noun "samurái" means "samurai".
@@ -15933,6 +16120,7 @@ The noun "carpelo" means "carpel".
 The masculine noun "msnm" means "masl".
 "msnm" is the plural of "msnm".
 The noun "vigía" means "lookout".
+"vigía" is not feminine.
 "vigías" is the plural of "vigía".
 The masculine noun "reencuentro" means "reunion".
 "reencuentros" is the plural of "reencuentro".
@@ -15975,6 +16163,7 @@ The feminine noun "conmemoración" means "commemoration".
 The masculine noun "gallinero" means "coop".
 "gallineros" is the plural of "gallinero".
 The noun "congresista" means "congressman".
+"congresista" is not feminine.
 "congresistas" is the plural of "congresista".
 "congresista" is a person.
 The masculine noun "girasol" means "sunflower".
@@ -16125,6 +16314,7 @@ The feminine noun "secreción" means "secretion".
 The feminine noun "dosificación" means "dosage".
 "dosificaciones" is the plural of "dosificación".
 The noun "culturista" means "bodybuilder".
+"culturista" is not feminine.
 "culturistas" is the plural of "culturista".
 "culturista" is a person.
 The feminine noun "absorción" means "absorption".
@@ -16593,6 +16783,7 @@ The masculine noun "asesoramiento" means "advice".
 "asesoramientos" is the plural of "asesoramiento".
 The noun "ballenero" means "whaler".
 The noun "reservista" means "reservist".
+"reservista" is not feminine.
 "reservistas" is the plural of "reservista".
 The masculine noun "reportaje" means "report".
 "reportajes" is the plural of "reportaje".
@@ -16772,6 +16963,7 @@ The feminine noun "calumnia" means "slur".
 The feminine noun "calumnia" means "slander".
 The masculine noun "porno" means "porn".
 The noun "nómada" means "migrant".
+"nómada" is not feminine.
 The masculine noun "abucheo" means "boo".
 "abucheos" is the plural of "abucheo".
 The masculine noun "cabildeo" means "lobbying".
@@ -16788,6 +16980,7 @@ The feminine noun "plomada" means "plummet".
 The feminine noun "negrita" means "bold".
 The noun "manifestante" means "protester".
 The noun "pensionista" means "pensioner".
+"pensionista" is not feminine.
 "pensionistas" is the plural of "pensionista".
 "pensionista" is a person.
 The feminine noun "nevada" means "snowfall".
@@ -16837,6 +17030,7 @@ The masculine noun "cáliz" means "calyx".
 "cálices" is the plural of "cáliz".
 The masculine noun "cáliz" means "chalice".
 The noun "bajista" means "bassist".
+"bajista" is not feminine.
 "bajistas" is the plural of "bajista".
 The masculine noun "golpe" means "swipe".
 The masculine noun "extremo" means "winger".
@@ -16863,6 +17057,7 @@ The noun "cómplice" means "accomplice".
 "cómplices" is the plural of "cómplice".
 "cómplice" is a person.
 The noun "acordeonista" means "accordionist".
+"acordeonista" is not feminine.
 "acordeonistas" is the plural of "acordeonista".
 The noun "pertrechos" means "accoutrements".
 The masculine noun "dolor" means "ache".
@@ -16896,6 +17091,7 @@ The masculine noun "aviador" means "airman".
 The feminine noun "aviadora" means "airwoman".
 "aviadoras" is the plural of "aviadora".
 The noun "alarmista" means "alarmist".
+"alarmista" is not feminine.
 "alarmistas" is the plural of "alarmista".
 "alarmista" is a person.
 The masculine noun "concejal" means "alderman".
@@ -16978,6 +17174,7 @@ The feminine noun "anunciación" means "annunciation".
 The masculine noun "antagonismo" means "antagonism".
 "antagonismos" is the plural of "antagonismo".
 The noun "antagonista" means "antagonist".
+"antagonista" is not feminine.
 "antagonistas" is the plural of "antagonista".
 "antagonista" is a person.
 The feminine noun "antesala" means "anteroom".
@@ -17033,6 +17230,7 @@ The masculine noun "atavío" means "attire".
 The feminine noun "autoría" means "authorship".
 "autorías" is the plural of "autoría".
 The noun "autista" means "autistic".
+"autista" is not feminine.
 "autistas" is the plural of "autista".
 The noun "autodidacta" means "autodidact".
 The masculine noun "autógrafo" means "autograph".
@@ -17138,6 +17336,7 @@ The masculine noun "escupitajo" means "spittle".
 "escupitajos" is the plural of "escupitajo".
 The feminine noun "firma" means "byline".
 The noun "colega" means "pal".
+"colega" is not feminine.
 The feminine noun "falta" means "foul".
 The masculine noun "regreso" means "homecoming".
 The masculine noun "funky" means "funky".
@@ -17156,8 +17355,10 @@ The feminine noun "despedida" means "farewell".
 The masculine noun "himno" means "anthem".
 The noun "adolescente" means "teen".
 The noun "inconformista" means "maverick".
+"inconformista" is not feminine.
 "inconformistas" is the plural of "inconformista".
 The noun "inconformista" means "nonconformist".
+"inconformista" is not feminine.
 The noun "disidente" means "dissident".
 "disidentes" is the plural of "disidente".
 The noun "grunge" means "grunge".
@@ -17178,6 +17379,7 @@ The masculine noun "portazo" means "slam".
 "portazos" is the plural of "portazo".
 The feminine noun "tarde" means "evening".
 The noun "autócrata" means "autocrat".
+"autócrata" is not feminine.
 "autócratas" is the plural of "autócrata".
 The feminine noun "albañilería" means "masonry".
 "albañilerías" is the plural of "albañilería".
@@ -17186,6 +17388,7 @@ The masculine noun "bote" means "boat".
 The masculine noun "bote" means "bottle".
 The feminine noun "cubierta" means "deck".
 The noun "escolta" means "escort".
+"escolta" is not feminine.
 "escoltas" is the plural of "escolta".
 "escolta" is a person.
 The masculine noun "truco" means "stunt".
@@ -17219,9 +17422,11 @@ The masculine noun "tapón" means "stopper".
 The masculine noun "granizo" means "hail".
 "granizos" is the plural of "granizo".
 The noun "bromista" means "joker".
+"bromista" is not feminine.
 "bromistas" is the plural of "bromista".
 "bromista" is a person.
 The noun "bromista" means "teaser".
+"bromista" is not feminine.
 The masculine noun "equipo" means "squad".
 The feminine noun "escuadra" means "squad".
 "escuadras" is the plural of "escuadra".
@@ -17332,6 +17537,7 @@ The feminine noun "talla" means "carving".
 The feminine noun "terracota" means "terracotta".
 "terracotas" is the plural of "terracota".
 The noun "geómetra" means "geometer".
+"geómetra" is not feminine.
 "geómetras" is the plural of "geómetra".
 The feminine noun "ilustración" means "enlightenment".
 The noun "fovismo" means "fauvism".
@@ -17351,6 +17557,7 @@ The masculine noun "esfuerzo" means "endeavour".
 The masculine noun "virtuosismo" means "virtuosity".
 "virtuosismos" is the plural of "virtuosismo".
 The noun "iconoclasta" means "iconoclast".
+"iconoclasta" is not feminine.
 "iconoclastas" is the plural of "iconoclasta".
 The feminine noun "subjetividad" means "subjectivity".
 "subjetividades" is the plural of "subjetividad".
@@ -17365,13 +17572,16 @@ The masculine noun "mojón" means "cairn".
 "mojones" is the plural of "mojón".
 The feminine noun "presunción" means "conceit".
 The noun "terapeuta" means "therapist".
+"terapeuta" is not feminine.
 "terapeutas" is the plural of "terapeuta".
 "terapeuta" is a person.
 The noun "psicoterapeuta" means "psychotherapist".
+"psicoterapeuta" is not feminine.
 "psicoterapeutas" is the plural of "psicoterapeuta".
 The noun "deconstructivista" means "deconstructivist".
 The masculine noun "comentario" means "commentary".
 The noun "cubista" means "cubist".
+"cubista" is not feminine.
 "cubistas" is the plural of "cubista".
 The feminine noun "correa" means "strap".
 "correas" is the plural of "correa".
@@ -17381,6 +17591,7 @@ The feminine noun "meada" means "piss".
 The masculine noun "advenimiento" means "advent".
 "advenimientos" is the plural of "advenimiento".
 The noun "ilusionista" means "illusionist".
+"ilusionista" is not feminine.
 "ilusionistas" is the plural of "ilusionista".
 The feminine noun "crítica" means "criticism".
 "críticas" is the plural of "crítica".
@@ -17394,6 +17605,7 @@ The masculine noun "manual" means "handbook".
 The feminine noun "epifanía" means "epiphany".
 "epifanías" is the plural of "epifanía".
 The noun "surrealista" means "surrealist".
+"surrealista" is not feminine.
 "surrealistas" is the plural of "surrealista".
 The masculine noun "erotismo" means "eroticism".
 "erotismos" is the plural of "erotismo".
@@ -17588,6 +17800,7 @@ The feminine noun "geolocalización" means "geolocation".
 "geolocalizaciones" is the plural of "geolocalización".
 The noun "georreferenciación" means "georeferencing".
 The noun "guionista" means "screenwriter".
+"guionista" is not feminine.
 "guionistas" is the plural of "guionista".
 The feminine noun "hemeroteca" means "archive".
 "hemerotecas" is the plural of "hemeroteca".
@@ -19303,9 +19516,6 @@ The masculine noun "muchacho" means "boy".
 The masculine noun "nene" means "boy".
 "nenes" is the plural of "nene".
 "nene" is a person.
-The masculine noun "niño" means "boy".
-"niños" is the plural of "niño".
-"niño" is a person.
 The masculine noun "quebrantamiento" means "break".
 "quebrantamientos" is the plural of "quebrantamiento".
 The feminine noun "radiodifusión" means "broadcast".
@@ -19585,8 +19795,6 @@ The masculine noun "primo" means "cousin".
 "primos" is the plural of "primo".
 "primo" is a person.
 The feminine noun "prima" means "cousin".
-The feminine noun "hendidura" means "crack".
-"hendiduras" is the plural of "hendidura".
 The masculine noun "choque" means "crash".
 "choques" is the plural of "choque".
 The masculine noun "creador" means "creator".
@@ -19741,12 +19949,6 @@ The masculine noun "doctor" means "doctor".
 The feminine noun "doctora" means "doctor".
 "doctoras" is the plural of "doctora".
 "doctora" is a person.
-The masculine noun "médico" means "doctor".
-"médicos" is the plural of "médico".
-"médico" is a person.
-The feminine noun "médica" means "doctor".
-"médicas" is the plural of "médica".
-"médica" is a person.
 The masculine noun "intermediario" means "intermediary".
 "intermediarios" is the plural of "intermediario".
 "intermediario" is a person.
@@ -20020,9 +20222,6 @@ The feminine noun "muchacha" means "girl".
 The feminine noun "nena" means "girl".
 "nenas" is the plural of "nena".
 "nena" is a person.
-The feminine noun "niña" means "girl".
-"niñas" is the plural of "niña".
-"niña" is a person.
 The masculine noun "vidrio" means "glass".
 "vidrios" is the plural of "vidrio".
 The masculine noun "cristalero" means "glassmaker".
@@ -20182,6 +20381,7 @@ The feminine noun "inventora" means "inventor".
 "inventoras" is the plural of "inventora".
 "inventora" is a person.
 The noun "inversionista" means "investor".
+"inversionista" is not feminine.
 "inversionistas" is the plural of "inversionista".
 "inversionista" is a person.
 The masculine noun "inversor" means "investor".
@@ -20234,6 +20434,7 @@ The feminine noun "legisladora" means "legislator".
 "legisladoras" is the plural of "legisladora".
 "legisladora" is a person.
 The noun "prestamista" means "lender".
+"prestamista" is not feminine.
 "prestamistas" is the plural of "prestamista".
 The masculine noun "mentiroso" means "liar".
 "mentirosos" is the plural of "mentiroso".
@@ -20328,12 +20529,6 @@ The masculine noun "amo" means "master".
 The feminine noun "ama" means "master".
 "amas" is the plural of "ama".
 "ama" is a person.
-The masculine noun "compañero" means "mate".
-"compañeros" is the plural of "compañero".
-"compañero" is a person.
-The feminine noun "compañera" means "mate".
-"compañeras" is the plural of "compañera".
-"compañera" is a person.
 The feminine noun "materia" means "matter".
 "materias" is the plural of "materia".
 The masculine noun "alcalde" means "mayor".
@@ -20403,8 +20598,6 @@ The feminine noun "madrugada" means "morning".
 "madrugadas" is the plural of "madrugada".
 The masculine noun "almirez" means "mortar".
 "almireces" is the plural of "almirez".
-The masculine noun "monte" means "mountain".
-"montes" is the plural of "monte".
 The masculine noun "alpinismo" means "mountaineering".
 "alpinismos" is the plural of "alpinismo".
 The feminine noun "desembocadura" means "mouth".
@@ -20825,8 +21018,6 @@ The feminine noun "vía" means "road".
 The noun "rocks" means "rock".
 The masculine noun "tejado" means "roof".
 "tejados" is the plural of "tejado".
-The feminine noun "sala" means "room".
-"salas" is the plural of "sala".
 The masculine noun "recorrido" means "route".
 "recorridos" is the plural of "recorrido".
 The masculine noun "caucho" means "rubber".
@@ -22210,6 +22401,7 @@ The masculine noun "remanente" means "remainder".
 "remanentes" is the plural of "remanente".
 The noun "alrededores" means "surroundings".
 The noun "guardarropa" means "closet".
+"guardarropa" is not feminine.
 "guardarropas" is the plural of "guardarropa".
 The masculine noun "pelaje" means "fur".
 "pelajes" is the plural of "pelaje".
@@ -22401,6 +22593,7 @@ The masculine noun "alzheimer" means "alzheimer".
 The masculine noun "apocalipsis" means "apocalypse".
 "apocalipsis" is the plural of "apocalipsis".
 The noun "minorista" means "retailer".
+"minorista" is not feminine.
 "minoristas" is the plural of "minorista".
 "minorista" is a person.
 The feminine noun "contestación" means "reply".
@@ -23514,6 +23707,7 @@ The feminine noun "consulta" means "enquiry".
 The feminine noun "investigación" means "enquiry".
 The feminine noun "empresa" means "enterprise".
 The noun "artista" means "entertainer".
+"artista" is not feminine.
 The masculine noun "equilibrio" means "equilibrium".
 The masculine noun "erotismo" means "erotism".
 The feminine noun "propiedad" means "estate".
@@ -23679,7 +23873,9 @@ The feminine noun "miseria" means "pittance".
 The masculine noun "juego" means "play".
 The feminine noun "abundancia" means "plenty".
 The noun "policía" means "policeman".
+"policía" is not feminine.
 The noun "policía" means "policewoman".
+"policía" is not feminine.
 The masculine noun "grupo" means "pool".
 The feminine noun "piscina" means "pool".
 "piscinas" is the plural of "piscina".
@@ -23774,6 +23970,7 @@ The feminine noun "parada" means "stall".
 The masculine noun "establo" means "cowshed".
 The noun "emisora" means "station".
 The noun "accionista" means "stockholder".
+"accionista" is not feminine.
 The feminine noun "tienda" means "store".
 The masculine noun "tranvía" means "streetcar".
 "tranvía" is not feminine.
@@ -23788,6 +23985,7 @@ The masculine noun "excedente" means "surplus".
 "excedentes" is the plural of "excedente".
 The feminine noun "compasión" means "sympathy".
 The noun "sindicalista" means "syndicalist".
+"sindicalista" is not feminine.
 "sindicalistas" is the plural of "sindicalista".
 The feminine noun "etiqueta" means "tag".
 The masculine noun "grifo" means "faucet".
@@ -23918,6 +24116,7 @@ The masculine noun "cuervo" means "crow".
 The masculine noun "búho" means "owl".
 The masculine noun "viaje" means "voyage".
 The noun "sinvergüenza" means "crook".
+"sinvergüenza" is not feminine.
 The masculine noun "rescate" means "ransom".
 The masculine noun "bombero" means "firefighter".
 The feminine noun "bombera" means "firefighter".
@@ -23975,6 +24174,7 @@ The feminine noun "eficacia" means "efficacy".
 The feminine noun "queja" means "grievance".
 The feminine noun "esposa" means "manacles".
 The noun "congresista" means "congresswoman".
+"congresista" is not feminine.
 The noun "boleto" means "fare".
 The feminine noun "falsedad" means "deceitfulness".
 The masculine noun "gallo" means "cock".
@@ -24087,8 +24287,10 @@ The masculine noun "resto" means "remnant".
 The feminine noun "chimenea" means "smokestack".
 The feminine noun "imagen" means "footage".
 The noun "centrocampista" means "midfielder".
+"centrocampista" is not feminine.
 "centrocampistas" is the plural of "centrocampista".
 The noun "guionista" means "scriptwriter".
+"guionista" is not feminine.
 The noun "calabacín" means "zucchini".
 The masculine noun "kiwi" means "kiwifruit".
 The feminine noun "tripa" means "insides".
@@ -24099,6 +24301,442 @@ The masculine noun "oporto" means "port".
 The masculine noun "hipo" means "hiccough".
 The feminine noun "batidora" means "mixer".
 The masculine noun "parchís" means "parcheesi".
+The verb "esquía" means "skis".
+"esquían" is the plural of "esquía".
+"esquiamos" is the first person of "esquían".
+"esquío" is the first person of "esquía".
+"esquías" is the second person of "esquía".
+"esquió" is the past of "esquía".
+"esquiaron" is the past of "esquían".
+"esquiamos" is the first person of "esquiaron".
+"esquié" is the first person of "esquió".
+"esquiaste" is the second person of "esquió".
+"esquiaba" is the past of "esquía".
+"esquiaban" is the past of "esquían".
+"esquiábamos" is the first person of "esquiaban".
+"esquiabas" is the second person of "esquiaba".
+"esquiará" is the future of "esquía".
+"esquiarán" is the plural of "esquiará".
+"esquiaremos" is the first person of "esquiarán".
+"esquiaré" is the first person of "esquiará".
+"esquiarás" is the second person of "esquiará".
+"esquiaría" is the conditional of "esquía".
+"esquiarían" is the plural of "esquiaría".
+"esquiaríamos" is the first person of "esquiarían".
+"esquiarías" is the second person of "esquiaría".
+"esquíe" is the subjunctive of "esquía".
+"esquíen" is the plural of "esquíe".
+"esquiemos" is the first person of "esquíen".
+"esquíes" is the second person of "esquíe".
+"esquiara" is the past subjunctive of "esquía".
+"esquiaran" is the plural of "esquiara".
+"esquiáramos" is the first person of "esquiaran".
+"esquiaras" is the second person of "esquiara".
+"esquía" is the imperative of "esquía".
+"esquíes" is the negative imperative of "esquía".
+"esquiado" is the participle of "esquía".
+"esquiada" is the participle of "esquía".
+"esquiada" is feminine.
+"esquiados" is the participle of "esquía".
+"esquiados" is the plural of "esquiado".
+"esquiadas" is the participle of "esquía".
+"esquiadas" is feminine.
+"esquiadas" is the plural of "esquiada".
+"esquiar" is the infinitive of "esquía".
+"esquiando" is the gerund of "esquía".
+"ski'd" is the participle of "skis".
+The verb "bromea" means "jokes".
+"bromean" is the plural of "bromea".
+"bromeamos" is the first person of "bromean".
+"bromeo" is the first person of "bromea".
+"bromeas" is the second person of "bromea".
+"bromeó" is the past of "bromea".
+"bromearon" is the past of "bromean".
+"bromeamos" is the first person of "bromearon".
+"bromeé" is the first person of "bromeó".
+"bromeaste" is the second person of "bromeó".
+"bromeaba" is the past of "bromea".
+"bromeaban" is the past of "bromean".
+"bromeábamos" is the first person of "bromeaban".
+"bromeabas" is the second person of "bromeaba".
+"bromeará" is the future of "bromea".
+"bromearán" is the plural of "bromeará".
+"bromearemos" is the first person of "bromearán".
+"bromearé" is the first person of "bromeará".
+"bromearás" is the second person of "bromeará".
+"bromearía" is the conditional of "bromea".
+"bromearían" is the plural of "bromearía".
+"bromearíamos" is the first person of "bromearían".
+"bromearías" is the second person of "bromearía".
+"bromee" is the subjunctive of "bromea".
+"bromeen" is the plural of "bromee".
+"bromeemos" is the first person of "bromeen".
+"bromees" is the second person of "bromee".
+"bromeara" is the past subjunctive of "bromea".
+"bromearan" is the plural of "bromeara".
+"bromeáramos" is the first person of "bromearan".
+"bromearas" is the second person of "bromeara".
+"bromea" is the imperative of "bromea".
+"bromees" is the negative imperative of "bromea".
+"bromeado" is the participle of "bromea".
+"bromeada" is the participle of "bromea".
+"bromeada" is feminine.
+"bromeados" is the participle of "bromea".
+"bromeados" is the plural of "bromeado".
+"bromeadas" is the participle of "bromea".
+"bromeadas" is feminine.
+"bromeadas" is the plural of "bromeada".
+"bromear" is the infinitive of "bromea".
+"bromeando" is the gerund of "bromea".
+The verb "patrulla" means "patrols".
+"patrullan" is the plural of "patrulla".
+"patrullamos" is the first person of "patrullan".
+"patrullo" is the first person of "patrulla".
+"patrullas" is the second person of "patrulla".
+"patrulló" is the past of "patrulla".
+"patrullaron" is the past of "patrullan".
+"patrullamos" is the first person of "patrullaron".
+"patrullé" is the first person of "patrulló".
+"patrullaste" is the second person of "patrulló".
+"patrullaba" is the past of "patrulla".
+"patrullaban" is the past of "patrullan".
+"patrullábamos" is the first person of "patrullaban".
+"patrullabas" is the second person of "patrullaba".
+"patrullará" is the future of "patrulla".
+"patrullarán" is the plural of "patrullará".
+"patrullaremos" is the first person of "patrullarán".
+"patrullaré" is the first person of "patrullará".
+"patrullarás" is the second person of "patrullará".
+"patrullaría" is the conditional of "patrulla".
+"patrullarían" is the plural of "patrullaría".
+"patrullaríamos" is the first person of "patrullarían".
+"patrullarías" is the second person of "patrullaría".
+"patrulle" is the subjunctive of "patrulla".
+"patrullen" is the plural of "patrulle".
+"patrullemos" is the first person of "patrullen".
+"patrulles" is the second person of "patrulle".
+"patrullara" is the past subjunctive of "patrulla".
+"patrullaran" is the plural of "patrullara".
+"patrulláramos" is the first person of "patrullaran".
+"patrullaras" is the second person of "patrullara".
+"patrulla" is the imperative of "patrulla".
+"patrulles" is the negative imperative of "patrulla".
+"patrullado" is the participle of "patrulla".
+"patrullada" is the participle of "patrulla".
+"patrullada" is feminine.
+"patrullados" is the participle of "patrulla".
+"patrullados" is the plural of "patrullado".
+"patrulladas" is the participle of "patrulla".
+"patrulladas" is feminine.
+"patrulladas" is the plural of "patrullada".
+"patrullar" is the infinitive of "patrulla".
+"patrullando" is the gerund of "patrulla".
+"patrolled" is the past of "patrols".
+"patrolling" is the gerund of "patrols".
+The verb "apaga" means "extinguishes".
+"apagan" is the plural of "apaga".
+"apagamos" is the first person of "apagan".
+"apago" is the first person of "apaga".
+"apagas" is the second person of "apaga".
+"apagó" is the past of "apaga".
+"apagaron" is the past of "apagan".
+"apagamos" is the first person of "apagaron".
+"apagué" is the first person of "apagó".
+"apagaste" is the second person of "apagó".
+"apagaba" is the past of "apaga".
+"apagaban" is the past of "apagan".
+"apagábamos" is the first person of "apagaban".
+"apagabas" is the second person of "apagaba".
+"apagará" is the future of "apaga".
+"apagarán" is the plural of "apagará".
+"apagaremos" is the first person of "apagarán".
+"apagaré" is the first person of "apagará".
+"apagarás" is the second person of "apagará".
+"apagaría" is the conditional of "apaga".
+"apagarían" is the plural of "apagaría".
+"apagaríamos" is the first person of "apagarían".
+"apagarías" is the second person of "apagaría".
+"apague" is the subjunctive of "apaga".
+"apaguen" is the plural of "apague".
+"apaguemos" is the first person of "apaguen".
+"apagues" is the second person of "apague".
+"apagara" is the past subjunctive of "apaga".
+"apagaran" is the plural of "apagara".
+"apagáramos" is the first person of "apagaran".
+"apagaras" is the second person of "apagara".
+"apaga" is the imperative of "apaga".
+"apagues" is the negative imperative of "apaga".
+"apagado" is the participle of "apaga".
+"apagada" is the participle of "apaga".
+"apagada" is feminine.
+"apagados" is the participle of "apaga".
+"apagados" is the plural of "apagado".
+"apagadas" is the participle of "apaga".
+"apagadas" is feminine.
+"apagadas" is the plural of "apagada".
+"apagar" is the infinitive of "apaga".
+"apagando" is the gerund of "apaga".
+The verb "informa" means "reports".
+"informan" is the plural of "informa".
+"informamos" is the first person of "informan".
+"informo" is the first person of "informa".
+"informas" is the second person of "informa".
+"informó" is the past of "informa".
+"informaron" is the past of "informan".
+"informamos" is the first person of "informaron".
+"informé" is the first person of "informó".
+"informaste" is the second person of "informó".
+"informaba" is the past of "informa".
+"informaban" is the past of "informan".
+"informábamos" is the first person of "informaban".
+"informabas" is the second person of "informaba".
+"informará" is the future of "informa".
+"informarán" is the plural of "informará".
+"informaremos" is the first person of "informarán".
+"informaré" is the first person of "informará".
+"informarás" is the second person of "informará".
+"informaría" is the conditional of "informa".
+"informarían" is the plural of "informaría".
+"informaríamos" is the first person of "informarían".
+"informarías" is the second person of "informaría".
+"informe" is the subjunctive of "informa".
+"informen" is the plural of "informe".
+"informemos" is the first person of "informen".
+"informes" is the second person of "informe".
+"informara" is the past subjunctive of "informa".
+"informaran" is the plural of "informara".
+"informáramos" is the first person of "informaran".
+"informaras" is the second person of "informara".
+"informa" is the imperative of "informa".
+"informes" is the negative imperative of "informa".
+"informado" is the participle of "informa".
+"informada" is the participle of "informa".
+"informada" is feminine.
+"informados" is the participle of "informa".
+"informados" is the plural of "informado".
+"informadas" is the participle of "informa".
+"informadas" is feminine.
+"informadas" is the plural of "informada".
+"informar" is the infinitive of "informa".
+"informando" is the gerund of "informa".
+The verb "hace" means "makes".
+"hacen" is the plural of "hace".
+"hacemos" is the first person of "hacen".
+"hago" is the first person of "hace".
+"haces" is the second person of "hace".
+"hizo" is the past of "hace".
+"hicieron" is the past of "hacen".
+"hicimos" is the first person of "hicieron".
+"hice" is the first person of "hizo".
+"hiciste" is the second person of "hizo".
+"hacía" is the past of "hace".
+"hacían" is the past of "hacen".
+"hacíamos" is the first person of "hacían".
+"hacías" is the second person of "hacía".
+"hará" is the future of "hace".
+"harán" is the plural of "hará".
+"haremos" is the first person of "harán".
+"haré" is the first person of "hará".
+"harás" is the second person of "hará".
+"haría" is the conditional of "hace".
+"harían" is the plural of "haría".
+"haríamos" is the first person of "harían".
+"harías" is the second person of "haría".
+"haga" is the subjunctive of "hace".
+"hagan" is the plural of "haga".
+"hagamos" is the first person of "hagan".
+"hagas" is the second person of "haga".
+"hiciera" is the past subjunctive of "hace".
+"hicieran" is the plural of "hiciera".
+"hiciéramos" is the first person of "hicieran".
+"hicieras" is the second person of "hiciera".
+"haz" is the imperative of "hace".
+"hagas" is the negative imperative of "hace".
+"hecho" is the participle of "hace".
+"hecha" is the participle of "hace".
+"hecha" is feminine.
+"hechos" is the participle of "hace".
+"hechos" is the plural of "hecho".
+"hechas" is the participle of "hace".
+"hechas" is feminine.
+"hechas" is the plural of "hecha".
+"hacer" is the infinitive of "hace".
+"haciendo" is the gerund of "hace".
+"made" is the past of "makes".
+The verb "sabe" means "knows".
+"saben" is the plural of "sabe".
+"sabemos" is the first person of "saben".
+"sé" is the first person of "sabe".
+"sabes" is the second person of "sabe".
+"supo" is the past of "sabe".
+"supieron" is the past of "saben".
+"supimos" is the first person of "supieron".
+"supe" is the first person of "supo".
+"supiste" is the second person of "supo".
+"sabía" is the past of "sabe".
+"sabían" is the past of "saben".
+"sabíamos" is the first person of "sabían".
+"sabías" is the second person of "sabía".
+"sabrá" is the future of "sabe".
+"sabrán" is the plural of "sabrá".
+"sabremos" is the first person of "sabrán".
+"sabré" is the first person of "sabrá".
+"sabrás" is the second person of "sabrá".
+"sabría" is the conditional of "sabe".
+"sabrían" is the plural of "sabría".
+"sabríamos" is the first person of "sabrían".
+"sabrías" is the second person of "sabría".
+"sepa" is the subjunctive of "sabe".
+"sepan" is the plural of "sepa".
+"sepamos" is the first person of "sepan".
+"sepas" is the second person of "sepa".
+"supiera" is the past subjunctive of "sabe".
+"supieran" is the plural of "supiera".
+"supiéramos" is the first person of "supieran".
+"supieras" is the second person of "supiera".
+"sabe" is the imperative of "sabe".
+"sepas" is the negative imperative of "sabe".
+"sabido" is the participle of "sabe".
+"sabida" is the participle of "sabe".
+"sabida" is feminine.
+"sabidos" is the participle of "sabe".
+"sabidos" is the plural of "sabido".
+"sabidas" is the participle of "sabe".
+"sabidas" is feminine.
+"sabidas" is the plural of "sabida".
+"saber" is the infinitive of "sabe".
+"sabiendo" is the gerund of "sabe".
+"knew" is the past of "knows".
+"known" is the participle of "knows".
+The verb "entra" means "enters".
+"entran" is the plural of "entra".
+"entramos" is the first person of "entran".
+"entro" is the first person of "entra".
+"entras" is the second person of "entra".
+"entró" is the past of "entra".
+"entraron" is the past of "entran".
+"entramos" is the first person of "entraron".
+"entré" is the first person of "entró".
+"entraste" is the second person of "entró".
+"entraba" is the past of "entra".
+"entraban" is the past of "entran".
+"entrábamos" is the first person of "entraban".
+"entrabas" is the second person of "entraba".
+"entrará" is the future of "entra".
+"entrarán" is the plural of "entrará".
+"entraremos" is the first person of "entrarán".
+"entraré" is the first person of "entrará".
+"entrarás" is the second person of "entrará".
+"entraría" is the conditional of "entra".
+"entrarían" is the plural of "entraría".
+"entraríamos" is the first person of "entrarían".
+"entrarías" is the second person of "entraría".
+"entre" is the subjunctive of "entra".
+"entren" is the plural of "entre".
+"entremos" is the first person of "entren".
+"entres" is the second person of "entre".
+"entrara" is the past subjunctive of "entra".
+"entraran" is the plural of "entrara".
+"entráramos" is the first person of "entraran".
+"entraras" is the second person of "entrara".
+"entra" is the imperative of "entra".
+"entres" is the negative imperative of "entra".
+"entrado" is the participle of "entra".
+"entrada" is the participle of "entra".
+"entrada" is feminine.
+"entrados" is the participle of "entra".
+"entrados" is the plural of "entrado".
+"entradas" is the participle of "entra".
+"entradas" is feminine.
+"entradas" is the plural of "entrada".
+"entrar" is the infinitive of "entra".
+"entrando" is the gerund of "entra".
+The verb "suscita" means "arouses".
+"suscitan" is the plural of "suscita".
+"suscitamos" is the first person of "suscitan".
+"suscito" is the first person of "suscita".
+"suscitas" is the second person of "suscita".
+"suscitó" is the past of "suscita".
+"suscitaron" is the past of "suscitan".
+"suscitamos" is the first person of "suscitaron".
+"suscité" is the first person of "suscitó".
+"suscitaste" is the second person of "suscitó".
+"suscitaba" is the past of "suscita".
+"suscitaban" is the past of "suscitan".
+"suscitábamos" is the first person of "suscitaban".
+"suscitabas" is the second person of "suscitaba".
+"suscitará" is the future of "suscita".
+"suscitarán" is the plural of "suscitará".
+"suscitaremos" is the first person of "suscitarán".
+"suscitaré" is the first person of "suscitará".
+"suscitarás" is the second person of "suscitará".
+"suscitaría" is the conditional of "suscita".
+"suscitarían" is the plural of "suscitaría".
+"suscitaríamos" is the first person of "suscitarían".
+"suscitarías" is the second person of "suscitaría".
+"suscite" is the subjunctive of "suscita".
+"susciten" is the plural of "suscite".
+"suscitemos" is the first person of "susciten".
+"suscites" is the second person of "suscite".
+"suscitara" is the past subjunctive of "suscita".
+"suscitaran" is the plural of "suscitara".
+"suscitáramos" is the first person of "suscitaran".
+"suscitaras" is the second person of "suscitara".
+"suscita" is the imperative of "suscita".
+"suscites" is the negative imperative of "suscita".
+"suscitado" is the participle of "suscita".
+"suscitada" is the participle of "suscita".
+"suscitada" is feminine.
+"suscitados" is the participle of "suscita".
+"suscitados" is the plural of "suscitado".
+"suscitadas" is the participle of "suscita".
+"suscitadas" is feminine.
+"suscitadas" is the plural of "suscitada".
+"suscitar" is the infinitive of "suscita".
+"suscitando" is the gerund of "suscita".
+The verb "aleja" means "distances".
+"alejan" is the plural of "aleja".
+"alejamos" is the first person of "alejan".
+"alejo" is the first person of "aleja".
+"alejas" is the second person of "aleja".
+"alejó" is the past of "aleja".
+"alejaron" is the past of "alejan".
+"alejamos" is the first person of "alejaron".
+"alejé" is the first person of "alejó".
+"alejaste" is the second person of "alejó".
+"alejaba" is the past of "aleja".
+"alejaban" is the past of "alejan".
+"alejábamos" is the first person of "alejaban".
+"alejabas" is the second person of "alejaba".
+"alejará" is the future of "aleja".
+"alejarán" is the plural of "alejará".
+"alejaremos" is the first person of "alejarán".
+"alejaré" is the first person of "alejará".
+"alejarás" is the second person of "alejará".
+"alejaría" is the conditional of "aleja".
+"alejarían" is the plural of "alejaría".
+"alejaríamos" is the first person of "alejarían".
+"alejarías" is the second person of "alejaría".
+"aleje" is the subjunctive of "aleja".
+"alejen" is the plural of "aleje".
+"alejemos" is the first person of "alejen".
+"alejes" is the second person of "aleje".
+"alejara" is the past subjunctive of "aleja".
+"alejaran" is the plural of "alejara".
+"alejáramos" is the first person of "alejaran".
+"alejaras" is the second person of "alejara".
+"aleja" is the imperative of "aleja".
+"alejes" is the negative imperative of "aleja".
+"alejado" is the participle of "aleja".
+"alejada" is the participle of "aleja".
+"alejada" is feminine.
+"alejados" is the participle of "aleja".
+"alejados" is the plural of "alejado".
+"alejadas" is the participle of "aleja".
+"alejadas" is feminine.
+"alejadas" is the plural of "alejada".
+"alejar" is the infinitive of "aleja".
+"alejando" is the gerund of "aleja".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -55258,48 +55896,6 @@ The verb "influye" means "influences".
 "influir" is the infinitive of "influye".
 "influyendo" is the gerund of "influye".
 The verb "informa" means "informs".
-"informan" is the plural of "informa".
-"informamos" is the first person of "informan".
-"informo" is the first person of "informa".
-"informas" is the second person of "informa".
-"informó" is the past of "informa".
-"informaron" is the past of "informan".
-"informamos" is the first person of "informaron".
-"informé" is the first person of "informó".
-"informaste" is the second person of "informó".
-"informaba" is the past of "informa".
-"informaban" is the past of "informan".
-"informábamos" is the first person of "informaban".
-"informabas" is the second person of "informaba".
-"informará" is the future of "informa".
-"informarán" is the plural of "informará".
-"informaremos" is the first person of "informarán".
-"informaré" is the first person of "informará".
-"informarás" is the second person of "informará".
-"informaría" is the conditional of "informa".
-"informarían" is the plural of "informaría".
-"informaríamos" is the first person of "informarían".
-"informarías" is the second person of "informaría".
-"informe" is the subjunctive of "informa".
-"informen" is the plural of "informe".
-"informemos" is the first person of "informen".
-"informes" is the second person of "informe".
-"informara" is the past subjunctive of "informa".
-"informaran" is the plural of "informara".
-"informáramos" is the first person of "informaran".
-"informaras" is the second person of "informara".
-"informa" is the imperative of "informa".
-"informes" is the negative imperative of "informa".
-"informado" is the participle of "informa".
-"informada" is the participle of "informa".
-"informada" is feminine.
-"informados" is the participle of "informa".
-"informados" is the plural of "informado".
-"informadas" is the participle of "informa".
-"informadas" is feminine.
-"informadas" is the plural of "informada".
-"informar" is the infinitive of "informa".
-"informando" is the gerund of "informa".
 The verb "inhala" means "inhales".
 "inhalan" is the plural of "inhala".
 "inhalamos" is the first person of "inhalan".
@@ -62202,48 +62798,6 @@ The verb "alberga" means "houses".
 "albergar" is the infinitive of "alberga".
 "albergando" is the gerund of "alberga".
 The verb "bromea" means "kids".
-"bromean" is the plural of "bromea".
-"bromeamos" is the first person of "bromean".
-"bromeo" is the first person of "bromea".
-"bromeas" is the second person of "bromea".
-"bromeó" is the past of "bromea".
-"bromearon" is the past of "bromean".
-"bromeamos" is the first person of "bromearon".
-"bromeé" is the first person of "bromeó".
-"bromeaste" is the second person of "bromeó".
-"bromeaba" is the past of "bromea".
-"bromeaban" is the past of "bromean".
-"bromeábamos" is the first person of "bromeaban".
-"bromeabas" is the second person of "bromeaba".
-"bromeará" is the future of "bromea".
-"bromearán" is the plural of "bromeará".
-"bromearemos" is the first person of "bromearán".
-"bromearé" is the first person of "bromeará".
-"bromearás" is the second person of "bromeará".
-"bromearía" is the conditional of "bromea".
-"bromearían" is the plural of "bromearía".
-"bromearíamos" is the first person of "bromearían".
-"bromearías" is the second person of "bromearía".
-"bromee" is the subjunctive of "bromea".
-"bromeen" is the plural of "bromee".
-"bromeemos" is the first person of "bromeen".
-"bromees" is the second person of "bromee".
-"bromeara" is the past subjunctive of "bromea".
-"bromearan" is the plural of "bromeara".
-"bromeáramos" is the first person of "bromearan".
-"bromearas" is the second person of "bromeara".
-"bromea" is the imperative of "bromea".
-"bromees" is the negative imperative of "bromea".
-"bromeado" is the participle of "bromea".
-"bromeada" is the participle of "bromea".
-"bromeada" is feminine.
-"bromeados" is the participle of "bromea".
-"bromeados" is the plural of "bromeado".
-"bromeadas" is the participle of "bromea".
-"bromeadas" is feminine.
-"bromeadas" is the plural of "bromeada".
-"bromear" is the infinitive of "bromea".
-"bromeando" is the gerund of "bromea".
 "kidded" is the past of "kids".
 "kidding" is the gerund of "kids".
 The verb "secuestra" means "kidnaps".
@@ -62423,51 +62977,6 @@ The verb "conoce" means "knows".
 "conocidas" is the plural of "conocida".
 "conocer" is the infinitive of "conoce".
 "conociendo" is the gerund of "conoce".
-"knew" is the past of "knows".
-"known" is the participle of "knows".
-The verb "sabe" means "knows".
-"saben" is the plural of "sabe".
-"sabemos" is the first person of "saben".
-"sé" is the first person of "sabe".
-"sabes" is the second person of "sabe".
-"supo" is the past of "sabe".
-"supieron" is the past of "saben".
-"supimos" is the first person of "supieron".
-"supe" is the first person of "supo".
-"supiste" is the second person of "supo".
-"sabía" is the past of "sabe".
-"sabían" is the past of "saben".
-"sabíamos" is the first person of "sabían".
-"sabías" is the second person of "sabía".
-"sabrá" is the future of "sabe".
-"sabrán" is the plural of "sabrá".
-"sabremos" is the first person of "sabrán".
-"sabré" is the first person of "sabrá".
-"sabrás" is the second person of "sabrá".
-"sabría" is the conditional of "sabe".
-"sabrían" is the plural of "sabría".
-"sabríamos" is the first person of "sabrían".
-"sabrías" is the second person of "sabría".
-"sepa" is the subjunctive of "sabe".
-"sepan" is the plural of "sepa".
-"sepamos" is the first person of "sepan".
-"sepas" is the second person of "sepa".
-"supiera" is the past subjunctive of "sabe".
-"supieran" is the plural of "supiera".
-"supiéramos" is the first person of "supieran".
-"supieras" is the second person of "supiera".
-"sabe" is the imperative of "sabe".
-"sepas" is the negative imperative of "sabe".
-"sabido" is the participle of "sabe".
-"sabida" is the participle of "sabe".
-"sabida" is feminine.
-"sabidos" is the participle of "sabe".
-"sabidos" is the plural of "sabido".
-"sabidas" is the participle of "sabe".
-"sabidas" is feminine.
-"sabidas" is the plural of "sabida".
-"saber" is the infinitive of "sabe".
-"sabiendo" is the gerund of "sabe".
 The verb "etiqueta" means "labels".
 "etiquetan" is the plural of "etiqueta".
 "etiquetamos" is the first person of "etiquetan".
@@ -71364,7 +71873,6 @@ The verb "realiza" means "realises".
 "realizar" is the infinitive of "realiza".
 "realizando" is the gerund of "realiza".
 The verb "realiza" means "makes".
-"made" is the past of "makes".
 The verb "reaparece" means "reappears".
 "reaparecen" is the plural of "reaparece".
 "reaparecemos" is the first person of "reaparecen".
@@ -93139,49 +93647,6 @@ The verb "encomienda" means "entrusts".
 "encomendadas" is the plural of "encomendada".
 "encomendar" is the infinitive of "encomienda".
 "encomendando" is the gerund of "encomienda".
-The verb "suscita" means "arouses".
-"suscitan" is the plural of "suscita".
-"suscitamos" is the first person of "suscitan".
-"suscito" is the first person of "suscita".
-"suscitas" is the second person of "suscita".
-"suscitó" is the past of "suscita".
-"suscitaron" is the past of "suscitan".
-"suscitamos" is the first person of "suscitaron".
-"suscité" is the first person of "suscitó".
-"suscitaste" is the second person of "suscitó".
-"suscitaba" is the past of "suscita".
-"suscitaban" is the past of "suscitan".
-"suscitábamos" is the first person of "suscitaban".
-"suscitabas" is the second person of "suscitaba".
-"suscitará" is the future of "suscita".
-"suscitarán" is the plural of "suscitará".
-"suscitaremos" is the first person of "suscitarán".
-"suscitaré" is the first person of "suscitará".
-"suscitarás" is the second person of "suscitará".
-"suscitaría" is the conditional of "suscita".
-"suscitarían" is the plural of "suscitaría".
-"suscitaríamos" is the first person of "suscitarían".
-"suscitarías" is the second person of "suscitaría".
-"suscite" is the subjunctive of "suscita".
-"susciten" is the plural of "suscite".
-"suscitemos" is the first person of "susciten".
-"suscites" is the second person of "suscite".
-"suscitara" is the past subjunctive of "suscita".
-"suscitaran" is the plural of "suscitara".
-"suscitáramos" is the first person of "suscitaran".
-"suscitaras" is the second person of "suscitara".
-"suscita" is the imperative of "suscita".
-"suscites" is the negative imperative of "suscita".
-"suscitado" is the participle of "suscita".
-"suscitada" is the participle of "suscita".
-"suscitada" is feminine.
-"suscitados" is the participle of "suscita".
-"suscitados" is the plural of "suscitado".
-"suscitadas" is the participle of "suscita".
-"suscitadas" is feminine.
-"suscitadas" is the plural of "suscitada".
-"suscitar" is the infinitive of "suscita".
-"suscitando" is the gerund of "suscita".
 The verb "retribuye" means "rewards".
 "retribuyen" is the plural of "retribuye".
 "retribuimos" is the first person of "retribuyen".
@@ -112647,49 +113112,6 @@ The verb "salta" means "leaps".
 The verb "cierra" means "locks".
 The verb "aloja" means "billets".
 The verb "come" means "lunches".
-The verb "hace" means "makes".
-"hacen" is the plural of "hace".
-"hacemos" is the first person of "hacen".
-"hago" is the first person of "hace".
-"haces" is the second person of "hace".
-"hizo" is the past of "hace".
-"hicieron" is the past of "hacen".
-"hicimos" is the first person of "hicieron".
-"hice" is the first person of "hizo".
-"hiciste" is the second person of "hizo".
-"hacía" is the past of "hace".
-"hacían" is the past of "hacen".
-"hacíamos" is the first person of "hacían".
-"hacías" is the second person of "hacía".
-"hará" is the future of "hace".
-"harán" is the plural of "hará".
-"haremos" is the first person of "harán".
-"haré" is the first person of "hará".
-"harás" is the second person of "hará".
-"haría" is the conditional of "hace".
-"harían" is the plural of "haría".
-"haríamos" is the first person of "harían".
-"harías" is the second person of "haría".
-"haga" is the subjunctive of "hace".
-"hagan" is the plural of "haga".
-"hagamos" is the first person of "hagan".
-"hagas" is the second person of "haga".
-"hiciera" is the past subjunctive of "hace".
-"hicieran" is the plural of "hiciera".
-"hiciéramos" is the first person of "hicieran".
-"hicieras" is the second person of "hiciera".
-"haz" is the imperative of "hace".
-"hagas" is the negative imperative of "hace".
-"hecho" is the participle of "hace".
-"hecha" is the participle of "hace".
-"hecha" is feminine.
-"hechos" is the participle of "hace".
-"hechos" is the plural of "hecho".
-"hechas" is the participle of "hace".
-"hechas" is feminine.
-"hechas" is the plural of "hecha".
-"hacer" is the infinitive of "hace".
-"haciendo" is the gerund of "hace".
 The verb "concentra" means "masses".
 The verb "conoce" means "meets".
 "met" is the past of "meets".
@@ -112915,7 +113337,6 @@ The verb "somete" means "tables".
 The verb "toca" means "taps".
 "tapped" is the past of "taps".
 "tapping" is the gerund of "taps".
-The verb "hace" means "takes".
 The verb "retrasa" means "slows".
 The verb "apunta" means "targets".
 The verb "derrite" means "thaws".
@@ -113068,6 +113489,26 @@ The modal "puede" means "can".
 The modal "puede" means "may".
 The modal "puede" means "might".
 The verb "hay" means "there is".
+The masculine adjective "espeleológico" means "speleological".
+"espeleológicos" is the plural of "espeleológico".
+The feminine adjective "espeleológica" means "speleological".
+"espeleológicas" is the plural of "espeleológica".
+The masculine adjective "agotado" means "exhausted".
+"agotados" is the plural of "agotado".
+The feminine adjective "agotada" means "exhausted".
+"agotadas" is the plural of "agotada".
+The masculine adjective "confuso" means "confused".
+"confusos" is the plural of "confuso".
+The feminine adjective "confusa" means "confused".
+"confusas" is the plural of "confusa".
+The masculine adjective "atrapado" means "trapped".
+"atrapados" is the plural of "atrapado".
+The feminine adjective "atrapada" means "trapped".
+"atrapadas" is the plural of "atrapada".
+The masculine adjective "destrozado" means "shattered".
+"destrozados" is the plural of "destrozado".
+The feminine adjective "destrozada" means "shattered".
+"destrozadas" is the plural of "destrozada".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -115274,9 +115715,7 @@ The feminine adjective "futura" means "future".
 The adjective "futurista" means "futuristic".
 "futuristas" is the plural of "futurista".
 The masculine adjective "confuso" means "garbled".
-"confusos" is the plural of "confuso".
 The feminine adjective "confusa" means "garbled".
-"confusas" is the plural of "confusa".
 The adjective "general" means "general".
 "generales" is the plural of "general".
 The masculine adjective "genérico" means "generic".

@@ -150,3 +150,61 @@ The masculine noun "quartiere" means "neighbourhood".
 "sbaglia" is reflexive.
 "sfoga" is reflexive.
 "quartieri" is the plural of "quartiere".
+# the Monte Livata article (Italian UD, ISDT test-232..260): words neither
+# of Apertium's Italian dictionaries has, and words of several words
+The conjunction "ed" means "and".
+The preposition "fin da" means "since".
+The masculine noun "vigile del fuoco" means "firefighter".
+"vigili del fuoco" is the plural of "vigile del fuoco".
+"vigile del fuoco" is a person.
+The feminine noun "bimba" means "girl".
+"bimbe" is the plural of "bimba".
+"bimba" is a person.
+The masculine adjective "incastrato" means "trapped".
+"incastrati" is the plural of "incastrato".
+The feminine adjective "incastrata" means "trapped".
+"incastrate" is the plural of "incastrata".
+The verb "pattuglia" means "patrols".
+"pattugliano" is the plural of "pattuglia".
+"pattugliato" is the participle of "pattuglia".
+"pattugliare" is the infinitive of "pattuglia".
+"sparito" is the participle of "spare".
+"sparita" is the participle of "spare".
+"sparita" is feminine.
+"spariti" is the participle of "spare".
+"spariti" is the plural of "sparito".
+"sparite" is the participle of "spare".
+"sparite" is feminine.
+"sparite" is the plural of "sparita".
+"è" is the auxiliary of "risulta".
+"è" is the auxiliary of "succede".
+The adjective "a lieto fine" means "with a happy ending".
+The adverb "a sua volta" means "in turn".
+The adverb "di certo" means "certainly".
+The adverb "di notte" means "at night".
+The adverb "dall'alto" means "from above".
+The preposition "oltre a" means "besides".
+The preposition "grazie a" means "thanks to".
+The preposition "invece di" means "instead of".
+The preposition "vicino" means "near".
+The noun "il peggio" means "the worst".
+The conjunction "nonostante" means "although".
+The conjunction "mentre" means "while".
+The adjective "a pezzi" means "shattered".
+The adjective "fuori di testa" means "crazy".
+The verb "fa sapere" means "reports".
+The verb "ci si rende conto" means "realizes".
+"aver" is the infinitive of "ha".
+"esser" is the infinitive of "è".
+"è" is the auxiliary of "prosegue".
+"è" is the auxiliary of "finisce".
+# `gli' is TO him or them, and Spanish says that with `le' and `les' where
+# its `lo' is him himself: `gli abbiamo dato da mangiare' is `les hemos dado'
+The dative pronoun "gli" means "him".
+The word "da" begins the purpose.
+The adverb "ancora" means "still".
+# `con oltre 50 mezzi' is more than fifty: before a number `oltre' counts
+The adverb "oltre" means "more than".
+# `130 circa' is about a hundred and thirty: after a number `circa' is
+# approximate, which Spanish says as `aproximadamente'
+The adverb "circa" means "approximately".

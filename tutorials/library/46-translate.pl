@@ -348,6 +348,7 @@ main :-
     section_20,
     section_21,
     section_22,
+    section_23,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -624,6 +625,91 @@ The possessive "suo" means "his". "suoi" is the plural of "suo". The article "il
 The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
 The word "più" begins the comparative. The adverb "più" means "more".
 The word "non" means "not". The word "non" precedes the verb.').
+
+%% 1.6.17: A SECOND ITALIAN ARTICLE INTO SPANISH. Monte Livata -- the
+%% Italian UD ISDT document test-232..260, twenty-nine sentences of a rescue
+%% told in quotations -- needed the copula of a STATE, a count with an adverb
+%% before it, `of which' with no verb, `all' before a phrase, a DATIVE, the
+%% `to' before an infinitive and a sentence of thanks with no verb. Each is a
+%% line of lesson or a shape; the two lessons below show them on a few words.
+section_23 :-
+    format("~n23. An Italian article into Spanish: a state, a count, of which, all, a dative, to, thanks~n", []),
+    lesson_23(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the article''s shapes, under its own name', NS),
+    lesson_23(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Stiamo stanchi.', italian, spanish, S23a),
+    must('`The auxiliary "está" marks the state.'': stare with no gerund is estar', S23a, 'Estamos cansados.'),
+    reason_translate('Estamos cansados.', spanish, italian, S23b),
+    must('and a lesson that says nothing of a state writes its plain copula', S23b, 'Siamo stanchi.'),
+    reason_ir('Stiamo stanchi.', italian, IR23),
+    show('the IR keeps the state apart from the copula', IR23),
+    reason_translate('Il cane mangia oltre 50 pani.', italian, spanish, S23c),
+    must('`The adverb "oltre" means "more than".'': a count with an adverb before it', S23c,
+         'El perro come más de 50 panes.'),
+    reason_translate('Il cane mangia 37 pani, di cui tre.', italian, spanish, S23d),
+    must('OF WHICH with no verb, the relative agreeing with the object before it', S23d,
+         'El perro come 37 panes, de los que tres.'),
+    reason_translate('Il cane dorme tutta la notte.', italian, spanish, S23e),
+    must('ALL before a determiner, agreeing with the noun', S23e, 'El perro duerme toda la noche.'),
+    reason_translate('Gli abbiamo dato il pane.', italian, spanish, S23f),
+    must('`The dative pronoun "gli" means "him".'': a DATIVE stays one', S23f, 'Le hemos dado el pan.'),
+    reason_translate('Il cane va a mangiare il pane.', italian, spanish, S23g),
+    must('the TO before an infinitive, kept', S23g, 'El perro va a comer el pan.'),
+    reason_translate('Grazie ai cani!', italian, spanish, S23h),
+    must('THANKS, with no verb', S23h, 'Gracias a los perros!'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_23(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "noche" means "night". "noche" is feminine.
+The masculine adjective "cansado" means "tired". The feminine adjective "cansada" means "tired".
+The masculine pronoun "todo" means "all". The feminine pronoun "toda" means "all".
+The verb "come" means "eats". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". The verb "va" means "goes".
+The verb "da" means "gives". "dado" is the participle of "da".
+The verb "es" means "is". "son" is the plural of "es". "somos" is the first person of "son".
+The auxiliary "está" means "is". "están" is the plural of "está". "estamos" is the first person of "están".
+The auxiliary "está" marks the state. The verb "está" means "stays".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "hemos" is the first person of "han".
+The pronoun "lo" means "him". The dative pronoun "le" means "him". Every pronoun precedes the verb.
+"que" is a relative. The conjunction "que" means "that".
+The preposition "a" means "to". The preposition "de" means "of".
+The preposition "gracias a" means "thanks to".
+The adverb "más de" means "more than". The number "tres" means "three".
+The conjunction "y" means "and". The word "no" means "not".').
+lesson_23(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+"ai" is the contraction of "a i".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". "cani" is the plural of "cane".
+The noun "pane" means "bread". "pani" is the plural of "pane".
+The noun "notte" means "night". "notte" is feminine.
+The masculine adjective "stanco" means "tired". "stanchi" is the plural of "stanco".
+The masculine pronoun "tutto" means "all". The feminine pronoun "tutta" means "all".
+The pronoun "tutta" does not precede the verb.
+The verb "mangia" means "eats". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". The verb "va" means "goes".
+The verb "dà" means "gives". "dato" is the participle of "dà".
+The verb "è" means "is". "sono" is the plural of "è". "siamo" is the first person of "sono".
+The auxiliary "sta" means "is". "stanno" is the plural of "sta". "stiamo" is the first person of "stanno".
+The verb "sta" means "stays".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "abbiamo" is the first person of "hanno".
+The dative pronoun "gli" means "him". Every pronoun precedes the verb.
+"che" is a relative. "cui" is a relative. The word "cui" follows the preposition.
+The preposition "a" means "to". The preposition "di" means "of".
+The preposition "grazie a" means "thanks to".
+The adverb "oltre" means "more than". The number "tre" means "three".
+The conjunction "e" means "and". The word "non" means "not".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

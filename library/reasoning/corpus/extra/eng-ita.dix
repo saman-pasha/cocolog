@@ -1,0 +1,103 @@
+# library/reasoning/corpus/extra/eng-ita.dix -- entries Apertium's eng-ita
+# bilingual dictionary lacks, in its own shape, one a line. build.pl reads
+# them BEFORE the raw dictionary, so an entry both ways is the first meaning
+# of its word in its class. Every word here has its paradigm in
+# apertium-ita.ita.dix, so the builder writes all its forms; a word the
+# monolingual lacks too goes in extra/italian.txt as lesson lines instead.
+# A line that is not an entry is a comment.
+#
+# r="RL" is what nearly every entry wants: the entry is there so that the
+# ITALIAN word can be READ, and an entry both ways would come first in its
+# class and make `manina' the first Italian word for `hand' and `lieto' the
+# first for `happy' -- a regression for every text translated INTO Italian.
+# An RL entry is kept only when the dictionary gave the Italian word no
+# meaning in that class, and it comes after every entry both ways.
+# `orientamento' is both ways on purpose: the dictionary's first meaning for
+# it is `guidance', and `la mamma ha perso l'orientamento' is orientation.
+#
+# the Monte Livata article (Italian UD, ISDT test-232..260)
+<e r="RL"><p><l>rescuer<s n="n"/></l><r>soccorritore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>happy<s n="adj"/></l><r>lieto<s n="adj"/></r></p></e>
+<e r="RL"><p><l>finding<s n="n"/></l><r>ritrovamento<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>disappear<s n="vblex"/></l><r>sparire<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>locate<s n="vblex"/></l><r>individuare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>speleological<s n="adj"/></l><r>speleologico<s n="adj"/></r></p></e>
+<e r="RL"><p><l>car<s n="n"/></l><r>auto<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>deem<s n="vblex"/></l><r>reputare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>ski<s n="vblex"/></l><r>sciare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>extinguish<s n="vblex"/></l><r>spegnere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>arouse<s n="vblex"/></l><r>destare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>recover<s n="vblex"/></l><r>riprendere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>joke<s n="vblex"/></l><r>scherzare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>hand<s n="n"/></l><r>manina<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>effective<s n="adj"/></l><r>fattivo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>mount<s n="n"/></l><r>monte<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>canine<s n="adj"/></l><r>cinofilo<s n="adj"/></r></p></e>
+<e><p><l>orientation<s n="n"/></l><r>orientamento<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>move<s n="vblex"/></l><r>muovere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>need<s n="vblex"/></l><r>bisognare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>exhausted<s n="adj"/></l><r>provato<s n="adj"/></r></p></e>
+<e r="RL"><p><l>awake<s n="adj"/></l><r>vigile<s n="adj"/></r></p></e>
+<e r="RL"><p><l>confused<s n="adj"/></l><r>confusionale<s n="adj"/></r></p></e>
+# `lanciare' is `back' first in the dictionary, and `l'uomo aveva lanciato
+# l'allarme' launched it; both ways, because `launch' is `lanciare' too
+<e><p><l>launch<s n="vblex"/></l><r>lanciare<s n="vblex"/></r></p></e>
+# `mettere' is `contact' first and `ricerca' `enquiry': `è stato messo a
+# disposizione', `le ricerche dei bambini'. Both ways, as each is the Italian
+# for its English word too
+<e><p><l>put<s n="vblex"/></l><r>mettere<s n="vblex"/></r></p></e>
+<e><p><l>search<s n="n"/></l><r>ricerca<s n="n"/><s n="f"/></r></p></e>
+# `bosco' is `wood' first, which Spanish writes `madera' (timber): `nei
+# boschi' is in the woods. `carabiniere' is `policeman' first, which Spanish
+# writes `policía', the force; a Spanish page writes `los carabineros'
+<e><p><l>forest<s n="n"/></l><r>bosco<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>carabineer<s n="n"/></l><r>carabiniere<s n="n"/><s n="m"/></r></p></e>
+# `trasportare' is `convey' first and `soccorrere' `help': `è stata
+# trasportata in ospedale', `soccorsa dai carabinieri'
+<e><p><l>transport<s n="vblex"/></l><r>trasportare<s n="vblex"/></r></p></e>
+<e><p><l>rescue<s n="vblex"/></l><r>soccorrere<s n="vblex"/></r></p></e>
+# `succedere' is `succeed' first; `come possa essere successo', `è successo
+# l'inferno' happened
+<e><p><l>happen<s n="vblex"/></l><r>succedere<s n="vblex"/></r></p></e>
+# the noun `soccorso' has its paradigm and no English: `gli uomini del
+# soccorso alpino e speleologico'
+<e r="RL"><p><l>rescue<s n="n"/></l><r>soccorso<s n="n"/><s n="m"/></r></p></e>
+# `iniziare' is `start' first, which Spanish writes `arrancar' (an engine):
+# `dal punto in cui avevano iniziato la passeggiata'
+<e><p><l>begin<s n="vblex"/></l><r>iniziare<s n="vblex"/></r></p></e>
+# `medico' is `medic' first, a word the Spanish dictionary has none for:
+# `i medici stanno valutando le loro condizioni'
+<e><p><l>doctor<s n="n"/></l><r>medico<s n="n"/><s n="m"/></r></p></e>
+# `entrare' has only `come in' and `get in', which are more than a word, and
+# the noun `passeggiata' only its participle's reading: `è entrata nel
+# panico', `voleva fare una passeggiata'
+<e r="RL"><p><l>enter<s n="vblex"/></l><r>entrare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>walk<s n="n"/></l><r>passeggiata<s n="n"/><s n="f"/></r></p></e>
+# `allontanare' is `remove' first: `la madre si è allontanata con i bambini'
+# went away from where she was, and took nothing away
+<e><p><l>distance<s n="vblex"/></l><r>allontanare<s n="vblex"/></r></p></e>
+# the noun `scomparsa' has its paradigm and no English: `la storia della
+# scomparsa e del ritrovamento di una donna'
+<e r="RL"><p><l>disappearance<s n="n"/></l><r>scomparsa<s n="n"/><s n="f"/></r></p></e>
+# `raggiungere' is `achieve' first, which Spanish writes `conseguir': `li
+# hanno raggiunti', `le temperature hanno raggiunto i -10 gradi' is reaching
+<e><p><l>reach<s n="vblex"/></l><r>raggiungere<s n="vblex"/></r></p></e>
+# `primo' is `prime' first: `fin dalle prime ore' is the first hours
+<e><p><l>first<s n="adj"/></l><r>primo<s n="adj"/></r></p></e>
+# `nota' is `grade' first, a school's mark: `fa sapere, in una nota'
+<e><p><l>note<s n="n"/></l><r>nota<s n="n"/><s n="f"/></r></p></e>
+# `forestale' is `forestry', which is a noun in Spanish: `il Corpo forestale
+# dello Stato' is the forest one, `forestal'
+<e><p><l>forest<s n="adj"/></l><r>forestale<s n="adj"/></r></p></e>
+# the adjective `disperso' has its paradigm and no English, and read as the
+# participle of `disperdere' the woman was dispersed: `la donna dispersa sul
+# monte Livata' is missing
+<e r="RL"><p><l>missing<s n="adj"/></l><r>disperso<s n="adj"/></r></p></e>
+# `altro' has its adjective paradigm and no English in that class, only the
+# pronoun and a masculine determiner: `è andata dall'altra' is the other
+# one, a noun left out after an article and an adjective
+<e><p><l>other<s n="adj"/></l><r>altro<s n="adj"/></r></p></e>
+# `volunteer' has no entry, and `volontari' -- the volunteers the region
+# thanks -- read as the adjective `voluntary' and was written `voluntario',
+# singular
+<e><p><l>volunteer<s n="n"/></l><r>volontario<s n="n"/><s n="GD"/></r></p></e>

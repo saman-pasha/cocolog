@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 15565 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 15597 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -148,6 +148,77 @@ The masculine noun "quartiere" means "neighbourhood".
 "sbaglia" is reflexive.
 "sfoga" is reflexive.
 "quartieri" is the plural of "quartiere".
+The conjunction "ed" means "and".
+The preposition "fin da" means "since".
+The masculine noun "vigile del fuoco" means "firefighter".
+"vigili del fuoco" is the plural of "vigile del fuoco".
+"vigile del fuoco" is a person.
+The feminine noun "bimba" means "girl".
+"bimbe" is the plural of "bimba".
+"bimba" is a person.
+The masculine adjective "incastrato" means "trapped".
+"incastrati" is the plural of "incastrato".
+The feminine adjective "incastrata" means "trapped".
+"incastrate" is the plural of "incastrata".
+The verb "pattuglia" means "patrols".
+"pattugliano" is the plural of "pattuglia".
+"pattugliato" is the participle of "pattuglia".
+"pattugliare" is the infinitive of "pattuglia".
+"sparito" is the participle of "spare".
+"sparita" is the participle of "spare".
+"sparita" is feminine.
+"spariti" is the participle of "spare".
+"spariti" is the plural of "sparito".
+"sparite" is the participle of "spare".
+"sparite" is feminine.
+"sparite" is the plural of "sparita".
+"è" is the auxiliary of "risulta".
+"è" is the auxiliary of "succede".
+The adjective "a lieto fine" means "with a happy ending".
+The adverb "a sua volta" means "in turn".
+The adverb "di certo" means "certainly".
+The adverb "di notte" means "at night".
+The adverb "dall'alto" means "from above".
+The preposition "oltre a" means "besides".
+The preposition "grazie a" means "thanks to".
+The preposition "invece di" means "instead of".
+The preposition "vicino" means "near".
+The noun "il peggio" means "the worst".
+The conjunction "nonostante" means "although".
+The conjunction "mentre" means "while".
+The adjective "a pezzi" means "shattered".
+The adjective "fuori di testa" means "crazy".
+The verb "fa sapere" means "reports".
+The verb "ci si rende conto" means "realizes".
+"aver" is the infinitive of "ha".
+"esser" is the infinitive of "è".
+"è" is the auxiliary of "prosegue".
+"è" is the auxiliary of "finisce".
+The dative pronoun "gli" means "him".
+The word "da" begins the purpose.
+The adverb "ancora" means "still".
+The adverb "oltre" means "more than".
+The adverb "circa" means "approximately".
+The masculine noun "orientamento" means "orientation".
+"orientamenti" is the plural of "orientamento".
+The feminine noun "ricerca" means "search".
+"ricerche" is the plural of "ricerca".
+The masculine noun "bosco" means "forest".
+"boschi" is the plural of "bosco".
+The masculine noun "carabiniere" means "carabineer".
+"carabinieri" is the plural of "carabiniere".
+"carabiniere" is a person.
+The masculine noun "medico" means "doctor".
+"medici" is the plural of "medico".
+"medico" is a person.
+The feminine noun "nota" means "note".
+"note" is the plural of "nota".
+The masculine noun "volontario" means "volunteer".
+"volontari" is the plural of "volontario".
+"volontario" is a person.
+The feminine noun "volontaria" means "volunteer".
+"volontarie" is the plural of "volontaria".
+"volontaria" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -1412,7 +1483,6 @@ The feminine noun "accortezza" means "wisdom".
 The masculine noun "augurio" means "wish".
 "auguri" is the plural of "augurio".
 The masculine noun "bosco" means "wood".
-"boschi" is the plural of "bosco".
 The masculine noun "boscaiolo" means "woodcutter".
 "boscaioli" is the plural of "boscaiolo".
 The masculine noun "aggravamento" means "worsening".
@@ -2228,6 +2298,7 @@ The feminine noun "garanzia" means "assurance".
 The noun "asterismo" means "asterism".
 The noun "astenia" means "asthenia".
 The noun "asma" means "asthma".
+"asma" is not feminine.
 The noun "astigmatismo" means "astigmatism".
 The feminine noun "astrologia" means "astrology".
 "astrologie" is the plural of "astrologia".
@@ -4900,7 +4971,6 @@ The masculine noun "godimento" means "enjoyment".
 The feminine noun "inimicizia" means "enmity".
 "inimicizie" is the plural of "inimicizia".
 The feminine noun "ricerca" means "enquiry".
-"ricerche" is the plural of "ricerca".
 The masculine noun "arricchimento" means "enrichment".
 "arricchimenti" is the plural of "arricchimento".
 The noun "entelechia" means "entelechy".
@@ -6070,8 +6140,9 @@ The masculine noun "gene" means "gene".
 "geni" is the plural of "gene".
 The feminine noun "genealogia" means "genealogy".
 "genealogie" is the plural of "genealogia".
-The masculine noun "general" means "general".
-"general" is a person.
+The noun "generale" means "general".
+"generali" is the plural of "generale".
+"generale" is a person.
 The feminine noun "generalizzazione" means "generalisation".
 "generalizzazioni" is the plural of "generalizzazione".
 The feminine noun "generazione" means "generation".
@@ -6258,7 +6329,6 @@ The noun "ospite" means "guest".
 "ospiti" is the plural of "ospite".
 "ospite" is a person.
 The masculine noun "orientamento" means "guidance".
-"orientamenti" is the plural of "orientamento".
 The feminine noun "direttrice" means "guideline".
 The feminine noun "corporazione" means "guild".
 "corporazioni" is the plural of "corporazione".
@@ -7289,6 +7359,7 @@ The masculine noun "livello" means "level".
 The feminine noun "leva" means "lever".
 "leve" is the plural of "leva".
 The noun "levita" means "levite".
+"levita" is not feminine.
 "leviti" is the plural of "levita".
 The feminine noun "levitazione" means "levitation".
 "levitazioni" is the plural of "levitazione".
@@ -7657,7 +7728,6 @@ The feminine noun "medaglia" means "medal".
 The feminine noun "mediazione" means "mediation".
 "mediazioni" is the plural of "mediazione".
 The masculine noun "medico" means "medic".
-"medici" is the plural of "medico".
 The masculine noun "farmaco" means "medicine".
 "farmaci" is the plural of "farmaco".
 The feminine noun "meditazione" means "meditation".
@@ -7859,6 +7929,7 @@ The feminine noun "molecola" means "molecule".
 "molecole" is the plural of "molecola".
 The masculine noun "momento" means "moment".
 The noun "monarca" means "monarch".
+"monarca" is not feminine.
 "monarchi" is the plural of "monarca".
 "monarca" is a person.
 The noun "monarchismo" means "monarchism".
@@ -8326,7 +8397,6 @@ The feminine noun "orgia" means "orgy".
 "orge" is the plural of "orgia".
 The masculine noun "orientalismo" means "orientalism".
 "orientalismi" is the plural of "orientalismo".
-The masculine noun "orientamento" means "orientation".
 The feminine noun "origine" means "origin".
 "origini" is the plural of "origine".
 The masculine noun "ornamento" means "ornament".
@@ -8576,6 +8646,7 @@ The noun "fisiopatologia" means "pathophysiology".
 The feminine noun "sopportazione" means "patience".
 "sopportazioni" is the plural of "sopportazione".
 The noun "patriarca" means "patriarch".
+"patriarca" is not feminine.
 "patriarchi" is the plural of "patriarca".
 The masculine noun "patriottismo" means "patriotism".
 "patriottismi" is the plural of "patriottismo".
@@ -13194,8 +13265,6 @@ The masculine noun "cerotto" means "plaster".
 The masculine noun "complotto" means "plot".
 "complotti" is the plural of "complotto".
 The masculine noun "carabiniere" means "policeman".
-"carabinieri" is the plural of "carabiniere".
-"carabiniere" is a person.
 The feminine noun "cartolina" means "postcard".
 "cartoline" is the plural of "cartolina".
 The masculine noun "cartellone" means "poster".
@@ -14203,6 +14272,22 @@ The feminine noun "sonata" means "sonata".
 "sonate" is the plural of "sonata".
 The noun "sulfanilamide" means "sulfanilamide".
 The noun "telescrivente" means "teletype".
+The masculine noun "soccorritore" means "rescuer".
+"soccorritori" is the plural of "soccorritore".
+The masculine noun "ritrovamento" means "finding".
+"ritrovamenti" is the plural of "ritrovamento".
+The feminine noun "auto" means "car".
+"auto" is the plural of "auto".
+The feminine noun "manina" means "hand".
+"manine" is the plural of "manina".
+The masculine noun "monte" means "mount".
+"monti" is the plural of "monte".
+The masculine noun "soccorso" means "rescue".
+"soccorsi" is the plural of "soccorso".
+The feminine noun "passeggiata" means "walk".
+"passeggiate" is the plural of "passeggiata".
+The feminine noun "scomparsa" means "disappearance".
+"scomparse" is the plural of "scomparsa".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -15510,6 +15595,7 @@ The feminine noun "funzionalità" means "functionality".
 The feminine noun "fondamentalista" means "fundamentalist".
 "fondamentaliste" is the plural of "fondamentalista".
 The noun "eremita" means "hermit".
+"eremita" is not feminine.
 "eremiti" is the plural of "eremita".
 The masculine noun "parigino" means "parisian".
 "parigini" is the plural of "parigino".
@@ -15595,8 +15681,6 @@ The masculine noun "gprs" means "gprs".
 "gprs" is the plural of "gprs".
 The masculine noun "gps" means "gps".
 "gps" is the plural of "gps".
-The feminine noun "nota" means "grade".
-"note" is the plural of "nota".
 The masculine noun "laureato" means "graduate".
 "laureati" is the plural of "laureato".
 "laureato" is a person.
@@ -16469,6 +16553,7 @@ The feminine noun "presidentessa" means "president".
 "presidentesse" is the plural of "presidentessa".
 "presidentessa" is a person.
 The noun "oligarca" means "oligarch".
+"oligarca" is not feminine.
 "oligarchi" is the plural of "oligarca".
 The feminine noun "pretesa" means "pretence".
 "pretese" is the plural of "pretesa".
@@ -17111,6 +17196,7 @@ The feminine noun "sindacalista" means "syndicalist".
 The feminine noun "sintassi" means "syntax".
 "sintassi" is the plural of "sintassi".
 The noun "ginnasta" means "gymnast".
+"ginnasta" is not feminine.
 "ginnasti" is the plural of "ginnasta".
 "ginnasta" is a person.
 The masculine noun "incarico" means "task".
@@ -17886,6 +17972,7 @@ The masculine noun "gesto" means "gesticulation".
 The masculine noun "spettacolo" means "gig".
 The masculine noun "calesse" means "gig".
 The noun "governante" means "governess".
+The masculine noun "grado" means "grade".
 The masculine noun "grammo" means "gramme".
 The masculine noun "nonno" means "grandparent".
 The feminine noun "nonna" means "grandparent".
@@ -18040,7 +18127,6 @@ The masculine noun "nodo" means "node".
 The masculine noun "candidato" means "nominee".
 The feminine noun "candidata" means "nominee".
 The feminine noun "corda" means "noose".
-The feminine noun "nota" means "note".
 The masculine noun "nucleo" means "nucleus".
 The feminine noun "bambinaia" means "nursemaid".
 The masculine noun "dado" means "nut".
@@ -18186,7 +18272,6 @@ The feminine noun "portata" means "scope".
 The masculine noun "grido" means "scream".
 The masculine noun "schermo" means "screen".
 The feminine noun "esplorazione" means "screening".
-The feminine noun "ricerca" means "search".
 The feminine noun "conchiglia" means "seashell".
 The masculine noun "terremoto" means "seism".
 The feminine noun "spedizione" means "sending".
@@ -18370,7 +18455,6 @@ The feminine noun "viaggiatrice" means "voyager".
 The masculine noun "salario" means "wage".
 The masculine noun "cameriere" means "waiter".
 The feminine noun "cameriera" means "waiter".
-The masculine noun "passeggio" means "walk".
 The feminine noun "muratura" means "walling".
 The masculine noun "riscaldamento" means "warming".
 The feminine noun "curvatura" means "warp".
@@ -18403,6 +18487,351 @@ The masculine noun "mezzogiorno" means "noon".
 The masculine noun "carro" means "wagon".
 The noun "aiutante" means "aide".
 The feminine noun "coda" means "coda".
+The verb "lancia" means "launches".
+"lanciano" is the plural of "lancia".
+"lanciamo" is the first person of "lanciano".
+"lancio" is the first person of "lancia".
+"lanci" is the second person of "lancia".
+"lanciò" is the past of "lancia".
+"lanciarono" is the past of "lanciano".
+"lanciammo" is the first person of "lanciarono".
+"lanciai" is the first person of "lanciò".
+"lanciasti" is the second person of "lanciò".
+"lanciava" is the past of "lancia".
+"lanciavano" is the past of "lanciano".
+"lanciavamo" is the first person of "lanciavano".
+"lanciavo" is the first person of "lanciava".
+"lanciavi" is the second person of "lanciava".
+"lancerà" is the future of "lancia".
+"lanceranno" is the plural of "lancerà".
+"lanceremo" is the first person of "lanceranno".
+"lancerò" is the first person of "lancerà".
+"lancerai" is the second person of "lancerà".
+"lancerebbe" is the conditional of "lancia".
+"lancerebbero" is the plural of "lancerebbe".
+"lanceremmo" is the first person of "lancerebbero".
+"lancerei" is the first person of "lancerebbe".
+"lanceresti" is the second person of "lancerebbe".
+"lanci" is the subjunctive of "lancia".
+"lancino" is the plural of "lanci".
+"lanciamo" is the first person of "lancino".
+"lanciasse" is the past subjunctive of "lancia".
+"lanciassero" is the plural of "lanciasse".
+"lanciassimo" is the first person of "lanciassero".
+"lanciassi" is the first person of "lanciasse".
+"lanciassi" is the second person of "lanciasse".
+"lancia" is the imperative of "lancia".
+"lanciare" is the negative imperative of "lancia".
+"lanciato" is the participle of "lancia".
+"lanciata" is the participle of "lancia".
+"lanciata" is feminine.
+"lanciati" is the participle of "lancia".
+"lanciati" is the plural of "lanciato".
+"lanciate" is the participle of "lancia".
+"lanciate" is feminine.
+"lanciate" is the plural of "lanciata".
+"lanciare" is the infinitive of "lancia".
+"lanciando" is the gerund of "lancia".
+The verb "mette" means "puts".
+"mettono" is the plural of "mette".
+"mettiamo" is the first person of "mettono".
+"metto" is the first person of "mette".
+"metti" is the second person of "mette".
+"mise" is the past of "mette".
+"misero" is the past of "mettono".
+"mettemmo" is the first person of "misero".
+"misi" is the first person of "mise".
+"mettesti" is the second person of "mise".
+"metteva" is the past of "mette".
+"mettevano" is the past of "mettono".
+"mettevamo" is the first person of "mettevano".
+"mettevo" is the first person of "metteva".
+"mettevi" is the second person of "metteva".
+"metterà" is the future of "mette".
+"metteranno" is the plural of "metterà".
+"metteremo" is the first person of "metteranno".
+"metterò" is the first person of "metterà".
+"metterai" is the second person of "metterà".
+"metterebbe" is the conditional of "mette".
+"metterebbero" is the plural of "metterebbe".
+"metteremmo" is the first person of "metterebbero".
+"metterei" is the first person of "metterebbe".
+"metteresti" is the second person of "metterebbe".
+"metta" is the subjunctive of "mette".
+"mettano" is the plural of "metta".
+"mettiamo" is the first person of "mettano".
+"mettesse" is the past subjunctive of "mette".
+"mettessero" is the plural of "mettesse".
+"mettessimo" is the first person of "mettessero".
+"mettessi" is the first person of "mettesse".
+"mettessi" is the second person of "mettesse".
+"metti" is the imperative of "mette".
+"mettere" is the negative imperative of "mette".
+"messo" is the participle of "mette".
+"messa" is the participle of "mette".
+"messa" is feminine.
+"messi" is the participle of "mette".
+"messi" is the plural of "messo".
+"messe" is the participle of "mette".
+"messe" is feminine.
+"messe" is the plural of "messa".
+"mettere" is the infinitive of "mette".
+"mettendo" is the gerund of "mette".
+"put" is the past of "puts".
+"putting" is the gerund of "puts".
+The verb "trasporta" means "transports".
+"trasportano" is the plural of "trasporta".
+"trasportiamo" is the first person of "trasportano".
+"trasporto" is the first person of "trasporta".
+"trasporti" is the second person of "trasporta".
+"trasportò" is the past of "trasporta".
+"trasportarono" is the past of "trasportano".
+"trasportammo" is the first person of "trasportarono".
+"trasportai" is the first person of "trasportò".
+"trasportasti" is the second person of "trasportò".
+"trasportava" is the past of "trasporta".
+"trasportavano" is the past of "trasportano".
+"trasportavamo" is the first person of "trasportavano".
+"trasportavo" is the first person of "trasportava".
+"trasportavi" is the second person of "trasportava".
+"trasporterà" is the future of "trasporta".
+"trasporteranno" is the plural of "trasporterà".
+"trasporteremo" is the first person of "trasporteranno".
+"trasporterò" is the first person of "trasporterà".
+"trasporterai" is the second person of "trasporterà".
+"trasporterebbe" is the conditional of "trasporta".
+"trasporterebbero" is the plural of "trasporterebbe".
+"trasporteremmo" is the first person of "trasporterebbero".
+"trasporterei" is the first person of "trasporterebbe".
+"trasporteresti" is the second person of "trasporterebbe".
+"trasporti" is the subjunctive of "trasporta".
+"trasportino" is the plural of "trasporti".
+"trasportiamo" is the first person of "trasportino".
+"trasportasse" is the past subjunctive of "trasporta".
+"trasportassero" is the plural of "trasportasse".
+"trasportassimo" is the first person of "trasportassero".
+"trasportassi" is the first person of "trasportasse".
+"trasportassi" is the second person of "trasportasse".
+"trasporta" is the imperative of "trasporta".
+"trasportare" is the negative imperative of "trasporta".
+"trasportato" is the participle of "trasporta".
+"trasportata" is the participle of "trasporta".
+"trasportata" is feminine.
+"trasportati" is the participle of "trasporta".
+"trasportati" is the plural of "trasportato".
+"trasportate" is the participle of "trasporta".
+"trasportate" is feminine.
+"trasportate" is the plural of "trasportata".
+"trasportare" is the infinitive of "trasporta".
+"trasportando" is the gerund of "trasporta".
+The verb "soccorre" means "rescues".
+"soccorrono" is the plural of "soccorre".
+"soccorriamo" is the first person of "soccorrono".
+"soccorro" is the first person of "soccorre".
+"soccorri" is the second person of "soccorre".
+"soccorse" is the past of "soccorre".
+"soccorsero" is the past of "soccorrono".
+"soccorremmo" is the first person of "soccorsero".
+"soccorsi" is the first person of "soccorse".
+"soccorresti" is the second person of "soccorse".
+"soccorreva" is the past of "soccorre".
+"soccorrevano" is the past of "soccorrono".
+"soccorrevamo" is the first person of "soccorrevano".
+"soccorrevo" is the first person of "soccorreva".
+"soccorrevi" is the second person of "soccorreva".
+"soccorrerà" is the future of "soccorre".
+"soccorreranno" is the plural of "soccorrerà".
+"soccorreremo" is the first person of "soccorreranno".
+"soccorrerò" is the first person of "soccorrerà".
+"soccorrerai" is the second person of "soccorrerà".
+"soccorrerebbe" is the conditional of "soccorre".
+"soccorrerebbero" is the plural of "soccorrerebbe".
+"soccorreremmo" is the first person of "soccorrerebbero".
+"soccorrerei" is the first person of "soccorrerebbe".
+"soccorreresti" is the second person of "soccorrerebbe".
+"soccorra" is the subjunctive of "soccorre".
+"soccorrano" is the plural of "soccorra".
+"soccorriamo" is the first person of "soccorrano".
+"soccorresse" is the past subjunctive of "soccorre".
+"soccorressero" is the plural of "soccorresse".
+"soccorressimo" is the first person of "soccorressero".
+"soccorressi" is the first person of "soccorresse".
+"soccorressi" is the second person of "soccorresse".
+"soccorri" is the imperative of "soccorre".
+"soccorrere" is the negative imperative of "soccorre".
+"soccorso" is the participle of "soccorre".
+"soccorsa" is the participle of "soccorre".
+"soccorsa" is feminine.
+"soccorsi" is the participle of "soccorre".
+"soccorsi" is the plural of "soccorso".
+"soccorse" is the participle of "soccorre".
+"soccorse" is feminine.
+"soccorse" is the plural of "soccorsa".
+"soccorrere" is the infinitive of "soccorre".
+"soccorrendo" is the gerund of "soccorre".
+The verb "succede" means "happens".
+"succedono" is the plural of "succede".
+"successe" is the past of "succede".
+"successero" is the past of "succedono".
+"succedeva" is the past of "succede".
+"succedevano" is the past of "succedono".
+"succederà" is the future of "succede".
+"succederanno" is the plural of "succederà".
+"succederebbe" is the conditional of "succede".
+"succederebbero" is the plural of "succederebbe".
+"succeda" is the subjunctive of "succede".
+"succedano" is the plural of "succeda".
+"succedesse" is the past subjunctive of "succede".
+"succedessero" is the plural of "succedesse".
+"succedere" is the negative imperative of "succede".
+"successo" is the participle of "succede".
+"successa" is the participle of "succede".
+"successa" is feminine.
+"successi" is the participle of "succede".
+"successi" is the plural of "successo".
+"successe" is the participle of "succede".
+"successe" is feminine.
+"successe" is the plural of "successa".
+"succedere" is the infinitive of "succede".
+"succedendo" is the gerund of "succede".
+The verb "inizia" means "begins".
+"iniziano" is the plural of "inizia".
+"iniziamo" is the first person of "iniziano".
+"inizio" is the first person of "inizia".
+"inizi" is the second person of "inizia".
+"iniziò" is the past of "inizia".
+"iniziarono" is the past of "iniziano".
+"iniziammo" is the first person of "iniziarono".
+"iniziai" is the first person of "iniziò".
+"iniziasti" is the second person of "iniziò".
+"iniziava" is the past of "inizia".
+"iniziavano" is the past of "iniziano".
+"iniziavamo" is the first person of "iniziavano".
+"iniziavo" is the first person of "iniziava".
+"iniziavi" is the second person of "iniziava".
+"inizierà" is the future of "inizia".
+"inizieranno" is the plural of "inizierà".
+"inizieremo" is the first person of "inizieranno".
+"inizierò" is the first person of "inizierà".
+"inizierai" is the second person of "inizierà".
+"inizierebbe" is the conditional of "inizia".
+"inizierebbero" is the plural of "inizierebbe".
+"inizieremmo" is the first person of "inizierebbero".
+"inizierei" is the first person of "inizierebbe".
+"inizieresti" is the second person of "inizierebbe".
+"inizi" is the subjunctive of "inizia".
+"inizino" is the plural of "inizi".
+"iniziamo" is the first person of "inizino".
+"iniziasse" is the past subjunctive of "inizia".
+"iniziassero" is the plural of "iniziasse".
+"iniziassimo" is the first person of "iniziassero".
+"iniziassi" is the first person of "iniziasse".
+"iniziassi" is the second person of "iniziasse".
+"inizia" is the imperative of "inizia".
+"iniziare" is the negative imperative of "inizia".
+"iniziato" is the participle of "inizia".
+"iniziata" is the participle of "inizia".
+"iniziata" is feminine.
+"iniziati" is the participle of "inizia".
+"iniziati" is the plural of "iniziato".
+"iniziate" is the participle of "inizia".
+"iniziate" is feminine.
+"iniziate" is the plural of "iniziata".
+"iniziare" is the infinitive of "inizia".
+"iniziando" is the gerund of "inizia".
+"began" is the past of "begins".
+"begun" is the participle of "begins".
+"beginning" is the gerund of "begins".
+The verb "allontana" means "distances".
+"allontanano" is the plural of "allontana".
+"allontaniamo" is the first person of "allontanano".
+"allontano" is the first person of "allontana".
+"allontani" is the second person of "allontana".
+"allontanò" is the past of "allontana".
+"allontanarono" is the past of "allontanano".
+"allontanammo" is the first person of "allontanarono".
+"allontanai" is the first person of "allontanò".
+"allontanasti" is the second person of "allontanò".
+"allontanava" is the past of "allontana".
+"allontanavano" is the past of "allontanano".
+"allontanavamo" is the first person of "allontanavano".
+"allontanavo" is the first person of "allontanava".
+"allontanavi" is the second person of "allontanava".
+"allontanerà" is the future of "allontana".
+"allontaneranno" is the plural of "allontanerà".
+"allontaneremo" is the first person of "allontaneranno".
+"allontanerò" is the first person of "allontanerà".
+"allontanerai" is the second person of "allontanerà".
+"allontanerebbe" is the conditional of "allontana".
+"allontanerebbero" is the plural of "allontanerebbe".
+"allontaneremmo" is the first person of "allontanerebbero".
+"allontanerei" is the first person of "allontanerebbe".
+"allontaneresti" is the second person of "allontanerebbe".
+"allontani" is the subjunctive of "allontana".
+"allontanino" is the plural of "allontani".
+"allontaniamo" is the first person of "allontanino".
+"allontanasse" is the past subjunctive of "allontana".
+"allontanassero" is the plural of "allontanasse".
+"allontanassimo" is the first person of "allontanassero".
+"allontanassi" is the first person of "allontanasse".
+"allontanassi" is the second person of "allontanasse".
+"allontana" is the imperative of "allontana".
+"allontanare" is the negative imperative of "allontana".
+"allontanato" is the participle of "allontana".
+"allontanata" is the participle of "allontana".
+"allontanata" is feminine.
+"allontanati" is the participle of "allontana".
+"allontanati" is the plural of "allontanato".
+"allontanate" is the participle of "allontana".
+"allontanate" is feminine.
+"allontanate" is the plural of "allontanata".
+"allontanare" is the infinitive of "allontana".
+"allontanando" is the gerund of "allontana".
+The verb "raggiunge" means "reaches".
+"raggiungono" is the plural of "raggiunge".
+"raggiungiamo" is the first person of "raggiungono".
+"raggiungo" is the first person of "raggiunge".
+"raggiungi" is the second person of "raggiunge".
+"raggiunse" is the past of "raggiunge".
+"raggiunsero" is the past of "raggiungono".
+"raggiungemmo" is the first person of "raggiunsero".
+"raggiunsi" is the first person of "raggiunse".
+"raggiungesti" is the second person of "raggiunse".
+"raggiungeva" is the past of "raggiunge".
+"raggiungevano" is the past of "raggiungono".
+"raggiungevamo" is the first person of "raggiungevano".
+"raggiungevo" is the first person of "raggiungeva".
+"raggiungevi" is the second person of "raggiungeva".
+"raggiungerà" is the future of "raggiunge".
+"raggiungeranno" is the plural of "raggiungerà".
+"raggiungeremo" is the first person of "raggiungeranno".
+"raggiungerò" is the first person of "raggiungerà".
+"raggiungerai" is the second person of "raggiungerà".
+"raggiungerebbe" is the conditional of "raggiunge".
+"raggiungerebbero" is the plural of "raggiungerebbe".
+"raggiungeremmo" is the first person of "raggiungerebbero".
+"raggiungerei" is the first person of "raggiungerebbe".
+"raggiungeresti" is the second person of "raggiungerebbe".
+"raggiunga" is the subjunctive of "raggiunge".
+"raggiungano" is the plural of "raggiunga".
+"raggiungiamo" is the first person of "raggiungano".
+"raggiungesse" is the past subjunctive of "raggiunge".
+"raggiungessero" is the plural of "raggiungesse".
+"raggiungessimo" is the first person of "raggiungessero".
+"raggiungessi" is the first person of "raggiungesse".
+"raggiungessi" is the second person of "raggiungesse".
+"raggiungi" is the imperative of "raggiunge".
+"raggiungere" is the negative imperative of "raggiunge".
+"raggiunto" is the participle of "raggiunge".
+"raggiunta" is the participle of "raggiunge".
+"raggiunta" is feminine.
+"raggiunti" is the participle of "raggiunge".
+"raggiunti" is the plural of "raggiunto".
+"raggiunte" is the participle of "raggiunge".
+"raggiunte" is feminine.
+"raggiunte" is the plural of "raggiunta".
+"raggiungere" is the infinitive of "raggiunge".
+"raggiungendo" is the gerund of "raggiunge".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -20709,50 +21138,6 @@ The verb "abitua" means "accustoms".
 "abituare" is the infinitive of "abitua".
 "abituando" is the gerund of "abitua".
 The verb "raggiunge" means "achieves".
-"raggiungono" is the plural of "raggiunge".
-"raggiungiamo" is the first person of "raggiungono".
-"raggiungo" is the first person of "raggiunge".
-"raggiungi" is the second person of "raggiunge".
-"raggiunse" is the past of "raggiunge".
-"raggiunsero" is the past of "raggiungono".
-"raggiungemmo" is the first person of "raggiunsero".
-"raggiunsi" is the first person of "raggiunse".
-"raggiungesti" is the second person of "raggiunse".
-"raggiungeva" is the past of "raggiunge".
-"raggiungevano" is the past of "raggiungono".
-"raggiungevamo" is the first person of "raggiungevano".
-"raggiungevo" is the first person of "raggiungeva".
-"raggiungevi" is the second person of "raggiungeva".
-"raggiungerà" is the future of "raggiunge".
-"raggiungeranno" is the plural of "raggiungerà".
-"raggiungeremo" is the first person of "raggiungeranno".
-"raggiungerò" is the first person of "raggiungerà".
-"raggiungerai" is the second person of "raggiungerà".
-"raggiungerebbe" is the conditional of "raggiunge".
-"raggiungerebbero" is the plural of "raggiungerebbe".
-"raggiungeremmo" is the first person of "raggiungerebbero".
-"raggiungerei" is the first person of "raggiungerebbe".
-"raggiungeresti" is the second person of "raggiungerebbe".
-"raggiunga" is the subjunctive of "raggiunge".
-"raggiungano" is the plural of "raggiunga".
-"raggiungiamo" is the first person of "raggiungano".
-"raggiungesse" is the past subjunctive of "raggiunge".
-"raggiungessero" is the plural of "raggiungesse".
-"raggiungessimo" is the first person of "raggiungessero".
-"raggiungessi" is the first person of "raggiungesse".
-"raggiungessi" is the second person of "raggiungesse".
-"raggiungi" is the imperative of "raggiunge".
-"raggiungere" is the negative imperative of "raggiunge".
-"raggiunto" is the participle of "raggiunge".
-"raggiunta" is the participle of "raggiunge".
-"raggiunta" is feminine.
-"raggiunti" is the participle of "raggiunge".
-"raggiunti" is the plural of "raggiunto".
-"raggiunte" is the participle of "raggiunge".
-"raggiunte" is feminine.
-"raggiunte" is the plural of "raggiunta".
-"raggiungere" is the infinitive of "raggiunge".
-"raggiungendo" is the gerund of "raggiunge".
 The verb "consegue" means "achieves".
 "conseguono" is the plural of "consegue".
 "conseguiamo" is the first person of "conseguono".
@@ -26707,50 +27092,6 @@ The verb "sospetta" means "suspects".
 "sospettare" is the infinitive of "sospetta".
 "sospettando" is the gerund of "sospetta".
 The verb "lancia" means "backs".
-"lanciano" is the plural of "lancia".
-"lanciamo" is the first person of "lanciano".
-"lancio" is the first person of "lancia".
-"lanci" is the second person of "lancia".
-"lanciò" is the past of "lancia".
-"lanciarono" is the past of "lanciano".
-"lanciammo" is the first person of "lanciarono".
-"lanciai" is the first person of "lanciò".
-"lanciasti" is the second person of "lanciò".
-"lanciava" is the past of "lancia".
-"lanciavano" is the past of "lanciano".
-"lanciavamo" is the first person of "lanciavano".
-"lanciavo" is the first person of "lanciava".
-"lanciavi" is the second person of "lanciava".
-"lancerà" is the future of "lancia".
-"lanceranno" is the plural of "lancerà".
-"lanceremo" is the first person of "lanceranno".
-"lancerò" is the first person of "lancerà".
-"lancerai" is the second person of "lancerà".
-"lancerebbe" is the conditional of "lancia".
-"lancerebbero" is the plural of "lancerebbe".
-"lanceremmo" is the first person of "lancerebbero".
-"lancerei" is the first person of "lancerebbe".
-"lanceresti" is the second person of "lancerebbe".
-"lanci" is the subjunctive of "lancia".
-"lancino" is the plural of "lanci".
-"lanciamo" is the first person of "lancino".
-"lanciasse" is the past subjunctive of "lancia".
-"lanciassero" is the plural of "lanciasse".
-"lanciassimo" is the first person of "lanciassero".
-"lanciassi" is the first person of "lanciasse".
-"lanciassi" is the second person of "lanciasse".
-"lancia" is the imperative of "lancia".
-"lanciare" is the negative imperative of "lancia".
-"lanciato" is the participle of "lancia".
-"lanciata" is the participle of "lancia".
-"lanciata" is feminine.
-"lanciati" is the participle of "lancia".
-"lanciati" is the plural of "lanciato".
-"lanciate" is the participle of "lancia".
-"lanciate" is feminine.
-"lanciate" is the plural of "lanciata".
-"lanciare" is the infinitive of "lancia".
-"lanciando" is the gerund of "lancia".
 The verb "cuoce" means "bakes".
 "cuociono" is the plural of "cuoce".
 "cuociamo" is the first person of "cuociono".
@@ -34626,50 +34967,6 @@ The verb "consuma" means "consumes".
 "consumare" is the infinitive of "consuma".
 "consumando" is the gerund of "consuma".
 The verb "mette" means "contacts".
-"mettono" is the plural of "mette".
-"mettiamo" is the first person of "mettono".
-"metto" is the first person of "mette".
-"metti" is the second person of "mette".
-"mise" is the past of "mette".
-"misero" is the past of "mettono".
-"mettemmo" is the first person of "misero".
-"misi" is the first person of "mise".
-"mettesti" is the second person of "mise".
-"metteva" is the past of "mette".
-"mettevano" is the past of "mettono".
-"mettevamo" is the first person of "mettevano".
-"mettevo" is the first person of "metteva".
-"mettevi" is the second person of "metteva".
-"metterà" is the future of "mette".
-"metteranno" is the plural of "metterà".
-"metteremo" is the first person of "metteranno".
-"metterò" is the first person of "metterà".
-"metterai" is the second person of "metterà".
-"metterebbe" is the conditional of "mette".
-"metterebbero" is the plural of "metterebbe".
-"metteremmo" is the first person of "metterebbero".
-"metterei" is the first person of "metterebbe".
-"metteresti" is the second person of "metterebbe".
-"metta" is the subjunctive of "mette".
-"mettano" is the plural of "metta".
-"mettiamo" is the first person of "mettano".
-"mettesse" is the past subjunctive of "mette".
-"mettessero" is the plural of "mettesse".
-"mettessimo" is the first person of "mettessero".
-"mettessi" is the first person of "mettesse".
-"mettessi" is the second person of "mettesse".
-"metti" is the imperative of "mette".
-"mettere" is the negative imperative of "mette".
-"messo" is the participle of "mette".
-"messa" is the participle of "mette".
-"messa" is feminine.
-"messi" is the participle of "mette".
-"messi" is the plural of "messo".
-"messe" is the participle of "mette".
-"messe" is feminine.
-"messe" is the plural of "messa".
-"mettere" is the infinitive of "mette".
-"mettendo" is the gerund of "mette".
 The verb "contiene" means "contains".
 "contengono" is the plural of "contiene".
 "conteniamo" is the first person of "contengono".
@@ -71247,50 +71544,6 @@ The verb "standardizza" means "standardises".
 "standardizzare" is the infinitive of "standardizza".
 "standardizzando" is the gerund of "standardizza".
 The verb "inizia" means "starts".
-"iniziano" is the plural of "inizia".
-"iniziamo" is the first person of "iniziano".
-"inizio" is the first person of "inizia".
-"inizi" is the second person of "inizia".
-"iniziò" is the past of "inizia".
-"iniziarono" is the past of "iniziano".
-"iniziammo" is the first person of "iniziarono".
-"iniziai" is the first person of "iniziò".
-"iniziasti" is the second person of "iniziò".
-"iniziava" is the past of "inizia".
-"iniziavano" is the past of "iniziano".
-"iniziavamo" is the first person of "iniziavano".
-"iniziavo" is the first person of "iniziava".
-"iniziavi" is the second person of "iniziava".
-"inizierà" is the future of "inizia".
-"inizieranno" is the plural of "inizierà".
-"inizieremo" is the first person of "inizieranno".
-"inizierò" is the first person of "inizierà".
-"inizierai" is the second person of "inizierà".
-"inizierebbe" is the conditional of "inizia".
-"inizierebbero" is the plural of "inizierebbe".
-"inizieremmo" is the first person of "inizierebbero".
-"inizierei" is the first person of "inizierebbe".
-"inizieresti" is the second person of "inizierebbe".
-"inizi" is the subjunctive of "inizia".
-"inizino" is the plural of "inizi".
-"iniziamo" is the first person of "inizino".
-"iniziasse" is the past subjunctive of "inizia".
-"iniziassero" is the plural of "iniziasse".
-"iniziassimo" is the first person of "iniziassero".
-"iniziassi" is the first person of "iniziasse".
-"iniziassi" is the second person of "iniziasse".
-"inizia" is the imperative of "inizia".
-"iniziare" is the negative imperative of "inizia".
-"iniziato" is the participle of "inizia".
-"iniziata" is the participle of "inizia".
-"iniziata" is feminine.
-"iniziati" is the participle of "inizia".
-"iniziati" is the plural of "iniziato".
-"iniziate" is the participle of "inizia".
-"iniziate" is feminine.
-"iniziate" is the plural of "iniziata".
-"iniziare" is the infinitive of "inizia".
-"iniziando" is the gerund of "inizia".
 The verb "ruba" means "steals".
 "rubano" is the plural of "ruba".
 "rubiamo" is the first person of "rubano".
@@ -71745,30 +71998,6 @@ The verb "sottrae" means "subtracts".
 "sottrarre" is the infinitive of "sottrae".
 "sottraendo" is the gerund of "sottrae".
 The verb "succede" means "succeeds".
-"succedono" is the plural of "succede".
-"successe" is the past of "succede".
-"successero" is the past of "succedono".
-"succedeva" is the past of "succede".
-"succedevano" is the past of "succedono".
-"succederà" is the future of "succede".
-"succederanno" is the plural of "succederà".
-"succederebbe" is the conditional of "succede".
-"succederebbero" is the plural of "succederebbe".
-"succeda" is the subjunctive of "succede".
-"succedano" is the plural of "succeda".
-"succedesse" is the past subjunctive of "succede".
-"succedessero" is the plural of "succedesse".
-"succedere" is the negative imperative of "succede".
-"successo" is the participle of "succede".
-"successa" is the participle of "succede".
-"successa" is feminine.
-"successi" is the participle of "succede".
-"successi" is the plural of "successo".
-"successe" is the participle of "succede".
-"successe" is feminine.
-"successe" is the plural of "successa".
-"succedere" is the infinitive of "succede".
-"succedendo" is the gerund of "succede".
 The verb "querela" means "sues".
 "querelano" is the plural of "querela".
 "quereliamo" is the first person of "querelano".
@@ -81183,50 +81412,6 @@ The verb "affina" means "refines".
 "affinare" is the infinitive of "affina".
 "affinando" is the gerund of "affina".
 The verb "allontana" means "removes".
-"allontanano" is the plural of "allontana".
-"allontaniamo" is the first person of "allontanano".
-"allontano" is the first person of "allontana".
-"allontani" is the second person of "allontana".
-"allontanò" is the past of "allontana".
-"allontanarono" is the past of "allontanano".
-"allontanammo" is the first person of "allontanarono".
-"allontanai" is the first person of "allontanò".
-"allontanasti" is the second person of "allontanò".
-"allontanava" is the past of "allontana".
-"allontanavano" is the past of "allontanano".
-"allontanavamo" is the first person of "allontanavano".
-"allontanavo" is the first person of "allontanava".
-"allontanavi" is the second person of "allontanava".
-"allontanerà" is the future of "allontana".
-"allontaneranno" is the plural of "allontanerà".
-"allontaneremo" is the first person of "allontaneranno".
-"allontanerò" is the first person of "allontanerà".
-"allontanerai" is the second person of "allontanerà".
-"allontanerebbe" is the conditional of "allontana".
-"allontanerebbero" is the plural of "allontanerebbe".
-"allontaneremmo" is the first person of "allontanerebbero".
-"allontanerei" is the first person of "allontanerebbe".
-"allontaneresti" is the second person of "allontanerebbe".
-"allontani" is the subjunctive of "allontana".
-"allontanino" is the plural of "allontani".
-"allontaniamo" is the first person of "allontanino".
-"allontanasse" is the past subjunctive of "allontana".
-"allontanassero" is the plural of "allontanasse".
-"allontanassimo" is the first person of "allontanassero".
-"allontanassi" is the first person of "allontanasse".
-"allontanassi" is the second person of "allontanasse".
-"allontana" is the imperative of "allontana".
-"allontanare" is the negative imperative of "allontana".
-"allontanato" is the participle of "allontana".
-"allontanata" is the participle of "allontana".
-"allontanata" is feminine.
-"allontanati" is the participle of "allontana".
-"allontanati" is the plural of "allontanato".
-"allontanate" is the participle of "allontana".
-"allontanate" is feminine.
-"allontanate" is the plural of "allontanata".
-"allontanare" is the infinitive of "allontana".
-"allontanando" is the gerund of "allontana".
 The verb "assomiglia" means "resembles".
 "assomigliano" is the plural of "assomiglia".
 "assomigliamo" is the first person of "assomigliano".
@@ -82627,6 +82812,502 @@ The verb "è" means "is".
 "essendo" is the gerund of "è".
 "were" is the past of "is".
 "been" is the participle of "is".
+The verb "spare" means "disappears".
+"spaiono" is the plural of "spare".
+"spariamo" is the first person of "spaiono".
+"spaio" is the first person of "spare".
+"spari" is the second person of "spare".
+"sparve" is the past of "spare".
+"sparvero" is the past of "spaiono".
+"sparimmo" is the first person of "sparvero".
+"sparvi" is the first person of "sparve".
+"sparisti" is the second person of "sparve".
+"spariva" is the past of "spare".
+"sparivano" is the past of "spaiono".
+"sparivamo" is the first person of "sparivano".
+"sparivo" is the first person of "spariva".
+"sparivi" is the second person of "spariva".
+"sparirà" is the future of "spare".
+"spariranno" is the plural of "sparirà".
+"spariremo" is the first person of "spariranno".
+"sparirò" is the first person of "sparirà".
+"sparirai" is the second person of "sparirà".
+"sparirebbe" is the conditional of "spare".
+"sparirebbero" is the plural of "sparirebbe".
+"spariremmo" is the first person of "sparirebbero".
+"sparirei" is the first person of "sparirebbe".
+"spariresti" is the second person of "sparirebbe".
+"spaia" is the subjunctive of "spare".
+"spaiano" is the plural of "spaia".
+"spariamo" is the first person of "spaiano".
+"sparisse" is the past subjunctive of "spare".
+"sparissero" is the plural of "sparisse".
+"sparissimo" is the first person of "sparissero".
+"sparissi" is the first person of "sparisse".
+"sparissi" is the second person of "sparisse".
+"spari" is the imperative of "spare".
+"sparire" is the negative imperative of "spare".
+"sparso" is the participle of "spare".
+"sparsa" is the participle of "spare".
+"sparsa" is feminine.
+"sparsi" is the participle of "spare".
+"sparsi" is the plural of "sparso".
+"sparse" is the participle of "spare".
+"sparse" is feminine.
+"sparse" is the plural of "sparsa".
+"sparire" is the infinitive of "spare".
+"sparendo" is the gerund of "spare".
+The verb "individua" means "locates".
+"individuano" is the plural of "individua".
+"individuiamo" is the first person of "individuano".
+"individuo" is the first person of "individua".
+"individui" is the second person of "individua".
+"individuò" is the past of "individua".
+"individuarono" is the past of "individuano".
+"individuammo" is the first person of "individuarono".
+"individuai" is the first person of "individuò".
+"individuasti" is the second person of "individuò".
+"individuava" is the past of "individua".
+"individuavano" is the past of "individuano".
+"individuavamo" is the first person of "individuavano".
+"individuavo" is the first person of "individuava".
+"individuavi" is the second person of "individuava".
+"individuerà" is the future of "individua".
+"individueranno" is the plural of "individuerà".
+"individueremo" is the first person of "individueranno".
+"individuerò" is the first person of "individuerà".
+"individuerai" is the second person of "individuerà".
+"individuerebbe" is the conditional of "individua".
+"individuerebbero" is the plural of "individuerebbe".
+"individueremmo" is the first person of "individuerebbero".
+"individuerei" is the first person of "individuerebbe".
+"individueresti" is the second person of "individuerebbe".
+"individui" is the subjunctive of "individua".
+"individuino" is the plural of "individui".
+"individuiamo" is the first person of "individuino".
+"individuasse" is the past subjunctive of "individua".
+"individuassero" is the plural of "individuasse".
+"individuassimo" is the first person of "individuassero".
+"individuassi" is the first person of "individuasse".
+"individuassi" is the second person of "individuasse".
+"individua" is the imperative of "individua".
+"individuare" is the negative imperative of "individua".
+"individuato" is the participle of "individua".
+"individuata" is the participle of "individua".
+"individuata" is feminine.
+"individuati" is the participle of "individua".
+"individuati" is the plural of "individuato".
+"individuate" is the participle of "individua".
+"individuate" is feminine.
+"individuate" is the plural of "individuata".
+"individuare" is the infinitive of "individua".
+"individuando" is the gerund of "individua".
+The verb "reputa" means "deems".
+"reputano" is the plural of "reputa".
+"reputiamo" is the first person of "reputano".
+"reputo" is the first person of "reputa".
+"reputi" is the second person of "reputa".
+"reputò" is the past of "reputa".
+"reputarono" is the past of "reputano".
+"reputammo" is the first person of "reputarono".
+"reputai" is the first person of "reputò".
+"reputasti" is the second person of "reputò".
+"reputava" is the past of "reputa".
+"reputavano" is the past of "reputano".
+"reputavamo" is the first person of "reputavano".
+"reputavo" is the first person of "reputava".
+"reputavi" is the second person of "reputava".
+"reputerà" is the future of "reputa".
+"reputeranno" is the plural of "reputerà".
+"reputeremo" is the first person of "reputeranno".
+"reputerò" is the first person of "reputerà".
+"reputerai" is the second person of "reputerà".
+"reputerebbe" is the conditional of "reputa".
+"reputerebbero" is the plural of "reputerebbe".
+"reputeremmo" is the first person of "reputerebbero".
+"reputerei" is the first person of "reputerebbe".
+"reputeresti" is the second person of "reputerebbe".
+"reputi" is the subjunctive of "reputa".
+"reputino" is the plural of "reputi".
+"reputiamo" is the first person of "reputino".
+"reputasse" is the past subjunctive of "reputa".
+"reputassero" is the plural of "reputasse".
+"reputassimo" is the first person of "reputassero".
+"reputassi" is the first person of "reputasse".
+"reputassi" is the second person of "reputasse".
+"reputa" is the imperative of "reputa".
+"reputare" is the negative imperative of "reputa".
+"reputato" is the participle of "reputa".
+"reputata" is the participle of "reputa".
+"reputata" is feminine.
+"reputati" is the participle of "reputa".
+"reputati" is the plural of "reputato".
+"reputate" is the participle of "reputa".
+"reputate" is feminine.
+"reputate" is the plural of "reputata".
+"reputare" is the infinitive of "reputa".
+"reputando" is the gerund of "reputa".
+The verb "scia" means "skis".
+"sciano" is the plural of "scia".
+"sciamo" is the first person of "sciano".
+"scio" is the first person of "scia".
+"sci" is the second person of "scia".
+"sciò" is the past of "scia".
+"sciarono" is the past of "sciano".
+"sciammo" is the first person of "sciarono".
+"sciai" is the first person of "sciò".
+"sciasti" is the second person of "sciò".
+"sciava" is the past of "scia".
+"sciavano" is the past of "sciano".
+"sciavamo" is the first person of "sciavano".
+"sciavo" is the first person of "sciava".
+"sciavi" is the second person of "sciava".
+"scerà" is the future of "scia".
+"sceranno" is the plural of "scerà".
+"sceremo" is the first person of "sceranno".
+"scerò" is the first person of "scerà".
+"scerai" is the second person of "scerà".
+"scerebbe" is the conditional of "scia".
+"scerebbero" is the plural of "scerebbe".
+"sceremmo" is the first person of "scerebbero".
+"scerei" is the first person of "scerebbe".
+"sceresti" is the second person of "scerebbe".
+"sci" is the subjunctive of "scia".
+"scino" is the plural of "sci".
+"sciamo" is the first person of "scino".
+"sciasse" is the past subjunctive of "scia".
+"sciassero" is the plural of "sciasse".
+"sciassimo" is the first person of "sciassero".
+"sciassi" is the first person of "sciasse".
+"sciassi" is the second person of "sciasse".
+"scia" is the imperative of "scia".
+"sciare" is the negative imperative of "scia".
+"sciato" is the participle of "scia".
+"sciata" is the participle of "scia".
+"sciata" is feminine.
+"sciati" is the participle of "scia".
+"sciati" is the plural of "sciato".
+"sciate" is the participle of "scia".
+"sciate" is feminine.
+"sciate" is the plural of "sciata".
+"sciare" is the infinitive of "scia".
+"sciando" is the gerund of "scia".
+"ski'd" is the participle of "skis".
+The verb "spegne" means "extinguishes".
+"spengono" is the plural of "spegne".
+"spegniamo" is the first person of "spengono".
+"spengo" is the first person of "spegne".
+"spegni" is the second person of "spegne".
+"spense" is the past of "spegne".
+"spensero" is the past of "spengono".
+"spegnemmo" is the first person of "spensero".
+"spensi" is the first person of "spense".
+"spegnesti" is the second person of "spense".
+"spegneva" is the past of "spegne".
+"spegnevano" is the past of "spengono".
+"spegnevamo" is the first person of "spegnevano".
+"spegnevo" is the first person of "spegneva".
+"spegnevi" is the second person of "spegneva".
+"spegnerà" is the future of "spegne".
+"spegneranno" is the plural of "spegnerà".
+"spegneremo" is the first person of "spegneranno".
+"spegnerò" is the first person of "spegnerà".
+"spegnerai" is the second person of "spegnerà".
+"spegnerebbe" is the conditional of "spegne".
+"spegnerebbero" is the plural of "spegnerebbe".
+"spegneremmo" is the first person of "spegnerebbero".
+"spegnerei" is the first person of "spegnerebbe".
+"spegneresti" is the second person of "spegnerebbe".
+"spenga" is the subjunctive of "spegne".
+"spengano" is the plural of "spenga".
+"spegniamo" is the first person of "spengano".
+"spegnesse" is the past subjunctive of "spegne".
+"spegnessero" is the plural of "spegnesse".
+"spegnessimo" is the first person of "spegnessero".
+"spegnessi" is the first person of "spegnesse".
+"spegnessi" is the second person of "spegnesse".
+"spegni" is the imperative of "spegne".
+"spegnere" is the negative imperative of "spegne".
+"spento" is the participle of "spegne".
+"spenta" is the participle of "spegne".
+"spenta" is feminine.
+"spenti" is the participle of "spegne".
+"spenti" is the plural of "spento".
+"spente" is the participle of "spegne".
+"spente" is feminine.
+"spente" is the plural of "spenta".
+"spegnere" is the infinitive of "spegne".
+"spegnendo" is the gerund of "spegne".
+The verb "desta" means "arouses".
+"destano" is the plural of "desta".
+"destiamo" is the first person of "destano".
+"desto" is the first person of "desta".
+"desti" is the second person of "desta".
+"destò" is the past of "desta".
+"destarono" is the past of "destano".
+"destammo" is the first person of "destarono".
+"destai" is the first person of "destò".
+"destasti" is the second person of "destò".
+"destava" is the past of "desta".
+"destavano" is the past of "destano".
+"destavamo" is the first person of "destavano".
+"destavo" is the first person of "destava".
+"destavi" is the second person of "destava".
+"desterà" is the future of "desta".
+"desteranno" is the plural of "desterà".
+"desteremo" is the first person of "desteranno".
+"desterò" is the first person of "desterà".
+"desterai" is the second person of "desterà".
+"desterebbe" is the conditional of "desta".
+"desterebbero" is the plural of "desterebbe".
+"desteremmo" is the first person of "desterebbero".
+"desterei" is the first person of "desterebbe".
+"desteresti" is the second person of "desterebbe".
+"desti" is the subjunctive of "desta".
+"destino" is the plural of "desti".
+"destiamo" is the first person of "destino".
+"destasse" is the past subjunctive of "desta".
+"destassero" is the plural of "destasse".
+"destassimo" is the first person of "destassero".
+"destassi" is the first person of "destasse".
+"destassi" is the second person of "destasse".
+"desta" is the imperative of "desta".
+"destare" is the negative imperative of "desta".
+"destato" is the participle of "desta".
+"destata" is the participle of "desta".
+"destata" is feminine.
+"destati" is the participle of "desta".
+"destati" is the plural of "destato".
+"destate" is the participle of "desta".
+"destate" is feminine.
+"destate" is the plural of "destata".
+"destare" is the infinitive of "desta".
+"destando" is the gerund of "desta".
+The verb "riprende" means "recovers".
+"riprendono" is the plural of "riprende".
+"riprendiamo" is the first person of "riprendono".
+"riprendo" is the first person of "riprende".
+"riprendi" is the second person of "riprende".
+"riprese" is the past of "riprende".
+"ripresero" is the past of "riprendono".
+"riprendemmo" is the first person of "ripresero".
+"ripresi" is the first person of "riprese".
+"riprendesti" is the second person of "riprese".
+"riprendeva" is the past of "riprende".
+"riprendevano" is the past of "riprendono".
+"riprendevamo" is the first person of "riprendevano".
+"riprendevo" is the first person of "riprendeva".
+"riprendevi" is the second person of "riprendeva".
+"riprenderà" is the future of "riprende".
+"riprenderanno" is the plural of "riprenderà".
+"riprenderemo" is the first person of "riprenderanno".
+"riprenderò" is the first person of "riprenderà".
+"riprenderai" is the second person of "riprenderà".
+"riprenderebbe" is the conditional of "riprende".
+"riprenderebbero" is the plural of "riprenderebbe".
+"riprenderemmo" is the first person of "riprenderebbero".
+"riprenderei" is the first person of "riprenderebbe".
+"riprenderesti" is the second person of "riprenderebbe".
+"riprenda" is the subjunctive of "riprende".
+"riprendano" is the plural of "riprenda".
+"riprendiamo" is the first person of "riprendano".
+"riprendesse" is the past subjunctive of "riprende".
+"riprendessero" is the plural of "riprendesse".
+"riprendessimo" is the first person of "riprendessero".
+"riprendessi" is the first person of "riprendesse".
+"riprendessi" is the second person of "riprendesse".
+"riprendi" is the imperative of "riprende".
+"riprendere" is the negative imperative of "riprende".
+"ripreso" is the participle of "riprende".
+"ripresa" is the participle of "riprende".
+"ripresa" is feminine.
+"ripresi" is the participle of "riprende".
+"ripresi" is the plural of "ripreso".
+"riprese" is the participle of "riprende".
+"riprese" is feminine.
+"riprese" is the plural of "ripresa".
+"riprendere" is the infinitive of "riprende".
+"riprendendo" is the gerund of "riprende".
+The verb "scherza" means "jokes".
+"scherzano" is the plural of "scherza".
+"scherziamo" is the first person of "scherzano".
+"scherzo" is the first person of "scherza".
+"scherzi" is the second person of "scherza".
+"scherzò" is the past of "scherza".
+"scherzarono" is the past of "scherzano".
+"scherzammo" is the first person of "scherzarono".
+"scherzai" is the first person of "scherzò".
+"scherzasti" is the second person of "scherzò".
+"scherzava" is the past of "scherza".
+"scherzavano" is the past of "scherzano".
+"scherzavamo" is the first person of "scherzavano".
+"scherzavo" is the first person of "scherzava".
+"scherzavi" is the second person of "scherzava".
+"scherzerà" is the future of "scherza".
+"scherzeranno" is the plural of "scherzerà".
+"scherzeremo" is the first person of "scherzeranno".
+"scherzerò" is the first person of "scherzerà".
+"scherzerai" is the second person of "scherzerà".
+"scherzerebbe" is the conditional of "scherza".
+"scherzerebbero" is the plural of "scherzerebbe".
+"scherzeremmo" is the first person of "scherzerebbero".
+"scherzerei" is the first person of "scherzerebbe".
+"scherzeresti" is the second person of "scherzerebbe".
+"scherzi" is the subjunctive of "scherza".
+"scherzino" is the plural of "scherzi".
+"scherziamo" is the first person of "scherzino".
+"scherzasse" is the past subjunctive of "scherza".
+"scherzassero" is the plural of "scherzasse".
+"scherzassimo" is the first person of "scherzassero".
+"scherzassi" is the first person of "scherzasse".
+"scherzassi" is the second person of "scherzasse".
+"scherza" is the imperative of "scherza".
+"scherzare" is the negative imperative of "scherza".
+"scherzato" is the participle of "scherza".
+"scherzata" is the participle of "scherza".
+"scherzata" is feminine.
+"scherzati" is the participle of "scherza".
+"scherzati" is the plural of "scherzato".
+"scherzate" is the participle of "scherza".
+"scherzate" is feminine.
+"scherzate" is the plural of "scherzata".
+"scherzare" is the infinitive of "scherza".
+"scherzando" is the gerund of "scherza".
+The verb "muove" means "moves".
+"muovono" is the plural of "muove".
+"muoviamo" is the first person of "muovono".
+"muovo" is the first person of "muove".
+"muovi" is the second person of "muove".
+"mosse" is the past of "muove".
+"mossero" is the past of "muovono".
+"muovemmo" is the first person of "mossero".
+"mossi" is the first person of "mosse".
+"muovesti" is the second person of "mosse".
+"muoveva" is the past of "muove".
+"muovevano" is the past of "muovono".
+"muovevamo" is the first person of "muovevano".
+"muovevo" is the first person of "muoveva".
+"muovevi" is the second person of "muoveva".
+"muoverà" is the future of "muove".
+"muoveranno" is the plural of "muoverà".
+"muoveremo" is the first person of "muoveranno".
+"muoverò" is the first person of "muoverà".
+"muoverai" is the second person of "muoverà".
+"muoverebbe" is the conditional of "muove".
+"muoverebbero" is the plural of "muoverebbe".
+"muoveremmo" is the first person of "muoverebbero".
+"muoverei" is the first person of "muoverebbe".
+"muoveresti" is the second person of "muoverebbe".
+"muova" is the subjunctive of "muove".
+"muovano" is the plural of "muova".
+"muoviamo" is the first person of "muovano".
+"muovesse" is the past subjunctive of "muove".
+"muovessero" is the plural of "muovesse".
+"muovessimo" is the first person of "muovessero".
+"muovessi" is the first person of "muovesse".
+"muovessi" is the second person of "muovesse".
+"muovi" is the imperative of "muove".
+"muovere" is the negative imperative of "muove".
+"mosso" is the participle of "muove".
+"mossa" is the participle of "muove".
+"mossa" is feminine.
+"mossi" is the participle of "muove".
+"mossi" is the plural of "mosso".
+"mosse" is the participle of "muove".
+"mosse" is feminine.
+"mosse" is the plural of "mossa".
+"muovere" is the infinitive of "muove".
+"muovendo" is the gerund of "muove".
+The verb "bisogna" means "needs".
+"bisognano" is the plural of "bisogna".
+"bisogniamo" is the first person of "bisognano".
+"bisogno" is the first person of "bisogna".
+"bisogni" is the second person of "bisogna".
+"bisognò" is the past of "bisogna".
+"bisognarono" is the past of "bisognano".
+"bisognammo" is the first person of "bisognarono".
+"bisognai" is the first person of "bisognò".
+"bisognasti" is the second person of "bisognò".
+"bisognava" is the past of "bisogna".
+"bisognavano" is the past of "bisognano".
+"bisognavamo" is the first person of "bisognavano".
+"bisognavo" is the first person of "bisognava".
+"bisognavi" is the second person of "bisognava".
+"bisognerà" is the future of "bisogna".
+"bisogneranno" is the plural of "bisognerà".
+"bisogneremo" is the first person of "bisogneranno".
+"bisognerò" is the first person of "bisognerà".
+"bisognerai" is the second person of "bisognerà".
+"bisognerebbe" is the conditional of "bisogna".
+"bisognerebbero" is the plural of "bisognerebbe".
+"bisogneremmo" is the first person of "bisognerebbero".
+"bisognerei" is the first person of "bisognerebbe".
+"bisogneresti" is the second person of "bisognerebbe".
+"bisogni" is the subjunctive of "bisogna".
+"bisognino" is the plural of "bisogni".
+"bisogniamo" is the first person of "bisognino".
+"bisognasse" is the past subjunctive of "bisogna".
+"bisognassero" is the plural of "bisognasse".
+"bisognassimo" is the first person of "bisognassero".
+"bisognassi" is the first person of "bisognasse".
+"bisognassi" is the second person of "bisognasse".
+"bisogna" is the imperative of "bisogna".
+"bisognare" is the negative imperative of "bisogna".
+"bisognato" is the participle of "bisogna".
+"bisognata" is the participle of "bisogna".
+"bisognata" is feminine.
+"bisognati" is the participle of "bisogna".
+"bisognati" is the plural of "bisognato".
+"bisognate" is the participle of "bisogna".
+"bisognate" is feminine.
+"bisognate" is the plural of "bisognata".
+"bisognare" is the infinitive of "bisogna".
+"bisognando" is the gerund of "bisogna".
+The verb "entra" means "enters".
+"entrano" is the plural of "entra".
+"entriamo" is the first person of "entrano".
+"entro" is the first person of "entra".
+"entri" is the second person of "entra".
+"entrò" is the past of "entra".
+"entrarono" is the past of "entrano".
+"entrammo" is the first person of "entrarono".
+"entrai" is the first person of "entrò".
+"entrasti" is the second person of "entrò".
+"entrava" is the past of "entra".
+"entravano" is the past of "entrano".
+"entravamo" is the first person of "entravano".
+"entravo" is the first person of "entrava".
+"entravi" is the second person of "entrava".
+"entrerà" is the future of "entra".
+"entreranno" is the plural of "entrerà".
+"entreremo" is the first person of "entreranno".
+"entrerò" is the first person of "entrerà".
+"entrerai" is the second person of "entrerà".
+"entrerebbe" is the conditional of "entra".
+"entrerebbero" is the plural of "entrerebbe".
+"entreremmo" is the first person of "entrerebbero".
+"entrerei" is the first person of "entrerebbe".
+"entreresti" is the second person of "entrerebbe".
+"entri" is the subjunctive of "entra".
+"entrino" is the plural of "entri".
+"entriamo" is the first person of "entrino".
+"entrasse" is the past subjunctive of "entra".
+"entrassero" is the plural of "entrasse".
+"entrassimo" is the first person of "entrassero".
+"entrassi" is the first person of "entrasse".
+"entrassi" is the second person of "entrasse".
+"entra" is the imperative of "entra".
+"entrare" is the negative imperative of "entra".
+"entrato" is the participle of "entra".
+"entrata" is the participle of "entra".
+"entrata" is feminine.
+"entrati" is the participle of "entra".
+"entrati" is the plural of "entrato".
+"entrate" is the participle of "entra".
+"entrate" is feminine.
+"entrate" is the plural of "entrata".
+"entrare" is the infinitive of "entra".
+"entrando" is the gerund of "entra".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -83617,51 +84298,6 @@ The verb "dialoga" means "converses".
 "dialogate" is the plural of "dialogata".
 "dialogare" is the infinitive of "dialoga".
 "dialogando" is the gerund of "dialoga".
-The verb "trasporta" means "conveys".
-"trasportano" is the plural of "trasporta".
-"trasportiamo" is the first person of "trasportano".
-"trasporto" is the first person of "trasporta".
-"trasporti" is the second person of "trasporta".
-"trasportò" is the past of "trasporta".
-"trasportarono" is the past of "trasportano".
-"trasportammo" is the first person of "trasportarono".
-"trasportai" is the first person of "trasportò".
-"trasportasti" is the second person of "trasportò".
-"trasportava" is the past of "trasporta".
-"trasportavano" is the past of "trasportano".
-"trasportavamo" is the first person of "trasportavano".
-"trasportavo" is the first person of "trasportava".
-"trasportavi" is the second person of "trasportava".
-"trasporterà" is the future of "trasporta".
-"trasporteranno" is the plural of "trasporterà".
-"trasporteremo" is the first person of "trasporteranno".
-"trasporterò" is the first person of "trasporterà".
-"trasporterai" is the second person of "trasporterà".
-"trasporterebbe" is the conditional of "trasporta".
-"trasporterebbero" is the plural of "trasporterebbe".
-"trasporteremmo" is the first person of "trasporterebbero".
-"trasporterei" is the first person of "trasporterebbe".
-"trasporteresti" is the second person of "trasporterebbe".
-"trasporti" is the subjunctive of "trasporta".
-"trasportino" is the plural of "trasporti".
-"trasportiamo" is the first person of "trasportino".
-"trasportasse" is the past subjunctive of "trasporta".
-"trasportassero" is the plural of "trasportasse".
-"trasportassimo" is the first person of "trasportassero".
-"trasportassi" is the first person of "trasportasse".
-"trasportassi" is the second person of "trasportasse".
-"trasporta" is the imperative of "trasporta".
-"trasportare" is the negative imperative of "trasporta".
-"trasportato" is the participle of "trasporta".
-"trasportata" is the participle of "trasporta".
-"trasportata" is feminine.
-"trasportati" is the participle of "trasporta".
-"trasportati" is the plural of "trasportato".
-"trasportate" is the participle of "trasporta".
-"trasportate" is feminine.
-"trasportate" is the plural of "trasportata".
-"trasportare" is the infinitive of "trasporta".
-"trasportando" is the gerund of "trasporta".
 The verb "vale" means "costs".
 "valgono" is the plural of "vale".
 "valiamo" is the first person of "valgono".
@@ -84770,51 +85406,6 @@ The verb "sopravviene" means "happens".
 "sopravvenute" is the plural of "sopravvenuta".
 "sopravvenire" is the infinitive of "sopravviene".
 "sopravvenendo" is the gerund of "sopravviene".
-The verb "soccorre" means "helps".
-"soccorrono" is the plural of "soccorre".
-"soccorriamo" is the first person of "soccorrono".
-"soccorro" is the first person of "soccorre".
-"soccorri" is the second person of "soccorre".
-"soccorse" is the past of "soccorre".
-"soccorsero" is the past of "soccorrono".
-"soccorremmo" is the first person of "soccorsero".
-"soccorsi" is the first person of "soccorse".
-"soccorresti" is the second person of "soccorse".
-"soccorreva" is the past of "soccorre".
-"soccorrevano" is the past of "soccorrono".
-"soccorrevamo" is the first person of "soccorrevano".
-"soccorrevo" is the first person of "soccorreva".
-"soccorrevi" is the second person of "soccorreva".
-"soccorrerà" is the future of "soccorre".
-"soccorreranno" is the plural of "soccorrerà".
-"soccorreremo" is the first person of "soccorreranno".
-"soccorrerò" is the first person of "soccorrerà".
-"soccorrerai" is the second person of "soccorrerà".
-"soccorrerebbe" is the conditional of "soccorre".
-"soccorrerebbero" is the plural of "soccorrerebbe".
-"soccorreremmo" is the first person of "soccorrerebbero".
-"soccorrerei" is the first person of "soccorrerebbe".
-"soccorreresti" is the second person of "soccorrerebbe".
-"soccorra" is the subjunctive of "soccorre".
-"soccorrano" is the plural of "soccorra".
-"soccorriamo" is the first person of "soccorrano".
-"soccorresse" is the past subjunctive of "soccorre".
-"soccorressero" is the plural of "soccorresse".
-"soccorressimo" is the first person of "soccorressero".
-"soccorressi" is the first person of "soccorresse".
-"soccorressi" is the second person of "soccorresse".
-"soccorri" is the imperative of "soccorre".
-"soccorrere" is the negative imperative of "soccorre".
-"soccorso" is the participle of "soccorre".
-"soccorsa" is the participle of "soccorre".
-"soccorsa" is feminine.
-"soccorsi" is the participle of "soccorre".
-"soccorsi" is the plural of "soccorso".
-"soccorse" is the participle of "soccorre".
-"soccorse" is feminine.
-"soccorse" is the plural of "soccorsa".
-"soccorrere" is the infinitive of "soccorre".
-"soccorrendo" is the gerund of "soccorre".
 The verb "evidenzia" means "highlights".
 "evidenziano" is the plural of "evidenzia".
 "evidenziamo" is the first person of "evidenziano".
@@ -85851,8 +86442,6 @@ The verb "pone" means "puts".
 "poste" is the plural of "posta".
 "porre" is the infinitive of "pone".
 "ponendo" is the gerund of "pone".
-"put" is the past of "puts".
-"putting" is the gerund of "puts".
 The verb "regolamenta" means "regulates".
 "regolamentano" is the plural of "regolamenta".
 "regolamentiamo" is the first person of "regolamentano".
@@ -86698,10 +87287,6 @@ The verb "colpisce" means "bangs".
 The verb "alloggia" means "beds".
 "bedded" is the past of "beds".
 "bedding" is the gerund of "beds".
-The verb "inizia" means "begins".
-"began" is the past of "begins".
-"begun" is the participle of "begins".
-"beginning" is the gerund of "begins".
 The verb "inclina" means "skews".
 The verb "incanta" means "bewitches".
 The verb "influenza" means "biass".
@@ -86858,7 +87443,6 @@ The verb "trova" means "encounters".
 The verb "firma" means "endorses".
 The verb "amplia" means "enlarges".
 The verb "assicura" means "ensures".
-The verb "introduce" means "enters".
 The verb "autorizza" means "entitles".
 The verb "affida" means "entrusts".
 The verb "evita" means "evades".
@@ -86977,7 +87561,6 @@ The verb "fattura" means "invoices".
 The verb "implica" means "involves".
 The verb "irrita" means "irritates".
 The verb "colpisce" means "knocks".
-The verb "lancia" means "launches".
 The verb "mette" means "lays".
 The verb "dirige" means "leads".
 "led" is the past of "leads".
@@ -86987,7 +87570,6 @@ The verb "affitta" means "leases".
 The verb "rifiuta" means "rejects".
 The verb "osserva" means "remarks".
 The verb "ristruttura" means "remodels".
-The verb "salva" means "rescues".
 The verb "ritarda" means "retards".
 The verb "fonde" means "fuses".
 The verb "lascia" means "lends".
@@ -87103,7 +87685,6 @@ The verb "emigra" means "migrates".
 The verb "importa" means "minds".
 The verb "adatta" means "modulates".
 The verb "controlla" means "monitors".
-The verb "sposta" means "moves".
 The verb "nomina" means "names".
 The verb "tratta" means "negotiates".
 The verb "oscura" means "obscures".
@@ -87177,7 +87758,6 @@ The verb "cita" means "quotes".
 "quoted" is the participle of "quotes".
 The verb "alza" means "raises".
 The verb "stima" means "rates".
-The verb "riesce" means "reaches".
 The verb "ricorda" means "recalls".
 The verb "riceve" means "receives".
 The verb "considera" means "reckons".
@@ -87366,7 +87946,6 @@ The verb "tratta" means "transacts".
 The verb "trasmette" means "transmits".
 "transmitted" is the past of "transmits".
 "transmitting" is the gerund of "transmits".
-The verb "trasporta" means "transports".
 The verb "tratta" means "treats".
 The verb "inganna" means "tricks".
 The verb "provoca" means "triggers".
@@ -87497,6 +88076,16 @@ The modal "può" means "can".
 "potere" is the infinitive of "può".
 "potendo" is the gerund of "può".
 The modal "deve" means "should".
+The masculine adjective "primo" means "first".
+"primi" is the plural of "primo".
+The feminine adjective "prima" means "first".
+"prime" is the plural of "prima".
+The adjective "forestale" means "forest".
+"forestali" is the plural of "forestale".
+The masculine adjective "altro" means "other".
+"altri" is the plural of "altro".
+The feminine adjective "altra" means "other".
+"altre" is the plural of "altra".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -90329,7 +90918,6 @@ The masculine adjective "estero" means "foreign".
 The feminine adjective "estera" means "foreign".
 "estere" is the plural of "estera".
 The adjective "forestale" means "forestry".
-"forestali" is the plural of "forestale".
 The adjective "formale" means "formal".
 "formali" is the plural of "formale".
 The masculine adjective "formativo" means "formative".
@@ -92858,9 +93446,7 @@ The masculine adjective "preventivo" means "preventive".
 The feminine adjective "preventiva" means "preventive".
 "preventive" is the plural of "preventiva".
 The masculine adjective "primo" means "prime".
-"primi" is the plural of "primo".
 The feminine adjective "prima" means "prime".
-"prime" is the plural of "prima".
 The masculine adjective "primitivo" means "primitive".
 "primitivi" is the plural of "primitivo".
 The feminine adjective "primitiva" means "primitive".
@@ -95250,6 +95836,34 @@ The feminine adjective "umida" means "damp".
 "umide" is the plural of "umida".
 The masculine adjective "cattivo" means "wicked".
 The feminine adjective "cattiva" means "wicked".
+The masculine adjective "lieto" means "happy".
+"lieti" is the plural of "lieto".
+The feminine adjective "lieta" means "happy".
+"liete" is the plural of "lieta".
+The masculine adjective "speleologico" means "speleological".
+"speleologici" is the plural of "speleologico".
+The feminine adjective "speleologica" means "speleological".
+"speleologiche" is the plural of "speleologica".
+The masculine adjective "fattivo" means "effective".
+"fattivi" is the plural of "fattivo".
+The feminine adjective "fattiva" means "effective".
+"fattive" is the plural of "fattiva".
+The masculine adjective "cinofilo" means "canine".
+"cinofili" is the plural of "cinofilo".
+The feminine adjective "cinofila" means "canine".
+"cinofile" is the plural of "cinofila".
+The masculine adjective "provato" means "exhausted".
+"provati" is the plural of "provato".
+The feminine adjective "provata" means "exhausted".
+"provate" is the plural of "provata".
+The adjective "vigile" means "awake".
+"vigili" is the plural of "vigile".
+The adjective "confusionale" means "confused".
+"confusionali" is the plural of "confusionale".
+The masculine adjective "disperso" means "missing".
+"dispersi" is the plural of "disperso".
+The feminine adjective "dispersa" means "missing".
+"disperse" is the plural of "dispersa".
 The adjective "acclamante" means "applauding".
 "acclamanti" is the plural of "acclamante".
 The adjective "attraente" means "attractive".
