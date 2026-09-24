@@ -227,3 +227,14 @@
 <e><p><l>intone<s n="vblex"/></l><r>intonare<s n="vblex"/></r></p></e>
 <e r="LR"><p><l>aria<s n="n"/></l><r>aria<s n="n"/><s n="f"/></r></p></e>
 <e r="LR"><p><l>convincement<s n="n"/></l><r>convincimento<s n="n"/><s n="m"/></r></p></e>
+# the Ferlaino interview (Italian UD, VIT-9540..9566): words apertium-ita has
+# a paradigm for and no English here. `scudetto' is the league's title and
+# `coca' the drug; each is read only into English
+<e r="RL"><p><l>cocaine<s n="n"/></l><r>coca<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>title<s n="n"/></l><r>scudetto<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>addict<s n="n"/></l><r>tossicodipendente<s n="n"/><s n="mf"/></r></p></e>
+<e r="RL"><p><l>ride<s n="vblex"/></l><r>cavalcare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>finish<s n="n"/></l><r>traguardo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>misfortune<s n="n"/></l><r>sfortuna<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>designator<s n="n"/></l><r>designatore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>disastrous<s n="adj"/></l><r>disastrato<s n="adj"/></r></p></e>

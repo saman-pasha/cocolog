@@ -344,6 +344,35 @@ The feminine noun "vocalidad" means "vocality".
 "vocalidades" is the plural of "vocalidad".
 The conjunction "pese a que" means "although".
 The adverb "al fin y al cabo" means "after all".
+The verb "recuerda" means "remembers".
+The adverb "sin embargo" means "however".
+The conjunction "es decir" means "that is".
+The conjunction "cuando" means "when".
+The intransitive verb "hace falta" means "is needed".
+"hacen falta" is the plural of "hace falta".
+"habrá" is the future of "hay".
+The masculine noun "designador" means "designator".
+"designadores" is the plural of "designador".
+The masculine noun "contrapoder" means "counterpower".
+"contrapoderes" is the plural of "contrapoder".
+The masculine noun "carcelero" means "jailer".
+"carceleros" is the plural of "carcelero".
+The masculine adjective "obligatorio" means "obligatory".
+"obligatorios" is the plural of "obligatorio".
+The feminine adjective "obligatoria" means "obligatory".
+"obligatorias" is the plural of "obligatoria".
+The masculine noun "mundial" means "world cup".
+"mundiales" is the plural of "mundial".
+The pronoun "sí mismo" means "himself".
+The adjective "rai" means "rai".
+The feminine noun "nota de la redacción" means "editorial note".
+The number "noventa y uno" means "ninety-one".
+The adverb "por despecho" means "out of spite".
+The feminine noun "segunda división" means "second division".
+The preposition "por encima de" means "above".
+The preposition "en el marco de" means "within".
+The adverb "en cuanto a mí" means "as for me".
+The feminine noun "copa de campeones" means "champions cup".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

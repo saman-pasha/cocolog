@@ -57,6 +57,9 @@ The masculine noun "padre di famiglia" means "paterfamilias".
 "padre di famiglia" is not feminine.
 The feminine noun "mazza da baseball" means "baseball bat".
 "mazze da baseball" is the plural of "mazza da baseball".
+# `Puntiamo però su un attaccante straniero' (the Ferlaino interview) is
+# however; the Spanish article's `eso sí', mind you, still has `però' alone
+The adverb "però" means "however".
 The adverb "però" means "mind you".
 The adjective "coerente" means "consistent".
 The adverb "cucchiaio dopo cucchiaio" means "spoonful by spoonful".
@@ -715,3 +718,87 @@ The feminine noun "ornamentazione" means "ornamentation".
 The feminine noun "pietra miliare" means "milestone".
 "pietre miliari" is the plural of "pietra miliare".
 The adverb "dopotutto" means "after all".
+# the Ferlaino interview (Italian UD, VIT-9540..9566), into Spanish: senses
+# the dictionary puts before the one the newspaper means -- `ricorda'
+# agrees before it remembers, `campione' is a specimen, `valigia' a case,
+# `attaccante' a striker, which Spanish reads as a firing pin, `calcio' a
+# kick, `presidenza' a chair, `scende' drops and `resta' stays, which Spanish
+# has no word for, and `cambia' capsizes before it changes -- which Spanish
+# spelt right only because its own `cambia' capsizes too
+The verb "ricorda" means "remembers".
+The verb "cambia" means "changes".
+The masculine noun "campione" means "champion".
+The feminine noun "valigia" means "suitcase".
+The masculine noun "attaccante" means "forward".
+"attaccanti" is the plural of "attaccante".
+The masculine noun "calcio" means "football".
+The feminine noun "presidenza" means "presidency".
+The verb "scende" means "descends".
+# (with `rimane' first for writing `remains': Spanish's `se han quedado'
+# came out `si sono restati' when `resta' came first)
+The verb "rimane" means "remains".
+The verb "resta" means "remains".
+# `porta pure sfortuna', brings bad luck too; `via lo 0/2', away with it --
+# and `anche' first, or every `also' came out `pure'
+The adverb "anche" means "also".
+The adverb "pure" means "also".
+The adverb "via" means "away".
+# `agli ultimi mondiali', at the last World Cup
+The masculine noun "mondiale" means "world cup".
+"mondiali" is the plural of "mondiale".
+# `non lo vide più nessuno': the pronoun is nobody, as Spanish's `nadie' is
+# after a denied verb
+The pronoun "nessuno" means "nobody".
+# `nemmeno' and `neppure' are `not even', two words to English, which the
+# builder does not read from the dictionary
+The adverb "nemmeno" means "not even".
+The adverb "neppure" means "not even".
+# a verb's own preposition before its infinitive: `non riesco a lasciare'
+# (`ci ha permesso di vincere' needs no line: `di' begins an infinitive, and
+# stated for `permette' it took Fiat's `la nostra visione di creare' for the
+# verb's own `di' and wrote `nuestra visión crear')
+"riesce" takes "a" before the infinitive.
+# `sarebbe passato per casa', would have come by the house
+"è" is the auxiliary of "passa".
+# a verb with its subject after it: `servono nove miliardi', `arriva
+# Moratti', `se a Milano va via Pellegrini'
+The intransitive verb "serve" means "is needed".
+The intransitive verb "arriva" means "arrives".
+# ... with `esce' first for writing `exits': `va via' has no infinitive, and
+# the Spanish article's `¿Cómo ha podido salir así ...?' was refused for it
+The verb "esce" means "exits".
+The intransitive verb "va via" means "exits".
+# `non so se ci sarà un Napoli', there will be
+"ci sarà" is the future of "c'è".
+# `uno che se ne vuole andare': the two pronouns before the verb are its
+# reflexive, as Spanish's `se' is in `se quiere ir'
+The reflexive pronoun "se ne" means "itself".
+# `non raccontava la verità neppure a sé stesso'
+The pronoun "sé stesso" means "himself".
+# `potresti essere sbranato': apertium-ita has no `sbranare'
+The verb "sbrana" means "devours".
+"sbranano" is the plural of "sbrana".
+"sbranare" is the infinitive of "sbrana".
+"sbranato" is the participle of "sbrana".
+"sbranata" is the participle of "sbrana".
+"sbranata" is feminine.
+"sbranati" is the participle of "sbrana".
+"sbranati" is the plural of "sbranato".
+"sbranate" is the participle of "sbrana".
+"sbranate" is the plural of "sbranata".
+# `il giornalista rai Salvatore Biazzo', `il designatore (Gussoni, ndr)'
+The adjective "rai" means "rai".
+The feminine noun "ndr" means "editorial note".
+# words of several words
+The number "novantuno" means "ninety-one".
+The adverb "a schiatto" means "out of spite".
+The conjunction "cioè" means "that is".
+The feminine noun "serie b" means "second division".
+The preposition "al di sopra di" means "above".
+The preposition "nell'ambito di" means "within".
+The adverb "per quanto mi riguarda" means "as for me".
+# `non era nemmeno in grado di riconoscere' -- after `capace', which
+# stays the word Italian writes for `able'
+The adjective "capace" means "able".
+The adjective "in grado" means "able".
+The feminine noun "coppa campioni" means "champions cup".

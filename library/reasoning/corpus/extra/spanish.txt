@@ -495,3 +495,45 @@ The feminine noun "vocalidad" means "vocality".
 # words of several words
 The conjunction "pese a que" means "although".
 The adverb "al fin y al cabo" means "after all".
+# the Ferlaino interview (Italian UD, VIT-9540..9566), from Italian:
+# `ricordo quando' is remembering, where the dictionary's `acuerda' comes
+# first and agrees; `however' and `that is' have no word here, and `when'
+# only the question's
+The verb "recuerda" means "remembers".
+The adverb "sin embargo" means "however".
+The conjunction "es decir" means "that is".
+The conjunction "cuando" means "when".
+# a verb with its subject after it: `hacen falta nueve mil millones'
+The intransitive verb "hace falta" means "is needed".
+"hacen falta" is the plural of "hace falta".
+# `habrá un Napoli', there will be
+"habrá" is the future of "hay".
+# `el designador', `el contrapoder', `su carcelero': apertium-spa has no
+# paradigm for them; `obligatorio' is compulsory and mandatory, and the
+# Italian `obbligatorio' is obligatory first
+The masculine noun "designador" means "designator".
+"designadores" is the plural of "designador".
+The masculine noun "contrapoder" means "counterpower".
+"contrapoderes" is the plural of "contrapoder".
+The masculine noun "carcelero" means "jailer".
+"carceleros" is the plural of "carcelero".
+The masculine adjective "obligatorio" means "obligatory".
+"obligatorios" is the plural of "obligatorio".
+The feminine adjective "obligatoria" means "obligatory".
+"obligatorias" is the plural of "obligatoria".
+# `en los últimos mundiales', at the last World Cup
+The masculine noun "mundial" means "world cup".
+"mundiales" is the plural of "mundial".
+# `a sí mismo'
+The pronoun "sí mismo" means "himself".
+# `el periodista rai', `(Gussoni, nota de la redacción)'
+The adjective "rai" means "rai".
+The feminine noun "nota de la redacción" means "editorial note".
+# words of several words
+The number "noventa y uno" means "ninety-one".
+The adverb "por despecho" means "out of spite".
+The feminine noun "segunda división" means "second division".
+The preposition "por encima de" means "above".
+The preposition "en el marco de" means "within".
+The adverb "en cuanto a mí" means "as for me".
+The feminine noun "copa de campeones" means "champions cup".

@@ -6251,6 +6251,182 @@ that keep a bare name after its verb where the source put it, which 1.8.4 did
 too and which pin the `subj_here` fix above. Lesson 46 gained section 31. The
 full suite was not run on 1.8.5.
 
+### An Italian interview into Spanish: a time clause standing alone, a heading of one phrase, a clause with no speaker between dashes (1.8.6)
+
+**THE FIFTH SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD VIT
+document VIT-9540..9566 -- twenty-seven sentences of an interview with Corrado
+Ferlaino, Napoli's president for twenty-five years: Maradona, the two titles,
+the cocaine, the club's debts and who will buy it -- Italian into Spanish over
+the two-language vocabulary store. The middle column is 1.8.5's translator
+over THIS store:
+
+| | 1.8.5, its store | 1.8.5, this store | **1.8.6** |
+|---|---|---|---|
+| translated | 7 of 27, four of them wrong in structure | 18, two wrong in structure | **27** |
+| refused for a word | 13 | 2 | **0** |
+| refused with every word known | 7 | 7 | **0** |
+| the article, one process | 50.4 s | 57.3 and 57.7 s | **37.6 and 37.0 s** |
+
+-- the store Italian 172 393 terms and Spanish 218 036, taught into one
+`--embed` store from the rebuilt vocabularies in 648 s and 1 032 s,
+350 MB.
+
+**WHAT IT NEEDED IS WHAT AN INTERVIEW PUTS ROUND ITS CLAIMS.** The twelve were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks, Fiat figures, Valencia a thing on show, the bioethics report its
+claims, the football page a squad, Monreale a court, the record report
+figures again, the islands report what a news item puts before its verb and
+the opera review what it puts beside a phrase; an interview is a man talking,
+and a paper framing him:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| `that is` and a time clause standing alone after a colon | `l'abbiamo vinto a schiatto: cioè quando gli altri erano vicini al traguardo` | `that is` a connector, never a phrase's noun; a clause opened by when or where may stand alone, rwh/2 |
+| `when` after the verb's object | `l'abbiamo vinto quando ...` | the relative's `cuando`, where it was the question's `cuándo` |
+| a comment between commas before a colon | `perché, come si dice a Napoli, l'abbiamo vinto ...: cioè ...` | the colon divides first, and the comment stays in its own clause |
+| a pronoun that stands alone at the end of a subject | `gli altri erano vicini` | only a clitic is refused there: `altri` is a determiner, an object pronoun and `others` |
+| a section's name before a dash | `Calcio - nell'ambito della presentazione ...` | a dateline; `calcio` was I kick |
+| the day before | `il giorno prima caricò i compagni` | an adverb that is an adjective in the other gender too is the adverb; a time is no subject of a verb with an object |
+| an infinitive for a subject | `parlare con Diego era come parlare con due persone diverse`, `essere presidente di questa società è ...` | infs(Lexeme, Complements) |
+| a determiner that is an adjective too, with nothing after it | `due persone diverse` | the adjective, and it agrees: `dos personas diverso` before |
+| a reporting clause with no speaker | `Gallo - continua - mi ha lasciato ...` | the verb alone, a third person nobody names |
+| a heading of one phrase | `Il futuro.` | an article and its noun alone read |
+| a quotation that closes on a name | `... potrebbe cancellare il Napoli".` | the closing mark goes on the sentence and the name keeps its capital; a colon before an opening mark ends the piece |
+| three points | `non era nemmeno in grado di riconoscere i suoi amici ...` | one stop, written back |
+| a score | `via lo 0/2` | one word with its slash |
+| an adverb before a clause the verb takes | `poi disse che sarebbe passato per casa` | before the `that` clause, where it read as the clause's own |
+| a person after an infinitive after the copula | `non era in grado di riconoscere i suoi amici` | `a sus amigos`: what follows an infinitive is its own |
+| a run of capitalised words at a phrase's end | `il giornalista rai Salvatore Biazzo` | a name apposed to its noun |
+| a capitalised word inside a sentence | `se a Milano va via Pellegrini, arriva Moratti` | no predicate adjective (`pellegrini` is wandering too), and a name after its verb is singular |
+| a question word in a noun's place | `la cosa più difficile del mondo` | the noun, `the thing`, where it was `the what` |
+
+-- and the words, in `corpus/extra/` as always: 51 lines of Italian and 29 of
+Spanish, eight entries in `eng-ita.dix`. The vocabularies went from 109 152 and
+135 873 lines to 109 267 and 135 902, and the diff of what they LOST is two
+one-way senses: `arrivo` is no longer `finish` nor `monta` `rides`, because
+the new entries give those English words to `traguardo` and `cavalcare`, and
+English's `rode` and `ridden` went with `rides`. `reason.pl` did not move, the
+seventeenth version running.
+
+**THE ENGLISH OF A SAMPLE IS ITS IR, AND READING IT FOUND WHAT THE TARGET
+HID.** English is the IR, so translating the article into English as well as
+into Spanish shows what crossed. `Il calcio cambiò le sue regole` came out
+`El fútbol cambió sus reglas` -- right -- and `The football capsized his
+rules` in English: the Italian vocabulary gives `cambia` capsizes before it
+changes, and Spanish spelt the IR's `capsizes` as `cambió` only because its
+own `cambia` capsizes too. One sense line fixed it, and the same read found
+`Nine billions be needed`, English inflecting `is needed` by its base.
+**A right translation is not a right IR, and only English can show the
+difference, because English is where the IR is written.**
+
+**THE CONTROLS FOUND THREE REGRESSIONS THE CASE DID NOT, AND EACH WAS A RULE
+OF THIS SAMPLE ASKED WHERE IT WAS NEVER WRITTEN FOR.** With `test/translate.pl`
+GREEN and the interview at 27 of 27, the first arm of the controls came back
+with Livata broken in three sentences and the football report moved in one:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| Livata's second sentence refused, 99.5 million inferences where 1.8.5 read it in 32.3; its twenty-sixth over the 300 million budget, where 1.8.5 read it in 1.4 s | a run of capitalised words at the end of a phrase is one name apposed to its noun (`il giornalista rai Salvatore Biazzo`) -- and after an article ALONE, `sul Monte Livata`, it made one name of the whole run and left the phrase no noun | the words before the run must have a noun; 32.9 million and 2.5 |
+| `“Dos niños de 4 y 5 años en aquéllos acondicionan`, where 1.8.5 wrote `en esas condiciones` | a pronoun that stands alone may end a subject phrase (`gli altri`) -- and `in quelle` ended one, leaving `condizioni` to be its verb | only right after a determiner, where the pronoun heads the phrase |
+| the football report's `pensare già che questo è vinto`, the clause's `already` moved into the thinking | a lifted adverb goes before a clause the verb takes (`poi disse che`) -- and the lift takes its words from anywhere in the piece, the `que` clause's `ya` among them | only an adverb that stood before the word opening the clause |
+
+-- the first found by the hunk bisection this file keeps recommending, on
+the full store: 38 variants, each with one hunk of the diff against 1.8.5
+taken out, and only one of them read the sentence, in 32.3 million
+inferences. **Inference counts do not depend on load, so the variants ran
+four at a time**, where a timing would have had to run alone.
+
+**AND FIVE MORE WERE THE DATA, WHICH ONLY THE MIDDLE COLUMN CAN SEE.** The
+controls run both translators on the NEW store, so a line of `corpus/extra/`
+that moves an old sentence moves it in both arms, and the diff between them
+says nothing. 1.8.5 on its own store against 1.8.5 on the new one said it:
+five texts moved, and every one was a new line coming FIRST for an English
+word the target's writer asks for:
+
+| what moved | the line | the fix |
+|---|---|---|
+| the Spanish article's `"¿Cómo ha podido salir así ...?"` refused | `The intransitive verb "va via" means "exits".` -- now the first Italian verb for `exits`, and it has no infinitive | `esce` first for writing, `va via` still read |
+| Fiat's `nuestra visión de crear` lost its `de` | `"permette" takes "di" before the infinitive.` -- the `di` of `visione di creare` read as the verb's own | the line removed: `di` begins an infinitive already, and `ci ha permesso di vincere` reads the same without it |
+| the football report's `I due primi si sono restati in casa` | `resta` remains, first for writing `remains`, and no line saying it is no reflexive | `rimane` first again |
+| the record report's `pure` for `anche` | `The adverb "pure" means "also".` | `anche` first |
+| Valencia's `in grado` for `capace` | `The adjective "in grado" means "able".` | `capace` first |
+
+**A LINE OF DATA HAS TWO READERS**: the reader of the source it was written
+for, and the writer of the other language, for whom a line in `extra/` is at
+the head of every list it joins. So the column that runs the OLD translator on
+the NEW store is not a courtesy to the reader of this file -- it is the only
+place a data regression shows, and this sample's first control run had it and
+did not look at it.
+
+**AND THE CASE HAD NEEDED THE WORD IN EVERY ROLE BEFORE IT COULD SEE A RULE.**
+As first written, five of the new checks did not tell 1.8.5 from 1.8.6, and
+three of them were the small lesson's doing: `Gli altri dormono.` read on
+both, because the lesson called `altri` a pronoun and not the determiner the
+vocabulary also calls it; `Dorme Pellegrini.` needed `pellegrino` to be a noun
+as well as an adjective; and `cuando` against `cuándo` needed the question
+word learned first, as the hand lesson learns it before `extra/`. The other
+two were sentences whose reading the rule does not decide, and were replaced
+by ones it does. 1.6.15's rule in a new coat: **a small lesson reproduces a
+fault only when it gives the word every role the vocabulary does.**
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `lo he encadenado para siete años`, `a quedar para 25 años` | `durante` | `per` is `for`, 1.6.21's cost |
+| `Recuerdo cuándo el Napoli debió ir` | `Recuerdo cuando el Napoli tenía que ir` | straight after a verb with no object the clause is read as the question the verb takes (`sapere come`), and no lesson says which verbs ask; `doveva` is the preterite, 1.6.15's cost |
+| `el Argentino habría ganado` | `Argentina habría ganado` | a name the dictionary knows as a word, after an article, is the word, 1.6.21's `el Lingote` -- and its gender comes with it |
+| `como se dice a Napoli`, `sale a Milano` | `en Nápoles`, `en Milán` | `a` is `to`, and a name no lesson knows passes through as written |
+| `Pero hemos pagado entonces`, `podría borrar el Napoli antes`, `lo han volcado abajo ... para esto` | the adverb and the front first | a head adverb and a front with no comma are written after the clause, 1.6.8's cost |
+| `... desde segunda división – continúa –.` | `Gallo – continúa – me ha dejado` | a reporting clause from the middle is written after the sentence, 1.6.21's |
+| `(eso curado por el periodista rai ...)` | `(el editado por ...)` | `quello` is `that` to the IR, and `curato` is cured before it is edited |
+| `no contó`, `la cocaína lo transformó` | `no contaba`, `lo transformaba` | the imperfect and the preterite are both `past`, 1.6.15's cost |
+| `no hay ni siquiera uno que establece` | `establezca` | a subjunctive is written as the indicative, 1.6.8's cost |
+| `es obligado a quedar` | `está obligado a quedarse` | Italian's `essere` is both copulas, 1.6.17's cost, and `restare` is not reflexive |
+| `cargó a los compañeros el día antes` | `el día anterior` | Spanish says the day before with an adjective |
+| `el elemento de rotura`, `más lindo`, `borrar el Napoli`, `apuntamos ... en`, `desde segunda división` | `ruptura`, `más bonito`, `cancelar`, `apostamos por`, `de segunda` | senses, and `da` is `from`, 1.6.17's cost |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.5's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.5, this store | **1.8.6** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 16.1 and 16.3 s | **12 of 12, 16.3 and 16.2 s** |
+| the Spanish article | 11 of 11, 15.5 and 15.6 s | **11 of 11, 15.7 and 14.9 s** |
+| Livata, 29 sentences | 29 of 29, 81.5 and 83.4 s | **29 of 29, 84.5 and 83.8 s** |
+| Fiat, 20 sentences | 20 of 20, 23.5 and 23.9 s | **20 of 20, 23.6 and 22.9 s** |
+| Valencia, 16 sentences | 16 of 16, 45.1 and 45.7 s | **16 of 16, 47.1 and 45.1 s** |
+| the bioethics article, 15 sentences | 15 of 15, 12.7 and 12.8 s | **15 of 15, 12.9 and 12.9 s** |
+| the football article, 20 sentences | 20 of 20, 28.5 and 28.3 s | **20 of 20, 28.3 and 27.8 s** |
+| Monreale, 6 sentences | 6 of 6, 6.8 and 6.7 s | **6 of 6, 7.0 and 7.0 s** |
+| the record report, 15 sentences | 15 of 15, 26.1 and 25.9 s | **15 of 15, 25.9 and 26.2 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 266 / 134, 19.0 and 19.2 s | **56 / 267 / 133, 19.0 and 19.0 s** |
+| the islands report, 13 sentences | 13 of 13, 21.5 and 21.7 s | **13 of 13, 21.6 and 21.5 s** |
+| the opera review, 12 sentences | 12 of 12, 17.3 and 17.1 s | **12 of 12, 17.7 and 17.4 s** |
+| the Ferlaino interview, 27 sentences | 18 of 27, 57.3 and 57.7 s | **27 of 27, 37.6 and 37.0 s** |
+
+-- the ranges apart on Livata, the bioethics report, Monreale and the opera
+review, 1 to 4 % slower, and overlapping on the rest; counted, Livata's
+inferences rose 0.85 %, 167.2 million to 168.7, its fifteenth sentence the
+most at 3.3 % -- the new tests asked of every phrase, the name run and the
+agreement among them. Each translator gives the same texts both times, and
+the old controls' texts are 1.8.5's but for two, both better: Livata's `Se
+sabe sólo ciertamente que la familia ...`, the adverb before the `que` clause
+the source put it before, where it was at the clause's end, and Tatoeba's
+`Fumar apesta.`, refused, is `To smoke stinks.` -- an infinitive for a
+subject. **And 1.8.5 on this store gives 1.8.5's own texts on all twelve old
+controls**, which is the check the data finding above was missing.
+
+`test/translate.pl` is 876 checks and GREEN, 28 in a new `newspaper_ferlaino`
+section with an Italian and a Spanish lesson of its own; every check but the
+four marked as guards fails on 1.8.5's translator, and each of the three
+guards the controls wrote fails with the rule put back as the first cut had
+it. One pin moved: `The house.` was pinned as refused, a phrase with nothing
+said of it, and reads now as a heading -- the refusal is pinned on `The big
+house.` instead. Lesson 46 gained section 32. The full suite was not run on
+1.8.6.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

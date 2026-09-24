@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16177 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16183 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -57,6 +57,7 @@ The masculine noun "padre di famiglia" means "paterfamilias".
 "padre di famiglia" is not feminine.
 The feminine noun "mazza da baseball" means "baseball bat".
 "mazze da baseball" is the plural of "mazza da baseball".
+The adverb "però" means "however".
 The adverb "però" means "mind you".
 The adjective "coerente" means "consistent".
 The adverb "cucchiaio dopo cucchiaio" means "spoonful by spoonful".
@@ -544,6 +545,56 @@ The feminine noun "ornamentazione" means "ornamentation".
 The feminine noun "pietra miliare" means "milestone".
 "pietre miliari" is the plural of "pietra miliare".
 The adverb "dopotutto" means "after all".
+The verb "ricorda" means "remembers".
+The verb "cambia" means "changes".
+The masculine noun "campione" means "champion".
+The feminine noun "valigia" means "suitcase".
+The masculine noun "attaccante" means "forward".
+"attaccanti" is the plural of "attaccante".
+The masculine noun "calcio" means "football".
+The feminine noun "presidenza" means "presidency".
+The verb "scende" means "descends".
+The verb "rimane" means "remains".
+The verb "resta" means "remains".
+The adverb "anche" means "also".
+The adverb "pure" means "also".
+The adverb "via" means "away".
+The masculine noun "mondiale" means "world cup".
+"mondiali" is the plural of "mondiale".
+The pronoun "nessuno" means "nobody".
+The adverb "nemmeno" means "not even".
+The adverb "neppure" means "not even".
+"riesce" takes "a" before the infinitive.
+"è" is the auxiliary of "passa".
+The intransitive verb "serve" means "is needed".
+The intransitive verb "arriva" means "arrives".
+The verb "esce" means "exits".
+The intransitive verb "va via" means "exits".
+"ci sarà" is the future of "c'è".
+The reflexive pronoun "se ne" means "itself".
+The pronoun "sé stesso" means "himself".
+The verb "sbrana" means "devours".
+"sbranano" is the plural of "sbrana".
+"sbranare" is the infinitive of "sbrana".
+"sbranato" is the participle of "sbrana".
+"sbranata" is the participle of "sbrana".
+"sbranata" is feminine.
+"sbranati" is the participle of "sbrana".
+"sbranati" is the plural of "sbranato".
+"sbranate" is the participle of "sbrana".
+"sbranate" is the plural of "sbranata".
+The adjective "rai" means "rai".
+The feminine noun "ndr" means "editorial note".
+The number "novantuno" means "ninety-one".
+The adverb "a schiatto" means "out of spite".
+The conjunction "cioè" means "that is".
+The feminine noun "serie b" means "second division".
+The preposition "al di sopra di" means "above".
+The preposition "nell'ambito di" means "within".
+The adverb "per quanto mi riguarda" means "as for me".
+The adjective "capace" means "able".
+The adjective "in grado" means "able".
+The feminine noun "coppa campioni" means "champions cup".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -15467,6 +15518,18 @@ The masculine noun "lembo" means "strip".
 "lembi" is the plural of "lembo".
 The feminine noun "moto" means "motorbike".
 "moto" is the plural of "moto".
+The feminine noun "coca" means "cocaine".
+"coche" is the plural of "coca".
+The masculine noun "scudetto" means "title".
+"scudetti" is the plural of "scudetto".
+The noun "tossicodipendente" means "addict".
+"tossicodipendenti" is the plural of "tossicodipendente".
+The masculine noun "traguardo" means "finish".
+"traguardi" is the plural of "traguardo".
+The feminine noun "sfortuna" means "misfortune".
+"sfortune" is the plural of "sfortuna".
+The masculine noun "designatore" means "designator".
+"designatori" is the plural of "designatore".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -19291,7 +19354,6 @@ The feminine noun "caratteristica" means "feature".
 The masculine noun "costo" means "fee".
 The masculine noun "campo" means "field".
 The noun "combattente" means "fighter".
-The masculine noun "arrivo" means "finish".
 The feminine noun "impresa" means "firm".
 The masculine noun "pescatore" means "angler".
 The feminine noun "pescatrice" means "angler".
@@ -86805,6 +86867,54 @@ The verb "penalizza" means "penalises".
 "penalizzate" is the plural of "penalizzata".
 "penalizzare" is the infinitive of "penalizza".
 "penalizzando" is the gerund of "penalizza".
+The verb "cavalca" means "rides".
+"cavalcano" is the plural of "cavalca".
+"cavalchiamo" is the first person of "cavalcano".
+"cavalco" is the first person of "cavalca".
+"cavalchi" is the second person of "cavalca".
+"cavalcò" is the past of "cavalca".
+"cavalcarono" is the past of "cavalcano".
+"cavalcammo" is the first person of "cavalcarono".
+"cavalcai" is the first person of "cavalcò".
+"cavalcasti" is the second person of "cavalcò".
+"cavalcava" is the past of "cavalca".
+"cavalcavano" is the past of "cavalcano".
+"cavalcavamo" is the first person of "cavalcavano".
+"cavalcavo" is the first person of "cavalcava".
+"cavalcavi" is the second person of "cavalcava".
+"cavalcherà" is the future of "cavalca".
+"cavalcheranno" is the plural of "cavalcherà".
+"cavalcheremo" is the first person of "cavalcheranno".
+"cavalcherò" is the first person of "cavalcherà".
+"cavalcherai" is the second person of "cavalcherà".
+"cavalcherebbe" is the conditional of "cavalca".
+"cavalcherebbero" is the plural of "cavalcherebbe".
+"cavalcheremmo" is the first person of "cavalcherebbero".
+"cavalcherei" is the first person of "cavalcherebbe".
+"cavalcheresti" is the second person of "cavalcherebbe".
+"cavalchi" is the subjunctive of "cavalca".
+"cavalchino" is the plural of "cavalchi".
+"cavalchiamo" is the first person of "cavalchino".
+"cavalcasse" is the past subjunctive of "cavalca".
+"cavalcassero" is the plural of "cavalcasse".
+"cavalcassimo" is the first person of "cavalcassero".
+"cavalcassi" is the first person of "cavalcasse".
+"cavalcassi" is the second person of "cavalcasse".
+"cavalca" is the imperative of "cavalca".
+"cavalcare" is the negative imperative of "cavalca".
+"cavalcate" is the imperative of "cavalcano".
+"cavalcato" is the participle of "cavalca".
+"cavalcata" is the participle of "cavalca".
+"cavalcata" is feminine.
+"cavalcati" is the participle of "cavalca".
+"cavalcati" is the plural of "cavalcato".
+"cavalcate" is the participle of "cavalca".
+"cavalcate" is feminine.
+"cavalcate" is the plural of "cavalcata".
+"cavalcare" is the infinitive of "cavalca".
+"cavalcando" is the gerund of "cavalca".
+"rode" is the past of "rides".
+"ridden" is the participle of "rides".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -91313,9 +91423,6 @@ The verb "risponde" means "replies".
 The verb "chiede" means "requests".
 The verb "risponde" means "responds".
 The verb "limita" means "restricts".
-The verb "monta" means "rides".
-"rode" is the past of "rides".
-"ridden" is the participle of "rides".
 The verb "aumenta" means "rises".
 "rose" is the past of "rises".
 "risen" is the participle of "rises".
@@ -107265,6 +107372,14 @@ The adjective "canicolare" means "canicular".
 "canicolarissimi" is the superlative of "canicolari".
 "canicolarissima" is the superlative of "canicolare".
 "canicolarissime" is the superlative of "canicolari".
+The masculine adjective "disastrato" means "disastrous".
+"disastrati" is the plural of "disastrato".
+The feminine adjective "disastrata" means "disastrous".
+"disastrate" is the plural of "disastrata".
+"disastratissimo" is the superlative of "disastrato".
+"disastratissimi" is the superlative of "disastrati".
+"disastratissima" is the superlative of "disastrata".
+"disastratissime" is the superlative of "disastrate".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
