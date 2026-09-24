@@ -87,15 +87,21 @@ ix_surface(Rows) :-
     append(PlRows, ModRows, Rows).
 
 %% Sorted by name within a directory, which is what os.listdir + sorted gave.
+%% ONE LEVEL OF SUBDIRECTORY TOO: library/reasoning/reason.pl ships, and a
+%% program loads it as library(reasoning/reason), so its module is named
+%% `reasoning/reason' -- the path under the tier directory with .pl off --
+%% which is what ix_module_of/3 answers for the flat case as well.
 ix_pl_files(Dir, Files) :-
     ix_path(Dir, Full),
     (   exists_directory(Full)
-    ->  atomic_list_concat([Full, '/*.pl'], Pattern),
-        expand_file_name(Pattern, Abs0),
-        sort(Abs0, Abs),
+    ->  atomic_list_concat([Full, '/*.pl'], Flat),
+        atomic_list_concat([Full, '/*/*.pl'], Nested),
+        expand_file_name(Flat, Abs1), expand_file_name(Nested, Abs2),
+        append(Abs1, Abs2, Abs0), sort(Abs0, Abs),
+        atom_concat(Full, '/', Prefix),
         findall(R-A,
-                ( member(A, Abs), ix_basename(A, B),
-                  atomic_list_concat([Dir, '/', B], R) ),
+                ( member(A, Abs), exists_file(A), atom_concat(Prefix, Tail, A),
+                  atomic_list_concat([Dir, '/', Tail], R) ),
                 Files)
     ;   Files = []
     ).
@@ -107,15 +113,16 @@ ix_basename(Path, Base) :-
     ;   Base = Path
     ).
 
-ix_module_of(Rel, Mod) :-
-    ix_basename(Rel, B),
-    atom_codes(B, Cs),
+ix_module_of(Dir, Rel, Mod) :-
+    atom_concat(Dir, '/', Prefix),
+    atom_concat(Prefix, Tail, Rel),
+    atom_codes(Tail, Cs),
     append(M, ".pl", Cs),
     !,
     atom_codes(Mod, M).
 
-ix_surface_row(Tier, _Dir, Rel, Abs, json(Row)) :-
-    ix_module_of(Rel, Mod),
+ix_surface_row(Tier, Dir, Rel, Abs, json(Row)) :-
+    ix_module_of(Dir, Rel, Mod),
     read_file_to_codes(Abs, Src),
     ix_header_block(Src, Header),
     length(Header, HB),
@@ -535,6 +542,34 @@ ix_capability('a grammar or parser', [parse, grammar, dcg, tokenize, lexer],
               [], [grammar, 'parser: dispatch'], local).
 ix_capability('search or pathfinding', ['shortest path', 'a*', astar, route, search, graph],
               [astar], ['tier-2 library'], local).
+ix_capability('text to predicates',
+              ['natural language', text, sentence, paragraph, 'controlled english',
+               'plain english', predicates, 'knowledge from text', extract, 'read a paragraph'],
+              ['reasoning/reason'], ['tier-2 library'], local).
+ix_capability('training data for a text normaliser',
+              [normalise, normalize, normaliser, tagger, 'training data', corpus, 'noisy text',
+               'gold tags', 'sequence labelling', 'data generator', 'quoted word', 'mentioned word',
+               'quotation marks', 'lesson corpus', 'lesson typed bare'],
+              ['reasoning/normalise'], ['tier-2 library'], local).
+ix_capability('a text normaliser, the network',
+              ['label tokens', 'sequence tagger', 'prose to predicates', 'typed text', 'unseen word',
+               'train a tagger', 'bigru', 'tag accuracy', 'quote a word', 'lesson as prose', 'add quotation marks'],
+              ['reasoning/tagger'], ['tier-2 library'], local).
+ix_capability('the shipped tagger''s data and training, as programs',
+              ['training data files', 'generate training data', 'regenerate the corpus', 'retrain the shipped model',
+               'model.rows', 'generated pairs', 'reproducible training'],
+              ['reasoning/generate', 'reasoning/train'], ['tier-2 library'], local).
+ix_capability('a language lesson as a knowledge base, and translation over it',
+              [translate, translation, spanish, italian, 'language lesson', vocabulary, 'grammar rules',
+               gender, article, 'adjective agreement', 'word order', plural, negation, question, 'past tense', 'future tense',
+               'perfect tense', pronoun, possessive, 'prepositional phrase', adverb, 'second language', whom, 'personal a', contraction, 'learn a language', 'mentioned word',
+               'intermediate representation', 'pivot language', interlingua, 'italian into spanish', 'between two languages', 'add a language',
+               elision, apostrophe, 'elided article', 'impersonal pronoun', impersonal, 'si and se', 'one eats'],
+              ['reasoning/translate'], ['tier-2 library'], local).
+ix_capability('a vocabulary as lesson lines, and a page translated over a taught store',
+              ['vocabulary file', 'dictionary as lesson', apertium, 'teach a language', 'learn the vocabulary',
+               'translate a page', 'translate a file', 'sentence by sentence', 'taught store', 'build the vocabulary'],
+              ['reasoning/teach', 'reasoning/page'], ['tier-2 library'], local).
 ix_capability('hex grids', [hex, hexagonal, tile, map],
               [hex], ['tier-2 library'], local).
 ix_capability('big integers', [bignum, 'big integer', 'arbitrary precision', rsa],

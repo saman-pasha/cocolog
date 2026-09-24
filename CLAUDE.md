@@ -60,6 +60,15 @@ make modules    # every loadable module buildable here; SKIPPED, by name,
 make test       # the suite
 cocolog -s test/run.pl -- solve            # one case
 make lint FILES=myprogram.pl    # cocolint, over a file you name
+sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0
+                                # (apt install wordnet-base); a cocolog
+                                # program, library/reasoning/lexicon/build.pl,
+                                # and its output IS committed
+sh tools/tagger/train.sh        # the shipped tagger, library/reasoning/model.rows:
+                                # generate.pl writes the training data to
+                                # library/reasoning/generated/ (committed),
+                                # train.pl trains on it; three minutes with
+                                # libtorch, and the model is committed too
 ```
 
 **`cocolog --version` ANSWERS ON STDOUT, AND THE NUMBER GOES UP WITH
@@ -283,6 +292,31 @@ checks, and each section names what it is guarding. A FIFTH section joined
 them in 1.2.8 and it is the one that did not raise at all: `nb_setval/2`'s
 globals read against the wrong store, which answered a value that was not
 true, or a signal.
+
+**AND A SIXTH IN 1.2.44, WHICH IS THE FIFTH INVERTED: AN ERROR NOTHING HAD
+CAUSED.** `with_output_to(codes(C), fail)` THREW, and the ball was
+`file_base_name(A,B):-'$path_split'(A,C,B)` -- the first clause of
+`library(files)`'s Prolog half, a library the program need never have
+called. `coco_b_with_output_to` wrote its two arms the wrong way round:
+`(if C A B)` runs A when C holds, so a ball coming back from the nested
+engine was counted dead and never rethrown, and a plain FAILURE fell into
+the else and threw `coco_store_get(st, 0)` -- cell zero, whatever the store
+put there first. Every sink, with the library loaded or not; catchable, so
+a caller that wrapped the call saw a ball naming a stranger and one that
+did not lost its query. SWI's `with_output_to/2` fails when its goal fails.
+
+**THE TELL WAS A PROBE OF SIX LINES, AND THE ARM THAT WORKED HID IT.** The
+success path is the one everything uses -- `format(atom(A), ...)`, the
+string builtins, `dcg/basics` rendering a float -- so the whole suite was
+green over a builtin that could not fail correctly. What found it was a
+program of mine whose `forall` failed inside one, and the error named a
+library it had never used, which is the shape this whole section is about:
+**an error that names something innocent is an error to bisect rather than
+to read.** Six lines reproduce it, and `test/errors.pl`'s sixth section
+pins all of it -- the three sinks failing, a `throw` inside still arriving
+outside as itself, an `existence_error` the goal raised still arriving as
+that, the capture still working, and stdout still restored afterwards,
+which is what a lost line would otherwise hide.
 
 **A `catch/3` WHOSE GOAL SUCCEEDED WENT ON CATCHING.** The frame was pushed
 and never taken down, so
@@ -1812,8 +1846,4053 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`library/reasoning/lexicon/build.pl` regenerates them from a WordNet 3.0 dict), over `library/reasoning/corpus/`, the lessons whose words the lesson shapes draw, one sentence a line, and written out to `library/reasoning/generated/` by `generate.pl` so the pairs a model trained on are in the tree; `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
+
+**THE REASONING LEXICON IS FILES, NOT SOURCE, AND THE GRAMMAR FILTERS
+THEM AS THEY LOAD.** `library/reasoning/lexicon/<class>.txt` -- one word a
+line, commonest first -- is what `library(reasoning/normalise)` generates
+from: `proper.txt` is the US Census's first names, the rest are WordNet
+3.0 ranked by its SemCor tag counts, written by `library/reasoning/lexicon/build.pl`
+(cocolog: `read_file_to_codes` takes data.noun's fifteen megabytes in
+half a second and `split_string/4` cuts a megabyte into lines in ten
+milliseconds). The library reads them on the first pick, keeps them as
+globals of the machine -- never asserted, so no store is written -- and
+drops what the grammar would not read as an open word: a closed word
+(`will` is a modal before it is a name) and a verb whose third person the
+stemmer cannot invert, so `test/normalise.pl`'s inflection round trip
+holds by construction. Two things bit: `ng_base_of` walked the whole verb
+list with the inflector for every pair, nothing over twenty verbs and
+eighty milliseconds a pair over four thousand -- it stems with the grammar
+now; and the tagger's batches were built as tensors all at once, which at
+128 batches ran torch's handle table out and died a step later with
+`tensor expected, found 0` -- a batch's tensors are made per step now. And
+the numbers moved: over this lexicon 8192 pairs read 0.96 of unseen
+sentences whatever the step count, which is memorising, so the tagger's
+defaults were 16384 pairs and 400 steps (0.997), about eighty seconds here -- and are 32768 pairs and 500 steps since the ten lesson shapes of 1.2.39, whose bare mentions are the hard part.
+
+**A TAGGER THAT CANNOT SAY NO READS `Boston, Mass.` AS mass(boston), AND
+THE NO DOES NOT LIVE IN THE NETWORK.** The Brown corpus's government
+documents were the lawsuit corpus this box could reach -- every legal site
+is off the egress list -- and of 875 sentences the tagger "read" a tenth,
+nearly all wrongly, because every sentence it had ever seen had a reading
+and the grammar's defaults are positional. Three learned refusers were
+built and measured, and each cost recall where it counted: X as a twelfth
+tag trained on every token of `prose.txt` (eight thousand of WordNet's own
+example sentences, which nothing else trains on) took the generated
+unseen sentences from 0.997 to 0.907; a sentence head over the shared GRU
+states, and a separate refuser network, each refused seven to ten of the
+forty-three hand-written sentences at any threshold. Confidence gating is
+weak too: fragments come out at 0.87 to 0.98. What stayed is deterministic
+-- six lexicon rules, `tagger_sane/2`: a sentence has a relation; a
+relation is a closed word, or a lower-case word past the first that the
+lexicon does not know ONLY as a noun, adjective or adverb, its stem
+included; a subject, object or adjective is not a closed word; a
+capitalised first word tagged subject that the lexicon knows is a name;
+an adjective is not a word known only as an adverb -- and an empty
+assembly is a refusal, where `Terms = []` had been what 319 Brown
+sentences "read" as. A tagging the rules contradict comes back X
+throughout and the assembler refuses it. Measured on one model: WordNet
+example sentences read 15.3 % -> 6.3 %, Brown prose 13.5 % -> 3.6 %,
+generated unseen sentences 0.997 either way, the hand-written forty-three
+as before. `tagger_refused/4` is the instrument and `test/tagger.pl`'s
+`refusals` section pins 0.90 over a slice of prose.txt. What still slips
+is a real sentence in the grammar's shape -- `Every person is mortal.` is
+read, and it is true -- and a fragment the lexicon cannot fault, `Feeling
+amorous.` as amorou(feeling).
+
+**AND THE PLACE THE TAGGER DROPPED WAS THE GENERATOR'S TEACHING.** `Dana
+rents a flat in Bristol.` came back as `rent(dana, flat_1)` because the
+`pp_place` transform appended `in Rome` after every noun-phrase object as
+NOISE, tagged D -- the grammar had no reading for a place after an object,
+so the generator taught the network to drop one. The grammar reads it now:
+the preposition joins the relation exactly as it does when written joined
+to a bare verb, and the place is a third argument, `rent_in(dana, flat_1,
+bristol)`; only after an object, so `sleeps in Rome` stays refused and
+`sleeps_in Rome` is the written form. Four shapes replaced the transform
+(23 to 26: an indefinite, a definite, a rule's and a denied object, each
+with a place), `pp_extra` lost `on Monday` and `on Friday` because a
+capitalised word after a preposition after an object IS a place now, and a
+joined relation stems its verb -- `lives_in` reads as `live_in`, the same
+predicate its denial `does not live_in` always gave, which `truth/2` had
+never been able to connect. `test/reason.pl` pins the shape, the
+stemming and the refusals that stay.
+
+**AND A CAPITALISED WORD CARRIES NO ENDING SHAPE, because `Zed' is not a
+participle.** The tagger's shape embedding gave a capitalised word the same
+-s/-ly/-ing/-ed ending a lower-case one gets, so `Zed' and `Ted' after
+`does not like' wore a shape that twenty-three objects in sixteen thousand
+pairs had worn -- and three trainings in a row dropped them where `Bob' and
+`Mia' were kept every time. (`like' itself is picked once in the whole
+corpus, so it is `<unk>' too: the pattern was two unknowns and a rare
+shape.) A capitalised word is shape 2 now whatever it ends in; the lower
+case keeps its endings, which is where `flies' and `wholly' are read.
+
+**A POSITION THE GENERATOR NEVER MAKES IS ONE THE TAGGER GUESSES AT.**
+`Priya is a baker and, as far as I know, Priya is licensed.` tagged the
+`and` as an object and `baker` as noise, and the lexicon refused it -- the
+right outcome for a guess, and still a sentence a person types. Every
+filler the generator made sat at the start or the end of the WHOLE text,
+so a filler after a conjunction had never been seen. `filler_join` is the
+tenth transform: a filler between commas, or a hedge, right after the
+`and`, conjoining a second sentence itself when nothing has so that it
+stands alone under `test/normalise.pl`'s per-transform check. The rule it
+is an instance of: when the tagger fails a hand-written sentence, read the
+TAGS before the network, and ask which shape or which position the
+generator does not make.
+
+**EVERY SENTENCE CARRIES STATE, AND THE STATE IS THE LAST SUBJECT.** `She
+is a baker and is licensed` has to give two facts about the person the
+paragraph was talking about, and until 1.2.28 the grammar did no
+coreference at all and the assembler wrote a subjectless sentence after
+the break. Two things carry it now. `reason_text/2` keeps the subject of
+the last FACT it read (`'$rs_subject'`, reset at every entry) and `she`,
+`he` or `they` as a subject stands for it; a rule between leaves it, a
+paragraph that opens with a pronoun is refused, `it` is left alone (`It
+rains` is about nobody), an object pronoun is still refused, and
+`reason_refused/2` walks with the same state so a resolved pronoun is not
+reported. And `normalise_assemble/3` gives a sentence a break left without
+an S the subject phrase of the one before it -- everything before the
+first R, D and commas aside, so a rule's `every baker that is licensed`
+travels whole. The generator's eleventh transform, `conjoin_shared`, makes
+both forms so the tagger sees them; the lexicon rule that refuses a closed
+word as a subject lets a subject pronoun through. `test/reason.pl`'s
+`state` section pins eleven cases, the refusals included.
+
+**A QUESTION IS A GOAL, AND THE ANSWER CARRIES ITS REASON.** `?` was
+already a stop, so a question is known by its first word -- `does`, `is`,
+a modal, `who`, `what`, `where` -- and reads to the term the statement
+would have asserted with a variable where the question word stood:
+`question(sell(priya, bread))`, `question(X, (flat(F), rent_in(X, F,
+bristol)))`. `reason_ask/2` proves it against the knowledge base and
+answers `yes(Why)`, `no(Why)`, `unknown` or `conflict` for a yes-or-no
+question and a list of `Value-Why` for the rest, where Why is `fact`,
+`rule(Head :- Body)` with the body as it proved (one level, from
+`clause/2`), or `denied(neg(...))`; an indefinite object is an
+existential in the goal and the class atom in the denial, which is what
+a negative sentence gives. Neither `reason_question/2` nor `reason_ask/2`
+resets the subject state, so `Is she licensed?` may follow the paragraph
+that introduced her. The question words joined the closed classes, or
+`Who` at the head of a sentence was somebody's name. The generator makes
+six question shapes with the statements' tags -- `who` an S, `what` and
+`where` an O -- so the tagger drops the noise around a typed question and
+`tagger_ask/3` answers it; the transforms that would join or hedge a
+question stand down for one, and the text ends in `?`. `tagger_ask/3`
+goes to the controlled text and then `reason_ask/2`, NOT through
+`tagger_normalise/4`, whose `reason_text/2` resets the subject state:
+measured, `Is she insured?` typed after a paragraph about Lena came back
+refused that way. `test/reason.pl`'s `questions` section pins the forms
+and the answers, and the tagger case pins the pronoun question.
+
+**A QUANTITY IS A VALUE, NOT AN INDIVIDUAL, AND `how much` READS THROUGH
+THE AMOUNT.** The tokeniser dropped a token that began with a digit, so
+`Nadia pays 500 euros` read as `pay(nadia, euros)` -- a claim the text
+never made. Digits are `num(N)` now (`5.5`, `1,000`, and `5%` as 5 and
+the word `percent`), the number words are closed (`five` is never an
+adjective and `Six` never a name; `twenty five`, `two hundred fifty`, `a
+hundred` compose), and a number and the noun it counts are ONE object,
+`quantity(500, euros)` -- the noun as written, no `euro_1` introduced,
+because three of a thing is not one -- in a fact, a rule's head and a
+denial alike, with `quantity(2, litres, milk)` for `two litres of milk`
+and a bare number as itself. `The rent is 500 euros` is the one sentence
+with a definite subject and reads as `amount(rent, quantity(500,
+euros))`. `How much does Omar pay?` is `question(Q, (pay(omar, O),
+reason_amount(O, Q)))`: the object itself when it is a quantity, or the
+amount the text gave a class atom, so `Omar pays the rent` beside the
+amount answers 600 euros and not the word `rent`; `how many NOUN` goes
+through `reason_count/3`, which reads the number out of a quantity of
+that noun with or without an `of` part; and `rq_claim` takes the reason
+from the claim before either helper, or the reason would have been
+`rule(reason_amount(...) :- ...)`. What is refused: an adjective inside a
+quantity (`three red cars`), a comparison (`more than 500 euros`) and a
+definite phrase after the quantity (`for the flat`, because `pp_extra`'s
+`at the moment` must stay noise). The generator has eight shapes for it
+(33 to 40: a quantified object, the rule, the amount sentence and its
+question, the denial, `does S V N UNIT`, `how much`, `how many`, `how
+much is`), a number tagged T before its noun and `of` a K, over
+`lexicon/unit.txt` -- WordNet's hyponyms of `unit_of_measurement` and
+`time_unit`, which `lexicon/build.pl` now walks by the `~`
+pointers, because noun.quantity alone offers `nothing`, `much` and
+`half`; the tagger gives a number one word, `<num>`, and shape 15, and
+the judge lets a number or a number word be T or O only and `much` or
+`many` an O. `test/reason.pl`'s `quantities` section pins the forms and
+the answers, `test/tagger.pl` ten typed sentences and two `how much`
+questions over a paragraph.
+
+**THE EXPLANATION IS THE WHOLE PROOF, IN SENTENCES, AND A CHESS MATE IS THE
+CASE.** `reason_why/2` answered one level, and `Why is Kh8 checkmated?`
+wants all of them: `reason_explain/2` is a meta-interpreter that proves the
+goal as Prolog would -- first proof, clause order, the body left to right --
+and keeps what it proved by: `fact(G)`, `rule(G, Whys)`, `absent(G)` for a
+`\+ G` that held, `denied(G)` when `neg(G)` was said besides, `holds(G)`
+for a builtin, and `forall(A, B, Instances)` for `\+ (A, \+ B)`, the one
+shape that needs its own record, because a universal's explanation IS its
+instances. `reason_explanation/2` says it depth first, one sentence per
+rule -- `Kh8 is checkmated because Kh8 is a captive and nothing shows that
+Kh8 is defended. Kh8 is a captive because ... Kh8 is immobile because Kh8
+is a king and whenever Kh8 may move to X, X is unsafe (X: G8, G7 and H7).
+G8 is unsafe because ...` -- and the words are the knowledge base's own:
+the verb in the third person through `reason_third/2` (the inflector MOVED
+here from normalise.pl, beside the stemmer it inverts, so the pair is
+changed together), a proper noun the reader met capitalised and a class
+noun it met after `a`, `the` or `every` with its article (two globals the
+reader fills as it goes, `'$rs_names'` and `'$rs_nouns'`, never asserted),
+any other atom as `the ...`, an individual `flat_1` as `the flat`. `Why
+...?` before any yes-or-no form is `question(why(Goal))`, answered
+`because(Text)` or `unknown`; `reason_ask/3` puts the explanation beside
+every answer, a denial as `..., as said.` and an unknown as `Nothing shows
+that ...` with an existential written `a flat`. The scenario is the
+back-rank mate -- Kh8 behind Pg7 and Ph7, Re8 arrived -- in twenty-nine
+terms of the controlled English (check and mate are three `every` rules
+chained through class nouns, target and captive, because a relative clause
+carries ONE condition) plus four Prolog clauses for what the English cannot
+say, a rule over two variables and the universal `immobile`; the
+explanation walks both alike. The generator has two `why` shapes (41, 42),
+`why` an O like `what`, and `tagger_ask/4` carries the text for typed
+prose. And the typed scenario found a shape nobody had made: `Every
+square that is attacked is unsafe`, a rule whose head is an ADJECTIVE
+after a relative clause -- shapes 8, 15, 16 and 21 put a class, a verb or
+a modal there, never `is ADJ` -- so the tagger dropped `unsafe` on every
+such definition; shape 43 makes it, with and without `not`. And a second
+one the same afternoon: `Kh8 may move to G8`, a MODAL before a phrasal
+verb, read with `move` as the object -- shape 6 has a modal before a verb
+and a noun, shape 9 a phrasal verb with no modal, and nothing had put the
+two together; shape 44 does (`may live_in Rome`, split and joined back to
+may_live_in, which the grammar reads as a modal and a base form). The
+typed scenario found both, one training apart, and the rule stands: read
+the tags, ask which shape the generator does not make. Two things bit: the universal's phrase copied the instance bindings
+BEFORE collecting the pattern's variables, so a `member/2` ran over an
+unbound list inside a `findall/3` and never came back -- a hang that
+looked, for an hour, like the engine looping on `checkmated(kh8)`, until
+the plain goal was run without the explainer and answered in a
+millisecond. Bisect the CALL before the engine. And `flush_output/0` did
+not put a line into a FILE before a `timeout` killed the process -- five
+lines arrived and the sixth, written and flushed the same way, did not --
+so a marker missing from a redirected log is not proof the goal before it
+hung; a pipe behaved.
+
+**AND WHAT A TEXT IS ABOUT: CONCEPTS RANKED, AND AN OUTLINE BY TOPIC.**
+`reason_concepts/2` counts every mention in the terms -- a name, an
+individual, a class, a property, a relation, one count per occurrence in a
+fact, a denial, an amount or a rule -- and ranks them, ties in order of
+first mention, so the chess position is about Kh8 (6), Re8 (6) and
+`attack` (6) before anything else. `reason_topics/2` is the outline: one
+topic per SUBJECT with its sub-topics grouped in order of first mention --
+`class-[king]`, `property-[black]`, `relation(occupy)-[[h8]]`,
+`relation(may_move_to)-[[g8], [g7], [h7]]`, `denied`, `amount`; a class
+with its `members` and the `rules` quantified over it; a class or property
+with the `definition` rules whose head names it (`unsafe: a square that is
+attacked; a square that is occupied`); and an OBJECT with what is said of
+it from the other side, `by(attack)-[attack(re8, h8)]`, which is how a
+square becomes a topic. `reason_topic_lines/2` writes it with the
+explanation's renderer, the subject taken off the front of each claim:
+`Kh8, a king: black; occupies H8; may move to G8, G7 and H7.`; a class as
+a class heads its line bare with its members, `King (Kh8)`, and a class
+atom something is said OF heads it as the reader wrote it, `The rent: 600
+euros.`; an individual's own noun, `flat(flat_1)`, makes no class of flats
+and no `the flat, a flat`. `reason_outline/2` reads a text and outlines it,
+`reason_outline_prose/2` the same over typed prose. `test/reason.pl`'s
+`topics` section pins thirty concepts, twenty-one topics and the lines
+over the chess position, and lesson 43's section 16 shows it.
+
+**A WORD IN QUOTATION MARKS IS MENTIONED, AND A LANGUAGE LESSON IS A
+KNOWLEDGE BASE (1.2.32).** `"casa" means "house"` is not about a house:
+the tokeniser reads a word between quotation marks (the plain `"` or the
+typographic pair) as `quoted(Word)`, the grammar lets it stand as a
+subject, as an object, and after a preposition after a BARE verb -- `ends
+in "a"` is `end_in(X, a)`, where `sleeps in Rome` stays refused, because
+a mention can belong to nothing but the verb -- and `the noun "casa"`,
+`the feminine article "la"` are appositions that hand back the class and
+the adjectives as facts about the word, before the claim: `noun(casa),
+mean(casa, house)`; `article(la), feminine(la), mean(la, the)`. A
+relative clause takes a VERB now, `that [does not] VERB [OBJECT]`, and
+`that is a NOUN`, still one condition each; `end_in/2`, `end_with/2`,
+`begin_with/2` and `start_with/2` are the library's so that `Every noun
+that ends in "a" is feminine` RUNS, and the explainer says one as it is
+(`"perro" does not end in "a"`, never `nothing shows that`). `reason_learn/1`
+reads and asserts. `library(reasoning/translate)` is the consumer:
+`reason_translate/2,3` takes a simple sentence -- a subject, a verb, then
+an object or a bare adjective, each phrase an article, adjectives and a
+noun, or a name -- between English and the language the lesson teaches,
+asking the knowledge base five things (`mean/2`, the four classes,
+`feminine/1` and `masculine/1`, `follow(A, noun)`, `language/1`) and
+knowing no word of Spanish itself: an article and an adjective are chosen
+among the words the lesson gives for the English one by the NOUN's
+gender, a bare adjective after the verb agrees with the subject, and an
+adjective goes after its noun exactly when the rule says so; a sentence
+with a word the lesson left out is refused whole and
+`reason_untranslated/2` names the word. `test/translate.pl` is the case
+-- twenty lines of Spanish, forty-four terms, both directions, the
+lesson questioned, and the order rule retracted to show the order was
+the rule -- and lesson 46 the tutorial. Two things bit: `atom_codes/2`
+answers BYTES, so the tokeniser dropped every byte past 127 and
+`pequeño` read as `peque` and `o` until such a byte counted as a letter;
+and `clause/2` SEES a module's clauses (probed: `clause(reason_third(have,
+X), B)` answers), so a helper would have explained itself by its own
+body until `re_goal` asked `re_helper/1` first.
+
+**PLURALS AND NEGATION ARE THE LESSON'S TOO (1.2.33).** Three more shapes
+read: a definite phrase after an object is a place, `keeps the tractor
+in the barn` being `keep_in(omar, tractor, barn)`; a determined noun
+after a bare verb's preposition is its class atom, `ends in a vowel`
+being `end_in(X, vowel)`, and `end_in/2` knows the two letter classes
+(the five vowels and their accented UTF-8 forms); and `is the NOUN of X`
+is the relation the noun names, `plural_of(los, el)`, `mother_of(alice,
+bob)`, asked as `What is the plural of "el"?`. `reason_base/2` is the
+stemmer made public, because a noun's plural comes off the way a verb's
+-s does. So a lesson says `Every noun that ends in a vowel takes "s" in
+the plural`, `"los" is the plural of "el"`, `Every verb that ends in
+"e" takes "n" in the plural`, `"son" is the plural of "es"` and `The
+word "no" means "not"`, and the translator asks `plural_of/2`,
+`take_in(W, E, plural)`, `mean(N, not)` and `follow(N, verb)`. A word's
+LEXEME is the form the lesson gave -- the word, or the singular a stated
+or ruled plural is made from, and in English a noun the stemmer takes
+back or a verb by its third person -- the noun's number is the phrase's,
+the subject's is the verb's, and a denial comes off before the split and
+goes back on the verb: `no come`, or `does not eat`, `do not eat`, `is
+not`, `are not`, which is English and the translator's own, as `an`
+before a vowel and no `a` in the plural are. Measured over the lesson
+grown to thirty-two lines: `The dogs do not eat the bread` is `Los perros
+no comen el pan` and back, `The houses are not big` is `Las casas no son
+grandes` and back, and `Maria tiene unos libros` is `Maria has books`.
+What bit: the order rule must be asked about the adjective's SINGULAR
+(`follow(rojas, noun)` proves nothing), so an adjective travels with its
+lexeme beside its form. And a REFUSED sentence used to leave its word
+notes behind: `the big barn` in one made `big` a class noun for the rest
+of the process, and an explanation three sections later said `the box is
+a big`. The reader's notes are pending until the sentence parses and
+dropped when it does not. Two refusal pins moved with the shapes:
+`Alice owns a house near the river` reads as `own_near/3` now and `Alice
+sleeps at the house` as `sleep_at/2`; `near a river` and `in Rome` after
+a bare verb stay refused.
+
+**QUESTIONS TOO, AND THE QUESTION WORDS ARE VOCABULARY (1.2.34).** A
+sentence that ends in `?` is a question in either direction. The lesson
+says `The word "qué" means "what"`, `The word "quién" means "who"` and
+`The mark "¿" begins the question` -- `begin(M, question)`, and both
+words in it are chosen: `a question` would introduce an individual whose
+class is the reader's own `question/1` wrapper, which `reason_name/2`
+skips as a question and leaves a variable in, and `opens` is `open`,
+which cocolint reads as the stream builtin and flags. What the translator knows is
+English's: the copula or `does`/`do` fronted, `what` asking for the
+object and `who` for the subject. The lesson's language asks in the
+statement's order (`¿La casa es grande?`, which needs no rule), except
+that after a question word asking for the object the verb comes before
+the subject (`¿Qué come el perro?`), and it is READ in either order --
+`¿Es grande la casa?` puts the adjective before the subject and is read
+too. Two things bit: `¿` is two bytes past 127 and the tokeniser had
+made every such byte a letter, so `¿Qué` was one word `¿qué` -- U+0080
+to U+00BF and the general punctuation block are signs now, dropped like
+any other; and a word's case travelled with it, so `Is the house big?`
+came out `¿La casa Es grande?` -- the head of a sentence goes lower when
+the lesson knows the word, and only a name keeps its capital. And a
+question word the lesson has no word for was passed through as a NAME,
+by the capitalised-and-unknown rule; a question word is never one.
+
+**THE PAST, TOO, AND A PAST IS STATED OF A FORM (1.2.35).** `"comió" is
+the past of "come"` and `"comieron" is the past of "comen"`: the lesson
+states a past of the singular form and of the plural form, because a
+Spanish preterite is no suffix of its present, and a rule
+(`take_in(F, E, past)`, `takes "ba" in the past`) serves where it is
+one. The verb's LEXEME comes with a TENSE now: a present form the lesson
+gave, or a past the lesson stated or its rule makes, and in English
+`was`, `were`, `had`, a regular `-ed` taken back to a base whose third
+person the lesson gave, or `did` fronted or before `not` -- which the
+base form after it cannot say, so the negation and the fronting report
+the tense they saw and the sentence takes the past if any sign says so.
+English's own is the copula in `was`/`were`, `did not` and `did` with the
+base, `had`, `-ed` with `-d` and `-ied` (`"ate" is the past of "eats"`
+for the rest), and the translator generates a Spanish past of the
+NUMBER's form, so `comieron` is asked for as the past of `comen`. A past
+that spells like a present form (`read`) is read as the present: `The
+cats read the books` is `leen`, and `leyeron` comes back as `read`. What
+bit: a stated past of a plural form the RULES make (`comen` is no
+lexeme) was refused until the past lookup went through the lexeme
+machinery rather than `plural_of/2` facts.
+
+**A FULL TRANSLATION, AND A SENTENCE IS ONE SHAPE READ FROM EITHER SIDE
+AND WRITTEN TO THE OTHER (1.2.36).** `library(reasoning/translate)` was
+rewritten around one shape -- a subject, a verb group (the lexeme, its
+tense, simple or perfect, denied or not) and the complements after it --
+a question first put into the statement's order and its question word
+kept aside with what it asks for. What a lesson may say now, and the
+translator asks for: the first and second PERSONS of a form (`"como" is
+the first person of "come"`, read by the grammar's new `is the ADJ NOUN
+of X` shape as `first(como), person_of(como, come)`; the third is the
+form); the FUTURE by an ending rule (`takes "rá" in the future`) or
+stated; the PERFECT as the auxiliary the lesson names (`The auxiliary
+"ha" means "has"`) in the subject's person and number, with a stated
+participle; pronouns, possessives, prepositions, adverbs, numbers and the
+conjunction as classes, and whether a pronoun precedes the verb -- a
+DENIAL overriding the rule for one word (`Every pronoun precedes the
+verb. The pronoun "él" does not precede the verb.`, through
+`tr_holds/1`); the words for `where`, `when` and `which`, and one word
+meaning two (`qué` is `what` and `which`, chosen by what the question
+asks for). A sentence of the lesson's language with no subject takes the
+pronoun its verb says (`Comemos el pan` is `We eat the bread`; a third
+person singular is refused, because it could be anybody), and English's
+`it` as a subject becomes no subject at all. A lesson learned under a
+NAME (`reason_learn/3`, asserted as `lesson(L, Term)`) shares nothing
+with another; the words vote for the language a text is in or goes
+into, and two that fit equally refuse it until `reason_translate/3`
+names one. `test/translate.pl` is the case, 329 checks over 171 lines of
+Spanish and 18 of Italian, and lesson 46 gained four sections. Four
+things bit, and each is a fact about ENGLISH rather than Spanish: `lo`
+means `him` and `it`, and `it` is a subject in English, so `Ella lo ve`
+read `lo` as the subject until a word that also means an object's-only
+pronoun was ruled out as a subject (`tr_subject_pronoun/4`, and its
+mirror for objects); `la` is the article and the pronoun `her`, so `en
+la ciudad` read as `in her` until an object pronoun before a noun was
+ruled an article; `I` went through the inflector to `is` and became the
+verb of `I eat the bread`, so the group finder guards English's own
+words (`en_own/1`); and `Every pronoun precedes the verb` made
+`nosotros` a clitic too, so `with us` came out `con nos` until a pronoun
+that may be a subject was preferred after a preposition. And the
+tokeniser's case was ASCII-only -- `Él` was `word('Él', lower)` -- so a
+capital in the Latin-1 block (U+00C0..U+00DE, the UTF-8 bytes 195 and
+128..158) is a capital now and lower-cases to its small letter, on the
+reader's side and the writer's.
+
+**`whom`, AND THE WORD A LESSON PUTS BEFORE A PERSON (1.2.37).** Spanish
+marks a person as the object with `a` -- `Maria ve a Omar` -- and the
+translator had read that `a` as the preposition `to`. The lesson says it
+now: `The word "a" precedes the person.` is `precede(a, person)`, `"amigo"
+is a person.` says which nouns are persons, and a name is one. Written
+into the lesson's language, the word goes before an object that is a
+person -- a name, a phrase whose noun the lesson calls one, two such
+joined, `whom` -- and never before a pronoun that stands before the verb
+(`Maria lo ve`); read on the lesson's side, that word with a person after
+it and NO OBJECT BEFORE IT is the object (`tr_complements/4` carries
+whether one has been read), and after an object it is the preposition it
+is (`da el libro a Omar` is `to Omar`). The cost is stated in the header:
+`Maria canta a Omar` reads as `sings Omar`, because nothing in the
+sentence says otherwise. `whom` is `who` asked for as the object and needs
+no word of the lesson's: `Whom does Maria see?` is `¿A quién ve Maria?`
+and comes back as itself, where `¿Quién ve a Maria?` is `Who sees Maria?`;
+`¿A qué amigo ve Maria?` is `Which friend does Maria see?`. And a
+contraction is the lesson's too -- `"al" is the contraction of "a el"` --
+read as its words and written back as itself, so `Maria ve al amigo` and
+`los perros del amigo` go both ways. What bit: the words VOTE for the
+language a sentence is in, and `Maria ha visto a Omar` tied, because the
+English inflector reads `ha` as the base of `has` and `a` is the article
+too, while the participle `visto` counted as no word at all; a lesson's
+word that English knows only by inflecting it is the lesson's now, and a
+participle is a known word. `test/translate.pl` pins it in its `persons`
+section, and lesson 46 in its fifteenth.
+
+**A TIME PHRASE IS NOT A PLACE, AND A LESSON ENDS IN `done` (1.2.38) --
+two things the full suite found that six standalone case runs had not.**
+The 1.2.33 shapes -- a definite phrase after an object is a place, a
+determined noun after a bare verb's preposition its class atom -- let
+the generator's noise through: `Maryann does not redistribute an
+enceliopsis in the morning` read as `redistribute_in(..., morning)` and
+`Young decays for a while` as `decay_for(young, while)`, so
+`test/normalise.pl`'s `every noisy text is refused` went RED, and with
+it the tagger's teaching that such a phrase is noise. `rl_time_noun/1`
+is a closed list -- moment, morning, evening, night, day, week, year,
+while, end and the rest -- and `rs_place` and the bare-verb mention
+refuse one, so `keeps the tractor in the barn` and `ends in a vowel`
+read as before and `at the moment` stays noise. And `test/tutorials.pl`
+requires a lesson's LAST LINE to be exactly `done` (`one_lesson/3`,
+300 s a lesson, from the repo root), which lessons 43, 44 and 46 broke
+with `Done.` -- each passed under `-s` and under `run FILE main` by hand,
+because nothing by hand reads the last line. The rule to carry: **a
+case that passes alone proves the case, and the suite proves the
+contract between cases**; run `make test` before the claim, with a
+server up, and read the 58 lines. Measured on this box after the fix:
+58 lines, 7 SKIPs (tensors, the three torch cases, tensorflow, ray,
+numpy -- every one a missing library, none a missing server), `red: 0`.
+
+**A LESSON TYPED AS PROSE, AND THE TAG THAT WRITES THE QUOTATION MARKS
+(1.2.39).** A language lesson is written about WORDS -- `The noun "casa"
+means "house"`, `"los" is the plural of "el"`, `Every noun that ends in
+"a" is feminine` -- and prose writes them bare: `The noun casa means
+house`. A token tagger labels and never emits, so the marks had nowhere to
+come from until a thirteenth tag, `M`, a MENTIONED word, which is the one
+tag `normalise_assemble/3` writes something for: an M token goes between
+quotation marks and a run of them is one mention (`al is the contraction
+of a el` gives `"a el"`), a `quoted(W)` token is M and nothing else, and a
+sentence with a mention before its relation has a subject of its own, so
+`and is feminine` after `casa means house` takes `"casa"` as the assembler
+already took `Priya`. Ten shapes make the lessons (45-54) and two
+transforms undo the prose: `unquote` (the marks off, at seven pairs in
+ten) and `in_language` (`In Spanish,` at the head, `in Spanish` after a
+fact about a mention, both D). **NO WORD OF A LESSON LIVES IN THE CODE,
+which is the owner's rule for training data**: the shapes draw their
+mentioned words, the classes said of them, the adjectives, the forms, the
+relations and the class atoms out of `library/reasoning/corpus/*.txt` --
+the Spanish and Italian lessons of `test/translate.pl`, one sentence a
+line, the same controlled English -- by pattern over the tokens
+(`ng_corpus_word/3`), so a lesson that needs a word or a shape the corpus
+lacks gets a LINE there, and `tagger_lessons/4` measures the shipped
+tagger on those lines typed bare (`normalise_bare/2`). `lexicon/language.txt`
+joined the WordNet files for `Spanish is a language` and the noise:
+a word under `natural_language` in its first sense, or its second when
+the first is a person (Italian, German), never a thing (tongue, chin).
+Three things the grammar had to learn, each found by the round trip:
+`"casa" is a feminine noun` is `feminine(casa), noun(casa)` (the
+indefinite property takes adjectives, as the apposition does); a
+sentence that MENTIONS a word names no place, so `"casa" means "house" in
+Spanish` and `The word "no" precedes the verb in Spanish` are refused
+rather than read as mean_in/3 -- where `takes "s" in the plural`, a
+definite phrase, is still the form; and `on the whole` is an adjunct
+noun like `in the morning`. And the judge gained two rules: a quoted
+token is M whatever the network says, and a sentence with a mention is
+related only by `is` or a verb some lesson uses, which is what keeps
+`Boston, Mass.` from becoming a fact about the word `boston`. Two
+things bit. A class word taken from `begins the question` made
+`question(lo)` a fact, and `question/1` is the reader's own wrapper: the
+classes said of a word come only from `the CLASS "w"` and `"w" is a
+CLASS`, never from what a relation ends in. And `unquote` is the one
+transform whose noisy text the grammar may READ -- `Leche is feminine`
+is a fact about a name -- with the same term either way, so
+`test/normalise.pl` now holds every noisy text to the clean text's terms
+rather than to a refusal. **WHICH IS ALSO WHY A BARE MENTION AT THE HEAD
+IS TAGGED S, THE NAME READING**: the first model trained with head
+mentions tagged M read `Mia is a nurse and is careful` as `"mia" is a
+nurse` -- a bare word at the head of a copula sentence cannot be told
+from a name, and the network had been taught to guess. The term is the
+same either way (`feminine(leche)`, `mean(casa, house)`), so `unquote`
+writes a head mention bare and tagged S, and keeps the marks when the
+lexicon knows the word as a common word (the judge refuses `House` as a
+subject, as it refuses `Small business management`) or it is closed;
+`normalise_bare/2` types a lesson the same way. A lesson typed bare
+therefore reads back to its terms with its head words as names, and a
+name typed after a lesson stays a name. Measured on the shipped model,
+trained on `generated/training.txt` (32768 pairs, 500 steps): over 300
+unseen pairs 0.988 of the tags, 0.933 of the sentences, 0.953 assembled
+and parsed to the clean terms -- and 0.963 and 0.973 from the 16384-pair,
+400-step training before it, so a training moves the sentence figure by
+three points either way and the pins sit at 0.90 (0.9997 and 0.997
+before the lesson shapes, whose bare mentions are the hard part); real
+prose refused 0.950; the corpus's 194 lines typed bare read back at
+0.876. That 16384-pair model dropped `late` in `Is Dana late?` to D and
+lesson 45 went red on it, which is what moved the defaults: more pairs
+per shape, once fifty-five shapes shared them. **AND THE DATA A MODEL TRAINED ON IS IN THE
+TREE, WHICH IS THE OWNER'S SECOND RULE**: `library/reasoning/generate.pl`
+writes the generator's pairs to `library/reasoning/generated/`
+(`training.txt`, seeds 1..32768; `evaluation.txt`, 30001..30300; one
+`pair(...)` term a line, `normalise_save/2` and `normalise_load/2`),
+`train.pl` trains on that file through `tagger_train/2`'s `pairs_file(F)`,
+`tools/tagger/train.sh` runs the two in turn, and the files are committed
+beside `model.rows` -- a seed is reproducible only while nothing under it
+moves. The generator programs are `.pl` files in the reasoning library
+now, `library/reasoning/lexicon/build.pl` and `library/reasoning/train.pl`
+(the `tools/` scripts stay as launchers), which is the rule's other half:
+a generator is a cocolog program beside the data it writes.
+
+**A VOCABULARY OF EIGHTY THOUSAND LESSON LINES, WRITTEN FROM A DICTIONARY
+BY A COCOLOG PROGRAM, AND A PAGE TRANSLATED OVER IT (1.2.42).** The
+lessons a hand writes give a translator its grammar and a few dozen words;
+a page of Spanish wants twenty thousand. `library/reasoning/corpus/build.pl`
+writes them, in the same controlled English the reader already reads --
+`The feminine noun "casa" means "house".`, `"comió" is the past of
+"come".`, `"amigo" is a person.`, `"problema" is not feminine.` -- out of
+Apertium's dictionaries: the bilingual one for the meanings and the parts
+of speech, the monolingual one for every word's PARADIGM, so a noun's
+gender and plural, an adjective's four forms and a verb's every person
+and tense are the stem with an ending read off it. `corpus/vocabulary/spanish.txt`
+is 79 713 lines from 21 573 entries, `italian.txt` 59 952 from 17 276, both
+committed; `tools/corpus/fetch.sh` downloads the raw dictionaries into
+`corpus/raw/` (NOT committed, 30 MB, pinned to their commits) and
+`test/translate.pl`'s `build` section rebuilds the Spanish file from them
+and requires it byte for byte. **The raw sources were the finding of the
+hour before**: of twenty hosts that carry Spanish and Italian data, this
+box reaches four -- raw.githubusercontent.com and a `git clone` of a
+public repository, the Ubuntu archive, PyPI and one Google bucket --
+and tatoeba.org, manythings.org, OPUS, Hugging Face, kaikki.org, the
+Wikimedia dumps, statmt.org and every university mirror answer 403 from
+the egress policy, to `curl` and to the web-fetch tool alike.
+
+**LEARNING IT IS MINUTES ONCE, AND READING IT BACK IS A SECOND.**
+`library/reasoning/teach.pl` learns a language's grammar file and then its
+vocabulary, in chunks of four hundred lines, into whatever knowledge base
+the process proves against, and `library/reasoning/page.pl` over that
+store translates a page of eleven sentences in 0.9 s, start-up included.
+Measured under `--embed`, each language alone on the box, a fresh store
+each, the process's peak resident size read off `/proc` every two seconds:
+
+| lesson | lines | terms | wall | peak resident | store |
+|---|---|---|---|---|---|
+| Spanish, grammar + vocabulary | 79 897 | 142 278 | **5 min 43 s** | 5.98 GB | 54 MB |
+| Italian, grammar + vocabulary | 60 078 | 107 425 | **3 min 14 s** | 4.53 GB | 48 MB |
+
+-- 4.3 ms a line for Spanish and 3.2 for Italian, so the cost is close to
+linear in the lines and the Spanish file's longer verb paradigms are the
+difference. (The same Spanish teach was 4 min 24 s earlier the same day,
+which is this box's ~20 % drift and not a change in the code.) One language
+a store, because a lesson learned plain is the language with no name.
+**`teach.pl` sits at four to six gigabytes resident** -- the reader's heap
+over eighty thousand sentences -- and the tagger's training at 8 GB, so the
+two teaches and a retrain run together were 16.5 GB against a 14.3 GB
+cgroup and the training was the one killed (`Memory cgroup out of memory`,
+exit 137, with `generate: wrote ...` as its last line): run them apart.
+The same limit killed `test/tagger.pl` at 10 GB when a 1.4 GB probe was
+run beside it, so a probe waits for a training to end.
+
+**WHAT IT TRANSLATES IS MEASURED ON TATOEBA, NOT CLAIMED.** Every hundredth
+of the 118 964 English-Spanish pairs of `spa-eng.zip`, four hundred
+sentences the lesson never saw:
+
+| | |
+|---|---|
+| translated | **140** of 400 |
+| exactly the reference (case and punctuation aside) | 27 |
+| refused | 260, of which 88 with every word known |
+
+The exact matches are the shape the translator has -- `Ella tuvo
+gemelos.` She had twins, `¿Quién te contrató?` Who hired you, `Yo no toco
+el piano.` I do not play the piano -- and most of the 113 that differ are
+right in structure and wrong in a word (`Tom tiene razón.` Tom has reason;
+`Lo hicimos.` We made him) or a contraction the reference used (`I'll
+pay.`). The 88 refused with every word known are the shapes it does not
+have: an imperative (`¡Lárgate!`), a subjectless third person (`Estaba
+cansado.`, who could be anybody), `estar' with a participle (`Él fue
+humillado.`), a demonstrative. A page of simple sentences is another
+matter: eleven of eleven in Spanish, ten of eleven in Italian (the eleventh
+is `l'autore', which the tokeniser cuts at the apostrophe).
+
+**AND THE 172 REFUSED FOR A WORD ARE MOSTLY NOT THE DICTIONARY'S GAPS.**
+Every unknown word of the 400, sorted by what it is (a sentence counts
+once per kind):
+
+| the unknown word is | sentences | e.g. |
+|---|---|---|
+| a closed word the hand lesson lacks: demonstratives, quantifiers, `se', `nadie', `todos' | 52 | otro, ese, esto |
+| an INFINITIVE, the form the builder never writes, after a verb that takes one | 42 | dormir, saberlo |
+| a subjunctive, a conditional or a second person -- forms Apertium HAS and the builder skips | 39 | llueva, podría, besaste |
+| a lemma Apertium's bilingual dictionary lacks, or a form of one (`hay', `sos') | 38 | calvo, delgaducho |
+| a GERUND | 19 | esperando |
+| a participle used as an adjective, a diminutive, an imperative, a number word | 15 | acostumbrada, perrito |
+
+So the dictionary is short for about one refusal in seven, and a
+second source would move roughly a tenth of the 400. What moves the rest
+is on this side: the builder writing the forms Apertium already carries
+(the infinitive, the gerund, the subjunctive, the conditional, the second
+persons, the imperative) as lesson lines the reader can already read
+(`"dormir" is the infinitive of "duerme"` is the `is the NOUN of X` shape),
+thirty lines of closed words in the hand lesson, and the translator's
+shapes for what those forms do -- a verb before an infinitive, `estar'
+before a gerund, `hay', an imperative, a participle after `ser' or
+`estar', `gustar', a demonstrative before a noun. Each refusal names its
+line or its shape, which is what the refusal contract is for.
+
+**THE TRANSLATOR HAD TO SCALE FIRST, AND ITS COST WAS QUADRATIC IN THE
+LESSON.** A rule-made form -- `casas' by `takes "s" in the plural',
+`comerá' by `takes "rá" in the future' -- was found by walking EVERY
+lexeme of the lesson and inflecting each to see whether it came out as the
+form: 34 ms a sentence over the 176-line lesson, **690 ms with a thousand
+vocabulary lines and 3 040 ms with two thousand**. `tr_rule_stem/3` takes
+the form apart instead: the endings a rule can add are the few its
+`take_in/3` heads name, the form loses each in turn and the stem left is
+an indexed lookup, so the same three sentences cost 3.1, 4.5 and 7.2 ms.
+Nine more things the vocabulary found, each a sentence that read on the
+hand lesson and not on the big one:
+
+* **A noun is often a verb's form too**, and the shortest cut put the verb
+  there: `hermano' is the first person of `hermana' (to twin), so `Mi
+  hermano tiene un coche' had `Mi' for its subject. The statement reader
+  (`tr_group_from/5`) now tries each place a verb group starts and goes on
+  when nothing before it is a subject, the cut once the WHOLE statement
+  read -- because `house' is a verb's form as well and `The house is big'
+  had `is big' as its complement; and the subject phrase's SHAPE (a
+  determiner, adjectives, the noun, adjectives, the verb after) is tried
+  before the cut. The same word in the phrase's NUMBER is read as the
+  noun it is (`houses' is the plural of `house' before it is `to house',
+  `aloja'), on both sides.
+* **Two words the lesson calls nouns in one phrase** (`el gato negro',
+  where `negro' is a noun as well) refused the phrase; it is the first
+  where adjectives follow the noun and the last otherwise, the rest
+  adjectives. And `The' alone is no phrase, whatever `el' means.
+* **A meaning's shape says its class**: a verb the lesson gives is a third
+  person (`visits'), so in a verb's place a meaning shaped like one comes
+  first and in a noun's or an adjective's one that is not -- `visita'
+  means visit and visits, and `El rey visita la ciudad' had said `The
+  king visit the city'. The builder orders the nouns first for the same
+  reason: `periódico' is a newspaper before it is periodic.
+* **A gender the rule gets wrong is denied**: `"problema" is not feminine.'
+  beside `Every noun that ends in "a" is feminine', and `tr_gender/2` asks
+  `tr_holds/1`, where a denial wins over a rule, as `The pronoun "él" does
+  not precede the verb' already did.
+* **A plural the lesson states of a word that is the LESSON's too is not
+  English's**: `"redes" is the plural of "red"' is about the Spanish net,
+  and `las manzanas rojas' came out `the redes apples'.
+* **`sono' is the first person of `è' and the plural of it**, and which one
+  it is in `Le case sono grandi' the subject decides: the verb group is
+  not cut on a form's first reading.
+* **The English subject phrase goes on over the nouns after its first**
+  while a verb still follows: `the black cat sleeps', where `black' is a
+  noun too by its translation and `cat' was left to the verb.
+
+`reason_translate_page/2,3` is the surface for a page: every sentence its
+own, `Sentence-Translation` or `Sentence-refused(Words)`, never the page
+refused for one sentence in it. **The minor is proposed**: the page
+predicate, `teach.pl` and `page.pl` are new things a program reaches;
+the owner decides.
+
+**FOUR THINGS BIT WRITING THE BUILDER, and the first cost ten minutes of a
+run that never finished:**
+
+* **`sub_string/5` IS CLAUSES, and a search with it walks the line a
+  position at a time converting it to codes each step.** The first draft
+  tested every line of a 10 MB dictionary with it and was killed at ten
+  minutes; every test is a C builtin now -- `split_string/4` once a line,
+  `atom_string/2`, `atom_concat/3` in the modes that take a line apart
+  (`(+,-,+)` and `(-,+,+)` work; `string_concat/3` has only `(+,+,-)`) --
+  and the whole Spanish build is 18 s.
+* **A `"..."` literal is CODES unless the file sets the flag, and
+  `split_string/4` answers STRINGS**: `memberchk("l", Toks)` never matched
+  and the builder read 0 lemmas, 0 endings and 0 entries in 2.7 s with no
+  error anywhere. `:- set_prolog_flag(double_quotes, string).` at the head
+  of a program that compares tokens with literals.
+* **Apertium tags `ser' and `essere' vbser, `haber' vbhaver, and writes
+  them with NO STEM** -- `<e lm="ser"><par n="/ser__vbser"/></e>` -- so a
+  reader that wanted `<i>` and `vblex` skipped the two verbs no lesson can
+  do without; a lemma is also a noun and a verb under one name (`ser',
+  `casa'), so its forms are EVERY paradigm's; a superlative (`sup',
+  `grandissimo') sat where the masculine form was looked for; `sp' is a
+  form that is both numbers (`città'); and a bilingual entry's own gender
+  tag picks the form of a two-gender paradigm (`daughter' is hijo<f>:
+  `hija', and the first build had `hijo' meaning daughter).
+* **`pkill -f PATTERN` AND A `pgrep -f` LOOP MATCH THE SHELL RUNNING THEM**,
+  twice in one session, exit 144 both times and the command's own work
+  undone with it -- the hazard this file already records for `pgrep -f
+  'make'`. Kill by reading `/proc/PID/cmdline` of the process names you
+  mean (`pgrep -x cocolog`), skip `$$` and `$PPID`, and match a prefix.
+
+**THE CORPUS MOVED, SO THE TAGGER'S DATA AND MODEL MOVED WITH IT -- AND A
+SHAPE THE GENERATOR MADE RARELY WENT DOWN WITH THEM.** The Italian lesson
+grew from 18 lines to 123 -- articles, the copula and the auxiliary in
+their forms, negation, question words, pronouns, possessives, prepositions
+and their contractions -- because a page of Italian needs them and the
+generator draws its lesson shapes from `corpus/*.txt`, so `generated/` and
+`model.rows` were regenerated by `tools/tagger/train.sh` (the vocabulary
+directory is NOT read by it: eighty thousand lines of dictionary are not
+the tagger's shapes). The first model trained on the moved corpus went RED
+on `Well, Zed really owns a red car, obviously.` -- `red' tagged D -- in
+the case and in lesson 45 alike, and a second training was the first one
+over again, the same loss at every step and the same measurement line to
+four figures: **the training is deterministic, so "retrain and see" is
+five minutes that answer nothing.** It was neither `Zed' nor `red', and a
+grid settled that in five seconds -- four names, four adjectives, two
+nouns, a filler at the head or not, an adverb or not, six endings, tagged
+as one batch:
+
+| after the object | 1.2.41's model kept the A | the first 1.2.42 model |
+|---|---|---|
+| nothing | 128 of 128 | 113 |
+| `, obviously` | 108 | **0** |
+| `, I think` | 75 | **0** |
+| `, as far as I know` | 59 | **0** |
+| `on time` | 97 | 26 |
+| `and Eve sleeps` | 128 | 65 |
+
+-- so the OLD model was weak on the same shape and the pinned sentence had
+passed by margin: an adjective inside an object with a comma filler after
+it. The data explained it with no network in the loop. Only the FOUR
+shapes that call `ng_object` ever carried an adjective; the nine other
+verb-object shapes wrote `Art-'T', N-'O'` themselves, so `T A O , D` was
+made **352 times in 32 768 pairs against 4 120** of the bare `T O , D` --
+and the moved corpus changed only the WORDS of 4 418 lesson pairs (every
+tag n-gram count identical either side, `red' as an A nine times either
+side), which was enough to tip a shape the network had barely learned.
+Every verb-object shape carries an adjective now -- `ng_np/4`, on a salt
+of the shape's own so every other word a seed drew stays what it was --
+**and the share it carries was measured, because the count was not the
+cause.** Four generators, 500 steps each, the same tensor seed unless
+said, the grid of 384 above and the 300 evaluation pairs:
+
+| the widened shapes' objects: none / one / two | A tokens | `T A O , D` pairs | grid kept the A | sentences right |
+|---|---|---|---|---|
+| never (1.2.41's generator, the moved corpus) | 15 774 | 352 | 0 of 384 | 0.9167 |
+| thirds, as `ng_object` | 24 643 | 774 | 20 | 0.8300 |
+| **1/2 / 1/3 / 1/6** | ~21 000 | 780 | **207** | **0.8867** |
+| 2/3 / 1/3 / never | 18 619 | 791 | 0, and 11 under seed 46 | 0.8600, 0.8567 |
+
+The shape is made 774 to 791 times in three of the four and the outcome
+runs 20, 207 and 0 -- so the network learns it by the luck of its
+minimum, and the third row is what ships because it is the one that
+learned it, with the single sentence and the two-sentence paragraph both
+read. The model trained on the thirds also failed the shape ON ITS OWN
+TRAINING PAIRS -- 32 of 300 kept the A, and 219 of 300 at the end of a
+sentence -- at a loss of 0.013 where 1.2.41's training ended at 0.006: a
+minority pattern a fifth of a per cent of the tokens can be wrong
+throughout and move the loss by nothing. `test/tagger.pl` therefore pins
+the grid at a QUARTER, the level that tells a collapse (0.05, 0.00, 0.03)
+from a model (0.54), for the model it trains and for the shipped one, and
+its sentence pin moved from 0.90 to 0.85 with the reason beside it: the
+evaluation pairs carry adjectives in every verb-object shape now, and
+0.8867 is what the same training reads. **The durable fix is a word's
+class as an input feature** -- `red', `big' and `small' are in
+`lexicon/known_adj.txt` and the network is handed only their case and
+ending -- and it is proposed here, not done, because it changes what the
+shipped rows mean. Measured on the shipped model, by `tools/tagger/train.sh` itself:
+`tagger: tokens 0.9884 sentences 0.8867 accepted 0.9533, real prose
+refused 0.9600, lessons typed bare read 0.8495`. The lessons-typed-bare
+pin moved from 0.85 to 0.78 with the reason beside it: a fifth of the new
+lines mention a word of one letter -- `"i" is the plural of "il"', `The
+conjunction "e" means "and"' -- which typed bare is `I' or an article to
+the judge, and refused rightly; 0.8495 is the pin holding with room.
+
+**FOUR THINGS TO CARRY.** A pinned SENTENCE proves a point and a grid
+proves a shape: the sentence passed on 1.2.41 at 108 of 128 and told
+nobody. A deterministic training makes a second training a control, not a
+retry -- the losses said so at the first step. A loss is an average over
+every token, so a shape that is a fifth of a per cent of them can be
+wrong throughout at a loss that reads converged: test the shape on the
+TRAINING pairs before asking why it fails on new ones. And a count is not
+a cause until the outcome moves with it -- here it did not, and two
+arms that changed only the count said so in eight minutes. And one hazard
+beside them, measured after the case was killed twice at the box's 14 GB
+limit -- once with a 1.4 GB probe beside it, once ALONE, with its output
+lost in the kill because a killed process never flushes: **`tagger_tag_all/3`
+KEEPS THE BATCH'S INTERMEDIATE TENSORS.** On the shipped model, the 384
+grid sentences in ONE batch took the process from 199 MB resident to
+2 267 MB and a second pass to 4 213 MB; twelve batches of 32 cost 140 MB
+and one sentence at a time nothing measurable; `tagger_evaluate/4` over
+300 pairs costs 177 MB, so it batches small already. The case tags its
+grid one sentence at a time now and the leak is the torch module's to
+fix -- a batch's intermediates freed as a training step's are. A training
+sits near 10 GB at 500 steps and an 800-step arm died at 14 GB, so a
+training or the case still runs ALONE on this box.
+
+**THE FORMS THE DICTIONARY ALREADY HAD, AND THE SHAPES FOR THEM (1.2.43).**
+The table above said the dictionary was short for one refusal in seven and
+the rest was on this side, and this is the rest, in the three places it
+belonged. **The builder writes what Apertium carries and the reader
+already read**: `"comer" is the infinitive of "come"`, `"comiendo" is the
+gerund of "come"`, `"comería" is the conditional of "come"` with its
+plural and persons (`inf`, `ger`, `cni` -- the `is the NOUN of X` shape,
+so `reason.pl` did not move); the `vbmod` verbs as `The modal "puede"
+means "can"` with every form a verb has; the cardinals, which the
+dictionary writes as a bare pair with a paradigm beside it
+(`<l>four</l><r>cuatro</r><par n="three__num"/>`); a `det` entry as a
+demonstrative or a determiner by its kind, in its genders with their
+plurals (`The feminine demonstrative "esta" means "this"`, `"estas" is the
+plural of "esta"`, `The determiner "cada" means "each"`); a `prn` entry
+as a pronoun that stands alone, with `The pronoun "esto" does not precede
+the verb` beside it, so the hand lesson's `Every pronoun precedes the
+verb` leaves it after; `there is`, the one entry of more than a word,
+as `The verb "hay" means "there is"`; and `"running" is the gerund of
+"runs"` for every English verb the translator's -ing rule gets wrong,
+which the builder asks the translator (`tr_english_ing/2`) rather than
+copying the rule. The Spanish file went from 79 713 lines to 92 087 and
+the Italian from 59 952 to 70 576. **The translator got the shapes**: an
+infinitive after a verb (`inf(L)`, English's `to` and the base, the base
+bare after a modal, the lesson's `infinitive_of`); a modal as its own
+word in the tense (`can`, `could`, `cannot`, never `does`); the
+progressive as the auxiliary that MEANS `is` and `gerund_of` (`está
+comiendo`, and `is eating` by the copula and -ing); the conditional
+(`comería`, `would eat`, `could`, `might`); a demonstrative or a
+determiner in the article's slot, agreeing like one, with English's own
+`this`/`these`, `that`/`those`, `much`/`many`, `another`/`other`; a
+pronoun standing alone as a subject or an object of the third person
+(`Esto es grande`, `Maria ve esto`, `Nadie come`); and `there is` with no
+subject and the phrase as its first object, the copula in the phrase's
+number and `no` for the denial (`Hay perros` / `There are dogs`, `No hay
+perro` / `There is no dog`), the present only because no lesson states a
+past of `hay`. **And the hand lessons got the auxiliary of the
+progressive** -- `The auxiliary "está" means "is"` with its forms, `sta`
+in Italian -- because a vocabulary gives `es` and `está` as `is` alike
+and cannot say which one takes a gerund. `test/translate.pl`'s `shapes`
+section pins forty of them both ways over the vocabulary's lines, lesson
+46's section 17 shows them, and the inline lesson is 183 lines and 300
+terms in both.
+
+**NINE THINGS BIT, and six of them only over the VOCABULARY, where the
+hand-lesson probe had passed every sentence first time:**
+
+* **The cut at `<` and `>` leaves an EMPTY field between `/>` and `</l>`**,
+  so the pattern for `there<b/>is<s n="vblex"/></l>` matched nothing and
+  `hay` was silently absent from a build that exited 0. Print the line's
+  tokens before writing a pattern over them.
+* **`nobody` is tagged `prn` and not `prn tn`**, so admitting the tonic
+  tag alone made `nadie` mean `anybody` (the `RL` entry for negative
+  sentences); the English WORD decides now, from a list the translator
+  has a slot for, and a clitic never passes because `me` and `him` are
+  not on it. `alguien` still comes out `anybody` before `somebody`: the
+  dictionary's order, and this file says so rather than reorders it.
+* **A dedupe keyed on the CLASS took five minutes** over 21 700 entries
+  where the same memo keyed on the word is free -- `cb_note/3`'s rule,
+  broken in the clause below it -- and **a killed step in a `&&` chain
+  does not stop it when `| tail` swallows the exit**: the chain went on,
+  rebuilt `italian.txt` with the slow builder six minutes later and
+  overwrote the fixed one. Check the timestamps before trusting a file a
+  background job may still be writing.
+* **`Estas casas son grandes` came back as `These marry big iss`.** A
+  vocabulary makes `casa` the verb `marries` too, `casas` its plural, and
+  `estas` a pronoun (`these`) that agrees with it, so the earliest group
+  whose subject read was the wrong one and `son grandes` went through as
+  a phrase whose noun was `son`. Three rules closed it, each right on
+  its own: a tonic pronoun is never a clitic (`tr_clitic/2`); a phrase's
+  noun by position is refused when the lesson calls the word a verb and
+  no noun (`tr_np/3`); and among the words meaning `this` the one that
+  is a pronoun and nothing else comes first (`esto` before `este`, which
+  the vocabulary writes as a demonstrative first).
+* **The case's word filter picks a line by its MENTIONS**, and `"estas" is
+  the plural of "esta"` mentions no listed word, so in the case `estas`
+  was unknown, capitalised at the head, and therefore a NAME -- which is
+  the design -- and `Estas casas` read as somebody called Estas. Every
+  form a check needs is a word on the list now (`esta`, `comería`,
+  `runs`), and lesson 46 matches any mention where it matched the first.
+* **`atom_concat/3` has no (-,-,+) mode** (this file said so under the
+  builder and the gerund rule forgot it): `sub_atom/5` takes the last
+  letter first.
+* **`querer` means `loves` before it means `wants`**, in the dictionary's
+  order, so the reverse of `Maria wants to eat` is checked with
+  `necesita`; a pin that had wanted `wants` back would have pinned an
+  order nobody chose.
+* **`These are big` wrote `Esto son grandes`**: the plural of a pronoun
+  that stands alone was taken as the singular's word inflected, and
+  `esto` HAS no plural -- `estos` is the plural of `este`, the
+  demonstrative. The plural asks for the first word for the singular
+  that has one.
+* **An infinitive between a fronted verb and its subject read as the
+  subject.** `¿Necesita comer Maria?` put `comer` where `Maria` belongs,
+  because `fo_subject_after/5` takes what follows the verb; it steps over
+  an infinitive now, which is no subject in any sentence.
+
+**MEASURED AGAIN ON THE SAME FOUR HUNDRED TATOEBA SENTENCES**, the store
+re-taught from the rebuilt vocabulary:
+
+| | 1.2.42 | **1.2.43** |
+|---|---|---|
+| translated | 140 of 400 | **196 of 400** |
+| exactly the reference (case and punctuation aside) | 27 | **47** |
+| refused | 260 | **204** |
+| -- of those, with every word known | 88 | **127** |
+
+**AND THE RISE IN THE LAST ROW IS THE POINT, NOT A REGRESSION.** A sentence
+refused for a WORD becomes a sentence refused for a SHAPE the moment the
+builder writes that word's form, so the 88 becoming 127 is 39 sentences
+moving from the first column of the refusal table to the second while 56
+others left the table altogether. The forms are 12 374 lines of Spanish and
+10 624 of Italian; what is left refusing is SHAPES the translator does not
+have, and reading the 127 says which -- about half are imperatives
+(`¡Lárgate!`, `Dame eso.`, `No te rías.`), then a subjectless first or third
+person (`Estaba cansado.`, `Me sentía solo.`, `Tenemos que correr.`), then a
+passive (`Él fue humillado.`). That is the next lever, and every one of them
+names itself in the refusal.
+
+**AND THE SEVEN LESSON LINES COLLAPSED THE TAGGER, WHICH IS WHAT FORCED THE
+DURABLE FIX THE SECTION ABOVE PROPOSED.** The generator draws its lesson
+shapes from `corpus/*.txt`, so `The auxiliary "está" means "is"` and its six
+forms changed the WORDS of the lesson pairs -- and the adjective-before-a-
+comma-filler shape went with them. Measured on the same grid of 384, one
+model a row:
+
+| the shipped model of | the grid keeps the A |
+|---|---|
+| 1.2.42 (committed) | 207 of 384 |
+| 1.2.43 retrained on the seven new lines | **0 of 384** |
+| 1.2.43 with the lexicon's classes as a feature | **381 of 384** |
+
+So a SEVEN-LINE data change, with every tag n-gram count unmoved, took a
+minority shape from a model to nothing -- which is the fourth firing of the
+same coin toss and the argument the 1.2.42 table was making. **The word's
+class is an input now**: `tg_shape/3` adds sixteen for each class the judge's
+own lexicon knows the word by, so `red` is 61 where it was 13 and `car` 33
+where it was 1, and every adjective of the grid wears one bit whatever word
+it is. The shape table goes 16 rows to 64 and **its embedding stays 4 wide**:
+widened to 8 it takes the input of every GRU from 28 to 32, and that is 14 %
+on every activation the autograd graph holds -- the training went from
+finishing in 205 s to sitting at **14.0 GB resident on a 16 GB box,
+thrashing**, with stime climbing faster than utime and 45 000 major faults. A
+feature that costs rows costs nothing; a feature that costs WIDTH costs the
+whole graph.
+
+**AND IT IS TWO BITS, NOT FOUR, WHICH ONE ARM SETTLED.** The first build gave
+the word four bits -- adjective 1, noun 2, verb 4, adverb 8 -- and `map`,
+`house`, `truck` and `book`, nouns the lexicon ALSO knows as verbs, wore a bit
+every verb of the corpus wore too: the model dropped the object of `Tom likes
+the old map` and `Vera can read the map`, both of which 1.2.42 read. Adjective
+and noun alone, `tg_shapes(64)`, reads both and moves the grid 303 to 381.
+**A tagger needs to know that a word can be an adjective and that it can be a
+thing; what ELSE the word can be is what the sentence says**, and a bit that
+answers a question the sentence already answers is a bit the network can
+follow instead of reading.
+
+**THE TABLE'S HOME WAS MEASURED TWICE BEFORE IT WAS RIGHT**, and both wrong
+answers are the same mistake -- a lookup that is cheap once and is asked four
+hundred thousand times:
+
+| where the classes lived | what it cost |
+|---|---|
+| `tg_lexicon_classes/1` per token | **2.44 ms a read** (the assoc copied out of the store); the box's memory limit killed the training at 110 s |
+| one global a word | a global is found by a SCAN: 4.7 us among 20 000, **31.5 us among 55 000**, and the encoding had not finished in two minutes |
+| **an assoc in the vocab term** | a heap lookup, 41 us a token encoded against ~20 before, ~16 s over a training |
+
+And the table is the LEXICON's, never the pairs': a word below `min_count`
+has no embedding row and must still encode to the same shape at tagging as
+it did at training, which a table built from the training pairs could not
+promise. The cost is that a model now depends on `lexicon/*.txt` -- the
+files the judge already needed -- and the header says so.
+
+**AND IT IS BETTER EVERYWHERE THE PINS LOOK**, the same training on the same
+pairs, the measurement line `tools/tagger/train.sh` prints:
+
+| | 1.2.42 | retrained, no classes | **1.2.43 shipped** |
+|---|---|---|---|
+| tags of 300 unseen pairs | 0.9884 | 0.9783 | **0.9891** |
+| sentences wholly right | 0.8867 | 0.8500 | **0.9700** |
+| assembled and parsed | 0.9533 | 0.9167 | **0.9733** |
+| lessons typed bare | 0.8495 | 0.8115 | **0.9073** |
+| real prose refused | 0.9600 | 0.9633 | **0.9700** |
+
+-- the middle column is the collapse, and it is the column that says the
+feature is not merely an improvement on 1.2.42: without it the corpus change
+costs three points of tokens and four of sentences as well as the grid.
+
+**THE GRID SPLITS BY THE NOUN, AND THAT IS THE SHAPE OF WHAT THE FEATURE
+BUYS.** 192 sentences a noun, the same four names, four adjectives and three
+fillers:
+
+| the object's noun | the lexicon knows it as | 1.2.42 | four bits | **two bits** |
+|---|---|---|---|---|
+| `car` | a noun | 101 of 192 | 192 | **192** |
+| `house` | a noun and a verb | 106 | 111 | **189** |
+| `truck` | a noun and a verb | 75 | 115 | **186** |
+| `book` | a noun and a verb | 96 | 138 | **176** |
+| `flat` | a noun, an ADJECTIVE and an adverb | 163 | 49 | **96** |
+
+-- so a word the lexicon is sure about became certain, the words that are
+verbs too recovered once the verb bit went, and `flat` is the one that stays
+halved, which is the feature telling the truth rather than failing: `a red
+flat` IS two adjectives to anything reading a word's classes. **A PIN ON ONE
+SENTENCE OF THAT SHAPE WAS A COIN TOSS ALL ALONG**: `test/reason.pl` pinned
+`a red truck` and passed on a model that read trucks 75 times in 192. It pins
+a car now, with the table above in the case, and the grid is where the shape
+is pinned -- at 0.60, which tells a collapse (0.00) from a model (0.99) with
+room for a training to land anywhere between.
+
+**WHAT THE FEATURE COST WAS AN ADJECTIVE THE LEXICON HAD NEVER HEARD OF, AND
+THE ANSWER WAS IN THE LEXICON AND NOT IN THE NETWORK.** The first model with
+the classes refused a whole paragraph of `test/tagger.pl` for one word: `She
+is registered` tagged `registered` D, because `registered` was in no class
+file, reached the network at mask 0, and **mask 0 is also what a word the
+lexicon knows is NEITHER an adjective nor a thing wears** -- so the network
+had learned, correctly for every word it ever saw, that an adjective carries
+the adjective bit. Four arms of the obvious fix -- withholding the class bits
+at the word's own rates on a second hash, which is what the word ids already
+do -- **were killed by this box's 16 GB at 192, 208, 212 and 226 s**, where
+the same training without them finishes at 192; the fourth was rewritten as
+ONE pass building two lists a pair where the others built four, to test
+whether the intermediates were the cost, and it died at the same place. So
+that cost is real, unlocated, and recorded in `tg_dropout/6` rather than
+shipped half-done.
+
+**AND THE REAL DEFECT WAS THAT `registered` WAS NOT IN THE TABLE.** It has
+three adjective senses in WordNet and no SemCor count, and
+`lexicon/build.pl` built every `known_*` file from `cntlist.rev` alone --
+**counts say how OFTEN a corpus used a word, and the judge's question is
+whether the dictionary knows it at all.** `known_adj.txt` is every lemma
+`index.adj` names now, 5 102 to **16 706**, the counted ones keeping their
+order at the front so nothing a cap used to hold has moved. Measured on the
+SHIPPED model with no retraining, because every word the generator draws is
+counted and so already carried its bit -- only words outside the training
+change:
+
+| | counted only | **every adjective** |
+|---|---|---|
+| the paragraph of nine sentences | **refused** | read, twelve terms |
+| `Who is registered?` | refused | `[[dana-fact]]` |
+| the grid of 384 | 381 | 381 |
+| sentences wholly right | 0.9667 | **0.9700** |
+| real prose refused | 0.9500 | **0.9700** |
+
+-- and the refusal rate rising is the judge knowing more adjectives, which is
+the safe direction for that pin. **THE SAME GAP IS OPEN IN `known_noun` AND
+`known_verb`** -- the indexes hold 50 436 nouns and 8 293 verbs past the word
+filter against 8 915 and 3 616 counted -- and neither is widened here,
+because the judge's rules are written in terms of what a word is known ONLY
+as, so each table moves what it refuses and each wants its own measurement.
+**A FEATURE A TRAINING NEVER WITHHOLDS IS A FEATURE THE NETWORK IS ENTITLED
+TO REQUIRE**, and when it requires something, the thing to check first is
+whether what it requires is TRUE of the table it reads.
+
+**TWO THINGS BIT WHILE GETTING `test/tagger.pl` GREEN ON THIS, and both are
+about a PROCESS rather than a model:**
+
+* **A TRAINING UNDER `--local` AND ONE UNDER `--embed` GIVE DIFFERENT
+  MODELS, and it is not diagnosed.** `tools/tagger/train.sh` runs
+  `cocolog --embed TMP -s library/reasoning/train.pl`; the case runs
+  `--local`. Same pairs file, same seed, same options: `--local` reads
+  tokens 0.9854, sentences 0.9333 and the adjective grid **271 of 384**
+  where the shipped model reads 0.9891, 0.9700 and **381**. It is not the
+  case's other sections -- a BARE `--local` process training from the same
+  file gives 271 to the unit -- and it is not the data, which was
+  regenerated and diffed byte for byte. A model trained `--embed` and
+  loaded `--local` grids 381, so the TRAINING differs and not the loading.
+  The pins sit where both pass, the case trains from the file in the tree
+  so at least the DATA is the shipped data, and the section that pins prose
+  word for word runs on `tagger_pretrained/1`'s model rather than its own.
+* **A FIXTURE NAME THAT SOME LESSON MENTIONS IS WRITTEN BACK IN QUOTATION
+  MARKS.** The case's paragraph had a nurse called Mia, every answer about
+  her was right, and the explanation came back as `"mia" may enter the ward
+  because "mia" is a nurse`. `mia` is the Italian lesson's own word --
+  `The feminine possessive "mia" means "my"` -- and the 300 generated
+  sentences `tagger_evaluate/4` reads three checks earlier carry the lesson
+  shapes that mention it. The reader keeps what it has MET for the life of
+  the process, a word met between quotation marks among them, and
+  `re_arg/2` puts the marks back before it asks whether the word is a name.
+  So it is the design working, and invisible until one process reads a
+  lesson and a paragraph both. The nurse is Priya now;
+  `grep -i '"name"' library/reasoning/corpus/*.txt` is the check, and of
+  the paragraph's five names `mia` was the only one. **Two other readings
+  died first** -- the model (the shipped one does it too) and the 82
+  hand-written sentences read before it (reading the paragraph first fails
+  the same way) -- and each cost a four-minute training to refute.
+
+### The apostrophe was cutting words in half, and the impersonal had nowhere to go (1.6.0)
+
+**A SAMPLE OF REAL ITALIAN NEWSPAPER PROSE TRANSLATED NOTHING, AND TWO OF THE
+SIX WORDS THAT REFUSED IT WERE NOT MISSING.** Twelve verbatim sentences of the
+Italian Universal Dependencies corpus, into Spanish over the two-language
+store: **0 of 12**, and of twenty-eight short real sentences **3**, of which
+one was correct Spanish. Reading the refusals is what this section is:
+
+| the refusal | sentences | what it was |
+|---|---|---|
+| a shape: a participle or verb at the head, a passive, a gerund, a subordinate clause | 5 of 12 | every word known -- and still out of scope |
+| the impersonal `si' | 4 | no lesson could say what it is |
+| the apostrophe: `l'' and `dell'' | 2 | **the tokeniser, not the dictionary** |
+| a word the dictionary lacks | 4 | `coprifuoco', `connivenza', `stigliatura' |
+
+**`rt_run` STOPPED AT THE APOSTROPHE AND LEFT AN `l' BEHIND.** An apostrophe is
+no letter, so `l'incolumità' read as the two words `l' and `incolumità' -- and
+`l' is a word no lesson can give a meaning, so the sentence was refused for a
+word that is not missing. The apostrophe now ENDS the run and stays with the
+word before it when a letter follows, and the typographic one (U+2019) is
+written as the plain one so a lesson spells the form once. `un po'' keeps its
+apostrophe as punctuation, because no letter follows.
+
+**AND BOTH FIXES ARE LESSON SHAPES THAT WERE ALREADY THERE, which is the
+finding worth keeping.** Neither needed a line of grammar:
+
+* `"l'" is the elision of "lo".` is `is the NOUN of X`, the same shape as
+  `"los" is the plural of "el"`, and gives `elision_of/2`.
+* `The impersonal pronoun "si" means "one".` is the apposition, the same
+  shape as `The feminine article "la" means "the"`, and gives
+  `impersonal(si), pronoun(si), mean(si, one)`.
+
+So the whole of it is fourteen lines of `corpus/italian.txt`, one of
+`corpus/spanish.txt`, and clauses in the translator that read what they say.
+**A construction that needs new grammar is worth a second look: the shapes a
+lesson already has are more general than the sentences anybody has written in
+them.**
+
+**THE ELISION IS READ AND WRITTEN, and the write is the half that is easy to
+forget.** `tr_lexeme` reads an elided form as what it elides, so everything the
+lesson says of `lo' is true of `l''; `tr_contract` writes the elision in the
+plain form's place before a vowel, joined to the word after it, AFTER the
+contraction clause -- which is why the lesson states the elision of the
+contracted forms (`"dell'" is the elision of "della"') and not of their parts.
+And `tr_expand` un-elides a contraction before expanding it, so `dell'amico' is
+`di la amico' and reads. Measured both ways: `L'amico mangia il pane.` is `The
+friend eats the bread.` and `El amigo come el pan.`; `The friend eats the
+bread.` is `L'amico mangia il pane.`; `Il cane` keeps its plain article.
+
+**THE IMPERSONAL IS A SUBJECT THAT NAMES NOBODY, AND IT SITS BESIDE THE RULE
+THAT REFUSES ONE.** A third person singular with nothing in front of it is
+still refused -- `Estaba cansado' could be anybody, and nothing in it says
+otherwise -- and the impersonal word IS that something, which is why the shape
+reads only with it there. The IR carries the atom `impersonal`, not a word of
+any language, so `Si mangia il pane.` is `One eats the bread.` and `Se come el
+pan.` and comes back as itself; `Mangia il pane.` is refused exactly as before.
+
+**AND THE CORPUS CHANGE SURFACED A DEFECT IN `ng_cap` THAT WAS OLDER THAN ANY
+OF IT -- a real defect, and NOT the cause of anything below.** `normalise_bare` writes a head mention bare and capitalised (`"casa"
+means "house"' is typed `Casa means house'), and `ng_cap` was ASCII only -- so a
+mentioned word beginning with an accented letter came out lower-case, which is
+neither a name (capitalised) nor a mention (marked), and the sentence was
+refused. `è is the past of "tenemos"' is the shape. **Nothing was wrong with the
+sixteen lines added; they moved which word a seed draws, and the seed that now
+draws `è' into the head of a lesson sentence is the first one ever to do it.**
+The same Latin-1 rule the reader's tokeniser lower-cases by, and the translator
+writes by, is what `ng_cap` uses now.
+
+**WHICH IS THE THIRD FIRING OF A RULE THIS FILE ALREADY CARRIES:** the generator
+draws its lesson shapes from `corpus/*.txt`, so a corpus change is a data
+change, `generated/` and `model.rows` must be regenerated with it, and what the
+change breaks is never where the lines were added.
+
+**AND THE RETRAIN COST TWELVE POINTS ON ONE MEASURE, WHICH IS THE LOTTERY AND
+NOT ANY OF THIS.** `lessons typed bare` fell from 0.9073 to **0.7872** against a
+pin of 0.78 -- one line of margin. Three arms took it apart, and the first two
+were the ones worth taking:
+
+| arm | corpus lines read bare |
+|---|---|
+| the SHIPPED 1.2.43 model, the NEW corpus | **0.9058** |
+| the retrained model, the same corpus | **0.7872** |
+| the retrained model with `ng_cap` REVERTED, its own corpus | **0.7872** |
+
+-- so the sixteen lines cost **0.15 points** and the retraining cost twelve, on
+the same corpus and the same code; and `ng_cap` is innocent, the third arm
+giving a DIFFERENT model (its md5 moves, so the data really did change) and the
+identical measurement line to four figures on all five measures.
+
+**THE TWELVE POINTS ARE 42 LINES OF ONE SHAPE**, which is what makes it the
+1.2.42 coin toss again rather than a mystery: every line the new model loses and
+the old one read is `"X" is the [ADJ] NOUN of "Y"` with a bare head mention --
+27 of them `is the first person of`, the rest the contraction, the plural, the
+past and the participle. Of the sixteen lines ADDED, fourteen read; of the 313
+that were there before, 68 fail where 31 did. **A minority shape is learned by
+the luck of the minimum, a corpus change re-rolls it, and the loss curve says
+nothing about it** -- the training's loss ended at 0.0051 with a spike to 0.4553
+at 280 steps, and the model that came out of it is better on tokens (0.9891 ->
+0.9954) and on refusing real prose (0.9700 -> 0.9833).
+
+**WHAT IS NOT DONE, AND IS THE LEVER:** the durable fix is the 1.2.42 one --
+make the generator carry the shape in enough pairs that the network cannot miss
+it -- and the count it is made at was not measured here. The pin at 0.78 is
+holding by 0.007, which is one line of 329, so the next corpus change of any
+kind flips it red for a reason nobody will connect to the change. **A pin with
+one line of margin is a pin that has stopped measuring anything.**
+
+### What real newspaper prose needs, and the order it is being built in
+
+**THE TWELVE SENTENCES OF THE 1.6.0 SAMPLE ARE THE SPECIFICATION NOW**, and the
+work is to translate all of them. (**ALL TWELVE TRANSLATE SINCE 1.6.14** --
+the section *What stands beside the sentence* below has the result and the
+nine shapes the table never named. The table stands as the record of how the
+first eleven were built.) They are verbatim Italian Universal
+Dependencies newspaper prose, into Spanish over the two-language vocabulary
+store, and between them they need ELEVEN structures the translator does not
+have. The table is the plan, in the order the work goes, because a structure
+that unlocks six sentences is worth more than one that unlocks one:
+
+| what it needs | the twelve that need it | why it is where it is | done |
+|---|---|---|---|
+| **several clauses in one sentence** | 6, 8, 9, 10, 11, 12 | half the sample, and nothing else can be reached past it | **1.6.1** |
+| **passive**: `essere` + participle, with a `da` agent | 4, 7, 11, 12 | the verb group, and it is the commonest shape in news | **1.6.2** |
+| **reflexive `si`**, which is NOT the impersonal one | 3, 6 | the same word, a different reading | **1.6.3** |
+| a **PP inside a noun phrase** (`la connivenza delle autorità`) | 2, 3, 5, 9, 10, 12 | may already write correctly between two Romance languages -- MEASURE before building | **measured 1.6.6**: the IR is wrong, the output is right, nothing in the sample needs it |
+| **reduced relative**: a participle after a noun (`il coprifuoco imposto dai soldati`) | 7, 12 | needs the passive first | **1.6.4** |
+| **purpose clause**: `per` + an infinitive | 10 | | **1.6.5** |
+| **object complement**: `definire illegale la decisione` | 10 | | **1.6.6** |
+| **superlative**: `uno dei Paesi più ricchi del mondo` | 12 | | **1.6.7** |
+| **verb before subject** (inversion) | 7 | needs one word of lesson: which verbs take no object | **1.6.8** |
+| **headline participle** with no verb (`Evacuata la Tate Gallery.`) | 1 | it is a PASSIVE with the copula left out, not a fragment | **1.6.8** |
+| **gerund + a subjunctive subordinate** (`escludendo che ... volesse`) | 9 | the hardest, and last | **1.6.8** |
+| **an article before a NAME** (`la Tate Gallery`) | 1 | not in the sample's first reading -- MEASURED on 1.6.8, and it is what refused the SHORTEST of the twelve, whose structure 1.6.8 had already built | **1.6.9**, and sentence 1 translates |
+
+-- plus four words Apertium's dictionary lacks (`coprifuoco`, `connivenza`,
+`stigliatura` among them), which is the 1.2.42 refusal table's first row again
+and is a SOURCE problem rather than a shape one.
+
+**THE COMMA IS WHY SIX OF THEM CANNOT EVEN BEGIN.** `tr_words/2` DROPS a comma
+(`tr_words([','|Ts], Ws) :- !, tr_words(Ts, Ws).`), so a sentence's clause
+boundaries are invisible to the reader before any grammar sees them --
+`tr_split/2` splits on `.`, `!` and `?` and nothing else, and one piece is one
+clause by construction. That is the first thing to change and it is why clause
+splitting leads the table.
+
+**THE CLAUSE SPLIT IS DONE (1.6.1), AND IT IS ONE IR NODE.** `tr_words/2`
+keeps the comma as the atom `comma`, `tr_uncomma/2` takes them out again, and
+the IR gained `ir(join(Connector, S1, S2), Stop)` -- the connector an ENGLISH
+word, crossing through `mean/2` like every other, or the atom `comma`. THE
+WHOLE PIECE IS TRIED AS ONE STATEMENT FIRST, which is what makes it a strict
+addition: every sentence that read before reads by the same clauses. A
+division is taken only when BOTH sides read as clauses of their own, which is
+what keeps `Il cane e il gatto mangiano il pane' one subject with no rule
+about phrases needed. `test/translate.pl`'s `clauses` section pins seven, and
+one old pin that recorded the refusal moved.
+
+**AND TWO BLOCKERS FELL OUT THAT WERE BIGGER THAN THE COMMA.**
+
+**`tr_words/2` HAD NO CLAUSE FOR A NUMBER OR A QUOTED WORD, so the sentence
+produced NO WORDS AT ALL.** It matched `word/2` and a comma and nothing else,
+and a token of any other kind made it FAIL -- so `il premio da 200 milioni'
+and every sentence carrying scare quotes refused before a word of grammar
+ran. Both are now the tokens that pass through UNTRANSLATED: a number is its
+own lexeme on every side (`200' is 200 in every language, and `tr_digits/1'
+makes it known, a number, and its own meaning), and a word in quotation marks
+is read as the word it is with the marks carried in the CASE field (`qboth',
+`qopen', `qclose'), which `tr_word_text/4' turns back into marks and nothing
+else looks at. **Newspaper prose puts scare quotes round an ordinary word**,
+which is not the mention `reason.pl` reads, and two pins that recorded the
+old refusal moved.
+
+**AND THE BUILDER WROTE ONLY THE MASCULINE SINGULAR PARTICIPLE.**
+`considerata', `conclusa', `attaccata', `appellati', `accertate',
+`costituite' and `evacuata' were all unknown words although EVERY ONE of
+their verbs was already in the vocabulary -- seven refusals over six
+sentences of the sample, for a form Apertium carries and the builder asked
+for at `[pp, m, sg]` alone. `cb_participles/2` writes all four now, the
+masculine singular FIRST so a writer taking the first meaning writes what it
+wrote before: Italian 70 576 -> **75 145** lines, Spanish 92 087 ->
+**98 231**. Agreement on the way OUT is a different question and is NOT
+answered there -- a participle after `ser' agrees with its subject, and
+writing the masculine form of a feminine subject is wrong.
+
+**THE PASSIVE IS DONE (1.6.2), AND THE ASPECT FIELD CARRIES IT.**
+`g(Lexeme, Tense, Aspect, Denied)` gained `passive` and `passive_perfect`
+beside `simple`, `perfect` and `progressive` -- flat atoms, so every existing
+pin is untouched. Read: the copula and a participle (`è considerata'), or the
+copula, its OWN participle and the verb's (`è stato gettato'), the three-word
+reading tried first or its middle word is taken for the verb.
+
+**WHAT TELLS A PASSIVE FROM A PERFECT IS THE LESSON, NOT THE CODE, and the
+cost is stated rather than hidden.** Italian builds the perfect of some verbs
+with the copula too -- `è riuscito' is `has succeeded', not `is succeeded' --
+and nothing a lesson says tells which verbs those are. The perfect rule fires
+only for a word the lesson calls an AUXILIARY, so `ha' takes the perfect and
+`è' falls through to the passive; an intransitive perfect built with the
+copula therefore reads as a passive, and a lesson that called its copula an
+auxiliary would get the other reading. It is the data deciding, which is the
+only place this project lets such a thing be decided.
+
+**AND THE PARTICIPLE AGREES, which is the half that is easy to skip.** `la
+casa è considerata' against `il pane è considerato': the writer reads the
+SUBJECT PHRASE's gender out of a global and picks among the four
+`participle_of' rows by asking what the lesson says of the word itself
+(`"considerata" is feminine.'), exactly as an adjective is chosen among the
+words a meaning gives. The masculine singular is the fallback and the builder
+states it FIRST, so a lesson giving one form writes what it wrote before.
+
+**THE BUILDER HAD TO SAY WHAT EACH FORM IS**, or nothing could pick among
+them: `cb_participle/5` writes the gender of the feminine ones and states a
+plural as the plural of its own singular -- the relations a noun and an
+adjective already use, so `reason.pl` did not move. **The gender RULE gets it
+wrong and that is why the line is explicit**: `considerate' does not end in
+`a' and is feminine plural. Italian 75 145 -> **81 237** lines, Spanish
+98 231 -> **106 423**.
+
+**AND THE AGENT IS NOT AN ADJUNCT.** `dai soldati' is who did it, so it
+travels as `by/1' and writes with the TARGET's word for `by'. Read as an
+ordinary `pp/2' it would cross by the first meaning of `da', which the
+vocabulary gives as `since' and the hand lesson as `from' -- and `imposed
+from the soldiers' is not what the sentence says. `tr_read_passive/0' is how
+`tr_complements/4' knows the group it is completing was a passive.
+
+**AND FOUR WORDS IN THE HAND LESSON COST THE TAGGER 0.60 -> 0.25, WHICH IS
+THE FIFTH FIRING OF THAT COIN TOSS AND THE REASON `corpus/extra/' EXISTS.**
+The passive needed `perché' and a preposition meaning `by', neither of which
+Apertium's bilingual dictionary carries, so they went into
+`corpus/italian.txt' and `corpus/spanish.txt' -- **which is the TAGGER's
+corpus**. The generator draws its lesson shapes from those files, so
+`generated/' and `model.rows' had to be regenerated, and the retrain re-rolled
+the adjective-before-a-comma-filler shape: **97 of 384 against a pin of 0.60**,
+`test/tagger.pl` RED, on a four-line data change.
+
+| | before | after the four lines | restored |
+|---|---|---|---|
+| the adjective grid | 281 of 384 | **97** | **281** |
+| lessons typed bare | 0.7872 | 0.8168 | 0.7872 |
+
+**THE FIX IS THE LINE BETWEEN THE TWO DIRECTORIES, NOT A RE-ROLL.**
+`corpus/vocabulary/` is NOT read by the generator -- this file has said so
+since 1.2.42 -- so a word that is vocabulary rather than a shape belongs
+there. `corpus/extra/<language>.txt` holds the lines Apertium lacks,
+`cb_extra/1` appends them to the vocabulary the builder writes, and the two
+hand lessons, `generated/` and `model.rows` went back to HEAD byte for byte
+(the model's md5 checked against `git show HEAD:`). The translator gets the
+words and the tagger sees nothing at all.
+
+**AND `extra/` IS AN INPUT TO THE BUILD, WHICH THE CASE FOUND.**
+`test/translate.pl`'s `build` section rebuilds the Spanish vocabulary in a
+scratch corpus and requires it byte for byte; the scratch symlinked `raw/`
+alone, so the rebuilt file was short by those two lines and the case went RED
+on exactly the check that exists for it. It symlinks `extra/` too now.
+**A directory the builder READS is one the scratch build needs**, and the
+byte-for-byte check is what turns that from a thing to remember into a thing
+that cannot be forgotten.
+
+**THE REFLEXIVE IS DONE (1.6.3), AND IT BELONGS TO THE VERB.** `si è
+adeguata', `si sono appellati': the `si' is part of what the verb means, not
+a thing the subject did it to -- so it comes OFF the clitics and the IR wraps
+the lexeme, `g(reflexive(L), T, A, Neg)'. It travels that way because the
+reflexive is the VERB's property: a language with a reflexive pronoun writes
+it back, and English, which has none there, drops it.
+
+**AND `si' IS THE IMPERSONAL WORD TOO, WHICH NEEDS NO RULE TO SEPARATE.** The
+impersonal has NOTHING before the verb but itself and is read as the subject;
+the reflexive has a subject of its own. `Si adegua.' is `One adapts.' and `La
+casa si adegua.' is `The house adapts.', with no line of code deciding
+between them -- the shapes do it.
+
+**THE COST IS A TRUE REFLEXIVE AND IT IS STATED.** `si lava' is `washes
+himself' and comes out `washes'. Italian spells a lexical reflexive and a
+true one the same way and nothing in a lesson tells them apart; the lexical
+one is what newspaper prose is made of (`appellarsi', `adeguarsi',
+`riferirsi'), so that is the reading taken, and the other is wrong.
+
+**ONE THING BIT, AND IT IS THE SHAPE OF EVERY CLITIC BUG HERE:** the
+reflexive was swallowed into the SUBJECT PHRASE as an adjective -- `The
+itself house adapts' -- because `tr_subject_shape/4`'s guard refused an
+OBJECT pronoun and knew nothing of a reflexive one. A word that must be a
+clitic has to be refused everywhere a phrase could take it, which is two
+places (`tr_subject_shape/4` and `tr_adj_word/2`) and not one.
+
+**AND A WAITER WHOSE CONDITION CANNOT BE MET SITS FOR EVER, which is the
+`pgrep -f 'make'` hazard in a new coat.** Two background shells spun for
+thirty minutes on `grep -c 'terms$' LOG -ge 4` over a log that only ever had
+TWO such lines. Worse, they were invisible to the check made for them:
+**`pgrep -x cocolog` finds cocolog PROCESSES, not the shell waiters**, so
+"no background tasks running" was reported while two were. The harness's own
+task list is the instrument; a process check is not. Count what the condition
+will actually see before writing it, and prefer a condition that cannot
+outlive its work (the process gone) to one that counts lines somebody may
+reword.
+
+**THE REDUCED RELATIVE IS DONE (1.6.4), AND ONE SHAPE WRITES INTO ALL
+THREE.** `il coprifuoco imposto dai soldati' is the curfew THAT WAS imposed
+by the soldiers -- a passive relative clause with the copula and the pronoun
+left out -- and Italian, Spanish and English all put it in the SAME PLACE,
+after the noun. So it is `rel(NP, Lexeme, Comps)': the phrase, the verb's
+lexeme (English in the IR like every other word) and what belongs to the
+participle, which is the agent when there is one.
+
+**THE LEXEME AND NOT THE FORM, because the form must agree with ITS OWN
+NOUN.** `la casa imposta' against `il pane imposto', and a reduced relative
+agrees with the noun it sits on rather than with the subject of the sentence
+around it -- so `tr_with_gender/2' sets the gender, runs the pick and puts
+back whatever the enclosing sentence had, which is the one place a global
+had to be saved rather than simply written.
+
+**AND THE AGENT STAYS INSIDE THE PHRASE.** `tr_phrase_words/4' ends a phrase
+at a preposition, so `da i soldati' would have hung on the SENTENCE's verb
+and the IR would have said the soldiers dominated rather than imposed. One
+clause reaches over a trailing participle and its `by' phrase; everything
+else about the boundary is unchanged.
+
+**ONE THING BIT AND IT IS WORTH THE LINE: `tr_subject_out/6` DISPATCHES ON
+`np/5` BY NAME.** The read was right and the IR was right and nothing wrote,
+because a `rel/3` subject matched no clause of the writer at all -- it fell
+off the end and failed silently. **A new phrase term needs a clause wherever
+a phrase is taken apart by its functor**, which here is `tr_np_out/5`,
+`tr_cross_np/2` AND `tr_subject_out/6`, and the third is the one with no
+catch-all to fall into.
+
+**THE PURPOSE CLAUSE IS DONE (1.6.5), AND IT NEEDED NO NEW GRAMMAR.** `per
+definire' is `to define', `para definir'. The lesson names the word -- `The
+word "per" begins the purpose.' -- which is the `The mark "¿" begins the
+question' shape already there, so `reason.pl' did not move; the lines live in
+`corpus/extra/', which is the vocabulary path, so the tagger never sees them
+and no retrain is owed.
+
+**ENGLISH LOSES THE DISTINCTION AND THAT IS ENGLISH'S DOING, not a gap
+here.** `wants to eat' and `came to eat' are the same three words, so English
+writes a purpose exactly as it writes a plain infinitive and an English
+source is read as the plain one. Italian into Spanish keeps the mark because
+both languages make it; Italian into English and back loses it. The IR tells
+them apart -- `purpose(eats)' against `inf(eats)' -- and only the WRITER for
+English throws the difference away, which is the right place for a loss that
+belongs to a language rather than to a design.
+
+**THE OBJECT COMPLEMENT IS DONE (1.6.6), AND THE TWO LANGUAGES PUT IT IN
+OPPOSITE PLACES.** `definire "illegale" la decisione' is what the verb
+predicates OF its object, and Italian and Spanish write it BEFORE the object
+where English writes it after (`define the decision illegal'). So it travels
+as `oc(Object, Adjectives)' -- the object a phrase of its own -- and each
+writer puts it where its own language wants it.
+
+**AND THE ADJECTIVES AGREE WITH THE OBJECT, WHICH THE WRITER HAD TO BE HANDED
+RATHER THAN ASSUMED.** `tr_comp_out/7` is given the SUBJECT's noun and number
+by `tr_write`, and every other complement wants that; this one does not.
+`tr_np_out/5` answers the object's own noun and number, so the clause writes
+the object first, whichever end it then puts it at, and agrees the adjectives
+against what came back: `Il pane definisce rossa la casa' is ROSSA with a
+masculine subject, and `La casa definisce rosso il pane' is ROJO in Spanish
+with a feminine one.
+
+**WHAT TELLS IT FROM AN ORDINARY OBJECT IS NOT THE SAME THING EITHER SIDE,
+WHICH IS WHY IT IS TWO CLAUSES AND NOT ONE.** In English an attributive
+adjective goes BEFORE its noun, so a phrase-final one can only be predicative
+and the complement is read first -- otherwise `the decision illegal' is taken
+as `the illegal decision', measured before the clause existed. In the lesson's
+language an adjective before its noun is ordinary (`buono pane'), so the tell
+is the DETERMINER after the adjectives: `illegale la decisione' has one and
+`buono pane' has none. Both clauses sit before the ordinary phrase reading,
+because that reading takes either shape otherwise -- and the foreign one does
+not merely lose, it MISREADS: `tr_phrase_np' read `illegale la decisione' as
+one phrase with the article among its adjectives (`np(none, none, [illegal,
+the], decision)'), which is worse than a refusal.
+
+**AND THE OBJECT HAS TO BE AN OBJECT, which one red check in `test/translate.pl`
+was the whole of the evidence for.** A bare adjective reads as a phrase of its
+own, so `is big and red' offered `big' as the object and `and red' as the
+complement of it, and `La casa es grande y roja' came out `La casa es y rojo
+grande' -- the copula's own predicate written as an object complement.
+`\+ tr_all_adjectives(english, PW0)` is the guard, and the case caught it on
+the first run: **a pin that existed for another reason is the cheapest
+regression test there is.**
+
+**AND THE FIRST DRAFT GUARDED IT ON THE `Seen` FLAG, WHICH THE SAMPLE'S OWN
+SENTENCE REFUTED IN ONE PROBE.** Both clauses were written to fire only where
+no object had been read, on the reasoning that a verb has one object -- and
+sentence 10 is `manda un fax per definire illegale la decisione', where the
+main verb takes its object and the PURPOSE infinitive takes a complement of
+its own. The toy lesson never showed it, because a toy lesson has one verb a
+sentence; the real vocabulary refused the sentence with **no unknown word**,
+which is the tell that a refusal is a shape and not a gap. The flag belongs to
+the word the lesson puts before a person, and the SHAPE is the guard here.
+
+**AND THE LIBRARY'S OWN HEADER WAS THREE VERSIONS STALE, which is a defect of
+the kind this file keeps warning about.** `WHAT IT IS NOT` still read *no
+relative clause, no `because', no passive* after 1.6.1 added the clause join,
+1.6.2 the passive and 1.6.4 the reduced relative -- a comment telling a reader
+the opposite of what the code does, the same shape as the dead `string/1'
+clause in `lib/builtins.cicili'. Both lists are corrected: what the translator
+HAS is one clause with its complements, several joined, a passive with its
+agent, a reduced relative and an infinitive of purpose; what it has NOT is a
+relative clause with its own pronoun, an imperative, a subjunctive, a gerund
+as a clause, a superlative, a fragment with no verb and any idiom -- which is
+the remainder of the eleven-structure table, said from the library's side.
+
+**THE SUPERLATIVE IS DONE (1.6.7), AND THE TWO DEGREES ARE ONE WORD IN THE
+LESSON'S LANGUAGE.** `il paese più ricco` is the RICHEST country and `un
+paese più ricco` a RICHER one -- the same three words, and what tells them
+apart is the ARTICLE. English marks the degree on the adjective instead, so
+the IR carries `deg(Degree, Word)` among a phrase's adjectives and **the
+degree is what ENGLISH needs**: the lesson's writer spells both the same and
+lets its own article say which.
+
+**THE LESSON NAMES THE WORD AND NO GRAMMAR MOVED.** `The word "più" begins
+the comparative.` is the `The word "per" begins the purpose.` shape, which is
+the `The mark "¿" begins the question.` shape before it, so `reason.pl` is
+untouched for the third structure running. The lines live in
+`corpus/extra/`, the vocabulary path, so the tagger never sees them and no
+retrain is owed.
+
+**AND THE PHRASE DECIDES LAST, WHICH IS ONE CLAUSE AND WAS A REAL DEFECT FOR
+AN HOUR.** The complements are folded before the phrases inside them are --
+`tr_complements/3` folds once, at the COMPARATIVE, because a bare predicate
+(`è più ricco`, *is richer*) has no article to read -- so an OBJECT's own
+article must be allowed to make it a superlative after all. Without the
+re-deciding clause `definisce il paese più ricco` came out *defines the
+richer country*. Only on the lesson's side: English took the degree off the
+word and there is nothing to re-decide.
+
+**ENGLISH'S OWN ENDING IS ONE SYLLABLE, OR TWO ENDING IN `y`, and the cost is
+stated rather than hidden.** `richer`, `happier`, `bigger` (the consonant
+doubles), `larger` (the `e` goes); everything else takes `more`/`most`, so
+`most expensive` and -- the cost -- `more narrow` where a grammar allows
+`narrower`. **BOTH FORMS ARE READ whatever the rule would write**, so
+`A more rich country` comes back as `A richer country`: a round trip through
+English normalises the spelling, which is the better English of the two.
+Seven irregulars are a table (`good/better/best` and the rest).
+
+**AND THE PARTITIVE THE SAMPLE NEEDS WAS ONE VOCABULARY LINE.**
+`uno dei Paesi più ricchi del mondo` refused because `uno` is only the
+masculine ARTICLE in the hand lesson, and `The' alone is no phrase.
+`The pronoun "uno" means "one".` -- with `The pronoun "uno" does not precede
+the verb.` beside it, or `Every pronoun precedes the verb` would make it a
+clitic -- is the whole of it, and `one of the richest countries of the world`
+reads and writes both ways with no grammar at all. **Which is the 1.6.0 rule
+firing again: a construction that seems to need new grammar is worth a second
+look at what the lesson can already say.**
+
+**AND THE PARTITIVE COST TWO FILTERS, BECAUSE A LESSON SAYS WHAT A WORD
+MEANS AND WHAT CLASSES IT HAS AND NEVER WHICH MEANING BELONGS TO WHICH
+CLASS.** `uno` is the masculine ARTICLE meaning `a` and a PRONOUN meaning
+`one`, in two facts that do not name each other, so a phrase whose head is
+`uno` takes whichever meaning the store answers first. It worked on a toy
+lesson and wrote **`a of the countries`** on the real one -- the same data,
+a different order, which is the tell that an order is deciding something a
+class should. Three narrowings, each a rule about what a HEAD is, and each
+falling back to the unfiltered list rather than losing the sentence:
+
+| where | the rule |
+|---|---|
+| `tr_np/3` | a determiner alone is no phrase **unless the lesson also calls the word a noun or a pronoun** |
+| `tr_english_shaped/3` | an English meaning that is one of English's own determiners is no noun and no adjective |
+| `tr_meanings_of/4`, foreign | nor is a word that names NOBODY, nor one the lesson calls a determiner |
+
+The second and third are mirrors of each other, and the third was found the
+same way the second was: with the English side right, Spanish wrote **`se de
+los paises`** (the impersonal pronoun, which also means `one`) and then
+**`un de los paises`** (the article). **A filter that fixes one side is a
+filter the other side wants too** -- and the probe that shows it is the same
+sentence written into every language rather than into one.
+
+**MEASURED OVER THE REAL VOCABULARY, BOTH WAYS, ON A STORE WITH BOTH
+LANGUAGES IN IT** (Italian into a fresh store in **5 min 26 s**, then Spanish
+into the same one; 373 MB, 132 806 and 172 636 terms. The Spanish teach was
+not timed -- only its end was recorded, which is not a duration):
+
+| | |
+|---|---|
+| `Il generale definisce illegale la decisione.` | `El general define ilegal la decisión.` |
+| `Il generale definisce "illegale" la decisione del presidente.` | `El general define "ilegal" la decisión del presidente.` |
+| `Il generale definisce rossa la casa.` | `El general define roja la casa.` |
+| the same, into English | `The general defines the decision illegal of the president.` |
+
+**AND THE SAME STORE, RE-TAUGHT ON 1.6.7** (the three `corpus/extra/` lines
+a language, so 132 812 and 172 642 terms, 380 MB):
+
+| | |
+|---|---|
+| `Uno dei paesi più ricchi del mondo domina.` | `One of the richest countries of the world dominates.` |
+| the same, into Spanish | `Uno de los países más ricos del mundo domina.` |
+| `Il paese è più ricco.` | `The country is richer.` / `El país es más rico.` |
+| `Il generale definisce il paese più costoso.` | `The general defines the costliest country.` |
+
+-- the last row being the `-est` rule reaching a word the hand lesson never
+had. **The twelve sentences are still 0 of 12**, which is the table above
+working as written: each of them needs several rows and some need words the
+dictionary lacks, so the count moves at the END and the PHRASE is what each
+row buys.
+
+-- **and the second row is the PP measurement the table above asks for.** `del
+presidente` attaches to the VERB and not to `la decisione`, which is the wrong
+IR, and both targets write it in the right place anyway, because a PP follows
+the object in all three languages. The row stays `MEASURE FIRST` and now has
+its measurement: nothing in the sample needs the attachment fixed.
+
+**AND A SENTENCE THE TARGET HAS NO WORD FOR IS REFUSED WITH `unknown: []`,
+WHICH WILL COST SOMEBODY A SESSION.** `Il generale manda un fax.` is every
+word known in Italian and refuses into Spanish, because Apertium gives the
+Spanish side no word for `mandates` or for `fax`; `reason_untranslated/3` asks
+about the SOURCE side, so it names nothing and the refusal reads exactly like
+a missing SHAPE. Both are `[]`. The way to tell them apart today is to
+translate into ENGLISH first -- English is the IR, so a sentence that reads
+into English and refuses into the other language is a TARGET gap -- and the
+proper fix is for the writer to report the word it could not cross. It is
+recorded and not done.
+
+**AND THE PP ROW IS MARKED `MEASURE FIRST` ON PURPOSE.** `tr_phrase_words/4`
+ends a phrase at a preposition, so `la connivenza delle autorità` reads as a
+phrase and a SEPARATE `pp/2` hung on the verb -- the wrong attachment, and
+between two Romance languages the word order is the same either way, so it may
+write out correctly regardless. **A structure that is wrong in the IR and right
+in the output is not a structure to build until a measurement says it is**,
+which is this file's own rule about counting before believing a mechanism.
+
+### The last three structures, and not one of them was a fragment (1.6.8)
+
+**THE THREE ROWS LEFT IN THE TABLE ABOVE ARE DONE, AND THE PATTERN OF 1.6.0
+HELD FOR EVERY ONE OF THEM**: the shape a lesson already has is more general
+than the sentences anybody has written in it. Inversion needed one PROPERTY of
+a verb (`"domina" is intransitive.`, the bare shape `"leche" is feminine.`
+already had), the headline needed no grammar at all, and the subordinate
+clause needed one CLASS word (`The conjunction "che" means "that".`).
+`reason.pl` did not move for any of the three, which is the fourth version
+running.
+
+**INVERSION IS THE FRONTED ADJUNCT AND THE VERB TAKING NO OBJECT, AND THE
+SECOND HALF WAS BOUGHT WITH A PROBE.** `Qui solo due anni fa dominava il
+coprifuoco` is the curfew dominating, not somebody dominating the curfew, and
+what says so is the material BEFORE the verb: an adverb or a prepositional
+phrase, never a subject. The first draft read the fronting alone and wrote
+**`Ieri mangiava il pane` as `The bread ate yesterday`** -- because a fronted
+adjunct makes inversion POSSIBLE and never certain, and Italian reads that one
+as pro-drop with an object. What tells them apart is whether the verb takes an
+object at all, which nothing in a lesson said, so the lesson says it now. A
+verb no lesson calls intransitive KEEPS ITS REFUSAL, which is the honest half
+of the trade: a wrong reading is worse than none.
+
+The agreement is checked for free -- `fo_subject_after/5` is the QUESTION
+form's own subject finder, and a question already required the verb and the
+phrase to agree in person and number before taking the phrase for the subject.
+
+**AND THE FRONTING IS NOT WRITTEN BACK.** The adjuncts become ordinary
+complements and every writer puts them after the verb, so `Qui dominava il
+generale` comes back as `Il generale dominava qui` -- the same sentence in the
+statement's own order. What is lost is an emphasis, not a claim.
+
+**A HEADLINE IS A PASSIVE WITH THE COPULA LEFT OUT, WHICH IS WHY THE GRAMMAR
+NEEDED NO FRAGMENT.** The table above had said `Evacuata la Tate Gallery.`
+needed "a fragment, and the grammar has no fragment"; it needs neither. A
+participle at the head with a phrase after it is `La Tate Gallery e stata
+evacuata` with two words dropped, so it reads to an ORDINARY statement --
+`g(L, present, passive_perfect, Neg)` -- and `reason_ir/3` answers the same
+term for the headline and for the full sentence, which is the check that says
+the shape carries no typography. **The copula is written back**: a headline
+read is a sentence written, in every language. Only the participle's NUMBER is
+asked for, because the gender says what the subject's noun already says.
+
+**A GERUND HEADS A CLAUSE WITH NO SUBJECT, AND 1.6.1's JOIN ALREADY KNEW WHERE
+TO HANG IT.** `..., escludendo che il militare voleva ...` is a verb, no
+subject and no auxiliary -- so the aspect carries it (`gerund`, beside
+`simple`, `perfect`, `progressive`, `passive` and `passive_perfect`) and the
+subject is `none`, the one subject term the writers had no clause for. That
+was the 1.6.4 lesson firing again: **`tr_subject_out/6` dispatches on the
+subject's functor BY NAME and has no catch-all**, so a new subject term is a
+clause there or a silent failure.
+
+**AND `that` IS A COMPLEMENT LIKE ANY OTHER**, `that(S)` holding a whole
+sentence of the IR, read and written through the word a lesson gives for it.
+The clause is tried FIRST in `tr_complements/4`, immediately after the empty
+list, because everything after `che` belongs to it.
+
+**A SUBJUNCTIVE IS READ AS THE TENSE IT STANDS FOR AND WRITTEN BACK AS THE
+INDICATIVE, and that cost is stated rather than hidden.** English marks no
+subjunctive where `che il militare volesse` wants one, and nothing a lesson
+says tells which verbs take one -- so `dominasse` reads as the past and comes
+back `dominava`. The alternative was refusing the clause.
+
+**THE BUILDER WRITES THE FORMS, because the reader can only read what the
+lesson states.** Apertium carries `prs` and `pis`, so `cb_verb_forms/2` writes
+`"domini" is the subjunctive of "domina".` and `"dominasse" is the past
+subjunctive of "domina".` -- the second in the `is the ADJ NOUN of X` shape, so
+the reader knows which tense each stands for, and a plural takes its tense from
+the singular it is the plural of, which `cb_tense/4` already did. **1 523 verbs
+in Italian and 2 049 in Spanish get both**, and the vocabularies went from
+81 243 and 106 429 lines to **93 407 and 122 814**.
+
+**FOUR LINES OF LESSON, AND THEY GO IN `corpus/extra/` WHERE THE TAGGER CANNOT
+SEE THEM.** `The conjunction "che" means "that".` and `"domina" is
+intransitive.` a language, plus the passive-perfect line below -- vocabulary
+rather than a shape, so `corpus/*.txt`, `generated/` and `model.rows` are
+untouched and NO RETRAIN IS OWED. That line between the two directories is the
+1.6.2 finding, and this is the first version to have been written with it in
+mind rather than after being bitten by it.
+
+**AND THE PASSIVE PERFECT WAS WRONG INTO SPANISH SINCE 1.6.2, WHICH THE
+HEADLINE PROBE FOUND.** `Evacuata la casa.` wrote **`La casa es sido
+evacuada.`** and `La casa ha sido evacuada.` was **REFUSED**, on the same
+binary -- the worse half being the first, because wrong Spanish is worse than
+no Spanish. Both halves are the same cause: the writer built the copula's own
+perfect with the COPULA and the reader tried the two-word perfect before the
+three-word passive, so `ha sido evacuada` read as `has been` with `evacuada`
+left over.
+
+**WHICH WORD CARRIES THE TENSE IS THE LESSON'S, AND IT IS THE `plural_of`
+SHAPE.** Italian builds the copula's perfect with the copula (`e stata
+evacuata`) and Spanish with the auxiliary (`ha sido evacuada`), and nothing
+else in a lesson tells them apart -- so `"ha" is the auxiliary of "es".` says
+it, read by `reason.pl` with no change as `auxiliary_of(ha, es)`, and the
+copula is the DEFAULT, so Italian says nothing and writes what it wrote before.
+Measured, both ways, the plural included:
+
+| | |
+|---|---|
+| `Evacuata la casa.` into Spanish | `La casa ha sido evacuada.` |
+| `La casa ha sido evacuada.` into Italian | `La casa e stata evacuata.` |
+| `Las casas han sido evacuadas.` into English | `The houses have been throwed.` |
+| `La casa e stata gettata.` into Italian | unchanged |
+
+-- and **the agreement comes out of the data rather than out of a rule**: the
+participle after the perfect word agrees with whatever forms the lesson gives
+it, which is four in Italian (`stata`, `stato`, `state`, `stati`) and in
+Spanish the ONE invariable `sido`, which is the language saying the same thing
+through its dictionary.
+
+**THE THREE-WORD READING HAD TO MOVE ABOVE THE PERFECT**, and that is safe by
+what it requires: its middle word must be a participle of the COPULA, so `ha
+mangiato il pane` matches nothing there and falls through exactly as before.
+
+**`test/translate.pl` IS 554 CHECKS AND GREEN**, with `inversion`, `headline`
+and `subordinate` as sections of their own and five more in `passive`. Each
+pins the shape, the IR, the cost and the refusal that stays -- `Dominava il
+generale.` and `Ieri mangiava il pane.` both refused, the subjunctive written
+back as the indicative, Italian's passive perfect untouched.
+
+**AND LESSON 46 GAINED A SECTION 20**, which is where the eleven-structure
+table closes for a reader: one thirty-line Italian lesson and ten sentences
+showing the passive with its agent, the reduced relative, the purpose, the
+object complement, the superlative, the inversion, the headline and the gerund
+clause, each said as what a lesson had to add for it. 1.6.1 to 1.6.7 added
+none, and this is the one place all eight are shown together.
+
+**MEASURED OVER THE REAL VOCABULARY, BOTH LANGUAGES IN ONE STORE** -- Italian
+152 572 terms and Spanish 199 265 taught into a fresh `--embed` store, 436 MB,
+the three new shapes and the passive perfect beside them:
+
+| | |
+|---|---|
+| `Qui dominava il generale.` | `The general dominated here.` / `El general dominó aquí.` |
+| `Evacuata la casa.` | `The house has been evacuated.` / `La casa ha sido evacuada.` |
+| `Evacuate le case.` | `The houses have been evacuated.` / `Las casas han sido evacuadas.` |
+| `Escludendo che il generale domina.` | `Excluding that the general dominates.` / `Excluyendo que el general domina.` |
+| `Il generale definisce la casa, escludendo che il paese domina.` | `The general defines the house, excluding that the country dominates.` |
+| `La casa è stata evacuata.` | `La casa ha sido evacuada.`, and back to itself |
+
+-- **a sentence costs 2.3 to 7.5 s on that store and a REFUSED one costs about
+28**, because a refusal is every reading tried and backtracked through. A probe
+over the twelve took six minutes for that reason alone, and a probe that
+expects refusals should be budgeted as if each one were ten sentences.
+
+**THE TWELVE ARE STILL 0 OF 12, AND THE REFUSALS HAVE MOVED WHERE THE 1.2.43
+TABLE SAID THEY WOULD.** Seven of them now refuse with **every word known** --
+`unknown: []` -- where 1.6.0 had five; the other five name a word Apertium
+lacks (`coprifuoco`, `blitz`, `connivenza`, `avviene`, `spedito`, `quartier`,
+`leggerezza`, `incolumità`, and `ad`, which is `a` before a vowel and is the
+elision shape from the other end). So the sample is a SHAPE problem now and
+was a vocabulary problem before, which is the direction the work has been
+moving it in.
+
+**AND THE SIMPLEST SENTENCE IN THE SAMPLE IS BLOCKED BY SOMETHING THE TABLE
+NEVER NAMED: AN ARTICLE BEFORE A NAME.** `Evacuata la Tate Gallery.` refuses,
+and it is NOT the headline -- `Evacuata la casa.` reads, and so does the full
+`La casa è stata evacuata.`, while `La Tate Gallery è stata evacuata.` refuses
+too. The tell is one probe: **`Evacuata la Gallery.` refuses as well**, so it
+is not the two words either. `tr_np/3` takes a bare capitalised word no lesson
+knows as a name (`tr_np(Side, [w(W, upper)], name(W))`) and a determiner in
+front of it sends the phrase reader looking for a noun it does not have.
+Italian puts the article before a proper noun far more often than English does
+(`la Tate Gallery`, `la Sidoti`), so this is a row of its own and it is added
+to the table above -- against sentence 1 alone, because that is the one it was
+measured on and the other names in the sample stand bare. **It is recorded and not done**: the phrase has to keep
+its article and carry the name as its noun, or `The Tate Gallery` comes back
+`Tate Gallery`, and the gender the article then has to agree with is a
+question a name cannot answer.
+
+### An article before a name, and the first of the twelve (1.6.9)
+
+**THE SHORTEST SENTENCE OF THE SAMPLE TRANSLATES, WHICH MAKES IT 1 OF 12 --
+the first time any of them has.** `Evacuata la Tate Gallery.` is `La Tate
+Gallery ha sido evacuada.` and `The Tate Gallery has been evacuated.`, measured
+over the two-language vocabulary store. Its STRUCTURE was built in 1.6.8; what
+refused it was a phrase shape nobody had named, and 1.6.8's own probe found it:
+**`Evacuata la Gallery.` refused too**, so it was neither the headline nor the
+two words.
+
+**A NAME IS THE ONE WORD NO LESSON CAN KNOW, AND `tr_np/3` LOOKED FOR A NOUN.**
+A bare capitalised word no lesson knows was already a name; a determiner in
+front of it sent the phrase reader looking for a noun that is not there, and
+the whole phrase was refused. It is the ORDINARY phrase now with
+`named(Gender, Words)` where the noun goes -- so `np/5` keeps its shape, and
+every writer, the number, the determiner and `fo_agreeing/3` are untouched.
+Three clauses were added and nothing was moved: one reader, one crossing (the
+name crosses as ITSELF, which is what being a name means) and one writer.
+
+**THE GENDER IS THE SOURCE ARTICLE'S, BECAUSE A NAME HAS NONE OF ITS OWN.**
+`la Tate Gallery` is feminine because the lesson calls `la` feminine, and that
+gender travels in the IR, so Spanish writes `la` and a passive's participle
+agrees. The NUMBER comes from the same place -- `le Gallery` is plural and the
+name does not inflect, so it is `The Gallery` and never `The Galleries`.
+
+**AND WHERE THE IR CARRIES NO GENDER THE WRITTEN ARTICLE LENDS ONE, which is
+the reading rule seen from the other side.** English has no gender to read, so
+`The Tate Gallery` crosses as `none` -- and the first draft then chose the
+article by the lesson's own order and the participles by a masculine fallback,
+which disagreed with itself: **`La Tate Gallery e stato evacuato`**. The writer
+now reads the gender back off the article it actually wrote, and the sentence
+agrees: `La Tate Gallery è stata evacuata.`
+
+**SEVERAL CAPITALISED WORDS ARE ONE NAME ONLY AFTER A DETERMINER**, and the
+asymmetry has a reason: after one, where the phrase starts is not in doubt;
+bare, `Sabato Mladic` is a day and a surname and nothing says where one ends.
+
+**ONE THING BIT, AND IT IS THE PHRASE FINDER RATHER THAN THE PHRASE.**
+`fo_np_words_after/3` ends a phrase at the next capitalised unknown word --
+right for `Maria`, wrong inside a name -- so the subject came back `la Tate`
+with `Gallery` left over **as the object**, and the sentence wrote out as `The
+Tate has been evacuated Gallery.` A determiner followed by a name word now
+takes the whole RUN of them. The tell was the output rather than a refusal,
+which is the worse kind: it read, and it read wrongly.
+
+**AND ENGLISH COULD NOT READ ITS OWN PASSIVE PERFECT, WHICH IS 1.6.8's FINDING
+MIRRORED.** `The house has been evacuated.` was REFUSED on the English side
+while the writer produced exactly those words, so a passive perfect could not
+round-trip through English at all. The cause is the same one: **`been` is the
+participle of `is`**, so the two-word perfect clause matched `has been` first,
+cut, and left `evacuated` over -- exactly as `ha sido evacuada` read as `has
+been` with `evacuada` over. The three-word clause moved above the perfect, and
+it is safe by what it requires: the middle word must be `been`.
+
+**MEASURED AS A CONTROL BEFORE IT WAS TOUCHED**, `git stash` on one file and
+the same probe twice: `The house has been evacuated.` and `The house had been
+evacuated.` refused on HEAD and on the working copy alike, `The house is
+evacuated.` and `The house was evacuated.` reading on both. So it was
+pre-existing, it is nothing to do with names, and the probe that found it was
+looking for something else -- which is the second time in two versions that a
+name probe has turned up a passive-perfect defect.
+
+**`test/translate.pl` IS 565 CHECKS AND GREEN**, with eleven in a `names`
+section of its own -- the shape, the IR both ways, the gender an English source
+does not give, the plural, the bare name left alone, and the two English
+passive perfects. Lesson 46's section 20 gained the sentence, which needs no
+line of lesson at all.
+
+**THE OTHER ELEVEN ARE WHERE 1.6.8 LEFT THEM**: six refuse with every word
+known and five name a word Apertium lacks. Nothing about this row moved any of
+them, which is the table working as written -- each sentence needs several
+rows, and this one needed its last.
+
+### The imperative, and the denial no two languages spell alike (1.6.10)
+
+**ABOUT HALF OF THE TATOEBA SENTENCES REFUSED WITH EVERY WORD KNOWN ARE
+IMPERATIVES**, which 1.2.43's refusal table measured and named as the next
+lever -- `!Largate!`, `Dame eso.`, `No te rias.` -- so this is the largest
+single row of that table and the first piece of work driven by it rather
+than by the newspaper sample.
+
+**IT IS THE `is the [ADJ] NOUN of X` SHAPE AGAIN, AND `reason.pl` DID NOT
+MOVE -- the fifth version running.** `"come" is the imperative of "come".`
+gives `imperative_of(come, come)` and `"comas" is the negative imperative of
+"come".` gives `negative(comas), imperative_of(comas, come)`, which is
+exactly what 1.6.8 used for the past subjunctive. The whole of the grammar's
+part was checking that those two sentences read.
+
+**THE ASPECT CARRIES IT AND THE SUBJECT IS `none`**, beside the gerund of
+1.6.8: `g(L, present, imperative, Neg)`. An imperative has no subject and
+names one anyway -- the person spoken to -- so nothing in the IR had to
+grow, and every pin is untouched.
+
+**IT IS TRIED LAST, WHICH IS WHAT MAKES IT A STRICT ADDITION.** A bare third
+person with nothing in front of it was REFUSED -- 1.6.0's rule, `Estaba
+cansado' could be anybody -- so every sentence that read before reads by the
+same clauses and what changes is only what used to refuse. That is 1.6.1's
+argument for the clause join, reused.
+
+**AND ONLY A FORM THE LESSON CALLS AN IMPERATIVE READS AS ONE, which is what
+keeps the two refusals apart.** `come' is the imperative of `come' and its
+third person besides, so `Come el pan.' is read; `comia' is neither, so
+`Comia el pan.' keeps its refusal exactly as before. **The cost is the other
+half of that rule**: where a language spells the imperative like its third
+person the sentence is genuinely ambiguous, and the imperative is the reading
+taken, because it is the one that names its subject.
+
+**THE DENIAL IS A DIFFERENT FORM IN EVERY LANGUAGE THAT HAS BOTH, AND THE
+TRANSLATOR KNOWS NEITHER.** Spanish builds it on the second person of the
+present subjunctive (`no comas') and Italian on the infinitive (`non
+mangiare') -- so the translator asks the lesson for `the negative
+imperative' by name and writes back whatever the lesson called one:
+
+| | |
+|---|---|
+| `No comas el pan.` into Italian | `Non mangiare il pane.` |
+| `Non mangiare il pane.` into Spanish | `No comas el pan.` |
+| `Do not eat the bread.` into either | both of the above |
+
+**WHICH FORM A LANGUAGE BUILDS IT ON IS THE BUILDER'S, AND THAT IS WHERE IT
+BELONGS.** `cb_negative_imperative(spanish, [prs, p2, sg])` and
+`cb_negative_imperative(italian, [inf])` are two facts in
+`corpus/build.pl`, because the builder is the program that reads a
+LANGUAGE's dictionary and the tags are that dictionary's. Nothing in
+`translate.pl` learns which is which.
+
+**THE FORMS ARE APERTIUM'S `imp p2 sg`**, and the vocabularies went from
+122 814 and 93 407 lines to **126 908 and 96 448** -- 2 047 imperatives and
+2 047 negatives in Spanish, **1 518 and 1 523** in Italian, where the five
+that differ are verbs whose dictionary carries an infinitive and no
+imperative at all.
+
+**ENGLISH'S IS THE BASE FORM AND ITS DENIAL IS `do not`**, never `does not`:
+an imperative has no person to agree with. `tr_negation/4` takes the `not'
+out wherever it stands, so the reader steps over the `do' it leaves behind.
+
+**THREE COSTS, STATED RATHER THAN HIDDEN.** A clitic must stand BEFORE the
+verb, which is where a denied imperative puts it (`No lo comas.' reads);
+Spanish joins the pronoun to an AFFIRMATIVE one and accents the stem
+(`Comelo.', `Dame eso.'), and no lesson can say either, so such a sentence
+is refused. Only the singular is stated, so `Comed el pan.' is refused too.
+And the ambiguity above.
+
+**NO LESSON LINE WAS ADDED TO `corpus/*.txt` OR `corpus/extra/`**, so the
+tagger's corpus, `generated/` and `model.rows` are untouched and NO RETRAIN
+IS OWED. Only `corpus/vocabulary/` moved, which the generator has not read
+since 1.2.42.
+
+**`test/translate.pl` IS 579 CHECKS AND GREEN**, with fourteen in an
+`imperatives` section of its own -- the shape both ways, the IR, the two
+languages' different denials crossing each other, the clitic, the bare
+`Come.', and the three refusals that stay. Lesson 46's section 20 shows the
+imperative and its denial beside the other newspaper shapes.
+
+**AND THE STRICT-ADDITION CLAIM IS MEASURED ON REAL DATA RATHER THAN
+ARGUED.** The twelve newspaper sentences, re-taught from the rebuilt
+vocabularies and re-run on the two-language store, come back **BYTE FOR BYTE
+what 1.6.9 answered** -- 1 of 12, the same translation of sentence 1, the
+same six shape refusals and the same five word refusals. An imperative needs
+its verb at the head with nothing before it but clitics, so a sentence with a
+subject never reaches the clause, and the diff is the proof.
+
+**AND THE TATOEBA PROBE IS ~130x SLOWER THAN 1.2.43 MEASURED IT, WHICH IS
+NOT THIS CHANGE.** 1.2.43 translated 400 sentences in **16.1 s**; the same
+probe on the same arrangement now costs **5.5 s A SENTENCE**. One file
+swapped -- `git stash` on `translate.pl` alone, the same five sentences, the
+same store -- settles the attribution:
+
+| arm | five sentences | translated |
+|---|---|---|
+| 1.6.9, no imperative | 28.0 s | 2 |
+| **1.6.10, the imperative** | **27.5 s** | **3** |
+
+-- so the imperative costs NOTHING and reads one more of the five. **What the
+slowdown IS is not attributed here**: 1.6.1 to 1.6.9 added nine reader shapes
+that a refused sentence now backtracks through, and the Spanish vocabulary
+went from 92 087 lines to 126 908 in the same window, and this arm separates
+neither. It is the measurement to take before the next row of the refusal
+table, because at 5.5 s a sentence the probe that drives this work costs
+forty minutes where it used to cost sixteen seconds.
+
+**AND THE COST IS THE SUCCESS PATH, NOT THE REFUSAL, WHICH ONE 40-SECOND ARM
+SETTLED AFTER A 63-MINUTE RUN HAD SETTLED NOTHING.** Differences of N=0, 1, 2
+and 3 over the same sample and the same store, so each row is ONE sentence and
+the start-up is paid once:
+
+| | |
+|---|---|
+| start-up, store open and lesson load (N=0) | **0.72 s** |
+| `Tengo diecinueve.` translated | **10.6 s** |
+| the imperative refused | **4.6 s** |
+| `Soy viejo.` translated | **7.3 s** |
+
+**A REFUSAL IS THE CHEAP HALF HERE**, which inverts what this file says of the
+newspaper sample above -- 2.3 to 7.5 s a sentence against about 28 for a
+refusal. Those are twelve long sentences and these are five words each, so the
+two are not one measurement and neither generalises. What does generalise is
+that a translated SHORT sentence costs 7-11 s where 1.2.43 measured the whole
+400 in 16.1 s, so **the slowdown is on the path that SUCCEEDS** and the nine
+reader shapes a refusal backtracks through are not where to look first.
+
+**AND THE BUDGET RULE THAT WOULD HAVE SAVED THE HOUR.** Time THREE sentences,
+multiply, and refuse to start the long run when the product passes what the
+last measurement said: three cost 23 s and predicted 50 minutes for 400, where
+1.2.43's control is 16 seconds. The run was killed at 63 minutes with an EMPTY
+log, because `eval.pl` collects every result in a `findall` and prints at the
+end -- so a probe that expects to be killed writes one line a sentence and
+flushes, which `eval2.pl` beside it does. **A probe whose output is one line at
+the end pays its whole cost or nothing.**
+
+### A raise cost a quarter of a second, and it WAS in a loop (1.6.11)
+
+**ONE `existence_error` COST 257 ms, AND `library(reasoning/translate)` RAISED
+ONE ON NEARLY EVERY WORD.** That is the whole of the 1.6.10 slowdown above, and
+the bisection is the part worth keeping, because every step was cheap and each
+one halved the search:
+
+| the question | the answer |
+|---|---|
+| read or write? | `reason_ir_text` **0.002 s**, `reason_ir` **11.2 s** |
+| which read? | `from=none` **0.000 s**, `from=any` **11.9 s** -- the language VOTE |
+| what does a word cost in the vote? | **0.86 s**, linear, even a nonsense word |
+| which goal? | `tr_lexeme(foreign, W, _, _)` on a miss, **288 ms** |
+| which line of it? | `tr_solve(elision_of(W, F))`, **272 ms** |
+| why? | `elision_of/2` has **no clauses** in Spanish -- elision is Italian's |
+| is it the store fetch? | **no**: a `:- dynamic` predicate with no clauses is 0.000 s |
+| what then? | the RAISE: ten `existence_error`s cost **2.574 s** |
+
+**AND THE CODE SAID WHY, IN A COMMENT THAT WAS WRONG.** `lib/solve.cicili`'s
+about-to-throw branch calls `coco_store_warm` -- correctly, so that a predicate
+another process DECLARED and never wrote to is found rather than refused -- and
+its comment reads *"costs a round trip only on the path that was going to throw,
+which is not a path anything runs in a loop"*. A caller that CATCHES the error
+and asks again is exactly that loop, and `tr_solve/1` catches. The warm fetches
+every `:- dynamic` row in the knowledge base, which on a 400 MB store is 257 ms,
+and it was paid per raise.
+
+**THE FIX IS ONE FLAG, PER PREDICATE AND NOT PER STORE.** `coco_pred` gained
+`warmed`; the throw path warms the first time it cannot resolve a given name and
+never again for that name. Per predicate is what keeps the original property
+alive: a declaration another process makes is still found for every name this
+process has not yet asked about. A per-STORE flag would have been faster still
+and would lose that.
+
+**MEASURED, SAME STORE, SAME LIBRARY, ONE BINARY EITHER SIDE:**
+
+| | 1.6.10 | **1.6.11** |
+|---|---|---|
+| ten raises of one unknown predicate | 2.574 s | **0.0001 s** |
+| ten raises of a SECOND unknown predicate | 2.540 s | 0.282 s -- one warm, then free |
+| three Tatoeba sentences | **20.0 s** | **0.8 s** |
+| the three answers | -- | **byte for byte the same** |
+
+-- **25x**, and 0.72 s of that 0.8 s is start-up, so a short sentence went from
+about 6.5 s to about 0.03 s. `errors`, `reconsult`, `gc`, `library`,
+`directives`, `translate`, `reason` and `normalise` are all GREEN on it.
+
+**AND THE LOCAL FIX WAS BUILT, MEASURED AND THROWN AWAY.** Guarding the elision
+clause with `tr_elides` -- ask the lesson ONCE whether it states an elision at
+all, the `tr_endings/2` shape -- is the obvious repair and it buys NOTHING once
+the engine stops re-warming. 100 warm translations, three alternating repeats,
+two copies of the library differing only in that clause:
+
+| | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| plain | 1.871 s | 1.913 s | 1.903 s |
+| the guard | 1.981 s | 1.919 s | **1.544 s** |
+
+-- the guard's own spread is wider than any effect and the ranges overlap, so it
+is reverted, beside 1.4.1's reverse index and the semispace. **A local fix for a
+general defect is worth building only to find out that the general one covers
+it**, and the way to find out is to measure it AFTER the general fix rather than
+instead of it.
+
+**WHAT IS LEFT IS NOT THE SAME DEFECT.** The 400-sentence probe still does not
+finish, and it is now ONE sentence rather than all of them: `Mirá para otro
+lado.` runs past **120 s** on its own where its four neighbours cost 0.1 to
+0.3 s each. Thirteen sentences go through in 300 s and the fourteenth is that
+one. `para` is the word 1.6.5 gave the purpose clause, and a purpose wants an
+infinitive that this sentence does not have, so the reading to suspect first is
+combinatorial backtracking in the reader and not anything in the store. It is
+recorded and NOT fixed here, because a fix that lands in the same edit as
+another fix has not been measured.
+
+**AND THE BUDGET RULE CAUGHT IT, WHICH IS THE ONE PROCESS RESULT.** Three
+sentences cost 0.8 s and predicted about 13 s for 400, against 1.2.43's control
+of 16.1 s -- so the run was started with a 300 s timeout, and it came back
+`exit 124` having printed thirteen lines. **A prediction from three samples is a
+budget and not a forecast**: the cost here is not per sentence but per SHAPE,
+and three sentences cannot see a shape they do not contain. The timeout is what
+turns a wrong prediction into a measurement instead of an hour.
+
+### A two-cycle in the DATA, and both rows are true (1.6.12)
+
+**`Mira para otro lado.` NEVER FINISHED, AND IT WAS FOUR WORDS.** Its four
+neighbours in the Tatoeba sample cost 0.1 to 0.3 s each; this one ran past
+120 s. One probe named the trigger: take `para` out and the sentence reads in
+0.7 s, put it back beside any other words and nothing comes back.
+
+**IT IS NOT THE PURPOSE CLAUSE, WHICH WAS THE OBVIOUS SUSPECT.** `para` is the
+word 1.6.5 gives the purpose, so `tr_purpose_word/1` was made to fail in a copy
+of the library -- and the sentence still hung. A suspect with a motive is not a
+cause.
+
+**IT IS `tr_form_nt/4`, AND THE FIRST SOLUTION WAS ALWAYS INSTANT.** `once` on
+it answers `para-singular-present` at once; the `findall` never returns. That
+is the shape to remember: **a predicate can be fast to satisfy and impossible to
+exhaust**, and every caller that asks for all the solutions pays the second one.
+
+**THE CYCLE IS IN THE VOCABULARY, AND NEITHER ROW IS WRONG:**
+
+| | |
+|---|---|
+| `parar`, to stop | indicative `para`, subjunctive `pare` |
+| `parir`, to give birth | indicative `pare`, subjunctive `para` |
+
+so the store holds `subjunctive_of(para, pare)` AND `subjunctive_of(pare,
+para)` -- measured, four words asked and two answered. 1.6.8 added
+`tr_tensed(W, present, F)` for the subjunctive, and `tr_form_nt(W, L, N, T) :-
+tr_tensed(W, T, F), tr_form_nt(F, L, N, present).` walks it: para to pare to
+para, for ever. **Nothing in the builder is at fault and no line of data is
+wrong** -- Spanish really does spell those two verbs into each other.
+
+**SO THE FIX IS THE ONE A CYCLE IN DATA ALWAYS WANTS: carry what has been
+stepped through.** `tr_form_nt/5` takes the forms already visited and refuses
+to visit one twice; `tr_form_nt/4` is the wrapper that starts it with the word
+itself. It cannot change a reading that terminated before, because it only
+stops a second visit to a form already tried.
+
+| | before | after |
+|---|---|---|
+| `Mira para otro lado.` | **over 120 s** | **1.0 s** |
+| its four neighbours | 0.1-0.3 s | unchanged |
+| `test/translate.pl` | 579 checks GREEN | 579 checks GREEN |
+| `test/reason.pl` | GREEN | GREEN |
+
+**AND THE PROBE THAT DRIVES THIS WORK IS FASTER THAN THE CONTROL IT IS
+MEASURED AGAINST**, which it has not been since 1.6.0. The same 400 Tatoeba
+sentences, the same store:
+
+| | 1.2.43 | **1.6.12** |
+|---|---|---|
+| wall | 16.1 s | **14.0 s** |
+| translated | 196 | **223** |
+| exactly the reference | 47 | **48** |
+| refused | 204 | **177** |
+| -- of those, every word known | 127 | **115** |
+
+-- so 1.6.1 to 1.6.11's eleven structures show up as 27 more sentences read,
+and the instrument is usable again. What it reads `Mira para otro lado.` AS is
+another matter: `Mira stops another side.`, because Apertium gives the Spanish
+`para` only the verb `stops` and no preposition at all. That is a vocabulary
+line and not a shape.
+
+**THE FULL SUITE, SERVER UP: 58 case lines, 7 SKIPs, red: 2** -- and the two
+reds are worth separating, because only one of them was mine:
+
+* **`lint` was MINE, and it is fixed here.** The dialect card's citations are
+  checked rather than trusted, and 1.6.11 inserted 12 lines into
+  `lib/kb.cicili` and 13 into `lib/solve.cicili`. Five citations have unique
+  anchors and the tool accepted them as moved; THREE have anchors that appear
+  three or four times in their file, so the line RANGE is the only thing that
+  says which site a row means, and those three now pointed at nothing.
+  `tools/cocolint/traps.jsonl` carries the shifted ranges and the card reports
+  `43 cites all anchored`. **A citation with a non-unique anchor is a citation
+  that an edit anywhere above it can break**, and it breaks in the one place a
+  reader would not look.
+* **`tutorials/library/45-tagger` was NOT.** It was re-run ALONE -- the box
+  free, nothing else on it -- and failed the same way in 292 s of a 900 s
+  budget, so the earlier suspicion that a probe beside it starved it is wrong.
+  And it is not 1.6.11's either: the failing check was cut down to a 20-second
+  probe and run on a rebuilt 1.6.10 binary, which drops the same word. `Kim
+  rents a small flat in Oslo.` comes back without `small(flat_1)`, which is the
+  adjective-inside-an-object shape this file has recorded losing a coin toss
+  four times. It is a SHIPPED-MODEL failure, not a code one, and the durable
+  fix is the generator's, so it is left open here rather than retrained into a
+  different lottery ticket.
+
+**THE 7 SKIPs ARE ALL MISSING LIBRARIES AND NOT A MISSING SERVER** -- tensors,
+the three torch cases, tensorflow, ray, numpy -- with `ziguratip` up and
+answering a sentence before the run, which is what makes the database lines
+mean anything.
+
+### The judge could only say no, and the tagging it should have said A to (1.6.13)
+
+**`tutorials/library/45-tagger` WAS RED AND THE MODEL WAS NOT RETRAINED TO FIX
+IT.** `Honestly, Kim rents a small flat in Oslo. The rent is 700 euros.` came
+back without `small(flat_1)`. Reading the TAGS before the network -- this
+file's own rule -- says which position, in four probes of twenty seconds:
+
+| the sentence | what `small` is tagged |
+|---|---|
+| `Kim rents a small flat.` | A |
+| `Honestly, Kim rents a small flat.` | A |
+| `Kim rents a small flat in Oslo.` | A |
+| **`Honestly, Kim rents a small flat in Oslo.`** | **D** |
+
+-- so it needs a head filler AND a place in the same sentence, and neither
+alone does it.
+
+**THE COUNT IS NOT THE LEVER, AND THE COUNT WAS TAKEN BEFORE ANYTHING WAS
+BUILT.** Over the 32 768 pairs of `generated/training.txt`: `T A O` 4 837, of
+which 1 318 carry a place, 2 775 a head filler and **787 BOTH** -- against 1 057
+of the same shape with no adjective. 787 is squarely in the band where 1.2.42
+measured outcomes of 20, 207 and 0 out of 384 from counts of 774 to 791, so
+making more of them is the thing that file already proved does not decide it.
+
+**WHAT DECIDED IT IS A COUNT OF SOMETHING ELSE: what may sit between a
+determiner and the noun it counts.**
+
+| | |
+|---|---|
+| `T A O` | 5 001 |
+| `T T O` | 762 -- a number counting a noun |
+| `T S O` | 25 |
+| **`T D O`** | **0** |
+
+**Never, in 32 768 pairs.** So a D there is not a weak reading, it is a
+tagging the training data says cannot happen -- and that is decidable without
+the network.
+
+**THE JUDGE COULD ONLY REFUSE, WHICH IS WHY THIS NEEDED A NEW LINE RATHER THAN
+A NEW RULE.** `tagger_sane/2` answers yes or no and `tg_judged/3` turns a no
+into X throughout; every rule it has -- a quoted token is M, a number is T, O
+or D, `who' is S or O -- REJECTS a tagging. Rejecting this one would refuse the
+sentence, and the lesson wants its terms. `tg_repair/3` runs before the judge
+and CORRECTS: a lower-case word the judge's own lexicon knows as an adjective,
+tagged D between a T and an O, is an A.
+
+**AND THE FAILURE IT REPLACES IS THE WORSE KIND.** Without it the sentence is
+not refused -- it is READ, with the adjective silently gone, which is a claim
+the text did not make. That is the same shape as this file's own rule about an
+empty assembly being a refusal rather than `Terms = []'.
+
+| | before | after |
+|---|---|---|
+| the lesson's check | `[flat(flat_1), rent_in(...), amount(...)]` | **`[flat(flat_1), small(flat_1), rent_in(...), amount(...)]`** |
+| `tutorials/library/45-tagger`, alone | FAIL at 292 s | **exit 0, `done`, 285 s** |
+| `test/tagger.pl`, alone | GREEN | GREEN, both grids ok |
+| `test/reason.pl`, `normalise`, `lint` | GREEN | GREEN |
+
+**NO RETRAIN, NO NEW `model.rows`, NO CORPUS CHANGE** -- so none of the five
+measures moved and no lottery was re-rolled, which is the whole argument for
+fixing this in the judge rather than in the data. A retrain is deterministic on
+unchanged data, so it could not have fixed it at all.
+
+**AND THE FULL SUITE IS GREEN ON IT: 58 case lines, 7 SKIPs, `red: 0`** --
+the server up and answering a sentence before the run, `groups` 1s and `ruler`
+13s, so the database was really touched; `tutorials` 320s, `tagger` 194s and
+`lint` 138s all GREEN. **The 7 SKIPs are all a missing library and not a
+missing server** -- tensors, the three torch cases, tensorflow, ray, numpy --
+and the nine cases that SKIP without a server are green but for `tensors`,
+which wants libtorch. The two reds of the 1.6.11 run are both closed: the
+citations in 1.6.12 and this. **NOTHING WAS RUN BESIDE IT THIS TIME**, which
+is what the earlier run got wrong -- probes alongside `test/tagger.pl` made
+its lesson's failure look like starvation, and it took a re-run alone to find
+that the failure was real.
+
+**WHAT IT COSTS IS AN INSTRUMENT, AND THE COST IS STATED.** `tg_judged/3` sits
+inside `tagger_tag_all/3`, so `test/tagger.pl`'s adjective grid now measures the
+network AND the repair, and a future model that collapses on `T _ O` will not
+show there. The pins that still see the raw network are the other four --
+tokens, sentences wholly right, lessons typed bare and real prose refused -- and
+a collapse anywhere off that one position is still visible. **A repair that
+fires where an instrument looks is an instrument that has stopped looking**, and
+the honest form of the grid pin now is "the model and the repair together".
+
+### What stands beside the sentence, and nine shapes for it (1.6.14)
+
+**THE TWELVE NEWSPAPER SENTENCES WERE 1 OF 12 AND THE ELEVEN-STRUCTURE TABLE
+WAS DONE, so what was left was not in the table at all.** Reading the
+refusals one cut-down sentence at a time -- the method 1.6.0 records -- the
+blockers were all the same KIND of thing: material that stands BESIDE the
+clause rather than inside it, which no reader was looking for.
+
+| what it is | the sentences it blocked |
+|---|---|
+| an adverb INSIDE the verb group (`si sono anche appellati`, `non sono state ancora accertate`) | 3, 4, 11 |
+| an adverb at the head (`Gia si parla`, `Velocemente il generale ...`) | 5 |
+| a CONNECTOR at the head, with no left clause in the sentence (`Ma gia si parla`) | 5 |
+| a fronted ADJUNCT before the subject (`Negli ambienti giudiziari si tende ...`) | 9 |
+| a bare TIME phrase (`Sabato Mladic aveva spedito ...`) | 10 |
+| a preposition whose object is an ADVERB (`per sempre`) | 8 |
+| a preposition meaning `to` before an INFINITIVE (`tende ad accreditare`) | 9 |
+| a CONJUNCTION between two complements (`per definire ... e invocare ...`) | 10 |
+| a participle PREDICATED of the subject (`e considerata gia conclusa`) | 11 |
+| a determiner and a PRONOUN as a phrase (`Il tutto avviene`) | 12 |
+
+**EVERY ONE OF THEM IS TRIED ONLY AFTER THE PLAIN READING FAILED**, which is
+1.6.1's argument for the clause join reused nine times: a sentence that read
+before reads by the same clauses, and what changes is only what used to
+refuse. `test/translate.pl` went from 579 checks to 592 with TWO pins moved,
+and both are improvements rather than losses: `Maria has 3 dogs.` was
+pinned as REFUSED and is `Maria tiene 3 perros.` now, and `Siempre el
+perro come el pan.` was pinned as `Always the dog eats the bread.` --
+where `siempre` was an ADJECTIVE of the subject and the answer was wrong
+-- and is `The dog eats the bread always.`
+
+**THE ADVERB LIFT IS THE ONE THAT NEEDED A SEARCH.** `tr_adverbs_off/4`
+enumerates the selections of the adverb words, KEEPING each before it lifts
+it, so the first solution lifts nothing (the caller rejects it) and the ones
+after lift as few as the reading needs; the lifted words come back as the
+`adv/1` complements they would have been after the verb. It is the only
+clause of the nine that searches, and it is bounded by 2^k in the adverbs of
+one piece, which in newspaper prose is one or two.
+
+**AND THE FRONTED ADJUNCT TAKES THE LONGEST FRONT, WHICH ONE OUTPUT SETTLED.**
+Shortest-first cut `Negli ambienti si tende` after two words, read `gli` as an
+object pronoun standing alone -- nothing followed it to say it was the article
+it is -- and answered **`Environments tend in hims`**. Longest-first cannot
+swallow the subject either, because the front must read as ADJUNCTS and an
+`obj/1` is not one. **A wrong reading is the expensive kind of failure**: the
+refusal before it was honest.
+
+**THREE OF THE NINE ARE LESSON SHAPES THAT WERE ALREADY THERE**, which is the
+1.6.0 rule firing for the sixth version running. A time phrase is
+`"sabato" is a time.` -- the bare-class shape `"amigo" is a person.` has had
+since 1.2.32 -- and `reason.pl` did not move; the reflexive `si` needed one
+line of lesson, not a line of code; and a word Apertium lacks is a line in
+`corpus/extra/`.
+
+**AND THE REFLEXIVE WAS THE FIRST THING MEASURED, because 1.6.3 shipped it
+and nothing exercised it over the real vocabulary.** `tr_reflexive_word/1`
+asks the lesson `reflexive(W)`, and **no corpus file said it of any word** --
+only `test/translate.pl`'s own inline lesson did. So over the vocabulary
+every reflexive sentence read the clitic as part of the subject phrase:
+`La donna si e adeguata` came back **`The one woman is adapted`**. One line
+in `corpus/extra/<language>.txt` -- `The reflexive pronoun "si" means
+"itself".` -- fixes all of it, and the impersonal still reads, because the
+two are told apart by the shape and not by the word. **A feature proved only
+by a case's own lesson is a feature nobody has run.**
+
+**FOUR DEFECTS IN THE CROSSING CAME OUT WITH THEM, and three are one shape:
+a lesson says what a word MEANS and what classes it has and never which
+meaning belongs to which class.** 1.6.7 found it for the determiner and
+predicted the mirror; here it is three more times.
+
+* **A NUMBER IN DIGITS CROSSED TO NOTHING.** `200` has no `mean/2` row and
+  needs none -- it is 200 in every language -- so `tr_meanings_of/4` found
+  no meaning at all and refused the phrase. `il premio da 200 milioni` came
+  back `unknown: []`, a shape refusal with no shape missing, where `da due
+  milioni` read. One clause: a digit is its own meaning.
+* **AN ADVERB'S PLACE TOOK A NOUN.** `ancora` is an adverb, a noun and a
+  verb in the vocabulary, so `non sono state ancora accertate` came out
+  `have not been evacuated ANCHOR`. **The test needs no English word list**,
+  which is what makes it a rule rather than a table: an English word is an
+  adverb when some word the lesson calls an adverb AND NOTHING ELSE means
+  it. `even` is meant by `perfino` and `persino`, which are adverbs and
+  nothing else; `anchor` is meant by `ancora` alone, which is three things.
+* **AN ARTICLE WAS AN ADJECTIVE.** `Sabato el perro come el pan` read
+  `Sabado el perro` as ONE phrase with `saturday` and `the` for adjectives
+  of `dog`, so the fronted clause never saw it. A phrase has at most one
+  article and it is at the head; a POSSESSIVE is still an adjective there,
+  because `il suo quartier generale` is one phrase.
+* **AND A PHRASE RAN ON THROUGH THE NEXT ONE'S DETERMINER.** `mettere in
+  pericolo LA casa` was one phrase with an article among its adjectives.
+  A determiner ends the phrase before it -- but only once that phrase has
+  its NOUN, and not after a conjunction: a plain `PW \== []` cut `dal suo
+  quartier generale` after `il` and broke a sentence that read, and cutting
+  after `y` wrote `el pan y el huevo` as **`el y pan el huevo`**. The case
+  caught the second on its first run. **A pin that exists for another
+  reason is the cheapest regression test there is**, which this file already
+  said in 1.6.6 and is now true twice.
+
+**`corpus/extra/` IS WRITTEN FIRST NOW, AND THAT IS A LAYERING RATHER THAN A
+PREFERENCE.** Every line in it is there because Apertium's meaning is wrong
+or missing, so the hand-written one belongs in front of it; appended, `The
+masculine noun "sabato" means "saturday".` lost to the dictionary's `sabbath`
+and could not be corrected at all. The order is now the one the project
+already had everywhere else: `corpus/<language>.txt`, then `corpus/extra/`,
+then the dictionary. `test/translate.pl`'s byte-for-byte build check is what
+makes that safe to change -- both sides move together or the case goes red.
+
+**AND A MULTI-WORD TARGET WORD WORKS, WHICH WAS NOT OBVIOUS.** Spanish has no
+one word for `curfew`, and `The masculine noun "toque de queda" means
+"curfew".` writes `La casa ... toque de queda` correctly: a quoted mention of
+several words is ONE atom to the reader, exactly as `The verb "hay" means
+"there is".` is on the English side. It is write-only -- read back, the three
+words are three tokens -- and the header says so.
+
+**THE COSTS, STATED.** A verb's own preposition is not in the IR, so `si
+tende ad accreditare` comes back `se tiende acreditar`: nothing a lesson says
+pairs a verb with the preposition its infinitive takes. A fronting is not
+written back, which 1.6.8 already said of the other one: `Gia si parla`
+comes back `Si parla gia`, the same claim in the statement's own order.
+
+
+**AND THE SECOND HALF WAS FIVE MORE REFUSALS, EVERY ONE OF THEM A READING
+THAT WORKED IN PIECES AND FAILED WHOLE.** The nine shapes above took the
+sample from 1 of 12 to 8; what was left refused for reasons the cut-down
+probes found one at a time, and four of the five are the SAME DEFECT SEEN
+FROM FOUR SIDES -- a word or a term that one half of the file handles and
+another half does not.
+
+* **AN ELIDED CLITIC WAS NO PRONOUN.** `La sinistra L'ha attaccata` split
+  correctly and then had nothing to cross by: `tr_object_pronoun/3` and
+  `tr_pronoun_across/6` both ask `tr_class_of/2` or `mean/2` of the WORD,
+  and an elision has neither -- only `tr_lexeme/4` reads one. Two clauses,
+  one in each, both saying `an elided form is the word it elides`.
+* **A NAME APPOSED TO A NOUN NEEDED THREE CLAUSES, one per half.**
+  `il presidente Scalfaro` read as a phrase (the reader), crossed to nothing
+  (`tr_cross_adjective/2`) and then wrote nothing (`tr_adjective_out/5`) --
+  and each was found only after the one before it was fixed. **That is
+  1.6.4's rule in a third coat**: a new kind of thing in a phrase needs a
+  clause wherever a phrase is taken apart, and the halves fail one at a
+  time.
+* **THE COMPLEMENT READER ASKS TWO GLOBALS THE GROUP SETS, AND THE FRONTED
+  CLAUSE READS COMPLEMENTS BEFORE ANY GROUP.** Left over from the sentence
+  before, `dal punto di vista tattico` was taken for a PASSIVE'S AGENT and
+  the front refused. The clause sets them inert first.
+* **A BARE TIME PHRASE WAS A SUBJECT, which is a WRONG READING and the worse
+  kind.** `Qui solo due anni fa dominava il coprifuoco` came out as the
+  YEARS dominating. A determiner makes it a subject again (`L'anno era
+  lungo`), so the rule is as narrow as the shape that needs it.
+* **AND THE COUNT WAS NOT AT THE HEAD.** `tr_np/3` took a number only as the
+  first word after the determiner, so `solo due anni` left `due` among the
+  ADJECTIVES and the writer asked the lesson for an adjective meaning
+  `two`. It takes the first number before the noun now, with everything
+  before it required to be an adjective.
+* **AND AN INVERTED SUBJECT COULD NOT CARRY A REDUCED RELATIVE.**
+  `fo_agreeing/3` matched `np/5` by name and a `rel/3` is not one, and
+  `fo_np_words_after/3` ended the phrase at the agent's preposition. Both
+  are `tr_phrase_words/4`'s own rules, which the question form's finder did
+  not have.
+
+**AND ONE MORE CLASS-CONFUSION, WHICH IS THE FOURTH FIRING OF 1.6.7's
+FINDING.** `Qui solo due anni` read as ONE phrase with `here` for an
+adjective of `years`, because `tr_adj_word/2` refused prepositions, verbs
+and pronouns and said nothing about adverbs. A word the lesson knows ONLY
+as an adverb is no adjective; one that is an adjective too (`solo`,
+`molto`) still is. **That is the tagger's judge's own rule** -- *an
+adjective is not a word known only as an adverb* -- arrived at
+independently on the other side of the library.
+
+**MEASURED: THE TWELVE SENTENCES OF THE SAMPLE ARE 12 OF 12 READ AND 12 OF
+12 WRITTEN INTO SPANISH**, over a two-language store taught from the
+rebuilt vocabularies:
+
+| | 1.6.0 | 1.6.9 | 1.6.13 | **1.6.14** |
+|---|---|---|---|---|
+| translated into Spanish | 0 | 1 | 1 | **12** |
+| read into English | 0 | -- | 6 | **12** |
+| refused for a SHAPE | 5 | 6 | 6 | **0** |
+| refused for a WORD | 4 | 5 | 5 | **0** |
+
+**WHAT THE LAST FOUR NEEDED WAS THE TARGET'S VOCABULARY AND NOT A SHAPE**,
+which is the refusal contract working: once a sentence reads into English
+-- English IS the IR -- a refusal into Spanish is a word Spanish has no
+entry for, and `corpus/extra/spanish.txt` is where it goes. `fax`,
+`tactician`, `for` (Spanish's `para`, which the lesson gave only as the
+purpose word), `curfew` (`toque de queda`, and A MULTI-WORD TARGET WORD
+WRITES) and eight time nouns were the whole of it.
+
+
+**THE TWELVE, AS THEY COME OUT** (Italian 157 188 terms and Spanish 205 444
+taught into one `--embed` store, 445 MB, 19 min 53 s; the twelve cost
+**13.6 s** together):
+
+| | |
+|---|---|
+| `Evacuata la Tate Gallery.` | `La Tate Gallery ha sido evacuada.` |
+| `Parma conquista il premio da 200 milioni.` | `Parma conquista el galardón desde 200 millones.` |
+| `I generali si sono anche appellati al "parlamento" di Pale.` | `Los generales se son llamados al "parlamento" de Retablos también.` |
+| `La sua identità e la sua nazionalità non sono state ancora accertate.` | `La su identidad y la su nacionalidad no son sido verificados incluso.` |
+| `Ma già si parla di epurazioni e di processi contro i vinti.` | `Pero se habla de depuraciones ya y di procesos contra los perdedores.` |
+| `La sinistra l'ha attaccata perché Pivetti non si è adeguata.` | `La izquierda lo ha adosado porque Pivetti no se es adaptado.` |
+| `Qui solo due anni fa dominava il coprifuoco imposto dai soldati israeliani.` | `El toque de queda aplicado por los soldados israelíes dominó dos años aquí solo hace.` |
+| `La sperimentazione dell'atomica ha cambiato il mondo per sempre, si disse subito dopo Hiroshima.` | `La experimentación del atómico ha cambiado el mundo para siempre, se dijo tras Hiroshima inmediatamente.` |
+| `Negli ambienti giudiziari si tende ad accreditare la tesi di una leggerezza, escludendo che ...` | `Se tiende abonar el tendido de una negligencia en los entornos judiciales, excluyendo que ...` |
+| `Sabato Mladic aveva spedito un fax dal suo quartier generale per definire "illegale" ...` | `Mladic había enviado un fax desde la su sede general para definir "ilegal" ...` |
+| `Il blitz è riuscito, "dal punto di vista tattico" l'operazione è considerata già conclusa.` | `La redada es lograda, el funcionamiento es considerado concluido "desde el punto de vista táctico" ya.` |
+| `Il tutto avviene con la connivenza delle autorità costituite e così uno dei Paesi più ricchi ...` | `El todo pasa con la connivencia de la autoridad constituida y uno de los Países más ricos ...` |
+
+**AND TRANSLATED IS NOT THE SAME AS RIGHT, which the rows say for
+themselves.** Every one of the twelve is read as a STRUCTURE the translator
+has -- the shapes are the finding -- and what is left wrong is words and
+agreement, in five shapes worth naming because each is a lever of its own:
+a capitalised word the vocabulary happens to know is not a name (`Pale`
+comes back `Retablos`); a possessive after an article keeps the article
+(`la su identidad`); the passive perfect of the copula is not built
+(`no son sido`); a preposition inside a conjoined pair is not crossed (`y
+di procesos`); and English's adjective order puts an apposed name before
+its noun (`del Scalfaro presidente`). **None of them is a refusal, so none
+of them is visible in the count** -- which is the honest reading of 12 of
+12, and the reason the next row of work is quality and not shapes.
+
+### A real Spanish article into Italian, and what the Italian sample never asked for (1.6.15)
+
+**ANOTHER REAL ARTICLE, THE OTHER WAY, AND 1 OF 11 BECAME 11 OF 11.** El
+Periódico of 2 February 1999 -- AnCora's `CESS-CAST-P-19990202-16`, eleven
+sentences of a column on the family and young people's violence -- Spanish
+into Italian over the two-language vocabulary store. On 1.6.14 one sentence
+translated and it was WRONG (`tiene que buscar` came out `ha che cercare`).
+The middle column is the 1.6.14 translator over THIS store, whose new lesson
+lines it cannot use (a word of several words is two words to it):
+
+| | 1.6.14, its store | 1.6.14, this store | **1.6.15** |
+|---|---|---|---|
+| translated into Italian | 1, and wrong | 1, the same | **11** |
+| refused for a word | 7 | 3 | **0** |
+| refused with every word known | 3 | 7 | **0** |
+| the eleven, one process | 82 s | 119.5 s | **22.8 s** |
+
+**WHAT IT NEEDED IS NOT WHAT THE ITALIAN SAMPLE NEEDED, which is the argument
+for a second article.** The twelve Italian sentences were verbs and what they
+take; this column is PHRASES THAT CARRY THINGS:
+
+| shape | the article's words | what the lesson says |
+|---|---|---|
+| a relative clause with its own pronoun | `contra "esos", que son culpables`, `el grupo social al que pertenece` | `"que" is a relative`, `The word "cui" follows the preposition` |
+| a subject nobody named | `se les llamará`, `Se ha equivocado`, `Es golpear` | nothing: a third person singular reads as `null(third, singular)` |
+| a list with commas | `compañeros y vecinos, emigrantes y minorías` | nothing |
+| a word of several words | `junto a`, `tiene que`, `lavado de cerebro`, `bate de béisbol` | `The preposition "junto a" means "along with"` |
+| how and when a thing was done | `utilizando un esnob bate`, `al acusar` | `The word "al" begins the moment` |
+| a phrase whose noun was left out | `en los de clase media`, `el más débil` | `The word "el" replaces the noun` |
+| no verb at all | `¡Atención al veneno ...!`, `; en los de clase media, chicos difíciles` | nothing |
+| a question in quotation marks, and `how` | `"¿Cómo ha podido salir así ...?".` | `The word "cómo" means "how"` |
+| a name between commas, an adverb on an adjective | `El ministro ..., Jean-Pierre Chevènement,`, `tan pacífica` | nothing |
+| the forms Italian chooses by the next word | `lo scandalo`, `l'istituzione`, `il suo`, `si è sbagliato`, `li si chiamerà` | `The article "lo" comes before "sc"`, `"è" is the auxiliary of the reflexive`, `The word "si" follows the pronoun`, `The article "il" takes the possessive` |
+
+-- and `The adjective "culpable" means "guilty"` beside `The noun "culpable"
+means "culprit"` needed a meaning KEPT WITH ITS CLASS, `mean_as(Word,
+English, Class)`, derived as the lesson is learned: `culpables` in an
+adjective's place came out `culprit`. **The whole vocabulary side is 54
+Spanish and 107 Italian lines in `corpus/extra/`** and one builder fix (a
+noun Apertium tags `sp`, `città`, is its own plural); `reason.pl` did not
+move, which is the seventh version running.
+
+**THE ELEVEN, AS THEY COME OUT** (Italian 157 797 terms and Spanish 205 670
+taught into one `--embed` store, 337 MB, 21 min 43 s; the eleven cost
+**22.8 s** together, 14.9 of them the fifth):
+
+| | |
+|---|---|
+| `Cucharada a cucharada, el chaval asimila el consomé o sopicaldo del ...` | `Cucchiaio dopo cucchiaio, il giovane assimila il consommé o brodo del ...` |
+| `El pater familias se está desahogando contra compañeros y vecinos, ...` | `Il padre di famiglia si sta sfogando contro compagni e vicini, ...` |
+| `Es la hora del caldo de frustraciones y odios que el pequeño aprende ...` | `È l'ora del brodo di frustrazioni e odi che il piccolo apprende in ...` |
+| `Hay lavados de cerebro con humildes sopas de sobre y otros servidos ...` | `Ci sono lavaggi del cervello con umili minestre in busta e altri ...` |
+| `Después, en los barrios marginales se les llamará muchachos ...` | `Dopo, nei quartieri marginali, li si chiamerà ragazzi conflittuali; ...` |
+| `"¿Cómo ha podido salir así en una familia tan pacífica?".` | `"Come ha potuto uscire così in una famiglia così pacifica?".` |
+| `El ministro del Interior francés, Jean-Pierre Chevènement, ha ...` | `Il ministro dell'interno francese, Jean-Pierre Chevènement, ha ...` |
+| `Se ha equivocado al proponer castigar a los padres con la pérdida de ...` | `Si è sbagliato proponendo punire i padri con la perdita degli ausili ...` |
+| `Es golpear sólo a un grupo y el más débil.` | `È colpire solamente un gruppo e il più debole.` |
+| `Pero la democracia tiene que buscar una causa a la violencia gratuita ...` | `Ma la democrazia deve cercare una causa alla violenza gratuita ...` |
+| `¡Atención al veneno mental de la hora de la sopa!.` | `Attenzione al veleno mentale dell'ora della minestra!` |
+
+**A THIRD PERSON NOBODY NAMED READS NOW, AND ENGLISH STILL REFUSES IT** -- the
+one rule of 1.6.0 that changed. `Estaba cansado` could be anybody and English
+must choose he, she or it; Italian and Spanish need not choose, so the IR
+carries `null(third, singular)` and only the English writer refuses. Three
+pins moved with it (`Dominava il generale.`, `Ieri mangiava il pane.`,
+`Comía el pan.`: each reads into the IR now, and each is still refused into
+English).
+
+**THE STORE CAUGHT WHAT THE CASE DID NOT, AND THAT IS THE FINDING TO KEEP.**
+With `test/translate.pl` GREEN and the article at 11 of 11, the twelve Italian
+sentences of 1.6.14 -- re-run on the same store as a CONTROL, nothing more --
+still all translated, and four of them were WORSE than on 1.6.14, measured by
+running the committed translator over the same store beside the new one:
+
+| the regression | the cause | the fix |
+|---|---|---|
+| `la suya identidad` for `la sua identità` | a possessive after an article read as an ADJECTIVE, and the class-aware meaning made `sua` the adjective `hers` | a possessive after an article is the determiner: `su identidad`, and Italian's writer puts the article back |
+| `y se de los Países` for `uno dei Paesi` | the new ellipsis read `uno` as an article with its noun left out, and the class branch crossed `one` to the impersonal `se` | an article the lesson says STANDS ALONE (`The pronoun "uno" does not precede the verb`) heads its own phrase; the class branch keeps out a word that names nobody |
+| `abonar ella tendido` for `accreditare la tesi` | a reduced relative read on the clitic `la` | a clitic heads nothing |
+| `no son aguantados incluso verificados` | `ancora` between `sono state` and `accertate` sent the sentence to the two-word passive, and `stata` is the participle of `stare` before the copula in the store | the passive perfect takes adverbs before its participle |
+
+-- **and all four now read BETTER than on 1.6.14** (`Su identidad y su
+nacionalidad no han sido verificados`, `desde su sede general`, `la tesis`),
+every row of the twelve equal or better. Four checks in the new section pin
+them on small lessons. **A case GREEN on small lessons is a claim about those
+lessons**: the vocabulary is where a reading meets a word with six classes.
+
+**THE CLASS-AWARE MEANING IS FOR A NOUN AND AN ADJECTIVE ONLY**, which Tatoeba
+settled. Asked for every class it wrote `We need plus food` (`más` is a
+preposition meaning `plus`), `too largo` (`largo` an adverb), `whither`,
+`non`: the dictionary's links for the other classes are noise to this. And
+toward English it acts only when the FIRST meaning is linked to another
+class, so a meaning a lesson gave with no class (`The word "dónde" means
+"where"`) is never passed over. Tatoeba's four hundred on the same store:
+
+| | 1.6.14 | **1.6.15** |
+|---|---|---|
+| exactly the reference | 42 | **42** |
+| translated | 260 | **263** |
+| refused | 140 | **137** |
+| wall | 16.6 s | **23.1 s** |
+
+**THE READING COSTS ABOUT 39 % MORE A SENTENCE, AND THE COUNT SAYS WHERE.**
+Timed by stage, the reading is 14.2 s against 21.5 s and crossing and writing
+do not move; counted, the lesson lookups went from 466 052 to 610 324. Two
+cuts came out of the count, each measured alone: the multi-word join asked
+`tr_known_word/2`, which walks every ending rule for a join that is no word
+(`tr_stated_word/1` asks the thirteen relations a form is STATED in: 1.8 s to
+0.7), and the coordinator test derived a lexeme for a word that does not
+inflect, ten thousand times (`tr_coord_word/1` asks the word: 0.6 s, with the
+phrase boundary asking for a degree word only where a boundary was found).
+What is left is spread thin -- the joins, the intensifier on every phrase
+word, more verb-group attempts from the new statement shapes -- and no single
+item in it is worth a design change.
+
+**THE COSTS, STATED:** `al proponer castigar` comes out `proponendo punire` --
+the preposition a verb puts before its infinitive is not in the IR; the
+imperfect and the preterite are both `past`; an ellipsis in a `de` phrase
+joins INSIDE it (the IR hangs `el de los chicos` on the cats), and every
+language writes the same words either way, which is 1.6.6's PP finding;
+`tengo que` is refused because a multi-word modal is stated in the third
+person only; and `Tom es mecánico` is `mechanical`, the adjective's meaning
+in an adjective's place, where Spanish meant the noun.
+
+**FOUR THINGS BIT, AND THE FIRST ONE WILL BITE AGAIN:**
+
+* **A RED RUN OF `test/translate.pl` PRINTS TWO REPORTS, AND ONLY THE FIRST IS
+  TRUE.** `checks_done` fails, so `main` fails, and the engine backtracks into
+  the last choice point a section left -- `reason_translate('Her dogs see
+  her.', P)` answers the same sentence twice, in 1.6.14 too -- and runs every
+  section after it again over lessons the first pass already changed. The
+  second report had a dozen failures where the first had one. Read up to the
+  first `RED`.
+* **`:- consult(F).` IN A PROGRAM RUN WITH `-s` CRASHED, AND SO DID EVERY
+  GOAL DIRECTIVE THERE -- FIXED IN 1.6.16, AND THE READING THAT STOOD HERE
+  WAS WRONG.** `consult/1` does not exist -- under `run` the directive says
+  `Unknown procedure: consult/1` and the load goes on -- but under `-s` even
+  `:- true.` segfaulted, not only a directive that failed or threw, the stack
+  7 500 frames of `coco_directive` → `lb_goal_hook` → `coco_engine_next` →
+  `coco_module_load` → `coco_consult` → `coco_directive`. This bullet said the
+  directive's engine backtracked into the `-s` command's own
+  `use_module(FILE)`; nothing backtracked -- the module was not yet COUNTED as
+  loaded while its own directive ran, and the section on directives below has
+  the cause, the fix and the checks.
+* **A LINE AT THE FRONT OF A 400 MB STORE COSTS SECONDS TO A MINUTE**, because
+  the backend rewrites the predicate wholesale. A 9 MB store of only the lines
+  that mention the article's words answered a probe in seconds; the full
+  store was re-taught (22 min, 337 MB, 9.4 GB resident at its peak) for the
+  numbers above.
+* **A CLAUSE HAS ONE SCOPE**, again: a guard that named its variable `R0` in a
+  clause that tests `R0` two lines below turned the test into one about that
+  one word. The results did not change, which is why only reading the clause
+  found it.
+
+**`test/translate.pl` IS 626 CHECKS AND GREEN**, 34 in a new `newspaper_es`
+section with a Spanish and an Italian lesson of its own; one IR pin moved to
+carry `pre(...)`. Lesson 46 gained section 22. **The minor is proposed**: a
+relative clause, a list, a word of several words, a gerund and `al`, a noun
+left out and a clause with no verb are new things a program reaches; the
+owner decides.
+
+**AND THE FULL SUITE IS GREEN ON 1.6.15: 58 case lines, 7 SKIPs, `red: 0`**,
+in 18 min 9 s, with a fresh server up and answering a sentence before the run
+-- `zigurat`, `shared`, `zigurat-lib`, `kbs`, `zigurat-tls`, `tunnel`,
+`groups` (2 s) and `ruler` (13 s) all GREEN, so the database was touched. The
+seven SKIPs are the machine, each read from its own case: no CUDA for
+`tensors`, `torch-graph`, `torch-grad` and `torch-replay`, and no
+`tensorflow.so`, `ray.so` or `numpy.so` built. The long lines: `tutorials`
+360 s, `tagger` 211 s, `lint` 161 s, `tunnel` 62 s, `translate` 41 s.
+
+### A second Italian article, and the memo its longest sentences needed (1.6.17)
+
+**MONTE LIVATA INTO SPANISH, TWENTY-NINE SENTENCES OF A RESCUE TOLD IN
+QUOTATIONS.** The Italian UD ISDT document test-232..260 -- a woman and two
+children lost on a mountain, found, and the rescuers quoted at length --
+into Spanish over the two-language vocabulary store, each translator on the
+same store, a budget of 300 million inferences a sentence:
+
+| | 1.6.15, the committed translator | **1.6.17** |
+|---|---|---|
+| translated | 12 of 29, several wrong in structure (`se soy movido pero soy caído`, `de las y mantas`) | **29 of 29** |
+| refused | 14 -- 8 with every word known, 6 naming a word it read wrongly (`riprenderli`, a verb with its pronoun joined on; `anni,`, a word with its comma, inside a quotation still open) | **0** |
+| over the budget | 3, at about 110 s each | **0** |
+| the article, one process | 490 s | **77 s** |
+
+-- the store Italian 158 743 terms and Spanish 206 262, taught into one
+`--embed` store from the rebuilt vocabularies in 495 s and 873 s, 346 MB.
+Every sentence reads; what is still wrong in them is said below.
+
+**WHAT IT NEEDED IS NOT WHAT EITHER ARTICLE BEFORE IT NEEDED.** The twelve
+sentences of 1.6.14 were verbs and what they take; the Spanish column of
+1.6.15 was phrases that carry things; this one is the way a report SPEAKS --
+quotations over several sentences, a reporting clause after them, a state,
+a count, a thank-you with no verb:
+
+| shape | the article's words | what the lesson says |
+|---|---|---|
+| a quotation over several sentences, and the clause that reports it | `“Stiamo a pezzi ... ” ha spiegato un soccorritore` | nothing |
+| the copula of a STATE | `stiamo a pezzi`, `Estamos destrozados` | `The auxiliary "está" marks the state.` |
+| a count with an adverb before it | `con oltre 50 mezzi`, `a meno 5 gradi` | `The adverb "oltre" means "more than".` |
+| two counts, the noun left out of the second | `50 mezzi e 130 circa` | nothing |
+| `of which` with no verb | `37 associazioni ..., di cui tre di unità cinofile` | `"cui" follows the preposition`, already there |
+| `all` before a phrase | `tutta la notte`, `toda la noche` | nothing |
+| a DATIVE pronoun | `gli abbiamo dato`, `le hemos dado` | `The dative pronoun "gli" means "him".` |
+| the `to` before an infinitive | `andare a chiedere aiuto`, `ir a pedir ayuda` | nothing |
+| a front that asks where | `e da dove abbiamo poi ritrovato la mamma` | nothing |
+| thanks with no verb | `Grazie all'Arma dei carabinieri, ...` | nothing |
+| an elided article after a contraction | `è andata dall'altra`, `desde la otra` | nothing |
+| a number in any format | `-10 gradi`, `1.400 metri`, `4 e 5 anni`, `al 118` | nothing |
+| an aside | `una donna, 36 anni,`, `(Roma)` | nothing |
+| a word alone where no verb was read: a noun before an adjective | `..., Regione Lazio, volontari, ai cani` | `volunteer` in `extra/eng-ita.dix` |
+
+-- and the words the dictionaries lack or give a wrong first sense for,
+which is `corpus/extra/eng-ita.dix` and `eng-spa.dix`, the bilingual
+dictionary's own shape, one entry a line, each with a comment saying why
+(`child` is `niño` and not `infante`, `mount` is `monte` and not a saddle).
+`reason.pl` did not move, which is the eighth version running.
+
+**THE COPULA OF A STATE IS THE ONE PLACE THE IR GREW A WORD, AND IT IS
+`state(is)`.** Italian and Spanish both say `is` with two verbs and English
+with one, so the IR had thrown the difference away: `Stiamo a pezzi` came
+out `Somos destrozados`. The auxiliary a lesson says means `is` -- the
+progressive's `sta`, `está` -- is the state's when no gerund follows it, the
+IR carries it as `state(is)` beside `reflexive(L)`, English writes `is`, and
+a lesson writes the word it says MARKS the state or, saying nothing, its
+plain copula. So `Estamos cansados` into Italian is `Siamo stanchi`, which is
+right, and the line lives in `corpus/extra/spanish.txt` alone.
+
+**A PHRASE IS A THIRD PERSON, IN ITS OWN NUMBER.** The subject reader took
+the verb's person on trust, so `Monte Livata, ritrovati vivi donna` read
+`vivi` -- you live -- as the verb of `Monte Livata retrieved`, and a boy on a
+rock was the subject of `si sono fatti forza`, one boy for the two children
+the plural said. A phrase takes a verb in the third person and in the
+phrase's number now, on the LESSON's side only: English's `are` is you, we
+and they alike, and `The houses are big` would have been refused.
+
+**AND ITS LONGEST SENTENCES WERE A COST AND NOT A SHAPE.** On the probe
+store the sentence that begins `Di certo si sa solo che la famiglia era ...`
+-- thirty-five words, a subordinate clause, a name between commas -- asked
+for a statement reading 171 times, 35 of them distinct. Every count the
+profile named, and each memo was measured before it was built:
+
+| what was asked again | over that one sentence | kept as |
+|---|---|---|
+| a statement that failed to read | 171 readings, **35 distinct** | a failure, like a piece's (tr_read/4) |
+| a word's lexemes | **204 829 calls**, for about sixty distinct words | every solution, the first time |
+| a word's verb forms, a word's class | 23 915 and 47 806 calls | every solution, the first time |
+
+-- and the pair that says what they buy is this translator with the memos
+taken out and nothing else, on the full store, two alternating repeats,
+the translations identical to the byte in all four arms:
+
+| sentence | with the memos | without |
+|---|---|---|
+| `Un soccorritore parla di “miracolo” ...`, fifty words | 14.9, 14.2 s | 30.9, 33.6 s |
+| `Di certo si sa solo che la famiglia era ...` | 15.2, 15.0 s | 86.0, 90.1 s |
+| `“La sala operativa della Protezione civile ...`, ninety words | 3.5, 3.4 s | 7.8, 7.9 s |
+| the three | **33.6, 32.5 s** | **124.7, 131.5 s** |
+
+-- 3.8 times, the ranges nowhere near touching.
+
+**A GLOBAL IS COPIED EVERY TIME IT IS READ, AND THE FIRST MEMO WAS SLOWER
+FOR IT.** One assoc for the whole sentence cost **62 us a lookup** at five
+hundred entries against 2.8 us empty -- `nb_getval/2` and `b_getval/2`
+alike. Each WORD has a global of its own now (`'$tr_w|casa'`), a handful of
+entries, about two microseconds.
+
+**AND THE RESET WAS WRONG, WHICH ONLY THE CASE COULD SEE.** A reset listed
+the tables the sentence touched and emptied them -- and a table that already
+existed was never listed again, so a lesson changed between two calls read
+the old answer: `what` stayed known after `retract(mean('qué', what))`.
+A reset is a GENERATION now, and a table stamped with an older one is empty.
+
+**A CLAUSE HAS ONE SCOPE, AND IT BIT FOR THE FOURTH TIME.** The count slot
+of 1.6.14 named its adverb `A`, and the adjective check eight lines below
+walked `forall(member(A, Adjs), ...)`: with the adverb bound, `member/2`
+matched nothing and EVERY adjective after such a count passed unchecked --
+`oltre 50 mezzi e 130` was one phrase with `e 130` for adjectives. It is
+`NA` now, and the clause says why. The tell was a `forall/2` that succeeded
+in the clause and failed on the same terms at the top level: **when a goal
+answers differently in a clause than alone, look for a variable the clause
+already bound.**
+
+**THE CONTROLS FOUND TWO REGRESSIONS THE CASE DID NOT, AND BOTH WERE RULES
+WRITTEN FOR ONE SENTENCE AND TRUE OF A CLASS THEY DID NOT NAME.** With
+`test/translate.pl` GREEN and the article at 29 of 29, the twelve sentences
+of 1.6.14 were run on the same store by this translator and by the
+committed one, and two of the twelve had come out WORSE -- neither refused,
+both wrong:
+
+| sentence | came out | the rule | what it missed |
+|---|---|---|---|
+| `La sua identità e la sua nazionalità non sono state ancora accertate.` | `... han sido verificados todavía no.` -- the verb no longer denied | a connecting word before `non` opens a clause of its own (`perché Pivetti non si è adeguata`) | a COORDINATOR joins two phrases of one subject as often as two clauses |
+| `Sabato Mladic aveva spedito un fax ...` | `Había enviado un fax ... Sábado Mladic.` -- the subject gone | a capitalised noun at the head before an unknown capitalised word is a name's first word (`Monte Livata`) | a TIME at the head is capitalised by the sentence, and `Mladic` became a name apposed to the day |
+
+A coordinator opens no clause now -- a second clause after one is the
+division's to read, where each half reads its own denial -- and a noun the
+lesson calls a time loses the head's capital, because a day is lower case
+inside an Italian or a Spanish sentence. `newspaper_it` pins both, and both
+pins fail on the code before the fix.
+
+**AND A THIRD WAS OLDER THAN ANY OF THIS, IN THE DICTIONARY BUILDER.** `I
+generali` read as an article, an adjective and a noun left out, because the
+vocabulary had no NOUN `generale`: Apertium's paradigm `general/e__n` gives
+`generale` and `generali` for both genders and `general` for the masculine
+alone -- an apocope -- and the builder, asking for the masculine first,
+stated the noun as `general` with no plural. It had done so for as long as
+the builder has existed, and the adjective read by position had covered for
+it until this version's rule that an adjective after an article is no noun
+(`l'altra`, the other one). A form for both genders comes before a DIFFERENT
+masculine one now, and the diff of the rebuilt vocabulary is those three
+lines and nothing else: one paradigm in either dictionary has the pair. The
+same probe found the passive perfect with an adverb inside it (`sono stati
+ANCORA accertati`, 1.6.15) choosing among the copula's readings without the
+participle's number, which its three-word sibling asks: `sono` is `I am`
+before it is `they are`, so a phrase subject never agreed and the sentence
+read only once the adverb was lifted, and with nobody named it said one
+thing verified where the participle said several. `newspaper_it` pins that
+too.
+
+**TRANSLATED IS NOT RIGHT, AND WHAT IS LEFT IS SAID HERE RATHER THAN HIDDEN.**
+Every sentence reads as a structure the translator has; what is wrong is
+words, agreement and a few senses no lesson can separate:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `eran atrapados`, `eran a doce kilómetros` | `estaban` | Italian's `essere` is both, and only a sense says which; the state copula of this version is `stare`'s alone |
+| `le hemos dado` for `gli` meaning them | `les` | `gli` is to him and to them, and the lesson gives one meaning |
+| `de las mantas` | `unas mantas` | the partitive `delle` reads as `of the` |
+| `del Guardia de finanza` | `de la Guardia` | a common-gender noun is masculine unless its article is read -- and the IR carries no gender |
+| `a la Arma` | `al Arma` | Spanish's `el` before a stressed `a` is no rule a lesson states |
+| `desde la otra`, `ir desde una parte` | `a la otra`, `hacia un lado` | `da` after a verb of going is `to`; the lesson gives `from` |
+| `consideró`, `quiso` | `consideraba`, `quería` | the imperfect and the preterite are both `past`, 1.6.15's stated cost |
+| `para comer` | `de comer` | `da mangiare` is read as the purpose word |
+| `se ha hecho mal`, `ha equivocado carretera` | `se ha hecho daño`, `se ha equivocado de camino` | an idiom is a phrase, and a lesson gives words |
+| `explicando que se han aplicado`, no opening mark | `explicando que “se han ...` | a mark that opens a quotation mid-sentence and closes in the next sentence is dropped |
+
+-- none of them is a refusal, so none of them shows in the count, which is
+the honest reading of 29 of 29 and the reason the next work is quality.
+
+**THE CONTROLS, ON THE SAME STORE, THIS TRANSLATOR AGAINST 1.6.15's:**
+
+| control | 1.6.15 | 1.6.17 |
+|---|---|---|
+| the twelve Italian sentences of 1.6.14, into Spanish | 12 of 12, 20.3 s | 12 of 12, **14.9 s** -- seven better, five the same, none worse |
+| the Spanish article of 1.6.15, into Italian | 11 of 11, 23.3 s | 11 of 11, **14.1 s**, the same text to the byte |
+| Tatoeba, 400 Spanish sentences into English | 52 exact, 258 translated, 142 refused, 17.5 s | **53, 264, 136**, 13.4 s |
+
+-- the seven of the twelve that moved: `se han llamado` for `se son ...
+llamados`, `no se ha adaptado` for `no se es adaptado`, `de procesos` for an
+untranslated `di`, `de la atómica` for `del atómico`, `se tiende a abonar`,
+`la redada ha logrado` for `es lograda`, and `las autoridades constituidas
+... en un estado de pobreza` for `la autoridad ... en uno sido`.
+
+**`test/translate.pl` IS 645 CHECKS AND GREEN**, nineteen in a new
+`newspaper_it` section with an Italian and a Spanish lesson of its own --
+the shapes above, the two regressions, the passive perfect's number and the
+word alone with no verb, each of the last four red on the code before its
+fix -- and lesson 46 gained section 23.
+
+### The complements of a word list, read once a sentence (1.6.19)
+
+**THE SAME REST OF A SENTENCE IS READ UNDER EVERY READING OF WHAT COMES
+BEFORE IT**, so `tr_complements/4` keeps what it read -- every solution, for
+the sentence only, the way a word's lexemes are kept (`tr_memo/4`). Over the
+three longest sentences of Monte Livata it was asked 583 times for 409
+distinct readings.
+
+**THE KEY IS EVERYTHING THE READER ASKS, and that was read rather than
+assumed**: the side, the words, whether an object was read, and three globals
+-- the group and the aspect being read (a modal, the copula, a passive, no
+verb at all) and the side the text is on. Every statement reader that SETS
+the first two is reached from inside the complement reader only through
+`tr_read_nested/4`, which puts both back, so nothing leaks out either. The
+reader is all but deterministic -- the 409 readings gave 96 solutions between
+them and none gave more than one -- so keeping every solution explores little
+that a caller cutting after the first would have skipped, and the pair below
+is the net of both. Only a ground word list is kept.
+
+**MEASURED on one store and one binary, the library the only difference, and
+every translation byte for byte the same:**
+
+| | before | kept |
+|---|---|---|
+| the three longest Livata sentences, twice each, alternating | 32.63, 32.55 s | **29.31, 29.15 s** |
+| Livata, 29 sentences | 76.4 s | **66.1 s** |
+| the twelve Italian sentences | 15.1 s | 13.9 s |
+| the Spanish article | 13.8 s | 13.2 s |
+| Tatoeba's 400 | 13.5 s | 13.1 s |
+| `test/translate.pl`, 645 checks | 48 s | 39 s |
+
+-- the gain grows with the sentence, because the repeats do. No Livata
+sentence is slower with it by more than 0.02 s, where two runs of the same
+code differ by up to 0.47 s on one sentence.
+
+### A memo that never kept a no, found by counting before building (1.6.20)
+
+**THE LEXICAL PASS THAT WAS PROPOSED WAS NOT BUILT, BECAUSE THE COUNT SAID
+WHAT IT WOULD HAVE BOUGHT.** The idea was to look every word up once before
+the parse, so that a class test (`is this a noun?`) became cheap. Counting the
+memo's lookups table by table first, over the three longest Livata sentences:
+
+| table | lookups | asked again from the lesson |
+|---|---|---|
+| a word's lexemes | 304 750 | 374 |
+| **a word's classes** | 151 166 | **127 006** |
+| a word's verb forms | 34 426 | 117 |
+| the complements of a word list | 583 | 409 |
+
+**THE CLASS TABLE KEPT ONLY A YES.** `tr_is/3` asks `tr_memo/4` for the
+pattern `[_|_]` -- is there any solution at all -- and on a miss `findall/3`
+went straight into that pattern, so a word with NO solution failed the
+findall BEFORE `put_assoc/4` ran: a class test that answered no was asked of
+the lesson again every time, and most class tests answer no. The list is kept
+first now and matched against the pattern afterwards, which answers exactly
+what it answered before; the class misses fell from 127 006 to 693, and all
+misses from 127 931 to 1 618. A class test costs about 13 us where it cost
+29-45 us, asked of the same five words 20 000 times with the probe's own loop
+(3.7 us) taken off.
+
+**AND A WORD'S TABLE IS A LIST.** Timed part by part, `get_assoc/3` finds one
+key among seventeen in 23 inferences, all of them clauses, where `memberchk/2`
+is one call into C. Every memo key is ground -- an atom from a global, or
+words a caller checked with `ground/1` -- so unifying a key finds exactly what
+comparing it found.
+
+**MEASURED ON ONE STORE, ONE BINARY, THE LIBRARY THE ONLY DIFFERENCE, every
+translation byte for byte the same:**
+
+| the three longest Livata sentences, alternating pairs | runs |
+|---|---|
+| 1.6.19, the memo as it was | 30.37, 29.75 s |
+| the no kept | **24.49, 24.49 s** |
+| the no kept, then the list, in its own pair | 24.61, 24.95 s -> **23.68, 23.22 s** |
+
+| the four controls | 1.6.17 | 1.6.19 | **1.6.20** |
+|---|---|---|---|
+| Livata, 29 sentences | 77.0 s | 66.1 s | **52.4 s** |
+| the twelve Italian sentences | 14.9 s | 13.9 s | **12.0 s** |
+| the Spanish article | 14.1 s | 13.2 s | **12.1 s** |
+| Tatoeba's 400 | 13.4 s | 13.1 s | **12.4 s** |
+
+**A LOOKUP THAT HITS IS STILL THE COST, AND A PASS BEFORE THE PARSE WOULD NOT
+MOVE IT.** About 366 000 lookups over those three sentences at about 13 us
+each is some five seconds of twenty-three, and a word looked up before the
+parse is still looked up by every reading after it. What would move it is fewer
+lookups -- a reading that asks once and passes the answer down -- which is a
+change to how the reader is written, not to the memo.
+
+### A third Italian article: figures, dates and a sentence inside a quotation (1.6.21)
+
+**THE FIAT-CHRYSLER AGREEMENT WITH VEBA INTO SPANISH, TWENTY SENTENCES OF
+FIGURES, DATES AND QUOTATIONS.** The Italian UD ISDT document test-261..281 --
+Fiat buying the rest of Chrysler from the union's health fund, the terms, and
+three people quoted at length -- into Spanish over the two-language vocabulary
+store. The middle column is 1.6.20's translator over THIS store, so it has the
+new vocabulary lines and none of the new shapes:
+
+| | 1.6.20, its store | 1.6.20, this store | **1.6.21** |
+|---|---|---|---|
+| translated | 2 of 20, one wrong in structure | 7 | **20** |
+| refused for a word | 13 | 3 | **0** |
+| refused with every word known | 5 | 10 | **0** |
+| the article, one process | 54.7 s | 32.2 s | **18.8 s** |
+
+-- the store Italian 159 983 terms and Spanish 207 927, taught into one
+`--embed` store from the rebuilt vocabularies in 501 s and 873 s, 343 MB, and
+the three lines the controls added below learned into it afterwards.
+
+**WHAT IT NEEDED IS NOT WHAT THE THREE ARTICLES BEFORE IT NEEDED.** The twelve
+sentences were verbs, the Spanish column phrases that carry things, Livata the
+way a report speaks; a business page is FIGURES, and the prose round them:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| a percentage | `il restante 41,46% di Chrysler`, `del 100%` | the tokeniser; a percentage is a number AND a noun an adjective may describe |
+| a date | `entro il 20 gennaio 2014` | `"gennaio" is a month.`, `The word "de" joins the date.`; English writes `January 20, 2014` |
+| a quotation inside a sentence | `“ci permetterà di realizzare ... unico al mondo” aggiunge l'ad Sergio Marchionne` | the tokeniser; the piece divides after the quoted run |
+| a reporting clause between dashes, between commas | `Sarò per sempre grato – aggiunge Marchionne – al team`, `..., sottolinea il Lingotto in una nota, ...` | two readers; written after the sentence |
+| a heading | `Soddisfazione dalla Fim Cisl:`, `Dello stesso tenore il commento del sindaco ...:` | a colon at the end; no verb, and no full stop after it |
+| a sentence that is one phrase | `Una scelta strategica da cui ci attendiamo ...` | the phrase with its relative clause |
+| a list that is the subject | `Il lavoro, l'impegno e i risultati ... sono qualcosa di eccezionale` | the list comma at the head |
+| a short phrase before the object | `acquisirà da Veba la partecipazione`, `verserà a Veba 3,65 miliardi` | a name is a phrase's noun |
+| `di` and `nel` before an infinitive | `ci permetterà di realizzare`, `nel realizzare il progetto` | two readers, and `The word "di" begins the infinitive.` |
+| a word of several words whose last word came contracted | `alla luce della struttura`, `da parte di Fiat` | the join |
+| a participle that agrees further back | `la partecipazione del 41,5% detenuta dal fondo` | `agr(Gender)` among the relative's complements |
+| Spanish's apocope | `dal primo momento`, `ogni grande organizzazione` | `"primer" is the apocope of "primero".` |
+
+-- and the words, in `corpus/extra/` as always: 24 entries in `eng-ita.dix`,
+5 in `eng-spa.dix` (`billion' is `billón' in the dictionary, which in Spanish
+is a million millions), 41 lines of Italian and 39 of Spanish; the
+vocabularies went from 97 621 and 127 549 lines to 98 194 and 128 289. `reason.pl` did
+not move, which is the ninth version running.
+
+**A MONTH, A DAY AND A NATIONALITY HAD NO MEANING AT ALL, AND THE BUILDER WAS
+WHY.** Italian and Spanish write them lower case and English capitalises them,
+so Apertium pairs `gennaio` with `January` -- and the builder admitted an
+English word only as lower-case letters, so `il 20 gennaio 2014` was refused
+for a word every dictionary has. A noun or an adjective whose English is
+capitalised is read with the English lowered now (`cb_common_words/2`), BUT
+ONLY WHERE THE ENGLISH WORD HAS NO LOWER-CASE ENTRY OF ITS OWN IN THAT CLASS:
+`March` is `marzo` and `march` is `marcia`, the IR carries the word and not its
+capital, and a march read as a month is a wrong translation where no month is
+only a refusal.
+
+**THE CONTROLS FOUND FIVE REGRESSIONS THE CASE DID NOT, AND THREE WERE A RULE
+THIS VERSION WROTE TOO WIDE.** With `test/translate.pl` GREEN and the article at
+20 of 20, the four controls were run by this translator and by 1.6.20's on the
+same store, and again against 1.6.20 on its own store -- which is the only pair
+that shows what a new LINE of data did:
+
+| what came out | the rule | narrowed to |
+|---|---|---|
+| `Speak plus slowly.` for `Habla más despacio.`, EXACT before | a preposition crosses by the meaning the lesson gave it as one (`come dividendo`, as a dividend) | only over a first meaning with NO class: the dictionary put `más` the adverb first, and a degree word stands where a preposition does |
+| `He finishes me to send a message of text.` for `Él me acaba de enviar un mensaje de texto.`, refused before | `di` or `de` and an infinitive after a verb is the verb's infinitive (`ci permetterà di realizzare`) | only where the lesson says the word begins an infinitive -- `The word "di" begins the infinitive.`, the purpose word's shape -- and Spanish says nothing, because `acabar de` is `has just` |
+| Livata's `ha equivocado carretera` moved to the end of its sentence | a clause between two commas that reads as a reporting clause reports the rest (`, sottolinea il Lingotto in una nota,`) | a speaker after the verb is a name or opens on a determiner: `strada` is the object of `ha sbagliato`, not a road speaking |
+| Livata's `desde las primeras ahora` for `sin dalle prime ore` | a word has every class of the word it is a form of -- older than this, reached by the new line `The adverb "ora" means "now"` | an adverb, a preposition and a conjunction have no plural |
+| the twelve's `desde la punto de vista táctico` | `Every noun that ends in "a" is feminine`, over the new word `punto de vista` | a line of data: `"punto de vista" is not feminine.`, and the Italian one |
+
+**A PIN THAT CAME FROM A CONTROL IS NOT A PIN AGAINST THE LAST VERSION.** The
+first three pass on 1.6.20's translator too -- they are behaviour this
+version's first cut broke -- so each is checked red with its own rule put back
+as that cut wrote it, and green without. The fourth fails on both.
+
+**AND A SIXTH WAS TIME: A RULE THAT READS THE REST OF THE SENTENCE IS ASKED
+ONCE FOR EVERY PLACE A REGION CAN END.** The agent of a reduced relative may
+take adjuncts now (`raggiunti da Chrysler negli ultimi quattro anni e mezzo`),
+so the reader reads what follows the agent as complements -- and Livata's
+sixth sentence, which has no reduced relative at all, went from **8.5 million
+inferences to 16.2**. Counting the complement reads by the length of what they
+read said why: one for every region the sentence reader offers the phrase
+reader, each the words before a place a verb could start, and every
+one beginning `I piccoli sono stati raggiunti dagli uomini ...` -- 56 reads
+over 28 regions. Two cuts that looked right -- trying the agent that ends the
+words first, and only the agent's first phrase end -- did not lower the count
+at all (16.6 million) and were taken out.
+What moved it is the phrase's own shape: **no verb before the participle**,
+beside the rule that already refused a preposition there, and it is 8.0
+million, below 1.6.20's 8.2.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, agreement and senses no lesson separates:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `para 3,6 millardos`, `para el respaldo` | `por` | `per` is `for`, and `por` is Spanish's for a price or a cause |
+| `es previsto`, `Somos satisfechos`, `Seré ... agradecido` | `está`, `Estamos`, `Estaré` | Italian's `essere` is both, 1.6.17's cost |
+| `desde Veba`, `Satisfacción desde la Fim Cisl` | `de Veba`, `de la` | `da` is `from`, 1.6.17's cost |
+| `en efectivos` | `en efectivo` | `in contanti` is plural, and the number travels |
+| `la capital Chrysler` | `el capital` | English has one `capital` for the money and the city |
+| `para Chrysler justo` | `recién alcanzado` | `appena raggiunto`: the adverb read as the clause's, and written last |
+| `para el Italia` | `para Italia` | the name keeps the article Italian puts before a country |
+| `nos esperamos` | `esperamos` | `ci attendiamo` is reflexive in Italian and not in Spanish |
+| `competencias únicas al mundo` | `único en el mundo` | the adjective agrees with the list's last noun, where Italian's agrees with the `bagaglio` the list belongs to; and the preposition word for word |
+| `adicionales contribuciones`, `positivas consecuencias` | after the noun | an adjective the source puts before its noun stays there |
+| `el Lingote`, `Torino` | `el Lingotto`, `Turín` | a name the dictionary knows as a word is the word |
+| `algo de excepcional`, `equipaje de experiencias` | `algo excepcional`, `bagaje` | word for word |
+| a reporting clause from the middle is written after the sentence | either | the shape is written one way |
+
+-- and on Tatoeba, two moved that the counts hide: `Mañana es domingo.` was
+refused for `domingo` and reads now, as `Morning is sunday.` (the head's bare
+noun taken for the subject, and English writing the day lower case, which the
+IR carries); `Te veré a las dos y media.` came out `I will see you to the two
+and mediate.` and is refused, `y media` being `and a half` now.
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.6.20's, RUN BACK TO
+BACK TWICE** (the column before them is 1.6.20 on its own store):
+
+| control | 1.6.20, its store | 1.6.20, this store | **1.6.21** |
+|---|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.0 s | 12 of 12, 11.6 and 11.5 s | **12 of 12, 12.5 and 12.3 s** |
+| the Spanish article | 11 of 11, 12.1 s | 11 of 11, 11.7 and 11.4 s | **11 of 11, 12.6 and 12.6 s** |
+| Livata, 29 sentences | 29 of 29, 52.4 s | 29 of 29, 52.2 and 52.3 s | **29 of 29, 54.6 and 55.0 s** |
+| Tatoeba's 400, exact / translated / refused | 53 / 264 / 136, 12.4 s | 53 / 264 / 136, 12.7 and 12.7 s | **53 / 264 / 136, 13.5 and 13.5 s** |
+
+-- the ranges apart on all four, so the new shapes cost **5 to 9 %**. Much of
+the twelve's and the article's is ONE sentence each -- the twelve's second
+carries 0.55 s of its 0.85, the article's first 0.7 s of its 1.05 -- and the
+twelve's, timed alone, costs 2.69 s cold against 2.13 s and 0.06 s warm against
+0.05 s: that part is paid once a process, where the new shapes first ask the
+store their questions. Against 1.6.20 on this store the texts are the same to
+the byte but for `sólo`, written for the adverb where the committed translator
+wrote `solo`, once in the twelve and once in Livata, and four Tatoeba sentences
+that were wrong and stay wrong with better words (`We go for up.`, `I am very
+high.`, `I will pay more late.`, `They see, Tom here near.`).
+
+**`test/translate.pl` IS 679 CHECKS AND GREEN**, thirty-four in a new
+`newspaper_fiat` section with an Italian and a Spanish lesson of its own.
+Lesson 46 gained section 24. **The minor is proposed**: a percentage, a date,
+a heading, a reporting clause inside a sentence and `begin(W, infinitive)` are
+new things a program reaches; the owner decides.
+
+### A Spanish article into Italian, and the minor the owner took (1.7.0, 1.7.1)
+
+**THE OWNER TOOK THE MINOR.** 1.6.21 proposed one -- a percentage, a date, a
+heading, a reporting clause inside a sentence and `begin(W, infinitive)` were
+new things a program reaches -- and the owner's answer was "use minor
+version", so the work below is 1.7.0 and the patch counts on from zero. The
+rule at the top of this file stands as written: a minor is proposed and TAKEN
+by the owner, never by a session. What writing this section found in 1.7.0 is
+1.7.1, a patch like any other.
+
+**EL PERIÓDICO ON OLD VIOLINS SHOWN IN VALENCIA, INTO ITALIAN: THE FIRST
+ARTICLE THIS WAY ROUND SINCE THE SPANISH COLUMN OF 1.6.15.** AnCora's
+CESS-CAST-P-20010202-169 of 2 February 2001, sixteen sentences -- luthiers in
+town, what a Guarneri and a stradivarius are worth, and two quotations from
+one of them -- Spanish into Italian over the two-language vocabulary store.
+The middle column is 1.6.21's translator over THIS store, so it has the new
+vocabulary lines and none of the new shapes:
+
+| | 1.6.21, its store | 1.6.21, this store | **1.7.1** |
+|---|---|---|---|
+| translated | 1 of 16 | 8 | **16** |
+| refused for a word | 11 | 4 | **0** |
+| refused with every word known | 4 | 4 | **0** |
+| the article, one process | 44.8 s | 45.1 and 45.8 s | **39.5 and 38.9 s** |
+
+-- the store Italian 160 179 terms and Spanish 208 220, taught into one
+`--embed` store from the rebuilt vocabularies in 489 s and 860 s, 305 MB, and
+the one line written after the Italian teach had read its file learned into it
+afterwards. (1.6.21's figures, 159 983 and 207 927, are the grammar's terms and
+the vocabulary's together, as these are: a teach prints the two apart.)
+
+**WHAT IT NEEDED IS WHAT A REPORT ON A SHOW SAYS.** The twelve sentences were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks and Fiat figures; this one is a thing on show and what is said of it:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| the plain quotation mark, over two sentences | `"No es posible hacer una réplica ... sin que un experto lo note.` / `son únicos ", dijo Claude Lebet` | the mark's direction by the character after it; a closing one divides the quotation from the clause that reports it, and the comma after it is kept |
+| a verb's sense by whether its clause has an object | `..., destaca un violín llamado ...` / `destacó algunas de las diferencias` | `The intransitive verb "destaca" means "stands out".` |
+| the front of an inversion set off by a comma | `De la amplia gama de instrumentos ..., destaca un violín` | written back in front, as a statement's front is |
+| a conjunction of two words | `sin que un experto lo note` | `The conjunction "sin que" means "without".`, and `without` joins a clause in English |
+| a name after a participle | `un violín llamado Ex Von Szerdahely VieuxTemps` | the participle's object, every capitalised word of it; a capital inside a word is kept |
+| a year aside | `..., de 1736.`, `Golden Bell, de 1686.` | an aside of the thing before it; `The article "il" takes the year.` |
+| the copula of a state and a participle | `está considerado como el Van Gogh de la luthiere` | a passive, where it read as `has considered` |
+| an article before a capitalised run | `el Van Gogh` | a name, though the lesson knows `van` as a verb's form |
+| a noun that is a preposition too | `optó por una vía más instintiva` | no end to the phrase after its article |
+| a partitive | `algunas de las diferencias`, `uno de los luthiers` | the head agrees with the noun it is taken from; Italian's `uno` a pronoun and never the impersonal `si` |
+| a reflexive in a subject's relative clause | `los violines ... que se exponen han mejorado` | the subject's guards read the phrase's own words; an auxiliary is no noun |
+| a noun's own clause | `Como prueba de que ..., los solistas ... ofrecerán` | `ncl(Phrase, Clause)`; `The word "de" begins the clause.` |
+| a number after its noun | `el próximo día 14` | `app(Phrase, label, N)` |
+| a comparative that is a word of its own | `el mejor de los intérpretes` | `"mejor" is the comparative of "bueno".` |
+
+-- and the words, in `corpus/extra/` as always: 12 entries in `eng-ita.dix`
+and 4 in `eng-spa.dix`, 50 lines of Italian and 44 of Spanish; the
+vocabularies went from 98 194 and 128 289 lines to 98 309 and 128 466.
+`reason.pl` did not move, which is the tenth version running.
+
+**A VERB'S SENSE BY ITS OBJECT IS A LINK, AS A NOUN'S AND AN ADJECTIVE'S
+ARE.** 1.6.15 kept a meaning with its class (`mean_as/3`), and this keeps a
+verb's meaning with its valency the same way: `The intransitive verb "destaca"
+means "stands out".` reads as `verb(destaca)`, `intransitive(destaca)`,
+`mean(destaca, 'stands out')` -- the class, its adjective, the claim -- and
+the link is taken from that sentence. A clause with no object takes it; a
+clause with one -- an object, a clitic, an object complement, a `that` clause,
+a relative word that is the object, or a passive, which has one by what it is
+-- takes the first meaning that is not it; every other crossing of the verb
+passes it over. The same line licenses the inversion 1.6.8 reads, so `...,
+destaca un violín` after a fronted phrase is a violin standing out, and the
+front goes back in front: `Della larga gamma di strumenti ..., un violino ...
+spicca.`
+
+**AND 1.7.0 TOOK THE ADJECTIVE FROM THE TEXT, NOT FROM THE SENTENCE, WHICH
+WRITING THIS PARAGRAPH FOUND (1.7.1).** Its links were every verb meaning of a
+word that SOME sentence of the same learned text called intransitive -- so
+`The verb "destaca" means "highlights".` beside the line above was
+intransitive too, and a store's links depended on which 400 lines a teach had
+read together. The full stores never met it -- the vocabulary's own meaning
+of `destaca` sits 113 000 lines after the extra one -- and the case's lesson
+passed only because `highlights` came first by its shape. `The intransitive
+verb "pasa" means "happens". The verb "pasa" means "passes".` is the pair
+where neither shape helps: 1.7.0 wrote `El constructor pasa el pan.` as `The
+builder happens the bread.` The adjective is kept with its class now and spent
+on the one meaning after it.
+
+**THE PLAIN QUOTATION MARK OPENS AND CLOSES ALIKE, SO WHERE IT STANDS SAYS
+WHICH.** The newspaper writes `"No es posible hacer una réplica ... sin que un
+experto lo note.` and a sentence later `son únicos ", dijo Claude Lebet` -- a
+quotation over two sentences in the keyboard's mark, with a blank before the
+closing one. Livata's typographic pair was read this way already; the plain
+mark is read by the character after it now -- a word opens, a blank, a stop, a
+comma or nothing closes -- and the blank before it says nothing, because this
+source puts one on both sides. A pair inside one piece is left as it was, and
+the comma after a closing mark is written back after it.
+
+**FIVE THINGS THE ARTICLE FOUND WERE OLDER THAN IT**, and each was one line of
+a rule that looked at too much or too little:
+
+* **A reflexive inside a subject's relative clause refused the subject.** The
+  guard that keeps `la casa si` from being a phrase with an adjective `si`
+  looked at every word, the relative clause's included, so `Los violines que
+  se exponen han mejorado` read with no verb at all. It reads the phrase's own
+  words now, up to its relative word -- and so does the guard against an
+  object pronoun, so `Los hombres que lo ven duermen.` reads, where 1.6.21
+  refused it.
+* **An auxiliary the lesson calls no noun was a phrase's noun.** `han mejorado`
+  after that clause read as `the has improved`, a phrase with a participle on
+  it, and the clause ran on past its own verb; the same reading made `Como
+  prueba de que ...` a sentence whose verb was `Como`, I eat.
+* **A noun that is a preposition too ended its phrase after the article.**
+  `optó por una vía más instintiva` stopped at `una`, because the vocabulary
+  also has `vía` as the preposition `via`.
+* **Italian's `uno` was dropped as a determiner.** It is the article before
+  `sc` and the pronoun `one`, and the filter that keeps a determiner from
+  heading a phrase kept the impersonal `si` instead: `uno de los violines`
+  came out `Si dei violini`. A determiner the lesson says stands alone is
+  kept.
+* **A degree was folded before the object-pronoun test looked past `la`.** So
+  `Eres la más capaz` read `la` as her, and with the comparative above so did
+  `Eres la mejor`; a folded degree is a content word now.
+
+**A RESULT THAT MOVES WHEN ONLY THE ORDER OF THE DATA MOVES WAS NEVER
+COMPUTED.** The partitive's `alcune delle differenze` was right in one probe
+store and `alcuni` in the next, on the same code: the gender came from which
+word for `some` the store held first, and a line added with `more` goes after
+every line a store already has. The head of a partitive takes the gender of
+the noun it is taken from now (`tr_partitive_gender/3`), through a relative
+clause on that noun too. The same appending hid sense lines until the probe
+store was rebuilt -- `réplica` came out `risposta` there after its line was
+learned -- which is the probe store's hazard and not the translator's.
+
+**AND ONE CHANGE WAS TAKEN BACK BECAUSE THE CASE WENT RED.** `ha sido capaz`
+came out `ha stato capace`, because the copula's own perfect takes the
+auxiliary meaning `has` when the lesson names none. Making the copula the
+default fixed the Italian and broke the case's Spanish lesson, which names
+none either and wants `ha sido`. The Italian fact is data now -- `"è" is the
+auxiliary of "è".` in `corpus/extra/italian.txt` -- and the default is what it
+was. Which is why that check is a GUARD: with the line in its lesson it passes
+on 1.6.21 too, the fix being a line of lesson and not of code.
+
+**THE CONTROLS FOUND ONE REGRESSION, AND IT STAYS, STATED.** Fiat's
+`Memorandum d'Intesa` came out `Memorándum de Entendimiento` on 1.6.21 and
+`Memorándum de Intesa` on 1.7.0. The rule is the one that reads a capitalised
+noun standing alone as a name -- `en Valencia` is the city, where the
+vocabulary's `valencia` is the chemist's valency and came out `Valenzia`, and
+`di Pale` is the town the twelve wrote `Retablos` since 1.6.14 -- and nothing
+tells a title from a city: `intesa`, `valencia` and `pale` are each only a noun
+in the vocabulary, and `Orquesta de Valencia` has exactly the title shape
+`Memorandum d'Intesa` has, so a rule by the capital on the word before would
+read the article's own last sentence as a title too. Three places mended
+against one broken.
+
+**AND ONE COST, WHICH 1.7.1 TAKES BACK.** Livata ran 10 % slower, two fifths of
+it in one sentence, the sixth -- `I piccoli sono stati raggiunti dagli uomini
+... che li hanno trovati vigili e in buone condizioni nonostante le
+temperature ... abbiano raggiunto anche i -10 gradi` -- whose inferences went
+from 8.26 million to 13.60. Four arms on one store, each one change:
+
+| arm | sentence 6, inferences | |
+|---|---|---|
+| 1.6.21 | 8 262 083 | |
+| 1.7.0 | 13 601 185 | |
+| the noun's own clause turned off | 13 458 728 | not it |
+| the clause-opener test turned off everywhere | 13 471 377 | not it |
+| the phrase's own words before its relative clause | 13 701 722 | not it |
+| the object-pronoun guard back on every word | 8 917 828 | **it** |
+
+The sentence reads only as two clauses divided at `nonostante`, and the
+one-statement reading goes first: with the guard on the phrase's own words,
+the twenty-seven words before `abbiano raggiunto` -- their `li` after `che` --
+were a subject candidate, and every reading of them was tried and failed
+before the division. Putting the guard back on every word would refuse `Los
+hombres que lo ven duermen.` again, so 1.7.1 keeps the own words for a
+relative clause that opens NO FURTHER CLAUSE: a subject's relative clause runs
+to the subject's verb, and one that opens another on the way is two clauses.
+8 940 872 inferences, and `test/translate.pl` pins the sentence that must
+still read.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, agreement and senses no lesson separates:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `da cui`, `optò da una via`, `dalle mani`, `Sospirò ... da lui` | `per cui`, `per una via`, `per le mani`, `Per lui` | `por` is `by` as well as `for`, and `by` is the agent's `da` |
+| `sono avvenuti`, `saputo come`, `prezzato`, `annotò` | `sono passati`, `noto come`, `valutato`, `osservò` | a sense through English: the dictionary's `pasa` is `happens` or `spends` and never `passes`, `conoce` is `knows` and Italian's `knows` is `sa` first, `notes` is `annota` |
+| `hanno migliorato` | `sono migliorati` | the auxiliary is the lesson's for the verb, and `migliorare` takes `essere` only without an object |
+| `le soliste` | `i solisti` | Italian's dictionary calls `solista` feminine, and the IR carries no gender for the source's `los` |
+| `le sue mani` | `le loro mani` | the hand lesson's `su` is `his` first, and the hands are the soloists' |
+| `gli strumenti d'arco più piccolo` | `più piccoli` | the degree agrees with the noun after `de` |
+| `in Valencia` | `a Valencia` | `en` is `in`, and Italian puts `a` before a city |
+| `d'un buono stradivari` | `di un buon stradivari` | the lesson elides `di` before every vowel, and states no apocope of `buono` |
+| `lo nota` | `lo noti` | a subjunctive is written as the indicative, 1.6.8's cost |
+| `solamente` at the end, `... un violino ..., spicca.` | in front, `spicca un violino` | an adverb and an inverted subject are written in the statement's order |
+| a comma lost before `il prossimo giorno 14` and before `d'un Guadagnini` | kept | a comma before a closing adjunct or inside a list is not in the IR |
+| `Con questo motivo`, `L'età d'oro della Corda` | `Per l'occasione`, the title kept | word for word |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.6.21's, RUN BACK TO
+BACK TWICE** (the column before them is 1.6.21 on its own store, from its
+section above):
+
+| control | 1.6.21, its store | 1.6.21, this store | **1.7.1** |
+|---|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.5 and 12.3 s | 12 of 12, 12.4 and 12.4 s | **12 of 12, 13.0 and 13.0 s** |
+| the Spanish article | 11 of 11, 12.6 and 12.6 s | 11 of 11, 12.4 and 12.9 s | **11 of 11, 12.9 and 12.8 s** |
+| Livata, 29 sentences | 29 of 29, 54.6 and 55.0 s | 29 of 29, 55.1 and 54.8 s | **29 of 29, 58.6 and 58.0 s** |
+| Fiat, 20 sentences | 20 of 20, 18.8 s | 20 of 20, 18.9 and 19.3 s | **20 of 20, 19.8 and 19.4 s** |
+| Tatoeba's 400, exact / translated / refused | 53 / 264 / 136, 13.5 and 13.5 s | 53 / 265 / 135, 13.3 and 13.2 s | **54 / 265 / 135, 13.5 and 13.4 s** |
+
+-- the ranges apart on Livata, the twelve and Tatoeba, touching on Fiat and
+overlapping on the Spanish article, so the new shapes cost up to 7 % where
+they cost anything; Livata's 6 % is 1.7.1's, and 1.7.0's was 10 %, its sixth
+sentence taken back above. The texts are the same to the byte but for eight
+lines, seven of them mended: the twelve's `de Pale` for `de Retablos`; Fiat's
+`en 2009` for `en el 2009`, Spanish writing no article before a year where
+Italian does, which is Italian's line now; and on Tatoeba `Estoy mejor.` EXACT
+as `I am better.`, and `Estoy agotado.`, `Estoy acostumbrada.`, `Esto está
+estropeado.` and `Estás herida.` read with the state copula -- `I am
+exhausted.` where it was `I have exhausted.`. The eighth is Fiat's
+`Memorándum de Intesa`, the regression above. 1.7.1's texts are 1.7.0's to
+the byte on all six.
+
+**`test/translate.pl` IS 704 CHECKS AND GREEN**, twenty-five in a new
+`newspaper_valencia` section with a Spanish and an Italian lesson of its own:
+every check but the two marked as guards fails on 1.6.21's translator, and
+the pair above -- `pasa` -- on 1.7.0's as well. Lesson 46 gained section 25.
+
+### An Italian report into Spanish: a headline, a dateline, and `venire` and `andare` (1.7.2)
+
+**THE NATIONAL BIOETHICS COMMITTEE ON VACCINES, ELECTROSHOCK AND EUTHANASIA,
+INTO SPANISH.** Fifteen sentences of the Italian UD VIT test set, VIT-9450 to
+VIT-9464 -- a headline with a colon, a subtitle, a dateline, what the state may
+impose, what is excluded and what must be done -- Italian into Spanish over the
+two-language vocabulary store. The middle column is 1.7.1's translator over
+THIS store, so it has the new vocabulary lines and none of the new shapes:
+
+| | 1.7.1, its store | 1.7.1, this store | **1.7.2** |
+|---|---|---|---|
+| translated | 4 of 15 | 11 | **15** |
+| refused for a word | 11 | 0 | **0** |
+| refused with every word known | 0 | 4 | **0** |
+| the article, one process | 14.5 s | 12.3 and 12.1 s | **10.4 and 10.3 s** |
+
+-- the store Italian 161 547 terms and Spanish 208 384, taught into one
+`--embed` store from the rebuilt vocabularies in 478 s and 845 s, 305 MB. The
+one line written after it, `conflitto` below, is a word no sentence measured
+here has.
+
+**WHAT IT NEEDED IS WHAT A REPORT PUTS AROUND ITS CLAIMS.** The twelve
+sentences were verbs, the Spanish column phrases that carry things, Livata the
+way a report speaks, Fiat figures and Valencia a thing on show; this one is a
+headline and a committee's rulings:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| a headline colon, no verb on either side | `Il comitato di bioetica: no all'eutanasia.` | each side read as a heading is; `The adverb "no" means "no".` |
+| a dateline | `Roma - lo stato ha il diritto dovere di favorire ...` | a place and a dash before the sentence, written back where they stood |
+| a relative clause after a comma | `la sperimentazione sul vaccino contro la pertosse, che ha fatto passare la protezione ...` | `nrc(Phrase, Role, Clause)`, on the last phrase before the comma; English writes `which` |
+| the passive of `venire`, its subject after it | `Viene esclusa ogni forma di eutanasia diretta ...` | `The verb "viene" marks the passive.`; the subject's place kept as `subj_here` |
+| what must be done, `andare` and a participle | `Vanno invece attivate la terapia palliativa e la terapia del dolore` | `The verb "va" marks the duty.`, read as `must be` and the participle |
+| a verb that is a modal too, before an infinitive | `lo stato deve imporre i vaccini` | crosses by its modal meaning: `deve` is `owes` and `must` |
+| two feminine subjects joined | `la terapia palliativa e la terapia del dolore` ... `attivate` | the participle feminine, where it was `activados` |
+| `if`, `so that`, `provided that` joining clauses | `neanche se vi sia l'assenso`, `in modo che il malato possa ...`, `purché praticata ...` | three English connectors, and a comma before one kept |
+| a noun in the other number after a phrase | `di un comitato etico tempi e modi della terapia` | begins the next phrase, where it was an adjective of `comitato` |
+| words of several words | `per la prima volta`, `in merito alle vaccinazioni`, `a rischio` | lesson lines, and invariable ones stated as their own plurals |
+
+-- and the words, in `corpus/extra/` as always: 36 lines of Italian and 19 of Spanish, one entry in `eng-ita.dix` and three in `eng-spa.dix` (`summarise` had no Spanish at all, `approach` only the pronominal `acercarse`, and `coercive` a second word first); the vocabularies went from 98 309 and 128 466 lines to 98 985 and 128 571. `reason.pl` did not
+move, which is the eleventh version running.
+
+**AND THE BUILDER DROPPED A NOUN THAT IS THE SAME IN BOTH NUMBERS.** Italian's
+`serenità`, `scarsità`, `overdose` carry the paradigm `SP` in the bilingual
+dictionary, and the rule that admits an ordinary entry refused any entry with a
+`<par>` in it -- so 428 nouns of eng-ita had no line at all, and `accostarsi
+con serenità` was refused for a word every dictionary has. `SP` adds nothing to
+the word, so it is admitted, and the forms come from the monolingual paradigm
+as every noun's do: 405 meaning lines. **AND ADMITTING THEM MOVED FOUR
+OTHERS**, because the builder keeps a one-way entry only when neither of its
+words has a meaning yet: `conflittualità`, a one-way `SP` noun, gave English
+`conflict` a noun, and the one-way entry that made `conflitto` mean `conflict`
+went with it, leaving `altercation`. A diff of every line the rebuilt file no
+longer has found the four: `conflitto` is a line in `corpus/extra/` again;
+`velleità` reads `velleity` where it read `aspirations` and `diagnosi`
+`diagnosis` where it read `diagnostic`; and `telaio` keeps `loom` and loses
+`chassis`. **A rebuilt vocabulary is a diff to read for what it LOST**, not
+only for what it gained.
+
+**`venire` AND `andare` ARE LESSON LINES, IN A SHAPE THAT WAS ALREADY THERE.**
+`The verb "viene" marks the passive.` and `The verb "va" marks the duty.` are
+the shape `The auxiliary "está" marks the state.` has had since 1.6.17, so
+the grammar did not move. The passive of `venire` is the passive the copula
+builds; the duty of `andare` is read as English reads `must be activated` --
+the modal the lesson gives for `must`, the copula's infinitive and the
+participle -- so every writer already had it, and Italian writes back `deve
+essere attivata`. Neither word could be an AUXILIARY: a lesson's auxiliary
+builds the perfect, and `viene esclusa` would have read as `has excluded`.
+
+**A PASSIVE PUTS ITS SUBJECT AFTER ITSELF, AND THE SOURCE'S ORDER IS KEPT.**
+A passive has no object, so a phrase after it that agrees with it in number is
+its subject, with every phrase that says which one, up to the clause's first
+comma. Read by the pro-drop readings it was the object of a verb that has none,
+and the participle agreed with nothing. The subject's place travels as
+`subj_here`, the reporting clause's own device, so Spanish keeps `Es excluida
+cada forma de eutanasia ...` and English writes `Each form of euthanasia ...
+is excluded`.
+
+**A VERB THAT IS A MODAL TOO IS THE MODAL BEFORE AN INFINITIVE.** `deve` is
+`owes` and `must` in the vocabulary, and in a verb's place a meaning shaped
+like a third person comes first, so `La terapia deve essere attivata` owed. It
+crosses by its modal meaning when an infinitive follows, and by its verb
+meaning otherwise. **THE CONTROL CAUGHT WHAT THAT COST SPANISH**: `must` had
+only `tiene que` there, and Livata's `debe ser todavía completamente aclarada`
+came out `tiene que ser`; `The modal "debe" means "must".`, before `tiene
+que`, puts it back.
+
+**A RELATIVE CLAUSE AFTER A COMMA IS THE PHRASE'S.** The phrase ended at the
+comma and the relative word was read as the verb's `that` -- a clause with
+nobody for its subject, which Spanish could write only because the words came
+out the same, and English not at all. It hangs on the LAST phrase before the
+comma, which is where every language here writes it, whichever phrase the
+clause is about. **AND THE CONTROL CAUGHT WHERE A FRONT THEN WENT**: a fronted
+phrase with no comma is written after the clause's complements, and after a
+relative clause it read as the clause's own -- Valencia's `Por él suspiró
+Yehudi Menuhin, que elogió su sonoridad` came out `... che lodò la sua sonorità
+da lui`. The front goes before the phrase that carries such a clause:
+`Sospirò da lui Yehudi Menuhin, che lodò la sua sonorità.`
+
+**A FAILURE KEPT PER WORD LIST DECIDED WHERE THE HEADLINE COLON GOES.** A
+statement that failed to read is remembered by its words (1.6.17), and the
+heading is a global the verbless reading asks. Read by the colon's clause
+first, a verbless side is remembered as unreadable and the heading's clause
+after it never gets to read it; so the heading's clause goes FIRST, which is
+safe the other way round -- a failure with the heading set is one without it.
+
+**THE CASE CAUGHT A RULE TOO WIDE ON ITS FIRST RUN.** The number boundary cut
+`pan y huevos` before `huevos` -- a plural after a phrase whose noun is
+singular -- and `Maria come pan y huevos.` failed with no check line at all, a
+goal that fails being what a case reports as nothing. A coordinator in the
+phrase stops the rule now.
+
+**AND A QUESTION AFTER `if` IS NO QUESTION OF ITS OWN.** Tatoeba's `¿Y si soy
+pobre?`, refused by 1.7.1, read with `if` a connector as `And if am I poor?`:
+the clause after a connector at the head took the sentence's kind. A clause after a subordinating
+word is written as a statement, and the mark stays the sentence's: `And if I am
+poor?`.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, agreement and senses no lesson separates:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `Comparo en el electrochoque.` | `Debate sobre el electrochoque.` | a headline noun spelled like a first person is read as the verb, and nothing in the three words says which |
+| `el documento en "el fin de la vida humana"`, `la experimentación en la vacuna` | `sobre` | `su` is `on`, and Spanish writes `en` for a place and `sobre` for a topic; Livata's places want `en` |
+| `el derecho deber` | `el derecho-deber` | two nouns side by side are one phrase with an adjective |
+| `desde el 30 al 90%` | `del 30 al 90%` | `da` is `from`, 1.6.17's cost |
+| `la terapia médica psiquiátrica` | `médico-psiquiátrica` | a compound adjective is two adjectives agreeing |
+| `lo ha tomado por primera vez en examen` | `lo ha examinado` | `prendere in esame` is an idiom, and a lesson gives words |
+| `trayendo a conocimiento de` | `poniendo en conocimiento de` | the same |
+| `siempre que practicada con rigurosos controles` | `siempre que sea practicada` | a clause with its verb left out after a conjunction |
+| `tiempos y Modi de la terapia` | `tiempos y modos` | the source capitalises `Modi`, and a capital inside a sentence is a name |
+| `ni siquiera si hay el asentimiento` | `si hay asentimiento` | the article the source put before the noun is kept |
+| `de modo que el paciente puede acercarse` | `pueda` | a subjunctive is written as the indicative, 1.6.8's cost |
+| `Es excluida cada forma` | `Se excluye toda forma` | `ogni` is `each` first, and a passive stays a passive |
+| `Ha sido aprobado además el documento ... ayer.` | `Ayer se aprobó además ...` | a front with no comma is written after the clause, 1.6.8's cost |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.7.1's, RUN BACK TO
+BACK TWICE:**
+
+| control | 1.7.1, this store | **1.7.2** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.7 and 12.8 s | **12 of 12, 13.0 and 12.6 s** |
+| the Spanish article | 11 of 11, 12.7 and 12.9 s | **11 of 11, 12.7 and 12.9 s** |
+| Livata, 29 sentences | 29 of 29, 58.2 and 57.4 s | **29 of 29, 57.7 and 58.1 s** |
+| Fiat, 20 sentences | 20 of 20, 19.7 and 19.5 s | **20 of 20, 19.8 and 19.7 s** |
+| Valencia, 16 sentences | 16 of 16, 39.1 and 38.6 s | **16 of 16, 39.5 and 39.2 s** |
+| Tatoeba's 400, exact / translated / refused | 54 / 265 / 135, 13.3 and 13.5 s | **54 / 266 / 134, 13.7 and 13.8 s** |
+| the bioethics article, 15 sentences | 11 of 15, 12.3 and 12.1 s | **15 of 15, 10.4 and 10.3 s** |
+
+-- the ranges overlapping on five and apart on Tatoeba alone, where the new
+readings cost about 3 %. Each translator gave the same texts to the byte both
+times. Against 1.7.1 on this store the texts are the same but for five lines,
+and every one moved on purpose: Fiat's `desde el primer momento, desde que
+hemos sido escogidos` keeps the source's comma; the twelve's `Su identidad y su
+nacionalidad no han sido verificadas` agrees as feminine where it said
+`verificados`; Valencia's `Sospirò da lui Yehudi Menuhin, che lodò la sua
+sonorità` keeps the relative clause beside its phrase, where 1.7.1 wrote `...
+Menuhin da lui, che ...`; and on Tatoeba `¿Y si soy pobre?`, refused, is `And
+if I am poor?`, and `Debes ser un tonto.` is `You must be a silly one.` where
+it was `You owe to be a silly one.`
+
+**`test/translate.pl` IS 722 CHECKS AND GREEN**, eighteen in a new
+`newspaper_bio` section with an Italian and a Spanish lesson of its own; every
+check but the one marked as a guard fails on 1.7.1's translator. Lesson 46
+gained section 26. **The minor is proposed**: `marks the passive` and `marks
+the duty` are new lines a lesson can say, and a dateline, a headline colon and
+a relative clause after a comma are new shapes a program reaches; the owner
+decides.
+
+### A Spanish football report into Italian, and a commit made before its controls ran (1.8.0, 1.8.1)
+
+**THE OWNER TOOK THE MINOR THAT 1.7.2 PROPOSED** -- `marks the passive` and
+`marks the duty` as lines a lesson can say, a dateline, a headline colon and a
+relative clause after a comma as shapes a program reaches -- with the same
+words as the last time, "Use minor version". So this is 1.8.0 and the patch
+counts on from zero. The rule at the top of this file stands: a minor is
+proposed, and the owner takes it.
+
+**EL PERIÓDICO ON BARÇA BEFORE A CUP TIE AT CEUTA, INTO ITALIAN.** AnCora's
+dev document CESS-CAST-P-20010103-120 of 3 January 2001, twenty sentences --
+the coach's plan, who is left at home, two quotations and what the rival is
+like -- Spanish into Italian over the two-language vocabulary store. The
+middle column is 1.7.2's translator over THIS store, so it has the new
+vocabulary lines and none of the new shapes:
+
+| | 1.7.2, its store | 1.7.2, this store | **1.8.1** |
+|---|---|---|---|
+| translated | 7 of 20 | 10 | **20** |
+| refused for a word | 4 | 2 | **0** |
+| refused with every word known | 9 | 8 | **0** |
+| the article, one process | 39.8 s | 28.9 and 28.9 s | **24.0 and 23.5 s** |
+
+-- the store Italian 161 706 terms and Spanish 208 466, taught into one
+`--embed` store from the rebuilt vocabularies in 512 s and 858 s, 303 MB.
+
+**WHAT IT NEEDED IS WHAT A SPORTS PAGE DOES WITH ITS PEOPLE.** The twelve
+sentences were verbs, the Spanish column phrases that carry things, Livata the
+way a report speaks, Fiat figures, Valencia a thing on show and the bioethics
+report its claims; this one is a squad, who is in it and who is not:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| `ni ... ni`, before the verb and after it | `no figuran ni Rivaldo ni Overmars ni De la Peña` | `nei(co(...))`: the first `ni` joins nothing; English writes `neither ... nor` |
+| a name that begins with a small word | `De la Peña, en cambio, es baja` | one name, where it came out `Del Dirupo` |
+| a denying adverb before its verb | `tampoco estuvieron`, `ni siquiera ha comunicado` | kept in front, `frn(adv(...))`, where it was written last |
+| a denial after a relative clause that has had its verb | `el grupo de jugadores que deberán resolver este ingrato compromiso no figuran` | the sentence's, where it went to the relative clause |
+| an intransitive verb, a dative before it and its subject after it | `le gusta el buen fútbol` | the subject after the verb; `buen` read as the apocope it is |
+| the impersonal modal | `Hay que tomar precauciones`, `hay que dosificar a la plantilla` | `The impersonal modal "hay que" means "must".`; no impersonal word written |
+| a verb's own preposition before its infinitive | `confía en repetir` | `"confía" takes "en" before the infinitive.`, and `"confida" takes "di" ...` |
+| two pronouns joined to an infinitive | `la presión de jugárselo todo` | `giocarsi tutto`: the second only doubles `todo` |
+| a clause in parentheses | `(los octavos de final ya se disputarán a doble partido)` | an aside of its own |
+| a count with its noun left out | `Los dos primeros se han quedado en casa` | `"rimane" is not reflexive.`, `"è" is the auxiliary of "rimane".` |
+| a comment between two commas | `optará, como parece probable, por mantener a Reina` | written after the sentence |
+| `el que` with its noun left out | `un descalabro como el que sufrió el Madrid` | `quello che` |
+| a comparison with a phrase, and more than an adjective | `idénticos condicionantes que la ronda anterior`, `más que cuestionable` | `cmp(Kind, Phrase)` and `mt(Adjectives)`; Italian's `di` before a phrase, `che` before an adjective |
+| a subordinate clause at the head, an insertion after its word | `Al margen de que, como todos, han disfrutado ...` | `wc(Conn)`: the connector's comma kept |
+| a quotation that opens the sentence, and one that closes at a comma | `"Les he dado descanso ... apretado", explicó.` | the marks on the sentence and on the join |
+| a subject that is there, before one that is not | `Los informes son muy buenos.` | read left to right it was `(tú) los informes`, you inform them |
+| a pronoun before a verb that is also an imperative | `Le gusta ...`, `nos espera un mes` | a statement: only a DENIED imperative puts its pronoun first |
+| `por` with no passive | `por una lesión`, `por decisión del entrenador` | `per`: the first meaning that is not the agent's `by` |
+| the word before a person inside a subject | `La visita a Ceuta presenta ...` | a preposition, to Ceuta, where `visits Ceuta` refused the subject |
+| a person marked as the object, and a second object | `ha reclamado a los jugadores la máxima concentración` | `ai giocatori`: the first is the indirect one |
+| a verb's sense with a phrase for its object | `Conozco al entrenador` | `The transitive verb "conosce" means "knows".`, where `so` came first |
+| an infinitive and its object inside a subject | `Esta obsesión por eliminar cualquier signo ... le ha llevado` | the subject carries both |
+| a front inside a `que` clause | `que antes de jugar esto ya está ganado` | the shortest front of adjuncts that leaves a statement |
+| a month written with a capital | `un mes de Febrero muy apretado` | `febbraio`, where it passed through as a name |
+
+-- and the words, in `corpus/extra/` as always: 89 lines of Italian and 43 of
+Spanish, no `.dix` entry; the vocabularies went from 98 985 and 128 571 lines
+to 99 074 and 128 614, and the diff of what they LOST is empty. `reason.pl` did
+not move, which is the twelfth version running.
+
+**FOUR RULES THAT WERE TRUE OF ONE SENTENCE AND WRONG FOR A CLASS, AND EACH WAS
+FOUND BY A SENTENCE OF THIS ARTICLE READING AS SOMETHING ELSE:**
+
+* **A LIST RAN INTO THE SUBJECT OF THE NEXT CLAUSE.** `..., Rivaldo y Overmars
+  tampoco estuvieron en Gandía` after a phrase ending in a noun looked like the
+  end of a list, `X, Y and Z`, and the sentence was divided at the `y`: the
+  bread, Rivaldo, and a clause of its own for Overmars. A list's tail with a
+  verb after it, or a denial and then a verb, is a subject now
+  (`tr_verb_next/2`) -- and **a bare name is ONE**, so `Overmars ...
+  estuvieron` cannot read as one man with a plural verb, which 1.7.2 wrote as
+  `non dorme`.
+* **A COMMA BETWEEN TWO NAMES WAS TAKEN OUT.** The subject side is read without
+  its commas, and a run of capitalised words is one name, so `Salvo la
+  concesión de Rivaldo y Overmars, Serra Ferrer no quiere ...` gave the coach
+  the player's name, `Overmars Serra Ferrer`, and `Salvo` was a verb, I save.
+  A comma between two names parts them now (`tr_names_parted/2`), and a TOPIC
+  -- a name before a comma, which a headline puts first -- stands only at the
+  head of its sentence, where it had read `Overmars` as one inside a clause
+  the sentence was divided into.
+* **THE STEMMER TAKES THE `s` OFF `previous`.** In an adjective's place a
+  meaning shaped like a verb's third person is passed over, and `reason_base/2`
+  makes `previou` of `previous` as it makes `eat` of `eats`: `la ronda
+  anterior` was the ANTERIOR round. No English verb's base ends in `u`, so a
+  word in `-us` is shaped like no third person.
+* **THE NOUN'S GENDER WAS ASKED BEFORE THE LESSON'S ORDER.** `cualquier signo`
+  came out `molto segno`: the dictionary's masculine `molto`, an adverb it also
+  lists as a determiner meaning `any`, matched the noun's gender and so came
+  before the lesson's `qualsiasi`, which has none. The determiners that agree
+  are taken in the lesson's order now, a genderless one among them. The same
+  shape in the pronoun rule wrote `codesto` for `esto`: a pronoun and nothing
+  else went first, and Italian's `questo` is the demonstrative too. A word
+  whose first sentence meaning the English word was a pronoun's goes first as
+  well.
+
+**AND THE IMPERSONAL MODAL ASKED FOR A WORD IT THEN THREW AWAY.** The writer
+built the subject before it chose the verb, so a lesson with `bisogna` and no
+impersonal `si` refused `Hay que comer pan` -- the `si` it asked for was never
+written. The impersonal modal is chosen first now, and it is the whole of the
+subject.
+
+**A LINE'S PLACE IN `extra/` IS A DECISION, AND TWO MOVED.** Fiat's `The
+preposition "entro" means "before".` stood before this article's `prima di`,
+so `antes de jugar` came out `entro giocare`, a deadline's before; `prima di`
+is written first now, with the reason beside it. And the new `The verb "quiere"
+means "wants".` comes before the dictionary's `loves`: two pins in the
+`shapes` section recorded `Maria loves to eat` as the dictionary's order, and
+both moved to `wants`, which is what the sentence says.
+
+**THE PROBE STORE MISSES A FORM TWO STEPS FROM ITS LEMMA**, which cost a
+refusal that was not one. The probe learns the vocabulary lines that mention a
+fragment's words and the lines that mention THOSE lines' words -- and
+`podemos` is the first person of `pueden`, which is the plural of `puede`, and
+only `puede`'s line says it is a modal meaning `can`. So `No podemos pensar`
+refused with every word known on the probe store and read on the full one. A
+refusal on a probe store is a finding about the probe until the full store
+says otherwise.
+
+**1.8.0 WAS COMMITTED BEFORE ITS CONTROLS RAN, AND IT HAD LOST EIGHT
+SENTENCES THE CONTROLS READ ON 1.7.2 (1.8.1).** The case was GREEN at 749
+checks, the article 20 of 20, and the full suite GREEN on 1.8.0 -- 58 case
+lines, 51 GREEN, 7 SKIP, `red: 0`, in 1127 s with a fresh server that
+answered. The controls ran on the full store after all of that, and all
+seven moved, each of them for the worse in at least one sentence:
+
+| control | 1.7.2 | 1.8.0 |
+|---|---|---|
+| Fiat | 20 of 20 | **17**: `L'acquisto da parte di Fiat del 100% di Chrysler ...` and two more refused |
+| Livata | 29 of 29 | **27**: `Di certo si sa solo che la famiglia era ...` refused, the ninety-word sentence over its budget |
+| the twelve | 12 of 12 | **10**: `La sperimentazione dell'atomica ...` and `Il tutto avviene ... uno dei Paesi più ricchi del mondo ...` refused |
+| bioethics | 15 of 15 | **14**: `Il comitato nazionale di bioetica lo ha preso per la prima volta in esame, ieri.` refused |
+| and where it still read | | `de Pale` became `que Pale`, `del comité` `que el comité` and `habla de "milagro"` `habla que "milagro"`; the Spanish article's `che sono colpevoli` became `di sono colpevoli`; Valencia's `I liutai più illustri ... del mondo` `Gli illustri liutai ... più`; Livata's `haber dejado` `de tener dejado`; and Tatoeba's `Me gusta la escuela.` `The school likes me.` |
+
+-- every refusal with `unknown: []`, which is the tell that a refusal is a
+shape and not a gap.
+
+**ONE LINE OF LESSON DID MOST OF IT.** `The word "di" means "than".` sits in
+`corpus/extra/italian.txt` so that Spanish's `más grande que el perro` is
+written `più grande del cane` -- and it made every Italian `di` before a
+phrase a place where a comparison could start, so a `de` phrase read as one:
+the story THAN the disappearance, which Spanish writes `que`. One arm, run
+after the commit on the same store, says how much: 1.8.0 with that one rule
+mended and nothing else reads all eight lost sentences, each to the text
+1.8.1 gives, and writes the Spanish article's `che` again. The fix is two
+conditions the rule never stated. A word for `than` begins a comparison only
+with something compared BEFORE it in the piece -- the word that begins the
+comparative, or a word meaning same, identical or equal
+(`tr_compared_before/1`) -- which is also what keeps the Spanish article's
+relative `que` a relative. And it never does where the lesson calls the word
+a preposition, which Italian's `di` is: `i Paesi più ricchi del mondo` is a
+superlative and the article is the only thing that says so. So an Italian
+comparison is read as `of` now, which is stated below as a cost; the
+lesson's word is still the one WRITTEN for `than` before a phrase
+(`tr_than_word/2`), so Spanish's comparisons go into Italian as before.
+
+**THE OTHER THREE WERE THIS ARTICLE'S RULES MEETING A WORD IN A SECOND
+ROLE.** `más` is the comparative and the preposition `plus` in the
+vocabulary, so a subject divided at a preposition took `los` alone for its
+phrase -- the pronoun `them` it also is -- and cut Valencia's superlative in
+two; an article alone is no phrase there now, unless the lesson says it
+stands alone, which `uno` does (`uno dei Paesi`), and the first draft of the
+guard that forgot `uno` refused the twelve's last sentence all over again.
+Italian's `di` before an infinitive is the verb's, which `The word "di"
+begins the infinitive.` already says, and the new reading of a `de` and an
+infinitive after a phrase as that phrase's (`la necesidad de ser humildes`)
+took it for the carabinieri's. And a pronoun before an intransitive verb
+whose subject the reader put after it counted as the verb's object, so
+`gusta` took its transitive sense and the school liked me; it is who the verb
+pleases now, `The school pleases me.`
+
+**THE CASE COULD NOT HAVE SEEN ANY OF IT, AND NEITHER COULD THE SUITE.** Each
+is a rule meeting a word the small lessons do not have in that role --
+Italian's `di` as `than` is a line of `corpus/extra/`, `más` as a
+preposition is the dictionary's -- and the suite's only readers of the
+translator are `test/translate.pl` and lesson 46, both over small lessons.
+**A GREEN SUITE IS A CLAIM ABOUT THE SUITE'S LESSONS AND THE CONTROLS ARE THE
+CLAIM ABOUT THE VOCABULARY**, so a commit made before them is a commit whose
+translator nobody had run on the store it ships for; 1.7.2 was committed
+after them and this was not. Three checks pin the first three causes on
+small lessons -- each passes on 1.7.2's translator and fails on 1.8.0's --
+and the fourth is a check and one lesson line, `The verb "gusta" means
+"likes".` beside the intransitive `pleases`, with which 1.8.0 fails both
+`gustar` checks.
+
+**AND THE NEW READINGS COST TIME WHERE THEY FOUND NOTHING.** Livata ran 211 s
+on 1.8.0 against 58 s on 1.7.2; the first round of fixes took it to 81 s, and
+counting inferences a sentence found two readings tried on clauses that
+could never use them:
+
+| reading | tried on | cost, one sentence | narrowed to |
+|---|---|---|---|
+| a subject before one that is not there (`Los informes son muy buenos`) | every statement | Livata's `Di certo si sa solo che la famiglia era ...`: 7.2 million inferences more for the same reading | a clause opening on an article that is an object pronoun too, before a word that is a noun and a verb's form |
+| a front inside a `que` clause (`que antes de jugar esto ya está ganado`) | every clause that failed to read | the same sentence: 7.7 million more, and it found nothing | a front that begins with a preposition or an adverb, which an adjunct does |
+
+-- and the first narrowing needed a second look: asked of ANY article before a
+word that is a noun and a verb's form, it still ran on most Italian
+sentences, `l'acquisto`, `la parte`, `l'accordo`, and Fiat's `Siamo
+particolarmente soddisfatti ...` cost 9.1 million inferences where 1.7.2's
+cost 4.6. Together they took Livata to 66 s. What is left is spread, counted
+warm on the full store:
+
+| sentence | 1.7.2 | 1.8.0 | **1.8.1** |
+|---|---|---|---|
+| Livata's second, fifty words | 26.0 million | 81.9 million | **29.8 million** |
+| `Di certo si sa solo che la famiglia era ...` | 28.6 | 47.2, refused | **32.8** |
+| Fiat's `Siamo particolarmente soddisfatti ...` | 4.6 | 9.1 | **5.2** |
+
+-- and taking out any one of the three new readings the fifty-word sentence
+asks for -- the intransitive verb with its subject after it, `el que`, an
+article with its noun left out -- saves about 0.4 million each. No single
+item is worth a design change.
+
+**TRANSLATED IS NOT RIGHT, AND WHAT IS LEFT IS SAID HERE.** Every sentence
+reads as a structure the translator has; what is wrong is words, agreement and
+senses no lesson separates:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `in Gandia`, `in Toledo` | `a Gandia` | `en` is `in`, and Italian puts `a` before a city |
+| `hanno goduto di dei giorni` | `di alcuni giorni` | the indefinite plural article after `di` |
+| `gli ha portato` | `l'ha portato` | Spanish's `le` is the object of a man (leísmo), and read as the dative it is `gli` |
+| `è basso` | `è indisponibile` | `es baja` is out, injured; the adjective reading comes first |
+| `... in Gandía curiosamente`, `... invece`, `... già` | in front | an adverb at the head is written after the verb, 1.6.8's cost |
+| `I due primi` | `I primi due` | the count stays where Spanish put it |
+| `La grande novità nella lista oltre alla presenza di Dani è ...` | the two commas kept | a comma inside the subject is not in the IR |
+| `identici condizionamenti del turno precedente` | `identici a quelli del turno` | an equal comparison is written with the word for `than` |
+| `che questo è vinto ... già` | `che questo sia già vinto` | Italian wants the subjunctive after `pensare che` where Spanish wrote the indicative, and no lesson says which verbs ask for one |
+
+-- and the other way, `Il gatto è più grande del cane.` comes out `El gato es
+más grande del perro.`: Italian's `di` is `than` only on the way out, and
+read it is `of`, which is the price of the fix above.
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.7.2's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.7.2, this store | **1.8.1** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.6 and 12.6 s | **12 of 12, 14.2 and 14.1 s** |
+| the Spanish article | 11 of 11, 12.7 and 12.0 s | **11 of 11, 13.0 and 12.9 s** |
+| Livata, 29 sentences | 29 of 29, 57.7 and 57.2 s | **29 of 29, 65.5 and 65.1 s** |
+| Fiat, 20 sentences | 20 of 20, 19.7 and 19.9 s | **20 of 20, 20.0 and 20.8 s** |
+| Valencia, 16 sentences | 16 of 16, 38.5 and 37.9 s | **16 of 16, 37.9 and 37.5 s** |
+| the bioethics article, 15 sentences | 15 of 15, 10.0 and 10.1 s | **15 of 15, 10.7 and 10.6 s** |
+| Tatoeba's 400, exact / translated / refused | 55 / 263 / 137, 13.7 and 13.5 s | **55 / 259 / 141, 14.4 and 14.3 s** |
+| the football article, 20 sentences | 10 of 20, 28.9 and 28.9 s | **20 of 20, 24.0 and 23.5 s** |
+
+-- the ranges apart on all but Valencia, where they overlap, so the new
+readings cost 3 to 14 % where they cost anything, the twelve and Livata the
+most; the football article is 18 % faster because 1.7.2 spends its time
+failing. Each translator gives the same texts both times. Against 1.7.2 the
+texts are the same but for these, and all but two moved on purpose: Fiat keeps
+the source's commas around `como complemento del actual contrato colectivo de
+Chrysler Group`; Livata writes `Se sabe sólo que` and `No se sabe cómo` for
+`si sa`, where 1.7.2 wrote `Se conoce`, keeps the comma in `en esas
+condiciones, a menos 5 grados` and writes `habría que conocer` for
+`bisognerebbe capire`; Valencia writes `per` for `por` three times --
+`Sospirò per lui`, `per le mani di virtuosi`, `optò per una via` -- which
+1.7.0's costs table had as `da`; and the bioethics subtitle `"lo stato deve
+imporre i vaccini"` comes out with a capital. On Tatoeba five sentences 1.7.2
+wrote wrongly are refused (`Can him make?`, `Does Ustedes not have heat?`,
+`Like me to write.`, `Like me to sleep.`, `Know him until my mum.`), `gustar`
+pleases (`The school pleases me.`, `Your group pleases me.`) and `por qué` is
+`for what` where it was `by what`. The two that are worse are costs: `Él nunca
+ríe.` is `Never he laughs.` where it was `He laughs never.` -- a denying
+adverb kept in front is written in front in English too, where English puts
+it after the subject -- and `Te veré a las dos y media.`, which 1.7.2 refused,
+is `I will see you the two and a half ones.`, with `las dos` read as a count
+whose noun was left out and the `a` before it as the word before a person.
+
+**`test/translate.pl` IS 753 CHECKS AND GREEN**, thirty-one in a new
+`newspaper_football` section with a Spanish and an Italian lesson of its own;
+every check but the last three fails on 1.7.2's translator, and the last three
+pass on it and fail on 1.8.0's. Lesson 46 gained section 27. **The full suite
+was NOT run again on 1.8.1**: it ran on 1.8.0, and 1.8.1 changes only
+`library/reasoning/translate.pl` and the two files that read it in the suite
+-- `test/translate.pl`, GREEN alone, and lesson 46, `done` alone -- with
+cocolint 0 HARD and 0 WARN over the three.
+
+### The translator pivots on an IR now, and English IS the IR (1.3.0)
+
+**EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
+paired English with the lesson's language, so three languages would have been
+six paths and a fourth would have been twelve. A sentence is read INTO an
+intermediate representation on its own language's side and written FROM it
+into whichever language is asked for:
+
+```
+ir(s(Asked, Subject, g(Lexeme, Tense, Aspect, Denied), Complements), Stop)
+```
+
+-- which is **the reader's own shape, with the words in it ENGLISH**. `Il cane
+non mangia il pane.` reads to one term and that term writes as
+`Il cane non mangia il pane.`, `The dog does not eat the bread.` and
+`El perro no come el pan.`, measured in `test/translate.pl`'s `ir` section and
+in lesson 46's eighteenth. The surface is `reason_ir/2,3`, `reason_ir_text/3`,
+`reason_translate/4`, `reason_translate_page/4` and `reason_languages/1`, and
+**adding a language is adding its lesson** -- nothing is written per pair.
+
+**WHAT TRAVELS EXACTLY IS THE SHAPE; THE VOCABULARY TRAVELS THROUGH ENGLISH,
+AND IT CAN DO NOTHING ELSE.** A lesson says what a word means only as
+`mean(Word, EnglishWord)`, so English is the one language every lesson is
+written against and a sense English does not separate is a sense the IR
+cannot separate. That is a property of the DATA and not of the design, and
+the header says so rather than implying a stronger IR than the lessons
+support. What the pivot does buy, and what a round trip through English text
+would lose, is the tense, the aspect, the denial, the person, the number,
+what a question asks for and every complement in its place -- no English
+sentence is assembled and none is re-parsed.
+
+**ENGLISH IS THEREFORE ALREADY THE IR, which is what made the change small.**
+A sentence read on the English side needs NO crossing, so
+`tr_into_ir(english, ...)` is `tr_read/4` and `tr_from_ir(foreign, ...)` is
+the old writer unchanged -- the English-into-a-lesson path is the same code
+it was, which is why 435 existing checks were green on the first run. The one
+new piece is `tr_cross/3`, a walk that makes over the TERM exactly the lookups
+the writer into English used to make over the words coming out of it. Its
+words are the lexemes their meanings gave (`house`, with the number beside it)
+where an English-read sentence keeps the text's own form (`houses`); both are
+English words and both write out the same, because every consumer takes the
+lexeme first.
+
+**THREE CROSSINGS NEEDED AN IDENTITY, and that is the whole of what writing
+the IR back into English required.** `tr_meanings_of/4`, `tr_pronoun_across/6`
+and `tr_question_across/4` each look a word up from the side it was read on
+into the side it is written to; asked for English from English they would have
+gone the OTHER way -- `mean/2` is the lesson's word to English's, so
+`tr_meaning(english, the, M)` answers `el`, `la` and every other word for it.
+A clause at the head of each answering the word itself when
+`tr_side_here(From), From == To` is the fix, and it is one line each.
+
+**AND READING ENGLISH NEEDS A LESSON NAMED, which is the one thing that is
+not obvious.** The English words the reader KNOWS are the ones some lesson
+gives a meaning for (`tr_known(english, E) :- tr_solve(mean(_, E))`), so an
+English source is read against a lesson like any other text. `reason_translate/4`
+sets the TARGET's lesson before it reads, which is exact -- when the source is
+English the only lesson that matters is the target's -- and a bare
+`reason_ir(Text, english, IRs)` lets the words vote and keeps whichever
+language is already set on a tie. The target's lesson is re-set before EVERY
+sentence is written, because reading the one before it may have set the
+source's.
+
+### And a named lesson had no index, which only a vocabulary could show
+
+**THE IR MADE TWO LANGUAGES IN ONE STORE WORTH HAVING, AND THAT IS WHAT
+FOUND IT.** `reason_learn/3` asserted `lesson(Language, Term)`, so the
+FIRST ARGUMENT of every row was the atom `spanish` or `italian` -- and
+cocolog's first-argument index keys on exactly that, which among a
+language's own rows discriminates nothing. A plain lesson asserts
+`mean(casa, house)` itself, where the index keys on `casa`. Nobody saw it
+for eleven versions because a hand lesson is three hundred terms and a
+walk over three hundred is free.
+
+**MEASURED, ONE SENTENCE, SAME BOX AND SAME VOCABULARY:**
+
+| the store | one sentence |
+|---|---|
+| plain, one language (`reason_learn/2`) | **0.348 s** |
+| named, two languages, 280 933 terms | **over 4 minutes**, killed |
+
+-- and six sentences through `page.pl` over the named store ran **7 min 35 s
+of which 7 min 34 s was utime and 0.17 s was stime**, `state R` throughout
+with RSS flat at 494 MB from the second minute on. All user CPU, nothing in
+the kernel, no growth: not I/O, not fetching, just the walk. **The
+`utime`/`stime` split named it again**, which is the third time in this file
+that free pair has settled a question somebody was about to answer with a
+rebuild.
+
+**A FACT NOW GOES IN THE LANGUAGE'S OWN NAMESPACE AND A RULE STAYS WHERE IT
+WAS.** `'spanish:mean'(casa, house)` is what a named lesson asserts, so the
+index sees `casa` exactly as a plain lesson's does; `tr_lesson/2` puts the
+prefix on before it calls and `tr_namespaced/3` is the whole of it.
+**The rules must NOT become real clauses**, which is the one thing that had
+to be got right: a rule stored as `'spanish:feminine'(X) :- noun(X),
+end_in(X, a)` would have its BODY resolved by the engine against the plain
+knowledge base, where `noun/1` means something else -- so rules stay in
+`lesson(L, (H :- B))` and `tr_body/2` goes on proving each body goal through
+the lesson. A lesson has a few dozen rules against a hundred thousand facts,
+so `lesson/2` is now a short walk and nothing else.
+
+**AND IT BUYS A SECOND THING THE INDEX WAS NOT THE POINT OF: the STORE fetch
+is per predicate.** `cocolog::clauses` is indexed `(kb, name, arity)` and the
+fetch hook is asked once per predicate, so one `lesson/2` holding 280 933
+rows was ONE fetch of everything before the first sentence could be read.
+Namespaced, a sentence fetches the handful of predicates it actually asks
+for.
+
+**`atomic_list_concat/2` CANNOT SPLIT, and the prefix has to come off.**
+The first draft wrote `atomic_list_concat([L, ':', Name], N)` with `N` bound
+and `Name` free, reading this file's own note about a partial list splitting
+-- which is about `atomic_list_concat/3`, where the SEPARATOR is what makes a
+split well defined. `atom_concat/3`'s `(+,-,+)` mode is the one that takes a
+known prefix off, and `tr_prefix/2` is where it lives.
+
+**NOTHING OUTSIDE THE FILE NAMES A ROW SHAPE NOW**, which is what let the
+shape change at all: `reason_lesson(?Language, ?Term)` reads a named lesson
+and `reason_unlearn(+Language)` forgets one, where `test/translate.pl` and
+lesson 46 used to write `lesson(italian, ...)` and `retractall(lesson(italian,
+_))`. A registry carries what unlearning needs -- `lesson_language/1` and
+`lesson_predicate(Name, Language, Arity)`, the latter keyed on the NAME so
+that its own lookup is indexed too.
+
+**AND THE NAMESPACE IS A TENFOLD WIN THAT DOES NOT CLOSE THE GAP, which
+is the whole of what the measurement says.** Both vocabularies taught into
+one store under their own names, then read, on 1.4.0:
+
+| | old `lesson(L, T)` | namespaced | the plain control |
+|---|---|---|---|
+| teach spanish, named | 8 min 24 s | 8 min 11 s | 5 min 43 s |
+| teach italian, named | 6 min 26 s | **5 min 03 s** | 3 min 14 s |
+| the store after both | 233 MB | **331 MB** | ~48 MB one language |
+| ONE sentence, Italian into English | **over 4 min**, killed | **25.8 s** | **0.348 s** |
+| six sentences, Italian into Spanish | 7 min 35 s, **none printed** | **3 min 02 s, 6 of 6** | -- |
+
+**THE TEACH IS NOT A WIN AND THE STORE IS BIGGER**, and both follow from the
+same thing: a few dozen dirty predicates are each flushed WHOLESALE as the
+teach goes, where one `lesson/2` was written once at the end, so the
+namespaced store carries far more dead rows. `cocolog vacuum` is what bounds
+that, as this file already says for every writing process.
+
+**AND THE PAGE PROVED IT IS NOT THE STORE, BY ARITHMETIC AND WITH NO NEW
+RUN.** A store fetch is paid ONCE per predicate per process, so if the fetch
+(or the dead rows it walks) were the cost, sentences two to six would be
+nearly free: one sentence 26.1 s would make six about 30 s. Six cost
+**181.7 s, about 30 s EACH**. So the cost is PER SENTENCE, the vacuum
+hypothesis this file was about to test is refuted before it was run, and
+`stime` says the same as it did before: **utime 3 min 01.5 s against stime
+0.13 s** over the page, and 26.03 s against 0.11 s over the single sentence.
+Still all user CPU, still a walk.
+
+**THE UNBOUND LOOKUP IS 340x PER CALL AND IS NOT THE COST, and the second
+half of that sentence was bought with a build, a re-teach and an hour.** The
+mechanism is real and this file already named it: an unbound first argument
+keys as 0 and skips nothing, and a lesson says `mean(Word, EnglishWord)`, so
+every question asked in the English direction leaves the first argument free.
+Measured over 17 406 rows of one language's `mean/2`:
+
+| | bound first argument | unbound |
+|---|---|---|
+| a HIT | 0.0026 ms | 0.0021 ms |
+| a MISS | 0.0020 ms | **0.900 ms** |
+| a findall, all solutions | 0.0027 ms | **0.913 ms** |
+
+**A HIT HIDES IT**, because it stops at the first match; only a miss or a
+findall walks, and `tr_meanings_of/4` IS a findall. Every arity-2 relation a
+lesson states -- `mean`, `plural_of`, `person_of`, `past_of`, `future_of`,
+`participle_of`, `infinitive_of`, `gerund_of`, `conditional_of` -- is asked
+in BOTH directions somewhere in the file.
+
+**SO A COPY KEYED THE OTHER WAY WAS BUILT (1.4.1) AND IT MADE EVERYTHING
+WORSE.** One arm, same box, same corpus, the store re-taught from empty:
+
+| | 1.4.0 namespaced | 1.4.1 with the reverse copy |
+|---|---|---|
+| teach spanish | 8 min 11 s | 9 min 44 s (+19 %) |
+| teach italian | 5 min 03 s | 5 min 56 s (+17 %) |
+| the store after both | 331 MB | **560 MB (+69 %)** |
+| ONE sentence, Italian into English | 25.8 s | **40.2 s (+56 %)** |
+| six sentences, Italian into Spanish | 3 min 02 s | **4 min 38 s (+52 %)** |
+
+Worse on every axis, and the two read figures agree with each other to four
+points, so it is not noise. **1.4.1 is reverted in 1.4.2.**
+
+**THE ERROR IS THE ONE THIS FILE WARNS ABOUT TWICE: a per-call rate was
+measured and the VOLUME was assumed.** The probe is sound -- 0.913 ms against
+0.0027 ms is 340x -- but 26 s a sentence would need about 29 000 such calls,
+and that count was never taken. *A count is not a cause until the outcome
+moves with it*, and here the outcome moved the wrong way, which is the
+cleanest refutation available. The same shape as the per-acquisition wait
+read against the per-request total, and as the per-probe cache figure that
+was a per-request total divided by an unrelated count.
+
+**WHY THE COPY IS WORSE IS ITSELF UNANSWERED**, and no mechanism is offered:
+there are twice as many predicates to FETCH, the store is 69 % bigger for the
+fetch to walk, and the registry consult adds a lookup per call, and nothing
+here separates them.
+
+### And it was ONE unbound call, in tr_endings/2 (1.5.1)
+
+**THE MECHANISM WAS RIGHT FROM THE FIRST PROBE AND BOTH FIXES BUILT ON IT WERE
+WRONG.** The answer was to stop asking the unbound question, not to index it.
+`tr_endings/2` reads the endings a lesson's rules give, and it did so by
+CALLING `take_in(_, E, T)` -- first argument free, which keys 0 and skips
+nothing, so it walked the whole predicate. It is asked on nearly every
+inflection, so over a vocabulary that one call was the entire cost of a
+sentence. `clause/2` enumerates the heads instead:
+
+| | before | after |
+|---|---|---|
+| one sentence, two languages, 331 MB | **25.8 s** | **0.258 s** |
+| one sentence, one language, 148 MB | 11.30 s | 0.210 s |
+| a page of six sentences, Italian into Spanish | **3 min 02 s** | **2.6 s** |
+| the plain single-language control | 0.279 s | -- |
+
+A named lesson at vocabulary scale now reads FASTER than a plain one, with no
+change to the teach or the store.
+
+**THE BISECTION IS WHAT FOUND IT**, after the counters had run out of things to
+say: `reason_ir/3` 25.6 s against `reason_ir_text/3` 0.000 s, so the whole cost
+was the READ; then one language named (11.3 s) against one language plain
+(0.279 s) on the same corpus and binary, which said it was the NAMESPACE and
+not the row count.
+
+**AND THE READING THAT FOLLOWED WAS WRONG, WHICH IS THE PART WORTH KEEPING.**
+A plain lesson's rules are real clauses the engine resolves; a named lesson's
+sat in `lesson(L, (H :- B))` and were META-INTERPRETED by `tr_body/2`, on rules
+(gender, the plural) that fire on nearly every word. Namespacing the rule
+BODIES as well as the heads made them real clauses and the sentence went 11.3 s
+to 0.271 s -- which looked like proof. **It was not.** The number that killed it
+was one nobody asked for: the OLD store, whose rules still go through
+`tr_body/2`, read in **0.234 s** on the same build. One arm settled it -- put
+the old `tr_endings` line back on the NEW store and it returns to **11.522 s**.
+So the rules change was reverted too: it buys nothing measurable and would have
+changed the store's shape for it.
+
+**THE RULE THAT COMES OUT OF THIS PAIR**: a fix that lands in the same edit as
+another fix has not been measured. Both of these were one `git checkout` and one
+arm away from being told apart, and the arm cost ninety seconds where believing
+the first reading would have shipped a store-shape change for nothing.
+
+**AND A CALL AND AN ENUMERATION ARE DIFFERENT QUESTIONS.** `tr_endings/2` wants
+the HEADS of a predicate's clauses, which `clause/2` gives directly; calling the
+goal asks the engine to prove it, which over a vocabulary means walking every
+row to find each answer. Anywhere a lesson's rows are enumerated rather than
+proved, `clause/2` is the predicate to reach for.
+
+**AND THE PAGE FOUND A DEFECT IN THE ITALIAN LESSON, not in the IR**:
+`Che cosa mangia il cane?` came back `¿Qué come qué el perro?`, with the
+question word written twice. `che` and `cosa` BOTH mean `what` in the
+vocabulary, and Italian's ordinary `che cosa` is the two of them together, so
+the reader takes one as the question word and the other as an object. The IR
+carried what it was given; the lesson has no way to say that two words are
+one question word. Every other sentence of the page round-tripped
+(`Il gatto nero dorme.` -> `El gato negro duerme.`, `I cani mangiano il
+pane.` -> `Los perros comen el pan.`, `Le case non sono grandi.` -> `Las
+casas no son grandes.`).
+
+**AND `/usr/bin/time` IS NOT INSTALLED ON THIS BOX.** The first runner used
+it and failed four times in seconds with exit 127, measuring nothing -- which
+is the good kind of instrument failure, and the opposite of the arm that
+measured the wrong engine and reported exit 0. bash's `time` keyword is what
+the probes use now; `sh` on this box is dash and has none.
+
+**AND A CASE THAT TRAINS MUST GIVE THE HEAP BACK, or it dies in whatever
+runs last.** `test/tagger.pl` was killed by this box's 16 GB three times
+running -- at 206, 195 and 232 s, with the training itself finishing at
+158 -- after the last section's checks had printed, which reads as a hang
+in the thing that ran last and is the training's leavings: cocolog reclaims
+on backtracking and a training walks 32 768 pairs deterministically, so
+every sequence and batch stays live. `\+ \+ tagger_train(...)` and then
+`tagger_load/2` is the whole fix, because the model goes to the STORE --
+which is what `library/reasoning/train.pl` does anyway.
+
+**THE TRAINED MODEL IS KEPT, AND THE REASON LIBRARY LOADS IT ON ITS
+OWN.** `tagger_pretrained/1` answers a model without training: the one
+named `tagger` in the knowledge base this process proves against when
+there is one -- a program over its own `--embed` store runs
+`library/reasoning/train.pl` there once and every later run finds it -- and
+otherwise `library/reasoning/model.rows` beside the library, the rows
+`tagger_export/2` writes, consulted as a MODULE so they are muted and
+never written into the program's base. `reason_prose/2` and
+`reason_ask_prose/2` in `library(reasoning/reason)` load the tagger and
+that model on first use, so a grammar-only program stays grammar-only and
+a program that wants prose gets it with no training. A store was tried as
+the shipped form and refused by measurement: sixteen megabytes for 3661
+live rows, because a consult rewrites the predicate wholesale and a store
+never shrinks below its high-water mark, and in one machine's byte order
+besides; the text file is four megabytes at six decimals, which a weight
+near one cannot feel. It is `model.rows`, not `.pl`, because cocolint's
+retrieval index walks `library/*/*.pl` and was KILLED for want of memory
+reading four megabytes of numbers as clauses. `sh tools/tagger/train.sh`
+writes it, training into a scratch store and exporting; `test/tagger.pl`'s `pretrained` section
+and `test/reason.pl`'s `prose` section load it, and SKIP by name where
+torch or the file is missing.
+
+**THE JUDGE'S LEXICON IS NOT THE GENERATOR'S.** `Death put a period to
+his endeavors.` was read as `put(death, period_1)` because `death` is in
+no lexicon file: the generator's nouns are things to own (WordNet's
+artifact, food, object, plant, possession files), and the judge had been
+reading the generator's lists. `lexicon/build.pl` now also writes
+`known_noun`, `known_verb`, `known_adj` and `known_adverb` -- every
+SemCor-counted lemma of that part of speech whatever its sense, 18 782
+words -- and `tagger_sane/2` reads those beside the generator's; the same
+model went from 28 of 300 real sentences read to 11, and `test/tagger.pl`
+pins 0.93 refused where it pinned 0.90. A seventh rule joined the six: a
+lower-case subject or object known only as a verb is refused (`Discuss
+values`), unless it is a third person whose stem is also a noun (`keys`,
+which the table holds as the verb form of `key`) -- an exception found by
+the scratch paragraph's `Priya keeps the keys in Leeds` coming back X.
 
 **`$COCOLOG_LIBRARY` IS A LIST, AND THE SUITE APPENDS TO IT RATHER THAN
 REPLACING IT.** `test/run.pl`'s `environment/1` is the one place that sets
@@ -2075,6 +6154,26 @@ engine reports a halted goal as "no more solutions" and the three
 commands read that as `main` failing; `test/ray.pl` found it by skipping
 its windowed half with `halt(0)` after every check had passed and
 coming out RED. `test/argv.pl` pins all three. A test that expected 1 for a thrown ball wants 2 now.
+
+**A GOAL DIRECTIVE IN A MODULE WAS A SEGFAULT UNTIL 1.6.16, AND `-s` MAKES
+EVERY PROGRAM A MODULE.** `-s FILE` is `use_module(FILE), main`, so the file
+is registered as a module and consulted by `coco_module_load` -- which moved
+the store's count of loaded modules, `libs`, only AFTER the consult. A goal
+directive runs in an engine of its own over the same store, every engine's
+first step is `coco_module_load`, and that engine found the module still
+unloaded and consulted it again: `:- true.` was enough, and the C stack ran
+out at 7 500 frames. The same held for any library `.pl` with a goal
+directive, loaded by a goal or by a directive and under `run` as well --
+and nothing in the tree carries one, which is how the suite stayed green
+over it and why every section of the case, all `run`, could not see it.
+**The module is claimed BEFORE its consult now, and the loop reads the count
+again each time round**, because a directive's engine may load a module
+registered after this one -- a `:- use_module` above the directive in the
+same file registers one -- and a walk on a local index would then consult
+that module a second time. Measured on a build of each: 1.6.15 fails all
+eight checks of the case's new section with a segfault, and a variant that
+claims first but keeps the local index fails exactly one, with `[1,2]
+[1,2,1,2]` -- every clause of the library twice.
 
 `test/directives.pl` is the case, and its last section runs the same files
 under `swipl` and diffs what the programs printed.
@@ -2546,6 +6645,104 @@ which is exactly a four-byte `30 82 01 21` header. `der_wrap(48, K, S)`
 puts it back. Documented in `modules/x509/x509.cicili` and in
 `tutorials/library/26-x509.pl`; ZiguratIP is not patched for it.
 
+## `sort/4` was an insertion sort, and `keysort/2` is `sort/4` (1.2.40)
+
+**A TABLE OF THIRTY-FIVE THOUSAND WORDS TOOK TEN SECONDS TO KEYSORT, AND A
+PROCESS THAT TAGGED ONE SENTENCE PAID FORTY-TWO SECONDS BEFORE ITS FIRST
+ANSWER.** `coco_l_sort4` in `lib/lists.cicili` was an insertion sort --
+"stable, and n is small in every use this has" -- and `keysort/2` is
+`sort(1, @=<, L, S)`, so every keysort was quadratic: measured, 20 000
+pairs in 1.03 s where `msort/2` took 0.009, and 35 081 in 10.6 s where
+`msort` took 0.022. Nobody saw it because nothing keysorted more than a
+few hundred things until the reasoning tagger's judge built its lexicon
+(`tg_lexicon_classes`, ~55 000 pairs, 42 s) and the head rule its
+known-word table (~35 000, 11 s), once a process -- and
+`test/tagger.pl`'s across-processes section, whose children each pay
+both, ran past `cocolog_out/2`'s 120 s and FAILED SILENTLY, `main`
+failing with no red check, exit 1 and no verdict line. It is a bottom-up
+merge sort now, stable by construction (the left run wins a tie, which
+`bagof/3` needs), 20 000 pairs in 4 ms. **The tell was a probe, not the
+suite**: the case's log ended after a green line with no RED or GREEN,
+and timing the children by hand said 66 s and 40 s for work worth five.
+A section that fails without a check line is a goal that failed, and
+`proc_run/4` failing on its timeout is the first thing to suspect.
+
+## `fork` refuses a process bigger than the machine, and `library(process)` spawns with `posix_spawn` now (1.2.41)
+
+**THE SECTION ABOVE SAID `test/tagger.pl`'S CHILDREN RAN PAST THE 120 s
+TIMEOUT. THEY NEVER STARTED.** The merge sort made each child worth ten
+seconds where it had been worth sixty, and the across-processes section
+went on failing exactly as before: `main` failing with no red check, exit
+1, no verdict line. Traced from inside the case, `proc_run('true', 5000,
+_, E)` FAILED there -- any command, `echo hi` included -- while the same
+section standalone is green. What made it loud was one change to the
+module: a spawn that cannot happen RAISES now, with the errno's own words,
+where `coco_p_fork` answered -1 and `proc_run/4` turned that into a plain
+failure. The next run said it in one line:
+
+```
+ERROR: -s main: proc_run: could not spawn a child: Cannot allocate memory
+```
+
+**IT IS `fork(2)` BEING REFUSED, AND THE PROCESS'S SIZE IS THE REASON.**
+Read out of `/proc` while the case ran its torch training: **VmSize
+19.2 GB, VmRSS 10.4 GB, four threads, on a 16 GB box with no swap.** Under
+Linux's default `vm.overcommit_memory = 0` (the heuristic), a fork's copy of
+the address space is charged one mapping at a time, and the heuristic
+refuses any single request larger than physical memory plus swap
+(`__vm_enough_memory`, OVERCOMMIT_GUESS: `pages > totalram_pages() +
+total_swap_pages`) -- whether or not a byte of it is resident. Adjacent
+anonymous mappings with the same flags MERGE into one, and a torch
+allocator mmaps block after block, so the arena is ONE mapping the size of
+everything it ever asked for. Confirmed with a probe that maps N untouched
+gigabytes a gigabyte at a time and then forks and spawns:
+
+| mapped | VMAs | largest | `fork` | `posix_spawn` |
+|---|---|---|---|---|
+| 4 GB | 25 | 4 096 MB | ok | ok |
+| 12 GB | 25 | 12 288 MB | ok | ok |
+| **17 GB** | 25 | **17 408 MB** | **Cannot allocate memory** | ok |
+| 20 GB | 25 | 20 480 MB | Cannot allocate memory | ok |
+
+-- the gigabytes land in one VMA (25 mappings whatever N is), the refusal
+starts exactly where that VMA passes the machine's 16 GB, and nothing was
+ever touched: VmRSS read **1 684 kB** with the 17 GB mapped. So a process
+that has trained a network cannot fork, and the size of the CHILD --
+`/bin/sh -c true` -- has nothing to do with it.
+
+**`posix_spawn(3)` COPIES NOTHING, AND IT IS WHAT `coco_p_start` IS NOW.**
+glibc implements it as `clone(CLONE_VM | CLONE_VFORK)` and Darwin in the
+kernel: the child shares the parent's memory until its exec, so no mapping
+is duplicated, none is charged, and a child costs the same from a 19 GB
+process as from a one-megabyte one. The two things the fork child used to
+do by hand are attributes: `POSIX_SPAWN_SETPGROUP` with group 0 for
+`proc_run/4` (the group is what a timeout kills whole -- still measured:
+`sleep 20 | sleep 20` under a 300 ms budget answers 124 and both sleeps are
+dead) and `POSIX_SPAWN_SETSID` for `proc_spawn/2` (a session of its own,
+checked against `/proc/PID/stat`'s sixth field); the pipe is three file
+actions. **`POSIX_SPAWN_SETSID` IS SHOWN BY glibc ONLY UNDER `_GNU_SOURCE`**,
+which `modules/process/build.sh` now defines on the compile line (Darwin
+has the flag in the open and ignores the macro), and **`environ` IS A
+VARIABLE A SHARED LIBRARY ON DARWIN MAY NOT NAME** -- the loader owns it and
+`_NSGetEnviron()` hands back its address -- so the module reaches it
+through `coco_p_environ`, defined either way under `@ifdef __APPLE__`.
+`test/process.pl` is green on the new module, `test/tagger.pl` is green
+end to end for the first time since its lexicon grew, and the version is
+1.2.41 because a spawn that fails raises where it failed.
+
+**TWO THINGS TO CARRY AWAY, and the first is a correction to this file.**
+The 1.2.40 section's last sentence -- suspect the timeout first -- was an
+inference from two standalone timings and not a measurement of the case,
+and it was wrong: a section that fails with no red check and no error
+term is a builtin ANSWERING 0 WHERE IT SHOULD RAISE, and the place to look
+is the C, for a `(return 0)` on a syscall's failure. That shape is the
+same one the module README records for an error call tested as a boolean,
+seen from the other side. And **a `(code "...")` statement gets its
+semicolon from the emitter**: a `;` written inside the string makes an
+empty statement, and an empty statement between an `if` and its `else` is
+`error: expected expression` at the `else` -- which is how the first build
+of this died, naming a line that had nothing wrong on it.
+
 ## The engine was quadratic, and the fix is one call
 
 **`coco_make` now dereferences every argument as it stores it**, in
@@ -2582,6 +6779,35 @@ a cell built after a binding lives above that choice point's `heap_mark`,
 and `coco_backtrack` sets `heap_len` back to the mark — so anything that
 could see the stale value has already been dropped. It is the invariant the
 WAM builds on, and the reason it dereferences into a structure too.
+
+## A grammar rule's leading terminal is in its head, where SWI puts it (1.6.18)
+
+**`a --> [x], b.` IS STORED AS `a([x|S1], S) :- b(S1, S).`**, where the
+rewriting in `lib/dcg.cicili` gives `a(S0, S) :- S0 = [x|S1], b(S1, S).`
+The two are one clause -- nothing runs between a head's unification and the
+first goal of its body -- and SWI's compiler makes the same move
+(`optimise_unify`, on by default), so its `clause/2` and `listing/1` show the
+lifted head and cocolog's show it now too. Only the FIRST goal is lifted, and
+only `S0 = T` with T bound: the `S0 = S` of `[]` stays a goal, as it does in
+SWI, and a terminal after a `!` or a `{G}` is not lifted over it.
+`test/files/dcg_shapes.pl` pins where each is stored against SWI -- `yyy` on
+both, `nny` on 1.6.17.
+
+**AN INFERENCE IS NOT A UNIT OF TIME, which is the finding.** One binary each
+side, alternating, the same programs:
+
+| | inferences | time |
+|---|---|---|
+| a DCG over 20 000 phrases, `phrase/2` | 580 032 -> **420 030** | 77-80 ms -> 69-84 ms, ranges overlap |
+| `json_parse/2`, 280 000 codes | 5 205 650 -> **3 895 358** | 1 042-1 120 ms -> **879-940 ms**, separated |
+| `reason_text/2`, 3 000 vocabulary lines | 3 943 881 -> 3 738 715 | 1 827-2 020 ms either side, overlap |
+
+A quarter of the inferences gone buys 15 % where a grammar is mostly
+terminals, which is JSON, and nothing a stopwatch can see elsewhere: a goal
+`S0 = [x|S1]` costs about what the head unification that replaces it costs.
+The translator has no grammar rules at all, and its four controls -- Livata,
+the twelve, the Spanish article, Tatoeba's 400 -- come back byte for byte
+the same at the same times.
 
 ## The store reclaims what it no longer reaches (1.2.13)
 
@@ -3074,13 +7300,13 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has four categories and `test/tutorials.pl` runs all
-**118** files as one suite case (counted from the tree, not remembered;
-this said ninety-three, and before that sixty-eight):
+**123** files as one suite case (counted from the tree, not remembered; this said 122,
+this said 121, this said 120, before that 118, ninety-three, and sixty-eight):
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | forty-two lessons, one per library that ships, plus one for cocolint | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | forty-seven lessons, numbered 00 to 46: one per library that ships, one for cocolint, one for the library path | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/opencv/` | twenty-three lessons of image processing | `library/opencv.so` |
 | `tutorials/tensor/` | forty-two networks, each running on either tensor library | libtorch |
 
@@ -3134,6 +7360,20 @@ That last one is the pattern to watch for anywhere in `lib/`: a
 failure-driven loop written from habit against another Prolog is not
 slow here, it is wrong, and it is wrong quietly.
 
+**AND A LESSON THAT TRAINS A NETWORK GETS ITS OWN BUDGET, which is the
+1.2.38 rule firing a second time.** `one_lesson/3` gives every library
+lesson 300 s, and `tutorials/library/45-tagger` fits the shipped tagger
+with the shipped defaults -- 32 768 pairs generated in the process, 500
+Adam steps -- which measures **308 s** here: run by hand it is GREEN and
+says nothing about a budget, and in the suite it came back exit 124 with
+no `done` line and nothing else, because a killed process never flushes.
+It had been inside 300 s until 1.2.39 doubled the pairs and took the
+steps from 400 to 500, and no full suite ran between then and 1.2.43 --
+so the suite caught what six standalone runs could not, exactly as the
+lesson-ends-in-`done` finding did. `lesson_budget/2` in
+`test/tutorials.pl` gives that one lesson 900 s, with room for this box's
+~20 % drift; the opencv category already took 600 s for the same reason.
+
 **A NEW LIBRARY GETS A TUTORIAL IN THE SAME COMMIT.** `tutorials/library/`
 is numbered one per library, so a gap is visible — and a library with no
 `NN-name.pl` beside it is one nobody has demonstrated end to end. Each of
@@ -3153,10 +7393,10 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **54** case lines (counted
-from a run, not remembered; this said 39, then 42, then 43, then 48, then
-51, then 52, then 53, and the suite keeps moving -- seven `.cicili` binaries and
-forty-seven `.pl` cases, each line with its seconds). A change to
+Run `make test` with a server up, and read all **58** case lines (counted
+from `test/run.pl`'s list, not remembered; this said 39, then 42, then 43, then 48, then
+51, then 52, then 53, then 54, then 57, and the suite keeps moving -- seven `.cicili` binaries and
+fifty-one `.pl` cases, each line with its seconds). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

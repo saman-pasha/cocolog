@@ -104,6 +104,13 @@ be quoted.** `$` is a symbol character and `x` is alphanumeric, so
 surfacing as `use_module: its clauses would not consult`, which names
 the module and not the line.
 
+And one that bites the raw-C escape in any module: **a `(code "...")`
+statement gets its `;` from the emitter.** Write one inside the string and
+the line carries two, the second an empty statement -- harmless anywhere
+except between an `if` and its `else`, where it ends the `if` and clang
+says `expected expression` at the `else`, a line with nothing wrong on it.
+`modules/process/process.cicili`'s spawn is written without them.
+
 And one that bites the SDK side of any module, C or C++: **an error call's
 value is the machine's, and it is RETURNED, never tested.** `coco_m_domain_error`
 and its siblings answer a value that is neither 1 nor 0, and a predicate

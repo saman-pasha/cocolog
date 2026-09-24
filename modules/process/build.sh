@@ -20,5 +20,8 @@ mkdir -p "$OUT"
 
 # -O3 is what actually optimises the .so: Cicili's --release governs how
 # CICILI compiles, and this script compiles the emitted .c itself.
-"$CC" -shared -fPIC -O3 -o "$OUT/process.so" "$HERE/process.c"
+# _GNU_SOURCE because glibc shows POSIX_SPAWN_SETSID -- the session a
+# proc_spawn/2 child gets -- only under it; Darwin's spawn.h has the flag
+# in the open and ignores the macro.
+"$CC" -shared -fPIC -O3 -D_GNU_SOURCE -o "$OUT/process.so" "$HERE/process.c"
 echo "built $OUT/process.so"

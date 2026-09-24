@@ -445,7 +445,7 @@ build fails. And each runnable exemplar carries the stdout
 the repository that a stale comment cannot corrupt, because the model sees
 behaviour rather than appearance.
 
-**`capabilities.json` is twenty-three hand-written topic rows** and the builder
+**`capabilities.json` is twenty-nine hand-written topic rows** and the builder
 checks every library and every exemplar tag they name — which is §9.2's whole
 argument against embeddings, that this is an exact-match problem over a few
 dozen documents with one hand-labelled topic each.

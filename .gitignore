@@ -2,6 +2,7 @@
 build/
 cocolog
 *.o
+*.o.tmp
 *.lo
 *.a
 .libs/
@@ -104,3 +105,6 @@ tutorials/tensor/data/
 
 # the two dnn lessons fetch their models here (SqueezeNet 5 MB, YOLOv4-tiny 24 MB), never in the repository
 tutorials/opencv/models/
+
+# the raw dictionaries tools/corpus/fetch.sh downloads; what build.pl writes from them is committed
+library/reasoning/corpus/raw/

@@ -32,7 +32,7 @@
 
 main :-
     scratch(D),
-    linear_backtracking(D), deep_recursion(D), still_the_answers,
+    linear_backtracking(D), deep_recursion(D), sorting(D), still_the_answers,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -83,6 +83,28 @@ deep_recursion(D) :-
                  'main :- count(500000), write(done), nl.' ]),
     last_line_of(F, main, 30000, G),
     check('500000 deep deterministic recursion still finishes', G, done).
+
+%% sort/4 was an insertion sort -- "n is small in every use this has" --
+%% and keysort/2 is sort/4 at key 1, so a keysort was quadratic: 20 000
+%% pairs in a second, 35 000 in ten, and the reasoning tagger's judge
+%% paid 42 seconds a process to build its lexicon. A merge sort since
+%% 1.2.40; the guard is the same shape as the ones above, a child under
+%% a timeout with a wide margin -- 60 000 pairs sort in about 20 ms and
+%% took about ten seconds -- and the stability bagof/3 needs is pinned
+%% in-process beside it.
+sorting(D) :-
+    section('sorting stays n log n'),
+    atom_concat(D, '/ksort.pl', F),
+    fixture(F, [ 'main :- numlist(1, 60000, L), findall(K-I, ( member(I, L), K is (I * 7919) mod 10007 ), Ps),',
+                 '    keysort(Ps, S), length(S, N), S = [K1-_|_], last(S, Kn-_), ( K1 =< Kn -> write(N) ; write(unsorted) ), nl.' ]),
+    last_line_of(F, main, 4000, G),
+    check('60000 pairs keysort inside four seconds, the old sort needing ten', G, '60000'),
+    sort(1, @=<, [b-1, a-1, b-2, a-2, c-1, a-3], Stable),
+    check('and equal keys keep their arrival order', Stable, [a-1, a-2, a-3, b-1, b-2, c-1]),
+    sort(1, @<, [b-1, a-1, b-2, a-2, c-1, a-3], First),
+    check('without duplicates the first of a key stays', First, [a-1, b-1, c-1]),
+    sort(1, @>=, [b-1, a-1, b-2, a-2, c-1, a-3], Desc),
+    check('descending, still stable', Desc, [c-1, b-1, b-2, a-1, a-2, a-3]).
 
 still_the_answers :-
     section('and the answers are still the answers'),

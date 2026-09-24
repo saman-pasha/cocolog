@@ -1,0 +1,365 @@
+# Spanish words Apertium's bilingual dictionary lacks, or gives a meaning
+# the translator cannot use. See README beside this file.
+The conjunction "porque" means "because".
+The preposition "por" means "by".
+The word "para" begins the purpose.
+The word "más" begins the comparative.
+The pronoun "uno" means "one".
+The pronoun "uno" does not precede the verb.
+The conjunction "que" means "that".
+"domina" is intransitive.
+"ha" is the auxiliary of "es".
+The reflexive pronoun "se" means "itself".
+The preposition "desde" means "from".
+The feminine noun "depuración" means "cleanup".
+The masculine noun "toque de queda" means "curfew".
+"toque de queda" is not feminine.
+The masculine noun "sábado" means "saturday".
+"sábado" is a time.
+"domingo" is a time.
+"lunes" is a time.
+"martes" is a time.
+"miércoles" is a time.
+"jueves" is a time.
+"viernes" is a time.
+The preposition "para" means "for".
+The masculine noun "fax" means "fax".
+The masculine noun "táctico" means "tactician".
+"año" is a time.
+"día" is a time.
+"semana" is a time.
+"mes" is a time.
+"hora" is a time.
+"minuto" is a time.
+"momento" is a time.
+"siglo" is a time.
+The conjunction "o" means "or".
+The masculine demonstrative "ese" means "that".
+The feminine demonstrative "esa" means "that".
+The masculine pronoun "ese" means "that".
+The pronoun "eso" means "that".
+"que" is a relative.
+# the words the El Periódico article (AnCora CESS-CAST-P-19990202-16) needs
+# and the dictionary lacks or gives first in another sense; a word of
+# several words is one word to the reader when the lesson states it so
+The preposition "junto a" means "along with".
+# `must' is `debe' before it is `tiene que' -- Italian's `deve essere
+# chiarita' is `debe ser aclarada' -- and `tiene que' is kept for reading
+The modal "debe" means "must".
+The modal "tiene que" means "must".
+"tienen que" is the plural of "tiene que".
+The masculine noun "lavado de cerebro" means "brainwashing".
+"lavados de cerebro" is the plural of "lavado de cerebro".
+The feminine noun "sopa de sobre" means "packet soup".
+"sopas de sobre" is the plural of "sopa de sobre".
+The masculine noun "pater familias" means "paterfamilias".
+The masculine noun "bate de béisbol" means "baseball bat".
+"bates de béisbol" is the plural of "bate de béisbol".
+The adverb "eso sí" means "mind you".
+The adjective "acorde" means "consistent".
+"acordes" is the plural of "acorde".
+The adverb "cucharada a cucharada" means "spoonful by spoonful".
+The masculine noun "sopicaldo" means "broth".
+The masculine noun "consomé" means "consomme".
+The masculine noun "pollastre amb galets" means "chicken with galets".
+The adjective "marginal" means "marginal".
+"marginales" is the plural of "marginal".
+The masculine noun "destrozo" means "damage".
+"destrozos" is the plural of "destrozo".
+The masculine adjective "sacrosanto" means "sacrosanct".
+"sacrosantos" is the plural of "sacrosanto".
+The feminine adjective "sacrosanta" means "sacrosanct".
+"sacrosantas" is the plural of "sacrosanta".
+The verb "desahoga" means "vents".
+"desahogan" is the plural of "desahoga".
+"desahogando" is the gerund of "desahoga".
+"desahogar" is the infinitive of "desahoga".
+The verb "equivoca" means "errs".
+"equivocan" is the plural of "equivoca".
+"equivocado" is the participle of "equivoca".
+"equivocar" is the infinitive of "equivoca".
+# ... and the pronouns Spanish gives a dative, the one said to whom
+The dative pronoun "les" means "them".
+The dative pronoun "le" means "him".
+The adjective "débil" means "weak".
+The adjective "esnob" means "snobbish".
+The masculine adjective "ciudadano" means "civic".
+"ciudadanos" is the plural of "ciudadano".
+The feminine adjective "ciudadana" means "civic".
+"ciudadanas" is the plural of "ciudadana".
+The word "cómo" means "how".
+The word "al" begins the moment.
+"institución" is a person.
+"grupo" is a person.
+The word "el" replaces the noun.
+The feminine noun "clase media" means "middle class".
+"equivoca" is reflexive.
+"desahoga" is reflexive.
+# the Monte Livata article, into Spanish: `on' is English's own word, so no
+# dictionary line gives it, and `su un albero' is `en un árbol'
+The preposition "en" means "on".
+The adjective "con final feliz" means "with a happy ending".
+The adverb "a su vez" means "in turn".
+The adverb "de noche" means "at night".
+The adverb "desde arriba" means "from above".
+The preposition "además de" means "besides".
+The preposition "gracias a" means "thanks to".
+The preposition "en vez de" means "instead of".
+The preposition "cerca de" means "near".
+The noun "lo peor" means "the worst".
+The conjunction "aunque" means "although".
+The conjunction "mientras" means "while".
+The verb "se da cuenta" means "realizes".
+# the perfect infinitive, `haber dejado': the dictionary gives `haber' no
+# English, so no line states its infinitive
+"haber" is the infinitive of "ha".
+# `su' is his and her in the lesson, and a page's `sus condiciones' is theirs
+The possessive "su" means "their".
+The possessive "su" means "its".
+# `donde' without its accent is the relative: `el hospital donde los médicos'
+The conjunction "donde" means "where".
+# `stiamo a pezzi' is a state, and Spanish says one with `estar': the
+# auxiliary that means `is' is also the copula of a state
+The auxiliary "está" marks the state.
+# ... and Spanish counts it `más de 50'
+The adverb "más de" means "more than".
+# `mamá' means `mum', which WordNet's short list of persons does not hold:
+# `abbiamo ritrovato la mamma' is `hemos encontrado a la mamá'
+"mamá" is a person.
+# `empinado' is a participle to the monolingual dictionary and comes with no
+# feminine: `un dirupo abbastanza scosceso', a cliff that is quite steep
+The feminine adjective "empinada" means "steep".
+"empinadas" is the plural of "empinada".
+# the Fiat-Chrysler article: `entro il 20 gennaio 2014' is `antes del 20 de
+# enero de 2014', and Spanish joins a date's parts with `de'
+The preposition "antes de" means "before".
+The word "de" joins the date.
+"enero" is a month.
+"febrero" is a month.
+"marzo" is a month.
+"abril" is a month.
+"mayo" is a month.
+"junio" is a month.
+"julio" is a month.
+"agosto" is a month.
+"septiembre" is a month.
+"octubre" is a month.
+"noviembre" is a month.
+"diciembre" is a month.
+The preposition "a la luz de" means "in the light of".
+The preposition "por parte de" means "on the part of".
+The preposition "igual a" means "equal to".
+The preposition "al mismo tiempo que" means "at the same time as".
+The preposition "a partir de" means "starting from".
+The masculine noun "punto de vista" means "point of view".
+"puntos de vista" is the plural of "punto de vista".
+"punto de vista" is not feminine.
+The masculine adjective "y medio" means "and a half".
+"y medio" is the plural of "y medio".
+The feminine adjective "y media" means "and a half".
+"y media" is the plural of "y media".
+The masculine noun "consejero delegado" means "chief executive".
+"consejeros delegados" is the plural of "consejero delegado".
+# `hay' is one form for both numbers: `ci sono momenti importanti' is `hay
+# momentos importantes', and with no plural stated no plural was written
+"hay" is the plural of "hay".
+The adverb "en breve" means "shortly".
+The adverb "según lo anunciado" means "as announced".
+The conjunction "desde que" means "ever since".
+The preposition "como complemento de" means "as a supplement to".
+# an adjective before a singular noun loses its ending in Spanish:
+# `desde el primer momento', `cada gran organización'. The form the
+# translator chose is replaced by its apocope where one is stated.
+"primer" is the apocope of "primero".
+"tercer" is the apocope of "tercero".
+"buen" is the apocope of "bueno".
+"mal" is the apocope of "malo".
+"gran" is the apocope of "grande".
+"cualquier" is the apocope of "cualquiera".
+# the violin exhibition in Valencia (AnCora CESS-CAST-P-20010202-169): words
+# no dictionary here has. `luthiere' is the article's own spelling of the
+# craft, French where Spanish writes `lutería'.
+The masculine noun "luthier" means "luthier".
+"luthiers" is the plural of "luthier".
+The feminine noun "luthiere" means "lutherie".
+The masculine noun "stradivarius" means "stradivarius".
+"stradivarius" is the plural of "stradivarius".
+The feminine noun "pochette" means "pochette".
+"pochettes" is the plural of "pochette".
+The masculine noun "virtuoso" means "virtuoso".
+"virtuosos" is the plural of "virtuoso".
+The preposition "a través de" means "through".
+The masculine determiner "ninguno" means "no".
+The feminine determiner "ninguna" means "no".
+# `los más destacados luthiers': the dictionary has `destacado' only as the
+# participle of `destacar', to highlight, and a participle stands after its
+# noun. Before one it is the adjective, prominent in the sense of renowned.
+The masculine adjective "destacado" means "illustrious".
+The feminine adjective "destacada" means "illustrious".
+# `sin que un experto lo note': a clause, not a relative after `sin'
+The conjunction "sin que" means "without".
+# `una réplica de un cuadro' is a copy; the dictionary has only the answer
+The feminine noun "réplica" means "replica".
+"réplicas" is the plural of "réplica".
+# `algunas de las diferencias': some of them, a pronoun standing alone where
+# the dictionary has only the determiner before a noun
+The masculine pronoun "alguno" means "some".
+"algunos" is the plural of "alguno".
+The feminine pronoun "alguna" means "some".
+"algunas" is the plural of "alguna".
+The pronoun "alguno" does not precede the verb.
+The pronoun "alguna" does not precede the verb.
+# `distinguen a los principales fabricantes': the word before a person
+# marks the object, and a maker is a person
+"fabricante" is a person.
+"constructor" is a person.
+"intérprete" is a person.
+"solista" is a person.
+"experto" is a person.
+# `..., destaca un violín llamado ...': with no object `destacar' is to
+# stand out, and the phrase after it is its subject; with one it is to
+# highlight (`destacó algunas de las diferencias'), the dictionary's sense
+The intransitive verb "destaca" means "stands out".
+# `A pesar del avance tecnológico': despite, which no dictionary here gives
+The preposition "a pesar de" means "despite".
+# `los violines, las violas y los violonchelos': the dictionary has `viola'
+# only as the verb, to violate
+The feminine noun "viola" means "viola".
+"violas" is the plural of "viola".
+# `como prueba de que los violines ... han mejorado': a noun's own clause
+# opens with `de que', where Italian writes `che' and English `that'
+The word "de" begins the clause.
+# `las cotizadas piezas', `las piezas más cotizadas': prized, where the
+# dictionary has only the participle of `cotizar', to quote
+The masculine adjective "cotizado" means "prized".
+The feminine adjective "cotizada" means "prized".
+# `el avance tecnológico' is progress, where the dictionary gives the advance
+# that is paid; and `la muestra' in a newspaper is the show, where it gives
+# the sample
+The masculine noun "avance" means "progress".
+The feminine noun "muestra" means "exhibition".
+# the senses a report on a craft means, where the dictionary put another
+# first: `el resto de las familias' is the remainder, not a rest; `su técnica'
+# a technique, not a technician; `a través de la investigación' research;
+# `una vía más instintiva' a way; `apuntó Claude Lebet' he noted, not aimed
+The masculine noun "resto" means "remainder".
+The feminine noun "técnica" means "technique".
+The feminine noun "investigación" means "research".
+The feminine noun "vía" means "way".
+The verb "apunta" means "notes".
+# `el mejor de los intérpretes': a comparative by itself, which the
+# dictionary gives as the plain adjective
+"mejor" is the comparative of "bueno".
+"peor" is the comparative of "malo".
+# the bioethics committee, into Spanish: the discipline, the people in it,
+# electroshock and whooping cough, none of which the dictionary has
+The feminine noun "bioética" means "bioethics".
+"bioéticas" is the plural of "bioética".
+The masculine noun "bioético" means "bioethicist".
+"bioéticos" is the plural of "bioético".
+The masculine noun "electrochoque" means "electroshock".
+"electrochoques" is the plural of "electrochoque".
+The feminine noun "tos ferina" means "whooping cough".
+# `purché', provided that
+The conjunction "siempre que" means "provided that".
+# the words of several words the Italian lesson gives, and `ni siquiera'
+The adverb "por primera vez" means "for the first time".
+The preposition "respecto a" means "regarding".
+The conjunction "de modo que" means "so that".
+The conjunction "si" means "if".
+The adverb "ni siquiera" means "not even".
+# `lo ha preso' is `tomado': the dictionary puts `coge' first, which is
+# the wrong word in half the Spanish-speaking world
+The verb "toma" means "takes".
+# `no a la eutanasia': the answer is the same word as the denial
+The adverb "no" means "no".
+# `Vanno invece attivate': `instead' is two words in Spanish
+The adverb "en cambio" means "instead".
+# `las categorías de riesgo', which is how Spanish says at risk of a group
+The adjective "de riesgo" means "at risk".
+"de riesgo" is the plural of "de riesgo".
+# the football article, into Italian: `le gusta el buen fútbol' is the good
+# football pleasing him, and nothing is his object -- the dictionary gives
+# `likes', the sense with the two the other way round
+The intransitive verb "gusta" means "pleases".
+# `Hay que tomar precauciones': one must, and nobody named -- the modal
+# carries its own impersonal subject, so it is a word of two words
+The impersonal modal "hay que" means "must".
+"había que" is the past of "hay que".
+"habrá que" is the future of "hay que".
+"habría que" is the conditional of "hay que".
+# `Hay que tomar precauciones': precautions, where the dictionary's first
+# meaning is `caution' and Italian has no word for it
+The feminine noun "precaución" means "precaution".
+# senses the dictionary puts second, or gives in a way the other language
+# cannot use: the previous round, a coach (whose first Spanish word is a
+# bus), a disaster, a trap, a squad, a concession, since
+The adjective "anterior" means "previous".
+The masculine noun "entrenador" means "coach".
+The masculine noun "descalabro" means "disaster".
+The feminine noun "trampa" means "trap".
+The feminine noun "plantilla" means "squad".
+The feminine noun "concesión" means "concession".
+The conjunction "ya que" means "since".
+# `quiere' is `loves' first in the dictionary, and a program, a kiss and
+# an infinitive are wanted: `no quiere correr riesgos'
+The verb "quiere" means "wants".
+# the people the word before a person marks: `Conozco al entrenador',
+# `a los jugadores'
+"entrenador" is a person.
+"jugador" is a person.
+# words the dictionary lacks: to dose a squad's effort, the last sixteen,
+# and `cualquier', the short form of `cualquiera' as a determiner
+The verb "dosifica" means "doses".
+"dosificar" is the infinitive of "dosifica".
+"dosifican" is the plural of "dosifica".
+The masculine noun "octavo de final" means "eighth-final".
+"octavos de final" is the plural of "octavo de final".
+The determiner "cualquiera" means "any".
+# a verb's own word before an infinitive: `confía en repetir' trusts to
+# repeat, and Italian's verb takes `di' there
+"confía" takes "en" before the infinitive.
+# `por una lesión', out for an injury: the dictionary gives `por' no
+# `for', and a phrase that is no agent crossed as `through'
+The preposition "por" means "for".
+# `dosificar a la plantilla': a squad is people, and takes the word before
+# a person as its object
+"plantilla" is a person.
+# `conozco al entrenador' knows a person, `sé que' a fact: the verb that
+# takes a phrase for its object is written for one
+The transitive verb "conoce" means "knows".
+# `para seguir adelante', to go on: a verb of two words, whose second is
+# no complement of the first
+The verb "sigue adelante" means "goes ahead".
+"siguen adelante" is the plural of "sigue adelante".
+"siguió adelante" is the past of "sigue adelante".
+"seguir adelante" is the infinitive of "sigue adelante".
+# `no figuran ni Rivaldo ni Overmars': to be among, which takes no object,
+# so the phrase after it is its subject
+"figura" is intransitive.
+# `ya se disputarán a doble partido': a match is disputed, which Italian
+# says with the same verb, where the dictionary gives `contests' first
+The verb "disputa" means "disputes".
+# `por eliminar cualquier signo': to eliminate, where the dictionary puts
+# `deletes' first
+The verb "elimina" means "eliminates".
+# `esto ya está ganado': won, where the dictionary's first sense is earned
+The verb "gana" means "wins".
+# `como parece probable': seems, where the dictionary puts `looks' first;
+# and `hoy mismo', this very day, two words of one sense
+The verb "parece" means "seems".
+The adverb "hoy mismo" means "this very day".
+# `la motivación de unos y otros': of both sides, four words of one sense
+The adjective "de unos y otros" means "of both sides".
+"de unos y otros" is the plural of "de unos y otros".
+# `Al margen de que, como todos, han disfrutado de unos días de descanso':
+# apart from the fact that, four words of one conjunction; and `con lo que
+# esa elección resulta más que cuestionable', so, three
+The conjunction "al margen de que" means "apart from the fact that".
+The conjunction "con lo que" means "so".
+# `como todos': everyone, where the dictionary's `todos' is only the plural
+# of everything
+The pronoun "todos" means "everyone".
+The pronoun "todos" does not precede the verb.
+# `esa elección': a choice, where the dictionary puts an election first
+The feminine noun "elección" means "choice".

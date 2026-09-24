@@ -92,6 +92,18 @@
     ;; is the fetch itself -- afterwards a predicate with the module's own
     ;; clauses in it looks the same either way. `coco_store_prewarm' reads it.
     (member int      empty_fetch)
+    ;; THE DECLARATIONS WERE ASKED FOR WHILE RESOLVING THIS PREDICATE, and the
+    ;; answer is not asked for twice. `coco_store_warm' fetches the whole
+    ;; knowledge base's `:- dynamic' rows, and the engine calls it on the path
+    ;; that is about to raise `existence_error' -- so that a predicate another
+    ;; process declared and never wrote to is found rather than refused. That
+    ;; path was assumed never to run in a loop and it does: a caller that
+    ;; CATCHES the error and asks again pays the whole warm every time.
+    ;; Measured on a 400 MB embedded store, ten raises of one unknown
+    ;; predicate: 2.57 s, against 0.000 s for a predicate declared dynamic.
+    ;; Per predicate rather than per store, so a declaration another process
+    ;; makes is still found for every name this one has not yet asked about.
+    (member int      warmed)
     ;; Came from a MODULE's Coco half rather than from the program. `listing'
     ;; with no argument skips these -- a person listing what they wrote does
     ;; not want the library back -- while `listing(Name)' still shows them,

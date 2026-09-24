@@ -12,6 +12,11 @@
 %%
 %%     greeting(S0, S) :- S0 = [hello|S1], S1 = [world|S].
 %%
+%% and the first unification then goes into the head, as SWI's compiler
+%% also does, so `clause/2' and `listing/1' show:
+%%
+%%     greeting([hello|S1], S) :- S1 = [world|S].
+%%
 %% The two arguments are a DIFFERENCE LIST: "here is the input, and here
 %% is what is left". Every nonterminal takes what it needs off the front
 %% and hands the rest on. There is no parser generator, no separate
