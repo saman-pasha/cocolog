@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20216 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20224 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -329,6 +329,21 @@ The feminine adjective "martirizada" means "martyred".
 "martirizados" is the plural of "martirizado".
 "martirizadas" is the plural of "martirizada".
 The number "ciento treinta mil" means "a hundred and thirty thousand".
+The masculine determiner "poco" means "little".
+"pocos" is the plural of "poco".
+The feminine determiner "poca" means "little".
+"pocas" is the plural of "poca".
+The preposition "bajo" means "under".
+The feminine noun "dirección" means "direction".
+The masculine noun "acierto" means "skill".
+The masculine adjective "estilizado" means "stylized".
+"estilizados" is the plural of "estilizado".
+The feminine adjective "estilizada" means "stylized".
+"estilizadas" is the plural of "estilizada".
+The feminine noun "vocalidad" means "vocality".
+"vocalidades" is the plural of "vocalidad".
+The conjunction "pese a que" means "although".
+The adverb "al fin y al cabo" means "after all".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -393,6 +408,8 @@ The feminine noun "ralentización" means "slowdown".
 The noun "excursionista" means "excursionist".
 "excursionista" is not feminine.
 "excursionistas" is the plural of "excursionista".
+The feminine noun "aria" means "aria".
+"arias" is the plural of "aria".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -19467,6 +19484,14 @@ The feminine noun "morera" means "mulberry".
 The noun "urinario" means "urinal".
 The feminine noun "lanza" means "spear".
 "lanzas" is the plural of "lanza".
+The masculine noun "estreno" means "debut".
+"estrenos" is the plural of "estreno".
+The masculine noun "lord" means "lord".
+"lores" is the plural of "lord".
+The masculine noun "convencimiento" means "convincement".
+"convencimientos" is the plural of "convencimiento".
+The masculine noun "jalón" means "milestone".
+"jalones" is the plural of "jalón".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -25848,6 +25873,51 @@ The verb "estafa" means "swindles".
 "estafadas" is the plural of "estafada".
 "estafar" is the infinitive of "estafa".
 "estafando" is the gerund of "estafa".
+The verb "entona" means "intones".
+"entonan" is the plural of "entona".
+"entonamos" is the first person of "entonan".
+"entono" is the first person of "entona".
+"entonas" is the second person of "entona".
+"entonó" is the past of "entona".
+"entonaron" is the past of "entonan".
+"entonamos" is the first person of "entonaron".
+"entoné" is the first person of "entonó".
+"entonaste" is the second person of "entonó".
+"entonaba" is the past of "entona".
+"entonaban" is the past of "entonan".
+"entonábamos" is the first person of "entonaban".
+"entonabas" is the second person of "entonaba".
+"entonará" is the future of "entona".
+"entonarán" is the plural of "entonará".
+"entonaremos" is the first person of "entonarán".
+"entonaré" is the first person of "entonará".
+"entonarás" is the second person of "entonará".
+"entonaría" is the conditional of "entona".
+"entonarían" is the plural of "entonaría".
+"entonaríamos" is the first person of "entonarían".
+"entonarías" is the second person of "entonaría".
+"entone" is the subjunctive of "entona".
+"entonen" is the plural of "entone".
+"entonemos" is the first person of "entonen".
+"entones" is the second person of "entone".
+"entonara" is the past subjunctive of "entona".
+"entonaran" is the plural of "entonara".
+"entonáramos" is the first person of "entonaran".
+"entonaras" is the second person of "entonara".
+"entona" is the imperative of "entona".
+"entones" is the negative imperative of "entona".
+"entonad" is the imperative of "entonan".
+"entonéis" is the negative imperative of "entonan".
+"entonado" is the participle of "entona".
+"entonada" is the participle of "entona".
+"entonada" is feminine.
+"entonados" is the participle of "entona".
+"entonados" is the plural of "entonado".
+"entonadas" is the participle of "entona".
+"entonadas" is feminine.
+"entonadas" is the plural of "entonada".
+"entonar" is the infinitive of "entona".
+"entonando" is the gerund of "entona".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -118828,6 +118898,14 @@ The feminine adjective "discográfica" means "discographic".
 "discográficas" is the plural of "discográfica".
 The adjective "canicular" means "canicular".
 "caniculares" is the plural of "canicular".
+The masculine adjective "fatuo" means "fatuous".
+"fatuos" is the plural of "fatuo".
+The feminine adjective "fatua" means "fatuous".
+"fatuas" is the plural of "fatua".
+The masculine adjective "liceístico" means "liceistic".
+"liceísticos" is the plural of "liceístico".
+The feminine adjective "liceística" means "liceistic".
+"liceísticas" is the plural of "liceística".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

@@ -25,7 +25,7 @@ main :-
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
-    newspaper_monreale, newspaper_record, newspaper_islands, questions, rules, refusals, outline, vocabulary, shapes, build,
+    newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -3621,6 +3621,218 @@ newspaper_islands_checks :-
     nf_tr('Firma il responsabile dell''ambiente e dei lavori pubblici, Paolo Baratta, e i cani dormono.', italian, spanish, I13b),
     check('... and Spanish keeps it in the source''s order', I13b,
           'Firma el director del entorno y de las obras públicas, Paolo Baratta, y los perros duermen.').
+
+newspaper_opera :-
+    section('a Spanish opera review into Italian: a clause between dashes, what stands beside a phrase, a name after its verb'),
+    newspaper_opera_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_opera_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_opera_checks,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_opera_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "casa" means "house". The noun "luna" means "moon". The noun "escena" means "scene".
+The noun "versión" means "version". "versión" is feminine.
+The noun "éxito" means "success". The noun "sentido" means "sense". The noun "término" means "term".
+The noun "retrato" means "portrait". The noun "ironía" means "irony". The noun "ópera" means "opera".
+The noun "noche" means "night". "noche" is feminine.
+The noun "aficionado" means "fan". "aficionado" is a person.
+The noun "descripción" means "description". "descripción" is feminine.
+The noun "dirección" means "direction". "dirección" is feminine.
+The noun "lord" means "lord". "lord" is a person.
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+The masculine adjective "discreto" means "discreet".
+The masculine adjective "estilizado" means "stylized". The feminine adjective "estilizada" means "stylized".
+The masculine adjective "conservador" means "conservative". The feminine adjective "conservadora" means "conservative".
+The masculine adjective "frío" means "cold". The masculine adjective "expresivo" means "expressive".
+The masculine adjective "preciso" means "precise".
+The adjective "bueno" means "good". The adjective "mejor" means "good". "mejores" is the plural of "mejor".
+"mejor" is the comparative of "bueno". "buenos" is the plural of "bueno". "mejores" is the comparative of "buenos".
+The masculine determiner "poco" means "little". "pocos" is the plural of "poco".
+The masculine determiner "otro" means "another". "otros" is the plural of "otro".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The possessive "su" means "his". "sus" is the plural of "su".
+The verb "come" means "eats". "comen" is the plural of "come". "come" is the imperative of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "es" means "is". "son" is the plural of "es". "fue" is the past of "es".
+The verb "va" means "goes". "fue" is the past of "va".
+The verb "canta" means "sings". "cantó" is the past of "canta".
+The verb "tiene" means "has". "tuvo" is the past of "tiene".
+The verb "ofrece" means "offers". "ofreció" is the past of "ofrece".
+The verb "empieza" means "begins". "empezó" is the past of "empieza".
+The verb "permite" means "allows". "permite" is the imperative of "permite".
+The verb "pide" means "asks". "pedir" is the infinitive of "pide".
+The verb "entona" means "intones". "entonando" is the gerund of "entona".
+The verb "espera" means "waits". "esperado" is the participle of "espera".
+"esperada" is the participle of "espera". "esperada" is feminine.
+The verb "interpreta" means "interprets". "interpretado" is the participle of "interpreta".
+The verb "recuerda" means "remembers". "recordar" is the infinitive of "recuerda".
+The verb "para" means "stops".
+The verb "cuenta" means "counts". "cuenta" is the imperative of "cuenta".
+The verb "cose" means "sews". "cosías" is the second person of "cose".
+The verb "dice" means "says". "dijo" is the past of "dice".
+The reflexive pronoun "se" means "itself". Every pronoun precedes the verb.
+The dative pronoun "les" means "them".
+The pronoun "lo" means "him".
+"que" is a relative. The conjunction "que" means "that".
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "pese a que" means "although".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "con" means "with". The preposition "por" means "by". The preposition "para" means "for".
+The word "para" begins the purpose.
+The preposition "bajo" means "under". The preposition "sin" means "without".
+The adverb "muy" means "very". The adverb "más" means "more". The word "más" begins the comparative.
+The adverb "además" means "besides". The adverb "al fin y al cabo" means "after all".
+The demonstrative "esta" means "this".
+The word "a" precedes the person.').
+newspaper_opera_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the". The masculine article "lo" means "the".
+"i" is the plural of "il". "le" is the plural of "la". "gli" is the plural of "lo".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"l''" is the elision of "lo". "l''" is the elision of "la". "un''" is the elision of "una".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "delle" is the contraction of "di le".
+"dagli" is the contraction of "da gli". "degli" is the contraction of "di gli". "nella" is the contraction of "in la". "nel" is the contraction of "in il".
+The article "lo" comes before a vowel. The article "il" takes the possessive.
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". The noun "gatto" means "cat". The noun "pane" means "bread". "pani" is the plural of "pane".
+The noun "casa" means "house". The noun "luna" means "moon". The noun "scena" means "scene".
+The noun "versione" means "version". "versione" is feminine.
+The noun "successo" means "success". The noun "senso" means "sense". The noun "termine" means "term".
+The noun "ritratto" means "portrait". The noun "ironia" means "irony". The noun "opera" means "opera".
+The noun "notte" means "night". "notte" is feminine. "notti" is the plural of "notte".
+The noun "appassionato" means "fan". "appassionati" is the plural of "appassionato".
+The noun "descrizione" means "description". "descrizione" is feminine.
+The noun "direzione" means "direction". "direzione" is feminine.
+The noun "lord" means "lord".
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+The masculine adjective "discreto" means "discreet".
+The masculine adjective "stilizzato" means "stylized". The feminine adjective "stilizzata" means "stylized".
+The masculine adjective "conservatore" means "conservative". The feminine adjective "conservatrice" means "conservative".
+The masculine adjective "freddo" means "cold". The masculine adjective "espressivo" means "expressive".
+The masculine adjective "preciso" means "precise".
+The adjective "buono" means "good". The adjective "migliore" means "good". "migliori" is the plural of "migliore".
+"migliore" is the comparative of "buono". "buoni" is the plural of "buono". "migliori" is the comparative of "buoni".
+The masculine determiner "poco" means "little". "pochi" is the plural of "poco".
+The masculine determiner "altro" means "another". "altri" is the plural of "altro".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The masculine possessive "suo" means "his". The feminine possessive "sua" means "his".
+"suoi" is the plural of "suo". "sue" is the plural of "sua".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "è" means "is". "sono" is the plural of "è". "fu" is the past of "è".
+The verb "va" means "goes". "andò" is the past of "va".
+The verb "canta" means "sings". "cantò" is the past of "canta".
+The verb "ha" means "has". "ebbe" is the past of "ha".
+The verb "offre" means "offers". "offrì" is the past of "offre".
+The verb "comincia" means "begins". "cominciò" is the past of "comincia".
+The verb "permette" means "allows".
+The verb "chiede" means "asks". "chiedere" is the infinitive of "chiede".
+The verb "intona" means "intones". "intonando" is the gerund of "intona".
+The verb "attende" means "waits". "atteso" is the participle of "attende".
+"attesa" is the participle of "attende". "attesa" is feminine.
+The verb "interpreta" means "interprets". "interpretato" is the participle of "interpreta".
+The verb "ricorda" means "remembers". "ricordare" is the infinitive of "ricorda".
+The verb "conta" means "counts". "conta" is the imperative of "conta".
+The verb "dice" means "says". "disse" is the past of "dice".
+The reflexive pronoun "si" means "itself". Every pronoun precedes the verb.
+The dative pronoun "gli" means "them".
+The pronoun "lo" means "him".
+"che" is a relative. The conjunction "che" means "that".
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "nonostante" means "although".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "con" means "with". The preposition "da" means "by". The preposition "per" means "for".
+The word "per" begins the purpose.
+The preposition "sotto" means "under". The preposition "senza" means "without".
+The adverb "molto" means "very". The adverb "più" means "more". The word "più" begins the comparative.
+The adverb "inoltre" means "besides". The adverb "dopotutto" means "after all".
+The demonstrative "questa" means "this".').
+
+newspaper_opera_checks :-
+    %% the tokeniser: AnCora spells an em dash as two hyphens, and a whole
+    %% clause between two dashes is an aside of the phrase before them
+    nf_tr('La luna - - el perro es grande - - es grande.', spanish, italian, O1),
+    check('two hyphens are one dash, and a clause between two dashes stands where it stood', O1,
+          'La luna – il cane è grande – è grande.'),
+    %% a purpose standing alone
+    nf_tr('Para recordar.', spanish, italian, O2),
+    check('the purpose word and an infinitive are no verb: `para'' is no `parar'' there', O2, 'Per ricordare.'),
+    %% a word of five words, an adjective list that ends on its coordinator,
+    %% and an adjective phrase between two commas after its noun
+    nf_tr('El perro ve el éxito, discreto pero al fin y al cabo éxito, de la casa.', spanish, italian, O3),
+    check('a word of five words, and an aside of the noun before it, `but'' no adjective in it', O3,
+          'Il cane vede il successo, discreto ma dopotutto successo, della casa.'),
+    nf_tr('El perro es una versión estilizada, conservadora en el mejor sentido del término, y come el pan.', spanish, italian, O4),
+    check('the aside agrees with its own noun; `el mejor sentido'' is a sense; after `y'' and a statement no command', O4,
+          'Il cane è una versione stilizzata, conservatrice nel senso migliore del termine, e mangia il pane.'),
+    nf_tr('Lo come y permite el pan.', spanish, italian, O5),
+    check('a clause joined to a statement by `y'' is no command, though `permite'' is spelled like one', O5,
+          'Lo mangia e permette il pane.'),
+    %% an infinitive after a preposition keeps its pronoun
+    nf_tr('El perro canta sin pedirles pan.', spanish, italian, O6),
+    check('a pronoun joined to an infinitive after a preposition is the infinitive''s, a dative as the dative', O6,
+          'Il cane canta senza chiedergli pane.'),
+    %% the most awaited one
+    nf_tr('El perro ve una escena de la casa, la más esperada por los aficionados.', spanish, italian, O7),
+    check('an article, `más'' and a participle with its agent: the noun left out, the degree on the participle', O7,
+          'Il cane vede una scena della casa, la più attesa dagli appassionati.'),
+    nf_tr('En esta versión, además, cuenta con una June Anderson que canta una escena, la más esperada por los aficionados.', spanish, italian, O8),
+    check('... and `cuenta'' is no reporting verb with `Anderson'' cut out of `una June Anderson'' for its speaker', O8,
+          'In questa versione, inoltre, conta con una June Anderson che canta una scena, la più attesa dagli appassionati.'),
+    %% a bare phrase at the head that says what the subject is
+    nf_tr('Retrato preciso de la casa, Anderson canta.', spanish, italian, O9),
+    check('a phrase with no determiner, before a comma and a named subject, stays in front with its comma', O9,
+          'Ritratto preciso della casa, Anderson canta.'),
+    %% one of, and a possessive's superlative
+    nf_tr('Anderson ofreció una de sus mejores noches.', spanish, italian, O10),
+    check('the indefinite article with its noun left out is `one of''', O10,
+          'Anderson offrì una delle sue notti migliori.'),
+    nf_tr('Anderson ofreció una de sus mejores noches.', spanish, english, O11),
+    check('... `one of'' in English, and a possessive makes a superlative', O11, 'Anderson offered one of his best nights.'),
+    nf_tr('Anderson ofreció sus mejores noches.', spanish, english, O12),
+    check('... his best nights, never his better ones', O12, 'Anderson offered his best nights.'),
+    %% names
+    nf_tr('La ópera de Donizetti Lucia di Lammermoor es grande.', spanish, italian, O13),
+    check('a small word between two names is the name''s: `di'' is no Spanish preposition', O13,
+          'L''opera di Donizetti Lucia di Lammermoor è grande.'),
+    nf_tr('Bajo la dirección de Bertrand de Billy, el perro come.', spanish, italian, O14),
+    check('... nor is `de'' there, between two names', O14, 'Sotto la direzione di Bertrand de Billy, il cane mangia.'),
+    nf_tr('El perro tuvo en Josep Bros, Edgardo, otro éxito.', spanish, italian, O15),
+    check('a guard: a name between commas after a name is its apposition', O15,
+          'Il cane ebbe in Josep Bros, Edgardo, altro successo.'),
+    nf_tr('En la descripción de lord Arturo Bucklaw, interpretado por Carlos Cosías, Vick se permite una ironía.', spanish, italian, O16),
+    check('a title and a name, a participle between commas after it, and a name a verb''s form is part of', O16,
+          'Nella descrizione di lord Arturo Bucklaw, interpretato da Carlos Cosías, Vick si permette un''ironia.'),
+    nf_tr('Se permite Vick una ironía.', spanish, italian, O17),
+    check('a bare name after the verb is its subject where a person object takes `a'', and it stays there', O17,
+          'Si permette Vick un''ironia.'),
+    nf_tr('Se permite Vick una ironía.', spanish, english, O18),
+    check('... and `se'' is his reflexive', O18, 'Vick allows an irony.'),
+    %% a gerund with its reflexive, after `ir'
+    nf_tr('Bros fue entonándose.', spanish, italian, O19),
+    check('`fue'' before a gerund is `ir'', and the gerund carries its reflexive', O19, 'Bros andò intonandosi.'),
+    nf_tr('Pese a que empezó frío, poco expresivo, Bros fue entonándose.', spanish, italian, O20),
+    check('a clause after its connector keeps its commas, and a subject does not run across one into a name', O20,
+          'Nonostante cominciò freddo, poco espressivo, Bros andò intonandosi.'),
+    %% a quantity with an adverb
+    nf_tr('El perro come muy pocos panes.', spanish, english, O21),
+    check('`pocos'' is `few'', the plural of `little'', and the adverb before it is its own', O21,
+          'The dog eats very few breads.'),
+    %% two regressions the controls found in the first draft of these shapes
+    nf_tr('Su perro, Josep Bros, de la casa, come el pan.', spanish, italian, O22),
+    check('an insertion the apposition before it opens keeps its closing comma', O22,
+          'Il suo cane, Josep Bros, della casa, mangia il pane.'),
+    nf_tr('Su perro, Josep Bros, de la casa, come el pan.', spanish, english, O23),
+    check('... in English too', O23, 'His dog, Josep Bros, of the house, eats the bread.'),
+    nf_tr('Dijo Josep Bros, uno de los aficionados.', spanish, italian, O24),
+    check('a name after its verb, with a phrase apposed to it, stays after the verb', O24,
+          'Disse Josep Bros, uno degli appassionati.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

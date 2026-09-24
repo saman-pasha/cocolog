@@ -113,3 +113,17 @@
 # English here
 <e><p><l>canicular<s n="adj"/></l><r>canicular<s n="adj"/></r></p></e>
 <e><p><l>excursionist<s n="n"/></l><r>excursionista<s n="n"/><s n="mf"/></r></p></e>
+# the opera review (AnCora CESS-CAST-P-20000102-120), into Italian: words
+# apertium-spa has a paradigm for and no English here. `convencimiento' is
+# a belief, and the English `conviction' is the verdict first in both
+# dictionaries, so the IR carries `convincement'; `estreno', `lord' and
+# `jalón' are read only into English, so `debut', `lord' and `milestone'
+# keep the words they had
+<e r="RL"><p><l>debut<s n="n"/></l><r>estreno<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>lord<s n="n"/></l><r>lord<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>convincement<s n="n"/></l><r>convencimiento<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>milestone<s n="n"/></l><r>jalón<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>fatuous<s n="adj"/></l><r>fatuo<s n="adj"/></r></p></e>
+<e><p><l>liceistic<s n="adj"/></l><r>liceístico<s n="adj"/></r></p></e>
+<e><p><l>intone<s n="vblex"/></l><r>entonar<s n="vblex"/></r></p></e>
+<e><p><l>aria<s n="n"/></l><r>aria<s n="n"/><s n="f"/></r></p></e>

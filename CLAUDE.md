@@ -6090,6 +6090,167 @@ section with an Italian and a Spanish lesson of its own; every check fails on
 1.8.3's translator. Lesson 46 gained section 30. The full suite was not run on
 1.8.4.
 
+### A Spanish opera review into Italian: a clause between dashes, what stands beside a phrase, a name after its verb (1.8.5)
+
+**THE FOURTH SAMPLE OF THE LOOP, AND BACK TO SPANISH.** AnCora's
+CESS-CAST-P-20000102-120 -- twelve sentences of El Periódico's review of Graham
+Vick's `Lucia di Lammermoor` at the Liceu: the set, the production, June
+Anderson's mad scene, the conductor and the tenor -- Spanish into Italian over
+the two-language vocabulary store. The middle column is 1.8.4's translator
+over THIS store:
+
+| | 1.8.4, its store | 1.8.4, this store | **1.8.5** |
+|---|---|---|---|
+| translated | 4 of 12, three wrong in structure | 9, six wrong in structure | **12** |
+| refused for a word | 7 | 1 | **0** |
+| refused with every word known | 1 | 2 | **0** |
+| the article, one process | 32.8 s | 25.2 and 25.2 s | **17.3 and 17.6 s** |
+
+-- the store Italian 172 194 terms and Spanish 217 976, taught into one
+`--embed` store from the rebuilt vocabularies in 670 s and 1 070 s,
+342 MB.
+
+**WHAT IT NEEDED IS WHAT A REVIEW SAYS BESIDE ITS PHRASES.** The twelve were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks, Fiat figures, Valencia a thing on show, the bioethics report its
+claims, the football page a squad, Monreale a court, the record report figures
+again and the islands report what a news item puts before its verb; a review
+puts a judgement beside every phrase it names:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| two hyphens for one dash, and a whole clause between two dashes | `una inmensa luna - - el personaje principal, Lucia, es el arquetipo de la locura operística - - son dos de los elementos` | one dash; the clause is the moon's aside, w(Key, dashed), and never a reporting clause |
+| an adjective phrase between commas after its noun | `una versión estilizada, conservadora en el mejor sentido del término,`, `el éxito, discreto pero al fin y al cabo éxito,` | the aside agrees with its own noun, where it agreed with the subject (`il risultato ... conservatore`) |
+| a participle and its agent between commas after a name | `de lord Arturo Bucklaw, interpretado por Carlos Cosías,` | the aside of a phrase inside another; its closing comma stays, because it closes the front too |
+| a purpose standing alone | `Para recordar.` | no verb: `para` was `parar`, and it came out `Detiene ricordare` |
+| a word of five words, and an adjective list that ends on its coordinator | `discreto pero al fin y al cabo éxito` | the join tries five words first; `but` joins, cnj/1, and is no adjective |
+| a clause joined to a statement by `y` | `el resultado es ... y permite a los cantantes concentrarse` | no command: `permite` is an imperative too, and it came out `permetti`, you allow |
+| a pronoun joined to an infinitive after a preposition | `sin pedirles grandes exigencias` | pinf(P, cl(L, Pronouns)), `senza chiedergli`, where `gli` went before the clause's verb |
+| an article, the degree word and a participle with its agent | `una ejemplar escena de la locura, la más esperada por los aficionados` | the noun left out and pdeg/1 on the participle, `la più attesa dagli appassionati`; `la` was her |
+| a name after a determiner is one name | `cuenta con una June Anderson en plena forma` | `Anderson` no speaker of a reporting clause, and a bare singular that is a verb's form no subject |
+| a bare phrase before a comma that says what the subject is | `Retrato preciso de la aniquilación psicológica, Anderson ofreció ...` | topic/1, kept in front with its comma: `retrato` was I portray |
+| one of, and a possessive's superlative | `una de sus mejores noches liceísticas` | `one of`, and her BEST nights: it came out `the one of his better nights` |
+| a small word between two names | `Lucia di Lammermoor`, `Bertrand de Billy` | one name each: `Bertrand di Billy` before |
+| a name apposed to a name, and a title before one | `la ópera de Donizetti Lucia di Lammermoor`, `lord Arturo Bucklaw` | app(NP, apposed, Name); the title a noun and the name apposed to it |
+| a verb's form inside a name | `Carlos Cosías` | part of the name: `cosías` is what `coser` says to one person |
+| a bare name after its verb | `se permite Vick alguna pequeña ironía` | the subject, where the lesson puts a word before a person object; `se` his reflexive, never the impersonal |
+| a gerund with its reflexive after `ir` | `Bros fue entonándose hasta conseguir triunfar` | ger(reflexive(L), Cs), `andò intonandosi`; never after the copula |
+| a clause after its connector, with its commas | `Pese a que empezó frío, poco expresivo, Bros fue ...` | read with its commas first; a subject does not run across a comma into a name |
+| an adverb before a quantity | `muy pocos elementos` | English's `very few elements`, where `very` went last; `few` is `little`'s plural |
+
+-- and the words, in `corpus/extra/` as always: 30 lines of Italian and 15 of
+Spanish, seven entries in `eng-ita.dix` and eight in `eng-spa.dix`. The
+vocabularies went from 109 059 and 135 795 lines to 109 152 and 135 873, and
+the diff of what they LOST is one line: `The masculine noun "signore" means
+"lord".`, a one-way entry the new two-way `lord` takes the place of --
+`signore` is still `gentleman` first, and English's `lord` is Italian's `lord`
+now. `reason.pl` did not move, the sixteenth version running.
+
+**THE CONTROLS FOUND TWO REGRESSIONS AND A COST, AND ALL THREE WERE A RULE OF
+THIS SAMPLE ASKED FURTHER THAN IT WAS WRITTEN FOR.** With `test/translate.pl`
+GREEN and the review at 12 of 12, the first controls came back with Valencia
+changed in three lines and nine controls 3 to 8 % slower:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| `il suo costruttore, Joseph Guarnerius del Gesù, di Cremona (Italia) è considerato`, the last comma lost | the small word between two names joins them now, so `, Joseph Guarnerius del Gesù,` is an apposition, and an apposition takes both its commas: the place after it had lost the comma that opened it, read as the subject's `of` phrase, and its closing comma went with it | an insertion may be opened by the comma an apposition took (tr_insertion_off/4), written back as `mid/1` |
+| `sono unici", Claude Lebet disse` | a bare name after its verb became the subject, and moved in front of it | it stays where it stood, `subj_here`: `disse Claude Lebet`, and the review's own `si permette Vick` |
+| Livata 83 to 90 s, Fiat, the twelve, the record and islands reports 4 to 6 % | three new tests asked of every word list: an adjective list ending on its coordinator computed the phrase words a second time, and two guards ran before the test they guard | the first word must be a predicate word before the phrase words are read; the guard against `el mejor sentido` runs after `tr_participle_here/3`; the degree word is asked before the article |
+
+-- the cost found by the hunk bisection, one hunk of the diff against 1.8.4
+taken out at a time and the read's inferences counted: Livata's sentence 3
+went from 9.88 million to 11.14 and back to 9.88, its sentence 6 from 12.95
+to 14.44 and to 13.17, its sentence 2 from 32.06 to 33.94 and to 32.29.
+**A test that is cheap once is not cheap when it is asked of every word
+list, and the order of the goals in a guard is its cost.**
+
+**AND THE FIRST FIX FOR THE COMMA BOUGHT NOTHING, WHICH ONLY TAKING IT OUT
+SHOWED.** Two changes went in together: the guard against `poco expresivo,
+Bros` read the words as they stood rather than after the insertion was taken
+off, and the insertion the apposition opens. The comma came back, and the
+case and lesson 46 were GREEN. Taking the first out again gave every text to
+the byte -- the Valencia sentence, the three guards, the case's 847 checks and
+lesson 46 -- so the second alone did the work, and the first is not shipped:
+a change that moves nothing measurable is a change nobody has shown is right.
+It is 1.5.1's rule firing: **a fix that lands in the same edit as another fix
+has not been measured.**
+
+**AND TATOEBA'S 2.9 % WAS THREE THINGS, AND ONE OF THEM WAS NO COST AT ALL.**
+With those fixes the long sentences cost 1 to 3 % more, and Tatoeba's 400
+still read 35.10 million inferences against 1.8.4's 34.11. The same bisection
+over Tatoeba named four hunks, and taking each one apart said what it was:
+
+| the hunk | inferences | what it was | what was done |
+|---|---|---|---|
+| a gerund carries its pronoun (tr_enclitics/3) | 302 000 | the known-word test asked again: each way to cut a word was a clause of its own, and each clause asked it | asked once a word (tr_enclitic_parts/4): **363 000 fewer**, more than the hunk, because 1.8.4's two ways asked it twice |
+| a bare singular noun that is a verb's form is no subject | 297 000 | ONE SENTENCE READING RIGHT: `Toma, coge esto.` was `Taking takes this.` and is `Take, take this.`, 93 000 inferences to 388 000 | nothing |
+| a word of five words, `al fin y al cabo` | 230 000 | each place five words are left, in both passes of the join, asks the thirteen relations a stated word is in | nothing: the cost, stated |
+| an adjective list that ends on its coordinator | 76 000 | the phrase words read for a list too short to be one | three words at least: **55 000 fewer** |
+
+**AN INFERENCE COUNT IS NOT AN OVERHEAD UNTIL THE TEXTS SAY SO.** The second
+row read as the largest cost left, and it was the price of a better answer:
+logging each ask of the guard found THREE in all 400 sentences, 270 inferences
+between them, and the rest was the reading the refusal sent one sentence on
+to. Two reorders that looked right moved nothing -- the guard asked after the
+complements (+1 000) and its class test asked directly (-33) -- and are not
+shipped. The two that are shipped keep every text of the 400 the same, and
+together take 418 000 of the 987 000.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `il carattere principale`, `la funzione` | `il personaggio`, `la rappresentazione` | senses through English: `character` is `carattere` before `personaggio`, and `función` is a performance, which English's `function` is not |
+| `in Florencia`, `in Barcelona` | `a Firenze`, `a Barcellona` | a name no lesson knows passes through as written, and `en` is `in` |
+| `avvenne senza problemi in Barcelona` | `a Barcellona passò senza problemi` | a sense, `pasó` happened, and a front with no comma is written after the clause, 1.6.8's cost |
+| `permette ai cantanti concentrarsi` | `di concentrarsi` | `permette` takes `di` before its infinitive, and no lesson line says so yet |
+| `alcuna piccola ironia` | `qualche piccola ironia` | the determiner `alcuna` comes before `qualche` for `some`, and Italian keeps it for a denial |
+| `conta con una June Anderson` | `può contare su` | `contar con` is an idiom, and a lesson gives words |
+| `figurarono`, `Nonostante iniziò` | `figurassero`, `avesse iniziato` | a subjunctive is written as the indicative, 1.6.8's cost, and Italian wants one after `nonostante` where Spanish wrote the indicative |
+| `per lì`, `fino a raggiungere trionfare` | `là`, `fino a riuscire a trionfare` | word for word |
+| `una delle sue notti migliori liceistiche` | `delle sue migliori serate al Liceu` | the superlative is written after the noun, and `liceistiche` is coined |
+| `aveva in Josep Bros ... altra brillante pietra miliare` | `ebbe ... un'altra` | the imperfect and the preterite are both `past`, 1.6.15's cost, and Spanish writes no article before `otro` |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.4's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.4, this store | **1.8.5** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 16.4 and 16.6 s | **12 of 12, 16.7 and 17.3 s** |
+| the Spanish article | 11 of 11, 15.3 and 15.7 s | **11 of 11, 15.9 and 15.9 s** |
+| Livata, 29 sentences | 29 of 29, 83.0 and 83.1 s | **29 of 29, 84.0 and 85.5 s** |
+| Fiat, 20 sentences | 20 of 20, 23.5 and 23.3 s | **20 of 20, 24.4 and 24.1 s** |
+| Valencia, 16 sentences | 16 of 16, 48.3 and 48.5 s | **16 of 16, 46.4 and 46.9 s** |
+| the bioethics article, 15 sentences | 15 of 15, 12.7 and 12.8 s | **15 of 15, 13.0 and 12.9 s** |
+| the football article, 20 sentences | 20 of 20, 29.2 and 29.2 s | **20 of 20, 29.1 and 28.9 s** |
+| Monreale, 6 sentences | 6 of 6, 6.8 and 6.9 s | **6 of 6, 6.9 and 7.1 s** |
+| the record report, 15 sentences | 15 of 15, 26.4 and 26.4 s | **15 of 15, 26.5 and 26.6 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 265 / 135, 19.5 and 19.5 s | **56 / 266 / 134, 19.0 and 19.7 s** |
+| the islands report, 13 sentences | 13 of 13, 22.1 and 21.9 s | **13 of 13, 21.8 and 21.8 s** |
+| the opera review, 12 sentences | 9 of 12, 25.2 and 25.2 s | **12 of 12, 17.3 and 17.6 s** |
+
+-- the ranges apart on eleven of the twelve: seven are slower by 0.4 to 3.4 %,
+Fiat and the twelve the most, and four faster -- Valencia by 3.6 %, the
+football and islands reports by under 1 % and the review by a third, because
+1.8.4 spends its time failing. On Tatoeba they overlap, where the two reorders
+above took its 2.9 % away. Each translator gives the same texts both times,
+and the texts are 1.8.4's but for the review and four lines: Valencia's `d'un
+Guarneri de Gesù`, where 1.8.4 wrote `di` -- a small word between two names is
+the name's now, and a name crosses as the source wrote it; and on Tatoeba
+`Fue Tom el que entró en pánico.`, refused, is `Tom was the one that entered
+in panic.`, `Toma, coge esto.` is `Take, take this.` where it was `Taking
+takes this.`, and `Aquí hay un poco de agua.` is `There is one of water here
+little.` where it was `There is the one of water here little.` -- the article
+with its noun left out read as `one of`, and wrong both times.
+
+`test/translate.pl` is 847 checks and GREEN, 24 in a new `newspaper_opera`
+section with a Spanish and an Italian lesson of its own; every check but
+three fails on 1.8.4's translator -- the one marked as a guard, and the two
+that keep a bare name after its verb where the source put it, which 1.8.4 did
+too and which pin the `subj_here` fix above. Lesson 46 gained section 31. The
+full suite was not run on 1.8.5.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

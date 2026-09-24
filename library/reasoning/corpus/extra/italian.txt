@@ -41,6 +41,7 @@ The masculine noun "sabato" means "saturday".
 "secolo" is a time.
 The conjunction "o" means "or".
 The masculine adjective "piccolo" means "small".
+The feminine adjective "piccola" means "small".
 "che" is a relative.
 "cui" is a relative.
 The word "cui" follows the preposition.
@@ -670,3 +671,47 @@ The intransitive verb "gode" means "enjoys".
 # `goderà'
 "godrà" is the future of "gode".
 "godranno" is the plural of "godrà".
+# the opera review (AnCora CESS-CAST-P-20000102-120), from Spanish: the
+# dictionary gives the Spanish `pocos' and `moltos' as Italian's pronouns
+# for `few', `many' and `several', and `poco' as a determiner with no
+# forms, so `muy pocos elementos' came out `molto pocos elementi'
+The masculine determiner "poco" means "little".
+"pochi" is the plural of "poco".
+The feminine determiner "poca" means "little".
+"poche" is the plural of "poca".
+The pronoun "pochi" means "few".
+The pronoun "pochi" does not precede the verb.
+The pronoun "molti" means "many".
+The pronoun "molti" does not precede the verb.
+The pronoun "parecchi" means "several".
+The pronoun "parecchi" does not precede the verb.
+# `la más esperada por los aficionados': the opera's are its enthusiasts,
+# where the dictionary's first word for `fan' is the machine
+The masculine noun "appassionato" means "fan".
+"appassionati" is the plural of "appassionato".
+# `en plena forma', `cuenta con': the dictionary's first word for `form' is
+# `veste', and for `counts' `racconta', which tells
+The feminine noun "forma" means "form".
+The verb "conta" means "counts".
+# `el resultado': the dictionary's only word for `result' is `netto', the net
+The masculine noun "risultato" means "result".
+# `Bajo la dirección', under it: the dictionary has `sotto' only as `below'
+The preposition "sotto" means "under".
+# `otro brillante jalón': the dictionary gives the determiner `altro' no
+# gender and no plural, so it could not agree with `pietra miliare'
+The masculine determiner "altro" means "another".
+"altri" is the plural of "altro".
+The feminine determiner "altra" means "another".
+"altre" is the plural of "altra".
+# `noches liceísticas', of the Liceu: apertium-ita has no paradigm for it
+The masculine adjective "liceistico" means "liceistic".
+"liceistici" is the plural of "liceistico".
+The feminine adjective "liceistica" means "liceistic".
+"liceistiche" is the plural of "liceistica".
+# `la ornamentación final': apertium-ita has no `ornamentazione'
+The feminine noun "ornamentazione" means "ornamentation".
+"ornamentazioni" is the plural of "ornamentazione".
+# `otro brillante jalón', and `al fin y al cabo'
+The feminine noun "pietra miliare" means "milestone".
+"pietre miliari" is the plural of "pietra miliare".
+The adverb "dopotutto" means "after all".

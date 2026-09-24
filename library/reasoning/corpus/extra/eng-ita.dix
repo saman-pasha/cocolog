@@ -216,3 +216,14 @@
 <e r="RL"><p><l>canicular<s n="adj"/></l><r>canicolare<s n="adj"/></r></p></e>
 <e r="RL"><p><l>prohibit<s n="vblex"/></l><r>interdire<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>penalise<s n="vblex"/></l><r>penalizzare<s n="vblex"/></r></p></e>
+# the opera review, from Spanish: words apertium-ita has a paradigm for and
+# no English here. `aria' and `convincimento' are written only from English
+# (r="LR"), after the two-way entries, so the Italian `aria' is still air
+# and `convincimento' still conviction when they are read
+<e><p><l>stylized<s n="adj"/></l><r>stilizzato<s n="adj"/></r></p></e>
+<e><p><l>lord<s n="n"/></l><r>lord<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>vocality<s n="n"/></l><r>vocalità<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>fatuous<s n="adj"/></l><r>fatuo<s n="adj"/></r></p></e>
+<e><p><l>intone<s n="vblex"/></l><r>intonare<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>aria<s n="n"/></l><r>aria<s n="n"/><s n="f"/></r></p></e>
+<e r="LR"><p><l>convincement<s n="n"/></l><r>convincimento<s n="n"/><s n="m"/></r></p></e>

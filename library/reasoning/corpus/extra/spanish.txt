@@ -468,3 +468,30 @@ The feminine adjective "martirizada" means "martyred".
 "martirizados" is the plural of "martirizado".
 "martirizadas" is the plural of "martirizada".
 The number "ciento treinta mil" means "a hundred and thirty thousand".
+# the opera review (AnCora CESS-CAST-P-20000102-120), into Italian: `poco'
+# is a determiner of both genders and both numbers, `muy pocos elementos',
+# and the dictionary gives it with no forms; English says `few' for its
+# plural, as it says `many' for the plural of `much' (en_det/3)
+The masculine determiner "poco" means "little".
+"pocos" is the plural of "poco".
+The feminine determiner "poca" means "little".
+"pocas" is the plural of "poca".
+# `Bajo la dirección de Bertrand de Billy': the dictionary's preposition is
+# `below', after the adjective's `low' and `short'
+The preposition "bajo" means "under".
+# `bajo la dirección de', under the direction of: the dictionary's first
+# `dirección' is an address
+The feminine noun "dirección" means "direction".
+# `con acierto', with skill: the dictionary's `acierto' is a tarpaulin
+The masculine noun "acierto" means "skill".
+# `una versión estilizada': the dictionary gives the adjective no forms
+The masculine adjective "estilizado" means "stylized".
+"estilizados" is the plural of "estilizado".
+The feminine adjective "estilizada" means "stylized".
+"estilizadas" is the plural of "estilizada".
+# `las complejas vocalidades': apertium-spa has no paradigm for it
+The feminine noun "vocalidad" means "vocality".
+"vocalidades" is the plural of "vocalidad".
+# words of several words
+The conjunction "pese a que" means "although".
+The adverb "al fin y al cabo" means "after all".

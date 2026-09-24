@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16171 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16177 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -44,6 +44,7 @@ The masculine noun "sabato" means "saturday".
 "secolo" is a time.
 The conjunction "o" means "or".
 The masculine adjective "piccolo" means "small".
+The feminine adjective "piccola" means "small".
 "che" is a relative.
 "cui" is a relative.
 The word "cui" follows the preposition.
@@ -514,6 +515,35 @@ The intransitive verb "regolamenta" means "regulates".
 The intransitive verb "gode" means "enjoys".
 "godrà" is the future of "gode".
 "godranno" is the plural of "godrà".
+The masculine determiner "poco" means "little".
+"pochi" is the plural of "poco".
+The feminine determiner "poca" means "little".
+"poche" is the plural of "poca".
+The pronoun "pochi" means "few".
+The pronoun "pochi" does not precede the verb.
+The pronoun "molti" means "many".
+The pronoun "molti" does not precede the verb.
+The pronoun "parecchi" means "several".
+The pronoun "parecchi" does not precede the verb.
+The masculine noun "appassionato" means "fan".
+"appassionati" is the plural of "appassionato".
+The feminine noun "forma" means "form".
+The verb "conta" means "counts".
+The masculine noun "risultato" means "result".
+The preposition "sotto" means "under".
+The masculine determiner "altro" means "another".
+"altri" is the plural of "altro".
+The feminine determiner "altra" means "another".
+"altre" is the plural of "altra".
+The masculine adjective "liceistico" means "liceistic".
+"liceistici" is the plural of "liceistico".
+The feminine adjective "liceistica" means "liceistic".
+"liceistiche" is the plural of "liceistica".
+The feminine noun "ornamentazione" means "ornamentation".
+"ornamentazioni" is the plural of "ornamentazione".
+The feminine noun "pietra miliare" means "milestone".
+"pietre miliari" is the plural of "pietra miliare".
+The adverb "dopotutto" means "after all".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -553,6 +583,10 @@ The feminine noun "gamma" means "range".
 "gamme" is the plural of "gamma".
 The masculine noun "rallentamento" means "slowdown".
 "rallentamenti" is the plural of "rallentamento".
+The masculine noun "lord" means "lord".
+"lord" is the plural of "lord".
+The feminine noun "vocalità" means "vocality".
+"vocalità" is the plural of "vocalità".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -19039,6 +19073,8 @@ The feminine noun "armatrice" means "shipowner".
 "armatrici" is the plural of "armatrice".
 The masculine noun "fornitore" means "supplier".
 The feminine noun "fornitrice" means "supplier".
+The feminine noun "aria" means "aria".
+The masculine noun "convincimento" means "convincement".
 The feminine noun "scimmia" means "ape".
 The feminine noun "catena" means "catena".
 The masculine noun "vantaggio" means "asset".
@@ -19390,7 +19426,6 @@ The feminine noun "riserva" means "backup".
 The feminine noun "prigione" means "lockup".
 The masculine noun "palco" means "loge".
 The masculine noun "aspetto" means "look".
-The masculine noun "signore" means "lord".
 The masculine noun "muggito" means "lowing".
 The masculine noun "bagaglio" means "luggage".
 The masculine noun "legno" means "lumber".
@@ -20449,6 +20484,52 @@ The verb "offre" means "offers".
 "offerte" is the plural of "offerta".
 "offrire" is the infinitive of "offre".
 "offrendo" is the gerund of "offre".
+The verb "intona" means "intones".
+"intonano" is the plural of "intona".
+"intoniamo" is the first person of "intonano".
+"intono" is the first person of "intona".
+"intoni" is the second person of "intona".
+"intonò" is the past of "intona".
+"intonarono" is the past of "intonano".
+"intonammo" is the first person of "intonarono".
+"intonai" is the first person of "intonò".
+"intonasti" is the second person of "intonò".
+"intonava" is the past of "intona".
+"intonavano" is the past of "intonano".
+"intonavamo" is the first person of "intonavano".
+"intonavo" is the first person of "intonava".
+"intonavi" is the second person of "intonava".
+"intonerà" is the future of "intona".
+"intoneranno" is the plural of "intonerà".
+"intoneremo" is the first person of "intoneranno".
+"intonerò" is the first person of "intonerà".
+"intonerai" is the second person of "intonerà".
+"intonerebbe" is the conditional of "intona".
+"intonerebbero" is the plural of "intonerebbe".
+"intoneremmo" is the first person of "intonerebbero".
+"intonerei" is the first person of "intonerebbe".
+"intoneresti" is the second person of "intonerebbe".
+"intoni" is the subjunctive of "intona".
+"intonino" is the plural of "intoni".
+"intoniamo" is the first person of "intonino".
+"intonasse" is the past subjunctive of "intona".
+"intonassero" is the plural of "intonasse".
+"intonassimo" is the first person of "intonassero".
+"intonassi" is the first person of "intonasse".
+"intonassi" is the second person of "intonasse".
+"intona" is the imperative of "intona".
+"intonare" is the negative imperative of "intona".
+"intonate" is the imperative of "intonano".
+"intonato" is the participle of "intona".
+"intonata" is the participle of "intona".
+"intonata" is feminine.
+"intonati" is the participle of "intona".
+"intonati" is the plural of "intonato".
+"intonate" is the participle of "intona".
+"intonate" is feminine.
+"intonate" is the plural of "intonata".
+"intonare" is the infinitive of "intona".
+"intonando" is the gerund of "intona".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -91621,6 +91702,18 @@ The feminine adjective "discografica" means "discographic".
 "discograficissimi" is the superlative of "discografici".
 "discograficissima" is the superlative of "discografica".
 "discograficissime" is the superlative of "discografiche".
+The masculine adjective "stilizzato" means "stylized".
+"stilizzati" is the plural of "stilizzato".
+The feminine adjective "stilizzata" means "stylized".
+"stilizzate" is the plural of "stilizzata".
+The masculine adjective "fatuo" means "fatuous".
+"fatui" is the plural of "fatuo".
+The feminine adjective "fatua" means "fatuous".
+"fatue" is the plural of "fatua".
+"fatuissimo" is the superlative of "fatuo".
+"fatuissimi" is the superlative of "fatui".
+"fatuissima" is the superlative of "fatua".
+"fatuissime" is the superlative of "fatue".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
