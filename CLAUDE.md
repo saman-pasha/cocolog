@@ -5303,6 +5303,286 @@ the duty` are new lines a lesson can say, and a dateline, a headline colon and
 a relative clause after a comma are new shapes a program reaches; the owner
 decides.
 
+### A Spanish football report into Italian, and a commit made before its controls ran (1.8.0, 1.8.1)
+
+**THE OWNER TOOK THE MINOR THAT 1.7.2 PROPOSED** -- `marks the passive` and
+`marks the duty` as lines a lesson can say, a dateline, a headline colon and a
+relative clause after a comma as shapes a program reaches -- with the same
+words as the last time, "Use minor version". So this is 1.8.0 and the patch
+counts on from zero. The rule at the top of this file stands: a minor is
+proposed, and the owner takes it.
+
+**EL PERIÓDICO ON BARÇA BEFORE A CUP TIE AT CEUTA, INTO ITALIAN.** AnCora's
+dev document CESS-CAST-P-20010103-120 of 3 January 2001, twenty sentences --
+the coach's plan, who is left at home, two quotations and what the rival is
+like -- Spanish into Italian over the two-language vocabulary store. The
+middle column is 1.7.2's translator over THIS store, so it has the new
+vocabulary lines and none of the new shapes:
+
+| | 1.7.2, its store | 1.7.2, this store | **1.8.1** |
+|---|---|---|---|
+| translated | 7 of 20 | 10 | **20** |
+| refused for a word | 4 | 2 | **0** |
+| refused with every word known | 9 | 8 | **0** |
+| the article, one process | 39.8 s | 28.9 and 28.9 s | **24.0 and 23.5 s** |
+
+-- the store Italian 161 706 terms and Spanish 208 466, taught into one
+`--embed` store from the rebuilt vocabularies in 512 s and 858 s, 303 MB.
+
+**WHAT IT NEEDED IS WHAT A SPORTS PAGE DOES WITH ITS PEOPLE.** The twelve
+sentences were verbs, the Spanish column phrases that carry things, Livata the
+way a report speaks, Fiat figures, Valencia a thing on show and the bioethics
+report its claims; this one is a squad, who is in it and who is not:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| `ni ... ni`, before the verb and after it | `no figuran ni Rivaldo ni Overmars ni De la Peña` | `nei(co(...))`: the first `ni` joins nothing; English writes `neither ... nor` |
+| a name that begins with a small word | `De la Peña, en cambio, es baja` | one name, where it came out `Del Dirupo` |
+| a denying adverb before its verb | `tampoco estuvieron`, `ni siquiera ha comunicado` | kept in front, `frn(adv(...))`, where it was written last |
+| a denial after a relative clause that has had its verb | `el grupo de jugadores que deberán resolver este ingrato compromiso no figuran` | the sentence's, where it went to the relative clause |
+| an intransitive verb, a dative before it and its subject after it | `le gusta el buen fútbol` | the subject after the verb; `buen` read as the apocope it is |
+| the impersonal modal | `Hay que tomar precauciones`, `hay que dosificar a la plantilla` | `The impersonal modal "hay que" means "must".`; no impersonal word written |
+| a verb's own preposition before its infinitive | `confía en repetir` | `"confía" takes "en" before the infinitive.`, and `"confida" takes "di" ...` |
+| two pronouns joined to an infinitive | `la presión de jugárselo todo` | `giocarsi tutto`: the second only doubles `todo` |
+| a clause in parentheses | `(los octavos de final ya se disputarán a doble partido)` | an aside of its own |
+| a count with its noun left out | `Los dos primeros se han quedado en casa` | `"rimane" is not reflexive.`, `"è" is the auxiliary of "rimane".` |
+| a comment between two commas | `optará, como parece probable, por mantener a Reina` | written after the sentence |
+| `el que` with its noun left out | `un descalabro como el que sufrió el Madrid` | `quello che` |
+| a comparison with a phrase, and more than an adjective | `idénticos condicionantes que la ronda anterior`, `más que cuestionable` | `cmp(Kind, Phrase)` and `mt(Adjectives)`; Italian's `di` before a phrase, `che` before an adjective |
+| a subordinate clause at the head, an insertion after its word | `Al margen de que, como todos, han disfrutado ...` | `wc(Conn)`: the connector's comma kept |
+| a quotation that opens the sentence, and one that closes at a comma | `"Les he dado descanso ... apretado", explicó.` | the marks on the sentence and on the join |
+| a subject that is there, before one that is not | `Los informes son muy buenos.` | read left to right it was `(tú) los informes`, you inform them |
+| a pronoun before a verb that is also an imperative | `Le gusta ...`, `nos espera un mes` | a statement: only a DENIED imperative puts its pronoun first |
+| `por` with no passive | `por una lesión`, `por decisión del entrenador` | `per`: the first meaning that is not the agent's `by` |
+| the word before a person inside a subject | `La visita a Ceuta presenta ...` | a preposition, to Ceuta, where `visits Ceuta` refused the subject |
+| a person marked as the object, and a second object | `ha reclamado a los jugadores la máxima concentración` | `ai giocatori`: the first is the indirect one |
+| a verb's sense with a phrase for its object | `Conozco al entrenador` | `The transitive verb "conosce" means "knows".`, where `so` came first |
+| an infinitive and its object inside a subject | `Esta obsesión por eliminar cualquier signo ... le ha llevado` | the subject carries both |
+| a front inside a `que` clause | `que antes de jugar esto ya está ganado` | the shortest front of adjuncts that leaves a statement |
+| a month written with a capital | `un mes de Febrero muy apretado` | `febbraio`, where it passed through as a name |
+
+-- and the words, in `corpus/extra/` as always: 89 lines of Italian and 43 of
+Spanish, no `.dix` entry; the vocabularies went from 98 985 and 128 571 lines
+to 99 074 and 128 614, and the diff of what they LOST is empty. `reason.pl` did
+not move, which is the twelfth version running.
+
+**FOUR RULES THAT WERE TRUE OF ONE SENTENCE AND WRONG FOR A CLASS, AND EACH WAS
+FOUND BY A SENTENCE OF THIS ARTICLE READING AS SOMETHING ELSE:**
+
+* **A LIST RAN INTO THE SUBJECT OF THE NEXT CLAUSE.** `..., Rivaldo y Overmars
+  tampoco estuvieron en Gandía` after a phrase ending in a noun looked like the
+  end of a list, `X, Y and Z`, and the sentence was divided at the `y`: the
+  bread, Rivaldo, and a clause of its own for Overmars. A list's tail with a
+  verb after it, or a denial and then a verb, is a subject now
+  (`tr_verb_next/2`) -- and **a bare name is ONE**, so `Overmars ...
+  estuvieron` cannot read as one man with a plural verb, which 1.7.2 wrote as
+  `non dorme`.
+* **A COMMA BETWEEN TWO NAMES WAS TAKEN OUT.** The subject side is read without
+  its commas, and a run of capitalised words is one name, so `Salvo la
+  concesión de Rivaldo y Overmars, Serra Ferrer no quiere ...` gave the coach
+  the player's name, `Overmars Serra Ferrer`, and `Salvo` was a verb, I save.
+  A comma between two names parts them now (`tr_names_parted/2`), and a TOPIC
+  -- a name before a comma, which a headline puts first -- stands only at the
+  head of its sentence, where it had read `Overmars` as one inside a clause
+  the sentence was divided into.
+* **THE STEMMER TAKES THE `s` OFF `previous`.** In an adjective's place a
+  meaning shaped like a verb's third person is passed over, and `reason_base/2`
+  makes `previou` of `previous` as it makes `eat` of `eats`: `la ronda
+  anterior` was the ANTERIOR round. No English verb's base ends in `u`, so a
+  word in `-us` is shaped like no third person.
+* **THE NOUN'S GENDER WAS ASKED BEFORE THE LESSON'S ORDER.** `cualquier signo`
+  came out `molto segno`: the dictionary's masculine `molto`, an adverb it also
+  lists as a determiner meaning `any`, matched the noun's gender and so came
+  before the lesson's `qualsiasi`, which has none. The determiners that agree
+  are taken in the lesson's order now, a genderless one among them. The same
+  shape in the pronoun rule wrote `codesto` for `esto`: a pronoun and nothing
+  else went first, and Italian's `questo` is the demonstrative too. A word
+  whose first sentence meaning the English word was a pronoun's goes first as
+  well.
+
+**AND THE IMPERSONAL MODAL ASKED FOR A WORD IT THEN THREW AWAY.** The writer
+built the subject before it chose the verb, so a lesson with `bisogna` and no
+impersonal `si` refused `Hay que comer pan` -- the `si` it asked for was never
+written. The impersonal modal is chosen first now, and it is the whole of the
+subject.
+
+**A LINE'S PLACE IN `extra/` IS A DECISION, AND TWO MOVED.** Fiat's `The
+preposition "entro" means "before".` stood before this article's `prima di`,
+so `antes de jugar` came out `entro giocare`, a deadline's before; `prima di`
+is written first now, with the reason beside it. And the new `The verb "quiere"
+means "wants".` comes before the dictionary's `loves`: two pins in the
+`shapes` section recorded `Maria loves to eat` as the dictionary's order, and
+both moved to `wants`, which is what the sentence says.
+
+**THE PROBE STORE MISSES A FORM TWO STEPS FROM ITS LEMMA**, which cost a
+refusal that was not one. The probe learns the vocabulary lines that mention a
+fragment's words and the lines that mention THOSE lines' words -- and
+`podemos` is the first person of `pueden`, which is the plural of `puede`, and
+only `puede`'s line says it is a modal meaning `can`. So `No podemos pensar`
+refused with every word known on the probe store and read on the full one. A
+refusal on a probe store is a finding about the probe until the full store
+says otherwise.
+
+**1.8.0 WAS COMMITTED BEFORE ITS CONTROLS RAN, AND IT HAD LOST EIGHT
+SENTENCES THE CONTROLS READ ON 1.7.2 (1.8.1).** The case was GREEN at 749
+checks, the article 20 of 20, and the full suite GREEN on 1.8.0 -- 58 case
+lines, 51 GREEN, 7 SKIP, `red: 0`, in 1127 s with a fresh server that
+answered. The controls ran on the full store after all of that, and all
+seven moved, each of them for the worse in at least one sentence:
+
+| control | 1.7.2 | 1.8.0 |
+|---|---|---|
+| Fiat | 20 of 20 | **17**: `L'acquisto da parte di Fiat del 100% di Chrysler ...` and two more refused |
+| Livata | 29 of 29 | **27**: `Di certo si sa solo che la famiglia era ...` refused, the ninety-word sentence over its budget |
+| the twelve | 12 of 12 | **10**: `La sperimentazione dell'atomica ...` and `Il tutto avviene ... uno dei Paesi più ricchi del mondo ...` refused |
+| bioethics | 15 of 15 | **14**: `Il comitato nazionale di bioetica lo ha preso per la prima volta in esame, ieri.` refused |
+| and where it still read | | `de Pale` became `que Pale`, `del comité` `que el comité` and `habla de "milagro"` `habla que "milagro"`; the Spanish article's `che sono colpevoli` became `di sono colpevoli`; Valencia's `I liutai più illustri ... del mondo` `Gli illustri liutai ... più`; Livata's `haber dejado` `de tener dejado`; and Tatoeba's `Me gusta la escuela.` `The school likes me.` |
+
+-- every refusal with `unknown: []`, which is the tell that a refusal is a
+shape and not a gap.
+
+**ONE LINE OF LESSON DID MOST OF IT.** `The word "di" means "than".` sits in
+`corpus/extra/italian.txt` so that Spanish's `más grande que el perro` is
+written `più grande del cane` -- and it made every Italian `di` before a
+phrase a place where a comparison could start, so a `de` phrase read as one:
+the story THAN the disappearance, which Spanish writes `que`. One arm, run
+after the commit on the same store, says how much: 1.8.0 with that one rule
+mended and nothing else reads all eight lost sentences, each to the text
+1.8.1 gives, and writes the Spanish article's `che` again. The fix is two
+conditions the rule never stated. A word for `than` begins a comparison only
+with something compared BEFORE it in the piece -- the word that begins the
+comparative, or a word meaning same, identical or equal
+(`tr_compared_before/1`) -- which is also what keeps the Spanish article's
+relative `que` a relative. And it never does where the lesson calls the word
+a preposition, which Italian's `di` is: `i Paesi più ricchi del mondo` is a
+superlative and the article is the only thing that says so. So an Italian
+comparison is read as `of` now, which is stated below as a cost; the
+lesson's word is still the one WRITTEN for `than` before a phrase
+(`tr_than_word/2`), so Spanish's comparisons go into Italian as before.
+
+**THE OTHER THREE WERE THIS ARTICLE'S RULES MEETING A WORD IN A SECOND
+ROLE.** `más` is the comparative and the preposition `plus` in the
+vocabulary, so a subject divided at a preposition took `los` alone for its
+phrase -- the pronoun `them` it also is -- and cut Valencia's superlative in
+two; an article alone is no phrase there now, unless the lesson says it
+stands alone, which `uno` does (`uno dei Paesi`), and the first draft of the
+guard that forgot `uno` refused the twelve's last sentence all over again.
+Italian's `di` before an infinitive is the verb's, which `The word "di"
+begins the infinitive.` already says, and the new reading of a `de` and an
+infinitive after a phrase as that phrase's (`la necesidad de ser humildes`)
+took it for the carabinieri's. And a pronoun before an intransitive verb
+whose subject the reader put after it counted as the verb's object, so
+`gusta` took its transitive sense and the school liked me; it is who the verb
+pleases now, `The school pleases me.`
+
+**THE CASE COULD NOT HAVE SEEN ANY OF IT, AND NEITHER COULD THE SUITE.** Each
+is a rule meeting a word the small lessons do not have in that role --
+Italian's `di` as `than` is a line of `corpus/extra/`, `más` as a
+preposition is the dictionary's -- and the suite's only readers of the
+translator are `test/translate.pl` and lesson 46, both over small lessons.
+**A GREEN SUITE IS A CLAIM ABOUT THE SUITE'S LESSONS AND THE CONTROLS ARE THE
+CLAIM ABOUT THE VOCABULARY**, so a commit made before them is a commit whose
+translator nobody had run on the store it ships for; 1.7.2 was committed
+after them and this was not. Three checks pin the first three causes on
+small lessons -- each passes on 1.7.2's translator and fails on 1.8.0's --
+and the fourth is a check and one lesson line, `The verb "gusta" means
+"likes".` beside the intransitive `pleases`, with which 1.8.0 fails both
+`gustar` checks.
+
+**AND THE NEW READINGS COST TIME WHERE THEY FOUND NOTHING.** Livata ran 211 s
+on 1.8.0 against 58 s on 1.7.2; the first round of fixes took it to 81 s, and
+counting inferences a sentence found two readings tried on clauses that
+could never use them:
+
+| reading | tried on | cost, one sentence | narrowed to |
+|---|---|---|---|
+| a subject before one that is not there (`Los informes son muy buenos`) | every statement | Livata's `Di certo si sa solo che la famiglia era ...`: 7.2 million inferences more for the same reading | a clause opening on an article that is an object pronoun too, before a word that is a noun and a verb's form |
+| a front inside a `que` clause (`que antes de jugar esto ya está ganado`) | every clause that failed to read | the same sentence: 7.7 million more, and it found nothing | a front that begins with a preposition or an adverb, which an adjunct does |
+
+-- and the first narrowing needed a second look: asked of ANY article before a
+word that is a noun and a verb's form, it still ran on most Italian
+sentences, `l'acquisto`, `la parte`, `l'accordo`, and Fiat's `Siamo
+particolarmente soddisfatti ...` cost 9.1 million inferences where 1.7.2's
+cost 4.6. Together they took Livata to 66 s. What is left is spread, counted
+warm on the full store:
+
+| sentence | 1.7.2 | 1.8.0 | **1.8.1** |
+|---|---|---|---|
+| Livata's second, fifty words | 26.0 million | 81.9 million | **29.8 million** |
+| `Di certo si sa solo che la famiglia era ...` | 28.6 | 47.2, refused | **32.8** |
+| Fiat's `Siamo particolarmente soddisfatti ...` | 4.6 | 9.1 | **5.2** |
+
+-- and taking out any one of the three new readings the fifty-word sentence
+asks for -- the intransitive verb with its subject after it, `el que`, an
+article with its noun left out -- saves about 0.4 million each. No single
+item is worth a design change.
+
+**TRANSLATED IS NOT RIGHT, AND WHAT IS LEFT IS SAID HERE.** Every sentence
+reads as a structure the translator has; what is wrong is words, agreement and
+senses no lesson separates:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `in Gandia`, `in Toledo` | `a Gandia` | `en` is `in`, and Italian puts `a` before a city |
+| `hanno goduto di dei giorni` | `di alcuni giorni` | the indefinite plural article after `di` |
+| `gli ha portato` | `l'ha portato` | Spanish's `le` is the object of a man (leísmo), and read as the dative it is `gli` |
+| `è basso` | `è indisponibile` | `es baja` is out, injured; the adjective reading comes first |
+| `... in Gandía curiosamente`, `... invece`, `... già` | in front | an adverb at the head is written after the verb, 1.6.8's cost |
+| `I due primi` | `I primi due` | the count stays where Spanish put it |
+| `La grande novità nella lista oltre alla presenza di Dani è ...` | the two commas kept | a comma inside the subject is not in the IR |
+| `identici condizionamenti del turno precedente` | `identici a quelli del turno` | an equal comparison is written with the word for `than` |
+| `che questo è vinto ... già` | `che questo sia già vinto` | Italian wants the subjunctive after `pensare che` where Spanish wrote the indicative, and no lesson says which verbs ask for one |
+
+-- and the other way, `Il gatto è più grande del cane.` comes out `El gato es
+más grande del perro.`: Italian's `di` is `than` only on the way out, and
+read it is `of`, which is the price of the fix above.
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.7.2's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.7.2, this store | **1.8.1** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.6 and 12.6 s | **12 of 12, 14.2 and 14.1 s** |
+| the Spanish article | 11 of 11, 12.7 and 12.0 s | **11 of 11, 13.0 and 12.9 s** |
+| Livata, 29 sentences | 29 of 29, 57.7 and 57.2 s | **29 of 29, 65.5 and 65.1 s** |
+| Fiat, 20 sentences | 20 of 20, 19.7 and 19.9 s | **20 of 20, 20.0 and 20.8 s** |
+| Valencia, 16 sentences | 16 of 16, 38.5 and 37.9 s | **16 of 16, 37.9 and 37.5 s** |
+| the bioethics article, 15 sentences | 15 of 15, 10.0 and 10.1 s | **15 of 15, 10.7 and 10.6 s** |
+| Tatoeba's 400, exact / translated / refused | 55 / 263 / 137, 13.7 and 13.5 s | **55 / 259 / 141, 14.4 and 14.3 s** |
+| the football article, 20 sentences | 10 of 20, 28.9 and 28.9 s | **20 of 20, 24.0 and 23.5 s** |
+
+-- the ranges apart on all but Valencia, where they overlap, so the new
+readings cost 3 to 14 % where they cost anything, the twelve and Livata the
+most; the football article is 18 % faster because 1.7.2 spends its time
+failing. Each translator gives the same texts both times. Against 1.7.2 the
+texts are the same but for these, and all but two moved on purpose: Fiat keeps
+the source's commas around `como complemento del actual contrato colectivo de
+Chrysler Group`; Livata writes `Se sabe sólo que` and `No se sabe cómo` for
+`si sa`, where 1.7.2 wrote `Se conoce`, keeps the comma in `en esas
+condiciones, a menos 5 grados` and writes `habría que conocer` for
+`bisognerebbe capire`; Valencia writes `per` for `por` three times --
+`Sospirò per lui`, `per le mani di virtuosi`, `optò per una via` -- which
+1.7.0's costs table had as `da`; and the bioethics subtitle `"lo stato deve
+imporre i vaccini"` comes out with a capital. On Tatoeba five sentences 1.7.2
+wrote wrongly are refused (`Can him make?`, `Does Ustedes not have heat?`,
+`Like me to write.`, `Like me to sleep.`, `Know him until my mum.`), `gustar`
+pleases (`The school pleases me.`, `Your group pleases me.`) and `por qué` is
+`for what` where it was `by what`. The two that are worse are costs: `Él nunca
+ríe.` is `Never he laughs.` where it was `He laughs never.` -- a denying
+adverb kept in front is written in front in English too, where English puts
+it after the subject -- and `Te veré a las dos y media.`, which 1.7.2 refused,
+is `I will see you the two and a half ones.`, with `las dos` read as a count
+whose noun was left out and the `a` before it as the word before a person.
+
+**`test/translate.pl` IS 753 CHECKS AND GREEN**, thirty-one in a new
+`newspaper_football` section with a Spanish and an Italian lesson of its own;
+every check but the last three fails on 1.7.2's translator, and the last three
+pass on it and fail on 1.8.0's. Lesson 46 gained section 27. **The full suite
+was NOT run again on 1.8.1**: it ran on 1.8.0, and 1.8.1 changes only
+`library/reasoning/translate.pl` and the two files that read it in the suite
+-- `test/translate.pl`, GREEN alone, and lesson 46, `done` alone -- with
+cocolint 0 HARD and 0 WARN over the three.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
