@@ -201,3 +201,18 @@
 # have paradigms in apertium-ita and no English here
 <e><p><l>discographic<s n="adj"/></l><r>discografico<s n="adj"/></r></p></e>
 <e><p><l>slowdown<s n="n"/></l><r>rallentamento<s n="n"/><s n="m"/></r></p></e>
+# the island-traffic article (Italian UD, VIT-9472..9484): `scatta lo stop',
+# `godranno di qualche boccata', `trascorrere le proprie ferie', `in lembi di
+# terra', `amene località', `le moto', `è vietato', `le più canicolari Eolie',
+# `interdette al traffico', `senza penalizzare' -- each has its paradigm in
+# apertium-ita and no English here
+<e r="RL"><p><l>start<s n="vblex"/></l><r>scattare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>enjoy<s n="vblex"/></l><r>godere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>spend<s n="vblex"/></l><r>trascorrere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>strip<s n="n"/></l><r>lembo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>pleasant<s n="adj"/></l><r>ameno<s n="adj"/></r></p></e>
+<e r="RL"><p><l>motorbike<s n="n"/></l><r>moto<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>forbid<s n="vblex"/></l><r>vietare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>canicular<s n="adj"/></l><r>canicolare<s n="adj"/></r></p></e>
+<e r="RL"><p><l>prohibit<s n="vblex"/></l><r>interdire<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>penalise<s n="vblex"/></l><r>penalizzare<s n="vblex"/></r></p></e>

@@ -5933,6 +5933,163 @@ section with a Spanish and an Italian lesson of its own; every check but the
 four marked GUARD fails on 1.8.2's translator. Lesson 46 gained section 29.
 The full suite was not run on 1.8.3.
 
+### An Italian report into Spanish: a list of islands, a clause between dashes, a participle after a comma (1.8.4)
+
+**THE THIRD SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD VIT
+document VIT-9472..9484 -- thirteen sentences of a summer report: cars banned
+from the small islands, the minister who signed it, who gets the quiet and
+from which day to which -- Italian into Spanish over the two-language
+vocabulary store. The middle column is 1.8.3's translator over THIS store:
+
+| | 1.8.3, its store | 1.8.3, this store | **1.8.4** |
+|---|---|---|---|
+| translated | 2 of 13, both wrong in structure | 6, four wrong in structure | **13** |
+| refused for a word | 9 | 0 | **0** |
+| refused with every word known | 2 | 7 | **0** |
+| the article, one process | 66.5 s | 102.1 and 101.7 s | **22.5 and 22.6 s** |
+
+-- the store Italian 172 032 terms and Spanish 217 842, taught into one
+`--embed` store from the rebuilt vocabularies in 676 s and 1 074 s, 342 MB.
+
+**WHAT IT NEEDED IS WHAT A NEWS ITEM PUTS BEFORE ITS VERB, AND BESIDE IT:**
+
+| shape | the article's words | what moved |
+|---|---|---|
+| a headline's participle with its phrases after it | `Auto proibite nelle isole del sole.` | read as a phrase and a reduced relative, in the participle's number: `auto' is both |
+| a word after a preposition and its article | `nelle isole del sole` | never a verb: `isole' is also what `isolare' says to one person |
+| a verb at the head with its subject after it | `Scatta lo stop anti ingorgo.`, `Regolamenta il ministro.` | `The intransitive verb "scatta" means "starts".` |
+| a line with no verb that says something | `Centotrentamila in partenza da Milano.` | a phrase and an adjunct that is no `di' phrase of it; a phrase alone stays refused |
+| a list of names, one a noun to the lesson | `si chiamano Giglio, Eolie, Ustica, Capri, ...` | names that go on after the second comma are a list, not a name apposed to a lily |
+| an insertion that opens on an adverb | `la Pace, almeno nelle piccole isole del Belpaese, arriva` | the aside, where the islands had become the peace's |
+| an inverted subject with two phrases and a name | `Firma il responsabile dell'ambiente e dei lavori pubblici, Paolo Baratta, e ...` | the subject takes both `di' phrases joined, and no division falls between two phrases of one preposition |
+| `non che' | `Non che la tranquillità ... sia garantita per tutti.` | `not that', a connector |
+| adjuncts, then a subject with its relative clause | `Godranno di qualche boccata d'ossigeno in più soltanto quelli che hanno scelto ...` | the subject after an intransitive verb, where it was THEY enjoying those who chose |
+| a phrase and a clause opened by where | `Amene località dove le auto, le moto e i ciclomotori ... sono banditi` | gap([], [obj(NP), rwh(where, S)]), and a list at the head of a clause |
+| if not, at least | `se non per sempre quantomeno per qualche giorno` | cnj(if) and neg(pp(...)), where `se' was the noun of a phrase |
+| a clause between two dashes | `il Giglio - dove l'afflusso dei veicoli ... è vietato ... -` | the phrase's aside, w(Key, dashed), written back between its dashes |
+| a superlative before a name | `le più canicolari Eolie` | the article, the adjectives and the name |
+| a participle after a comma, then the next phrase | `..., interdette al traffico dal 4 al 24 agosto, e l'isola di Ustica "proibita" ...` | the phrase's aside, rel/3 with aside(Closed); after a name the participle agrees with its own gender and keeps its marks |
+| a range of days after a passive | `è vietato dal 24 luglio al 25 agosto` | when, and nobody's agent: `por el 24 de julio' before |
+| a coordinating connector at the head | `E il Giglio ... e l'isola di Ustica` | read before any division, with its commas: `lo aísla de Ustica' before |
+
+-- and the words, in `corpus/extra/` as always: 44 lines of Italian and 25 of
+Spanish, ten entries in `eng-ita.dix` and two in `eng-spa.dix`. The
+vocabularies went from 108 722 and 135 765 lines to 109 059 and 135 795.
+`reason.pl` did not move, the fifteenth version running.
+
+**ONE GUARD, IN THE WRONG PLACE, COST TWENTY TIMES THE SENTENCE.** `Godranno
+di qualche boccata d'ossigeno in più soltanto quelli che hanno scelto ...`
+read on 1.8.3 as THEY enjoying, with those who chose for an object -- a
+subject nobody named, which Spanish writes the same and English does not.
+A guard in the generic reading sends such a reading on to the readers that
+look for a subject after an intransitive verb, and it failed the reading at
+its END, after the complements were read: the reading then went on to every
+later word that could be a verb, and each place the subject reader offered
+read the relative clause again before the head failed. Counted warm on the
+probe store:
+
+| the sentence | 1.8.3 | the guard at the end | **1.8.4** |
+|---|---|---|---|
+| `Godranno ... quelli che hanno scelto ... in lembi di terra.` | 0.29 million, the wrong structure | 7.7 million | **0.75 million** |
+| sentence 9, the list of islands after it | 124.6 million, refused | 33.4 million | **1.68 million** |
+
+Two changes, measured apart: the generic reading gives up AT ONCE when the
+guard holds (a cut and a failure, so the later readers still run), 0.08 and
+0.77 million of it; and a subject after its verb is never looked for at a
+preposition or an adverb, which is the rest. **A guard that fails a reading
+late is a guard over every alternative the reading had.**
+
+**THE CASE FOUND THE VERBLESS SENTENCE TOO WIDE ON ITS FIRST RUN.** 1.8.3
+read a whole sentence with no verb only as an exclamation or a heading, and
+`Centotrentamila in partenza da Milano.` needed a third kind; the first cut
+read any whole sentence, and two refusals the case pins came back read --
+`El pan del perro.` and `The house.`, a phrase with nothing said of it. The
+rule is a phrase and an adjunct that is no `di' phrase of it.
+
+**AND THE BUILD CHECK FOUND A VOCABULARY OLDER THAN ITS OWN LINES.**
+`test/translate.pl` rebuilds the Spanish vocabulary and requires it byte for
+byte, and it failed: two lines of `corpus/extra/` had been corrected after
+the last rebuild (`ciento treinta mil` meaning `130000` rather than `a
+hundred and thirty thousand`), so the committed file and the store taught
+from it were a step behind the data. Both vocabularies were rebuilt, and the
+diff of what they lost is `proibisce`'s English forms (`forbade`,
+`forbidden`), moved to `vieta`, which `eng-ita.dix` now gives `forbid`.
+**Rebuild after the last line, not after the first.**
+
+**A LINE LEARNED INTO A PROBE STORE GOES AFTER THE LINES IT HAS**, which is
+1.7.0's finding again: `The masculine determiner "algún" means "some".`,
+learned with `more`, could not move `un día` on the probe store, because the
+dictionary's `un` was already first there. On the full store it is first,
+because `corpus/extra/` is written first.
+
+**THE CONTROLS FOUND FOUR THINGS THE CASE DID NOT, AND ALL FOUR WERE A NEW
+READING ASKED WHERE IT COULD NEVER HOLD.** With `test/translate.pl` GREEN and
+the article at 13 of 13, the first controls came back with the texts the same
+but for two betterments -- and eight Tatoeba refusals turned into nonsense,
+and three controls slower by 5 to 14 %:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| `Besa a Tomás.` as `Besa to Tomás.`, `Quédate ahí.` as `Quédate here.`, six more | the verbless sentence took an unknown capitalised word at the head for a name: a verb with its pronouns joined on | the phrase a verbless sentence names is one the lesson knows |
+| the record report's `Si bien X, Y`: 5.7 million inferences to 14.4 | the connector at the head read the rest as one piece, the two clauses together | only a coordinating one: `and`, `but`, `or`; 3.4 million now |
+| Livata's `soccorsa dai carabinieri, è stata trasportata ...`: 9.8 to 14.4 million | the date range was asked of PHRASES, after every participle a preposition follows | asked of the words, a day and a month, or a range to `a`; 9.9 million |
+| Valencia's sentence of names: 11.4 to 14.4 million | the adjectives before a name tried every split of every phrase with a determiner | the run of name words at the end, once, and an adjective before it first; 11.5 million |
+
+-- each found by the hunk bisection this file keeps recommending, one hunk of
+the diff against 1.8.3 at a time on the full store. **The case's small
+lessons cannot show a cost: the controls' long sentences are where a reading
+is asked thousands of times.** And the Tatoeba nonsense is the other half of
+the 1.8.3 lesson about fragments: a reading that admits a sentence because
+nothing refuses it must say what makes the sentence one.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `Y el Lirio` | `Y el Giglio` | a name the dictionary knows as a noun, after an article: 1.6.21's `el Lingote` |
+| `desde Milano`, `las Eolie` | `de Milán`, `las Eolias` | a name no lesson knows passes through as written |
+| `para decreto`, `para algún día` | `por decreto`, `por unos días` | `per` is `for`, and `qualche` a singular with a plural's sense |
+| `es garantizada`, `son prohibidos`, `es prohibida` | `esté garantizada`, `están prohibidos`, `está prohibida` | a subjunctive is written as the indicative, and Italian's `essere` is both copulas |
+| `gastar las propias vacaciones` | `pasar sus vacaciones` | a sense: `trascorrere` spends time, and English's `spends` is money too |
+| `desde el 24 de julio al 25 de agosto` | `del 24 de julio al 25 de agosto` | Spanish opens a range of days with `de` |
+| `Ciento treinta mil de salida desde Milano.` | `Ciento treinta mil salen de Milán.` | word for word |
+| `... de Alemagna a Cortina.` | `En Cortina, ...` | a front with no comma is written after the clause, 1.6.8's cost |
+| `el director del entorno` | `el responsable del medio ambiente` | senses |
+| Tatoeba's `Me gusta estar ocupado.` as `Busy pleases me occupied.` | `I like being busy.` | an infinitive as the subject of `gustar` is no shape the reader has; it moved from one wrong reading, `Busy pleases me to be.`, to another |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.3's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.3, this store | **1.8.4** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 17.4 and 17.7 s | **12 of 12, 16.8 and 16.8 s** |
+| the Spanish article | 11 of 11, 16.6 and 17.3 s | **11 of 11, 16.0 and 16.0 s** |
+| Livata, 29 sentences | 29 of 29, 83.2 and 84.8 s | **29 of 29, 86.3 and 86.4 s** |
+| Fiat, 20 sentences | 20 of 20, 24.6 and 26.0 s | **20 of 20, 24.9 and 24.6 s** |
+| Valencia, 16 sentences | 16 of 16, 49.7 and 50.6 s | **16 of 16, 50.1 and 50.4 s** |
+| the bioethics article, 15 sentences | 15 of 15, 13.1 and 13.4 s | **15 of 15, 13.3 and 13.1 s** |
+| the football article, 20 sentences | 20 of 20, 32.3 and 31.5 s | **20 of 20, 29.9 and 29.5 s** |
+| Monreale, 6 sentences | 6 of 6, 7.2 and 6.9 s | **6 of 6, 7.0 and 7.1 s** |
+| the record report, 15 sentences | 15 of 15, 28.2 and 28.0 s | **15 of 15, 27.1 and 26.8 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 265 / 135, 19.0 and 18.5 s | **56 / 265 / 135, 19.2 and 19.5 s** |
+| the islands report, 13 sentences | 6 of 13, 102.1 and 101.7 s | **13 of 13, 22.5 and 22.6 s** |
+
+-- the ranges apart on Livata and Tatoeba, where the new readings cost about
+3 %, and on the twelve, the Spanish article, the football report and the
+record report, which are 3 to 8 % faster; they overlap on the rest. Each
+translator gives the same texts both times, and the texts are 1.8.3's but for
+the islands report and three lines: Livata's `Las búsquedas de los niños,
+entonces, han continuado` and the football report's `De la Peña, invece, è
+basso` keep the source's commas and its adverb in its place, where 1.8.3 had
+moved the adverb and dropped them; and Tatoeba's `Me gusta estar ocupado.`,
+the cost above.
+
+`test/translate.pl` is 823 checks and GREEN, 16 in a new `newspaper_islands`
+section with an Italian and a Spanish lesson of its own; every check fails on
+1.8.3's translator. Lesson 46 gained section 30. The full suite was not run on
+1.8.4.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

@@ -610,3 +610,63 @@ The masculine noun "supporto" means "support".
 The masculine noun "mantenimento" means "maintenance".
 The masculine noun "svago" means "leisure".
 "svaghi" is the plural of "svago".
+# the island-traffic article (Italian UD, VIT-9472..9484): the car, the state
+# highway and a motor's roar, where the dictionary's first words are a
+# machine, the adjective and a rhombus; `soltanto' is only, and `sono
+# banditi' banned rather than banished
+The feminine noun "macchina" means "car".
+The feminine noun "statale" means "highway".
+"statali" is the plural of "statale".
+The masculine noun "rombo" means "roar".
+The adverb "soltanto" means "only".
+The verb "bandisce" means "bans".
+# ... and `forbid' for `vietare' in extra/eng-ita.dix gave the English verb a
+# meaning before the dictionary's one-way entry for `proibire' was read, so
+# that entry went, as 1.7.2's `conflitto' did: its line is put back here
+The verb "proibisce" means "forbids".
+# the words of several words, and those Apertium lacks outright
+The adverb "almeno" means "at least".
+The adverb "quantomeno" means "at least".
+The adverb "in partenza" means "leaving".
+The adverb "in più" means "extra".
+The adjective "off limits" means "off limits".
+The adjective "anti ingorgo" means "anti-jam".
+The preposition "così come" means "just like".
+The conjunction "non che" means "not that".
+The masculine noun "lavoro pubblico" means "public work".
+"lavori pubblici" is the plural of "lavoro pubblico".
+The masculine noun "veicolo a motore" means "motor vehicle".
+"veicoli a motore" is the plural of "veicolo a motore".
+The masculine noun "non residente" means "non-resident".
+"non residenti" is the plural of "non residente".
+The masculine noun "vivere civile" means "civil life".
+The feminine noun "boccata" means "puff".
+"boccate" is the plural of "boccata".
+The feminine noun "ferie" means "holiday".
+"ferie" is the plural of "ferie".
+The masculine noun "gitante" means "excursionist".
+"gitanti" is the plural of "gitante".
+"turisti" is the plural of "turista".
+"orecchie" is the plural of "orecchio".
+"orecchie" is feminine.
+The masculine adjective "martoriato" means "martyred".
+The feminine adjective "martoriata" means "martyred".
+"martoriati" is the plural of "martoriato".
+"martoriate" is the plural of "martoriata".
+The number "centotrentamila" means "a hundred and thirty thousand".
+# `ostruire' has an -isc- present, and apertium-ita's paradigm for it has not
+The verb "ostruisce" means "obstructs".
+"ostruiscono" is the plural of "ostruisce".
+# a verb used with no object and its subject after it: `Scatta lo stop anti
+# ingorgo', `Firma il responsabile ..., Paolo Baratta', `Regolamenta il
+# ministro'
+The intransitive verb "scatta" means "starts".
+The intransitive verb "firma" means "signs".
+The intransitive verb "regolamenta" means "regulates".
+# ... and one with its phrases between it and the subject: `Godranno di
+# qualche boccata d'ossigeno in più soltanto quelli che ...'
+The intransitive verb "gode" means "enjoys".
+# ... whose future is `godrà', where apertium-ita's paradigm for it makes
+# `goderà'
+"godrà" is the future of "gode".
+"godranno" is the plural of "godrà".

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16162 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16171 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -470,6 +470,50 @@ The masculine noun "supporto" means "support".
 The masculine noun "mantenimento" means "maintenance".
 The masculine noun "svago" means "leisure".
 "svaghi" is the plural of "svago".
+The feminine noun "macchina" means "car".
+The feminine noun "statale" means "highway".
+"statali" is the plural of "statale".
+The masculine noun "rombo" means "roar".
+The adverb "soltanto" means "only".
+The verb "bandisce" means "bans".
+The verb "proibisce" means "forbids".
+The adverb "almeno" means "at least".
+The adverb "quantomeno" means "at least".
+The adverb "in partenza" means "leaving".
+The adverb "in più" means "extra".
+The adjective "off limits" means "off limits".
+The adjective "anti ingorgo" means "anti-jam".
+The preposition "così come" means "just like".
+The conjunction "non che" means "not that".
+The masculine noun "lavoro pubblico" means "public work".
+"lavori pubblici" is the plural of "lavoro pubblico".
+The masculine noun "veicolo a motore" means "motor vehicle".
+"veicoli a motore" is the plural of "veicolo a motore".
+The masculine noun "non residente" means "non-resident".
+"non residenti" is the plural of "non residente".
+The masculine noun "vivere civile" means "civil life".
+The feminine noun "boccata" means "puff".
+"boccate" is the plural of "boccata".
+The feminine noun "ferie" means "holiday".
+"ferie" is the plural of "ferie".
+The masculine noun "gitante" means "excursionist".
+"gitanti" is the plural of "gitante".
+"turisti" is the plural of "turista".
+"orecchie" is the plural of "orecchio".
+"orecchie" is feminine.
+The masculine adjective "martoriato" means "martyred".
+The feminine adjective "martoriata" means "martyred".
+"martoriati" is the plural of "martoriato".
+"martoriate" is the plural of "martoriata".
+The number "centotrentamila" means "a hundred and thirty thousand".
+The verb "ostruisce" means "obstructs".
+"ostruiscono" is the plural of "ostruisce".
+The intransitive verb "scatta" means "starts".
+The intransitive verb "firma" means "signs".
+The intransitive verb "regolamenta" means "regulates".
+The intransitive verb "gode" means "enjoys".
+"godrà" is the future of "gode".
+"godranno" is the plural of "godrà".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -15385,6 +15429,10 @@ The feminine noun "accusa" means "accusation".
 "accuse" is the plural of "accusa".
 The masculine noun "restauro" means "restoration".
 "restauri" is the plural of "restauro".
+The masculine noun "lembo" means "strip".
+"lembi" is the plural of "lembo".
+The feminine noun "moto" means "motorbike".
+"moto" is the plural of "moto".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -86397,6 +86445,285 @@ The verb "gonfia" means "inflates".
 "gonfiate" is the plural of "gonfiata".
 "gonfiare" is the infinitive of "gonfia".
 "gonfiando" is the gerund of "gonfia".
+The verb "scatta" means "starts".
+"scattano" is the plural of "scatta".
+"scattiamo" is the first person of "scattano".
+"scatto" is the first person of "scatta".
+"scatti" is the second person of "scatta".
+"scattò" is the past of "scatta".
+"scattarono" is the past of "scattano".
+"scattammo" is the first person of "scattarono".
+"scattai" is the first person of "scattò".
+"scattasti" is the second person of "scattò".
+"scattava" is the past of "scatta".
+"scattavano" is the past of "scattano".
+"scattavamo" is the first person of "scattavano".
+"scattavo" is the first person of "scattava".
+"scattavi" is the second person of "scattava".
+"scatterà" is the future of "scatta".
+"scatteranno" is the plural of "scatterà".
+"scatteremo" is the first person of "scatteranno".
+"scatterò" is the first person of "scatterà".
+"scatterai" is the second person of "scatterà".
+"scatterebbe" is the conditional of "scatta".
+"scatterebbero" is the plural of "scatterebbe".
+"scatteremmo" is the first person of "scatterebbero".
+"scatterei" is the first person of "scatterebbe".
+"scatteresti" is the second person of "scatterebbe".
+"scatti" is the subjunctive of "scatta".
+"scattino" is the plural of "scatti".
+"scattiamo" is the first person of "scattino".
+"scattasse" is the past subjunctive of "scatta".
+"scattassero" is the plural of "scattasse".
+"scattassimo" is the first person of "scattassero".
+"scattassi" is the first person of "scattasse".
+"scattassi" is the second person of "scattasse".
+"scatta" is the imperative of "scatta".
+"scattare" is the negative imperative of "scatta".
+"scattate" is the imperative of "scattano".
+"scattato" is the participle of "scatta".
+"scattata" is the participle of "scatta".
+"scattata" is feminine.
+"scattati" is the participle of "scatta".
+"scattati" is the plural of "scattato".
+"scattate" is the participle of "scatta".
+"scattate" is feminine.
+"scattate" is the plural of "scattata".
+"scattare" is the infinitive of "scatta".
+"scattando" is the gerund of "scatta".
+The verb "gode" means "enjoys".
+"godono" is the plural of "gode".
+"godiamo" is the first person of "godono".
+"godo" is the first person of "gode".
+"godi" is the second person of "gode".
+"godè" is the past of "gode".
+"godettero" is the past of "godono".
+"godemmo" is the first person of "godettero".
+"godei" is the first person of "godè".
+"godesti" is the second person of "godè".
+"godeva" is the past of "gode".
+"godevano" is the past of "godono".
+"godevamo" is the first person of "godevano".
+"godevo" is the first person of "godeva".
+"godevi" is the second person of "godeva".
+"goderà" is the future of "gode".
+"goderanno" is the plural of "goderà".
+"goderemo" is the first person of "goderanno".
+"goderò" is the first person of "goderà".
+"goderai" is the second person of "goderà".
+"goderebbe" is the conditional of "gode".
+"goderebbero" is the plural of "goderebbe".
+"goderemmo" is the first person of "goderebbero".
+"goderei" is the first person of "goderebbe".
+"goderesti" is the second person of "goderebbe".
+"goda" is the subjunctive of "gode".
+"godano" is the plural of "goda".
+"godiamo" is the first person of "godano".
+"godesse" is the past subjunctive of "gode".
+"godessero" is the plural of "godesse".
+"godessimo" is the first person of "godessero".
+"godessi" is the first person of "godesse".
+"godessi" is the second person of "godesse".
+"godi" is the imperative of "gode".
+"godere" is the negative imperative of "gode".
+"godete" is the imperative of "godono".
+"goduto" is the participle of "gode".
+"goduta" is the participle of "gode".
+"goduta" is feminine.
+"goduti" is the participle of "gode".
+"goduti" is the plural of "goduto".
+"godute" is the participle of "gode".
+"godute" is feminine.
+"godute" is the plural of "goduta".
+"godere" is the infinitive of "gode".
+"godendo" is the gerund of "gode".
+The verb "trascorre" means "spends".
+"trascorrono" is the plural of "trascorre".
+"trascorriamo" is the first person of "trascorrono".
+"trascorro" is the first person of "trascorre".
+"trascorri" is the second person of "trascorre".
+"trascorse" is the past of "trascorre".
+"trascorsero" is the past of "trascorrono".
+"trascorremmo" is the first person of "trascorsero".
+"trascorsi" is the first person of "trascorse".
+"trascorresti" is the second person of "trascorse".
+"trascorreva" is the past of "trascorre".
+"trascorrevano" is the past of "trascorrono".
+"trascorrevamo" is the first person of "trascorrevano".
+"trascorrevo" is the first person of "trascorreva".
+"trascorrevi" is the second person of "trascorreva".
+"trascorrerà" is the future of "trascorre".
+"trascorreranno" is the plural of "trascorrerà".
+"trascorreremo" is the first person of "trascorreranno".
+"trascorrerò" is the first person of "trascorrerà".
+"trascorrerai" is the second person of "trascorrerà".
+"trascorrerebbe" is the conditional of "trascorre".
+"trascorrerebbero" is the plural of "trascorrerebbe".
+"trascorreremmo" is the first person of "trascorrerebbero".
+"trascorrerei" is the first person of "trascorrerebbe".
+"trascorreresti" is the second person of "trascorrerebbe".
+"trascorra" is the subjunctive of "trascorre".
+"trascorrano" is the plural of "trascorra".
+"trascorriamo" is the first person of "trascorrano".
+"trascorresse" is the past subjunctive of "trascorre".
+"trascorressero" is the plural of "trascorresse".
+"trascorressimo" is the first person of "trascorressero".
+"trascorressi" is the first person of "trascorresse".
+"trascorressi" is the second person of "trascorresse".
+"trascorri" is the imperative of "trascorre".
+"trascorrere" is the negative imperative of "trascorre".
+"trascorrete" is the imperative of "trascorrono".
+"trascorso" is the participle of "trascorre".
+"trascorsa" is the participle of "trascorre".
+"trascorsa" is feminine.
+"trascorsi" is the participle of "trascorre".
+"trascorsi" is the plural of "trascorso".
+"trascorse" is the participle of "trascorre".
+"trascorse" is feminine.
+"trascorse" is the plural of "trascorsa".
+"trascorrere" is the infinitive of "trascorre".
+"trascorrendo" is the gerund of "trascorre".
+The verb "vieta" means "forbids".
+"vietano" is the plural of "vieta".
+"vietiamo" is the first person of "vietano".
+"vieto" is the first person of "vieta".
+"vieti" is the second person of "vieta".
+"vietò" is the past of "vieta".
+"vietarono" is the past of "vietano".
+"vietammo" is the first person of "vietarono".
+"vietai" is the first person of "vietò".
+"vietasti" is the second person of "vietò".
+"vietava" is the past of "vieta".
+"vietavano" is the past of "vietano".
+"vietavamo" is the first person of "vietavano".
+"vietavo" is the first person of "vietava".
+"vietavi" is the second person of "vietava".
+"vieterà" is the future of "vieta".
+"vieteranno" is the plural of "vieterà".
+"vieteremo" is the first person of "vieteranno".
+"vieterò" is the first person of "vieterà".
+"vieterai" is the second person of "vieterà".
+"vieterebbe" is the conditional of "vieta".
+"vieterebbero" is the plural of "vieterebbe".
+"vieteremmo" is the first person of "vieterebbero".
+"vieterei" is the first person of "vieterebbe".
+"vieteresti" is the second person of "vieterebbe".
+"vieti" is the subjunctive of "vieta".
+"vietino" is the plural of "vieti".
+"vietiamo" is the first person of "vietino".
+"vietasse" is the past subjunctive of "vieta".
+"vietassero" is the plural of "vietasse".
+"vietassimo" is the first person of "vietassero".
+"vietassi" is the first person of "vietasse".
+"vietassi" is the second person of "vietasse".
+"vieta" is the imperative of "vieta".
+"vietare" is the negative imperative of "vieta".
+"vietate" is the imperative of "vietano".
+"vietato" is the participle of "vieta".
+"vietata" is the participle of "vieta".
+"vietata" is feminine.
+"vietati" is the participle of "vieta".
+"vietati" is the plural of "vietato".
+"vietate" is the participle of "vieta".
+"vietate" is feminine.
+"vietate" is the plural of "vietata".
+"vietare" is the infinitive of "vieta".
+"vietando" is the gerund of "vieta".
+"forbade" is the past of "forbids".
+"forbidden" is the participle of "forbids".
+"forbidding" is the gerund of "forbids".
+The verb "interdice" means "prohibits".
+"interdicono" is the plural of "interdice".
+"interdiciamo" is the first person of "interdicono".
+"interdico" is the first person of "interdice".
+"interdici" is the second person of "interdice".
+"interdisse" is the past of "interdice".
+"interdissero" is the past of "interdicono".
+"interdicemmo" is the first person of "interdissero".
+"interdissi" is the first person of "interdisse".
+"interdicesti" is the second person of "interdisse".
+"interdiceva" is the past of "interdice".
+"interdicevano" is the past of "interdicono".
+"interdicevamo" is the first person of "interdicevano".
+"interdicevo" is the first person of "interdiceva".
+"interdicevi" is the second person of "interdiceva".
+"interdirà" is the future of "interdice".
+"interdiranno" is the plural of "interdirà".
+"interdiremo" is the first person of "interdiranno".
+"interdirò" is the first person of "interdirà".
+"interdirai" is the second person of "interdirà".
+"interdirebbe" is the conditional of "interdice".
+"interdirebbero" is the plural of "interdirebbe".
+"interdiremmo" is the first person of "interdirebbero".
+"interdirei" is the first person of "interdirebbe".
+"interdiresti" is the second person of "interdirebbe".
+"interdica" is the subjunctive of "interdice".
+"interdicano" is the plural of "interdica".
+"interdiciamo" is the first person of "interdicano".
+"interdicesse" is the past subjunctive of "interdice".
+"interdicessero" is the plural of "interdicesse".
+"interdicessimo" is the first person of "interdicessero".
+"interdicessi" is the first person of "interdicesse".
+"interdicessi" is the second person of "interdicesse".
+"interdi'" is the imperative of "interdice".
+"interdire" is the negative imperative of "interdice".
+"interdite" is the imperative of "interdicono".
+"interdetto" is the participle of "interdice".
+"interdetta" is the participle of "interdice".
+"interdetta" is feminine.
+"interdetti" is the participle of "interdice".
+"interdetti" is the plural of "interdetto".
+"interdette" is the participle of "interdice".
+"interdette" is feminine.
+"interdette" is the plural of "interdetta".
+"interdire" is the infinitive of "interdice".
+"interdicendo" is the gerund of "interdice".
+The verb "penalizza" means "penalises".
+"penalizzano" is the plural of "penalizza".
+"penalizziamo" is the first person of "penalizzano".
+"penalizzo" is the first person of "penalizza".
+"penalizzi" is the second person of "penalizza".
+"penalizzò" is the past of "penalizza".
+"penalizzarono" is the past of "penalizzano".
+"penalizzammo" is the first person of "penalizzarono".
+"penalizzai" is the first person of "penalizzò".
+"penalizzasti" is the second person of "penalizzò".
+"penalizzava" is the past of "penalizza".
+"penalizzavano" is the past of "penalizzano".
+"penalizzavamo" is the first person of "penalizzavano".
+"penalizzavo" is the first person of "penalizzava".
+"penalizzavi" is the second person of "penalizzava".
+"penalizzerà" is the future of "penalizza".
+"penalizzeranno" is the plural of "penalizzerà".
+"penalizzeremo" is the first person of "penalizzeranno".
+"penalizzerò" is the first person of "penalizzerà".
+"penalizzerai" is the second person of "penalizzerà".
+"penalizzerebbe" is the conditional of "penalizza".
+"penalizzerebbero" is the plural of "penalizzerebbe".
+"penalizzeremmo" is the first person of "penalizzerebbero".
+"penalizzerei" is the first person of "penalizzerebbe".
+"penalizzeresti" is the second person of "penalizzerebbe".
+"penalizzi" is the subjunctive of "penalizza".
+"penalizzino" is the plural of "penalizzi".
+"penalizziamo" is the first person of "penalizzino".
+"penalizzasse" is the past subjunctive of "penalizza".
+"penalizzassero" is the plural of "penalizzasse".
+"penalizzassimo" is the first person of "penalizzassero".
+"penalizzassi" is the first person of "penalizzasse".
+"penalizzassi" is the second person of "penalizzasse".
+"penalizza" is the imperative of "penalizza".
+"penalizzare" is the negative imperative of "penalizza".
+"penalizzate" is the imperative of "penalizzano".
+"penalizzato" is the participle of "penalizza".
+"penalizzata" is the participle of "penalizza".
+"penalizzata" is feminine.
+"penalizzati" is the participle of "penalizza".
+"penalizzati" is the plural of "penalizzato".
+"penalizzate" is the participle of "penalizza".
+"penalizzate" is feminine.
+"penalizzate" is the plural of "penalizzata".
+"penalizzare" is the infinitive of "penalizza".
+"penalizzando" is the gerund of "penalizza".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -90653,10 +90980,6 @@ The verb "vola" means "flies".
 The verb "centra" means "focuss".
 "focussed" is the past of "focuss".
 "focussing" is the gerund of "focuss".
-The verb "proibisce" means "forbids".
-"forbade" is the past of "forbids".
-"forbidden" is the participle of "forbids".
-"forbidding" is the gerund of "forbids".
 The verb "fortifica" means "fortifies".
 The verb "libera" means "frees".
 The verb "rinfresca" means "freshens".
@@ -106835,6 +107158,20 @@ The feminine adjective "palermitana" means "palermitan".
 "palermitanissimi" is the superlative of "palermitani".
 "palermitanissima" is the superlative of "palermitana".
 "palermitanissime" is the superlative of "palermitane".
+The masculine adjective "ameno" means "pleasant".
+"ameni" is the plural of "ameno".
+The feminine adjective "amena" means "pleasant".
+"amene" is the plural of "amena".
+"amenissimo" is the superlative of "ameno".
+"amenissimi" is the superlative of "ameni".
+"amenissima" is the superlative of "amena".
+"amenissime" is the superlative of "amene".
+The adjective "canicolare" means "canicular".
+"canicolari" is the plural of "canicolare".
+"canicolarissimo" is the superlative of "canicolare".
+"canicolarissimi" is the superlative of "canicolari".
+"canicolarissima" is the superlative of "canicolare".
+"canicolarissime" is the superlative of "canicolari".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

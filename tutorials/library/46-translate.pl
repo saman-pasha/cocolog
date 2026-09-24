@@ -355,6 +355,7 @@ main :-
     section_27,
     section_28,
     section_29,
+    section_30,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -1335,6 +1336,97 @@ The preposition "di" means "of". The preposition "in" means "in". The prepositio
 The preposition "durante" means "during". The preposition "fino a" means "until".
 The preposition "da" means "by". The preposition "per" means "for".
 "sold" is the participle of "sells".').
+
+section_30 :-
+    format("~n30. An Italian report into Spanish: a list of islands, a clause between dashes, a participle after a comma~n", []),
+    lesson_30(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the report''s shapes, under its own name', NI),
+    lesson_30(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('I cani si chiamano Giglio, Eolie, Ustica e Ponza.', italian, spanish, S30a),
+    must('a LIST OF NAMES, one of which the lesson knows as a noun', S30a, 'Los perros se llaman Giglio, Eolie, Ustica y Ponza.'),
+    reason_translate('I cani sono vietati se non per sempre quantomeno per un giorno.', italian, spanish, S30b),
+    must('IF NOT for ever, at least for a day: a connector and the adjunct it denies',
+         S30b, 'Los perros son prohibidos si no para siempre al menos para un día.'),
+    reason_translate('Grandi case dove i cani, i gatti e i topi sono vietati.', italian, spanish, S30c),
+    must('a sentence that is ONE PHRASE AND A CLAUSE opened by where, a list at its head',
+         S30c, 'Grandes casas donde los perros, los gatos y los ratones son prohibidos.'),
+    reason_translate('Il cane vede le più grandi Eolie.', italian, spanish, S30d),
+    must('a SUPERLATIVE between the article and a name', S30d, 'El perro ve las Eolie más grandes.'),
+    reason_translate('Il pane è vietato dal 24 luglio al 25 agosto.', italian, spanish, S30e),
+    must('a RANGE OF DAYS after a passive is when, and nobody''s agent',
+         S30e, 'El pan es prohibido desde el 24 de julio al 25 de agosto.'),
+    reason_translate('Il cane vede le Eolie, vietate al traffico, e l''isola di Ustica "vietata" dal 4 al 24 agosto.', italian, spanish, S30f),
+    must('a PARTICIPLE AFTER A COMMA is the phrase''s, and one after a name agrees and keeps its marks',
+         S30f, 'El perro ve las Eolie, prohibidas al tráfico, y la isla de Ustica "prohibida" desde el 4 al 24 de agosto.'),
+    reason_translate('La casa - dove i cani sono vietati - è grande.', italian, spanish, S30g),
+    must('a CLAUSE BETWEEN TWO DASHES that opens on where', S30g, 'La casa – donde los perros son prohibidos – es grande.'),
+    reason_translate('Dormono nella casa soltanto quelli che mangiano il pane.', italian, english, S30h),
+    must('an intransitive verb''s SUBJECT AFTER ITS ADJUNCTS, with its relative clause',
+         S30h, 'Those that eat the bread sleep in the house only.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_30(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la". The masculine article "un" means "a".
+"l''" is the elision of "la". "al" is the contraction of "a il". "dal" is the contraction of "da il".
+"nella" is the contraction of "in la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "topo" means "mouse". "topi" is the plural of "topo".
+The noun "pane" means "bread". The noun "casa" means "house". "case" is the plural of "casa".
+The noun "isola" means "island". The noun "giglio" means "lily". The noun "traffico" means "traffic".
+The noun "giorno" means "day".
+The noun "luglio" means "july". "luglio" is a month. The noun "agosto" means "august". "agosto" is a month.
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". The verb "vede" means "sees".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dorme" is intransitive.
+The verb "chiama" means "calls". "chiamano" is the plural of "chiama".
+The verb "vieta" means "forbids". "vietato" is the participle of "vieta".
+"vietata" is the participle of "vieta". "vietata" is feminine.
+"vietati" is the participle of "vieta". "vietati" is the plural of "vietato".
+"vietate" is the participle of "vieta". "vietate" is the plural of "vietata". "vietate" is feminine.
+The verb "è" means "is". "sono" is the plural of "è".
+The reflexive pronoun "si" means "itself".
+The masculine pronoun "quello" means "that". "quelli" is the plural of "quello". The pronoun "quello" does not precede the verb.
+"che" is a relative. The conjunction "e" means "and".
+The conjunction "se" means "if". The word "dove" means "where".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "da" means "from". The preposition "da" means "by". The preposition "per" means "for".
+The adverb "più" means "more". The word "più" begins the comparative.
+The adverb "sempre" means "always". The adverb "quantomeno" means "at least". The adverb "soltanto" means "only".
+The word "non" means "not".').
+lesson_30(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la". The masculine article "un" means "a".
+"al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "ratón" means "mouse". "ratones" is the plural of "ratón".
+The noun "pan" means "bread". The noun "casa" means "house". The noun "isla" means "island".
+The noun "lirio" means "lily". The noun "tráfico" means "traffic". The noun "día" means "day". "día" is not feminine.
+The noun "julio" means "july". "julio" is a month. The noun "agosto" means "august". "agosto" is a month.
+The word "de" joins the date.
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+The verb "come" means "eats". "comen" is the plural of "come". The verb "ve" means "sees".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "llama" means "calls". "llaman" is the plural of "llama".
+The verb "prohíbe" means "forbids". "prohibido" is the participle of "prohíbe".
+"prohibida" is the participle of "prohíbe". "prohibida" is feminine.
+"prohibidos" is the participle of "prohíbe". "prohibidos" is the plural of "prohibido".
+"prohibidas" is the participle of "prohíbe". "prohibidas" is the plural of "prohibida". "prohibidas" is feminine.
+The verb "es" means "is". "son" is the plural of "es".
+The reflexive pronoun "se" means "itself".
+The masculine pronoun "aquél" means "that". "aquéllos" is the plural of "aquél". The pronoun "aquél" does not precede the verb.
+"que" is a relative. The conjunction "y" means "and".
+The conjunction "si" means "if". The conjunction "donde" means "where". The word "dónde" means "where".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "desde" means "from". The preposition "por" means "by". The preposition "para" means "for".
+The adverb "más" means "more". The word "más" begins the comparative.
+The adverb "siempre" means "always". The adverb "al menos" means "at least". The adverb "sólo" means "only".
+The word "no" means "not".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

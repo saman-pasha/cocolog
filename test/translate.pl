@@ -25,7 +25,7 @@ main :-
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
-    newspaper_monreale, newspaper_record, questions, rules, refusals, outline, vocabulary, shapes, build,
+    newspaper_monreale, newspaper_record, newspaper_islands, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -3475,6 +3475,152 @@ newspaper_record_checks :-
     %% a GUARD: with a singular verb the word is still the impersonal one
     nf_tr('Se vende el pan.', spanish, italian, R18),
     check('a GUARD: with a singular verb se is still the impersonal word', R18, 'Si vende il pane.').
+
+%% ---- an Italian report on traffic banned from the islands, into Spanish ------------------
+
+newspaper_islands :-
+    section('an Italian report into Spanish: a list of islands, a clause between dashes, a participle after a comma, a range of days'),
+    newspaper_islands_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_islands_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_islands_checks,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_islands_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+"al" is the contraction of "a il". "dal" is the contraction of "da il". "del" is the contraction of "di il".
+"nella" is the contraction of "in la". "dei" is the contraction of "di i".
+"della" is the contraction of "di la". "dell''" is the elision of "della".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "topo" means "mouse". "topi" is the plural of "topo".
+The noun "pane" means "bread". The noun "casa" means "house". "case" is the plural of "casa".
+The noun "isola" means "island". "isole" is the plural of "isola".
+The noun "giglio" means "lily". The noun "traffico" means "traffic". The noun "giorno" means "day".
+The noun "ambiente" means "environment". The noun "responsabile" means "manager".
+The masculine noun "lavoro pubblico" means "public work". "lavori pubblici" is the plural of "lavoro pubblico".
+The noun "luglio" means "july". "luglio" is a month. The noun "agosto" means "august". "agosto" is a month.
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dorme" is intransitive.
+The intransitive verb "firma" means "signs".
+The verb "isola" means "isolates".
+The verb "chiama" means "calls". "chiamano" is the plural of "chiama".
+The verb "vieta" means "forbids". "vietato" is the participle of "vieta".
+"vietata" is the participle of "vieta". "vietata" is feminine.
+"vietati" is the participle of "vieta". "vietati" is the plural of "vietato".
+"vietate" is the participle of "vieta". "vietate" is the plural of "vietata". "vietate" is feminine.
+The verb "è" means "is". "sono" is the plural of "è". "è" is the auxiliary of "è".
+The reflexive pronoun "si" means "itself".
+The masculine pronoun "quello" means "that". "quelli" is the plural of "quello". The pronoun "quello" does not precede the verb.
+"che" is a relative. The conjunction "che" means "that". The conjunction "e" means "and".
+The conjunction "se" means "if". The word "dove" means "where".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "da" means "from". The preposition "da" means "by". The preposition "per" means "for".
+The preposition "così come" means "just like".
+The adverb "più" means "more". The word "più" begins the comparative.
+The adverb "sempre" means "always". The adverb "quantomeno" means "at least". The adverb "soltanto" means "only".
+The word "non" means "not".').
+newspaper_islands_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "ratón" means "mouse". "ratones" is the plural of "ratón".
+The noun "pan" means "bread". The noun "casa" means "house". The noun "isla" means "island".
+The noun "lirio" means "lily". The noun "tráfico" means "traffic". The noun "día" means "day". "día" is not feminine.
+The noun "entorno" means "environment". The noun "director" means "manager". "directores" is the plural of "director".
+The feminine noun "obra pública" means "public work". "obras públicas" is the plural of "obra pública".
+The noun "julio" means "july". "julio" is a month. The noun "agosto" means "august". "agosto" is a month.
+The word "de" joins the date.
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+The verb "come" means "eats". "comen" is the plural of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "firma" means "signs".
+The verb "aísla" means "isolates".
+The verb "llama" means "calls". "llaman" is the plural of "llama".
+The verb "prohíbe" means "forbids". "prohibido" is the participle of "prohíbe".
+"prohibida" is the participle of "prohíbe". "prohibida" is feminine.
+"prohibidos" is the participle of "prohíbe". "prohibidos" is the plural of "prohibido".
+"prohibidas" is the participle of "prohíbe". "prohibidas" is the plural of "prohibida". "prohibidas" is feminine.
+The verb "es" means "is". "son" is the plural of "es". "ha" is the auxiliary of "es".
+The reflexive pronoun "se" means "itself".
+The masculine pronoun "aquél" means "that". "aquéllos" is the plural of "aquél". The pronoun "aquél" does not precede the verb.
+"que" is a relative. The conjunction "que" means "that". The conjunction "y" means "and".
+The conjunction "si" means "if". The conjunction "donde" means "where". The word "dónde" means "where".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "desde" means "from". The preposition "por" means "by". The preposition "para" means "for".
+The preposition "así como" means "just like".
+The adverb "más" means "more". The word "más" begins the comparative.
+The adverb "siempre" means "always". The adverb "al menos" means "at least". The adverb "sólo" means "only".
+The word "no" means "not".').
+
+newspaper_islands_checks :-
+    %% a list of names, one of which the lesson knows as a noun
+    nf_tr('I cani si chiamano Giglio, Eolie, Ustica e Ponza.', italian, spanish, I1),
+    check('a name the lesson knows as a noun, in a list of names, is no noun with a name apposed to it', I1,
+          'Los perros se llaman Giglio, Eolie, Ustica y Ponza.'),
+    %% `se non ... quantomeno ...'
+    nf_tr('I cani sono vietati se non per sempre quantomeno per un giorno.', italian, spanish, I2),
+    check('if not for ever, at least for a day: the connector and the denied adjunct after it', I2,
+          'Los perros son prohibidos si no para siempre al menos para un día.'),
+    reason_ir('I cani sono vietati se non per sempre quantomeno per un giorno.', italian, [ir(s(_, _, _, I2c), _)]),
+    ( I2c = [I2a, I2b|_] -> true ; I2a = none, I2b = none ),
+    check('... and in the IR the connector is no phrase''s noun, and the denial is the adjunct''s', I2a-I2b,
+          cnj(w(if, lower))-neg(pp(w(for, lower), adv(w(always, lower))))),
+    %% a sentence that is one phrase and the clause `dove' opens
+    nf_tr('Grandi case dove i cani sono vietati.', italian, spanish, I3),
+    check('a sentence that is a phrase and a clause opened by where', I3, 'Grandes casas donde los perros son prohibidos.'),
+    nf_tr('Grandi case dove i cani, i gatti e i topi sono vietati.', italian, spanish, I4),
+    check('... and a list at the head of that clause is its subject, commas and all', I4,
+          'Grandes casas donde los perros, los gatos y los ratones son prohibidos.'),
+    %% adjectives between the article and a name
+    nf_tr('Il cane vede le grandi Eolie.', italian, spanish, I5),
+    check('an adjective between the article and a name', I5, 'El perro ve las grandes Eolie.'),
+    nf_tr('Il cane vede le più grandi Eolie.', italian, spanish, I5b),
+    check('... and a superlative there, agreeing with the gender the article lends the name', I5b,
+          'El perro ve las Eolie más grandes.'),
+    %% a range of days is nobody's agent
+    nf_tr('Il pane è vietato dal 24 luglio al 25 agosto.', italian, spanish, I6),
+    check('a range of days after a passive is when, and not who: `por el 24 de julio'' before', I6,
+          'El pan es prohibido desde el 24 de julio al 25 de agosto.'),
+    nf_tr('Il cane vede la casa vietata dal 4 al 24 agosto.', italian, spanish, I7),
+    check('... and after a participle standing after its noun', I7,
+          'El perro ve la casa prohibida desde el 4 al 24 de agosto.'),
+    nf_tr('Il cane vede l''isola di Ustica "vietata" dal 4 al 24 agosto.', italian, spanish, I8),
+    check('a participle after a name agrees with its own gender, and keeps its quotation marks', I8,
+          'El perro ve la isla de Ustica "prohibida" desde el 4 al 24 de agosto.'),
+    %% a participle after a comma is the phrase's aside
+    nf_tr('Il cane vede le Eolie, vietate al traffico, e l''isola di Ustica.', italian, spanish, I9),
+    check('a participle after a comma is the phrase''s, and the phrase after the next comma is joined to it', I9,
+          'El perro ve las Eolie, prohibidas al tráfico, y la isla de Ustica.'),
+    %% a clause between two dashes
+    nf_tr('La casa - dove i cani sono vietati - è grande.', italian, spanish, I10),
+    check('a clause between two dashes that opens on where is the phrase''s', I10,
+          'La casa – donde los perros son prohibidos – es grande.'),
+    %% a connector at the head keeps the sentence's commas
+    nf_tr('E il cane vede le Eolie, vietate al traffico, e l''isola di Ustica.', italian, spanish, I11),
+    check('a connector at the head is read before any division, with the commas after it', I11,
+          'Y el perro ve las Eolie, prohibidas al tráfico, y la isla de Ustica.'),
+    %% an intransitive verb, its adjuncts, and a subject with its relative clause after them
+    nf_tr('Dormono nella casa soltanto quelli che mangiano il pane.', italian, english, I12),
+    check('an intransitive verb''s subject after its adjuncts carries its relative clause', I12,
+          'Those that eat the bread sleep in the house only.'),
+    %% two `di' phrases joined in a subject after its verb
+    nf_tr('Firma il responsabile dell''ambiente e dei lavori pubblici, Paolo Baratta, e i cani dormono.', italian, english, I13),
+    check('a subject after its verb takes two of-phrases joined, and the name after them', I13,
+          'The manager of the environment and of the public works, Paolo Baratta, signs and the dogs sleep.'),
+    nf_tr('Firma il responsabile dell''ambiente e dei lavori pubblici, Paolo Baratta, e i cani dormono.', italian, spanish, I13b),
+    check('... and Spanish keeps it in the source''s order', I13b,
+          'Firma el director del entorno y de las obras públicas, Paolo Baratta, y los perros duermen.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

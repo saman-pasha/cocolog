@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20214 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20216 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -176,6 +176,8 @@ The feminine pronoun "alguna" means "some".
 "algunas" is the plural of "alguna".
 The pronoun "alguno" does not precede the verb.
 The pronoun "alguna" does not precede the verb.
+The masculine determiner "algún" means "some".
+"algunos" is the plural of "algún".
 "fabricante" is a person.
 "constructor" is a person.
 "intérprete" is a person.
@@ -304,6 +306,29 @@ The adverb "a largo plazo" means "in the long term".
 The adverb "a corto-medio plazo" means "in the short to medium term".
 The adverb "unos" means "about".
 The adverb "unas" means "about".
+The adverb "al menos" means "at least".
+The adverb "de salida" means "leaving".
+The adverb "de más" means "extra".
+The adjective "off limits" means "off limits".
+The adjective "antiatascos" means "anti-jam".
+The preposition "así como" means "just like".
+The conjunction "no es que" means "not that".
+The feminine noun "obra pública" means "public work".
+"obras públicas" is the plural of "obra pública".
+The masculine noun "vehículo de motor" means "motor vehicle".
+"vehículos de motor" is the plural of "vehículo de motor".
+The masculine noun "no residente" means "non-resident".
+"no residentes" is the plural of "no residente".
+The feminine noun "vida civil" means "civil life".
+The feminine noun "tranquilidad" means "tranquillity".
+The feminine noun "franja" means "strip".
+"vacaciones" is the plural of "vacaciones".
+"vacaciones" is feminine.
+The masculine adjective "martirizado" means "martyred".
+The feminine adjective "martirizada" means "martyred".
+"martirizados" is the plural of "martirizado".
+"martirizadas" is the plural of "martirizada".
+The number "ciento treinta mil" means "a hundred and thirty thousand".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -365,6 +390,9 @@ The masculine noun "tribunal" means "tribunal".
 "tribunales" is the plural of "tribunal".
 The feminine noun "ralentización" means "slowdown".
 "ralentizaciones" is the plural of "ralentización".
+The noun "excursionista" means "excursionist".
+"excursionista" is not feminine.
+"excursionistas" is the plural of "excursionista".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -118798,6 +118826,8 @@ The masculine adjective "discográfico" means "discographic".
 "discográficos" is the plural of "discográfico".
 The feminine adjective "discográfica" means "discographic".
 "discográficas" is the plural of "discográfica".
+The adjective "canicular" means "canicular".
+"caniculares" is the plural of "canicular".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

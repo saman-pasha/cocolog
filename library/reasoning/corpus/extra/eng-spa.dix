@@ -108,3 +108,8 @@
 # English here
 <e><p><l>discographic<s n="adj"/></l><r>discográfico<s n="adj"/></r></p></e>
 <e><p><l>slowdown<s n="n"/></l><r>ralentización<s n="n"/><s n="f"/></r></p></e>
+# the island-traffic article (Italian UD, VIT-9472..9484), into Spanish:
+# `canicular' and `excursionista' have paradigms in apertium-spa and no
+# English here
+<e><p><l>canicular<s n="adj"/></l><r>canicular<s n="adj"/></r></p></e>
+<e><p><l>excursionist<s n="n"/></l><r>excursionista<s n="n"/><s n="mf"/></r></p></e>

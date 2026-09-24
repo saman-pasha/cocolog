@@ -209,6 +209,11 @@ The feminine pronoun "alguna" means "some".
 "algunas" is the plural of "alguna".
 The pronoun "alguno" does not precede the verb.
 The pronoun "alguna" does not precede the verb.
+# ... and `algún' before a masculine noun: the dictionary gives `un' for
+# `some' first, so `per qualche giorno' came out `para un día' where the
+# feminine is `alguna bocanada'
+The masculine determiner "algún" means "some".
+"algunos" is the plural of "algún".
 # `distinguen a los principales fabricantes': the word before a person
 # marks the object, and a maker is a person
 "fabricante" is a person.
@@ -437,3 +442,29 @@ The adverb "a corto-medio plazo" means "in the short to medium term".
 # says the count is rough
 The adverb "unos" means "about".
 The adverb "unas" means "about".
+# the island-traffic article (Italian UD, VIT-9472..9484), into Spanish: the
+# words of several words the Italian has, and the dictionary's spellings the
+# other side's English does not share (`tranquillity')
+The adverb "al menos" means "at least".
+The adverb "de salida" means "leaving".
+The adverb "de más" means "extra".
+The adjective "off limits" means "off limits".
+The adjective "antiatascos" means "anti-jam".
+The preposition "así como" means "just like".
+The conjunction "no es que" means "not that".
+The feminine noun "obra pública" means "public work".
+"obras públicas" is the plural of "obra pública".
+The masculine noun "vehículo de motor" means "motor vehicle".
+"vehículos de motor" is the plural of "vehículo de motor".
+The masculine noun "no residente" means "non-resident".
+"no residentes" is the plural of "no residente".
+The feminine noun "vida civil" means "civil life".
+The feminine noun "tranquilidad" means "tranquillity".
+The feminine noun "franja" means "strip".
+"vacaciones" is the plural of "vacaciones".
+"vacaciones" is feminine.
+The masculine adjective "martirizado" means "martyred".
+The feminine adjective "martirizada" means "martyred".
+"martirizados" is the plural of "martirizado".
+"martirizadas" is the plural of "martirizada".
+The number "ciento treinta mil" means "a hundred and thirty thousand".
