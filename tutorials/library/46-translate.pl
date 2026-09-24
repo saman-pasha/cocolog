@@ -353,6 +353,7 @@ main :-
     section_25,
     section_26,
     section_27,
+    section_28,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -1152,6 +1153,110 @@ The noun "smania" means "eagerness".
 "ai" is the contraction of "a i". "dell''" is the elision of "del".
 The preposition "come" means "like". The word "come" means "as".
 The word "non" means "not".').
+
+%% AN ITALIAN REPORT INTO SPANISH, THE MONREALE ARTICLE (1.8.2): a
+%% headline's command in the plural, a title before a name, a subject after
+%% its modal and its adjuncts, a cleft, an absolute superlative, the
+%% conditional perfect and an aside between the subject and its verb. The
+%% lesson says each of them in a shape it already had: `"mangiate" is the
+%% imperative of "mangiano".', `"monsignore" is a title.', `"finisce" is
+%% intransitive.', `The word "a" begins the cleft.', `"pesantissimi" is the
+%% superlative of "pesanti".' and `"avrebbe" is the conditional of "ha".'
+section_28 :-
+    format("~n28. An Italian report into Spanish: a command, a title, a subject after its verb, a cleft~n", []),
+    lesson_28(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the report''s shapes, under its own name', NI),
+    lesson_28(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('"Mangiate il pane".', italian, spanish, S28a),
+    must('the PLURAL IMPERATIVE, stated of the plural form', S28a, '"Comed el pan".'),
+    reason_translate('Non mangiate il pane.', italian, spanish, S28b),
+    must('and its denial: Italian''s is the plural itself, Spanish''s a form of its own', S28b, 'No comáis el pan.'),
+    reason_translate('Deve finire in tribunale il vescovo di Monreale monsignor Salvatore Cassisa.', italian, spanish, S28c),
+    must('a SUBJECT AFTER ITS MODAL and its adjuncts, with a TITLE before a name apposed to it',
+         S28c, 'Debe acabar ante los tribunales el obispo de Monreale monseñor Salvatore Cassisa.'),
+    reason_translate('Deve finire in tribunale il vescovo di Monreale monsignor Salvatore Cassisa.', italian, english, S28d),
+    must('English puts that subject first and capitalises the title',
+         S28d, 'The bishop of Monreale Monsignor Salvatore Cassisa must end up in court.'),
+    reason_translate('A chiederlo è la procura che vuole il pane, il gatto e il cane.', italian, spanish, S28e),
+    must('a CLEFT: what is done, the copula, and who does it',
+         S28e, 'Lo pide la fiscalía que quiere el pan, el gato y el perro.'),
+    reason_translate('Il cane mangia i pani pesantissimi.', italian, spanish, S28f),
+    must('an ABSOLUTE SUPERLATIVE is the word for very and the plain form', S28f, 'El perro come los panes muy pesados.'),
+    reason_translate('Il cane, secondo il gatto, avrebbe mangiato il pane.', italian, english, S28g),
+    must('the CONDITIONAL PERFECT, and an ASIDE between the subject and its verb',
+         S28g, 'The dog, according to the cat, would have eaten the bread.'),
+    reason_translate('Il cane, secondo il gatto, avrebbe mangiato il pane.', italian, spanish, S28h),
+    must('and into Spanish', S28h, 'El perro, según el gato, habría comido el pan.'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_28(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+"l''" is the elision of "il". "l''" is the elision of "la".
+"al" is the contraction of "a il". "del" is the contraction of "di il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat".
+The noun "pane" means "bread". "pani" is the plural of "pane".
+The noun "vescovo" means "bishop". "vescovo" is a person.
+The noun "procura" means "prosecution".
+The noun "monsignore" means "monsignor". "monsignor" is the apocope of "monsignore". "monsignore" is a title.
+The adjective "pesante" means "heavy". "pesanti" is the plural of "pesante".
+"pesantissimo" is the superlative of "pesante". "pesantissimi" is the superlative of "pesanti".
+The adverb "molto" means "very".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+"mangiato" is the participle of "mangia".
+"mangiata" is the participle of "mangia". "mangiata" is feminine.
+"mangiate" is the participle of "mangia". "mangiate" is feminine. "mangiate" is the plural of "mangiata".
+"mangia" is the imperative of "mangia". "mangiare" is the negative imperative of "mangia".
+"mangiate" is the imperative of "mangiano".
+The verb "vuole" means "wants". "vogliono" is the plural of "vuole".
+The verb "chiede" means "asks". "chiedere" is the infinitive of "chiede".
+The intransitive verb "finisce" means "ends up". "finire" is the infinitive of "finisce".
+The modal "deve" means "must".
+The verb "è" means "is". "sono" is the plural of "è". "stato" is the participle of "è".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "avrebbe" is the conditional of "ha".
+The pronoun "lo" means "it". Every pronoun precedes the verb.
+"che" is a relative. The conjunction "che" means "that". The conjunction "e" means "and".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "secondo" means "according to".
+The adverb "in tribunale" means "in court".
+The word "a" begins the cleft.
+"ate" is the past of "eats". "eaten" is the participle of "eats".
+The word "non" means "not".').
+lesson_28(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "obispo" means "bishop". "obispo" is a person.
+The noun "fiscalía" means "prosecution".
+The noun "monseñor" means "monsignor". "monseñor" is a title.
+The adjective "pesado" means "heavy". "pesados" is the plural of "pesado".
+The adverb "muy" means "very".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+"comido" is the participle of "come".
+"come" is the imperative of "come". "comas" is the negative imperative of "come".
+"comed" is the imperative of "comen". "comáis" is the negative imperative of "comen".
+The verb "quiere" means "wants". "quieren" is the plural of "quiere".
+The verb "pide" means "asks".
+The intransitive verb "acaba" means "ends up". "acabar" is the infinitive of "acaba".
+The modal "debe" means "must".
+The verb "es" means "is". "son" is the plural of "es". "sido" is the participle of "es".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "habría" is the conditional of "ha".
+"ha" is the auxiliary of "es".
+The pronoun "lo" means "it". Every pronoun precedes the verb.
+"que" is a relative. The conjunction "que" means "that". The conjunction "y" means "and".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "según" means "according to".
+The adverb "ante los tribunales" means "in court".
+The word "a" precedes the person.
+"ate" is the past of "eats". "eaten" is the participle of "eats".
+The word "no" means "not".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

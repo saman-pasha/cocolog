@@ -24,7 +24,8 @@ main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
-    adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football, questions, rules, refusals, outline, vocabulary, shapes, build,
+    adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
+    newspaper_monreale, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -1233,14 +1234,19 @@ The adjective "grande" means "big".
 The preposition "da" means "by".
 Every adjective follows the noun.', italian, _),
 
+    %% (English puts a bare participle BEFORE its noun since 1.8.2; this
+    %% pinned `The house imposed dominates.', and both are read)
     reason_translate('La casa imposta domina.', italian, english, D1),
-    check('a participle after the noun is a reduced relative', D1, 'The house imposed dominates.'),
+    check('a participle after the noun is a reduced relative, before the noun in English', D1, 'The imposed house dominates.'),
+
+    reason_translate('The imposed house dominates.', english, italian, D1b),
+    check('and English reads it there', D1b, 'La casa imposta domina.'),
 
     reason_translate('The house imposed dominates.', english, italian, D2),
     check('and back, THE PARTICIPLE AGREEING with its own noun', D2, 'La casa imposta domina.'),
 
     reason_translate('Il pane imposto domina.', italian, english, D3),
-    check('a masculine noun takes the other form', D3, 'The bread imposed dominates.'),
+    check('a masculine noun takes the other form', D3, 'The imposed bread dominates.'),
 
     reason_translate('La casa imposta da i soldati domina.', italian, english, D4),
     check('with its AGENT, which stays inside the phrase rather than hanging on the sentence''s verb', D4,
@@ -3121,6 +3127,187 @@ newspaper_football_checks :-
     nf_tr('Il cane ha detto al gatto di mangiare il pane.', italian, spanish, G30),
     check('a word the lesson says begins the infinitive is not the phrase''s before it', G30,
           'El perro ha dicho al gato comer el pan.').
+
+%% ---- an Italian report into Spanish: a court, a title and a cleft (1.8.2) ----------------
+
+%% the Monreale article, Italian UD VIT-9465..9470: a headline's command, a
+%% place before a comma, a title before a name, a subject after its modal
+%% and its adjuncts, a cleft, an absolute superlative, the conditional
+%% perfect and an aside between the subject and its verb. Every check but
+%% the four marked GUARD fails on the 1.8.1 translator.
+newspaper_monreale :-
+    section('an Italian report into Spanish: a command, a title, a subject after its verb, a cleft'),
+    newspaper_monreale_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_monreale_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_monreale_checks,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+newspaper_monreale_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+"l''" is the elision of "il". "l''" is the elision of "la".
+"al" is the contraction of "a il". "del" is the contraction of "di il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat".
+The noun "pane" means "bread". "pani" is the plural of "pane".
+The noun "vescovo" means "bishop". "vescovo" is a person.
+The noun "procura" means "prosecution".
+The noun "monsignore" means "monsignor". "monsignor" is the apocope of "monsignore". "monsignore" is a title.
+The adjective "pesante" means "heavy". "pesanti" is the plural of "pesante".
+"pesantissimo" is the superlative of "pesante". "pesantissimi" is the superlative of "pesanti".
+The adverb "molto" means "very".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+"mangiato" is the participle of "mangia".
+"mangiata" is the participle of "mangia". "mangiata" is feminine.
+"mangiate" is the participle of "mangia". "mangiate" is feminine. "mangiate" is the plural of "mangiata".
+"mangia" is the imperative of "mangia". "mangiare" is the negative imperative of "mangia".
+"mangiate" is the imperative of "mangiano".
+"mangiati" is the participle of "mangia". "mangiati" is the plural of "mangiato".
+The verb "gioca" means "plays". "giocano" is the plural of "gioca".
+The verb "ordina" means "orders". "ordinato" is the participle of "ordina".
+"ordinati" is the participle of "ordina". "ordinati" is the plural of "ordinato".
+The verb "vuole" means "wants". "vogliono" is the plural of "vuole".
+The verb "chiede" means "asks". "chiedere" is the infinitive of "chiede".
+The intransitive verb "finisce" means "ends up". "finire" is the infinitive of "finisce".
+The modal "deve" means "must".
+The verb "gonfia" means "inflates". "gonfiato" is the participle of "gonfia".
+The verb "è" means "is". "sono" is the plural of "è". "stato" is the participle of "è". "sarà" is the future of "è".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "avrebbe" is the conditional of "ha".
+The pronoun "lo" means "it". Every pronoun precedes the verb.
+"che" is a relative. The conjunction "che" means "that". The conjunction "e" means "and".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "secondo" means "according to".
+"ate" is the past of "eats". "eaten" is the participle of "eats".
+The adverb "in tribunale" means "in court".
+The word "a" begins the cleft.
+The word "non" means "not".').
+newspaper_monreale_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "obispo" means "bishop". "obispo" is a person.
+The noun "fiscalía" means "prosecution".
+The noun "monseñor" means "monsignor". "monseñor" is a title.
+The adjective "pesado" means "heavy". "pesados" is the plural of "pesado".
+The adverb "muy" means "very".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+"comido" is the participle of "come".
+"come" is the imperative of "come". "comas" is the negative imperative of "come".
+"comed" is the imperative of "comen". "comáis" is the negative imperative of "comen".
+"comidos" is the participle of "come". "comidos" is the plural of "comido".
+The verb "juega" means "plays". "juegan" is the plural of "juega".
+The verb "ordena" means "orders". "ordenado" is the participle of "ordena".
+"ordenados" is the participle of "ordena". "ordenados" is the plural of "ordenado".
+The adjective "ordenado" means "orderly".
+The adjective "contento" means "happy". The adjective "gracioso" means "funny".
+"graciosísimo" is the superlative of "gracioso".
+The verb "quiere" means "wants". "quieren" is the plural of "quiere".
+The verb "pide" means "asks".
+The intransitive verb "acaba" means "ends up". "acabar" is the infinitive of "acaba".
+The modal "debe" means "must".
+The verb "hincha" means "inflates". "hinchado" is the participle of "hincha".
+The verb "es" means "is". "son" is the plural of "es". "sido" is the participle of "es".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "habría" is the conditional of "ha".
+"ha" is the auxiliary of "es".
+The auxiliary "está" means "is". "estate" is the imperative of "está".
+The pronoun "lo" means "it". Every pronoun precedes the verb.
+"que" is a relative. The conjunction "que" means "that". The conjunction "y" means "and".
+"ate" is the past of "eats". "eaten" is the participle of "eats".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "según" means "according to".
+The adverb "ante los tribunales" means "in court".
+The word "a" precedes the person.
+The word "no" means "not".').
+
+newspaper_monreale_checks :-
+    %% a place before a comma at the head is a topic, not an object: no word
+    %% before a person in front of it
+    nf_tr('Monreale, i cani vogliono il pane.', italian, spanish, M1),
+    check('a place before a comma at the head is written as it is, never as an object', M1,
+          'Monreale, los perros quieren el pan.'),
+    %% the plural imperative, stated of the plural form
+    nf_tr('"Mangiate il pane".', italian, spanish, M2),
+    check('the plural imperative, where a plural participle agreed with a singular phrase', M2, '"Comed el pan".'),
+    nf_tr('Comed el pan.', spanish, italian, M3),
+    check('... and back', M3, 'Mangiate il pane.'),
+    nf_tr('Non mangiate il pane.', italian, spanish, M4),
+    check('Italian denies the plural with the plural itself; Spanish with its own form', M4, 'No comáis el pan.'),
+    nf_tr('"Mangiate il pane".', italian, english, M5),
+    check('... and English has one imperative for both', M5, '"Eat the bread".'),
+    %% a GUARD: the singular headline participle still reads
+    nf_tr('Mangiato il pane.', italian, spanish, M6),
+    check('a GUARD: a participle that agrees with the phrase after it is still a headline', M6,
+          'El pan ha sido comido.'),
+    %% the subject after an intransitive verb, its adjuncts before it
+    nf_tr('Finisce in tribunale il vescovo.', italian, spanish, M7),
+    check('an intransitive verb''s adjuncts, then its subject', M7, 'Acaba ante los tribunales el obispo.'),
+    nf_tr('Deve finire in tribunale il vescovo.', italian, spanish, M8),
+    check('... after a modal whose infinitive is intransitive', M8, 'Debe acabar ante los tribunales el obispo.'),
+    nf_tr('Deve finire in tribunale il vescovo.', italian, english, M9),
+    check('... the subject first in English, and a verb of two words inflects its first', M9,
+          'The bishop must end up in court.'),
+    %% a title before a name, apposed to the subject with its `di' phrase
+    nf_tr('Deve finire in tribunale il vescovo di Monreale monsignor Salvatore Cassisa.', italian, spanish, M10),
+    check('a title before a name, apposed to the subject and its of phrase', M10,
+          'Debe acabar ante los tribunales el obispo de Monreale monseñor Salvatore Cassisa.'),
+    nf_tr('Deve finire in tribunale il vescovo di Monreale monsignor Salvatore Cassisa.', italian, english, M11),
+    check('... and English capitalises the title', M11,
+          'The bishop of Monreale Monsignor Salvatore Cassisa must end up in court.'),
+    nf_tr('Monseñor Cassisa come el pan.', spanish, italian, M12),
+    check('... and Italian writes the title''s short form the lesson states', M12, 'Monsignor Cassisa mangia il pane.'),
+    %% the cleft
+    nf_tr('A mangiarlo è il cane.', italian, spanish, M13),
+    check('a cleft: what is done, the copula, who does it', M13, 'Lo come el perro.'),
+    nf_tr('A chiederlo è la procura che vuole il pane, il gatto e il cane.', italian, spanish, M14),
+    check('... with a relative clause whose list keeps its commas', M14,
+          'Lo pide la fiscalía que quiere el pan, el gato y el perro.'),
+    nf_tr('A mangiarlo è il cane.', italian, english, M14b),
+    check('... and English puts the subject first', M14b, 'The dog eats it.'),
+    %% the absolute superlative
+    nf_tr('Il cane mangia i pani pesantissimi.', italian, spanish, M15),
+    check('an absolute superlative is the word for very and the plain form', M15, 'El perro come los panes muy pesados.'),
+    nf_tr('Il cane mangia i pani pesantissimi.', italian, english, M16),
+    check('... in English too', M16, 'The dog eats the very heavy breads.'),
+    %% the conditional perfect
+    %% (a GUARD: 1.8.1 writes it too once the lesson states `habría'; the
+    %% vocabulary did not, and the fix is lines of corpus/extra/spanish.txt)
+    nf_tr('Il cane avrebbe mangiato il pane.', italian, spanish, M17),
+    check('a GUARD: the conditional perfect, the auxiliary''s conditional', M17, 'El perro habría comido el pan.'),
+    nf_tr('Il cane avrebbe mangiato il pane.', italian, english, M18),
+    check('... and English''s would have', M18, 'The dog would have eaten the bread.'),
+    nf_tr('Il pane sarà mangiato.', italian, english, M18b),
+    check('... and its passive in the future, will be', M18b, 'The bread will be eaten.'),
+    %% an aside between the subject and its verb
+    nf_tr('Il cane, secondo il gatto, ha mangiato il pane.', italian, spanish, M19),
+    check('an aside between the subject and its verb keeps its commas there', M19,
+          'El perro, según el gato, ha comido el pan.'),
+    nf_tr('Il cane, secondo il gatto, ha mangiato il pane.', italian, english, M19b),
+    check('... in English too', M19b, 'The dog, according to the cat, has eaten the bread.'),
+    %% a bare participle after its noun goes before it in English
+    nf_tr('Il cane mangia il pane gonfiato.', italian, english, M20),
+    check('a bare participle after its noun is written before it in English', M20, 'The dog eats the inflated bread.'),
+    %% three the controls found: an intensifier before a predicate adjective,
+    %% English's imperative of the copula, and (a GUARD: this version's first
+    %% cut refused it) a joined subject after a plural headline participle
+    nf_tr('El pan es muy gracioso.', spanish, english, M21),
+    check('an adverb before a predicate adjective is the adjective''s', M21, 'The bread is very funny.'),
+    nf_tr('El pan es graciosísimo.', spanish, english, M22),
+    check('... and so is the superlative, which reads as it', M22, 'The bread is very funny.'),
+    nf_tr('Estate contento.', spanish, english, M23),
+    check('English''s imperative of the copula is be', M23, 'Be happy.'),
+    nf_tr('Mangiati pane e cani.', italian, spanish, M24),
+    check('a GUARD: two nouns joined are two phrases, and plural, after a plural participle', M24,
+          'Pan y perros han sido comidos.'),
+    %% (a GUARD too: this version's second cut read the participle as the
+    %% intensified adjective `orderly', which Italian has no word for)
+    nf_tr('Juegan muy ordenados.', spanish, italian, M25),
+    check('a GUARD: a participle after an adverb is still predicated of the subject', M25,
+          'Giocano molto ordinati.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

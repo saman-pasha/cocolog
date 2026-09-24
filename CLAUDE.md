@@ -5583,6 +5583,151 @@ was NOT run again on 1.8.1**: it ran on 1.8.0, and 1.8.1 changes only
 -- `test/translate.pl`, GREEN alone, and lesson 46, `done` alone -- with
 cocolint 0 HARD and 0 WARN over the three.
 
+### An Italian court report into Spanish: a command, a title, a subject after its verb (1.8.2)
+
+**THE FIRST SAMPLE OF THE LOOP THE OWNER ASKED FOR** -- "take samples one by
+one till no changes need for a new sample" -- so each new article is taken in
+the direction the last one was not, and the loop stops at the first article
+that needs no change. A word sense a lesson cannot separate is stated as a
+cost and does not count as a change; a refusal or a wrong structure does.
+
+**THE MONREALE ARTICLE, ITALIAN UD VIT-9465..9470, INTO SPANISH.** Six
+sentences of a court report -- the prosecutors want an archbishop on trial,
+the charges, what he is alleged to have done -- over the two-language
+vocabulary store. The middle column is 1.8.1's translator over THIS store:
+
+| | 1.8.1, its store | 1.8.1, this store | **1.8.2** |
+|---|---|---|---|
+| translated | 1 of 6, and wrong | 4, two of them wrong in structure | **6** |
+| refused for a word | 5 | 1 | **0** |
+| refused with every word known | 0 | 1 | **0** |
+| the article, one process | 11.0 s | 7.8 and 7.9 s | **6.8 and 6.8 s** |
+
+-- the store Italian 171 416 terms and Spanish 217 717, taught into one
+`--embed` store from the rebuilt vocabularies in 647 s and 1 027 s, 361 MB.
+
+**WHAT IT NEEDED IS WHAT A COURT REPORT SAYS OF PEOPLE:**
+
+| shape | the article's words | what moved |
+|---|---|---|
+| a headline's command, in the plural | `"processate il vescovo"` | the builder states the plural imperative of the plural FORM, as the past of a plural is: `"processate" is the imperative of "processano".`; the IR's subject is `addressee(plural)` |
+| a headline participle's own number | the same | `processate` is plural and `il vescovo` singular, so it is no headline passive |
+| a place before a comma at the head | `Monreale, i pm vogliono ...` | `topic(NP)`, never an object: 1.8.1 wrote `A Monreale,` |
+| a subject after its modal and its adjuncts | `deve finire in tribunale l'arcivescovo ...` | `The intransitive verb "finisce" means "ends up".`: the phrase after the adjuncts that agrees is the subject |
+| a title before a name, apposed to a phrase | `l'arcivescovo di Monreale monsignor Salvatore Cassisa` | `"monsignore" is a title.`: a phrase begins at it; English capitalises it, Italian writes the apocope the lesson states |
+| a cleft | `A chiederlo è la procura di Palermo che ...` | `The word "a" begins the cleft.`: `Lo pide la fiscalía de Palermo que ...` |
+| an absolute superlative | `le pesantissime accuse` | the builder states `"pesantissime" is the superlative of "pesanti".`, read as `molto pesanti`, the intensifier a phrase already has |
+| the conditional perfect | `avrebbe intascato` | English `would have`; Spanish's `habría` is lines of `corpus/extra/` |
+| an aside between the subject and its verb | `Monsignor Cassisa, secondo l'accusa, avrebbe ...` | `mid(C)`: written back after the subject with its commas |
+| two idioms of the court | `alla sbarra`, `in tribunale` | adverbs of two words: `on trial`, `in court`; Spanish `en el banquillo`, `ante los tribunales` |
+
+-- and the words: nine entries in each of `eng-ita.dix` and `eng-spa.dix`, 16
+lines of Italian and 18 of Spanish in `corpus/extra/`. The vocabularies went
+from 99 074 and 128 614 lines to 108 673 and 135 731: 7 896 Italian and 2 880
+Spanish superlatives, 1 539 Italian plural imperatives, and 2 061 Spanish ones
+with 2 061 of their denials. `reason.pl` did not move, the thirteenth version
+running.
+
+**ITALIAN DENIES THE PLURAL IMPERATIVE WITH ITSELF, AND NOTHING IS STATED FOR
+IT.** Spanish says `no comáis` and the builder states it
+(`cb_negative_imperative_plural/2`); Italian says `non processate`, so a
+plural imperative with no denial stated for its form is its own denial -- only
+a PLURAL, because a singular with none stated is the third person it is
+spelled like, `Non mangia il pane`.
+
+**THE HEADLINE HAD NEVER ASKED THE PARTICIPLE'S NUMBER**, though its comment
+said it did: it tried both numbers and asked only the phrase after the
+participle. So `"processate il vescovo"` -- a plural feminine participle
+before a masculine singular phrase -- read as `"El obispo" ha sido
+procesado.` It asks the participle now (`tr_participle_number/2`), which the
+builder states for every participle that inflects.
+
+**AND ASKING IT EXPOSED A PHRASE READING THAT TRYING BOTH NUMBERS HAD HIDDEN.**
+Livata's `Monte Livata, ritrovati vivi donna e bimbi scomparsi.` came out
+`recuperado viva mujer y niños` on the first cut: `donna e bimbi scomparsi`
+read as ONE singular phrase whose adjectives were `and` and `children`, so the
+plural participle found no subject and the verbless reading took the
+sentence. A coordinator among a phrase's adjectives joins two adjectives, and
+never one to a word the lesson knows only as a noun.
+
+**THE CONTROLS FOUND IT, AND THREE MORE:**
+
+* **`Esto es graciosísimo.` came out `This is funny very.`** The superlative
+  reached a defect older than it: an adverb before a predicate adjective was
+  read as the clause's adverb, and `Esto es muy gracioso.` wrote the same on
+  1.8.1. It is the adjective's now, the intensifier a phrase carries -- and
+  Tatoeba's `Estoy muy triste.` is exact, `She is very cunning.` and `Tom was
+  really raging.` read in the right order.
+* **That fix's first cut refused a football sentence**: `juegan muy ordenados`
+  became the intensified adjective `orderly`, which Italian has no word for,
+  where 1.8.1 read the participle predicated of the subject, `giocano molto
+  ordinati`. A participle keeps that reading.
+* **`Estate contento.` came out `Is happy.`**: a form stated only as an
+  imperative is a known word now, so it is lowered at the head and reads --
+  and English's imperative of the copula is `be`.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `para los trabajos`, `para la evaluación` | `por` | `per` is `for`, 1.6.21's cost |
+| `estafado la comunidad` | `a la Comunidad` | a community is no person, and Spanish marks it all the same |
+| `evaluación hinchada` | `tasación inflada` | `inflar` is in Apertium's Spanish dictionary for analysis only (`r="LR"`), so no line is written for it |
+| `las acusaciones muy pesadas` | `las gravísimas acusaciones` | the superlative is read as `very` and the plain form, and written that way |
+| `Process the bishop`, `asks him` | `try`, `asks for it` | `processare` means `processes` first, and `lo` means `him` first |
+| `He carries a put hat.` | `He has a hat on.` | a participle after its noun goes before it in English now; 1.8.1 wrote `a hat put`, wrong too |
+
+**THE CONTROLS, ON ONE STORE, 1.8.1's TRANSLATOR AGAINST 1.8.2's, INTERLEAVED
+TWICE:**
+
+| control | 1.8.1, this store | **1.8.2** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 17.1 and 17.4 s | **12 of 12, 17.3 and 17.5 s** |
+| the Spanish article | 11 of 11, 15.5 and 15.5 s | **11 of 11, 15.8 and 16.1 s** |
+| Livata, 29 sentences | 29 of 29, 78.2 and 78.7 s | **29 of 29, 81.8 and 82.1 s** |
+| Fiat, 20 sentences | 20 of 20, 24.9 and 24.5 s | **20 of 20, 25.1 and 25.5 s** |
+| Valencia, 16 sentences | 16 of 16, 44.7 and 46.1 s | **16 of 16, 47.3 and 48.5 s** |
+| the bioethics article, 15 sentences | 15 of 15, 12.9 and 13.3 s | **15 of 15, 13.3 and 13.7 s** |
+| Tatoeba's 400, exact / translated / refused | 55 / 259 / 141, 17.1 and 17.2 s | **56 / 265 / 135, 17.4 and 17.6 s** |
+| the football article, 20 sentences | 20 of 20, 28.2 and 28.5 s | **20 of 20, 29.5 and 30.6 s** |
+| the Monreale article, 6 sentences | 4 of 6, 7.8 and 7.9 s | **6 of 6, 6.8 and 6.8 s** |
+
+-- each translator gives the same texts both times, and the new readings cost
+1 to 6 % where they cost anything, the ranges apart on seven of the nine and
+this article's the faster.
+Against 1.8.1 the texts are the same but for these: this article's six;
+football's `La grande novità nella lista, oltre alla presenza di Dani, è ...`,
+which keeps the source's commas as an aside; and on Tatoeba four plural
+imperatives read (`Descansad.` is `Rest.`, `No miréis.` is `Do not look.`),
+`Estate contento.` is `Be happy.`, the three intensifiers above,
+`Esto es graciosísimo.` is `This is very funny.` where it was refused, and
+`The precipitation is little likely.` where it was `likely little` -- none
+worse but the hat above.
+
+**TWO THINGS BIT, and the first is a probe tool's and not the translator's:**
+
+* **MY PROBE STORE PICKS A LINE BY ITS MENTIONS AND READ ONLY LINES OF ONE
+  SENTENCE**, so `The masculine noun "pm" means "prosecutor". "pm" is the
+  plural of "pm".` -- two sentences on one line -- gave the target no
+  `prosecutor`, and the sentence refused on the probe store for a word the
+  full store has. A refusal on a probe store is a finding about the probe
+  until the full store says otherwise, which the 1.8.0 section already said
+  from the other side.
+* **A LINE A LESSON STATES LATER COMES LATER.** `The verb "está" means "is".`
+  written before `The verb "es" means "is".` in a case's lesson made `está`
+  the copula, and the passive perfect had no participle for it: the
+  vocabulary states `está` as an AUXILIARY meaning `is`, and a small lesson
+  that stands for it must say the same.
+
+`test/translate.pl` is 782 checks and GREEN, 28 in a new `newspaper_monreale`
+section with an Italian and a Spanish lesson of its own; every check but the
+four marked GUARD fails on 1.8.1's translator, and two of the guards fail on
+this version's own first cuts. Two pins in the `reduced` section moved: a bare
+participle is written before its noun in English now, `The imposed house
+dominates.` -- and a check beside them that English reads it there. Lesson 46 gained section 28. The full
+suite was not run on 1.8.2.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

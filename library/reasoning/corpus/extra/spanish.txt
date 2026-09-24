@@ -363,3 +363,29 @@ The pronoun "todos" means "everyone".
 The pronoun "todos" does not precede the verb.
 # `esa elección': a choice, where the dictionary puts an election first
 The feminine noun "elección" means "choice".
+# the Monreale article, into Spanish
+The masculine adjective "palermitano" means "palermitan". The feminine adjective "palermitana" means "palermitan".
+"palermitanos" is the plural of "palermitano". "palermitanas" is the plural of "palermitana".
+The feminine noun "falsedad ideológica" means "ideological falsehood".
+The intransitive verb "acaba" means "ends up".
+# a title takes no article before a name (`monseñor Salvatore Cassisa')
+"monseñor" is a title.
+# the perfect in the future and the conditional: `habría embolsado' (would
+# have pocketed), which a newspaper writes of what it reports as alleged --
+# Apertium gives `haber' no English, so its forms are the lesson's to state
+"habrá" is the future of "ha".
+"habrán" is the plural of "habrá".
+"habré" is the first person of "habrá".
+"habremos" is the first person of "habrán".
+"habrás" is the second person of "habrá".
+"habría" is the conditional of "ha".
+"habrían" is the plural of "habría".
+"habríamos" is the first person of "habrían".
+"habrías" is the second person of "habría".
+# `según la acusación': the dictionary's preposition has no `to'
+The preposition "según" means "according to".
+# on trial and in court, and the indictment a prosecution asks for, where
+# the dictionary's first word for it is the accusation
+The adverb "en el banquillo" means "on trial".
+The adverb "ante los tribunales" means "in court".
+The masculine noun "procesamiento" means "indictment".

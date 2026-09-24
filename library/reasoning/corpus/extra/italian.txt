@@ -521,3 +521,34 @@ The adverb "curiosamente" means "curiously".
 # `più che discutibile': before an adjective the word for than is `che',
 # before a phrase `di'
 The conjunction "che" means "than".
+# the Monreale article (Italian UD, VIT-9465..9470): the newspaper's senses,
+# where the dictionary's first are a tangent, a proxy, an exaction and cheap
+The feminine noun "tangente" means "bribe".
+The feminine noun "procura" means "prosecution".
+The feminine noun "concussione" means "extortion".
+The masculine adjective "economico" means "economic". The feminine adjective "economica" means "economic".
+# `i pm': the prosecutors, an abbreviation that does not inflect; the
+# plain word first, so `prosecutor' is written `procuratore'
+The masculine noun "procuratore" means "prosecutor". "procuratori" is the plural of "procuratore".
+The masculine noun "pm" means "prosecutor". "pm" is the plural of "pm".
+# `monsignor Salvatore Cassisa': the title before a name
+"monsignor" is the apocope of "monsignore".
+The masculine noun "rinvio a giudizio" means "indictment".
+The masculine noun "falso ideologico" means "ideological falsehood".
+# `deve finire in tribunale l'arcivescovo': the archbishop ending up in court
+The intransitive verb "finisce" means "ends up".
+# a title takes no article before a name (`monsignor Salvatore Cassisa'),
+# and the translator reads such a phrase only for a noun the lesson calls one
+"monsignore" is a title.
+# `A chiederlo è la procura di Palermo': the one asking for it is the
+# prosecution -- the word before the infinitive of a cleft
+The word "a" begins the cleft.
+# `secondo l'accusa': according to the prosecution -- the dictionary's first
+# meaning is the noun, a second, and its preposition has no `to'
+The preposition "secondo" means "according to".
+# `vogliono Cassisa alla sbarra', `deve finire in tribunale': on trial and
+# in court, where the words are a barrier and a tribunal
+The adverb "alla sbarra" means "on trial".
+The adverb "in tribunale" means "in court".
+# `processate il vescovo': the dictionary's first bishop is the chess piece
+The masculine noun "vescovo" means "bishop".

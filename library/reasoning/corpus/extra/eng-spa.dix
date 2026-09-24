@@ -90,3 +90,16 @@
 # `accostarsi con serenità': the dictionary gives `approach' as the
 # pronominal `acercarse' only, which the builder does not write
 <e><p><l>approach<s n="vblex"/></l><r>acercar<s n="vblex"/></r></p></e>
+# the Monreale article (Italian UD, VIT-9465..9470), into Spanish: English
+# words the Italian side now gives and the Spanish side had no word for,
+# and `fiscalía' first for the prosecution where the dictionary's first
+# word is the trial's `procesamiento'
+<e><p><l>bribe<s n="n"/></l><r>soborno<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>accusation<s n="n"/></l><r>acusación<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>Norman<s n="adj"/></l><r>normando<s n="adj"/></r></p></e>
+<e><p><l>monsignor<s n="n"/></l><r>monseñor<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>prosecutor<s n="n"/></l><r>fiscal<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>prosecution<s n="n"/></l><r>fiscalía<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>pocket<s n="vblex"/></l><r>embolsar<s n="vblex"/></r></p></e>
+<e><p><l>swindle<s n="vblex"/></l><r>estafar<s n="vblex"/></r></p></e>
+<e><p><l>tribunal<s n="n"/></l><r>tribunal<s n="n"/><s n="m"/></r></p></e>

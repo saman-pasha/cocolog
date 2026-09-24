@@ -186,3 +186,14 @@
 # `anche con misure coercitive': the monolingual dictionary has `coercitivo'
 # and the bilingual one no English for it
 <e><p><l>coercive<s n="adj"/></l><r>coercitivo<s n="adj"/></r></p></e>
+# the Monreale article (Italian UD, VIT-9465..9470): words the monolingual
+# dictionary has and the bilingual one gives no English
+<e r="RL"><p><l>pocket<s n="vblex"/></l><r>intascare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>swindle<s n="vblex"/></l><r>truffare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>inflate<s n="vblex"/></l><r>gonfiare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>cathedral<s n="n"/></l><r>duomo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>Norman<s n="adj"/></l><r>normanno<s n="adj"/></r></p></e>
+<e r="RL"><p><l>Palermitan<s n="adj"/></l><r>palermitano<s n="adj"/></r></p></e>
+<e r="RL"><p><l>monsignor<s n="n"/></l><r>monsignore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>accusation<s n="n"/></l><r>accusa<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>restoration<s n="n"/></l><r>restauro<s n="n"/><s n="m"/></r></p></e>
