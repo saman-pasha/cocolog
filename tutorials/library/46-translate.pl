@@ -1060,7 +1060,7 @@ The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormido"
 "duermo" is the first person of "duerme". "duerme" is intransitive. "como" is the first person of "come".
 The number "dos" means "two". The reflexive pronoun "se" means "itself".
 The verb "confía" means "trusts". "confía" takes "en" before the infinitive.
-The intransitive verb "gusta" means "pleases".
+The intransitive verb "gusta" means "pleases". The verb "gusta" means "likes".
 The transitive verb "conoce" means "knows". "conozco" is the first person of "conoce".
 The verb "resulta" means "results".
 The verb "tiene" means "has". "tienen" is the plural of "tiene".

@@ -1702,12 +1702,19 @@ tr_cross(foreign, s(Asked0, Subject0, g(L0, T, A, Neg), Comps0), s(Asked, Subjec
 %% has one by what it is. Everywhere else -- a reduced relative, a
 %% participle, a verb with no such meaning -- tr_lexeme_across/3 passes the
 %% intransitive meaning over, so the verb crosses as it always did.
+%% -- AND A PRONOUN BEFORE AN INTRANSITIVE VERB WHOSE SUBJECT STANDS AFTER
+%% IT IS WHO IT PLEASES: `Me gusta la escuela' has no object, and with `me'
+%% counted as one `gusta' took the transitive `likes' and the school liked
+%% me. The reader put the subject there (subj_here) because the lesson calls
+%% the verb intransitive, so a pronoun before it can only be the dative.
 tr_verb_across(L0, A, Comps, Gap, L) :-
     atom(L0), tr_intransitive_meanings(L0, Is), !,
-    (   ( Gap == yes ; memberchk(A, [passive, passive_perfect]) ; member(C, Comps), tr_object_comp(C) )
+    (   ( Gap == yes ; memberchk(A, [passive, passive_perfect])
+        ; member(C, Comps), tr_object_comp(C), \+ tr_dative_here(L0, C, Comps) )
     ->  tr_lexeme_across(L0, english, L)
     ;   Is = [L|_]
     ).
+tr_dative_here(L0, opron(_), Comps) :- memberchk(subj_here, Comps), tr_solve(intransitive(L0)), !.
 %% A VERB THE LESSON ALSO CALLS A MODAL IS THE MODAL BEFORE AN INFINITIVE:
 %% `deve' is `owes' and `must', and `La terapia deve essere attivata' owed
 %% where it must -- a meaning shaped like a third person comes first in a
@@ -1719,9 +1726,10 @@ tr_verb_across(L0, _, _, _, L) :- tr_lexeme_across(L0, english, L).
 
 tr_intransitive_meanings(L, Is) :- findall(M, tr_solve(mean_as(L, M, intransitive)), Is), Is \== [].
 
-%% a complement that is the verb's object
+%% a complement that is the verb's object -- never a pronoun the reader
+%% marked as the dative
 tr_object_comp(obj(_)).
-tr_object_comp(opron(_)).
+tr_object_comp(opron(W)) :- W \= dat(_).
 tr_object_comp(oc(_, _)).
 tr_object_comp(that(_)).
 tr_object_comp(fr(C)) :- tr_object_comp(C).
@@ -2789,8 +2797,22 @@ tr_duty_fix(S, S).
 %% whose noun was `son', a sound. Every place a verb could start is tried
 %% with a subject before it first, and only then with none, which is where
 %% the lesson's languages leave it out. English names its subject always.
-tr_subject_phase(foreign, none, Phase) :- !, member(Phase, [said, unsaid]).
-tr_subject_phase(_, _, any).
+%% ONLY WHERE THE CLAUSE OPENS ON AN ARTICLE THAT IS AN OBJECT PRONOUN TOO,
+%% BEFORE A WORD THAT IS A NOUN AND A VERB'S FORM, which is the shape that
+%% misread. Tried on every statement, the pass with a subject walked every
+%% later verb of a long sentence first -- Livata's `Di certo si sa solo che
+%% la famiglia era ...' cost 7.2 million inferences more for the same
+%% reading -- and asked of any article before such a word it still ran on
+%% most Italian sentences, `l'acquisto', `la parte', `l'accordo': Fiat's
+%% `Siamo particolarmente soddisfatti ...' cost 9.1 million where 1.7.2's
+%% cost 4.6.
+tr_subject_phase(foreign, none, Words, Phase) :- tr_article_verb_noun(Words), !, member(Phase, [said, unsaid]).
+tr_subject_phase(_, _, _, any).
+
+tr_article_verb_noun([D, w(V, _)|_]) :-
+    D = w(DW, _), tr_determiner(foreign, D, _, _), tr_object_pronoun(foreign, DW, _),
+    tr_is(foreign, w(V, lower), noun),
+    tr_form(V, L, _, _, _), atom(L), ( tr_class_of(L, verb) ; tr_class_of(L, modal) ; tr_class_of(L, auxiliary) ), !.
 tr_phase_subject(said, Ws) :- Ws \== [].
 tr_phase_subject(unsaid, []).
 tr_phase_subject(any, _).
@@ -2838,7 +2860,7 @@ tr_read_statement0(foreign, Words0, none, S) :-
     S = s(none, Subject, g(L, T, A, Neg), Comps).
 tr_read_statement0(Side, Words0, Asked, S) :-
     tr_negation(Side, Words0, Words, Neg),
-    tr_subject_phase(Side, Asked, Phase),
+    tr_subject_phase(Side, Asked, Words, Phase),
     tr_group_from(Side, Words, Before, g(L, T, A, FP, FN), After),
     nb_setval('$tr_read_group', L),                           % for the complements: a bare base after a modal
     nb_setval('$tr_read_aspect', A),                          % and: a `by' phrase after a passive is its agent
@@ -3636,8 +3658,14 @@ tr_subject(Side, _, Words, _, _, Subject) :- tr_np(Side, Words, Subject), !.
 %% -- and the word the lesson puts before a person is a preposition there,
 %% never the mark of an object: `La visita a Ceuta presenta ...' is the
 %% visit to Ceuta, and read as `visits Ceuta' the subject was refused
+%% -- AND NEVER AN ARTICLE ALONE BEFORE IT: `Los más destacados luthiers del
+%% mundo' divided at `más', which is the preposition `plus' as well as the
+%% comparative, and took `los' for the phrase -- the pronoun it also is --
+%% so the subject was one thing against a plural verb and the cut after it
+%% shut out the superlative the sentence is
 tr_subject(Side, _, Words, _, _, with(NP, PPs)) :-
     append(NPWords, [P|PPWords], Words), tr_is(Side, P, preposition), NPWords \== [],
+    \+ ( NPWords = [D1], tr_determiner(Side, D1, _, _), \+ tr_standalone_det(Side, D1) ),   % `uno dei Paesi' does
     tr_np(Side, NPWords, NP), tr_complements(Side, [P|PPWords], yes, PPs),
     tr_subject_comps(PPs), !.
 
@@ -4314,12 +4342,16 @@ tr_complements0(foreign, [w(P, PC)|Ws], no, Out) :-
 %% risking it all, and the preposition travels as nprep/1 before the
 %% infinitive, which the lesson's writer spells and English's leaves out
 %% (`the pressure to risk everything')
+%% -- unless the lesson says the word BEGINS THE INFINITIVE, which is the
+%% verb's: `di aver avuto un problema e di aver lasciato i bimbi' has an
+%% object before its second `di', and read as the problem's it came out `y
+%% de haber dejado'
 tr_complements0(foreign, Ws0, Seen, Out) :-
     ( Ws0 = [w(P, PC)|Ws1], ( tr_means_to(P) ; tr_means_of(P) ) -> Pre = w(P, PC) ; Ws1 = Ws0, Pre = none ),
     tr_infinitive_group(Ws1, F, Asp, Cls0, Ws), !,
     tr_complements(foreign, Ws, Seen, Cs),
     tr_undouble(Cls0, Cs, Cls),
-    (   Pre = w(PW, _), tr_means_of(PW), Seen == yes
+    (   Pre = w(PW, _), tr_means_of(PW), Seen == yes, \+ tr_solve(begin(PW, infinitive))
     ->  Out = [nprep(Pre), infx(F, Asp, Cls)|Cs]
     ;   Out = [infx(F, Asp, Cls)|Cs]
     ).
@@ -4486,8 +4518,14 @@ tr_complements0(Side, [P|Ws], Seen, [pp(P, NP)|Cs]) :-
 %% A `de' AND AN INFINITIVE AFTER A PREPOSITION'S PHRASE ARE THAT PHRASE'S:
 %% `apeló a la necesidad de ser humildes' is the need to be humble, and it
 %% keeps its preposition as it does after an object (pinf/2)
+%% -- BUT NOT A WORD THE LESSON SAYS BEGINS THE INFINITIVE, which is the
+%% verb's: `aveva riferito ai carabinieri di aver lasciato i piccoli' is
+%% telling them to have left the children, and read as the carabinieri's
+%% `di' it came out `de tener dejado'. Spanish says nothing of `de' there,
+%% and `la necesidad de ser humildes' keeps its reading.
 tr_after_phrase(yes, foreign, [w(P, C), w(V, _)|Ws], Seen, [pinf(w(P, C), F)|Cs]) :-
-    tr_means_of(P), tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
+    tr_means_of(P), \+ tr_solve(begin(P, infinitive)),
+    tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !,
     tr_complements(foreign, Ws, Seen, Cs).
 tr_after_phrase(_, Side, Ws, Seen, Cs) :- tr_complements(Side, Ws, Seen, Cs).
 tr_complements0(Side, [w(W, C)|Ws], Seen, [opron(w(W, C))|Cs]) :-
@@ -4963,9 +5001,29 @@ tr_relative_start(Side, [P, D, w(R, _)|_]) :-
     tr_determiner(Side, D, _, article), tr_relative_word(Side, R), !.
 
 %% the lesson's word for `than', and a phrase after it with no verb in it
+%% -- and SOMETHING COMPARED BEFORE IT: the word that begins the comparative
+%% or a word meaning same, identical or equal (tr_compared_before/1). Italian
+%% says `than' with `di' before a phrase (`più grande del cane'), and without
+%% this every `di' was one: the controls read `la historia de la
+%% desaparición' as the story THAN the disappearance and wrote `que'.
+%% -- AND NOT A PREPOSITION: Italian's `di' is `than' after `più' and `of'
+%% in the superlative the same words make, `i Paesi più ricchi del mondo',
+%% and only the article tells the two apart; read as `than' the twelve's
+%% richest countries were refused, and `Dello stesso tenore il commento del
+%% sindaco' compared everything after `stesso'. The lesson's word is still
+%% the one written for `than' before a phrase (tr_than_word/2), so Spanish's
+%% comparisons go into Italian, and an Italian one is read as `of'.
 tr_comparison_start(foreign, [w(Q, _)|Ws]) :-
-    Ws \== [], tr_solve(mean(Q, than)),
+    Ws \== [], tr_solve(mean(Q, than)), \+ tr_class_of(Q, preposition),
+    tr_compared_before(Q),
     \+ ( member(w(V, _), Ws), tr_verb_form_word(V), \+ tr_is(foreign, w(V, lower), adjective) ), !.
+
+tr_compared_before(Q) :-
+    tr_global('$tr_piece', Ws), is_list(Ws), append(Before, [w(Q, _)|_], Ws),
+    member(w(W, _), Before),
+    (   tr_degree_word(W)
+    ;   tr_lexeme(foreign, W, L, _), tr_solve(mean(L, E)), memberchk(E, [same, identical, equal])
+    ), !.
 
 %% the lesson's word for `than': before an adjective the one it calls a
 %% CONJUNCTION (`più che discutibile'), before a phrase one it does not
@@ -5045,7 +5103,12 @@ tr_read_nested(Side, Ws, Asked, S) :-
 %% shortest front of adjuncts that leaves a statement is taken -- a longer
 %% one would take `esto' for what is played -- and it goes after the
 %% clause's own complements, as a front with no comma does (1.6.8).
+%% -- and it begins with a PREPOSITION OR AN ADVERB, which an adjunct does:
+%% tried on every clause that failed to read, the walk over every front
+%% cost Livata's `... che la famiglia era ...' 7.7 million inferences more
+%% and found nothing
 tr_nested_front(Side, Ws, s(A, Su, G, Comps)) :-
+    Ws = [W1|_], W1 = w(_, _), ( tr_is(Side, W1, preposition) ; tr_is(Side, W1, adverb) ),
     append(Front0, Rest, Ws), Front0 = [_|_], Rest = [_|_], \+ memberchk(comma, Front0),
     nb_setval('$tr_read_aspect', simple), nb_setval('$tr_read_group', none),
     tr_complements(Side, Front0, Front), Front \== [], tr_adjuncts(Front),

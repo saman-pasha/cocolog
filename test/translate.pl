@@ -2881,7 +2881,9 @@ newspaper_bio_checks :-
 %% comparison with a phrase, a denial before its verb kept there, `ni ... ni',
 %% the impersonal modal, a verb's own preposition before its infinitive, and a
 %% determiner and a pronoun chosen in the lesson's order. Every check but the
-%% one marked as a guard fails on the 1.7.2 translator.
+%% last three fails on the 1.7.2 translator; the last three pass on it and
+%% fail on 1.8.0's, which is what the controls found 1.8.0 had broken
+%% (1.8.1).
 
 newspaper_football :-
     section('a Spanish football report into Italian: lists, names a comma parts, more than, ni ... ni, hay que'),
@@ -2917,7 +2919,7 @@ The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormido"
 "duermo" is the first person of "duerme". "duerme" is intransitive. "como" is the first person of "come".
 The number "dos" means "two". The reflexive pronoun "se" means "itself".
 The verb "confía" means "trusts". "confía" takes "en" before the infinitive.
-The intransitive verb "gusta" means "pleases".
+The intransitive verb "gusta" means "pleases". The verb "gusta" means "likes".
 The transitive verb "conoce" means "knows". "conozco" is the first person of "conoce".
 The verb "resulta" means "results".
 The verb "tiene" means "has". "tienen" is the plural of "tiene".
@@ -2926,7 +2928,8 @@ The verb "optará" means "will opt". The verb "parece" means "seems".
 The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
 The auxiliary "ha" means "has". "han" is the plural of "ha". "he" is the first person of "ha".
 The impersonal modal "hay que" means "must".
-The verb "dice" means "says". "dijo" is the past of "dice".
+The verb "dice" means "says". "dijo" is the past of "dice". "dicho" is the participle of "dice".
+The preposition "más" means "plus". The pronoun "los" means "them".
 The pronoun "le" means "him". The dative pronoun "le" means "him".
 The pronoun "todos" means "everyone". The pronoun "todos" does not precede the verb.
 The pronoun "esto" means "this". The pronoun "esto" does not precede the verb.
@@ -2956,6 +2959,7 @@ The masculine article "il" means "the". The feminine article "la" means "the".
 The masculine article "un" means "a". The feminine article "una" means "a". "dei" is the plural of "un".
 "l''" is the elision of "il". "l''" is the elision of "la".
 "al" is the contraction of "a il". "del" is the contraction of "di il". "nel" is the contraction of "in il".
+"della" is the contraction of "di la". "grandi" is the plural of "grande".
 Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
 Every adjective follows the noun.
 The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
@@ -2984,7 +2988,8 @@ The verb "opterà" means "will opt". The verb "sembra" means "seems".
 The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è". "stato" is the participle of "è".
 The auxiliary "ha" means "has". "hanno" is the plural of "ha". "ho" is the first person of "ha".
 The impersonal modal "bisogna" means "must".
-The verb "dice" means "says". "disse" is the past of "dice".
+The verb "dice" means "says". "disse" is the past of "dice". "detto" is the participle of "dice".
+The word "di" begins the infinitive.
 The dative pronoun "gli" means "him".
 The pronoun "tutti" means "everyone". The pronoun "tutti" does not precede the verb.
 The pronoun "questo" means "this". The pronoun "questo" does not precede the verb.
@@ -3054,6 +3059,9 @@ newspaper_football_checks :-
     nf_tr('Le gusta el buen fútbol.', spanish, italian, G13),
     check('gustar: a dative before the verb, the subject after it, and buen the apocope of bueno', G13,
           'Gli piace il buon calcio.'),
+    nf_tr('Le gusta el buen fútbol.', spanish, english, G13b),
+    check('... and the verb''s intransitive sense, the pronoun before it being no object', G13b,
+          'The good football pleases him.'),
     %% the impersonal modal, in a quotation that closes at a comma
     nf_tr('"Hay que comer pan", dijo.', spanish, italian, G14),
     check('the impersonal modal, and a quotation that opens the sentence and closes at a comma', G14,
@@ -3100,7 +3108,19 @@ newspaper_football_checks :-
     check('por with no passive is for, never the agent''s by', G26, 'Il cane dorme per decisione dell''allenatore.'),
     %% an infinitive with its object inside the subject
     nf_tr('El afán por comer pan es grande.', spanish, italian, G27),
-    check('a subject carries an infinitive and its object', G27, 'La smania per mangiare pane è grande.').
+    check('a subject carries an infinitive and its object', G27, 'La smania per mangiare pane è grande.'),
+    %% three the controls found in 1.8.0 (1.8.1): Italian's `di' is `than'
+    %% only where Spanish's comparisons are written, never where it is read
+    nf_tr('Il cane mangia il pane del gatto.', italian, spanish, G28),
+    check('an Italian `di'' after a noun is `of'', never a comparison', G28, 'El perro come el pan del gato.'),
+    %% ... a superlative is not split at `más', the preposition `plus' too
+    nf_tr('Los más grandes perros de la casa duermen.', spanish, italian, G29),
+    check('an article alone is no phrase before a preposition in a subject', G29,
+          'I cani più grandi della casa dormono.'),
+    %% ... and the verb's own `di' before an infinitive is the verb's
+    nf_tr('Il cane ha detto al gatto di mangiare il pane.', italian, spanish, G30),
+    check('a word the lesson says begins the infinitive is not the phrase''s before it', G30,
+          'El perro ha dicho al gato comer el pan.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 
