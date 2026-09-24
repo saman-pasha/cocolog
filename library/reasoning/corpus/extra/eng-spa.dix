@@ -103,3 +103,8 @@
 <e><p><l>pocket<s n="vblex"/></l><r>embolsar<s n="vblex"/></r></p></e>
 <e><p><l>swindle<s n="vblex"/></l><r>estafar<s n="vblex"/></r></p></e>
 <e><p><l>tribunal<s n="n"/></l><r>tribunal<s n="n"/><s n="m"/></r></p></e>
+# the record-market report (AnCora CESS-CAST-P-20010103-139), into Italian:
+# `discográfico' and `ralentización' have paradigms in apertium-spa and no
+# English here
+<e><p><l>discographic<s n="adj"/></l><r>discográfico<s n="adj"/></r></p></e>
+<e><p><l>slowdown<s n="n"/></l><r>ralentización<s n="n"/><s n="f"/></r></p></e>

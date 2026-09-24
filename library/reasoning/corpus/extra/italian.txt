@@ -491,6 +491,10 @@ The masculine noun "rilassamento" means "relaxation".
 The verb "pensa" means "thinks".
 The pronoun "questo" means "this".
 The pronoun "questo" does not precede the verb.
+# and `that' is `quello', where the dictionary's first pronoun for it is
+# `colui', a person: `Esa es la principal conclusión' came out `Colui è'
+The pronoun "quello" means "that".
+The pronoun "quello" does not precede the verb.
 The masculine noun "segno" means "sign".
 The feminine noun "fiducia" means "confidence".
 # `oggi stesso', this very day
@@ -552,3 +556,57 @@ The adverb "alla sbarra" means "on trial".
 The adverb "in tribunale" means "in court".
 # `processate il vescovo': the dictionary's first bishop is the chess piece
 The masculine noun "vescovo" means "bishop".
+# the record-market report, from Spanish: a minidisc, and a disc one can
+# record, which the dictionary has no word for
+The masculine noun "minidisc" means "minidisc".
+"minidisc" is the plural of "minidisc".
+The adjective "registrabile" means "recordable".
+"registrabili" is the plural of "registrabile".
+# `la principal conclusión', `los dos últimos años', `la cifra de unidades
+# vendidas', `continúa aumentando': the dictionary's first Italian words
+# for main, year, figure and increases are `maggiore', `annata', `figura'
+# and `accresce'
+The adjective "principale" means "main".
+The masculine noun "anno" means "year".
+The feminine noun "cifra" means "figure".
+The verb "aumenta" means "increases".
+# `fino a' is until and up to both, where the dictionary's `fino' has no
+# `a'; `intorno a' is around, and `rispetto a' compared with
+The preposition "fino a" means "until".
+The preposition "intorno a" means "around".
+The preposition "rispetto a" means "compared with".
+# `sebbene' joins a clause, where the dictionary calls it an adverb
+The conjunction "sebbene" means "although".
+The adverb "al ribasso" means "downward".
+The adverb "complessivamente" means "altogether".
+The feminine noun "etichetta discografica" means "record label".
+"etichette discografiche" is the plural of "etichetta discografica".
+The masculine noun "fatturato" means "turnover".
+"fatturati" is the plural of "fatturato".
+# `continua a aumentare', where Spanish's verb takes the gerund; and a
+# number used as a noun is masculine, `il 4%', `nel 2001'
+"continua" takes "a" before the infinitive.
+Every number is masculine.
+The adverb "a breve termine" means "in the short term".
+The adverb "a medio termine" means "in the medium term".
+The adverb "a lungo termine" means "in the long term".
+The adverb "a breve-medio termine" means "in the short to medium term".
+# `unos 980 trabajadores': the dictionary's first worker is `lavorante'
+The masculine noun "lavoratore" means "worker".
+"lavoratori" is the plural of "lavoratore".
+# ... and `circa 980 lavoratori'; the dictionary has no `biennio', and its
+# `concentra' masses and does not concentrate
+The adverb "circa" means "about".
+The masculine noun "biennio" means "biennium".
+"bienni" is the plural of "biennio".
+The verb "concentra" means "concentrates".
+# `del total', `los demás soportes', `un mantenimiento en el estancamiento',
+# `productos de ocio': the dictionary's first Italian words are the value, a
+# prop, the upkeep of a machine and idleness
+The masculine noun "totale" means "total".
+"totali" is the plural of "totale".
+The masculine noun "supporto" means "support".
+"supporti" is the plural of "supporto".
+The masculine noun "mantenimento" means "maintenance".
+The masculine noun "svago" means "leisure".
+"svaghi" is the plural of "svago".

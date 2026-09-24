@@ -25,7 +25,7 @@ main :-
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
     complement, superlative, inversion, headline, subordinate, names, imperatives,
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
-    newspaper_monreale, questions, rules, refusals, outline, vocabulary, shapes, build,
+    newspaper_monreale, newspaper_record, questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
@@ -3308,6 +3308,173 @@ newspaper_monreale_checks :-
     nf_tr('Juegan muy ordenados.', spanish, italian, M25),
     check('a GUARD: a participle after an adverb is still predicated of the subject', M25,
           'Giocano molto ordinati.').
+
+%% ---- a Spanish report on the record market, into Italian ----------------------------------
+
+newspaper_record :-
+    section('a Spanish report into Italian: figures, a heading in capitals, a passive made with se'),
+    newspaper_record_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_record_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_record_checks,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_record_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". "unos" is the plural of "un".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The noun "perro" means "dog". "perro" is a person. The noun "gato" means "cat".
+The noun "pan" means "bread". "panes" is the plural of "pan". The noun "queso" means "cheese".
+The noun "casete" means "cassette". The noun "año" means "year".
+The noun "venta" means "sale". The noun "bienio" means "biennium".
+The noun "empresa" means "company".
+The noun "empleado" means "employee". "empleado" is a person.
+The adjective "compacto" means "compact". The adjective "grande" means "big".
+The number "dos" means "two".
+The adverb "unos" means "about". The adverb "a corto-medio plazo" means "in the short to medium term".
+The adverb "en cambio" means "instead".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+"comiendo" is the gerund of "come". "comieron" is the past of "comen".
+The verb "compacta" means "compacts". "compacto" is the first person of "compacta".
+The verb "emplea" means "employs". "empleado" is the participle of "emplea".
+"empleados" is the participle of "emplea". "empleados" is the plural of "empleado".
+The verb "sitúa" means "situates". "situar" is the infinitive of "sitúa".
+The verb "vende" means "sells". "venden" is the plural of "vende".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "continúa" means "continues". "continúa" takes the gerund.
+The intransitive verb "destaca" means "stands out".
+The verb "es" means "is". "son" is the plural of "es".
+The reflexive pronoun "se" means "itself".
+"que" is a relative. The conjunction "que" means "that". The conjunction "y" means "and".
+The conjunction "aunque" means "although".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in".
+The preposition "contra" means "against". The preposition "durante" means "during".
+The preposition "hasta" means "until".
+The preposition "por" means "by". The preposition "por" means "for".
+"sold" is the participle of "sells". "ate" is the past of "eats".
+The word "no" means "not".').
+newspaper_record_lesson(italian, 'Italian is a language.
+The feminine article "la" means "the". The masculine article "il" means "the". The masculine article "lo" means "the".
+"le" is the plural of "la". "i" is the plural of "il". "gli" is the plural of "lo".
+The article "lo" comes before a vowel. The article "il" takes the year.
+The masculine article "un" means "a". "dei" is the plural of "un".
+"al" is the contraction of "a il". "del" is the contraction of "di il". "nel" is the contraction of "in il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". "cani" is the plural of "cane". "cane" is a person.
+The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane". The noun "formaggio" means "cheese".
+The noun "cassetta" means "cassette". The noun "anno" means "year". "anni" is the plural of "anno".
+The noun "vendita" means "sale". The noun "biennio" means "biennium".
+The noun "impresa" means "company".
+The noun "impiegato" means "employee". "impiegati" is the plural of "impiegato".
+The adjective "compatto" means "compact". The adjective "grande" means "big".
+The number "due" means "two".
+The adverb "circa" means "about". The adverb "a breve-medio termine" means "in the short to medium term".
+The adverb "invece" means "instead".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+"mangiando" is the gerund of "mangia". "mangiarono" is the past of "mangiano".
+The verb "situa" means "situates". "situare" is the infinitive of "situa".
+The verb "vende" means "sells". "vendono" is the plural of "vende".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "continua" means "continues". "continua" takes "a" before the infinitive.
+The intransitive verb "spicca" means "stands out".
+The verb "è" means "is". "sono" is the plural of "è".
+The reflexive pronoun "si" means "itself".
+"che" is a relative. The conjunction "che" means "that". The conjunction "e" means "and".
+The conjunction "nonostante" means "although".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in".
+The preposition "contro" means "against". The preposition "durante" means "during".
+The preposition "fino a" means "until".
+The preposition "da" means "by". The preposition "per" means "for".
+"sold" is the participle of "sells". "ate" is the past of "eats".
+The word "non" means "not".').
+
+newspaper_record_checks :-
+    %% a heading in capitals: lowered, and read with no verb first
+    nf_tr('COMPACTO CONTRA CASETE.', spanish, italian, R1),
+    check('a heading in capitals is read as its words, with no verb before any', R1, 'Compatto contro cassetta.'),
+    nf_tr('COMPACTO CONTRA CASETE.', spanish, english, R1b),
+    check('... in English too, where it had been `I compact Against Casete''', R1b, 'Compact against cassette.'),
+    %% an acronym among small letters keeps its capitals
+    nf_tr('El perro de DBK come el pan.', spanish, italian, R2),
+    check('an acronym is a name spelled as the text spelled it', R2, 'Il cane di DBK mangia il pane.'),
+    %% a number is masculine by the lesson's rule
+    nf_tr('El perro come el 4% del pan en el 2001.', spanish, italian, R3),
+    check('a number used as a noun is masculine by the lesson''s rule, where the first article was written', R3,
+          'Il cane mangia il 4% del pane nel 2001.'),
+    %% the article is chosen by the word written after it, the count too
+    nf_tr('Los perros comen el pan durante los dos años.', spanish, italian, R4),
+    check('the article is chosen by the word after it, which is the count', R4,
+          'I cani mangiano il pane durante i due anni.'),
+    %% an infinitive with the reflexive joined to it, after a preposition
+    nf_tr('El perro come el pan hasta situarse en el 4%.', spanish, italian, R5),
+    check('a preposition and an infinitive with its reflexive, never the impersonal pronoun', R5,
+          'Il cane mangia il pane fino a situarsi nel 4%.'),
+    %% a bare noun after `por' is no agent, and a count before a noun is its count
+    nf_tr('Los perros comen el pan de 22 empleados por empresa.', spanish, italian, R6),
+    check('a count before a noun is the count, and a bare noun after `por'' is nobody''s agent', R6,
+          'I cani mangiano il pane di 22 impiegati per impresa.'),
+    %% a gerund straight after a verb that takes a word before an infinitive
+    nf_tr('El perro continúa comiendo el pan.', spanish, italian, R7),
+    check('a verb''s own gerund is the infinitive its word takes in the other language', R7,
+          'Il cane continua a mangiare il pane.'),
+    nf_tr('Il cane continua a mangiare il pane.', italian, spanish, R7b),
+    check('... and back, where the lesson says the verb takes the gerund', R7b, 'El perro continúa comiendo el pan.'),
+    %% an inverted subject carries a relative clause after a comma
+    nf_tr('Destaca el perro, que come el pan.', spanish, english, R8),
+    check('an inverted subject carries its relative clause after a comma, and English closes it with one', R8,
+          'The dog, who eats the bread, stands out.'),
+    nf_tr('Destaca el perro, que come el pan.', spanish, italian, R8b),
+    check('a GUARD: ... and the lesson''s language keeps the order', R8b, 'Spicca il cane, che mangia il pane.'),
+    %% a relative clause with an adjunct before its verb
+    nf_tr('El perro ve los gatos, que en 1999 comieron el pan.', spanish, english, R9),
+    check('a relative clause with an adjunct before its verb', R9, 'The dog sees the cats, which ate the bread in 1999.'),
+    %% one subject, with a bare noun joined inside its last phrase
+    nf_tr('Aunque la venta de pan y queso es grande, el perro duerme.', spanish, italian, R10),
+    check('a bare noun after a coordinator is inside the phrase, and divides no clause', R10,
+          'Nonostante la vendita di pane e formaggio è grande, il cane dorme.'),
+    %% a hyphenated word of the lesson, and a range of numbers
+    nf_tr('El perro come el pan a corto-medio plazo.', spanish, italian, R11),
+    check('a word the lesson spells with a hyphen is found by the words the tokeniser reads', R11,
+          'Il cane mangia il pane a breve-medio termine.'),
+    nf_tr('El perro come el pan durante el bienio 2000-2001.', spanish, italian, R12),
+    check('a range of numbers is one word', R12, 'Il cane mangia il pane durante il biennio 2000-2001.'),
+    %% a number ends its phrase before a determiner
+    nf_tr('Los perros comen en 1999 el pan.', spanish, italian, R13),
+    check('a number ends its phrase before a determiner', R13, 'I cani mangiano nel 1999 il pane.'),
+    %% the article before a number that the lesson calls an adverb too
+    nf_tr('Los perros comen unos 980 panes.', spanish, italian, R14),
+    check('a GUARD: an article the lesson calls an adverb, before a number, is the count''s adverb', R14,
+          'I cani mangiano circa 980 pani.'),
+    nf_tr('Los perros comen unos 980 panes.', spanish, english, R14b),
+    check('... and stays with its count in English', R14b, 'The dogs eat about 980 breads.'),
+    %% (this version's first cut read the article as the adverb everywhere:
+    %% `employ about industrious' for `emplean unos trabajadores')
+    nf_tr('Los perros comen unos panes.', spanish, italian, R14c),
+    check('... and before a noun it is the article it is', R14c, 'I cani mangiano dei pani.'),
+    %% the commas the source set
+    nf_tr('En cambio, el perro come el pan, comiendo el queso.', spanish, italian, R15),
+    check('a comma after a front''s own comma is kept', R15, 'Invece, il cane mangia il pane, mangiando il formaggio.'),
+    nf_tr('El perro no come, y el gato duerme.', spanish, italian, R16),
+    check('a comma before a coordinator is kept', R16, 'Il cane non mangia, e il gatto dorme.'),
+    %% the reflexive's passive
+    nf_tr('Se venden los panes.', spanish, english, R17),
+    check('se and a plural verb: the phrase after it is its subject, and English writes the passive', R17,
+          'The breads are sold.'),
+    nf_tr('Se venden los panes.', spanish, italian, R17b),
+    check('a GUARD: ... and Italian its si and the verb, in the source''s order', R17b, 'Si vendono i pani.'),
+    nf_tr('Se venden los panes de los perros, que comen el pan.', spanish, english, R17c),
+    check('... and an aside on the last phrase of that subject closes with its comma in English', R17c,
+          'The breads of the dogs, who eat the bread, are sold.'),
+    %% a GUARD: with a singular verb the word is still the impersonal one
+    nf_tr('Se vende el pan.', spanish, italian, R18),
+    check('a GUARD: with a singular verb se is still the impersonal word', R18, 'Si vende il pane.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

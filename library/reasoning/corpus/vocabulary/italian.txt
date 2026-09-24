@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16160 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16162 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -397,6 +397,8 @@ The masculine noun "rilassamento" means "relaxation".
 The verb "pensa" means "thinks".
 The pronoun "questo" means "this".
 The pronoun "questo" does not precede the verb.
+The pronoun "quello" means "that".
+The pronoun "quello" does not precede the verb.
 The masculine noun "segno" means "sign".
 The feminine noun "fiducia" means "confidence".
 The adverb "oggi stesso" means "this very day".
@@ -431,6 +433,43 @@ The preposition "secondo" means "according to".
 The adverb "alla sbarra" means "on trial".
 The adverb "in tribunale" means "in court".
 The masculine noun "vescovo" means "bishop".
+The masculine noun "minidisc" means "minidisc".
+"minidisc" is the plural of "minidisc".
+The adjective "registrabile" means "recordable".
+"registrabili" is the plural of "registrabile".
+The adjective "principale" means "main".
+The masculine noun "anno" means "year".
+The feminine noun "cifra" means "figure".
+The verb "aumenta" means "increases".
+The preposition "fino a" means "until".
+The preposition "intorno a" means "around".
+The preposition "rispetto a" means "compared with".
+The conjunction "sebbene" means "although".
+The adverb "al ribasso" means "downward".
+The adverb "complessivamente" means "altogether".
+The feminine noun "etichetta discografica" means "record label".
+"etichette discografiche" is the plural of "etichetta discografica".
+The masculine noun "fatturato" means "turnover".
+"fatturati" is the plural of "fatturato".
+"continua" takes "a" before the infinitive.
+Every number is masculine.
+The adverb "a breve termine" means "in the short term".
+The adverb "a medio termine" means "in the medium term".
+The adverb "a lungo termine" means "in the long term".
+The adverb "a breve-medio termine" means "in the short to medium term".
+The masculine noun "lavoratore" means "worker".
+"lavoratori" is the plural of "lavoratore".
+The adverb "circa" means "about".
+The masculine noun "biennio" means "biennium".
+"bienni" is the plural of "biennio".
+The verb "concentra" means "concentrates".
+The masculine noun "totale" means "total".
+"totali" is the plural of "totale".
+The masculine noun "supporto" means "support".
+"supporti" is the plural of "supporto".
+The masculine noun "mantenimento" means "maintenance".
+The masculine noun "svago" means "leisure".
+"svaghi" is the plural of "svago".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -468,6 +507,8 @@ The masculine noun "pezzo" means "piece".
 "pezzi" is the plural of "pezzo".
 The feminine noun "gamma" means "range".
 "gamme" is the plural of "gamma".
+The masculine noun "rallentamento" means "slowdown".
+"rallentamenti" is the plural of "rallentamento".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -91249,6 +91290,14 @@ The feminine adjective "coercitiva" means "coercive".
 "coercitivissimi" is the superlative of "coercitivi".
 "coercitivissima" is the superlative of "coercitiva".
 "coercitivissime" is the superlative of "coercitive".
+The masculine adjective "discografico" means "discographic".
+"discografici" is the plural of "discografico".
+The feminine adjective "discografica" means "discographic".
+"discografiche" is the plural of "discografica".
+"discograficissimo" is the superlative of "discografico".
+"discograficissimi" is the superlative of "discografici".
+"discograficissima" is the superlative of "discografica".
+"discograficissime" is the superlative of "discografiche".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

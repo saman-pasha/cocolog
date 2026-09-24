@@ -197,3 +197,7 @@
 <e r="RL"><p><l>monsignor<s n="n"/></l><r>monsignore<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>accusation<s n="n"/></l><r>accusa<s n="n"/><s n="f"/></r></p></e>
 <e r="RL"><p><l>restoration<s n="n"/></l><r>restauro<s n="n"/><s n="m"/></r></p></e>
+# the record-market report, from Spanish: `discografico' and `rallentamento'
+# have paradigms in apertium-ita and no English here
+<e><p><l>discographic<s n="adj"/></l><r>discografico<s n="adj"/></r></p></e>
+<e><p><l>slowdown<s n="n"/></l><r>rallentamento<s n="n"/><s n="m"/></r></p></e>

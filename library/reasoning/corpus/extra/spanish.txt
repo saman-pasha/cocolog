@@ -389,3 +389,51 @@ The preposition "según" means "according to".
 The adverb "en el banquillo" means "on trial".
 The adverb "ante los tribunales" means "in court".
 The masculine noun "procesamiento" means "indictment".
+# the record-market report (AnCora CESS-CAST-P-20010103-139): `sobre las
+# ventas' is on the sales -- the dictionary's prepositions are the hand
+# lessons', and `sobre' had none; a single is a record, a minidisc a
+# minidisc, and `videos' the plural the page spells without its accent
+The preposition "sobre" means "on".
+The masculine noun "sencillo" means "single".
+"sencillos" is the plural of "sencillo".
+The masculine noun "minidisc" means "minidisc".
+"minidisc" is the plural of "minidisc".
+The masculine noun "video" means "video".
+"videos" is the plural of "video".
+The adjective "grabable" means "recordable".
+"grabables" is the plural of "grabable".
+# `en torno a los 63.168 millones': around, where the words are a lathe
+The preposition "en torno a" means "around".
+# `el auge de la reproducción ilegal' is its boom and `sucesivos descensos'
+# a decline, where the dictionary's first words are a peak and a descent
+The masculine noun "auge" means "boom".
+The masculine noun "descenso" means "decline".
+"descensos" is the plural of "descenso".
+# `Si bien la demanda ... mantuvo': although, two words, where read one by
+# one `si' is if and `la demanda' a pronoun and a verb, she sues
+The conjunction "si bien" means "although".
+# `frente al crecimiento del 15,4%', `una evolución a la baja', `emplean en
+# conjunto unos 980 trabajadores'
+The preposition "frente a" means "compared with".
+The adverb "a la baja" means "downward".
+The adverb "en conjunto" means "altogether".
+# a record label, where `sello' alone is a seal or a stamp, and a turnover
+The masculine noun "sello discográfico" means "record label".
+"sellos discográficos" is the plural of "sello discográfico".
+The masculine noun "volumen de negocio" means "turnover".
+# `continúa aumentando': the verb takes the gerund where Italian's takes `a'
+# and the infinitive, and a number used as a noun is masculine -- `el 1,4%',
+# `en el 2001' -- in both
+"continúa" takes the gerund.
+Every number is masculine.
+# `a corto-medio plazo': the term of a forecast, an idiom, which the lesson
+# spells as the text does -- the translator finds a hyphenated word by the
+# words the tokeniser reads in it
+The adverb "a corto plazo" means "in the short term".
+The adverb "a medio plazo" means "in the medium term".
+The adverb "a largo plazo" means "in the long term".
+The adverb "a corto-medio plazo" means "in the short to medium term".
+# `unos 980 trabajadores': about 980, where the article before a number
+# says the count is rough
+The adverb "unos" means "about".
+The adverb "unas" means "about".

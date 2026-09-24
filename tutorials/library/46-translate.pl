@@ -354,6 +354,7 @@ main :-
     section_26,
     section_27,
     section_28,
+    section_29,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -1257,6 +1258,83 @@ The adverb "ante los tribunales" means "in court".
 The word "a" precedes the person.
 "ate" is the past of "eats". "eaten" is the participle of "eats".
 The word "no" means "not".').
+
+section_29 :-
+    format("~n29. A Spanish report into Italian: figures, a heading in capitals, a passive made with se~n", []),
+    lesson_29(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_29(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('COMPACTO CONTRA CASETE.', spanish, italian, S29a),
+    must('a HEADING IN CAPITALS is read as its words, with no verb before any', S29a, 'Compatto contro cassetta.'),
+    reason_translate('El perro come el 4% del pan en el 2001.', spanish, italian, S29b),
+    must('a NUMBER used as a noun is masculine, by the lesson''s rule', S29b, 'Il cane mangia il 4% del pane nel 2001.'),
+    reason_translate('El perro continúa comiendo el pan.', spanish, italian, S29c),
+    must('a verb''s own GERUND is the infinitive and the word the other language''s verb takes',
+         S29c, 'Il cane continua a mangiare il pane.'),
+    reason_translate('El perro come el pan hasta situarse en el 4%.', spanish, italian, S29d),
+    must('an INFINITIVE WITH ITS REFLEXIVE after a preposition', S29d, 'Il cane mangia il pane fino a situarsi nel 4%.'),
+    reason_translate('Los perros comen el pan de 22 empleados por empresa.', spanish, italian, S29e),
+    must('a COUNT before its noun, and a bare noun after `por'' that is nobody''s agent',
+         S29e, 'I cani mangiano il pane di 22 impiegati per impresa.'),
+    reason_translate('El perro come el pan a corto-medio plazo durante el bienio 2000-2001.', spanish, italian, S29f),
+    must('a word the lesson spells with a HYPHEN, and a RANGE of numbers as one word',
+         S29f, 'Il cane mangia il pane a breve-medio termine durante il biennio 2000-2001.'),
+    reason_translate('Los perros comen unos 980 panes.', spanish, english, S29g),
+    must('an article the lesson calls an adverb too, before a number: a ROUGH COUNT', S29g, 'The dogs eat about 980 breads.'),
+    reason_translate('Se venden los panes.', spanish, english, S29h),
+    must('se and a PLURAL VERB: the phrase after it is the subject, and English writes the passive',
+         S29h, 'The breads are sold.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_29(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". "unos" is the plural of "un".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The noun "perro" means "dog". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "casete" means "cassette". The noun "bienio" means "biennium". The noun "empresa" means "company".
+The noun "empleado" means "employee". "empleado" is a person.
+The adjective "compacto" means "compact".
+The adverb "unos" means "about". The adverb "a corto-medio plazo" means "in the short to medium term".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+"comiendo" is the gerund of "come".
+The verb "compacta" means "compacts". "compacto" is the first person of "compacta".
+The verb "emplea" means "employs". "empleado" is the participle of "emplea".
+"empleados" is the participle of "emplea". "empleados" is the plural of "empleado".
+The verb "sitúa" means "situates". "situar" is the infinitive of "sitúa".
+The verb "vende" means "sells". "venden" is the plural of "vende".
+The verb "continúa" means "continues". "continúa" takes the gerund.
+The reflexive pronoun "se" means "itself".
+The preposition "de" means "of". The preposition "en" means "in". The preposition "contra" means "against".
+The preposition "durante" means "during". The preposition "hasta" means "until".
+The preposition "por" means "by". The preposition "por" means "for".
+"sold" is the participle of "sells".').
+lesson_29(italian, 'Italian is a language.
+The feminine article "la" means "the". The masculine article "il" means "the". The masculine article "lo" means "the".
+"le" is the plural of "la". "i" is the plural of "il". "gli" is the plural of "lo".
+The article "lo" comes before a vowel.
+"del" is the contraction of "di il". "nel" is the contraction of "in il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". "cani" is the plural of "cane".
+The noun "pane" means "bread". "pani" is the plural of "pane".
+The noun "cassetta" means "cassette". The noun "biennio" means "biennium". The noun "impresa" means "company".
+The noun "impiegato" means "employee". "impiegati" is the plural of "impiegato".
+The adjective "compatto" means "compact".
+The adverb "circa" means "about". The adverb "a breve-medio termine" means "in the short to medium term".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "situa" means "situates". "situare" is the infinitive of "situa".
+The verb "vende" means "sells". "vendono" is the plural of "vende".
+The verb "continua" means "continues". "continua" takes "a" before the infinitive.
+The reflexive pronoun "si" means "itself".
+The preposition "di" means "of". The preposition "in" means "in". The preposition "contro" means "against".
+The preposition "durante" means "during". The preposition "fino a" means "until".
+The preposition "da" means "by". The preposition "per" means "for".
+"sold" is the participle of "sells".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20212 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20214 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -276,6 +276,34 @@ The preposition "según" means "according to".
 The adverb "en el banquillo" means "on trial".
 The adverb "ante los tribunales" means "in court".
 The masculine noun "procesamiento" means "indictment".
+The preposition "sobre" means "on".
+The masculine noun "sencillo" means "single".
+"sencillos" is the plural of "sencillo".
+The masculine noun "minidisc" means "minidisc".
+"minidisc" is the plural of "minidisc".
+The masculine noun "video" means "video".
+"videos" is the plural of "video".
+The adjective "grabable" means "recordable".
+"grabables" is the plural of "grabable".
+The preposition "en torno a" means "around".
+The masculine noun "auge" means "boom".
+The masculine noun "descenso" means "decline".
+"descensos" is the plural of "descenso".
+The conjunction "si bien" means "although".
+The preposition "frente a" means "compared with".
+The adverb "a la baja" means "downward".
+The adverb "en conjunto" means "altogether".
+The masculine noun "sello discográfico" means "record label".
+"sellos discográficos" is the plural of "sello discográfico".
+The masculine noun "volumen de negocio" means "turnover".
+"continúa" takes the gerund.
+Every number is masculine.
+The adverb "a corto plazo" means "in the short term".
+The adverb "a medio plazo" means "in the medium term".
+The adverb "a largo plazo" means "in the long term".
+The adverb "a corto-medio plazo" means "in the short to medium term".
+The adverb "unos" means "about".
+The adverb "unas" means "about".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -335,6 +363,8 @@ The feminine noun "fiscalía" means "prosecution".
 "fiscalías" is the plural of "fiscalía".
 The masculine noun "tribunal" means "tribunal".
 "tribunales" is the plural of "tribunal".
+The feminine noun "ralentización" means "slowdown".
+"ralentizaciones" is the plural of "ralentización".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -118764,6 +118794,10 @@ The masculine adjective "normando" means "norman".
 "normandos" is the plural of "normando".
 The feminine adjective "normanda" means "norman".
 "normandas" is the plural of "normanda".
+The masculine adjective "discográfico" means "discographic".
+"discográficos" is the plural of "discográfico".
+The feminine adjective "discográfica" means "discographic".
+"discográficas" is the plural of "discográfica".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
