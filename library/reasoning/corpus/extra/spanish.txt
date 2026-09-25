@@ -683,3 +683,33 @@ The verb "da cuenta" means "realizes".
 The feminine noun "pregunta" means "question".
 # `decidir si nos costaría más caro intervenir': to decide whether
 "decide" takes the question.
+# the Solana article, into Italian
+# `el presidente del Gobierno se alegra de que haya progresado': the
+# perfect's subjunctive -- the forms of `haber' are the lesson's to state,
+# as `habrá' above
+"haya" is the subjunctive of "ha".
+"hayan" is the plural of "haya".
+"hayamos" is the first person of "hayan".
+"hayas" is the second person of "haya".
+# `el Gobierno español apoyará a Javier Solana', `apoyar a otra
+# candidatura': to back -- the dictionary's first `apoya' leans
+The verb "apoya" means "backs".
+# `el firme respaldo de Alemania y Francia', `dar un respaldo claro': the
+# backing -- the dictionary's `respaldo' is a backrest
+The masculine noun "respaldo" means "backing".
+# `se alegra de que haya progresado': glad that
+"alegra" takes "de" before the clause.
+# `de todos los demás socios comunitarios', `los otros': other, after an
+# article -- the dictionary has both as determiners only, and `los' before
+# a determiner was read as the pronoun `them'
+The masculine adjective "otro" means "other". The feminine adjective "otra" means "other".
+"otros" is the plural of "otro". "otras" is the plural of "otra".
+The adjective "demás" means "other".
+"demás" is the plural of "demás".
+# `España ve con simpatía la candidatura': with sympathy -- the dictionary's
+# only `simpatía' is a charm, which Italian writes as an amulet
+The feminine noun "simpatía" means "sympathy".
+# `mientras que el Gobierno español se ha mostrado frío': while, one
+# conjunction of two words -- read apart, `mientras' was the adverb
+# `meanwhile' and `que' opened a clause the verb before it never takes
+The conjunction "mientras que" means "while".

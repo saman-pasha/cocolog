@@ -362,6 +362,7 @@ main :-
     section_34,
     section_35,
     section_36,
+    section_37,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -2064,6 +2065,101 @@ The pronoun "lo" means "him". The pronoun "la" means "her". The reflexive pronou
 The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with". The preposition "como" means "like". The preposition "sin" means "without". The preposition "para" means "for". The preposition "delante de" means "in front of".
 The adverb "sólo" means "only". The adverb "quizás" means "perhaps".
 The mark "¿" begins the question.').
+
+section_37 :-
+    format("~n37. A Spanish report into Italian: a name in quotation marks, an aside after a name, a reporting clause at the end, a title before a name, an adjective in the lesson's order~n", []),
+    lesson_37(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_37(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('El perro dice que "María come el pan" y que "el gato duerme".', spanish, italian, S37a),
+    must('a NAME AT THE HEAD OF A QUOTATION keeps its capital and its mark, and a quotation may close on its verb', S37a,
+         'Il cane dice che "María mangia il pane" e che "il gatto dorme".'),
+    reason_translate('El perro ve a Juan Pérez, amigo del gato, en la casa.', spanish, italian, S37b),
+    must('a phrase between commas after a name is the NAME''S ASIDE', S37b,
+         'Il cane vede Juan Pérez, amico del gatto, nella casa.'),
+    reason_translate('El perro, conocido en la casa como Rex, come el pan.', spanish, italian, S37c),
+    must('a PARTICIPLE WITH ITS OWN PHRASES between commas is an aside of the subject', S37c,
+         'Il cane, conosciuto nella casa come Rex, mangia il pane.'),
+    reason_translate('El perro come el pan el Jueves.', spanish, italian, S37d),
+    must('a DAY the source capitalises is written as a day', S37d, 'Il cane mangia il pane il giovedì.'),
+    reason_translate('El perro come el pan, dice el ministro de la casa, Abel Matutes.', spanish, italian, S37e),
+    must('a clause at the end whose subject is a PERSON reports the rest, and the name after the last comma is apposed', S37e,
+         'Il cane mangia il pane, dice il ministro della casa, Abel Matutes.'),
+    reason_ir('El perro come el pan, abre la puerta.', spanish, IR37f),
+    show('... and a clause whose phrase after the verb is no person keeps it as its object', IR37f),
+    reason_translate('El perro come la sopa común.', spanish, italian, S37g),
+    must('an ADJECTIVE in the lesson''s order, where a feminine noun spelled `corrente'' came first', S37g,
+         'Il cane mangia la minestra comune.'),
+    reason_translate('El perro ve al señor Pérez.', spanish, italian, S37h),
+    must('a noun before a name takes its SHORT FORM', S37h, 'Il cane vede il signor Pérez.'),
+    reason_translate('La casa no es grande ni roja.', spanish, italian, S37i),
+    must('`ni'' between two adjectives is NOR', S37i, 'La casa non è grande né rossa.'),
+    reason_translate('El perro duerme si come el pan.', spanish, italian, S37j),
+    must('after `si'' the verb is NO COMMAND', S37j, 'Il cane dorme se mangia il pane.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_37(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "casa" means "house". The noun "sopa" means "soup". The noun "puerta" means "door".
+The noun "ministro" means "minister". "ministro" is a person. The noun "amigo" means "friend". "amigo" is a person.
+The noun "señor" means "gentleman". "señor" is a person.
+The noun "jueves" means "thursday". "jueves" is a time.
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+The masculine adjective "rojo" means "red". The feminine adjective "roja" means "red".
+The adjective "común" means "common".
+The verb "come" means "eats". "comen" is the plural of "come". "come" is the imperative of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "ve" means "sees". The verb "dice" means "says". The verb "abre" means "opens".
+The verb "conoce" means "knows". "conocido" is the participle of "conoce".
+The verb "es" means "is". "son" is the plural of "es".
+"que" is a relative. The conjunction "que" means "that".
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "si" means "if".
+The conjunction "ni" means "neither". The conjunction "ni" means "nor".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with". The preposition "como" means "as".
+The adjective "actual" means "current". "actuales" is the plural of "actual".
+The auxiliary "ha" means "has". "han" is the plural of "ha". The verb "ha" means "has".
+"sido" is the participle of "es".
+"visto" is the participle of "ve". "vista" is the participle of "ve". "vista" is feminine.
+The preposition "por" means "by".').
+lesson_37(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The article "lo" comes before a vowel.
+"l''" is the elision of "lo". "l''" is the elision of "la".
+"al" is the contraction of "a il". "dal" is the contraction of "da il". "del" is the contraction of "di il". "della" is the contraction of "di la". "nel" is the contraction of "in il". "nella" is the contraction of "in la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". The noun "casa" means "house". The noun "minestra" means "soup". The noun "porta" means "door".
+The noun "ministro" means "minister". The noun "amico" means "friend".
+The noun "signore" means "gentleman". "signor" is the apocope of "signore".
+The noun "giovedì" means "thursday". "giovedì" is a time.
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+The masculine adjective "rosso" means "red". The feminine adjective "rossa" means "red".
+The adjective "comune" means "common". The feminine noun "corrente" means "current". The adjective "corrente" means "common".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "vede" means "sees". The verb "dice" means "says". The verb "apre" means "opens".
+The verb "conosce" means "knows". "conosciuto" is the participle of "conosce".
+The verb "è" means "is". "sono" is the plural of "è".
+"che" is a relative. The conjunction "che" means "that".
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "se" means "if".
+The adverb "neanche" means "neither". The conjunction "né" means "neither". The conjunction "né" means "nor".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with". The preposition "come" means "as".
+The adjective "attuale" means "current". "attuali" is the plural of "attuale".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". The verb "ha" means "has".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine. "è" is the auxiliary of "è".
+"visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine.
+The preposition "da" means "by".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

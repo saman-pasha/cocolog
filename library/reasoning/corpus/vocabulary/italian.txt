@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16201 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16202 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -672,6 +672,18 @@ The feminine noun "domanda" means "question".
 "decide" takes the question.
 "ce" is the particle of "ha".
 The intransitive verb "viene" means "comes".
+The feminine noun "politica" means "policy".
+The masculine noun "sostegno" means "backing".
+The noun "responsabile" means "manager".
+The masculine adjective "comunitario" means "community". The feminine adjective "comunitaria" means "community".
+"comunitari" is the plural of "comunitario". "comunitarie" is the plural of "comunitaria".
+"previsto" is the participle of "prevede". "prevista" is the participle of "prevede". "prevista" is feminine.
+"previsti" is the participle of "prevede". "previsti" is the plural of "previsto".
+"previste" is the participle of "prevede". "previste" is feminine. "previste" is the plural of "prevista".
+"signor" is the apocope of "signore".
+The verb "appoggia" means "backs".
+"evita" takes "di" before the infinitive.
+The feminine noun "simpatia" means "sympathy". "simpatie" is the plural of "simpatia".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -20827,6 +20839,52 @@ The verb "media" means "mediates".
 "mediate" is the plural of "mediata".
 "mediare" is the infinitive of "media".
 "mediando" is the gerund of "media".
+The verb "rallegra" means "gladdens".
+"rallegrano" is the plural of "rallegra".
+"rallegriamo" is the first person of "rallegrano".
+"rallegro" is the first person of "rallegra".
+"rallegri" is the second person of "rallegra".
+"rallegrò" is the past of "rallegra".
+"rallegrarono" is the past of "rallegrano".
+"rallegrammo" is the first person of "rallegrarono".
+"rallegrai" is the first person of "rallegrò".
+"rallegrasti" is the second person of "rallegrò".
+"rallegrava" is the past of "rallegra".
+"rallegravano" is the past of "rallegrano".
+"rallegravamo" is the first person of "rallegravano".
+"rallegravo" is the first person of "rallegrava".
+"rallegravi" is the second person of "rallegrava".
+"rallegrerà" is the future of "rallegra".
+"rallegreranno" is the plural of "rallegrerà".
+"rallegreremo" is the first person of "rallegreranno".
+"rallegrerò" is the first person of "rallegrerà".
+"rallegrerai" is the second person of "rallegrerà".
+"rallegrerebbe" is the conditional of "rallegra".
+"rallegrerebbero" is the plural of "rallegrerebbe".
+"rallegreremmo" is the first person of "rallegrerebbero".
+"rallegrerei" is the first person of "rallegrerebbe".
+"rallegreresti" is the second person of "rallegrerebbe".
+"rallegri" is the subjunctive of "rallegra".
+"rallegrino" is the plural of "rallegri".
+"rallegriamo" is the first person of "rallegrino".
+"rallegrasse" is the past subjunctive of "rallegra".
+"rallegrassero" is the plural of "rallegrasse".
+"rallegrassimo" is the first person of "rallegrassero".
+"rallegrassi" is the first person of "rallegrasse".
+"rallegrassi" is the second person of "rallegrasse".
+"rallegra" is the imperative of "rallegra".
+"rallegrare" is the negative imperative of "rallegra".
+"rallegrate" is the imperative of "rallegrano".
+"rallegrato" is the participle of "rallegra".
+"rallegrata" is the participle of "rallegra".
+"rallegrata" is feminine.
+"rallegrati" is the participle of "rallegra".
+"rallegrati" is the plural of "rallegrato".
+"rallegrate" is the participle of "rallegra".
+"rallegrate" is feminine.
+"rallegrate" is the plural of "rallegrata".
+"rallegrare" is the infinitive of "rallegra".
+"rallegrando" is the gerund of "rallegra".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".

@@ -444,6 +444,19 @@ The verb "da cuenta" means "realizes".
 "da cuenta" takes "de" before the clause.
 The feminine noun "pregunta" means "question".
 "decide" takes the question.
+"haya" is the subjunctive of "ha".
+"hayan" is the plural of "haya".
+"hayamos" is the first person of "hayan".
+"hayas" is the second person of "haya".
+The verb "apoya" means "backs".
+The masculine noun "respaldo" means "backing".
+"alegra" takes "de" before the clause.
+The masculine adjective "otro" means "other". The feminine adjective "otra" means "other".
+"otros" is the plural of "otro". "otras" is the plural of "otra".
+The adjective "demás" means "other".
+"demás" is the plural of "demás".
+The feminine noun "simpatía" means "sympathy".
+The conjunction "mientras que" means "while".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

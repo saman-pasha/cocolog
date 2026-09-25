@@ -970,3 +970,30 @@ The feminine noun "domanda" means "question".
 # come -- a verb with no object, so the phrase after it is its subject; read
 # otherwise, somebody came the moment
 The intransitive verb "viene" means "comes".
+# the Solana article, from Spanish
+# `la política exterior y de seguridad común': the policy -- the
+# dictionary's only `policy' is the insurance one
+The feminine noun "politica" means "policy".
+# `el firme respaldo de Alemania y Francia': the backing
+The masculine noun "sostegno" means "backing".
+# `el primer responsable de la política exterior': the one in charge
+The noun "responsabile" means "manager".
+# `en el argot comunitario', `los demás socios comunitarios': of the
+# (European) Community -- the dictionary has only the noun
+The masculine adjective "comunitario" means "community". The feminine adjective "comunitaria" means "community".
+"comunitari" is the plural of "comunitario". "comunitarie" is the plural of "comunitaria".
+# `está previsto que se produzca': `previsto' is the participle Italian
+# writes, where the dictionary gives `preveduto' first
+"previsto" is the participle of "prevede". "prevista" is the participle of "prevede". "prevista" is feminine.
+"previsti" is the participle of "prevede". "previsti" is the plural of "previsto".
+"previste" is the participle of "prevede". "previste" is feminine. "previste" is the plural of "prevista".
+# `al señor Westendorp': the title's short form before a name
+"signor" is the apocope of "signore".
+# `apoyará a Javier Solana': to back -- the dictionary's first `backs' is
+# `lancia', which launches
+The verb "appoggia" means "backs".
+# `Matutes evitó dar un respaldo claro': avoided giving -- `evitare' takes
+# `di' before its infinitive, where Spanish's `evitar' takes nothing
+"evita" takes "di" before the infinitive.
+# `España ve con simpatía la candidatura': the dictionary has no `simpatia'
+The feminine noun "simpatia" means "sympathy". "simpatie" is the plural of "simpatia".

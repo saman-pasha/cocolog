@@ -7359,6 +7359,248 @@ an object in front, adjectives in front of a subject and two clauses of `che`
 are new shapes a program reaches; the owner decides. The full suite was not run
 on 1.8.10.
 
+### A Spanish report on Solana's candidacy into Italian: a name in quotation marks, an aside after a name, a reporting clause at the end, an adjective in the lesson's order (1.8.11)
+
+**THE TENTH SAMPLE OF THE LOOP, AND BACK TO SPANISH.** AnCora's
+CESS-CAST-P-19990601-23 -- ten sentences of El Periódico on the Spanish
+government and the European Union's first foreign-policy chief, Mister PESC:
+it will back Javier Solana if the other partners agree, it keeps Carlos
+Westendorp as its candidate until then, and its foreign minister, Abel
+Matutes, is quoted on why -- Spanish into Italian over the two-language
+vocabulary store. The middle column is 1.8.10's translator over THIS store:
+
+| | 1.8.10, its store | 1.8.10, this store | **1.8.11** |
+|---|---|---|---|
+| translated | 7 of 10, two wrong in structure | 7, the same two wrong | **10** |
+| refused for a word | 1 -- `España`, a name, and `haya` | 1, `España` | **0** |
+| refused with every word known | 2 | 2 | **0** |
+| the article, one process | 31.9 s | 39.4 and 40.6 s | **23.6 and 23.6 s** |
+
+-- the store Italian 173 059 terms and Spanish 218 366, taught into one
+`--embed` store from the rebuilt vocabularies in 676 s and 1 123 s, 348 MB.
+
+**WHAT IT NEEDED IS WHAT A REPORT SAYS AROUND A NAME.** The twelve were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks, Fiat figures, Valencia a thing on show, the bioethics report its
+claims, the football page a squad, Monreale a court, the record report figures
+again, the islands report what a news item puts before its verb, the opera
+review what it puts beside a phrase, the interview a man talking, the Georgia
+report people by their offices, the extract things said again, the Clinton
+report who said what and the letter an argument; a report on a candidacy names
+people, and says beside each name who the person is:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| a name at the head of a quotation inside the sentence | `señaló que "España ve con simpatía la candidatura"` | the capital kept beside the mark (`qopenu`, `qcloseu`, `qbothu`) until the side is known; a word no lesson knows is a name spelled with its mark, `name('"España')` |
+| a quotation that closes on its verb | `que "el presidente del Gobierno se alegra" de que haya progresado` | `vqc`, the closing mark put back on the last word of the verb group |
+| a phrase with no article between two commas after a name | `La candidatura de Solana, actual secretario general de la OTAN, ha sido promovida`, `a Carlos Westendorp, Alto Representante Civil en Bosnia, explicó` | the name's aside, its closing comma kept; never a phrase all in capitals (below) |
+| a participle with phrases of its own between commas | `..., conocido en el argot comunitario como Mister PESC, está previsto` | an aside `part(L, [agr(G), agrn(N)|Cs])`, in the form's own gender and number |
+| a reporting clause at the end, after a plain comma | `..., explicó ayer el ministro de Asuntos Exteriores, Abel Matutes.` | read as one only where its subject after the verb is a person (below) |
+| a name apposed at the end of the piece | `el ministro de Asuntos Exteriores, Abel Matutes.` | `w(Name, appos)` with no closing comma, two words at least |
+| a name whose later words the lesson knows | `a Javier Solana` | a name that opens on a word no lesson knows goes on through capitalised nouns: `solana` is a sunny slope |
+| a capitalised adjective alone after a preposition | `en Bosnia` | a name, as a noun is since 1.7.0: `bosnia` is the feminine of Bosnian |
+| an acronym between brackets | `la Unión Europea (UE)` | one word in capitals between brackets is an acronym |
+| a day the source capitalises | `que comienza el Jueves` | lowered as a month is, `"jueves" is a time.` |
+| a heading, a noun and a name | `Prudencia de Matutes.` | read with no verb; `Pan del perro.` stays refused |
+| a clause after `si` | `si logra el consenso` | no command, although `logra` is the imperative of `lograr` too |
+| `ni` between two adjectives | `no habría sido prudente ni serio` | crosses as `nor` (below) |
+| a noun with a name after it, and its article | `al señor Westendorp` | the short form the lesson states: `al signor Westendorp` |
+| an adjective's gender | `la política exterior y de seguridad común` | in the lesson's order: `comune`, where the feminine NOUN `corrente` came first (below) |
+
+-- and the words, in `corpus/extra/`: 13 lines of Spanish and 12 of Italian,
+one of them the conjunction `mientras que`, which read apart was the adverb
+`meanwhile` and a `that` clause, `frattanto che`; and one entry in
+`eng-ita.dix`, `gladden`, whose `allietare` Apertium's Italian does not carry.
+The vocabularies went from 109 626 and 136 083 lines to 109 684 and 136 096,
+and the set of what they LOST is the Italian header's entry count alone.
+`reason.pl` did not move, the twenty-second version running.
+
+**AN ADJECTIVE'S GENDER IS THE WORD'S, WHATEVER ITS CLASS, AND THAT CHOSE THE
+WRONG ADJECTIVE.** The writer took the first word for `common` that agreed with
+the noun, and then one with no gender: `la seguridad común` came out `la
+sicurezza corrente`. A lesson says the gender of a WORD -- `The feminine noun
+"corrente" means "current".` makes `corrente` feminine as an adjective too --
+so for a feminine noun the second word for `common` agreed before the first,
+`comune`, which has no gender and agrees with everything. The determiners take
+the lesson's order since 1.8.0; the adjectives do now: the first that agrees or
+has no gender. It is 1.6.7's finding for the fifth time -- a lesson says what a
+word means and what classes it has, and never which belongs to which -- and it
+moved two words of the controls, each still right (below).
+
+**A COORDINATOR AMONG ADJECTIVES CROSSED BY ITS FIRST MEANING.** `ni` means
+`neither` first and `nor` second. Between two adjectives it crossed as
+`neither`, which English's coordinator test does not know, so the writer took
+it for a third adjective, and Italian's first word for `neither` is the adverb:
+`prudente neanche serio`. It crosses now by the meaning that made it a
+coordinator, `né`.
+
+**A REPORTING CLAUSE AT THE END IS ONE ONLY WITH A PERSON AFTER THE VERB.** No
+quotation mark says that what went before was said, so `..., explicó ayer el
+ministro de Asuntos Exteriores, Abel Matutes.` read as a clause of its own with
+nobody for its subject and the minister as the thing explained. The lesson says
+which nouns are persons -- the vocabulary states 915 of Spanish's, for the `a`
+before a person -- and a person phrase after a Spanish verb with no `a` before
+it is its subject. `abrió la puerta` after a comma is still somebody opening the
+door. **And the apposition at the end moved the reading, not only the name**:
+with a comma before `Abel Matutes` and none after it, the clause before read as
+a reporting clause set IN the sentence (1.6.21's shape, between two commas), and
+the name went to the first clause as a second object of `mantendrá`.
+
+**A CAPITAL ON THE EDGE OF A QUOTATION WAS LOST TO ITS MARK.** The tokeniser
+keeps a quotation mark in the word's case (`qopen`, `qclose`, `qboth`, since
+1.6.1), and that replaced `upper`: `"España` was a lower-case word no lesson
+knows, neither a name nor a word, and the sentence was refused for it. The
+case keeps both now until the side is known, and a word no lesson knows is a
+name spelled with its mark, as `dal "Washington Post"` already was.
+
+**THE FIRST ROUND OF CONTROLS FOUND TWO REGRESSIONS, AND WRITING A GUARD FOR
+ONE OF THEM FOUND A THIRD.** With `test/translate.pl` GREEN and the report at 10
+of 10:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| the twelve's `si disse subito dopo Hiroshima` came out `se dijo inmediatamente después Hiroshima`, where 1.8.10 wrote `tras` | the reporting clause at the end took `Hiroshima` for the speaker, `si` for an object pronoun and `dopo` for an adverb: IT WAS SAID right after Hiroshima, and Hiroshima said it | no pronoun before a speaker's verb, and no preposition before the speaker |
+| the islands report's `Capri, Procida, Ischia, Giglio, Eolie e Ponza off limits ...` refused | the name's aside took `, Giglio,` for what Ischia is -- `giglio` is a lily to the lesson -- and broke the list | an aside is never all in capitals |
+| writing that guard: `Juan, Pedro, Casa, María y Ana duermen.` read `Pedro Casa María` as one name | a name that goes on through a capitalised noun (`Javier Solana`) ran over the commas, which the subject side is read without | a comma before a capitalised noun parts it from the name before, as one before a name did (`tr_names_parted/2`) |
+
+**THE SECOND ROUND HAD THE TEXTS RIGHT AND TWO CONTROLS SLOWER, EACH BY ONE
+SENTENCE**: Monreale by 19 % and the Georgia report by 4 %, half a second each.
+Counted:
+
+| sentence, inferences | 1.8.10 | the second round | 1.8.11 |
+|---|---|---|---|
+| Monreale's `Monsignor Cassisa, secondo l'accusa, avrebbe intascato ...` | 861 588 | 1 962 850 | **1 007 176** |
+| Georgia's first, `Los poco más de tres millones de electores ...` | 1 797 085 | 2 976 033 | **1 802 514** |
+
+The first was the reporting clause at the end. It read the whole last piece,
+`avrebbe intascato tangenti ... di Monreale e truffato la comunità ... (per la
+valutazione ...)`, once for every phrase that could be its subject -- the
+complements before the phrase and after it -- and only then asked whether the
+subject was a person; none was. It asks as soon as the subject is read now
+(`tr_reporting/3` with `person`), and the Hiroshima conditions go there too,
+where they are cheap: a speaker after a preposition is not looked at, and a verb
+with a pronoun before it is not a speaker's. The second was found by the hunk
+bisection of 1.8.5 -- 42 hunks of the diff against 1.8.10, each reverted in a
+copy and counted, three copies at a time: one hunk was 1.1 million of the 1.2.
+The name's aside read `en una consulta que servirá de termómetro ... de la
+antigua URSS`, after `Tbilisi,`, as a phrase with its relative clause, and
+refused it. An aside that says who a name is opens on a noun or an adjective,
+which `en` is not.
+
+**AND THE DATA COLUMN FOUND ONE MORE, WHICH ONLY IT COULD.** 1.8.10 on its own
+store against 1.8.10 on this one: Fiat's `nel quale sono previste ulteriori
+contribuzioni da parte di Chrysler Group al Veba` came out `son previstos
+adicionales contribuciones`, where it was `previstas`. This version's lines say
+that `previste` is a participle of `prevedere` -- for `está previsto que`, which
+Italian writes `è previsto` -- and 1.8.10 had read `previste` as the ADJECTIVE
+`due`: `are due additional contributions`, the right Spanish from the wrong IR.
+Read as the passive it is, the contributions were its object and nobody its
+subject: the passive reader takes the phrase after the verb for the subject
+(1.7.2), and it stood down for the `rel` that a clause after `nel quale` is
+read with. After a relative word that a preposition governs, the clause is a
+whole statement, and the passive reader reads it now.
+
+**AND THE FIRST FIX FOR IT COST THE BIOETHICS REPORT 30 %, WHICH THE NEXT ROUND
+SHOWED.** It had a second half: a passive's subject after it with PHRASES after
+it, `da parte di ...` and `al Veba`, found by the question form's finder where
+the whole rest would not read as one subject. Counted, that half cost `Vanno
+invece attivate la terapia palliativa e la terapia del dolore, in modo che ...`
+5.9 million inferences, 5.3 million of them to fail on the sentence read with
+its commas out; a guard that no word among the phrases opens a clause left half
+a million. Taken out, Fiat's sentence read the same -- its contributions with
+their phrases are ONE phrase, which the reader already took -- and so did the
+case's check for it; only `Sono viste le porte del gatto dal ministro.`, an
+agent after the subject, went back to `son vistos`, which 1.8.10 writes on any
+store. So that half is out, and the sentence is a cost. **A fix found by a control is two changes when
+it has two halves, and only an arm with each half taken out says which one the
+control needed.**
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `la politica esteriore` | `la politica estera` | `exterior` crosses as `exterior`, and Italian's first word for it is `esteriore` |
+| `se riesce il consenso` | `se ottiene il consenso` | `logra` means `attains`, and Italian's first `attains` is `riesce` |
+| `tutti gli altri compagni comunitari` | `soci` | `socio` is a partner, and Italian's first `partner` is `compagno` |
+| `..., fino a allora, spiegò ieri` | `ma fino ad allora manterrà` | a front with no comma is written after the clause, 1.6.8's cost; and `ad` before a vowel is no rule a lesson states, 1.8.3's |
+| `d'Alemania`, `España` | `della Germania`, `la Spagna` | a name no lesson knows passes through as written |
+| `appoggiare a altra candidatura` | `appoggiare un'altra candidatura` | Spanish marks this object with `a` though it is no person, 1.8.3's cost, and Spanish writes no article before `otra` |
+| `insistiamo in lei` | `insistiamo su di essa` | `ella` after a preposition is a person's pronoun to the translator, and `en` is `in` |
+| `conterà con il nostro supporto` | `potrà contare sul nostro appoggio` | `contar con` is an idiom, 1.8.5's cost, and `apoyo` is support |
+| `In modo che possiamo parlare` | `perché possiamo parlare` | `para que` is `so that`; a quotation after a colon is a sentence of its own and opens with a capital, where the source has `para`; a subjunctive is written as the indicative, 1.6.8's cost |
+| `è prevista che si produce` | `è previsto che avvenga` | the participle agrees with the subject in front, which Spanish's `está previsto que` does not; and the subjunctive |
+| `che ha progredito` | `che abbia fatto progressi` | the subjunctive |
+| `il ministro d'Affari esteri, Abel Matutes` | `il ministro degli Affari Esteri` | the source has no article; and the IR hangs the name on `foreign affairs` and not on the minister, 1.6.6's PP finding -- every language writes the same words either way |
+
+**AND A COMMA WITH A CONNECTOR AFTER IT COSTS EIGHT TIMES ITS TWO CLAUSES,
+WHICH IS OLDER THAN THIS SAMPLE.** The second sentence, `..., mientras que el
+Gobierno español se ha mostrado frío y reticente`, costs 5.7 s on this store,
+where 1.8.10 took 1.2 s on its own store to read `mientras` as the adverb and
+`que` as a clause of the verb's. Measured on both translators over one store,
+each sentence in its own process, any `S1, CONNECTOR S2` costs the same:
+
+| inferences | 1.8.10 | 1.8.11 |
+|---|---|---|
+| `La candidatura ha sido promovida por Tony Blair, mientras que el Gobierno español se ha mostrado frío.` | 2 717 682 | 2 721 575 |
+| the same with `pero` | 2 944 936 | 2 948 214 |
+| the same with `porque` | 2 714 285 | 2 718 175 |
+| the first clause alone | 141 446 | 141 585 |
+| the second clause alone | 189 957 | 190 178 |
+
+-- so the division costs about eight times its two halves together, on both,
+and it is the next thing to measure rather than this sample's to fix.
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.10's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.10, this store | **1.8.11** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 14.2 and 14.6 s | **12 of 12, 14.6 and 14.5 s** |
+| the Spanish article | 11 of 11, 13.3 and 13.2 s | **11 of 11, 13.1 and 13.4 s** |
+| Livata, 29 sentences | 29 of 29, 85.8 and 86.1 s | **29 of 29, 86.0 and 87.1 s** |
+| Fiat, 20 sentences | 20 of 20, 19.9 and 19.6 s | **20 of 20, 20.2 and 20.4 s** |
+| Valencia, 16 sentences | 16 of 16, 44.9 and 44.7 s | **16 of 16, 44.4 and 45.0 s** |
+| the bioethics article, 15 sentences | 15 of 15, 14.5 and 14.5 s | **15 of 15, 14.6 and 14.7 s** |
+| the football article, 20 sentences | 20 of 20, 27.3 and 27.8 s | **20 of 20, 28.1 and 27.9 s** |
+| Monreale, 6 sentences | 6 of 6, 3.7 and 3.8 s | **6 of 6, 3.7 and 3.6 s** |
+| the record report, 15 sentences | 15 of 15, 22.9 and 22.7 s | **15 of 15, 22.6 and 23.3 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 268 / 132, 18.1 and 18.7 s | **56 / 268 / 132, 18.4 and 18.5 s** |
+| the islands report, 13 sentences | 13 of 13, 19.5 and 19.2 s | **13 of 13, 18.5 and 18.7 s** |
+| the opera review, 12 sentences | 12 of 12, 16.3 and 15.9 s | **12 of 12, 15.6 and 16.5 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 36.1 and 36.8 s | **27 of 27, 35.6 and 36.5 s** |
+| the Georgia report, 8 sentences | 8 of 8, 11.2 and 11.3 s | **8 of 8, 11.7 and 11.5 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 14.5 and 14.5 s | **13 of 13, 14.8 and 14.5 s** |
+| the Clinton report, 12 sentences | 12 of 12, 21.9 and 21.9 s | **12 of 12, 20.6 and 20.3 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 43.0 and 42.7 s | **12 of 12, 43.8 and 43.4 s** |
+| the Solana report, 10 sentences | 7 of 10, 39.4 and 40.6 s | **10 of 10, 23.6 and 23.6 s** |
+
+-- the ranges apart on nine of the eighteen: Fiat 3.1 % slower, the Georgia
+report 2.6 %, the letter 1.8 %, the football report 1.5 % and the bioethics
+report 0.9 %; Monreale 3.2 % faster, the islands report 3.8 %, the Clinton
+report 6.7 %, and this report 41 %, because 1.8.10 spends its time failing. They
+overlap on the other nine. Counted, the Georgia report's eight sentences are
+1.1 % more inferences, and its longest 1.7 %: the new readings asked of every
+sentence, spread thin. Each translator gives the same texts both times, and
+against 1.8.10 on this store they are the same but for this article's, Fiat's
+`son previstas` (above), and two adjectives the lesson's order chose: Livata's
+`en manera eficaz` for `efectiva`, and the islands report's `Agradables
+localidades` for `Placenteras`. Against 1.8.10 on its own store -- the one
+reference with no line of this sample's data in it -- every old control is the
+same but for those two adjectives.
+
+Into English the article reads 4 of 10. The other six each have a clause whose
+subject nobody named -- `si logra el consenso`, `contará con nuestro apoyo`,
+`añadió` -- and English still refuses a third person nobody named (1.6.15).
+
+`test/translate.pl` is 1009 checks and GREEN, 23 in a new `newspaper_solana`
+section with a Spanish and an Italian lesson of its own; every check fails on
+1.8.10's translator but five guards: two pin what 1.8.10 already did right,
+`Pan del perro.` refused and `abrió la puerta` still an object, and three the
+controls wrote, each red on a first cut of this version. The last check is the
+data column's, red on 1.8.10 and on the second round's translator.
+Lesson 46 gained section 37. The full suite was not run on 1.8.11.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

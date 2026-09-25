@@ -286,3 +286,7 @@
 # `bosniaco' only as the noun, so the phrase had two nouns that could not be
 # adjectives, and position made `intero' (an integer) its head
 <e><p><l>bosnian<s n="adj"/></l><r>bosniaco<s n="adj"/></r></p></e>
+# `el presidente del Gobierno se alegra de que ...': to gladden, and glad
+# as the reflexive -- the bilingual pairs `gladden' with `allietare' only,
+# which apertium-ita does not carry
+<e><p><l>gladden<s n="vblex"/></l><r>rallegrare<s n="vblex"/></r></p></e>
