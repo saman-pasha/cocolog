@@ -6775,6 +6775,235 @@ English the extract reads twelve of thirteen on the probe store; the fifth,
 `se durasse indefinitamente`, has no named subject, and English still refuses a
 third person nobody named (1.6.15). The full suite was not run on 1.8.8.
 
+### A Spanish report on the Clinton inquiry into Italian: al and an infinitive in front, according to and who said so, a gerund with its pronoun, what it does is (1.8.9)
+
+**THE EIGHTH SAMPLE OF THE LOOP, AND BACK TO SPANISH.** AnCora's
+CESS-CAST-P-19981202-34 -- twelve sentences on the House Judiciary Committee's
+inquiry into Bill Clinton: the last evidence behind closed doors, Henry Hyde on
+perjury, Freeh and LaBella's letter to Janet Reno, Conyers against a wider
+inquiry, the White House on the majority -- Spanish into Italian over the
+two-language vocabulary store. The middle column is 1.8.8's translator over
+THIS store:
+
+| | 1.8.8, its store | 1.8.8, this store | **1.8.9** |
+|---|---|---|---|
+| translated | 4 of 12, one wrong in structure (`criticò ai repubblicani`) | 9, four of them wrong in structure (`centrati`, `criticò ai repubblicani`, `detiene di fortificare`, `accusò alla maggioranza`) | **12** |
+| refused for a word | 3 -- `recopilar`, `segunda`, `presionado`, none of them missing from the dictionaries | 0 | **0** |
+| refused with every word known | 5 | 3 | **0** |
+| the article, one process | 33.9 s | 33.5 and 32.6 s | **23.6 and 23.7 s** |
+
+-- the store Italian 172 767 terms and Spanish 218 261, taught into one
+`--embed` store from the rebuilt vocabularies in 641 s and 1 037 s, 344 MB.
+
+**WHAT IT NEEDED IS WHAT A REPORT DOES WITH WHO SAID WHAT.** The twelve were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks, Fiat figures, Valencia a thing on show, the bioethics report its
+claims, the football page a squad, Monreale a court, the record report figures
+again, the islands report what a news item puts before its verb, the opera
+review what it puts beside a phrase, the interview a man talking, the Georgia
+report people by their offices and the extract things said again; this one is
+the people of an inquiry and what each of them said, asked or wrote:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| `al` and an infinitive in front, to its comma | `Al abrir la segunda audiencia pública del comité judicial, su presidente, Henry Hyde, sostuvo` | upon/2 is an adjunct a front may have, and the clause ends at its first comma |
+| according to, and a clause whose speaker follows its verb | `..., según añadieron las mismas fuentes` | the comment 1.8.1 reads between two commas, at the end: the sources said it, where they were an object |
+| a word before a person, and an object after an infinitive | `acusó ayer a la mayoría republicana ... de buscar ... hacer daño`, `criticó a los republicanos por hablar ... de ampliar la investigación` | only an object of the verb itself makes the person its indirect one: `accusò la maggioranza`, `criticò i repubblicani` |
+| a verb that writes to a person | `escribieron a la ministra de Justicia` | `"escribe" takes "a" before the person.`, the shape `"confida" takes "di" before the infinitive.` has: `scrissero al ministro` |
+| a gerund with its pronoun | `pidiéndole que designara a un fiscal` | the pronoun is the gerund's, and joined back to it: `chiedendogli`, where `le que designara` was him who appointed |
+| a quotation that opens on an infinitive subject | `sostuvo que "cometer perjurio no es aceptable ..."` | infs/3 carries the mark, which infs/2 lost |
+| the progressive of a passive | `dicho comité está siendo presionado` | the verb the lesson says marks the passive: `viene pressato`, where it was `sta essendo pressato`; and English's `is being`, which it refused |
+| a name between commas whose second word the lesson knows | `la ministra de Justicia, Janet Reno,` | a name opens on a word no lesson knows and runs on through capitals: `reno` is a reindeer |
+| what it does | `la insistencia de los republicanos ... lo que hace es "desacreditar" la investigación` | `The word "lo" replaces the noun.`: `quello che fa`, with the phrase in front of it, frn(topic(NP)) |
+| a purpose inside a subject | `la insistencia ... en buscar otros cargos para fortalecer el proceso` | purpose/1 and its object are a subject's complements |
+| an adverb between a noun and its participle | `en sesiones a puerta cerrada centradas en las consecuencias` | padv/1, the participle's and written before it again: `a porte chiuse centrate`, where the participle was said of the subject, `centrati` |
+| a verb of two words | `tienen previsto recopilar las últimas pruebas` | `The verb "tiene previsto" means "plans".`, where it read `hanno preveduti raccogliere` |
+| said, and so, and so that | `dicho comité`, `por lo que el comité se propone`, `para que acelere` | an adjective meaning `aforementioned`, and two conjunctions: `suddetto comitato`, `per cui`, `in modo che` |
+
+-- and the words, in `corpus/extra/` as always: 7 lines of Italian (and two
+taken out, below) and 16 of Spanish, and entries in the two dictionaries'
+supplements: `second`, `pressure`, `session`, `enlargement`, `aforementioned`,
+`intern`, `send` and `discredit` for Italian, `second`, `pressure`, `collect`,
+`aforementioned` and `intern` for Spanish. The vocabularies went from 109 353
+and 135 929 lines to 109 507 and 136 041, and the diff of what they LOST is the
+headers' entry counts, `ampliamento` as `expansion` and `invia` as `sends` --
+`espansione` and `spedisce` come first for those, as they did -- and `becario`
+and `becaria` as `scholar`. `reason.pl` did not move, the twentieth version
+running.
+
+**AN OBJECT AFTER AN INFINITIVE IS THE INFINITIVE'S.** 1.8.0 made a person
+after `a` the verb's INDIRECT object when an object follows it -- `ha reclamado
+a los jugadores la máxima concentración` -- and asked `memberchk(obj(_), Cs)`
+over complements that are ONE flat list. So `acusó a la mayoría de buscar el
+pan` counted the bread, which is what the majority sought, and wrote `accusò
+alla maggioranza`; and the article's ninth sentence, which 1.8.8 translated,
+came out `criticò ai repubblicani` for the investigation `ampliar` takes. An
+object counts only before the first infinitive now (`tr_verb_object/1`).
+**THE CONTROLS FOUND WHAT THE OLD RULE HAD RIGHT BY ACCIDENT**: the opera
+review's `permite a los cantantes concentrarse ... sin pedirles grandes
+exigencias` came out `permette i cantanti`, where 1.8.8 wrote `ai cantanti`
+only because `pedirles` has an object. The person `permitir` gives to is the
+verb's to say, and the line is the one `escribieron a` already needed:
+`"permite" takes "a" before the person.` -- which also gets `permite a Maria
+dormir` right, an infinitive with no object at all, where 1.8.8 wrote
+`permette Maria`.
+
+**THE FRONT FOUND A COST WHERE IT FOUND A READING.** `Al abrir ...` as a front
+was the right shape and the wrong price: the front reader tries every length
+of front, longest first, and with upon/2 an adjunct it read the clause at every
+one of them -- `tr_upon_rest/5` takes the words to the first comma and reads the
+rest as further complements, so each longer front read the rest of the
+sentence again. On the probe store sentence 3 cost **32.4 million
+inferences**, where 1.8.8 refused it after 15.2 million. A front that opens on
+`al` and an infinitive ends at a comma now; on the full store 1.8.8 refuses
+the sentence after **16.3 million** and 1.8.9 reads it in **10.2 million**. The
+count found it in three arms: taking the new readers out one at a time, the
+cleft and `según` cost nothing, and without upon/2 as an adjunct the sentence
+failed at 13.5 million.
+
+**THE COPULA'S PROGRESSIVE WAS REFUSED INTO ENGLISH, BY A CUT IN THE WRONG
+PLACE.** `en_group(is, ...) :- !, A \== progressive, ...` committed to the
+copula's clause and then failed, so the general clause below, which writes
+`is being` with `en_gerund_of(is, being)`, was never reached: `El comité está
+siendo presionado` had no English on any version. The test is before the cut
+now.
+
+**AND THE ADVERB GOES WHERE THE SOURCE PUT IT, WHICH THE CONTROLS SETTLED.**
+The first cut read the adverb before a participle as an ordinary complement of
+it, and every writer put it AFTER: the Clinton sentence came out `sessioni
+centrate a porte chiuse`, stated as a cost -- and the football report's `un
+mes de Febrero muy apretado` came out `stretto molto`, where 1.8.8 had written
+`molto stretto`. It is padv/1 now, written before the participle in every
+language, and three sentences agree: `a porte chiuse centrate`, `molto
+stretto`, and Fiat's `L'accordo appena raggiunto` as `El acuerdo justo
+alcanzado con Veba`, where 1.8.8 wrote `... para Chrysler justo` -- 1.6.21's
+cost, the adverb read as the clause's and written last. **A cost the first cut
+states is worth one more look when a control moves the same way**: both were
+one decision, the adverb's place.
+
+**A SUBJECT THE WRITER CANNOT TAKE APART FAILS WITHOUT A WORD, A THIRD TIME.**
+`lo que hace es "desacreditar" la investigación` read to an IR whose subject is
+ell/4 -- a phrase whose noun was left out, which had stood only after a word
+until now -- and `tr_subject_out/6` had no clause for it. 1.6.4 wrote down the rule, and 1.6.8
+met it again: a new phrase term needs a clause wherever a phrase is taken
+apart by its functor.
+
+**`lo que hace` NEEDED THREE THINGS, AND EACH WAS A RULE THAT WAS RIGHT
+ELSEWHERE.** `The word "lo" replaces the noun.` is the lesson's, in the shape
+`The word "el" replaces the noun.` has; the relative-clause reader took `lo` for
+a pronoun the clause is about -- `him that` -- so a clitic that replaces a noun
+heads no such clause; and the subject guard refuses an object pronoun anywhere
+in a subject, which `lo` is. And the phrase in front of it with no comma, `la
+insistencia ... contra Lewinsky`, is read BEFORE the plain readings, because
+the plain one did not refuse the sentence -- it read `para` as the verb
+`stops` and wrote `detiene di fortificare`. A reading that is wrong rather than
+refused is the one a new clause must come before.
+
+**A NAME IS NOT THE WORDS NO LESSON KNOWS.** The comma pass takes a name
+between commas after a noun as its apposition, and asked that every word of
+the name be unknown: `Janet Reno` failed, because `reno` is a reindeer, and the
+name went into the phrase with its commas lost. A name opens on a word no
+lesson knows and runs on through capitals now.
+
+**THE SOURCE HAS A MISPRINT, AND THE TRANSLATION KEEPS IT.** Sentence 6 says
+`disimular su relación el ex becaria de la Casa Blanca` -- `con la` is missing.
+The reader takes the two phrases as two objects of `disimular` and every writer
+puts them back as they stood: `dissimulare la sua relazione l'ex stagista`. The
+corrected sentence reads too, with `con`.
+
+**A HAND LINE GIVES THE FORMS IT STATES AND NO MORE.** `The verb "spedisce"
+means "sends".` and its participle were two lines in `extra/italian.txt` since
+1.6.14, and `enviar órdenes` could not be written into Italian: no line said
+what the infinitive is. apertium-ita has `spedire` with a paradigm and the
+bilingual pairs it with nothing, so the two lines went and an entry in the
+supplement gives every form. And the supplement cannot add a meaning to a word
+the dictionary already has both ways -- the builder keeps one entry for each
+word -- so `enlargement` is a both-way entry for `ampliamento`, first.
+
+**A SENSE LINE THAT COMES SECOND CHANGES NOTHING, AND ONLY THE OUTPUT SAID
+SO.** The first draft of this sample wrote `The feminine noun "elección" means
+"election".` into `extra/spanish.txt`, for `en las elecciones de 1996` -- and
+the article still said `nelle scelte`, because the football report's `esa
+elección` had put `choice` first earlier in the same file. The data
+column agreed: 1.8.8 on the new store gave its own texts on all fifteen old
+controls, football's included. The line went, and the cost is Georgia's, below.
+`grep` the word in `extra/` before writing a sense for it.
+
+**THE REBUILT VOCABULARY'S DIFF FOUND WHAT AN ENTRY TOOK WITH IT.** `becario`
+is an intern now, and the lines `"becario" is a person.` went with the scholar
+it was: the builder says a noun is a person from WordNet's list of persons
+(`lexicon/class.txt`), which has `scholar` and not `intern`. The two lines are
+in `extra/spanish.txt`. **Read a rebuilt vocabulary for what it LOST**, which
+1.7.2 already said and which paid again.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `la ricerca` | `l'indagine` | `investigación` is `research` first, and the Valencia article's `mediante la investigación` is research: a lesson cannot say which one a sentence means |
+| `licenziamento` | `impeachment`, `destituzione` | `destitución` is `dismissal`, and Italian's `dismissal` is a firing |
+| `al ministro`, `chiedendogli` | `alla ministra`, `chiedendole` | the IR carries no gender for a noun, and `le` is `him` first |
+| `d'Estados unito`, `di Justicia`, `d'EEUU` | `degli Stati Uniti`, `della Giustizia` | a capitalised word after a preposition is a name, 1.7.0's cost |
+| `che designò`, `in modo che accelera`, `che il comitato porta` | `designasse`, `acceleri`, `porti` | a subjunctive is written as the indicative, 1.6.8's cost |
+| `era rifiutata` | `fu respinta` | the imperfect and the preterite are both `past`, 1.6.15's cost |
+| `per la sua parte`, `niente deve vedere con` | `da parte sua`, `non ha niente a che vedere con` | idioms, word for word |
+| `è screditare` | `è "screditare"` | a bare infinitive carries no case in the IR, so its quotation marks are lost |
+| `nelle scelte del 1996` | `nelle elezioni del 1996` | `elección` is a choice first, for the football report's `esa elección`: Georgia's cost |
+| `ordini di figurare`, `collezione di fondi`, `applicazione`, `carichi` | `mandati di comparizione`, `raccolta`, `richiesta`, `accuse` | senses |
+| `in cercare altri carichi` | `nel cercare` | `en` and an infinitive is `in` and the infinitive |
+
+-- and into English sentences 6 and 8 are refused: each has a clause with no
+named subject (`para que acelere`, `que designara`), and English still refuses a
+third person nobody named (1.6.15).
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.8's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.8, this store | **1.8.9** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 16.9 and 17.1 s | **12 of 12, 17.2 and 17.0 s** |
+| the Spanish article | 11 of 11, 15.6 and 15.6 s | **11 of 11, 15.5 and 15.6 s** |
+| Livata, 29 sentences | 29 of 29, 86.9 and 87.2 s | **29 of 29, 87.9 and 87.5 s** |
+| Fiat, 20 sentences | 20 of 20, 23.1 and 23.0 s | **20 of 20, 22.8 and 23.3 s** |
+| Valencia, 16 sentences | 16 of 16, 49.1 and 49.2 s | **16 of 16, 49.4 and 50.1 s** |
+| the bioethics article, 15 sentences | 15 of 15, 13.0 and 13.3 s | **15 of 15, 13.2 and 13.8 s** |
+| the football article, 20 sentences | 20 of 20, 28.2 and 29.2 s | **20 of 20, 29.6 and 28.9 s** |
+| Monreale, 6 sentences | 6 of 6, 7.1 and 7.1 s | **6 of 6, 7.2 and 7.1 s** |
+| the record report, 15 sentences | 15 of 15, 26.8 and 27.1 s | **15 of 15, 27.1 and 26.9 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 268 / 132, 19.5 and 19.4 s | **56 / 268 / 132, 19.5 and 19.6 s** |
+| the islands report, 13 sentences | 13 of 13, 22.5 and 22.9 s | **13 of 13, 22.9 and 22.1 s** |
+| the opera review, 12 sentences | 12 of 12, 18.2 and 17.9 s | **12 of 12, 17.8 and 17.5 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 37.5 and 37.1 s | **27 of 27, 37.7 and 37.2 s** |
+| the Georgia report, 8 sentences | 8 of 8, 13.7 and 13.6 s | **8 of 8, 13.4 and 13.4 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 17.2 and 17.3 s | **13 of 13, 17.1 and 17.0 s** |
+| the Clinton report, 12 sentences | 9 of 12, 33.5 and 32.6 s | **12 of 12, 23.6 and 23.7 s** |
+
+-- the ranges apart on six of the sixteen: Livata and Valencia 0.8 and 1.3 %
+slower, the opera review, the Georgia report and the extract 1 to 2 % faster,
+and this article 28 % faster, because 1.8.8 spends its time failing; they
+overlap on the other ten. Each translator gives the same texts both times, and
+1.8.8 on this store gives its own texts on all fifteen old controls. Against
+1.8.8 the texts are the same but for this article's, Fiat's `El acuerdo justo
+alcanzado con Veba` above, and five Tatoeba sentences with `lo que`: `Tengo lo
+que quiero.` came out `I have him that I want.` and comes out `I have the one
+that I want.`, where the reference says `what`. `lo` replaces the noun now, and
+English writes a phrase whose noun was left out as `the one`; for `lo` it
+wants `what`, and both are wrong.
+
+**THE FIRST ROUND OF CONTROLS, ON THE STORE BEFORE THIS ONE, IS WHAT FOUND THE
+TWO REGRESSIONS ABOVE** -- football's `stretto molto` and the opera review's
+`permette i cantanti` -- with the case GREEN, lesson 46 `done` and every new
+check red on 1.8.8. The fixes are a complement and a lesson line, and the
+store was taught again from the rebuilt vocabularies before the table above
+was measured.
+
+`test/translate.pl` is 944 checks and GREEN, 20 in a new `newspaper_clinton`
+section with a Spanish and an Italian lesson of its own; every one fails on
+1.8.8's translator but the guard the controls wrote, `molto stretto`, which
+fails on the first cut. Lesson 46 gained section 35. The full suite was not
+run on 1.8.9.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

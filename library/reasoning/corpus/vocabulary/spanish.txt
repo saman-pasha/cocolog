@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20224 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20228 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -400,6 +400,22 @@ The masculine noun "pib" means "GDP".
 "pib" is an acronym.
 The verb "fija" means "fixes".
 "habría" is the conditional of "hay".
+The adverb "a puerta cerrada" means "behind closed doors".
+The adverb "por todos los medios" means "by every means".
+The verb "tiene previsto" means "plans".
+"tienen previsto" is the plural of "tiene previsto".
+"tenía previsto" is the past of "tiene previsto".
+"tenían previsto" is the plural of "tenía previsto".
+"tener previsto" is the infinitive of "tiene previsto".
+"mayoría" is a person.
+The conjunction "por lo que" means "so".
+The feminine noun "etapa" means "phase".
+The conjunction "para que" means "so that".
+"escribe" takes "a" before the person.
+"permite" takes "a" before the person.
+The word "lo" replaces the noun.
+"becario" is a person.
+"becaria" is a person.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -466,6 +482,10 @@ The noun "excursionista" means "excursionist".
 "excursionistas" is the plural of "excursionista".
 The feminine noun "aria" means "aria".
 "arias" is the plural of "aria".
+The masculine noun "becario" means "intern".
+"becarios" is the plural of "becario".
+The feminine noun "becaria" means "intern".
+"becarias" is the plural of "becaria".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -21644,12 +21664,6 @@ The masculine noun "peldaño" means "stair".
 "peldaños" is the plural of "peldaño".
 The masculine noun "escalón" means "stair".
 "escalones" is the plural of "escalón".
-The masculine noun "becario" means "scholar".
-"becarios" is the plural of "becario".
-"becario" is a person.
-The feminine noun "becaria" means "scholar".
-"becarias" is the plural of "becaria".
-"becaria" is a person.
 The masculine noun "erudito" means "scholar".
 "eruditos" is the plural of "erudito".
 "erudito" is a person.
@@ -104620,6 +104634,96 @@ The verb "rasga" means "scrapes".
 "rasgadas" is the plural of "rasgada".
 "rasgar" is the infinitive of "rasga".
 "rasgando" is the gerund of "rasga".
+The verb "presiona" means "pressures".
+"presionan" is the plural of "presiona".
+"presionamos" is the first person of "presionan".
+"presiono" is the first person of "presiona".
+"presionas" is the second person of "presiona".
+"presionó" is the past of "presiona".
+"presionaron" is the past of "presionan".
+"presionamos" is the first person of "presionaron".
+"presioné" is the first person of "presionó".
+"presionaste" is the second person of "presionó".
+"presionaba" is the past of "presiona".
+"presionaban" is the past of "presionan".
+"presionábamos" is the first person of "presionaban".
+"presionabas" is the second person of "presionaba".
+"presionará" is the future of "presiona".
+"presionarán" is the plural of "presionará".
+"presionaremos" is the first person of "presionarán".
+"presionaré" is the first person of "presionará".
+"presionarás" is the second person of "presionará".
+"presionaría" is the conditional of "presiona".
+"presionarían" is the plural of "presionaría".
+"presionaríamos" is the first person of "presionarían".
+"presionarías" is the second person of "presionaría".
+"presione" is the subjunctive of "presiona".
+"presionen" is the plural of "presione".
+"presionemos" is the first person of "presionen".
+"presiones" is the second person of "presione".
+"presionara" is the past subjunctive of "presiona".
+"presionaran" is the plural of "presionara".
+"presionáramos" is the first person of "presionaran".
+"presionaras" is the second person of "presionara".
+"presiona" is the imperative of "presiona".
+"presiones" is the negative imperative of "presiona".
+"presionad" is the imperative of "presionan".
+"presionéis" is the negative imperative of "presionan".
+"presionado" is the participle of "presiona".
+"presionada" is the participle of "presiona".
+"presionada" is feminine.
+"presionados" is the participle of "presiona".
+"presionados" is the plural of "presionado".
+"presionadas" is the participle of "presiona".
+"presionadas" is feminine.
+"presionadas" is the plural of "presionada".
+"presionar" is the infinitive of "presiona".
+"presionando" is the gerund of "presiona".
+The verb "recopila" means "collects".
+"recopilan" is the plural of "recopila".
+"recopilamos" is the first person of "recopilan".
+"recopilo" is the first person of "recopila".
+"recopilas" is the second person of "recopila".
+"recopiló" is the past of "recopila".
+"recopilaron" is the past of "recopilan".
+"recopilamos" is the first person of "recopilaron".
+"recopilé" is the first person of "recopiló".
+"recopilaste" is the second person of "recopiló".
+"recopilaba" is the past of "recopila".
+"recopilaban" is the past of "recopilan".
+"recopilábamos" is the first person of "recopilaban".
+"recopilabas" is the second person of "recopilaba".
+"recopilará" is the future of "recopila".
+"recopilarán" is the plural of "recopilará".
+"recopilaremos" is the first person of "recopilarán".
+"recopilaré" is the first person of "recopilará".
+"recopilarás" is the second person of "recopilará".
+"recopilaría" is the conditional of "recopila".
+"recopilarían" is the plural of "recopilaría".
+"recopilaríamos" is the first person of "recopilarían".
+"recopilarías" is the second person of "recopilaría".
+"recopile" is the subjunctive of "recopila".
+"recopilen" is the plural of "recopile".
+"recopilemos" is the first person of "recopilen".
+"recopiles" is the second person of "recopile".
+"recopilara" is the past subjunctive of "recopila".
+"recopilaran" is the plural of "recopilara".
+"recopiláramos" is the first person of "recopilaran".
+"recopilaras" is the second person of "recopilara".
+"recopila" is the imperative of "recopila".
+"recopiles" is the negative imperative of "recopila".
+"recopilad" is the imperative of "recopilan".
+"recopiléis" is the negative imperative of "recopilan".
+"recopilado" is the participle of "recopila".
+"recopilada" is the participle of "recopila".
+"recopilada" is feminine.
+"recopilados" is the participle of "recopila".
+"recopilados" is the plural of "recopilado".
+"recopiladas" is the participle of "recopila".
+"recopiladas" is feminine.
+"recopiladas" is the plural of "recopilada".
+"recopilar" is the infinitive of "recopila".
+"recopilando" is the gerund of "recopila".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -118962,6 +119066,10 @@ The masculine adjective "liceístico" means "liceistic".
 "liceísticos" is the plural of "liceístico".
 The feminine adjective "liceística" means "liceistic".
 "liceísticas" is the plural of "liceística".
+The masculine adjective "dicho" means "aforementioned".
+"dichos" is the plural of "dicho".
+The feminine adjective "dicha" means "aforementioned".
+"dichas" is the plural of "dicha".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -133335,6 +133443,10 @@ The masculine adjective "cocido" means "cooked".
 "cocidos" is the plural of "cocido".
 The feminine adjective "cocida" means "cooked".
 "cocidas" is the plural of "cocida".
+The masculine adjective "segundo" means "second".
+"segundos" is the plural of "segundo".
+The feminine adjective "segunda" means "second".
+"segundas" is the plural of "segunda".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".

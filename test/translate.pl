@@ -26,7 +26,7 @@ main :-
     complement, superlative, inversion, headline, subordinate, names, imperatives,
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
-    newspaper_georgia, newspaper_wapo,
+    newspaper_georgia, newspaper_wapo, newspaper_clinton,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -4330,6 +4330,160 @@ newspaper_wapo_checks :-
     nf_tr('La casa vede il cane. (dal giornale) guidato pane del gatto.', italian, spanish, W26),
     check('a participle with no subject is masculine, where it agreed with the subject of the sentence before, `conducida''', W26,
           'La casa ve el perro. (desde el diario) conducido pan del gato.').
+
+%% ---- the Clinton inquiry (AnCora CESS-CAST-P-19981202-34), into Italian -------------------
+
+newspaper_clinton :-
+    section('a Spanish report on the Clinton inquiry into Italian: al and an infinitive in front, according to and who said so, a gerund with its pronoun, what it does is'),
+    newspaper_clinton_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_clinton_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_clinton_checks,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_clinton_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "el" replaces the noun. The word "lo" replaces the noun.
+The word "al" begins the moment. The word "para" begins the purpose. The word "no" means "not".
+The noun "perro" means "dog". The noun "gato" means "cat".
+The noun "pan" means "bread". The noun "sopa" means "soup". The noun "casa" means "house".
+The noun "ministra" means "minister". The noun "mayoría" means "majority". "mayoría" is a person.
+The noun "insistencia" means "insistence". The noun "fuente" means "source".
+The feminine noun "sesión" means "session". "sesiones" is the plural of "sesión".
+The noun "reno" means "reindeer". The noun "justicia" means "justice".
+The adjective "grande" means "big". The adjective "aceptable" means "acceptable".
+The adverb "a puerta cerrada" means "behind closed doors". The adverb "muy" means "very".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "aprieta" means "tightens". "apretado" is the participle of "aprieta".
+The verb "permite" means "allows". "permite" takes "a" before the person.
+The verb "duerme" means "sleeps". "dormir" is the infinitive of "duerme".
+The verb "ve" means "sees". "visto" is the participle of "ve".
+The verb "busca" means "searches". "buscar" is the infinitive of "busca".
+The verb "acusa" means "accuses". "acusó" is the past of "acusa".
+The verb "escribe" means "writes". "escribió" is the past of "escribe". "escribe" takes "a" before the person.
+The verb "pide" means "asks". "pidiendo" is the gerund of "pide".
+The verb "abre" means "opens". "abrir" is the infinitive of "abre".
+The verb "dice" means "says". The verb "hace" means "does".
+The verb "añade" means "adds". "añaden" is the plural of "añade". "añadieron" is the past of "añaden".
+The verb "centra" means "centres". "centrado" is the participle of "centra". "centrada" is the participle of "centra". "centrada" is feminine. "centradas" is the participle of "centra". "centradas" is feminine. "centradas" is the plural of "centrada". "centrados" is the participle of "centra". "centrados" is the plural of "centrado".
+The verb "es" means "is". "son" is the plural of "es". "siendo" is the gerund of "es".
+The auxiliary "está" means "is".
+"que" is a relative. The conjunction "que" means "that".
+The pronoun "lo" means "him". The pronoun "le" means "him". The dative pronoun "le" means "him".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "por" means "by". The preposition "según" means "according to". The preposition "para" means "for".
+The word "a" precedes the person.
+"wrote" is the past of "writes". "seen" is the participle of "sees".').
+newspaper_clinton_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The article "lo" comes before a vowel.
+"l''" is the elision of "lo". "l''" is the elision of "la".
+"al" is the contraction of "a il". "alla" is the contraction of "a la". "del" is the contraction of "di il". "nel" is the contraction of "in il". "nella" is the contraction of "in la". "dal" is the contraction of "da il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "quello" replaces the noun. The pronoun "quello" means "that". The pronoun "quello" does not precede the verb.
+The word "per" begins the purpose. The preposition "per" means "for". The word "non" means "not".
+The noun "cane" means "dog". The noun "gatto" means "cat".
+The noun "pane" means "bread". The noun "minestra" means "soup". The noun "casa" means "house".
+The noun "ministro" means "minister". The noun "maggioranza" means "majority". The noun "insistenza" means "insistence".
+The noun "fonte" means "source". "fonti" is the plural of "fonte". "fonte" is feminine.
+The feminine noun "sessione" means "session". "sessioni" is the plural of "sessione".
+The adjective "grande" means "big". The adjective "accettabile" means "acceptable".
+The adverb "a porte chiuse" means "behind closed doors". The adverb "molto" means "very".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "stringe" means "tightens". "stretto" is the participle of "stringe".
+The verb "permette" means "allows".
+The verb "dorme" means "sleeps". "dormire" is the infinitive of "dorme".
+The verb "vede" means "sees". "visto" is the participle of "vede".
+The verb "cerca" means "searches". "cercare" is the infinitive of "cerca". "cerca" takes "di" before the infinitive.
+The verb "accusa" means "accuses". "accusò" is the past of "accusa".
+The verb "scrive" means "writes". "scrisse" is the past of "scrive".
+The verb "chiede" means "asks". "chiedendo" is the gerund of "chiede".
+The verb "apre" means "opens". "aprendo" is the gerund of "apre".
+The verb "dice" means "says". The verb "fa" means "does".
+The verb "aggiunge" means "adds". "aggiungono" is the plural of "aggiunge". "aggiunsero" is the past of "aggiungono".
+The verb "centra" means "centres". "centrato" is the participle of "centra". "centrata" is the participle of "centra". "centrata" is feminine. "centrate" is the participle of "centra". "centrate" is feminine. "centrate" is the plural of "centrata". "centrati" is the participle of "centra". "centrati" is the plural of "centrato".
+The verb "è" means "is". "sono" is the plural of "è". "essendo" is the gerund of "è".
+The auxiliary "sta" means "is".
+The verb "viene" means "comes". "vengono" is the plural of "viene". The verb "viene" marks the passive.
+"che" is a relative. The conjunction "che" means "that".
+The dative pronoun "gli" means "him".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "da" means "by". The preposition "come" means "as".').
+
+newspaper_clinton_checks :-
+    %% the word before a person, and the object after it the infinitive's
+    nf_tr('La casa acusó a la mayoría de buscar el pan.', spanish, italian, C1),
+    check('an object after an infinitive is the infinitive''s, and made the person the verb''s indirect object, `alla maggioranza''', C1,
+          'La casa accusò la maggioranza di cercare il pane.'),
+    nf_tr('El perro escribió a Maria.', spanish, italian, C2),
+    check('a verb the lesson says takes `a'' before the person writes TO them, where it was `scrisse Maria''', C2,
+          'Il cane scrisse a Maria.'),
+    %% a gerund with its own pronoun
+    nf_tr('El perro escribió a Maria, pidiéndole el pan.', spanish, italian, C3),
+    check('a pronoun joined to a gerund is its object and is joined back, where it headed a phrase', C3,
+          'Il cane scrisse a Maria, chiedendogli il pane.'),
+    nf_tr('El perro escribió a Maria, pidiéndole el pan.', spanish, english, C4),
+    check('... and in English it follows the gerund', C4, 'The dog wrote to Maria, asking him the bread.'),
+    %% `al'' and an infinitive in front, to its comma
+    nf_tr('Al abrir la casa, el perro come el pan.', spanish, italian, C5),
+    check('`al'' and an infinitive stand in front and end at their comma, which refused the sentence', C5,
+          'Aprendo la casa, il cane mangia il pane.'),
+    nf_tr('Al abrir la casa, el perro come el pan.', spanish, english, C6),
+    check('... and in English', C6, 'On opening the house, the dog eats the bread.'),
+    %% a quotation that opens on an infinitive subject
+    nf_tr('El perro dice que "comer pan no es aceptable".', spanish, italian, C7),
+    check('an infinitive that opens a quotation keeps its mark, which was lost', C7,
+          'Il cane dice che "mangiare pane non è accettabile".'),
+    %% the progressive of a passive
+    nf_tr('El perro está siendo visto.', spanish, italian, C8),
+    check('the progressive of a passive is the verb the lesson says marks the passive, where it was `sta essendo visto''', C8,
+          'Il cane viene visto.'),
+    nf_tr('El perro está siendo visto.', spanish, english, C9),
+    check('... and English writes the copula''s progressive, `is being'', which it refused', C9, 'The dog is being seen.'),
+    %% according to, and who said so
+    nf_tr('El perro come el pan, según añadieron las fuentes.', spanish, italian, C10),
+    check('`según'' and a clause with its speaker after its verb report the rest, where the sources were an object', C10,
+          'Il cane mangia il pane, come aggiunsero le fonti.'),
+    nf_tr('El perro come el pan, según añadieron las fuentes.', spanish, english, C11),
+    check('... and in English', C11, 'The dog eats the bread, as the sources added.'),
+    %% a name apposed between commas whose second word the lesson knows
+    nf_tr('La ministra, Janet Reno, come el pan.', spanish, italian, C12),
+    check('a name opens on a word no lesson knows and runs on through capitals, where `reno'' ended it and the commas were lost', C12,
+          'Il ministro, Janet Reno, mangia il pane.'),
+    nf_tr('La ministra de Justicia, Janet Reno, come el pan.', spanish, italian, C13),
+    check('... and after `de'' and a capitalised word the lesson knows, which refused the sentence', C13,
+          'Il ministro di Justicia, Janet Reno, mangia il pane.'),
+    %% what it does
+    nf_tr('Lo que hace es comer el pan.', spanish, italian, C14),
+    check('`lo que'' is the word that replaces a noun and a relative clause, where it was `him that'', and as a subject it is written', C14,
+          'Quello che fa è mangiare il pane.'),
+    nf_tr('La insistencia lo que hace es comer el pan.', spanish, italian, C15),
+    check('a phrase in front of it with no comma is what it is about, which refused the sentence', C15,
+          'L''insistenza quello che fa è mangiare il pane.'),
+    nf_tr('El perro dice que la insistencia lo que hace es comer el pan.', spanish, italian, C16),
+    check('... and after `que'' too', C16, 'Il cane dice che l''insistenza quello che fa è mangiare il pane.'),
+    %% a subject with a purpose in it
+    nf_tr('La insistencia en buscar el pan para comer la sopa es grande.', spanish, italian, C17),
+    check('a purpose and its object stay inside a subject, which refused the sentence', C17,
+          'L''insistenza in cercare il pane per mangiare la minestra è grande.'),
+    %% an adverb between a noun and its participle
+    nf_tr('El perro come el pan en sesiones a puerta cerrada centradas en la casa.', spanish, italian, C18),
+    check('an adverb between a noun and its participle is the participle''s and stands before it, where the participle agreed with the subject, `centrato''', C18,
+          'Il cane mangia il pane in sessioni a porte chiuse centrate nella casa.'),
+    %% GUARD: the controls found it -- an intensifier before a participle is
+    %% the participle's too, and the first cut wrote it after, `stretto molto'
+    nf_tr('El perro come el pan muy apretado.', spanish, italian, C19),
+    check('an intensifier before a participle stays before it', C19,
+          'Il cane mangia il pane molto stretto.'),
+    %% the person a verb gives something to, before an infinitive with no object
+    nf_tr('El perro permite a Maria dormir.', spanish, italian, C20),
+    check('a verb the lesson says takes `a'' before the person gives TO them before an infinitive too, where it was `permette Maria''', C20,
+          'Il cane permette a Maria dormire.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

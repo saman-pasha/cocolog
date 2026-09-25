@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16185 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16191 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -22,8 +22,6 @@ The masculine noun "quartier" means "headquarters".
 The masculine noun "blitz" means "raid".
 The feminine noun "connivenza" means "collusion".
 The verb "avviene" means "happens".
-The verb "spedisce" means "sends".
-"spedito" is the participle of "spedisce".
 The masculine noun "vinto" means "loser".
 "vinti" is the plural of "vinto".
 The masculine noun "sabato" means "saturday".
@@ -631,6 +629,13 @@ The adverb "del tutto" means "completely".
 "ci sarebbe" is the conditional of "c'è".
 "ci sarebbero" is the plural of "ci sarebbe".
 "esce" is intransitive.
+The masculine noun "spergiuro" means "perjury".
+"spergiuri" is the plural of "spergiuro".
+The adverb "a porte chiuse" means "behind closed doors".
+The adverb "con ogni mezzo" means "by every means".
+"pianifica" takes "di" before the infinitive.
+"propone" takes "di" before the infinitive.
+"cerca" takes "di" before the infinitive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -674,6 +679,10 @@ The masculine noun "lord" means "lord".
 "lord" is the plural of "lord".
 The feminine noun "vocalità" means "vocality".
 "vocalità" is the plural of "vocalità".
+The masculine noun "ampliamento" means "enlargement".
+"ampliamenti" is the plural of "ampliamento".
+The feminine noun "stagista" means "intern".
+"stagiste" is the plural of "stagista".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -15571,6 +15580,8 @@ The masculine noun "magnate" means "tycoon".
 "magnate" is a person.
 The feminine noun "incertezza" means "uncertainty".
 "incertezze" is the plural of "incertezza".
+The feminine noun "sessione" means "session".
+"sessioni" is the plural of "sessione".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -18451,8 +18462,6 @@ The masculine noun "bagnino" means "lifeguard".
 "bagnini" is the plural of "bagnino".
 The feminine noun "bagnina" means "lifeguard".
 "bagnine" is the plural of "bagnina".
-The masculine noun "ampliamento" means "expansion".
-"ampliamenti" is the plural of "ampliamento".
 The noun "cacicco" means "cacique".
 The masculine noun "uruguaiano" means "uruguayan".
 "uruguaiani" is the plural of "uruguaiano".
@@ -20633,6 +20642,99 @@ The verb "intona" means "intones".
 "intonate" is the plural of "intonata".
 "intonare" is the infinitive of "intona".
 "intonando" is the gerund of "intona".
+The verb "spedisce" means "sends".
+"spediscono" is the plural of "spedisce".
+"spediamo" is the first person of "spediscono".
+"spedisco" is the first person of "spedisce".
+"spedisci" is the second person of "spedisce".
+"spedì" is the past of "spedisce".
+"spedirono" is the past of "spediscono".
+"spedimmo" is the first person of "spedirono".
+"spedii" is the first person of "spedì".
+"spedisti" is the second person of "spedì".
+"spediva" is the past of "spedisce".
+"spedivano" is the past of "spediscono".
+"spedivamo" is the first person of "spedivano".
+"spedivo" is the first person of "spediva".
+"spedivi" is the second person of "spediva".
+"spedirà" is the future of "spedisce".
+"spediranno" is the plural of "spedirà".
+"spediremo" is the first person of "spediranno".
+"spedirò" is the first person of "spedirà".
+"spedirai" is the second person of "spedirà".
+"spedirebbe" is the conditional of "spedisce".
+"spedirebbero" is the plural of "spedirebbe".
+"spediremmo" is the first person of "spedirebbero".
+"spedirei" is the first person of "spedirebbe".
+"spediresti" is the second person of "spedirebbe".
+"spedisca" is the subjunctive of "spedisce".
+"spediscano" is the plural of "spedisca".
+"spediamo" is the first person of "spediscano".
+"spedisse" is the past subjunctive of "spedisce".
+"spedissero" is the plural of "spedisse".
+"spedissimo" is the first person of "spedissero".
+"spedissi" is the first person of "spedisse".
+"spedissi" is the second person of "spedisse".
+"spedisci" is the imperative of "spedisce".
+"spedire" is the negative imperative of "spedisce".
+"spedite" is the imperative of "spediscono".
+"spedito" is the participle of "spedisce".
+"spedita" is the participle of "spedisce".
+"spedita" is feminine.
+"spediti" is the participle of "spedisce".
+"spediti" is the plural of "spedito".
+"spedite" is the participle of "spedisce".
+"spedite" is feminine.
+"spedite" is the plural of "spedita".
+"spedire" is the infinitive of "spedisce".
+"spedendo" is the gerund of "spedisce".
+"sent" is the past of "sends".
+The verb "scredita" means "discredits".
+"screditano" is the plural of "scredita".
+"screditiamo" is the first person of "screditano".
+"scredito" is the first person of "scredita".
+"screditi" is the second person of "scredita".
+"screditò" is the past of "scredita".
+"screditarono" is the past of "screditano".
+"screditammo" is the first person of "screditarono".
+"screditai" is the first person of "screditò".
+"screditasti" is the second person of "screditò".
+"screditava" is the past of "scredita".
+"screditavano" is the past of "screditano".
+"screditavamo" is the first person of "screditavano".
+"screditavo" is the first person of "screditava".
+"screditavi" is the second person of "screditava".
+"screditerà" is the future of "scredita".
+"screditeranno" is the plural of "screditerà".
+"screditeremo" is the first person of "screditeranno".
+"screditerò" is the first person of "screditerà".
+"screditerai" is the second person of "screditerà".
+"screditerebbe" is the conditional of "scredita".
+"screditerebbero" is the plural of "screditerebbe".
+"screditeremmo" is the first person of "screditerebbero".
+"screditerei" is the first person of "screditerebbe".
+"screditeresti" is the second person of "screditerebbe".
+"screditi" is the subjunctive of "scredita".
+"screditino" is the plural of "screditi".
+"screditiamo" is the first person of "screditino".
+"screditasse" is the past subjunctive of "scredita".
+"screditassero" is the plural of "screditasse".
+"screditassimo" is the first person of "screditassero".
+"screditassi" is the first person of "screditasse".
+"screditassi" is the second person of "screditasse".
+"scredita" is the imperative of "scredita".
+"screditare" is the negative imperative of "scredita".
+"screditate" is the imperative of "screditano".
+"screditato" is the participle of "scredita".
+"screditata" is the participle of "scredita".
+"screditata" is feminine.
+"screditati" is the participle of "scredita".
+"screditati" is the plural of "screditato".
+"screditate" is the participle of "scredita".
+"screditate" is feminine.
+"screditate" is the plural of "screditata".
+"screditare" is the infinitive of "scredita".
+"screditando" is the gerund of "scredita".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -87002,6 +87104,52 @@ The verb "fissa" means "fixes".
 "fissate" is the plural of "fissata".
 "fissare" is the infinitive of "fissa".
 "fissando" is the gerund of "fissa".
+The verb "pressa" means "pressures".
+"pressano" is the plural of "pressa".
+"pressiamo" is the first person of "pressano".
+"presso" is the first person of "pressa".
+"pressi" is the second person of "pressa".
+"pressò" is the past of "pressa".
+"pressarono" is the past of "pressano".
+"pressammo" is the first person of "pressarono".
+"pressai" is the first person of "pressò".
+"pressasti" is the second person of "pressò".
+"pressava" is the past of "pressa".
+"pressavano" is the past of "pressano".
+"pressavamo" is the first person of "pressavano".
+"pressavo" is the first person of "pressava".
+"pressavi" is the second person of "pressava".
+"presserà" is the future of "pressa".
+"presseranno" is the plural of "presserà".
+"presseremo" is the first person of "presseranno".
+"presserò" is the first person of "presserà".
+"presserai" is the second person of "presserà".
+"presserebbe" is the conditional of "pressa".
+"presserebbero" is the plural of "presserebbe".
+"presseremmo" is the first person of "presserebbero".
+"presserei" is the first person of "presserebbe".
+"presseresti" is the second person of "presserebbe".
+"pressi" is the subjunctive of "pressa".
+"pressino" is the plural of "pressi".
+"pressiamo" is the first person of "pressino".
+"pressasse" is the past subjunctive of "pressa".
+"pressassero" is the plural of "pressasse".
+"pressassimo" is the first person of "pressassero".
+"pressassi" is the first person of "pressasse".
+"pressassi" is the second person of "pressasse".
+"pressa" is the imperative of "pressa".
+"pressare" is the negative imperative of "pressa".
+"pressate" is the imperative of "pressano".
+"pressato" is the participle of "pressa".
+"pressata" is the participle of "pressa".
+"pressata" is feminine.
+"pressati" is the participle of "pressa".
+"pressati" is the plural of "pressato".
+"pressate" is the participle of "pressa".
+"pressate" is feminine.
+"pressate" is the plural of "pressata".
+"pressare" is the infinitive of "pressa".
+"pressando" is the gerund of "pressa".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -91524,8 +91672,6 @@ The verb "cerca" means "seeks".
 "sought" is the past of "seeks".
 The verb "pare" means "appears".
 The verb "confisca" means "seizes".
-The verb "invia" means "sends".
-"sent" is the past of "sends".
 The verb "separa" means "separates".
 The verb "mette" means "sets".
 "set" is the past of "sets".
@@ -91907,6 +92053,10 @@ The feminine adjective "fatua" means "fatuous".
 "fatuissimi" is the superlative of "fatui".
 "fatuissima" is the superlative of "fatua".
 "fatuissime" is the superlative of "fatue".
+The masculine adjective "suddetto" means "aforementioned".
+"suddetti" is the plural of "suddetto".
+The feminine adjective "suddetta" means "aforementioned".
+"suddette" is the plural of "suddetta".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -107466,6 +107616,10 @@ The feminine adjective "disastrata" means "disastrous".
 "disastratissimi" is the superlative of "disastrati".
 "disastratissima" is the superlative of "disastrata".
 "disastratissime" is the superlative of "disastrate".
+The masculine adjective "secondo" means "second".
+"secondi" is the plural of "secondo".
+The feminine adjective "seconda" means "second".
+"seconde" is the plural of "seconda".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

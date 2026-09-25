@@ -586,3 +586,53 @@ The verb "fija" means "fixes".
 # `¿qué habría de malo?': there would be -- the conditional of `hay', as
 # `habrá' is its future
 "habría" is the conditional of "hay".
+# the Clinton inquiry (AnCora CESS-CAST-P-19981202-34): `sesiones a puerta
+# cerrada', `buscar por todos los medios' -- idioms, read word for word as
+# a door that was closed and the middles
+The adverb "a puerta cerrada" means "behind closed doors".
+The adverb "por todos los medios" means "by every means".
+# `tienen previsto recopilar las últimas pruebas': they plan to, a verb of
+# two words -- read as `has' and a participle predicated of the subject, it
+# agreed with the subject in Italian, `hanno preveduti raccogliere'
+The verb "tiene previsto" means "plans".
+"tienen previsto" is the plural of "tiene previsto".
+"tenía previsto" is the past of "tiene previsto".
+"tenían previsto" is the plural of "tenía previsto".
+"tener previsto" is the infinitive of "tiene previsto".
+# `acusó ayer a la mayoría republicana': Spanish marks a group of people as
+# the object with `a', as it marks a person, and read as `to' the majority
+# was written `accusò alla maggioranza'
+"mayoría" is a person.
+# `..., por lo que el comité se propone seguir adelante': so -- read as
+# `por' and a pronoun, it came out `per lui che'
+The conjunction "por lo que" means "so".
+# `entró en su etapa final': the dictionary gives `stage' first, which
+# Italian writes `palcoscenico' -- a theatre's stage. (`elección' stays a
+# choice, which the football report's `esa elección' wants, so `en las
+# elecciones de 1996' is `nelle scelte'; and `investigación' stays
+# `research', which the Valencia article's `mediante la investigación' is.
+# A lesson cannot say which one a sentence means.)
+The feminine noun "etapa" means "phase".
+# `está siendo presionado para que acelere su investigación': so that --
+# the purpose's conjunction, which the dictionary does not carry
+The conjunction "para que" means "so that".
+# `escribieron a la ministra de Justicia': they wrote TO her -- the word
+# before a person marks an object, and this verb's person is the one it is
+# written to, `scrissero alla ministra'
+"escribe" takes "a" before the person.
+# `permite a los cantantes concentrarse': it allows TO the singers, the
+# person permission is given to, `permette ai cantanti'. 1.8.0 made such a
+# person indirect when an object followed anywhere, and got this one right
+# only because `pedirles grandes exigencias' has one; counted before the
+# first infinitive alone, it came out `permette i cantanti'
+"permite" takes "a" before the person.
+# `la insistencia ... lo que hace es "desacreditar" la investigación':
+# what it does -- `lo' stands for a noun left out, as `el' does, and read
+# as the pronoun `him' the clause after it was a man that `ago'
+The word "lo" replaces the noun.
+# `la ex becaria': an intern now (extra/eng-spa.dix), and the lines that said
+# a `becario' is a person went with the scholar he was -- WordNet lists
+# `scholar' among its persons and not `intern', and the builder reads that
+# list (lexicon/class.txt)
+"becario" is a person.
+"becaria" is a person.

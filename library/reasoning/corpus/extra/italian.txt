@@ -19,8 +19,6 @@ The masculine noun "quartier" means "headquarters".
 The masculine noun "blitz" means "raid".
 The feminine noun "connivenza" means "collusion".
 The verb "avviene" means "happens".
-The verb "spedisce" means "sends".
-"spedito" is the participle of "spedisce".
 The masculine noun "vinto" means "loser".
 "vinti" is the plural of "vinto".
 The masculine noun "sabato" means "saturday".
@@ -880,3 +878,21 @@ The adverb "del tutto" means "completely".
 # `from' because the perfect takes the copula, `"è" is the auxiliary of
 # "esce".' above; `domina' is intransitive too and has a passive
 "esce" is intransitive.
+# the Clinton inquiry (AnCora CESS-CAST-P-19981202-34): `cometer perjurio'
+# -- the dictionary's `perjury' is `falsa testimonianza', a word of two
+# words the builder does not read, and it has no lemma `spergiuro'
+The masculine noun "spergiuro" means "perjury".
+"spergiuri" is the plural of "spergiuro".
+# `a puerta cerrada', `por todos los medios': idioms, which a lesson gives
+# whole
+The adverb "a porte chiuse" means "behind closed doors".
+The adverb "con ogni mezzo" means "by every means".
+# `pianificano di raccogliere': the word Italian gives for `plans' takes
+# `di' before its infinitive
+"pianifica" takes "di" before the infinitive.
+# `el comité se propone seguir adelante', `acusó ... de buscar ... hacer
+# daño': si propone DI andare avanti, di cercare ... DI fare danno -- the
+# verbs Italian gives for `proposes' and `searches' take `di' before their
+# infinitive
+"propone" takes "di" before the infinitive.
+"cerca" takes "di" before the infinitive.

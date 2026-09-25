@@ -127,3 +127,19 @@
 <e><p><l>liceistic<s n="adj"/></l><r>liceístico<s n="adj"/></r></p></e>
 <e><p><l>intone<s n="vblex"/></l><r>entonar<s n="vblex"/></r></p></e>
 <e><p><l>aria<s n="n"/></l><r>aria<s n="n"/><s n="f"/></r></p></e>
+# the Clinton inquiry (AnCora CESS-CAST-P-19981202-34), all read only into
+# English: `la segunda audiencia' -- the dictionary tags the ordinals det ord,
+# which the builder does not read, and has `first' and `third' as adjectives
+# and `second' not; `está siendo presionado' and `recopilar las últimas
+# pruebas' -- the monolingual has both verbs and the bilingual pairs neither
+# with an English word
+<e r="RL"><p><l>second<s n="adj"/></l><r>segundo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>pressure<s n="vblex"/></l><r>presionar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>collect<s n="vblex"/></l><r>recopilar<s n="vblex"/></r></p></e>
+# `dicho comité': the committee just named -- apertium-spa has `dicho' as an
+# adjective and the bilingual pairs it with nothing, so it read only as the
+# participle of `dice' and the phrase had no word before its noun; `la ex
+# becaria de la Casa Blanca' is an intern, and the dictionary's `becario'
+# is a scholar only
+<e><p><l>aforementioned<s n="adj"/></l><r>dicho<s n="adj"/></r></p></e>
+<e><p><l>intern<s n="n"/></l><r>becario<s n="n"/><s n="GD"/></r></p></e>

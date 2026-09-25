@@ -242,3 +242,28 @@
 <e r="RL"><p><l>fix<s n="vblex"/></l><r>fissare<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>tycoon<s n="n"/></l><r>magnate<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>uncertainty<s n="n"/></l><r>incertezza<s n="n"/><s n="f"/></r></p></e>
+# the Clinton inquiry (AnCora CESS-CAST-P-19981202-34), the words Spanish
+# gives it: `second' as an adjective -- Italian's `secondo' was a noun, an
+# adverb and a preposition -- `pressure' as a verb, `pressare', and
+# `sesiones', which no Italian word meant. Read only into English, as each
+# is the one word its English has here
+<e r="RL"><p><l>second<s n="adj"/></l><r>secondo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>pressure<s n="vblex"/></l><r>pressare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>session<s n="n"/></l><r>sessione<s n="n"/><s n="f"/></r></p></e>
+# `la ampliación de la investigación': no Italian word meant `enlargement',
+# and `ampliamento' is `expansion' in both ways already, so a one-way entry
+# would be dropped for it -- this one goes first both ways; `aforementioned'
+# is `suddetto' and an intern is a `stagista', which apertium-ita has and
+# the bilingual pairs with nothing
+<e><p><l>enlargement<s n="n"/></l><r>ampliamento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>aforementioned<s n="adj"/></l><r>suddetto<s n="adj"/></r></p></e>
+<e><p><l>intern<s n="n"/></l><r>stagista<s n="n"/><s n="f"/></r></p></e>
+# `enviar órdenes de comparecer': to send -- `spedire' has a paradigm in
+# apertium-ita and the bilingual pairs it with nothing. Two hand lines in
+# italian.txt (the twelve's `aveva spedito un fax') gave `spedisce' and its
+# participle and no infinitive, so `spedire' could not be written; this
+# entry gives every form, and the two lines are gone
+<e><p><l>send<s n="vblex"/></l><r>spedire<s n="vblex"/></r></p></e>
+# `lo que hace es "desacreditar" la investigación': to discredit --
+# apertium-ita has `screditare' and the bilingual pairs it with nothing
+<e><p><l>discredit<s n="vblex"/></l><r>screditare<s n="vblex"/></r></p></e>
