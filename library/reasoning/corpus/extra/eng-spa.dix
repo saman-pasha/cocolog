@@ -143,3 +143,11 @@
 # is a scholar only
 <e><p><l>aforementioned<s n="adj"/></l><r>dicho<s n="adj"/></r></p></e>
 <e><p><l>intern<s n="n"/></l><r>becario<s n="n"/><s n="GD"/></r></p></e>
+# the letter on the Bosnian holocaust (Italian UD, VIT-9763..9774): words
+# apertium-spa has and the bilingual pairs with nothing -- `bosnio', `víspera'
+# -- and two senses first: a petty man is `mezquino', which the bilingual
+# did not pair, and to mediate is `mediar', where `intermediar' came first
+<e><p><l>bosnian<s n="adj"/></l><r>bosnio<s n="adj"/></r></p></e>
+<e><p><l>eve<s n="n"/></l><r>víspera<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>petty<s n="adj"/></l><r>mezquino<s n="adj"/></r></p></e>
+<e><p><l>mediate<s n="vblex"/></l><r>mediar<s n="vblex"/></r></p></e>

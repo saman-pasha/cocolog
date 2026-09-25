@@ -1,5 +1,9 @@
 # Spanish words Apertium's bilingual dictionary lacks, or gives a meaning
 # the translator cannot use. See README beside this file.
+# `Credo nei diritti inviolabili dell'essere umano': rights -- the dictionary
+# gives the noun `right' as `derecha', the right-hand side, before `derecho',
+# what a law gives, and a lesson line comes before the dictionary's
+The masculine noun "derecho" means "right".
 The conjunction "porque" means "because".
 The preposition "por" means "by".
 The word "para" begins the purpose.
@@ -636,3 +640,46 @@ The word "lo" replaces the noun.
 # list (lexicon/class.txt)
 "becario" is a person.
 "becaria" is a person.
+# the letter on the Bosnian holocaust (Italian UD, VIT-9763..9774), into
+# Spanish: `soprattutto' is `sobre todo', which the bilingual has one way
+# only; `davanti a' is `delante de'; oneself after a preposition is `sí',
+# and `con sí' is written `consigo'
+The adverb "sobre todo" means "above all".
+The preposition "delante de" means "in front of".
+The pronoun "sí" means "itself".
+The pronoun "sí" does not precede the verb.
+"consigo" is the contraction of "con sí".
+# `nasceranno i miei figli': to be born -- the bilingual pairs `nacer' with
+# `be born', a group the builder does not write
+The intransitive verb "nace" means "is born".
+"nacen" is the plural of "nace".
+"nació" is the past of "nace". "nacieron" is the past of "nacen".
+"nacerá" is the future of "nace". "nacerán" is the future of "nacen".
+"nacería" is the conditional of "nace". "nacerían" is the conditional of "nacen".
+"nacer" is the infinitive of "nace".
+"nacido" is the participle of "nace". "nacida" is the participle of "nace". "nacida" is feminine.
+"nacidos" is the participle of "nace". "nacidos" is the plural of "nacido".
+"nacidas" is the participle of "nace". "nacidas" is feminine. "nacidas" is the plural of "nacida".
+# `los derechos inviolables del ser humano', `de cada ser': a being, the
+# infinitive as a noun -- the dictionary has `ser' only as the verb
+The masculine noun "ser" means "being".
+"seres" is the plural of "ser".
+# `non importa loro null'altro che perseguire ...': nothing other than --
+# `salvo' is how Spanish says it; read, it is still `except' first, or the
+# football report's `Salvo la concesión de Rivaldo' came out `Altro che'
+The preposition "salvo" means "except".
+The preposition "salvo" means "other than".
+# `questa fine secolo' is `este fin de siglo'
+The masculine noun "fin de siglo" means "end of the century".
+# `senza rendersi conto che ...' is `sin darse cuenta de que ...'
+The verb "da cuenta" means "realizes".
+"dan cuenta" is the plural of "da cuenta".
+"dar cuenta" is the infinitive of "da cuenta".
+"dando cuenta" is the gerund of "da cuenta".
+"dado cuenta" is the participle of "da cuenta".
+"da cuenta" takes "de" before the clause.
+# `la stessa domanda' is `la misma pregunta', where the dictionary gives
+# `question' as `cuestión' first
+The feminine noun "pregunta" means "question".
+# `decidir si nos costaría más caro intervenir': to decide whether
+"decide" takes the question.

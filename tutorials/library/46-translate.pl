@@ -361,6 +361,7 @@ main :-
     section_33,
     section_34,
     section_35,
+    section_36,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -425,11 +426,11 @@ section_20 :-
     must('`The word "più" begins the comparative'': the article makes it the SUPERLATIVE', S20e,
          'The general defines the richest country.'),
     reason_translate('Qui dominava il generale.', italian, english, S20f),
-    must('an INVERSION: a fronted adjunct and `"domina" is intransitive'' put the subject after the verb', S20f,
-         'The general dominated here.'),
+    must('an INVERSION: a fronted adverb and `"domina" is intransitive'' put the subject after the verb', S20f,
+         'Here the general dominated.'),
     reason_translate('Qui dominava il generale.', italian, italian, S20g),
-    must('and the fronting is NOT written back: the statement''s own order', S20g,
-         'Il generale dominava qui.'),
+    must('and an adverb in front is written back there, the subject after the verb (1.8.10)', S20g,
+         'Qui dominava il generale.'),
     reason_translate('Evacuata la casa.', italian, english, S20h),
     must('a HEADLINE is a passive with the copula left out, not a fragment', S20h,
          'The house has been evacuated.'),
@@ -1949,6 +1950,120 @@ The verb "viene" means "comes". "vengono" is the plural of "viene". The verb "vi
 "che" is a relative. The conjunction "che" means "that".
 The dative pronoun "gli" means "him".
 The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "da" means "by". The preposition "come" means "as".').
+
+section_36 :-
+    format("~n36. An Italian letter into Spanish: adjectives before a name and before a subject, two clauses of che, an object in front, the subject after its verb, a signature~n", []),
+    lesson_36(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the letter''s shapes, under its own name', NI),
+    lesson_36(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('Il cane mangia il pane con i nuovi, piccoli, Hitler.', italian, spanish, S36a),
+    must('ADJECTIVES BETWEEN COMMAS before a name are one phrase', S36a,
+         'El perro come el pan con los nuevos, pequeños, Hitler.'),
+    reason_translate('Stanca e rossa, la casa dorme.', italian, spanish, S36b),
+    must('ADJECTIVES IN FRONT of the subject stay there and agree with its noun', S36b,
+         'Cansada y roja, la casa duerme.'),
+    reason_translate('Il cane dice che la casa è grande e che il gatto mangia il pane.', italian, spanish, S36c),
+    must('TWO CLAUSES OF `che'' joined by `e'' are both the verb''s', S36c,
+         'El perro dice que la casa es grande y que el gato come el pan.'),
+    reason_translate('Il cane mangia il pane senza rendersi conto che la casa è grande.', italian, spanish, S36d),
+    must('a verb of TWO WORDS with its pronoun joined to the first, and `"da cuenta" takes "de" before the clause.''', S36d,
+         'El perro come el pan sin darse cuenta de que la casa es grande.'),
+    reason_translate('Il cane il pane non ce l''ha.', italian, spanish, S36e),
+    must('an OBJECT IN FRONT taken up by a pronoun, and `"ce" is the particle of "ha".''', S36e,
+         'El perro no tiene el pan.'),
+    reason_translate('I cani mangiano il pane e sono grandi.', italian, spanish, S36f),
+    must('a second clause with no subject takes the first one''s where its verb could be either', S36f,
+         'Los perros comen el pan y son grandes.'),
+    reason_translate('Il cane decide se il gatto mangia il pane.', italian, english, S36g),
+    must('`"decide" takes the question.'': `se'' after it is WHETHER', S36g,
+         'The dog decides whether the cat eats the bread.'),
+    reason_translate('Forse è venuto il momento di mangiare il pane.', italian, spanish, S36h),
+    must('an ADVERB IN FRONT stays there, and the subject after an intransitive verb keeps its noun''s infinitive', S36h,
+         'Quizás ha venido el momento de comer el pan.'),
+    reason_translate('Il cane cerca di stare nella casa.', italian, spanish, S36i),
+    must('`stare'' is the infinitive of the STATE, `estar''', S36i, 'El perro busca estar en la casa.'),
+    reason_translate('Maria Bianchi Roma - Milano P pane "rosso".', italian, spanish, S36j),
+    must('a SIGNATURE and the next letter''s title: names, a dash, names and a noun with a quoted word', S36j,
+         'Maria Bianchi Roma – Milano P pan "rojo".'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_36(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The article "lo" comes before a vowel.
+"l''" is the elision of "lo". "l''" is the elision of "la".
+"al" is the contraction of "a il". "alla" is the contraction of "a la". "del" is the contraction of "di il". "della" is the contraction of "di la". "nel" is the contraction of "in il". "nella" is the contraction of "in la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not". The word "di" begins the infinitive.
+The masculine demonstrative "quello" means "that". "quelli" is the plural of "quello". "quel" is the apocope of "quello". "quei" is the plural of "quel".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane". The noun "casa" means "house". The noun "momento" means "moment".
+The noun "domanda" means "question". The noun "via" means "way". The adverb "via" means "away".
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+The masculine adjective "rosso" means "red". "rossi" is the plural of "rosso". The feminine adjective "rossa" means "red". "rosse" is the plural of "rossa".
+The adjective "nuovo" means "new". "nuovi" is the plural of "nuovo".
+The adjective "piccolo" means "small". "piccoli" is the plural of "piccolo". The adjective "vecchio" means "old". "vecchi" is the plural of "vecchio". The noun "vecchio" means "old man".
+The masculine adjective "stanco" means "tired". The feminine adjective "stanca" means "tired".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "dice" means "says". The verb "segue" means "follows".
+The verb "decide" means "decides". "decidere" is the infinitive of "decide". "decide" takes the question.
+The verb "rende" means "renders". "rendere" is the infinitive of "rende". The verb "rende conto" means "realizes". "rendere conto" is the infinitive of "rende conto".
+The verb "ha" means "has". "hanno" is the plural of "ha". "ho" is the first person of "ha".
+"ce" is the particle of "ha".
+The verb "è" means "is". "sono" is the plural of "è". "sono" is the first person of "è". "essere" is the infinitive of "è".
+The intransitive verb "viene" means "comes". "venuto" is the participle of "viene". "è" is the auxiliary of "viene". "come" is the participle of "comes".
+The auxiliary "sta" means "is". "stare" is the infinitive of "sta".
+The verb "guarda" means "watches". "guardare" is the infinitive of "guarda".
+The verb "pone" means "puts". "porre" is the infinitive of "pone".
+The verb "cerca" means "searches". "cercare" is the infinitive of "cerca". "cerca" takes "di" before the infinitive.
+"che" is a relative. The conjunction "che" means "that". The word "che" means "what".
+The word "che cosa" means "what". The word "chi" means "who".
+The conjunction "e" means "and". The conjunction "ma" means "but".
+The conjunction "se" means "if". The conjunction "mentre" means "while".
+The pronoun "sé" means "itself". The pronoun "sé" does not precede the verb.
+The pronoun "lo" means "him". The pronoun "la" means "her". The reflexive pronoun "si" means "itself".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with". The preposition "come" means "like". The preposition "senza" means "without". The preposition "per" means "for". The preposition "davanti a" means "in front of".
+The adverb "solo" means "only". The adverb "forse" means "perhaps".').
+lesson_36(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not".
+The masculine demonstrative "ese" means "that". "esos" is the plural of "ese". The feminine demonstrative "esa" means "that". "esas" is the plural of "esa".
+The noun "perro" means "dog". The noun "gato" means "cat".
+The noun "pan" means "bread". "panes" is the plural of "pan". The noun "casa" means "house". The noun "momento" means "moment".
+The noun "pregunta" means "question". The noun "camino" means "way".
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+The masculine adjective "rojo" means "red". The feminine adjective "roja" means "red".
+The adjective "nuevo" means "new". The adjective "viejo" means "old". The noun "viejo" means "old man". The adjective "pequeño" means "small".
+The masculine adjective "cansado" means "tired". The feminine adjective "cansada" means "tired".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "dice" means "says". The verb "sigue" means "follows".
+The verb "decide" means "decides". "decidir" is the infinitive of "decide". "decide" takes the question.
+The verb "da" means "gives". "dar" is the infinitive of "da". The verb "da cuenta" means "realizes". "dar cuenta" is the infinitive of "da cuenta". "da cuenta" takes "de" before the clause.
+The verb "tiene" means "has". "tienen" is the plural of "tiene". "tengo" is the first person of "tiene".
+The verb "es" means "is". "son" is the plural of "es". "soy" is the first person of "es". "ser" is the infinitive of "es".
+The intransitive verb "viene" means "comes". "venido" is the participle of "viene".
+The verb "ha" means "has". The auxiliary "ha" means "has". "han" is the plural of "ha".
+The auxiliary "está" means "is". "estar" is the infinitive of "está". The auxiliary "está" marks the state.
+The verb "mira" means "watches". "mirar" is the infinitive of "mira".
+The verb "pone" means "puts". "poner" is the infinitive of "pone".
+The verb "busca" means "searches". "buscar" is the infinitive of "busca".
+"que" is a relative. The conjunction "que" means "that". The word "qué" means "what". The word "qué" means "which". The word "quién" means "who".
+The conjunction "y" means "and". The conjunction "pero" means "but".
+The conjunction "si" means "if". The conjunction "mientras" means "while".
+The pronoun "sí" means "itself". The pronoun "sí" does not precede the verb.
+The pronoun "lo" means "him". The pronoun "la" means "her". The reflexive pronoun "se" means "itself".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with". The preposition "como" means "like". The preposition "sin" means "without". The preposition "para" means "for". The preposition "delante de" means "in front of".
+The adverb "sólo" means "only". The adverb "quizás" means "perhaps".
+The mark "¿" begins the question.').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

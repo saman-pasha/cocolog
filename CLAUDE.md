@@ -7004,6 +7004,361 @@ section with a Spanish and an Italian lesson of its own; every one fails on
 fails on the first cut. Lesson 46 gained section 35. The full suite was not
 run on 1.8.9.
 
+### An Italian letter into Spanish: adjectives before a name and before a subject, two clauses of che, an object in front, the subject after its verb, a signature (1.8.10)
+
+**THE NINTH SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD VIT
+document VIT-9763..9774 -- twelve lines of a letters page: its heading, a
+title, and a letter from a small businesswoman of 29, a convinced pacifist, who
+asks what would have happened fifty years ago had nobody fought Nazism, whether
+Europe will go on seeking impossible mediations with the new, petty Hitlers of
+the end of the century, and whether the moment has come to ask the question the
+states asked on the eve of the Second World War; then her signature, and the
+next letter's title after it -- Italian into Spanish over the two-language
+vocabulary store. The middle column is 1.8.9's translator over THIS store:
+
+| | 1.8.9, its store | 1.8.9, this store | **1.8.10** |
+|---|---|---|---|
+| translated | 0 of 12 | 3 | **12** |
+| refused for a word | 8, naming 16 words -- `cui` among them, which is not missing | 2 -- `cui` again, and `ce` and `quei` | **0** |
+| refused with every word known | 3 | 6 | **0** |
+| over the budget of 300 million inferences | 1, sentence 10 | 1, sentence 10 | **0** |
+| the letter, one process | 208.2 s | 210.6 and 207.6 s | **43.4 and 43.5 s** |
+
+-- the store Italian 172 959 terms and Spanish 218 338, taught into one
+`--embed` store from the rebuilt vocabularies in 666 s and 1 090 s, 352 MB.
+
+**WHAT IT NEEDED IS WHAT A LETTER DOES WITH AN ARGUMENT.** The twelve were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks, Fiat figures, Valencia a thing on show, the bioethics report its
+claims, the football page a squad, Monreale a court, the record report figures
+again, the islands report what a news item puts before its verb, the opera
+review what it puts beside a phrase, the interview a man talking, the Georgia
+report people by their offices, the extract things said again and the Clinton
+report who said what; a letter argues, and an argument is clauses inside
+clauses, things said in front of the subject, and questions:
+
+| shape | the letter's words | what moved |
+|---|---|---|
+| adjectives between commas before a name | `con i nuovi, piccoli, meschini, Hitler di questa fine secolo` | `w(',', acomma)`: a comma between adjectives is no aside and no list, read before either pass (`tr_adj_lists/3`) |
+| adjectives in front of the subject, to their comma | `- egoista e vigliacca, continuerà a cercare mediazioni ...` | `fr(adj(As))`, agreeing with the subject in its number, and in its noun's gender where it names one |
+| a question with no question word and commas in it | the same sentence, which ends in `?` | read as the statement it is, with its commas |
+| two clauses of `che` joined | `senza rendersi conto che ... e che l'unico linguaggio che parlano è ...` | `that(S1), cnj(C), that(S2)` among the verb's complements |
+| a clause of `che` with an insertion before its subject | `che, come il loro predecessore, non importa loro ...` | `frc/1`, a front with a comma before it too |
+| a verb of two words with its pronoun joined to the first | `senza rendersi conto che` | the pronoun is cut off and the words joined (`tr_enclitic_multi/3`); `"da cuenta" takes "de" before the clause.` writes `sin darse cuenta de que` |
+| a verb that takes a question | `e decidere se ci costerebbe più caro intervenire ...` | `"decide" takes the question.`: `wh(whether, S)`, `decidir si` |
+| a clause of `mentre` divided inside the clause it belongs to | `o stare a guardare mentre si consuma un altro olocausto e l'intero popolo bosniaco viene distrutto` | `tr_nested_join/3`: a nested clause may be two, joined by a connector |
+| the infinitive of the copula of a state | `stare a guardare` | `inf(state(is))`: `estar a mirar` |
+| a verb in `-rre` with its pronoun joined | `porsi la stessa domanda` | `porre` and `si` |
+| a subject after an intransitive verb, with an infinitive of its own | `Forse è venuto il momento ... di porsi la stessa domanda` | `The intransitive verb "viene" means "comes".`, and the noun's `di` and infinitive inside the subject |
+| an adverb in front of that verb | `Forse è venuto` | `frn(adv(X))`, written back in front: `Quizás ha venido el momento` (below) |
+| an object in front taken up by a pronoun, and `ce` | `Io la risposta non ce l'ho` | the dislocation, `tr_resumptive/2`; `"ce" is the particle of "ha".`, read and not written (`tr_particles/3`) |
+| a second clause whose verb is a first person and a third plural alike | `mi fanno male al cuore e, soprattutto, sono un problema anche mio` | `sono` takes the subject before it, `tr_shared_subject/5` |
+| a heading of one word | `Lettere.` | a bare noun of one word names the section it opens; two words with no article stay refused, `Big house.` |
+| the apocope before a plural noun | `quei morti per le strade` | `"quel" is the apocope of "quello".` and `"quei" is the plural of "quel".` |
+| a reflexive after a preposition | `non si ha davanti a sé nessun altra scelta` | `sé` an object pronoun: `delante de sí` |
+| a question word inside a phrase | `in che razza di mondo sarei nata?` | `pp(P, which(NP, C))` |
+| `che cosa` as the subject of an intransitive verb | `Che cosa sarebbe accaduto se ...?` | `The word "che cosa" means "what".` and `"è" is the auxiliary of "accade".` |
+| a question after a colon | `E ora mi domando: in che razza di mondo nasceranno i miei figli ...?` | `q(S2)` after the colon |
+| a question and two phrases in parentheses | `(ma chi avrebbe potuto pensare di "mediare" con Hitler)`, `(ma la pace di chi e per chi)` | asides that are a question and a list of phrases |
+| a signature and the next letter's title | `Monica Ferretti Genova - Sestri P pacifismo "mascalzone".` | names, a dash, names and a noun with a word in quotation marks, written as they stood |
+
+-- and three guards, each a word in a second role: `solo la via della
+mediazione` is the way, where `via` is also `away` and `la` was then `her`; `i
+loro assurdi e folli scopi` is one phrase, where `assurdi` is also the noun
+`absurdities`; and `non importa loro null'altro` is to them, where `loro` is
+also the possessive and `nulla` the adjective `invalid`. The words are in
+`corpus/extra/` as always: 36 lines of Italian and 28 of Spanish, 10 entries in
+`eng-ita.dix` and 4 in `eng-spa.dix`. The vocabularies went from 109 507 and
+136 041 lines to 109 626 and 136 083, and the set of what they LOST is the
+headers' entry counts alone -- 45 lines of Spanish's `mediar` moved up the
+file, because the supplement's `mediate` now comes before `intermediar`, and a
+diff that is not a set diff reads that as a loss. `reason.pl` did not move, the
+twenty-first version running.
+
+**AN ADVERB IN FRONT IS WRITTEN BACK THERE NOW, AND FOUR PINS OF 1.6.8 MOVED.**
+`Forse è venuto il momento di porsi la stessa domanda ...` was the inversion
+1.6.8 reads -- a front, and a verb the lesson calls intransitive -- and that
+reader takes the shortest phrase after the verb for the subject and reads what
+follows as the verb's complements, so `il momento` was the subject and `di
+porsi` the verb's: the moment came to ask. The reader 1.8.0 wrote for a
+subject after an intransitive verb with only pronouns before it finds the
+subject with its commas and with a noun's own infinitive, so an adverb alone in
+front goes to it now. Its first cut wrote the adverb after the verb, `Ha
+venido quizás el momento` -- and the case went RED on three of 1.6.8's pins,
+because `Qui dominava il generale` came back `Dominava qui il generale`, which
+is neither the source's order nor the statement's. **Narrowing the route was
+tried and taken back**: sent there only with a comma after the verb, `Forse è
+venuto il momento di mangiare il pane.` went back to 1.8.9's `El momento ha
+venido quizás comer el pan.`, a wrong structure. The adverbs are `frn/1` now,
+written in front in every language -- `Quizás ha venido el momento`, `Aquí
+dominaba el general`, `Here the general dominated`, `Qui dominava il generale`
+-- and four pins of the inversion section and two lines of lesson 46 moved,
+each with the reason beside it. A PHRASE in front is still read into the
+statement's order, as 1.6.8 wrote: `In la casa dominava il generale` is `The
+general dominated in the house`.
+
+**A COMMA BETWEEN TWO ADJECTIVES IS NEITHER AN ASIDE NOR A LIST.** `con i
+nuovi, piccoli, meschini, Hitler` is one phrase: adjectives before a name, each
+set off by a comma. The aside pass took `, piccoli,` for an insertion between
+two commas and the list pass split what was left at its commas, so the
+sentence was refused. `tr_adj_lists/3` reads a determiner, two or more
+adjectives joined by commas and a noun or a name BEFORE either pass, and marks
+each comma `w(',', acomma)` -- a coordinator for adjectives that no division
+splits at, written back as the comma it was.
+
+**ADJECTIVES IN FRONT AGREED WITH NOTHING, AND THE LETTER COULD NOT SHOW IT.**
+`egoista e vigliacca` is `Egoísta y cobarde`, and both Spanish words are the
+same in either gender, so a front written masculine whatever its subject was
+invisible in the one sentence that has one. The case's `Stanca e rossa, la
+casa dorme.` wrote `Cansado y rojo, la casa duerme.` The writer hands an
+adjective front the subject's noun now, as it hands a predicate adjective, and
+only an adjective front: a phrase in front has nothing to agree with.
+
+**A VERB OF TWO WORDS NEVER MET ITS PRONOUN.** `rendersi conto` is `rendere
+conto` and `si`, and the join that makes one word of `rende conto` ran before
+the pronoun came off `rendersi` -- so it never saw `rendere` and `conto`
+together, and `conto che non importa loro ...` was an account that did not
+matter to them. The pronouns come off first now and the join is tried again
+across them (`tr_enclitic_multi/3`); Spanish writes the pronoun on the first
+word, `darse cuenta`. **And Livata's lines said the idiom with its pronoun**:
+`The verb "se da cuenta" means "realizes".` since 1.6.17, so crossing a
+reflexive `realizes` found a word that already carried `se` and wrote `se se da
+cuenta`. A meaning with no reflexive inside it is preferred now
+(`tr_carries_reflexive/1`), and the preposition the verb's clause takes is
+asked of the word written.
+
+**THE COST WAS CLAUSES THAT COULD ONLY BE READ WHOLE.** Sentence 10 ran past
+its budget of 300 million inferences on 1.8.9, in 155 s. On the probe store
+its parts said where: `e decidere se ci costerebbe più caro intervenire` cost 67 million
+and 122 million in two cuts, because `se` after `decidere` was read as `if`
+joining two clauses and every reading of the rest was tried under it -- as an
+indirect question it is **2 million**; and `o stare a guardare mentre si
+consuma un altro olocausto e l'intero popolo bosniaco viene distrutto` cost
+**110 million**, because a nested clause could not be divided at a connector,
+so the `mentre` clause with its `e` inside read as nothing and every other
+reading went first -- `tr_nested_join/3` makes it **4 million**. The whole
+sentence is 13 million on the full store. Sentence 11 went from 59 million to
+17 on the probe store with two guards on the adverb lift -- a lifted adverb
+never splits a comma from the connector after it, or a coordinator from the
+comma after it -- and it is 11 million on the full store.
+
+**A MEMO THAT BOUGHT A QUARTER OF A PER CENT WAS TAKEN OUT.** A nested clause's
+reading was kept per sentence, with a comment saying the same `che` or `se`
+clause was read 886 times for 75 readings, 68 million inferences -- measured
+before the indirect question made that cost go away. On the full store, the
+letter with it and without it: **87 500 979 inferences against 87 740 914**,
+0.27 %, every text the same. 1.8.5's rule is that a change which moves nothing
+measurable is a change nobody has shown is right, and this one moved a quarter
+of a per cent while its comment claimed the whole of a cost it no longer paid.
+
+**A SMALL LESSON TESTS THE WORD IT STATES, THE FOURTH TIME.** Three checks
+read as refusals of the translator on the first probe and each was the
+lesson's doing: `"stanca" is feminine. "stanca" means "tired".` makes no
+adjective at all, where the vocabulary says `The feminine adjective "rossa"
+means "red".`; `rendersi` is cut only where the lesson has `rendere` as a
+verb's infinitive of its own, which the vocabulary does; and `estar` is the
+state's infinitive only where the lesson says `The auxiliary "está" marks the
+state.` 1.6.15 and 1.8.6 said it: a small lesson reproduces a fault only when it
+gives the word every role the vocabulary does.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `Soy un pequeño empresario de 29 años, pacifista convencido` | `una pequeña empresaria`, `convencida` | the IR carries no gender for a noun: `imprenditrice` crosses as `businessman` |
+| `que esto trae consigo` | `que ésta conlleva` | `essa` crosses as the pronoun `it`, which Spanish writes `esto` |
+| `si cincuenta años hace, nadie había combatido` | `si hace cincuenta años nadie hubiera combatido` | `fa` after a count is written word for word; a subjunctive is written as the indicative, 1.6.8's cost |
+| `porque se consideró "pacifista"` | `se consideraba` | the imperfect and the preterite are both `past`, 1.6.15's cost |
+| `¿En qué raza de mundo habría nacido?` | `¿En qué clase de mundo ...?` | `razza di` is an idiom, and `razza` is a race first |
+| `Y me pido ahora` | `me pregunto` | `domandarsi` is to wonder: a sense |
+| `si el Europa, en nombre de una "paz"` | `si Europa` | the name keeps the article Italian puts before a country, and the IR carries no gender for it, 1.8.8's cost |
+| `ponerse la misma pregunta`, `se pusieron` | `plantearse`, `se plantearon` | `porsi una domanda` is an idiom |
+| `a la víspera de la segunda guerra mundial` | `en vísperas de` | word for word |
+| `estar a mirar` | `quedarse mirando` | `stare a guardare` is an idiom |
+| `se consume un otro holocausto` | `se consuma otro holocausto` | Spanish writes no article before `otro`, and a subjunctive is written as the indicative |
+| `el entero pueblo bosnio` | `todo el pueblo bosnio` | an adjective the source puts before its noun stays there, 1.6.21's cost |
+| `(y es ya tarde probablemente)` | `(y probablemente ya es tarde)` | a head adverb inside the parenthesis is written after the clause, 1.6.8's cost |
+| `esas muertes para las carreteras` | `esos muertos por las calles` | `morti` is deaths first, `per` is `for`, 1.6.21's cost, and `strada` a road |
+| `me hacen mal al corazón` | `me duele el corazón` | an idiom |
+| `son un problema también míos` | `también mío` | the possessive agrees with the subject, where Italian's agrees with the problem |
+| `y sobre todo, en el derecho` | `y, sobre todo, en el derecho` | the comma after a coordinator is not in the IR |
+| `Sestri P "sinvergüenza" pacifismo` | `pacifismo "sinvergüenza"` | the quoted word is written as an adjective, before its noun |
+
+**THE FIRST ROUND OF CONTROLS FOUND THREE REGRESSIONS AND TWO LINES OF DATA
+THAT WROTE THE WRONG WORD, WITH THE CASE GREEN AND THE LETTER 12 OF 12.** Each
+was a rule of this sample meeting a sentence it was not written for, and two of
+them were 1.8.9 reading a sentence wrongly and writing it right by accident:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| the Clinton report's `sostuvo que "cometer perjurio no es aceptable y debe tener consecuencias", por lo que el comité ...` came out `devi aver conseguenze` | the nested join divided the `que` clause at `por lo que`, after the closing mark, so the committee's intention was part of what Hyde said -- and `debe tener consecuencias` read alone was a command | a nested clause is never divided after a comma or a closing quotation mark, and after a coordinator the right side shares the left's subject and is no command, as a whole sentence's is |
+| the bioethics report's `purché praticata con rigorosi controlli` came out `siempre que practicado` | the structure is better -- `purché` a connector and a clause with its verb left out, where 1.8.9 read `purché` as a NOUN with a participle after it, agreeing by accident -- and a participle in a clause with no subject agreed with the clause before | the form's own gender and number travel beside it, `agr/1` and `agrn/1`, the reduced relative's two |
+| the record report's fourth sentence, `un 2,4% menos que en el ejercicio precedente`, refused | 1.8.9 read `que` as a noun meaning `than`; this sample's rule that a conjunction the lesson calls no noun is no noun closed that reading and left none | `cmpp(Adverb, Kind, pp(P, NP))`: `meno che nell'esercizio`, and English `less than in`, the adverb inside the comparison so English does not write it last |
+| the Spanish article's `se les llamará` came out `si chiamerà loro`, the opera review's `sin pedirles` `senza chiederloro` | `The dative pronoun "loro" means "them".`, for `non importa loro`, made `loro` the first dative for `them`: the hand lesson says `loro` means `them` before `gli`'s dative line | the dative written is one that stands before the verb, where the lesson has one |
+| the football report's `Salvo la concesión de Rivaldo` came out `Altro che la concessione` | `The preposition "salvo" means "other than".`, for `null'altro che`, is read first too | `The preposition "salvo" means "except".` before it: read as `except`, and still written for `other than` |
+
+-- the last two only in the column that runs 1.8.9 on the new store, which is
+the one place a line of data shows what it moved. **A LINE OF DATA HAS TWO
+READERS, THE SECOND TIME**: 1.8.6 said it of the writer, and here it is the
+READER too -- `salvo` came first for reading because it came first for
+writing. And Tatoeba moved twice: `Tenemos que correr.`, which 1.8.9 wrote
+`We have than to run.` with `que` as a noun, is refused -- 1.6.15's stated
+cost, a multi-word modal in the third person only -- and `Bueno, escuchad.`,
+refused, is `Good, listen.`, an adjective in front of an imperative.
+
+**THE SECOND ROUND FOUND ONE MORE, AND IT WAS A COMMA THE CLAUSE READER NEVER
+SAW.** The Clinton report's `pidiéndole que designara a un fiscal independiente
+... de fondos electorales, pero su solicitud fue rechazada` lost the comma
+before `pero`: the nested join divided the `que` clause at `pero`, and the rule
+that no nested clause is divided after a comma could not see this one, because
+a nested clause is read with its commas out. The piece keeps them
+(`$tr_piece`), and the join asks it (`tr_comma_before/2`). **And this file's
+rule was broken again during that round**: `library/` was edited while the
+second pass ran, so the passes before the edit and the passes after it were two
+libraries, and nothing in the logs said which was which. The round was stopped
+and all four passes were run again, interleaved. The runner compares the md5
+BEFORE the first pass, which cannot catch an edit made later; it prints the md5
+again after the last pass now, and a round whose two md5s differ is void.
+
+**THE THIRD ROUND HAD EVERY TEXT RIGHT AND FIFTEEN OF THE SIXTEEN OLD
+CONTROLS SLOWER, BY 4 TO 95 %.** The twelve took 33 s where 1.8.9 took 17 s,
+the bioethics report 43 % longer, the islands report 31 %, the Ferlaino
+interview 25 %. Counted on the
+full store, the six slowest sentences of the controls cost **120.5 million
+inferences against 1.8.9's 58.1**. The hunk bisection of 1.8.5 found the cause
+again: 91 hunks of the diff against 1.8.9, each taken out in a copy of the
+library, and the inferences counted, four copies at a time, because a count
+does not depend on load. **Five hunks that took out a helper answered
+`existence_error` and are not evidence**; of the rest, one hunk cost 53.6
+million: the reader for an object in front, `Io la risposta non ce l'ho`.
+
+**IT IS TRIED WHEN NOTHING ELSE READ, SO IT RAN ON EVERY STATEMENT THAT FAILED,
+AND IT PARSED A PHRASE BEFORE IT ASKED FOR THE PRONOUN.** For every verb group
+with clitics before it -- `si disse`, `si tende`, `si trasformano` -- the reader
+parsed a phrase at every determiner before the clitics, and only then asked
+whether one of the clitics takes a phrase up again. None of the six sentences
+has an object in front. Five changes, each on top of the one before and each
+with the same texts -- four to that reader, and the registry below:
+
+| sentence, millions of inferences | 1.8.9 | first cut | the pronoun first | a group only where the pronoun is | the phrase's last word | no preposition first | the registry |
+|---|---|---|---|---|---|---|---|
+| `La sperimentazione dell'atomica ...` | 6.30 | 27.78 | 6.92 | 6.50 | 6.48 | 6.48 | 6.80 |
+| `Negli ambienti giudiziari ...` | 3.72 | 9.68 | 7.48 | 7.50 | 7.50 | **3.83** | 4.07 |
+| `I bioetici sembrerebbero ...` | 1.05 | 11.24 | 11.24 | 11.11 | 11.05 | 11.05 | 11.60 |
+| `Firma il responsabile ...` | 18.56 | 21.87 | 19.04 | 18.97 | 18.96 | 18.96 | 19.66 |
+| `E il Giglio - dove ...` | 5.82 | 13.58 | 13.58 | 13.61 | **3.50** | 3.50 | 3.69 |
+| `Ricordo quando il Napoli ...` | 22.64 | 36.41 | 36.41 | 36.32 | **23.67** | 23.68 | 24.92 |
+| the six | 58.09 | 120.55 | 94.68 | 94.00 | 71.18 | **67.51** | 70.75 |
+
+-- the pronoun first; then a verb group asked for only after a pronoun with a
+determiner and no comma before it (`tr_dislocation_hint/1`), which bought 0.7
+million, because the one candidate that cost passed it: `e l'isola`, where
+`isola` is also `he isolates`, and `una valigia e lo vide`; then the word before
+the clitics one a phrase can end on, which a coordinator is not; then words that
+do not open on a preposition, because what stands before the phrase is its
+subject or nothing. Every one of them is a condition the clause already
+needed, asked before the expensive part.
+
+**THE BIOETHICS SENTENCE'S TEN MILLION ARE THE RIGHT IR, AND THE TEXT HID IT.**
+With the guard of this sample that a conjunction the lesson calls nothing else
+is no phrase's noun taken out, `purché praticata con rigorosi controlli` costs
+1.1 million and reads `purché` as a NOUN, `provided that`, with `practises` a
+reduced relative on it: an OBJECT of `seems`. That is 1.8.9's reading, and
+Spanish writes the same words from it, `siempre que practicada`, because the
+words stand in the same order. With the guard, it is a connector and a clause
+with its verb left out, which is what the sentence says, and it costs eleven
+million to find. **A right text is not a right IR** -- 1.8.6 said it -- and
+this time the difference was the price of the IR, which only the English shows:
+`... of the therapy, practised provided that with rigorous controls` for the
+cheap reading, and `... of the therapy, provided that practised with rigorous
+controls` for the one that costs.
+
+**THE FOURTH ROUND, WITH THOSE FOUR, WAS STILL 4 TO 10 % SLOWER ON THE FIVE
+SPANISH ARTICLES, AND ALL OF IT WAS IN THEIR FIRST SENTENCE**: 0.7 to 1.2 s
+each, with 5 % more inferences. **A RELATION A LANGUAGE NEVER STATES COST A
+WHOLE-STORE WARM, ONCE A NAME A PROCESS.** `tr_solve_plain/1` catches the
+`existence_error` of a relation the lesson never stated -- no Spanish fact is a
+`particle_of`, an `elision_of`, a `follow` or a `come_before`, and no Italian
+one a `join` -- and the engine WARMS
+the whole store before it throws, so that a declaration another process made is
+found (1.6.11). On this 352 MB store the first raise of a name costs **0.8 s**,
+and this sample's `particle_of` was a third name for every Spanish process:
+
+| the first sentence of a Spanish process, `El perro come el pan.` | |
+|---|---|
+| 1.8.9 | 2.8 s, 202 551 inferences |
+| the first cut | 3.5 s, 206 178 |
+| **the registry** | **1.25 s, 212 471** |
+
+-- one name alone, asked first in a process, is `raise 0.83 s` and `again 0.0000
+s`. The fix is data this library already writes: every fact a named lesson
+learns registers its name (`lesson_predicate/3`, since 1.4.0), and a goal is
+called only when the lesson has the name. Asked behind a cut it shut out the
+RULES of a name that has facts too -- `precede` has both, and `no lo vio más
+nadie` came out `no vio lo más nadie`, `Every pronoun precedes the verb` unread;
+asked under `once/1` and the catch every lesson goal wears, it cost 9.6 % more
+inferences; asked directly as a condition, since `lesson_predicate/3` is
+declared and cannot raise, the price is **4.8 % more inferences** over the six,
+and every process gives back 0.8 s for each relation its languages never state:
+two or three a process, in both directions, and 1.8.9 paid all of them but
+`particle_of`. **An inference count is not a clock, the third time in this
+file**: the registry costs inferences and saves seconds, and only the controls'
+wall times could say which way it came out.
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.9's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.9, this store | **1.8.10** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 17.2 and 18.0 s | **12 of 12, 14.6 and 14.6 s** |
+| the Spanish article | 11 of 11, 16.0 and 15.7 s | **11 of 11, 13.9 and 13.9 s** |
+| Livata, 29 sentences | 29 of 29, 90.7 and 90.0 s | **29 of 29, 87.7 and 86.5 s** |
+| Fiat, 20 sentences | 20 of 20, 23.5 and 23.1 s | **20 of 20, 20.7 and 20.7 s** |
+| Valencia, 16 sentences | 16 of 16, 49.9 and 50.9 s | **16 of 16, 46.6 and 45.6 s** |
+| the bioethics article, 15 sentences | 15 of 15, 13.7 and 13.8 s | **15 of 15, 15.4 and 14.9 s** |
+| the football article, 20 sentences | 20 of 20, 29.8 and 29.8 s | **20 of 20, 29.1 and 28.9 s** |
+| Monreale, 6 sentences | 6 of 6, 7.5 and 7.2 s | **6 of 6, 3.8 and 3.7 s** |
+| the record report, 15 sentences | 15 of 15, 27.5 and 27.2 s | **15 of 15, 23.0 and 22.8 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 268 / 132, 19.7 and 19.4 s | **56 / 268 / 132, 18.9 and 19.2 s** |
+| the islands report, 13 sentences | 13 of 13, 22.9 and 23.5 s | **13 of 13, 20.1 and 19.4 s** |
+| the opera review, 12 sentences | 12 of 12, 17.8 and 18.5 s | **12 of 12, 16.4 and 15.8 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 38.9 and 38.5 s | **27 of 27, 36.9 and 36.6 s** |
+| the Georgia report, 8 sentences | 8 of 8, 14.1 and 13.8 s | **8 of 8, 11.4 and 11.4 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 17.2 and 17.5 s | **13 of 13, 14.6 and 14.6 s** |
+| the Clinton report, 12 sentences | 12 of 12, 24.2 and 23.7 s | **12 of 12, 22.3 and 21.8 s** |
+| the Bosnian letter, 12 sentences | 3 of 12, 210.6 and 207.6 s | **12 of 12, 43.4 and 43.5 s** |
+
+-- the ranges apart on all seventeen: this letter 79 % faster, because 1.8.9
+spends its time failing; the bioethics report 10 % slower, which is its tenth
+sentence's right reading above; and the other fifteen 2.6 to 49 % FASTER,
+because no process warms the store for a relation its lessons never state.
+Each translator gives the same texts both times, and the texts are the third
+round's to the byte: the five changes of the cost moved none. Against 1.8.9 on this store they
+are the same but for the letter's, Tatoeba's two above, and the three datives
+the data column found -- `gli si chiamerà`, `Gli ho dato riposo`, `senza
+chiedergli` -- which are 1.8.9's own texts on its own store. So against 1.8.9 on
+its own store, the one reference that has no line of this sample's data in it,
+every old control is the same to the byte but for Tatoeba's two.
+
+Into English the letter reads 10 of 12. Sentences 9 and 10 each have a clause
+whose subject nobody named -- `continuerà a cercare`, and `se ci costerebbe più
+caro intervenire`, whose subject is the infinitive after it -- and English still
+refuses a third person nobody named (1.6.15). And English has no participle of
+`can`: `chi avrebbe potuto pensare di "mediare"` is `who would have caned think
+mediate`.
+
+`test/translate.pl` is 986 checks and GREEN, 42 in a new `newspaper_letter`
+section with an Italian and a Spanish lesson of its own; every one fails on
+1.8.9's translator but the four guards the controls wrote, which pass on it and
+pin what the first cut got wrong. Four pins of the inversion section moved, each
+with the reason beside it. Lesson 46 gained section 36. **The minor is
+proposed**: `"decide" takes the question.`, `"ce" is the particle of "ha".` and
+`"da cuenta" takes "de" before the clause.` are new lines a lesson can say, and
+an object in front, adjectives in front of a subject and two clauses of `che`
+are new shapes a program reaches; the owner decides. The full suite was not run
+on 1.8.10.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

@@ -267,3 +267,22 @@
 # `lo que hace es "desacreditar" la investigación': to discredit --
 # apertium-ita has `screditare' and the bilingual pairs it with nothing
 <e><p><l>discredit<s n="vblex"/></l><r>screditare<s n="vblex"/></r></p></e>
+# the letter on the Bosnian holocaust (Italian UD, VIT-9763..9774): words
+# apertium-ita has and the bilingual pairs with nothing. `Nazism' is written
+# capitalised, as the raw entry for `nazionalsocialismo' is: a lower-case
+# `nazism' would stop the builder lowering that one, and it lost its meaning
+<e><p><l>Nazism<s n="n"/></l><r>nazismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>mediate<s n="vblex"/></l><r>mediare<s n="vblex"/></r></p></e>
+<e><p><l>cowardly<s n="adj"/></l><r>vigliacco<s n="adj"/></r></p></e>
+<e><p><l>petty<s n="adj"/></l><r>meschino<s n="adj"/></r></p></e>
+<e><p><l>predecessor<s n="n"/></l><r>predecessore<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>mad<s n="adj"/></l><r>folle<s n="adj"/></r></p></e>
+<e><p><l>scoundrel<s n="n"/></l><r>mascalzone<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>eve<s n="n"/></l><r>vigilia<s n="n"/><s n="f"/></r></p></e>
+# `e probabilmente è già tardi': late, the adverb -- apertium-ita has
+# `tardi' as one (ieri__adv) and the bilingual pairs it with nothing
+<e><p><l>late<s n="adv"/></l><r>tardi<s n="adv"/></r></p></e>
+# `l'intero popolo bosniaco': Bosnian, the adjective -- the bilingual pairs
+# `bosniaco' only as the noun, so the phrase had two nouns that could not be
+# adjectives, and position made `intero' (an integer) its head
+<e><p><l>bosnian<s n="adj"/></l><r>bosniaco<s n="adj"/></r></p></e>

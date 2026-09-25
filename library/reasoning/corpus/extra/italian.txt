@@ -896,3 +896,77 @@ The adverb "con ogni mezzo" means "by every means".
 # infinitive
 "propone" takes "di" before the infinitive.
 "cerca" takes "di" before the infinitive.
+# the letter on the Bosnian holocaust (Italian UD, VIT-9763..9774)
+# `la distruzione che essa porta con sé', `davanti a sé': oneself, the
+# pronoun that stands after a preposition -- apertium-ita has `sé' and the
+# bilingual pairs it with nothing
+The pronoun "sé" means "itself".
+The pronoun "sé" does not precede the verb.
+# `soprattutto': the bilingual has it only as the two words `above all'
+The adverb "soprattutto" means "above all".
+# `non si ha davanti a sé nessun altra scelta': in front of
+The preposition "davanti a" means "in front of".
+# `cinquant anni fa': the source lost the apostrophe of `cinquant'anni', and
+# the word is the number it elides
+"cinquant" is the elision of "cinquanta".
+# `non importa loro null'altro che perseguire ...': nothing -- the
+# dictionary has `nulla' only as the adjective `invalid'
+The pronoun "nulla" means "nothing".
+The pronoun "nulla" does not precede the verb.
+"null'" is the elision of "nulla".
+# `quei morti per le strade': those -- apertium-ita reads `quel' and `quei'
+# and writes neither
+"quel" is the apocope of "quello".
+"quei" is the plural of "quel".
+# `i diritti inviolabili dell'essere umano': a being, the infinitive as a noun
+The masculine noun "essere" means "being".
+"esseri" is the plural of "essere".
+# `in che razza di mondo sarei nata?', `nasceranno i miei figli': to be born
+# -- the bilingual pairs `nascere' with `be born', a group the builder does
+# not write, so the verb had no meaning at all; its perfect takes the copula
+# (above)
+The intransitive verb "nasce" means "is born".
+"nascono" is the plural of "nasce".
+"nacque" is the past of "nasce". "nacquero" is the past of "nascono".
+"nascerà" is the future of "nasce". "nasceranno" is the future of "nascono".
+"nascerebbe" is the conditional of "nasce". "nascerebbero" is the conditional of "nascono".
+"nascere" is the infinitive of "nasce".
+"nato" is the participle of "nasce". "nata" is the participle of "nasce". "nata" is feminine.
+"nati" is the participle of "nasce". "nati" is the plural of "nato".
+"nate" is the participle of "nasce". "nate" is feminine. "nate" is the plural of "nata".
+# `Che cosa sarebbe accaduto se ...?': what -- two words, one question word;
+# read as `che' asking and `cosa' the subject, the thing happened
+The word "che cosa" means "what".
+# `Che cosa sarebbe accaduto?': what would have happened -- its perfect takes
+# the copula, and read as the copula and a participle it was a passive
+"è" is the auxiliary of "accade".
+# `non importa loro null'altro che perseguire i loro ... scopi': it matters to
+# them nothing other than pursuing -- `loro' after the verb is a dative, the
+# one Italian pronoun that follows it, and `altro che' is other than
+The dative pronoun "loro" means "them".
+The preposition "altro che" means "other than".
+# `i nuovi, piccoli, meschini, Hitler di questa fine secolo': the end of the
+# century, one word -- read as `fine' and `secolo' it was this end century
+The feminine noun "fine secolo" means "end of the century".
+# `senza rendersi conto che ...': without realizing that -- an idiom, one verb
+# of two words, its pronoun joined to the first of them; read apart, `conto
+# che non importa loro ...' was an account that did not matter to them
+The verb "rende conto" means "realizes".
+"rendono conto" is the plural of "rende conto".
+"rendere conto" is the infinitive of "rende conto".
+"rendendo conto" is the gerund of "rende conto".
+"reso conto" is the participle of "rende conto".
+"resa conto" is the participle of "rende conto". "resa conto" is feminine.
+# `porsi la stessa domanda': a question -- the dictionary gives `domanda'
+# as a demand first
+The feminine noun "domanda" means "question".
+# `decidere se ci costerebbe più caro intervenire': to decide WHETHER -- a
+# verb that takes a question, so the word for `if' after it opens one
+"decide" takes the question.
+# `Io la risposta non ce l'ho': `ce' is the `ci' that `avere' takes before a
+# pronoun, a particle no other language has a word for (tr_particles/3)
+"ce" is the particle of "ha".
+# `Forse è venuto il momento ... di porsi la stessa domanda': the moment has
+# come -- a verb with no object, so the phrase after it is its subject; read
+# otherwise, somebody came the moment
+The intransitive verb "viene" means "comes".

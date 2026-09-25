@@ -1,8 +1,9 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20228 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20231 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
+The masculine noun "derecho" means "right".
 The conjunction "porque" means "because".
 The preposition "por" means "by".
 The word "para" begins the purpose.
@@ -416,6 +417,33 @@ The conjunction "para que" means "so that".
 The word "lo" replaces the noun.
 "becario" is a person.
 "becaria" is a person.
+The adverb "sobre todo" means "above all".
+The preposition "delante de" means "in front of".
+The pronoun "sí" means "itself".
+The pronoun "sí" does not precede the verb.
+"consigo" is the contraction of "con sí".
+The intransitive verb "nace" means "is born".
+"nacen" is the plural of "nace".
+"nació" is the past of "nace". "nacieron" is the past of "nacen".
+"nacerá" is the future of "nace". "nacerán" is the future of "nacen".
+"nacería" is the conditional of "nace". "nacerían" is the conditional of "nacen".
+"nacer" is the infinitive of "nace".
+"nacido" is the participle of "nace". "nacida" is the participle of "nace". "nacida" is feminine.
+"nacidos" is the participle of "nace". "nacidos" is the plural of "nacido".
+"nacidas" is the participle of "nace". "nacidas" is feminine. "nacidas" is the plural of "nacida".
+The masculine noun "ser" means "being".
+"seres" is the plural of "ser".
+The preposition "salvo" means "except".
+The preposition "salvo" means "other than".
+The masculine noun "fin de siglo" means "end of the century".
+The verb "da cuenta" means "realizes".
+"dan cuenta" is the plural of "da cuenta".
+"dar cuenta" is the infinitive of "da cuenta".
+"dando cuenta" is the gerund of "da cuenta".
+"dado cuenta" is the participle of "da cuenta".
+"da cuenta" takes "de" before the clause.
+The feminine noun "pregunta" means "question".
+"decide" takes the question.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -486,6 +514,8 @@ The masculine noun "becario" means "intern".
 "becarios" is the plural of "becario".
 The feminine noun "becaria" means "intern".
 "becarias" is the plural of "becaria".
+The feminine noun "víspera" means "eve".
+"vísperas" is the plural of "víspera".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -25988,6 +26018,51 @@ The verb "entona" means "intones".
 "entonadas" is the plural of "entonada".
 "entonar" is the infinitive of "entona".
 "entonando" is the gerund of "entona".
+The verb "media" means "mediates".
+"median" is the plural of "media".
+"mediamos" is the first person of "median".
+"medio" is the first person of "media".
+"medias" is the second person of "media".
+"medió" is the past of "media".
+"mediaron" is the past of "median".
+"mediamos" is the first person of "mediaron".
+"medié" is the first person of "medió".
+"mediaste" is the second person of "medió".
+"mediaba" is the past of "media".
+"mediaban" is the past of "median".
+"mediábamos" is the first person of "mediaban".
+"mediabas" is the second person of "mediaba".
+"mediará" is the future of "media".
+"mediarán" is the plural of "mediará".
+"mediaremos" is the first person of "mediarán".
+"mediaré" is the first person of "mediará".
+"mediarás" is the second person of "mediará".
+"mediaría" is the conditional of "media".
+"mediarían" is the plural of "mediaría".
+"mediaríamos" is the first person of "mediarían".
+"mediarías" is the second person of "mediaría".
+"medie" is the subjunctive of "media".
+"medien" is the plural of "medie".
+"mediemos" is the first person of "medien".
+"medies" is the second person of "medie".
+"mediara" is the past subjunctive of "media".
+"mediaran" is the plural of "mediara".
+"mediáramos" is the first person of "mediaran".
+"mediaras" is the second person of "mediara".
+"media" is the imperative of "media".
+"medies" is the negative imperative of "media".
+"mediad" is the imperative of "median".
+"mediéis" is the negative imperative of "median".
+"mediado" is the participle of "media".
+"mediada" is the participle of "media".
+"mediada" is feminine.
+"mediados" is the participle of "media".
+"mediados" is the plural of "mediado".
+"mediadas" is the participle of "media".
+"mediadas" is feminine.
+"mediadas" is the plural of "mediada".
+"mediar" is the infinitive of "media".
+"mediando" is the gerund of "media".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -98809,51 +98884,6 @@ The verb "intermedia" means "mediates".
 "intermediadas" is the plural of "intermediada".
 "intermediar" is the infinitive of "intermedia".
 "intermediando" is the gerund of "intermedia".
-The verb "media" means "mediates".
-"median" is the plural of "media".
-"mediamos" is the first person of "median".
-"medio" is the first person of "media".
-"medias" is the second person of "media".
-"medió" is the past of "media".
-"mediaron" is the past of "median".
-"mediamos" is the first person of "mediaron".
-"medié" is the first person of "medió".
-"mediaste" is the second person of "medió".
-"mediaba" is the past of "media".
-"mediaban" is the past of "median".
-"mediábamos" is the first person of "mediaban".
-"mediabas" is the second person of "mediaba".
-"mediará" is the future of "media".
-"mediarán" is the plural of "mediará".
-"mediaremos" is the first person of "mediarán".
-"mediaré" is the first person of "mediará".
-"mediarás" is the second person of "mediará".
-"mediaría" is the conditional of "media".
-"mediarían" is the plural of "mediaría".
-"mediaríamos" is the first person of "mediarían".
-"mediarías" is the second person of "mediaría".
-"medie" is the subjunctive of "media".
-"medien" is the plural of "medie".
-"mediemos" is the first person of "medien".
-"medies" is the second person of "medie".
-"mediara" is the past subjunctive of "media".
-"mediaran" is the plural of "mediara".
-"mediáramos" is the first person of "mediaran".
-"mediaras" is the second person of "mediara".
-"media" is the imperative of "media".
-"medies" is the negative imperative of "media".
-"mediad" is the imperative of "median".
-"mediéis" is the negative imperative of "median".
-"mediado" is the participle of "media".
-"mediada" is the participle of "media".
-"mediada" is feminine.
-"mediados" is the participle of "media".
-"mediados" is the plural of "mediado".
-"mediadas" is the participle of "media".
-"mediadas" is feminine.
-"mediadas" is the plural of "mediada".
-"mediar" is the infinitive of "media".
-"mediando" is the gerund of "media".
 The verb "acolcha" means "cushions".
 The verb "pega" means "pastes".
 The verb "cultiva" means "tills".
@@ -119070,6 +119100,18 @@ The masculine adjective "dicho" means "aforementioned".
 "dichos" is the plural of "dicho".
 The feminine adjective "dicha" means "aforementioned".
 "dichas" is the plural of "dicha".
+The masculine adjective "bosnio" means "bosnian".
+"bosnios" is the plural of "bosnio".
+The feminine adjective "bosnia" means "bosnian".
+"bosnias" is the plural of "bosnia".
+The masculine adjective "mezquino" means "petty".
+"mezquinos" is the plural of "mezquino".
+The feminine adjective "mezquina" means "petty".
+"mezquinas" is the plural of "mezquina".
+"mezquinísimas" is the superlative of "mezquinas".
+"mezquinísima" is the superlative of "mezquina".
+"mezquinísimos" is the superlative of "mezquinos".
+"mezquinísimo" is the superlative of "mezquino".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

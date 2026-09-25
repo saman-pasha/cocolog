@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16191 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16201 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -636,6 +636,42 @@ The adverb "con ogni mezzo" means "by every means".
 "pianifica" takes "di" before the infinitive.
 "propone" takes "di" before the infinitive.
 "cerca" takes "di" before the infinitive.
+The pronoun "sé" means "itself".
+The pronoun "sé" does not precede the verb.
+The adverb "soprattutto" means "above all".
+The preposition "davanti a" means "in front of".
+"cinquant" is the elision of "cinquanta".
+The pronoun "nulla" means "nothing".
+The pronoun "nulla" does not precede the verb.
+"null'" is the elision of "nulla".
+"quel" is the apocope of "quello".
+"quei" is the plural of "quel".
+The masculine noun "essere" means "being".
+"esseri" is the plural of "essere".
+The intransitive verb "nasce" means "is born".
+"nascono" is the plural of "nasce".
+"nacque" is the past of "nasce". "nacquero" is the past of "nascono".
+"nascerà" is the future of "nasce". "nasceranno" is the future of "nascono".
+"nascerebbe" is the conditional of "nasce". "nascerebbero" is the conditional of "nascono".
+"nascere" is the infinitive of "nasce".
+"nato" is the participle of "nasce". "nata" is the participle of "nasce". "nata" is feminine.
+"nati" is the participle of "nasce". "nati" is the plural of "nato".
+"nate" is the participle of "nasce". "nate" is feminine. "nate" is the plural of "nata".
+The word "che cosa" means "what".
+"è" is the auxiliary of "accade".
+The dative pronoun "loro" means "them".
+The preposition "altro che" means "other than".
+The feminine noun "fine secolo" means "end of the century".
+The verb "rende conto" means "realizes".
+"rendono conto" is the plural of "rende conto".
+"rendere conto" is the infinitive of "rende conto".
+"rendendo conto" is the gerund of "rende conto".
+"reso conto" is the participle of "rende conto".
+"resa conto" is the participle of "rende conto". "resa conto" is feminine.
+The feminine noun "domanda" means "question".
+"decide" takes the question.
+"ce" is the particle of "ha".
+The intransitive verb "viene" means "comes".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -683,6 +719,16 @@ The masculine noun "ampliamento" means "enlargement".
 "ampliamenti" is the plural of "ampliamento".
 The feminine noun "stagista" means "intern".
 "stagiste" is the plural of "stagista".
+The masculine noun "nazismo" means "nazism".
+"nazismi" is the plural of "nazismo".
+The noun "predecessore" means "predecessor".
+"predecessori" is the plural of "predecessore".
+"predecessore" is a person.
+The masculine noun "mascalzone" means "scoundrel".
+"mascalzoni" is the plural of "mascalzone".
+"mascalzone" is a person.
+The feminine noun "vigilia" means "eve".
+"vigilie" is the plural of "vigilia".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -20735,6 +20781,52 @@ The verb "scredita" means "discredits".
 "screditate" is the plural of "screditata".
 "screditare" is the infinitive of "scredita".
 "screditando" is the gerund of "scredita".
+The verb "media" means "mediates".
+"mediano" is the plural of "media".
+"mediamo" is the first person of "mediano".
+"medio" is the first person of "media".
+"medi" is the second person of "media".
+"mediò" is the past of "media".
+"mediarono" is the past of "mediano".
+"mediammo" is the first person of "mediarono".
+"mediai" is the first person of "mediò".
+"mediasti" is the second person of "mediò".
+"mediava" is the past of "media".
+"mediavano" is the past of "mediano".
+"mediavamo" is the first person of "mediavano".
+"mediavo" is the first person of "mediava".
+"mediavi" is the second person of "mediava".
+"medierà" is the future of "media".
+"medieranno" is the plural of "medierà".
+"medieremo" is the first person of "medieranno".
+"medierò" is the first person of "medierà".
+"medierai" is the second person of "medierà".
+"medierebbe" is the conditional of "media".
+"medierebbero" is the plural of "medierebbe".
+"medieremmo" is the first person of "medierebbero".
+"medierei" is the first person of "medierebbe".
+"medieresti" is the second person of "medierebbe".
+"medi" is the subjunctive of "media".
+"medino" is the plural of "medi".
+"mediamo" is the first person of "medino".
+"mediasse" is the past subjunctive of "media".
+"mediassero" is the plural of "mediasse".
+"mediassimo" is the first person of "mediassero".
+"mediassi" is the first person of "mediasse".
+"mediassi" is the second person of "mediasse".
+"media" is the imperative of "media".
+"mediare" is the negative imperative of "media".
+"mediate" is the imperative of "mediano".
+"mediato" is the participle of "media".
+"mediata" is the participle of "media".
+"mediata" is feminine.
+"mediati" is the participle of "media".
+"mediati" is the plural of "mediato".
+"mediate" is the participle of "media".
+"mediate" is feminine.
+"mediate" is the plural of "mediata".
+"mediare" is the infinitive of "media".
+"mediando" is the gerund of "media".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -92057,6 +92149,32 @@ The masculine adjective "suddetto" means "aforementioned".
 "suddetti" is the plural of "suddetto".
 The feminine adjective "suddetta" means "aforementioned".
 "suddette" is the plural of "suddetta".
+The masculine adjective "vigliacco" means "cowardly".
+"vigliacchi" is the plural of "vigliacco".
+The feminine adjective "vigliacca" means "cowardly".
+"vigliacche" is the plural of "vigliacca".
+The masculine adjective "meschino" means "petty".
+"meschini" is the plural of "meschino".
+The feminine adjective "meschina" means "petty".
+"meschine" is the plural of "meschina".
+"meschinissimo" is the superlative of "meschino".
+"meschinissimi" is the superlative of "meschini".
+"meschinissima" is the superlative of "meschina".
+"meschinissime" is the superlative of "meschine".
+The adjective "folle" means "mad".
+"folli" is the plural of "folle".
+"follissimo" is the superlative of "folle".
+"follissimi" is the superlative of "folli".
+"follissima" is the superlative of "folle".
+"follissime" is the superlative of "folli".
+The masculine adjective "bosniaco" means "bosnian".
+"bosniaci" is the plural of "bosniaco".
+The feminine adjective "bosniaca" means "bosnian".
+"bosniache" is the plural of "bosniaca".
+"bosniacissimo" is the superlative of "bosniaco".
+"bosniacissimi" is the superlative of "bosniaci".
+"bosniacissima" is the superlative of "bosniaca".
+"bosniacissime" is the superlative of "bosniache".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -108253,6 +108371,7 @@ The adjective "affidabile" means "trustworthy".
 The masculine adjective "vergognoso" means "shameful".
 The feminine adjective "vergognosa" means "shameful".
 The adjective "triste" means "sorry".
+The adverb "tardi" means "late".
 The adverb "condizionatamente" means "conditionally".
 The adverb "acidamente" means "acidly".
 The adverb "avventurosamente" means "adventurously".
