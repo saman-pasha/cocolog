@@ -6427,6 +6427,180 @@ said of it, and reads now as a heading -- the refusal is pinned on `The big
 house.` instead. Lesson 46 gained section 32. The full suite was not run on
 1.8.6.
 
+### A Spanish report on an election into Italian: one person named by two nouns, a comma before the coordinator, a quotation that opens on the verb (1.8.7)
+
+**THE SIXTH SAMPLE OF THE LOOP, AND BACK TO SPANISH.** AnCora's
+CESS-CAST-P-19991101-26 -- eight sentences of El Periódico on Georgia's
+parliamentary election of 31 October 1999: who votes, who is expected to win,
+what each side wants, how many voted and what the observers doubted, with a
+heading between them -- Spanish into Italian over the two-language vocabulary
+store. The middle column is 1.8.6's translator over THIS store:
+
+| | 1.8.6, its store | 1.8.6, this store | **1.8.7** |
+|---|---|---|---|
+| translated | 3 of 8, one wrong in structure and one with its opening quotation mark lost | 4, two wrong in structure and one with its opening quotation mark lost | **8** |
+| refused for a word | 2 | 0 | **0** |
+| refused with every word known | 3 | 4 | **0** |
+| the article, one process | 95.4 s, 78.9 of them the first sentence | 47.6 and 47.3 s | **13.1 and 13.3 s** |
+
+-- the store Italian 172 430 terms and Spanish 218 071, taught into one
+`--embed` store from the rebuilt vocabularies in 640 s and 1 022 s, 350 MB.
+
+**WHAT IT NEEDED IS WHAT A REPORT ON A VOTE SAYS OF ITS PEOPLE AND ITS
+NUMBERS.** The twelve were verbs, the Spanish column phrases that carry things,
+Livata the way a report speaks, Fiat figures, Valencia a thing on show, the
+bioethics report its claims, the football page a squad, Monreale a court, the
+record report figures again, the islands report what a news item puts before
+its verb, the opera review what it puts beside a phrase and the interview a man
+talking; an election report names people by their offices and counts voters:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| two nouns under one article with a singular verb | `del actual presidente y ex ministro ... Eduard Shevardnadze` | one person, one/1, where Italian wrote `votarono` |
+| a name between commas after an article and a name | `de la antigua URSS, Eduard Shevardnadze,` | app(NP, apposed, Name) on a named/2 phrase, where it refused the sentence |
+| a comma, a coordinator and a phrase | `a la Unión de Ciudadanos de Georgia, el partido de Shevardnadze, y el bloque Renovación, del actual presidente ...` | sep and cnj/1, every comma kept; read with the commas out, `el partido` was the object and `de Shevardnadze y el bloque` one phrase |
+| a capital after an elision | `de Adjaria`, `a la Unión` | `d'Adjaria`, `all'Unione`, where the joined word took the article's case |
+| an infinitive joined to another | `quiere continuar con las reformas y anclar a su país` | the second takes what the verb takes, where it took the first infinitive's `a` |
+| ... under the copula | `es partidario de continuar ... y anclar ... solicitando el ingreso` | the second is under the same `de` (pinf/2), and the gerund after them is the infinitive's, where the copula refused it |
+| a heading with its `de` phrase | `El voto de los descontentos.` | an article, its noun and its adjectives and `de` phrases |
+| a share of a plural | `más de un 60% de los electores habían votado` | a percentage or a majority and a plural `de` phrase take a plural verb |
+| an adverb before a count | `Al cierre de los colegios, más de un 60% ...` | the count's, where the longest front took `más de` and wrote `oltre,` |
+| a quotation that opens on the verb | `que su partido "había obtenido sus objetivos electorales"` | vq/0, the mark back on the verb group's first word, where Italian closed a quotation it never opened |
+| a relative clause with a front and a comma before its verb | `con las reformas, que al igual que en la mayoría de las exrepúblicas soviéticas, no han traído` | the front stops at its comma and is written in front with it |
+| a word of several words the lesson states, capitalised | `de Asuntos Exteriores` | the ministry, where a capitalised known word after `de` is a place's name |
+| English's shared subject | `Abachidze prefiere ... e intenta aglutinar ...` | English leaves out the second subject, where it refused the sentence |
+| a quotation mark on a reordered phrase | `sus objetivos electorales"` | English keeps the mark at the phrase's edge, `his electoral aims"` |
+
+-- and the words, in `corpus/extra/` as always: 16 lines of Spanish and 18 of
+Italian, no `.dix` entry. The vocabularies went from 135 902 and 109 267 lines
+to 135 918 and 109 285, and the diff of what they LOST is empty. `reason.pl`
+did not move, the eighteenth version running.
+
+**A HEADING IS A PHRASE THAT NAMES, AND THE PINS THAT REFUSED ONE MOVED.**
+`El voto de los descontentos.` heads the second half of the report, and it is
+`El pan del perro.` in shape -- which the case had pinned as refused since
+1.8.4, a phrase with nothing said of it -- and `The big house.` in its
+adjectives, pinned as refused by 1.8.6 when `The house.` began to read. Nothing
+tells a heading from any other phrase standing alone, so both read now; what
+stays refused is a phrase with no article, `Pan del perro.`, which names nothing
+in particular. The verbless reading is tried last, so every sentence that read
+before reads by the same clauses.
+
+**A RULE THAT WIDENS AGREEMENT OPENS A READING SOMEWHERE ELSE, AND THE ARTICLE
+ITSELF SHOWED WHERE.** With the share rule in, sentence 5 read -- as `che
+maggioranza delle ex repubbliche sovietiche non ha portato a Georgia la
+prosperità attesa così come in lei`: the object reading of the relative clause
+took `la mayoría de las exrepúblicas soviéticas` for the clause's subject, which
+the plural verb now agreed with, and `la` before it for `her`. The relative is
+the object only where the clause has no object of its own, and this one has
+`la prosperidad esperada`; with that rule the subject reading with its front
+reads, and the front keeps its comma.
+
+**THE CONTROLS FOUND ONE REGRESSION, AND IT WAS THE RULE JUST ABOVE.** With the
+case GREEN and the report at 8 of 8, the first rounds came back with Fiat's
+sixteenth sentence refused, where 1.8.6 had written `de la noticia que el fondo
+Veba y Fiat han alcanzado el acuerdo`. The new rule had refused `della notizia
+che finalmente il fondo Veba e Fiat hanno raggiunto l'accordo` -- and rightly:
+that clause has its own subject and its own object and leaves no gap, so it was
+never a relative clause; 1.8.6 read it as one and wrote the right words by
+accident. It is the noun's own clause, ncl/2, which Spanish writes with `de
+que`, so the sentence reads again and better: `de la noticia de que el fondo
+...`, with the comma the source has after `particularmente` kept as well. **A
+rule that is right can still take away a reading that a sentence was using by
+mistake, and only a sentence that used it shows which.** The data column had
+nothing to say this time: 1.8.6 on this store gives its own texts on all
+thirteen old controls.
+
+**AND THAT FIX WAS A COST, WHICH THE NEXT ROUND FOUND.** The clause is asked of
+every phrase with a `che` or a `que` in it, and it read the whole rest of the
+sentence before it asked anything cheap: Valencia's last sentence, `... y los
+violonchelos que se exponen han mejorado con el tiempo, los solistas ...`, went
+from 28.1 s to 43.8 with the same text, and Ferlaino from 35.7 s to 40.2. Two
+tests come first now -- the phrase before `che` ends in a noun, and the
+clause's subject stands first, after its adverbs: a determiner, a name or a
+count (`tr_subject_first/1`) -- so `que se exponen`, `che era` and `che
+sarebbe` fail before a word of them is read, and `che finalmente il fondo` and
+`che il gatto` still pass. With them the sentence costs 29.5 and 28.7 s against
+1.8.6's 27.9 and 27.8, and Ferlaino 35.8 s both times against 36.6 and 37.3.
+**A clause that reads the rest of a sentence is asked once for every place a
+phrase can end**, which is 1.6.21's finding about the reduced relative's agent,
+met again.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `le scelte presidenziali` | `le elezioni` | `elección` is a choice first for the football report's `esa elección` |
+| `la partita di Shevardnadze` | `il partito` | `partido` is a match first for the football report's `a doble partido` |
+| `delle insoddisfazioni` | `degli scontenti` | `los descontentos` reads as the noun before it reads as the adjective with its noun left out |
+| `chiedendo il reddito nell'OTAN` | `l'ingresso nella NATO` | `ingreso` is income first, as a business page wants it; and a name passes through as written |
+| `alla chiusura delle scuole` | `dei seggi` | `colegio` is a school, and the polling station is `colegio electoral` |
+| `figurò negli schermi` | `apparve sugli schermi` | `figura` is Italian's first word for `appears`, for the football report's `figuran`; and `en` is `in` |
+| `all'Unione di Ciudadanos`, `Rinnovo` | `all'Unione dei Cittadini`, `Rinnovamento` | a party's name is words the lesson knows and a word it does not, and `a` before it is `to`, Monreale's cost |
+| `ancorare al suo paese`, `a Georgia` | `ancorare il suo paese`, `alla Georgia` | Spanish marks a country with `a`, and Italian puts an article before one |
+| `erano chiamati`, `situarono` | `furono chiamati`, `situavano` | the imperfect and the preterite are both `past`, 1.6.15's cost |
+| `si celebreranno` | `si terranno` | a sense |
+| `d'Affari esteri`, `d'agglutinare`, `d'ancorare` | `degli Affari Esteri`, `di aggregare` | the source has no article, and the lesson elides `di` before every vowel |
+| `l'ex titolare d'Affari esteri sovietico` | the same | the adjective is read as the ministry's, and Italian writes it right; English says `of soviet Foreign affairs`, 1.6.6's PP finding |
+| `è aderente di continuare` | `è favorevole a continuare` | a sense |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.6's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.6, this store | **1.8.7** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 16.1 and 16.2 s | **12 of 12, 16.3 and 16.5 s** |
+| the Spanish article | 11 of 11, 15.6 and 15.5 s | **11 of 11, 15.7 and 15.8 s** |
+| Livata, 29 sentences | 29 of 29, 82.7 and 82.3 s | **29 of 29, 84.3 and 83.9 s** |
+| Fiat, 20 sentences | 20 of 20, 23.4 and 23.5 s | **20 of 20, 22.3 and 22.1 s** |
+| Valencia, 16 sentences | 16 of 16, 46.1 and 45.9 s | **16 of 16, 47.8 and 46.5 s** |
+| the bioethics article, 15 sentences | 15 of 15, 12.7 and 12.9 s | **15 of 15, 13.1 and 12.8 s** |
+| the football article, 20 sentences | 20 of 20, 28.3 and 28.1 s | **20 of 20, 29.1 and 28.4 s** |
+| Monreale, 6 sentences | 6 of 6, 6.7 and 6.8 s | **6 of 6, 7.1 and 7.2 s** |
+| the record report, 15 sentences | 15 of 15, 26.1 and 25.8 s | **15 of 15, 26.6 and 25.9 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 267 / 133, 18.8 and 19.2 s | **56 / 267 / 133, 18.9 and 19.2 s** |
+| the islands report, 13 sentences | 13 of 13, 21.6 and 21.6 s | **13 of 13, 21.9 and 21.9 s** |
+| the opera review, 12 sentences | 12 of 12, 17.0 and 17.0 s | **12 of 12, 17.3 and 17.2 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 36.6 and 37.3 s | **27 of 27, 35.8 and 35.8 s** |
+| the Georgia report, 8 sentences | 4 of 8, 47.6 and 47.3 s | **8 of 8, 13.1 and 13.3 s** |
+
+-- the ranges apart on eleven of the fourteen and overlapping on the
+bioethics article, the record report and Tatoeba. The new readings cost 1 to
+6 % where they cost anything -- Monreale's 6 % is 0.4 s, in its first and
+fourth sentences -- and Fiat and Ferlaino are 5 and 3 % faster. Each
+translator gives the same texts both times. Against 1.8.6 the texts are the
+same but for these: the Spanish article's `dell'Interno` and Valencia's
+`L'Età d'Oro della Corda` and `dell'Orchestra di Valencia` keep the capital
+after the elision, which 1.8.6 lowered; and Fiat's sixteenth writes `de la
+noticia de que` and keeps the source's comma after `particularmente`.
+Tatoeba is the same to the byte.
+
+**TWO RUNS OF THE CASE WENT RED IN ITS `build` SECTION, AND THE CHANGE
+EXPLAINS ONLY ONE.** The first ran before the vocabularies were rebuilt, so
+`and writes the committed file byte for byte` failed on a file one step behind
+its own `extra/` lines -- 1.8.4's "rebuild after the last line", met again.
+The second printed the section's heading and NO check line, the same
+process's second pass then passed both checks, and the three runs after it
+were GREEN. One mechanism fits that pattern exactly, and it is not proved:
+`scratch/1` in `test/prelude.pl` names its directory
+`/tmp/coco_cocolog_test_PID_SEQ`, 139 such directories that earlier runs of
+the cases left sit in `/tmp`, PIDs come round again under a `pid_max` of
+32768, and `make_directory/1` FAILS on a name that is taken, where SWI's
+raises. So a process whose PID owns a leftover `_1` fails the section with
+nothing printed, and its second pass, on `_2`, works. The run's PID was not
+recorded, so nothing can confirm it. **It is not fixed here**:
+`make_directory/1` answering 0 on a failed syscall is the 1.2.41 shape, and
+its fix is the builtin raising with the errno's words, which is a change to
+`lib/files.cicili` and not to the translator.
+
+`test/translate.pl` is 897 checks and GREEN, 19 in a new `newspaper_georgia`
+section with a Spanish and an Italian lesson of its own; every check but the
+two marked as guards fails on 1.8.6's translator. Two pins moved: `El pan del
+perro.` and `The big house.` read as headings, and the refusals are pinned on
+`Pan del perro.` and `Big house.`. Lesson 46 gained section 33. The full suite
+was not run on 1.8.7.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

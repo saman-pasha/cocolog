@@ -358,6 +358,7 @@ main :-
     section_30,
     section_31,
     section_32,
+    section_33,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -1705,6 +1706,71 @@ The conjunction "si" means "if". The preposition "a" means "to". The preposition
 The adjective "capaz" means "able".
 The adverb "entonces" means "then".
 The word "no" means "not". The word "no" precedes the verb.').
+
+section_33 :-
+    format("~n33. A Spanish report on an election into Italian: one person named twice, a share of a plural, a quotation on the verb~n", []),
+    lesson_33(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the report''s shapes, under its own name', NI),
+    lesson_33(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('El presidente y ex ministro votó.', spanish, italian, S33a),
+    must('two nouns under ONE ARTICLE with a singular verb are one person', S33a, 'Il presidente e ex ministro votò.'),
+    reason_translate('El voto de los perros.', spanish, italian, S33b),
+    must('a HEADING with its de phrase', S33b, 'Il voto dei cani.'),
+    reason_translate('Un 60% de los perros comen el pan.', spanish, italian, S33c),
+    must('a SHARE OF A PLURAL takes a plural verb', S33c, 'Un 60% dei cani mangia il pane.'),
+    reason_translate('El perro dice que el gato "come el pan".', spanish, italian, S33d),
+    must('a QUOTATION that opens on the verb', S33d, 'Il cane dice che il gatto "mangia il pane".'),
+    reason_translate('Los perros votaron cara a las elecciones.', spanish, italian, S33e),
+    must('a WORD OF SEVERAL WORDS on each side, the Italian one contracted by its last word', S33e,
+         'I cani votarono in vista delle elezioni.'),
+    reason_translate('El perro come el pan e intenta comer la sopa.', spanish, italian, S33f),
+    must('`e'', Spanish''s `y'' before the sound i', S33f, 'Il cane mangia il pane e tenta di mangiare la minestra.'),
+    reason_translate('El perro come el pan e intenta comer la sopa.', spanish, english, S33g),
+    must('and English leaves out a SUBJECT THE CLAUSE BEFORE NAMED', S33g, 'The dog eats the bread and tries to eat the soup.'),
+    reason_translate('El perro es capaz de comer el pan bebiendo la leche.', spanish, italian, S33h),
+    must('a GERUND after an infinitive after the copula', S33h, 'Il cane è capace di mangiare il pane bevendo il latte.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_33(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"dei" is the contraction of "di i". "delle" is the contraction of "di le".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". The noun "minestra" means "soup". The noun "latte" means "milk".
+The noun "voto" means "vote". The feminine noun "elezione" means "election". "elezioni" is the plural of "elezione".
+The noun "presidente" means "president". The noun "ministro" means "minister".
+The adjective "ex" means "ex". The adjective "capace" means "able".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "beve" means "drinks". "bere" is the infinitive of "beve". "bevendo" is the gerund of "beve".
+The verb "vota" means "votes". "votò" is the past of "vota". "votarono" is the plural of "votò".
+The verb "tenta" means "tries". "tentare" is the infinitive of "tenta". "tenta" takes "di" before the infinitive.
+The verb "dice" means "says". The verb "è" means "is".
+The conjunction "che" means "that". The conjunction "e" means "and".
+The preposition "di" means "of". The preposition "in vista di" means "ahead of".').
+lesson_33(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The noun "perro" means "dog". The noun "gato" means "cat".
+The noun "pan" means "bread". The noun "sopa" means "soup". The noun "leche" means "milk". "leche" is feminine.
+The noun "voto" means "vote". The feminine noun "elección" means "election". "elecciones" is the plural of "elección".
+The noun "presidente" means "president". The noun "ministro" means "minister".
+The adjective "ex" means "ex". The adjective "capaz" means "able".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "bebe" means "drinks". "beber" is the infinitive of "bebe". "bebiendo" is the gerund of "bebe".
+The verb "vota" means "votes". "votó" is the past of "vota". "votaron" is the plural of "votó".
+The verb "intenta" means "tries". "intentar" is the infinitive of "intenta".
+The verb "dice" means "says". The verb "es" means "is".
+The conjunction "que" means "that". The conjunction "y" means "and". The conjunction "e" means "and".
+The preposition "de" means "of". The preposition "cara a" means "ahead of".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

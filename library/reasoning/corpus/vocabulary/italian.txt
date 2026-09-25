@@ -590,11 +590,29 @@ The adverb "a schiatto" means "out of spite".
 The conjunction "cioè" means "that is".
 The feminine noun "serie b" means "second division".
 The preposition "al di sopra di" means "above".
+The preposition "entro" means "within".
 The preposition "nell'ambito di" means "within".
 The adverb "per quanto mi riguarda" means "as for me".
 The adjective "capace" means "able".
 The adjective "in grado" means "able".
 The feminine noun "coppa campioni" means "champions cup".
+The masculine noun "capo" means "boss".
+The feminine noun "unione" means "union".
+The adjective "filoccidentale" means "pro-western".
+"filoccidentali" is the plural of "filoccidentale".
+The feminine noun "ex repubblica" means "former republic".
+"ex repubbliche" is the plural of "ex repubblica".
+The masculine noun "elettore" means "voter".
+"elettori" is the plural of "elettore".
+The masculine noun "seggio" means "seat".
+"seggi" is the plural of "seggio".
+The masculine noun "titolare" means "holder".
+"titolari" is the plural of "titolare".
+The masculine noun "affari esteri" means "foreign affairs".
+The adverb "poco più di" means "just over".
+The preposition "in vista di" means "ahead of".
+The preposition "così come in" means "just as in".
+"tenta" takes "di" before the infinitive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

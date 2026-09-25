@@ -26,6 +26,7 @@ main :-
     complement, superlative, inversion, headline, subordinate, names, imperatives,
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
+    newspaper_georgia,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -2077,8 +2078,10 @@ newspaper_es_checks :-
     %% what has no verb: an exclamation, and a clause that leaves out the verb before it
     answer(reason_translate('¡El pan del perro!', spanish, italian, ON14), ON14, N14),
     check('an exclamation with no verb', N14, 'Il pane del cane!'),
-    yes_no(reason_translate('El pan del perro.', spanish, italian, _), N15),
-    check('and a statement with none is still refused', N15, no),
+    answer(reason_translate('El pan del perro.', spanish, italian, ON15), ON15, N15),
+    check('A HEADING OF A PHRASE WITH ITS DE PHRASE READS NOW -- `El voto de los descontentos.'' in the Georgia report -- where this pinned the refusal before 1.8.7', N15, 'Il pane del cane.'),
+    yes_no(reason_translate('Pan del perro.', spanish, italian, _), N15b),
+    check('and a statement with no verb and no article is still refused', N15b, no),
     answer(reason_translate('El perro come el pan; el gato, la sopa.', spanish, italian, ON16), ON16, N16),
     check('a semicolon, and after it a clause that leaves the verb out', N16, 'Il cane mangia il pane; il gatto, la minestra.'),
 
@@ -4026,6 +4029,136 @@ newspaper_ferlaino_checks :-
     check('a GUARD: an adverb lifted from inside a `che'' clause stays the clause''s', M28,
           'El perro piensa que el gato duerme ya.').
 
+%% ---- a Spanish report on an election into Italian (1.8.7) --------------------------------
+
+newspaper_georgia :-
+    section('a Spanish report on an election into Italian: one person named by two nouns, a comma before the coordinator, a heading with its de phrase, a share of a plural, a quotation that opens on the verb'),
+    newspaper_georgia_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_georgia_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_georgia_checks,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_georgia_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+The article "lo" comes before a vowel.
+"l''" is the elision of "lo". "l''" is the elision of "la". "d''" is the elision of "di".
+"al" is the contraction of "a il". "del" is the contraction of "di il". "dei" is the contraction of "di i". "della" is the contraction of "di la". "nella" is the contraction of "in la". "nel" is the contraction of "in il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". The noun "minestra" means "soup". The noun "latte" means "milk". The noun "uovo" means "egg".
+The noun "casa" means "house". The noun "voto" means "vote". The feminine noun "notizia" means "news".
+The noun "presidente" means "president". The noun "ministro" means "minister".
+The masculine noun "affari esteri" means "foreign affairs".
+The adjective "ex" means "ex". The adjective "bianco" means "white". The adjective "capace" means "able".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiò" is the past of "mangia". "mangiare" is the infinitive of "mangia". "mangiando" is the gerund of "mangia".
+The verb "beve" means "drinks". "bevono" is the plural of "beve". "bere" is the infinitive of "beve". "bevendo" is the gerund of "beve".
+The verb "vota" means "votes". "votano" is the plural of "vota". "votò" is the past of "vota". "votarono" is the plural of "votò".
+The verb "vuole" means "wants". The verb "continua" means "continues". "continuare" is the infinitive of "continua". "continua" takes "a" before the infinitive.
+The verb "tenta" means "tries". "tentare" is the infinitive of "tenta". "tenta" takes "di" before the infinitive.
+The verb "dice" means "says". The verb "vede" means "sees".
+The verb "è" means "is". "sono" is the plural of "è".
+"che" is a relative. The conjunction "che" means "that". The conjunction "e" means "and".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "con" means "with". The preposition "in" means "in".
+The adverb "oltre" means "more than". The number "due" means "two".
+The word "non" means "not". The word "non" precedes the verb.').
+newspaper_georgia_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The noun "perro" means "dog". The noun "gato" means "cat".
+The noun "pan" means "bread". The noun "sopa" means "soup". The noun "leche" means "milk". "leche" is feminine. The noun "huevo" means "egg".
+The noun "casa" means "house". The noun "voto" means "vote". The feminine noun "noticia" means "news". The word "de" begins the clause.
+The noun "presidente" means "president". "presidente" is a person. The noun "ministro" means "minister". "ministro" is a person.
+The masculine noun "asuntos exteriores" means "foreign affairs".
+The adjective "ex" means "ex". The adjective "blanco" means "white". The adjective "capaz" means "able".
+The verb "come" means "eats". "comen" is the plural of "come". "comió" is the past of "come". "comer" is the infinitive of "come". "comiendo" is the gerund of "come".
+The verb "bebe" means "drinks". "beben" is the plural of "bebe". "beber" is the infinitive of "bebe". "bebiendo" is the gerund of "bebe".
+The verb "vota" means "votes". "votan" is the plural of "vota". "votó" is the past of "vota". "votaron" is the plural of "votó".
+The verb "quiere" means "wants". The verb "continúa" means "continues". "continuar" is the infinitive of "continúa".
+The verb "intenta" means "tries". "intentar" is the infinitive of "intenta".
+The verb "dice" means "says". The verb "ve" means "sees".
+The verb "es" means "is". "son" is the plural of "es".
+"que" is a relative. The conjunction "que" means "that". The conjunction "y" means "and". The conjunction "e" means "and".
+The word "a" precedes the person.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "con" means "with". The preposition "en" means "in".
+The adverb "más de" means "more than". The number "dos" means "two".
+The word "no" means "not". The word "no" precedes the verb.').
+
+newspaper_georgia_checks :-
+    %% two nouns under one article, and a verb that says one
+    nf_tr('El presidente y ex ministro votó.', spanish, italian, G1),
+    check('two nouns under one article with a singular verb are one person, where the Italian verb came out plural', G1,
+          'Il presidente e ex ministro votò.'),
+    %% a name apposed to an article and a name
+    nf_tr('El ministro de la URSS, Eduard Shevardnadze, votó.', spanish, italian, G2),
+    check('a name between commas after an article and a name, which refused the sentence', G2,
+          'Il ministro della URSS, Eduard Shevardnadze, votò.'),
+    nf_tr('El presidente de Adjaria votó.', spanish, italian, G3),
+    check('a name keeps its capital after an elision, where it came out `d''adjaria''', G3, 'Il presidente d''Adjaria votò.'),
+    %% a comma before the coordinator closes what the comma before it opened
+    nf_tr('El perro come el pan, el huevo del gato, y la sopa.', spanish, italian, G4),
+    check('a comma, a coordinator and a phrase join the objects before it, both commas kept', G4,
+          'Il cane mangia il pane, l''uovo del gatto, e la minestra.'),
+    %% an infinitive joined to another is the same verb's
+    nf_tr('El perro quiere continuar con el pan y comer la sopa.', spanish, italian, G5),
+    check('an infinitive joined to another takes the word its verb takes, where it took the first infinitive''s, `e a mangiare''', G5,
+          'Il cane vuole continuare con il pane e mangiare la minestra.'),
+    %% a heading with its de phrase
+    nf_tr('El voto del perro.', spanish, italian, G6),
+    check('a heading of a phrase with its `de'' phrase, `El voto de los descontentos.''', G6, 'Il voto del cane.'),
+    nf_tr('Voto del perro.', spanish, italian, G7),
+    check('a GUARD: a phrase with no article names nothing in particular and is still refused', G7, refused),
+    %% a share of a plural
+    nf_tr('Un 60% de los perros comen el pan.', spanish, italian, G8),
+    check('a percentage and a plural `de'' phrase take a plural verb, which refused the sentence', G8,
+          'Un 60% dei cani mangia il pane.'),
+    %% an adverb before a count is the count's
+    nf_tr('En la casa, más de dos perros comen el pan.', spanish, italian, G9),
+    check('a front does not end on an adverb before a count, where it came out `oltre, due cani''', G9,
+          'Nella casa, oltre due cani mangiano il pane.'),
+    %% a quotation that opens on the verb
+    nf_tr('El perro dice que el gato "come el pan".', spanish, italian, G10),
+    check('a quotation that opens on the verb keeps its opening mark, where Italian closed one it never opened', G10,
+          'Il cane dice che il gatto "mangia il pane".'),
+    nf_tr('El perro come "el pan blanco".', spanish, english, G11),
+    check('a quotation mark on a phrase stays at its edge when English moves the adjective', G11,
+          'The dog eats "the white bread".'),
+    %% a relative clause with a front set off by a comma
+    nf_tr('El perro come con los gatos, que en la casa, no comen el pan.', spanish, italian, G12),
+    check('a relative clause with a front and a comma before its verb, the front kept in front', G12,
+          'Il cane mangia con i gatti, che nella casa, non mangiano il pane.'),
+    %% English leaves out a subject the clause before named
+    nf_tr('El perro come el pan e intenta comer la sopa.', spanish, english, G13),
+    check('English leaves out the subject of a clause joined to one that named it, which refused the sentence', G13,
+          'The dog eats the bread and tries to eat the soup.'),
+    %% after the copula, what follows a preposition and its infinitive is the infinitive's
+    nf_tr('El perro es capaz de comer el pan y beber la leche.', spanish, english, G14),
+    check('an infinitive joined to one under a preposition is under it too, where English wrote `and to drink''', G14,
+          'The dog is able of eating the bread and of drinking the milk.'),
+    nf_tr('El perro es capaz de comer el pan y beber la leche.', spanish, italian, G15),
+    check('... and Italian repeats the preposition', G15, 'Il cane è capace di mangiare il pane e di bere il latte.'),
+    nf_tr('El perro es capaz de comer el pan bebiendo la leche.', spanish, italian, G16),
+    check('a gerund after an infinitive after the copula is the infinitive''s, which refused the sentence', G16,
+          'Il cane è capace di mangiare il pane bevendo il latte.'),
+    %% a word of several words the lesson states is no name
+    nf_tr('El ministro de Asuntos Exteriores come.', spanish, italian, G17),
+    check('a capitalised word of several words the lesson states is the lesson''s word, never a name', G17,
+          'Il ministro d''Affari esteri mangia.'),
+    nf_tr('El perro come el pan que el gato ve.', spanish, italian, G18),
+    check('a GUARD: a relative clause whose own subject stands before its verb still has the relative for its object', G18,
+          'Il cane mangia il pane che il gatto vede.'),
+    %% a clause with its own subject and object after a noun and `che'
+    nf_tr('Il cane vede la notizia che il gatto mangia il pane.', italian, spanish, G19),
+    check('a clause with its own subject and object after a noun and `che'' is the noun''s own clause, which the rule for the relative''s object refused -- Spanish writes `de que''', G19,
+          'El perro ve la noticia de que el gato come el pan.').
+
 %% ---- the rules are what the translator asks ---------------------------------------------
 
 rules :-
@@ -4117,9 +4250,11 @@ refusals :-
     check('a preposition the lesson has no word for is reported too', U2b, [sleeps, under]),
     reason_translate('The house.', R3a),
     check('A HEADING OF ONE PHRASE READS NOW, an article and its noun -- `Il futuro.'' in the Ferlaino interview -- where this pinned the refusal before 1.8.6', R3a, 'La casa.'),
-    yes_no(reason_translate('The big house.', _), R3),
-    check('and a phrase with more in it still has no verb', R3, no),
-    reason_untranslated('The big house.', U3),
+    reason_translate('The big house.', R3),
+    check('AND ONE WITH ITS ADJECTIVES SINCE 1.8.7, where this pinned the refusal: a heading is a phrase that names', R3, 'La casa grande.'),
+    yes_no(reason_translate('Big house.', _), R3b),
+    check('a phrase with no article names nothing in particular and still has no verb', R3b, no),
+    reason_untranslated('Big house.', U3),
     check('and nothing untranslated: the words are known, the shape is not', U3, []),
     reason_translate('Maria has 3 dogs.', R4),
     check('A NUMBER IN DIGITS CROSSES AS ITSELF: it has no mean/2 row and needs none, where before 1.6.14 the lookup found nothing and the phrase was refused', R4, 'Maria tiene 3 perros.'),

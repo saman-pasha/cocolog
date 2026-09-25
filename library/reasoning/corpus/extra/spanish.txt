@@ -537,3 +537,29 @@ The preposition "por encima de" means "above".
 The preposition "en el marco de" means "within".
 The adverb "en cuanto a mí" means "as for me".
 The feminine noun "copa de campeones" means "champions cup".
+# `la corrupción e intenta': `y' before a word that begins with the sound i
+The conjunction "e" means "and".
+# `ex ministro prooccidental', `las exrepúblicas soviéticas': apertium-spa
+# has neither
+The adjective "prooccidental" means "pro-western".
+"prooccidentales" is the plural of "prooccidental".
+The feminine noun "exrepública" means "former republic".
+"exrepúblicas" is the plural of "exrepública".
+# `los electores': `elector' is a constituent in apertium-spa; and
+# `intenta aglutinar', tries, where `endeavours' has no Italian word
+The masculine noun "elector" means "voter".
+The verb "intenta" means "tries".
+# `al cierre de los colegios': `closing' is a word Italian borrows
+The masculine noun "cierre" means "closure".
+# `el ex titular de Exteriores', `ministro de Asuntos Exteriores': the one
+# who holds an office, where the dictionary's first `titular' is a
+# headline; and the ministry, where `exteriores' is the adjective's plural
+The noun "titular" means "holder".
+The masculine noun "asuntos exteriores" means "foreign affairs".
+The masculine noun "exteriores" means "foreign affairs".
+# words of several words
+The adverb "poco más de" means "just over".
+The preposition "dentro de" means "within".
+The preposition "cara a" means "ahead of".
+The preposition "al igual que" means "just like".
+The preposition "al igual que en" means "just as in".

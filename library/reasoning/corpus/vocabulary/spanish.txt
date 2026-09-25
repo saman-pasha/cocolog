@@ -373,6 +373,22 @@ The preposition "por encima de" means "above".
 The preposition "en el marco de" means "within".
 The adverb "en cuanto a mí" means "as for me".
 The feminine noun "copa de campeones" means "champions cup".
+The conjunction "e" means "and".
+The adjective "prooccidental" means "pro-western".
+"prooccidentales" is the plural of "prooccidental".
+The feminine noun "exrepública" means "former republic".
+"exrepúblicas" is the plural of "exrepública".
+The masculine noun "elector" means "voter".
+The verb "intenta" means "tries".
+The masculine noun "cierre" means "closure".
+The noun "titular" means "holder".
+The masculine noun "asuntos exteriores" means "foreign affairs".
+The masculine noun "exteriores" means "foreign affairs".
+The adverb "poco más de" means "just over".
+The preposition "dentro de" means "within".
+The preposition "cara a" means "ahead of".
+The preposition "al igual que" means "just like".
+The preposition "al igual que en" means "just as in".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
