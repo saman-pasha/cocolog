@@ -6601,6 +6601,180 @@ perro.` and `The big house.` read as headings, and the refusals are pinned on
 `Pan del perro.` and `Big house.`. Lesson 46 gained section 33. The full suite
 was not run on 1.8.7.
 
+### An Italian extract from the Washington Post into Spanish: of which with no verb, the one led by, a name among the adjectives (1.8.8)
+
+**THE SEVENTH SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD VIT
+document VIT-9750..9762 -- thirteen lines of an extract of a Washington Post
+article of 13 July 1995 in Italian: four governments since 1992 and only one
+out of an election, stability, a boom, a parliament that passes nothing the
+government did not list, and the source line in brackets at the end -- Italian
+into Spanish over the two-language vocabulary store. The middle column is
+1.8.7's translator over THIS store:
+
+| | 1.8.7, its store | 1.8.7, this store | **1.8.8** |
+|---|---|---|---|
+| translated | 3 of 13, two wrong in structure | 6, two wrong in structure (`eso de Berlusconi`, `aunque la continua incertidumbre`) and one with `El Italia` and `pib` | **13** |
+| refused for a word | 6 | 2 -- `cui` and a name, neither of them missing from the dictionary | **0** |
+| refused with every word known | 4 | 5 | **0** |
+| the article, one process | 25.9 s | 25.9 and 26.2 s | **17.2 and 17.3 s** |
+
+-- the store Italian 172 533 terms and Spanish 218 091, taught into one
+`--embed` store from the rebuilt vocabularies in 637 s and 1 020 s, 344 MB.
+
+**WHAT IT NEEDED IS WHAT AN OPINION PIECE DOES WITH WHAT IT HAS ALREADY
+NAMED.** The twelve were verbs, the Spanish column phrases that carry things,
+Livata the way a report speaks, Fiat figures, Valencia a thing on show, the
+bioethics report its claims, the football page a squad, Monreale a court, the
+record report figures again, the islands report what a news item puts before
+its verb, the opera review what it puts beside a phrase, the interview a man
+talking and the Georgia report people by their offices; this extract says
+things again -- the one of Berlusconi, the one the tycoon led, the Dini
+government that came after:
+
+| shape | the article's words | what moved |
+|---|---|---|
+| of which, with no verb and no comma before it | `quattro governi di cui solo uno ... uscito da elezioni generali` | the phrase alone and rpp/2 after it, where the relative clause it was read as had no verb |
+| an adverb before that phrase | `di cui solo uno` | advp(Adverb, Phrase), in front of it in every language |
+| the one led by | `quello guidato dal magnate televisivo Silvio Berlusconi` | rel/3 on ell(Det, G, N, none): Spanish's `el conducido por`, where it was the pronoun `that` |
+| ... between two commas after the phrase it names again | `solo uno, quello guidato ..., uscito da` | an aside, w(Key, aside), its commas kept |
+| a verb whose perfect takes the copula | `uscito da elezioni generali` | `"è" is the auxiliary of "esce".`, a line since 1.6.17: `da` after its participle is `from`, pp/2, where it was the agent |
+| the one of | `ha superato in durata quello di Berlusconi` | `The word "quello" replaces the noun.`: `el de Berlusconi`, where it was `eso de` |
+| a name among the adjectives | `il governo Dini successivo` | the phrase does not end at the name, and the name keeps its place among the adjectives that follow the noun |
+| an elided article before a name with an adjective | `L'Italia attuale` | `"italia" is feminine.`: the name's gender, which an elision does not say |
+| a line of names | `The Washington Post.` | the name alone, gap/2 with obj(name(N)) |
+| a name of several words in quotation marks | `(dal "Washington Post", 13 luglio 1995)` | one token, its marks kept |
+| a bracket at the head of a sentence | `(dal ...) estratto brano dell'articolo ...` | join(aside, gap([], [paren(K)]), S) |
+| a bracket in a sentence that ends in an ellipsis | `(privatizzazioni, leggi sull'ambiente, riforma fiscale) vengono del tutto trascurati ...` | the marks kept, where that piece lost them |
+| a series of a plural | `Tutta una serie di problemi ... vengono trascurati` | the share rule takes `series`, and `all` before a determiner is the phrase's own |
+| an answer and its condition | `Niente, se la maggiore preoccupazione è la stabilità.` | a pronoun that stands alone before the comma |
+| a pronoun that is an adjective too | `nessun altro provvedimento` | the adjective, where every pronoun was refused as one |
+| the participle's own number | `la lista delle priorità fissata dal governo` | agrn(Number), where it agreed with the priorities |
+| a preposition that is a conjunction too | `nonostante la continua incertezza politica` | crosses by its meaning as a preposition, `a pesar de` |
+| an acronym | `la crescita del suo pil` | `"pil" is an acronym.`: `PIB` |
+
+-- and the words, in `corpus/extra/` as always: 18 lines of Italian and 11 of
+Spanish, and three entries in `eng-ita.dix` (`fix`, `tycoon`, `uncertainty`).
+The vocabularies went from 109 285 and 135 918 lines to 109 353 and 135 929,
+and the diff of what they LOST is the Italian header's entry count.
+`reason.pl` did not move, the nineteenth version running.
+
+**AN ARM THAT TAKES A NEW LINE OUT IS NOT AN ARM THAT PUTS THE OLD ONE
+BACK.** `nessun altro provvedimento` needs a pronoun to be an adjective where
+the lesson calls it one too -- `altro` is `others` as well as `other` -- and
+1.8.7 refused every pronoun as an adjective. The first arm that asked whether
+the new rule was still needed took its line out, and with it the old rule it
+had replaced: in that arm EVERY pronoun was an adjective, and the article read
+the same, which said nothing. The arm that put 1.8.7's line back refused
+sentence 10. **A change that relaxes a rule is measured by restoring the rule,
+never by deleting the relaxation.**
+
+**THE SAME WORDS CAME OUT TWO WAYS, AND WHAT DECIDED WAS THE SENTENCE BEFORE
+THEM.** The extract's last line, `estratto brano dell'articolo ...`, has no
+subject, and its participle agreed with whatever gender the previous sentence's
+subject had left in `$tr_subject_gender`: `extraído` after a masculine subject,
+`extraída` after `L'Italia attuale`. Every sentence write starts from the
+masculine now (`tr_from_ir/5`). The first arm that looked for the leak on a
+small lesson showed nothing, because that lesson had only `conducido` to
+choose: **an arm proves nothing about a form its lesson cannot write**, and the
+case's lesson carries `conducida` for that reason alone.
+
+**A SMALL LESSON THAT STATES A WORD OTHERWISE THAN THE VOCABULARY TESTS
+ANOTHER WORD.** `Nessun altro cane mangia il pane.` was refused in the case and
+read on the probe store, because the vocabulary also says `The masculine
+determiner "altro" means "another".` and the case's first lesson did not -- and
+the subject's own guard refuses a pronoun that is no determiner. The lesson
+states it as the vocabulary does. The Spanish half found a line of data wrong
+since 1.7.0: `extra/spanish.txt` gave `ninguno` as the masculine determiner,
+the form that stands alone, so `ningún` before a noun could not be read and a
+masculine phrase came out `ninguno otro perro`; `ningún` is stated first now.
+
+**THE RELATIVE READING IS TRIED FIRST, AND THE PHRASE ALONE ONLY WHERE IT
+FAILS.** A preposition and the relative that follows one used to make the
+phrase before them take the whole rest of the piece, as a relative clause: `i
+governi di cui parlo`. With no verb after them there is no clause, and the
+sentence was refused where the same words after a comma read, 1.6.17's `di cui
+tre di unità cinofile`. `tr_phrase_words/4` offers the phrase alone as a second
+answer in that one case, so every sentence that read before reads by the same
+clause.
+
+**THE CONTROLS FOUND ONE REGRESSION, AND IT WAS A LESSON WORD READ FOR MORE
+THAN IT SAYS.** `uno uscito da elezioni generali` came FROM the elections, and
+the first cut made the phrase after a participle an ordinary one wherever the
+lesson called the verb `intransitive` -- which is what `uscire` is. But
+`"domina" is intransitive.` has stood in both lessons since 1.6.8, for the
+inversion, and `dominar` takes an object as well: the opera review's `la
+función dominada por la excepcional Anderson` came out `dominata per
+l'eccezionale Anderson`, the agent lost. `intransitive` says a verb MAY take no
+object; what says it HAS no passive is its perfect, and the lesson says that
+too -- `"è" is the auxiliary of "esce".`, a line since Livata -- so the rule
+reads the auxiliary (`tr_unaccusative/1`), and `dominare` takes `avere`. The
+case pins it as a guard, which passes on 1.8.7 and fails on the first cut --
+and passed on the first cut too until the small Spanish lesson gave `por` its
+first meaning, `for`: with `by` its only meaning, an ordinary `por` phrase and
+the agent wrote the same words. **A guard proves nothing about a difference its
+lesson cannot show**, which is the gender finding above from the other side.
+The data moved nothing: 1.8.7 on this store writes all fourteen old controls to
+the byte as on its own.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `La Italia ha tenido`, `La Italia actual` | `Italia ha tenido` | Spanish writes no article before a country, and the IR carries the one Italian puts there -- Fiat's `para el Italia` is `para la Italia` now, the right gender and still the article |
+| `salido desde elecciones generales`, `desde el "Washington Post"` | `salido de`, `del` | `da` is `from`, and Spanish's first word for `from` is `desde`, 1.6.17's cost |
+| `... desde 1992...` at the end | `Desde 1992, Italia ha tenido` | a front with no comma is written after the clause, 1.6.8's cost |
+| `es la más alta del mundo occidental` | `es el más alto` | a phrase whose noun was left out carries the source article's gender, and `crescita` is feminine where `crecimiento` is masculine |
+| `la preocupación mayor` | `la mayor preocupación` | the comparative the lesson states is written after its noun, where the source put it first |
+| `¿Qué habría de mal si duró indefinidamente?` | `de malo si durara` | `di male` is an idiom, and a subjunctive is written as the past, 1.6.8's cost |
+| `es en paz con sí mismo` | `está en paz consigo mismo` | Italian's `essere` is both copulas, 1.6.17's cost; and a contraction no lesson states |
+| `Toda una serie de problemas ... es desatendida completamente` | `son completamente desatendidos` | the verb agrees with `serie`, singular, where the source's is plural |
+| `ninguna otra orden`, `la operación de la democracia` | `ninguna otra medida`, `el funcionamiento` | senses: the dictionary gives `order` and `operation` first |
+| `actos en el entorno` | `leyes sobre el medio ambiente` | senses, and `su` is `on`, 1.7.2's cost |
+| `emitido por el diario diario americano` | `publicado por el diario americano` | `giornale quotidiano` is two nouns that both mean `newspaper`, and `pubblicato` is `issued` |
+| `extraído pedazo del artículo`, `el gobierno Dini sucesivo` | `fragmento extraído`, `el siguiente gobierno Dini` | word for word |
+| `el conducido por el magnate` | `el encabezado por` | a sense: `guidare` drives first |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.7's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.7, this store | **1.8.8** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 16.4 and 16.4 s | **12 of 12, 16.8 and 16.8 s** |
+| the Spanish article | 11 of 11, 15.1 and 15.1 s | **11 of 11, 15.4 and 15.3 s** |
+| Livata, 29 sentences | 29 of 29, 85.4 and 85.7 s | **29 of 29, 85.6 and 87.0 s** |
+| Fiat, 20 sentences | 20 of 20, 22.8 and 22.8 s | **20 of 20, 22.9 and 23.1 s** |
+| Valencia, 16 sentences | 16 of 16, 47.6 and 48.2 s | **16 of 16, 49.0 and 49.1 s** |
+| the bioethics article, 15 sentences | 15 of 15, 13.0 and 13.0 s | **15 of 15, 13.1 and 12.8 s** |
+| the football article, 20 sentences | 20 of 20, 28.2 and 28.9 s | **20 of 20, 28.9 and 28.9 s** |
+| Monreale, 6 sentences | 6 of 6, 6.9 and 7.2 s | **6 of 6, 7.0 and 7.1 s** |
+| the record report, 15 sentences | 15 of 15, 26.0 and 26.1 s | **15 of 15, 26.6 and 26.5 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 267 / 133, 19.1 and 19.6 s | **56 / 268 / 132, 19.3 and 19.6 s** |
+| the islands report, 13 sentences | 13 of 13, 21.8 and 22.3 s | **13 of 13, 22.2 and 22.4 s** |
+| the opera review, 12 sentences | 12 of 12, 17.1 and 17.4 s | **12 of 12, 17.8 and 17.9 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 35.8 and 36.9 s | **27 of 27, 36.8 and 36.9 s** |
+| the Georgia report, 8 sentences | 8 of 8, 13.0 and 13.4 s | **8 of 8, 13.6 and 13.6 s** |
+| the Washington Post extract, 13 sentences | 6 of 13, 25.9 and 26.2 s | **13 of 13, 17.2 and 17.3 s** |
+
+-- the ranges apart on eight of the fifteen and overlapping on the other
+seven. Where they are apart the new readings cost 0.8 to 3.5 % -- the opera
+review's 3.5 % is 0.6 s -- and the extract itself is a third faster, because
+1.8.7 spends its time failing. Each translator gives the same texts both times.
+Against 1.8.7 the texts are the same but for these: Fiat's `para la Italia`,
+the gender right where 1.8.7 wrote `el` and the article still Italian's;
+Ferlaino's `(el curado por el periodista rai Salvatore Biazzo)`, where the
+pronoun `that` stood; and on Tatoeba `Todo el mundo lo sabe.`, refused before,
+is `All the world knows him.` -- `todo el mundo` is everybody, an idiom, and it
+is a translation now where it was a refusal.
+
+`test/translate.pl` is 924 checks and GREEN, 27 in a new `newspaper_wapo`
+section with an Italian and a Spanish lesson of its own; every check but the
+three marked as guards fails on 1.8.7's translator, and the guard for
+`dominata dal` fails on the first cut. Lesson 46 gained section 34. Into
+English the extract reads twelve of thirteen on the probe store; the fifth,
+`se durasse indefinitamente`, has no named subject, and English still refuses a
+third person nobody named (1.6.15). The full suite was not run on 1.8.8.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

@@ -200,6 +200,9 @@ The preposition "invece di" means "instead of".
 The preposition "vicino" means "near".
 The noun "il peggio" means "the worst".
 The conjunction "nonostante" means "although".
+# `nonostante la continua incertezza politica': before a phrase it is the
+# preposition, and the dictionary's first one is `around'
+The preposition "nonostante" means "despite".
 The conjunction "mentre" means "while".
 The adjective "a pezzi" means "shattered".
 The adjective "fuori di testa" means "crazy".
@@ -328,6 +331,9 @@ The feminine noun "via" means "way".
 # interpreti', never `il più buono'
 "migliore" is the comparative of "buono".
 "peggiore" is the comparative of "cattivo".
+# `la maggiore preoccupazione': the greatest, where `maggiore' is the
+# adjective `great' to the dictionary and Spanish wrote `la suma'
+"maggiore" is the comparative of "grande".
 # the bioethics committee (VIT-9450..9464): the discipline and the people in
 # it, which the dictionary has only as an adjective and without English
 The feminine noun "bioetica" means "bioethics".
@@ -831,3 +837,46 @@ The preposition "in vista di" means "ahead of".
 The preposition "così come in" means "just as in".
 # `tenta di aggregare'
 "tenta" takes "di" before the infinitive.
+# the Washington Post extract (Italian UD, VIT-9750..9762)
+# `democrazia in tilt': a pinball machine locked up, which Spanish says as
+# `democracia bloqueada'
+The adjective "in tilt" means "jammed".
+"in tilt" is the plural of "in tilt".
+# `la crescita del suo pil': the paper writes it in small letters and the
+# dictionary as PIL; a lesson keeps every word it quotes in small letters,
+# and `is an acronym' is how it says the word goes out in capitals
+The masculine noun "pil" means "GDP".
+"pil" is the plural of "pil".
+"pil" is an acronym.
+# `la lista delle priorità fissata dal governo': `fissare' from
+# extra/eng-ita.dix, and with it `fixes' has an Italian verb, so the
+# builder dropped the one-way entry that made `ripara' mean `fixes' --
+# which Spanish's `arregla' is written by; it is stated here, first, and
+# after the meaning that was first before it
+The verb "ripara" means "repairs".
+The verb "ripara" means "fixes".
+# `ha superato in durata quello di Berlusconi': Berlusconi's one, the
+# government, which Spanish writes `el de' -- the line Spanish's `el' has
+# had since 1.6.15
+The word "quello" replaces the noun.
+The word "quella" replaces the noun.
+# `L'Italia attuale': an elided article says no gender, and a name has none
+# of its own to lend the adjective after it
+"italia" is feminine.
+# `nessun altro provvedimento'
+"nessun" is the apocope of "nessuno".
+# `che cosa ci sarebbe di male': ONE question word -- `che' and `cosa' each
+# mean `what', and the second was read as an object and written `cosa'
+The word "che cosa" means "what".
+# `vengono del tutto trascurati': completely, where `del tutto' read as `of
+# everything' with the participle hung on it
+The adverb "del tutto" means "completely".
+# `che cosa ci sarebbe di male': there would be, the conditional of `c'è'
+"ci sarebbe" is the conditional of "c'è".
+"ci sarebbero" is the plural of "ci sarebbe".
+# `uscire' takes no object, so after a front its phrase is its subject:
+# `Dalla casa esce il cane' is the dog coming out (1.6.8's inversion). The
+# agent rule does NOT read this line -- `uno uscito da elezioni generali' is
+# `from' because the perfect takes the copula, `"è" is the auxiliary of
+# "esce".' above; `domina' is intransitive too and has a passive
+"esce" is intransitive.

@@ -163,6 +163,7 @@ The feminine noun "pochette" means "pochette".
 The masculine noun "virtuoso" means "virtuoso".
 "virtuosos" is the plural of "virtuoso".
 The preposition "a través de" means "through".
+The masculine determiner "ningún" means "no".
 The masculine determiner "ninguno" means "no".
 The feminine determiner "ninguna" means "no".
 The masculine adjective "destacado" means "illustrious".
@@ -199,6 +200,7 @@ The feminine noun "vía" means "way".
 The verb "apunta" means "notes".
 "mejor" is the comparative of "bueno".
 "peor" is the comparative of "malo".
+"mayor" is the comparative of "grande".
 The feminine noun "bioética" means "bioethics".
 "bioéticas" is the plural of "bioética".
 The masculine noun "bioético" means "bioethicist".
@@ -389,6 +391,15 @@ The preposition "dentro de" means "within".
 The preposition "cara a" means "ahead of".
 The preposition "al igual que" means "just like".
 The preposition "al igual que en" means "just as in".
+The masculine adjective "bloqueado" means "jammed".
+"bloqueados" is the plural of "bloqueado".
+The feminine adjective "bloqueada" means "jammed".
+"bloqueadas" is the plural of "bloqueada".
+The masculine noun "pib" means "GDP".
+"pib" is the plural of "pib".
+"pib" is an acronym.
+The verb "fija" means "fixes".
+"habría" is the conditional of "hay".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

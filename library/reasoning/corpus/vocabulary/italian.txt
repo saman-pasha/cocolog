@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16183 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16185 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -191,6 +191,7 @@ The preposition "invece di" means "instead of".
 The preposition "vicino" means "near".
 The noun "il peggio" means "the worst".
 The conjunction "nonostante" means "although".
+The preposition "nonostante" means "despite".
 The conjunction "mentre" means "while".
 The adjective "a pezzi" means "shattered".
 The adjective "fuori di testa" means "crazy".
@@ -294,6 +295,7 @@ The feminine noun "via" means "way".
 "vie" is the plural of "via".
 "migliore" is the comparative of "buono".
 "peggiore" is the comparative of "cattivo".
+"maggiore" is the comparative of "grande".
 The feminine noun "bioetica" means "bioethics".
 "bioetiche" is the plural of "bioetica".
 The masculine noun "bioetico" means "bioethicist".
@@ -613,6 +615,22 @@ The adverb "poco più di" means "just over".
 The preposition "in vista di" means "ahead of".
 The preposition "così come in" means "just as in".
 "tenta" takes "di" before the infinitive.
+The adjective "in tilt" means "jammed".
+"in tilt" is the plural of "in tilt".
+The masculine noun "pil" means "GDP".
+"pil" is the plural of "pil".
+"pil" is an acronym.
+The verb "ripara" means "repairs".
+The verb "ripara" means "fixes".
+The word "quello" replaces the noun.
+The word "quella" replaces the noun.
+"italia" is feminine.
+"nessun" is the apocope of "nessuno".
+The word "che cosa" means "what".
+The adverb "del tutto" means "completely".
+"ci sarebbe" is the conditional of "c'è".
+"ci sarebbero" is the plural of "ci sarebbe".
+"esce" is intransitive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -15548,6 +15566,11 @@ The feminine noun "sfortuna" means "misfortune".
 "sfortune" is the plural of "sfortuna".
 The masculine noun "designatore" means "designator".
 "designatori" is the plural of "designatore".
+The masculine noun "magnate" means "tycoon".
+"magnati" is the plural of "magnate".
+"magnate" is a person.
+The feminine noun "incertezza" means "uncertainty".
+"incertezze" is the plural of "incertezza".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -86933,6 +86956,52 @@ The verb "cavalca" means "rides".
 "cavalcando" is the gerund of "cavalca".
 "rode" is the past of "rides".
 "ridden" is the participle of "rides".
+The verb "fissa" means "fixes".
+"fissano" is the plural of "fissa".
+"fissiamo" is the first person of "fissano".
+"fisso" is the first person of "fissa".
+"fissi" is the second person of "fissa".
+"fissò" is the past of "fissa".
+"fissarono" is the past of "fissano".
+"fissammo" is the first person of "fissarono".
+"fissai" is the first person of "fissò".
+"fissasti" is the second person of "fissò".
+"fissava" is the past of "fissa".
+"fissavano" is the past of "fissano".
+"fissavamo" is the first person of "fissavano".
+"fissavo" is the first person of "fissava".
+"fissavi" is the second person of "fissava".
+"fisserà" is the future of "fissa".
+"fisseranno" is the plural of "fisserà".
+"fisseremo" is the first person of "fisseranno".
+"fisserò" is the first person of "fisserà".
+"fisserai" is the second person of "fisserà".
+"fisserebbe" is the conditional of "fissa".
+"fisserebbero" is the plural of "fisserebbe".
+"fisseremmo" is the first person of "fisserebbero".
+"fisserei" is the first person of "fisserebbe".
+"fisseresti" is the second person of "fisserebbe".
+"fissi" is the subjunctive of "fissa".
+"fissino" is the plural of "fissi".
+"fissiamo" is the first person of "fissino".
+"fissasse" is the past subjunctive of "fissa".
+"fissassero" is the plural of "fissasse".
+"fissassimo" is the first person of "fissassero".
+"fissassi" is the first person of "fissasse".
+"fissassi" is the second person of "fissasse".
+"fissa" is the imperative of "fissa".
+"fissare" is the negative imperative of "fissa".
+"fissate" is the imperative of "fissano".
+"fissato" is the participle of "fissa".
+"fissata" is the participle of "fissa".
+"fissata" is feminine.
+"fissati" is the participle of "fissa".
+"fissati" is the plural of "fissato".
+"fissate" is the participle of "fissa".
+"fissate" is feminine.
+"fissate" is the plural of "fissata".
+"fissare" is the infinitive of "fissa".
+"fissando" is the gerund of "fissa".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -91178,7 +91247,6 @@ The verb "spara" means "fires".
 The verb "adatta" means "fits".
 "fitted" is the past of "fits".
 "fitting" is the gerund of "fits".
-The verb "ripara" means "fixes".
 The verb "fugge" means "flees".
 "fled" is the past of "flees".
 The verb "inonda" means "floods".

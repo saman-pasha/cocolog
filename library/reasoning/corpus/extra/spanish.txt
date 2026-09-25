@@ -189,6 +189,10 @@ The feminine noun "pochette" means "pochette".
 The masculine noun "virtuoso" means "virtuoso".
 "virtuosos" is the plural of "virtuoso".
 The preposition "a través de" means "through".
+# `nessun altro provvedimento': before a masculine noun the determiner is
+# `ningún', which no line stated, so it could not be read and was written
+# `ninguno otro'; `ninguno' is the form that stands alone
+The masculine determiner "ningún" means "no".
 The masculine determiner "ninguno" means "no".
 The feminine determiner "ninguna" means "no".
 # `los más destacados luthiers': the dictionary has `destacado' only as the
@@ -256,6 +260,7 @@ The verb "apunta" means "notes".
 # dictionary gives as the plain adjective
 "mejor" is the comparative of "bueno".
 "peor" is the comparative of "malo".
+"mayor" is the comparative of "grande".
 # the bioethics committee, into Spanish: the discipline, the people in it,
 # electroshock and whooping cough, none of which the dictionary has
 The feminine noun "bioética" means "bioethics".
@@ -563,3 +568,21 @@ The preposition "dentro de" means "within".
 The preposition "cara a" means "ahead of".
 The preposition "al igual que" means "just like".
 The preposition "al igual que en" means "just as in".
+# the Washington Post extract (Italian UD, VIT-9750..9762)
+# `democracia bloqueada', for `democrazia in tilt'
+The masculine adjective "bloqueado" means "jammed".
+"bloqueados" is the plural of "bloqueado".
+The feminine adjective "bloqueada" means "jammed".
+"bloqueadas" is the plural of "bloqueada".
+# `el crecimiento de su PIB': apertium-spa has the acronym and the builder
+# writes no entry in capitals; `is an acronym' puts it back in them
+The masculine noun "pib" means "GDP".
+"pib" is the plural of "pib".
+"pib" is an acronym.
+# `la lista de las prioridades fijada por el gobierno': `arregla' is the
+# first Spanish verb for `fixes', and it repairs; Italian's `fissare' comes
+# across as `fixes' and is what Spanish says with `fijar'
+The verb "fija" means "fixes".
+# `¿qué habría de malo?': there would be -- the conditional of `hay', as
+# `habrá' is its future
+"habría" is the conditional of "hay".

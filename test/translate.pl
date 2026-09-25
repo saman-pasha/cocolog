@@ -26,7 +26,7 @@ main :-
     complement, superlative, inversion, headline, subordinate, names, imperatives,
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
-    newspaper_georgia,
+    newspaper_georgia, newspaper_wapo,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -4158,6 +4158,178 @@ newspaper_georgia_checks :-
     nf_tr('Il cane vede la notizia che il gatto mangia il pane.', italian, spanish, G19),
     check('a clause with its own subject and object after a noun and `che'' is the noun''s own clause, which the rule for the relative''s object refused -- Spanish writes `de que''', G19,
           'El perro ve la noticia de que el gato come el pan.').
+
+%% ---- an Italian extract from the Washington Post into Spanish (1.8.8) ---------------
+
+newspaper_wapo :-
+    section('an Italian extract from the Washington Post into Spanish: of which with no verb, the one led by, a name among the adjectives, a line that is a name, a bracket at the head'),
+    newspaper_wapo_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_wapo_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_wapo_checks,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_wapo_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+The article "lo" comes before a vowel.
+"l''" is the elision of "lo". "l''" is the elision of "la".
+"al" is the contraction of "a il". "del" is the contraction of "di il". "dei" is the contraction of "di i". "della" is the contraction of "di la". "delle" is the contraction of "di le". "dal" is the contraction of "da il". "dalla" is the contraction of "da la". "nel" is the contraction of "in il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". The noun "minestra" means "soup". The noun "casa" means "house". "case" is the plural of "casa".
+The noun "governo" means "government". "governi" is the plural of "governo". The noun "giornale" means "newspaper". The noun "magnate" means "tycoon".
+The noun "lista" means "list".
+The masculine noun "pil" means "GDP". "pil" is the plural of "pil". "pil" is an acronym.
+The feminine noun "serie" means "series". "serie" is the plural of "serie".
+"italia" is feminine.
+The adjective "successivo" means "successive". The adjective "televisivo" means "television". The adjective "attuale" means "current".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "guida" means "drives". "guidato" is the participle of "guida". "guidata" is the participle of "guida". "guidata" is feminine.
+The verb "fissa" means "fixes". "fissato" is the participle of "fissa". "fissata" is the participle of "fissa". "fissata" is feminine. "fissate" is the plural of "fissata". "fissati" is the plural of "fissato".
+The verb "esce" means "exits". "uscito" is the participle of "esce".
+The verb "è" means "is". "sono" is the plural of "è". "è" is the auxiliary of "esce".
+The verb "domina" means "dominates". "dominata" is the participle of "domina". "dominata" is feminine. "domina" is intransitive.
+"che" is a relative. The conjunction "che" means "that". "cui" is a relative. The word "cui" follows the preposition.
+The conjunction "e" means "and". The conjunction "se" means "if".
+The conjunction "nonostante" means "although". The preposition "nonostante" means "despite".
+The word "quello" replaces the noun. The pronoun "quello" means "that".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The pronoun "niente" means "nothing". The pronoun "niente" does not precede the verb.
+The masculine pronoun "tutto" means "all". The feminine pronoun "tutta" means "all". The pronoun "tutto" does not precede the verb. The pronoun "tutta" does not precede the verb.
+The adverb "solo" means "only". The number "quattro" means "four".
+The masculine determiner "nessuno" means "no". "nessun" is the apocope of "nessuno".
+The masculine determiner "altro" means "another". The masculine adjective "altro" means "other". The masculine pronoun "altro" means "others". The pronoun "altro" does not precede the verb.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "da" means "by". The preposition "da" means "from". The preposition "in" means "in". The preposition "per" means "for".').
+newspaper_wapo_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The word "el" replaces the noun.
+The noun "perro" means "dog". The noun "gato" means "cat".
+The noun "pan" means "bread". The noun "sopa" means "soup". The noun "casa" means "house".
+The noun "gobierno" means "government". The noun "diario" means "newspaper". The noun "magnate" means "tycoon".
+The noun "lista" means "list".
+The masculine noun "pib" means "GDP". "pib" is the plural of "pib". "pib" is an acronym.
+The feminine noun "serie" means "series". "serie" is the plural of "serie".
+The adjective "sucesivo" means "successive". The adjective "televisivo" means "television". The adjective "actual" means "current".
+The verb "come" means "eats". "comen" is the plural of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "conduce" means "drives". "conducido" is the participle of "conduce". "conducida" is the participle of "conduce". "conducida" is feminine.
+The verb "fija" means "fixes". "fijado" is the participle of "fija". "fijada" is the participle of "fija". "fijada" is feminine. "fijadas" is the plural of "fijada". "fijados" is the plural of "fijado".
+The verb "sale" means "exits". "salido" is the participle of "sale".
+The verb "domina" means "dominates". "dominada" is the participle of "domina". "dominada" is feminine. "domina" is intransitive.
+"que" is a relative. The conjunction "que" means "that". The conjunction "y" means "and". The conjunction "si" means "if".
+The conjunction "aunque" means "although". The preposition "a pesar de" means "despite".
+The pronoun "eso" means "that". The pronoun "eso" does not precede the verb.
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The pronoun "nada" means "nothing". The pronoun "nada" does not precede the verb.
+The masculine pronoun "todo" means "all". The feminine pronoun "toda" means "all". The pronoun "todo" does not precede the verb. The pronoun "toda" does not precede the verb.
+The adverb "sólo" means "only". The number "cuatro" means "four".
+The masculine determiner "ningún" means "no". The masculine determiner "ninguno" means "no".
+The masculine determiner "otro" means "another". The masculine adjective "otro" means "other". The masculine pronoun "otro" means "others". The pronoun "otro" does not precede the verb.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "por" means "for". The preposition "por" means "by". The preposition "desde" means "from". The preposition "en" means "in".
+The word "a" precedes the person.').
+
+newspaper_wapo_checks :-
+    %% of which, with no verb and no comma before it
+    nf_tr('Il cane vede quattro gatti di cui uno.', italian, spanish, W1),
+    check('a preposition and the relative after one open a part with no verb, which was read as a relative clause and refused the sentence', W1,
+          'El perro ve cuatro gatos de los que uno.'),
+    nf_tr('Il cane vede quattro gatti di cui solo uno.', italian, spanish, W2),
+    check('... and an adverb before its phrase is the phrase''s, in front of it in every language', W2,
+          'El perro ve cuatro gatos de los que sólo uno.'),
+    %% a verb that takes no object has no agent
+    nf_tr('Il cane vede quattro gatti, di cui uno uscito dalla casa.', italian, spanish, W3),
+    check('`da'' after the participle of a verb whose perfect takes the copula is `from'', where it was the agent, `salido por''', W3,
+          'El perro ve cuatro gatos, de los que uno salido desde la casa.'),
+    nf_tr('El perro ve la casa dominada por el gato.', spanish, italian, W3b),
+    check('a GUARD: a verb that MAY take no object still has a passive, and its agent -- the first cut asked `intransitive'' and wrote `dominata per''', W3b,
+          'Il cane vede la casa dominata dal gatto.'),
+    %% the one led by
+    nf_tr('Il cane vede quello guidato dal gatto.', italian, spanish, W4),
+    check('a word that replaces the noun before a participle is the one it led, where it was the pronoun `that'', `eso conducido desde''', W4,
+          'El perro ve el conducido por el gato.'),
+    nf_tr('Il cane, quello guidato dal gatto, mangia il pane.', italian, spanish, W5),
+    check('... and between two commas after a noun it is that noun said again, its commas kept', W5,
+          'El perro, el conducido por el gato, come el pan.'),
+    nf_tr('Il cane vede quattro gatti di cui solo uno, quello fissato dal cane, uscito dalla casa ...', italian, spanish, W6),
+    check('the article''s third sentence in small: of which only one, the one fixed by, gone out from -- which was refused', W6,
+          'El perro ve cuatro gatos de los que sólo uno, el fijado por el perro, salido desde la casa...'),
+    nf_tr('Il cane vede quattro gatti di cui solo uno, quello fissato dal cane, uscito dalla casa ...', italian, english, W7),
+    check('... and in English, the one fixed by', W7,
+          'The dog sees four cats of which only one, the one fixed by the dog, exited from the house...'),
+    %% a name among the adjectives
+    nf_tr('Il governo Dini successivo mangia il pane.', italian, spanish, W8),
+    check('adjectives may follow a name apposed to a noun, and the name keeps its place among them, which refused the sentence', W8,
+          'El gobierno Dini sucesivo come el pan.'),
+    nf_tr('Il cane vede il gatto guidato dal governo Dini successivo.', italian, spanish, W9),
+    check('... so the phrase does not end at the name, and the agent is the whole phrase, where it came out `conducido desde''', W9,
+          'El perro ve el gato conducido por el gobierno Dini sucesivo.'),
+    nf_tr('Il governo guidato dal magnate televisivo Silvio Berlusconi mangia il pane.', italian, spanish, W10),
+    check('a GUARD: a name after an adjective stays after it, the order the source had', W10,
+          'El gobierno conducido por el magnate televisivo Silvio Berlusconi come el pan.'),
+    %% an elided article before a name, and the name's gender
+    nf_tr('L''Italia attuale vede il cane.', italian, spanish, W11),
+    check('an elided article says no gender and the lesson says the name''s, with an adjective after the name, which refused the sentence', W11,
+          'La Italia actual ve el perro.'),
+    %% a word that replaces the noun before `di'
+    nf_tr('Il governo vede quello di Berlusconi.', italian, spanish, W12),
+    check('`quello di'' is the one of, written with the article that replaces the noun, where it was `eso de''', W12,
+          'El gobierno ve al de Berlusconi.'),
+    %% a pronoun that is an adjective too
+    nf_tr('Nessun altro cane mangia il pane.', italian, spanish, W13),
+    check('a pronoun the lesson calls an adjective too is one before a noun, which refused the phrase', W13,
+          'Ningún otro perro come el pan.'),
+    %% the participle's own number
+    nf_tr('Il cane vede la lista delle case fissata dal gatto.', italian, spanish, W14),
+    check('a participle agrees with a noun further back in number as in gender, where it agreed with the houses, `fijado''', W14,
+          'El perro ve la lista de las casas fijada por el gato.'),
+    %% a series of a plural
+    nf_tr('Una serie di cani mangiano il pane.', italian, spanish, W15),
+    check('a series of a plural takes a plural verb, as a majority does, which refused the sentence', W15,
+          'Una serie de perros come el pan.'),
+    nf_tr('Tutta una serie di cani mangiano il pane.', italian, spanish, W16),
+    check('... and `all'' before its determiner is the phrase''s own, where the pronoun refused the subject', W16,
+          'Toda una serie de perros come el pan.'),
+    %% a bracket, and an ellipsis after it
+    nf_tr('I cani (i gatti, le case) mangiano il pane ...', italian, spanish, W17),
+    check('a bracket keeps its marks in a sentence that ends in an ellipsis, which refused the sentence', W17,
+          'Los perros (los gatos, las casas) comen el pan...'),
+    nf_tr('(dal giornale) il cane mangia il pane.', italian, spanish, W18),
+    check('a bracket at the head of a sentence stands aside from it, which refused the sentence', W18,
+          '(desde el diario) el perro come el pan.'),
+    %% an answer with its condition
+    nf_tr('Niente, se il cane mangia il pane.', italian, spanish, W19),
+    check('a pronoun that stands alone and the condition after its comma, which refused the sentence', W19,
+          'Nada, si el perro come el pan.'),
+    nf_tr('Niente, se il cane mangia il pane.', italian, english, W20),
+    check('... and in English', W20, 'Nothing, if the dog eats the bread.'),
+    %% names
+    nf_tr('The Washington Post.', italian, spanish, W21),
+    check('a line of names alone is the name, which refused the sentence', W21, 'The Washington Post.'),
+    nf_tr('Il cane vede il "Washington Post".', italian, spanish, W22),
+    check('a name of several words in quotation marks is one name, marks kept, which refused the sentence', W22,
+          'El perro ve el "Washington Post".'),
+    %% the acronym, and the preposition that is a conjunction too
+    nf_tr('Il cane mangia il pil.', italian, spanish, W23),
+    check('an acronym is written in capitals, where it came out `pib''', W23, 'El perro come el PIB.'),
+    nf_tr('Il cane mangia il pane nonostante la minestra.', italian, spanish, W24),
+    check('a preposition crosses by its meaning as one when its first is a conjunction''s, where it came out `aunque la sopa''', W24,
+          'El perro come el pan a pesar de la sopa.'),
+    nf_tr('Il cane mangia il pane nonostante il gatto mangia la minestra.', italian, spanish, W25),
+    check('a GUARD: before a clause it is still the conjunction', W25,
+          'El perro come el pan aunque el gato come la sopa.'),
+    %% a piece with no subject agrees with nothing before it
+    nf_tr('La casa vede il cane. (dal giornale) guidato pane del gatto.', italian, spanish, W26),
+    check('a participle with no subject is masculine, where it agreed with the subject of the sentence before, `conducida''', W26,
+          'La casa ve el perro. (desde el diario) conducido pan del gato.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

@@ -238,3 +238,7 @@
 <e r="RL"><p><l>misfortune<s n="n"/></l><r>sfortuna<s n="n"/><s n="f"/></r></p></e>
 <e r="RL"><p><l>designator<s n="n"/></l><r>designatore<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>disastrous<s n="adj"/></l><r>disastrato<s n="adj"/></r></p></e>
+# the Washington Post extract (Italian UD, VIT-9750..9762)
+<e r="RL"><p><l>fix<s n="vblex"/></l><r>fissare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>tycoon<s n="n"/></l><r>magnate<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>uncertainty<s n="n"/></l><r>incertezza<s n="n"/><s n="f"/></r></p></e>

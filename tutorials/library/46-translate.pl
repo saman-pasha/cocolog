@@ -359,6 +359,7 @@ main :-
     section_31,
     section_32,
     section_33,
+    section_34,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -1771,6 +1772,83 @@ The verb "intenta" means "tries". "intentar" is the infinitive of "intenta".
 The verb "dice" means "says". The verb "es" means "is".
 The conjunction "que" means "that". The conjunction "y" means "and". The conjunction "e" means "and".
 The preposition "de" means "of". The preposition "cara a" means "ahead of".').
+
+section_34 :-
+    format("~n34. An Italian extract from the Washington Post into Spanish: of which with no verb, the one led by, a name among the adjectives~n", []),
+    lesson_34(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the extract''s shapes, under its own name', NI),
+    lesson_34(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('Il cane vede quattro gatti di cui solo uno, quello fissato dal cane, uscito dalla casa ...', italian, spanish, S34a),
+    must('OF WHICH with no verb, THE ONE fixed by, and `da'' after a verb whose perfect takes the copula is `from''', S34a,
+         'El perro ve cuatro gatos de los que sólo uno, el fijado por el perro, salido desde la casa...'),
+    reason_translate('Il governo Dini successivo mangia il pane.', italian, spanish, S34b),
+    must('a NAME AMONG THE ADJECTIVES keeps its place', S34b, 'El gobierno Dini sucesivo come el pan.'),
+    reason_translate('L''Italia attuale vede il cane.', italian, spanish, S34c),
+    must('an ELIDED ARTICLE says no gender, and the lesson says the name''s', S34c, 'La Italia actual ve el perro.'),
+    reason_translate('Il governo vede quello di Berlusconi.', italian, spanish, S34d),
+    must('`quello di'': a word that REPLACES THE NOUN', S34d, 'El gobierno ve al de Berlusconi.'),
+    reason_translate('Nessun altro cane mangia il pane.', italian, spanish, S34e),
+    must('a PRONOUN THAT IS AN ADJECTIVE TOO, before a noun', S34e, 'Ningún otro perro come el pan.'),
+    reason_translate('(dal giornale) il cane mangia il pane.', italian, spanish, S34f),
+    must('a BRACKET AT THE HEAD stands aside', S34f, '(desde el diario) el perro come el pan.'),
+    reason_translate('Niente, se il cane mangia il pane.', italian, spanish, S34g),
+    must('an ANSWER and its condition', S34g, 'Nada, si el perro come el pan.'),
+    reason_translate('The Washington Post.', italian, spanish, S34h),
+    must('a LINE OF NAMES is the name', S34h, 'The Washington Post.'),
+    reason_translate('Il cane mangia il pil.', italian, spanish, S34i),
+    must('an ACRONYM goes out in capitals', S34i, 'El perro come el PIB.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_34(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "le" is the plural of "la".
+"l''" is the elision of "la". "dal" is the contraction of "da il". "dalla" is the contraction of "da la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every number is masculine.
+The noun "cane" means "dog". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". The noun "casa" means "house".
+The noun "governo" means "government". The noun "giornale" means "newspaper".
+The masculine noun "pil" means "GDP". "pil" is an acronym. "italia" is feminine.
+The adjective "successivo" means "successive". The adjective "attuale" means "current".
+The verb "mangia" means "eats". The verb "vede" means "sees".
+The verb "fissa" means "fixes". "fissato" is the participle of "fissa".
+The verb "esce" means "exits". "uscito" is the participle of "esce".
+The verb "è" means "is". "è" is the auxiliary of "esce".
+"cui" is a relative. The word "cui" follows the preposition.
+The conjunction "se" means "if".
+The word "quello" replaces the noun. The pronoun "quello" means "that".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The pronoun "niente" means "nothing". The pronoun "niente" does not precede the verb.
+The adverb "solo" means "only". The number "quattro" means "four".
+The masculine determiner "nessuno" means "no". "nessun" is the apocope of "nessuno".
+The masculine determiner "altro" means "another". The masculine adjective "altro" means "other". The masculine pronoun "altro" means "others". The pronoun "altro" does not precede the verb.
+The preposition "di" means "of". The preposition "da" means "by". The preposition "da" means "from".').
+lesson_34(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"al" is the contraction of "a el". "del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every number is masculine.
+The word "el" replaces the noun.
+The noun "perro" means "dog". The noun "gato" means "cat".
+The noun "pan" means "bread". The noun "casa" means "house".
+The noun "gobierno" means "government". The noun "diario" means "newspaper".
+The masculine noun "pib" means "GDP". "pib" is an acronym.
+The adjective "sucesivo" means "successive". The adjective "actual" means "current".
+The verb "come" means "eats". The verb "ve" means "sees".
+The verb "fija" means "fixes". "fijado" is the participle of "fija".
+The verb "sale" means "exits". "salido" is the participle of "sale".
+"que" is a relative. The conjunction "que" means "that". The conjunction "si" means "if".
+The pronoun "eso" means "that". The pronoun "eso" does not precede the verb.
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The pronoun "nada" means "nothing". The pronoun "nada" does not precede the verb.
+The adverb "sólo" means "only". The number "cuatro" means "four".
+The masculine determiner "ningún" means "no".
+The masculine determiner "otro" means "another". The masculine adjective "otro" means "other". The masculine pronoun "otro" means "others". The pronoun "otro" does not precede the verb.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "por" means "by". The preposition "desde" means "from".
+The word "a" precedes the person.').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),
