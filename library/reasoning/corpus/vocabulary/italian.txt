@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16210 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16219 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -711,6 +711,80 @@ The adjective "ampliabile" means "expandable".
 "ampliabili" is the plural of "ampliabile".
 The masculine noun "progresso" means "advance".
 The feminine noun "fine" means "end".
+The pronoun "ciò" means "that".
+The pronoun "ciò" does not precede the verb.
+The pronoun "egli" means "he".
+The pronoun "egli" does not precede the verb.
+The verb "ritira" means "withdraws".
+The verb "dà forfait" means "withdraws".
+"dare forfait" is the infinitive of "dà forfait".
+The verb "rifiuta" means "rejects".
+The adverb "sul nascere" means "at birth".
+The verb "intrappola" means "traps".
+The verb "irretisce" means "traps".
+"irretire" is the infinitive of "irretisce".
+"presìdi" is the plural of "presidio".
+The verb "obietta" means "objects".
+The verb "eccepisce" means "objects".
+"eccepire" is the infinitive of "eccepisce".
+The verb "deborda" means "oversteps".
+"debordano" is the plural of "deborda".
+"debordi" is the subjunctive of "deborda".
+"debordino" is the plural of "debordi".
+"debordare" is the infinitive of "deborda".
+The feminine noun "fogna" means "sewer".
+"fogne" is the plural of "fogna".
+The masculine noun "ringhiare" means "growling".
+The verb "redarguisce" means "rebukes".
+"redarguire" is the infinitive of "redarguisce".
+The masculine noun "medico" means "doctor".
+The masculine noun "dott" means "doctor".
+"dott" is a title.
+The preposition "anziché" means "instead of".
+The preposition "in seno a" means "within".
+The verb "prelude" means "foreshadows".
+"preludono" is the plural of "prelude".
+"preludere" is the infinitive of "prelude".
+"sbaglio" is the first person of "sbaglia".
+"presidi" is the plural of "presidio".
+The intransitive verb "ne fa testo" means "testifies to it".
+"ne fanno testo" is the plural of "ne fa testo".
+The verb "corregge" means "corrects".
+The adverb "quanto" means "as much".
+The relative "il quale" means "who".
+The relative "la quale" means "who".
+The relative "i quali" means "who".
+The relative "le quali" means "who".
+The verb "difende" means "defends".
+The masculine noun "cane da tartufi" means "truffle dog".
+"cani da tartufi" is the plural of "cane da tartufi".
+The adjective "fuorilegge" means "outlaw".
+The word "chi" begins the relative.
+The preposition "non senza" means "not without".
+The verb "obbliga" means "obliges".
+"risulta" is intransitive.
+"risulta" takes the clause.
+The adverb "qui da noi" means "here among us".
+The conjunction "prima ancora che" means "even before".
+"stabilisce" takes the question.
+The feminine noun "presa" means "taking".
+"prese" is the plural of "presa".
+The adverb "semmai" means "if anything".
+The masculine demonstrative "quello" means "that".
+The feminine demonstrative "quella" means "that".
+The masculine demonstrative "codesto" means "that".
+The feminine demonstrative "codesta" means "that".
+The verb "sembra" means "seems".
+The verb "pare" means "seems".
+"pare" takes the clause.
+The masculine adjective "addetto" means "assigned".
+"addetti" is the plural of "addetto".
+The feminine adjective "addetta" means "assigned".
+"addette" is the plural of "addetta".
+The adverb "liberamente" means "freely".
+The verb "permette" means "allows".
+The verb "consente" means "allows".
+The conjunction "perché" means "so that".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -776,6 +850,17 @@ The feminine noun "pubblicitaria" means "publicist".
 "pubblicitaria" is a person.
 The masculine noun "possessore" means "possessor".
 "possessori" is the plural of "possessore".
+The masculine noun "laccio" means "noose".
+"lacci" is the plural of "laccio".
+The masculine noun "lacciuolo" means "snare".
+"lacciuoli" is the plural of "lacciuolo".
+The noun "fuorilegge" means "outlaw".
+"fuorilegge" is the plural of "fuorilegge".
+"fuorilegge" is a person.
+The feminine noun "irrequietezza" means "restlessness".
+"irrequietezze" is the plural of "irrequietezza".
+The masculine noun "tartufo" means "truffle".
+"tartufi" is the plural of "tartufo".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -15677,6 +15762,11 @@ The feminine noun "sessione" means "session".
 "sessioni" is the plural of "sessione".
 The masculine noun "assalto" means "assault".
 "assalti" is the plural of "assalto".
+The masculine noun "presidio" means "garrison".
+"presidii" is the plural of "presidio".
+The masculine noun "latitante" means "fugitive".
+"latitanti" is the plural of "latitante".
+"latitante" is a person.
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -19694,7 +19784,6 @@ The masculine noun "zero" means "nil".
 The masculine noun "nodo" means "node".
 The masculine noun "candidato" means "nominee".
 The feminine noun "candidata" means "nominee".
-The feminine noun "corda" means "noose".
 The masculine noun "nucleo" means "nucleus".
 The feminine noun "bambinaia" means "nursemaid".
 The masculine noun "dado" means "nut".
@@ -20970,6 +21059,52 @@ The verb "sbudella" means "guts".
 "sbudellando" is the gerund of "sbudella".
 "gutted" is the past of "guts".
 "gutting" is the gerund of "guts".
+The verb "mura" means "walls".
+"murano" is the plural of "mura".
+"muriamo" is the first person of "murano".
+"muro" is the first person of "mura".
+"muri" is the second person of "mura".
+"murò" is the past of "mura".
+"murarono" is the past of "murano".
+"murammo" is the first person of "murarono".
+"murai" is the first person of "murò".
+"murasti" is the second person of "murò".
+"murava" is the past of "mura".
+"muravano" is the past of "murano".
+"muravamo" is the first person of "muravano".
+"muravo" is the first person of "murava".
+"muravi" is the second person of "murava".
+"murerà" is the future of "mura".
+"mureranno" is the plural of "murerà".
+"mureremo" is the first person of "mureranno".
+"murerò" is the first person of "murerà".
+"murerai" is the second person of "murerà".
+"murerebbe" is the conditional of "mura".
+"murerebbero" is the plural of "murerebbe".
+"mureremmo" is the first person of "murerebbero".
+"murerei" is the first person of "murerebbe".
+"mureresti" is the second person of "murerebbe".
+"muri" is the subjunctive of "mura".
+"murino" is the plural of "muri".
+"muriamo" is the first person of "murino".
+"murasse" is the past subjunctive of "mura".
+"murassero" is the plural of "murasse".
+"murassimo" is the first person of "murassero".
+"murassi" is the first person of "murasse".
+"murassi" is the second person of "murasse".
+"mura" is the imperative of "mura".
+"murare" is the negative imperative of "mura".
+"murate" is the imperative of "murano".
+"murato" is the participle of "mura".
+"murata" is the participle of "mura".
+"murata" is feminine.
+"murati" is the participle of "mura".
+"murati" is the plural of "murato".
+"murate" is the participle of "mura".
+"murate" is feminine.
+"murate" is the plural of "murata".
+"murare" is the infinitive of "mura".
+"murando" is the gerund of "mura".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -87477,6 +87612,52 @@ The verb "batte" means "beats".
 "battute" is the plural of "battuta".
 "battere" is the infinitive of "batte".
 "battendo" is the gerund of "batte".
+The verb "boccia" means "rejects".
+"bocciano" is the plural of "boccia".
+"bocciamo" is the first person of "bocciano".
+"boccio" is the first person of "boccia".
+"bocci" is the second person of "boccia".
+"bocciò" is the past of "boccia".
+"bocciarono" is the past of "bocciano".
+"bocciammo" is the first person of "bocciarono".
+"bocciai" is the first person of "bocciò".
+"bocciasti" is the second person of "bocciò".
+"bocciava" is the past of "boccia".
+"bocciavano" is the past of "bocciano".
+"bocciavamo" is the first person of "bocciavano".
+"bocciavo" is the first person of "bocciava".
+"bocciavi" is the second person of "bocciava".
+"boccerà" is the future of "boccia".
+"bocceranno" is the plural of "boccerà".
+"bocceremo" is the first person of "bocceranno".
+"boccerò" is the first person of "boccerà".
+"boccerai" is the second person of "boccerà".
+"boccerebbe" is the conditional of "boccia".
+"boccerebbero" is the plural of "boccerebbe".
+"bocceremmo" is the first person of "boccerebbero".
+"boccerei" is the first person of "boccerebbe".
+"bocceresti" is the second person of "boccerebbe".
+"bocci" is the subjunctive of "boccia".
+"boccino" is the plural of "bocci".
+"bocciamo" is the first person of "boccino".
+"bocciasse" is the past subjunctive of "boccia".
+"bocciassero" is the plural of "bocciasse".
+"bocciassimo" is the first person of "bocciassero".
+"bocciassi" is the first person of "bocciasse".
+"bocciassi" is the second person of "bocciasse".
+"boccia" is the imperative of "boccia".
+"bocciare" is the negative imperative of "boccia".
+"bocciate" is the imperative of "bocciano".
+"bocciato" is the participle of "boccia".
+"bocciata" is the participle of "boccia".
+"bocciata" is feminine.
+"bocciati" is the participle of "boccia".
+"bocciati" is the plural of "bocciato".
+"bocciate" is the participle of "boccia".
+"bocciate" is feminine.
+"bocciate" is the plural of "bocciata".
+"bocciare" is the infinitive of "boccia".
+"bocciando" is the gerund of "boccia".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -91774,7 +91955,6 @@ The verb "dirige" means "leads".
 The verb "salta" means "leaps".
 "leapt" is the past of "leaps".
 The verb "affitta" means "leases".
-The verb "rifiuta" means "rejects".
 The verb "osserva" means "remarks".
 The verb "ristruttura" means "remodels".
 The verb "ritarda" means "retards".
@@ -92419,6 +92599,14 @@ The feminine adjective "inetta" means "inept".
 "inettissimi" is the superlative of "inetti".
 "inettissima" is the superlative of "inetta".
 "inettissime" is the superlative of "inette".
+The masculine adjective "tiepido" means "lukewarm".
+"tiepidi" is the plural of "tiepido".
+The feminine adjective "tiepida" means "lukewarm".
+"tiepide" is the plural of "tiepida".
+"tiepidissimo" is the superlative of "tiepido".
+"tiepidissimi" is the superlative of "tiepidi".
+"tiepidissima" is the superlative of "tiepida".
+"tiepidissime" is the superlative of "tiepide".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -107982,6 +108170,12 @@ The masculine adjective "secondo" means "second".
 "secondi" is the plural of "secondo".
 The feminine adjective "seconda" means "second".
 "seconde" is the plural of "seconda".
+The adjective "latitante" means "fugitive".
+"latitanti" is the plural of "latitante".
+"latitantissimo" is the superlative of "latitante".
+"latitantissimi" is the superlative of "latitanti".
+"latitantissima" is the superlative of "latitante".
+"latitantissime" is the superlative of "latitanti".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

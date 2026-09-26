@@ -326,3 +326,31 @@
 # a word the target lacked. `sottolineare' is what Italian says, written only
 # (r="LR"), because read back it is still `underline'
 <e r="LR"><p><l>stress<s n="vblex"/></l><r>sottolineare<s n="vblex"/></r></p></e>
+# the letter on the Bastille and Thermidor (Italian UD VIT-9781..9791), into
+# Spanish: words apertium-ita carries and the bilingual pairs with nothing.
+# `un progetto bocciato sul nascere': rejected -- read only into English,
+# and extra/italian.txt says `rifiuta' first, so `rejects' is still written
+# `rifiuta'
+<e r="RL"><p><l>reject<s n="vblex"/></l><r>bocciare<s n="vblex"/></r></p></e>
+# `i lacci e lacciuoli in cui si è cercato ... di irretire i presìdi': the
+# nooses and snares
+<e><p><l>noose<s n="n"/></l><r>laccio<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>snare<s n="n"/></l><r>lacciuolo<s n="n"/><s n="m"/></r></p></e>
+# `i presìdi (leggi procure)': the garrisons, which the writer says are the
+# prosecutors' offices -- read only into English, so `garrison' is still
+# written `guarnigione'
+<e r="RL"><p><l>garrison<s n="n"/></l><r>presidio<s n="n"/><s n="m"/></r></p></e>
+# `li si voglia murare': wall them up
+<e><p><l>wall<s n="vblex"/></l><r>murare<s n="vblex"/></r></p></e>
+# `che egli, latitante, si permette di chiamare fuorilegge': a fugitive, and
+# outlaws -- `latitante' read only into English, so `fugitive' is still
+# written `fuggitivo'
+<e r="RL"><p><l>fugitive<s n="adj"/></l><r>latitante<s n="adj"/></r></p></e>
+<e r="RL"><p><l>fugitive<s n="n"/></l><r>latitante<s n="n"/><s n="GD"/></r></p></e>
+<e><p><l>outlaw<s n="n"/></l><r>fuorilegge<s n="n"/><s n="mf"/></r></p></e>
+# `l'irrequietezza di Bossi ... un ottimo cane da tartufi': restlessness, and
+# a truffle dog
+<e><p><l>restlessness<s n="n"/></l><r>irrequietezza<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>truffle<s n="n"/></l><r>tartufo<s n="n"/><s n="m"/></r></p></e>
+# `la stampa piuttosto tiepida': lukewarm
+<e><p><l>lukewarm<s n="adj"/></l><r>tiepido<s n="adj"/></r></p></e>

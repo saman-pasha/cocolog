@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20238 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20247 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -489,6 +489,24 @@ The masculine adjective "unido" means "united".
 The feminine adjective "unida" means "united".
 "unidas" is the plural of "unida".
 The intransitive verb "pasa" means "happens".
+The adverb "al nacer" means "at birth".
+"equivoco" is the first person of "equivoca".
+The intransitive verb "da fe de ello" means "testifies to it".
+"dan fe de ello" is the plural of "da fe de ello".
+The adverb "cuanto" means "as much".
+The masculine noun "perro trufero" means "truffle dog".
+"perros truferos" is the plural of "perro trufero".
+The preposition "no sin" means "not without".
+The word "quien" begins the relative.
+The verb "amenaza" means "threatens".
+The adverb "aquí entre nosotros" means "here among us".
+The conjunction "incluso antes de que" means "even before".
+The adverb "en todo caso" means "if anything".
+"trata" takes "de" before the infinitive.
+The masculine adjective "asignado" means "assigned".
+"asignados" is the plural of "asignado".
+The feminine adjective "asignada" means "assigned".
+"asignadas" is the plural of "asignada".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -567,6 +585,14 @@ The noun "publicista" means "publicist".
 "publicista" is not feminine.
 "publicistas" is the plural of "publicista".
 "publicista" is a person.
+The feminine noun "guarnición" means "garrison".
+"guarniciones" is the plural of "guarnición".
+The noun "forajido" means "outlaw".
+"forajido" is a person.
+The feminine noun "alcantarilla" means "sewer".
+"alcantarillas" is the plural of "alcantarilla".
+The masculine noun "gruñido" means "growling".
+"gruñidos" is the plural of "gruñido".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -7963,7 +7989,6 @@ The feminine noun "trifulca" means "scuffle".
 The feminine noun "escultura" means "sculpture".
 "esculturas" is the plural of "escultura".
 The feminine noun "alcantarilla" means "scupper".
-"alcantarillas" is the plural of "alcantarilla".
 The feminine noun "mar" means "sea".
 "mares" is the plural of "mar".
 The feminine noun "foca" means "seal".
@@ -24588,6 +24613,7 @@ The masculine noun "espinazo" means "spine".
 "espinazos" is the plural of "espinazo".
 The masculine noun "féretro" means "coffin".
 "féretros" is the plural of "féretro".
+The feminine noun "trampa" means "snare".
 The masculine noun "testamento" means "testament".
 "testamentos" is the plural of "testamento".
 The masculine noun "personaje" means "personage".
@@ -26207,6 +26233,51 @@ The verb "moderniza" means "modernises".
 "modernizadas" is the plural of "modernizada".
 "modernizar" is the infinitive of "moderniza".
 "modernizando" is the gerund of "moderniza".
+The verb "reprende" means "rebukes".
+"reprenden" is the plural of "reprende".
+"reprendemos" is the first person of "reprenden".
+"reprendo" is the first person of "reprende".
+"reprendes" is the second person of "reprende".
+"reprendió" is the past of "reprende".
+"reprendieron" is the past of "reprenden".
+"reprendimos" is the first person of "reprendieron".
+"reprendí" is the first person of "reprendió".
+"reprendiste" is the second person of "reprendió".
+"reprendía" is the past of "reprende".
+"reprendían" is the past of "reprenden".
+"reprendíamos" is the first person of "reprendían".
+"reprendías" is the second person of "reprendía".
+"reprenderá" is the future of "reprende".
+"reprenderán" is the plural of "reprenderá".
+"reprenderemos" is the first person of "reprenderán".
+"reprenderé" is the first person of "reprenderá".
+"reprenderás" is the second person of "reprenderá".
+"reprendería" is the conditional of "reprende".
+"reprenderían" is the plural of "reprendería".
+"reprenderíamos" is the first person of "reprenderían".
+"reprenderías" is the second person of "reprendería".
+"reprenda" is the subjunctive of "reprende".
+"reprendan" is the plural of "reprenda".
+"reprendamos" is the first person of "reprendan".
+"reprendas" is the second person of "reprenda".
+"reprendiera" is the past subjunctive of "reprende".
+"reprendieran" is the plural of "reprendiera".
+"reprendiéramos" is the first person of "reprendieran".
+"reprendieras" is the second person of "reprendiera".
+"reprende" is the imperative of "reprende".
+"reprendas" is the negative imperative of "reprende".
+"reprended" is the imperative of "reprenden".
+"reprendáis" is the negative imperative of "reprenden".
+"reprendido" is the participle of "reprende".
+"reprendida" is the participle of "reprende".
+"reprendida" is feminine.
+"reprendidos" is the participle of "reprende".
+"reprendidos" is the plural of "reprendido".
+"reprendidas" is the participle of "reprende".
+"reprendidas" is feminine.
+"reprendidas" is the plural of "reprendida".
+"reprender" is the infinitive of "reprende".
+"reprendiendo" is the gerund of "reprende".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -118438,6 +118509,9 @@ The verb "prescinde" means "dispenses".
 "prescindidas" is the plural of "prescindida".
 "prescindir" is the infinitive of "prescinde".
 "prescindiendo" is the gerund of "prescinde".
+The verb "sobrepasa" means "oversteps".
+"overstepped" is the past of "oversteps".
+"overstepping" is the gerund of "oversteps".
 The verb "calma" means "abates".
 The verb "secuestra" means "abducts".
 The verb "sube" means "climbs".
@@ -119346,6 +119420,14 @@ The feminine adjective "mezquina" means "petty".
 "mezquinísima" is the superlative of "mezquina".
 "mezquinísimos" is the superlative of "mezquinos".
 "mezquinísimo" is the superlative of "mezquino".
+The masculine adjective "tibio" means "lukewarm".
+"tibios" is the plural of "tibio".
+The feminine adjective "tibia" means "lukewarm".
+"tibias" is the plural of "tibia".
+The masculine adjective "forajido" means "outlaw".
+"forajidos" is the plural of "forajido".
+The feminine adjective "forajida" means "outlaw".
+"forajidas" is the plural of "forajida".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -126200,9 +126282,7 @@ The feminine adjective "maliciosa" means "wanton".
 "maliciosísimos" is the superlative of "maliciosos".
 "maliciosísimo" is the superlative of "malicioso".
 The masculine adjective "tibio" means "warm".
-"tibios" is the plural of "tibio".
 The feminine adjective "tibia" means "warm".
-"tibias" is the plural of "tibia".
 The adjective "impermeable" means "waterproof".
 "impermeables" is the plural of "impermeable".
 The masculine adjective "caprichoso" means "wayward".

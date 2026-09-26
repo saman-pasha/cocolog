@@ -173,3 +173,26 @@
 <e><p><l>modernise<s n="vblex"/></l><r>modernizar<s n="vblex"/></r></p></e>
 # `los publicistas de las marcas': the people who write their advertising
 <e><p><l>publicist<s n="n"/></l><r>publicista<s n="n"/><s n="GD"/></r></p></e>
+# the letter on the Bastille and Thermidor, into Spanish: words apertium-spa
+# carries and the bilingual pairs with nothing. `i presìdi': garrisons
+<e><p><l>garrison<s n="n"/></l><r>guarnición<s n="n"/><s n="f"/></r></p></e>
+# `si permette di chiamare fuorilegge': outlaws
+<e><p><l>outlaw<s n="n"/></l><r>forajido<s n="n"/><s n="GD"/></r></p></e>
+# `la stampa piuttosto tiepida': lukewarm
+<e><p><l>lukewarm<s n="adj"/></l><r>tibio<s n="adj"/></r></p></e>
+# `topi di fogna': sewer rats
+<e><p><l>sewer<s n="n"/></l><r>alcantarilla<s n="n"/><s n="f"/></r></p></e>
+# `i lacci e lacciuoli': snares -- written only (r="LR"), so `trampa' is
+# still read as a trap
+<e r="LR"><p><l>snare<s n="n"/></l><r>trampa<s n="n"/><s n="f"/></r></p></e>
+# `non senza redarguire chi ...': rebuke
+<e><p><l>rebuke<s n="vblex"/></l><r>reprender<s n="vblex"/></r></p></e>
+# `il temerario ringhiare di Craxi': the growling -- Spanish says it with the
+# noun, `el gruñido'
+<e><p><l>growling<s n="n"/></l><r>gruñido<s n="n"/><s n="m"/></r></p></e>
+# `perché codesti presìdi non debordino dalle loro funzioni': overstep --
+# written only, so `sobrepasa' is still read as `exceeds'
+<e r="LR"><p><l>overstep<s n="vblex"/></l><r>sobrepasar<s n="vblex"/></r></p></e>
+# `si permette di chiamare fuorilegge': outlaws -- apertium-spa has
+# `forajido' as an adjective only, so the noun above has no forms of its own
+<e><p><l>outlaw<s n="adj"/></l><r>forajido<s n="adj"/></r></p></e>

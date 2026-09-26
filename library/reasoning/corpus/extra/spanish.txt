@@ -785,3 +785,38 @@ The feminine adjective "unida" means "united".
 # verb that takes no object with its subject after it, where `algo' was read
 # as the object of `happens' and the clause had nobody for its subject
 The intransitive verb "pasa" means "happens".
+# the letter on the Bastille and Thermidor, into Spanish: `bocciato sul
+# nascere' is rejected at birth, which Spanish says `al nacer'
+The adverb "al nacer" means "at birth".
+# `Se sbaglio correggetemi': if I am wrong, `si me equivoco'
+"equivoco" is the first person of "equivoca".
+# `Ne fa testo ...': testifies to it, `da fe de ello'
+The intransitive verb "da fe de ello" means "testifies to it".
+"dan fe de ello" is the plural of "da fe de ello".
+# `che preludono, quanto, all'affermazione': as much, which Spanish says
+# with the same word
+The adverb "cuanto" means "as much".
+# `un ottimo cane da tartufi': a truffle dog, `un perro trufero'
+The masculine noun "perro trufero" means "truffle dog".
+"perros truferos" is the plural of "perro trufero".
+# `non senza redarguire chi ...': not without, and `quien' is Spanish's
+# word that stands for the one and for its relative both
+The preposition "no sin" means "not without".
+The word "quien" begins the relative.
+# `Craxi che minaccia di regolare ... i conti': threatens -- the dictionary's
+# first verb for it is `acecha', which lurks
+The verb "amenaza" means "threatens".
+# `la "Bastiglia", qui da noi, ...': here among us
+The adverb "aquí entre nosotros" means "here among us".
+# `prima ancora che ciò potesse accadere': even before
+The conjunction "incluso antes de que" means "even before".
+# `Si tratta, semmai, di stabilire se ...': `Se trata, en todo caso, de
+# establecer si ...' -- the idiom takes `de' before its infinitive
+The adverb "en todo caso" means "if anything".
+"trata" takes "de" before the infinitive.
+# `i presìdi addetti alla pulizia ambientale': assigned, which the dictionary
+# has as the participle of `asignar' alone
+The masculine adjective "asignado" means "assigned".
+"asignados" is the plural of "asignado".
+The feminine adjective "asignada" means "assigned".
+"asignadas" is the plural of "asignada".
