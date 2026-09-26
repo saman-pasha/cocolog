@@ -155,3 +155,21 @@
 # `dell'"Assalto a Palazzo Farnese"': the assault -- the dictionary's only
 # `asalto' is a boxing round
 <e><p><l>assault<s n="n"/></l><r>asalto<s n="n"/><s n="m"/></r></p></e>
+# the column on the mobile telephone (AnCora CESS-CAST-P-19990802-48): words
+# apertium-spa carries and the bilingual pairs with nothing. `cayó a un
+# socavón': a hole in the ground, read only into English so that `hole' is
+# still written `hoyo'
+<e r="RL"><p><l>hole<s n="n"/></l><r>socavón<s n="n"/><s n="m"/></r></p></e>
+# `el telefonino destripado': gutted
+<e><p><l>gut<s n="vblex"/></l><r>destripar<s n="vblex"/></r></p></e>
+# `que yacía junto a él': lay beside him -- English's `lie' is also to tell
+# a lie, which Italian writes `mentire', so the pivot is `rest', and read
+# only into English so that `rests' is still written `descansa'
+<e r="RL"><p><l>rest<s n="vblex"/></l><r>yacer<s n="vblex"/></r></p></e>
+# `los precios ... se han abaratado': have come down -- read only into
+# English, so that `reduces' is still written `reduce'
+<e r="RL"><p><l>reduce<s n="vblex"/></l><r>abaratar<s n="vblex"/></r></p></e>
+# `más modernizados': modernised
+<e><p><l>modernise<s n="vblex"/></l><r>modernizar<s n="vblex"/></r></p></e>
+# `los publicistas de las marcas': the people who write their advertising
+<e><p><l>publicist<s n="n"/></l><r>publicista<s n="n"/><s n="GD"/></r></p></e>

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16206 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16210 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -698,6 +698,19 @@ The adverb "una volta" means "once".
 The preposition "a fianco di" means "beside".
 The masculine adjective "certo" means "certain".
 The feminine adjective "certa" means "certain".
+The masculine adjective "finto" means "fake".
+The feminine adjective "finta" means "fake".
+The conjunction "man mano che" means "as".
+The adverb "al massimo" means "at most".
+The masculine adjective "maleducato" means "rude".
+The feminine adjective "maleducata" means "rude".
+"maleducati" is the plural of "maleducato".
+"maleducate" is the plural of "maleducata".
+The feminine noun "persona" means "person".
+The adjective "ampliabile" means "expandable".
+"ampliabili" is the plural of "ampliabile".
+The masculine noun "progresso" means "advance".
+The feminine noun "fine" means "end".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -755,6 +768,14 @@ The masculine noun "mascalzone" means "scoundrel".
 "mascalzone" is a person.
 The feminine noun "vigilia" means "eve".
 "vigilie" is the plural of "vigilia".
+The masculine noun "pubblicitario" means "publicist".
+"pubblicitari" is the plural of "pubblicitario".
+"pubblicitario" is a person.
+The feminine noun "pubblicitaria" means "publicist".
+"pubblicitarie" is the plural of "pubblicitaria".
+"pubblicitaria" is a person.
+The masculine noun "possessore" means "possessor".
+"possessori" is the plural of "possessore".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -20901,6 +20922,54 @@ The verb "rallegra" means "gladdens".
 "rallegrate" is the plural of "rallegrata".
 "rallegrare" is the infinitive of "rallegra".
 "rallegrando" is the gerund of "rallegra".
+The verb "sbudella" means "guts".
+"sbudellano" is the plural of "sbudella".
+"sbudelliamo" is the first person of "sbudellano".
+"sbudello" is the first person of "sbudella".
+"sbudelli" is the second person of "sbudella".
+"sbudellò" is the past of "sbudella".
+"sbudellarono" is the past of "sbudellano".
+"sbudellammo" is the first person of "sbudellarono".
+"sbudellai" is the first person of "sbudellò".
+"sbudellasti" is the second person of "sbudellò".
+"sbudellava" is the past of "sbudella".
+"sbudellavano" is the past of "sbudellano".
+"sbudellavamo" is the first person of "sbudellavano".
+"sbudellavo" is the first person of "sbudellava".
+"sbudellavi" is the second person of "sbudellava".
+"sbudellerà" is the future of "sbudella".
+"sbudelleranno" is the plural of "sbudellerà".
+"sbudelleremo" is the first person of "sbudelleranno".
+"sbudellerò" is the first person of "sbudellerà".
+"sbudellerai" is the second person of "sbudellerà".
+"sbudellerebbe" is the conditional of "sbudella".
+"sbudellerebbero" is the plural of "sbudellerebbe".
+"sbudelleremmo" is the first person of "sbudellerebbero".
+"sbudellerei" is the first person of "sbudellerebbe".
+"sbudelleresti" is the second person of "sbudellerebbe".
+"sbudelli" is the subjunctive of "sbudella".
+"sbudellino" is the plural of "sbudelli".
+"sbudelliamo" is the first person of "sbudellino".
+"sbudellasse" is the past subjunctive of "sbudella".
+"sbudellassero" is the plural of "sbudellasse".
+"sbudellassimo" is the first person of "sbudellassero".
+"sbudellassi" is the first person of "sbudellasse".
+"sbudellassi" is the second person of "sbudellasse".
+"sbudella" is the imperative of "sbudella".
+"sbudellare" is the negative imperative of "sbudella".
+"sbudellate" is the imperative of "sbudellano".
+"sbudellato" is the participle of "sbudella".
+"sbudellata" is the participle of "sbudella".
+"sbudellata" is feminine.
+"sbudellati" is the participle of "sbudella".
+"sbudellati" is the plural of "sbudellato".
+"sbudellate" is the participle of "sbudella".
+"sbudellate" is feminine.
+"sbudellate" is the plural of "sbudellata".
+"sbudellare" is the infinitive of "sbudella".
+"sbudellando" is the gerund of "sbudella".
+"gutted" is the past of "guts".
+"gutting" is the gerund of "guts".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -91301,6 +91370,7 @@ The verb "gratta" means "scratches".
 "grattate" is the plural of "grattata".
 "grattare" is the infinitive of "gratta".
 "grattando" is the gerund of "gratta".
+The verb "sottolinea" means "stresses".
 The verb "pratica" means "practices".
 The verb "ristabilisce" means "reinstates".
 The verb "strappa" means "rips".

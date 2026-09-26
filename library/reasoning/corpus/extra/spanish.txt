@@ -730,3 +730,58 @@ The adverb "una vez" means "once".
 The preposition "al lado de" means "beside".
 The masculine adjective "cierto" means "certain".
 The feminine adjective "cierta" means "certain".
+# the column on the mobile telephone (AnCora CESS-CAST-P-19990802-48): `el
+# telefonino destripado' is the writer's Italian word for the mobile, which
+# no Spanish dictionary carries. A line read here is also the first word
+# WRITTEN for its meaning, so `móvil' is said first: with `telefonino'
+# alone, Livata's `il suo cellulare' came out `Su telefonino'
+The masculine noun "móvil" means "mobile".
+The masculine noun "telefonino" means "mobile".
+"telefoninos" is the plural of "telefonino".
+# `cuando pudieron rescatar al accidentado': the man the accident happened
+# to -- the dictionary has `accidentado' only as the adjective `rugged'
+The masculine noun "accidentado" means "victim".
+"accidentado" is a person.
+# `el telefonino ... era de pega': a fake
+The adjective "de pega" means "fake".
+"de pega" is the plural of "de pega".
+# `A medida que los precios ... se han abaratado, la extensión de su uso ha
+# tenido un crecimiento exponencial': as the prices came down -- read as `a'
+# and the noun `medida', the clause was the measure's own and the main
+# clause lost its subject
+The conjunction "a medida que" means "as".
+# `los precios de los terminales': the prices -- the dictionary gives
+# `precio' as a cost first
+The masculine noun "precio" means "price".
+# `Como mucho, pone en evidencia que su poseedor es persona ocupada y, en
+# ocasiones, mal educada': at most it shows that its owner is busy and, at
+# times, rude -- words of several words the dictionary does not carry
+The adverb "como mucho" means "at most".
+The verb "pone en evidencia" means "reveals".
+The adverb "en ocasiones" means "sometimes".
+The masculine adjective "mal educado" means "rude".
+The feminine adjective "mal educada" means "rude".
+"mal educados" is the plural of "mal educado".
+"mal educadas" is the plural of "mal educada".
+# `Alguien debería estudiar el fenómeno': somebody -- the dictionary gives
+# `anybody' first, which Italian writes `nessuno', nobody
+The pronoun "alguien" means "somebody".
+# `Y al final lo han hecho': and in the end they did -- the dictionary has
+# `final' only as the feminine noun, the last match, which read `al final'
+# as `alla finale'; the masculine is the end. `fin' is said first, because
+# the first line for a meaning is the word written for it: with `final'
+# alone, the bioethics report's `il documento su "la fine della vita
+# umana"' came out `"la final de la vida humana"'
+The masculine noun "fin" means "end".
+The masculine noun "final" means "end".
+# `Países como Alemania o Estados Unidos': the United States -- the
+# dictionary has `unido' only as the participle of `unir', joined, so the
+# country was a name and a reduced relative after it
+The masculine adjective "unido" means "united".
+"unidos" is the plural of "unido".
+The feminine adjective "unida" means "united".
+"unidas" is the plural of "unida".
+# `es más difícil que pase algo así': that something like it happens -- a
+# verb that takes no object with its subject after it, where `algo' was read
+# as the object of `happens' and the clause had nobody for its subject
+The intransitive verb "pasa" means "happens".

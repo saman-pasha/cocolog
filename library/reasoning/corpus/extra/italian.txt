@@ -1034,3 +1034,29 @@ The preposition "a fianco di" means "beside".
 # `certo' only as the determiner `some', which Spanish writes `alguno'
 The masculine adjective "certo" means "certain".
 The feminine adjective "certa" means "certain".
+# the column on the mobile telephone, into Italian: `era de pega', it was a
+# fake -- `finto' is carried only as the participle of `fingere'
+The masculine adjective "finto" means "fake".
+The feminine adjective "finta" means "fake".
+# `A medida que los precios ... se han abaratado': as the prices came down,
+# which Italian says `man mano che'
+The conjunction "man mano che" means "as".
+# `Como mucho, ... en ocasiones, mal educada': at most, and rude
+The adverb "al massimo" means "at most".
+The masculine adjective "maleducato" means "rude".
+The feminine adjective "maleducata" means "rude".
+"maleducati" is the plural of "maleducato".
+"maleducate" is the plural of "maleducata".
+# ... `persona ocupada' is a busy person -- the dictionary gives `gente',
+# people, as its first word for `person'
+The feminine noun "persona" means "person".
+# `que es ampliable a otros casos': which can be extended -- no word of the
+# dictionary's
+The adjective "ampliabile" means "expandable".
+"ampliabili" is the plural of "ampliabile".
+# `adelantos tecnológicos': technological advances -- the dictionary's
+# first `advance' is `acconto', a payment made early
+The masculine noun "progresso" means "advance".
+# `Y al final lo han hecho': in the end -- the dictionary's first `end' is
+# `bandolo', the end of a thread
+The feminine noun "fine" means "end".

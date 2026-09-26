@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20232 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20238 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -465,6 +465,30 @@ The adverb "una vez" means "once".
 The preposition "al lado de" means "beside".
 The masculine adjective "cierto" means "certain".
 The feminine adjective "cierta" means "certain".
+The masculine noun "móvil" means "mobile".
+The masculine noun "telefonino" means "mobile".
+"telefoninos" is the plural of "telefonino".
+The masculine noun "accidentado" means "victim".
+"accidentado" is a person.
+The adjective "de pega" means "fake".
+"de pega" is the plural of "de pega".
+The conjunction "a medida que" means "as".
+The masculine noun "precio" means "price".
+The adverb "como mucho" means "at most".
+The verb "pone en evidencia" means "reveals".
+The adverb "en ocasiones" means "sometimes".
+The masculine adjective "mal educado" means "rude".
+The feminine adjective "mal educada" means "rude".
+"mal educados" is the plural of "mal educado".
+"mal educadas" is the plural of "mal educada".
+The pronoun "alguien" means "somebody".
+The masculine noun "fin" means "end".
+The masculine noun "final" means "end".
+The masculine adjective "unido" means "united".
+"unidos" is the plural of "unido".
+The feminine adjective "unida" means "united".
+"unidas" is the plural of "unida".
+The intransitive verb "pasa" means "happens".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -539,6 +563,10 @@ The feminine noun "víspera" means "eve".
 "vísperas" is the plural of "víspera".
 The masculine noun "asalto" means "assault".
 "asaltos" is the plural of "asalto".
+The noun "publicista" means "publicist".
+"publicista" is not feminine.
+"publicistas" is the plural of "publicista".
+"publicista" is a person.
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -19620,6 +19648,8 @@ The masculine noun "convencimiento" means "convincement".
 "convencimientos" is the plural of "convencimiento".
 The masculine noun "jalón" means "milestone".
 "jalones" is the plural of "jalón".
+The masculine noun "socavón" means "hole".
+"socavones" is the plural of "socavón".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -26085,6 +26115,98 @@ The verb "media" means "mediates".
 "mediadas" is the plural of "mediada".
 "mediar" is the infinitive of "media".
 "mediando" is the gerund of "media".
+The verb "destripa" means "guts".
+"destripan" is the plural of "destripa".
+"destripamos" is the first person of "destripan".
+"destripo" is the first person of "destripa".
+"destripas" is the second person of "destripa".
+"destripó" is the past of "destripa".
+"destriparon" is the past of "destripan".
+"destripamos" is the first person of "destriparon".
+"destripé" is the first person of "destripó".
+"destripaste" is the second person of "destripó".
+"destripaba" is the past of "destripa".
+"destripaban" is the past of "destripan".
+"destripábamos" is the first person of "destripaban".
+"destripabas" is the second person of "destripaba".
+"destripará" is the future of "destripa".
+"destriparán" is the plural of "destripará".
+"destriparemos" is the first person of "destriparán".
+"destriparé" is the first person of "destripará".
+"destriparás" is the second person of "destripará".
+"destriparía" is the conditional of "destripa".
+"destriparían" is the plural of "destriparía".
+"destriparíamos" is the first person of "destriparían".
+"destriparías" is the second person of "destriparía".
+"destripe" is the subjunctive of "destripa".
+"destripen" is the plural of "destripe".
+"destripemos" is the first person of "destripen".
+"destripes" is the second person of "destripe".
+"destripara" is the past subjunctive of "destripa".
+"destriparan" is the plural of "destripara".
+"destripáramos" is the first person of "destriparan".
+"destriparas" is the second person of "destripara".
+"destripa" is the imperative of "destripa".
+"destripes" is the negative imperative of "destripa".
+"destripad" is the imperative of "destripan".
+"destripéis" is the negative imperative of "destripan".
+"destripado" is the participle of "destripa".
+"destripada" is the participle of "destripa".
+"destripada" is feminine.
+"destripados" is the participle of "destripa".
+"destripados" is the plural of "destripado".
+"destripadas" is the participle of "destripa".
+"destripadas" is feminine.
+"destripadas" is the plural of "destripada".
+"destripar" is the infinitive of "destripa".
+"destripando" is the gerund of "destripa".
+"gutted" is the past of "guts".
+"gutting" is the gerund of "guts".
+The verb "moderniza" means "modernises".
+"modernizan" is the plural of "moderniza".
+"modernizamos" is the first person of "modernizan".
+"modernizo" is the first person of "moderniza".
+"modernizas" is the second person of "moderniza".
+"modernizó" is the past of "moderniza".
+"modernizaron" is the past of "modernizan".
+"modernizamos" is the first person of "modernizaron".
+"modernicé" is the first person of "modernizó".
+"modernizaste" is the second person of "modernizó".
+"modernizaba" is the past of "moderniza".
+"modernizaban" is the past of "modernizan".
+"modernizábamos" is the first person of "modernizaban".
+"modernizabas" is the second person of "modernizaba".
+"modernizará" is the future of "moderniza".
+"modernizarán" is the plural of "modernizará".
+"modernizaremos" is the first person of "modernizarán".
+"modernizaré" is the first person of "modernizará".
+"modernizarás" is the second person of "modernizará".
+"modernizaría" is the conditional of "moderniza".
+"modernizarían" is the plural of "modernizaría".
+"modernizaríamos" is the first person of "modernizarían".
+"modernizarías" is the second person of "modernizaría".
+"modernice" is the subjunctive of "moderniza".
+"modernicen" is the plural of "modernice".
+"modernicemos" is the first person of "modernicen".
+"modernices" is the second person of "modernice".
+"modernizara" is the past subjunctive of "moderniza".
+"modernizaran" is the plural of "modernizara".
+"modernizáramos" is the first person of "modernizaran".
+"modernizaras" is the second person of "modernizara".
+"moderniza" is the imperative of "moderniza".
+"modernices" is the negative imperative of "moderniza".
+"modernizad" is the imperative of "modernizan".
+"modernicéis" is the negative imperative of "modernizan".
+"modernizado" is the participle of "moderniza".
+"modernizada" is the participle of "moderniza".
+"modernizada" is feminine.
+"modernizados" is the participle of "moderniza".
+"modernizados" is the plural of "modernizado".
+"modernizadas" is the participle of "moderniza".
+"modernizadas" is feminine.
+"modernizadas" is the plural of "modernizada".
+"modernizar" is the infinitive of "moderniza".
+"modernizando" is the gerund of "moderniza".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -104776,6 +104898,96 @@ The verb "recopila" means "collects".
 "recopiladas" is the plural of "recopilada".
 "recopilar" is the infinitive of "recopila".
 "recopilando" is the gerund of "recopila".
+The verb "yace" means "rests".
+"yacen" is the plural of "yace".
+"yacemos" is the first person of "yacen".
+"yazco" is the first person of "yace".
+"yaces" is the second person of "yace".
+"yació" is the past of "yace".
+"yacieron" is the past of "yacen".
+"yacimos" is the first person of "yacieron".
+"yací" is the first person of "yació".
+"yaciste" is the second person of "yació".
+"yacía" is the past of "yace".
+"yacían" is the past of "yacen".
+"yacíamos" is the first person of "yacían".
+"yacías" is the second person of "yacía".
+"yacerá" is the future of "yace".
+"yacerán" is the plural of "yacerá".
+"yaceremos" is the first person of "yacerán".
+"yaceré" is the first person of "yacerá".
+"yacerás" is the second person of "yacerá".
+"yacería" is the conditional of "yace".
+"yacerían" is the plural of "yacería".
+"yaceríamos" is the first person of "yacerían".
+"yacerías" is the second person of "yacería".
+"yazca" is the subjunctive of "yace".
+"yazcan" is the plural of "yazca".
+"yazcamos" is the first person of "yazcan".
+"yazcas" is the second person of "yazca".
+"yaciera" is the past subjunctive of "yace".
+"yacieran" is the plural of "yaciera".
+"yaciéramos" is the first person of "yacieran".
+"yacieras" is the second person of "yaciera".
+"yace" is the imperative of "yace".
+"yazcas" is the negative imperative of "yace".
+"yaced" is the imperative of "yacen".
+"yazcáis" is the negative imperative of "yacen".
+"yacido" is the participle of "yace".
+"yacida" is the participle of "yace".
+"yacida" is feminine.
+"yacidos" is the participle of "yace".
+"yacidos" is the plural of "yacido".
+"yacidas" is the participle of "yace".
+"yacidas" is feminine.
+"yacidas" is the plural of "yacida".
+"yacer" is the infinitive of "yace".
+"yaciendo" is the gerund of "yace".
+The verb "abarata" means "reduces".
+"abaratan" is the plural of "abarata".
+"abaratamos" is the first person of "abaratan".
+"abarato" is the first person of "abarata".
+"abaratas" is the second person of "abarata".
+"abarató" is the past of "abarata".
+"abarataron" is the past of "abaratan".
+"abaratamos" is the first person of "abarataron".
+"abaraté" is the first person of "abarató".
+"abarataste" is the second person of "abarató".
+"abarataba" is the past of "abarata".
+"abarataban" is the past of "abaratan".
+"abaratábamos" is the first person of "abarataban".
+"abaratabas" is the second person of "abarataba".
+"abaratará" is the future of "abarata".
+"abaratarán" is the plural of "abaratará".
+"abarataremos" is the first person of "abaratarán".
+"abarataré" is the first person of "abaratará".
+"abaratarás" is the second person of "abaratará".
+"abarataría" is the conditional of "abarata".
+"abaratarían" is the plural of "abarataría".
+"abarataríamos" is the first person of "abaratarían".
+"abaratarías" is the second person of "abarataría".
+"abarate" is the subjunctive of "abarata".
+"abaraten" is the plural of "abarate".
+"abaratemos" is the first person of "abaraten".
+"abarates" is the second person of "abarate".
+"abaratara" is the past subjunctive of "abarata".
+"abarataran" is the plural of "abaratara".
+"abaratáramos" is the first person of "abarataran".
+"abarataras" is the second person of "abaratara".
+"abarata" is the imperative of "abarata".
+"abarates" is the negative imperative of "abarata".
+"abaratad" is the imperative of "abaratan".
+"abaratéis" is the negative imperative of "abaratan".
+"abaratado" is the participle of "abarata".
+"abaratada" is the participle of "abarata".
+"abaratada" is feminine.
+"abaratados" is the participle of "abarata".
+"abaratados" is the plural of "abaratado".
+"abaratadas" is the participle of "abarata".
+"abaratadas" is feminine.
+"abaratadas" is the plural of "abaratada".
+"abaratar" is the infinitive of "abarata".
+"abaratando" is the gerund of "abarata".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".

@@ -308,3 +308,21 @@
 # `un certo pacifismo inetto': inept -- carried by apertium-ita, paired with
 # nothing
 <e><p><l>inept<s n="adj"/></l><r>inetto<s n="adj"/></r></p></e>
+# the column on the mobile telephone, into Italian: `el telefonino
+# destripado' is gutted, which apertium-ita carries as `sbudellare' and the
+# bilingual pairs with nothing
+<e><p><l>gut<s n="vblex"/></l><r>sbudellare<s n="vblex"/></r></p></e>
+# `los publicistas de las marcas': the dictionary's `pubblicista' is a
+# freelance journalist, and the people who write advertising are
+# `pubblicitari' -- read both ways, because an entry read only from English
+# comes after the journalist, whose entry is read into English too
+<e><p><l>publicist<s n="n"/></l><r>pubblicitario<s n="n"/><s n="GD"/></r></p></e>
+# `su poseedor es persona ocupada': its owner -- apertium-ita carries
+# `possessore' and the bilingual pairs it with nothing, so a sentence about
+# one was refused for a word the target lacked
+<e><p><l>possessor<s n="n"/></l><r>possessore<s n="n"/><s n="m"/></r></p></e>
+# `la posibilidad ... de acentuar la individualidad de los ciudadanos':
+# apertium-ita carries no verb for `stress', so the sentence was refused for
+# a word the target lacked. `sottolineare' is what Italian says, written only
+# (r="LR"), because read back it is still `underline'
+<e r="LR"><p><l>stress<s n="vblex"/></l><r>sottolineare<s n="vblex"/></r></p></e>

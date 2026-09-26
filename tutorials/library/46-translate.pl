@@ -364,6 +364,7 @@ main :-
     section_36,
     section_37,
     section_38,
+    section_39,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -2236,6 +2237,88 @@ The pronoun "me" means "me". The possessive "mi" means "my".
 The adverb "ayer" means "yesterday". The adverb "precisamente" means "precisely".
 The reflexive pronoun "se" means "itself".
 The mark "¡" begins the exclamation.').
+
+section_39 :-
+    format("~n39. A Spanish column into Italian: the word for more before a participle, what a copula has last is its subject, a clause of the verb's after a phrase, a participle said of the object~n", []),
+    lesson_39(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the column''s shapes, under its own name', NS),
+    lesson_39(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('El perro come con una alegría más contenida.', spanish, italian, S39a),
+    must('the WORD FOR MORE between a noun and its participle is the participle''s degree, agreeing with the noun', S39a,
+         'Il cane mangia con un''allegria più contenuta.'),
+    reason_translate('El perro come con una alegría más contenida.', spanish, english, S39b),
+    must('... which English puts before the noun', S39b, 'The dog eats with a more contained joy.'),
+    reason_translate('Los países, más modernizados, duermen.', spanish, italian, S39c),
+    must('... and between two commas after a subject it stays where it stood', S39c, 'I paesi, più modernizzati, dormono.'),
+    reason_ir('Es el precio lo que los hace deseados.', spanish, IR39d),
+    show('WHAT A COPULA WITH NOBODY BEFORE IT HAS LAST IS ITS SUBJECT: the phrase whose noun a relative clause stands for', IR39d),
+    reason_translate('Es el precio lo que los hace deseados.', spanish, italian, S39e),
+    must('... the order kept, and the participle said of the object pronoun', S39e, 'È il prezzo quello che li fa desiderati.'),
+    reason_translate('Es el precio lo que los hace deseados.', spanish, english, S39f),
+    must('... and English puts the subject first', S39f, 'The one that makes them wished is the price.'),
+    reason_ir('Descubren con sorpresa que el teléfono está vacío.', spanish, IR39g),
+    show('a CLAUSE OF THE VERB''S after a phrase, where no relative clause reads: a copula with its adjective has no gap', IR39g),
+    reason_translate('Ella es alta.', spanish, italian, S39h),
+    must('a predicate adjective agrees with a PRONOUN subject''s gender', S39h, 'Lei è alta.'),
+    reason_translate('Alguien debería comer el pan.', spanish, english, S39i),
+    must('English''s conditional of must is SHOULD', S39i, 'Somebody should eat the bread.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_39(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "lo" replaces the noun.
+The word "más" begins the comparative. The adverb "más" means "more". The preposition "más" means "plus".
+The noun "perro" means "dog". The noun "pan" means "bread". The noun "alegría" means "joy". The noun "precio" means "price".
+The noun "teléfono" means "telephone". The noun "sorpresa" means "surprise".
+The noun "país" means "country". "países" is the plural of "país".
+The masculine adjective "alto" means "tall". The feminine adjective "alta" means "tall".
+The masculine adjective "vacío" means "empty". The feminine adjective "vacía" means "empty".
+The verb "come" means "eats". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "contiene" means "contains". "contenido" is the participle of "contiene". "contenida" is the participle of "contiene". "contenida" is feminine.
+The verb "moderniza" means "modernises". "modernizado" is the participle of "moderniza". "modernizados" is the participle of "moderniza". "modernizados" is the plural of "modernizado".
+The verb "hace" means "makes".
+The verb "desea" means "wishes". "deseado" is the participle of "desea". "deseados" is the participle of "desea". "deseados" is the plural of "deseado".
+The verb "descubre" means "discovers". "descubren" is the plural of "descubre".
+The verb "es" means "is".
+The auxiliary "está" means "is". The auxiliary "está" marks the state. The verb "está" means "stays".
+The modal "debe" means "must". "debería" is the conditional of "debe".
+"que" is a relative. The conjunction "que" means "that".
+The preposition "con" means "with".
+The pronoun "lo" means "it". The pronoun "los" means "them". The pronoun "ella" means "she". The pronoun "alguien" means "somebody".').
+lesson_39(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+The article "lo" comes before a vowel.
+"l''" is the elision of "lo". "l''" is the elision of "la". "un''" is the elision of "una".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The word "quello" replaces the noun. The pronoun "quello" means "that". The pronoun "quello" does not precede the verb.
+The word "più" begins the comparative. The adverb "più" means "more".
+The noun "cane" means "dog". The noun "pane" means "bread". The noun "allegria" means "joy". The noun "prezzo" means "price".
+The noun "telefono" means "telephone". The noun "sorpresa" means "surprise".
+The noun "paese" means "country". "paesi" is the plural of "paese".
+The masculine adjective "alto" means "tall". The feminine adjective "alta" means "tall".
+The feminine adjective "vuota" means "empty". The masculine adjective "vuoto" means "empty".
+The verb "mangia" means "eats". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "contiene" means "contains". "contenuto" is the participle of "contiene". "contenuta" is the participle of "contiene". "contenuta" is feminine.
+The verb "modernizza" means "modernises". "modernizzato" is the participle of "modernizza". "modernizzati" is the participle of "modernizza". "modernizzati" is the plural of "modernizzato".
+The verb "fa" means "makes".
+The verb "desidera" means "wishes". "desiderato" is the participle of "desidera". "desiderati" is the participle of "desidera". "desiderati" is the plural of "desiderato".
+The verb "scopre" means "discovers". "scoprono" is the plural of "scopre".
+The verb "è" means "is".
+"che" is a relative. The conjunction "che" means "that".
+The preposition "con" means "with".
+The pronoun "lo" means "it". The pronoun "li" means "them". The pronoun "lei" means "she". The pronoun "qualcuno" means "somebody".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),
