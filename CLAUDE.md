@@ -8947,6 +8947,356 @@ clause after a `di` phrase, the last two failing with their rule put back as the
 first cut had it. One pin of the mobile section moved (above). Lesson 46 gained
 section 41. The full suite was not run on 1.8.15.
 
+### An Italian letter into Spanish: a connecting adverb, but only, the ones that exist, a command of the first person plural, a clause after sembra, who wrote it (1.8.16)
+
+**THE FIFTEENTH SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD VIT
+document VIT-9792..9799 -- eight lines of the letters page, the letter the
+Bastille letter's last line named as the next one's title: the Tuscan
+archipelago's park will not be `blindato` and `mummificato`, a park where
+fishing, boating, the nature reserves and farming are forbidden, as the envoys
+of `La Repubblica` wrote on 12 and 13 July; no more marine parks are planned,
+and leisure will go on in full freedom, regulated as in every natural park; on
+Giglio there will be no restrictions beyond those that exist, but only more
+tourism and wealth; let us stop taking parks for a brake on development; the
+paper seemed to agree; `Siate perciò coerenti.`; the two who signed it, and the
+next letter's title after them -- Italian into Spanish over the two-language
+vocabulary store. The middle column is 1.8.15's translator over THIS store:
+
+| | 1.8.15, its store | 1.8.15, this store | **1.8.16** |
+|---|---|---|---|
+| translated | 3 of 8, one wrong in structure: `nos pareció fosas en esta posición`, pits | 6, three wrong in structure -- the pits, `restricciones entonces otras` with `esos existentes` and `solos`, and the phrase after who wrote it moved into the clause before -- and the seventh right in its words from a wrong IR | **8** |
+| refused for a word | 2, naming `toscano`, `mummificato`, `de`, `scorso`, `vi` and `vincoli` | 0 | **0** |
+| refused with every word known | 3 | 2 | **0** |
+| the letter, one process | 77.1 s | 28.0 and 28.0 s | **16.6 and 16.6 s** |
+
+-- the store Italian 175 949 terms and Spanish 221 045, taught into one
+`--embed` store from the rebuilt vocabularies in 685 s and 1 089 s, 323 MB.
+
+**WHAT IT NEEDED IS WHAT A LETTER DOES WHEN IT CORRECTS A NEWSPAPER.** The
+twelve were verbs, the Spanish column phrases that carry things, Livata the way
+a report speaks, Fiat figures, Valencia a thing on show, the bioethics report
+its claims, the football page a squad, Monreale a court, the record report
+figures again, the islands report what a news item puts before its verb, the
+opera review what it puts beside a phrase, the interview a man talking, the
+Georgia report people by their offices, the extract things said again, the
+Clinton report who said what, the Bosnian letter an argument, the Solana
+report who a person is, the pacifist letter the people it is angry with, the
+mobile column what it compares, the Bastille letter its evidence and the Basque
+report who told whom; a letter that corrects a newspaper says what will not be
+and what there will be instead, names who wrote otherwise, and tells the paper
+what to do:
+
+| shape | the letter's words | what moved |
+|---|---|---|
+| an adverb that joins its clause to the one before | `Siate perciò coerenti.`, `non vi saranno quindi altri vincoli` | no intensifier of the adjective after it (`tr_connective_adverb/2`): `therefore consistent` was one phrase, and `quindi altri` one adjective after its noun, `restricciones entonces otras` |
+| what there is, after the verb's adverbs | `non vi saranno quindi altri vincoli` | `there` stays the subject (`tr_existential_first/1`), and every writer puts the adverbs right after the verb: `There will then be no other ...` |
+| the future of `vi è` | the same | `"vi sarà" is the future of "vi è".`: refused for `vi` |
+| adverbs between a coordinator and its phrase | `..., ma solo più turismo e ricchezza` | the phrase's, `advp/2`: `ma solo` was two adjectives, `but` and `alone`, `pero solos más turismo` |
+| a word that replaces the noun, and adjectives after it | `rispetto a quelli esistenti` | the phrase whose noun was left out, `frente a los existentes`: `esistenti` was its noun by position, `esos existentes` |
+| a participle that differs from its noun in gender AND number | `le attività del tempo libero legate al turismo` | both travel, `agr/1` and `agrn/1`: only the gender went, `legada` |
+| a participle after a comma that differs from the phrase before it in number | `potranno svolgersi in piena libertà, regolamentate con giudizio` | the subject's, `pred/1`: it was the freedom's aside |
+| `as` before a phrase with a preposition of its own | `come in tutti i parchi naturali` | `pp(as, pp(in, NP))` (`tr_means_as/2`): refused |
+| the future of `can` | `le attività ... potranno svolgersi` | English's `will be able to`: refused into English |
+| a command of the first person plural, its pronoun joined | `Finiamola la di considerare i parchi un freno allo sviluppo.` | `"finiamo" is the hortative of "finisce".`, `g(L, present, hortative, Neg)`: `Acabemosla`, and English's `let us` |
+| we, before an intransitive verb and its object | `Finiamo il pane` | only a THIRD person nobody named gives the generic reading up at once: refused |
+| a clause with its `che` left out, after `sembrare` | `"La Repubblica" ci sembrava fosse su questa posizione` | `"sembra" takes the clause.`, and the clause before the phrase where its verb is no determiner: `fosse` was the plural of `fossa`, pits |
+| a date with its adjective | `il 12 e 13 luglio scorso` | `el 12 y 13 de julio último`, and `last July 12` for one day: the join word was lost, `el 12 julio último` |
+| a participle's number, asked with the number given | `negli articoli apparsi il 12 luglio` | steadfast (below): `apparsi il 12 luglio` was an absolute clause agreeing with the date |
+| who wrote it, an adverb before its verb | `..., come invece hanno scritto gli inviati de "La Repubblica", negli articoli ...` | the adverb kept before the verb, `frn/1`, and the phrase after the comment after it: the phrase went into the clause before |
+| the speaker's `of` phrase | `gli inviati de "La Repubblica"` | the speaker's (`tr_report_ofs/3`): English said the envoys wrote OF the paper; and `The preposition "de" means "of".` |
+
+-- and the words, in `corpus/extra/`: 5 lines of Italian and 1 of Spanish, and
+entries in the two dictionaries' supplements: `Tuscan` and `mummify` for both,
+whose words apertium-ita and apertium-spa carry and the bilingual pairs with
+nothing, and `last` and `restriction` for Italian, read only. The vocabularies
+went from 110 786 and 136 425 lines to 112 413 and 138 543 -- 1 558 Italian and
+2 068 Spanish hortatives (below), and the forms of the two new verbs -- and the
+set of what they LOST is the two headers' entry counts. `reason.pl` did not
+move, the twenty-seventh version running.
+
+**A CONNECTING ADVERB SAYS NOTHING OF THE ADJECTIVE AFTER IT.** `Siate perciò
+coerenti.` is be consistent, THEREFORE. An adverb before an adjective is the
+adjective's intensifier (1.6.15's `tan pacífica`), so `perciò coerenti` was one
+phrase, `therefore consistent` -- and Spanish writes the same words from either
+reading, `Sed por lo tanto acordes`, so only the IR shows it and the case pins
+the IR. Before a noun the text shows it too: `quindi altri` was one adjective,
+and went after its noun, `restricciones entonces otras`. What says an adverb
+joins clauses is the ENGLISH word, a closed class as `en_connector/1` is: an
+adverb EVERY meaning of which is one of them (`therefore`, `then`, `thus`,
+`instead` and a dozen more) is no intensifier -- `così` is `so` as well as
+`thus`, and `così pacifica` stays so peaceful. It is asked last, of an adverb
+before an adjective only.
+
+**AND ONCE `quindi` WAS THE CLAUSE'S, WHAT THERE IS HAD TO COME AFTER IT.** The
+reader of `there is` takes the phrase it names from the head of what follows the
+verb, and with the adverb there it found none: the first cut read `non vi
+saranno quindi altri vincoli` as THEY will not be, and English wrote `they will
+not there is`. Adverbs may stand before the phrase now
+(`tr_existential_first/1`), and every writer puts them right after the verb: `No
+habrá entonces otros panes`, `There will then be no other breads`, the adverbs
+after `will`. 1.8.15 wrote `There will be no then other breads`, the adverb
+inside the phrase.
+
+**THE ONES THAT EXIST ARE A PHRASE WHOSE NOUN WAS LEFT OUT.** `rispetto a
+quelli esistenti` is compared with the existing ones. `esistente` is an
+adjective and nothing else, and read as the phrase's noun by position after the
+demonstrative it came out `esos existentes`, those existents. A word the lesson
+says replaces the noun, with adjectives after it and nothing else, is the
+article's phrase with its noun left out (1.6.15's `el más débil`). **Its first
+cut sat below the reader that takes a noun by position and did nothing** --
+1.8.15 said the same of the count alone: `tr_np/3` takes the first clause that
+reads, so a clause for a narrower shape goes above the general one.
+
+**A PARTICIPLE KEEPS ITS GENDER AND ITS NUMBER, BOTH.** `le attività del tempo
+libero legate al turismo` are the activities, tied to tourism, and `legate` is
+feminine AND plural beside a masculine singular `tempo`. 1.6.21's `agr/1` and
+1.8.8's `agrn/1` were one predicate that chose one: the gender went, and Spanish
+wrote `legada`. Both go now (`tr_rel_agreement/5` asks the number and then the
+gender). And a participle after a comma that differs from the phrase before it
+in number is the SUBJECT'S: `potranno svolgersi in piena libertà, regolamentate
+con giudizio` -- the activities are regulated, and the freedom is singular; the
+participle stood as the freedom's aside (1.8.4).
+
+**A DEFAULT CLAUSE ANSWERED FOR A BOUND ARGUMENT.** A participle's number was
+
+```prolog
+tr_participle_number(P, plural) :- tr_solve(plural_of(P, _)), !.
+tr_participle_number(_, singular).
+```
+
+-- right when the number is asked for, and wrong when it is GIVEN: asked
+`tr_participle_number(apparsi, singular)`, the first head does not match and the
+second says yes, so every participle was singular to a caller that asked that
+way. One caller did, 1.8.15's absolute clause, which asks whether the
+participle agrees with the phrase after it: `negli articoli apparsi il 12
+luglio` read `apparsi il 12 luglio` as an absolute clause agreeing with the
+date, `aparecido`, where it is the articles' and they appeared on it. An
+if-then-else over one clause is steadfast. **A predicate whose last clause is a
+default is a predicate that must not be called with that argument bound**, and
+the caller that breaks the rule is rarely the one that wrote it.
+
+**THE COMMAND OF THE FIRST PERSON PLURAL, AND ITS NAME IS THE LESSON'S.**
+`Finiamola la di considerare i parchi un freno allo sviluppo.` -- let us stop
+considering parks a brake on development. Italian spells it as its indicative
+(`finiamo`) and Spanish as its subjunctive (`acabemos`), so only the lesson can
+say a form is a command too: the builder states it from the tag each dictionary
+gives it (`cb_hortative/2`: Italian's `imp p1 pl`, Spanish's `prs p1 pl`, which
+Apertium tags no imperative), `"finiamo" is the hortative of "finisce".`. The
+aspect carries it, `g(L, present, hortative, Neg)` with the subject `none`, as an
+imperative's is (1.6.10). A pronoun joined to it is what makes it a command,
+because no indicative takes one: `Finiamo il pane` stays what we do, which a
+guard pins. The writer joins the pronoun back as it does after an imperative
+(1.8.14), and English writes `let us` and reads it. `Finiamola la di` has the
+pronoun twice, the treebank's text again, and the second is 1.8.14's slip
+(`tr_repeated_clitic/3`). What stays is the accent, 1.8.14's cost:
+`Acabemosla`, where Spanish writes `Acabémosla`.
+
+**A CLAUSE WITH ITS `che` LEFT OUT, AND A PHRASE THAT WAS PITS.** `E anche "La
+Repubblica" ci sembrava fosse su questa posizione` -- it seemed to us it was.
+1.8.14 reads such a clause after a verb the lesson says takes it, and `sembra`
+had no line: `fosse` was read as the plural of `fossa`, and 1.8.15 wrote `nos
+pareció fosas en esta posición`, pits in this position -- the wrong structure
+the first column counts. `"sembra" takes the clause.`, and the clause is tried
+BEFORE the phrase where its first word is no determiner: `mi sembra una buona
+idea` is still a good idea, never that it unites one.
+
+**WHO WROTE IT, WITH AN ADVERB BEFORE ITS VERB.** `..., come invece hanno
+scritto gli inviati de "La Repubblica", negli articoli apparsi ...` is 1.8.15's
+who said so, `per/3`, with `come` for `as`. Only pronouns could stand before its
+verb, so with `invece` there it was no comment, and the phrase after it went
+into the clause before: `El perro duerme en los artículos, como han escrito los
+enviados en cambio`, in the case's words. The adverb is kept before the verb,
+`frn/1`, and the phrase after the comment stays after it. The speaker's `de`
+phrase is the speaker's (`tr_report_ofs/3`) -- left to the clause, English said
+the envoys wrote OF the paper -- and `de` is a line of lesson: a newspaper's
+name that opens on its own article takes `de` and not `della`.
+
+**THE REST WERE SMALL, AND EACH HAD A REFUSAL OR A WRONG TEXT BEHIND IT:**
+
+* a preposition meaning `as` takes a phrase with a preposition of its own,
+  `come in tutti i parchi naturali`, `pp(as, pp(in, NP))` (`tr_means_as/2`):
+  the sentence was refused;
+* English's `can` has no future, and `will be able to` says it: `le attività
+  potranno svolgersi` was refused into English;
+* a verb the lesson calls intransitive, with WE for the subject nobody named,
+  keeps its object -- a phrase after the verb is a third person, so only a
+  THIRD person nobody named gives the generic reading up at once (1.8.4):
+  `Finiamo il pane` was refused;
+* adverbs between a coordinator and its phrase are the phrase's, `advp/2`, as
+  after `di cui` (1.8.8): `ma solo più turismo e ricchezza`, where `ma solo`
+  was two adjectives, `but` and `alone`;
+* a date keeps the word that joins it when an adjective follows the month:
+  `el 12 de julio último`, and `last July 12`, where it was written as any
+  phrase, `el 12 julio último`;
+* `siate`: Apertium's paradigm for `essere` tags `siete`, you are, as the
+  plural imperative, and the builder states what the paradigm says, so the
+  line is `corpus/extra/`'s -- `"siate" is the imperative of "sono".`
+
+**THE CONTROLS FOUND ONE REGRESSION, AND IT WAS A RULE OF THIS VERSION MEETING A
+NAME.** With `test/translate.pl` GREEN and the letter at 8 of 8, the first round
+came back with every old text the same but one: Livata's twenty-eighth, `... ha
+spiegato il capitano dei carabinieri della Compagnia di Subiaco, Alessio
+Falzone.`, came out `ha explicado al capitán`, the captain the object of a verb
+nobody named, where 1.8.15 had the captain saying it. The speaker's `of` phrases
+are the speaker's now (above), and the last of them was a name alone, `di
+Subiaco`, where a phrase ends; the name after the comma comes joined as an
+apposition, `w(Name, appos)` (1.8.11), and it was left with nothing to read it.
+So the speaker's reading failed, and the next reading made the captain an
+object. The apposition goes with the last `of` phrase now, the text is 1.8.15's,
+and the IR is better than 1.8.15's, which had the `of` phrases as the verb's --
+English said `the captain has explained of the carabineers`, and says `the
+captain of the carabineers of the Company of Subiaco, Alessio Falzone, has
+explained` now. A check pins it on the case's lesson, `“Il gatto dorme” ha
+scritto il cane di Roma, Mario Rossi.`: refused on the first cut, and `the dog
+has written of Roma, Mario Rossi` on 1.8.15. **The data column moved nothing**:
+1.8.15 on this store gives its own store's texts on all twenty-two old controls.
+
+**AND COUNTING FOUND TWO COSTS AND ONE WRONG READING UNDER A RIGHT TEXT.** The
+inferences of every control, counted on the store four at a time, the texts
+the same on every arm:
+
+| sentence | 1.8.15 | the first cut | **1.8.16** |
+|---|---|---|---|
+| Solana's first, `..., explicó ayer el ministro de Asuntos Exteriores, Abel Matutes.` | 10.98 M | 16.28 M | **11.04 M** |
+| Georgia's fifth, `Abachidze, en cambio, prefiere ...` | 12.91 M | 13.90 M | **12.86 M** |
+| the opera review's sixth, `En esta versión, además, cuenta con ...` | 10.09 M | 10.60 M | **10.17 M** |
+
+The first was no cost but a reading gone wrong. The speaker's `of` phrases are
+the speaker's now, so the speaker comes back as `with(Phrase, OfPhrases)`, and
+`tr_of_class/2` -- which says whether the phrase after the verb of a reporting
+clause at the end is a person -- had no clause for it. So `el ministro de
+Asuntos Exteriores` was nobody, the clause was no reporting clause, and the
+reading went on until the minister was the object of a verb nobody named: the
+same Italian words, `spiegò ieri il ministro d'Affari esteri, Abel Matutes`,
+for 5.3 million inferences more. A clause for `with/2` puts it back, and a
+check pins it into English, where the three readings differ: `Il cane dorme,
+ha scritto il ministro del gatto.` is refused without the clause -- the
+minister the object of a verb nobody named -- and 1.8.15 wrote `the minister
+has written of the cat`, the `of` phrase the verb's. **1.6.4's rule, once
+more**: a new phrase term needs a clause wherever a phrase is taken apart by
+its functor -- and no text of the controls could show the clause it lacked;
+the count did.
+
+The other two were the adverbs before the verb of who said so, `come invece
+hanno scritto`, which the first cut allowed in EVERY reporting clause: every
+piece between two commas that opens on an adverb -- `Abachidze, en cambio,
+prefiere ...`, `En esta versión, además, cuenta con ...` -- was read on as one
+and failed later. They are the clause of who said so's alone now
+(`tr_said_to/1`), and that took Georgia's fifth to 13.12 M and the opera
+review's sixth to 10.18 M. The last 0.26 M of Georgia's was an order: where a
+quotation mark is all that says something was said, what stands between the
+verb and the speaker has no object, and most of the places a speaker could
+stand leave one there -- read after the speaker and its `of` phrases, each
+place was read whole for nothing. It is asked first now. **A test that the
+speaker is a person, asked before its `of` phrases, looked like the same
+saving and was not**: Georgia's fifth the same, the Solana report 38 000
+inferences dearer. It is not shipped -- 1.8.5's rule, a change that moves
+nothing measurable is a change nobody has shown is right.
+
+**AND THE REST IS SPREAD THIN, AND ITS SHARPEST PIECE IS A FIX.** No sentence of
+the old controls rose by more than 0.2 M inferences, and the one that rose most
+in proportion is Livata's twenty-second, `Li abbiamo trovati molto provati,
+hanno parlato veramente poco.`, 1.51 M to 1.65 M -- 9 % -- with the same IR. The
+participle's number is steadfast now (above), so `trovati` before `molto` -- a
+determiner as well as an adverb -- no longer passes as agreeing with it, and the
+phrase reader reads on where the wrong agreement had cut it short. A cut that
+was wrong and cheap is gone, and the reading it hid costs what it costs. Counted
+after the fixes, the twenty-one old articles' totals are 1.44 % fewer to 0.64 %
+more inferences -- the Clinton report 1.44 % fewer, Georgia 0.09 % fewer, the
+other nineteen 0.21 to 0.64 % more -- and every text is 1.8.15's to the byte.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `será prohibido pescar`, `no son previstos`, `que era en esta posición` | `estará prohibido`, `no están previstos`, `estuviera` | Italian's `essere` is both copulas, 1.6.17's cost; and a subjunctive is written as the indicative, 1.6.8's |
+| `actuar actividades agrícolas`, `podrán actuarse` | `realizar`, `desarrollarse` | `svolgere` crosses as `performs`, and Spanish's first `performs` is `actúa` |
+| `el 12 y 13 de julio último` | `pasado` | `scorso` crosses as `last`, and Spanish's first `last` is `último` |
+| `Nos desagrada negarlos` | `Lamentamos desmentirlos` | senses: `dispiacere` crosses as `displeases`, `smentire` as `denies` |
+| `pero no son previstos adicionales parques marinos en el archipiélago` | `en el archipiélago no están previstos más parques` | a front with no comma is written after the clause, 1.6.8's cost; and an adjective the source puts before its noun stays there, 1.6.21's |
+| `las actividades del tiempo gratuito legadas al turismo`, `en llena libertad` | `del tiempo libre ligadas`, `en plena libertad` | senses through English: `libero` is `free`, and Spanish's first `free` is `gratuito`; `legato` is `tied`, and `piena` is `full`, whose first word is `llena` |
+| `en el caso del Lirio` | `del Giglio` | a name the dictionary knows as a noun, after an article, is the noun, 1.8.4's cost |
+| `frente a los existentes` | `respecto a las existentes` | a phrase whose noun was left out carries the source's gender, 1.8.8's cost: `vincoli` is masculine and `restricciones` feminine; and `rispetto a` crosses as `compared with` |
+| `Acabemosla considerar` | `Dejemos de considerar` | `finirla di` is an idiom, a lesson gives words, and the preposition a verb puts before its infinitive is not in the IR, 1.6.15's cost; and the accent, 1.8.14's |
+| `cuando esto es naturalmente "sostenible"` | `cuando éste sea` | `questo` crosses as the pronoun `this`, which carries no gender, the record report's cost; and the subjunctive |
+| `nos pareció también que era` | `Y también "La Repubblica" nos parecía que estaba` | the imperfect and the preterite are both `past`, 1.6.15's cost; a head adverb is written after the verb, 1.6.8's; and `que` is written back where Italian left it out, 1.8.14's design |
+| `Sed por lo tanto acordes.` | `Sed por lo tanto coherentes.` | `coerente` crosses as `consistent`, and Spanish's first `consistent` is `acorde` |
+| `Riccardo Canesi y Piero Baronti al café con Prodi.` | the signature, then the next letter's title | one verbless line, as 1.8.12's signature was, and the same words either way; the treebank's text has the title in lower case |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.15's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.15, this store | **1.8.16** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 14.8 and 14.6 s | **12 of 12, 14.7 and 14.8 s** |
+| the Spanish article | 11 of 11, 14.3 and 13.8 s | **11 of 11, 13.6 and 13.5 s** |
+| Livata, 29 sentences | 29 of 29, 92.3 and 91.0 s | **29 of 29, 90.9 and 90.7 s** |
+| Fiat, 20 sentences | 20 of 20, 21.4 and 20.5 s | **20 of 20, 21.4 and 21.3 s** |
+| Valencia, 16 sentences | 16 of 16, 20.4 and 20.8 s | **16 of 16, 20.5 and 20.7 s** |
+| the bioethics article, 15 sentences | 15 of 15, 15.1 and 15.4 s | **15 of 15, 15.6 and 16.0 s** |
+| the football article, 20 sentences | 20 of 20, 28.5 and 28.3 s | **20 of 20, 28.5 and 29.0 s** |
+| Monreale, 6 sentences | 6 of 6, 3.8 and 3.8 s | **6 of 6, 3.6 and 3.8 s** |
+| the record report, 15 sentences | 15 of 15, 22.4 and 22.4 s | **15 of 15, 21.6 and 22.2 s** |
+| Tatoeba's 400, exact / translated / refused | 58 / 288 / 112, 19.6 and 20.1 s | **58 / 288 / 112, 20.0 and 19.5 s** |
+| the islands report, 13 sentences | 13 of 13, 19.7 and 19.5 s | **13 of 13, 19.3 and 19.5 s** |
+| the opera review, 12 sentences | 12 of 12, 15.9 and 15.2 s | **12 of 12, 15.6 and 15.8 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 36.7 and 37.0 s | **27 of 27, 36.8 and 37.4 s** |
+| the Georgia report, 8 sentences | 8 of 8, 12.7 and 12.5 s | **8 of 8, 12.0 and 12.2 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 15.0 and 15.5 s | **13 of 13, 14.9 and 15.3 s** |
+| the Clinton report, 12 sentences | 12 of 12, 19.0 and 19.7 s | **12 of 12, 19.9 and 19.5 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 45.9 and 46.7 s | **12 of 12, 45.6 and 47.1 s** |
+| the Solana report, 10 sentences | 10 of 10, 25.2 and 25.3 s | **10 of 10, 25.2 and 25.0 s** |
+| the pacifist letter, 6 sentences | 6 of 6, 9.1 and 9.3 s | **6 of 6, 9.1 and 9.1 s** |
+| the mobile column, 11 sentences | 11 of 11, 27.2 and 27.8 s | **11 of 11, 27.8 and 28.0 s** |
+| the Bastille letter, 11 sentences | 11 of 11, 19.3 and 19.6 s | **11 of 11, 19.3 and 20.0 s** |
+| the Basque report, 9 sentences | 9 of 9, 52.5 and 51.6 s | **9 of 9, 52.5 and 52.7 s** |
+| the Giglio letter, 8 sentences | 6 of 8, 28.0 and 28.0 s | **8 of 8, 16.6 and 16.6 s** |
+
+-- the texts first: each translator gives the same texts both times, and
+against 1.8.15 on this store every old control is the same to the byte. 1.8.15
+on this store gives its own store's texts (the data column, above), so against
+1.8.15 on its OWN store every old control is the same as well: this version
+moved no text any old control writes. Tatoeba is the same to the byte, 58
+exact, 288 translated, 112 refused. (The library committed differs from the one
+these rounds measured in three lines of one comment, changed after them, and in
+nothing a program reads.)
+
+**THE TIMES SAY WHAT THE COUNTS SAY, AND THE PAIRS AGREE.** The ranges are
+apart on eight of the twenty-two old controls: five faster -- the Georgia
+report by 3.9 %, the Spanish article by 3.5 %, the record report by 2.4 %, the
+islands report by 1.3 % and Livata by 0.9 %, four of them with MORE inferences
+counted, not fewer -- and three slower: the bioethics report by 3.7 %, the
+football report by 1.3 % and the Basque report by 1.1 %, whose counts are
+0.58, 0.36 and 0.53 % up. Five alternating pairs on those three, nothing else
+on the box: the bioethics report 15.25 s (15.09-15.56) against 15.42 s
+(15.20-15.66), the football report 28.29 s (28.07-28.57) against 28.45 s
+(28.23-28.75), the Basque report 52.08 s (51.67-52.76) against 52.49 s
+(52.08-53.32) -- every range overlapping, the means 0.6 to 1.2 % apart. At
+this size the clock is the box's, as 1.8.13, 1.8.14 and 1.8.15 said; the
+letter itself is 41 % faster, because 1.8.15 spends its time failing.
+
+Into English the letter reads 6 of 8. The second and the sixth are refused:
+`Ci dispiace smentirli` has the infinitive after it for its subject, and
+`fosse su questa posizione`, the clause with its `che` left out, has nobody
+named -- English still refuses a third person nobody named (1.6.15). The six
+show what the IR carries: `Be consistent therefore.`, the adverb the clause's,
+where 1.8.15 read `therefore consistent`; `there will then be no other
+restrictions compared with the existent ones, but only more tourism and
+wealth`, the adverbs after `will`, the ones that exist and `but only`; `as
+instead the envoys of "La Repubblica" have written, in the appeared articles`,
+who wrote it with its adverb, and the phrase after the comment after it; `Let
+us finish her to consider the parks a brake to the development.`, the command
+of the first person plural, with `la` as `her` -- 1.8.2's `lo` as `him`, the
+same cost; and `in the case of the Lily`, the name the dictionary knows.
+
+`test/translate.pl` is 1140 checks and GREEN, 22 in a new `newspaper_giglio`
+section with an Italian and a Spanish lesson of its own. Every check fails on
+1.8.15's translator but one guard, `Mangiamo il pane`, what we do, which 1.8.15
+wrote right; and the two the controls wrote fail on the first cut as well, the
+second with the `with/2` clause alone taken out. Lesson 46 gained section 42.
+The full suite was not run on 1.8.16.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

@@ -232,6 +232,12 @@ cb_negative_imperative(italian, [inf]).
 %% plural itself (`non mangiate'), so it states none and the translator
 %% writes the affirmative form after the denial
 cb_negative_imperative_plural(spanish, [prs, p2, pl]).
+%% ... AND ITS COMMAND OF THE FIRST PERSON PLURAL, `let us': Italian's is
+%% what its dictionary tags `imp p1 pl', the indicative's own form
+%% (`finiamo'), and Spanish's is the first person plural of the present
+%% subjunctive (`dejemos'), which its dictionary tags no imperative at all
+cb_hortative(italian, [imp, p1, pl]).
+cb_hortative(spanish, [prs, p1, pl]).
 cb_has_tags([], _).
 cb_has_tags([T|Ts], Have) :- memberchk(T, Have), cb_has_tags(Ts, Have).
 
@@ -728,6 +734,13 @@ cb_verb_forms(L, Forms) :-
         ->  cb_line('"~w" is the negative imperative of "~w".', [NPImper, Pl]) ; true )
     ;   true
     ),
+    %% THE COMMAND OF THE FIRST PERSON PLURAL, stated of the verb as the
+    %% singular imperative is: `Finiamola di considerare i parchi un freno'
+    %% is let us stop, and `finiamo' is also what we do, so only the lesson
+    %% can say it is a command too -- `"finiamo" is the hortative of
+    %% "finisce".', `"dejemos" is the hortative of "deja".'
+    (   cb_lang(Lg3), cb_hortative(Lg3, HTags), cb_verb_form(Forms, HTags, Hort)
+    ->  cb_line('"~w" is the hortative of "~w".', [Hort, L]) ; true ),
     cb_participles(Forms, L),
     ( cb_verb_form(Forms, [inf], Inf) -> cb_line('"~w" is the infinitive of "~w".', [Inf, L]) ; true ),
     ( cb_verb_form(Forms, [ger], Ger) -> cb_line('"~w" is the gerund of "~w".', [Ger, L]) ; true ).

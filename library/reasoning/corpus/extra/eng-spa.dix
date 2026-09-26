@@ -196,3 +196,10 @@
 # `si permette di chiamare fuorilegge': outlaws -- apertium-spa has
 # `forajido' as an adjective only, so the noun above has no forms of its own
 <e><p><l>outlaw<s n="adj"/></l><r>forajido<s n="adj"/></r></p></e>
+# the Giglio park letter (Italian UD VIT-9792..9799), into Spanish.
+# `l'arcipelago toscano': Tuscan -- apertium-spa carries `toscano' and the
+# bilingual pairs nothing with it
+<e><p><l>Tuscan<s n="adj"/></l><r>toscano<s n="adj"/></r></p></e>
+# `un parco "mummificato"': mummified -- apertium-spa carries `momificar'
+# and the bilingual pairs nothing with it
+<e><p><l>mummify<s n="vblex"/></l><r>momificar<s n="vblex"/></r></p></e>

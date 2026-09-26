@@ -367,6 +367,7 @@ main :-
     section_39,
     section_40,
     section_41,
+    section_42,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -2566,6 +2567,107 @@ The feminine pronoun "quella" means "that". "quelle" is the plural of "quella". 
 The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "tra" means "between". The preposition "dopo" means "after". The preposition "come" means "as".
 The adverb "ieri" means "yesterday".
 The impersonal pronoun "si" means "one". The reflexive pronoun "si" means "itself".').
+
+section_42 :-
+    format("~n42. An Italian letter into Spanish: a connecting adverb, what there is after an adverb, but only, the ones that exist, as in, the future of can, a command of the first person plural, a clause after sembra, a date with its adjective, who wrote it~n", []),
+    lesson_42(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the letter''s shapes, under its own name', NS),
+    lesson_42(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Non vi saranno quindi altri pani.', italian, spanish, S42a),
+    must('an adverb that JOINS its clause to the one before is no intensifier of the adjective after it, and what there is comes after it', S42a,
+         'No habrá entonces otros panes.'),
+    reason_translate('Non vi saranno quindi altri pani.', italian, english, S42b),
+    must('... which English writes after `will''', S42b, 'There will then be no other breads.'),
+    reason_translate('Il cane non mangia il pane, ma solo il formaggio.', italian, english, S42c),
+    must('ADVERBS after a comma and a coordinator are the phrase''s', S42c, 'The dog does not eat the bread, but only the cheese.'),
+    reason_translate('Il cane dorme con quelli esistenti.', italian, spanish, S42d),
+    must('after a word that REPLACES THE NOUN, an adjective and nothing else leaves the noun out', S42d, 'El perro duerme con los existentes.'),
+    reason_translate('Il cane dorme come nella casa.', italian, spanish, S42e),
+    must('AS takes a phrase with a preposition of its own', S42e, 'El perro duerme como en la casa.'),
+    reason_translate('Il cane potrà dormire.', italian, english, S42f),
+    must('English''s `can'' has no future: WILL BE ABLE TO', S42f, 'The dog will be able to sleep.'),
+    reason_translate('Mangiamolo.', italian, spanish, S42g),
+    must('a form the lesson calls a HORTATIVE, with its pronoun joined, is the command of the first person plural', S42g, 'Comamoslo.'),
+    reason_translate('Mangiamolo.', italian, english, S42h),
+    must('... let us', S42h, 'Let us eat him.'),
+    reason_translate('Il cane ci sembrava fosse stanco.', italian, spanish, S42i),
+    must('a clause with its CHE LEFT OUT comes before a phrase where its verb is no determiner', S42i, 'El perro nos parecía que era cansado.'),
+    reason_translate('Il cane dorme negli articoli apparsi il 12 luglio scorso.', italian, spanish, S42j),
+    must('a DATE with its adjective, and a participle''s own number', S42j, 'El perro duerme en los artículos aparecidos el 12 de julio último.'),
+    reason_translate('Il cane dorme, come invece hanno scritto gli inviati del gatto, negli articoli.', italian, spanish, S42k),
+    must('WHO WROTE IT, with an adverb before its verb and an `of'' phrase on its speaker, stays where it stood', S42k,
+         'El perro duerme, como en cambio han escrito los enviados del gato, en los artículos.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_42(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person. The word "de" joins the date. The word "el" replaces the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "queso" means "cheese". The feminine noun "casa" means "house".
+The noun "artículo" means "article". The noun "enviado" means "envoy". The feminine noun "fosa" means "pit".
+The noun "julio" means "july". "julio" is a month.
+The masculine adjective "cansado" means "tired". The feminine adjective "cansada" means "tired".
+The adjective "existente" means "existent". "existentes" is the plural of "existente".
+The masculine adjective "otro" means "other". The feminine adjective "otra" means "other". "otros" is the plural of "otro". "otras" is the plural of "otra".
+The masculine adjective "último" means "last". The masculine adjective "solo" means "alone".
+The verb "come" means "eats". "comen" is the plural of "come". "comemos" is the first person of "comen". "comamos" is the hortative of "come". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "ve" means "sees". "visto" is the participle of "ve". "vista" is the participle of "ve". "vista" is feminine.
+"vistos" is the participle of "ve". "vistos" is the plural of "visto". "vistas" is the participle of "ve". "vistas" is feminine. "vistas" is the plural of "vista".
+The verb "acaba" means "finishes". "acaban" is the plural of "acaba". "acabamos" is the first person of "acaban". "acabemos" is the hortative of "acaba".
+The verb "aparece" means "appears". "aparecido" is the participle of "aparece". "aparecidos" is the participle of "aparece". "aparecidos" is the plural of "aparecido".
+The verb "escribe" means "writes". "escriben" is the plural of "escribe". "escrito" is the participle of "escribe".
+The verb "parece" means "seems". "parecía" is the past of "parece".
+The verb "es" means "is". "son" is the plural of "es". "era" is the past of "es".
+The modal "puede" means "can". "podrá" is the future of "puede".
+The verb "hay" means "there is". "hay" is the plural of "hay". "habrá" is the future of "hay".
+The auxiliary "ha" means "has". "han" is the plural of "ha".
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "que" means "that". "que" is a relative.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with". The preposition "por" means "by". The preposition "como" means "as".
+The adverb "entonces" means "then". The adverb "por lo tanto" means "therefore". The adverb "en cambio" means "instead". The adverb "sólo" means "only". The adverb "más" means "more".
+The pronoun "nos" means "us". The pronoun "lo" means "him".').
+lesson_42(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i".
+"nel" is the contraction of "in il". "negli" is the contraction of "in gli". "nella" is the contraction of "in la". "al" is the contraction of "a il". "dal" is the contraction of "da il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not". The word "di" begins the infinitive.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane". The noun "formaggio" means "cheese". The feminine noun "casa" means "house". "case" is the plural of "casa".
+The noun "articolo" means "article". "articoli" is the plural of "articolo". The noun "inviato" means "envoy". "inviati" is the plural of "inviato".
+The feminine noun "fossa" means "pit". "fosse" is the plural of "fossa".
+The noun "luglio" means "july". "luglio" is a month.
+The masculine adjective "stanco" means "tired". The feminine adjective "stanca" means "tired". "stanchi" is the plural of "stanco".
+The adjective "esistente" means "existent". "esistenti" is the plural of "esistente".
+The masculine adjective "altro" means "other". "altri" is the plural of "altro".
+The masculine adjective "scorso" means "last". The masculine adjective "solo" means "alone".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiamo" is the first person of "mangiano". "mangiamo" is the hortative of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "vede" means "sees". "visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine.
+"visti" is the participle of "vede". "visti" is the plural of "visto". "viste" is the participle of "vede". "viste" is feminine. "viste" is the plural of "vista".
+The intransitive verb "finisce" means "ends up". The verb "finisce" means "finishes". "finiscono" is the plural of "finisce". "finiamo" is the first person of "finiscono". "finiamo" is the hortative of "finisce".
+The verb "appare" means "appears". "apparso" is the participle of "appare". "apparsi" is the participle of "appare". "apparsi" is the plural of "apparso".
+The verb "scrive" means "writes". "scrivono" is the plural of "scrive". "scritto" is the participle of "scrive". "written" is the participle of "writes".
+The verb "sembra" means "seems". "sembrava" is the past of "sembra". "sembra" takes the clause.
+The verb "è" means "is". "sono" is the plural of "è". "era" is the past of "è". "fosse" is the past subjunctive of "è". "siate" is the imperative of "sono".
+The modal "può" means "can". "potrà" is the future of "può".
+The verb "vi è" means "there is". "vi sarà" is the future of "vi è". "vi saranno" is the plural of "vi sarà".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha".
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "che" means "that". "che" is a relative.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with". The preposition "da" means "by". The preposition "come" means "as".
+The adverb "quindi" means "then". The adverb "perciò" means "therefore". The adverb "invece" means "instead". The adverb "solo" means "only". The adverb "più" means "more".
+The pronoun "ci" means "us". The pronoun "lo" means "him". The pronoun "mi" means "me".
+The word "quello" replaces the noun. The masculine demonstrative "quello" means "that". The masculine pronoun "quello" means "that". "quelli" is the plural of "quello". The pronoun "quello" does not precede the verb.').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

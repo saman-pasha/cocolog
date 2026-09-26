@@ -1191,6 +1191,9 @@ The feminine demonstrative "codesta" means "that".
 The verb "sembra" means "seems".
 The verb "pare" means "seems".
 "pare" takes the clause.
+# `"La Repubblica" ci sembrava fosse su questa posizione': it seemed to us
+# that it was -- the same clause with its `che' left out, after `sembrare'
+"sembra" takes the clause.
 # `i presìdi (leggi procure) addetti alla pulizia ambientale': assigned to it
 # -- the dictionary's `addetto' is a cameraman alone
 The masculine adjective "addetto" means "assigned".
@@ -1229,3 +1232,15 @@ The intransitive verb "ha luogo" means "takes place".
 "ebbe luogo" is the past of "ha luogo".
 "ebbero luogo" is the plural of "ebbe luogo".
 "avere luogo" is the infinitive of "ha luogo".
+# the Giglio park letter (Italian UD VIT-9792..9799), into Spanish.
+# `Siate perciò coerenti.': be consistent -- Apertium's paradigm for
+# `essere' tags `siete', you are, as the plural imperative, and the builder
+# states what the paradigm says; its other paradigm has the right form
+"siate" is the imperative of "sono".
+# `non vi saranno quindi altri vincoli': there will be -- the future of
+# `vi è', as `ci sarà' is of `c'è'
+"vi sarà" is the future of "vi è".
+"vi saranno" is the plural of "vi sarà".
+# `gli inviati de "La Repubblica"': of -- a newspaper's name that opens on
+# its article takes `de', not `della'
+The preposition "de" means "of".

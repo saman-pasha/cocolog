@@ -362,3 +362,16 @@
 # `reafirmar' is to restate, and Italian had no word for it; apertium-ita
 # has `riaffermare' and the bilingual pairs nothing with it
 <e><p><l>restate<s n="vblex"/></l><r>riaffermare<s n="vblex"/></r></p></e>
+# the Giglio park letter (Italian UD VIT-9792..9799), into Spanish.
+# `l'arcipelago toscano': Tuscan -- apertium-ita carries `toscano' and the
+# bilingual pairs nothing with it
+<e><p><l>Tuscan<s n="adj"/></l><r>toscano<s n="adj"/></r></p></e>
+# `un parco "blindato", "mummificato"': mummified -- apertium-ita carries
+# `mummificare' and the bilingual pairs nothing with it
+<e><p><l>mummify<s n="vblex"/></l><r>mummificare<s n="vblex"/></r></p></e>
+# `il 12 e 13 luglio scorso': last -- read only (r="RL"), so `last' is still
+# written `ultimo'
+<e r="RL"><p><l>last<s n="adj"/></l><r>scorso<s n="adj"/></r></p></e>
+# `altri vincoli rispetto a quelli esistenti': restrictions -- read only, so
+# `restriction' is still written as the dictionary writes it
+<e r="RL"><p><l>restriction<s n="n"/></l><r>vincolo<s n="n"/><s n="m"/></r></p></e>

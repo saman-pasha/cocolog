@@ -877,3 +877,7 @@ The relative "las cuales" means "which".
 # verb's clause, never the person's relative clause
 "declara" takes the clause.
 "dice" takes the clause.
+# the Giglio park letter (Italian UD VIT-9792..9799), into Spanish.
+# `Siate perciò coerenti.': therefore -- Apertium gives `por lo tanto' the
+# class `cnjadv', which the builder does not read, so Spanish had no word
+The adverb "por lo tanto" means "therefore".
