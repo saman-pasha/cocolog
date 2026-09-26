@@ -363,6 +363,7 @@ main :-
     section_35,
     section_36,
     section_37,
+    section_38,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -2160,6 +2161,81 @@ The auxiliary "ha" means "has". "hanno" is the plural of "ha". The verb "ha" mea
 "stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine. "è" is the auxiliary of "è".
 "visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine.
 The preposition "da" means "by".').
+
+section_38 :-
+    format("~n38. An Italian letter into Spanish: a list of names, a name with its relative clause, a reflexive verb with its subject after it, the writer's comment, an exclamation, a signature~n", []),
+    lesson_38(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the letter''s shapes, under its own name', NI),
+    lesson_38(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('Il cane parla con Maria, Carla, Luisa e Ana.', italian, spanish, S38a),
+    must('a LIST OF NAMES with commas is one list', S38a, 'El perro habla con Maria, Carla, Luisa y Ana.'),
+    reason_translate('Maria che dorme mangia il pane.', italian, spanish, S38b),
+    must('a NAME WITH ITS RELATIVE CLAUSE is a subject', S38b, 'Maria que duerme come el pan.'),
+    reason_translate('Il cane dice che, ieri, proprio il gatto dorme.', italian, spanish, S38c),
+    must('an ADVERB AFTER A FRONT''S COMMA stays before the subject', S38c, 'El perro dice que, ayer, precisamente el gato duerme.'),
+    reason_ir('Mi si è stretto il cuore leggendo il libro.', italian, IR38d),
+    show('a verb the lesson calls REFLEXIVE, with its pronoun before it, has its subject after it: the heart', IR38d),
+    reason_translate('Mi si è stretto il cuore leggendo il libro.', italian, spanish, S38e),
+    must('... which Spanish writes after the verb as Italian does', S38e, 'Se me ha apretado el corazón leyendo el libro.'),
+    reason_translate('Il cane ha osato, sottolineo "osato", mangiare il pane.', italian, spanish, S38f),
+    must('the WRITER''S OWN COMMENT between two commas stands where it stood, its word in its marks', S38f,
+         'El perro ha osado, subrayo "osado", comer el pan.'),
+    reason_translate('Mio dio, che tristezza!', italian, spanish, S38g),
+    must('an EXCLAMATION''s what, and the mark Spanish opens one with', S38g, '¡Mi dios, qué tristeza!'),
+    reason_translate('Maria Rossi Roma (RM) Bastiglia e termidoro.', italian, spanish, S38h),
+    must('a SIGNATURE whose town ends on its province in brackets, and the next letter''s title', S38h,
+         'Maria Rossi Roma (RM) Bastilla y termidor.'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_38(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". The noun "gatto" means "cat". The noun "pane" means "bread". The noun "vino" means "wine".
+The noun "cuore" means "heart". The noun "libro" means "book". The noun "tristezza" means "sadness". The noun "dio" means "god".
+The feminine noun "bastiglia" means "bastille". The masculine noun "termidoro" means "thermidor".
+The verb "mangia" means "eats". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". The verb "parla" means "speaks". The verb "dice" means "says".
+The verb "legge" means "reads". "leggendo" is the gerund of "legge".
+The verb "sottolinea" means "underlines". "sottolineo" is the first person of "sottolinea".
+The verb "osa" means "dares". "osato" is the participle of "osa".
+The verb "stringe" means "tightens". "stretto" is the participle of "stringe". "stringe" is reflexive.
+The verb "è" means "is".
+"che" is a relative. The conjunction "che" means "that". The word "che" means "what".
+The conjunction "e" means "and".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "con" means "with".
+The auxiliary "ha" means "has". "è" is the auxiliary of the reflexive.
+The pronoun "mi" means "me". The possessive "mio" means "my".
+The adverb "ieri" means "yesterday". The adverb "proprio" means "precisely".
+The reflexive pronoun "si" means "itself".').
+lesson_38(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". The noun "vino" means "wine".
+The noun "corazón" means "heart". The noun "libro" means "book". The noun "tristeza" means "sadness". The noun "dios" means "god".
+The feminine noun "bastilla" means "bastille". The masculine noun "termidor" means "thermidor".
+The verb "come" means "eats". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". The verb "habla" means "speaks". The verb "dice" means "says".
+The verb "lee" means "reads". "leyendo" is the gerund of "lee".
+The verb "subraya" means "underlines". "subrayo" is the first person of "subraya".
+The verb "osa" means "dares". "osado" is the participle of "osa".
+The verb "aprieta" means "tightens". "apretado" is the participle of "aprieta".
+The verb "es" means "is".
+"que" is a relative. The conjunction "que" means "that". The word "qué" means "what".
+The conjunction "y" means "and".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "con" means "with".
+The auxiliary "ha" means "has".
+The pronoun "me" means "me". The possessive "mi" means "my".
+The adverb "ayer" means "yesterday". The adverb "precisamente" means "precisely".
+The reflexive pronoun "se" means "itself".
+The mark "¡" begins the exclamation.').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20231 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20232 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -444,6 +444,7 @@ The verb "da cuenta" means "realizes".
 "da cuenta" takes "de" before the clause.
 The feminine noun "pregunta" means "question".
 "decide" takes the question.
+"sabe" takes the question.
 "haya" is the subjunctive of "ha".
 "hayan" is the plural of "haya".
 "hayamos" is the first person of "hayan".
@@ -457,6 +458,13 @@ The adjective "demás" means "other".
 "demás" is the plural of "demás".
 The feminine noun "simpatía" means "sympathy".
 The conjunction "mientras que" means "while".
+The masculine noun "termidor" means "thermidor".
+The feminine noun "bastilla" means "bastille".
+The mark "¡" begins the exclamation.
+The adverb "una vez" means "once".
+The preposition "al lado de" means "beside".
+The masculine adjective "cierto" means "certain".
+The feminine adjective "cierta" means "certain".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -529,6 +537,8 @@ The feminine noun "becaria" means "intern".
 "becarias" is the plural of "becaria".
 The feminine noun "víspera" means "eve".
 "vísperas" is the plural of "víspera".
+The masculine noun "asalto" means "assault".
+"asaltos" is the plural of "asalto".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -7768,7 +7778,6 @@ The masculine noun "rublo" means "rouble".
 The feminine noun "ruleta" means "roulette".
 "ruletas" is the plural of "ruleta".
 The masculine noun "asalto" means "round".
-"asaltos" is the plural of "asalto".
 The feminine noun "ronda" means "round".
 "rondas" is the plural of "ronda".
 The feminine noun "rotonda" means "roundabout".

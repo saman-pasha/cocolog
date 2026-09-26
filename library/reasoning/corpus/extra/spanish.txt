@@ -683,6 +683,9 @@ The verb "da cuenta" means "realizes".
 The feminine noun "pregunta" means "question".
 # `decidir si nos costaría más caro intervenir': to decide whether
 "decide" takes the question.
+# `No sé si es legítimo escribir a un diario': I do not know WHETHER --
+# `saber' takes a question, as Italian's `sapere' does
+"sabe" takes the question.
 # the Solana article, into Italian
 # `el presidente del Gobierno se alegra de que haya progresado': the
 # perfect's subjunctive -- the forms of `haber' are the lesson's to state,
@@ -713,3 +716,17 @@ The feminine noun "simpatía" means "sympathy".
 # conjunction of two words -- read apart, `mientras' was the adverb
 # `meanwhile' and `que' opened a clause the verb before it never takes
 The conjunction "mientras que" means "while".
+# the pacifist letter, into Spanish
+# `Bastiglia e termidoro': the month of the French republican calendar
+The masculine noun "termidor" means "thermidor".
+# ... and the Bastille
+The feminine noun "bastilla" means "bastille".
+# `Mio dio, che tristezza!': an exclamation opens with its own mark, as a
+# question does (`The mark "¿" begins the question.' in the hand lesson)
+The mark "¡" begins the exclamation.
+# the pacifist letter, into Spanish: `una volta' is once, `a fianco di'
+# beside, and `un certo pacifismo' a certain one
+The adverb "una vez" means "once".
+The preposition "al lado de" means "beside".
+The masculine adjective "cierto" means "certain".
+The feminine adjective "cierta" means "certain".

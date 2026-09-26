@@ -27,6 +27,7 @@ main :-
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
     newspaper_georgia, newspaper_wapo, newspaper_clinton, newspaper_letter, newspaper_solana,
+    newspaper_pacifist,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -4907,7 +4908,10 @@ newspaper_solana_checks_2 :-
           'Il cane dorme se mangia il pane.'),
     %% GUARDS the controls wrote, each on a first cut of this version
     reason_ir('Juan, Pedro, Casa, María y Ana en la casa.', spanish, IR20),
-    yes_no(IR20 = [ir(gap([obj(name(juan))], [obj(name(pedro)), sep, obj(co(w(',', lcomma), name(casa), _))|_]), _)], C20),
+    %% (ONE list of five names since 1.8.12, where the first comma was the
+    %% gap's and the list began at Pedro -- a comma after a name is the list's
+    %% when names go on to a coordinator)
+    yes_no(IR20 = [ir(gap([], [obj(co(w(',', lcomma), name(juan), co(w(',', lcomma), name(pedro), co(w(',', lcomma), name(casa), _))))|_]), _)], C20),
     check('a GUARD: a capitalised noun between commas in a list of names is the next name, where the first cut took `, Casa,'' for what Pedro is and broke the list', C20, yes),
     nf_tr('Juan, Pedro, Casa, María y Ana duermen.', spanish, italian, L21),
     check('a GUARD: ... and a comma before it parts it from the name before, where a name that goes on through a noun ran over the commas into `Pedro Casa María''', L21,
@@ -4921,6 +4925,141 @@ newspaper_solana_checks_2 :-
     nf_tr('Il cane vede la casa nella quale sono viste le porte del gatto.', italian, spanish, L23),
     check('a relative word that a preposition governs opens a whole statement, and a passive''s subject after it is its subject there too, where the doors were an object and the participle agreed with nobody -- `son vistos las puertas''', L23,
           'El perro ve la casa en la que son vistas las puertas del gato.').
+
+%% ---- the pacifist letter, Italian into Spanish (1.8.12) ----------------------------------
+
+%% the Italian UD VIT letter VIT-9775..9780: a list of names, a name with
+%% its relative clause, a heart that tightens, the writer's own comment
+%% between two commas, an exclamation and a signature with its province
+newspaper_pacifist :-
+    section('an Italian letter into Spanish: a list of names, a name with its relative clause, a reflexive verb with its subject after it, the writer''s comment, an exclamation, a signature'),
+    newspaper_pacifist_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_pacifist_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_pacifist_checks_1, newspaper_pacifist_checks_2,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+newspaper_pacifist_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dell''" is the elision of "della". "dell''" is the elision of "dello". "dello" is the contraction of "di lo".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". The noun "gatto" means "cat". The noun "topo" means "mouse". The noun "coniglio" means "rabbit".
+The noun "pane" means "bread". The noun "vino" means "wine". The noun "casa" means "house".
+The noun "cuore" means "heart". The noun "libro" means "book". The noun "amico" means "friend".
+The noun "tristezza" means "sadness". The noun "dio" means "god". The noun "marina" means "navy".
+The feminine noun "bastiglia" means "bastille". The masculine noun "termidoro" means "thermidor".
+The adjective "grande" means "big".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "vede" means "sees". The verb "parla" means "speaks". The verb "dice" means "says".
+The verb "legge" means "reads". "leggendo" is the gerund of "legge".
+The verb "sottolinea" means "underlines". "sottolineo" is the first person of "sottolinea".
+The verb "osa" means "dares". "osato" is the participle of "osa".
+The verb "stringe" means "tightens". "stretto" is the participle of "stringe". "stringe" is reflexive.
+The verb "è" means "is". "sono" is the plural of "è".
+"che" is a relative. The conjunction "che" means "that". The word "che" means "what".
+The conjunction "e" means "and".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with".
+The auxiliary "ha" means "has". "è" is the auxiliary of the reflexive.
+The pronoun "mi" means "me". The possessive "mio" means "my".
+The adverb "ieri" means "yesterday". The adverb "proprio" means "precisely".
+The reflexive pronoun "si" means "itself".').
+newspaper_pacifist_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+"del" is the contraction of "de el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "ratón" means "mouse". The noun "conejo" means "rabbit".
+The noun "pan" means "bread". The noun "vino" means "wine". The noun "casa" means "house".
+The noun "corazón" means "heart". The noun "libro" means "book". The noun "amigo" means "friend". "amigo" is a person.
+The noun "tristeza" means "sadness". The noun "dios" means "god". The noun "armada" means "navy".
+The feminine noun "bastilla" means "bastille". The masculine noun "termidor" means "thermidor".
+The adjective "grande" means "big".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "ve" means "sees". The verb "habla" means "speaks". The verb "dice" means "says".
+The verb "lee" means "reads". "leyendo" is the gerund of "lee".
+The verb "subraya" means "underlines". "subrayo" is the first person of "subraya".
+The verb "osa" means "dares". "osado" is the participle of "osa".
+The verb "aprieta" means "tightens". "apretado" is the participle of "aprieta".
+The verb "es" means "is". "son" is the plural of "es".
+"que" is a relative. The conjunction "que" means "that". The word "qué" means "what".
+The conjunction "y" means "and".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with".
+The auxiliary "ha" means "has".
+The pronoun "me" means "me". The possessive "mi" means "my".
+The adverb "ayer" means "yesterday". The adverb "precisamente" means "precisely".
+The reflexive pronoun "se" means "itself".
+The mark "¡" begins the exclamation.').
+
+newspaper_pacifist_checks_1 :-
+    %% a list of names
+    nf_tr('Il cane vede Maria, Carla e Luisa.', italian, spanish, L1),
+    check('a list of names is one object, where the first was an object of its own and the word before a person stood twice -- `ve a Maria, a Carla y Luisa''', L1,
+          'El perro ve a Maria, Carla y Luisa.'),
+    nf_tr('Il cane parla con Maria, Carla, Luisa e Ana.', italian, spanish, L2),
+    check('... and after a preposition, where the three after the first comma were objects of `parla'' -- `con Maria, a Carla, a Luisa y Ana''', L2,
+          'El perro habla con Maria, Carla, Luisa y Ana.'),
+    reason_ir('Il cane, il gatto, il topo e il coniglio mangiano il pane.', italian, IR3),
+    yes_no(IR3 = [ir(s(none, co(w(',', lcomma), _, co(w(',', lcomma), _, co(w(and, _), _, _))), _, _), _)], C3),
+    check('four phrases with commas between them are ONE subject, where the first two were a verbless piece and the mouse and the rabbit ate the bread', C3, yes),
+    %% a name with its relative clause
+    nf_tr('Maria che dorme mangia il pane.', italian, spanish, L4),
+    check('a name with its relative clause is a subject, which refused the sentence', L4,
+          'Maria que duerme come el pan.'),
+    %% an adverb after a front's comma, before the subject
+    nf_tr('Il cane dice che, ieri, proprio il gatto dorme.', italian, spanish, L5),
+    check('an adverb after a front''s comma and before the subject stays there, where `ieri, proprio'' was one front and the writer put a comma after it', L5,
+          'El perro dice que, ayer, precisamente el gato duerme.'),
+    nf_tr('Proprio la casa è grande.', italian, spanish, L6),
+    check('a GUARD: ... and one at the head of a whole piece keeps 1.6.8''s rule and goes after the verb', L6,
+          'La casa es grande precisamente.'),
+    %% a reflexive verb with a dative before it
+    reason_ir('Mi si è stretto il cuore.', italian, IR7),
+    yes_no(IR7 = [ir(s(none, np(_, _, _, w(heart, _), _), g(reflexive(tightens), present, perfect, no), [opron(_), subj_here]), _)], C7),
+    check('a verb the lesson calls reflexive, with its pronoun before it, has its subject after it: my heart tightened, where somebody nobody named tightened it', C7, yes),
+    reason_ir('Mi si è stretto il cuore leggendo il libro.', italian, IR8),
+    yes_no(IR8 = [ir(s(none, np(_, _, _, w(heart, _), _), _, [opron(_), subj_here, ger(_, _)]), _)], C8),
+    check('... and a gerund ends the phrase before it, where `il cuore leggendo'' was no phrase and the heart the object again', C8, yes),
+    nf_tr('Mi si è stretto il cuore leggendo il libro.', italian, spanish, L9),
+    check('a GUARD: ... which Spanish writes as it did, with the heart its subject after the verb', L9,
+          'Se me ha apretado el corazón leyendo el libro.').
+
+newspaper_pacifist_checks_2 :-
+    %% the writer's comment between two commas
+    nf_tr('Il cane ha osato, sottolineo "osato", mangiare il pane.', italian, spanish, L10),
+    check('the writer''s own comment between two commas stands where it stood, with the marks on its word, where it divided the sentence and `dire'' was what I stress', L10,
+          'El perro ha osado, subrayo "osado", comer el pan.'),
+    nf_tr('Il cane ha osato, sottolineo "osato", mangiare il pane.', italian, english, L11),
+    check('... and English', L11,
+          'The dog has dared, I underline "dared", to eat the bread.'),
+    reason_ir('Il cane dorme, sottolineo il libro del gatto, e il gatto dorme.', italian, IR17),
+    format(atom(A17), '~q', [IR17]),
+    yes_no(( IR17 = [_], \+ sub_atom(A17, _, _, _, 'comment(') ), C17),
+    check('a GUARD: ... and only a short one: a first person clause of more than three words is the sentence''s own, which the first cut took for a comment and refused the Bosnian letter''s third sentence', C17, yes),
+    %% an exclamation
+    nf_tr('Mio dio, che tristezza!', italian, spanish, L12),
+    check('an exclamation''s `what'' and its phrase, and the mark Spanish opens it with, which refused the line', L12,
+          '¡Mi dios, qué tristeza!'),
+    %% a signature with its province
+    nf_tr('Maria Rossi Roma (RM) Bastiglia e termidoro.', italian, spanish, L13),
+    check('a signature whose town ends on its province in brackets, and the next letter''s title, which refused the line', L13,
+          'Maria Rossi Roma (RM) Bastilla y termidor.'),
+    nf_tr('Pane e vino.', italian, spanish, L14),
+    check('a GUARD: ... and bare nouns joined, standing alone, stay refused', L14, refused),
+    %% an elided contraction before a quotation mark
+    nf_tr('Il cane legge il libro dell''"amico".', italian, spanish, L15),
+    check('an elided contraction before a quotation mark keeps its apostrophe, which refused the sentence for `dell''', L15,
+          'El perro lee el libro del "amigo".'),
+    %% a name with a particle in capitals
+    nf_tr('Il cane legge il libro di Marina Ripa Di Meana.', italian, spanish, L16),
+    check('a name with a particle in capitals is one name after a preposition, though its first word is a noun of the lesson''s', L16,
+          'El perro lee el libro de Marina Ripa Di Meana.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

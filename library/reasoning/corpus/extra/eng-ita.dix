@@ -290,3 +290,21 @@
 # as the reflexive -- the bilingual pairs `gladden' with `allietare' only,
 # which apertium-ita does not carry
 <e><p><l>gladden<s n="vblex"/></l><r>rallegrare<s n="vblex"/></r></p></e>
+# the pacifist letter, from Italian
+# `per festeggiare un grande anniversario francese': to celebrate -- apertium-ita
+# carries `festeggiare' and the bilingual pairs it with nothing. Read only into
+# English (r="RL"), so `celebrates' is still written `celebra': `se celebrarán
+# las elecciones' is no party
+<e r="RL"><p><l>celebrate<s n="vblex"/></l><r>festeggiare<s n="vblex"/></r></p></e>
+# `nella cronaca dell'"Assalto a Palazzo Farnese"': the assault -- the
+# dictionary has `assalto' only as what `assaltare' says of oneself. Read
+# only into English, so `assault' is still written `aggressione'
+<e r="RL"><p><l>assault<s n="n"/></l><r>assalto<s n="n"/><s n="m"/></r></p></e>
+# `si batteva contro tutte le guerre': fought against them -- apertium-ita
+# carries `battere' and the bilingual pairs it with nothing. `battersi' is
+# the verb beating itself, which Spanish says as `batirse'; read only into
+# English, so `beats' is still written `picchia'
+<e r="RL"><p><l>beat<s n="vblex"/></l><r>battere<s n="vblex"/></r></p></e>
+# `un certo pacifismo inetto': inept -- carried by apertium-ita, paired with
+# nothing
+<e><p><l>inept<s n="adj"/></l><r>inetto<s n="adj"/></r></p></e>

@@ -7601,6 +7601,279 @@ controls wrote, each red on a first cut of this version. The last check is the
 data column's, red on 1.8.10 and on the second round's translator.
 Lesson 46 gained section 37. The full suite was not run on 1.8.11.
 
+### An Italian letter into Spanish: a list of names, a heart that tightens, the writer's own comment, an exclamation, a signature with its province (1.8.12)
+
+**THE ELEVENTH SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD VIT
+document VIT-9775..9780 -- six lines of a letters page: a reader who does not
+know whether it is right to write to a paper to cry out her pain; whose heart
+tightened reading Marco Taradash's comment on the protest against the French
+nuclear tests; that this man, who once fought beside Marco Pannella against all
+wars, dared call the protest the hypocrisy of an inept pacifism; whether
+Pannella, joining Ferrara, Sgarbi, Previti and Andreotti to celebrate a French
+anniversary, did not think that his absence could have meant something; `Mio
+dio, che tristezza!'; her signature, and the next letter's title after it --
+Italian into Spanish over the two-language vocabulary store. The middle column
+is 1.8.11's translator over THIS store:
+
+| | 1.8.11, its store | 1.8.11, this store | **1.8.12** |
+|---|---|---|---|
+| translated | 1 of 6, its verb in the wrong sense (`llorar`, to weep, for `gridare`) | 2, one wrong in structure: `a Ferrara Sgarbi Previti y Andreotti`, one name of three, and `ayer precisamente` written last | **6** |
+| refused for a word | 3 -- `dell`, which is the tokeniser's, and `festeggiare` and `termidoro`, which the dictionaries lack | 1, `dell` | **0** |
+| refused with every word known | 1 | 2 | **0** |
+| over the budget of 300 million inferences | 1, the third, in 151 s | 1, the third, in 146 and 148 s | **0** |
+| the letter, one process | 170.6 s | 158.0 and 159.0 s | **8.5 and 8.6 s** |
+
+-- the store Italian 173 240 terms and Spanish 218 388, taught into one
+`--embed` store from the rebuilt vocabularies in 676 s and 1 037 s, 341 MB.
+The translator changed after the teach, in its reader only; a teach runs
+nothing that moved.
+
+**WHAT IT NEEDED IS WHAT A LETTER DOES WITH THE PEOPLE IT IS ANGRY WITH.** The
+twelve were verbs, the Spanish column phrases that carry things, Livata the way
+a report speaks, Fiat figures, Valencia a thing on show, the bioethics report
+its claims, the football page a squad, Monreale a court, the record report
+figures again, the islands report what a news item puts before its verb, the
+opera review what it puts beside a phrase, the interview a man talking, the
+Georgia report people by their offices, the extract things said again, the
+Clinton report who said what, the Bosnian letter an argument and the Solana
+report who a person is; a letter of complaint names people in lists, stresses
+its own words and exclaims:
+
+| shape | the letter's words | what moved |
+|---|---|---|
+| a list of names | `si unisce a Ferrara, Sgarbi, Previti e Andreotti` | a name is a list's item, and the items may have commas between them (`tr_list_items/2`): `a Ferrara Sgarbi Previti y Andreotti` before, one name of three |
+| a name with its relative clause, as the subject | `E Pannella che si unisce a ... non ha pensato` | a subject whose words hold no noun of the lesson's is a name's with its clause, where it was refused |
+| a verb the lesson calls reflexive, its subject after it | `Mi si è stretto il cuore` | `"stringe" is reflexive.`: my heart tightened, where somebody nobody named tightened it |
+| a gerund after that subject | `il cuore leggendo nella cronaca ...` | the gerund ends the phrase before it |
+| an elided contraction before a quotation mark | `nella cronaca dell'"Assalto a Palazzo Farnese"` | the apostrophe kept: the sentence was refused for `dell` |
+| a name whose first word the lesson knows, after a bare preposition | `di Marco Taradash`, `di Marina Ripa Di Meana` | one name, its capitalised small word included: `marco` is a frame and `marina` a navy |
+| the writer's own comment between two commas | `ha osato, sottolineo "osato", dire che ...` | `w(Key, comment)`, written back where it stood, and its word keeps its marks (`predq/2`) |
+| an adverb after a front's comma, before the subject | `che, ieri, proprio la sua assenza avrebbe potuto avere un significato` | kept before the subject, `frn/1`, where the front and the adverb were both written after the verb |
+| an exclamation's `what` | `Mio dio, che tristezza!` | `what_np/1`, and `The mark "¡" begins the exclamation.` |
+| a signature whose town ends on its province, and the next letter's title | `Clara Finetto Giovanni Lupatoto (Vr) Bastiglia e termidoro.` | the name, the bracket, and bare nouns joined, written as they stood |
+| whether | `non so se sia legittimo scrivere` | `"sa" takes the question.`, the shape `"decide" takes the question.` has: `whether`, where it was `if`, a condition |
+
+-- and the words, in `corpus/extra/`: 13 lines of Italian and 8 of Spanish, and
+entries in the two dictionaries' supplements: `celebrate`, `assault`, `beat`
+and `inept` for Italian (the first three read only, from Italian), `assault`
+for Spanish. The vocabularies went from 109 684 and 136 096 lines to 109 800
+and 136 105, and the set of what they LOST is the two headers' entry counts.
+`reason.pl` did not move, the twenty-third version running.
+
+**A COMMA BETWEEN TWO NAMES WAS THE CLAUSE'S, SO FOUR PEOPLE WERE ONE NAME OF
+THREE.** A list's tail took the words before its coordinator only where no
+comma stood among them, and the pass that makes a comma a list's took only a
+noun or an adjective for an item. So in `si unisce a Ferrara, Sgarbi, Previti e
+Andreotti` every comma stayed the clause's, the reading with the commas taken out
+made one name of the run, and 1.8.11 wrote `a Ferrara Sgarbi Previti y
+Andreotti`. The same rule made `vede Maria, Carla e Luisa` two objects, `ve a
+Maria, a Carla y Luisa`, and read `Il cane, il gatto, il topo e il coniglio
+mangiano il pane` as a verbless piece, the dog and the cat, joined to a clause
+in which the mouse and the rabbit ate the bread. A name is an item now, and the
+items before the coordinator may have commas between them -- never at either
+end and never two together (`tr_list_items/2`). It moved one IR the Solana
+section pinned: `Juan, Pedro, Casa, María y Ana duermen.` is one list of five
+names, where the first comma was the gap's and the list began at Pedro; the
+guard's point, that `Pedro Casa María` is not one name, still holds.
+
+**A VERB THE LESSON CALLS REFLEXIVE TAKES ITS SUBJECT AFTER IT, AS AN
+INTRANSITIVE ONE DOES.** `Mi si è stretto il cuore` is my heart tightening --
+`stringersi` has nothing to tighten but itself, and `mi` is whom it happens to.
+Read with nobody named for the subject, the heart was the verb's object:
+somebody tightened my heart. `"stringe" is reflexive.` is the line, the shape
+`"sbaglia" is reflexive.` has had since 1.6.15, and the reader that finds a subject
+after an intransitive verb takes such a verb too when its reflexive pronoun
+stands before it (`tr_takes_subject_after/3`). Spanish writes the same words from
+either reading, `Se me ha apretado el corazón`, which a guard pins; English is
+where the IR shows, and it writes `The heart has tightened me` -- English has no
+dative of the possessor. And a gerund ends the phrase before it: `il cuore
+leggendo nella cronaca ...` was no phrase, no subject was found, and the heart
+was the object again.
+
+**THE WRITER'S OWN COMMENT BETWEEN TWO COMMAS DIVIDED THE SENTENCE.** `ha osato,
+sottolineo "osato", dire che ...` -- I stress the word. Read as the sentence's
+own clauses, `ha osato` was a clause and `dire che ...` what I stress. A clause
+between two commas whose verb is a first person singular is a comment now,
+`w(Key, comment)`, and every writer puts it back where it stood; its participle
+keeps its quotation marks, because `pred/1` carries a lexeme and no case
+(`predq/2`, where it came out `subrayo osado`). Two guards, each found by a
+check: never after a word that opens a clause -- Spanish's `como` is I eat, and
+`Al margen de que, como todos, han comido pan` is an insertion after its
+connector, which the comment took and refused -- and three words at most, which
+the controls found (below).
+
+**AN ADVERB AFTER A FRONT'S COMMA STAYS BEFORE THE SUBJECT.** `che, ieri, proprio
+la sua assenza avrebbe potuto avere un significato` is precisely his absence.
+1.8.11 took `ieri, proprio` for one front, and wrote the front and the adverb
+after the verb: `que su ausencia habría podido tener un significado ayer
+precisamente`. The punctuated front ends at its comma when a plain adverb and a
+determiner follow it, and that adverb is written first, `frn/1`: `que, ayer,
+precisamente su ausencia ...`. **The first cut made it a general rule and the
+case went RED on four pins of 1.6.8**: `Siempre el perro come el pan` is `The dog
+eats the bread always`, an adverb at the head of a whole piece going after the
+verb. Only an adverb after a front's comma keeps its place now, and a guard pins
+the other: `Proprio la casa è grande` is `La casa es grande precisamente`.
+
+**THE APOSTROPHE BEFORE A QUOTATION MARK WAS DROPPED.** `nella cronaca
+dell'"Assalto a Palazzo Farnese"` elides the article before a title in marks. Cut
+at the mark, the words before it ended in the apostrophe, which ends a word only
+when a letter follows it, so the tokeniser dropped it and left `dell`, a word no
+lesson knows: the second sentence was refused for a word that is in every
+lesson. The apostrophe stays (`tr_pre_words/2`).
+
+**A NAME WHOSE FIRST WORD THE LESSON KNOWS WAS A NOUN WITH ADJECTIVES.** `il
+commento di Marco Taradash`, `la cronaca ... di Marina Ripa Di Meana`: `marco` is
+a frame and `marina` a navy to the vocabulary, so the run was a noun with
+adjectives and `Di` a preposition inside it. Spanish came out right for `Marco`
+by the chance that its word for a frame is `marco`, and was refused for the
+other. After a preposition with no article, a run of capitalised words with a
+word no lesson knows in it is one name, a capitalised small word inside it
+included. With an article it stays a noun with the name apposed to it, `della
+Regione Lazio` (1.6.17); a time stays a time, `Sabato Mladic`; and a word with a
+digit ends the run, `a Sky Tg24 Tornaboni` being a channel and a speaker.
+
+**A NAME WITH ITS RELATIVE CLAUSE WAS NO SUBJECT, UNLESS THE CLAUSE HAD A NOUN.**
+A subject that carries a relative clause had to have a noun of the lesson's in
+its words, or open on a determiner or a number, and a name is no noun to the
+lesson: `Maria che dorme mangia il pane` was refused, where `Maria che mangia il
+pane` passed by the clause's own bread. The letter's `E Pannella che si unisce a
+... per festeggiare un grande anniversario` passed the same way, and cutting the
+sentence down is what found it.
+
+**AN EXCLAMATION HAS ITS OWN `what` AND ITS OWN MARK.** `Mio dio, che tristezza!`
+-- what sadness. The lesson's word for `what` asks nothing there, and before a
+noun with no article, in a sentence that ends in `!`, it is the exclamation's:
+`what_np/1`, each writer putting its own word for `what` before the phrase.
+Elsewhere `che libro` is still a question's, which book. Spanish opens an
+exclamation with a mark, as it opens a question, and the lesson says so, `The
+mark "¡" begins the exclamation.`, the shape `The mark "¿" begins the question.`
+has had since 1.2.34. 1.8.11 refused the line with every word known.
+
+**A SIGNATURE ENDS ON ITS PROVINCE.** `Clara Finetto Giovanni Lupatoto (Vr)
+Bastiglia e termidoro.` is the writer, her town, `(Vr)` for Verona, and then the
+next letter's title, the Bastille and Thermidor. The bracket is where the
+signature ends, and the title is bare nouns joined, which nothing else here
+reads: `Pane e vino.` standing alone stays refused, which a guard pins. Nothing
+is said of anything, so it is `join(aside, ...)` and written as it stood. The
+signature reads the writer and her town as ONE name -- the source has lost the
+town's `San` -- and writes it back the same, so the text cannot show it.
+
+**THE THIRD SENTENCE RAN PAST ITS BUDGET, AND THE COMMENT WAS ALL OF IT.** On
+1.8.11 it spent its 300 million inferences in 146 s and was refused; on 1.8.12
+it reads in 1.6 million. The same sentence counted on the store under four
+libraries, each the one before it with one change:
+
+| translator | inferences |
+|---|---|
+| 1.8.11 | over 300 million, refused |
+| 1.8.12 | **1 581 055** |
+| 1.8.12 without the list items | 1 562 817 |
+| 1.8.12 without the writer's comment | over 300 million, refused |
+
+-- so the comment is what the budget was spent on. Without it the reader has only
+the divisions at the sentence's five commas to try, and the budget ran out among
+them. (The list items cost 18 000 inferences here and buy the commas in `a
+Ferrara, Sgarbi, ...`.)
+
+**THE FIRST ROUND OF CONTROLS FOUND ONE REGRESSION AND ONE COST.** With
+`test/translate.pl` GREEN and the letter at 6 of 6:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| the Bosnian letter's third sentence, `Sono una piccola imprenditrice di 29 anni, pacifista convinta, odio anche solo l'idea della guerra, della violenza e della distruzione che essa porta con sé`, refused | the writer's comment took `odio anche solo l'idea della guerra` -- I hate even the idea of war, the sentence's own second clause -- closed it at the list's comma, and nothing read what was left | a comment is three words at most |
+| Livata 2.8 % slower and the football report 2.5 %, the texts the same | the hunk bisection of 1.8.5 over 34 hunks of the diff against 1.8.11, counting Livata's fifteenth sentence: one hunk was 3.8 million of its 14.9. The reader for a subject after an intransitive verb passed the reflexive test an UNBOUND lexeme, so `LV = reflexive(_)` held for every verb the lesson calls reflexive, with a `si` before it or not, and `ha sbagliato strada` went through that reader | the lexeme the reader has taken the pronoun off, or `none` where it has not yet: 11.08 million, against 11.06 on 1.8.11 |
+
+Counted after the fix, on the store: Livata 177 520 101 inferences against
+177 770 174, the football report 57 071 094 against 57 191 815 and the Bosnian
+letter 85 478 453 against 85 560 259 -- 0.14, 0.21 and 0.10 %. Two hunks that
+took out a helper answered `existence_error` and are no evidence, as 1.8.10
+said. A guard in the case pins the first fix: a first person clause of more
+than three words is the sentence's own.
+
+**AND THE DATA COLUMN MOVED ONE CONTROL, FOR THE BETTER.** 1.8.11 on its own store
+against 1.8.11 on this one: the football report's `questo ingrato impegno` and
+`Questa ossessione` are `quest'ingrato impegno` and `Quest'ossessione`, the new
+lines `"quest'" is the elision of "questo".` and `... of "questa".` finding a
+vowel after them. Every other old control is the same to the byte.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `Este Hombre que se batió contra todas las guerras contra las armas y contra el nuclear una vez al lado de Marco Pannella ha osado` | `Este hombre, que una vez, al lado de Marco Pannella, se batía contra todas las guerras, contra las armas y contra lo nuclear, ha osado` | a subject's relative clause is read with its commas out, so its front is written after its verb and its list loses its commas; and a capital the source put on a common noun is kept |
+| `se batió` | `se batía` | the imperfect and the preterite are both `past`, 1.6.15's cost |
+| `contra el nuclear` | `contra lo nuclear` | an adjective whose noun was left out is written with the masculine article, and Spanish's neuter `lo` is no form a lesson states |
+| `no es salvo "la hipocresía ..."` | `no es más que` | `altro che` crosses as `other than`, and Spanish's first word for that is `salvo` |
+| `Se me ha apretado el corazón` | `Se me ha encogido el corazón` | `stringersi il cuore` is an idiom, and a lesson gives words |
+| `¡Mi dios, qué tristeza!` | `¡Dios mío, qué tristeza!` | a vocative's possessive after its noun is no rule a lesson states |
+
+**AND THE MIRROR OF THE HEART IS WRONG THE OTHER WAY, FOUND AND NOT FIXED.**
+Spanish into Italian, `Se me ha apretado el corazón` -- this letter's second
+sentence written back -- is `Mi si ha stretto il cuore` on 1.8.11 and on 1.8.12
+alike, `Se me ha roto el brazo` is `Mi si ha rotto l'arma` and `Se le ha dado el
+premio` is `Gli si ha dato il premio`. The Spanish reader takes each `se` for the
+impersonal pronoun, and Italian builds the perfect of the impersonal `si` with
+`essere` -- `mi si è rotto il braccio`, `gli si è dato il premio` -- where the
+writer wrote `ha`. No sentence of this letter reaches it, so it is the next
+Spanish sample's lead and not a change here.
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.11's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.11, this store | **1.8.12** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 14.0 and 13.8 s | **12 of 12, 14.1 and 14.2 s** |
+| the Spanish article | 11 of 11, 13.0 and 13.1 s | **11 of 11, 12.8 and 13.0 s** |
+| Livata, 29 sentences | 29 of 29, 84.2 and 84.5 s | **29 of 29, 83.8 and 82.9 s** |
+| Fiat, 20 sentences | 20 of 20, 19.3 and 19.7 s | **20 of 20, 19.6 and 19.8 s** |
+| Valencia, 16 sentences | 16 of 16, 43.5 and 43.9 s | **16 of 16, 44.1 and 43.1 s** |
+| the bioethics article, 15 sentences | 15 of 15, 14.2 and 14.0 s | **15 of 15, 14.1 and 14.4 s** |
+| the football article, 20 sentences | 20 of 20, 27.4 and 27.1 s | **20 of 20, 28.0 and 27.4 s** |
+| Monreale, 6 sentences | 6 of 6, 3.6 and 3.7 s | **6 of 6, 3.7 and 3.5 s** |
+| the record report, 15 sentences | 15 of 15, 22.4 and 22.6 s | **15 of 15, 22.6 and 22.6 s** |
+| Tatoeba's 400, exact / translated / refused | 56 / 268 / 132, 18.0 and 17.7 s | **56 / 268 / 132, 18.1 and 18.0 s** |
+| the islands report, 13 sentences | 13 of 13, 18.0 and 18.5 s | **13 of 13, 18.2 and 17.7 s** |
+| the opera review, 12 sentences | 12 of 12, 15.8 and 15.7 s | **12 of 12, 15.8 and 15.6 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 34.5 and 34.5 s | **27 of 27, 35.0 and 34.7 s** |
+| the Georgia report, 8 sentences | 8 of 8, 11.1 and 11.2 s | **8 of 8, 11.2 and 11.3 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 14.2 and 13.8 s | **13 of 13, 14.0 and 14.2 s** |
+| the Clinton report, 12 sentences | 12 of 12, 20.7 and 19.9 s | **12 of 12, 20.6 and 20.4 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 41.3 and 42.1 s | **12 of 12, 42.5 and 42.0 s** |
+| the Solana report, 10 sentences | 10 of 10, 23.3 and 23.5 s | **10 of 10, 23.3 and 23.1 s** |
+| the pacifist letter, 6 sentences | 2 of 6, 158.0 and 159.0 s | **6 of 6, 8.5 and 8.6 s** |
+
+-- the ranges apart on five of the nineteen: the twelve 1.9 % slower, the Georgia
+report 1.3 % and Ferlaino 1.0 %; Livata 1.1 % faster, and this letter 95 %,
+because 1.8.11 spends its time failing. They overlap on the other fourteen.
+Counted, the twelve's inferences are 0.15 % more, Ferlaino's 0.05 % and the
+Georgia report's 0.37 %, where their times moved 1 to 2 % -- and Livata's count
+went UP 0.14 % while its time went down: at this size the clock is the box's.
+Each translator gives the same texts both times, and against 1.8.11 on this
+store every old control is the same to the byte. Against 1.8.11 on its own store
+-- the one reference with no line of this sample's data in it -- every old
+control is the same but for the football report's two elisions (above).
+
+Into English the letter reads 5 of 6. The first is refused: `se sia legittimo
+scrivere ...` has no named subject -- its subject is the infinitive after it, as
+in 1.8.10's `se ci costerebbe più caro intervenire` -- and English still refuses
+a third person nobody named (1.6.15). The other five show what the IR carries:
+`The heart has tightened me reading ...`, English having no dative of the
+possessor; `This Man that beat against all the wars against the arms ... beside
+Marco Pannella once has dared`, the relative clause's front after its verb; `...
+and in his historical role scoundrel" almost always`, the adverbs the clause's
+where Italian's are the scoundrel's; and `would have caned have`, English having
+no participle of `can` (1.8.10).
+
+`test/translate.pl` is 1026 checks and GREEN, 17 in a new `newspaper_pacifist`
+section with an Italian and a Spanish lesson of its own; every check fails on
+1.8.11's translator but four guards: two pin what 1.8.11 already did right, the
+Spanish of the heart and `Pane e vino.` refused, and two what a first cut of this
+version got wrong, the head adverb of 1.6.8 and the comment's three words -- the
+second red on this translator with the three words taken out. One IR pin of the
+Solana section moved (above). Lesson 46 gained section 38. The full suite was
+not run on 1.8.12.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

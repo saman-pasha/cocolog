@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16202 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16206 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -670,6 +670,7 @@ The verb "rende conto" means "realizes".
 "resa conto" is the participle of "rende conto". "resa conto" is feminine.
 The feminine noun "domanda" means "question".
 "decide" takes the question.
+"sa" takes the question.
 "ce" is the particle of "ha".
 The intransitive verb "viene" means "comes".
 The feminine noun "politica" means "policy".
@@ -684,6 +685,19 @@ The masculine adjective "comunitario" means "community". The feminine adjective 
 The verb "appoggia" means "backs".
 "evita" takes "di" before the infinitive.
 The feminine noun "simpatia" means "sympathy". "simpatie" is the plural of "simpatia".
+The verb "grida" means "shouts".
+The verb "scrive" means "writes".
+"stringe" is reflexive.
+The masculine noun "termidoro" means "thermidor".
+The feminine noun "bastiglia" means "bastille".
+The masculine noun "significato" means "meaning".
+The adverb "proprio" means "precisely".
+"quest'" is the elision of "questo".
+"quest'" is the elision of "questa".
+The adverb "una volta" means "once".
+The preposition "a fianco di" means "beside".
+The masculine adjective "certo" means "certain".
+The feminine adjective "certa" means "certain".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -15640,6 +15654,8 @@ The feminine noun "incertezza" means "uncertainty".
 "incertezze" is the plural of "incertezza".
 The feminine noun "sessione" means "session".
 "sessioni" is the plural of "sessione".
+The masculine noun "assalto" means "assault".
+"assalti" is the plural of "assalto".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -87300,6 +87316,98 @@ The verb "pressa" means "pressures".
 "pressate" is the plural of "pressata".
 "pressare" is the infinitive of "pressa".
 "pressando" is the gerund of "pressa".
+The verb "festeggia" means "celebrates".
+"festeggiano" is the plural of "festeggia".
+"festeggiamo" is the first person of "festeggiano".
+"festeggio" is the first person of "festeggia".
+"festeggi" is the second person of "festeggia".
+"festeggiò" is the past of "festeggia".
+"festeggiarono" is the past of "festeggiano".
+"festeggiammo" is the first person of "festeggiarono".
+"festeggiai" is the first person of "festeggiò".
+"festeggiasti" is the second person of "festeggiò".
+"festeggiava" is the past of "festeggia".
+"festeggiavano" is the past of "festeggiano".
+"festeggiavamo" is the first person of "festeggiavano".
+"festeggiavo" is the first person of "festeggiava".
+"festeggiavi" is the second person of "festeggiava".
+"festeggerà" is the future of "festeggia".
+"festeggeranno" is the plural of "festeggerà".
+"festeggeremo" is the first person of "festeggeranno".
+"festeggerò" is the first person of "festeggerà".
+"festeggerai" is the second person of "festeggerà".
+"festeggerebbe" is the conditional of "festeggia".
+"festeggerebbero" is the plural of "festeggerebbe".
+"festeggeremmo" is the first person of "festeggerebbero".
+"festeggerei" is the first person of "festeggerebbe".
+"festeggeresti" is the second person of "festeggerebbe".
+"festeggi" is the subjunctive of "festeggia".
+"festeggino" is the plural of "festeggi".
+"festeggiamo" is the first person of "festeggino".
+"festeggiasse" is the past subjunctive of "festeggia".
+"festeggiassero" is the plural of "festeggiasse".
+"festeggiassimo" is the first person of "festeggiassero".
+"festeggiassi" is the first person of "festeggiasse".
+"festeggiassi" is the second person of "festeggiasse".
+"festeggia" is the imperative of "festeggia".
+"festeggiare" is the negative imperative of "festeggia".
+"festeggiate" is the imperative of "festeggiano".
+"festeggiato" is the participle of "festeggia".
+"festeggiata" is the participle of "festeggia".
+"festeggiata" is feminine.
+"festeggiati" is the participle of "festeggia".
+"festeggiati" is the plural of "festeggiato".
+"festeggiate" is the participle of "festeggia".
+"festeggiate" is feminine.
+"festeggiate" is the plural of "festeggiata".
+"festeggiare" is the infinitive of "festeggia".
+"festeggiando" is the gerund of "festeggia".
+The verb "batte" means "beats".
+"battono" is the plural of "batte".
+"battiamo" is the first person of "battono".
+"batto" is the first person of "batte".
+"batti" is the second person of "batte".
+"batté" is the past of "batte".
+"batterono" is the past of "battono".
+"battemmo" is the first person of "batterono".
+"battei" is the first person of "batté".
+"battesti" is the second person of "batté".
+"batteva" is the past of "batte".
+"battevano" is the past of "battono".
+"battevamo" is the first person of "battevano".
+"battevo" is the first person of "batteva".
+"battevi" is the second person of "batteva".
+"batterà" is the future of "batte".
+"batteranno" is the plural of "batterà".
+"batteremo" is the first person of "batteranno".
+"batterò" is the first person of "batterà".
+"batterai" is the second person of "batterà".
+"batterebbe" is the conditional of "batte".
+"batterebbero" is the plural of "batterebbe".
+"batteremmo" is the first person of "batterebbero".
+"batterei" is the first person of "batterebbe".
+"batteresti" is the second person of "batterebbe".
+"batta" is the subjunctive of "batte".
+"battano" is the plural of "batta".
+"battiamo" is the first person of "battano".
+"battesse" is the past subjunctive of "batte".
+"battessero" is the plural of "battesse".
+"battessimo" is the first person of "battessero".
+"battessi" is the first person of "battesse".
+"battessi" is the second person of "battesse".
+"batti" is the imperative of "batte".
+"battere" is the negative imperative of "batte".
+"battete" is the imperative of "battono".
+"battuto" is the participle of "batte".
+"battuta" is the participle of "batte".
+"battuta" is feminine.
+"battuti" is the participle of "batte".
+"battuti" is the plural of "battuto".
+"battute" is the participle of "batte".
+"battute" is feminine.
+"battute" is the plural of "battuta".
+"battere" is the infinitive of "batte".
+"battendo" is the gerund of "batte".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -92233,6 +92341,14 @@ The feminine adjective "bosniaca" means "bosnian".
 "bosniacissimi" is the superlative of "bosniaci".
 "bosniacissima" is the superlative of "bosniaca".
 "bosniacissime" is the superlative of "bosniache".
+The masculine adjective "inetto" means "inept".
+"inetti" is the plural of "inetto".
+The feminine adjective "inetta" means "inept".
+"inette" is the plural of "inetta".
+"inettissimo" is the superlative of "inetto".
+"inettissimi" is the superlative of "inetti".
+"inettissima" is the superlative of "inetta".
+"inettissime" is the superlative of "inette".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

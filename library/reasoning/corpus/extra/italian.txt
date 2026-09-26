@@ -963,6 +963,10 @@ The feminine noun "domanda" means "question".
 # `decidere se ci costerebbe più caro intervenire': to decide WHETHER -- a
 # verb that takes a question, so the word for `if' after it opens one
 "decide" takes the question.
+# `non so se sia legittimo scrivere a un quotidiano': I do not know WHETHER
+# -- `sapere' takes a question, and read as a condition the letter's first
+# line said I do not know, if it is legitimate
+"sa" takes the question.
 # `Io la risposta non ce l'ho': `ce' is the `ci' that `avere' takes before a
 # pronoun, a particle no other language has a word for (tr_particles/3)
 "ce" is the particle of "ha".
@@ -997,3 +1001,36 @@ The verb "appoggia" means "backs".
 "evita" takes "di" before the infinitive.
 # `España ve con simpatía la candidatura': the dictionary has no `simpatia'
 The feminine noun "simpatia" means "sympathy". "simpatie" is the plural of "simpatia".
+# the pacifist letter, from Italian
+# `scrivere a un quotidiano per gridare il proprio dolore': to cry out --
+# the dictionary's `cry' is also to weep, which Spanish writes `llorar'
+The verb "grida" means "shouts".
+# `scrivere a un quotidiano': to write -- the dictionary gives `scrive' as
+# types first, which the IR carried into every language
+The verb "scrive" means "writes".
+# `Mi si è stretto il cuore': my heart tightened -- `stringersi' has nothing
+# to tighten but itself, so the phrase after it is its subject
+"stringe" is reflexive.
+# `Bastiglia e termidoro': the month of the French republican calendar
+The masculine noun "termidoro" means "thermidor".
+# ... and the Bastille, which no dictionary here carries
+The feminine noun "bastiglia" means "bastille".
+# `la sua assenza avrebbe potuto avere un significato': a meaning -- the
+# dictionary's `significato' is significance, which Spanish writes `cuantía',
+# an amount
+The masculine noun "significato" means "meaning".
+# `proprio la sua assenza avrebbe potuto avere un significato': precisely his
+# absence -- the dictionary has `proprio' only as the adjective, own
+The adverb "proprio" means "precisely".
+# `Quest'Uomo che una volta, a fianco di Marco Pannella, si batteva ...':
+# this man -- the elision of the demonstrative before a vowel
+"quest'" is the elision of "questo".
+"quest'" is the elision of "questa".
+# ... who once -- the dictionary's `volta' is a vault
+The adverb "una volta" means "once".
+# ... beside Marco Pannella
+The preposition "a fianco di" means "beside".
+# `un certo pacifismo inetto': a certain pacifism -- the dictionary has
+# `certo' only as the determiner `some', which Spanish writes `alguno'
+The masculine adjective "certo" means "certain".
+The feminine adjective "certa" means "certain".
