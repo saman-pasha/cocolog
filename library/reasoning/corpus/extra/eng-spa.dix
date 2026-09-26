@@ -90,3 +90,109 @@
 # `accostarsi con serenità': the dictionary gives `approach' as the
 # pronominal `acercarse' only, which the builder does not write
 <e><p><l>approach<s n="vblex"/></l><r>acercar<s n="vblex"/></r></p></e>
+# the Monreale article (Italian UD, VIT-9465..9470), into Spanish: English
+# words the Italian side now gives and the Spanish side had no word for,
+# and `fiscalía' first for the prosecution where the dictionary's first
+# word is the trial's `procesamiento'
+<e><p><l>bribe<s n="n"/></l><r>soborno<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>accusation<s n="n"/></l><r>acusación<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>Norman<s n="adj"/></l><r>normando<s n="adj"/></r></p></e>
+<e><p><l>monsignor<s n="n"/></l><r>monseñor<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>prosecutor<s n="n"/></l><r>fiscal<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>prosecution<s n="n"/></l><r>fiscalía<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>pocket<s n="vblex"/></l><r>embolsar<s n="vblex"/></r></p></e>
+<e><p><l>swindle<s n="vblex"/></l><r>estafar<s n="vblex"/></r></p></e>
+<e><p><l>tribunal<s n="n"/></l><r>tribunal<s n="n"/><s n="m"/></r></p></e>
+# the record-market report (AnCora CESS-CAST-P-20010103-139), into Italian:
+# `discográfico' and `ralentización' have paradigms in apertium-spa and no
+# English here
+<e><p><l>discographic<s n="adj"/></l><r>discográfico<s n="adj"/></r></p></e>
+<e><p><l>slowdown<s n="n"/></l><r>ralentización<s n="n"/><s n="f"/></r></p></e>
+# the island-traffic article (Italian UD, VIT-9472..9484), into Spanish:
+# `canicular' and `excursionista' have paradigms in apertium-spa and no
+# English here
+<e><p><l>canicular<s n="adj"/></l><r>canicular<s n="adj"/></r></p></e>
+<e><p><l>excursionist<s n="n"/></l><r>excursionista<s n="n"/><s n="mf"/></r></p></e>
+# the opera review (AnCora CESS-CAST-P-20000102-120), into Italian: words
+# apertium-spa has a paradigm for and no English here. `convencimiento' is
+# a belief, and the English `conviction' is the verdict first in both
+# dictionaries, so the IR carries `convincement'; `estreno', `lord' and
+# `jalón' are read only into English, so `debut', `lord' and `milestone'
+# keep the words they had
+<e r="RL"><p><l>debut<s n="n"/></l><r>estreno<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>lord<s n="n"/></l><r>lord<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>convincement<s n="n"/></l><r>convencimiento<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>milestone<s n="n"/></l><r>jalón<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>fatuous<s n="adj"/></l><r>fatuo<s n="adj"/></r></p></e>
+<e><p><l>liceistic<s n="adj"/></l><r>liceístico<s n="adj"/></r></p></e>
+<e><p><l>intone<s n="vblex"/></l><r>entonar<s n="vblex"/></r></p></e>
+<e><p><l>aria<s n="n"/></l><r>aria<s n="n"/><s n="f"/></r></p></e>
+# the Clinton inquiry (AnCora CESS-CAST-P-19981202-34), all read only into
+# English: `la segunda audiencia' -- the dictionary tags the ordinals det ord,
+# which the builder does not read, and has `first' and `third' as adjectives
+# and `second' not; `está siendo presionado' and `recopilar las últimas
+# pruebas' -- the monolingual has both verbs and the bilingual pairs neither
+# with an English word
+<e r="RL"><p><l>second<s n="adj"/></l><r>segundo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>pressure<s n="vblex"/></l><r>presionar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>collect<s n="vblex"/></l><r>recopilar<s n="vblex"/></r></p></e>
+# `dicho comité': the committee just named -- apertium-spa has `dicho' as an
+# adjective and the bilingual pairs it with nothing, so it read only as the
+# participle of `dice' and the phrase had no word before its noun; `la ex
+# becaria de la Casa Blanca' is an intern, and the dictionary's `becario'
+# is a scholar only
+<e><p><l>aforementioned<s n="adj"/></l><r>dicho<s n="adj"/></r></p></e>
+<e><p><l>intern<s n="n"/></l><r>becario<s n="n"/><s n="GD"/></r></p></e>
+# the letter on the Bosnian holocaust (Italian UD, VIT-9763..9774): words
+# apertium-spa has and the bilingual pairs with nothing -- `bosnio', `víspera'
+# -- and two senses first: a petty man is `mezquino', which the bilingual
+# did not pair, and to mediate is `mediar', where `intermediar' came first
+<e><p><l>bosnian<s n="adj"/></l><r>bosnio<s n="adj"/></r></p></e>
+<e><p><l>eve<s n="n"/></l><r>víspera<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>petty<s n="adj"/></l><r>mezquino<s n="adj"/></r></p></e>
+<e><p><l>mediate<s n="vblex"/></l><r>mediar<s n="vblex"/></r></p></e>
+# the pacifist letter, into Spanish
+# `dell'"Assalto a Palazzo Farnese"': the assault -- the dictionary's only
+# `asalto' is a boxing round
+<e><p><l>assault<s n="n"/></l><r>asalto<s n="n"/><s n="m"/></r></p></e>
+# the column on the mobile telephone (AnCora CESS-CAST-P-19990802-48): words
+# apertium-spa carries and the bilingual pairs with nothing. `cayó a un
+# socavón': a hole in the ground, read only into English so that `hole' is
+# still written `hoyo'
+<e r="RL"><p><l>hole<s n="n"/></l><r>socavón<s n="n"/><s n="m"/></r></p></e>
+# `el telefonino destripado': gutted
+<e><p><l>gut<s n="vblex"/></l><r>destripar<s n="vblex"/></r></p></e>
+# `que yacía junto a él': lay beside him -- English's `lie' is also to tell
+# a lie, which Italian writes `mentire', so the pivot is `rest', and read
+# only into English so that `rests' is still written `descansa'
+<e r="RL"><p><l>rest<s n="vblex"/></l><r>yacer<s n="vblex"/></r></p></e>
+# `los precios ... se han abaratado': have come down -- read only into
+# English, so that `reduces' is still written `reduce'
+<e r="RL"><p><l>reduce<s n="vblex"/></l><r>abaratar<s n="vblex"/></r></p></e>
+# `más modernizados': modernised
+<e><p><l>modernise<s n="vblex"/></l><r>modernizar<s n="vblex"/></r></p></e>
+# `los publicistas de las marcas': the people who write their advertising
+<e><p><l>publicist<s n="n"/></l><r>publicista<s n="n"/><s n="GD"/></r></p></e>
+# the letter on the Bastille and Thermidor, into Spanish: words apertium-spa
+# carries and the bilingual pairs with nothing. `i presìdi': garrisons
+<e><p><l>garrison<s n="n"/></l><r>guarnición<s n="n"/><s n="f"/></r></p></e>
+# `si permette di chiamare fuorilegge': outlaws
+<e><p><l>outlaw<s n="n"/></l><r>forajido<s n="n"/><s n="GD"/></r></p></e>
+# `la stampa piuttosto tiepida': lukewarm
+<e><p><l>lukewarm<s n="adj"/></l><r>tibio<s n="adj"/></r></p></e>
+# `topi di fogna': sewer rats
+<e><p><l>sewer<s n="n"/></l><r>alcantarilla<s n="n"/><s n="f"/></r></p></e>
+# `i lacci e lacciuoli': snares -- written only (r="LR"), so `trampa' is
+# still read as a trap
+<e r="LR"><p><l>snare<s n="n"/></l><r>trampa<s n="n"/><s n="f"/></r></p></e>
+# `non senza redarguire chi ...': rebuke
+<e><p><l>rebuke<s n="vblex"/></l><r>reprender<s n="vblex"/></r></p></e>
+# `il temerario ringhiare di Craxi': the growling -- Spanish says it with the
+# noun, `el gruñido'
+<e><p><l>growling<s n="n"/></l><r>gruñido<s n="n"/><s n="m"/></r></p></e>
+# `perché codesti presìdi non debordino dalle loro funzioni': overstep --
+# written only, so `sobrepasa' is still read as `exceeds'
+<e r="LR"><p><l>overstep<s n="vblex"/></l><r>sobrepasar<s n="vblex"/></r></p></e>
+# `si permette di chiamare fuorilegge': outlaws -- apertium-spa has
+# `forajido' as an adjective only, so the noun above has no forms of its own
+<e><p><l>outlaw<s n="adj"/></l><r>forajido<s n="adj"/></r></p></e>

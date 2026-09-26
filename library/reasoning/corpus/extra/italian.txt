@@ -19,8 +19,6 @@ The masculine noun "quartier" means "headquarters".
 The masculine noun "blitz" means "raid".
 The feminine noun "connivenza" means "collusion".
 The verb "avviene" means "happens".
-The verb "spedisce" means "sends".
-"spedito" is the participle of "spedisce".
 The masculine noun "vinto" means "loser".
 "vinti" is the plural of "vinto".
 The masculine noun "sabato" means "saturday".
@@ -41,6 +39,7 @@ The masculine noun "sabato" means "saturday".
 "secolo" is a time.
 The conjunction "o" means "or".
 The masculine adjective "piccolo" means "small".
+The feminine adjective "piccola" means "small".
 "che" is a relative.
 "cui" is a relative.
 The word "cui" follows the preposition.
@@ -56,6 +55,9 @@ The masculine noun "padre di famiglia" means "paterfamilias".
 "padre di famiglia" is not feminine.
 The feminine noun "mazza da baseball" means "baseball bat".
 "mazze da baseball" is the plural of "mazza da baseball".
+# `Puntiamo però su un attaccante straniero' (the Ferlaino interview) is
+# however; the Spanish article's `eso sí', mind you, still has `però' alone
+The adverb "però" means "however".
 The adverb "però" means "mind you".
 The adjective "coerente" means "consistent".
 The adverb "cucchiaio dopo cucchiaio" means "spoonful by spoonful".
@@ -196,6 +198,9 @@ The preposition "invece di" means "instead of".
 The preposition "vicino" means "near".
 The noun "il peggio" means "the worst".
 The conjunction "nonostante" means "although".
+# `nonostante la continua incertezza politica': before a phrase it is the
+# preposition, and the dictionary's first one is `around'
+The preposition "nonostante" means "despite".
 The conjunction "mentre" means "while".
 The adjective "a pezzi" means "shattered".
 The adjective "fuori di testa" means "crazy".
@@ -324,6 +329,9 @@ The feminine noun "via" means "way".
 # interpreti', never `il più buono'
 "migliore" is the comparative of "buono".
 "peggiore" is the comparative of "cattivo".
+# `la maggiore preoccupazione': the greatest, where `maggiore' is the
+# adjective `great' to the dictionary and Spanish wrote `la suma'
+"maggiore" is the comparative of "grande".
 # the bioethics committee (VIT-9450..9464): the discipline and the people in
 # it, which the dictionary has only as an adjective and without English
 The feminine noun "bioetica" means "bioethics".
@@ -491,6 +499,10 @@ The masculine noun "rilassamento" means "relaxation".
 The verb "pensa" means "thinks".
 The pronoun "questo" means "this".
 The pronoun "questo" does not precede the verb.
+# and `that' is `quello', where the dictionary's first pronoun for it is
+# `colui', a person: `Esa es la principal conclusión' came out `Colui è'
+The pronoun "quello" means "that".
+The pronoun "quello" does not precede the verb.
 The masculine noun "segno" means "sign".
 The feminine noun "fiducia" means "confidence".
 # `oggi stesso', this very day
@@ -521,3 +533,679 @@ The adverb "curiosamente" means "curiously".
 # `più che discutibile': before an adjective the word for than is `che',
 # before a phrase `di'
 The conjunction "che" means "than".
+# the Monreale article (Italian UD, VIT-9465..9470): the newspaper's senses,
+# where the dictionary's first are a tangent, a proxy, an exaction and cheap
+The feminine noun "tangente" means "bribe".
+The feminine noun "procura" means "prosecution".
+The feminine noun "concussione" means "extortion".
+The masculine adjective "economico" means "economic". The feminine adjective "economica" means "economic".
+# `i pm': the prosecutors, an abbreviation that does not inflect; the
+# plain word first, so `prosecutor' is written `procuratore'
+The masculine noun "procuratore" means "prosecutor". "procuratori" is the plural of "procuratore".
+The masculine noun "pm" means "prosecutor". "pm" is the plural of "pm".
+# `monsignor Salvatore Cassisa': the title before a name
+"monsignor" is the apocope of "monsignore".
+The masculine noun "rinvio a giudizio" means "indictment".
+The masculine noun "falso ideologico" means "ideological falsehood".
+# `deve finire in tribunale l'arcivescovo': the archbishop ending up in court
+The intransitive verb "finisce" means "ends up".
+# a title takes no article before a name (`monsignor Salvatore Cassisa'),
+# and the translator reads such a phrase only for a noun the lesson calls one
+"monsignore" is a title.
+# `A chiederlo è la procura di Palermo': the one asking for it is the
+# prosecution -- the word before the infinitive of a cleft
+The word "a" begins the cleft.
+# `secondo l'accusa': according to the prosecution -- the dictionary's first
+# meaning is the noun, a second, and its preposition has no `to'
+The preposition "secondo" means "according to".
+# `vogliono Cassisa alla sbarra', `deve finire in tribunale': on trial and
+# in court, where the words are a barrier and a tribunal
+The adverb "alla sbarra" means "on trial".
+The adverb "in tribunale" means "in court".
+# `processate il vescovo': the dictionary's first bishop is the chess piece
+The masculine noun "vescovo" means "bishop".
+# the record-market report, from Spanish: a minidisc, and a disc one can
+# record, which the dictionary has no word for
+The masculine noun "minidisc" means "minidisc".
+"minidisc" is the plural of "minidisc".
+The adjective "registrabile" means "recordable".
+"registrabili" is the plural of "registrabile".
+# `la principal conclusión', `los dos últimos años', `la cifra de unidades
+# vendidas', `continúa aumentando': the dictionary's first Italian words
+# for main, year, figure and increases are `maggiore', `annata', `figura'
+# and `accresce'
+The adjective "principale" means "main".
+The masculine noun "anno" means "year".
+The feminine noun "cifra" means "figure".
+The verb "aumenta" means "increases".
+# `fino a' is until and up to both, where the dictionary's `fino' has no
+# `a'; `intorno a' is around, and `rispetto a' compared with
+The preposition "fino a" means "until".
+The preposition "intorno a" means "around".
+The preposition "rispetto a" means "compared with".
+# `sebbene' joins a clause, where the dictionary calls it an adverb
+The conjunction "sebbene" means "although".
+The adverb "al ribasso" means "downward".
+The adverb "complessivamente" means "altogether".
+The feminine noun "etichetta discografica" means "record label".
+"etichette discografiche" is the plural of "etichetta discografica".
+The masculine noun "fatturato" means "turnover".
+"fatturati" is the plural of "fatturato".
+# `continua a aumentare', where Spanish's verb takes the gerund; and a
+# number used as a noun is masculine, `il 4%', `nel 2001'
+"continua" takes "a" before the infinitive.
+Every number is masculine.
+The adverb "a breve termine" means "in the short term".
+The adverb "a medio termine" means "in the medium term".
+The adverb "a lungo termine" means "in the long term".
+The adverb "a breve-medio termine" means "in the short to medium term".
+# `unos 980 trabajadores': the dictionary's first worker is `lavorante'
+The masculine noun "lavoratore" means "worker".
+"lavoratori" is the plural of "lavoratore".
+# ... and `circa 980 lavoratori'; the dictionary has no `biennio', and its
+# `concentra' masses and does not concentrate
+The adverb "circa" means "about".
+The masculine noun "biennio" means "biennium".
+"bienni" is the plural of "biennio".
+The verb "concentra" means "concentrates".
+# `del total', `los demás soportes', `un mantenimiento en el estancamiento',
+# `productos de ocio': the dictionary's first Italian words are the value, a
+# prop, the upkeep of a machine and idleness
+The masculine noun "totale" means "total".
+"totali" is the plural of "totale".
+The masculine noun "supporto" means "support".
+"supporti" is the plural of "supporto".
+The masculine noun "mantenimento" means "maintenance".
+The masculine noun "svago" means "leisure".
+"svaghi" is the plural of "svago".
+# the island-traffic article (Italian UD, VIT-9472..9484): the car, the state
+# highway and a motor's roar, where the dictionary's first words are a
+# machine, the adjective and a rhombus; `soltanto' is only, and `sono
+# banditi' banned rather than banished
+The feminine noun "macchina" means "car".
+The feminine noun "statale" means "highway".
+"statali" is the plural of "statale".
+The masculine noun "rombo" means "roar".
+The adverb "soltanto" means "only".
+The verb "bandisce" means "bans".
+# ... and `forbid' for `vietare' in extra/eng-ita.dix gave the English verb a
+# meaning before the dictionary's one-way entry for `proibire' was read, so
+# that entry went, as 1.7.2's `conflitto' did: its line is put back here
+The verb "proibisce" means "forbids".
+# the words of several words, and those Apertium lacks outright
+The adverb "almeno" means "at least".
+The adverb "quantomeno" means "at least".
+The adverb "in partenza" means "leaving".
+The adverb "in più" means "extra".
+The adjective "off limits" means "off limits".
+The adjective "anti ingorgo" means "anti-jam".
+The preposition "così come" means "just like".
+The conjunction "non che" means "not that".
+The masculine noun "lavoro pubblico" means "public work".
+"lavori pubblici" is the plural of "lavoro pubblico".
+The masculine noun "veicolo a motore" means "motor vehicle".
+"veicoli a motore" is the plural of "veicolo a motore".
+The masculine noun "non residente" means "non-resident".
+"non residenti" is the plural of "non residente".
+The masculine noun "vivere civile" means "civil life".
+The feminine noun "boccata" means "puff".
+"boccate" is the plural of "boccata".
+The feminine noun "ferie" means "holiday".
+"ferie" is the plural of "ferie".
+The masculine noun "gitante" means "excursionist".
+"gitanti" is the plural of "gitante".
+"turisti" is the plural of "turista".
+"orecchie" is the plural of "orecchio".
+"orecchie" is feminine.
+The masculine adjective "martoriato" means "martyred".
+The feminine adjective "martoriata" means "martyred".
+"martoriati" is the plural of "martoriato".
+"martoriate" is the plural of "martoriata".
+The number "centotrentamila" means "a hundred and thirty thousand".
+# `ostruire' has an -isc- present, and apertium-ita's paradigm for it has not
+The verb "ostruisce" means "obstructs".
+"ostruiscono" is the plural of "ostruisce".
+# a verb used with no object and its subject after it: `Scatta lo stop anti
+# ingorgo', `Firma il responsabile ..., Paolo Baratta', `Regolamenta il
+# ministro'
+The intransitive verb "scatta" means "starts".
+The intransitive verb "firma" means "signs".
+The intransitive verb "regolamenta" means "regulates".
+# ... and one with its phrases between it and the subject: `Godranno di
+# qualche boccata d'ossigeno in più soltanto quelli che ...'
+The intransitive verb "gode" means "enjoys".
+# ... whose future is `godrà', where apertium-ita's paradigm for it makes
+# `goderà'
+"godrà" is the future of "gode".
+"godranno" is the plural of "godrà".
+# the opera review (AnCora CESS-CAST-P-20000102-120), from Spanish: the
+# dictionary gives the Spanish `pocos' and `moltos' as Italian's pronouns
+# for `few', `many' and `several', and `poco' as a determiner with no
+# forms, so `muy pocos elementos' came out `molto pocos elementi'
+The masculine determiner "poco" means "little".
+"pochi" is the plural of "poco".
+The feminine determiner "poca" means "little".
+"poche" is the plural of "poca".
+The pronoun "pochi" means "few".
+The pronoun "pochi" does not precede the verb.
+The pronoun "molti" means "many".
+The pronoun "molti" does not precede the verb.
+The pronoun "parecchi" means "several".
+The pronoun "parecchi" does not precede the verb.
+# `la más esperada por los aficionados': the opera's are its enthusiasts,
+# where the dictionary's first word for `fan' is the machine
+The masculine noun "appassionato" means "fan".
+"appassionati" is the plural of "appassionato".
+# `en plena forma', `cuenta con': the dictionary's first word for `form' is
+# `veste', and for `counts' `racconta', which tells
+The feminine noun "forma" means "form".
+The verb "conta" means "counts".
+# `el resultado': the dictionary's only word for `result' is `netto', the net
+The masculine noun "risultato" means "result".
+# `Bajo la dirección', under it: the dictionary has `sotto' only as `below'
+The preposition "sotto" means "under".
+# `otro brillante jalón': the dictionary gives the determiner `altro' no
+# gender and no plural, so it could not agree with `pietra miliare'
+The masculine determiner "altro" means "another".
+"altri" is the plural of "altro".
+The feminine determiner "altra" means "another".
+"altre" is the plural of "altra".
+# `noches liceísticas', of the Liceu: apertium-ita has no paradigm for it
+The masculine adjective "liceistico" means "liceistic".
+"liceistici" is the plural of "liceistico".
+The feminine adjective "liceistica" means "liceistic".
+"liceistiche" is the plural of "liceistica".
+# `la ornamentación final': apertium-ita has no `ornamentazione'
+The feminine noun "ornamentazione" means "ornamentation".
+"ornamentazioni" is the plural of "ornamentazione".
+# `otro brillante jalón', and `al fin y al cabo'
+The feminine noun "pietra miliare" means "milestone".
+"pietre miliari" is the plural of "pietra miliare".
+The adverb "dopotutto" means "after all".
+# the Ferlaino interview (Italian UD, VIT-9540..9566), into Spanish: senses
+# the dictionary puts before the one the newspaper means -- `ricorda'
+# agrees before it remembers, `campione' is a specimen, `valigia' a case,
+# `attaccante' a striker, which Spanish reads as a firing pin, `calcio' a
+# kick, `presidenza' a chair, `scende' drops and `resta' stays, which Spanish
+# has no word for, and `cambia' capsizes before it changes -- which Spanish
+# spelt right only because its own `cambia' capsizes too
+The verb "ricorda" means "remembers".
+The verb "cambia" means "changes".
+The masculine noun "campione" means "champion".
+The feminine noun "valigia" means "suitcase".
+The masculine noun "attaccante" means "forward".
+"attaccanti" is the plural of "attaccante".
+The masculine noun "calcio" means "football".
+The feminine noun "presidenza" means "presidency".
+The verb "scende" means "descends".
+# (with `rimane' first for writing `remains': Spanish's `se han quedado'
+# came out `si sono restati' when `resta' came first)
+The verb "rimane" means "remains".
+The verb "resta" means "remains".
+# `porta pure sfortuna', brings bad luck too; `via lo 0/2', away with it --
+# and `anche' first, or every `also' came out `pure'
+The adverb "anche" means "also".
+The adverb "pure" means "also".
+The adverb "via" means "away".
+# `agli ultimi mondiali', at the last World Cup
+The masculine noun "mondiale" means "world cup".
+"mondiali" is the plural of "mondiale".
+# `non lo vide più nessuno': the pronoun is nobody, as Spanish's `nadie' is
+# after a denied verb
+The pronoun "nessuno" means "nobody".
+# `nemmeno' and `neppure' are `not even', two words to English, which the
+# builder does not read from the dictionary
+The adverb "nemmeno" means "not even".
+The adverb "neppure" means "not even".
+# a verb's own preposition before its infinitive: `non riesco a lasciare'
+# (`ci ha permesso di vincere' needs no line: `di' begins an infinitive, and
+# stated for `permette' it took Fiat's `la nostra visione di creare' for the
+# verb's own `di' and wrote `nuestra visión crear')
+"riesce" takes "a" before the infinitive.
+# `sarebbe passato per casa', would have come by the house
+"è" is the auxiliary of "passa".
+# a verb with its subject after it: `servono nove miliardi', `arriva
+# Moratti', `se a Milano va via Pellegrini'
+The intransitive verb "serve" means "is needed".
+The intransitive verb "arriva" means "arrives".
+# ... with `esce' first for writing `exits': `va via' has no infinitive, and
+# the Spanish article's `¿Cómo ha podido salir así ...?' was refused for it
+The verb "esce" means "exits".
+The intransitive verb "va via" means "exits".
+# `non so se ci sarà un Napoli', there will be
+"ci sarà" is the future of "c'è".
+# `uno che se ne vuole andare': the two pronouns before the verb are its
+# reflexive, as Spanish's `se' is in `se quiere ir'
+The reflexive pronoun "se ne" means "itself".
+# `non raccontava la verità neppure a sé stesso'
+The pronoun "sé stesso" means "himself".
+# `potresti essere sbranato': apertium-ita has no `sbranare'
+The verb "sbrana" means "devours".
+"sbranano" is the plural of "sbrana".
+"sbranare" is the infinitive of "sbrana".
+"sbranato" is the participle of "sbrana".
+"sbranata" is the participle of "sbrana".
+"sbranata" is feminine.
+"sbranati" is the participle of "sbrana".
+"sbranati" is the plural of "sbranato".
+"sbranate" is the participle of "sbrana".
+"sbranate" is the plural of "sbranata".
+# `il giornalista rai Salvatore Biazzo', `il designatore (Gussoni, ndr)'
+The adjective "rai" means "rai".
+The feminine noun "ndr" means "editorial note".
+# words of several words
+The number "novantuno" means "ninety-one".
+The adverb "a schiatto" means "out of spite".
+The conjunction "cioè" means "that is".
+The feminine noun "serie b" means "second division".
+The preposition "al di sopra di" means "above".
+# `entro sei mesi', within a time: before `nell'ambito di', which is
+# within a frame
+The preposition "entro" means "within".
+The preposition "nell'ambito di" means "within".
+The adverb "per quanto mi riguarda" means "as for me".
+# `non era nemmeno in grado di riconoscere' -- after `capace', which
+# stays the word Italian writes for `able'
+The adjective "capace" means "able".
+The adjective "in grado" means "able".
+The feminine noun "coppa campioni" means "champions cup".
+# `il capo dello Stato': `capetto' is the first Italian word for `boss',
+# and a little one
+The masculine noun "capo" means "boss".
+# `l'Unione dei Cittadini': `sindacato' is the first Italian word for
+# `union', and a trade union
+The feminine noun "unione" means "union".
+# `ex ministro filoccidentale', `le ex repubbliche sovietiche'
+The adjective "filoccidentale" means "pro-western".
+"filoccidentali" is the plural of "filoccidentale".
+The feminine noun "ex repubblica" means "former republic".
+"ex repubbliche" is the plural of "ex repubblica".
+# `gli elettori', `i 233 seggi', `l'ex titolare': apertium-ita has no
+# `elettore' and no `seggio', and `intestatario' holds an account
+The masculine noun "elettore" means "voter".
+"elettori" is the plural of "elettore".
+The masculine noun "seggio" means "seat".
+"seggi" is the plural of "seggio".
+The masculine noun "titolare" means "holder".
+"titolari" is the plural of "titolare".
+The masculine noun "affari esteri" means "foreign affairs".
+# words of several words
+The adverb "poco più di" means "just over".
+The preposition "in vista di" means "ahead of".
+The preposition "così come in" means "just as in".
+# `tenta di aggregare'
+"tenta" takes "di" before the infinitive.
+# the Washington Post extract (Italian UD, VIT-9750..9762)
+# `democrazia in tilt': a pinball machine locked up, which Spanish says as
+# `democracia bloqueada'
+The adjective "in tilt" means "jammed".
+"in tilt" is the plural of "in tilt".
+# `la crescita del suo pil': the paper writes it in small letters and the
+# dictionary as PIL; a lesson keeps every word it quotes in small letters,
+# and `is an acronym' is how it says the word goes out in capitals
+The masculine noun "pil" means "GDP".
+"pil" is the plural of "pil".
+"pil" is an acronym.
+# `la lista delle priorità fissata dal governo': `fissare' from
+# extra/eng-ita.dix, and with it `fixes' has an Italian verb, so the
+# builder dropped the one-way entry that made `ripara' mean `fixes' --
+# which Spanish's `arregla' is written by; it is stated here, first, and
+# after the meaning that was first before it
+The verb "ripara" means "repairs".
+The verb "ripara" means "fixes".
+# `ha superato in durata quello di Berlusconi': Berlusconi's one, the
+# government, which Spanish writes `el de' -- the line Spanish's `el' has
+# had since 1.6.15
+The word "quello" replaces the noun.
+The word "quella" replaces the noun.
+# `L'Italia attuale': an elided article says no gender, and a name has none
+# of its own to lend the adjective after it
+"italia" is feminine.
+# `nessun altro provvedimento'
+"nessun" is the apocope of "nessuno".
+# `che cosa ci sarebbe di male': ONE question word -- `che' and `cosa' each
+# mean `what', and the second was read as an object and written `cosa'
+The word "che cosa" means "what".
+# `vengono del tutto trascurati': completely, where `del tutto' read as `of
+# everything' with the participle hung on it
+The adverb "del tutto" means "completely".
+# `che cosa ci sarebbe di male': there would be, the conditional of `c'è'
+"ci sarebbe" is the conditional of "c'è".
+"ci sarebbero" is the plural of "ci sarebbe".
+# `uscire' takes no object, so after a front its phrase is its subject:
+# `Dalla casa esce il cane' is the dog coming out (1.6.8's inversion). The
+# agent rule does NOT read this line -- `uno uscito da elezioni generali' is
+# `from' because the perfect takes the copula, `"è" is the auxiliary of
+# "esce".' above; `domina' is intransitive too and has a passive
+"esce" is intransitive.
+# the Clinton inquiry (AnCora CESS-CAST-P-19981202-34): `cometer perjurio'
+# -- the dictionary's `perjury' is `falsa testimonianza', a word of two
+# words the builder does not read, and it has no lemma `spergiuro'
+The masculine noun "spergiuro" means "perjury".
+"spergiuri" is the plural of "spergiuro".
+# `a puerta cerrada', `por todos los medios': idioms, which a lesson gives
+# whole
+The adverb "a porte chiuse" means "behind closed doors".
+The adverb "con ogni mezzo" means "by every means".
+# `pianificano di raccogliere': the word Italian gives for `plans' takes
+# `di' before its infinitive
+"pianifica" takes "di" before the infinitive.
+# `el comité se propone seguir adelante', `acusó ... de buscar ... hacer
+# daño': si propone DI andare avanti, di cercare ... DI fare danno -- the
+# verbs Italian gives for `proposes' and `searches' take `di' before their
+# infinitive
+"propone" takes "di" before the infinitive.
+"cerca" takes "di" before the infinitive.
+# the letter on the Bosnian holocaust (Italian UD, VIT-9763..9774)
+# `la distruzione che essa porta con sé', `davanti a sé': oneself, the
+# pronoun that stands after a preposition -- apertium-ita has `sé' and the
+# bilingual pairs it with nothing
+The pronoun "sé" means "itself".
+The pronoun "sé" does not precede the verb.
+# `soprattutto': the bilingual has it only as the two words `above all'
+The adverb "soprattutto" means "above all".
+# `non si ha davanti a sé nessun altra scelta': in front of
+The preposition "davanti a" means "in front of".
+# `cinquant anni fa': the source lost the apostrophe of `cinquant'anni', and
+# the word is the number it elides
+"cinquant" is the elision of "cinquanta".
+# `non importa loro null'altro che perseguire ...': nothing -- the
+# dictionary has `nulla' only as the adjective `invalid'
+The pronoun "nulla" means "nothing".
+The pronoun "nulla" does not precede the verb.
+"null'" is the elision of "nulla".
+# `quei morti per le strade': those -- apertium-ita reads `quel' and `quei'
+# and writes neither
+"quel" is the apocope of "quello".
+"quei" is the plural of "quel".
+# `i diritti inviolabili dell'essere umano': a being, the infinitive as a noun
+The masculine noun "essere" means "being".
+"esseri" is the plural of "essere".
+# `in che razza di mondo sarei nata?', `nasceranno i miei figli': to be born
+# -- the bilingual pairs `nascere' with `be born', a group the builder does
+# not write, so the verb had no meaning at all; its perfect takes the copula
+# (above)
+The intransitive verb "nasce" means "is born".
+"nascono" is the plural of "nasce".
+"nacque" is the past of "nasce". "nacquero" is the past of "nascono".
+"nascerà" is the future of "nasce". "nasceranno" is the future of "nascono".
+"nascerebbe" is the conditional of "nasce". "nascerebbero" is the conditional of "nascono".
+"nascere" is the infinitive of "nasce".
+"nato" is the participle of "nasce". "nata" is the participle of "nasce". "nata" is feminine.
+"nati" is the participle of "nasce". "nati" is the plural of "nato".
+"nate" is the participle of "nasce". "nate" is feminine. "nate" is the plural of "nata".
+# `Che cosa sarebbe accaduto se ...?': what -- two words, one question word;
+# read as `che' asking and `cosa' the subject, the thing happened
+The word "che cosa" means "what".
+# `Che cosa sarebbe accaduto?': what would have happened -- its perfect takes
+# the copula, and read as the copula and a participle it was a passive
+"è" is the auxiliary of "accade".
+# `non importa loro null'altro che perseguire i loro ... scopi': it matters to
+# them nothing other than pursuing -- `loro' after the verb is a dative, the
+# one Italian pronoun that follows it, and `altro che' is other than
+The dative pronoun "loro" means "them".
+The preposition "altro che" means "other than".
+# `i nuovi, piccoli, meschini, Hitler di questa fine secolo': the end of the
+# century, one word -- read as `fine' and `secolo' it was this end century
+The feminine noun "fine secolo" means "end of the century".
+# `senza rendersi conto che ...': without realizing that -- an idiom, one verb
+# of two words, its pronoun joined to the first of them; read apart, `conto
+# che non importa loro ...' was an account that did not matter to them
+The verb "rende conto" means "realizes".
+"rendono conto" is the plural of "rende conto".
+"rendere conto" is the infinitive of "rende conto".
+"rendendo conto" is the gerund of "rende conto".
+"reso conto" is the participle of "rende conto".
+"resa conto" is the participle of "rende conto". "resa conto" is feminine.
+# `porsi la stessa domanda': a question -- the dictionary gives `domanda'
+# as a demand first
+The feminine noun "domanda" means "question".
+# `decidere se ci costerebbe più caro intervenire': to decide WHETHER -- a
+# verb that takes a question, so the word for `if' after it opens one
+"decide" takes the question.
+# `non so se sia legittimo scrivere a un quotidiano': I do not know WHETHER
+# -- `sapere' takes a question, and read as a condition the letter's first
+# line said I do not know, if it is legitimate
+"sa" takes the question.
+# `Io la risposta non ce l'ho': `ce' is the `ci' that `avere' takes before a
+# pronoun, a particle no other language has a word for (tr_particles/3)
+"ce" is the particle of "ha".
+# `Forse è venuto il momento ... di porsi la stessa domanda': the moment has
+# come -- a verb with no object, so the phrase after it is its subject; read
+# otherwise, somebody came the moment
+The intransitive verb "viene" means "comes".
+# the Solana article, from Spanish
+# `la política exterior y de seguridad común': the policy -- the
+# dictionary's only `policy' is the insurance one
+The feminine noun "politica" means "policy".
+# `el firme respaldo de Alemania y Francia': the backing
+The masculine noun "sostegno" means "backing".
+# `el primer responsable de la política exterior': the one in charge
+The noun "responsabile" means "manager".
+# `en el argot comunitario', `los demás socios comunitarios': of the
+# (European) Community -- the dictionary has only the noun
+The masculine adjective "comunitario" means "community". The feminine adjective "comunitaria" means "community".
+"comunitari" is the plural of "comunitario". "comunitarie" is the plural of "comunitaria".
+# `está previsto que se produzca': `previsto' is the participle Italian
+# writes, where the dictionary gives `preveduto' first
+"previsto" is the participle of "prevede". "prevista" is the participle of "prevede". "prevista" is feminine.
+"previsti" is the participle of "prevede". "previsti" is the plural of "previsto".
+"previste" is the participle of "prevede". "previste" is feminine. "previste" is the plural of "prevista".
+# `al señor Westendorp': the title's short form before a name
+"signor" is the apocope of "signore".
+# `apoyará a Javier Solana': to back -- the dictionary's first `backs' is
+# `lancia', which launches
+The verb "appoggia" means "backs".
+# `Matutes evitó dar un respaldo claro': avoided giving -- `evitare' takes
+# `di' before its infinitive, where Spanish's `evitar' takes nothing
+"evita" takes "di" before the infinitive.
+# `España ve con simpatía la candidatura': the dictionary has no `simpatia'
+The feminine noun "simpatia" means "sympathy". "simpatie" is the plural of "simpatia".
+# the pacifist letter, from Italian
+# `scrivere a un quotidiano per gridare il proprio dolore': to cry out --
+# the dictionary's `cry' is also to weep, which Spanish writes `llorar'
+The verb "grida" means "shouts".
+# `scrivere a un quotidiano': to write -- the dictionary gives `scrive' as
+# types first, which the IR carried into every language
+The verb "scrive" means "writes".
+# `Mi si è stretto il cuore': my heart tightened -- `stringersi' has nothing
+# to tighten but itself, so the phrase after it is its subject
+"stringe" is reflexive.
+# `Bastiglia e termidoro': the month of the French republican calendar
+The masculine noun "termidoro" means "thermidor".
+# ... and the Bastille, which no dictionary here carries
+The feminine noun "bastiglia" means "bastille".
+# `la sua assenza avrebbe potuto avere un significato': a meaning -- the
+# dictionary's `significato' is significance, which Spanish writes `cuantía',
+# an amount
+The masculine noun "significato" means "meaning".
+# `proprio la sua assenza avrebbe potuto avere un significato': precisely his
+# absence -- the dictionary has `proprio' only as the adjective, own
+The adverb "proprio" means "precisely".
+# `Quest'Uomo che una volta, a fianco di Marco Pannella, si batteva ...':
+# this man -- the elision of the demonstrative before a vowel
+"quest'" is the elision of "questo".
+"quest'" is the elision of "questa".
+# ... who once -- the dictionary's `volta' is a vault
+The adverb "una volta" means "once".
+# ... beside Marco Pannella
+The preposition "a fianco di" means "beside".
+# `un certo pacifismo inetto': a certain pacifism -- the dictionary has
+# `certo' only as the determiner `some', which Spanish writes `alguno'
+The masculine adjective "certo" means "certain".
+The feminine adjective "certa" means "certain".
+# the column on the mobile telephone, into Italian: `era de pega', it was a
+# fake -- `finto' is carried only as the participle of `fingere'
+The masculine adjective "finto" means "fake".
+The feminine adjective "finta" means "fake".
+# `A medida que los precios ... se han abaratado': as the prices came down,
+# which Italian says `man mano che'
+The conjunction "man mano che" means "as".
+# `Como mucho, ... en ocasiones, mal educada': at most, and rude
+The adverb "al massimo" means "at most".
+The masculine adjective "maleducato" means "rude".
+The feminine adjective "maleducata" means "rude".
+"maleducati" is the plural of "maleducato".
+"maleducate" is the plural of "maleducata".
+# ... `persona ocupada' is a busy person -- the dictionary gives `gente',
+# people, as its first word for `person'
+The feminine noun "persona" means "person".
+# `que es ampliable a otros casos': which can be extended -- no word of the
+# dictionary's
+The adjective "ampliabile" means "expandable".
+"ampliabili" is the plural of "ampliabile".
+# `adelantos tecnológicos': technological advances -- the dictionary's
+# first `advance' is `acconto', a payment made early
+The masculine noun "progresso" means "advance".
+# `Y al final lo han hecho': in the end -- the dictionary's first `end' is
+# `bandolo', the end of a thread
+The feminine noun "fine" means "end".
+# the letter on the Bastille and Thermidor (Italian UD VIT-9781..9791), into
+# Spanish. Every word below that a dictionary word already means is said
+# AFTER that word, so the first word written for the meaning stays the
+# dictionary's (1.8.13): a line read first is also written first.
+# `prima ancora che ciò potesse accadere': before that could happen
+The pronoun "ciò" means "that".
+The pronoun "ciò" does not precede the verb.
+# `che egli, latitante, si permette di chiamare fuorilegge': he
+The pronoun "egli" means "he".
+The pronoun "egli" does not precede the verb.
+# `è stato costretto a dare forfait': to withdraw -- the idiom as one verb
+The verb "ritira" means "withdraws".
+The verb "dà forfait" means "withdraws".
+"dare forfait" is the infinitive of "dà forfait".
+# `un progetto bocciato sul nascere': rejected at birth -- `bocciare' comes
+# from extra/eng-ita.dix, read only, and `rifiuta' is said first
+The verb "rifiuta" means "rejects".
+The adverb "sul nascere" means "at birth".
+# `si cerca di irretire i presìdi': to ensnare them -- no dictionary has it
+The verb "intrappola" means "traps".
+The verb "irretisce" means "traps".
+"irretire" is the infinitive of "irretisce".
+# `i presìdi (leggi procure)': the writer's accent on the plural, which
+# tells `presidio' from `preside'
+"presìdi" is the plural of "presidio".
+# `nulla da eccepire': nothing to object -- no dictionary has it
+The verb "obietta" means "objects".
+The verb "eccepisce" means "objects".
+"eccepire" is the infinitive of "eccepisce".
+# `perché codesti presìdi non debordino dalle loro funzioni': overstep -- no
+# dictionary has it
+The verb "deborda" means "oversteps".
+"debordano" is the plural of "deborda".
+"debordi" is the subjunctive of "deborda".
+"debordino" is the plural of "debordi".
+"debordare" is the infinitive of "deborda".
+# `lupi, volpi e topi di fogna': sewer rats -- no dictionary has it
+The feminine noun "fogna" means "sewer".
+"fogne" is the plural of "fogna".
+# `il temerario ringhiare di Craxi': the reckless growling -- the infinitive
+# as a noun, which Spanish says with the noun `gruñido'
+The masculine noun "ringhiare" means "growling".
+# `non senza redarguire chi ...': without rebuking -- no dictionary has it
+The verb "redarguisce" means "rebukes".
+"redarguire" is the infinitive of "redarguisce".
+# `il dott Di Pietro': the writer's abbreviation, a title before a name;
+# `medico' is said first for `doctor'
+The masculine noun "medico" means "doctor".
+The masculine noun "dott" means "doctor".
+"dott" is a title.
+# `anziché riprendere il proprio posto': instead of, where `invece di' is
+# said first above
+The preposition "anziché" means "instead of".
+# `in seno ai "presidi"': within, where `entro' is said first above
+The preposition "in seno a" means "within".
+# `manovre che preludono ... all'affermazione': that foreshadow -- no
+# dictionary has it
+The verb "prelude" means "foreshadows".
+"preludono" is the plural of "prelude".
+"preludere" is the infinitive of "prelude".
+# `Se sbaglio': if I am wrong
+"sbaglio" is the first person of "sbaglia".
+# `in seno ai "presidi"': the plural without the writer's accent
+"presidi" is the plural of "presidio".
+# `Ne fanno testo i lacci ...', `Ne fa testo il dott Di Pietro ...': X
+# testifies to it -- the idiom with its clitic as one verb, whose subject
+# comes after it
+The intransitive verb "ne fa testo" means "testifies to it".
+"ne fanno testo" is the plural of "ne fa testo".
+# `Se sbaglio correggetemi': correct me -- the dictionary's first `corregge'
+# is `adjusts'
+The verb "corregge" means "corrects".
+# `manovre che preludono, quanto, all'affermazione': as much, the writer's
+# aside -- the dictionary has `quanto' as the noun `quantum' alone
+The adverb "quanto" means "as much".
+# `il dott Di Pietro il quale ... si difende': who -- the relative with its
+# article, as one word, which `quale' alone above is only after a preposition
+The relative "il quale" means "who".
+The relative "la quale" means "who".
+The relative "i quali" means "who".
+The relative "le quali" means "who".
+# `si difende dai lanciatori di fango': defends himself -- the dictionary's
+# first `difende' is `advocates'
+The verb "difende" means "defends".
+# `un ottimo cane da tartufi': a truffle dog -- the noun of three words, whose
+# `da' is no `from'
+The masculine noun "cane da tartufi" means "truffle dog".
+"cani da tartufi" is the plural of "cane da tartufi".
+# `i magistrati ... che egli ... si permette di chiamare fuorilegge': what he
+# calls them, an adjective as much as a noun, and the same in every form
+The adjective "fuorilegge" means "outlaw".
+# `non senza redarguire chi in Italia ... non lo imita': whoever does not
+# imitate him -- `chi' stands for the one and for its relative both
+The word "chi" begins the relative.
+# `non senza redarguire': not without -- one word, or its `non' was read as
+# the denial of the clause it stands in
+The preposition "non senza" means "not without".
+# `(evidentemente a lui obbligato)': obliged -- the dictionary's `obbliga'
+# obligates, a word no other lesson gives a verb for
+The verb "obbliga" means "obliges".
+# `la "Bastiglia" ... non mi risulta sia stata mai occupata': it does not
+# appear to me that -- a verb that takes a clause and never an object, and
+# the clause with its `che' left out before a subjunctive, which a verb must
+# be said to take: the subjunctive is that clause's only mark
+"risulta" is intransitive.
+"risulta" takes the clause.
+# `la "Bastiglia", qui da noi, ...': here among us -- `da' is no `from' there
+The adverb "qui da noi" means "here among us".
+# `a dare forfait prima ancora che ciò potesse accadere': even before
+The conjunction "prima ancora che" means "even before".
+# `si tratta, semmai, di stabilire se ...': to establish whether
+"stabilisce" takes the question.
+# `la presa della "Bastiglia"': the taking of it -- the dictionary has
+# `presa' as the participle of `prende' alone
+The feminine noun "presa" means "taking".
+"prese" is the plural of "presa".
+# `Si tratta, semmai, di stabilire': if anything -- the dictionary's
+# `semmai' is `rather'
+The adverb "semmai" means "if anything".
+# `perché codesti presìdi non debordino': that, before a noun -- the
+# dictionary has `codesto' as a pronoun alone; `quello' and `quella' are
+# said first, so they stay the words written for `that'
+The masculine demonstrative "quello" means "that".
+The feminine demonstrative "quella" means "that".
+The masculine demonstrative "codesto" means "that".
+The feminine demonstrative "codesta" means "that".
+# `qui mi pare li si voglia murare': it seems to me -- the dictionary's
+# `pare' looks; `sembra' is said first
+The verb "sembra" means "seems".
+The verb "pare" means "seems".
+"pare" takes the clause.
+# `i presìdi (leggi procure) addetti alla pulizia ambientale': assigned to it
+# -- the dictionary's `addetto' is a cameraman alone
+The masculine adjective "addetto" means "assigned".
+"addetti" is the plural of "addetto".
+The feminine adjective "addetta" means "assigned".
+"addette" is the plural of "addetta".
+# `per consentire a lupi ... di circolare liberamente': freely -- the
+# dictionary's `liberamente' is liberally, which Spanish has no word for
+The adverb "liberamente" means "freely".
+# `per consentire a lupi, volpi e topi di fogna di circolare': to allow --
+# the dictionary's `consente' consents; `permette' is said first
+The verb "permette" means "allows".
+The verb "consente" means "allows".
+# `vigilare perché codesti presìdi non debordino': so that -- before a
+# subjunctive `perché' is the purpose, and the reader asks the mood; said
+# after its `because', which stays the meaning written and read first, and
+# after `in modo che', which stays the word written for `so that'
+The conjunction "perché" means "so that".

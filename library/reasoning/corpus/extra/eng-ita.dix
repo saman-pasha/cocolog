@@ -186,3 +186,171 @@
 # `anche con misure coercitive': the monolingual dictionary has `coercitivo'
 # and the bilingual one no English for it
 <e><p><l>coercive<s n="adj"/></l><r>coercitivo<s n="adj"/></r></p></e>
+# the Monreale article (Italian UD, VIT-9465..9470): words the monolingual
+# dictionary has and the bilingual one gives no English
+<e r="RL"><p><l>pocket<s n="vblex"/></l><r>intascare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>swindle<s n="vblex"/></l><r>truffare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>inflate<s n="vblex"/></l><r>gonfiare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>cathedral<s n="n"/></l><r>duomo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>Norman<s n="adj"/></l><r>normanno<s n="adj"/></r></p></e>
+<e r="RL"><p><l>Palermitan<s n="adj"/></l><r>palermitano<s n="adj"/></r></p></e>
+<e r="RL"><p><l>monsignor<s n="n"/></l><r>monsignore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>accusation<s n="n"/></l><r>accusa<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>restoration<s n="n"/></l><r>restauro<s n="n"/><s n="m"/></r></p></e>
+# the record-market report, from Spanish: `discografico' and `rallentamento'
+# have paradigms in apertium-ita and no English here
+<e><p><l>discographic<s n="adj"/></l><r>discografico<s n="adj"/></r></p></e>
+<e><p><l>slowdown<s n="n"/></l><r>rallentamento<s n="n"/><s n="m"/></r></p></e>
+# the island-traffic article (Italian UD, VIT-9472..9484): `scatta lo stop',
+# `godranno di qualche boccata', `trascorrere le proprie ferie', `in lembi di
+# terra', `amene località', `le moto', `è vietato', `le più canicolari Eolie',
+# `interdette al traffico', `senza penalizzare' -- each has its paradigm in
+# apertium-ita and no English here
+<e r="RL"><p><l>start<s n="vblex"/></l><r>scattare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>enjoy<s n="vblex"/></l><r>godere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>spend<s n="vblex"/></l><r>trascorrere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>strip<s n="n"/></l><r>lembo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>pleasant<s n="adj"/></l><r>ameno<s n="adj"/></r></p></e>
+<e r="RL"><p><l>motorbike<s n="n"/></l><r>moto<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>forbid<s n="vblex"/></l><r>vietare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>canicular<s n="adj"/></l><r>canicolare<s n="adj"/></r></p></e>
+<e r="RL"><p><l>prohibit<s n="vblex"/></l><r>interdire<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>penalise<s n="vblex"/></l><r>penalizzare<s n="vblex"/></r></p></e>
+# the opera review, from Spanish: words apertium-ita has a paradigm for and
+# no English here. `aria' and `convincimento' are written only from English
+# (r="LR"), after the two-way entries, so the Italian `aria' is still air
+# and `convincimento' still conviction when they are read
+<e><p><l>stylized<s n="adj"/></l><r>stilizzato<s n="adj"/></r></p></e>
+<e><p><l>lord<s n="n"/></l><r>lord<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>vocality<s n="n"/></l><r>vocalità<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>fatuous<s n="adj"/></l><r>fatuo<s n="adj"/></r></p></e>
+<e><p><l>intone<s n="vblex"/></l><r>intonare<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>aria<s n="n"/></l><r>aria<s n="n"/><s n="f"/></r></p></e>
+<e r="LR"><p><l>convincement<s n="n"/></l><r>convincimento<s n="n"/><s n="m"/></r></p></e>
+# the Ferlaino interview (Italian UD, VIT-9540..9566): words apertium-ita has
+# a paradigm for and no English here. `scudetto' is the league's title and
+# `coca' the drug; each is read only into English
+<e r="RL"><p><l>cocaine<s n="n"/></l><r>coca<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>title<s n="n"/></l><r>scudetto<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>addict<s n="n"/></l><r>tossicodipendente<s n="n"/><s n="mf"/></r></p></e>
+<e r="RL"><p><l>ride<s n="vblex"/></l><r>cavalcare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>finish<s n="n"/></l><r>traguardo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>misfortune<s n="n"/></l><r>sfortuna<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>designator<s n="n"/></l><r>designatore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>disastrous<s n="adj"/></l><r>disastrato<s n="adj"/></r></p></e>
+# the Washington Post extract (Italian UD, VIT-9750..9762)
+<e r="RL"><p><l>fix<s n="vblex"/></l><r>fissare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>tycoon<s n="n"/></l><r>magnate<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>uncertainty<s n="n"/></l><r>incertezza<s n="n"/><s n="f"/></r></p></e>
+# the Clinton inquiry (AnCora CESS-CAST-P-19981202-34), the words Spanish
+# gives it: `second' as an adjective -- Italian's `secondo' was a noun, an
+# adverb and a preposition -- `pressure' as a verb, `pressare', and
+# `sesiones', which no Italian word meant. Read only into English, as each
+# is the one word its English has here
+<e r="RL"><p><l>second<s n="adj"/></l><r>secondo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>pressure<s n="vblex"/></l><r>pressare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>session<s n="n"/></l><r>sessione<s n="n"/><s n="f"/></r></p></e>
+# `la ampliación de la investigación': no Italian word meant `enlargement',
+# and `ampliamento' is `expansion' in both ways already, so a one-way entry
+# would be dropped for it -- this one goes first both ways; `aforementioned'
+# is `suddetto' and an intern is a `stagista', which apertium-ita has and
+# the bilingual pairs with nothing
+<e><p><l>enlargement<s n="n"/></l><r>ampliamento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>aforementioned<s n="adj"/></l><r>suddetto<s n="adj"/></r></p></e>
+<e><p><l>intern<s n="n"/></l><r>stagista<s n="n"/><s n="f"/></r></p></e>
+# `enviar órdenes de comparecer': to send -- `spedire' has a paradigm in
+# apertium-ita and the bilingual pairs it with nothing. Two hand lines in
+# italian.txt (the twelve's `aveva spedito un fax') gave `spedisce' and its
+# participle and no infinitive, so `spedire' could not be written; this
+# entry gives every form, and the two lines are gone
+<e><p><l>send<s n="vblex"/></l><r>spedire<s n="vblex"/></r></p></e>
+# `lo que hace es "desacreditar" la investigación': to discredit --
+# apertium-ita has `screditare' and the bilingual pairs it with nothing
+<e><p><l>discredit<s n="vblex"/></l><r>screditare<s n="vblex"/></r></p></e>
+# the letter on the Bosnian holocaust (Italian UD, VIT-9763..9774): words
+# apertium-ita has and the bilingual pairs with nothing. `Nazism' is written
+# capitalised, as the raw entry for `nazionalsocialismo' is: a lower-case
+# `nazism' would stop the builder lowering that one, and it lost its meaning
+<e><p><l>Nazism<s n="n"/></l><r>nazismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>mediate<s n="vblex"/></l><r>mediare<s n="vblex"/></r></p></e>
+<e><p><l>cowardly<s n="adj"/></l><r>vigliacco<s n="adj"/></r></p></e>
+<e><p><l>petty<s n="adj"/></l><r>meschino<s n="adj"/></r></p></e>
+<e><p><l>predecessor<s n="n"/></l><r>predecessore<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>mad<s n="adj"/></l><r>folle<s n="adj"/></r></p></e>
+<e><p><l>scoundrel<s n="n"/></l><r>mascalzone<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>eve<s n="n"/></l><r>vigilia<s n="n"/><s n="f"/></r></p></e>
+# `e probabilmente è già tardi': late, the adverb -- apertium-ita has
+# `tardi' as one (ieri__adv) and the bilingual pairs it with nothing
+<e><p><l>late<s n="adv"/></l><r>tardi<s n="adv"/></r></p></e>
+# `l'intero popolo bosniaco': Bosnian, the adjective -- the bilingual pairs
+# `bosniaco' only as the noun, so the phrase had two nouns that could not be
+# adjectives, and position made `intero' (an integer) its head
+<e><p><l>bosnian<s n="adj"/></l><r>bosniaco<s n="adj"/></r></p></e>
+# `el presidente del Gobierno se alegra de que ...': to gladden, and glad
+# as the reflexive -- the bilingual pairs `gladden' with `allietare' only,
+# which apertium-ita does not carry
+<e><p><l>gladden<s n="vblex"/></l><r>rallegrare<s n="vblex"/></r></p></e>
+# the pacifist letter, from Italian
+# `per festeggiare un grande anniversario francese': to celebrate -- apertium-ita
+# carries `festeggiare' and the bilingual pairs it with nothing. Read only into
+# English (r="RL"), so `celebrates' is still written `celebra': `se celebrarán
+# las elecciones' is no party
+<e r="RL"><p><l>celebrate<s n="vblex"/></l><r>festeggiare<s n="vblex"/></r></p></e>
+# `nella cronaca dell'"Assalto a Palazzo Farnese"': the assault -- the
+# dictionary has `assalto' only as what `assaltare' says of oneself. Read
+# only into English, so `assault' is still written `aggressione'
+<e r="RL"><p><l>assault<s n="n"/></l><r>assalto<s n="n"/><s n="m"/></r></p></e>
+# `si batteva contro tutte le guerre': fought against them -- apertium-ita
+# carries `battere' and the bilingual pairs it with nothing. `battersi' is
+# the verb beating itself, which Spanish says as `batirse'; read only into
+# English, so `beats' is still written `picchia'
+<e r="RL"><p><l>beat<s n="vblex"/></l><r>battere<s n="vblex"/></r></p></e>
+# `un certo pacifismo inetto': inept -- carried by apertium-ita, paired with
+# nothing
+<e><p><l>inept<s n="adj"/></l><r>inetto<s n="adj"/></r></p></e>
+# the column on the mobile telephone, into Italian: `el telefonino
+# destripado' is gutted, which apertium-ita carries as `sbudellare' and the
+# bilingual pairs with nothing
+<e><p><l>gut<s n="vblex"/></l><r>sbudellare<s n="vblex"/></r></p></e>
+# `los publicistas de las marcas': the dictionary's `pubblicista' is a
+# freelance journalist, and the people who write advertising are
+# `pubblicitari' -- read both ways, because an entry read only from English
+# comes after the journalist, whose entry is read into English too
+<e><p><l>publicist<s n="n"/></l><r>pubblicitario<s n="n"/><s n="GD"/></r></p></e>
+# `su poseedor es persona ocupada': its owner -- apertium-ita carries
+# `possessore' and the bilingual pairs it with nothing, so a sentence about
+# one was refused for a word the target lacked
+<e><p><l>possessor<s n="n"/></l><r>possessore<s n="n"/><s n="m"/></r></p></e>
+# `la posibilidad ... de acentuar la individualidad de los ciudadanos':
+# apertium-ita carries no verb for `stress', so the sentence was refused for
+# a word the target lacked. `sottolineare' is what Italian says, written only
+# (r="LR"), because read back it is still `underline'
+<e r="LR"><p><l>stress<s n="vblex"/></l><r>sottolineare<s n="vblex"/></r></p></e>
+# the letter on the Bastille and Thermidor (Italian UD VIT-9781..9791), into
+# Spanish: words apertium-ita carries and the bilingual pairs with nothing.
+# `un progetto bocciato sul nascere': rejected -- read only into English,
+# and extra/italian.txt says `rifiuta' first, so `rejects' is still written
+# `rifiuta'
+<e r="RL"><p><l>reject<s n="vblex"/></l><r>bocciare<s n="vblex"/></r></p></e>
+# `i lacci e lacciuoli in cui si è cercato ... di irretire i presìdi': the
+# nooses and snares
+<e><p><l>noose<s n="n"/></l><r>laccio<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>snare<s n="n"/></l><r>lacciuolo<s n="n"/><s n="m"/></r></p></e>
+# `i presìdi (leggi procure)': the garrisons, which the writer says are the
+# prosecutors' offices -- read only into English, so `garrison' is still
+# written `guarnigione'
+<e r="RL"><p><l>garrison<s n="n"/></l><r>presidio<s n="n"/><s n="m"/></r></p></e>
+# `li si voglia murare': wall them up
+<e><p><l>wall<s n="vblex"/></l><r>murare<s n="vblex"/></r></p></e>
+# `che egli, latitante, si permette di chiamare fuorilegge': a fugitive, and
+# outlaws -- `latitante' read only into English, so `fugitive' is still
+# written `fuggitivo'
+<e r="RL"><p><l>fugitive<s n="adj"/></l><r>latitante<s n="adj"/></r></p></e>
+<e r="RL"><p><l>fugitive<s n="n"/></l><r>latitante<s n="n"/><s n="GD"/></r></p></e>
+<e><p><l>outlaw<s n="n"/></l><r>fuorilegge<s n="n"/><s n="mf"/></r></p></e>
+# `l'irrequietezza di Bossi ... un ottimo cane da tartufi': restlessness, and
+# a truffle dog
+<e><p><l>restlessness<s n="n"/></l><r>irrequietezza<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>truffle<s n="n"/></l><r>tartufo<s n="n"/><s n="m"/></r></p></e>
+# `la stampa piuttosto tiepida': lukewarm
+<e><p><l>lukewarm<s n="adj"/></l><r>tiepido<s n="adj"/></r></p></e>

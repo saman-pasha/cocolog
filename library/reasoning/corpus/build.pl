@@ -40,6 +40,8 @@
 %%     "coma" is the subjunctive of "come".         "comiera" is the past subjunctive of "come".
 %%     "comer" is the infinitive of "come".         "comiendo" is the gerund of "come".
 %%     "come" is the imperative of "come".          "comas" is the negative imperative of "come".
+%%     "comed" is the imperative of "comen".        "comáis" is the negative imperative of "comen".
+%%     "pesadísimas" is the superlative of "pesadas".
 %%     "ate" is the past of "eats".                 "eaten" is the participle of "eats".
 %%     "running" is the gerund of "runs".           The adverb "rápidamente" means "quickly".
 %%     The modal "puede" means "can".               "podría" is the conditional of "puede".
@@ -225,6 +227,11 @@ cb_verb_form(Forms, Tags, F) :- member(V, [vblex, vbser, vbhaver, vbmod]), cb_fo
 %% lesson for `the negative imperative' and never learns which is which.
 cb_negative_imperative(spanish, [prs, p2, sg]).
 cb_negative_imperative(italian, [inf]).
+%% ... and its PLURAL: Spanish takes the second person plural of the
+%% present subjunctive (`no comáis'); Italian denies the plural with the
+%% plural itself (`non mangiate'), so it states none and the translator
+%% writes the affirmative form after the denial
+cb_negative_imperative_plural(spanish, [prs, p2, pl]).
 cb_has_tags([], _).
 cb_has_tags([T|Ts], Have) :- memberchk(T, Have), cb_has_tags(Ts, Have).
 
@@ -515,7 +522,21 @@ cb_entry(e(_, adjective, En, Fo, _)) :- !,
     ;   cb_sg(Forms, [adj, mf], W) -> cb_adjective(W, none, En, Forms, mf)
     ;   cb_sg(Forms, [adj, m], M) -> cb_adjective(M, none, En, Forms, m)
     ;   cb_adjective(Fo, none, En, [], none)
-    ).
+    ),
+    cb_superlatives(Fo, Forms).
+%% THE ABSOLUTE SUPERLATIVE, `le pesantissime accuse': every form the
+%% paradigm tags sup, stated of the plain form in its own gender and number
+%% -- `"pesantissime" is the superlative of "pesanti".' -- which the reader
+%% takes as the lesson's word for `very' before that form. Once a form, as
+%% a verb's forms are once a lexeme.
+cb_superlatives(Fo, Forms) :-
+    forall(( cb_lemma(Fo, Stem, Par), cb_par(Par, Suf, Tags), memberchk(sup, Tags),
+             atom_concat(Stem, Suf, S), \+ cb_formed(S, superlative), cb_sup_base(Forms, Tags, B) ),
+           ( assertz(cb_formed(S, superlative)), cb_line('"~w" is the superlative of "~w".', [S, B]) )).
+cb_sup_base(Forms, Tags, B) :-
+    ( memberchk(pl, Tags) -> N = pl ; N = sg ),
+    ( memberchk(f, Tags) -> G = f ; G = m ),
+    ( cb_form(Forms, [adj, G, N], B) -> true ; cb_form(Forms, [adj, mf, N], B) ).
 cb_entry(e(_, verb, En, Fo, _)) :- !,
     cb_forms(Fo, Forms),
     (   cb_verb_form(Forms, [pri, p3, sg], L)
@@ -650,6 +671,17 @@ cb_verb_forms(L, Forms) :-
     ( cb_verb_form(Forms, [imp, p2, sg], Imper) -> cb_line('"~w" is the imperative of "~w".', [Imper, L]) ; true ),
     ( cb_lang(Lg), cb_negative_imperative(Lg, NTags), cb_verb_form(Forms, NTags, NImper)
     ->  cb_line('"~w" is the negative imperative of "~w".', [NImper, L]) ; true ),
+    %% THE PLURAL IMPERATIVE IS STATED OF THE PLURAL FORM, as the past of a
+    %% plural is (`"comieron" is the past of "comen"'): `"processate" is the
+    %% imperative of "processano".', `"comed" is the imperative of "comen".'
+    %% A headline's `"processate il vescovo"' is one, and with no plural
+    %% stated it read as a passive whose participle agreed with nothing.
+    (   cb_verb_form(Forms, [imp, p2, pl], PImper), cb_verb_form(Forms, [pri, p3, pl], Pl)
+    ->  cb_line('"~w" is the imperative of "~w".', [PImper, Pl]),
+        (   cb_lang(Lg2), cb_negative_imperative_plural(Lg2, NPTags), cb_verb_form(Forms, NPTags, NPImper)
+        ->  cb_line('"~w" is the negative imperative of "~w".', [NPImper, Pl]) ; true )
+    ;   true
+    ),
     cb_participles(Forms, L),
     ( cb_verb_form(Forms, [inf], Inf) -> cb_line('"~w" is the infinitive of "~w".', [Inf, L]) ; true ),
     ( cb_verb_form(Forms, [ger], Ger) -> cb_line('"~w" is the gerund of "~w".', [Ger, L]) ; true ).
