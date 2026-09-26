@@ -366,6 +366,7 @@ main :-
     section_38,
     section_39,
     section_40,
+    section_41,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -2473,6 +2474,98 @@ The pronoun "nada" means "nothing". The pronoun "nada" does not precede the verb
 The possessive "nuestro" means "our".
 The adverb "aquí" means "here". The adverb "además" means "moreover". The adverb "ayer" means "yesterday". The adverb "aquí entre nosotros" means "here among us".
 The impersonal pronoun "se" means "one". The reflexive pronoun "se" means "itself".').
+
+section_41 :-
+    format("~n41. A Spanish report into Italian: a surname at the head, the person told before a clause, a count alone, who said so, an impersonal perfect, a relative clause with its subject after its verb, an absolute participle~n", []),
+    lesson_41(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_41(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Redondo duerme.', spanish, italian, S41a),
+    must('a SURNAME the lesson knows only as an adjective, at the head and before its verb, is a name', S41a, 'Redondo dorme.'),
+    reason_translate('Maria declara a Omar que el perro duerme.', spanish, italian, S41b),
+    must('after a verb the lesson says TAKES THE CLAUSE, the person is the one told and the clause the verb''s', S41b,
+         'Maria dichiara a Omar che il cane dorme.'),
+    reason_translate('El perro duerme entre las tres y las cinco.', spanish, italian, S41c),
+    must('an article and a COUNT ALONE is a phrase whose noun was left out', S41c, 'Il cane dorme tra le tre e le cinque.'),
+    reason_translate('En la casa, según dijo Omar a Maria, el perro duerme.', spanish, italian, S41d),
+    must('WHO SAID SO, between two commas, written back where it stood with the word for `as''', S41d,
+         'Nella casa, come disse Omar a Maria, il cane dorme.'),
+    reason_translate('Se ha comido el pan.', spanish, italian, S41e),
+    must('the IMPERSONAL word builds its perfect as the reflexive does', S41e, 'Si è mangiato il pane.'),
+    reason_ir('El perro llega después de la que comen los gatos.', spanish, IR41f),
+    show('a RELATIVE CLAUSE whose verb disagrees with its phrase has its subject after the verb', IR41f),
+    reason_translate('El perro llega después de la que comen los gatos.', spanish, english, S41g),
+    must('... which English writes with the subject first', S41g, 'The dog arrives after the one that the cats eat.'),
+    reason_translate('En la casa que vieron ayer, el perro come el pan.', spanish, english, S41h),
+    must('a FRONT that ends at a comma with a phrase after it', S41h,
+         'In the house that they saw yesterday, the dog eats the bread.'),
+    reason_translate('El perro come el pan dada la situación.', spanish, english, S41i),
+    must('a participle before a phrase it agrees with is an ABSOLUTE clause, and not the bread''s', S41i,
+         'The dog eats the bread given the situation.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_41(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person. The word "el" replaces the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". The noun "casa" means "house".
+The feminine noun "situación" means "situation". "situaciones" is the plural of "situación".
+The masculine adjective "redondo" means "round". The feminine adjective "redonda" means "round".
+The masculine adjective "necesario" means "necessary". The feminine adjective "necesaria" means "necessary".
+The number "tres" means "three". The number "cinco" means "five".
+The verb "come" means "eats". "comen" is the plural of "come". "comido" is the participle of "come". "coma" is the subjunctive of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "duerma" is the subjunctive of "duerme".
+The verb "ve" means "sees". "ven" is the plural of "ve". "vio" is the past of "ve". "vieron" is the past of "ven". "saw" is the past of "sees".
+The verb "dice" means "says". "dijo" is the past of "dice". "said" is the past of "says".
+The verb "declara" means "declares". "declara" takes the clause.
+The verb "hace" means "makes". "hará" is the future of "hace".
+The verb "llega" means "arrives".
+The verb "lava" means "washes". "lavan" is the plural of "lava".
+The verb "da" means "gives". "dado" is the participle of "da". "dada" is the participle of "da". "dada" is feminine.
+"given" is the participle of "gives". "gave" is the past of "gives".
+The auxiliary "ha" means "has".
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "entre" means "between". The preposition "según" means "according to". The preposition "después de" means "after".
+The adverb "ayer" means "yesterday".
+The impersonal pronoun "se" means "one". The reflexive pronoun "se" means "itself".
+The pronoun "la" means "her". The pronoun "lo" means "him".').
+lesson_41(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i".
+"nella" is the contraction of "in la". "nel" is the contraction of "in il". "alle" is the contraction of "a le". "al" is the contraction of "a il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". The noun "casa" means "house". The feminine noun "situazione" means "situation".
+The masculine adjective "rotondo" means "round".
+The masculine adjective "necessario" means "necessary". The feminine adjective "necessaria" means "necessary".
+The number "tre" means "three". The number "cinque" means "five".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiato" is the participle of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "vede" means "sees". "vedono" is the plural of "vede". "vide" is the past of "vede". "videro" is the past of "vedono".
+The verb "dice" means "says". "disse" is the past of "dice".
+The verb "dichiara" means "declares".
+The verb "fa" means "makes". "farà" is the future of "fa".
+The verb "arriva" means "arrives".
+The verb "lava" means "washes". "lavano" is the plural of "lava".
+The verb "dà" means "gives". "dato" is the participle of "dà". "data" is the participle of "dà". "data" is feminine.
+The auxiliary "ha" means "has". "è" is the auxiliary of the reflexive.
+The verb "è" means "is". "sono" is the plural of "è".
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The masculine pronoun "quello" means "that". "quelli" is the plural of "quello". The pronoun "quello" does not precede the verb.
+The feminine pronoun "quella" means "that". "quelle" is the plural of "quella". The pronoun "quella" does not precede the verb.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "tra" means "between". The preposition "dopo" means "after". The preposition "come" means "as".
+The adverb "ieri" means "yesterday".
+The impersonal pronoun "si" means "one". The reflexive pronoun "si" means "itself".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

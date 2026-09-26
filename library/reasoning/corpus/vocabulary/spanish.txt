@@ -507,6 +507,34 @@ The masculine adjective "asignado" means "assigned".
 "asignados" is the plural of "asignado".
 The feminine adjective "asignada" means "assigned".
 "asignadas" is the plural of "asignada".
+The masculine noun "lehendakari" means "lehendakari".
+"lehendakari" is the plural of "lehendakari".
+The preposition "contrariamente a" means "unlike".
+The adverb "al respecto" means "about it".
+The adverb "novedosamente" means "again".
+The adverb "de nuevo" means "again".
+The verb "va" means "goes".
+The verb "acude" means "goes".
+The preposition "tras" means "after".
+The preposition "después de" means "after".
+The adverb "de noche" means "at night".
+The adverb "por la noche" means "at night".
+The conjunction "tal y como" means "as".
+The verb "acomete" means "tackles".
+The verb "aborda" means "tackles".
+The intransitive verb "tiene lugar" means "takes place".
+"tienen lugar" is the plural of "tiene lugar".
+"tuvo lugar" is the past of "tiene lugar".
+"tuvieron lugar" is the plural of "tuvo lugar".
+"tener lugar" is the infinitive of "tiene lugar".
+The verb "suscribe" means "subscribes".
+"suscribir" is the infinitive of "suscribe".
+The relative "el cual" means "which".
+The relative "la cual" means "which".
+The relative "los cuales" means "which".
+The relative "las cuales" means "which".
+"declara" takes the clause.
+"dice" takes the clause.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

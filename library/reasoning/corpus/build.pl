@@ -501,6 +501,18 @@ cb_entry(e(_, noun, En, Fo, RTags)) :- !,
         ;   memberchk(m, RTags) -> cb_noun(M, masculine, En, Forms, m)
         ;   cb_noun(M, masculine, En, Forms, m), cb_noun(F, feminine, En, Forms, f)
         )
+    %% ONE SINGULAR FOR BOTH GENDERS AND A PLURAL FOR EACH: `socialista',
+    %% `solista', `collega' -- `i socialisti' and `le socialiste'. Stated as
+    %% the feminine noun it had only the feminine plural, and `los socialistas
+    %% vascos' came out `le socialiste basche'. It is a noun of no gender,
+    %% masculine where nothing says which, the masculine plural first; an
+    %% entry that names the gender still takes it. Only where the PLURALS
+    %% differ: Spanish's `capital', `cometa', `orden' are two nouns of one
+    %% spelling, the gender with the sense, and they keep what they had
+    ;   cb_sg(Forms, [n, m], W), cb_sg(Forms, [n, f], W),
+        cb_form(Forms, [n, m, pl], PM), cb_form(Forms, [n, f, pl], PF), PM \== PF,
+        \+ memberchk(f, RTags)
+    ->  cb_noun_common(W, En, Forms)
     ;   cb_sg(Forms, [n, f], F) -> cb_noun(F, feminine, En, Forms, f)
     %% ONE FORM FOR BOTH GENDERS COMES BEFORE A DIFFERENT MASCULINE ONE: a
     %% paradigm that has both names the masculine for an APOCOPE. `generale'
@@ -520,6 +532,9 @@ cb_entry(e(_, adjective, En, Fo, _)) :- !,
     (   cb_sg(Forms, [adj, m], M), cb_sg(Forms, [adj, f], F), M \== F
     ->  cb_adjective(M, masculine, En, Forms, m), cb_adjective(F, feminine, En, Forms, f)
     ;   cb_sg(Forms, [adj, mf], W) -> cb_adjective(W, none, En, Forms, mf)
+    ;   cb_sg(Forms, [adj, m], W), cb_sg(Forms, [adj, f], W),
+        cb_form(Forms, [adj, m, pl], PM), cb_form(Forms, [adj, f, pl], PF), PM \== PF
+    ->  cb_adjective_common(W, En, PM, PF)
     ;   cb_sg(Forms, [adj, m], M) -> cb_adjective(M, none, En, Forms, m)
     ;   cb_adjective(Fo, none, En, [], none)
     ),
@@ -624,6 +639,37 @@ cb_noun(W, G, En, Forms, Tag) :-
         ;   true
         ),
         ( cb_person(En) -> cb_line('"~w" is a person.', [W]) ; true )
+    ).
+
+%% a noun with one singular for both genders: no gender, the masculine
+%% article where nothing says which, and each plural, the masculine first
+%% and the feminine one said to be, so that an adjective of the same shape
+%% agrees (below)
+cb_noun_common(W, En, Forms) :-
+    cb_line('The noun "~w" means "~w".', [W, En]),
+    ( sub_atom(W, _, 1, 0, a) -> cb_line('"~w" is not feminine.', [W]) ; true ),
+    (   cb_formed(W, noun) -> true
+    ;   assertz(cb_formed(W, noun)),
+        cb_form(Forms, [n, m, pl], PM), cb_form(Forms, [n, f, pl], PF),
+        cb_line('"~w" is the plural of "~w".', [PM, W]),
+        cb_line('"~w" is the plural of "~w".', [PF, W]),
+        cb_line('"~w" is feminine.', [PF]),
+        ( cb_person(En) -> cb_line('"~w" is a person.', [W]) ; true )
+    ).
+
+%% AN ADJECTIVE WITH ONE SINGULAR FOR BOTH GENDERS AND A PLURAL FOR EACH:
+%% `ottimista' is `ottimisti' and `ottimiste'. Stated with the masculine
+%% plural alone it wrote `le previsioni ... non sono ottimisti' once the noun
+%% of the same spelling stopped stating the feminine one first, and the
+%% feminine one said to be is what the writer asks for a feminine noun
+%% (tr_adjective_plural/5)
+cb_adjective_common(W, En, PM, PF) :-
+    cb_line('The adjective "~w" means "~w".', [W, En]),
+    (   cb_formed(W, adjective) -> true
+    ;   assertz(cb_formed(W, adjective)),
+        cb_line('"~w" is the plural of "~w".', [PM, W]),
+        cb_line('"~w" is the plural of "~w".', [PF, W]),
+        cb_line('"~w" is feminine.', [PF])
     ).
 
 cb_adjective(W, G, En, Forms, Tag) :-

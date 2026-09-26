@@ -820,3 +820,60 @@ The masculine adjective "asignado" means "assigned".
 "asignados" is the plural of "asignado".
 The feminine adjective "asignada" means "assigned".
 "asignadas" is the plural of "asignada".
+# the Basque socialists (AnCora CESS-CAST-P-20000802-31), into Italian. Every
+# word below that a dictionary word already means is said AFTER that word, so
+# the first word written for the meaning stays the dictionary's (1.8.14).
+# `que el lehendakari adelante las elecciones': the Basque premier, whom the
+# Spanish and the Italian press call by his Basque title
+The masculine noun "lehendakari" means "lehendakari".
+"lehendakari" is the plural of "lehendakari".
+# `contrariamente al PP': unlike the PP -- apertium-spa has the adverb and the
+# bilingual pairs nothing with it
+The preposition "contrariamente a" means "unlike".
+# `las discrepancias que mantienen al respecto': about it
+The adverb "al respecto" means "about it".
+# `que los vascos acudan de nuevo a las urnas': again
+The adverb "novedosamente" means "again".
+The adverb "de nuevo" means "again".
+# ... and they GO to the polls: `acude' attends to the dictionary, and
+# Italian's first `attends' is `frequenta', `frequentano alle urne'. `va'
+# stays the first word written for `goes'
+The verb "va" means "goes".
+The verb "acude" means "goes".
+# `Esta reunión llega después de la que celebraron ...': after, a
+# preposition of two words -- read as the adverb and `of' it was `afterwards
+# of her'. `tras' stays the first word written for it
+The preposition "tras" means "after".
+The preposition "después de" means "after".
+# `el Lunes por la noche': at night
+The adverb "de noche" means "at night".
+The adverb "por la noche" means "at night".
+# `tal y como se había anunciado': as
+The conjunction "tal y como" means "as".
+# `no se abordó el plan de paz': was not tackled -- the dictionary's first
+# sense is to accost somebody, and Italian's first `accosts' is `adesca',
+# to lure. `acomete' stays the first word written for `tackles'
+The verb "acomete" means "tackles".
+The verb "aborda" means "tackles".
+# `que tuvo lugar ayer': took place
+The intransitive verb "tiene lugar" means "takes place".
+"tienen lugar" is the plural of "tiene lugar".
+"tuvo lugar" is the past of "tiene lugar".
+"tuvieron lugar" is the plural of "tuvo lugar".
+"tener lugar" is the infinitive of "tiene lugar".
+# `sobre el fundamento de suscribir los principios democráticos': to
+# subscribe -- apertium-spa has `suscribir' for analysis only
+The verb "suscribe" means "subscribes".
+"suscribir" is the infinitive of "suscribe".
+# `entre las cuales se encontraba ...': among which -- the relative with its
+# article, as one word, after a preposition
+The relative "el cual" means "which".
+The relative "la cual" means "which".
+The relative "los cuales" means "which".
+The relative "las cuales" means "which".
+# `Redondo declaró a Europa Press que la "parálisis" institucional hará ...':
+# said it TO the agency. A verb that takes the clause has the person before
+# it for the one it is said to, and the `que' after the person opens the
+# verb's clause, never the person's relative clause
+"declara" takes the clause.
+"dice" takes the clause.

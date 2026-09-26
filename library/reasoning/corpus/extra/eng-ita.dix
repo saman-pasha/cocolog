@@ -354,3 +354,11 @@
 <e><p><l>truffle<s n="n"/></l><r>tartufo<s n="n"/><s n="m"/></r></p></e>
 # `la stampa piuttosto tiepida': lukewarm
 <e><p><l>lukewarm<s n="adj"/></l><r>tiepido<s n="adj"/></r></p></e>
+# the Basque socialists, from Spanish: `suscribir los principios
+# democráticos', to subscribe -- apertium-ita has `sottoscrivere' and the
+# bilingual pairs nothing with it
+<e><p><l>subscribe<s n="vblex"/></l><r>sottoscrivere<s n="vblex"/></r></p></e>
+# `que reafirmaron su acuerdo básico': restated -- the Spanish dictionary's
+# `reafirmar' is to restate, and Italian had no word for it; apertium-ita
+# has `riaffermare' and the bilingual pairs nothing with it
+<e><p><l>restate<s n="vblex"/></l><r>riaffermare<s n="vblex"/></r></p></e>

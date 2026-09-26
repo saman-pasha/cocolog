@@ -1209,3 +1209,23 @@ The verb "consente" means "allows".
 # after its `because', which stays the meaning written and read first, and
 # after `in modo che', which stays the word written for `so that'
 The conjunction "perché" means "so that".
+# the Basque socialists (AnCora CESS-CAST-P-20000802-31), from Spanish.
+# `el lehendakari': the Basque premier, by his Basque title
+The masculine noun "lehendakari" means "lehendakari".
+"lehendakari" is the plural of "lehendakari".
+# `contrariamente al PP': unlike the PP
+The preposition "contrariamente a" means "unlike".
+# `al respecto': about it
+The adverb "al riguardo" means "about it".
+# `de nuevo a las urnas': again -- no dictionary word means it
+The adverb "di nuovo" means "again".
+# `su acuerdo básico': their agreement -- the dictionary's first word for
+# it is `apparentamento', an alliance of electoral lists, and this line puts
+# the ordinary word first for writing
+The masculine noun "accordo" means "agreement".
+# `que tuvo lugar ayer': took place
+The intransitive verb "ha luogo" means "takes place".
+"hanno luogo" is the plural of "ha luogo".
+"ebbe luogo" is the past of "ha luogo".
+"ebbero luogo" is the plural of "ebbe luogo".
+"avere luogo" is the infinitive of "ha luogo".
