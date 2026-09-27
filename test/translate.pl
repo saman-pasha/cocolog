@@ -28,7 +28,7 @@ main :-
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
     newspaper_georgia, newspaper_wapo, newspaper_clinton, newspaper_letter, newspaper_solana,
     newspaper_pacifist, newspaper_mobile, newspaper_bastille, newspaper_basque, newspaper_giglio,
-    newspaper_england, newspaper_bovalino,
+    newspaper_england, newspaper_bovalino, newspaper_puigbo,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -6403,6 +6403,213 @@ newspaper_bovalino_checks_3 :-
     nf_tr('Il cane vede una casa grande, stanca del pane, ma anche molto stanca.', italian, spanish, D6),
     check('a coordinator, adverbs and an adjective after an aside''s comma are the same aside, and agree with its noun, where the adjective agreed with nobody: `pero también muy cansado'' of a house', D6,
           'El perro ve una casa grande, cansada del pan, pero también muy cansada.').
+
+%% a small word in a name, a name with a hyphen and digits, a point inside a
+%% word, a channel and its number, a town that begins with its article, a
+%% name after a noun in small letters, a second aside, a reporting clause
+%% after a quotation that closes on its word, an adverb before a
+%% participle set off, a participle set off after an adjective with dashes
+%% inside it, an adjective phrase between dashes, two verbs of one
+%% relative clause, an adverb between a determiner and its noun, a count
+%% and adjectives with no noun, an agent after adjuncts, either ... or
+%% (1.8.19) ---------------------------------------------------------------
+
+newspaper_puigbo :-
+    section('a Spanish report into Italian: a small word in a name, a name with a hyphen and digits, a point inside a word, a channel and its number, a town that begins with its article, a name after a noun in small letters, a second aside, a reporting clause after a quotation that closes on its word, an adverb before a participle set off, a participle set off after an adjective, an adjective phrase between dashes, two verbs of one relative clause, an adverb between a determiner and its noun, a count and adjectives with no noun, an agent after adjuncts, either ... or'),
+    newspaper_puigbo_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_puigbo_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_puigbo_checks_1, newspaper_puigbo_checks_2, newspaper_puigbo_checks_3, newspaper_puigbo_checks_4,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+newspaper_puigbo_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "queso" means "cheese". The feminine noun "casa" means "house". The feminine noun "salida" means "departure".
+The noun "ministro" means "minister". "ministro" is a person. The noun "hermano" means "brother". "hermano" is a person.
+The noun "editor" means "editor". "editor" is a person. "editores" is the plural of "editor".
+The noun "grupo" means "group". The noun "canal" means "channel". "canales" is the plural of "canal".
+The feminine noun "cadena" means "chain". The feminine noun "radio" means "radio". "radio" is feminine.
+The noun "reparto" means "distribution". The feminine noun "licencia" means "licence".
+The noun "mayo" means "may". "mayo" is a month.
+The masculine adjective "nuevo" means "new". The masculine adjective "viejo" means "old".
+The feminine adjective "nueva" means "new". "nuevas" is the plural of "nueva". The feminine adjective "vieja" means "old". "viejas" is the plural of "vieja".
+The masculine adjective "próximo" means "next". The masculine adjective "grande" means "big". The feminine adjective "catalana" means "catalan".
+The adverb "todavía" means "still". The adverb "recientemente" means "recently". The adverb "directamente" means "directly".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comido" is the participle of "come".
+The verb "bebe" means "drinks". The verb "deja" means "leaves". "dejan" is the plural of "deja".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "sabe" means "knows". "sé" is the first person of "sabe". "sabe" takes the question.
+The verb "continúa" means "continues". "continuará" is the future of "continúa".
+The verb "limita" means "limits". "limitó" is the past of "limita". "limita" takes "a" before the infinitive.
+The verb "contesta" means "answers". "contestar" is the infinitive of "contesta".
+The verb "ficha" means "engages". "fichado" is the participle of "ficha".
+The verb "capitanea" means "captains". "capitaneado" is the participle of "capitanea". "capitaneada" is the participle of "capitanea". "capitaneada" is feminine.
+The verb "efectúa" means "effects". "efectuado" is the participle of "efectúa".
+The adverb "bien" means "well". The adverb "tampoco" means "either". The masculine noun "bien" means "good".
+The conjunction "y" means "and". The word "bien" begins the choice. The conjunction "o" means "or". The conjunction "o bien" means "or".
+The conjunction "si" means "if". The conjunction "que" means "that". "que" is a relative.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with".
+The preposition "por" means "for". The preposition "por" means "by". The preposition "a principios de" means "at the start of".
+The reflexive pronoun "se" means "itself". The impersonal pronoun "se" means "one".
+The verb "conoce" means "knows". The pronoun "me" means "me".
+The noun "parque" means "park". The masculine adjective "blindado" means "armoured". The verb "momifica" means "mummifies". "momificado" is the participle of "momifica".').
+
+newspaper_puigbo_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "delle" is the contraction of "di le".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "al" is the contraction of "a il". "alla" is the contraction of "a la".
+"dal" is the contraction of "da il". "dalla" is the contraction of "da la".
+The article "lo" comes before a vowel. "l''" is the elision of "lo". "dello" is the contraction of "di lo". "dell''" is the elision of "dello".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane". The noun "formaggio" means "cheese".
+The feminine noun "casa" means "house". "case" is the plural of "casa". The feminine noun "partenza" means "departure".
+The noun "ministro" means "minister". "ministro" is a person. The noun "fratello" means "brother". "fratello" is a person.
+The noun "redattore" means "editor". "redattore" is a person.
+The noun "gruppo" means "group". The noun "canale" means "channel". "canali" is the plural of "canale".
+The feminine noun "catena" means "chain". The feminine noun "radio" means "radio". "radio" is feminine.
+The noun "riparto" means "distribution". The feminine noun "licenza" means "licence". "licenze" is the plural of "licenza".
+The noun "maggio" means "may". "maggio" is a month.
+The masculine adjective "nuovo" means "new". "nuovi" is the plural of "nuovo". The feminine adjective "nuova" means "new". "nuove" is the plural of "nuova".
+The masculine adjective "vecchio" means "old". The feminine adjective "vecchia" means "old". "vecchie" is the plural of "vecchia".
+The masculine adjective "prossimo" means "next". The adjective "grande" means "big". The feminine adjective "catalana" means "catalan".
+The adverb "ancora" means "still". The adverb "recentemente" means "recently". The adverb "direttamente" means "directly".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiato" is the participle of "mangia".
+The verb "beve" means "drinks". The verb "lascia" means "leaves". "lasciano" is the plural of "lascia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "sa" means "knows". "so" is the first person of "sa". "sa" takes the question.
+The verb "continua" means "continues". "continuerà" is the future of "continua".
+The verb "limita" means "limits". "limitò" is the past of "limita". "limita" takes "a" before the infinitive.
+The verb "risponde" means "answers". "rispondere" is the infinitive of "risponde".
+The verb "ingaggia" means "engages". "ingaggiato" is the participle of "ingaggia".
+The verb "capitana" means "captains". "capitanato" is the participle of "capitana". "capitanata" is the participle of "capitana". "capitanata" is feminine.
+The verb "effettua" means "effects". "effettuato" is the participle of "effettua". "effettuata" is the participle of "effettua". "effettuata" is feminine.
+"effettuati" is the participle of "effettua". "effettuati" is the plural of "effettuato". "effettuate" is the participle of "effettua". "effettuate" is feminine. "effettuate" is the plural of "effettuata".
+The conjunction "e" means "and". The conjunction "o" means "either". The conjunction "o" means "or".
+The conjunction "se" means "if". The conjunction "che" means "that". "che" is a relative.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with".
+The preposition "per" means "for". The preposition "da" means "by". The preposition "agli inizi di" means "at the start of".
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one".
+The adverb "bene" means "well". The verb "conosce" means "knows". The pronoun "mi" means "me".
+The noun "parco" means "park". The masculine adjective "blindato" means "armoured". The verb "mummifica" means "mummifies". "mummificato" is the participle of "mummifica".').
+
+newspaper_puigbo_checks_1 :-
+    %% a small word in a name
+    nf_tr('El editor del Telenotícies migdia duerme.', spanish, italian, P1),
+    check('a small word no lesson knows after an article and a name no lesson knows is the name''s: `del Telenotícies migdia'' names a news programme, and `migdia'' refused the sentence', P1,
+          'Il redattore del Telenotícies migdia dorme.'),
+    nf_tr('La salida de Omar del Telenotícies migdia duerme.', spanish, italian, P2),
+    check('... and the contraction before it joins no name to the one before it: read as `Omar del Telenotícies'', one name, `migdia'' was left alone and the sentence refused', P2,
+          'La partenza di Omar del Telenotícies migdia dorme.'),
+    reason_untranslated('El editor del Telenotícies migdia pasea.', spanish, P2u),
+    check('... and a refusal does not name the name''s word, only the word no lesson knows', P2u, [pasea]),
+    %% a name with a hyphen and digits
+    nf_tr('El perro de TV-3 duerme.', spanish, italian, P3),
+    check('a name with a hyphen and digits is one name: `TV-3'' was the name `TV'' and a number below nought, and the sentence was refused', P3,
+          'Il cane di TV-3 dorme.'),
+    %% a point inside a word
+    nf_tr('"Paral.lel continuará", se limitó a contestar Omar.', spanish, italian, P4),
+    check('a point between two letters ends no sentence: `Paral.lel'' was cut there, and `lel'' was a word no lesson knows', P4,
+          '"Paral.lel continuerà", si limitò a rispondere Omar.'),
+    %% a channel and its number
+    nf_tr('El perro de Canal 33 duerme.', spanish, italian, P5),
+    check('a capitalised word with its number where no sentence begins is one name: `Canal 33'' was a channel and a count, with no article and no reading', P5,
+          'Il cane di Canal 33 dorme.'),
+    %% a town that begins with its article
+    nf_tr('El perro duerme en Figueres, Gandesa y El Vendrell.', spanish, italian, P6),
+    check('an article with its capital where no sentence begins, before a name, is the name''s: `Il Vendrell''', P6,
+          'Il cane dorme in Figueres, Gandesa e El Vendrell.'),
+    %% a name after a noun in small letters
+    nf_tr('El perro duerme en la cadena de radio Ona Catalana.', spanish, italian, P7),
+    check('a name of several words after a noun in small letters is the noun''s name, where `catalana'' is an adjective too and the phrase had no reading', P7,
+          'Il cane dorme nella catena di radio Ona Catalana.').
+
+newspaper_puigbo_checks_2 :-
+    %% a second aside
+    nf_tr('Omar, editor del grupo, hermano que come con Maria, duerme.', spanish, english, Q1),
+    check('a second aside after the first is set off too: read as the clause''s own words the sentence was two pieces, the first with no verb and the second with nobody named, which English refuses -- and Italian writes the same words from either reading', Q1,
+          'Omar, editor of the group, brother that eats with Maria, sleeps.'),
+    %% a reporting clause after a quotation that closes on its word
+    nf_tr('"No sé si el perro duerme", se limitó a contestar Omar.', spanish, english, Q2),
+    check('after a quotation that closes on its last word, the reporting clause is read first: `se'' is the verb''s own and Omar who answered, where `se'' was the impersonal word and Omar what one answered; and the quotation is never divided at `si'', which was a condition', Q2,
+          '"I do not know whether the dog sleeps", Omar limited to answer.'),
+    %% an adverb after a front's comma, before the denial
+    nf_tr('En la casa, todavía no sé si el perro duerme.', spanish, italian, Q3),
+    check('an adverb after a front''s comma before the denial or the verb is the rest''s, and no front of its own: `Nella casa, ancora, non so''', Q3,
+          'Nella casa, non so ancora se il cane dorme.'),
+    %% an adverb before a participle set off
+    nf_tr('Omar, recientemente fichado por el ministro, duerme.', spanish, italian, Q4),
+    check('an adverb before a participle set off by commas is the participle''s, before it again: the commas were lost', Q4,
+          'Omar, recentemente ingaggiato dal ministro, dorme.'),
+    nf_tr('El perro ve a Omar, recientemente fichado por el ministro.', spanish, italian, Q5),
+    check('... and at the end of the sentence, where the stop closes it: the agent was a phrase of `for''', Q5,
+          'Il cane vede Omar, recentemente ingaggiato dal ministro.'),
+    %% a participle set off after an adjective
+    nf_tr('La casa grande, capitaneada por Omar, duerme.', spanish, italian, Q6),
+    check('a participle with its agent set off after an adjective as after a noun: the commas were lost', Q6,
+          'La casa grande, capitanata da Omar, dorme.'),
+    %% an adjective phrase between dashes
+    nf_tr('Omar - - próximo al ministro - - duerme.', spanish, italian, Q7),
+    check('an adjective with its phrase between two dashes after a name is set off, where the sentence was refused with every word known', Q7,
+          'Omar – prossimo al ministro – dorme.'),
+    nf_tr('La cadena, capitaneada por Omar - - próximo al ministro - - y Maria, duerme.', spanish, italian, Q8),
+    check('... inside a participle set off by commas, whose words have their own asides read first', Q8,
+          'La catena, capitanata da Omar – prossimo al ministro – e Maria, dorme.').
+
+newspaper_puigbo_checks_3 :-
+    %% two verbs of one relative clause
+    nf_tr('El perro que come y bebe duerme.', spanish, italian, R1),
+    check('two verbs joined in one relative clause share its gap and its subject, where the clause ended at `y'' and the sentence was refused', R1,
+          'Il cane che mangia e beve dorme.'),
+    nf_tr('El perro ve el pan que comen y dejan los gatos.', spanish, english, R2),
+    check('... and its subject after them, which the verbs'' number says: `that they eat and leave the cats''', R2,
+          'The dog sees the bread that the cats eat and leave.'),
+    %% an adverb between a determiner and its noun
+    nf_tr('El grupo del todavía editor duerme.', spanish, italian, R3),
+    check('an adverb between a determiner and its noun says when the noun holds, and stays before it, where it went to the end of the clause', R3,
+          'Il gruppo dell''ancora redattore dorme.'),
+    nf_tr('El grupo del todavía editor duerme.', spanish, english, R4),
+    check('... in English too', R4, 'The group of the still editor sleeps.'),
+    %% a count and adjectives with no noun
+    nf_tr('El perro ve las 33 casas (21 nuevas y 12 viejas).', spanish, english, R5),
+    check('a count and adjectives with no noun are a phrase whose noun was left out, where `nuevas'' was the noun and the bracket had no reading', R5,
+          'The dog sees the 33 houses (21 new ones and 12 old ones).'),
+    %% an agent after adjuncts, past a bracket
+    nf_tr('El perro ve el reparto de las licencias (21 nuevas) efectuado a principios de mayo por el ministro.', spanish, italian, R6),
+    check('a participle''s agent may come after adjuncts, and past a bracket the participle keeps its own gender and number: `(21 nuovi) effettuate ... per il ministro''', R6,
+          'Il cane vede il riparto delle licenze (21 nuove) effettuato agli inizi di maggio dal ministro.'),
+    nf_tr('El perro ve el pan comido en mayo por el gato.', spanish, italian, R7),
+    check('... the agent after one adjunct, where it was a phrase of `for''', R7,
+          'Il cane vede il pane mangiato in maggio dal gatto.'),
+    %% either ... or
+    nf_tr('El perro come bien el pan o bien el queso.', spanish, italian, R8),
+    check('`bien'' before a choice with `o bien'' after it is either, where the sentence was refused', R8,
+          'Il cane mangia o il pane o il formaggio.'),
+    nf_tr('El perro come, bien directamente o bien con el gato, el pan.', spanish, english, R9),
+    check('... and an adverb that is the first choice stays in it in English', R9,
+          'The dog eats, either directly or with the cat, the bread.').
+
+%% what the controls found
+newspaper_puigbo_checks_4 :-
+    nf_tr('El perro me conoce bien.', spanish, english, T1),
+    check('a GUARD: `bien'' begins a choice and means none: said as `The conjunction "bien" means "either".'', either was a meaning of the adverb too -- `tampoco'' means it and is an adverb and nothing else, where `bien'' is a noun too and `well'' has no such word -- and `Él me conoce bien.'' came out `He knows me either.''', T1,
+          'The dog knows me well.'),
+    nf_tr('El perro ve un parque "blindado", "momificado", con el gato.', spanish, italian, T2),
+    check('a GUARD: a participle alone after an adjective is one more of a list, and keeps its quotation marks: set off as an aside after `blindado'' it lost them', T2,
+          'Il cane vede un parco "blindato", "mummificato", con il gatto.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

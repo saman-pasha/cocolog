@@ -231,3 +231,19 @@
 # so the vocabulary knew only the verb `inflates'; read only, so `fan' is
 # still written `seguidor'
 <e r="RL"><p><l>fan<s n="n"/></l><r>hincha<s n="n"/><s n="mf"/></r></p></e>
+# the Puigbó article (AnCora CESS-CAST-P-19990701-130), into Italian.
+# `la tele pública catalana': the telly -- apertium-spa carries `tele' and
+# the bilingual gives it only to `TV', which no lesson word can be; read
+# only, so `television' is still written `televisión'
+<e r="RL"><p><l>television<s n="n"/></l><r>tele<s n="n"/><s n="f"/></r></p></e>
+# `Jaume Barberà, recientemente fichado por TVE': signed up -- apertium-spa
+# carries `fichar' and the bilingual pairs nothing with it; read as
+# `engages', which is Italian's `ingaggiare', and read only, so `engages' is
+# still written `compromete'
+<e r="RL"><p><l>engage<s n="vblex"/></l><r>fichar<s n="vblex"/></r></p></e>
+# `La cadena catalana, capitaneada por el empresario ...': captained -- the
+# same, and no other word of either language means it
+<e><p><l>captain<s n="vblex"/></l><r>capitanear<s n="vblex"/></r></p></e>
+# `el empresario gerundense': of Girona -- the same, and English has no
+# word for it; the IR's is `gironese', as Italian's is
+<e><p><l>gironese<s n="adj"/></l><r>gerundense<s n="adj"/></r></p></e>

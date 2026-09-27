@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16245 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16250 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -855,6 +855,13 @@ The masculine noun "anno luce" means "light year".
 The masculine noun "dettaglio" means "detail".
 The masculine noun "particolare" means "detail".
 The adverb "in particolare" means "in particular".
+The masculine noun "maggio" means "may".
+The verb "copresenta" means "co-presents".
+The adjective "gironese" means "gironese". "gironesi" is the plural of "gironese".
+The preposition "fino alla fine di" means "until the end of".
+The preposition "alla fine di" means "at the end of".
+The preposition "agli inizi di" means "at the start of".
+The feminine noun "stazione" means "station".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -941,6 +948,11 @@ The feminine noun "minigonna" means "miniskirt".
 The feminine noun "moglie" means "wife".
 "mogli" is the plural of "moglie".
 "moglie" is a person.
+The masculine noun "redattore" means "editor".
+"redattori" is the plural of "redattore".
+"redattore" is a person.
+The masculine noun "presentatore" means "presenter".
+"presentatori" is the plural of "presentatore".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -19928,6 +19940,7 @@ The masculine noun "fornitore" means "supplier".
 The feminine noun "fornitrice" means "supplier".
 The feminine noun "aria" means "aria".
 The masculine noun "convincimento" means "convincement".
+The feminine noun "griglia" means "grill".
 The feminine noun "scimmia" means "ape".
 The feminine noun "catena" means "catena".
 The masculine noun "vantaggio" means "asset".
@@ -21825,6 +21838,53 @@ The verb "mummifica" means "mummifies".
 "mummificate" is the plural of "mummificata".
 "mummificare" is the infinitive of "mummifica".
 "mummificando" is the gerund of "mummifica".
+The verb "capitana" means "captains".
+"capitanano" is the plural of "capitana".
+"capitaniamo" is the first person of "capitanano".
+"capitano" is the first person of "capitana".
+"capitani" is the second person of "capitana".
+"capitanò" is the past of "capitana".
+"capitanarono" is the past of "capitanano".
+"capitanammo" is the first person of "capitanarono".
+"capitanai" is the first person of "capitanò".
+"capitanasti" is the second person of "capitanò".
+"capitanava" is the past of "capitana".
+"capitanavano" is the past of "capitanano".
+"capitanavamo" is the first person of "capitanavano".
+"capitanavo" is the first person of "capitanava".
+"capitanavi" is the second person of "capitanava".
+"capitanerà" is the future of "capitana".
+"capitaneranno" is the plural of "capitanerà".
+"capitaneremo" is the first person of "capitaneranno".
+"capitanerò" is the first person of "capitanerà".
+"capitanerai" is the second person of "capitanerà".
+"capitanerebbe" is the conditional of "capitana".
+"capitanerebbero" is the plural of "capitanerebbe".
+"capitaneremmo" is the first person of "capitanerebbero".
+"capitanerei" is the first person of "capitanerebbe".
+"capitaneresti" is the second person of "capitanerebbe".
+"capitani" is the subjunctive of "capitana".
+"capitanino" is the plural of "capitani".
+"capitaniamo" is the first person of "capitanino".
+"capitanasse" is the past subjunctive of "capitana".
+"capitanassero" is the plural of "capitanasse".
+"capitanassimo" is the first person of "capitanassero".
+"capitanassi" is the first person of "capitanasse".
+"capitanassi" is the second person of "capitanasse".
+"capitana" is the imperative of "capitana".
+"capitanare" is the negative imperative of "capitana".
+"capitanate" is the imperative of "capitanano".
+"capitaniamo" is the hortative of "capitana".
+"capitanato" is the participle of "capitana".
+"capitanata" is the participle of "capitana".
+"capitanata" is feminine.
+"capitanati" is the participle of "capitana".
+"capitanati" is the plural of "capitanato".
+"capitanate" is the participle of "capitana".
+"capitanate" is feminine.
+"capitanate" is the plural of "capitanata".
+"capitanare" is the infinitive of "capitana".
+"capitanando" is the gerund of "capitana".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -95018,6 +95078,14 @@ The adjective "inalterabile" means "unalterable".
 "inalterabilissimi" is the superlative of "inalterabili".
 "inalterabilissima" is the superlative of "inalterabile".
 "inalterabilissime" is the superlative of "inalterabili".
+The masculine adjective "radiofonico" means "radio".
+"radiofonici" is the plural of "radiofonico".
+The feminine adjective "radiofonica" means "radio".
+"radiofoniche" is the plural of "radiofonica".
+"radiofonicissimo" is the superlative of "radiofonico".
+"radiofonicissimi" is the superlative of "radiofonici".
+"radiofonicissima" is the superlative of "radiofonica".
+"radiofonicissime" is the superlative of "radiofoniche".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

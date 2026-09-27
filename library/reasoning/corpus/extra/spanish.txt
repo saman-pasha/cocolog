@@ -983,3 +983,39 @@ The adverb "en resumen" means "in short".
 The adverb "en particular" means "in particular".
 The masculine noun "año luz" means "light year".
 "años luz" is the plural of "año luz".
+# the Puigbó article (AnCora CESS-CAST-P-19990701-130), into Italian.
+# `hasta finales del pasado mes de mayo': May -- the dictionary pairs
+# `mayo' with `May', and the builder refuses the word `may', which is
+# English's own modal; the month is said here
+The masculine noun "mayo" means "may".
+# `noticiario que copresenta con Montse Jené': co-presents -- in no
+# dictionary
+The verb "copresenta" means "co-presents".
+# `para dedicarse de lleno a la cadena de radio': fully -- a word of two
+# words in no dictionary; the dictionary's first word for `fully' is said
+# again above it, so that it stays the first written
+The adverb "plenamente" means "fully".
+The adverb "de lleno" means "fully".
+# `presentador del informativo del mediodía': the news programme -- the
+# dictionary has `informativo' as an adjective alone; its first word for
+# `newscast' is said again above, so that it stays the first written
+The masculine noun "telediario" means "newscast".
+The masculine noun "informativo" means "newscast".
+# `cadena que cuenta en la actualidad con 19 emisoras': currently -- a word
+# of several words; the dictionary's first word for `currently' is said
+# again above, so that it stays the first written
+The adverb "actualmente" means "currently".
+The adverb "en la actualidad" means "currently".
+# `hasta finales del pasado mes de mayo', `a principios del pasado mes de
+# mayo': until the end of, at the start of -- words of several words
+The preposition "hasta finales de" means "until the end of".
+The preposition "a finales de" means "at the end of".
+The preposition "a principios de" means "at the start of".
+# `bien directamente o bien a través de empresas participadas': either ...
+# or -- `bien' says a choice follows, in the shape `The word "para" begins
+# the purpose.' has, and `o bien' is the coordinator. Said as a meaning,
+# `either' was a meaning of `bien' in an adverb's place too -- `tampoco'
+# means it, an adverb and nothing else -- and Tatoeba's `Él me conoce
+# bien.' came out `He knows me either.'
+The word "bien" begins the choice.
+The conjunction "o bien" means "or".

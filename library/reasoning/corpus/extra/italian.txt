@@ -1375,3 +1375,21 @@ The masculine noun "particolare" means "detail".
 # first it read as `in detail', and the Giglio letter's `In particolare,
 # nel caso del Giglio' came out `En detalle'
 The adverb "in particolare" means "in particular".
+# the Puigbó article (AnCora CESS-CAST-P-19990701-130), into Italian.
+# `hasta finales del pasado mes de mayo': May -- as `mayo' in Spanish, the
+# builder refuses the word `may', English's own modal
+The masculine noun "maggio" means "may".
+# `noticiario que copresenta con Montse Jené': co-presents -- in no
+# dictionary
+The verb "copresenta" means "co-presents".
+# `el empresario gerundense': of Girona -- the IR's word is `gironese',
+# and Italian's is the same
+The adjective "gironese" means "gironese". "gironesi" is the plural of "gironese".
+# `hasta finales del pasado mes de mayo', `a principios del ...': until the
+# end of, at the start of -- words of several words, none of them elided
+The preposition "fino alla fine di" means "until the end of".
+The preposition "alla fine di" means "at the end of".
+The preposition "agli inizi di" means "at the start of".
+# `19 emisoras': stations -- the dictionary's first word for `station' is
+# `stagione', a season
+The feminine noun "stazione" means "station".

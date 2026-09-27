@@ -429,3 +429,21 @@
 # the same, and `Bosnian' is the dictionary's noun for `bosniaco'
 <e r="RL"><p><l>Serbian<s n="n"/></l><r>serbo<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>serbian<s n="adj"/></l><r>serbo<s n="adj"/></r></p></e>
+# the Puigbó article (AnCora CESS-CAST-P-19990701-130), into Italian.
+# `capitaneada por el empresario': captained -- apertium-ita carries
+# `capitanare' and the bilingual pairs nothing with it
+<e><p><l>captain<s n="vblex"/></l><r>capitanare<s n="vblex"/></r></p></e>
+# `editor del Telenotícies migdia': the editor of a news programme --
+# apertium-ita carries `redattore' and the bilingual pairs nothing with it
+# (`editore' is a publisher)
+<e><p><l>editor<s n="n"/></l><r>redattore<s n="n"/><s n="m"/></r></p></e>
+# `el todavía editor y presentador del informativo': the presenter --
+# apertium-ita carries `presentatore' and the bilingual pairs nothing with it
+<e><p><l>presenter<s n="n"/></l><r>presentatore<s n="n"/><s n="m"/></r></p></e>
+# `si Paral.lel continuará en la parrilla': the grill, a television
+# schedule's -- Italian's own for it is `griglia' too, which the dictionary
+# reads as a grid; written only, so that it stays one when read
+<e r="LR"><p><l>grill<s n="n"/></l><r>griglia<s n="n"/><s n="f"/></r></p></e>
+# `el grupo radiofónico': radio, the adjective -- apertium-ita carries
+# `radiofonico' and the bilingual pairs nothing with it
+<e><p><l>radio<s n="adj"/></l><r>radiofonico<s n="adj"/></r></p></e>

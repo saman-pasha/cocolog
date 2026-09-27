@@ -370,6 +370,7 @@ main :-
     section_42,
     section_43,
     section_44,
+    section_45,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -3190,6 +3191,118 @@ The possessive "suo" means "his".
 The verb "viene" means "comes". The verb "dà" means "gives". "dare" is the infinitive of "dà". The noun "progetto" means "blueprint".
 The conjunction "ma" means "but". The adverb "anche" means "also". The adverb "molto" means "very". The adjective "grande" means "big".
 "struck" is the participle of "strikes".').
+
+section_45 :-
+    format("~n45. A Spanish report into Italian: a small word in a name, a name with a hyphen and digits, a point inside a word, a channel and its number, a town that begins with its article, a second aside, a reporting clause after a quotation, an adverb before a participle set off, an adjective phrase between dashes, two verbs of one relative clause, an adverb between a determiner and its noun, a count with no noun, either ... or~n", []),
+    lesson_45(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_45(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('El editor del Telenotícies migdia duerme.', spanish, italian, S45a),
+    must('a SMALL WORD no lesson knows after an article and a name is the name''s', S45a, 'Il redattore del Telenotícies migdia dorme.'),
+    reason_translate('El perro de TV-3 duerme.', spanish, italian, S45b),
+    must('a name with a HYPHEN AND DIGITS is one name', S45b, 'Il cane di TV-3 dorme.'),
+    reason_translate('"Paral.lel continuará", se limitó a contestar Omar.', spanish, italian, S45c),
+    must('a POINT BETWEEN TWO LETTERS ends no sentence', S45c, '"Paral.lel continuerà", si limitò a rispondere Omar.'),
+    reason_translate('El perro duerme en Figueres, Gandesa y El Vendrell.', spanish, italian, S45d),
+    must('a town that BEGINS WITH ITS ARTICLE keeps it', S45d, 'Il cane dorme in Figueres, Gandesa e El Vendrell.'),
+    reason_translate('Omar, editor del grupo, hermano que come con Maria, duerme.', spanish, english, S45e),
+    must('a SECOND ASIDE is set off too, which English shows', S45e, 'Omar, editor of the group, brother that eats with Maria, sleeps.'),
+    reason_translate('"No sé si el perro duerme", se limitó a contestar Omar.', spanish, english, S45f),
+    must('after a quotation that closes on its word, the REPORTING CLAUSE first: Omar answered, and his `se'' is the verb''s', S45f, '"I do not know whether the dog sleeps", Omar limited to answer.'),
+    reason_translate('Omar, recientemente fichado por el ministro, duerme.', spanish, italian, S45g),
+    must('an ADVERB BEFORE A PARTICIPLE set off by commas stays before it', S45g, 'Omar, recentemente ingaggiato dal ministro, dorme.'),
+    reason_translate('Omar - - próximo al ministro - - duerme.', spanish, italian, S45h),
+    must('an ADJECTIVE PHRASE BETWEEN DASHES is set off', S45h, 'Omar – prossimo al ministro – dorme.'),
+    reason_translate('El perro ve el pan que comen y dejan los gatos.', spanish, english, S45i),
+    must('TWO VERBS of one relative clause share its gap and its subject', S45i, 'The dog sees the bread that the cats eat and leave.'),
+    reason_translate('El grupo del todavía editor duerme.', spanish, english, S45j),
+    must('an ADVERB BETWEEN A DETERMINER AND ITS NOUN stays before the noun', S45j, 'The group of the still editor sleeps.'),
+    reason_translate('El perro ve las 33 casas (21 nuevas y 12 viejas).', spanish, english, S45k),
+    must('a COUNT AND ADJECTIVES with no noun', S45k, 'The dog sees the 33 houses (21 new ones and 12 old ones).'),
+    reason_translate('El perro come bien el pan o bien el queso.', spanish, italian, S45l),
+    must('`bien'' before a choice with `o bien'' after it is EITHER', S45l, 'Il cane mangia o il pane o il formaggio.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_45(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "queso" means "cheese". The feminine noun "casa" means "house". The feminine noun "salida" means "departure".
+The noun "ministro" means "minister". "ministro" is a person. The noun "hermano" means "brother". "hermano" is a person.
+The noun "editor" means "editor". "editor" is a person. "editores" is the plural of "editor".
+The noun "grupo" means "group". The noun "canal" means "channel". "canales" is the plural of "canal".
+The feminine noun "cadena" means "chain". The feminine noun "radio" means "radio". "radio" is feminine.
+The noun "reparto" means "distribution". The feminine noun "licencia" means "licence".
+The noun "mayo" means "may". "mayo" is a month.
+The masculine adjective "nuevo" means "new". The masculine adjective "viejo" means "old".
+The feminine adjective "nueva" means "new". "nuevas" is the plural of "nueva". The feminine adjective "vieja" means "old". "viejas" is the plural of "vieja".
+The masculine adjective "próximo" means "next". The masculine adjective "grande" means "big". The feminine adjective "catalana" means "catalan".
+The adverb "todavía" means "still". The adverb "recientemente" means "recently". The adverb "directamente" means "directly".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comido" is the participle of "come".
+The verb "bebe" means "drinks". The verb "deja" means "leaves". "dejan" is the plural of "deja".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "sabe" means "knows". "sé" is the first person of "sabe". "sabe" takes the question.
+The verb "continúa" means "continues". "continuará" is the future of "continúa".
+The verb "limita" means "limits". "limitó" is the past of "limita". "limita" takes "a" before the infinitive.
+The verb "contesta" means "answers". "contestar" is the infinitive of "contesta".
+The verb "ficha" means "engages". "fichado" is the participle of "ficha".
+The verb "capitanea" means "captains". "capitaneado" is the participle of "capitanea". "capitaneada" is the participle of "capitanea". "capitaneada" is feminine.
+The verb "efectúa" means "effects". "efectuado" is the participle of "efectúa".
+The conjunction "y" means "and". The word "bien" begins the choice. The conjunction "o" means "or". The conjunction "o bien" means "or".
+The conjunction "si" means "if". The conjunction "que" means "that". "que" is a relative.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with".
+The preposition "por" means "for". The preposition "por" means "by". The preposition "a principios de" means "at the start of".
+The reflexive pronoun "se" means "itself". The impersonal pronoun "se" means "one".').
+
+lesson_45(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "delle" is the contraction of "di le".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "al" is the contraction of "a il". "alla" is the contraction of "a la".
+"dal" is the contraction of "da il". "dalla" is the contraction of "da la".
+The article "lo" comes before a vowel. "l''" is the elision of "lo". "dello" is the contraction of "di lo". "dell''" is the elision of "dello".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane". The noun "formaggio" means "cheese".
+The feminine noun "casa" means "house". "case" is the plural of "casa". The feminine noun "partenza" means "departure".
+The noun "ministro" means "minister". "ministro" is a person. The noun "fratello" means "brother". "fratello" is a person.
+The noun "redattore" means "editor". "redattore" is a person.
+The noun "gruppo" means "group". The noun "canale" means "channel". "canali" is the plural of "canale".
+The feminine noun "catena" means "chain". The feminine noun "radio" means "radio". "radio" is feminine.
+The noun "riparto" means "distribution". The feminine noun "licenza" means "licence". "licenze" is the plural of "licenza".
+The noun "maggio" means "may". "maggio" is a month.
+The masculine adjective "nuovo" means "new". "nuovi" is the plural of "nuovo". The feminine adjective "nuova" means "new". "nuove" is the plural of "nuova".
+The masculine adjective "vecchio" means "old". The feminine adjective "vecchia" means "old". "vecchie" is the plural of "vecchia".
+The masculine adjective "prossimo" means "next". The adjective "grande" means "big". The feminine adjective "catalana" means "catalan".
+The adverb "ancora" means "still". The adverb "recentemente" means "recently". The adverb "direttamente" means "directly".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiato" is the participle of "mangia".
+The verb "beve" means "drinks". The verb "lascia" means "leaves". "lasciano" is the plural of "lascia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "sa" means "knows". "so" is the first person of "sa". "sa" takes the question.
+The verb "continua" means "continues". "continuerà" is the future of "continua".
+The verb "limita" means "limits". "limitò" is the past of "limita". "limita" takes "a" before the infinitive.
+The verb "risponde" means "answers". "rispondere" is the infinitive of "risponde".
+The verb "ingaggia" means "engages". "ingaggiato" is the participle of "ingaggia".
+The verb "capitana" means "captains". "capitanato" is the participle of "capitana". "capitanata" is the participle of "capitana". "capitanata" is feminine.
+The verb "effettua" means "effects". "effettuato" is the participle of "effettua". "effettuata" is the participle of "effettua". "effettuata" is feminine.
+"effettuati" is the participle of "effettua". "effettuati" is the plural of "effettuato". "effettuate" is the participle of "effettua". "effettuate" is feminine. "effettuate" is the plural of "effettuata".
+The conjunction "e" means "and". The conjunction "o" means "either". The conjunction "o" means "or".
+The conjunction "se" means "if". The conjunction "che" means "that". "che" is a relative.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with".
+The preposition "per" means "for". The preposition "da" means "by". The preposition "agli inizi di" means "at the start of".
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
