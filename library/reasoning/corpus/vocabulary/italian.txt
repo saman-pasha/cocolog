@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16235 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16245 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -811,6 +811,50 @@ The verb "cessa" means "stops".
 The masculine adjective "ridicolo" means "ridiculous".
 The masculine noun "ridicolo" means "ridicule".
 The feminine noun "pazienza" means "patience".
+The feminine noun "camera" means "bedroom".
+The feminine noun "camera" means "chamber".
+The feminine noun "camera" means "camera".
+The feminine noun "impresa" means "company".
+The feminine noun "impresa" means "corporation".
+The feminine noun "impresa" means "enterprise".
+"mattina" is a time.
+"pomeriggio" is a time.
+"sera" is a time.
+"notte" is a time.
+The adverb "certamente" means "certainly".
+The adverb "certo" means "certainly".
+The preposition "verso" means "towards".
+The masculine noun "verso" means "verse".
+The intransitive verb "va" means "goes".
+The conjunction "a patto che" means "provided that".
+The feminine noun "gente" means "people".
+The preposition "tra" means "among".
+The preposition "in mezzo a" means "among".
+The masculine noun "argomento" means "argument".
+The masculine noun "argomento" means "subject".
+The masculine noun "soggetto" means "subject".
+The number "novantacinque" means "ninety-five".
+"professor" is the apocope of "professore".
+The adverb "ecc" means "etc".
+The conjunction "poiché" means "since".
+"quell'" is the elision of "quello".
+"colpisce" takes the experiencer.
+"dev" is the apocope of "deve".
+The feminine noun "epoca" means "period".
+The masculine noun "periodo" means "period".
+"c'era" is the past of "c'è".
+"c'erano" is the plural of "c'era".
+The pronoun "me" means "me".
+The pronoun "me" does not precede the verb.
+The masculine determiner "tanto" means "so much". The feminine determiner "tanta" means "so much".
+"tanti" is the plural of "tanto". "tante" is the plural of "tanta".
+The adverb "insomma" means "in short".
+The masculine noun "metodo" means "method".
+The masculine noun "anno luce" means "light year".
+"anni luce" is the plural of "anno luce".
+The masculine noun "dettaglio" means "detail".
+The masculine noun "particolare" means "detail".
+The adverb "in particolare" means "in particular".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -894,6 +938,9 @@ The noun "teppista" means "hooligan".
 "teppiste" is feminine.
 The feminine noun "minigonna" means "miniskirt".
 "minigonne" is the plural of "minigonna".
+The feminine noun "moglie" means "wife".
+"mogli" is the plural of "moglie".
+"moglie" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -15931,6 +15978,14 @@ The masculine noun "latitante" means "fugitive".
 "latitante" is a person.
 The masculine noun "vincolo" means "restriction".
 "vincoli" is the plural of "vincolo".
+The feminine noun "edicola" means "kiosk".
+"edicole" is the plural of "edicola".
+The feminine noun "telecamera" means "camera".
+"telecamere" is the plural of "telecamera".
+The feminine noun "imprenditoria" means "enterprise".
+"imprenditorie" is the plural of "imprenditoria".
+The masculine noun "serbo" means "serbian".
+"serbi" is the plural of "serbo".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -19953,7 +20008,6 @@ The feminine noun "carica" means "burden".
 The feminine noun "esplosione" means "burst".
 The masculine noun "affare" means "business".
 The masculine noun "telegrafo" means "cablegram".
-The feminine noun "camera" means "camera".
 The feminine noun "capacità" means "capability".
 The masculine noun "capo" means "cape".
 The masculine noun "presidente" means "chairman".
@@ -20058,7 +20112,6 @@ The feminine noun "approvazione" means "endorsement".
 The masculine noun "compromesso" means "engagement".
 The masculine noun "divertimento" means "amusement".
 The noun "ampolla" means "ampul".
-The feminine noun "impresa" means "enterprise".
 The noun "artista" means "entertainer".
 "artista" is not feminine.
 The masculine noun "divertimento" means "entertainment".
@@ -20576,7 +20629,8 @@ The masculine noun "problema" means "trouble".
 The masculine noun "pantalone" means "trousers".
 The masculine noun "metro" means "tube".
 The feminine noun "ottimizzazione" means "tuning".
-The feminine noun "rivolta" means "turning".
+The feminine noun "svolta" means "turning".
+"svolte" is the plural of "svolta".
 The noun "nipote" means "grandson".
 The noun "nipote" means "granddaughter".
 The noun "nipote" means "nephew".
@@ -20620,7 +20674,6 @@ The feminine noun "garanzia" means "warranty".
 The masculine noun "orologio" means "watch".
 The feminine noun "irrigazione" means "watering".
 The masculine noun "stoppino" means "wick".
-The feminine noun "donna" means "wife".
 The feminine noun "disposizione" means "willingness".
 The masculine noun "cavo" means "wire".
 The feminine noun "volpe" means "vixen".
@@ -67682,53 +67735,53 @@ The verb "presuppone" means "posits".
 "presupposte" is the plural of "presupposta".
 "presupporre" is the infinitive of "presuppone".
 "presupponendo" is the gerund of "presuppone".
-The verb "pospne" means "postpones".
-"pospngono" is the plural of "pospne".
-"pospniamo" is the first person of "pospngono".
-"pospngo" is the first person of "pospne".
-"pospni" is the second person of "pospne".
-"pospse" is the past of "pospne".
-"pospsero" is the past of "pospngono".
-"pospnemmo" is the first person of "pospsero".
-"pospsi" is the first person of "pospse".
-"pospnesti" is the second person of "pospse".
-"pospneva" is the past of "pospne".
-"pospnevano" is the past of "pospngono".
-"pospnevamo" is the first person of "pospnevano".
-"pospnevo" is the first person of "pospneva".
-"pospnevi" is the second person of "pospneva".
-"posprrà" is the future of "pospne".
-"posprranno" is the plural of "posprrà".
-"posprremo" is the first person of "posprranno".
-"posprrò" is the first person of "posprrà".
-"posprrai" is the second person of "posprrà".
-"posprrebbe" is the conditional of "pospne".
-"posprrebbero" is the plural of "posprrebbe".
-"posprremmo" is the first person of "posprrebbero".
-"posprrei" is the first person of "posprrebbe".
-"posprresti" is the second person of "posprrebbe".
-"pospnga" is the subjunctive of "pospne".
-"pospngano" is the plural of "pospnga".
-"pospniamo" is the first person of "pospngano".
-"pospnesse" is the past subjunctive of "pospne".
-"pospnessero" is the plural of "pospnesse".
-"pospnessimo" is the first person of "pospnessero".
-"pospnessi" is the first person of "pospnesse".
-"pospnessi" is the second person of "pospnesse".
-"pospni" is the imperative of "pospne".
-"posprre" is the negative imperative of "pospne".
-"pospnete" is the imperative of "pospngono".
-"pospniamo" is the hortative of "pospne".
-"pospsto" is the participle of "pospne".
-"pospsta" is the participle of "pospne".
-"pospsta" is feminine.
-"pospsti" is the participle of "pospne".
-"pospsti" is the plural of "pospsto".
-"pospste" is the participle of "pospne".
-"pospste" is feminine.
-"pospste" is the plural of "pospsta".
-"posprre" is the infinitive of "pospne".
-"pospnendo" is the gerund of "pospne".
+The verb "pospone" means "postpones".
+"pospongono" is the plural of "pospone".
+"posponiamo" is the first person of "pospongono".
+"pospongo" is the first person of "pospone".
+"posponi" is the second person of "pospone".
+"pospose" is the past of "pospone".
+"posposero" is the past of "pospongono".
+"posponemmo" is the first person of "posposero".
+"posposi" is the first person of "pospose".
+"posponesti" is the second person of "pospose".
+"posponeva" is the past of "pospone".
+"posponevano" is the past of "pospongono".
+"posponevamo" is the first person of "posponevano".
+"posponevo" is the first person of "posponeva".
+"posponevi" is the second person of "posponeva".
+"posporrà" is the future of "pospone".
+"posporranno" is the plural of "posporrà".
+"posporremo" is the first person of "posporranno".
+"posporrò" is the first person of "posporrà".
+"posporrai" is the second person of "posporrà".
+"posporrebbe" is the conditional of "pospone".
+"posporrebbero" is the plural of "posporrebbe".
+"posporremmo" is the first person of "posporrebbero".
+"posporrei" is the first person of "posporrebbe".
+"posporresti" is the second person of "posporrebbe".
+"posponga" is the subjunctive of "pospone".
+"pospongano" is the plural of "posponga".
+"posponiamo" is the first person of "pospongano".
+"posponesse" is the past subjunctive of "pospone".
+"posponessero" is the plural of "posponesse".
+"posponessimo" is the first person of "posponessero".
+"posponessi" is the first person of "posponesse".
+"posponessi" is the second person of "posponesse".
+"posponi" is the imperative of "pospone".
+"posporre" is the negative imperative of "pospone".
+"posponete" is the imperative of "pospongono".
+"posponiamo" is the hortative of "pospone".
+"posposto" is the participle of "pospone".
+"posposta" is the participle of "pospone".
+"posposta" is feminine.
+"posposti" is the participle of "pospone".
+"posposti" is the plural of "posposto".
+"posposte" is the participle of "pospone".
+"posposte" is feminine.
+"posposte" is the plural of "posposta".
+"posporre" is the infinitive of "pospone".
+"posponendo" is the gerund of "pospone".
 The verb "versa" means "pours".
 The verb "impolvera" means "powders".
 "impolverano" is the plural of "impolvera".
@@ -89764,6 +89817,100 @@ The verb "boccia" means "rejects".
 "bocciate" is the plural of "bocciata".
 "bocciare" is the infinitive of "boccia".
 "bocciando" is the gerund of "boccia".
+The verb "sottopone" means "subjects".
+"sottopongono" is the plural of "sottopone".
+"sottoponiamo" is the first person of "sottopongono".
+"sottopongo" is the first person of "sottopone".
+"sottoponi" is the second person of "sottopone".
+"sottopose" is the past of "sottopone".
+"sottoposero" is the past of "sottopongono".
+"sottoponemmo" is the first person of "sottoposero".
+"sottoposi" is the first person of "sottopose".
+"sottoponesti" is the second person of "sottopose".
+"sottoponeva" is the past of "sottopone".
+"sottoponevano" is the past of "sottopongono".
+"sottoponevamo" is the first person of "sottoponevano".
+"sottoponevo" is the first person of "sottoponeva".
+"sottoponevi" is the second person of "sottoponeva".
+"sottoporrà" is the future of "sottopone".
+"sottoporranno" is the plural of "sottoporrà".
+"sottoporremo" is the first person of "sottoporranno".
+"sottoporrò" is the first person of "sottoporrà".
+"sottoporrai" is the second person of "sottoporrà".
+"sottoporrebbe" is the conditional of "sottopone".
+"sottoporrebbero" is the plural of "sottoporrebbe".
+"sottoporremmo" is the first person of "sottoporrebbero".
+"sottoporrei" is the first person of "sottoporrebbe".
+"sottoporresti" is the second person of "sottoporrebbe".
+"sottoponga" is the subjunctive of "sottopone".
+"sottopongano" is the plural of "sottoponga".
+"sottoponiamo" is the first person of "sottopongano".
+"sottoponesse" is the past subjunctive of "sottopone".
+"sottoponessero" is the plural of "sottoponesse".
+"sottoponessimo" is the first person of "sottoponessero".
+"sottoponessi" is the first person of "sottoponesse".
+"sottoponessi" is the second person of "sottoponesse".
+"sottoponi" is the imperative of "sottopone".
+"sottoporre" is the negative imperative of "sottopone".
+"sottoponete" is the imperative of "sottopongono".
+"sottoponiamo" is the hortative of "sottopone".
+"sottoposto" is the participle of "sottopone".
+"sottoposta" is the participle of "sottopone".
+"sottoposta" is feminine.
+"sottoposti" is the participle of "sottopone".
+"sottoposti" is the plural of "sottoposto".
+"sottoposte" is the participle of "sottopone".
+"sottoposte" is feminine.
+"sottoposte" is the plural of "sottoposta".
+"sottoporre" is the infinitive of "sottopone".
+"sottoponendo" is the gerund of "sottopone".
+The verb "poggia" means "rests".
+"poggiano" is the plural of "poggia".
+"poggiamo" is the first person of "poggiano".
+"poggio" is the first person of "poggia".
+"poggi" is the second person of "poggia".
+"poggiò" is the past of "poggia".
+"poggiarono" is the past of "poggiano".
+"poggiammo" is the first person of "poggiarono".
+"poggiai" is the first person of "poggiò".
+"poggiasti" is the second person of "poggiò".
+"poggiava" is the past of "poggia".
+"poggiavano" is the past of "poggiano".
+"poggiavamo" is the first person of "poggiavano".
+"poggiavo" is the first person of "poggiava".
+"poggiavi" is the second person of "poggiava".
+"poggerà" is the future of "poggia".
+"poggeranno" is the plural of "poggerà".
+"poggeremo" is the first person of "poggeranno".
+"poggerò" is the first person of "poggerà".
+"poggerai" is the second person of "poggerà".
+"poggerebbe" is the conditional of "poggia".
+"poggerebbero" is the plural of "poggerebbe".
+"poggeremmo" is the first person of "poggerebbero".
+"poggerei" is the first person of "poggerebbe".
+"poggeresti" is the second person of "poggerebbe".
+"poggi" is the subjunctive of "poggia".
+"poggino" is the plural of "poggi".
+"poggiamo" is the first person of "poggino".
+"poggiasse" is the past subjunctive of "poggia".
+"poggiassero" is the plural of "poggiasse".
+"poggiassimo" is the first person of "poggiassero".
+"poggiassi" is the first person of "poggiasse".
+"poggiassi" is the second person of "poggiasse".
+"poggia" is the imperative of "poggia".
+"poggiare" is the negative imperative of "poggia".
+"poggiate" is the imperative of "poggiano".
+"poggiamo" is the hortative of "poggia".
+"poggiato" is the participle of "poggia".
+"poggiata" is the participle of "poggia".
+"poggiata" is feminine.
+"poggiati" is the participle of "poggia".
+"poggiati" is the plural of "poggiato".
+"poggiate" is the participle of "poggia".
+"poggiate" is feminine.
+"poggiate" is the plural of "poggiata".
+"poggiare" is the infinitive of "poggia".
+"poggiando" is the gerund of "poggia".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -98537,16 +98684,16 @@ The feminine adjective "degradata" means "degraded".
 "degradatissimi" is the superlative of "degradati".
 "degradatissima" is the superlative of "degradata".
 "degradatissime" is the superlative of "degradate".
-The adjective "degradae" means "degrading".
-"degradai" is the plural of "degradae".
-"degradaissimo" is the superlative of "degradae".
-"degradaissimi" is the superlative of "degradai".
-"degradaissima" is the superlative of "degradae".
-"degradaissime" is the superlative of "degradai".
-"degradantissimo" is the superlative of "degradae".
-"degradantissimi" is the superlative of "degradai".
-"degradantissima" is the superlative of "degradae".
-"degradantissime" is the superlative of "degradai".
+The adjective "degradante" means "degrading".
+"degradanti" is the plural of "degradante".
+"degradaissimo" is the superlative of "degradante".
+"degradaissimi" is the superlative of "degradanti".
+"degradaissima" is the superlative of "degradante".
+"degradaissime" is the superlative of "degradanti".
+"degradantissimo" is the superlative of "degradante".
+"degradantissimi" is the superlative of "degradanti".
+"degradantissima" is the superlative of "degradante".
+"degradantissime" is the superlative of "degradanti".
 The masculine adjective "incaricato" means "delegate".
 "incaricati" is the plural of "incaricato".
 The feminine adjective "incaricata" means "delegate".
@@ -98921,16 +99068,16 @@ The feminine adjective "discontinua" means "discontinuous".
 "discontinuissimi" is the superlative of "discontinui".
 "discontinuissima" is the superlative of "discontinua".
 "discontinuissime" is the superlative of "discontinue".
-The adjective "discordae" means "discordant".
-"discordai" is the plural of "discordae".
-"discordaissimo" is the superlative of "discordae".
-"discordaissimi" is the superlative of "discordai".
-"discordaissima" is the superlative of "discordae".
-"discordaissime" is the superlative of "discordai".
-"discordantissimo" is the superlative of "discordae".
-"discordantissimi" is the superlative of "discordai".
-"discordantissima" is the superlative of "discordae".
-"discordantissime" is the superlative of "discordai".
+The adjective "discordante" means "discordant".
+"discordanti" is the plural of "discordante".
+"discordaissimo" is the superlative of "discordante".
+"discordaissimi" is the superlative of "discordanti".
+"discordaissima" is the superlative of "discordante".
+"discordaissime" is the superlative of "discordanti".
+"discordantissimo" is the superlative of "discordante".
+"discordantissimi" is the superlative of "discordanti".
+"discordantissima" is the superlative of "discordante".
+"discordantissime" is the superlative of "discordanti".
 The masculine adjective "discreto" means "discreet".
 "discreti" is the plural of "discreto".
 The feminine adjective "discreta" means "discreet".
@@ -99000,16 +99147,16 @@ The adjective "dissonante" means "dissonant".
 "dissonantissimi" is the superlative of "dissonanti".
 "dissonantissima" is the superlative of "dissonante".
 "dissonantissime" is the superlative of "dissonanti".
-The adjective "distae" means "distant".
-"distai" is the plural of "distae".
-"distaissimo" is the superlative of "distae".
-"distaissimi" is the superlative of "distai".
-"distaissima" is the superlative of "distae".
-"distaissime" is the superlative of "distai".
-"distantissimo" is the superlative of "distae".
-"distantissimi" is the superlative of "distai".
-"distantissima" is the superlative of "distae".
-"distantissime" is the superlative of "distai".
+The adjective "distante" means "distant".
+"distanti" is the plural of "distante".
+"distaissimo" is the superlative of "distante".
+"distaissimi" is the superlative of "distanti".
+"distaissima" is the superlative of "distante".
+"distaissime" is the superlative of "distanti".
+"distantissimo" is the superlative of "distante".
+"distantissimi" is the superlative of "distanti".
+"distantissima" is the superlative of "distante".
+"distantissime" is the superlative of "distanti".
 The masculine adjective "distinto" means "distinct".
 "distinti" is the plural of "distinto".
 The feminine adjective "distinta" means "distinct".
@@ -99038,16 +99185,16 @@ The masculine adjective "distributore" means "distributor".
 "distributori" is the plural of "distributore".
 The feminine adjective "distributrice" means "distributor".
 "distributrici" is the plural of "distributrice".
-The adjective "inquietae" means "disturbing".
-"inquietai" is the plural of "inquietae".
-"inquietaissimo" is the superlative of "inquietae".
-"inquietaissimi" is the superlative of "inquietai".
-"inquietaissima" is the superlative of "inquietae".
-"inquietaissime" is the superlative of "inquietai".
-"inquietantissimo" is the superlative of "inquietae".
-"inquietantissimi" is the superlative of "inquietai".
-"inquietantissima" is the superlative of "inquietae".
-"inquietantissime" is the superlative of "inquietai".
+The adjective "inquietante" means "disturbing".
+"inquietanti" is the plural of "inquietante".
+"inquietaissimo" is the superlative of "inquietante".
+"inquietaissimi" is the superlative of "inquietanti".
+"inquietaissima" is the superlative of "inquietante".
+"inquietaissime" is the superlative of "inquietanti".
+"inquietantissimo" is the superlative of "inquietante".
+"inquietantissimi" is the superlative of "inquietanti".
+"inquietantissima" is the superlative of "inquietante".
+"inquietantissime" is the superlative of "inquietanti".
 The masculine adjective "diurno" means "diurnal".
 "diurni" is the plural of "diurno".
 The feminine adjective "diurna" means "diurnal".
@@ -100115,16 +100262,16 @@ The feminine adjective "contadina" means "farmer".
 "contadinissimi" is the superlative of "contadini".
 "contadinissima" is the superlative of "contadina".
 "contadinissime" is the superlative of "contadine".
-The adjective "affascinae" means "fascinating".
-"affascinai" is the plural of "affascinae".
-"affascinaissimo" is the superlative of "affascinae".
-"affascinaissimi" is the superlative of "affascinai".
-"affascinaissima" is the superlative of "affascinae".
-"affascinaissime" is the superlative of "affascinai".
-"affascinantissimo" is the superlative of "affascinae".
-"affascinantissimi" is the superlative of "affascinai".
-"affascinantissima" is the superlative of "affascinae".
-"affascinantissime" is the superlative of "affascinai".
+The adjective "affascinante" means "fascinating".
+"affascinanti" is the plural of "affascinante".
+"affascinaissimo" is the superlative of "affascinante".
+"affascinaissimi" is the superlative of "affascinanti".
+"affascinaissima" is the superlative of "affascinante".
+"affascinaissime" is the superlative of "affascinanti".
+"affascinantissimo" is the superlative of "affascinante".
+"affascinantissimi" is the superlative of "affascinanti".
+"affascinantissima" is the superlative of "affascinante".
+"affascinantissime" is the superlative of "affascinanti".
 The adjective "fascista" means "fascist".
 "fascisti" is the plural of "fascista".
 "fasciste" is the plural of "fascista".
@@ -101536,16 +101683,16 @@ The adjective "umile" means "humble".
 "umilissime" is the superlative of "umili".
 The adjective "umico" means "humic".
 The adjective "umetto" means "humid".
-The adjective "umiliae" means "humiliating".
-"umiliai" is the plural of "umiliae".
-"umiliaissimo" is the superlative of "umiliae".
-"umiliaissimi" is the superlative of "umiliai".
-"umiliaissima" is the superlative of "umiliae".
-"umiliaissime" is the superlative of "umiliai".
-"umiliantissimo" is the superlative of "umiliae".
-"umiliantissimi" is the superlative of "umiliai".
-"umiliantissima" is the superlative of "umiliae".
-"umiliantissime" is the superlative of "umiliai".
+The adjective "umiliante" means "humiliating".
+"umilianti" is the plural of "umiliante".
+"umiliaissimo" is the superlative of "umiliante".
+"umiliaissimi" is the superlative of "umilianti".
+"umiliaissima" is the superlative of "umiliante".
+"umiliaissime" is the superlative of "umilianti".
+"umiliantissimo" is the superlative of "umiliante".
+"umiliantissimi" is the superlative of "umilianti".
+"umiliantissima" is the superlative of "umiliante".
+"umiliantissime" is the superlative of "umilianti".
 The adjective "umorale" means "humoral".
 The masculine adjective "umoristico" means "humorous".
 "umoristici" is the plural of "umoristico".
@@ -103021,16 +103168,16 @@ The adjective "irrevocabile" means "irrevocable".
 "irrevocabilissimi" is the superlative of "irrevocabili".
 "irrevocabilissima" is the superlative of "irrevocabile".
 "irrevocabilissime" is the superlative of "irrevocabili".
-The adjective "irritae" means "irritating".
-"irritai" is the plural of "irritae".
-"irritaissimo" is the superlative of "irritae".
-"irritaissimi" is the superlative of "irritai".
-"irritaissima" is the superlative of "irritae".
-"irritaissime" is the superlative of "irritai".
-"irritantissimo" is the superlative of "irritae".
-"irritantissimi" is the superlative of "irritai".
-"irritantissima" is the superlative of "irritae".
-"irritantissime" is the superlative of "irritai".
+The adjective "irritante" means "irritating".
+"irritanti" is the plural of "irritante".
+"irritaissimo" is the superlative of "irritante".
+"irritaissimi" is the superlative of "irritanti".
+"irritaissima" is the superlative of "irritante".
+"irritaissime" is the superlative of "irritanti".
+"irritantissimo" is the superlative of "irritante".
+"irritantissimi" is the superlative of "irritanti".
+"irritantissima" is the superlative of "irritante".
+"irritantissime" is the superlative of "irritanti".
 The adjective "irrotazionale" means "irrotational".
 The masculine adjective "islamico" means "islamic".
 "islamici" is the plural of "islamico".
@@ -105620,16 +105767,16 @@ The adjective "prevedibile" means "predictable".
 "prevedibilissima" is the superlative of "prevedibile".
 "prevedibilissime" is the superlative of "prevedibili".
 The adjective "predittivo" means "predictive".
-The adjective "predominae" means "predominant".
-"predominai" is the plural of "predominae".
-"predominaissimo" is the superlative of "predominae".
-"predominaissimi" is the superlative of "predominai".
-"predominaissima" is the superlative of "predominae".
-"predominaissime" is the superlative of "predominai".
-"predominantissimo" is the superlative of "predominae".
-"predominantissimi" is the superlative of "predominai".
-"predominantissima" is the superlative of "predominae".
-"predominantissime" is the superlative of "predominai".
+The adjective "predominante" means "predominant".
+"predominanti" is the plural of "predominante".
+"predominaissimo" is the superlative of "predominante".
+"predominaissimi" is the superlative of "predominanti".
+"predominaissima" is the superlative of "predominante".
+"predominaissime" is the superlative of "predominanti".
+"predominantissimo" is the superlative of "predominante".
+"predominantissimi" is the superlative of "predominanti".
+"predominantissima" is the superlative of "predominante".
+"predominantissime" is the superlative of "predominanti".
 The adjective "preminente" means "preeminent".
 "preminenti" is the plural of "preminente".
 "preminentissimo" is the superlative of "preminente".
@@ -108377,16 +108524,16 @@ The feminine adjective "utopica" means "utopian".
 "utopicissimi" is the superlative of "utopici".
 "utopicissima" is the superlative of "utopica".
 "utopicissime" is the superlative of "utopiche".
-The adjective "vacae" means "vacant".
-"vacai" is the plural of "vacae".
-"vacaissimo" is the superlative of "vacae".
-"vacaissimi" is the superlative of "vacai".
-"vacaissima" is the superlative of "vacae".
-"vacaissime" is the superlative of "vacai".
-"vacantissimo" is the superlative of "vacae".
-"vacantissimi" is the superlative of "vacai".
-"vacantissima" is the superlative of "vacae".
-"vacantissime" is the superlative of "vacai".
+The adjective "vacante" means "vacant".
+"vacanti" is the plural of "vacante".
+"vacaissimo" is the superlative of "vacante".
+"vacaissimi" is the superlative of "vacanti".
+"vacaissima" is the superlative of "vacante".
+"vacaissime" is the superlative of "vacanti".
+"vacantissimo" is the superlative of "vacante".
+"vacantissimi" is the superlative of "vacanti".
+"vacantissima" is the superlative of "vacante".
+"vacantissime" is the superlative of "vacanti".
 The adjective "vaginale" means "vaginal".
 "vaginali" is the plural of "vaginale".
 "vaginalissimo" is the superlative of "vaginale".
@@ -108434,16 +108581,16 @@ The masculine adjective "veterinario" means "veterinary".
 "veterinari" is the plural of "veterinario".
 The feminine adjective "veterinaria" means "veterinary".
 "veterinarie" is the plural of "veterinaria".
-The adjective "vibrae" means "vibrant".
-"vibrai" is the plural of "vibrae".
-"vibraissimo" is the superlative of "vibrae".
-"vibraissimi" is the superlative of "vibrai".
-"vibraissima" is the superlative of "vibrae".
-"vibraissime" is the superlative of "vibrai".
-"vibrantissimo" is the superlative of "vibrae".
-"vibrantissimi" is the superlative of "vibrai".
-"vibrantissima" is the superlative of "vibrae".
-"vibrantissime" is the superlative of "vibrai".
+The adjective "vibrante" means "vibrant".
+"vibranti" is the plural of "vibrante".
+"vibraissimo" is the superlative of "vibrante".
+"vibraissimi" is the superlative of "vibranti".
+"vibraissima" is the superlative of "vibrante".
+"vibraissime" is the superlative of "vibranti".
+"vibrantissimo" is the superlative of "vibrante".
+"vibrantissimi" is the superlative of "vibranti".
+"vibrantissima" is the superlative of "vibrante".
+"vibrantissime" is the superlative of "vibranti".
 The masculine adjective "vigoroso" means "vigorous".
 "vigorosi" is the plural of "vigoroso".
 The feminine adjective "vigorosa" means "vigorous".
@@ -108794,10 +108941,10 @@ The feminine adjective "microscopica" means "microscopic".
 "microscopicissimi" is the superlative of "microscopici".
 "microscopicissima" is the superlative of "microscopica".
 "microscopicissime" is the superlative of "microscopiche".
-The masculine adjective "migratoro" means "migratory".
-"migrator" is the plural of "migratoro".
-The feminine adjective "migratora" means "migratory".
-"migratore" is the plural of "migratora".
+The masculine adjective "migratorio" means "migratory".
+"migratori" is the plural of "migratorio".
+The feminine adjective "migratoria" means "migratory".
+"migratorie" is the plural of "migratoria".
 The adjective "militante" means "militant".
 "militanti" is the plural of "militante".
 "militantissimo" is the superlative of "militante".
@@ -110592,6 +110739,44 @@ The feminine adjective "scorsa" means "last".
 "scorsissimi" is the superlative of "scorsi".
 "scorsissima" is the superlative of "scorsa".
 "scorsissime" is the superlative of "scorse".
+The masculine adjective "disagiato" means "needy".
+"disagiati" is the plural of "disagiato".
+The feminine adjective "disagiata" means "needy".
+"disagiate" is the plural of "disagiata".
+"disagiatissimo" is the superlative of "disagiato".
+"disagiatissimi" is the superlative of "disagiati".
+"disagiatissima" is the superlative of "disagiata".
+"disagiatissime" is the superlative of "disagiate".
+The adjective "stressante" means "stressful".
+"stressanti" is the plural of "stressante".
+"stressantissimo" is the superlative of "stressante".
+"stressantissimi" is the superlative of "stressanti".
+"stressantissima" is the superlative of "stressante".
+"stressantissime" is the superlative of "stressanti".
+The adjective "assordante" means "deafening".
+"assordanti" is the plural of "assordante".
+"assordantissimo" is the superlative of "assordante".
+"assordantissimi" is the superlative of "assordanti".
+"assordantissima" is the superlative of "assordante".
+"assordantissime" is the superlative of "assordanti".
+The adjective "ingannevole" means "deceptive".
+"ingannevoli" is the plural of "ingannevole".
+"ingannevolissimo" is the superlative of "ingannevole".
+"ingannevolissimi" is the superlative of "ingannevoli".
+"ingannevolissima" is the superlative of "ingannevole".
+"ingannevolissime" is the superlative of "ingannevoli".
+The masculine adjective "travagliato" means "troubled".
+"travagliati" is the plural of "travagliato".
+The feminine adjective "travagliata" means "troubled".
+"travagliate" is the plural of "travagliata".
+"travagliatissimo" is the superlative of "travagliato".
+"travagliatissimi" is the superlative of "travagliati".
+"travagliatissima" is the superlative of "travagliata".
+"travagliatissime" is the superlative of "travagliate".
+The masculine adjective "serbo" means "serbian".
+"serbi" is the plural of "serbo".
+The feminine adjective "serba" means "serbian".
+"serbe" is the plural of "serba".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

@@ -941,3 +941,45 @@ The intransitive verb "cabe" means "remains".
 # `ridículo' only as the adjective, which stays its first meaning
 The masculine adjective "ridículo" means "ridiculous".
 The masculine noun "ridículo" means "ridicule".
+# the Bovalino letter (Italian UD, VIT-9800..9814), into Spanish.
+# `domenica mattina' is `el domingo por la mañana': the parts of the day
+# are times, as the days are, and the word that joins a day and its part
+"mañana" is a time.
+"tarde" is a time.
+"noche" is a time.
+The word "por" joins the time.
+# `La sera precedente': the evening before -- the dictionary's first
+# Spanish word for `evening' is `anochecer', nightfall, and `noche' says
+# the night first; its own first meaning is said again above
+The feminine noun "noche" means "night".
+The feminine noun "noche" means "evening".
+# `la gente', people -- the dictionary has `gente' as a person, one of them
+The feminine noun "gente" means "people".
+# `una vita disagiata', a needy life: the dictionary gives `necesitado' as
+# an adjective with no forms, and the feminine is the participle's alone
+The masculine adjective "necesitado" means "needy". The feminine adjective "necesitada" means "needy".
+"necesitados" is the plural of "necesitado". "necesitadas" is the plural of "necesitada".
+# `9 luglio novantacinque': ninety-five
+The number "noventa y cinco" means "ninety-five".
+# `non c'erano telecamere': there was -- `había' is the past of `ha' too
+"había" is the past of "hay".
+# `a me piace': me, the pronoun that stands after a preposition
+The pronoun "mí" means "me".
+The pronoun "mí" does not precede the verb.
+# `un periodo molto stressante': stressful -- the dictionary's word for it
+# is `estresando', a gerund
+The adjective "estresante" means "stressful". "estresantes" is the plural of "estresante".
+# `tante, tante persone comuni': so many
+The masculine determiner "tanto" means "so much". The feminine determiner "tanta" means "so much".
+"tantos" is the plural of "tanto". "tantas" is the plural of "tanta".
+# `la guerra tra serbi e bosniaci': the nouns -- the dictionary has the
+# adjectives alone
+The masculine noun "serbio" means "serbian". "serbios" is the plural of "serbio".
+The masculine noun "bosnio" means "bosnian". "bosnios" is the plural of "bosnio".
+# `Insomma, un metodo lontano anni luce ...': in short, and a light year,
+# one word of two whose plural keeps `luz'
+The adverb "en resumen" means "in short".
+# ... and `in particolare' is `en particular', one word of two
+The adverb "en particular" means "in particular".
+The masculine noun "año luz" means "light year".
+"años luz" is the plural of "año luz".

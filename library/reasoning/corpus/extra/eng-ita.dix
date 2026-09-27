@@ -400,3 +400,32 @@
 <e><p><l>miniskirt<s n="n"/></l><r>minigonna<s n="n"/><s n="f"/></r></p></e>
 # `flemático, inalterable y estreñido': unalterable -- the same, `inalterabile'
 <e><p><l>unalterable<s n="adj"/></l><r>inalterabile<s n="adj"/></r></p></e>
+# the Bovalino letter (Italian UD, VIT-9800..9814), into Spanish. `la moglie':
+# wife -- apertium-ita carries `moglie', and the bilingual gives `wife' to
+# `donna' alone, one way; both ways here, the word for it
+<e><p><l>wife<s n="n"/></l><r>moglie<s n="n"/><s n="f"/></r></p></e>
+# `indicargli un'edicola': a newsstand, `kiosk' to the Spanish dictionary --
+# apertium-ita carries `edicola' and the bilingual pairs it with nothing
+<e r="RL"><p><l>kiosk<s n="n"/></l><r>edicola<s n="n"/><s n="f"/></r></p></e>
+# `non c'erano telecamere': cameras -- the same
+<e r="RL"><p><l>camera<s n="n"/></l><r>telecamera<s n="n"/><s n="f"/></r></p></e>
+# `le esigenze del mondo dell'imprenditoria': enterprise -- the same
+<e r="RL"><p><l>enterprise<s n="n"/></l><r>imprenditoria<s n="n"/><s n="f"/></r></p></e>
+# `i soggetti che vivono una vita disagiata': needy -- the same
+<e r="RL"><p><l>needy<s n="adj"/></l><r>disagiato<s n="adj"/></r></p></e>
+# `un periodo molto stressante': stressful -- the same
+<e r="RL"><p><l>stressful<s n="adj"/></l><r>stressante<s n="adj"/></r></p></e>
+# `a patto che si sottopongano ... al giudizio': subjects -- the same
+<e r="RL"><p><l>subject<s n="vblex"/></l><r>sottoporre<s n="vblex"/></r></p></e>
+# `un comportamento ... che poggia sulle piccole cose': rests -- the same
+<e r="RL"><p><l>rest<s n="vblex"/></l><r>poggiare<s n="vblex"/></r></p></e>
+# `musiche assordanti e promesse ingannevoli': deafening, deceptive -- the same
+<e r="RL"><p><l>deafening<s n="adj"/></l><r>assordante<s n="adj"/></r></p></e>
+<e r="RL"><p><l>deceptive<s n="adj"/></l><r>ingannevole<s n="adj"/></r></p></e>
+# `un piccolo centro ... travagliato da una molteplicità di problemi':
+# troubled -- the same
+<e r="RL"><p><l>troubled<s n="adj"/></l><r>travagliato<s n="adj"/></r></p></e>
+# `la guerra tra serbi e bosniaci': Serbian, the noun and the adjective --
+# the same, and `Bosnian' is the dictionary's noun for `bosniaco'
+<e r="RL"><p><l>Serbian<s n="n"/></l><r>serbo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>serbian<s n="adj"/></l><r>serbo<s n="adj"/></r></p></e>

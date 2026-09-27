@@ -28,7 +28,7 @@ main :-
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
     newspaper_georgia, newspaper_wapo, newspaper_clinton, newspaper_letter, newspaper_solana,
     newspaper_pacifist, newspaper_mobile, newspaper_bastille, newspaper_basque, newspaper_giglio,
-    newspaper_england,
+    newspaper_england, newspaper_bovalino,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -6146,6 +6146,264 @@ newspaper_england_checks_2 :-
     nf_tr('Los perros paran el pan.', spanish, italian, F18),
     check('a GUARD: with an object it is', F18, 'I cani fermano il pane.').
 
+%% ---- an Italian letter into Spanish: the time of day, a day and its part,
+%% a year in words, a denial after a coordinator, two adjectives of one noun,
+%% a polite command, a purpose with its pronoun joined, a word said twice,
+%% the reflexive passive's subject, the vocative and the answer between
+%% dashes, a speaker after the verb with a clause of the speaker's own, bare nouns as
+%% an object, a gerund in front, a signature with initials, the
+%% experiencer, a comma after a coordinator, an adjective that is a
+%% preposition too (1.8.18) --------------------------------------------------
+
+newspaper_bovalino :-
+    section('an Italian letter into Spanish: the time of day, a day and its part, a year in words, a denial after a coordinator, two adjectives of one noun, a polite command, a purpose with its pronoun joined, a word said twice, the reflexive passive''s subject, the vocative and the answer between dashes, a speaker after the verb with a clause of the speaker''s own, bare nouns as an object, a gerund in front, a signature with initials, the experiencer, a comma after a coordinator, an adjective that is a preposition too'),
+    newspaper_bovalino_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_bovalino_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_bovalino_checks_1, newspaper_bovalino_checks_2, newspaper_bovalino_checks_3,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+newspaper_bovalino_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The adverb "no" means "no". The word "a" precedes the person. The word "de" joins the date. The word "por" joins the time.
+The word "para" begins the purpose. The mark "¿" begins the question.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "queso" means "cheese". The feminine noun "casa" means "house".
+The noun "ministro" means "minister". "ministro" is a person. The noun "hermano" means "brother". "hermano" is a person.
+The noun "profesor" means "professor". "profesor" is a person. "profesores" is the plural of "profesor".
+The noun "señor" means "gentleman". "señor" is a person.
+The noun "técnico" means "technician". "técnico" is a person. The noun "político" means "politician". "político" is a person.
+The masculine adjective "técnico" means "technical". The masculine adjective "político" means "political".
+The noun "país" means "country". "países" is the plural of "país". The noun "acercamiento" means "approach".
+The feminine noun "misa" means "mass". The feminine noun "hora" means "hour".
+The noun "año" means "year". "año" is a time. The noun "mes" means "month". "meses" is the plural of "mes".
+The noun "comentario" means "comment". The feminine noun "guerra" means "war". The feminine noun "decisión" means "decision".
+The noun "domingo" means "sunday". "domingo" is a time. The feminine noun "mañana" means "morning". "mañana" is a time.
+The noun "julio" means "july". "julio" is a month.
+The number "noventa y cinco" means "ninety-five". The number "dos" means "two".
+The masculine adjective "nuevo" means "new". The masculine adjective "diverso" means "diverse".
+The masculine adjective "cansado" means "tired". The feminine adjective "cansada" means "tired".
+The masculine adjective "cercano" means "close". The adverb "cerca" means "near".
+The masculine adjective "crítico" means "critical".
+The masculine determiner "tanto" means "so much". "tantos" is the plural of "tanto".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comiendo" is the gerund of "come".
+"pueden" is the plural of "puede". The modal "puede" means "can".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "ve" means "sees". "ven" is the plural of "ve". "ver" is the infinitive of "ve".
+The verb "mira" means "looks". "mire" is the subjunctive of "mira".
+The verb "pregunta" means "asks". "preguntado" is the participle of "pregunta".
+The verb "contesta" means "answers". "contestado" is the participle of "contesta".
+The verb "golpea" means "strikes". "golpeado" is the participle of "golpea".
+The intransitive verb "gusta" means "pleases".
+The verb "inserta" means "inserts". "insertará" is the future of "inserta".
+The verb "es" means "is". "son" is the plural of "es". "era" is the past of "es". "eran" is the plural of "era". "ser" is the infinitive of "es".
+"somos" is the first person of "son". "éramos" is the first person of "eran".
+The auxiliary "está" means "is". "estar" is the infinitive of "está". The auxiliary "está" marks the state.
+The modal "debe" means "must".
+The auxiliary "ha" means "has". "he" is the first person of "ha".
+The conjunction "y" means "and". The conjunction "o" means "or". The conjunction "que" means "that". "que" is a relative.
+The conjunction "mientras" means "while". The conjunction "ya que" means "since".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with".
+The preposition "en" means "on". The preposition "durante" means "during". The preposition "entre" means "among". The preposition "para" means "for".
+The adverb "sólo" means "only". The adverb "sobre todo" means "above all".
+The pronoun "me" means "me". The pronoun "le" means "him". The pronoun "lo" means "it". The pronoun "mí" means "me". The pronoun "mí" does not precede the verb.
+The possessive "su" means "his".
+The reflexive pronoun "se" means "itself". The impersonal pronoun "se" means "one".
+The verb "viene" means "comes". The verb "da" means "gives". "dar" is the infinitive of "da". The noun "proyecto" means "blueprint".
+The conjunction "pero" means "but". The adverb "también" means "also". The adverb "muy" means "very". The adjective "grande" means "big".
+The adverb "en cambio" means "instead". "duerme" is the imperative of "duerme". The adverb "a veces" means "sometimes".
+"puedo" is the first person of "puede". The preposition "desde" means "from". The verb "va" means "goes". "ido" is the participle of "va".').
+
+newspaper_bovalino_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "delle" is the contraction of "di le".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "al" is the contraction of "a il". "alla" is the contraction of "a la".
+"sul" is the contraction of "su il". "sulla" is the contraction of "su la". "sui" is the contraction of "su i".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not". The adverb "no" means "no". The word "per" begins the purpose.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane". The noun "formaggio" means "cheese". The feminine noun "casa" means "house". "case" is the plural of "casa".
+The noun "ministro" means "minister". "ministro" is a person. "ministri" is the plural of "ministro".
+The noun "fratello" means "brother". "fratello" is a person. "fratelli" is the plural of "fratello".
+The noun "professore" means "professor". "professore" is a person.
+The noun "signore" means "gentleman". "signore" is a person.
+The noun "tecnico" means "technician". "tecnico" is a person. "tecnici" is the plural of "tecnico".
+The noun "politico" means "politician". "politico" is a person. "politici" is the plural of "politico".
+The masculine adjective "tecnico" means "technical". The masculine adjective "politico" means "political".
+The noun "paese" means "country". The noun "approccio" means "approach".
+The feminine noun "messa" means "mass". The feminine noun "ora" means "hour". "ore" is the plural of "ora".
+The noun "anno" means "year". "anni" is the plural of "anno". "anno" is a time. The noun "mese" means "month". "mesi" is the plural of "mese".
+The noun "commento" means "comment". The feminine noun "guerra" means "war". The feminine noun "decisione" means "decision".
+The feminine noun "domenica" means "sunday". "domenica" is a time. The feminine noun "mattina" means "morning". "mattina" is a time.
+The noun "luglio" means "july". "luglio" is a month.
+The number "novantacinque" means "ninety-five". The number "due" means "two".
+The masculine adjective "nuovo" means "new". The masculine adjective "diverso" means "diverse". The masculine determiner "diverso" means "several".
+The masculine adjective "stanco" means "tired". The feminine adjective "stanca" means "tired".
+The preposition "vicino" means "near". The masculine adjective "vicino" means "close".
+The masculine adjective "critico" means "critical".
+The masculine determiner "tanto" means "so much". "tanti" is the plural of "tanto".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiando" is the gerund of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "vede" means "sees". "vedono" is the plural of "vede". "vedere" is the infinitive of "vede".
+The verb "guarda" means "looks". "guardi" is the subjunctive of "guarda".
+The verb "chiede" means "asks". "chiesto" is the participle of "chiede".
+The verb "risponde" means "answers". "risposto" is the participle of "risponde".
+The verb "colpisce" means "strikes". "colpito" is the participle of "colpisce". "colpisce" takes the experiencer.
+The intransitive verb "piace" means "pleases".
+The verb "inserisce" means "inserts". "inserirà" is the future of "inserisce".
+The verb "è" means "is". "sono" is the plural of "è". "era" is the past of "è". "erano" is the plural of "era". "essere" is the infinitive of "è".
+"siamo" is the first person of "sono". "eravamo" is the first person of "erano".
+The auxiliary "sta" means "is". "stare" is the infinitive of "sta". The auxiliary "sta" marks the state.
+The modal "deve" means "must". "dev" is the apocope of "deve". "possono" is the plural of "può". The modal "può" means "can".
+The auxiliary "ha" means "has". "ho" is the first person of "ha".
+The conjunction "e" means "and". The conjunction "o" means "or". The conjunction "che" means "that". "che" is a relative.
+The conjunction "mentre" means "while". The conjunction "poiché" means "since".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with".
+The preposition "su" means "on". The preposition "durante" means "during". The preposition "tra" means "among". The preposition "per" means "for".
+The adverb "soltanto" means "only". The adverb "soprattutto" means "above all".
+The pronoun "mi" means "me". The dative pronoun "gli" means "him". The pronoun "lo" means "it". The pronoun "me" means "me". The pronoun "me" does not precede the verb.
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one".
+The possessive "suo" means "his".
+The verb "viene" means "comes". The verb "dà" means "gives". "dare" is the infinitive of "dà". The noun "progetto" means "blueprint".
+The conjunction "ma" means "but". The adverb "anche" means "also". The adverb "molto" means "very". The adjective "grande" means "big".
+"struck" is the participle of "strikes".
+The adverb "invece" means "instead". "dormi" is the imperative of "dorme". The adverb "talvolta" means "sometimes".
+The preposition "da" means "from". "dalla" is the contraction of "da la". The pronoun "la" means "her".
+The intransitive verb "va" means "goes". "è" is the auxiliary of "va". "andato" is the participle of "va". "andata" is the participle of "va". "andata" is feminine.').
+
+newspaper_bovalino_checks_1 :-
+    %% the time of day
+    nf_tr('Il cane dorme durante la messa delle ore 9:30.', italian, spanish, B1),
+    check('a time of day is one number, its colon inside it, where `9:30'' was three words and the sentence was refused', B1,
+          'El perro duerme durante la misa de las horas 9:30.'),
+    %% a day and its part
+    nf_tr('Il cane dorme domenica mattina.', italian, spanish, B2),
+    check('a day and its part are one time, which Spanish joins with the word the lesson says joins a time: `el domingo por la mañana'', where it was the morning''s Sunday', B2,
+          'El perro duerme el domingo por la mañana.'),
+    nf_tr('Il cane dorme domenica mattina.', italian, english, B3),
+    check('... and English with nothing between them', B3, 'The dog sleeps sunday morning.'),
+    %% a year in words
+    nf_tr('Il cane dorme il 9 luglio novantacinque.', italian, spanish, B4),
+    check('a number word after a month is the year, crossing by its meaning, where it was an adjective of the month', B4,
+          'El perro duerme el 9 de julio de noventa y cinco.'),
+    %% a denial after a coordinator
+    nf_tr('Il cane mangia il pane e non il formaggio.', italian, spanish, B5),
+    check('a denial after a coordinator with no verb after it is the second half''s: `un governo che duri 5 anni e non due mesi'' took the denial to the verb and said the opposite', B5,
+          'El perro come el pan y no el queso.'),
+    %% two adjectives of one noun
+    nf_tr('Il nuovo e diverso cane dorme.', italian, spanish, B6),
+    check('two adjectives joined before one noun are one phrase, where `diverso'' is the determiner `several'' too and the subject was two, the new one and several dog', B6,
+          'El nuevo y diverso perro duerme.'),
+    %% a polite command
+    nf_tr('Guardi, il cane dorme.', italian, spanish, B7),
+    check('a subjunctive alone before a comma, with nothing else in its piece, is the polite command: `Guardi, io voglio ...'', where it was you looking', B7,
+          'Mire, el perro duerme.'),
+    %% a purpose with its pronoun joined
+    nf_tr('Il cane viene per mangiarlo.', italian, spanish, B8),
+    check('a purpose''s infinitive may carry its pronoun joined, which refused the sentence', B8,
+          'El perro viene para comerlo.'),
+    %% a word said twice
+    nf_tr('Il cane vede tanti, tanti gatti.', italian, spanish, B9),
+    check('a determiner said twice before its noun is said twice, where the comma divided the sentence', B9,
+          'El perro ve tantos, tantos gatos.'),
+    %% the reflexive passive's subject
+    nf_tr('Si possono mangiare i pani.', italian, spanish, B10),
+    check('the phrase after a modal and its infinitive is the reflexive passive''s subject, and stands after the infinitive, where it stood between them', B10,
+          'Se pueden comer los panes.'),
+    %% the vocative and the answer between dashes
+    nf_tr('Professore - gli ho chiesto - il cane dorme?', italian, spanish, B11),
+    check('a word before a clause set between dashes is the one spoken to, and the clause stays where it stood; the question is the clause after it, and its opening mark goes there', B11,
+          'Profesor – le he preguntado –, ¿el perro duerme?'),
+    nf_tr('No - mi ha risposto -, il cane dorme.', italian, spanish, B12),
+    check('... and the answer, a comma after the closing dash, where a hyphen before a comma was no dash', B12,
+          'No – me ha contestado –, el perro duerme.'),
+    %% a speaker after the verb with a clause of the speaker's own
+    nf_tr('Professore - gli ha chiesto un signore mentre eravamo nella casa -, il cane dorme?', italian, spanish, B13),
+    check('a reporting clause between dashes has its speaker after its verb, with a clause of the speaker''s own after it: the gentleman was what was asked', B13,
+          'Profesor – le ha preguntado un señor mientras éramos en la casa –, ¿el perro duerme?').
+
+newspaper_bovalino_checks_2 :-
+    %% bare nouns as the object
+    nf_tr('Il ministro inserirà tecnici o politici.', italian, spanish, C1),
+    check('bare plurals after a verb that takes an object are its object where each is a noun too, and persons of no particular kind take no word before them: `insertará técnico o político'' was a predicate', C1,
+          'El ministro insertará técnicos o políticos.'),
+    nf_tr('Il ministro è tecnico.', italian, spanish, C2),
+    check('a GUARD: after the copula they are the predicate', C2, 'El ministro es técnico.'),
+    %% a gerund in front
+    nf_tr('Soltanto mangiando il pane il cane dorme.', italian, spanish, C3),
+    check('a gerund with its complements stands in front of a clause with no comma, as an adjunct, where the sentence was refused', C3,
+          'El perro duerme sólo comiendo el pan.'),
+    %% a signature with initials
+    nf_tr('Mario Rossi Roma (r c) commento critico sulla guerra, decisione del ministro.', italian, spanish, C4),
+    check('letters no lesson knows in a bracket are initials, written as they stood, and a title of bare phrases with commas between them follows the signature', C4,
+          'Mario Rossi Roma (r c) comentario crítico en la guerra, decisión del ministro.'),
+    %% the experiencer
+    nf_tr('Mi ha colpito il nuovo approccio.', italian, english, C5),
+    check('a verb the lesson says takes the experiencer has its subject after it, where the approach was what somebody nobody named struck', C5,
+          'The new approach has struck me.'),
+    nf_tr('Mi ha colpito il nuovo e diverso approccio.', italian, english, C6),
+    check('... two adjectives of one noun among it', C6,
+          'The new and diverse approach has struck me.'),
+    nf_tr('Mi ha colpito il nuovo approccio del ministro, che dorme.', italian, english, C7),
+    check('... and a relative clause after a comma, with a phrase of the verb''s after the subject, hangs on the last phrase', C7,
+          'The new approach of the minister, who sleeps, has struck me.'),
+    %% a comma after a coordinator
+    nf_tr('Il cane dorme sul pane, sulla casa e, soprattutto, sul formaggio.', italian, spanish, C8),
+    check('a coordinator between two complements may have a comma after it, before an insertion, and every comma is kept, where all three were lost', C8,
+          'El perro duerme en el pan, en la casa y, sobre todo, en el queso.'),
+    %% an adjective that is a preposition too
+    nf_tr('Il cane dorme in un paese vicino, con il gatto.', italian, spanish, C9),
+    check('a word that is a preposition and an adjective, after a noun and before a comma, is the phrase''s adjective, where it stood alone as an adverb, `en un país cerca''', C9,
+          'El perro duerme en un país cercano, con el gato.'),
+    %% dev, and the state's infinitive
+    nf_tr('Il cane dev essere stanco.', italian, spanish, C10),
+    check('`dev'' is the apocope of `deve'', which the letter writes with no apostrophe', C10,
+          'El perro debe ser cansado.'),
+    nf_tr('A me piace stare con il cane.', italian, spanish, C11),
+    check('a word meaning `to'' and a pronoun that stands alone before a verb that pleases are the dative, and the infinitive after it is what pleases, the state''s where the lesson says so', C11,
+          'Me gusta estar con el perro.'),
+    %% no verb, a relative clause's verb in it
+    nf_tr('Il progetto: dare il pane al cane che dorme.', italian, spanish, C12),
+    check('a piece with no verb of its own reads, the verb of a relative clause in it being the clause''s: the letter''s `dare all''Italia un governo ..., ma anche molto attento verso i soggetti che vivono una vita disagiata''', C12,
+          'El proyecto: dar el pan al perro que duerme.'),
+    %% an adjective aside, and a coordinator after its comma
+    nf_tr('Il cane vede un gatto nuovo, stanco del pane, ma anche molto grande.', italian, spanish, C13),
+    check('an adjective set off after a noun takes the coordinator after its comma into the aside, with the adverbs and the adjective after it, which say more of the noun; every comma is kept', C13,
+          'El perro ve un gato nuevo, cansado del pan, pero también muy grande.'),
+    %% English of the speaker after the verb
+    nf_tr('Professore - gli ha chiesto un signore mentre eravamo nella casa -, il cane dorme?', italian, english, C14),
+    check('... in English, the gentleman the one who asked', C14,
+          'Professor – a gentleman has asked him while we were in the house –, does the dog sleep?').
+
+%% what the controls found
+newspaper_bovalino_checks_3 :-
+    nf_tr('Juan, en cambio, duerme.', spanish, italian, D1),
+    check('a GUARD: a name before a comma in a statement is its subject, never who is spoken to -- read so, `duerme'' was a command, `Juan, invece, dormi''', D1,
+          'Juan, invece, dorme.'),
+    nf_tr('El hermano ve una casa grande y a veces cansada.', spanish, italian, D2),
+    check('a GUARD: adverbs and an adjective after a coordinator inside a phrase are the phrase''s, and agree with its noun, where the phrase ended at `y'' and the adjective agreed with the subject', D2,
+          'Il fratello vede una casa grande e talvolta stanca.'),
+    nf_tr('Me puedo comer el pan.', spanish, english, D3),
+    check('a modal with the first person''s reflexive on it is a modal still: no `to'' before its infinitive', D3,
+          'I can eat the bread.'),
+    nf_tr('È andata dalla casa.', italian, spanish, D4),
+    check('the adjuncts before a subject after an intransitive verb never end on an article, which is the next phrase''s: `da la'' was a phrase of from with the pronoun her, and `casa'' the subject', D4,
+          'Ha ido desde la casa.'),
+    nf_tr('A mí me gusta el pan.', spanish, english, D5),
+    check('a pronoun after `a'' that the clitic after it doubles is said once, where it was a phrase of `to'' as well', D5,
+          'The bread pleases me.'),
+    nf_tr('Il cane vede una casa grande, stanca del pane, ma anche molto stanca.', italian, spanish, D6),
+    check('a coordinator, adverbs and an adjective after an aside''s comma are the same aside, and agree with its noun, where the adjective agreed with nobody: `pero también muy cansado'' of a house', D6,
+          'El perro ve una casa grande, cansada del pan, pero también muy cansada.').
+
 %% ---- the rules are what the translator asks ---------------------------------------------
 
 rules :-
@@ -6460,8 +6718,8 @@ shapes :-
     check('and back', S35, '¿Hay un perro?'),
     reason_translate('Maria tiene cuatro perros.', S36),
     check('a number the vocabulary gives', S36, 'Maria has four dogs.'),
-    ( reason_translate('Había un perro.', _) -> S37 = translated ; S37 = refused ),
-    check('there was: no past of hay is stated, so refused', S37, refused),
+    ( reason_translate('Había un perro.', S37) -> true ; S37 = refused ),
+    check('there was: the past of hay is stated since the Bovalino letter (corpus/extra, `"había" is the past of "hay".''), where it was refused', S37, 'There was a dog.'),
     reason_translate('The cat is sleeping.', S38),
     check('a gerund by the -ing rule: sleep, sleeping', S38, 'El gato está durmiendo.'),
     reason_translate('The cat is running.', S39),

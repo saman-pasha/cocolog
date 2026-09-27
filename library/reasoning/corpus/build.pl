@@ -205,9 +205,31 @@ cb_attr_parts([_, _|Rest], Key, KL, V) :- cb_attr_parts(Rest, Key, KL, V).
 
 %% the forms of a lemma with their tags: the stem and each ending of its paradigm
 cb_forms(Lemma, Forms) :-
-    findall(F-Tags, ( cb_lemma(Lemma, Stem, Par), cb_par(Par, Suf, Tags), \+ memberchk(sup, Tags), \+ memberchk(comp, Tags),
+    findall(F-Tags, ( cb_lemma(Lemma, Stem, Par), cb_stem_fits(Lemma, Stem, Par),
+                      cb_par(Par, Suf, Tags), \+ memberchk(sup, Tags), \+ memberchk(comp, Tags),
                       atom_concat(Stem, Suf, F) ),
             Forms).                                   % a superlative (grandissimo) is not the adjective
+
+%% A LEMMA WITH TWO STEMS UNDER ONE PARADIGM: apertium-ita gives `sottoporre'
+%% as `sottop' and as `sottopo', both with antepo/rre__vblex, and the forms of
+%% the first came first -- `"sottopne" means "subjects"', and `sottopongano'
+%% was a word no lesson knew. The stem that fits is the one the paradigm's own
+%% lemma ending completes to the lemma -- `antepo/rre' ends in `rre', and
+%% `sottopo' and `rre' are `sottoporre' -- and where one fits, a stem under
+%% the same paradigm that does not is left out; a stem alone under its
+%% paradigm is kept, fitting or not, as it always was
+cb_stem_fits(Lemma, Stem, Par) :-
+    (   cb_par_ending(Par, E), atom_concat(Stem, E, Lemma) -> true
+    ;   \+ ( cb_lemma(Lemma, S2, Par), S2 \== Stem, cb_par_ending(Par, E2), atom_concat(S2, E2, Lemma) )
+    ).
+%% the lemma ending a paradigm's name gives: after the `/' and before the
+%% `__', a `(2)' of a second paradigm of one name left off -- `cas/a__n' is
+%% `a'; a name with no `/' gives the whole word to the stem
+cb_par_ending(Par, E) :-
+    atomic_list_concat([Name|_], '__', Par),
+    (   atomic_list_concat([_, E0], '/', Name) -> atomic_list_concat([E|_], '(', E0)
+    ;   E = ''
+    ).
 
 %% the singular: tagged sg, or sp where one form is both numbers (città)
 cb_sg(Forms, Tags, F) :- ( append(Tags, [sg], T1), cb_form(Forms, T1, F) -> true ; append(Tags, [sp], T2), cb_form(Forms, T2, F) ).

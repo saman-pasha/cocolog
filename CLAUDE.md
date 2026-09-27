@@ -9700,6 +9700,509 @@ first cut of this version, and `ferma` with an object, beside the check that
 the same verb with none ceases. Lesson 46 gained section 43. The full suite was
 not run on 1.8.17.
 
+### An Italian letter into Spanish: the time of day, a day and its part, a denial after a coordinator, the one spoken to, a speaker with a clause of the speaker's own, the first person's reflexive, a lemma with two stems (1.8.18)
+
+**THE SEVENTEENTH SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD VIT
+document VIT-9800..9814 -- fifteen lines of the letters page: a reader in
+Bovalino, a small town of the province of Reggio Calabria, met Romano Prodi,
+the leader of the Olive Tree, after the Sunday mass of 9 July 1995: a greeting,
+the way to a newsstand, a coffee in a bar where common people came up to shake
+Prodi's hand; asked whether this was a stressful time, Prodi answered that
+being among people is a pleasure; asked by a gentleman whether the government
+would have technicians or politicians in it, Prodi said: one that lasts five
+years and not two months; what struck the writer was the new approach; then
+the signature, and the next letter's title after it -- Italian into Spanish
+over the two-language vocabulary store. The middle column is 1.8.17's
+translator over THIS store:
+
+| | 1.8.17, its store | 1.8.17, this store | **1.8.18** |
+|---|---|---|---|
+| translated | 4 of 15: two wrong in structure -- the gentleman the one asked, `le ha pedido a un señor mientras ...`, and `yo no quiero hacer un gobierno que dura 5 años y dos meses`, the opposite of its source -- and one with the copula for its auxiliary, `Me soy acercado` | 8: three wrong in structure -- the same two, and `el nuevo y varios acercamiento ... de ese hombre`, `diverso` read as the determiner `several` and the phrase in front written last -- `Me soy acercado` again, and `indicarlo` for the dative | **15** |
+| refused for a word | 11, naming 23 words: `novantacinque`, `professor`, `travagliato`, `ecc`, `edicola`, `moglie`, `c'`, `telecamere`, `tante`, `imprenditoria`, `disagiata`, `dev`, `stressante`, `me`, `poiché`, `sottopongano`, `quell'`, `poggia`, `assordanti`, `ingannevoli`, `r`, `c` and `serbi` | 1, naming `r` and `c`, the initials | **0** |
+| refused with every word known | 0 | 6 | **0** |
+| the letter, one process | 46.1 s | 94.9 and 92.8 s | **39.3 and 40.3 s** |
+
+-- the store Italian 176 375 terms and Spanish 221 236, taught into one
+`--embed` store from the rebuilt vocabularies in 694 s and 1 111 s, 329 MB.
+
+**WHAT IT NEEDED IS WHAT A LETTER DOES WHEN IT TELLS OF A MEETING.** The
+twelve were verbs, the Spanish column phrases that carry things, Livata the way
+a report speaks, Fiat figures, Valencia a thing on show, the bioethics report
+its claims, the football page a squad, Monreale a court, the record report
+figures again, the islands report what a news item puts before its verb, the
+opera review what it puts beside a phrase, the interview a man talking, the
+Georgia report people by their offices, the extract things said again, the
+Clinton report who said what, the Bosnian letter an argument, the Solana
+report who a person is, the pacifist letter the people it is angry with, the
+mobile column what it compares, the Bastille letter its evidence, the Basque
+report who told whom, the Giglio letter a newspaper it corrects and the
+England column a stereotype it laughs at; a letter that tells of a meeting
+says when it was, who spoke to whom, what each answered and who asked:
+
+| shape | the letter's words | what moved |
+|---|---|---|
+| a time of day | `durante la messa delle ore 9:30` | one number with its colon inside it: the colon ended the piece as a heading's, and the sentence was refused |
+| a day and its part | `domenica mattina` | one time, `app(Day, part, Part)`, joined by the word the lesson says joins a time: `el domingo por la mañana`, where it was `mañana domingo`, TOMORROW Sunday (below) |
+| a year in words after its month | `(9 luglio novantacinque)` | the year, `app(Phrase, yearw, Word)`, crossing by its meaning: `de noventa y cinco`, where the number was an adjective of the month |
+| a denial after a coordinator with no verb after it | `un governo che duri 5 anni e non due mesi` | the second half's, `neg/1`: the claim was turned round (below) |
+| a word before a clause between dashes | `"professore - gli ho chiesto - per lei questo dev essere ...?` | who is spoken to, `voc/1`, the clause kept where it stood (`dsh/1`), and the question the clause after it, where Spanish's `¿` goes (below) |
+| an answer, and a comma straight after the closing dash | `"no - mi ha risposto -, a me piace ...` | a dash before a comma is a dash, where it was read as a hyphen |
+| a speaker after the verb, with a clause of the speaker's own | `gli ha chiesto un signore mentre eravamo nel bar` | the gentleman asked, where the gentleman was what was asked (below) |
+| a present subjunctive alone before a comma | `"guardi, io voglio fare un governo ...` | the polite command, `addressee(polite)`: `Miras`, you look (below) |
+| the first person's reflexive | `mi sono avvicinato` | its own object pronoun wraps the lexeme as `si` does: `Me soy acercado` (below) |
+| a pronoun that stands alone after `a`, and an infinitive after a verb that pleases | `a me piace stare in mezzo alla gente` | `mi piace` (`tr_tonic_dative/3`), and being among people is what pleases (`tr_infs_fix/3`), `stare` the state's: `Gusta estar ... a mí` |
+| a purpose's infinitive with its pronoun joined | `per stringergli la mano ed incitarlo a proseguire` | `purp/1` over the infinitive group: refused with every word known |
+| a dative joined to an infinitive | `mi ha chiesto di indicargli un'edicola` | a dative, `indicarle`, where it was the object shown, `indicarlo` |
+| a determiner said twice with a comma between | `soltanto tante, tante persone comuni` | said twice, `w(D, rep)`, comma and all |
+| an adjective set off after a noun, and a coordinator after its comma | `un governo stabile, rispettoso delle esigenze ..., ma anche molto attento verso i soggetti ...` | the aside takes the coordinator, the adverbs and the adjective after it, where that adjective agrees with the noun: the government is also very attentive (below) |
+| a relative clause's verb in a piece with no verb of its own | `: dare all'Italia un governo ..., ma anche molto attento verso i soggetti che vivono una vita disagiata` | the clause's, and the piece reads as the colon's verbless right side |
+| a word that is a preposition and an adjective, last in its phrase | `in un paese vicino` | the phrase's adjective, where it agrees with the noun (`tr_final_adjective/3`): `en un país cerca` |
+| bare plurals after a verb that takes an object | `nel suo governo inserirà tecnici o politici?` | its object (`tr_nounobj_fix/3`), with no word before persons of no particular kind: a predicate, `insertará técnico o político` |
+| the reflexive passive's subject after a modal and its infinitive | `si possono capire i loro problemi` | after the infinitive: `se pueden sus problemas entender` |
+| a gerund in front with no comma | `soltanto parlando con le persone comuni si possono capire ...` | an adjunct, with one object: refused |
+| a verb that takes the experiencer | `Di quell'uomo mi ha colpito il nuovo e diverso approccio alla vita pubblica, che poggia ...` | `"colpisce" takes the experiencer.`: the approach struck me, where somebody nobody named struck it (below) |
+| a comma after a coordinator, before an insertion | `sul contatto diretto con la gente e, soprattutto, su un comportamento` | read with its commas, where all three were lost |
+| `dev` | `per lei questo dev essere un periodo molto stressante` | `"dev" is the apocope of "deve".`, the form the letter writes with no apostrophe |
+| initials in a bracket, and a title after a signature | `Giuseppe Iaconis Bovalino (r c) commento critico sulla guerra ...` | `letters/1`, written as they stood, and the title read as a heading is: `commento` was I comment |
+
+-- and the words, in `corpus/extra/`: 44 lines of Italian and 22 of Spanish,
+twelve of the Italian ones saying the dictionary's own order again (below), and
+thirteen entries in `eng-ita.dix`'s supplement -- `wife` for `moglie` both ways,
+and twelve read only, words apertium-ita carries and the bilingual pairs with
+nothing: `edicola`, `telecamera`, `imprenditoria`, `disagiato`, `stressante`,
+`sottoporre`, `poggiare`, `assordante`, `ingannevole`, `travagliato` and `serbo`
+twice. The vocabularies went from 112 484 and 138 602 lines to 112 669 and
+138 624, and the set of what they LOST is the builder's finding below, two
+lines of meaning and the Italian header's entry count. `reason.pl` did not
+move, the twenty-ninth version running.
+
+**A DENIAL AFTER A COORDINATOR WITH NO VERB AFTER IT IS THE SECOND HALF'S, AND
+1.8.17 SAID THE OPPOSITE -- THE SECOND TIME IN TWO SAMPLES.** `"guardi, io
+voglio fare un governo che duri 5 anni e non due mesi.` is five years and NOT
+two months. `tr_negation/4` takes a denial out of the words wherever it stands
+and gives it to the verb, so 1.8.17 wrote `Miras, yo no quiero hacer un gobierno
+que dura 5 años y dos meses` -- I do NOT want a government that lasts five years
+and two months: one of the four sentences of fifteen it translated on its own
+store, and the claim turned round, as 1.8.16's `No, sería mucho pedir` was. A
+denial straight after a coordinator, with no verb form after it, stays where it
+stands now; the phrase reader ends a phrase before such a coordinator, where `5
+anni e` was no phrase, and the complement reader reads the coordinator and then
+the denial and its phrase as one complement, `neg(obj(NP))`: `y no dos meses`.
+**The count that calls a sentence translated cannot see this kind**, which is
+why a sample is read and not counted.
+
+**A SPEAKER AFTER THE VERB, WITH A CLAUSE OF THE SPEAKER'S OWN, IS WHO ASKED AND
+NOT WHO WAS ASKED.** `"professore - gli ha chiesto un signore mentre eravamo nel
+bar -, se vincerà le elezioni, ...?` -- a gentleman asked the professor, while
+we were in the bar. The clause between the dashes read as one with nobody named
+for its subject, so the gentleman was what was asked, and with the word the
+lesson puts before a person marked as the object: `le ha pedido a un señor`.
+1.6.21's reporting clause reads a speaker after its verb, and had never met one
+with a clause after the speaker. A clause between dashes that divides at a
+subordinating connector into a reporting clause with its speaker and a statement
+is read as the two joined, each with its own piece (`tr_aside_reporting/2`): `le
+ha pedido un señor mientras ...`, and in English `a gentleman has asked him
+while we were in the bar`.
+
+**THE ONE SPOKEN TO, AND THE QUESTION AFTER THE VOCATIVE.** `"professore - gli
+ho chiesto - per lei questo dev essere un periodo molto stressante?` --
+professor, must this be a very stressful time for you? A bare noun the lesson
+calls a person, or a name, at the head of its sentence before a comma or a
+clause between dashes, is who is spoken to (`voc/1`), a verbless left side as
+1.8.17's answer before a comma is, and the clause between the dashes stays where
+it stood (`dsh/1`). The answer and the vocative share the head
+(`tr_head_words/3`), and a QUESTION is the clause after them, which has no verb
+of its own to ask with: English fronts its own verb there, `Professor, does the
+dog sleep?`, and Spanish's opening mark goes where the question begins,
+`Profesor – le he preguntado –, ¿el perro duerme?` (`tr_head_join/4`, `q/1`),
+where 1.8.17 put it before the vocative. `"no - mi ha risposto -, a me piace
+...` needed one thing more: a dash with a space before it and a comma straight
+after it is a dash, where the tokeniser took it for a hyphen.
+
+**A PRONOUN OF THE SUBJECT'S OWN PERSON IS ITS REFLEXIVE.** `dopo la messa mi
+sono avvicinato` is I approached. A lesson names one reflexive pronoun, the
+third person's (`si`, `se`), and the first and second persons use their object
+pronouns -- so `mi` was read as an object and `sono avvicinato` as a passive
+with it, and 1.8.17 wrote `Me soy acercado` on its own store. A clitic that
+means the subject's own object pronoun -- `me` for I, `us` for we, `you` for
+you -- comes off the clitics and wraps the lexeme as `si` does
+(`tr_personal_reflexive/8`), and each writer writes the person's own pronoun
+back (`tr_reflexive_out/3`): `Me he acercado`. Italian builds a reflexive's
+perfect with the copula (1.8.15's `"è" is the auxiliary of the reflexive.`), so
+`Me he lavado` is `Mi sono lavato` the other way.
+
+**THE POLITE COMMAND IS A PRESENT SUBJUNCTIVE STANDING ALONE.** `"guardi, io
+voglio ...` -- look, I want. Italian commands the person it calls `lei`, and
+Spanish the one it calls `usted`, with the present subjunctive of the third
+person, and `guardi` is also what `guardare` says to one person: read as that,
+1.8.17 wrote `Miras`, you look. A verb alone in its piece, at the head and
+before a comma, that the lesson calls a present subjunctive (the builder states
+`"guardi" is the subjunctive of "guarda".` since 1.6.8) is the polite command,
+`addressee(polite)`, and each writer writes its own: the subjunctive its lesson
+states, `Mire`, and English its base form, `Look`.
+
+**A DAY AND ITS PART ARE ONE TIME.** `domenica mattina` is Sunday morning: two
+nouns the lesson calls times -- `"mattina" is a time.`, said of the parts of the
+day now as of the days -- with no article and no preposition between them. Read
+as one phrase, `mattina` was an adjective of the day, and 1.8.17 wrote `mañana
+domingo`, which says TOMORROW Sunday. It travels as `app(Day, part, Part)`, and
+the word a language joins the two with is the lesson's, in the shape the date's
+has, `The word "por" joins the time.`: Spanish writes each with its article, `el
+domingo por la mañana`, and a language that says nothing writes them bare,
+`domenica mattina`, `sunday morning`. Read back, the join and the two articles
+come off again (`tr_time_part_after/5`).
+
+**A VERB WHOSE OBJECT IS WHO FEELS IT HAS ITS SUBJECT AFTER IT.** `Di quell'uomo
+mi ha colpito il nuovo e diverso approccio alla vita pubblica, che poggia sulle
+piccole cose, ...` -- the new approach struck me. `colpire` takes an object, so
+no lesson can call it intransitive, and read with nobody named for its subject,
+the approach was what somebody struck; English refused the sentence. `"colpisce"
+takes the experiencer.` is the line, in the shape `"risulta" takes the clause.`
+has, and with an object pronoun before the verb the phrase after it is the
+subject -- only then, because `mi ha dato un libro` has a pronoun before its
+verb and a phrase after it too, and there the phrase is the object. Three things
+more stood in the way, each a word in a second role or a rule written for one
+phrase: `diverso` is the determiner `several` as well, so `il nuovo e diverso
+approccio` divided into the new one and several approach, with a plural verb
+(the co-subject guard, and `tr_conjunction_split/5`); the phrase finder ended a
+phrase on its coordinator, `il nuovo e` (`fo_np_words_after/3`); and the
+relative clause after a comma, with a phrase of the verb's after the subject,
+hangs on the last phrase before its comma (`tr_nrc_on/4`), as 1.7.2 hangs one.
+
+**THE BUILDER TOOK EVERY STEM OF A LEMMA, AND APERTIUM-ITA GIVES SOME LEMMAS
+TWO.** `a patto che si sottopongano ... al giudizio` was refused on 1.8.17's
+store because the bilingual pairs `sottoporre` with nothing, and the
+supplement's entry for it brought out a fault older than this sample:
+apertium-ita gives `sottoporre` twice under one paradigm, as `sottop` and as
+`sottopo`, the builder wrote the forms of both, and the first build said
+`"sottopne" means "subjects"`, a word no speaker writes. The stem that fits is
+the one the paradigm's own lemma ending completes to the lemma -- `antepo/rre`
+ends in `rre`, and `sottopo` and `rre` are `sottoporre` (`cb_stem_fits/3`) --
+and where one stem fits, the others under the same paradigm are left out; a stem
+alone under its paradigm is kept, fitting or not, as it always was. **The
+Italian vocabulary lost 154 lines to it, and a set diff says what every one of
+them was**: 138 forms and 13 meanings of `affascinae` for `affascinante`,
+`degradae`, `discordae`, `distae`, `inquietae`, `irritae`, `predominae`,
+`umiliae`, `vacae`, `vibrae`, `migratoro` for `migratorio` and `pospne` for
+`pospone` -- words in the vocabulary that no text ever spelt -- two meanings
+and the header. One of the two is the dictionary's own slip:
+apertium-ita writes the lemma `svolta` once under the stem `rivolt`, so
+`rivolta`, the revolt, also meant `turning`; `svolta` does now. The other is
+`wife` below. The Spanish vocabulary lost two words the same way, and both are
+their lemma's own spelling now, `búnker` and `eurorregión`, where the builder
+took `búnquer` and `euroregión`, the spellings the dictionary reads only.
+
+**AND THE LINES OF LESSON WERE WRITTEN FOR BOTH OF THEIR READERS FROM THE START,
+AND TWO STILL CAME FIRST WHERE NOBODY LOOKED.** 1.8.6, 1.8.10, 1.8.13, 1.8.14
+and 1.8.17 each found a line of `extra/` coming first for a reader or a writer
+it was not written for. Eleven of this sample's Italian lines were written to
+say the dictionary's own order again: `camera` with its meanings bedroom,
+chamber and camera, and `impresa` with company, corporation and enterprise,
+because the supplement's read-only `telecamera` and `imprenditoria` come before
+the dictionary's lines and would have been the first Italian words for camera
+and enterprise -- the record report's `por empresa` would have come out `per
+imprenditoria`; `certamente` before `certo`, `argomento` before `soggetto`,
+`epoca` before `periodo` and `dettaglio` before `particolare`, each keeping the
+first word for its meaning -- and a twelfth, `tra` before `in mezzo a`, is the
+data column's, with the second line that got past (below). One line changes an
+order on purpose: `The preposition "verso" means "towards".` comes before the
+dictionary's `verso`, a verse -- a preposition crosses by its own meaning only
+where the word's first meaning has no class of its own, and with the verse first
+Spanish wrote `cuidadoso verso los sujetos` -- and the noun keeps its meaning in
+a noun's place. And one entry of the supplement moved a word nobody asked about:
+`wife` both ways for `moglie` gives `wife` a meaning, the builder keeps a
+one-way entry only while neither of its words has one (1.7.2), and the
+dictionary's one-way `wife` for `donna` went -- so Spanish's `esposa` is
+`moglie` now where it was `donna`, which is what Italian says, and `donna` is
+still a woman.
+
+**THE REST WERE SMALL, AND EACH HAD A REFUSAL OR A WRONG TEXT BEHIND IT:**
+
+* a time of day is one number, its colon inside it (`tr_digit_run/3`): `9:30`
+  was `9`, a colon that ended the piece as a heading's, and `30`;
+* a number word after a month is the year (`app(Phrase, yearw, Word)`), and it
+  crosses by its meaning where a year in digits is its digits: `9 luglio
+  novantacinque` is `9 de julio de noventa y cinco`, where the number was an
+  adjective of the month;
+* a determiner said twice with a comma between is said once, with the repetition
+  kept in its case (`w(D, rep)`), and every writer spells it twice with the comma:
+  `tante, tante persone comuni` is `tantas, tantas personas comunes`, where the
+  comma was lost or divided the sentence;
+* a pronoun that stands alone after the word for `to`, straight before a verb,
+  is its dative (`tr_tonic_dative/3`): `a me piace` is `mi piace`, and read as a
+  phrase of `to` it went after everything, `gusta estar con el perro a mí`. What
+  is lost is the stress, which Spanish writes as `a mí me gusta`;
+* an infinitive after an intransitive verb with a clitic before it is what the
+  verb's subject is (`tr_infs_fix/3`, `infs/2`): `mi piace stare in mezzo alla
+  gente` is being among people pleasing me, and English, which must put a
+  subject first, refused it; `stare` crosses as the state's copula, `estar`;
+* a purpose's infinitive may carry its pronoun joined (`purp/1` over the
+  infinitive group): `per stringergli la mano` was refused with every word known;
+* a pronoun joined to an infinitive stays a dative when the lesson calls it one
+  (`tr_cross_enclitic/2`): `indicargli un'edicola` is to show a newsstand TO the
+  professor, and crossed as the object `him` it came out `indicarlo`;
+* an adjective set off after a noun takes a coordinator after its comma into
+  the aside, with the adverbs and the adjective after it, where that adjective
+  agrees with the noun: `un governo stabile, rispettoso delle esigenze ..., ma
+  anche molto attento verso i soggetti ...` is the government, stable,
+  respectful and also very attentive, every comma kept. The first cut kept the
+  aside's closing comma for the coordinator instead, which the case's
+  feminine noun showed to be wrong and the count showed to be dear (below);
+* a verb after a relative word in a piece with no verb of its own is its
+  clause's (`tr_verbless0/3`): the colon's right side, `dare all'Italia un
+  governo ... che vivono una vita disagiata`, said what a project is, and the
+  relative clause's verb shut the reading out;
+* a word the lesson calls a preposition or an adverb AND an adjective, last in
+  its phrase before a comma or the end, is the phrase's adjective where it agrees
+  with the noun (`tr_final_adjective/3`): `in un paese vicino` was `en un país
+  cerca`. The agreement is what the case asked for: without it the first cut
+  broke 1.8.6's `Il giorno prima mangiò il pane.`, the day BEFORE -- `prima` is
+  the feminine of first as well, and it does not agree with `giorno`;
+* bare plurals after a verb that takes an object are its object where each is a
+  noun as well as an adjective (`tr_nounobj_fix/3`), and persons of no
+  particular kind take no word before them (`tr_bare_plural/1`): `inserirà
+  tecnici o politici` came out `insertará técnico o político`, a predicate
+  agreeing with nobody, and on the first cut `insertará a técnicos`. After the
+  copula they stay the predicate, which a guard pins;
+* the reflexive passive's subject after a modal stands after the infinitive
+  (`tr_subject_place/3`): `si possono capire i loro problemi` came out `se
+  pueden sus problemas entender`;
+* a gerund with one object stands in front of a clause with no comma as an
+  adjunct (`tr_adjunct/1`) -- with two, the second is the subject after the
+  verb, and on the first cut `Duerme sólo comiendo el pan el perro.` said so;
+* a coordinator between two complements may have a comma after it, before an
+  insertion, and what follows the insertion decides (`tr_after_coord/2`, which
+  the phrase reader asks too, to end a phrase before such a coordinator): `sul
+  contatto diretto con la gente e, soprattutto, su un comportamento` lost all
+  three commas, and the Bosnian letter's `e, soprattutto, nel diritto` lost the
+  one after `e` -- 1.8.10's stated cost, which it keeps now (below);
+* `"dev" is the apocope of "deve".`, which the letter writes with no apostrophe,
+  and the verb forms ask the form it is short for (`tr_form0/5`);
+* letters no lesson knows, alone in a bracket, are initials and are written as
+  they stood (`letters/1`): `(r c)` is Reggio Calabria; and a signature's title
+  of bare phrases with commas between them is read as a heading is -- `commento`
+  is also I comment, and read as a clause the title had a verb and a first
+  person nobody named.
+
+**THE CONTROLS FOUND THREE REGRESSIONS THE CASE DID NOT, EACH A RULE OF THIS
+SAMPLE ASKED WIDER THAN THE SENTENCE IT WAS WRITTEN FOR.** With
+`test/translate.pl` GREEN and the letter at 15 of 15, the first round came back
+with three old texts worse:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| Georgia's sixth, `Abachidze, en cambio, prefiere poner el acento en la corrupción ...`, came out `Abachidze, invece, preferisci`, where 1.8.17 wrote `preferisce` | the one spoken to: a name at the head before a comma was the vocative, and `prefiere` -- the imperative of `preferir` as well as its third person -- the command to them, you prefer | a name is who is spoken to only in a QUESTION; in a statement it is the subject, and a noun the lesson calls a person, `Professore - gli ho chiesto -, ...`, stays the vocative's in both |
+| the mobile column's ninth, `... revela que su poseedor es persona ocupada y a veces maleducada`, came out `maleducato`, where 1.8.17 wrote `maleducata` | this sample's rule that adverbs and an adjective after a coordinator say more of the noun before it (`un governo stabile, ..., ma anche molto attento`) is `tr_after_coord/2`, and the phrase reader asks that too, to END a phrase before a coordinator: `persona ocupada` ended at `y`, and `a veces maleducada` agreed with the subject, the possessor | adverbs and an adjective after a coordinator end no phrase: they are the phrase's own, and agree with its noun (`tr_adverbs_adjective/2`) |
+| Tatoeba's `¿Me puedo ir a casa ahora?` came out `Can I to go to house now?` | the first person's reflexive wraps the lexeme, `refl(can)`, and the test that a modal stands before an infinitive asked the wrapped lexeme, so English wrote `to` before it | the test takes the wrapper off (`tr_modal_verb/0`): `Can I go to house now?` |
+
+-- and writing the guard for the second found a defect of this sample's own
+shape, which the letter could not show because its noun is masculine: a
+feminine noun with an adjective set off after it and a coordinator after that,
+`una casa grande, stanca del pane, ma anche molto stanca`, wrote `pero también
+muy cansado` -- the adjective after `molto` was read as the subject's. The
+adjective aside takes the coordinator and what follows it into itself where
+what follows is adverbs and an adjective that agrees with the noun, and the
+phrase that stands alone after a comma and a coordinator is no bare adjective
+(`tr_lone_adjective/2`). Five arms say what each guard is for: with its rule
+put back as the first cut had it, each red check is the one it was written for
+and no other -- `Juan, invece, dormi.`, `e talvolta stanco`, `I can to eat the
+bread.`, `È andata dalla casa.` refused, and `pero también muy cansado`.
+
+**AND THE DATA COLUMN FOUND FOUR MORE, AND TWO OF THEM ARE LINES THAT WERE
+WRITTEN FOR BOTH OF THEIR READERS AND STILL CAME FIRST FOR A THIRD.** 1.8.17 on
+its own store against 1.8.17 on the first store taught with this sample's lines:
+
+| what moved | the line | now |
+|---|---|---|
+| `entre` came out `in mezzo a` in seven sentences of four controls: Valencia's `tra le sue mani`, the football report's `tra il gruppo`, three of the Basque report's and two of the England column's | `The preposition "in mezzo a" means "among".`, for `stare in mezzo alla gente`: a new word for `among`, first for its meaning | `The preposition "tra" means "among".` said again above it |
+| the Giglio letter's `In particolare, nel caso del Giglio` came out `En detalle` | `The masculine noun "particolare" means "detail".`, said after `dettaglio` so that `detail` kept its first word -- and so it did; what the line changed was the WORD's first reading, and `in particolare` read as `in detail` | `The adverb "in particolare" means "in particular".`, and Spanish's `en particular`: each is one word of two |
+| Livata's `ha ido desde la otra en vez de ir desde una parte` came out `ha ido desde él otros` | `The intransitive verb "va" means "goes".`, for `vanno bene i tecnici`: `andare` takes its subject after it now, and 1.8.2's reader of adjuncts before such a subject read `dall'altra` as `da la`, the article as her, and `altra` as who went | the adjuncts before a subject never end on a determiner |
+| Tatoeba's `A mí me gustaba eso.`, refused for `mí`, came out `That pleased me to me.` | `The pronoun "mí" means "me".`, for `a me piace`: known now, `a mí` was a phrase of `to` after the clitic that says the same | a stressed pronoun after `a`, doubled by a clitic that means the same, is the clitic once (`tr_tonic_dative/3`): `That pleased me.` |
+
+**THE LINE THAT MOVED THE GIGLIO LETTER WAS WRITTEN WITH THIS FILE'S RULE IN
+HAND**: a line of `extra/` comes first for its WORD and for its MEANING, and the
+`particolare` line was put after `dettaglio` so that the MEANING kept its first
+word. The word it made first was `particolare`, and a word of two that begins
+with it had no line of its own. 1.8.6, 1.8.10, 1.8.13, 1.8.14 and 1.8.17 each
+found a line coming first for a reader or a writer it was not written for; this
+is the first line that was written for BOTH and came first for a word of
+several words it is part of. The first two data rows are the case the column
+exists for, and nothing else could have caught them: they are 1.8.17 reading
+this sample's lines, with no line of this sample's code in the process. The
+store was taught again with both lines, and on the store the tables here are
+measured on, 1.8.17 moves the last two rows and nothing else, and this
+translator writes both right.
+
+**AND THE REST OF TATOEBA MOVED FOR THE BETTER, WHICH IS WHAT THE READER'S NEW
+SHAPES ARE FOR.** `Me dormí.` was `I slept me.` and is `I slept.`, `Me siento en
+paz.` `I feel in peace.`, `Yo también me voy.` `I go also.` -- the first
+person's reflexive; `Ella cultivó rosas.` is `She cultivated pinks.`, the bare
+plural the verb's object where it was an adjective, `She cultivated pink.`, and
+the dictionary's first noun `rosa` the colour and not the flower; `Me gusta
+escribir.`, `Me gusta dormir.` and `No me gusta ver películas.` read now, where
+they were refused, as `To write pleases me.`, the infinitive the verb's subject;
+`Eso es nuevo para mí.` reads as `That is new for me.`, and `¡Hasta luego,
+gente!` says `people`. One reading went: `Mañana es domingo.` was `Morning is
+sunday.`, and is refused, because `"mañana" is a time.` -- for `domenica
+mattina` -- and a bare time is no subject (1.6.14). Both are wrong; the refusal
+is the better kind.
+
+**COUNTING FOUND SEVEN COSTS, AND EACH WAS A NEW RULE ASKED WHERE IT COULD NEVER
+HOLD.** With the texts right, the controls asked 0.04 to 3.47 % more inferences
+than 1.8.17 on the same store, and single sentences far more: the opera
+review's fourth +16 %, Ferlaino's twenty-first +14 %, the England column's
+third +11 %, the Washington Post's sixth +7 %. The hunk bisection of 1.8.5
+over the 66 hunks of the diff against 1.8.17, eight sentences counted, four
+copies at a time -- six hunks took out a helper other hunks call and are no
+evidence (1.8.10) -- and then one arm a rule, each changing that rule alone:
+
+| the rule | where it cost | what was done |
+|---|---|---|
+| a comma put back after a lone word before a clause between dashes, for the vocative and the answer | Ferlaino's `Gallo - continua - mi ha lasciato ...`: 1.34 million, every reading of the rest tried under the comma | only where a reading at the head can take the word, an answer, a person or a name in a question (`tr_head_word/3`) |
+| the comma after an adjective aside kept before a coordinator | the opera review's `una versión estilizada, conservadora en el mejor sentido del término, y permite ...`: 394 000, and the same text | taken out: the aside that takes the coordinator and its adjective is the case the letter needed |
+| a coordinator and a denied phrase read as one complement | the England column's `Pero ¿no eran inglesas ...?`: 69 000, `eran inglesas ...` read as a phrase | no verb's form after the denial, the test `tr_negation/4` already makes |
+| a phrase ends before a coordinator and a comma, and `tr_after_coord/2` read the insertion's own words | Livata's `tutta la notte e, oltre ai cani molecolari, sono stati utilizzati`: 455 000, `oltre` taken for what follows the coordinator | what follows the whole insertion decides (`tr_after_coord/2` over `tr_after_coord0/2`) |
+| a year in words, a clause beside the year in digits | half a per cent of every control: the last word of every phrase asked twice | one clause for both |
+| bare plurals after a verb read as its object | the Spanish article's third: 38 000, adjectives read as a phrase | a plural the lesson states, which is cheap, before the phrase is read |
+| the one spoken to | the Washington Post's `Niente, se la maggiore ...`: 26 000, `niente` read as a phrase to ask whether it is a person | a noun first |
+
+**AND THE REST WAS ONE TEST THE NEW RULES ASKED AT EVERY PLACE A PHRASE CAN
+END.** Two of the phrase reader's new ends ask whether the word is a
+coordinator, and `tr_coord/2` asks the lesson every time; kept for the sentence
+(`tr_memo/4`), as a class test is, it takes Livata's twenty-ninth sentence from
+3 % more than 1.8.17 to 4 % fewer. The same memo for the denial's word was tried
+and costs more than it saves -- the England column's third, 12 700 inferences
+more -- because that word is asked once. With the seven narrowed and the one
+kept, EVERY old control asks fewer inferences than on 1.8.17 on the same store,
+1.2 to 4.2 % fewer and the Bosnian letter 11 %, and every text is the same as
+before the cut, all 25 controls and the case.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `durante la masa`, `tras la masa` | `la misa` | `messa` crosses as `mass`, and Spanish's first `mass` is the dough: a sense |
+| `de las horas 9:30` | `de las 9:30` | word for word |
+| `su intervención al congreso` | `en el congreso` | `a` is `to` |
+| `no pensé`, `se encontró`, `se acercaron`, `mientras fuimos` | `no pensaba`, `se encontraba`, `se acercaban`, `mientras estábamos` | the imperfect and the preterite are both `past`, 1.6.15's cost, and Italian's `essere` is both copulas, 1.6.17's |
+| `turbulento desde una multiplicidad de problemas` | `atormentado por` | `travagliato` crosses as `troubled`, and `da` is `from`, 1.6.17's cost |
+| `para el dirigente de la oliva` | `del Olivo` | a name the dictionary knows as a noun, the coalition as the tree's fruit: 1.8.4's `el Lirio` |
+| `una etapa importante`, `el nuevo y diverso acercamiento`, `Me ha golpeado` | `un escenario`, `el nuevo enfoque`, `Me ha impresionado` | senses: `palcoscenico` crosses as `stage`, `approccio` as `approach`, `colpire` as `strikes` |
+| `ciertamente` last, `sucesivamente` last, `tras la masa` after the verb | in front | a head adverb and a front with no comma are written after the clause, 1.6.8's cost |
+| `me ha pedido indicarle un quiosco` | `me ha pedido que le indicara` | Spanish's `pedir` takes a clause with `que` where Italian's `chiedere` takes `di` and an infinitive, and no lesson says which verbs do |
+| `le he pedido` | `le he preguntado` | `chiedere` is to ask FOR and to ask a question, and Spanish says each with its own verb: a sense no lesson separates |
+| `a la boda de su pariente` | `en la boda de una pariente suya` | `partecipare a` is `participar en`, and the IR carries no gender for a noun |
+| `en un país cercano` | `en un pueblo cercano` | `paese` crosses as `country` |
+| `Lo he acompañado de persona` | `en persona` | an idiom |
+| `en una barra`, `en la barra` | `en un bar` | `bar` crosses as `bar`, and Spanish's first `bar` is the counter |
+| `No había cámaras y periodistas` | `ni periodistas` | Spanish's `ni` after a denial is no rule a lesson states |
+| `apretarle la mano` | `estrecharle la mano` | an idiom |
+| `dar a la Italia` | `dar a Italia` | the article Italian puts before a country, 1.8.8's cost |
+| `los requisitos`, `los temas que viven una vida necesitada` | `las exigencias`, `las personas que viven una vida difícil` | senses: `esigenza` crosses as `requirement`, `soggetto` as `subject`, which Spanish writes as a topic |
+| `para ella` | `para usted` | `lei` is the polite `you` and `her`, and the IR carries `her` |
+| `me gusta estar entre la gente` | `a mí me gusta` | the stress is lost (above) |
+| `Y es útil entonces` | `Y además es útil` | `poi` crosses as `then` where it says besides |
+| `¿si ganará las elecciones, insertará ...?` | `si gana las elecciones, ¿incluirá ...?` | Spanish's `si` takes the present where Italian's `se` takes the future, and the question mark is put before the condition |
+| `que dura 5 años`, `siempre que se someten` | `que dure`, `se sometan` | a subjunctive is written as the indicative, 1.6.8's cost |
+| `van bien los técnicos` | `los técnicos están bien` | `andare bene` is an idiom |
+| `lejos años luz desde la política` | `a años luz de la política` | `da` is `from`, 1.6.17's cost, and `lontano` is read as the adverb |
+| `comentario crítico en la guerra` | `sobre la guerra` | `su` is `on`, 1.7.2's cost |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.17's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.17, this store | **1.8.18** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 15.3 and 14.6 s | **12 of 12, 14.7 and 14.3 s** |
+| the Spanish article | 11 of 11, 13.9 and 14.1 s | **11 of 11, 14.2 and 14.1 s** |
+| Livata, 29 sentences | 29 of 29, 93.3 and 92.4 s | **29 of 29, 90.2 and 87.6 s** |
+| Fiat, 20 sentences | 20 of 20, 22.0 and 21.3 s | **20 of 20, 20.6 and 20.6 s** |
+| Valencia, 16 sentences | 16 of 16, 20.8 and 20.4 s | **16 of 16, 20.2 and 20.2 s** |
+| the bioethics article, 15 sentences | 15 of 15, 15.5 and 15.8 s | **15 of 15, 15.1 and 15.3 s** |
+| the football article, 20 sentences | 20 of 20, 29.2 and 28.8 s | **20 of 20, 28.7 and 28.2 s** |
+| Monreale, 6 sentences | 6 of 6, 3.8 and 3.8 s | **6 of 6, 4.0 and 3.9 s** |
+| the record report, 15 sentences | 15 of 15, 22.6 and 21.6 s | **15 of 15, 21.4 and 21.1 s** |
+| Tatoeba's 400, exact / translated / refused | 58 / 288 / 112, 19.9 and 19.7 s | **58 / 291 / 109, 20.6 and 20.3 s** |
+| the islands report, 13 sentences | 13 of 13, 19.9 and 20.0 s | **13 of 13, 18.7 and 18.3 s** |
+| the opera review, 12 sentences | 12 of 12, 16.1 and 15.5 s | **12 of 12, 15.2 and 15.2 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 38.0 and 37.1 s | **27 of 27, 36.6 and 36.7 s** |
+| the Georgia report, 8 sentences | 8 of 8, 12.8 and 12.4 s | **8 of 8, 11.8 and 11.7 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 15.6 and 15.1 s | **13 of 13, 15.0 and 14.9 s** |
+| the Clinton report, 12 sentences | 12 of 12, 20.2 and 20.5 s | **12 of 12, 19.3 and 19.3 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 48.2 and 47.0 s | **12 of 12, 41.7 and 41.5 s** |
+| the Solana report, 10 sentences | 10 of 10, 25.5 and 25.5 s | **10 of 10, 24.6 and 24.4 s** |
+| the pacifist letter, 6 sentences | 6 of 6, 9.6 and 9.4 s | **6 of 6, 9.4 and 10.0 s** |
+| the mobile column, 11 sentences | 11 of 11, 29.4 and 29.0 s | **11 of 11, 28.2 and 28.1 s** |
+| the Bastille letter, 11 sentences | 11 of 11, 20.1 and 19.9 s | **11 of 11, 18.9 and 19.3 s** |
+| the Basque report, 9 sentences | 9 of 9, 52.0 and 52.2 s | **9 of 9, 49.0 and 49.9 s** |
+| the Giglio letter, 8 sentences | 8 of 8, 16.7 and 17.2 s | **8 of 8, 15.6 and 15.7 s** |
+| the England column, 9 sentences | 9 of 9, 14.6 and 14.3 s | **9 of 9, 13.7 and 14.3 s** |
+| the Bovalino letter, 15 sentences | 8 of 15, 94.9 and 92.8 s | **15 of 15, 39.3 and 40.3 s** |
+
+-- the texts first: each translator gives the same texts both times, and this
+one gives the texts of the round before the costs were cut, to the byte, on all
+twenty-five controls. Against 1.8.17 on this store every old control is the same
+to the byte but for three. Livata's fifteenth is `ha ido desde la otra`, which
+1.8.17 writes `desde él otros` on this store -- the data column's, above. The
+Bosnian letter's fourth keeps the comma its source has after `e`, `y, sobre
+todo, en el derecho`: 1.8.10 stated that one as a cost, `the comma after a
+coordinator is not in the IR`, and the comma after a coordinator above closes
+it, in 0.47 million inferences where 1.8.17 spends 6.8 million. And Tatoeba is
+58 exact, 291 translated and 109 refused where 1.8.17 writes 58, 288 and 112
+(above). **AND AGAINST 1.8.17 ON ITS OWN STORE** -- the one reference with no
+line of this sample's data in it -- every old control is the same but for the
+Bosnian letter's comma and Tatoeba.
+
+**THE TIMES FELL NEARLY EVERYWHERE, AND THE PAIRS SETTLE THE THREE THAT ROSE.**
+The ranges are apart on twenty-two of the twenty-five: seventeen old controls
+faster by 1.8 to 7.9 % and the Bosnian letter by 12.5 %; the Spanish article,
+Monreale and Tatoeba slower by 1.3, 3.8 and 3.3 %; and this letter 58 % faster,
+because 1.8.17 spends its time failing. They overlap on the twelve, the pacifist
+letter and the England column. Counted, the Spanish article and Monreale ask
+1.25 and 1.29 % FEWER inferences than on 1.8.17, and five alternating pairs of
+the three, nothing else on the box, say what the counts say: the Spanish article
+14.32 s (14.22-14.48) against 14.21 s (13.82-14.49), Monreale 3.96 s (3.71-4.34)
+against 3.94 s (3.67-4.12), Tatoeba 20.10 s (19.70-20.40) against 20.46 s
+(20.30-20.70) -- every range overlapping, and Tatoeba translates three sentences
+more. The clock is the box's, as 1.8.13, 1.8.14 and 1.8.17 said. Where the
+times fell, most fell further than the counts did -- the islands report 7.4 %
+against 4.15 % fewer inferences, the Giglio letter 7.9 % against 4.02 % -- and
+this round does not say why: an inference is not a unit of time (1.6.18), and
+nothing here measured which inferences went.
+
+Into English the letter reads 11 of 15. The fourth, the eighth, the ninth and
+the tenth are refused: each has a clause whose subject nobody named -- `mi ha
+risposto` in two of them, `è utile` and `se vincerà le elezioni` -- and English
+still refuses a third person nobody named (1.6.15). The eleven show what the IR
+carries: `sunday morning (July 9, ninety-five)`, the day and its part with
+nothing between them and the year in words in English's own order for a date; `I
+have approached after the mass`, the first person's reflexive, which English
+does not write; `There were no cameras and journalists, but only so much, so
+much common persons`, the word said twice, and English's `so much` with no
+plural; `"Professor – I have asked him –, must this be a very stressful period
+for her?`, the one spoken to, the question fronted where English asks it, and
+`lei` as `her`, the cost above; `"Look, I want to make a government that lasts 5
+years and not two months.`, the polite command in English's base form and the
+denial on the second half; and `The new and diverse approach has struck me of
+that man`, the experiencer's subject put first, and `di quell'uomo`, in front
+with no comma in Italian, written after the verb as a front with no comma is
+(1.6.8).
+
+`test/translate.pl` is 1203 checks and GREEN, 33 in a new `newspaper_bovalino`
+section with an Italian and a Spanish lesson of its own. Every check fails on
+1.8.17's translator but three guards: one that pins what 1.8.17 already did
+right -- after the copula, bare nouns are the predicate, `El ministro es
+técnico.` -- and two the controls wrote, a name before a comma in a statement
+and adverbs and an adjective after a coordinator inside a phrase, each red on a
+first cut of this version; the five arms above say what each check the controls
+wrote is for. One pin of the `shapes` section moved: `Había un perro.` is `There
+was a dog.`, where no past of `hay` was stated and the sentence was refused.
+Lesson 46 gained section 44. **The minor is proposed**: `takes the experiencer`
+and `joins the time` are new lines a lesson can say, and the one spoken to, the
+polite command and the first person's reflexive are new shapes a program
+reaches; the owner decides. The full suite was not run on 1.8.18.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

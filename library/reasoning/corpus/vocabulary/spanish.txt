@@ -558,6 +558,28 @@ The verb "queda" means "remains".
 The intransitive verb "cabe" means "remains".
 The masculine adjective "ridículo" means "ridiculous".
 The masculine noun "ridículo" means "ridicule".
+"mañana" is a time.
+"tarde" is a time.
+"noche" is a time.
+The word "por" joins the time.
+The feminine noun "noche" means "night".
+The feminine noun "noche" means "evening".
+The feminine noun "gente" means "people".
+The masculine adjective "necesitado" means "needy". The feminine adjective "necesitada" means "needy".
+"necesitados" is the plural of "necesitado". "necesitadas" is the plural of "necesitada".
+The number "noventa y cinco" means "ninety-five".
+"había" is the past of "hay".
+The pronoun "mí" means "me".
+The pronoun "mí" does not precede the verb.
+The adjective "estresante" means "stressful". "estresantes" is the plural of "estresante".
+The masculine determiner "tanto" means "so much". The feminine determiner "tanta" means "so much".
+"tantos" is the plural of "tanto". "tantas" is the plural of "tanta".
+The masculine noun "serbio" means "serbian". "serbios" is the plural of "serbio".
+The masculine noun "bosnio" means "bosnian". "bosnios" is the plural of "bosnio".
+The adverb "en resumen" means "in short".
+The adverb "en particular" means "in particular".
+The masculine noun "año luz" means "light year".
+"años luz" is the plural of "año luz".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -18424,8 +18446,8 @@ The masculine noun "desperfecto" means "flaw".
 The noun "etiquetaje" means "labeling".
 The masculine noun "etiquetado" means "labeling".
 "etiquetados" is the plural of "etiquetado".
-The feminine noun "euroregión" means "euroregion".
-"euroregiones" is the plural of "euroregión".
+The feminine noun "eurorregión" means "euroregion".
+"eurorregiones" is the plural of "eurorregión".
 The feminine noun "exhaustividad" means "exhaustiveness".
 "exhaustividades" is the plural of "exhaustividad".
 The feminine noun "extranet" means "extranet".
@@ -24423,8 +24445,8 @@ The masculine noun "azabache" means "jet".
 "azabaches" is the plural of "azabache".
 The feminine noun "alabanza" means "praise".
 "alabanzas" is the plural of "alabanza".
-The masculine noun "búnquer" means "bunker".
-"búnqueres" is the plural of "búnquer".
+The masculine noun "búnker" means "bunker".
+"búnkeres" is the plural of "búnker".
 The masculine noun "tanteo" means "score".
 "tanteos" is the plural of "tanteo".
 The feminine noun "irrigación" means "irrigation".

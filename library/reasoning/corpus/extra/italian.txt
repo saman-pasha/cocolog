@@ -1270,3 +1270,108 @@ The masculine noun "ridicolo" means "ridicule".
 # `sólo cabe la paciencia': patience -- the dictionary's first word for it
 # is `sopportazione', endurance
 The feminine noun "pazienza" means "patience".
+# the Bovalino letter (Italian UD, VIT-9800..9814), into Spanish.
+# `non c'erano telecamere', `il mondo dell'imprenditoria': eng-ita.dix reads
+# `telecamera' as `camera' and `imprenditoria' as `enterprise', and a line
+# the supplement gives comes before the dictionary's one-way lines, which
+# made them the first Italian words for those meanings -- `por empresa' in
+# the record report would have been `per imprenditoria'. So the dictionary's
+# own order is said again here, `camera' and `impresa' with their first
+# meanings above, and each meaning keeps its first word
+The feminine noun "camera" means "bedroom".
+The feminine noun "camera" means "chamber".
+The feminine noun "camera" means "camera".
+The feminine noun "impresa" means "company".
+The feminine noun "impresa" means "corporation".
+The feminine noun "impresa" means "enterprise".
+# `La sera precedente avevo seguito ...', `domenica mattina': the parts of
+# the day are times, as the days are -- and a day and its part are one time
+# (Spanish joins them, `el domingo por la mañana')
+"mattina" is a time.
+"pomeriggio" is a time.
+"sera" is a time.
+"notte" is a time.
+# `non pensavo certo di incontrare il professor Romano Prodi': certainly --
+# the dictionary has `certo' as an adjective and a determiner, and its own
+# word for the adverb is said again first, so `certainly' keeps it
+The adverb "certamente" means "certainly".
+The adverb "certo" means "certainly".
+# `molto attento verso i soggetti': towards -- the dictionary has `verso'
+# as the noun, a verse, and as what `versare' says of me. The preposition
+# comes first: a preposition crosses by its own meaning only where the
+# word's first meaning has no class of its own, and with the verse first
+# Spanish wrote `cuidadoso verso los sujetos'. The noun keeps its meaning in
+# a noun's place, which is what its class is for
+The preposition "verso" means "towards".
+The masculine noun "verso" means "verse".
+# `vanno bene i tecnici a patto che si sottopongano ...': the technicians
+# are fine, provided that -- `andare' takes its subject after it, and the
+# condition is one word of three
+The intransitive verb "va" means "goes".
+The conjunction "a patto che" means "provided that".
+# `il contatto diretto con la gente': people -- the dictionary has `gente'
+# as a person, one of them
+The feminine noun "gente" means "people".
+# `a me piace stare in mezzo alla gente': among -- in the middle of. `tra'
+# is the dictionary's first word for `among', and it is said again first:
+# after it, `entre' came out `in mezzo a' in seven sentences of four of the
+# controls
+The preposition "tra" means "among".
+The preposition "in mezzo a" means "among".
+# `molto attento verso i soggetti che vivono una vita disagiata': the
+# subjects, the people -- the dictionary has `soggetto' as an adjective
+# only. `argomento' is its first noun for a subject, and it is said again
+# first, its own first meaning before it, so every order stays as it was
+The masculine noun "argomento" means "argument".
+The masculine noun "argomento" means "subject".
+The masculine noun "soggetto" means "subject".
+# `domenica mattina (9 luglio novantacinque)': a year said in words
+The number "novantacinque" means "ninety-five".
+# `il professor Romano Prodi': the title before a name, as `monsignor'
+"professor" is the apocope of "professore".
+# `problemi (disoccupazione, criminalità organizzata, ecc)': etc
+The adverb "ecc" means "etc".
+# `poiché soltanto parlando con le persone comuni ...': since
+The conjunction "poiché" means "since".
+# `Di quell'uomo mi ha colpito ...': that, before a vowel
+"quell'" is the elision of "quello".
+# ... and the approach is what struck me: the one who feels it is the
+# verb's object, before it as a pronoun, and its subject stands after it
+"colpisce" takes the experiencer.
+# `per lei questo dev essere un periodo molto stressante': the letter writes
+# `dev' for `dev''
+"dev" is the apocope of "deve".
+# ... and a period of time -- the dictionary's meanings of `periodo' are
+# `chronology' and `spell', and Spanish wrote `una cronología'. `epoca',
+# its first word for a period, is said again first
+The feminine noun "epoca" means "period".
+The masculine noun "periodo" means "period".
+# `Non c'erano telecamere e giornalisti': there was, there were
+"c'era" is the past of "c'è".
+"c'erano" is the plural of "c'era".
+# `a me piace stare in mezzo alla gente': me, the pronoun that stands alone
+The pronoun "me" means "me".
+The pronoun "me" does not precede the verb.
+# `soltanto tante, tante persone comuni': so many -- the dictionaries have
+# `tanto' as a determiner only for two English words, which the builder
+# does not write
+The masculine determiner "tanto" means "so much". The feminine determiner "tanta" means "so much".
+"tanti" is the plural of "tanto". "tante" is the plural of "tanta".
+# `Insomma, un metodo lontano anni luce dalla politica ...': in short, a
+# method light years away -- the dictionary's first meaning of `insomma' is
+# `then' and of `metodo' `form', and each is the only word for the meaning
+# given first here; `anno luce' is one word of two, and its plural keeps
+# `luce'
+The adverb "insomma" means "in short".
+The masculine noun "metodo" means "method".
+The masculine noun "anno luce" means "light year".
+"anni luce" is the plural of "anno luce".
+# `immagini studiate nei "particolari"': the details -- the dictionary has
+# `particolare' as an adjective only; `dettaglio', its first word for a
+# detail, is said again first, so `detail' keeps it
+The masculine noun "dettaglio" means "detail".
+The masculine noun "particolare" means "detail".
+# ... and `in particolare', in particular, is one word: with the noun line
+# first it read as `in detail', and the Giglio letter's `In particolare,
+# nel caso del Giglio' came out `En detalle'
+The adverb "in particolare" means "in particular".
