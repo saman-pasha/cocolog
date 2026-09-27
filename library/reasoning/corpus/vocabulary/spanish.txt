@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20249 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20259 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -537,6 +537,28 @@ The relative "las cuales" means "which".
 "dice" takes the clause.
 The adverb "por lo tanto" means "therefore".
 The masculine noun "niño" means "child".
+The masculine noun "niño" means "boy".
+The masculine noun "chico" means "boy".
+The masculine noun "chico" means "lad".
+The masculine noun "muchachote" means "lad". "muchachotes" is the plural of "muchachote".
+The feminine noun "botella" means "bottle".
+The feminine noun "litrona" means "bottle". "litronas" is the plural of "litrona".
+The masculine noun "señor" means "gentleman".
+The masculine noun "gentleman" means "gentleman".
+The adjective "bamboleante" means "swaying". "bamboleantes" is the plural of "bamboleante".
+The masculine adjective "estreñido" means "constipated". The feminine adjective "estreñida" means "constipated".
+"estreñidos" is the plural of "estreñido". "estreñidas" is the plural of "estreñida".
+The masculine adjective "inadvertido" means "unnoticed". The feminine adjective "inadvertida" means "unnoticed".
+The preposition "conforme a" means "according to".
+The intransitive verb "para" means "stops".
+The verb "continúa" means "continues".
+The verb "sigue" means "follows".
+The progressive verb "sigue" means "continues".
+The verb "queda" means "remains".
+The intransitive verb "cabe" means "remains".
+The masculine adjective "ridículo" means "ridiculous".
+The masculine noun "ridículo" means "ridicule".
+The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
 The feminine noun "niña" means "child".
@@ -622,6 +644,10 @@ The feminine noun "alcantarilla" means "sewer".
 "alcantarillas" is the plural of "alcantarilla".
 The masculine noun "gruñido" means "growling".
 "gruñidos" is the plural of "gruñido".
+The masculine noun "bombín" means "bowler".
+"bombines" is the plural of "bombín".
+The noun "hooligan" means "hooligan".
+"hooligans" is the plural of "hooligan".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -19704,6 +19730,9 @@ The masculine noun "jalón" means "milestone".
 "jalones" is the plural of "jalón".
 The masculine noun "socavón" means "hole".
 "socavones" is the plural of "socavón".
+The noun "hincha" means "fan".
+"hincha" is not feminine.
+"hinchas" is the plural of "hincha".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -121574,6 +121603,20 @@ The masculine adjective "toscano" means "tuscan".
 "toscanos" is the plural of "toscano".
 The feminine adjective "toscana" means "tuscan".
 "toscanas" is the plural of "toscana".
+The masculine adjective "vikingo" means "viking".
+"vikingos" is the plural of "vikingo".
+The feminine adjective "vikinga" means "viking".
+"vikingas" is the plural of "vikinga".
+The adjective "imperturbable" means "imperturbable".
+"imperturbables" is the plural of "imperturbable".
+The masculine adjective "gélido" means "icy".
+"gélidos" is the plural of "gélido".
+The feminine adjective "gélida" means "icy".
+"gélidas" is the plural of "gélida".
+The masculine adjective "flemático" means "phlegmatic".
+"flemáticos" is the plural of "flemático".
+The feminine adjective "flemática" means "phlegmatic".
+"flemáticas" is the plural of "flemática".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -135949,6 +135992,22 @@ The masculine adjective "segundo" means "second".
 "segundos" is the plural of "segundo".
 The feminine adjective "segunda" means "second".
 "segundas" is the plural of "segunda".
+The masculine adjective "bobalicón" means "silly".
+"bobalicones" is the plural of "bobalicón".
+The feminine adjective "bobalicona" means "silly".
+"bobaliconas" is the plural of "bobalicona".
+The masculine adjective "avinagrado" means "sour".
+"avinagrados" is the plural of "avinagrado".
+The feminine adjective "avinagrada" means "sour".
+"avinagradas" is the plural of "avinagrada".
+"avinagradísimas" is the superlative of "avinagradas".
+"avinagradísima" is the superlative of "avinagrada".
+"avinagradísimos" is the superlative of "avinagrados".
+"avinagradísimo" is the superlative of "avinagrado".
+The masculine adjective "facilongo" means "easy".
+"facilongos" is the plural of "facilongo".
+The feminine adjective "facilonga" means "easy".
+"facilongas" is the plural of "facilonga".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".

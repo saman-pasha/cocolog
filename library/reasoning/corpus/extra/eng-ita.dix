@@ -375,3 +375,28 @@
 # `altri vincoli rispetto a quelli esistenti': restrictions -- read only, so
 # `restriction' is still written as the dictionary writes it
 <e r="RL"><p><l>restriction<s n="n"/></l><r>vincolo<s n="n"/><s n="m"/></r></p></e>
+# the England supporters column (AnCora CESS-CAST-P-19990601-13), into
+# Italian.
+# `más vikingas que británicas': Viking -- apertium-ita carries `vichingo'
+# and the bilingual pairs nothing with it
+<e><p><l>Viking<s n="adj"/></l><r>vichingo<s n="adj"/></r></p></e>
+# `el imperturbable gentleman': imperturbable -- the same
+<e><p><l>imperturbable<s n="adj"/></l><r>imperturbabile<s n="adj"/></r></p></e>
+# `del gélido habitante': icy -- the same
+<e><p><l>icy<s n="adj"/></l><r>gelido<s n="adj"/></r></p></e>
+# `los escandalosos y bamboleantes bebedores': swaying -- the same
+<e><p><l>swaying<s n="adj"/></l><r>ondeggiante<s n="adj"/></r></p></e>
+# `los hooligans': apertium-ita's word is `teppista', of both genders
+<e><p><l>hooligan<s n="n"/></l><r>teppista<s n="n"/></r></p></e>
+# `su avinagrado carácter flemático': phlegmatic -- the same
+<e><p><l>phlegmatic<s n="adj"/></l><r>flemmatico<s n="adj"/></r></p></e>
+# `flemático, inalterable y estreñido': constipated -- the same
+<e><p><l>constipated<s n="adj"/></l><r>stitico<s n="adj"/></r></p></e>
+# `los escandalosos y bamboleantes bebedores': scandalous -- apertium-ita
+# carries `scandaloso' and the bilingual pairs it with nothing
+<e><p><l>scandalous<s n="adj"/></l><r>scandaloso<s n="adj"/></r></p></e>
+# `el país que ha producido la minifalda': miniskirt -- apertium-ita carries
+# `minigonna' and the bilingual pairs it with nothing
+<e><p><l>miniskirt<s n="n"/></l><r>minigonna<s n="n"/><s n="f"/></r></p></e>
+# `flemático, inalterable y estreñido': unalterable -- the same, `inalterabile'
+<e><p><l>unalterable<s n="adj"/></l><r>inalterabile<s n="adj"/></r></p></e>

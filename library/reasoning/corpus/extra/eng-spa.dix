@@ -203,3 +203,31 @@
 # `un parco "mummificato"': mummified -- apertium-spa carries `momificar'
 # and the bilingual pairs nothing with it
 <e><p><l>mummify<s n="vblex"/></l><r>momificar<s n="vblex"/></r></p></e>
+# the England supporters column (AnCora CESS-CAST-P-19990601-13), into
+# Italian.
+# `estas hordas más vikingas que británicas': Viking -- apertium-spa carries
+# `vikingo' and the bilingual pairs nothing with it
+<e><p><l>Viking<s n="adj"/></l><r>vikingo<s n="adj"/></r></p></e>
+# `el imperturbable gentleman': imperturbable -- the same
+<e><p><l>imperturbable<s n="adj"/></l><r>imperturbable<s n="adj"/></r></p></e>
+# `el imperturbable gentleman del bombín': a bowler hat -- the same
+<e><p><l>bowler<s n="n"/></l><r>bombín<s n="n"/><s n="m"/></r></p></e>
+# `el irónico humor del gélido habitante': icy -- the same
+<e><p><l>icy<s n="adj"/></l><r>gélido<s n="adj"/></r></p></e>
+# `los bobalicones comentarios': silly -- read only (r="RL"), so `silly' is
+# still written `tonto'
+<e r="RL"><p><l>silly<s n="adj"/></l><r>bobalicón<s n="adj"/></r></p></e>
+# `los hooligans': hooligan -- apertium-spa carries it, a noun of both
+# genders
+<e><p><l>hooligan<s n="n"/></l><r>hooligan<s n="n"/><s n="mf"/></r></p></e>
+# `su avinagrado carácter': sour -- read only, so `sour' is still `ácido'
+<e r="RL"><p><l>sour<s n="adj"/></l><r>avinagrado<s n="adj"/></r></p></e>
+# `su avinagrado carácter flemático': phlegmatic -- apertium-spa carries it
+<e><p><l>phlegmatic<s n="adj"/></l><r>flemático<s n="adj"/></r></p></e>
+# `como facilonga explicación': easy -- read only, so `easy' is still `fácil'
+<e r="RL"><p><l>easy<s n="adj"/></l><r>facilongo<s n="adj"/></r></p></e>
+# `Los muchachotes hinchas del equipo inglés': fans -- apertium-spa carries
+# `hincha' as a noun of both genders and the bilingual pairs nothing with it,
+# so the vocabulary knew only the verb `inflates'; read only, so `fan' is
+# still written `seguidor'
+<e r="RL"><p><l>fan<s n="n"/></l><r>hincha<s n="n"/><s n="mf"/></r></p></e>

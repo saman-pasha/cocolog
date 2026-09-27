@@ -1244,3 +1244,29 @@ The intransitive verb "ha luogo" means "takes place".
 # `gli inviati de "La Repubblica"': of -- a newspaper's name that opens on
 # its article takes `de', not `della'
 The preposition "de" means "of".
+# the England supporters column (AnCora CESS-CAST-P-19990601-13), into
+# Italian. `el gentleman del bombín': a bowler hat -- apertium-ita does not
+# carry `bombetta'
+The feminine noun "bombetta" means "bowler". "bombette" is the plural of "bombetta".
+# `aunque haya pasado casi inadvertido': unnoticed -- `inosservato' is
+# `unobserved' to the dictionary, and no Italian word meant `unnoticed'.
+# `unobserved' stays its first meaning: a line here comes before every line
+# of the dictionary
+The masculine adjective "inosservato" means "unobserved". The feminine adjective "inosservata" means "unobserved".
+The masculine adjective "inosservato" means "unnoticed". The feminine adjective "inosservata" means "unnoticed".
+# `estas hordas más vikingas que británicas': horde -- apertium-ita does not
+# carry `orda'
+The feminine noun "orda" means "horde". "orde" is the plural of "orda".
+# `¿Pararán por ello los bobalicones comentarios ...?': stops -- apertium-ita
+# gives `detenere', to hold, for `stop' and nothing else. `fermare' stops a
+# thing, and a clause with no object ceases, `cessare'
+The transitive verb "ferma" means "stops".
+The verb "cessa" means "ceases".
+The verb "cessa" means "stops".
+# `el ridículo de los que los utilizan': ridicule -- the same, `il ridicolo',
+# the adjective staying its first meaning
+The masculine adjective "ridicolo" means "ridiculous".
+The masculine noun "ridicolo" means "ridicule".
+# `sólo cabe la paciencia': patience -- the dictionary's first word for it
+# is `sopportazione', endurance
+The feminine noun "pazienza" means "patience".

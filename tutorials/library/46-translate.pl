@@ -368,6 +368,7 @@ main :-
     section_40,
     section_41,
     section_42,
+    section_43,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -2668,6 +2669,128 @@ The preposition "a" means "to". The preposition "di" means "of". The preposition
 The adverb "quindi" means "then". The adverb "perciò" means "therefore". The adverb "invece" means "instead". The adverb "solo" means "only". The adverb "più" means "more".
 The pronoun "ci" means "us". The pronoun "lo" means "him". The pronoun "mi" means "me".
 The word "quello" replaces the noun. The masculine demonstrative "quello" means "that". The masculine pronoun "quello" means "that". "quelli" is the plural of "quello". The pronoun "quello" does not precede the verb.').
+
+section_43 :-
+    format("~n43. A Spanish column into Italian: and inside a phrase, a sense by the article's gender, a noun after a noun, an answer, a comparison of two adjectives, the impersonal's participle, a verb before a gerund, the comma after an apposition, the article of de los que, two subjects after their verb~n", []),
+    lesson_43(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the column''s shapes, under its own name', NS),
+    lesson_43(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('El perro de Juan y María come el pan.', spanish, english, S43a),
+    must('AND after a preposition, with a singular verb, joins inside the preposition''s phrase', S43a, 'The dog of Juan and María eats the bread.'),
+    reason_translate('La final es larga.', spanish, italian, S43b),
+    must('a noun the lesson states in BOTH GENDERS takes the meaning of its article''s', S43b, 'La finale è lunga.'),
+    reason_translate('Los chicos hinchas duermen.', spanish, italian, S43c),
+    must('a NOUN AFTER A NOUN says what kind', S43c, 'I ragazzi tifosi dormono.'),
+    reason_translate('No, el perro duerme.', spanish, english, S43d),
+    must('an ANSWER before a comma denies nothing', S43d, 'No, the dog sleeps.'),
+    reason_translate('Los perros más negros que blancos duermen.', spanish, italian, S43e),
+    must('a COMPARISON of two adjectives is one phrase', S43e, 'I cani più neri che bianchi dormono.'),
+    reason_translate('Se ha producido una coincidencia.', spanish, italian, S43f),
+    must('the IMPERSONAL''s participle agrees with the object', S43f, 'Si è prodotta una coincidenza.'),
+    reason_translate('El perro sigue durmiendo.', spanish, italian, S43g),
+    must('a verb BEFORE A GERUND crosses by the meaning the lesson calls progressive', S43g, 'Il cane continua a dormire.'),
+    reason_translate('Juan, el hermano de María, duerme.', spanish, italian, S43h),
+    must('the COMMA that closes an apposition stays', S43h, 'Juan, il fratello di María, dorme.'),
+    reason_translate('El perro de los que comen pan duerme.', spanish, italian, S43i),
+    must('the article of DE LOS QUE agrees with what it stands for', S43i, 'Il cane di quelli che mangiano pane dorme.'),
+    reason_translate('Sólo cabe el perro, y el gato.', spanish, italian, S43j),
+    must('TWO PHRASES after a singular intransitive verb are its subject', S43j, 'Solo rimangono il cane e il gatto.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_43(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The adverb "no" means "no". The word "a" precedes the person.
+The word "más" begins the comparative. The adverb "más" means "more". The word "el" replaces the noun.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The noun "hermano" means "brother". "hermano" is a person.
+The noun "comportamiento" means "behaviour". The noun "rastro" means "trace". The noun "miedo" means "fear".
+The feminine noun "población" means "population". "poblaciones" is the plural of "población".
+The masculine noun "final" means "end". The feminine noun "final" means "final". "finales" is the plural of "final".
+The noun "chico" means "lad". The noun "hincha" means "fan". "hinchas" is the plural of "hincha". "hincha" is not feminine.
+The feminine noun "coincidencia" means "coincidence". The masculine noun "ridículo" means "ridicule". The noun "salto" means "jump".
+The masculine adjective "rojo" means "red". The feminine adjective "roja" means "red". "rojos" is the plural of "rojo". "rojas" is the plural of "roja".
+The masculine adjective "negro" means "black". "negros" is the plural of "negro".
+The masculine adjective "blanco" means "white". "blancos" is the plural of "blanco".
+The masculine adjective "largo" means "long". The feminine adjective "larga" means "long".
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+The masculine adjective "inadvertido" means "unnoticed". The masculine adjective "ridículo" means "ridiculous".
+The verb "civiliza" means "civilises". "civilizado" is the participle of "civiliza".
+The adverb "poco" means "little". The masculine determiner "poco" means "little".
+The adverb "casi" means "almost". The adverb "sólo" means "only".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comiendo" is the gerund of "come".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme". "durmiendo" is the gerund of "duerme".
+The verb "sigue" means "follows". The progressive verb "sigue" means "continues". "siguen" is the plural of "sigue".
+The verb "deja" means "leaves". "dejado" is the participle of "deja".
+The verb "entra" means "enters". "entre" is the subjunctive of "entra".
+The verb "habla" means "speaks". "hablas" is the second person of "habla".
+The verb "pasa" means "passes". The intransitive verb "pasa" means "happens". "pasado" is the participle of "pasa".
+The intransitive verb "cabe" means "remains".
+The verb "produce" means "produces". "producido" is the participle of "produce".
+The verb "es" means "is". "son" is the plural of "es". "era" is the past of "es". "eran" is the plural of "era".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "haya" is the subjunctive of "ha".
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative. The conjunction "que" means "than".
+The conjunction "aunque" means "although".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "por" means "for". The preposition "entre" means "among".
+The pronoun "ello" means "this". The pronoun "ello" does not precede the verb.
+The demonstrative "este" means "this". "estos" is the plural of "este". The feminine demonstrative "esta" means "this". "estas" is the plural of "esta".
+The possessive "su" means "his".
+The reflexive pronoun "se" means "itself". The impersonal pronoun "se" means "one".').
+
+lesson_43(italian, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i".
+"d''" is the elision of "di". "quest''" is the elision of "questo".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not". The adverb "no" means "no".
+The word "più" begins the comparative. The adverb "più" means "more".
+The word "quello" replaces the noun. The word "quella" replaces the noun.
+The pronoun "quello" means "that". The pronoun "quello" does not precede the verb.
+The masculine demonstrative "quello" means "that". "quelli" is the plural of "quello". The feminine demonstrative "quella" means "that". "quelle" is the plural of "quella".
+The article "il" takes the possessive.
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane".
+The feminine noun "casa" means "house". "case" is the plural of "casa". The noun "fratello" means "brother". "fratello" is a person.
+The noun "comportamento" means "behaviour". The feminine noun "traccia" means "trace". The feminine noun "paura" means "fear".
+The feminine noun "popolazione" means "population". "popolazioni" is the plural of "popolazione". The noun "ragazzo" means "lad". "ragazzi" is the plural of "ragazzo".
+The noun "tifoso" means "fan". "tifosi" is the plural of "tifoso".
+The feminine noun "fine" means "end". The feminine noun "finale" means "final".
+The feminine noun "coincidenza" means "coincidence". The noun "ridicolo" means "ridicule". The noun "salto" means "jump".
+The masculine adjective "rosso" means "red". The feminine adjective "rossa" means "red". "rossi" is the plural of "rosso". "rosse" is the plural of "rossa".
+The masculine adjective "nero" means "black". "neri" is the plural of "nero".
+The masculine adjective "bianco" means "white". "bianchi" is the plural of "bianco".
+The masculine adjective "lungo" means "long". The feminine adjective "lunga" means "long".
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+The masculine adjective "inosservato" means "unnoticed".
+The verb "civilizza" means "civilises". "civilizzato" is the participle of "civilizza".
+"civilizzati" is the participle of "civilizza". "civilizzati" is the plural of "civilizzato".
+The adverb "poco" means "little". The adverb "quasi" means "almost". The adverb "solo" means "only".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "continua" means "continues". "continuano" is the plural of "continua". "continua" takes "a" before the infinitive.
+The verb "segue" means "follows". The verb "lascia" means "leaves". The verb "parla" means "speaks". "parli" is the second person of "parla".
+The verb "avviene" means "happens". "avvenuto" is the participle of "avviene". "è" is the auxiliary of "avviene".
+The verb "rimane" means "remains". "rimangono" is the plural of "rimane".
+The verb "produce" means "produces". "prodotto" is the participle of "produce". "prodotta" is the participle of "produce". "prodotta" is feminine.
+The verb "è" means "is". "sono" is the plural of "è". "era" is the past of "è". "erano" is the plural of "era".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "è" is the auxiliary of the reflexive.
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative. The conjunction "che" means "than".
+"cui" is a relative. The word "cui" follows the preposition.
+The conjunction "nonostante" means "although".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "per" means "for". The preposition "tra" means "among".
+The pronoun "questo" means "this". The pronoun "questo" does not precede the verb.
+The masculine demonstrative "questo" means "this". "questi" is the plural of "questo". The feminine demonstrative "questa" means "this". "queste" is the plural of "questa".
+The possessive "suo" means "his".
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one".').
 
 section_1 :-
     format("~n1. The lesson: one hundred and eighty-three lines of controlled English, and what they say~n", []),

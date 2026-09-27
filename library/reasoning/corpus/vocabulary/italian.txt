@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16225 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16235 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -801,6 +801,16 @@ The intransitive verb "ha luogo" means "takes place".
 "vi sarà" is the future of "vi è".
 "vi saranno" is the plural of "vi sarà".
 The preposition "de" means "of".
+The feminine noun "bombetta" means "bowler". "bombette" is the plural of "bombetta".
+The masculine adjective "inosservato" means "unobserved". The feminine adjective "inosservata" means "unobserved".
+The masculine adjective "inosservato" means "unnoticed". The feminine adjective "inosservata" means "unnoticed".
+The feminine noun "orda" means "horde". "orde" is the plural of "orda".
+The transitive verb "ferma" means "stops".
+The verb "cessa" means "ceases".
+The verb "cessa" means "stops".
+The masculine adjective "ridicolo" means "ridiculous".
+The masculine noun "ridicolo" means "ridicule".
+The feminine noun "pazienza" means "patience".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -877,6 +887,13 @@ The feminine noun "irrequietezza" means "restlessness".
 "irrequietezze" is the plural of "irrequietezza".
 The masculine noun "tartufo" means "truffle".
 "tartufi" is the plural of "tartufo".
+The noun "teppista" means "hooligan".
+"teppista" is not feminine.
+"teppisti" is the plural of "teppista".
+"teppiste" is the plural of "teppista".
+"teppiste" is feminine.
+The feminine noun "minigonna" means "miniskirt".
+"minigonne" is the plural of "minigonna".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -94800,6 +94817,60 @@ The feminine adjective "toscana" means "tuscan".
 "toscanissimi" is the superlative of "toscani".
 "toscanissima" is the superlative of "toscana".
 "toscanissime" is the superlative of "toscane".
+The masculine adjective "vichingo" means "viking".
+"vichinghi" is the plural of "vichingo".
+The feminine adjective "vichinga" means "viking".
+"vichinghe" is the plural of "vichinga".
+The adjective "imperturbabile" means "imperturbable".
+"imperturbabili" is the plural of "imperturbabile".
+"imperturbabilissimo" is the superlative of "imperturbabile".
+"imperturbabilissimi" is the superlative of "imperturbabili".
+"imperturbabilissima" is the superlative of "imperturbabile".
+"imperturbabilissime" is the superlative of "imperturbabili".
+The masculine adjective "gelido" means "icy".
+"gelidi" is the plural of "gelido".
+The feminine adjective "gelida" means "icy".
+"gelide" is the plural of "gelida".
+"gelidissimo" is the superlative of "gelido".
+"gelidissimi" is the superlative of "gelidi".
+"gelidissima" is the superlative of "gelida".
+"gelidissime" is the superlative of "gelide".
+The adjective "ondeggiante" means "swaying".
+"ondeggianti" is the plural of "ondeggiante".
+"ondeggiantissimo" is the superlative of "ondeggiante".
+"ondeggiantissimi" is the superlative of "ondeggianti".
+"ondeggiantissima" is the superlative of "ondeggiante".
+"ondeggiantissime" is the superlative of "ondeggianti".
+The masculine adjective "flemmatico" means "phlegmatic".
+"flemmatici" is the plural of "flemmatico".
+The feminine adjective "flemmatica" means "phlegmatic".
+"flemmatiche" is the plural of "flemmatica".
+"flemmaticissimo" is the superlative of "flemmatico".
+"flemmaticissimi" is the superlative of "flemmatici".
+"flemmaticissima" is the superlative of "flemmatica".
+"flemmaticissime" is the superlative of "flemmatiche".
+The masculine adjective "stitico" means "constipated".
+"stitici" is the plural of "stitico".
+The feminine adjective "stitica" means "constipated".
+"stitiche" is the plural of "stitica".
+"stiticissimo" is the superlative of "stitico".
+"stiticissimi" is the superlative of "stitici".
+"stiticissima" is the superlative of "stitica".
+"stiticissime" is the superlative of "stitiche".
+The masculine adjective "scandaloso" means "scandalous".
+"scandalosi" is the plural of "scandaloso".
+The feminine adjective "scandalosa" means "scandalous".
+"scandalose" is the plural of "scandalosa".
+"scandalosissimo" is the superlative of "scandaloso".
+"scandalosissimi" is the superlative of "scandalosi".
+"scandalosissima" is the superlative of "scandalosa".
+"scandalosissime" is the superlative of "scandalose".
+The adjective "inalterabile" means "unalterable".
+"inalterabili" is the plural of "inalterabile".
+"inalterabilissimo" is the superlative of "inalterabile".
+"inalterabilissimi" is the superlative of "inalterabili".
+"inalterabilissima" is the superlative of "inalterabile".
+"inalterabilissime" is the superlative of "inalterabili".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

@@ -881,3 +881,63 @@ The relative "las cuales" means "which".
 # `Siate perciò coerenti.': therefore -- Apertium gives `por lo tanto' the
 # class `cnjadv', which the builder does not read, so Spanish had no word
 The adverb "por lo tanto" means "therefore".
+# the England supporters column (AnCora CESS-CAST-P-19990601-13), into
+# Italian. `Los muchachotes hinchas del equipo inglés': big lads -- no
+# dictionary has the augmentative. A line here comes before every line of the
+# dictionary, so it makes its word the FIRST for its meaning and its meaning
+# the FIRST for its word, and the dictionary's own order for both is said
+# above it: `niño' first for `child' and for `boy', `chico' `boy' first and
+# `lad' second, and the first word for `lad'. Said alone, `chico' means
+# `lad' read `Él es un chico astuto.' as `a cunning lad'
+The masculine noun "niño" means "child".
+The masculine noun "niño" means "boy".
+The masculine noun "chico" means "boy".
+The masculine noun "chico" means "lad".
+The masculine noun "muchachote" means "lad". "muchachotes" is the plural of "muchachote".
+# `el rastro habitual de litronas': a litre bottle of beer, which English has
+# no word for -- `botella' stays the first word for `bottle'
+The feminine noun "botella" means "bottle".
+The feminine noun "litrona" means "bottle". "litronas" is the plural of "litrona".
+# `el imperturbable gentleman': the English word, which apertium-spa does not
+# carry -- `señor' stays the first word for `gentleman'
+The masculine noun "señor" means "gentleman".
+The masculine noun "gentleman" means "gentleman".
+# `los escandalosos y bamboleantes bebedores': swaying -- apertium-spa has
+# the verb `bambolear' and no adjective
+The adjective "bamboleante" means "swaying". "bamboleantes" is the plural of "bamboleante".
+# `flemático, inalterable y estreñido': constipated -- apertium-spa has the
+# verb `estreñir' and no adjective
+The masculine adjective "estreñido" means "constipated". The feminine adjective "estreñida" means "constipated".
+"estreñidos" is the plural of "estreñido". "estreñidas" is the plural of "estreñida".
+# `aunque haya pasado casi inadvertido': unnoticed -- the dictionary gives
+# `careless' first and `unnoticed' only one way, at the end
+The masculine adjective "inadvertido" means "unnoticed". The feminine adjective "inadvertida" means "unnoticed".
+# `no se comportaban tampoco conforme al tópico': according to -- read as the
+# adjective `conforme', satisfied, with `a' after it. `según' stays the first
+# word for `according to'
+The preposition "conforme a" means "according to".
+# `¿Pararán por ello los bobalicones comentarios ...?': the comments stop --
+# a verb the lesson calls intransitive takes its subject after it
+The intransitive verb "para" means "stops".
+# `Inglaterra ... seguirá describiéndose como ...': before a gerund `seguir'
+# is to go on. Said alone the line came first both ways: `sigue' read
+# `continues' before `follows' -- `Sigue mi consejo.' came out `Continue my
+# advice.' -- and `continues' was written `sigue', so the Bosnian letter's
+# `continuerà a cercare' came out `seguirá buscar'. The dictionary's order
+# is said above it: `continúa' the first word for `continues', `follows'
+# the first meaning of `sigue'
+The verb "continúa" means "continues".
+The verb "sigue" means "follows".
+The progressive verb "sigue" means "continues".
+# `Contra los tópicos nacionales sólo cabe la paciencia': only patience is
+# left -- `caber' in news is what remains possible (`no cabe duda', `cabe
+# la posibilidad'), and its subject stands after it. The box it fits in
+# is the cost. `queda' stays the first word for `remains': said alone, the
+# line made `cabe' the first, and Ferlaino's `a quedar' and the Bastille
+# letter's `queriendo quedar' came out `caber'
+The verb "queda" means "remains".
+The intransitive verb "cabe" means "remains".
+# `el ridículo de los que los utilizan': ridicule -- the dictionary has
+# `ridículo' only as the adjective, which stays its first meaning
+The masculine adjective "ridículo" means "ridiculous".
+The masculine noun "ridículo" means "ridicule".

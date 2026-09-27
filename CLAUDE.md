@@ -9297,6 +9297,409 @@ wrote right; and the two the controls wrote fail on the first cut as well, the
 second with the `with/2` clause alone taken out. Lesson 46 gained section 42.
 The full suite was not run on 1.8.16.
 
+### A Spanish column into Italian: `and` inside a phrase, a sense by the article's gender, an answer before a comma, a comparison of two adjectives, two subjects after their verb (1.8.17)
+
+**THE SIXTEENTH SAMPLE OF THE LOOP, AND BACK TO SPANISH.** AnCora's
+CESS-CAST-P-19990601-13 -- nine sentences of an El Periódico column of 1 June
+1999 on the cup final between England and Germany in Barcelona: the English
+fans left the usual trail of litre bottles, fights and fear, the Germans did
+not behave as their stereotype says either, England will go on describing
+itself by its phlegmatic character, and against national stereotypes only
+patience is left -- Spanish into Italian over the two-language vocabulary
+store. The middle column is 1.8.16's translator over THIS store:
+
+| | 1.8.16, its store | 1.8.16, this store | **1.8.17** |
+|---|---|---|---|
+| translated | 2 of 9, both wrong in structure: the final AND Germany had it, `hanno avuto`, and `Non sarebbe molto chiedere`, the opposite of its source | 8, five wrong in structure -- the final and Germany, the hordes the object of a copula nobody is the subject of, the comments the object of a verb nobody named, the answer read as a denial, and patience the object of a command, `Adatta la pazienza` | **9** |
+| refused for a word | 7, naming 14 words: `muchachotes`, `litronas`, `vikingas`, `imperturbable`, `gentleman`, `bombín`, `gélido`, `bamboleantes`, `bobalicones`, `hooligans`, `avinagrado`, `flemático`, `estreñido` and `facilonga` | 0 | **0** |
+| refused with every word known | 0 | 1 | **0** |
+| the column, one process | 73.4 s | 16.3 and 16.7 s | **13.9 and 14.4 s** |
+
+-- the store Italian 176 072 terms and Spanish 221 180, taught into one
+`--embed` store from the rebuilt vocabularies in 676 s and 1 082 s, 328 MB.
+
+**WHAT IT NEEDED IS WHAT A COLUMN DOES WHEN IT LAUGHS AT A STEREOTYPE.** The
+twelve were verbs, the Spanish column phrases that carry things, Livata the way
+a report speaks, Fiat figures, Valencia a thing on show, the bioethics report
+its claims, the football page a squad, Monreale a court, the record report
+figures again, the islands report what a news item puts before its verb, the
+opera review what it puts beside a phrase, the interview a man talking, the
+Georgia report people by their offices, the extract things said again, the
+Clinton report who said what, the Bosnian letter an argument, the Solana
+report who a person is, the pacifist letter the people it is angry with, the
+mobile column what it compares, the Bastille letter its evidence, the Basque
+report who told whom and the Giglio letter a newspaper it corrects; a column
+that laughs at a stereotype puts two nouns where one would do, compares what
+people were with what they were said to be, and answers its own questions:
+
+| shape | the column's words | what moved |
+|---|---|---|
+| `and` after a preposition, with a singular verb | `La final de copa entre Inglaterra y Alemania ha tenido un efecto positivo` | one final, between the two: the final AND Germany had it, `hanno avuto` |
+| a noun the lesson states in both genders | `la final` | the meaning of its article's gender (`mean_gender/3`): `la fine`, the end |
+| a lone adjective after an intransitive verb | `aunque haya pasado casi inadvertido` | no subject (`tr_lone_adjective/2`): `careless` was what happened |
+| a noun after a noun | `Los muchachotes hinchas del equipo inglés` | what kind, `nmod/1`, in the phrase's number: the sentence was refused |
+| a preposition after a list | `el rastro habitual de litronas, altercados y temor entre la tranquila población` | the preposition, and never the verb it is a form of (`tr_verb_next/2`) |
+| an adverb before a participle | `su comportamiento poco civilizado` | the participle's, which agrees with its own noun: `poco civilizzati`, the subject's |
+| a comparison whose term is adjectives | `estas hordas más vikingas que británicas` | `degt/3`, after the noun: `più vichinghe di britannici`, a comparison with a phrase |
+| the subject after a copula's predicate, opening on a demonstrative | `¿no eran inglesas estas hordas ...?` | a demonstrative or a possessive opens it as an article does: the hordes were the copula's object |
+| the impersonal's participle | `En Barcelona se ha producido además una magnífica coincidencia` | agrees with what was done: `si è prodotto` |
+| `according to` | `no se comportaban tampoco conforme al tópico` | `The preposition "conforme a" means "according to".`: `conforme` was the adjective, satisfied |
+| a verb with its subject after it | `¿Pararán por ello los bobalicones comentarios ...?` | `The intransitive verb "para" means "stops".`: somebody nobody named would stop the comments, `Fermeranno` -- and the verb is chosen by its object there too, `Cesseranno` (below) |
+| no elision before an article | `por ello los bobalicones comentarios` | `per questo i`: `per quest'i` |
+| an answer before a comma | `No, sería mucho pedir.` | `ans/1`: `Non sarebbe molto chiedere`, the opposite (below) |
+| the comma that closes an apposition | `Inglaterra, el país que ha producido ..., seguirá` | kept, `scomma`: lost |
+| a verb before a gerund | `seguirá describiéndose como ...` | `The progressive verb "sigue" means "continues".`, `mean_as/3`: it followed, `seguirà descrivendosi` |
+| a reflexive gerund after a verb that takes `a` | `continuerà a descriversi` | the pronoun joined to the infinitive |
+| the article of `de los que` | `el ridículo de los que los utilizan` | agrees with the phrase it stands for, or it is those: `di cui` |
+| two phrases after a singular intransitive verb | `sólo cabe la paciencia, y el ridículo de ...` | its subject, `co/3`, with `The intransitive verb "cabe" means "remains".`: patience was the object of a command, `Adatta`, and the ridicule another |
+
+-- and the words, in `corpus/extra/`: 22 lines of Spanish and 10 of Italian,
+14 of them saying the dictionary's own order again (below), and ten entries in
+each dictionary's supplement: `Viking`, `imperturbable`, `icy`, `hooligan` and
+`phlegmatic` for both, `bowler` for Spanish and `swaying`, `constipated`,
+`scandalous`, `miniskirt` and `unalterable` for Italian -- words apertium
+carries and the bilingual pairs with nothing -- and four read only for
+Spanish, `silly`, `sour`, `easy` and `fan`, so that `bobalicón`, `avinagrado`,
+`facilongo` and `hincha` read and the first words for those meanings stay. The
+vocabularies went from 112 413 and 138 543 lines to 112 484 and 138 602, and
+the set of what they LOST is the two headers' entry counts. `reason.pl` did not
+move, the twenty-eighth version running.
+
+**`and` AFTER A PREPOSITION JOINS INSIDE THE PREPOSITION'S PHRASE WHEN THE
+VERB SAYS ONE.** `La final de copa entre Inglaterra y Alemania ha tenido un
+efecto positivo` is one final, between the two sides. The subject reader
+divides a subject at its coordinator before anything else, and both halves
+read -- `la final de copa entre Inglaterra` and `Alemania` -- so the subject
+was the final AND Germany against a verb that says one, and Italian wrote
+`hanno avuto`. Where the verb is singular, `and` is the coordinator and a
+preposition stands in the first half, the division is refused, and the phrase
+reader reads `entre Inglaterra y Alemania` as the preposition's. A plural verb
+keeps the division, `El perro de Juan y María comen el pan.` being the dog and
+María, and a guard pins it. **The halves are read with `singular` as a marker,
+not as a verb's number** -- every division reads both halves that way -- so the
+guard would have refused every `and` inside a half as well; the halves carry
+`half` now and the guard leaves them.
+
+**A NOUN THE LESSON STATES IN BOTH GENDERS KEEPS EACH MEANING WITH ITS
+GENDER.** `la final de copa` is the cup final, and `el final` the end: the
+vocabulary says `The masculine noun "final" means "end".` and `The feminine
+noun "final" means "final".`, and a lesson says a word's gender and what it
+means but never which meaning goes with which gender -- so the column's first
+words came out `La fine di coppa`, the end of the cup. The sentence DID say
+it, as it says the class, and 1.6.15's `mean_as/3` is the shape: the link is
+kept as `mean_gender(Word, Meaning, Gender)` as the lesson is learned, and the
+phrase crosses by the meaning of its article's gender (`tr_gendered_noun/4`).
+**Only where the lesson already states the word in the OTHER gender**, because
+every noun of a vocabulary names one and a link for each would be twenty
+thousand rows that say nothing; and only a gender the lesson STATES as a fact,
+never one its rules prove -- `Every noun that ends in "a" is feminine` would
+make every masculine noun in `-a` a word of both genders. So of two such
+sentences the later is linked, and the earlier stays the word's first meaning,
+which the other gender takes by leaving out what is linked.
+
+**AN ANSWER BEFORE A COMMA IS NO DENIAL, AND 1.8.16 COUNTED THE OPPOSITE AS A
+TRANSLATION.** `No, sería mucho pedir.` answers the column's own question --
+will the silly comments stop? no, that would be too much to ask. Read whole
+with its commas taken out, the `no` denied the verb, and 1.8.16 wrote `Non
+sarebbe molto chiedere`, it would NOT be too much to ask: one of the two
+sentences of nine it translated on its own store, and it said the opposite of
+its source. A word the lesson says means `no` or `yes`, at the head and before
+a comma, is the answer now -- a verbless left side, `gap/2` with `ans/1`, and
+the rest a sentence of its own -- and it crosses by the meaning that makes it
+one, never by the word's first: `The word "no" means "not".` comes first in the
+lesson, and by it the answer came out `Non,` in Italian and `Not,` in English
+on the first cut. **A translation that says the opposite is the worst kind, and
+the count that calls it translated cannot see it**: the first column of the
+table above has it among its two.
+
+**A COMPARISON WHOSE TERM IS ADJECTIVES TOO IS ONE PHRASE.** `estas hordas más
+vikingas que británicas` are these hordes, more Viking than British. The phrase
+reader took the degree with its adjective and stopped there, so `que
+británicas` was a comparison with a phrase whose noun was `British`: in the
+column the hordes were the object of a copula nobody was the subject of,
+`queste orde più vichinghe di britannici`, and the case's small form was
+refused. `degt(Degree, Adjective, Adjectives)` is the term, and it ends the
+phrase's adjectives; every writer puts its degree, its word for `than` and the
+adjectives after the noun -- English too, where an adjective with a complement
+of its own stands: `these hordes more Viking than British`. **The first cut
+wrote `The dogs blackest than white sleep`**: a bare degree after a definite
+article is a superlative (1.6.7), and a term of comparison says the
+comparative whatever the article; the case pins it.
+
+**A VERB BEFORE A GERUND CROSSES BY THE MEANING THE LESSON GIVES IT THERE.**
+`Inglaterra ... seguirá describiéndose como ...` will go on describing itself,
+and `sigue` is `follows` first: `will follow describing itself` in English and
+`seguirà descrivendosi` in Italian, which says nothing. `The progressive verb
+"sigue" means "continues".` is the line, the shape `The intransitive verb ...`
+has, and the meaning is kept as `mean_as(Word, Meaning, progressive)` beside
+`intransitive` and the classes. Italian's `continua` takes `a` before an
+infinitive, so the gerund is written as an infinitive after it, and a
+reflexive gerund keeps its pronoun joined: `continuerà a descriversi`, where
+the writer had no clause for a reflexive lexeme there. Before a phrase `sigue`
+still follows, which a guard pins.
+
+**THE COMMA THAT CLOSES AN APPOSITION IS THE SOURCE'S.** `Inglaterra, el país
+que ha producido la minifalda, ..., seguirá describiéndose` is England, the
+country ...; the subject side is read without its commas, so the one after
+the apposition went and the one before it stayed: `Juan, il fratello di María
+dorme`, half a pair. It travels as `scomma` and every writer puts it after the
+subject -- only where it is the subject side's one comma: `Los niños, que
+estaban cansados, durmieron` has lost the comma that opens its clause, and the
+one that closes it alone would be half a pair again.
+
+**THE ARTICLE BETWEEN A PREPOSITION AND THE RELATIVE WORD AGREES WITH THE
+PHRASE IT STANDS FOR.** `el ridículo de los que los utilizan` is the ridicule
+of THOSE who use them: `los` cannot stand for the singular `ridículo`, and
+read as `of which` it came out `il ridicolo di cui li usano`. Where the article
+and the phrase differ in number, what is left is the phrase and a `de` phrase
+whose noun the relative clause stands for (`ell/4`, 1.6.15): `di quelli che
+li usano`. `La casa de la que hablas` agrees, and stays `di cui`, which a
+guard pins.
+
+**TWO PHRASES AFTER A SINGULAR INTRANSITIVE VERB ARE ITS SUBJECT.** `Contra los
+tópicos nacionales sólo cabe la paciencia, y el ridículo de los que los
+utilizan ...` is patience and ridicule being what is left. `caber` in news is
+what remains possible -- `no cabe duda`, `cabe la posibilidad` -- and its
+subject stands after it, so `The intransitive verb "cabe" means "remains".`
+is the line; and 1.8.0's reader of a subject after an intransitive verb took
+the first phrase for the subject and the rest for what follows the verb, so
+the ridicule was an object of a verb that takes none, with the comma or
+without it. The first phrase agrees with the verb, as a subject after its verb
+does in the lesson's languages, and the second is taken with the phrases that
+say which, `co/3` -- with the comma or without it, and only where the verb says
+ONE: two phrases after a plural verb are what `fo_agreeing/3` already reads.
+
+**THE REST WERE SMALL, AND EACH HAD A REFUSAL OR A WRONG TEXT BEHIND IT:**
+
+* a lone word the lesson knows only as an adjective is no subject after its
+  verb: `aunque haya pasado casi inadvertido` is it went almost unnoticed, and
+  read as the subject after the intransitive verb it was `careless` that
+  happened -- where `El efecto ha pasado casi inadvertido` already read as
+  what it is;
+* a noun after a noun, in its number, says what kind: `los muchachotes
+  hinchas` are big lads who are fans, `nmod/1`, written after the noun on the
+  lesson's side and before it in the singular in English, as English's own
+  compounds have it -- `the fan lads`. The phrase was no phrase and the
+  sentence was refused with every word known. Only a determiner and two nouns
+  that are no adjectives: a verb's form the lesson calls a noun too is left to
+  the statement reader, which tries the verb first, and a first word that is
+  an adjective too is the adjective (below);
+* a word the lesson calls a preposition too, before a determiner, is the
+  preposition: `el rastro de litronas, altercados y temor ENTRE la tranquila
+  población` -- `entre` is also the subjunctive of `entrar`, and read as a verb
+  after the list it left the comma to the clause;
+* a determiner that is an adverb too, with the phrase's participle after it,
+  ends no phrase: `su comportamiento poco civilizado` is behaviour little
+  civilised, and cut at `poco` the participle was said of the sentence's
+  subject and agreed with it, `poco civilizzati`;
+* the phrase after a copula's predicate is its subject when it opens on a
+  demonstrative or a possessive as well as on an article: `¿no eran inglesas
+  estas hordas ...?`;
+* the participle after the impersonal `si` agrees with the object: Italian
+  builds the impersonal's perfect with the copula (1.8.15's `"è" is the
+  auxiliary of the reflexive.`), and with the gender of a subject that names
+  nobody `se ha producido una magnífica coincidencia` came out `si è prodotto`;
+* a word that is no preposition is not elided before an article, which opens
+  another phrase: `por ello los bobalicones comentarios` came out `per quest'i
+  tonti commenti`, the pronoun joined to the next phrase's article; a
+  preposition still is, `d'un salto`, which the first cut lost and a guard
+  pins;
+* `The intransitive verb "para" means "stops".` makes the comments the subject
+  of `pararán`: read with nobody named, somebody would stop the comments.
+  Italian's only word for `stops` was `detenere`, to hold, so `The transitive
+  verb "ferma" means "stops".` and `The verb "cessa" means "stops".` are
+  Italian's lines, and a clause with no object ceases;
+* `The preposition "conforme a" means "according to".`: read apart, `conforme`
+  was the adjective, satisfied.
+
+**THE CONTROLS FOUND FIVE WRONG TEXTS FROM TWO RULES, AND READING THE COLUMN'S
+ITALIAN FOUND A THIRD.** With `test/translate.pl` GREEN and the column at 9 of
+9, the first round came back with these, each on the store the column was
+taught into:
+
+| what showed it | the cause | the fix |
+|---|---|---|
+| the Spanish article's `un esnob bate de béisbol` came out `uno snob mazza`, the opera review's `una ejemplar escena` `una copia scena` and `otro brillante jalón` `altro brillante pietra miliare`, the Basque report's `un segundo encuentro` `un secondo riunione` | a noun after a noun: `esnob`, `ejemplar`, `brillante` and `segundo` are nouns AND adjectives, and read as the head, the next noun said what kind | the first noun is no adjective either -- an adjective before its noun is the commoner shape |
+| the record report's `tras haber sufrido sucesivos descensos` came out `dopo aver sofferta` | the impersonal's participle agrees with what was done -- and that clause has no perfect of its own, `se situará`, with the object of the perfect infinitive among its complements | the impersonal's own perfect only, and only its verb group: the complements keep the subject's gender |
+| the column's `¿Pararán ... los bobalicones comentarios ...?` came out `Fermeranno`, with the comments for its subject and no object | the writer of a subject after its verb took the verb's first meaning, where the general writer chooses it by its object (1.8.0's `The transitive verb "conosce" means "knows".`) | the same choice: `Cesseranno` |
+
+-- three checks pin the first two, each red with its rule put back as the
+first cut had it, and a check and a guard the third. The second fix went in
+two steps, and the step between them is the reason for the last check: made
+for the perfect only, it still reached the participle of a perfect infinitive
+in an impersonal clause that IS a perfect, `Si è lasciata la casa, dopo avere
+mangiata i pani`; only its verb group reads it now.
+
+**AND THE LINES OF LESSON HAD TWO READERS, THE FOURTH TIME -- BOTH AT ONCE.**
+1.8.16 on its own store against 1.8.16 on the store this column was first
+taught into moved eight texts of the old controls, and five were worse:
+
+| what moved | the line | why |
+|---|---|---|
+| Tatoeba's `Sigue mi consejo.`, EXACT as `Follow my advice.`, came out `Continue my advice.` | `The progressive verb "sigue" means "continues".` | a line of `extra/` comes before every line of the dictionary, so its meaning is the FIRST for its word |
+| the Bosnian letter's `continuerà a cercare` came out `seguirá buscar`, and Livata's `han continuado` and Ferlaino's `continúa` moved to `seguir` | the same line | ... and its word is the FIRST for its meaning |
+| Ferlaino's `a quedar para 25 años` and the Bastille letter's `queriendo quedar en la metáfora` came out `caber` | `The intransitive verb "cabe" means "remains".` | the same |
+| Tatoeba's `Él es un chico astuto.` came out `a cunning lad` where it was `boy` | `The masculine noun "chico" means "lad".`, written to keep `chico` the first word for `lad` over `muchachote` | the same, from the other side |
+
+1.8.6, 1.8.10, 1.8.13 and 1.8.14 each found a line of `extra/` coming first
+for a writer or a reader it was not written for; these lines did it to both at
+once, and the rule this file carries -- say a line after the dictionary word
+that has its meaning -- cannot be kept INSIDE `extra/`, which is written
+before the whole dictionary. **So the dictionary's own order is said again
+above each line**: `The verb "continúa" means "continues".` and `The verb
+"sigue" means "follows".` above the progressive line, `The verb "queda" means
+"remains".` above `cabe`, `niño` for `child` and for `boy` and `chico` for
+`boy` above `chico` for `lad`, the adjective above the new noun meaning of
+`ridículo` and of `ridicolo`, `unobserved` above `unnoticed` for `inosservato`
+and `ceases` above `stops` for `cessa`. Every word and every meaning those
+lines touch comes first as it did in the old vocabulary, checked line by line
+against it, but for the changes the lines were written to make -- `cabe` reads
+as `remains`, `inadvertido` as `unnoticed`, and Italian's first word for
+`stops` is `ferma` and for `patience` `pazienza` -- and one the reader did not
+ask for and keeps: Italian's `ferma` reads as `stops`, where the dictionary's
+first meaning was `stalls`. The store was taught again, and **the data column
+moved one text**: Tatoeba's `Mirá para otro lado.`, `Mirá stops another
+side.` on 1.8.16's own store, is `Mirá halts another side.` -- the intransitive
+line's link, a clause with an object taking a meaning that is not the
+intransitive one; the reference is `Look away.`, and both are wrong.
+
+**THE COUNT FOUND TWO COSTS, AND EACH WAS A TEST ASKED BEFORE A RARER ONE.**
+With every text right, the first cut asked more inferences of nineteen of the
+twenty-two articles among the old controls -- 0.06 to 3.33 %, Ferlaino's the
+most -- and of some sentences far more: Ferlaino's thirteenth 11.7 %, Livata's
+twenty-third 8.9 %, the extract's third 5.5 %. The hunk bisection of 1.8.5 over
+the 36 hunks of the diff against 1.8.16, five of those sentences counted
+together on the store with each hunk taken out in turn, named two:
+
+| the five sentences, inferences | Ferlaino 13 | Livata 23 | the extract 3 | the twelve 11 |
+|---|---|---|---|---|
+| 1.8.16 | 11 265 605 | 23 402 045 | 8 375 755 | 3 966 783 |
+| the first cut | 12 587 850 | 25 488 538 | 8 834 943 | 4 135 219 |
+| ... without the comparison whose term is adjectives | **11 279 159** | **23 428 110** | 8 469 672 | 4 066 277 |
+| ... without the noun after a noun | 12 576 468 | 25 463 014 | 8 741 839 | **4 036 383** |
+| 1.8.17 | 11 285 579 | 23 408 986 | 8 378 768 | 3 969 657 |
+
+The comparison was a clause of its own beside the degree clause, so every
+position of every phrase's adjectives asked for the degree word twice, the
+second time only to find that no term followed; it is the degree clause's own
+question now, asked once, and the term is looked for after the degree word is
+found. The noun after a noun asked for a determiner first -- which most phrases
+open on -- and only then whether two nouns that are no adjectives follow it; it
+asks for the two nouns first now, and the determiner last. Counted again over
+the whole of every article, 1.8.17 against 1.8.16 is **-2.96 % to +0.18 %**, and
+the sentence that rises most is Ferlaino's seventeenth, by 16 689 inferences.
+1.8.13 said it -- **a rule asked of every word list pays for its commonest test
+that many times** -- and a clause beside another clause that asks the same thing
+is the same cost in a second coat.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `tra Inglaterra e Alemania`, `in Barcelona`, `d'Albión` | `tra l'Inghilterra e la Germania`, `a Barcellona`, `d'Albione` | a name no lesson knows passes through as written, and `en` is `in`, 1.7.1's cost |
+| `nonostante è avvenuto quasi inosservato` | `anche se è passato quasi inosservato` | a subjunctive is written as the indicative, 1.6.8's cost; `pasar inadvertido` is an idiom, and `pasa` crosses as `happens`; and the participle agrees with nobody named, masculine by the default, which `effetto` happens to be |
+| `I ragazzi appassionati`, `gli appassionati inglesi` | `I ragazzoni tifosi`, `i tifosi inglesi` | `hincha` and `seguidor` cross as `fan`, and Italian's first `fan` is `appassionato`; the augmentative of `muchachote` is no form a lesson states |
+| `la traccia usuale di bottiglie, conflitti e paura` | `la solita scia di bottiglioni, risse e paura` | senses: `rastro` crosses as `trace`, `habitual` as `usual` and `litrona` as `bottle`, and Italian's first word for `altercation` is `conflitto` |
+| `la calma popolazione` | `la tranquilla popolazione` | a sense: `tranquilo` crosses as `calm`, and Italian's first `calm` is `calmo` |
+| `per il suo possibile comportamento` | `per il loro possibile comportamento` | `su` is `his` first, 1.8.13's cost: the behaviour is the fans' |
+| `Dove è` | `Dov'è` | Italian elides `dove` before `è` alone, and a lesson's elision takes every vowel after it |
+| `l'imperturbabile signore della bombetta` | `l'imperturbabile gentiluomo con la bombetta` | `gentleman` crosses as itself, and Italian's first `gentleman` is `signore`; `del bombín` word for word |
+| `per uccidere due uccelli d'un tiro` | `per prendere due piccioni con una fava` | an idiom, and a lesson gives words |
+| `... d'un tiro in Barcelona:` | `A Barcellona si è verificata inoltre ...` | a front with no comma is written after the clause, 1.6.8's cost |
+| `non si comportarono neanche` | `non si comportavano neanche` | the imperfect and the preterite are both `past`, 1.6.15's cost |
+| `secondo il topico che gli corrisponde`, `dei topici nazionali` | `secondo lo stereotipo che spetta loro`, `dei luoghi comuni nazionali` | senses: `tópico` crosses as `commonplace`, and Italian's first `commonplace` is `topico`; `corresponde` as `corresponds` |
+| `No, sarebbe molto chiedere.` | `No, sarebbe chiedere troppo.` | `mucho pedir` is an idiom, and `mucho` crosses as `much` |
+| `l'ondata d'isteria più curiosa del secolo XX` | the same | the IR puts the degree on the `de` phrase's noun, 1.6.6's PP finding: every writer puts it after that noun either way, and only English shows it |
+| `Rimangono la pazienza e il ridicolo ... contro i topici nazionali soltanto.` | `Contro i luoghi comuni nazionali non restano che la pazienza, e il ridicolo ...` | a front with no comma and a head adverb are written after the clause, 1.6.8's cost; and `co/3` does not carry the comma the source puts before `y` |
+| `La mesa no cabe en la cocina.` as `Il tavolo non rimane nella cucina.` | `Il tavolo non ci sta in cucina.` | the line that makes `cabe` remain: `caber` is also to FIT, and a lesson gives a word one intransitive meaning -- news' `cabe`, so every other one remains too. 1.8.16 wrote `non adatta`, the transitive `fits`, which is wrong as well |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.16's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.16, this store | **1.8.17** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 14.5 and 14.5 s | **12 of 12, 14.6 and 14.6 s** |
+| the Spanish article | 11 of 11, 14.0 and 13.9 s | **11 of 11, 14.1 and 14.2 s** |
+| Livata, 29 sentences | 29 of 29, 90.6 and 90.0 s | **29 of 29, 91.0 and 91.5 s** |
+| Fiat, 20 sentences | 20 of 20, 21.2 and 21.2 s | **20 of 20, 21.1 and 21.5 s** |
+| Valencia, 16 sentences | 16 of 16, 20.2 and 20.5 s | **16 of 16, 20.0 and 20.1 s** |
+| the bioethics article, 15 sentences | 15 of 15, 15.0 and 15.6 s | **15 of 15, 15.7 and 15.6 s** |
+| the football article, 20 sentences | 20 of 20, 28.4 and 28.9 s | **20 of 20, 28.5 and 28.6 s** |
+| Monreale, 6 sentences | 6 of 6, 3.8 and 3.7 s | **6 of 6, 3.9 and 3.8 s** |
+| the record report, 15 sentences | 15 of 15, 21.5 and 21.9 s | **15 of 15, 22.0 and 21.6 s** |
+| Tatoeba's 400, exact / translated / refused | 58 / 288 / 112, 19.3 and 19.3 s | **58 / 287 / 113, 19.9 and 19.9 s** |
+| the islands report, 13 sentences | 13 of 13, 19.3 and 19.7 s | **13 of 13, 19.4 and 19.5 s** |
+| the opera review, 12 sentences | 12 of 12, 15.1 and 15.3 s | **12 of 12, 15.5 and 15.4 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 35.5 and 36.5 s | **27 of 27, 37.1 and 37.5 s** |
+| the Georgia report, 8 sentences | 8 of 8, 12.0 and 12.0 s | **8 of 8, 12.2 and 12.3 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 14.9 and 15.5 s | **13 of 13, 15.1 and 15.7 s** |
+| the Clinton report, 12 sentences | 12 of 12, 19.4 and 19.9 s | **12 of 12, 19.9 and 19.7 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 46.2 and 46.0 s | **12 of 12, 45.9 and 46.2 s** |
+| the Solana report, 10 sentences | 10 of 10, 24.9 and 25.1 s | **10 of 10, 25.1 and 25.0 s** |
+| the pacifist letter, 6 sentences | 6 of 6, 9.1 and 9.3 s | **6 of 6, 9.4 and 9.6 s** |
+| the mobile column, 11 sentences | 11 of 11, 27.5 and 28.2 s | **11 of 11, 28.3 and 28.7 s** |
+| the Bastille letter, 11 sentences | 11 of 11, 19.5 and 19.5 s | **11 of 11, 19.6 and 20.0 s** |
+| the Basque report, 9 sentences | 9 of 9, 51.8 and 52.6 s | **9 of 9, 52.4 and 51.4 s** |
+| the Giglio letter, 8 sentences | 8 of 8, 16.5 and 16.6 s | **8 of 8, 16.6 and 16.5 s** |
+| the England column, 9 sentences | 8 of 9, 16.3 and 16.7 s | **9 of 9, 13.9 and 14.4 s** |
+
+-- the texts first: each translator gives the same texts both times, and against
+1.8.16 on this store every old control is the same to the byte but for two.
+Livata's third sentence keeps the comma its source has after `soccorsa dai
+carabinieri` -- `rescatada por los carabineros, ha sido transportada` -- which is
+the comma that closes the subject side, `scomma`: taken out, the comma goes
+again. And Tatoeba's `Me gusta estar ocupado.`, 1.8.4's stated cost, which
+1.8.16 writes `Busy pleases me occupied.`, is refused: the lone adjective is no
+subject after its verb now -- with that one guard taken out the old reading
+comes back -- and what is left reads `estar ocupado` as a perfect infinitive
+with nobody named, which English refuses and Italian writes `Mi piace aver
+occupato`. Both readings are wrong, and the count is 58 exact, 287 translated
+and 113 refused where it was 288 and 112. **AND AGAINST 1.8.16 ON ITS OWN
+STORE** -- the one reference with no line of this sample's data in it -- every
+old control is the same but for those two and the data column's `Mirá`
+(above).
+
+**THE TIMES SAID UP TO 3.7 % WHERE THE COUNTS SAID LESS THAN 0.2, AND THE PAIRS
+SAID THE COUNTS.** The ranges are apart on thirteen of the twenty-four: eleven
+old controls slower by 0.9 to 3.7 % -- Ferlaino, Tatoeba and the pacifist letter
+the most -- Valencia 1.5 % faster, and this column 14 % faster, because 1.8.16
+spends its time failing. Counted, Ferlaino is +0.18 %, the pacifist letter
++0.07 % and Monreale +0.10 %; five alternating pairs of each, nothing else on
+the box: Ferlaino 36.65 s (35.86-37.06) against 36.81 s (36.37-37.34), the
+pacifist letter 9.44 s (9.29-9.53) against 9.51 s (9.33-9.82), Monreale 3.82 s
+(3.72-3.90) against 3.81 s (3.73-3.90) -- every range overlapping and the means
+within a per cent, the way the counts said. The clock is the box's, as 1.8.13
+and 1.8.14 said, and the pairs are what settle it.
+
+Into English the column reads 7 of 9. The first and the seventh are refused:
+each has a clause whose subject nobody named -- `aunque haya pasado casi
+inadvertido`, `sería mucho pedir` -- and English still refuses a third person
+nobody named (1.6.15). The seven show what the IR carries: `The fan lads of the
+english team`, the noun after a noun before its noun, as English's own compounds
+have it; `But were these hordes more viking than british not english?`, the
+comparison after its noun and the denial at the end, with the nationalities in
+the small letters the IR carries; `One has produced a glorious coincidence`, the
+impersonal as `one`; `the wave of more curious hysteria`, the degree on the `de`
+phrase's noun, the cost above that only English shows; and `The patience and
+the ridicule of those that use them ... remain`, two subjects of one verb.
+**AND A SECOND SLIP IN THE UPSTREAM ENGLISH VERB TABLE, FOUND AND NOT FIXED.**
+`corpus/raw/en-verbs.txt` has `leave,,,leaves,,leaving,,,,,leaved,leaved`, so
+`Juan ha dejado el pan.` is `Juan has leaved the bread.` on 1.8.16 and 1.8.17
+alike -- and the column's second sentence `have leaved us`. The table's past and
+participle of `leave` want lines of their own beside the two of 1.8.14's
+`escape`; the Italian is right, and it is not this version's to fix.
+
+`test/translate.pl` is 1170 checks and GREEN, 30 in a new `newspaper_england`
+section with a Spanish and an Italian lesson of its own. Every check fails on
+1.8.16's translator but eight guards: five that pin what 1.8.16 already did
+right -- two nouns after a plural verb, `el final`, `d'un salto`, `sigue` before
+a phrase and `di cui` -- and three the controls wrote: the adjective before its
+noun and the impersonal's participle in a clause with no perfect, each red on a
+first cut of this version, and `ferma` with an object, beside the check that
+the same verb with none ceases. Lesson 46 gained section 43. The full suite was
+not run on 1.8.17.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
