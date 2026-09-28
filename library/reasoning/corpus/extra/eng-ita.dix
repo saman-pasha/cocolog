@@ -447,3 +447,61 @@
 # `el grupo radiofónico': radio, the adjective -- apertium-ita carries
 # `radiofonico' and the bilingual pairs nothing with it
 <e><p><l>radio<s n="adj"/></l><r>radiofonico<s n="adj"/></r></p></e>
+# the Salvini interview (Italian UD VIT-9816..9850), into Spanish.
+# `E la pantera torna ad affilare gli artigli': returns -- the bilingual
+# pairs `tornare' with `come back', a verb of two English words the builder
+# does not write; read only, so `returns' is still written `ritorna'
+<e r="RL"><p><l>return<s n="vblex"/></l><r>tornare<s n="vblex"/></r></p></e>
+# `i singoli atenei': individual -- apertium-ita carries `singolo' and the
+# bilingual pairs nothing with it; read only, `individuale' stays the word
+<e r="RL"><p><l>individual<s n="adj"/></l><r>singolo<s n="adj"/></r></p></e>
+# `Il caso più eclatante': striking -- the same, and no other word means it
+<e><p><l>striking<s n="adj"/></l><r>eclatante<s n="adj"/></r></p></e>
+# `non crede che comunque ...': anyway -- the same; the bilingual's `ad
+# ogni modo' is three words the builder does not write
+<e><p><l>anyway<s n="adv"/></l><r>comunque<s n="adv"/></r></p></e>
+# `i meno abbienti e i meritevoli': wealthy, worthy -- the same. Wealthy
+# both ways: read only, it gave `wealthy' a meaning and the builder then
+# dropped the one-way `ricco' for it, so nothing was left to write; both
+# ways, it is Italian's own word for it. Worthy read only, `degno' stays
+# the word written
+<e><p><l>wealthy<s n="adj"/></l><r>abbiente<s n="adj"/></r></p></e>
+<e r="RL"><p><l>worthy<s n="adj"/></l><r>meritevole<s n="adj"/></r></p></e>
+# `per la centesima volta': hundredth -- the bilingual pairs `centesimo' as
+# an ordinal determiner, a class the builder does not write; apertium-ita
+# carries the adjective
+<e><p><l>hundredth<s n="adj"/></l><r>centesimo<s n="adj"/></r></p></e>
+# `che non si profitti del denaro in più': benefits -- apertium-ita carries
+# `profittare' and the bilingual pairs nothing with it; read only
+<e r="RL"><p><l>benefit<s n="vblex"/></l><r>profittare<s n="vblex"/></r></p></e>
+# `prevede che la pantera si arrabbi?': angers -- the same; read only
+<e r="RL"><p><l>anger<s n="vblex"/></l><r>arrabbiare<s n="vblex"/></r></p></e>
+# `i mugugni degli studenti': complaints -- the same; read only
+<e r="RL"><p><l>complaint<s n="n"/></l><r>mugugno<s n="n"/><s n="m"/></r></p></e>
+# `non sono a disposizione ... per gli improperi': insults -- the same;
+# read only
+<e r="RL"><p><l>insult<s n="n"/></l><r>improperio<s n="n"/><s n="m"/></r></p></e>
+# `la qualità ... degli insegnanti': teachers -- the same; read only
+<e r="RL"><p><l>teacher<s n="n"/></l><r>insegnante<s n="n"/><s n="mf"/></r></p></e>
+# `un debito pubblico spaventoso': frightful -- the same, and no other word
+# of Italian means it
+<e><p><l>frightful<s n="adj"/></l><r>spaventoso<s n="adj"/></r></p></e>
+# `le università non sarebbero così scalcinate': shabby -- the same
+<e><p><l>shabby<s n="adj"/></l><r>scalcinato<s n="adj"/></r></p></e>
+# `la ricerca scientifica': scientific -- the bilingual pairs it with
+# `scienziato', a scientist, only
+<e><p><l>scientific<s n="adj"/></l><r>scientifico<s n="adj"/></r></p></e>
+# `un bel po' di quattrini': money -- apertium-ita carries `quattrino' and
+# the bilingual pairs nothing with it; read only, `denaro' stays the word
+<e r="RL"><p><l>money<s n="n"/></l><r>quattrino<s n="n"/><s n="m"/></r></p></e>
+# `Il ministero sta facendo una verifica': verification -- apertium-ita
+# carries the noun `verifica' and the bilingual pairs only the verb; read
+# only
+<e r="RL"><p><l>verification<s n="n"/></l><r>verifica<s n="n"/><s n="f"/></r></p></e>
+# `valga meno che quella al politecnico di Milano': polytechnic -- apertium-ita
+# carries the noun `politecnico' and the bilingual pairs only the adjective
+<e><p><l>polytechnic<s n="n"/></l><r>politecnico<s n="n"/><s n="m"/></r></p></e>
+# `un problema grave e che mi tormenta': torments -- apertium-ita carries
+# `tormentare' and the bilingual pairs only the noun; read as the noun
+# `tormenta', a storm, the relative clause had no verb
+<e><p><l>torment<s n="vblex"/></l><r>tormentare<s n="vblex"/></r></p></e>

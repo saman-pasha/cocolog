@@ -1393,3 +1393,97 @@ The preposition "agli inizi di" means "at the start of".
 # `19 emisoras': stations -- the dictionary's first word for `station' is
 # `stagione', a season
 The feminine noun "stazione" means "station".
+# the Salvini interview (Italian UD VIT-9816..9850), into Spanish.
+# `si può sforare il tetto': exceeds -- in no dictionary; `supera' is said
+# again first, so that `exceeds' keeps it
+The verb "supera" means "exceeds".
+The verb "sfora" means "exceeds".
+"sforare" is the infinitive of "sfora".
+# `il milione e 200 mila lire': thousand, the form after a number greater
+# than one -- `migliaio' and `mille' are said again first
+The masculine noun "migliaio" means "thousand".
+The number "mille" means "thousand".
+The number "mila" means "thousand".
+# `il milione e duecentomila lire': one word, as `centotrentamila' is
+The number "duecentomila" means "two hundred thousand".
+# `il 2 per cento del pil': per cent, a noun of two words that is its own
+# plural -- written apart from `percent', so that `percentuale' keeps it
+The masculine noun "per cento" means "per cent".
+"per cento" is the plural of "per cento".
+# `75 anni ben portati', `ben oltre il tetto': `bene' cut short
+"ben" is the apocope of "bene".
+# `di far pagare di più', `per far studiare', `in modo da poter
+# utilizzare': the infinitive cut short -- stated as the infinitive it is,
+# the whole one said again first, so that it stays the one written
+"fare" is the infinitive of "fa".
+"far" is the infinitive of "fa".
+"potere" is the infinitive of "può".
+"poter" is the infinitive of "può".
+# `una cosa che ... dovrebbe essere fin troppo evidente': all too, one word
+# of two
+The adverb "fin troppo" means "all too".
+# `in un certo senso sono troppi': too many, the adjective -- the adverb is
+# said again first, because a line here comes first for its word
+The adverb "troppo" means "too".
+The masculine adjective "troppo" means "too much". "troppi" is the plural of "troppo".
+The feminine adjective "troppa" means "too much". "troppe" is the plural of "troppa".
+# `un bel po' di quattrini': a good deal, one word of two -- the tokeniser
+# drops the apostrophe of `po'' before a blank
+The masculine noun "bel po" means "good deal".
+# `avete pensato all'evasione fiscale?': the second person of `hanno' --
+# the builder writes no second person plural, because in Italian that form
+# is also the plural command and the plural feminine participle
+# (`processate'), and stated for every verb it would make every plural
+# command a statement first
+"avete" is the second person of "hanno".
+# `L'aumento delle tasse va di pari passo con ...': hand in hand, one word
+# of three
+The adverb "di pari passo" means "hand in hand".
+# `ah, lei dice Catania e io penso a Maiorana'
+The interjection "ah" means "ah".
+# `discuterne ... è bene', `Riparliamone tra un anno': `ne', of it
+The pronoun "ne" means "it".
+# `Riparliamone tra un anno': talks again, and its command -- in no
+# dictionary
+The verb "riparla" means "talks again".
+"riparliamo" is the hortative of "riparla".
+# `credo si cominci a vedere qualche risultato', `non credo possa costare
+# di più': a clause with its `che' left out after `credere'
+"crede" takes the clause.
+# `come se i mascalzoni fossero pochi': as if
+The conjunction "come se" means "as if".
+# `in modo da poter utilizzare il denaro': so as to, the purpose's word
+# of three
+The word "in modo da" begins the purpose.
+# `per esempio quelli di Perugia': for example, one word of two
+The adverb "per esempio" means "for example".
+# `in alcuni casi addirittura dentro il tetto': even -- the dictionary's
+# first meaning is `above'
+The adverb "addirittura" means "even".
+# `- precisano al Ministero dell'Università -': the clause of who says so,
+# with only the place it was said at -- a verb that reports what it takes
+"precisa" takes the clause.
+# `ci saranno atenei a diverse velocità?', `che non ci siano abusi': the
+# future's plural, the subjunctive and its plural, as `vi è' has them
+"ci saranno" is the plural of "ci sarà".
+"ci sia" is the subjunctive of "c'è".
+"ci siano" is the plural of "ci sia".
+# `ogni studente costa molto di più allo stato', `far pagare di più': more,
+# the adverb of two words, and much more, of three -- `più' is said again
+# first, so that `more' stays the word written
+The adverb "più" means "more".
+The adverb "di più" means "more".
+The adverb "molto di più" means "much more".
+# `Da più parti cominciano ad arrivare i mugugni': from several sides, one
+# word of three
+The adverb "da più parti" means "from several sides".
+# `Ma non le pare che ...?': to you, the dative `le' of the one spoken to,
+# which the lesson gave only as the plural article
+The dative pronoun "le" means "her".
+# `il rischio che una laurea in fisica a Catania valga meno ...': the risk
+# THAT it is -- a noun that takes a clause of its own after `che'
+"rischio" takes the clause.
+# `costano molto meno che al Nord', `l'università costa meno': less -- the
+# dictionary's first meaning is `least'; and much less, one word of two
+The adverb "meno" means "less".
+The adverb "molto meno" means "much less".

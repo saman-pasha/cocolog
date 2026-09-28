@@ -247,3 +247,16 @@
 # `el empresario gerundense': of Girona -- the same, and English has no
 # word for it; the IR's is `gironese', as Italian's is
 <e><p><l>gironese<s n="adj"/></l><r>gerundense<s n="adj"/></r></p></e>
+# the Salvini interview (Italian UD VIT-9816..9850), into Spanish.
+# `per la centesima volta': hundredth -- the bilingual pairs `centésimo' as
+# an ordinal determiner, a class the builder does not write; apertium-spa
+# carries the adjective
+<e><p><l>hundredth<s n="adj"/></l><r>centésimo<s n="adj"/></r></p></e>
+# `E la pantera torna ad affilare gli artigli': sharpens, claws --
+# apertium-spa carries `afilar' and `garra', and the bilingual pairs
+# `afilar' with nothing and `garra' only with a harp
+<e><p><l>sharpen<s n="vblex"/></l><r>afilar<s n="vblex"/></r></p></e>
+<e><p><l>claw<s n="n"/></l><r>garra<s n="n"/><s n="f"/></r></p></e>
+# `un problema grave e che mi tormenta': torments -- the bilingual pairs
+# `atormentar' with `rack' only
+<e><p><l>torment<s n="vblex"/></l><r>atormentar<s n="vblex"/></r></p></e>

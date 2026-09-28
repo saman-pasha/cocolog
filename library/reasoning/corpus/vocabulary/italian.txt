@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16250 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16268 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -862,6 +862,48 @@ The preposition "fino alla fine di" means "until the end of".
 The preposition "alla fine di" means "at the end of".
 The preposition "agli inizi di" means "at the start of".
 The feminine noun "stazione" means "station".
+The verb "supera" means "exceeds".
+The verb "sfora" means "exceeds".
+"sforare" is the infinitive of "sfora".
+The masculine noun "migliaio" means "thousand".
+The number "mille" means "thousand".
+The number "mila" means "thousand".
+The number "duecentomila" means "two hundred thousand".
+The masculine noun "per cento" means "per cent".
+"per cento" is the plural of "per cento".
+"ben" is the apocope of "bene".
+"fare" is the infinitive of "fa".
+"far" is the infinitive of "fa".
+"potere" is the infinitive of "può".
+"poter" is the infinitive of "può".
+The adverb "fin troppo" means "all too".
+The adverb "troppo" means "too".
+The masculine adjective "troppo" means "too much". "troppi" is the plural of "troppo".
+The feminine adjective "troppa" means "too much". "troppe" is the plural of "troppa".
+The masculine noun "bel po" means "good deal".
+"avete" is the second person of "hanno".
+The adverb "di pari passo" means "hand in hand".
+The interjection "ah" means "ah".
+The pronoun "ne" means "it".
+The verb "riparla" means "talks again".
+"riparliamo" is the hortative of "riparla".
+"crede" takes the clause.
+The conjunction "come se" means "as if".
+The word "in modo da" begins the purpose.
+The adverb "per esempio" means "for example".
+The adverb "addirittura" means "even".
+"precisa" takes the clause.
+"ci saranno" is the plural of "ci sarà".
+"ci sia" is the subjunctive of "c'è".
+"ci siano" is the plural of "ci sia".
+The adverb "più" means "more".
+The adverb "di più" means "more".
+The adverb "molto di più" means "much more".
+The adverb "da più parti" means "from several sides".
+The dative pronoun "le" means "her".
+"rischio" takes the clause.
+The adverb "meno" means "less".
+The adverb "molto meno" means "much less".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -953,6 +995,8 @@ The masculine noun "redattore" means "editor".
 "redattore" is a person.
 The masculine noun "presentatore" means "presenter".
 "presentatori" is the plural of "presentatore".
+The masculine noun "politecnico" means "polytechnic".
+"politecnici" is the plural of "politecnico".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -15998,6 +16042,17 @@ The feminine noun "imprenditoria" means "enterprise".
 "imprenditorie" is the plural of "imprenditoria".
 The masculine noun "serbo" means "serbian".
 "serbi" is the plural of "serbo".
+The masculine noun "mugugno" means "complaint".
+"mugugni" is the plural of "mugugno".
+The masculine noun "improperio" means "insult".
+"improperi" is the plural of "improperio".
+The noun "insegnante" means "teacher".
+"insegnanti" is the plural of "insegnante".
+"insegnante" is a person.
+The masculine noun "quattrino" means "money".
+"quattrini" is the plural of "quattrino".
+The feminine noun "verifica" means "verification".
+"verifiche" is the plural of "verifica".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -21885,6 +21940,53 @@ The verb "capitana" means "captains".
 "capitanate" is the plural of "capitanata".
 "capitanare" is the infinitive of "capitana".
 "capitanando" is the gerund of "capitana".
+The verb "tormenta" means "torments".
+"tormentano" is the plural of "tormenta".
+"tormentiamo" is the first person of "tormentano".
+"tormento" is the first person of "tormenta".
+"tormenti" is the second person of "tormenta".
+"tormentò" is the past of "tormenta".
+"tormentarono" is the past of "tormentano".
+"tormentammo" is the first person of "tormentarono".
+"tormentai" is the first person of "tormentò".
+"tormentasti" is the second person of "tormentò".
+"tormentava" is the past of "tormenta".
+"tormentavano" is the past of "tormentano".
+"tormentavamo" is the first person of "tormentavano".
+"tormentavo" is the first person of "tormentava".
+"tormentavi" is the second person of "tormentava".
+"tormenterà" is the future of "tormenta".
+"tormenteranno" is the plural of "tormenterà".
+"tormenteremo" is the first person of "tormenteranno".
+"tormenterò" is the first person of "tormenterà".
+"tormenterai" is the second person of "tormenterà".
+"tormenterebbe" is the conditional of "tormenta".
+"tormenterebbero" is the plural of "tormenterebbe".
+"tormenteremmo" is the first person of "tormenterebbero".
+"tormenterei" is the first person of "tormenterebbe".
+"tormenteresti" is the second person of "tormenterebbe".
+"tormenti" is the subjunctive of "tormenta".
+"tormentino" is the plural of "tormenti".
+"tormentiamo" is the first person of "tormentino".
+"tormentasse" is the past subjunctive of "tormenta".
+"tormentassero" is the plural of "tormentasse".
+"tormentassimo" is the first person of "tormentassero".
+"tormentassi" is the first person of "tormentasse".
+"tormentassi" is the second person of "tormentasse".
+"tormenta" is the imperative of "tormenta".
+"tormentare" is the negative imperative of "tormenta".
+"tormentate" is the imperative of "tormentano".
+"tormentiamo" is the hortative of "tormenta".
+"tormentato" is the participle of "tormenta".
+"tormentata" is the participle of "tormenta".
+"tormentata" is feminine.
+"tormentati" is the participle of "tormenta".
+"tormentati" is the plural of "tormentato".
+"tormentate" is the participle of "tormenta".
+"tormentate" is feminine.
+"tormentate" is the plural of "tormentata".
+"tormentare" is the infinitive of "tormenta".
+"tormentando" is the gerund of "tormenta".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -89971,6 +90073,147 @@ The verb "poggia" means "rests".
 "poggiate" is the plural of "poggiata".
 "poggiare" is the infinitive of "poggia".
 "poggiando" is the gerund of "poggia".
+The verb "torna" means "returns".
+"tornano" is the plural of "torna".
+"torniamo" is the first person of "tornano".
+"torno" is the first person of "torna".
+"torni" is the second person of "torna".
+"tornò" is the past of "torna".
+"tornarono" is the past of "tornano".
+"tornammo" is the first person of "tornarono".
+"tornai" is the first person of "tornò".
+"tornasti" is the second person of "tornò".
+"tornava" is the past of "torna".
+"tornavano" is the past of "tornano".
+"tornavamo" is the first person of "tornavano".
+"tornavo" is the first person of "tornava".
+"tornavi" is the second person of "tornava".
+"tornerà" is the future of "torna".
+"torneranno" is the plural of "tornerà".
+"torneremo" is the first person of "torneranno".
+"tornerò" is the first person of "tornerà".
+"tornerai" is the second person of "tornerà".
+"tornerebbe" is the conditional of "torna".
+"tornerebbero" is the plural of "tornerebbe".
+"torneremmo" is the first person of "tornerebbero".
+"tornerei" is the first person of "tornerebbe".
+"torneresti" is the second person of "tornerebbe".
+"torni" is the subjunctive of "torna".
+"tornino" is the plural of "torni".
+"torniamo" is the first person of "tornino".
+"tornasse" is the past subjunctive of "torna".
+"tornassero" is the plural of "tornasse".
+"tornassimo" is the first person of "tornassero".
+"tornassi" is the first person of "tornasse".
+"tornassi" is the second person of "tornasse".
+"torna" is the imperative of "torna".
+"tornare" is the negative imperative of "torna".
+"tornate" is the imperative of "tornano".
+"torniamo" is the hortative of "torna".
+"tornato" is the participle of "torna".
+"tornata" is the participle of "torna".
+"tornata" is feminine.
+"tornati" is the participle of "torna".
+"tornati" is the plural of "tornato".
+"tornate" is the participle of "torna".
+"tornate" is feminine.
+"tornate" is the plural of "tornata".
+"tornare" is the infinitive of "torna".
+"tornando" is the gerund of "torna".
+The verb "profitta" means "benefits".
+"profittano" is the plural of "profitta".
+"profittiamo" is the first person of "profittano".
+"profitto" is the first person of "profitta".
+"profitti" is the second person of "profitta".
+"profittò" is the past of "profitta".
+"profittarono" is the past of "profittano".
+"profittammo" is the first person of "profittarono".
+"profittai" is the first person of "profittò".
+"profittasti" is the second person of "profittò".
+"profittava" is the past of "profitta".
+"profittavano" is the past of "profittano".
+"profittavamo" is the first person of "profittavano".
+"profittavo" is the first person of "profittava".
+"profittavi" is the second person of "profittava".
+"profitterà" is the future of "profitta".
+"profitteranno" is the plural of "profitterà".
+"profitteremo" is the first person of "profitteranno".
+"profitterò" is the first person of "profitterà".
+"profitterai" is the second person of "profitterà".
+"profitterebbe" is the conditional of "profitta".
+"profitterebbero" is the plural of "profitterebbe".
+"profitteremmo" is the first person of "profitterebbero".
+"profitterei" is the first person of "profitterebbe".
+"profitteresti" is the second person of "profitterebbe".
+"profitti" is the subjunctive of "profitta".
+"profittino" is the plural of "profitti".
+"profittiamo" is the first person of "profittino".
+"profittasse" is the past subjunctive of "profitta".
+"profittassero" is the plural of "profittasse".
+"profittassimo" is the first person of "profittassero".
+"profittassi" is the first person of "profittasse".
+"profittassi" is the second person of "profittasse".
+"profitta" is the imperative of "profitta".
+"profittare" is the negative imperative of "profitta".
+"profittate" is the imperative of "profittano".
+"profittiamo" is the hortative of "profitta".
+"profittato" is the participle of "profitta".
+"profittata" is the participle of "profitta".
+"profittata" is feminine.
+"profittati" is the participle of "profitta".
+"profittati" is the plural of "profittato".
+"profittate" is the participle of "profitta".
+"profittate" is feminine.
+"profittate" is the plural of "profittata".
+"profittare" is the infinitive of "profitta".
+"profittando" is the gerund of "profitta".
+The verb "arrabbia" means "angers".
+"arrabbiano" is the plural of "arrabbia".
+"arrabbiamo" is the first person of "arrabbiano".
+"arrabbio" is the first person of "arrabbia".
+"arrabbi" is the second person of "arrabbia".
+"arrabbiò" is the past of "arrabbia".
+"arrabbiarono" is the past of "arrabbiano".
+"arrabbiammo" is the first person of "arrabbiarono".
+"arrabbiai" is the first person of "arrabbiò".
+"arrabbiasti" is the second person of "arrabbiò".
+"arrabbiava" is the past of "arrabbia".
+"arrabbiavano" is the past of "arrabbiano".
+"arrabbiavamo" is the first person of "arrabbiavano".
+"arrabbiavo" is the first person of "arrabbiava".
+"arrabbiavi" is the second person of "arrabbiava".
+"arrabbierà" is the future of "arrabbia".
+"arrabbieranno" is the plural of "arrabbierà".
+"arrabbieremo" is the first person of "arrabbieranno".
+"arrabbierò" is the first person of "arrabbierà".
+"arrabbierai" is the second person of "arrabbierà".
+"arrabbierebbe" is the conditional of "arrabbia".
+"arrabbierebbero" is the plural of "arrabbierebbe".
+"arrabbieremmo" is the first person of "arrabbierebbero".
+"arrabbierei" is the first person of "arrabbierebbe".
+"arrabbieresti" is the second person of "arrabbierebbe".
+"arrabbi" is the subjunctive of "arrabbia".
+"arrabbino" is the plural of "arrabbi".
+"arrabbiamo" is the first person of "arrabbino".
+"arrabbiasse" is the past subjunctive of "arrabbia".
+"arrabbiassero" is the plural of "arrabbiasse".
+"arrabbiassimo" is the first person of "arrabbiassero".
+"arrabbiassi" is the first person of "arrabbiasse".
+"arrabbiassi" is the second person of "arrabbiasse".
+"arrabbia" is the imperative of "arrabbia".
+"arrabbiare" is the negative imperative of "arrabbia".
+"arrabbiate" is the imperative of "arrabbiano".
+"arrabbiamo" is the hortative of "arrabbia".
+"arrabbiato" is the participle of "arrabbia".
+"arrabbiata" is the participle of "arrabbia".
+"arrabbiata" is feminine.
+"arrabbiati" is the participle of "arrabbia".
+"arrabbiati" is the plural of "arrabbiato".
+"arrabbiate" is the participle of "arrabbia".
+"arrabbiate" is feminine.
+"arrabbiate" is the plural of "arrabbiata".
+"arrabbiare" is the infinitive of "arrabbia".
+"arrabbiando" is the gerund of "arrabbia".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -95086,6 +95329,46 @@ The feminine adjective "radiofonica" means "radio".
 "radiofonicissimi" is the superlative of "radiofonici".
 "radiofonicissima" is the superlative of "radiofonica".
 "radiofonicissime" is the superlative of "radiofoniche".
+The adjective "eclatante" means "striking".
+"eclatanti" is the plural of "eclatante".
+"eclatantissimo" is the superlative of "eclatante".
+"eclatantissimi" is the superlative of "eclatanti".
+"eclatantissima" is the superlative of "eclatante".
+"eclatantissime" is the superlative of "eclatanti".
+The adjective "abbiente" means "wealthy".
+"abbienti" is the plural of "abbiente".
+"abbientissimo" is the superlative of "abbiente".
+"abbientissimi" is the superlative of "abbienti".
+"abbientissima" is the superlative of "abbiente".
+"abbientissime" is the superlative of "abbienti".
+The masculine adjective "centesimo" means "hundredth".
+"centesimi" is the plural of "centesimo".
+The feminine adjective "centesima" means "hundredth".
+"centesime" is the plural of "centesima".
+The masculine adjective "spaventoso" means "frightful".
+"spaventosi" is the plural of "spaventoso".
+The feminine adjective "spaventosa" means "frightful".
+"spaventose" is the plural of "spaventosa".
+"spaventosissimo" is the superlative of "spaventoso".
+"spaventosissimi" is the superlative of "spaventosi".
+"spaventosissima" is the superlative of "spaventosa".
+"spaventosissime" is the superlative of "spaventose".
+The masculine adjective "scalcinato" means "shabby".
+"scalcinati" is the plural of "scalcinato".
+The feminine adjective "scalcinata" means "shabby".
+"scalcinate" is the plural of "scalcinata".
+"scalcinatissimo" is the superlative of "scalcinato".
+"scalcinatissimi" is the superlative of "scalcinati".
+"scalcinatissima" is the superlative of "scalcinata".
+"scalcinatissime" is the superlative of "scalcinate".
+The masculine adjective "scientifico" means "scientific".
+"scientifici" is the plural of "scientifico".
+The feminine adjective "scientifica" means "scientific".
+"scientifiche" is the plural of "scientifica".
+"scientificissimo" is the superlative of "scientifico".
+"scientificissimi" is the superlative of "scientifici".
+"scientificissima" is the superlative of "scientifica".
+"scientificissime" is the superlative of "scientifiche".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -110845,6 +111128,20 @@ The masculine adjective "serbo" means "serbian".
 "serbi" is the plural of "serbo".
 The feminine adjective "serba" means "serbian".
 "serbe" is the plural of "serba".
+The masculine adjective "singolo" means "individual".
+"singoli" is the plural of "singolo".
+The feminine adjective "singola" means "individual".
+"singole" is the plural of "singola".
+"singolissimo" is the superlative of "singolo".
+"singolissimi" is the superlative of "singoli".
+"singolissima" is the superlative of "singola".
+"singolissime" is the superlative of "singole".
+The adjective "meritevole" means "worthy".
+"meritevoli" is the plural of "meritevole".
+"meritevolissimo" is the superlative of "meritevole".
+"meritevolissimi" is the superlative of "meritevoli".
+"meritevolissima" is the superlative of "meritevole".
+"meritevolissime" is the superlative of "meritevoli".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
@@ -111459,8 +111756,6 @@ The adjective "utile" means "useful".
 The adjective "inutile" means "useless".
 The adjective "vicinale" means "vicinal".
 The adjective "impermeabile" means "waterproof".
-The masculine adjective "ricco" means "wealthy".
-The feminine adjective "ricca" means "wealthy".
 The masculine adjective "strano" means "weird".
 The feminine adjective "strana" means "weird".
 The masculine adjective "intero" means "whole".
@@ -111483,6 +111778,7 @@ The masculine adjective "vergognoso" means "shameful".
 The feminine adjective "vergognosa" means "shameful".
 The adjective "triste" means "sorry".
 The adverb "tardi" means "late".
+The adverb "comunque" means "anyway".
 The adverb "condizionatamente" means "conditionally".
 The adverb "acidamente" means "acidly".
 The adverb "avventurosamente" means "adventurously".

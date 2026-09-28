@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20263 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20266 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -593,6 +593,34 @@ The preposition "a finales de" means "at the end of".
 The preposition "a principios de" means "at the start of".
 The word "bien" begins the choice.
 The conjunction "o bien" means "or".
+The adverb "de todos modos" means "anyway".
+The number "doscientos mil" means "two hundred thousand".
+The masculine noun "por ciento" means "per cent".
+"por ciento" is the plural of "por ciento".
+The adverb "demasiado" means "too".
+The masculine adjective "demasiado" means "too much". "demasiados" is the plural of "demasiado".
+The feminine adjective "demasiada" means "too much". "demasiadas" is the plural of "demasiada".
+The adverb "demasiado" means "all too".
+The masculine noun "buen montón" means "good deal".
+"habéis" is the second person of "han".
+The adverb "de la mano" means "hand in hand".
+The interjection "ah" means "ah".
+The verb "vuelve a hablar" means "talks again".
+"volvamos a hablar" is the hortative of "vuelve a hablar".
+The conjunction "como si" means "as if".
+The adverb "por ejemplo" means "for example".
+The preposition "dentro de" means "inside".
+The adverb "mejor" means "better".
+The adverb "mucho más" means "much more".
+The adverb "desde varias partes" means "from several sides".
+The dative pronoun "le" means "her".
+The adverb "mucho menos" means "much less".
+The masculine determiner "varios" means "several".
+"varios" is the plural of "varios".
+The feminine determiner "varias" means "several".
+"varias" is the plural of "varias".
+The masculine noun "politécnico" means "polytechnic".
+"politécnicos" is the plural of "politécnico".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -683,6 +711,8 @@ The masculine noun "bombín" means "bowler".
 "bombines" is the plural of "bombín".
 The noun "hooligan" means "hooligan".
 "hooligans" is the plural of "hooligan".
+The feminine noun "garra" means "claw".
+"garras" is the plural of "garra".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -21088,8 +21118,6 @@ The feminine noun "peluquera" means "hairdresser".
 "peluqueras" is the plural of "peluquera".
 The masculine noun "vestíbulo" means "hall".
 "vestíbulos" is the plural of "vestíbulo".
-The feminine noun "garra" means "harp".
-"garras" is the plural of "garra".
 The feminine noun "tropelía" means "haste".
 "tropelías" is the plural of "tropelía".
 The masculine noun "auxilio" means "help".
@@ -26485,6 +26513,98 @@ The verb "capitanea" means "captains".
 "capitaneadas" is the plural of "capitaneada".
 "capitanear" is the infinitive of "capitanea".
 "capitaneando" is the gerund of "capitanea".
+The verb "afila" means "sharpens".
+"afilan" is the plural of "afila".
+"afilamos" is the first person of "afilan".
+"afilo" is the first person of "afila".
+"afilas" is the second person of "afila".
+"afiló" is the past of "afila".
+"afilaron" is the past of "afilan".
+"afilamos" is the first person of "afilaron".
+"afilé" is the first person of "afiló".
+"afilaste" is the second person of "afiló".
+"afilaba" is the past of "afila".
+"afilaban" is the past of "afilan".
+"afilábamos" is the first person of "afilaban".
+"afilabas" is the second person of "afilaba".
+"afilará" is the future of "afila".
+"afilarán" is the plural of "afilará".
+"afilaremos" is the first person of "afilarán".
+"afilaré" is the first person of "afilará".
+"afilarás" is the second person of "afilará".
+"afilaría" is the conditional of "afila".
+"afilarían" is the plural of "afilaría".
+"afilaríamos" is the first person of "afilarían".
+"afilarías" is the second person of "afilaría".
+"afile" is the subjunctive of "afila".
+"afilen" is the plural of "afile".
+"afilemos" is the first person of "afilen".
+"afiles" is the second person of "afile".
+"afilara" is the past subjunctive of "afila".
+"afilaran" is the plural of "afilara".
+"afiláramos" is the first person of "afilaran".
+"afilaras" is the second person of "afilara".
+"afila" is the imperative of "afila".
+"afiles" is the negative imperative of "afila".
+"afilad" is the imperative of "afilan".
+"afiléis" is the negative imperative of "afilan".
+"afilemos" is the hortative of "afila".
+"afilado" is the participle of "afila".
+"afilada" is the participle of "afila".
+"afilada" is feminine.
+"afilados" is the participle of "afila".
+"afilados" is the plural of "afilado".
+"afiladas" is the participle of "afila".
+"afiladas" is feminine.
+"afiladas" is the plural of "afilada".
+"afilar" is the infinitive of "afila".
+"afilando" is the gerund of "afila".
+The verb "atormenta" means "torments".
+"atormentan" is the plural of "atormenta".
+"atormentamos" is the first person of "atormentan".
+"atormento" is the first person of "atormenta".
+"atormentas" is the second person of "atormenta".
+"atormentó" is the past of "atormenta".
+"atormentaron" is the past of "atormentan".
+"atormentamos" is the first person of "atormentaron".
+"atormenté" is the first person of "atormentó".
+"atormentaste" is the second person of "atormentó".
+"atormentaba" is the past of "atormenta".
+"atormentaban" is the past of "atormentan".
+"atormentábamos" is the first person of "atormentaban".
+"atormentabas" is the second person of "atormentaba".
+"atormentará" is the future of "atormenta".
+"atormentarán" is the plural of "atormentará".
+"atormentaremos" is the first person of "atormentarán".
+"atormentaré" is the first person of "atormentará".
+"atormentarás" is the second person of "atormentará".
+"atormentaría" is the conditional of "atormenta".
+"atormentarían" is the plural of "atormentaría".
+"atormentaríamos" is the first person of "atormentarían".
+"atormentarías" is the second person of "atormentaría".
+"atormente" is the subjunctive of "atormenta".
+"atormenten" is the plural of "atormente".
+"atormentemos" is the first person of "atormenten".
+"atormentes" is the second person of "atormente".
+"atormentara" is the past subjunctive of "atormenta".
+"atormentaran" is the plural of "atormentara".
+"atormentáramos" is the first person of "atormentaran".
+"atormentaras" is the second person of "atormentara".
+"atormenta" is the imperative of "atormenta".
+"atormentes" is the negative imperative of "atormenta".
+"atormentad" is the imperative of "atormentan".
+"atormentéis" is the negative imperative of "atormentan".
+"atormentemos" is the hortative of "atormenta".
+"atormentado" is the participle of "atormenta".
+"atormentada" is the participle of "atormenta".
+"atormentada" is feminine.
+"atormentados" is the participle of "atormenta".
+"atormentados" is the plural of "atormentado".
+"atormentadas" is the participle of "atormenta".
+"atormentadas" is feminine.
+"atormentadas" is the plural of "atormentada".
+"atormentar" is the infinitive of "atormenta".
+"atormentando" is the gerund of "atormenta".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -27319,51 +27439,6 @@ The verb "desacredita" means "discredits".
 "desacreditar" is the infinitive of "desacredita".
 "desacreditando" is the gerund of "desacredita".
 The verb "atormenta" means "racks".
-"atormentan" is the plural of "atormenta".
-"atormentamos" is the first person of "atormentan".
-"atormento" is the first person of "atormenta".
-"atormentas" is the second person of "atormenta".
-"atormentó" is the past of "atormenta".
-"atormentaron" is the past of "atormentan".
-"atormentamos" is the first person of "atormentaron".
-"atormenté" is the first person of "atormentó".
-"atormentaste" is the second person of "atormentó".
-"atormentaba" is the past of "atormenta".
-"atormentaban" is the past of "atormentan".
-"atormentábamos" is the first person of "atormentaban".
-"atormentabas" is the second person of "atormentaba".
-"atormentará" is the future of "atormenta".
-"atormentarán" is the plural of "atormentará".
-"atormentaremos" is the first person of "atormentarán".
-"atormentaré" is the first person of "atormentará".
-"atormentarás" is the second person of "atormentará".
-"atormentaría" is the conditional of "atormenta".
-"atormentarían" is the plural of "atormentaría".
-"atormentaríamos" is the first person of "atormentarían".
-"atormentarías" is the second person of "atormentaría".
-"atormente" is the subjunctive of "atormenta".
-"atormenten" is the plural of "atormente".
-"atormentemos" is the first person of "atormenten".
-"atormentes" is the second person of "atormente".
-"atormentara" is the past subjunctive of "atormenta".
-"atormentaran" is the plural of "atormentara".
-"atormentáramos" is the first person of "atormentaran".
-"atormentaras" is the second person of "atormentara".
-"atormenta" is the imperative of "atormenta".
-"atormentes" is the negative imperative of "atormenta".
-"atormentad" is the imperative of "atormentan".
-"atormentéis" is the negative imperative of "atormentan".
-"atormentemos" is the hortative of "atormenta".
-"atormentado" is the participle of "atormenta".
-"atormentada" is the participle of "atormenta".
-"atormentada" is feminine.
-"atormentados" is the participle of "atormenta".
-"atormentados" is the plural of "atormentado".
-"atormentadas" is the participle of "atormenta".
-"atormentadas" is feminine.
-"atormentadas" is the plural of "atormentada".
-"atormentar" is the infinitive of "atormenta".
-"atormentando" is the gerund of "atormenta".
 The verb "restablece" means "reestablishes".
 "restablecen" is the plural of "restablece".
 "restablecemos" is the first person of "restablecen".
@@ -121748,6 +121823,10 @@ The feminine adjective "flemática" means "phlegmatic".
 "flemáticas" is the plural of "flemática".
 The adjective "gerundense" means "gironese".
 "gerundenses" is the plural of "gerundense".
+The masculine adjective "centésimo" means "hundredth".
+"centésimos" is the plural of "centésimo".
+The feminine adjective "centésima" means "hundredth".
+"centésimas" is the plural of "centésima".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

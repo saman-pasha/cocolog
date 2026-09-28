@@ -1019,3 +1019,62 @@ The preposition "a principios de" means "at the start of".
 # bien.' came out `He knows me either.'
 The word "bien" begins the choice.
 The conjunction "o bien" means "or".
+# the Salvini interview (Italian UD VIT-9816..9850), into Spanish.
+# `non crede che comunque ...': anyway -- the dictionary's `en todo caso' is
+# three words the builder does not write
+The adverb "de todos modos" means "anyway".
+# `il milione e duecentomila lire': as `ciento treinta mil'
+The number "doscientos mil" means "two hundred thousand".
+# `il 2 per cento del pil': per cent, a noun of two words that is its own
+# plural
+The masculine noun "por ciento" means "per cent".
+"por ciento" is the plural of "por ciento".
+# `in un certo senso sono troppi', `fin troppo evidente': too many, the
+# adjective, and all too -- the adverb is said again first, because a line
+# here comes first for its word
+The adverb "demasiado" means "too".
+The masculine adjective "demasiado" means "too much". "demasiados" is the plural of "demasiado".
+The feminine adjective "demasiada" means "too much". "demasiadas" is the plural of "demasiada".
+The adverb "demasiado" means "all too".
+# `un bel po' di quattrini': a good deal, one word of two
+The masculine noun "buen montón" means "good deal".
+# `avete pensato all'evasione fiscale?': the second person of `han', which
+# the builder does not write
+"habéis" is the second person of "han".
+# `va di pari passo con ...': hand in hand
+The adverb "de la mano" means "hand in hand".
+# `ah, lei dice Catania'
+The interjection "ah" means "ah".
+# `Riparliamone tra un anno': talks again, and its command
+The verb "vuelve a hablar" means "talks again".
+"volvamos a hablar" is the hortative of "vuelve a hablar".
+# `come se i mascalzoni fossero pochi': as if
+The conjunction "como si" means "as if".
+# `per esempio quelli di Perugia': for example, one word of two
+The adverb "por ejemplo" means "for example".
+# `dentro il tetto': inside, the preposition -- the dictionary has it as
+# an adverb, and `inside' was written `interior', a noun
+The preposition "dentro de" means "inside".
+# `per studiare meglio': better, the adverb -- the dictionary has `mejor'
+# only as the comparative of `bueno'
+The adverb "mejor" means "better".
+# `ogni studente costa molto di più allo stato': much more
+The adverb "mucho más" means "much more".
+# `Da più parti cominciano ad arrivare i mugugni': from several sides
+The adverb "desde varias partes" means "from several sides".
+# `Ma non le pare che ...?': to you, the dative of the one spoken to, which
+# is `her' to the IR, and Spanish's `le'
+The dative pronoun "le" means "her".
+# `costano molto meno che al Nord': much less
+The adverb "mucho menos" means "much less".
+# `ci saranno atenei a diverse velocità?': several, a determiner of either
+# gender and plural in both -- the dictionary gives `varios' with no gender,
+# as the plural of nothing, and the phrase had no word for it
+The masculine determiner "varios" means "several".
+"varios" is the plural of "varios".
+The feminine determiner "varias" means "several".
+"varias" is the plural of "varias".
+# `valga meno che quella al politecnico di Milano': the polytechnic --
+# apertium-spa has `politécnico' only as the adjective
+The masculine noun "politécnico" means "polytechnic".
+"politécnicos" is the plural of "politécnico".
