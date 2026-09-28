@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16274 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16305 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -917,6 +917,51 @@ The feminine noun "epoca" means "epoch".
 The intransitive verb "fa epoca" means "makes history".
 "fanno epoca" is the plural of "fa epoca". "fece epoca" is the past of "fa epoca". "fecero epoca" is the past of "fanno epoca". "fare epoca" is the infinitive of "fa epoca".
 "attaccante" is a person.
+The feminine noun "baby sitter" means "babysitter". "baby sitter" is the plural of "baby sitter".
+The feminine noun "tata" means "babysitter". "tate" is the plural of "tata".
+The masculine noun "accappatoio" means "bathrobe". "accappatoi" is the plural of "accappatoio".
+The masculine noun "amico" means "friend". "amici" is the plural of "amico".
+The feminine noun "amica" means "friend". "amiche" is the plural of "amica".
+The feminine noun "amichetta" means "friend". "amichette" is the plural of "amichetta".
+The feminine noun "figlia" means "daughter". "figlie" is the plural of "figlia".
+The feminine noun "figlioletta" means "daughter". "figliolette" is the plural of "figlioletta".
+The masculine noun "albore" means "glimmer".
+The masculine noun "spiraglio" means "glimmer". "spiragli" is the plural of "spiraglio".
+The adjective "strappalacrime" means "soppy". "strappalacrime" is the plural of "strappalacrime".
+The adverb "sodo" means "hard".
+The adverb "un po" means "a bit".
+The adverb "un pò" means "a bit".
+"cos'" is the elision of "cosa".
+"s'" is the elision of "si".
+"quarant'" is the elision of "quaranta".
+"braccia" is the plural of "braccio". "braccia" is feminine.
+"sepolto" is the participle of "seppellisce". "sepolta" is the participle of "seppellisce". "sepolta" is feminine. "sepolti" is the participle of "seppellisce". "sepolti" is the plural of "sepolto". "sepolte" is the participle of "seppellisce". "sepolte" is feminine. "sepolte" is the plural of "sepolta".
+The pronoun "voi" means "you". The pronoun "voi" does not precede the verb.
+The feminine noun "arma" means "weapon". "armi" is the plural of "arma".
+The masculine noun "braccio" means "arm". "bracci" is the plural of "braccio".
+The verb "sente" means "feels".
+The adverb "talvolta" means "sometimes".
+The adverb "a volte" means "sometimes".
+The adverb "in genere" means "generally".
+The adverb "infatti" means "in fact".
+The adverb "anzi" means "in fact".
+The conjunction "certo che" means "of course".
+"capisce" takes the question.
+"cronista" is a person.
+"è" is the auxiliary of "dura".
+The adverb "sì" means "yes".
+The verb "spedisce" means "sends".
+The verb "manda" means "sends".
+"resta" is intransitive.
+The adverb "così" means "thus".
+"bel" is the apocope of "bello".
+"innamora" is reflexive.
+The word "perché" means "why".
+"visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine. "visti" is the participle of "vede". "visti" is the plural of "visto". "viste" is the participle of "vede". "viste" is feminine. "viste" is the plural of "vista".
+The adjective "vivace" means "lively".
+The adverb "così tanto" means "so much".
+"margherita" is a name.
+The conjunction "o meglio" means "or rather".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -16074,6 +16119,24 @@ The masculine noun "quattrino" means "money".
 "quattrini" is the plural of "quattrino".
 The feminine noun "verifica" means "verification".
 "verifiche" is the plural of "verifica".
+The masculine noun "divano" means "sofa".
+"divani" is the plural of "divano".
+The feminine noun "sorellina" means "sister".
+"sorelline" is the plural of "sorellina".
+"sorellina" is a person.
+The masculine noun "lineamento" means "lineament".
+"lineamenti" is the plural of "lineamento".
+The noun "reporter" means "reporter".
+"reporter" is the plural of "reporter".
+"reporter" is a person.
+The noun "piemontese" means "piedmontese".
+"piemontesi" is the plural of "piemontese".
+The masculine noun "trafiletto" means "snippet".
+"trafiletti" is the plural of "trafiletto".
+The masculine noun "malore" means "fainting".
+"malori" is the plural of "malore".
+The masculine noun "risarcimento" means "compensation".
+"risarcimenti" is the plural of "risarcimento".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -90236,6 +90299,431 @@ The verb "arrabbia" means "angers".
 "arrabbiate" is the plural of "arrabbiata".
 "arrabbiare" is the infinitive of "arrabbia".
 "arrabbiando" is the gerund of "arrabbia".
+The verb "annega" means "drowns".
+"annegano" is the plural of "annega".
+"anneghiamo" is the first person of "annegano".
+"annego" is the first person of "annega".
+"anneghi" is the second person of "annega".
+"annegò" is the past of "annega".
+"annegarono" is the past of "annegano".
+"annegammo" is the first person of "annegarono".
+"annegai" is the first person of "annegò".
+"annegasti" is the second person of "annegò".
+"annegava" is the past of "annega".
+"annegavano" is the past of "annegano".
+"annegavamo" is the first person of "annegavano".
+"annegavo" is the first person of "annegava".
+"annegavi" is the second person of "annegava".
+"annegherà" is the future of "annega".
+"annegheranno" is the plural of "annegherà".
+"annegheremo" is the first person of "annegheranno".
+"annegherò" is the first person of "annegherà".
+"annegherai" is the second person of "annegherà".
+"annegherebbe" is the conditional of "annega".
+"annegherebbero" is the plural of "annegherebbe".
+"annegheremmo" is the first person of "annegherebbero".
+"annegherei" is the first person of "annegherebbe".
+"annegheresti" is the second person of "annegherebbe".
+"anneghi" is the subjunctive of "annega".
+"anneghino" is the plural of "anneghi".
+"anneghiamo" is the first person of "anneghino".
+"annegasse" is the past subjunctive of "annega".
+"annegassero" is the plural of "annegasse".
+"annegassimo" is the first person of "annegassero".
+"annegassi" is the first person of "annegasse".
+"annegassi" is the second person of "annegasse".
+"annega" is the imperative of "annega".
+"annegare" is the negative imperative of "annega".
+"annegate" is the imperative of "annegano".
+"anneghiamo" is the hortative of "annega".
+"annegato" is the participle of "annega".
+"annegata" is the participle of "annega".
+"annegata" is feminine.
+"annegati" is the participle of "annega".
+"annegati" is the plural of "annegato".
+"annegate" is the participle of "annega".
+"annegate" is feminine.
+"annegate" is the plural of "annegata".
+"annegare" is the infinitive of "annega".
+"annegando" is the gerund of "annega".
+The verb "spezza" means "breaks".
+"spezzano" is the plural of "spezza".
+"spezziamo" is the first person of "spezzano".
+"spezzo" is the first person of "spezza".
+"spezzi" is the second person of "spezza".
+"spezzò" is the past of "spezza".
+"spezzarono" is the past of "spezzano".
+"spezzammo" is the first person of "spezzarono".
+"spezzai" is the first person of "spezzò".
+"spezzasti" is the second person of "spezzò".
+"spezzava" is the past of "spezza".
+"spezzavano" is the past of "spezzano".
+"spezzavamo" is the first person of "spezzavano".
+"spezzavo" is the first person of "spezzava".
+"spezzavi" is the second person of "spezzava".
+"spezzerà" is the future of "spezza".
+"spezzeranno" is the plural of "spezzerà".
+"spezzeremo" is the first person of "spezzeranno".
+"spezzerò" is the first person of "spezzerà".
+"spezzerai" is the second person of "spezzerà".
+"spezzerebbe" is the conditional of "spezza".
+"spezzerebbero" is the plural of "spezzerebbe".
+"spezzeremmo" is the first person of "spezzerebbero".
+"spezzerei" is the first person of "spezzerebbe".
+"spezzeresti" is the second person of "spezzerebbe".
+"spezzi" is the subjunctive of "spezza".
+"spezzino" is the plural of "spezzi".
+"spezziamo" is the first person of "spezzino".
+"spezzasse" is the past subjunctive of "spezza".
+"spezzassero" is the plural of "spezzasse".
+"spezzassimo" is the first person of "spezzassero".
+"spezzassi" is the first person of "spezzasse".
+"spezzassi" is the second person of "spezzasse".
+"spezza" is the imperative of "spezza".
+"spezzare" is the negative imperative of "spezza".
+"spezzate" is the imperative of "spezzano".
+"spezziamo" is the hortative of "spezza".
+"spezzato" is the participle of "spezza".
+"spezzata" is the participle of "spezza".
+"spezzata" is feminine.
+"spezzati" is the participle of "spezza".
+"spezzati" is the plural of "spezzato".
+"spezzate" is the participle of "spezza".
+"spezzate" is feminine.
+"spezzate" is the plural of "spezzata".
+"spezzare" is the infinitive of "spezza".
+"spezzando" is the gerund of "spezza".
+The verb "indossa" means "wears".
+"indossano" is the plural of "indossa".
+"indossiamo" is the first person of "indossano".
+"indosso" is the first person of "indossa".
+"indossi" is the second person of "indossa".
+"indossò" is the past of "indossa".
+"indossarono" is the past of "indossano".
+"indossammo" is the first person of "indossarono".
+"indossai" is the first person of "indossò".
+"indossasti" is the second person of "indossò".
+"indossava" is the past of "indossa".
+"indossavano" is the past of "indossano".
+"indossavamo" is the first person of "indossavano".
+"indossavo" is the first person of "indossava".
+"indossavi" is the second person of "indossava".
+"indosserà" is the future of "indossa".
+"indosseranno" is the plural of "indosserà".
+"indosseremo" is the first person of "indosseranno".
+"indosserò" is the first person of "indosserà".
+"indosserai" is the second person of "indosserà".
+"indosserebbe" is the conditional of "indossa".
+"indosserebbero" is the plural of "indosserebbe".
+"indosseremmo" is the first person of "indosserebbero".
+"indosserei" is the first person of "indosserebbe".
+"indosseresti" is the second person of "indosserebbe".
+"indossi" is the subjunctive of "indossa".
+"indossino" is the plural of "indossi".
+"indossiamo" is the first person of "indossino".
+"indossasse" is the past subjunctive of "indossa".
+"indossassero" is the plural of "indossasse".
+"indossassimo" is the first person of "indossassero".
+"indossassi" is the first person of "indossasse".
+"indossassi" is the second person of "indossasse".
+"indossa" is the imperative of "indossa".
+"indossare" is the negative imperative of "indossa".
+"indossate" is the imperative of "indossano".
+"indossiamo" is the hortative of "indossa".
+"indossato" is the participle of "indossa".
+"indossata" is the participle of "indossa".
+"indossata" is feminine.
+"indossati" is the participle of "indossa".
+"indossati" is the plural of "indossato".
+"indossate" is the participle of "indossa".
+"indossate" is feminine.
+"indossate" is the plural of "indossata".
+"indossare" is the infinitive of "indossa".
+"indossando" is the gerund of "indossa".
+"wore" is the past of "wears".
+"worn" is the participle of "wears".
+The verb "accorge" means "realizes".
+"accorgono" is the plural of "accorge".
+"accorgiamo" is the first person of "accorgono".
+"accorgo" is the first person of "accorge".
+"accorgi" is the second person of "accorge".
+"accorse" is the past of "accorge".
+"accorsero" is the past of "accorgono".
+"accorgemmo" is the first person of "accorsero".
+"accorsi" is the first person of "accorse".
+"accorgesti" is the second person of "accorse".
+"accorgeva" is the past of "accorge".
+"accorgevano" is the past of "accorgono".
+"accorgevamo" is the first person of "accorgevano".
+"accorgevo" is the first person of "accorgeva".
+"accorgevi" is the second person of "accorgeva".
+"accorgerà" is the future of "accorge".
+"accorgeranno" is the plural of "accorgerà".
+"accorgeremo" is the first person of "accorgeranno".
+"accorgerò" is the first person of "accorgerà".
+"accorgerai" is the second person of "accorgerà".
+"accorgerebbe" is the conditional of "accorge".
+"accorgerebbero" is the plural of "accorgerebbe".
+"accorgeremmo" is the first person of "accorgerebbero".
+"accorgerei" is the first person of "accorgerebbe".
+"accorgeresti" is the second person of "accorgerebbe".
+"accorga" is the subjunctive of "accorge".
+"accorgano" is the plural of "accorga".
+"accorgiamo" is the first person of "accorgano".
+"accorgesse" is the past subjunctive of "accorge".
+"accorgessero" is the plural of "accorgesse".
+"accorgessimo" is the first person of "accorgessero".
+"accorgessi" is the first person of "accorgesse".
+"accorgessi" is the second person of "accorgesse".
+"accorgi" is the imperative of "accorge".
+"accorgere" is the negative imperative of "accorge".
+"accorgete" is the imperative of "accorgono".
+"accorgiamo" is the hortative of "accorge".
+"accorto" is the participle of "accorge".
+"accorta" is the participle of "accorge".
+"accorta" is feminine.
+"accorti" is the participle of "accorge".
+"accorti" is the plural of "accorto".
+"accorte" is the participle of "accorge".
+"accorte" is feminine.
+"accorte" is the plural of "accorta".
+"accorgere" is the infinitive of "accorge".
+"accorgendo" is the gerund of "accorge".
+The verb "solca" means "furrows".
+"solcano" is the plural of "solca".
+"solchiamo" is the first person of "solcano".
+"solco" is the first person of "solca".
+"solchi" is the second person of "solca".
+"solcò" is the past of "solca".
+"solcarono" is the past of "solcano".
+"solcammo" is the first person of "solcarono".
+"solcai" is the first person of "solcò".
+"solcasti" is the second person of "solcò".
+"solcava" is the past of "solca".
+"solcavano" is the past of "solcano".
+"solcavamo" is the first person of "solcavano".
+"solcavo" is the first person of "solcava".
+"solcavi" is the second person of "solcava".
+"solcherà" is the future of "solca".
+"solcheranno" is the plural of "solcherà".
+"solcheremo" is the first person of "solcheranno".
+"solcherò" is the first person of "solcherà".
+"solcherai" is the second person of "solcherà".
+"solcherebbe" is the conditional of "solca".
+"solcherebbero" is the plural of "solcherebbe".
+"solcheremmo" is the first person of "solcherebbero".
+"solcherei" is the first person of "solcherebbe".
+"solcheresti" is the second person of "solcherebbe".
+"solchi" is the subjunctive of "solca".
+"solchino" is the plural of "solchi".
+"solchiamo" is the first person of "solchino".
+"solcasse" is the past subjunctive of "solca".
+"solcassero" is the plural of "solcasse".
+"solcassimo" is the first person of "solcassero".
+"solcassi" is the first person of "solcasse".
+"solcassi" is the second person of "solcasse".
+"solca" is the imperative of "solca".
+"solcare" is the negative imperative of "solca".
+"solcate" is the imperative of "solcano".
+"solchiamo" is the hortative of "solca".
+"solcato" is the participle of "solca".
+"solcata" is the participle of "solca".
+"solcata" is feminine.
+"solcati" is the participle of "solca".
+"solcati" is the plural of "solcato".
+"solcate" is the participle of "solca".
+"solcate" is feminine.
+"solcate" is the plural of "solcata".
+"solcare" is the infinitive of "solca".
+"solcando" is the gerund of "solca".
+The verb "innamora" means "enamours".
+"innamorano" is the plural of "innamora".
+"innamoriamo" is the first person of "innamorano".
+"innamoro" is the first person of "innamora".
+"innamori" is the second person of "innamora".
+"innamorò" is the past of "innamora".
+"innamorarono" is the past of "innamorano".
+"innamorammo" is the first person of "innamorarono".
+"innamorai" is the first person of "innamorò".
+"innamorasti" is the second person of "innamorò".
+"innamorava" is the past of "innamora".
+"innamoravano" is the past of "innamorano".
+"innamoravamo" is the first person of "innamoravano".
+"innamoravo" is the first person of "innamorava".
+"innamoravi" is the second person of "innamorava".
+"innamorerà" is the future of "innamora".
+"innamoreranno" is the plural of "innamorerà".
+"innamoreremo" is the first person of "innamoreranno".
+"innamorerò" is the first person of "innamorerà".
+"innamorerai" is the second person of "innamorerà".
+"innamorerebbe" is the conditional of "innamora".
+"innamorerebbero" is the plural of "innamorerebbe".
+"innamoreremmo" is the first person of "innamorerebbero".
+"innamorerei" is the first person of "innamorerebbe".
+"innamoreresti" is the second person of "innamorerebbe".
+"innamori" is the subjunctive of "innamora".
+"innamorino" is the plural of "innamori".
+"innamoriamo" is the first person of "innamorino".
+"innamorasse" is the past subjunctive of "innamora".
+"innamorassero" is the plural of "innamorasse".
+"innamorassimo" is the first person of "innamorassero".
+"innamorassi" is the first person of "innamorasse".
+"innamorassi" is the second person of "innamorasse".
+"innamora" is the imperative of "innamora".
+"innamorare" is the negative imperative of "innamora".
+"innamorate" is the imperative of "innamorano".
+"innamoriamo" is the hortative of "innamora".
+"innamorato" is the participle of "innamora".
+"innamorata" is the participle of "innamora".
+"innamorata" is feminine.
+"innamorati" is the participle of "innamora".
+"innamorati" is the plural of "innamorato".
+"innamorate" is the participle of "innamora".
+"innamorate" is feminine.
+"innamorate" is the plural of "innamorata".
+"innamorare" is the infinitive of "innamora".
+"innamorando" is the gerund of "innamora".
+The verb "seppellisce" means "buries".
+"seppelliscono" is the plural of "seppellisce".
+"seppelliamo" is the first person of "seppelliscono".
+"seppellisco" is the first person of "seppellisce".
+"seppellisci" is the second person of "seppellisce".
+"seppellì" is the past of "seppellisce".
+"seppellirono" is the past of "seppelliscono".
+"seppellimmo" is the first person of "seppellirono".
+"seppellii" is the first person of "seppellì".
+"seppellisti" is the second person of "seppellì".
+"seppelliva" is the past of "seppellisce".
+"seppellivano" is the past of "seppelliscono".
+"seppellivamo" is the first person of "seppellivano".
+"seppellivo" is the first person of "seppelliva".
+"seppellivi" is the second person of "seppelliva".
+"seppellirà" is the future of "seppellisce".
+"seppelliranno" is the plural of "seppellirà".
+"seppelliremo" is the first person of "seppelliranno".
+"seppellirò" is the first person of "seppellirà".
+"seppellirai" is the second person of "seppellirà".
+"seppellirebbe" is the conditional of "seppellisce".
+"seppellirebbero" is the plural of "seppellirebbe".
+"seppelliremmo" is the first person of "seppellirebbero".
+"seppellirei" is the first person of "seppellirebbe".
+"seppelliresti" is the second person of "seppellirebbe".
+"seppellisca" is the subjunctive of "seppellisce".
+"seppelliscano" is the plural of "seppellisca".
+"seppelliamo" is the first person of "seppelliscano".
+"seppellisse" is the past subjunctive of "seppellisce".
+"seppellissero" is the plural of "seppellisse".
+"seppellissimo" is the first person of "seppellissero".
+"seppellissi" is the first person of "seppellisse".
+"seppellissi" is the second person of "seppellisse".
+"seppellisci" is the imperative of "seppellisce".
+"seppellire" is the negative imperative of "seppellisce".
+"seppellite" is the imperative of "seppelliscono".
+"seppelliamo" is the hortative of "seppellisce".
+"seppellito" is the participle of "seppellisce".
+"seppellita" is the participle of "seppellisce".
+"seppellita" is feminine.
+"seppelliti" is the participle of "seppellisce".
+"seppelliti" is the plural of "seppellito".
+"seppellite" is the participle of "seppellisce".
+"seppellite" is feminine.
+"seppellite" is the plural of "seppellita".
+"seppellire" is the infinitive of "seppellisce".
+"seppellendo" is the gerund of "seppellisce".
+The verb "sfoglia" means "browses".
+"sfogliano" is the plural of "sfoglia".
+"sfogliamo" is the first person of "sfogliano".
+"sfoglio" is the first person of "sfoglia".
+"sfogli" is the second person of "sfoglia".
+"sfogliò" is the past of "sfoglia".
+"sfogliarono" is the past of "sfogliano".
+"sfogliammo" is the first person of "sfogliarono".
+"sfogliai" is the first person of "sfogliò".
+"sfogliasti" is the second person of "sfogliò".
+"sfogliava" is the past of "sfoglia".
+"sfogliavano" is the past of "sfogliano".
+"sfogliavamo" is the first person of "sfogliavano".
+"sfogliavo" is the first person of "sfogliava".
+"sfogliavi" is the second person of "sfogliava".
+"sfoglierà" is the future of "sfoglia".
+"sfoglieranno" is the plural of "sfoglierà".
+"sfoglieremo" is the first person of "sfoglieranno".
+"sfoglierò" is the first person of "sfoglierà".
+"sfoglierai" is the second person of "sfoglierà".
+"sfoglierebbe" is the conditional of "sfoglia".
+"sfoglierebbero" is the plural of "sfoglierebbe".
+"sfoglieremmo" is the first person of "sfoglierebbero".
+"sfoglierei" is the first person of "sfoglierebbe".
+"sfoglieresti" is the second person of "sfoglierebbe".
+"sfogli" is the subjunctive of "sfoglia".
+"sfoglino" is the plural of "sfogli".
+"sfogliamo" is the first person of "sfoglino".
+"sfogliasse" is the past subjunctive of "sfoglia".
+"sfogliassero" is the plural of "sfogliasse".
+"sfogliassimo" is the first person of "sfogliassero".
+"sfogliassi" is the first person of "sfogliasse".
+"sfogliassi" is the second person of "sfogliasse".
+"sfoglii" is the imperative of "sfoglia".
+"sfogliare" is the negative imperative of "sfoglia".
+"sfogliate" is the imperative of "sfogliano".
+"sfogliamo" is the hortative of "sfoglia".
+"sfogliato" is the participle of "sfoglia".
+"sfogliata" is the participle of "sfoglia".
+"sfogliata" is feminine.
+"sfogliati" is the participle of "sfoglia".
+"sfogliati" is the plural of "sfogliato".
+"sfogliate" is the participle of "sfoglia".
+"sfogliate" is feminine.
+"sfogliate" is the plural of "sfogliata".
+"sfogliare" is the infinitive of "sfoglia".
+"sfogliando" is the gerund of "sfoglia".
+The verb "fruga" means "rummages".
+"frugano" is the plural of "fruga".
+"frughiamo" is the first person of "frugano".
+"frugo" is the first person of "fruga".
+"frughi" is the second person of "fruga".
+"frugò" is the past of "fruga".
+"frugarono" is the past of "frugano".
+"frugammo" is the first person of "frugarono".
+"frugai" is the first person of "frugò".
+"frugasti" is the second person of "frugò".
+"frugava" is the past of "fruga".
+"frugavano" is the past of "frugano".
+"frugavamo" is the first person of "frugavano".
+"frugavo" is the first person of "frugava".
+"frugavi" is the second person of "frugava".
+"frugherà" is the future of "fruga".
+"frugheranno" is the plural of "frugherà".
+"frugheremo" is the first person of "frugheranno".
+"frugherò" is the first person of "frugherà".
+"frugherai" is the second person of "frugherà".
+"frugherebbe" is the conditional of "fruga".
+"frugherebbero" is the plural of "frugherebbe".
+"frugheremmo" is the first person of "frugherebbero".
+"frugherei" is the first person of "frugherebbe".
+"frugheresti" is the second person of "frugherebbe".
+"frughi" is the subjunctive of "fruga".
+"frughino" is the plural of "frughi".
+"frughiamo" is the first person of "frughino".
+"frugasse" is the past subjunctive of "fruga".
+"frugassero" is the plural of "frugasse".
+"frugassimo" is the first person of "frugassero".
+"frugassi" is the first person of "frugasse".
+"frugassi" is the second person of "frugasse".
+"fruga" is the imperative of "fruga".
+"frugare" is the negative imperative of "fruga".
+"frugate" is the imperative of "frugano".
+"frughiamo" is the hortative of "fruga".
+"frugato" is the participle of "fruga".
+"frugata" is the participle of "fruga".
+"frugata" is feminine.
+"frugati" is the participle of "fruga".
+"frugati" is the plural of "frugato".
+"frugate" is the participle of "fruga".
+"frugate" is feminine.
+"frugate" is the plural of "frugata".
+"frugare" is the infinitive of "fruga".
+"frugando" is the gerund of "fruga".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -95074,9 +95562,6 @@ The verb "sveglia" means "wakes".
 "woken" is the participle of "wakes".
 The verb "sveglia" means "wakens".
 The verb "agita" means "waves".
-The verb "porta" means "wears".
-"wore" is the past of "wears".
-"worn" is the participle of "wears".
 The verb "piange" means "weeps".
 "wept" is the past of "weeps".
 The verb "bagna" means "wets".
@@ -111182,6 +111667,108 @@ The adjective "meritevole" means "worthy".
 "meritevolissimi" is the superlative of "meritevoli".
 "meritevolissima" is the superlative of "meritevole".
 "meritevolissime" is the superlative of "meritevoli".
+The masculine adjective "colposo" means "culpable".
+"colposi" is the plural of "colposo".
+The feminine adjective "colposa" means "culpable".
+"colpose" is the plural of "colposa".
+"colposissimo" is the superlative of "colposo".
+"colposissimi" is the superlative of "colposi".
+"colposissima" is the superlative of "colposa".
+"colposissime" is the superlative of "colpose".
+The adjective "incrollabile" means "unshakeable".
+"incrollabili" is the plural of "incrollabile".
+"incrollabilissimo" is the superlative of "incrollabile".
+"incrollabilissimi" is the superlative of "incrollabili".
+"incrollabilissima" is the superlative of "incrollabile".
+"incrollabilissime" is the superlative of "incrollabili".
+The masculine adjective "tondo" means "round".
+"tondi" is the plural of "tondo".
+The feminine adjective "tonda" means "round".
+"tonde" is the plural of "tonda".
+"tondissimo" is the superlative of "tondo".
+"tondissimi" is the superlative of "tondi".
+"tondissima" is the superlative of "tonda".
+"tondissime" is the superlative of "tonde".
+The masculine adjective "ignoto" means "unknown".
+"ignoti" is the plural of "ignoto".
+The feminine adjective "ignota" means "unknown".
+"ignote" is the plural of "ignota".
+"ignotissimo" is the superlative of "ignoto".
+"ignotissimi" is the superlative of "ignoti".
+"ignotissima" is the superlative of "ignota".
+"ignotissime" is the superlative of "ignote".
+The masculine adjective "snello" means "slender".
+"snelli" is the plural of "snello".
+The feminine adjective "snella" means "slender".
+"snelle" is the plural of "snella".
+"snellissimo" is the superlative of "snello".
+"snellissimi" is the superlative of "snelli".
+"snellissima" is the superlative of "snella".
+"snellissime" is the superlative of "snelle".
+The adjective "mediorientale" means "mideastern".
+"mediorientali" is the plural of "mediorientale".
+"mediorientalissimo" is the superlative of "mediorientale".
+"mediorientalissimi" is the superlative of "mediorientali".
+"mediorientalissima" is the superlative of "mediorientale".
+"mediorientalissime" is the superlative of "mediorientali".
+The masculine adjective "movimentato" means "eventful".
+"movimentati" is the plural of "movimentato".
+The feminine adjective "movimentata" means "eventful".
+"movimentate" is the plural of "movimentata".
+The masculine adjective "avventuroso" means "adventurous".
+"avventurosi" is the plural of "avventuroso".
+The feminine adjective "avventurosa" means "adventurous".
+"avventurose" is the plural of "avventurosa".
+"avventurosissimo" is the superlative of "avventuroso".
+"avventurosissimi" is the superlative of "avventurosi".
+"avventurosissima" is the superlative of "avventurosa".
+"avventurosissime" is the superlative of "avventurose".
+The adjective "piemontese" means "piedmontese".
+"piemontesi" is the plural of "piemontese".
+The masculine adjective "bravo" means "skillful".
+"bravi" is the plural of "bravo".
+The feminine adjective "brava" means "skillful".
+"brave" is the plural of "brava".
+"bravissimo" is the superlative of "bravo".
+"bravissimi" is the superlative of "bravi".
+"bravissima" is the superlative of "brava".
+"bravissime" is the superlative of "brave".
+The masculine adjective "pediatrico" means "paediatric".
+"pediatrici" is the plural of "pediatrico".
+The feminine adjective "pediatrica" means "paediatric".
+"pediatriche" is the plural of "pediatrica".
+"pediatricissimo" is the superlative of "pediatrico".
+"pediatricissimi" is the superlative of "pediatrici".
+"pediatricissima" is the superlative of "pediatrica".
+"pediatricissime" is the superlative of "pediatriche".
+The adjective "atroce" means "atrocious".
+"atroci" is the plural of "atroce".
+"atrocissimo" is the superlative of "atroce".
+"atrocissimi" is the superlative of "atroci".
+"atrocissima" is the superlative of "atroce".
+"atrocissime" is the superlative of "atroci".
+The masculine adjective "asciutto" means "dry".
+"asciutti" is the plural of "asciutto".
+The feminine adjective "asciutta" means "dry".
+"asciutte" is the plural of "asciutta".
+"asciuttissimo" is the superlative of "asciutto".
+"asciuttissimi" is the superlative of "asciutti".
+"asciuttissima" is the superlative of "asciutta".
+"asciuttissime" is the superlative of "asciutte".
+The adjective "balneare" means "balneal".
+"balneari" is the plural of "balneare".
+"balnearissimo" is the superlative of "balneare".
+"balnearissimi" is the superlative of "balneari".
+"balnearissima" is the superlative of "balneare".
+"balnearissime" is the superlative of "balneari".
+The masculine adjective "noto" means "famous".
+"noti" is the plural of "noto".
+The feminine adjective "nota" means "famous".
+"note" is the plural of "nota".
+"notissimo" is the superlative of "noto".
+"notissimi" is the superlative of "noti".
+"notissima" is the superlative of "nota".
+"notissime" is the superlative of "note".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

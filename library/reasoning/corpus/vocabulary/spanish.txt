@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20275 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20289 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -511,8 +511,8 @@ The masculine noun "lehendakari" means "lehendakari".
 "lehendakari" is the plural of "lehendakari".
 The preposition "contrariamente a" means "unlike".
 The adverb "al respecto" means "about it".
-The adverb "novedosamente" means "again".
 The adverb "de nuevo" means "again".
+The adverb "novedosamente" means "again".
 The verb "va" means "goes".
 The verb "acude" means "goes".
 The preposition "tras" means "after".
@@ -640,6 +640,27 @@ The masculine noun "medio de comunicación" means "mass medium". "medios de comu
 The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday". "ayer" is a time.
 The intransitive verb "marca época" means "makes history".
 "marcan época" is the plural of "marca época". "marcó época" is the past of "marca época". "marcaron época" is the past of "marcan época". "marcar época" is the infinitive of "marca época".
+The adjective "medioriental" means "mideastern". "mediorientales" is the plural of "medioriental".
+The adverb "un poco" means "a bit".
+The feminine noun "piscina" means "pool". "piscinas" is the plural of "piscina".
+The verb "trabaja" means "works".
+The verb "ama" means "loves".
+The feminine noun "silla" means "chair". "sillas" is the plural of "silla".
+The masculine noun "brazo" means "arm". "brazos" is the plural of "brazo".
+The feminine noun "arma" means "weapon". "armas" is the plural of "arma".
+The feminine noun "gafas" means "glasses". "gafas" is the plural of "gafas".
+The adverb "de hecho" means "in fact".
+The conjunction "claro que" means "of course".
+"entiende" takes the question.
+"cronista" is a person.
+The adverb "sí" means "yes".
+The adverb "a menudo" means "often".
+The adverb "por todas partes" means "everywhere".
+The word "por qué" means "why".
+The adverb "tanto" means "so much".
+"sino" is the partner of "sólo".
+The conjunction "o mejor dicho" means "or rather".
+The pronoun "ellos" does not precede the verb.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -24768,6 +24789,13 @@ The masculine noun "espinazo" means "spine".
 The masculine noun "féretro" means "coffin".
 "féretros" is the plural of "féretro".
 The feminine noun "trampa" means "snare".
+The masculine noun "atisbo" means "glimmer".
+"atisbos" is the plural of "atisbo".
+The masculine noun "rasgo" means "lineament".
+The masculine noun "piamontés" means "piedmontese".
+"piamonteses" is the plural of "piamontés".
+The feminine noun "piamontesa" means "piedmontese".
+"piamontesas" is the plural of "piamontesa".
 The masculine noun "testamento" means "testament".
 "testamentos" is the plural of "testamento".
 The masculine noun "personaje" means "personage".
@@ -120952,6 +120980,190 @@ The verb "prescinde" means "dispenses".
 The verb "sobrepasa" means "oversteps".
 "overstepped" is the past of "oversteps".
 "overstepping" is the gerund of "oversteps".
+The verb "surca" means "furrows".
+"surcan" is the plural of "surca".
+"surcamos" is the first person of "surcan".
+"surco" is the first person of "surca".
+"surcas" is the second person of "surca".
+"surcó" is the past of "surca".
+"surcaron" is the past of "surcan".
+"surcamos" is the first person of "surcaron".
+"surqué" is the first person of "surcó".
+"surcaste" is the second person of "surcó".
+"surcaba" is the past of "surca".
+"surcaban" is the past of "surcan".
+"surcábamos" is the first person of "surcaban".
+"surcabas" is the second person of "surcaba".
+"surcará" is the future of "surca".
+"surcarán" is the plural of "surcará".
+"surcaremos" is the first person of "surcarán".
+"surcaré" is the first person of "surcará".
+"surcarás" is the second person of "surcará".
+"surcaría" is the conditional of "surca".
+"surcarían" is the plural of "surcaría".
+"surcaríamos" is the first person of "surcarían".
+"surcarías" is the second person of "surcaría".
+"surque" is the subjunctive of "surca".
+"surquen" is the plural of "surque".
+"surquemos" is the first person of "surquen".
+"surques" is the second person of "surque".
+"surcara" is the past subjunctive of "surca".
+"surcaran" is the plural of "surcara".
+"surcáramos" is the first person of "surcaran".
+"surcaras" is the second person of "surcara".
+"surca" is the imperative of "surca".
+"surques" is the negative imperative of "surca".
+"surcad" is the imperative of "surcan".
+"surquéis" is the negative imperative of "surcan".
+"surquemos" is the hortative of "surca".
+"surcado" is the participle of "surca".
+"surcada" is the participle of "surca".
+"surcada" is feminine.
+"surcados" is the participle of "surca".
+"surcados" is the plural of "surcado".
+"surcadas" is the participle of "surca".
+"surcadas" is feminine.
+"surcadas" is the plural of "surcada".
+"surcar" is the infinitive of "surca".
+"surcando" is the gerund of "surca".
+The verb "enamora" means "enamours".
+"enamoran" is the plural of "enamora".
+"enamoramos" is the first person of "enamoran".
+"enamoro" is the first person of "enamora".
+"enamoras" is the second person of "enamora".
+"enamoró" is the past of "enamora".
+"enamoraron" is the past of "enamoran".
+"enamoramos" is the first person of "enamoraron".
+"enamoré" is the first person of "enamoró".
+"enamoraste" is the second person of "enamoró".
+"enamoraba" is the past of "enamora".
+"enamoraban" is the past of "enamoran".
+"enamorábamos" is the first person of "enamoraban".
+"enamorabas" is the second person of "enamoraba".
+"enamorará" is the future of "enamora".
+"enamorarán" is the plural of "enamorará".
+"enamoraremos" is the first person of "enamorarán".
+"enamoraré" is the first person of "enamorará".
+"enamorarás" is the second person of "enamorará".
+"enamoraría" is the conditional of "enamora".
+"enamorarían" is the plural of "enamoraría".
+"enamoraríamos" is the first person of "enamorarían".
+"enamorarías" is the second person of "enamoraría".
+"enamore" is the subjunctive of "enamora".
+"enamoren" is the plural of "enamore".
+"enamoremos" is the first person of "enamoren".
+"enamores" is the second person of "enamore".
+"enamorara" is the past subjunctive of "enamora".
+"enamoraran" is the plural of "enamorara".
+"enamoráramos" is the first person of "enamoraran".
+"enamoraras" is the second person of "enamorara".
+"enamora" is the imperative of "enamora".
+"enamores" is the negative imperative of "enamora".
+"enamorad" is the imperative of "enamoran".
+"enamoréis" is the negative imperative of "enamoran".
+"enamoremos" is the hortative of "enamora".
+"enamorado" is the participle of "enamora".
+"enamorada" is the participle of "enamora".
+"enamorada" is feminine.
+"enamorados" is the participle of "enamora".
+"enamorados" is the plural of "enamorado".
+"enamoradas" is the participle of "enamora".
+"enamoradas" is feminine.
+"enamoradas" is the plural of "enamorada".
+"enamorar" is the infinitive of "enamora".
+"enamorando" is the gerund of "enamora".
+The verb "hojea" means "browses".
+"hojean" is the plural of "hojea".
+"hojeamos" is the first person of "hojean".
+"hojeo" is the first person of "hojea".
+"hojeas" is the second person of "hojea".
+"hojeó" is the past of "hojea".
+"hojearon" is the past of "hojean".
+"hojeamos" is the first person of "hojearon".
+"hojeé" is the first person of "hojeó".
+"hojeaste" is the second person of "hojeó".
+"hojeaba" is the past of "hojea".
+"hojeaban" is the past of "hojean".
+"hojeábamos" is the first person of "hojeaban".
+"hojeabas" is the second person of "hojeaba".
+"hojeará" is the future of "hojea".
+"hojearán" is the plural of "hojeará".
+"hojearemos" is the first person of "hojearán".
+"hojearé" is the first person of "hojeará".
+"hojearás" is the second person of "hojeará".
+"hojearía" is the conditional of "hojea".
+"hojearían" is the plural of "hojearía".
+"hojearíamos" is the first person of "hojearían".
+"hojearías" is the second person of "hojearía".
+"hojee" is the subjunctive of "hojea".
+"hojeen" is the plural of "hojee".
+"hojeemos" is the first person of "hojeen".
+"hojees" is the second person of "hojee".
+"hojeara" is the past subjunctive of "hojea".
+"hojearan" is the plural of "hojeara".
+"hojeáramos" is the first person of "hojearan".
+"hojearas" is the second person of "hojeara".
+"hojea" is the imperative of "hojea".
+"hojees" is the negative imperative of "hojea".
+"hojead" is the imperative of "hojean".
+"hojeéis" is the negative imperative of "hojean".
+"hojeemos" is the hortative of "hojea".
+"hojeado" is the participle of "hojea".
+"hojeada" is the participle of "hojea".
+"hojeada" is feminine.
+"hojeados" is the participle of "hojea".
+"hojeados" is the plural of "hojeado".
+"hojeadas" is the participle of "hojea".
+"hojeadas" is feminine.
+"hojeadas" is the plural of "hojeada".
+"hojear" is the infinitive of "hojea".
+"hojeando" is the gerund of "hojea".
+The verb "hurga" means "rummages".
+"hurgan" is the plural of "hurga".
+"hurgamos" is the first person of "hurgan".
+"hurgo" is the first person of "hurga".
+"hurgas" is the second person of "hurga".
+"hurgó" is the past of "hurga".
+"hurgaron" is the past of "hurgan".
+"hurgamos" is the first person of "hurgaron".
+"hurgué" is the first person of "hurgó".
+"hurgaste" is the second person of "hurgó".
+"hurgaba" is the past of "hurga".
+"hurgaban" is the past of "hurgan".
+"hurgábamos" is the first person of "hurgaban".
+"hurgabas" is the second person of "hurgaba".
+"hurgará" is the future of "hurga".
+"hurgarán" is the plural of "hurgará".
+"hurgaremos" is the first person of "hurgarán".
+"hurgaré" is the first person of "hurgará".
+"hurgarás" is the second person of "hurgará".
+"hurgaría" is the conditional of "hurga".
+"hurgarían" is the plural of "hurgaría".
+"hurgaríamos" is the first person of "hurgarían".
+"hurgarías" is the second person of "hurgaría".
+"hurgue" is the subjunctive of "hurga".
+"hurguen" is the plural of "hurgue".
+"hurguemos" is the first person of "hurguen".
+"hurgues" is the second person of "hurgue".
+"hurgara" is the past subjunctive of "hurga".
+"hurgaran" is the plural of "hurgara".
+"hurgáramos" is the first person of "hurgaran".
+"hurgaras" is the second person of "hurgara".
+"hurga" is the imperative of "hurga".
+"hurgues" is the negative imperative of "hurga".
+"hurgad" is the imperative of "hurgan".
+"hurguéis" is the negative imperative of "hurgan".
+"hurguemos" is the hortative of "hurga".
+"hurgado" is the participle of "hurga".
+"hurgada" is the participle of "hurga".
+"hurgada" is feminine.
+"hurgados" is the participle of "hurga".
+"hurgados" is the plural of "hurgado".
+"hurgadas" is the participle of "hurga".
+"hurgadas" is feminine.
+"hurgadas" is the plural of "hurgada".
+"hurgar" is the infinitive of "hurga".
+"hurgando" is the gerund of "hurga".
 The verb "calma" means "abates".
 The verb "secuestra" means "abducts".
 The verb "sube" means "climbs".
@@ -137186,6 +137398,32 @@ The adjective "saudita" means "saudi".
 "sauditas" is the plural of "saudita".
 The adjective "usable" means "usable".
 "usables" is the plural of "usable".
+The masculine adjective "culposo" means "culpable".
+"culposos" is the plural of "culposo".
+The feminine adjective "culposa" means "culpable".
+"culposas" is the plural of "culposa".
+The adjective "inquebrantable" means "unshakeable".
+"inquebrantables" is the plural of "inquebrantable".
+The masculine adjective "movido" means "eventful".
+"movidos" is the plural of "movido".
+The feminine adjective "movida" means "eventful".
+"movidas" is the plural of "movida".
+"movidísimas" is the superlative of "movidas".
+"movidísima" is the superlative of "movida".
+"movidísimos" is the superlative of "movidos".
+"movidísimo" is the superlative of "movido".
+The masculine adjective "piamontés" means "piedmontese".
+"piamonteses" is the plural of "piamontés".
+The feminine adjective "piamontesa" means "piedmontese".
+"piamontesas" is the plural of "piamontesa".
+The masculine adjective "pediátrico" means "paediatric".
+"pediátricos" is the plural of "pediátrico".
+The feminine adjective "pediátrica" means "paediatric".
+"pediátricas" is the plural of "pediátrica".
+The masculine adjective "balneario" means "balneal".
+"balnearios" is the plural of "balneario".
+The feminine adjective "balnearia" means "balneal".
+"balnearias" is the plural of "balnearia".
 The masculine adjective "repentino" means "abrupt".
 The feminine adjective "repentina" means "abrupt".
 The masculine adjective "íntegro" means "upright".
@@ -138549,6 +138787,7 @@ The adverb "seguidamente" means "next".
 The adverb "eminentemente" means "essentially".
 The adverb "levemente" means "mildly".
 The adverb "offside" means "offside".
+The adverb "duro" means "hard".
 The adverb "ciertamente" means "admittedly".
 The adverb "después" means "afterward".
 The adverb "muy" means "any".

@@ -1529,3 +1529,119 @@ The intransitive verb "fa epoca" means "makes history".
 # heads the phrase, so `straniero' was the head and `attaccante' its
 # adjective, `un atacante extranjero'
 "attaccante" is a person.
+# the Fregene report (Italian UD VIT-9851..9925), into Spanish: words
+# apertium-ita lacks, so lesson lines and not dictionary entries. Where the
+# English word already had an Italian one, that one is said again first,
+# because a line here comes first for its meaning.
+# `la baby sitter polacca', `la sua tata': the babysitter, two words and one
+The feminine noun "baby sitter" means "babysitter". "baby sitter" is the plural of "baby sitter".
+The feminine noun "tata" means "babysitter". "tate" is the plural of "tata".
+# `l'accappatoio di spugna': the bathrobe
+The masculine noun "accappatoio" means "bathrobe". "accappatoi" is the plural of "accappatoio".
+# `una sua amichetta', `la figlioletta morta': a little friend and a little
+# daughter, read as the friend and the daughter
+The masculine noun "amico" means "friend". "amici" is the plural of "amico".
+The feminine noun "amica" means "friend". "amiche" is the plural of "amica".
+The feminine noun "amichetta" means "friend". "amichette" is the plural of "amichetta".
+The feminine noun "figlia" means "daughter". "figlie" is the plural of "figlia".
+The feminine noun "figlioletta" means "daughter". "figliolette" is the plural of "figlioletta".
+# `un nuovo spiraglio sulla tragedia': a glimmer
+The masculine noun "albore" means "glimmer".
+The masculine noun "spiraglio" means "glimmer". "spiragli" is the plural of "spiraglio".
+# `un pezzo troppo strappalacrime': a tear-jerker, the same in the plural
+The adjective "strappalacrime" means "soppy". "strappalacrime" is the plural of "strappalacrime".
+# `Lavora sodo': hard, the adverb -- apertium-ita has `sodo' only as the
+# adjective
+The adverb "sodo" means "hard".
+# `un pò mediorientale', `un pò di soldi': a bit, one word of two, which the
+# source spells with a grave accent where Italian writes an apostrophe; the
+# tokeniser drops the apostrophe of `po'' before a blank
+The adverb "un po" means "a bit".
+The adverb "un pò" means "a bit".
+# `cos'è successo', `s'innamora', `quarant'anni': the elisions
+"cos'" is the elision of "cosa".
+"s'" is the elision of "si".
+"quarant'" is the elision of "quaranta".
+# `tra le braccia della sua tata': the arms, a feminine plural of a
+# masculine noun
+"braccia" is the plural of "braccio". "braccia" is feminine.
+# `Vorrei che fossero sepolte assieme': buried, the participle `seppellire'
+# forms as `sepolto' where the paradigm gives `seppellito'
+"sepolto" is the participle of "seppellisce". "sepolta" is the participle of "seppellisce". "sepolta" is feminine. "sepolti" is the participle of "seppellisce". "sepolti" is the plural of "sepolto". "sepolte" is the participle of "seppellisce". "sepolte" is feminine. "sepolte" is the plural of "sepolta".
+# `desidero parlare con voi': you, the plural
+The pronoun "voi" means "you". The pronoun "voi" does not precede the verb.
+# `tra le braccia della sua tata': the arms of a body. The dictionary gives
+# `arma' as an arm before it gives it as a weapon, so Spanish's `brazo', the
+# word written for an arm now, would have been written for every weapon: a
+# weapon is what `arma' means first, and `braccio' is the word for an arm
+The feminine noun "arma" means "weapon". "armi" is the plural of "arma".
+The masculine noun "braccio" means "arm". "bracci" is the plural of "braccio".
+# `non sente niente', `mi sento in colpa': feels -- the dictionary's first
+# meaning, `senses', is written `nota' in Spanish
+The verb "sente" means "feels".
+# `a volte Sofia voleva', `in genere è così': sometimes, generally -- words
+# of two, read as `to vaults' and `in gender'. (`talvolta' first, the
+# dictionary's word for `sometimes': with `a volte' first, an old control's
+# `a veces maleducada' came out `a volte maleducata')
+The adverb "talvolta" means "sometimes".
+The adverb "a volte" means "sometimes".
+The adverb "in genere" means "generally".
+# `Anzi, una sua amichetta le ha detto ...': in fact -- the dictionary's
+# `rather' is written `bastante' in Spanish. `infatti', whose meaning
+# `indeed' Spanish has no word for, is said first, so it stays the word
+# written for `in fact'
+The adverb "infatti" means "in fact".
+The adverb "anzi" means "in fact".
+# `"certo che ha capito cos'è successo.': of course she understood what
+# happened -- `certo che' opens the sentence as a conjunction does, and
+# `capire' takes the question as `sapere' does
+The conjunction "certo che" means "of course".
+"capisce" takes the question.
+# `accetta di incontrare il cronista': the reporter, a person -- WordNet's
+# list the builder asks has no `chronicler'
+"cronista" is a person.
+# `è durata così poco': it lasted, a perfect Italian builds with the copula;
+# read as a passive it was `es durado'
+"è" is the auxiliary of "dura".
+# `Sì, può essere che ...': yes, the answer -- the dictionary has `sì' only as
+# the adverb `yeah', which Spanish has no word for
+The adverb "sì" means "yes".
+# `per fare un pò di soldi e mandarli alla sua famiglia': to send them. The
+# dictionary's `manda' mandates; `spedisce' stays the word written for sends
+The verb "spedisce" means "sends".
+The verb "manda" means "sends".
+# `Resta Carolyn.': Carolyn stays, the subject after a verb that takes no
+# object; read with nobody named it was a command, `Remain Carolyn.' (said
+# of the verb and not of a meaning: `The intransitive verb "resta" means
+# "remains".' kept `remains' for a clause with no object, and an old
+# control's `costretto a restare' crossed as `stays', which Spanish has no
+# word for)
+"resta" is intransitive.
+# `La chiamavamo così', `in genere è così', `mi sembra giusto così': thus,
+# the word standing alone. The dictionary gives `so' first, which Spanish
+# writes `tan' and cannot stand alone; before an adjective the intensifier
+# still crosses as `so' (`così bella', tr_intensifier_meaning/2)
+The adverb "così" means "thus".
+# `Così un bel giorno': the apocope of `bello', read as the unit `bel'
+"bel" is the apocope of "bello".
+# `s'innamora di un matematico': she falls in love, never one does
+"innamora" is reflexive.
+# `"ma perché nessuno le ha viste?': why, the question word -- the lesson
+# had `perché' only as `because' and `so that'
+The word "perché" means "why".
+# `nessuno le ha viste': seen, the participle Italian writes. The paradigm's
+# `veduto' is the one the dictionary gives, and `viste' was only the plural
+# of `vista', a view
+"visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine. "visti" is the participle of "vede". "visti" is the plural of "visto". "viste" is the participle of "vede". "viste" is feminine. "viste" is the plural of "vista".
+# `Così vivace.': lively -- the dictionary's `vivacious' has no Spanish word
+The adjective "vivace" means "lively".
+# `che amava così tanto': so much, one word of two; read apart it was `thus'
+# and `as'
+The adverb "così tanto" means "so much".
+# `"povera Margherita.': poor Margherita -- a daisy to the dictionary, and
+# a name the lesson says it is too, so a capital after adjectives with no
+# determiner is the girl and not the flower
+"margherita" is a name.
+# `È Margherita o meglio Malgorzata Dworak': or rather, a coordinator of two
+# words; read as `o' and the adverb `meglio' the adverb went to the end
+The conjunction "o meglio" means "or rather".

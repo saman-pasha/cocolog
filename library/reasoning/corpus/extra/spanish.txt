@@ -833,8 +833,8 @@ The preposition "contrariamente a" means "unlike".
 # `las discrepancias que mantienen al respecto': about it
 The adverb "al respecto" means "about it".
 # `que los vascos acudan de nuevo a las urnas': again
-The adverb "novedosamente" means "again".
 The adverb "de nuevo" means "again".
+The adverb "novedosamente" means "again".
 # ... and they GO to the polls: `acude' attends to the dictionary, and
 # Italian's first `attends' is `frequenta', `frequentano alle urne'. `va'
 # stays the first word written for `goes'
@@ -1144,3 +1144,50 @@ The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday"
 # after `y' a second one
 The intransitive verb "marca época" means "makes history".
 "marcan época" is the plural of "marca época". "marcó época" is the past of "marca época". "marcaron época" is the past of "marcan época". "marcar época" is the infinitive of "marca época".
+# the Fregene report (Italian UD VIT-9851..9925), into Spanish.
+# `un pò mediorientale': Middle Eastern, which the Spanish press writes as
+# one word and apertium-spa has not at all
+The adjective "medioriental" means "mideastern". "mediorientales" is the plural of "medioriental".
+# `un pò di soldi': a bit, one word of two
+The adverb "un poco" means "a bit".
+# the words written for the Italian ones, where the dictionary's first word
+# for the meaning is another sense of it: a pool that is not a group, work
+# that is not exploiting, love that is not delight, a chair that is not a
+# professorship, an arm of a body and not a weapon -- and `arma' a weapon
+# first, as it is read. `de nuevo' is the word for `again' now, where
+# `novedosamente' (newly) stood first since the Basque report
+The feminine noun "piscina" means "pool". "piscinas" is the plural of "piscina".
+The verb "trabaja" means "works".
+The verb "ama" means "loves".
+The feminine noun "silla" means "chair". "sillas" is the plural of "silla".
+The masculine noun "brazo" means "arm". "brazos" is the plural of "brazo".
+The feminine noun "arma" means "weapon". "armas" is the plural of "arma".
+# `Occhiali tondi': glasses, a noun Spanish has only in the plural; read as
+# the plural of `glass' it was `cristales'
+The feminine noun "gafas" means "glasses". "gafas" is the plural of "gafas".
+# `Anzi, ...': in fact
+The adverb "de hecho" means "in fact".
+# `certo che ha capito': of course, `claro que'; and `entender' takes the
+# question as `saber' does
+The conjunction "claro que" means "of course".
+"entiende" takes the question.
+# `encontrar al cronista': a person, whom Spanish marks with `a'
+"cronista" is a person.
+# `Sì, può essere ...', `Andava spesso ...', `Libri ... dappertutto': yes,
+# often, everywhere -- the dictionary pairs no Spanish word with any of them
+The adverb "sí" means "yes".
+The adverb "a menudo" means "often".
+The adverb "por todas partes" means "everywhere".
+# `perché nessuno le ha viste?': why; `così tanto': so much, the adverb
+The word "por qué" means "why".
+The adverb "tanto" means "so much".
+# `non solo io ma tanti altri': not only I but many others -- after `no sólo'
+# the word for `but' is `sino', and this says so, as `como' is the partner
+# of `tanto'
+"sino" is the partner of "sólo".
+# `o meglio': or rather
+The conjunction "o mejor dicho" means "or rather".
+# `Todos ellos pueden conducir.': they, which never stands before the verb as
+# its object -- read as one, an old control's refusal came out `Everyone
+# can them drive.' once `todos' could be a subject
+The pronoun "ellos" does not precede the verb.

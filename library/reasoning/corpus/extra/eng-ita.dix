@@ -525,3 +525,74 @@
 # `stelle tanto disparate': apertium-ita carries the adjective `disparato'
 # and the bilingual pairs nothing with it
 <e><p><l>disparate<s n="adj"/></l><r>disparato<s n="adj"/></r></p></e>
+# the Fregene report (Italian UD VIT-9851..9925), into Spanish: words
+# apertium-ita carries and the bilingual pairs with nothing. Read only, so
+# the Italian word the dictionary already writes for each meaning stays the
+# word written -- all but `wears': the dictionary writes it with an entry
+# for writing only, `portare', which the builder keeps only while one of
+# its words has no entry yet (cb_order/2), and `indossare' gave `wear' one.
+# So `wears' is written `indossa' now, the Italian for it, and `porta' no
+# longer reads as `wears'.
+# `aperta un'inchiesta per omicidio colposo': culpable
+<e r="RL"><p><l>culpable<s n="adj"/></l><r>colposo<s n="adj"/></r></p></e>
+# `annegata in una piscina', `annegate nella piscina': drowned
+<e r="RL"><p><l>drown<s n="vblex"/></l><r>annegare<s n="vblex"/></r></p></e>
+# `con una forza incrollabile': unshakeable
+<e r="RL"><p><l>unshakeable<s n="adj"/></l><r>incrollabile<s n="adj"/></r></p></e>
+# `una dignità che spezza il cuore': breaks
+<e r="RL"><p><l>break<s n="vblex"/></l><r>spezzare<s n="vblex"/></r></p></e>
+# `siede sul divano bianco': the sofa
+<e r="RL"><p><l>sofa<s n="n"/></l><r>divano<s n="n"/><s n="m"/></r></p></e>
+# `Occhiali tondi': round
+<e r="RL"><p><l>round<s n="adj"/></l><r>tondo<s n="adj"/></r></p></e>
+# `l'accappatoio di spugna che indossa': wears
+<e r="RL"><p><l>wear<s n="vblex"/></l><r>indossare<s n="vblex"/></r></p></e>
+# `la sorellina di Sofia': the little sister, read as the sister
+<e r="RL"><p><l>sister<s n="n"/></l><r>sorellina<s n="n"/><s n="f"/></r></p></e>
+# `se ne sono accorti loro': they realized
+<e r="RL"><p><l>realize<s n="vblex"/></l><r>accorgere<s n="vblex"/></r></p></e>
+# `contro ignoti': unknown
+<e r="RL"><p><l>unknown<s n="adj"/></l><r>ignoto<s n="adj"/></r></p></e>
+# `un uomo alto, snello, scuro': slender
+<e r="RL"><p><l>slender<s n="adj"/></l><r>snello<s n="adj"/></r></p></e>
+# `un pò mediorientale nei lineamenti': Middle Eastern, and the features of
+# a face
+<e r="RL"><p><l>mideastern<s n="adj"/></l><r>mediorientale<s n="adj"/></r></p></e>
+<e r="RL"><p><l>lineament<s n="n"/></l><r>lineamento<s n="n"/><s n="m"/></r></p></e>
+# `il viso solcato': furrowed
+<e r="RL"><p><l>furrow<s n="vblex"/></l><r>solcare<s n="vblex"/></r></p></e>
+# `ha iniziato a scrivere per "reporter"': the newspaper, which the source
+# writes in small letters, so it reads as the noun
+<e r="RL"><p><l>reporter<s n="n"/></l><r>reporter<s n="n"/><s n="mf"/></r></p></e>
+# `una vita movimentata, quasi avventurosa': eventful, adventurous
+<e r="RL"><p><l>eventful<s n="adj"/></l><r>movimentato<s n="adj"/></r></p></e>
+<e r="RL"><p><l>adventurous<s n="adj"/></l><r>avventuroso<s n="adj"/></r></p></e>
+# `sposa una piemontese': a Piedmontese woman
+<e r="RL"><p><l>piedmontese<s n="adj"/></l><r>piemontese<s n="adj"/></r></p></e>
+<e r="RL"><p><l>piedmontese<s n="n"/></l><r>piemontese<s n="n"/><s n="mf"/></r></p></e>
+# `s'innamora di un matematico': falls in love
+<e r="RL"><p><l>enamour<s n="vblex"/></l><r>innamorare<s n="vblex"/></r></p></e>
+# `non si trova nemmeno un trafiletto': a short item in a paper
+<e r="RL"><p><l>snippet<s n="n"/></l><r>trafiletto<s n="n"/><s n="m"/></r></p></e>
+# `È bravissimo': skilful, whose superlative the builder states
+<e r="RL"><p><l>skillful<s n="adj"/></l><r>bravo<s n="adj"/></r></p></e>
+# `Vorrei che fossero sepolte assieme': buried
+<e r="RL"><p><l>bury<s n="vblex"/></l><r>seppellire<s n="vblex"/></r></p></e>
+# `può essere che Margherita abbia avuto un malore': a fainting fit
+<e r="RL"><p><l>fainting<s n="n"/></l><r>malore<s n="n"/><s n="m"/></r></p></e>
+# `un risarcimento': compensation
+<e r="RL"><p><l>compensation<s n="n"/></l><r>risarcimento<s n="n"/><s n="m"/></r></p></e>
+# `all'ospedale pediatrico di Cracovia': paediatric
+<e r="RL"><p><l>paediatric<s n="adj"/></l><r>pediatrico<s n="adj"/></r></p></e>
+# `la prova più atroce': atrocious
+<e r="RL"><p><l>atrocious<s n="adj"/></l><r>atroce<s n="adj"/></r></p></e>
+# `sfoglia a occhi asciutti le foto': leafs through, with dry eyes
+<e r="RL"><p><l>browse<s n="vblex"/></l><r>sfogliare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>dry<s n="adj"/></l><r>asciutto<s n="adj"/></r></p></e>
+# `dello stabilimento balneare "miraggio"': a bathing establishment
+<e r="RL"><p><l>balneal<s n="adj"/></l><r>balneare<s n="adj"/></r></p></e>
+# `Fruga in una scatola piena di fotografie': rummages
+<e r="RL"><p><l>rummage<s n="vblex"/></l><r>frugare<s n="vblex"/></r></p></e>
+# `un artista molto noto': well known, which apertium-ita carries as an
+# adjective and the bilingual pairs with nothing; `noto' was only I notice
+<e r="RL"><p><l>famous<s n="adj"/></l><r>noto<s n="adj"/></r></p></e>

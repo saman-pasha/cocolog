@@ -292,3 +292,21 @@
 # `dispar' and the bilingual pairs nothing with it; read as `disparar',
 # `dispares' was what you shoot, and the sentence was refused
 <e><p><l>disparate<s n="adj"/></l><r>dispar<s n="adj"/><s n="mf"/></r></p></e>
+# the Fregene report (Italian UD VIT-9851..9925), into Spanish: the Spanish
+# word for a meaning its Italian word has and Spanish had none for.
+# apertium-spa carries each and the bilingual pairs it with nothing;
+# written only, so no Spanish text reads any word otherwise.
+<e r="LR"><p><l>culpable<s n="adj"/></l><r>culposo<s n="adj"/></r></p></e>
+<e r="LR"><p><l>unshakeable<s n="adj"/></l><r>inquebrantable<s n="adj"/><s n="mf"/></r></p></e>
+<e r="LR"><p><l>glimmer<s n="n"/></l><r>atisbo<s n="n"/><s n="m"/></r></p></e>
+<e r="LR"><p><l>lineament<s n="n"/></l><r>rasgo<s n="n"/><s n="m"/></r></p></e>
+<e r="LR"><p><l>furrow<s n="vblex"/></l><r>surcar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>eventful<s n="adj"/></l><r>movido<s n="adj"/></r></p></e>
+<e r="LR"><p><l>piedmontese<s n="adj"/></l><r>piamontés<s n="adj"/></r></p></e>
+<e r="LR"><p><l>piedmontese<s n="n"/></l><r>piamontés<s n="n"/><s n="GD"/></r></p></e>
+<e r="LR"><p><l>enamour<s n="vblex"/></l><r>enamorar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>hard<s n="adv"/></l><r>duro<s n="adv"/></r></p></e>
+<e r="LR"><p><l>paediatric<s n="adj"/></l><r>pediátrico<s n="adj"/></r></p></e>
+<e r="LR"><p><l>browse<s n="vblex"/></l><r>hojear<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>balneal<s n="adj"/></l><r>balneario<s n="adj"/></r></p></e>
+<e r="LR"><p><l>rummage<s n="vblex"/></l><r>hurgar<s n="vblex"/></r></p></e>

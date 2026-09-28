@@ -29,6 +29,7 @@ main :-
     newspaper_georgia, newspaper_wapo, newspaper_clinton, newspaper_letter, newspaper_solana,
     newspaper_pacifist, newspaper_mobile, newspaper_bastille, newspaper_basque, newspaper_giglio,
     newspaper_england, newspaper_bovalino, newspaper_puigbo, newspaper_salvini, newspaper_radio,
+    newspaper_fregene,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -3904,7 +3905,7 @@ The pronoun "lo" means "him". Every pronoun precedes the verb. The impersonal pr
 The conjunction "cioè" means "that is". The word "quando" means "when".
 The conjunction "se" means "if". The preposition "a" means "to". The preposition "di" means "of". The preposition "con" means "with". The preposition "come" means "as". The preposition "in" means "in".
 The adjective "in grado" means "able".
-The adverb "poi" means "then".
+The adverb "poi" means "then". The adverb "oggi" means "today".
 The word "non" means "not". The word "non" precedes the verb.').
 newspaper_ferlaino_lesson(spanish, 'Spanish is a language.
 The masculine article "el" means "the". The feminine article "la" means "the".
@@ -3949,7 +3950,7 @@ The pronoun "lo" means "him". Every pronoun precedes the verb. The impersonal pr
 The word "cuándo" means "when". The conjunction "es decir" means "that is". The conjunction "cuando" means "when".
 The conjunction "si" means "if". The preposition "a" means "to". The preposition "de" means "of". The preposition "con" means "with". The preposition "como" means "as". The preposition "en" means "in".
 The adjective "capaz" means "able".
-The adverb "entonces" means "then".
+The adverb "entonces" means "then". The adverb "hoy" means "today".
 The word "no" means "not". The word "no" precedes the verb.').
 
 newspaper_ferlaino_checks :-
@@ -4007,10 +4008,20 @@ newspaper_ferlaino_checks :-
     check('a comment between commas is its own clause''s, and a colon after it divides first', M17,
           'El perro come el pan, como se dice: el gato duerme.'),
     %% an adverb before a clause the verb takes
-    nf_tr('Poi il cane disse che il gatto dorme.', italian, spanish, M18),
-    check('a lifted adverb goes before a `that'' clause, where it read as the clause''s', M18, 'El perro dijo entonces que el gato duerme.'),
-    nf_tr('Poi il cane disse che il gatto dorme.', italian, english, M19),
-    check('... and English writes it there too', M19, 'The dog said then that the cat sleeps.'),
+    %% (MOVED in 1.8.25: this pinned `Poi il cane disse che ...', and `poi' is
+    %% `then', an adverb that joins its sentence to the one before -- which
+    %% stays in front now, where the source put it, `Entonces el perro dijo
+    %% que ...'. The pin's point, that a lifted adverb is the main clause's
+    %% and never the `that' clause's, is kept with an adverb that joins
+    %% nothing, and the connecting one is pinned beside it)
+    nf_tr('Oggi il cane disse che il gatto dorme.', italian, spanish, M18),
+    check('a lifted adverb goes before a `that'' clause, where it read as the clause''s', M18, 'El perro dijo hoy que el gato duerme.'),
+    nf_tr('Oggi il cane disse che il gatto dorme.', italian, english, M19),
+    check('... and English writes it there too', M19, 'The dog said today that the cat sleeps.'),
+    nf_tr('Poi il cane disse che il gatto dorme.', italian, spanish, M18b),
+    check('... and a connecting adverb at the head stays in front, where the source put it', M18b, 'Entonces el perro dijo que el gato duerme.'),
+    nf_tr('Poi il cane disse che il gatto dorme.', italian, english, M19b),
+    check('... in English too', M19b, 'Then the dog said that the cat sleeps.'),
     %% a question word in a noun's place
     nf_tr('La cosa è difficile.', italian, english, M20),
     check('a word that is a question word and a noun is the noun in a noun''s place', M20, 'The thing is difficult.'),
@@ -7194,6 +7205,502 @@ newspaper_radio_checks_5 :-
     nf_tr('Los medios de comunicación duermen.', spanish, italian, D5),
     check('and the media are still the media', D5,
           'I mezzi di comunicazione dormono.').
+
+newspaper_fregene :-
+    section('an Italian report into Spanish: a byline, a name in quotation marks, a noun alone before its verb, a phrase set off after a name, a bracket that opens on a preposition, adjectives after their noun with commas, a name after the last comma of a clause and between two clauses, a degree adverb before a participle, a gender the subject does not give, an adjective with its intensifier in front, a time and a connecting adverb in front, a quotation that opens and does not close, a bare noun before a clause of another person, an intensified adjective or participle alone, adjectives before a name, why, what after a verb that takes the question, a heading of phrases, a denial between a noun and its adjective, not only ... but, a joined relative, as, as when, a comparison of infinitives, so little, so much before a noun, a relative clause''s participle, everyone'),
+    newspaper_fregene_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_fregene_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_fregene_checks_1, newspaper_fregene_checks_2, newspaper_fregene_checks_3, newspaper_fregene_checks_4,
+    newspaper_fregene_checks_5, newspaper_fregene_checks_6, newspaper_fregene_checks_7,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+%% each lesson in four parts, because a clause over a page (8 KB) cannot be
+%% stored. What the vocabulary gives a word, the lesson gives it too: `anche'
+%% is also the plural of `anca', `le' also the dative `her', `alto' also a
+%% height and the adverb `high', `contro' also the noun `con' -- without
+%% those the old translator reads the sentences right by luck, and a check
+%% could not tell the two apart
+newspaper_fregene_lesson(L, Text) :-
+    newspaper_fregene_part(L, 1, A), newspaper_fregene_part(L, 2, B), newspaper_fregene_part(L, 3, C),
+    newspaper_fregene_part(L, 4, D),
+    atomic_list_concat([A, ' ', B, ' ', C, ' ', D], Text).
+
+newspaper_fregene_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The noun "hombre" means "man". "hombre" is a person.
+The noun "padre" means "father". "padre" is a person. The noun "madre" means "mother". "madre" is feminine. "madre" is a person.
+The feminine noun "mujer" means "woman". "mujer" is feminine. "mujer" is a person.
+The noun "día" means "day". "día" is not feminine. "día" is a time.
+The noun "motivo" means "reason". The noun "coraje" means "courage". The noun "peso" means "weight".
+The noun "dolor" means "pain". "dolores" is the plural of "dolor".
+The feminine noun "acusación" means "accusation". "acusaciones" is the plural of "acusación". "acusación" is feminine.
+The feminine noun "tragedia" means "tragedy". The feminine noun "piscina" means "pool".
+The noun "establecimiento" means "establishment". The noun "espejismo" means "mirage".
+The feminine noun "indagación" means "inquiry". "indagación" is feminine.
+The noun "médico" means "doctor". "médico" is a person. The noun "resultado" means "result".
+The feminine noun "autopsia" means "autopsy".
+The noun "artista" means "artist". "artista" is not feminine. "artista" is a person.
+The noun "periodista" means "journalist". "periodista" is not feminine. "periodista" is a person.
+The feminine noun "crítica" means "critic". "crítica" is a person.
+The feminine noun "causa" means "cause". The feminine noun "lira" means "lira".
+The noun "socorrista" means "lifeguard". "socorrista" is not feminine. "socorrista" is a person.
+The feminine noun "cabeza" means "head". The feminine noun "cruz" means "cross". "cruz" is feminine. "cruces" is the plural of "cruz".
+The noun "sol" means "sun". "soles" is the plural of "sol". The feminine noun "hora" means "hour". "hora" is a time.
+The noun "gemelo" means "twin". "gemelo" is a person. The feminine noun "margarita" means "daisy".
+The noun "belio" means "bel". The noun "joven" means "junior". "jóvenes" is the plural of "joven". "joven" is a person.
+The masculine noun "desconocido" means "unknown". "desconocidos" is the plural of "desconocido".').
+
+newspaper_fregene_part(spanish, 2, 'The masculine adjective "alto" means "tall". The masculine adjective "esbelto" means "slender". The masculine adjective "oscuro" means "dark".
+The masculine adjective "bello" means "beautiful". The feminine adjective "bella" means "beautiful".
+The masculine adjective "seguro" means "sure". The feminine adjective "segura" means "sure".
+The masculine adjective "bueno" means "good". The adjective "indiferente" means "indifferent".
+The masculine adjective "ocupado" means "busy". "ocupados" is the plural of "ocupado".
+The adjective "pobre" means "poor". The adjective "joven" means "young".
+The masculine adjective "desconocido" means "unknown". The masculine adjective "máximo" means "greatest".
+The adverb "así" means "thus". The adverb "tan" means "so". The adverb "muy" means "very". The adverb "poco" means "little".
+The adverb "sólo" means "only". The masculine adjective "solo" means "alone". The adverb "también" means "also".
+The adverb "entonces" means "then". The adverb "de todos modos" means "anyway". The adverb "más" means "more".
+The adverb "generalmente" means "generally". The adverb "hoy" means "today".
+The masculine determiner "tanto" means "so much". The adverb "tanto" means "so much".
+"sino" is the partner of "sólo".
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "que" means "that". "que" is a relative.
+The word "más" begins the comparative. The conjunction "que" means "than". The mark "¿" begins the question. The word "qué" means "what".
+The conjunction "si" means "if". The conjunction "porque" means "because". The word "por qué" means "why".
+The conjunction "claro que" means "of course". The conjunction "así que" means "so". The conjunction "o mejor dicho" means "or rather".
+The word "cuándo" means "when". The conjunction "cuando" means "when". The word "cómo" means "how". The preposition "como" means "as".
+The pronoun "yo" means "I". The pronoun "él" means "he". The pronoun "él" means "him". The pronoun "él" does not precede the verb.
+The pronoun "ellos" means "they". The pronoun "ellos" does not precede the verb.
+The pronoun "todos" means "everyone". "todos" is the plural of "todo". The pronoun "todos" does not precede the verb.
+The pronoun "nadie" means "nobody". The pronoun "nadie" does not precede the verb.
+The pronoun "lo" means "him". The pronoun "lo" means "it".
+The impersonal pronoun "se" means "one". The reflexive pronoun "se" means "itself".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "desde" means "from".
+The preposition "por" means "by". The preposition "para" means "for". The preposition "contra" means "against". The preposition "sobre" means "on".').
+
+newspaper_fregene_part(spanish, 3, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comes" is the second person of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve". The verb "lee" means "reads".
+The verb "es" means "is". "son" is the plural of "es". "será" is the future of "es". "soy" is the first person of "es".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "he" is the first person of "ha". "habéis" is the second person of "han".
+"sido" is the participle of "es". "ha" is the auxiliary of "es".
+The verb "tiene" means "has".
+The verb "hay" means "there is". "habrá" is the future of "hay".
+The verb "hace" means "makes". "hecho" is the participle of "hace".
+The verb "dice" means "says". The verb "pide" means "asks". The verb "hurga" means "rummages". "hurga" is the imperative of "hurga".
+The verb "tira" means "throws". "tira" is the imperative of "tira".
+The verb "entiende" means "understands". "entendido" is the participle of "entiende". "entiende" takes the question.
+The intransitive verb "pasa" means "happens". "pasado" is the participle of "pasa".
+The verb "dura" means "lasts". "durado" is the participle of "dura".
+The verb "ama" means "loves". "amado" is the participle of "ama". "amada" is the participle of "ama". "amada" is feminine.
+The verb "bautiza" means "baptises". "bautizado" is the participle of "bautiza". "bautizada" is the participle of "bautiza". "bautizada" is feminine.
+The verb "sabe" means "knows". "sabido" is the participle of "sabe".
+The transitive verb "conoce" means "knows". "conocido" is the participle of "conoce".
+The verb "vende" means "sells". "vendido" is the participle of "vende". "vendida" is the participle of "vende". "vendida" is feminine.
+The verb "quiere" means "wants". "quiero" is the first person of "quiere".
+The verb "habla" means "speaks". "hablo" is the first person of "habla".
+The verb "va" means "goes". "vamos" is the first person of "van". "van" is the plural of "va".
+The verb "escribe" means "writes". "escrito" is the participle of "escribe".
+The verb "mira" means "watches". "mirar" is the infinitive of "mira".
+The verb "enamora" means "enamours". "enamora" is reflexive.
+The verb "abre" means "opens". "abierto" is the participle of "abre". "abierta" is the participle of "abre". "abierta" is feminine.
+The verb "efectúa" means "effects". "efectuado" is the participle of "efectúa". "efectuada" is the participle of "efectúa". "efectuada" is feminine.
+The verb "nada" means "swims".
+The verb "ocupa" means "occupies". "ocupado" is the participle of "ocupa". "ocupados" is the participle of "ocupa".').
+
+newspaper_fregene_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "delle" is the contraction of "di le".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "al" is the contraction of "a il". "alla" is the contraction of "a la".
+"dal" is the contraction of "da il". "sul" is the contraction of "su il". "sulla" is the contraction of "su la".
+The article "lo" comes before a vowel. The article "lo" comes before "st".
+"l''" is the elision of "lo". "l''" is the elision of "la". "dell''" is the elision of "della". "d''" is the elision of "di".
+"s''" is the elision of "si". "cos''" is the elision of "cosa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not". The adverb "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". The noun "pane" means "bread".
+The feminine noun "casa" means "house". The noun "uomo" means "man". "uomo" is a person.
+The noun "padre" means "father". "padre" is a person. The noun "madre" means "mother". "madre" is feminine. "madre" is a person.
+The feminine noun "donna" means "woman". "donna" is a person.
+The noun "giorno" means "day". "giorno" is a time. The noun "motivo" means "reason".
+The noun "coraggio" means "courage". The noun "peso" means "weight". The noun "dolore" means "pain".
+The feminine noun "accusa" means "accusation". "accuse" is the plural of "accusa".
+The feminine noun "tragedia" means "tragedy". The feminine noun "piscina" means "pool".
+The noun "stabilimento" means "establishment". The noun "miraggio" means "mirage".
+The feminine noun "inchiesta" means "inquiry". The noun "medico" means "doctor". "medico" is a person.
+The noun "risultato" means "result". "risultati" is the plural of "risultato". The feminine noun "autopsia" means "autopsy".
+The noun "artista" means "artist". "artista" is not feminine. "artista" is a person.
+The noun "giornalista" means "journalist". "giornalista" is not feminine. "giornalista" is a person.
+The feminine noun "critica" means "critic". "critica" is a person. The feminine adjective "critica" means "critical".
+The feminine noun "causa" means "cause". The feminine noun "lira" means "lira".
+The noun "bagnino" means "lifeguard". "bagnino" is a person.
+The feminine noun "testa" means "head". The feminine noun "croce" means "cross". "croce" is feminine.
+The noun "sole" means "sun". The feminine noun "ora" means "hour". "ore" is the plural of "ora". "ora" is a time.
+The noun "gemello" means "twin". "gemelli" is the plural of "gemello". "gemello" is a person.
+The feminine noun "margherita" means "daisy".
+The noun "bel" means "bel". "bel" is the apocope of "bello".
+The noun "giovane" means "junior". "giovani" is the plural of "giovane". "giovane" is a person.
+The preposition "contro" means "against". The masculine noun "contro" means "con".
+"cui" is a relative. The word "cui" follows the preposition.
+The masculine noun "luglio" means "july". "lugli" is the plural of "luglio". "luglio" is a month.').
+
+newspaper_fregene_part(italian, 2, 'The masculine noun "alto" means "height". The masculine adjective "alto" means "tall". The adverb "alto" means "high". The masculine adjective "snello" means "slender". The masculine adjective "scuro" means "dark".
+The masculine adjective "bello" means "beautiful". The feminine adjective "bella" means "beautiful".
+The masculine adjective "sicuro" means "sure". The feminine adjective "sicura" means "sure".
+The masculine adjective "buono" means "good". The adjective "indifferente" means "indifferent".
+The masculine adjective "occupato" means "busy". "occupati" is the plural of "occupato".
+The masculine adjective "povero" means "poor". The feminine adjective "povera" means "poor".
+The adjective "giovane" means "young". "giovanissima" is the superlative of "giovane".
+The masculine adjective "ignoto" means "unknown". "ignoti" is the plural of "ignoto".
+The masculine adjective "massimo" means "greatest".
+The adverb "così" means "thus". The adverb "così" means "so". The adverb "molto" means "very". The adverb "poco" means "little".
+The adverb "solo" means "only". The masculine adjective "solo" means "alone".
+The adverb "anche" means "also". The feminine noun "anca" means "hip". "anche" is the plural of "anca".
+The adverb "poi" means "then". The adverb "comunque" means "anyway". The adverb "più" means "more".
+The adverb "in genere" means "generally". The adverb "oggi" means "today".
+The masculine determiner "tanto" means "so much". The adverb "tanto" means "as".
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "che" means "that". "che" is a relative.
+The word "più" begins the comparative. The conjunction "che" means "than".
+The conjunction "se" means "if". The conjunction "perché" means "because". The word "perché" means "why".
+The conjunction "certo che" means "of course". The conjunction "per cui" means "so". The conjunction "o meglio" means "or rather".
+The word "quando" means "when". The word "come" means "how". The preposition "come" means "as".
+The word "cosa" means "what". The feminine noun "cosa" means "thing".
+The pronoun "io" means "I". The pronoun "lui" means "he". The pronoun "lui" means "him". The pronoun "lui" does not precede the verb.
+The pronoun "loro" means "they". The pronoun "loro" means "them". The pronoun "loro" does not precede the verb. The dative pronoun "loro" means "them". The possessive "loro" means "their".
+The pronoun "tutti" means "everyone". "tutti" is the plural of "tutto". The pronoun "tutti" does not precede the verb.
+The pronoun "nessuno" means "nobody". The pronoun "nessuno" does not precede the verb.
+The pronoun "lo" means "him". The pronoun "lo" means "it". The dative pronoun "le" means "her".
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one".
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "da" means "from".
+The preposition "da" means "by". The preposition "per" means "for". The preposition "su" means "on". The word "per" begins the purpose.').
+
+newspaper_fregene_part(italian, 3, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangi" is the second person of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede". The verb "legge" means "reads".
+The verb "è" means "is". "sono" is the plural of "è". "sarà" is the future of "è". "sono" is the first person of "è".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine. "è" is the auxiliary of "è".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "ho" is the first person of "ha". "avete" is the second person of "hanno".
+The verb "ha" means "has".
+The verb "c''è" means "there is". "ci sarà" is the future of "c''è".
+The verb "fa" means "makes". "fatto" is the participle of "fa".
+The verb "dice" means "says". The verb "chiede" means "asks". The verb "fruga" means "rummages". "fruga" is the imperative of "fruga".
+The verb "butta" means "throws". "butta" is the imperative of "butta".
+The verb "capisce" means "understands". "capito" is the participle of "capisce". "capisce" takes the question.
+The intransitive verb "succede" means "happens". "successo" is the participle of "succede". "è" is the auxiliary of "succede".
+The verb "dura" means "lasts". "durata" is the participle of "dura". "durata" is feminine. "durato" is the participle of "dura". "è" is the auxiliary of "dura".
+The verb "ama" means "loves". "amato" is the participle of "ama". "amata" is the participle of "ama". "amata" is feminine.
+The verb "battezza" means "baptises". "battezzato" is the participle of "battezza". "battezzata" is the participle of "battezza". "battezzata" is feminine.
+The verb "conosce" means "knows". "conosciuto" is the participle of "conosce".
+The verb "vende" means "sells". "venduto" is the participle of "vende". "venduta" is the participle of "vende". "venduta" is feminine.
+The verb "vuole" means "wants". "voglio" is the first person of "vuole".
+The verb "parla" means "speaks". "parlo" is the first person of "parla".
+The verb "va" means "goes". "vanno" is the plural of "va". "andiamo" is the first person of "vanno".
+The verb "scrive" means "writes". "scritto" is the participle of "scrive".
+The verb "guarda" means "watches". "guardare" is the infinitive of "guarda".
+The verb "innamora" means "enamours". "innamora" is reflexive.
+The verb "apre" means "opens". "aperto" is the participle of "apre". "aperta" is the participle of "apre". "aperta" is feminine.
+The verb "effettua" means "effects". "effettuato" is the participle of "effettua". "effettuata" is the participle of "effettua". "effettuata" is feminine.
+The verb "nuota" means "swims". The verb "usa" means "uses". The verb "testa" means "tests". "testa" is the imperative of "testa".
+The verb "accusa" means "accuses". "accusano" is the plural of "accusa".
+The verb "critica" means "criticises".
+The verb "occupa" means "occupies". "occupato" is the participle of "occupa". "occupati" is the participle of "occupa".
+The verb "risulta" means "results". "risultato" is the participle of "risulta". "risultati" is the participle of "risulta".').
+
+
+%% what the controls found, in the vocabulary's words and order: `tate' the
+%% babysitters, `margherita' a name the lesson says it is, `talvolta' before
+%% `a volte', `resta' said to take no object and not a meaning of it, `ellos'
+%% no pronoun before its verb (part 2 above)
+newspaper_fregene_part(spanish, 4, 'The adverb "a veces" means "sometimes".
+The verb "queda" means "remains". "quedar" is the infinitive of "queda".
+"saber" is the infinitive of "sabe".
+The adjective "feliz" means "happy". The feminine noun "navidad" means "christmas".
+The adjective "tal" means "such". The adverb "un poco" means "a bit".
+The pronoun "ellos" means "them". The modal "puede" means "can". "pueden" is the plural of "puede".
+The word "el" replaces the noun.
+The masculine adjective "cansado" means "tired". The feminine adjective "cansada" means "tired".').
+
+newspaper_fregene_part(italian, 4, 'The feminine noun "tata" means "babysitter". "tate" is the plural of "tata".
+The verb "evacua" means "evacuates". "evacuato" is the participle of "evacua". "evacuata" is the participle of "evacua". "evacuata" is feminine.
+"evacuate" is the participle of "evacua". "evacuate" is feminine. "evacuati" is the participle of "evacua". "evacuate" is the plural of "evacuata". "evacuati" is the plural of "evacuato".
+"margherita" is a name.
+The adverb "talvolta" means "sometimes". The adverb "a volte" means "sometimes".
+The verb "resta" means "remains". The verb "resta" means "stays". "restare" is the infinitive of "resta". "resta" is intransitive.
+The verb "sa" means "knows". "sapere" is the infinitive of "sa". "sa" takes the question.
+The word "chi" means "who". The word "chi" begins the relative.
+The masculine adjective "stanco" means "tired". The feminine adjective "stanca" means "tired".').
+
+newspaper_fregene_checks_1 :-
+    nf_tr('Di Massimo Lugli Roma - il cane dorme.', italian, spanish, F1),
+    check('a byline''s name is every capitalised word between the head''s `of'' and the place: `massimo'' is the greatest and `lugli'' the plural of July to the lesson, and lowered as a month the surname refused the byline', F1,
+          'De Massimo Lugli Roma – el perro duerme.'),
+    nf_tr('Il cane mangia al "Gemelli".', italian, spanish, F2),
+    check('one capitalised word in quotation marks where no sentence begins is a name, known or not: `al "Gemelli"'' is the hospital, and read as the word it was the twins, `a los "gemelos"''', F2,
+          'El perro come al "Gemelli".'),
+    nf_tr('Margherita non dorme.', italian, spanish, F3),
+    check('a noun the lesson knows in the singular, alone before the word for `not'' or a verb, keeps its capital: `Margherita non sapeva nuotare'' is the girl, and lowered it was a daisy', F3,
+          'Margherita no duerme.'),
+    nf_tr('Il cane legge il "Sole 24 Ore".', italian, spanish, F4),
+    check('a number may stand between the capitalised words of a quoted name: read as words the newspaper came out `el "sol 24 horas"''', F4,
+          'El perro lee el "Sole 24 Ore".'),
+    nf_tr('Cesare, il padre di Sofia, è un uomo alto.', italian, english, F5),
+    check('a phrase with an article set off after a name, with the verb after its closing comma, is the name''s aside: read as a verbless piece and a clause the man was the subject after `è'', `a tall man is''', F5,
+          'Cesare, the father of Sofia, is a tall man.'),
+    nf_tr('Il cane dorme (contro ignoti).', italian, spanish, F6),
+    check('a bracket that opens on a preposition is the preposition''s phrase: `contro'' is also the noun `con'', and read as a phrase first it had no Spanish', F6,
+          'El perro duerme (contra desconocidos).'),
+    nf_tr('"Il cane dorme" dice Carolyn, giornalista e critica.', italian, spanish, F7),
+    check('after a name a list goes on in names or in phrases that open on a determiner, and two phrases joined after a speaker are the speaker''s: `dice Carolyn, giornalista e critica'' was a list of three, and refused', F7,
+          '"El perro duerme" dice Carolyn, periodista y crítica.'),
+    nf_tr('È un uomo alto, snello, scuro.', italian, spanish, F8),
+    check('adjectives after their noun with commas between them are one list: `snello'' was a clause of its own, and the sentence was refused', F8,
+          'Es un hombre alto, esbelto, oscuro.'),
+    nf_tr('Un bel giorno il cane dorme.', italian, spanish, F9),
+    check('an adjective crosses by the reading that IS an adjective: `bel'' is the apocope of `bello'' and the unit `bel'', whose meaning it crossed by first', F9,
+          'El perro duerme un bello día.'),
+    nf_tr('La casa è così bella.', italian, spanish, F10),
+    check('an intensifier crosses by the meaning that says a degree: `così'' is `thus'' first, and before an adjective it is `so''', F10,
+          'La casa es tan bella.').
+
+newspaper_fregene_checks_2 :-
+    nf_tr('Se ci sarà una causa non voglio una lira.', italian, spanish, G1),
+    check('`there is'' has nobody for its subject, and a main clause may open on its denial: `se ci sarà una causa non voglio una lira'' took `non'' into the condition, which then said there would be none', G1,
+          'Si habrá una causa no quiero una lira.'),
+    nf_tr('Comunque se ci sarà una causa non voglio una lira.', italian, spanish, G2),
+    check('a connecting adverb before a subordinate clause goes in front of the main clause: read as one clause the piece had two verbs, and was refused', G2,
+          'Si habrá una causa de todos modos no quiero una lira.'),
+    nf_tr('Non chiede il pane, Carolyn.', italian, spanish, G3),
+    check('a name after the last comma of a clause whose subject nobody named is that subject, set at the end: read as an object it took the word before a person, `a Carolyn''', G3,
+          'No pide el pan, Carolyn.'),
+    nf_tr('Non chiede il pane, Carolyn.', italian, english, G4),
+    check('... and English puts it first, and the comma goes with it', G4,
+          'Carolyn does not ask the bread.'),
+    nf_tr('Dormono loro.', italian, english, G5),
+    check('... and `loro'' last after the verb is they: read as the dative it was `to them'', and English said `They sleep them.'' (Spanish writes `Duermen ellos.'' from either reading)', G5,
+          'They sleep.'),
+    nf_tr('La casa è stata molto amata.', italian, spanish, G6),
+    check('a degree adverb between the auxiliary and the participle is the participle''s: lifted as the clause''s adverb it came out `amada muy''', G6,
+          'La casa ha sido muy amada.'),
+    nf_tr('È stata molto amata.', italian, spanish, G7),
+    check('a subject that says no gender lets its participle say it: nobody named, and `amata'' is feminine', G7,
+          'Ha sido muy amada.'),
+    nf_tr('Io sono sicura.', italian, spanish, G8),
+    check('... and its adjective: a first person says no gender, and `sicura'' does', G8,
+          'Yo soy segura.'),
+    nf_tr('Sofia è stata battezzata.', italian, spanish, G9),
+    check('... and a name', G9,
+          'Sofia ha sido bautizada.'),
+    nf_tr('Giovanissima, s''innamora di un uomo.', italian, spanish, G10),
+    check('an adjective with its intensifier in front of a sentence, before its comma, is the front: read with the commas out, `molto giovane'' was a phrase and the subject', G10,
+          'Muy joven, se enamora de un hombre.'),
+    nf_tr('Fruga nella casa, Carolyn, mangia il pane.', italian, spanish, G11),
+    check('a name between two clauses, set off by commas, is the subject of both: read as three pieces the name alone was no clause, and the sentence was refused', G11,
+          'Hurga en la casa, Carolyn, come el pan.'),
+    nf_tr('Fruga nella casa, Carolyn, mangia il pane.', italian, english, G12),
+    check('... and English puts it first, and the second clause shares it', G12,
+          'Carolyn rummages in the house, eats the bread.').
+
+newspaper_fregene_checks_3 :-
+    reason_ir('Un giorno butta il pane.', italian, H1),
+    check('a time in front makes what follows no command: `un giorno butta il pane'' tells what he did one day, and `butta'' is also the command, `Throw the bread''', H1,
+          [ir(s(none,null(third,singular),g(throws,present,simple,no),[obj(np(det(article,the,w(the,lower)),none,[],w(bread,lower),singular)),at_time(np(det(article,a,w(a,lower)),none,[],w(day,lower),singular))]),46)]),
+    nf_tr('Così il cane dorme.', italian, spanish, H2),
+    check('an adverb at the head whose first meaning joins its sentence to the one before stays there: after the verb it was the way he sleeps', H2,
+          'Así el perro duerme.'),
+    nf_tr('Poi il cane dorme "lui è un artista.', italian, spanish, H3),
+    check('a quotation that opens inside a sentence and does not close in it divides the sentence before its first word: read as one clause the piece had two verbs', H3,
+          'Entonces el perro duerme "él es un artista.'),
+    nf_tr('Testa andiamo a Roma, croce in Usa.', italian, spanish, H4),
+    check('a bare noun before a clause of another person is what the clause hangs on, and a capital the lesson knows only as a verb''s form is a name: `testa'' was he tests and `Usa'' he uses', H4,
+          'Cabeza vamos a Roma, cruz en Usa.'),
+    nf_tr('Così bella.', italian, spanish, H5),
+    check('an adjective with its intensifier says something of somebody, the copula and the subject left out', H5,
+          'Tan bella.'),
+    nf_tr('Così amata.', italian, spanish, H6),
+    check('... and a participle with its degree adverb', H6,
+          'Tan amada.'),
+    nf_tr('Povera Margherita.', italian, spanish, H7),
+    check('adjectives before one capitalised word with no determiner are a name''s: `margherita'' is a daisy to the lesson', H7,
+          'Pobre Margherita.'),
+    nf_tr('Certo che ha capito cos''è successo.', italian, spanish, H8),
+    check('a question word after a verb that takes the question stands for what the clause leaves out, and `certo che'' is `of course''', H8,
+          'Claro que ha entendido qué ha pasado.'),
+    nf_tr('Perché il cane dorme?', italian, spanish, H9),
+    check('the lesson says which word asks why: with none `perché'' was `because'', a question that answered itself', H9,
+          '¿Por qué duerme el perro?'),
+    nf_tr('Perché il cane dorme?', italian, english, H10),
+    check('... and English asks it', H10,
+          'Why does the dog sleep?'),
+    nf_tr('Fregene, la tragedia in piscina il dolore e le accuse della madre.', italian, spanish, H11),
+    check('an article and a noun in its number with a word meaning `of'' after it are a phrase, never a clitic and a verb: `le accuse della madre'' was THEY accusing her of the mother', H11,
+          'Fregene, la tragedia en piscina el dolor y las acusaciones de la madre.').
+
+newspaper_fregene_checks_4 :-
+    nf_tr('Il cane mangia un peso non indifferente.', italian, spanish, J1),
+    check('a denial between a noun and its adjective is the phrase''s, not the sentence''s: `un peso non indifferente'' is a weight that is not negligible', J1,
+          'El perro come un peso no indiferente.'),
+    nf_tr('Il cane mangia un peso non indifferente.', italian, english, J2),
+    check('... in English too', J2,
+          'The dog eats a not indifferent weight.'),
+    nf_tr('Il cane vede non solo il gatto ma anche la casa.', italian, spanish, J3),
+    check('not only ... but: a denial before `only'' is no denial of the verb, and the lesson''s partner of `sólo'' is `sino''', J3,
+          'El perro ve no sólo el gato sino también la casa.'),
+    nf_tr('Non solo il cane ma anche il gatto dorme.', italian, spanish, J4),
+    check('... as a subject too, the verb agreeing with the second half: read word by word it was `El perro pero el gato no duermen sólo también''', J4,
+          'No sólo el perro sino también el gato duerme.'),
+    nf_tr('Non solo il cane ma anche il gatto dorme.', italian, english, J5),
+    check('... and English''s own words', J5,
+          'Not only the dog but also the cat sleeps.'),
+    nf_tr('Il pane che ho fatto, non solo io ma anche Maria, è buono, il cane lo mangia.', italian, spanish, J6),
+    check('... as an insertion between a subject and its verb, and the comma that closes it divides nothing: divided after it, the subject and the insertion were a clause with its verb left out', J6,
+          'El pan que he hecho, no sólo yo sino también Maria, es bueno, el perro lo come.'),
+    nf_tr('Il pane che ho fatto, non solo io ma il gatto, è buono, il cane lo mangia.', italian, spanish, J15),
+    check('... and no coordinator inside it divides the sentence: at `ma'' both sides read, a verbless piece and `il gatto, è buono'', and English said `I not only but the cat'' -- the case''s `ma anche'' was kept whole only because `anche'' is also the plural of `anca'', a bare noun no clause begins on', J15,
+          'El pan que he hecho, no sólo yo sino el gato, es bueno, el perro lo come.'),
+    nf_tr('Il motivo per cui il cane dorme è il pane.', italian, spanish, J7),
+    check('a preposition and the relative word joined as one word of the lesson''s open a relative clause: `per cui'' is also the conjunction `so''', J7,
+          'El motivo para el que el perro duerme es el pan.'),
+    nf_tr('Il motivo per cui il cane dorme è il pane.', italian, english, J8),
+    check('... in English too', J8,
+          'The reason for which the dog sleeps is the bread.'),
+    nf_tr('Il cane va in Usa.', italian, spanish, J9),
+    check('a capitalised word the lesson knows only as a verb''s form is a name after a preposition', J9,
+          'El perro va en Usa.'),
+    nf_tr('Il cane vede lo stabilimento "miraggio".', italian, spanish, J10),
+    check('a noun in quotation marks after a noun says what kind, and is written after it: it was written before, `el "espejismo" establecimiento''', J10,
+          'El perro ve el establecimiento "espejismo".'),
+    nf_tr('Lui non è un artista come avete scritto.', italian, spanish, J11),
+    check('`come'' after a phrase and before a clause is `as'': read as `how'' it was the question `cómo''', J11,
+          'Él no es un artista como habéis escrito.'),
+    nf_tr('I cani sono più occupati a mangiare il pane che a guardare il gatto.', italian, spanish, J12),
+    check('a comparison whose second term is an infinitive with its preposition, and the word for `more'' before a participle is its degree: refused', J12,
+          'Los perros son más ocupados a comer el pan que a mirar el gato.'),
+    nf_tr('I cani sono più occupati a mangiare il pane che a guardare il gatto.', italian, english, J13),
+    check('... in English too', J13,
+          'The dogs are more occupied to eat the bread than to watch the cat.'),
+    nf_tr('È come quando mangi il pane.', italian, spanish, J14),
+    check('the word for `as'' before a clause of `when'' is as when: refused', J14,
+          'Es como cuando comes el pan.').
+
+newspaper_fregene_checks_5 :-
+    nf_tr('È durata così poco.', italian, spanish, K1),
+    check('a degree adverb before another adverb is that adverb''s: `così poco'' was `así poco''', K1,
+          'Ha durado tan poco.'),
+    nf_tr('La donna ha tanto coraggio.', italian, spanish, K2),
+    check('a determiner that is an adverb too, before a noun in its number, is the phrase''s: `tanto coraggio'' ended before `tanto'' and came out `como coraje''', K2,
+          'La mujer tiene tanto coraje.'),
+    nf_tr('Il cane vede la casa che sarà venduta.', italian, spanish, K3),
+    check('a relative clause''s participle agrees with the phrase it sits on: with a gap for a subject it came out `vendido''', K3,
+          'El perro ve la casa que será vendida.'),
+    nf_tr('Il cane vede un uomo alto e snello.', italian, english, K4),
+    check('an adjective with a coordinator and an adjective after it ends no phrase: `un uomo alto e snello'' was a man, high, and slender', K4,
+          'The dog sees a tall and slender man.'),
+    nf_tr('Non è molto conosciuto.', italian, spanish, K5),
+    check('a passive has an object by what it is, so its verb is chosen as a transitive one''s: `conocido'', where it was `sabido''', K5,
+          'No es muy conocido.'),
+    nf_tr('Tutti dormono.', italian, spanish, K6),
+    check('a pronoun the lesson states as a plural is plural: `tutti'' is everyone, singular in English, and the plural verb refused it', K6,
+          'Todos duermen.'),
+    nf_tr('Tutti dormono.', italian, english, K7),
+    check('... and English agrees with its own word', K7,
+          'Everyone sleeps.'),
+    nf_tr('Per oggi, i risultati dell''autopsia che sarà effettuata dal medico.', italian, spanish, K8),
+    check('a participle the lesson calls a noun too, with no noun before it, is the phrase''s noun: `risultati'' is also what `risultare'' says of several things, and the sentence was refused', K8,
+          'Para hoy, los resultados de la autopsia que será efectuada por el médico.'),
+    nf_tr('Io non parlo per il bagnino ma in genere è così.', italian, english, K9),
+    check('English leaves a second subject out only where the first is of the same person and number: `io ... ma in genere è così'' is I and then it, and elided it came out `I do not speak ... but is thus generally''', K9,
+          refused),
+    nf_tr('Il cane vede l''inchiesta (contro ignoti) aperta dal medico.', italian, spanish, K10),
+    check('a bracket before a participle with its agent is the phrase''s: hung on the whole it had no reading', K10,
+          'El perro ve la indagación (contra desconocidos) abierta por el médico.'),
+    nf_tr('Oggi il cane dorme.', italian, spanish, K11),
+    check('GUARD: an adverb at the head that joins nothing still goes after the verb, 1.6.8''s rule', K11,
+          'El perro duerme hoy.'),
+    nf_tr('Il cane dorme così.', italian, spanish, K12),
+    check('GUARD: and standing alone `così'' is thus', K12,
+          'El perro duerme así.'),
+    nf_tr('Il cane mangia il pane ma dorme.', italian, english, K13),
+    check('GUARD: and English still leaves out a second subject that is the first one', K13,
+          'The dog eats the bread but sleeps.').
+
+%% what reading the report whole found after the case above was written:
+%% each red on the translator of that moment as well as on 1.8.24
+newspaper_fregene_checks_6 :-
+    nf_tr('Il cane dorme ma perché il gatto mangia?', italian, spanish, L1),
+    check('a question that opens in the second clause is that clause''s: read as one question, `perché'' was `because'' and the sentence asked whether the dog sleeps -- `Sì, può essere che Margherita abbia avuto un malore ma perché nessuno le ha viste?''', L1,
+          'El perro duerme pero ¿por qué come el gato?'),
+    nf_tr('Il cane dorme ma perché il gatto mangia?', italian, english, L2),
+    check('... and English asks it there', L2,
+          'The dog sleeps but why does the cat eat?'),
+    nf_tr('Il cane vede Maria o meglio Carla.', italian, spanish, L3),
+    check('`or rather'' is a coordinator of two words: read as `o'' and the adverb `meglio'' the adverb went to the end of the clause, `È Margherita o meglio Malgorzata Dworak'' ... `de la pareja mejor''', L3,
+          'El perro ve a Maria o mejor dicho Carla.'),
+    nf_tr('Il cane vede Maria o meglio Carla.', italian, english, L4),
+    check('... in English too', L4,
+          'The dog sees Maria or rather Carla.').
+
+%% what the controls found: the old controls read on the new store, each
+%% sentence below the shape of a text the first cut of this version moved,
+%% and the GUARDs pin what 1.8.24 already did right
+newspaper_fregene_checks_7 :-
+    nf_tr('Il cane mangia il pane perché il gatto dorme.', italian, spanish, M1),
+    check('a question word that is a connector too asks only after a verb that takes the question: once the lesson said `perché'' asks why, `perché'' after the verb''s object read as `why'' -- `La sinistra l''ha attaccata perché ...'', `por qué'' in four old controls', M1,
+          'El perro come el pan porque el gato duerme.'),
+    nf_tr('Il cane sa perché il gatto dorme.', italian, spanish, M2),
+    check('GUARD: and after a verb that takes the question it asks', M2,
+          'El perro sabe por qué el gato duerme.'),
+    nf_tr('El perro se enamora del gato.', spanish, italian, M3),
+    check('a pronoun''s elision is written only before what the lesson says it comes before: the line that reads `s''innamora'' made `S''aumentarono le vendite'' and `come s''era annunciato'' of four old controls', M3,
+          'Il cane si innamora del gatto.'),
+    nf_tr('Il cane vede la Tate Gallery.', italian, spanish, M4),
+    check('a capitalised noun no reading of its determiner can take is no noun of it: `tate'' is the plural of `tata'', and `la Tate Gallery'' read as the babysitters with `Gallery'' apposed, which nothing could write', M4,
+          'El perro ve la Tate Gallery.'),
+    nf_tr('Evacuata la Tate Gallery.', italian, english, M4b),
+    check('... and after a headline''s participle, where the subject finder ended the phrase at `Tate'' and `la Tate'' alone had no reading: the twelve''s first sentence, refused on the full store after the check above was green', M4b,
+          'The Tate Gallery has been evacuated.'),
+    nf_tr('Il cane vede la "Casa".', italian, spanish, M5),
+    check('GUARD: a quoted word the lesson knows that can be the noun of its determiner is the word: `la "Bastiglia"'' went through untranslated in three sentences of an old control', M5,
+          'El perro ve la "casa".'),
+    nf_tr('El perro a veces duerme.', spanish, italian, M6),
+    check('GUARD: the dictionary''s word for `sometimes'' said again first: with `a volte'' first, an old control''s `a veces maleducada'' came out `a volte maleducata''', M6,
+          'Il cane dorme talvolta.'),
+    nf_tr('Il cane va a restare.', italian, spanish, M7),
+    check('GUARD: a verb said to take no object, and not a meaning of it: `The intransitive verb "resta" means "remains".'' kept `remains'' for a clause with no object, and an infinitive crossed as `stays'', which Spanish has no word for -- `è costretto a restare per 25 anni''', M7,
+          'El perro va a quedar.'),
+    nf_tr('Resta il cane.', italian, english, M8),
+    check('GUARD: ... and the verb that takes no object still has its subject after it (into English: Spanish writes `Queda el perro.'' from either reading, and English refuses a verb nobody is named for)', M8,
+          'The dog remains.'),
+    nf_tr('Poi ci sarà il pane.', italian, spanish, M9),
+    check('a front with no comma before `there is'' is written in front: the connecting adverb kept there, the writer of `there is'' found it among the complements and wrote nothing -- `allora c''è spazio per qualche preoccupazione''', M9,
+          'Entonces habrá el pan.'),
+    nf_tr('Cosa ci sarà?', italian, spanish, M10),
+    check('GUARD: `there is'' with nobody named and something asked for keeps the reading it had: the first cut refused every one with nobody named, and `che cosa ci sarebbe di male ...?'' had no other reading', M10,
+          '¿Qué habrá?'),
+    nf_tr('Il cane vuole sapere come il gatto dorme.', italian, spanish, M11),
+    check('GUARD: `how'' after an infinitive that takes the question asks, and is `as'' only after a phrase: `bisognerebbe sapere come sono finiti lì'' came out `como''', M11,
+          'El perro quiere saber cómo el gato duerme.'),
+    nf_tr('Il cane vede la casa che vede chi è stanco.', italian, spanish, M12),
+    check('GUARD: the clause of `chi'' has its own gap''s gender: written inside the clause on `casa'' it took the house''s, `cansada'' -- `chi in Italia (evidentemente a lui obbligato) non lo imita'' came out `obligada''', M12,
+          'El perro ve la casa que ve al que es cansado.'),
+    nf_tr('¡Feliz Navidad!', spanish, english, M13),
+    check('GUARD: a noun the lesson knows after adjectives is a name only where the lesson says it is one: `Happy Christmas!'' came out `Happy Navidad!''', M13,
+          'Happy Christmas!'),
+    nf_tr('¿Qué tal un poco de pan?', spanish, english, M14),
+    check('a question word that relates nothing is no phrase''s noun: `qué tal'' read as such what once `un poco'' could be read, where it was refused', M14,
+          refused),
+    nf_tr('Todos ellos pueden comer.', spanish, english, M15),
+    check('GUARD: `ellos'' never stands before its verb as its object, which the lesson says: read as one, `Todos ellos pueden conducir.'' came out `Everyone can them drive.'' (the lesson says `ellos'' means `them'' as well, as the vocabulary does, or no arm could show it)', M15,
+          refused).
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 
