@@ -1078,3 +1078,57 @@ The feminine determiner "varias" means "several".
 # apertium-spa has `politécnico' only as the adjective
 The masculine noun "politécnico" means "polytechnic".
 "politécnicos" is the plural of "politécnico".
+# the Radio Nacional anniversary (AnCora CESS-CAST-P-19990701-83), into
+# Italian.
+# `Levanto una barretina por RTVE': the Catalan cap -- in no dictionary
+# here, and English and Italian call it by its Catalan name
+The feminine noun "barretina" means "barretina".
+"barretinas" is the plural of "barretina".
+# `Hubo, sin embargo, un desliz protocolario': there was, the preterite --
+# the builder states `había' and not `hubo', and read as a name at the head
+# the sentence had no verb; `había' is still the past written
+"hubo" is the past of "hay".
+# `Toda una proeza, tanto por ese medio siglo como por la sensibilidad':
+# both ... and -- the dictionary gives `tanto' as the conjunction `both', and
+# this says which word is its partner
+"como" is the partner of "tanto".
+# `la sensibilidad para con su entorno social': towards, one word of two --
+# `hacia' is said again first, so that it stays the word written
+The preposition "hacia" means "towards".
+The preposition "para con" means "towards".
+# `el inicio de los Juegos Olímpicos': the games -- the dictionary's first
+# meaning of `juego' is `gambling', and the Olympic Games came out the
+# Olympic gambling
+The masculine noun "juego" means "game".
+# `sintonías (De España para los españoles, ...)': the theme tunes of radio
+# programmes -- read as `tuning', which Italian writes `ottimizzazione'; a
+# line and not a one-way entry, which the builder drops for a word that has
+# a meaning already
+The feminine noun "sintonía" means "jingle".
+"sintonías" is the plural of "sintonía".
+# `y hasta anuncios (Telefunken, La Lechera)': and even adverts -- `hasta'
+# is `until' before a time and a place, and the adverb `even' before what
+# a list adds last
+The adverb "hasta" means "even".
+# `el inicio de los Juegos Olímpicos', `el inicio de una nueva etapa': the
+# beginning -- the dictionary gives `inicio' only `onset' and `start', which
+# Italian has no noun for, and each sentence was refused; `comienzo' is said
+# again first, so that it stays the word written
+The masculine noun "comienzo" means "beginning".
+The masculine noun "inicio" means "beginning".
+# `dos "personajes singulares que representan a otros muchos"': many
+# others, a pronoun of two words and a person, so the word before a person
+# goes with it -- read apart, `a otros' was `to others' and `muchos' a
+# pronoun before nothing, `a altri molti'
+The pronoun "otros muchos" means "many others". The pronoun "otros muchos" does not precede the verb. "otros muchos" is a person.
+# `altos ejecutivos de medios de comunicación': the media, a noun of three
+# words -- read apart, `medios' was the middle
+The masculine noun "medio de comunicación" means "medium". "medios de comunicación" is the plural of "medio de comunicación".
+# `Voces de un ayer que marcó época': a yesterday, the adverb as a noun
+# after an article
+The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday".
+# `Voces de un ayer que marcó época': to make history, a verb of two words
+# that takes no object -- read apart, `época' was an object and the stars
+# after `y' a second one
+The intransitive verb "marca época" means "makes history".
+"marcan época" is the plural of "marca época". "marcó época" is the past of "marca época". "marcaron época" is the past of "marcan época". "marcar época" is the infinitive of "marca época".

@@ -1487,3 +1487,40 @@ The dative pronoun "le" means "her".
 # dictionary's first meaning is `least'; and much less, one word of two
 The adverb "meno" means "less".
 The adverb "molto meno" means "much less".
+# the Radio Nacional anniversary (AnCora CESS-CAST-P-19990701-83), into
+# Italian.
+# `Levanto una barretina por RTVE': the Catalan cap, by its Catalan name
+The feminine noun "barretina" means "barretina".
+"barretine" is the plural of "barretina".
+# `tanto por ese medio siglo como por la sensibilidad': both ... and, the
+# pair Italian says as `tanto ... quanto'
+The conjunction "tanto" means "both".
+"quanto" is the partner of "tanto".
+# `el inicio de los Juegos Olímpicos': the games -- the dictionary's first
+# meaning of `gioco' is `gambling'
+The masculine noun "gioco" means "game".
+# `che rappresentano molti altri': many others, for the Spanish `otros
+# muchos'
+The pronoun "molti altri" means "many others". The pronoun "molti altri" does not precede the verb.
+# `el aplauso de estrellas actuales de las ondas': the applause -- the
+# dictionary's first word for it is `battimano', the clapping of hands
+The masculine noun "applauso" means "applause".
+# `dirigenti dei mezzi di comunicazione': the media, for the Spanish `medios
+# de comunicación'
+The masculine noun "mezzo di comunicazione" means "medium". "mezzi di comunicazione" is the plural of "mezzo di comunicazione".
+# `le voci di un ieri': a yesterday, for the Spanish `un ayer'
+The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday".
+# `un ayer que marcó época': an epoch, which the dictionary gives Italian no
+# word for; said after `period', which stays the word's first meaning
+The feminine noun "epoca" means "epoch".
+# `le voci di un ieri che fece epoca': to make history, for the Spanish
+# `marcar época'
+The intransitive verb "fa epoca" means "makes history".
+"fanno epoca" is the plural of "fa epoca". "fece epoca" is the past of "fa epoca". "fecero epoca" is the past of "fanno epoca". "fare epoca" is the infinitive of "fa epoca".
+# `Puntiamo però su un attaccante straniero' (the Ferlaino interview): a
+# forward is a person -- the builder asks its list of persons with the first
+# English word it forms a noun with, `striker', which the list lacks; and
+# among nouns that are all adjectives too the one the lesson calls a person
+# heads the phrase, so `straniero' was the head and `attaccante' its
+# adjective, `un atacante extranjero'
+"attaccante" is a person.

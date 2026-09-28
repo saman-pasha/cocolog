@@ -505,3 +505,23 @@
 # `tormentare' and the bilingual pairs only the noun; read as the noun
 # `tormenta', a storm, the relative clause had no verb
 <e><p><l>torment<s n="vblex"/></l><r>tormentare<s n="vblex"/></r></p></e>
+# the Radio Nacional anniversary (AnCora CESS-CAST-P-19990701-83), into
+# Italian.
+# `el campeón motociclista Sito Pons': motorcyclist, the noun, and
+# motorcycling, the adjective -- apertium-ita carries `motociclista' and
+# `motociclistico' and the bilingual pairs neither
+<e><p><l>motorcyclist<s n="n"/></l><r>motociclista<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>motorcycling<s n="adj"/></l><r>motociclistico<s n="adj"/></r></p></e>
+# `un desliz protocolario': protocolary -- apertium-ita carries the adjective
+# `protocollare' and the bilingual pairs nothing with it
+<e><p><l>protocolary<s n="adj"/></l><r>protocollare<s n="adj"/></r></p></e>
+# `Toda una proeza': a feat -- apertium-ita carries `prodezza' and the
+# bilingual pairs nothing with it, and English's `exploit' had no Italian
+# noun at all
+<e><p><l>exploit<s n="n"/></l><r>prodezza<s n="n"/><s n="f"/></r></p></e>
+# `sintonías': a programme's theme tune, which Italian calls its `sigla';
+# written only, `sigla' still reads as an acronym
+<e r="LR"><p><l>jingle<s n="n"/></l><r>sigla<s n="n"/><s n="f"/></r></p></e>
+# `stelle tanto disparate': apertium-ita carries the adjective `disparato'
+# and the bilingual pairs nothing with it
+<e><p><l>disparate<s n="adj"/></l><r>disparato<s n="adj"/></r></p></e>

@@ -28,7 +28,7 @@ main :-
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
     newspaper_georgia, newspaper_wapo, newspaper_clinton, newspaper_letter, newspaper_solana,
     newspaper_pacifist, newspaper_mobile, newspaper_bastille, newspaper_basque, newspaper_giglio,
-    newspaper_england, newspaper_bovalino, newspaper_puigbo, newspaper_salvini,
+    newspaper_england, newspaper_bovalino, newspaper_puigbo, newspaper_salvini, newspaper_radio,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -6931,6 +6931,241 @@ newspaper_salvini_checks_4 :-
     nf_tr('Case proibite ai cani.', italian, spanish, V6),
     check('a GUARD: a headline''s bare plural noun and a PARTICIPLE after it is the headline participle''s (1.8.4), never the noun and an adjective: `Auto proibite nelle isole del sole.'' was refused, `forbidden'' being no adjective Spanish has', V6,
           'Casas prohibidas a los perros.').
+
+newspaper_radio :-
+    section('a Spanish report into Italian: an ordinal, a list whose items have phrases of their own, parts set off by semicolons, a sentence that is the list alone, a heading with all, both ... and, there was after an insertion, a quotation that opens on a participle, a relative clause set off in the first of two subjects, two bare plurals joined, all before a bare plural, a quoted run no lesson knows, titles in a bracket, even, two insertions after a relative word, a time with its own infinitive, the person set off again, a name after a name, a pronoun that is a person, a demonstrative''s apocope, an elision by the last word of several, a purpose after an aside'),
+    newspaper_radio_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_radio_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_radio_checks_1, newspaper_radio_checks_2, newspaper_radio_checks_3, newspaper_radio_checks_4,
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+%% each lesson in two parts, because a clause over a page (8 KB) cannot be
+%% stored
+newspaper_radio_lesson(L, Text) :-
+    newspaper_radio_part(L, 1, A), newspaper_radio_part(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+newspaper_radio_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The noun "queso" means "cheese". The feminine noun "casa" means "house".
+The noun "ministro" means "minister". "ministro" is a person. The noun "hermano" means "brother". "hermano" is a person.
+The noun "amigo" means "friend". "amigo" is a person. The noun "hombre" means "man". "hombre" is a person.
+The feminine noun "voz" means "voice". "voces" is the plural of "voz". "voz" is feminine.
+The feminine noun "estrella" means "star". The feminine noun "onda" means "wave".
+The noun "político" means "politician". "político" is a person.
+The noun "deportista" means "sportsman". "deportista" is not feminine. "deportista" is a person.
+The noun "artista" means "artist". "artista" is not feminine. "artista" is a person.
+The noun "centro" means "centre". The feminine noun "dirección" means "direction". "direcciones" is the plural of "dirección".
+The noun "aniversario" means "anniversary". The noun "momento" means "moment". "momento" is a time.
+The noun "personaje" means "character". "personaje" is a person.
+The feminine noun "proeza" means "exploit". The noun "desliz" means "slip". The noun "anuncio" means "ad".
+The feminine noun "canción" means "song". "canciones" is the plural of "canción". "canción" is feminine.
+The feminine noun "señal" means "signal". "señal" is feminine. The feminine noun "amistad" means "friendship". "amistad" is feminine.
+The noun "antecesor" means "predecessor". "antecesor" is a person. The noun "martes" means "tuesday". "martes" is a time.
+The noun "nieve" means "snow". "nieves" is the plural of "nieve". The noun "herrero" means "smith". "herrero" is a person.
+The masculine noun "alto" means "height". The masculine adjective "alto" means "high".
+The masculine noun "ejecutivo" means "executive". "ejecutivo" is a person. The masculine adjective "ejecutivo" means "executive".').
+
+newspaper_radio_part(spanish, 2, 'The adverb "hoy" means "today". The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday".
+The intransitive verb "marca época" means "makes history". "marcó época" is the past of "marca época".
+The adverb "hasta" means "even". The preposition "hasta" means "until". The adverb "sin embargo" means "however". The adverb "también" means "also".
+The conjunction "tanto" means "both". "como" is the partner of "tanto".
+The preposition "como" means "like". The preposition "además de" means "besides". The preposition "así como" means "just like".
+The masculine pronoun "éste" means "this". The pronoun "éste" does not precede the verb.
+The feminine pronoun "toda" means "everything". "todas" is the plural of "toda". The pronoun "toda" does not precede the verb.
+The masculine pronoun "todo" means "all". The feminine pronoun "toda" means "all".
+The pronoun "otros muchos" means "many others". The pronoun "otros muchos" does not precede the verb. "otros muchos" is a person.
+The demonstrative "ese" means "that". "esos" is the plural of "ese". The adjective "medio" means "half".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comió" is the past of "come". "comieron" is the past of "comen".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "durmió" is the past of "duerme". "durmieron" is the past of "duermen".
+The verb "ve" means "sees". "ven" is the plural of "ve". "vio" is the past of "ve". "ver" is the infinitive of "ve".
+The verb "viene" means "comes". The verb "celebra" means "celebrates". "celebrar" is the infinitive of "celebra".
+The verb "canta" means "sings". The verb "representa" means "represents". "representan" is the plural of "representa".
+The verb "homenajea" means "honours". "homenajear" is the infinitive of "homenajea".
+The verb "reúne" means "gathers". "reúnen" is the plural of "reúne". "reunió" is the past of "reúne". "reunieron" is the past of "reúnen".
+The verb "asegura" means "ensures". "aseguró" is the past of "asegura". "asegura" takes the clause.
+The verb "prepara" means "prepares". "preparado" is the participle of "prepara". "preparados" is the participle of "prepara". "preparados" is the plural of "preparado".
+The verb "es" means "is". "son" is the plural of "es". "fue" is the past of "es".
+The auxiliary "está" means "is". "están" is the plural of "está". The auxiliary "está" marks the state.
+The verb "hay" means "there is". "hay" is the plural of "hay". "había" is the past of "hay". "hubo" is the past of "hay".
+The conjunction "y" means "and". The conjunction "o" means "or". The conjunction "que" means "that". "que" is a relative.
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with".
+The preposition "por" means "for". The preposition "desde" means "from". The word "para" begins the purpose. The preposition "para" means "for".
+The intransitive verb "para" means "stops". The verb "para" means "stops".
+The impersonal pronoun "se" means "one". The reflexive pronoun "se" means "itself".
+The number "dos" means "two".
+The verb "envía" means "sends". "enviar" is the infinitive of "envía". The noun "orden" means "order". "órdenes" is the plural of "orden".
+The verb "comparece" means "appears". "comparecer" is the infinitive of "comparece". The verb "habla" means "speaks". "hablar" is the infinitive of "habla".
+The noun "equipo" means "team". The noun "campeón" means "champion". "campeón" is a person.').
+
+newspaper_radio_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "delle" is the contraction of "di le".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "al" is the contraction of "a il". "alla" is the contraction of "a la".
+"allo" is the contraction of "a lo". "dal" is the contraction of "da il".
+The article "lo" comes before a vowel. The article "lo" comes before "sc". "l''" is the elision of "lo". "all''" is the elision of "allo".
+The article "il" takes the year. "d''" is the elision of "di".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread". "pani" is the plural of "pane". The noun "formaggio" means "cheese". The feminine noun "casa" means "house".
+The noun "ministro" means "minister". "ministri" is the plural of "ministro". "ministro" is a person.
+The noun "fratello" means "brother". "fratelli" is the plural of "fratello". "fratello" is a person.
+The noun "amico" means "friend". "amico" is a person. The noun "uomo" means "man". "uomo" is a person.
+The feminine noun "voce" means "voice". "voci" is the plural of "voce". "voce" is feminine.
+The feminine noun "stella" means "star". "stelle" is the plural of "stella". The feminine noun "onda" means "wave". "onde" is the plural of "onda".
+The noun "politico" means "politician". "politici" is the plural of "politico". "politico" is a person.
+The noun "sportivo" means "sportsman". "sportivi" is the plural of "sportivo". "sportivo" is a person.
+The noun "artista" means "artist". "artisti" is the plural of "artista". "artista" is not feminine. "artista" is a person.
+The noun "centro" means "centre". The feminine noun "direzione" means "direction". "direzioni" is the plural of "direzione". "direzione" is feminine.
+The noun "anniversario" means "anniversary". The noun "momento" means "moment". "momento" is a time.
+The noun "personaggio" means "character". "personaggi" is the plural of "personaggio". "personaggio" is a person.
+The feminine noun "prodezza" means "exploit". The feminine noun "scivolata" means "slip". The noun "annuncio" means "ad". "annunci" is the plural of "annuncio".
+The feminine noun "canzone" means "song". "canzoni" is the plural of "canzone". "canzone" is feminine.
+The noun "segnale" means "signal". The feminine noun "amicizia" means "friendship".
+The noun "antenato" means "predecessor". "antenato" is a person. The noun "martedì" means "tuesday". "martedì" is a time.
+The feminine noun "neve" means "snow". "nevi" is the plural of "neve". "neve" is feminine. The noun "fabbro" means "smith". "fabbro" is a person.
+The adjective "alto" means "high". "alti" is the plural of "alto".
+The noun "esecutivo" means "executive". "esecutivi" is the plural of "esecutivo". "esecutivo" is a person.').
+
+newspaper_radio_part(italian, 2, 'The adverb "oggi" means "today". The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday".
+The intransitive verb "fa epoca" means "makes history". "fece epoca" is the past of "fa epoca".
+The adverb "persino" means "even". The preposition "fino a" means "until". The adverb "però" means "however". The adverb "anche" means "also".
+The conjunction "tanto" means "both". "quanto" is the partner of "tanto".
+The preposition "come" means "like". The preposition "oltre a" means "besides". The preposition "così come" means "just like".
+The pronoun "questo" means "this". The pronoun "questo" does not precede the verb. "quest''" is the elision of "questo".
+The feminine pronoun "tutta" means "everything". "tutte" is the plural of "tutta". The pronoun "tutta" does not precede the verb.
+The masculine pronoun "tutto" means "all". The feminine pronoun "tutta" means "all".
+The pronoun "molti altri" means "many others". The pronoun "molti altri" does not precede the verb.
+The demonstrative "quello" means "that". "quel" is the apocope of "quello". "quei" is the plural of "quel". The adjective "mezzo" means "half".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiò" is the past of "mangia". "mangiarono" is the past of "mangiano".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormì" is the past of "dorme". "dormirono" is the past of "dormono".
+The verb "vede" means "sees". "vedono" is the plural of "vede". "vide" is the past of "vede". "vedere" is the infinitive of "vede".
+The verb "viene" means "comes". The verb "celebra" means "celebrates". "celebrare" is the infinitive of "celebra".
+The verb "canta" means "sings". The verb "rappresenta" means "represents". "rappresentano" is the plural of "rappresenta".
+The verb "onora" means "honours". "onorare" is the infinitive of "onora".
+The verb "riunisce" means "gathers". "riuniscono" is the plural of "riunisce". "riunì" is the past of "riunisce". "riunirono" is the past of "riuniscono".
+The verb "assicura" means "ensures". "assicurò" is the past of "assicura". "assicura" takes the clause.
+The verb "prepara" means "prepares". "preparato" is the participle of "prepara". "preparati" is the participle of "prepara". "preparati" is the plural of "preparato".
+The verb "è" means "is". "sono" is the plural of "è". "fu" is the past of "è".
+The verb "c''è" means "there is". "ci sono" is the plural of "c''è". "c''era" is the past of "c''è".
+The conjunction "e" means "and". The conjunction "o" means "or". The conjunction "che" means "that". "che" is a relative.
+The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with".
+The preposition "da" means "from". The preposition "per" means "for". The word "per" begins the purpose.
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one".
+The number "due" means "two".
+The verb "spedisce" means "sends". "spedire" is the infinitive of "spedisce". The noun "ordine" means "order". "ordini" is the plural of "ordine".
+The verb "figura" means "appears". "figurare" is the infinitive of "figura". The verb "parla" means "speaks". "parlare" is the infinitive of "parla".
+The feminine noun "squadra" means "team". The noun "campione" means "champion". "campione" is a person.
+The masculine adjective "nuovo" means "new". The feminine adjective "nuova" means "new".').
+
+newspaper_radio_checks_1 :-
+    nf_tr('El perro celebra el 50º aniversario.', spanish, italian, R1),
+    check('an ordinal is one word with its sign: the tokeniser dropped the `º'', and the fiftieth anniversary was `il 50 anniversario''', R1,
+          'Il cane celebra il 50º anniversario.'),
+    nf_tr('El perro celebra el 50º aniversario.', spanish, english, R2),
+    check('... and English writes its own suffix', R2, 'The dog celebrates the 50th anniversary.'),
+    nf_tr('Voces de un ayer que marcó época y estrellas de las ondas se reunieron.', spanish, italian, R3),
+    check('two halves that open on a bare plural noun are two things, a preposition in the first or not; and a relative clause of one verb that takes nothing after it is closed', R3,
+          'Voci d''un ieri che fece epoca e stelle delle onde si riunirono.'),
+    nf_tr('Estrellas de hoy, políticos de ese centro, deportistas y artistas se reunieron.', spanish, italian, R4),
+    check('a comma before an item of a list whose later commas are the list''s is one too, when the words on either side are a subject''s phrase: `de hoy políticos'' was of politicians', R4,
+          'Stelle d''oggi, politici di quel centro, sportivi e artisti si riunirono.'),
+    nf_tr('Políticos que comen pan, deportistas y artistas se reunieron.', spanish, italian, R5),
+    check('a list''s own comma closes a relative clause: the clause ran on, and the sportsmen and the artists were what the politicians eat', R5,
+          'Politici che mangiano pane, sportivi e artisti si riunirono.'),
+    nf_tr('El perro viene desde todas direcciones.', spanish, italian, R6),
+    check('a word that means `all'' before a bare plural noun is the phrase''s: read as the pronoun standing alone, it was from everything, `da tutto direzioni''', R6,
+          'Il cane viene da tutte direzioni.'),
+    nf_tr('Toda una proeza, tanto por el pan como por el queso.', spanish, italian, R7),
+    check('a heading with all, and both ... and: `tanto'' was the determiner `so much'' and `como'' the preposition `like''', R7,
+          'Tutta una prodezza, tanto per il pane quanto per il formaggio.'),
+    nf_tr('Toda una proeza, tanto por el pan como por el queso.', spanish, english, R8),
+    check('... and English''s own pair', R8, 'All an exploit, both for the bread and for the cheese.'),
+    nf_tr('Hubo, sin embargo, un desliz.', spanish, italian, R9),
+    check('there was, after an insertion between two commas: read with nobody named for its subject, `C''erano''', R9,
+          'C''era, però, una scivolata.'),
+    nf_tr('Hubo, sin embargo, un desliz.', spanish, english, R10),
+    check('... and English writes the insertion where it stood', R10, 'There was, however, a slip.').
+
+newspaper_radio_checks_2 :-
+    nf_tr('El ministro aseguró que los perros están "preparados para la casa".', spanish, italian, Q1),
+    check('a quotation that opens on a passive''s participle keeps its mark there', Q1,
+          'Il ministro assicurò che i cani sono "preparati per la casa".'),
+    nf_tr('Omar, que comió el pan, y Maria duermen.', spanish, italian, Q2),
+    check('a relative clause set off in the first of two subjects keeps its commas, and the two are the plural''s subject: read with the commas out it was one man, `dorme''', Q2,
+          'Omar, che mangiò il pane, e Maria dormono.'),
+    nf_tr('El perro canta el "ja sóc aquí" de Omar.', spanish, italian, Q3),
+    check('a quoted run with a word no lesson knows stands where the noun goes, and is written back word for word', Q3,
+          'Il cane canta il "ja sóc aquí" d''Omar.'),
+    nf_tr('El perro canta canciones (De España para todos, Elena Francis, Fantasía...) y hasta anuncios (Telefunken, La Lechera).', spanish, italian, Q4),
+    check('titles in a bracket are written as they stood, points and all; and `hasta'' before a bare noun after a coordinator is even', Q4,
+          'Il cane canta canzoni (De España para todos, Elena Francis, Fantasía...) e persino annunci (Telefunken, La Lechera).'),
+    nf_tr('El perro vio al ministro que, en 1974, como señal de amistad, comió el pan.', spanish, italian, Q5),
+    check('two insertions after a relative word, and a year after `que'' is no aside of it', Q5,
+          'Il cane vide il ministro che, nel 1974, come segnale d''amicizia, mangiò il pane.'),
+    nf_tr('Fue el momento de homenajear a dos personajes, Omar y Juan.', spanish, italian, Q6),
+    check('a time with its own infinitive is a thing named, what follows the infinitive is its own, and the names set off after the person are the person again: `onorare a due''', Q6,
+          'Fu il momento d''onorare due personaggi, Omar e Juan.'),
+    nf_tr('El perro ve a Omar Pérez y Nieves Herrero.', spanish, italian, Q7),
+    check('after a name and a coordinator a run of capitalised words is a name too: `nieves'' is snows and `herrero'' a smith to the lesson', Q7,
+          'Il cane vede Omar Pérez e Nieves Herrero.'),
+    nf_tr('Omar ve a dos "hermanos que representan a otros muchos".', spanish, italian, Q8),
+    check('a word of several words may close a quotation on its last word, and a pronoun is of the class the lesson says its word is of: `"otros muchos" is a person.'', so the word before a person goes with it -- `a molti altri''', Q8,
+          'Omar vede due "fratelli che rappresentano molti altri".').
+
+newspaper_radio_checks_3 :-
+    nf_tr('El perro come ese medio pan.', spanish, italian, P1),
+    check('a demonstrative before its noun loses its ending where the article does: `quello mezzo pane''', P1,
+          'Il cane mangia quel mezzo pane.'),
+    nf_tr('El perro duerme además del amigo.', spanish, italian, P2),
+    check('a word of several words elides by its last word: `oltre allo amico''', P2,
+          'Il cane dorme oltre all''amico.'),
+    nf_tr('El perro ve al amigo de éste en Roma.', spanish, italian, P3),
+    check('no elision before a preposition, which opens another phrase: `di quest''in Roma''', P3,
+          'Il cane vede l''amico di questo in Roma.'),
+    nf_tr('El hombre que duerme se reunió.', spanish, english, P4),
+    check('a clitic heads no phrase, and a subject ends on no reflexive: read as the phrase `one'', the reflexive was what the man sleeps, and over the vocabulary Italian wrote `L''uomo che dorme uno adunò''', P4,
+          'The man that sleeps gathered.'),
+    nf_tr('Los perros que comen pan se reunieron el martes, en la casa, para comer.', spanish, italian, P5),
+    check('an aside before a purpose is no aside of a clause whose verb comes next: `para'' is also what `parar'' says', P5,
+          'I cani che mangiano pane si riunirono il martedì, nella casa, per mangiare.'),
+    nf_tr('El perro vio a Omar; el ministro de la casa, Juan Pérez; el gato y el hermano de Maria.', spanish, italian, P6),
+    check('parts set off by semicolons carry a list on, and an apposition a semicolon closes is the phrase''s: read with the semicolons taken out, the people after the first were objects of their own', P6,
+          'Il cane vide Omar; il ministro della casa, Juan Pérez; il gatto e il fratello di Maria.'),
+    nf_tr('Los altos ejecutivos duermen.', spanish, italian, P8),
+    check('among nouns that are all adjectives too, the one the lesson calls a person is the head: `alto'' is a height and `ejecutivo'' an executive, and by position the height was the head', P8,
+          'Gli alti esecutivi dormono.'),
+    nf_tr('También ministros como Omar; hermanos de la casa como Juan; así como el ministro Luis.', spanish, italian, P7),
+    check('a sentence may be the list alone, going on from the one before', P7,
+          'Anche ministri come Omar; fratelli della casa come Juan; così come il ministro Luis.').
+
+%% what the controls found, each red on the first cut of 1.8.21 and green on
+%% 1.8.20: the rules of this section asked of sentences they were not written
+%% for
+newspaper_radio_checks_4 :-
+    nf_tr('El perro envía órdenes de comparecer al ministro.', spanish, italian, G1),
+    check('GUARD: under a verb that is no copula, the person after a noun''s `de'' and its infinitive stays the verb''s: `enviar órdenes de comparecer al director'' sends them TO the director, and read as the infinitive''s object he was who appeared, `figurare il direttore''', G1,
+          'Il cane spedisce ordini di figurare al ministro.'),
+    nf_tr('El ministro ve a los hermanos por hablar de comer el pan.', spanish, italian, G2),
+    check('GUARD: after a preposition and its infinitive the object already counted still counts: `por hablar ahora de ampliar la investigación'' was refused, `de'' with no object before it', G2,
+          'Il ministro vede i fratelli per parlare di mangiare il pane.'),
+    nf_tr('Omar, el hermano que ve los perros, los gatos y los panes, duerme.', spanish, italian, G3),
+    check('GUARD: a comma before an item is a list''s only where the item opens on a bare plural noun: the list after `el hermano'' is its relative clause''s, and taken for the subject''s Omar and the brother were two, `dormono''', G3,
+          'Omar, il fratello che vede i cani, i gatti e i pani, dorme.'),
+    nf_tr('Il cane vede la nuova squadra campione.', italian, english, G4),
+    check('GUARD: the person heads a phrase only among nouns that are ALL adjectives too: `il miglioramento didattico universitario giurisprudenza medicina'' made the person the head, and Spanish marked it as a person object; here the champion was the head and the team its adjective, `the new team champion''', G4,
+          'The dog sees the new champion team.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

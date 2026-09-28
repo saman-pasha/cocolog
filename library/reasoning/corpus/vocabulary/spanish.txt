@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20266 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20275 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -621,6 +621,23 @@ The feminine determiner "varias" means "several".
 "varias" is the plural of "varias".
 The masculine noun "politécnico" means "polytechnic".
 "politécnicos" is the plural of "politécnico".
+The feminine noun "barretina" means "barretina".
+"barretinas" is the plural of "barretina".
+"hubo" is the past of "hay".
+"como" is the partner of "tanto".
+The preposition "hacia" means "towards".
+The preposition "para con" means "towards".
+The masculine noun "juego" means "game".
+The feminine noun "sintonía" means "jingle".
+"sintonías" is the plural of "sintonía".
+The adverb "hasta" means "even".
+The masculine noun "comienzo" means "beginning".
+The masculine noun "inicio" means "beginning".
+The pronoun "otros muchos" means "many others". The pronoun "otros muchos" does not precede the verb. "otros muchos" is a person.
+The masculine noun "medio de comunicación" means "medium". "medios de comunicación" is the plural of "medio de comunicación".
+The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday".
+The intransitive verb "marca época" means "makes history".
+"marcan época" is the plural of "marca época". "marcó época" is the past of "marca época". "marcaron época" is the past of "marcan época". "marcar época" is the infinitive of "marca época".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -713,6 +730,10 @@ The noun "hooligan" means "hooligan".
 "hooligans" is the plural of "hooligan".
 The feminine noun "garra" means "claw".
 "garras" is the plural of "garra".
+The noun "motociclista" means "motorcyclist".
+"motociclista" is not feminine.
+"motociclistas" is the plural of "motociclista".
+"motociclista" is a person.
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -19800,6 +19821,14 @@ The noun "hincha" means "fan".
 "hinchas" is the plural of "hincha".
 The feminine noun "tele" means "television".
 "teles" is the plural of "tele".
+The masculine noun "conseller" means "adviser".
+"consellers" is the plural of "conseller".
+The masculine noun "desliz" means "slip".
+"deslices" is the plural of "desliz".
+The masculine noun "aperturismo" means "opening".
+"aperturismos" is the plural of "aperturismo".
+The feminine noun "velada" means "evening".
+"veladas" is the plural of "velada".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -107124,6 +107153,52 @@ The verb "ficha" means "engages".
 "fichadas" is the plural of "fichada".
 "fichar" is the infinitive of "ficha".
 "fichando" is the gerund of "ficha".
+The verb "homenajea" means "honours".
+"homenajean" is the plural of "homenajea".
+"homenajeamos" is the first person of "homenajean".
+"homenajeo" is the first person of "homenajea".
+"homenajeas" is the second person of "homenajea".
+"homenajeó" is the past of "homenajea".
+"homenajearon" is the past of "homenajean".
+"homenajeamos" is the first person of "homenajearon".
+"homenajeé" is the first person of "homenajeó".
+"homenajeaste" is the second person of "homenajeó".
+"homenajeaba" is the past of "homenajea".
+"homenajeaban" is the past of "homenajean".
+"homenajeábamos" is the first person of "homenajeaban".
+"homenajeabas" is the second person of "homenajeaba".
+"homenajeará" is the future of "homenajea".
+"homenajearán" is the plural of "homenajeará".
+"homenajearemos" is the first person of "homenajearán".
+"homenajearé" is the first person of "homenajeará".
+"homenajearás" is the second person of "homenajeará".
+"homenajearía" is the conditional of "homenajea".
+"homenajearían" is the plural of "homenajearía".
+"homenajearíamos" is the first person of "homenajearían".
+"homenajearías" is the second person of "homenajearía".
+"homenajee" is the subjunctive of "homenajea".
+"homenajeen" is the plural of "homenajee".
+"homenajeemos" is the first person of "homenajeen".
+"homenajees" is the second person of "homenajee".
+"homenajeara" is the past subjunctive of "homenajea".
+"homenajearan" is the plural of "homenajeara".
+"homenajeáramos" is the first person of "homenajearan".
+"homenajearas" is the second person of "homenajeara".
+"homenajea" is the imperative of "homenajea".
+"homenajees" is the negative imperative of "homenajea".
+"homenajead" is the imperative of "homenajean".
+"homenajeéis" is the negative imperative of "homenajean".
+"homenajeemos" is the hortative of "homenajea".
+"homenajeado" is the participle of "homenajea".
+"homenajeada" is the participle of "homenajea".
+"homenajeada" is feminine.
+"homenajeados" is the participle of "homenajea".
+"homenajeados" is the plural of "homenajeado".
+"homenajeadas" is the participle of "homenajea".
+"homenajeadas" is feminine.
+"homenajeadas" is the plural of "homenajeada".
+"homenajear" is the infinitive of "homenajea".
+"homenajeando" is the gerund of "homenajea".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -121827,6 +121902,14 @@ The masculine adjective "centésimo" means "hundredth".
 "centésimos" is the plural of "centésimo".
 The feminine adjective "centésima" means "hundredth".
 "centésimas" is the plural of "centésima".
+The adjective "motociclista" means "motorcycling".
+"motociclistas" is the plural of "motociclista".
+The masculine adjective "protocolario" means "protocolary".
+"protocolarios" is the plural of "protocolario".
+The feminine adjective "protocolaria" means "protocolary".
+"protocolarias" is the plural of "protocolaria".
+The adjective "dispar" means "disparate".
+"dispares" is the plural of "dispar".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

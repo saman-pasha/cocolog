@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16268 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16274 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -904,6 +904,19 @@ The dative pronoun "le" means "her".
 "rischio" takes the clause.
 The adverb "meno" means "less".
 The adverb "molto meno" means "much less".
+The feminine noun "barretina" means "barretina".
+"barretine" is the plural of "barretina".
+The conjunction "tanto" means "both".
+"quanto" is the partner of "tanto".
+The masculine noun "gioco" means "game".
+The pronoun "molti altri" means "many others". The pronoun "molti altri" does not precede the verb.
+The masculine noun "applauso" means "applause".
+The masculine noun "mezzo di comunicazione" means "medium". "mezzi di comunicazione" is the plural of "mezzo di comunicazione".
+The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday".
+The feminine noun "epoca" means "epoch".
+The intransitive verb "fa epoca" means "makes history".
+"fanno epoca" is the plural of "fa epoca". "fece epoca" is the past of "fa epoca". "fecero epoca" is the past of "fanno epoca". "fare epoca" is the infinitive of "fa epoca".
+"attaccante" is a person.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -997,6 +1010,14 @@ The masculine noun "presentatore" means "presenter".
 "presentatori" is the plural of "presentatore".
 The masculine noun "politecnico" means "polytechnic".
 "politecnici" is the plural of "politecnico".
+The noun "motociclista" means "motorcyclist".
+"motociclista" is not feminine.
+"motociclisti" is the plural of "motociclista".
+"motocicliste" is the plural of "motociclista".
+"motocicliste" is feminine.
+"motociclista" is a person.
+The feminine noun "prodezza" means "exploit".
+"prodezze" is the plural of "prodezza".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -19996,6 +20017,7 @@ The feminine noun "fornitrice" means "supplier".
 The feminine noun "aria" means "aria".
 The masculine noun "convincimento" means "convincement".
 The feminine noun "griglia" means "grill".
+The feminine noun "sigla" means "jingle".
 The feminine noun "scimmia" means "ape".
 The feminine noun "catena" means "catena".
 The masculine noun "vantaggio" means "asset".
@@ -95369,6 +95391,24 @@ The feminine adjective "scientifica" means "scientific".
 "scientificissimi" is the superlative of "scientifici".
 "scientificissima" is the superlative of "scientifica".
 "scientificissime" is the superlative of "scientifiche".
+The masculine adjective "motociclistico" means "motorcycling".
+"motociclistici" is the plural of "motociclistico".
+The feminine adjective "motociclistica" means "motorcycling".
+"motociclistiche" is the plural of "motociclistica".
+The adjective "protocollare" means "protocolary".
+"protocollari" is the plural of "protocollare".
+"protocollarissimo" is the superlative of "protocollare".
+"protocollarissimi" is the superlative of "protocollari".
+"protocollarissima" is the superlative of "protocollare".
+"protocollarissime" is the superlative of "protocollari".
+The masculine adjective "disparato" means "disparate".
+"disparati" is the plural of "disparato".
+The feminine adjective "disparata" means "disparate".
+"disparate" is the plural of "disparata".
+"disparatissimo" is the superlative of "disparato".
+"disparatissimi" is the superlative of "disparati".
+"disparatissima" is the superlative of "disparata".
+"disparatissime" is the superlative of "disparate".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
