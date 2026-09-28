@@ -7042,8 +7042,10 @@ tr_group_from(Side, Words, Before, Group, After) :-
     tr_split_prev(Words, none, Before, Rest, Prev),
     \+ tr_named_there(Side, Before, Rest),
     \+ tr_article_before(Side, Before),
-    \+ tr_all_before(Side, Prev, Rest),
-    tr_group_at(Side, Rest, Group, After).
+    tr_group_at(Side, Rest, Group, After),
+    %% (asked where a group DOES start, which few places are: asked of every
+    %% place it cost the Solana report's tenth sentence 58 000 inferences)
+    \+ tr_all_before(Side, Prev, Rest).
 
 %% the places, in the order append/3 gives them, each with the word before it
 %% (or none): the rule below asks for that word at every place, and last/2
