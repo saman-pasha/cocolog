@@ -2761,6 +2761,7 @@ tr_list_commas(Side, Prev, _, [comma|Ws0], [w(A, appos)|Ws]) :-
 %% as a clause that leaves its verb out, the conseller seeing Xavier Trias.
 %% The semicolon stays where it stood.
 tr_list_commas(Side, Prev, _, [comma|Ws0], [w(A, appos), semicolon|Ws]) :-
+    memberchk(semicolon, Ws0),
     Prev = w(_, _), ( tr_list_item(Side, Prev) -> true ; tr_name_word(Side, Prev) ),
     append(Ns, [semicolon|Rest], Ws0), Ns = [N1|Ns1], N1 = w(_, _), tr_name_word(Side, N1),
     forall(member(N, Ns1), N = w(_, upper)), !,
@@ -7038,11 +7039,18 @@ tr_subject_shape(_, Words, _, _) :-
 %% order and the reader goes on to the next when nothing before it is a
 %% subject
 tr_group_from(Side, Words, Before, Group, After) :-
-    append(Before, Rest, Words),
+    tr_split_prev(Words, none, Before, Rest, Prev),
     \+ tr_named_there(Side, Before, Rest),
     \+ tr_article_before(Side, Before),
-    \+ tr_all_before(Side, Before, Rest),
+    \+ tr_all_before(Side, Prev, Rest),
     tr_group_at(Side, Rest, Group, After).
+
+%% the places, in the order append/3 gives them, each with the word before it
+%% (or none): the rule below asks for that word at every place, and last/2
+%% walked the words before it to find it -- a walk as long as the words at
+%% each of them
+tr_split_prev(Ws, Prev, [], Ws, Prev).
+tr_split_prev([W|Ws], _, [W|B], R, P) :- tr_split_prev(Ws, W, B, R, P).
 
 %% ... AND A WORD THAT MEANS `all' IS FOLLOWED BY THE PHRASE IT BELONGS TO:
 %% `Toda una proeza' -- quite a feat -- read `toda' as the pronoun
@@ -7050,8 +7058,8 @@ tr_group_from(Side, Words, Before, Group, After) :-
 %% heading was a clause, `everything joins exploit'. A word the lesson calls
 %% a determiner, right after one that means `all', begins no verb group
 %% (all/2, 1.8.8).
-tr_all_before(Side, Before, [D|_]) :-
-    last(Before, B), B = w(T, _), atom(T), tr_all_word(Side, T), tr_determiner(Side, D, _, _), !.
+tr_all_before(Side, w(T, _), [D|_]) :-
+    atom(T), tr_all_word(Side, T), tr_determiner(Side, D, _, _), !.
 
 %% A PREPOSITION AND ITS ARTICLE ARE FOLLOWED BY THE ARTICLE'S NOUN, NEVER BY
 %% A VERB: `Auto proibite nelle isole del sole' read `isole' as what
@@ -8139,7 +8147,10 @@ tr_np(Side, Words00, np(Det, Num, AdjsM, Noun, Number)) :-
     %% marcó época y estrellas de las ondas de hoy se reunieron' -- read as a
     %% phrase, `se' was `one', the relative clause's second object, and the
     %% clause ran on over the rest of the subject
-    \+ ( Side == foreign, \+ tr_is(Side, Noun, noun), Noun = w(NW0, _), atom(NW0), tr_clitic(none, NW0) ),
+    %% (a clitic is a pronoun to the lesson, and that is kept for the
+    %% sentence: asked first, it spares the clitic's own lookups for every
+    %% word that is no pronoun)
+    \+ ( Side == foreign, \+ tr_is(Side, Noun, noun), tr_is(Side, Noun, pronoun), Noun = w(NW0, _), atom(NW0), tr_clitic(none, NW0) ),
     %% nor an AUXILIARY or a modal the lesson calls no noun: `han mejorado'
     %% after a relative clause read as a phrase `han' with the participle
     %% on it, `the has improved', and the clause ran on past its own verb
@@ -9657,8 +9668,8 @@ tr_complements0(foreign, Ws, _, [oc(NP, As)|Cs]) :-
 tr_complements0(Side, Ws, Seen, [at_time(NP)|Cs]) :-
     tr_phrase_words(Side, Ws, PW, Rest0), PW \== [],
     \+ ( PW = [W1], tr_is(Side, W1, adverb) ),
-    \+ ( Side == foreign, Rest0 = [w(P, _)|R0], atom(P), tr_means_of(P), tr_starts_infinitive(foreign, R0) ),
-    tr_phrase_np(Side, PW, NP0), tr_time_phrase(NP0), !,
+    tr_phrase_np(Side, PW, NP0), tr_time_phrase(NP0),
+    \+ ( Side == foreign, Rest0 = [w(P, _)|R0], atom(P), tr_means_of(P), tr_starts_infinitive(foreign, R0) ), !,
     ( tr_time_part_after(Side, NP0, Rest0, NP1, Rest) -> NP = NP1 ; NP = NP0, Rest = Rest0 ),
     tr_complements(Side, Rest, Seen, Cs).
 tr_complements0(Side, Ws, _, [obj(NP)]) :-
@@ -9904,6 +9915,7 @@ tr_starts_infinitive(english, [w(to, _), w(_, _)|_]).
 %% as words the second presenter came out `Nevi Fabbri'. Two words at least,
 %% and nothing but capitals.
 tr_phrase_np(Side, PW, co(C, N1, name(N))) :-
+    append(_, [w(_, upper), w(_, upper)], PW),          % (two capitals end it: asked before the split)
     tr_conjunction_split(Side, PW, W1, C, W2), W2 = [_, _|_],
     forall(member(X, W2), X = w(_, upper)),
     tr_object_phrase(Side, W1, N1), tr_names_only(N1), !,
@@ -10346,8 +10358,14 @@ tr_content_word(foreign, w(M, _)) :- tr_degree_word(M), !.
 tr_content_word(Side, N) :- tr_name_word(Side, N), !.
 
 %% a word that means `all': English's own, or one the lesson gives
+%% (KEPT FOR THE SENTENCE (tr_memo/4), as a coordinator is: the verb group
+%% finder asks it at every place a group can start, and the phrase reader
+%% and the object pronoun of every word they meet. Asked of the lesson each
+%% time, a lexeme and a meaning a word, it was a fifth of what this version
+%% first cost the controls in inferences.)
 tr_all_word(english, all) :- !.
-tr_all_word(foreign, T) :- tr_lexeme(foreign, T, L, _), tr_solve(mean(L, all)), !.
+tr_all_word(foreign, T) :- atom(T), tr_language(G), tr_memo(allw(G, T), x, tr_all_word0(T), [_|_]), !.
+tr_all_word0(T) :- tr_lexeme(foreign, T, L, _), tr_solve(mean(L, all)), !.
 
 %% the word that begins BOTH ... AND and its partner: English's own pair; the
 %% lesson's word that means `both' and the word it says is its partner
@@ -13394,15 +13412,21 @@ tr_endings0(L, T, Es) :-
     ),
     findall(E, ( member(E, Es0), atom(E) ), Es1), sort(Es1, Es).
 
-tr_digits(W) :- atom(W), atom_codes(W, Cs), Cs \== [], forall(member(C, Cs), ( C >= 0'0, C =< 0'9 )), !.
+%% a number in digits. EVERY FORM BELOW BEGINS WITH A DIGIT OR A MINUS, and
+%% tr_known/2 asks this of every word first, so the first code is asked
+%% first: the four tests cost a word like `casa' some twenty inferences, and
+%% the ordinal's own six were a fifth of what this version first cost the
+%% controls (1.8.21)
+tr_digits(W) :- atom(W), atom_codes(W, [C|Cs]), ( C >= 0'0, C =< 0'9 -> true ; C == 0'- ), tr_digits0(W, [C|Cs]).
+tr_digits0(_, Cs) :- forall(member(C, Cs), ( C >= 0'0, C =< 0'9 )), !.
 %% ... and a number as the text wrote it, sign and separators kept
 %% (tr_written_number/4): `1.400', `-10', `41,5'
-tr_digits(W) :- atom(W), atom_codes(W, Cs), tr_number_run(Cs, Ns, []), Ns == Cs, !.
+tr_digits0(_, Cs) :- tr_number_run(Cs, Ns, []), Ns == Cs, !.
 %% ... and a percentage, the number with its sign: `41,46%', `100%'
-tr_digits(W) :- tr_percent(W).
+tr_digits0(W, _) :- tr_percent(W), !.
 %% ... and an ordinal, the number with its sign: `50º', `1ª' -- and English's
 %% `50th', `1st', `2nd', `3rd'
-tr_digits(W) :- tr_ordinal(W, _).
+tr_digits0(W, _) :- tr_ordinal(W, _).
 tr_ordinal(W, N) :-
     atom(W), member(S, ['º', 'ª', th, st, nd, rd]), atom_concat(N, S, W), N \== '',
     atom_codes(N, Cs), forall(member(C, Cs), ( C >= 0'0, C =< 0'9 )), !.
