@@ -205,9 +205,31 @@ cb_attr_parts([_, _|Rest], Key, KL, V) :- cb_attr_parts(Rest, Key, KL, V).
 
 %% the forms of a lemma with their tags: the stem and each ending of its paradigm
 cb_forms(Lemma, Forms) :-
-    findall(F-Tags, ( cb_lemma(Lemma, Stem, Par), cb_par(Par, Suf, Tags), \+ memberchk(sup, Tags), \+ memberchk(comp, Tags),
+    findall(F-Tags, ( cb_lemma(Lemma, Stem, Par), cb_stem_fits(Lemma, Stem, Par),
+                      cb_par(Par, Suf, Tags), \+ memberchk(sup, Tags), \+ memberchk(comp, Tags),
                       atom_concat(Stem, Suf, F) ),
             Forms).                                   % a superlative (grandissimo) is not the adjective
+
+%% A LEMMA WITH TWO STEMS UNDER ONE PARADIGM: apertium-ita gives `sottoporre'
+%% as `sottop' and as `sottopo', both with antepo/rre__vblex, and the forms of
+%% the first came first -- `"sottopne" means "subjects"', and `sottopongano'
+%% was a word no lesson knew. The stem that fits is the one the paradigm's own
+%% lemma ending completes to the lemma -- `antepo/rre' ends in `rre', and
+%% `sottopo' and `rre' are `sottoporre' -- and where one fits, a stem under
+%% the same paradigm that does not is left out; a stem alone under its
+%% paradigm is kept, fitting or not, as it always was
+cb_stem_fits(Lemma, Stem, Par) :-
+    (   cb_par_ending(Par, E), atom_concat(Stem, E, Lemma) -> true
+    ;   \+ ( cb_lemma(Lemma, S2, Par), S2 \== Stem, cb_par_ending(Par, E2), atom_concat(S2, E2, Lemma) )
+    ).
+%% the lemma ending a paradigm's name gives: after the `/' and before the
+%% `__', a `(2)' of a second paradigm of one name left off -- `cas/a__n' is
+%% `a'; a name with no `/' gives the whole word to the stem
+cb_par_ending(Par, E) :-
+    atomic_list_concat([Name|_], '__', Par),
+    (   atomic_list_concat([_, E0], '/', Name) -> atomic_list_concat([E|_], '(', E0)
+    ;   E = ''
+    ).
 
 %% the singular: tagged sg, or sp where one form is both numbers (città)
 cb_sg(Forms, Tags, F) :- ( append(Tags, [sg], T1), cb_form(Forms, T1, F) -> true ; append(Tags, [sp], T2), cb_form(Forms, T2, F) ).
@@ -232,6 +254,12 @@ cb_negative_imperative(italian, [inf]).
 %% plural itself (`non mangiate'), so it states none and the translator
 %% writes the affirmative form after the denial
 cb_negative_imperative_plural(spanish, [prs, p2, pl]).
+%% ... AND ITS COMMAND OF THE FIRST PERSON PLURAL, `let us': Italian's is
+%% what its dictionary tags `imp p1 pl', the indicative's own form
+%% (`finiamo'), and Spanish's is the first person plural of the present
+%% subjunctive (`dejemos'), which its dictionary tags no imperative at all
+cb_hortative(italian, [imp, p1, pl]).
+cb_hortative(spanish, [prs, p1, pl]).
 cb_has_tags([], _).
 cb_has_tags([T|Ts], Have) :- memberchk(T, Have), cb_has_tags(Ts, Have).
 
@@ -501,6 +529,18 @@ cb_entry(e(_, noun, En, Fo, RTags)) :- !,
         ;   memberchk(m, RTags) -> cb_noun(M, masculine, En, Forms, m)
         ;   cb_noun(M, masculine, En, Forms, m), cb_noun(F, feminine, En, Forms, f)
         )
+    %% ONE SINGULAR FOR BOTH GENDERS AND A PLURAL FOR EACH: `socialista',
+    %% `solista', `collega' -- `i socialisti' and `le socialiste'. Stated as
+    %% the feminine noun it had only the feminine plural, and `los socialistas
+    %% vascos' came out `le socialiste basche'. It is a noun of no gender,
+    %% masculine where nothing says which, the masculine plural first; an
+    %% entry that names the gender still takes it. Only where the PLURALS
+    %% differ: Spanish's `capital', `cometa', `orden' are two nouns of one
+    %% spelling, the gender with the sense, and they keep what they had
+    ;   cb_sg(Forms, [n, m], W), cb_sg(Forms, [n, f], W),
+        cb_form(Forms, [n, m, pl], PM), cb_form(Forms, [n, f, pl], PF), PM \== PF,
+        \+ memberchk(f, RTags)
+    ->  cb_noun_common(W, En, Forms)
     ;   cb_sg(Forms, [n, f], F) -> cb_noun(F, feminine, En, Forms, f)
     %% ONE FORM FOR BOTH GENDERS COMES BEFORE A DIFFERENT MASCULINE ONE: a
     %% paradigm that has both names the masculine for an APOCOPE. `generale'
@@ -520,6 +560,9 @@ cb_entry(e(_, adjective, En, Fo, _)) :- !,
     (   cb_sg(Forms, [adj, m], M), cb_sg(Forms, [adj, f], F), M \== F
     ->  cb_adjective(M, masculine, En, Forms, m), cb_adjective(F, feminine, En, Forms, f)
     ;   cb_sg(Forms, [adj, mf], W) -> cb_adjective(W, none, En, Forms, mf)
+    ;   cb_sg(Forms, [adj, m], W), cb_sg(Forms, [adj, f], W),
+        cb_form(Forms, [adj, m, pl], PM), cb_form(Forms, [adj, f, pl], PF), PM \== PF
+    ->  cb_adjective_common(W, En, PM, PF)
     ;   cb_sg(Forms, [adj, m], M) -> cb_adjective(M, none, En, Forms, m)
     ;   cb_adjective(Fo, none, En, [], none)
     ),
@@ -626,6 +669,37 @@ cb_noun(W, G, En, Forms, Tag) :-
         ( cb_person(En) -> cb_line('"~w" is a person.', [W]) ; true )
     ).
 
+%% a noun with one singular for both genders: no gender, the masculine
+%% article where nothing says which, and each plural, the masculine first
+%% and the feminine one said to be, so that an adjective of the same shape
+%% agrees (below)
+cb_noun_common(W, En, Forms) :-
+    cb_line('The noun "~w" means "~w".', [W, En]),
+    ( sub_atom(W, _, 1, 0, a) -> cb_line('"~w" is not feminine.', [W]) ; true ),
+    (   cb_formed(W, noun) -> true
+    ;   assertz(cb_formed(W, noun)),
+        cb_form(Forms, [n, m, pl], PM), cb_form(Forms, [n, f, pl], PF),
+        cb_line('"~w" is the plural of "~w".', [PM, W]),
+        cb_line('"~w" is the plural of "~w".', [PF, W]),
+        cb_line('"~w" is feminine.', [PF]),
+        ( cb_person(En) -> cb_line('"~w" is a person.', [W]) ; true )
+    ).
+
+%% AN ADJECTIVE WITH ONE SINGULAR FOR BOTH GENDERS AND A PLURAL FOR EACH:
+%% `ottimista' is `ottimisti' and `ottimiste'. Stated with the masculine
+%% plural alone it wrote `le previsioni ... non sono ottimisti' once the noun
+%% of the same spelling stopped stating the feminine one first, and the
+%% feminine one said to be is what the writer asks for a feminine noun
+%% (tr_adjective_plural/5)
+cb_adjective_common(W, En, PM, PF) :-
+    cb_line('The adjective "~w" means "~w".', [W, En]),
+    (   cb_formed(W, adjective) -> true
+    ;   assertz(cb_formed(W, adjective)),
+        cb_line('"~w" is the plural of "~w".', [PM, W]),
+        cb_line('"~w" is the plural of "~w".', [PF, W]),
+        cb_line('"~w" is feminine.', [PF])
+    ).
+
 cb_adjective(W, G, En, Forms, Tag) :-
     (   G == feminine -> cb_line('The feminine adjective "~w" means "~w".', [W, En])
     ;   G == masculine -> cb_line('The masculine adjective "~w" means "~w".', [W, En])
@@ -682,6 +756,13 @@ cb_verb_forms(L, Forms) :-
         ->  cb_line('"~w" is the negative imperative of "~w".', [NPImper, Pl]) ; true )
     ;   true
     ),
+    %% THE COMMAND OF THE FIRST PERSON PLURAL, stated of the verb as the
+    %% singular imperative is: `Finiamola di considerare i parchi un freno'
+    %% is let us stop, and `finiamo' is also what we do, so only the lesson
+    %% can say it is a command too -- `"finiamo" is the hortative of
+    %% "finisce".', `"dejemos" is the hortative of "deja".'
+    (   cb_lang(Lg3), cb_hortative(Lg3, HTags), cb_verb_form(Forms, HTags, Hort)
+    ->  cb_line('"~w" is the hortative of "~w".', [Hort, L]) ; true ),
     cb_participles(Forms, L),
     ( cb_verb_form(Forms, [inf], Inf) -> cb_line('"~w" is the infinitive of "~w".', [Inf, L]) ; true ),
     ( cb_verb_form(Forms, [ger], Ger) -> cb_line('"~w" is the gerund of "~w".', [Ger, L]) ; true ).

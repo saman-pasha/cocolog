@@ -196,3 +196,117 @@
 # `si permette di chiamare fuorilegge': outlaws -- apertium-spa has
 # `forajido' as an adjective only, so the noun above has no forms of its own
 <e><p><l>outlaw<s n="adj"/></l><r>forajido<s n="adj"/></r></p></e>
+# the Giglio park letter (Italian UD VIT-9792..9799), into Spanish.
+# `l'arcipelago toscano': Tuscan -- apertium-spa carries `toscano' and the
+# bilingual pairs nothing with it
+<e><p><l>Tuscan<s n="adj"/></l><r>toscano<s n="adj"/></r></p></e>
+# `un parco "mummificato"': mummified -- apertium-spa carries `momificar'
+# and the bilingual pairs nothing with it
+<e><p><l>mummify<s n="vblex"/></l><r>momificar<s n="vblex"/></r></p></e>
+# the England supporters column (AnCora CESS-CAST-P-19990601-13), into
+# Italian.
+# `estas hordas más vikingas que británicas': Viking -- apertium-spa carries
+# `vikingo' and the bilingual pairs nothing with it
+<e><p><l>Viking<s n="adj"/></l><r>vikingo<s n="adj"/></r></p></e>
+# `el imperturbable gentleman': imperturbable -- the same
+<e><p><l>imperturbable<s n="adj"/></l><r>imperturbable<s n="adj"/></r></p></e>
+# `el imperturbable gentleman del bombín': a bowler hat -- the same
+<e><p><l>bowler<s n="n"/></l><r>bombín<s n="n"/><s n="m"/></r></p></e>
+# `el irónico humor del gélido habitante': icy -- the same
+<e><p><l>icy<s n="adj"/></l><r>gélido<s n="adj"/></r></p></e>
+# `los bobalicones comentarios': silly -- read only (r="RL"), so `silly' is
+# still written `tonto'
+<e r="RL"><p><l>silly<s n="adj"/></l><r>bobalicón<s n="adj"/></r></p></e>
+# `los hooligans': hooligan -- apertium-spa carries it, a noun of both
+# genders
+<e><p><l>hooligan<s n="n"/></l><r>hooligan<s n="n"/><s n="mf"/></r></p></e>
+# `su avinagrado carácter': sour -- read only, so `sour' is still `ácido'
+<e r="RL"><p><l>sour<s n="adj"/></l><r>avinagrado<s n="adj"/></r></p></e>
+# `su avinagrado carácter flemático': phlegmatic -- apertium-spa carries it
+<e><p><l>phlegmatic<s n="adj"/></l><r>flemático<s n="adj"/></r></p></e>
+# `como facilonga explicación': easy -- read only, so `easy' is still `fácil'
+<e r="RL"><p><l>easy<s n="adj"/></l><r>facilongo<s n="adj"/></r></p></e>
+# `Los muchachotes hinchas del equipo inglés': fans -- apertium-spa carries
+# `hincha' as a noun of both genders and the bilingual pairs nothing with it,
+# so the vocabulary knew only the verb `inflates'; read only, so `fan' is
+# still written `seguidor'
+<e r="RL"><p><l>fan<s n="n"/></l><r>hincha<s n="n"/><s n="mf"/></r></p></e>
+# the Puigbó article (AnCora CESS-CAST-P-19990701-130), into Italian.
+# `la tele pública catalana': the telly -- apertium-spa carries `tele' and
+# the bilingual gives it only to `TV', which no lesson word can be; read
+# only, so `television' is still written `televisión'
+<e r="RL"><p><l>television<s n="n"/></l><r>tele<s n="n"/><s n="f"/></r></p></e>
+# `Jaume Barberà, recientemente fichado por TVE': signed up -- apertium-spa
+# carries `fichar' and the bilingual pairs nothing with it; read as
+# `engages', which is Italian's `ingaggiare', and read only, so `engages' is
+# still written `compromete'
+<e r="RL"><p><l>engage<s n="vblex"/></l><r>fichar<s n="vblex"/></r></p></e>
+# `La cadena catalana, capitaneada por el empresario ...': captained -- the
+# same, and no other word of either language means it
+<e><p><l>captain<s n="vblex"/></l><r>capitanear<s n="vblex"/></r></p></e>
+# `el empresario gerundense': of Girona -- the same, and English has no
+# word for it; the IR's is `gironese', as Italian's is
+<e><p><l>gironese<s n="adj"/></l><r>gerundense<s n="adj"/></r></p></e>
+# the Salvini interview (Italian UD VIT-9816..9850), into Spanish.
+# `per la centesima volta': hundredth -- the bilingual pairs `centésimo' as
+# an ordinal determiner, a class the builder does not write; apertium-spa
+# carries the adjective
+<e><p><l>hundredth<s n="adj"/></l><r>centésimo<s n="adj"/></r></p></e>
+# `E la pantera torna ad affilare gli artigli': sharpens, claws --
+# apertium-spa carries `afilar' and `garra', and the bilingual pairs
+# `afilar' with nothing and `garra' only with a harp
+<e><p><l>sharpen<s n="vblex"/></l><r>afilar<s n="vblex"/></r></p></e>
+<e><p><l>claw<s n="n"/></l><r>garra<s n="n"/><s n="f"/></r></p></e>
+# `un problema grave e che mi tormenta': torments -- the bilingual pairs
+# `atormentar' with `rack' only
+<e><p><l>torment<s n="vblex"/></l><r>atormentar<s n="vblex"/></r></p></e>
+# the Radio Nacional anniversary (AnCora CESS-CAST-P-19990701-83), into
+# Italian.
+# `el conseller de Presidència de la Generalitat': a minister of the Catalan
+# government -- apertium-spa carries `conseller' and the bilingual pairs
+# nothing with it; read as `adviser', which is Italian's `consigliere', and
+# read only, so `adviser' is still written `asesor'
+<e r="RL"><p><l>adviser<s n="n"/></l><r>conseller<s n="n"/><s n="m"/></r></p></e>
+# `el campeón motociclista Sito Pons': motorcyclist, the noun and the
+# adjective -- apertium-spa carries both and the bilingual pairs neither
+<e><p><l>motorcyclist<s n="n"/></l><r>motociclista<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>motorcycling<s n="adj"/></l><r>motociclista<s n="adj"/></r></p></e>
+# `Fue entonces el momento de homenajear a dos "personajes singulares"':
+# to pay homage -- the same; read as `honours' and read only, so `honours'
+# is still written `honrar'
+<e r="RL"><p><l>honour<s n="vblex"/></l><r>homenajear<s n="vblex"/></r></p></e>
+# `Hubo, sin embargo, un desliz protocolario': a slip -- the same; read
+# only, `resbalón' stays the word written
+<e r="RL"><p><l>slip<s n="n"/></l><r>desliz<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>protocolary<s n="adj"/></l><r>protocolario<s n="adj"/></r></p></e>
+# `como señal de aperturismo': the political opening of 1974 -- the same;
+# read as `opening' and read only, so `opening' is still written `apertura'
+<e r="RL"><p><l>opening<s n="n"/></l><r>aperturismo<s n="n"/><s n="m"/></r></p></e>
+# `pasaron la velada en una mesa': the evening -- apertium-spa carries the
+# noun `velada' and the bilingual pairs nothing with it; read as the
+# participle of `velar' it was `watched'; read only, `evening' is still
+# written `anochecer'
+<e r="RL"><p><l>evening<s n="n"/></l><r>velada<s n="n"/><s n="f"/></r></p></e>
+# `el aplauso de estrellas actuales de las ondas tan dispares como Josep
+# Cuní y Nieves Herrero': as disparate -- apertium-spa carries the adjective
+# `dispar' and the bilingual pairs nothing with it; read as `disparar',
+# `dispares' was what you shoot, and the sentence was refused
+<e><p><l>disparate<s n="adj"/></l><r>dispar<s n="adj"/><s n="mf"/></r></p></e>
+# the Fregene report (Italian UD VIT-9851..9925), into Spanish: the Spanish
+# word for a meaning its Italian word has and Spanish had none for.
+# apertium-spa carries each and the bilingual pairs it with nothing;
+# written only, so no Spanish text reads any word otherwise.
+<e r="LR"><p><l>culpable<s n="adj"/></l><r>culposo<s n="adj"/></r></p></e>
+<e r="LR"><p><l>unshakeable<s n="adj"/></l><r>inquebrantable<s n="adj"/><s n="mf"/></r></p></e>
+<e r="LR"><p><l>glimmer<s n="n"/></l><r>atisbo<s n="n"/><s n="m"/></r></p></e>
+<e r="LR"><p><l>lineament<s n="n"/></l><r>rasgo<s n="n"/><s n="m"/></r></p></e>
+<e r="LR"><p><l>furrow<s n="vblex"/></l><r>surcar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>eventful<s n="adj"/></l><r>movido<s n="adj"/></r></p></e>
+<e r="LR"><p><l>piedmontese<s n="adj"/></l><r>piamontés<s n="adj"/></r></p></e>
+<e r="LR"><p><l>piedmontese<s n="n"/></l><r>piamontés<s n="n"/><s n="GD"/></r></p></e>
+<e r="LR"><p><l>enamour<s n="vblex"/></l><r>enamorar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>hard<s n="adv"/></l><r>duro<s n="adv"/></r></p></e>
+<e r="LR"><p><l>paediatric<s n="adj"/></l><r>pediátrico<s n="adj"/></r></p></e>
+<e r="LR"><p><l>browse<s n="vblex"/></l><r>hojear<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>balneal<s n="adj"/></l><r>balneario<s n="adj"/></r></p></e>
+<e r="LR"><p><l>rummage<s n="vblex"/></l><r>hurgar<s n="vblex"/></r></p></e>

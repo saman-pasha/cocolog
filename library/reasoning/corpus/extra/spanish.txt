@@ -820,3 +820,374 @@ The masculine adjective "asignado" means "assigned".
 "asignados" is the plural of "asignado".
 The feminine adjective "asignada" means "assigned".
 "asignadas" is the plural of "asignada".
+# the Basque socialists (AnCora CESS-CAST-P-20000802-31), into Italian. Every
+# word below that a dictionary word already means is said AFTER that word, so
+# the first word written for the meaning stays the dictionary's (1.8.14).
+# `que el lehendakari adelante las elecciones': the Basque premier, whom the
+# Spanish and the Italian press call by his Basque title
+The masculine noun "lehendakari" means "lehendakari".
+"lehendakari" is the plural of "lehendakari".
+# `contrariamente al PP': unlike the PP -- apertium-spa has the adverb and the
+# bilingual pairs nothing with it
+The preposition "contrariamente a" means "unlike".
+# `las discrepancias que mantienen al respecto': about it
+The adverb "al respecto" means "about it".
+# `que los vascos acudan de nuevo a las urnas': again
+The adverb "de nuevo" means "again".
+The adverb "novedosamente" means "again".
+# ... and they GO to the polls: `acude' attends to the dictionary, and
+# Italian's first `attends' is `frequenta', `frequentano alle urne'. `va'
+# stays the first word written for `goes'
+The verb "va" means "goes".
+The verb "acude" means "goes".
+# `Esta reunión llega después de la que celebraron ...': after, a
+# preposition of two words -- read as the adverb and `of' it was `afterwards
+# of her'. `tras' stays the first word written for it
+The preposition "tras" means "after".
+The preposition "después de" means "after".
+# `el Lunes por la noche': at night
+The adverb "de noche" means "at night".
+The adverb "por la noche" means "at night".
+# `tal y como se había anunciado': as
+The conjunction "tal y como" means "as".
+# `no se abordó el plan de paz': was not tackled -- the dictionary's first
+# sense is to accost somebody, and Italian's first `accosts' is `adesca',
+# to lure. `acomete' stays the first word written for `tackles'
+The verb "acomete" means "tackles".
+The verb "aborda" means "tackles".
+# `que tuvo lugar ayer': took place
+The intransitive verb "tiene lugar" means "takes place".
+"tienen lugar" is the plural of "tiene lugar".
+"tuvo lugar" is the past of "tiene lugar".
+"tuvieron lugar" is the plural of "tuvo lugar".
+"tener lugar" is the infinitive of "tiene lugar".
+# `sobre el fundamento de suscribir los principios democráticos': to
+# subscribe -- apertium-spa has `suscribir' for analysis only
+The verb "suscribe" means "subscribes".
+"suscribir" is the infinitive of "suscribe".
+# `entre las cuales se encontraba ...': among which -- the relative with its
+# article, as one word, after a preposition
+The relative "el cual" means "which".
+The relative "la cual" means "which".
+The relative "los cuales" means "which".
+The relative "las cuales" means "which".
+# `Redondo declaró a Europa Press que la "parálisis" institucional hará ...':
+# said it TO the agency. A verb that takes the clause has the person before
+# it for the one it is said to, and the `que' after the person opens the
+# verb's clause, never the person's relative clause
+"declara" takes the clause.
+"dice" takes the clause.
+# the Giglio park letter (Italian UD VIT-9792..9799), into Spanish.
+# `Siate perciò coerenti.': therefore -- Apertium gives `por lo tanto' the
+# class `cnjadv', which the builder does not read, so Spanish had no word
+The adverb "por lo tanto" means "therefore".
+# the England supporters column (AnCora CESS-CAST-P-19990601-13), into
+# Italian. `Los muchachotes hinchas del equipo inglés': big lads -- no
+# dictionary has the augmentative. A line here comes before every line of the
+# dictionary, so it makes its word the FIRST for its meaning and its meaning
+# the FIRST for its word, and the dictionary's own order for both is said
+# above it: `niño' first for `child' and for `boy', `chico' `boy' first and
+# `lad' second, and the first word for `lad'. Said alone, `chico' means
+# `lad' read `Él es un chico astuto.' as `a cunning lad'
+The masculine noun "niño" means "child".
+The masculine noun "niño" means "boy".
+The masculine noun "chico" means "boy".
+The masculine noun "chico" means "lad".
+The masculine noun "muchachote" means "lad". "muchachotes" is the plural of "muchachote".
+# `el rastro habitual de litronas': a litre bottle of beer, which English has
+# no word for -- `botella' stays the first word for `bottle'
+The feminine noun "botella" means "bottle".
+The feminine noun "litrona" means "bottle". "litronas" is the plural of "litrona".
+# `el imperturbable gentleman': the English word, which apertium-spa does not
+# carry -- `señor' stays the first word for `gentleman'
+The masculine noun "señor" means "gentleman".
+The masculine noun "gentleman" means "gentleman".
+# `los escandalosos y bamboleantes bebedores': swaying -- apertium-spa has
+# the verb `bambolear' and no adjective
+The adjective "bamboleante" means "swaying". "bamboleantes" is the plural of "bamboleante".
+# `flemático, inalterable y estreñido': constipated -- apertium-spa has the
+# verb `estreñir' and no adjective
+The masculine adjective "estreñido" means "constipated". The feminine adjective "estreñida" means "constipated".
+"estreñidos" is the plural of "estreñido". "estreñidas" is the plural of "estreñida".
+# `aunque haya pasado casi inadvertido': unnoticed -- the dictionary gives
+# `careless' first and `unnoticed' only one way, at the end
+The masculine adjective "inadvertido" means "unnoticed". The feminine adjective "inadvertida" means "unnoticed".
+# `no se comportaban tampoco conforme al tópico': according to -- read as the
+# adjective `conforme', satisfied, with `a' after it. `según' stays the first
+# word for `according to'
+The preposition "conforme a" means "according to".
+# `¿Pararán por ello los bobalicones comentarios ...?': the comments stop --
+# a verb the lesson calls intransitive takes its subject after it
+The intransitive verb "para" means "stops".
+# `Inglaterra ... seguirá describiéndose como ...': before a gerund `seguir'
+# is to go on. Said alone the line came first both ways: `sigue' read
+# `continues' before `follows' -- `Sigue mi consejo.' came out `Continue my
+# advice.' -- and `continues' was written `sigue', so the Bosnian letter's
+# `continuerà a cercare' came out `seguirá buscar'. The dictionary's order
+# is said above it: `continúa' the first word for `continues', `follows'
+# the first meaning of `sigue'
+The verb "continúa" means "continues".
+The verb "sigue" means "follows".
+The progressive verb "sigue" means "continues".
+# `Contra los tópicos nacionales sólo cabe la paciencia': only patience is
+# left -- `caber' in news is what remains possible (`no cabe duda', `cabe
+# la posibilidad'), and its subject stands after it. The box it fits in
+# is the cost. `queda' stays the first word for `remains': said alone, the
+# line made `cabe' the first, and Ferlaino's `a quedar' and the Bastille
+# letter's `queriendo quedar' came out `caber'
+The verb "queda" means "remains".
+The intransitive verb "cabe" means "remains".
+# `el ridículo de los que los utilizan': ridicule -- the dictionary has
+# `ridículo' only as the adjective, which stays its first meaning
+The masculine adjective "ridículo" means "ridiculous".
+The masculine noun "ridículo" means "ridicule".
+# the Bovalino letter (Italian UD, VIT-9800..9814), into Spanish.
+# `domenica mattina' is `el domingo por la mañana': the parts of the day
+# are times, as the days are, and the word that joins a day and its part
+"mañana" is a time.
+"tarde" is a time.
+"noche" is a time.
+The word "por" joins the time.
+# `La sera precedente': the evening before -- the dictionary's first
+# Spanish word for `evening' is `anochecer', nightfall, and `noche' says
+# the night first; its own first meaning is said again above
+The feminine noun "noche" means "night".
+The feminine noun "noche" means "evening".
+# `la gente', people -- the dictionary has `gente' as a person, one of them
+The feminine noun "gente" means "people".
+# `una vita disagiata', a needy life: the dictionary gives `necesitado' as
+# an adjective with no forms, and the feminine is the participle's alone
+The masculine adjective "necesitado" means "needy". The feminine adjective "necesitada" means "needy".
+"necesitados" is the plural of "necesitado". "necesitadas" is the plural of "necesitada".
+# `9 luglio novantacinque': ninety-five
+The number "noventa y cinco" means "ninety-five".
+# `non c'erano telecamere': there was -- `había' is the past of `ha' too
+"había" is the past of "hay".
+# `a me piace': me, the pronoun that stands after a preposition
+The pronoun "mí" means "me".
+The pronoun "mí" does not precede the verb.
+# `un periodo molto stressante': stressful -- the dictionary's word for it
+# is `estresando', a gerund
+The adjective "estresante" means "stressful". "estresantes" is the plural of "estresante".
+# `tante, tante persone comuni': so many
+The masculine determiner "tanto" means "so much". The feminine determiner "tanta" means "so much".
+"tantos" is the plural of "tanto". "tantas" is the plural of "tanta".
+# `la guerra tra serbi e bosniaci': the nouns -- the dictionary has the
+# adjectives alone
+The masculine noun "serbio" means "serbian". "serbios" is the plural of "serbio".
+The masculine noun "bosnio" means "bosnian". "bosnios" is the plural of "bosnio".
+# `Insomma, un metodo lontano anni luce ...': in short, and a light year,
+# one word of two whose plural keeps `luz'
+The adverb "en resumen" means "in short".
+# ... and `in particolare' is `en particular', one word of two
+The adverb "en particular" means "in particular".
+The masculine noun "año luz" means "light year".
+"años luz" is the plural of "año luz".
+# the Puigbó article (AnCora CESS-CAST-P-19990701-130), into Italian.
+# `hasta finales del pasado mes de mayo': May -- the dictionary pairs
+# `mayo' with `May', and the builder refuses the word `may', which is
+# English's own modal; the month is said here
+The masculine noun "mayo" means "may".
+# `noticiario que copresenta con Montse Jené': co-presents -- in no
+# dictionary
+The verb "copresenta" means "co-presents".
+# `para dedicarse de lleno a la cadena de radio': fully -- a word of two
+# words in no dictionary; the dictionary's first word for `fully' is said
+# again above it, so that it stays the first written
+The adverb "plenamente" means "fully".
+The adverb "de lleno" means "fully".
+# `presentador del informativo del mediodía': the news programme -- the
+# dictionary has `informativo' as an adjective alone; its first word for
+# `newscast' is said again above, so that it stays the first written
+The masculine noun "telediario" means "newscast".
+The masculine noun "informativo" means "newscast".
+# `cadena que cuenta en la actualidad con 19 emisoras': currently -- a word
+# of several words; the dictionary's first word for `currently' is said
+# again above, so that it stays the first written
+The adverb "actualmente" means "currently".
+The adverb "en la actualidad" means "currently".
+# `hasta finales del pasado mes de mayo', `a principios del pasado mes de
+# mayo': until the end of, at the start of -- words of several words
+The preposition "hasta finales de" means "until the end of".
+The preposition "a finales de" means "at the end of".
+The preposition "a principios de" means "at the start of".
+# `bien directamente o bien a través de empresas participadas': either ...
+# or -- `bien' says a choice follows, in the shape `The word "para" begins
+# the purpose.' has, and `o bien' is the coordinator. Said as a meaning,
+# `either' was a meaning of `bien' in an adverb's place too -- `tampoco'
+# means it, an adverb and nothing else -- and Tatoeba's `Él me conoce
+# bien.' came out `He knows me either.'
+The word "bien" begins the choice.
+The conjunction "o bien" means "or".
+# the Salvini interview (Italian UD VIT-9816..9850), into Spanish.
+# `non crede che comunque ...': anyway -- the dictionary's `en todo caso' is
+# three words the builder does not write
+The adverb "de todos modos" means "anyway".
+# `il milione e duecentomila lire': as `ciento treinta mil'
+The number "doscientos mil" means "two hundred thousand".
+# `il 2 per cento del pil': per cent, a noun of two words that is its own
+# plural
+The masculine noun "por ciento" means "per cent".
+"por ciento" is the plural of "por ciento".
+# `in un certo senso sono troppi', `fin troppo evidente': too many, the
+# adjective, and all too -- the adverb is said again first, because a line
+# here comes first for its word
+The adverb "demasiado" means "too".
+The masculine adjective "demasiado" means "too much". "demasiados" is the plural of "demasiado".
+The feminine adjective "demasiada" means "too much". "demasiadas" is the plural of "demasiada".
+The adverb "demasiado" means "all too".
+# `un bel po' di quattrini': a good deal, one word of two
+The masculine noun "buen montón" means "good deal".
+# `avete pensato all'evasione fiscale?': the second person of `han', which
+# the builder does not write
+"habéis" is the second person of "han".
+# `va di pari passo con ...': hand in hand
+The adverb "de la mano" means "hand in hand".
+# `ah, lei dice Catania'
+The interjection "ah" means "ah".
+# `Riparliamone tra un anno': talks again, and its command
+The verb "vuelve a hablar" means "talks again".
+"volvamos a hablar" is the hortative of "vuelve a hablar".
+# `come se i mascalzoni fossero pochi': as if
+The conjunction "como si" means "as if".
+# `per esempio quelli di Perugia': for example, one word of two
+The adverb "por ejemplo" means "for example".
+# `dentro il tetto': inside, the preposition -- the dictionary has it as
+# an adverb, and `inside' was written `interior', a noun
+The preposition "dentro de" means "inside".
+# `per studiare meglio': better, the adverb -- the dictionary has `mejor'
+# only as the comparative of `bueno'
+The adverb "mejor" means "better".
+# `ogni studente costa molto di più allo stato': much more
+The adverb "mucho más" means "much more".
+# `Da più parti cominciano ad arrivare i mugugni': from several sides
+The adverb "desde varias partes" means "from several sides".
+# `Ma non le pare che ...?': to you, the dative of the one spoken to, which
+# is `her' to the IR, and Spanish's `le'
+The dative pronoun "le" means "her".
+# `costano molto meno che al Nord': much less
+The adverb "mucho menos" means "much less".
+# `ci saranno atenei a diverse velocità?': several, a determiner of either
+# gender and plural in both -- the dictionary gives `varios' with no gender,
+# as the plural of nothing, and the phrase had no word for it
+The masculine determiner "varios" means "several".
+"varios" is the plural of "varios".
+The feminine determiner "varias" means "several".
+"varias" is the plural of "varias".
+# `valga meno che quella al politecnico di Milano': the polytechnic --
+# apertium-spa has `politécnico' only as the adjective
+The masculine noun "politécnico" means "polytechnic".
+"politécnicos" is the plural of "politécnico".
+# the Radio Nacional anniversary (AnCora CESS-CAST-P-19990701-83), into
+# Italian.
+# `Levanto una barretina por RTVE': the Catalan cap -- in no dictionary
+# here, and English and Italian call it by its Catalan name
+The feminine noun "barretina" means "barretina".
+"barretinas" is the plural of "barretina".
+# `Hubo, sin embargo, un desliz protocolario': there was, the preterite --
+# the builder states `había' and not `hubo', and read as a name at the head
+# the sentence had no verb; `había' is still the past written
+"hubo" is the past of "hay".
+# `Toda una proeza, tanto por ese medio siglo como por la sensibilidad':
+# both ... and -- the dictionary gives `tanto' as the conjunction `both', and
+# this says which word is its partner
+"como" is the partner of "tanto".
+# `la sensibilidad para con su entorno social': towards, one word of two --
+# `hacia' is said again first, so that it stays the word written
+The preposition "hacia" means "towards".
+The preposition "para con" means "towards".
+# `el inicio de los Juegos Olímpicos': the games -- the dictionary's first
+# meaning of `juego' is `gambling', and the Olympic Games came out the
+# Olympic gambling
+The masculine noun "juego" means "game".
+# `sintonías (De España para los españoles, ...)': the theme tunes of radio
+# programmes -- read as `tuning', which Italian writes `ottimizzazione'; a
+# line and not a one-way entry, which the builder drops for a word that has
+# a meaning already
+The feminine noun "sintonía" means "jingle".
+"sintonías" is the plural of "sintonía".
+# `y hasta anuncios (Telefunken, La Lechera)': and even adverts -- `hasta'
+# is `until' before a time and a place, and the adverb `even' before what
+# a list adds last
+# ... with the dictionary's order said again ABOVE it: a line of this file
+# comes first for its word and for its meaning, and with `even' first every
+# `hasta' crossed as it -- `caerá hasta un 4%' came out `cadrà persino un
+# 4%', `hasta el momento' `persino il momento' -- and `hasta' was Spanish's
+# first word for `even', `hasta dentro del tejado' for `incluso'
+The preposition "hasta" means "until".
+The adverb "incluso" means "even".
+The adverb "hasta" means "even".
+# `el inicio de los Juegos Olímpicos', `el inicio de una nueva etapa': the
+# beginning -- the dictionary gives `inicio' only `onset' and `start', which
+# Italian has no noun for, and each sentence was refused; `comienzo' is said
+# again first, so that it stays the word written
+The masculine noun "comienzo" means "beginning".
+The masculine noun "inicio" means "beginning".
+# `dos "personajes singulares que representan a otros muchos"': many
+# others, a pronoun of two words and a person, so the word before a person
+# goes with it -- read apart, `a otros' was `to others' and `muchos' a
+# pronoun before nothing, `a altri molti'
+The pronoun "otros muchos" means "many others". The pronoun "otros muchos" does not precede the verb. "otros muchos" is a person.
+# `altos ejecutivos de medios de comunicación': the media, a noun of three
+# words -- read apart, `medios' was the middle. It means `mass medium',
+# which no word of the dictionary means: meaning `medium' it came first for
+# that meaning, and Livata's `con oltre 50 mezzi' came out `con más de 50
+# medios de comunicación'
+The masculine noun "medio de comunicación" means "mass medium". "medios de comunicación" is the plural of "medio de comunicación".
+# `Voces de un ayer que marcó época': a yesterday, the adverb as a noun
+# after an article -- and a time, so that with no article it is no subject:
+# `Ayer ha sido preparado el pan' read `ayer' as the subject once it was a
+# noun, `Yesterday has been prepared the bread'
+The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday". "ayer" is a time.
+# `Voces de un ayer que marcó época': to make history, a verb of two words
+# that takes no object -- read apart, `época' was an object and the stars
+# after `y' a second one
+The intransitive verb "marca época" means "makes history".
+"marcan época" is the plural of "marca época". "marcó época" is the past of "marca época". "marcaron época" is the past of "marcan época". "marcar época" is the infinitive of "marca época".
+# the Fregene report (Italian UD VIT-9851..9925), into Spanish.
+# `un pò mediorientale': Middle Eastern, which the Spanish press writes as
+# one word and apertium-spa has not at all
+The adjective "medioriental" means "mideastern". "mediorientales" is the plural of "medioriental".
+# `un pò di soldi': a bit, one word of two
+The adverb "un poco" means "a bit".
+# the words written for the Italian ones, where the dictionary's first word
+# for the meaning is another sense of it: a pool that is not a group, work
+# that is not exploiting, love that is not delight, a chair that is not a
+# professorship, an arm of a body and not a weapon -- and `arma' a weapon
+# first, as it is read. `de nuevo' is the word for `again' now, where
+# `novedosamente' (newly) stood first since the Basque report
+The feminine noun "piscina" means "pool". "piscinas" is the plural of "piscina".
+The verb "trabaja" means "works".
+The verb "ama" means "loves".
+The feminine noun "silla" means "chair". "sillas" is the plural of "silla".
+The masculine noun "brazo" means "arm". "brazos" is the plural of "brazo".
+The feminine noun "arma" means "weapon". "armas" is the plural of "arma".
+# `Occhiali tondi': glasses, a noun Spanish has only in the plural; read as
+# the plural of `glass' it was `cristales'
+The feminine noun "gafas" means "glasses". "gafas" is the plural of "gafas".
+# `Anzi, ...': in fact
+The adverb "de hecho" means "in fact".
+# `certo che ha capito': of course, `claro que'; and `entender' takes the
+# question as `saber' does
+The conjunction "claro que" means "of course".
+"entiende" takes the question.
+# `encontrar al cronista': a person, whom Spanish marks with `a'
+"cronista" is a person.
+# `Sì, può essere ...', `Andava spesso ...', `Libri ... dappertutto': yes,
+# often, everywhere -- the dictionary pairs no Spanish word with any of them
+The adverb "sí" means "yes".
+The adverb "a menudo" means "often".
+The adverb "por todas partes" means "everywhere".
+# `perché nessuno le ha viste?': why; `così tanto': so much, the adverb
+The word "por qué" means "why".
+The adverb "tanto" means "so much".
+# `non solo io ma tanti altri': not only I but many others -- after `no sólo'
+# the word for `but' is `sino', and this says so, as `como' is the partner
+# of `tanto'
+"sino" is the partner of "sólo".
+# `o meglio': or rather
+The conjunction "o mejor dicho" means "or rather".
+# `Todos ellos pueden conducir.': they, which never stands before the verb as
+# its object -- read as one, an old control's refusal came out `Everyone
+# can them drive.' once `todos' could be a subject
+The pronoun "ellos" does not precede the verb.

@@ -354,3 +354,245 @@
 <e><p><l>truffle<s n="n"/></l><r>tartufo<s n="n"/><s n="m"/></r></p></e>
 # `la stampa piuttosto tiepida': lukewarm
 <e><p><l>lukewarm<s n="adj"/></l><r>tiepido<s n="adj"/></r></p></e>
+# the Basque socialists, from Spanish: `suscribir los principios
+# democráticos', to subscribe -- apertium-ita has `sottoscrivere' and the
+# bilingual pairs nothing with it
+<e><p><l>subscribe<s n="vblex"/></l><r>sottoscrivere<s n="vblex"/></r></p></e>
+# `que reafirmaron su acuerdo básico': restated -- the Spanish dictionary's
+# `reafirmar' is to restate, and Italian had no word for it; apertium-ita
+# has `riaffermare' and the bilingual pairs nothing with it
+<e><p><l>restate<s n="vblex"/></l><r>riaffermare<s n="vblex"/></r></p></e>
+# the Giglio park letter (Italian UD VIT-9792..9799), into Spanish.
+# `l'arcipelago toscano': Tuscan -- apertium-ita carries `toscano' and the
+# bilingual pairs nothing with it
+<e><p><l>Tuscan<s n="adj"/></l><r>toscano<s n="adj"/></r></p></e>
+# `un parco "blindato", "mummificato"': mummified -- apertium-ita carries
+# `mummificare' and the bilingual pairs nothing with it
+<e><p><l>mummify<s n="vblex"/></l><r>mummificare<s n="vblex"/></r></p></e>
+# `il 12 e 13 luglio scorso': last -- read only (r="RL"), so `last' is still
+# written `ultimo'
+<e r="RL"><p><l>last<s n="adj"/></l><r>scorso<s n="adj"/></r></p></e>
+# `altri vincoli rispetto a quelli esistenti': restrictions -- read only, so
+# `restriction' is still written as the dictionary writes it
+<e r="RL"><p><l>restriction<s n="n"/></l><r>vincolo<s n="n"/><s n="m"/></r></p></e>
+# the England supporters column (AnCora CESS-CAST-P-19990601-13), into
+# Italian.
+# `más vikingas que británicas': Viking -- apertium-ita carries `vichingo'
+# and the bilingual pairs nothing with it
+<e><p><l>Viking<s n="adj"/></l><r>vichingo<s n="adj"/></r></p></e>
+# `el imperturbable gentleman': imperturbable -- the same
+<e><p><l>imperturbable<s n="adj"/></l><r>imperturbabile<s n="adj"/></r></p></e>
+# `del gélido habitante': icy -- the same
+<e><p><l>icy<s n="adj"/></l><r>gelido<s n="adj"/></r></p></e>
+# `los escandalosos y bamboleantes bebedores': swaying -- the same
+<e><p><l>swaying<s n="adj"/></l><r>ondeggiante<s n="adj"/></r></p></e>
+# `los hooligans': apertium-ita's word is `teppista', of both genders
+<e><p><l>hooligan<s n="n"/></l><r>teppista<s n="n"/></r></p></e>
+# `su avinagrado carácter flemático': phlegmatic -- the same
+<e><p><l>phlegmatic<s n="adj"/></l><r>flemmatico<s n="adj"/></r></p></e>
+# `flemático, inalterable y estreñido': constipated -- the same
+<e><p><l>constipated<s n="adj"/></l><r>stitico<s n="adj"/></r></p></e>
+# `los escandalosos y bamboleantes bebedores': scandalous -- apertium-ita
+# carries `scandaloso' and the bilingual pairs it with nothing
+<e><p><l>scandalous<s n="adj"/></l><r>scandaloso<s n="adj"/></r></p></e>
+# `el país que ha producido la minifalda': miniskirt -- apertium-ita carries
+# `minigonna' and the bilingual pairs it with nothing
+<e><p><l>miniskirt<s n="n"/></l><r>minigonna<s n="n"/><s n="f"/></r></p></e>
+# `flemático, inalterable y estreñido': unalterable -- the same, `inalterabile'
+<e><p><l>unalterable<s n="adj"/></l><r>inalterabile<s n="adj"/></r></p></e>
+# the Bovalino letter (Italian UD, VIT-9800..9814), into Spanish. `la moglie':
+# wife -- apertium-ita carries `moglie', and the bilingual gives `wife' to
+# `donna' alone, one way; both ways here, the word for it
+<e><p><l>wife<s n="n"/></l><r>moglie<s n="n"/><s n="f"/></r></p></e>
+# `indicargli un'edicola': a newsstand, `kiosk' to the Spanish dictionary --
+# apertium-ita carries `edicola' and the bilingual pairs it with nothing
+<e r="RL"><p><l>kiosk<s n="n"/></l><r>edicola<s n="n"/><s n="f"/></r></p></e>
+# `non c'erano telecamere': cameras -- the same
+<e r="RL"><p><l>camera<s n="n"/></l><r>telecamera<s n="n"/><s n="f"/></r></p></e>
+# `le esigenze del mondo dell'imprenditoria': enterprise -- the same
+<e r="RL"><p><l>enterprise<s n="n"/></l><r>imprenditoria<s n="n"/><s n="f"/></r></p></e>
+# `i soggetti che vivono una vita disagiata': needy -- the same
+<e r="RL"><p><l>needy<s n="adj"/></l><r>disagiato<s n="adj"/></r></p></e>
+# `un periodo molto stressante': stressful -- the same
+<e r="RL"><p><l>stressful<s n="adj"/></l><r>stressante<s n="adj"/></r></p></e>
+# `a patto che si sottopongano ... al giudizio': subjects -- the same
+<e r="RL"><p><l>subject<s n="vblex"/></l><r>sottoporre<s n="vblex"/></r></p></e>
+# `un comportamento ... che poggia sulle piccole cose': rests -- the same
+<e r="RL"><p><l>rest<s n="vblex"/></l><r>poggiare<s n="vblex"/></r></p></e>
+# `musiche assordanti e promesse ingannevoli': deafening, deceptive -- the same
+<e r="RL"><p><l>deafening<s n="adj"/></l><r>assordante<s n="adj"/></r></p></e>
+<e r="RL"><p><l>deceptive<s n="adj"/></l><r>ingannevole<s n="adj"/></r></p></e>
+# `un piccolo centro ... travagliato da una molteplicità di problemi':
+# troubled -- the same
+<e r="RL"><p><l>troubled<s n="adj"/></l><r>travagliato<s n="adj"/></r></p></e>
+# `la guerra tra serbi e bosniaci': Serbian, the noun and the adjective --
+# the same, and `Bosnian' is the dictionary's noun for `bosniaco'
+<e r="RL"><p><l>Serbian<s n="n"/></l><r>serbo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>serbian<s n="adj"/></l><r>serbo<s n="adj"/></r></p></e>
+# the Puigbó article (AnCora CESS-CAST-P-19990701-130), into Italian.
+# `capitaneada por el empresario': captained -- apertium-ita carries
+# `capitanare' and the bilingual pairs nothing with it
+<e><p><l>captain<s n="vblex"/></l><r>capitanare<s n="vblex"/></r></p></e>
+# `editor del Telenotícies migdia': the editor of a news programme --
+# apertium-ita carries `redattore' and the bilingual pairs nothing with it
+# (`editore' is a publisher)
+<e><p><l>editor<s n="n"/></l><r>redattore<s n="n"/><s n="m"/></r></p></e>
+# `el todavía editor y presentador del informativo': the presenter --
+# apertium-ita carries `presentatore' and the bilingual pairs nothing with it
+<e><p><l>presenter<s n="n"/></l><r>presentatore<s n="n"/><s n="m"/></r></p></e>
+# `si Paral.lel continuará en la parrilla': the grill, a television
+# schedule's -- Italian's own for it is `griglia' too, which the dictionary
+# reads as a grid; written only, so that it stays one when read
+<e r="LR"><p><l>grill<s n="n"/></l><r>griglia<s n="n"/><s n="f"/></r></p></e>
+# `el grupo radiofónico': radio, the adjective -- apertium-ita carries
+# `radiofonico' and the bilingual pairs nothing with it
+<e><p><l>radio<s n="adj"/></l><r>radiofonico<s n="adj"/></r></p></e>
+# the Salvini interview (Italian UD VIT-9816..9850), into Spanish.
+# `E la pantera torna ad affilare gli artigli': returns -- the bilingual
+# pairs `tornare' with `come back', a verb of two English words the builder
+# does not write; read only, so `returns' is still written `ritorna'
+<e r="RL"><p><l>return<s n="vblex"/></l><r>tornare<s n="vblex"/></r></p></e>
+# `i singoli atenei': individual -- apertium-ita carries `singolo' and the
+# bilingual pairs nothing with it; read only, `individuale' stays the word
+<e r="RL"><p><l>individual<s n="adj"/></l><r>singolo<s n="adj"/></r></p></e>
+# `Il caso più eclatante': striking -- the same, and no other word means it
+<e><p><l>striking<s n="adj"/></l><r>eclatante<s n="adj"/></r></p></e>
+# `non crede che comunque ...': anyway -- the same; the bilingual's `ad
+# ogni modo' is three words the builder does not write
+<e><p><l>anyway<s n="adv"/></l><r>comunque<s n="adv"/></r></p></e>
+# `i meno abbienti e i meritevoli': wealthy, worthy -- the same. Wealthy
+# both ways: read only, it gave `wealthy' a meaning and the builder then
+# dropped the one-way `ricco' for it, so nothing was left to write; both
+# ways, it is Italian's own word for it. Worthy read only, `degno' stays
+# the word written
+<e><p><l>wealthy<s n="adj"/></l><r>abbiente<s n="adj"/></r></p></e>
+<e r="RL"><p><l>worthy<s n="adj"/></l><r>meritevole<s n="adj"/></r></p></e>
+# `per la centesima volta': hundredth -- the bilingual pairs `centesimo' as
+# an ordinal determiner, a class the builder does not write; apertium-ita
+# carries the adjective
+<e><p><l>hundredth<s n="adj"/></l><r>centesimo<s n="adj"/></r></p></e>
+# `che non si profitti del denaro in più': benefits -- apertium-ita carries
+# `profittare' and the bilingual pairs nothing with it; read only
+<e r="RL"><p><l>benefit<s n="vblex"/></l><r>profittare<s n="vblex"/></r></p></e>
+# `prevede che la pantera si arrabbi?': angers -- the same; read only
+<e r="RL"><p><l>anger<s n="vblex"/></l><r>arrabbiare<s n="vblex"/></r></p></e>
+# `i mugugni degli studenti': complaints -- the same; read only
+<e r="RL"><p><l>complaint<s n="n"/></l><r>mugugno<s n="n"/><s n="m"/></r></p></e>
+# `non sono a disposizione ... per gli improperi': insults -- the same;
+# read only
+<e r="RL"><p><l>insult<s n="n"/></l><r>improperio<s n="n"/><s n="m"/></r></p></e>
+# `la qualità ... degli insegnanti': teachers -- the same; read only
+<e r="RL"><p><l>teacher<s n="n"/></l><r>insegnante<s n="n"/><s n="mf"/></r></p></e>
+# `un debito pubblico spaventoso': frightful -- the same, and no other word
+# of Italian means it
+<e><p><l>frightful<s n="adj"/></l><r>spaventoso<s n="adj"/></r></p></e>
+# `le università non sarebbero così scalcinate': shabby -- the same
+<e><p><l>shabby<s n="adj"/></l><r>scalcinato<s n="adj"/></r></p></e>
+# `la ricerca scientifica': scientific -- the bilingual pairs it with
+# `scienziato', a scientist, only
+<e><p><l>scientific<s n="adj"/></l><r>scientifico<s n="adj"/></r></p></e>
+# `un bel po' di quattrini': money -- apertium-ita carries `quattrino' and
+# the bilingual pairs nothing with it; read only, `denaro' stays the word
+<e r="RL"><p><l>money<s n="n"/></l><r>quattrino<s n="n"/><s n="m"/></r></p></e>
+# `Il ministero sta facendo una verifica': verification -- apertium-ita
+# carries the noun `verifica' and the bilingual pairs only the verb; read
+# only
+<e r="RL"><p><l>verification<s n="n"/></l><r>verifica<s n="n"/><s n="f"/></r></p></e>
+# `valga meno che quella al politecnico di Milano': polytechnic -- apertium-ita
+# carries the noun `politecnico' and the bilingual pairs only the adjective
+<e><p><l>polytechnic<s n="n"/></l><r>politecnico<s n="n"/><s n="m"/></r></p></e>
+# `un problema grave e che mi tormenta': torments -- apertium-ita carries
+# `tormentare' and the bilingual pairs only the noun; read as the noun
+# `tormenta', a storm, the relative clause had no verb
+<e><p><l>torment<s n="vblex"/></l><r>tormentare<s n="vblex"/></r></p></e>
+# the Radio Nacional anniversary (AnCora CESS-CAST-P-19990701-83), into
+# Italian.
+# `el campeón motociclista Sito Pons': motorcyclist, the noun, and
+# motorcycling, the adjective -- apertium-ita carries `motociclista' and
+# `motociclistico' and the bilingual pairs neither
+<e><p><l>motorcyclist<s n="n"/></l><r>motociclista<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>motorcycling<s n="adj"/></l><r>motociclistico<s n="adj"/></r></p></e>
+# `un desliz protocolario': protocolary -- apertium-ita carries the adjective
+# `protocollare' and the bilingual pairs nothing with it
+<e><p><l>protocolary<s n="adj"/></l><r>protocollare<s n="adj"/></r></p></e>
+# `Toda una proeza': a feat -- apertium-ita carries `prodezza' and the
+# bilingual pairs nothing with it, and English's `exploit' had no Italian
+# noun at all
+<e><p><l>exploit<s n="n"/></l><r>prodezza<s n="n"/><s n="f"/></r></p></e>
+# `sintonías': a programme's theme tune, which Italian calls its `sigla';
+# written only, `sigla' still reads as an acronym
+<e r="LR"><p><l>jingle<s n="n"/></l><r>sigla<s n="n"/><s n="f"/></r></p></e>
+# `stelle tanto disparate': apertium-ita carries the adjective `disparato'
+# and the bilingual pairs nothing with it
+<e><p><l>disparate<s n="adj"/></l><r>disparato<s n="adj"/></r></p></e>
+# the Fregene report (Italian UD VIT-9851..9925), into Spanish: words
+# apertium-ita carries and the bilingual pairs with nothing. Read only, so
+# the Italian word the dictionary already writes for each meaning stays the
+# word written -- all but `wears': the dictionary writes it with an entry
+# for writing only, `portare', which the builder keeps only while one of
+# its words has no entry yet (cb_order/2), and `indossare' gave `wear' one.
+# So `wears' is written `indossa' now, the Italian for it, and `porta' no
+# longer reads as `wears'.
+# `aperta un'inchiesta per omicidio colposo': culpable
+<e r="RL"><p><l>culpable<s n="adj"/></l><r>colposo<s n="adj"/></r></p></e>
+# `annegata in una piscina', `annegate nella piscina': drowned
+<e r="RL"><p><l>drown<s n="vblex"/></l><r>annegare<s n="vblex"/></r></p></e>
+# `con una forza incrollabile': unshakeable
+<e r="RL"><p><l>unshakeable<s n="adj"/></l><r>incrollabile<s n="adj"/></r></p></e>
+# `una dignità che spezza il cuore': breaks
+<e r="RL"><p><l>break<s n="vblex"/></l><r>spezzare<s n="vblex"/></r></p></e>
+# `siede sul divano bianco': the sofa
+<e r="RL"><p><l>sofa<s n="n"/></l><r>divano<s n="n"/><s n="m"/></r></p></e>
+# `Occhiali tondi': round
+<e r="RL"><p><l>round<s n="adj"/></l><r>tondo<s n="adj"/></r></p></e>
+# `l'accappatoio di spugna che indossa': wears
+<e r="RL"><p><l>wear<s n="vblex"/></l><r>indossare<s n="vblex"/></r></p></e>
+# `la sorellina di Sofia': the little sister, read as the sister
+<e r="RL"><p><l>sister<s n="n"/></l><r>sorellina<s n="n"/><s n="f"/></r></p></e>
+# `se ne sono accorti loro': they realized
+<e r="RL"><p><l>realize<s n="vblex"/></l><r>accorgere<s n="vblex"/></r></p></e>
+# `contro ignoti': unknown
+<e r="RL"><p><l>unknown<s n="adj"/></l><r>ignoto<s n="adj"/></r></p></e>
+# `un uomo alto, snello, scuro': slender
+<e r="RL"><p><l>slender<s n="adj"/></l><r>snello<s n="adj"/></r></p></e>
+# `un pò mediorientale nei lineamenti': Middle Eastern, and the features of
+# a face
+<e r="RL"><p><l>mideastern<s n="adj"/></l><r>mediorientale<s n="adj"/></r></p></e>
+<e r="RL"><p><l>lineament<s n="n"/></l><r>lineamento<s n="n"/><s n="m"/></r></p></e>
+# `il viso solcato': furrowed
+<e r="RL"><p><l>furrow<s n="vblex"/></l><r>solcare<s n="vblex"/></r></p></e>
+# `ha iniziato a scrivere per "reporter"': the newspaper, which the source
+# writes in small letters, so it reads as the noun
+<e r="RL"><p><l>reporter<s n="n"/></l><r>reporter<s n="n"/><s n="mf"/></r></p></e>
+# `una vita movimentata, quasi avventurosa': eventful, adventurous
+<e r="RL"><p><l>eventful<s n="adj"/></l><r>movimentato<s n="adj"/></r></p></e>
+<e r="RL"><p><l>adventurous<s n="adj"/></l><r>avventuroso<s n="adj"/></r></p></e>
+# `sposa una piemontese': a Piedmontese woman
+<e r="RL"><p><l>piedmontese<s n="adj"/></l><r>piemontese<s n="adj"/></r></p></e>
+<e r="RL"><p><l>piedmontese<s n="n"/></l><r>piemontese<s n="n"/><s n="mf"/></r></p></e>
+# `s'innamora di un matematico': falls in love
+<e r="RL"><p><l>enamour<s n="vblex"/></l><r>innamorare<s n="vblex"/></r></p></e>
+# `non si trova nemmeno un trafiletto': a short item in a paper
+<e r="RL"><p><l>snippet<s n="n"/></l><r>trafiletto<s n="n"/><s n="m"/></r></p></e>
+# `È bravissimo': skilful, whose superlative the builder states
+<e r="RL"><p><l>skillful<s n="adj"/></l><r>bravo<s n="adj"/></r></p></e>
+# `Vorrei che fossero sepolte assieme': buried
+<e r="RL"><p><l>bury<s n="vblex"/></l><r>seppellire<s n="vblex"/></r></p></e>
+# `può essere che Margherita abbia avuto un malore': a fainting fit
+<e r="RL"><p><l>fainting<s n="n"/></l><r>malore<s n="n"/><s n="m"/></r></p></e>
+# `un risarcimento': compensation
+<e r="RL"><p><l>compensation<s n="n"/></l><r>risarcimento<s n="n"/><s n="m"/></r></p></e>
+# `all'ospedale pediatrico di Cracovia': paediatric
+<e r="RL"><p><l>paediatric<s n="adj"/></l><r>pediatrico<s n="adj"/></r></p></e>
+# `la prova più atroce': atrocious
+<e r="RL"><p><l>atrocious<s n="adj"/></l><r>atroce<s n="adj"/></r></p></e>
+# `sfoglia a occhi asciutti le foto': leafs through, with dry eyes
+<e r="RL"><p><l>browse<s n="vblex"/></l><r>sfogliare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>dry<s n="adj"/></l><r>asciutto<s n="adj"/></r></p></e>
+# `dello stabilimento balneare "miraggio"': a bathing establishment
+<e r="RL"><p><l>balneal<s n="adj"/></l><r>balneare<s n="adj"/></r></p></e>
+# `Fruga in una scatola piena di fotografie': rummages
+<e r="RL"><p><l>rummage<s n="vblex"/></l><r>frugare<s n="vblex"/></r></p></e>
+# `un artista molto noto': well known, which apertium-ita carries as an
+# adjective and the bilingual pairs with nothing; `noto' was only I notice
+<e r="RL"><p><l>famous<s n="adj"/></l><r>noto<s n="adj"/></r></p></e>
