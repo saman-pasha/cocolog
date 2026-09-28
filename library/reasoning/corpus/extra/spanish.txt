@@ -1109,6 +1109,13 @@ The feminine noun "sintonía" means "jingle".
 # `y hasta anuncios (Telefunken, La Lechera)': and even adverts -- `hasta'
 # is `until' before a time and a place, and the adverb `even' before what
 # a list adds last
+# ... with the dictionary's order said again ABOVE it: a line of this file
+# comes first for its word and for its meaning, and with `even' first every
+# `hasta' crossed as it -- `caerá hasta un 4%' came out `cadrà persino un
+# 4%', `hasta el momento' `persino il momento' -- and `hasta' was Spanish's
+# first word for `even', `hasta dentro del tejado' for `incluso'
+The preposition "hasta" means "until".
+The adverb "incluso" means "even".
 The adverb "hasta" means "even".
 # `el inicio de los Juegos Olímpicos', `el inicio de una nueva etapa': the
 # beginning -- the dictionary gives `inicio' only `onset' and `start', which
@@ -1122,11 +1129,16 @@ The masculine noun "inicio" means "beginning".
 # pronoun before nothing, `a altri molti'
 The pronoun "otros muchos" means "many others". The pronoun "otros muchos" does not precede the verb. "otros muchos" is a person.
 # `altos ejecutivos de medios de comunicación': the media, a noun of three
-# words -- read apart, `medios' was the middle
-The masculine noun "medio de comunicación" means "medium". "medios de comunicación" is the plural of "medio de comunicación".
+# words -- read apart, `medios' was the middle. It means `mass medium',
+# which no word of the dictionary means: meaning `medium' it came first for
+# that meaning, and Livata's `con oltre 50 mezzi' came out `con más de 50
+# medios de comunicación'
+The masculine noun "medio de comunicación" means "mass medium". "medios de comunicación" is the plural of "medio de comunicación".
 # `Voces de un ayer que marcó época': a yesterday, the adverb as a noun
-# after an article
-The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday".
+# after an article -- and a time, so that with no article it is no subject:
+# `Ayer ha sido preparado el pan' read `ayer' as the subject once it was a
+# noun, `Yesterday has been prepared the bread'
+The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday". "ayer" is a time.
 # `Voces de un ayer que marcó época': to make history, a verb of two words
 # that takes no object -- read apart, `época' was an object and the stars
 # after `y' a second one

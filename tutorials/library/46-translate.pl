@@ -3544,9 +3544,9 @@ The noun "nieve" means "snow". "nieves" is the plural of "nieve". The noun "herr
 The masculine noun "alto" means "height". The masculine adjective "alto" means "high".
 The masculine noun "ejecutivo" means "executive". "ejecutivo" is a person. The masculine adjective "ejecutivo" means "executive".').
 
-lesson_47(spanish, 2, 'The adverb "hoy" means "today". The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday".
+lesson_47(spanish, 2, 'The adverb "hoy" means "today". The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday". "ayer" is a time.
 The intransitive verb "marca época" means "makes history". "marcó época" is the past of "marca época".
-The adverb "hasta" means "even". The preposition "hasta" means "until". The adverb "sin embargo" means "however". The adverb "también" means "also".
+The preposition "hasta" means "until". The adverb "hasta" means "even". The adverb "sin embargo" means "however". The adverb "también" means "also".
 The conjunction "tanto" means "both". "como" is the partner of "tanto".
 The preposition "como" means "like". The preposition "además de" means "besides". The preposition "así como" means "just like".
 The masculine pronoun "éste" means "this". The pronoun "éste" does not precede the verb.
@@ -3606,7 +3606,7 @@ The feminine noun "neve" means "snow". "nevi" is the plural of "neve". "neve" is
 The adjective "alto" means "high". "alti" is the plural of "alto".
 The noun "esecutivo" means "executive". "esecutivi" is the plural of "esecutivo". "esecutivo" is a person.').
 
-lesson_47(italian, 2, 'The adverb "oggi" means "today". The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday".
+lesson_47(italian, 2, 'The adverb "oggi" means "today". The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday". "ieri" is a time.
 The intransitive verb "fa epoca" means "makes history". "fece epoca" is the past of "fa epoca".
 The adverb "persino" means "even". The preposition "fino a" means "until". The adverb "però" means "however". The adverb "anche" means "also".
 The conjunction "tanto" means "both". "quanto" is the partner of "tanto".

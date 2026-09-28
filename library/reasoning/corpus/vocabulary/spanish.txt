@@ -630,12 +630,14 @@ The preposition "para con" means "towards".
 The masculine noun "juego" means "game".
 The feminine noun "sintonía" means "jingle".
 "sintonías" is the plural of "sintonía".
+The preposition "hasta" means "until".
+The adverb "incluso" means "even".
 The adverb "hasta" means "even".
 The masculine noun "comienzo" means "beginning".
 The masculine noun "inicio" means "beginning".
 The pronoun "otros muchos" means "many others". The pronoun "otros muchos" does not precede the verb. "otros muchos" is a person.
-The masculine noun "medio de comunicación" means "medium". "medios de comunicación" is the plural of "medio de comunicación".
-The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday".
+The masculine noun "medio de comunicación" means "mass medium". "medios de comunicación" is the plural of "medio de comunicación".
+The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday". "ayer" is a time.
 The intransitive verb "marca época" means "makes history".
 "marcan época" is the plural of "marca época". "marcó época" is the past of "marca época". "marcaron época" is the past of "marcan época". "marcar época" is the infinitive of "marca época".
 The masculine noun "niño" means "child".

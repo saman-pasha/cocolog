@@ -1506,10 +1506,15 @@ The pronoun "molti altri" means "many others". The pronoun "molti altri" does no
 # dictionary's first word for it is `battimano', the clapping of hands
 The masculine noun "applauso" means "applause".
 # `dirigenti dei mezzi di comunicazione': the media, for the Spanish `medios
-# de comunicación'
-The masculine noun "mezzo di comunicazione" means "medium". "mezzi di comunicazione" is the plural of "mezzo di comunicazione".
-# `le voci di un ieri': a yesterday, for the Spanish `un ayer'
-The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday".
+# de comunicación' -- `mass medium', which no word of the dictionary means,
+# so that it comes first for no meaning another word has
+The masculine noun "mezzo di comunicazione" means "mass medium". "mezzi di comunicazione" is the plural of "mezzo di comunicazione".
+# `le voci di un ieri': a yesterday, for the Spanish `un ayer' -- and a
+# time, so that with no article it is no subject: the bioethics report's
+# `Ieri è stato inoltre approvato il documento' read `ieri' as the subject
+# once it was a noun, `Yesterday has been approved the document', which
+# Spanish wrote in the same words as the right reading
+The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday". "ieri" is a time.
 # `un ayer que marcó época': an epoch, which the dictionary gives Italian no
 # word for; said after `period', which stays the word's first meaning
 The feminine noun "epoca" means "epoch".

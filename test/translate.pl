@@ -6937,6 +6937,7 @@ newspaper_radio :-
     newspaper_radio_lesson(spanish, ES), reason_learn(ES, spanish, _),
     newspaper_radio_lesson(italian, IT), reason_learn(IT, italian, _),
     newspaper_radio_checks_1, newspaper_radio_checks_2, newspaper_radio_checks_3, newspaper_radio_checks_4,
+    newspaper_radio_checks_5,
     reason_unlearn(italian), reason_unlearn(spanish).
 
 %% each lesson in two parts, because a clause over a page (8 KB) cannot be
@@ -6973,9 +6974,9 @@ The noun "nieve" means "snow". "nieves" is the plural of "nieve". The noun "herr
 The masculine noun "alto" means "height". The masculine adjective "alto" means "high".
 The masculine noun "ejecutivo" means "executive". "ejecutivo" is a person. The masculine adjective "ejecutivo" means "executive".').
 
-newspaper_radio_part(spanish, 2, 'The adverb "hoy" means "today". The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday".
+newspaper_radio_part(spanish, 2, 'The adverb "hoy" means "today". The adverb "ayer" means "yesterday". The masculine noun "ayer" means "yesterday". "ayer" is a time.
 The intransitive verb "marca época" means "makes history". "marcó época" is the past of "marca época".
-The adverb "hasta" means "even". The preposition "hasta" means "until". The adverb "sin embargo" means "however". The adverb "también" means "also".
+The preposition "hasta" means "until". The adverb "hasta" means "even". The adverb "entonces" means "then". The adverb "sin embargo" means "however". The adverb "también" means "also".
 The conjunction "tanto" means "both". "como" is the partner of "tanto".
 The preposition "como" means "like". The preposition "además de" means "besides". The preposition "así como" means "just like".
 The masculine pronoun "éste" means "this". The pronoun "éste" does not precede the verb.
@@ -6983,6 +6984,7 @@ The feminine pronoun "toda" means "everything". "todas" is the plural of "toda".
 The masculine pronoun "todo" means "all". The feminine pronoun "toda" means "all".
 The pronoun "otros muchos" means "many others". The pronoun "otros muchos" does not precede the verb. "otros muchos" is a person.
 The demonstrative "ese" means "that". "esos" is the plural of "ese". The adjective "medio" means "half".
+The masculine noun "medio de comunicación" means "mass medium". "medios de comunicación" is the plural of "medio de comunicación". The masculine noun "medio" means "medium".
 The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comió" is the past of "come". "comieron" is the past of "comen".
 The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "durmió" is the past of "duerme". "durmieron" is the past of "duermen".
 The verb "ve" means "sees". "ven" is the plural of "ve". "vio" is the past of "ve". "ver" is the infinitive of "ve".
@@ -6993,6 +6995,7 @@ The verb "reúne" means "gathers". "reúnen" is the plural of "reúne". "reunió
 The verb "asegura" means "ensures". "aseguró" is the past of "asegura". "asegura" takes the clause.
 The verb "prepara" means "prepares". "preparado" is the participle of "prepara". "preparados" is the participle of "prepara". "preparados" is the plural of "preparado".
 The verb "es" means "is". "son" is the plural of "es". "fue" is the past of "es".
+The auxiliary "ha" means "has". "sido" is the participle of "es". "ha" is the auxiliary of "es".
 The auxiliary "está" means "is". "están" is the plural of "está". The auxiliary "está" marks the state.
 The verb "hay" means "there is". "hay" is the plural of "hay". "había" is the past of "hay". "hubo" is the past of "hay".
 The conjunction "y" means "and". The conjunction "o" means "or". The conjunction "que" means "that". "que" is a relative.
@@ -7038,9 +7041,9 @@ The feminine noun "neve" means "snow". "nevi" is the plural of "neve". "neve" is
 The adjective "alto" means "high". "alti" is the plural of "alto".
 The noun "esecutivo" means "executive". "esecutivi" is the plural of "esecutivo". "esecutivo" is a person.').
 
-newspaper_radio_part(italian, 2, 'The adverb "oggi" means "today". The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday".
+newspaper_radio_part(italian, 2, 'The adverb "oggi" means "today". The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday". "ieri" is a time.
 The intransitive verb "fa epoca" means "makes history". "fece epoca" is the past of "fa epoca".
-The adverb "persino" means "even". The preposition "fino a" means "until". The adverb "però" means "however". The adverb "anche" means "also".
+The adverb "persino" means "even". The preposition "fino a" means "until". The adverb "allora" means "then". The adverb "però" means "however". The adverb "anche" means "also".
 The conjunction "tanto" means "both". "quanto" is the partner of "tanto".
 The preposition "come" means "like". The preposition "oltre a" means "besides". The preposition "così come" means "just like".
 The pronoun "questo" means "this". The pronoun "questo" does not precede the verb. "quest''" is the elision of "questo".
@@ -7048,6 +7051,7 @@ The feminine pronoun "tutta" means "everything". "tutte" is the plural of "tutta
 The masculine pronoun "tutto" means "all". The feminine pronoun "tutta" means "all".
 The pronoun "molti altri" means "many others". The pronoun "molti altri" does not precede the verb.
 The demonstrative "quello" means "that". "quel" is the apocope of "quello". "quei" is the plural of "quel". The adjective "mezzo" means "half".
+The masculine noun "mezzo di comunicazione" means "mass medium". "mezzi di comunicazione" is the plural of "mezzo di comunicazione". The masculine noun "mezzo" means "medium". "mezzi" is the plural of "mezzo".
 The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiò" is the past of "mangia". "mangiarono" is the past of "mangiano".
 The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormì" is the past of "dorme". "dormirono" is the past of "dormono".
 The verb "vede" means "sees". "vedono" is the plural of "vede". "vide" is the past of "vede". "vedere" is the infinitive of "vede".
@@ -7057,7 +7061,7 @@ The verb "onora" means "honours". "onorare" is the infinitive of "onora".
 The verb "riunisce" means "gathers". "riuniscono" is the plural of "riunisce". "riunì" is the past of "riunisce". "riunirono" is the past of "riuniscono".
 The verb "assicura" means "ensures". "assicurò" is the past of "assicura". "assicura" takes the clause.
 The verb "prepara" means "prepares". "preparato" is the participle of "prepara". "preparati" is the participle of "prepara". "preparati" is the plural of "preparato".
-The verb "è" means "is". "sono" is the plural of "è". "fu" is the past of "è".
+The verb "è" means "is". "sono" is the plural of "è". "fu" is the past of "è". "è" is the auxiliary of "è". "stato" is the participle of "è".
 The verb "c''è" means "there is". "ci sono" is the plural of "c''è". "c''era" is the past of "c''è".
 The conjunction "e" means "and". The conjunction "o" means "or". The conjunction "che" means "that". "che" is a relative.
 The preposition "a" means "to". The preposition "di" means "of". The preposition "in" means "in". The preposition "con" means "with".
@@ -7166,6 +7170,30 @@ newspaper_radio_checks_4 :-
     nf_tr('Il cane vede la nuova squadra campione.', italian, english, G4),
     check('GUARD: the person heads a phrase only among nouns that are ALL adjectives too: `il miglioramento didattico universitario giurisprudenza medicina'' made the person the head, and Spanish marked it as a person object; here the champion was the head and the team its adjective, `the new team champion''', G4,
           'The dog sees the new champion team.').
+
+%% THE LINES A SAMPLE ADDS HAVE TWO READERS, AND THE DATA COLUMN FOUND THREE:
+%% 1.8.20's own translator, over the store this report's lines were taught
+%% into, wrote old sentences worse. Each guard below is red on the lesson as
+%% 1.8.21 had it and green on the vocabulary's order now.
+newspaper_radio_checks_5 :-
+    nf_tr('El perro duerme hasta el martes.', spanish, italian, D1),
+    check('GUARD: `hasta'' is `until'' before it is `even'': with the adverb''s line first every `hasta'' crossed as `even'', and `caerá hasta un 4%'' came out `cadrà persino un 4%''', D1,
+          'Il cane dorme fino al martedì.'),
+    nf_tr('Hasta entonces el perro duerme.', spanish, italian, D6),
+    check('GUARD: and a word that is a preposition too is the preposition before an adverb: lifted as the adverb `even'' before `entonces'', `pero hasta entonces mantendrá'' came out `persino allora''', D6,
+          'Il cane dorme fino a allora.'),
+    nf_tr('Ieri è stato preparato il pane.', italian, english, D2),
+    check('GUARD: `ieri'' is a noun for `un ieri'' and a TIME, so with no article it is no subject: `Ieri è stato inoltre approvato il documento'' read `Yesterday has been approved the document''', D2,
+          'The bread has been prepared yesterday.'),
+    nf_tr('Ayer ha sido preparado el pan.', spanish, english, D3),
+    check('GUARD: and `ayer'' the same way', D3,
+          'The bread has been prepared yesterday.'),
+    nf_tr('I mezzi dormono.', italian, spanish, D4),
+    check('GUARD: `medios de comunicación'' means `mass medium'', which no other word means: meaning `medium'' it came first for it, and `con oltre 50 mezzi'' came out `con más de 50 medios de comunicación''', D4,
+          'Los medios duermen.'),
+    nf_tr('Los medios de comunicación duermen.', spanish, italian, D5),
+    check('and the media are still the media', D5,
+          'I mezzi di comunicazione dormono.').
 
 %% ---- the rules are what the translator asks ---------------------------------------------
 

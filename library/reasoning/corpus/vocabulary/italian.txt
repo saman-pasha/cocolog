@@ -911,8 +911,8 @@ The conjunction "tanto" means "both".
 The masculine noun "gioco" means "game".
 The pronoun "molti altri" means "many others". The pronoun "molti altri" does not precede the verb.
 The masculine noun "applauso" means "applause".
-The masculine noun "mezzo di comunicazione" means "medium". "mezzi di comunicazione" is the plural of "mezzo di comunicazione".
-The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday".
+The masculine noun "mezzo di comunicazione" means "mass medium". "mezzi di comunicazione" is the plural of "mezzo di comunicazione".
+The adverb "ieri" means "yesterday". The masculine noun "ieri" means "yesterday". "ieri" is a time.
 The feminine noun "epoca" means "epoch".
 The intransitive verb "fa epoca" means "makes history".
 "fanno epoca" is the plural of "fa epoca". "fece epoca" is the past of "fa epoca". "fecero epoca" is the past of "fanno epoca". "fare epoca" is the infinitive of "fa epoca".

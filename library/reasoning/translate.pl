@@ -4777,7 +4777,16 @@ tr_adverbs_off(Side, [W|Ws], [W|Rest], Advs) :- tr_adverbs_off(Side, Ws, Rest, A
 %% adverb, `Creo no que ...', and the verb it denies was left affirmed)
 tr_adverbs_off(Side, [W|Ws], Rest, [adv(W)|Advs]) :-
     tr_plain_adverb(Side, W), \+ ( W = w(N, _), atom(N), tr_negation_word(N) ),
+    \+ tr_governs_adverb(Side, W, Ws),
     tr_adverbs_off(Side, Ws, Rest, Advs).
+%% A WORD THAT IS A PREPOSITION TOO IS THE PREPOSITION BEFORE AN ADVERB:
+%% `pero hasta entonces mantendrá' is until then and `¿Hasta dónde
+%% llegaste?' how far. `hasta' is the adverb `even' as well, for `y hasta
+%% anuncios' (tr_complements0/4), and lifted as one before `entonces' it
+%% came out `persino allora', where 1.8.20 wrote `fino a allora'; a
+%% preposition whose object is an adverb is 1.6.14's `per sempre'
+tr_governs_adverb(Side, W, [N|_]) :-
+    N = w(_, _), tr_is(Side, W, preposition), tr_plain_adverb(Side, N), !.
 
 %% the first division whose two sides both read: a connecting word the
 %% lesson gives (`e', `ma', `perche'), or a bare comma. The connector
@@ -6147,7 +6156,8 @@ tr_takes_subject_after(L, LV, Before) :-
     ( LV = reflexive(_) -> true ; member(w(R, _), Before), tr_reflexive_word(R) ), !.
 
 %% the plain adverbs at the head of the words before a verb, and the rest
-tr_front_adverbs([W|Ws], [W|As], Rest) :- W = w(_, _), tr_plain_adverb(foreign, W), \+ tr_clitic(none, W), !,
+tr_front_adverbs([W|Ws], [W|As], Rest) :- W = w(_, _), tr_plain_adverb(foreign, W), \+ tr_clitic(none, W),
+    \+ tr_governs_adverb(foreign, W, Ws), !,
     tr_front_adverbs(Ws, As, Rest).
 tr_front_adverbs(Ws, [], Ws).
 
@@ -10008,17 +10018,7 @@ tr_phrase_words(Side, Words, PW, Rest) :-
     tr_phrase_words0(Side, Words, PW0, Rest0),
     (   PW0 \== [], Rest0 \== [], \+ tr_comparison_start(Side, Rest0),
         ( tr_relative_start(Side, Rest0) -> true ; tr_clause_opener(Side, Rest0) )
-    ->  (   %% A RELATIVE CLAUSE THAT OPENS INSIDE A QUOTATION ENDS AT ITS
-            %% CLOSING MARK: `a dos "personajes singulares que representan a
-            %% otros muchos", Jorge Arandes y Joan Viñas, que recibieron ...'
-            %% -- read to the end, the two names after the quotation were a
-            %% second object of `representan', and the word before a person
-            %% was `to', `a molti altri'
-            tr_open_quote(PW0),
-            append(RC, [w(X, qclose)|After], Rest0), After \== [],
-            \+ ( member(w(_, QC), RC), memberchk(QC, [qopen, qboth, qclose]) ),
-            append([PW0, RC, [w(X, qclose)]], PW), Rest = After
-        ;   append(PW0, Rest0, PW), Rest = []
+    ->  (   append(PW0, Rest0, PW), Rest = []
         %% ... OR THE PHRASE ALONE, where a preposition and the relative that
         %% follows one open a part with NO VERB: `quattro governi di cui solo
         %% uno ... uscito da elezioni generali' is four governments, of which
@@ -10067,10 +10067,6 @@ tr_phrase_words(Side, Words, PW, Rest) :-
         )
     ;   PW = PW0, Rest = Rest0
     ).
-
-%% a quotation opened among a phrase's words and not closed there
-tr_open_quote(PW) :-
-    append(_, [w(_, qopen)|After], PW), \+ ( member(w(_, C), After), memberchk(C, [qclose, qboth]) ), !.
 
 %% a word that is a noun too, after a phrase that is a determiner and no
 %% noun yet
