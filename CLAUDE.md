@@ -10993,6 +10993,457 @@ it was said at, a comment that opens on a coordinator and a denial for one verb
 of two are new shapes a program reaches; the owner decides. The full suite was
 not run on 1.8.20.
 
+### A Spanish report into Italian: an ordinal, a list whose items carry phrases, parts set off by semicolons, both ... and, titles in a bracket, there was after an insertion, a quotation that opens on a participle (1.8.21 to 1.8.24)
+
+**THE TWENTIETH SAMPLE OF THE LOOP, AND BACK TO SPANISH.** AnCora's
+CESS-CAST-P-19990701-83 -- nine sentences of El Periódico on the fiftieth
+anniversary of Radio Nacional de España in Catalonia: voices of a yesterday
+that made history and stars of today's airwaves, politicians, sportsmen,
+artists and senior media executives gathered at the Reales Atarazanas; the
+event, opened with an audiovisual of emblematic moments, theme tunes and even
+adverts; who was in the audience, in two lists set off by semicolons; the
+director's claim, the homage to two singular characters, a slip of protocol,
+and Pío Cabanillas raising a barretina -- Spanish into Italian over the
+two-language vocabulary store. The middle column is 1.8.20's translator over
+THIS store:
+
+| | 1.8.20, its store | 1.8.20, this store | **1.8.24** |
+|---|---|---|---|
+| translated | 1 of 9, its opening quotation mark lost: `sono preparati per la radio del 2000"` | 2: the same, and `C'erano, però, una scivolata`, the verb with nobody named for its subject | **9** |
+| refused for a word | 6, naming nine words: `ja` and `sóc`, Catalan in a quotation, and `conseller`, `motociclista`, `homenajear`, `desliz`, `protocolario`, `barretina` and `aperturismo`, which the dictionaries carry and the bilingual pairs with nothing | 1, naming `ja` and `sóc` | **0** |
+| refused with every word known | 2 | 6 | **0** |
+| the report, one process | 142.8 s, 59.1 of them the first sentence | 151.0 and 157.4 s | **25.8 and 26.4 s** |
+
+-- the store Italian 177 015 terms and Spanish 221 697, taught into one
+`--embed` store from the vocabularies of 1.8.24 in 731 s and 1 226 s, 332 MB.
+
+**WHAT IT NEEDED IS WHAT A SOCIETY PAGE DOES WITH A CROWD.** The twelve were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks, Fiat figures, Valencia a thing on show, the bioethics report its
+claims, the football page a squad, Monreale a court, the record report figures
+again, the islands report what a news item puts before its verb, the opera
+review what it puts beside a phrase, the interview a man talking, the Georgia
+report people by their offices, the extract things said again, the Clinton
+report who said what, the Bosnian letter an argument, the Solana report who a
+person is, the pacifist letter the people it is angry with, the mobile column
+what it compares, the Bastille letter its evidence, the Basque report who told
+whom, the Giglio letter a newspaper it corrects, the England column a
+stereotype it laughs at, the Bovalino letter a meeting, the Puigbó report names
+and the Salvini interview its questions and its answers; a society page lists
+who came, each with what they are, in lists of lists:
+
+| shape | the report's words | what moved |
+|---|---|---|
+| an ordinal | `el 50º aniversario` | one word with its sign, where the tokeniser dropped the `º` and wrote `il 50 anniversario`; English writes its own suffix, `the 50th` |
+| two bare plurals joined, the first with a `de` phrase and a relative clause | `Voces de un ayer que marcó época y estrellas de las ondas de hoy` | voices and stars, where the stars were read inside the `de` phrase and the sentence was refused |
+| a relative clause of one verb that takes nothing after it | `un ayer que marcó época` | closed after its verb (`tr_closed_relative/2`), `The intransitive verb "marca época" means "makes history".`, where the stars were a second thing it made |
+| a pronoun that stands before a verb, as a phrase's noun | the same sentence's `se reunieron` | no phrase's noun: `se` was the phrase `one`, the relative clause's second object |
+| a comma before an item of a list whose later commas are the list's | `de hoy, políticos de ese centro que ..., deportistas, artistas y altos ejecutivos` | the list's (`tr_list_back/3`), where `de hoy políticos` was of politicians and `hoy` went to the end |
+| a list's comma after a relative clause | `políticos de ese centro que se disputan desde todas direcciones, deportistas, artistas` | closes the clause, where the sportsmen and the artists were part of the directions |
+| all before a bare plural | `desde todas direcciones` | the phrase's, `da tutte direzioni`, where it was the pronoun standing alone |
+| among nouns that are adjectives too, the one the lesson calls a person | `altos ejecutivos de medios de comunicación` | the head is the executives, where the height was, and the phrase had no reading |
+| a noun of three words | `medios de comunicación` | the media, where `medios` was the middle |
+| a purpose after an aside | `el Martes por la noche, en las Reales Atarazanas, para celebrar` | the purpose, where the aside was set in a clause whose verb came next, `para` being also what `parar` says |
+| a heading with all | `Toda una proeza` | all/2 of an article's phrase, where `una` was what `unir` says in the subjunctive and the heading a clause |
+| both ... and | `tanto por ese medio siglo como por la sensibilidad para con su entorno social` | both/2, `"como" is the partner of "tanto".`: `tanto ... quanto`, `both ... and`, where `tanto` was so much and `como` like |
+| a demonstrative's apocope | `ese medio siglo` | `quel mezzo secolo`, where it was `quello mezzo` |
+| an adjective's meaning in the class's order | `medio siglo` | `mezzo`, half, where it was `middle`, a noun's meaning |
+| a relative clause set off in the first of two subjects | `Carlos Herrera, que se expresó en catalán, y Margarida Lluch presentaron el acto` | nrc/3, its commas kept and the verb plural, where it was one man, `presentò` |
+| a quoted run with a word no lesson knows | `el "ja sóc aquí" de Tarradellas` | stands where the noun goes and is written back word for word, where it was refused for two Catalan words |
+| titles in a bracket, points and all | `sintonías (De España para los españoles, Elena Francis, Fantasía, Protagonistas nosotros...)` | titles/2, each as it stood, where the points ended the sentence inside the bracket and it never closed |
+| even | `y hasta anuncios (Telefunken, La Lechera)` | the phrase's adverb, where it was `until` |
+| parts set off by semicolons | `políticos como Enrique Lacalle; el conseller ..., Xavier Trias; el ministro Josep Piqué y ...` | each part the clause before with its verb left out, gap/2, the semicolons kept, where the people after the first were objects of their own |
+| an apposition a semicolon closes | `el conseller de Presidència de la Generalitat, Xavier Trias;` | the conseller's name, where the part read as the conseller seeing Xavier Trias |
+| a sentence that is the list alone | `También actuales cargos de RTVE como ...; colegas de la competencia como ...; así como ...` | each part an item, going on from the sentence before, where it was refused |
+| an elision by the last word of several | `además de la antecesora` | `oltre all'antenato`, where it was `oltre allo antenato` |
+| no elision before a preposition | `la antecesora de éste en Sant Cugat` | `di questo in`, where it was `di quest'in` |
+| a quotation that opens on a passive's participle | `están "preparados para la radio del 2000"` | vqp, the mark on the participle, where it was lost |
+| a time with its own infinitive | `Fue entonces el momento de homenajear a dos "personajes singulares"` | the moment to pay homage, where the time was an adjunct and the sentence was refused |
+| the person set off again | `a dos "personajes singulares ...", Jorge Arandes y Joan Viñas, que recibieron ...` | the names are the person again, `onorare due`, where the word before a person was `to`, `onorare a due` |
+| a pronoun the lesson calls a person | `a otros muchos` | `"otros muchos" is a person.`, so the word before a person goes with it, where it was `a molti altri` |
+| a name after a name and a coordinator | `Josep Cuní y Nieves Herrero` | a name, where it was `Nevi Fabbri`, snows and a smith |
+| there was, after an insertion | `Hubo, sin embargo, un desliz protocolario` | `there is` with the comma first, where it had nobody named for its subject: `C'erano`, and English's `They thered is` |
+| two insertions after a relative word | `ex ministro ... que, en 1974, como señal de aperturismo, se puso una barretina` | frc/1 for each, and a year after `que` is no aside of it, where `como señal` was no verb |
+
+-- and the words, in `corpus/extra/`: 19 lines of Spanish and 13 of Italian, six
+of them saying a word again first (`comienzo` before `inicio`, `hacia` before
+`para con`, `juego` and `gioco` as a game before the dictionary's gambling, and
+-- in 1.8.24 -- `hasta` as `until` and `incluso` as `even`), and supplement
+entries, six in `eng-ita.dix` (`motociclista`, `motociclistico`, `protocollare`,
+`prodezza`, `disparato`, and `sigla` for a theme tune, written only) and nine in
+`eng-spa.dix`, five of them read only (`conseller`, `homenajear`, `desliz`,
+`aperturismo` and `velada`, where the dictionary's first word is the one to keep
+for writing). The vocabularies went from 138 812 and 113 033 lines to 138 897
+and 113 073, and the set of what they LOST is the two headers' entry counts.
+`reason.pl` did not move, the thirty-second version running.
+
+**A LIST WHOSE ITEMS HAVE PHRASES OF THEIR OWN WAS READ AS ONE PHRASE OF
+PHRASES, AND THE FIRST SENTENCE WAS REFUSED FOR FIVE REASONS AT ONCE.** `Voces
+de un ayer que marcó época y estrellas de las ondas de hoy, políticos de ese
+centro que se disputan desde todas direcciones, deportistas, artistas y altos
+ejecutivos de medios de comunicación se reunieron ...` is five groups of people
+gathering, and 1.8.20 spent 55 seconds on it and refused it. Each group reads
+alone; together, five rules of 1.8.20 each read the list the wrong way, and the
+sentence needed all five changed before it read at all:
+
+* the subject was divided at `y` only where no preposition stood in its first
+  half (1.8.17's `entre Inglaterra y Alemania`, one final between the two), and
+  `Voces de un ayer` has one: two halves that each open on a bare plural noun
+  are two things now, the parallel saying what the preposition could not;
+* the relative clause on `ayer` ran on over the `y`, and `estrellas` was a
+  second thing that made history: a relative clause of one verb the lesson
+  calls intransitive is closed after it (`tr_closed_relative/2`);
+* `se` before `reunieron` read as the pronoun `one`, the clause's second
+  object, and the clause ran on over the rest of the subject: a pronoun that
+  stands before a verb is no phrase's noun;
+* `de hoy, políticos` kept its comma as the clause's, because the list rule
+  wants every word of the list's tail a phrase's word, which a phrase with a
+  `de` phrase and a relative clause is not; read with the subject's commas out,
+  `de hoy políticos` was of politicians. A comma before an item of a list whose
+  later commas are already the list's is one too, when the words on either side
+  are each a subject's phrase (`tr_list_back/3`);
+* the relative clause on `centro` ran on over the list's comma, and the
+  sportsmen and the artists were part of the directions: a list's own comma
+  closes a relative clause -- **only where both halves open on a bare plural
+  noun**, which the case found on the first run. The first cut let any list
+  comma close one, and Monreale's cleft `A chiederlo è la procura che vuole il
+  pane, il gatto e il cane.` went red: what the office wants is the list, and
+  closed at the comma, the cleft had no reading.
+
+**PARTS SET OFF BY SEMICOLONS ARE THE CLAUSE BEFORE WITH ITS VERB LEFT OUT.**
+`Entre la audiencia se podía ver a políticos como Enrique Lacalle; el conseller
+de Presidència de la Generalitat, Xavier Trias; el ministro Josep Piqué y la
+delegada del Gobierno, Julia García-Valdecasas.` -- the items have commas of
+their own, so semicolons set them off. Read with the semicolons taken out, the
+people after the first were objects of their own; read as clauses, a part with
+no verb in it read as nothing, because a part of a sentence is verbless only in
+the gapped form, a comma where the verb was. Each part is phrases and nothing
+else now, `gap([], Complements)`, and every writer puts the semicolons back. The
+apposition a semicolon closes is the phrase's (the conseller IS Xavier Trias),
+and a sentence may be the list alone, going on from the one before: `También
+actuales cargos de RTVE como Javier González Ferrari y Javier Grima, además de
+la antecesora de éste en Sant Cugat, Aurora Catà; colegas de la competencia
+como ...; así como el analista político Fernando Jáuregui, ...` -- the people
+one could see, the verb in the sentence before. That reading is tried before
+the division at a comma, which read `también actuales cargos de RTVE ...,
+además de ...` as a verb left out at the comma with nothing before it to do the
+seeing.
+
+**BOTH ... AND IS A PAIR THE LESSON NAMES, IN THE SHAPE A PLURAL HAS.** `Toda
+una proeza, tanto por ese medio siglo como por la sensibilidad para con su
+entorno social` -- quite a feat, both for the half century and for the
+sensitivity. The dictionary gives `tanto` as the conjunction `both`, and
+nothing says which word answers it; `"como" is the partner of "tanto".` and
+`"quanto" is the partner of "tanto".` are the lines, in the `is the NOUN of X`
+shape a plural has had since 1.2.33, so `reason.pl` did not move. It travels as
+`both/2`, the complements of each half, and every writer gives its own pair:
+`tanto ... quanto`, `both ... and`. Only where both halves open on a
+preposition: `tanto pan como queso` is also as much bread as cheese, and nothing
+in the words says which. Read word by word, `tanto` was the determiner `so much`
+and `como` the preposition `like`, and the heading was refused.
+
+**TITLES ARE WRITTEN AS THEY WERE TITLED, AND THREE POINTS BEFORE A CLOSING
+BRACKET END NO SENTENCE.** `sintonías (De España para los españoles, Elena
+Francis, Fantasía, Protagonistas nosotros...)` names the programmes whose theme
+tunes the audiovisual played. Cut at the points, the bracket never closed and
+was dropped; read as words, `De España` was a name and `para los españoles` a
+phrase of the sentence's, and `Protagonistas nosotros` lost its pronoun. Two
+items at least between commas, each opening on a capital, are titles, written
+back word for word with the points they trail off with (`titles/2`), and the
+tokeniser keeps three points before a closing bracket inside it.
+
+**A PARTICIPLE CAN OPEN A QUOTATION, AND THE MARK WAS LOST WITH THE GROUP'S
+CASE.** `aseguró que sus emisoras y los profesionales están "preparados para la
+radio del 2000"` quotes from the participle on -- the second word of a passive's
+verb group, where 1.8.7 put the mark back only on the first. It was the one
+sentence 1.8.20 translated on its own store, `sono preparati per la radio del
+2000"`, a quotation that closed and never opened. The clause carries `vqp` now,
+and every writer puts the mark on the last word of its verb group, the
+participle.
+
+**THE PAST OF `hay` IS THE LESSON'S.** `Hubo, sin embargo, un desliz
+protocolario` is the preterite, and the builder writes `hay` from Apertium's
+`there is` alone -- the one entry of more than a word -- with no forms of
+`haber` behind it. `"había" is the past of "hay".` has been a line since 1.8.18,
+and `"hubo" is the past of "hay".` is one now; read as a name at the head, the
+sentence had no verb. `había` stays the past written. And `there is` after an
+insertion between two commas is still `there is`: with the comma first the
+reader found none, and the verb was read with nobody named for its subject, in
+the plural `hay` is stated as too -- `C'erano`, and English's `They thered is`.
+
+**LESSON 46's `main/0` REACHED A PAGE.** Section 47 was the forty-seventh goal
+in the lesson's `main/0`, beside sections 18 and 19 written inline, and cocolint
+said `WARN Z1 ... this clause is ~7807 bytes stored, over the 7800-byte page
+budget` -- the row a store's page can hold, which this file records beside the
+defects that lost information: a clause too long for a row. Sections 18 and 19
+are predicates of their own now, and the lint is 0 HARD and 0 WARN. **A lesson
+that grows by a section a sample grows its `main/0` by one goal a sample**, and
+the page is the limit it will meet again.
+
+**THE CONTROLS FOUND SIX REGRESSIONS THE CASE DID NOT, AND FIVE WERE THREE
+RULES OF THIS SAMPLE ASKED WIDER THAN THE SENTENCE THEY WERE WRITTEN FOR.** With
+`test/translate.pl` GREEN and the report at 9 of 9, the first round came back
+with six old sentences worse:
+
+| what the controls showed | the cause | the fix |
+|---|---|---|
+| the Clinton report's seventh, `... la posibilidad de enviar órdenes de comparecer al director del FBI ...`, came out `ordini di figurare il direttore`, where 1.8.20 wrote `figurare al direttore` | after a noun's `de` and its infinitive, what follows was read with no object counted, for `Fue entonces el momento de homenajear a dos "personajes singulares"` -- and so the word before a person made the director the infinitive's object, the one who appeared | only under the copula, which takes nobody `to' whom: the moment's sentence is a copula's |
+| its ninth, `criticó a los republicanos por hablar ahora de ampliar la investigación ...`, refused | the same reset in the five clauses of a preposition and its infinitive: after `por hablar` no object was counted, and a noun's `de` and its infinitive is read only after one | the five clauses as 1.8.20 had them |
+| Salvini's thirty-fifth, `... per finanziare il miglioramento didattico universitario giurisprudenza medicina`, came out `financiar al perfeccionamiento ... médico` | among nouns that are adjectives too, the one the lesson calls a person heads the phrase (`altos ejecutivos`) -- and the rule was asked of any nouns, so among a document's keywords `universitario` was the head, and Spanish marked it as a person object | only where every noun is an adjective too, as the rule said |
+| the Bosnian letter's twelfth, `Monica Ferretti Genova - Sestri P pacifismo "mascalzone".`, refused | the same: `mascalzone` is a person, and it was made the head | the same |
+| the England column's eighth, `Inglaterra, el país que ha producido la minifalda, los Beatles, los hooligans y ... seguirá describiéndose ...`, came out `continueranno` | a comma before an item of a list whose later commas are the list's is one too (`de hoy, políticos`) -- and the comma before `los Beatles` was taken for the subject's list, so England and the country were two things that will go on | only where the item opens on a bare plural noun, which the report's items do and `los Beatles` does not |
+| the Ferlaino interview's `Puntiamo però su un attaccante straniero.` came out `un atacante extranjero`, where 1.8.20 wrote `un delantero extranjero` | the person rule again, and right by its own terms: `attaccante` and `straniero` are both adjectives too, and only the foreigner is a person to the lesson -- so the foreigner was the head and the attacker its adjective, which Spanish writes in nearly the same words and English does not, `an attacker foreigner` | a line of data, `"attaccante" is a person.`: a forward is a person, and with two persons the rule does not choose |
+
+-- four guards in the case pin the first five, each red on the first cut and
+green on 1.8.20. One of them needed a second sentence: `Il cane vede la squadra
+campione.` read the same on every arm, because 1.8.17's noun after a noun takes
+exactly a determiner and two nouns before the head chooser is asked, and the
+guard is `Il cane vede la nuova squadra campione.` into English -- `the new
+champion team`, where the first cut wrote `the new team champion`. **A guard
+reached by an older rule first proves nothing about the new one.**
+
+**AND THE LAST ONE WAS THE BUILDER'S, WHICH TELLS A PERSON BY THE FIRST ENGLISH
+WORD ONLY.** Apertium pairs `attaccante` with `striker` first and with `attacker`
+later, the builder states a noun once (`cb_formed/2`), and it asks WordNet's list
+of persons (`lexicon/class.txt`) with the English word it formed the noun with --
+`striker`, which the list lacks, where it has `attacker`. So `attaccante` was no
+person, and `straniero` (`foreigner`) was. The line in `corpus/extra/` is the
+fix here; asking every English word a noun is paired with would state more
+persons than this one, and every one of them moves what the word before a
+person and the person rule read. It is recorded and not done: a change to what
+the builder states wants its own round.
+
+**AND ARMS SAID THAT EACH RULE IS NEEDED, SO THE NARROWING IS THE FIX.** Each
+rule taken out entirely, on the store: without the person rule this report's
+first sentence is refused again, and the case's `Los altos ejecutivos duermen.`
+with it; without the reset of the object counted, `Fue entonces el momento de
+homenajear a dos ...` comes out `d'onorare a due`, the word before a person read
+as `to` again. Each arm fails exactly the check written for its rule.
+
+**AND THE DATA COLUMN FOUND THREE LINES OF THIS REPORT'S OWN THAT MOVED OLD
+TEXTS -- AFTER 1.8.21, 1.8.22 AND 1.8.23 HAD GONE OUT.** 1.8.20's own
+translator on its own store, against the same translator on the store taught
+with this report's lines, moved eleven texts, and the new translator on the new
+store wrote every one of them in the same words. So the round that ran the two
+translators side by side could not see them, and did not:
+
+| what moved | the line | now |
+|---|---|---|
+| the record report's `caerá hasta un 4%` came out `cadrà persino un 4%` and `hasta situarse` `persino situarsi`; the opera review's `hasta conseguir` `persino raggiungere`, Solana's `hasta entonces` `persino allora`, Puigbó's `hasta el momento` `persino il momento`; Tatoeba's `¿Hasta dónde llegaste?` `Did you arrive even where?` and `¡Hasta luego, gente!` `Even afterwards, people!` | `The adverb "hasta" means "even".`, for `y hasta anuncios`: a line of `extra/` comes first for its word, so `even` was the first meaning of every `hasta` | the dictionary's order said again above it, `The preposition "hasta" means "until".` -- and for Solana and Tatoeba a guard as well (below) |
+| Salvini's `incluso dentro del tejado` came out `hasta dentro del tejado` | the same line, first for its MEANING: `hasta` was Spanish's first word for `even` | `The adverb "incluso" means "even".` above it too |
+| Livata's `con oltre 50 mezzi` came out `con más de 50 medios de comunicación` | `The masculine noun "medio de comunicación" means "medium".`, for `altos ejecutivos de medios de comunicación` | it means `mass medium`, which no word of the dictionary means, and the Italian `mezzo di comunicazione` the same |
+| the bioethics report's `Ieri è stato inoltre approvato il documento` came out `Ayer ha sido aprobado además el documento`, which READS better and was read WORSE: `Yesterday has been approved the document` | `The masculine noun "ieri" means "yesterday".`, for `le voci di un ieri`: a bare noun at the head is a subject | `"ieri" is a time.`, and a bare time is no subject (1.6.14); `"ayer" is a time.` the same |
+
+**A COMPARISON OF TWO TRANSLATORS ON ONE STORE CANNOT SEE A LINE OF DATA**:
+both write the same wrong word from the same line. 1.8.6 said so, and this is
+the sharpest case of it -- the round compared the two and said "the same to the
+byte", which was true, while seven old sentences had turned `until` into `even`.
+The data column is the only place such a line shows, and here it ran last,
+after the round and after the cost work, so three versions carried the lines
+before it was read.
+
+**AND THE ORDER PUT BACK ONLY WHAT ASKS FOR THE FIRST MEANING.** Solana's `pero
+hasta entonces mantendrá` and Tatoeba's `¿Hasta dónde llegaste?` put `hasta`
+before an ADVERB, and the front reader and the adverb lift ask whether a word
+IS an adverb -- which `hasta` is, after this report's line, whatever comes
+first. So 1.8.20 over the new store still writes `persino allora` and `Did you
+arrive even where?`, and so did this version before its guard: a word that is a
+preposition too is the preposition before an adverb now (`tr_governs_adverb/3`,
+asked in both readers), which is 1.6.14's `per sempre` seen from the reader
+that lifts adverbs. `fino a allora` and `until where` again. **A line that
+gives a word a second class cannot be put back by order alone**, where a reader
+asks for the class and not for the first meaning.
+
+**AND ONE TATOEBA SENTENCE READS THAT DID NOT.** `Hasta mi mamá lo sabe.` was
+refused on 1.8.20's own store, with every word known; with the adverb line it
+reads, on 1.8.20 as on this version, as `My mum knows him even.` -- the sense
+the reference has (`Even my mom knows.`), the adverb written last (1.6.8's cost)
+and `lo` as `him` (1.8.2's). It is the one sentence that moved Tatoeba's count,
+58 exact, 291 translated and 109 refused where 1.8.20 has 58, 290 and 110.
+
+**1.8.24 IS THE DATA, ONE GUARD, AND ONE RULE TAKEN OUT.** The data is two
+lines said again, one meaning changed and two words told they are times; the
+vocabularies were rebuilt -- the diff from 1.8.21's is those six lines, and what
+they lost is the four lines they replace -- and the store taught again. The
+guard is `tr_governs_adverb/3`, and the rule is the quote rule the arms below
+found dead. Five guards in the case pin the data and the guard, each red on its
+own arm: `El perro duerme hasta el martes.` is `fino al martedì` and `Hasta
+entonces el perro duerme.` `fino a allora`, `Ieri è stato preparato il pane.`
+and its Spanish are `The bread has been prepared yesterday.`, and `I mezzi
+dormono.` is `Los medios duermen.` -- and a sixth check keeps `medios de
+comunicación` `mezzi di comunicazione`. The small lessons had to say what the
+vocabulary says, in its order, before a guard could be red on anything --
+1.8.14's rule, the fifth time.
+
+**AND THE BIOETHICS SENTENCE IS THE ONE TO REMEMBER**: its Spanish on the new
+store was BETTER than on the old -- `Ayer` in front, where the source put it --
+and it was the wrong reading. Only the English said so. A text that moves for
+the better from a line that was not written for it is a text to read in English
+before it is counted as a gain.
+
+**THE FIRST CUT ASKED THE 26 OLD ARTICLES FOR 1.83 % MORE INFERENCES, AND
+ROUND r65 SAID 2 TO 9 % SLOWER.** Every text was the same, and the cost was in
+nearly every sentence, the same share of each -- the mark of a test asked of
+every word rather than of a reading gone the long way. The hunk bisection of
+1.8.5 over the 83 changed blocks, six sentences counted on the store, found
+half of the six sentences' 117 000 extra inferences in one block:
+`tr_digits/1` asked whether a word is an ORDINAL, and `tr_known/2` asks
+`tr_digits/1` of every word the translator looks up. The rest was the same
+kind -- a word that means `all`, a clitic, a run of names, a semicolon's
+apposition and a time's own infinitive, each asked before a cheaper test that
+fails first. The same tests in a cheaper order are 1.8.22: `tr_digits/1` asks
+the first character before anything, because every number begins with a digit
+or a minus; the word that means `all` is kept for the sentence (`tr_memo/4`);
+`tr_group_from/5` walks its places with the word before each, where `last/2`
+walked the words to find it; a pronoun is asked before a clitic, two capitals
+before a split, a semicolon before its apposition and a time before its own
+infinitive. **AND 1.8.23 MOVED ONE TEST AFTER THE READER IT GUARDS**: `\+
+tr_all_before/3` was asked at every place a verb group could start, before
+`tr_group_at/4` said whether one does, and asked after it, only where a group
+starts, it cost the Solana report's tenth sentence 58 000 inferences fewer.
+Counted over the 26 old articles, every text the same to the byte at each step:
+
+| translator | inferences | against 1.8.20 | articles above 1.8.20 |
+|---|---|---|---|
+| 1.8.20 | 1 249.5 million | | |
+| 1.8.21, the first cut | 1 272.3 million | +1.83 % | 25 |
+| 1.8.22, the same tests in a cheaper order | 1 243.0 million | -0.52 % | 5 |
+| **1.8.23, the test for `all` after the group** | **1 238.4 million** | **-0.89 %** | **2** |
+
+**ONE RULE OF THIS REPORT STILL COSTS WHERE A SENTENCE MEETS IT, AND ONE IS
+GONE.** Arms settled which, each with one rule put back as 1.8.20 had it,
+counted on the store and the case run on each:
+
+| the rule | what it costs | what the arm without it said | done |
+|---|---|---|---|
+| a subject phrase does not END on a reflexive pronoun past a relative clause (`El hombre que duerme se reunió` is the man gathering) | the Bastille letter's sixth and eighth sentences 505 000 and 101 000 inferences, the Solana report's tenth 715 000: each goes the long way round to the reading it had | the case fails two checks -- `El hombre que duerme se reunió.` and `Los perros que comen pan se reunieron el martes, en la casa, para comer.` are refused -- though the report reads the same on the store | kept, the cost stated |
+| a relative clause that opens inside a quotation ends at its closing mark (`a dos "personajes singulares que representan a otros muchos", Jorge Arandes y Joan Viñas`) | the Clinton report's ninth sentence 240 000 inferences, 7.1 % | NOTHING moved: every text of the 27 controls the same, the case GREEN, the report's seventh sentence the same -- `"otros muchos" is a person.` and the names set off after the person had done its work | removed in 1.8.24: the Clinton report asks 0.74 % fewer |
+
+**A RULE WRITTEN FOR A SENTENCE CAN BE MADE DEAD BY THE NEXT ONE WRITTEN FOR
+IT**, and only an arm says so: the quote rule was right when it went in, and
+two fixes later the sentence it was for read without it. What it bought back
+was nothing and what it cost was one report's longest sentence, so it goes --
+1.8.5's rule that a change which moves nothing measurable is not one to keep,
+applied to a change of this version's own. And the guards of this version buy
+back more than the two rules cost: the Bosnian letter's tenth sentence asks 3.8
+million fewer inferences (30.6 %) and Livata's twenty-second 15.2 % fewer,
+where a guard refuses early a reading that failed late.
+
+**AND ONE DEFECT OLDER THAN THIS SAMPLE WAS FOUND AND NOT FIXED.** `Los
+políticos que comen pan, queso y pan duermen.` is `I politici che mangiano
+formaggio pane e pane dormono.` on 1.8.20 and on 1.8.21 alike -- a list inside
+a relative clause on a subject reordered. No sentence of this report reaches
+it, and it is the next sample's lead as much as anything is.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `si adunarono`, `delle ondate`, `alti esecutivi` | `si riunirono`, `delle onde`, `alti dirigenti` | senses through English: `reunirse` crosses as `gathers`, whose first Italian word is `adunare`; `onda` as `wave`, whose first is the surge `ondata`; `ejecutivo` as `executive` |
+| `il martedì di notte` | `martedì sera` | `por la noche` word for word |
+| `da tutte direzioni` | `da tutte le direzioni` | Spanish writes no article after `todas`, and nothing says that Italian does |
+| `Radio Nazionale d'España in Catalunya` | `Radio Nacional de España in Catalogna` | a name that is words the lesson knows is the words, 1.6.21's `el Lingote`; a name no lesson knows passes through as written |
+| `presentarono l'atto`, `tra l'udienza` | `l'evento`, `tra il pubblico` | `acto` crosses as `act` and `audiencia` as `audience`, whose first Italian word is a hearing |
+| `Si potè vedere ... tra l'udienza` | `Tra il pubblico si potevano vedere` | the imperfect and the preterite are both `past`, 1.6.15's cost; the impersonal takes the singular; and a front with no comma is written after the clause, 1.6.8's cost |
+| `l'incaricato del Governo, Julia García-Valdecasas`, `all'antenato di questo` | `la delegata`, `alla predecessora di quest'ultimo` | the IR carries no gender for a noun, and `antecesora` crosses as `predecessor`, whose first Italian word is `antenato`, an ancestor |
+| `attuali carichi di RTVE` | `attuali dirigenti` | `cargo` crosses as `charge`, the Basque report's cost |
+| `in Sant Cugat`, `in Barcelona`, `in un tavolo` | `a Sant Cugat`, `a Barcellona`, `a un tavolo` | `en` is `in`, and Italian puts `a` before a town, 1.7.1's cost |
+| `Era allora il momento`, `caratteri singolari` | `Fu allora il momento`, `personaggi singolari` | the preterite, and `personaje` crosses as `character`, 1.8.5's cost |
+| `Arandes e Viñas e le sue mogli` | `Arandes e Viñas, e le loro mogli,` | `su` is `his` first, 1.8.13's cost, and a subject's commas are not in the IR |
+| `una scivolata protocollare`, `senza più impresa` | `un passo falso di protocollo`, `senza altra compagnia` | senses: `compañía` crosses as `company`, whose first Italian word is a firm |
+| `in omaggio al suo padre` | `in omaggio a suo padre` | Italian writes no article before a kinship noun with a possessive, and no lesson says so |
+| `ex ministro d'Información e Turismo che, nel 1974, ...` | `dell'Informazione e del Turismo` | a capitalised word after a preposition is a name, 1.7.0's cost; and the IR hangs the relative clause on `Turismo` where it is the minister's, 1.6.6's PP finding -- every language writes the same words either way |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.20's, RUN BACK TO BACK
+TWICE:**
+
+| control | 1.8.20, this store | **1.8.24** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 15.4 and 16.2 s | **12 of 12, 16.3 and 15.9 s** |
+| the Spanish article | 11 of 11, 15.8 and 15.9 s | **11 of 11, 15.3 and 15.7 s** |
+| Livata, 29 sentences | 29 of 29, 83.3 and 86.6 s | **29 of 29, 89.0 and 86.1 s** |
+| Fiat, 20 sentences | 20 of 20, 21.4 and 24.1 s | **20 of 20, 22.5 and 22.2 s** |
+| Valencia, 16 sentences | 16 of 16, 24.1 and 23.2 s | **16 of 16, 24.4 and 23.8 s** |
+| the bioethics article, 15 sentences | 15 of 15, 17.6 and 16.0 s | **15 of 15, 17.2 and 16.6 s** |
+| the football article, 20 sentences | 20 of 20, 30.0 and 29.2 s | **20 of 20, 30.8 and 29.2 s** |
+| Monreale, 6 sentences | 6 of 6, 4.3 and 4.4 s | **6 of 6, 4.6 and 4.1 s** |
+| the record report, 15 sentences | 15 of 15, 22.8 and 23.8 s | **15 of 15, 24.4 and 24.5 s** |
+| Tatoeba's 400, exact / translated / refused | 58 / 291 / 109, 22.2 and 21.9 s | **58 / 291 / 109, 22.3 and 21.9 s** |
+| the islands report, 13 sentences | 13 of 13, 20.8 and 20.3 s | **13 of 13, 22.4 and 20.2 s** |
+| the opera review, 12 sentences | 12 of 12, 17.5 and 17.3 s | **12 of 12, 17.8 and 17.2 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 33.1 and 32.3 s | **27 of 27, 32.5 and 32.5 s** |
+| the Georgia report, 8 sentences | 8 of 8, 12.2 and 12.3 s | **8 of 8, 12.4 and 11.9 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 17.1 and 16.6 s | **13 of 13, 16.8 and 16.9 s** |
+| the Clinton report, 12 sentences | 12 of 12, 21.9 and 19.8 s | **12 of 12, 20.4 and 20.4 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 46.1 and 44.7 s | **12 of 12, 42.9 and 42.8 s** |
+| the Solana report, 10 sentences | 10 of 10, 27.2 and 25.9 s | **10 of 10, 26.0 and 26.4 s** |
+| the pacifist letter, 6 sentences | 6 of 6, 9.1 and 8.9 s | **6 of 6, 8.8 and 8.5 s** |
+| the mobile column, 11 sentences | 11 of 11, 28.5 and 28.8 s | **11 of 11, 28.5 and 28.6 s** |
+| the Bastille letter, 11 sentences | 11 of 11, 21.6 and 21.3 s | **11 of 11, 20.9 and 21.7 s** |
+| the Basque report, 9 sentences | 9 of 9, 54.2 and 56.2 s | **9 of 9, 54.6 and 56.6 s** |
+| the Giglio letter, 8 sentences | 8 of 8, 12.9 and 13.2 s | **8 of 8, 13.7 and 12.6 s** |
+| the England column, 9 sentences | 9 of 9, 14.7 and 18.3 s | **9 of 9, 15.3 and 15.4 s** |
+| the Bovalino letter, 15 sentences | 15 of 15, 38.9 and 40.5 s | **15 of 15, 40.2 and 38.9 s** |
+| the Puigbó report, 8 sentences | 8 of 8, 25.9 and 26.1 s | **8 of 8, 26.7 and 26.7 s** |
+| the Salvini interview, 35 sentences | 35 of 35, 95.1 and 96.8 s | **35 of 35, 95.1 and 96.1 s** |
+| the Radio Nacional report, 9 sentences | 2 of 9, 151.0 and 157.4 s | **9 of 9, 25.8 and 26.4 s** |
+
+-- the texts first: each translator gives the same texts both times, and against
+1.8.20 on this store every old control is the same to the byte but for two,
+Solana's `fino a allora` and Tatoeba's `Did you arrive until where?`, where
+1.8.20 over this store writes `persino allora` and `even where`: both are the
+guard's (above). **AND AGAINST 1.8.20 ON ITS OWN STORE** -- the one reference
+with no line of this sample's data in it -- every old control is the same but
+for Tatoeba's `Hasta mi mamá lo sabe.`, which reads (above): 58 exact, 291
+translated and 109 refused, where 1.8.20 there has 58, 290 and 110.
+
+**THE TIMES SAY WHAT THE COUNTS SAY, AND THE PAIRS AGREE.** The ranges are apart
+on six of the twenty-eight: four faster -- the Bosnian letter by 5.6 %, the
+pacifist letter by 3.8 % and the Spanish article by 2.2 %, and this report by
+83 %, because 1.8.20 spends its time failing -- and two slower, the record
+report by 5.0 % and the Puigbó report by 2.8 %, whose counts are 0.61 and 0.85 %
+FEWER inferences than 1.8.20's on this store. Five alternating pairs of the two,
+nothing else on the box: the record report 23.64 s (23.34-23.92) against
+24.04 s (23.28-24.81), the Puigbó report 26.63 s (25.54-27.94) against 26.34 s
+(25.61-27.12) -- both ranges overlapping, and the Puigbó report the faster. At
+this size the clock is the box's, as 1.8.13 said. Counted on this store, the
+twenty-six old controls ask 1 238.6 million inferences against 1.8.20's 1 249.8,
+**0.90 % fewer**, and two ask more: the Solana report by 1.13 % -- its tenth
+sentence, the reflexive rule's cost stated above, and its first, which reads
+`hasta entonces` as a preposition now -- and the Bastille letter by 1.05 %, the
+same rule's.
+
+Into English the report reads 7 of 9. The seventh and the ninth are refused:
+`Fue entonces el momento de homenajear ...` is read as a copula with nobody
+named and the moment its object, and `y concluyó:` shares a subject English
+cannot see -- English still refuses a third person nobody named (1.6.15). The
+seven show what the IR carries: `sportsmans`, `mass mediums` and `wifes`,
+English's plurals made by the rule (1.8.13's `mans`); `the tuesday ... at
+night`, the part of the day written after the clause; `Carlos Herrera, who
+expressed in catalan, and Margarida Lluch presented the act`, the relative
+clause set off and no reflexive, 1.6.3's cost; `jingles (De España para los
+españoles, Elena Francis, Fantasía, Protagonistas nosotros...) and even ads`,
+the titles as they stood; `Current charges of RTVE like ..., Aurora Catà,
+also;`, the head adverb written last, 1.6.8's cost; `the conductor of RNE`,
+`director` crossing as the first English word the lesson gives it; and `There
+was, however, a protocolary slip`, the insertion where it stood.
+
+`test/translate.pl` is 1314 checks and GREEN, 36 in a new `newspaper_radio`
+section with a Spanish and an Italian lesson of its own, each in two parts.
+Every check fails on 1.8.20's translator but nine: the four guards the controls
+wrote, each green on 1.8.20 and red on the first cut of this version, and four
+guards and a check of the data's, green on 1.8.20 and each guard red on the
+lesson as 1.8.21 had it. The fifth guard of the data's, `Hasta entonces el perro
+duerme.`, is red on 1.8.20 as well: over this lesson 1.8.20 writes `persino
+allora`, which is the regression it guards, and only `tr_governs_adverb/3` makes
+it green. Lesson 46 gained section 47, and its sections 18 and 19 moved into
+predicates of their own (above). **The minor is proposed**: `"como" is the
+partner of "tanto".` is a new thing a lesson can say, and both ... and, an
+ordinal, parts set off by semicolons and titles in a bracket are new shapes a
+program reaches; the owner decides. The full suite was not run on 1.8.21 to
+1.8.24.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
