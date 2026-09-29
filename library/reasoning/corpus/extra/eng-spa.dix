@@ -325,3 +325,8 @@
 # any word otherwise
 <e r="LR"><p><l>inexplicable<s n="adj"/></l><r>inexplicable<s n="adj"/></r></p></e>
 <e r="LR"><p><l>acquittal<s n="n"/></l><r>absolución<s n="n"/><s n="f"/></r></p></e>
+# the report on Ciampi, continued: `se fosse stata promulgata' and `avrebbe
+# dissestato', into Spanish. apertium-spa carries both verbs and the
+# bilingual pairs them with nothing; the second is written only
+<e><p><l>promulgate<s n="vblex"/></l><r>promulgar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>disorganize<s n="vblex"/></l><r>desorganizar<s n="vblex"/></r></p></e>

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20293 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20295 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -468,6 +468,8 @@ The feminine adjective "cierta" means "certain".
 The masculine noun "móvil" means "mobile".
 The masculine noun "telefonino" means "mobile".
 "telefoninos" is the plural of "telefonino".
+The feminine noun "víctima" means "victim". "víctimas" is the plural of "víctima".
+"víctima" is a person.
 The masculine noun "accidentado" means "victim".
 "accidentado" is a person.
 The adjective "de pega" means "fake".
@@ -690,6 +692,20 @@ The verb "regresa" means "returns".
 The transitive verb "devuelve" means "returns".
 The masculine adjective "denominado" means "so-called". "denominados" is the plural of "denominado".
 The feminine adjective "denominada" means "so-called". "denominadas" is the plural of "denominada".
+The masculine noun "tribunal" means "court".
+The feminine noun "sentencia" means "judgment".
+The feminine noun "cámara" means "chamber".
+The feminine noun "cámara" means "camera".
+The verb "anuncia" means "announces".
+The verb "da a conocer" means "announces".
+"dan a conocer" is the plural of "da a conocer".
+The masculine noun "comunicado" means "communique".
+The adverb "a todos los efectos" means "to all intents and purposes".
+The masculine noun "imputado" means "defendant". "imputados" is the plural of "imputado".
+The feminine noun "imputada" means "defendant". "imputadas" is the plural of "imputada".
+The masculine noun "delito" means "offence". "delitos" is the plural of "delito".
+The masculine noun "aspecto" means "aspect". "aspectos" is the plural of "aspecto".
+The pronoun "cuál" means "which". "cuáles" is the plural of "cuál".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -26694,6 +26710,52 @@ The verb "atormenta" means "torments".
 "atormentadas" is the plural of "atormentada".
 "atormentar" is the infinitive of "atormenta".
 "atormentando" is the gerund of "atormenta".
+The verb "promulga" means "promulgates".
+"promulgan" is the plural of "promulga".
+"promulgamos" is the first person of "promulgan".
+"promulgo" is the first person of "promulga".
+"promulgas" is the second person of "promulga".
+"promulgó" is the past of "promulga".
+"promulgaron" is the past of "promulgan".
+"promulgamos" is the first person of "promulgaron".
+"promulgué" is the first person of "promulgó".
+"promulgaste" is the second person of "promulgó".
+"promulgaba" is the past of "promulga".
+"promulgaban" is the past of "promulgan".
+"promulgábamos" is the first person of "promulgaban".
+"promulgabas" is the second person of "promulgaba".
+"promulgará" is the future of "promulga".
+"promulgarán" is the plural of "promulgará".
+"promulgaremos" is the first person of "promulgarán".
+"promulgaré" is the first person of "promulgará".
+"promulgarás" is the second person of "promulgará".
+"promulgaría" is the conditional of "promulga".
+"promulgarían" is the plural of "promulgaría".
+"promulgaríamos" is the first person of "promulgarían".
+"promulgarías" is the second person of "promulgaría".
+"promulgue" is the subjunctive of "promulga".
+"promulguen" is the plural of "promulgue".
+"promulguemos" is the first person of "promulguen".
+"promulgues" is the second person of "promulgue".
+"promulgara" is the past subjunctive of "promulga".
+"promulgaran" is the plural of "promulgara".
+"promulgáramos" is the first person of "promulgaran".
+"promulgaras" is the second person of "promulgara".
+"promulga" is the imperative of "promulga".
+"promulgues" is the negative imperative of "promulga".
+"promulgad" is the imperative of "promulgan".
+"promulguéis" is the negative imperative of "promulgan".
+"promulguemos" is the hortative of "promulga".
+"promulgado" is the participle of "promulga".
+"promulgada" is the participle of "promulga".
+"promulgada" is feminine.
+"promulgados" is the participle of "promulga".
+"promulgados" is the plural of "promulgado".
+"promulgadas" is the participle of "promulga".
+"promulgadas" is feminine.
+"promulgadas" is the plural of "promulgada".
+"promulgar" is the infinitive of "promulga".
+"promulgando" is the gerund of "promulga".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -121287,6 +121349,52 @@ The verb "hurga" means "rummages".
 "hurgadas" is the plural of "hurgada".
 "hurgar" is the infinitive of "hurga".
 "hurgando" is the gerund of "hurga".
+The verb "desorganiza" means "disorganizes".
+"desorganizan" is the plural of "desorganiza".
+"desorganizamos" is the first person of "desorganizan".
+"desorganizo" is the first person of "desorganiza".
+"desorganizas" is the second person of "desorganiza".
+"desorganizó" is the past of "desorganiza".
+"desorganizaron" is the past of "desorganizan".
+"desorganizamos" is the first person of "desorganizaron".
+"desorganicé" is the first person of "desorganizó".
+"desorganizaste" is the second person of "desorganizó".
+"desorganizaba" is the past of "desorganiza".
+"desorganizaban" is the past of "desorganizan".
+"desorganizábamos" is the first person of "desorganizaban".
+"desorganizabas" is the second person of "desorganizaba".
+"desorganizará" is the future of "desorganiza".
+"desorganizarán" is the plural of "desorganizará".
+"desorganizaremos" is the first person of "desorganizarán".
+"desorganizaré" is the first person of "desorganizará".
+"desorganizarás" is the second person of "desorganizará".
+"desorganizaría" is the conditional of "desorganiza".
+"desorganizarían" is the plural of "desorganizaría".
+"desorganizaríamos" is the first person of "desorganizarían".
+"desorganizarías" is the second person of "desorganizaría".
+"desorganice" is the subjunctive of "desorganiza".
+"desorganicen" is the plural of "desorganice".
+"desorganicemos" is the first person of "desorganicen".
+"desorganices" is the second person of "desorganice".
+"desorganizara" is the past subjunctive of "desorganiza".
+"desorganizaran" is the plural of "desorganizara".
+"desorganizáramos" is the first person of "desorganizaran".
+"desorganizaras" is the second person of "desorganizara".
+"desorganiza" is the imperative of "desorganiza".
+"desorganices" is the negative imperative of "desorganiza".
+"desorganizad" is the imperative of "desorganizan".
+"desorganicéis" is the negative imperative of "desorganizan".
+"desorganicemos" is the hortative of "desorganiza".
+"desorganizado" is the participle of "desorganiza".
+"desorganizada" is the participle of "desorganiza".
+"desorganizada" is feminine.
+"desorganizados" is the participle of "desorganiza".
+"desorganizados" is the plural of "desorganizado".
+"desorganizadas" is the participle of "desorganiza".
+"desorganizadas" is feminine.
+"desorganizadas" is the plural of "desorganizada".
+"desorganizar" is the infinitive of "desorganiza".
+"desorganizando" is the gerund of "desorganiza".
 The verb "calma" means "abates".
 The verb "secuestra" means "abducts".
 The verb "sube" means "climbs".

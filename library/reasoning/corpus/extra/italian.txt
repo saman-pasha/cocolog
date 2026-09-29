@@ -1278,8 +1278,11 @@ The feminine noun "pazienza" means "patience".
 # the record report would have been `per imprenditoria'. So the dictionary's
 # own order is said again here, `camera' and `impresa' with their first
 # meanings above, and each meaning keeps its first word
-The feminine noun "camera" means "bedroom".
+# (the Ciampi report reads `camera' as the Chambers of Parliament first, `alle
+# Camere', which a newspaper's `camera' mostly is -- so `chamber' comes first
+# and the two others follow; each meaning keeps its first Italian word)
 The feminine noun "camera" means "chamber".
+The feminine noun "camera" means "bedroom".
 The feminine noun "camera" means "camera".
 The feminine noun "impresa" means "company".
 The feminine noun "impresa" means "corporation".
@@ -1685,3 +1688,77 @@ The masculine noun "vice presidente" means "vice-president".
 # has a hyphen
 The masculine adjective "cosiddetto" means "so-called". "cosiddetti" is the plural of "cosiddetto".
 The feminine adjective "cosiddetta" means "so-called". "cosiddette" is the plural of "cosiddetta".
+# the report on Ciampi sending back the law on unappealability, continued:
+# the words of the law and of a communique.
+# `dall'art. 111 della costituzione': the point after an abbreviation is
+# dropped, and what is left is the short form of a word
+"art" is the apocope of "articolo".
+# `della corte di cassazione', `la corte costituzionale': a court -- the
+# dictionary's first meaning of `corte' is a courtyard. `tribunale' is its
+# first word for a court, and it is said again first, so that `court' keeps it
+The masculine noun "tribunale" means "court".
+The feminine noun "corte" means "court".
+# `la legge sull'inappellabilità': the law -- the dictionary's first meaning
+# of `legge' is an act
+The feminine noun "legge" means "law".
+# `delle sentenze di proscioglimento': judgments -- the dictionary's meaning
+# of `sentenza' is a sentence, which is a phrase in grammar
+The feminine noun "sentenza" means "judgment".
+# `articolo 74, primo comma': a paragraph of an article
+The masculine noun "comma" means "paragraph".
+# `ha rilevato ancora il presidente': observes -- the dictionary's first
+# meaning of `rileva' is `purchases'. `osserva' is the first word for
+# `observes' and is said again first
+The verb "osserva" means "observes".
+The verb "rileva" means "observes".
+# `Lo rende noto un comunicato del Quirinale': announces, a verb of two
+# words, and a communique -- apertium-ita's noun is written with an accent
+# the builder does not take. `annuncia' is said again first
+The verb "annuncia" means "announces".
+The verb "rende noto" means "announces".
+"rendono noto" is the plural of "rende noto".
+The masculine noun "comunicato" means "communique".
+# `che è a tutti gli effetti "parte del processo"': to all intents and
+# purposes, one word of four
+The adverb "a tutti gli effetti" means "to all intents and purposes".
+# `"per fortuna c'è il capo dello stato"': fortunately, one word of two;
+# `fortunatamente' is said again first
+The adverb "fortunatamente" means "fortunately".
+The adverb "per fortuna" means "fortunately".
+# `una nuova deliberazione in ordine alla legge': regarding, as `in merito a'
+The preposition "in ordine a" means "regarding".
+# `avrebbe ulteriormente dissestato l'amministrazione della giustizia':
+# disorganizes -- apertium-ita carries only the noun `dissesto', so the verb
+# is here with the forms the sentence and its neighbours ask for
+The verb "dissesta" means "disorganizes".
+"dissestano" is the plural of "dissesta".
+"dissestò" is the past of "dissesta".
+"dissestarono" is the past of "dissestano".
+"dissesterà" is the future of "dissesta".
+"dissesteranno" is the plural of "dissesterà".
+"dissesterebbe" is the conditional of "dissesta".
+"dissesterebbero" is the plural of "dissesterebbe".
+"dissestato" is the participle of "dissesta".
+"dissestata" is the participle of "dissesta".
+"dissestata" is feminine.
+"dissestati" is the participle of "dissesta".
+"dissestati" is the plural of "dissestato".
+"dissestate" is the participle of "dissesta".
+"dissestate" is feminine.
+"dissestate" is the plural of "dissestata".
+"dissestare" is the infinitive of "dissesta".
+"dissestando" is the gerund of "dissesta".
+# `una buona notizia, visto che erano evidenti i profili ...': since, a
+# conjunction of two words -- read apart, `visto' is a participle and `che' a
+# clause, `a news, seen that ...'. `dato che' and `poiché' are the first words
+# for `since', and this comes after them
+The conjunction "visto che" means "since".
+# `tra l'imputato e la parte lesa': the defendant -- the vocabulary has
+# `imputato' only as the participle of `imputare', charged, and read after
+# `l'' it was `him charged'
+The masculine noun "imputato" means "defendant". "imputati" is the plural of "imputato".
+The feminine noun "imputata" means "defendant". "imputate" is the plural of "imputata".
+# `su quali aspetti della riforma': the aspects -- the vocabulary's first
+# meaning for `aspetto' is `appearance', which Spanish writes `comparecencia'
+# after `viso'; said first, `aspect' is the meaning and the writer's `aspecto'
+The masculine noun "aspetto" means "aspect". "aspetti" is the plural of "aspetto".

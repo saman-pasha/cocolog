@@ -12314,6 +12314,545 @@ the accident, the reflexive passive with adjuncts before its subject and a main
 clause that shares its time clause's subject are new shapes a program reaches;
 the owner decides. The full suite was not run on 1.8.26.
 
+### An Italian report into Spanish: an abbreviation and a number, a quotation with its reporting clause between dashes, `which` as a question, the perfect's participles, two bare nouns, and four regressions the controls found (1.8.27)
+
+**THE TWENTY-THIRD SAMPLE OF THE LOOP, AND BACK TO ITALIAN.** The Italian UD
+VIT document VIT-9926..9946 -- twenty-one sentences of a news agency's report:
+the President of the Republic, Carlo Azeglio Ciampi, sends the law on the
+inappealability of acquittals back to the Chambers, his message says why, and
+the man who fathered the law, the National Association of Magistrates, the
+first president of the Court of Cassation, the Higher Council of the Judiciary
+and the leader of the Democrats of the Left each say what they think of it --
+Italian into Spanish over the two-language vocabulary store. The middle column
+is 1.8.26's translator over THIS store:
+
+| | 1.8.26, its store | 1.8.26, this store | **1.8.27** |
+|---|---|---|---|
+| translated | 3 of 21, with the court a courtyard, `el patio de casación`, and the parties births, `los partos` | 12, four of them wrong in structure -- `inapelabilidad ley`, the title's `Modifican al código`, `alargamiento ciertamente` and `que pueden ser` -- and the parties `partos` | **21** |
+| refused for a word | 14, naming 24 words -- `quali`, `art`, `gran`, `costituitosi` and `c s m` among them, which no dictionary lacks | 2 -- `costituitosi` and `c s m` | **0** |
+| refused with every word known | 3 | 6 | **0** |
+| over the budget of 300 million inferences | 1, the twenty-first, in 134 s | 1, the twenty-first, in 129 and 135 s | **0** |
+| the report, one process | 321.2 s | 310.5 and 324.4 s | **63.8 and 71.4 s** |
+
+-- the store Italian 178 527 terms and Spanish 222 462, taught into one
+`--embed` store from the rebuilt vocabularies in 649 s and 1 070 s, 331 MB.
+The translator changed after the teach, in its reader and its writer only: the
+diff of `translate.pl` against 1.8.26 touches no line a lesson is learned by,
+and the two vocabularies are the teach's to the byte.
+
+**WHAT IT NEEDED IS WHAT A COMMUNIQUE DOES WITH WHAT WAS SAID.** The twelve were
+verbs, the Spanish column phrases that carry things, Livata the way a report
+speaks, Fiat figures, Valencia a thing on show, the bioethics report its
+claims, the football page a squad, Monreale a court, the record report figures
+again, the islands report what a news item puts before its verb, the opera
+review what it puts beside a phrase, the interview a man talking, the Georgia
+report people by their offices, the extract things said again, the Clinton
+report who said what, the Bosnian letter an argument, the Solana report who a
+person is, the pacifist letter the people it is angry with, the mobile column
+what it compares, the Bastille letter its evidence, the Basque report who told
+whom, the Giglio letter a newspaper it corrects, the England column a
+stereotype it laughs at, the Bovalino letter a meeting, the Puigbó report
+names, the Salvini interview its questions and its answers, the radio report a
+crowd, the Fregene report a mother's lines and the Lord of the Rings report a
+film's shots; this one is a message quoted at length and the commentators
+quoted after it, so every sentence has a quotation in it, and a quotation is
+where the marks, the dashes and the commas of the source meet the reading:
+
+| shape | the report's words | what moved |
+|---|---|---|
+| a point after an abbreviation, before a number | `dall'art. 111 della costituzione` | the point ends no sentence and `art` is a word of the lesson's: `el artículo 111`, where the piece was cut at the point |
+| a whole sentence in the plain mark, a reporting clause between dashes | `"vedremo - aggiunge Ciro Riviezzo, ... - su quali aspetti della riforma ..."` | the pair is the sentence's and its dashes no longer cut it into parts each read alone |
+| a name alone before a colon | `Pecorella: "appare inspiegabile ..."` | who speaks: the piece is the name and its colon, written back as it stood |
+| letters spaced out | `che il c s m aveva espresso` | one acronym in capitals, `CSM`; read letter by letter it was three words no lesson knows |
+| `which` by itself | `appare inspiegabile quali possano essere le ragioni` | an indirect question and a pronoun, `cuáles`: `wh(Asked, Clause)`, where it was a relative clause on the adjective and then `qué`, which asks what |
+| `which` with its noun after a preposition | `su quali aspetti della riforma il capo dello stato ha puntato` | `en qué aspectos`, the question word standing for the clause's adjunct |
+| a participle with the reflexive joined | `la vittima del reato costituitosi parte civile` | read and not written: the participle alone, `constituido` |
+| a name after a determiner and a name | `del segretario Ds, Piero Fassino, è che` | the party's name apposed to the noun and the person's set off after it; the phrase had no reading |
+| a pronoun right after a preposition, in a subject | `le preoccupazioni manifestate da noi ... erano fondate` | the preposition's object and no clitic before a verb; every subject with `da noi` in it was refused |
+| an accusative pronoun and the subject after its verb | `Lo rende noto un comunicato del Quirinale.` | `Lo anuncia un comunicado del Quirinale`: the verb's one direct object and its subject, where the phrase was a second object and English refused |
+| a quotation that opens on an adjunct the writer moves | `che "almeno per una volta il governo sia capace di ascoltare ..."` | the mark is the clause's, `qs`, and every writer puts it on the first word it writes |
+| a quotation that closes at its comma, no speaker named | `"il rinvio ... è motivo di viva soddisfazione, visto il parere ... normativa", ha detto.` | the last word before the comma carries the mark; read as clauses the reporting one was written in the middle of what was said |
+| an absolute participle after a comma | `visto il parere assai critico` | agrees with the phrase after it, `vista la opinión`, where it stayed masculine as the clause's predicate |
+| a condition before a relative clause's verb | `questa legge, che se fosse stata promulgata nel testo attuale, avrebbe ulteriormente dissestato ...` | the clause's front, written in front of it with its comma |
+| a heading's phrase before a clause of since | `una buona notizia, visto che erano evidenti i profili ...` | `visto che` is a conjunction of two words; `visto` alone is a participle |
+| the parties | `le posizioni delle parti nel processo` | `parti` is the plural of a birth and of a party: the determiner's gender chooses, `partes` and not `partos` |
+| a noun's plural that spells no verb's | `"modifiche al codice di procedura penale, ..."` | one plural relation for the noun and the verb: the title was they modify |
+| a comment between two commas that says nothing | `che se fosse stata promulgata, avrebbe dissestato l'amministrazione, reso più lunghi i tempi` | reports only when a verb of saying does or a person does |
+| an impersonal modal has no subject | `Anche secondo l'associazione ... "bisogna leggere le motivazioni del rinvio"` | `también según ..., "se necesita leer ..."`, where the association was the subject of `debe` |
+| an adjective that is an adverb too, before an `of` phrase | `allungamento certo dei tempi del processo` | the noun's, `alargamiento cierto de los tiempos`, where it was `ciertamente` |
+| the tail of a name with its `of` left out | `l'associazione nazionale magistrati` | one phrase, `nmodp/1`: the national magistrate association, where the sentence after `secondo` had no reading |
+| the perfect's participles after a comma | `avrebbe dissestato l'amministrazione, reso più lunghi i tempi e acuito la crisi` | invariable in Spanish, and the source's own form when it says otherwise: `annegata`, `abbracciate` |
+| an ordinal before a noun | `articolo 74, primo comma` | `primer párrafo`, where `primo` was the adverb `first` and came out `primero párrafo` |
+| two bare nouns | `Ciampi boccia legge inappellabilità` | a compound, the second noun after the first as it stood: `ley inapelabilidad`, not `inapelabilidad ley` |
+| a word that closes a quotation begins no clause | `crea "delle asimmetrie tra accusa e difesa" e le posizioni ... assumono` | the `e` is the sentence's coordinator and the defence no subject beside the positions |
+
+-- and the words, in `corpus/extra/`: 52 lines of Italian and 30 of Spanish.
+Several say first a word the dictionary gives later, so that it is the word
+written for its meaning -- `tribunal` for `court`, where the dictionary's first
+Spanish word for it is `juzgado`, a court of first instance, `víctima` before
+the mobile column's `accidentado`, `cámara` as a chamber before a camera,
+`regresa` before `devuelve`, `imputado`, `delito`, `aspecto`, and Italian's
+`legge`, `tribunale`, `osserva`, and `camera` a chamber before a bedroom -- and
+some give a word the sense the report uses: Italian's `corte` is a court, where
+the dictionary had only a courtyard and 1.8.26 wrote `el patio de casación`. The
+rest are words and forms the dictionaries lack: `dissestare` and its forms,
+`inappellabilità`, `vice presidente`, `cosiddetto`, `visto che`, and the
+apocopes `gran` and `art`. The supplement entries are 13 in `eng-ita.dix`, six
+of them read only (`palese`, `rinviare`, `rinvio`, `recare`, `vulnus`,
+`uguaglianza`), and 4 in `eng-spa.dix`, three of them written only. The
+vocabularies went from 113 815 and 139 244 lines to 114 043 and 139 369, and the
+set of what they LOST is the two headers' entry counts. `reason.pl` did not
+move, the thirty-fifth version running.
+
+**A QUOTATION IN THE PLAIN MARK IS THE SENTENCE'S, AND ITS DASHES WERE CUTTING
+IT.** `"vedremo - aggiunge Ciro Riviezzo, presidente del sindacato delle toghe -
+su quali aspetti della riforma il capo dello stato ha puntato la sua
+attenzione".` is one quotation with its reporting clause set in the middle of
+it between dashes. A plain mark at the head is taken off only when
+nothing in the piece closes it, and this one is closed by the mark at its end,
+so both marks stayed in the text, the piece was cut at its dashes and each part
+was tokenised by itself -- in `"Il cane - aggiunge Maria - dorme".` the first
+part was a quotation that closed at the end of its part, the mark on `cane`,
+the last part's mark went with `dorme`, and 1.8.26 refused the sentence. A
+plain pair that is the whole piece -- the mark at the head with a word right
+after it, the mark at the end and none between -- and has a dash in it gives its
+two marks to the sentence now, as a pair of the typographic marks always did. A
+dash is a blank before it and no letter or digit after it, or an en or an em
+dash. **A point after an abbreviation went the same way**: `dall'art. 111 della
+costituzione` was two pieces, `... dall'art` and `111 della costituzione ...`,
+neither of them a sentence. The piece that ends in one of the abbreviations a
+number follows -- `art`, `artt`, `n`, `nn`, `pag`, `sig`, `cfr`, `dott`, `prof`
+-- and the one that opens on the number are one, the point dropped, and `art` is
+a word the lesson knows (`"art" is the apocope of "articolo".`), as `gran` is one
+of `grande`. **And a name alone before a colon is who speaks**: `Pecorella:
+"appare inspiegabile ..."` -- the colon before an opening mark ends the piece, and
+the piece is one word, which the reader did not take for a name: a lone
+capitalised word is a verb with its pronouns joined on as often as it is a name
+(`¡Lárgate!`). `Mario
+Rossi:` read, two words being a name where one is not, and `Pecorella:`, `Roma:`
+and `Maria:` were refused.
+
+**`which` WAS A RELATIVE WORD AND THEN `qué`, AND IT IS A QUESTION.** `appare
+inspiegabile quali possano essere le ragioni di incostituzionalità` is it seems
+inexplicable WHICH the reasons may be, and `vedremo su quali aspetti della
+riforma il capo dello stato ha puntato la sua attenzione` is we shall see ON
+WHICH aspects the head of state has focused his attention. The lesson's `quale`
+means `which` and `quali` is its plural; the question word stands for the
+clause's subject, its object or an adjunct, which the clause read as a statement
+leaves out, and it travels as `wh(Asked, Clause)` -- `which` with the number the
+source gave it, or `which` with its noun phrase, the reader's words crossed like
+a question's -- with the preposition in front where there is one. It came out
+before as a relative clause on the adjective, `inexplicable which they may be the
+reasons`, and Spanish wrote `que pueden ser`. **And `which` by itself is a
+pronoun where the lesson has one that means it**: the dictionary gives `cuál` no
+meaning at all, and Spanish's `qué`, the lesson's first word for `which`, asks
+what -- `aparece inexplicable qué pueden ser los motivos`. A pronoun comes first
+for this and no other: before a noun the first word stands.
+(`tr_which_pronoun_number/3`, and the line is `The pronoun "cuál" means
+"which".`, said after `qué`.)
+
+**A PARTICIPLE AFTER THE COMMA OF A PERFECT CLAUSE HAD THREE READINGS, AND THE
+FIRST CUT KNEW ONE.** `avrebbe ulteriormente dissestato l'amministrazione della
+giustizia, reso più lunghi e intensi i tempi dei processi e acuito ancora di più
+la crisi` is a perfect whose participles after the commas are its elided part:
+`reso` and `acuito` have no auxiliary of their own. Spanish's perfect is
+invariable, and the writer made every participle agree with the subject, `casa
+... dormida`. The first cut made every one of them the masculine singular after
+`haber`, and the comparison of the old translator with the working copy over a
+subset of the controls -- made before the round, which is what it is for --
+caught the first regression at once: Fregene's `Una madre che ha perso la figlia
+di 4 anni, annegata in una piscina` came out `ahogado`, the daughter drowned,
+and `annegata` says so. The source's own form travels with the participle now,
+as `pagr(Gender, Number)` beside it, only in a perfect clause and only when it
+is not the masculine singular, so a clause whose participles are all the default
+reads as it did. Two more readings had to be told apart from it: a form that
+agrees with a pronoun BEFORE the verb, Livata's `li abbiamo fatti bere,
+riscaldati`, is the perfect's too -- Italian agrees a perfect's participle with
+the pronoun and Spanish does not, so where one stands before the verb the writer
+keeps the invariable form, and the sentence reads `los hemos hecho beber,
+calentado` -- and a participle after a verb whose perfect the source builds with
+the copula, `sono uscite, arrivate`, agrees in Italian as part of the perfect
+and is invariable in Spanish. **The second was too wide in the first cut**, and
+the round found it in Fregene: `Sono morte abbracciate e io sono sicura che mia
+figlia è morta felice, stretta alla sua tata` came out `han muerto abrazado ...
+apretado` -- `morire` takes the copula, so every participle after it was taken
+for the elided part, and `abbracciate` and `stretta` are neither: their own
+verbs take `avere`, they are predicates of the subject and agree in both
+languages. A participle after a copula's perfect is its elided part only when
+its own verb builds its perfect with the copula too
+(`tr_participle_unaccusative/1`), and `è uscita, lavata` is `ha salido, lavada`.
+
+**A FORM THAT IS THE PLURAL OF TWO WORDS IS NOT THE PLURAL OF BOTH, AND THE
+ARTICLE OR THE VERB'S OWN FORMS SAY WHICH.** The law's title, `"modifiche al
+codice di procedura penale, in materia di inappellabilità delle sentenze di
+proscioglimento"`, came out `"Modifican al código ..."`: they amend, with nobody
+named. The vocabulary says `"modifiche" is the plural of "modifica".` of the
+noun and `"modificano" is the plural of "modifica".` of the verb -- one relation
+for both, so the noun's plural was a verb's form as well, and a title, a noun
+with its phrases, read as a clause with no subject. A verb's plural is the
+target of the verb's own forms too -- `"modifichiamo" is the first person of
+"modificano".`, `"modificarono" is the past of "modificano".` -- so a stated
+plural that is the target of none, of a word that is a noun as well and has
+ANOTHER stated plural that is, is the noun's (`tr_noun_plural_only/2`). The
+other plural is asked for because a lesson that states a noun and a verb of one
+spelling and no verb form at all (`costa`, `pasa` in the case's small lessons)
+has nothing to tell the two apart by, and reads as it always did: `Modificano il
+codice.` is the guard that pins that half. `person_of(_, W)` has no first
+argument to key on and walks the predicate, so the question is asked of a word
+both classes name and of no other -- the classes are the sentence's memo.
+`le posizioni delle parti nel processo` is the same fault on the writer's side:
+`parti` is the plural of `parto`, a birth, first in the vocabulary, and of
+`parte`, which is what a party to a case is, and `partos` is what came out. The
+article says which -- `le` is feminine and `parto` is not -- and a form that is
+the plural of two takes the lexeme whose gender is the determiner's
+(`tr_det_gendered_noun/4`), `partes`, only where the determiner has a gender and
+a lexeme of the word has the same: nothing else moves.
+
+**TWO BARE NOUNS ARE A COMPOUND, AND `este` IS A NOUN TOO.** `Ciampi boccia
+legge inappellabilità` is Ciampi rejecting the law on unappealability, three
+words of a headline with no article between them. The general clause reads a
+word that is no preposition, pronoun or verb as an adjective of the noun before
+it, and the lesson's writer puts a word before its noun where no rule says an
+adjective follows it, so the law came out `inapelabilidad ley` -- the
+unappealability of the law, the other way round. It is the compound `los
+muchachotes hinchas` already was (1.8.17), with no determiner and in the
+singular, `nmod/1`, and it is written as that is, after the noun: `ley
+inapelabilidad`. **The first cut of it took a word the controls read another
+way**, and the first round found it in Tatoeba: `Este hombre está muerto.` came
+out `Man east is died` where the old one read `This man is
+died.` `este` is `this` and it is the east, and the vocabulary calls it a noun
+too. A determiner is no first noun -- the guard is `este gato`, red without the
+line (arm W).
+
+**AN OBJECT PRONOUN THAT IS NO DATIVE IS THE VERB'S ONE DIRECT OBJECT, SO A
+PHRASE AFTER THE VERB THAT AGREES WITH IT CAN ONLY BE ITS SUBJECT.** `Lo rende
+noto un comunicato del Quirinale.` is the communique announcing it, and `Lo
+mangia il cane` the dog eating it. Read with nobody named for the subject, the
+phrase was a second object -- `lo anuncia un comunicado`, the same words in
+Spanish, and English refused it. Only the third person's pronoun, `lo`, `la`,
+`li`: `mi`, `ti` and `ci` are datives as often, `mi ha dato un libro` has one
+before its verb and a phrase after it, and there the phrase is the object. And
+never a phrase the word before a person opens (Spanish's `Lo ve a Maria`
+doubles its pronoun with the person the word marks), and the phrase agrees with
+the verb in number, or `Lo chiamano Mario` -- they call him Mario -- has no
+subject after it at all. **THE FIRST CUT ASKED IT OF EVERY GROUP WITH A CLITIC
+BEFORE IT, AND IT COST 56 MILLION INFERENCES**: `Inoltre la legge approvata crea
+...` offered `legge` (she reads) with `la` before it and read the rest of a
+forty-five word sentence for its subject, four times over, where the phrase's
+first word, `approvata`, refuses at once. The phrase opens on a determiner or is
+a name, which is what a subject after its verb does, and that is asked first.
+
+**A COMMENT BETWEEN TWO COMMAS REPORTS ONLY WHEN THE VERB SAYS SOMETHING OR A
+PERSON DOES.** `..., ha rilevato ancora il presidente della repubblica, crea
+...` and `..., sottolinea il Lingotto in una nota, non è previsto ...` are
+somebody saying it; `che se fosse stata promulgata, avrebbe dissestato
+l'amministrazione, reso più lunghi i tempi` is not, and read as one -- a verb,
+its subject after it and no object, which is all a reporting clause is -- the
+rest of the sentence was read without it and failed. The subject is a person
+the lesson calls one, or the verb means one of English's verbs of saying
+(`en_saying/1`, forty-nine of them). **AND THE DIVISION AT A SUBORDINATING WORD
+GOES FIRST**: the same sentence is two clauses -- `una buona notizia, visto che
+erano evidenti i profili ..., che se fosse stata promulgata ... avrebbe
+ulteriormente dissestato ...` -- and no statement holds a clause of `since` or
+`while` among its complements, so the reading of the whole, with its commas and
+again without them, could only fail. The last such word after a comma divides
+first, and both sides must read as clauses; where they do not, the reading goes
+on as it always did. **AND A FORM THE LESSON STATES IN SEVERAL WAYS CAME BACK
+ONCE FOR EACH** -- `erano` is the plural of `era` and the past of `sono` -- and
+every reading that walked the forms of a word walked the same one that many
+times: the memo keeps each solution once, in the order it came
+(`tr_distinct/2`). None of the three moves a text, so each was measured by
+putting it back alone, the others in, counted on the store:
+
+| put back | the twenty-first sentence | the report |
+|---|---|---|
+| nothing, 1.8.27 | 10.8 million | 150.2 million |
+| a comment between commas reports whatever its verb | 233.4 million | 372.8 million |
+| no division first at a subordinating word | 92.2 million, and the ninth 65.2 million more | 296.9 million |
+| the memo keeps a solution as often as it comes | 34.7 million | 174.9 million |
+| all three | over the budget of 300 million | 505.5 million |
+
+-- every text the same but the last, which is the twenty-first refused. With
+them, the sentence that ran over the budget of 300 million inferences on 1.8.26,
+in 129 and 135 s, reads in 10.8 million inferences and 4.7 and 6.0 s.
+
+**A QUOTATION THAT OPENS ON AN ADVERB THE READER LIFTS OUT WAS THE ADVERB'S, AND
+THE MARKS WENT WITH IT.** `ma "già ora si può dire che le preoccupazioni ...,
+erano fondate"` has its opening mark on `già`, the first of two adverbs the
+reader lifts out of the piece (`tr_adverbs_off/4`) and the writer puts after
+the verb. The mark stayed on the adverb -- `pero se puede decir "ya ahora que
+las preocupaciones ..."` -- so `se puede decir` stood outside the quotation and
+`ya ahora` inside it, and with a clause of `che` inside the quotation the
+closing mark was written twice, `"se dice que el gato duerme" también".` A
+quotation that opens on an adjunct the writer moves had been the clause's since
+this version's `qs` and `qe`, and a clause that goes through the lift is a third
+road to the same place; the report's fourteenth sentence was the first to take
+it, and **the case could not have seen it**: the twenty-one sentences read and
+the marks were balanced, so it took reading the report's Spanish after the
+section was written. The lift gives the mark to the clause now
+(`tr_clause_marks/3` at the end of the lift's clause), and the closing mark a
+clause the quotation holds carries on its verb (`vqc`) is given up with it, or
+the quotation closes on the verb and again on the last adverb. The five checks
+are the joined clause in both languages, the nested clause, and two guards --
+an adverb at the quotation's end, and a clause with none to write after it. It
+is the family of the table's `"almeno per una volta il governo sia capace"` row:
+**a mark belongs to a word, and a word the writer moves takes it along.**
+
+**ENGLISH HAS NO FUTURE OF `must` EITHER, AND `will have to` SAYS IT.**
+`bisognerà leggere le motivazioni` was refused into English -- `can` had no
+future until 1.8.16, `must` had no past until 1.8.26 -- and `will have to`,
+denied `will not have to`, is what English says: `One will have to eat the
+bread.` The report's thirteenth sentence reads into English now.
+
+**A VERB'S SENSE BY ITS OBJECT COUNTS THE VERB'S OWN, AND THE DATA COLUMN
+FOUND TWO THAT WERE NOT.** `ha rinviato la legge` returns a thing, and the
+dictionary's first Spanish word for returning, `regresa`, does not do that:
+`The transitive verb "devuelve" means "returns".` is the line, with `regresa`
+said again first so that it stays the word written where nothing is returned.
+The clause with an object takes the transitive one (`tr_verb_out/4`, since
+the football report), and the test was `member(obj(_), Comps)` -- any object of
+the clause, and an object is not always the verb's. The islands report's `ritorna
+alla dimensione dell'oasi così come le più canicolari Eolie, ..., e l'isola di
+Ustica` has a phrase
+after a coordinator, the conjunct of the complement before it, and Salvini's `E
+la pantera torna ad affilare gli artigli` has the claws, which the infinitive
+sharpens: both came out `devuelve`, the panther giving something back, where
+1.8.26 wrote `regresa`. **The comparison of the new translator with the old
+cannot see it**, because both read the sentence alike over the same store; only
+1.8.26 over the store taught before these lines writes `regresa`, which is what
+the column that runs the old translator over the old store is for.
+`tr_own_object/1` counts an object only before an infinitive and never one that
+follows a coordinator; `Il cane ritorna il pane.` and `..., e il gatto.` keep
+`devuelve`, and each has a check.
+(An infinitive's own object in a clause that never had one of its own is the
+clause's flat complement, and `regresar a las Cámaras la ley` is still what the
+fifteenth sentence writes: American Spanish says it, and the choice by the
+infinitive's object is the next thing this asks for.)
+
+**EVERY RULE WAS TAKEN OUT, ONE AT A TIME, TWO WAYS.** Thirty-nine of the
+fifty-five checks the section had are red on 1.8.26, which has none of this
+version's rules; that says each shape is new, and not that each rule is needed,
+because a sentence can read by a rule written after the one written for it
+(1.8.24). So twenty-eight arms put back one rule each, as 1.8.26 had it or as
+the first cut had it -- the narrowings, the guards and every rule a control
+asked for -- run over the section and its own lessons three at a time, about a
+minute for all of them: each is red on the checks written for its rule, and
+rules written for one sentence share checks -- the impersonal modal and the mark
+on the verb after `se`, the name's tail and its head, and the four that decide a
+participle after a perfect's comma. And fifty-seven arms put back one hunk each
+of the diff against 1.8.26, which takes out whatever a hunk holds whether or not
+anybody thought of it as a rule: thirty-eight are red on a check, fifteen take
+out a helper another hunk calls and answer with an error, which is no evidence
+(1.8.10), and four are red on nothing. Two of those four are costs that move no
+text -- the division first at a subordinating word and the memo's dedupe,
+measured above by putting each back alone. **The other two were right and nobody
+had pinned them**: the writer's plural of a verb (h57), without which `Los
+perros modifican el código` is `I cani modifiche il codice`, the lesson stating
+the modification's plural before the verb's; and the generic reading's refusal
+where an accusative pronoun has its subject after the verb (h24), without which
+the plural `Li mangiano i cani` is `They eat them the dogs` -- the singular
+reads by another road, which is why no check saw it. The case has both now, each
+red on its own arm and on 1.8.26. **A fix found by a control is one whose check
+nobody had written, and the arm is how that is seen**: the participle of a verb
+that takes `avere` after a copula's perfect (`X`), the determiner that is a noun
+too (`W`) and the object after an infinitive (`Y`) each came from a control, and
+each arm is red on the one guard or check that was added for it and on no other.
+
+**THE DATA COLUMN MOVED SIX LINES OF OLD TEXT AND THREE OF TATOEBA'S, AND ONLY
+TWO WERE WORSE.** 1.8.26 over its own store against 1.8.26 over the store taught
+with this sample's lines -- the one comparison that shows what a line of data
+does, because the new translator and the old read every line alike:
+
+| what moved | the line | now |
+|---|---|---|
+| the islands report's `regresa a la dimensión del oasis` and Salvini's `la pantera regresa a afilar` came out `devuelve` | `The transitive verb "devuelve" means "returns".` | `tr_own_object/1`, above |
+| the football report's `la grande novità` and the Basque report's `di grande discrezione` came out `gran` | `"gran" is the apocope of "grande".`, for `la gran parte della cultura giuridica` | kept: both are Italian, and the writer takes the apocope a lesson states |
+| the Washington Post extract's `actos en el entorno` and Salvini's `previsto por el acto` came out `leyes` and `por la ley` | `The feminine noun "legge" means "law".`, said first for `law` | kept, and better: a law is what `legge` is |
+| Tatoeba's `¿Cuál es la palabra?` and `¿Cuál es la mía?`, `Is Cuál the word?` and `Is Cuál the mine one?`, are refused, and `Sé cuál es tu nombre.`, refused for `cuál`, is refused with every word known | `The pronoun "cuál" means "which".`, for the report's second sentence | a word the lesson knows is no name at the head of a sentence, and a DIRECT question that opens on it has no reading yet -- English's `Which is the house?` among them: the next Spanish sample's lead. This version reads the third, `I know which is your name.`, where the reference says `I know your name.` |
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Spanish says | why |
+|---|---|---|
+| `Hay el jefe del estado afortunadamente` | `Por suerte está el jefe del Estado` | `c'è` is `there is`, and Spanish writes no article after `hay`; a head adverb is written after the clause, 1.6.8's cost |
+| `Aparece inexplicable cuáles pueden ser los motivos` | `Parece inexplicable cuáles pueden ser las razones` | `appare` crosses as `appears`; and a subjunctive is written as the indicative, 1.6.8's cost |
+| `Ciampi rehúsa ley inapelabilidad` | `Ciampi rechaza la ley de inapelabilidad` | `bocciare` crosses as `rejects`, whose first Spanish word is `rehúsa`; a compound has no article and no `de` in the source or in the IR |
+| `de tribunal de Cassazione`, `el Presidente De la República` | `de la Corte de Casación`, `el presidente de la República` | a name no lesson knows passes through as written, and a capital the source put on a common word is kept, 1.8.12's cost |
+| `en la inapelabilidad`, `en la nueva normativa` | `sobre` | `su` is `on`, 1.7.2's cost |
+| `desde juez de legitimidad a juez de mérito`, `desde inmediatamente` | `de juez`, `de inmediato` | `da` is `from`, 1.6.17's cost |
+| `Lo anuncia un comunicado` | `Lo da a conocer un comunicado` | `rendere noto` is an idiom |
+| `..., observa todavía el presidente.`, `"Veremos ... atención – añade Ciro Riviezzo, ... –".` | the reporting clause where the source put it, and `además` | a reporting clause from the middle is written after the sentence, 1.6.21's cost; and `ancora` crosses as `still` |
+| `en el mensaje a las Cámaras con las que ha devuelto la ley` | `con el cual` | the relative clause hangs on the Chambers, the phrase right before it, where `il quale` is masculine and singular and so the message's: the IR has no relative clause across a preposition's phrase, and the writer agrees the relative with the phrase it hangs on. The source's own agreement, kept beside the relative, is the next thing this asks for |
+| `crea "de las asimetrías ..."` | `unas asimetrías` | the partitive `delle` reads `of the`, 1.6.17's cost |
+| `la parte perjudicada` | `la parte lesionada` | a sense |
+| `del delito constituido parte civil" que es` | `constituida en parte civil, que es` | the participle with its reflexive joined hangs on the offence, and `parte civile` is read as a verb, departs, with `civile` said of whoever does: Spanish's `parte` is the verb too, so the words come out either way, and only the IR is wrong |
+| `Y hay riesgo de que la ley ... puede causar ... finalmente` | `pueda`, `Y finalmente` | the subjunctive, and a head adverb written last |
+| `un daño al precepto` | `una vulneración del precepto` | `vulnus` crosses as `harm` |
+| `la comisión justicia`, `la asociación nacional magistrados` | `la Comisión de Justicia`, `la Asociación Nacional de Magistrados` | a compound and the tail of a name with its `of` left out are written as they stood: no `de` in the source or in the IR |
+| `frente al derecho impugnar` | `frente al derecho a impugnar` | the preposition a noun puts before its infinitive is not in the IR, 1.6.15's cost |
+| `regresar a las Cámaras la ley` | `devolver la ley a las Cámaras` | an infinitive's object is the main clause's flat complement (above) |
+| `del regreso`, `ha apuntado su atención` | `de la devolución`, `ha centrado su atención` | senses through English: `rinvio` crosses as `return` and `puntare` as `aims` |
+| `bajo el perfil de la conformidad` | `desde el punto de vista de` | `sotto il profilo` is an idiom, written word for word |
+| `es capaz ... al menos para una vez` | `sea capaz ... por una vez` | the subjunctive, `per` is `for`, 1.6.21's cost, and an adjunct at the head of a quotation is written last, 1.6.8's |
+| `el dirigente del roble` | `el líder de la Encina` | the party is named by its emblem, which the source writes in lower case: `quercia` crosses as `oak`, word for word |
+| `si había sido promulgada`, `habría desorganizado` | `si hubiera sido promulgada`, `habría desestabilizado` | the subjunctive; `dissestare` crosses as `disorganizes` |
+| `rendido más largos`, `afilado todavía más la crisis` | `hecho más largos`, `agudizado` | `rendere` crosses as `renders` and `acuire` as `sharpens` |
+| `tiene a un presidente de la república` | `tiene un presidente` | the word before a person is written after `avere`, and no lesson says which verbs take it |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.26's, RUN BACK TO BACK
+TWICE**, and on one boot: the container restarted in the middle of the round and
+killed it, and the round was run again whole, because passes from two boots do
+not compare -- the first pass after the restart wrote every text the pass before
+it had, to the byte, which is also the check that the store came through:
+
+| control | 1.8.26, this store | **1.8.27** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 11.8 and 12.3 s | **12 of 12, 12.1 and 13.3 s** |
+| the Spanish article | 11 of 11, 11.3 and 12.2 s | **11 of 11, 10.1 and 10.4 s** |
+| Livata, 29 sentences | 29 of 29, 65.0 and 70.9 s | **29 of 29, 63.4 and 67.9 s** |
+| Fiat, 20 sentences | 20 of 20, 16.9 and 18.6 s | **20 of 20, 17.6 and 18.5 s** |
+| Valencia, 16 sentences | 16 of 16, 18.8 and 19.8 s | **16 of 16, 16.7 and 17.3 s** |
+| the bioethics article, 15 sentences | 15 of 15, 12.5 and 13.6 s | **15 of 15, 9.2 and 10.3 s** |
+| the football article, 20 sentences | 20 of 20, 23.1 and 24.7 s | **20 of 20, 20.9 and 22.7 s** |
+| Monreale, 6 sentences | 6 of 6, 2.9 and 3.2 s | **6 of 6, 2.9 and 3.1 s** |
+| the record report, 15 sentences | 15 of 15, 18.2 and 19.6 s | **15 of 15, 14.1 and 15.1 s** |
+| Tatoeba's 400, exact / translated / refused | 61 / 291 / 109, 16.9 and 18.6 s | **61 / 292 / 108, 16.8 and 18.4 s** |
+| the islands report, 13 sentences | 13 of 13, 16.3 and 15.7 s | **13 of 13, 14.8 and 16.4 s** |
+| the opera review, 12 sentences | 12 of 12, 12.7 and 13.2 s | **12 of 12, 10.0 and 11.4 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 24.0 and 26.6 s | **27 of 27, 22.9 and 25.9 s** |
+| the Georgia report, 8 sentences | 8 of 8, 9.1 and 9.8 s | **8 of 8, 8.5 and 8.9 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 12.9 and 13.1 s | **13 of 13, 12.6 and 13.1 s** |
+| the Clinton report, 12 sentences | 12 of 12, 15.5 and 17.2 s | **12 of 12, 13.2 and 14.3 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 33.7 and 35.0 s | **12 of 12, 29.5 and 32.3 s** |
+| the Solana report, 10 sentences | 10 of 10, 20.9 and 22.7 s | **10 of 10, 16.0 and 16.4 s** |
+| the pacifist letter, 6 sentences | 6 of 6, 6.5 and 6.7 s | **6 of 6, 6.2 and 6.7 s** |
+| the mobile column, 11 sentences | 11 of 11, 24.0 and 23.3 s | **11 of 11, 18.9 and 20.9 s** |
+| the Bastille letter, 11 sentences | 11 of 11, 17.6 and 18.3 s | **11 of 11, 17.2 and 18.1 s** |
+| the Basque report, 9 sentences | 9 of 9, 43.7 and 43.9 s | **9 of 9, 28.2 and 30.3 s** |
+| the Giglio letter, 8 sentences | 8 of 8, 10.4 and 10.2 s | **8 of 8, 9.9 and 10.7 s** |
+| the England column, 9 sentences | 9 of 9, 12.0 and 12.6 s | **9 of 9, 9.7 and 10.4 s** |
+| the Bovalino letter, 15 sentences | 15 of 15, 31.6 and 32.4 s | **15 of 15, 27.9 and 32.1 s** |
+| the Puigbó report, 8 sentences | 8 of 8, 20.6 and 21.7 s | **8 of 8, 16.0 and 18.4 s** |
+| the Salvini interview, 35 sentences | 35 of 35, 72.2 and 74.8 s | **35 of 35, 68.2 and 77.8 s** |
+| the Radio Nacional report, 9 sentences | 9 of 9, 19.8 and 20.4 s | **9 of 9, 16.6 and 17.4 s** |
+| the Fregene report, 75 sentences | 75 of 75, 117.5 and 122.5 s | **75 of 75, 111.1 and 125.0 s** |
+| the Lord of the Rings report, 13 sentences | 13 of 13, 77.9 and 83.1 s | **13 of 13, 68.7 and 77.7 s** |
+| the Ciampi report, 21 sentences | 12 of 21, 310.5 and 324.4 s | **21 of 21, 63.8 and 71.4 s** |
+
+-- the texts first: each translator gives the same texts both times, and against
+1.8.26 on this store every old control is the same to the byte but for five.
+Three are better. Livata's `li abbiamo fatti bere, riscaldati, ... e affidati al
+118` is `los hemos hecho beber, calentado, ... y confiado al 118`, the perfect's
+participles after its commas, where 1.8.26 made them agree, `calentados ...
+confiados`. The Bosnian letter's `quei morti per le strade` is `esos muertos
+para las carreteras`, where 1.8.26 wrote `esas muertes`: `morti` is the plural
+of `morte` and of `morto`, and `quei` says which, which moves 1.8.10's cost one
+step -- `per` is still `for` and `strade` still roads. And Fregene's `organizza
+convegni, incontri, mostre, nell'indifferenza generale` is `organiza reuniones,
+encuentros, muestras, en la indiferencia general`, one of the nine wrong
+structures 1.8.25 stated: `incontri`, meetings, was read as the verb, you meet,
+between two commas, and written after the sentence as a reporting clause, `...,
+encuentra`; a comment between two commas reports now only when its verb says
+something or a person does, and `incontri` does neither: with that rule put back
+as 1.8.26 had it, the text is 1.8.26's. The other two are the data column's, the
+islands report's and Salvini's `regresa`, back to what 1.8.26 writes over its
+own store. **AND AGAINST 1.8.26 ON ITS OWN STORE** -- the one reference with no
+line of this sample's data in it -- every old control is the same but for those
+three, the data column's `gran` twice, `leyes` and `por la ley`, and Tatoeba's
+three: 61 exact, 292 translated and 108 refused, where 1.8.26 has 61, 293 and
+107 there. (The library committed differs from the one the round measured in the
+comments of two clauses, changed after it to say what the arms measured, and in
+nothing a program reads; the pairs below ran on the library committed.)
+
+**THE TIMES SAY WHAT THE COUNTS SAY, AND THE PAIRS AGREE.** The ranges are apart
+on seventeen of the thirty-one, and every one of the seventeen is faster: the
+report by 79 %, because 1.8.26 spends its time failing, and sixteen old controls
+by 7.8 to 33.3 %, the Basque report, the Solana report and the bioethics report
+the most. They overlap on the other fourteen, and three of those have a mean
+that did not fall: the twelve 5.6 % slower, Fiat 1.7 % and the Giglio letter the
+same. Counted on the store, the sentences whose texts the two translators write
+alike ask 9.30 % fewer inferences than 1.8.26's, and two controls ask more, the
+twelve by 0.32 % and the pacifist letter by 0.53 %; the largest rise of a
+sentence is Ferlaino's twenty-first, 314 000 inferences or 4.3 %, and in
+proportion Fregene's thirtieth, 11.9 %, which is 50 000. Five alternating pairs
+of the twelve and Fiat, nothing else on the box: the twelve 13.20 s
+(12.96-13.60) against 12.96 s (12.41-14.03), Fiat 18.37 s (17.82-18.91) against
+17.45 s (17.04-18.00) -- both ranges overlapping and both means lower, the way
+the counts say. A first set of pairs ran with a search of the scratchpad beside
+it, had the twelve 5.8 % slower, and was thrown away: a pair is worth what the
+box is doing beside it.
+
+**TWO RULES ARE MOST OF THE SAVING, AND BOTH WERE WRITTEN FOR THE TWENTY-FIRST
+SENTENCE.** Put back as 1.8.26 had it, the memo that keeps a solution as often
+as it comes asks every one of the thirty-one controls for more, 6.21 % over all
+of their sentences, and the sentences the two translators write alike are then
+4.54 % fewer than 1.8.26's where they are 9.30 % fewer: about half the saving.
+And the division first at a subordinating word, put back, takes back most of
+what six of the seven old controls that saved the most had saved, counted on
+the store:
+
+| control | 1.8.26 | 1.8.27 | 1.8.27, no division first |
+|---|---|---|---|
+| the bioethics article | 28.2 million | 20.1 million | 28.7 million |
+| the Basque report | 99.1 million | 64.9 million | 88.9 million |
+| the Solana report | 44.6 million | 32.8 million | 42.7 million |
+| the record report | 41.5 million | 32.9 million | 39.7 million |
+| the opera review | 25.7 million | 20.9 million | 24.1 million |
+| the England column | 24.9 million | 19.2 million | 23.1 million |
+
+-- each has sentences of two clauses joined by such a word after a comma,
+which the reading of the whole, with its commas and again without them, tried
+first and could only fail. The seventh, the Puigbó report, is none of the
+three, and its 23 % is not traced here. The comment that reports only for a
+verb of saying or a person, put back as 1.8.26 had it, costs the opera review
+1.3 million and the Puigbó report 1.0, and the other five nothing.
+
+Into English the report reads 14 of 21, where 1.8.26 reads 9 on this store and
+runs the twenty-first over the budget. The seven refused each have a clause
+whose subject nobody named -- `appare inspiegabile` twice, `è palesemente
+incostituzionale`, `con il quale ha rinviato la legge`, the clause of `che`
+after `cioè "la vittima del reato ..."`, `ha detto` and `se fosse stata
+promulgata` -- and English still refuses a third person nobody named (1.6.15).
+For the nineteenth, `reason_untranslated/3` names `c`, `s` and `m`: it asks
+about each letter alone, where the reader joins the three into one acronym. The
+fourteen show what the IR carries: `A communique of the Quirinale announces
+him.`, the accusative pronoun and the subject after the verb, `lo` as `him`
+(1.8.2's cost); `"One will have to read the motivations obviously, but one can
+say from immediately, already however that ..."`, the future of `must`; `"We
+will see on which aspects of the reform the boss of the state has pointed his
+attention – Ciro Riviezzo adds, president of the union of the togas –".`,
+`which` with its noun and the reporting clause from between the dashes written
+after what was said; and `The comment concise but meaningful of the first
+president of the supreme court of Cassazione, Nicola Marvulli:`, a heading's
+adjectives after its noun, where English puts them before. And the IR of three
+is wrong where the Spanish is right, the same words coming out of either
+reading. The eighteenth is `Virginio Rognoni has expressed satisfaction the
+vice-president of the superior advice of the magistrature:` -- the name after
+the last comma taken for the clause's subject set at the end (1.8.25) and the
+vice-president for a second object, where the name is his. The ninth has `parte
+civile` for a verb, departs, and what it says of whoever does (the costs above).
+And the twenty-first has the profiles for the copula's object with nobody named
+for its subject: the subject after a copula's predicate is read only where it is
+one phrase (1.8.20) -- `Erano evidenti i profili.` reads -- and `i profili di
+incostituzionalità di questa legge` has its `of` phrases.
+
+`test/translate.pl` is 1474 checks and GREEN, 57 in a new `newspaper_ciampi`
+section with an Italian and a Spanish lesson of its own, each in two parts.
+Every check fails on 1.8.26's translator but sixteen: fifteen of the seventeen
+guards, which pin what 1.8.26 already did right or what a first cut of this
+version got wrong, and the English of the compound, which 1.8.26 writes the
+same from its other reading -- `The dog sees code law.` either way, an
+adjective before its noun as a compound's first word is. The other two guards
+pin this version's own first cuts, and 1.8.26 fails them too: `li ha visti,
+lavati` is `lavada` on it, and the mark of a clause with no adverb to move
+stands on `se`. Lesson 46 gained section 50; cocolint is 0 HARD and 0 WARN over
+the translator, the case and the lesson. **The minor is proposed**: `which` as
+an indirect question, a whole sentence in the plain mark with its reporting
+clause between dashes, letters spaced out as an acronym and a participle with
+its reflexive joined are new shapes a program reaches, and no line a lesson can
+say is new; the owner decides. The full suite was not run on 1.8.27.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`

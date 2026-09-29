@@ -738,6 +738,12 @@ The feminine adjective "cierta" means "certain".
 The masculine noun "móvil" means "mobile".
 The masculine noun "telefonino" means "mobile".
 "telefoninos" is the plural of "telefonino".
+# the Ciampi report's `la vittima del reato costituitosi parte civile': the
+# victim -- `víctima' is said FIRST, before `accidentado' below, because a line
+# of extra/ comes first for its meaning: with `accidentado' first, the writer
+# said `el accidentado' for every victim
+The feminine noun "víctima" means "victim". "víctimas" is the plural of "víctima".
+"víctima" is a person.
 # `cuando pudieron rescatar al accidentado': the man the accident happened
 # to -- the dictionary has `accidentado' only as the adjective `rugged'
 The masculine noun "accidentado" means "victim".
@@ -1251,3 +1257,41 @@ The transitive verb "devuelve" means "returns".
 # the builder admits an English word of letters and this one has a hyphen
 The masculine adjective "denominado" means "so-called". "denominados" is the plural of "denominado".
 The feminine adjective "denominada" means "so-called". "denominadas" is the plural of "denominada".
+# the report on Ciampi sending back the law on unappealability, continued:
+# the words of the law in Spanish.
+# `della corte di cassazione': a court -- the dictionary's first Spanish word
+# for it is `juzgado', a court of first instance; `tribunal' is the word for
+# the highest one
+The masculine noun "tribunal" means "court".
+# `delle sentenze di proscioglimento': judgments
+The feminine noun "sentencia" means "judgment".
+# `ha chiesto alle Camere': the Chambers of Parliament -- the dictionary has
+# `cámara' only as a camera, which it stays for the writer
+The feminine noun "cámara" means "chamber".
+The feminine noun "cámara" means "camera".
+# `Lo rende noto un comunicato del Quirinale': announces, a verb of three
+# words, and a communique. `anuncia' is said again first
+The verb "anuncia" means "announces".
+The verb "da a conocer" means "announces".
+"dan a conocer" is the plural of "da a conocer".
+The masculine noun "comunicado" means "communique".
+# `che è a tutti gli effetti "parte del processo"': to all intents and
+# purposes, one word of four
+The adverb "a todos los efectos" means "to all intents and purposes".
+# the Ciampi report's `l'imputato' and `il reato': the defendant and the
+# offence -- the dictionary has `imputado' only as the participle of
+# `imputar', and its first Spanish word for `offence' is `ofensa'. A line of
+# extra/ comes first for its meaning, so each is said here (and `víctima',
+# above `accidentado')
+The masculine noun "imputado" means "defendant". "imputados" is the plural of "imputado".
+The feminine noun "imputada" means "defendant". "imputadas" is the plural of "imputada".
+The masculine noun "delito" means "offence". "delitos" is the plural of "delito".
+# `su quali aspetti della riforma': the aspects -- the dictionary's first
+# Spanish word for `aspect' is `viso', and for `aspecto' `appearance'
+The masculine noun "aspecto" means "aspect". "aspectos" is the plural of "aspecto".
+# `quali' by itself, in `appare inspiegabile quali possano essere i motivi',
+# is `cuáles', and the dictionary gives `cuál' no meaning at all: a pronoun
+# that means `which', after the hand lesson's `qué' -- the lesson's first word
+# for `which' stays the one before a noun, and the writer of `which' by
+# itself asks for the pronoun (tr_which_pronoun_number/3)
+The pronoun "cuál" means "which". "cuáles" is the plural of "cuál".

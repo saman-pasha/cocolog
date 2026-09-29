@@ -642,3 +642,8 @@
 # `il principio di uguaglianza': equality -- read only, `eguaglianza' is
 # written
 <e r="RL"><p><l>equality<s n="n"/></l><r>uguaglianza<s n="n"/><s n="f"/></r></p></e>
+# `Lapidario ma significativo il commento': concise -- apertium-ita carries
+# the adjective and the bilingual pairs only its adverb
+<e><p><l>concise<s n="adj"/></l><r>lapidario<s n="adj"/></r></p></e>
+# `se fosse stata promulgata nel testo attuale': promulgated
+<e><p><l>promulgate<s n="vblex"/></l><r>promulgare<s n="vblex"/></r></p></e>

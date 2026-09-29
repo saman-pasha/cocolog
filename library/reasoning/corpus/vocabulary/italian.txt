@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16322 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16324 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -811,8 +811,8 @@ The verb "cessa" means "stops".
 The masculine adjective "ridicolo" means "ridiculous".
 The masculine noun "ridicolo" means "ridicule".
 The feminine noun "pazienza" means "patience".
-The feminine noun "camera" means "bedroom".
 The feminine noun "camera" means "chamber".
+The feminine noun "camera" means "bedroom".
 The feminine noun "camera" means "camera".
 The feminine noun "impresa" means "company".
 The feminine noun "impresa" means "corporation".
@@ -979,6 +979,44 @@ The masculine noun "vice presidente" means "vice-president".
 "vice presidenti" is the plural of "vice presidente".
 The masculine adjective "cosiddetto" means "so-called". "cosiddetti" is the plural of "cosiddetto".
 The feminine adjective "cosiddetta" means "so-called". "cosiddette" is the plural of "cosiddetta".
+"art" is the apocope of "articolo".
+The masculine noun "tribunale" means "court".
+The feminine noun "corte" means "court".
+The feminine noun "legge" means "law".
+The feminine noun "sentenza" means "judgment".
+The masculine noun "comma" means "paragraph".
+The verb "osserva" means "observes".
+The verb "rileva" means "observes".
+The verb "annuncia" means "announces".
+The verb "rende noto" means "announces".
+"rendono noto" is the plural of "rende noto".
+The masculine noun "comunicato" means "communique".
+The adverb "a tutti gli effetti" means "to all intents and purposes".
+The adverb "fortunatamente" means "fortunately".
+The adverb "per fortuna" means "fortunately".
+The preposition "in ordine a" means "regarding".
+The verb "dissesta" means "disorganizes".
+"dissestano" is the plural of "dissesta".
+"dissestò" is the past of "dissesta".
+"dissestarono" is the past of "dissestano".
+"dissesterà" is the future of "dissesta".
+"dissesteranno" is the plural of "dissesterà".
+"dissesterebbe" is the conditional of "dissesta".
+"dissesterebbero" is the plural of "dissesterebbe".
+"dissestato" is the participle of "dissesta".
+"dissestata" is the participle of "dissesta".
+"dissestata" is feminine.
+"dissestati" is the participle of "dissesta".
+"dissestati" is the plural of "dissestato".
+"dissestate" is the participle of "dissesta".
+"dissestate" is feminine.
+"dissestate" is the plural of "dissestata".
+"dissestare" is the infinitive of "dissesta".
+"dissestando" is the gerund of "dissesta".
+The conjunction "visto che" means "since".
+The masculine noun "imputato" means "defendant". "imputati" is the plural of "imputato".
+The feminine noun "imputata" means "defendant". "imputate" is the plural of "imputata".
+The masculine noun "aspetto" means "aspect". "aspetti" is the plural of "aspetto".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -22151,6 +22189,53 @@ The verb "calcola" means "calculates".
 "calcolate" is the plural of "calcolata".
 "calcolare" is the infinitive of "calcola".
 "calcolando" is the gerund of "calcola".
+The verb "promulga" means "promulgates".
+"promulgano" is the plural of "promulga".
+"promulghiamo" is the first person of "promulgano".
+"promulgo" is the first person of "promulga".
+"promulghi" is the second person of "promulga".
+"promulgò" is the past of "promulga".
+"promulgarono" is the past of "promulgano".
+"promulgammo" is the first person of "promulgarono".
+"promulgai" is the first person of "promulgò".
+"promulgasti" is the second person of "promulgò".
+"promulgava" is the past of "promulga".
+"promulgavano" is the past of "promulgano".
+"promulgavamo" is the first person of "promulgavano".
+"promulgavo" is the first person of "promulgava".
+"promulgavi" is the second person of "promulgava".
+"promulgherà" is the future of "promulga".
+"promulgheranno" is the plural of "promulgherà".
+"promulgheremo" is the first person of "promulgheranno".
+"promulgherò" is the first person of "promulgherà".
+"promulgherai" is the second person of "promulgherà".
+"promulgherebbe" is the conditional of "promulga".
+"promulgherebbero" is the plural of "promulgherebbe".
+"promulgheremmo" is the first person of "promulgherebbero".
+"promulgherei" is the first person of "promulgherebbe".
+"promulgheresti" is the second person of "promulgherebbe".
+"promulghi" is the subjunctive of "promulga".
+"promulghino" is the plural of "promulghi".
+"promulghiamo" is the first person of "promulghino".
+"promulgasse" is the past subjunctive of "promulga".
+"promulgassero" is the plural of "promulgasse".
+"promulgassimo" is the first person of "promulgassero".
+"promulgassi" is the first person of "promulgasse".
+"promulgassi" is the second person of "promulgasse".
+"promulga" is the imperative of "promulga".
+"promulgare" is the negative imperative of "promulga".
+"promulgate" is the imperative of "promulgano".
+"promulghiamo" is the hortative of "promulga".
+"promulgato" is the participle of "promulga".
+"promulgata" is the participle of "promulga".
+"promulgata" is feminine.
+"promulgati" is the participle of "promulga".
+"promulgati" is the plural of "promulgato".
+"promulgate" is the participle of "promulga".
+"promulgate" is feminine.
+"promulgate" is the plural of "promulgata".
+"promulgare" is the infinitive of "promulga".
+"promulgando" is the gerund of "promulga".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -96186,6 +96271,10 @@ The feminine adjective "lesa" means "aggrieved".
 "lesissimi" is the superlative of "lesi".
 "lesissima" is the superlative of "lesa".
 "lesissime" is the superlative of "lese".
+The masculine adjective "lapidario" means "concise".
+"lapidari" is the plural of "lapidario".
+The feminine adjective "lapidaria" means "concise".
+"lapidarie" is the plural of "lapidaria".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
