@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16305 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16311 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -962,6 +962,10 @@ The adjective "vivace" means "lively".
 The adverb "così tanto" means "so much".
 "margherita" is a name.
 The conjunction "o meglio" means "or rather".
+The masculine noun "hobbit" means "hobbit".
+"hobbit" is the plural of "hobbit".
+The verb "calcola" means "calculates".
+The feminine noun "pietra" means "stone".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1063,6 +1067,8 @@ The noun "motociclista" means "motorcyclist".
 "motociclista" is a person.
 The feminine noun "prodezza" means "exploit".
 "prodezze" is the plural of "prodezza".
+The masculine noun "spaventapasseri" means "scarecrow".
+"spaventapasseri" is the plural of "spaventapasseri".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -20081,6 +20087,9 @@ The feminine noun "aria" means "aria".
 The masculine noun "convincimento" means "convincement".
 The feminine noun "griglia" means "grill".
 The feminine noun "sigla" means "jingle".
+The masculine noun "troll" means "troll".
+"troll" is the plural of "troll".
+"troll" is a person.
 The feminine noun "scimmia" means "ape".
 The feminine noun "catena" means "catena".
 The masculine noun "vantaggio" means "asset".
@@ -22072,6 +22081,53 @@ The verb "tormenta" means "torments".
 "tormentate" is the plural of "tormentata".
 "tormentare" is the infinitive of "tormenta".
 "tormentando" is the gerund of "tormenta".
+The verb "calcola" means "calculates".
+"calcolano" is the plural of "calcola".
+"calcoliamo" is the first person of "calcolano".
+"calcolo" is the first person of "calcola".
+"calcoli" is the second person of "calcola".
+"calcolò" is the past of "calcola".
+"calcolarono" is the past of "calcolano".
+"calcolammo" is the first person of "calcolarono".
+"calcolai" is the first person of "calcolò".
+"calcolasti" is the second person of "calcolò".
+"calcolava" is the past of "calcola".
+"calcolavano" is the past of "calcolano".
+"calcolavamo" is the first person of "calcolavano".
+"calcolavo" is the first person of "calcolava".
+"calcolavi" is the second person of "calcolava".
+"calcolerà" is the future of "calcola".
+"calcoleranno" is the plural of "calcolerà".
+"calcoleremo" is the first person of "calcoleranno".
+"calcolerò" is the first person of "calcolerà".
+"calcolerai" is the second person of "calcolerà".
+"calcolerebbe" is the conditional of "calcola".
+"calcolerebbero" is the plural of "calcolerebbe".
+"calcoleremmo" is the first person of "calcolerebbero".
+"calcolerei" is the first person of "calcolerebbe".
+"calcoleresti" is the second person of "calcolerebbe".
+"calcoli" is the subjunctive of "calcola".
+"calcolino" is the plural of "calcoli".
+"calcoliamo" is the first person of "calcolino".
+"calcolasse" is the past subjunctive of "calcola".
+"calcolassero" is the plural of "calcolasse".
+"calcolassimo" is the first person of "calcolassero".
+"calcolassi" is the first person of "calcolasse".
+"calcolassi" is the second person of "calcolasse".
+"calcola" is the imperative of "calcola".
+"calcolare" is the negative imperative of "calcola".
+"calcolate" is the imperative of "calcolano".
+"calcoliamo" is the hortative of "calcola".
+"calcolato" is the participle of "calcola".
+"calcolata" is the participle of "calcola".
+"calcolata" is feminine.
+"calcolati" is the participle of "calcola".
+"calcolati" is the plural of "calcolato".
+"calcolate" is the participle of "calcola".
+"calcolate" is feminine.
+"calcolate" is the plural of "calcolata".
+"calcolare" is the infinitive of "calcola".
+"calcolando" is the gerund of "calcola".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -94702,6 +94758,101 @@ The verb "gratta" means "scratches".
 "grattare" is the infinitive of "gratta".
 "grattando" is the gerund of "gratta".
 The verb "sottolinea" means "stresses".
+The verb "intrufola" means "sneaks".
+"intrufolano" is the plural of "intrufola".
+"intrufoliamo" is the first person of "intrufolano".
+"intrufolo" is the first person of "intrufola".
+"intrufoli" is the second person of "intrufola".
+"intrufolò" is the past of "intrufola".
+"intrufolarono" is the past of "intrufolano".
+"intrufolammo" is the first person of "intrufolarono".
+"intrufolai" is the first person of "intrufolò".
+"intrufolasti" is the second person of "intrufolò".
+"intrufolava" is the past of "intrufola".
+"intrufolavano" is the past of "intrufolano".
+"intrufolavamo" is the first person of "intrufolavano".
+"intrufolavo" is the first person of "intrufolava".
+"intrufolavi" is the second person of "intrufolava".
+"intrufolerà" is the future of "intrufola".
+"intrufoleranno" is the plural of "intrufolerà".
+"intrufoleremo" is the first person of "intrufoleranno".
+"intrufolerò" is the first person of "intrufolerà".
+"intrufolerai" is the second person of "intrufolerà".
+"intrufolerebbe" is the conditional of "intrufola".
+"intrufolerebbero" is the plural of "intrufolerebbe".
+"intrufoleremmo" is the first person of "intrufolerebbero".
+"intrufolerei" is the first person of "intrufolerebbe".
+"intrufoleresti" is the second person of "intrufolerebbe".
+"intrufoli" is the subjunctive of "intrufola".
+"intrufolino" is the plural of "intrufoli".
+"intrufoliamo" is the first person of "intrufolino".
+"intrufolasse" is the past subjunctive of "intrufola".
+"intrufolassero" is the plural of "intrufolasse".
+"intrufolassimo" is the first person of "intrufolassero".
+"intrufolassi" is the first person of "intrufolasse".
+"intrufolassi" is the second person of "intrufolasse".
+"intrufola" is the imperative of "intrufola".
+"intrufolare" is the negative imperative of "intrufola".
+"intrufolate" is the imperative of "intrufolano".
+"intrufoliamo" is the hortative of "intrufola".
+"intrufolato" is the participle of "intrufola".
+"intrufolata" is the participle of "intrufola".
+"intrufolata" is feminine.
+"intrufolati" is the participle of "intrufola".
+"intrufolati" is the plural of "intrufolato".
+"intrufolate" is the participle of "intrufola".
+"intrufolate" is feminine.
+"intrufolate" is the plural of "intrufolata".
+"intrufolare" is the infinitive of "intrufola".
+"intrufolando" is the gerund of "intrufola".
+"snuck" is the past of "sneaks".
+The verb "traballa" means "wobbles".
+"traballano" is the plural of "traballa".
+"traballiamo" is the first person of "traballano".
+"traballo" is the first person of "traballa".
+"traballi" is the second person of "traballa".
+"traballò" is the past of "traballa".
+"traballarono" is the past of "traballano".
+"traballammo" is the first person of "traballarono".
+"traballai" is the first person of "traballò".
+"traballasti" is the second person of "traballò".
+"traballava" is the past of "traballa".
+"traballavano" is the past of "traballano".
+"traballavamo" is the first person of "traballavano".
+"traballavo" is the first person of "traballava".
+"traballavi" is the second person of "traballava".
+"traballerà" is the future of "traballa".
+"traballeranno" is the plural of "traballerà".
+"traballeremo" is the first person of "traballeranno".
+"traballerò" is the first person of "traballerà".
+"traballerai" is the second person of "traballerà".
+"traballerebbe" is the conditional of "traballa".
+"traballerebbero" is the plural of "traballerebbe".
+"traballeremmo" is the first person of "traballerebbero".
+"traballerei" is the first person of "traballerebbe".
+"traballeresti" is the second person of "traballerebbe".
+"traballi" is the subjunctive of "traballa".
+"traballino" is the plural of "traballi".
+"traballiamo" is the first person of "traballino".
+"traballasse" is the past subjunctive of "traballa".
+"traballassero" is the plural of "traballasse".
+"traballassimo" is the first person of "traballassero".
+"traballassi" is the first person of "traballasse".
+"traballassi" is the second person of "traballasse".
+"traballa" is the imperative of "traballa".
+"traballare" is the negative imperative of "traballa".
+"traballate" is the imperative of "traballano".
+"traballiamo" is the hortative of "traballa".
+"traballato" is the participle of "traballa".
+"traballata" is the participle of "traballa".
+"traballata" is feminine.
+"traballati" is the participle of "traballa".
+"traballati" is the plural of "traballato".
+"traballate" is the participle of "traballa".
+"traballate" is feminine.
+"traballate" is the plural of "traballata".
+"traballare" is the infinitive of "traballa".
+"traballando" is the gerund of "traballa".
 The verb "pratica" means "practices".
 The verb "ristabilisce" means "reinstates".
 The verb "strappa" means "rips".
@@ -95894,6 +96045,10 @@ The feminine adjective "disparata" means "disparate".
 "disparatissimi" is the superlative of "disparati".
 "disparatissima" is the superlative of "disparata".
 "disparatissime" is the superlative of "disparate".
+The masculine adjective "innevato" means "snowy".
+"innevati" is the plural of "innevato".
+The feminine adjective "innevata" means "snowy".
+"innevate" is the plural of "innevata".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

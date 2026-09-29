@@ -596,3 +596,21 @@
 # `un artista molto noto': well known, which apertium-ita carries as an
 # adjective and the bilingual pairs with nothing; `noto' was only I notice
 <e r="RL"><p><l>famous<s n="adj"/></l><r>noto<s n="adj"/></r></p></e>
+# the errors of The Lord of the Rings (AnCora CESS-CAST-P-20020102-112), from
+# Spanish: the Italian word for a meaning the Spanish one has and Italian had
+# none for. apertium-ita carries each and the bilingual pairs it with
+# nothing; written only, so no Italian text reads any word otherwise.
+<e r="LR"><p><l>troll<s n="n"/></l><r>troll<s n="n"/><s n="m"/></r></p></e>
+<e r="LR"><p><l>sneak<s n="vblex"/></l><r>intrufolare<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>wobble<s n="vblex"/></l><r>traballare<s n="vblex"/></r></p></e>
+# `anda por una montaña nevada': snowy, which apertium-ita carries as
+# `innevato' and the bilingual pairs with nothing -- so the whole of sentence
+# five was written into Italian as nothing
+<e><p><l>snowy<s n="adj"/></l><r>innevato<s n="adj"/></r></p></e>
+# `en el campo con el espantapájaros': the scarecrow, which apertium-ita
+# carries as `spaventapasseri' and the bilingual pairs with nothing
+<e><p><l>scarecrow<s n="n"/></l><r>spaventapasseri<s n="n"/><s n="m"/></r></p></e>
+# `están mal calculadas': calculate, whose forms the line in italian.txt
+# needs; apertium-ita carries `calcolare' and the bilingual pairs it with
+# nothing
+<e><p><l>calculate<s n="vblex"/></l><r>calcolare<s n="vblex"/></r></p></e>

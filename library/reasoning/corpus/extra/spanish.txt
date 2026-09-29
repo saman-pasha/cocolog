@@ -1191,3 +1191,38 @@ The conjunction "o mejor dicho" means "or rather".
 # its object -- read as one, an old control's refusal came out `Everyone
 # can them drive.' once `todos' could be a subject
 The pronoun "ellos" does not precede the verb.
+# the errors of The Lord of the Rings (AnCora CESS-CAST-P-20020102-112), into
+# Italian: `los pequeños hobbits', which the dictionary gives no plural of
+"hobbits" is the plural of "hobbit".
+# `como si la hubieran comprado en un supermercado': the auxiliary's past
+# subjunctive, which the builder does not write for `haber'
+"hubiera" is the past subjunctive of "ha".
+"hubieran" is the plural of "hubiera".
+"hubiese" is the past subjunctive of "ha".
+"hubiesen" is the plural of "hubiese".
+# `en la cueva del trol': apertium-spa carries no `trol'
+The masculine noun "trol" means "troll".
+"troles" is the plural of "trol".
+# `cuando ya las han dejado atrás': them, the statues -- the hand lesson says
+# `los' is the pronoun and `las' only the article's plural, so `Las ve.' had
+# no reading at all
+The pronoun "las" means "them".
+# `Es un efecto especial que se les olvidó': a special effect THEY forgot --
+# what happens to somebody by accident is said with the reflexive and the one
+# it happened to as a dative, and the translator writes what they did
+"olvida" takes the accident.
+# `con respecto al resto de personajes': compared with the rest
+The preposition "con respecto a" means "compared with".
+# `al resto de personajes y decorados': the sets, a noun the builder gives
+# only as the participle of `decorar'. The dictionary's word for
+# scenography is said again first, so that `decorado' is not the first
+# Spanish word for it
+The feminine noun "escenografía" means "scenography".
+The masculine noun "decorado" means "scenography".
+"decorados" is the plural of "decorado".
+# `Tras la pelea en la cueva del trol': the fight, and the dictionary gives
+# `pelea' as a quarrel first, which Italian has no word for, so the sentence
+# was written as nothing. The dictionary's first Spanish word for a fight is
+# said again first, so that `pelea' is not Spanish's first word for one
+The feminine noun "lucha" means "fight".
+The feminine noun "pelea" means "fight".

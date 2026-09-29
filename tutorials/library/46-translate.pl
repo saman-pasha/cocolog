@@ -341,6 +341,7 @@ main :-
     section_46,
     section_47,
     section_48,
+    section_49,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -3864,6 +3865,128 @@ The verb "critica" means "criticises".
 The verb "occupa" means "occupies". "occupato" is the participle of "occupa". "occupati" is the participle of "occupa".
 The verb "risulta" means "results". "risultato" is the participle of "risulta". "risultati" is the participle of "risulta".').
 
+
+section_49 :-
+    format("~n49. A Spanish report into Italian: the last clause a coordinator follows, a second person at the head spelled like a noun's plural, a clitic after a preposition, a time clause with no comma before the main clause's pronouns, the word for very before an adjective that is a noun too, the accident, a modal before a perfect infinitive, the copula after a denial, a verb's plural that is no participle's, a comma after a coordinator, a plural's own gender~n", []),
+    lesson_49(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_49(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Al inicio, cuando el perro duerme, el gato aparece y desaparece.', spanish, english, S49a),
+    must('the statement a coordinator follows is the LAST CLAUSE of what went before, and no command', S49a, 'To the beginning, when the dog sleeps, the cat appears and disappears.'),
+    reason_translate('Diferencias en el plano son errores.', spanish, english, S49b),
+    must('a SECOND PERSON AT THE HEAD spelled like a noun''s plural is tried last', S49b, 'Differences in the plane are errors.'),
+    reason_translate('Compras pan.', spanish, english, S49c),
+    must('and where nothing later reads, it is the verb', S49c, 'You buy bread.'),
+    reason_translate('En la siguiente toma, cuando el perro duerme, el gato come.', spanish, italian, S49d),
+    must('a CLITIC is never a preposition''s object, and a front never ends between an article''s adjective and its noun', S49d, 'Nella seguente presa, quando il cane dorme, il gatto mangia.'),
+    reason_translate('Cuando el perro duerme se ve un gato.', spanish, english, S49e),
+    must('a TIME CLAUSE WITH NO COMMA before a main clause that opens on its pronouns', S49e, 'When the dog sleeps one sees a cat.'),
+    reason_translate('El altísimo Gandalf duerme.', spanish, italian, S49f),
+    must('the word for VERY before a word that is an adjective too says it is one', S49f, 'Il molto alto Gandalf dorme.'),
+    reason_translate('El perro ve el pan que se les olvidó.', spanish, english, S49g),
+    must('THE ACCIDENT: `"olvida" takes the accident.'', and the dative is the subject', S49g, 'The dog sees the bread that they forgot.'),
+    reason_translate('Los perros debían haber comido el pan.', spanish, english, S49h),
+    must('a MODAL before a perfect infinitive, and must''s past', S49h, 'The dogs had to have eaten the bread.'),
+    reason_translate('Las piedras pesan muy poco y no son reales.', spanish, english, S49i),
+    must('THE COPULA AFTER A DENIAL, a noun too or not', S49i, 'The stones weigh very little and are not real.'),
+    reason_translate('Las piedras pesan poco.', spanish, italian, S49j),
+    must('a verb''s plural is NO PARTICIPLE''S', S49j, 'Le pietre pesano poco.'),
+    reason_translate('El perro duerme pero, sorprendentemente, el gato no come el pan.', spanish, italian, S49k),
+    must('A COMMA AFTER A COORDINATOR, the source''s', S49k, 'Il cane dorme ma, sorprendentemente, il gatto non mangia il pane.'),
+    reason_translate('El perro levanta los brazos izquierdos.', spanish, italian, S49l),
+    must('a PLURAL THE LESSON SAYS IS FEMININE gives its phrase the gender', S49l, 'Il cane alza le braccia sinistre.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_49(L, Text) :- lesson_49(L, 1, A), lesson_49(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_49(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every verb that ends in "e" takes "n" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The noun "hombre" means "man". "hombre" is a person.
+The feminine noun "piedra" means "stone". The feminine noun "huella" means "footprint". The feminine noun "nieve" means "snow".
+The feminine noun "toma" means "taking". The noun "inicio" means "beginning". The noun "efecto" means "effect".
+The feminine noun "diferencia" means "difference". The feminine noun "compra" means "purchase".
+The feminine noun "proporción" means "proportion". "proporciones" is the plural of "proporción".
+The noun "error" means "error". "errores" is the plural of "error".
+The noun "son" means "sound". "sones" is the plural of "son". The noun "alto" means "height".
+The noun "plano" means "plane". The masculine adjective "plano" means "flat".
+The noun "protagonista" means "protagonist". "protagonista" is not feminine. "protagonista" is a person.
+The feminine noun "pasa" means "raisin".
+The masculine adjective "alto" means "tall". "altísimo" is the superlative of "alto".
+The adjective "siguiente" means "following". The adjective "real" means "real". "reales" is the plural of "real".
+The adjective "protagonista" means "leading".
+The adverb "muy" means "very". The adverb "poco" means "little". The adverb "sorprendentemente" means "surprisingly".
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "que" means "that". "que" is a relative.
+The conjunction "cuando" means "when".
+The pronoun "él" means "he". The pronoun "él" means "him". The pronoun "él" does not precede the verb.
+The pronoun "lo" means "him". The pronoun "la" means "her". The pronoun "me" means "me".
+The dative pronoun "les" means "them".
+The impersonal pronoun "se" means "one". The reflexive pronoun "se" means "itself".
+The preposition "a" means "to". The preposition "de" means "of". The preposition "en" means "in". The preposition "con" means "with".
+The preposition "frente a" means "compared with".
+The noun "brazo" means "arm". The masculine adjective "izquierdo" means "left". "izquierdos" is the plural of "izquierdo".').
+
+lesson_49(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comido" is the participle of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "es" means "is". "son" is the plural of "es".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "haber" is the infinitive of "ha".
+The verb "aparece" means "appears". The verb "desaparece" means "disappears". "desaparece" is the imperative of "desaparece".
+The verb "apoya" means "backs".
+The verb "pesa" means "weighs". "pesan" is the plural of "pesa".
+The verb "diferencia" means "differentiates". "diferencias" is the second person of "diferencia".
+The verb "compra" means "buys". "compras" is the second person of "compra".
+The verb "olvida" means "forgets". "olvidó" is the past of "olvida". "olvida" takes the accident.
+The verb "pasa" means "passes". "pasan" is the plural of "pasa".
+The modal "debe" means "must". The verb "debe" means "owes". "deben" is the plural of "debe".
+"debía" is the past of "debe". "debían" is the past of "deben".
+The verb "toma" means "takes". "toma" is the imperative of "toma".
+"seen" is the participle of "sees". "forgot" is the past of "forgets". "eaten" is the participle of "eats".
+The verb "levanta" means "raises". "levantan" is the plural of "levanta".').
+
+lesson_49(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la".
+"l''" is the elision of "lo". "l''" is the elision of "la". "all''" is the elision of "alla". "alla" is the contraction of "a la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". The noun "pane" means "bread".
+The feminine noun "casa" means "house". The feminine noun "pietra" means "stone". "pietre" is the plural of "pietra".
+The feminine noun "impronta" means "footprint". "impronte" is the plural of "impronta". The feminine noun "neve" means "snow".
+The feminine noun "presa" means "taking". The noun "inizio" means "beginning". The noun "effetto" means "effect".
+The adjective "seguente" means "following". The masculine adjective "alto" means "tall".
+The adjective "reale" means "real". "reali" is the plural of "reale".
+The adverb "molto" means "very". The adverb "poco" means "little". The adverb "sorprendentemente" means "surprisingly".
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "che" means "that". "che" is a relative.
+The conjunction "quando" means "when".
+The impersonal pronoun "si" means "one". The reflexive pronoun "si" means "itself".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "a" means "to".
+The noun "braccio" means "arm". "braccia" is the plural of "braccio". "braccia" is feminine.
+The masculine adjective "sinistro" means "left". The feminine adjective "sinistra" means "left".
+"sinistri" is the plural of "sinistro". "sinistre" is the plural of "sinistra".').
+
+lesson_49(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "è" means "is". "sono" is the plural of "è".
+The verb "appare" means "appears". The verb "scompare" means "disappears".
+The verb "pende" means "hangs". "pesa" is the participle of "pende". "pesa" is feminine.
+"pese" is the participle of "pende". "pese" is feminine. "pese" is the plural of "pesa".
+The verb "pesa" means "weighs". "pesano" is the plural of "pesa".
+The verb "dimentica" means "forgets". "dimenticano" is the plural of "dimentica".
+"dimenticò" is the past of "dimentica". "dimenticarono" is the past of "dimenticano".
+The verb "alza" means "raises". "alzano" is the plural of "alza".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

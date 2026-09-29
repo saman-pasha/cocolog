@@ -1645,3 +1645,14 @@ The adverb "così tanto" means "so much".
 # `È Margherita o meglio Malgorzata Dworak': or rather, a coordinator of two
 # words; read as `o' and the adverb `meglio' the adverb went to the end
 The conjunction "o meglio" means "or rather".
+# the errors of The Lord of the Rings (AnCora CESS-CAST-P-20020102-112), from
+# Spanish: `los pequeños hobbits', a noun the Italian dictionary lacks
+The masculine noun "hobbit" means "hobbit".
+"hobbit" is the plural of "hobbit".
+# `están mal calculadas': calculated, and the dictionary's first Italian
+# word for it is `abbacare', to reckon on an abacus. apertium-ita carries
+# `calcolare' and the bilingual pairs it with nothing
+The verb "calcola" means "calculates".
+# `aparta unas grandes piedras': stones, and the dictionary's first Italian
+# word for a stone is `osso', the stone of a fruit and first of all a bone
+The feminine noun "pietra" means "stone".

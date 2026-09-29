@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20289 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20291 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -661,6 +661,21 @@ The adverb "tanto" means "so much".
 "sino" is the partner of "sólo".
 The conjunction "o mejor dicho" means "or rather".
 The pronoun "ellos" does not precede the verb.
+"hobbits" is the plural of "hobbit".
+"hubiera" is the past subjunctive of "ha".
+"hubieran" is the plural of "hubiera".
+"hubiese" is the past subjunctive of "ha".
+"hubiesen" is the plural of "hubiese".
+The masculine noun "trol" means "troll".
+"troles" is the plural of "trol".
+The pronoun "las" means "them".
+"olvida" takes the accident.
+The preposition "con respecto a" means "compared with".
+The feminine noun "escenografía" means "scenography".
+The masculine noun "decorado" means "scenography".
+"decorados" is the plural of "decorado".
+The feminine noun "lucha" means "fight".
+The feminine noun "pelea" means "fight".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -107229,6 +107244,99 @@ The verb "homenajea" means "honours".
 "homenajeadas" is the plural of "homenajeada".
 "homenajear" is the infinitive of "homenajea".
 "homenajeando" is the gerund of "homenajea".
+The verb "cuela" means "sneaks".
+"cuelan" is the plural of "cuela".
+"colamos" is the first person of "cuelan".
+"cuelo" is the first person of "cuela".
+"cuelas" is the second person of "cuela".
+"coló" is the past of "cuela".
+"colaron" is the past of "cuelan".
+"colamos" is the first person of "colaron".
+"colé" is the first person of "coló".
+"colaste" is the second person of "coló".
+"colaba" is the past of "cuela".
+"colaban" is the past of "cuelan".
+"colábamos" is the first person of "colaban".
+"colabas" is the second person of "colaba".
+"colará" is the future of "cuela".
+"colarán" is the plural of "colará".
+"colaremos" is the first person of "colarán".
+"colaré" is the first person of "colará".
+"colarás" is the second person of "colará".
+"colaría" is the conditional of "cuela".
+"colarían" is the plural of "colaría".
+"colaríamos" is the first person of "colarían".
+"colarías" is the second person of "colaría".
+"cuele" is the subjunctive of "cuela".
+"cuelen" is the plural of "cuele".
+"colemos" is the first person of "cuelen".
+"cueles" is the second person of "cuele".
+"colara" is the past subjunctive of "cuela".
+"colaran" is the plural of "colara".
+"coláramos" is the first person of "colaran".
+"colaras" is the second person of "colara".
+"cuela" is the imperative of "cuela".
+"cueles" is the negative imperative of "cuela".
+"colad" is the imperative of "cuelan".
+"coléis" is the negative imperative of "cuelan".
+"colemos" is the hortative of "cuela".
+"colado" is the participle of "cuela".
+"colada" is the participle of "cuela".
+"colada" is feminine.
+"colados" is the participle of "cuela".
+"colados" is the plural of "colado".
+"coladas" is the participle of "cuela".
+"coladas" is feminine.
+"coladas" is the plural of "colada".
+"colar" is the infinitive of "cuela".
+"colando" is the gerund of "cuela".
+"snuck" is the past of "sneaks".
+The verb "tambalea" means "wobbles".
+"tambalean" is the plural of "tambalea".
+"tambaleamos" is the first person of "tambalean".
+"tambaleo" is the first person of "tambalea".
+"tambaleas" is the second person of "tambalea".
+"tambaleó" is the past of "tambalea".
+"tambalearon" is the past of "tambalean".
+"tambaleamos" is the first person of "tambalearon".
+"tambaleé" is the first person of "tambaleó".
+"tambaleaste" is the second person of "tambaleó".
+"tambaleaba" is the past of "tambalea".
+"tambaleaban" is the past of "tambalean".
+"tambaleábamos" is the first person of "tambaleaban".
+"tambaleabas" is the second person of "tambaleaba".
+"tambaleará" is the future of "tambalea".
+"tambalearán" is the plural of "tambaleará".
+"tambalearemos" is the first person of "tambalearán".
+"tambalearé" is the first person of "tambaleará".
+"tambalearás" is the second person of "tambaleará".
+"tambalearía" is the conditional of "tambalea".
+"tambalearían" is the plural of "tambalearía".
+"tambalearíamos" is the first person of "tambalearían".
+"tambalearías" is the second person of "tambalearía".
+"tambalee" is the subjunctive of "tambalea".
+"tambaleen" is the plural of "tambalee".
+"tambaleemos" is the first person of "tambaleen".
+"tambalees" is the second person of "tambalee".
+"tambaleara" is the past subjunctive of "tambalea".
+"tambalearan" is the plural of "tambaleara".
+"tambaleáramos" is the first person of "tambalearan".
+"tambalearas" is the second person of "tambaleara".
+"tambalea" is the imperative of "tambalea".
+"tambalees" is the negative imperative of "tambalea".
+"tambalead" is the imperative of "tambalean".
+"tambaleéis" is the negative imperative of "tambalean".
+"tambaleemos" is the hortative of "tambalea".
+"tambaleado" is the participle of "tambalea".
+"tambaleada" is the participle of "tambalea".
+"tambaleada" is feminine.
+"tambaleados" is the participle of "tambalea".
+"tambaleados" is the plural of "tambaleado".
+"tambaleadas" is the participle of "tambalea".
+"tambaleadas" is feminine.
+"tambaleadas" is the plural of "tambaleada".
+"tambalear" is the infinitive of "tambalea".
+"tambaleando" is the gerund of "tambalea".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".

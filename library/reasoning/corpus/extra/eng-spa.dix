@@ -310,3 +310,11 @@
 <e r="LR"><p><l>browse<s n="vblex"/></l><r>hojear<s n="vblex"/></r></p></e>
 <e r="LR"><p><l>balneal<s n="adj"/></l><r>balneario<s n="adj"/></r></p></e>
 <e r="LR"><p><l>rummage<s n="vblex"/></l><r>hurgar<s n="vblex"/></r></p></e>
+# the errors of The Lord of the Rings (AnCora CESS-CAST-P-20020102-112), into
+# Italian: `personajes o elementos contemporáneos que se cuelan en el plano',
+# which sneak into the shot, and `unas grandes piedras, que se tambalean',
+# which wobble -- apertium-spa carries `colar' and `tambalear', and the
+# bilingual pairs nothing with the first and only `tambalearse' with the
+# second, which is no lemma the monolingual has; read only
+<e r="RL"><p><l>sneak<s n="vblex"/></l><r>colar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>wobble<s n="vblex"/></l><r>tambalear<s n="vblex"/></r></p></e>

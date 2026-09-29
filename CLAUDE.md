@@ -11963,6 +11963,357 @@ question that opens in the second clause, not only ... but, or rather, as when
 and a name set at the end of its clause are new shapes a program reaches; the
 owner decides. The full suite was not run on 1.8.25.
 
+### A Spanish report into Italian: the last clause a coordinator follows, a second person spelled like a noun's plural, a clitic after a preposition, the accident, a verb's plural that is no noun's (1.8.26)
+
+**THE TWENTY-SECOND SAMPLE OF THE LOOP, AND BACK TO SPANISH.** AnCora's
+CESS-CAST-P-20020102-112 -- thirteen sentences of El Periódico on the errors in
+The Lord of the Rings: the wizard's pipe that appears and disappears, an apple
+with a supermarket label, a car passing behind the scarecrow, no footprints in
+the snow, hobbits whose size changes, a railing at the wrong height, stones
+that wobble, and two statues that raise the wrong arms -- Spanish into Italian
+over the two-language vocabulary store. The middle column is 1.8.25's
+translator over THIS store:
+
+| | 1.8.25, its store | 1.8.25, this store | **1.8.26** |
+|---|---|---|---|
+| translated | 5 of 13, two wrong in structure: `il condotto del mago figura e scompari`, you disappear, and `che si gli dimenticò` | 10, five wrong in structure -- `Differenzi ... nel piatto suono`, `e scompari`, `si gli dimenticò`, `pese ... non suono` and `Prendi nella seguente` -- and one with the comma after `ma` lost | **13** |
+| refused for a word | 3, naming `cuelan`, `hubieran` and `hobbits` | 0 | **0** |
+| refused with every word known | 4 | 3 | **0** |
+| over the budget of 300 million inferences | 1, the eleventh, at 170.5 s | 0 | **0** |
+| the report, one process | 236.1 s | 107.5 and 116.3 s | **79.9 and 79.2 s** |
+
+-- the store Italian 178 165 terms and Spanish 222 243, taught into one
+`--embed` store from the rebuilt vocabularies in 720 s and 1 146 s, 330 MB.
+
+**WHAT IT NEEDED IS WHAT A LIST OF A FILM'S ERRORS DOES WITH ITS SHOTS.** The
+twelve were verbs, the Spanish column phrases that carry things, Livata the way
+a report speaks, Fiat figures, Valencia a thing on show, the bioethics report
+its claims, the football page a squad, Monreale a court, the record report
+figures again, the islands report what a news item puts before its verb, the
+opera review what it puts beside a phrase, the interview a man talking, the
+Georgia report people by their offices, the extract things said again, the
+Clinton report who said what, the Bosnian letter an argument, the Solana report
+who a person is, the pacifist letter the people it is angry with, the mobile
+column what it compares, the Bastille letter its evidence, the Basque report
+who told whom, the Giglio letter a newspaper it corrects, the England column a
+stereotype it laughs at, the Bovalino letter a meeting, the Puigbó report
+names, the Salvini interview its questions and its answers, the radio report a
+crowd and the Fregene report a mother's lines; this one describes shot after
+shot, each opening on where or when in the film, and nearly every sentence has
+a `se` in a different role:
+
+| shape | the report's words | what moved |
+|---|---|---|
+| the statement a coordinator follows, after a front and a time clause | `Al inicio, cuando Gandalf ... lleva a Frodo en el carro, la pipa del mago aparece y desaparece` | the last clause of what went before (`tr_last_statement/2`): the left side was join/3 and no clause of its own, so `desaparece` was the command, `e scompari` |
+| a main clause after a clause of `when` | `cuando Frodo se está recuperando en Rivendell, se apoya en una barandilla` | shares the time clause's third person singular, where the `se` was the impersonal one, `one backs` |
+| a verb's plural that the vocabulary states of a noun too | `Los protagonistas pasan frente a dos estatuas gigantescas y las figuras levantan ...` | the verb's, where the plural rule gives the noun another (`pasas`): read as the noun, the leading raisins raised their arms |
+| the reflexive passive with adjuncts before its subject | `no se ven en la nieve las huellas de los pasos` | the footprints are not seen, the subject's place kept (`subj_here`), where somebody did not see them |
+| a second person at the head, spelled like a noun's plural | `Diferencias en las proporciones ... son algunos de los errores` | the verb only where no place two words or more after it reads: `diferencias` was YOU differentiate, and `en el plano son` in the flat sound |
+| a clitic after a preposition | `En la siguiente toma, cuando ...` | never the preposition's object (`tr_oblique_pronoun/2`, the writer's own rule for an oblique pronoun, asked by the reader now): `in her`, and `toma` the command take |
+| a front that ends between an article's adjective and its noun | the same | refused: `en la siguiente`, the following one, left `toma` to be the command |
+| a time clause with no comma, before a main clause that opens on its pronouns | `Cuando Sam (Sean Astin) y Frodo están en el campo con el espantapájaros se ve al fondo pasar un coche` | divided before `se`, where the division was asked only where a verb group starts, and nothing read |
+| the word for `very` before a word that is a noun too | `el altísimo Gandalf` (the tokeniser unfolds the superlative) | the adjective's, advn/1 before it as before a noun, where `alto` was a height with the name apposed to it and nothing could write it |
+| what happened to somebody by accident | `Es un efecto especial que se les olvidó` | `"olvida" takes the accident.`: they forgot it, where it was `si gli dimenticò`, it forgot itself to them |
+| a modal before a perfect infinitive | `los pasos que debían haber dado anteriormente` | `must`, and English's past of it `had to`, where it was `owed` |
+| the copula after a denial | `que pesan muy poco y no son, en consecuencia, reales` | the verb, where `son` was the noun sound: the stones weighed little and no sound |
+| a participle's plural in the writer | `pesan` into Italian | `pesano`, where the plural of `pesa` as the participle of `pendere` came out, `pese` |
+| a comma after the word that joins two clauses | `pero, sorprendentemente, no se ven` | kept, wc/1, as after the connector at the head of a sentence |
+| a subject English leaves out after a comma and a coordinator | `Aragorn ... acude en auxilio de Frodo, que está herido, y aparta unas grandes piedras` | `and moves aside`, the clause before's subject, where English refused the sentence |
+
+-- and the words, in `corpus/extra/`: 15 lines of Spanish and 4 of Italian, and
+supplement entries, 6 in `eng-ita.dix` -- three read both ways (`snowy`,
+`scarecrow`, `calculate`: apertium-ita carries `innevato`, `spaventapasseri`
+and `calcolare` and the bilingual pairs them with nothing) and three written
+only (`r="LR"`: `troll`, `sneak`, `wobble`) -- and 2 in `eng-spa.dix`, read
+only (`r="RL"`: `colar` and `tambalear`, which the bilingual pairs with nothing
+and with `tambalearse`, no lemma the monolingual has). The vocabularies went
+from 113 660 and 139 136 lines to 113 815 and 139 244, and the set of what they
+LOST is the two headers' entry counts. `reason.pl` did not move, the
+thirty-fourth version running.
+
+**`se` IS FIVE THINGS IN THIRTEEN SENTENCES, AND THREE OF THEM NEEDED A RULE.**
+The report's `se` is the impersonal one (`se ve al fondo pasar un coche`, one
+sees a car), a subject's own reflexive (`Frodo se está recuperando`), the
+reflexive passive's (`no se ven en la nieve las huellas`, the footprints are
+not seen), a subject's reflexive whose subject the clause before named (`cuando
+Frodo se está recuperando en Rivendell, se apoya en una barandilla`, he leans),
+and what happened to somebody by accident (`que se les olvidó`, that they
+forgot). The first two needed nothing new; 1.8.25 read each of the other three
+as another: the footprints were what somebody did not see, the man leaning was
+`one`, and the special effect forgot itself to them. Nothing in the word says
+which; the words around it do -- a subject after the verb, the clause before, a
+dative beside it -- and the lesson says which verbs happen by accident.
+
+**WHAT HAPPENED BY ACCIDENT IS WHAT THEY DID, AND THE LESSON SAYS WHICH
+VERBS.** `Es un efecto especial que se les olvidó` is a special effect THEY
+forgot. Spanish says it with the reflexive and the one it happened to as a
+dative -- the effect forgot itself to them -- and read as written, Italian
+wrote `che si gli dimenticò` and English `that forgot itself them`. `"olvida"
+takes the accident.` is the line, in the shape `"colpisce" takes the
+experiencer.` has had since 1.8.18, and the IR says what happened: the dative
+is the subject, in its person and number, named by nobody; what the verb was
+said of is its object; and the verb is plain (`tr_accident/2`). Only with the
+reflexive and a dative both: `Se olvidó el libro` is somebody forgetting it,
+and `El libro me olvidó` a book that forgot me. In a relative clause whose gap
+was the subject, the gap becomes the object (`tr_accident_rc/4`): `que
+dimenticarono`, that they forgot.
+
+**A SECOND PERSON IS SPELLED LIKE A NOUN'S PLURAL, AND A STATEMENT OPENS ON ITS
+SUBJECT FAR OFTENER.** `Diferencias en las proporciones de los personajes o
+elementos contemporáneos que se cuelan en el plano son algunos de los errores`
+is differences being some of the errors. `diferencias` is also what
+`diferenciar` says to one person, and the group finder takes the first place a
+verb group starts: YOU differentiate, and `son` after `en el plano` was the
+noun `sound` -- `Differenzi ... nel piatto suono alcuni degli errori`. Spanish
+and Italian spell a second person like a noun's plural (`compras`, `parti`), so
+where the head is a noun whose lesson states it as a person of a verb, and its
+verb reading is a second person, the places two words or more after the head
+are tried first; where none of them reads, the head is the verb, as before --
+`Compras pan.` is `You buy bread.`, which a guard pins -- and the place right
+after the head comes last, which the controls decided (below).
+
+**A CLITIC IS NEVER A PREPOSITION'S OBJECT, AND THE WRITER HAD SAID SO ALL
+ALONG.** `En la siguiente toma, cuando ya las han dejado atrás, ...` is in the
+next shot. Cut after `la`, it was `in her`, and `toma` the command take:
+`Prendi nella seguente`. A pronoun after a preposition is one that may be a
+subject, or one the lesson says does not precede the verb -- `con él`, `a lui`
+-- which is the rule the WRITER uses for an oblique pronoun
+(`tr_pronoun_across/6`) and the reader never asked (`tr_oblique_pronoun/2`).
+`El perro come con él.` is `with him`, which a guard pins. And the front that
+ended there needed a second rule, because with `la` no pronoun the front reader
+took `en la siguiente`, the following one, and left `toma` to be the command
+again: a front never ends between an article with its adjective and a noun of
+the article's number after them.
+
+**A VERB'S PLURAL AND A NOUN'S ARE ONE RELATION, AND THE LESSON'S RULE TELLS
+THEM APART.** `Los protagonistas pasan frente a dos estatuas gigantescas y las
+figuras levantan sus brazos izquierdos` is the heroes passing. The vocabulary
+states `"pasan" is the plural of "pasa".` for the verb and `"pasas" is the
+plural of "pasa".` for the noun, a raisin, and one relation cannot say which is
+which: `los protagonistas pasan` was the leading raisins, the subject of
+`levantan`. Where the singular is a verb as well, and a plural rule of the
+lesson makes another plural of it, a stated plural no rule makes is the verb's
+(`tr_is0/3`). A language whose plurals no suffix rule makes has no rule to ask,
+and reads as before. **And the writer had the same fault the other way**:
+`pesa` is `weighs` and the feminine participle of `pendere` as well, the
+vocabulary states `"pese" is the plural of "pesa".` for the participle first,
+and `Las piedras pesan poco.` came out `Le pietre pese poco.` A verb's plural
+is never a participle's (`tr_number_form/3`).
+
+**AND A LINE THAT ONLY MOVES ANOTHER LINE CANNOT BE LEARNED INTO A STORE AT
+ALL.** Three lines of this sample say again what the dictionary says, only
+first: `The feminine noun "pelea" means "fight".` (the dictionary gives
+`quarrel` first, which Italian has no word for, so sentence 11 was written as
+nothing), `The feminine noun "pietra" means "stone".` and `The verb "calcola"
+means "calculates".`. Each line is already in the vocabulary, further down. The
+working store learns the lines it does not have (1.7.0's `more`), and it had
+all three, so it learned nothing and kept the old order: on it, sentence 11
+went on being written as nothing whatever the file said. Only a store taught
+from the rebuilt file has the new order. 1.7.0 said a line learned into a probe
+store goes after the lines it has; **a line the store already has does not go
+anywhere**, and an order is a property of a teach and not of a line.
+
+**THE CONTROLS FOUND ONE REGRESSION THE CASE DID NOT, AND THE REPORT'S OWN
+ITALIAN A SECOND.** With `test/translate.pl` GREEN and the report at 13 of 13,
+round r70 ran 1.8.25 and the first cut of this version over the store taught
+with this report's lines, and one old sentence came back worse: the Bastille
+letter's `i presìdi (leggi procure)` -- read: prosecutors' offices, the
+writer's play on a garrison, which 1.8.25 writes `(lees fiscalías)` -- came out
+`(actos procuran)`, the laws procuring. The second person spelled like a noun's
+plural had tried the place right after the head first, so `leggi` was the laws
+and `procure` -- the offices' plural, and the verb `procura`'s as well -- what
+they did. A bare noun alone is no subject before its verb in either language,
+so that place comes after the head itself now, where it came before it: the
+places two words or more after the head first, then the head, then the place
+right after it. `Leggi procure.` is `You read offices.`, which a guard pins,
+red on the arm with the first cut's order: `Laws procure.`
+
+**1.8.25'S LINE FOR `braccia` WAS WRITTEN FOR THE READER, AND THE WRITER TOOK
+THE FORM WITHOUT ITS GENDER.** `tra le braccia della sua tata` needed
+`"braccia" is the plural of "braccio". "braccia" is feminine.` in
+`corpus/extra/italian.txt`, and the plural it states comes first for the writer
+too -- which is right: an arm of a body is `braccia` in the plural, and
+`bracci`, the other plural the file states, is an arm of a thing. What the
+writer did not take was the gender. `las figuras levantan sus brazos
+izquierdos` came out `alzano i suoi braccia sinistri`, the article, the
+possessive and the adjective agreeing with the masculine singular. No control
+writes an arm into Italian, and the twelfth sentence's own Italian, read after
+round r70, is what showed it. A plural the lesson calls feminine, of a noun it
+does not, gives its phrase the gender (`tr_plural_gender/5`): `le sue braccia
+sinistre`, which a check pins. The vocabulary says it of this one word:
+Apertium gives `uovo` no plural at all, and `dito`, `ginocchio` and `labbro`
+their masculine ones.
+
+**THE FIRST CUT ASKED SEVENTEEN OLD CONTROLS FOR MORE INFERENCES, AND TWO RULES
+ASKED FIRST WHAT THEY COULD HAVE ASKED LAST.** Counted on the store over the
+sentences whose texts the two translators write alike, the library with the two
+fixes above asked Tatoeba 2.12 % more than 1.8.25, the Giglio letter 1.04 %,
+Ferlaino 1.02 % and fourteen more up to 0.93 % -- and the Spanish article 8.50
+% fewer, all of it in its fifth sentence. The hunk bisection of 1.8.5 over the
+35 changed blocks, three sets counted on the store four copies at a time --
+eight Italian and eight Spanish sentences among those that rose most, 93.20 and
+115.57 million inferences on 1.8.25 and 95.18 and 116.68 on the first cut, and
+Tatoeba's 400, 36.37 against 37.14 -- named these; six hunks took out a helper
+other hunks call and answered with other texts, which is no evidence (1.8.10):
+
+| the rule | its cost: Italian / Spanish / Tatoeba | done |
+|---|---|---|
+| the reflexive passive with adjuncts before its subject | 0.72 / 0.29 / 0.39 M | the reflexive word asked for first, at the head or after the denial, before a denial and a group are read |
+| a second person at the head spelled like a noun's plural | 0.33 / 0.19 / 0.29 M | whether the lesson states the word as a person of a verb asked first, which few words are |
+| the word for `not` is no adjective | 0.19 / 0.36 / 0.00 M | stated |
+| a clitic is never a preposition's object | 0.43 and 0.42 / 0.00 / 0.00 M, one hunk for each of its two places, all of it in Salvini's fifteenth sentence | stated (below) |
+| no phrase opens on a coordinator; no noun after the word for `very` | 0.13 and 0.14 / 0.13 and 0.11 / 0.02 and 0.01 M | stated |
+
+-- and with the first two asked first, the three sets are 94.34, 116.30 and
+36.73 million, every text the same. Counted over every control on the store,
+the sentences whose texts the two translators write alike come to **0.54 %
+fewer** inferences than 1.8.25's, and fourteen controls ask more: Tatoeba 0.97
+%, the Bastille letter 0.61 %, Valencia 0.60 %, the Giglio letter 0.53 %, and
+ten between 0.05 and 0.43 %. The Spanish article is 8.86 % fewer, the pacifist
+letter 3.12 % and the Solana report 2.08 %.
+
+**THE LARGEST RISE OF A SENTENCE IS THE ORDER A REFUSAL SENDS THE READER ON
+IN.** Salvini's fifteenth sentence, `... per iniziative che non siano per gli
+studenti`, asks 4.7 % more, 0.53 million inferences: the rule that a clitic is
+never a preposition's object refuses `gli` after `per` five times -- `gli` is
+the article and the dative -- and the readings the refusal sends it on to cost
+more than the one 1.8.25 took and threw away. The text is the same, and the
+rule is the one that reads `En la siguiente toma`.
+
+**THE COSTS, STATED.** Every sentence reads as a structure the translator has;
+what is wrong is words, and a few things no lesson can say:
+
+| what comes out | what Italian says | why |
+|---|---|---|
+| `dei caratteri`, `al resto di caratteri` | `dei personaggi` | `personaje` crosses as `character`, 1.8.5's cost |
+| `nel piano`, `Nella seguente presa` | `nell'inquadratura`, `Nell'inquadratura seguente` | senses: a shot of a film is neither a plane nor a taking, and an adjective the source puts before its noun stays there, 1.6.21's cost |
+| `del signore degli anellini`, `della comunità dell'anellino` | `del Signore degli Anelli`, `della Compagnia dell'Anello` | a title Spanish writes with one capital is words, and `anillo` crosses as `ring`, whose first Italian word is `anellino` |
+| `il condotto del mago figura e scompare` | `la pipa del mago appare e scompare` | `pipa` crosses as `pipe`, whose first Italian word is a duct, and `aparece` as `appears`, whose first is `figura`, the football report's |
+| `come se l'avevano comprato` | `come se l'avessero comprata` | a subjunctive is written as the indicative, 1.6.8's cost, and a participle after `la` agrees with it in Italian, which no lesson states |
+| `si vede al fondo passare una macchina di diritto a sinistra` | `sullo sfondo`, `da destra a sinistra` | an idiom; `derecha` crosses as `right`, whose first Italian word is `diritto`, the law's; and `de` is `of` |
+| `i passi che doverono aver dato` | `che dovevano aver fatto` | the imperfect and the preterite are both `past`, 1.6.15's cost, and `dar pasos` is to take them |
+| `il molto alto Gandalf` | `l'altissimo Gandalf` | the superlative is read as `very` and the plain form, 1.8.2's cost |
+| `si appoggia in una rotaia`, `La rotaia gli arriva per la cinta` | `a una ringhiera`, `alla vita` | `barandilla` crosses as `rail`, whose first Italian word is a railway's; `en` is `in` and `por` is `per`; and `cintura` crosses as `waist`, whose first is `cinta` |
+| `in Rivendell` | `a Gran Burrone` | `en` is `in`, and a name no lesson knows passes through as written |
+| `Dovrebbe esser al di sopra della sua testa avendo in conto ...` | `Tenendo conto ..., dovrebbe essere` | a front with no comma is written after the clause, 1.6.8's cost, and `tener en cuenta` is an idiom |
+| `la misura degli abitanti della localizzazione` | `le dimensioni degli abitanti del luogo` | senses: `tamaño` crosses as `size` and `localidad` as `location` |
+| `va in ausilio di Frodo`, `separa delle grandi pietre` | `accorre in aiuto di`, `sposta` | idioms and senses |
+| `che si traballano` | `che traballano` | Spanish's `tambalearse` is reflexive and Italian's `traballare` is not, the Bastille letter's cost |
+| `in conseguenza` | `di conseguenza` | word for word |
+| `I protagonisti avvengono rispetto a due statue` | `passano davanti a` | `pasar` crosses as `happens` (1.8.13's line) and `frente a` as `compared with`, the Basque report's cost |
+| `le cifre alzano le sue braccia sinistre` | `le figure alzano le loro braccia sinistre` | `figura` crosses as `figure`, whose first Italian word is `cifra`, a number; `su` is `his` first, 1.8.13's cost |
+| `quando li hanno lasciato dietro già` | `quando ormai le hanno lasciate indietro` | the IR carries no gender for `las`, and a participle after a pronoun agrees with it in Italian |
+| `una statua ha alzato il braccio sinistro e l'altra, il diritto` | `ha il braccio sinistro alzato ... il destro` | `tener` and a participle is a state, which the IR has no aspect for, and it is read as the perfect; and `derecho` crosses as `right` |
+
+**THE CONTROLS, ON ONE STORE, THIS TRANSLATOR AGAINST 1.8.25's, RUN BACK TO
+BACK TWICE:**
+
+| control | 1.8.25, this store | **1.8.26** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 12.9 and 12.5 s | **12 of 12, 12.2 and 13.1 s** |
+| the Spanish article | 11 of 11, 11.9 and 12.4 s | **11 of 11, 10.5 and 11.5 s** |
+| Livata, 29 sentences | 29 of 29, 67.5 and 68.6 s | **29 of 29, 67.3 and 69.1 s** |
+| Fiat, 20 sentences | 20 of 20, 18.1 and 17.8 s | **20 of 20, 17.0 and 18.3 s** |
+| Valencia, 16 sentences | 16 of 16, 18.1 and 19.7 s | **16 of 16, 18.6 and 22.9 s** |
+| the bioethics article, 15 sentences | 15 of 15, 13.2 and 13.5 s | **15 of 15, 13.2 and 13.9 s** |
+| the football article, 20 sentences | 20 of 20, 23.1 and 25.0 s | **20 of 20, 23.6 and 26.5 s** |
+| Monreale, 6 sentences | 6 of 6, 3.2 and 3.1 s | **6 of 6, 3.1 and 3.4 s** |
+| the record report, 15 sentences | 15 of 15, 18.9 and 19.4 s | **15 of 15, 17.5 and 20.3 s** |
+| Tatoeba's 400, exact / translated / refused | 61 / 293 / 107, 17.2 and 17.8 s | **61 / 293 / 107, 17.9 and 18.6 s** |
+| the islands report, 13 sentences | 13 of 13, 15.9 and 17.2 s | **13 of 13, 15.6 and 17.9 s** |
+| the opera review, 12 sentences | 12 of 12, 12.7 and 13.3 s | **12 of 12, 13.1 and 13.6 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 25.5 and 26.5 s | **27 of 27, 24.2 and 29.6 s** |
+| the Georgia report, 8 sentences | 8 of 8, 9.1 and 10.6 s | **8 of 8, 9.5 and 9.8 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 13.5 and 13.8 s | **13 of 13, 12.9 and 14.8 s** |
+| the Clinton report, 12 sentences | 12 of 12, 15.9 and 15.7 s | **12 of 12, 16.6 and 17.0 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 33.6 and 36.8 s | **12 of 12, 33.5 and 36.3 s** |
+| the Solana report, 10 sentences | 10 of 10, 21.0 and 22.3 s | **10 of 10, 20.4 and 22.4 s** |
+| the pacifist letter, 6 sentences | 6 of 6, 6.8 and 7.3 s | **6 of 6, 6.5 and 6.4 s** |
+| the mobile column, 11 sentences | 11 of 11, 23.3 and 22.1 s | **11 of 11, 21.9 and 22.8 s** |
+| the Bastille letter, 11 sentences | 11 of 11, 17.4 and 17.9 s | **11 of 11, 17.8 and 18.0 s** |
+| the Basque report, 9 sentences | 9 of 9, 43.1 and 45.0 s | **9 of 9, 44.1 and 45.1 s** |
+| the Giglio letter, 8 sentences | 8 of 8, 10.4 and 10.9 s | **8 of 8, 10.4 and 11.0 s** |
+| the England column, 9 sentences | 9 of 9, 11.6 and 12.2 s | **9 of 9, 12.6 and 11.8 s** |
+| the Bovalino letter, 15 sentences | 15 of 15, 32.0 and 31.6 s | **15 of 15, 31.7 and 32.5 s** |
+| the Puigbó report, 8 sentences | 8 of 8, 19.8 and 21.2 s | **8 of 8, 20.6 and 22.7 s** |
+| the Salvini interview, 35 sentences | 35 of 35, 74.3 and 77.2 s | **35 of 35, 73.8 and 75.5 s** |
+| the Radio Nacional report, 9 sentences | 9 of 9, 19.7 and 19.6 s | **9 of 9, 19.7 and 20.0 s** |
+| the Fregene report, 75 sentences | 75 of 75, 120.3 and 124.0 s | **75 of 75, 116.8 and 123.0 s** |
+| the Lord of the Rings report, 13 sentences | 10 of 13, 107.5 and 116.3 s | **13 of 13, 79.9 and 79.2 s** |
+
+-- the texts first: each translator gives the same texts both times, and
+against 1.8.25 on this store every old control is the same to the byte but for
+five, each better. Four keep a comma their source has after the word that joins
+two clauses, wc/1: Livata's `y, además de los perros moleculares, han sido
+utilizados`, the Bosnian letter's `si, cincuenta años hace,` and `y, sobre
+todo, son un problema`, and the Bovalino letter's `y, entonces, el domingo por
+la mañana`. And Tatoeba's `Yo debo arreglarlo.`, `I owe to fix him.` on 1.8.25,
+is `I must fix him.`: a modal before an infinitive with its pronoun joined,
+where the reference is `I must fix it.` and `lo` is `him`, 1.8.2's cost. The
+count is 61 exact, 293 translated and 107 refused on both. **AND THE DATA
+COLUMN MOVED NOTHING**: 1.8.25 on this store writes its own store's texts on
+all twenty-nine old controls, Tatoeba included, so the lines of this sample
+moved nothing a translator before them writes.
+
+**THE SPANISH ARTICLE IS FASTER BECAUSE TWO NEW RULES REFUSE EARLY WHAT 1.8.25
+TRIED LATE.** Its fifth sentence -- `Después, en los barrios marginales se les
+llamará muchachos conflictivos; en los de clase media, chicos difíciles y en
+las partes altas de las ciudades serán neonazis ... utilizando un esnob bate de
+béisbol.` -- is 17.38 million inferences on 1.8.25 and 15.08 on 1.8.26, the
+same text, and the bisection names the rules: with the oblique pronoun's rule
+taken out it is 16.67 million, and with the front guard taken out -- no front
+ends between an article with its adjective and its noun -- 16.00. The first
+refuses `los` six times and `las` four -- `en los barrios`, `en los de clase
+media`, `en las partes altas`, each read by 1.8.25 as a preposition and its
+object pronoun, in them, and each failing late. So one rule costs Salvini's
+fifteenth sentence 0.53 million inferences and saves this one 1.53 million.
+
+**THE TIMES SAY WHAT THE COUNTS SAY, AND THE PAIRS AGREE.** The ranges are
+apart on six of the thirty: three faster -- the Spanish article by 9.5 %, the
+pacifist letter by 8.7 %, whose count is 3.1 % fewer, and this report by 29 %,
+because 1.8.25 spends its time failing -- and three slower: Tatoeba by 4.3 %,
+the Clinton report by 6.7 % and the radio report by 1.0 %, whose counts are
+0.97 % more, 0.13 % more and 1.28 % FEWER. Five alternating pairs of the three,
+nothing else on the box: Tatoeba 16.98 s (16.10-17.60) against 17.42 s
+(17.00-17.90), the Clinton report 16.03 s (15.47-16.49) against 16.02 s
+(15.67-16.48), the radio report 20.11 s (19.86-20.32) against 19.95 s
+(19.37-20.46) -- every range overlapping, the Clinton report the same and the
+radio report faster. Tatoeba's means are 2.6 % apart where its count says 0.97
+%, and five pairs cannot say whether the rest is the box; 1.8.25 said it of a
+per cent or two, and it holds of this one. The round itself was a noisy one --
+Valencia's two passes of one translator came out 18.6 and 22.9 s -- which is
+the argument for the pairs.
+
+Into English the report reads 10 of 13, where 1.8.25 reads 9 on this store. The
+sixth, the eighth and the tenth are refused: each has a clause whose subject
+nobody named -- `Es un efecto especial`, `se apoya en una barandilla` after its
+time clause, `debería estar por encima de su cabeza` -- and English still
+refuses a third person nobody named (1.6.15); 1.8.25 read the eighth as `one
+backs in a rail and look the city`. The ten show what the IR carries:
+`Differences in the proportions of the characters or contemporary elements that
+sneak in the plane are somes of the errors of The gentleman of the rings.`, the
+differences the subject and `somes` English's plural made by the rule, 1.8.13's
+`mans`; `the footprints of the steps that had to have given previously are not
+seen in the snow`, the reflexive passive and the modal's past; `the very high
+Gandalf`; `as if they had bought her in a supermarket`, `la` as `her`, 1.8.2's
+cost; `The protagonists happen compared with two gigantic statues and the
+figures raise his left arms`; and `In the following taking, when they have
+leaved them backwards already, a statue has raised the left arm`, 1.8.17's
+`leaved` from the upstream table and `tener` read as the perfect.
+
+`test/translate.pl` is 1417 checks and GREEN, 20 in a new `newspaper_lotr`
+section with a Spanish and an Italian lesson of its own, each in two parts.
+Every check fails on 1.8.25's translator but three guards, each green on it:
+`Compras pan.` is `You buy bread.`, the second person that reads as nothing
+else; `El perro come con él.` is `with him`, a pronoun that may be a subject
+after a preposition; and `Leggi procure.` is `You read offices.`, red on the
+arm with the first cut's order. Lesson 46 gained section 49; cocolint is 0 HARD
+and 0 WARN over the translator, the case and the lesson. **The minor is
+proposed**: `"olvida" takes the accident.` is a new thing a lesson can say, and
+the accident, the reflexive passive with adjuncts before its subject and a main
+clause that shares its time clause's subject are new shapes a program reaches;
+the owner decides. The full suite was not run on 1.8.26.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
