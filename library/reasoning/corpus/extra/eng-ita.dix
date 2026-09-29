@@ -596,3 +596,68 @@
 # `un artista molto noto': well known, which apertium-ita carries as an
 # adjective and the bilingual pairs with nothing; `noto' was only I notice
 <e r="RL"><p><l>famous<s n="adj"/></l><r>noto<s n="adj"/></r></p></e>
+# the errors of The Lord of the Rings (AnCora CESS-CAST-P-20020102-112), from
+# Spanish: the Italian word for a meaning the Spanish one has and Italian had
+# none for. apertium-ita carries each and the bilingual pairs it with
+# nothing; written only, so no Italian text reads any word otherwise.
+<e r="LR"><p><l>troll<s n="n"/></l><r>troll<s n="n"/><s n="m"/></r></p></e>
+<e r="LR"><p><l>sneak<s n="vblex"/></l><r>intrufolare<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>wobble<s n="vblex"/></l><r>traballare<s n="vblex"/></r></p></e>
+# `anda por una montaña nevada': snowy, which apertium-ita carries as
+# `innevato' and the bilingual pairs with nothing -- so the whole of sentence
+# five was written into Italian as nothing
+<e><p><l>snowy<s n="adj"/></l><r>innevato<s n="adj"/></r></p></e>
+# `en el campo con el espantapájaros': the scarecrow, which apertium-ita
+# carries as `spaventapasseri' and the bilingual pairs with nothing
+<e><p><l>scarecrow<s n="n"/></l><r>spaventapasseri<s n="n"/><s n="m"/></r></p></e>
+# `están mal calculadas': calculate, whose forms the line in italian.txt
+# needs; apertium-ita carries `calcolare' and the bilingual pairs it with
+# nothing
+<e><p><l>calculate<s n="vblex"/></l><r>calcolare<s n="vblex"/></r></p></e>
+# the report on Ciampi sending back the law on unappealability (UD VIT
+# VIT-9926..9946), into Spanish: words apertium-ita carries and the
+# bilingual pairs with nothing
+# `appare inspiegabile': inexplicable
+<e><p><l>inexplicable<s n="adj"/></l><r>inspiegabile<s n="adj"/></r></p></e>
+# `le ragioni di incostituzionalità': unconstitutionality
+<e><p><l>unconstitutionality<s n="n"/></l><r>incostituzionalità<s n="n"/><s n="f"/></r></p></e>
+# `è palesemente incostituzionale': unconstitutional, which the bilingual
+# has only as the adverb
+<e><p><l>unconstitutional<s n="adj"/></l><r>incostituzionale<s n="adj"/></r></p></e>
+# `delle sentenze di proscioglimento': acquittal
+<e><p><l>acquittal<s n="n"/></l><r>proscioglimento<s n="n"/><s n="m"/></r></p></e>
+# `in palese contrasto': obvious -- read only, so `ovvio' is still the word
+# written for it
+<e r="RL"><p><l>obvious<s n="adj"/></l><r>palese<s n="adj"/></r></p></e>
+# `ha rinviato la legge', `il rinvio': to send back, which is to return a
+# thing, and its noun -- read only, `ritornare' and `ritorno' are written
+<e r="RL"><p><l>return<s n="vblex"/></l><r>rinviare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>return<s n="n"/></l><r>rinvio<s n="n"/><s n="m"/></r></p></e>
+# `la parte lesa': aggrieved
+<e><p><l>aggrieved<s n="adj"/></l><r>leso<s n="adj"/></r></p></e>
+# `possa recare un vulnus': causes, and a harm -- read only, `causare' and
+# `danno' are written
+<e r="RL"><p><l>cause<s n="vblex"/></l><r>recare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>harm<s n="n"/></l><r>vulnus<s n="n"/><s n="m"/></r></p></e>
+# `il principio di uguaglianza': equality -- read only, `eguaglianza' is
+# written
+<e r="RL"><p><l>equality<s n="n"/></l><r>uguaglianza<s n="n"/><s n="f"/></r></p></e>
+# `Lapidario ma significativo il commento': concise -- apertium-ita carries
+# the adjective and the bilingual pairs only its adverb
+<e><p><l>concise<s n="adj"/></l><r>lapidario<s n="adj"/></r></p></e>
+# `se fosse stata promulgata nel testo attuale': promulgated
+<e><p><l>promulgate<s n="vblex"/></l><r>promulgare<s n="vblex"/></r></p></e>
+# the report on the election at Òmnium Cultural (AnCora
+# CESS-CAST-P-20020301-125), from Spanish: words apertium-ita carries and the
+# bilingual pairs with nothing
+<e><p><l>counterattack<s n="vblex"/></l><r>contrattaccare<s n="vblex"/></r></p></e>
+<e><p><l>brandish<s n="vblex"/></l><r>brandire<s n="vblex"/></r></p></e>
+<e><p><l>decapitate<s n="vblex"/></l><r>decapitare<s n="vblex"/></r></p></e>
+<e><p><l>unleash<s n="vblex"/></l><r>scatenare<s n="vblex"/></r></p></e>
+<e><p><l>catalanist<s n="adj"/></l><r>catalanista<s n="adj"/></r></p></e>
+<e><p><l>reformist<s n="adj"/></l><r>riformista<s n="adj"/></r></p></e>
+# ... and the nouns Italian had no word for: `según los estatutos', a
+# statute; `esgrimió una papeleta', a ballot; `a los asociados', an associate
+<e><p><l>statute<s n="n"/></l><r>statuto<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>ballot<s n="n"/></l><r>scheda<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>associate<s n="n"/></l><r>associato<s n="n"/><s n="m"/></r></p></e>

@@ -310,3 +310,38 @@
 <e r="LR"><p><l>browse<s n="vblex"/></l><r>hojear<s n="vblex"/></r></p></e>
 <e r="LR"><p><l>balneal<s n="adj"/></l><r>balneario<s n="adj"/></r></p></e>
 <e r="LR"><p><l>rummage<s n="vblex"/></l><r>hurgar<s n="vblex"/></r></p></e>
+# the errors of The Lord of the Rings (AnCora CESS-CAST-P-20020102-112), into
+# Italian: `personajes o elementos contemporáneos que se cuelan en el plano',
+# which sneak into the shot, and `unas grandes piedras, que se tambalean',
+# which wobble -- apertium-spa carries `colar' and `tambalear', and the
+# bilingual pairs nothing with the first and only `tambalearse' with the
+# second, which is no lemma the monolingual has; read only
+<e r="RL"><p><l>sneak<s n="vblex"/></l><r>colar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>wobble<s n="vblex"/></l><r>tambalear<s n="vblex"/></r></p></e>
+# the report on Ciampi sending back the law on unappealability (UD VIT
+# VIT-9926..9946), from Italian: the Spanish word for a meaning the Italian
+# one has and Spanish had none for. apertium-spa carries each and the
+# bilingual pairs it with nothing; written only, so no Spanish text reads
+# any word otherwise
+<e r="LR"><p><l>inexplicable<s n="adj"/></l><r>inexplicable<s n="adj"/></r></p></e>
+<e r="LR"><p><l>acquittal<s n="n"/></l><r>absolución<s n="n"/><s n="f"/></r></p></e>
+# the report on Ciampi, continued: `se fosse stata promulgata' and `avrebbe
+# dissestato', into Spanish. apertium-spa carries both verbs and the
+# bilingual pairs them with nothing; the second is written only
+<e><p><l>promulgate<s n="vblex"/></l><r>promulgar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>disorganize<s n="vblex"/></l><r>desorganizar<s n="vblex"/></r></p></e>
+# the report on the election at Òmnium Cultural (AnCora
+# CESS-CAST-P-20020301-125), into Italian: words apertium-spa carries and the
+# bilingual pairs with nothing
+<e><p><l>counterattack<s n="vblex"/></l><r>contraatacar<s n="vblex"/></r></p></e>
+<e><p><l>decapitate<s n="vblex"/></l><r>decapitar<s n="vblex"/></r></p></e>
+<e><p><l>unleash<s n="vblex"/></l><r>desatar<s n="vblex"/></r></p></e>
+<e><p><l>catalanist<s n="adj"/></l><r>catalanista<s n="adj"/></r></p></e>
+# ... and read only, each with a meaning the dictionary gives another word
+# first: `esgrimió una papeleta' brandished it, `desconocen qué
+# consecuencias' do not know, `el sector renovador' the reformist one,
+# `un comportamiento "caciquil"' a local boss's, authoritarian
+<e r="RL"><p><l>brandish<s n="vblex"/></l><r>esgrimir<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>ignore<s n="vblex"/></l><r>desconocer<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>reformist<s n="adj"/></l><r>renovador<s n="adj"/></r></p></e>
+<e r="RL"><p><l>authoritarian<s n="adj"/></l><r>caciquil<s n="adj"/></r></p></e>

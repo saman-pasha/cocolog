@@ -738,6 +738,12 @@ The feminine adjective "cierta" means "certain".
 The masculine noun "móvil" means "mobile".
 The masculine noun "telefonino" means "mobile".
 "telefoninos" is the plural of "telefonino".
+# the Ciampi report's `la vittima del reato costituitosi parte civile': the
+# victim -- `víctima' is said FIRST, before `accidentado' below, because a line
+# of extra/ comes first for its meaning: with `accidentado' first, the writer
+# said `el accidentado' for every victim
+The feminine noun "víctima" means "victim". "víctimas" is the plural of "víctima".
+"víctima" is a person.
 # `cuando pudieron rescatar al accidentado': the man the accident happened
 # to -- the dictionary has `accidentado' only as the adjective `rugged'
 The masculine noun "accidentado" means "victim".
@@ -1191,3 +1197,186 @@ The conjunction "o mejor dicho" means "or rather".
 # its object -- read as one, an old control's refusal came out `Everyone
 # can them drive.' once `todos' could be a subject
 The pronoun "ellos" does not precede the verb.
+# the errors of The Lord of the Rings (AnCora CESS-CAST-P-20020102-112), into
+# Italian: `los pequeños hobbits', which the dictionary gives no plural of
+"hobbits" is the plural of "hobbit".
+# `como si la hubieran comprado en un supermercado': the auxiliary's past
+# subjunctive, which the builder does not write for `haber'
+"hubiera" is the past subjunctive of "ha".
+"hubieran" is the plural of "hubiera".
+"hubiese" is the past subjunctive of "ha".
+"hubiesen" is the plural of "hubiese".
+# `en la cueva del trol': apertium-spa carries no `trol'
+The masculine noun "trol" means "troll".
+"troles" is the plural of "trol".
+# `cuando ya las han dejado atrás': them, the statues -- the hand lesson says
+# `los' is the pronoun and `las' only the article's plural, so `Las ve.' had
+# no reading at all
+The pronoun "las" means "them".
+# `Es un efecto especial que se les olvidó': a special effect THEY forgot --
+# what happens to somebody by accident is said with the reflexive and the one
+# it happened to as a dative, and the translator writes what they did
+"olvida" takes the accident.
+# `con respecto al resto de personajes': compared with the rest
+The preposition "con respecto a" means "compared with".
+# `al resto de personajes y decorados': the sets, a noun the builder gives
+# only as the participle of `decorar'. The dictionary's word for
+# scenography is said again first, so that `decorado' is not the first
+# Spanish word for it
+The feminine noun "escenografía" means "scenography".
+The masculine noun "decorado" means "scenography".
+"decorados" is the plural of "decorado".
+# `Tras la pelea en la cueva del trol': the fight, and the dictionary gives
+# `pelea' as a quarrel first, which Italian has no word for, so the sentence
+# was written as nothing. The dictionary's first Spanish word for a fight is
+# said again first, so that `pelea' is not Spanish's first word for one
+The feminine noun "lucha" means "fight".
+The feminine noun "pelea" means "fight".
+# the report on Ciampi sending back the law on unappealability (UD VIT
+# VIT-9926..9946), into Spanish: the words for meanings the Italian ones
+# have and no dictionary here gives Spanish
+The feminine noun "inapelabilidad" means "unappealability".
+"inapelabilidades" is the plural of "inapelabilidad".
+The feminine noun "inconstitucionalidad" means "unconstitutionality".
+"inconstitucionalidades" is the plural of "inconstitucionalidad".
+The masculine noun "vicepresidente" means "vice-president".
+"vicepresidentes" is the plural of "vicepresidente".
+# `la parte lesa': the aggrieved party, `la parte perjudicada' -- the
+# participle of `perjudicar' said as the adjective it is here
+The masculine adjective "perjudicado" means "aggrieved".
+"perjudicados" is the plural of "perjudicado".
+The feminine adjective "perjudicada" means "aggrieved".
+"perjudicadas" is the plural of "perjudicada".
+# `ha rinviato la legge': returns a thing, which the dictionary's first
+# Spanish word for returning, `regresa', does not do. The dictionary's
+# first word is said again first, so that it stays the one written where
+# nothing is returned
+The verb "regresa" means "returns".
+The transitive verb "devuelve" means "returns".
+# `della cosiddetta Pecorella': so-called, `la denominada' -- a line, because
+# the builder admits an English word of letters and this one has a hyphen
+The masculine adjective "denominado" means "so-called". "denominados" is the plural of "denominado".
+The feminine adjective "denominada" means "so-called". "denominadas" is the plural of "denominada".
+# the report on Ciampi sending back the law on unappealability, continued:
+# the words of the law in Spanish.
+# `della corte di cassazione': a court -- the dictionary's first Spanish word
+# for it is `juzgado', a court of first instance; `tribunal' is the word for
+# the highest one
+The masculine noun "tribunal" means "court".
+# `delle sentenze di proscioglimento': judgments
+The feminine noun "sentencia" means "judgment".
+# `ha chiesto alle Camere': the Chambers of Parliament -- the dictionary has
+# `cámara' only as a camera, which it stays for the writer
+The feminine noun "cámara" means "chamber".
+The feminine noun "cámara" means "camera".
+# `Lo rende noto un comunicato del Quirinale': announces, a verb of three
+# words, and a communique. `anuncia' is said again first
+The verb "anuncia" means "announces".
+The verb "da a conocer" means "announces".
+"dan a conocer" is the plural of "da a conocer".
+The masculine noun "comunicado" means "communique".
+# `che è a tutti gli effetti "parte del processo"': to all intents and
+# purposes, one word of four
+The adverb "a todos los efectos" means "to all intents and purposes".
+# the Ciampi report's `l'imputato' and `il reato': the defendant and the
+# offence -- the dictionary has `imputado' only as the participle of
+# `imputar', and its first Spanish word for `offence' is `ofensa'. A line of
+# extra/ comes first for its meaning, so each is said here (and `víctima',
+# above `accidentado')
+The masculine noun "imputado" means "defendant". "imputados" is the plural of "imputado".
+The feminine noun "imputada" means "defendant". "imputadas" is the plural of "imputada".
+The masculine noun "delito" means "offence". "delitos" is the plural of "delito".
+# `su quali aspetti della riforma': the aspects -- the dictionary's first
+# Spanish word for `aspect' is `viso', and for `aspecto' `appearance'
+The masculine noun "aspecto" means "aspect". "aspectos" is the plural of "aspecto".
+# `quali' by itself, in `appare inspiegabile quali possano essere i motivi',
+# is `cuáles', and the dictionary gives `cuál' no meaning at all: a pronoun
+# that means `which', after the hand lesson's `qué' -- the lesson's first word
+# for `which' stays the one before a noun, and the writer of `which' by
+# itself asks for the pronoun (tr_which_pronoun_number/3)
+The pronoun "cuál" means "which". "cuáles" is the plural of "cuál".
+# the report on the election at Òmnium Cultural (AnCora
+# CESS-CAST-P-20020301-125), into Italian
+# `las elecciones del 7 de marzo': March -- the dictionary pairs `marzo' with
+# `March', and the builder lowers a capitalised English word only where
+# English has no lower-case one of its own (1.6.21): a march is a walk too.
+# `marcha' is said again first, so that it stays the word written for a
+# walk, and a date's month is written by the word the lesson calls a month
+The feminine noun "marcha" means "march".
+The masculine noun "marzo" means "march".
+# `siempre y cuando haya voluntad': will, which the builder refuses as
+# English's modal -- `willingness', with `disposición' said again first so
+# that it stays the word written for it (Salvini's `a disposizione')
+The feminine noun "disposición" means "willingness".
+The feminine noun "voluntad" means "willingness". "voluntades" is the plural of "voluntad".
+# `por ambas partes': both, the feminine of the determiner `ambos'
+The feminine determiner "ambas" means "both".
+# `un ayuntamiento socio de la entidad': a town council, which the dictionary
+# gives as two English words and the builder does not write
+The masculine noun "ayuntamiento" means "town council". "ayuntamientos" is the plural of "ayuntamiento".
+# `asume las críticas "deportivamente"': sportingly
+The adverb "deportivamente" means "sportingly".
+# `remitir cartas a los asociados': letters -- the dictionary's first meaning
+# of `carta' is a card, and Italian wrote `bigliettini'
+The feminine noun "carta" means "letter".
+# ... sent: `remitir' is to remit, which Italian writes `rimettere', to put
+# back. `envía' is said again first, so that it stays the word written for
+# sending
+The verb "envía" means "sends".
+The verb "remite" means "sends".
+# ... to the members: `asociado' is a noun the dictionary does not carry,
+# and `socio', which it gives as a partner, is the member of an association
+# here -- Italian's first word for a partner is `compagno'
+The masculine noun "asociado" means "associate". "asociados" is the plural of "asociado". "asociado" is a person.
+The masculine noun "socio" means "associate".
+# `pero, aun así, dijo ...': even so, one adverb of two words -- read as two
+# the adverb `even' and `así' went after the verb, `persino così'
+The adverb "aun así" means "even so".
+# `"siempre y cuando haya voluntad"': provided that, as `siempre que' is
+The conjunction "siempre y cuando" means "provided that".
+# `"siempre y cuando haya voluntad"': there be -- the dictionary states
+# `haya' as the subjunctive of the auxiliary `ha' only, and `hay', there is,
+# has the same subjunctive
+"haya" is the subjunctive of "hay".
+# `se produce después de que la lista de Porta acusara a Millàs': after,
+# a connector joining a clause -- read as the preposition `después de' and
+# a `that' clause, the sentence was refused
+The conjunction "después de que" means "after".
+# `y agregó la "única preocupación" del sector renovador es decapitarle':
+# the source leaves out `que', and the verb is one that takes the clause
+"agrega" takes the clause.
+# `desconocen "qué consecuencias" reportará para la imagen de la entidad':
+# what consequences it will BRING -- the dictionary gives `reportar' only
+# as `reports', whose first Italian word is `fa sapere', a verb of two words
+# with no future, and the sentence was refused. The dictionary's `trae' is
+# said again first, so that it stays the word written for `brings'
+The verb "trae" means "brings".
+The verb "reporta" means "brings".
+# ... and `la movida que está montando el sector renovador', the stir it is
+# raising: the dictionary has `movida' only as the adjective `eventful' and
+# the participle of `mover', and read so it was an adjective whose noun was
+# left out. `revuelo' is said again first, the word written for `stir'
+The masculine noun "revuelo" means "stir".
+The feminine noun "movida" means "stir".
+# `los miembros de la junta directiva': the board of directors, one word of
+# two -- the dictionary's `junta' is a board, whose first Italian word is
+# `asse', a plank
+The feminine noun "junta directiva" means "board of directors".
+# `Millàs, a quien los renovadores atribuyen un comportamiento "caciquil",
+# insistió': to whom -- after a preposition `quien' is the relative the
+# clause hangs on its phrase by, `a cui'; and `insistió en que está
+# "abierto"', insisted that
+"quien" is a relative.
+"insiste" takes "en" before the clause.
+# `un cruce de acusaciones ... que puso de manifiesto la existencia de una
+# fuerte división': made plain, revealed -- a verb of three words, its past
+# stated as a plural of one is
+The verb "pone de manifiesto" means "reveals".
+"puso de manifiesto" is the past of "pone de manifiesto".
+"ponen de manifiesto" is the plural of "pone de manifiesto".
+# `con el fin de "encontrar una solución"': in order to, a purpose of four
+# words
+The word "con el fin de" begins the purpose.
+# `desató un cruce de acusaciones entre ambos candidatos': an exchange of
+# accusations -- the dictionary's `cruce' is a crossing
+The masculine noun "cruce de acusaciones" means "exchange of accusations".
