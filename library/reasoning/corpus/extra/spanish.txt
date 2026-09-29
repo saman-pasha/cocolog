@@ -1295,3 +1295,88 @@ The masculine noun "aspecto" means "aspect". "aspectos" is the plural of "aspect
 # for `which' stays the one before a noun, and the writer of `which' by
 # itself asks for the pronoun (tr_which_pronoun_number/3)
 The pronoun "cuál" means "which". "cuáles" is the plural of "cuál".
+# the report on the election at Òmnium Cultural (AnCora
+# CESS-CAST-P-20020301-125), into Italian
+# `las elecciones del 7 de marzo': March -- the dictionary pairs `marzo' with
+# `March', and the builder lowers a capitalised English word only where
+# English has no lower-case one of its own (1.6.21): a march is a walk too.
+# `marcha' is said again first, so that it stays the word written for a
+# walk, and a date's month is written by the word the lesson calls a month
+The feminine noun "marcha" means "march".
+The masculine noun "marzo" means "march".
+# `siempre y cuando haya voluntad': will, which the builder refuses as
+# English's modal -- `willingness', with `disposición' said again first so
+# that it stays the word written for it (Salvini's `a disposizione')
+The feminine noun "disposición" means "willingness".
+The feminine noun "voluntad" means "willingness". "voluntades" is the plural of "voluntad".
+# `por ambas partes': both, the feminine of the determiner `ambos'
+The feminine determiner "ambas" means "both".
+# `un ayuntamiento socio de la entidad': a town council, which the dictionary
+# gives as two English words and the builder does not write
+The masculine noun "ayuntamiento" means "town council". "ayuntamientos" is the plural of "ayuntamiento".
+# `asume las críticas "deportivamente"': sportingly
+The adverb "deportivamente" means "sportingly".
+# `remitir cartas a los asociados': letters -- the dictionary's first meaning
+# of `carta' is a card, and Italian wrote `bigliettini'
+The feminine noun "carta" means "letter".
+# ... sent: `remitir' is to remit, which Italian writes `rimettere', to put
+# back. `envía' is said again first, so that it stays the word written for
+# sending
+The verb "envía" means "sends".
+The verb "remite" means "sends".
+# ... to the members: `asociado' is a noun the dictionary does not carry,
+# and `socio', which it gives as a partner, is the member of an association
+# here -- Italian's first word for a partner is `compagno'
+The masculine noun "asociado" means "associate". "asociados" is the plural of "asociado". "asociado" is a person.
+The masculine noun "socio" means "associate".
+# `pero, aun así, dijo ...': even so, one adverb of two words -- read as two
+# the adverb `even' and `así' went after the verb, `persino così'
+The adverb "aun así" means "even so".
+# `"siempre y cuando haya voluntad"': provided that, as `siempre que' is
+The conjunction "siempre y cuando" means "provided that".
+# `"siempre y cuando haya voluntad"': there be -- the dictionary states
+# `haya' as the subjunctive of the auxiliary `ha' only, and `hay', there is,
+# has the same subjunctive
+"haya" is the subjunctive of "hay".
+# `se produce después de que la lista de Porta acusara a Millàs': after,
+# a connector joining a clause -- read as the preposition `después de' and
+# a `that' clause, the sentence was refused
+The conjunction "después de que" means "after".
+# `y agregó la "única preocupación" del sector renovador es decapitarle':
+# the source leaves out `que', and the verb is one that takes the clause
+"agrega" takes the clause.
+# `desconocen "qué consecuencias" reportará para la imagen de la entidad':
+# what consequences it will BRING -- the dictionary gives `reportar' only
+# as `reports', whose first Italian word is `fa sapere', a verb of two words
+# with no future, and the sentence was refused. The dictionary's `trae' is
+# said again first, so that it stays the word written for `brings'
+The verb "trae" means "brings".
+The verb "reporta" means "brings".
+# ... and `la movida que está montando el sector renovador', the stir it is
+# raising: the dictionary has `movida' only as the adjective `eventful' and
+# the participle of `mover', and read so it was an adjective whose noun was
+# left out. `revuelo' is said again first, the word written for `stir'
+The masculine noun "revuelo" means "stir".
+The feminine noun "movida" means "stir".
+# `los miembros de la junta directiva': the board of directors, one word of
+# two -- the dictionary's `junta' is a board, whose first Italian word is
+# `asse', a plank
+The feminine noun "junta directiva" means "board of directors".
+# `Millàs, a quien los renovadores atribuyen un comportamiento "caciquil",
+# insistió': to whom -- after a preposition `quien' is the relative the
+# clause hangs on its phrase by, `a cui'; and `insistió en que está
+# "abierto"', insisted that
+"quien" is a relative.
+"insiste" takes "en" before the clause.
+# `un cruce de acusaciones ... que puso de manifiesto la existencia de una
+# fuerte división': made plain, revealed -- a verb of three words, its past
+# stated as a plural of one is
+The verb "pone de manifiesto" means "reveals".
+"puso de manifiesto" is the past of "pone de manifiesto".
+"ponen de manifiesto" is the plural of "pone de manifiesto".
+# `con el fin de "encontrar una solución"': in order to, a purpose of four
+# words
+The word "con el fin de" begins the purpose.
+# `desató un cruce de acusaciones entre ambos candidatos': an exchange of
+# accusations -- the dictionary's `cruce' is a crossing
+The masculine noun "cruce de acusaciones" means "exchange of accusations".

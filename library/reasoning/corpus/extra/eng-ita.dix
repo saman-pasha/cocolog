@@ -647,3 +647,17 @@
 <e><p><l>concise<s n="adj"/></l><r>lapidario<s n="adj"/></r></p></e>
 # `se fosse stata promulgata nel testo attuale': promulgated
 <e><p><l>promulgate<s n="vblex"/></l><r>promulgare<s n="vblex"/></r></p></e>
+# the report on the election at Òmnium Cultural (AnCora
+# CESS-CAST-P-20020301-125), from Spanish: words apertium-ita carries and the
+# bilingual pairs with nothing
+<e><p><l>counterattack<s n="vblex"/></l><r>contrattaccare<s n="vblex"/></r></p></e>
+<e><p><l>brandish<s n="vblex"/></l><r>brandire<s n="vblex"/></r></p></e>
+<e><p><l>decapitate<s n="vblex"/></l><r>decapitare<s n="vblex"/></r></p></e>
+<e><p><l>unleash<s n="vblex"/></l><r>scatenare<s n="vblex"/></r></p></e>
+<e><p><l>catalanist<s n="adj"/></l><r>catalanista<s n="adj"/></r></p></e>
+<e><p><l>reformist<s n="adj"/></l><r>riformista<s n="adj"/></r></p></e>
+# ... and the nouns Italian had no word for: `según los estatutos', a
+# statute; `esgrimió una papeleta', a ballot; `a los asociados', an associate
+<e><p><l>statute<s n="n"/></l><r>statuto<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>ballot<s n="n"/></l><r>scheda<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>associate<s n="n"/></l><r>associato<s n="n"/><s n="m"/></r></p></e>

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16324 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16333 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -906,6 +906,10 @@ The adverb "meno" means "less".
 The adverb "molto meno" means "much less".
 The feminine noun "barretina" means "barretina".
 "barretine" is the plural of "barretina".
+The masculine determiner "entrambi" means "both". "entrambi" is the plural of "entrambi".
+The feminine determiner "entrambe" means "both". "entrambe" is the plural of "entrambe".
+"entrambi" takes the article.
+"entrambe" takes the article.
 The conjunction "tanto" means "both".
 "quanto" is the partner of "tanto".
 The masculine noun "gioco" means "game".
@@ -1017,6 +1021,21 @@ The conjunction "visto che" means "since".
 The masculine noun "imputato" means "defendant". "imputati" is the plural of "imputato".
 The feminine noun "imputata" means "defendant". "imputate" is the plural of "imputata".
 The masculine noun "aspetto" means "aspect". "aspetti" is the plural of "aspetto".
+The feminine noun "marcia" means "march".
+The masculine noun "marzo" means "march".
+The feminine noun "volontà" means "willingness". "volontà" is the plural of "volontà".
+The noun "comune" means "town council". "comuni" is the plural of "comune". "comune" is not feminine.
+The masculine noun "socio" means "associate". "soci" is the plural of "socio". "socio" is a person.
+The adverb "sportivamente" means "sportingly".
+The verb "guida" means "drives".
+The verb "guida" means "heads".
+The feminine noun "dichiarazione" means "statement". "dichiarazioni" is the plural of "dichiarazione".
+The adverb "anche così" means "even so".
+The conjunction "dopo che" means "after".
+The masculine noun "consiglio direttivo" means "board of directors".
+The feminine noun "assemblea" means "assembly".
+The masculine noun "scambio di accuse" means "exchange of accusations".
+The verb "trova" means "finds".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1124,6 +1143,13 @@ The feminine noun "incostituzionalità" means "unconstitutionality".
 "incostituzionalità" is the plural of "incostituzionalità".
 The masculine noun "proscioglimento" means "acquittal".
 "proscioglimenti" is the plural of "proscioglimento".
+The masculine noun "statuto" means "statute".
+"statuti" is the plural of "statuto".
+The feminine noun "scheda" means "ballot".
+"schede" is the plural of "scheda".
+The masculine noun "associato" means "associate".
+"associati" is the plural of "associato".
+"associato" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -22236,6 +22262,194 @@ The verb "promulga" means "promulgates".
 "promulgate" is the plural of "promulgata".
 "promulgare" is the infinitive of "promulga".
 "promulgando" is the gerund of "promulga".
+The verb "contrattacca" means "counterattacks".
+"contrattaccano" is the plural of "contrattacca".
+"contrattacchiamo" is the first person of "contrattaccano".
+"contrattacco" is the first person of "contrattacca".
+"contrattacchi" is the second person of "contrattacca".
+"contrattaccò" is the past of "contrattacca".
+"contrattaccarono" is the past of "contrattaccano".
+"contrattaccammo" is the first person of "contrattaccarono".
+"contrattaccai" is the first person of "contrattaccò".
+"contrattaccasti" is the second person of "contrattaccò".
+"contrattaccava" is the past of "contrattacca".
+"contrattaccavano" is the past of "contrattaccano".
+"contrattaccavamo" is the first person of "contrattaccavano".
+"contrattaccavo" is the first person of "contrattaccava".
+"contrattaccavi" is the second person of "contrattaccava".
+"contrattaccherà" is the future of "contrattacca".
+"contrattaccheranno" is the plural of "contrattaccherà".
+"contrattaccheremo" is the first person of "contrattaccheranno".
+"contrattaccherò" is the first person of "contrattaccherà".
+"contrattaccherai" is the second person of "contrattaccherà".
+"contrattaccherebbe" is the conditional of "contrattacca".
+"contrattaccherebbero" is the plural of "contrattaccherebbe".
+"contrattaccheremmo" is the first person of "contrattaccherebbero".
+"contrattaccherei" is the first person of "contrattaccherebbe".
+"contrattaccheresti" is the second person of "contrattaccherebbe".
+"contrattacchi" is the subjunctive of "contrattacca".
+"contrattacchino" is the plural of "contrattacchi".
+"contrattacchiamo" is the first person of "contrattacchino".
+"contrattaccasse" is the past subjunctive of "contrattacca".
+"contrattaccassero" is the plural of "contrattaccasse".
+"contrattaccassimo" is the first person of "contrattaccassero".
+"contrattaccassi" is the first person of "contrattaccasse".
+"contrattaccassi" is the second person of "contrattaccasse".
+"contrattacca" is the imperative of "contrattacca".
+"contrattaccare" is the negative imperative of "contrattacca".
+"contrattaccate" is the imperative of "contrattaccano".
+"contrattacchiamo" is the hortative of "contrattacca".
+"contrattaccato" is the participle of "contrattacca".
+"contrattaccata" is the participle of "contrattacca".
+"contrattaccata" is feminine.
+"contrattaccati" is the participle of "contrattacca".
+"contrattaccati" is the plural of "contrattaccato".
+"contrattaccate" is the participle of "contrattacca".
+"contrattaccate" is feminine.
+"contrattaccate" is the plural of "contrattaccata".
+"contrattaccare" is the infinitive of "contrattacca".
+"contrattaccando" is the gerund of "contrattacca".
+The verb "brande" means "brandishes".
+"brandono" is the plural of "brande".
+"brandiamo" is the first person of "brandono".
+"brando" is the first person of "brande".
+"brandi" is the second person of "brande".
+"brandì" is the past of "brande".
+"brandirono" is the past of "brandono".
+"brandimmo" is the first person of "brandirono".
+"brandii" is the first person of "brandì".
+"brandisti" is the second person of "brandì".
+"brandiva" is the past of "brande".
+"brandivano" is the past of "brandono".
+"brandivamo" is the first person of "brandivano".
+"brandivo" is the first person of "brandiva".
+"brandivi" is the second person of "brandiva".
+"brandirà" is the future of "brande".
+"brandiranno" is the plural of "brandirà".
+"brandiremo" is the first person of "brandiranno".
+"brandirò" is the first person of "brandirà".
+"brandirai" is the second person of "brandirà".
+"brandirebbe" is the conditional of "brande".
+"brandirebbero" is the plural of "brandirebbe".
+"brandiremmo" is the first person of "brandirebbero".
+"brandirei" is the first person of "brandirebbe".
+"brandiresti" is the second person of "brandirebbe".
+"branda" is the subjunctive of "brande".
+"brandano" is the plural of "branda".
+"brandiamo" is the first person of "brandano".
+"brandisse" is the past subjunctive of "brande".
+"brandissero" is the plural of "brandisse".
+"brandissimo" is the first person of "brandissero".
+"brandissi" is the first person of "brandisse".
+"brandissi" is the second person of "brandisse".
+"brandi" is the imperative of "brande".
+"brandire" is the negative imperative of "brande".
+"brandite" is the imperative of "brandono".
+"brandiamo" is the hortative of "brande".
+"brandito" is the participle of "brande".
+"brandita" is the participle of "brande".
+"brandita" is feminine.
+"branditi" is the participle of "brande".
+"branditi" is the plural of "brandito".
+"brandite" is the participle of "brande".
+"brandite" is feminine.
+"brandite" is the plural of "brandita".
+"brandire" is the infinitive of "brande".
+"brandendo" is the gerund of "brande".
+The verb "decapita" means "decapitates".
+"decapitano" is the plural of "decapita".
+"decapitiamo" is the first person of "decapitano".
+"decapito" is the first person of "decapita".
+"decapiti" is the second person of "decapita".
+"decapitò" is the past of "decapita".
+"decapitarono" is the past of "decapitano".
+"decapitammo" is the first person of "decapitarono".
+"decapitai" is the first person of "decapitò".
+"decapitasti" is the second person of "decapitò".
+"decapitava" is the past of "decapita".
+"decapitavano" is the past of "decapitano".
+"decapitavamo" is the first person of "decapitavano".
+"decapitavo" is the first person of "decapitava".
+"decapitavi" is the second person of "decapitava".
+"decapiterà" is the future of "decapita".
+"decapiteranno" is the plural of "decapiterà".
+"decapiteremo" is the first person of "decapiteranno".
+"decapiterò" is the first person of "decapiterà".
+"decapiterai" is the second person of "decapiterà".
+"decapiterebbe" is the conditional of "decapita".
+"decapiterebbero" is the plural of "decapiterebbe".
+"decapiteremmo" is the first person of "decapiterebbero".
+"decapiterei" is the first person of "decapiterebbe".
+"decapiteresti" is the second person of "decapiterebbe".
+"decapiti" is the subjunctive of "decapita".
+"decapitino" is the plural of "decapiti".
+"decapitiamo" is the first person of "decapitino".
+"decapitasse" is the past subjunctive of "decapita".
+"decapitassero" is the plural of "decapitasse".
+"decapitassimo" is the first person of "decapitassero".
+"decapitassi" is the first person of "decapitasse".
+"decapitassi" is the second person of "decapitasse".
+"decapita" is the imperative of "decapita".
+"decapitare" is the negative imperative of "decapita".
+"decapitate" is the imperative of "decapitano".
+"decapitiamo" is the hortative of "decapita".
+"decapitato" is the participle of "decapita".
+"decapitata" is the participle of "decapita".
+"decapitata" is feminine.
+"decapitati" is the participle of "decapita".
+"decapitati" is the plural of "decapitato".
+"decapitate" is the participle of "decapita".
+"decapitate" is feminine.
+"decapitate" is the plural of "decapitata".
+"decapitare" is the infinitive of "decapita".
+"decapitando" is the gerund of "decapita".
+The verb "scatena" means "unleashes".
+"scatenano" is the plural of "scatena".
+"scateniamo" is the first person of "scatenano".
+"scateno" is the first person of "scatena".
+"scateni" is the second person of "scatena".
+"scatenò" is the past of "scatena".
+"scatenarono" is the past of "scatenano".
+"scatenammo" is the first person of "scatenarono".
+"scatenai" is the first person of "scatenò".
+"scatenasti" is the second person of "scatenò".
+"scatenava" is the past of "scatena".
+"scatenavano" is the past of "scatenano".
+"scatenavamo" is the first person of "scatenavano".
+"scatenavo" is the first person of "scatenava".
+"scatenavi" is the second person of "scatenava".
+"scatenerà" is the future of "scatena".
+"scateneranno" is the plural of "scatenerà".
+"scateneremo" is the first person of "scateneranno".
+"scatenerò" is the first person of "scatenerà".
+"scatenerai" is the second person of "scatenerà".
+"scatenerebbe" is the conditional of "scatena".
+"scatenerebbero" is the plural of "scatenerebbe".
+"scateneremmo" is the first person of "scatenerebbero".
+"scatenerei" is the first person of "scatenerebbe".
+"scateneresti" is the second person of "scatenerebbe".
+"scateni" is the subjunctive of "scatena".
+"scatenino" is the plural of "scateni".
+"scateniamo" is the first person of "scatenino".
+"scatenasse" is the past subjunctive of "scatena".
+"scatenassero" is the plural of "scatenasse".
+"scatenassimo" is the first person of "scatenassero".
+"scatenassi" is the first person of "scatenasse".
+"scatenassi" is the second person of "scatenasse".
+"scatena" is the imperative of "scatena".
+"scatenare" is the negative imperative of "scatena".
+"scatenate" is the imperative of "scatenano".
+"scateniamo" is the hortative of "scatena".
+"scatenato" is the participle of "scatena".
+"scatenata" is the participle of "scatena".
+"scatenata" is feminine.
+"scatenati" is the participle of "scatena".
+"scatenati" is the plural of "scatenato".
+"scatenate" is the participle of "scatena".
+"scatenate" is feminine.
+"scatenate" is the plural of "scatenata".
+"scatenare" is the infinitive of "scatena".
+"scatenando" is the gerund of "scatena".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -96275,6 +96489,14 @@ The masculine adjective "lapidario" means "concise".
 "lapidari" is the plural of "lapidario".
 The feminine adjective "lapidaria" means "concise".
 "lapidarie" is the plural of "lapidaria".
+The adjective "catalanista" means "catalanist".
+"catalanisti" is the plural of "catalanista".
+"catalaniste" is the plural of "catalanista".
+"catalaniste" is feminine.
+The adjective "riformista" means "reformist".
+"riformisti" is the plural of "riformista".
+"riformiste" is the plural of "riformista".
+"riformiste" is feminine.
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

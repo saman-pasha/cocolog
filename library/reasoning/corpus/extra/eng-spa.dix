@@ -330,3 +330,18 @@
 # bilingual pairs them with nothing; the second is written only
 <e><p><l>promulgate<s n="vblex"/></l><r>promulgar<s n="vblex"/></r></p></e>
 <e r="LR"><p><l>disorganize<s n="vblex"/></l><r>desorganizar<s n="vblex"/></r></p></e>
+# the report on the election at Òmnium Cultural (AnCora
+# CESS-CAST-P-20020301-125), into Italian: words apertium-spa carries and the
+# bilingual pairs with nothing
+<e><p><l>counterattack<s n="vblex"/></l><r>contraatacar<s n="vblex"/></r></p></e>
+<e><p><l>decapitate<s n="vblex"/></l><r>decapitar<s n="vblex"/></r></p></e>
+<e><p><l>unleash<s n="vblex"/></l><r>desatar<s n="vblex"/></r></p></e>
+<e><p><l>catalanist<s n="adj"/></l><r>catalanista<s n="adj"/></r></p></e>
+# ... and read only, each with a meaning the dictionary gives another word
+# first: `esgrimió una papeleta' brandished it, `desconocen qué
+# consecuencias' do not know, `el sector renovador' the reformist one,
+# `un comportamiento "caciquil"' a local boss's, authoritarian
+<e r="RL"><p><l>brandish<s n="vblex"/></l><r>esgrimir<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>ignore<s n="vblex"/></l><r>desconocer<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>reformist<s n="adj"/></l><r>renovador<s n="adj"/></r></p></e>
+<e r="RL"><p><l>authoritarian<s n="adj"/></l><r>caciquil<s n="adj"/></r></p></e>

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20295 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20303 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -706,6 +706,35 @@ The feminine noun "imputada" means "defendant". "imputadas" is the plural of "im
 The masculine noun "delito" means "offence". "delitos" is the plural of "delito".
 The masculine noun "aspecto" means "aspect". "aspectos" is the plural of "aspecto".
 The pronoun "cuál" means "which". "cuáles" is the plural of "cuál".
+The feminine noun "marcha" means "march".
+The masculine noun "marzo" means "march".
+The feminine noun "disposición" means "willingness".
+The feminine noun "voluntad" means "willingness". "voluntades" is the plural of "voluntad".
+The feminine determiner "ambas" means "both".
+The masculine noun "ayuntamiento" means "town council". "ayuntamientos" is the plural of "ayuntamiento".
+The adverb "deportivamente" means "sportingly".
+The feminine noun "carta" means "letter".
+The verb "envía" means "sends".
+The verb "remite" means "sends".
+The masculine noun "asociado" means "associate". "asociados" is the plural of "asociado". "asociado" is a person.
+The masculine noun "socio" means "associate".
+The adverb "aun así" means "even so".
+The conjunction "siempre y cuando" means "provided that".
+"haya" is the subjunctive of "hay".
+The conjunction "después de que" means "after".
+"agrega" takes the clause.
+The verb "trae" means "brings".
+The verb "reporta" means "brings".
+The masculine noun "revuelo" means "stir".
+The feminine noun "movida" means "stir".
+The feminine noun "junta directiva" means "board of directors".
+"quien" is a relative.
+"insiste" takes "en" before the clause.
+The verb "pone de manifiesto" means "reveals".
+"puso de manifiesto" is the past of "pone de manifiesto".
+"ponen de manifiesto" is the plural of "pone de manifiesto".
+The word "con el fin de" begins the purpose.
+The masculine noun "cruce de acusaciones" means "exchange of accusations".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -26756,6 +26785,144 @@ The verb "promulga" means "promulgates".
 "promulgadas" is the plural of "promulgada".
 "promulgar" is the infinitive of "promulga".
 "promulgando" is the gerund of "promulga".
+The verb "contraataca" means "counterattacks".
+"contraatacan" is the plural of "contraataca".
+"contraatacamos" is the first person of "contraatacan".
+"contraataco" is the first person of "contraataca".
+"contraatacas" is the second person of "contraataca".
+"contraatacó" is the past of "contraataca".
+"contraatacaron" is the past of "contraatacan".
+"contraatacamos" is the first person of "contraatacaron".
+"contraataqué" is the first person of "contraatacó".
+"contraatacaste" is the second person of "contraatacó".
+"contraatacaba" is the past of "contraataca".
+"contraatacaban" is the past of "contraatacan".
+"contraatacábamos" is the first person of "contraatacaban".
+"contraatacabas" is the second person of "contraatacaba".
+"contraatacará" is the future of "contraataca".
+"contraatacarán" is the plural of "contraatacará".
+"contraatacaremos" is the first person of "contraatacarán".
+"contraatacaré" is the first person of "contraatacará".
+"contraatacarás" is the second person of "contraatacará".
+"contraatacaría" is the conditional of "contraataca".
+"contraatacarían" is the plural of "contraatacaría".
+"contraatacaríamos" is the first person of "contraatacarían".
+"contraatacarías" is the second person of "contraatacaría".
+"contraataque" is the subjunctive of "contraataca".
+"contraataquen" is the plural of "contraataque".
+"contraataquemos" is the first person of "contraataquen".
+"contraataques" is the second person of "contraataque".
+"contraatacara" is the past subjunctive of "contraataca".
+"contraatacaran" is the plural of "contraatacara".
+"contraatacáramos" is the first person of "contraatacaran".
+"contraatacaras" is the second person of "contraatacara".
+"contraataca" is the imperative of "contraataca".
+"contraataques" is the negative imperative of "contraataca".
+"contraatacad" is the imperative of "contraatacan".
+"contraataquéis" is the negative imperative of "contraatacan".
+"contraataquemos" is the hortative of "contraataca".
+"contraatacado" is the participle of "contraataca".
+"contraatacada" is the participle of "contraataca".
+"contraatacada" is feminine.
+"contraatacados" is the participle of "contraataca".
+"contraatacados" is the plural of "contraatacado".
+"contraatacadas" is the participle of "contraataca".
+"contraatacadas" is feminine.
+"contraatacadas" is the plural of "contraatacada".
+"contraatacar" is the infinitive of "contraataca".
+"contraatacando" is the gerund of "contraataca".
+The verb "decapita" means "decapitates".
+"decapitan" is the plural of "decapita".
+"decapitamos" is the first person of "decapitan".
+"decapito" is the first person of "decapita".
+"decapitas" is the second person of "decapita".
+"decapitó" is the past of "decapita".
+"decapitaron" is the past of "decapitan".
+"decapitamos" is the first person of "decapitaron".
+"decapité" is the first person of "decapitó".
+"decapitaste" is the second person of "decapitó".
+"decapitaba" is the past of "decapita".
+"decapitaban" is the past of "decapitan".
+"decapitábamos" is the first person of "decapitaban".
+"decapitabas" is the second person of "decapitaba".
+"decapitará" is the future of "decapita".
+"decapitarán" is the plural of "decapitará".
+"decapitaremos" is the first person of "decapitarán".
+"decapitaré" is the first person of "decapitará".
+"decapitarás" is the second person of "decapitará".
+"decapitaría" is the conditional of "decapita".
+"decapitarían" is the plural of "decapitaría".
+"decapitaríamos" is the first person of "decapitarían".
+"decapitarías" is the second person of "decapitaría".
+"decapite" is the subjunctive of "decapita".
+"decapiten" is the plural of "decapite".
+"decapitemos" is the first person of "decapiten".
+"decapites" is the second person of "decapite".
+"decapitara" is the past subjunctive of "decapita".
+"decapitaran" is the plural of "decapitara".
+"decapitáramos" is the first person of "decapitaran".
+"decapitaras" is the second person of "decapitara".
+"decapita" is the imperative of "decapita".
+"decapites" is the negative imperative of "decapita".
+"decapitad" is the imperative of "decapitan".
+"decapitéis" is the negative imperative of "decapitan".
+"decapitemos" is the hortative of "decapita".
+"decapitado" is the participle of "decapita".
+"decapitada" is the participle of "decapita".
+"decapitada" is feminine.
+"decapitados" is the participle of "decapita".
+"decapitados" is the plural of "decapitado".
+"decapitadas" is the participle of "decapita".
+"decapitadas" is feminine.
+"decapitadas" is the plural of "decapitada".
+"decapitar" is the infinitive of "decapita".
+"decapitando" is the gerund of "decapita".
+The verb "desata" means "unleashes".
+"desatan" is the plural of "desata".
+"desatamos" is the first person of "desatan".
+"desato" is the first person of "desata".
+"desatas" is the second person of "desata".
+"desató" is the past of "desata".
+"desataron" is the past of "desatan".
+"desatamos" is the first person of "desataron".
+"desaté" is the first person of "desató".
+"desataste" is the second person of "desató".
+"desataba" is the past of "desata".
+"desataban" is the past of "desatan".
+"desatábamos" is the first person of "desataban".
+"desatabas" is the second person of "desataba".
+"desatará" is the future of "desata".
+"desatarán" is the plural of "desatará".
+"desataremos" is the first person of "desatarán".
+"desataré" is the first person of "desatará".
+"desatarás" is the second person of "desatará".
+"desataría" is the conditional of "desata".
+"desatarían" is the plural of "desataría".
+"desataríamos" is the first person of "desatarían".
+"desatarías" is the second person of "desataría".
+"desate" is the subjunctive of "desata".
+"desaten" is the plural of "desate".
+"desatemos" is the first person of "desaten".
+"desates" is the second person of "desate".
+"desatara" is the past subjunctive of "desata".
+"desataran" is the plural of "desatara".
+"desatáramos" is the first person of "desataran".
+"desataras" is the second person of "desatara".
+"desata" is the imperative of "desata".
+"desates" is the negative imperative of "desata".
+"desatad" is the imperative of "desatan".
+"desatéis" is the negative imperative of "desatan".
+"desatemos" is the hortative of "desata".
+"desatado" is the participle of "desata".
+"desatada" is the participle of "desata".
+"desatada" is feminine.
+"desatados" is the participle of "desata".
+"desatados" is the plural of "desatado".
+"desatadas" is the participle of "desata".
+"desatadas" is feminine.
+"desatadas" is the plural of "desatada".
+"desatar" is the infinitive of "desata".
+"desatando" is the gerund of "desata".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -107414,6 +107581,98 @@ The verb "tambalea" means "wobbles".
 "tambaleadas" is the plural of "tambaleada".
 "tambalear" is the infinitive of "tambalea".
 "tambaleando" is the gerund of "tambalea".
+The verb "esgrime" means "brandishes".
+"esgrimen" is the plural of "esgrime".
+"esgrimimos" is the first person of "esgrimen".
+"esgrimo" is the first person of "esgrime".
+"esgrimes" is the second person of "esgrime".
+"esgrimió" is the past of "esgrime".
+"esgrimieron" is the past of "esgrimen".
+"esgrimimos" is the first person of "esgrimieron".
+"esgrimí" is the first person of "esgrimió".
+"esgrimiste" is the second person of "esgrimió".
+"esgrimía" is the past of "esgrime".
+"esgrimían" is the past of "esgrimen".
+"esgrimíamos" is the first person of "esgrimían".
+"esgrimías" is the second person of "esgrimía".
+"esgrimirá" is the future of "esgrime".
+"esgrimirán" is the plural of "esgrimirá".
+"esgrimiremos" is the first person of "esgrimirán".
+"esgrimiré" is the first person of "esgrimirá".
+"esgrimirás" is the second person of "esgrimirá".
+"esgrimiría" is the conditional of "esgrime".
+"esgrimirían" is the plural of "esgrimiría".
+"esgrimiríamos" is the first person of "esgrimirían".
+"esgrimirías" is the second person of "esgrimiría".
+"esgrima" is the subjunctive of "esgrime".
+"esgriman" is the plural of "esgrima".
+"esgrimamos" is the first person of "esgriman".
+"esgrimas" is the second person of "esgrima".
+"esgrimiera" is the past subjunctive of "esgrime".
+"esgrimieran" is the plural of "esgrimiera".
+"esgrimiéramos" is the first person of "esgrimieran".
+"esgrimieras" is the second person of "esgrimiera".
+"esgrime" is the imperative of "esgrime".
+"esgrimas" is the negative imperative of "esgrime".
+"esgrimid" is the imperative of "esgrimen".
+"esgrimáis" is the negative imperative of "esgrimen".
+"esgrimamos" is the hortative of "esgrime".
+"esgrimido" is the participle of "esgrime".
+"esgrimida" is the participle of "esgrime".
+"esgrimida" is feminine.
+"esgrimidos" is the participle of "esgrime".
+"esgrimidos" is the plural of "esgrimido".
+"esgrimidas" is the participle of "esgrime".
+"esgrimidas" is feminine.
+"esgrimidas" is the plural of "esgrimida".
+"esgrimir" is the infinitive of "esgrime".
+"esgrimiendo" is the gerund of "esgrime".
+The verb "desconoce" means "ignores".
+"desconocen" is the plural of "desconoce".
+"desconocemos" is the first person of "desconocen".
+"desconozco" is the first person of "desconoce".
+"desconoces" is the second person of "desconoce".
+"desconoció" is the past of "desconoce".
+"desconocieron" is the past of "desconocen".
+"desconocimos" is the first person of "desconocieron".
+"desconocí" is the first person of "desconoció".
+"desconociste" is the second person of "desconoció".
+"desconocía" is the past of "desconoce".
+"desconocían" is the past of "desconocen".
+"desconocíamos" is the first person of "desconocían".
+"desconocías" is the second person of "desconocía".
+"desconocerá" is the future of "desconoce".
+"desconocerán" is the plural of "desconocerá".
+"desconoceremos" is the first person of "desconocerán".
+"desconoceré" is the first person of "desconocerá".
+"desconocerás" is the second person of "desconocerá".
+"desconocería" is the conditional of "desconoce".
+"desconocerían" is the plural of "desconocería".
+"desconoceríamos" is the first person of "desconocerían".
+"desconocerías" is the second person of "desconocería".
+"desconozca" is the subjunctive of "desconoce".
+"desconozcan" is the plural of "desconozca".
+"desconozcamos" is the first person of "desconozcan".
+"desconozcas" is the second person of "desconozca".
+"desconociera" is the past subjunctive of "desconoce".
+"desconocieran" is the plural of "desconociera".
+"desconociéramos" is the first person of "desconocieran".
+"desconocieras" is the second person of "desconociera".
+"desconoce" is the imperative of "desconoce".
+"desconozcas" is the negative imperative of "desconoce".
+"desconoced" is the imperative of "desconocen".
+"desconozcáis" is the negative imperative of "desconocen".
+"desconozcamos" is the hortative of "desconoce".
+"desconocido" is the participle of "desconoce".
+"desconocida" is the participle of "desconoce".
+"desconocida" is feminine.
+"desconocidos" is the participle of "desconoce".
+"desconocidos" is the plural of "desconocido".
+"desconocidas" is the participle of "desconoce".
+"desconocidas" is feminine.
+"desconocidas" is the plural of "desconocida".
+"desconocer" is the infinitive of "desconoce".
+"desconociendo" is the gerund of "desconoce".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -122355,6 +122614,8 @@ The feminine adjective "protocolaria" means "protocolary".
 "protocolarias" is the plural of "protocolaria".
 The adjective "dispar" means "disparate".
 "dispares" is the plural of "dispar".
+The adjective "catalanista" means "catalanist".
+"catalanistas" is the plural of "catalanista".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -136746,6 +137007,12 @@ The masculine adjective "facilongo" means "easy".
 "facilongos" is the plural of "facilongo".
 The feminine adjective "facilonga" means "easy".
 "facilongas" is the plural of "facilonga".
+The masculine adjective "renovador" means "reformist".
+"renovadores" is the plural of "renovador".
+The feminine adjective "renovadora" means "reformist".
+"renovadoras" is the plural of "renovadora".
+The adjective "caciquil" means "authoritarian".
+"caciquiles" is the plural of "caciquil".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".

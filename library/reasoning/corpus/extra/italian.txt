@@ -1495,6 +1495,15 @@ The adverb "molto meno" means "much less".
 # `Levanto una barretina por RTVE': the Catalan cap, by its Catalan name
 The feminine noun "barretina" means "barretina".
 "barretine" is the plural of "barretina".
+# `por ambas partes', `entre ambos candidatos': both, the determiner -- said
+# BEFORE the conjunction `tanto' below, which means `both' too and is a
+# determiner besides (so much): after it, `ambos candidatos' came out
+# `tanti candidati'
+The masculine determiner "entrambi" means "both". "entrambi" is the plural of "entrambi".
+The feminine determiner "entrambe" means "both". "entrambe" is the plural of "entrambe".
+# ... and Italian writes the article after it: `entrambe le parti'
+"entrambi" takes the article.
+"entrambe" takes the article.
 # `tanto por ese medio siglo como por la sensibilidad': both ... and, the
 # pair Italian says as `tanto ... quanto'
 The conjunction "tanto" means "both".
@@ -1762,3 +1771,51 @@ The feminine noun "imputata" means "defendant". "imputate" is the plural of "imp
 # meaning for `aspetto' is `appearance', which Spanish writes `comparecencia'
 # after `viso'; said first, `aspect' is the meaning and the writer's `aspecto'
 The masculine noun "aspetto" means "aspect". "aspetti" is the plural of "aspetto".
+# the report on the election at Òmnium Cultural (AnCora
+# CESS-CAST-P-20020301-125), from Spanish
+# March: the dictionary pairs `marzo' with `March' and the builder does not
+# lower it, a march being a walk too (1.6.21). `marcia' is said again first,
+# so that it stays the word written for a walk, and a date's month is
+# written by the word the lesson calls a month
+The feminine noun "marcia" means "march".
+The masculine noun "marzo" means "march".
+# willingness: `volontà', which the dictionary gives as `will' and the
+# builder refuses as English's modal. Said FIRST for `willingness', where the
+# dictionary's first word is `disposizione': `volontà' is what Italian says
+The feminine noun "volontà" means "willingness". "volontà" is the plural of "volontà".
+# a town council: `comune', which the dictionary gives as two English words.
+# With no gender of its own: a lesson's gender is the WORD's, and stated as
+# the masculine noun it took the adjective `comune' with it -- the Solana
+# report's `la política exterior y de seguridad común' came out `sicurezza
+# corrente', the first word for `common' that agrees with a feminine noun
+The noun "comune" means "town council". "comuni" is the plural of "comune". "comune" is not feminine.
+# a member of an association: `socio' -- `a los 16.000 socios' and the
+# Solana report's `los demás socios comunitarios'. Said first for
+# `associate', where the supplement's `associato' came first and wrote both
+# as `associati'
+The masculine noun "socio" means "associate". "soci" is the plural of "socio". "socio" is a person.
+# sportingly
+The adverb "sportivamente" means "sportingly".
+# `el sector renovador que encabeza Jordi Porta': heads -- the dictionary's
+# first Italian word for heading something is `apre', opens. `guida' is said
+# again first as driving, so that it is read so, and heading is written by it
+The verb "guida" means "drives".
+The verb "guida" means "heads".
+# `En declaraciones a Europa Press': statements -- the dictionary's first
+# Italian word for `statement' is `enunciazione', an utterance, where a
+# newspaper's is `dichiarazione'
+The feminine noun "dichiarazione" means "statement". "dichiarazioni" is the plural of "dichiarazione".
+# ... even so
+The adverb "anche così" means "even so".
+# ... and Italian's word for it, `dopo che'
+The conjunction "dopo che" means "after".
+# ... and Italian's `consiglio direttivo'; and `la asamblea del 7 de marzo',
+# the meeting -- the dictionary's first Italian word for `assembly' is
+# `assemblaggio', putting parts together
+The masculine noun "consiglio direttivo" means "board of directors".
+The feminine noun "assemblea" means "assembly".
+# ... and Italian's `scambio di accuse'; and `con el fin de encontrar una
+# solución', to find -- the dictionary's first Italian word for `finds' is
+# `incontra', which meets
+The masculine noun "scambio di accuse" means "exchange of accusations".
+The verb "trova" means "finds".

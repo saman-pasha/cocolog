@@ -343,6 +343,7 @@ main :-
     section_48,
     section_49,
     section_50,
+    section_51,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -3989,10 +3990,6 @@ The verb "dimentica" means "forgets". "dimenticano" is the plural of "dimentica"
 "dimenticò" is the past of "dimentica". "dimenticarono" is the past of "dimenticano".
 The verb "alza" means "raises". "alzano" is the plural of "alza".').
 
-%% Duplicated at the foot of every tutorial on purpose: one you can copy
-%% anywhere and run is worth six repeated lines, and one that needs a support
-%% file beside it stops working the moment it moves.
-
 section_50 :-
     format("~n50. An Italian report into Spanish: an abbreviation and a number, a quotation in the plain mark with a reporting clause between dashes, a name before a colon, letters spaced out, which as an indirect question, a participle with its reflexive joined, a pronoun after a preposition in a subject, an accusative pronoun and the subject after its verb, a quotation that opens on an adjunct the writer moves, a quotation that closes at its comma, a condition before a relative clause's verb, a heading's phrase before a clause of since, the parties, a noun's plural that spells no verb's, a comment between two commas that says nothing, a name with its of left out, an impersonal modal, an adjective before an of phrase, a perfect's participles that never agree, an ordinal, two bare nouns, a closing mark that begins no clause, a participle in the form the source gave, the object a verb's sense counts~n", []),
     lesson_50(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
@@ -4193,6 +4190,145 @@ The verb "ritorna" means "returns".
 The verb "arriva" means "arrives". "arrivato" is the participle of "arriva". "arrivata" is the participle of "arriva".
 "arrivata" is feminine. "arrivati" is the participle of "arriva". "arrivati" is the plural of "arrivato".
 "arrivate" is the participle of "arriva". "arrivate" is feminine. "arrivate" is the plural of "arrivata". "è" is the auxiliary of "arriva".').
+
+section_51 :-
+    format("~n51. A Spanish report into Italian: a phrase whose noun was left out after the indefinite article, more than before an adjective, after, a relative clause whose article says which noun it hangs on, a subject's relative clause set off by commas, the agent after a copula's infinitive, quotation marks on a purpose, a preposition's infinitive, a gerund, a participle and an elided article, a clause with its que left out, both ... and with a pronoun, half of which between dashes, the person a relative clause is about, a purpose after a phrase, a verb of two words in the future~n", []),
+    lesson_51(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_51(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('El perro ve dos casas, una para cada gato.', spanish, italian, S51a),
+    must('the INDEFINITE ARTICLE WITH ITS NOUN LEFT OUT and a preposition after it is a phrase', S51a, 'Il cane vede due case, una per ogni gatto.'),
+    reason_translate('En el más que probable caso, el perro duerme.', spanish, english, S51b),
+    must('MORE THAN before an adjective is the adjective''s', S51b, 'In the more than probable case, the dog sleeps.'),
+    reason_translate('El perro duerme después de que el gato come el pan.', spanish, italian, S51c),
+    must('AFTER, a conjunction of three words the lesson states', S51c, 'Il cane dorme dopo che il gatto mangia il pane.'),
+    reason_translate('El perro envía una carta a los gatos en la que el pan duerme.', spanish, italian, S51d),
+    must('a relative clause whose ARTICLE is not the nearest noun''s number hangs on the noun before', S51d, 'Il cane invia una lettera ai gatti in cui il pane dorme.'),
+    reason_translate('El perro, que come el pan, duerme.', spanish, italian, S51e),
+    must('a SUBJECT''S RELATIVE CLAUSE SET OFF BY COMMAS keeps them', S51e, 'Il cane, che mangia il pane, dorme.'),
+    reason_translate('El pan debe ser comido por el perro.', spanish, italian, S51f),
+    must('a copula''s INFINITIVE and a participle are a passive, and `por'' after them its AGENT', S51f, 'Il pane deve essere mangiato dal cane.'),
+    reason_translate('El perro come el pan "para dormir".', spanish, italian, S51g),
+    must('a QUOTATION ON A PURPOSE opens on its word and closes on its infinitive', S51g, 'Il cane mangia il pane "per dormire".'),
+    reason_translate('El perro está "comiendo" el pan.', spanish, italian, S51h),
+    must('... and on a progressive''s GERUND', S51h, 'Il cane sta "mangiando" il pane.'),
+    reason_translate('La "única casa" duerme.', spanish, italian, S51i),
+    must('an ELIDED ARTICLE before a word that opens a quotation keeps the mark between them', S51i, 'L''"unica casa" dorme.'),
+    reason_translate('Maria agrega el perro duerme.', spanish, italian, S51j),
+    must('a clause with its QUE LEFT OUT after a verb the lesson says takes the clause', S51j, 'Maria aggiunge che il cane dorme.'),
+    reason_translate('Tanto él como el gato duermen.', spanish, english, S51k),
+    must('BOTH ... AND with a pronoun that stands alone', S51k, 'Both he and the cat sleep.'),
+    reason_translate('Los perros - - la mitad de los cuales duermen - - comen el pan.', spanish, italian, S51l),
+    must('HALF OF WHICH between dashes: the relative takes the article of the noun it stands for', S51l, 'I cani – la metà dei quali dormono – mangiano il pane.'),
+    reason_translate('Maria, a quien el perro ve, duerme.', spanish, italian, S51m),
+    must('the PERSON A RELATIVE CLAUSE IS ABOUT, where the clause has a subject and no object of its own', S51m, 'Maria, che il cane vede, dorme.'),
+    reason_translate('El perro come con el gato con el fin de dormir.', spanish, italian, S51n),
+    must('a PURPOSE WORD OF SEVERAL WORDS after a phrase ends the phrase', S51n, 'Il cane mangia con il gatto per dormire.'),
+    reason_translate('El perro informará el pan.', spanish, italian, S51o),
+    must('a VERB OF SEVERAL WORDS is made by its first word', S51o, 'Il cane farà sapere il pane.'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_51(L, Text) :- lesson_51(L, 1, A), lesson_51(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_51(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+The feminine determiner "una" means "some". "unas" is the plural of "una".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every verb that ends in "e" takes "n" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The noun "perro" means "dog". The noun "gato" means "cat". The noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The feminine noun "carta" means "letter".
+The masculine noun "caso" means "case". "caso" is the first person of "casa".
+The feminine noun "mitad" means "half". "mitades" is the plural of "mitad".
+The masculine noun "miembro" means "member". "miembro" is a person.
+The adjective "probable" means "probable". The masculine adjective "grande" means "big". "grandes" is the plural of "grande".
+The masculine adjective "único" means "only". The feminine adjective "única" means "only".
+The determiner "cada" means "each". The determiner "cada" means "every".
+The number "dos" means "two".
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative. The conjunction "que" means "than".
+The conjunction "pero" means "but". The conjunction "después de que" means "after".
+The adverb "después" means "afterwards". The adverb "después" means "after".
+The word "quien" begins the relative. "quien" is a relative.
+The relative "el cual" means "which". The relative "la cual" means "which".
+The relative "los cuales" means "which". The relative "las cuales" means "which".
+The word "más" begins the comparative. The adverb "más" means "more". The preposition "más" means "plus".
+The word "para" begins the purpose. The preposition "para" means "for". The intransitive verb "para" means "stops".
+The word "con el fin de" begins the purpose.
+The preposition "en" means "in". The preposition "de" means "of". The preposition "por" means "by". The preposition "por" means "for".
+The preposition "a" means "to". The preposition "con" means "with".
+The pronoun "él" means "he". The pronoun "él" means "him". The pronoun "él" does not precede the verb.
+The pronoun "lo" means "it". The pronoun "lo" means "him". The pronoun "la" means "her". The pronoun "la" means "it".
+The masculine determiner "tanto" means "so much". The conjunction "tanto" means "both". "como" is the partner of "tanto".
+"como" is the first person of "come". The preposition "como" means "like". The preposition "como" means "as".').
+
+lesson_51(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+"comido" is the participle of "come". "comiendo" is the gerund of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The auxiliary "está" means "is". "están" is the plural of "está". The auxiliary "está" marks the state.
+The auxiliary "ha" means "has". "han" is the plural of "ha".
+The modal "debe" means "must". "deben" is the plural of "debe".
+The verb "agrega" means "adds". "agrega" takes the clause.
+The verb "acusa" means "accuses". The verb "envía" means "sends". The verb "da" means "gives".
+The verb "une" means "unites". "una" is the subjunctive of "une".
+The verb "informa" means "reports". "informará" is the future of "informa".').
+
+lesson_51(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il".
+"della" is the contraction of "di la". "al" is the contraction of "a il". "ai" is the contraction of "a i".
+"dei" is the contraction of "di i". "dal" is the contraction of "da il".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The noun "pane" means "bread".
+The feminine noun "casa" means "house". "case" is the plural of "casa". The feminine noun "lettera" means "letter".
+The masculine noun "caso" means "case".
+The feminine noun "metà" means "half". The masculine noun "membro" means "member". "membro" is a person.
+The adjective "probabile" means "probable". The masculine adjective "grande" means "big".
+The masculine adjective "unico" means "only". The feminine adjective "unica" means "only".
+The determiner "ogni" means "each". The determiner "ogni" means "every".
+The number "due" means "two".
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative. The word "che" means "than".
+The conjunction "ma" means "but". The conjunction "dopo che" means "after".
+"cui" is a relative. The word "cui" follows the preposition.
+"quale" is a relative. "quali" is a relative. "quali" is the plural of "quale".
+The word "più" begins the comparative. The adverb "più" means "more".
+The word "per" begins the purpose. The preposition "per" means "for".
+The word "al fine di" begins the purpose.
+The preposition "in" means "in". The preposition "di" means "of". The preposition "da" means "by".
+The preposition "a" means "to". The preposition "con" means "with".
+The pronoun "lui" means "he". The pronoun "lui" means "him". The pronoun "lui" does not precede the verb.
+The pronoun "lo" means "it". The pronoun "lo" means "him". The pronoun "la" means "her". The pronoun "la" means "it".
+The masculine determiner "tanto" means "so much". The conjunction "tanto" means "both". "quanto" is the partner of "tanto".
+The relative "il quale" means "who". The relative "la quale" means "who". The relative "i quali" means "who". The relative "le quali" means "who".').
+
+lesson_51(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+"mangiato" is the participle of "mangia". "mangiando" is the gerund of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è".
+"stato" is the participle of "è". "è" is the auxiliary of "è".
+The auxiliary "sta" means "is". "stanno" is the plural of "sta".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha".
+The modal "deve" means "must". "devono" is the plural of "deve".
+The verb "aggiunge" means "adds".
+The verb "accusa" means "accuses". The verb "invia" means "sends". The verb "dà" means "gives".
+The verb "fa" means "makes". "farà" is the future of "fa". The verb "fa sapere" means "reports".').
+
+%% Duplicated at the foot of every tutorial on purpose: one you can copy
+%% anywhere and run is worth six repeated lines, and one that needs a support
+%% file beside it stops working the moment it moves.
 
 show(Label, Value) :- format("   ~w = ~q~n", [Label, Value]).
 
