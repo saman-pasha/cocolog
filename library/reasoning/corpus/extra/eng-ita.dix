@@ -614,3 +614,31 @@
 # needs; apertium-ita carries `calcolare' and the bilingual pairs it with
 # nothing
 <e><p><l>calculate<s n="vblex"/></l><r>calcolare<s n="vblex"/></r></p></e>
+# the report on Ciampi sending back the law on unappealability (UD VIT
+# VIT-9926..9946), into Spanish: words apertium-ita carries and the
+# bilingual pairs with nothing
+# `appare inspiegabile': inexplicable
+<e><p><l>inexplicable<s n="adj"/></l><r>inspiegabile<s n="adj"/></r></p></e>
+# `le ragioni di incostituzionalità': unconstitutionality
+<e><p><l>unconstitutionality<s n="n"/></l><r>incostituzionalità<s n="n"/><s n="f"/></r></p></e>
+# `è palesemente incostituzionale': unconstitutional, which the bilingual
+# has only as the adverb
+<e><p><l>unconstitutional<s n="adj"/></l><r>incostituzionale<s n="adj"/></r></p></e>
+# `delle sentenze di proscioglimento': acquittal
+<e><p><l>acquittal<s n="n"/></l><r>proscioglimento<s n="n"/><s n="m"/></r></p></e>
+# `in palese contrasto': obvious -- read only, so `ovvio' is still the word
+# written for it
+<e r="RL"><p><l>obvious<s n="adj"/></l><r>palese<s n="adj"/></r></p></e>
+# `ha rinviato la legge', `il rinvio': to send back, which is to return a
+# thing, and its noun -- read only, `ritornare' and `ritorno' are written
+<e r="RL"><p><l>return<s n="vblex"/></l><r>rinviare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>return<s n="n"/></l><r>rinvio<s n="n"/><s n="m"/></r></p></e>
+# `la parte lesa': aggrieved
+<e><p><l>aggrieved<s n="adj"/></l><r>leso<s n="adj"/></r></p></e>
+# `possa recare un vulnus': causes, and a harm -- read only, `causare' and
+# `danno' are written
+<e r="RL"><p><l>cause<s n="vblex"/></l><r>recare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>harm<s n="n"/></l><r>vulnus<s n="n"/><s n="m"/></r></p></e>
+# `il principio di uguaglianza': equality -- read only, `eguaglianza' is
+# written
+<e r="RL"><p><l>equality<s n="n"/></l><r>uguaglianza<s n="n"/><s n="f"/></r></p></e>

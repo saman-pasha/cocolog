@@ -1656,3 +1656,32 @@ The verb "calcola" means "calculates".
 # `aparta unas grandes piedras': stones, and the dictionary's first Italian
 # word for a stone is `osso', the stone of a fruit and first of all a bone
 The feminine noun "pietra" means "stone".
+# the report on Ciampi sending back the law on unappealability (UD VIT
+# VIT-9926..9946), into Spanish: `sulla inappellabilità', which no
+# dictionary here carries
+The feminine noun "inappellabilità" means "unappealability".
+"inappellabilità" is the plural of "inappellabilità".
+# `un insostenibile aggravio di lavoro': an increase, which apertium-ita does
+# not carry. The dictionary's first Italian word for an increase is said
+# again first, so that `aggravio' is not the word written for one
+The masculine noun "aumento" means "increase".
+The masculine noun "aggravio" means "increase".
+"aggravi" is the plural of "aggravio".
+# `al precetto costituzionale': a precept, which apertium-ita carries only as
+# an adjective
+The masculine noun "precetto" means "precept".
+"precetti" is the plural of "precetto".
+# `insieme alla gran parte': the apocope of `grande'
+"gran" is the apocope of "grande".
+# `appare inspiegabile quali possano essere': the plural of the question
+# word, which the grammar file gives in the singular
+"quali" is the plural of "quale".
+# `il vice presidente del consiglio superiore': the vice-president, written
+# as two words, where apertium-ita carries one
+The masculine noun "vice presidente" means "vice-president".
+"vice presidenti" is the plural of "vice presidente".
+# `della cosiddetta Pecorella': so-called, which the builder cannot take
+# from the dictionary -- it admits an English word of letters, and this one
+# has a hyphen
+The masculine adjective "cosiddetto" means "so-called". "cosiddetti" is the plural of "cosiddetto".
+The feminine adjective "cosiddetta" means "so-called". "cosiddette" is the plural of "cosiddetta".

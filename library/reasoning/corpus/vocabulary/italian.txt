@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16311 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16322 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -966,6 +966,19 @@ The masculine noun "hobbit" means "hobbit".
 "hobbit" is the plural of "hobbit".
 The verb "calcola" means "calculates".
 The feminine noun "pietra" means "stone".
+The feminine noun "inappellabilità" means "unappealability".
+"inappellabilità" is the plural of "inappellabilità".
+The masculine noun "aumento" means "increase".
+The masculine noun "aggravio" means "increase".
+"aggravi" is the plural of "aggravio".
+The masculine noun "precetto" means "precept".
+"precetti" is the plural of "precetto".
+"gran" is the apocope of "grande".
+"quali" is the plural of "quale".
+The masculine noun "vice presidente" means "vice-president".
+"vice presidenti" is the plural of "vice presidente".
+The masculine adjective "cosiddetto" means "so-called". "cosiddetti" is the plural of "cosiddetto".
+The feminine adjective "cosiddetta" means "so-called". "cosiddette" is the plural of "cosiddetta".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1069,6 +1082,10 @@ The feminine noun "prodezza" means "exploit".
 "prodezze" is the plural of "prodezza".
 The masculine noun "spaventapasseri" means "scarecrow".
 "spaventapasseri" is the plural of "spaventapasseri".
+The feminine noun "incostituzionalità" means "unconstitutionality".
+"incostituzionalità" is the plural of "incostituzionalità".
+The masculine noun "proscioglimento" means "acquittal".
+"proscioglimenti" is the plural of "proscioglimento".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -16143,6 +16160,12 @@ The masculine noun "malore" means "fainting".
 "malori" is the plural of "malore".
 The masculine noun "risarcimento" means "compensation".
 "risarcimenti" is the plural of "risarcimento".
+The masculine noun "rinvio" means "return".
+"rinvii" is the plural of "rinvio".
+The masculine noun "vulnus" means "harm".
+"vulnera" is the plural of "vulnus".
+The feminine noun "uguaglianza" means "equality".
+"uguaglianze" is the plural of "uguaglianza".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -90780,6 +90803,100 @@ The verb "fruga" means "rummages".
 "frugate" is the plural of "frugata".
 "frugare" is the infinitive of "fruga".
 "frugando" is the gerund of "fruga".
+The verb "rinvia" means "returns".
+"rinviano" is the plural of "rinvia".
+"rinviiamo" is the first person of "rinviano".
+"rinvio" is the first person of "rinvia".
+"rinvii" is the second person of "rinvia".
+"rinviò" is the past of "rinvia".
+"rinviarono" is the past of "rinviano".
+"rinviammo" is the first person of "rinviarono".
+"rinviai" is the first person of "rinviò".
+"rinviasti" is the second person of "rinviò".
+"rinviava" is the past of "rinvia".
+"rinviavano" is the past of "rinviano".
+"rinviavamo" is the first person of "rinviavano".
+"rinviavo" is the first person of "rinviava".
+"rinviavi" is the second person of "rinviava".
+"rinvierà" is the future of "rinvia".
+"rinvieranno" is the plural of "rinvierà".
+"rinvieremo" is the first person of "rinvieranno".
+"rinvierò" is the first person of "rinvierà".
+"rinvierai" is the second person of "rinvierà".
+"rinvierebbe" is the conditional of "rinvia".
+"rinvierebbero" is the plural of "rinvierebbe".
+"rinvieremmo" is the first person of "rinvierebbero".
+"rinvierei" is the first person of "rinvierebbe".
+"rinvieresti" is the second person of "rinvierebbe".
+"rinvii" is the subjunctive of "rinvia".
+"rinviino" is the plural of "rinvii".
+"rinviiamo" is the first person of "rinviino".
+"rinviasse" is the past subjunctive of "rinvia".
+"rinviassero" is the plural of "rinviasse".
+"rinviassimo" is the first person of "rinviassero".
+"rinviassi" is the first person of "rinviasse".
+"rinviassi" is the second person of "rinviasse".
+"rinvia" is the imperative of "rinvia".
+"rinviare" is the negative imperative of "rinvia".
+"rinviate" is the imperative of "rinviano".
+"rinviiamo" is the hortative of "rinvia".
+"rinviato" is the participle of "rinvia".
+"rinviata" is the participle of "rinvia".
+"rinviata" is feminine.
+"rinviati" is the participle of "rinvia".
+"rinviati" is the plural of "rinviato".
+"rinviate" is the participle of "rinvia".
+"rinviate" is feminine.
+"rinviate" is the plural of "rinviata".
+"rinviare" is the infinitive of "rinvia".
+"rinviando" is the gerund of "rinvia".
+The verb "reca" means "causes".
+"recano" is the plural of "reca".
+"rechiamo" is the first person of "recano".
+"reco" is the first person of "reca".
+"rechi" is the second person of "reca".
+"recò" is the past of "reca".
+"recarono" is the past of "recano".
+"recammo" is the first person of "recarono".
+"recai" is the first person of "recò".
+"recasti" is the second person of "recò".
+"recava" is the past of "reca".
+"recavano" is the past of "recano".
+"recavamo" is the first person of "recavano".
+"recavo" is the first person of "recava".
+"recavi" is the second person of "recava".
+"recherà" is the future of "reca".
+"recheranno" is the plural of "recherà".
+"recheremo" is the first person of "recheranno".
+"recherò" is the first person of "recherà".
+"recherai" is the second person of "recherà".
+"recherebbe" is the conditional of "reca".
+"recherebbero" is the plural of "recherebbe".
+"recheremmo" is the first person of "recherebbero".
+"recherei" is the first person of "recherebbe".
+"recheresti" is the second person of "recherebbe".
+"rechi" is the subjunctive of "reca".
+"rechino" is the plural of "rechi".
+"rechiamo" is the first person of "rechino".
+"recasse" is the past subjunctive of "reca".
+"recassero" is the plural of "recasse".
+"recassimo" is the first person of "recassero".
+"recassi" is the first person of "recasse".
+"recassi" is the second person of "recasse".
+"reca" is the imperative of "reca".
+"recare" is the negative imperative of "reca".
+"recate" is the imperative of "recano".
+"rechiamo" is the hortative of "reca".
+"recato" is the participle of "reca".
+"recata" is the participle of "reca".
+"recata" is feminine.
+"recati" is the participle of "reca".
+"recati" is the plural of "recato".
+"recate" is the participle of "reca".
+"recate" is feminine.
+"recate" is the plural of "recata".
+"recare" is the infinitive of "reca".
+"recando" is the gerund of "reca".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -96049,6 +96166,26 @@ The masculine adjective "innevato" means "snowy".
 "innevati" is the plural of "innevato".
 The feminine adjective "innevata" means "snowy".
 "innevate" is the plural of "innevata".
+The adjective "inspiegabile" means "inexplicable".
+"inspiegabili" is the plural of "inspiegabile".
+"inspiegabilissimo" is the superlative of "inspiegabile".
+"inspiegabilissimi" is the superlative of "inspiegabili".
+"inspiegabilissima" is the superlative of "inspiegabile".
+"inspiegabilissime" is the superlative of "inspiegabili".
+The adjective "incostituzionale" means "unconstitutional".
+"incostituzionali" is the plural of "incostituzionale".
+"incostituzionalissimo" is the superlative of "incostituzionale".
+"incostituzionalissimi" is the superlative of "incostituzionali".
+"incostituzionalissima" is the superlative of "incostituzionale".
+"incostituzionalissime" is the superlative of "incostituzionali".
+The masculine adjective "leso" means "aggrieved".
+"lesi" is the plural of "leso".
+The feminine adjective "lesa" means "aggrieved".
+"lese" is the plural of "lesa".
+"lesissimo" is the superlative of "leso".
+"lesissimi" is the superlative of "lesi".
+"lesissima" is the superlative of "lesa".
+"lesissime" is the superlative of "lese".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -111924,6 +112061,8 @@ The feminine adjective "nota" means "famous".
 "notissimi" is the superlative of "noti".
 "notissima" is the superlative of "nota".
 "notissime" is the superlative of "note".
+The adjective "palese" means "obvious".
+"palesi" is the plural of "palese".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

@@ -318,3 +318,10 @@
 # second, which is no lemma the monolingual has; read only
 <e r="RL"><p><l>sneak<s n="vblex"/></l><r>colar<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>wobble<s n="vblex"/></l><r>tambalear<s n="vblex"/></r></p></e>
+# the report on Ciampi sending back the law on unappealability (UD VIT
+# VIT-9926..9946), from Italian: the Spanish word for a meaning the Italian
+# one has and Spanish had none for. apertium-spa carries each and the
+# bilingual pairs it with nothing; written only, so no Spanish text reads
+# any word otherwise
+<e r="LR"><p><l>inexplicable<s n="adj"/></l><r>inexplicable<s n="adj"/></r></p></e>
+<e r="LR"><p><l>acquittal<s n="n"/></l><r>absolución<s n="n"/><s n="f"/></r></p></e>

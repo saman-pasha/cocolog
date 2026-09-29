@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20291 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20293 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -676,6 +676,20 @@ The masculine noun "decorado" means "scenography".
 "decorados" is the plural of "decorado".
 The feminine noun "lucha" means "fight".
 The feminine noun "pelea" means "fight".
+The feminine noun "inapelabilidad" means "unappealability".
+"inapelabilidades" is the plural of "inapelabilidad".
+The feminine noun "inconstitucionalidad" means "unconstitutionality".
+"inconstitucionalidades" is the plural of "inconstitucionalidad".
+The masculine noun "vicepresidente" means "vice-president".
+"vicepresidentes" is the plural of "vicepresidente".
+The masculine adjective "perjudicado" means "aggrieved".
+"perjudicados" is the plural of "perjudicado".
+The feminine adjective "perjudicada" means "aggrieved".
+"perjudicadas" is the plural of "perjudicada".
+The verb "regresa" means "returns".
+The transitive verb "devuelve" means "returns".
+The masculine adjective "denominado" means "so-called". "denominados" is the plural of "denominado".
+The feminine adjective "denominada" means "so-called". "denominadas" is the plural of "denominada".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -24811,6 +24825,7 @@ The masculine noun "piamontés" means "piedmontese".
 "piamonteses" is the plural of "piamontés".
 The feminine noun "piamontesa" means "piedmontese".
 "piamontesas" is the plural of "piamontesa".
+The feminine noun "absolución" means "acquittal".
 The masculine noun "testamento" means "testament".
 "testamentos" is the plural of "testamento".
 The masculine noun "personaje" means "personage".
@@ -137532,6 +137547,8 @@ The masculine adjective "balneario" means "balneal".
 "balnearios" is the plural of "balneario".
 The feminine adjective "balnearia" means "balneal".
 "balnearias" is the plural of "balnearia".
+The adjective "inexplicable" means "inexplicable".
+"inexplicables" is the plural of "inexplicable".
 The masculine adjective "repentino" means "abrupt".
 The feminine adjective "repentina" means "abrupt".
 The masculine adjective "íntegro" means "upright".

@@ -1226,3 +1226,28 @@ The masculine noun "decorado" means "scenography".
 # said again first, so that `pelea' is not Spanish's first word for one
 The feminine noun "lucha" means "fight".
 The feminine noun "pelea" means "fight".
+# the report on Ciampi sending back the law on unappealability (UD VIT
+# VIT-9926..9946), into Spanish: the words for meanings the Italian ones
+# have and no dictionary here gives Spanish
+The feminine noun "inapelabilidad" means "unappealability".
+"inapelabilidades" is the plural of "inapelabilidad".
+The feminine noun "inconstitucionalidad" means "unconstitutionality".
+"inconstitucionalidades" is the plural of "inconstitucionalidad".
+The masculine noun "vicepresidente" means "vice-president".
+"vicepresidentes" is the plural of "vicepresidente".
+# `la parte lesa': the aggrieved party, `la parte perjudicada' -- the
+# participle of `perjudicar' said as the adjective it is here
+The masculine adjective "perjudicado" means "aggrieved".
+"perjudicados" is the plural of "perjudicado".
+The feminine adjective "perjudicada" means "aggrieved".
+"perjudicadas" is the plural of "perjudicada".
+# `ha rinviato la legge': returns a thing, which the dictionary's first
+# Spanish word for returning, `regresa', does not do. The dictionary's
+# first word is said again first, so that it stays the one written where
+# nothing is returned
+The verb "regresa" means "returns".
+The transitive verb "devuelve" means "returns".
+# `della cosiddetta Pecorella': so-called, `la denominada' -- a line, because
+# the builder admits an English word of letters and this one has a hyphen
+The masculine adjective "denominado" means "so-called". "denominados" is the plural of "denominado".
+The feminine adjective "denominada" means "so-called". "denominadas" is the plural of "denominada".
