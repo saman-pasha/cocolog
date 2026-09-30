@@ -231,7 +231,9 @@
 
            ;; ---- an id is a name, Name/Index, or local(...) ----
            "clay_id(local(Id), N, I, 1) :- !, clay_id(Id, N, I, _)."
-           "clay_id(N/I, N, I, 0) :- !, atom(N), integer(I)."
+           ;; the checks BEFORE the cut: an index that is no integer (`row/'Italy'')
+           ;; is a type error naming the id, never a silent failure of the frame
+           "clay_id(N/I, N, I, 0) :- atom(N), integer(I), !."
            "clay_id(N, N, 0, 0) :- atom(N), !."
            "clay_id(Id, _, _, _) :- throw(error(type_error(clay_id, Id), clay_id/4))."
            "clay_box(Id, X, Y, W, H) :- clay_id(Id, N, I, L), '$clay_box'(N, I, L, X, Y, W, H)."

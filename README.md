@@ -145,6 +145,10 @@ tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        processes each), opencv/ (twenty-three lessons
                        of image processing). `cocolog -s test/tutorials.pl'
 demo/family.pl         something to run it on
+demo/clay-widgets.pl   a window of every shape library(clay) lays out --
+                       menu, cards with tooltips, progress bars, a counter
+                       and a switch, a table in a scroll container, an
+                       image, a custom element -- the world as clauses
 emacs/                 cocolog-mode: a Prolog major mode with colours for
                        variables and execution graphs drawn under the rules,
                        its engine held to this interpreter
