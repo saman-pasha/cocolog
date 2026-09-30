@@ -694,3 +694,30 @@
 <e r="RL"><p><l>capsule<s n="n"/></l><r>navicella<s n="n"/><s n="f"/></r></p></e>
 <e r="RL"><p><l>detector<s n="n"/></l><r>rilevatore<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>stimulate<s n="vblex"/></l><r>stimolare<s n="vblex"/></r></p></e>
+# the report on Senegal's win over France at the 2002 World Cup (AnCora
+# CESS-CAST-P-20020601-51), from Spanish: words apertium-ita carries and the
+# bilingual pairs with nothing
+<e><p><l>captivating<s n="adj"/></l><r>accattivante<s n="adj"/></r></p></e>
+<e><p><l>convalescent<s n="adj"/></l><r>convalescente<s n="adj"/></r></p></e>
+<e><p><l>unexplored<s n="adj"/></l><r>inesplorato<s n="adj"/></r></p></e>
+<e><p><l>unstoppable<s n="adj"/></l><r>inarrestabile<s n="adj"/></r></p></e>
+<e><p><l>desolate<s n="adj"/></l><r>desolato<s n="adj"/></r></p></e>
+<e><p><l>inexhaustible<s n="adj"/></l><r>inesauribile<s n="adj"/></r></p></e>
+<e><p><l>taint<s n="vblex"/></l><r>macchiare<s n="vblex"/></r></p></e>
+# `un emocionado Bruno Metsu', a thrilled one: the bilingual pairs
+# `emozionare' with nothing; and `Francia estaba hundida', sunk -- `sink' is
+# `colare a picco' there, three words the builder reads as none
+<e><p><l>thrill<s n="vblex"/></l><r>emozionare<s n="vblex"/></r></p></e>
+<e><p><l>sink<s n="vblex"/></l><r>affondare<s n="vblex"/></r></p></e>
+# `ridiculizaron al campeón': the bilingual pairs `ridicolizzare' with nothing
+<e><p><l>ridicule<s n="vblex"/></l><r>ridicolizzare<s n="vblex"/></r></p></e>
+# ... and written only: `la gesta conseguida', the feat, is an `impresa',
+# which reads as a company everywhere
+<e r="LR"><p><l>feat<s n="n"/></l><r>impresa<s n="n"/><s n="f"/></r></p></e>
+# ... and written only: `dispone del capital más valioso', the most valuable
+# capital -- the bilingual pairs `valuable' with nothing, and `prezioso' stays
+# precious when read; `millones de personas esparcidas por el planeta',
+# scattered -- the bilingual pairs `scatter' with nothing either, and read,
+# `sparso' would leave `sparire' for it
+<e r="LR"><p><l>valuable<s n="adj"/></l><r>prezioso<s n="adj"/></r></p></e>
+<e r="LR"><p><l>scatter<s n="vblex"/></l><r>spargere<s n="vblex"/></r></p></e>

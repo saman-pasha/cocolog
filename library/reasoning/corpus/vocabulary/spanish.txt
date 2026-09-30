@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20309 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20320 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -748,6 +748,43 @@ The verb "llega a ser" means "becomes".
 The adverb "aún antes" means "even earlier".
 The verb "dirige" means "directs".
 The verb "dirige" means "addresses".
+"habíamos" is the first person of "habían".
+"habías" is the second person of "había".
+The adverb "delante" means "in front".
+The adverb "en un santiamén" means "in an instant".
+The masculine adjective "destrozado" means "shattered".
+The feminine adjective "destrozada" means "shattered".
+The masculine adjective "hecho añicos" means "shattered".
+The feminine adjective "hecha añicos" means "shattered".
+"hechos añicos" is the plural of "hecho añicos".
+"hechas añicos" is the plural of "hecha añicos".
+The feminine noun "grandeur" means "grandeur".
+The masculine noun "bonvivant" means "bon vivant".
+The masculine noun "león" means "lion".
+The masculine noun "les lions" means "lion". "les lions" is the plural of "les lions".
+"les lions" is a name.
+"llega" is intransitive.
+"tenido que" is the participle of "tiene que".
+"tuvo que" is the past of "tiene que".
+"tuvieron que" is the past of "tienen que".
+The masculine determiner "cuyo" means "whose".
+The feminine determiner "cuya" means "whose".
+"cuyos" is the plural of "cuyo".
+"cuyas" is the plural of "cuya".
+"cuyo" is a relative.
+"cuya" is a relative.
+"cuyos" is a relative.
+"cuyas" is a relative.
+The adverb "paso a paso" means "step by step".
+The preposition "así como" means "just like".
+The conjunction "así como" means "just as".
+The adverb "más bien" means "rather".
+"menudo" is exclamative.
+"menuda" is exclamative.
+"menudos" is exclamative.
+"menudas" is exclamative.
+"pregunta" takes "por" before the question.
+The feminine noun "vista" means "sight".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -19948,6 +19985,8 @@ The masculine noun "aperturismo" means "opening".
 "aperturismos" is the plural of "aperturismo".
 The feminine noun "velada" means "evening".
 "veladas" is the plural of "velada".
+The feminine noun "gesta" means "feat".
+"gestas" is the plural of "gesta".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -26992,6 +27031,98 @@ The verb "instituye" means "institutes".
 "instituidas" is the plural of "instituida".
 "instituir" is the infinitive of "instituye".
 "instituyendo" is the gerund of "instituye".
+The verb "carece" means "lacks".
+"carecen" is the plural of "carece".
+"carecemos" is the first person of "carecen".
+"carezco" is the first person of "carece".
+"careces" is the second person of "carece".
+"careció" is the past of "carece".
+"carecieron" is the past of "carecen".
+"carecimos" is the first person of "carecieron".
+"carecí" is the first person of "careció".
+"careciste" is the second person of "careció".
+"carecía" is the past of "carece".
+"carecían" is the past of "carecen".
+"carecíamos" is the first person of "carecían".
+"carecías" is the second person of "carecía".
+"carecerá" is the future of "carece".
+"carecerán" is the plural of "carecerá".
+"careceremos" is the first person of "carecerán".
+"careceré" is the first person of "carecerá".
+"carecerás" is the second person of "carecerá".
+"carecería" is the conditional of "carece".
+"carecerían" is the plural of "carecería".
+"careceríamos" is the first person of "carecerían".
+"carecerías" is the second person of "carecería".
+"carezca" is the subjunctive of "carece".
+"carezcan" is the plural of "carezca".
+"carezcamos" is the first person of "carezcan".
+"carezcas" is the second person of "carezca".
+"careciera" is the past subjunctive of "carece".
+"carecieran" is the plural of "careciera".
+"careciéramos" is the first person of "carecieran".
+"carecieras" is the second person of "careciera".
+"carece" is the imperative of "carece".
+"carezcas" is the negative imperative of "carece".
+"careced" is the imperative of "carecen".
+"carezcáis" is the negative imperative of "carecen".
+"carezcamos" is the hortative of "carece".
+"carecido" is the participle of "carece".
+"carecida" is the participle of "carece".
+"carecida" is feminine.
+"carecidos" is the participle of "carece".
+"carecidos" is the plural of "carecido".
+"carecidas" is the participle of "carece".
+"carecidas" is feminine.
+"carecidas" is the plural of "carecida".
+"carecer" is the infinitive of "carece".
+"careciendo" is the gerund of "carece".
+The verb "salpica" means "taints".
+"salpican" is the plural of "salpica".
+"salpicamos" is the first person of "salpican".
+"salpico" is the first person of "salpica".
+"salpicas" is the second person of "salpica".
+"salpicó" is the past of "salpica".
+"salpicaron" is the past of "salpican".
+"salpicamos" is the first person of "salpicaron".
+"salpiqué" is the first person of "salpicó".
+"salpicaste" is the second person of "salpicó".
+"salpicaba" is the past of "salpica".
+"salpicaban" is the past of "salpican".
+"salpicábamos" is the first person of "salpicaban".
+"salpicabas" is the second person of "salpicaba".
+"salpicará" is the future of "salpica".
+"salpicarán" is the plural of "salpicará".
+"salpicaremos" is the first person of "salpicarán".
+"salpicaré" is the first person of "salpicará".
+"salpicarás" is the second person of "salpicará".
+"salpicaría" is the conditional of "salpica".
+"salpicarían" is the plural of "salpicaría".
+"salpicaríamos" is the first person of "salpicarían".
+"salpicarías" is the second person of "salpicaría".
+"salpique" is the subjunctive of "salpica".
+"salpiquen" is the plural of "salpique".
+"salpiquemos" is the first person of "salpiquen".
+"salpiques" is the second person of "salpique".
+"salpicara" is the past subjunctive of "salpica".
+"salpicaran" is the plural of "salpicara".
+"salpicáramos" is the first person of "salpicaran".
+"salpicaras" is the second person of "salpicara".
+"salpica" is the imperative of "salpica".
+"salpiques" is the negative imperative of "salpica".
+"salpicad" is the imperative of "salpican".
+"salpiquéis" is the negative imperative of "salpican".
+"salpiquemos" is the hortative of "salpica".
+"salpicado" is the participle of "salpica".
+"salpicada" is the participle of "salpica".
+"salpicada" is feminine.
+"salpicados" is the participle of "salpica".
+"salpicados" is the plural of "salpicado".
+"salpicadas" is the participle of "salpica".
+"salpicadas" is feminine.
+"salpicadas" is the plural of "salpicada".
+"salpicar" is the infinitive of "salpica".
+"salpicando" is the gerund of "salpica".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -122685,6 +122816,26 @@ The adjective "dispar" means "disparate".
 "dispares" is the plural of "dispar".
 The adjective "catalanista" means "catalanist".
 "catalanistas" is the plural of "catalanista".
+The masculine adjective "cautivador" means "captivating".
+"cautivadores" is the plural of "cautivador".
+The feminine adjective "cautivadora" means "captivating".
+"cautivadoras" is the plural of "cautivadora".
+The adjective "convaleciente" means "convalescent".
+"convalecientes" is the plural of "convaleciente".
+The masculine adjective "inexplorado" means "unexplored".
+"inexplorados" is the plural of "inexplorado".
+The feminine adjective "inexplorada" means "unexplored".
+"inexploradas" is the plural of "inexplorada".
+The adjective "imparable" means "unstoppable".
+"imparables" is the plural of "imparable".
+The adjective "sensacional" means "sensational".
+"sensacionales" is the plural of "sensacional".
+The masculine adjective "desolado" means "desolate".
+"desolados" is the plural of "desolado".
+The feminine adjective "desolada" means "desolate".
+"desoladas" is the plural of "desolada".
+The adjective "inagotable" means "inexhaustible".
+"inagotables" is the plural of "inagotable".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -137082,6 +137233,14 @@ The feminine adjective "renovadora" means "reformist".
 "renovadoras" is the plural of "renovadora".
 The adjective "caciquil" means "authoritarian".
 "caciquiles" is the plural of "caciquil".
+The masculine adjective "cruento" means "bloody".
+"cruentos" is the plural of "cruento".
+The feminine adjective "cruenta" means "bloody".
+"cruentas" is the plural of "cruenta".
+"cruentísimas" is the superlative of "cruentas".
+"cruentísima" is the superlative of "cruenta".
+"cruentísimos" is the superlative of "cruentos".
+"cruentísimo" is the superlative of "cruento".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".
