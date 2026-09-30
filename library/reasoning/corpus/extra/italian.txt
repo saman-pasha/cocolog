@@ -1819,3 +1819,34 @@ The feminine noun "assemblea" means "assembly".
 # `incontra', which meets
 The masculine noun "scambio di accuse" means "exchange of accusations".
 The verb "trova" means "finds".
+# the report on the course in astronautics at La Sapienza (the Italian UD
+# VIT document VIT-9947..9966), into Spanish -- words apertium-ita does not
+# carry: `conoscenze ... di tipo tecnico ingegneristico', and `con stage di
+# una giornata', an internship of a day
+The masculine adjective "ingegneristico" means "engineering".
+"ingegneristici" is the plural of "ingegneristico".
+The feminine adjective "ingegneristica" means "engineering".
+"ingegneristiche" is the plural of "ingegneristica".
+The masculine noun "stage" means "internship". "stage" is the plural of "stage".
+# `È nell'università e ancor prima, nella scuola': the apocope of `ancora'
+"ancor" is the apocope of "ancora".
+# `la possibilità offerta dall'università, che spero si concretizzi': which I
+# hope materialises -- `sperare' takes a clause with its `che' left out
+"spera" takes the clause.
+# `la facoltà di medicina' is the faculty of medicine, and the dictionary
+# reads `medicina' as a doctor first; `farmaco' is said again above it, so
+# that it stays the word written for a medicine
+The masculine noun "farmaco" means "medicine".
+The feminine noun "medicina" means "medicine".
+# `Fino ad oggi in Europa esiste un solo centro' -- until today. `ad' is `a'
+# before a vowel, so the word of two `fino a' did not join it, and `Fino ad'
+# was an adjective and the Fiat report's chief executive
+The preposition "fino ad" means "until".
+# ... and what exists is the phrase after the verb: read with nobody named
+# for its subject, the centre was what somebody made exist
+"esiste" is intransitive.
+# `È nell'università e ancor prima, nella scuola, che ...': even earlier --
+# read word by word it was `still' and then `before', and the second went to
+# the end of the clause
+The adverb "ancor prima" means "even earlier".
+The adverb "ancora prima" means "even earlier".
