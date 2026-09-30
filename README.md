@@ -356,7 +356,7 @@ eleven on the library path.
 | [19-zigurat](tutorials/library/19-zigurat.pl) [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | the connection, an HTTP client, integers that do not wrap, and Prolog that trains |
 | [39-tensor-expr](tutorials/library/39-tensor-expr.pl) | tier 2 | `tensor_expr`: an expression is a list of tensor goals, `:=` runs it, and the list is the same program under both execution paths |
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
-| [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them |
+| [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to

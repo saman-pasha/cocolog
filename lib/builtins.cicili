@@ -1181,7 +1181,8 @@
         (set (cof n) 1)
         (return 0))          ; 0 means "do not free it"
 
-  ;;; Puts TEXT where SINK says. SINK is 0 for stdout; otherwise one of the
+  ;;; Puts TEXT where SINK says. SINK is `(cast size_t -1)' for stdout -- what
+  ;;; format/1,2 pass -- and otherwise one of the
   ;;; forms `format/3' and `with_output_to/2' share -- a stream by name, or a
   ;;; term to unify with the text.
   ;;;
@@ -1189,10 +1190,22 @@
   ;;; followed by T, not by `[]'. That is what makes the four `format/3' calls
   ;;; in SWI's dcg/basics work as grammar bodies -- each appends to whatever is
   ;;; still to come, which is exactly what a DCG body has to do.
+  ;;;
+  ;;; A SINK A MODULE OWNS IS ASKED ABOUT FIRST: library(stream) installs a
+  ;;; hook (`coco_m_sink_install') and takes '$stream'(N), a stream's alias,
+  ;;; and user_output while a file is the current output. It answers 0 for
+  ;;; everything else, so with no module loaded nothing below has moved.
   (static)
   (func coco_sink_deliver ((coco_engine * e) (size_t sink) (const char * out)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)))
-          (if (== sink 0) (block (fputs out stdout) (return 1)))
+          ;; STDOUT IS SIZE_MAX, AND WAS 0 UNTIL 1.8.34 -- but 0 is a heap cell
+          ;; like any other, the first term the reader built, so a query whose
+          ;; first term was its sink atom (`format(nosuch_sink, x, [])') took
+          ;; this path and printed where it should have raised, and an alias
+          ;; there would have gone to stdout. No cell index reaches SIZE_MAX.
+          (if (== sink (cast size_t -1)) (block (fputs out stdout) (return 1)))
+          (let ((int hooked . #'(coco_m_sink_call e sink out (strlen out))))
+            (if (!= hooked 0) (return hooked)))
 
           (let ((size_t d . #'(coco_deref m sink)))
             (if (not (coco_is_callable m d))
@@ -1243,7 +1256,7 @@
                     (set acc (coco_m_cons e c acc))))
                 (return (? (coco_m_unify e (coco_arg m d 0) acc) 1 0)))))))
 
-  ;;; Shared by all three arities. SINK is 0 for stdout.
+  ;;; Shared by all three arities. SINK is `(cast size_t -1)' for stdout.
   (static)
   (func coco_fmt_do ((coco_engine * e) (size_t sink) (size_t fmt) (size_t argt))
         (out int)
@@ -1269,7 +1282,7 @@
           ;; A term sink gets nothing: there is no half-built atom to unify.
           (if (not ok)
               (block
-               (if (== sink 0)
+               (if (== sink (cast size_t -1))
                    (if (!= ($ b s) nil) (fputs ($ b s) stdout)))
                (coco_sb_free (aof b))
                (return (coco_m_error e err ""))))
@@ -1430,10 +1443,10 @@
         (return 1))
 
   (func coco_b_format1 ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_fmt_do e 0 (coco_m_arg e g 0) (coco_m_nil e))))
+        (return (coco_fmt_do e (cast size_t -1) (coco_m_arg e g 0) (coco_m_nil e))))
 
   (func coco_b_format2 ((coco_engine * e) (size_t g)) (out int)
-        (return (coco_fmt_do e 0 (coco_m_arg e g 0) (coco_m_arg e g 1))))
+        (return (coco_fmt_do e (cast size_t -1) (coco_m_arg e g 0) (coco_m_arg e g 1))))
 
   (func coco_b_format3 ((coco_engine * e) (size_t g)) (out int)
         (return (coco_fmt_do e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2))))

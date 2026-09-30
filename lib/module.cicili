@@ -276,6 +276,41 @@
   (decl) (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *))
   (decl) (func coco_m_read_term ((coco_engine * e) (const char * src)) (out size_t))
 
+  ;;; ---- a term's functor, a clause with its names, an output sink --------
+  ;;;
+  ;;; THREE ENTRIES library(stream) NEEDED, and each is general. A module
+  ;;; was handed flat arguments and nothing else could take a compound
+  ;;; apart; `coco_m_arg' already walks any compound's arguments (it is
+  ;;; `coco_arg' over the cell), so the missing half was its NAME.
+  ;;;
+  ;;; The name of T when T is an atom (ARITY 0) or a compound, null for
+  ;;; anything else. The pointer is into the atom table.
+  (decl) (func coco_m_functor ((coco_engine * e) (size_t t) (u32 * arity)) (out const char *))
+
+  ;;; ONE CLAUSE OF SRC, read as `consult' reads it -- the machine's
+  ;;; operators and flags, a terminating `.' required -- with the names of
+  ;;; its variables kept. Answers 1 with OUT the term and NAMES a list of
+  ;;; 'Name'=Var in the order they first appear (`_' is not among them);
+  ;;; 0 when SRC holds only layout and comments; -1 on a syntax error, with
+  ;;; ERR saying what and where. `coco_m_read_term' is the same reader with
+  ;;; the names and the reason thrown away.
+  (decl) (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
+                                   (size_t * names) (char * err) (size_t errlen)) (out int))
+
+  ;;; AN OUTPUT SINK A MODULE OWNS. `format/3' and `with_output_to/2' put
+  ;;; their text wherever their first argument says; a module that owns
+  ;;; streams installs a hook here and is asked FIRST about every sink but
+  ;;; the plain stdout of `format/2'. It answers 1 when it took the text, 0
+  ;;; when the sink is not one of its own -- the engine then goes on to
+  ;;; user_output, user_error, atom(A) and the rest exactly as before -- or
+  ;;; the builtin protocol's 2 when it raised. One hook per process; the
+  ;;; last to install wins.
+  (decl) (func coco_m_sink_install
+               ((func hook ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))))
+
+  ;;; In-tree: the hook's answer, 0 when none is installed.
+  (decl) (func coco_m_sink_call ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))
+
   ;;; ---- a goal on a machine of its own ---------------------------------
   ;;;
   ;;; SRC -- a goal in canonical text -- proved on a FRESH machine, store
@@ -737,6 +772,47 @@
           (if (== src nil) (return 0))
           (if (not (coco_read_term_from (-> e m) src (aof t))) (return 0))
           (return t)))
+
+  (func coco_m_functor ((coco_engine * e) (size_t t) (u32 * arity)) (out const char *)
+        (let ((size_t d . #'(coco_deref (-> e m) t)))
+          (if (not (coco_is_callable (-> e m) d)) (return nil))
+          (if (!= arity nil) (set (cof arity) (coco_arity (-> e m) d)))
+          (return (coco_atom_name (-> e m) (coco_name_of (-> e m) d)))))
+
+  (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
+                            (size_t * names) (char * err) (size_t errlen)) (out int)
+        (let ((coco_reader r) (int rc . 0) (size_t t . 0))
+          (if (and (!= err nil) (> errlen 0)) (set (nth 0 err) (cast char 0)))
+          (if (== src nil) (return 0))
+          (coco_reader_init (aof r) (-> e m) src)
+          (set rc (coco_read_clause (aof r) (aof t)))
+          (if (== rc 1)
+              (block
+                (set (cof out) t)
+                (if (!= names nil)
+                    (let ((size_t acc . #'(coco_m_nil e)))
+                      (for ((size_t i . #'($ r nvars))) (> i 0) ((-- i))
+                           (set acc (coco_m_cons e
+                                                 (coco_make2 (-> e m) "="
+                                                             (coco_new_atom (-> e m) (nth (- i 1) ($ r var_names)))
+                                                             (nth (- i 1) ($ r var_cells)))
+                                                 acc)))
+                      (set (cof names) acc)))))
+          (if (and (== rc -1) (and (!= err nil) (> errlen 0)))
+              (snprintf err errlen "%s" ($ r err)))
+          (coco_reader_free (aof r))
+          (return rc)))
+
+  (static) (var func coco_m_sink_hook ((coco_engine * e) (size_t sink) (const char * text)
+                                       (size_t len)) (out int) . nil)
+
+  (func coco_m_sink_install
+        ((func hook ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int)))
+        (set coco_m_sink_hook hook))
+
+  (func coco_m_sink_call ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int)
+        (if (== coco_m_sink_hook nil) (return 0))
+        (return (coco_m_sink_hook e sink text len)))
 
   ;;; Filled in by the composition root; null until it is, which is what
   ;;; every out-of-tree embedder and every test binary leaves them.

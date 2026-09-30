@@ -136,7 +136,7 @@ cl_file(File, Imports0, Findings) :-
     append(Imports0, Imports1, Imports),
     cl_rule_t1(File, Pairs, F2),
     cl_rule_n(File, Clauses, Imports, F3),
-    cl_rule_s1(File, Codes, Regions, F4),
+    cl_rule_s1(File, Codes, Regions, Imports, F4),
     cl_rule_a1(File, Codes, Regions, F5),
     cl_rule_z1(File, Regions, Pairs, F6),
     append([F2, F3, F4, F5, F6], All),
@@ -254,7 +254,7 @@ cl_dcg_note(_, _, _, '').
 %% counts as code, which F1, L1 and E1 need because the form they look for
 %% lives inside a quote by construction. NOTHING scans comments: a comment
 %% naming ~t documents the rule rather than breaking it.
-cl_rule_s1(File, Codes, Regions, Findings) :-
+cl_rule_s1(File, Codes, Regions, Imports, Findings) :-
     findall(tr(Id, Scan, P, Set, Pre, Why, Fix, Cite),
             ( cl_trap(Id, _, Scan, P, Why, Fix, Cite),
               cl_first(P, Set), cl_prefix(P, Pre) ),
@@ -267,6 +267,7 @@ cl_rule_s1(File, Codes, Regions, Findings) :-
     findall(F,
             ( member(hit(Id, Off, _), Kept),
               member(tr(Id, Scan, _, _, _, Why, Fix, Cite), Traps),
+              \+ cl_trap_lifted(Id, Imports),
               cl_skip_kinds(Scan, Kinds),
               \+ cc_in_region(Regions, Off, Kinds),
               format(atom(Msg), "[~w] ~w", [Id, Why]),
@@ -670,6 +671,13 @@ cl_dedup([X|T], [X|R]) :- cl_del(T, X, T1), cl_dedup(T1, R).
 cl_del([], _, []).
 cl_del([X|T], X, R) :- !, cl_del(T, X, R).
 cl_del([Y|T], X, [Y|R]) :- cl_del(T, X, R).
+
+%% A TRAP A LIBRARY LIFTS. X2 is true of the interpreter -- the engine has
+%% no stream layer -- and false of a file that loads library(stream), which
+%% supplies open/3,4, close/1, current_output/1, set_output/1, read_term/2,3
+%% and the rest under ISO's names. The file's own imports decide; nothing
+%% else about the trap moves.
+cl_trap_lifted('X2', Imports) :- memberchk(stream, Imports).
 
 %% Which tier-2 libraries a file imports.
 cl_imports(Pairs, Imports) :-

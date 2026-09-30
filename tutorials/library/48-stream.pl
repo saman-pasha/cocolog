@@ -39,6 +39,20 @@
 %% formatted INPUT is the engine's own reader over one clause at a time,
 %% operators and all, so a file this reads is a file cocolog would consult.
 %%
+%% AND ISO'S NAMES ARE THE SAME TABLE UNDER THE STANDARD'S SPELLING, loaded
+%% with the module and no other way:
+%%
+%%     open/3,4  close/1,2  current_input/1  current_output/1  set_input/1  set_output/1
+%%     get_char/1,2  peek_char/1,2  put_char/1,2  get_code/1,2  peek_code/1,2  put_code/1,2
+%%     get_byte/1,2  peek_byte/1,2  put_byte/1,2  read/1,2  read_term/2,3
+%%     write/2  writeq/2  print/2  write_canonical/2  write_term/3  nl/1  tab/2
+%%     flush_output/1  at_end_of_stream/0,1  set_stream_position/2
+%%     read_line_to_codes/2  read_line_to_string/2  read_stream_to_codes/2
+%%
+%% and `format/3' and `with_output_to/2' take a stream or its alias as their
+%% sink. `open/4''s alias(A) makes the atom A the stream; `set_output/1' sends
+%% the engine's own `write/1', `nl/0' and `format/2' into the file too.
+%%
 %% THIS FILE WRITES TO /tmp AND READS ITSELF BACK, which is the whole
 %% argument: nothing below is claimed that the file on disk does not show.
 
@@ -131,8 +145,8 @@ main :-
     stream_format(Out, "     this line went through stream_format(user_output, ...)~n", []),
     stream_property(Out, alias(Alias)),
     must('stdout is slot 1, alias user_output', Out-Alias, '$stream'(1)-user_output),
-    catch(stream_close(user_output), error(E2, _), true),
-    must('and is never closed', E2, permission_error(close, stream, user_output)),
+    stream_close(user_output),
+    stream_format(user_output, "     and closing it did nothing, which is ISO's rule~n", []),
 
     format("~n-- what goes wrong is an error that names the thing~n"),
     catch(stream_open('/no/such/file', read, _), error(E3, _), true),
@@ -141,9 +155,55 @@ main :-
     catch(stream_read_line(R6, _), error(E4, _), true),
     must('a closed stream', E4, existence_error(stream, R6)),
     catch(stream_get_byte(not_a_stream, _), error(E5, _), true),
-    must('a term that is no stream', E5, domain_error(stream, not_a_stream)),
+    must('an atom that names no stream', E5, existence_error(stream, not_a_stream)),
+    catch(stream_get_byte(f(x), _), error(E6, _), true),
+    must('a term that could not be one', E6, domain_error(stream_or_alias, f(x))),
 
+    iso_names(Dir),
     format("~ndone~n").
+
+%% The same streams, under the names every Prolog book uses.
+iso_names(Dir) :-
+    atom_concat(Dir, '/iso.pl', Iso),
+    atom_concat(Dir, '/log.txt', Log),
+
+    format("~n-- ISO's names: open, write, read_term~n"),
+    open(Iso, write, W),
+    writeq(W, likes('Mary', "wine")), write(W, '.'), nl(W),
+    %% as text: ~q would write a variable as the name it has HERE, _G123
+    write(W, 'p(X, Y) :- q(X, _Z, Y, W2), r(W2).'), nl(W),
+    close(W),
+    open(Iso, read, R),
+    read(R, T1),
+    read_term(R, T2, [variable_names(Names), singletons(Singles)]),
+    read(R, T3),
+    close(R),
+    must('read/2 reads a term', T1, likes('Mary', [119, 105, 110, 101])),
+    Names = [NX = X, NY = Y, NZ = Z, NW = W3],
+    must('read_term/3 names the variables, in the order they appear', [NX, NY, NZ, NW], ['X', 'Y', '_Z', 'W2']),
+    ( T2 = (p(X, Y) :- q(X, Z, Y, W3), r(W3)) -> Shape = same ; Shape = T2 ),
+    must('and the term is the one the names name', Shape, same),
+    must('_Z is written once and is no singleton, by the underscore', Singles, []),
+    must('then end_of_file', T3, end_of_file),
+
+    format("~n-- an alias, and set_output~n"),
+    open(Log, write, _, [alias(log)]),
+    format(log, "via the alias~n", []),
+    set_output(log),
+    write('via write/1, which knows nothing of streams'), nl,
+    set_output(user_output),
+    close(log),
+    open(Log, read, L),
+    read_line_to_codes(L, C1), read_line_to_codes(L, C2), read_line_to_codes(L, C3),
+    close(L),
+    atom_codes(A1, C1), atom_codes(A2, C2),
+    must('format/3 by alias, then the engine''s write/1 through set_output/1', [A1, A2, C3],
+         ['via the alias', 'via write/1, which knows nothing of streams', end_of_file]),
+
+    format("~n-- codes are bytes, as atom_codes/2 counts them~n"),
+    open(Log, write, P), put_code(P, 8364), close(P),
+    open(Log, read, G), get_code(G, K1), get_code(G, K2), get_code(G, K3), get_code(G, K4), close(G),
+    must('put_code of a code point writes its UTF-8, get_code reads a byte', [K1, K2, K3, K4], [226, 130, 172, -1]).
 
 stream_size_of(Path, Size) :- stream_open(Path, read, S), stream_size(S, Size), stream_close(S).
 

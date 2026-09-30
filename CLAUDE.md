@@ -14807,8 +14807,9 @@ the file -- `stream_format/3`, `stream_write/2`, `stream_writeq/2`,
 `stream_print/2`, `stream_write_canonical/2`, `stream_write_term/3`, and
 `stream_with_output/2`, which is `with_output_to(codes(C), G)` with the
 stream as the sink -- so a file and the terminal never disagree about a
-spelling; formatted INPUT is the engine's own reader (`coco_m_read_term`,
-which honours the machine's operators, as the REPL does) over one clause
+spelling; formatted INPUT is the engine's own reader (`coco_m_read_term`
+then, `coco_m_read_clause` since 1.8.34 -- it honours the machine's
+operators, as the REPL does) over one clause
 of text the module scans for: a `.` outside quotes, strings, `0'c` and
 both comments, not part of a symbol atom, followed by layout, `%` or the
 end. `stream_seek/2,3`, `stream_position/2`, `stream_size/2`,
@@ -14829,22 +14830,126 @@ and the handle to be the culprit -- which the lesson found when its first
 pin read `permission_error(input, binary_stream, 3)`. The Coco half's
 `stream_slot/2` turns a handle into its slot and is where a closed stream,
 a non-stream and an unbound one become `existence_error(stream, S)`,
-`domain_error(stream, S)` and `instantiation_error`.
+`domain_error(stream, S)` and `instantiation_error` (1.8.34 moved the
+second, below).
 
-**WHAT IS NOT HERE, DELIBERATELY**: `open/4` and `get_char/2` under their
-ISO names -- the engine's `write/1`, `nl/0` and `format/3` cannot be
-handed a stream this module made, and a half of ISO's surface would be
-worse than a whole one under names of its own; a current input and
-output; encodings other than UTF-8. The road to the ISO names is one
-engine change -- a sink hook `coco_sink_deliver` could ask a module
-about, which the SDK does not yet offer -- and it is written down here
-rather than taken. `test/stream.pl` is the case, 43 checks, every one a
-file written and read back; `tutorials/library/48-stream.pl` the lesson.
+**WHAT 1.8.33 LEFT OUT, AND 1.8.34 TOOK**: `open/4` and `get_char/2` under
+their ISO names, a current input and output, and a stream `format/3` could
+write to. The reason given then was that the engine's `write/1`, `nl/0` and
+`format/3` could not be handed a stream this module made, and a half of
+ISO's surface would be worse than a whole one; the road was one engine
+change, written down and not taken. `test/stream.pl` was 43 checks then.
 Two things bit: `numlist(0, 99, Ns)` beside a check that read the bytes
-back needed its own variable names (the one-scope rule, again), and
-macOS answers `EEXIST` for `fopen("/", "wb")`, which the permission
-branch now lists beside `EACCES`, `EISDIR`, `EROFS`, `EPERM` and
-`ENOTDIR`.
+back needed its own variable names (the one-scope rule, again), and macOS
+answers `EEXIST` for `fopen("/", "wb")`, which the permission branch now
+lists beside `EACCES`, `EISDIR`, `EROFS`, `EPERM` and `ENOTDIR`.
+
+### And ISO's names over the same table, through one engine seam (1.8.34)
+
+**`open/3,4`, `close/1,2`, `current_input/1`, `current_output/1`,
+`set_input/1`, `set_output/1`, `get_char`/`peek_char`/`put_char`,
+`get_code`/`peek_code`/`put_code`, `get_byte`/`peek_byte`/`put_byte` at
+arities one and two, `read/1,2`, `read_term/2,3`, `write/2`, `writeq/2`,
+`print/2`, `write_canonical/2`, `write_term/3`, `nl/1`, `tab/2`,
+`flush_output/1`, `at_end_of_stream/0,1`, `set_stream_position/2`, and
+SWI's `read_line_to_codes/2`, `read_line_to_string/2` and
+`read_stream_to_codes/2`** -- all of them library(stream)'s, loaded with it
+and not before, over the same slot table. `open/4` takes `alias(A)` and the
+atom is the stream from then on. None of the names collides with the
+engine: every C builtin of the same name is another arity (`write/1`,
+`nl/0`, `tab/1`), and dispatch is by name AND arity, which was checked
+against the builtin tables and every compiled-in Prolog half before the
+clauses were written.
+
+**THE ENGINE MET IT IN ONE SEAM AND THREE SDK ENTRIES, ABI UNCHANGED.**
+`coco_sink_deliver` (`lib/builtins.cicili`), which serves `format/3` and
+`with_output_to/2`, asks an installed SINK HOOK before its own cases; the
+module installs one (`coco_m_sink_install`) and answers for
+`'$stream'(N)`, for an alias it holds, and for `user_output` while a file
+is the current output -- anything else answers 0 and the engine does what
+it always did. `coco_m_functor` lets the hook read a sink's name and
+arity, and `coco_m_read_clause` is the engine's reader handing back the
+VARIABLE NAMES it met, which is what `read_term/3`'s `variable_names/1`,
+`variables/1` and `singletons/1` are made of (`_Z` is named but never a
+singleton, SWI's rule). A clause that will not read is
+`error(syntax_error(Message), read_term/3)`, ISO's shape, where 1.8.33
+threw `cocolog_error`.
+
+**`set_output/1` POINTS FILE DESCRIPTOR 1 AT THE FILE**, because `write/1`,
+`nl/0` and `format/2` write to the literal stdout and nothing else -- the
+mechanism `with_output_to/2` already uses, and the two nest (measured: a
+`with_output_to(atom(A), ...)` inside a `set_output/1` captures, and the
+file keeps its own lines around it). The real stdout is kept aside as a
+`dup`, and a FILE on a second `dup` is where `user_output` named outright
+goes, so it still reaches the terminal as ISO says. One file with two
+buffers keeps the order a program wrote because stdout is emptied before
+the stream writes and the stream after (`st_out_begin`, `st_out_end`), and
+the stream's position is re-read from the descriptor before it is asked. A
+binary stream is refused as the current output, since the engine writes
+text; closing the current output makes `user_output` current again; a
+program that halts while redirected still flushes into its file. The
+current INPUT needs no seam at all: the engine reads no terminal of its
+own, so `read/1` and `get_char/1` read the module's `current_input/1`.
+
+**A CODE IS A BYTE, as `atom_codes/2` counts one**: `get_code/2` reads one
+byte of a text stream, and `put_code/2` of a code past 255 writes that code
+point's UTF-8 -- `put_code(S, 8364)` is the euro sign, three bytes -- the
+one reading that loses nothing. A negative code is
+`representation_error(character_code)`.
+
+**THREE PINS MOVED WITH ISO**: an atom that names no stream is
+`existence_error(stream, A)` (ISO's shape for an alias) where it was
+`domain_error(stream, A)`, and a term that could be neither is
+`domain_error(stream_or_alias, T)`; closing a standard stream does nothing,
+where 1.8.33 refused it; and `stream_property/2` answers ISO's
+`file_name/1`, `end_of_stream/1`, `eof_action/1` and `reposition/1`, where
+it answered `file/1`.
+
+**AND FORMAT/2'S STDOUT WAS SINK 0, WHICH IS A HEAP CELL.** Older than any
+of this, and found by the first probe of the hook: `format(nosuch_sink, x,
+[])` at the top level PRINTED `x` and succeeded, while `X = nosuch_sink,
+format(X, y, [])` raised `domain_error(output_sink, nosuch_sink)` as it
+should. `coco_b_format1/2` passed 0 to mean "plain stdout", and 0 is the
+first cell the reader built for the query -- here the sink atom itself --
+so the sink took the stdout path, the hook was never asked, and an alias in
+that place would have printed to the terminal. The sentinel is `(cast
+size_t -1)` now, which no cell index reaches. **It hid because cell 0 is
+the query's first term**: in a program, whatever sits at cell 0 is almost
+never a `format/3` sink, so only a one-goal query met it. It is the sixth
+defect family in reverse: not an error nothing caused but a success nothing
+earned, and `test/stream.pl`'s last section pins both halves.
+
+**COCOLINT'S X2 IS LIFTED BY THE IMPORT.** "The engine has no streams" is
+false of a file that loads library(stream), so `cl_trap_lifted/2`
+(`tools/cocolint/lint.pl`) drops X2 when the file's own `use_module`
+directives name `stream` -- directives only: `test/stream.pl` loads the
+library as a GOAL, so that it can SKIP when the `.so` is missing, and lints
+65 HARD for it. The lint case does not lint `test/`, and nothing pins those.
+
+**FOUR THINGS BIT**, each cheap once seen:
+
+* **A REWRITE BY SPLICING LEFT THE OLD TABLE AND PROLOG HALF IN THE FILE**,
+  after the new ones. The module built and loaded, and `open/3` was unknown:
+  the Lisp reader kept the LATER `DEFPARAMETER`, which was the old one.
+  After a splice, count the defining forms (`grep -c DEFPARAMETER`) before
+  reading any error the module gives.
+* **A PARAMETER THAT IS A FUNCTION POINTER CLOSES ONE LEVEL SOONER IN A
+  DEFINITION THAN IN A DECLARATION**: the declaration is `(decl) (func NAME
+  ((func hook (ARGS) (out int))))`, four closers, and the definition's
+  parameter list is `((func hook (ARGS) (out int)))` with the body after it.
+  Copying the declaration's closers into the definition was `unmatched
+  close parenthesis`, from a reader that names no line; counting depth per
+  file named it.
+* **`~q` WRITES A VARIABLE AS THE NAME IT HAS HERE**, `_G123`, so a lesson
+  that wrote a clause with `format/3` to test `variable_names/1` read back
+  generated names; the clause goes to the file as text.
+* **A `for` INITIALISER THAT IS AN EXPRESSION TAKES `#'`**, in the engine as
+  in a module -- `(for ((size_t i . #'($ r nvars))) ...)` -- the rule this
+  file already carries, met again.
+
+`test/stream.pl` is the case, **72 checks**, and
+`tutorials/library/48-stream.pl` the lesson, which shows `read_term/3`'s
+names, an alias with `set_output/1`, and a code past 255.
 
 **WHAT A `coco_m_*_error` RETURNS IS THE PREDICATE'S ANSWER, NOT A STATUS,
 and a helper that raises must hand it back rather than swallow it.** The
