@@ -1405,3 +1405,82 @@ The adverb "aún antes" means "even earlier".
 # read, `dirige' stays directs
 The verb "dirige" means "directs".
 The verb "dirige" means "addresses".
+# the report on Senegal's win over France at the 2002 World Cup (AnCora
+# CESS-CAST-P-20020601-51), into Italian. `Este partido lo habíamos soñado':
+# the pluperfect's first person, beside the hand lesson's `había' and `habían'
+"habíamos" is the first person of "habían".
+"habías" is the second person of "había".
+# `sin preguntar por quién tiene delante', whom he has in front of him: the
+# bilingual pairs the adverb with nothing
+The adverb "delante" means "in front".
+# `en un santiamén', in an instant: an idiom of three words, and the
+# dictionary has `santiamén' as a noun it pairs with nothing
+The adverb "en un santiamén" means "in an instant".
+# `el espejo del fútbol moderno e invencible, hecho añicos': shattered, a
+# participle and a plural noun that are one word. `destrozado' is said again
+# above it, so that it stays the word written for shattered
+The masculine adjective "destrozado" means "shattered".
+The feminine adjective "destrozada" means "shattered".
+The masculine adjective "hecho añicos" means "shattered".
+The feminine adjective "hecha añicos" means "shattered".
+"hechos añicos" is the plural of "hecho añicos".
+"hechas añicos" is the plural of "hecha añicos".
+# French in the source, kept there: `su grandeur había caído por los suelos'
+# and `más bien parece un bonvivant'
+The feminine noun "grandeur" means "grandeur".
+The masculine noun "bonvivant" means "bon vivant".
+# ... and `llegaron les lions de Bruno Metsu', the team's name in French, the
+# article and the noun as the source kept them: one word of two, plural, and
+# a name every language keeps as it stands. `león' is said again above it,
+# so that it stays the word written for a lion
+The masculine noun "león" means "lion".
+The masculine noun "les lions" means "lion". "les lions" is the plural of "les lions".
+"les lions" is a name.
+# `llegaron les lions de Bruno Metsu' and `el fútbol también ha llegado a
+# África': what arrives takes no object. With the lesson saying nothing, the
+# team was what somebody made arrive, and Africa a person marked as the
+# object of the arriving
+"llega" is intransitive.
+# `ha tenido que viajar hasta Asia' and `Tuvo que ser en Seúl': the modal of
+# three words in its perfect and its past. Stated in the present only, `ha
+# tenido que' read as `ha tenido' and a clause of `que'
+"tenido que" is the participle of "tiene que".
+"tuvo que" is the past of "tiene que".
+"tuvieron que" is the past of "tienen que".
+# `liderados por un joven cuyo nombre se hará familiar muy pronto': whose --
+# the relative that is the determiner of a phrase in its own clause, and
+# agrees with that phrase's noun
+The masculine determiner "cuyo" means "whose".
+The feminine determiner "cuya" means "whose".
+"cuyos" is the plural of "cuyo".
+"cuyas" is the plural of "cuya".
+"cuyo" is a relative.
+"cuya" is a relative.
+"cuyos" is a relative.
+"cuyas" is a relative.
+# `Paso a paso, se asoma orgulloso a la élite': step by step, an adverb of
+# three words. Read apart it was `paso', I happen, and a phrase of `to'
+The adverb "paso a paso" means "step by step".
+# `Así como suena.': just as it sounds, a clause after a conjunction of two
+# words with nothing before it. The dictionary has `así como' as a
+# preposition, `just like', and that is said again above, so that it stays
+# the word's first meaning
+The preposition "así como" means "just like".
+The conjunction "así como" means "just as".
+# `más bien parece un bonvivant': rather, an adverb of two words. Read apart
+# it was the degree word and `bien', well -- `più bene'
+The adverb "más bien" means "rather".
+# `Menudo inicio.': what a start. `menudo' before a noun with no article
+# says an exclamation, where it is also the adjective small
+"menudo" is exclamative.
+"menuda" is exclamative.
+"menudos" is exclamative.
+"menudas" is exclamative.
+# `sin preguntar por quién tiene delante': without asking who he has in
+# front of him. The word before the question is the verb's, and read as a
+# phrase of `por' the question word was a person the asking was for
+"pregunta" takes "por" before the question.
+# `Cuando el mundo había girado su vista hacia Seúl', turned its gaze: the
+# dictionary's first meaning of `vista' is a court's hearing, and Italian
+# wrote `il suo udito'
+The feminine noun "vista" means "sight".

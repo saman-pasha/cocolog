@@ -203,6 +203,19 @@ The conjunction "nonostante" means "although".
 The preposition "nonostante" means "despite".
 The conjunction "mentre" means "while".
 The adjective "a pezzi" means "shattered".
+# `bailaron locos de alegría', they danced crazy with joy (the Senegal
+# report, from Spanish): Italian's first word for crazy was `fuori di testa'
+# below, which has no plural and no gender, and the sentence was refused.
+# `pazzo' and `pazza' are said again first as the dictionary has them, so
+# that each stays mad when it is read -- and `folle' before them, so that it
+# stays the first word written for mad
+The adjective "folle" means "mad".
+The masculine adjective "pazzo" means "mad".
+The feminine adjective "pazza" means "mad".
+The masculine adjective "pazzo" means "crazy".
+"pazzi" is the plural of "pazzo".
+The feminine adjective "pazza" means "crazy".
+"pazze" is the plural of "pazza".
 The adjective "fuori di testa" means "crazy".
 The verb "fa sapere" means "reports".
 The verb "ci si rende conto" means "realizes".
@@ -1850,3 +1863,41 @@ The preposition "fino ad" means "until".
 # the end of the clause
 The adverb "ancor prima" means "even earlier".
 The adverb "ancora prima" means "even earlier".
+# the report on Senegal's win over France at the 2002 World Cup (AnCora
+# CESS-CAST-P-20020601-51), from Spanish: `quién tiene delante', whom he has
+# in front of him -- the bilingual gives `davanti' for writing only, and the
+# vocabulary no line for it
+The adverb "davanti" means "in front".
+# `en un santiamén', in an instant
+The adverb "in un attimo" means "in an instant".
+# French in the source, which an Italian paper keeps too: `la grandeur
+# francese' and `un bon vivant'
+The feminine noun "grandeur" means "grandeur".
+The masculine noun "bon vivant" means "bon vivant". "bon vivant" is the plural of "bon vivant".
+# `un joven cuyo nombre', whose name, is `un giovane il cui nome': the
+# article that agrees with the noun and `cui' after it, one word of two
+The masculine determiner "il cui" means "whose".
+The feminine determiner "la cui" means "whose".
+"i cui" is the plural of "il cui".
+"le cui" is the plural of "la cui".
+"il cui" is a relative.
+"la cui" is a relative.
+"i cui" is a relative.
+"le cui" is a relative.
+# `Paso a paso', step by step
+The adverb "passo dopo passo" means "step by step".
+# `Así como suena.', just as it sounds: the dictionary has `così come' as a
+# preposition, `just like', said again above so that it stays the word's
+# first meaning
+The preposition "così come" means "just like".
+The conjunction "così come" means "just as".
+# `de apenas nueve millones de habitantes', barely nine million: Spanish's
+# `apenas' crosses as `hardly', and the dictionary's first Italian word for
+# that is `duramente', harshly
+The adverb "a malapena" means "hardly".
+# `había girado su vista hacia Seúl', turned: the dictionary's first Italian
+# verb for turns is `adibire', to put a thing to a use
+The verb "gira" means "turns".
+# `hasta la otra punta del planeta', to the other end of the planet: the
+# dictionary's first Italian word for tip is `consiglio', a piece of advice
+The feminine noun "punta" means "tip".

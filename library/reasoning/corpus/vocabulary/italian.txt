@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16352 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16365 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -192,6 +192,13 @@ The conjunction "nonostante" means "although".
 The preposition "nonostante" means "despite".
 The conjunction "mentre" means "while".
 The adjective "a pezzi" means "shattered".
+The adjective "folle" means "mad".
+The masculine adjective "pazzo" means "mad".
+The feminine adjective "pazza" means "mad".
+The masculine adjective "pazzo" means "crazy".
+"pazzi" is the plural of "pazzo".
+The feminine adjective "pazza" means "crazy".
+"pazze" is the plural of "pazza".
 The adjective "fuori di testa" means "crazy".
 The verb "fa sapere" means "reports".
 The verb "ci si rende conto" means "realizes".
@@ -1049,6 +1056,24 @@ The preposition "fino ad" means "until".
 "esiste" is intransitive.
 The adverb "ancor prima" means "even earlier".
 The adverb "ancora prima" means "even earlier".
+The adverb "davanti" means "in front".
+The adverb "in un attimo" means "in an instant".
+The feminine noun "grandeur" means "grandeur".
+The masculine noun "bon vivant" means "bon vivant". "bon vivant" is the plural of "bon vivant".
+The masculine determiner "il cui" means "whose".
+The feminine determiner "la cui" means "whose".
+"i cui" is the plural of "il cui".
+"le cui" is the plural of "la cui".
+"il cui" is a relative.
+"la cui" is a relative.
+"i cui" is a relative.
+"le cui" is a relative.
+The adverb "passo dopo passo" means "step by step".
+The preposition "così come" means "just like".
+The conjunction "così come" means "just as".
+The adverb "a malapena" means "hardly".
+The verb "gira" means "turns".
+The feminine noun "punta" means "tip".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -20216,6 +20241,7 @@ The feminine noun "sigla" means "jingle".
 The masculine noun "troll" means "troll".
 "troll" is the plural of "troll".
 "troll" is a person.
+The feminine noun "impresa" means "feat".
 The feminine noun "scimmia" means "ape".
 The feminine noun "catena" means "catena".
 The masculine noun "vantaggio" means "asset".
@@ -22583,6 +22609,196 @@ The verb "spera" means "hopes".
 "sperate" is the plural of "sperata".
 "sperare" is the infinitive of "spera".
 "sperando" is the gerund of "spera".
+The verb "macchia" means "taints".
+"macchiano" is the plural of "macchia".
+"macchiamo" is the first person of "macchiano".
+"macchio" is the first person of "macchia".
+"macchi" is the second person of "macchia".
+"macchiò" is the past of "macchia".
+"macchiarono" is the past of "macchiano".
+"macchiammo" is the first person of "macchiarono".
+"macchiai" is the first person of "macchiò".
+"macchiasti" is the second person of "macchiò".
+"macchiava" is the past of "macchia".
+"macchiavano" is the past of "macchiano".
+"macchiavamo" is the first person of "macchiavano".
+"macchiavo" is the first person of "macchiava".
+"macchiavi" is the second person of "macchiava".
+"macchierà" is the future of "macchia".
+"macchieranno" is the plural of "macchierà".
+"macchieremo" is the first person of "macchieranno".
+"macchierò" is the first person of "macchierà".
+"macchierai" is the second person of "macchierà".
+"macchierebbe" is the conditional of "macchia".
+"macchierebbero" is the plural of "macchierebbe".
+"macchieremmo" is the first person of "macchierebbero".
+"macchierei" is the first person of "macchierebbe".
+"macchieresti" is the second person of "macchierebbe".
+"macchi" is the subjunctive of "macchia".
+"macchino" is the plural of "macchi".
+"macchiamo" is the first person of "macchino".
+"macchiasse" is the past subjunctive of "macchia".
+"macchiassero" is the plural of "macchiasse".
+"macchiassimo" is the first person of "macchiassero".
+"macchiassi" is the first person of "macchiasse".
+"macchiassi" is the second person of "macchiasse".
+"macchia" is the imperative of "macchia".
+"macchiare" is the negative imperative of "macchia".
+"macchiate" is the imperative of "macchiano".
+"macchiamo" is the hortative of "macchia".
+"macchiato" is the participle of "macchia".
+"macchiata" is the participle of "macchia".
+"macchiata" is feminine.
+"macchiati" is the participle of "macchia".
+"macchiati" is the plural of "macchiato".
+"macchiate" is the participle of "macchia".
+"macchiate" is feminine.
+"macchiate" is the plural of "macchiata".
+"macchiare" is the infinitive of "macchia".
+"macchiando" is the gerund of "macchia".
+The verb "emoziona" means "thrills".
+"emozionano" is the plural of "emoziona".
+"emozioniamo" is the first person of "emozionano".
+"emoziono" is the first person of "emoziona".
+"emozioni" is the second person of "emoziona".
+"emozionò" is the past of "emoziona".
+"emozionarono" is the past of "emozionano".
+"emozionammo" is the first person of "emozionarono".
+"emozionai" is the first person of "emozionò".
+"emozionasti" is the second person of "emozionò".
+"emozionava" is the past of "emoziona".
+"emozionavano" is the past of "emozionano".
+"emozionavamo" is the first person of "emozionavano".
+"emozionavo" is the first person of "emozionava".
+"emozionavi" is the second person of "emozionava".
+"emozionerà" is the future of "emoziona".
+"emozioneranno" is the plural of "emozionerà".
+"emozioneremo" is the first person of "emozioneranno".
+"emozionerò" is the first person of "emozionerà".
+"emozionerai" is the second person of "emozionerà".
+"emozionerebbe" is the conditional of "emoziona".
+"emozionerebbero" is the plural of "emozionerebbe".
+"emozioneremmo" is the first person of "emozionerebbero".
+"emozionerei" is the first person of "emozionerebbe".
+"emozioneresti" is the second person of "emozionerebbe".
+"emozioni" is the subjunctive of "emoziona".
+"emozionino" is the plural of "emozioni".
+"emozioniamo" is the first person of "emozionino".
+"emozionasse" is the past subjunctive of "emoziona".
+"emozionassero" is the plural of "emozionasse".
+"emozionassimo" is the first person of "emozionassero".
+"emozionassi" is the first person of "emozionasse".
+"emozionassi" is the second person of "emozionasse".
+"emoziona" is the imperative of "emoziona".
+"emozionare" is the negative imperative of "emoziona".
+"emozionate" is the imperative of "emozionano".
+"emozioniamo" is the hortative of "emoziona".
+"emozionato" is the participle of "emoziona".
+"emozionata" is the participle of "emoziona".
+"emozionata" is feminine.
+"emozionati" is the participle of "emoziona".
+"emozionati" is the plural of "emozionato".
+"emozionate" is the participle of "emoziona".
+"emozionate" is feminine.
+"emozionate" is the plural of "emozionata".
+"emozionare" is the infinitive of "emoziona".
+"emozionando" is the gerund of "emoziona".
+The verb "affonda" means "sinks".
+"affondano" is the plural of "affonda".
+"affondiamo" is the first person of "affondano".
+"affondo" is the first person of "affonda".
+"affondi" is the second person of "affonda".
+"affondò" is the past of "affonda".
+"affondarono" is the past of "affondano".
+"affondammo" is the first person of "affondarono".
+"affondai" is the first person of "affondò".
+"affondasti" is the second person of "affondò".
+"affondava" is the past of "affonda".
+"affondavano" is the past of "affondano".
+"affondavamo" is the first person of "affondavano".
+"affondavo" is the first person of "affondava".
+"affondavi" is the second person of "affondava".
+"affonderà" is the future of "affonda".
+"affonderanno" is the plural of "affonderà".
+"affonderemo" is the first person of "affonderanno".
+"affonderò" is the first person of "affonderà".
+"affonderai" is the second person of "affonderà".
+"affonderebbe" is the conditional of "affonda".
+"affonderebbero" is the plural of "affonderebbe".
+"affonderemmo" is the first person of "affonderebbero".
+"affonderei" is the first person of "affonderebbe".
+"affonderesti" is the second person of "affonderebbe".
+"affondi" is the subjunctive of "affonda".
+"affondino" is the plural of "affondi".
+"affondiamo" is the first person of "affondino".
+"affondasse" is the past subjunctive of "affonda".
+"affondassero" is the plural of "affondasse".
+"affondassimo" is the first person of "affondassero".
+"affondassi" is the first person of "affondasse".
+"affondassi" is the second person of "affondasse".
+"affonda" is the imperative of "affonda".
+"affondare" is the negative imperative of "affonda".
+"affondate" is the imperative of "affondano".
+"affondiamo" is the hortative of "affonda".
+"affondato" is the participle of "affonda".
+"affondata" is the participle of "affonda".
+"affondata" is feminine.
+"affondati" is the participle of "affonda".
+"affondati" is the plural of "affondato".
+"affondate" is the participle of "affonda".
+"affondate" is feminine.
+"affondate" is the plural of "affondata".
+"affondare" is the infinitive of "affonda".
+"affondando" is the gerund of "affonda".
+"sunk" is the past of "sinks".
+"sunken" is the participle of "sinks".
+The verb "ridicolizza" means "ridicules".
+"ridicolizzano" is the plural of "ridicolizza".
+"ridicolizziamo" is the first person of "ridicolizzano".
+"ridicolizzo" is the first person of "ridicolizza".
+"ridicolizzi" is the second person of "ridicolizza".
+"ridicolizzò" is the past of "ridicolizza".
+"ridicolizzarono" is the past of "ridicolizzano".
+"ridicolizzammo" is the first person of "ridicolizzarono".
+"ridicolizzai" is the first person of "ridicolizzò".
+"ridicolizzasti" is the second person of "ridicolizzò".
+"ridicolizzava" is the past of "ridicolizza".
+"ridicolizzavano" is the past of "ridicolizzano".
+"ridicolizzavamo" is the first person of "ridicolizzavano".
+"ridicolizzavo" is the first person of "ridicolizzava".
+"ridicolizzavi" is the second person of "ridicolizzava".
+"ridicolizzerà" is the future of "ridicolizza".
+"ridicolizzeranno" is the plural of "ridicolizzerà".
+"ridicolizzeremo" is the first person of "ridicolizzeranno".
+"ridicolizzerò" is the first person of "ridicolizzerà".
+"ridicolizzerai" is the second person of "ridicolizzerà".
+"ridicolizzerebbe" is the conditional of "ridicolizza".
+"ridicolizzerebbero" is the plural of "ridicolizzerebbe".
+"ridicolizzeremmo" is the first person of "ridicolizzerebbero".
+"ridicolizzerei" is the first person of "ridicolizzerebbe".
+"ridicolizzeresti" is the second person of "ridicolizzerebbe".
+"ridicolizzi" is the subjunctive of "ridicolizza".
+"ridicolizzino" is the plural of "ridicolizzi".
+"ridicolizziamo" is the first person of "ridicolizzino".
+"ridicolizzasse" is the past subjunctive of "ridicolizza".
+"ridicolizzassero" is the plural of "ridicolizzasse".
+"ridicolizzassimo" is the first person of "ridicolizzassero".
+"ridicolizzassi" is the first person of "ridicolizzasse".
+"ridicolizzassi" is the second person of "ridicolizzasse".
+"ridicolizza" is the imperative of "ridicolizza".
+"ridicolizzare" is the negative imperative of "ridicolizza".
+"ridicolizzate" is the imperative of "ridicolizzano".
+"ridicolizziamo" is the hortative of "ridicolizza".
+"ridicolizzato" is the participle of "ridicolizza".
+"ridicolizzata" is the participle of "ridicolizza".
+"ridicolizzata" is feminine.
+"ridicolizzati" is the participle of "ridicolizza".
+"ridicolizzati" is the plural of "ridicolizzato".
+"ridicolizzate" is the participle of "ridicolizza".
+"ridicolizzate" is feminine.
+"ridicolizzate" is the plural of "ridicolizzata".
+"ridicolizzare" is the infinitive of "ridicolizza".
+"ridicolizzando" is the gerund of "ridicolizza".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -95543,6 +95759,53 @@ The verb "traballa" means "wobbles".
 "traballate" is the plural of "traballata".
 "traballare" is the infinitive of "traballa".
 "traballando" is the gerund of "traballa".
+The verb "sparge" means "scatters".
+"spargono" is the plural of "sparge".
+"spargiamo" is the first person of "spargono".
+"spargo" is the first person of "sparge".
+"spargi" is the second person of "sparge".
+"sparse" is the past of "sparge".
+"sparsero" is the past of "spargono".
+"spargemmo" is the first person of "sparsero".
+"sparsi" is the first person of "sparse".
+"spargesti" is the second person of "sparse".
+"spargeva" is the past of "sparge".
+"spargevano" is the past of "spargono".
+"spargevamo" is the first person of "spargevano".
+"spargevo" is the first person of "spargeva".
+"spargevi" is the second person of "spargeva".
+"spargerà" is the future of "sparge".
+"spargeranno" is the plural of "spargerà".
+"spargeremo" is the first person of "spargeranno".
+"spargerò" is the first person of "spargerà".
+"spargerai" is the second person of "spargerà".
+"spargerebbe" is the conditional of "sparge".
+"spargerebbero" is the plural of "spargerebbe".
+"spargeremmo" is the first person of "spargerebbero".
+"spargerei" is the first person of "spargerebbe".
+"spargeresti" is the second person of "spargerebbe".
+"sparga" is the subjunctive of "sparge".
+"spargano" is the plural of "sparga".
+"spargiamo" is the first person of "spargano".
+"spargesse" is the past subjunctive of "sparge".
+"spargessero" is the plural of "spargesse".
+"spargessimo" is the first person of "spargessero".
+"spargessi" is the first person of "spargesse".
+"spargessi" is the second person of "spargesse".
+"spargi" is the imperative of "sparge".
+"spargere" is the negative imperative of "sparge".
+"spargete" is the imperative of "spargono".
+"spargiamo" is the hortative of "sparge".
+"sparso" is the participle of "sparge".
+"sparsa" is the participle of "sparge".
+"sparsa" is feminine.
+"sparsi" is the participle of "sparge".
+"sparsi" is the plural of "sparso".
+"sparse" is the participle of "sparge".
+"sparse" is feminine.
+"sparse" is the plural of "sparsa".
+"spargere" is the infinitive of "sparge".
+"spargendo" is the gerund of "sparge".
 The verb "pratica" means "practices".
 The verb "ristabilisce" means "reinstates".
 The verb "strappa" means "rips".
@@ -96787,6 +97050,46 @@ The feminine adjective "variegata" means "varied".
 "variegatissimi" is the superlative of "variegati".
 "variegatissima" is the superlative of "variegata".
 "variegatissime" is the superlative of "variegate".
+The adjective "accattivante" means "captivating".
+"accattivanti" is the plural of "accattivante".
+"accattivantissimo" is the superlative of "accattivante".
+"accattivantissimi" is the superlative of "accattivanti".
+"accattivantissima" is the superlative of "accattivante".
+"accattivantissime" is the superlative of "accattivanti".
+The adjective "convalescente" means "convalescent".
+"convalescenti" is the plural of "convalescente".
+"convalescentissimo" is the superlative of "convalescente".
+"convalescentissimi" is the superlative of "convalescenti".
+"convalescentissima" is the superlative of "convalescente".
+"convalescentissime" is the superlative of "convalescenti".
+The masculine adjective "inesplorato" means "unexplored".
+"inesplorati" is the plural of "inesplorato".
+The feminine adjective "inesplorata" means "unexplored".
+"inesplorate" is the plural of "inesplorata".
+"inesploratissimo" is the superlative of "inesplorato".
+"inesploratissimi" is the superlative of "inesplorati".
+"inesploratissima" is the superlative of "inesplorata".
+"inesploratissime" is the superlative of "inesplorate".
+The adjective "inarrestabile" means "unstoppable".
+"inarrestabili" is the plural of "inarrestabile".
+"inarrestabilissimo" is the superlative of "inarrestabile".
+"inarrestabilissimi" is the superlative of "inarrestabili".
+"inarrestabilissima" is the superlative of "inarrestabile".
+"inarrestabilissime" is the superlative of "inarrestabili".
+The masculine adjective "desolato" means "desolate".
+"desolati" is the plural of "desolato".
+The feminine adjective "desolata" means "desolate".
+"desolate" is the plural of "desolata".
+"desolatissimo" is the superlative of "desolato".
+"desolatissimi" is the superlative of "desolati".
+"desolatissima" is the superlative of "desolata".
+"desolatissime" is the superlative of "desolate".
+The adjective "inesauribile" means "inexhaustible".
+"inesauribili" is the plural of "inesauribile".
+"inesauribilissimo" is the superlative of "inesauribile".
+"inesauribilissimi" is the superlative of "inesauribili".
+"inesauribilissima" is the superlative of "inesauribile".
+"inesauribilissime" is the superlative of "inesauribili".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -112942,6 +113245,8 @@ The feminine adjective "vernacola" means "vernacular".
 "vernacolissimi" is the superlative of "vernacoli".
 "vernacolissima" is the superlative of "vernacola".
 "vernacolissime" is the superlative of "vernacole".
+The masculine adjective "prezioso" means "valuable".
+The feminine adjective "preziosa" means "valuable".
 The masculine adjective "lucrativo" means "yielding".
 The feminine adjective "lucrativa" means "yielding".
 The masculine adjective "grasso" means "greasy".
