@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20303 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20309 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -735,6 +735,19 @@ The verb "pone de manifiesto" means "reveals".
 "ponen de manifiesto" is the plural of "pone de manifiesto".
 The word "con el fin de" begins the purpose.
 The masculine noun "cruce de acusaciones" means "exchange of accusations".
+The adjective "ingenieril" means "engineering". "ingenieriles" is the plural of "ingenieril".
+The verb "llega a ser" means "becomes".
+"llegan a ser" is the plural of "llega a ser".
+"llegó a ser" is the past of "llega a ser".
+"llegaron a ser" is the past of "llegan a ser".
+"llegará a ser" is the future of "llega a ser".
+"llegarán a ser" is the future of "llegan a ser".
+"llegaría a ser" is the conditional of "llega a ser".
+"llegar a ser" is the infinitive of "llega a ser".
+"llegado a ser" is the participle of "llega a ser".
+The adverb "aún antes" means "even earlier".
+The verb "dirige" means "directs".
+The verb "dirige" means "addresses".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -831,6 +844,15 @@ The noun "motociclista" means "motorcyclist".
 "motociclista" is not feminine.
 "motociclistas" is the plural of "motociclista".
 "motociclista" is a person.
+The feminine noun "astronáutica" means "astronautics".
+"astronáuticas" is the plural of "astronáutica".
+The feminine noun "pasantía" means "internship".
+"pasantías" is the plural of "pasantía".
+The feminine noun "aeronáutica" means "aeronautics".
+"aeronáuticas" is the plural of "aeronáutica".
+The noun "docente" means "lecturer".
+"docentes" is the plural of "docente".
+"docente" is a person.
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -24871,6 +24893,7 @@ The masculine noun "piamontés" means "piedmontese".
 The feminine noun "piamontesa" means "piedmontese".
 "piamontesas" is the plural of "piamontesa".
 The feminine noun "absolución" means "acquittal".
+The masculine noun "transbordador" means "shuttle".
 The masculine noun "testamento" means "testament".
 "testamentos" is the plural of "testamento".
 The masculine noun "personaje" means "personage".
@@ -26923,6 +26946,52 @@ The verb "desata" means "unleashes".
 "desatadas" is the plural of "desatada".
 "desatar" is the infinitive of "desata".
 "desatando" is the gerund of "desata".
+The verb "instituye" means "institutes".
+"instituyen" is the plural of "instituye".
+"instituimos" is the first person of "instituyen".
+"instituyo" is the first person of "instituye".
+"instituyes" is the second person of "instituye".
+"instituyó" is the past of "instituye".
+"instituyeron" is the past of "instituyen".
+"instituimos" is the first person of "instituyeron".
+"instituí" is the first person of "instituyó".
+"instituiste" is the second person of "instituyó".
+"instituía" is the past of "instituye".
+"instituían" is the past of "instituyen".
+"instituíamos" is the first person of "instituían".
+"instituías" is the second person of "instituía".
+"instituirá" is the future of "instituye".
+"instituirán" is the plural of "instituirá".
+"instituiremos" is the first person of "instituirán".
+"instituiré" is the first person of "instituirá".
+"instituirás" is the second person of "instituirá".
+"instituiría" is the conditional of "instituye".
+"instituirían" is the plural of "instituiría".
+"instituiríamos" is the first person of "instituirían".
+"instituirías" is the second person of "instituiría".
+"instituya" is the subjunctive of "instituye".
+"instituyan" is the plural of "instituya".
+"instituyamos" is the first person of "instituyan".
+"instituyas" is the second person of "instituya".
+"instituyera" is the past subjunctive of "instituye".
+"instituyeran" is the plural of "instituyera".
+"instituyéramos" is the first person of "instituyeran".
+"instituyeras" is the second person of "instituyera".
+"instituye" is the imperative of "instituye".
+"instituyas" is the negative imperative of "instituye".
+"instituid" is the imperative of "instituyen".
+"instituyáis" is the negative imperative of "instituyen".
+"instituyamos" is the hortative of "instituye".
+"instituido" is the participle of "instituye".
+"instituida" is the participle of "instituye".
+"instituida" is feminine.
+"instituidos" is the participle of "instituye".
+"instituidos" is the plural of "instituido".
+"instituidas" is the participle of "instituye".
+"instituidas" is feminine.
+"instituidas" is the plural of "instituida".
+"instituir" is the infinitive of "instituye".
+"instituyendo" is the gerund of "instituye".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".

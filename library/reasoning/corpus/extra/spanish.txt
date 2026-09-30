@@ -1380,3 +1380,28 @@ The word "con el fin de" begins the purpose.
 # `desató un cruce de acusaciones entre ambos candidatos': an exchange of
 # accusations -- the dictionary's `cruce' is a crossing
 The masculine noun "cruce de acusaciones" means "exchange of accusations".
+# the report on the course in astronautics at La Sapienza (the Italian UD
+# VIT document VIT-9947..9966), from Italian: `conoscenze di tipo tecnico
+# ingegneristico', of an engineering kind -- apertium-spa has no adjective
+# for it
+The adjective "ingenieril" means "engineering". "ingenieriles" is the plural of "ingenieril".
+# `potrebbe diventare la Houston italiana': become -- the dictionary's first
+# Spanish word for `becomes' is `pasa', which happens, and then `acaece'
+The verb "llega a ser" means "becomes".
+"llegan a ser" is the plural of "llega a ser".
+"llegó a ser" is the past of "llega a ser".
+"llegaron a ser" is the past of "llegan a ser".
+"llegará a ser" is the future of "llega a ser".
+"llegarán a ser" is the future of "llegan a ser".
+"llegaría a ser" is the conditional of "llega a ser".
+"llegar a ser" is the infinitive of "llega a ser".
+"llegado a ser" is the participle of "llega a ser".
+# ... and `aún antes', even earlier, which Spanish writes for it
+The adverb "aún antes" means "even earlier".
+# `un'iniziativa ... indirizzata ai ragazzi' is addressed to them, and the
+# bilingual gives `addresses' no Spanish verb at all. A write-only entry for
+# `dirigir' is dropped by the builder -- both of its words have an entry
+# already -- so the line is said here, with `directs' said again above it:
+# read, `dirige' stays directs
+The verb "dirige" means "directs".
+The verb "dirige" means "addresses".

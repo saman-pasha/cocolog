@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16333 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16352 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1036,6 +1036,19 @@ The masculine noun "consiglio direttivo" means "board of directors".
 The feminine noun "assemblea" means "assembly".
 The masculine noun "scambio di accuse" means "exchange of accusations".
 The verb "trova" means "finds".
+The masculine adjective "ingegneristico" means "engineering".
+"ingegneristici" is the plural of "ingegneristico".
+The feminine adjective "ingegneristica" means "engineering".
+"ingegneristiche" is the plural of "ingegneristica".
+The masculine noun "stage" means "internship". "stage" is the plural of "stage".
+"ancor" is the apocope of "ancora".
+"spera" takes the clause.
+The masculine noun "farmaco" means "medicine".
+The feminine noun "medicina" means "medicine".
+The preposition "fino ad" means "until".
+"esiste" is intransitive.
+The adverb "ancor prima" means "even earlier".
+The adverb "ancora prima" means "even earlier".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1150,6 +1163,20 @@ The feminine noun "scheda" means "ballot".
 The masculine noun "associato" means "associate".
 "associati" is the plural of "associato".
 "associato" is a person.
+The feminine noun "astronautica" means "astronautics".
+"astronautiche" is the plural of "astronautica".
+The feminine noun "sinergia" means "synergy".
+"sinergie" is the plural of "sinergia".
+The masculine noun "shuttle" means "shuttle".
+"shuttle" is the plural of "shuttle".
+The masculine noun "sviluppatore" means "developer".
+"sviluppatori" is the plural of "sviluppatore".
+"sviluppatore" is a person.
+The feminine noun "aeronautica" means "aeronautics".
+"aeronautiche" is the plural of "aeronautica".
+The noun "docente" means "lecturer".
+"docenti" is the plural of "docente".
+"docente" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -5746,7 +5773,6 @@ The feminine noun "divisione" means "division".
 The masculine noun "divorzio" means "divorce".
 "divorzi" is the plural of "divorzio".
 The noun "docente" means "docent".
-"docenti" is the plural of "docente".
 The masculine noun "dottorato" means "doctorate".
 "dottorati" is the plural of "dottorato".
 The feminine noun "dottrina" means "doctrine".
@@ -16230,6 +16256,19 @@ The masculine noun "vulnus" means "harm".
 "vulnera" is the plural of "vulnus".
 The feminine noun "uguaglianza" means "equality".
 "uguaglianze" is the plural of "uguaglianza".
+The masculine noun "mestiere" means "profession".
+"mestieri" is the plural of "mestiere".
+The feminine noun "docenza" means "teaching".
+"docenze" is the plural of "docenza".
+The noun "preside" means "dean".
+"presidi" is the plural of "preside".
+"preside" is a person.
+The feminine noun "tuta" means "suit".
+"tute" is the plural of "tuta".
+The feminine noun "navicella" means "capsule".
+"navicelle" is the plural of "navicella".
+The masculine noun "rilevatore" means "detector".
+"rilevatori" is the plural of "rilevatore".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -22450,6 +22489,100 @@ The verb "scatena" means "unleashes".
 "scatenate" is the plural of "scatenata".
 "scatenare" is the infinitive of "scatena".
 "scatenando" is the gerund of "scatena".
+The verb "istituisce" means "institutes".
+"istituiscono" is the plural of "istituisce".
+"istituiamo" is the first person of "istituiscono".
+"istituisco" is the first person of "istituisce".
+"istituisci" is the second person of "istituisce".
+"istituì" is the past of "istituisce".
+"istituirono" is the past of "istituiscono".
+"istituimmo" is the first person of "istituirono".
+"istituii" is the first person of "istituì".
+"istituisti" is the second person of "istituì".
+"istituiva" is the past of "istituisce".
+"istituivano" is the past of "istituiscono".
+"istituivamo" is the first person of "istituivano".
+"istituivo" is the first person of "istituiva".
+"istituivi" is the second person of "istituiva".
+"istituirà" is the future of "istituisce".
+"istituiranno" is the plural of "istituirà".
+"istituiremo" is the first person of "istituiranno".
+"istituirò" is the first person of "istituirà".
+"istituirai" is the second person of "istituirà".
+"istituirebbe" is the conditional of "istituisce".
+"istituirebbero" is the plural of "istituirebbe".
+"istituiremmo" is the first person of "istituirebbero".
+"istituirei" is the first person of "istituirebbe".
+"istituiresti" is the second person of "istituirebbe".
+"istituisca" is the subjunctive of "istituisce".
+"istituiscano" is the plural of "istituisca".
+"istituiamo" is the first person of "istituiscano".
+"istituisse" is the past subjunctive of "istituisce".
+"istituissero" is the plural of "istituisse".
+"istituissimo" is the first person of "istituissero".
+"istituissi" is the first person of "istituisse".
+"istituissi" is the second person of "istituisse".
+"istituisci" is the imperative of "istituisce".
+"istituire" is the negative imperative of "istituisce".
+"istituite" is the imperative of "istituiscono".
+"istituiamo" is the hortative of "istituisce".
+"istituito" is the participle of "istituisce".
+"istituita" is the participle of "istituisce".
+"istituita" is feminine.
+"istituiti" is the participle of "istituisce".
+"istituiti" is the plural of "istituito".
+"istituite" is the participle of "istituisce".
+"istituite" is feminine.
+"istituite" is the plural of "istituita".
+"istituire" is the infinitive of "istituisce".
+"istituendo" is the gerund of "istituisce".
+The verb "spera" means "hopes".
+"sperano" is the plural of "spera".
+"speriamo" is the first person of "sperano".
+"spero" is the first person of "spera".
+"speri" is the second person of "spera".
+"sperò" is the past of "spera".
+"sperarono" is the past of "sperano".
+"sperammo" is the first person of "sperarono".
+"sperai" is the first person of "sperò".
+"sperasti" is the second person of "sperò".
+"sperava" is the past of "spera".
+"speravano" is the past of "sperano".
+"speravamo" is the first person of "speravano".
+"speravo" is the first person of "sperava".
+"speravi" is the second person of "sperava".
+"spererà" is the future of "spera".
+"spereranno" is the plural of "spererà".
+"spereremo" is the first person of "spereranno".
+"spererò" is the first person of "spererà".
+"spererai" is the second person of "spererà".
+"spererebbe" is the conditional of "spera".
+"spererebbero" is the plural of "spererebbe".
+"spereremmo" is the first person of "spererebbero".
+"spererei" is the first person of "spererebbe".
+"spereresti" is the second person of "spererebbe".
+"speri" is the subjunctive of "spera".
+"sperino" is the plural of "speri".
+"speriamo" is the first person of "sperino".
+"sperasse" is the past subjunctive of "spera".
+"sperassero" is the plural of "sperasse".
+"sperassimo" is the first person of "sperassero".
+"sperassi" is the first person of "sperasse".
+"sperassi" is the second person of "sperasse".
+"spera" is the imperative of "spera".
+"sperare" is the negative imperative of "spera".
+"sperate" is the imperative of "sperano".
+"speriamo" is the hortative of "spera".
+"sperato" is the participle of "spera".
+"sperata" is the participle of "spera".
+"sperata" is feminine.
+"sperati" is the participle of "spera".
+"sperati" is the plural of "sperato".
+"sperate" is the participle of "spera".
+"sperate" is feminine.
+"sperate" is the plural of "sperata".
+"sperare" is the infinitive of "spera".
+"sperando" is the gerund of "spera".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -91196,6 +91329,147 @@ The verb "reca" means "causes".
 "recate" is the plural of "recata".
 "recare" is the infinitive of "reca".
 "recando" is the gerund of "reca".
+The verb "concretizza" means "materialises".
+"concretizzano" is the plural of "concretizza".
+"concretizziamo" is the first person of "concretizzano".
+"concretizzo" is the first person of "concretizza".
+"concretizzi" is the second person of "concretizza".
+"concretizzò" is the past of "concretizza".
+"concretizzarono" is the past of "concretizzano".
+"concretizzammo" is the first person of "concretizzarono".
+"concretizzai" is the first person of "concretizzò".
+"concretizzasti" is the second person of "concretizzò".
+"concretizzava" is the past of "concretizza".
+"concretizzavano" is the past of "concretizzano".
+"concretizzavamo" is the first person of "concretizzavano".
+"concretizzavo" is the first person of "concretizzava".
+"concretizzavi" is the second person of "concretizzava".
+"concretizzerà" is the future of "concretizza".
+"concretizzeranno" is the plural of "concretizzerà".
+"concretizzeremo" is the first person of "concretizzeranno".
+"concretizzerò" is the first person of "concretizzerà".
+"concretizzerai" is the second person of "concretizzerà".
+"concretizzerebbe" is the conditional of "concretizza".
+"concretizzerebbero" is the plural of "concretizzerebbe".
+"concretizzeremmo" is the first person of "concretizzerebbero".
+"concretizzerei" is the first person of "concretizzerebbe".
+"concretizzeresti" is the second person of "concretizzerebbe".
+"concretizzi" is the subjunctive of "concretizza".
+"concretizzino" is the plural of "concretizzi".
+"concretizziamo" is the first person of "concretizzino".
+"concretizzasse" is the past subjunctive of "concretizza".
+"concretizzassero" is the plural of "concretizzasse".
+"concretizzassimo" is the first person of "concretizzassero".
+"concretizzassi" is the first person of "concretizzasse".
+"concretizzassi" is the second person of "concretizzasse".
+"concretizza" is the imperative of "concretizza".
+"concretizzare" is the negative imperative of "concretizza".
+"concretizzate" is the imperative of "concretizzano".
+"concretizziamo" is the hortative of "concretizza".
+"concretizzato" is the participle of "concretizza".
+"concretizzata" is the participle of "concretizza".
+"concretizzata" is feminine.
+"concretizzati" is the participle of "concretizza".
+"concretizzati" is the plural of "concretizzato".
+"concretizzate" is the participle of "concretizza".
+"concretizzate" is feminine.
+"concretizzate" is the plural of "concretizzata".
+"concretizzare" is the infinitive of "concretizza".
+"concretizzando" is the gerund of "concretizza".
+The verb "ricopre" means "occupies".
+"ricoprono" is the plural of "ricopre".
+"ricopriamo" is the first person of "ricoprono".
+"ricopro" is the first person of "ricopre".
+"ricopri" is the second person of "ricopre".
+"ricoprì" is the past of "ricopre".
+"ricoprirono" is the past of "ricoprono".
+"ricoprimmo" is the first person of "ricoprirono".
+"ricoprii" is the first person of "ricoprì".
+"ricopristi" is the second person of "ricoprì".
+"ricopriva" is the past of "ricopre".
+"ricoprivano" is the past of "ricoprono".
+"ricoprivamo" is the first person of "ricoprivano".
+"ricoprivo" is the first person of "ricopriva".
+"ricoprivi" is the second person of "ricopriva".
+"ricoprirà" is the future of "ricopre".
+"ricopriranno" is the plural of "ricoprirà".
+"ricopriremo" is the first person of "ricopriranno".
+"ricoprirò" is the first person of "ricoprirà".
+"ricoprirai" is the second person of "ricoprirà".
+"ricoprirebbe" is the conditional of "ricopre".
+"ricoprirebbero" is the plural of "ricoprirebbe".
+"ricopriremmo" is the first person of "ricoprirebbero".
+"ricoprirei" is the first person of "ricoprirebbe".
+"ricopriresti" is the second person of "ricoprirebbe".
+"ricopra" is the subjunctive of "ricopre".
+"ricoprano" is the plural of "ricopra".
+"ricopriamo" is the first person of "ricoprano".
+"ricoprisse" is the past subjunctive of "ricopre".
+"ricoprissero" is the plural of "ricoprisse".
+"ricoprissimo" is the first person of "ricoprissero".
+"ricoprissi" is the first person of "ricoprisse".
+"ricoprissi" is the second person of "ricoprisse".
+"ricopri" is the imperative of "ricopre".
+"ricoprire" is the negative imperative of "ricopre".
+"ricoprite" is the imperative of "ricoprono".
+"ricopriamo" is the hortative of "ricopre".
+"ricoperto" is the participle of "ricopre".
+"ricoperta" is the participle of "ricopre".
+"ricoperta" is feminine.
+"ricoperti" is the participle of "ricopre".
+"ricoperti" is the plural of "ricoperto".
+"ricoperte" is the participle of "ricopre".
+"ricoperte" is feminine.
+"ricoperte" is the plural of "ricoperta".
+"ricoprire" is the infinitive of "ricopre".
+"ricoprendo" is the gerund of "ricopre".
+The verb "stimola" means "stimulates".
+"stimolano" is the plural of "stimola".
+"stimoliamo" is the first person of "stimolano".
+"stimolo" is the first person of "stimola".
+"stimoli" is the second person of "stimola".
+"stimolò" is the past of "stimola".
+"stimolarono" is the past of "stimolano".
+"stimolammo" is the first person of "stimolarono".
+"stimolai" is the first person of "stimolò".
+"stimolasti" is the second person of "stimolò".
+"stimolava" is the past of "stimola".
+"stimolavano" is the past of "stimolano".
+"stimolavamo" is the first person of "stimolavano".
+"stimolavo" is the first person of "stimolava".
+"stimolavi" is the second person of "stimolava".
+"stimolerà" is the future of "stimola".
+"stimoleranno" is the plural of "stimolerà".
+"stimoleremo" is the first person of "stimoleranno".
+"stimolerò" is the first person of "stimolerà".
+"stimolerai" is the second person of "stimolerà".
+"stimolerebbe" is the conditional of "stimola".
+"stimolerebbero" is the plural of "stimolerebbe".
+"stimoleremmo" is the first person of "stimolerebbero".
+"stimolerei" is the first person of "stimolerebbe".
+"stimoleresti" is the second person of "stimolerebbe".
+"stimoli" is the subjunctive of "stimola".
+"stimolino" is the plural of "stimoli".
+"stimoliamo" is the first person of "stimolino".
+"stimolasse" is the past subjunctive of "stimola".
+"stimolassero" is the plural of "stimolasse".
+"stimolassimo" is the first person of "stimolassero".
+"stimolassi" is the first person of "stimolasse".
+"stimolassi" is the second person of "stimolasse".
+"stimola" is the imperative of "stimola".
+"stimolare" is the negative imperative of "stimola".
+"stimolate" is the imperative of "stimolano".
+"stimoliamo" is the hortative of "stimola".
+"stimolato" is the participle of "stimola".
+"stimolata" is the participle of "stimola".
+"stimolata" is feminine.
+"stimolati" is the participle of "stimola".
+"stimolati" is the plural of "stimolato".
+"stimolate" is the participle of "stimola".
+"stimolate" is feminine.
+"stimolate" is the plural of "stimolata".
+"stimolare" is the infinitive of "stimola".
+"stimolando" is the gerund of "stimola".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -96497,6 +96771,22 @@ The adjective "riformista" means "reformist".
 "riformisti" is the plural of "riformista".
 "riformiste" is the plural of "riformista".
 "riformiste" is feminine.
+The masculine adjective "pronto" means "ready".
+"pronti" is the plural of "pronto".
+The feminine adjective "pronta" means "ready".
+"pronte" is the plural of "pronta".
+"prontissimo" is the superlative of "pronto".
+"prontissimi" is the superlative of "pronti".
+"prontissima" is the superlative of "pronta".
+"prontissime" is the superlative of "pronte".
+The masculine adjective "variegato" means "varied".
+"variegati" is the plural of "variegato".
+The feminine adjective "variegata" means "varied".
+"variegate" is the plural of "variegata".
+"variegatissimo" is the superlative of "variegato".
+"variegatissimi" is the superlative of "variegati".
+"variegatissima" is the superlative of "variegata".
+"variegatissime" is the superlative of "variegate".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

@@ -345,3 +345,20 @@
 <e r="RL"><p><l>ignore<s n="vblex"/></l><r>desconocer<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>reformist<s n="adj"/></l><r>renovador<s n="adj"/></r></p></e>
 <e r="RL"><p><l>authoritarian<s n="adj"/></l><r>caciquil<s n="adj"/></r></p></e>
+# the report on the course in astronautics at La Sapienza (the Italian UD
+# VIT document VIT-9947..9966), from Italian: words apertium-spa carries and
+# the bilingual pairs with nothing. `ready', `hopes' and a `suit' need no
+# line -- the vocabulary writes them `listo', `espera' and `traje' already
+# -- and a line for them here would put that meaning FIRST for reading
+# too: `espera' would read as hopes before it expects, and `listo' as
+# ready before it is smart
+<e><p><l>astronautics<s n="n"/></l><r>astronáutica<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>institute<s n="vblex"/></l><r>instituir<s n="vblex"/></r></p></e>
+<e><p><l>internship<s n="n"/></l><r>pasantía<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>aeronautics<s n="n"/></l><r>aeronáutica<s n="n"/><s n="f"/></r></p></e>
+# ... and `uno de los docentes', a lecturer: apertium-spa carries the noun and
+# the bilingual pairs it with nothing, where `conferenciante' is a speaker
+<e><p><l>lecturer<s n="n"/></l><r>docente<s n="n"/><s n="mf"/></r></p></e>
+# ... and written only: `transbordador' is a ferry first, and read as the
+# shuttle it would be the shuttle everywhere
+<e r="LR"><p><l>shuttle<s n="n"/></l><r>transbordador<s n="n"/><s n="m"/></r></p></e>

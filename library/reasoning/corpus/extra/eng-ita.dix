@@ -661,3 +661,36 @@
 <e><p><l>statute<s n="n"/></l><r>statuto<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>ballot<s n="n"/></l><r>scheda<s n="n"/><s n="f"/></r></p></e>
 <e><p><l>associate<s n="n"/></l><r>associato<s n="n"/><s n="m"/></r></p></e>
+# the report on the course in astronautics at La Sapienza (the Italian UD
+# VIT document VIT-9947..9966), into Spanish: words apertium-ita carries and
+# the bilingual pairs with nothing
+<e><p><l>astronautics<s n="n"/></l><r>astronautica<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>institute<s n="vblex"/></l><r>istituire<s n="vblex"/></r></p></e>
+<e><p><l>ready<s n="adj"/></l><r>pronto<s n="adj"/></r></p></e>
+<e><p><l>synergy<s n="n"/></l><r>sinergia<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>varied<s n="adj"/></l><r>variegato<s n="adj"/></r></p></e>
+<e><p><l>shuttle<s n="n"/></l><r>shuttle<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>hope<s n="vblex"/></l><r>sperare<s n="vblex"/></r></p></e>
+<e><p><l>developer<s n="n"/></l><r>sviluppatore<s n="n"/><s n="m"/></r></p></e>
+# `con il supporto dell'aeronautica militare', `dei laboratori
+# dell'aeronautica di Pratica di Mare': the air force, which apertium-ita
+# carries as a noun and the bilingual gives only as the adjective
+<e><p><l>aeronautics<s n="n"/></l><r>aeronautica<s n="n"/><s n="f"/></r></p></e>
+# `Vittori sarà uno dei docenti' is one of the lecturers: the bilingual gives
+# `docente' only as a docent, a museum's guide, which Spanish has no word for
+<e><p><l>lecturer<s n="n"/></l><r>docente<s n="n"/><s n="mf"/></r></p></e>
+# ... and read only, each with a meaning the dictionary gives another word
+# first: `imparare il mestiere' the profession, `dedicarsi alla docenza'
+# teaching, `che spero si concretizzi' materialises, `preside della scuola'
+# its dean, `la tuta da lui usata' his suit, `ricoprire un ruolo' occupy
+# one, `la navicella Soyuz' the capsule, `il rilevatore dei battiti' the
+# detector, `va stimolata la curiosità' stimulated
+<e r="RL"><p><l>profession<s n="n"/></l><r>mestiere<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>teaching<s n="n"/></l><r>docenza<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>materialise<s n="vblex"/></l><r>concretizzare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>dean<s n="n"/></l><r>preside<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>suit<s n="n"/></l><r>tuta<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>occupy<s n="vblex"/></l><r>ricoprire<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>capsule<s n="n"/></l><r>navicella<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>detector<s n="n"/></l><r>rilevatore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>stimulate<s n="vblex"/></l><r>stimolare<s n="vblex"/></r></p></e>
