@@ -1846,7 +1846,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `clay_ray.pl`, Clay's render commands walked into library(ray) -- the font registered from raylib, the pointer and the wheel handed to Clay before the frame, one goal for the frame; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`library/reasoning/lexicon/build.pl` regenerates them from a WordNet 3.0 dict), over `library/reasoning/corpus/`, the lessons whose words the lesson shapes draw, one sentence a line, and written out to `library/reasoning/generated/` by `generate.pl` so the pairs a model trained on are in the tree; `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `clay_ray.pl` (1.8.31), Clay's render commands walked into library(ray) -- the font registered from raylib, the pointer and the wheel handed to Clay before the frame, one goal for the frame; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`library/reasoning/lexicon/build.pl` regenerates them from a WordNet 3.0 dict), over `library/reasoning/corpus/`, the lessons whose words the lesson shapes draw, one sentence a line, and written out to `library/reasoning/generated/` by `generate.pl` so the pairs a model trained on are in the tree; `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **THE REASONING LEXICON IS FILES, NOT SOURCE, AND THE GRAMMAR FILTERS
@@ -14678,7 +14678,7 @@ byte-exact.) `doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the
 language, and `modules/README.md` lists what bites when writing one.
 
 **AND A C LIBRARY IS DECLARED THE SAME WAY -- THE SHIMS IN `modules/ray`
-WERE WRONG FOR A YEAR AND THE OWNER SAID SO (1.8.30).** `ray.cicili`
+WERE WRONG FOR A YEAR AND THE OWNER SAID SO (1.8.31).** `ray.cicili`
 carried forty-three one-line C wrappers in `(code "…")`, one per raylib
 call that takes a struct BY VALUE, under a header that said describing
 `Color` or `Camera3D` to Cicili "would EMIT a second definition beside
@@ -14709,7 +14709,7 @@ token). `cocolint`'s index picks `modules/NAME/NAME.cicili` by name now,
 because `binding` sorts before `clay` and the first `.cicili` used to be
 the module.
 
-### library(clay): a user interface as a term (1.8.30)
+### library(clay): a user interface as a term (1.8.31)
 
 **A SCREEN IS A TREE OF BOXES AND THE TREE IS A TERM.** Clay (nicbarker's
 `clay.h`, v0.14, zlib, vendored as `modules/clay/clay.h`) is a flex-box
