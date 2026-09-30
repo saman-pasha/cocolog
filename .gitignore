@@ -56,6 +56,8 @@ modules/ray/ray.c
 modules/ray/sdk.cicili
 modules/clay/clay.c
 modules/clay/sdk.cicili
+modules/stream/stream.c
+modules/stream/sdk.cicili
 modules/os/os.c
 modules/os/sdk.cicili
 modules/numpy/numpy.c

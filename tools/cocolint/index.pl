@@ -608,6 +608,9 @@ ix_capability('a window or a game', [draw, game, window, sprite, raylib, graphic
 ix_capability('a user interface', [ui, 'user interface', layout, button, panel, widget,
                                    'flex box', clay, hover, scroll, gui],
               [clay, clay_ray], ['self-checking program'], local).
+ix_capability('a file as a stream', [stream, 'read a file', 'write a file', bytes, binary,
+                                     'line by line', stdin, stdout, 'read term', 'write term', seek],
+              [stream], ['self-checking program'], local).
 
 ix_capabilities(Rows) :-
     findall(json([topic-T, words-W, libraries-L, exemplars-E, arrangement-A]),

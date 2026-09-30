@@ -100,7 +100,8 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        .so's that `make modules' builds
 modules/               the LOADABLE modules, one directory each -- tcp,
                        thread, curl, bigint, torch, tensorflow, ray, clay (a
-                       user interface as a term, laid out by Clay) and
+                       user interface as a term, laid out by Clay), stream
+                       (files as streams: bytes, text, terms, formatted) and
                        ZiguratIP's cryptography: sha, aes, der, x509, tls.
                        None is part of
                        `make': a cocolog with no libtorch, no libcurl and no
@@ -140,7 +141,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        every claim outside tensor/ is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (forty-eight, ONE PER LIBRARY that
+                       library/ (forty-nine, ONE PER LIBRARY that
                        ships), tensor/ (forty-two networks, three
                        processes each), opencv/ (twenty-three lessons
                        of image processing). `cocolog -s test/tutorials.pl'
@@ -303,7 +304,7 @@ chooses the server arrangement.
 
 ## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. **124 files**, and `cocolog -s test/tutorials.pl`
+Documentation that RUNS. **125 files**, and `cocolog -s test/tutorials.pl`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -341,7 +342,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — forty-eight lessons, one per library that ships
+### `library/` — forty-nine lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.
@@ -355,6 +356,7 @@ eleven on the library path.
 | [19-zigurat](tutorials/library/19-zigurat.pl) [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | the connection, an HTTP client, integers that do not wrap, and Prolog that trains |
 | [39-tensor-expr](tutorials/library/39-tensor-expr.pl) | tier 2 | `tensor_expr`: an expression is a list of tensor goals, `:=` runs it, and the list is the same program under both execution paths |
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
+| [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to

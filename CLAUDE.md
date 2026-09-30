@@ -14598,6 +14598,7 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/numpy` | a python3 with numpy and a shared libpython | `sh modules/numpy/build.sh` |
 | `modules/opencv` | an OpenCV 4 with dnn (pkg-config `opencv4`) | `sh modules/opencv/build.sh` |
 | `modules/clay` | nothing (Clay is vendored, one header) | `sh modules/clay/build.sh` |
+| `modules/stream` | nothing | `sh modules/stream/build.sh` |
 
 `make modules` builds every one that can be built here and says SKIPPED,
 by name, for the rest. **None of them is part of `make`** — which is the
@@ -14784,6 +14785,66 @@ elements and data, what goes wrong -- and one windowed section on
 `library(clay_ray)` that draws a frame twice and reads four pixels back,
 SKIPping by name where there is no glass exactly as `test/ray.pl` does.
 `tutorials/library/47-clay.pl` is the lesson.
+
+### library(stream): files as streams -- bytes, text and formatted (1.8.33)
+
+**THE INTERPRETER HAD NO STREAM LAYER, AND THIS IS THE ONE IT GETS.** The
+engine writes to the literal stdout in seventy places and reads a program
+only by consulting it; what a program could do with a file of its own was
+`read_file_to_codes/2` and the shell. `modules/stream` is a tier-2 module
+whose handle is `'$stream'(N)`, a slot in its own table -- library(tcp)'s
+shape -- opened `read`, `write`, `append` or `update` and `text` or
+`binary`, with stdin, stdout and stderr in slots 0-2 as `user_input`,
+`user_output` and `user_error` by name. The predicates are sorted as ISO
+sorts them: BYTES on a binary stream (`stream_get_byte`, `stream_peek_byte`,
+`stream_put_byte`, `stream_read_bytes`, `stream_write_bytes`), CHARACTERS,
+LINES and TERMS on a text one (`stream_get_char`, `stream_read_line`,
+`stream_read_lines`, `stream_write_text`, `stream_read_term`,
+`stream_read_terms`), and the wrong kind is `permission_error(input,
+binary_stream, S)` rather than a quiet read of the wrong thing.
+FORMATTED output is the ENGINE's formatter into codes and the codes into
+the file -- `stream_format/3`, `stream_write/2`, `stream_writeq/2`,
+`stream_print/2`, `stream_write_canonical/2`, `stream_write_term/3`, and
+`stream_with_output/2`, which is `with_output_to(codes(C), G)` with the
+stream as the sink -- so a file and the terminal never disagree about a
+spelling; formatted INPUT is the engine's own reader (`coco_m_read_term`,
+which honours the machine's operators, as the REPL does) over one clause
+of text the module scans for: a `.` outside quotes, strings, `0'c` and
+both comments, not part of a symbol atom, followed by layout, `%` or the
+end. `stream_seek/2,3`, `stream_position/2`, `stream_size/2`,
+`stream_eof/1`, `stream_flush/1` and `stream_property/2` (enumerable)
+round it out.
+
+**A CHARACTER IS A UTF-8 CHARACTER.** cocolog's text is bytes, so
+`stream_get_char` reads one code point's bytes (1 to 4, from the first
+byte) and answers the one-character atom they spell; a peek pushes them
+back onto a per-slot stack of eight, which is what makes a multi-byte
+peek work on a pipe with no seek, and `stream_position` is `ftell` minus
+what is pushed back.
+
+**THE HANDLE RIDES INTO EVERY C CALL BESIDE ITS SLOT**, because the C half
+cannot build a `'$stream'(N)` of its own and an error must name what the
+program wrote: `'$stream_get_byte'(S, N, B)`, the slot to index the table
+and the handle to be the culprit -- which the lesson found when its first
+pin read `permission_error(input, binary_stream, 3)`. The Coco half's
+`stream_slot/2` turns a handle into its slot and is where a closed stream,
+a non-stream and an unbound one become `existence_error(stream, S)`,
+`domain_error(stream, S)` and `instantiation_error`.
+
+**WHAT IS NOT HERE, DELIBERATELY**: `open/4` and `get_char/2` under their
+ISO names -- the engine's `write/1`, `nl/0` and `format/3` cannot be
+handed a stream this module made, and a half of ISO's surface would be
+worse than a whole one under names of its own; a current input and
+output; encodings other than UTF-8. The road to the ISO names is one
+engine change -- a sink hook `coco_sink_deliver` could ask a module
+about, which the SDK does not yet offer -- and it is written down here
+rather than taken. `test/stream.pl` is the case, 43 checks, every one a
+file written and read back; `tutorials/library/48-stream.pl` the lesson.
+Two things bit: `numlist(0, 99, Ns)` beside a check that read the bytes
+back needed its own variable names (the one-scope rule, again), and
+macOS answers `EEXIST` for `fopen("/", "wb")`, which the permission
+branch now lists beside `EACCES`, `EISDIR`, `EROFS`, `EPERM` and
+`ENOTDIR`.
 
 **WHAT A `coco_m_*_error` RETURNS IS THE PREDICATE'S ANSWER, NOT A STATUS,
 and a helper that raises must hand it back rather than swallow it.** The
@@ -16059,7 +16120,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/swipl/` | EIGHT of SWI's libraries — `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg/basics`, `dcg/high_order` — copied unmodified under their own BSD-2 headers and read at start-up. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
-| `modules/` | the eighteen loadable modules: `tcp`, `thread`, `process`, `text`, `os`, `curl`, `bigint`, `torch`, `tensorflow`, `numpy`, `opencv`, `ray`, `clay`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`, `tls`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
+| `modules/` | the nineteen loadable modules: `tcp`, `thread`, `process`, `text`, `os`, `curl`, `bigint`, `torch`, `tensorflow`, `numpy`, `opencv`, `ray`, `clay`, `stream`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`, `tls`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |
@@ -16077,14 +16138,15 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has four categories and `test/tutorials.pl` runs all
-**124** files as one suite case (counted from the tree, not remembered; this said 123,
+**125** files as one suite case (counted from the tree, not remembered; this said 124,
+this said 123,
 this said 122,
 this said 121, this said 120, before that 118, ninety-three, and sixty-eight):
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | forty-eight lessons, numbered 00 to 47: one per library that ships, one for cocolint, one for the library path | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | forty-nine lessons, numbered 00 to 48: one per library that ships, one for cocolint, one for the library path | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/opencv/` | twenty-three lessons of image processing | `library/opencv.so` |
 | `tutorials/tensor/` | forty-two networks, each running on either tensor library | libtorch |
 
@@ -16171,10 +16233,10 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **59** case lines (counted
-from `test/run.pl`'s list, not remembered; this said 58, then 39, then 42, then 43, then 48, then
+Run `make test` with a server up, and read all **60** case lines (counted
+from `test/run.pl`'s list, not remembered; this said 59, then 58, then 39, then 42, then 43, then 48, then
 51, then 52, then 53, then 54, then 57, and the suite keeps moving -- seven `.cicili` binaries and
-fifty-two `.pl` cases, each line with its seconds). A change to
+fifty-three `.pl` cases, each line with its seconds). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make
