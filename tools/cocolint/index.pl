@@ -305,8 +305,13 @@ ix_module_rows(Rows) :-
             ),
             Rows).
 
+%% modules/NAME/NAME.cicili when there is one, else the first
 %% modules/NAME/*.cicili, MINUS sdk.cicili -- which is a symlink into lib/,
-%% the API every module is written against and not one of them. A directory
+%% the API every module is written against and not one of them. A module
+%% may carry a DECLARATION BINDING beside its own file (modules/ray/binding.cicili,
+%% modules/clay/binding.cicili): declarations of the C library it binds,
+%% which emit nothing and document no predicate, and `binding' sorts before
+%% `clay' -- so the module's own file is asked for by name first. A directory
 %% with no .cicili of its own is skipped rather than reported: `modules/' is
 %% a place a checkout may leave a stray directory.
 ix_module_file(Name, Rel, Abs) :-
@@ -315,7 +320,10 @@ ix_module_file(Name, Rel, Abs) :-
     atomic_list_concat([Full, '/*.cicili'], Pattern),
     expand_file_name(Pattern, Es0),
     sort(Es0, Es),
-    findall(A, ( member(A, Es), ix_basename(A, B), B \== 'sdk.cicili' ), [Abs|_]),
+    findall(A, ( member(A, Es), ix_basename(A, B), B \== 'sdk.cicili' ), Own),
+    Own = [First|_],
+    atomic_list_concat([Name, '.cicili'], NameFile),
+    (   member(Abs, Own), ix_basename(Abs, NameFile) -> true ; Abs = First ),
     ix_basename(Abs, Base),
     atomic_list_concat([Dir, '/', Base], Rel).
 
@@ -597,6 +605,9 @@ ix_capability('a command line', [argv, 'command line', flag, option, usage, scri
 ix_capability('a window or a game', [draw, game, window, sprite, raylib, graphics,
                                      '2d', '3d', keyboard, mouse],
               [ray], ['self-checking program'], local).
+ix_capability('a user interface', [ui, 'user interface', layout, button, panel, widget,
+                                   'flex box', clay, hover, scroll, gui],
+              [clay, clay_ray], ['self-checking program'], local).
 
 ix_capabilities(Rows) :-
     findall(json([topic-T, words-W, libraries-L, exemplars-E, arrangement-A]),

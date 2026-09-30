@@ -5,7 +5,7 @@ Four categories, in the order you would read them.
 | | | run one |
 |---|---|---|
 | [`basics/`](basics/) | the language: eleven lessons, no library needed | `./cocolog run tutorials/basics/01-facts-and-rules.pl main` |
-| [`library/`](library/) | forty-two lessons, one per library that ships | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/01-lists.pl main` |
+| [`library/`](library/) | forty-eight lessons, one per library that ships | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/01-lists.pl main` |
 | [`tensor/`](tensor/) | forty-two networks, each running on either tensor library | `./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl train` |
 | [`opencv/`](opencv/) | twenty-three lessons of image processing, mirroring OpenCV's own tutorial index | `COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/opencv/01-images.pl main` |
 
@@ -37,14 +37,14 @@ builtin in cocolog is deterministic. Writing `library/` found that
 is the one that takes a file name, and that `curl_get/2` was never the
 API. Three fixes and a dozen corrections, from documentation that runs.
 
-`cocolog -s test/tutorials.pl` runs all 118 of them, as one case of the suite.
+`cocolog -s test/tutorials.pl` runs all 124 of them, as one case of the suite.
 
 ## THE CONVENTION, for whatever is added next
 
 **A new library gets a tutorial in the same commit.** Not afterwards:
 `library/` is numbered one per library and the gap is visible, which is
 the point. A library with no `library/NN-name.pl` beside it is a library
-nobody has demonstrated end to end, and the forty-two that are there
+nobody has demonstrated end to end, and the forty-eight that are there
 each found something while being written.
 
 The shape to copy is any file in `library/`: a header block saying what

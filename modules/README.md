@@ -26,6 +26,7 @@ still builds and still runs.
 | `tls` | a secure connection: `library(tcp)` with a handshake | a built ZiguratIP |
 | `tensorflow` | the same `tensor_*` predicates over TensorFlow's C library, as a second BACKEND behind `library(torch)`'s switch -- `tensor_execution(tensorflow, graph)` and every call after it is TensorFlow's | libtensorflow (the C API) |
 | `ray` | raylib as predicates, 2D, 3D, textures and input. **The caller owns the game loop**, which is why raylib and not another engine: input is polled, a frame is what happens between `BeginDrawing` and `EndDrawing`, and nothing calls back. A texture is a handle in the module's own table, a sprite is a `rect/4` of one, and a canvas (a texture drawn into) draws like any other, the right way up | raylib |
+| `clay` | a user interface as a TERM: Clay (nicbarker/clay, a single-header flex-box layout engine, zlib, vendored as `clay.h`) takes a tree of boxes with sizing, padding, direction, colors, text, clip and scroll, and answers a flat list of render commands -- `rect`, `border`, `text`, `image`, `custom`, `scissor_start`/`end` -- in draw order, each with its `box(X, Y, W, H)`. It opens no window and draws nothing; `library(clay_ray)` walks the commands into `library(ray)`. Text is measured here with metrics a renderer registers (`clay_font/3`), so a layout needs no window and is the same on every machine. `binding.cicili` beside it declares Clay to Cicili; the C half is Cicili throughout | nothing |
 | `numpy` | numpy arrays as handles, over numpy's C API and nothing Python-level: `.npy` and CSV files written and read in C, `np_store`/`np_fetch` into the knowledge base as rows or clause chunks | a python3 with numpy and a shared libpython |
 | `opencv` | OpenCV 4 as predicates -- images as handles; imgcodecs, imgproc, drawing, features2d, objdetect (cascades, HOG, QR), photo, video, calib3d and dnn -- ONE Cicili `:cpp #t` file, the C++ as Cicili clauses over `cicili/lib/cpp/opencv`, plus ONE vendored C file: `pil/Resample.c` is Pillow 11.3.0's antialiased resize, unchanged, behind `cv_resample` (the shim `pil/Imaging.h` declares what it reads, `pil/pil-resample.c` allocates and carries a Mat's bytes across); `tutorials/opencv/` is its course | an OpenCV 4 with those modules, found through pkg-config (`libopencv-dev`, `opencv-devel`, or a source build into `~/opencv4`) |
 
@@ -49,6 +50,23 @@ and StreamIO and nothing else** — no libCryptography, no OpenSSL —
 because `Zigurat::DER` is an *encoding* rather than a secret. Everything
 a certificate is made of can be taken apart with no cipher in the
 process.
+
+## A C library is declared, not pasted
+
+`modules/ray/binding.cicili` and `modules/clay/binding.cicili` are the
+shape: a package with an `init-macro` whose forms are `(decl) (struct X
+(member T m) …)`, `(typedef int CONSTANT)` and `(decl) (func F ((T a))
+(out R))` -- declarations that EMIT NOTHING when the target imports them
+and teach Cicili's inference what a `Color` or a `Clay_ElementDeclaration`
+is, so the module builds one as a value (`(let ((Color r . '{ 0 })) (set
+($ r r) (cast u8 n)) … (return r))`) and hands it to the library by name.
+The header stays the only definition. `ray.cicili` used to carry a
+one-line C wrapper in `(code "…")` for every by-value call, on the belief
+that declaring the struct would define it twice; it does not, and there
+is no `(code …)` left in either module but a `(@define (code
+"CLAY_IMPLEMENTATION"))`. A binding is written as the `lib/c/<lib>.cicili`
+it would be in the Cicili tree and kept here because that tree is frozen
+from this side.
 
 ## Three things that bite a `:cpp #t` module
 

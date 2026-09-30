@@ -1,0 +1,269 @@
+;;;; Cicili declarations for clay.h (Clay 0.14, the flex-box layout engine)
+;;;; Import in target: (import "./binding.cicili")   -- or with a prefix, yours
+;;;; Requires in target: (@define (code "CLAY_IMPLEMENTATION")) in exactly one
+;;;; file, then (include "clay.h"); nothing on the link line but -lm.
+;;;;
+;;;; THE DECLARATIONS EMIT NOTHING. They exist so Cicili's type inference
+;;;; knows what a Clay_ElementDeclaration is, which of its members is a
+;;;; union, and what each entry point takes and answers -- the real
+;;;; declarations still come from clay.h, which stays the only definition.
+;;;; That is the shape lib/net/curl.cicili and lib/std/c have, and it is
+;;;; what lets a program call `Clay_SetPointerState' with a Clay_Vector2 it
+;;;; built as a Cicili value, rather than through a line of pasted C.
+;;;;
+;;;; WRITTEN AS A lib/c/clay.cicili FOR CICILI'S OWN TREE, and kept here
+;;;; because that tree is frozen from this side: it is offered to the
+;;;; owner as it stands, and moves by one import path.
+;;;;
+;;;; Only what cocolog's module reaches is declared; Clay has more (hover
+;;;; callbacks, the pointer-over id array, the ephemeral-memory queries)
+;;;; and each is one line here when a program wants it. The packed enums
+;;;; are one byte in C, so their types are u8 and their members are the
+;;;; constants the header provides, declared the way lib/std/c declares
+;;;; EOF: as (typedef int NAME).
+(DEFPACKAGE :clay
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :clay)
+
+(DEFMACRO init-macro ()
+  `($$$
+     ;;; ---- the small value types ----
+     (decl) (struct Clay_String
+              (member bool isStaticallyAllocated)
+              (member i32 length)
+              (member const char * chars))
+     (decl) (struct Clay_StringSlice
+              (member i32 length)
+              (member const char * chars)
+              (member const char * baseChars))
+     (decl) (struct Clay_Context)
+     (decl) (struct Clay_Arena
+              (member uintptr_t nextAllocation)
+              (member size_t capacity)
+              (member char * memory))
+     (decl) (struct Clay_Dimensions (member float width) (member float height))
+     (decl) (struct Clay_Vector2 (member float x) (member float y))
+     (decl) (struct Clay_Color (member float r) (member float g) (member float b) (member float a))
+     (decl) (struct Clay_BoundingBox
+              (member float x) (member float y) (member float width) (member float height))
+     (decl) (struct Clay_ElementId
+              (member u32 id)
+              (member u32 offset)
+              (member u32 baseId)
+              (member Clay_String stringId))
+     (decl) (struct Clay_CornerRadius
+              (member float topLeft) (member float topRight)
+              (member float bottomLeft) (member float bottomRight))
+
+     ;;; ---- the packed enums: a byte each, and their members ----
+     (typedef u8 Clay_LayoutDirection)
+     (typedef int CLAY_LEFT_TO_RIGHT)
+     (typedef int CLAY_TOP_TO_BOTTOM)
+     (typedef u8 Clay_LayoutAlignmentX)
+     (typedef int CLAY_ALIGN_X_LEFT)
+     (typedef int CLAY_ALIGN_X_RIGHT)
+     (typedef int CLAY_ALIGN_X_CENTER)
+     (typedef u8 Clay_LayoutAlignmentY)
+     (typedef int CLAY_ALIGN_Y_TOP)
+     (typedef int CLAY_ALIGN_Y_BOTTOM)
+     (typedef int CLAY_ALIGN_Y_CENTER)
+     (typedef u8 Clay__SizingType)
+     (typedef int CLAY__SIZING_TYPE_FIT)
+     (typedef int CLAY__SIZING_TYPE_GROW)
+     (typedef int CLAY__SIZING_TYPE_PERCENT)
+     (typedef int CLAY__SIZING_TYPE_FIXED)
+     (typedef u8 Clay_TextElementConfigWrapMode)
+     (typedef int CLAY_TEXT_WRAP_WORDS)
+     (typedef int CLAY_TEXT_WRAP_NEWLINES)
+     (typedef int CLAY_TEXT_WRAP_NONE)
+     (typedef u8 Clay_TextAlignment)
+     (typedef int CLAY_TEXT_ALIGN_LEFT)
+     (typedef int CLAY_TEXT_ALIGN_CENTER)
+     (typedef int CLAY_TEXT_ALIGN_RIGHT)
+     (typedef u8 Clay_FloatingAttachPointType)
+     (typedef u8 Clay_PointerCaptureMode)
+     (typedef u8 Clay_FloatingAttachToElement)
+     (typedef u8 Clay_FloatingClipToElement)
+     (typedef u8 Clay_RenderCommandType)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_NONE)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_RECTANGLE)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_BORDER)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_TEXT)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_IMAGE)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_SCISSOR_START)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_SCISSOR_END)
+     (typedef int CLAY_RENDER_COMMAND_TYPE_CUSTOM)
+     (typedef u8 Clay_ErrorType)
+
+     ;;; ---- the layout configuration ----
+     (decl) (struct Clay_ChildAlignment
+              (member Clay_LayoutAlignmentX x)
+              (member Clay_LayoutAlignmentY y))
+     (decl) (struct Clay_SizingMinMax (member float min) (member float max))
+     ;;; `size' is an anonymous union in clay.h: minMax for fit, grow and
+     ;;; fixed, percent for percent. Declared as one so ($ axis size minMax
+     ;;; min) walks into it.
+     (decl) (struct Clay_SizingAxis
+              (union
+                (member Clay_SizingMinMax minMax)
+                (member float percent)
+                (declare size))
+              (member Clay__SizingType type))
+     (decl) (struct Clay_Sizing
+              (member Clay_SizingAxis width)
+              (member Clay_SizingAxis height))
+     (decl) (struct Clay_Padding
+              (member u16 left) (member u16 right) (member u16 top) (member u16 bottom))
+     (decl) (struct Clay_LayoutConfig
+              (member Clay_Sizing sizing)
+              (member Clay_Padding padding)
+              (member u16 childGap)
+              (member Clay_ChildAlignment childAlignment)
+              (member Clay_LayoutDirection layoutDirection))
+     (decl) (struct Clay_TextElementConfig
+              (member void * userData)
+              (member Clay_Color textColor)
+              (member u16 fontId)
+              (member u16 fontSize)
+              (member u16 letterSpacing)
+              (member u16 lineHeight)
+              (member Clay_TextElementConfigWrapMode wrapMode)
+              (member Clay_TextAlignment textAlignment))
+     (decl) (struct Clay_AspectRatioElementConfig (member float aspectRatio))
+     (decl) (struct Clay_ImageElementConfig (member void * imageData))
+     (decl) (struct Clay_FloatingAttachPoints
+              (member Clay_FloatingAttachPointType element)
+              (member Clay_FloatingAttachPointType parent))
+     (decl) (struct Clay_FloatingElementConfig
+              (member Clay_Vector2 offset)
+              (member Clay_Dimensions expand)
+              (member u32 parentId)
+              (member i16 zIndex)
+              (member Clay_FloatingAttachPoints attachPoints)
+              (member Clay_PointerCaptureMode pointerCaptureMode)
+              (member Clay_FloatingAttachToElement attachTo)
+              (member Clay_FloatingClipToElement clipTo))
+     (decl) (struct Clay_CustomElementConfig (member void * customData))
+     (decl) (struct Clay_ClipElementConfig
+              (member bool horizontal)
+              (member bool vertical)
+              (member Clay_Vector2 childOffset))
+     (decl) (struct Clay_BorderWidth
+              (member u16 left) (member u16 right) (member u16 top) (member u16 bottom)
+              (member u16 betweenChildren))
+     (decl) (struct Clay_BorderElementConfig
+              (member Clay_Color color)
+              (member Clay_BorderWidth width))
+     (decl) (struct Clay_ElementDeclaration
+              (member Clay_ElementId id)
+              (member Clay_LayoutConfig layout)
+              (member Clay_Color backgroundColor)
+              (member Clay_CornerRadius cornerRadius)
+              (member Clay_AspectRatioElementConfig aspectRatio)
+              (member Clay_ImageElementConfig image)
+              (member Clay_FloatingElementConfig floating)
+              (member Clay_CustomElementConfig custom)
+              (member Clay_ClipElementConfig clip)
+              (member Clay_BorderElementConfig border)
+              (member void * userData))
+
+     ;;; ---- what a render command carries ----
+     (decl) (struct Clay_TextRenderData
+              (member Clay_StringSlice stringContents)
+              (member Clay_Color textColor)
+              (member u16 fontId)
+              (member u16 fontSize)
+              (member u16 letterSpacing)
+              (member u16 lineHeight))
+     (decl) (struct Clay_RectangleRenderData
+              (member Clay_Color backgroundColor)
+              (member Clay_CornerRadius cornerRadius))
+     (decl) (struct Clay_ImageRenderData
+              (member Clay_Color backgroundColor)
+              (member Clay_CornerRadius cornerRadius)
+              (member void * imageData))
+     (decl) (struct Clay_CustomRenderData
+              (member Clay_Color backgroundColor)
+              (member Clay_CornerRadius cornerRadius)
+              (member void * customData))
+     (decl) (struct Clay_ClipRenderData
+              (member bool horizontal)
+              (member bool vertical))
+     (decl) (struct Clay_BorderRenderData
+              (member Clay_Color color)
+              (member Clay_CornerRadius cornerRadius)
+              (member Clay_BorderWidth width))
+     ;;; A UNION in clay.h; a struct to inference, which only asks what
+     ;;; `renderData.text' is and never how the members overlap.
+     (decl) (struct Clay_RenderData
+              (member Clay_RectangleRenderData rectangle)
+              (member Clay_TextRenderData text)
+              (member Clay_ImageRenderData image)
+              (member Clay_CustomRenderData custom)
+              (member Clay_BorderRenderData border)
+              (member Clay_ClipRenderData clip))
+     (decl) (struct Clay_RenderCommand
+              (member Clay_BoundingBox boundingBox)
+              (member Clay_RenderData renderData)
+              (member void * userData)
+              (member u32 id)
+              (member i16 zIndex)
+              (member Clay_RenderCommandType commandType))
+     (decl) (struct Clay_RenderCommandArray
+              (member i32 capacity)
+              (member i32 length)
+              (member Clay_RenderCommand * internalArray))
+     (decl) (struct Clay_ScrollContainerData
+              (member Clay_Vector2 * scrollPosition)
+              (member Clay_Dimensions scrollContainerDimensions)
+              (member Clay_Dimensions contentDimensions)
+              (member Clay_ClipElementConfig config)
+              (member bool found))
+     (decl) (struct Clay_ElementData
+              (member Clay_BoundingBox boundingBox)
+              (member bool found))
+     (decl) (struct Clay_ErrorData
+              (member Clay_ErrorType errorType)
+              (member Clay_String errorText)
+              (member void * userData))
+     (decl) (struct Clay_ErrorHandler
+              (member func errorHandlerFunction ((Clay_ErrorData errorText)))
+              (member void * userData))
+
+     ;;; ---- the entry points ----
+     (decl) (func Clay_MinMemorySize () (out u32))
+     (decl) (func Clay_CreateArenaWithCapacityAndMemory ((size_t capacity) (void * memory)) (out Clay_Arena))
+     (decl) (func Clay_SetPointerState ((Clay_Vector2 position) (bool pointerDown)))
+     (decl) (func Clay_Initialize ((Clay_Arena arena) (Clay_Dimensions layoutDimensions)
+                                   (Clay_ErrorHandler errorHandler)) (out Clay_Context *))
+     (decl) (func Clay_UpdateScrollContainers ((bool enableDragScrolling) (Clay_Vector2 scrollDelta)
+                                               (float deltaTime)))
+     (decl) (func Clay_GetScrollOffset () (out Clay_Vector2))
+     (decl) (func Clay_SetLayoutDimensions ((Clay_Dimensions dimensions)))
+     (decl) (func Clay_BeginLayout ())
+     (decl) (func Clay_EndLayout () (out Clay_RenderCommandArray))
+     (decl) (func Clay_GetElementData ((Clay_ElementId id)) (out Clay_ElementData))
+     (decl) (func Clay_PointerOver ((Clay_ElementId elementId)) (out bool))
+     (decl) (func Clay_GetScrollContainerData ((Clay_ElementId id)) (out Clay_ScrollContainerData))
+     (decl) (func Clay_SetMeasureTextFunction
+              ((func measureTextFunction ((Clay_StringSlice text) (Clay_TextElementConfig * config)
+                                          (void * userData)) (out Clay_Dimensions))
+               (void * userData)))
+     (decl) (func Clay_RenderCommandArray_Get ((Clay_RenderCommandArray * array) (i32 index))
+              (out Clay_RenderCommand *))
+     (decl) (func Clay_SetDebugModeEnabled ((bool enabled)))
+     (decl) (func Clay_SetMaxElementCount ((i32 maxElementCount)))
+     (decl) (func Clay_SetMaxMeasureTextCacheWordCount ((i32 maxMeasureTextCacheWordCount)))
+     ;;; The element protocol under the CLAY() macro, which is what a program
+     ;;; with no macro of its own calls: open, configure, close, and a text.
+     (decl) (func Clay__OpenElement ())
+     (decl) (func Clay__ConfigureOpenElementPtr ((const Clay_ElementDeclaration * config)))
+     (decl) (func Clay__CloseElement ())
+     (decl) (func Clay__HashString ((Clay_String key) (u32 offset) (u32 seed)) (out Clay_ElementId))
+     (decl) (func Clay__OpenTextElement ((Clay_String text) (Clay_TextElementConfig * textConfig)))
+     (decl) (func Clay__StoreTextElementConfig ((Clay_TextElementConfig config))
+              (out Clay_TextElementConfig *))
+     (decl) (func Clay__GetParentElementId () (out u32))
+     ))
